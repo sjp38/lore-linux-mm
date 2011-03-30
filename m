@@ -1,80 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 9D4B88D0040
-	for <linux-mm@kvack.org>; Wed, 30 Mar 2011 04:55:50 -0400 (EDT)
-Date: Wed, 30 Mar 2011 10:55:45 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [trivial PATCH v2] Remove pointless next_mz nullification in
- mem_cgroup_soft_limit_reclaim
-Message-ID: <20110330085544.GD15394@tiehlicka.suse.cz>
-References: <20110329132800.GA3361@tiehlicka.suse.cz>
- <20110330110953.06ea3521.nishimura@mxp.nes.nec.co.jp>
- <20110330070203.GA15394@tiehlicka.suse.cz>
- <20110330161800.2e7dc268.nishimura@mxp.nes.nec.co.jp>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110330161800.2e7dc268.nishimura@mxp.nes.nec.co.jp>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id D7B848D0040
+	for <linux-mm@kvack.org>; Wed, 30 Mar 2011 05:15:17 -0400 (EDT)
+Subject: Re: kmemleak for MIPS
+From: Catalin Marinas <catalin.marinas@arm.com>
+In-Reply-To: <AANLkTi=gMP6jQuQFovfsOX=7p-SSnwXoVLO_DVEpV63h@mail.gmail.com>
+References: <9bde694e1003020554p7c8ff3c2o4ae7cb5d501d1ab9@mail.gmail.com>
+	 <AANLkTinnqtXf5DE+qxkTyZ9p9Mb8dXai6UxWP2HaHY3D@mail.gmail.com>
+	 <1300960540.32158.13.camel@e102109-lin.cambridge.arm.com>
+	 <AANLkTim139fpJsMJFLiyUYvFgGMz-Ljgd_yDrks-tqhE@mail.gmail.com>
+	 <1301395206.583.53.camel@e102109-lin.cambridge.arm.com>
+	 <AANLkTim-4v5Cbp6+wHoXjgKXoS0axk1cgQ5AHF_zot80@mail.gmail.com>
+	 <1301399454.583.66.camel@e102109-lin.cambridge.arm.com>
+	 <AANLkTin0_gT0E3=oGyfMwk+1quqonYBExeN9a3=v=Lob@mail.gmail.com>
+	 <AANLkTi=gMP6jQuQFovfsOX=7p-SSnwXoVLO_DVEpV63h@mail.gmail.com>
+Date: Wed, 30 Mar 2011 10:15:05 +0100
+Message-ID: <1301476505.29074.47.camel@e102109-lin.cambridge.arm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: Maxin John <maxin.john@gmail.com>
+Cc: Daniel Baluta <dbaluta@ixiacom.com>, naveen yadav <yad.naveen@gmail.com>, linux-mips@linux-mips.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed 30-03-11 16:18:00, Daisuke Nishimura wrote:
-> > From: Michal Hocko <mhocko@suse.cz>
-> > Subject: Remove pointless next_mz nullification in mem_cgroup_soft_limit_reclaim
-> > 
-> > next_mz is assigned to NULL if __mem_cgroup_largest_soft_limit_node selects
-> > the same mz. This doesn't make much sense as we assign to the variable
-> > right in the next loop.
-> > 
-> > Compiler will probably optimize this out but it is little bit confusing for
-> > the code reading.
-> > 
-> > Signed-off-by: Michal Hocko <mhocko@suse.cz>
-> 
-> Acked-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+On Tue, 2011-03-29 at 20:36 +0100, Maxin John wrote:
+> I have prepared the combined patch for kmemleak porting to MIPS. After
+> applying the patch and enabling the kmemleak in Kernel, I can see one
+> kernel memleak reported during booting itself:
+...
+> unreferenced object 0x8f90d000 (size 4096):
+>   comm "swapper", pid 1, jiffies 4294937330 (age 815.000s)
+>   hex dump (first 32 bytes):
+>     00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+>     00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+>   backtrace:
+>     [<80529644>] alloc_large_system_hash+0x2f8/0x410
+>     [<805383b4>] udp_table_init+0x4c/0x158
+>     [<805384dc>] udp_init+0x1c/0x94
+>     [<8053889c>] inet_init+0x184/0x2a0
+>     [<80100584>] do_one_initcall+0x174/0x1e0
+>     [<8051f348>] kernel_init+0xe4/0x174
+>     [<80103d4c>] kernel_thread_helper+0x10/0x18
 
-Thanks Daisuke.
+If you for the kmemleak scan (via echo) a few times, do you get more
+leaks? The udp_table_init() function looks like it could leak some
+memory but I haven't seen it before. I'm not sure whether this is a
+false positive or a real leak.
+>=20
+> Please let me know your comments.
+>=20
+> Signed-off-by: Maxin B. John <maxin.john@gmail.com>
+> Signed-off-by: Catalin Marinas <catalin.marinas@arm.com>
 
-Andrew, should this go though your mm tree?
---- 
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Remove pointless next_mz nullification in mem_cgroup_soft_limit_reclaim
+I think the last line should be more like:
 
-next_mz is assigned to NULL if __mem_cgroup_largest_soft_limit_node selects
-the same mz. This doesn't make much sense as we assign to the variable
-right in the next loop.
+Acked-by: Catalin Marinas <catalin.marinas@arm.com>
 
-Compiler will probably optimize this out but it is little bit confusing for
-the code reading.
-
-Signed-off-by: Michal Hocko <mhocko@suse.cz>
-Acked-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Index: linux-2.6.38-rc8/mm/memcontrol.c
-===================================================================
---- linux-2.6.38-rc8.orig/mm/memcontrol.c	2011-03-28 11:25:14.000000000 +0200
-+++ linux-2.6.38-rc8/mm/memcontrol.c	2011-03-30 08:57:52.000000000 +0200
-@@ -3347,10 +3347,9 @@ unsigned long mem_cgroup_soft_limit_recl
- 				 */
- 				next_mz =
- 				__mem_cgroup_largest_soft_limit_node(mctz);
--				if (next_mz == mz) {
-+				if (next_mz == mz)
- 					css_put(&next_mz->mem->css);
--					next_mz = NULL;
--				} else /* next_mz == NULL or other memcg */
-+				else /* next_mz == NULL or other memcg */
- 					break;
- 			} while (1);
- 		}
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
