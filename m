@@ -1,50 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 207018D0040
-	for <linux-mm@kvack.org>; Wed, 30 Mar 2011 11:58:26 -0400 (EDT)
-Date: Wed, 30 Mar 2011 11:58:05 -0400
-From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Subject: Re: [PATCH 0/4] xen/balloon: Cleanups and fixes for 2.6.40
-Message-ID: <20110330155804.GB17427@dumpdata.com>
-References: <20110328093128.GE13826@router-fw-old.local.net-space.pl>
- <1301409001.18413.11.camel@zakaz.uk.xensource.com>
- <4D92087D.3090600@tycho.nsa.gov>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id A67988D0040
+	for <linux-mm@kvack.org>; Wed, 30 Mar 2011 12:17:38 -0400 (EDT)
+Date: Wed, 30 Mar 2011 17:17:16 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [Lsf] [LSF][MM] page allocation & direct reclaim latency
+Message-ID: <20110330161716.GA3876@csn.ul.ie>
+References: <1301373398.2590.20.camel@mulgrave.site>
+ <4D91FC2D.4090602@redhat.com>
+ <20110329190520.GJ12265@random.random>
+ <BANLkTikDwfQaSGtrKOSvgA9oaRC1Lbx3cw@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <4D92087D.3090600@tycho.nsa.gov>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <BANLkTikDwfQaSGtrKOSvgA9oaRC1Lbx3cw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel De Graaf <dgdegra@tycho.nsa.gov>
-Cc: Ian Campbell <Ian.Campbell@eu.citrix.com>, Daniel Kiper <dkiper@net-space.pl>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "andi.kleen@intel.com" <andi.kleen@intel.com>, "haicheng.li@linux.intel.com" <haicheng.li@linux.intel.com>, "fengguang.wu@intel.com" <fengguang.wu@intel.com>, "jeremy@goop.org" <jeremy@goop.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, "v.tolstov@selfip.ru" <v.tolstov@selfip.ru>, "pasik@iki.fi" <pasik@iki.fi>, "dave@linux.vnet.ibm.com" <dave@linux.vnet.ibm.com>, "wdauchy@gmail.com" <wdauchy@gmail.com>, "rientjes@google.com" <rientjes@google.com>, "xen-devel@lists.xensource.com" <xen-devel@lists.xensource.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, lsf@lists.linux-foundation.org, linux-mm <linux-mm@kvack.org>
 
-On Tue, Mar 29, 2011 at 12:27:41PM -0400, Daniel De Graaf wrote:
-> On 03/29/2011 10:30 AM, Ian Campbell wrote:
-> > On Mon, 2011-03-28 at 10:31 +0100, Daniel Kiper wrote:
-> >> Hi,
+On Wed, Mar 30, 2011 at 07:13:42AM +0900, Minchan Kim wrote:
+> On Wed, Mar 30, 2011 at 4:05 AM, Andrea Arcangeli <aarcange@redhat.com> wrote:
+> > Hi Rik, Hugh and everyone,
+> >
+> > On Tue, Mar 29, 2011 at 11:35:09AM -0400, Rik van Riel wrote:
+> >> On 03/29/2011 12:36 AM, James Bottomley wrote:
+> >> > Hi All,
+> >> >
+> >> > Since LSF is less than a week away, the programme committee put together
+> >> > a just in time preliminary agenda for LSF.  As you can see there is
+> >> > still plenty of empty space, which you can make suggestions
 > >>
-> >> Full list of cleanups/fixes:
-> >>   - xen/balloon: Use PageHighMem() for high memory page detection,
-> >>   - xen/balloon: Simplify HVM integration,
-> >>   - xen/balloon: Clarify credit calculation,
-> >>   - xen/balloon: Move dec_totalhigh_pages() from __balloon_append() to balloon_append().
+> >> There have been a few patches upstream by people for who
+> >> page allocation latency is a concern.
 > >>
-> >> Those patches applies to latest Linus' git tree
-> >> (git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux-2.6.git).
-> >> They are required by latest memory hotplug support for Xen balloon
-> >> driver patch which will be sent soon.
-> > 
-> > This series looks sane to me, so:
-> > Acked-by: Ian Campbell <ian.campbell@citrix.com>
-> > 
-> > CC'ing Daniel De Graaf though since he has been working on the balloon
-> > driver recently as well.
-> > 
-> > Ian.
-> > 
-> The series also looks fine to me.
+> >> It may be worthwhile to have a short discussion on what
+> >> we can do to keep page allocation (and direct reclaim?)
+> >> latencies down to a minimum, reducing the slowdown that
+> >> direct reclaim introduces on some workloads.
+> >
+> > I don't see the patches you refer to, but checking schedule we've a
+> > slot with Mel&Minchan about "Reclaim, compaction and LRU
+> > ordering". Compaction only applies to high order allocations and it
+> > changes nothing to PAGE_SIZE allocations, but it surely has lower
+> > latency than the older lumpy reclaim logic so overall it should be a
+> > net improvement compared to what we had before.
+> >
+> > Should the latency issues be discussed in that track?
+> 
+> It's okay to me. LRU ordering issue wouldn't take much time.
+> But I am not sure Mel would have a long time. :)
+> 
 
-OK. I stuck 'em in devel/balloon.cleanup and will include them in 2.6.40 train.
+What might be worth discussing on LRU ordering is encountering dirty pages
+at the end of the LRU. This is a long-standing issues and patches have been
+merged to mitigate the problem since the last LSF/MM. For example [e11da5b4:
+tracing, vmscan: add trace events for LRU list shrinking] was the beginning
+of a series that added some tracing around catching when this happened
+and to mitigate it somewhat (at least according to the report included in
+that changelog).
+
+This happened since the last LSF/MM so it might be worth re-discussing if the
+dirty-pages-at-end-of-LRU has mitigated somewhat. The last major bug
+report that I'm aware of in that area was due to compaction rather than
+reclaim but that could just mean people have given up raising the issue.
+
+A trickier subject on LRU ordering is to consider if we are recycling
+pages through the LRU too aggressively and aging too quickly. There have
+been some patches in this area recently but it's not really clear if we
+are happy with how the LRU lists age at the moment.
+
+> About reclaim latency, I sent a patch in the old days.
+> http://marc.info/?l=linux-mm&m=129187231129887&w=4
+> 
+
+Andy Whitcroft also posted patches ages ago that were related to lumpy reclaim
+which would capture high-order pages being reclaimed for the exclusive use
+of the reclaimer. It was never shown to be necessary though. I'll read this
+thread in a bit because I'm curious to see why it came up now.
+
+> And some guys on embedded had a concern about latency.
+> They want OOM rather than eviction of working set and undeterministic
+> latency of reclaim.
+> 
+> As another issue of related to latency, there is a OOM.
+> To accelerate task's exit, we raise a priority of the victim process
+> but it had a problem so Kosaki decided reverting the patch. It's
+> totally related to latency issue but it would
+> 
+
+I think we should be very wary of conflating OOM latency, reclaim latency and
+allocation latency as they are very different things with different causes.
+
+> In addition, Kame and I sent a patch to prevent forkbomb. Kame's
+> apprach is to track the history of mm and mine is to use sysrq to kill
+> recently created tasks. The approaches have pros and cons.
+> But anyone seem to not has a interest about forkbomb protection.
+> So I want to listen other's opinion we really need it
+> 
+> I am not sure this could become a topic of LSF/MM
+> If it is proper, I would like to talk above issues in "Reclaim,
+> compaction and LRU ordering" slot.
+> 
+
+I'd prefer to see OOM-related issues treated as a separate-but-related
+problem if possible so;
+
+1. LRU ordering - are we aging pages properly or recycling through the
+   list too aggressively? The high_wmark*8 change made recently was
+   partially about list rotations and the associated cost so it might
+   be worth listing out whatever issues people are currently aware of.
+2. LRU ordering - dirty pages at the end of the LRU. Are we still going
+   the right direction on this or is it still a shambles?
+3. Compaction latency, other issues (IRQ disabling latency was the last
+   one I'm aware of)
+4. OOM killing and OOM latency - Whole load of churn going on in there.
+
+?
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
