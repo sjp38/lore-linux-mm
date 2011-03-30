@@ -1,9 +1,9 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 3FE948D0040
-	for <linux-mm@kvack.org>; Wed, 30 Mar 2011 08:40:43 -0400 (EDT)
-Received: by qwa26 with SMTP id 26so1071870qwa.14
-        for <linux-mm@kvack.org>; Wed, 30 Mar 2011 05:40:41 -0700 (PDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id C25C38D0040
+	for <linux-mm@kvack.org>; Wed, 30 Mar 2011 08:52:59 -0400 (EDT)
+Received: by qyk30 with SMTP id 30so1079511qyk.14
+        for <linux-mm@kvack.org>; Wed, 30 Mar 2011 05:52:57 -0700 (PDT)
 MIME-Version: 1.0
 In-Reply-To: <1301488032.3283.42.camel@edumazet-laptop>
 References: <9bde694e1003020554p7c8ff3c2o4ae7cb5d501d1ab9@mail.gmail.com>
@@ -22,63 +22,92 @@ References: <9bde694e1003020554p7c8ff3c2o4ae7cb5d501d1ab9@mail.gmail.com>
 	<1301485085.29074.61.camel@e102109-lin.cambridge.arm.com>
 	<AANLkTikXfVNkyFE2MpW9ZtfX2G=QKvT7kvEuDE-YE5xO@mail.gmail.com>
 	<1301488032.3283.42.camel@edumazet-laptop>
-Date: Wed, 30 Mar 2011 13:40:40 +0100
-Message-ID: <AANLkTimvwZXJup9NhzAdWr1dO2p7=usLrsXXhyy7zrk4@mail.gmail.com>
+Date: Wed, 30 Mar 2011 15:52:57 +0300
+Message-ID: <AANLkTikX0jxdkyYgPoqjvC5HzY8VydTbFh_gFDzM8zJ7@mail.gmail.com>
 Subject: Re: kmemleak for MIPS
-From: Maxin John <maxin.john@gmail.com>
+From: Daniel Baluta <daniel.baluta@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric Dumazet <eric.dumazet@gmail.com>
-Cc: Catalin Marinas <catalin.marinas@arm.com>, Daniel Baluta <dbaluta@ixiacom.com>, naveen yadav <yad.naveen@gmail.com>, linux-mips@linux-mips.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Maxin John <maxin.john@gmail.com>, naveen yadav <yad.naveen@gmail.com>, linux-mips@linux-mips.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Eric Dumazet <eric.dumazet@gmail.com>
 
-Hi,
-
-> How much memory do you have exactly on this machine ?
-
-debian-mips:~# cat /proc/meminfo
-MemTotal:         255500 kB
-MemFree:          214848 kB
-Buffers:            3116 kB
-Cached:            15960 kB
-SwapCached:            0 kB
-Active:            10332 kB
-Inactive:          12512 kB
-Active(anon):       3776 kB
-Inactive(anon):     2500 kB
-Active(file):       6556 kB
-Inactive(file):    10012 kB
-Unevictable:           0 kB
-Mlocked:               0 kB
-SwapTotal:        738952 kB
-SwapFree:         738952 kB
-Dirty:                 0 kB
-Writeback:             0 kB
-AnonPages:          3796 kB
-Mapped:             3300 kB
-Shmem:              2508 kB
-Slab:              16940 kB
-SReclaimable:       2884 kB
-SUnreclaim:        14056 kB
-KernelStack:         272 kB
-PageTables:          312 kB
-NFS_Unstable:          0 kB
-Bounce:                0 kB
-WritebackTmp:          0 kB
-CommitLimit:      866700 kB
-Committed_AS:      36916 kB
-VmallocTotal:    1048372 kB
-VmallocUsed:         220 kB
-VmallocChunk:    1048140 kB
-
-> If you care about losing 8192 bytes of memory, you could boot with
+On Wed, Mar 30, 2011 at 3:27 PM, Eric Dumazet <eric.dumazet@gmail.com> wrot=
+e:
+> Le mercredi 30 mars 2011 =E0 13:17 +0100, Maxin John a =E9crit :
+>> A quick observation from dmesg after placing printks in
+>> "net/ipv4/udp.c" for MIPS-malta
+>>
+>> CONFIG_BASE_SMALL : 0
+>> table->mask : 127
+>> UDP_HTABLE_SIZE_MIN : =A0256
+>>
+>> dmesg:
+>> ....
+>> ...
+>> TCP: Hash tables configured (established 8192 bind 8192)
+>> TCP reno registered
+>> CONFIG_BASE_SMALL : 0
+>> UDP hash table entries: 128 (order: 0, 4096 bytes)
+>> table->mask, UDP_HTABLE_SIZE_MIN : 127 256
+>> CONFIG_BASE_SMALL : 0
+>> UDP-Lite hash table entries: 128 (order: 0, 4096 bytes)
+>> table->mask, UDP_HTABLE_SIZE_MIN : 127 256
+>> NET: Registered protocol family 1
+>> ....
+>> ....
+>>
+>> printk(s) are placed in udp.c as listed below:
+>>
+>> diff --git a/net/ipv4/udp.c b/net/ipv4/udp.c
+>> index 588f47a..ca7f6c6 100644
+>> --- a/net/ipv4/udp.c
+>> +++ b/net/ipv4/udp.c
+>> @@ -2162,7 +2162,7 @@ __setup("uhash_entries=3D", set_uhash_entries);
+>> =A0void __init udp_table_init(struct udp_table *table, const char *name)
+>> =A0{
+>> =A0 =A0 =A0 =A0 unsigned int i;
+>> -
+>> + =A0 =A0 =A0 printk("CONFIG_BASE_SMALL : %d \n", CONFIG_BASE_SMALL);
+>> =A0 =A0 =A0 =A0 if (!CONFIG_BASE_SMALL)
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 table->hash =3D alloc_large_system_hash(=
+name,
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 2 * sizeof(struct udp_hs=
+lot),
+>> @@ -2175,6 +2175,8 @@ void __init udp_table_init(struct udp_table
+>> *table, const char *name)
+>> =A0 =A0 =A0 =A0 /*
+>> =A0 =A0 =A0 =A0 =A0* Make sure hash table has the minimum size
+>> =A0 =A0 =A0 =A0 =A0*/
+>> + =A0 =A0 =A0 printk("table->mask, UDP_HTABLE_SIZE_MIN : %d %d
+>> \n",table->mask,UDP_HTABLE_SIZE_MIN);
+>> +
+>> =A0 =A0 =A0 =A0 if (CONFIG_BASE_SMALL || table->mask < UDP_HTABLE_SIZE_M=
+IN - 1) {
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 table->hash =3D kmalloc(UDP_HTABLE_SIZE_=
+MIN *
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 2 * sizeof(struct udp_hslot), GFP_KERNEL);
+>> ~
 >
-> "uhash_entries=256"
+>
+> How much memory do you have exactly on this machine ?
+>
+> alloc_large_system_hash() has no parameter to specify a minimum hash
+> table, and UDP needs one.
+>
+> If you care about losing 8192 bytes of memory, you could boot with
 
-Thank you very much for your inputs. I will try booting with this option.
+I can live with this, but is bad practice to have leaks even small ones.
+Our concern was, to see if kmemleak with Maxin's patch
+generates false positives.
 
-Best Regards,
-Maxin
+So, I guess everything is fine regarding udp_init_table. We can move on,
+integrating MIPS support for kmemleak :).
+
+thanks,
+Daniel.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
