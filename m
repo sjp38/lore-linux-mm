@@ -1,44 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 785CE8D0040
-	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 21:40:27 -0400 (EDT)
-Date: Tue, 29 Mar 2011 18:41:10 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH]mmap: add alignment for some variables
-Message-Id: <20110329184110.0086924e.akpm@linux-foundation.org>
-In-Reply-To: <1301449000.3981.52.camel@sli10-conroe>
-References: <1301277536.3981.27.camel@sli10-conroe>
-	<m2oc4v18x8.fsf@firstfloor.org>
-	<1301360054.3981.31.camel@sli10-conroe>
-	<20110329152434.d662706f.akpm@linux-foundation.org>
-	<1301446882.3981.33.camel@sli10-conroe>
-	<20110329180611.a71fe829.akpm@linux-foundation.org>
-	<1301447843.3981.48.camel@sli10-conroe>
-	<20110329182544.6ad4eccb.akpm@linux-foundation.org>
-	<1301449000.3981.52.camel@sli10-conroe>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id B1C978D0040
+	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 21:44:10 -0400 (EDT)
+Date: Wed, 30 Mar 2011 12:44:00 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: XFS memory allocation deadlock in 2.6.38
+Message-ID: <20110330014400.GK3008@dastard>
+References: <20110324174311.GA31576@infradead.org>
+ <AANLkTikwwRm6FHFtEdUg54NvmKdswQw-NPH5dtq1mXBK@mail.gmail.com>
+ <081DDE43F61F3D43929A181B477DCA95639B5349@MSXAOA6.twosigma.com>
+ <BANLkTin0jJevStg5P2hqsLbqMzo3o30sYg@mail.gmail.com>
+ <081DDE43F61F3D43929A181B477DCA95639B534E@MSXAOA6.twosigma.com>
+ <081DDE43F61F3D43929A181B477DCA95639B5359@MSXAOA6.twosigma.com>
+ <20110329192434.GA10536@infradead.org>
+ <081DDE43F61F3D43929A181B477DCA95639B535D@MSXAOA6.twosigma.com>
+ <20110330000942.GI3008@dastard>
+ <081DDE43F61F3D43929A181B477DCA95639B5364@MSXAOA6.twosigma.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <081DDE43F61F3D43929A181B477DCA95639B5364@MSXAOA6.twosigma.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shaohua.li@intel.com>
-Cc: Andi Kleen <andi@firstfloor.org>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>
+To: Sean Noonan <Sean.Noonan@twosigma.com>
+Cc: 'Christoph Hellwig' <hch@infradead.org>, 'Michel Lespinasse' <walken@google.com>, "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>, Martin Bligh <Martin.Bligh@twosigma.com>, Trammell Hudson <Trammell.Hudson@twosigma.com>, Christos Zoulas <Christos.Zoulas@twosigma.com>, "'linux-xfs@oss.sgi.com'" <linux-xfs@oss.sgi.com>, Stephen Degler <Stephen.Degler@twosigma.com>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>
 
-On Wed, 30 Mar 2011 09:36:40 +0800 Shaohua Li <shaohua.li@intel.com> wrote:
+On Tue, Mar 29, 2011 at 09:32:06PM -0400, Sean Noonan wrote:
+> > Ok, so that looks like root cause of the problem. can you try the
+> > patch below to see if it fixes the problem (without any other
+> > patches applied or reverted).
+> 
+> It looks like this does fix the deadlock problem.  However, it
+> appears to come at the price of significantly higher mmap startup
+> costs.
 
-> > how is it that this improves things?
-> Hmm, it actually is:
-> struct percpu_counter {
->  	spinlock_t lock;
->  	s64 count;
->  #ifdef CONFIG_HOTPLUG_CPU
->  	struct list_head list;	/* All percpu_counters are on a list */
->  #endif
->  	s32 __percpu *counters;
->  } __attribute__((__aligned__(1 << (INTERNODE_CACHE_SHIFT))))
-> so lock and count are in one cache line.
+It shouldn't make any difference to startup costs with the current
+code uses read faults to populate the region and that doesn't cause
+any allocation to occur and hence this code is not executed during
+the populate phase.
 
-____cacheline_aligned_in_smp would achieve that?
+Is this repeatable or is it just a one-off result?
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
