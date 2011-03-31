@@ -1,198 +1,190 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 210298D0040
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 01:52:25 -0400 (EDT)
-Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [202.81.31.247])
-	by e23smtp07.au.ibm.com (8.14.4/8.13.1) with ESMTP id p2V5qIfb017210
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 16:52:18 +1100
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p2V5qHtU2084878
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 16:52:17 +1100
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p2V5qHn7013614
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 16:52:17 +1100
-Date: Thu, 31 Mar 2011 11:22:12 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [PATCH 3/3] Provide control over unmapped pages (v5)
-Message-ID: <20110331055212.GK2879@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <20110330052819.8212.1359.stgit@localhost6.localdomain6>
- <20110330053129.8212.81574.stgit@localhost6.localdomain6>
- <20110330163545.1599779f.akpm@linux-foundation.org>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id C2ECA8D0040
+	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 01:53:20 -0400 (EDT)
+Received: from hpaq7.eem.corp.google.com (hpaq7.eem.corp.google.com [172.25.149.7])
+	by smtp-out.google.com with ESMTP id p2V5rDYc004940
+	for <linux-mm@kvack.org>; Wed, 30 Mar 2011 22:53:13 -0700
+Received: from qwj9 (qwj9.prod.google.com [10.241.195.73])
+	by hpaq7.eem.corp.google.com with ESMTP id p2V5rBEC002534
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 30 Mar 2011 22:53:12 -0700
+Received: by qwj9 with SMTP id 9so1759228qwj.35
+        for <linux-mm@kvack.org>; Wed, 30 Mar 2011 22:53:10 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20110330163545.1599779f.akpm@linux-foundation.org>
+In-Reply-To: <20110331110113.a01f7b8b.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20110331110113.a01f7b8b.kamezawa.hiroyu@jp.fujitsu.com>
+From: Greg Thelen <gthelen@google.com>
+Date: Wed, 30 Mar 2011 22:52:49 -0700
+Message-ID: <BANLkTikLPTr46S6k5LaZ3sfsXG=PrQNvGA@mail.gmail.com>
+Subject: Re: [LSF][MM] rough agenda for memcg.
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, npiggin@kernel.dk, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, kosaki.motohiro@jp.fujitsu.com, cl@linux.com, kamezawa.hiroyu@jp.fujitsu.com
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: lsf@lists.linux-foundation.org, linux-mm@kvack.org, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, Ying Han <yinghan@google.com>, Michal Hocko <mhocko@suse.cz>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, walken@google.com
 
-* Andrew Morton <akpm@linux-foundation.org> [2011-03-30 16:35:45]:
-
-> On Wed, 30 Mar 2011 11:02:38 +0530
-> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> 
-> > Changelog v4
-> > 1. Added documentation for max_unmapped_pages
-> > 2. Better #ifdef'ing of max_unmapped_pages and min_unmapped_pages
-> > 
-> > Changelog v2
-> > 1. Use a config option to enable the code (Andrew Morton)
-> > 2. Explain the magic tunables in the code or at-least attempt
-> >    to explain them (General comment)
-> > 3. Hint uses of the boot parameter with unlikely (Andrew Morton)
-> > 4. Use better names (balanced is not a good naming convention)
-> > 
-> > Provide control using zone_reclaim() and a boot parameter. The
-> > code reuses functionality from zone_reclaim() to isolate unmapped
-> > pages and reclaim them as a priority, ahead of other mapped pages.
-> > 
-> 
-> This:
-> 
-> akpm:/usr/src/25> grep '^+#' patches/provide-control-over-unmapped-pages-v5.patch 
-> +#if defined(CONFIG_UNMAPPED_PAGECACHE_CONTROL) || defined(CONFIG_NUMA)
-> +#endif
-> +#if defined(CONFIG_UNMAPPED_PAGECACHE_CONTROL)
-> +#endif
-> +#if defined(CONFIG_UNMAPPED_PAGECACHE_CONTROL) || defined(CONFIG_NUMA)
-> +#if defined(CONFIG_UNMAPPED_PAGECACHE_CONTROL)
-> +#endif
-> +#if defined(CONFIG_UNMAPPED_PAGECACHE_CONTROL)
-> +#else
-> +#endif
-> +#ifdef CONFIG_NUMA
-> +#else
-> +#define zone_reclaim_mode 0
-> +#endif
-> +#if defined(CONFIG_UNMAPPED_PAGECACHE_CONTROL) || defined(CONFIG_NUMA)
-> +#endif
-> +#if defined(CONFIG_UNMAPPED_PAGECACHE_CONTROL)
-> +#endif
-> +#if defined(CONFIG_UNMAPPED_PAGECACHE_CONTROL) || defined(CONFIG_NUMA)
-> +#endif
-> +#if defined(CONFIG_UNMAPPED_PAGECACHE_CONTROL)
-> +#endif
-> +#if defined(CONFIG_UNMAPPED_PAGECACHE_CONTROL) || defined(CONFIG_NUMA)
-> +#endif
-> +#if defined(CONFIG_UNMAPPED_PAGECACHE_CONTROL)
-> +#endif
-> +#if defined(CONFIG_UNMAPPED_PAGECACHE_CONTROL)
-> +#else /* !CONFIG_UNMAPPED_PAGECACHE_CONTROL */
-> +#endif
-> +#if defined(CONFIG_UNMAPPED_PAGECACHE_CONTROL) || defined(CONFIG_NUMA)
-> +#if defined(CONFIG_UNMAPPED_PAGECACHE_CONTROL)
-> +#endif
-> +#endif
-> +#if defined(CONFIG_UNMAPPED_PAGECACHE_CONTROL)
-> 
-> is getting out of control.  What happens if we just make the feature
-> non-configurable?
+On Wed, Mar 30, 2011 at 7:01 PM, KAMEZAWA Hiroyuki
+<kamezawa.hiroyu@jp.fujitsu.com> wrote:
 >
-
-I added the configuration based on review comments I received. If the
-feature is made non-configurable, it should be easy to remove them or
-just set the default value to "y" in the config.
- 
-> > +static int __init unmapped_page_control_parm(char *str)
-> > +{
-> > +	unmapped_page_control = 1;
-> > +	/*
-> > +	 * XXX: Should we tweak swappiness here?
-> > +	 */
-> > +	return 1;
-> > +}
-> > +__setup("unmapped_page_control", unmapped_page_control_parm);
-> 
-> That looks like a pain - it requires a reboot to change the option,
-> which makes testing harder and slower.  Methinks you're being a bit
-> virtualization-centric here!
-
-:-) The reason for the boot parameter is to ensure that people know
-what they are doing.
-
-> 
-> > +#else /* !CONFIG_UNMAPPED_PAGECACHE_CONTROL */
-> > +static inline void reclaim_unmapped_pages(int priority,
-> > +				struct zone *zone, struct scan_control *sc)
-> > +{
-> > +	return 0;
-> > +}
-> > +#endif
-> > +
-> >  static struct zone_reclaim_stat *get_reclaim_stat(struct zone *zone,
-> >  						  struct scan_control *sc)
-> >  {
-> > @@ -2371,6 +2394,12 @@ loop_again:
-> >  				shrink_active_list(SWAP_CLUSTER_MAX, zone,
-> >  							&sc, priority, 0);
-> >  
-> > +			/*
-> > +			 * We do unmapped page reclaim once here and once
-> > +			 * below, so that we don't lose out
-> > +			 */
-> > +			reclaim_unmapped_pages(priority, zone, &sc);
-> 
-> Doing this here seems wrong.  balance_pgdat() does two passes across
-> the zones.  The first pass is a read-only work-out-what-to-do pass and
-> the second pass is a now-reclaim-some-stuff pass.  But here we've stuck
-> a do-some-reclaiming operation inside the first, work-out-what-to-do pass.
+> Hi,
 >
-
-The reason is primarily for balancing, zone_watermark's do not give us
-a good idea of whether unmapped pages are balanced, hence the code.
- 
-> 
-> > @@ -2408,6 +2437,11 @@ loop_again:
-> >  				continue;
-> >  
-> >  			sc.nr_scanned = 0;
-> > +			/*
-> > +			 * Reclaim unmapped pages upfront, this should be
-> > +			 * really cheap
-> 
-> Comment is mysterious.  Why is it cheap?
-
-Cheap because we do a quick check to see if unmapped pages exceed a
-threshold. If selective users enable this functionality (which is
-expected), the use case is primarily for embedded and virtualization
-folks, this should be a simple check.
-
-> 
-> > +			 */
-> > +			reclaim_unmapped_pages(priority, zone, &sc);
-> 
-> 
-> I dunno, the whole thing seems rather nasty to me.
-> 
-> It sticks a magical reclaim-unmapped-pages operation right in the
-> middle of regular page reclaim.  This means that reclaim will walk the
-> LRU looking at mapped and unmapped pages.  Then it will walk some more,
-> looking at only unmapped pages and moving the mapped ones to the head
-> of the LRU.  Then it goes back to looking at mapped and unmapped pages.
-> So it rather screws up the LRU ordering and page aging, does it not?
+> In this LSF/MM, we have some memcg topics in the 1st day.
 >
+> From schedule,
+>
+> 1. Memory cgroup : Where next ? 1hour (Balbir Singh/Kamezawa)
+> 2. Memcg Dirty Limit and writeback 30min(Greg Thelen)
+> 3. Memcg LRU management 30min (Ying Han, Michal Hocko)
+> 4. Page cgroup on a diet (Johannes Weiner)
+>
+> 2.5 hours. This seems long...or short ? ;)
 
-This was brought up earlier, it is no different than zone_reclaim of
-unmapped pages, in that
+I think it is a good starting plan.
 
-1. It is a specialized case where we want explicit control of unmapped
-pages and what you mention is the price
-2. This situation can be improved with an incremental patch to be
-smart about page isolation.
- 
-> Also, the special-case handling sticks out like a sore thumb.  Would it
-> not be better to manage the mapped/unmapped bias within the core of the
-> regular scanning?  ie: in shrink_page_list().
+> I'd like to sort out topics before going. Please fix if I don't catch eno=
+ugh.
+>
+> mentiont to 1. later...
+>
+> Main topics on 2. Memcg Dirty Limit and writeback ....is
+>
+> =A0a) How to implement per-memcg dirty inode finding method (list) and
+> =A0 =A0how flusher threads handle memcg.
 
-Or in isolating, we could check if we really want to isolate mapped
-pages or not. I intend to send an incremental patch to improve that
-part.
+I have some very rough code implementing the ideas discussed in
+http://thread.gmane.org/gmane.linux.kernel.mm/59707
+Unfortunately, I do not yet have good patches, but maybe an RFC series
+soon.  I can provide update on the direction I am thinking.
 
--- 
-	Three Cheers,
-	Balbir
+> =A0b) Hot to interact with IO-Less dirty page reclaim.
+> =A0 =A0IIUC, if memcg doesn't handle this correctly, OOM happens.
+
+The last posted memcg dirty writeback patches were based on -mm at the
+time, which did not have IO-less balance_dirty_pages.  I have an
+approach which I _think_ will be compatible with IO-less
+balance_dirty_pages(), but I need to talk with some writeback guys to
+confirm.  Seeing the Writeback talk Mon 9:30am should be very useful
+for me.
+
+> =A0Greg, do we need to have a shared session with I/O guys ?
+> =A0If needed, current schedule is O.K. ?
+
+We can contact any interested writeback guys to see if they want to
+attend memcg-writeback discussion.  We might be able to defer this
+detail until Mon morning.
+
+> Main topics on 3. Memcg LRU management
+>
+> =A0a) Isolation/Gurantee for memcg.
+> =A0 =A0Current memcg doesn't have enough isolation when globarl reclaim r=
+uns.
+> =A0 =A0.....Because it's designed not to affect global reclaim.
+> =A0 =A0But from user's point of view, it's nonsense and we should have so=
+me hints
+> =A0 =A0for isolate set of memory or implement a guarantee.
+>
+> =A0 =A0One way to go is updating softlimit better. To do this, we should =
+know what
+> =A0 =A0is problem now. I'm sorry I can't prepare data on this until LSF/M=
+M.
+> =A0 =A0Another way is implementing a guarantee. But this will require som=
+e interaction
+> =A0 =A0with page allocator and pgscan mechanism. This will be a big work.
+>
+> =A0b) single LRU and per memcg zone->lru_lock.
+> =A0 =A0I hear zone->lru_lock contention caused by memcg is a problem on G=
+oogle servers.
+> =A0 =A0Okay, please show data. (I've never seen it.)
+> =A0 =A0Then, we need to discuss Pros. and Cons. of current design and nee=
+d to consinder
+> =A0 =A0how to improve it. I think Google and Michal have their own implem=
+entation.
+>
+> =A0 =A0Current design of double-LRU is from the 1st inclusion of memcg to=
+ the kernel.
+> =A0 =A0But I don't know that discussion was there. Balbir, could you expl=
+ain the reason
+> =A0 =A0of this design ? Then, we can go ahead, somewhere.
+>
+>
+> Main topics on 4. Page cgroup on diet is...
+>
+> =A0a) page_cgroup is too big!, we need diet....
+> =A0 =A0 I think Johannes removes -> page pointer already. Ok, what's the =
+next to
+> =A0 =A0 be removed ?
+>
+> =A0I guess the next candidate is ->lru which is related to 3-b).
+>
+> Main topics on 1.Memory control groups: where next? is..
+>
+> To be honest, I just do bug fixes in these days. And hot topics are on ab=
+ove..
+> I don't have concrete topics. What I can think of from recent linux-mm em=
+ails are...
+>
+> =A0a) Kernel memory accounting.
+> =A0b) Need some work with Cleancache ?
+> =A0c) Should we provide a auto memory cgroup for file caches ?
+> =A0 =A0 (Then we can implement a file-cache-limit.)
+> =A0d) Do we have a problem with current OOM-disable+notifier design ?
+> =A0e) ROOT cgroup should have a limit/softlimit, again ?
+> =A0f) vm_overcommit_memory should be supproted with memcg ?
+> =A0 =A0 (I remember there was a trial. But I think it should be done in o=
+ther cgroup
+> =A0 =A0 =A0as vmemory cgroup.)
+> ...
+>
+> I think
+> =A0a) discussing about this is too early. There is no patch.
+> =A0 =A0 I think we'll just waste time.
+>
+> =A0b) enable/disable cleancache per memcg or some share/limit ??
+> =A0 =A0 But we can discuss this kind of things after cleancache is in pro=
+duction use...
+>
+> =A0c) AFAIK, some other OSs have this kind of feature, a box for file-cac=
+he.
+> =A0 =A0 Because file-cache is a shared object between all cgroups, it's d=
+ifficult
+> =A0 =A0 to handle. It may be better to have a auto cgroup for file caches=
+ and add knobs
+> =A0 =A0 for memcg.
+>
+> =A0d) I think it works well.
+>
+> =A0e) It seems Michal wants this for lazy users. Hmm, should we have a kn=
+ob ?
+> =A0 =A0 It's helpful that some guy have a performance number on the lates=
+t kernel
+> =A0 =A0 with and without memcg (in limitless case).
+> =A0 =A0 IIUC, with THP enabled as 'always', the number of page fault dram=
+atically reduced and
+> =A0 =A0 memcg's accounting cost gets down...
+>
+> =A0f) I think someone mention about this...
+>
+> Maybe c) and d) _can_ be a topic but seems not very important.
+>
+> So, for this slot, I'd like to discuss
+>
+> =A0I) Softlimit/Isolation (was 3-A) for 1hour
+> =A0 =A0 If we have extra time, kernel memory accounting or file-cache han=
+dling
+> =A0 =A0 will be good.
+>
+> =A0II) Dirty page handling. (for 30min)
+> =A0 =A0 Maybe we'll discuss about per-memcg inode queueing issue.
+>
+> =A0III) Discussing the current and future design of LRU.(for 30+min)
+>
+> =A0IV) Diet of page_cgroup (for 30-min)
+> =A0 =A0 =A0Maybe this can be combined with III.
+>
+> Thanks,
+> -Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
