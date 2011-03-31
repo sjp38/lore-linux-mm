@@ -1,59 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id BF38A8D0040
-	for <linux-mm@kvack.org>; Wed, 30 Mar 2011 20:21:20 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id E64DB3EE0C2
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 09:21:16 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id CC95245DE51
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 09:21:16 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id B4C1445DE50
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 09:21:16 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id A54AB1DB803F
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 09:21:16 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 7103F1DB803B
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 09:21:16 +0900 (JST)
-Date: Thu, 31 Mar 2011 09:14:45 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 4/4] x86,mm: make pagefault killable
-Message-Id: <20110331091445.d2b969f4.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20110329194249.2B8E.A69D9226@jp.fujitsu.com>
-References: <20110329193953.2B7E.A69D9226@jp.fujitsu.com>
-	<20110329194249.2B8E.A69D9226@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+	by kanga.kvack.org (Postfix) with ESMTP id 6522D8D0040
+	for <linux-mm@kvack.org>; Wed, 30 Mar 2011 20:28:29 -0400 (EDT)
+Message-ID: <4D93CAA6.2050900@oracle.com>
+Date: Wed, 30 Mar 2011 17:28:22 -0700
+From: Randy Dunlap <randy.dunlap@oracle.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] mm: fix setup_zone_pageset section mismatch
+References: <20110324132435.4ee9694e.randy.dunlap@oracle.com>	<20110330150510.bc02d041.akpm@linux-foundation.org>	<4D93B302.9090103@oracle.com> <20110330155316.e11d760c.akpm@linux-foundation.org>
+In-Reply-To: <20110330155316.e11d760c.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Andrey Vagin <avagin@openvz.org>, Minchan Kim <minchan.kim@gmail.com>, "Luis Claudio R. Goncalves" <lclaudio@uudg.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, Paul Mundt <lethal@linux-sh.org>
 
-On Tue, 29 Mar 2011 19:42:10 +0900 (JST)
-KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+On 03/30/11 15:53, Andrew Morton wrote:
+> On Wed, 30 Mar 2011 15:47:30 -0700
+> Randy Dunlap <randy.dunlap@oracle.com> wrote:
+> 
+>> ...
+>>
+>>>
+>>> I already merged Paul Mundt's patch whcih marks build_all_zonelists()
+>>> as __ref.  That seems a better solution?
+>>
+>> Merged where?  mmotm?
+> 
+> mm.  
+> 
+> --- a/mm/page_alloc.c~mm-page_allocc-silence-build_all_zonelists-section-mismatch
+> +++ a/mm/page_alloc.c
+> @@ -3170,7 +3170,7 @@ static __init_refok int __build_all_zone
+>   * Called with zonelists_mutex held always
+>   * unless system_state == SYSTEM_BOOTING.
+>   */
+> -void build_all_zonelists(void *data)
+> +void __ref build_all_zonelists(void *data)
+>  {
+>  	set_zonelist_order();
+>  
+> _
 
-> When oom killer occured, almost processes are getting stuck following
-> two points.
-> 
-> 	1) __alloc_pages_nodemask
-> 	2) __lock_page_or_retry
-> 
-> 1) is not much problematic because TIF_MEMDIE lead to make allocation
-> failure and get out from page allocator. 2) is more problematic. When
-> OOM situation, Zones typically don't have page cache at all and Memory
-> starvation might lead to reduce IO performance largely. When fork bomb
-> occur, TIF_MEMDIE task don't die quickly mean fork bomb may create
-> new process quickly rather than oom-killer kill it. Then, the system
-> may become livelock.
-> 
-> This patch makes pagefault interruptible by SIGKILL.
-> 
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Acked-by: Randy Dunlap <randy.dunlap@oracle.com>
 
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Thanks.
+
+-- 
+~Randy
+*** Remember to use Documentation/SubmitChecklist when testing your code ***
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
