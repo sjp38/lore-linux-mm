@@ -1,55 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 6522D8D0040
-	for <linux-mm@kvack.org>; Wed, 30 Mar 2011 20:28:29 -0400 (EDT)
-Message-ID: <4D93CAA6.2050900@oracle.com>
-Date: Wed, 30 Mar 2011 17:28:22 -0700
-From: Randy Dunlap <randy.dunlap@oracle.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A8BD8D0040
+	for <linux-mm@kvack.org>; Wed, 30 Mar 2011 20:42:21 -0400 (EDT)
+Received: from wpaz1.hot.corp.google.com (wpaz1.hot.corp.google.com [172.24.198.65])
+	by smtp-out.google.com with ESMTP id p2V0gJnX004868
+	for <linux-mm@kvack.org>; Wed, 30 Mar 2011 17:42:19 -0700
+Received: from ywo32 (ywo32.prod.google.com [10.192.15.32])
+	by wpaz1.hot.corp.google.com with ESMTP id p2V0g58v014023
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 30 Mar 2011 17:42:18 -0700
+Received: by ywo32 with SMTP id 32so984720ywo.7
+        for <linux-mm@kvack.org>; Wed, 30 Mar 2011 17:42:16 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: fix setup_zone_pageset section mismatch
-References: <20110324132435.4ee9694e.randy.dunlap@oracle.com>	<20110330150510.bc02d041.akpm@linux-foundation.org>	<4D93B302.9090103@oracle.com> <20110330155316.e11d760c.akpm@linux-foundation.org>
-In-Reply-To: <20110330155316.e11d760c.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20110330164906.GE12265@random.random>
+References: <1301373398.2590.20.camel@mulgrave.site>
+	<4D91FC2D.4090602@redhat.com>
+	<20110329190520.GJ12265@random.random>
+	<BANLkTikDwfQaSGtrKOSvgA9oaRC1Lbx3cw@mail.gmail.com>
+	<20110330161716.GA3876@csn.ul.ie>
+	<20110330164906.GE12265@random.random>
+Date: Wed, 30 Mar 2011 17:42:15 -0700
+Message-ID: <BANLkTinH5Gr+-n4MAUsxthQ_mXA-8jkw0w@mail.gmail.com>
+Subject: Re: [Lsf] [LSF][MM] page allocation & direct reclaim latency
+From: Hugh Dickins <hughd@google.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, Paul Mundt <lethal@linux-sh.org>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan.kim@gmail.com>, lsf@lists.linux-foundation.org, linux-mm <linux-mm@kvack.org>
 
-On 03/30/11 15:53, Andrew Morton wrote:
-> On Wed, 30 Mar 2011 15:47:30 -0700
-> Randy Dunlap <randy.dunlap@oracle.com> wrote:
-> 
->> ...
->>
->>>
->>> I already merged Paul Mundt's patch whcih marks build_all_zonelists()
->>> as __ref.  That seems a better solution?
->>
->> Merged where?  mmotm?
-> 
-> mm.  
-> 
-> --- a/mm/page_alloc.c~mm-page_allocc-silence-build_all_zonelists-section-mismatch
-> +++ a/mm/page_alloc.c
-> @@ -3170,7 +3170,7 @@ static __init_refok int __build_all_zone
->   * Called with zonelists_mutex held always
->   * unless system_state == SYSTEM_BOOTING.
->   */
-> -void build_all_zonelists(void *data)
-> +void __ref build_all_zonelists(void *data)
->  {
->  	set_zonelist_order();
->  
-> _
+On Wed, Mar 30, 2011 at 9:49 AM, Andrea Arcangeli <aarcange@redhat.com> wrote:
+> On Wed, Mar 30, 2011 at 05:17:16PM +0100, Mel Gorman wrote:
+>> I'd prefer to see OOM-related issues treated as a separate-but-related
+>> problem if possible so;
+>
+> I prefer it too. The OOM killing is already covered in OOM topic from
+> Hugh, and we can add "OOM detection latency" to it.
 
-Acked-by: Randy Dunlap <randy.dunlap@oracle.com>
+Thanks for adjusting and updating the schedule, Andrea.  I'm way
+behind in my mailbox and everything else, that was a real help.
 
-Thanks.
+But last night I did remove that OOM and fork-bomb topic you
+mischievously added in my name ;-)  Yes, I did propose an OOM topic
+against my name in the working list I sent you a few days ago, but by
+Monday had concluded that it would be pretty silly for me to get up
+and spout the few things I have to say about it, in the absence of
+every one of the people most closely involved and experienced.  And on
+fork-bombs I've even less to say.
 
--- 
-~Randy
-*** Remember to use Documentation/SubmitChecklist when testing your code ***
+Of course, none of these sessions are for those named facilitators to
+lecture the assembled company for half an hour.  We can bring it back
+it there's demand on the day: but right now I'd prefer to keep it as
+an empty slot, to be decided when the time comes.  After all, those FS
+people, they appear to thrive on empty slots!
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
