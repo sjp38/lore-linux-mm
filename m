@@ -1,54 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id D0FB78D0040
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 17:40:39 -0400 (EDT)
-Date: Fri, 1 Apr 2011 08:40:33 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH 0/3] Unmapped page cache control (v5)
-Message-ID: <20110331214033.GA2904@dastard>
-References: <20110330052819.8212.1359.stgit@localhost6.localdomain6>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id E90298D0040
+	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 18:18:18 -0400 (EDT)
+Received: by ewy9 with SMTP id 9so1160874ewy.14
+        for <linux-mm@kvack.org>; Thu, 31 Mar 2011 15:18:12 -0700 (PDT)
+Content-Type: text/plain; charset=utf-8; format=flowed; delsp=yes
+Subject: Re: [PATCH 04/12] mm: alloc_contig_freed_pages() added
+References: <1301577368-16095-1-git-send-email-m.szyprowski@samsung.com>
+ <1301577368-16095-5-git-send-email-m.szyprowski@samsung.com>
+ <1301587083.31087.1032.camel@nimitz> <op.vs77qfx03l0zgt@mnazarewicz-glaptop>
+ <1301606078.31087.1275.camel@nimitz>
+Date: Fri, 01 Apr 2011 00:18:10 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110330052819.8212.1359.stgit@localhost6.localdomain6>
+Content-Transfer-Encoding: 7bit
+From: "Michal Nazarewicz" <mina86@mina86.com>
+Message-ID: <op.vs8awkrx3l0zgt@mnazarewicz-glaptop>
+In-Reply-To: <1301606078.31087.1275.camel@nimitz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, npiggin@kernel.dk, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, kosaki.motohiro@jp.fujitsu.com, cl@linux.com, kamezawa.hiroyu@jp.fujitsu.com
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: Marek Szyprowski <m.szyprowski@samsung.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-samsung-soc@vger.kernel.org, linux-media@vger.kernel.org, linux-mm@kvack.org, Kyungmin Park <kyungmin.park@samsung.com>, Andrew
+ Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ankita Garg <ankita@in.ibm.com>, Daniel
+ Walker <dwalker@codeaurora.org>, Johan MOSSBERG <johan.xx.mossberg@stericsson.com>, Mel Gorman <mel@csn.ul.ie>, Pawel
+ Osciak <pawel@osciak.com>
 
-On Wed, Mar 30, 2011 at 11:00:26AM +0530, Balbir Singh wrote:
-> 
-> The following series implements page cache control,
-> this is a split out version of patch 1 of version 3 of the
-> page cache optimization patches posted earlier at
-> Previous posting http://lwn.net/Articles/425851/ and analysis
-> at http://lwn.net/Articles/419713/
-> 
-> Detailed Description
-> ====================
-> This patch implements unmapped page cache control via preferred
-> page cache reclaim. The current patch hooks into kswapd and reclaims
-> page cache if the user has requested for unmapped page control.
-> This is useful in the following scenario
-> - In a virtualized environment with cache=writethrough, we see
->   double caching - (one in the host and one in the guest). As
->   we try to scale guests, cache usage across the system grows.
->   The goal of this patch is to reclaim page cache when Linux is running
->   as a guest and get the host to hold the page cache and manage it.
->   There might be temporary duplication, but in the long run, memory
->   in the guests would be used for mapped pages.
+> On Thu, 2011-03-31 at 15:16 +0200, Marek Szyprowski wrote:
+>> +unsigned long alloc_contig_freed_pages(unsigned long start, unsigned
+>> long end,
+>> +                                      gfp_t flag)
+>> +{
+>> +       unsigned long pfn = start, count;
+>> +       struct page *page;
+>> +       struct zone *zone;
+>> +       int order;
+>> +
+>> +       VM_BUG_ON(!pfn_valid(start));
 
-What does this do that "cache=none" for the VMs and using the page
-cache inside the guest doesn't acheive? That avoids double caching
-and doesn't require any new complexity inside the host OS to
-acheive...
+On Thu, 31 Mar 2011 23:14:38 +0200, Dave Hansen wrote:
+> We BUG_ON() in bootmem.  Basically if we try to allocate an early-boot
+> structure and fail, we're screwed.  We can't keep running without an
+> inode hash, or a mem_map[].
+>
+> This looks like it's going to at least get partially used in drivers, at
+> least from the examples.  Are these kinds of things that, if the driver
+> fails to load, that the system is useless and hosed?  Or, is it
+> something where we might limp along to figure out what went wrong before
+> we reboot?
 
-Cheers,
+Bug in the above place does not mean that we could not allocate memory.  It
+means caller is broken.
 
-Dave.
 -- 
-Dave Chinner
-david@fromorbit.com
+Best regards,                                         _     _
+.o. | Liege of Serenely Enlightened Majesty of      o' \,=./ `o
+..o | Computer Science,  Michal "mina86" Nazarewicz    (o o)
+ooo +-----<email/xmpp: mnazarewicz@google.com>-----ooO--(_)--Ooo--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
