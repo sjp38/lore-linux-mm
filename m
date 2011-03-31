@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id BA2A98D0040
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 10:19:11 -0400 (EDT)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 6EEBE8D0040
+	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 10:20:05 -0400 (EDT)
 From: "Zhang, Yang Z" <yang.z.zhang@intel.com>
-Date: Thu, 31 Mar 2011 22:18:43 +0800
-Subject: [PATCH 2/7,v10] NUMA Hotplug Emulator: Add numa=possible option
-Message-ID: <749B9D3DBF0F054390025D9EAFF47F224A3D6C3A@shsmsx501.ccr.corp.intel.com>
+Date: Thu, 31 Mar 2011 22:16:51 +0800
+Subject: [PATCH 1/7,v10] NUMA Hotplug Emulator: Documentation
+Message-ID: <749B9D3DBF0F054390025D9EAFF47F224A3D6C39@shsmsx501.ccr.corp.intel.com>
 Content-Language: en-US
 Content-Type: text/plain; charset="us-ascii"
 Content-Transfer-Encoding: quoted-printable
@@ -15,174 +15,142 @@ List-ID: <linux-mm.kvack.org>
 To: "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "haicheng.li@linux.intel.com" <haicheng.li@linux.intel.com>, "lethal@linux-sh.org" <lethal@linux-sh.org>, "Kleen, Andi" <andi.kleen@intel.com>, "dave@linux.vnet.ibm.com" <dave@linux.vnet.ibm.com>, "gregkh@suse.de" <gregkh@suse.de>, "mingo@elte.hu" <mingo@elte.hu>, "lenb@kernel.org" <lenb@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "yinghai@kernel.org" <yinghai@kernel.org>, "Li, Xin" <xin.li@intel.com>
 
-From:  David Rientjes <rientjes@google.com>
+add a text file Documentation/x86/x86_64/numa_hotplug_emulator.txt
+to explain the usage for the hotplug emulator.
 
-Adds a numa=3Dpossible=3D<N> command line option to set an additional N nod=
-es
-as being possible for memory hotplug.  This set of possible nodes
-controls nr_node_ids and the sizes of several dynamically allocated node
-arrays.
-
-This allows memory hotplug to create new nodes for newly added memory
-rather than binding it to existing nodes.
-
-The first use-case for this will be node hotplug emulation which will use
-these possible nodes to create new nodes to test the memory hotplug
-callbacks and surrounding memory hotplug code.
-
-CC: Haicheng Li <haicheng.li@intel.com>
+Reviewed-By: Randy Dunlap <randy.dunlap@oracle.com>
 Signed-off-by: David Rientjes <rientjes@google.com>
+Signed-off-by: Haicheng Li <haicheng.li@intel.com>
 Signed-off-by: Shaohui Zheng <shaohui.zheng@intel.com>
-Signed-off-by: Yang Zhang <yang.z.zhang@Intel.com>
+Signed-off-by: Yang Zhang <yang.z.zhang@intel.com>
 ---
- arch/x86/mm/numa.c           |    3 +++
- arch/x86/mm/numa_64.c        |    2 +-
- arch/x86/mm/numa_emulation.c |   33 +++++++++++++++++++++++++--------
- arch/x86/mm/numa_internal.h  |    1 +
- 4 files changed, 30 insertions(+), 9 deletions(-)
+ Documentation/x86/x86_64/numa_hotplug_emulator.txt |  102 ++++++++++++++++=
+++++
+ 1 files changed, 102 insertions(+), 0 deletions(-)
+ create mode 100644 Documentation/x86/x86_64/numa_hotplug_emulator.txt
 
-diff --git a/arch/x86/mm/numa.c linux-hpe4/arch/x86/mm/numa.c
-index 9559d36..633f1a5 100644
---- a/arch/x86/mm/numa.c
-+++ linux-hpe4/arch/x86/mm/numa.c
-@@ -6,6 +6,7 @@
- #include <asm/acpi.h>
-
- int __initdata numa_off;
-+int __initdata numa_possible_nodes;
-
- static __init int numa_setup(char *opt)
- {
-@@ -16,6 +17,8 @@ static __init int numa_setup(char *opt)
- #ifdef CONFIG_NUMA_EMU
-        if (!strncmp(opt, "fake=3D", 5))
-                numa_emu_cmdline(opt + 5);
-+       if (!strncmp(opt, "possible=3D", 9))
-+               numa_possible_nodes =3D simple_strtoul(opt + 9, NULL, 0);
- #endif
- #ifdef CONFIG_ACPI_NUMA
-        if (!strncmp(opt, "noacpi", 6))
-diff --git a/arch/x86/mm/numa_64.c linux-hpe4/arch/x86/mm/numa_64.c
-index 9ec0f20..c3f8050 100644
---- a/arch/x86/mm/numa_64.c
-+++ linux-hpe4/arch/x86/mm/numa_64.c
-@@ -522,7 +522,7 @@ static int __init numa_register_memblks(struct numa_mem=
-info *mi)
-        int i, nid;
-
-        /* Account for nodes with cpus and no memory */
--       node_possible_map =3D numa_nodes_parsed;
-+       nodes_or(node_possible_map, node_possible_map, numa_nodes_parsed);
-        numa_nodemask_from_meminfo(&node_possible_map, mi);
-        if (WARN_ON(nodes_empty(node_possible_map)))
-                return -EINVAL;
-diff --git a/arch/x86/mm/numa_emulation.c linux-hpe4/arch/x86/mm/numa_emula=
-tion.c
-index 3696be0..c2309e5 100644
---- a/arch/x86/mm/numa_emulation.c
-+++ linux-hpe4/arch/x86/mm/numa_emulation.c
-@@ -305,7 +305,7 @@ void __init numa_emulation(struct numa_meminfo *numa_me=
-minfo, int numa_dist_cnt)
-        int i, j, ret;
-
-        if (!emu_cmdline)
--               goto no_emu;
-+               goto check_dynamic_emu;
-
-        memset(&ei, 0, sizeof(ei));
-        pi =3D *numa_meminfo;
-@@ -331,11 +331,11 @@ void __init numa_emulation(struct numa_meminfo *numa_=
-meminfo, int numa_dist_cnt)
-        }
-
-        if (ret < 0)
--               goto no_emu;
-+               goto out;
-
-        if (numa_cleanup_meminfo(&ei) < 0) {
-                pr_warning("NUMA: Warning: constructed meminfo invalid, dis=
-abling emulation\n");
--               goto no_emu;
-+               goto out;
-        }
-
-        /* copy the physical distance table */
-@@ -347,7 +347,7 @@ void __init numa_emulation(struct numa_meminfo *numa_me=
-minfo, int numa_dist_cnt)
-                                              phys_size, PAGE_SIZE);
-                if (phys =3D=3D MEMBLOCK_ERROR) {
-                        pr_warning("NUMA: Warning: can't allocate copy of d=
-istance table, disabling emulation\n");
--                       goto no_emu;
-+                       goto out;
-                }
-                memblock_x86_reserve_range(phys, phys + phys_size, "TMP NUM=
-A DIST");
-                phys_dist =3D __va(phys);
-@@ -368,7 +368,7 @@ void __init numa_emulation(struct numa_meminfo *numa_me=
-minfo, int numa_dist_cnt)
-        }
-        if (dfl_phys_nid =3D=3D NUMA_NO_NODE) {
-                pr_warning("NUMA: Warning: can't determine default physical=
- node, disabling emulation\n");
--               goto no_emu;
-+               goto out;
-        }
-
-        /* commit */
-@@ -418,10 +418,27 @@ void __init numa_emulation(struct numa_meminfo *numa_=
-meminfo, int numa_dist_cnt)
-        /* free the copied physical distance table */
-        if (phys_dist)
-                memblock_x86_free_range(__pa(phys_dist), __pa(phys_dist) + =
-phys_size);
--       return;
-
--no_emu:
--       /* No emulation.  Build identity emu_nid_to_phys[] for numa_add_cpu=
-() */
-+check_dynamic_emu:
-+       if (!numa_possible_nodes)
-+               goto out;
-+       for (i =3D 0; i < numa_possible_nodes; i++) {
-+               int nid;
+diff --git a/Documentation/x86/x86_64/numa_hotplug_emulator.txt linux-hpe4/=
+Documentation/x86/x86_64/numa_hotplug_emulator.txt
+new file mode 100644
+index 0000000..ca7cc42
+--- /dev/null
++++ linux-hpe4/Documentation/x86/x86_64/numa_hotplug_emulator.txt
+@@ -0,0 +1,102 @@
++NUMA Hotplug Emulator for x86_64
++---------------------------------------------------
 +
-+               nid =3D first_unset_node(node_possible_map);
-+               if (nid =3D=3D MAX_NUMNODES)
-+                       break;
-+               node_set(nid, node_possible_map);
-+       }
-+       /* static emulation have built the emu_nid_to_phys[] */
-+       if (emu_cmdline)
-+               return;
++NUMA hotplug emulator is able to emulate NUMA Node Hotplug
++thru a pure software way. It intends to help people easily debug
++and test node/CPU/memory hotplug related stuff on a
++none-NUMA-hotplug-support machine, even a UMA machine and virtual
++environment.
 +
-+out:
-+       /*
-+        * No emulation or using dynamic emulation. Build
-+        * identity emu_nid_to_phys[] for numa_add_cpu()
-+        */
-        for (i =3D 0; i < ARRAY_SIZE(emu_nid_to_phys); i++)
-                emu_nid_to_phys[i] =3D i;
- }
-diff --git a/arch/x86/mm/numa_internal.h linux-hpe4/arch/x86/mm/numa_intern=
-al.h
-index ef2d973..7766f04 100644
---- a/arch/x86/mm/numa_internal.h
-+++ linux-hpe4/arch/x86/mm/numa_internal.h
-@@ -18,6 +18,7 @@ struct numa_meminfo {
- void __init numa_remove_memblk_from(int idx, struct numa_meminfo *mi);
- int __init numa_cleanup_meminfo(struct numa_meminfo *mi);
- void __init numa_reset_distance(void);
-+extern int numa_possible_nodes;
-
- #ifdef CONFIG_NUMA_EMU
- void __init numa_emulation(struct numa_meminfo *numa_meminfo,
++1) Node hotplug emulation:
++
++Adds a numa=3Dpossible=3D<N> command line option to set an additional N no=
+des
++as being possible for memory hotplug.  This set of possible nodes
++control nr_node_ids and the sizes of several dynamically allocated node
++arrays.
++
++This allows memory hotplug to create new nodes for newly added memory
++rather than binding it to existing nodes.
++
++For emulation on x86, it would be possible to set aside memory for hotplug=
+ged
++nodes (say, anything above 2G) and to add an additional four nodes as bein=
+g
++possible on boot with
++
++       mem=3D2G numa=3Dpossible=3D4
++
++and then creating a new 128M node at runtime:
++
++       # echo 128M@0x80000000 > /sys/kernel/debug/node_hotplug/add_node
++       On node 1 totalpages: 0
++       init_memory_mapping: 0000000080000000-0000000088000000
++        0080000000 - 0088000000 page 2M
++
++Once the new node has been added, its memory can be onlined.  If this
++memory represents memory section 16, for example:
++
++       # echo online > /sys/devices/system/memory/memory16/state
++       Built 2 zonelists in Node order, mobility grouping on.  Total pages=
+: 514846
++       Policy zone: Normal
++ [ The memory section(s) mapped to a particular node are visible via
++   /sys/devices/system/mem_hotplug/node1, in this example. ]
++
++2) CPU hotplug emulation:
++
++The emulator reserves CPUs thru grub parameter, the reserved CPUs can be
++hot-add/hot-remove in software method, it emulates the process of physical
++cpu hotplug.
++
++When hotplugging a CPU with emulator, we are using a logical CPU to emulat=
+e the
++CPU socket hotplug process. For the CPU supported SMT, some logical CPUs a=
+re in
++the same socket, but it may located in different NUMA node after we have
++emulator. We put the logical CPU into a fake CPU socket, and assign it a
++unique phys_proc_id. For the fake socket, we put one logical CPU in only.
++
++ - to hide CPUs
++       - Using boot option "maxcpus=3DN" hide CPUs
++         N is the number of CPUs to initialize; the reset will be hidden.
++       - Using boot option "cpu_hpe=3Don" to enable CPU hotplug emulation
++      when cpu_hpe is enabled, the rest CPUs will not be initialized
++
++ - to hot-add CPU to node
++       # echo node_id > /sys/devices/system/cpu/probe
++
++ - to hot-remove CPU
++       # echo cpu_id > /sys/devices/system/cpu/release
++
++3) Memory hotplug emulation:
++
++The emulator reserves memory before OS boots, the reserved memory region i=
+s
++removed from e820 table. Each online node has an add_memory interface, and
++memory can be hot-added via the per-ndoe add_memory debugfs interface.
++
++The difficulty of Memory Release is well-known, we have no plan for it unt=
+il
++now.
++
++ - reserve memory thru a kernel boot paramter
++       mem=3D1024m
++
++ - add a memory section to node 3
++    # echo 0x40000000 > /sys/kernel/debug/node_hotplug/node3/add_memory
++       OR
++    # echo 1024m > /sys/kernel/debug/node_hotplug/node3/add_memory
++
++4) Script for hotplug testing
++
++These scripts provides convenience when we hot-add memory/cpu in batch.
++
++- Online all memory sections:
++for m in /sys/devices/system/memory/memory*;
++do
++       echo online > $m/state;
++done
++
++- CPU Online:
++for c in /sys/devices/system/cpu/cpu*;
++do
++       echo 1 > $c/online;
++done
++
++- David Rientjes <rientjes@google.com>
++- Haicheng Li <haicheng.li@intel.com>
++- Shaohui Zheng <shaohui.zheng@intel.com>
++- Yang Zhang <yang.z.zhang@intel.com>
 --
 1.7.1.1
 --
 best regards
 yang
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
