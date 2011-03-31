@@ -1,24 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 480978D0047
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 491348D0049
 	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 09:16:16 -0400 (EDT)
-Received: from eu_spt1 (mailout1.w1.samsung.com [210.118.77.11])
- by mailout1.w1.samsung.com
- (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
- with ESMTP id <0LIX00IB4BIY5K@mailout1.w1.samsung.com> for linux-mm@kvack.org;
- Thu, 31 Mar 2011 14:16:11 +0100 (BST)
-Received: from linux.samsung.com ([106.116.38.10])
- by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0LIX008MFBIY25@spt1.w1.samsung.com> for
- linux-mm@kvack.org; Thu, 31 Mar 2011 14:16:10 +0100 (BST)
-Date: Thu, 31 Mar 2011 15:16:01 +0200
-From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: [PATCH 05/12] mm: alloc_contig_range() added
-In-reply-to: <1301577368-16095-1-git-send-email-m.szyprowski@samsung.com>
-Message-id: <1301577368-16095-6-git-send-email-m.szyprowski@samsung.com>
 MIME-version: 1.0
-Content-type: TEXT/PLAIN
 Content-transfer-encoding: 7BIT
+Content-type: TEXT/PLAIN
+Received: from spt2.w1.samsung.com ([210.118.77.13]) by mailout3.w1.samsung.com
+ (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
+ with ESMTP id <0LIX006AHBIYFT50@mailout3.w1.samsung.com> for
+ linux-mm@kvack.org; Thu, 31 Mar 2011 14:16:11 +0100 (BST)
+Received: from linux.samsung.com ([106.116.38.10])
+ by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
+ 2004)) with ESMTPA id <0LIX00343BIXLP@spt2.w1.samsung.com> for
+ linux-mm@kvack.org; Thu, 31 Mar 2011 14:16:09 +0100 (BST)
+Date: Thu, 31 Mar 2011 15:15:58 +0200
+From: Marek Szyprowski <m.szyprowski@samsung.com>
+Subject: [PATCH 02/12] lib: genalloc: Generic allocator improvements
+In-reply-to: <1301577368-16095-1-git-send-email-m.szyprowski@samsung.com>
+Message-id: <1301577368-16095-3-git-send-email-m.szyprowski@samsung.com>
 References: <1301577368-16095-1-git-send-email-m.szyprowski@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
@@ -27,189 +26,368 @@ Cc: Michal Nazarewicz <mina86@mina86.com>, Marek Szyprowski <m.szyprowski@samsun
 
 From: Michal Nazarewicz <m.nazarewicz@samsung.com>
 
-This commit adds the alloc_contig_range() function which tries
-to allecate given range of pages.  It tries to migrate all
-already allocated pages that fall in the range thus freeing them.
-Once all pages in the range are freed they are removed from the
-buddy system thus allocated for the caller to use.
+This commit adds a gen_pool_alloc_aligned() function to the
+generic allocator API.  It allows specifying alignment for the
+allocated block.  This feature uses
+the bitmap_find_next_zero_area_off() function.
+
+It also fixes possible issue with bitmap's last element being
+not fully allocated (ie. space allocated for chunk->bits is
+not a multiple of sizeof(long)).
+
+It also makes some other smaller changes:
+- moves structure definitions out of the header file,
+- adds __must_check to functions returning value,
+- makes gen_pool_add() return -ENOMEM rater than -1 on error,
+- changes list_for_each to list_for_each_entry, and
+- makes use of bitmap_clear().
 
 Signed-off-by: Michal Nazarewicz <m.nazarewicz@samsung.com>
 Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
 Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
 CC: Michal Nazarewicz <mina86@mina86.com>
 ---
- include/linux/page-isolation.h |    2 +
- mm/page_alloc.c                |  144 ++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 146 insertions(+), 0 deletions(-)
+ include/linux/genalloc.h |   46 ++++++------
+ lib/genalloc.c           |  182 ++++++++++++++++++++++++++-------------------
+ 2 files changed, 129 insertions(+), 99 deletions(-)
 
-diff --git a/include/linux/page-isolation.h b/include/linux/page-isolation.h
-index f1417ed..c5d1a7c 100644
---- a/include/linux/page-isolation.h
-+++ b/include/linux/page-isolation.h
-@@ -34,6 +34,8 @@ extern int set_migratetype_isolate(struct page *page);
- extern void unset_migratetype_isolate(struct page *page);
- extern unsigned long alloc_contig_freed_pages(unsigned long start,
- 					      unsigned long end, gfp_t flag);
-+extern int alloc_contig_range(unsigned long start, unsigned long end,
-+			      gfp_t flags);
- extern void free_contig_pages(struct page *page, int nr_pages);
+diff --git a/include/linux/genalloc.h b/include/linux/genalloc.h
+index 9869ef3..8ac7337 100644
+--- a/include/linux/genalloc.h
++++ b/include/linux/genalloc.h
+@@ -8,29 +8,31 @@
+  * Version 2.  See the file COPYING for more details.
+  */
  
- /*
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 11f8bcb..0a270a5 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -5583,6 +5583,150 @@ unsigned long alloc_contig_freed_pages(unsigned long start, unsigned long end,
- 	return pfn;
- }
++struct gen_pool;
  
-+static unsigned long pfn_to_maxpage(unsigned long pfn)
-+{
-+	return pfn & ~(MAX_ORDER_NR_PAGES - 1);
-+}
+-/*
+- *  General purpose special memory pool descriptor.
+- */
+-struct gen_pool {
+-	rwlock_t lock;
+-	struct list_head chunks;	/* list of chunks in this pool */
+-	int min_alloc_order;		/* minimum allocation order */
+-};
++struct gen_pool *__must_check gen_pool_create(unsigned order, int nid);
+ 
+-/*
+- *  General purpose special memory pool chunk descriptor.
++int __must_check gen_pool_add(struct gen_pool *pool, unsigned long addr,
++			      size_t size, int nid);
 +
-+static unsigned long pfn_to_maxpage_up(unsigned long pfn)
-+{
-+	return ALIGN(pfn, MAX_ORDER_NR_PAGES);
-+}
++void gen_pool_destroy(struct gen_pool *pool);
 +
-+#define MIGRATION_RETRY	5
-+static int __alloc_contig_migrate_range(unsigned long start, unsigned long end)
-+{
-+	int migration_failed = 0, ret;
-+	unsigned long pfn = start;
-+
-+	/*
-+	 * Some code "borrowed" from KAMEZAWA Hiroyuki's
-+	 * __alloc_contig_pages().
-+	 */
-+
-+	for (;;) {
-+		pfn = scan_lru_pages(pfn, end);
-+		if (!pfn || pfn >= end)
-+			break;
-+
-+		ret = do_migrate_range(pfn, end);
-+		if (!ret) {
-+			migration_failed = 0;
-+		} else if (ret != -EBUSY
-+			|| ++migration_failed >= MIGRATION_RETRY) {
-+			return ret;
-+		} else {
-+			/* There are unstable pages.on pagevec. */
-+			lru_add_drain_all();
-+			/*
-+			 * there may be pages on pcplist before
-+			 * we mark the range as ISOLATED.
-+			 */
-+			drain_all_pages();
-+		}
-+		cond_resched();
-+	}
-+
-+	if (!migration_failed) {
-+		/* drop all pages in pagevec and pcp list */
-+		lru_add_drain_all();
-+		drain_all_pages();
-+	}
-+
-+	/* Make sure all pages are isolated */
-+	if (WARN_ON(test_pages_isolated(start, end)))
-+		return -EBUSY;
-+
-+	return 0;
-+}
++unsigned long __must_check
++gen_pool_alloc_aligned(struct gen_pool *pool, size_t size,
++		       unsigned alignment_order);
 +
 +/**
-+ * alloc_contig_range() -- tries to allocate given range of pages
-+ * @start:	start PFN to allocate
-+ * @end:	one-past-the-last PFN to allocate
-+ * @flags:	flags passed to alloc_contig_freed_pages().
++ * gen_pool_alloc() - allocate special memory from the pool
++ * @pool:	Pool to allocate from.
++ * @size:	Number of bytes to allocate from the pool.
 + *
-+ * The PFN range does not have to be pageblock or MAX_ORDER_NR_PAGES
-+ * aligned, hovewer it's callers responsibility to guarantee that we
-+ * are the only thread that changes migrate type of pageblocks the
-+ * pages fall in.
-+ *
-+ * Returns zero on success or negative error code.  On success all
-+ * pages which PFN is in (start, end) are allocated for the caller and
-+ * need to be freed with free_contig_pages().
-+ */
-+int alloc_contig_range(unsigned long start, unsigned long end,
-+		       gfp_t flags)
++ * Allocate the requested number of bytes from the specified pool.
++ * Uses a first-fit algorithm.
+  */
+-struct gen_pool_chunk {
+-	spinlock_t lock;
+-	struct list_head next_chunk;	/* next chunk in pool */
+-	unsigned long start_addr;	/* starting address of memory chunk */
+-	unsigned long end_addr;		/* ending address of memory chunk */
+-	unsigned long bits[0];		/* bitmap for allocating memory chunk */
+-};
++static inline unsigned long __must_check
++gen_pool_alloc(struct gen_pool *pool, size_t size)
 +{
-+	unsigned long _start, _end;
-+	int ret;
-+
-+	/*
-+	 * What we do here is we mark all pageblocks in range as
-+	 * MIGRATE_ISOLATE.  Because of the way page allocator work, we
-+	 * align the range to MAX_ORDER pages so that page allocator
-+	 * won't try to merge buddies from different pageblocks and
-+	 * change MIGRATE_ISOLATE to some other migration type.
-+	 *
-+	 * Once the pageblocks are marked as MIGRATE_ISOLATE, we
-+	 * migrate the pages from an unaligned range (ie. pages that
-+	 * we are interested in).  This will put all the pages in
-+	 * range back to page allocator as MIGRATE_ISOLATE.
-+	 *
-+	 * When this is done, we take the pages in range from page
-+	 * allocator removing them from the buddy system.  This way
-+	 * page allocator will never consider using them.
-+	 *
-+	 * This lets us mark the pageblocks back as
-+	 * MIGRATE_CMA/MIGRATE_MOVABLE so that free pages in the
-+	 * MAX_ORDER aligned range but not in the unaligned, original
-+	 * range are put back to page allocator so that buddy can use
-+	 * them.
-+	 */
-+
-+	ret = start_isolate_page_range(pfn_to_maxpage(start),
-+				       pfn_to_maxpage_up(end));
-+	if (ret)
-+		goto done;
-+
-+	ret = __alloc_contig_migrate_range(start, end);
-+	if (ret)
-+		goto done;
-+
-+	/*
-+	 * Pages from [start, end) are within a MAX_ORDER_NR_PAGES
-+	 * aligned blocks that are marked as MIGRATE_ISOLATE.  What's
-+	 * more, all pages in [start, end) are free in page allocator.
-+	 * What we are going to do is to allocate all pages from
-+	 * [start, end) (that is remove them from page allocater).
-+	 *
-+	 * The only problem is that pages at the beginning and at the
-+	 * end of interesting range may be not aligned with pages that
-+	 * page allocator holds, ie. they can be part of higher order
-+	 * pages.  Because of this, we reserve the bigger range and
-+	 * once this is done free the pages we are not interested in.
-+	 */
-+
-+	ret = 0;
-+	while (!PageBuddy(pfn_to_page(start & (~0UL << ret))))
-+		if (WARN_ON(++ret >= MAX_ORDER))
-+			return -EINVAL;
-+
-+	_start = start & (~0UL << ret);
-+	_end   = alloc_contig_freed_pages(_start, end, flag);
-+
-+	/* Free head and tail (if any) */
-+	if (start != _start)
-+		free_contig_pages(pfn_to_page(_start), start - _start);
-+	if (end != _end)
-+		free_contig_pages(pfn_to_page(end), _end - end);
-+
-+	ret = 0;
-+done:
-+	undo_isolate_page_range(pfn_to_maxpage(start), pfn_to_maxpage_up(end));
-+	return ret;
++	return gen_pool_alloc_aligned(pool, size, 0);
 +}
+ 
+-extern struct gen_pool *gen_pool_create(int, int);
+-extern int gen_pool_add(struct gen_pool *, unsigned long, size_t, int);
+-extern void gen_pool_destroy(struct gen_pool *);
+-extern unsigned long gen_pool_alloc(struct gen_pool *, size_t);
+-extern void gen_pool_free(struct gen_pool *, unsigned long, size_t);
++void gen_pool_free(struct gen_pool *pool, unsigned long addr, size_t size);
+diff --git a/lib/genalloc.c b/lib/genalloc.c
+index 1923f14..0761079 100644
+--- a/lib/genalloc.c
++++ b/lib/genalloc.c
+@@ -16,53 +16,80 @@
+ #include <linux/genalloc.h>
+ 
+ 
++/* General purpose special memory pool descriptor. */
++struct gen_pool {
++	rwlock_t lock;			/* protects chunks list */
++	struct list_head chunks;	/* list of chunks in this pool */
++	unsigned order;			/* minimum allocation order */
++};
 +
- void free_contig_pages(struct page *page, int nr_pages)
++/* General purpose special memory pool chunk descriptor. */
++struct gen_pool_chunk {
++	spinlock_t lock;		/* protects bits */
++	struct list_head next_chunk;	/* next chunk in pool */
++	unsigned long start;		/* start of memory chunk */
++	unsigned long size;		/* number of bits */
++	unsigned long bits[0];		/* bitmap for allocating memory chunk */
++};
++
++
+ /**
+- * gen_pool_create - create a new special memory pool
+- * @min_alloc_order: log base 2 of number of bytes each bitmap bit represents
+- * @nid: node id of the node the pool structure should be allocated on, or -1
++ * gen_pool_create() - create a new special memory pool
++ * @order:	Log base 2 of number of bytes each bitmap bit
++ *		represents.
++ * @nid:	Node id of the node the pool structure should be allocated
++ *		on, or -1.  This will be also used for other allocations.
+  *
+  * Create a new special memory pool that can be used to manage special purpose
+  * memory not managed by the regular kmalloc/kfree interface.
+  */
+-struct gen_pool *gen_pool_create(int min_alloc_order, int nid)
++struct gen_pool *__must_check gen_pool_create(unsigned order, int nid)
  {
- 	for (; nr_pages; --nr_pages, ++page)
+ 	struct gen_pool *pool;
+ 
+-	pool = kmalloc_node(sizeof(struct gen_pool), GFP_KERNEL, nid);
+-	if (pool != NULL) {
++	if (WARN_ON(order >= BITS_PER_LONG))
++		return NULL;
++
++	pool = kmalloc_node(sizeof *pool, GFP_KERNEL, nid);
++	if (pool) {
+ 		rwlock_init(&pool->lock);
+ 		INIT_LIST_HEAD(&pool->chunks);
+-		pool->min_alloc_order = min_alloc_order;
++		pool->order = order;
+ 	}
+ 	return pool;
+ }
+ EXPORT_SYMBOL(gen_pool_create);
+ 
+ /**
+- * gen_pool_add - add a new chunk of special memory to the pool
+- * @pool: pool to add new memory chunk to
+- * @addr: starting address of memory chunk to add to pool
+- * @size: size in bytes of the memory chunk to add to pool
+- * @nid: node id of the node the chunk structure and bitmap should be
+- *       allocated on, or -1
++ * gen_pool_add() - add a new chunk of special memory to the pool
++ * @pool:	Pool to add new memory chunk to.
++ * @addr:	Starting address of memory chunk to add to pool.
++ * @size:	Size in bytes of the memory chunk to add to pool.
+  *
+  * Add a new chunk of special memory to the specified pool.
+  */
+-int gen_pool_add(struct gen_pool *pool, unsigned long addr, size_t size,
+-		 int nid)
++int __must_check
++gen_pool_add(struct gen_pool *pool, unsigned long addr, size_t size, int nid)
+ {
+ 	struct gen_pool_chunk *chunk;
+-	int nbits = size >> pool->min_alloc_order;
+-	int nbytes = sizeof(struct gen_pool_chunk) +
+-				(nbits + BITS_PER_BYTE - 1) / BITS_PER_BYTE;
++	size_t nbytes;
++
++	if (WARN_ON(!addr || addr + size < addr ||
++		    (addr & ((1 << pool->order) - 1))))
++		return -EINVAL;
+ 
+-	chunk = kmalloc_node(nbytes, GFP_KERNEL | __GFP_ZERO, nid);
+-	if (unlikely(chunk == NULL))
+-		return -1;
++	size = size >> pool->order;
++	if (WARN_ON(!size))
++		return -EINVAL;
++
++	nbytes = sizeof *chunk + BITS_TO_LONGS(size) * sizeof *chunk->bits;
++	chunk = kzalloc_node(nbytes, GFP_KERNEL, nid);
++	if (!chunk)
++		return -ENOMEM;
+ 
+ 	spin_lock_init(&chunk->lock);
+-	chunk->start_addr = addr;
+-	chunk->end_addr = addr + size;
++	chunk->start = addr >> pool->order;
++	chunk->size  = size;
+ 
+ 	write_lock(&pool->lock);
+ 	list_add(&chunk->next_chunk, &pool->chunks);
+@@ -73,115 +100,116 @@ int gen_pool_add(struct gen_pool *pool, unsigned long addr, size_t size,
+ EXPORT_SYMBOL(gen_pool_add);
+ 
+ /**
+- * gen_pool_destroy - destroy a special memory pool
+- * @pool: pool to destroy
++ * gen_pool_destroy() - destroy a special memory pool
++ * @pool:	Pool to destroy.
+  *
+  * Destroy the specified special memory pool. Verifies that there are no
+  * outstanding allocations.
+  */
+ void gen_pool_destroy(struct gen_pool *pool)
+ {
+-	struct list_head *_chunk, *_next_chunk;
+ 	struct gen_pool_chunk *chunk;
+-	int order = pool->min_alloc_order;
+-	int bit, end_bit;
+-
++	int bit;
+ 
+-	list_for_each_safe(_chunk, _next_chunk, &pool->chunks) {
+-		chunk = list_entry(_chunk, struct gen_pool_chunk, next_chunk);
++	while (!list_empty(&pool->chunks)) {
++		chunk = list_entry(pool->chunks.next, struct gen_pool_chunk,
++				   next_chunk);
+ 		list_del(&chunk->next_chunk);
+ 
+-		end_bit = (chunk->end_addr - chunk->start_addr) >> order;
+-		bit = find_next_bit(chunk->bits, end_bit, 0);
+-		BUG_ON(bit < end_bit);
++		bit = find_next_bit(chunk->bits, chunk->size, 0);
++		BUG_ON(bit < chunk->size);
+ 
+ 		kfree(chunk);
+ 	}
+ 	kfree(pool);
+-	return;
+ }
+ EXPORT_SYMBOL(gen_pool_destroy);
+ 
+ /**
+- * gen_pool_alloc - allocate special memory from the pool
+- * @pool: pool to allocate from
+- * @size: number of bytes to allocate from the pool
++ * gen_pool_alloc_aligned() - allocate special memory from the pool
++ * @pool:	Pool to allocate from.
++ * @size:	Number of bytes to allocate from the pool.
++ * @alignment_order:	Order the allocated space should be
++ *			aligned to (eg. 20 means allocated space
++ *			must be aligned to 1MiB).
+  *
+  * Allocate the requested number of bytes from the specified pool.
+  * Uses a first-fit algorithm.
+  */
+-unsigned long gen_pool_alloc(struct gen_pool *pool, size_t size)
++unsigned long __must_check
++gen_pool_alloc_aligned(struct gen_pool *pool, size_t size,
++		       unsigned alignment_order)
+ {
+-	struct list_head *_chunk;
++	unsigned long addr, align_mask = 0, flags, start;
+ 	struct gen_pool_chunk *chunk;
+-	unsigned long addr, flags;
+-	int order = pool->min_alloc_order;
+-	int nbits, start_bit, end_bit;
+ 
+ 	if (size == 0)
+ 		return 0;
+ 
+-	nbits = (size + (1UL << order) - 1) >> order;
++	if (alignment_order > pool->order)
++		align_mask = (1 << (alignment_order - pool->order)) - 1;
+ 
+-	read_lock(&pool->lock);
+-	list_for_each(_chunk, &pool->chunks) {
+-		chunk = list_entry(_chunk, struct gen_pool_chunk, next_chunk);
++	size = (size + (1UL << pool->order) - 1) >> pool->order;
+ 
+-		end_bit = (chunk->end_addr - chunk->start_addr) >> order;
++	read_lock(&pool->lock);
++	list_for_each_entry(chunk, &pool->chunks, next_chunk) {
++		if (chunk->size < size)
++			continue;
+ 
+ 		spin_lock_irqsave(&chunk->lock, flags);
+-		start_bit = bitmap_find_next_zero_area(chunk->bits, end_bit, 0,
+-						nbits, 0);
+-		if (start_bit >= end_bit) {
++		start = bitmap_find_next_zero_area_off(chunk->bits, chunk->size,
++						       0, size, align_mask,
++						       chunk->start);
++		if (start >= chunk->size) {
+ 			spin_unlock_irqrestore(&chunk->lock, flags);
+ 			continue;
+ 		}
+ 
+-		addr = chunk->start_addr + ((unsigned long)start_bit << order);
+-
+-		bitmap_set(chunk->bits, start_bit, nbits);
++		bitmap_set(chunk->bits, start, size);
+ 		spin_unlock_irqrestore(&chunk->lock, flags);
+-		read_unlock(&pool->lock);
+-		return addr;
++		addr = (chunk->start + start) << pool->order;
++		goto done;
+ 	}
++
++	addr = 0;
++done:
+ 	read_unlock(&pool->lock);
+-	return 0;
++	return addr;
+ }
+-EXPORT_SYMBOL(gen_pool_alloc);
++EXPORT_SYMBOL(gen_pool_alloc_aligned);
+ 
+ /**
+- * gen_pool_free - free allocated special memory back to the pool
+- * @pool: pool to free to
+- * @addr: starting address of memory to free back to pool
+- * @size: size in bytes of memory to free
++ * gen_pool_free() - free allocated special memory back to the pool
++ * @pool:	Pool to free to.
++ * @addr:	Starting address of memory to free back to pool.
++ * @size:	Size in bytes of memory to free.
+  *
+  * Free previously allocated special memory back to the specified pool.
+  */
+ void gen_pool_free(struct gen_pool *pool, unsigned long addr, size_t size)
+ {
+-	struct list_head *_chunk;
+ 	struct gen_pool_chunk *chunk;
+ 	unsigned long flags;
+-	int order = pool->min_alloc_order;
+-	int bit, nbits;
+ 
+-	nbits = (size + (1UL << order) - 1) >> order;
++	if (!size)
++		return;
+ 
+-	read_lock(&pool->lock);
+-	list_for_each(_chunk, &pool->chunks) {
+-		chunk = list_entry(_chunk, struct gen_pool_chunk, next_chunk);
++	addr = addr >> pool->order;
++	size = (size + (1UL << pool->order) - 1) >> pool->order;
++
++	BUG_ON(addr + size < addr);
+ 
+-		if (addr >= chunk->start_addr && addr < chunk->end_addr) {
+-			BUG_ON(addr + size > chunk->end_addr);
++	read_lock(&pool->lock);
++	list_for_each_entry(chunk, &pool->chunks, next_chunk)
++		if (addr >= chunk->start &&
++		    addr + size <= chunk->start + chunk->size) {
+ 			spin_lock_irqsave(&chunk->lock, flags);
+-			bit = (addr - chunk->start_addr) >> order;
+-			while (nbits--)
+-				__clear_bit(bit++, chunk->bits);
++			bitmap_clear(chunk->bits, addr - chunk->start, size);
+ 			spin_unlock_irqrestore(&chunk->lock, flags);
+-			break;
++			goto done;
+ 		}
+-	}
+-	BUG_ON(nbits > 0);
++	BUG_ON(1);
++done:
+ 	read_unlock(&pool->lock);
+ }
+ EXPORT_SYMBOL(gen_pool_free);
 -- 
 1.7.1.569.g6f426
 
