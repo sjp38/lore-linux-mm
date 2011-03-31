@@ -1,57 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 826B28D0040
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 12:26:53 -0400 (EDT)
-Received: by eyd9 with SMTP id 9so1035592eyd.14
-        for <linux-mm@kvack.org>; Thu, 31 Mar 2011 09:26:48 -0700 (PDT)
-Content-Type: text/plain; charset=utf-8; format=flowed; delsp=yes
-References: <1301577368-16095-1-git-send-email-m.szyprowski@samsung.com>
- <1301577368-16095-6-git-send-email-m.szyprowski@samsung.com>
- <1301587361.31087.1040.camel@nimitz>
-Subject: Re: [PATCH 05/12] mm: alloc_contig_range() added
-Date: Thu, 31 Mar 2011 18:26:45 +0200
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id B93CB8D0040
+	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 12:59:32 -0400 (EDT)
+Date: Thu, 31 Mar 2011 18:36:41 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [Lsf] [LSF][MM] page allocation & direct reclaim latency
+Message-ID: <20110331163641.GJ12265@random.random>
+References: <1301373398.2590.20.camel@mulgrave.site>
+ <4D91FC2D.4090602@redhat.com>
+ <20110329190520.GJ12265@random.random>
+ <BANLkTikDwfQaSGtrKOSvgA9oaRC1Lbx3cw@mail.gmail.com>
+ <20110330161716.GA3876@csn.ul.ie>
+ <20110330164906.GE12265@random.random>
+ <20110331093053.GB3876@csn.ul.ie>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7bit
-From: "Michal Nazarewicz" <mina86@mina86.com>
-Message-ID: <op.vs7umufd3l0zgt@mnazarewicz-glaptop>
-In-Reply-To: <1301587361.31087.1040.camel@nimitz>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110331093053.GB3876@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>, Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-samsung-soc@vger.kernel.org, linux-media@vger.kernel.org, linux-mm@kvack.org, Kyungmin Park <kyungmin.park@samsung.com>, Andrew
- Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ankita Garg <ankita@in.ibm.com>, Daniel
- Walker <dwalker@codeaurora.org>, Johan MOSSBERG <johan.xx.mossberg@stericsson.com>, Mel Gorman <mel@csn.ul.ie>, Pawel
- Osciak <pawel@osciak.com>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Minchan Kim <minchan.kim@gmail.com>, lsf@lists.linux-foundation.org, linux-mm <linux-mm@kvack.org>
 
-> On Thu, 2011-03-31 at 15:16 +0200, Marek Szyprowski wrote:
->> +       ret = 0;
->> +       while (!PageBuddy(pfn_to_page(start & (~0UL << ret))))
->> +               if (WARN_ON(++ret >= MAX_ORDER))
->> +                       return -EINVAL;
+On Thu, Mar 31, 2011 at 10:30:53AM +0100, Mel Gorman wrote:
+> Sounds reasonable. I could discuss briefly the scripts I use based on ftrace
+> that dump out highorder allocation latencies as it might be useful to others
+> if this is the area they are looking at.
 
-On Thu, 31 Mar 2011 18:02:41 +0200, Dave Hansen wrote:
-> Holy cow, that's dense.  Is there really no more straightforward way to
-> do that?
+I think it's interesting.
 
-Which part exactly is dense?  What would be qualify as a more
-straightforward way?
+> Also sounds good to me.
 
-> In any case, please pull the ++ret bit out of the WARN_ON().  Some
-> people like to do:
->
-> #define WARN_ON(...) do{}while(0)
->
-> to save space on some systems.
-
-I don't think that's the case.  Even if WARN_ON() decides not to print
-a warning, it will still return the value of the argument.  If not,
-a lot of code will brake.
-
--- 
-Best regards,                                         _     _
-.o. | Liege of Serenely Enlightened Majesty of      o' \,=./ `o
-..o | Computer Science,  Michal "mina86" Nazarewicz    (o o)
-ooo +-----<email/xmpp: mnazarewicz@google.com>-----ooO--(_)--Ooo--
+Ok. BTW, the OOM topic has been removed from schedule for now and it
+returned an empty slot, but as Hugh mentioned, it can be brought back
+in as needed on the day.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
