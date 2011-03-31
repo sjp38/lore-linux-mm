@@ -1,160 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 21EE38D0040
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 04:28:54 -0400 (EDT)
-Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
-	by e28smtp08.in.ibm.com (8.14.4/8.13.1) with ESMTP id p2V7ULDo000883
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 13:00:21 +0530
-Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p2V8SlLT3780766
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 13:58:47 +0530
-Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
-	by d28av04.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p2V8SkNH019500
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 19:28:47 +1100
-Date: Thu, 31 Mar 2011 13:58:13 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [PATCH 0/3] Unmapped page cache control (v5)
-Message-ID: <20110331082813.GN2879@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <20110330052819.8212.1359.stgit@localhost6.localdomain6>
- <20110331144145.0ECA.A69D9226@jp.fujitsu.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C88B8D0040
+	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 05:15:57 -0400 (EDT)
+Received: by iyf13 with SMTP id 13so3113494iyf.14
+        for <linux-mm@kvack.org>; Thu, 31 Mar 2011 02:15:54 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20110331144145.0ECA.A69D9226@jp.fujitsu.com>
+In-Reply-To: <20110331110113.a01f7b8b.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20110331110113.a01f7b8b.kamezawa.hiroyu@jp.fujitsu.com>
+From: Zhu Yanhai <zhu.yanhai@gmail.com>
+Date: Thu, 31 Mar 2011 17:15:34 +0800
+Message-ID: <AANLkTi=D8pfyxf3Vr33YZvuQm9fQv+bthyiLLeRjaJt6@mail.gmail.com>
+Subject: Re: [LSF][MM] rough agenda for memcg.
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, npiggin@kernel.dk, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, cl@linux.com, kamezawa.hiroyu@jp.fujitsu.com, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan.kim@gmail.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: lsf@lists.linux-foundation.org, linux-mm@kvack.org, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, Ying Han <yinghan@google.com>, Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, walken@google.com
 
-* KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> [2011-03-31 14:40:33]:
+Hi Kame,
 
-> > 
-> > The following series implements page cache control,
-> > this is a split out version of patch 1 of version 3 of the
-> > page cache optimization patches posted earlier at
-> > Previous posting http://lwn.net/Articles/425851/ and analysis
-> > at http://lwn.net/Articles/419713/
-> > 
-> > Detailed Description
-> > ====================
-> > This patch implements unmapped page cache control via preferred
-> > page cache reclaim. The current patch hooks into kswapd and reclaims
-> > page cache if the user has requested for unmapped page control.
-> > This is useful in the following scenario
-> > - In a virtualized environment with cache=writethrough, we see
-> >   double caching - (one in the host and one in the guest). As
-> >   we try to scale guests, cache usage across the system grows.
-> >   The goal of this patch is to reclaim page cache when Linux is running
-> >   as a guest and get the host to hold the page cache and manage it.
-> >   There might be temporary duplication, but in the long run, memory
-> >   in the guests would be used for mapped pages.
-> >
-> > - The option is controlled via a boot option and the administrator
-> >   can selectively turn it on, on a need to use basis.
-> > 
-> > A lot of the code is borrowed from zone_reclaim_mode logic for
-> > __zone_reclaim(). One might argue that the with ballooning and
-> > KSM this feature is not very useful, but even with ballooning,
-> > we need extra logic to balloon multiple VM machines and it is hard
-> > to figure out the correct amount of memory to balloon. With these
-> > patches applied, each guest has a sufficient amount of free memory
-> > available, that can be easily seen and reclaimed by the balloon driver.
-> > The additional memory in the guest can be reused for additional
-> > applications or used to start additional guests/balance memory in
-> > the host.
-> 
-> If anyone think this series works, They are just crazy. This patch reintroduce
-> two old issues.
-> 
-> 1) zone reclaim doesn't work if the system has multiple node and the
->    workload is file cache oriented (eg file server, web server, mail server, et al). 
->    because zone recliam make some much free pages than zone->pages_min and
->    then new page cache request consume nearest node memory and then it
->    bring next zone reclaim. Then, memory utilization is reduced and
->    unnecessary LRU discard is increased dramatically.
-> 
->    SGI folks added CPUSET specific solution in past. (cpuset.memory_spread_page)
->    But global recliam still have its issue. zone recliam is HPC workload specific 
->    feature and HPC folks has no motivation to don't use CPUSET.
->
+2011/3/31 KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>:
+> =C2=A0c) Should we provide a auto memory cgroup for file caches ?
+> =C2=A0 =C2=A0 (Then we can implement a file-cache-limit.)
+> =C2=A0c) AFAIK, some other OSs have this kind of feature, a box for file-=
+cache.
+> =C2=A0 =C2=A0 Because file-cache is a shared object between all cgroups, =
+it's difficult
+> =C2=A0 =C2=A0 to handle. It may be better to have a auto cgroup for file =
+caches and add knobs
+> =C2=A0 =C2=A0 for memcg.
 
-I am afraid you misread the patches and the intent. The intent to
-explictly enable control of unmapped pages and has nothing
-specifically to do with multiple nodes at this point. The control is
-system wide and carefully enabled by the administrator.
- 
-> 2) Before 2.6.27, VM has only one LRU and calc_reclaim_mapped() is used to
->    decide to filter out mapped pages. It made a lot of problems for DB servers
->    and large application servers. Because, if the system has a lot of mapped
->    pages, 1) LRU was churned and then reclaim algorithm become lotree one. 2)
->    reclaim latency become terribly slow and hangup detectors misdetect its
->    state and start to force reboot. That was big problem of RHEL5 based banking
->    system.
->    So, sc->may_unmap should be killed in future. Don't increase uses.
-> 
+I have been thinking about this idea. It seems the root cause of
+current difficult is
+the whole cgroup infrastructure is based on process groups, so its counters
+naturally center on process. However, this is not nature for counters
+of file caches,
+which center on inodes/devs actually. This brought many confusing
+problems - e.g.
+who should be charged for a (dirty)file page?  I think the answer is
+no process but
+the filesystem/block device it sits on.
+How about we change the view, from centering on process to centering
+on filesystem/device.
+Let's call it 'pcgroup'. When it enables, we can set limits for each
+filesystem/device,
+and charge the filesystem/device for each page seat on it. This
+'pcgroup' would be
+orthogonal to cgroup.memcontroler. We could make cgroup.memcontroler only
+account/control the anon pages they have, leave all file-backend pages
+controlled
+by the 'pcgroup'.
+For the implementation, 'pcgroup' can reuse the struct page_cgroup -
+and res_counter
+maybe even the hierarchy reclaim code, and so on - it looks like a
+cgroup very much -
+which might make things easier.
+One problem is this 'pcgroup' may not be able to be implemented inside
+cgroup frame,
+as the very core code of cgroup assumes that all its
+controls/res_counters are per-process(group).
 
-Can you remove sc->may_unmap without removing zone_reclaim()? The LRU
-churn can be addressed at the time of isolation, I'll send out an
-incremental patch for that.
+Is this doable?
 
-> 
-> But, I agree that now we have to concern slightly large VM change parhaps
-> (or parhaps not). Ok, it's good opportunity to fill out some thing.
-> Historically, Linux MM has "free memory are waste memory" policy, and It
-> worked completely fine. But now we have a few exceptions.
-> 
-> 1) RT, embedded and finance systems. They really hope to avoid reclaim
->    latency (ie avoid foreground reclaim completely) and they can accept 
->    to make slightly much free pages before memory shortage.
-> 
-> 2) VM guest
->    VM host and VM guest naturally makes two level page cache model. and
->    Linux page cache + two level don't work fine. It has two issues
->    1) hard to visualize real memory consumption. That makes harder to 
->       works baloon fine. And google want to visualize memory utilization
->       to pack in more jobs.
->    2) hard to make in kernel memory utilization improvement mechanism.
-> 
-> 
-> And, now we have four proposal of utilization related issues.
-> 
-> 1) cleancache (from Oracle)
-
-Cleancache requires both hypervisor and guest support. With these
-patches, Linux can run well under hypverisor if we know the hypversior
-does a lot of the IO and maintains the cache.
-
-> 2) VirtFS (from IBM)
-> 3) kstaled (from Google)
-> 4) unmapped page reclaim (from you)
-> 
-> Probably, we can't merge all of them and we need to consolidate some 
-> requirement and implementations.
-> 
-> 
-> cleancache seems most straight forward two level cache handling for
-> virtalization. but it has soem xen specific mess and, currently, don't fit RT
-> usage. VirtFS has another interesting de-duplication idea. But filesystem based
-
-I am planning to work on deduplication at KSM level at some point, but
-I think again you misread the intention of these patches.
-
-> implemenation naturally inherit some vfs interface limitations.
-> Google approach is more unique. memcg don't have double cache
-> issue, therefore they only want to visualize it.
-> 
-> Personally I think cleancache or other multi level page cache framework
-> looks promising. but another solution is also acceptable. Anyway, I hope 
-> to everyone back 1000feet bird eye at once and sorting out all requiremnt 
-> with all related person. 
->
-
-Thanks for the review! 
-
--- 
-	Three Cheers,
-	Balbir
+Thanks,
+Zhu Yanhai
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
