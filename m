@@ -1,166 +1,152 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 67F038D0040
-	for <linux-mm@kvack.org>; Wed, 30 Mar 2011 22:08:10 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id E4C5D3EE0C2
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 11:08:02 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id C27DF45DE5A
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 11:08:02 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id A98C045DE55
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 11:08:02 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 9BFEE1DB8047
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 11:08:02 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 5DF421DB8040
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 11:08:02 +0900 (JST)
-Date: Thu, 31 Mar 2011 11:01:13 +0900
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 31F858D0040
+	for <linux-mm@kvack.org>; Wed, 30 Mar 2011 22:32:11 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 577033EE0BD
+	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 11:32:06 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 3BB7645DE68
+	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 11:32:06 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 2251C45DD73
+	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 11:32:06 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 146E9E08002
+	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 11:32:06 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id D24FE1DB8038
+	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 11:32:05 +0900 (JST)
+Date: Thu, 31 Mar 2011 11:25:32 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [LSF][MM] rough agenda for memcg.
-Message-Id: <20110331110113.a01f7b8b.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH] memcg: isolate pages in memcg lru from global lru
+Message-Id: <20110331112532.82ed25ad.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1301532498-20309-1-git-send-email-yinghan@google.com>
+References: <1301532498-20309-1-git-send-email-yinghan@google.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: lsf@lists.linux-foundation.org
-Cc: linux-mm@kvack.org, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, Ying Han <yinghan@google.com>, Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, walken@google.com
+To: Ying Han <yinghan@google.com>
+Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Li Zefan <lizf@cn.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Mel Gorman <mel@csn.ul.ie>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Zhu Yanhai <zhu.yanhai@gmail.com>, linux-mm@kvack.org
+
+On Wed, 30 Mar 2011 17:48:18 -0700
+Ying Han <yinghan@google.com> wrote:
+
+> In memory controller, we do both targeting reclaim and global reclaim. The
+> later one walks through the global lru which links all the allocated pages
+> on the system. It breaks the memory isolation since pages are evicted
+> regardless of their memcg owners. This patch takes pages off global lru
+> as long as they are added to per-memcg lru.
+> 
+> Memcg and cgroup together provide the solution of memory isolation where
+> multiple cgroups run in parallel without interfering with each other. In
+> vm, memory isolation requires changes in both page allocation and page
+> reclaim. The current memcg provides good user page accounting, but need
+> more work on the page reclaim.
+> 
+> In an over-committed machine w/ 32G ram, here is the configuration:
+> 
+> cgroup-A/  -- limit_in_bytes = 20G, soft_limit_in_bytes = 15G
+> cgroup-B/  -- limit_in_bytes = 20G, soft_limit_in_bytes = 15G
+> 
+> 1) limit_in_bytes is the hard_limit where process will be throttled or OOM
+> killed by going over the limit.
+> 2) memory between soft_limit and limit_in_bytes are best-effort. soft_limit
+> provides "guarantee" in some sense.
+> 
+> Then, it is easy to generate the following senario where:
+> 
+> cgroup-A/  -- usage_in_bytes = 20G
+> cgroup-B/  -- usage_in_bytes = 12G
+> 
+> The global memory pressure triggers while cgroup-A keep allocating memory. At
+> this point, pages belongs to cgroup-B can be evicted from global LRU.
+> 
+> We do have per-memcg targeting reclaim including per-memcg background reclaim
+> and soft_limit reclaim. Both of them need some improvement, and regardless we
+> still need this patch since it breaks isolation.
+> 
+> Besides, here is to-do list I have on memcg page reclaim and they are sorted.
+> a) per-memcg background reclaim. to reclaim pages proactively
+agree,
+
+> b) skipping global lru reclaim if soft_limit reclaim does enough work. this is
+> both for global background reclaim and global ttfp reclaim.
+
+agree. but zone-balancing cannot be avoidalble for now. So, I think we need a
+inter-zone-page-migration to balancing memory between zones...if necessary.
 
 
-Hi,
+> c) improve the soft_limit reclaim to be efficient.
 
-In this LSF/MM, we have some memcg topics in the 1st day.
+must be done.
 
->From schedule,
+> d) isolate pages in memcg from global list since it breaks memory isolation.
+> 
 
-1. Memory cgroup : Where next ? 1hour (Balbir Singh/Kamezawa) 
-2. Memcg Dirty Limit and writeback 30min(Greg Thelen)
-3. Memcg LRU management 30min (Ying Han, Michal Hocko)
-4. Page cgroup on a diet (Johannes Weiner)
+I never agree this until about a),b),c) is fixed and we can go nowhere.
 
-2.5 hours. This seems long...or short ? ;)
-
-I'd like to sort out topics before going. Please fix if I don't catch enough.
-
-mentiont to 1. later...
-
-Main topics on 2. Memcg Dirty Limit and writeback ....is
-
- a) How to implement per-memcg dirty inode finding method (list) and
-    how flusher threads handle memcg.
-
- b) Hot to interact with IO-Less dirty page reclaim.
-    IIUC, if memcg doesn't handle this correctly, OOM happens.
-
- Greg, do we need to have a shared session with I/O guys ?
- If needed, current schedule is O.K. ?
-
-Main topics on 3. Memcg LRU management
-
- a) Isolation/Gurantee for memcg.
-    Current memcg doesn't have enough isolation when globarl reclaim runs.
-    .....Because it's designed not to affect global reclaim.
-    But from user's point of view, it's nonsense and we should have some hints
-    for isolate set of memory or implement a guarantee.
-    
-    One way to go is updating softlimit better. To do this, we should know what
-    is problem now. I'm sorry I can't prepare data on this until LSF/MM.
-    Another way is implementing a guarantee. But this will require some interaction
-    with page allocator and pgscan mechanism. This will be a big work.
-
- b) single LRU and per memcg zone->lru_lock.
-    I hear zone->lru_lock contention caused by memcg is a problem on Google servers.
-    Okay, please show data. (I've never seen it.)
-    Then, we need to discuss Pros. and Cons. of current design and need to consinder
-    how to improve it. I think Google and Michal have their own implementation.
-
-    Current design of double-LRU is from the 1st inclusion of memcg to the kernel.
-    But I don't know that discussion was there. Balbir, could you explain the reason
-    of this design ? Then, we can go ahead, somewhere.
+BTW, in other POV, for reducing size of page_cgroup, we must remove ->lru
+on page_cgroup. If divide-and-conquer memory reclaim works enough,
+we can do that. But this is a big global VM change, so we need enough
+justification.
 
 
-Main topics on 4. Page cgroup on diet is...
 
-  a) page_cgroup is too big!, we need diet....
-     I think Johannes removes -> page pointer already. Ok, what's the next to
-     be removed ?
+> I have some basic test on this patch and more tests definitely are needed:
+> 
 
-  I guess the next candidate is ->lru which is related to 3-b).
-  
-Main topics on 1.Memory control groups: where next? is..
+> Functional:
+> two memcgs under root. cgroup-A is reading 20g file with 2g limit,
+> cgroup-B is running random stuff with 500m limit. Check the counters for
+> per-memcg lru and global lru, and they should add-up.
+> 
+> 1) total file pages
+> $ cat /proc/meminfo | grep Cache
+> Cached:          6032128 kB
+> 
+> 2) file lru on global lru
+> $ cat /proc/vmstat | grep file
+> nr_inactive_file 0
+> nr_active_file 963131
+> 
+> 3) file lru on root cgroup
+> $ cat /dev/cgroup/memory.stat | grep file
+> inactive_file 0
+> active_file 0
+> 
+> 4) file lru on cgroup-A
+> $ cat /dev/cgroup/A/memory.stat | grep file
+> inactive_file 2145759232
+> active_file 0
+> 
+> 5) file lru on cgroup-B
+> $ cat /dev/cgroup/B/memory.stat | grep file
+> inactive_file 401408
+> active_file 143360
+> 
+> Performance:
+> run page fault test(pft) with 16 thread on faulting in 15G anon pages
+> in 16G cgroup. There is no regression noticed on "flt/cpu/s"
+> 
 
-To be honest, I just do bug fixes in these days. And hot topics are on above..
-I don't have concrete topics. What I can think of from recent linux-mm emails are...
+You need a fix for /proc/meminfo, /proc/vmstat to count memcg's ;)
 
-  a) Kernel memory accounting.
-  b) Need some work with Cleancache ?
-  c) Should we provide a auto memory cgroup for file caches ?
-     (Then we can implement a file-cache-limit.)
-  d) Do we have a problem with current OOM-disable+notifier design ?
-  e) ROOT cgroup should have a limit/softlimit, again ?
-  f) vm_overcommit_memory should be supproted with memcg ?
-     (I remember there was a trial. But I think it should be done in other cgroup
-      as vmemory cgroup.)
-...
+Anyway, this seems too aggresive to me, for now. Please do a), b), c), at first.
 
-I think
-  a) discussing about this is too early. There is no patch.
-     I think we'll just waste time.
+IIUC, this patch itself can cause a livelock when softlimit is misconfigured.
+What is the protection against wrong softlimit  ? 
 
-  b) enable/disable cleancache per memcg or some share/limit ??
-     But we can discuss this kind of things after cleancache is in production use...
+If we do this kind of LRU isolation, we'll need some limitation of the sum of
+limits of all memcg for avoiding wrong configuration. That may change UI, dramatically.
+(As RT-class cpu limiting cgroup does.....)
 
-  c) AFAIK, some other OSs have this kind of feature, a box for file-cache.
-     Because file-cache is a shared object between all cgroups, it's difficult
-     to handle. It may be better to have a auto cgroup for file caches and add knobs
-     for memcg.
-
-  d) I think it works well. 
-
-  e) It seems Michal wants this for lazy users. Hmm, should we have a knob ?
-     It's helpful that some guy have a performance number on the latest kernel
-     with and without memcg (in limitless case).
-     IIUC, with THP enabled as 'always', the number of page fault dramatically reduced and
-     memcg's accounting cost gets down...
-
-  f) I think someone mention about this...
-
-Maybe c) and d) _can_ be a topic but seems not very important.
-
-So, for this slot, I'd like to discuss
-
-  I) Softlimit/Isolation (was 3-A) for 1hour
-     If we have extra time, kernel memory accounting or file-cache handling
-     will be good.
-   
-  II) Dirty page handling. (for 30min)
-     Maybe we'll discuss about per-memcg inode queueing issue.
-
-  III) Discussing the current and future design of LRU.(for 30+min)
-
-  IV) Diet of page_cgroup (for 30-min)
-      Maybe this can be combined with III.
+Anyway, thank you for data.
 
 Thanks,
 -Kame
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 --
