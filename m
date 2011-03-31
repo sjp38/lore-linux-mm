@@ -1,79 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 9904B8D0040
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 17:17:56 -0400 (EDT)
-Received: by ewy9 with SMTP id 9so1143810ewy.14
-        for <linux-mm@kvack.org>; Thu, 31 Mar 2011 14:17:53 -0700 (PDT)
-Content-Type: text/plain; charset=utf-8; format=flowed; delsp=yes
-Subject: Re: [PATCH 05/12] mm: alloc_contig_range() added
-References: <1301577368-16095-1-git-send-email-m.szyprowski@samsung.com>
- <1301577368-16095-6-git-send-email-m.szyprowski@samsung.com>
- <1301587361.31087.1040.camel@nimitz> <op.vs7umufd3l0zgt@mnazarewicz-glaptop>
- <1301603322.31087.1196.camel@nimitz>
-Date: Thu, 31 Mar 2011 23:17:51 +0200
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id D0FB78D0040
+	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 17:40:39 -0400 (EDT)
+Date: Fri, 1 Apr 2011 08:40:33 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH 0/3] Unmapped page cache control (v5)
+Message-ID: <20110331214033.GA2904@dastard>
+References: <20110330052819.8212.1359.stgit@localhost6.localdomain6>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7bit
-From: "Michal Nazarewicz" <mina86@mina86.com>
-Message-ID: <op.vs7731po3l0zgt@mnazarewicz-glaptop>
-In-Reply-To: <1301603322.31087.1196.camel@nimitz>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110330052819.8212.1359.stgit@localhost6.localdomain6>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-samsung-soc@vger.kernel.org, linux-media@vger.kernel.org, linux-mm@kvack.org, Kyungmin Park <kyungmin.park@samsung.com>, Andrew
- Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ankita Garg <ankita@in.ibm.com>, Daniel
- Walker <dwalker@codeaurora.org>, Johan MOSSBERG <johan.xx.mossberg@stericsson.com>, Mel Gorman <mel@csn.ul.ie>, Pawel
- Osciak <pawel@osciak.com>
+To: Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, npiggin@kernel.dk, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, kosaki.motohiro@jp.fujitsu.com, cl@linux.com, kamezawa.hiroyu@jp.fujitsu.com
 
-On Thu, 31 Mar 2011 22:28:42 +0200, Dave Hansen <dave@linux.vnet.ibm.com>  
-wrote:
+On Wed, Mar 30, 2011 at 11:00:26AM +0530, Balbir Singh wrote:
+> 
+> The following series implements page cache control,
+> this is a split out version of patch 1 of version 3 of the
+> page cache optimization patches posted earlier at
+> Previous posting http://lwn.net/Articles/425851/ and analysis
+> at http://lwn.net/Articles/419713/
+> 
+> Detailed Description
+> ====================
+> This patch implements unmapped page cache control via preferred
+> page cache reclaim. The current patch hooks into kswapd and reclaims
+> page cache if the user has requested for unmapped page control.
+> This is useful in the following scenario
+> - In a virtualized environment with cache=writethrough, we see
+>   double caching - (one in the host and one in the guest). As
+>   we try to scale guests, cache usage across the system grows.
+>   The goal of this patch is to reclaim page cache when Linux is running
+>   as a guest and get the host to hold the page cache and manage it.
+>   There might be temporary duplication, but in the long run, memory
+>   in the guests would be used for mapped pages.
 
-> On Thu, 2011-03-31 at 18:26 +0200, Michal Nazarewicz wrote:
->> > On Thu, 2011-03-31 at 15:16 +0200, Marek Szyprowski wrote:
->> >> +       ret = 0;
->> >> +       while (!PageBuddy(pfn_to_page(start & (~0UL << ret))))
->> >> +               if (WARN_ON(++ret >= MAX_ORDER))
->> >> +                       return -EINVAL;
->>
->> On Thu, 31 Mar 2011 18:02:41 +0200, Dave Hansen wrote:
->> > Holy cow, that's dense.  Is there really no more straightforward way  
->> to
->> > do that?
->>
->> Which part exactly is dense?  What would be qualify as a more
->> straightforward way?
->
-> I'm still not 100% sure what it's trying to do.  It looks like it
-> attempts to check all of "start"'s buddy pages.
+What does this do that "cache=none" for the VMs and using the page
+cache inside the guest doesn't acheive? That avoids double caching
+and doesn't require any new complexity inside the host OS to
+acheive...
 
-No.  I'm going up through parents.  This is because even though start
-falls in a free block (ie. one that page allocator tracks), the actual
-page that is in buddy system is larger then start and this loop looks
-for beginning of that page.
+Cheers,
 
-> int order;
-> for (order = 0; order <= MAX_ORDER; order++) {
-> 	unsigned long buddy_pfn = find_buddy(start, order);
-> 	struct page *buddy = pfn_to_page(buddy_pfn);
-> 	if (PageBuddy(buddy)
-> 		break;
-> 	WARN();
-> 	return -EINVAL;
-> }
-
-The WARN() and return would have to be outside of the loop and, as I
-described, instead of find_buddy() something like find_parent() would
-have to be used.
-
-> I'm wondering also if you can share some code with __rmqueue().
-
-Doubtful since start does not (have to) point to a page that is tracked
-by page allocator but a page inside such a page.
-
+Dave.
 -- 
-Best regards,                                         _     _
-.o. | Liege of Serenely Enlightened Majesty of      o' \,=./ `o
-..o | Computer Science,  Michal "mina86" Nazarewicz    (o o)
-ooo +-----<email/xmpp: mnazarewicz@google.com>-----ooO--(_)--Ooo--
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
