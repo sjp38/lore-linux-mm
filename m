@@ -1,68 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id CF4988D0040
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 15:22:50 -0400 (EDT)
-Received: from kpbe19.cbf.corp.google.com (kpbe19.cbf.corp.google.com [172.25.105.83])
-	by smtp-out.google.com with ESMTP id p2VJMldP011683
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 12:22:47 -0700
-Received: from qwb7 (qwb7.prod.google.com [10.241.193.71])
-	by kpbe19.cbf.corp.google.com with ESMTP id p2VJMjjs027232
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 12:22:45 -0700
-Received: by qwb7 with SMTP id 7so1926861qwb.26
-        for <linux-mm@kvack.org>; Thu, 31 Mar 2011 12:22:45 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with SMTP id E86518D0040
+	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 15:25:33 -0400 (EDT)
+Date: Thu, 31 Mar 2011 15:24:30 -0400
+From: Steven Rostedt <rostedt@goodmis.org>
+Subject: Re: [PATCH 04/12] mm: alloc_contig_freed_pages() added
+Message-ID: <20110331192429.GD14441@home.goodmis.org>
+References: <1301577368-16095-1-git-send-email-m.szyprowski@samsung.com>
+ <1301577368-16095-5-git-send-email-m.szyprowski@samsung.com>
+ <1301587083.31087.1032.camel@nimitz>
 MIME-Version: 1.0
-In-Reply-To: <BANLkTi=_O6nSo=q3bgkhu01p6a-G8Gq_yQ@mail.gmail.com>
-References: <20110331110113.a01f7b8b.kamezawa.hiroyu@jp.fujitsu.com>
-	<4D944801.3020404@parallels.com>
-	<20110331162050.GI12265@random.random>
-	<BANLkTin4Zj9HLWy5xobBcP6WQFY1um1JzA@mail.gmail.com>
-	<4D94CF4E.5000306@parallels.com>
-	<BANLkTi=_O6nSo=q3bgkhu01p6a-G8Gq_yQ@mail.gmail.com>
-Date: Thu, 31 Mar 2011 12:22:44 -0700
-Message-ID: <BANLkTinqFuLkeSMPhnxHws7Ki9-H8MRDYA@mail.gmail.com>
-Subject: Re: [Lsf] [LSF][MM] rough agenda for memcg.
-From: Ying Han <yinghan@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1301587083.31087.1032.camel@nimitz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Emelyanov <xemul@parallels.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, "lsf@lists.linux-foundation.org" <lsf@lists.linux-foundation.org>, Linux MM <linux-mm@kvack.org>, Suleiman Souhlal <suleiman@google.com>
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: Marek Szyprowski <m.szyprowski@samsung.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-samsung-soc@vger.kernel.org, linux-media@vger.kernel.org, linux-mm@kvack.org, Michal Nazarewicz <mina86@mina86.com>, Kyungmin Park <kyungmin.park@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ankita Garg <ankita@in.ibm.com>, Daniel Walker <dwalker@codeaurora.org>, Johan MOSSBERG <johan.xx.mossberg@stericsson.com>, Mel Gorman <mel@csn.ul.ie>, Pawel Osciak <pawel@osciak.com>
 
-On Thu, Mar 31, 2011 at 12:16 PM, Ying Han <yinghan@google.com> wrote:
-> On Thu, Mar 31, 2011 at 12:00 PM, Pavel Emelyanov <xemul@parallels.com> w=
-rote:
->>>>>> =A0 a) Kernel memory accounting.
->>>>>
->>>>> This one is very interesting to me.
->>>>
->>>> I expected someone would have been interested into that...
->>>
->>> We are definitely interested in that. We are testing the patch
->>> internally now on kernel slab accounting.
->>
->> I guess this patch sent to linux-mm, so can you give me an url?
->
-> Pavel, I don't think we have patch sent out yet (under testing). But
-> Suleiman (the author) has the
-> proposal at http://permalink.gmane.org/gmane.linux.kernel.mm/58173
->
-> Thanks
->
-> --Ying
->>
->>> The author won't be in LSF,
->>> but I can help to present our approach in the session w/ Pavel. Also,
->>> I would like to talk a bit on the kernel memory reclaim for few
->>> minutes.
->>>
->>> --Ying
->>
->> Thanks,
->> Pavel
->>
->
+On Thu, Mar 31, 2011 at 08:58:03AM -0700, Dave Hansen wrote:
+> On Thu, 2011-03-31 at 15:16 +0200, Marek Szyprowski wrote:
+> > 
+> > +unsigned long alloc_contig_freed_pages(unsigned long start, unsigned long end,
+> > +                                      gfp_t flag)
+> > +{
+> > +       unsigned long pfn = start, count;
+> > +       struct page *page;
+> > +       struct zone *zone;
+> > +       int order;
+> > +
+> > +       VM_BUG_ON(!pfn_valid(start));
+> 
+> This seems kinda mean.  Could we return an error?  I understand that
+> this is largely going to be an early-boot thing, but surely trying to
+> punt on crappy input beats a full-on BUG().
+> 
+> 	if (!pfn_valid(start))
+> 		return -1;
+
+But still keep the warning?
+
+	if (WARN_ON(!pfn_valid(start))
+		return -1;
+
+-- Steve
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
