@@ -1,99 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 640408D0040
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 06:02:02 -0400 (EDT)
-Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
-	by e28smtp07.in.ibm.com (8.14.4/8.13.1) with ESMTP id p2VA1rCh016650
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 15:31:53 +0530
-Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
-	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p2VA1rHr4210818
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 15:31:53 +0530
-Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
-	by d28av02.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p2VA1reW000593
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 21:01:53 +1100
-Date: Thu, 31 Mar 2011 15:31:36 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [RFC 0/3] Implementation of cgroup isolation
-Message-ID: <20110331100136.GO2879@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <20110328093957.089007035@suse.cz>
- <20110328200332.17fb4b78.kamezawa.hiroyu@jp.fujitsu.com>
- <4D920066.7000609@gmail.com>
- <20110330081853.GC15394@tiehlicka.suse.cz>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id BE4EA8D0040
+	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 08:27:54 -0400 (EDT)
+Date: Thu, 31 Mar 2011 14:27:47 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [Lsf] [LSF][MM] rough agenda for memcg.
+Message-ID: <20110331122747.GC21524@quack.suse.cz>
+References: <20110331110113.a01f7b8b.kamezawa.hiroyu@jp.fujitsu.com>
+ <BANLkTikLPTr46S6k5LaZ3sfsXG=PrQNvGA@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20110330081853.GC15394@tiehlicka.suse.cz>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <BANLkTikLPTr46S6k5LaZ3sfsXG=PrQNvGA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Greg Thelen <gthelen@google.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, lsf@lists.linux-foundation.org, linux-mm@kvack.org
 
-* Michal Hocko <mhocko@suse.cz> [2011-03-30 10:18:53]:
-
-> On Tue 29-03-11 21:23:10, Balbir Singh wrote:
-> > On 03/28/11 16:33, KAMEZAWA Hiroyuki wrote:
-> > > On Mon, 28 Mar 2011 11:39:57 +0200
-> > > Michal Hocko <mhocko@suse.cz> wrote:
-> [...]
-> > > Isn't it the same result with the case where no cgroup is used ?
-> > > What is the problem ?
-> > > Why it's not a problem of configuration ?
-> > > IIUC, you can put all logins to some cgroup by using cgroupd/libgcgroup.
-> > > 
-> > 
-> > I agree with Kame, I am still at loss in terms of understand the use
-> > case, I should probably see the rest of the patches
+On Wed 30-03-11 22:52:49, Greg Thelen wrote:
+> On Wed, Mar 30, 2011 at 7:01 PM, KAMEZAWA Hiroyuki
+> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> > I'd like to sort out topics before going. Please fix if I don't catch enough.
+> >
+> > mentiont to 1. later...
+> >
+> > Main topics on 2. Memcg Dirty Limit and writeback ....is
+> >
+> >  a) How to implement per-memcg dirty inode finding method (list) and
+> >    how flusher threads handle memcg.
 > 
-> OK, it looks that I am really bad at explaining the usecase. Let's try
-> it again then (hopefully in a better way).
+> I have some very rough code implementing the ideas discussed in
+> http://thread.gmane.org/gmane.linux.kernel.mm/59707
+> Unfortunately, I do not yet have good patches, but maybe an RFC series
+> soon.  I can provide update on the direction I am thinking.
 > 
-> Consider a service which serves requests based on the in-memory
-> precomputed or preprocessed data. 
-> Let's assume that getting data into memory is rather costly operation
-> which considerably increases latency of the request processing. Memory
-> access can be considered random from the system POV because we never
-> know which requests will come from outside.
-> This workflow will benefit from having the memory resident as long as
-> and as much as possible because we have higher chances to be used more
-> often and so the initial costs would pay off.
-> Why is mlock not the right thing to do here? Well, if the memory would
-> be locked and the working set would grow (again this depends on the
-> incoming requests) then the application would have to unlock some
-> portions of the memory or to risk OOM because it basically cannot
-> overcommit.
-> On the other hand, if the memory is not mlocked and there is a global
-> memory pressure we can have some part of the costly memory swapped or
-> paged out which will increase requests latencies. If the application is
-> placed into an isolated cgroup, though, the global (or other cgroups)
-> activity doesn't influence its cgroup thus the working set of the
-> application.
-
-I think one important aspect is what percentage of the memory needs to
-be isolated/locked? If you expect really large parts, then we are in
-trouble, unless we are aware of the exact requirements for memory and
-know what else will run on the system.
-
-> If we compare that to mlock we will benefit from per-group reclaim when
-> we get over the limit (or soft limit). So we do not start evicting the
-> memory unless somebody makes really pressure on the _application_.
-> Cgroup limits would, of course, need to be selected carefully.
+> >  b) Hot to interact with IO-Less dirty page reclaim.
+> >    IIUC, if memcg doesn't handle this correctly, OOM happens.
 > 
-> There might be other examples when simply kernel cannot know which
-> memory is important for the process and the long unused memory is not
-> the ideal choice.
->
+> The last posted memcg dirty writeback patches were based on -mm at the
+> time, which did not have IO-less balance_dirty_pages.  I have an
+> approach which I _think_ will be compatible with IO-less
+> balance_dirty_pages(), but I need to talk with some writeback guys to
+> confirm.  Seeing the Writeback talk Mon 9:30am should be very useful
+> for me.
+> 
+> >  Greg, do we need to have a shared session with I/O guys ?
+> >  If needed, current schedule is O.K. ?
+> 
+> We can contact any interested writeback guys to see if they want to
+> attend memcg-writeback discussion.  We might be able to defer this
+> detail until Mon morning.
+  Yes, I plan to take part in this discussion. If this would be joint
+session with fs people (which kind of makes sense) it's simpler for
+me but I can surely handle if it isn't :).
 
-There are other watermark based approaches that would work better,
-given that memory management is already complicated by topology, zones
-and we have non-reclaimable memory being used in the kernel on behalf
-of applications. I am not ruling out a solution, just sharing ideas.
-NOTE: In the longer run, we want to account for kernel usage and look
-at potential reclaim of slab pages. 
-
+								Honza
 -- 
-	Three Cheers,
-	Balbir
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
