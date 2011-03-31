@@ -1,196 +1,160 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id A72578D0040
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 02:14:11 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 600983EE081
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 15:14:07 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 42DDC45DE6E
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 15:14:07 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 209C545DE69
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 15:14:07 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0993B1DB8046
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 15:14:07 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id B9D291DB8041
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 15:14:06 +0900 (JST)
-Date: Thu, 31 Mar 2011 15:07:18 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH] memcg: isolate pages in memcg lru from global lru
-Message-Id: <20110331150718.859d3178.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <BANLkTimiwObEvRLv8pmmcy8v31FN2y_VOg@mail.gmail.com>
-References: <1301532498-20309-1-git-send-email-yinghan@google.com>
-	<20110331112532.82ed25ad.kamezawa.hiroyu@jp.fujitsu.com>
-	<BANLkTimiwObEvRLv8pmmcy8v31FN2y_VOg@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 21EE38D0040
+	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 04:28:54 -0400 (EDT)
+Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
+	by e28smtp08.in.ibm.com (8.14.4/8.13.1) with ESMTP id p2V7ULDo000883
+	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 13:00:21 +0530
+Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
+	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p2V8SlLT3780766
+	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 13:58:47 +0530
+Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
+	by d28av04.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p2V8SkNH019500
+	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 19:28:47 +1100
+Date: Thu, 31 Mar 2011 13:58:13 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [PATCH 0/3] Unmapped page cache control (v5)
+Message-ID: <20110331082813.GN2879@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20110330052819.8212.1359.stgit@localhost6.localdomain6>
+ <20110331144145.0ECA.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20110331144145.0ECA.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Li Zefan <lizf@cn.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Mel Gorman <mel@csn.ul.ie>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Zhu Yanhai <zhu.yanhai@gmail.com>, linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, npiggin@kernel.dk, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, cl@linux.com, kamezawa.hiroyu@jp.fujitsu.com, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan.kim@gmail.com>
 
-On Wed, 30 Mar 2011 22:41:51 -0700
-Ying Han <yinghan@google.com> wrote:
+* KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> [2011-03-31 14:40:33]:
 
-> On Wed, Mar 30, 2011 at 7:25 PM, KAMEZAWA Hiroyuki <
-> kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> > 
+> > The following series implements page cache control,
+> > this is a split out version of patch 1 of version 3 of the
+> > page cache optimization patches posted earlier at
+> > Previous posting http://lwn.net/Articles/425851/ and analysis
+> > at http://lwn.net/Articles/419713/
+> > 
+> > Detailed Description
+> > ====================
+> > This patch implements unmapped page cache control via preferred
+> > page cache reclaim. The current patch hooks into kswapd and reclaims
+> > page cache if the user has requested for unmapped page control.
+> > This is useful in the following scenario
+> > - In a virtualized environment with cache=writethrough, we see
+> >   double caching - (one in the host and one in the guest). As
+> >   we try to scale guests, cache usage across the system grows.
+> >   The goal of this patch is to reclaim page cache when Linux is running
+> >   as a guest and get the host to hold the page cache and manage it.
+> >   There might be temporary duplication, but in the long run, memory
+> >   in the guests would be used for mapped pages.
+> >
+> > - The option is controlled via a boot option and the administrator
+> >   can selectively turn it on, on a need to use basis.
+> > 
+> > A lot of the code is borrowed from zone_reclaim_mode logic for
+> > __zone_reclaim(). One might argue that the with ballooning and
+> > KSM this feature is not very useful, but even with ballooning,
+> > we need extra logic to balloon multiple VM machines and it is hard
+> > to figure out the correct amount of memory to balloon. With these
+> > patches applied, each guest has a sufficient amount of free memory
+> > available, that can be easily seen and reclaimed by the balloon driver.
+> > The additional memory in the guest can be reused for additional
+> > applications or used to start additional guests/balance memory in
+> > the host.
 > 
-> > On Wed, 30 Mar 2011 17:48:18 -0700
-> > Ying Han <yinghan@google.com> wrote:
-
-> > > b) skipping global lru reclaim if soft_limit reclaim does enough work.
-> > this is
-> > > both for global background reclaim and global ttfp reclaim.
-> >
-> > agree. but zone-balancing cannot be avoidalble for now. So, I think we need
-> > a
-> > inter-zone-page-migration to balancing memory between zones...if necessary.
-> >
+> If anyone think this series works, They are just crazy. This patch reintroduce
+> two old issues.
 > 
-> thank you for your comments, and can you clarify a bit on this? Actually I
-> was thinking about the zone balancing within memcg, but haven't thought it
-> through yet. I would like to learn more on the cases that we can not avoid
-> global zone-balancing totally.
+> 1) zone reclaim doesn't work if the system has multiple node and the
+>    workload is file cache oriented (eg file server, web server, mail server, et al). 
+>    because zone recliam make some much free pages than zone->pages_min and
+>    then new page cache request consume nearest node memory and then it
+>    bring next zone reclaim. Then, memory utilization is reduced and
+>    unnecessary LRU discard is increased dramatically.
 > 
+>    SGI folks added CPUSET specific solution in past. (cpuset.memory_spread_page)
+>    But global recliam still have its issue. zone recliam is HPC workload specific 
+>    feature and HPC folks has no motivation to don't use CPUSET.
+>
 
-For easyness, please assume i386 host with small HIGHMEM. And you create an
-isolated 2 memcg on it. For example, i386 with 1.5G memory, NORMAL is 800M
-and HIGMEM is 700M. And there is no softlimit settings.
-
-1st, running an application on memcg A, and it allocates 800MB memory.
-In this case, almost all memory of "A" is in HIGHMEM.
-
-2nd, running another application on memcg B, and it allocates 600MB memory.
-All B's memory will be from NORMAL zones.
-
-3rd, an application on memcg A exits.
-
-Finally, we see
-   HIGHMEM .... 700MB free.
-   NORMAL  .... some amount near to 200MB free, 600MB hidden(isolated)
-
-
-4th, someone runs an application which consumes NORMAL memory. the kernel
-tries to free memory in NORMAL zone....but it can only find 200MB, at most.
-
-If there is no isolated memcg, 600MB isn't hidden and
-
-   NORMAL pageout -> access again -> HIGHMEM pagein.
-
-Then, application in B will work happily in _new_ balance of page-zone usage after
-some kswapd runs.
-
-This is my understanding around zone balancing. You need to add an interface
-to move pages to other zones if you implement an _isolation_. 
-This can be implemented by some interface as ballooning between memcg <-> global...
-but, IIUC, if the function says "isolation", the page should never be swapped-out. 
-
-IOW, swapout itself is okay to me, but that will break the user's assumption of
-"isolation". He'll say "Why my application is swapped out !"
-So, I think inter-zone, inter-node balancing should be implemented by page
-migration to avoid swapout. The same kind of problem will be found with cpuset/NUMA.
-
-At least, this should be implemented before allowing 'isolation'.
-
-If swapout happens even if
-  - using memcg for isolation
-  - there are tons of free memory
-  - no memcg reaches its limit.
-
-I think it's a bug if I'm a customer. It's not usable quality in production.
-
-> >
-> >
-> > > c) improve the soft_limit reclaim to be efficient.
-> >
-> > must be done.
-> >
-> 
-> The current design of soft_limit is more on the correctness rather than
-> efficiency. If we are talking about to improve the efficiency of target
-> reclaim, there are quite a lot to change. The first thing might be improving
-> the per-zone RB tree. They are currently based on per-memcg
-> (usage_limit-soft_limit) regardless of how much pages landed on the zone.
+I am afraid you misread the patches and the intent. The intent to
+explictly enable control of unmapped pages and has nothing
+specifically to do with multiple nodes at this point. The control is
+system wide and carefully enabled by the administrator.
+ 
+> 2) Before 2.6.27, VM has only one LRU and calc_reclaim_mapped() is used to
+>    decide to filter out mapped pages. It made a lot of problems for DB servers
+>    and large application servers. Because, if the system has a lot of mapped
+>    pages, 1) LRU was churned and then reclaim algorithm become lotree one. 2)
+>    reclaim latency become terribly slow and hangup detectors misdetect its
+>    state and start to force reboot. That was big problem of RHEL5 based banking
+>    system.
+>    So, sc->may_unmap should be killed in future. Don't increase uses.
 > 
 
-Yes, that's a scheduling problem of softlimit. I don't think current one is
-the best. This area needs study.
-I guess the number of 'inactive' file caches should be considered, at least.
-
-But a problem is that soft-limit is an interface to users. Hard-to-understand
-one is not very good one.
-
-
+Can you remove sc->may_unmap without removing zone_reclaim()? The LRU
+churn can be addressed at the time of isolation, I'll send out an
+incremental patch for that.
 
 > 
-> >
-> > > d) isolate pages in memcg from global list since it breaks memory
-> > isolation.
-> >
+> But, I agree that now we have to concern slightly large VM change parhaps
+> (or parhaps not). Ok, it's good opportunity to fill out some thing.
+> Historically, Linux MM has "free memory are waste memory" policy, and It
+> worked completely fine. But now we have a few exceptions.
+> 
+> 1) RT, embedded and finance systems. They really hope to avoid reclaim
+>    latency (ie avoid foreground reclaim completely) and they can accept 
+>    to make slightly much free pages before memory shortage.
+> 
+> 2) VM guest
+>    VM host and VM guest naturally makes two level page cache model. and
+>    Linux page cache + two level don't work fine. It has two issues
+>    1) hard to visualize real memory consumption. That makes harder to 
+>       works baloon fine. And google want to visualize memory utilization
+>       to pack in more jobs.
+>    2) hard to make in kernel memory utilization improvement mechanism.
 > 
 > 
+> And, now we have four proposal of utilization related issues.
 > 
-> > >
-> >
-> > I never agree this until about a),b),c) is fixed and we can go nowhere.
-> >
-> > BTW, in other POV, for reducing size of page_cgroup, we must remove ->lru
-> > on page_cgroup. If divide-and-conquer memory reclaim works enough,
-> > we can do that. But this is a big global VM change, so we need enough
-> > justification.
-> >
+> 1) cleancache (from Oracle)
+
+Cleancache requires both hypervisor and guest support. With these
+patches, Linux can run well under hypverisor if we know the hypversior
+does a lot of the IO and maintains the cache.
+
+> 2) VirtFS (from IBM)
+> 3) kstaled (from Google)
+> 4) unmapped page reclaim (from you)
 > 
-> I can agree on that. The change looks big, especially without efficient
-> target reclaim. However
-> I do believe we need this to have isolation guarantee.
-> 
-
-But, 'isolation' is not 'guarantee'. I prefere 'guarantee' rather than
-'isolation'. IIUC, what HA guys want is not 'isolation' but 'guarantee'.
-
-
-
-
-> >
-> > Anyway, this seems too aggresive to me, for now. Please do a), b), c), at
-> > first.
-> >
+> Probably, we can't merge all of them and we need to consolidate some 
+> requirement and implementations.
 > 
 > 
-> >
-> > IIUC, this patch itself can cause a livelock when softlimit is
-> > misconfigured.
-> > What is the protection against wrong softlimit ?
-> >
+> cleancache seems most straight forward two level cache handling for
+> virtalization. but it has soem xen specific mess and, currently, don't fit RT
+> usage. VirtFS has another interesting de-duplication idea. But filesystem based
+
+I am planning to work on deduplication at KSM level at some point, but
+I think again you misread the intention of these patches.
+
+> implemenation naturally inherit some vfs interface limitations.
+> Google approach is more unique. memcg don't have double cache
+> issue, therefore they only want to visualize it.
 > 
-> Hmm, can you help to clarify on that?
-> 
+> Personally I think cleancache or other multi level page cache framework
+> looks promising. but another solution is also acceptable. Anyway, I hope 
+> to everyone back 1000feet bird eye at once and sorting out all requiremnt 
+> with all related person. 
+>
 
-IIUC, memcg's memory will never be reclaimed unless it exceeds softlimit.
+Thanks for the review! 
 
-Then, Assume memcg A and B on a 1.5G server.
-
-If 
-   A .... 1G softlimit
-   B .... 1G softlimit
-
-If A uses 800MB, B uses 700MB, where kswapd will get memory from ?
-
-
-In other idea, Assume a memcg A and B on a 1.5G server.
-
-   A .... 100M softlimit  -> almost all usage is ANON. 
-   B .... 1G softlimit    -> almost all usage is file cache, which is inactive.
-
-The server will see very bad swapout, won't ?
-So, I repeatedly say 'improve softlimit 1st.'
-
-Thanks,
--Kame
+-- 
+	Three Cheers,
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
