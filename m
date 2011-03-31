@@ -1,98 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 82F1A8D0040
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 11:58:23 -0400 (EDT)
-Received: from d01dlp01.pok.ibm.com (d01dlp01.pok.ibm.com [9.56.224.56])
-	by e3.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p2VFbRil008251
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 11:37:29 -0400
-Received: from d01relay06.pok.ibm.com (d01relay06.pok.ibm.com [9.56.227.116])
-	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 0E11B38C8042
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 11:58:06 -0400 (EDT)
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p2VFw8JV2723938
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 11:58:08 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p2VFw7pu030732
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 11:58:07 -0400
-Subject: Re: [PATCH 04/12] mm: alloc_contig_freed_pages() added
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <1301577368-16095-5-git-send-email-m.szyprowski@samsung.com>
-References: <1301577368-16095-1-git-send-email-m.szyprowski@samsung.com>
-	 <1301577368-16095-5-git-send-email-m.szyprowski@samsung.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Date: Thu, 31 Mar 2011 08:58:03 -0700
-Message-ID: <1301587083.31087.1032.camel@nimitz>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 9B5A88D0040
+	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 11:59:35 -0400 (EDT)
+Date: Thu, 31 Mar 2011 17:59:31 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [Lsf] [LSF][MM] rough agenda for memcg.
+Message-ID: <20110331155931.GG12265@random.random>
+References: <20110331110113.a01f7b8b.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110331110113.a01f7b8b.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-samsung-soc@vger.kernel.org, linux-media@vger.kernel.org, linux-mm@kvack.org, Michal Nazarewicz <mina86@mina86.com>, Kyungmin Park <kyungmin.park@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ankita Garg <ankita@in.ibm.com>, Daniel Walker <dwalker@codeaurora.org>, Johan MOSSBERG <johan.xx.mossberg@stericsson.com>, Mel Gorman <mel@csn.ul.ie>, Pawel Osciak <pawel@osciak.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: lsf@lists.linux-foundation.org, linux-mm@kvack.org
 
-On Thu, 2011-03-31 at 15:16 +0200, Marek Szyprowski wrote:
+Hi KAMEZAWA,
+
+On Thu, Mar 31, 2011 at 11:01:13AM +0900, KAMEZAWA Hiroyuki wrote:
+> 1. Memory cgroup : Where next ? 1hour (Balbir Singh/Kamezawa) 
+
+Originally it was 30min and then there was a topic "Working set
+estimation" for another 30 min. That has been converted to "what's
+next continued", so I assume that you can add the Working set
+estimation as a subtopic.
+
+> 2. Memcg Dirty Limit and writeback 30min(Greg Thelen)
+> 3. Memcg LRU management 30min (Ying Han, Michal Hocko)
+> 4. Page cgroup on a diet (Johannes Weiner)
+> 2.5 hours. This seems long...or short ? ;)
+
+Overall we've been seeing plenty of memcg emails, so I guess 2.5 hours
+are ok. And I wouldn't say we're not in the short side.
+
+I thought it was better to keep "what's next as last memcg topic" but
+Hugh suggested it as first topic, no problem with the order on my
+side. Now the first topic doubled in time ;).
+
+> I'd like to sort out topics before going. Please fix if I don't catch enough.
+
+I agree that's good practice, to prepare some material and have a
+plan.
+
+> Main topics on 1.Memory control groups: where next? is..
 > 
-> +unsigned long alloc_contig_freed_pages(unsigned long start, unsigned long end,
-> +                                      gfp_t flag)
-> +{
-> +       unsigned long pfn = start, count;
-> +       struct page *page;
-> +       struct zone *zone;
-> +       int order;
-> +
-> +       VM_BUG_ON(!pfn_valid(start));
-
-This seems kinda mean.  Could we return an error?  I understand that
-this is largely going to be an early-boot thing, but surely trying to
-punt on crappy input beats a full-on BUG().
-
-	if (!pfn_valid(start))
-		return -1;
-
-> +       zone = page_zone(pfn_to_page(start));
-> +
-> +       spin_lock_irq(&zone->lock);
-> +
-> +       page = pfn_to_page(pfn);
-> +       for (;;) {
-> +               VM_BUG_ON(page_count(page) || !PageBuddy(page));
-> +               list_del(&page->lru);
-> +               order = page_order(page);
-> +               zone->free_area[order].nr_free--;
-> +               rmv_page_order(page);
-> +               __mod_zone_page_state(zone, NR_FREE_PAGES, -(1UL << order));
-> +               pfn  += 1 << order;
-> +               if (pfn >= end)
-> +                       break;
-
-If start->end happens to span the end of a zone, I believe this will
-jump out of the zone.  It will still be pfn_valid(), but potentially not
-in the same zone. 
-
-> +               VM_BUG_ON(!pfn_valid(pfn));
-> +               page += 1 << order;
-> +       }
-
-That will break on SPARSEMEM.  You potentially need to revalidate the
-pfn->page mapping on every MAX_ORDER pfn change.  It's easiest to just
-do pfn_to_page() on each loop.
-
-> +
-> +       spin_unlock_irq(&zone->lock); 
+> To be honest, I just do bug fixes in these days. And hot topics are on above..
+> I don't have concrete topics. What I can think of from recent linux-mm emails are...
 > 
-> +void free_contig_pages(struct page *page, int nr_pages)
-> +{
-> +       for (; nr_pages; --nr_pages, ++page)
-> +               __free_page(page);
-> +}
+>   a) Kernel memory accounting.
+>   b) Need some work with Cleancache ?
+>   c) Should we provide a auto memory cgroup for file caches ?
+>      (Then we can implement a file-cache-limit.)
+>   d) Do we have a problem with current OOM-disable+notifier design ?
+>   e) ROOT cgroup should have a limit/softlimit, again ?
+>   f) vm_overcommit_memory should be supproted with memcg ?
+>      (I remember there was a trial. But I think it should be done in other cgroup
+>       as vmemory cgroup.)
+> ...
+> 
+> I think
+>   a) discussing about this is too early. There is no patch.
+>      I think we'll just waste time.
 
-Can't help but notice that this resembles a bit of a patch I posted last
-week:
+Hugh was thinking about this as a subtopic, I'm not intrigued by it
+personally so I don't mind to skip it. I can imagine some people
+liking it though. Maybe you can mention it and see if somebody has
+contact with customers who needs this and if it's worth the pain for
+them.
 
-http://www.spinics.net/lists/linux-mm/msg16364.html
+>   b) enable/disable cleancache per memcg or some share/limit ??
+>      But we can discuss this kind of things after cleancache is in production use...
 
-We'll have to make sure we only have one copy of this in the end.
+Kind of agreed we can skip this on my side, but I may be biased
+because cleancache is not really useful to anything like KVM at least
+(we already have writeback default and wirththrough by just using
+O_SYNC without requiring a flood of hypercalls and vmexits even with
+light I/O activity). We'll hear about the new novirt users of
+transcendent memory, in Dan's talk before memcg starts.
 
--- Dave
+>   c) AFAIK, some other OSs have this kind of feature, a box for file-cache.
+>      Because file-cache is a shared object between all cgroups, it's difficult
+>      to handle. It may be better to have a auto cgroup for file caches and add knobs
+>      for memcg.
+> 
+>   d) I think it works well. 
+> 
+>   e) It seems Michal wants this for lazy users. Hmm, should we have a knob ?
+>      It's helpful that some guy have a performance number on the latest kernel
+>      with and without memcg (in limitless case).
+>      IIUC, with THP enabled as 'always', the number of page fault dramatically reduced and
+>      memcg's accounting cost gets down...
+> 
+>   f) I think someone mention about this...
+> 
+> Maybe c) and d) _can_ be a topic but seems not very important.
+>
+> So, for this slot, I'd like to discuss
+> 
+>   I) Softlimit/Isolation (was 3-A) for 1hour
+>      If we have extra time, kernel memory accounting or file-cache handling
+>      will be good.
+
+Sounds good but for the what's next 1 hour slot I would keep more
+subtopics like some of the ones you mentioned (if nothing else for the
+second half hour) and then we see how things evolve. Maybe Michel
+L. still want to talk about Working set estimation too in the second
+half hour.
+
+>   II) Dirty page handling. (for 30min)
+>      Maybe we'll discuss about per-memcg inode queueing issue.
+> 
+>   III) Discussing the current and future design of LRU.(for 30+min)
+> 
+>   IV) Diet of page_cgroup (for 30-min)
+>       Maybe this can be combined with III.
+
+Looks a good plan to me, but others are more directly involved in
+memcg than me so feel free to decide! About the diet topic it was
+suggested by Johannes so I'll let him comment on it if he wants.
+
+Thanks,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
