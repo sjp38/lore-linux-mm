@@ -1,149 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 06BB08D0040
-	for <linux-mm@kvack.org>; Wed, 30 Mar 2011 20:06:39 -0400 (EDT)
-Date: Wed, 30 Mar 2011 16:35:45 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 3/3] Provide control over unmapped pages (v5)
-Message-Id: <20110330163545.1599779f.akpm@linux-foundation.org>
-In-Reply-To: <20110330053129.8212.81574.stgit@localhost6.localdomain6>
-References: <20110330052819.8212.1359.stgit@localhost6.localdomain6>
-	<20110330053129.8212.81574.stgit@localhost6.localdomain6>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 139668D0040
+	for <linux-mm@kvack.org>; Wed, 30 Mar 2011 20:19:57 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id C6AC03EE0BD
+	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 09:19:52 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id ABD3F45DE54
+	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 09:19:52 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 88E1345DE4F
+	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 09:19:52 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 72ACB1DB8040
+	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 09:19:52 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 29AE11DB803B
+	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 09:19:52 +0900 (JST)
+Date: Thu, 31 Mar 2011 09:13:23 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 1/4] vmscan: all_unreclaimable() use
+ zone->all_unreclaimable as the name
+Message-Id: <20110331091323.a3b5cd0e.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110329194044.2B82.A69D9226@jp.fujitsu.com>
+References: <20110329193953.2B7E.A69D9226@jp.fujitsu.com>
+	<20110329194044.2B82.A69D9226@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, npiggin@kernel.dk, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, kosaki.motohiro@jp.fujitsu.com, cl@linux.com, kamezawa.hiroyu@jp.fujitsu.com
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Andrey Vagin <avagin@openvz.org>, Minchan Kim <minchan.kim@gmail.com>, "Luis Claudio R. Goncalves" <lclaudio@uudg.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
 
-On Wed, 30 Mar 2011 11:02:38 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+On Tue, 29 Mar 2011 19:40:04 +0900 (JST)
+KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
 
-> Changelog v4
-> 1. Added documentation for max_unmapped_pages
-> 2. Better #ifdef'ing of max_unmapped_pages and min_unmapped_pages
+> all_unreclaimable check in direct reclaim has been introduced at 2.6.19
+> by following commit.
 > 
-> Changelog v2
-> 1. Use a config option to enable the code (Andrew Morton)
-> 2. Explain the magic tunables in the code or at-least attempt
->    to explain them (General comment)
-> 3. Hint uses of the boot parameter with unlikely (Andrew Morton)
-> 4. Use better names (balanced is not a good naming convention)
+> 	2006 Sep 25; commit 408d8544; oom: use unreclaimable info
 > 
-> Provide control using zone_reclaim() and a boot parameter. The
-> code reuses functionality from zone_reclaim() to isolate unmapped
-> pages and reclaim them as a priority, ahead of other mapped pages.
+> And it went through strange history. firstly, following commit broke
+> the logic unintentionally.
 > 
+> 	2008 Apr 29; commit a41f24ea; page allocator: smarter retry of
+> 				      costly-order allocations
+> 
+> Two years later, I've found obvious meaningless code fragment and
+> restored original intention by following commit.
+> 
+> 	2010 Jun 04; commit bb21c7ce; vmscan: fix do_try_to_free_pages()
+> 				      return value when priority==0
+> 
+> But, the logic didn't works when 32bit highmem system goes hibernation
+> and Minchan slightly changed the algorithm and fixed it .
+> 
+> 	2010 Sep 22: commit d1908362: vmscan: check all_unreclaimable
+> 				      in direct reclaim path
+> 
+> But, recently, Andrey Vagin found the new corner case. Look,
+> 
+> 	struct zone {
+> 	  ..
+> 	        int                     all_unreclaimable;
+> 	  ..
+> 	        unsigned long           pages_scanned;
+> 	  ..
+> 	}
+> 
+> zone->all_unreclaimable and zone->pages_scanned are neigher atomic
+> variables nor protected by lock. Therefore zones can become a state
+> of zone->page_scanned=0 and zone->all_unreclaimable=1. In this case,
+> current all_unreclaimable() return false even though
+> zone->all_unreclaimabe=1.
+> 
+> Is this ignorable minor issue? No. Unfortunatelly, x86 has very
+> small dma zone and it become zone->all_unreclamble=1 easily. and
+> if it become all_unreclaimable=1, it never restore all_unreclaimable=0.
+> Why? if all_unreclaimable=1, vmscan only try DEF_PRIORITY reclaim and
+> a-few-lru-pages>>DEF_PRIORITY always makes 0. that mean no page scan
+> at all!
+> 
+> Eventually, oom-killer never works on such systems. That said, we
+> can't use zone->pages_scanned for this purpose. This patch restore
+> all_unreclaimable() use zone->all_unreclaimable as old. and in addition,
+> to add oom_killer_disabled check to avoid reintroduce the issue of
+> commit d1908362.
+> 
+> Reported-by: Andrey Vagin <avagin@openvz.org>
+> Cc: Nick Piggin <npiggin@kernel.dk>
+> Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-This:
+I think I saw this and this change of condition can avoid it.
 
-akpm:/usr/src/25> grep '^+#' patches/provide-control-over-unmapped-pages-v5.patch 
-+#if defined(CONFIG_UNMAPPED_PAGECACHE_CONTROL) || defined(CONFIG_NUMA)
-+#endif
-+#if defined(CONFIG_UNMAPPED_PAGECACHE_CONTROL)
-+#endif
-+#if defined(CONFIG_UNMAPPED_PAGECACHE_CONTROL) || defined(CONFIG_NUMA)
-+#if defined(CONFIG_UNMAPPED_PAGECACHE_CONTROL)
-+#endif
-+#if defined(CONFIG_UNMAPPED_PAGECACHE_CONTROL)
-+#else
-+#endif
-+#ifdef CONFIG_NUMA
-+#else
-+#define zone_reclaim_mode 0
-+#endif
-+#if defined(CONFIG_UNMAPPED_PAGECACHE_CONTROL) || defined(CONFIG_NUMA)
-+#endif
-+#if defined(CONFIG_UNMAPPED_PAGECACHE_CONTROL)
-+#endif
-+#if defined(CONFIG_UNMAPPED_PAGECACHE_CONTROL) || defined(CONFIG_NUMA)
-+#endif
-+#if defined(CONFIG_UNMAPPED_PAGECACHE_CONTROL)
-+#endif
-+#if defined(CONFIG_UNMAPPED_PAGECACHE_CONTROL) || defined(CONFIG_NUMA)
-+#endif
-+#if defined(CONFIG_UNMAPPED_PAGECACHE_CONTROL)
-+#endif
-+#if defined(CONFIG_UNMAPPED_PAGECACHE_CONTROL)
-+#else /* !CONFIG_UNMAPPED_PAGECACHE_CONTROL */
-+#endif
-+#if defined(CONFIG_UNMAPPED_PAGECACHE_CONTROL) || defined(CONFIG_NUMA)
-+#if defined(CONFIG_UNMAPPED_PAGECACHE_CONTROL)
-+#endif
-+#endif
-+#if defined(CONFIG_UNMAPPED_PAGECACHE_CONTROL)
-
-is getting out of control.  What happens if we just make the feature
-non-configurable?
-
-> +static int __init unmapped_page_control_parm(char *str)
-> +{
-> +	unmapped_page_control = 1;
-> +	/*
-> +	 * XXX: Should we tweak swappiness here?
-> +	 */
-> +	return 1;
-> +}
-> +__setup("unmapped_page_control", unmapped_page_control_parm);
-
-That looks like a pain - it requires a reboot to change the option,
-which makes testing harder and slower.  Methinks you're being a bit
-virtualization-centric here!
-
-> +#else /* !CONFIG_UNMAPPED_PAGECACHE_CONTROL */
-> +static inline void reclaim_unmapped_pages(int priority,
-> +				struct zone *zone, struct scan_control *sc)
-> +{
-> +	return 0;
-> +}
-> +#endif
-> +
->  static struct zone_reclaim_stat *get_reclaim_stat(struct zone *zone,
->  						  struct scan_control *sc)
->  {
-> @@ -2371,6 +2394,12 @@ loop_again:
->  				shrink_active_list(SWAP_CLUSTER_MAX, zone,
->  							&sc, priority, 0);
->  
-> +			/*
-> +			 * We do unmapped page reclaim once here and once
-> +			 * below, so that we don't lose out
-> +			 */
-> +			reclaim_unmapped_pages(priority, zone, &sc);
-
-Doing this here seems wrong.  balance_pgdat() does two passes across
-the zones.  The first pass is a read-only work-out-what-to-do pass and
-the second pass is a now-reclaim-some-stuff pass.  But here we've stuck
-a do-some-reclaiming operation inside the first, work-out-what-to-do pass.
+Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 
-> @@ -2408,6 +2437,11 @@ loop_again:
->  				continue;
->  
->  			sc.nr_scanned = 0;
-> +			/*
-> +			 * Reclaim unmapped pages upfront, this should be
-> +			 * really cheap
 
-Comment is mysterious.  Why is it cheap?
-
-> +			 */
-> +			reclaim_unmapped_pages(priority, zone, &sc);
-
-
-I dunno, the whole thing seems rather nasty to me.
-
-It sticks a magical reclaim-unmapped-pages operation right in the
-middle of regular page reclaim.  This means that reclaim will walk the
-LRU looking at mapped and unmapped pages.  Then it will walk some more,
-looking at only unmapped pages and moving the mapped ones to the head
-of the LRU.  Then it goes back to looking at mapped and unmapped pages.
-So it rather screws up the LRU ordering and page aging, does it not?
-
-Also, the special-case handling sticks out like a sore thumb.  Would it
-not be better to manage the mapped/unmapped bias within the core of the
-regular scanning?  ie: in shrink_page_list().
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
