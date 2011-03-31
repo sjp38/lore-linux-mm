@@ -1,59 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id B73968D0040
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 11:16:15 -0400 (EDT)
-Date: Thu, 31 Mar 2011 17:15:41 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [Lsf] [LSF][MM] page allocation & direct reclaim latency
-Message-ID: <20110331151541.GF12265@random.random>
-References: <1301373398.2590.20.camel@mulgrave.site>
- <4D91FC2D.4090602@redhat.com>
- <20110329190520.GJ12265@random.random>
- <BANLkTikDwfQaSGtrKOSvgA9oaRC1Lbx3cw@mail.gmail.com>
- <20110330161716.GA3876@csn.ul.ie>
- <20110330164906.GE12265@random.random>
- <BANLkTinH5Gr+-n4MAUsxthQ_mXA-8jkw0w@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <BANLkTinH5Gr+-n4MAUsxthQ_mXA-8jkw0w@mail.gmail.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 82F1A8D0040
+	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 11:58:23 -0400 (EDT)
+Received: from d01dlp01.pok.ibm.com (d01dlp01.pok.ibm.com [9.56.224.56])
+	by e3.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p2VFbRil008251
+	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 11:37:29 -0400
+Received: from d01relay06.pok.ibm.com (d01relay06.pok.ibm.com [9.56.227.116])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 0E11B38C8042
+	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 11:58:06 -0400 (EDT)
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p2VFw8JV2723938
+	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 11:58:08 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p2VFw7pu030732
+	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 11:58:07 -0400
+Subject: Re: [PATCH 04/12] mm: alloc_contig_freed_pages() added
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <1301577368-16095-5-git-send-email-m.szyprowski@samsung.com>
+References: <1301577368-16095-1-git-send-email-m.szyprowski@samsung.com>
+	 <1301577368-16095-5-git-send-email-m.szyprowski@samsung.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Date: Thu, 31 Mar 2011 08:58:03 -0700
+Message-ID: <1301587083.31087.1032.camel@nimitz>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan.kim@gmail.com>, lsf@lists.linux-foundation.org, linux-mm <linux-mm@kvack.org>
+To: Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-samsung-soc@vger.kernel.org, linux-media@vger.kernel.org, linux-mm@kvack.org, Michal Nazarewicz <mina86@mina86.com>, Kyungmin Park <kyungmin.park@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ankita Garg <ankita@in.ibm.com>, Daniel Walker <dwalker@codeaurora.org>, Johan MOSSBERG <johan.xx.mossberg@stericsson.com>, Mel Gorman <mel@csn.ul.ie>, Pawel Osciak <pawel@osciak.com>
 
-On Wed, Mar 30, 2011 at 05:42:15PM -0700, Hugh Dickins wrote:
-> On Wed, Mar 30, 2011 at 9:49 AM, Andrea Arcangeli <aarcange@redhat.com> wrote:
-> > On Wed, Mar 30, 2011 at 05:17:16PM +0100, Mel Gorman wrote:
-> >> I'd prefer to see OOM-related issues treated as a separate-but-related
-> >> problem if possible so;
-> >
-> > I prefer it too. The OOM killing is already covered in OOM topic from
-> > Hugh, and we can add "OOM detection latency" to it.
+On Thu, 2011-03-31 at 15:16 +0200, Marek Szyprowski wrote:
 > 
-> Thanks for adjusting and updating the schedule, Andrea.  I'm way
-> behind in my mailbox and everything else, that was a real help.
+> +unsigned long alloc_contig_freed_pages(unsigned long start, unsigned long end,
+> +                                      gfp_t flag)
+> +{
+> +       unsigned long pfn = start, count;
+> +       struct page *page;
+> +       struct zone *zone;
+> +       int order;
+> +
+> +       VM_BUG_ON(!pfn_valid(start));
 
-Glad I could help.
+This seems kinda mean.  Could we return an error?  I understand that
+this is largely going to be an early-boot thing, but surely trying to
+punt on crappy input beats a full-on BUG().
 
-> But last night I did remove that OOM and fork-bomb topic you
-> mischievously added in my name ;-)  Yes, I did propose an OOM topic
-> against my name in the working list I sent you a few days ago, but by
-> Monday had concluded that it would be pretty silly for me to get up
-> and spout the few things I have to say about it, in the absence of
-> every one of the people most closely involved and experienced.  And on
-> fork-bombs I've even less to say.
->
-> Of course, none of these sessions are for those named facilitators to
-> lecture the assembled company for half an hour.  We can bring it back
-> it there's demand on the day: but right now I'd prefer to keep it as
-> an empty slot, to be decided when the time comes.  After all, those FS
-> people, they appear to thrive on empty slots!
+	if (!pfn_valid(start))
+		return -1;
 
-Ok, and agree that the MM track is pretty dense already ;).
+> +       zone = page_zone(pfn_to_page(start));
+> +
+> +       spin_lock_irq(&zone->lock);
+> +
+> +       page = pfn_to_page(pfn);
+> +       for (;;) {
+> +               VM_BUG_ON(page_count(page) || !PageBuddy(page));
+> +               list_del(&page->lru);
+> +               order = page_order(page);
+> +               zone->free_area[order].nr_free--;
+> +               rmv_page_order(page);
+> +               __mod_zone_page_state(zone, NR_FREE_PAGES, -(1UL << order));
+> +               pfn  += 1 << order;
+> +               if (pfn >= end)
+> +                       break;
 
-Thanks,
-Andrea
+If start->end happens to span the end of a zone, I believe this will
+jump out of the zone.  It will still be pfn_valid(), but potentially not
+in the same zone. 
+
+> +               VM_BUG_ON(!pfn_valid(pfn));
+> +               page += 1 << order;
+> +       }
+
+That will break on SPARSEMEM.  You potentially need to revalidate the
+pfn->page mapping on every MAX_ORDER pfn change.  It's easiest to just
+do pfn_to_page() on each loop.
+
+> +
+> +       spin_unlock_irq(&zone->lock); 
+> 
+> +void free_contig_pages(struct page *page, int nr_pages)
+> +{
+> +       for (; nr_pages; --nr_pages, ++page)
+> +               __free_page(page);
+> +}
+
+Can't help but notice that this resembles a bit of a patch I posted last
+week:
+
+http://www.spinics.net/lists/linux-mm/msg16364.html
+
+We'll have to make sure we only have one copy of this in the end.
+
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
