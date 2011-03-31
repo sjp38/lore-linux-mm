@@ -1,23 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 491348D0049
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id CD4198D004B
 	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 09:16:16 -0400 (EDT)
-MIME-version: 1.0
-Content-transfer-encoding: 7BIT
-Content-type: TEXT/PLAIN
-Received: from spt2.w1.samsung.com ([210.118.77.13]) by mailout3.w1.samsung.com
- (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
- with ESMTP id <0LIX006AHBIYFT50@mailout3.w1.samsung.com> for
- linux-mm@kvack.org; Thu, 31 Mar 2011 14:16:11 +0100 (BST)
+Received: from eu_spt1 (mailout1.w1.samsung.com [210.118.77.11])
+ by mailout1.w1.samsung.com
+ (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
+ with ESMTP id <0LIX00IB4BIY5K@mailout1.w1.samsung.com> for linux-mm@kvack.org;
+ Thu, 31 Mar 2011 14:16:11 +0100 (BST)
 Received: from linux.samsung.com ([106.116.38.10])
- by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0LIX00343BIXLP@spt2.w1.samsung.com> for
- linux-mm@kvack.org; Thu, 31 Mar 2011 14:16:09 +0100 (BST)
-Date: Thu, 31 Mar 2011 15:15:58 +0200
+ by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
+ 2004)) with ESMTPA id <0LIX008MGBIY25@spt1.w1.samsung.com> for
+ linux-mm@kvack.org; Thu, 31 Mar 2011 14:16:11 +0100 (BST)
+Date: Thu, 31 Mar 2011 15:16:03 +0200
 From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: [PATCH 02/12] lib: genalloc: Generic allocator improvements
+Subject: [PATCH 07/12] mm: MIGRATE_CMA migration type added
 In-reply-to: <1301577368-16095-1-git-send-email-m.szyprowski@samsung.com>
-Message-id: <1301577368-16095-3-git-send-email-m.szyprowski@samsung.com>
+Message-id: <1301577368-16095-8-git-send-email-m.szyprowski@samsung.com>
+MIME-version: 1.0
+Content-type: TEXT/PLAIN
+Content-transfer-encoding: 7BIT
 References: <1301577368-16095-1-git-send-email-m.szyprowski@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
@@ -26,368 +27,354 @@ Cc: Michal Nazarewicz <mina86@mina86.com>, Marek Szyprowski <m.szyprowski@samsun
 
 From: Michal Nazarewicz <m.nazarewicz@samsung.com>
 
-This commit adds a gen_pool_alloc_aligned() function to the
-generic allocator API.  It allows specifying alignment for the
-allocated block.  This feature uses
-the bitmap_find_next_zero_area_off() function.
+The MIGRATE_CMA migration type has two main characteristics:
+(i) only movable pages can be allocated from MIGRATE_CMA
+pageblocks and (ii) page allocator will never change migration
+type of MIGRATE_CMA pageblocks.
 
-It also fixes possible issue with bitmap's last element being
-not fully allocated (ie. space allocated for chunk->bits is
-not a multiple of sizeof(long)).
+This guarantees that page in a MIGRATE_CMA page block can
+always be migrated somewhere else (unless there's no memory left
+in the system).
 
-It also makes some other smaller changes:
-- moves structure definitions out of the header file,
-- adds __must_check to functions returning value,
-- makes gen_pool_add() return -ENOMEM rater than -1 on error,
-- changes list_for_each to list_for_each_entry, and
-- makes use of bitmap_clear().
+It is designed to be used with Contiguous Memory Allocator
+(CMA) for allocating big chunks (eg. 10MiB) of physically
+contiguous memory.  Once driver requests contiguous memory,
+CMA will migrate pages from MIGRATE_CMA pageblocks.
+
+To minimise number of migrations, MIGRATE_CMA migration type
+is the last type tried when page allocator falls back to other
+migration types then requested.
 
 Signed-off-by: Michal Nazarewicz <m.nazarewicz@samsung.com>
 Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
 Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
 CC: Michal Nazarewicz <mina86@mina86.com>
 ---
- include/linux/genalloc.h |   46 ++++++------
- lib/genalloc.c           |  182 ++++++++++++++++++++++++++-------------------
- 2 files changed, 129 insertions(+), 99 deletions(-)
+ include/linux/mmzone.h |   43 ++++++++++++++++++----
+ mm/Kconfig             |   28 +++++++++------
+ mm/compaction.c        |   10 +++++
+ mm/internal.h          |    3 ++
+ mm/page_alloc.c        |   93 ++++++++++++++++++++++++++++++++++++++----------
+ 5 files changed, 140 insertions(+), 37 deletions(-)
 
-diff --git a/include/linux/genalloc.h b/include/linux/genalloc.h
-index 9869ef3..8ac7337 100644
---- a/include/linux/genalloc.h
-+++ b/include/linux/genalloc.h
-@@ -8,29 +8,31 @@
-  * Version 2.  See the file COPYING for more details.
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index e56f835..db8495e 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -35,13 +35,37 @@
   */
+ #define PAGE_ALLOC_COSTLY_ORDER 3
  
-+struct gen_pool;
+-#define MIGRATE_UNMOVABLE     0
+-#define MIGRATE_RECLAIMABLE   1
+-#define MIGRATE_MOVABLE       2
+-#define MIGRATE_PCPTYPES      3 /* the number of types on the pcp lists */
+-#define MIGRATE_RESERVE       3
+-#define MIGRATE_ISOLATE       4 /* can't allocate from here */
+-#define MIGRATE_TYPES         5
++enum {
++	MIGRATE_UNMOVABLE,
++	MIGRATE_RECLAIMABLE,
++	MIGRATE_MOVABLE,
++	MIGRATE_PCPTYPES,	/* the number of types on the pcp lists */
++	MIGRATE_RESERVE = MIGRATE_PCPTYPES,
++#ifdef CONFIG_MIGRATE_CMA
++	/*
++	 * MIGRATE_CMA migration type is designed to mimic the way
++	 * ZONE_MOVABLE works.  Only movable pages can be allocated
++	 * from MIGRATE_CMA pageblocks and page allocator never
++	 * implicitly change migration type of MIGRATE_CMA pageblock.
++	 *
++	 * The way to use it is to change migratetype of a range of
++	 * pageblocks to MIGRATE_CMA which can be done by
++	 * __free_pageblock_cma() function.  What is important though
++	 * is that a range of pageblocks must be aligned to
++	 * MAX_ORDER_NR_PAGES should biggest page be bigger then
++	 * a single pageblock.
++	 */
++	MIGRATE_CMA,
++#endif
++	MIGRATE_ISOLATE,	/* can't allocate from here */
++	MIGRATE_TYPES
++};
++
++#ifdef CONFIG_MIGRATE_CMA
++#  define is_migrate_cma(migratetype) unlikely((migratetype) == MIGRATE_CMA)
++#else
++#  define is_migrate_cma(migratetype) false
++#endif
  
--/*
-- *  General purpose special memory pool descriptor.
-- */
--struct gen_pool {
--	rwlock_t lock;
--	struct list_head chunks;	/* list of chunks in this pool */
--	int min_alloc_order;		/* minimum allocation order */
--};
-+struct gen_pool *__must_check gen_pool_create(unsigned order, int nid);
+ #define for_each_migratetype_order(order, type) \
+ 	for (order = 0; order < MAX_ORDER; order++) \
+@@ -54,6 +78,11 @@ static inline int get_pageblock_migratetype(struct page *page)
+ 	return get_pageblock_flags_group(page, PB_migrate, PB_migrate_end);
+ }
  
--/*
-- *  General purpose special memory pool chunk descriptor.
-+int __must_check gen_pool_add(struct gen_pool *pool, unsigned long addr,
-+			      size_t size, int nid);
-+
-+void gen_pool_destroy(struct gen_pool *pool);
-+
-+unsigned long __must_check
-+gen_pool_alloc_aligned(struct gen_pool *pool, size_t size,
-+		       unsigned alignment_order);
-+
-+/**
-+ * gen_pool_alloc() - allocate special memory from the pool
-+ * @pool:	Pool to allocate from.
-+ * @size:	Number of bytes to allocate from the pool.
-+ *
-+ * Allocate the requested number of bytes from the specified pool.
-+ * Uses a first-fit algorithm.
-  */
--struct gen_pool_chunk {
--	spinlock_t lock;
--	struct list_head next_chunk;	/* next chunk in pool */
--	unsigned long start_addr;	/* starting address of memory chunk */
--	unsigned long end_addr;		/* ending address of memory chunk */
--	unsigned long bits[0];		/* bitmap for allocating memory chunk */
--};
-+static inline unsigned long __must_check
-+gen_pool_alloc(struct gen_pool *pool, size_t size)
++static inline bool is_pageblock_cma(struct page *page)
 +{
-+	return gen_pool_alloc_aligned(pool, size, 0);
++	return is_migrate_cma(get_pageblock_migratetype(page));
 +}
- 
--extern struct gen_pool *gen_pool_create(int, int);
--extern int gen_pool_add(struct gen_pool *, unsigned long, size_t, int);
--extern void gen_pool_destroy(struct gen_pool *);
--extern unsigned long gen_pool_alloc(struct gen_pool *, size_t);
--extern void gen_pool_free(struct gen_pool *, unsigned long, size_t);
-+void gen_pool_free(struct gen_pool *pool, unsigned long addr, size_t size);
-diff --git a/lib/genalloc.c b/lib/genalloc.c
-index 1923f14..0761079 100644
---- a/lib/genalloc.c
-+++ b/lib/genalloc.c
-@@ -16,53 +16,80 @@
- #include <linux/genalloc.h>
- 
- 
-+/* General purpose special memory pool descriptor. */
-+struct gen_pool {
-+	rwlock_t lock;			/* protects chunks list */
-+	struct list_head chunks;	/* list of chunks in this pool */
-+	unsigned order;			/* minimum allocation order */
-+};
 +
-+/* General purpose special memory pool chunk descriptor. */
-+struct gen_pool_chunk {
-+	spinlock_t lock;		/* protects bits */
-+	struct list_head next_chunk;	/* next chunk in pool */
-+	unsigned long start;		/* start of memory chunk */
-+	unsigned long size;		/* number of bits */
-+	unsigned long bits[0];		/* bitmap for allocating memory chunk */
-+};
+ struct free_area {
+ 	struct list_head	free_list[MIGRATE_TYPES];
+ 	unsigned long		nr_free;
+diff --git a/mm/Kconfig b/mm/Kconfig
+index ac40779..844455e 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -341,23 +341,29 @@ choice
+ endchoice
+ 
+ config CMA
+-	bool "Contiguous Memory Allocator framework"
+-	# Currently there is only one allocator so force it on
++	bool "Contiguous Memory Allocator"
+ 	select MIGRATION
+ 	select GENERIC_ALLOCATOR
+ 	help
+-	  This enables the Contiguous Memory Allocator framework which
+-	  allows drivers to allocate big physically-contiguous blocks of
+-	  memory for use with hardware components that do not support I/O
+-	  map nor scatter-gather.
++	  This enables the Contiguous Memory Allocator which allows drivers
++	  to allocate big physically-contiguous blocks of memory for use with
++	  hardware components that do not support I/O map nor scatter-gather.
+ 
+-	  If you select this option you will also have to select at least
+-	  one allocator algorithm below.
++	  For more information see <include/linux/cma.h>.  If unsure, say "n".
 +
++config MIGRATE_CMA
++	bool "Use MIGRATE_CMA migratetype"
++	depends on CMA
++	default y
++	help
++	  This enables the use the MIGRATE_CMA migrate type in the CMA.
++	  MIGRATE_CMA lets CMA work on almost arbitrary memory range and
++	  not only inside ZONE_MOVABLE.
+ 
+-	  To make use of CMA you need to specify the regions and
+-	  driver->region mapping on command line when booting the kernel.
++	  This option can also be selected by code that uses MIGRATE_CMA
++	  even if CMA is not present.
+ 
+-	  For more information see <include/linux/cma.h>.  If unsure, say "n".
++	  If unsure, say "y".
+ 
+ config CMA_DEBUG
+ 	bool "CMA debug messages (DEVELOPEMENT)"
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 021a296..6d013c3 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -119,6 +119,16 @@ static bool suitable_migration_target(struct page *page)
+ 	if (migratetype == MIGRATE_ISOLATE || migratetype == MIGRATE_RESERVE)
+ 		return false;
+ 
++	/* Keep MIGRATE_CMA alone as well. */
++	/*
++	 * XXX Revisit.  We currently cannot let compaction touch CMA
++	 * pages since compaction insists on changing their migration
++	 * type to MIGRATE_MOVABLE (see split_free_page() called from
++	 * isolate_freepages_block() above).
++	 */
++	if (is_migrate_cma(migratetype))
++		return false;
 +
- /**
-- * gen_pool_create - create a new special memory pool
-- * @min_alloc_order: log base 2 of number of bytes each bitmap bit represents
-- * @nid: node id of the node the pool structure should be allocated on, or -1
-+ * gen_pool_create() - create a new special memory pool
-+ * @order:	Log base 2 of number of bytes each bitmap bit
-+ *		represents.
-+ * @nid:	Node id of the node the pool structure should be allocated
-+ *		on, or -1.  This will be also used for other allocations.
-  *
-  * Create a new special memory pool that can be used to manage special purpose
-  * memory not managed by the regular kmalloc/kfree interface.
+ 	/* If the page is a large free page, then allow migration */
+ 	if (PageBuddy(page) && page_order(page) >= pageblock_order)
+ 		return true;
+diff --git a/mm/internal.h b/mm/internal.h
+index 3438dd4..0df30da 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -49,6 +49,9 @@ extern void putback_lru_page(struct page *page);
+  * in mm/page_alloc.c
   */
--struct gen_pool *gen_pool_create(int min_alloc_order, int nid)
-+struct gen_pool *__must_check gen_pool_create(unsigned order, int nid)
- {
- 	struct gen_pool *pool;
- 
--	pool = kmalloc_node(sizeof(struct gen_pool), GFP_KERNEL, nid);
--	if (pool != NULL) {
-+	if (WARN_ON(order >= BITS_PER_LONG))
-+		return NULL;
-+
-+	pool = kmalloc_node(sizeof *pool, GFP_KERNEL, nid);
-+	if (pool) {
- 		rwlock_init(&pool->lock);
- 		INIT_LIST_HEAD(&pool->chunks);
--		pool->min_alloc_order = min_alloc_order;
-+		pool->order = order;
+ extern void __free_pages_bootmem(struct page *page, unsigned int order);
++#ifdef CONFIG_MIGRATE_CMA
++extern void __free_pageblock_cma(struct page *page);
++#endif
+ extern void prep_compound_page(struct page *page, unsigned long order);
+ #ifdef CONFIG_MEMORY_FAILURE
+ extern bool is_free_buddy_page(struct page *page);
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index be21ac9..24f795e 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -716,6 +716,30 @@ void __meminit __free_pages_bootmem(struct page *page, unsigned int order)
  	}
- 	return pool;
  }
- EXPORT_SYMBOL(gen_pool_create);
  
- /**
-- * gen_pool_add - add a new chunk of special memory to the pool
-- * @pool: pool to add new memory chunk to
-- * @addr: starting address of memory chunk to add to pool
-- * @size: size in bytes of the memory chunk to add to pool
-- * @nid: node id of the node the chunk structure and bitmap should be
-- *       allocated on, or -1
-+ * gen_pool_add() - add a new chunk of special memory to the pool
-+ * @pool:	Pool to add new memory chunk to.
-+ * @addr:	Starting address of memory chunk to add to pool.
-+ * @size:	Size in bytes of the memory chunk to add to pool.
-  *
-  * Add a new chunk of special memory to the specified pool.
-  */
--int gen_pool_add(struct gen_pool *pool, unsigned long addr, size_t size,
--		 int nid)
-+int __must_check
-+gen_pool_add(struct gen_pool *pool, unsigned long addr, size_t size, int nid)
- {
- 	struct gen_pool_chunk *chunk;
--	int nbits = size >> pool->min_alloc_order;
--	int nbytes = sizeof(struct gen_pool_chunk) +
--				(nbits + BITS_PER_BYTE - 1) / BITS_PER_BYTE;
-+	size_t nbytes;
++#ifdef CONFIG_MIGRATE_CMA
 +
-+	if (WARN_ON(!addr || addr + size < addr ||
-+		    (addr & ((1 << pool->order) - 1))))
-+		return -EINVAL;
- 
--	chunk = kmalloc_node(nbytes, GFP_KERNEL | __GFP_ZERO, nid);
--	if (unlikely(chunk == NULL))
--		return -1;
-+	size = size >> pool->order;
-+	if (WARN_ON(!size))
-+		return -EINVAL;
++/*
++ * Free whole pageblock and set it's migration type to MIGRATE_CMA.
++ */
++void __init __free_pageblock_cma(struct page *page)
++{
++	struct page *p = page;
++	unsigned i = pageblock_nr_pages;
 +
-+	nbytes = sizeof *chunk + BITS_TO_LONGS(size) * sizeof *chunk->bits;
-+	chunk = kzalloc_node(nbytes, GFP_KERNEL, nid);
-+	if (!chunk)
-+		return -ENOMEM;
++	prefetchw(p);
++	do {
++		if (--i)
++			prefetchw(p + 1);
++		__ClearPageReserved(p);
++		set_page_count(p, 0);
++	} while (++p, i);
++
++	set_page_refcounted(page);
++	set_pageblock_migratetype(page, MIGRATE_CMA);
++	__free_pages(page, pageblock_order);
++}
++
++#endif
  
- 	spin_lock_init(&chunk->lock);
--	chunk->start_addr = addr;
--	chunk->end_addr = addr + size;
-+	chunk->start = addr >> pool->order;
-+	chunk->size  = size;
- 
- 	write_lock(&pool->lock);
- 	list_add(&chunk->next_chunk, &pool->chunks);
-@@ -73,115 +100,116 @@ int gen_pool_add(struct gen_pool *pool, unsigned long addr, size_t size,
- EXPORT_SYMBOL(gen_pool_add);
- 
- /**
-- * gen_pool_destroy - destroy a special memory pool
-- * @pool: pool to destroy
-+ * gen_pool_destroy() - destroy a special memory pool
-+ * @pool:	Pool to destroy.
-  *
-  * Destroy the specified special memory pool. Verifies that there are no
-  * outstanding allocations.
+ /*
+  * The order of subdivision here is critical for the IO subsystem.
+@@ -824,11 +848,15 @@ struct page *__rmqueue_smallest(struct zone *zone, unsigned int order,
+  * This array describes the order lists are fallen back to when
+  * the free lists for the desirable migrate type are depleted
   */
- void gen_pool_destroy(struct gen_pool *pool)
- {
--	struct list_head *_chunk, *_next_chunk;
- 	struct gen_pool_chunk *chunk;
--	int order = pool->min_alloc_order;
--	int bit, end_bit;
--
-+	int bit;
+-static int fallbacks[MIGRATE_TYPES][MIGRATE_TYPES-1] = {
++static int fallbacks[MIGRATE_TYPES][4] = {
+ 	[MIGRATE_UNMOVABLE]   = { MIGRATE_RECLAIMABLE, MIGRATE_MOVABLE,   MIGRATE_RESERVE },
+ 	[MIGRATE_RECLAIMABLE] = { MIGRATE_UNMOVABLE,   MIGRATE_MOVABLE,   MIGRATE_RESERVE },
++#ifdef CONFIG_MIGRATE_CMA
++	[MIGRATE_MOVABLE]     = { MIGRATE_RECLAIMABLE, MIGRATE_UNMOVABLE, MIGRATE_CMA    , MIGRATE_RESERVE },
++#else
+ 	[MIGRATE_MOVABLE]     = { MIGRATE_RECLAIMABLE, MIGRATE_UNMOVABLE, MIGRATE_RESERVE },
+-	[MIGRATE_RESERVE]     = { MIGRATE_RESERVE,     MIGRATE_RESERVE,   MIGRATE_RESERVE }, /* Never used */
++#endif
++	[MIGRATE_RESERVE]     = { MIGRATE_RESERVE }, /* Never used */
+ };
  
--	list_for_each_safe(_chunk, _next_chunk, &pool->chunks) {
--		chunk = list_entry(_chunk, struct gen_pool_chunk, next_chunk);
-+	while (!list_empty(&pool->chunks)) {
-+		chunk = list_entry(pool->chunks.next, struct gen_pool_chunk,
-+				   next_chunk);
- 		list_del(&chunk->next_chunk);
+ /*
+@@ -923,12 +951,12 @@ __rmqueue_fallback(struct zone *zone, int order, int start_migratetype)
+ 	/* Find the largest possible block of pages in the other list */
+ 	for (current_order = MAX_ORDER-1; current_order >= order;
+ 						--current_order) {
+-		for (i = 0; i < MIGRATE_TYPES - 1; i++) {
++		for (i = 0; i < ARRAY_SIZE(fallbacks[0]); i++) {
+ 			migratetype = fallbacks[start_migratetype][i];
  
--		end_bit = (chunk->end_addr - chunk->start_addr) >> order;
--		bit = find_next_bit(chunk->bits, end_bit, 0);
--		BUG_ON(bit < end_bit);
-+		bit = find_next_bit(chunk->bits, chunk->size, 0);
-+		BUG_ON(bit < chunk->size);
+ 			/* MIGRATE_RESERVE handled later if necessary */
+ 			if (migratetype == MIGRATE_RESERVE)
+-				continue;
++				break;
  
- 		kfree(chunk);
+ 			area = &(zone->free_area[current_order]);
+ 			if (list_empty(&area->free_list[migratetype]))
+@@ -943,19 +971,29 @@ __rmqueue_fallback(struct zone *zone, int order, int start_migratetype)
+ 			 * pages to the preferred allocation list. If falling
+ 			 * back for a reclaimable kernel allocation, be more
+ 			 * agressive about taking ownership of free pages
++			 *
++			 * On the other hand, never change migration
++			 * type of MIGRATE_CMA pageblocks nor move CMA
++			 * pages on different free lists. We don't
++			 * want unmovable pages to be allocated from
++			 * MIGRATE_CMA areas.
+ 			 */
+-			if (unlikely(current_order >= (pageblock_order >> 1)) ||
+-					start_migratetype == MIGRATE_RECLAIMABLE ||
+-					page_group_by_mobility_disabled) {
+-				unsigned long pages;
++			if (!is_pageblock_cma(page) &&
++			    (unlikely(current_order >= pageblock_order / 2) ||
++			     start_migratetype == MIGRATE_RECLAIMABLE ||
++			     page_group_by_mobility_disabled)) {
++				int pages;
+ 				pages = move_freepages_block(zone, page,
+-								start_migratetype);
++							     start_migratetype);
+ 
+-				/* Claim the whole block if over half of it is free */
++				/*
++				 * Claim the whole block if over half
++				 * of it is free
++				 */
+ 				if (pages >= (1 << (pageblock_order-1)) ||
+-						page_group_by_mobility_disabled)
++				    page_group_by_mobility_disabled)
+ 					set_pageblock_migratetype(page,
+-								start_migratetype);
++							start_migratetype);
+ 
+ 				migratetype = start_migratetype;
+ 			}
+@@ -965,11 +1003,14 @@ __rmqueue_fallback(struct zone *zone, int order, int start_migratetype)
+ 			rmv_page_order(page);
+ 
+ 			/* Take ownership for orders >= pageblock_order */
+-			if (current_order >= pageblock_order)
++			if (current_order >= pageblock_order &&
++			    !is_pageblock_cma(page))
+ 				change_pageblock_range(page, current_order,
+ 							start_migratetype);
+ 
+-			expand(zone, page, order, current_order, area, migratetype);
++			expand(zone, page, order, current_order, area,
++			       is_migrate_cma(start_migratetype)
++			     ? start_migratetype : migratetype);
+ 
+ 			trace_mm_page_alloc_extfrag(page, order, current_order,
+ 				start_migratetype, migratetype);
+@@ -1041,7 +1082,12 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
+ 			list_add(&page->lru, list);
+ 		else
+ 			list_add_tail(&page->lru, list);
+-		set_page_private(page, migratetype);
++#ifdef CONFIG_MIGRATE_CMA
++		if (is_pageblock_cma(page))
++			set_page_private(page, MIGRATE_CMA);
++		else
++#endif
++			set_page_private(page, migratetype);
+ 		list = &page->lru;
  	}
- 	kfree(pool);
--	return;
- }
- EXPORT_SYMBOL(gen_pool_destroy);
- 
- /**
-- * gen_pool_alloc - allocate special memory from the pool
-- * @pool: pool to allocate from
-- * @size: number of bytes to allocate from the pool
-+ * gen_pool_alloc_aligned() - allocate special memory from the pool
-+ * @pool:	Pool to allocate from.
-+ * @size:	Number of bytes to allocate from the pool.
-+ * @alignment_order:	Order the allocated space should be
-+ *			aligned to (eg. 20 means allocated space
-+ *			must be aligned to 1MiB).
-  *
-  * Allocate the requested number of bytes from the specified pool.
-  * Uses a first-fit algorithm.
-  */
--unsigned long gen_pool_alloc(struct gen_pool *pool, size_t size)
-+unsigned long __must_check
-+gen_pool_alloc_aligned(struct gen_pool *pool, size_t size,
-+		       unsigned alignment_order)
- {
--	struct list_head *_chunk;
-+	unsigned long addr, align_mask = 0, flags, start;
- 	struct gen_pool_chunk *chunk;
--	unsigned long addr, flags;
--	int order = pool->min_alloc_order;
--	int nbits, start_bit, end_bit;
- 
- 	if (size == 0)
- 		return 0;
- 
--	nbits = (size + (1UL << order) - 1) >> order;
-+	if (alignment_order > pool->order)
-+		align_mask = (1 << (alignment_order - pool->order)) - 1;
- 
--	read_lock(&pool->lock);
--	list_for_each(_chunk, &pool->chunks) {
--		chunk = list_entry(_chunk, struct gen_pool_chunk, next_chunk);
-+	size = (size + (1UL << pool->order) - 1) >> pool->order;
- 
--		end_bit = (chunk->end_addr - chunk->start_addr) >> order;
-+	read_lock(&pool->lock);
-+	list_for_each_entry(chunk, &pool->chunks, next_chunk) {
-+		if (chunk->size < size)
-+			continue;
- 
- 		spin_lock_irqsave(&chunk->lock, flags);
--		start_bit = bitmap_find_next_zero_area(chunk->bits, end_bit, 0,
--						nbits, 0);
--		if (start_bit >= end_bit) {
-+		start = bitmap_find_next_zero_area_off(chunk->bits, chunk->size,
-+						       0, size, align_mask,
-+						       chunk->start);
-+		if (start >= chunk->size) {
- 			spin_unlock_irqrestore(&chunk->lock, flags);
- 			continue;
+ 	__mod_zone_page_state(zone, NR_FREE_PAGES, -(i << order));
+@@ -1182,9 +1228,16 @@ void free_hot_cold_page(struct page *page, int cold)
+ 	 * offlined but treat RESERVE as movable pages so we can get those
+ 	 * areas back if necessary. Otherwise, we may have to free
+ 	 * excessively into the page allocator
++	 *
++	 * Still, do not change migration type of MIGRATE_CMA pages (if
++	 * they'd be recorded as MIGRATE_MOVABLE an unmovable page could
++	 * be allocated from MIGRATE_CMA block and we don't want to allow
++	 * that).  In this respect, treat MIGRATE_CMA like
++	 * MIGRATE_ISOLATE.
+ 	 */
+ 	if (migratetype >= MIGRATE_PCPTYPES) {
+-		if (unlikely(migratetype == MIGRATE_ISOLATE)) {
++		if (unlikely(migratetype == MIGRATE_ISOLATE
++			  || is_migrate_cma(migratetype))) {
+ 			free_one_page(zone, page, 0, migratetype);
+ 			goto out;
  		}
- 
--		addr = chunk->start_addr + ((unsigned long)start_bit << order);
--
--		bitmap_set(chunk->bits, start_bit, nbits);
-+		bitmap_set(chunk->bits, start, size);
- 		spin_unlock_irqrestore(&chunk->lock, flags);
--		read_unlock(&pool->lock);
--		return addr;
-+		addr = (chunk->start + start) << pool->order;
-+		goto done;
+@@ -1273,7 +1326,9 @@ int split_free_page(struct page *page)
+ 	if (order >= pageblock_order - 1) {
+ 		struct page *endpage = page + (1 << order) - 1;
+ 		for (; page < endpage; page += pageblock_nr_pages)
+-			set_pageblock_migratetype(page, MIGRATE_MOVABLE);
++			if (!is_pageblock_cma(page))
++				set_pageblock_migratetype(page,
++							  MIGRATE_MOVABLE);
  	}
-+
-+	addr = 0;
-+done:
- 	read_unlock(&pool->lock);
--	return 0;
-+	return addr;
- }
--EXPORT_SYMBOL(gen_pool_alloc);
-+EXPORT_SYMBOL(gen_pool_alloc_aligned);
  
- /**
-- * gen_pool_free - free allocated special memory back to the pool
-- * @pool: pool to free to
-- * @addr: starting address of memory to free back to pool
-- * @size: size in bytes of memory to free
-+ * gen_pool_free() - free allocated special memory back to the pool
-+ * @pool:	Pool to free to.
-+ * @addr:	Starting address of memory to free back to pool.
-+ * @size:	Size in bytes of memory to free.
-  *
-  * Free previously allocated special memory back to the specified pool.
-  */
- void gen_pool_free(struct gen_pool *pool, unsigned long addr, size_t size)
- {
--	struct list_head *_chunk;
- 	struct gen_pool_chunk *chunk;
- 	unsigned long flags;
--	int order = pool->min_alloc_order;
--	int bit, nbits;
+ 	return 1 << order;
+@@ -5429,8 +5484,8 @@ __count_immobile_pages(struct zone *zone, struct page *page, int count)
+ 	 */
+ 	if (zone_idx(zone) == ZONE_MOVABLE)
+ 		return true;
+-
+-	if (get_pageblock_migratetype(page) == MIGRATE_MOVABLE)
++	if (get_pageblock_migratetype(page) == MIGRATE_MOVABLE ||
++	    is_pageblock_cma(page))
+ 		return true;
  
--	nbits = (size + (1UL << order) - 1) >> order;
-+	if (!size)
-+		return;
- 
--	read_lock(&pool->lock);
--	list_for_each(_chunk, &pool->chunks) {
--		chunk = list_entry(_chunk, struct gen_pool_chunk, next_chunk);
-+	addr = addr >> pool->order;
-+	size = (size + (1UL << pool->order) - 1) >> pool->order;
-+
-+	BUG_ON(addr + size < addr);
- 
--		if (addr >= chunk->start_addr && addr < chunk->end_addr) {
--			BUG_ON(addr + size > chunk->end_addr);
-+	read_lock(&pool->lock);
-+	list_for_each_entry(chunk, &pool->chunks, next_chunk)
-+		if (addr >= chunk->start &&
-+		    addr + size <= chunk->start + chunk->size) {
- 			spin_lock_irqsave(&chunk->lock, flags);
--			bit = (addr - chunk->start_addr) >> order;
--			while (nbits--)
--				__clear_bit(bit++, chunk->bits);
-+			bitmap_clear(chunk->bits, addr - chunk->start, size);
- 			spin_unlock_irqrestore(&chunk->lock, flags);
--			break;
-+			goto done;
- 		}
--	}
--	BUG_ON(nbits > 0);
-+	BUG_ON(1);
-+done:
- 	read_unlock(&pool->lock);
- }
- EXPORT_SYMBOL(gen_pool_free);
+ 	pfn = page_to_pfn(page);
 -- 
 1.7.1.569.g6f426
 
