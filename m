@@ -1,539 +1,167 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 5834B8D0040
-	for <linux-mm@kvack.org>; Wed, 30 Mar 2011 22:05:13 -0400 (EDT)
-Date: Thu, 31 Mar 2011 11:01:47 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [RFC][PATCH] memcg: isolate pages in memcg lru from global lru
-Message-Id: <20110331110147.a024115d.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <1301532498-20309-1-git-send-email-yinghan@google.com>
-References: <1301532498-20309-1-git-send-email-yinghan@google.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 67F038D0040
+	for <linux-mm@kvack.org>; Wed, 30 Mar 2011 22:08:10 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id E4C5D3EE0C2
+	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 11:08:02 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id C27DF45DE5A
+	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 11:08:02 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id A98C045DE55
+	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 11:08:02 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 9BFEE1DB8047
+	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 11:08:02 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 5DF421DB8040
+	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 11:08:02 +0900 (JST)
+Date: Thu, 31 Mar 2011 11:01:13 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [LSF][MM] rough agenda for memcg.
+Message-Id: <20110331110113.a01f7b8b.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Li Zefan <lizf@cn.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Mel Gorman <mel@csn.ul.ie>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Zhu Yanhai <zhu.yanhai@gmail.com>, linux-mm@kvack.org, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: lsf@lists.linux-foundation.org
+Cc: linux-mm@kvack.org, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, Ying Han <yinghan@google.com>, Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, walken@google.com
 
-Hi.
 
-On Wed, 30 Mar 2011 17:48:18 -0700
-Ying Han <yinghan@google.com> wrote:
+Hi,
 
-> In memory controller, we do both targeting reclaim and global reclaim. The
-> later one walks through the global lru which links all the allocated pages
-> on the system. It breaks the memory isolation since pages are evicted
-> regardless of their memcg owners. This patch takes pages off global lru
-> as long as they are added to per-memcg lru.
-> 
-> Memcg and cgroup together provide the solution of memory isolation where
-> multiple cgroups run in parallel without interfering with each other. In
-> vm, memory isolation requires changes in both page allocation and page
-> reclaim. The current memcg provides good user page accounting, but need
-> more work on the page reclaim.
-> 
-> In an over-committed machine w/ 32G ram, here is the configuration:
-> 
-> cgroup-A/  -- limit_in_bytes = 20G, soft_limit_in_bytes = 15G
-> cgroup-B/  -- limit_in_bytes = 20G, soft_limit_in_bytes = 15G
-> 
-> 1) limit_in_bytes is the hard_limit where process will be throttled or OOM
-> killed by going over the limit.
-> 2) memory between soft_limit and limit_in_bytes are best-effort. soft_limit
-> provides "guarantee" in some sense.
-> 
-> Then, it is easy to generate the following senario where:
-> 
-> cgroup-A/  -- usage_in_bytes = 20G
-> cgroup-B/  -- usage_in_bytes = 12G
-> 
-> The global memory pressure triggers while cgroup-A keep allocating memory. At
-> this point, pages belongs to cgroup-B can be evicted from global LRU.
-> 
-I can agree that global memory reclaim should try to free memory from A first
-down to 15G(soft limit). But IMHO, if it cannot free enough memory from A,
-it must reclaim memory from B before causing global OOM(I don't want to see OOM
-as long as possible).
-IOW, not-link-to-global-lru seems to be a bit overkill to me(it must be configurable
-at least, as Michal did). We should improve memcg/global reclaim(and OOM) logic first.
+In this LSF/MM, we have some memcg topics in the 1st day.
+
+>From schedule,
+
+1. Memory cgroup : Where next ? 1hour (Balbir Singh/Kamezawa) 
+2. Memcg Dirty Limit and writeback 30min(Greg Thelen)
+3. Memcg LRU management 30min (Ying Han, Michal Hocko)
+4. Page cgroup on a diet (Johannes Weiner)
+
+2.5 hours. This seems long...or short ? ;)
+
+I'd like to sort out topics before going. Please fix if I don't catch enough.
+
+mentiont to 1. later...
+
+Main topics on 2. Memcg Dirty Limit and writeback ....is
+
+ a) How to implement per-memcg dirty inode finding method (list) and
+    how flusher threads handle memcg.
+
+ b) Hot to interact with IO-Less dirty page reclaim.
+    IIUC, if memcg doesn't handle this correctly, OOM happens.
+
+ Greg, do we need to have a shared session with I/O guys ?
+ If needed, current schedule is O.K. ?
+
+Main topics on 3. Memcg LRU management
+
+ a) Isolation/Gurantee for memcg.
+    Current memcg doesn't have enough isolation when globarl reclaim runs.
+    .....Because it's designed not to affect global reclaim.
+    But from user's point of view, it's nonsense and we should have some hints
+    for isolate set of memory or implement a guarantee.
+    
+    One way to go is updating softlimit better. To do this, we should know what
+    is problem now. I'm sorry I can't prepare data on this until LSF/MM.
+    Another way is implementing a guarantee. But this will require some interaction
+    with page allocator and pgscan mechanism. This will be a big work.
+
+ b) single LRU and per memcg zone->lru_lock.
+    I hear zone->lru_lock contention caused by memcg is a problem on Google servers.
+    Okay, please show data. (I've never seen it.)
+    Then, we need to discuss Pros. and Cons. of current design and need to consinder
+    how to improve it. I think Google and Michal have their own implementation.
+
+    Current design of double-LRU is from the 1st inclusion of memcg to the kernel.
+    But I don't know that discussion was there. Balbir, could you explain the reason
+    of this design ? Then, we can go ahead, somewhere.
+
+
+Main topics on 4. Page cgroup on diet is...
+
+  a) page_cgroup is too big!, we need diet....
+     I think Johannes removes -> page pointer already. Ok, what's the next to
+     be removed ?
+
+  I guess the next candidate is ->lru which is related to 3-b).
+  
+Main topics on 1.Memory control groups: where next? is..
+
+To be honest, I just do bug fixes in these days. And hot topics are on above..
+I don't have concrete topics. What I can think of from recent linux-mm emails are...
+
+  a) Kernel memory accounting.
+  b) Need some work with Cleancache ?
+  c) Should we provide a auto memory cgroup for file caches ?
+     (Then we can implement a file-cache-limit.)
+  d) Do we have a problem with current OOM-disable+notifier design ?
+  e) ROOT cgroup should have a limit/softlimit, again ?
+  f) vm_overcommit_memory should be supproted with memcg ?
+     (I remember there was a trial. But I think it should be done in other cgroup
+      as vmemory cgroup.)
+...
+
+I think
+  a) discussing about this is too early. There is no patch.
+     I think we'll just waste time.
+
+  b) enable/disable cleancache per memcg or some share/limit ??
+     But we can discuss this kind of things after cleancache is in production use...
+
+  c) AFAIK, some other OSs have this kind of feature, a box for file-cache.
+     Because file-cache is a shared object between all cgroups, it's difficult
+     to handle. It may be better to have a auto cgroup for file caches and add knobs
+     for memcg.
+
+  d) I think it works well. 
+
+  e) It seems Michal wants this for lazy users. Hmm, should we have a knob ?
+     It's helpful that some guy have a performance number on the latest kernel
+     with and without memcg (in limitless case).
+     IIUC, with THP enabled as 'always', the number of page fault dramatically reduced and
+     memcg's accounting cost gets down...
+
+  f) I think someone mention about this...
+
+Maybe c) and d) _can_ be a topic but seems not very important.
+
+So, for this slot, I'd like to discuss
+
+  I) Softlimit/Isolation (was 3-A) for 1hour
+     If we have extra time, kernel memory accounting or file-cache handling
+     will be good.
+   
+  II) Dirty page handling. (for 30min)
+     Maybe we'll discuss about per-memcg inode queueing issue.
+
+  III) Discussing the current and future design of LRU.(for 30+min)
+
+  IV) Diet of page_cgroup (for 30-min)
+      Maybe this can be combined with III.
 
 Thanks,
-Daisuke Nishimura.
+-Kame
 
-> We do have per-memcg targeting reclaim including per-memcg background reclaim
-> and soft_limit reclaim. Both of them need some improvement, and regardless we
-> still need this patch since it breaks isolation.
-> 
-> Besides, here is to-do list I have on memcg page reclaim and they are sorted.
-> a) per-memcg background reclaim. to reclaim pages proactively
-> b) skipping global lru reclaim if soft_limit reclaim does enough work. this is
-> both for global background reclaim and global ttfp reclaim.
-> c) improve the soft_limit reclaim to be efficient.
-> d) isolate pages in memcg from global list since it breaks memory isolation.
-> 
-> I have some basic test on this patch and more tests definitely are needed:
-> 
-> Functional:
-> two memcgs under root. cgroup-A is reading 20g file with 2g limit,
-> cgroup-B is running random stuff with 500m limit. Check the counters for
-> per-memcg lru and global lru, and they should add-up.
-> 
-> 1) total file pages
-> $ cat /proc/meminfo | grep Cache
-> Cached:          6032128 kB
-> 
-> 2) file lru on global lru
-> $ cat /proc/vmstat | grep file
-> nr_inactive_file 0
-> nr_active_file 963131
-> 
-> 3) file lru on root cgroup
-> $ cat /dev/cgroup/memory.stat | grep file
-> inactive_file 0
-> active_file 0
-> 
-> 4) file lru on cgroup-A
-> $ cat /dev/cgroup/A/memory.stat | grep file
-> inactive_file 2145759232
-> active_file 0
-> 
-> 5) file lru on cgroup-B
-> $ cat /dev/cgroup/B/memory.stat | grep file
-> inactive_file 401408
-> active_file 143360
-> 
-> Performance:
-> run page fault test(pft) with 16 thread on faulting in 15G anon pages
-> in 16G cgroup. There is no regression noticed on "flt/cpu/s"
-> 
-> +-------------------------------------------------------------------------+
->     N           Min           Max        Median           Avg        Stddev
-> x  10     16682.962     17344.027     16913.524     16928.812      166.5362
-> +   9     16455.468     16961.779     16867.569      16802.83     157.43279
-> No difference proven at 95.0% confidence
-> 
-> Signed-off-by: Ying Han <yinghan@google.com>
-> ---
->  include/linux/memcontrol.h  |   17 ++++++-----
->  include/linux/mm_inline.h   |   24 ++++++++++------
->  include/linux/page_cgroup.h |    1 -
->  mm/memcontrol.c             |   60 +++++++++++++++++++++---------------------
->  mm/page_cgroup.c            |    1 -
->  mm/swap.c                   |   12 +++++++-
->  mm/vmscan.c                 |   22 +++++++++++----
->  7 files changed, 80 insertions(+), 57 deletions(-)
-> 
-> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-> index 5a5ce70..587a41e 100644
-> --- a/include/linux/memcontrol.h
-> +++ b/include/linux/memcontrol.h
-> @@ -60,11 +60,11 @@ extern void mem_cgroup_cancel_charge_swapin(struct mem_cgroup *ptr);
->  
->  extern int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
->  					gfp_t gfp_mask);
-> -extern void mem_cgroup_add_lru_list(struct page *page, enum lru_list lru);
-> -extern void mem_cgroup_del_lru_list(struct page *page, enum lru_list lru);
-> +extern bool mem_cgroup_add_lru_list(struct page *page, enum lru_list lru);
-> +extern bool mem_cgroup_del_lru_list(struct page *page, enum lru_list lru);
->  extern void mem_cgroup_rotate_reclaimable_page(struct page *page);
->  extern void mem_cgroup_rotate_lru_list(struct page *page, enum lru_list lru);
-> -extern void mem_cgroup_del_lru(struct page *page);
-> +extern bool mem_cgroup_del_lru(struct page *page);
->  extern void mem_cgroup_move_lists(struct page *page,
->  				  enum lru_list from, enum lru_list to);
->  
-> @@ -207,13 +207,14 @@ static inline int mem_cgroup_shmem_charge_fallback(struct page *page,
->  	return 0;
->  }
->  
-> -static inline void mem_cgroup_add_lru_list(struct page *page, int lru)
-> +static inline bool mem_cgroup_add_lru_list(struct page *page, int lru)
->  {
-> +	return false;
->  }
->  
-> -static inline void mem_cgroup_del_lru_list(struct page *page, int lru)
-> +static inline bool mem_cgroup_del_lru_list(struct page *page, int lru)
->  {
-> -	return ;
-> +	return false;
->  }
->  
->  static inline inline void mem_cgroup_rotate_reclaimable_page(struct page *page)
-> @@ -226,9 +227,9 @@ static inline void mem_cgroup_rotate_lru_list(struct page *page, int lru)
->  	return ;
->  }
->  
-> -static inline void mem_cgroup_del_lru(struct page *page)
-> +static inline bool mem_cgroup_del_lru(struct page *page)
->  {
-> -	return ;
-> +	return false;
->  }
->  
->  static inline void
-> diff --git a/include/linux/mm_inline.h b/include/linux/mm_inline.h
-> index 8f7d247..f55b311 100644
-> --- a/include/linux/mm_inline.h
-> +++ b/include/linux/mm_inline.h
-> @@ -25,9 +25,11 @@ static inline void
->  __add_page_to_lru_list(struct zone *zone, struct page *page, enum lru_list l,
->  		       struct list_head *head)
->  {
-> -	list_add(&page->lru, head);
-> -	__mod_zone_page_state(zone, NR_LRU_BASE + l, hpage_nr_pages(page));
-> -	mem_cgroup_add_lru_list(page, l);
-> +	if (mem_cgroup_add_lru_list(page, l) == false) {
-> +		list_add(&page->lru, head);
-> +		__mod_zone_page_state(zone, NR_LRU_BASE + l,
-> +				      hpage_nr_pages(page));
-> +	}
->  }
->  
->  static inline void
-> @@ -39,9 +41,11 @@ add_page_to_lru_list(struct zone *zone, struct page *page, enum lru_list l)
->  static inline void
->  del_page_from_lru_list(struct zone *zone, struct page *page, enum lru_list l)
->  {
-> -	list_del(&page->lru);
-> -	__mod_zone_page_state(zone, NR_LRU_BASE + l, -hpage_nr_pages(page));
-> -	mem_cgroup_del_lru_list(page, l);
-> +	if (mem_cgroup_del_lru_list(page, l) == false) {
-> +		list_del(&page->lru);
-> +		__mod_zone_page_state(zone, NR_LRU_BASE + l,
-> +				      -hpage_nr_pages(page));
-> +	}
->  }
->  
->  /**
-> @@ -64,7 +68,6 @@ del_page_from_lru(struct zone *zone, struct page *page)
->  {
->  	enum lru_list l;
->  
-> -	list_del(&page->lru);
->  	if (PageUnevictable(page)) {
->  		__ClearPageUnevictable(page);
->  		l = LRU_UNEVICTABLE;
-> @@ -75,8 +78,11 @@ del_page_from_lru(struct zone *zone, struct page *page)
->  			l += LRU_ACTIVE;
->  		}
->  	}
-> -	__mod_zone_page_state(zone, NR_LRU_BASE + l, -hpage_nr_pages(page));
-> -	mem_cgroup_del_lru_list(page, l);
-> +	if (mem_cgroup_del_lru_list(page, l) == false) {
-> +		__mod_zone_page_state(zone, NR_LRU_BASE + l,
-> +				      -hpage_nr_pages(page));
-> +		list_del(&page->lru);
-> +	}
->  }
->  
->  /**
-> diff --git a/include/linux/page_cgroup.h b/include/linux/page_cgroup.h
-> index f5de21d..7b2567b 100644
-> --- a/include/linux/page_cgroup.h
-> +++ b/include/linux/page_cgroup.h
-> @@ -31,7 +31,6 @@ enum {
->  struct page_cgroup {
->  	unsigned long flags;
->  	struct mem_cgroup *mem_cgroup;
-> -	struct list_head lru;		/* per cgroup LRU list */
->  };
->  
->  void __meminit pgdat_page_cgroup_init(struct pglist_data *pgdat);
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 4407dd0..9079e2e 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -827,17 +827,17 @@ static inline bool mem_cgroup_is_root(struct mem_cgroup *mem)
->   * When moving account, the page is not on LRU. It's isolated.
->   */
->  
-> -void mem_cgroup_del_lru_list(struct page *page, enum lru_list lru)
-> +bool mem_cgroup_del_lru_list(struct page *page, enum lru_list lru)
->  {
->  	struct page_cgroup *pc;
->  	struct mem_cgroup_per_zone *mz;
->  
->  	if (mem_cgroup_disabled())
-> -		return;
-> +		return false;
->  	pc = lookup_page_cgroup(page);
->  	/* can happen while we handle swapcache. */
->  	if (!TestClearPageCgroupAcctLRU(pc))
-> -		return;
-> +		return false;
->  	VM_BUG_ON(!pc->mem_cgroup);
->  	/*
->  	 * We don't check PCG_USED bit. It's cleared when the "page" is finally
-> @@ -845,16 +845,16 @@ void mem_cgroup_del_lru_list(struct page *page, enum lru_list lru)
->  	 */
->  	mz = page_cgroup_zoneinfo(pc->mem_cgroup, page);
->  	/* huge page split is done under lru_lock. so, we have no races. */
-> -	MEM_CGROUP_ZSTAT(mz, lru) -= 1 << compound_order(page);
->  	if (mem_cgroup_is_root(pc->mem_cgroup))
-> -		return;
-> -	VM_BUG_ON(list_empty(&pc->lru));
-> -	list_del_init(&pc->lru);
-> +		return false;
-> +	MEM_CGROUP_ZSTAT(mz, lru) -= 1 << compound_order(page);
-> +	list_del_init(&page->lru);
-> +	return true;
->  }
->  
-> -void mem_cgroup_del_lru(struct page *page)
-> +bool mem_cgroup_del_lru(struct page *page)
->  {
-> -	mem_cgroup_del_lru_list(page, page_lru(page));
-> +	return mem_cgroup_del_lru_list(page, page_lru(page));
->  }
->  
->  /*
-> @@ -880,7 +880,7 @@ void mem_cgroup_rotate_reclaimable_page(struct page *page)
->  	if (mem_cgroup_is_root(pc->mem_cgroup))
->  		return;
->  	mz = page_cgroup_zoneinfo(pc->mem_cgroup, page);
-> -	list_move_tail(&pc->lru, &mz->lists[lru]);
-> +	list_move(&page->lru, &mz->lists[lru]);
->  }
->  
->  void mem_cgroup_rotate_lru_list(struct page *page, enum lru_list lru)
-> @@ -900,29 +900,30 @@ void mem_cgroup_rotate_lru_list(struct page *page, enum lru_list lru)
->  	if (mem_cgroup_is_root(pc->mem_cgroup))
->  		return;
->  	mz = page_cgroup_zoneinfo(pc->mem_cgroup, page);
-> -	list_move(&pc->lru, &mz->lists[lru]);
-> +	list_move(&page->lru, &mz->lists[lru]);
->  }
->  
-> -void mem_cgroup_add_lru_list(struct page *page, enum lru_list lru)
-> +bool mem_cgroup_add_lru_list(struct page *page, enum lru_list lru)
->  {
->  	struct page_cgroup *pc;
->  	struct mem_cgroup_per_zone *mz;
->  
->  	if (mem_cgroup_disabled())
-> -		return;
-> +		return false;
->  	pc = lookup_page_cgroup(page);
->  	VM_BUG_ON(PageCgroupAcctLRU(pc));
->  	if (!PageCgroupUsed(pc))
-> -		return;
-> +		return false;
->  	/* Ensure pc->mem_cgroup is visible after reading PCG_USED. */
->  	smp_rmb();
->  	mz = page_cgroup_zoneinfo(pc->mem_cgroup, page);
->  	/* huge page split is done under lru_lock. so, we have no races. */
-> -	MEM_CGROUP_ZSTAT(mz, lru) += 1 << compound_order(page);
->  	SetPageCgroupAcctLRU(pc);
->  	if (mem_cgroup_is_root(pc->mem_cgroup))
-> -		return;
-> -	list_add(&pc->lru, &mz->lists[lru]);
-> +		return false;
-> +	MEM_CGROUP_ZSTAT(mz, lru) += 1 << compound_order(page);
-> +	list_add(&page->lru, &mz->lists[lru]);
-> +	return true;
->  }
->  
->  /*
-> @@ -1111,11 +1112,11 @@ unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
->  					int active, int file)
->  {
->  	unsigned long nr_taken = 0;
-> -	struct page *page;
-> +	struct page *page, *tmp;
->  	unsigned long scan;
->  	LIST_HEAD(pc_list);
->  	struct list_head *src;
-> -	struct page_cgroup *pc, *tmp;
-> +	struct page_cgroup *pc;
->  	int nid = zone_to_nid(z);
->  	int zid = zone_idx(z);
->  	struct mem_cgroup_per_zone *mz;
-> @@ -1127,24 +1128,24 @@ unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
->  	src = &mz->lists[lru];
->  
->  	scan = 0;
-> -	list_for_each_entry_safe_reverse(pc, tmp, src, lru) {
-> +	list_for_each_entry_safe_reverse(page, tmp, src, lru) {
-> +		pc = lookup_page_cgroup(page);
->  		if (scan >= nr_to_scan)
->  			break;
->  
->  		if (unlikely(!PageCgroupUsed(pc)))
->  			continue;
-> -
-> -		page = lookup_cgroup_page(pc);
-> -
->  		if (unlikely(!PageLRU(page)))
->  			continue;
->  
-> +		BUG_ON(!PageCgroupAcctLRU(pc));
-> +
->  		scan++;
->  		ret = __isolate_lru_page(page, mode, file);
->  		switch (ret) {
->  		case 0:
-> -			list_move(&page->lru, dst);
->  			mem_cgroup_del_lru(page);
-> +			list_add(&page->lru, dst);
->  			nr_taken += hpage_nr_pages(page);
->  			break;
->  		case -EBUSY:
-> @@ -3386,6 +3387,7 @@ static int mem_cgroup_force_empty_list(struct mem_cgroup *mem,
->  	struct page_cgroup *pc, *busy;
->  	unsigned long flags, loop;
->  	struct list_head *list;
-> +	struct page *page;
->  	int ret = 0;
->  
->  	zone = &NODE_DATA(node)->node_zones[zid];
-> @@ -3397,25 +3399,23 @@ static int mem_cgroup_force_empty_list(struct mem_cgroup *mem,
->  	loop += 256;
->  	busy = NULL;
->  	while (loop--) {
-> -		struct page *page;
-> -
->  		ret = 0;
->  		spin_lock_irqsave(&zone->lru_lock, flags);
->  		if (list_empty(list)) {
->  			spin_unlock_irqrestore(&zone->lru_lock, flags);
->  			break;
->  		}
-> -		pc = list_entry(list->prev, struct page_cgroup, lru);
-> +		page = list_entry(list->prev, struct page, lru);
-> +		pc = lookup_page_cgroup(page);
->  		if (busy == pc) {
-> -			list_move(&pc->lru, list);
-> +			/* XXX what should we do here? */
-> +			list_move(&page->lru, list);
->  			busy = NULL;
->  			spin_unlock_irqrestore(&zone->lru_lock, flags);
->  			continue;
->  		}
->  		spin_unlock_irqrestore(&zone->lru_lock, flags);
->  
-> -		page = lookup_cgroup_page(pc);
-> -
->  		ret = mem_cgroup_move_parent(page, pc, mem, GFP_KERNEL);
->  		if (ret == -ENOMEM)
->  			break;
-> diff --git a/mm/page_cgroup.c b/mm/page_cgroup.c
-> index 885b2ac..b812bf3 100644
-> --- a/mm/page_cgroup.c
-> +++ b/mm/page_cgroup.c
-> @@ -16,7 +16,6 @@ static void __meminit init_page_cgroup(struct page_cgroup *pc, unsigned long id)
->  	pc->flags = 0;
->  	set_page_cgroup_array_id(pc, id);
->  	pc->mem_cgroup = NULL;
-> -	INIT_LIST_HEAD(&pc->lru);
->  }
->  static unsigned long total_usage;
->  
-> diff --git a/mm/swap.c b/mm/swap.c
-> index 0a33714..9cb95c5 100644
-> --- a/mm/swap.c
-> +++ b/mm/swap.c
-> @@ -31,6 +31,7 @@
->  #include <linux/backing-dev.h>
->  #include <linux/memcontrol.h>
->  #include <linux/gfp.h>
-> +#include <linux/page_cgroup.h>
->  
->  #include "internal.h"
->  
-> @@ -200,10 +201,17 @@ static void pagevec_move_tail(struct pagevec *pvec)
->  			spin_lock(&zone->lru_lock);
->  		}
->  		if (PageLRU(page) && !PageActive(page) && !PageUnevictable(page)) {
-> +			struct page_cgroup *pc;
->  			enum lru_list lru = page_lru_base_type(page);
-> -			list_move_tail(&page->lru, &zone->lru[lru].list);
-> +
->  			mem_cgroup_rotate_reclaimable_page(page);
-> -			pgmoved++;
-> +			pc = lookup_page_cgroup(page);
-> +			smp_rmb();
-> +			if (!PageCgroupAcctLRU(pc)) {
-> +				list_move_tail(&page->lru,
-> +					       &zone->lru[lru].list);
-> +				pgmoved++;
-> +			}
->  		}
->  	}
->  	if (zone)
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 060e4c1..5e54611 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -41,6 +41,7 @@
->  #include <linux/memcontrol.h>
->  #include <linux/delayacct.h>
->  #include <linux/sysctl.h>
-> +#include <linux/page_cgroup.h>
->  
->  #include <asm/tlbflush.h>
->  #include <asm/div64.h>
-> @@ -1042,15 +1043,16 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
->  
->  		switch (__isolate_lru_page(page, mode, file)) {
->  		case 0:
-> -			list_move(&page->lru, dst);
-> +			/* verify that it's not on any cgroups */
->  			mem_cgroup_del_lru(page);
-> +			list_move(&page->lru, dst);
->  			nr_taken += hpage_nr_pages(page);
->  			break;
->  
->  		case -EBUSY:
->  			/* else it is being freed elsewhere */
-> -			list_move(&page->lru, src);
->  			mem_cgroup_rotate_lru_list(page, page_lru(page));
-> +			list_move(&page->lru, src);
->  			continue;
->  
->  		default:
-> @@ -1100,8 +1102,9 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
->  				break;
->  
->  			if (__isolate_lru_page(cursor_page, mode, file) == 0) {
-> -				list_move(&cursor_page->lru, dst);
-> +				/* verify that it's not on any cgroup */
->  				mem_cgroup_del_lru(cursor_page);
-> +				list_move(&cursor_page->lru, dst);
->  				nr_taken += hpage_nr_pages(page);
->  				nr_lumpy_taken++;
->  				if (PageDirty(cursor_page))
-> @@ -1473,6 +1476,7 @@ static void move_active_pages_to_lru(struct zone *zone,
->  	unsigned long pgmoved = 0;
->  	struct pagevec pvec;
->  	struct page *page;
-> +	struct page_cgroup *pc;
->  
->  	pagevec_init(&pvec, 1);
->  
-> @@ -1482,9 +1486,15 @@ static void move_active_pages_to_lru(struct zone *zone,
->  		VM_BUG_ON(PageLRU(page));
->  		SetPageLRU(page);
->  
-> -		list_move(&page->lru, &zone->lru[lru].list);
-> -		mem_cgroup_add_lru_list(page, lru);
-> -		pgmoved += hpage_nr_pages(page);
-> +		pc = lookup_page_cgroup(page);
-> +		smp_rmb();
-> +		if (!PageCgroupAcctLRU(pc)) {
-> +			list_move(&page->lru, &zone->lru[lru].list);
-> +			pgmoved += hpage_nr_pages(page);
-> +		} else {
-> +			list_del_init(&page->lru);
-> +			mem_cgroup_add_lru_list(page, lru);
-> +		}
->  
->  		if (!pagevec_add(&pvec, page) || list_empty(list)) {
->  			spin_unlock_irq(&zone->lru_lock);
-> -- 
-> 1.7.3.1
-> 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
