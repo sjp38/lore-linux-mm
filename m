@@ -1,12 +1,12 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 910268D0040
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 10:24:02 -0400 (EDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 00EE58D0040
+	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 10:25:35 -0400 (EDT)
 From: "Zhang, Yang Z" <yang.z.zhang@intel.com>
-Date: Thu, 31 Mar 2011 22:23:17 +0800
-Subject: [PATCH 5/7,v10] NUMA Hotplug Emulator: Support cpu probe/release in
- x86_64
-Message-ID: <749B9D3DBF0F054390025D9EAFF47F224A3D6C41@shsmsx501.ccr.corp.intel.com>
+Date: Thu, 31 Mar 2011 22:24:42 +0800
+Subject: [PATCH 6/7,v10] NUMA Hotplug Emulator: Fake CPU socket with logical
+ CPU on x86
+Message-ID: <749B9D3DBF0F054390025D9EAFF47F224A3D6C43@shsmsx501.ccr.corp.intel.com>
 Content-Language: en-US
 Content-Type: text/plain; charset="us-ascii"
 Content-Transfer-Encoding: quoted-printable
@@ -16,373 +16,235 @@ List-ID: <linux-mm.kvack.org>
 To: "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "haicheng.li@linux.intel.com" <haicheng.li@linux.intel.com>, "lethal@linux-sh.org" <lethal@linux-sh.org>, "Kleen, Andi" <andi.kleen@intel.com>, "dave@linux.vnet.ibm.com" <dave@linux.vnet.ibm.com>, "gregkh@suse.de" <gregkh@suse.de>, "mingo@elte.hu" <mingo@elte.hu>, "lenb@kernel.org" <lenb@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "yinghai@kernel.org" <yinghai@kernel.org>, "Li, Xin" <xin.li@intel.com>
 
-CPU physical hot-add/hot-remove are supported on some hardwares, and it
-was already supported in current linux kernel. NUMA Hotplug Emulator provid=
-es
-a mechanism to emulate the process with software method. It can be used for
-testing or debuging purpose.
+When hotplug a CPU with emulator, we are using a logical CPU to emulate the
+CPU hotplug process. For the CPU supported SMT, some logical CPUs are in th=
+e
+same socket, but it may located in different NUMA node after we have emulat=
+or.
+it misleads the scheduling domain to build the incorrect hierarchy, and it
+causes the following call trace when rebalance the scheduling domain:
 
-CPU physical hotplug is different with logical CPU online/offline. Logical
-online/offline is controled by interface /sys/device/cpu/cpuX/online. CPU
-hotplug emulator uses probe/release interface. It becomes possible to do cp=
-u
-hotplug automation and stress
+divide error: 0000 [#1] SMP
+last sysfs file: /sys/devices/system/cpu/cpu8/online
+CPU 0
+Modules linked in: fbcon tileblit font bitblit softcursor radeon ttm drm_km=
+s_helper e1000e usbhid via_rhine mii drm i2c_algo_bit igb dca
+Pid: 0, comm: swapper Not tainted 2.6.32hpe #78 X8DTN
+RIP: 0010:[<ffffffff81051da5>]  [<ffffffff81051da5>] find_busiest_group+0x6=
+c5/0xa10
+RSP: 0018:ffff880028203c30  EFLAGS: 00010246
+RAX: 0000000000000000 RBX: 0000000000015ac0 RCX: 0000000000000000
+RDX: 0000000000000000 RSI: ffff880277e8cfa0 RDI: 0000000000000000
+RBP: ffff880028203dc0 R08: ffff880277e8cfa0 R09: 0000000000000040
+R10: 0000000000000000 R11: 0000000000000001 R12: 0000000000000000
+R13: 0000000000000000 R14: 0000000000000000 R15: 0000000000000000
+FS:  0000000000000000(0000) GS:ffff880028200000(0000) knlGS:000000000000000=
+0
+CS:  0010 DS: 0018 ES: 0018 CR0: 000000008005003b
+CR2: 00007f16cfc85770 CR3: 0000000001001000 CR4: 00000000000006f0
+DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
+Process swapper (pid: 0, threadinfo ffffffff81822000, task ffffffff8184a600=
+)
+Stack:
+ ffff880028203d60 ffff880028203cd0 ffff8801c204ff08 ffff880028203e38
+<0> 0101ffff81018c59 ffff880028203e44 00000001810806bd ffff8801c204fe00
+<0> 0000000528200000 ffffffff00000000 0000000000000018 0000000000015ac0
+Call Trace:
+ <IRQ>
+ [<ffffffff81088ee0>] ? tick_dev_program_event+0x40/0xd0
+ [<ffffffff81053b2c>] rebalance_domains+0x17c/0x570
+ [<ffffffff81018c89>] ? read_tsc+0x9/0x20
+ [<ffffffff81088ee0>] ? tick_dev_program_event+0x40/0xd0
+ [<ffffffff810569ed>] run_rebalance_domains+0xbd/0xf0
+ [<ffffffff8106471f>] __do_softirq+0xaf/0x1e0
+ [<ffffffff810b7d18>] ? handle_IRQ_event+0x58/0x160
+ [<ffffffff810130ac>] call_softirq+0x1c/0x30
+ [<ffffffff81014a85>] do_softirq+0x65/0xa0
+ [<ffffffff810645cd>] irq_exit+0x7d/0x90
+ [<ffffffff81013ff0>] do_IRQ+0x70/0xe0
+ [<ffffffff810128d3>] ret_from_intr+0x0/0x11
+ <EOI>
+ [<ffffffff8133387f>] ? acpi_idle_enter_bm+0x281/0x2b5
+ [<ffffffff81333878>] ? acpi_idle_enter_bm+0x27a/0x2b5
+ [<ffffffff8145dc8f>] ? cpuidle_idle_call+0x9f/0x130
+ [<ffffffff81010e2b>] ? cpu_idle+0xab/0x100
+ [<ffffffff8158aee6>] ? rest_init+0x66/0x70
+ [<ffffffff81905d90>] ? start_kernel+0x3e3/0x3ef
+ [<ffffffff8190533a>] ? x86_64_start_reservations+0x125/0x129
+ [<ffffffff81905438>] ? x86_64_start_kernel+0xfa/0x109
+Code: 00 00 e9 4c fb ff ff 0f 1f 80 00 00 00 00 48 8b b5 d8 fe ff ff 48 8b =
+45 a8 4d 29 ef 8b 56 08 48 c1 e0 0a 49 89 f0 48 89 d7 31 d2 <48> f7 f7 31 d=
+2 48 89 45 a0 8b 76 08 4c 89 f0 48 c1 e0 0a 48 f7
+RIP  [<ffffffff81051da5>] find_busiest_group+0x6c5/0xa10
+ RSP <ffff880028203c30>
 
-Add cpu interface probe/release under sysfs for x86_64. User can use this
-interface to emulate the cpu hot-add and hot-remove process.
+Solution:
 
-Directive:
-*) Reserve CPU thru grub parameter like:
-        maxcpus=3D4
+We put the logical CPU into a fake CPU socket, and assign it an unique
+ phys_proc_id. For the fake socket, we put one logical CPU in only. This
+method fixes the above bug.
 
-the rest CPUs will not be initiliazed.
-
-*) Probe CPU
-we can use the probe interface to hot-add new CPUs:
-        echo nid > /sys/devices/system/cpu/probe
-
-*) Release a CPU
-        echo cpu > /sys/devices/system/cpu/release
-
-A reserved CPU will be hot-added to the specified node.
-1) nid =3D=3D 0, the CPU will be added to the real node which the CPU
-should be in
-2) nid !=3D 0, add the CPU to node nid even through it is a fake node.
-
-CC: Ingo Molnar <mingo@elte.hu>
-CC: Len Brown <len.brown@intel.com>
-CC: Yinghai Lu <Yinghai.Lu@Sun.COM>
-Signed-off-by: Shaohui Zheng <shaohui.zheng@intel.com>
+CC: Sam Ravnborg <sam@ravnborg.org>
 Signed-off-by: Haicheng Li <haicheng.li@intel.com>
-Signed-off-by: Yang Zhang <yang.z.zhang@intel.com>
+Signed-off-by: Shaohui Zheng <shaohui.zheng@intel.com>
+Signed-off-by: Yang Zhang <yang.z.zhang@Intel.com>
 ---
- Documentation/x86/x86_64/boot-options.txt |    5 ++
- arch/x86/kernel/acpi/boot.c               |   31 +++++++++++
- arch/x86/kernel/smpboot.c                 |    2 -
- arch/x86/kernel/topology.c                |   81 +++++++++++++++++++++++++=
-+++-
- arch/x86/mm/numa_64.c                     |   15 +++++
- drivers/acpi/processor_driver.c           |    9 +++
- drivers/base/cpu.c                        |    8 +++-
- include/linux/acpi.h                      |    1 +
- include/linux/cpu.h                       |    4 ++
- 9 files changed, 151 insertions(+), 5 deletions(-)
+ arch/x86/include/asm/processor.h |    9 +++++++++
+ arch/x86/kernel/smpboot.c        |   23 ++++++++++++++++++++++-
+ arch/x86/kernel/topology.c       |   34 ++++++++++++++++++++++++++++++++++
+ 3 files changed, 65 insertions(+), 1 deletions(-)
 
-diff --git a/Documentation/x86/x86_64/boot-options.txt linux-hpe4/Documenta=
-tion/x86/x86_64/boot-options.txt
-index d8d5bf9..82fb04d 100644
---- a/Documentation/x86/x86_64/boot-options.txt
-+++ linux-hpe4/Documentation/x86/x86_64/boot-options.txt
-@@ -311,3 +311,8 @@ Miscellaneous
-                Do not use GB pages for kernel direct mappings.
-        gbpages
-                Use GB pages for kernel direct mappings.
-+       cpu_hpe=3Don/off
-+               Enable/disable CPU hotplug emulation with software method. =
-When cpu_hpe=3Don,
-+               sysfs provides probe/release interface to hot add/remove CP=
-Us dynamically.
-+               We can use maxcpus=3D<N> to reserve CPUs.
-+               This option is disabled by default.
-diff --git a/arch/x86/kernel/acpi/boot.c linux-hpe4/arch/x86/kernel/acpi/bo=
-ot.c
-index 9a966c5..cd3a896 100644
---- a/arch/x86/kernel/acpi/boot.c
-+++ linux-hpe4/arch/x86/kernel/acpi/boot.c
-@@ -680,8 +680,39 @@ int __ref acpi_map_lsapic(acpi_handle handle, int *pcp=
-u)
- }
- EXPORT_SYMBOL(acpi_map_lsapic);
+diff --git a/arch/x86/include/asm/processor.h linux-hpe4/arch/x86/include/a=
+sm/processor.h
+index 4c25ab4..1c9a6fe 100644
+--- a/arch/x86/include/asm/processor.h
++++ linux-hpe4/arch/x86/include/asm/processor.h
+@@ -111,6 +111,15 @@ struct cpuinfo_x86 {
+        /* Index into per_cpu list: */
+        u16                     cpu_index;
+ #endif
++
++#ifdef CONFIG_ARCH_CPU_PROBE_RELEASE
++       /*
++        * Use a logic cpu to emulate a physical cpu's hotplug. We put the
++        * logical cpu into a fake socket, assign a fake physical id to it,
++        * and create a fake core.
++        */
++       __u8            cpu_probe_on; /* A flag to enable cpu probe/release=
+ */
++#endif
+ } __attribute__((__aligned__(SMP_CACHE_BYTES)));
 
-+#ifdef CONFIG_ARCH_CPU_PROBE_RELEASE
-+static void acpi_map_cpu2node_emu(int cpu, int physid, int nid)
-+{
-+#ifdef CONFIG_ACPI_NUMA
-+       set_apicid_to_node(physid, nid);
-+       numa_set_node(cpu, nid);
-+#endif
-+}
-+
-+static u16 cpu_to_apicid_saved[CONFIG_NR_CPUS];
-+int __ref acpi_map_lsapic_emu(int pcpu, int nid)
-+{
-+       /* backup cpu apicid to array cpu_to_apicid_saved */
-+       if (cpu_to_apicid_saved[pcpu] =3D=3D 0 &&
-+               per_cpu(x86_cpu_to_apicid, pcpu) !=3D BAD_APICID)
-+               cpu_to_apicid_saved[pcpu] =3D per_cpu(x86_cpu_to_apicid, pc=
-pu);
-+
-+       per_cpu(x86_cpu_to_apicid, pcpu) =3D cpu_to_apicid_saved[pcpu];
-+       acpi_map_cpu2node_emu(pcpu, per_cpu(x86_cpu_to_apicid, pcpu), nid);
-+
-+       return pcpu;
-+}
-+EXPORT_SYMBOL(acpi_map_lsapic_emu);
-+#endif
-+
- int acpi_unmap_lsapic(int cpu)
- {
-+#ifdef CONFIG_ARCH_CPU_PROBE_RELEASE
-+       /* backup cpu apicid to array cpu_to_apicid_saved */
-+       if (cpu_to_apicid_saved[cpu] =3D=3D 0 &&
-+               per_cpu(x86_cpu_to_apicid, cpu) !=3D BAD_APICID)
-+               cpu_to_apicid_saved[cpu] =3D per_cpu(x86_cpu_to_apicid, cpu=
-);
-+#endif
-        per_cpu(x86_cpu_to_apicid, cpu) =3D -1;
-        set_cpu_present(cpu, false);
-        num_processors--;
+ #define X86_VENDOR_INTEL       0
 diff --git a/arch/x86/kernel/smpboot.c linux-hpe4/arch/x86/kernel/smpboot.c
-index c2871d3..f98122e 100644
+index f98122e..da8094d 100644
 --- a/arch/x86/kernel/smpboot.c
 +++ linux-hpe4/arch/x86/kernel/smpboot.c
-@@ -104,8 +104,6 @@ void cpu_hotplug_driver_unlock(void)
-         mutex_unlock(&x86_cpu_hotplug_driver_mutex);
- }
+@@ -141,6 +141,8 @@ static void __cpuinit smp_callin(void)
+ {
+        int cpuid, phys_id;
+        unsigned long timeout;
++       u8 cpu_probe_on =3D 0;
++       struct cpuinfo_x86 *c;
 
--ssize_t arch_cpu_probe(const char *buf, size_t count) { return -1; }
--ssize_t arch_cpu_release(const char *buf, size_t count) { return -1; }
- #else
- static struct task_struct *idle_thread_array[NR_CPUS] __cpuinitdata ;
- #define get_idle_for_cpu(x)      (idle_thread_array[(x)])
-diff --git a/arch/x86/kernel/topology.c linux-hpe4/arch/x86/kernel/topology=
-.c
-index 1e53227..ab62c94 100644
---- a/arch/x86/kernel/topology.c
-+++ linux-hpe4/arch/x86/kernel/topology.c
-@@ -30,6 +30,9 @@
- #include <linux/init.h>
- #include <linux/smp.h>
- #include <asm/cpu.h>
-+#include <linux/cpu.h>
-+#include <linux/topology.h>
-+#include <linux/acpi.h>
+        /*
+         * If waken up by an INIT in an 82489DX configuration
+@@ -219,7 +221,20 @@ static void __cpuinit smp_callin(void)
+        /*
+         * Save our processor parameters
+         */
++       c =3D &cpu_data(cpuid);
++#ifdef CONFIG_ARCH_CPU_PROBE_RELEASE
++       cpu_probe_on =3D c->cpu_probe_on;
++       phys_id =3D c->phys_proc_id;
++#endif
++
+        smp_store_cpu_info(cpuid);
++#ifdef CONFIG_ARCH_CPU_PROBE_RELEASE
++       if (cpu_probe_on) {
++               c->phys_proc_id =3D phys_id; /* restore the fake phys_proc_=
+id */
++               c->cpu_core_id =3D 0; /* force the logical cpu to core 0 */
++               c->cpu_probe_on =3D cpu_probe_on;
++       }
++#endif
 
- static DEFINE_PER_CPU(struct x86_cpu, cpu_devices);
-
-@@ -66,6 +69,74 @@ void arch_unregister_cpu(int num)
-        unregister_cpu(&per_cpu(cpu_devices, num).cpu);
- }
- EXPORT_SYMBOL(arch_unregister_cpu);
-+
-+ssize_t arch_cpu_probe(const char *buf, size_t count)
-+{
-+       int nid =3D 0;
-+       int num =3D 0, selected =3D 0;
-+
-+       /* check parameters */
-+       if (!buf || count < 2)
-+               return -EPERM;
-+
-+       nid =3D simple_strtoul(buf, NULL, 0);
-+       printk(KERN_DEBUG "Add a cpu to node : %d\n", nid);
-+
-+       if (nid < 0 || nid > nr_node_ids - 1) {
-+               printk(KERN_ERR "Invalid NUMA node id: %d (0 <=3D nid < %d)=
-.\n",
-+                       nid, nr_node_ids);
-+               return -EPERM;
-+       }
-+
-+       if (!node_online(nid)) {
-+               printk(KERN_ERR "NUMA node %d is not online, give up.\n", n=
-id);
-+               return -EPERM;
-+       }
-+
-+       /* find first uninitialized cpu */
-+       for_each_present_cpu(num) {
-+               if (per_cpu(cpu_sys_devices, num) =3D=3D NULL) {
-+                       selected =3D num;
-+                       break;
-+               }
-+       }
-+
-+       if (selected >=3D num_possible_cpus()) {
-+               printk(KERN_ERR "No free cpu, give up cpu probing.\n");
-+               return -EPERM;
-+       }
-+
-+       /* register cpu */
-+       arch_register_cpu_node(selected, nid);
-+       acpi_map_lsapic_emu(selected, nid);
-+
-+       return count;
-+}
-+EXPORT_SYMBOL(arch_cpu_probe);
-+
-+ssize_t arch_cpu_release(const char *buf, size_t count)
-+{
-+       int cpu =3D 0;
-+
-+       cpu =3D  simple_strtoul(buf, NULL, 0);
-+       /* cpu 0 is not hotplugable */
-+       if (cpu =3D=3D 0) {
-+               printk(KERN_ERR "can not release cpu 0.\n");
-+               return -EPERM;
-+       }
-+
-+       if (cpu_online(cpu)) {
-+               printk(KERN_DEBUG "offline cpu %d.\n", cpu);
-+               cpu_down(cpu);
-+       }
-+
-+       arch_unregister_cpu(cpu);
-+       acpi_unmap_lsapic(cpu);
-+
-+       return count;
-+}
-+EXPORT_SYMBOL(arch_cpu_release);
-+
- #else /* CONFIG_HOTPLUG_CPU */
-
- static int __init arch_register_cpu(int num)
-@@ -83,8 +154,14 @@ static int __init topology_init(void)
-                register_one_node(i);
- #endif
-
--       for_each_present_cpu(i)
--               arch_register_cpu(i);
-+       /*
-+        * when cpu hotplug emulation enabled, register the online cpu only=
-,
-+        * the rests are reserved for cpu probe.
-+        */
-+       for_each_present_cpu(i) {
-+               if ((cpu_hpe_on && cpu_online(i)) || !cpu_hpe_on)
-+                       arch_register_cpu(i);
-+       }
-
-        return 0;
- }
-diff --git a/arch/x86/mm/numa_64.c linux-hpe4/arch/x86/mm/numa_64.c
-index c3f8050..d13b5b8 100644
---- a/arch/x86/mm/numa_64.c
-+++ linux-hpe4/arch/x86/mm/numa_64.c
-@@ -14,6 +14,7 @@
- #include <linux/nodemask.h>
- #include <linux/sched.h>
- #include <linux/acpi.h>
-+#include <linux/cpu.h>
-
- #include <asm/e820.h>
- #include <asm/proto.h>
-@@ -665,3 +666,17 @@ int __cpuinit numa_cpu_node(int cpu)
-                return __apicid_to_node[apicid];
-        return NUMA_NO_NODE;
- }
+        /*
+         * This must be done before setting cpu_online_mask
+@@ -325,6 +340,11 @@ void __cpuinit set_cpu_sibling_map(int cpu)
+ {
+        int i;
+        struct cpuinfo_x86 *c =3D &cpu_data(cpu);
++       int cpu_probe_on =3D 0;
 +
 +#ifdef CONFIG_ARCH_CPU_PROBE_RELEASE
-+static __init int cpu_hpe_setup(char *opt)
-+{
-+       if (!opt)
-+               return -EINVAL;
-+
-+       if (!strncmp(opt, "on", 2) || !strncmp(opt, "1", 1))
-+               cpu_hpe_on =3D 1;
-+
-+       return 0;
-+}
-+early_param("cpu_hpe", cpu_hpe_setup);
-+#endif  /* CONFIG_ARCH_CPU_PROBE_RELEASE */
-diff --git a/drivers/acpi/processor_driver.c linux-hpe4/drivers/acpi/proces=
-sor_driver.c
-index 360a74e..e6da38a 100644
---- a/drivers/acpi/processor_driver.c
-+++ linux-hpe4/drivers/acpi/processor_driver.c
-@@ -492,6 +492,14 @@ static int __cpuinit acpi_processor_add(struct acpi_de=
-vice *device)
-        per_cpu(processors, pr->id) =3D pr;
++       cpu_probe_on =3D c->cpu_probe_on;
++#endif
 
-        sysdev =3D get_cpu_sysdev(pr->id);
-+       /*
-+        * Reserve cpu for hotplug emulation, the reserved cpu can be hot-a=
-dded
-+        * throu the cpu probe interface. Return directly.
-+        */
-+       if (sysdev =3D=3D NULL) {
-+               goto out;
+        cpumask_set_cpu(cpu, cpu_sibling_setup_mask);
+
+@@ -356,7 +376,8 @@ void __cpuinit set_cpu_sibling_map(int cpu)
+
+        for_each_cpu(i, cpu_sibling_setup_mask) {
+                if (per_cpu(cpu_llc_id, cpu) !=3D BAD_APICID &&
+-                   per_cpu(cpu_llc_id, cpu) =3D=3D per_cpu(cpu_llc_id, i))=
+ {
++                   per_cpu(cpu_llc_id, cpu) =3D=3D per_cpu(cpu_llc_id, i) =
+&&
++                   cpu_probe_on =3D=3D 0) {
+                        cpumask_set_cpu(i, cpu_llc_shared_mask(cpu));
+                        cpumask_set_cpu(cpu, cpu_llc_shared_mask(i));
+                }
+diff --git a/arch/x86/kernel/topology.c linux-hpe4/arch/x86/kernel/topology=
+.c
+index ab62c94..f133dfa 100644
+--- a/arch/x86/kernel/topology.c
++++ linux-hpe4/arch/x86/kernel/topology.c
+@@ -70,6 +70,36 @@ void arch_unregister_cpu(int num)
+ }
+ EXPORT_SYMBOL(arch_unregister_cpu);
+
++#ifdef CONFIG_ARCH_CPU_PROBE_RELEASE
++/*
++ * Put the logical cpu into a new sokect, and encapsule it into core 0.
++ */
++static void fake_cpu_socket_info(int cpu)
++{
++       struct cpuinfo_x86 *c =3D &cpu_data(cpu);
++       int i, phys_id =3D 0;
++
++       /* calculate the max phys_id */
++       for_each_present_cpu(i) {
++               struct cpuinfo_x86 *c =3D &cpu_data(i);
++               if (phys_id < c->phys_proc_id)
++                       phys_id =3D c->phys_proc_id;
 +       }
 +
-        if (sysfs_create_link(&device->dev.kobj, &sysdev->kobj, "sysdev")) =
-{
-                result =3D -EFAULT;
-                goto err_free_cpumask;
-@@ -532,6 +540,7 @@ static int __cpuinit acpi_processor_add(struct acpi_dev=
-ice *device)
-                goto err_remove_sysfs;
-        }
-
-+out:
-        return 0;
-
- err_remove_sysfs:
-diff --git a/drivers/base/cpu.c linux-hpe4/drivers/base/cpu.c
-index 6b791ae..87be7a9 100644
---- a/drivers/base/cpu.c
-+++ linux-hpe4/drivers/base/cpu.c
-@@ -22,9 +22,15 @@ struct sysdev_class cpu_sysdev_class =3D {
- };
- EXPORT_SYMBOL(cpu_sysdev_class);
-
--static DEFINE_PER_CPU(struct sys_device *, cpu_sys_devices);
-+DEFINE_PER_CPU(struct sys_device *, cpu_sys_devices);
-
- #ifdef CONFIG_HOTPLUG_CPU
-+/*
-+ * cpu_hpe_on is a switch to enable/disable cpu hotplug emulation. it is
-+ * disabled in default, we can enable it throu grub parameter cpu_hpe=3Don
-+ */
-+int cpu_hpe_on;
++       c->phys_proc_id =3D phys_id + 1; /* pick up a unused phys_proc_id *=
+/
++       c->cpu_core_id =3D 0; /* always put the logical cpu to core 0 */
++       c->cpu_probe_on =3D 1;
++}
 +
- static ssize_t show_online(struct sys_device *dev, struct sysdev_attribute=
- *attr,
-                           char *buf)
++static void clear_cpu_socket_info(int cpu)
++{
++       struct cpuinfo_x86 *c =3D &cpu_data(cpu);
++       c->phys_proc_id =3D 0;
++       c->cpu_core_id =3D 0;
++       c->cpu_probe_on =3D 0;
++}
++
++
+ ssize_t arch_cpu_probe(const char *buf, size_t count)
  {
-diff --git a/include/linux/acpi.h linux-hpe4/include/linux/acpi.h
-index a2e910e..9cd5676 100644
---- a/include/linux/acpi.h
-+++ linux-hpe4/include/linux/acpi.h
-@@ -102,6 +102,7 @@ void acpi_numa_arch_fixup(void);
- #ifdef CONFIG_ACPI_HOTPLUG_CPU
- /* Arch dependent functions for cpu hotplug support */
- int acpi_map_lsapic(acpi_handle handle, int *pcpu);
-+int acpi_map_lsapic_emu(int pcpu, int nid);
- int acpi_unmap_lsapic(int cpu);
- #endif /* CONFIG_ACPI_HOTPLUG_CPU */
+        int nid =3D 0;
+@@ -109,6 +139,7 @@ ssize_t arch_cpu_probe(const char *buf, size_t count)
+        /* register cpu */
+        arch_register_cpu_node(selected, nid);
+        acpi_map_lsapic_emu(selected, nid);
++       fake_cpu_socket_info(selected);
 
-diff --git a/include/linux/cpu.h linux-hpe4/include/linux/cpu.h
-index 014856d..a4258ba 100644
---- a/include/linux/cpu.h
-+++ linux-hpe4/include/linux/cpu.h
-@@ -25,6 +25,8 @@ struct cpu {
-        struct sys_device sysdev;
- };
+        return count;
+ }
+@@ -132,10 +163,13 @@ ssize_t arch_cpu_release(const char *buf, size_t coun=
+t)
 
-+DECLARE_PER_CPU(struct sys_device *, cpu_sys_devices);
-+
- extern int register_cpu_node(struct cpu *cpu, int num, int nid);
+        arch_unregister_cpu(cpu);
+        acpi_unmap_lsapic(cpu);
++       clear_cpu_socket_info(cpu);
++       set_cpu_present(cpu, true);
 
- static inline int register_cpu(struct cpu *cpu, int num)
-@@ -144,6 +146,7 @@ extern void put_online_cpus(void);
- #define register_hotcpu_notifier(nb)   register_cpu_notifier(nb)
- #define unregister_hotcpu_notifier(nb) unregister_cpu_notifier(nb)
- int cpu_down(unsigned int cpu);
-+extern int cpu_hpe_on;
+        return count;
+ }
+ EXPORT_SYMBOL(arch_cpu_release);
++#endif CONFIG_ARCH_CPU_PROBE_RELEASE
 
- #ifdef CONFIG_ARCH_CPU_PROBE_RELEASE
- extern void cpu_hotplug_driver_lock(void);
-@@ -166,6 +169,7 @@ static inline void cpu_hotplug_driver_unlock(void)
- /* These aren't inline functions due to a GCC bug. */
- #define register_hotcpu_notifier(nb)   ({ (void)(nb); 0; })
- #define unregister_hotcpu_notifier(nb) ({ (void)(nb); })
-+static int cpu_hpe_on;
- #endif         /* CONFIG_HOTPLUG_CPU */
+ #else /* CONFIG_HOTPLUG_CPU */
 
- #ifdef CONFIG_PM_SLEEP_SMP
 --
 1.7.1.1
----
+--
 best regards
 yang
 
