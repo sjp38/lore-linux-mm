@@ -1,40 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 86FF98D0040
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 12:04:45 -0400 (EDT)
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e35.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p2VFmrS1019946
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 09:48:53 -0600
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p2VG4DYV097446
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 10:04:15 -0600
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p2VG487k019469
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 10:04:09 -0600
-Subject: Re: [PATCH 05/12] mm: alloc_contig_range() added
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <1301577368-16095-6-git-send-email-m.szyprowski@samsung.com>
-References: <1301577368-16095-1-git-send-email-m.szyprowski@samsung.com>
-	 <1301577368-16095-6-git-send-email-m.szyprowski@samsung.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Date: Thu, 31 Mar 2011 09:04:05 -0700
-Message-ID: <1301587445.31087.1042.camel@nimitz>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 3694B8D0040
+	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 12:20:55 -0400 (EDT)
+Date: Thu, 31 Mar 2011 18:20:50 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [Lsf] [LSF][MM] rough agenda for memcg.
+Message-ID: <20110331162050.GI12265@random.random>
+References: <20110331110113.a01f7b8b.kamezawa.hiroyu@jp.fujitsu.com>
+ <4D944801.3020404@parallels.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4D944801.3020404@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-samsung-soc@vger.kernel.org, linux-media@vger.kernel.org, linux-mm@kvack.org, Michal Nazarewicz <mina86@mina86.com>, Kyungmin Park <kyungmin.park@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ankita Garg <ankita@in.ibm.com>, Daniel Walker <dwalker@codeaurora.org>, Johan MOSSBERG <johan.xx.mossberg@stericsson.com>, Mel Gorman <mel@csn.ul.ie>, Pawel Osciak <pawel@osciak.com>
+To: Pavel Emelyanov <xemul@parallels.com>
+Cc: lsf@lists.linux-foundation.org, Linux MM <linux-mm@kvack.org>
 
-On Thu, 2011-03-31 at 15:16 +0200, Marek Szyprowski wrote:
-> +       _start = start & (~0UL << ret);
-> +       _end   = alloc_contig_freed_pages(_start, end, flag); 
+On Thu, Mar 31, 2011 at 01:23:13PM +0400, Pavel Emelyanov wrote:
+> >  b) single LRU and per memcg zone->lru_lock.
+> >     I hear zone->lru_lock contention caused by memcg is a problem on Google servers.
+> >     Okay, please show data. (I've never seen it.)
+> >     Then, we need to discuss Pros. and Cons. of current design and need to consinder
+> >     how to improve it. I think Google and Michal have their own implementation.
+> > 
+> >     Current design of double-LRU is from the 1st inclusion of memcg to the kernel.
+> >     But I don't know that discussion was there. Balbir, could you explain the reason
+> >     of this design ? Then, we can go ahead, somewhere.
+> 
+> I would like to take part in that and describe what we've done with LRU
+> in OpenVZ in details.
 
-These names are a wee bit lacking.  Care to give them proper names that
-might let a reader figure out how the "_" makes the variable different
-from its nearly-identical twin?
+Sounds good.
 
--- Dave
+>
+> >   a) Kernel memory accounting.
+> 
+> This one is very interesting to me.
+
+I expected someone would have been interested into that...
+
+> >   f) vm_overcommit_memory should be supproted with memcg ?
+> >      (I remember there was a trial. But I think it should be done in other cgroup
+> >       as vmemory cgroup.)
+> 
+> And this one too - I have an implementation of overcommit management
+> in OpenVZ, I can describe one and discuss pros-n-cons.
+
+Ok, so I've added you to the second half of "what's next".
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
