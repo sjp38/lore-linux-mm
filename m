@@ -1,74 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C9AC8D0040
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 17:14:44 -0400 (EDT)
-Received: from d01dlp02.pok.ibm.com (d01dlp02.pok.ibm.com [9.56.224.85])
-	by e7.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p2VKrDxS026622
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 16:53:13 -0400
-Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
-	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 819BA6E803C
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 17:14:42 -0400 (EDT)
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p2VLEgBf229348
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 17:14:42 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p2VLEepn010526
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 17:14:42 -0400
-Subject: Re: [PATCH 04/12] mm: alloc_contig_freed_pages() added
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <op.vs77qfx03l0zgt@mnazarewicz-glaptop>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 9904B8D0040
+	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 17:17:56 -0400 (EDT)
+Received: by ewy9 with SMTP id 9so1143810ewy.14
+        for <linux-mm@kvack.org>; Thu, 31 Mar 2011 14:17:53 -0700 (PDT)
+Content-Type: text/plain; charset=utf-8; format=flowed; delsp=yes
+Subject: Re: [PATCH 05/12] mm: alloc_contig_range() added
 References: <1301577368-16095-1-git-send-email-m.szyprowski@samsung.com>
-	 <1301577368-16095-5-git-send-email-m.szyprowski@samsung.com>
-	 <1301587083.31087.1032.camel@nimitz>
-	 <op.vs77qfx03l0zgt@mnazarewicz-glaptop>
-Content-Type: text/plain; charset="ISO-8859-1"
-Date: Thu, 31 Mar 2011 14:14:38 -0700
-Message-ID: <1301606078.31087.1275.camel@nimitz>
-Mime-Version: 1.0
+ <1301577368-16095-6-git-send-email-m.szyprowski@samsung.com>
+ <1301587361.31087.1040.camel@nimitz> <op.vs7umufd3l0zgt@mnazarewicz-glaptop>
+ <1301603322.31087.1196.camel@nimitz>
+Date: Thu, 31 Mar 2011 23:17:51 +0200
+MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
+From: "Michal Nazarewicz" <mina86@mina86.com>
+Message-ID: <op.vs7731po3l0zgt@mnazarewicz-glaptop>
+In-Reply-To: <1301603322.31087.1196.camel@nimitz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Nazarewicz <mina86@mina86.com>
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-samsung-soc@vger.kernel.org, linux-media@vger.kernel.org, linux-mm@kvack.org, Kyungmin Park <kyungmin.park@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ankita Garg <ankita@in.ibm.com>, Daniel Walker <dwalker@codeaurora.org>, Johan MOSSBERG <johan.xx.mossberg@stericsson.com>, Mel Gorman <mel@csn.ul.ie>, Pawel Osciak <pawel@osciak.com>
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: Marek Szyprowski <m.szyprowski@samsung.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-samsung-soc@vger.kernel.org, linux-media@vger.kernel.org, linux-mm@kvack.org, Kyungmin Park <kyungmin.park@samsung.com>, Andrew
+ Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ankita Garg <ankita@in.ibm.com>, Daniel
+ Walker <dwalker@codeaurora.org>, Johan MOSSBERG <johan.xx.mossberg@stericsson.com>, Mel Gorman <mel@csn.ul.ie>, Pawel
+ Osciak <pawel@osciak.com>
 
-On Thu, 2011-03-31 at 23:09 +0200, Michal Nazarewicz wrote:
-> On Thu, 31 Mar 2011 17:58:03 +0200, Dave Hansen <dave@linux.vnet.ibm.com>  
-> wrote:
-> > On Thu, 2011-03-31 at 15:16 +0200, Marek Szyprowski wrote:
-> >> +unsigned long alloc_contig_freed_pages(unsigned long start, unsigned  
-> >> long end,
-> >> +                                      gfp_t flag)
-> >> +{
-> >> +       unsigned long pfn = start, count;
-> >> +       struct page *page;
-> >> +       struct zone *zone;
-> >> +       int order;
-> >> +
-> >> +       VM_BUG_ON(!pfn_valid(start));
-> >
-> > This seems kinda mean.  Could we return an error?  I understand that
-> > this is largely going to be an early-boot thing, but surely trying to
-> > punt on crappy input beats a full-on BUG().
-> 
-> Actually, I would have to check but I think that the usage of this function
-> (in this patchset) is that the caller expects the function to succeed.  It  
-> is quite a low-level function so before running it a lot of preparation is  
-> needed and the caller must make sure that several conditions are met.  I don't  
-> really see advantage of returning a value rather then BUG()ing.
-> 
-> Also, CMA does not call this function at boot time.
+On Thu, 31 Mar 2011 22:28:42 +0200, Dave Hansen <dave@linux.vnet.ibm.com>  
+wrote:
 
-We BUG_ON() in bootmem.  Basically if we try to allocate an early-boot
-structure and fail, we're screwed.  We can't keep running without an
-inode hash, or a mem_map[].
+> On Thu, 2011-03-31 at 18:26 +0200, Michal Nazarewicz wrote:
+>> > On Thu, 2011-03-31 at 15:16 +0200, Marek Szyprowski wrote:
+>> >> +       ret = 0;
+>> >> +       while (!PageBuddy(pfn_to_page(start & (~0UL << ret))))
+>> >> +               if (WARN_ON(++ret >= MAX_ORDER))
+>> >> +                       return -EINVAL;
+>>
+>> On Thu, 31 Mar 2011 18:02:41 +0200, Dave Hansen wrote:
+>> > Holy cow, that's dense.  Is there really no more straightforward way  
+>> to
+>> > do that?
+>>
+>> Which part exactly is dense?  What would be qualify as a more
+>> straightforward way?
+>
+> I'm still not 100% sure what it's trying to do.  It looks like it
+> attempts to check all of "start"'s buddy pages.
 
-This looks like it's going to at least get partially used in drivers, at
-least from the examples.  Are these kinds of things that, if the driver
-fails to load, that the system is useless and hosed?  Or, is it
-something where we might limp along to figure out what went wrong before
-we reboot?
+No.  I'm going up through parents.  This is because even though start
+falls in a free block (ie. one that page allocator tracks), the actual
+page that is in buddy system is larger then start and this loop looks
+for beginning of that page.
 
--- Dave
+> int order;
+> for (order = 0; order <= MAX_ORDER; order++) {
+> 	unsigned long buddy_pfn = find_buddy(start, order);
+> 	struct page *buddy = pfn_to_page(buddy_pfn);
+> 	if (PageBuddy(buddy)
+> 		break;
+> 	WARN();
+> 	return -EINVAL;
+> }
+
+The WARN() and return would have to be outside of the loop and, as I
+described, instead of find_buddy() something like find_parent() would
+have to be used.
+
+> I'm wondering also if you can share some code with __rmqueue().
+
+Doubtful since start does not (have to) point to a page that is tracked
+by page allocator but a page inside such a page.
+
+-- 
+Best regards,                                         _     _
+.o. | Liege of Serenely Enlightened Majesty of      o' \,=./ `o
+..o | Computer Science,  Michal "mina86" Nazarewicz    (o o)
+ooo +-----<email/xmpp: mnazarewicz@google.com>-----ooO--(_)--Ooo--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
