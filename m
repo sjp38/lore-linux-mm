@@ -1,83 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 656C88D0040
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 23:18:17 -0400 (EDT)
-Received: from kpbe11.cbf.corp.google.com (kpbe11.cbf.corp.google.com [172.25.105.75])
-	by smtp-out.google.com with ESMTP id p313IB3T021975
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 20:18:11 -0700
-Received: from qyk29 (qyk29.prod.google.com [10.241.83.157])
-	by kpbe11.cbf.corp.google.com with ESMTP id p313I4YN024104
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 20:18:09 -0700
-Received: by qyk29 with SMTP id 29so51638qyk.10
-        for <linux-mm@kvack.org>; Thu, 31 Mar 2011 20:18:04 -0700 (PDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id C016E8D0040
+	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 23:18:44 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 216943EE0AE
+	for <linux-mm@kvack.org>; Fri,  1 Apr 2011 12:18:40 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0256D45DE99
+	for <linux-mm@kvack.org>; Fri,  1 Apr 2011 12:18:40 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id DE33345DE92
+	for <linux-mm@kvack.org>; Fri,  1 Apr 2011 12:18:39 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id D1A3BE18003
+	for <linux-mm@kvack.org>; Fri,  1 Apr 2011 12:18:39 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9C00AE08003
+	for <linux-mm@kvack.org>; Fri,  1 Apr 2011 12:18:39 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 0/3] Unmapped page cache control (v5)
+In-Reply-To: <20110331214033.GA2904@dastard>
+References: <20110330052819.8212.1359.stgit@localhost6.localdomain6> <20110331214033.GA2904@dastard>
+Message-Id: <20110401121825.A875.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <20110331155931.GG12265@random.random>
-References: <20110331110113.a01f7b8b.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110331155931.GG12265@random.random>
-Date: Thu, 31 Mar 2011 20:18:04 -0700
-Message-ID: <BANLkTimb+GeeiSPnX23Wfo-=1mHzNiJ=FQ@mail.gmail.com>
-Subject: Re: [Lsf] [LSF][MM] rough agenda for memcg.
-From: Michel Lespinasse <walken@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Fri,  1 Apr 2011 12:18:38 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, lsf@lists.linux-foundation.org, linux-mm@kvack.org
+To: Dave Chinner <david@fromorbit.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org, akpm@linux-foundation.org, npiggin@kernel.dk, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, cl@linux.com, kamezawa.hiroyu@jp.fujitsu.com
 
-On Thu, Mar 31, 2011 at 8:59 AM, Andrea Arcangeli <aarcange@redhat.com> wro=
-te:
-> Hi KAMEZAWA,
->
-> On Thu, Mar 31, 2011 at 11:01:13AM +0900, KAMEZAWA Hiroyuki wrote:
->> 1. Memory cgroup : Where next ? 1hour (Balbir Singh/Kamezawa)
->
-> Originally it was 30min and then there was a topic "Working set
-> estimation" for another 30 min. That has been converted to "what's
-> next continued", so I assume that you can add the Working set
-> estimation as a subtopic.
+> On Wed, Mar 30, 2011 at 11:00:26AM +0530, Balbir Singh wrote:
+> > 
+> > The following series implements page cache control,
+> > this is a split out version of patch 1 of version 3 of the
+> > page cache optimization patches posted earlier at
+> > Previous posting http://lwn.net/Articles/425851/ and analysis
+> > at http://lwn.net/Articles/419713/
+> > 
+> > Detailed Description
+> > ====================
+> > This patch implements unmapped page cache control via preferred
+> > page cache reclaim. The current patch hooks into kswapd and reclaims
+> > page cache if the user has requested for unmapped page control.
+> > This is useful in the following scenario
+> > - In a virtualized environment with cache=writethrough, we see
+> >   double caching - (one in the host and one in the guest). As
+> >   we try to scale guests, cache usage across the system grows.
+> >   The goal of this patch is to reclaim page cache when Linux is running
+> >   as a guest and get the host to hold the page cache and manage it.
+> >   There might be temporary duplication, but in the long run, memory
+> >   in the guests would be used for mapped pages.
+> 
+> What does this do that "cache=none" for the VMs and using the page
+> cache inside the guest doesn't acheive? That avoids double caching
+> and doesn't require any new complexity inside the host OS to
+> acheive...
 
-I see this session on the second day of the agenda. I think I'd like
-to keep it a separate session; however I probably don't need the full
-30 minutes; I should be able to give out the extra time to the virtual
-machine memory sizing discussion that is slotted afterwards.
+Right. 
 
->> 2. Memcg Dirty Limit and writeback 30min(Greg Thelen)
->> 3. Memcg LRU management 30min (Ying Han, Michal Hocko)
->> 4. Page cgroup on a diet (Johannes Weiner)
->> 2.5 hours. This seems long...or short ? ;)
->
-> Overall we've been seeing plenty of memcg emails, so I guess 2.5 hours
-> are ok. And I wouldn't say we're not in the short side.
+"cache=none" has no double caching issue and KSM already solved
+cross gues cache sharing. So, I _guess_ this is not a core motivation 
+of his patch. But I'm not him. I'm not sure.
 
-I am happy to see many parties interested in discussing memcg. I don't
-think 2.5 hours are too much either.
-
-One issue I would like to hear about is the way memcg is kept well
-separated from the rest of the VM - as seen by the fact that only one
-C file knows about the insides of struct mem_cgroup, that memcg has
-been careful not to modify global reclaim, etc... I think this was
-necessary early on when few people were interested in memcg, but now
-that every major linux shop works on it it seems to me there is no
-justification for that strong separation anymore. I'd like to see that
-addressed explicitly because the concensus on that will affect what we
-can do about memcg LRU management, page cgroup diet and a few other
-topics.
-
->> =A0 IV) Diet of page_cgroup (for 30-min)
->> =A0 =A0 =A0 Maybe this can be combined with III.
->
-> Looks a good plan to me, but others are more directly involved in
-> memcg than me so feel free to decide! About the diet topic it was
-> suggested by Johannes so I'll let him comment on it if he wants.
-
-If the diet is successful enough, I think we could even consider
-merging struct page_cgroup into struct page.
-
---=20
-Michel "Walken" Lespinasse
-A program is never fully debugged until the last user dies.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
