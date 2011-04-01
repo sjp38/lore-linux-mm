@@ -1,63 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id D95278D0040
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 22:36:55 -0400 (EDT)
-Received: from kpbe12.cbf.corp.google.com (kpbe12.cbf.corp.google.com [172.25.105.76])
-	by smtp-out.google.com with ESMTP id p312arhr005773
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 19:36:53 -0700
-Received: from qwj9 (qwj9.prod.google.com [10.241.195.73])
-	by kpbe12.cbf.corp.google.com with ESMTP id p312aqE3023751
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 656C88D0040
+	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 23:18:17 -0400 (EDT)
+Received: from kpbe11.cbf.corp.google.com (kpbe11.cbf.corp.google.com [172.25.105.75])
+	by smtp-out.google.com with ESMTP id p313IB3T021975
+	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 20:18:11 -0700
+Received: from qyk29 (qyk29.prod.google.com [10.241.83.157])
+	by kpbe11.cbf.corp.google.com with ESMTP id p313I4YN024104
 	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 19:36:52 -0700
-Received: by qwj9 with SMTP id 9so2596593qwj.21
-        for <linux-mm@kvack.org>; Thu, 31 Mar 2011 19:36:52 -0700 (PDT)
+	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 20:18:09 -0700
+Received: by qyk29 with SMTP id 29so51638qyk.10
+        for <linux-mm@kvack.org>; Thu, 31 Mar 2011 20:18:04 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <AANLkTi=D8pfyxf3Vr33YZvuQm9fQv+bthyiLLeRjaJt6@mail.gmail.com>
+In-Reply-To: <20110331155931.GG12265@random.random>
 References: <20110331110113.a01f7b8b.kamezawa.hiroyu@jp.fujitsu.com>
-	<AANLkTi=D8pfyxf3Vr33YZvuQm9fQv+bthyiLLeRjaJt6@mail.gmail.com>
-Date: Thu, 31 Mar 2011 19:36:51 -0700
-Message-ID: <BANLkTimQw1LQ6+gDFbex-C-5=gVqJf7ZPg@mail.gmail.com>
-Subject: Re: [LSF][MM] rough agenda for memcg.
+	<20110331155931.GG12265@random.random>
+Date: Thu, 31 Mar 2011 20:18:04 -0700
+Message-ID: <BANLkTimb+GeeiSPnX23Wfo-=1mHzNiJ=FQ@mail.gmail.com>
+Subject: Re: [Lsf] [LSF][MM] rough agenda for memcg.
 From: Michel Lespinasse <walken@google.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhu Yanhai <zhu.yanhai@gmail.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, lsf@lists.linux-foundation.org, linux-mm@kvack.org, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, Ying Han <yinghan@google.com>, Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, lsf@lists.linux-foundation.org, linux-mm@kvack.org
 
-On Thu, Mar 31, 2011 at 2:15 AM, Zhu Yanhai <zhu.yanhai@gmail.com> wrote:
-> Hi Kame,
+On Thu, Mar 31, 2011 at 8:59 AM, Andrea Arcangeli <aarcange@redhat.com> wro=
+te:
+> Hi KAMEZAWA,
 >
-> 2011/3/31 KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>:
->> =A0c) Should we provide a auto memory cgroup for file caches ?
->> =A0 =A0 (Then we can implement a file-cache-limit.)
->> =A0c) AFAIK, some other OSs have this kind of feature, a box for file-ca=
-che.
->> =A0 =A0 Because file-cache is a shared object between all cgroups, it's =
-difficult
->> =A0 =A0 to handle. It may be better to have a auto cgroup for file cache=
-s and add knobs
->> =A0 =A0 for memcg.
+> On Thu, Mar 31, 2011 at 11:01:13AM +0900, KAMEZAWA Hiroyuki wrote:
+>> 1. Memory cgroup : Where next ? 1hour (Balbir Singh/Kamezawa)
 >
-> I have been thinking about this idea. It seems the root cause of
-> current difficult is
-> the whole cgroup infrastructure is based on process groups, so its counte=
-rs
-> naturally center on process. However, this is not nature for counters
-> of file caches,
-> which center on inodes/devs actually. This brought many confusing
-> problems - e.g.
-> who should be charged for a (dirty)file page? =A0I think the answer is
-> no process but
-> the filesystem/block device it sits on.
+> Originally it was 30min and then there was a topic "Working set
+> estimation" for another 30 min. That has been converted to "what's
+> next continued", so I assume that you can add the Working set
+> estimation as a subtopic.
 
-This has been an open issue for Google as well. Greg Thelen gave this
-some though last year and had a proposal around the idea of forcing
-files within certain directories to be accounted to a given cgroup.
-We're not actively implementing this right now, but if there is
-outside interest this might be worth discussing (might just be as an
-informal conversation rather than a session though).
+I see this session on the second day of the agenda. I think I'd like
+to keep it a separate session; however I probably don't need the full
+30 minutes; I should be able to give out the extra time to the virtual
+machine memory sizing discussion that is slotted afterwards.
+
+>> 2. Memcg Dirty Limit and writeback 30min(Greg Thelen)
+>> 3. Memcg LRU management 30min (Ying Han, Michal Hocko)
+>> 4. Page cgroup on a diet (Johannes Weiner)
+>> 2.5 hours. This seems long...or short ? ;)
+>
+> Overall we've been seeing plenty of memcg emails, so I guess 2.5 hours
+> are ok. And I wouldn't say we're not in the short side.
+
+I am happy to see many parties interested in discussing memcg. I don't
+think 2.5 hours are too much either.
+
+One issue I would like to hear about is the way memcg is kept well
+separated from the rest of the VM - as seen by the fact that only one
+C file knows about the insides of struct mem_cgroup, that memcg has
+been careful not to modify global reclaim, etc... I think this was
+necessary early on when few people were interested in memcg, but now
+that every major linux shop works on it it seems to me there is no
+justification for that strong separation anymore. I'd like to see that
+addressed explicitly because the concensus on that will affect what we
+can do about memcg LRU management, page cgroup diet and a few other
+topics.
+
+>> =A0 IV) Diet of page_cgroup (for 30-min)
+>> =A0 =A0 =A0 Maybe this can be combined with III.
+>
+> Looks a good plan to me, but others are more directly involved in
+> memcg than me so feel free to decide! About the diet topic it was
+> suggested by Johannes so I'll let him comment on it if he wants.
+
+If the diet is successful enough, I think we could even consider
+merging struct page_cgroup into struct page.
 
 --=20
 Michel "Walken" Lespinasse
