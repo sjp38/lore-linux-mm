@@ -1,167 +1,592 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 65B7C8D004B
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 115C48D0040
 	for <linux-mm@kvack.org>; Fri,  1 Apr 2011 09:38:59 -0400 (EDT)
-Message-Id: <20110401121725.940769985@chello.nl>
-Date: Fri, 01 Apr 2011 14:13:11 +0200
+Message-Id: <20110401121726.037173835@chello.nl>
+Date: Fri, 01 Apr 2011 14:13:13 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 13/20] lockdep, mutex: Provide mutex_lock_nest_lock
+Subject: [PATCH 15/20] mm: Convert i_mmap_lock to a mutex
 References: <20110401121258.211963744@chello.nl>
-Content-Disposition: inline; filename=peter_zijlstra-lockdep_mutex-provide_mutex_lock_nest_lock.patch
+Content-Disposition: inline; filename=peter_zijlstra-mm-convert_i_mmap_lock_to_mutexes.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrea Arcangeli <aarcange@redhat.com>, Avi Kivity <avi@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@elte.hu>, akpm@linux-foundation.org, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Yanmin Zhang <yanmin_zhang@linux.intel.com>
+Cc: linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Yanmin Zhang <yanmin_zhang@linux.intel.com>, Hugh Dickins <hughd@google.com>
 
-Provide the mutex_lock_nest_lock() annotation.
+Straight fwd conversion of i_mmap_lock to a mutex
 
+Acked-by: Hugh Dickins <hughd@google.com>
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 LKML-Reference: <new-submission>
 ---
- include/linux/lockdep.h |    3 +++
- include/linux/mutex.h   |    9 +++++++++
- kernel/mutex.c          |   25 +++++++++++++++++--------
- 3 files changed, 29 insertions(+), 8 deletions(-)
+ Documentation/lockstat.txt   |    2 +-
+ Documentation/vm/locking     |    2 +-
+ arch/x86/mm/hugetlbpage.c    |    4 ++--
+ fs/hugetlbfs/inode.c         |    4 ++--
+ fs/inode.c                   |    2 +-
+ include/linux/fs.h           |    2 +-
+ include/linux/mmu_notifier.h |    2 +-
+ kernel/fork.c                |    4 ++--
+ mm/filemap.c                 |   10 +++++-----
+ mm/filemap_xip.c             |    4 ++--
+ mm/fremap.c                  |    4 ++--
+ mm/hugetlb.c                 |   14 +++++++-------
+ mm/memory-failure.c          |    4 ++--
+ mm/memory.c                  |    4 ++--
+ mm/mmap.c                    |   22 +++++++++++-----------
+ mm/mremap.c                  |    4 ++--
+ mm/rmap.c                    |   28 ++++++++++++++--------------
+ 17 files changed, 58 insertions(+), 58 deletions(-)
 
-Index: linux-2.6/include/linux/lockdep.h
+Index: linux-2.6/arch/x86/mm/hugetlbpage.c
 ===================================================================
---- linux-2.6.orig/include/linux/lockdep.h
-+++ linux-2.6/include/linux/lockdep.h
-@@ -495,12 +495,15 @@ static inline void print_irqtrace_events
- #ifdef CONFIG_DEBUG_LOCK_ALLOC
- # ifdef CONFIG_PROVE_LOCKING
- #  define mutex_acquire(l, s, t, i)		lock_acquire(l, s, t, 0, 2, NULL, i)
-+#  define mutex_acquire_nest(l, s, t, n, i)	lock_acquire(l, s, t, 0, 2, n, i)
- # else
- #  define mutex_acquire(l, s, t, i)		lock_acquire(l, s, t, 0, 1, NULL, i)
-+#  define mutex_acquire_nest(l, s, t, n, i)	lock_acquire(l, s, t, 0, 1, n, i)
- # endif
- # define mutex_release(l, n, i)			lock_release(l, n, i)
- #else
- # define mutex_acquire(l, s, t, i)		do { } while (0)
-+# define mutex_acquire_nest(l, s, t, n, i)	do { } while (0)
- # define mutex_release(l, n, i)			do { } while (0)
- #endif
+--- linux-2.6.orig/arch/x86/mm/hugetlbpage.c
++++ linux-2.6/arch/x86/mm/hugetlbpage.c
+@@ -72,7 +72,7 @@ static void huge_pmd_share(struct mm_str
+ 	if (!vma_shareable(vma, addr))
+ 		return;
  
-Index: linux-2.6/include/linux/mutex.h
-===================================================================
---- linux-2.6.orig/include/linux/mutex.h
-+++ linux-2.6/include/linux/mutex.h
-@@ -132,6 +132,7 @@ static inline int mutex_is_locked(struct
-  */
- #ifdef CONFIG_DEBUG_LOCK_ALLOC
- extern void mutex_lock_nested(struct mutex *lock, unsigned int subclass);
-+extern void _mutex_lock_nest_lock(struct mutex *lock, struct lockdep_map *nest_lock);
- extern int __must_check mutex_lock_interruptible_nested(struct mutex *lock,
- 					unsigned int subclass);
- extern int __must_check mutex_lock_killable_nested(struct mutex *lock,
-@@ -140,6 +141,13 @@ extern int __must_check mutex_lock_killa
- #define mutex_lock(lock) mutex_lock_nested(lock, 0)
- #define mutex_lock_interruptible(lock) mutex_lock_interruptible_nested(lock, 0)
- #define mutex_lock_killable(lock) mutex_lock_killable_nested(lock, 0)
-+
-+#define mutex_lock_nest_lock(lock, nest_lock)				\
-+do {									\
-+	typecheck(struct lockdep_map *, &(nest_lock)->dep_map);		\
-+	_mutex_lock_nest_lock(lock, &(nest_lock)->dep_map);		\
-+} while (0)
-+
- #else
- extern void mutex_lock(struct mutex *lock);
- extern int __must_check mutex_lock_interruptible(struct mutex *lock);
-@@ -148,6 +156,7 @@ extern int __must_check mutex_lock_killa
- # define mutex_lock_nested(lock, subclass) mutex_lock(lock)
- # define mutex_lock_interruptible_nested(lock, subclass) mutex_lock_interruptible(lock)
- # define mutex_lock_killable_nested(lock, subclass) mutex_lock_killable(lock)
-+# define mutex_lock_nest_lock(lock, nest_lock) mutex_lock(lock)
- #endif
+-	spin_lock(&mapping->i_mmap_lock);
++	mutex_lock(&mapping->i_mmap_mutex);
+ 	vma_prio_tree_foreach(svma, &iter, &mapping->i_mmap, idx, idx) {
+ 		if (svma == vma)
+ 			continue;
+@@ -97,7 +97,7 @@ static void huge_pmd_share(struct mm_str
+ 		put_page(virt_to_page(spte));
+ 	spin_unlock(&mm->page_table_lock);
+ out:
+-	spin_unlock(&mapping->i_mmap_lock);
++	mutex_unlock(&mapping->i_mmap_mutex);
+ }
  
  /*
-Index: linux-2.6/kernel/mutex.c
+Index: linux-2.6/fs/hugetlbfs/inode.c
 ===================================================================
---- linux-2.6.orig/kernel/mutex.c
-+++ linux-2.6/kernel/mutex.c
-@@ -131,14 +131,14 @@ EXPORT_SYMBOL(mutex_unlock);
-  */
- static inline int __sched
- __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass,
--	       	unsigned long ip)
-+		    struct lockdep_map *nest_lock, unsigned long ip)
- {
- 	struct task_struct *task = current;
- 	struct mutex_waiter waiter;
- 	unsigned long flags;
+--- linux-2.6.orig/fs/hugetlbfs/inode.c
++++ linux-2.6/fs/hugetlbfs/inode.c
+@@ -412,10 +412,10 @@ static int hugetlb_vmtruncate(struct ino
+ 	pgoff = offset >> PAGE_SHIFT;
  
- 	preempt_disable();
--	mutex_acquire(&lock->dep_map, subclass, 0, ip);
-+	mutex_acquire_nest(&lock->dep_map, subclass, 0, nest_lock, ip);
+ 	i_size_write(inode, offset);
+-	spin_lock(&mapping->i_mmap_lock);
++	mutex_lock(&mapping->i_mmap_mutex);
+ 	if (!prio_tree_empty(&mapping->i_mmap))
+ 		hugetlb_vmtruncate_list(&mapping->i_mmap, pgoff);
+-	spin_unlock(&mapping->i_mmap_lock);
++	mutex_unlock(&mapping->i_mmap_mutex);
+ 	truncate_hugepages(inode, offset);
+ 	return 0;
+ }
+Index: linux-2.6/fs/inode.c
+===================================================================
+--- linux-2.6.orig/fs/inode.c
++++ linux-2.6/fs/inode.c
+@@ -318,7 +318,7 @@ void address_space_init_once(struct addr
+ 	memset(mapping, 0, sizeof(*mapping));
+ 	INIT_RADIX_TREE(&mapping->page_tree, GFP_ATOMIC);
+ 	spin_lock_init(&mapping->tree_lock);
+-	spin_lock_init(&mapping->i_mmap_lock);
++	mutex_init(&mapping->i_mmap_mutex);
+ 	INIT_LIST_HEAD(&mapping->private_list);
+ 	spin_lock_init(&mapping->private_lock);
+ 	INIT_RAW_PRIO_TREE_ROOT(&mapping->i_mmap);
+Index: linux-2.6/include/linux/fs.h
+===================================================================
+--- linux-2.6.orig/include/linux/fs.h
++++ linux-2.6/include/linux/fs.h
+@@ -633,7 +633,7 @@ struct address_space {
+ 	unsigned int		i_mmap_writable;/* count VM_SHARED mappings */
+ 	struct prio_tree_root	i_mmap;		/* tree of private and shared mappings */
+ 	struct list_head	i_mmap_nonlinear;/*list VM_NONLINEAR mappings */
+-	spinlock_t		i_mmap_lock;	/* protect tree, count, list */
++	struct mutex		i_mmap_mutex;	/* protect tree, count, list */
+ 	unsigned long		nrpages;	/* number of total pages */
+ 	pgoff_t			writeback_index;/* writeback starts here */
+ 	const struct address_space_operations *a_ops;	/* methods */
+Index: linux-2.6/kernel/fork.c
+===================================================================
+--- linux-2.6.orig/kernel/fork.c
++++ linux-2.6/kernel/fork.c
+@@ -383,14 +383,14 @@ static int dup_mmap(struct mm_struct *mm
+ 			get_file(file);
+ 			if (tmp->vm_flags & VM_DENYWRITE)
+ 				atomic_dec(&inode->i_writecount);
+-			spin_lock(&mapping->i_mmap_lock);
++			mutex_lock(&mapping->i_mmap_mutex);
+ 			if (tmp->vm_flags & VM_SHARED)
+ 				mapping->i_mmap_writable++;
+ 			flush_dcache_mmap_lock(mapping);
+ 			/* insert tmp into the share list, just after mpnt */
+ 			vma_prio_tree_add(tmp, mpnt);
+ 			flush_dcache_mmap_unlock(mapping);
+-			spin_unlock(&mapping->i_mmap_lock);
++			mutex_unlock(&mapping->i_mmap_mutex);
+ 		}
  
- #ifdef CONFIG_MUTEX_SPIN_ON_OWNER
+ 		/*
+Index: linux-2.6/mm/filemap_xip.c
+===================================================================
+--- linux-2.6.orig/mm/filemap_xip.c
++++ linux-2.6/mm/filemap_xip.c
+@@ -183,7 +183,7 @@ __xip_unmap (struct address_space * mapp
+ 		return;
+ 
+ retry:
+-	spin_lock(&mapping->i_mmap_lock);
++	mutex_lock(&mapping->i_mmap_mutex);
+ 	vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, pgoff, pgoff) {
+ 		mm = vma->vm_mm;
+ 		address = vma->vm_start +
+@@ -201,7 +201,7 @@ __xip_unmap (struct address_space * mapp
+ 			page_cache_release(page);
+ 		}
+ 	}
+-	spin_unlock(&mapping->i_mmap_lock);
++	mutex_unlock(&mapping->i_mmap_mutex);
+ 
+ 	if (locked) {
+ 		mutex_unlock(&xip_sparse_mutex);
+Index: linux-2.6/mm/fremap.c
+===================================================================
+--- linux-2.6.orig/mm/fremap.c
++++ linux-2.6/mm/fremap.c
+@@ -211,13 +211,13 @@ SYSCALL_DEFINE5(remap_file_pages, unsign
+ 			}
+ 			goto out;
+ 		}
+-		spin_lock(&mapping->i_mmap_lock);
++		mutex_lock(&mapping->i_mmap_mutex);
+ 		flush_dcache_mmap_lock(mapping);
+ 		vma->vm_flags |= VM_NONLINEAR;
+ 		vma_prio_tree_remove(vma, &mapping->i_mmap);
+ 		vma_nonlinear_insert(vma, &mapping->i_mmap_nonlinear);
+ 		flush_dcache_mmap_unlock(mapping);
+-		spin_unlock(&mapping->i_mmap_lock);
++		mutex_unlock(&mapping->i_mmap_mutex);
+ 	}
+ 
+ 	if (vma->vm_flags & VM_LOCKED) {
+Index: linux-2.6/mm/hugetlb.c
+===================================================================
+--- linux-2.6.orig/mm/hugetlb.c
++++ linux-2.6/mm/hugetlb.c
+@@ -2205,7 +2205,7 @@ void __unmap_hugepage_range(struct vm_ar
+ 	unsigned long sz = huge_page_size(h);
+ 
  	/*
-@@ -276,16 +276,25 @@ void __sched
- mutex_lock_nested(struct mutex *lock, unsigned int subclass)
+-	 * A page gathering list, protected by per file i_mmap_lock. The
++	 * A page gathering list, protected by per file i_mmap_mutex. The
+ 	 * lock is used to avoid list corruption from multiple unmapping
+ 	 * of the same page since we are using page->lru.
+ 	 */
+@@ -2274,9 +2274,9 @@ void __unmap_hugepage_range(struct vm_ar
+ void unmap_hugepage_range(struct vm_area_struct *vma, unsigned long start,
+ 			  unsigned long end, struct page *ref_page)
  {
- 	might_sleep();
--	__mutex_lock_common(lock, TASK_UNINTERRUPTIBLE, subclass, _RET_IP_);
-+	__mutex_lock_common(lock, TASK_UNINTERRUPTIBLE, subclass, NULL, _RET_IP_);
+-	spin_lock(&vma->vm_file->f_mapping->i_mmap_lock);
++	mutex_lock(&vma->vm_file->f_mapping->i_mmap_mutex);
+ 	__unmap_hugepage_range(vma, start, end, ref_page);
+-	spin_unlock(&vma->vm_file->f_mapping->i_mmap_lock);
++	mutex_unlock(&vma->vm_file->f_mapping->i_mmap_mutex);
  }
  
- EXPORT_SYMBOL_GPL(mutex_lock_nested);
+ /*
+@@ -2308,7 +2308,7 @@ static int unmap_ref_private(struct mm_s
+ 	 * this mapping should be shared between all the VMAs,
+ 	 * __unmap_hugepage_range() is called as the lock is already held
+ 	 */
+-	spin_lock(&mapping->i_mmap_lock);
++	mutex_lock(&mapping->i_mmap_mutex);
+ 	vma_prio_tree_foreach(iter_vma, &iter, &mapping->i_mmap, pgoff, pgoff) {
+ 		/* Do not unmap the current VMA */
+ 		if (iter_vma == vma)
+@@ -2326,7 +2326,7 @@ static int unmap_ref_private(struct mm_s
+ 				address, address + huge_page_size(h),
+ 				page);
+ 	}
+-	spin_unlock(&mapping->i_mmap_lock);
++	mutex_unlock(&mapping->i_mmap_mutex);
  
-+void __sched
-+_mutex_lock_nest_lock(struct mutex *lock, struct lockdep_map *nest)
-+{
-+	might_sleep();
-+	__mutex_lock_common(lock, TASK_UNINTERRUPTIBLE, 0, nest, _RET_IP_);
-+}
-+
-+EXPORT_SYMBOL_GPL(_mutex_lock_nest_lock);
-+
- int __sched
- mutex_lock_killable_nested(struct mutex *lock, unsigned int subclass)
- {
- 	might_sleep();
--	return __mutex_lock_common(lock, TASK_KILLABLE, subclass, _RET_IP_);
-+	return __mutex_lock_common(lock, TASK_KILLABLE, subclass, NULL, _RET_IP_);
+ 	return 1;
  }
- EXPORT_SYMBOL_GPL(mutex_lock_killable_nested);
+@@ -2810,7 +2810,7 @@ void hugetlb_change_protection(struct vm
+ 	BUG_ON(address >= end);
+ 	flush_cache_range(vma, address, end);
  
-@@ -294,7 +303,7 @@ mutex_lock_interruptible_nested(struct m
- {
- 	might_sleep();
- 	return __mutex_lock_common(lock, TASK_INTERRUPTIBLE,
--				   subclass, _RET_IP_);
-+				   subclass, NULL, _RET_IP_);
+-	spin_lock(&vma->vm_file->f_mapping->i_mmap_lock);
++	mutex_lock(&vma->vm_file->f_mapping->i_mmap_mutex);
+ 	spin_lock(&mm->page_table_lock);
+ 	for (; address < end; address += huge_page_size(h)) {
+ 		ptep = huge_pte_offset(mm, address);
+@@ -2825,7 +2825,7 @@ void hugetlb_change_protection(struct vm
+ 		}
+ 	}
+ 	spin_unlock(&mm->page_table_lock);
+-	spin_unlock(&vma->vm_file->f_mapping->i_mmap_lock);
++	mutex_unlock(&vma->vm_file->f_mapping->i_mmap_mutex);
+ 
+ 	flush_tlb_range(vma, start, end);
+ }
+Index: linux-2.6/mm/memory-failure.c
+===================================================================
+--- linux-2.6.orig/mm/memory-failure.c
++++ linux-2.6/mm/memory-failure.c
+@@ -429,7 +429,7 @@ static void collect_procs_file(struct pa
+ 	 */
+ 
+ 	read_lock(&tasklist_lock);
+-	spin_lock(&mapping->i_mmap_lock);
++	mutex_lock(&mapping->i_mmap_mutex);
+ 	for_each_process(tsk) {
+ 		pgoff_t pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
+ 
+@@ -449,7 +449,7 @@ static void collect_procs_file(struct pa
+ 				add_to_kill(tsk, page, vma, to_kill, tkc);
+ 		}
+ 	}
+-	spin_unlock(&mapping->i_mmap_lock);
++	mutex_unlock(&mapping->i_mmap_mutex);
+ 	read_unlock(&tasklist_lock);
  }
  
- EXPORT_SYMBOL_GPL(mutex_lock_interruptible_nested);
-@@ -400,7 +409,7 @@ __mutex_lock_slowpath(atomic_t *lock_cou
- {
- 	struct mutex *lock = container_of(lock_count, struct mutex, count);
+Index: linux-2.6/mm/memory.c
+===================================================================
+--- linux-2.6.orig/mm/memory.c
++++ linux-2.6/mm/memory.c
+@@ -2660,12 +2660,12 @@ void unmap_mapping_range(struct address_
+ 		details.last_index = ULONG_MAX;
  
--	__mutex_lock_common(lock, TASK_UNINTERRUPTIBLE, 0, _RET_IP_);
-+	__mutex_lock_common(lock, TASK_UNINTERRUPTIBLE, 0, NULL, _RET_IP_);
+ 
+-	spin_lock(&mapping->i_mmap_lock);
++	mutex_lock(&mapping->i_mmap_mutex);
+ 	if (unlikely(!prio_tree_empty(&mapping->i_mmap)))
+ 		unmap_mapping_range_tree(&mapping->i_mmap, &details);
+ 	if (unlikely(!list_empty(&mapping->i_mmap_nonlinear)))
+ 		unmap_mapping_range_list(&mapping->i_mmap_nonlinear, &details);
+-	spin_unlock(&mapping->i_mmap_lock);
++	mutex_unlock(&mapping->i_mmap_mutex);
+ }
+ EXPORT_SYMBOL(unmap_mapping_range);
+ 
+Index: linux-2.6/mm/mmap.c
+===================================================================
+--- linux-2.6.orig/mm/mmap.c
++++ linux-2.6/mm/mmap.c
+@@ -190,7 +190,7 @@ int __vm_enough_memory(struct mm_struct 
  }
  
- static noinline int __sched
-@@ -408,7 +417,7 @@ __mutex_lock_killable_slowpath(atomic_t 
- {
- 	struct mutex *lock = container_of(lock_count, struct mutex, count);
+ /*
+- * Requires inode->i_mapping->i_mmap_lock
++ * Requires inode->i_mapping->i_mmap_mutex
+  */
+ static void __remove_shared_vm_struct(struct vm_area_struct *vma,
+ 		struct file *file, struct address_space *mapping)
+@@ -218,9 +218,9 @@ void unlink_file_vma(struct vm_area_stru
  
--	return __mutex_lock_common(lock, TASK_KILLABLE, 0, _RET_IP_);
-+	return __mutex_lock_common(lock, TASK_KILLABLE, 0, NULL, _RET_IP_);
+ 	if (file) {
+ 		struct address_space *mapping = file->f_mapping;
+-		spin_lock(&mapping->i_mmap_lock);
++		mutex_lock(&mapping->i_mmap_mutex);
+ 		__remove_shared_vm_struct(vma, file, mapping);
+-		spin_unlock(&mapping->i_mmap_lock);
++		mutex_unlock(&mapping->i_mmap_mutex);
+ 	}
  }
  
- static noinline int __sched
-@@ -416,7 +425,7 @@ __mutex_lock_interruptible_slowpath(atom
+@@ -465,13 +465,13 @@ static void vma_link(struct mm_struct *m
+ 		mapping = vma->vm_file->f_mapping;
+ 
+ 	if (mapping)
+-		spin_lock(&mapping->i_mmap_lock);
++		mutex_lock(&mapping->i_mmap_mutex);
+ 
+ 	__vma_link(mm, vma, prev, rb_link, rb_parent);
+ 	__vma_link_file(vma);
+ 
+ 	if (mapping)
+-		spin_unlock(&mapping->i_mmap_lock);
++		mutex_unlock(&mapping->i_mmap_mutex);
+ 
+ 	mm->map_count++;
+ 	validate_mm(mm);
+@@ -574,7 +574,7 @@ again:			remove_next = 1 + (end > next->
+ 		mapping = file->f_mapping;
+ 		if (!(vma->vm_flags & VM_NONLINEAR))
+ 			root = &mapping->i_mmap;
+-		spin_lock(&mapping->i_mmap_lock);
++		mutex_lock(&mapping->i_mmap_mutex);
+ 		if (insert) {
+ 			/*
+ 			 * Put into prio_tree now, so instantiated pages
+@@ -641,7 +641,7 @@ again:			remove_next = 1 + (end > next->
+ 	if (anon_vma)
+ 		anon_vma_unlock(anon_vma);
+ 	if (mapping)
+-		spin_unlock(&mapping->i_mmap_lock);
++		mutex_unlock(&mapping->i_mmap_mutex);
+ 
+ 	if (remove_next) {
+ 		if (file) {
+@@ -2300,7 +2300,7 @@ void exit_mmap(struct mm_struct *mm)
+ 
+ /* Insert vm structure into process list sorted by address
+  * and into the inode's i_mmap tree.  If vm_file is non-NULL
+- * then i_mmap_lock is taken here.
++ * then i_mmap_mutex is taken here.
+  */
+ int insert_vm_struct(struct mm_struct * mm, struct vm_area_struct * vma)
  {
- 	struct mutex *lock = container_of(lock_count, struct mutex, count);
- 
--	return __mutex_lock_common(lock, TASK_INTERRUPTIBLE, 0, _RET_IP_);
-+	return __mutex_lock_common(lock, TASK_INTERRUPTIBLE, 0, NULL, _RET_IP_);
+@@ -2542,7 +2542,7 @@ static void vm_lock_mapping(struct mm_st
+ 		 */
+ 		if (test_and_set_bit(AS_MM_ALL_LOCKS, &mapping->flags))
+ 			BUG();
+-		spin_lock_nest_lock(&mapping->i_mmap_lock, &mm->mmap_sem);
++		mutex_lock_nest_lock(&mapping->i_mmap_mutex, &mm->mmap_sem);
+ 	}
  }
- #endif
  
+@@ -2569,7 +2569,7 @@ static void vm_lock_mapping(struct mm_st
+  * vma in this mm is backed by the same anon_vma or address_space.
+  *
+  * We can take all the locks in random order because the VM code
+- * taking i_mmap_lock or anon_vma->lock outside the mmap_sem never
++ * taking i_mmap_mutex or anon_vma->lock outside the mmap_sem never
+  * takes more than one of them in a row. Secondly we're protected
+  * against a concurrent mm_take_all_locks() by the mm_all_locks_mutex.
+  *
+@@ -2641,7 +2641,7 @@ static void vm_unlock_mapping(struct add
+ 		 * AS_MM_ALL_LOCKS can't change to 0 from under us
+ 		 * because we hold the mm_all_locks_mutex.
+ 		 */
+-		spin_unlock(&mapping->i_mmap_lock);
++		mutex_unlock(&mapping->i_mmap_mutex);
+ 		if (!test_and_clear_bit(AS_MM_ALL_LOCKS,
+ 					&mapping->flags))
+ 			BUG();
+Index: linux-2.6/mm/mremap.c
+===================================================================
+--- linux-2.6.orig/mm/mremap.c
++++ linux-2.6/mm/mremap.c
+@@ -93,7 +93,7 @@ static void move_ptes(struct vm_area_str
+ 		 * and we propagate stale pages into the dst afterward.
+ 		 */
+ 		mapping = vma->vm_file->f_mapping;
+-		spin_lock(&mapping->i_mmap_lock);
++		mutex_lock(&mapping->i_mmap_mutex);
+ 	}
+ 
+ 	/*
+@@ -122,7 +122,7 @@ static void move_ptes(struct vm_area_str
+ 	pte_unmap(new_pte - 1);
+ 	pte_unmap_unlock(old_pte - 1, old_ptl);
+ 	if (mapping)
+-		spin_unlock(&mapping->i_mmap_lock);
++		mutex_unlock(&mapping->i_mmap_mutex);
+ 	mmu_notifier_invalidate_range_end(vma->vm_mm, old_start, old_end);
+ }
+ 
+Index: linux-2.6/mm/rmap.c
+===================================================================
+--- linux-2.6.orig/mm/rmap.c
++++ linux-2.6/mm/rmap.c
+@@ -24,7 +24,7 @@
+  *   inode->i_alloc_sem (vmtruncate_range)
+  *   mm->mmap_sem
+  *     page->flags PG_locked (lock_page)
+- *       mapping->i_mmap_lock
++ *       mapping->i_mmap_mutex
+  *         anon_vma->lock
+  *           mm->page_table_lock or pte_lock
+  *             zone->lru_lock (in mark_page_accessed, isolate_lru_page)
+@@ -646,14 +646,14 @@ static int page_referenced_file(struct p
+ 	 * The page lock not only makes sure that page->mapping cannot
+ 	 * suddenly be NULLified by truncation, it makes sure that the
+ 	 * structure at mapping cannot be freed and reused yet,
+-	 * so we can safely take mapping->i_mmap_lock.
++	 * so we can safely take mapping->i_mmap_mutex.
+ 	 */
+ 	BUG_ON(!PageLocked(page));
+ 
+-	spin_lock(&mapping->i_mmap_lock);
++	mutex_lock(&mapping->i_mmap_mutex);
+ 
+ 	/*
+-	 * i_mmap_lock does not stabilize mapcount at all, but mapcount
++	 * i_mmap_mutex does not stabilize mapcount at all, but mapcount
+ 	 * is more likely to be accurate if we note it after spinning.
+ 	 */
+ 	mapcount = page_mapcount(page);
+@@ -675,7 +675,7 @@ static int page_referenced_file(struct p
+ 			break;
+ 	}
+ 
+-	spin_unlock(&mapping->i_mmap_lock);
++	mutex_unlock(&mapping->i_mmap_mutex);
+ 	return referenced;
+ }
+ 
+@@ -762,7 +762,7 @@ static int page_mkclean_file(struct addr
+ 
+ 	BUG_ON(PageAnon(page));
+ 
+-	spin_lock(&mapping->i_mmap_lock);
++	mutex_lock(&mapping->i_mmap_mutex);
+ 	vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, pgoff, pgoff) {
+ 		if (vma->vm_flags & VM_SHARED) {
+ 			unsigned long address = vma_address(page, vma);
+@@ -771,7 +771,7 @@ static int page_mkclean_file(struct addr
+ 			ret += page_mkclean_one(page, vma, address);
+ 		}
+ 	}
+-	spin_unlock(&mapping->i_mmap_lock);
++	mutex_unlock(&mapping->i_mmap_mutex);
+ 	return ret;
+ }
+ 
+@@ -1122,7 +1122,7 @@ int try_to_unmap_one(struct page *page, 
+ 	/*
+ 	 * We need mmap_sem locking, Otherwise VM_LOCKED check makes
+ 	 * unstable result and race. Plus, We can't wait here because
+-	 * we now hold anon_vma->lock or mapping->i_mmap_lock.
++	 * we now hold anon_vma->lock or mapping->i_mmap_mutex.
+ 	 * if trylock failed, the page remain in evictable lru and later
+ 	 * vmscan could retry to move the page to unevictable lru if the
+ 	 * page is actually mlocked.
+@@ -1348,7 +1348,7 @@ static int try_to_unmap_file(struct page
+ 	unsigned long max_nl_size = 0;
+ 	unsigned int mapcount;
+ 
+-	spin_lock(&mapping->i_mmap_lock);
++	mutex_lock(&mapping->i_mmap_mutex);
+ 	vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, pgoff, pgoff) {
+ 		unsigned long address = vma_address(page, vma);
+ 		if (address == -EFAULT)
+@@ -1394,7 +1394,7 @@ static int try_to_unmap_file(struct page
+ 	mapcount = page_mapcount(page);
+ 	if (!mapcount)
+ 		goto out;
+-	cond_resched_lock(&mapping->i_mmap_lock);
++	cond_resched();
+ 
+ 	max_nl_size = (max_nl_size + CLUSTER_SIZE - 1) & CLUSTER_MASK;
+ 	if (max_nl_cursor == 0)
+@@ -1416,7 +1416,7 @@ static int try_to_unmap_file(struct page
+ 			}
+ 			vma->vm_private_data = (void *) max_nl_cursor;
+ 		}
+-		cond_resched_lock(&mapping->i_mmap_lock);
++		cond_resched();
+ 		max_nl_cursor += CLUSTER_SIZE;
+ 	} while (max_nl_cursor <= max_nl_size);
+ 
+@@ -1428,7 +1428,7 @@ static int try_to_unmap_file(struct page
+ 	list_for_each_entry(vma, &mapping->i_mmap_nonlinear, shared.vm_set.list)
+ 		vma->vm_private_data = NULL;
+ out:
+-	spin_unlock(&mapping->i_mmap_lock);
++	mutex_unlock(&mapping->i_mmap_mutex);
+ 	return ret;
+ }
+ 
+@@ -1547,7 +1547,7 @@ static int rmap_walk_file(struct page *p
+ 
+ 	if (!mapping)
+ 		return ret;
+-	spin_lock(&mapping->i_mmap_lock);
++	mutex_lock(&mapping->i_mmap_mutex);
+ 	vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, pgoff, pgoff) {
+ 		unsigned long address = vma_address(page, vma);
+ 		if (address == -EFAULT)
+@@ -1561,7 +1561,7 @@ static int rmap_walk_file(struct page *p
+ 	 * never contain migration ptes.  Decide what to do about this
+ 	 * limitation to linear when we need rmap_walk() on nonlinear.
+ 	 */
+-	spin_unlock(&mapping->i_mmap_lock);
++	mutex_unlock(&mapping->i_mmap_mutex);
+ 	return ret;
+ }
+ 
+Index: linux-2.6/Documentation/lockstat.txt
+===================================================================
+--- linux-2.6.orig/Documentation/lockstat.txt
++++ linux-2.6/Documentation/lockstat.txt
+@@ -136,7 +136,7 @@ The integer part of the time values is i
+                              dcache_lock:          1037           1161           0.38          45.32         774.51           6611         243371           0.15         306.48       77387.24
+                          &inode->i_mutex:           161            286 18446744073709       62882.54     1244614.55           3653          20598 18446744073709       62318.60     1693822.74
+                          &zone->lru_lock:            94             94           0.53           7.33          92.10           4366          32690           0.29          59.81       16350.06
+-              &inode->i_data.i_mmap_lock:            79             79           0.40           3.77          53.03          11779          87755           0.28         116.93       29898.44
++              &inode->i_data.i_mmap_mutex:            79             79           0.40           3.77          53.03          11779          87755           0.28         116.93       29898.44
+                         &q->__queue_lock:            48             50           0.52          31.62          86.31            774          13131           0.17         113.08       12277.52
+                         &rq->rq_lock_key:            43             47           0.74          68.50         170.63           3706          33929           0.22         107.99       17460.62
+                       &rq->rq_lock_key#2:            39             46           0.75           6.68          49.03           2979          32292           0.17         125.17       17137.63
+Index: linux-2.6/Documentation/vm/locking
+===================================================================
+--- linux-2.6.orig/Documentation/vm/locking
++++ linux-2.6/Documentation/vm/locking
+@@ -66,7 +66,7 @@ in some cases it is not really needed. E
+ expand_stack(), it is hard to come up with a destructive scenario without 
+ having the vmlist protection in this case.
+ 
+-The page_table_lock nests with the inode i_mmap_lock and the kmem cache
++The page_table_lock nests with the inode i_mmap_mutex and the kmem cache
+ c_spinlock spinlocks.  This is okay, since the kmem code asks for pages after
+ dropping c_spinlock.  The page_table_lock also nests with pagecache_lock and
+ pagemap_lru_lock spinlocks, and no code asks for memory with these locks
+Index: linux-2.6/include/linux/mmu_notifier.h
+===================================================================
+--- linux-2.6.orig/include/linux/mmu_notifier.h
++++ linux-2.6/include/linux/mmu_notifier.h
+@@ -150,7 +150,7 @@ struct mmu_notifier_ops {
+  * Therefore notifier chains can only be traversed when either
+  *
+  * 1. mmap_sem is held.
+- * 2. One of the reverse map locks is held (i_mmap_lock or anon_vma->lock).
++ * 2. One of the reverse map locks is held (i_mmap_mutex or anon_vma->lock).
+  * 3. No other concurrent thread can access the list (release)
+  */
+ struct mmu_notifier {
+Index: linux-2.6/mm/filemap.c
+===================================================================
+--- linux-2.6.orig/mm/filemap.c
++++ linux-2.6/mm/filemap.c
+@@ -58,16 +58,16 @@
+ /*
+  * Lock ordering:
+  *
+- *  ->i_mmap_lock		(truncate_pagecache)
++ *  ->i_mmap_mutex		(truncate_pagecache)
+  *    ->private_lock		(__free_pte->__set_page_dirty_buffers)
+  *      ->swap_lock		(exclusive_swap_page, others)
+  *        ->mapping->tree_lock
+  *
+  *  ->i_mutex
+- *    ->i_mmap_lock		(truncate->unmap_mapping_range)
++ *    ->i_mmap_mutex		(truncate->unmap_mapping_range)
+  *
+  *  ->mmap_sem
+- *    ->i_mmap_lock
++ *    ->i_mmap_mutex
+  *      ->page_table_lock or pte_lock	(various, mainly in memory.c)
+  *        ->mapping->tree_lock	(arch-dependent flush_dcache_mmap_lock)
+  *
+@@ -84,7 +84,7 @@
+  *    sb_lock			(fs/fs-writeback.c)
+  *    ->mapping->tree_lock	(__sync_single_inode)
+  *
+- *  ->i_mmap_lock
++ *  ->i_mmap_mutex
+  *    ->anon_vma.lock		(vma_adjust)
+  *
+  *  ->anon_vma.lock
+@@ -106,7 +106,7 @@
+  *
+  *  (code doesn't rely on that order, so you could switch it around)
+  *  ->tasklist_lock             (memory_failure, collect_procs_ao)
+- *    ->i_mmap_lock
++ *    ->i_mmap_mutex
+  */
+ 
+ /*
 
 
 --
