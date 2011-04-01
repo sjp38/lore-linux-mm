@@ -1,191 +1,73 @@
-From: Prasad Joshi <prasadjoshi124@gmail.com>
-Subject: [RFC][PATCH v2 14/23] (s390) __vmalloc: add gfp flags variant of pte,
- pmd, and pud allocation
-Date: Mon, 14 Mar 2011 17:56:06 +0000
-Message-ID: <AANLkTim4kvRSxrfkQdhq2H5TQRs=9XPxCd_6EzAo1h-b__30373.5839239836$1300125412$gmane$org@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Return-path: <owner-linux-mm@kvack.org>
-Received: from kanga.kvack.org ([205.233.56.17])
-	by lo.gmane.org with esmtp (Exim 4.69)
-	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1PzC0b-0003Gs-9P
-	for glkm-linux-mm-2@m.gmane.org; Mon, 14 Mar 2011 18:56:45 +0100
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D6A38D003A
-	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 13:56:43 -0400 (EDT)
-Received: by qwa26 with SMTP id 26so2013403qwa.14
-        for <linux-mm@kvack.org>; Mon, 14 Mar 2011 10:56:06 -0700 (PDT)
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 4905A8D0040
+	for <linux-mm@kvack.org>; Fri,  1 Apr 2011 01:31:20 -0400 (EDT)
+Date: Fri, 1 Apr 2011 16:31:02 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH 0/3] Unmapped page cache control (v5)
+Message-ID: <20110401053102.GB6957@dastard>
+References: <20110330052819.8212.1359.stgit@localhost6.localdomain6>
+ <20110331214033.GA2904@dastard>
+ <20110401030811.GP2879@balbir.in.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110401030811.GP2879@balbir.in.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux390@de.ibm.com, linux-s390@vger.kernel.org, Prasad Joshi <prasadjoshi124@gmail.com>, Ana
+To: Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, npiggin@kernel.dk, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, kosaki.motohiro@jp.fujitsu.com, cl@linux.com, kamezawa.hiroyu@jp.fujitsu.com
 
-__vmalloc: propagating GFP allocation flag.
+On Fri, Apr 01, 2011 at 08:38:11AM +0530, Balbir Singh wrote:
+> * Dave Chinner <david@fromorbit.com> [2011-04-01 08:40:33]:
+> 
+> > On Wed, Mar 30, 2011 at 11:00:26AM +0530, Balbir Singh wrote:
+> > > 
+> > > The following series implements page cache control,
+> > > this is a split out version of patch 1 of version 3 of the
+> > > page cache optimization patches posted earlier at
+> > > Previous posting http://lwn.net/Articles/425851/ and analysis
+> > > at http://lwn.net/Articles/419713/
+> > > 
+> > > Detailed Description
+> > > ====================
+> > > This patch implements unmapped page cache control via preferred
+> > > page cache reclaim. The current patch hooks into kswapd and reclaims
+> > > page cache if the user has requested for unmapped page control.
+> > > This is useful in the following scenario
+> > > - In a virtualized environment with cache=writethrough, we see
+> > >   double caching - (one in the host and one in the guest). As
+> > >   we try to scale guests, cache usage across the system grows.
+> > >   The goal of this patch is to reclaim page cache when Linux is running
+> > >   as a guest and get the host to hold the page cache and manage it.
+> > >   There might be temporary duplication, but in the long run, memory
+> > >   in the guests would be used for mapped pages.
+> > 
+> > What does this do that "cache=none" for the VMs and using the page
+> > cache inside the guest doesn't acheive? That avoids double caching
+> > and doesn't require any new complexity inside the host OS to
+> > acheive...
+> >
+> 
+> There was a long discussion on cache=none in the first posting and the
+> downsides/impact on throughput. Please see
+> http://www.mail-archive.com/kvm@vger.kernel.org/msg30655.html 
 
-- adds functions to allow caller to pass the GFP flag for memory allocation
-- helps in fixing the Bug 30702 (__vmalloc(GFP_NOFS) can callback
-		  file system evict_inode).
+All there is in that thread is handwaving about the differences
+between cache=none vs cache=writeback behaviour and about the amount
+of data loss/corruption when failures occur.  There is only one real
+example provided about real world performance in the entire thread,
+but the root cause of the performance difference is not analysed,
+determined and understood.  Hence I'm not convinced from this thread
+that using cache=write* and using this functionality is
+anything other than papering over some still unknown problem....
 
-Signed-off-by: Anand Mitra <mitra@kqinfotech.com>
-Signed-off-by: Prasad Joshi <prasadjoshi124@gmail.com>
----
-Chnagelog:
-arch/s390/include/asm/pgalloc.h |   30 +++++++++++++++++++++++++-----
-arch/s390/mm/pgtable.c          |   22 +++++++++++++++++-----
-2 files changed, 42 insertions(+), 10 deletions(-)
----
-diff --git a/arch/s390/include/asm/pgalloc.h b/arch/s390/include/asm/pgalloc.h
-index 082eb4e..459e89a 100644
---- a/arch/s390/include/asm/pgalloc.h
-+++ b/arch/s390/include/asm/pgalloc.h
-@@ -20,10 +20,12 @@
- #define check_pgt_cache()	do {} while (0)
+Cheers,
 
- unsigned long *crst_table_alloc(struct mm_struct *, int);
-+unsigned long * __crst_table_alloc(struct mm_struct *, int , gfp_t);
- void crst_table_free(struct mm_struct *, unsigned long *);
- void crst_table_free_rcu(struct mm_struct *, unsigned long *);
-
- unsigned long *page_table_alloc(struct mm_struct *);
-+unsigned long *__page_table_alloc(struct mm_struct *, gfp_t);
- void page_table_free(struct mm_struct *, unsigned long *);
- void page_table_free_rcu(struct mm_struct *, unsigned long *);
- void disable_noexec(struct mm_struct *, struct task_struct *);
-@@ -62,9 +64,11 @@ static inline unsigned long pgd_entry_type(struct
-mm_struct *mm)
- 	return _SEGMENT_ENTRY_EMPTY;
- }
-
-+#define __pud_alloc_one(mm,address,mask)		({ BUG(); ((pud_t *)2); })
- #define pud_alloc_one(mm,address)		({ BUG(); ((pud_t *)2); })
- #define pud_free(mm, x)				do { } while (0)
-
-+#define __pmd_alloc_one(mm,address,mask)		({ BUG(); ((pmd_t *)2); })
- #define pmd_alloc_one(mm,address)		({ BUG(); ((pmd_t *)2); })
- #define pmd_free(mm, x)				do { } while (0)
-
-@@ -88,22 +92,34 @@ static inline unsigned long pgd_entry_type(struct
-mm_struct *mm)
- int crst_table_upgrade(struct mm_struct *, unsigned long limit);
- void crst_table_downgrade(struct mm_struct *, unsigned long limit);
-
--static inline pud_t *pud_alloc_one(struct mm_struct *mm, unsigned long address)
-+static inline pud_t *
-+__pud_alloc_one(struct mm_struct *mm, unsigned long address, gfp_t gfp_mask)
- {
--	unsigned long *table = crst_table_alloc(mm, mm->context.noexec);
-+	unsigned long *table = __crst_table_alloc(mm, mm->context.noexec, gfp_mask);
- 	if (table)
- 		crst_table_init(table, _REGION3_ENTRY_EMPTY);
- 	return (pud_t *) table;
- }
-+
-+static inline pud_t *pud_alloc_one(struct mm_struct *mm, unsigned long address)
-+{
-+	return __pud_alloc_one(mm, address, GFP_KERNEL);
-+}
- #define pud_free(mm, pud) crst_table_free(mm, (unsigned long *) pud)
-
--static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long vmaddr)
-+static inline pmd_t *
-+__pmd_alloc_one(struct mm_struct *mm, unsigned long vmaddr, gfp_t gfp_mask)
- {
--	unsigned long *table = crst_table_alloc(mm, mm->context.noexec);
-+	unsigned long *table = __crst_table_alloc(mm, mm->context.noexec, gfp_mask);
- 	if (table)
- 		crst_table_init(table, _SEGMENT_ENTRY_EMPTY);
- 	return (pmd_t *) table;
- }
-+
-+static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long vmaddr)
-+{
-+	return __pmd_alloc_one(mm, vmaddr, GFP_KERNEL);
-+}
- #define pmd_free(mm, pmd) crst_table_free(mm, (unsigned long *) pmd)
-
- static inline void pgd_populate_kernel(struct mm_struct *mm,
-@@ -172,7 +188,11 @@ static inline void pmd_populate(struct mm_struct *mm,
- /*
-  * page table entry allocation/free routines.
-  */
--#define pte_alloc_one_kernel(mm, vmaddr) ((pte_t *) page_table_alloc(mm))
-+#define __pte_alloc_one_kernel(mm, vmaddr, mask) \
-+	((pte_t *) __page_table_alloc((mm), (mask)))
-+#define pte_alloc_one_kernel(mm, vmaddr) \
-+	((pte_t *) __pte_alloc_one_kernel((mm), (vmaddr), GFP_KERNEL|__GFP_REPEAT)
-+
- #define pte_alloc_one(mm, vmaddr) ((pte_t *) page_table_alloc(mm))
-
- #define pte_free_kernel(mm, pte) page_table_free(mm, (unsigned long *) pte)
-diff --git a/arch/s390/mm/pgtable.c b/arch/s390/mm/pgtable.c
-index e1850c2..624854a 100644
---- a/arch/s390/mm/pgtable.c
-+++ b/arch/s390/mm/pgtable.c
-@@ -125,15 +125,16 @@ static int __init parse_vmalloc(char *arg)
- }
- early_param("vmalloc", parse_vmalloc);
-
--unsigned long *crst_table_alloc(struct mm_struct *mm, int noexec)
-+unsigned long *
-+__crst_table_alloc(struct mm_struct *mm, int noexec, gfp_t gfp_mask)
- {
--	struct page *page = alloc_pages(GFP_KERNEL, ALLOC_ORDER);
-+	struct page *page = alloc_pages(gfp_mask, ALLOC_ORDER);
-
- 	if (!page)
- 		return NULL;
- 	page->index = 0;
- 	if (noexec) {
--		struct page *shadow = alloc_pages(GFP_KERNEL, ALLOC_ORDER);
-+		struct page *shadow = alloc_pages(gfp_mask, ALLOC_ORDER);
- 		if (!shadow) {
- 			__free_pages(page, ALLOC_ORDER);
- 			return NULL;
-@@ -146,6 +147,11 @@ unsigned long *crst_table_alloc(struct mm_struct
-*mm, int noexec)
- 	return (unsigned long *) page_to_phys(page);
- }
-
-+unsigned long *crst_table_alloc(struct mm_struct *mm, int noexec)
-+{
-+	return __crst_table_alloc(mm, noexec, GFP_KERNEL);
-+}
-+
- static void __crst_table_free(struct mm_struct *mm, unsigned long *table)
- {
- 	unsigned long *shadow = get_shadow_table(table);
-@@ -267,7 +273,7 @@ void crst_table_downgrade(struct mm_struct *mm,
-unsigned long limit)
- /*
-  * page table entry allocation/free routines.
-  */
--unsigned long *page_table_alloc(struct mm_struct *mm)
-+unsigned long *__page_table_alloc(struct mm_struct *mm, gfp_t gfp_mask)
- {
- 	struct page *page;
- 	unsigned long *table;
-@@ -284,7 +290,7 @@ unsigned long *page_table_alloc(struct mm_struct *mm)
- 	}
- 	if (!page) {
- 		spin_unlock_bh(&mm->context.list_lock);
--		page = alloc_page(GFP_KERNEL|__GFP_REPEAT);
-+		page = alloc_page(gfp_mask);
- 		if (!page)
- 			return NULL;
- 		pgtable_page_ctor(page);
-@@ -309,6 +315,12 @@ unsigned long *page_table_alloc(struct mm_struct *mm)
- 	return table;
- }
-
-+
-+unsigned long *page_table_alloc(struct mm_struct *mm)
-+{
-+	return __page_table_alloc(mm, GFP_KERNEL | __GFP_REPEAT);
-+}
-+
- static void __page_table_free(struct mm_struct *mm, unsigned long *table)
- {
- 	struct page *page;
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
