@@ -1,35 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id C016E8D0040
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 23:18:44 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 216943EE0AE
-	for <linux-mm@kvack.org>; Fri,  1 Apr 2011 12:18:40 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0256D45DE99
-	for <linux-mm@kvack.org>; Fri,  1 Apr 2011 12:18:40 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id DE33345DE92
-	for <linux-mm@kvack.org>; Fri,  1 Apr 2011 12:18:39 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id D1A3BE18003
-	for <linux-mm@kvack.org>; Fri,  1 Apr 2011 12:18:39 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9C00AE08003
-	for <linux-mm@kvack.org>; Fri,  1 Apr 2011 12:18:39 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id B933D8D0040
+	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 23:24:05 -0400 (EDT)
+Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [202.81.31.246])
+	by e23smtp01.au.ibm.com (8.14.4/8.13.1) with ESMTP id p313K6rm026403
+	for <linux-mm@kvack.org>; Fri, 1 Apr 2011 14:20:06 +1100
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p313Nxtj2367566
+	for <linux-mm@kvack.org>; Fri, 1 Apr 2011 14:23:59 +1100
+Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p313NxG4031818
+	for <linux-mm@kvack.org>; Fri, 1 Apr 2011 14:23:59 +1100
+Date: Fri, 1 Apr 2011 08:38:11 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
 Subject: Re: [PATCH 0/3] Unmapped page cache control (v5)
-In-Reply-To: <20110331214033.GA2904@dastard>
-References: <20110330052819.8212.1359.stgit@localhost6.localdomain6> <20110331214033.GA2904@dastard>
-Message-Id: <20110401121825.A875.A69D9226@jp.fujitsu.com>
+Message-ID: <20110401030811.GP2879@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20110330052819.8212.1359.stgit@localhost6.localdomain6>
+ <20110331214033.GA2904@dastard>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Fri,  1 Apr 2011 12:18:38 +0900 (JST)
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20110331214033.GA2904@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Dave Chinner <david@fromorbit.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org, akpm@linux-foundation.org, npiggin@kernel.dk, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, cl@linux.com, kamezawa.hiroyu@jp.fujitsu.com
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, npiggin@kernel.dk, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, kosaki.motohiro@jp.fujitsu.com, cl@linux.com, kamezawa.hiroyu@jp.fujitsu.com
+
+* Dave Chinner <david@fromorbit.com> [2011-04-01 08:40:33]:
 
 > On Wed, Mar 30, 2011 at 11:00:26AM +0530, Balbir Singh wrote:
 > > 
@@ -57,13 +55,15 @@ Cc: kosaki.motohiro@jp.fujitsu.com, Balbir Singh <balbir@linux.vnet.ibm.com>, li
 > cache inside the guest doesn't acheive? That avoids double caching
 > and doesn't require any new complexity inside the host OS to
 > acheive...
+>
 
-Right. 
+There was a long discussion on cache=none in the first posting and the
+downsides/impact on throughput. Please see
+http://www.mail-archive.com/kvm@vger.kernel.org/msg30655.html 
 
-"cache=none" has no double caching issue and KSM already solved
-cross gues cache sharing. So, I _guess_ this is not a core motivation 
-of his patch. But I'm not him. I'm not sure.
-
+-- 
+	Three Cheers,
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
