@@ -1,62 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id D4E798D0040
-	for <linux-mm@kvack.org>; Fri,  1 Apr 2011 12:39:57 -0400 (EDT)
-Received: from mail-iy0-f169.google.com (mail-iy0-f169.google.com [209.85.210.169])
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id A63228D0040
+	for <linux-mm@kvack.org>; Fri,  1 Apr 2011 12:44:11 -0400 (EDT)
+Received: from mail-iw0-f169.google.com (mail-iw0-f169.google.com [209.85.214.169])
 	(authenticated bits=0)
-	by smtp1.linux-foundation.org (8.14.2/8.14.2/Debian-2build1) with ESMTP id p31Gdr6b028589
+	by smtp1.linux-foundation.org (8.14.2/8.14.2/Debian-2build1) with ESMTP id p31Ghemr029827
 	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=FAIL)
-	for <linux-mm@kvack.org>; Fri, 1 Apr 2011 09:39:54 -0700
-Received: by iyf13 with SMTP id 13so5268479iyf.14
-        for <linux-mm@kvack.org>; Fri, 01 Apr 2011 09:39:53 -0700 (PDT)
+	for <linux-mm@kvack.org>; Fri, 1 Apr 2011 09:43:41 -0700
+Received: by iwg8 with SMTP id 8so5248918iwg.14
+        for <linux-mm@kvack.org>; Fri, 01 Apr 2011 09:43:40 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1301659631.4859.565.camel@twins>
-References: <20110217162327.434629380@chello.nl> <20110217163234.823185666@chello.nl>
- <20110310155032.GB32302@csn.ul.ie> <1300301742.2203.1899.camel@twins>
- <4D87109A.1010005@redhat.com> <1301659631.4859.565.camel@twins>
+In-Reply-To: <BANLkTim3x=1n+F7yD-euY0=RhmyXViUamg@mail.gmail.com>
+References: <alpine.LSU.2.00.1102232136020.2239@sister.anvils>
+ <AANLkTi==MQV=_qq1HaCxGLRu8DdT6FYddqzBkzp1TQs7@mail.gmail.com>
+ <AANLkTimv66fV1+JDqSAxRwddvy_kggCuhoJLMTpMTtJM@mail.gmail.com>
+ <alpine.LSU.2.00.1103182158200.18771@sister.anvils> <BANLkTinoNMudwkcOOgU5d+imPUfZhDbWWQ@mail.gmail.com>
+ <AANLkTimfArmB7judMW7Qd4ATtVaR=yTf_-0DBRAfCJ7w@mail.gmail.com> <BANLkTim3x=1n+F7yD-euY0=RhmyXViUamg@mail.gmail.com>
 From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Fri, 1 Apr 2011 09:13:51 -0700
-Message-ID: <AANLkTimvHdGZptwmmw73C2jsy=HqgreEAxNurT1Hxbv=@mail.gmail.com>
-Subject: Re: [PATCH 02/17] mm: mmu_gather rework
-Content-Type: text/plain; charset=ISO-8859-1
+Date: Fri, 1 Apr 2011 09:35:41 -0700
+Message-ID: <AANLkTik4q8N9vYUibSZfepUmhYoREo2dbH5NFZAHuOFb@mail.gmail.com>
+Subject: Re: [PATCH] mm: fix possible cause of a page_mapped BUG
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Avi Kivity <avi@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andrea Arcangeli <aarcange@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@elte.hu>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@kernel.dk>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Yanmin Zhang <yanmin_zhang@linux.intel.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Russell King <rmk@arm.linux.org.uk>, Paul Mundt <lethal@linux-sh.org>, Jeff Dike <jdike@addtoit.com>, Tony Luck <tony.luck@intel.com>, Hugh Dickins <hughd@google.com>
+To: =?UTF-8?B?Um9iZXJ0IMWad2nEmWNraQ==?= <robert@swiecki.net>
+Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Miklos Szeredi <miklos@szeredi.hu>, Michel Lespinasse <walken@google.com>, "Eric W. Biederman" <ebiederm@xmission.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>
 
-On Fri, Apr 1, 2011 at 5:07 AM, Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
+On Fri, Apr 1, 2011 at 9:21 AM, Robert =C5=9Awi=C4=99cki <robert@swiecki.ne=
+t> wrote:
 >
-> No, although I do try to avoid it in structures because I'm ever unsure
-> of the storage type used. But yes, good suggestion, thanks!
+> Is it possible to turn it off via config flags? Looking into
+> arch/x86/include/asm/bug.h it seems it's unconditional (as in "it
+> always manifests itself somehow") and I have
+> CONFIG_DEBUG_BUGVERBOSE=3Dy.
 
-I have to admit to not being a huge fan of "bool". You never know what
-it actually is in C, and it's a possible source of major confusion.
+Ok, if you have CONFIG_DEBUG_BUGVERBOSE then, you do have the bug-table.
 
-Some environments will make it "int", others "char", and others - like
-the kernel - will make it a C99/C++-like "true boolean" (C99 _Bool).
+Maybe it's just kdb that is broken, and doesn't print it. I wouldn't
+be surprised. It's not the first time I've seen debugging features
+that just make debugging a mess.
 
-What's the difference? Integer assignment makes a hell of a difference. Do this:
+> Anything that could help you debugging this? Uploading kernel image
+> (unfortunately I've overwritten this one), dumping more kgdb data?
 
-  long long expression = ...
-  ...
-  bool val = expression;
+So in this case kgdb just dropped the most important data on the floor.
 
-and depending on implementation it will either just truncate the value
-to a random number of bits, or actually do a compare with zero.
+But if you have kdb active next time, print out the vma/old contents
+in that function that has the BUG() in it.
 
-And while we use the C99 _Bool type, and thus get those true boolean
-semantics (ie not just be a truncated integer type), I have to say
-that it's still a dangerous thing to do in C because you generally
-cannot rely on it. There's _tons_ of software that just typedefs int
-or char to bool.
+> I must admit I'm not up-to-date with current linux kernel debugging
+> techniques. The kernel config is here:
+> http://alt.swiecki.net/linux_kernel/ise-test-2.6.38-kernel-config.txt
+>
+> For now I'll compile with -O0 -fno-inline (are you sure you'd like -Os?)
 
-So even outside of structures, I'm not necessarily convinced "bool" is
-always such a good thing. But I'm not going to stop people from using
-it (inside the kernel it should be safe), I just want to raise a
-warning and ask people to not use it mindlessly. And avoid the casts -
-even if they are safe in the kernel.
+Oh, don't do that. -O0 makes the code totally unreadable (the compiler
+just does _stupid_ things, making the asm code look so horrible that
+you can't match it up against anything sane), and -fno-inline isn't
+worth the pain either.
 
-                      Linus
+-Os is much better than those.
+
+But in this case, just getting the filename and line number would have
+made the thing moot anyway - without kdb it _should_ have said
+something clear like
+
+   kernel BUG at %s:%u!
+
+where %s:%u is the filename and line number.
+
+                          Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
