@@ -1,73 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 4905A8D0040
-	for <linux-mm@kvack.org>; Fri,  1 Apr 2011 01:31:20 -0400 (EDT)
-Date: Fri, 1 Apr 2011 16:31:02 +1100
-From: Dave Chinner <david@fromorbit.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id A16D58D0040
+	for <linux-mm@kvack.org>; Fri,  1 Apr 2011 03:57:02 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 206373EE0BC
+	for <linux-mm@kvack.org>; Fri,  1 Apr 2011 16:56:59 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 066BD45DE99
+	for <linux-mm@kvack.org>; Fri,  1 Apr 2011 16:56:59 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id D802B45DE95
+	for <linux-mm@kvack.org>; Fri,  1 Apr 2011 16:56:58 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id C7F7AE18003
+	for <linux-mm@kvack.org>; Fri,  1 Apr 2011 16:56:58 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9324BE08002
+	for <linux-mm@kvack.org>; Fri,  1 Apr 2011 16:56:58 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Subject: Re: [PATCH 0/3] Unmapped page cache control (v5)
-Message-ID: <20110401053102.GB6957@dastard>
-References: <20110330052819.8212.1359.stgit@localhost6.localdomain6>
- <20110331214033.GA2904@dastard>
- <20110401030811.GP2879@balbir.in.ibm.com>
+In-Reply-To: <20110331082813.GN2879@balbir.in.ibm.com>
+References: <20110331144145.0ECA.A69D9226@jp.fujitsu.com> <20110331082813.GN2879@balbir.in.ibm.com>
+Message-Id: <20110401165752.A889.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110401030811.GP2879@balbir.in.ibm.com>
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Fri,  1 Apr 2011 16:56:57 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, npiggin@kernel.dk, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, kosaki.motohiro@jp.fujitsu.com, cl@linux.com, kamezawa.hiroyu@jp.fujitsu.com
+To: balbir@linux.vnet.ibm.com
+Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, akpm@linux-foundation.org, npiggin@kernel.dk, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, cl@linux.com, kamezawa.hiroyu@jp.fujitsu.com, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan.kim@gmail.com>
 
-On Fri, Apr 01, 2011 at 08:38:11AM +0530, Balbir Singh wrote:
-> * Dave Chinner <david@fromorbit.com> [2011-04-01 08:40:33]:
-> 
-> > On Wed, Mar 30, 2011 at 11:00:26AM +0530, Balbir Singh wrote:
-> > > 
-> > > The following series implements page cache control,
-> > > this is a split out version of patch 1 of version 3 of the
-> > > page cache optimization patches posted earlier at
-> > > Previous posting http://lwn.net/Articles/425851/ and analysis
-> > > at http://lwn.net/Articles/419713/
-> > > 
-> > > Detailed Description
-> > > ====================
-> > > This patch implements unmapped page cache control via preferred
-> > > page cache reclaim. The current patch hooks into kswapd and reclaims
-> > > page cache if the user has requested for unmapped page control.
-> > > This is useful in the following scenario
-> > > - In a virtualized environment with cache=writethrough, we see
-> > >   double caching - (one in the host and one in the guest). As
-> > >   we try to scale guests, cache usage across the system grows.
-> > >   The goal of this patch is to reclaim page cache when Linux is running
-> > >   as a guest and get the host to hold the page cache and manage it.
-> > >   There might be temporary duplication, but in the long run, memory
-> > >   in the guests would be used for mapped pages.
+Hi
+
+> > 1) zone reclaim doesn't work if the system has multiple node and the
+> >    workload is file cache oriented (eg file server, web server, mail server, et al). 
+> >    because zone recliam make some much free pages than zone->pages_min and
+> >    then new page cache request consume nearest node memory and then it
+> >    bring next zone reclaim. Then, memory utilization is reduced and
+> >    unnecessary LRU discard is increased dramatically.
 > > 
-> > What does this do that "cache=none" for the VMs and using the page
-> > cache inside the guest doesn't acheive? That avoids double caching
-> > and doesn't require any new complexity inside the host OS to
-> > acheive...
-> >
+> >    SGI folks added CPUSET specific solution in past. (cpuset.memory_spread_page)
+> >    But global recliam still have its issue. zone recliam is HPC workload specific 
+> >    feature and HPC folks has no motivation to don't use CPUSET.
 > 
-> There was a long discussion on cache=none in the first posting and the
-> downsides/impact on throughput. Please see
-> http://www.mail-archive.com/kvm@vger.kernel.org/msg30655.html 
+> I am afraid you misread the patches and the intent. The intent to
+> explictly enable control of unmapped pages and has nothing
+> specifically to do with multiple nodes at this point. The control is
+> system wide and carefully enabled by the administrator.
 
-All there is in that thread is handwaving about the differences
-between cache=none vs cache=writeback behaviour and about the amount
-of data loss/corruption when failures occur.  There is only one real
-example provided about real world performance in the entire thread,
-but the root cause of the performance difference is not analysed,
-determined and understood.  Hence I'm not convinced from this thread
-that using cache=write* and using this functionality is
-anything other than papering over some still unknown problem....
+Hm. OK, I may misread.
+Can you please explain the reason why de-duplication feature need to selectable and
+disabled by defaut. "explicity enable" mean this feature want to spot corner case issue??
 
-Cheers,
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+> > 2) Before 2.6.27, VM has only one LRU and calc_reclaim_mapped() is used to
+> >    decide to filter out mapped pages. It made a lot of problems for DB servers
+> >    and large application servers. Because, if the system has a lot of mapped
+> >    pages, 1) LRU was churned and then reclaim algorithm become lotree one. 2)
+> >    reclaim latency become terribly slow and hangup detectors misdetect its
+> >    state and start to force reboot. That was big problem of RHEL5 based banking
+> >    system.
+> >    So, sc->may_unmap should be killed in future. Don't increase uses.
+> > 
+> 
+> Can you remove sc->may_unmap without removing zone_reclaim()? The LRU
+> churn can be addressed at the time of isolation, I'll send out an
+> incremental patch for that.
+
+At least, I don't plan to do it. because current zone_reclaim() works good on SGI
+HPC workload and uncareful change can lead to break them. In other word, they 
+understand their workloads are HPC specific and they understand they do how.
+
+I'm worry about to spread out zone_reclaim() usage _without_ removing its assumption.
+I wrote following by last mail.
+
+> In other words, you have to kill following three for getting ack 1) zone 
+> reclaim oriented reclaim 2) filter based LRU scanning (eg sc->may_unmap)
+> 3) fastpath overhead. 
+
+But another ways is there, probably. If you can improve zone_reclaim() for more generic
+workload and fitting so so much people, I'll ack this.
+
+Thanks.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
