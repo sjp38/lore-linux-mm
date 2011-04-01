@@ -1,140 +1,228 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E7808D0040
-	for <linux-mm@kvack.org>; Fri,  1 Apr 2011 09:38:56 -0400 (EDT)
-Message-Id: <20110401121725.560095303@chello.nl>
-Date: Fri, 01 Apr 2011 14:13:03 +0200
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 4FCE58D0040
+	for <linux-mm@kvack.org>; Fri,  1 Apr 2011 09:38:58 -0400 (EDT)
+Message-Id: <20110401121726.230302401@chello.nl>
+Date: Fri, 01 Apr 2011 14:13:17 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 05/20] arm: mmu_gather rework
+Subject: [PATCH 19/20] mm: Convert anon_vma->lock to a mutex
 References: <20110401121258.211963744@chello.nl>
-Content-Disposition: inline; filename=peter_zijlstra-arm-preemptible_mmu_gather.patch
+Content-Disposition: inline; filename=peter_zijlstra-mm-anon_vma-lock_to_mutexes.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrea Arcangeli <aarcange@redhat.com>, Avi Kivity <avi@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@elte.hu>, akpm@linux-foundation.org, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Yanmin Zhang <yanmin_zhang@linux.intel.com>, Russell King <rmk@arm.linux.org.uk>
+Cc: linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Yanmin Zhang <yanmin_zhang@linux.intel.com>, Hugh Dickins <hughd@google.com>
 
-Fix up the arm mmu_gather code to conform to the new API.
+Straight fwd conversion of anon_vma->lock to a mutex.
 
-Cc: Russell King <rmk@arm.linux.org.uk>
+Acked-by: Hugh Dickins <hughd@google.com>
+Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 LKML-Reference: <new-submission>
 ---
- arch/arm/include/asm/tlb.h |   53 +++++++++++++++++++++++++++++++--------------
- 1 file changed, 37 insertions(+), 16 deletions(-)
+ include/linux/huge_mm.h      |    8 ++------
+ include/linux/mmu_notifier.h |    2 +-
+ include/linux/rmap.h         |   14 +++++++-------
+ mm/huge_memory.c             |    4 ++--
+ mm/mmap.c                    |   10 +++++-----
+ mm/rmap.c                    |    8 ++++----
+ 6 files changed, 21 insertions(+), 25 deletions(-)
 
-Index: linux-2.6/arch/arm/include/asm/tlb.h
+Index: linux-2.6/include/linux/rmap.h
 ===================================================================
---- linux-2.6.orig/arch/arm/include/asm/tlb.h
-+++ linux-2.6/arch/arm/include/asm/tlb.h
-@@ -41,12 +41,12 @@
-  */
- #if defined(CONFIG_SMP) || defined(CONFIG_CPU_32v7)
- #define tlb_fast_mode(tlb)	0
--#define FREE_PTE_NR		500
- #else
- #define tlb_fast_mode(tlb)	1
--#define FREE_PTE_NR		0
- #endif
+--- linux-2.6.orig/include/linux/rmap.h
++++ linux-2.6/include/linux/rmap.h
+@@ -7,7 +7,7 @@
+ #include <linux/list.h>
+ #include <linux/slab.h>
+ #include <linux/mm.h>
+-#include <linux/spinlock.h>
++#include <linux/mutex.h>
+ #include <linux/memcontrol.h>
  
-+#define MMU_GATHER_BUNDLE	8
-+
  /*
-  * TLB handling.  This allows us to remove pages from the page
-  * tables, and efficiently handle the TLB issues.
-@@ -58,7 +58,9 @@ struct mmu_gather {
- 	unsigned long		range_start;
- 	unsigned long		range_end;
- 	unsigned int		nr;
--	struct page		*pages[FREE_PTE_NR];
-+	unsigned int		max;
-+	struct page		**pages;
-+	struct page		*local[MMU_GATHER_BUNDLE];
+@@ -26,7 +26,7 @@
+  */
+ struct anon_vma {
+ 	struct anon_vma *root;	/* Root of this anon_vma tree */
+-	spinlock_t lock;	/* Serialize access to vma list */
++	struct mutex mutex;	/* Serialize access to vma list */
+ 	/*
+ 	 * The refcount is taken on an anon_vma when there is no
+ 	 * guarantee that the vma of page tables will exist for
+@@ -64,7 +64,7 @@ struct anon_vma_chain {
+ 	struct vm_area_struct *vma;
+ 	struct anon_vma *anon_vma;
+ 	struct list_head same_vma;   /* locked by mmap_sem & page_table_lock */
+-	struct list_head same_anon_vma;	/* locked by anon_vma->lock */
++	struct list_head same_anon_vma;	/* locked by anon_vma->mutex */
  };
  
- DECLARE_PER_CPU(struct mmu_gather, mmu_gathers);
-@@ -97,26 +99,37 @@ static inline void tlb_add_flush(struct 
- 	}
- }
- 
-+static inline void __tlb_alloc_page(struct mmu_gather *tlb)
-+{
-+	unsigned long addr = __get_free_pages(GFP_NOWAIT | __GFP_NOWARN, 0);
-+
-+	if (addr) {
-+		tlb->pages = (void *)addr;
-+		tlb->max = PAGE_SIZE / sizeof(struct page *);
-+	}
-+}
-+
- static inline void tlb_flush_mmu(struct mmu_gather *tlb)
+ #ifdef CONFIG_MMU
+@@ -93,24 +93,24 @@ static inline void vma_lock_anon_vma(str
  {
- 	tlb_flush(tlb);
- 	if (!tlb_fast_mode(tlb)) {
- 		free_pages_and_swap_cache(tlb->pages, tlb->nr);
- 		tlb->nr = 0;
-+		if (tlb->pages == tlb->local)
-+			__tlb_alloc_page(tlb);
- 	}
+ 	struct anon_vma *anon_vma = vma->anon_vma;
+ 	if (anon_vma)
+-		spin_lock(&anon_vma->root->lock);
++		mutex_lock(&anon_vma->root->mutex);
  }
  
--static inline struct mmu_gather *
--tlb_gather_mmu(struct mm_struct *mm, unsigned int full_mm_flush)
-+static inline void
-+tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm, unsigned int fullmm)
+ static inline void vma_unlock_anon_vma(struct vm_area_struct *vma)
  {
--	struct mmu_gather *tlb = &get_cpu_var(mmu_gathers);
--
- 	tlb->mm = mm;
--	tlb->fullmm = full_mm_flush;
-+	tlb->fullmm = fullmm;
- 	tlb->vma = NULL;
-+	tlb->max = ARRAY_SIZE(tlb->local);
-+	tlb->pages = tlb->local;
- 	tlb->nr = 0;
--
--	return tlb;
-+	__tlb_alloc_page(tlb);
+ 	struct anon_vma *anon_vma = vma->anon_vma;
+ 	if (anon_vma)
+-		spin_unlock(&anon_vma->root->lock);
++		mutex_unlock(&anon_vma->root->mutex);
  }
  
- static inline void
-@@ -127,7 +140,8 @@ tlb_finish_mmu(struct mmu_gather *tlb, u
- 	/* keep the page table cache within bounds */
- 	check_pgt_cache();
+ static inline void anon_vma_lock(struct anon_vma *anon_vma)
+ {
+-	spin_lock(&anon_vma->root->lock);
++	mutex_lock(&anon_vma->root->mutex);
+ }
  
--	put_cpu_var(mmu_gathers);
-+	if (tlb->pages != tlb->local)
-+		free_pages((unsigned long)tlb->pages, 0);
+ static inline void anon_vma_unlock(struct anon_vma *anon_vma)
+ {
+-	spin_unlock(&anon_vma->root->lock);
++	mutex_unlock(&anon_vma->root->mutex);
  }
  
  /*
-@@ -162,15 +176,22 @@ tlb_end_vma(struct mmu_gather *tlb, stru
- 		tlb_flush(tlb);
- }
+Index: linux-2.6/mm/rmap.c
+===================================================================
+--- linux-2.6.orig/mm/rmap.c
++++ linux-2.6/mm/rmap.c
+@@ -25,7 +25,7 @@
+  *   mm->mmap_sem
+  *     page->flags PG_locked (lock_page)
+  *       mapping->i_mmap_mutex
+- *         anon_vma->lock
++ *         anon_vma->mutex
+  *           mm->page_table_lock or pte_lock
+  *             zone->lru_lock (in mark_page_accessed, isolate_lru_page)
+  *             swap_lock (in swap_duplicate, swap_info_get)
+@@ -39,7 +39,7 @@
+  *
+  * (code doesn't rely on that order so it could be switched around)
+  * ->tasklist_lock
+- *   anon_vma->lock      (memory_failure, collect_procs_anon)
++ *   anon_vma->mutex      (memory_failure, collect_procs_anon)
+  *     pte map lock
+  */
  
--static inline void tlb_remove_page(struct mmu_gather *tlb, struct page *page)
-+static inline int __tlb_remove_page(struct mmu_gather *tlb, struct page *page)
+@@ -306,7 +306,7 @@ static void anon_vma_ctor(void *data)
  {
- 	if (tlb_fast_mode(tlb)) {
- 		free_page_and_swap_cache(page);
--	} else {
--		tlb->pages[tlb->nr++] = page;
--		if (tlb->nr >= FREE_PTE_NR)
--			tlb_flush_mmu(tlb);
-+		return 1; /* avoid calling tlb_flush_mmu */
- 	}
-+
-+	tlb->pages[tlb->nr++] = page;
-+	VM_BUG_ON(tlb->nr > tlb->max);
-+	return tlb->max - tlb->nr;
-+}
-+
-+static inline void tlb_remove_page(struct mmu_gather *tlb, struct page *page)
-+{
-+	if (!__tlb_remove_page(tlb, page))
-+		tlb_flush_mmu(tlb);
+ 	struct anon_vma *anon_vma = data;
+ 
+-	spin_lock_init(&anon_vma->lock);
++	mutex_init(&anon_vma->mutex);
+ 	atomic_set(&anon_vma->refcount, 0);
+ 	INIT_LIST_HEAD(&anon_vma->head);
+ }
+@@ -1129,7 +1129,7 @@ int try_to_unmap_one(struct page *page, 
+ 	/*
+ 	 * We need mmap_sem locking, Otherwise VM_LOCKED check makes
+ 	 * unstable result and race. Plus, We can't wait here because
+-	 * we now hold anon_vma->lock or mapping->i_mmap_mutex.
++	 * we now hold anon_vma->mutex or mapping->i_mmap_mutex.
+ 	 * if trylock failed, the page remain in evictable lru and later
+ 	 * vmscan could retry to move the page to unevictable lru if the
+ 	 * page is actually mlocked.
+Index: linux-2.6/mm/mmap.c
+===================================================================
+--- linux-2.6.orig/mm/mmap.c
++++ linux-2.6/mm/mmap.c
+@@ -2523,15 +2523,15 @@ static void vm_lock_anon_vma(struct mm_s
+ 		 * The LSB of head.next can't change from under us
+ 		 * because we hold the mm_all_locks_mutex.
+ 		 */
+-		spin_lock_nest_lock(&anon_vma->root->lock, &mm->mmap_sem);
++		mutex_lock_nest_lock(&anon_vma->root->mutex, &mm->mmap_sem);
+ 		/*
+ 		 * We can safely modify head.next after taking the
+-		 * anon_vma->root->lock. If some other vma in this mm shares
++		 * anon_vma->root->mutex. If some other vma in this mm shares
+ 		 * the same anon_vma we won't take it again.
+ 		 *
+ 		 * No need of atomic instructions here, head.next
+ 		 * can't change from under us thanks to the
+-		 * anon_vma->root->lock.
++		 * anon_vma->root->mutex.
+ 		 */
+ 		if (__test_and_set_bit(0, (unsigned long *)
+ 				       &anon_vma->root->head.next))
+@@ -2580,7 +2580,7 @@ static void vm_lock_mapping(struct mm_st
+  * vma in this mm is backed by the same anon_vma or address_space.
+  *
+  * We can take all the locks in random order because the VM code
+- * taking i_mmap_mutex or anon_vma->lock outside the mmap_sem never
++ * taking i_mmap_mutex or anon_vma->mutex outside the mmap_sem never
+  * takes more than one of them in a row. Secondly we're protected
+  * against a concurrent mm_take_all_locks() by the mm_all_locks_mutex.
+  *
+@@ -2636,7 +2636,7 @@ static void vm_unlock_anon_vma(struct an
+ 		 *
+ 		 * No need of atomic instructions here, head.next
+ 		 * can't change from under us until we release the
+-		 * anon_vma->root->lock.
++		 * anon_vma->root->mutex.
+ 		 */
+ 		if (!__test_and_clear_bit(0, (unsigned long *)
+ 					  &anon_vma->root->head.next))
+Index: linux-2.6/include/linux/mmu_notifier.h
+===================================================================
+--- linux-2.6.orig/include/linux/mmu_notifier.h
++++ linux-2.6/include/linux/mmu_notifier.h
+@@ -150,7 +150,7 @@ struct mmu_notifier_ops {
+  * Therefore notifier chains can only be traversed when either
+  *
+  * 1. mmap_sem is held.
+- * 2. One of the reverse map locks is held (i_mmap_mutex or anon_vma->lock).
++ * 2. One of the reverse map locks is held (i_mmap_mutex or anon_vma->mutex).
+  * 3. No other concurrent thread can access the list (release)
+  */
+ struct mmu_notifier {
+Index: linux-2.6/mm/huge_memory.c
+===================================================================
+--- linux-2.6.orig/mm/huge_memory.c
++++ linux-2.6/mm/huge_memory.c
+@@ -1128,7 +1128,7 @@ static int __split_huge_page_splitting(s
+ 		 * We can't temporarily set the pmd to null in order
+ 		 * to split it, the pmd must remain marked huge at all
+ 		 * times or the VM won't take the pmd_trans_huge paths
+-		 * and it won't wait on the anon_vma->root->lock to
++		 * and it won't wait on the anon_vma->root->mutex to
+ 		 * serialize against split_huge_page*.
+ 		 */
+ 		pmdp_splitting_flush_notify(vma, address, pmd);
+@@ -1315,7 +1315,7 @@ static int __split_huge_page_map(struct 
+ 	return ret;
  }
  
- static inline void __pte_free_tlb(struct mmu_gather *tlb, pgtable_t pte,
+-/* must be called with anon_vma->root->lock hold */
++/* must be called with anon_vma->root->mutex hold */
+ static void __split_huge_page(struct page *page,
+ 			      struct anon_vma *anon_vma)
+ {
+Index: linux-2.6/include/linux/huge_mm.h
+===================================================================
+--- linux-2.6.orig/include/linux/huge_mm.h
++++ linux-2.6/include/linux/huge_mm.h
+@@ -91,12 +91,8 @@ extern void __split_huge_page_pmd(struct
+ #define wait_split_huge_page(__anon_vma, __pmd)				\
+ 	do {								\
+ 		pmd_t *____pmd = (__pmd);				\
+-		spin_unlock_wait(&(__anon_vma)->root->lock);		\
+-		/*							\
+-		 * spin_unlock_wait() is just a loop in C and so the	\
+-		 * CPU can reorder anything around it.			\
+-		 */							\
+-		smp_mb();						\
++		anon_vma_lock(__anon_vma);				\
++		anon_vma_unlock(__anon_vma);				\
+ 		BUG_ON(pmd_trans_splitting(*____pmd) ||			\
+ 		       pmd_trans_huge(*____pmd));			\
+ 	} while (0)
 
 
 --
