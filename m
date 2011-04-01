@@ -1,78 +1,218 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id C1CF28D0040
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 18:51:37 -0400 (EDT)
-Received: by ewy9 with SMTP id 9so1168507ewy.14
-        for <linux-mm@kvack.org>; Thu, 31 Mar 2011 15:51:34 -0700 (PDT)
-Content-Type: text/plain; charset=utf-8; format=flowed; delsp=yes
-Subject: Re: [PATCH 04/12] mm: alloc_contig_freed_pages() added
-References: <1301577368-16095-1-git-send-email-m.szyprowski@samsung.com>
- <1301577368-16095-5-git-send-email-m.szyprowski@samsung.com>
- <1301587083.31087.1032.camel@nimitz> <op.vs77qfx03l0zgt@mnazarewicz-glaptop>
- <1301606078.31087.1275.camel@nimitz> <op.vs8awkrx3l0zgt@mnazarewicz-glaptop>
- <1301610411.30870.29.camel@nimitz>
-Date: Fri, 01 Apr 2011 00:51:32 +0200
-MIME-Version: 1.0
-Content-Transfer-Encoding: 7bit
-From: "Michal Nazarewicz" <mina86@mina86.com>
-Message-ID: <op.vs8cf5xd3l0zgt@mnazarewicz-glaptop>
-In-Reply-To: <1301610411.30870.29.camel@nimitz>
+	by kanga.kvack.org (Postfix) with ESMTP id 1947A8D0040
+	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 21:11:04 -0400 (EDT)
+Received: by gwaa12 with SMTP id a12so1570703gwa.14
+        for <linux-mm@kvack.org>; Thu, 31 Mar 2011 18:10:59 -0700 (PDT)
+Subject: Re: [PATCH 1/6] nommu: sort mm->mmap list properly
+From: Namhyung Kim <namhyung@gmail.com>
+In-Reply-To: <20110331115141.bd8f28d8.akpm@linux-foundation.org>
+References: <1301320607-7259-1-git-send-email-namhyung@gmail.com>
+	 <1301320607-7259-2-git-send-email-namhyung@gmail.com>
+	 <20110331115141.bd8f28d8.akpm@linux-foundation.org>
+Content-Type: text/plain; charset="UTF-8"
+Date: Fri, 01 Apr 2011 10:10:52 +0900
+Message-ID: <1301620252.1496.2.camel@leonhard>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-samsung-soc@vger.kernel.org, linux-media@vger.kernel.org, linux-mm@kvack.org, Kyungmin Park <kyungmin.park@samsung.com>, Andrew
- Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ankita Garg <ankita@in.ibm.com>, Daniel
- Walker <dwalker@codeaurora.org>, Johan MOSSBERG <johan.xx.mossberg@stericsson.com>, Mel Gorman <mel@csn.ul.ie>, Pawel
- Osciak <pawel@osciak.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Paul Mundt <lethal@linux-sh.org>, David Howells <dhowells@redhat.com>, Greg Ungerer <gerg@snapgear.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, 01 Apr 2011 00:26:51 +0200, Dave Hansen <dave@linux.vnet.ibm.com>  
-wrote:
+2011-03-31 (ea(C)), 11:51 -0700, Andrew Morton:
+> On Mon, 28 Mar 2011 22:56:42 +0900
+> Namhyung Kim <namhyung@gmail.com> wrote:
+> 
+> > @vma added into @mm should be sorted by start addr, end addr and VMA struct
+> > addr in that order because we may get identical VMAs in the @mm. However
+> > this was true only for the rbtree, not for the list.
+> > 
+> > This patch fixes this by remembering 'rb_prev' during the tree traversal
+> > like find_vma_prepare() does and linking the @vma via __vma_link_list().
+> > After this patch, we can iterate the whole VMAs in correct order simply
+> > by using @mm->mmap list.
+> > 
+> > Signed-off-by: Namhyung Kim <namhyung@gmail.com>
+> > ---
+> >  mm/nommu.c |   62 ++++++++++++++++++++++++++++++++++++++---------------------
+> >  1 files changed, 40 insertions(+), 22 deletions(-)
+> > 
+> > diff --git a/mm/nommu.c b/mm/nommu.c
+> > index e7dbd3fae187..20d9c330eb0e 100644
+> > --- a/mm/nommu.c
+> > +++ b/mm/nommu.c
+> > @@ -672,6 +672,30 @@ static void protect_vma(struct vm_area_struct *vma, unsigned long flags)
+> >  #endif
+> >  }
+> >  
+> > +/* borrowed from mm/mmap.c */
+> > +static inline void
+> > +__vma_link_list(struct mm_struct *mm, struct vm_area_struct *vma,
+> > +		struct vm_area_struct *prev, struct rb_node *rb_parent)
+> > +{
+> > +	struct vm_area_struct *next;
+> > +
+> > +	vma->vm_prev = prev;
+> > +	if (prev) {
+> > +		next = prev->vm_next;
+> > +		prev->vm_next = vma;
+> > +	} else {
+> > +		mm->mmap = vma;
+> > +		if (rb_parent)
+> > +			next = rb_entry(rb_parent,
+> > +					struct vm_area_struct, vm_rb);
+> > +		else
+> > +			next = NULL;
+> > +	}
+> > +	vma->vm_next = next;
+> > +	if (next)
+> > +		next->vm_prev = vma;
+> > +}
+> 
+> Duplicating code is rather bad.  And putting random vma functions into
+> mm/util.c is pretty ugly too, but I suppose it's less bad.
+> 
 
-> On Fri, 2011-04-01 at 00:18 +0200, Michal Nazarewicz wrote:
->> On Thu, 31 Mar 2011 23:14:38 +0200, Dave Hansen wrote:
->> > We BUG_ON() in bootmem.  Basically if we try to allocate an early-boot
->> > structure and fail, we're screwed.  We can't keep running without an
->> > inode hash, or a mem_map[].
->> >
->> > This looks like it's going to at least get partially used in drivers,  
->> at
->> > least from the examples.  Are these kinds of things that, if the  
->> driver
->> > fails to load, that the system is useless and hosed?  Or, is it
->> > something where we might limp along to figure out what went wrong  
->> before
->> > we reboot?
->>
->> Bug in the above place does not mean that we could not allocate  
->> memory.  It means caller is broken.
->
-> Could you explain that a bit?
->
-> Is this a case where a device is mapped to a very *specific* range of
-> physical memory and no where else?  What are the reasons for not marking
-> it off limits at boot?  I also saw some bits of isolation and migration
-> in those patches.  Can't the migration fail?
+Agreed. Thanks for doing this.
 
-The function is called from alloc_contig_range() (see patch 05/12) which
-makes sure that the PFN is valid.  Situation where there is not enough
-space is caught earlier in alloc_contig_range().
 
-alloc_contig_freed_pages() must be given a valid PFN range such that all
-the pages in that range are free (as in are within the region tracked by
-page allocator) and of MIGRATETYPE_ISOLATE so that page allocator won't
-touch them.
+>  mm/internal.h |    4 ++++
+>  mm/mmap.c     |   22 ----------------------
+>  mm/nommu.c    |   24 ------------------------
+>  mm/util.c     |   24 ++++++++++++++++++++++++
+>  4 files changed, 28 insertions(+), 46 deletions(-)
+> 
+> diff -puN mm/nommu.c~mm-nommu-sort-mm-mmap-list-properly-fix mm/nommu.c
+> --- a/mm/nommu.c~mm-nommu-sort-mm-mmap-list-properly-fix
+> +++ a/mm/nommu.c
+> @@ -672,30 +672,6 @@ static void protect_vma(struct vm_area_s
+>  #endif
+>  }
+>  
+> -/* borrowed from mm/mmap.c */
+> -static inline void
+> -__vma_link_list(struct mm_struct *mm, struct vm_area_struct *vma,
+> -		struct vm_area_struct *prev, struct rb_node *rb_parent)
+> -{
+> -	struct vm_area_struct *next;
+> -
+> -	vma->vm_prev = prev;
+> -	if (prev) {
+> -		next = prev->vm_next;
+> -		prev->vm_next = vma;
+> -	} else {
+> -		mm->mmap = vma;
+> -		if (rb_parent)
+> -			next = rb_entry(rb_parent,
+> -					struct vm_area_struct, vm_rb);
+> -		else
+> -			next = NULL;
+> -	}
+> -	vma->vm_next = next;
+> -	if (next)
+> -		next->vm_prev = vma;
+> -}
+> -
+>  /*
+>   * add a VMA into a process's mm_struct in the appropriate place in the list
+>   * and tree and add to the address space's page tree also if not an anonymous
+> diff -puN mm/util.c~mm-nommu-sort-mm-mmap-list-properly-fix mm/util.c
+> --- a/mm/util.c~mm-nommu-sort-mm-mmap-list-properly-fix
+> +++ a/mm/util.c
+> @@ -6,6 +6,8 @@
+>  #include <linux/sched.h>
+>  #include <asm/uaccess.h>
+>  
+> +#include "internal.h"
+> +
+>  #define CREATE_TRACE_POINTS
+>  #include <trace/events/kmem.h>
+>  
+> @@ -215,6 +217,28 @@ char *strndup_user(const char __user *s,
+>  }
+>  EXPORT_SYMBOL(strndup_user);
+>  
+> +void __vma_link_list(struct mm_struct *mm, struct vm_area_struct *vma,
+> +		struct vm_area_struct *prev, struct rb_node *rb_parent)
+> +{
+> +	struct vm_area_struct *next;
+> +
+> +	vma->vm_prev = prev;
+> +	if (prev) {
+> +		next = prev->vm_next;
+> +		prev->vm_next = vma;
+> +	} else {
+> +		mm->mmap = vma;
+> +		if (rb_parent)
+> +			next = rb_entry(rb_parent,
+> +					struct vm_area_struct, vm_rb);
+> +		else
+> +			next = NULL;
+> +	}
+> +	vma->vm_next = next;
+> +	if (next)
+> +		next->vm_prev = vma;
+> +}
+> +
+>  #if defined(CONFIG_MMU) && !defined(HAVE_ARCH_PICK_MMAP_LAYOUT)
+>  void arch_pick_mmap_layout(struct mm_struct *mm)
+>  {
+> diff -puN mm/internal.h~mm-nommu-sort-mm-mmap-list-properly-fix mm/internal.h
+> --- a/mm/internal.h~mm-nommu-sort-mm-mmap-list-properly-fix
+> +++ a/mm/internal.h
+> @@ -66,6 +66,10 @@ static inline unsigned long page_order(s
+>  	return page_private(page);
+>  }
+>  
+> +/* mm/util.c */
+> +void __vma_link_list(struct mm_struct *mm, struct vm_area_struct *vma,
+> +		struct vm_area_struct *prev, struct rb_node *rb_parent);
+> +
+>  #ifdef CONFIG_MMU
+>  extern long mlock_vma_pages_range(struct vm_area_struct *vma,
+>  			unsigned long start, unsigned long end);
+> diff -puN mm/mmap.c~mm-nommu-sort-mm-mmap-list-properly-fix mm/mmap.c
+> --- a/mm/mmap.c~mm-nommu-sort-mm-mmap-list-properly-fix
+> +++ a/mm/mmap.c
+> @@ -398,28 +398,6 @@ find_vma_prepare(struct mm_struct *mm, u
+>  	return vma;
+>  }
+>  
+> -void __vma_link_list(struct mm_struct *mm, struct vm_area_struct *vma,
+> -		struct vm_area_struct *prev, struct rb_node *rb_parent)
+> -{
+> -	struct vm_area_struct *next;
+> -
+> -	vma->vm_prev = prev;
+> -	if (prev) {
+> -		next = prev->vm_next;
+> -		prev->vm_next = vma;
+> -	} else {
+> -		mm->mmap = vma;
+> -		if (rb_parent)
+> -			next = rb_entry(rb_parent,
+> -					struct vm_area_struct, vm_rb);
+> -		else
+> -			next = NULL;
+> -	}
+> -	vma->vm_next = next;
+> -	if (next)
+> -		next->vm_prev = vma;
+> -}
+> -
+>  void __vma_link_rb(struct mm_struct *mm, struct vm_area_struct *vma,
+>  		struct rb_node **rb_link, struct rb_node *rb_parent)
+>  {
+> _
+> 
+> 
 
-That's why invalid PFN is a bug in the caller and not an exception that
-has to be handled.
-
-Also, the function is not called during boot time.  It is called while
-system is already running.
 
 -- 
-Best regards,                                         _     _
-.o. | Liege of Serenely Enlightened Majesty of      o' \,=./ `o
-..o | Computer Science,  Michal "mina86" Nazarewicz    (o o)
-ooo +-----<email/xmpp: mnazarewicz@google.com>-----ooO--(_)--Ooo--
+Regards,
+Namhyung Kim
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
