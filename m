@@ -1,62 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 4226A8D0040
-	for <linux-mm@kvack.org>; Fri,  1 Apr 2011 10:50:52 -0400 (EDT)
-Date: Fri, 1 Apr 2011 09:50:45 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 0/3] Unmapped page cache control (v5)
-In-Reply-To: <20110401221921.A890.A69D9226@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1104010945190.17929@router.home>
-References: <20110331144145.0ECA.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1103311451530.28364@router.home> <20110401221921.A890.A69D9226@jp.fujitsu.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 2B70A8D0040
+	for <linux-mm@kvack.org>; Fri,  1 Apr 2011 10:57:48 -0400 (EDT)
+Received: from d01dlp01.pok.ibm.com (d01dlp01.pok.ibm.com [9.56.224.56])
+	by e3.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p31Eb0ad017797
+	for <linux-mm@kvack.org>; Fri, 1 Apr 2011 10:37:00 -0400
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 4942D38C803B
+	for <linux-mm@kvack.org>; Fri,  1 Apr 2011 10:57:38 -0400 (EDT)
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p31EuvM8062300
+	for <linux-mm@kvack.org>; Fri, 1 Apr 2011 10:57:05 -0400
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p31Eutse027317
+	for <linux-mm@kvack.org>; Fri, 1 Apr 2011 08:56:57 -0600
+Date: Fri, 1 Apr 2011 20:17:12 +0530
+From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Subject: [RESEND] [PATCH v3 2.6.39-rc1-tip 21/26] 21: Uprobe tracer
+ documentation Dronamraju <srikar@linux.vnet.ibm.com>
+Message-ID: <20110401144712.GA15638@linux.vnet.ibm.com>
+Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+References: <20110401143223.15455.19844.sendpatchset@localhost6.localdomain6>
+ <20110401143647.15455.19384.sendpatchset@localhost6.localdomain6>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20110401143647.15455.19384.sendpatchset@localhost6.localdomain6>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org, akpm@linux-foundation.org, npiggin@kernel.dk, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan.kim@gmail.com>
+To: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>
+Cc: Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Christoph Hellwig <hch@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, SystemTap <systemtap@sources.redhat.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Fri, 1 Apr 2011, KOSAKI Motohiro wrote:
+[Resending the patch after correcting the Subject and with sign-off in
+body.]
 
-> > On Thu, 31 Mar 2011, KOSAKI Motohiro wrote:
-> >
-> > > 1) zone reclaim doesn't work if the system has multiple node and the
-> > >    workload is file cache oriented (eg file server, web server, mail server, et al).
-> > >    because zone recliam make some much free pages than zone->pages_min and
-> > >    then new page cache request consume nearest node memory and then it
-> > >    bring next zone reclaim. Then, memory utilization is reduced and
-> > >    unnecessary LRU discard is increased dramatically.
-> >
-> > That is only true if the webserver only allocates from a single node. If
-> > the allocation load is balanced then it will be fine. It is useful to
-> > reclaim pages from the node where we allocate memory since that keeps the
-> > dataset node local.
->
-> Why?
-> Scheduler load balancing only consider cpu load. Then, usually memory
-> pressure is no complete symmetric. That's the reason why we got the
-> bug report periodically.
+uprobetracer Documentation.
 
-The scheduler load balancing also considers caching effects. It does not
-consider NUMA effects aside from heuritics though. If processes are
-randomly moving around then zone reclaim is not effective. Processes need
-to stay mainly on a certain node and memory needs to be allocatable from
-that node in order to improve performance. zone_reclaim is useless if you
-toss processes around the box.
+Signed-off-by: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+---
+ Documentation/trace/uprobetrace.txt |   94 +++++++++++++++++++++++++++++++++++
+ 1 files changed, 94 insertions(+), 0 deletions(-)
+ create mode 100644 Documentation/trace/uprobetrace.txt
 
-> btw, when we are talking about memory distance aware reclaim, we have to
-> recognize traditional numa (ie external node interconnect) and on-chip
-> numa have different performance characteristics. on-chip remote node access
-> is not so slow, then elaborated nearest node allocation effort doesn't have
-> so much worth. especially, a workload use a lot of short lived object.
-> Current zone-reclaim don't have so much issue when using traditiona numa
-> because it's fit your original design and assumption and administrators of
-> such systems have good skill and don't hesitate to learn esoteric knobs.
-> But recent on-chip and cheap numa are used for much different people against
-> past. therefore new issues and claims were raised.
-
-You can switch NUMA off completely at the bios level. Then the distances
-are not considered by the OS. If they are not relevant then lets just
-switch NUMA off. Managing NUMA distances can cause significant overhead.
+diff --git a/Documentation/trace/uprobetrace.txt b/Documentation/trace/uprobetrace.txt
+new file mode 100644
+index 0000000..6c18ffe
+--- /dev/null
++++ b/Documentation/trace/uprobetrace.txt
+@@ -0,0 +1,94 @@
++		Uprobe-tracer: Uprobe-based Event Tracing
++		=========================================
++                 Documentation is written by Srikar Dronamraju
++
++Overview
++--------
++These events are similar to kprobe based events.
++To enable this feature, build your kernel with CONFIG_UPROBE_EVENTS=y.
++
++Similar to the kprobe-event tracer, this doesn't need to be activated via
++current_tracer. Instead of that, add probe points via
++/sys/kernel/debug/tracing/uprobe_events, and enable it via
++/sys/kernel/debug/tracing/events/uprobes/<EVENT>/enabled.
++
++
++Synopsis of uprobe_tracer
++-------------------------
++  p[:[GRP/]EVENT] PATH:SYMBOL[+offs] [FETCHARGS]	: Set a probe
++
++ GRP		: Group name. If omitted, use "uprobes" for it.
++ EVENT		: Event name. If omitted, the event name is generated
++		  based on SYMBOL+offs.
++ PATH		: path to an executable or a library.
++ SYMBOL[+offs]	: Symbol+offset where the probe is inserted.
++
++ FETCHARGS	: Arguments. Each probe can have up to 128 args.
++  %REG		: Fetch register REG
++
++Event Profiling
++---------------
++ You can check the total number of probe hits and probe miss-hits via
++/sys/kernel/debug/tracing/uprobe_profile.
++ The first column is event name, the second is the number of probe hits,
++the third is the number of probe miss-hits.
++
++Usage examples
++--------------
++To add a probe as a new event, write a new definition to uprobe_events
++as below.
++
++  echo 'p: /bin/bash:0x4245c0' > /sys/kernel/debug/tracing/uprobe_events
++
++ This sets a uprobe at an offset of 0x4245c0 in the executable /bin/bash
++
++
++  echo > /sys/kernel/debug/tracing/uprobe_events
++
++ This clears all probe points.
++
++The following example shows how to dump the instruction pointer and %ax
++a register at the probed text address.  Here we are trying to probe
++function zfree in /bin/zsh
++
++    # cd /sys/kernel/debug/tracing/
++    # cat /proc/`pgrep  zsh`/maps | grep /bin/zsh | grep r-xp
++    00400000-0048a000 r-xp 00000000 08:03 130904 /bin/zsh
++    # objdump -T /bin/zsh | grep -w zfree
++    0000000000446420 g    DF .text  0000000000000012  Base        zfree
++
++0x46420 is the offset of zfree in object /bin/zsh that is loaded at
++0x00400000. Hence the command to probe would be :
++
++    # echo 'p /bin/zsh:0x46420 %ip %ax' > uprobe_events
++
++We can see the events that are registered by looking at the uprobe_events
++file.
++
++    # cat uprobe_events
++    p:uprobes/p_zsh_0x46420 /bin/zsh:0x0000000000046420
++
++Right after definition, each event is disabled by default. For tracing these
++events, you need to enable it by:
++
++    # echo 1 > events/uprobes/enable
++
++Lets disable the event after sleeping for some time.
++    # sleep 20
++    # echo 0 > events/uprobes/enable
++
++And you can see the traced information via /sys/kernel/debug/tracing/trace.
++
++    # cat trace
++    # tracer: nop
++    #
++    #           TASK-PID    CPU#    TIMESTAMP  FUNCTION
++    #              | |       |          |         |
++                 zsh-24842 [006] 258544.995456: p_zsh_0x46420: (0x446420) arg1=446421 arg2=79
++                 zsh-24842 [007] 258545.000270: p_zsh_0x46420: (0x446420) arg1=446421 arg2=79
++                 zsh-24842 [002] 258545.043929: p_zsh_0x46420: (0x446420) arg1=446421 arg2=79
++                 zsh-24842 [004] 258547.046129: p_zsh_0x46420: (0x446420) arg1=446421 arg2=79
++
++Each line shows us probes were triggered for a pid 24842 with ip being
++0x446421 and contents of ax register being 79.
++
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
