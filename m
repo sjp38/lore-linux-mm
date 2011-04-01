@@ -1,239 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 50A458D004E
-	for <linux-mm@kvack.org>; Fri,  1 Apr 2011 10:46:51 -0400 (EDT)
-Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
-	by e28smtp02.in.ibm.com (8.14.4/8.13.1) with ESMTP id p31Ekibf006043
-	for <linux-mm@kvack.org>; Fri, 1 Apr 2011 20:16:44 +0530
-Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
-	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p31Eki7o4391022
-	for <linux-mm@kvack.org>; Fri, 1 Apr 2011 20:16:44 +0530
-Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
-	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p31EkhvE026119
-	for <linux-mm@kvack.org>; Sat, 2 Apr 2011 01:46:44 +1100
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 5EEC58D0040
+	for <linux-mm@kvack.org>; Fri,  1 Apr 2011 10:47:09 -0400 (EDT)
+Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
+	by e28smtp09.in.ibm.com (8.14.4/8.13.1) with ESMTP id p31Dl5cY008538
+	for <linux-mm@kvack.org>; Fri, 1 Apr 2011 19:17:05 +0530
+Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
+	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p31El4j64489340
+	for <linux-mm@kvack.org>; Fri, 1 Apr 2011 20:17:04 +0530
+Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
+	by d28av05.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p31El3Od011083
+	for <linux-mm@kvack.org>; Sat, 2 Apr 2011 01:47:04 +1100
 From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Date: Fri, 01 Apr 2011 20:07:07 +0530
-Message-Id: <20110401143707.15455.66114.sendpatchset@localhost6.localdomain6>
+Date: Fri, 01 Apr 2011 20:07:27 +0530
+Message-Id: <20110401143727.15455.2070.sendpatchset@localhost6.localdomain6>
 In-Reply-To: <20110401143223.15455.19844.sendpatchset@localhost6.localdomain6>
 References: <20110401143223.15455.19844.sendpatchset@localhost6.localdomain6>
-Subject: [PATCH v3 2.6.39-rc1-tip 23/26] 23: perf: show possible probes in a given executable file or library.
+Subject: [PATCH v3 2.6.39-rc1-tip 25/26] 25: perf: Documentation for perf uprobes
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>
-Cc: Steven Rostedt <rostedt@goodmis.org>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Christoph Hellwig <hch@infradead.org>, Andi Kleen <andi@firstfloor.org>, Thomas Gleixner <tglx@linutronix.de>, Jonathan Corbet <corbet@lwn.net>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, SystemTap <systemtap@sources.redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Steven Rostedt <rostedt@goodmis.org>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Jonathan Corbet <corbet@lwn.net>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, SystemTap <systemtap@sources.redhat.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
 
 
-Enhances -F/--funcs option of "perf probe" to list possible probe points in
-an executable file or library. A new option -e/--exe specifies the path of
-the executable or library.
+Modify perf-probe.txt to include uprobe documentation
 
-
-Show last 10 functions in /bin/zsh.
-
-# perf probe -F -u -e /bin/zsh | tail
-zstrtol
-ztrcmp
-ztrdup
-ztrduppfx
-ztrftime
-ztrlen
-ztrncpy
-ztrsub
-zwarn
-zwarnnam
-
-Show first 10 functions in /lib/libc.so.6
-
-# perf probe -u -F -e /lib/libc.so.6 | head
-_IO_adjust_column
-_IO_adjust_wcolumn
-_IO_default_doallocate
-_IO_default_finish
-_IO_default_pbackfail
-_IO_default_uflow
-_IO_default_xsgetn
-_IO_default_xsputn
-_IO_do_write@@GLIBC_2.2.5
-_IO_doallocbuf
-
+Signed-off-by: Suzuki Poulose <suzuki@in.ibm.com>
 Signed-off-by: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
 ---
- tools/perf/builtin-probe.c    |    9 +++++--
- tools/perf/util/probe-event.c |   56 +++++++++++++++++++++++++++++++----------
- tools/perf/util/probe-event.h |    4 +--
- tools/perf/util/symbol.c      |    8 ++++++
- tools/perf/util/symbol.h      |    1 +
- 5 files changed, 61 insertions(+), 17 deletions(-)
+ tools/perf/Documentation/perf-probe.txt |   21 ++++++++++++++++++++-
+ 1 files changed, 20 insertions(+), 1 deletions(-)
 
-diff --git a/tools/perf/builtin-probe.c b/tools/perf/builtin-probe.c
-index 98db08f..6ceebea 100644
---- a/tools/perf/builtin-probe.c
-+++ b/tools/perf/builtin-probe.c
-@@ -57,6 +57,7 @@ static struct {
- 	bool show_ext_vars;
- 	bool show_funcs;
- 	bool mod_events;
-+	bool uprobes;
- 	int nevents;
- 	struct perf_probe_event events[MAX_PROBES];
- 	struct strlist *dellist;
-@@ -249,6 +250,10 @@ static const struct option options[] = {
- 		 "Set how many probe points can be found for a probe."),
- 	OPT_BOOLEAN('F', "funcs", &params.show_funcs,
- 		    "Show potential probe-able functions."),
-+	OPT_BOOLEAN('u', "uprobe", &params.uprobes,
-+		    "user space probe events"),
-+	OPT_STRING('e', "exe", &params.target,
-+		   "executable", "userspace executable or library"),
- 	OPT_CALLBACK('\0', "filter", NULL,
- 		     "[!]FILTER", "Set a filter (with --vars/funcs only)\n"
- 		     "\t\t\t(default: \"" DEFAULT_VAR_FILTER "\" for --vars,\n"
-@@ -327,8 +332,8 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
- 		if (!params.filter)
- 			params.filter = strfilter__new(DEFAULT_FUNC_FILTER,
- 						       NULL);
--		ret = show_available_funcs(params.target,
--					   params.filter);
-+		ret = show_available_funcs(params.target, params.filter,
-+					params.uprobes);
- 		strfilter__delete(params.filter);
- 		if (ret < 0)
- 			pr_err("  Error: Failed to show functions."
-diff --git a/tools/perf/util/probe-event.c b/tools/perf/util/probe-event.c
-index 09c53c1..cf77feb 100644
---- a/tools/perf/util/probe-event.c
-+++ b/tools/perf/util/probe-event.c
-@@ -47,6 +47,7 @@
- #include "trace-event.h"	/* For __unused */
- #include "probe-event.h"
- #include "probe-finder.h"
-+#include "session.h"
+diff --git a/tools/perf/Documentation/perf-probe.txt b/tools/perf/Documentation/perf-probe.txt
+index 02bafce..7a80a66 100644
+--- a/tools/perf/Documentation/perf-probe.txt
++++ b/tools/perf/Documentation/perf-probe.txt
+@@ -76,6 +76,8 @@ OPTIONS
+ -F::
+ --funcs::
+ 	Show available functions in given module or kernel.
++	With -e/--exe, can also list functions in a user space executable /
++	shared library.
  
- #define MAX_CMDLEN 256
- #define MAX_PROBE_ARGS 128
-@@ -1963,6 +1964,7 @@ int del_perf_probe_events(struct strlist *dellist)
+ --filter=FILTER::
+ 	(Only for --vars and --funcs) Set filter. FILTER is a combination of glob
+@@ -96,12 +98,21 @@ OPTIONS
+ --max-probes::
+ 	Set the maximum number of probe points for an event. Default is 128.
  
- 	return ret;
- }
++-u::
++--uprobes::
++	Specify a uprobe based probe point.
 +
- /* TODO: don't use a global variable for filter ... */
- static struct strfilter *available_func_filter;
- 
-@@ -1979,30 +1981,58 @@ static int filter_available_functions(struct map *map __unused,
- 	return 1;
- }
- 
--int show_available_funcs(const char *elfobject, struct strfilter *_filter)
-+static int __show_available_funcs(struct map *map)
-+{
-+	if (map__load(map, filter_available_functions)) {
-+		pr_err("Failed to load map.\n");
-+		return -EINVAL;
-+	}
-+	if (!dso__sorted_by_name(map->dso, map->type))
-+		dso__sort_by_name(map->dso, map->type);
++-e::
++--exe=PATH::
++	Specify path to the executable or shared library file for user
++	space tracing. Used with --funcs option only.
 +
-+	dso__fprintf_symbols_by_name(map->dso, map->type, stdout);
-+	return 0;
-+}
-+
-+static int available_kernel_funcs(const char *module)
- {
- 	struct map *map;
- 	int ret;
+ PROBE SYNTAX
+ ------------
+ Probe points are defined by following syntax.
  
--	setup_pager();
--
- 	ret = init_vmlinux();
- 	if (ret < 0)
- 		return ret;
+     1) Define event based on function name
+-     [EVENT=]FUNC[@SRC][:RLN|+OFFS|%return|;PTN] [ARG ...]
++     [EVENT=]FUNC[@EXE][@SRC][:RLN|+OFFS|%return|;PTN] [ARG ...]
  
--	map = kernel_get_module_map(elfobject);
-+	map = kernel_get_module_map(module);
- 	if (!map) {
--		pr_err("Failed to find %s map.\n", (elfobject) ? : "kernel");
-+		pr_err("Failed to find %s map.\n", (module) ? : "kernel");
- 		return -EINVAL;
- 	}
-+	return __show_available_funcs(map);
-+}
-+
-+int show_available_funcs(const char *elfobject, struct strfilter *_filter,
-+					bool user)
-+{
-+	struct map *map;
-+	int ret;
-+
-+	setup_pager();
- 	available_func_filter = _filter;
--	if (map__load(map, filter_available_functions)) {
--		pr_err("Failed to load map.\n");
--		return -EINVAL;
--	}
--	if (!dso__sorted_by_name(map->dso, map->type))
--		dso__sort_by_name(map->dso, map->type);
+     2) Define event based on source file with line number
+      [EVENT=]SRC:ALN [ARG ...]
+@@ -112,6 +123,7 @@ Probe points are defined by following syntax.
  
--	dso__fprintf_symbols_by_name(map->dso, map->type, stdout);
--	return 0;
-+	if (!user)
-+		return available_kernel_funcs(elfobject);
-+
-+	symbol_conf.try_vmlinux_path = false;
-+	symbol_conf.sort_by_name = true;
-+	ret = symbol__init();
-+	if (ret < 0) {
-+		pr_err("Failed to init symbol map.\n");
-+		return ret;
-+	}
-+	map = dso__new_map(elfobject);
-+	ret = __show_available_funcs(map);
-+	dso__delete(map->dso);
-+	map__delete(map);
-+	return ret;
- }
-diff --git a/tools/perf/util/probe-event.h b/tools/perf/util/probe-event.h
-index 3434fc9..4c24a85 100644
---- a/tools/perf/util/probe-event.h
-+++ b/tools/perf/util/probe-event.h
-@@ -128,8 +128,8 @@ extern int show_line_range(struct line_range *lr, const char *module);
- extern int show_available_vars(struct perf_probe_event *pevs, int npevs,
- 			       int max_probe_points, const char *module,
- 			       struct strfilter *filter, bool externs);
--extern int show_available_funcs(const char *module, struct strfilter *filter);
--
-+extern int show_available_funcs(const char *module, struct strfilter *filter,
-+				bool user);
+ 'EVENT' specifies the name of new event, if omitted, it will be set the name of the probed function. Currently, event group name is set as 'probe'.
+ 'FUNC' specifies a probed function name, and it may have one of the following options; '+OFFS' is the offset from function entry address in bytes, ':RLN' is the relative-line number from function entry line, and '%return' means that it probes function return. And ';PTN' means lazy matching pattern (see LAZY MATCHING). Note that ';PTN' must be the end of the probe point definition.  In addition, '@SRC' specifies a source file which has that function.
++'EXE' specifies the absolute or relative path of the user space executable or user space shared library.
+ It is also possible to specify a probe point by the source line number or lazy matching by using 'SRC:ALN' or 'SRC;PTN' syntax, where 'SRC' is the source file path, ':ALN' is the line number and ';PTN' is the lazy matching pattern.
+ 'ARG' specifies the arguments of this probe point, (see PROBE ARGUMENT).
  
- /* Maximum index number of event-name postfix */
- #define MAX_EVENT_INDEX	1024
-diff --git a/tools/perf/util/symbol.c b/tools/perf/util/symbol.c
-index f06c10f..eefeab4 100644
---- a/tools/perf/util/symbol.c
-+++ b/tools/perf/util/symbol.c
-@@ -2606,3 +2606,11 @@ int machine__load_vmlinux_path(struct machine *self, enum map_type type,
+@@ -180,6 +192,13 @@ Delete all probes on schedule().
  
- 	return ret;
- }
+  ./perf probe --del='schedule*'
+ 
++Add probes at zfree() function on /bin/zsh
 +
-+struct map *dso__new_map(const char *name)
-+{
-+	struct dso *dso = dso__new(name);
-+	struct map *map = map__new2(0, dso, MAP__FUNCTION);
++ ./perf probe -u zfree@/bin/zsh
 +
-+	return map;
-+}
-diff --git a/tools/perf/util/symbol.h b/tools/perf/util/symbol.h
-index 713b0b4..3838909 100644
---- a/tools/perf/util/symbol.h
-+++ b/tools/perf/util/symbol.h
-@@ -211,6 +211,7 @@ char dso__symtab_origin(const struct dso *self);
- void dso__set_long_name(struct dso *self, char *name);
- void dso__set_build_id(struct dso *self, void *build_id);
- void dso__read_running_kernel_build_id(struct dso *self, struct machine *machine);
-+struct map *dso__new_map(const char *name);
- struct symbol *dso__find_symbol(struct dso *self, enum map_type type, u64 addr);
- struct symbol *dso__find_symbol_by_name(struct dso *self, enum map_type type,
- 					const char *name);
++Add probes at malloc() function on libc
++
++ ./perf probe -u malloc@/lib/libc.so.6
+ 
+ SEE ALSO
+ --------
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
