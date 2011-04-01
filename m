@@ -1,60 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 78ABA8D0040
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 21:19:10 -0400 (EDT)
-Received: by iyf13 with SMTP id 13so4263264iyf.14
-        for <linux-mm@kvack.org>; Thu, 31 Mar 2011 18:19:08 -0700 (PDT)
-Subject: Re: [PATCH 1/3] memcg: mark init_section_page_cgroup() properly
-From: Namhyung Kim <namhyung@gmail.com>
-In-Reply-To: <1300452855-10194-1-git-send-email-namhyung@gmail.com>
-References: <1300452855-10194-1-git-send-email-namhyung@gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Fri, 01 Apr 2011 10:18:56 +0900
-Message-ID: <1301620736.1496.9.camel@leonhard>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 8F3998D0040
+	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 21:22:44 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id BCF6C3EE0BC
+	for <linux-mm@kvack.org>; Fri,  1 Apr 2011 10:22:40 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id A0B2245DE61
+	for <linux-mm@kvack.org>; Fri,  1 Apr 2011 10:22:40 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 861F345DD73
+	for <linux-mm@kvack.org>; Fri,  1 Apr 2011 10:22:40 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 765801DB803C
+	for <linux-mm@kvack.org>; Fri,  1 Apr 2011 10:22:40 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 3809F1DB8038
+	for <linux-mm@kvack.org>; Fri,  1 Apr 2011 10:22:40 +0900 (JST)
+Date: Fri, 1 Apr 2011 10:16:13 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [Lsf] [LSF][MM] rough agenda for memcg.
+Message-Id: <20110401101613.de0e79dc.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110331110113.a01f7b8b.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20110331110113.a01f7b8b.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, containers@lists.linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: lsf@lists.linux-foundation.org, linux-mm@kvack.org
 
-2011-03-18 (e,?), 21:54 +0900, Namhyung Kim:
-> The commit ca371c0d7e23 ("memcg: fix page_cgroup fatal error
-> in FLATMEM") removes call to alloc_bootmem() in the function
-> so that it can be marked as __meminit to reduce memory usage
-> when MEMORY_HOTPLUG=n.
+On Thu, 31 Mar 2011 11:01:13 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+
+> So, for this slot, I'd like to discuss
 > 
-> Signed-off-by: Namhyung Kim <namhyung@gmail.com>
-> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> ---
->  mm/page_cgroup.c |    3 +--
->  1 files changed, 1 insertions(+), 2 deletions(-)
+>   I) Softlimit/Isolation (was 3-A) for 1hour
+>      If we have extra time, kernel memory accounting or file-cache handling
+>      will be good.
+>    
+>   II) Dirty page handling. (for 30min)
+>      Maybe we'll discuss about per-memcg inode queueing issue.
 > 
-> diff --git a/mm/page_cgroup.c b/mm/page_cgroup.c
-> index 5bffada7cde1..2d1a0fa01d7b 100644
-> --- a/mm/page_cgroup.c
-> +++ b/mm/page_cgroup.c
-> @@ -105,8 +105,7 @@ struct page_cgroup *lookup_page_cgroup(struct page *page)
->  	return section->page_cgroup + pfn;
->  }
->  
-> -/* __alloc_bootmem...() is protected by !slab_available() */
-> -static int __init_refok init_section_page_cgroup(unsigned long pfn)
-> +static int __meminit init_section_page_cgroup(unsigned long pfn)
->  {
->  	struct mem_section *section = __pfn_to_section(pfn);
->  	struct page_cgroup *base, *pc;
+>   III) Discussing the current and future design of LRU.(for 30+min)
+> 
+>   IV) Diet of page_cgroup (for 30-min)
+>       Maybe this can be combined with III.
+> 
 
-Andrew, could you please have a look these patches too and consider
-applying them in your tree? I can resend them (with given Acked-by
-lines) if you want.
+Thank you for feedbacks. I think I don't have enough time to reply all..
+So, I'm sorry I make a reply in this style.
 
-Thanks.
+Hearing your replies and other private feedbacks, I think following schedule
+will be good. And I want to spend time for topics for which patches are
+posted and someone measured the cost and benefits.
+
+1) How memcg users uses it and what's wanted ?  (for 1st session/30min)
+
+   At start, we should sort out what's wanted as functions of memcg.
+   We need to hear use cases. And see what is the problem, now. 
+   Maybe we can discuss requirements for kernel memory limit, here.
+   (I think we have no time to discuss implemenation in official slot.)
+
+2) What's next ? : 30min.
+   At first, Pavel will explain what OpenVZ does.
+   Then, we can discuss about softlimit/isolation and LRU design.
+   I think it will be a hot topic in the next half year with dirty page handling.
+   
+3) Dirty Page Handling.
+
+4) Discussing LRU, costs and fairness.
+   At first, need to discuss effect of per-memcg background reclaim.
+   Then, discuss about new LRU design including removing page_cgroup->lru.
+ 
+5) Diet of page_cgroup and others.
+   I don't think diet topic requires full 30min. So, some extra topic is....
+   It seems some guys want to overcommit vmem size with cgroup.
 
 
--- 
-Regards,
-Namhyung Kim
+A topic from me was adding a memcg only-for-file-cache...but I have no patches.
+Postphone until I have a concrete idea and patches.
+
+Thanks,
+-Kame
+
+
+
+
 
 
 --
