@@ -1,237 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 52C388D0056
-	for <linux-mm@kvack.org>; Fri,  1 Apr 2011 09:39:16 -0400 (EDT)
-Message-Id: <20110401121725.892956392@chello.nl>
-Date: Fri, 01 Apr 2011 14:13:10 +0200
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F2358D0056
+	for <linux-mm@kvack.org>; Fri,  1 Apr 2011 09:39:18 -0400 (EDT)
+Message-Id: <20110401121726.285750519@chello.nl>
+Date: Fri, 01 Apr 2011 14:13:18 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 12/20] mm: Extended batches for generic mmu_gather
+Subject: [PATCH 20/20] mm: Optimize page_lock_anon_vma() fast-path
 References: <20110401121258.211963744@chello.nl>
-Content-Disposition: inline; filename=peter_zijlstra-mm-extended_batches_for_generic_mmu_gather.patch
+Content-Disposition: inline; filename=peter_zijlstra-mm-optimize_page_lock_anon_vma_fast-path.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrea Arcangeli <aarcange@redhat.com>, Avi Kivity <avi@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@elte.hu>, akpm@linux-foundation.org, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Yanmin Zhang <yanmin_zhang@linux.intel.com>, Hugh Dickins <hughd@google.com>
+Cc: linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Yanmin Zhang <yanmin_zhang@linux.intel.com>
 
-Instead of using a single batch (the small on-stack, or an allocated
-page), try and extend the batch every time it runs out and only flush
-once either the extend fails or we're done.
+Optimize the page_lock_anon_vma() fast path to be one atomic op,
+instead of two.
 
-Requested-by: Nick Piggin <npiggin@suse.de>
 Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Acked-by: Hugh Dickins <hughd@google.com>
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 LKML-Reference: <new-submission>
 ---
- include/asm-generic/tlb.h |  129 +++++++++++++++++++++++++++++-----------------
- 1 file changed, 83 insertions(+), 46 deletions(-)
+ mm/rmap.c |   86 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 82 insertions(+), 4 deletions(-)
 
-Index: linux-2.6/include/asm-generic/tlb.h
+Index: linux-2.6/mm/rmap.c
 ===================================================================
---- linux-2.6.orig/include/asm-generic/tlb.h
-+++ linux-2.6/include/asm-generic/tlb.h
-@@ -19,16 +19,6 @@
- #include <asm/pgalloc.h>
- #include <asm/tlbflush.h>
+--- linux-2.6.orig/mm/rmap.c
++++ linux-2.6/mm/rmap.c
+@@ -85,6 +85,29 @@ static inline struct anon_vma *anon_vma_
+ static inline void anon_vma_free(struct anon_vma *anon_vma)
+ {
+ 	VM_BUG_ON(atomic_read(&anon_vma->refcount));
++
++	/*
++	 * Synchronize against page_lock_anon_vma() such that
++	 * we can safely hold the lock without the anon_vma getting
++	 * freed.
++	 *
++	 * Relies on the full mb implied by the atomic_dec_and_test() from
++	 * put_anon_vma() against the acquire barrier implied by
++	 * mutex_trylock() from page_lock_anon_vma(). This orders:
++	 *
++	 * page_lock_anon_vma()		VS	put_anon_vma()
++	 *   mutex_trylock()			  atomic_dec_and_test()
++	 *   LOCK				  MB
++	 *   atomic_read()			  mutex_is_locked()
++	 *
++	 * LOCK should suffice since the actual taking of the lock must
++	 * happen _before_ what follows.
++	 */
++	if (mutex_is_locked(&anon_vma->root->mutex)) {
++		anon_vma_lock(anon_vma);
++		anon_vma_unlock(anon_vma);
++	}
++
+ 	kmem_cache_free(anon_vma_cachep, anon_vma);
+ }
  
--/*
-- * For UP we don't need to worry about TLB flush
-- * and page free order so much..
-- */
--#ifdef CONFIG_SMP
--  #define tlb_fast_mode(tlb) ((tlb)->nr == ~0U)
--#else
--  #define tlb_fast_mode(tlb) 1
--#endif
--
- #ifdef CONFIG_HAVE_RCU_TABLE_FREE
- /*
-  * Semi RCU freeing of the page directories.
-@@ -78,6 +68,16 @@ extern void tlb_remove_table(struct mmu_
-  */
- #define MMU_GATHER_BUNDLE	8
+@@ -371,20 +394,75 @@ struct anon_vma *page_get_anon_vma(struc
+ 	return anon_vma;
+ }
  
-+struct mmu_gather_batch {
-+	struct mmu_gather_batch	*next;
-+	unsigned int		nr;
-+	unsigned int		max;
-+	struct page		*pages[0];
-+};
-+
-+#define MAX_GATHER_BATCH	\
-+	((PAGE_SIZE - sizeof(struct mmu_gather_batch)) / sizeof(void *))
-+
- /* struct mmu_gather is an opaque type used by the mm code for passing around
-  * any data needed by arch specific code for tlb_remove_page.
-  */
-@@ -86,22 +86,48 @@ struct mmu_gather {
- #ifdef CONFIG_HAVE_RCU_TABLE_FREE
- 	struct mmu_table_batch	*batch;
- #endif
--	unsigned int		nr;	/* set to ~0U means fast mode */
--	unsigned int		max;	/* nr < max */
--	unsigned int		need_flush;/* Really unmapped some ptes? */
--	unsigned int		fullmm; /* non-zero means full mm flush */
--	struct page		**pages;
--	struct page		*local[MMU_GATHER_BUNDLE];
-+	unsigned int		need_flush : 1,	/* Did free PTEs */
-+				fast_mode  : 1; /* No batching   */
-+
-+	unsigned int		fullmm;
-+
-+	struct mmu_gather_batch *active;
-+	struct mmu_gather_batch	local;
-+	struct page		*__pages[MMU_GATHER_BUNDLE];
- };
- 
--static inline void __tlb_alloc_page(struct mmu_gather *tlb)
 +/*
-+ * For UP we don't need to worry about TLB flush
-+ * and page free order so much..
++ * Similar to page_get_anon_vma() except it locks the anon_vma.
++ *
++ * Its a little more complex as it tries to keep the fast path to a single
++ * atomic op -- the trylock. If we fail the trylock, we fall back to getting a
++ * reference like with page_get_anon_vma() and then block on the mutex.
 + */
-+#ifdef CONFIG_SMP
-+  #define tlb_fast_mode(tlb) (tlb->fast_mode)
-+#else
-+  #define tlb_fast_mode(tlb) 1
-+#endif
-+
-+static inline int tlb_next_batch(struct mmu_gather *tlb)
+ struct anon_vma *page_lock_anon_vma(struct page *page)
  {
--	unsigned long addr = __get_free_pages(GFP_NOWAIT | __GFP_NOWARN, 0);
-+	struct mmu_gather_batch *batch;
+-	struct anon_vma *anon_vma = page_get_anon_vma(page);
++	struct anon_vma *anon_vma = NULL;
++	unsigned long anon_mapping;
  
--	if (addr) {
--		tlb->pages = (void *)addr;
--		tlb->max = PAGE_SIZE / sizeof(struct page *);
-+	batch = tlb->active;
-+	if (batch->next) {
-+		tlb->active = batch->next;
-+		return 1;
- 	}
+-	if (anon_vma)
+-		anon_vma_lock(anon_vma);
++	rcu_read_lock();
++	anon_mapping = (unsigned long) ACCESS_ONCE(page->mapping);
++	if ((anon_mapping & PAGE_MAPPING_FLAGS) != PAGE_MAPPING_ANON)
++		goto out;
++	if (!page_mapped(page))
++		goto out;
 +
-+	batch = (void *)__get_free_pages(GFP_NOWAIT | __GFP_NOWARN, 0);
-+	if (!batch)
-+		return 0;
-+
-+	batch->next = NULL;
-+	batch->nr   = 0;
-+	batch->max  = MAX_GATHER_BATCH;
-+
-+	tlb->active->next = batch;
-+	tlb->active = batch;
-+
-+	return 1;
- }
- 
- /* tlb_gather_mmu
-@@ -114,16 +140,13 @@ tlb_gather_mmu(struct mmu_gather *tlb, s
- {
- 	tlb->mm = mm;
- 
--	tlb->max = ARRAY_SIZE(tlb->local);
--	tlb->pages = tlb->local;
--
--	if (num_online_cpus() > 1) {
--		tlb->nr = 0;
--		__tlb_alloc_page(tlb);
--	} else /* Use fast mode if only one CPU is online */
--		tlb->nr = ~0U;
--
--	tlb->fullmm = fullmm;
-+	tlb->fullmm     = fullmm;
-+	tlb->need_flush = 0;
-+	tlb->fast_mode  = (num_possible_cpus() == 1);
-+	tlb->local.next = NULL;
-+	tlb->local.nr   = 0;
-+	tlb->local.max  = ARRAY_SIZE(tlb->__pages);
-+	tlb->active     = &tlb->local;
- 
- #ifdef CONFIG_HAVE_RCU_TABLE_FREE
- 	tlb->batch = NULL;
-@@ -133,6 +156,8 @@ tlb_gather_mmu(struct mmu_gather *tlb, s
- static inline void
- tlb_flush_mmu(struct mmu_gather *tlb)
- {
-+	struct mmu_gather_batch *batch;
-+
- 	if (!tlb->need_flush)
- 		return;
- 	tlb->need_flush = 0;
-@@ -140,17 +165,15 @@ tlb_flush_mmu(struct mmu_gather *tlb)
- #ifdef CONFIG_HAVE_RCU_TABLE_FREE
- 	tlb_table_flush(tlb);
- #endif
--	if (!tlb_fast_mode(tlb)) {
--		free_pages_and_swap_cache(tlb->pages, tlb->nr);
--		tlb->nr = 0;
--		/*
--		 * If we are using the local on-stack array of pages for MMU
--		 * gather, try allocating an off-stack array again as we have
--		 * recently freed pages.
--		 */
--		if (tlb->pages == tlb->local)
--			__tlb_alloc_page(tlb);
-+
-+	if (tlb_fast_mode(tlb))
-+		return;
-+
-+	for (batch = &tlb->local; batch; batch = batch->next) {
-+		free_pages_and_swap_cache(batch->pages, batch->nr);
-+		batch->nr = 0;
- 	}
-+	tlb->active = &tlb->local;
- }
- 
- /* tlb_finish_mmu
-@@ -160,13 +183,18 @@ tlb_flush_mmu(struct mmu_gather *tlb)
- static inline void
- tlb_finish_mmu(struct mmu_gather *tlb, unsigned long start, unsigned long end)
- {
-+	struct mmu_gather_batch *batch, *next;
-+
- 	tlb_flush_mmu(tlb);
- 
- 	/* keep the page table cache within bounds */
- 	check_pgt_cache();
- 
--	if (tlb->pages != tlb->local)
--		free_pages((unsigned long)tlb->pages, 0);
-+	for (batch = tlb->local.next; batch; batch = next) {
-+		next = batch->next;
-+		free_pages((unsigned long)batch, 0);
-+	}
-+	tlb->local.next = NULL;
- }
- 
- /* __tlb_remove_page
-@@ -177,15 +205,24 @@ tlb_finish_mmu(struct mmu_gather *tlb, u
-  */
- static inline int __tlb_remove_page(struct mmu_gather *tlb, struct page *page)
- {
-+	struct mmu_gather_batch *batch;
-+
- 	tlb->need_flush = 1;
-+
- 	if (tlb_fast_mode(tlb)) {
- 		free_page_and_swap_cache(page);
- 		return 1; /* avoid calling tlb_flush_mmu() */
- 	}
--	tlb->pages[tlb->nr++] = page;
--	VM_BUG_ON(tlb->nr > tlb->max);
- 
--	return tlb->max - tlb->nr;
-+	batch = tlb->active;
-+	batch->pages[batch->nr++] = page;
-+	VM_BUG_ON(batch->nr > batch->max);
-+	if (batch->nr == batch->max) {
-+		if (!tlb_next_batch(tlb))
-+			return 0;
++	anon_vma = (struct anon_vma *) (anon_mapping - PAGE_MAPPING_ANON);
++	if (mutex_trylock(&anon_vma->root->mutex)) {
++		/*
++		 * If we observe a !0 refcount, then holding the lock ensures
++		 * the anon_vma will not go away, see __put_anon_vma().
++		 */
++		if (!atomic_read(&anon_vma->refcount)) {
++			anon_vma_unlock(anon_vma);
++			anon_vma = NULL;
++		}
++		goto out;
 +	}
 +
-+	return batch->max - batch->nr;
++	/* trylock failed, we got to sleep */
++	if (!atomic_inc_not_zero(&anon_vma->refcount)) {
++		anon_vma = NULL;
++		goto out;
++	}
+ 
++	if (!page_mapped(page)) {
++		put_anon_vma(anon_vma);
++		anon_vma = NULL;
++		goto out;
++	}
++
++	/* we pinned the anon_vma, its safe to sleep */
++	rcu_read_unlock();
++	anon_vma_lock(anon_vma);
++
++	if (atomic_dec_and_test(&anon_vma->refcount)) {
++		/*
++		 * Oops, we held the last refcount, release the lock
++		 * and bail -- can't simply use put_anon_vma() because
++		 * we'll deadlock on the anon_vma_lock() recursion.
++		 */
++		anon_vma_unlock(anon_vma);
++		__put_anon_vma(anon_vma);
++		anon_vma = NULL;
++	}
++
++	return anon_vma;
++
++out:
++	rcu_read_unlock();
+ 	return anon_vma;
  }
  
- /* tlb_remove_page
+ void page_unlock_anon_vma(struct anon_vma *anon_vma)
+ {
+ 	anon_vma_unlock(anon_vma);
+-	put_anon_vma(anon_vma);
+ }
+ 
+ /*
 
 
 --
