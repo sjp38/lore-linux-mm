@@ -1,42 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B70A8D0040
-	for <linux-mm@kvack.org>; Fri,  1 Apr 2011 10:57:48 -0400 (EDT)
-Received: from d01dlp01.pok.ibm.com (d01dlp01.pok.ibm.com [9.56.224.56])
-	by e3.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p31Eb0ad017797
-	for <linux-mm@kvack.org>; Fri, 1 Apr 2011 10:37:00 -0400
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 4942D38C803B
-	for <linux-mm@kvack.org>; Fri,  1 Apr 2011 10:57:38 -0400 (EDT)
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p31EuvM8062300
-	for <linux-mm@kvack.org>; Fri, 1 Apr 2011 10:57:05 -0400
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p31Eutse027317
-	for <linux-mm@kvack.org>; Fri, 1 Apr 2011 08:56:57 -0600
-Date: Fri, 1 Apr 2011 20:17:12 +0530
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 79AF58D0040
+	for <linux-mm@kvack.org>; Fri,  1 Apr 2011 10:52:05 -0400 (EDT)
+Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
+	by e28smtp08.in.ibm.com (8.14.4/8.13.1) with ESMTP id p31Dle86009175
+	for <linux-mm@kvack.org>; Fri, 1 Apr 2011 19:17:40 +0530
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p31EkOiq2728000
+	for <linux-mm@kvack.org>; Fri, 1 Apr 2011 20:16:24 +0530
+Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
+	by d28av01.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p31EkO9i015382
+	for <linux-mm@kvack.org>; Fri, 1 Apr 2011 20:16:25 +0530
 From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: [RESEND] [PATCH v3 2.6.39-rc1-tip 21/26] 21: Uprobe tracer
- documentation Dronamraju <srikar@linux.vnet.ibm.com>
-Message-ID: <20110401144712.GA15638@linux.vnet.ibm.com>
-Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Date: Fri, 01 Apr 2011 20:06:47 +0530
+Message-Id: <20110401143647.15455.19384.sendpatchset@localhost6.localdomain6>
+In-Reply-To: <20110401143223.15455.19844.sendpatchset@localhost6.localdomain6>
 References: <20110401143223.15455.19844.sendpatchset@localhost6.localdomain6>
- <20110401143647.15455.19384.sendpatchset@localhost6.localdomain6>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20110401143647.15455.19384.sendpatchset@localhost6.localdomain6>
+Subject: [PATCH v3 2.6.39-rc1-tip 21/26] 21: Signed-off-by: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>
-Cc: Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Christoph Hellwig <hch@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, SystemTap <systemtap@sources.redhat.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Steven Rostedt <rostedt@goodmis.org>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Christoph Hellwig <hch@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, SystemTap <systemtap@sources.redhat.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>
 
-[Resending the patch after correcting the Subject and with sign-off in
-body.]
-
-uprobetracer Documentation.
-
-Signed-off-by: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
 ---
  Documentation/trace/uprobetrace.txt |   94 +++++++++++++++++++++++++++++++++++
  1 files changed, 94 insertions(+), 0 deletions(-)
