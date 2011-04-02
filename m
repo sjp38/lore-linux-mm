@@ -1,47 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id A61708D0040
-	for <linux-mm@kvack.org>; Fri,  1 Apr 2011 20:08:00 -0400 (EDT)
-Date: Fri, 01 Apr 2011 17:07:20 -0700 (PDT)
-Message-Id: <20110401.170720.104061844.davem@davemloft.net>
-Subject: Re: [PATCH 02/17] mm: mmu_gather rework
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <AANLkTimvHdGZptwmmw73C2jsy=HqgreEAxNurT1Hxbv=@mail.gmail.com>
-References: <4D87109A.1010005@redhat.com>
-	<1301659631.4859.565.camel@twins>
-	<AANLkTimvHdGZptwmmw73C2jsy=HqgreEAxNurT1Hxbv=@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 01E618D0040
+	for <linux-mm@kvack.org>; Fri,  1 Apr 2011 20:27:24 -0400 (EDT)
+Date: Fri, 1 Apr 2011 20:26:33 -0400
+From: Stephen Wilson <wilsons@start.ca>
+Subject: Re: [PATCH v3 2.6.39-rc1-tip 6/26]  6: Uprobes:
+	register/unregister probes.
+Message-ID: <20110402002633.GA13277@fibrous.localdomain>
+References: <20110401143223.15455.19844.sendpatchset@localhost6.localdomain6> <20110401143338.15455.98645.sendpatchset@localhost6.localdomain6>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110401143338.15455.98645.sendpatchset@localhost6.localdomain6>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: torvalds@linux-foundation.org
-Cc: a.p.zijlstra@chello.nl, avi@redhat.com, mel@csn.ul.ie, aarcange@redhat.com, tglx@linutronix.de, riel@redhat.com, mingo@elte.hu, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, benh@kernel.crashing.org, hugh.dickins@tiscali.co.uk, npiggin@kernel.dk, paulmck@linux.vnet.ibm.com, yanmin_zhang@linux.intel.com, schwidefsky@de.ibm.com, rmk@arm.linux.org.uk, lethal@linux-sh.org, jdike@addtoit.com, tony.luck@intel.com, hughd@google.com
+To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Christoph Hellwig <hch@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, SystemTap <systemtap@sources.redhat.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>
 
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Fri, 1 Apr 2011 09:13:51 -0700
+On Fri, Apr 01, 2011 at 08:03:38PM +0530, Srikar Dronamraju wrote:
+> +int register_uprobe(struct inode *inode, loff_t offset,
+> +				struct uprobe_consumer *consumer)
+> +{
+> +	struct prio_tree_iter iter;
+> +	struct list_head try_list, success_list;
+> +	struct address_space *mapping;
+> +	struct mm_struct *mm, *tmpmm;
+> +	struct vm_area_struct *vma;
+> +	struct uprobe *uprobe;
+> +	int ret = -1;
+> +
+> +	if (!inode || !consumer || consumer->next)
+> +		return -EINVAL;
+> +
+> +	uprobe = uprobes_add(inode, offset);
+> +	if (!uprobe)
+> +		return -ENOMEM;
+> +
+> +	INIT_LIST_HEAD(&try_list);
+> +	INIT_LIST_HEAD(&success_list);
+> +	mapping = inode->i_mapping;
+> +
+> +	mutex_lock(&uprobes_mutex);
+> +	if (uprobe->consumers) {
+> +		ret = 0;
+> +		goto consumers_add;
+> +	}
+> +
+> +	spin_lock(&mapping->i_mmap_lock);
+> +	vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, 0, 0) {
+> +		loff_t vaddr;
+> +
+> +		if (!atomic_inc_not_zero(&vma->vm_mm->mm_users))
+> +			continue;
+> +
+> +		mm = vma->vm_mm;
+> +		if (!valid_vma(vma)) {
+> +			mmput(mm);
+> +			continue;
+> +		}
+> +
+> +		vaddr = vma->vm_start + offset;
+> +		vaddr -= vma->vm_pgoff << PAGE_SHIFT;
 
-> What's the difference? Integer assignment makes a hell of a difference. Do this:
-> 
->   long long expression = ...
->   ...
->   bool val = expression;
-> 
-> and depending on implementation it will either just truncate the value
-> to a random number of bits, or actually do a compare with zero.
+What happens here when someone passes an offset that is out of bounds
+for the vma?  Looks like we could oops when the kernel tries to set a
+breakpoint.  Perhaps check wrt ->vm_end?
 
-But note that, as you indicate, using int's to store boolean values
-have this exact problem.
-
-And most of the time people are converting an "int used as a boolean
-value" into a "bool".
-
-At least the "bool" has a chance of giving true boolean semantics in
-the case you describe, whereas the 'int' always has the potential
-truncation issue.
-
-So, personally, I see it as a net positive to convert int to bool when
-the variable is being used to take on true/false values.
+-- 
+steve
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
