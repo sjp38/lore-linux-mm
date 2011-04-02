@@ -1,59 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id EFDAF8D0040
-	for <linux-mm@kvack.org>; Fri,  1 Apr 2011 21:03:53 -0400 (EDT)
-Received: from d03relay05.boulder.ibm.com (d03relay05.boulder.ibm.com [9.17.195.107])
-	by e37.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p32114us000576
-	for <linux-mm@kvack.org>; Fri, 1 Apr 2011 19:01:04 -0600
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay05.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p3213iRd103764
-	for <linux-mm@kvack.org>; Fri, 1 Apr 2011 19:03:44 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p3213hLE020070
-	for <linux-mm@kvack.org>; Fri, 1 Apr 2011 19:03:44 -0600
-Date: Sat, 2 Apr 2011 06:23:53 +0530
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: Re: [PATCH v3 2.6.39-rc1-tip 6/26]  6: Uprobes:
- register/unregister probes.
-Message-ID: <20110402005353.GA17416@linux.vnet.ibm.com>
-Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-References: <20110401143223.15455.19844.sendpatchset@localhost6.localdomain6>
- <20110401143338.15455.98645.sendpatchset@localhost6.localdomain6>
- <20110402002633.GA13277@fibrous.localdomain>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id CC1F68D0040
+	for <linux-mm@kvack.org>; Fri,  1 Apr 2011 21:10:46 -0400 (EDT)
+Date: Sat, 2 Apr 2011 12:10:40 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH 0/3] Unmapped page cache control (v5)
+Message-ID: <20110402011040.GG6957@dastard>
+References: <20110331144145.0ECA.A69D9226@jp.fujitsu.com>
+ <alpine.DEB.2.00.1103311451530.28364@router.home>
+ <20110401221921.A890.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110402002633.GA13277@fibrous.localdomain>
+In-Reply-To: <20110401221921.A890.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Stephen Wilson <wilsons@start.ca>
-Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Christoph Hellwig <hch@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, SystemTap <systemtap@sources.redhat.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Christoph Lameter <cl@linux.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org, akpm@linux-foundation.org, npiggin@kernel.dk, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan.kim@gmail.com>
 
-> > +
-> > +		mm = vma->vm_mm;
-> > +		if (!valid_vma(vma)) {
-> > +			mmput(mm);
-> > +			continue;
-> > +		}
-> > +
-> > +		vaddr = vma->vm_start + offset;
-> > +		vaddr -= vma->vm_pgoff << PAGE_SHIFT;
+On Fri, Apr 01, 2011 at 10:17:56PM +0900, KOSAKI Motohiro wrote:
+> > > But, I agree that now we have to concern slightly large VM change parhaps
+> > > (or parhaps not). Ok, it's good opportunity to fill out some thing.
+> > > Historically, Linux MM has "free memory are waste memory" policy, and It
+> > > worked completely fine. But now we have a few exceptions.
+> > >
+> > > 1) RT, embedded and finance systems. They really hope to avoid reclaim
+> > >    latency (ie avoid foreground reclaim completely) and they can accept
+> > >    to make slightly much free pages before memory shortage.
+> > 
+> > In general we need a mechanism to ensure we can avoid reclaim during
+> > critical sections of application. So some way to give some hints to the
+> > machine to free up lots of memory (/proc/sys/vm/dropcaches is far too
+> > drastic) may be useful.
 > 
-> What happens here when someone passes an offset that is out of bounds
-> for the vma?  Looks like we could oops when the kernel tries to set a
-> breakpoint.  Perhaps check wrt ->vm_end?
-> 
+> Exactly.
+> I've heard multiple times this request from finance people. And I've also 
+> heared the same request from bullet train control software people recently.
 
-If the offset is wrong, install_uprobe will fail, since
-grab_cache_page() should not be able to find that page for us.
-And hence we return gracefully.
+Well, that's enough to make me avoid Japanese trains in future. If
+your critical control system has problems with memory reclaim
+interfering with it's operation, then you are doing something
+very, very wrong.
 
-I will surely test this case and I am happy to add a check for
-vm_end.
+If you have a need to avoid memory allocation latency during
+specific critical sections then the critical section needs to:
 
+	a) have all it's memory preallocated and mlock()d in advance
+
+	b) avoid doing anything that requires memory to be
+	   allocated.
+
+These are basic design rules for time-sensitive applications.
+
+Fundamentally, if you just switch off memory reclaim to avoid the
+latencies involved with direct memory reclaim, then all you'll get
+instead is ENOMEM because there's no memory available and none will be
+reclaimed. That's even more fatal for the system than doing reclaim.
+
+IMO, you should tell the people requesting stuff like this to
+architect their critical sections according to best practices.
+Hacking the VM to try to work around badly designed applications is
+a sure recipe for disaster...
+
+Cheers,
+
+Dave.
 -- 
-Thanks and Regards
-Srikar
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
