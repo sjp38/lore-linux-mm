@@ -1,168 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 26B348D0040
-	for <linux-mm@kvack.org>; Fri,  1 Apr 2011 22:52:52 -0400 (EDT)
-Received: from kpbe19.cbf.corp.google.com (kpbe19.cbf.corp.google.com [172.25.105.83])
-	by smtp-out.google.com with ESMTP id p322qkDe012869
-	for <linux-mm@kvack.org>; Fri, 1 Apr 2011 19:52:48 -0700
-Received: from iym7 (iym7.prod.google.com [10.241.52.7])
-	by kpbe19.cbf.corp.google.com with ESMTP id p322q7Lc018153
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id AA2EF8D0040
+	for <linux-mm@kvack.org>; Fri,  1 Apr 2011 23:35:41 -0400 (EDT)
+Received: from kpbe13.cbf.corp.google.com (kpbe13.cbf.corp.google.com [172.25.105.77])
+	by smtp-out.google.com with ESMTP id p323ZdYe005596
+	for <linux-mm@kvack.org>; Fri, 1 Apr 2011 20:35:39 -0700
+Received: from iyj12 (iyj12.prod.google.com [10.241.51.76])
+	by kpbe13.cbf.corp.google.com with ESMTP id p323Z9i8003443
 	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 1 Apr 2011 19:52:45 -0700
-Received: by iym7 with SMTP id 7so5223238iym.24
-        for <linux-mm@kvack.org>; Fri, 01 Apr 2011 19:52:44 -0700 (PDT)
-Date: Fri, 1 Apr 2011 19:52:37 -0700 (PDT)
+	for <linux-mm@kvack.org>; Fri, 1 Apr 2011 20:35:38 -0700
+Received: by iyj12 with SMTP id 12so5248715iyj.13
+        for <linux-mm@kvack.org>; Fri, 01 Apr 2011 20:35:34 -0700 (PDT)
+Date: Fri, 1 Apr 2011 20:35:41 -0700 (PDT)
 From: Hugh Dickins <hughd@google.com>
 Subject: Re: [PATCH] ramfs: fix memleak on no-mmu arch
-In-Reply-To: <1301290355-8980-1-git-send-email-lliubbo@gmail.com>
-Message-ID: <alpine.LSU.2.00.1104011929090.3340@sister.anvils>
-References: <1301290355-8980-1-git-send-email-lliubbo@gmail.com>
+In-Reply-To: <20110328170220.fc61fb5c.akpm@linux-foundation.org>
+Message-ID: <alpine.LSU.2.00.1104011953350.3340@sister.anvils>
+References: <1301290355-8980-1-git-send-email-lliubbo@gmail.com> <20110328170220.fc61fb5c.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bob Liu <lliubbo@gmail.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, hughd@google.com, viro@zeniv.linux.org.uk, hch@lst.de, npiggin@kernel.dk, tj@kernel.org, dhowells@redhat.com, lethal@linux-sh.org, magnus.damm@gmail.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Bob Liu <lliubbo@gmail.com>, linux-mm@kvack.org, viro@zeniv.linux.org.uk, hch@lst.de, npiggin@kernel.dk, tj@kernel.org, dhowells@redhat.com, lethal@linux-sh.org, magnus.damm@gmail.com
 
-On Mon, 28 Mar 2011, Bob Liu wrote:
-> On no-mmu arch, there is a memleak duirng shmem test.
-> The cause of this memleak is ramfs_nommu_expand_for_mapping() added page
-> refcount to 2 which makes iput() can't free that pages.
+On Mon, 28 Mar 2011, Andrew Morton wrote:
+> On Mon, 28 Mar 2011 13:32:35 +0800
+> Bob Liu <lliubbo@gmail.com> wrote:
 > 
-> The simple test file is like this:
-> int main(void)
-> {
-> 	int i;
-> 	key_t k = ftok("/etc", 42);
+> > On no-mmu arch, there is a memleak duirng shmem test.
+> > The cause of this memleak is ramfs_nommu_expand_for_mapping() added page
+> > refcount to 2 which makes iput() can't free that pages.
+> > ...
+> > 
+> > diff --git a/fs/ramfs/file-nommu.c b/fs/ramfs/file-nommu.c
+> > index 9eead2c..fbb0b47 100644
+> > --- a/fs/ramfs/file-nommu.c
+> > +++ b/fs/ramfs/file-nommu.c
+> > @@ -112,6 +112,7 @@ int ramfs_nommu_expand_for_mapping(struct inode *inode, size_t newsize)
+> >  		SetPageDirty(page);
+> >  
+> >  		unlock_page(page);
+> > +		put_page(page);
+> >  	}
+> >  
+> >  	return 0;
 > 
-> 	for ( i=0; i<100; ++i) {
-> 		int id = shmget(k, 10000, 0644|IPC_CREAT);
-> 		if (id == -1) {
-> 			printf("shmget error\n");
-> 		}
-> 		if(shmctl(id, IPC_RMID, NULL ) == -1) {
-> 			printf("shm  rm error\n");
-> 			return -1;
-> 		}
-> 	}
-> 	printf("run ok...\n");
-> 	return 0;
-> }
+> Something is still wrong here.
+
+I don't think so.
+
 > 
-> And the result:
-> root:/> free
->              total         used         free       shared      buffers
-> Mem:         60320        16644        43676            0            0
-> -/+ buffers:              16644        43676
-> root:/> shmem
-> run ok...
-> root:/> free
->              total         used         free       shared      buffers
-> Mem:         60320        17912        42408            0            0
-> -/+ buffers:              17912        42408
-> root:/> shmem
-> run ok...
-> root:/> free
->              total         used         free       shared      buffers
-> Mem:         60320        19096        41224            0            0
-> -/+ buffers:              19096        41224
-> root:/> shmem
-> run ok...
-> root:/> free
->              total         used         free       shared      buffers
-> Mem:         60320        20296        40024            0            0
-> -/+ buffers:              20296        40024
-> root:/> shmem
-> run ok...
-> root:/> free
->              total         used         free       shared      buffers
-> Mem:         60320        21496        38824            0            0
-> -/+ buffers:              21496        38824
-> root:/> shmem 
-> run ok...
-> root:/> free
->              total         used         free       shared      buffers
-> Mem:         60320        22692        37628            0            0
-> -/+ buffers:              22692        37628
-> root:/> 
+> A live, in-use page should have a refcount of three.  One for the
+> existence of the page, one for its presence on the page LRU and one for
+> its existence in the pagecache radix tree.
+
+No, we don't count 1 for the LRU: it always seems a little odd that
+we don't, but that's how it is.  I did dive into the debugger to
+check that is really still the case.  And it doesn't really matter
+here, since of course we don't count -1 when taking off LRU either.
+
+The pages here are not "in-use" as such: we're just priming the
+page cache with them, so they will be found shortly afterwards
+when they do come into use, when inserted into the address space.
+
+What if memory pressure comes in and frees them before then?
+Er, er, that gave me a nasty turn.  But there's a comment
+just above the SetPageDirty visible in Bob's patch, saying
+/* prevent the page from being discarded on memory pressure */
+
 > 
-> After this patch the test result is:(no memleak anymore)
-> root:/> 
-> root:/> free
->              total         used         free       shared      buffers
-> Mem:         60320        16580        43740            0            0
-> -/+ buffers:              16580        43740
-> root:/> shmem
-> run ok...
-> root:/> free
->              total         used         free       shared      buffers
-> Mem:         60320        16668        43652            0            0
-> -/+ buffers:              16668        43652
-> root:/> shmem
-> run ok...
-> root:/> free
->              total         used         free       shared      buffers
-> Mem:         60320        16668        43652            0            0
-> -/+ buffers:              16668        43652
-> root:/> shmem
-> run ok...
-> root:/> free
->              total         used         free       shared      buffers
-> Mem:         60320        16668        43652            0            0
-> -/+ buffers:              16668        43652
-> root:/> shmem
-> run ok...
-> root:/> free
->              total         used         free       shared      buffers
-> Mem:         60320        16668        43652            0            0
-> -/+ buffers:              16668        43652
-> root:/> shmem
-> run ok...
-> root:/> free
->              total         used         free       shared      buffers
-> Mem:         60320        16668        43652            0            0
-> -/+ buffers:              16668        43652
-> root:/> 
+> So allocation should do:
 > 
-> Signed-off-by: Bob Liu <lliubbo@gmail.com>
+> 	alloc_pages()
 
-Acked-by: Hugh Dickins <hughd@google.com>
-Cc: stable@kernel.org
+Yes, it did that (along with a split_page we can ignore here).
 
-Sorry for being so slow to get back to this, Bob.
+> 	add_to_page_cache()
+> 	add_to_lru()
 
-And I'm sorry that in my original patch for it, I just couldn't
-resist a little tidying up while I was there: which led Paul to
-observe correctly that the function would be better off using
-alloc_pages_exact(); which made me pause before responding,
-seeing a proposal to rename that to get_free_pages_exact().
+And those it did in the combined function add_to_page_cache_lru().
 
-Aaaaaah, let's go with your patch below, which fixes the bug in
-the simplest fashion; and do any tidying up at leisure later on.
+> 
+> and deallocation should do
+> 
+> 	remove_from_lru()
+> 	remove_from_page_cache()
 
-I see Andrew is questioning the correctness of this patch:
-let me answer his mail separately.
+Nowadays delete_from_page_cache(), which decrements the reference
+acquired in add_to_page_cache().
+
+> 	put_page()
+> 
+> If this protocol is followed correctly, there is no need to do a
+> put_page() during the allocation/setup phase!
+
+There is a get_page() when each page is mapped into the address
+space, which then matches the final put_page() you show above.
+
+> 
+> I suspect that the problem in nommu really lies in the
+> deallocation/teardown phase.
 
 Hugh
-
-> ---
->  fs/ramfs/file-nommu.c |    1 +
->  1 files changed, 1 insertions(+), 0 deletions(-)
-> 
-> diff --git a/fs/ramfs/file-nommu.c b/fs/ramfs/file-nommu.c
-> index 9eead2c..fbb0b47 100644
-> --- a/fs/ramfs/file-nommu.c
-> +++ b/fs/ramfs/file-nommu.c
-> @@ -112,6 +112,7 @@ int ramfs_nommu_expand_for_mapping(struct inode *inode, size_t newsize)
->  		SetPageDirty(page);
->  
->  		unlock_page(page);
-> +		put_page(page);
->  	}
->  
->  	return 0;
-> -- 
-> 1.6.3.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
