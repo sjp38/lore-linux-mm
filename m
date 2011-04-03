@@ -1,100 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id A23228D0040
-	for <linux-mm@kvack.org>; Sun,  3 Apr 2011 05:32:21 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 429333EE0AE
-	for <linux-mm@kvack.org>; Sun,  3 Apr 2011 18:32:18 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2A84645DE93
-	for <linux-mm@kvack.org>; Sun,  3 Apr 2011 18:32:18 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 083B245DE91
-	for <linux-mm@kvack.org>; Sun,  3 Apr 2011 18:32:18 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id ED332E08003
-	for <linux-mm@kvack.org>; Sun,  3 Apr 2011 18:32:17 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id B6960E08001
-	for <linux-mm@kvack.org>; Sun,  3 Apr 2011 18:32:17 +0900 (JST)
+	by kanga.kvack.org (Postfix) with ESMTP id 4E2688D0040
+	for <linux-mm@kvack.org>; Sun,  3 Apr 2011 05:39:17 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id AFE6C3EE0C0
+	for <linux-mm@kvack.org>; Sun,  3 Apr 2011 18:39:13 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 9215345DE50
+	for <linux-mm@kvack.org>; Sun,  3 Apr 2011 18:39:13 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 766F245DE4E
+	for <linux-mm@kvack.org>; Sun,  3 Apr 2011 18:39:13 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 6696A1DB803B
+	for <linux-mm@kvack.org>; Sun,  3 Apr 2011 18:39:13 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 31E481DB802F
+	for <linux-mm@kvack.org>; Sun,  3 Apr 2011 18:39:13 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Subject: Re: [PATCH 0/3] Unmapped page cache control (v5)
-In-Reply-To: <20110402011040.GG6957@dastard>
-References: <20110401221921.A890.A69D9226@jp.fujitsu.com> <20110402011040.GG6957@dastard>
-Message-Id: <20110403183229.AE4C.A69D9226@jp.fujitsu.com>
+In-Reply-To: <20110401180455.GU2879@balbir.in.ibm.com>
+References: <20110401222250.A894.A69D9226@jp.fujitsu.com> <20110401180455.GU2879@balbir.in.ibm.com>
+Message-Id: <20110403183927.AE4D.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Date: Sun,  3 Apr 2011 18:32:16 +0900 (JST)
+Date: Sun,  3 Apr 2011 18:39:12 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org, akpm@linux-foundation.org, npiggin@kernel.dk, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan.kim@gmail.com>
+To: balbir@linux.vnet.ibm.com
+Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, akpm@linux-foundation.org, npiggin@kernel.dk, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, cl@linux.com, kamezawa.hiroyu@jp.fujitsu.com, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan.kim@gmail.com>
 
-> On Fri, Apr 01, 2011 at 10:17:56PM +0900, KOSAKI Motohiro wrote:
-> > > > But, I agree that now we have to concern slightly large VM change parhaps
-> > > > (or parhaps not). Ok, it's good opportunity to fill out some thing.
-> > > > Historically, Linux MM has "free memory are waste memory" policy, and It
-> > > > worked completely fine. But now we have a few exceptions.
-> > > >
-> > > > 1) RT, embedded and finance systems. They really hope to avoid reclaim
-> > > >    latency (ie avoid foreground reclaim completely) and they can accept
-> > > >    to make slightly much free pages before memory shortage.
+> > > > Hm. OK, I may misread.
+> > > > Can you please explain the reason why de-duplication feature need to selectable and
+> > > > disabled by defaut. "explicity enable" mean this feature want to spot corner case issue??
 > > > 
-> > > In general we need a mechanism to ensure we can avoid reclaim during
-> > > critical sections of application. So some way to give some hints to the
-> > > machine to free up lots of memory (/proc/sys/vm/dropcaches is far too
-> > > drastic) may be useful.
+> > > Yes, because given a selection of choices (including what you
+> > > mentioned in the review), it would be nice to have
+> > > this selectable.
 > > 
-> > Exactly.
-> > I've heard multiple times this request from finance people. And I've also 
-> > heared the same request from bullet train control software people recently.
+> > It's no good answer. :-/
 > 
-> Well, that's enough to make me avoid Japanese trains in future. 
-
-Feel free do. :)
-
->If
-> your critical control system has problems with memory reclaim
-> interfering with it's operation, then you are doing something
-> very, very wrong.
+> I am afraid I cannot please you with my answers
 > 
-> If you have a need to avoid memory allocation latency during
-> specific critical sections then the critical section needs to:
+> > Who need the feature and who shouldn't use it? It this enough valuable for enough large
+> > people? That's my question point.
+> > 
 > 
-> 	a) have all it's memory preallocated and mlock()d in advance
-> 
-> 	b) avoid doing anything that requires memory to be
-> 	   allocated.
-> 
-> These are basic design rules for time-sensitive applications.
+> You can see the use cases documented, including when running Linux as
+> a guest under other hypervisors, 
 
-I wonder why do you think our VM folks don't know that.
+Which hypervisor? If this patch is unrelated 99.9999% people, shouldn't you have to reduce
+negative impact?
 
 
-> Fundamentally, if you just switch off memory reclaim to avoid the
-> latencies involved with direct memory reclaim, then all you'll get
-> instead is ENOMEM because there's no memory available and none will be
-> reclaimed. That's even more fatal for the system than doing reclaim.
+> today we have a choice of not using
+> host page cache with cache=none, but nothing the other way round.
+> There are other use cases for embedded folks (in terms of controlling
+> unmapped page cache), please see previous discussions.
 
-You have two level oversight.
-
-Firstly, *ALL* RT application need to cooperate applications, kernel, 
-and other various system level daemons. That's no specific issue of 
-this topic. OK, *IF* RT application run egoistic, a system may hang 
-up easily even routh mere simple busy loop, yes. But, Who want to do so?
-
-Secondly, You misparsed "avoid direct reclaim" paragraph. We don't talk
-about "avoid direct reclaim even if system memory is no enough", We talk
-about "avoid direct reclaim by preparing before". 
+Is there other usecase? really? Where exist?
+Why do you start to talk about embedded sudenly? I reviewed this as virtualization feature
+beucase you wrote so in [path 0/3]. Why do you change your point suddenly?
 
 
-> IMO, you should tell the people requesting stuff like this to
-> architect their critical sections according to best practices.
-> Hacking the VM to try to work around badly designed applications is
-> a sure recipe for disaster...
-
-I hope this mail satisfy you. :)
 
 
 --
