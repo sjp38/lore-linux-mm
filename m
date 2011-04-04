@@ -1,113 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id D3F6F8D003B
-	for <linux-mm@kvack.org>; Mon,  4 Apr 2011 09:02:12 -0400 (EDT)
-Received: by eyd9 with SMTP id 9so2177592eyd.14
-        for <linux-mm@kvack.org>; Mon, 04 Apr 2011 06:02:09 -0700 (PDT)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id DC34E8D003B
+	for <linux-mm@kvack.org>; Mon,  4 Apr 2011 09:18:20 -0400 (EDT)
+Received: by ewy9 with SMTP id 9so2184451ewy.14
+        for <linux-mm@kvack.org>; Mon, 04 Apr 2011 06:15:10 -0700 (PDT)
+Content-Type: text/plain; charset=utf-8; format=flowed; delsp=yes
+Subject: Re: [PATCH 04/12] mm: alloc_contig_freed_pages() added
+References: <1301577368-16095-1-git-send-email-m.szyprowski@samsung.com>
+ <1301577368-16095-5-git-send-email-m.szyprowski@samsung.com>
+ <1301587083.31087.1032.camel@nimitz> <op.vs77qfx03l0zgt@mnazarewicz-glaptop>
+ <1301606078.31087.1275.camel@nimitz> <op.vs8awkrx3l0zgt@mnazarewicz-glaptop>
+ <1301610411.30870.29.camel@nimitz> <op.vs8cf5xd3l0zgt@mnazarewicz-glaptop>
+ <1301666596.30870.176.camel@nimitz>
+Date: Mon, 04 Apr 2011 15:15:07 +0200
 MIME-Version: 1.0
-In-Reply-To: <BANLkTimTMTaUko92O2aFhabJSNrnsOuO4g@mail.gmail.com>
-References: <alpine.LSU.2.00.1102232136020.2239@sister.anvils>
-	<AANLkTi==MQV=_qq1HaCxGLRu8DdT6FYddqzBkzp1TQs7@mail.gmail.com>
-	<AANLkTimv66fV1+JDqSAxRwddvy_kggCuhoJLMTpMTtJM@mail.gmail.com>
-	<alpine.LSU.2.00.1103182158200.18771@sister.anvils>
-	<BANLkTinoNMudwkcOOgU5d+imPUfZhDbWWQ@mail.gmail.com>
-	<AANLkTimfArmB7judMW7Qd4ATtVaR=yTf_-0DBRAfCJ7w@mail.gmail.com>
-	<BANLkTim3x=1n+F7yD-euY0=RhmyXViUamg@mail.gmail.com>
-	<AANLkTik4q8N9vYUibSZfepUmhYoREo2dbH5NFZAHuOFb@mail.gmail.com>
-	<BANLkTimTMTaUko92O2aFhabJSNrnsOuO4g@mail.gmail.com>
-Date: Mon, 4 Apr 2011 15:02:08 +0200
-Message-ID: <BANLkTiknhQit+kdACxLVs-+TPGKY2iuvFw@mail.gmail.com>
-Subject: Re: [PATCH] mm: fix possible cause of a page_mapped BUG
-From: =?UTF-8?B?Um9iZXJ0IMWad2nEmWNraQ==?= <robert@swiecki.net>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Transfer-Encoding: 7bit
+From: "Michal Nazarewicz" <mina86@mina86.com>
+Message-ID: <op.vte0fgez3l0zgt@mnazarewicz-glaptop>
+In-Reply-To: <1301666596.30870.176.camel@nimitz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hui Zhu <teawater@gmail.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Miklos Szeredi <miklos@szeredi.hu>, Michel Lespinasse <walken@google.com>, "Eric W. Biederman" <ebiederm@xmission.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: Marek Szyprowski <m.szyprowski@samsung.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-samsung-soc@vger.kernel.org, linux-media@vger.kernel.org, linux-mm@kvack.org, Kyungmin Park <kyungmin.park@samsung.com>, Andrew
+ Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ankita Garg <ankita@in.ibm.com>, Daniel
+ Walker <dwalker@codeaurora.org>, Johan MOSSBERG <johan.xx.mossberg@stericsson.com>, Mel Gorman <mel@csn.ul.ie>, Pawel
+ Osciak <pawel@osciak.com>
 
-On Sat, Apr 2, 2011 at 6:01 AM, Hui Zhu <teawater@gmail.com> wrote:
-> On Sat, Apr 2, 2011 at 00:35, Linus Torvalds
-> <torvalds@linux-foundation.org> wrote:
->> On Fri, Apr 1, 2011 at 9:21 AM, Robert =C5=9Awi=C4=99cki <robert@swiecki=
-.net> wrote:
->>>
->>> Is it possible to turn it off via config flags? Looking into
->>> arch/x86/include/asm/bug.h it seems it's unconditional (as in "it
->>> always manifests itself somehow") and I have
->>> CONFIG_DEBUG_BUGVERBOSE=3Dy.
+> On Fri, 2011-04-01 at 00:51 +0200, Michal Nazarewicz wrote:
+>> The function is called from alloc_contig_range() (see patch 05/12) which
+>> makes sure that the PFN is valid.  Situation where there is not enough
+>> space is caught earlier in alloc_contig_range().
 >>
->> Ok, if you have CONFIG_DEBUG_BUGVERBOSE then, you do have the bug-table.
->>
->> Maybe it's just kdb that is broken, and doesn't print it. I wouldn't
->> be surprised. It's not the first time I've seen debugging features
->> that just make debugging a mess.
->>
->>> Anything that could help you debugging this? Uploading kernel image
->>> (unfortunately I've overwritten this one), dumping more kgdb data?
->>
->> So in this case kgdb just dropped the most important data on the floor.
->>
->> But if you have kdb active next time, print out the vma/old contents
->> in that function that has the BUG() in it.
->>
->>> I must admit I'm not up-to-date with current linux kernel debugging
->>> techniques. The kernel config is here:
->>> http://alt.swiecki.net/linux_kernel/ise-test-2.6.38-kernel-config.txt
->>>
->>> For now I'll compile with -O0 -fno-inline (are you sure you'd like -Os?=
-)
->
-> Hi Robert,
->
-> I am not sure you can success with build trunk with =C2=A0-O0 -fno-inline=
-.
-> I suggest you try the patch in
-> http://code.google.com/p/kgtp/downloads/detail?name=3Dco.patch.
-> It add a option in "Kernel hacking" called "Compile with almost no
-> optimization". It will make kernel be built without -O2. It support
-> x86_32, x86_64 and arm.
+>> alloc_contig_freed_pages() must be given a valid PFN range such that all
+>> the pages in that range are free (as in are within the region tracked by
+>> page allocator) and of MIGRATE_ISOLATE so that page allocator won't
+>> touch them.
 
-HI,
+On Fri, 01 Apr 2011 16:03:16 +0200, Dave Hansen wrote:
+> OK, so it really is a low-level function only.  How about a comment that
+> explicitly says this?  "Only called from $FOO with the area already
+> isolated."  It probably also deserves an __ prefix.
 
-Yeah.. -O0 doesn't build smoothly, it seems that building with -O0 is
-not required right now, but I'll keep your patch in mind in case it
-becomes necessary. Thanks for the tip.
+Yes, it's not really for general use.  Comment may indeed be useful here.
 
-> PS, maybe you can try kgtp (https://code.google.com/p/kgtp/) =C2=A0debug =
-your kernel.
->
+>> That's why invalid PFN is a bug in the caller and not an exception that
+>> has to be handled.
 >>
->> Oh, don't do that. -O0 makes the code totally unreadable (the compiler
->> just does _stupid_ things, making the asm code look so horrible that
->> you can't match it up against anything sane), and -fno-inline isn't
->> worth the pain either.
->>
->> -Os is much better than those.
->>
->> But in this case, just getting the filename and line number would have
->> made the thing moot anyway - without kdb it _should_ have said
->> something clear like
->>
->> =C2=A0 kernel BUG at %s:%u!
->>
->> where %s:%u is the filename and line number.
->>
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0Linus
->> --
->> To unsubscribe from this list: send the line "unsubscribe linux-kernel" =
-in
->> the body of a message to majordomo@vger.kernel.org
->> More majordomo info at =C2=A0http://vger.kernel.org/majordomo-info.html
->> Please read the FAQ at =C2=A0http://www.tux.org/lkml/
->>
->
+>> Also, the function is not called during boot time.  It is called while
+>> system is already running.
 
+> What kind of success have you had running this in practice?  I'd be
+> worried that some silly task or a sticky dentry would end up in the
+> range that you want to allocate in.
 
+I'm not sure what you are asking.
 
---=20
-Robert =C5=9Awi=C4=99cki
+The function requires the range to be marked as MIGRATE_ISOLATE and all
+pages being free, so nothing can be allocated there while the function
+is running.
+
+If you are asking about CMA in general, the range that CMA uses is marked
+as MIGRATE_CMA (a new migrate type) which means that only MIGRATE_MOVABLE
+pages can be allocated there.  This means, that in theory, if there is
+enough memory the pages can always be moved out of the region.  At leasts
+that's my understanding of the type.  If this is correct, the allocation
+should always succeed provided enough memory for the pages within the
+region to be moved to is available.
+
+As of practice, I have run some simple test to see if the code works and
+they succeeded.  Also, Marek has run some test with actual hardware and
+those worked well as well (but I'll let Marek talk about any details).
+
+-- 
+Best regards,                                         _     _
+.o. | Liege of Serenely Enlightened Majesty of      o' \,=./ `o
+..o | Computer Science,  Michal "mina86" Nazarewicz    (o o)
+ooo +-----<email/xmpp: mnazarewicz@google.com>-----ooO--(_)--Ooo--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
