@@ -1,317 +1,249 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id C86098D003B
-	for <linux-mm@kvack.org>; Mon,  4 Apr 2011 14:12:26 -0400 (EDT)
-Date: Tue, 5 Apr 2011 02:12:15 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: async write IO controllers
-Message-ID: <20110404181214.GA12845@localhost>
-References: <20110303064505.718671603@intel.com>
- <20110303201226.GI16720@redhat.com>
- <20110303204827.GJ16720@redhat.com>
- <20110304090609.GA1885@localhost>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 2A3CA8D003B
+	for <linux-mm@kvack.org>; Mon,  4 Apr 2011 14:30:24 -0400 (EDT)
+Received: from hpaq2.eem.corp.google.com (hpaq2.eem.corp.google.com [172.25.149.2])
+	by smtp-out.google.com with ESMTP id p34IULw2003602
+	for <linux-mm@kvack.org>; Mon, 4 Apr 2011 11:30:21 -0700
+Received: from vwl1 (vwl1.prod.google.com [10.241.19.193])
+	by hpaq2.eem.corp.google.com with ESMTP id p34IUIN5021161
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 4 Apr 2011 11:30:19 -0700
+Received: by vwl1 with SMTP id 1so4865375vwl.29
+        for <linux-mm@kvack.org>; Mon, 04 Apr 2011 11:30:18 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="9jxsPFA5p3P2qPhR"
-Content-Disposition: inline
-In-Reply-To: <20110304090609.GA1885@localhost>
+In-Reply-To: <BANLkTi=UZcocVk_16MbbV432g9a3nDFauA@mail.gmail.com>
+References: <alpine.LSU.2.00.1102232136020.2239@sister.anvils>
+	<AANLkTi==MQV=_qq1HaCxGLRu8DdT6FYddqzBkzp1TQs7@mail.gmail.com>
+	<AANLkTimv66fV1+JDqSAxRwddvy_kggCuhoJLMTpMTtJM@mail.gmail.com>
+	<alpine.LSU.2.00.1103182158200.18771@sister.anvils>
+	<BANLkTinoNMudwkcOOgU5d+imPUfZhDbWWQ@mail.gmail.com>
+	<AANLkTimfArmB7judMW7Qd4ATtVaR=yTf_-0DBRAfCJ7w@mail.gmail.com>
+	<BANLkTi=Limr3NUaG7RLoQLv5TuEDmm7Rqg@mail.gmail.com>
+	<BANLkTi=UZcocVk_16MbbV432g9a3nDFauA@mail.gmail.com>
+Date: Mon, 4 Apr 2011 11:30:16 -0700
+Message-ID: <BANLkTi=KTdLRC_hRvxfpFoMSbz=vOjpObw@mail.gmail.com>
+Subject: Re: [PATCH] mm: fix possible cause of a page_mapped BUG
+From: Hugh Dickins <hughd@google.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vivek Goyal <vgoyal@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Trond Myklebust <Trond.Myklebust@netapp.com>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
+To: =?UTF-8?B?Um9iZXJ0IMWad2nEmWNraQ==?= <robert@swiecki.net>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Miklos Szeredi <miklos@szeredi.hu>, Michel Lespinasse <walken@google.com>, "Eric W. Biederman" <ebiederm@xmission.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>
 
+On Mon, Apr 4, 2011 at 5:46 AM, Robert =C5=9Awi=C4=99cki <robert@swiecki.ne=
+t> wrote:
+> On Sat, Apr 2, 2011 at 3:46 AM, Hugh Dickins <hughd@google.com> wrote:
+>> On Fri, Apr 1, 2011 at 8:44 AM, Linus Torvalds
+>> <torvalds@linux-foundation.org> wrote:
+>>> On Fri, Apr 1, 2011 at 7:34 AM, Robert =C5=9Awi=C4=99cki <robert@swieck=
+i.net> wrote:
+>>>>
+>>>> Hey, I'll apply your patch and check it out. In the meantime I
+>>>> triggered another Oops (NULL-ptr deref via sys_mprotect).
+>>>>
+>>>> The oops is here:
+>>>>
+>>>> http://alt.swiecki.net/linux_kernel/sys_mprotect-2.6.38.txt
+>>>
+>>> That's not a NULL pointer dereference. That's a BUG_ON().
+>>>
+>>> And for some reason you've turned off the BUG_ON() messages, saving
+>>> some tiny amount of memory.
+>>>
+>>> Anyway, it looks like the first BUG_ON() in vma_prio_tree_add(), so it
+>>> would be this one:
+>>>
+>>> =C2=A0 =C2=A0 =C2=A0 =C2=A0BUG_ON(RADIX_INDEX(vma) !=3D RADIX_INDEX(old=
+));
+>>>
+>>> but it is possible that gcc has shuffled things around (so it _might_
+>>> be the HEAP_INDEX() one). If you had CONFIG_DEBUG_BUGVERBOSE=3Dy, you'd
+>>> get a filename and line number. One reason I hate -O2 in cases like
+>>> this is that the basic block movement makes it way harder to actually
+>>> debug things. I would suggest using -Os too (CONFIG_OPTIMIZE_FOR_SIZE
+>>> or whatever it's called).
+>>>
+>>> Anyway, I do find it worrying. The vma code shouldn't be this fragile. =
+=C2=A0Hugh?
+>>>
+>>> I do wonder what triggers this. Is it a huge-page vma? We seem to be
+>>> lacking the check to see that mprotect() is on a hugepage boundary -
+>>> and that seems bogus. Or am I missing some check? The new transparent
+>>> hugepage support splits the page, but what if it's a _static_ hugepage
+>>> thing?
+>>>
+>>> But why would that affect the radix_index thing? I have no idea. I'd
+>>> like to blame the anon_vma rewrites last year, but I can't see why
+>>> that should matter either. Again, hugepages had some special rules, I
+>>> think (and that would explain why nobody normal sees this).
+>>>
+>>> Guys, please give this one a look.
+>>
+>> I do intend to look, but I think it makes more sense to wait until
+>> Robert has reproduced it (or something like it) with my debugging
+>> patch in.
+>
+> Hi Hugh,
+>
+> I did two things, included your patch, and compiled with
+> CONFIG_CC_OPTIMIZE_FOR_SIZE=3Dy; the kernel didn't BUG() or Oopssed for
+> ~2 days under fuzzing (with getdents and readdir syscalls disabled in
+> the fuzzer). I don't think -Os has any bigger influence on how mm
+> internally works therefore I must attribute the change to your patch
+> (was it patch which fixes something or merely dumps vma structures in
+> case of any problem?).
 
---9jxsPFA5p3P2qPhR
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+I'm sorry, I should have explained the patch a little more.  Along
+with dumping out the vma structs, it does change the BUG or BUGs there
+to WARN_ONs, allowing the system to continue if it's not too badly
+corrupted, though leaking some structure memory (if the structs have
+been reused, it's probably not safe to assume we still have ownership
+of them).  So if the problem has occurred again, it should be leaving
+WARNING messages and vma struct dumps in your /var/log/messages -
+please look for them and send them in if found.
 
-Hi Vivek,
+Perhaps we should simply include the patch in mainline kernel: it
+doesn't do much good just lingering in mmotm, but seems to be helping
+your system to limp along longer.
 
-To explore the possibility of an integrated async write cgroup IO
-controller in balance_dirty_pages(), I did the attached patches.
-They should serve it well to illustrate the basic ideas.
+>
+>
+> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+> BTW, another problem arose in the meantime, not sure if anyhow related
+> to things we're discussing here, although 'btc 0' in kdb shows that
+> processor 0 hangs in sys_mlock - I did it in two different moments, to
+> exclude any coincidences. After those 2 days of fuzzing, 'ps wuax'
+> stopped working, i.e. it prints some output, then stops, cannot be
+> killed with -SIGKILL etc. I'll let it run for the time being, I can
+> dump more data in this PID 17750 if anybody wants:
+>
+> strace:
+>
+> # strace -f ps wwuax
+> ....
+> open("/proc/17750/status", O_RDONLY) =C2=A0 =C2=A0=3D 6
+> read(6, "Name:\tiknowthis\nState:\tD (disk s"..., 1023) =3D 777
+> close(6) =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0=3D 0
+> open("/proc/17750/cmdline", O_RDONLY) =C2=A0 =3D 6
+> read(6,
+>
+> Process 17750 also cannot be killed. Attaching more data:
+>
+> # cat /proc/17750/status
+> Name: =C2=A0 iknowthis
+> State: =C2=A0D (disk sleep)
+> Tgid: =C2=A0 17750
+> Pid: =C2=A0 =C2=A017750
+> PPid: =C2=A0 1
+> TracerPid: =C2=A0 =C2=A0 =C2=A00
+> Uid: =C2=A0 =C2=A01001 =C2=A0 =C2=A01001 =C2=A0 =C2=A01001 =C2=A0 =C2=A01=
+001
+> Gid: =C2=A0 =C2=A01001 =C2=A0 =C2=A01001 =C2=A0 =C2=A01001 =C2=A0 =C2=A01=
+001
+> FDSize: 64
+> Groups: 1001
+> VmPeak: =C2=A0 =C2=A0 7752 kB
+> VmSize: =C2=A0 =C2=A0 5760 kB
+> VmLck: =C2=A0 =C2=A0 =C2=A0 =C2=A032 kB
+> VmHWM: =C2=A0 =C2=A0 =C2=A04892 kB
+> VmRSS: =C2=A0 =C2=A0 =C2=A03068 kB
+> VmData: =C2=A0 =C2=A0 2472 kB
+> VmStk: =C2=A0 =C2=A0 =C2=A0 408 kB
+> VmExe: =C2=A0 =C2=A0 =C2=A0 160 kB
+> VmLib: =C2=A0 =C2=A0 =C2=A02684 kB
+> VmPTE: =C2=A0 =C2=A0 =C2=A0 =C2=A044 kB
+> VmSwap: =C2=A0 =C2=A0 =C2=A0 =C2=A00 kB
+> Threads: =C2=A0 =C2=A0 =C2=A0 =C2=A01
+> SigQ: =C2=A0 218/16382
+> SigPnd: 0000000000000b00
+> ShdPnd: 0000400000000503
+> SigBlk: 0000000000000000
+> SigIgn: 0000000001001000
+> SigCgt: 0000000000000000
+> CapInh: 0000000000000000
+> CapPrm: 0000000000000000
+> CapEff: 0000000000000000
+> CapBnd: ffffffffffffffff
+> Cpus_allowed: =C2=A0 01
+> Cpus_allowed_list: =C2=A0 =C2=A0 =C2=A00
+> Mems_allowed: =C2=A0 00000000,00000001
+> Mems_allowed_list: =C2=A0 =C2=A0 =C2=A00
+> voluntary_ctxt_switches: =C2=A0 =C2=A0 =C2=A0 =C2=A043330
+> nonvoluntary_ctxt_switches: =C2=A0 =C2=A0 4436
+>
+> # cat /proc/17750/wchan
+> call_rwsem_down_write_failed
+>
+> # cat /proc/17750/maps (hangs)
+>
+> (from kdb)
+>
+> [0]kdb> btp 17750
+> Stack traceback for pid 17750
+> 0xffff88011e772dc0 =C2=A0 =C2=A017750 =C2=A0 =C2=A0 =C2=A0 =C2=A01 =C2=A0=
+0 =C2=A0 =C2=A00 =C2=A0 D =C2=A00xffff88011e773240 =C2=A0iknowthis
+> <c> ffff88011cbcfb88<c> 0000000000000086<c> ffff88011cbcfb08<c>
+> ffff88011cbcffd8<c>
+> <c> 0000000000013f00<c> ffff88011e772dc0<c> ffff88011e773180<c>
+> ffff88011e773178<c>
+> <c> ffff88011cbce000<c> ffff88011cbcffd8<c> 0000000000013f00<c>
+> 0000000000013f00<c>
+> Call Trace:
+> =C2=A0[<ffffffff81e286ad>] rwsem_down_failed_common+0xdb/0x10d
+> =C2=A0[<ffffffff81e286f2>] rwsem_down_write_failed+0x13/0x15
+> =C2=A0[<ffffffff81416953>] call_rwsem_down_write_failed+0x13/0x20
+> =C2=A0[<ffffffff81e27da0>] ? down_write+0x25/0x27
+> =C2=A0[<ffffffff8115f041>] do_coredump+0x14f/0x9a5
+> =C2=A0[<ffffffff8114d4e2>] ? T.1006+0x17/0x32
+> =C2=A0[<ffffffff810a45f0>] ? __dequeue_signal+0xfa/0x12f
+> =C2=A0[<ffffffff8108a79c>] ? get_parent_ip+0x11/0x42
+> =C2=A0[<ffffffff810a6406>] get_signal_to_deliver+0x3be/0x3e6
+> =C2=A0[<ffffffff8103e0c1>] do_signal+0x72/0x67d
+> =C2=A0[<ffffffff81096807>] ? child_wait_callback+0x0/0x58
+> =C2=A0[<ffffffff81e28c28>] ? _raw_spin_unlock_irq+0x36/0x41
+> =C2=A0[<ffffffff8108bb06>] ? finish_task_switch+0x4b/0xb9
+> =C2=A0[<ffffffff8108c3ed>] ? schedule_tail+0x38/0x68
+> =C2=A0[<ffffffff8103eb43>] ? ret_from_fork+0x13/0x80
+> =C2=A0[<ffffffff8103e6f8>] do_notify_resume+0x2c/0x6e
+>
+> [0]kdb> =C2=A0btc 0
+> Stack traceback for pid 10350
+> 0xffff88011b6badc0 =C2=A0 =C2=A010350 =C2=A0 =C2=A0 =C2=A0 =C2=A01 =C2=A0=
+1 =C2=A0 =C2=A00 =C2=A0 R =C2=A00xffff88011b6bb240 *iknowthis2
+> <c> ffff8800cfc03db8<c> 0000000000000000<c>
+> Call Trace:
+> =C2=A0<#DB> =C2=A0<<EOE>> =C2=A0<IRQ> =C2=A0[<ffffffff81518b03>] ? __hand=
+le_sysrq+0xbf/0x15c
+> =C2=A0[<ffffffff81518d7d>] ? handle_sysrq+0x2c/0x2e
+> =C2=A0[<ffffffff8152bd90>] ? serial8250_handle_port+0x157/0x2b2
+> =C2=A0[<ffffffff810a1be8>] ? run_timer_softirq+0x2b3/0x2c2
+> =C2=A0[<ffffffff8152bf4c>] ? serial8250_interrupt+0x61/0x111
+> =C2=A0[<ffffffff810e6e52>] ? handle_IRQ_event+0x78/0x150
+> =C2=A0[<ffffffff810ea044>] ? move_native_irq+0x19/0x6d
+> =C2=A0[<ffffffff810e8d90>] ? handle_edge_irq+0xe3/0x12f
+> =C2=A0[<ffffffff8104198f>] ? handle_irq+0x88/0x91
+> =C2=A0[<ffffffff81e297a5>] ? do_IRQ+0x4d/0xb3
+> =C2=A0[<ffffffff81e29193>] ? ret_from_intr+0x0/0x15
+> =C2=A0<EOI> =C2=A0[<ffffffff811336aa>] ? __mlock_vma_pages_range+0x49/0xa=
+d
+> =C2=A0[<ffffffff8113370a>] ? __mlock_vma_pages_range+0xa9/0xad
+> =C2=A0[<ffffffff811337c0>] ? do_mlock_pages+0xb2/0x118
+> =C2=A0[<ffffffff81134002>] ? sys_mlock+0xe8/0xf6
+> =C2=A0[<ffffffff8107d7e3>] ? ia32_sysret+0x0/0x5
+>
+> [0]kdb> btc 1
+> Stack traceback for pid 9409
+> 0xffff88011c9816e0 =C2=A0 =C2=A0 9409 =C2=A0 =C2=A0 =C2=A0 =C2=A01 =C2=A0=
+1 =C2=A0 =C2=A01 =C2=A0 R =C2=A00xffff88011c981b60 =C2=A0iknowthis2
+> <c> ffff88011dc21ec8
 
-It's based on Andrea's two supporting patches and a slightly
-simplified and improved version of this v6 patchset.
+Sorry, I've no time to think about this one at the moment (at LSF).
+Does this look similar to what you previously reported on mlock?
 
-        root@fat ~# cat test-blkio-cgroup.sh
-        #!/bin/sh
-
-        mount /dev/sda7 /fs  
-
-        rmdir /cgroup/async_write
-        mkdir /cgroup/async_write
-        echo $$ > /cgroup/async_write/tasks
-        # echo "8:16  1048576" > /cgroup/async_write/blkio.throttle.read_bps_device
-
-        dd if=/dev/zero of=/fs/zero1 bs=1M count=100 &
-        dd if=/dev/zero of=/fs/zero2 bs=1M count=100 &
-
-2-dd case:
-
-        root@fat ~# 100+0 records in
-        100+0 records out
-        104857600 bytes (105 MB) copied100+0 records in
-        100+0 records out
-        , 11.9477 s, 8.8 MB/s
-        104857600 bytes (105 MB) copied, 11.9496 s, 8.8 MB/s
-
-1-dd case:
-
-        root@fat ~# 100+0 records in
-        100+0 records out
-        104857600 bytes (105 MB) copied, 6.21919 s, 16.9 MB/s
-
-The patch hard codes a limit of 16MiB/s or 16.8MB/s.  So the 1-dd case
-is pretty accurate, and the 2-dd case is a bit leaked due to the time
-to take the throttle bandwidth from its initial value 16MiB/s to
-8MiB/s. This could be compensated by some position control in future,
-so that it won't leak in normal cases.
-
-The main bits, blkcg_update_throttle_bandwidth() is in fact a minimal
-version of bdi_update_throttle_bandwidth(); blkcg_update_bandwidth()
-is also a cut-down version of bdi_update_bandwidth().
-
-Thanks,
-Fengguang
-
---9jxsPFA5p3P2qPhR
-Content-Type: text/x-diff; charset=us-ascii
-Content-Disposition: attachment; filename="blk-cgroup-nr-dirtied.patch"
-
-Subject: blkcg: dirty rate accounting
-Date: Sat Apr 02 20:15:28 CST 2011
-
-To be used by the balance_dirty_pages() async write IO controller.
-
-Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
----
- block/blk-cgroup.c         |    4 ++++
- include/linux/blk-cgroup.h |    1 +
- mm/page-writeback.c        |    4 ++++
- 3 files changed, 9 insertions(+)
-
---- linux-next.orig/block/blk-cgroup.c	2011-04-02 20:17:08.000000000 +0800
-+++ linux-next/block/blk-cgroup.c	2011-04-02 21:59:24.000000000 +0800
-@@ -1458,6 +1458,7 @@ static void blkiocg_destroy(struct cgrou
- 
- 	free_css_id(&blkio_subsys, &blkcg->css);
- 	rcu_read_unlock();
-+	percpu_counter_destroy(&blkcg->nr_dirtied);
- 	if (blkcg != &blkio_root_cgroup)
- 		kfree(blkcg);
- }
-@@ -1483,6 +1484,9 @@ done:
- 	INIT_HLIST_HEAD(&blkcg->blkg_list);
- 
- 	INIT_LIST_HEAD(&blkcg->policy_list);
-+
-+	percpu_counter_init(&blkcg->nr_dirtied, 0);
-+
- 	return &blkcg->css;
- }
- 
---- linux-next.orig/include/linux/blk-cgroup.h	2011-04-02 20:17:08.000000000 +0800
-+++ linux-next/include/linux/blk-cgroup.h	2011-04-02 21:59:02.000000000 +0800
-@@ -111,6 +111,7 @@ struct blkio_cgroup {
- 	spinlock_t lock;
- 	struct hlist_head blkg_list;
- 	struct list_head policy_list; /* list of blkio_policy_node */
-+	struct percpu_counter nr_dirtied;
- };
- 
- struct blkio_group_stats {
---- linux-next.orig/mm/page-writeback.c	2011-04-02 20:17:08.000000000 +0800
-+++ linux-next/mm/page-writeback.c	2011-04-02 21:59:02.000000000 +0800
-@@ -34,6 +34,7 @@
- #include <linux/syscalls.h>
- #include <linux/buffer_head.h>
- #include <linux/pagevec.h>
-+#include <linux/blk-cgroup.h>
- #include <trace/events/writeback.h>
- 
- /*
-@@ -221,6 +222,9 @@ EXPORT_SYMBOL_GPL(bdi_writeout_inc);
- 
- void task_dirty_inc(struct task_struct *tsk)
- {
-+	struct blkio_cgroup *blkcg = task_to_blkio_cgroup(tsk);
-+	if (blkcg)
-+		__percpu_counter_add(&blkcg->nr_dirtied, 1, BDI_STAT_BATCH);
- 	prop_inc_single(&vm_dirties, &tsk->dirties);
- }
- 
-
---9jxsPFA5p3P2qPhR
-Content-Type: text/x-diff; charset=us-ascii
-Content-Disposition: attachment; filename="writeback-io-controller.patch"
-
-Subject: writeback: async write IO controllers
-Date: Fri Mar 04 10:38:04 CST 2011
-
-- a bare per-task async write IO controller
-- a bare per-cgroup async write IO controller
-
-XXX: the per-task user interface is reusing RLIMIT_RSS for now.
-XXX: the per-cgroup user interface is missing
-
-CC: Vivek Goyal <vgoyal@redhat.com>
-CC: Andrea Righi <arighi@develer.com>
-Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
----
- block/blk-cgroup.c         |    2 
- include/linux/blk-cgroup.h |    4 +
- mm/page-writeback.c        |   86 +++++++++++++++++++++++++++++++----
- 3 files changed, 84 insertions(+), 8 deletions(-)
-
---- linux-next.orig/mm/page-writeback.c	2011-04-05 01:26:38.000000000 +0800
-+++ linux-next/mm/page-writeback.c	2011-04-05 01:26:53.000000000 +0800
-@@ -1117,6 +1117,49 @@ static unsigned long max_pause(struct ba
- 	return clamp_val(t, MIN_PAUSE, MAX_PAUSE);
- }
- 
-+static void blkcg_update_throttle_bandwidth(struct blkio_cgroup *blkcg,
-+					    unsigned long dirtied,
-+					    unsigned long elapsed)
-+{
-+	unsigned long bw = blkcg->throttle_bandwidth;
-+	unsigned long long ref_bw;
-+	unsigned long dirty_bw;
-+
-+	ref_bw = blkcg->async_write_bps >> (3 + PAGE_SHIFT - RATIO_SHIFT);
-+	dirty_bw = ((dirtied - blkcg->dirtied_stamp)*HZ + elapsed/2) / elapsed;
-+	do_div(ref_bw, dirty_bw | 1);
-+	ref_bw = bw * ref_bw >> RATIO_SHIFT;
-+
-+	blkcg->throttle_bandwidth = (bw + ref_bw) / 2;
-+}
-+
-+void blkcg_update_bandwidth(struct blkio_cgroup *blkcg)
-+{
-+	unsigned long now = jiffies;
-+	unsigned long dirtied;
-+	unsigned long elapsed;
-+
-+	if (!blkcg)
-+		return;
-+	if (!spin_trylock(&blkcg->lock))
-+		return;
-+
-+	elapsed = now - blkcg->bw_time_stamp;
-+	dirtied = percpu_counter_read(&blkcg->nr_dirtied);
-+
-+	if (elapsed > MAX_PAUSE * 2)
-+		goto snapshot;
-+	if (elapsed <= MAX_PAUSE)
-+		goto unlock;
-+
-+	blkcg_update_throttle_bandwidth(blkcg, dirtied, elapsed);
-+snapshot:
-+	blkcg->dirtied_stamp = dirtied;
-+	blkcg->bw_time_stamp = now;
-+unlock:
-+	spin_unlock(&blkcg->lock);
-+}
-+
- /*
-  * balance_dirty_pages() must be called by processes which are generating dirty
-  * data.  It looks at the number of dirty pages in the machine and will force
-@@ -1139,6 +1182,10 @@ static void balance_dirty_pages(struct a
- 	unsigned long pause_max;
- 	struct backing_dev_info *bdi = mapping->backing_dev_info;
- 	unsigned long start_time = jiffies;
-+	struct blkio_cgroup *blkcg = task_to_blkio_cgroup(current);
-+
-+	if (blkcg == &blkio_root_cgroup)
-+		blkcg = NULL;
- 
- 	for (;;) {
- 		unsigned long now = jiffies;
-@@ -1178,6 +1225,15 @@ static void balance_dirty_pages(struct a
- 		 * when the bdi limits are ramping up.
- 		 */
- 		if (nr_dirty <= (background_thresh + dirty_thresh) / 2) {
-+			if (blkcg) {
-+				pause_max = max_pause(bdi, 0);
-+				goto cgroup_ioc;
-+			}
-+			if (current->signal->rlim[RLIMIT_RSS].rlim_cur !=
-+			    RLIM_INFINITY) {
-+				pause_max = max_pause(bdi, 0);
-+				goto task_ioc;
-+			}
- 			current->paused_when = now;
- 			current->nr_dirtied = 0;
- 			break;
-@@ -1190,21 +1246,35 @@ static void balance_dirty_pages(struct a
- 			bdi_start_background_writeback(bdi);
- 
- 		pause_max = max_pause(bdi, bdi_dirty);
--
- 		base_bw = bdi->throttle_bandwidth;
--		/*
--		 * Double the bandwidth for PF_LESS_THROTTLE (ie. nfsd) and
--		 * real-time tasks.
--		 */
--		if (current->flags & PF_LESS_THROTTLE || rt_task(current))
--			base_bw *= 2;
- 		bw = position_ratio(bdi, dirty_thresh, nr_dirty, bdi_dirty);
- 		if (unlikely(bw == 0)) {
- 			period = pause_max;
- 			pause = pause_max;
- 			goto pause;
- 		}
--		bw = base_bw * (u64)bw >> RATIO_SHIFT;
-+		bw = (u64)base_bw * bw >> RATIO_SHIFT;
-+		if (blkcg && bw > blkcg->throttle_bandwidth) {
-+cgroup_ioc:
-+			blkcg_update_bandwidth(blkcg);
-+			bw = blkcg->throttle_bandwidth;
-+			base_bw = bw;
-+		}
-+		if (bw > current->signal->rlim[RLIMIT_RSS].rlim_cur >>
-+								PAGE_SHIFT) {
-+task_ioc:
-+			bw = current->signal->rlim[RLIMIT_RSS].rlim_cur >>
-+								PAGE_SHIFT;
-+			base_bw = bw;
-+		}
-+		/*
-+		 * Double the bandwidth for PF_LESS_THROTTLE (ie. nfsd) and
-+		 * real-time tasks.
-+		 */
-+		if (current->flags & PF_LESS_THROTTLE || rt_task(current)) {
-+			bw *= 2;
-+			base_bw = bw;
-+		}
- 		period = (HZ * pages_dirtied + bw / 2) / (bw | 1);
- 		pause = current->paused_when + period - now;
- 		/*
---- linux-next.orig/block/blk-cgroup.c	2011-04-05 01:26:38.000000000 +0800
-+++ linux-next/block/blk-cgroup.c	2011-04-05 01:26:39.000000000 +0800
-@@ -1486,6 +1486,8 @@ done:
- 	INIT_LIST_HEAD(&blkcg->policy_list);
- 
- 	percpu_counter_init(&blkcg->nr_dirtied, 0);
-+	blkcg->async_write_bps = 16 << 23; /* XXX: tunable interface */
-+	blkcg->throttle_bandwidth = 16 << (20 - PAGE_SHIFT);
- 
- 	return &blkcg->css;
- }
---- linux-next.orig/include/linux/blk-cgroup.h	2011-04-05 01:26:38.000000000 +0800
-+++ linux-next/include/linux/blk-cgroup.h	2011-04-05 01:26:39.000000000 +0800
-@@ -112,6 +112,10 @@ struct blkio_cgroup {
- 	struct hlist_head blkg_list;
- 	struct list_head policy_list; /* list of blkio_policy_node */
- 	struct percpu_counter nr_dirtied;
-+	unsigned long bw_time_stamp;
-+	unsigned long dirtied_stamp;
-+	unsigned long throttle_bandwidth;
-+	unsigned long async_write_bps;
- };
- 
- struct blkio_group_stats {
-
---9jxsPFA5p3P2qPhR--
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
