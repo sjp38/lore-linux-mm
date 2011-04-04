@@ -1,260 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 00DC38D003B
-	for <linux-mm@kvack.org>; Mon,  4 Apr 2011 06:15:21 -0400 (EDT)
-Message-ID: <4D999A2F.4020204@hitachi.com>
-Date: Mon, 04 Apr 2011 19:15:11 +0900
-From: Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id D5C158D003B
+	for <linux-mm@kvack.org>; Mon,  4 Apr 2011 08:05:15 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 886B13EE0C0
+	for <linux-mm@kvack.org>; Mon,  4 Apr 2011 21:05:11 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 6C1E745DE52
+	for <linux-mm@kvack.org>; Mon,  4 Apr 2011 21:05:11 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 495AE45DE4F
+	for <linux-mm@kvack.org>; Mon,  4 Apr 2011 21:05:11 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 3BDF41DB8040
+	for <linux-mm@kvack.org>; Mon,  4 Apr 2011 21:05:11 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id F377A1DB8037
+	for <linux-mm@kvack.org>; Mon,  4 Apr 2011 21:05:10 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 0/3] Unmapped page cache control (v5)
+In-Reply-To: <20110404001936.GL6957@dastard>
+References: <20110403183229.AE4C.A69D9226@jp.fujitsu.com> <20110404001936.GL6957@dastard>
+Message-Id: <20110404210523.DA69.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v3 2.6.39-rc1-tip 23/26] 23: perf: show possible probes
- in a given executable file or library.
-References: <20110401143223.15455.19844.sendpatchset@localhost6.localdomain6> <20110401143707.15455.66114.sendpatchset@localhost6.localdomain6>
-In-Reply-To: <20110401143707.15455.66114.sendpatchset@localhost6.localdomain6>
-Content-Type: text/plain; charset=ISO-2022-JP
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Mon,  4 Apr 2011 21:05:09 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Christoph Hellwig <hch@infradead.org>, Andi Kleen <andi@firstfloor.org>, Thomas Gleixner <tglx@linutronix.de>, Jonathan Corbet <corbet@lwn.net>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, SystemTap <systemtap@sources.redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Dave Chinner <david@fromorbit.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org, akpm@linux-foundation.org, npiggin@kernel.dk, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan.kim@gmail.com>
 
-(2011/04/01 23:37), Srikar Dronamraju wrote:
-> Enhances -F/--funcs option of "perf probe" to list possible probe points in
-> an executable file or library. A new option -e/--exe specifies the path of
-> the executable or library.
+Hi Dave,
 
-I think you'd better use -x for abbr. of --exe, since -e is used for --event
-for other subcommands.
+Thanks long explanation.
 
-And also, it seems this kind of patch should be placed after perf-probe
-uprobe support patch, because without uprobe support, user binary analysis
-is meaningless. (In the result, this introduces -u/--uprobe option without
-uprobe support)
-
-
-> Show last 10 functions in /bin/zsh.
+> > Secondly, You misparsed "avoid direct reclaim" paragraph. We don't talk
+> > about "avoid direct reclaim even if system memory is no enough", We talk
+> > about "avoid direct reclaim by preparing before". 
 > 
-> # perf probe -F -u -e /bin/zsh | tail
+> I don't think I misparsed it. I am addressing the "avoid direct
+> reclaim by preparing before" principle directly. The problem with it
+> is that just enalrging the free memory pool doesn't guarantee future
+> allocation success when there are other concurrent allocations
+> occurring. IOWs, if you don't _reserve_ the free memory for the
+> critical area in advance then there is no guarantee it will be
+> available when needed by the critical section.
 
-I also can't understand why -u is required even if we have -x for user
-binaries and -m for kernel modules.
+Right.
 
-Thanks,
+Then, I made per-task reserve memory code at very years ago when I'm
+working for embedded. So, There are some design choice here. best effort
+as Christoph described or per thread or RT thread specific reservation.
 
-> zstrtol
-> ztrcmp
-> ztrdup
-> ztrduppfx
-> ztrftime
-> ztrlen
-> ztrncpy
-> ztrsub
-> zwarn
-> zwarnnam
+
+> A simple example: the radix tree node preallocation code to
+> guarantee inserts succeed while holding a spinlock. If just relying
+> on free memory was sufficient, then GFP_ATOMIC allocations are all
+> that is necessary. However, even that isn't sufficient as even the
+> GFP_ATOMIC reserved pool can be exhausted by other concurrent
+> GFP_ATOMIC allocations. Hence preallocation is required before
+> entering the critical section to guarantee success in all cases.
 > 
-> Show first 10 functions in /lib/libc.so.6
-> 
-> # perf probe -u -F -e /lib/libc.so.6 | head
-> _IO_adjust_column
-> _IO_adjust_wcolumn
-> _IO_default_doallocate
-> _IO_default_finish
-> _IO_default_pbackfail
-> _IO_default_uflow
-> _IO_default_xsgetn
-> _IO_default_xsputn
-> _IO_do_write@@GLIBC_2.2.5
-> _IO_doallocbuf
-> 
-> Signed-off-by: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-> ---
->  tools/perf/builtin-probe.c    |    9 +++++--
->  tools/perf/util/probe-event.c |   56 +++++++++++++++++++++++++++++++----------
->  tools/perf/util/probe-event.h |    4 +--
->  tools/perf/util/symbol.c      |    8 ++++++
->  tools/perf/util/symbol.h      |    1 +
->  5 files changed, 61 insertions(+), 17 deletions(-)
-> 
-> diff --git a/tools/perf/builtin-probe.c b/tools/perf/builtin-probe.c
-> index 98db08f..6ceebea 100644
-> --- a/tools/perf/builtin-probe.c
-> +++ b/tools/perf/builtin-probe.c
-> @@ -57,6 +57,7 @@ static struct {
->  	bool show_ext_vars;
->  	bool show_funcs;
->  	bool mod_events;
-> +	bool uprobes;
->  	int nevents;
->  	struct perf_probe_event events[MAX_PROBES];
->  	struct strlist *dellist;
-> @@ -249,6 +250,10 @@ static const struct option options[] = {
->  		 "Set how many probe points can be found for a probe."),
->  	OPT_BOOLEAN('F', "funcs", &params.show_funcs,
->  		    "Show potential probe-able functions."),
-> +	OPT_BOOLEAN('u', "uprobe", &params.uprobes,
-> +		    "user space probe events"),
-> +	OPT_STRING('e', "exe", &params.target,
-> +		   "executable", "userspace executable or library"),
->  	OPT_CALLBACK('\0', "filter", NULL,
->  		     "[!]FILTER", "Set a filter (with --vars/funcs only)\n"
->  		     "\t\t\t(default: \"" DEFAULT_VAR_FILTER "\" for --vars,\n"
-> @@ -327,8 +332,8 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
->  		if (!params.filter)
->  			params.filter = strfilter__new(DEFAULT_FUNC_FILTER,
->  						       NULL);
-> -		ret = show_available_funcs(params.target,
-> -					   params.filter);
-> +		ret = show_available_funcs(params.target, params.filter,
-> +					params.uprobes);
->  		strfilter__delete(params.filter);
->  		if (ret < 0)
->  			pr_err("  Error: Failed to show functions."
-> diff --git a/tools/perf/util/probe-event.c b/tools/perf/util/probe-event.c
-> index 09c53c1..cf77feb 100644
-> --- a/tools/perf/util/probe-event.c
-> +++ b/tools/perf/util/probe-event.c
-> @@ -47,6 +47,7 @@
->  #include "trace-event.h"	/* For __unused */
->  #include "probe-event.h"
->  #include "probe-finder.h"
-> +#include "session.h"
->  
->  #define MAX_CMDLEN 256
->  #define MAX_PROBE_ARGS 128
-> @@ -1963,6 +1964,7 @@ int del_perf_probe_events(struct strlist *dellist)
->  
->  	return ret;
->  }
-> +
->  /* TODO: don't use a global variable for filter ... */
->  static struct strfilter *available_func_filter;
->  
-> @@ -1979,30 +1981,58 @@ static int filter_available_functions(struct map *map __unused,
->  	return 1;
->  }
->  
-> -int show_available_funcs(const char *elfobject, struct strfilter *_filter)
-> +static int __show_available_funcs(struct map *map)
-> +{
-> +	if (map__load(map, filter_available_functions)) {
-> +		pr_err("Failed to load map.\n");
-> +		return -EINVAL;
-> +	}
-> +	if (!dso__sorted_by_name(map->dso, map->type))
-> +		dso__sort_by_name(map->dso, map->type);
-> +
-> +	dso__fprintf_symbols_by_name(map->dso, map->type, stdout);
-> +	return 0;
-> +}
-> +
-> +static int available_kernel_funcs(const char *module)
->  {
->  	struct map *map;
->  	int ret;
->  
-> -	setup_pager();
-> -
->  	ret = init_vmlinux();
->  	if (ret < 0)
->  		return ret;
->  
-> -	map = kernel_get_module_map(elfobject);
-> +	map = kernel_get_module_map(module);
->  	if (!map) {
-> -		pr_err("Failed to find %s map.\n", (elfobject) ? : "kernel");
-> +		pr_err("Failed to find %s map.\n", (module) ? : "kernel");
->  		return -EINVAL;
->  	}
-> +	return __show_available_funcs(map);
-> +}
-> +
-> +int show_available_funcs(const char *elfobject, struct strfilter *_filter,
-> +					bool user)
-> +{
-> +	struct map *map;
-> +	int ret;
-> +
-> +	setup_pager();
->  	available_func_filter = _filter;
-> -	if (map__load(map, filter_available_functions)) {
-> -		pr_err("Failed to load map.\n");
-> -		return -EINVAL;
-> -	}
-> -	if (!dso__sorted_by_name(map->dso, map->type))
-> -		dso__sort_by_name(map->dso, map->type);
->  
-> -	dso__fprintf_symbols_by_name(map->dso, map->type, stdout);
-> -	return 0;
-> +	if (!user)
-> +		return available_kernel_funcs(elfobject);
-> +
-> +	symbol_conf.try_vmlinux_path = false;
-> +	symbol_conf.sort_by_name = true;
-> +	ret = symbol__init();
-> +	if (ret < 0) {
-> +		pr_err("Failed to init symbol map.\n");
-> +		return ret;
-> +	}
-> +	map = dso__new_map(elfobject);
-> +	ret = __show_available_funcs(map);
-> +	dso__delete(map->dso);
-> +	map__delete(map);
-> +	return ret;
->  }
-> diff --git a/tools/perf/util/probe-event.h b/tools/perf/util/probe-event.h
-> index 3434fc9..4c24a85 100644
-> --- a/tools/perf/util/probe-event.h
-> +++ b/tools/perf/util/probe-event.h
-> @@ -128,8 +128,8 @@ extern int show_line_range(struct line_range *lr, const char *module);
->  extern int show_available_vars(struct perf_probe_event *pevs, int npevs,
->  			       int max_probe_points, const char *module,
->  			       struct strfilter *filter, bool externs);
-> -extern int show_available_funcs(const char *module, struct strfilter *filter);
-> -
-> +extern int show_available_funcs(const char *module, struct strfilter *filter,
-> +				bool user);
->  
->  /* Maximum index number of event-name postfix */
->  #define MAX_EVENT_INDEX	1024
-> diff --git a/tools/perf/util/symbol.c b/tools/perf/util/symbol.c
-> index f06c10f..eefeab4 100644
-> --- a/tools/perf/util/symbol.c
-> +++ b/tools/perf/util/symbol.c
-> @@ -2606,3 +2606,11 @@ int machine__load_vmlinux_path(struct machine *self, enum map_type type,
->  
->  	return ret;
->  }
-> +
-> +struct map *dso__new_map(const char *name)
-> +{
-> +	struct dso *dso = dso__new(name);
-> +	struct map *map = map__new2(0, dso, MAP__FUNCTION);
-> +
-> +	return map;
-> +}
-> diff --git a/tools/perf/util/symbol.h b/tools/perf/util/symbol.h
-> index 713b0b4..3838909 100644
-> --- a/tools/perf/util/symbol.h
-> +++ b/tools/perf/util/symbol.h
-> @@ -211,6 +211,7 @@ char dso__symtab_origin(const struct dso *self);
->  void dso__set_long_name(struct dso *self, char *name);
->  void dso__set_build_id(struct dso *self, void *build_id);
->  void dso__read_running_kernel_build_id(struct dso *self, struct machine *machine);
-> +struct map *dso__new_map(const char *name);
->  struct symbol *dso__find_symbol(struct dso *self, enum map_type type, u64 addr);
->  struct symbol *dso__find_symbol_by_name(struct dso *self, enum map_type type,
->  					const char *name);
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+> And to state the obvious: doing allocation before the critical
+> section will trigger reclaim if necessary so there is no need to
+> have the application trigger reclaim.
 
+Yes and No.
+Preallocation is core piece, yes. But Almost all syscall call 
+kmalloc() implicitly. then mlock() is no sufficient preallocation.
+Almost all application except HPC can't avoid syscall use. That's 
+the reason why finance people repeatedly requirest us the feature,
+I think.
 
--- 
-Masami HIRAMATSU
-Software Platform Research Dept. Linux Technology Center
-Hitachi, Ltd., Yokohama Research Laboratory
-E-mail: masami.hiramatsu.pt@hitachi.com
+Thanks!
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
