@@ -1,66 +1,33 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id E1FD0900001
-	for <linux-mm@kvack.org>; Sat, 30 Apr 2011 23:25:10 -0400 (EDT)
-Date: Sun, 1 May 2011 11:25:07 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH] mmotm: fix hang at startup
-Message-ID: <20110501032507.GA21118@localhost>
-References: <201104300002.p3U02Ma2026266@imap1.linux-foundation.org>
- <alpine.LSU.2.00.1104301929520.1343@sister.anvils>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.00.1104301929520.1343@sister.anvils>
-Sender: owner-linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: mmotm 2011-03-31-14-48 uploaded
+Date: Tue,  5 Apr 2011 14:23:44 +0900 (JST)
+Message-ID: <20110405142357.432E.A69D9226@jp.fujitsu.com>
+References: <20110403181147.AE42.A69D9226@jp.fujitsu.com> <1301949991.2221.5.camel@twins>
+Mime-Version: 1.0
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
+Return-path: <linux-kernel-owner@vger.kernel.org>
+In-Reply-To: <1301949991.2221.5.camel@twins>
+Sender: linux-kernel-owner@vger.kernel.org
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: kosaki.motohiro@jp.fujitsu.com, akpm@linux-foundation.org, mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Ingo Molnar <mingo@elte.hu>
+List-Id: linux-mm.kvack.org
 
-On Sun, May 01, 2011 at 10:35:38AM +0800, Hugh Dickins wrote:
-> Yesterday's mmotm hangs at startup, and with lockdep it reports:
-> BUG: spinlock recursion on CPU#1, blkid/284 - with bdi_lock_two()
-> called from bdev_inode_switch_bdi() in the backtrace.  It appears
-> that this function is sometimes called with new the same as old.
->
-> Signed-off-by: Hugh Dickins <hughd@google.com>
-
-Thanks!
-
-Reviewed-by: Wu Fengguang <fengguang.wu@intel.com>
-
-> Fix to
-> writeback-split-inode_wb_list_lock-into-bdi_writebacklist_lock.patch
+> On Sun, 2011-04-03 at 18:11 +0900, KOSAKI Motohiro wrote:
+> > Ingo, Perter, Is this known issue?
+> > 
+> > 
+> > =======================================================================
+> > [    0.169037] divide error: 0000 [#1] SMP
+> > [    0.169982] last sysfs file:
+> > [    0.169982] CPU 0
+> > [    0.169982] Modules linked in:
+> > [    0.169982]
+> > [    0.169982] Pid: 1, comm: swapper Not tainted 2.6.39-rc1-mm1+ #2 FUJITSU-SV      PRIMERGY                      /D2559-A1
+> > [    0.169982] RIP: 0010:[<ffffffff8104ad4c>]  [<ffffffff8104ad4c>] find_busiest_group+0x38c/0xd30 
 > 
->  fs/block_dev.c |    2 ++
->  1 file changed, 2 insertions(+)
-> 
-> --- 2.6.39-rc5-mm1/fs/block_dev.c	2011-04-29 18:20:09.183314733 -0700
-> +++ linux/fs/block_dev.c	2011-04-30 17:55:45.718785263 -0700
-> @@ -57,6 +57,8 @@ static void bdev_inode_switch_bdi(struct
->  {
->  	struct backing_dev_info *old = inode->i_data.backing_dev_info;
->  
-> +	if (dst == old)
-> +		return;
+> Not something I've recently seen, so no.
 
-nitpick: it could help to add a comment
+OK, I'll digg it later.
 
-        /* avoid spinlock recursion */
-
-to indicate that's not merely an optional optimization, but indeed
-required for correctness.
-
-Thanks,
-Fengguang
-
->  	bdi_lock_two(&old->wb, &dst->wb);
->  	spin_lock(&inode->i_lock);
->  	inode->i_data.backing_dev_info = dst;
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Thanks.
