@@ -1,70 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id E6A2F8D003B
-	for <linux-mm@kvack.org>; Wed,  6 Apr 2011 18:50:24 -0400 (EDT)
-Received: from d03relay03.boulder.ibm.com (d03relay03.boulder.ibm.com [9.17.195.228])
-	by e38.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p36MYlwM009770
-	for <linux-mm@kvack.org>; Wed, 6 Apr 2011 16:34:47 -0600
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 51DDC8D003B
+	for <linux-mm@kvack.org>; Wed,  6 Apr 2011 19:23:15 -0400 (EDT)
+Received: from d01dlp01.pok.ibm.com (d01dlp01.pok.ibm.com [9.56.224.56])
+	by e7.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p36N1UAf006775
+	for <linux-mm@kvack.org>; Wed, 6 Apr 2011 19:01:30 -0400
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id B1CE238C8039
+	for <linux-mm@kvack.org>; Wed,  6 Apr 2011 19:23:03 -0400 (EDT)
 Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay03.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p36MoJve108466
-	for <linux-mm@kvack.org>; Wed, 6 Apr 2011 16:50:19 -0600
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p36NMjPR205212
+	for <linux-mm@kvack.org>; Wed, 6 Apr 2011 19:22:47 -0400
 Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p36MoHGJ009103
-	for <linux-mm@kvack.org>; Wed, 6 Apr 2011 16:50:18 -0600
-Date: Thu, 7 Apr 2011 04:20:13 +0530
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: Re: [PATCH v3 2.6.39-rc1-tip 23/26] 23: perf: show possible probes
- in a given executable file or library.
-Message-ID: <20110406225013.GB5806@linux.vnet.ibm.com>
-Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-References: <20110401143223.15455.19844.sendpatchset@localhost6.localdomain6>
- <20110401143707.15455.66114.sendpatchset@localhost6.localdomain6>
- <4D999A2F.4020204@hitachi.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <4D999A2F.4020204@hitachi.com>
+	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p36NMi3o004970
+	for <linux-mm@kvack.org>; Wed, 6 Apr 2011 17:22:44 -0600
+Subject: Re: [PATCH 2/5] kstaled: page_referenced_kstaled() and supporting
+ infrastructure.
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <1301042635-11180-3-git-send-email-walken@google.com>
+References: <1301042635-11180-1-git-send-email-walken@google.com>
+	 <1301042635-11180-3-git-send-email-walken@google.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Date: Wed, 06 Apr 2011 16:22:42 -0700
+Message-ID: <1302132162.8184.517.camel@nimitz>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Christoph Hellwig <hch@infradead.org>, Andi Kleen <andi@firstfloor.org>, Thomas Gleixner <tglx@linutronix.de>, Jonathan Corbet <corbet@lwn.net>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, SystemTap <systemtap@sources.redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Michel Lespinasse <walken@google.com>
+Cc: linux-mm@kvack.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-* Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com> [2011-04-04 19:15:11]:
+On Fri, 2011-03-25 at 01:43 -0700, Michel Lespinasse wrote:
+> +PAGEFLAG(Young, young)
+> +
+> +PAGEFLAG(Idle, idle)
+> +
+> +static inline void set_page_young(struct page *page)
+> +{
+> +       if (!PageYoung(page))
+> +               SetPageYoung(page);
+> +}
+> +
+> +static inline void clear_page_idle(struct page *page)
+> +{
+> +       if (PageIdle(page))
+> +               ClearPageIdle(page);
+> +} 
 
-> (2011/04/01 23:37), Srikar Dronamraju wrote:
-> > Enhances -F/--funcs option of "perf probe" to list possible probe points in
-> > an executable file or library. A new option -e/--exe specifies the path of
-> > the executable or library.
-> 
-> I think you'd better use -x for abbr. of --exe, since -e is used for --event
-> for other subcommands.
+Is it time for a CONFIG_X86_32_STRUCT_PAGE_IS_NOW_A_BLOATED_BIG config
+option?  If folks want these kinds of features, then they need to suck
+it up and make their 'struct page' 36 bytes.  Any of these new page
+flags features could:
 
-Okay, 
+	config EXTENDED_PAGE_FLAGS
+		depends on 64BIT || X86_32_STRUCT_PAGE_IS_NOW_A_BLOATED_BIG
 
-> 
-> And also, it seems this kind of patch should be placed after perf-probe
-> uprobe support patch, because without uprobe support, user binary analysis
-> is meaningless. (In the result, this introduces -u/--uprobe option without
-> uprobe support)
-> 
+	config KSTALED
+		depends on EXTENDED_PAGE_FLAGS
 
-Okay, I can do that, Should we do the listing before or after the uprobe
-can place a breakpoint is arguable.
+And then we can wrap the "enum pageflags" entries for them in #ifdefs,
+along with making page->flags a u64 when
+X86_32_STRUCT_PAGE_IS_NOW_A_BLOATED_BIG is set.
 
-> 
-> > Show last 10 functions in /bin/zsh.
-> > 
-> > # perf probe -F -u -e /bin/zsh | tail
-> 
-> I also can't understand why -u is required even if we have -x for user
-> binaries and -m for kernel modules.
-> 
-
-yes, for the listing we can certainly do without -u option.
-
--- 
-Thanks and Regards
-Srikar
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
