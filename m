@@ -1,87 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D9F48D003B
-	for <linux-mm@kvack.org>; Wed,  6 Apr 2011 13:54:17 -0400 (EDT)
-Received: by pvg4 with SMTP id 4so932515pvg.14
-        for <linux-mm@kvack.org>; Wed, 06 Apr 2011 10:54:15 -0700 (PDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id E9E518D003B
+	for <linux-mm@kvack.org>; Wed,  6 Apr 2011 18:42:03 -0400 (EDT)
+Received: from d01dlp01.pok.ibm.com (d01dlp01.pok.ibm.com [9.56.224.56])
+	by e8.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p36MGrGH013817
+	for <linux-mm@kvack.org>; Wed, 6 Apr 2011 18:16:53 -0400
+Received: from d01relay06.pok.ibm.com (d01relay06.pok.ibm.com [9.56.227.116])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id EB96B38C8038
+	for <linux-mm@kvack.org>; Wed,  6 Apr 2011 18:41:44 -0400 (EDT)
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p36MfrWF2678984
+	for <linux-mm@kvack.org>; Wed, 6 Apr 2011 18:41:53 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p36MfpdO024213
+	for <linux-mm@kvack.org>; Wed, 6 Apr 2011 18:41:52 -0400
+Date: Thu, 7 Apr 2011 04:11:48 +0530
+From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Subject: Re: [PATCH v3 2.6.39-rc1-tip 26/26] 26: uprobes: filter chain
+Message-ID: <20110406224148.GA5806@linux.vnet.ibm.com>
+Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+References: <20110401143223.15455.19844.sendpatchset@localhost6.localdomain6>
+ <20110401143737.15455.30181.sendpatchset@localhost6.localdomain6>
+ <4D9A6FE8.2010301@hitachi.com>
 MIME-Version: 1.0
-In-Reply-To: <BANLkTi=-Zb+vrQuY6J+dAMsmz+cQDD-KUw@mail.gmail.com>
-References: <alpine.LSU.2.00.1102232136020.2239@sister.anvils>
-	<AANLkTi==MQV=_qq1HaCxGLRu8DdT6FYddqzBkzp1TQs7@mail.gmail.com>
-	<AANLkTimv66fV1+JDqSAxRwddvy_kggCuhoJLMTpMTtJM@mail.gmail.com>
-	<alpine.LSU.2.00.1103182158200.18771@sister.anvils>
-	<BANLkTinoNMudwkcOOgU5d+imPUfZhDbWWQ@mail.gmail.com>
-	<AANLkTimfArmB7judMW7Qd4ATtVaR=yTf_-0DBRAfCJ7w@mail.gmail.com>
-	<BANLkTi=Limr3NUaG7RLoQLv5TuEDmm7Rqg@mail.gmail.com>
-	<BANLkTi=UZcocVk_16MbbV432g9a3nDFauA@mail.gmail.com>
-	<BANLkTi=KTdLRC_hRvxfpFoMSbz=vOjpObw@mail.gmail.com>
-	<BANLkTindeX9-ECPjgd_V62ZbXCd7iEG9_w@mail.gmail.com>
-	<BANLkTikcZK+AQvwe2ED=b0dLZ0hqg0B95w@mail.gmail.com>
-	<BANLkTimV1f1YDTWZUU9uvAtCO_fp6EKH9Q@mail.gmail.com>
-	<BANLkTi=tavhpytcSV+nKaXJzw19Bo3W9XQ@mail.gmail.com>
-	<alpine.LSU.2.00.1104060837590.4909@sister.anvils>
-	<BANLkTi=-Zb+vrQuY6J+dAMsmz+cQDD-KUw@mail.gmail.com>
-Date: Wed, 6 Apr 2011 19:54:15 +0200
-Message-ID: <BANLkTim0MZfa8vFgHB3W6NsoPHp2jfirrA@mail.gmail.com>
-Subject: Re: [PATCH] mm: fix possible cause of a page_mapped BUG
-From: =?UTF-8?B?Um9iZXJ0IMWad2nEmWNraQ==?= <robert@swiecki.net>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <4D9A6FE8.2010301@hitachi.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Miklos Szeredi <miklos@szeredi.hu>, Michel Lespinasse <walken@google.com>, "Eric W. Biederman" <ebiederm@xmission.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>
+To: Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Christoph Hellwig <hch@infradead.org>, Andi Kleen <andi@firstfloor.org>, Thomas Gleixner <tglx@linutronix.de>, Jonathan Corbet <corbet@lwn.net>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, SystemTap <systemtap@sources.redhat.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Apr 6, 2011 at 5:59 PM, Linus Torvalds
-<torvalds@linux-foundation.org> wrote:
-> On Wed, Apr 6, 2011 at 8:43 AM, Hugh Dickins <hughd@google.com> wrote:
->>
->> I was about to send you my own UNTESTED patch: let me append it anyway,
->> I think it is more correct than yours (it's the offset of vm_end we need
->> to worry about, and there's the funny old_len,new_len stuff).
->
-> Umm. That's what my patch did too. The
->
-> =C2=A0 pgoff =3D (addr - vma->vm_start) >> PAGE_SHIFT;
->
-> is the "offset of the pgoff" from the original mapping, then we do
->
-> =C2=A0 pgoff +=3D vma->vm_pgoff;
->
-> to get the pgoff of the new mapping, and then we do
->
-> =C2=A0 if (pgoff + (new_len >> PAGE_SHIFT) < pgoff)
->
-> to check that the new mapping is ok.
->
-> I think yours is equivalent, just a different (and odd - that
-> linear_page_index() thing will do lots of unnecessary shifts and
-> hugepage crap) way of writing it.
->
->>=C2=A0See what you think - sorry, I'm going out now.
->
-> I think _yours_ is conceptually buggy, because I think that test for
-> "vma->vm_file" is wrong.
->
-> Yes, new anonymous mappings set vm_pgoff to the virtual address, but
-> that's not true for mremap() moving them around, afaik.
->
-> Admittedly it's really hard to get to the overflow case, because the
-> address is shifted down, so even if you start out with an anonymous
-> mmap at a high address (to get a big vm_off), and then move it down
-> and expand it (to get a big size), I doubt you can possibly overflow.
-> But I still don't think that the test for vm_file is semantically
-> sensible, even if it might not _matter_.
->
-> But whatever. I suspect both our patches are practically doing the
-> same thing, and it would be interesting to hear if it actually fixes
-> the issue. Maybe there is some other way to mess up vm_pgoff that I
-> can't think of right now.
+> > +static bool filter_chain(struct uprobe *uprobe, struct task_struct *t)
+> > +{
+> > +	struct uprobe_consumer *consumer;
+> > +	bool ret = false;
+> > +
+> > +	down_read(&uprobe->consumer_rwsem);
+> > +	for (consumer = uprobe->consumers; consumer;
+> > +					consumer = consumer->next) {
+> > +		if (!consumer->filter || consumer->filter(consumer, t)) {
+> > +			ret = true;
+> > +			break;
+> > +		}
+> > +	}
+> > +	up_read(&uprobe->consumer_rwsem);
+> > +	return ret;
+> > +}
+> > +
+> 
+> Where this function is called from ? This patch seems the last one of this series...
+> 
 
-Testing with Linus' patch. Will let you know in a few hours.
+Sorry for the delayed reply, I was travelling to LFCS.
+Still I have to connect the filter from trace/perf probe. 
+Thats listed as todo and thats the next thing I am planning to work on.
+Once we have the connect, this filter_chain and filters that we defined
+will be used. Till then these two patches, One that defines filter_chain
+and one that defines filters are useless.
 
---=20
-Robert =C5=9Awi=C4=99cki
+-- 
+Thanks and Regards
+Srikar
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
