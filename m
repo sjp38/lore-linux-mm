@@ -1,99 +1,207 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 52ECB8D003B
-	for <linux-mm@kvack.org>; Thu,  7 Apr 2011 13:23:07 -0400 (EDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 389118D003B
+	for <linux-mm@kvack.org>; Thu,  7 Apr 2011 14:21:53 -0400 (EDT)
 Received: from d01dlp02.pok.ibm.com (d01dlp02.pok.ibm.com [9.56.224.85])
-	by e7.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p37H1Lxc013807
-	for <linux-mm@kvack.org>; Thu, 7 Apr 2011 13:01:21 -0400
+	by e4.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p37H1DLD020376
+	for <linux-mm@kvack.org>; Thu, 7 Apr 2011 13:01:13 -0400
 Received: from d01relay01.pok.ibm.com (d01relay01.pok.ibm.com [9.56.227.233])
-	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 39CF26E8039
-	for <linux-mm@kvack.org>; Thu,  7 Apr 2011 13:23:05 -0400 (EDT)
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p37HN5Pw302804
-	for <linux-mm@kvack.org>; Thu, 7 Apr 2011 13:23:05 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p37HN4C6017428
-	for <linux-mm@kvack.org>; Thu, 7 Apr 2011 14:23:04 -0300
-Subject: [PATCH] print vmalloc() state after allocation failures
+	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id AFF106E8036
+	for <linux-mm@kvack.org>; Thu,  7 Apr 2011 13:21:07 -0400 (EDT)
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p37HL7fJ382956
+	for <linux-mm@kvack.org>; Thu, 7 Apr 2011 13:21:07 -0400
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p37HL5A5006192
+	for <linux-mm@kvack.org>; Thu, 7 Apr 2011 14:21:07 -0300
+Subject: [PATCH 1/2] rename alloc_pages_exact()
 From: Dave Hansen <dave@linux.vnet.ibm.com>
-Date: Thu, 07 Apr 2011 10:23:02 -0700
-Message-Id: <20110407172302.3B7546DA@kernel>
+Date: Thu, 07 Apr 2011 10:21:04 -0700
+Message-Id: <20110407172104.1F8B7329@kernel>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: linux-kernel@vger.kernel.org, Timur Tabi <timur@freescale.com>, Andi Kleen <andi@firstfloor.org>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave@linux.vnet.ibm.com>
 
 
-I was tracking down a page allocation failure that ended up in vmalloc().
-Since vmalloc() uses 0-order pages, if somebody asks for an insane amount
-of memory, we'll still get a warning with "order:0" in it.  That's not
-very useful.
+alloc_pages_exact() returns a virtual address.  But, alloc_pages() returns
+a 'struct page *'.  That makes for very confused kernel hackers.
 
-During recovery, vmalloc() also nicely frees all of the memory that it
-got up to the point of the failure.  That is wonderful, but it also
-quickly hides any issues.  We have a much different sitation if vmalloc()
-repeatedly fails 10GB in to:
+__get_free_pages(), on the other hand, returns virtual addresses.  That
+makes alloc_pages_exact() a much closer match to __get_free_pages(), so
+rename it to get_free_pages_exact().
 
-	vmalloc(100 * 1<<30);
-
-versus repeatedly failing 4096 bytes in to a:
-
-	vmalloc(8192);
-
-This will print out messages that look like this:
-
-[   30.040774] bash: vmalloc failure allocating after 0 / 73728 bytes
-
-As a side issue, I also noticed that ctl_ioctl() does vmalloc() based
-solely on an unverified value passed in from userspace.  Granted, it's
-under CAP_SYS_ADMIN, but it still frightens me a bit.
-
-multipathd: page allocation failure. order:0, mode:0xd2
-Call Trace:
-[c0000000f34ef570] [c000000000012d84] .show_stack+0x74/0x1c0 (unreliable)
-[c0000000f34ef620] [c000000000159ed4] .__alloc_pages_nodemask+0x574/0x830
-[c0000000f34ef7a0] [c00000000019306c] .alloc_pages_current+0x8c/0x110
-[c0000000f34ef840] [c000000000183bdc] .__vmalloc_area_node+0x17c/0x220
-[c0000000f34ef900] [d00000000132bb24] .copy_params+0x74/0xc0 [dm_mod]
-[c0000000f34efad0] [d00000000132bcec] .ctl_ioctl+0x17c/0x2c0 [dm_mod]
-[c0000000f34efb90] [d00000000132be48] .dm_ctl_ioctl+0x18/0x30 [dm_mod]
-[c0000000f34efc00] [c0000000001c4ee4] .vfs_ioctl+0x54/0x140
-[c0000000f34efc90] [c0000000001c5130] .do_vfs_ioctl+0x90/0x7c0
-[c0000000f34efd80] [c0000000001c5914] .SyS_ioctl+0xb4/0xd0
-[c0000000f34efe30] [c00000000000852c] syscall_exit+0x0/0x40
-Mem-Info:
-Node 0 DMA per-cpu:
-...
-
+Note that alloc_pages_exact()'s partner, free_pages_exact() already
+matches free_pages(), so we do not have to touch the free side of things.
 
 Signed-off-by: Dave Hansen <dave@linux.vnet.ibm.com>
+Acked-by: Andi Kleen <ak@linux.intel.com>
 ---
 
- linux-2.6.git-dave/mm/vmalloc.c |   12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ linux-2.6.git-dave/drivers/video/fsl-diu-fb.c  |    2 +-
+ linux-2.6.git-dave/drivers/video/mxsfb.c       |    2 +-
+ linux-2.6.git-dave/drivers/video/pxafb.c       |    4 ++--
+ linux-2.6.git-dave/drivers/virtio/virtio_pci.c |    2 +-
+ linux-2.6.git-dave/include/linux/gfp.h         |    2 +-
+ linux-2.6.git-dave/kernel/profile.c            |    2 +-
+ linux-2.6.git-dave/mm/page_alloc.c             |   24 ++++++++++++------------
+ linux-2.6.git-dave/mm/page_cgroup.c            |    2 +-
+ 8 files changed, 20 insertions(+), 20 deletions(-)
 
-diff -puN mm/vmalloc.c~vmalloc-warn mm/vmalloc.c
---- linux-2.6.git/mm/vmalloc.c~vmalloc-warn	2011-04-07 10:21:27.792401938 -0700
-+++ linux-2.6.git-dave/mm/vmalloc.c	2011-04-07 10:21:27.800401934 -0700
-@@ -1579,6 +1579,18 @@ static void *__vmalloc_area_node(struct 
- 	return area->addr;
+diff -puN drivers/video/fsl-diu-fb.c~change-alloc_pages_exact-name drivers/video/fsl-diu-fb.c
+--- linux-2.6.git/drivers/video/fsl-diu-fb.c~change-alloc_pages_exact-name	2011-04-07 08:37:58.074400957 -0700
++++ linux-2.6.git-dave/drivers/video/fsl-diu-fb.c	2011-04-07 08:37:58.186400949 -0700
+@@ -294,7 +294,7 @@ static void *fsl_diu_alloc(size_t size, 
  
- fail:
-+	if (!(gfp_mask & __GFP_NOWARN) && printk_ratelimit()) {
-+		/*
-+		 * We probably did a show_mem() and a stack dump above
-+		 * inside of alloc_page*().  This is only so we can
-+		 * tell how big the vmalloc() really was.  This will
-+		 * also not be exactly the same as what was passed
-+		 * to vmalloc() due to alignment and the guard page.
-+		 */
-+		printk(KERN_WARNING "%s: vmalloc: allocation failure, "
-+			"allocated %ld of %ld bytes\n", current->comm,
-+			(area->nr_pages*PAGE_SIZE), area->size);
-+	}
- 	vfree(area->addr);
- 	return NULL;
+ 	pr_debug("size=%zu\n", size);
+ 
+-	virt = alloc_pages_exact(size, GFP_DMA | __GFP_ZERO);
++	virt = get_free_pages_exact(GFP_DMA | __GFP_ZERO, size);
+ 	if (virt) {
+ 		*phys = virt_to_phys(virt);
+ 		pr_debug("virt=%p phys=%llx\n", virt,
+diff -puN drivers/video/pxafb.c~change-alloc_pages_exact-name drivers/video/pxafb.c
+--- linux-2.6.git/drivers/video/pxafb.c~change-alloc_pages_exact-name	2011-04-07 08:37:58.078400957 -0700
++++ linux-2.6.git-dave/drivers/video/pxafb.c	2011-04-07 08:39:16.198395385 -0700
+@@ -905,7 +905,7 @@ static int __devinit pxafb_overlay_map_v
+ 	/* We assume that user will use at most video_mem_size for overlay fb,
+ 	 * anyway, it's useless to use 16bpp main plane and 24bpp overlay
+ 	 */
+-	ofb->video_mem = alloc_pages_exact(PAGE_ALIGN(pxafb->video_mem_size),
++	ofb->video_mem = get_free_pages_exact(PAGE_ALIGN(pxafb->video_mem_size),
+ 		GFP_KERNEL | __GFP_ZERO);
+ 	if (ofb->video_mem == NULL)
+ 		return -ENOMEM;
+@@ -1714,7 +1714,7 @@ static int __devinit pxafb_init_video_me
+ {
+ 	int size = PAGE_ALIGN(fbi->video_mem_size);
+ 
+-	fbi->video_mem = alloc_pages_exact(size, GFP_KERNEL | __GFP_ZERO);
++	fbi->video_mem = get_free_pages_exact(GFP_KERNEL | __GFP_ZERO, size);
+ 	if (fbi->video_mem == NULL)
+ 		return -ENOMEM;
+ 
+diff -puN drivers/virtio/virtio_pci.c~change-alloc_pages_exact-name drivers/virtio/virtio_pci.c
+--- linux-2.6.git/drivers/virtio/virtio_pci.c~change-alloc_pages_exact-name	2011-04-07 08:37:58.082400957 -0700
++++ linux-2.6.git-dave/drivers/virtio/virtio_pci.c	2011-04-07 08:37:58.190400949 -0700
+@@ -385,7 +385,7 @@ static struct virtqueue *setup_vq(struct
+ 	info->msix_vector = msix_vec;
+ 
+ 	size = PAGE_ALIGN(vring_size(num, VIRTIO_PCI_VRING_ALIGN));
+-	info->queue = alloc_pages_exact(size, GFP_KERNEL|__GFP_ZERO);
++	info->queue = get_free_pages_exact(GFP_KERNEL|__GFP_ZERO, size);
+ 	if (info->queue == NULL) {
+ 		err = -ENOMEM;
+ 		goto out_info;
+diff -puN include/linux/gfp.h~change-alloc_pages_exact-name include/linux/gfp.h
+--- linux-2.6.git/include/linux/gfp.h~change-alloc_pages_exact-name	2011-04-07 08:37:58.086400956 -0700
++++ linux-2.6.git-dave/include/linux/gfp.h	2011-04-07 08:37:58.190400949 -0700
+@@ -351,7 +351,7 @@ extern struct page *alloc_pages_vma(gfp_
+ extern unsigned long __get_free_pages(gfp_t gfp_mask, unsigned int order);
+ extern unsigned long get_zeroed_page(gfp_t gfp_mask);
+ 
+-void *alloc_pages_exact(size_t size, gfp_t gfp_mask);
++void *get_free_pages_exact(gfp_t gfp_mask, size_t size);
+ void free_pages_exact(void *virt, size_t size);
+ 
+ #define __get_free_page(gfp_mask) \
+diff -puN kernel/profile.c~change-alloc_pages_exact-name kernel/profile.c
+--- linux-2.6.git/kernel/profile.c~change-alloc_pages_exact-name	2011-04-07 08:37:58.090400955 -0700
++++ linux-2.6.git-dave/kernel/profile.c	2011-04-07 08:37:58.190400949 -0700
+@@ -121,7 +121,7 @@ int __ref profile_init(void)
+ 	if (prof_buffer)
+ 		return 0;
+ 
+-	prof_buffer = alloc_pages_exact(buffer_bytes,
++	prof_buffer = get_free_pages_exact(buffer_bytes,
+ 					GFP_KERNEL|__GFP_ZERO|__GFP_NOWARN);
+ 	if (prof_buffer)
+ 		return 0;
+diff -puN mm/page_alloc.c~change-alloc_pages_exact-name mm/page_alloc.c
+--- linux-2.6.git/mm/page_alloc.c~change-alloc_pages_exact-name	2011-04-07 08:37:58.094400955 -0700
++++ linux-2.6.git-dave/mm/page_alloc.c	2011-04-07 08:37:58.194400949 -0700
+@@ -2318,19 +2318,19 @@ void free_pages(unsigned long addr, unsi
+ EXPORT_SYMBOL(free_pages);
+ 
+ /**
+- * alloc_pages_exact - allocate an exact number physically-contiguous pages.
+- * @size: the number of bytes to allocate
++ * get_free_pages_exact - allocate an exact number physically-contiguous pages.
+  * @gfp_mask: GFP flags for the allocation
++ * @size: the number of bytes to allocate
+  *
+- * This function is similar to alloc_pages(), except that it allocates the
+- * minimum number of pages to satisfy the request.  alloc_pages() can only
++ * This function is similar to __get_free_pages(), except that it allocates the
++ * minimum number of pages to satisfy the request.  get_free_pages() can only
+  * allocate memory in power-of-two pages.
+  *
+  * This function is also limited by MAX_ORDER.
+  *
+  * Memory allocated by this function must be released by free_pages_exact().
+  */
+-void *alloc_pages_exact(size_t size, gfp_t gfp_mask)
++void *get_free_pages_exact(gfp_t gfp_mask, size_t size)
+ {
+ 	unsigned int order = get_order(size);
+ 	unsigned long addr;
+@@ -2349,14 +2349,14 @@ void *alloc_pages_exact(size_t size, gfp
+ 
+ 	return (void *)addr;
  }
+-EXPORT_SYMBOL(alloc_pages_exact);
++EXPORT_SYMBOL(get_free_pages_exact);
+ 
+ /**
+- * free_pages_exact - release memory allocated via alloc_pages_exact()
+- * @virt: the value returned by alloc_pages_exact.
+- * @size: size of allocation, same value as passed to alloc_pages_exact().
++ * free_pages_exact - release memory allocated via get_free_pages_exact()
++ * @virt: the value returned by get_free_pages_exact().
++ * @size: size of allocation, same value as passed to get_free_pages_exact().
+  *
+- * Release the memory allocated by a previous call to alloc_pages_exact.
++ * Release the memory allocated by a previous call to get_free_pages_exact().
+  */
+ void free_pages_exact(void *virt, size_t size)
+ {
+@@ -5308,10 +5308,10 @@ void *__init alloc_large_system_hash(con
+ 			/*
+ 			 * If bucketsize is not a power-of-two, we may free
+ 			 * some pages at the end of hash table which
+-			 * alloc_pages_exact() automatically does
++			 * get_free_pages_exact() automatically does
+ 			 */
+ 			if (get_order(size) < MAX_ORDER) {
+-				table = alloc_pages_exact(size, GFP_ATOMIC);
++				table = get_free_pages_exact(GFP_ATOMIC, size);
+ 				kmemleak_alloc(table, size, 1, GFP_ATOMIC);
+ 			}
+ 		}
+diff -puN mm/page_cgroup.c~change-alloc_pages_exact-name mm/page_cgroup.c
+--- linux-2.6.git/mm/page_cgroup.c~change-alloc_pages_exact-name	2011-04-07 08:37:58.098400955 -0700
++++ linux-2.6.git-dave/mm/page_cgroup.c	2011-04-07 08:37:58.198400948 -0700
+@@ -134,7 +134,7 @@ static void *__init_refok alloc_page_cgr
+ {
+ 	void *addr = NULL;
+ 
+-	addr = alloc_pages_exact(size, GFP_KERNEL | __GFP_NOWARN);
++	addr = get_free_pages_exact(GFP_KERNEL | __GFP_NOWARN, size);
+ 	if (addr)
+ 		return addr;
+ 
+diff -puN drivers/video/mxsfb.c~change-alloc_pages_exact-name drivers/video/mxsfb.c
+--- linux-2.6.git/drivers/video/mxsfb.c~change-alloc_pages_exact-name	2011-04-07 08:37:58.102400955 -0700
++++ linux-2.6.git-dave/drivers/video/mxsfb.c	2011-04-07 08:37:58.198400948 -0700
+@@ -718,7 +718,7 @@ static int __devinit mxsfb_init_fbinfo(s
+ 	} else {
+ 		if (!fb_size)
+ 			fb_size = SZ_2M; /* default */
+-		fb_virt = alloc_pages_exact(fb_size, GFP_DMA);
++		fb_virt = get_free_pages_exact(GFP_DMA, fb_size);
+ 		if (!fb_virt)
+ 			return -ENOMEM;
+ 
 _
 
 --
