@@ -1,62 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E0A68D003B
-	for <linux-mm@kvack.org>; Thu,  7 Apr 2011 20:19:52 -0400 (EDT)
-Date: Thu, 7 Apr 2011 17:19:42 -0700
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] print vmalloc() state after allocation failures
-Message-ID: <20110408001942.GC2874@cmpxchg.org>
-References: <20110407172302.3B7546DA@kernel>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 8AFC88D003B
+	for <linux-mm@kvack.org>; Thu,  7 Apr 2011 20:59:59 -0400 (EDT)
+From: Greg Thelen <gthelen@google.com>
+Subject: Re: [Lsf] IO less throttling and cgroup aware writeback
+References: <20110331222756.GC2904@dastard>
+	<20110401171838.GD20986@redhat.com> <20110401214947.GE6957@dastard>
+	<20110405131359.GA14239@redhat.com> <20110405225639.GB31057@dastard>
+	<BANLkTikDPHcpjmb-EAiX+MQcu7hfE730DQ@mail.gmail.com>
+	<20110406153954.GB18777@redhat.com>
+	<xr937hb7568t.fsf@gthelen.mtv.corp.google.com>
+	<20110406233602.GK31057@dastard> <20110407192424.GE27778@redhat.com>
+	<20110407234249.GE30279@dastard>
+Date: Thu, 07 Apr 2011 17:59:35 -0700
+Message-ID: <xr93ei5dzhfs.fsf@gthelen.mtv.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110407172302.3B7546DA@kernel>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Vivek Goyal <vgoyal@redhat.com>, Curt Wohlgemuth <curtw@google.com>, James Bottomley <James.Bottomley@hansenpartnership.com>, lsf@lists.linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, Apr 07, 2011 at 10:23:02AM -0700, Dave Hansen wrote:
-> Signed-off-by: Dave Hansen <dave@linux.vnet.ibm.com>
+cc: linux-mm
 
-I agree with this in general, but have some nitpicks.
+Dave Chinner <david@fromorbit.com> writes:
 
-> @@ -1579,6 +1579,18 @@ static void *__vmalloc_area_node(struct 
->  	return area->addr;
->  
->  fail:
-> +	if (!(gfp_mask & __GFP_NOWARN) && printk_ratelimit()) {
+> On Thu, Apr 07, 2011 at 03:24:24PM -0400, Vivek Goyal wrote:
+>> On Thu, Apr 07, 2011 at 09:36:02AM +1000, Dave Chinner wrote:
+> [...]
+>> > > When I_DIRTY is cleared, remove inode from bdi_memcg->b_dirty.  Dele=
+te bdi_memcg
+>> > > if the list is now empty.
+>> > >=20
+>> > > balance_dirty_pages() calls mem_cgroup_balance_dirty_pages(memcg, bd=
+i)
+>> > >    if over bg limit, then
+>> > >        set bdi_memcg->b_over_limit
+>> > >            If there is no bdi_memcg (because all inodes of current=
+=E2=80=99s
+>> > >            memcg dirty pages where first dirtied by other memcg) then
+>> > >            memcg lru to find inode and call writeback_single_inode().
+>> > >            This is to handle uncommon sharing.
+>> >=20
+>> > We don't want to introduce any new IO sources into
+>> > balance_dirty_pages(). This needs to trigger memcg-LRU based bdi
+>> > flusher writeback, not try to write back inodes itself.
+>>=20
+>> Will we not enjoy more sequtial IO traffic once we find an inode by
+>> traversing memcg->lru list? So isn't that better than pure LRU based
+>> flushing?
+>
+> Sorry, I wasn't particularly clear there, What I meant was that we
+> ask the bdi-flusher thread to select the inode to write back from
+> the LRU, not do it directly from balance_dirty_pages(). i.e.
+> bdp stays IO-less.
+>
+>> > Alternatively, this problem won't exist if you transfer page =D1=89ache
+>> > state from one memcg to another when you move the inode from one
+>> > memcg to another.
+>>=20
+>> But in case of shared inode problem still remains. inode is being written
+>> from two cgroups and it can't be in both the groups as per the exisiting
+>> design.
+>
+> But we've already determined that there is no use case for this
+> shared inode behaviour, so we aren't going to explictly support it,
+> right?
+>
+> Cheers,
+>
+> Dave.
 
-There is a comment above the declaration of printk_ratelimit:
+I am thinking that we should avoid ever scanning the memcg lru for dirty
+pages or corresponding dirty inodes previously associated with other
+memcg.  I think the only reason we considered scanning the lru was to
+handle the unexpected shared inode case.  When such inode sharing occurs
+the sharing memcg will not be confined to the memcg's dirty limit.
+There's always the memcg hard limit to cap memcg usage.
 
-/*
- * Please don't use printk_ratelimit(), because it shares ratelimiting state
- * with all other unrelated printk_ratelimit() callsites.  Instead use
- * printk_ratelimited() or plain old __ratelimit().
- */
+I'd like to add a counter (or at least tracepoint) to record when such
+unsupported usage is detected.
 
-I realize that the page allocator does it the same way, but I think it
-should probably be fixed in there, rather than spread any further.
+Here's an example time line of such sharing:
 
-> +		/*
-> +		 * We probably did a show_mem() and a stack dump above
-> +		 * inside of alloc_page*().  This is only so we can
-> +		 * tell how big the vmalloc() really was.  This will
-> +		 * also not be exactly the same as what was passed
-> +		 * to vmalloc() due to alignment and the guard page.
-> +		 */
-> +		printk(KERN_WARNING "%s: vmalloc: allocation failure, "
-> +			"allocated %ld of %ld bytes\n", current->comm,
-> +			(area->nr_pages*PAGE_SIZE), area->size);
-> +	}
+1. memcg_1/process_a, writes to /var/log/messages and closes the file.
+   This marks the inode in the bdi_memcg for memcg_1.
 
-To me, this does not look like something that should just be appended
-to the whole pile spewed out by dump_stack() and show_mem().  What do
-you think about doing the page allocation with __GFP_NOWARN and have
-the full report come from this place, with the line you introduce as
-leader?
+2. memcg_2/process_b, continually writes to /var/log/messages.  This
+   drives up memcg_2 dirty memory usage to the memcg_2 background
+   threshold.  mem_cgroup_balance_dirty_pages() would normally mark the
+   corresponding bdi_memcg as over-bg-limit and kick the bdi_flusher and
+   then return to the dirtying process.  However, there is no bdi_memcg
+   because there are no dirty inodes for memcg_2.  So the bdi flusher
+   sees no bdi_memcg as marked over-limit, so bdi flusher writes nothing
+   (assuming we're still below system background threshold).
 
-	Hannes
+3. memcg_2/process_b, continues writing to /var/log/messages hitting the
+   memcg_2 dirty memory foreground threshold.  Using IO-less
+   balance_dirty_pages(), normally mem_cgroup_balance_dirty_pages()
+   would block waiting for the previously kicked bdi flusher to clean
+   some memcg_2 pages.  In this case mem_cgroup_balance_dirty_pages()
+   sees no bdi_memcg and concludes that bdi flusher will not be lowering
+   memcg dirty memory usage.  This is the unsupported sharing case, so
+   mem_cgroup_balance_dirty_pages() fires a tracepoint and just returns
+   allowing memcg_2 dirty memory to exceed its foreground limit growing
+   upwards to the memcg_2 memory limit_in_bytes.  Once limit_in_bytes is
+   hit it will use per memcg direct reclaim to recycle memcg_2 pages,
+   including the previously written memcg_2 /var/log/messages dirty
+   pages.
+
+By cutting out lru scanning the code should be simpler and still handle
+the common case well.
+
+If we later find that this supposed uncommon shared inode case is
+important then we can either implement the previously described lru
+scanning in mem_cgroup_balance_dirty_pages() or consider extending the
+bdi/memcg/inode data structures (perhaps with a memcg_mapping) to
+describe such sharing.
+
+> Cheers,
+>
+> Dave.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
