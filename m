@@ -1,69 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id EF7388D003B
-	for <linux-mm@kvack.org>; Fri,  8 Apr 2011 16:54:37 -0400 (EDT)
-Received: by eyd9 with SMTP id 9so1665670eyd.14
-        for <linux-mm@kvack.org>; Fri, 08 Apr 2011 13:54:35 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20110408202253.6D6D231C@kernel>
-References: <20110408202253.6D6D231C@kernel>
-Date: Fri, 8 Apr 2011 22:54:34 +0200
-Message-ID: <BANLkTi=OnDX53nOZcaaMmqXRBcWicam0xg@mail.gmail.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 3D7808D003B
+	for <linux-mm@kvack.org>; Fri,  8 Apr 2011 17:02:12 -0400 (EDT)
+Received: from d03relay05.boulder.ibm.com (d03relay05.boulder.ibm.com [9.17.195.107])
+	by e35.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p38KkEB1022230
+	for <linux-mm@kvack.org>; Fri, 8 Apr 2011 14:46:14 -0600
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d03relay05.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p38L26P3096086
+	for <linux-mm@kvack.org>; Fri, 8 Apr 2011 15:02:06 -0600
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p38L25lq015534
+	for <linux-mm@kvack.org>; Fri, 8 Apr 2011 15:02:06 -0600
 Subject: Re: [PATCH 1/2] break out page allocation warning code
-From: =?UTF-8?Q?Micha=C5=82_Nazarewicz?= <mnazarewicz@gmail.com>
-Content-Type: multipart/alternative; boundary=0016e65bb65af07b7004a06e6e03
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <BANLkTi=OnDX53nOZcaaMmqXRBcWicam0xg@mail.gmail.com>
+References: <20110408202253.6D6D231C@kernel>
+	 <BANLkTi=OnDX53nOZcaaMmqXRBcWicam0xg@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Fri, 08 Apr 2011 14:02:02 -0700
+Message-ID: <1302296522.7286.1197.camel@nimitz>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
+To: =?UTF-8?Q?Micha=C5=82?= Nazarewicz <mnazarewicz@gmail.com>
 Cc: linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org
 
---0016e65bb65af07b7004a06e6e03
-Content-Type: text/plain; charset=UTF-8
+On Fri, 2011-04-08 at 22:54 +0200, MichaA? Nazarewicz wrote:
+> On Apr 8, 2011 10:23 PM, "Dave Hansen" <dave@linux.vnet.ibm.com> wrote:
+> > +       if (fmt) {
+> > +               printk(KERN_WARNING);
+> > +               va_start(args, fmt);
+> > +               r = vprintk(fmt, args);
+> > +               va_end(args);
+> > +       }
+> 
+> Could we make the "printk(KERN_WARNING);" go away and require caller
+> to specify level?  
 
-On Apr 8, 2011 10:23 PM, "Dave Hansen" <dave@linux.vnet.ibm.com> wrote:
-> +       if (fmt) {
-> +               printk(KERN_WARNING);
-> +               va_start(args, fmt);
-> +               r = vprintk(fmt, args);
-> +               va_end(args);
-> +       }
+The core problem is this: I want two lines of output: one for the
+order/mode gunk, and one for the user-specified message.
 
-Could we make the "printk(KERN_WARNING);" go away and require caller to
-specify level?
+If we have the user pass in a string for the printk() level, we're stuck
+doing what I have here.  If we have them _prepend_ it to the "fmt"
+string, then it's harder to figure out below.  I guess we could fish in
+the string for it.
 
-> +       printk(KERN_WARNING);
-> +       printk("%s: page allocation failure: order:%d, mode:0x%x\n",
-> +                       current->comm, order, gfp_mask);
+> > +       printk(KERN_WARNING);
+> > +       printk("%s: page allocation failure: order:%d, mode:0x%x\n",
+> > +                       current->comm, order, gfp_mask);
+> 
+> Even more so here. Why not pr_warning instead of two non-atomic calls
+> to printk?
 
-Even more so here. Why not pr_warning instead of two non-atomic calls to
-printk?
+It's a relic of an hour ago when I tried passing in the printk() level
+to the function as a string.  It can go away now. :)
 
---0016e65bb65af07b7004a06e6e03
-Content-Type: text/html; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
-
-<p>On Apr 8, 2011 10:23 PM, &quot;Dave Hansen&quot; &lt;<a href=3D"mailto:d=
-ave@linux.vnet.ibm.com">dave@linux.vnet.ibm.com</a>&gt; wrote:<br>
-&gt; + =C2=A0 =C2=A0 =C2=A0 if (fmt) {<br>
-&gt; + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 printk(KERN_WARNING=
-);<br>
-&gt; + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 va_start(args, fmt)=
-;<br>
-&gt; + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 r =3D vprintk(fmt, =
-args);<br>
-&gt; + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 va_end(args);<br>
-&gt; + =C2=A0 =C2=A0 =C2=A0 }</p>
-<p>Could we make the &quot;printk(KERN_WARNING);&quot; go away and require =
-caller to specify level?=C2=A0 </p>
-<p>&gt; + =C2=A0 =C2=A0 =C2=A0 printk(KERN_WARNING);<br>
-&gt; + =C2=A0 =C2=A0 =C2=A0 printk(&quot;%s: page allocation failure: order=
-:%d, mode:0x%x\n&quot;,<br>
-&gt; + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 current-&gt;comm, order, gfp_mask);</p>
-<p>Even more so here. Why not pr_warning instead of two non-atomic calls to=
- printk?</p>
-
---0016e65bb65af07b7004a06e6e03--
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
