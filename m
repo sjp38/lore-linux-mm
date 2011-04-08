@@ -1,74 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 451478D003B
-	for <linux-mm@kvack.org>; Fri,  8 Apr 2011 09:23:20 -0400 (EDT)
-Received: from d03relay05.boulder.ibm.com (d03relay05.boulder.ibm.com [9.17.195.107])
-	by e38.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p38D7gZO011000
-	for <linux-mm@kvack.org>; Fri, 8 Apr 2011 07:07:42 -0600
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay05.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p38DNBKf104580
-	for <linux-mm@kvack.org>; Fri, 8 Apr 2011 07:23:12 -0600
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p38DNAMC013109
-	for <linux-mm@kvack.org>; Fri, 8 Apr 2011 07:23:10 -0600
-Subject: Re: [PATCH] print vmalloc() state after allocation failures
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <20110408001942.GC2874@cmpxchg.org>
-References: <20110407172302.3B7546DA@kernel>
-	 <20110408001942.GC2874@cmpxchg.org>
-Content-Type: text/plain; charset="ISO-8859-1"
-Date: Fri, 08 Apr 2011 06:23:08 -0700
-Message-ID: <1302268988.8184.6890.camel@nimitz>
-Mime-Version: 1.0
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id CE4688D003B
+	for <linux-mm@kvack.org>; Fri,  8 Apr 2011 09:23:46 -0400 (EDT)
+Received: by fxm18 with SMTP id 18so3351294fxm.14
+        for <linux-mm@kvack.org>; Fri, 08 Apr 2011 06:23:42 -0700 (PDT)
+Content-Type: text/plain; charset=utf-8; format=flowed; delsp=yes
+Subject: Re: [PATCH 2/2] make new alloc_pages_exact()
+References: <20110407172104.1F8B7329@kernel> <20110407172105.831B9A0A@kernel>
+ <op.vtmcx9kd3l0zgt@mnazarewicz-glaptop> <1302268786.8184.6879.camel@nimitz>
+Date: Fri, 08 Apr 2011 15:23:40 +0200
+MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
+From: "Michal Nazarewicz" <mina86@mina86.com>
+Message-ID: <op.vtmfhqyh3l0zgt@mnazarewicz-glaptop>
+In-Reply-To: <1302268786.8184.6879.camel@nimitz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Timur Tabi <timur@freescale.com>, Andi Kleen <andi@firstfloor.org>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>
 
-On Thu, 2011-04-07 at 17:19 -0700, Johannes Weiner wrote:
-> On Thu, Apr 07, 2011 at 10:23:02AM -0700, Dave Hansen wrote:
-> > @@ -1579,6 +1579,18 @@ static void *__vmalloc_area_node(struct 
-> >  	return area->addr;
-> >  
-> >  fail:
-> > +	if (!(gfp_mask & __GFP_NOWARN) && printk_ratelimit()) {
-> 
-> There is a comment above the declaration of printk_ratelimit:
-> 
-> /*
->  * Please don't use printk_ratelimit(), because it shares ratelimiting state
->  * with all other unrelated printk_ratelimit() callsites.  Instead use
->  * printk_ratelimited() or plain old __ratelimit().
->  */
-> 
-> I realize that the page allocator does it the same way, but I think it
-> should probably be fixed in there, rather than spread any further.
+>> On Thu, 07 Apr 2011 19:21:05 +0200, Dave Hansen wrote:
+>>>  		while (used < alloc_end) {
+>>> -			free_page(used);
+>>> -			used += PAGE_SIZE;
+>>> +			__free_page(used);
+>>> +			used++;
+>>>  		}
 
-You're the second person to mention this.  I should have listened the
-first time. :)  I'll fix it up and repost.
+> On Fri, 2011-04-08 at 14:28 +0200, Michal Nazarewicz wrote:
+>> Have you thought about moving this loop to a separate function, ie.
+>> _free_page_range(start, end)?  I'm asking because this loop appears
+>> in two places and my CMA would also benefit from such a function.
 
-> > +		/*
-> > +		 * We probably did a show_mem() and a stack dump above
-> > +		 * inside of alloc_page*().  This is only so we can
-> > +		 * tell how big the vmalloc() really was.  This will
-> > +		 * also not be exactly the same as what was passed
-> > +		 * to vmalloc() due to alignment and the guard page.
-> > +		 */
-> > +		printk(KERN_WARNING "%s: vmalloc: allocation failure, "
-> > +			"allocated %ld of %ld bytes\n", current->comm,
-> > +			(area->nr_pages*PAGE_SIZE), area->size);
-> > +	}
-> 
-> To me, this does not look like something that should just be appended
-> to the whole pile spewed out by dump_stack() and show_mem().  What do
-> you think about doing the page allocation with __GFP_NOWARN and have
-> the full report come from this place, with the line you introduce as
-> leader?
+On Fri, 08 Apr 2011 15:19:46 +0200, Dave Hansen wrote:
+> Sounds like a good idea to me.  Were you thinking start/end 'struct
+> page's as arguments?
 
-That sounds fine to me.  
+Either that or (struct page *start, unsigned nr_pages).
 
--- Dave
+-- 
+Best regards,                                         _     _
+.o. | Liege of Serenely Enlightened Majesty of      o' \,=./ `o
+..o | Computer Science,  Michal "mina86" Nazarewicz    (o o)
+ooo +-----<email/xmpp: mnazarewicz@google.com>-----ooO--(_)--Ooo--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
