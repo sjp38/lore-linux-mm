@@ -1,60 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D7808D003B
-	for <linux-mm@kvack.org>; Fri,  8 Apr 2011 17:02:12 -0400 (EDT)
-Received: from d03relay05.boulder.ibm.com (d03relay05.boulder.ibm.com [9.17.195.107])
-	by e35.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p38KkEB1022230
-	for <linux-mm@kvack.org>; Fri, 8 Apr 2011 14:46:14 -0600
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d03relay05.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p38L26P3096086
-	for <linux-mm@kvack.org>; Fri, 8 Apr 2011 15:02:06 -0600
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p38L25lq015534
-	for <linux-mm@kvack.org>; Fri, 8 Apr 2011 15:02:06 -0600
-Subject: Re: [PATCH 1/2] break out page allocation warning code
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 664438D003B
+	for <linux-mm@kvack.org>; Fri,  8 Apr 2011 18:07:18 -0400 (EDT)
+Received: from d01dlp02.pok.ibm.com (d01dlp02.pok.ibm.com [9.56.224.85])
+	by e1.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p38LuokI004723
+	for <linux-mm@kvack.org>; Fri, 8 Apr 2011 17:56:50 -0400
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 6B9BC6E8036
+	for <linux-mm@kvack.org>; Fri,  8 Apr 2011 18:07:09 -0400 (EDT)
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p38M6K0W065082
+	for <linux-mm@kvack.org>; Fri, 8 Apr 2011 18:06:37 -0400
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p38M6JRn015459
+	for <linux-mm@kvack.org>; Fri, 8 Apr 2011 16:06:20 -0600
+Subject: Re: [PATCH 2/2] make new alloc_pages_exact()
 From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <BANLkTi=OnDX53nOZcaaMmqXRBcWicam0xg@mail.gmail.com>
-References: <20110408202253.6D6D231C@kernel>
-	 <BANLkTi=OnDX53nOZcaaMmqXRBcWicam0xg@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Fri, 08 Apr 2011 14:02:02 -0700
-Message-ID: <1302296522.7286.1197.camel@nimitz>
+In-Reply-To: <op.vtmcx9kd3l0zgt@mnazarewicz-glaptop>
+References: <20110407172104.1F8B7329@kernel>
+	 <20110407172105.831B9A0A@kernel>  <op.vtmcx9kd3l0zgt@mnazarewicz-glaptop>
+Content-Type: text/plain; charset="ISO-8859-1"
+Date: Fri, 08 Apr 2011 15:06:16 -0700
+Message-ID: <1302300376.7286.1392.camel@nimitz>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?UTF-8?Q?Micha=C5=82?= Nazarewicz <mnazarewicz@gmail.com>
-Cc: linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org
+To: Michal Nazarewicz <mina86@mina86.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Timur Tabi <timur@freescale.com>, Andi Kleen <andi@firstfloor.org>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>
 
-On Fri, 2011-04-08 at 22:54 +0200, MichaA? Nazarewicz wrote:
-> On Apr 8, 2011 10:23 PM, "Dave Hansen" <dave@linux.vnet.ibm.com> wrote:
-> > +       if (fmt) {
-> > +               printk(KERN_WARNING);
-> > +               va_start(args, fmt);
-> > +               r = vprintk(fmt, args);
-> > +               va_end(args);
-> > +       }
+On Fri, 2011-04-08 at 14:28 +0200, Michal Nazarewicz wrote:
+> On Thu, 07 Apr 2011 19:21:05 +0200, Dave Hansen <dave@linux.vnet.ibm.com>  
+> > +		struct page *alloc_end = page + (1 << order);
+> > +		struct page *used = page + PAGE_ALIGN(size)/PAGE_SIZE;
+> > -		split_page(virt_to_page((void *)addr), order);
+> > +		split_page(page, order);
+> >  		while (used < alloc_end) {
+> > -			free_page(used);
+> > -			used += PAGE_SIZE;
+> > +			__free_page(used);
+> > +			used++;
+> >  		}
 > 
-> Could we make the "printk(KERN_WARNING);" go away and require caller
-> to specify level?  
+> Have you thought about moving this loop to a separate function, ie.
+> _free_page_range(start, end)?  I'm asking because this loop appears
+> in two places and my CMA would also benefit from such a function.
 
-The core problem is this: I want two lines of output: one for the
-order/mode gunk, and one for the user-specified message.
-
-If we have the user pass in a string for the printk() level, we're stuck
-doing what I have here.  If we have them _prepend_ it to the "fmt"
-string, then it's harder to figure out below.  I guess we could fish in
-the string for it.
-
-> > +       printk(KERN_WARNING);
-> > +       printk("%s: page allocation failure: order:%d, mode:0x%x\n",
-> > +                       current->comm, order, gfp_mask);
-> 
-> Even more so here. Why not pr_warning instead of two non-atomic calls
-> to printk?
-
-It's a relic of an hour ago when I tried passing in the printk() level
-to the function as a string.  It can go away now. :)
+It's actually perilously close to free_pages_exact().  I'll try to make
+it usable for this case as well.
 
 -- Dave
 
