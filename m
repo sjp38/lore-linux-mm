@@ -1,27 +1,25 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id C82268D003B
-	for <linux-mm@kvack.org>; Fri,  8 Apr 2011 16:43:39 -0400 (EDT)
-Received: from d01dlp02.pok.ibm.com (d01dlp02.pok.ibm.com [9.56.224.85])
-	by e4.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p38KNfXe021981
-	for <linux-mm@kvack.org>; Fri, 8 Apr 2011 16:23:41 -0400
-Received: from d01relay06.pok.ibm.com (d01relay06.pok.ibm.com [9.56.227.116])
-	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id CC2116E803C
-	for <linux-mm@kvack.org>; Fri,  8 Apr 2011 16:43:37 -0400 (EDT)
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p38KhbFs2723918
-	for <linux-mm@kvack.org>; Fri, 8 Apr 2011 16:43:37 -0400
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p38KhaKS020778
-	for <linux-mm@kvack.org>; Fri, 8 Apr 2011 16:43:37 -0400
-Subject: Re: [PATCH 1/2] break out page allocation warning code
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 57A3F8D003B
+	for <linux-mm@kvack.org>; Fri,  8 Apr 2011 16:47:25 -0400 (EDT)
+Received: from d03relay01.boulder.ibm.com (d03relay01.boulder.ibm.com [9.17.195.226])
+	by e39.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p38KY1ob006986
+	for <linux-mm@kvack.org>; Fri, 8 Apr 2011 14:34:01 -0600
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay01.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p38KlHhN094964
+	for <linux-mm@kvack.org>; Fri, 8 Apr 2011 14:47:17 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p38KlGMJ021989
+	for <linux-mm@kvack.org>; Fri, 8 Apr 2011 14:47:16 -0600
+Subject: Re: [PATCH 2/2] print vmalloc() state after allocation failures
 From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <alpine.DEB.2.00.1104081333260.12689@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1104081337470.12689@chino.kir.corp.google.com>
 References: <20110408202253.6D6D231C@kernel>
-	 <alpine.DEB.2.00.1104081333260.12689@chino.kir.corp.google.com>
+	 <20110408202255.9EE67DC9@kernel>
+	 <alpine.DEB.2.00.1104081337470.12689@chino.kir.corp.google.com>
 Content-Type: text/plain; charset="ISO-8859-1"
-Date: Fri, 08 Apr 2011 13:43:33 -0700
-Message-ID: <1302295413.7286.1133.camel@nimitz>
+Date: Fri, 08 Apr 2011 13:47:14 -0700
+Message-ID: <1302295634.7286.1146.camel@nimitz>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -29,63 +27,54 @@ List-ID: <linux-mm.kvack.org>
 To: David Rientjes <rientjes@google.com>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>
 
-On Fri, 2011-04-08 at 13:37 -0700, David Rientjes wrote:
-> > +static DEFINE_RATELIMIT_STATE(nopage_rs,
-> > +		DEFAULT_RATELIMIT_INTERVAL,
-> > +		DEFAULT_RATELIMIT_BURST);
-> > +
-> > +void nopage_warning(gfp_t gfp_mask, int order, const char *fmt, ...)
+On Fri, 2011-04-08 at 13:39 -0700, David Rientjes wrote:
+> On Fri, 8 Apr 2011, Dave Hansen wrote:
+> > This patch will print out messages that look like this:
+> > 
+> > [   30.040774] bash: vmalloc failure allocating after 0 / 73728 bytes
+> > 
 > 
-> I suggest a different name for this, something like warn_alloc_failure() 
-> or such.
+> Either the changelog or the patch is still wrong because the format of 
+> this string is inconsistent.
 
-That works for me.
-
-> I guess this isn't general enough where it could be used in the oom killer 
-> as well?
-
-Nope, don't think so.  I took a look at it, but it isn't horribly close
-to this.
-
-> > +{
-> > +	va_list args;
-> > +	int r;
-> > +	unsigned int filter = SHOW_MEM_FILTER_NODES;
-> > +	const gfp_t wait = gfp_mask & __GFP_WAIT;
-> > +
-> > +	if ((gfp_mask & __GFP_NOWARN) || !__ratelimit(&nopage_rs))
-> > +		return;
-> > +
-> > +	/*
-> > +	 * This documents exceptions given to allocations in certain
-> > +	 * contexts that are allowed to allocate outside current's set
-> > +	 * of allowed nodes.
-> > +	 */
-> > +	if (!(gfp_mask & __GFP_NOMEMALLOC))
-> > +		if (test_thread_flag(TIF_MEMDIE) ||
-> > +		    (current->flags & (PF_MEMALLOC | PF_EXITING)))
-> > +			filter &= ~SHOW_MEM_FILTER_NODES;
-> > +	if (in_interrupt() || !wait)
-> > +		filter &= ~SHOW_MEM_FILTER_NODES;
-> > +
-> > +	if (fmt) {
-> > +		printk(KERN_WARNING);
-> > +		va_start(args, fmt);
-> > +		r = vprintk(fmt, args);
-> > +		va_end(args);
-> > +	}
-> > +
-> > +	printk(KERN_WARNING);
-> > +	printk("%s: page allocation failure: order:%d, mode:0x%x\n",
-> > +			current->comm, order, gfp_mask);
+Yeah, ya caught me. :)
+> > diff -puN mm/vmalloc.c~vmalloc-warn mm/vmalloc.c
+> > --- linux-2.6.git/mm/vmalloc.c~vmalloc-warn	2011-04-08 09:36:05.877020199 -0700
+> > +++ linux-2.6.git-dave/mm/vmalloc.c	2011-04-08 09:38:00.373093593 -0700
+> > @@ -1534,6 +1534,7 @@ static void *__vmalloc_node(unsigned lon
+> >  static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
+> >  				 pgprot_t prot, int node, void *caller)
+> >  {
+> > +	int order = 0;
 > 
-> This shouldn't be here, it should have been printed already.
+> Unnecessary, we can continue to hardcode the 0, vmalloc isn't going to use 
+> higher order allocs (it's there to avoid such things!).
 
-The "page allocation failure" might have been, if it was specified (it
-isn't from the allocator), but order and mode haven't been.  My thought
-here is that _all_ allocator failures will want to output mode and gfp,
-so it might as well be common code instead of making everybody specify
-it.
+The only reason I did that was to keep the printk from looking like
+this:
+
+> > +	nopage_warning(gfp_mask, 0,  "vmalloc: allocation failure, "
+> > +			"allocated %ld of %ld bytes\n",
+> > +			(area->nr_pages*PAGE_SIZE), area->size);
+
+The order is pretty darn obvious in the direct allocator calls, but I
+liked having it named where it wasn't as obvious.
+
+> >  	struct page **pages;
+> >  	unsigned int nr_pages, array_size, i;
+> >  	gfp_t nested_gfp = (gfp_mask & GFP_RECLAIM_MASK) | __GFP_ZERO;
+> > @@ -1560,11 +1561,12 @@ static void *__vmalloc_area_node(struct 
+> >  
+> >  	for (i = 0; i < area->nr_pages; i++) {
+> >  		struct page *page;
+> > +		gfp_t tmp_mask = gfp_mask | __GFP_NOWARN;
+> 
+> I think it would be better to just do away with this as well and just 
+> hardwire the __GFP_NOWARN directly into the two allocation calls.
+
+I did it because hard-wiring it takes the alloc_pages_node() one over 80
+columns.  I figured if I was going to add a line, I might as well keep
+it pretty.
 
 -- Dave
 
