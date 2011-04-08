@@ -1,48 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id CE4688D003B
-	for <linux-mm@kvack.org>; Fri,  8 Apr 2011 09:23:46 -0400 (EDT)
-Received: by fxm18 with SMTP id 18so3351294fxm.14
-        for <linux-mm@kvack.org>; Fri, 08 Apr 2011 06:23:42 -0700 (PDT)
-Content-Type: text/plain; charset=utf-8; format=flowed; delsp=yes
-Subject: Re: [PATCH 2/2] make new alloc_pages_exact()
-References: <20110407172104.1F8B7329@kernel> <20110407172105.831B9A0A@kernel>
- <op.vtmcx9kd3l0zgt@mnazarewicz-glaptop> <1302268786.8184.6879.camel@nimitz>
-Date: Fri, 08 Apr 2011 15:23:40 +0200
+	by kanga.kvack.org (Postfix) with SMTP id B7DEB8D003B
+	for <linux-mm@kvack.org>; Fri,  8 Apr 2011 15:10:26 -0400 (EDT)
+Date: Fri, 8 Apr 2011 21:09:12 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [Bugme-new] [Bug 31142] New: Large write to USB stick freezes
+ unrelated tasks for a long time
+Message-ID: <20110408190912.GI29444@random.random>
+References: <20110321163742.GA24244@csn.ul.ie>
+ <4D878564.6080608@fiec.espol.edu.ec>
+ <20110321201641.GA5698@random.random>
+ <20110322112032.GD24244@csn.ul.ie>
+ <20110322150314.GC5698@random.random>
+ <4D8907C2.7010304@fiec.espol.edu.ec>
+ <20110322214020.GD5698@random.random>
+ <20110323003718.GH5698@random.random>
+ <4D8A2517.3090403@fiec.espol.edu.ec>
+ <4D99E5C8.7090505@fiec.espol.edu.ec>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7bit
-From: "Michal Nazarewicz" <mina86@mina86.com>
-Message-ID: <op.vtmfhqyh3l0zgt@mnazarewicz-glaptop>
-In-Reply-To: <1302268786.8184.6879.camel@nimitz>
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <4D99E5C8.7090505@fiec.espol.edu.ec>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Timur Tabi <timur@freescale.com>, Andi Kleen <andi@firstfloor.org>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>
+To: Alex =?iso-8859-1?B?VmlsbGFj7a1z?= Lasso <avillaci@fiec.espol.edu.ec>
+Cc: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, avillaci@ceibo.fiec.espol.edu.ec, bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org, linux-mm@kvack.org
 
->> On Thu, 07 Apr 2011 19:21:05 +0200, Dave Hansen wrote:
->>>  		while (used < alloc_end) {
->>> -			free_page(used);
->>> -			used += PAGE_SIZE;
->>> +			__free_page(used);
->>> +			used++;
->>>  		}
+Hi Alex,
 
-> On Fri, 2011-04-08 at 14:28 +0200, Michal Nazarewicz wrote:
->> Have you thought about moving this loop to a separate function, ie.
->> _free_page_range(start, end)?  I'm asking because this loop appears
->> in two places and my CMA would also benefit from such a function.
+On Mon, Apr 04, 2011 at 10:37:44AM -0500, Alex Villaci-s Lasso wrote:
+> Latest update: with 2.6.39-rc1 the stalls only last for a few
+> seconds, but they are still there. So, as I said before, they are
+> reduced but not eliminated.
 
-On Fri, 08 Apr 2011 15:19:46 +0200, Dave Hansen wrote:
-> Sounds like a good idea to me.  Were you thinking start/end 'struct
-> page's as arguments?
+Ok from a complete stall for the whole duration of the I/O to a few
+second stall we're clearly going into the right direction.
 
-Either that or (struct page *start, unsigned nr_pages).
+The few second stalls happen with udf? And vfat doesn't stall?
 
--- 
-Best regards,                                         _     _
-.o. | Liege of Serenely Enlightened Majesty of      o' \,=./ `o
-..o | Computer Science,  Michal "mina86" Nazarewicz    (o o)
-ooo +-----<email/xmpp: mnazarewicz@google.com>-----ooO--(_)--Ooo--
+Minchan rightly pointed out that the (panik) change we made in
+page_alloc.c changes the semantics of the __GFP_NO_KSWAPD bit. I also
+talked with Mel about it. We think it's nicer if we can keep THP
+allocations as close as any other high order allocation as
+possible. There are already plenty of __GFP bits with complex
+semantics. __GFP_NO_KSWAPD is simple and it's nice to stay simple: it
+means the allocation relies on a different kernel daemon for the
+background work (which is khugepaged instead of kswapd in the THP
+case, where khugepaged uses a non intrusive alloc_sleep_millisec
+throttling in case of MM congestion, unlike kswapd would do).
+
+So this is no solution to your problem (if vfat already works I think
+that might be a better solution), but we'd like to know if you get any
+_worse_ stall compared to current 2.6.39-rc, by applying the below
+patch on top of 2.6.39-rc. If this doesn't make any difference, we can
+safely apply it to remove unnecessary complications.
+
+Thanks,
+Andrea
+
+===
+Subject: compaction: reverse the change that forbid sync migraton with __GFP_NO_KSWAPD
+
+From: Andrea Arcangeli <aarcange@redhat.com>
+
+It's uncertain this has been beneficial, so it's safer to undo it. All other
+compaction users would still go in synchronous mode if a first attempt of async
+compaction failed. Hopefully we don't need to force special behavior for THP
+(which is the only __GFP_NO_KSWAPD user so far and it's the easier to exercise
+and to be noticeable). This also make __GFP_NO_KSWAPD return to its original
+strict semantics specific to bypass kswapd, as THP allocations have khugepaged
+for the async THP allocations/compactions.
+
+Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+---
+ mm/page_alloc.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2105,7 +2105,7 @@ rebalance:
+ 					sync_migration);
+ 	if (page)
+ 		goto got_pg;
+-	sync_migration = !(gfp_mask & __GFP_NO_KSWAPD);
++	sync_migration = true;
+ 
+ 	/* Try direct reclaim and then allocating */
+ 	page = __alloc_pages_direct_reclaim(gfp_mask, order,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
