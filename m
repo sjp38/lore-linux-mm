@@ -1,48 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 1F0708D003B
-	for <linux-mm@kvack.org>; Fri,  8 Apr 2011 04:44:14 -0400 (EDT)
-Date: Fri, 8 Apr 2011 16:44:09 +0800 (CST)
-From: bill <bill_carson@126.com>
-Message-ID: <114cbfb0.1855c.12f34486272.Coremail.bill_carson@126.com>
-Subject: Query about __unmap_hugepage_range
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 018DA8D003B
+	for <linux-mm@kvack.org>; Fri,  8 Apr 2011 08:25:25 -0400 (EDT)
+Subject: Re: Regression from 2.6.36
+Date: Fri, 08 Apr 2011 14:25:21 +0200
+From: "azurIt" <azurit@pobox.sk>
+References: <20110315132527.130FB80018F1@mail1005.cent> <20110317001519.GB18911@kroah.com> <20110407120112.E08DCA03@pobox.sk> <4D9D8FAA.9080405@suse.cz> <BANLkTinnTnjZvQ9S1AmudZcZBokMy8-93w@mail.gmail.com> <1302177428.3357.25.camel@edumazet-laptop> <1302178426.3357.34.camel@edumazet-laptop> <BANLkTikxWy-Pw1PrcAJMHs2R7JKksyQzMQ@mail.gmail.com>
+In-Reply-To: <BANLkTikxWy-Pw1PrcAJMHs2R7JKksyQzMQ@mail.gmail.com>
 MIME-Version: 1.0
+Message-Id: <20110408142521.4C13197E@pobox.sk>
 Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: Changli Gao <xiaosuo@gmail.com>, Eric Dumazet <eric.dumazet@gmail.com>
+Cc: =?UTF-8?Q?Am=C3=A9rico=20Wang?= <xiyou.wangcong@gmail.com>, Jiri Slaby <jslaby@suse.cz>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Jiri Slaby <jirislaby@gmail.com>
 
-Hey, MM developers:)
 
-I don't know if this posting is proper at here, so sorry for disturbing if it does. 
+>azurlt, would you please test the patch attached? Thanks.
 
-for normal 4K page: in unmap_page_range 
-1: tlb_start_vma(tlb, vma); <------ call  flush_cache_range to invalidate icache if vma is VM_EXEC
-2: clear pagetable mapping
-3: tlb_end_vma(tlb, vma); <-------- call flush_tlb_range to invalidate unmapped vma tlb entry
+This patch fixed the problem, i used 2.6.36.4 for testing. Do you need from me to test also other kernel versions or patches ?
 
-for hugepage: in __unmap_hugepage_range
-1: clear pagetable mapping
- 2: call flush_tlb_range(vma, start, end); to invalidate unmapped vma tlb entry
+Thank you very much!
 
-I really don't understand about two things:
-A: why there is no  flush_cache_range for hugepage when we do the unmapping?
-B: How does kernel take care of such case for both normal 4K page and hugepage:
-    a: mmap a page with PROT_EXEC at location p;
-    b: copy bunch instruction into p ,call cacheflush to make ICACHE see the new instruction; 
-    c: run instruction at location p, then unmap it;
-    d: mmap a new page with MAP_FIXED/PROT_EXEC at location p, and run unexpected instruction at p;
-        there is a great chance we got the same page at step_a;
-        user space should see a clean icache, not a stale one;
-     
-I am really puzzled for a long time.
-I am porting hugepage for ARM ,and one testcase in libhugetlbfs called icache-hygiene failed, test rationale is described  in above B.
 
-Any tips/advice would be truly appreciated.
-Thanks
-
-        
+______________________________________________________________
+> Od: "Changli Gao" <xiaosuo@gmail.com>
+> Komu: Eric Dumazet <eric.dumazet@gmail.com>
+> DA!tum: 07.04.2011 17:27
+> Predmet: Re: Regression from 2.6.36
+>
+> CC: "AmA(C)rico Wang" <xiyou.wangcong@gmail.com>, "Jiri Slaby" <jslaby@suse.cz>, linux-kernel@vger.kernel.org, "Andrew Morton" <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Jiri Slaby" <jirislaby@gmail.com>
+>On Thu, Apr 7, 2011 at 8:13 PM, Eric Dumazet <eric.dumazet@gmail.com> wrote:
+>> Le jeudi 07 avril 2011 A  13:57 +0200, Eric Dumazet a A(C)crit :
+>>
+>>> We had a similar memory problem in fib_trie in the past A : We force a
+>>> synchronize_rcu() every XXX Mbytes allocated to make sure we dont have
+>>> too much ram waiting to be freed in rcu queues.
+>
+>I don't think there is too much memory allocated by vmalloc to free.
+>My patch should reduce the size of the memory allocated by vmalloc().
+>I think the real problem is kfree always returns the memory, whose
+>size is aligned to 2^n pages, and more memory are used than before.
+>
+>>
+>> This was done in commit c3059477fce2d956
+>> (ipv4: Use synchronize_rcu() during trie_rebalance())
+>>
+>> It was possible in fib_trie because we hold RTNL lock, so managing
+>> a counter was free.
+>>
+>> In fs case, we might use a percpu_counter if we really want to limit the
+>> amount of space.
+>>
+>> Now, I am not even sure we should care that much and could just forget
+>> about this high order pages use.
+>
+>In normal cases, only a few fds are used, the ftable isn't larger than
+>one page, so we should use kmalloc to reduce the memory cost. Maybe we
+>should set a upper limit for kmalloc() here. One page?
+>
+>
+>-- 
+>Regards,
+>Changli Gao(xiaosuo@gmail.com)
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
