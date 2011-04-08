@@ -1,110 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 721928D003B
-	for <linux-mm@kvack.org>; Fri,  8 Apr 2011 16:39:49 -0400 (EDT)
-Received: from wpaz29.hot.corp.google.com (wpaz29.hot.corp.google.com [172.24.198.93])
-	by smtp-out.google.com with ESMTP id p38KdlNr002114
-	for <linux-mm@kvack.org>; Fri, 8 Apr 2011 13:39:47 -0700
-Received: from pxi7 (pxi7.prod.google.com [10.243.27.7])
-	by wpaz29.hot.corp.google.com with ESMTP id p38Kdjke004242
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 8 Apr 2011 13:39:46 -0700
-Received: by pxi7 with SMTP id 7so1890788pxi.16
-        for <linux-mm@kvack.org>; Fri, 08 Apr 2011 13:39:45 -0700 (PDT)
-Date: Fri, 8 Apr 2011 13:39:43 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 2/2] print vmalloc() state after allocation failures
-In-Reply-To: <20110408202255.9EE67DC9@kernel>
-Message-ID: <alpine.DEB.2.00.1104081337470.12689@chino.kir.corp.google.com>
-References: <20110408202253.6D6D231C@kernel> <20110408202255.9EE67DC9@kernel>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id C82268D003B
+	for <linux-mm@kvack.org>; Fri,  8 Apr 2011 16:43:39 -0400 (EDT)
+Received: from d01dlp02.pok.ibm.com (d01dlp02.pok.ibm.com [9.56.224.85])
+	by e4.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p38KNfXe021981
+	for <linux-mm@kvack.org>; Fri, 8 Apr 2011 16:23:41 -0400
+Received: from d01relay06.pok.ibm.com (d01relay06.pok.ibm.com [9.56.227.116])
+	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id CC2116E803C
+	for <linux-mm@kvack.org>; Fri,  8 Apr 2011 16:43:37 -0400 (EDT)
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p38KhbFs2723918
+	for <linux-mm@kvack.org>; Fri, 8 Apr 2011 16:43:37 -0400
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p38KhaKS020778
+	for <linux-mm@kvack.org>; Fri, 8 Apr 2011 16:43:37 -0400
+Subject: Re: [PATCH 1/2] break out page allocation warning code
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <alpine.DEB.2.00.1104081333260.12689@chino.kir.corp.google.com>
+References: <20110408202253.6D6D231C@kernel>
+	 <alpine.DEB.2.00.1104081333260.12689@chino.kir.corp.google.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Date: Fri, 08 Apr 2011 13:43:33 -0700
+Message-ID: <1302295413.7286.1133.camel@nimitz>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
+To: David Rientjes <rientjes@google.com>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>
 
-On Fri, 8 Apr 2011, Dave Hansen wrote:
+On Fri, 2011-04-08 at 13:37 -0700, David Rientjes wrote:
+> > +static DEFINE_RATELIMIT_STATE(nopage_rs,
+> > +		DEFAULT_RATELIMIT_INTERVAL,
+> > +		DEFAULT_RATELIMIT_BURST);
+> > +
+> > +void nopage_warning(gfp_t gfp_mask, int order, const char *fmt, ...)
+> 
+> I suggest a different name for this, something like warn_alloc_failure() 
+> or such.
 
-> 
-> I was tracking down a page allocation failure that ended up in vmalloc().
-> Since vmalloc() uses 0-order pages, if somebody asks for an insane amount
-> of memory, we'll still get a warning with "order:0" in it.  That's not
-> very useful.
-> 
-> During recovery, vmalloc() also nicely frees all of the memory that it
-> got up to the point of the failure.  That is wonderful, but it also
-> quickly hides any issues.  We have a much different sitation if vmalloc()
-> repeatedly fails 10GB in to:
-> 
-> 	vmalloc(100 * 1<<30);
-> 
-> versus repeatedly failing 4096 bytes in to a:
-> 
-> 	vmalloc(8192);
-> 
-> This patch will print out messages that look like this:
-> 
-> [   30.040774] bash: vmalloc failure allocating after 0 / 73728 bytes
-> 
+That works for me.
 
-Either the changelog or the patch is still wrong because the format of 
-this string is inconsistent.
+> I guess this isn't general enough where it could be used in the oom killer 
+> as well?
 
-> As a side issue, I also noticed that ctl_ioctl() does vmalloc() based
-> solely on an unverified value passed in from userspace.  Granted, it's
-> under CAP_SYS_ADMIN, but it still frightens me a bit.
+Nope, don't think so.  I took a look at it, but it isn't horribly close
+to this.
+
+> > +{
+> > +	va_list args;
+> > +	int r;
+> > +	unsigned int filter = SHOW_MEM_FILTER_NODES;
+> > +	const gfp_t wait = gfp_mask & __GFP_WAIT;
+> > +
+> > +	if ((gfp_mask & __GFP_NOWARN) || !__ratelimit(&nopage_rs))
+> > +		return;
+> > +
+> > +	/*
+> > +	 * This documents exceptions given to allocations in certain
+> > +	 * contexts that are allowed to allocate outside current's set
+> > +	 * of allowed nodes.
+> > +	 */
+> > +	if (!(gfp_mask & __GFP_NOMEMALLOC))
+> > +		if (test_thread_flag(TIF_MEMDIE) ||
+> > +		    (current->flags & (PF_MEMALLOC | PF_EXITING)))
+> > +			filter &= ~SHOW_MEM_FILTER_NODES;
+> > +	if (in_interrupt() || !wait)
+> > +		filter &= ~SHOW_MEM_FILTER_NODES;
+> > +
+> > +	if (fmt) {
+> > +		printk(KERN_WARNING);
+> > +		va_start(args, fmt);
+> > +		r = vprintk(fmt, args);
+> > +		va_end(args);
+> > +	}
+> > +
+> > +	printk(KERN_WARNING);
+> > +	printk("%s: page allocation failure: order:%d, mode:0x%x\n",
+> > +			current->comm, order, gfp_mask);
 > 
-> Signed-off-by: Dave Hansen <dave@linux.vnet.ibm.com>
-> ---
-> 
->  linux-2.6.git-dave/mm/vmalloc.c |    9 +++++++--
->  1 file changed, 7 insertions(+), 2 deletions(-)
-> 
-> diff -puN mm/vmalloc.c~vmalloc-warn mm/vmalloc.c
-> --- linux-2.6.git/mm/vmalloc.c~vmalloc-warn	2011-04-08 09:36:05.877020199 -0700
-> +++ linux-2.6.git-dave/mm/vmalloc.c	2011-04-08 09:38:00.373093593 -0700
-> @@ -1534,6 +1534,7 @@ static void *__vmalloc_node(unsigned lon
->  static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
->  				 pgprot_t prot, int node, void *caller)
->  {
-> +	int order = 0;
+> This shouldn't be here, it should have been printed already.
 
-Unnecessary, we can continue to hardcode the 0, vmalloc isn't going to use 
-higher order allocs (it's there to avoid such things!).
+The "page allocation failure" might have been, if it was specified (it
+isn't from the allocator), but order and mode haven't been.  My thought
+here is that _all_ allocator failures will want to output mode and gfp,
+so it might as well be common code instead of making everybody specify
+it.
 
->  	struct page **pages;
->  	unsigned int nr_pages, array_size, i;
->  	gfp_t nested_gfp = (gfp_mask & GFP_RECLAIM_MASK) | __GFP_ZERO;
-> @@ -1560,11 +1561,12 @@ static void *__vmalloc_area_node(struct 
->  
->  	for (i = 0; i < area->nr_pages; i++) {
->  		struct page *page;
-> +		gfp_t tmp_mask = gfp_mask | __GFP_NOWARN;
-
-I think it would be better to just do away with this as well and just 
-hardwire the __GFP_NOWARN directly into the two allocation calls.
-
->  
->  		if (node < 0)
-> -			page = alloc_page(gfp_mask);
-> +			page = alloc_page(tmp_mask);
->  		else
-> -			page = alloc_pages_node(node, gfp_mask, 0);
-> +			page = alloc_pages_node(node, tmp_mask, order);
->  
->  		if (unlikely(!page)) {
->  			/* Successfully allocated i pages, free them in __vunmap() */
-> @@ -1579,6 +1581,9 @@ static void *__vmalloc_area_node(struct 
->  	return area->addr;
->  
->  fail:
-> +	nopage_warning(gfp_mask, order, "vmalloc: allocation failure, "
-> +			"allocated %ld of %ld bytes\n",
-> +			(area->nr_pages*PAGE_SIZE), area->size);
->  	vfree(area->addr);
->  	return NULL;
->  }
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
