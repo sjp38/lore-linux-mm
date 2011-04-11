@@ -1,86 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id D12798D003B
-	for <linux-mm@kvack.org>; Mon, 11 Apr 2011 04:19:36 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id CBF3B3EE0C0
-	for <linux-mm@kvack.org>; Mon, 11 Apr 2011 17:19:32 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id A214B45DE96
-	for <linux-mm@kvack.org>; Mon, 11 Apr 2011 17:19:32 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8A8D745DE95
-	for <linux-mm@kvack.org>; Mon, 11 Apr 2011 17:19:32 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7DEFEE08004
-	for <linux-mm@kvack.org>; Mon, 11 Apr 2011 17:19:32 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 466FDE08001
-	for <linux-mm@kvack.org>; Mon, 11 Apr 2011 17:19:32 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [PATCH resend^2] mm: increase RECLAIM_DISTANCE to 30
-Message-Id: <20110411172004.0361.A69D9226@jp.fujitsu.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id D3A1B8D003B
+	for <linux-mm@kvack.org>; Mon, 11 Apr 2011 06:20:54 -0400 (EDT)
+Received: by fxm18 with SMTP id 18so5002886fxm.14
+        for <linux-mm@kvack.org>; Mon, 11 Apr 2011 03:20:52 -0700 (PDT)
+Content-Type: text/plain; charset=utf-8; format=flowed; delsp=yes
+Subject: Re: [PATCH 1/2] break out page allocation warning code
+References: <20110408202253.6D6D231C@kernel>
+ <BANLkTi=OnDX53nOZcaaMmqXRBcWicam0xg@mail.gmail.com>
+ <1302296522.7286.1197.camel@nimitz>
+Date: Mon, 11 Apr 2011 12:20:49 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Mon, 11 Apr 2011 17:19:31 +0900 (JST)
+Content-Transfer-Encoding: Quoted-Printable
+From: "Michal Nazarewicz" <mina86@mina86.com>
+Message-ID: <op.vtrq0zac3l0zgt@mnazarewicz-glaptop>
+In-Reply-To: <1302296522.7286.1197.camel@nimitz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: kosaki.motohiro@jp.fujitsu.com
+To: =?utf-8?B?TWljaGHFgiBOYXphcmV3aWN6?= <mnazarewicz@gmail.com>, Dave
+ Hansen <dave@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org
 
-Recently, Robert Mueller reported zone_reclaim_mode doesn't work
-properly on his new NUMA server (Dual Xeon E5520 + Intel S5520UR MB).
-He is using Cyrus IMAPd and it's built on a very traditional
-single-process model.
+>> On Apr 8, 2011 10:23 PM, "Dave Hansen" <dave@linux.vnet.ibm.com> wrot=
+e:
+>>> +       if (fmt) {
+>>> +               printk(KERN_WARNING);
+>>> +               va_start(args, fmt);
+>>> +               r =3D vprintk(fmt, args);
+>>> +               va_end(args);
+>>> +       }
 
-  * a master process which reads config files and manages the other
-    process
-  * multiple imapd processes, one per connection
-  * multiple pop3d processes, one per connection
-  * multiple lmtpd processes, one per connection
-  * periodical "cleanup" processes.
+> On Fri, 2011-04-08 at 22:54 +0200, Micha=C5=82 Nazarewicz wrote:
+>> Could we make the "printk(KERN_WARNING);" go away and require caller
+>> to specify level?
 
-Then, there are thousands of independent processes. The problem is,
-recent Intel motherboard turn on zone_reclaim_mode by default and
-traditional prefork model software don't work fine on it.
-Unfortunatelly, Such model is still typical one even though 21th
-century. We can't ignore them.
+On Fri, 08 Apr 2011 23:02:02 +0200, Dave Hansen wrote:
+> The core problem is this: I want two lines of output: one for the
+> order/mode gunk, and one for the user-specified message.
+>
+> If we have the user pass in a string for the printk() level, we're stu=
+ck
+> doing what I have here.  If we have them _prepend_ it to the "fmt"
+> string, then it's harder to figure out below.  I guess we could fish i=
+n
+> the string for it.
 
-This patch raise zone_reclaim_mode threshold to 30. 30 don't have
-specific meaning. but 20 mean one-hop QPI/Hypertransport and such
-relatively cheap 2-4 socket machine are often used for tradiotional
-server as above. The intention is, their machine don't use
-zone_reclaim_mode.
-
-Note: ia64 and Power have arch specific RECLAIM_DISTANCE definition.
-then this patch doesn't change such high-end NUMA machine behavior.
-
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Acked-by: Christoph Lameter <cl@linux.com>
-Acked-by: David Rientjes <rientjes@google.com>
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
----
- include/linux/topology.h |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
-
-diff --git a/include/linux/topology.h b/include/linux/topology.h
-index b91a40e..fc839bf 100644
---- a/include/linux/topology.h
-+++ b/include/linux/topology.h
-@@ -60,7 +60,7 @@ int arch_update_cpu_topology(void);
-  * (in whatever arch specific measurement units returned by node_distance())
-  * then switch on zone reclaim on boot.
-  */
--#define RECLAIM_DISTANCE 20
-+#define RECLAIM_DISTANCE 30
- #endif
- #ifndef PENALTY_FOR_NODE_WITH_CPUS
- #define PENALTY_FOR_NODE_WITH_CPUS	(1)
--- 
-1.7.3.1
+This is a bit unfortunate, but that's what I was worried anyway.  I gues=
+s
+creating a macro which automatically prepends format  with KERN_WARNING
+would solve the issue but that's probably not the most elegant solution.=
 
 
+-- =
+
+Best regards,                                         _     _
+.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
+..o | Computer Science,  Michal "mina86" Nazarewicz    (o o)
+ooo +-----<email/xmpp: mnazarewicz@google.com>-----ooO--(_)--Ooo--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
