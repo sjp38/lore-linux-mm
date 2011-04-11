@@ -1,102 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 77AB28D003B
-	for <linux-mm@kvack.org>; Mon, 11 Apr 2011 17:19:57 -0400 (EDT)
-Date: Mon, 11 Apr 2011 14:19:50 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 596968D003B
+	for <linux-mm@kvack.org>; Mon, 11 Apr 2011 17:29:38 -0400 (EDT)
+Received: from d01dlp02.pok.ibm.com (d01dlp02.pok.ibm.com [9.56.224.85])
+	by e2.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p3BLASYY007096
+	for <linux-mm@kvack.org>; Mon, 11 Apr 2011 17:10:28 -0400
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 0941F6E8039
+	for <linux-mm@kvack.org>; Mon, 11 Apr 2011 17:29:36 -0400 (EDT)
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p3BLTZYU218688
+	for <linux-mm@kvack.org>; Mon, 11 Apr 2011 17:29:35 -0400
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p3BLTYsd028091
+	for <linux-mm@kvack.org>; Mon, 11 Apr 2011 15:29:35 -0600
 Subject: Re: [PATCH resend^2] mm: increase RECLAIM_DISTANCE to 30
-Message-Id: <20110411141950.46d3d6da.akpm@linux-foundation.org>
+From: Dave Hansen <dave@linux.vnet.ibm.com>
 In-Reply-To: <20110411172004.0361.A69D9226@jp.fujitsu.com>
 References: <20110411172004.0361.A69D9226@jp.fujitsu.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Date: Mon, 11 Apr 2011 14:29:31 -0700
+Message-ID: <1302557371.7286.16607.camel@nimitz>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Chris McDermott <lcm@linux.vnet.ibm.com>
 
-On Mon, 11 Apr 2011 17:19:31 +0900 (JST)
-KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
-
-> Recently, Robert Mueller reported zone_reclaim_mode doesn't work
-
-It's time for some nagging.  
-
-I'm trying to work out what the user-visible effect of this problem
-was, but it isn't described in the changelog and there is no link to
-any report and not even a Reported-by: or a Cc: and a search for Robert
-in linux-mm and linux-kernel turned up blank.
-
-> properly on his new NUMA server (Dual Xeon E5520 + Intel S5520UR MB).
-> He is using Cyrus IMAPd and it's built on a very traditional
-> single-process model.
-> 
->   * a master process which reads config files and manages the other
->     process
->   * multiple imapd processes, one per connection
->   * multiple pop3d processes, one per connection
->   * multiple lmtpd processes, one per connection
->   * periodical "cleanup" processes.
-> 
-> Then, there are thousands of independent processes. The problem is,
-> recent Intel motherboard turn on zone_reclaim_mode by default and
-> traditional prefork model software don't work fine on it.
-> Unfortunatelly, Such model is still typical one even though 21th
-> century. We can't ignore them.
-> 
+On Mon, 2011-04-11 at 17:19 +0900, KOSAKI Motohiro wrote:
 > This patch raise zone_reclaim_mode threshold to 30. 30 don't have
 > specific meaning. but 20 mean one-hop QPI/Hypertransport and such
 > relatively cheap 2-4 socket machine are often used for tradiotional
 > server as above. The intention is, their machine don't use
 > zone_reclaim_mode.
-> 
-> Note: ia64 and Power have arch specific RECLAIM_DISTANCE definition.
-> then this patch doesn't change such high-end NUMA machine behavior.
-> 
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Acked-by: Christoph Lameter <cl@linux.com>
-> Acked-by: David Rientjes <rientjes@google.com>
-> Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> ---
->  include/linux/topology.h |    2 +-
->  1 files changed, 1 insertions(+), 1 deletions(-)
-> 
-> diff --git a/include/linux/topology.h b/include/linux/topology.h
-> index b91a40e..fc839bf 100644
-> --- a/include/linux/topology.h
-> +++ b/include/linux/topology.h
-> @@ -60,7 +60,7 @@ int arch_update_cpu_topology(void);
->   * (in whatever arch specific measurement units returned by node_distance())
->   * then switch on zone reclaim on boot.
->   */
-> -#define RECLAIM_DISTANCE 20
-> +#define RECLAIM_DISTANCE 30
 
-Any time we tweak a magic number to improve one platform, we risk
-causing deterioration on another.  Do we know that this risk is low
-with this patch?
+I know specifically of pieces of x86 hardware that set the information
+in the BIOS to '21' *specifically* so they'll get the zone_reclaim_mode
+behavior which that implies.
 
-Also, what are we doing setting
+They've done performance testing and run very large and scary benchmarks
+to make sure that they _want_ this turned on.  What this means for them
+is that they'll probably be de-optimized, at least on newer versions of
+the kernel.
 
-	zone_relaim_mode = 1;
+If you want to do this for particular systems, maybe _that_'s what we
+should do.  Have a list of specific configurations that need the
+defaults overridden either because they're buggy, or they have an
+unusual hardware configuration not really reflected in the distance
+table.
 
-when we have nice enumerated constants for this?  It should be
-
-	zone_relaim_mode = RECLAIM_ZONE;
-
-or, pedantically but clearer:
-
-	zone_relaim_mode = RECLAIM_ZONE & !RECLAIM_WRITE & !RECLAIM_SWAP;
-
-
-
-Finally, we shouldn't be playing these guessing games in the kernel at
-all - we'll always get it wrong for some platforms and for some
-workloads.  zone_reclaim_mdoe is tunable at runtime and we should be
-encouraging administrators, integrators and distros to *use* this
-ability.  That might mean having to write some tools to empirically
-determine the optimum setting for a particular machine.
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
