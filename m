@@ -1,162 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 5AC3D8D003B
-	for <linux-mm@kvack.org>; Mon, 11 Apr 2011 07:20:59 -0400 (EDT)
-Date: Mon, 11 Apr 2011 19:20:55 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH] mm: per-node vmstat show proper vmstats
-Message-ID: <20110411112055.GA19123@localhost>
-References: <20110411201015.F5BC.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110411201015.F5BC.A69D9226@jp.fujitsu.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 0CB398D003B
+	for <linux-mm@kvack.org>; Mon, 11 Apr 2011 08:28:08 -0400 (EDT)
+Received: by iyf13 with SMTP id 13so7749865iyf.14
+        for <linux-mm@kvack.org>; Mon, 11 Apr 2011 05:28:06 -0700 (PDT)
+From: Namhyung Kim <namhyung@gmail.com>
+Subject: [PATCH] shmem: factor out remove_indirect_page()
+Date: Mon, 11 Apr 2011 21:27:59 +0900
+Message-Id: <1302524879-4737-1-git-send-email-namhyung@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Michael Rubin <mrubin@google.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-> With this patch, the vmstat show all vm stastics as /proc/vmstat.
+Split out some common code in shmem_truncate_range() in order to
+improve readability (hopefully) and to reduce code duplication.
 
-Nice! It's good to see all the per-node vmstats, here are my numbers :)
+Signed-off-by: Namhyung Kim <namhyung@gmail.com>
+---
+ mm/shmem.c |   62 ++++++++++++++++++++++++++++++++++-------------------------
+ 1 files changed, 36 insertions(+), 26 deletions(-)
 
-wfg@fat ~% cat /sys/devices/system/node/node0/vmstat
-nr_free_pages 67026
-nr_inactive_anon 147
-nr_active_anon 3697
-nr_inactive_file 611711
-nr_active_file 2291
-nr_unevictable 0
-nr_mlock 0
-nr_anon_pages 3623
-nr_mapped 2165
-nr_file_pages 614269
-nr_dirty 116123
-nr_writeback 23596
-nr_slab_reclaimable 25178
-nr_slab_unreclaimable 6946
-nr_page_table_pages 380
-nr_kernel_stack 142
-nr_unstable 0
-nr_bounce 0
-nr_vmscan_write 0
-nr_writeback_temp 0
-nr_isolated_anon 0
-nr_isolated_file 0
-nr_shmem 153
-nr_dirtied 605215
-nr_written 489092
-numa_hit 1199939
-numa_miss 0
-numa_foreign 0
-numa_interleave 7408
-numa_local 1199939
-numa_other 0
-nr_anon_transparent_hugepages 0
-
-Thanks,
-Fengguang
-
-On Mon, Apr 11, 2011 at 07:10:19PM +0800, KOSAKI Motohiro wrote:
-> commit 2ac390370a (writeback: add /sys/devices/system/node/<node>/vmstat)
-> added vmstat entry. But strangely it only show nr_written and nr_dirtied.
-> 
->         # cat /sys/devices/system/node/node20/vmstat
->         nr_written 0
->         nr_dirtied 0
-> 
-> Of cource, It's no adequate. With this patch, the vmstat show
-> all vm stastics as /proc/vmstat.
-> 
->         # cat /sys/devices/system/node/node0/vmstat
-> 	nr_free_pages 899224
-> 	nr_inactive_anon 201
-> 	nr_active_anon 17380
-> 	nr_inactive_file 31572
-> 	nr_active_file 28277
-> 	nr_unevictable 0
-> 	nr_mlock 0
-> 	nr_anon_pages 17321
-> 	nr_mapped 8640
-> 	nr_file_pages 60107
-> 	nr_dirty 33
-> 	nr_writeback 0
-> 	nr_slab_reclaimable 6850
-> 	nr_slab_unreclaimable 7604
-> 	nr_page_table_pages 3105
-> 	nr_kernel_stack 175
-> 	nr_unstable 0
-> 	nr_bounce 0
-> 	nr_vmscan_write 0
-> 	nr_writeback_temp 0
-> 	nr_isolated_anon 0
-> 	nr_isolated_file 0
-> 	nr_shmem 260
-> 	nr_dirtied 1050
-> 	nr_written 938
-> 	numa_hit 962872
-> 	numa_miss 0
-> 	numa_foreign 0
-> 	numa_interleave 8617
-> 	numa_local 962872
-> 	numa_other 0
-> 	nr_anon_transparent_hugepages 0
-> 
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Cc: Michael Rubin <mrubin@google.com>
-> Cc: Wu Fengguang <fengguang.wu@intel.com>
-> ---
->  drivers/base/node.c |   15 ++++++++++-----
->  mm/vmstat.c         |    2 +-
->  2 files changed, 11 insertions(+), 6 deletions(-)
-> 
-> diff --git a/drivers/base/node.c b/drivers/base/node.c
-> index b3b72d6..3fc5f28 100644
-> --- a/drivers/base/node.c
-> +++ b/drivers/base/node.c
-> @@ -175,15 +175,20 @@ static ssize_t node_read_numastat(struct sys_device * dev,
->  }
->  static SYSDEV_ATTR(numastat, S_IRUGO, node_read_numastat, NULL);
->  
-> +extern const char * const vmstat_text[];
-> +
->  static ssize_t node_read_vmstat(struct sys_device *dev,
->  				struct sysdev_attribute *attr, char *buf)
->  {
->  	int nid = dev->id;
-> -	return sprintf(buf,
-> -		"nr_written %lu\n"
-> -		"nr_dirtied %lu\n",
-> -		node_page_state(nid, NR_WRITTEN),
-> -		node_page_state(nid, NR_DIRTIED));
-> +	int i;
-> +	int n = 0;
-> +
-> +	for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++)
-> +		n += sprintf(buf+n, "%s %lu\n", vmstat_text[i],
-> +			     node_page_state(nid, i));
-> +
-> +	return n;
->  }
->  static SYSDEV_ATTR(vmstat, S_IRUGO, node_read_vmstat, NULL);
->  
-> diff --git a/mm/vmstat.c b/mm/vmstat.c
-> index 897ea9e..0000aad 100644
-> --- a/mm/vmstat.c
-> +++ b/mm/vmstat.c
-> @@ -852,7 +852,7 @@ static const struct file_operations pagetypeinfo_file_ops = {
->  #define TEXTS_FOR_ZONES(xx) TEXT_FOR_DMA(xx) TEXT_FOR_DMA32(xx) xx "_normal", \
->  					TEXT_FOR_HIGHMEM(xx) xx "_movable",
->  
-> -static const char * const vmstat_text[] = {
-> +const char * const vmstat_text[] = {
->  	/* Zoned VM counters */
->  	"nr_free_pages",
->  	"nr_inactive_anon",
-> -- 
-> 1.7.3.1
-> 
-> 
+diff --git a/mm/shmem.c b/mm/shmem.c
+index 58da7c150ba6..58ad1159678f 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -531,6 +531,31 @@ static void shmem_free_pages(struct list_head *next)
+ 	} while (next);
+ }
+ 
++/**
++ * remove_indirect_page - remove a indirect page from upper layer
++ * @dir:	pointer to the indirect page in the upper layer
++ * @page:	indirect page to be removed
++ * @needs_lock:	pointer to spinlock if needed
++ * @free_list:	list which the removed page will be inserted into
++ *
++ * This function removes @page from @dir and insert it into @free_list.
++ * The @page still remains after this function but will not be seen by
++ * other tasks. Finally it will be freed via shmem_free_pages().
++ */
++static void remove_indirect_page(struct page **dir, struct page *page,
++		spinlock_t *needs_lock, struct list_head *free_list)
++{
++	if (needs_lock) {
++		spin_lock(needs_lock);
++		*dir = NULL;
++		spin_unlock(needs_lock);
++	} else {
++		*dir = NULL;
++	}
++
++	list_add(&page->lru, free_list);
++}
++
+ static void shmem_truncate_range(struct inode *inode, loff_t start, loff_t end)
+ {
+ 	struct shmem_inode_info *info = SHMEM_I(inode);
+@@ -582,9 +607,9 @@ static void shmem_truncate_range(struct inode *inode, loff_t start, loff_t end)
+ 
+ 	topdir = info->i_indirect;
+ 	if (topdir && idx <= SHMEM_NR_DIRECT && !punch_hole) {
+-		info->i_indirect = NULL;
++		remove_indirect_page(&info->i_indirect, topdir, NULL,
++				     &pages_to_free);
+ 		nr_pages_to_free++;
+-		list_add(&topdir->lru, &pages_to_free);
+ 	}
+ 	spin_unlock(&info->lock);
+ 
+@@ -637,15 +662,10 @@ static void shmem_truncate_range(struct inode *inode, loff_t start, loff_t end)
+ 			diroff = ((idx - ENTRIES_PER_PAGEPAGE/2) %
+ 				ENTRIES_PER_PAGEPAGE) / ENTRIES_PER_PAGE;
+ 			if (!diroff && !offset && upper_limit >= stage) {
+-				if (needs_lock) {
+-					spin_lock(needs_lock);
+-					*dir = NULL;
+-					spin_unlock(needs_lock);
+-					needs_lock = NULL;
+-				} else
+-					*dir = NULL;
++				remove_indirect_page(dir, middir, needs_lock,
++						     &pages_to_free);
+ 				nr_pages_to_free++;
+-				list_add(&middir->lru, &pages_to_free);
++				needs_lock = NULL;
+ 			}
+ 			shmem_dir_unmap(dir);
+ 			dir = shmem_dir_map(middir);
+@@ -672,15 +692,10 @@ static void shmem_truncate_range(struct inode *inode, loff_t start, loff_t end)
+ 			if (punch_hole)
+ 				needs_lock = &info->lock;
+ 			if (upper_limit >= stage) {
+-				if (needs_lock) {
+-					spin_lock(needs_lock);
+-					*dir = NULL;
+-					spin_unlock(needs_lock);
+-					needs_lock = NULL;
+-				} else
+-					*dir = NULL;
++				remove_indirect_page(dir, middir, needs_lock,
++						     &pages_to_free);
+ 				nr_pages_to_free++;
+-				list_add(&middir->lru, &pages_to_free);
++				needs_lock = NULL;
+ 			}
+ 			shmem_dir_unmap(dir);
+ 			cond_resched();
+@@ -690,15 +705,10 @@ static void shmem_truncate_range(struct inode *inode, loff_t start, loff_t end)
+ 		punch_lock = needs_lock;
+ 		subdir = dir[diroff];
+ 		if (subdir && !offset && upper_limit-idx >= ENTRIES_PER_PAGE) {
+-			if (needs_lock) {
+-				spin_lock(needs_lock);
+-				dir[diroff] = NULL;
+-				spin_unlock(needs_lock);
+-				punch_lock = NULL;
+-			} else
+-				dir[diroff] = NULL;
++			remove_indirect_page(&dir[diroff], subdir, needs_lock,
++					     &pages_to_free);
+ 			nr_pages_to_free++;
+-			list_add(&subdir->lru, &pages_to_free);
++			punch_lock = NULL;
+ 		}
+ 		if (subdir && page_private(subdir) /* has swap entries */) {
+ 			size = limit - idx;
+-- 
+1.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
