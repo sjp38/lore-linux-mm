@@ -1,62 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id D3A1B8D003B
-	for <linux-mm@kvack.org>; Mon, 11 Apr 2011 06:20:54 -0400 (EDT)
-Received: by fxm18 with SMTP id 18so5002886fxm.14
-        for <linux-mm@kvack.org>; Mon, 11 Apr 2011 03:20:52 -0700 (PDT)
-Content-Type: text/plain; charset=utf-8; format=flowed; delsp=yes
-Subject: Re: [PATCH 1/2] break out page allocation warning code
-References: <20110408202253.6D6D231C@kernel>
- <BANLkTi=OnDX53nOZcaaMmqXRBcWicam0xg@mail.gmail.com>
- <1302296522.7286.1197.camel@nimitz>
-Date: Mon, 11 Apr 2011 12:20:49 +0200
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 50A5B8D003B
+	for <linux-mm@kvack.org>; Mon, 11 Apr 2011 07:10:24 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id DC88D3EE0BC
+	for <linux-mm@kvack.org>; Mon, 11 Apr 2011 20:10:20 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id C11D445DE5A
+	for <linux-mm@kvack.org>; Mon, 11 Apr 2011 20:10:20 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 9CF2F45DE58
+	for <linux-mm@kvack.org>; Mon, 11 Apr 2011 20:10:20 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 8B7501DB804D
+	for <linux-mm@kvack.org>; Mon, 11 Apr 2011 20:10:20 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 54FD91DB8042
+	for <linux-mm@kvack.org>; Mon, 11 Apr 2011 20:10:20 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: [PATCH] mm: per-node vmstat show proper vmstats
+Message-Id: <20110411201015.F5BC.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: Quoted-Printable
-From: "Michal Nazarewicz" <mina86@mina86.com>
-Message-ID: <op.vtrq0zac3l0zgt@mnazarewicz-glaptop>
-In-Reply-To: <1302296522.7286.1197.camel@nimitz>
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Mon, 11 Apr 2011 20:10:19 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?utf-8?B?TWljaGHFgiBOYXphcmV3aWN6?= <mnazarewicz@gmail.com>, Dave
- Hansen <dave@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org
+To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Michael Rubin <mrubin@google.com>, Wu Fengguang <fengguang.wu@intel.com>
+Cc: kosaki.motohiro@jp.fujitsu.com
 
->> On Apr 8, 2011 10:23 PM, "Dave Hansen" <dave@linux.vnet.ibm.com> wrot=
-e:
->>> +       if (fmt) {
->>> +               printk(KERN_WARNING);
->>> +               va_start(args, fmt);
->>> +               r =3D vprintk(fmt, args);
->>> +               va_end(args);
->>> +       }
+commit 2ac390370a (writeback: add /sys/devices/system/node/<node>/vmstat)
+added vmstat entry. But strangely it only show nr_written and nr_dirtied.
 
-> On Fri, 2011-04-08 at 22:54 +0200, Micha=C5=82 Nazarewicz wrote:
->> Could we make the "printk(KERN_WARNING);" go away and require caller
->> to specify level?
+        # cat /sys/devices/system/node/node20/vmstat
+        nr_written 0
+        nr_dirtied 0
 
-On Fri, 08 Apr 2011 23:02:02 +0200, Dave Hansen wrote:
-> The core problem is this: I want two lines of output: one for the
-> order/mode gunk, and one for the user-specified message.
->
-> If we have the user pass in a string for the printk() level, we're stu=
-ck
-> doing what I have here.  If we have them _prepend_ it to the "fmt"
-> string, then it's harder to figure out below.  I guess we could fish i=
-n
-> the string for it.
+Of cource, It's no adequate. With this patch, the vmstat show
+all vm stastics as /proc/vmstat.
 
-This is a bit unfortunate, but that's what I was worried anyway.  I gues=
-s
-creating a macro which automatically prepends format  with KERN_WARNING
-would solve the issue but that's probably not the most elegant solution.=
+        # cat /sys/devices/system/node/node0/vmstat
+	nr_free_pages 899224
+	nr_inactive_anon 201
+	nr_active_anon 17380
+	nr_inactive_file 31572
+	nr_active_file 28277
+	nr_unevictable 0
+	nr_mlock 0
+	nr_anon_pages 17321
+	nr_mapped 8640
+	nr_file_pages 60107
+	nr_dirty 33
+	nr_writeback 0
+	nr_slab_reclaimable 6850
+	nr_slab_unreclaimable 7604
+	nr_page_table_pages 3105
+	nr_kernel_stack 175
+	nr_unstable 0
+	nr_bounce 0
+	nr_vmscan_write 0
+	nr_writeback_temp 0
+	nr_isolated_anon 0
+	nr_isolated_file 0
+	nr_shmem 260
+	nr_dirtied 1050
+	nr_written 938
+	numa_hit 962872
+	numa_miss 0
+	numa_foreign 0
+	numa_interleave 8617
+	numa_local 962872
+	numa_other 0
+	nr_anon_transparent_hugepages 0
+
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Michael Rubin <mrubin@google.com>
+Cc: Wu Fengguang <fengguang.wu@intel.com>
+---
+ drivers/base/node.c |   15 ++++++++++-----
+ mm/vmstat.c         |    2 +-
+ 2 files changed, 11 insertions(+), 6 deletions(-)
+
+diff --git a/drivers/base/node.c b/drivers/base/node.c
+index b3b72d6..3fc5f28 100644
+--- a/drivers/base/node.c
++++ b/drivers/base/node.c
+@@ -175,15 +175,20 @@ static ssize_t node_read_numastat(struct sys_device * dev,
+ }
+ static SYSDEV_ATTR(numastat, S_IRUGO, node_read_numastat, NULL);
+ 
++extern const char * const vmstat_text[];
++
+ static ssize_t node_read_vmstat(struct sys_device *dev,
+ 				struct sysdev_attribute *attr, char *buf)
+ {
+ 	int nid = dev->id;
+-	return sprintf(buf,
+-		"nr_written %lu\n"
+-		"nr_dirtied %lu\n",
+-		node_page_state(nid, NR_WRITTEN),
+-		node_page_state(nid, NR_DIRTIED));
++	int i;
++	int n = 0;
++
++	for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++)
++		n += sprintf(buf+n, "%s %lu\n", vmstat_text[i],
++			     node_page_state(nid, i));
++
++	return n;
+ }
+ static SYSDEV_ATTR(vmstat, S_IRUGO, node_read_vmstat, NULL);
+ 
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 897ea9e..0000aad 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -852,7 +852,7 @@ static const struct file_operations pagetypeinfo_file_ops = {
+ #define TEXTS_FOR_ZONES(xx) TEXT_FOR_DMA(xx) TEXT_FOR_DMA32(xx) xx "_normal", \
+ 					TEXT_FOR_HIGHMEM(xx) xx "_movable",
+ 
+-static const char * const vmstat_text[] = {
++const char * const vmstat_text[] = {
+ 	/* Zoned VM counters */
+ 	"nr_free_pages",
+ 	"nr_inactive_anon",
+-- 
+1.7.3.1
 
 
--- =
-
-Best regards,                                         _     _
-.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
-..o | Computer Science,  Michal "mina86" Nazarewicz    (o o)
-ooo +-----<email/xmpp: mnazarewicz@google.com>-----ooO--(_)--Ooo--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
