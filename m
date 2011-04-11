@@ -1,84 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 264C08D003B
-	for <linux-mm@kvack.org>; Sun, 10 Apr 2011 20:50:08 -0400 (EDT)
-Received: from int-mx09.intmail.prod.int.phx2.redhat.com (int-mx09.intmail.prod.int.phx2.redhat.com [10.5.11.22])
-	by mx1.redhat.com (8.14.4/8.14.4) with ESMTP id p3B0o68a010736
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Sun, 10 Apr 2011 20:50:06 -0400
-Received: from annuminas.surriel.com ([10.3.113.14])
-	by int-mx09.intmail.prod.int.phx2.redhat.com (8.14.4/8.14.4) with ESMTP id p3B0o2Gp029720
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-CAMELLIA256-SHA bits=256 verify=NO)
-	for <linux-mm@kvack.org>; Sun, 10 Apr 2011 20:50:06 -0400
-Message-ID: <4DA25039.3020700@redhat.com>
-Date: Sun, 10 Apr 2011 20:50:01 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 1708D8D003B
+	for <linux-mm@kvack.org>; Mon, 11 Apr 2011 00:11:15 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 87F023EE081
+	for <linux-mm@kvack.org>; Mon, 11 Apr 2011 13:11:10 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 6EF8645DE55
+	for <linux-mm@kvack.org>; Mon, 11 Apr 2011 13:11:10 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 584E545DE4E
+	for <linux-mm@kvack.org>; Mon, 11 Apr 2011 13:11:10 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 4D4B91DB803C
+	for <linux-mm@kvack.org>; Mon, 11 Apr 2011 13:11:10 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 130671DB8038
+	for <linux-mm@kvack.org>; Mon, 11 Apr 2011 13:11:10 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: mmotm 2011-03-31-14-48 uploaded
+In-Reply-To: <20110403181147.AE42.A69D9226@jp.fujitsu.com>
+References: <201103312224.p2VMOA5g000983@imap1.linux-foundation.org> <20110403181147.AE42.A69D9226@jp.fujitsu.com>
+Message-Id: <20110411131152.0069.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: [LSF/Collab] swap cache redesign idea
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Mon, 11 Apr 2011 13:11:09 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux Memory Management List <linux-mm@kvack.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: akpm@linux-foundation.org, mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Ingo Molnar <mingo@elte.hu>
 
-On Thursday after LSF, Hugh, Minchan, Mel, Johannes and I were
-sitting in the hallway talking about yet more VM things.
+> > The mm-of-the-moment snapshot 2011-03-31-14-48 has been uploaded to
+> > 
+> >    http://userweb.kernel.org/~akpm/mmotm/
+> > 
+> > and will soon be available at
+> > 
+> >    git://zen-kernel.org/kernel/mmotm.git
+> > 
+> 
+> This doesn't boot.
+> 
+> =======================================================================
+> [    0.169037] divide error: 0000 [#1] SMP
+> [    0.169982] last sysfs file:
+> [    0.169982] CPU 0
+> [    0.169982] Modules linked in:
+> [    0.169982]
+> [    0.169982] Pid: 1, comm: swapper Not tainted 2.6.39-rc1-mm1+ #2 FUJITSU-SV      PRIMERGY                      /D2559-A1
+> [    0.169982] RIP: 0010:[<ffffffff8104ad4c>]  [<ffffffff8104ad4c>] find_busiest_group+0x38c/0xd30
 
-During that discussion, we came up with a way to redesign the
-swap cache.  During my flight home, I came with ideas on how
-to use that redesign, that may make the changes worthwhile.
+Please don't worry. This is not -mm problem. The breakage is in linus-tree.
+Now fake numa feature doesn't work correctly and I and Tejun are discussing 
+about a fix.
 
-Currently, the page table entries that have swapped out pages
-associated with them contain a swap entry, pointing directly
-at the swap device and swap slot containing the data. Meanwhile,
-the swap count lives in a separate array.
 
-The redesign we are considering moving the swap entry to the
-page cache radix tree for the swapper_space and having the pte
-contain only the offset into the swapper_space.  The swap count
-info can also fit inside the swapper_space page cache radix
-tree (at least on 64 bits - on 32 bits we may need to get
-creative or accept a smaller max amount of swap space).
 
-This extra layer of indirection allows us to do several things:
-
-1) get rid of the virtual address scanning swapoff; instead
-    we just swap the data in and mark the pages as present in
-    the swapper_space radix tree
-
-2) free swap entries as the are read in, without waiting for
-    the process to fault it in - this may be useful for memory
-    types that have a large erase block
-
-3) together with the defragmentation from (2), we can always
-    do writes in large aligned blocks - the extra indirection
-    will make it relatively easy to have special backend code
-    for different kinds of swap space, since all the state can
-    now live in just one place
-
-4) skip writeout of zero-filled pages - this can be a big help
-    for KVM virtual machines running Windows, since Windows zeroes
-    out free pages;   simply discarding a zero-filled page is not
-    at all simple in the current VM, where we would have to iterate
-    over all the ptes to free the swap entry before being able to
-    free the swap cache page (I am not sure how that locking would
-    even work)
-
-    with the extra layer of indirection, the locking for this scheme
-    can be trivial - either the faulting process gets the old page,
-    or it gets a new one, either way it'll be zero filled
-
-5) skip writeout of pages the guest has marked as free - same as
-    above, with the same easier locking
-
-Only one real question remaining - how do we handle the swap count
-in the new scheme?  On 64 bit systems we have enough space in the
-radix tree, on 32 bit systems maybe we'll have to start overflowing
-into the "swap_count_continued" logic a little sooner than we are
-now and reduce the maximum swap size a little?
-
--- 
-All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
