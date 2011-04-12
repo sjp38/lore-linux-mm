@@ -1,74 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 295208D003B
-	for <linux-mm@kvack.org>; Mon, 11 Apr 2011 21:23:31 -0400 (EDT)
-Date: Mon, 11 Apr 2011 18:26:06 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/4] vmscan: all_unreclaimable() use
- zone->all_unreclaimable as a name
-Message-Id: <20110411182606.016f9486.akpm@linux-foundation.org>
-In-Reply-To: <20110412100417.43F2.A69D9226@jp.fujitsu.com>
-References: <20110411143128.0070.A69D9226@jp.fujitsu.com>
-	<20110411145324.ca790260.akpm@linux-foundation.org>
-	<20110412100417.43F2.A69D9226@jp.fujitsu.com>
+	by kanga.kvack.org (Postfix) with ESMTP id D20DB8D003B
+	for <linux-mm@kvack.org>; Mon, 11 Apr 2011 22:27:27 -0400 (EDT)
+Received: from d01dlp01.pok.ibm.com (d01dlp01.pok.ibm.com [9.56.224.56])
+	by e2.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p3C28HDf021929
+	for <linux-mm@kvack.org>; Mon, 11 Apr 2011 22:08:17 -0400
+Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 56EB138C803E
+	for <linux-mm@kvack.org>; Mon, 11 Apr 2011 22:27:16 -0400 (EDT)
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p3C2RP8Q353676
+	for <linux-mm@kvack.org>; Mon, 11 Apr 2011 22:27:25 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p3C2RODd009483
+	for <linux-mm@kvack.org>; Mon, 11 Apr 2011 22:27:25 -0400
+Subject: Re: [PATCH resend^2] mm: increase RECLAIM_DISTANCE to 30
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <20110412100129.43F1.A69D9226@jp.fujitsu.com>
+References: <20110411172004.0361.A69D9226@jp.fujitsu.com>
+	 <1302557371.7286.16607.camel@nimitz>
+	 <20110412100129.43F1.A69D9226@jp.fujitsu.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Date: Mon, 11 Apr 2011 19:27:21 -0700
+Message-ID: <1302575241.7286.17853.camel@nimitz>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Andrey Vagin <avagin@openvz.org>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Luis Claudio R. Goncalves" <lclaudio@uudg.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Chris McDermott <lcm@linux.vnet.ibm.com>
 
-On Tue, 12 Apr 2011 10:04:15 +0900 (JST) KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
-
-> Hi
-> 
-> > > zone->all_unreclaimable and zone->pages_scanned are neigher atomic
-> > > variables nor protected by lock. Therefore zones can become a state
-> > > of zone->page_scanned=0 and zone->all_unreclaimable=1. In this case,
-> > > current all_unreclaimable() return false even though
-> > > zone->all_unreclaimabe=1.
-> > > 
-> > > Is this ignorable minor issue? No. Unfortunatelly, x86 has very
-> > > small dma zone and it become zone->all_unreclamble=1 easily. and
-> > > if it become all_unreclaimable=1, it never restore all_unreclaimable=0.
-> > > Why? if all_unreclaimable=1, vmscan only try DEF_PRIORITY reclaim and
-> > > a-few-lru-pages>>DEF_PRIORITY always makes 0. that mean no page scan
-> > > at all!
-> > > 
-> > > Eventually, oom-killer never works on such systems. That said, we
-> > > can't use zone->pages_scanned for this purpose. This patch restore
-> > > all_unreclaimable() use zone->all_unreclaimable as old. and in addition,
-> > > to add oom_killer_disabled check to avoid reintroduce the issue of
-> > > commit d1908362.
+On Tue, 2011-04-12 at 10:01 +0900, KOSAKI Motohiro wrote:
+> > On Mon, 2011-04-11 at 17:19 +0900, KOSAKI Motohiro wrote:
+> > > This patch raise zone_reclaim_mode threshold to 30. 30 don't have
+> > > specific meaning. but 20 mean one-hop QPI/Hypertransport and such
+> > > relatively cheap 2-4 socket machine are often used for tradiotional
+> > > server as above. The intention is, their machine don't use
+> > > zone_reclaim_mode.
 > > 
-> > The above is a nice analysis of the bug and how it came to be
-> > introduced.  But we don't actually have a bug description!  What was
-> > the observeable problem which got fixed?
+> > I know specifically of pieces of x86 hardware that set the information
+> > in the BIOS to '21' *specifically* so they'll get the zone_reclaim_mode
+> > behavior which that implies.
 > 
-> The above says "Eventually, oom-killer never works". Is this no enough?
-> The above says
->   1) current logic have a race
->   2) x86 increase a chance of the race by dma zone
->   3) if race is happen, oom killer don't work
+> Which hardware?
 
-And the system hangs up, so it's a local DoS and I guess we should
-backport the fix into -stable.  I added this:
+I'd have to go digging for the model numbers.  I just remember having
+discussions with folks about it a couple of years ago.  My memory isn't
+what it used to be. :)
 
-: This resulted in the kernel hanging up when executing a loop of the form
-: 
-: 1. fork
-: 2. mmap
-: 3. touch memory
-: 4. read memory
-: 5. munmmap
-: 
-: as described in
-: http://www.gossamer-threads.com/lists/linux/kernel/1348725#1348725
+> The reason why now we decided to change default is the original bug reporter was using
+> mere commodity whitebox hardware and very common workload. 
+> If it is enough commotidy, we have to concern it. but if it is special, we don't care it.
+> Hardware vendor should fix a firmware.
 
-And the problems which the other patches in this series address are
-pretty deadly as well.  Should we backport everything?
+Yeah, it's certainly a "simple" fix.  The distance tables can certainly
+be adjusted easily, and worked around pretty trivially with boot
+options.  If we decide to change the generic case, let's also make sure
+that we put something else in place simultaneously that is nice for the
+folks that don't want it changed.  Maybe something DMI-based that digs
+for model numbers?
 
+I'll go try and dig for some more specifics on the hardware so we at
+least have something to test on.
+
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
