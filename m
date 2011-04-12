@@ -1,51 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 381C9900086
-	for <linux-mm@kvack.org>; Tue, 12 Apr 2011 19:41:09 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id C30EC3EE0AE
-	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 08:41:03 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id A71CB45DE52
-	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 08:41:03 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 9193345DE4D
-	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 08:41:03 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 85F96E78002
-	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 08:41:03 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 5183E1DB803B
-	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 08:41:03 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: mm: convert vma->vm_flags to 64bit
-In-Reply-To: <BANLkTinLdWB+ON=TY=KHyzsrC8gC5bXg7Q@mail.gmail.com>
-References: <20110412161315.B518.A69D9226@jp.fujitsu.com> <BANLkTinLdWB+ON=TY=KHyzsrC8gC5bXg7Q@mail.gmail.com>
-Message-Id: <20110413084047.41DD.A69D9226@jp.fujitsu.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 356DF900086
+	for <linux-mm@kvack.org>; Tue, 12 Apr 2011 19:55:09 -0400 (EDT)
+Received: from kpbe15.cbf.corp.google.com (kpbe15.cbf.corp.google.com [172.25.105.79])
+	by smtp-out.google.com with ESMTP id p3CNt5fO000812
+	for <linux-mm@kvack.org>; Tue, 12 Apr 2011 16:55:06 -0700
+Received: from pzk2 (pzk2.prod.google.com [10.243.19.130])
+	by kpbe15.cbf.corp.google.com with ESMTP id p3CNsmfD020910
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 12 Apr 2011 16:55:04 -0700
+Received: by pzk2 with SMTP id 2so62810pzk.9
+        for <linux-mm@kvack.org>; Tue, 12 Apr 2011 16:55:04 -0700 (PDT)
+Date: Tue, 12 Apr 2011 16:55:00 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] mm: per-node vmstat show proper vmstats
+In-Reply-To: <20110411201015.F5BC.A69D9226@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1104121654340.10966@chino.kir.corp.google.com>
+References: <20110411201015.F5BC.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Wed, 13 Apr 2011 08:41:02 +0900 (JST)
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexey Dobriyan <adobriyan@gmail.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Paul Mundt <lethal@linux-sh.org>, Russell King <linux@arm.linux.org.uk>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Michael Rubin <mrubin@google.com>, Wu Fengguang <fengguang.wu@intel.com>
 
-> On Tue, Apr 12, 2011 at 10:12 AM, KOSAKI Motohiro
-> <kosaki.motohiro@jp.fujitsu.com> wrote:
-> > After next year? All developers don't have to ignore compiler warnings!
+On Mon, 11 Apr 2011, KOSAKI Motohiro wrote:
+
+> commit 2ac390370a (writeback: add /sys/devices/system/node/<node>/vmstat)
+> added vmstat entry. But strangely it only show nr_written and nr_dirtied.
 > 
-> At least add vm_flags_t which is sparse-checked, just like we do with gfp_t.
+>         # cat /sys/devices/system/node/node20/vmstat
+>         nr_written 0
+>         nr_dirtied 0
+> 
+> Of cource, It's no adequate. With this patch, the vmstat show
+> all vm stastics as /proc/vmstat.
+> 
+>         # cat /sys/devices/system/node/node0/vmstat
+> 	nr_free_pages 899224
+> 	nr_inactive_anon 201
+> 	nr_active_anon 17380
+> 	nr_inactive_file 31572
+> 	nr_active_file 28277
+> 	nr_unevictable 0
+> 	nr_mlock 0
+> 	nr_anon_pages 17321
+> 	nr_mapped 8640
+> 	nr_file_pages 60107
+> 	nr_dirty 33
+> 	nr_writeback 0
+> 	nr_slab_reclaimable 6850
+> 	nr_slab_unreclaimable 7604
+> 	nr_page_table_pages 3105
+> 	nr_kernel_stack 175
+> 	nr_unstable 0
+> 	nr_bounce 0
+> 	nr_vmscan_write 0
+> 	nr_writeback_temp 0
+> 	nr_isolated_anon 0
+> 	nr_isolated_file 0
+> 	nr_shmem 260
+> 	nr_dirtied 1050
+> 	nr_written 938
+> 	numa_hit 962872
+> 	numa_miss 0
+> 	numa_foreign 0
+> 	numa_interleave 8617
+> 	numa_local 962872
+> 	numa_other 0
+> 	nr_anon_transparent_hugepages 0
+> 
+> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Cc: Michael Rubin <mrubin@google.com>
+> Cc: Wu Fengguang <fengguang.wu@intel.com>
 
-Good idea.
+This is very useful for cpuset users.
 
-> VM_SAO is ppc64 only, so it could be moved into high part,
-> freeing 1 bit?
-
-Sure. But It have to be done after two kernel release cycle or so on.
-I mean I'm afraid anyone add new vm_flags usage concurrently.
-
-
+Acked-by: David Rientjes <rientjes@google.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
