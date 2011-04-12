@@ -1,43 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 1055A900086
-	for <linux-mm@kvack.org>; Tue, 12 Apr 2011 16:31:59 -0400 (EDT)
-Date: Tue, 12 Apr 2011 21:30:58 +0100
-From: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 56394900086
+	for <linux-mm@kvack.org>; Tue, 12 Apr 2011 18:07:33 -0400 (EDT)
 Subject: Re: mm: convert vma->vm_flags to 64bit
-Message-ID: <20110412203058.GC7806@n2100.arm.linux.org.uk>
-References: <20110412151116.B50D.A69D9226@jp.fujitsu.com> <20110411233358.dd400e59.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110411233358.dd400e59.akpm@linux-foundation.org>
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+In-Reply-To: <BANLkTinLdWB+ON=TY=KHyzsrC8gC5bXg7Q@mail.gmail.com>
+References: <20110412151116.B50D.A69D9226@jp.fujitsu.com>
+	 <20110411233358.dd400e59.akpm@linux-foundation.org>
+	 <20110412161315.B518.A69D9226@jp.fujitsu.com>
+	 <BANLkTinLdWB+ON=TY=KHyzsrC8gC5bXg7Q@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Wed, 13 Apr 2011 08:07:04 +1000
+Message-ID: <1302646024.28876.52.camel@pasglop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Paul Mundt <lethal@linux-sh.org>
+To: Alexey Dobriyan <adobriyan@gmail.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Paul Mundt <lethal@linux-sh.org>, Russell King <linux@arm.linux.org.uk>
 
-On Mon, Apr 11, 2011 at 11:33:58PM -0700, Andrew Morton wrote:
-> How the heck did we end up using 32 flags??
-
-Good question.
-
-> > @@ -217,7 +217,7 @@ vivt_flush_cache_range(struct vm_area_struct *vma, unsigned long start, unsigned
-> >  {
-> >  	if (cpumask_test_cpu(smp_processor_id(), mm_cpumask(vma->vm_mm)))
-> >  		__cpuc_flush_user_range(start & PAGE_MASK, PAGE_ALIGN(end),
-> > -					vma->vm_flags);
-> > +					(unsigned long)vma->vm_flags);
-> >  }
+On Tue, 2011-04-12 at 14:06 +0300, Alexey Dobriyan wrote:
+> On Tue, Apr 12, 2011 at 10:12 AM, KOSAKI Motohiro
+> <kosaki.motohiro@jp.fujitsu.com> wrote:
+> > After next year? All developers don't have to ignore compiler warnings!
 > 
-> I'm surprised this change (and similar) are needed?
+> At least add vm_flags_t which is sparse-checked, just like we do with gfp_t.
 > 
-> Is it risky?  What happens if we add yet another vm_flags bit and
-> __cpuc_flush_user_range() wants to use it?  I guess when that happens,
-> __cpuc_flush_user_range() needs to be changed to take a ull.
+> VM_SAO is ppc64 only, so it could be moved into high part,
+> freeing 1 bit?
 
-The truncation is fine provided VM_EXEC is within the least significant
-word.  If it isn't, then we'll blow up when the cache handling assembly
-gets parsed by the assembler as the VM_EXEC value will overflow.
+My original series did use a type, I don't know what that was dropped,
+it made conversion easier imho.
+
+Cheers,
+Ben.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
