@@ -1,146 +1,199 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id EACD98D003B
-	for <linux-mm@kvack.org>; Mon, 11 Apr 2011 20:48:10 -0400 (EDT)
-Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [202.81.31.247])
-	by e23smtp02.au.ibm.com (8.14.4/8.13.1) with ESMTP id p3C0gZN7023988
-	for <linux-mm@kvack.org>; Tue, 12 Apr 2011 10:42:35 +1000
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p3C0m7wJ1728550
-	for <linux-mm@kvack.org>; Tue, 12 Apr 2011 10:48:07 +1000
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p3C0m6o8030367
-	for <linux-mm@kvack.org>; Tue, 12 Apr 2011 10:48:07 +1000
-Date: Tue, 12 Apr 2011 10:48:18 +1000
-From: Christopher Yeoh <cyeoh@au1.ibm.com>
-Subject: Re: [Resend] Cross Memory Attach v3 [PATCH]
-Message-ID: <20110412104818.59ed8c50@rockpopper>
-In-Reply-To: <20110325235225.2aa4ebdc@lilo>
-References: <20110315143547.1b233cd4@lilo>
-	<20110315161623.4099664b.akpm@linux-foundation.org>
-	<20110317154026.61ddd925@lilo>
-	<20110317125427.eebbfb51.akpm@linux-foundation.org>
-	<20110321122018.6306d067@lilo>
-	<20110320185532.08394018.akpm@linux-foundation.org>
-	<20110323125213.69a7a914@lilo>
-	<877hbpcuym.fsf@rustcorp.com.au>
-	<20110325235225.2aa4ebdc@lilo>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id E5C118D003B
+	for <linux-mm@kvack.org>; Mon, 11 Apr 2011 20:59:58 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 8F5753EE0B5
+	for <linux-mm@kvack.org>; Tue, 12 Apr 2011 09:59:55 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 6740145DE4D
+	for <linux-mm@kvack.org>; Tue, 12 Apr 2011 09:59:55 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 4FA2545DE50
+	for <linux-mm@kvack.org>; Tue, 12 Apr 2011 09:59:55 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 427A7E78003
+	for <linux-mm@kvack.org>; Tue, 12 Apr 2011 09:59:55 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 048C81DB803E
+	for <linux-mm@kvack.org>; Tue, 12 Apr 2011 09:59:55 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH resend^2] mm: increase RECLAIM_DISTANCE to 30
+In-Reply-To: <20110411141950.46d3d6da.akpm@linux-foundation.org>
+References: <20110411172004.0361.A69D9226@jp.fujitsu.com> <20110411141950.46d3d6da.akpm@linux-foundation.org>
+Message-Id: <20110412095958.43F0.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: quoted-printable
+Date: Tue, 12 Apr 2011 09:59:53 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Rusty Russell <rusty@rustcorp.com.au>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>
+Cc: kosaki.motohiro@jp.fujitsu.com, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Fri, 25 Mar 2011 23:52:25 +1030
-cyeoh@ozlabs.au.ibm.com wrote:
-> On Thu, 24 Mar 2011 09:20:41 +1030
-> Rusty Russell <rusty@rustcorp.com.au> wrote:
-> 
-> > On Wed, 23 Mar 2011 12:52:13 +1030, Christopher Yeoh
-> > <cyeoh@au1.ibm.com> wrote:
-> > > On Sun, 20 Mar 2011 18:55:32 -0700
-> > > Andrew Morton <akpm@linux-foundation.org> wrote:
-> > > > On Mon, 21 Mar 2011 12:20:18 +1030 Christopher Yeoh
-> > > > <cyeoh@au1.ibm.com> wrote:
-> > > > 
-> > > > > On Thu, 17 Mar 2011 12:54:27 -0700
-> > > > > Andrew Morton <akpm@linux-foundation.org> wrote:
-> > > > > > On Thu, 17 Mar 2011 15:40:26 +1030
-> > > > > > Christopher Yeoh <cyeoh@au1.ibm.com> wrote:
-> > > > > > 
-> > > > > > > > Thinking out loud: if we had a way in which a process
-> > > > > > > > can add and remove a local anonymous page into
-> > > > > > > > pagecache then other processes could access that page
-> > > > > > > > via mmap.  If both processes map the file with a
-> > > > > > > > nonlinear vma they they can happily sit there flipping
-> > > > > > > > pages into and out of the shared mmap at arbitrary file
-> > > > > > > > offsets. The details might get hairy ;) We wouldn't
-> > > > > > > > want all the regular mmap semantics of
-> > > > > > > 
-> > > > > > > Yea, its the complexity of trying to do it that way that
-> > > > > > > eventually lead me to implementing it via a syscall and
-> > > > > > > get_user_pages instead, trying to keep things as simple as
-> > > > > > > possible.
-> > > > > > 
-> > > > > > The pagecache trick potentially gives zero-copy access,
-> > > > > > whereas the proposed code is single-copy.  Although the
-> > > > > > expected benefits of that may not be so great due to TLB
-> > > > > > manipulation overheads.
-> > > > > > 
-> > > > > > I worry that one day someone will come along and implement
-> > > > > > the pagecache trick, then we're stuck with obsolete code
-> > > > > > which we have to maintain for ever.
-> > 
-> > Since this is for MPI (ie. message passing), they really want copy
-> > semantics.  If they didn't want copy semantics, they could just
-> > MAP_SHARED some memory and away they go...
-> > 
-> > You don't want to implement copy semantics with page-flipping; you
-> > would need to COW the outgoing pages, so you end up copying *and*
-> > trapping.
-> > 
-> > If you are allowed to replace "sent" pages with zeroed ones or
-> > something then you don't have to COW.  Yet even if your messages
-> > were a few MB, it's still not clear you'd win; in a NUMA world
-> > you're better off copying into a local page and then working on it.
-> > 
-> > Copying just isn't that bad when it's cache-hot on the sender and
-> > you are about to use it on the receiver, as MPI tends to be.  And
-> > it's damn simple.
-> > 
-> > But we should be able to benchmark an approximation to the
-> > page-flipping approach anyway, by not copying the data and doing the
-> > appropriate tlb flushes in the system call.
-> 
-> I've done some hacking on the naturally ordered and randomly ordered
-> ring bandwidth tests of hpcc to try to simulate what we'd get with a
-> page flipping approach.
-> 
-> - Modified hpcc so it checksums the data on the receiver. normally it
->   just checks the data in a couple of places but the checksum
-> simulates the receiver actually using all of the data
-> 
-> - For the page flipping scenario
->   - allocate from a shared memory pool for data that is to be
->     transferred
->   - instead of sending the data via OpenMPI send some control data
->     instead which describes where the receiver can read the data in
->     shared memory. Thus "zero copy" with just checksum
->   - Adds tlb flushing for sender/receiver processes
-> 
-> The results are below (numbers are in MB/s, higher the better). Base
-> is double copy via shared memory, CMA is single copy.
-> 
-> 	                     Num MPI Processes			
-> Naturally Ordered	4	8	16	32
-> Base	               1152	929	567	370
-> CMA	               3682	3071	2753	2548
-> Zero Copy	       4634	4039	3149	2852
-> 				
->                       	Num MPI Processes
-> Randomly Ordered       	4	8	16	32
-> Base	                1154	927	588	389
-> CMA	                3632	3060	2897	2904
-> Zero Copy	        4668	3970	3077	2962
-> 
-> the benchmarks were run on a 32 way (SMT-off) Power6 machine.
-> 
-> So we can see that on lower numbers of processes there is a gain in
-> performance between single and zero copy (though the big jump is
-> between double and single copy), but this reduces as the number of
-> processes increases. The difference between the single and zero copy
-> approach reduces to almost nothing for when the number of MPI
-> processes is equal to the number of processors (for the randomly
-> ordered ring bandwidth).
+> On Mon, 11 Apr 2011 17:19:31 +0900 (JST)
+> KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+>=20
+> > Recently, Robert Mueller reported zone_reclaim_mode doesn't work
+>=20
+> It's time for some nagging. =20
+>=20
+> I'm trying to work out what the user-visible effect of this problem
+> was, but it isn't described in the changelog and there is no link to
+> any report and not even a Reported-by: or a Cc: and a search for Robert
+> in linux-mm and linux-kernel turned up blank.
 
-Andrew - just wondering if you had any more thoughts about this?
-Any other information you were looking for?
+Here.
+	http://lkml.org/lkml/2010/9/12/236
 
-Regards,
 
-Chris
+>=20
+> > properly on his new NUMA server (Dual Xeon E5520 + Intel S5520UR MB).
+> > He is using Cyrus IMAPd and it's built on a very traditional
+> > single-process model.
+> >=20
+> >   * a master process which reads config files and manages the other
+> >     process
+> >   * multiple imapd processes, one per connection
+> >   * multiple pop3d processes, one per connection
+> >   * multiple lmtpd processes, one per connection
+> >   * periodical "cleanup" processes.
+> >=20
+> > Then, there are thousands of independent processes. The problem is,
+> > recent Intel motherboard turn on zone_reclaim_mode by default and
+> > traditional prefork model software don't work fine on it.
+> > Unfortunatelly, Such model is still typical one even though 21th
+> > century. We can't ignore them.
+> >=20
+> > This patch raise zone_reclaim_mode threshold to 30. 30 don't have
+> > specific meaning. but 20 mean one-hop QPI/Hypertransport and such
+> > relatively cheap 2-4 socket machine are often used for tradiotional
+> > server as above. The intention is, their machine don't use
+> > zone_reclaim_mode.
+> >=20
+> > Note: ia64 and Power have arch specific RECLAIM_DISTANCE definition.
+> > then this patch doesn't change such high-end NUMA machine behavior.
+> >=20
+> > Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> > Acked-by: Christoph Lameter <cl@linux.com>
+> > Acked-by: David Rientjes <rientjes@google.com>
+> > Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > ---
+> >  include/linux/topology.h |    2 +-
+> >  1 files changed, 1 insertions(+), 1 deletions(-)
+> >=20
+> > diff --git a/include/linux/topology.h b/include/linux/topology.h
+> > index b91a40e..fc839bf 100644
+> > --- a/include/linux/topology.h
+> > +++ b/include/linux/topology.h
+> > @@ -60,7 +60,7 @@ int arch_update_cpu_topology(void);
+> >   * (in whatever arch specific measurement units returned by node_dista=
+nce())
+> >   * then switch on zone reclaim on boot.
+> >   */
+> > -#define RECLAIM_DISTANCE 20
+> > +#define RECLAIM_DISTANCE 30
+>=20
+> Any time we tweak a magic number to improve one platform, we risk
+> causing deterioration on another.  Do we know that this risk is low
+> with this patch?
+
+In last thread, Robert Mueller who bug reporter explained he is only using
+mere commodity whitebox hardware and very common workload.
+Therefore, we agreed benefit is bigger than negative. IOW, mere whitebox
+are used lots than special purpose one.
+
+
+
+> Also, what are we doing setting
+>=20
+> 	zone_relaim_mode =3D 1;
+>=20
+> when we have nice enumerated constants for this?  It should be
+>=20
+> 	zone_relaim_mode =3D RECLAIM_ZONE;
+>=20
+> or, pedantically but clearer:
+>=20
+> 	zone_relaim_mode =3D RECLAIM_ZONE & !RECLAIM_WRITE & !RECLAIM_SWAP;
+
+Indeed.
+
+
+
+=46rom 0298eb3256bd17eb88584a90917be749bd8d2c98 Mon Sep 17 00:00:00 2001
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Date: Tue, 12 Apr 2011 09:40:38 +0900
+Subject: [PATCH 2/2] mm: Don't use hardcoded constant for zone_reclaim_mode
+
+Initially, zone_reclaim_mode was introduced by commit 9eeff2395e3
+(Zone reclaim: Reclaim logic). At that time, it was 0/1 boolean
+variable.
+
+Next, commit 1b2ffb7896 (Zone reclaim: Allow modification of zone reclaim
+behavior) changed it to bitmask. But, page_alloc.c still use it as
+boolean. It is slightly harder to read.
+
+Let's convert it.
+
+Suggested-by: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+---
+ include/linux/swap.h |    5 +++++
+ mm/page_alloc.c      |    2 +-
+ mm/vmscan.c          |    5 -----
+ 3 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index 384eb5f..078ba25 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -266,6 +266,11 @@ extern int remove_mapping(struct address_space *mappin=
+g, struct page *page);
+ extern long vm_total_pages;
+=20
+ #ifdef CONFIG_NUMA
++#define RECLAIM_OFF 0
++#define RECLAIM_ZONE (1<<0)	/* Run shrink_inactive_list on the zone */
++#define RECLAIM_WRITE (1<<1)	/* Writeout pages during reclaim */
++#define RECLAIM_SWAP (1<<2)	/* Swap pages out during reclaim */
++
+ extern int zone_reclaim_mode;
+ extern int sysctl_min_unmapped_ratio;
+ extern int sysctl_min_slab_ratio;
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index e400779..be8607e 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2982,7 +2982,7 @@ static void build_zonelists(pg_data_t *pgdat)
+ 		 * to reclaim pages in a zone before going off node.
+ 		 */
+ 		if (distance > RECLAIM_DISTANCE)
+-			zone_reclaim_mode =3D 1;
++			zone_reclaim_mode =3D RECLAIM_ZONE;
+=20
+ 		/*
+ 		 * We don't want to pressure a particular node.
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 0c5a3d6..019e00c 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2893,11 +2893,6 @@ module_init(kswapd_init)
+  */
+ int zone_reclaim_mode __read_mostly;
+=20
+-#define RECLAIM_OFF 0
+-#define RECLAIM_ZONE (1<<0)	/* Run shrink_inactive_list on the zone */
+-#define RECLAIM_WRITE (1<<1)	/* Writeout pages during reclaim */
+-#define RECLAIM_SWAP (1<<2)	/* Swap pages out during reclaim */
+-
+ /*
+  * Priority for ZONE_RECLAIM. This determines the fraction of pages
+  * of a node considered for each zone_reclaim. 4 scans 1/16th of
+--=20
+1.7.3.1
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
