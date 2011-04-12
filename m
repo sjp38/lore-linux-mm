@@ -1,55 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 89CDA900086
-	for <linux-mm@kvack.org>; Tue, 12 Apr 2011 10:22:22 -0400 (EDT)
-Received: from mail-iw0-f169.google.com (mail-iw0-f169.google.com [209.85.214.169])
-	(authenticated bits=0)
-	by smtp1.linux-foundation.org (8.14.2/8.13.5/Debian-3ubuntu1.1) with ESMTP id p3CELgHq020156
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=FAIL)
-	for <linux-mm@kvack.org>; Tue, 12 Apr 2011 07:21:43 -0700
-Received: by iwg8 with SMTP id 8so9367405iwg.14
-        for <linux-mm@kvack.org>; Tue, 12 Apr 2011 07:21:40 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <BANLkTik_9YW5+64FHrzNy7kPz1FUWrw-rw@mail.gmail.com>
-References: <alpine.LSU.2.00.1102232136020.2239@sister.anvils>
- <AANLkTi==MQV=_qq1HaCxGLRu8DdT6FYddqzBkzp1TQs7@mail.gmail.com>
- <AANLkTimv66fV1+JDqSAxRwddvy_kggCuhoJLMTpMTtJM@mail.gmail.com>
- <alpine.LSU.2.00.1103182158200.18771@sister.anvils> <BANLkTinoNMudwkcOOgU5d+imPUfZhDbWWQ@mail.gmail.com>
- <AANLkTimfArmB7judMW7Qd4ATtVaR=yTf_-0DBRAfCJ7w@mail.gmail.com>
- <BANLkTi=Limr3NUaG7RLoQLv5TuEDmm7Rqg@mail.gmail.com> <BANLkTi=UZcocVk_16MbbV432g9a3nDFauA@mail.gmail.com>
- <BANLkTi=KTdLRC_hRvxfpFoMSbz=vOjpObw@mail.gmail.com> <BANLkTindeX9-ECPjgd_V62ZbXCd7iEG9_w@mail.gmail.com>
- <BANLkTikcZK+AQvwe2ED=b0dLZ0hqg0B95w@mail.gmail.com> <BANLkTimV1f1YDTWZUU9uvAtCO_fp6EKH9Q@mail.gmail.com>
- <BANLkTi=tavhpytcSV+nKaXJzw19Bo3W9XQ@mail.gmail.com> <alpine.LSU.2.00.1104060837590.4909@sister.anvils>
- <BANLkTi=-Zb+vrQuY6J+dAMsmz+cQDD-KUw@mail.gmail.com> <BANLkTim0MZfa8vFgHB3W6NsoPHp2jfirrA@mail.gmail.com>
- <BANLkTim-hyXpLj537asC__8exMo3o-WCLA@mail.gmail.com> <alpine.LSU.2.00.1104070718120.28555@sister.anvils>
- <BANLkTik_9YW5+64FHrzNy7kPz1FUWrw-rw@mail.gmail.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Tue, 12 Apr 2011 07:21:20 -0700
-Message-ID: <BANLkTiniyAN40p0q+2wxWsRZ5PJFn9zE0Q@mail.gmail.com>
-Subject: Re: [PATCH] mm: fix possible cause of a page_mapped BUG
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 4EED4900086
+	for <linux-mm@kvack.org>; Tue, 12 Apr 2011 11:04:31 -0400 (EDT)
+Received: from d01dlp01.pok.ibm.com (d01dlp01.pok.ibm.com [9.56.224.56])
+	by e7.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p3CEgQdQ024998
+	for <linux-mm@kvack.org>; Tue, 12 Apr 2011 10:42:34 -0400
+Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 73FAA38C803D
+	for <linux-mm@kvack.org>; Tue, 12 Apr 2011 11:04:19 -0400 (EDT)
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p3CF4Sfn158734
+	for <linux-mm@kvack.org>; Tue, 12 Apr 2011 11:04:28 -0400
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p3CF4RoE018287
+	for <linux-mm@kvack.org>; Tue, 12 Apr 2011 11:04:28 -0400
+Subject: Re: [PATCH 2/3] make new alloc_pages_exact()
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <op.vttl1ho83l0zgt@mnazarewicz-glaptop>
+References: <20110411220345.9B95067C@kernel>
+	 <20110411220346.2FED5787@kernel>
+	 <20110411152223.3fb91a62.akpm@linux-foundation.org>
+	 <op.vttl1ho83l0zgt@mnazarewicz-glaptop>
+Content-Type: text/plain; charset="ISO-8859-1"
+Date: Tue, 12 Apr 2011 08:04:13 -0700
+Message-ID: <1302620653.8321.1725.camel@nimitz>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?UTF-8?B?Um9iZXJ0IMWad2nEmWNraQ==?= <robert@swiecki.net>
-Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Miklos Szeredi <miklos@szeredi.hu>, Michel Lespinasse <walken@google.com>, "Eric W. Biederman" <ebiederm@xmission.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>
+To: Michal Nazarewicz <mina86@mina86.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Timur Tabi <timur@freescale.com>, Andi Kleen <andi@firstfloor.org>, Mel Gorman <mel@csn.ul.ie>, David Rientjes <rientjes@google.com>
 
-On Tue, Apr 12, 2011 at 2:58 AM, Robert =C5=9Awi=C4=99cki <robert@swiecki.n=
-et> wrote:
->
-> So, if this case is not caught later on in the code, I guess it solves
-> the problem. During the fuzzing I didn't experience any panic's, but
-> some other problems arose, i.e. cannot read /proc/<pid>/maps for some
-> processes (sys_read hangs, and such process cannot be killed or
-> stopped with any signal, still it's running (R state) and using CPU -
-> I'll submit another report for that).
+On Tue, 2011-04-12 at 12:28 +0200, Michal Nazarewicz wrote:
+> > Dave Hansen <dave@linux.vnet.ibm.com> wrote:
+> >> +void __free_pages_exact(struct page *page, size_t nr_pages)
+> >> +{
+> >> +	struct page *end = page + nr_pages;
+> >> +
+> >> +	while (page < end) {
+> >> +		__free_page(page);
+> >> +		page++;
+> >> +	}
+> >> +}
+> >> +EXPORT_SYMBOL(__free_pages_exact);
+> 
+> On Tue, 12 Apr 2011 00:22:23 +0200, Andrew Morton wrote:
+> > Really, this function duplicates release_pages().
+> 
+> It requires an array of pointers to pages which is not great though if one
+> just wants to free a contiguous sequence of pages.
 
-Hmm. Sounds like an endless loop in kernel mode.
+Actually, the various mem_map[]s _are_ arrays, at least up to
+MAX_ORDER_NR_PAGES at a time.  We can use that property here.
 
-Use "perf record -ag" as root, it should show up very clearly in the report=
-.
-
-                          Linus
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
