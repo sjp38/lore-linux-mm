@@ -1,69 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 428998D0040
-	for <linux-mm@kvack.org>; Tue, 12 Apr 2011 06:55:19 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id F091E3EE081
-	for <linux-mm@kvack.org>; Tue, 12 Apr 2011 19:55:15 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id D5AE445DE99
-	for <linux-mm@kvack.org>; Tue, 12 Apr 2011 19:55:15 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id BA91045DE92
-	for <linux-mm@kvack.org>; Tue, 12 Apr 2011 19:55:15 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id A9D1BE08006
-	for <linux-mm@kvack.org>; Tue, 12 Apr 2011 19:55:15 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 753F0E08004
-	for <linux-mm@kvack.org>; Tue, 12 Apr 2011 19:55:15 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 1/4] vmscan: all_unreclaimable() use zone->all_unreclaimable as a name
-In-Reply-To: <20110411182606.016f9486.akpm@linux-foundation.org>
-References: <20110412100417.43F2.A69D9226@jp.fujitsu.com> <20110411182606.016f9486.akpm@linux-foundation.org>
-Message-Id: <20110412195513.B533.A69D9226@jp.fujitsu.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 02BEB8D0040
+	for <linux-mm@kvack.org>; Tue, 12 Apr 2011 07:07:01 -0400 (EDT)
+Received: by vws4 with SMTP id 4so7354555vws.14
+        for <linux-mm@kvack.org>; Tue, 12 Apr 2011 04:06:59 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Tue, 12 Apr 2011 19:55:14 +0900 (JST)
+In-Reply-To: <20110412161315.B518.A69D9226@jp.fujitsu.com>
+References: <20110412151116.B50D.A69D9226@jp.fujitsu.com>
+	<20110411233358.dd400e59.akpm@linux-foundation.org>
+	<20110412161315.B518.A69D9226@jp.fujitsu.com>
+Date: Tue, 12 Apr 2011 14:06:51 +0300
+Message-ID: <BANLkTinLdWB+ON=TY=KHyzsrC8gC5bXg7Q@mail.gmail.com>
+Subject: Re: mm: convert vma->vm_flags to 64bit
+From: Alexey Dobriyan <adobriyan@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrey Vagin <avagin@openvz.org>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Luis Claudio R. Goncalves" <lclaudio@uudg.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Paul Mundt <lethal@linux-sh.org>, Russell King <linux@arm.linux.org.uk>
 
-Hi
+On Tue, Apr 12, 2011 at 10:12 AM, KOSAKI Motohiro
+<kosaki.motohiro@jp.fujitsu.com> wrote:
+> After next year? All developers don't have to ignore compiler warnings!
 
-> > The above says "Eventually, oom-killer never works". Is this no enough?
-> > The above says
-> >   1) current logic have a race
-> >   2) x86 increase a chance of the race by dma zone
-> >   3) if race is happen, oom killer don't work
-> 
-> And the system hangs up, so it's a local DoS and I guess we should
-> backport the fix into -stable.  I added this:
-> 
-> : This resulted in the kernel hanging up when executing a loop of the form
-> : 
-> : 1. fork
-> : 2. mmap
-> : 3. touch memory
-> : 4. read memory
-> : 5. munmmap
-> : 
-> : as described in
-> : http://www.gossamer-threads.com/lists/linux/kernel/1348725#1348725
-> 
-> And the problems which the other patches in this series address are
-> pretty deadly as well.  Should we backport everything?
+At least add vm_flags_t which is sparse-checked, just like we do with gfp_t.
 
-patch [1/4] and [2/4] should be backported because they are regression fix.
-But [3/4] and [4/4] are on borderline to me. they improve a recovery time 
-from oom. some times it is very important, some times not. And it is not
-regression fix. Our oom-killer is very weak from forkbomb attack since
-very old days.
-
-Thanks.
-
+VM_SAO is ppc64 only, so it could be moved into high part,
+freeing 1 bit?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
