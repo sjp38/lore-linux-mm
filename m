@@ -1,63 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id ED7BE900086
-	for <linux-mm@kvack.org>; Tue, 12 Apr 2011 18:49:56 -0400 (EDT)
-Date: Tue, 12 Apr 2011 15:49:06 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: Regression from 2.6.36
-Message-Id: <20110412154906.70829d60.akpm@linux-foundation.org>
-In-Reply-To: <1302190586.3357.45.camel@edumazet-laptop>
-References: <20110315132527.130FB80018F1@mail1005.cent>
-	<20110317001519.GB18911@kroah.com>
-	<20110407120112.E08DCA03@pobox.sk>
-	<4D9D8FAA.9080405@suse.cz>
-	<BANLkTinnTnjZvQ9S1AmudZcZBokMy8-93w@mail.gmail.com>
-	<1302177428.3357.25.camel@edumazet-laptop>
-	<1302178426.3357.34.camel@edumazet-laptop>
-	<BANLkTikxWy-Pw1PrcAJMHs2R7JKksyQzMQ@mail.gmail.com>
-	<1302190586.3357.45.camel@edumazet-laptop>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 381C9900086
+	for <linux-mm@kvack.org>; Tue, 12 Apr 2011 19:41:09 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id C30EC3EE0AE
+	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 08:41:03 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id A71CB45DE52
+	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 08:41:03 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 9193345DE4D
+	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 08:41:03 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 85F96E78002
+	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 08:41:03 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 5183E1DB803B
+	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 08:41:03 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: mm: convert vma->vm_flags to 64bit
+In-Reply-To: <BANLkTinLdWB+ON=TY=KHyzsrC8gC5bXg7Q@mail.gmail.com>
+References: <20110412161315.B518.A69D9226@jp.fujitsu.com> <BANLkTinLdWB+ON=TY=KHyzsrC8gC5bXg7Q@mail.gmail.com>
+Message-Id: <20110413084047.41DD.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Wed, 13 Apr 2011 08:41:02 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric Dumazet <eric.dumazet@gmail.com>
-Cc: Changli Gao <xiaosuo@gmail.com>, =?ISO-8859-1?Q?Am=E9rico?= Wang <xiyou.wangcong@gmail.com>, Jiri Slaby <jslaby@suse.cz>, azurIt <azurit@pobox.sk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Jiri Slaby <jirislaby@gmail.com>
+To: Alexey Dobriyan <adobriyan@gmail.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Paul Mundt <lethal@linux-sh.org>, Russell King <linux@arm.linux.org.uk>
 
-On Thu, 07 Apr 2011 17:36:26 +0200
-Eric Dumazet <eric.dumazet@gmail.com> wrote:
+> On Tue, Apr 12, 2011 at 10:12 AM, KOSAKI Motohiro
+> <kosaki.motohiro@jp.fujitsu.com> wrote:
+> > After next year? All developers don't have to ignore compiler warnings!
+> 
+> At least add vm_flags_t which is sparse-checked, just like we do with gfp_t.
 
-> Le jeudi 07 avril 2011 __ 23:27 +0800, Changli Gao a __crit :
-> 
-> > azurlt, would you please test the patch attached? Thanks.
-> > 
-> 
-> Yes of course, I meant to reverse the patch
-> 
-> (use kmalloc() under PAGE_SIZE, vmalloc() for 'big' allocs)
-> 
-> 
-> Dont fallback to vmalloc if kmalloc() fails.
-> 
-> 
-> if (size <= PAGE_SIZE)
-> 	return kmalloc(size, GFP_KERNEL);
-> else
-> 	return vmalloc(size);
-> 
+Good idea.
 
-It's somewhat unclear (to me) what caused this regression.
+> VM_SAO is ppc64 only, so it could be moved into high part,
+> freeing 1 bit?
 
-Is it because the kernel is now doing large kmalloc()s for the fdtable,
-and this makes the page allocator go nuts trying to satisfy high-order
-page allocation requests?
+Sure. But It have to be done after two kernel release cycle or so on.
+I mean I'm afraid anyone add new vm_flags usage concurrently.
 
-Is it because the kernel now will usually free the fdtable
-synchronously within the rcu callback, rather than deferring this to a
-workqueue?
 
-The latter seems unlikely, so I'm thinking this was a case of
-high-order-allocations-considered-harmful?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
