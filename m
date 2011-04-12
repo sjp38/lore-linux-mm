@@ -1,89 +1,216 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id A2D84900086
-	for <linux-mm@kvack.org>; Tue, 12 Apr 2011 12:29:08 -0400 (EDT)
-Message-ID: <4DA47D83.30707@fiec.espol.edu.ec>
-Date: Tue, 12 Apr 2011 11:27:47 -0500
-From: =?ISO-8859-1?Q?Alex_Villac=ED=ADs_Lasso?=
- <avillaci@fiec.espol.edu.ec>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id D2B73900086
+	for <linux-mm@kvack.org>; Tue, 12 Apr 2011 13:08:05 -0400 (EDT)
+Received: by iwg8 with SMTP id 8so9575011iwg.14
+        for <linux-mm@kvack.org>; Tue, 12 Apr 2011 10:08:04 -0700 (PDT)
+From: Namhyung Kim <namhyung@gmail.com>
+Subject: Re: [PATCH 1/3] rename alloc_pages_exact()
+References: <20110411220345.9B95067C@kernel>
+Date: Wed, 13 Apr 2011 02:07:38 +0900
+In-Reply-To: <20110411220345.9B95067C@kernel> (Dave Hansen's message of "Mon,
+	11 Apr 2011 15:03:45 -0700")
+Message-ID: <87r597jt45.fsf@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [Bugme-new] [Bug 31142] New: Large write to USB stick freezes
- unrelated tasks for a long time
-References: <20110321163742.GA24244@csn.ul.ie> <4D878564.6080608@fiec.espol.edu.ec> <20110321201641.GA5698@random.random> <20110322112032.GD24244@csn.ul.ie> <20110322150314.GC5698@random.random> <4D8907C2.7010304@fiec.espol.edu.ec> <20110322214020.GD5698@random.random> <20110323003718.GH5698@random.random> <4D8A2517.3090403@fiec.espol.edu.ec> <4D99E5C8.7090505@fiec.espol.edu.ec> <20110408190912.GI29444@random.random> <4D9F6AB6.6000809@fiec.espol.edu.ec>
-In-Reply-To: <4D9F6AB6.6000809@fiec.espol.edu.ec>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, avillaci@ceibo.fiec.espol.edu.ec, bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org, linux-mm@kvack.org
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Timur Tabi <timur@freescale.com>, Andi Kleen <andi@firstfloor.org>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Michal Nazarewicz <mina86@mina86.com>, David Rientjes <rientjes@google.com>
 
-El 08/04/11 15:06, Alex Villaci-s Lasso escribio:
-> El 08/04/11 14:09, Andrea Arcangeli escribio:
->> Hi Alex,
->>
->> On Mon, Apr 04, 2011 at 10:37:44AM -0500, Alex Villaci-s Lasso wrote:
->>> Latest update: with 2.6.39-rc1 the stalls only last for a few
->>> seconds, but they are still there. So, as I said before, they are
->>> reduced but not eliminated.
->> Ok from a complete stall for the whole duration of the I/O to a few
->> second stall we're clearly going into the right direction.
->>
->> The few second stalls happen with udf? And vfat doesn't stall?
->>
->> Minchan rightly pointed out that the (panik) change we made in
->> page_alloc.c changes the semantics of the __GFP_NO_KSWAPD bit. I also
->> talked with Mel about it. We think it's nicer if we can keep THP
->> allocations as close as any other high order allocation as
->> possible. There are already plenty of __GFP bits with complex
->> semantics. __GFP_NO_KSWAPD is simple and it's nice to stay simple: it
->> means the allocation relies on a different kernel daemon for the
->> background work (which is khugepaged instead of kswapd in the THP
->> case, where khugepaged uses a non intrusive alloc_sleep_millisec
->> throttling in case of MM congestion, unlike kswapd would do).
->>
->> So this is no solution to your problem (if vfat already works I think
->> that might be a better solution), but we'd like to know if you get any
->> _worse_ stall compared to current 2.6.39-rc, by applying the below
->> patch on top of 2.6.39-rc. If this doesn't make any difference, we can
->> safely apply it to remove unnecessary complications.
->>
->> Thanks,
->> Andrea
->>
->> ===
->> Subject: compaction: reverse the change that forbid sync migraton with __GFP_NO_KSWAPD
->>
->> From: Andrea Arcangeli<aarcange@redhat.com>
->>
->> It's uncertain this has been beneficial, so it's safer to undo it. All other
->> compaction users would still go in synchronous mode if a first attempt of async
->> compaction failed. Hopefully we don't need to force special behavior for THP
->> (which is the only __GFP_NO_KSWAPD user so far and it's the easier to exercise
->> and to be noticeable). This also make __GFP_NO_KSWAPD return to its original
->> strict semantics specific to bypass kswapd, as THP allocations have khugepaged
->> for the async THP allocations/compactions.
->>
->> Signed-off-by: Andrea Arcangeli<aarcange@redhat.com>
->> ---
->>   mm/page_alloc.c |    2 +-
->>   1 file changed, 1 insertion(+), 1 deletion(-)
->>
->> --- a/mm/page_alloc.c
->> +++ b/mm/page_alloc.c
->> @@ -2105,7 +2105,7 @@ rebalance:
->>                       sync_migration);
->>       if (page)
->>           goto got_pg;
->> -    sync_migration = !(gfp_mask&  __GFP_NO_KSWAPD);
->> +    sync_migration = true;
->>
->>       /* Try direct reclaim and then allocating */
->>       page = __alloc_pages_direct_reclaim(gfp_mask, order,
->>
-> The stalls occur even with vfat. I am no longer using udf, since (right now) it is not necessary. I will test this patch now.
+Dave Hansen <dave@linux.vnet.ibm.com> writes:
+
+> alloc_pages_exact() returns a virtual address.  But, alloc_pages() returns
+> a 'struct page *'.  That makes for very confused kernel hackers.
 >
- From preliminary tests, I feel that the patch actually eliminates the stalls. I have just copied nearly 6 GB of data into my USB stick and noticed no application freezes.
+> __get_free_pages(), on the other hand, returns virtual addresses.  That
+> makes alloc_pages_exact() a much closer match to __get_free_pages(), so
+> rename it to get_free_pages_exact().  Also change the arguments to have
+> flags first, just like __get_free_pages().
+>
+> Note that alloc_pages_exact()'s partner, free_pages_exact() already
+> matches free_pages(), so we do not have to touch the free side of things.
+>
+> Signed-off-by: Dave Hansen <dave@linux.vnet.ibm.com>
+> Acked-by: Andi Kleen <ak@linux.intel.com>
+> Acked-by: David Rientjes <rientjes@google.com>
+> ---
+>
+>  linux-2.6.git-dave/drivers/video/fsl-diu-fb.c  |    2 +-
+>  linux-2.6.git-dave/drivers/video/mxsfb.c       |    2 +-
+>  linux-2.6.git-dave/drivers/video/pxafb.c       |    6 +++---
+>  linux-2.6.git-dave/drivers/virtio/virtio_pci.c |    2 +-
+>  linux-2.6.git-dave/include/linux/gfp.h         |    2 +-
+>  linux-2.6.git-dave/kernel/profile.c            |    4 ++--
+>  linux-2.6.git-dave/mm/page_alloc.c             |   18 +++++++++---------
+>  linux-2.6.git-dave/mm/page_cgroup.c            |    2 +-
+>  8 files changed, 19 insertions(+), 19 deletions(-)
+>
+> diff -puN drivers/video/fsl-diu-fb.c~change-alloc_pages_exact-name drivers/video/fsl-diu-fb.c
+> --- linux-2.6.git/drivers/video/fsl-diu-fb.c~change-alloc_pages_exact-name	2011-04-11 15:01:16.453823153 -0700
+> +++ linux-2.6.git-dave/drivers/video/fsl-diu-fb.c	2011-04-11 15:01:16.489823137 -0700
+> @@ -294,7 +294,7 @@ static void *fsl_diu_alloc(size_t size, 
+>  
+>  	pr_debug("size=%zu\n", size);
+>  
+> -	virt = alloc_pages_exact(size, GFP_DMA | __GFP_ZERO);
+> +	virt = get_free_pages_exact(GFP_DMA | __GFP_ZERO, size);
+>  	if (virt) {
+>  		*phys = virt_to_phys(virt);
+>  		pr_debug("virt=%p phys=%llx\n", virt,
+> diff -puN drivers/video/mxsfb.c~change-alloc_pages_exact-name drivers/video/mxsfb.c
+> --- linux-2.6.git/drivers/video/mxsfb.c~change-alloc_pages_exact-name	2011-04-11 15:01:16.457823151 -0700
+> +++ linux-2.6.git-dave/drivers/video/mxsfb.c	2011-04-11 15:01:16.489823137 -0700
+> @@ -718,7 +718,7 @@ static int __devinit mxsfb_init_fbinfo(s
+>  	} else {
+>  		if (!fb_size)
+>  			fb_size = SZ_2M; /* default */
+> -		fb_virt = alloc_pages_exact(fb_size, GFP_DMA);
+> +		fb_virt = get_free_pages_exact(GFP_DMA, fb_size);
+>  		if (!fb_virt)
+>  			return -ENOMEM;
+>  
+> diff -puN drivers/video/pxafb.c~change-alloc_pages_exact-name drivers/video/pxafb.c
+> --- linux-2.6.git/drivers/video/pxafb.c~change-alloc_pages_exact-name	2011-04-11 15:01:16.461823149 -0700
+> +++ linux-2.6.git-dave/drivers/video/pxafb.c	2011-04-11 15:01:16.493823135 -0700
+> @@ -905,8 +905,8 @@ static int __devinit pxafb_overlay_map_v
+>  	/* We assume that user will use at most video_mem_size for overlay fb,
+>  	 * anyway, it's useless to use 16bpp main plane and 24bpp overlay
+>  	 */
+> -	ofb->video_mem = alloc_pages_exact(PAGE_ALIGN(pxafb->video_mem_size),
+> -		GFP_KERNEL | __GFP_ZERO);
+> +	ofb->video_mem = get_free_pages_exact(GFP_KERNEL | __GFP_ZERO,
+> +		PAGE_ALIGN(pxafb->video_mem_size));
+>  	if (ofb->video_mem == NULL)
+>  		return -ENOMEM;
+>  
+> @@ -1714,7 +1714,7 @@ static int __devinit pxafb_init_video_me
+>  {
+>  	int size = PAGE_ALIGN(fbi->video_mem_size);
+>  
+> -	fbi->video_mem = alloc_pages_exact(size, GFP_KERNEL | __GFP_ZERO);
+> +	fbi->video_mem = get_free_pages_exact(GFP_KERNEL | __GFP_ZERO, size);
+>  	if (fbi->video_mem == NULL)
+>  		return -ENOMEM;
+>  
+> diff -puN drivers/virtio/virtio_pci.c~change-alloc_pages_exact-name drivers/virtio/virtio_pci.c
+> --- linux-2.6.git/drivers/virtio/virtio_pci.c~change-alloc_pages_exact-name	2011-04-11 15:01:16.465823147 -0700
+> +++ linux-2.6.git-dave/drivers/virtio/virtio_pci.c	2011-04-11 15:01:16.493823135 -0700
+> @@ -385,7 +385,7 @@ static struct virtqueue *setup_vq(struct
+>  	info->msix_vector = msix_vec;
+>  
+>  	size = PAGE_ALIGN(vring_size(num, VIRTIO_PCI_VRING_ALIGN));
+> -	info->queue = alloc_pages_exact(size, GFP_KERNEL|__GFP_ZERO);
+> +	info->queue = get_free_pages_exact(GFP_KERNEL|__GFP_ZERO, size);
+>  	if (info->queue == NULL) {
+>  		err = -ENOMEM;
+>  		goto out_info;
+> diff -puN include/linux/gfp.h~change-alloc_pages_exact-name include/linux/gfp.h
+> --- linux-2.6.git/include/linux/gfp.h~change-alloc_pages_exact-name	2011-04-11 15:01:16.469823145 -0700
+> +++ linux-2.6.git-dave/include/linux/gfp.h	2011-04-11 15:01:16.493823135 -0700
+> @@ -351,7 +351,7 @@ extern struct page *alloc_pages_vma(gfp_
+>  extern unsigned long __get_free_pages(gfp_t gfp_mask, unsigned int order);
+>  extern unsigned long get_zeroed_page(gfp_t gfp_mask);
+>  
+> -void *alloc_pages_exact(size_t size, gfp_t gfp_mask);
+> +void *get_free_pages_exact(gfp_t gfp_mask, size_t size);
+>  void free_pages_exact(void *virt, size_t size);
+>  
+>  #define __get_free_page(gfp_mask) \
+> diff -puN kernel/profile.c~change-alloc_pages_exact-name kernel/profile.c
+> --- linux-2.6.git/kernel/profile.c~change-alloc_pages_exact-name	2011-04-11 15:01:16.473823143 -0700
+> +++ linux-2.6.git-dave/kernel/profile.c	2011-04-11 15:01:16.497823133 -0700
+> @@ -121,8 +121,8 @@ int __ref profile_init(void)
+>  	if (prof_buffer)
+>  		return 0;
+>  
+> -	prof_buffer = alloc_pages_exact(buffer_bytes,
+> -					GFP_KERNEL|__GFP_ZERO|__GFP_NOWARN);
+> +	prof_buffer = get_free_pages_exact(GFP_KERNEL|__GFP_ZERO|__GFP_NOWARN,
+> +					buffer_bytes);
+>  	if (prof_buffer)
+>  		return 0;
+>  
+> diff -puN mm/page_alloc.c~change-alloc_pages_exact-name mm/page_alloc.c
+> --- linux-2.6.git/mm/page_alloc.c~change-alloc_pages_exact-name	2011-04-11 15:01:16.477823141 -0700
+> +++ linux-2.6.git-dave/mm/page_alloc.c	2011-04-11 15:01:16.501823131 -0700
+> @@ -2318,7 +2318,7 @@ void free_pages(unsigned long addr, unsi
+>  EXPORT_SYMBOL(free_pages);
+>  
+>  /**
+> - * alloc_pages_exact - allocate an exact number physically-contiguous pages.
+> + * get_free_pages_exact - allocate an exact number physically-contiguous pages.
+>   * @size: the number of bytes to allocate
+>   * @gfp_mask: GFP flags for the allocation
+>   *
+> @@ -2330,7 +2330,7 @@ EXPORT_SYMBOL(free_pages);
+>   *
+>   * Memory allocated by this function must be released by free_pages_exact().
+>   */
+> -void *alloc_pages_exact(size_t size, gfp_t gfp_mask)
+> +void *get_free_pages_exact(gfp_t gfp_mask, size_t size)
+>  {
+>  	unsigned int order = get_order(size);
+>  	unsigned long addr;
+> @@ -2349,14 +2349,14 @@ void *alloc_pages_exact(size_t size, gfp
+>  
+>  	return (void *)addr;
+>  }
+> -EXPORT_SYMBOL(alloc_pages_exact);
+> +EXPORT_SYMBOL(get_free_pages_exact);
+>  
+>  /**
+> - * free_pages_exact - release memory allocated via alloc_pages_exact()
+> - * @virt: the value returned by alloc_pages_exact.
+> - * @size: size of allocation, same value as passed to alloc_pages_exact().
+> + * free_pages_exact - release memory allocated via get_free_pages_exact()
+> + * @virt: the value returned by get_free_pages_exact.
+> + * @size: size of allocation, same value as passed to get_free_pages_exact().
+>   *
+> - * Release the memory allocated by a previous call to alloc_pages_exact.
+> + * Release the memory allocated by a previous call to get_free_pages_exact().
+>   */
+>  void free_pages_exact(void *virt, size_t size)
+>  {
+> @@ -5308,10 +5308,10 @@ void *__init alloc_large_system_hash(con
+>  			/*
+>  			 * If bucketsize is not a power-of-two, we may free
+>  			 * some pages at the end of hash table which
+> -			 * alloc_pages_exact() automatically does
+> +			 * get_free_pages_exact() automatically does
+>  			 */
+>  			if (get_order(size) < MAX_ORDER) {
+> -				table = alloc_pages_exact(size, GFP_ATOMIC);
+> +				table = get_free_pages_exact(size, GFP_ATOMIC);
+
+This should be                  table = get_free_pages_exact(GFP_ATOMIC, size);
+
+Thanks.
+
+
+>  				kmemleak_alloc(table, size, 1, GFP_ATOMIC);
+>  			}
+>  		}
+> diff -puN mm/page_cgroup.c~change-alloc_pages_exact-name mm/page_cgroup.c
+> --- linux-2.6.git/mm/page_cgroup.c~change-alloc_pages_exact-name	2011-04-11 15:01:16.481823139 -0700
+> +++ linux-2.6.git-dave/mm/page_cgroup.c	2011-04-11 15:01:16.501823131 -0700
+> @@ -134,7 +134,7 @@ static void *__init_refok alloc_page_cgr
+>  {
+>  	void *addr = NULL;
+>  
+> -	addr = alloc_pages_exact(size, GFP_KERNEL | __GFP_NOWARN);
+> +	addr = get_free_pages_exact(GFP_KERNEL | __GFP_NOWARN, size);
+>  	if (addr)
+>  		return addr;
+>  
+> _
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
