@@ -1,64 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 1A8958D0040
-	for <linux-mm@kvack.org>; Tue, 12 Apr 2011 05:29:28 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 8B2003EE0C1
-	for <linux-mm@kvack.org>; Tue, 12 Apr 2011 18:29:24 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 6F63345DE6F
-	for <linux-mm@kvack.org>; Tue, 12 Apr 2011 18:29:24 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 51BBB45DE4E
-	for <linux-mm@kvack.org>; Tue, 12 Apr 2011 18:29:24 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 42E47E08003
-	for <linux-mm@kvack.org>; Tue, 12 Apr 2011 18:29:24 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0E0941DB803A
-	for <linux-mm@kvack.org>; Tue, 12 Apr 2011 18:29:24 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 3/3] mm, mem-hotplug: update pcp->stat_threshold when memory hotplug occur
-In-Reply-To: <BANLkTi=fEejkrPdX27bFi1x+dHpOSGxQaQ@mail.gmail.com>
-References: <20110411170134.035E.A69D9226@jp.fujitsu.com> <BANLkTi=fEejkrPdX27bFi1x+dHpOSGxQaQ@mail.gmail.com>
-Message-Id: <20110412183010.B52A.A69D9226@jp.fujitsu.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id B8ECB8D0040
+	for <linux-mm@kvack.org>; Tue, 12 Apr 2011 05:58:40 -0400 (EDT)
+Received: by pxi10 with SMTP id 10so3717018pxi.8
+        for <linux-mm@kvack.org>; Tue, 12 Apr 2011 02:58:36 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 8bit
-Date: Tue, 12 Apr 2011 18:29:23 +0900 (JST)
+In-Reply-To: <alpine.LSU.2.00.1104070718120.28555@sister.anvils>
+References: <alpine.LSU.2.00.1102232136020.2239@sister.anvils>
+	<AANLkTi==MQV=_qq1HaCxGLRu8DdT6FYddqzBkzp1TQs7@mail.gmail.com>
+	<AANLkTimv66fV1+JDqSAxRwddvy_kggCuhoJLMTpMTtJM@mail.gmail.com>
+	<alpine.LSU.2.00.1103182158200.18771@sister.anvils>
+	<BANLkTinoNMudwkcOOgU5d+imPUfZhDbWWQ@mail.gmail.com>
+	<AANLkTimfArmB7judMW7Qd4ATtVaR=yTf_-0DBRAfCJ7w@mail.gmail.com>
+	<BANLkTi=Limr3NUaG7RLoQLv5TuEDmm7Rqg@mail.gmail.com>
+	<BANLkTi=UZcocVk_16MbbV432g9a3nDFauA@mail.gmail.com>
+	<BANLkTi=KTdLRC_hRvxfpFoMSbz=vOjpObw@mail.gmail.com>
+	<BANLkTindeX9-ECPjgd_V62ZbXCd7iEG9_w@mail.gmail.com>
+	<BANLkTikcZK+AQvwe2ED=b0dLZ0hqg0B95w@mail.gmail.com>
+	<BANLkTimV1f1YDTWZUU9uvAtCO_fp6EKH9Q@mail.gmail.com>
+	<BANLkTi=tavhpytcSV+nKaXJzw19Bo3W9XQ@mail.gmail.com>
+	<alpine.LSU.2.00.1104060837590.4909@sister.anvils>
+	<BANLkTi=-Zb+vrQuY6J+dAMsmz+cQDD-KUw@mail.gmail.com>
+	<BANLkTim0MZfa8vFgHB3W6NsoPHp2jfirrA@mail.gmail.com>
+	<BANLkTim-hyXpLj537asC__8exMo3o-WCLA@mail.gmail.com>
+	<alpine.LSU.2.00.1104070718120.28555@sister.anvils>
+Date: Tue, 12 Apr 2011 11:58:36 +0200
+Message-ID: <BANLkTik_9YW5+64FHrzNy7kPz1FUWrw-rw@mail.gmail.com>
+Subject: Re: [PATCH] mm: fix possible cause of a page_mapped BUG
+From: =?UTF-8?B?Um9iZXJ0IMWad2nEmWNraQ==?= <robert@swiecki.net>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Yasunori Goto <y-goto@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Miklos Szeredi <miklos@szeredi.hu>, Michel Lespinasse <walken@google.com>, "Eric W. Biederman" <ebiederm@xmission.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>
 
-Hi
+On Thu, Apr 7, 2011 at 4:24 PM, Hugh Dickins <hughd@google.com> wrote:
+> On Thu, 7 Apr 2011, Robert Swiecki wrote:
+>> >
+>> > Testing with Linus' patch. Will let you know in a few hours.
+>>
+>> Ok, nothing happened after ~20h. The bug, usually, was triggered within =
+5-10h.
+>>
+>> I can add some printk in this condition, and let it run for a few days
+>> (I will not have access to my testing machine throughout that time),
+>> if you think this will confirm your hypothesis.
+>
+> That's great, thanks Robert. =C2=A0If the machine has nothing better to d=
+o,
+> then it would be nice to let it run a little longer (a few days if that's
+> what suits you), but it does look good so far. =C2=A0Though I'm afraid yo=
+u'll
+> now discover something else entirely ;)
 
-> Hi, KOSAKI
-> 
-> On Mon, Apr 11, 2011 at 5:01 PM, KOSAKI Motohiro
-> <kosaki.motohiro@jp.fujitsu.com> wrote:
-> > Currently, cpu hotplug updates pcp->stat_threashold, but memory
-> > hotplug doesn't. there is no reason.
-> >
-> > Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> > Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > Acked-by: Mel Gorman <mel@csn.ul.ie>
-> > Acked-by: Christoph Lameter <cl@linux.com>
-> 
-> I can think it makes sense so I don't oppose the patch merging.
-> But as you know I am very keen on the description.
-> 
-> What is the problem if hotplug doesn't do it?
-> I means the patch solves what's problem?
-> 
-> Please write down fully for better description.
-> Thanks.
+Ok, I added printk here:
 
-No real world issue. I found the fault by code review.
-No good stat_threshold might makes performance hurt.
+        if (new_len > old_len) {
+                unsigned long pgoff;
+
+                if (vma->vm_flags & (VM_DONTEXPAND | VM_PFNMAP))
+                        goto Efault;
+                pgoff =3D (addr - vma->vm_start) >> PAGE_SHIFT;
+                pgoff +=3D vma->vm_pgoff;
+                if (pgoff + (new_len >> PAGE_SHIFT) < pgoff) {
+                        printk("VMA_TO_RESIZE: ADDR:%lx OLD_LEN:%lx
+NEW_LEN:%lx PGOFF: %lx VMA->VM_START:%lx VMA->VM_FLAGS:%lx",
+                                addr, old_len, new_len, pgoff,
+vma->vm_start, vma->vm_flags);
+
+                        goto Einval;
+                }
+        }
 
 
+and after a few mins of fuzzing I get:
 
+[  584.224028] VMA_TO_RESIZE: ADDR:f751f000 OLD_LEN:6000 NEW_LEN:c000
+PGOFF: fffffffffffffffa VMA->VM_START:f751f000 VMA->VM_FLAGS:2321fa
+[  639.777561] VMA_TO_RESIZE: ADDR:f751f000 OLD_LEN:6000 NEW_LEN:b000
+PGOFF: fffffffffffffffa VMA->VM_START:f751f000 VMA->VM_FLAGS:2301f8
+
+So, if this case is not caught later on in the code, I guess it solves
+the problem. During the fuzzing I didn't experience any panic's, but
+some other problems arose, i.e. cannot read /proc/<pid>/maps for some
+processes (sys_read hangs, and such process cannot be killed or
+stopped with any signal, still it's running (R state) and using CPU -
+I'll submit another report for that).
+
+--=20
+Robert =C5=9Awi=C4=99cki
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
