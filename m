@@ -1,64 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 5EC618D0040
-	for <linux-mm@kvack.org>; Tue, 12 Apr 2011 06:42:09 -0400 (EDT)
-Received: by iyh42 with SMTP id 42so1143453iyh.14
-        for <linux-mm@kvack.org>; Tue, 12 Apr 2011 03:42:07 -0700 (PDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 428998D0040
+	for <linux-mm@kvack.org>; Tue, 12 Apr 2011 06:55:19 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id F091E3EE081
+	for <linux-mm@kvack.org>; Tue, 12 Apr 2011 19:55:15 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id D5AE445DE99
+	for <linux-mm@kvack.org>; Tue, 12 Apr 2011 19:55:15 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id BA91045DE92
+	for <linux-mm@kvack.org>; Tue, 12 Apr 2011 19:55:15 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id A9D1BE08006
+	for <linux-mm@kvack.org>; Tue, 12 Apr 2011 19:55:15 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 753F0E08004
+	for <linux-mm@kvack.org>; Tue, 12 Apr 2011 19:55:15 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 1/4] vmscan: all_unreclaimable() use zone->all_unreclaimable as a name
+In-Reply-To: <20110411182606.016f9486.akpm@linux-foundation.org>
+References: <20110412100417.43F2.A69D9226@jp.fujitsu.com> <20110411182606.016f9486.akpm@linux-foundation.org>
+Message-Id: <20110412195513.B533.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <20110412193407.B52F.A69D9226@jp.fujitsu.com>
-References: <20110412183010.B52A.A69D9226@jp.fujitsu.com>
-	<BANLkTinORojJgOdHeRMLMkKGc-Jitu-unQ@mail.gmail.com>
-	<20110412193407.B52F.A69D9226@jp.fujitsu.com>
-Date: Tue, 12 Apr 2011 19:42:07 +0900
-Message-ID: <BANLkTi=4jV8f23n3rp7Oo8rY_ZVPG1pMbQ@mail.gmail.com>
-Subject: Re: [PATCH 3/3] mm, mem-hotplug: update pcp->stat_threshold when
- memory hotplug occur
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Tue, 12 Apr 2011 19:55:14 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Yasunori Goto <y-goto@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrey Vagin <avagin@openvz.org>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Luis Claudio R. Goncalves" <lclaudio@uudg.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>
 
-On Tue, Apr 12, 2011 at 7:34 PM, KOSAKI Motohiro
-<kosaki.motohiro@jp.fujitsu.com> wrote:
->> > No good stat_threshold might makes performance hurt.
->>
->> Yes. That's I want it.
->> My intention is that if you write down log fully, it can help much
->> newbies to understand the patch in future and it would be very clear
->> Andrew to merge it.
->>
->> What I want is following as.
->> ==
->>
->> Currently, memory hotplug doesn't updates pcp->stat_threashold.
->> Then, It ends up making the wrong stat_threshold and percpu_driftmark.
->>
->> It could make confusing zoneinfo or overhead by frequent draining.
->> Even when memory is low and kswapd is awake, it can mismatch between
->> the number of real free pages and vmstat NR_FREE_PAGES so that it can
->> result in the livelock. Please look at aa4548403 for more.
->>
->> This patch solves the issue.
->> ==
->
-> Now, wakeup_kswapd() are using zone_watermark_ok_safe(). (ie avoid to use
-> per-cpu stat jiffies). Then, I don't think we have livelock chance.
-> Am I missing something?
->
+Hi
 
-I have no idea. I just referenced the description in aa4548403.
-As I look code, zone_watermark_ok_safe works well if percpu_drift_mark
-is set rightly. but if memory hotplug happens, zone->present_pages
-would be changed so that it can affect wmarks. It means it can affect
-percpu_drift_mark, I think.
+> > The above says "Eventually, oom-killer never works". Is this no enough?
+> > The above says
+> >   1) current logic have a race
+> >   2) x86 increase a chance of the race by dma zone
+> >   3) if race is happen, oom killer don't work
+> 
+> And the system hangs up, so it's a local DoS and I guess we should
+> backport the fix into -stable.  I added this:
+> 
+> : This resulted in the kernel hanging up when executing a loop of the form
+> : 
+> : 1. fork
+> : 2. mmap
+> : 3. touch memory
+> : 4. read memory
+> : 5. munmmap
+> : 
+> : as described in
+> : http://www.gossamer-threads.com/lists/linux/kernel/1348725#1348725
+> 
+> And the problems which the other patches in this series address are
+> pretty deadly as well.  Should we backport everything?
 
-My point is to write down the description clear.
+patch [1/4] and [2/4] should be backported because they are regression fix.
+But [3/4] and [4/4] are on borderline to me. they improve a recovery time 
+from oom. some times it is very important, some times not. And it is not
+regression fix. Our oom-killer is very weak from forkbomb attack since
+very old days.
 
--- 
-Kind regards,
-Minchan Kim
+Thanks.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
