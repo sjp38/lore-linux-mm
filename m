@@ -1,73 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D3ED8D0040
-	for <linux-mm@kvack.org>; Tue, 12 Apr 2011 06:28:04 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 634FF3EE0B5
-	for <linux-mm@kvack.org>; Tue, 12 Apr 2011 19:28:01 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4BBD745DE93
-	for <linux-mm@kvack.org>; Tue, 12 Apr 2011 19:28:01 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3464D45DE90
-	for <linux-mm@kvack.org>; Tue, 12 Apr 2011 19:28:01 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 28619E08003
-	for <linux-mm@kvack.org>; Tue, 12 Apr 2011 19:28:01 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id E9D14E08001
-	for <linux-mm@kvack.org>; Tue, 12 Apr 2011 19:28:00 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 1/3] mm, mem-hotplug: fix section mismatch. setup_per_zone_inactive_ratio() should be __meminit.
-In-Reply-To: <BANLkTimPB5e_A3AxS_7kuJmqciRciCm2Sw@mail.gmail.com>
-References: <20110411170033.0356.A69D9226@jp.fujitsu.com> <BANLkTimPB5e_A3AxS_7kuJmqciRciCm2Sw@mail.gmail.com>
-Message-Id: <20110412192751.B52B.A69D9226@jp.fujitsu.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 4AC778D0040
+	for <linux-mm@kvack.org>; Tue, 12 Apr 2011 06:29:58 -0400 (EDT)
+Received: by bwz17 with SMTP id 17so7900653bwz.14
+        for <linux-mm@kvack.org>; Tue, 12 Apr 2011 03:29:55 -0700 (PDT)
+Content-Type: text/plain; charset=utf-8; format=flowed; delsp=yes
+Subject: Re: [PATCH 3/3] reuse __free_pages_exact() in __alloc_pages_exact()
+References: <20110411220345.9B95067C@kernel> <20110411220348.D0280E4D@kernel>
+Date: Tue, 12 Apr 2011 12:29:53 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 8bit
-Date: Tue, 12 Apr 2011 19:28:00 +0900 (JST)
+Content-Transfer-Encoding: 7bit
+From: "Michal Nazarewicz" <mina86@mina86.com>
+Message-ID: <op.vttl33xz3l0zgt@mnazarewicz-glaptop>
+In-Reply-To: <20110411220348.D0280E4D@kernel>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Yasunori Goto <y-goto@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>
+To: linux-mm@kvack.org, Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: linux-kernel@vger.kernel.org, Timur Tabi <timur@freescale.com>, Andi
+ Kleen <andi@firstfloor.org>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>
 
-Hi
+On Tue, 12 Apr 2011 00:03:48 +0200, Dave Hansen <dave@linux.vnet.ibm.com>  
+wrote:
+> diff -puN mm/page_alloc.c~reuse-free-exact mm/page_alloc.c
+> --- linux-2.6.git/mm/page_alloc.c~reuse-free-exact	2011-04-11  
+> 15:01:17.701822598 -0700
+> +++ linux-2.6.git-dave/mm/page_alloc.c	2011-04-11 15:01:17.713822594  
+> -0700
+> @@ -2338,14 +2338,11 @@ struct page *__alloc_pages_exact(gfp_t g
+> 	page = alloc_pages(gfp_mask, order);
+>  	if (page) {
+> -		struct page *alloc_end = page + (1 << order);
+> -		struct page *used = page + nr_pages;
+> +		struct page *unused_start = page + nr_pages;
+> +		int nr_unused = (1 << order) - nr_pages;
 
-> On Mon, Apr 11, 2011 at 5:00 PM, KOSAKI Motohiro
-> <kosaki.motohiro@jp.fujitsu.com> wrote:
-> > Commit bce7394a3e (page-allocator: reset wmark_min and inactive ratio of
-> > zone when hotplug happens) introduced invalid section references.
-> > Now, setup_per_zone_inactive_ratio() is marked __init and then it can't
-> > be referenced from memory hotplug code.
-> >
-> > Then, this patch marks it as __meminit and also marks caller as __ref.
-> >
-> > Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
-> 
-> Just a nitpick.
-> 
-> As below comment of __ref said, It would be better to add _why_ such
-> as memory_hotplug.c.
-> 
-> "so optimally document why the __ref is needed and why it's OK"
+How about unsigned long?
 
-Hmm...
-All of memory_hotplug.c function can call __meminit function. It's
-definition of __meminit.
+> 		split_page(page, order);
+> -		while (used < alloc_end) {
+> -			__free_page(used);
+> -			used++;
+> -		}
+> +		__free_pages_exact(unused_start, nr_unused);
+>  	}
+> 	return page;
 
-We can put the same comment to every function in memory_hotplug.c. 
-like hotadd_newpgdat().
-
-/* we are OK calling __meminit stuff here - we have CONFIG_MEMORY_HOTPLUG */
-static pg_data_t __ref *hotadd_new_pgdat(int nid, u64 start)
-{
-(snip)
-}
-
-But it has zero information. ;)
-
-
+-- 
+Best regards,                                         _     _
+.o. | Liege of Serenely Enlightened Majesty of      o' \,=./ `o
+..o | Computer Science,  Michal "mina86" Nazarewicz    (o o)
+ooo +-----<email/xmpp: mnazarewicz@google.com>-----ooO--(_)--Ooo--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
