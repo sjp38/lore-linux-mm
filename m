@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B7C5900086
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 3F0EF900088
 	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 03:04:24 -0400 (EDT)
 From: Ying Han <yinghan@google.com>
-Subject: [PATCH V3 2/7] Add per memcg reclaim watermarks
-Date: Wed, 13 Apr 2011 00:03:02 -0700
-Message-Id: <1302678187-24154-3-git-send-email-yinghan@google.com>
+Subject: [PATCH V3 6/7] Enable per-memcg background reclaim.
+Date: Wed, 13 Apr 2011 00:03:06 -0700
+Message-Id: <1302678187-24154-7-git-send-email-yinghan@google.com>
 In-Reply-To: <1302678187-24154-1-git-send-email-yinghan@google.com>
 References: <1302678187-24154-1-git-send-email-yinghan@google.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,301 +13,124 @@ List-ID: <linux-mm.kvack.org>
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Pavel Emelyanov <xemul@openvz.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave@linux.vnet.ibm.com>
 Cc: linux-mm@kvack.org
 
-There are two watermarks added per-memcg including "high_wmark" and "low_wmark".
-The per-memcg kswapd is invoked when the memcg's memory usage(usage_in_bytes)
-is higher than the low_wmark. Then the kswapd thread starts to reclaim pages
-until the usage is lower than the high_wmark.
+By default the per-memcg background reclaim is disabled when the limit_in_bytes
+is set the maximum or the wmark_ratio is 0. The kswapd_run() is called when the
+memcg is being resized, and kswapd_stop() is called when the memcg is being
+deleted.
 
-Each watermark is calculated based on the hard_limit(limit_in_bytes) for each
-memcg. Each time the hard_limit is changed, the corresponding wmarks are
-re-calculated. Since memory controller charges only user pages, there is
-no need for a "min_wmark". The current calculation of wmarks is a function of
-"wmark_ratio" which is set to 0 by default. When the value is 0, the watermarks
-are equal to the hard_limit.
+The per-memcg kswapd is waked up based on the usage and low_wmark, which is
+checked once per 1024 increments per cpu. The memcg's kswapd is waked up if the
+usage is larger than the low_wmark.
 
 changelog v3..v2:
-1. Add VM_BUG_ON() on couple of places.
-2. Remove the spinlock on the min_free_kbytes since the consequence of reading
-stale data.
-3. Remove the "min_free_kbytes" API and replace it with wmark_ratio based on
-hard_limit.
+1. some clean-ups
 
 changelog v2..v1:
-1. Remove the res_counter_charge on wmark due to performance concern.
-2. Move the new APIs min_free_kbytes, reclaim_wmarks into seperate commit.
-3. Calculate the min_free_kbytes automatically based on the limit_in_bytes.
-4. make the wmark to be consistant with core VM which checks the free pages
-instead of usage.
-5. changed wmark to be boolean
+1. start/stop the per-cgroup kswapd at create/delete cgroup stage.
+2. remove checking the wmark from per-page charging. now it checks the wmark
+periodically based on the event counter.
 
 Signed-off-by: Ying Han <yinghan@google.com>
 ---
- include/linux/memcontrol.h  |    1 +
- include/linux/res_counter.h |   80 +++++++++++++++++++++++++++++++++++++++++++
- kernel/res_counter.c        |    6 +++
- mm/memcontrol.c             |   52 ++++++++++++++++++++++++++++
- 4 files changed, 139 insertions(+), 0 deletions(-)
+ mm/memcontrol.c |   37 +++++++++++++++++++++++++++++++++++++
+ 1 files changed, 37 insertions(+), 0 deletions(-)
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 5a5ce70..3ece36d 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -82,6 +82,7 @@ int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *mem);
- 
- extern struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page);
- extern struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p);
-+extern int mem_cgroup_watermark_ok(struct mem_cgroup *mem, int charge_flags);
- 
- static inline
- int mm_match_cgroup(const struct mm_struct *mm, const struct mem_cgroup *cgroup)
-diff --git a/include/linux/res_counter.h b/include/linux/res_counter.h
-index c9d625c..fa4181b 100644
---- a/include/linux/res_counter.h
-+++ b/include/linux/res_counter.h
-@@ -39,6 +39,16 @@ struct res_counter {
- 	 */
- 	unsigned long long soft_limit;
- 	/*
-+	 * the limit that reclaim triggers. TODO: res_counter in mem
-+	 * or wmark_limit.
-+	 */
-+	unsigned long long low_wmark_limit;
-+	/*
-+	 * the limit that reclaim stops. TODO: res_counter in mem or
-+	 * wmark_limit.
-+	 */
-+	unsigned long long high_wmark_limit;
-+	/*
- 	 * the number of unsuccessful attempts to consume the resource
- 	 */
- 	unsigned long long failcnt;
-@@ -55,6 +65,9 @@ struct res_counter {
- 
- #define RESOURCE_MAX (unsigned long long)LLONG_MAX
- 
-+#define CHARGE_WMARK_LOW	0x01
-+#define CHARGE_WMARK_HIGH	0x02
-+
- /**
-  * Helpers to interact with userspace
-  * res_counter_read_u64() - returns the value of the specified member.
-@@ -92,6 +105,8 @@ enum {
- 	RES_LIMIT,
- 	RES_FAILCNT,
- 	RES_SOFT_LIMIT,
-+	RES_LOW_WMARK_LIMIT,
-+	RES_HIGH_WMARK_LIMIT
- };
- 
- /*
-@@ -147,6 +162,24 @@ static inline unsigned long long res_counter_margin(struct res_counter *cnt)
- 	return margin;
- }
- 
-+static inline bool
-+res_counter_high_wmark_limit_check_locked(struct res_counter *cnt)
-+{
-+	if (cnt->usage < cnt->high_wmark_limit)
-+		return true;
-+
-+	return false;
-+}
-+
-+static inline bool
-+res_counter_low_wmark_limit_check_locked(struct res_counter *cnt)
-+{
-+	if (cnt->usage < cnt->low_wmark_limit)
-+		return true;
-+
-+	return false;
-+}
-+
- /**
-  * Get the difference between the usage and the soft limit
-  * @cnt: The counter
-@@ -169,6 +202,30 @@ res_counter_soft_limit_excess(struct res_counter *cnt)
- 	return excess;
- }
- 
-+static inline bool
-+res_counter_check_under_low_wmark_limit(struct res_counter *cnt)
-+{
-+	bool ret;
-+	unsigned long flags;
-+
-+	spin_lock_irqsave(&cnt->lock, flags);
-+	ret = res_counter_low_wmark_limit_check_locked(cnt);
-+	spin_unlock_irqrestore(&cnt->lock, flags);
-+	return ret;
-+}
-+
-+static inline bool
-+res_counter_check_under_high_wmark_limit(struct res_counter *cnt)
-+{
-+	bool ret;
-+	unsigned long flags;
-+
-+	spin_lock_irqsave(&cnt->lock, flags);
-+	ret = res_counter_high_wmark_limit_check_locked(cnt);
-+	spin_unlock_irqrestore(&cnt->lock, flags);
-+	return ret;
-+}
-+
- static inline void res_counter_reset_max(struct res_counter *cnt)
- {
- 	unsigned long flags;
-@@ -214,4 +271,27 @@ res_counter_set_soft_limit(struct res_counter *cnt,
- 	return 0;
- }
- 
-+static inline int
-+res_counter_set_high_wmark_limit(struct res_counter *cnt,
-+				unsigned long long wmark_limit)
-+{
-+	unsigned long flags;
-+
-+	spin_lock_irqsave(&cnt->lock, flags);
-+	cnt->high_wmark_limit = wmark_limit;
-+	spin_unlock_irqrestore(&cnt->lock, flags);
-+	return 0;
-+}
-+
-+static inline int
-+res_counter_set_low_wmark_limit(struct res_counter *cnt,
-+				unsigned long long wmark_limit)
-+{
-+	unsigned long flags;
-+
-+	spin_lock_irqsave(&cnt->lock, flags);
-+	cnt->low_wmark_limit = wmark_limit;
-+	spin_unlock_irqrestore(&cnt->lock, flags);
-+	return 0;
-+}
- #endif
-diff --git a/kernel/res_counter.c b/kernel/res_counter.c
-index 34683ef..206a724 100644
---- a/kernel/res_counter.c
-+++ b/kernel/res_counter.c
-@@ -19,6 +19,8 @@ void res_counter_init(struct res_counter *counter, struct res_counter *parent)
- 	spin_lock_init(&counter->lock);
- 	counter->limit = RESOURCE_MAX;
- 	counter->soft_limit = RESOURCE_MAX;
-+	counter->low_wmark_limit = RESOURCE_MAX;
-+	counter->high_wmark_limit = RESOURCE_MAX;
- 	counter->parent = parent;
- }
- 
-@@ -103,6 +105,10 @@ res_counter_member(struct res_counter *counter, int member)
- 		return &counter->failcnt;
- 	case RES_SOFT_LIMIT:
- 		return &counter->soft_limit;
-+	case RES_LOW_WMARK_LIMIT:
-+		return &counter->low_wmark_limit;
-+	case RES_HIGH_WMARK_LIMIT:
-+		return &counter->high_wmark_limit;
- 	};
- 
- 	BUG();
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 4407dd0..664cdc5 100644
+index efeade3..bfa8646 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -272,6 +272,8 @@ struct mem_cgroup {
- 	 */
- 	struct mem_cgroup_stat_cpu nocpu_base;
- 	spinlock_t pcp_counter_lock;
-+
-+	int wmark_ratio;
+@@ -105,10 +105,12 @@ enum mem_cgroup_events_index {
+ enum mem_cgroup_events_target {
+ 	MEM_CGROUP_TARGET_THRESH,
+ 	MEM_CGROUP_TARGET_SOFTLIMIT,
++	MEM_CGROUP_WMARK_EVENTS_THRESH,
+ 	MEM_CGROUP_NTARGETS,
  };
+ #define THRESHOLDS_EVENTS_TARGET (128)
+ #define SOFTLIMIT_EVENTS_TARGET (1024)
++#define WMARK_EVENTS_TARGET (1024)
  
- /* Stuffs for move charges at task migration. */
-@@ -353,6 +355,7 @@ static void mem_cgroup_get(struct mem_cgroup *mem);
- static void mem_cgroup_put(struct mem_cgroup *mem);
+ struct mem_cgroup_stat_cpu {
+ 	long count[MEM_CGROUP_STAT_NSTATS];
+@@ -366,6 +368,7 @@ static void mem_cgroup_put(struct mem_cgroup *mem);
  static struct mem_cgroup *parent_mem_cgroup(struct mem_cgroup *mem);
  static void drain_all_stock_async(void);
-+static unsigned long get_wmark_ratio(struct mem_cgroup *mem);
+ static unsigned long get_wmark_ratio(struct mem_cgroup *mem);
++static void wake_memcg_kswapd(struct mem_cgroup *mem);
  
  static struct mem_cgroup_per_zone *
  mem_cgroup_zoneinfo(struct mem_cgroup *mem, int nid, int zid)
-@@ -813,6 +816,27 @@ static inline bool mem_cgroup_is_root(struct mem_cgroup *mem)
- 	return (mem == root_mem_cgroup);
+@@ -545,6 +548,12 @@ mem_cgroup_largest_soft_limit_node(struct mem_cgroup_tree_per_zone *mctz)
+ 	return mz;
  }
  
-+static void setup_per_memcg_wmarks(struct mem_cgroup *mem)
++static void mem_cgroup_check_wmark(struct mem_cgroup *mem)
 +{
-+	u64 limit;
-+	unsigned long wmark_ratio;
-+
-+	wmark_ratio = get_wmark_ratio(mem);
-+	limit = mem_cgroup_get_limit(mem);
-+	if (wmark_ratio == 0) {
-+		res_counter_set_low_wmark_limit(&mem->res, limit);
-+		res_counter_set_high_wmark_limit(&mem->res, limit);
-+	} else {
-+		unsigned long low_wmark, high_wmark;
-+		unsigned long long tmp = (wmark_ratio * limit) / 100;
-+
-+		low_wmark = tmp;
-+		high_wmark = tmp - (tmp >> 8);
-+		res_counter_set_low_wmark_limit(&mem->res, low_wmark);
-+		res_counter_set_high_wmark_limit(&mem->res, high_wmark);
-+	}
++	if (!mem_cgroup_watermark_ok(mem, CHARGE_WMARK_LOW))
++		wake_memcg_kswapd(mem);
 +}
 +
  /*
-  * Following LRU functions are allowed to be used without PCG_LOCK.
-  * Operations are called by routine of global LRU independently from memcg.
-@@ -1195,6 +1219,16 @@ static unsigned int get_swappiness(struct mem_cgroup *memcg)
- 	return memcg->swappiness;
+  * Implementation Note: reading percpu statistics for memcg.
+  *
+@@ -675,6 +684,9 @@ static void __mem_cgroup_target_update(struct mem_cgroup *mem, int target)
+ 	case MEM_CGROUP_TARGET_SOFTLIMIT:
+ 		next = val + SOFTLIMIT_EVENTS_TARGET;
+ 		break;
++	case MEM_CGROUP_WMARK_EVENTS_THRESH:
++		next = val + WMARK_EVENTS_TARGET;
++		break;
+ 	default:
+ 		return;
+ 	}
+@@ -698,6 +710,10 @@ static void memcg_check_events(struct mem_cgroup *mem, struct page *page)
+ 			__mem_cgroup_target_update(mem,
+ 				MEM_CGROUP_TARGET_SOFTLIMIT);
+ 		}
++		if (unlikely(__memcg_event_check(mem,
++			MEM_CGROUP_WMARK_EVENTS_THRESH))){
++			mem_cgroup_check_wmark(mem);
++		}
+ 	}
  }
  
-+static unsigned long get_wmark_ratio(struct mem_cgroup *memcg)
-+{
-+	struct cgroup *cgrp = memcg->css.cgroup;
+@@ -3384,6 +3400,10 @@ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
+ 	if (!ret && enlarge)
+ 		memcg_oom_recover(memcg);
+ 
++	if (!mem_cgroup_is_root(memcg) && !memcg->kswapd_wait &&
++			memcg->wmark_ratio)
++		kswapd_run(0, memcg);
 +
-+	VM_BUG_ON(!cgrp);
-+	VM_BUG_ON(!cgrp->parent);
-+
-+	return memcg->wmark_ratio;
-+}
-+
- static void mem_cgroup_start_move(struct mem_cgroup *mem)
+ 	return ret;
+ }
+ 
+@@ -4680,6 +4700,7 @@ static void __mem_cgroup_free(struct mem_cgroup *mem)
  {
- 	int cpu;
-@@ -3205,6 +3239,7 @@ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
- 			else
- 				memcg->memsw_is_minimum = false;
- 		}
-+		setup_per_memcg_wmarks(memcg);
- 		mutex_unlock(&set_limit_mutex);
+ 	int node;
  
- 		if (!ret)
-@@ -3264,6 +3299,7 @@ static int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
- 			else
- 				memcg->memsw_is_minimum = false;
- 		}
-+		setup_per_memcg_wmarks(memcg);
- 		mutex_unlock(&set_limit_mutex);
++	kswapd_stop(0, mem);
+ 	mem_cgroup_remove_from_trees(mem);
+ 	free_css_id(&mem_cgroup_subsys, &mem->css);
  
- 		if (!ret)
-@@ -4521,6 +4557,22 @@ static void __init enable_swap_cgroup(void)
+@@ -4786,6 +4807,22 @@ int mem_cgroup_last_scanned_node(struct mem_cgroup *mem)
+ 	return mem->last_scanned_node;
  }
- #endif
  
-+int mem_cgroup_watermark_ok(struct mem_cgroup *mem,
-+				int charge_flags)
++static inline
++void wake_memcg_kswapd(struct mem_cgroup *mem)
 +{
-+	long ret = 0;
-+	int flags = CHARGE_WMARK_LOW | CHARGE_WMARK_HIGH;
++	wait_queue_head_t *wait;
 +
-+	VM_BUG_ON((charge_flags & flags) == flags);
++	if (!mem || !mem->wmark_ratio)
++		return;
 +
-+	if (charge_flags & CHARGE_WMARK_LOW)
-+		ret = res_counter_check_under_low_wmark_limit(&mem->res);
-+	if (charge_flags & CHARGE_WMARK_HIGH)
-+		ret = res_counter_check_under_high_wmark_limit(&mem->res);
++	wait = mem->kswapd_wait;
 +
-+	return ret;
++	if (!wait || !waitqueue_active(wait))
++		return;
++
++	wake_up_interruptible(wait);
 +}
 +
  static int mem_cgroup_soft_limit_tree_init(void)
