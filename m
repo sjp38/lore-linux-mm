@@ -1,69 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 5FA24900086
-	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 17:53:10 -0400 (EDT)
-Date: Wed, 13 Apr 2011 23:53:07 +0200
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 37785900086
+	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 17:54:54 -0400 (EDT)
+Date: Wed, 13 Apr 2011 23:54:48 +0200
 From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 2/4] writeback: avoid duplicate
- balance_dirty_pages_ratelimited() calls
-Message-ID: <20110413215307.GD4648@quack.suse.cz>
+Subject: Re: [PATCH 3/4] writeback: skip balance_dirty_pages() for
+ in-memory fs
+Message-ID: <20110413215448.GE4648@quack.suse.cz>
 References: <20110413085937.981293444@intel.com>
- <20110413090415.511675208@intel.com>
+ <20110413090415.632689410@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110413090415.511675208@intel.com>
+In-Reply-To: <20110413090415.632689410@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
 
-On Wed 13-04-11 16:59:39, Wu Fengguang wrote:
-> When dd in 512bytes, balance_dirty_pages_ratelimited() could be called 8
-> times for the same page, but obviously the page is only dirtied once.
+On Wed 13-04-11 16:59:40, Wu Fengguang wrote:
+> This avoids unnecessary checks and dirty throttling on tmpfs/ramfs.
 > 
-> Fix it with a (slightly racy) PageDirty() test.
+> It can also prevent
 > 
+> [  388.126563] BUG: unable to handle kernel NULL pointer dereference at 0000000000000050
+> 
+> in the balance_dirty_pages tracepoint, which will call
+> 
+> 	dev_name(mapping->backing_dev_info->dev)
+> 
+> but shmem_backing_dev_info.dev is NULL.
+> 
+> Summary notes about the tmpfs/ramfs behavior changes:
+> 
+> As for 2.6.36 and older kernels, the tmpfs writes will sleep inside
+> balance_dirty_pages() as long as we are over the (dirty+background)/2
+> global throttle threshold.  This is because both the dirty pages and
+> threshold will be 0 for tmpfs/ramfs. Hence this test will always
+> evaluate to TRUE:
+> 
+>                 dirty_exceeded =
+>                         (bdi_nr_reclaimable + bdi_nr_writeback >= bdi_thresh)
+>                         || (nr_reclaimable + nr_writeback >= dirty_thresh);
+> 
+> For 2.6.37, someone complained that the current logic does not allow the
+> users to set vm.dirty_ratio=0.  So commit 4cbec4c8b9 changed the test to
+> 
+>                 dirty_exceeded =
+>                         (bdi_nr_reclaimable + bdi_nr_writeback > bdi_thresh)
+>                         || (nr_reclaimable + nr_writeback > dirty_thresh);
+> 
+> So 2.6.37 will behave differently for tmpfs/ramfs: it will never get
+> throttled unless the global dirty threshold is exceeded (which is very
+> unlikely to happen; once happen, will block many tasks).
+> 
+> I'd say that the 2.6.36 behavior is very bad for tmpfs/ramfs. It means
+> for a busy writing server, tmpfs write()s may get livelocked! The
+> "inadvertent" throttling can hardly bring help to any workload because
+> of its "either no throttling, or get throttled to death" property.
+> 
+> So based on 2.6.37, this patch won't bring more noticeable changes.
+> 
+> CC: Hugh Dickins <hughd@google.com>
+> CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
+> Acked-by: Rik van Riel <riel@redhat.com>
+> Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
 > Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> ---
->  mm/filemap.c |    5 ++++-
->  1 file changed, 4 insertions(+), 1 deletion(-)
-> 
-> --- linux-next.orig/mm/filemap.c	2011-04-13 16:46:01.000000000 +0800
-> +++ linux-next/mm/filemap.c	2011-04-13 16:47:26.000000000 +0800
-> @@ -2313,6 +2313,7 @@ static ssize_t generic_perform_write(str
->  	long status = 0;
->  	ssize_t written = 0;
->  	unsigned int flags = 0;
-> +	unsigned int dirty;
->  
->  	/*
->  	 * Copies from kernel address space cannot fail (NFSD is a big user).
-> @@ -2361,6 +2362,7 @@ again:
->  		pagefault_enable();
->  		flush_dcache_page(page);
->  
-> +		dirty = PageDirty(page);
-  This isn't completely right as we sometimes dirty the page in
-->write_begin() (see e.g. block_write_begin() when we allocate blocks under
-an already uptodate page) and in such cases we would not call
-balance_dirty_pages(). So I'm not sure we can really do this
-optimization (although it's sad)...
-
->  		mark_page_accessed(page);
->  		status = a_ops->write_end(file, mapping, pos, bytes, copied,
->  						page, fsdata);
-> @@ -2387,7 +2389,8 @@ again:
->  		pos += copied;
->  		written += copied;
->  
-> -		balance_dirty_pages_ratelimited(mapping);
-> +		if (!dirty)
-> +			balance_dirty_pages_ratelimited(mapping);
->  
->  	} while (iov_iter_count(i));
+  Looks good.
+Acked-by: Jan Kara <jack@suse.cz>
 
 								Honza
+
+> ---
+>  mm/page-writeback.c |   10 ++++------
+>  1 file changed, 4 insertions(+), 6 deletions(-)
+> 
+> --- linux-next.orig/mm/page-writeback.c	2011-03-03 14:43:37.000000000 +0800
+> +++ linux-next/mm/page-writeback.c	2011-03-03 14:43:51.000000000 +0800
+> @@ -244,13 +244,8 @@ void task_dirty_inc(struct task_struct *
+>  static void bdi_writeout_fraction(struct backing_dev_info *bdi,
+>  		long *numerator, long *denominator)
+>  {
+> -	if (bdi_cap_writeback_dirty(bdi)) {
+> -		prop_fraction_percpu(&vm_completions, &bdi->completions,
+> +	prop_fraction_percpu(&vm_completions, &bdi->completions,
+>  				numerator, denominator);
+> -	} else {
+> -		*numerator = 0;
+> -		*denominator = 1;
+> -	}
+>  }
+>  
+>  static inline void task_dirties_fraction(struct task_struct *tsk,
+> @@ -495,6 +490,9 @@ static void balance_dirty_pages(struct a
+>  	bool dirty_exceeded = false;
+>  	struct backing_dev_info *bdi = mapping->backing_dev_info;
+>  
+> +	if (!bdi_cap_account_dirty(bdi))
+> +		return;
+> +
+>  	for (;;) {
+>  		struct writeback_control wbc = {
+>  			.sync_mode	= WB_SYNC_NONE,
+> 
+> 
 -- 
 Jan Kara <jack@suse.cz>
 SUSE Labs, CR
