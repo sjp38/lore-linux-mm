@@ -1,381 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id D91B6900086
-	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 04:31:41 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id A3C463EE0C2
-	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 17:31:37 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 83EB445DE90
-	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 17:31:37 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 58EDB45DE99
-	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 17:31:37 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4A370E08001
-	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 17:31:37 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id EB544E08002
-	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 17:31:36 +0900 (JST)
-Date: Wed, 13 Apr 2011 17:25:02 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH V3 2/7] Add per memcg reclaim watermarks
-Message-Id: <20110413172502.7f7edb2c.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1302678187-24154-3-git-send-email-yinghan@google.com>
-References: <1302678187-24154-1-git-send-email-yinghan@google.com>
-	<1302678187-24154-3-git-send-email-yinghan@google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 97EFD900086
+	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 04:34:41 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 060333EE0BC
+	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 17:34:37 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id DF5CC45DE56
+	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 17:34:36 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id C55F045DE51
+	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 17:34:36 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id B1DB61DB8043
+	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 17:34:36 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 7973F1DB803B
+	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 17:34:36 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: mm: convert vma->vm_flags to 64bit
+In-Reply-To: <1302678049.28876.77.camel@pasglop>
+References: <20110413064432.GA4098@p183> <1302678049.28876.77.camel@pasglop>
+Message-Id: <20110413173453.D734.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
+Date: Wed, 13 Apr 2011 17:34:35 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: Pavel Emelyanov <xemul@openvz.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org
+To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: kosaki.motohiro@jp.fujitsu.com, Alexey Dobriyan <adobriyan@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Paul Mundt <lethal@linux-sh.org>, Russell King <linux@arm.linux.org.uk>
 
-On Wed, 13 Apr 2011 00:03:02 -0700
-Ying Han <yinghan@google.com> wrote:
-
-> There are two watermarks added per-memcg including "high_wmark" and "low_wmark".
-> The per-memcg kswapd is invoked when the memcg's memory usage(usage_in_bytes)
-> is higher than the low_wmark. Then the kswapd thread starts to reclaim pages
-> until the usage is lower than the high_wmark.
+> On Wed, 2011-04-13 at 09:44 +0300, Alexey Dobriyan wrote:
+> > > Yes, I take Hugh's version because vm_flags_t is ugly to me. And
+> > arch 
+> > > dependent variable size is problematic.
+> > 
+> > Who said it should have arch-dependent size? 
 > 
-> Each watermark is calculated based on the hard_limit(limit_in_bytes) for each
-> memcg. Each time the hard_limit is changed, the corresponding wmarks are
-> re-calculated. Since memory controller charges only user pages, there is
-> no need for a "min_wmark". The current calculation of wmarks is a function of
-> "wmark_ratio" which is set to 0 by default. When the value is 0, the watermarks
-> are equal to the hard_limit.
-> 
-> changelog v3..v2:
-> 1. Add VM_BUG_ON() on couple of places.
-> 2. Remove the spinlock on the min_free_kbytes since the consequence of reading
-> stale data.
-> 3. Remove the "min_free_kbytes" API and replace it with wmark_ratio based on
-> hard_limit.
-> 
-> changelog v2..v1:
-> 1. Remove the res_counter_charge on wmark due to performance concern.
-> 2. Move the new APIs min_free_kbytes, reclaim_wmarks into seperate commit.
-> 3. Calculate the min_free_kbytes automatically based on the limit_in_bytes.
-> 4. make the wmark to be consistant with core VM which checks the free pages
-> instead of usage.
-> 5. changed wmark to be boolean
-> 
-> Signed-off-by: Ying Han <yinghan@google.com>
-> ---
->  include/linux/memcontrol.h  |    1 +
->  include/linux/res_counter.h |   80 +++++++++++++++++++++++++++++++++++++++++++
->  kernel/res_counter.c        |    6 +++
->  mm/memcontrol.c             |   52 ++++++++++++++++++++++++++++
->  4 files changed, 139 insertions(+), 0 deletions(-)
-> 
-> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-> index 5a5ce70..3ece36d 100644
-> --- a/include/linux/memcontrol.h
-> +++ b/include/linux/memcontrol.h
-> @@ -82,6 +82,7 @@ int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *mem);
->  
->  extern struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page);
->  extern struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p);
-> +extern int mem_cgroup_watermark_ok(struct mem_cgroup *mem, int charge_flags);
->  
->  static inline
->  int mm_match_cgroup(const struct mm_struct *mm, const struct mem_cgroup *cgroup)
-> diff --git a/include/linux/res_counter.h b/include/linux/res_counter.h
-> index c9d625c..fa4181b 100644
-> --- a/include/linux/res_counter.h
-> +++ b/include/linux/res_counter.h
-> @@ -39,6 +39,16 @@ struct res_counter {
->  	 */
->  	unsigned long long soft_limit;
->  	/*
-> +	 * the limit that reclaim triggers. TODO: res_counter in mem
-> +	 * or wmark_limit.
-> +	 */
-> +	unsigned long long low_wmark_limit;
-> +	/*
-> +	 * the limit that reclaim stops. TODO: res_counter in mem or
-> +	 * wmark_limit.
-> +	 */
+> Right, it shouldn't. My original patch did that to avoid thinking about
+> archs that manipulated it from asm such as ARM but that wasn't the right
+> thing to do. But that doesn't invalidate having a type.
 
-What does this TODO mean ?
+type or not type is really cosmetic matter. Then, only if Andrew or Hugh
+or another active MM developers strongly requrest to make a type, I'll do.
+But, now I haven't hear it.
 
+In short, When both are right code, I prefer to take MM developers preference.
+That's MM code. This is the reason why I taked Hugh's choice.
 
-> +	unsigned long long high_wmark_limit;
-> +	/*
->  	 * the number of unsuccessful attempts to consume the resource
->  	 */
->  	unsigned long long failcnt;
-> @@ -55,6 +65,9 @@ struct res_counter {
->  
->  #define RESOURCE_MAX (unsigned long long)LLONG_MAX
->  
-> +#define CHARGE_WMARK_LOW	0x01
-> +#define CHARGE_WMARK_HIGH	0x02
-> +
->  /**
->   * Helpers to interact with userspace
->   * res_counter_read_u64() - returns the value of the specified member.
-> @@ -92,6 +105,8 @@ enum {
->  	RES_LIMIT,
->  	RES_FAILCNT,
->  	RES_SOFT_LIMIT,
-> +	RES_LOW_WMARK_LIMIT,
-> +	RES_HIGH_WMARK_LIMIT
->  };
->  
->  /*
-> @@ -147,6 +162,24 @@ static inline unsigned long long res_counter_margin(struct res_counter *cnt)
->  	return margin;
->  }
->  
-> +static inline bool
-> +res_counter_high_wmark_limit_check_locked(struct res_counter *cnt)
-> +{
-> +	if (cnt->usage < cnt->high_wmark_limit)
-> +		return true;
-> +
-> +	return false;
-> +}
-> +
-> +static inline bool
-> +res_counter_low_wmark_limit_check_locked(struct res_counter *cnt)
-> +{
-> +	if (cnt->usage < cnt->low_wmark_limit)
-> +		return true;
-> +
-> +	return false;
-> +}
-> +
+Thanks.
 
-
->  /**
->   * Get the difference between the usage and the soft limit
->   * @cnt: The counter
-> @@ -169,6 +202,30 @@ res_counter_soft_limit_excess(struct res_counter *cnt)
->  	return excess;
->  }
->  
-> +static inline bool
-> +res_counter_check_under_low_wmark_limit(struct res_counter *cnt)
-> +{
-> +	bool ret;
-> +	unsigned long flags;
-> +
-> +	spin_lock_irqsave(&cnt->lock, flags);
-> +	ret = res_counter_low_wmark_limit_check_locked(cnt);
-> +	spin_unlock_irqrestore(&cnt->lock, flags);
-> +	return ret;
-> +}
-> +
-> +static inline bool
-> +res_counter_check_under_high_wmark_limit(struct res_counter *cnt)
-> +{
-> +	bool ret;
-> +	unsigned long flags;
-> +
-> +	spin_lock_irqsave(&cnt->lock, flags);
-> +	ret = res_counter_high_wmark_limit_check_locked(cnt);
-> +	spin_unlock_irqrestore(&cnt->lock, flags);
-> +	return ret;
-> +}
-> +
-
-Why internal functions are named as _check_ ? I like _under_.
-
-
->  static inline void res_counter_reset_max(struct res_counter *cnt)
->  {
->  	unsigned long flags;
-> @@ -214,4 +271,27 @@ res_counter_set_soft_limit(struct res_counter *cnt,
->  	return 0;
->  }
->  
-> +static inline int
-> +res_counter_set_high_wmark_limit(struct res_counter *cnt,
-> +				unsigned long long wmark_limit)
-> +{
-> +	unsigned long flags;
-> +
-> +	spin_lock_irqsave(&cnt->lock, flags);
-> +	cnt->high_wmark_limit = wmark_limit;
-> +	spin_unlock_irqrestore(&cnt->lock, flags);
-> +	return 0;
-> +}
-> +
-> +static inline int
-> +res_counter_set_low_wmark_limit(struct res_counter *cnt,
-> +				unsigned long long wmark_limit)
-> +{
-> +	unsigned long flags;
-> +
-> +	spin_lock_irqsave(&cnt->lock, flags);
-> +	cnt->low_wmark_limit = wmark_limit;
-> +	spin_unlock_irqrestore(&cnt->lock, flags);
-> +	return 0;
-> +}
->  #endif
-> diff --git a/kernel/res_counter.c b/kernel/res_counter.c
-> index 34683ef..206a724 100644
-> --- a/kernel/res_counter.c
-> +++ b/kernel/res_counter.c
-> @@ -19,6 +19,8 @@ void res_counter_init(struct res_counter *counter, struct res_counter *parent)
->  	spin_lock_init(&counter->lock);
->  	counter->limit = RESOURCE_MAX;
->  	counter->soft_limit = RESOURCE_MAX;
-> +	counter->low_wmark_limit = RESOURCE_MAX;
-> +	counter->high_wmark_limit = RESOURCE_MAX;
->  	counter->parent = parent;
->  }
->  
-> @@ -103,6 +105,10 @@ res_counter_member(struct res_counter *counter, int member)
->  		return &counter->failcnt;
->  	case RES_SOFT_LIMIT:
->  		return &counter->soft_limit;
-> +	case RES_LOW_WMARK_LIMIT:
-> +		return &counter->low_wmark_limit;
-> +	case RES_HIGH_WMARK_LIMIT:
-> +		return &counter->high_wmark_limit;
->  	};
->  
->  	BUG();
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 4407dd0..664cdc5 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -272,6 +272,8 @@ struct mem_cgroup {
->  	 */
->  	struct mem_cgroup_stat_cpu nocpu_base;
->  	spinlock_t pcp_counter_lock;
-> +
-> +	int wmark_ratio;
->  };
->  
->  /* Stuffs for move charges at task migration. */
-> @@ -353,6 +355,7 @@ static void mem_cgroup_get(struct mem_cgroup *mem);
->  static void mem_cgroup_put(struct mem_cgroup *mem);
->  static struct mem_cgroup *parent_mem_cgroup(struct mem_cgroup *mem);
->  static void drain_all_stock_async(void);
-> +static unsigned long get_wmark_ratio(struct mem_cgroup *mem);
->  
->  static struct mem_cgroup_per_zone *
->  mem_cgroup_zoneinfo(struct mem_cgroup *mem, int nid, int zid)
-> @@ -813,6 +816,27 @@ static inline bool mem_cgroup_is_root(struct mem_cgroup *mem)
->  	return (mem == root_mem_cgroup);
->  }
->  
-> +static void setup_per_memcg_wmarks(struct mem_cgroup *mem)
-> +{
-> +	u64 limit;
-> +	unsigned long wmark_ratio;
-> +
-> +	wmark_ratio = get_wmark_ratio(mem);
-> +	limit = mem_cgroup_get_limit(mem);
-> +	if (wmark_ratio == 0) {
-> +		res_counter_set_low_wmark_limit(&mem->res, limit);
-> +		res_counter_set_high_wmark_limit(&mem->res, limit);
-> +	} else {
-> +		unsigned long low_wmark, high_wmark;
-> +		unsigned long long tmp = (wmark_ratio * limit) / 100;
-
-could you make this ratio as /1000 ? percent is too big.
-And, considering misc. cases, I don't think having per-memcg "ratio" is good.
-
-How about following ?
-
- - provides an automatic wmark without knob. 0 wmark is okay, for me.
- - provides 2 intrerfaces as
-	memory.low_wmark_distance_in_bytes,  # == hard_limit - low_wmark.
-	memory.high_wmark_in_bytes,          # == hard_limit - high_wmark.
-   (need to add sanity check into set_limit.)
-
-
-> +
-> +		low_wmark = tmp;
-> +		high_wmark = tmp - (tmp >> 8);
-> +		res_counter_set_low_wmark_limit(&mem->res, low_wmark);
-> +		res_counter_set_high_wmark_limit(&mem->res, high_wmark);
-> +	}
-> +}
-
-Could you explan what low_wmark/high_wmark means somewhere ?
-
-In this patch, kswapd runs while
-
-	high_wmark < usage < low_wmark 
-?
-
-Hmm, I like
-	low_wmark < usage < high_wmark.
-
-;) because it's kswapd.
-
-
-> +
->  /*
->   * Following LRU functions are allowed to be used without PCG_LOCK.
->   * Operations are called by routine of global LRU independently from memcg.
-> @@ -1195,6 +1219,16 @@ static unsigned int get_swappiness(struct mem_cgroup *memcg)
->  	return memcg->swappiness;
->  }
->  
-> +static unsigned long get_wmark_ratio(struct mem_cgroup *memcg)
-> +{
-> +	struct cgroup *cgrp = memcg->css.cgroup;
-> +
-> +	VM_BUG_ON(!cgrp);
-> +	VM_BUG_ON(!cgrp->parent);
-> +
-
-Does this happen ?
-
-> +	return memcg->wmark_ratio;
-> +}
-> +
->  static void mem_cgroup_start_move(struct mem_cgroup *mem)
->  {
->  	int cpu;
-> @@ -3205,6 +3239,7 @@ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
->  			else
->  				memcg->memsw_is_minimum = false;
->  		}
-> +		setup_per_memcg_wmarks(memcg);
->  		mutex_unlock(&set_limit_mutex);
->  
->  		if (!ret)
-> @@ -3264,6 +3299,7 @@ static int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
->  			else
->  				memcg->memsw_is_minimum = false;
->  		}
-> +		setup_per_memcg_wmarks(memcg);
->  		mutex_unlock(&set_limit_mutex);
->  
->  		if (!ret)
-> @@ -4521,6 +4557,22 @@ static void __init enable_swap_cgroup(void)
->  }
->  #endif
->  
-> +int mem_cgroup_watermark_ok(struct mem_cgroup *mem,
-> +				int charge_flags)
-> +{
-> +	long ret = 0;
-> +	int flags = CHARGE_WMARK_LOW | CHARGE_WMARK_HIGH;
-> +
-> +	VM_BUG_ON((charge_flags & flags) == flags);
-> +
-> +	if (charge_flags & CHARGE_WMARK_LOW)
-> +		ret = res_counter_check_under_low_wmark_limit(&mem->res);
-> +	if (charge_flags & CHARGE_WMARK_HIGH)
-> +		ret = res_counter_check_under_high_wmark_limit(&mem->res);
-> +
-> +	return ret;
-> +}
-
-Hmm, do we need this unified function ?
-
-Thanks,
--Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
