@@ -1,65 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 0D464900086
-	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 19:52:21 -0400 (EDT)
-Date: Thu, 14 Apr 2011 09:52:11 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH 4/4] writeback: reduce per-bdi dirty threshold ramp up
- time
-Message-ID: <20110413235211.GN31057@dastard>
-References: <20110413085937.981293444@intel.com>
- <20110413090415.763161169@intel.com>
- <20110413220444.GF4648@quack.suse.cz>
- <20110413233122.GA6097@localhost>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 50698900086
+	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 19:55:08 -0400 (EDT)
+Received: by gxk23 with SMTP id 23so648464gxk.14
+        for <linux-mm@kvack.org>; Wed, 13 Apr 2011 16:55:06 -0700 (PDT)
+Date: Thu, 14 Apr 2011 08:55:00 +0900
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH] percpu: preemptless __per_cpu_counter_add
+Message-ID: <20110413235500.GA12781@mtj.dyndns.org>
+References: <alpine.DEB.2.00.1104130942500.16214@router.home>
+ <alpine.DEB.2.00.1104131148070.20908@router.home>
+ <20110413185618.GA3987@mtj.dyndns.org>
+ <alpine.DEB.2.00.1104131521050.25812@router.home>
+ <20110413215022.GI3987@mtj.dyndns.org>
+ <alpine.DEB.2.00.1104131712070.29766@router.home>
+ <alpine.DEB.2.00.1104131721590.30103@router.home>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110413233122.GA6097@localhost>
+In-Reply-To: <alpine.DEB.2.00.1104131721590.30103@router.home>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Richard Kennedy <richard@rsk.demon.co.uk>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, eric.dumazet@gmail.com, shaohua.li@intel.com
 
-On Thu, Apr 14, 2011 at 07:31:22AM +0800, Wu Fengguang wrote:
-> On Thu, Apr 14, 2011 at 06:04:44AM +0800, Jan Kara wrote:
-> > On Wed 13-04-11 16:59:41, Wu Fengguang wrote:
-> > > Reduce the dampening for the control system, yielding faster
-> > > convergence. The change is a bit conservative, as smaller values may
-> > > lead to noticeable bdi threshold fluctuates in low memory JBOD setup.
-> > > 
-> > > CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
-> > > CC: Richard Kennedy <richard@rsk.demon.co.uk>
-> > > Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> >   Well, I have nothing against this change as such but what I don't like is
-> > that it just changes magical +2 for similarly magical +0. It's clear that
-> 
-> The patch tends to make the rampup time a bit more reasonable for
-> common desktops. From 100s to 25s (see below).
-> 
-> > this will lead to more rapid updates of proportions of bdi's share of
-> > writeback and thread's share of dirtying but why +0? Why not +1 or -1? So
-> 
-> Yes, it will especially be a problem on _small memory_ JBOD setups.
-> Richard actually has requested for a much radical change (decrease by
-> 6) but that looks too much.
-> 
-> My team has a 12-disk JBOD with only 6G memory. The memory is pretty
-> small as a server, but it's a real setup and serves well as the
-> reference minimal setup that Linux should be able to run well on.
+Hello, Christoph.
 
-FWIW, linux runs on a lot of low power NAS boxes with jbod and/or
-raid setups that have <= 1GB of RAM (many of them run XFS), so even
-your setup could be considered large by a significant fraction of
-the storage world. Hence you need to be careful of optimising for
-what you think is a "normal" server, because there simply isn't such
-a thing....
+On Wed, Apr 13, 2011 at 05:23:04PM -0500, Christoph Lameter wrote:
+> 
+> Suggested fixup. Return from slowpath and update percpu variable under
+> spinlock.
+> 
+> Signed-off-by: Christoph Lameter <cl@linux.com>
+> 
+> ---
+>  lib/percpu_counter.c |    8 ++------
+>  1 file changed, 2 insertions(+), 6 deletions(-)
+> 
+> Index: linux-2.6/lib/percpu_counter.c
+> ===================================================================
+> --- linux-2.6.orig/lib/percpu_counter.c	2011-04-13 17:20:41.000000000 -0500
+> +++ linux-2.6/lib/percpu_counter.c	2011-04-13 17:21:33.000000000 -0500
+> @@ -82,13 +82,9 @@ void __percpu_counter_add(struct percpu_
+>  			spin_lock(&fbc->lock);
+>  			count = __this_cpu_read(*fbc->counters);
+>  			fbc->count += count + amount;
+> +			__this_cpu_write(*fbc->counters, 0);
+>  			spin_unlock(&fbc->lock);
+> -			/*
+> -			 * If cmpxchg fails then we need to subtract the amount that
+> -			 * we found in the percpu value.
+> -			 */
+> -			amount = -count;
+> -			new = 0;
+> +			return;
 
-Cheers,
+Yeah, looks pretty good to me now.  Just a couple more things.
 
-Dave.
+* Please fold this one into the original patch.
+
+* While you're restructuring the functions, can you add unlikely to
+  the slow path?
+
+It now looks correct to me but just in case, Eric, do you mind
+reviewing and acking it?
+
+Thanks.
+
 -- 
-Dave Chinner
-david@fromorbit.com
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
