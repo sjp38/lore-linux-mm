@@ -1,86 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 6CA97900086
-	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 16:22:40 -0400 (EDT)
-Date: Wed, 13 Apr 2011 15:22:36 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: [PATCH] percpu: preemptless __per_cpu_counter_add
-In-Reply-To: <20110413185618.GA3987@mtj.dyndns.org>
-Message-ID: <alpine.DEB.2.00.1104131521050.25812@router.home>
-References: <alpine.DEB.2.00.1104130942500.16214@router.home> <alpine.DEB.2.00.1104131148070.20908@router.home> <20110413185618.GA3987@mtj.dyndns.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 3DB4F900086
+	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 17:16:55 -0400 (EDT)
+Date: Wed, 13 Apr 2011 14:16:00 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: Regression from 2.6.36
+Message-Id: <20110413141600.28793661.akpm@linux-foundation.org>
+In-Reply-To: <1302662256.2811.27.camel@edumazet-laptop>
+References: <20110315132527.130FB80018F1@mail1005.cent>
+	<20110317001519.GB18911@kroah.com>
+	<20110407120112.E08DCA03@pobox.sk>
+	<4D9D8FAA.9080405@suse.cz>
+	<BANLkTinnTnjZvQ9S1AmudZcZBokMy8-93w@mail.gmail.com>
+	<1302177428.3357.25.camel@edumazet-laptop>
+	<1302178426.3357.34.camel@edumazet-laptop>
+	<BANLkTikxWy-Pw1PrcAJMHs2R7JKksyQzMQ@mail.gmail.com>
+	<1302190586.3357.45.camel@edumazet-laptop>
+	<20110412154906.70829d60.akpm@linux-foundation.org>
+	<BANLkTincoaxp5Soe6O-eb8LWpgra=k2NsQ@mail.gmail.com>
+	<20110412183132.a854bffc.akpm@linux-foundation.org>
+	<1302662256.2811.27.camel@edumazet-laptop>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, eric.dumazet@gmail.com, shaohua.li@intel.com
+To: Eric Dumazet <eric.dumazet@gmail.com>
+Cc: Changli Gao <xiaosuo@gmail.com>, =?ISO-8859-1?Q?Am=E9rico?= Wang <xiyou.wangcong@gmail.com>, Jiri Slaby <jslaby@suse.cz>, azurIt <azurit@pobox.sk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Jiri Slaby <jirislaby@gmail.com>, Mel Gorman <mel@csn.ul.ie>
 
-On Thu, 14 Apr 2011, Tejun Heo wrote:
+On Wed, 13 Apr 2011 04:37:36 +0200
+Eric Dumazet <eric.dumazet@gmail.com> wrote:
 
-> On Wed, Apr 13, 2011 at 11:49:51AM -0500, Christoph Lameter wrote:
-> > Duh the retry setup if the number overflows is not correct.
-> >
-> > Signed-off-by: Christoph Lameter <cl@linux.com>
->
-> Can you please repost folded patch with proper [PATCH] subject line
-> and cc shaohua.li@intel.com so that he can resolve conflicts?
->
-> Thanks.
+> Le mardi 12 avril 2011 __ 18:31 -0700, Andrew Morton a __crit :
+> > On Wed, 13 Apr 2011 09:23:11 +0800 Changli Gao <xiaosuo@gmail.com> wrote:
+> > 
+> > > On Wed, Apr 13, 2011 at 6:49 AM, Andrew Morton
+> > > <akpm@linux-foundation.org> wrote:
+> > > >
+> > > > It's somewhat unclear (to me) what caused this regression.
+> > > >
+> > > > Is it because the kernel is now doing large kmalloc()s for the fdtable,
+> > > > and this makes the page allocator go nuts trying to satisfy high-order
+> > > > page allocation requests?
+> > > >
+> > > > Is it because the kernel now will usually free the fdtable
+> > > > synchronously within the rcu callback, rather than deferring this to a
+> > > > workqueue?
+> > > >
+> > > > The latter seems unlikely, so I'm thinking this was a case of
+> > > > high-order-allocations-considered-harmful?
+> > > >
+> > > 
+> > > Maybe, but I am not sure. Maybe my patch causes too many inner
+> > > fragments. For example, when asking for 5 pages, get 8 pages, and 3
+> > > pages are wasted, then memory thrash happens finally.
+> > 
+> > That theory sounds less likely, but could be tested by using
+> > alloc_pages_exact().
+> > 
+> 
+> Very unlikely, since fdtable sizes are powers of two, unless you hit
+> sysctl_nr_open and it was changed (default value being 2^20)
+> 
 
-Ok here it is:
+So am I correct in believing that this regression is due to the
+high-order allocations putting excess stress onto page reclaim?
+
+If so, then how large _are_ these allocations?  This perhaps can be
+determined from /proc/slabinfo.  They must be pretty huge, because slub
+likes to do excessively-large allocations and the system handles that
+reasonably well.
+
+I suppose that a suitable fix would be
 
 
+From: Andrew Morton <akpm@linux-foundation.org>
 
+Azurit reports large increases in system time after 2.6.36 when running
+Apache.  It was bisected down to a892e2d7dcdfa6c76e6 ("vfs: use kmalloc()
+to allocate fdmem if possible").
 
-From: Christoph Lameter <cl@linux.com>
-Subject: [PATCH] percpu: preemptless __per_cpu_counter_add
+That patch caused the vfs to use kmalloc() for very large allocations and
+this is causing excessive work (and presumably excessive reclaim) within
+the page allocator.
 
-Use this_cpu_cmpxchg to avoid preempt_disable/enable in __percpu_add.
+Fix it by falling back to vmalloc() earlier - when the allocation attempt
+would have been considered "costly" by reclaim.
 
-Signed-off-by: Christoph Lameter <cl@linux.com>
-
+Reported-by: azurIt <azurit@pobox.sk>
+Cc: Changli Gao <xiaosuo@gmail.com>
+Cc: Americo Wang <xiyou.wangcong@gmail.com>
+Cc: Jiri Slaby <jslaby@suse.cz>
+Cc: Eric Dumazet <eric.dumazet@gmail.com>
+Cc: Mel Gorman <mel@csn.ul.ie>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 ---
- lib/percpu_counter.c |   27 +++++++++++++++------------
- 1 file changed, 15 insertions(+), 12 deletions(-)
 
-Index: linux-2.6/lib/percpu_counter.c
-===================================================================
---- linux-2.6.orig/lib/percpu_counter.c	2011-04-13 09:26:19.000000000 -0500
-+++ linux-2.6/lib/percpu_counter.c	2011-04-13 09:36:37.000000000 -0500
-@@ -71,19 +71,22 @@ EXPORT_SYMBOL(percpu_counter_set);
+ fs/file.c |   17 ++++++++++-------
+ 1 file changed, 10 insertions(+), 7 deletions(-)
 
- void __percpu_counter_add(struct percpu_counter *fbc, s64 amount, s32 batch)
+diff -puN fs/file.c~a fs/file.c
+--- a/fs/file.c~a
++++ a/fs/file.c
+@@ -39,14 +39,17 @@ int sysctl_nr_open_max = 1024 * 1024; /*
+  */
+ static DEFINE_PER_CPU(struct fdtable_defer, fdtable_defer_list);
+ 
+-static inline void *alloc_fdmem(unsigned int size)
++static void *alloc_fdmem(unsigned int size)
  {
--	s64 count;
-+	s64 count, new;
-
--	preempt_disable();
--	count = __this_cpu_read(*fbc->counters) + amount;
--	if (count >= batch || count <= -batch) {
--		spin_lock(&fbc->lock);
--		fbc->count += count;
--		__this_cpu_write(*fbc->counters, 0);
--		spin_unlock(&fbc->lock);
--	} else {
--		__this_cpu_write(*fbc->counters, count);
--	}
--	preempt_enable();
-+	do {
-+		count = this_cpu_read(*fbc->counters);
-+
-+		new = count + amount;
-+		/* In case of overflow fold it into the global counter instead */
-+		if (new >= batch || new <= -batch) {
-+			spin_lock(&fbc->lock);
-+			fbc->count += __this_cpu_read(*fbc->counters) + amount;
-+			spin_unlock(&fbc->lock);
-+			amount = 0;
-+			new = 0;
-+		}
-+
-+	} while (this_cpu_cmpxchg(*fbc->counters, count, new) != count);
+-	void *data;
+-
+-	data = kmalloc(size, GFP_KERNEL|__GFP_NOWARN);
+-	if (data != NULL)
+-		return data;
+-
++	/*
++	 * Very large allocations can stress page reclaim, so fall back to
++	 * vmalloc() if the allocation size will be considered "large" by the VM.
++	 */
++	if (size <= (PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER) {
++		void *data = kmalloc(size, GFP_KERNEL|__GFP_NOWARN);
++		if (data != NULL)
++			return data;
++	}
+ 	return vmalloc(size);
  }
- EXPORT_SYMBOL(__percpu_counter_add);
+ 
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
