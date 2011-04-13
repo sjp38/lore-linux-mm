@@ -1,92 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id AA12D900086
-	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 11:30:20 -0400 (EDT)
-Received: by bwz17 with SMTP id 17so1004874bwz.14
-        for <linux-mm@kvack.org>; Wed, 13 Apr 2011 08:30:17 -0700 (PDT)
-Content-Type: text/plain; charset=utf-8; format=flowed; delsp=yes
-Subject: Re: Regarding memory fragmentation using malloc....
-References: <112566.51053.qm@web162019.mail.bf1.yahoo.com>
-Date: Wed, 13 Apr 2011 17:25:08 +0200
+	by kanga.kvack.org (Postfix) with SMTP id DF210900086
+	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 12:45:33 -0400 (EDT)
+From: David Howells <dhowells@redhat.com>
+Subject: [PATCH] ramfs: fix memleak on no-mmu arch
+Date: Wed, 13 Apr 2011 17:45:21 +0100
+Message-ID: <20110413164521.3112.31642.stgit@warthog.procyon.org.uk>
 MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
-From: "Michal Nazarewicz" <mina86@mina86.com>
-Message-ID: <op.vtvuf5sk3l0zgt@mnazarewicz-glaptop>
-In-Reply-To: <112566.51053.qm@web162019.mail.bf1.yahoo.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?utf-8?Q?Am=C3=A9rico_Wang?= <xiyou.wangcong@gmail.com>, Pintu Agarwal <pintu_agarwal@yahoo.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Eric Dumazet <eric.dumazet@gmail.com>, Changli Gao <xiaosuo@gmail.com>, Jiri Slaby <jslaby@suse.cz>, azurIt <azurit@pobox.sk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Jiri Slaby <jirislaby@gmail.com>
+To: torvalds@osdl.org, akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, uclinux-dev@uclinux.org, linux-kernel@vger.kernel.org, Bob Liu <lliubbo@gmail.com>, Hugh Dickins <hughd@google.com>, stable@kernel.org, David Howells <dhowells@redhat.com>
 
-On Wed, 13 Apr 2011 15:56:00 +0200, Pintu Agarwal  
-<pintu_agarwal@yahoo.com> wrote:
-> My requirement is, I wanted to measure memory fragmentation level in  
-> linux kernel2.6.29 (ARM cortex A8 without swap).
-> How can I measure fragmentation level(percentage) from /proc/buddyinfo ?
+From: Bob Liu <lliubbo@gmail.com>
 
-[...]
+On no-mmu arch, there is a memleak duirng shmem test.
+The cause of this memleak is ramfs_nommu_expand_for_mapping() added page
+refcount to 2 which makes iput() can't free that pages.
 
-> In my linux2.6.29 ARM machine, the initial /proc/buddyinfo shows the  
-> following:
-> Node 0, zone      DMA     17     22      1      1      0      1       
-> 1      0      0      0      0      0
-> Node 1, zone      DMA     15    320    423    225     97     26       
-> 1      0      0      0      0      0
->
-> After running my sample program (with 16 iterations) the buddyinfo  
-> output is as follows:
-> Requesting <16> blocks of memory of block size <262144>........
-> Node 0, zone      DMA     17     22      1      1      0      1       
-> 1      0      0      0      0      0
-> Node 1, zone      DMA     15    301    419    224     96     27       
-> 1      0      0      0      0      0
->     nr_free_pages 169
->     nr_free_pages 6545
-> *****************************************
->
->
-> Node 0, zone      DMA     17     22      1      1      0      1       
-> 1      0      0      0      0      0
-> Node 1, zone      DMA     18      2    305    226     96     27       
-> 1      0      0      0      0      0
->     nr_free_pages 169
->     nr_free_pages 5514
-> -----------------------------------------
->
-> The requested block size is 64 pages (2^6) for each block.
-> But if we see the output after 16 iterations the buddyinfo allocates  
-> pages only from Node 1 , (2^0, 2^1, 2^2, 2^3).
-> But the actual allocation should happen from (2^6) block in buddyinfo.
+The simple test file is like this:
+int main(void)
+{
+	int i;
+	key_t k = ftok("/etc", 42);
 
-No.  When you call malloc() only virtual address space is allocated.  The
-actual allocation of physical space occurs when user space accesses the
-memory (either reads or writes) and it happens page at a time.
+	for ( i=0; i<100; ++i) {
+		int id = shmget(k, 10000, 0644|IPC_CREAT);
+		if (id == -1) {
+			printf("shmget error\n");
+		}
+		if(shmctl(id, IPC_RMID, NULL ) == -1) {
+			printf("shm  rm error\n");
+			return -1;
+		}
+	}
+	printf("run ok...\n");
+	return 0;
+}
 
-As a matter of fact, if you have limited number of 0-order pages and
-allocates in user space block of 64 pages later accessing the memory,
-what really happens is that kernel allocates the 0-order pages and when
-it runs out of those, splits a 1-order page into two 0-order pages and
-takes one of those.
+And the result:
+root:/> free
+             total         used         free       shared      buffers
+Mem:         60320        16644        43676            0            0
+-/+ buffers:              16644        43676
+root:/> shmem
+run ok...
+root:/> free
+             total         used         free       shared      buffers
+Mem:         60320        17912        42408            0            0
+-/+ buffers:              17912        42408
+root:/> shmem
+run ok...
+root:/> free
+             total         used         free       shared      buffers
+Mem:         60320        19096        41224            0            0
+-/+ buffers:              19096        41224
+root:/> shmem
+run ok...
+root:/> free
+             total         used         free       shared      buffers
+Mem:         60320        20296        40024            0            0
+-/+ buffers:              20296        40024
+root:/> shmem
+run ok...
+root:/> free
+             total         used         free       shared      buffers
+Mem:         60320        21496        38824            0            0
+-/+ buffers:              21496        38824
+root:/> shmem
+run ok...
+root:/> free
+             total         used         free       shared      buffers
+Mem:         60320        22692        37628            0            0
+-/+ buffers:              22692        37628
+root:/>
 
-Because of MMU, fragmentation of physical memory is not an issue for
-normal user space programs.
+After this patch the test result is:(no memleak anymore)
+root:/>
+root:/> free
+             total         used         free       shared      buffers
+Mem:         60320        16580        43740            0            0
+-/+ buffers:              16580        43740
+root:/> shmem
+run ok...
+root:/> free
+             total         used         free       shared      buffers
+Mem:         60320        16668        43652            0            0
+-/+ buffers:              16668        43652
+root:/> shmem
+run ok...
+root:/> free
+             total         used         free       shared      buffers
+Mem:         60320        16668        43652            0            0
+-/+ buffers:              16668        43652
+root:/> shmem
+run ok...
+root:/> free
+             total         used         free       shared      buffers
+Mem:         60320        16668        43652            0            0
+-/+ buffers:              16668        43652
+root:/> shmem
+run ok...
+root:/> free
+             total         used         free       shared      buffers
+Mem:         60320        16668        43652            0            0
+-/+ buffers:              16668        43652
+root:/> shmem
+run ok...
+root:/> free
+             total         used         free       shared      buffers
+Mem:         60320        16668        43652            0            0
+-/+ buffers:              16668        43652
+root:/>
 
-It becomes an issue once you deal with hardware that does not have MMU
-nor support for scatter-getter DMA or with some big kernel structures.
+Signed-off-by: Bob Liu <lliubbo@gmail.com>
+Acked-by: Hugh Dickins <hughd@google.com>
+Cc: stable@kernel.org
+Signed-off-by: David Howells <dhowells@redhat.com>
+---
 
-/proc/buddyinfo tells you how many free pages of given order there are
-in the system.  You may interpret it in such a way that the bigger number
-of the low order pages the bigger fragmentation of physical memory.  If
-there was no fragmentation (for some definition of the term) you'd get only
-the highest order pages and at most one page for each lower order.
+ fs/ramfs/file-nommu.c |    1 +
+ 1 files changed, 1 insertions(+), 0 deletions(-)
 
-Again though, this fragmentation is not an issue for user space programs.
 
--- 
-Best regards,                                         _     _
-.o. | Liege of Serenely Enlightened Majesty of      o' \,=./ `o
-..o | Computer Science,  Michal "mina86" Nazarewicz    (o o)
-ooo +-----<email/xmpp: mnazarewicz@google.com>-----ooO--(_)--Ooo--
+diff --git a/fs/ramfs/file-nommu.c b/fs/ramfs/file-nommu.c
+index 9eead2c..fbb0b47 100644
+--- a/fs/ramfs/file-nommu.c
++++ b/fs/ramfs/file-nommu.c
+@@ -112,6 +112,7 @@ int ramfs_nommu_expand_for_mapping(struct inode *inode, size_t newsize)
+ 		SetPageDirty(page);
+ 
+ 		unlock_page(page);
++		put_page(page);
+ 	}
+ 
+ 	return 0;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
