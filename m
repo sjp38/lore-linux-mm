@@ -1,48 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 607BC900086
-	for <linux-mm@kvack.org>; Tue, 12 Apr 2011 22:16:32 -0400 (EDT)
-Received: from wpaz21.hot.corp.google.com (wpaz21.hot.corp.google.com [172.24.198.85])
-	by smtp-out.google.com with ESMTP id p3D2GSZJ020012
-	for <linux-mm@kvack.org>; Tue, 12 Apr 2011 19:16:29 -0700
-Received: from pvg12 (pvg12.prod.google.com [10.241.210.140])
-	by wpaz21.hot.corp.google.com with ESMTP id p3D2G9ou028896
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 12 Apr 2011 19:16:27 -0700
-Received: by pvg12 with SMTP id 12so64896pvg.19
-        for <linux-mm@kvack.org>; Tue, 12 Apr 2011 19:16:23 -0700 (PDT)
-Date: Tue, 12 Apr 2011 19:16:19 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] slub: Fix a typo in config name
-In-Reply-To: <alpine.DEB.2.00.1104121301430.14692@router.home>
-Message-ID: <alpine.DEB.2.00.1104121913410.15979@chino.kir.corp.google.com>
-References: <4DA3FDB2.9090100@cn.fujitsu.com> <alpine.DEB.2.00.1104121301430.14692@router.home>
+	by kanga.kvack.org (Postfix) with ESMTP id CCA68900086
+	for <linux-mm@kvack.org>; Tue, 12 Apr 2011 22:19:53 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 361EF3EE0BC
+	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 11:19:50 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 1864245DE95
+	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 11:19:50 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id F30FF45DE93
+	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 11:19:49 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id DE938E18003
+	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 11:19:49 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id A7A61E08004
+	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 11:19:49 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: [PATCH 1/3] mm: add __nocast attribute to vm_flags
+In-Reply-To: <20110413084047.41DD.A69D9226@jp.fujitsu.com>
+References: <BANLkTinLdWB+ON=TY=KHyzsrC8gC5bXg7Q@mail.gmail.com> <20110413084047.41DD.A69D9226@jp.fujitsu.com>
+Message-Id: <20110413112002.41E8.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: quoted-printable
+Date: Wed, 13 Apr 2011 11:19:48 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Li Zefan <lizf@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Alexey Dobriyan <adobriyan@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Paul Mundt <lethal@linux-sh.org>, Russell King <linux@arm.linux.org.uk>
 
-On Tue, 12 Apr 2011, Christoph Lameter wrote:
+> > On Tue, Apr 12, 2011 at 10:12 AM, KOSAKI Motohiro
+> > <kosaki.motohiro@jp.fujitsu.com> wrote:
+> > > After next year? All developers don't have to ignore compiler warning=
+s!
+> >=20
+> > At least add vm_flags_t which is sparse-checked, just like we do with g=
+fp_t.
+>=20
+> Good idea.
 
-> On Tue, 12 Apr 2011, Li Zefan wrote:
-> 
-> > There's no config named SLAB_DEBUG, and it should be a typo
-> > of SLUB_DEBUG.
-> >
-> > Signed-off-by: Li Zefan <lizf@cn.fujitsu.com>
-> > ---
-> >
-> > not slub expert, don't know how this bug affects slub debugging.
-> 
-> Affects the bootstrap code.
-> 
+Alexy, I have to deeply thank you. Your suggestion help to find two
+hidden vm_flags usage. (I'll post them as reply of this mail)
 
-I don't see how, there should be no partial or full slabs for either 
-kmem_cache or kmem_cache_node at this point in the boot sequence.  I think 
-kmem_cache_bootstrap_fixup() should only need to add the cache to the list 
-of slab caches and set the refcount accordingly.
+Now, i386 allyesconfig build doesn't detect nocast violation. Then, I
+believe we don't have a big overlooking anymore.
+
+
+
+=46rom 254787536ac871d313a02db5dfe8c539e0bbf605 Mon Sep 17 00:00:00 2001
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Date: Wed, 13 Apr 2011 09:26:37 +0900
+Subject: [PATCH 1/3] mm: add __nocast attribute to vm_flags
+
+Now, We are converting vm_flags to 64bit. so nocast attribute help to
+find hidden wrong vm_flags usage.
+
+Suggested-by: Alexey Dobriyan <adobriyan@gmail.com>
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+---
+ include/linux/mm_types.h |    4 ++--
+ 1 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index 4b0b990..ca01ab2 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -109,7 +109,7 @@ struct page {
+  */
+ struct vm_region {
+ 	struct rb_node	vm_rb;		/* link in global region tree */
+-	unsigned long long vm_flags;	/* VMA vm_flags */
++	unsigned long long __nocast vm_flags;	/* VMA vm_flags */
+ 	unsigned long	vm_start;	/* start address of region */
+ 	unsigned long	vm_end;		/* region initialised to here */
+ 	unsigned long	vm_top;		/* region allocated to here */
+@@ -137,7 +137,7 @@ struct vm_area_struct {
+ 	struct vm_area_struct *vm_next, *vm_prev;
+=20
+ 	pgprot_t vm_page_prot;		/* Access permissions of this VMA. */
+-	unsigned long long vm_flags;		/* Flags, see mm.h. */
++	unsigned long long __nocast vm_flags;	/* Flags, see mm.h. */
+=20
+ 	struct rb_node vm_rb;
+=20
+--=20
+1.7.3.1
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
