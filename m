@@ -1,54 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F4E4900086
-	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 19:23:37 -0400 (EDT)
-Received: from d01dlp02.pok.ibm.com (d01dlp02.pok.ibm.com [9.56.224.85])
-	by e7.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p3DN1ca4004212
-	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 19:01:38 -0400
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 3B81D6E8036
-	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 19:23:33 -0400 (EDT)
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p3DNNWOk463660
-	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 19:23:32 -0400
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p3DNNV1O024444
-	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 17:23:32 -0600
-Subject: Re: [PATCH 2/3] make new alloc_pages_exact()
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <op.vtt1clbd3l0zgt@mnazarewicz-glaptop>
-References: <20110411220345.9B95067C@kernel>
-	 <20110411220346.2FED5787@kernel>
-	 <20110411152223.3fb91a62.akpm@linux-foundation.org>
-	 <op.vttl1ho83l0zgt@mnazarewicz-glaptop> <1302620653.8321.1725.camel@nimitz>
-	 <op.vtt1clbd3l0zgt@mnazarewicz-glaptop>
-Content-Type: text/plain; charset="ISO-8859-1"
-Date: Wed, 13 Apr 2011 16:23:29 -0700
-Message-ID: <1302737009.14658.3848.camel@nimitz>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 79A13900086
+	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 19:31:26 -0400 (EDT)
+Date: Thu, 14 Apr 2011 07:31:22 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 4/4] writeback: reduce per-bdi dirty threshold ramp up
+ time
+Message-ID: <20110413233122.GA6097@localhost>
+References: <20110413085937.981293444@intel.com>
+ <20110413090415.763161169@intel.com>
+ <20110413220444.GF4648@quack.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110413220444.GF4648@quack.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Nazarewicz <mina86@mina86.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Timur Tabi <timur@freescale.com>, Andi Kleen <andi@firstfloor.org>, Mel Gorman <mel@csn.ul.ie>, David Rientjes <rientjes@google.com>
+To: Jan Kara <jack@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Richard Kennedy <richard@rsk.demon.co.uk>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Dave Chinner <david@fromorbit.com>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>
 
-On Tue, 2011-04-12 at 17:58 +0200, Michal Nazarewicz wrote:
-> > Actually, the various mem_map[]s _are_ arrays, at least up to
-> > MAX_ORDER_NR_PAGES at a time.  We can use that property here.
-> 
-> In that case, waiting eagerly for the new patch. :) 
+On Thu, Apr 14, 2011 at 06:04:44AM +0800, Jan Kara wrote:
+> On Wed 13-04-11 16:59:41, Wu Fengguang wrote:
+> > Reduce the dampening for the control system, yielding faster
+> > convergence. The change is a bit conservative, as smaller values may
+> > lead to noticeable bdi threshold fluctuates in low memory JBOD setup.
+> > 
+> > CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
+> > CC: Richard Kennedy <richard@rsk.demon.co.uk>
+> > Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+>   Well, I have nothing against this change as such but what I don't like is
+> that it just changes magical +2 for similarly magical +0. It's clear that
 
-I misunderstood earlier.  release_pages() takes an array of 'struct page
-*', not an array of 'struct page'.  To use it here, we'd need to
-construct temporary arrays.  If we're going to do that, we should
-probably just use pagevecs, and if we're going to do _that_, we don't
-need release_pages().
+The patch tends to make the rampup time a bit more reasonable for
+common desktops. From 100s to 25s (see below).
 
-Nobody calls free_pages_exact() in any kind of hot path these days.
-Most of the users are like kernel profiling where they *never* free the
-memory.  I'm not sure it's worth the complexity to optimize this.
+> this will lead to more rapid updates of proportions of bdi's share of
+> writeback and thread's share of dirtying but why +0? Why not +1 or -1? So
 
--- Dave
+Yes, it will especially be a problem on _small memory_ JBOD setups.
+Richard actually has requested for a much radical change (decrease by
+6) but that looks too much.
+
+My team has a 12-disk JBOD with only 6G memory. The memory is pretty
+small as a server, but it's a real setup and serves well as the
+reference minimal setup that Linux should be able to run well on.
+
+It will sure create more fluctuations, but still is acceptable in my
+tests. For example,
+
+http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/dirty-throttling-v6/10HDD-JBOD-6G/xfs-128dd-1M-16p-5904M-20%25-2.6.38-rc6-dt6+-2011-02-23-19-46/balance_dirty_pages-pages.png
+
+> I'd prefer to get some understanding of why do we need to update the
+> proportion period and why 4-times faster is just the right amount of faster
+> :) If I remember right you had some numbers for this, didn't you?
+
+Even better, I have a graph :)
+
+http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/dirty-throttling-v6/vanilla/4G/xfs-1dd-1M-8p-3911M-20%25-2.6.38-rc7+-2011-03-07-21-55/balance_dirty_pages-pages.png
+
+It shows that doing 1 dd on a 4G box, it took more than 100s to
+rampup. The patch will reduce it to 25 seconds for a typical desktop.
+The disk has 50MB/s throughput. Given a modern HDD or SSD, it will
+converge more fast.
+
+Thanks,
+Fengguang
+
+> > ---
+> >  mm/page-writeback.c |    2 +-
+> >  1 file changed, 1 insertion(+), 1 deletion(-)
+> > 
+> > --- linux-next.orig/mm/page-writeback.c	2011-03-02 14:52:19.000000000 +0800
+> > +++ linux-next/mm/page-writeback.c	2011-03-02 15:00:17.000000000 +0800
+> > @@ -145,7 +145,7 @@ static int calc_period_shift(void)
+> >  	else
+> >  		dirty_total = (vm_dirty_ratio * determine_dirtyable_memory()) /
+> >  				100;
+> > -	return 2 + ilog2(dirty_total - 1);
+> > +	return ilog2(dirty_total - 1);
+> >  }
+> >  
+> >  /*
+> > 
+> > 
+> -- 
+> Jan Kara <jack@suse.cz>
+> SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
