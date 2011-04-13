@@ -1,80 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id A3998900086
-	for <linux-mm@kvack.org>; Tue, 12 Apr 2011 22:22:05 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 763883EE0C0
-	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 11:22:02 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5726345DE9D
-	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 11:22:02 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 376B545DE94
-	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 11:22:02 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2AB1DE08004
-	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 11:22:02 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id E4A7FE18004
-	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 11:22:01 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [PATCH 3/3] procfs: convert vm_flags to unsigned long long
-In-Reply-To: <20110413112002.41E8.A69D9226@jp.fujitsu.com>
-References: <20110413084047.41DD.A69D9226@jp.fujitsu.com> <20110413112002.41E8.A69D9226@jp.fujitsu.com>
-Message-Id: <20110413112120.41F0.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: quoted-printable
-Date: Wed, 13 Apr 2011 11:21:58 +0900 (JST)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 726B8900086
+	for <linux-mm@kvack.org>; Tue, 12 Apr 2011 22:37:45 -0400 (EDT)
+Received: by wyf19 with SMTP id 19so183864wyf.14
+        for <linux-mm@kvack.org>; Tue, 12 Apr 2011 19:37:43 -0700 (PDT)
+Subject: Re: Regression from 2.6.36
+From: Eric Dumazet <eric.dumazet@gmail.com>
+In-Reply-To: <20110412183132.a854bffc.akpm@linux-foundation.org>
+References: <20110315132527.130FB80018F1@mail1005.cent>
+	 <20110317001519.GB18911@kroah.com> <20110407120112.E08DCA03@pobox.sk>
+	 <4D9D8FAA.9080405@suse.cz>
+	 <BANLkTinnTnjZvQ9S1AmudZcZBokMy8-93w@mail.gmail.com>
+	 <1302177428.3357.25.camel@edumazet-laptop>
+	 <1302178426.3357.34.camel@edumazet-laptop>
+	 <BANLkTikxWy-Pw1PrcAJMHs2R7JKksyQzMQ@mail.gmail.com>
+	 <1302190586.3357.45.camel@edumazet-laptop>
+	 <20110412154906.70829d60.akpm@linux-foundation.org>
+	 <BANLkTincoaxp5Soe6O-eb8LWpgra=k2NsQ@mail.gmail.com>
+	 <20110412183132.a854bffc.akpm@linux-foundation.org>
+Content-Type: text/plain; charset="UTF-8"
+Date: Wed, 13 Apr 2011 04:37:36 +0200
+Message-ID: <1302662256.2811.27.camel@edumazet-laptop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Alexey Dobriyan <adobriyan@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Paul Mundt <lethal@linux-sh.org>, Russell King <linux@arm.linux.org.uk>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Changli Gao <xiaosuo@gmail.com>, =?ISO-8859-1?Q?Am=E9rico?= Wang <xiyou.wangcong@gmail.com>, Jiri Slaby <jslaby@suse.cz>, azurIt <azurit@pobox.sk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Jiri Slaby <jirislaby@gmail.com>
 
-=46rom d8bbb29c55e449a8f7e87e2b6ef529b1162aeba0 Mon Sep 17 00:00:00 2001
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Date: Wed, 13 Apr 2011 09:39:13 +0900
-Subject: [PATCH 3/3] procfs: convert vm_flags to unsigned long long
+Le mardi 12 avril 2011 A  18:31 -0700, Andrew Morton a A(C)crit :
+> On Wed, 13 Apr 2011 09:23:11 +0800 Changli Gao <xiaosuo@gmail.com> wrote:
+> 
+> > On Wed, Apr 13, 2011 at 6:49 AM, Andrew Morton
+> > <akpm@linux-foundation.org> wrote:
+> > >
+> > > It's somewhat unclear (to me) what caused this regression.
+> > >
+> > > Is it because the kernel is now doing large kmalloc()s for the fdtable,
+> > > and this makes the page allocator go nuts trying to satisfy high-order
+> > > page allocation requests?
+> > >
+> > > Is it because the kernel now will usually free the fdtable
+> > > synchronously within the rcu callback, rather than deferring this to a
+> > > workqueue?
+> > >
+> > > The latter seems unlikely, so I'm thinking this was a case of
+> > > high-order-allocations-considered-harmful?
+> > >
+> > 
+> > Maybe, but I am not sure. Maybe my patch causes too many inner
+> > fragments. For example, when asking for 5 pages, get 8 pages, and 3
+> > pages are wasted, then memory thrash happens finally.
+> 
+> That theory sounds less likely, but could be tested by using
+> alloc_pages_exact().
+> 
 
-int is crazy mistake. ;-)
+Very unlikely, since fdtable sizes are powers of two, unless you hit
+sysctl_nr_open and it was changed (default value being 2^20)
 
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
----
- fs/proc/task_mmu.c |   10 +++++-----
- 1 files changed, 5 insertions(+), 5 deletions(-)
-
-diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index 8caf687..51b9d98 100644
---- a/fs/proc/task_mmu.c
-+++ b/fs/proc/task_mmu.c
-@@ -211,7 +211,7 @@ static void show_map_vma(struct seq_file *m, struct vm_=
-area_struct *vma)
- {
- 	struct mm_struct *mm =3D vma->vm_mm;
- 	struct file *file =3D vma->vm_file;
--	int flags =3D vma->vm_flags;
-+	unsigned long long vm_flags =3D vma->vm_flags;
- 	unsigned long ino =3D 0;
- 	unsigned long long pgoff =3D 0;
- 	unsigned long start;
-@@ -234,10 +234,10 @@ static void show_map_vma(struct seq_file *m, struct v=
-m_area_struct *vma)
- 	seq_printf(m, "%08lx-%08lx %c%c%c%c %08llx %02x:%02x %lu %n",
- 			start,
- 			vma->vm_end,
--			flags & VM_READ ? 'r' : '-',
--			flags & VM_WRITE ? 'w' : '-',
--			flags & VM_EXEC ? 'x' : '-',
--			flags & VM_MAYSHARE ? 's' : 'p',
-+			vm_flags & VM_READ ? 'r' : '-',
-+			vm_flags & VM_WRITE ? 'w' : '-',
-+			vm_flags & VM_EXEC ? 'x' : '-',
-+			vm_flags & VM_MAYSHARE ? 's' : 'p',
- 			pgoff,
- 			MAJOR(dev), MINOR(dev), ino, &len);
-=20
---=20
-1.7.3.1
 
 
 
