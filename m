@@ -1,49 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id E44B1900086
-	for <linux-mm@kvack.org>; Tue, 12 Apr 2011 20:22:31 -0400 (EDT)
-Received: from kpbe17.cbf.corp.google.com (kpbe17.cbf.corp.google.com [172.25.105.81])
-	by smtp-out.google.com with ESMTP id p3D0MPDv022259
-	for <linux-mm@kvack.org>; Tue, 12 Apr 2011 17:22:25 -0700
-Received: from pxi2 (pxi2.prod.google.com [10.243.27.2])
-	by kpbe17.cbf.corp.google.com with ESMTP id p3D0MHWE007948
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 12 Apr 2011 17:22:24 -0700
-Received: by pxi2 with SMTP id 2so82920pxi.24
-        for <linux-mm@kvack.org>; Tue, 12 Apr 2011 17:22:24 -0700 (PDT)
-Date: Tue, 12 Apr 2011 17:22:21 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 81BB3900086
+	for <linux-mm@kvack.org>; Tue, 12 Apr 2011 20:27:08 -0400 (EDT)
+Message-ID: <90769A9DD8A14AE8A5A08BAC24B1245F@jem>
+From: "Rob Mueller" <robm@fastmail.fm>
+References: <20110411172004.0361.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1104121659510.10966@chino.kir.corp.google.com>
 Subject: Re: [PATCH resend^2] mm: increase RECLAIM_DISTANCE to 30
-In-Reply-To: <1302557371.7286.16607.camel@nimitz>
-Message-ID: <alpine.DEB.2.00.1104121719430.10966@chino.kir.corp.google.com>
-References: <20110411172004.0361.A69D9226@jp.fujitsu.com> <1302557371.7286.16607.camel@nimitz>
+Date: Wed, 13 Apr 2011 10:26:50 +1000
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain;
+	format=flowed;
+	charset="iso-8859-1";
+	reply-type=original
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Chris McDermott <lcm@linux.vnet.ibm.com>
+To: David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Mon, 11 Apr 2011, Dave Hansen wrote:
 
-> > This patch raise zone_reclaim_mode threshold to 30. 30 don't have
-> > specific meaning. but 20 mean one-hop QPI/Hypertransport and such
-> > relatively cheap 2-4 socket machine are often used for tradiotional
-> > server as above. The intention is, their machine don't use
-> > zone_reclaim_mode.
-> 
-> I know specifically of pieces of x86 hardware that set the information
-> in the BIOS to '21' *specifically* so they'll get the zone_reclaim_mode
-> behavior which that implies.
-> 
+>> Recently, Robert Mueller reported zone_reclaim_mode doesn't work
+>> properly on his new NUMA server (Dual Xeon E5520 + Intel S5520UR MB).
+>> He is using Cyrus IMAPd and it's built on a very traditional
+>> single-process model.
+>>
+>
+> Let's add Robert to the cc to see if this is still an issue, it hasn't
+> been re-reported in over six months.
 
-That doesn't seem like an argument against this patch, it's an improper 
-configuration unless the remote memory access has a latency of 2.1x that 
-of a local access between those two nodes.  If that's the case, then it's 
-accurately following the ACPI spec and the VM has made its policy decision 
-to enable zone_reclaim_mode as a result.  I'm surprised that they'd play 
-with their BIOS to enable this by default, those, when it's an easily 
-tunable sysctl.
+We definitely still set this in /etc/sysctl.conf on every imap server 
+machine:
+
+vm.zone_reclaim_mode = 0
+
+I believe it still defaults to 1 otherwise. What I haven't tested is if 
+leaving it at 1 still causes problems. It definitely DID previously cause 
+big problems (I think that was around 2.6.34 or so).
+
+http://blog.fastmail.fm/2010/09/15/default-zone_reclaim_mode-1-on-numa-kernel-is-bad-for-fileemailweb-servers/
+
+I'll try changing it to 1 on a machine for 4 hours, see if it makes a 
+noticeable difference and report back.
+
+Rob
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
