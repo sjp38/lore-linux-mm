@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id AF9CF900089
-	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 03:04:24 -0400 (EDT)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 4E04690008B
+	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 03:04:25 -0400 (EDT)
 From: Ying Han <yinghan@google.com>
-Subject: [PATCH V3 7/7] Add some per-memcg stats
-Date: Wed, 13 Apr 2011 00:03:07 -0700
-Message-Id: <1302678187-24154-8-git-send-email-yinghan@google.com>
+Subject: [PATCH V3 3/7] New APIs to adjust per-memcg wmarks
+Date: Wed, 13 Apr 2011 00:03:03 -0700
+Message-Id: <1302678187-24154-4-git-send-email-yinghan@google.com>
 In-Reply-To: <1302678187-24154-1-git-send-email-yinghan@google.com>
 References: <1302678187-24154-1-git-send-email-yinghan@google.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,310 +13,106 @@ List-ID: <linux-mm.kvack.org>
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Pavel Emelyanov <xemul@openvz.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave@linux.vnet.ibm.com>
 Cc: linux-mm@kvack.org
 
-A bunch of statistics are added in memory.stat to monitor per cgroup
-kswapd performance.
+Add wmark_ratio and reclaim_wmarks APIs per-memcg. The wmark_ratio
+adjusts the internal low/high wmark calculation and the reclaim_wmarks
+exports the current value of watermarks. By default, the wmark_ratio is
+set to 0 and the watermarks are equal to the hard_limit(limit_in_bytes).
 
-$cat /dev/cgroup/yinghan/memory.stat
-kswapd_steal 12588994
-pg_pgsteal 0
-kswapd_pgscan 18629519
-pg_scan 0
-pgrefill 2893517
-pgoutrun 5342267948
-allocstall 0
+$ cat /dev/cgroup/A/memory.wmark_ratio
+0
 
-changelog v2..v1:
-1. change the stats using events instead of stats.
-2. add the stats in the Documentation
+$ cat /dev/cgroup/A/memory.limit_in_bytes
+524288000
+
+$ echo 80 >/dev/cgroup/A/memory.wmark_ratio
+
+$ cat /dev/cgroup/A/memory.reclaim_wmarks
+low_wmark 393216000
+high_wmark 419430400
+
+changelog v3..v2:
+1. replace the "min_free_kbytes" api with "wmark_ratio". This is part of
+feedbacks
 
 Signed-off-by: Ying Han <yinghan@google.com>
 ---
- Documentation/cgroups/memory.txt |   14 +++++++
- include/linux/memcontrol.h       |   52 +++++++++++++++++++++++++++
- mm/memcontrol.c                  |   72 ++++++++++++++++++++++++++++++++++++++
- mm/vmscan.c                      |   28 ++++++++++++--
- 4 files changed, 162 insertions(+), 4 deletions(-)
+ mm/memcontrol.c |   49 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 files changed, 49 insertions(+), 0 deletions(-)
 
-diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
-index b6ed61c..29dee73 100644
---- a/Documentation/cgroups/memory.txt
-+++ b/Documentation/cgroups/memory.txt
-@@ -385,6 +385,13 @@ mapped_file	- # of bytes of mapped file (includes tmpfs/shmem)
- pgpgin		- # of pages paged in (equivalent to # of charging events).
- pgpgout		- # of pages paged out (equivalent to # of uncharging events).
- swap		- # of bytes of swap usage
-+kswapd_steal	- # of pages reclaimed from kswapd
-+pg_pgsteal	- # of pages reclaimed from direct reclaim
-+kswapd_pgscan	- # of pages scanned from kswapd
-+pg_scan		- # of pages scanned frm direct reclaim
-+pgrefill	- # of pages scanned on active list
-+pgoutrun	- # of times triggering kswapd
-+allocstall	- # of times triggering direct reclaim
- inactive_anon	- # of bytes of anonymous memory and swap cache memory on
- 		LRU list.
- active_anon	- # of bytes of anonymous and swap cache memory on active
-@@ -406,6 +413,13 @@ total_mapped_file	- sum of all children's "cache"
- total_pgpgin		- sum of all children's "pgpgin"
- total_pgpgout		- sum of all children's "pgpgout"
- total_swap		- sum of all children's "swap"
-+total_kswapd_steal	- sum of all children's "kswapd_steal"
-+total_pg_pgsteal	- sum of all children's "pg_pgsteal"
-+total_kswapd_pgscan	- sum of all children's "kswapd_pgscan"
-+total_pg_scan		- sum of all children's "pg_scan"
-+total_pgrefill		- sum of all children's "pgrefill"
-+total_pgoutrun		- sum of all children's "pgoutrun"
-+total_allocstall	- sum of all children's "allocstall"
- total_inactive_anon	- sum of all children's "inactive_anon"
- total_active_anon	- sum of all children's "active_anon"
- total_inactive_file	- sum of all children's "inactive_file"
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index a8159f5..0b7fb22 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -162,6 +162,15 @@ void mem_cgroup_mz_set_unreclaimable(struct mem_cgroup *mem, struct zone *zone);
- void mem_cgroup_mz_pages_scanned(struct mem_cgroup *mem, struct zone* zone,
- 				unsigned long nr_scanned);
- 
-+/* background reclaim stats */
-+void mem_cgroup_kswapd_steal(struct mem_cgroup *memcg, int val);
-+void mem_cgroup_pg_steal(struct mem_cgroup *memcg, int val);
-+void mem_cgroup_kswapd_pgscan(struct mem_cgroup *memcg, int val);
-+void mem_cgroup_pg_pgscan(struct mem_cgroup *memcg, int val);
-+void mem_cgroup_pgrefill(struct mem_cgroup *memcg, int val);
-+void mem_cgroup_pg_outrun(struct mem_cgroup *memcg, int val);
-+void mem_cgroup_alloc_stall(struct mem_cgroup *memcg, int val);
-+
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
- void mem_cgroup_split_huge_fixup(struct page *head, struct page *tail);
- #endif
-@@ -393,6 +402,49 @@ static inline bool mem_cgroup_zone_reclaimable(struct mem_cgroup *mem, int nid,
- {
- 	return false;
- }
-+
-+/* background reclaim stats */
-+static inline void mem_cgroup_kswapd_steal(struct mem_cgroup *memcg,
-+					   int val)
-+{
-+	return 0;
-+}
-+
-+static inline void mem_cgroup_pg_steal(struct mem_cgroup *memcg,
-+				       int val)
-+{
-+	return 0;
-+}
-+
-+static inline void mem_cgroup_kswapd_pgscan(struct mem_cgroup *memcg,
-+					    int val)
-+{
-+	return 0;
-+}
-+
-+static inline void mem_cgroup_pg_pgscan(struct mem_cgroup *memcg,
-+					int val)
-+{
-+	return 0;
-+}
-+
-+static inline void mem_cgroup_pgrefill(struct mem_cgroup *memcg,
-+				       int val)
-+{
-+	return 0;
-+}
-+
-+static inline void mem_cgroup_pg_outrun(struct mem_cgroup *memcg,
-+					int val)
-+{
-+	return 0;
-+}
-+
-+static inline void mem_cgroup_alloc_stall(struct mem_cgroup *memcg,
-+					  int val)
-+{
-+	return 0;
-+}
- #endif /* CONFIG_CGROUP_MEM_CONT */
- 
- #if !defined(CONFIG_CGROUP_MEM_RES_CTLR) || !defined(CONFIG_DEBUG_VM)
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index bfa8646..7c9070e 100644
+index 664cdc5..36ae377 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -94,6 +94,13 @@ enum mem_cgroup_events_index {
- 	MEM_CGROUP_EVENTS_PGPGIN,	/* # of pages paged in */
- 	MEM_CGROUP_EVENTS_PGPGOUT,	/* # of pages paged out */
- 	MEM_CGROUP_EVENTS_COUNT,	/* # of pages paged in/out */
-+	MEM_CGROUP_EVENTS_KSWAPD_STEAL, /* # of pages reclaimed from kswapd */
-+	MEM_CGROUP_EVENTS_PG_PGSTEAL, /* # of pages reclaimed from ttfp */
-+	MEM_CGROUP_EVENTS_KSWAPD_PGSCAN, /* # of pages scanned from kswapd */
-+	MEM_CGROUP_EVENTS_PG_PGSCAN, /* # of pages scanned from ttfp */
-+	MEM_CGROUP_EVENTS_PGREFILL, /* # of pages scanned on active list */
-+	MEM_CGROUP_EVENTS_PGOUTRUN, /* # of triggers of background reclaim */
-+	MEM_CGROUP_EVENTS_ALLOCSTALL, /* # of triggers of direct reclaim */
- 	MEM_CGROUP_EVENTS_NSTATS,
- };
- /*
-@@ -607,6 +614,41 @@ static void mem_cgroup_swap_statistics(struct mem_cgroup *mem,
- 	this_cpu_add(mem->stat->count[MEM_CGROUP_STAT_SWAPOUT], val);
+@@ -3983,6 +3983,31 @@ static int mem_cgroup_swappiness_write(struct cgroup *cgrp, struct cftype *cft,
+ 	return 0;
  }
  
-+void mem_cgroup_kswapd_steal(struct mem_cgroup *mem, int val)
++static u64 mem_cgroup_wmark_ratio_read(struct cgroup *cgrp, struct cftype *cft)
 +{
-+	this_cpu_add(mem->stat->events[MEM_CGROUP_EVENTS_KSWAPD_STEAL], val);
++	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
++
++	return get_wmark_ratio(memcg);
 +}
 +
-+void mem_cgroup_pg_steal(struct mem_cgroup *mem, int val)
++static int mem_cgroup_wmark_ratio_write(struct cgroup *cgrp, struct cftype *cfg,
++				     u64 val)
 +{
-+	this_cpu_add(mem->stat->events[MEM_CGROUP_EVENTS_PG_PGSTEAL], val);
++	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
++	struct mem_cgroup *parent;
++
++	if (cgrp->parent == NULL)
++		return -EINVAL;
++
++	parent = mem_cgroup_from_cont(cgrp->parent);
++
++	memcg->wmark_ratio = val;
++
++	setup_per_memcg_wmarks(memcg);
++	return 0;
++
 +}
 +
-+void mem_cgroup_kswapd_pgscan(struct mem_cgroup *mem, int val)
-+{
-+	this_cpu_add(mem->stat->events[MEM_CGROUP_EVENTS_KSWAPD_PGSCAN], val);
-+}
-+
-+void mem_cgroup_pg_pgscan(struct mem_cgroup *mem, int val)
-+{
-+	this_cpu_add(mem->stat->events[MEM_CGROUP_EVENTS_PG_PGSCAN], val);
-+}
-+
-+void mem_cgroup_pgrefill(struct mem_cgroup *mem, int val)
-+{
-+	this_cpu_add(mem->stat->events[MEM_CGROUP_EVENTS_PGREFILL], val);
-+}
-+
-+void mem_cgroup_pg_outrun(struct mem_cgroup *mem, int val)
-+{
-+	this_cpu_add(mem->stat->events[MEM_CGROUP_EVENTS_PGOUTRUN], val);
-+}
-+
-+void mem_cgroup_alloc_stall(struct mem_cgroup *mem, int val)
-+{
-+	this_cpu_add(mem->stat->events[MEM_CGROUP_EVENTS_ALLOCSTALL], val);
-+}
-+
- static unsigned long mem_cgroup_read_events(struct mem_cgroup *mem,
- 					    enum mem_cgroup_events_index idx)
+ static void __mem_cgroup_threshold(struct mem_cgroup *memcg, bool swap)
  {
-@@ -3955,6 +3997,13 @@ enum {
- 	MCS_PGPGIN,
- 	MCS_PGPGOUT,
- 	MCS_SWAP,
-+	MCS_KSWAPD_STEAL,
-+	MCS_PG_PGSTEAL,
-+	MCS_KSWAPD_PGSCAN,
-+	MCS_PG_PGSCAN,
-+	MCS_PGREFILL,
-+	MCS_PGOUTRUN,
-+	MCS_ALLOCSTALL,
- 	MCS_INACTIVE_ANON,
- 	MCS_ACTIVE_ANON,
- 	MCS_INACTIVE_FILE,
-@@ -3977,6 +4026,13 @@ struct {
- 	{"pgpgin", "total_pgpgin"},
- 	{"pgpgout", "total_pgpgout"},
- 	{"swap", "total_swap"},
-+	{"kswapd_steal", "total_kswapd_steal"},
-+	{"pg_pgsteal", "total_pg_pgsteal"},
-+	{"kswapd_pgscan", "total_kswapd_pgscan"},
-+	{"pg_scan", "total_pg_scan"},
-+	{"pgrefill", "total_pgrefill"},
-+	{"pgoutrun", "total_pgoutrun"},
-+	{"allocstall", "total_allocstall"},
- 	{"inactive_anon", "total_inactive_anon"},
- 	{"active_anon", "total_active_anon"},
- 	{"inactive_file", "total_inactive_file"},
-@@ -4006,6 +4062,22 @@ mem_cgroup_get_local_stat(struct mem_cgroup *mem, struct mcs_total_stat *s)
- 		s->stat[MCS_SWAP] += val * PAGE_SIZE;
- 	}
+ 	struct mem_cgroup_threshold_ary *t;
+@@ -4274,6 +4299,21 @@ static void mem_cgroup_oom_unregister_event(struct cgroup *cgrp,
+ 	mutex_unlock(&memcg_oom_mutex);
+ }
  
-+	/* kswapd stat */
-+	val = mem_cgroup_read_events(mem, MEM_CGROUP_EVENTS_KSWAPD_STEAL);
-+	s->stat[MCS_KSWAPD_STEAL] += val;
-+	val = mem_cgroup_read_events(mem, MEM_CGROUP_EVENTS_PG_PGSTEAL);
-+	s->stat[MCS_PG_PGSTEAL] += val;
-+	val = mem_cgroup_read_events(mem, MEM_CGROUP_EVENTS_KSWAPD_PGSCAN);
-+	s->stat[MCS_KSWAPD_PGSCAN] += val;
-+	val = mem_cgroup_read_events(mem, MEM_CGROUP_EVENTS_PG_PGSCAN);
-+	s->stat[MCS_PG_PGSCAN] += val;
-+	val = mem_cgroup_read_events(mem, MEM_CGROUP_EVENTS_PGREFILL);
-+	s->stat[MCS_PGREFILL] += val;
-+	val = mem_cgroup_read_events(mem, MEM_CGROUP_EVENTS_PGOUTRUN);
-+	s->stat[MCS_PGOUTRUN] += val;
-+	val = mem_cgroup_read_events(mem, MEM_CGROUP_EVENTS_ALLOCSTALL);
-+	s->stat[MCS_ALLOCSTALL] += val;
++static int mem_cgroup_wmark_read(struct cgroup *cgrp,
++	struct cftype *cft,  struct cgroup_map_cb *cb)
++{
++	struct mem_cgroup *mem = mem_cgroup_from_cont(cgrp);
++	u64 low_wmark, high_wmark;
 +
- 	/* per zone stat */
- 	val = mem_cgroup_get_local_zonestat(mem, LRU_INACTIVE_ANON);
- 	s->stat[MCS_INACTIVE_ANON] += val * PAGE_SIZE;
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 6571eb8..2532459 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1421,6 +1421,10 @@ shrink_inactive_list(unsigned long nr_to_scan, struct zone *zone,
- 		 * mem_cgroup_isolate_pages() keeps track of
- 		 * scanned pages on its own.
- 		 */
-+		if (current_is_kswapd())
-+			mem_cgroup_kswapd_pgscan(sc->mem_cgroup, nr_scanned);
-+		else
-+			mem_cgroup_pg_pgscan(sc->mem_cgroup, nr_scanned);
- 	}
- 
- 	if (nr_taken == 0) {
-@@ -1441,9 +1445,16 @@ shrink_inactive_list(unsigned long nr_to_scan, struct zone *zone,
- 	}
- 
- 	local_irq_disable();
--	if (current_is_kswapd())
--		__count_vm_events(KSWAPD_STEAL, nr_reclaimed);
--	__count_zone_vm_events(PGSTEAL, zone, nr_reclaimed);
-+	if (scanning_global_lru(sc)) {
-+		if (current_is_kswapd())
-+			__count_vm_events(KSWAPD_STEAL, nr_reclaimed);
-+		__count_zone_vm_events(PGSTEAL, zone, nr_reclaimed);
-+	} else {
-+		if (current_is_kswapd())
-+			mem_cgroup_kswapd_steal(sc->mem_cgroup, nr_reclaimed);
-+		else
-+			mem_cgroup_pg_steal(sc->mem_cgroup, nr_reclaimed);
-+	}
- 
- 	putback_lru_pages(zone, sc, nr_anon, nr_file, &page_list);
- 
-@@ -1541,7 +1552,12 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
- 
- 	reclaim_stat->recent_scanned[file] += nr_taken;
- 
--	__count_zone_vm_events(PGREFILL, zone, pgscanned);
-+	if (scanning_global_lru(sc))
-+		__count_zone_vm_events(PGREFILL, zone, pgscanned);
-+	else
-+		mem_cgroup_pgrefill(sc->mem_cgroup, pgscanned);
++	low_wmark = res_counter_read_u64(&mem->res, RES_LOW_WMARK_LIMIT);
++	high_wmark = res_counter_read_u64(&mem->res, RES_HIGH_WMARK_LIMIT);
 +
++	cb->fill(cb, "low_wmark", low_wmark);
++	cb->fill(cb, "high_wmark", high_wmark);
 +
- 	if (file)
- 		__mod_zone_page_state(zone, NR_ACTIVE_FILE, -nr_taken);
- 	else
-@@ -2054,6 +2070,8 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
- 
- 	if (scanning_global_lru(sc))
- 		count_vm_event(ALLOCSTALL);
-+	else
-+		mem_cgroup_alloc_stall(sc->mem_cgroup, 1);
- 
- 	for (priority = DEF_PRIORITY; priority >= 0; priority--) {
- 		sc->nr_scanned = 0;
-@@ -2757,6 +2775,8 @@ loop_again:
- 	sc.nr_reclaimed = 0;
- 	total_scanned = 0;
- 
-+	mem_cgroup_pg_outrun(mem_cont, 1);
++	return 0;
++}
 +
- 	for (priority = DEF_PRIORITY; priority >= 0; priority--) {
- 		sc.priority = priority;
- 		wmark_ok = false;
+ static int mem_cgroup_oom_control_read(struct cgroup *cgrp,
+ 	struct cftype *cft,  struct cgroup_map_cb *cb)
+ {
+@@ -4377,6 +4417,15 @@ static struct cftype mem_cgroup_files[] = {
+ 		.unregister_event = mem_cgroup_oom_unregister_event,
+ 		.private = MEMFILE_PRIVATE(_OOM_TYPE, OOM_CONTROL),
+ 	},
++	{
++		.name = "wmark_ratio",
++		.write_u64 = mem_cgroup_wmark_ratio_write,
++		.read_u64 = mem_cgroup_wmark_ratio_read,
++	},
++	{
++		.name = "reclaim_wmarks",
++		.read_map = mem_cgroup_wmark_read,
++	},
+ };
+ 
+ #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
 -- 
 1.7.3.1
 
