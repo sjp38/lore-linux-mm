@@ -1,84 +1,195 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 81AE3900086
-	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 09:52:45 -0400 (EDT)
-Date: Wed, 13 Apr 2011 14:52:39 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [ARM] Issue of memory compaction on kernel 2.6.35.9
-Message-ID: <20110413135239.GA22688@suse.de>
-References: <BANLkTikHzq90xzK5+imnGKtc6mLNz84G-w@mail.gmail.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 3651B900086
+	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 09:56:02 -0400 (EDT)
+Message-ID: <112566.51053.qm@web162019.mail.bf1.yahoo.com>
+Date: Wed, 13 Apr 2011 06:56:00 -0700 (PDT)
+From: Pintu Agarwal <pintu_agarwal@yahoo.com>
+Subject: Re: Regarding memory fragmentation using malloc....
+In-Reply-To: <BANLkTi=7KHMA_JOwQcMQj5M+XU=qO07s2g@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <BANLkTikHzq90xzK5+imnGKtc6mLNz84G-w@mail.gmail.com>
+Content-Type: text/plain; charset=iso-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: naveen yadav <yad.naveen@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, linux-arm-kernel-request@lists.arm.linux.org.uk, linux newbie <linux.newbie79@gmail.com>
+To: =?iso-8859-1?Q?Am=E9rico_Wang?= <xiyou.wangcong@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Eric Dumazet <eric.dumazet@gmail.com>, Changli Gao <xiaosuo@gmail.com>, Jiri Slaby <jslaby@suse.cz>, azurIt <azurit@pobox.sk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Jiri Slaby <jirislaby@gmail.com>
 
-On Wed, Apr 13, 2011 at 05:05:33PM +0530, naveen yadav wrote:
-> Dear all,
-> 
-> we want to varify compaction on ARM and we are  using 2.6.25.9 kernel
-> on cortex a9.
-> 
-> Since ARM does not have HUGETLB_PAGE support and compaction is HUGE
-> PAGE independent so I removed from config file
-> 
+Hi,
 
-Bear in mind that if you intend to depend on compaction to allow
-devices to use high-order allocations, you could be in trouble in
-the future. Compaction gives no guarantees that high-order pages will
-be available so a device must still be able to cope with allocation
-failure. In the case of transparent hugepage support and hugetlbfs,
-allocation failure is not a serious problem.
+My requirement is, I wanted to measure memory fragmentation level in linux =
+kernel2.6.29 (ARM cortex A8 without swap).
+How can I measure fragmentation level(percentage) from /proc/buddyinfo ?
 
-> ******************************************************************************************************************************
-> # support for memory compaction
-> config COMPACTION
->         bool "Allow for memory compaction"
->         select MIGRATION
->         #depends on EXPERIMENTAL && HUGETLB_PAGE && MMU
->         depends on EXPERIMENTAL && MMU
->    help
->           Allows the compaction of memory for the allocation of huge pages.	
-> ******************************************************************************************************************************
-> after triggering Memory Compaction by writing any value to
-> /proc/sys/vm/compact_memory i am getting the SVC mode crash
-> ******************************************************************************************************************************
-> #echo 1 > /proc/sys/vm/compact_memory
-> Unable to handle kernel paging request at virtual address ee420be4
-> pgd = d9c6c000
-> [ee420be4] *pgd=00000000
-> Internal error: Oops: 805 [#1] PREEMPT
-> last sysfs file:
-> Modules linked in:
-> CPU: 0    Not tainted  (2.6.35.9 #16)
-> PC is at compact_zone+0x178/0x610
-> LR is at compact_zone+0x138/0x610
-> pc : [<c009f30c>]    lr : [<c009f2cc>]    psr: 40000093
-> sp : d9d75e40  ip : c0380978  fp : d9d75e94
-> r10: d9d74000  r9 : c03806c8  r8 : 00069704
-> r7 : 00069800  r6 : 00d2e080  r5 : c04ea080  r4 : d9d75e9c
-> r3 : 60000093  r2 : 00000002  r1 : ee420be4  r0 : ee430b82
-> Flags: nZcv  IRQs off  FIQs on  Mode SVC_32  ISA ARM  Segment us	
-> ******************************************************************************************************************************
-> 
-> 
-> We  tried to narrow down the prob... I found crash is form
-> ?del_page_from_lru_list(zone, page, page_lru(page)); ? function
-> isolate_migratepages
-> 
+Example : After each page allocation operation, I need to measure fragmenta=
+tion level. If the level is above 80%, I will trigger a OOM or something to=
+ the user.
+How can I reproduce this memory fragmentation scenario using a sample progr=
+am?
 
-ARM punches holes in the mem_map structure to save memory and
-memory compaction is not aware of them because it couldn't have been
-configured.  Debug what PFN is failing and see if it is near a memory
-hole. If it's within a memory hole, that's your problem.
+Here is my sample program: (to check page allocation using malloc)
+----------------------------------------------
+#include<stdio.h>
+#include<stdlib.h>
+#include<string.h>
+#include<errno.h>
+#include<unistd.h>
 
--- 
-Mel Gorman
-SUSE Labs
+
+#define PAGE_SIZE       (4*1024)
+
+#define MEM_BLOCK       (64*PAGE_SIZE)
+
+
+#define MAX_LIMIT       (16)
+
+int main()
+{
+        char *ptr[MAX_LIMIT+1] =3D {NULL,};
+        int i =3D 0;
+
+        printf("Requesting <%d> blocks of memory of block size <%d>........=
+\n",MAX_LIMIT,MEM_BLOCK);
+        system("cat /proc/buddyinfo");
+        system("cat /proc/zoneinfo | grep free_pages");
+        printf("*****************************************\n\n\n");
+        for(i=3D0; i<MAX_LIMIT; i++)
+        {
+                ptr[i] =3D (char *)malloc(sizeof(char)*MEM_BLOCK);
+                if(ptr[i] =3D=3D NULL)
+                {
+                        printf("ERROR : malloc failed(counter %d) <%s>\n",i=
+,strerror(errno));
+                        system("cat /proc/buddyinfo");
+                        system("cat /proc/zoneinfo | grep free_pages");
+                        printf("press any key to terminate......");
+                        getchar();
+                        exit(0);
+                }
+                memset(ptr[i],1,MEM_BLOCK);
+                sleep(1);
+                //system("cat /proc/buddyinfo");
+                //system("cat /proc/zoneinfo | grep free_pages");
+                //printf("-----------------------------------------\n");
+        }
+
+        sleep(1);
+        system("cat /proc/buddyinfo");
+        system("cat /proc/zoneinfo | grep free_pages");
+        printf("-----------------------------------------\n");
+
+        printf("press any key to end......");
+        getchar();
+
+        for(i=3D0; i<MAX_LIMIT; i++)
+        {
+                if(ptr[i] !=3D NULL)
+                {
+                        free(ptr[i]);
+                }
+        }
+
+        printf("DONE !!!\n");
+
+        return 0;
+}
+EACH BLOCK SIZE =3D 64 Pages =3D=3D> (64 * 4 * 1024)
+TOTAL BLOCKS =3D 16
+----------------------------------------------
+In my linux2.6.29 ARM machine, the initial /proc/buddyinfo shows the follow=
+ing:
+Node 0, zone      DMA     17     22      1      1      0      1      1     =
+ 0      0      0      0      0
+Node 1, zone      DMA     15    320    423    225     97     26      1     =
+ 0      0      0      0      0
+
+After running my sample program (with 16 iterations) the buddyinfo output i=
+s as follows:
+Requesting <16> blocks of memory of block size <262144>........
+Node 0, zone      DMA     17     22      1      1      0      1      1     =
+ 0      0      0      0      0
+Node 1, zone      DMA     15    301    419    224     96     27      1     =
+ 0      0      0      0      0
+    nr_free_pages 169
+    nr_free_pages 6545
+*****************************************
+
+
+Node 0, zone      DMA     17     22      1      1      0      1      1     =
+ 0      0      0      0      0
+Node 1, zone      DMA     18      2    305    226     96     27      1     =
+ 0      0      0      0      0
+    nr_free_pages 169
+    nr_free_pages 5514
+-----------------------------------------
+
+The requested block size is 64 pages (2^6) for each block.=20
+But if we see the output after 16 iterations the buddyinfo allocates pages =
+only from Node 1 , (2^0, 2^1, 2^2, 2^3).
+But the actual allocation should happen from (2^6) block in buddyinfo.
+
+Questions:
+1) How to analyse buddyinfo based on each page block size?
+2) How and in what scenario the buddyinfo changes?
+3) Can we rely completely on buddyinfo information for measuring the level =
+of fragmentation?
+
+Can somebody through some more lights on this???
+
+Thanks,
+Pintu
+
+--- On Wed, 4/13/11, Am=E9rico Wang <xiyou.wangcong@gmail.com> wrote:
+
+> From: Am=E9rico Wang <xiyou.wangcong@gmail.com>
+> Subject: Re: Regarding memory fragmentation using malloc....
+> To: "Pintu Agarwal" <pintu_agarwal@yahoo.com>
+> Cc: "Andrew Morton" <akpm@linux-foundation.org>, "Eric Dumazet" <eric.dum=
+azet@gmail.com>, "Changli Gao" <xiaosuo@gmail.com>, "Jiri Slaby" <jslaby@su=
+se.cz>, "azurIt" <azurit@pobox.sk>, linux-kernel@vger.kernel.org, linux-mm@=
+kvack.org, linux-fsdevel@vger.kernel.org, "Jiri Slaby" <jirislaby@gmail.com=
+>
+> Date: Wednesday, April 13, 2011, 6:44 AM
+> On Wed, Apr 13, 2011 at 2:54 PM,
+> Pintu Agarwal <pintu_agarwal@yahoo.com>
+> wrote:
+> > Dear All,
+> >
+> > I am trying to understand how memory fragmentation
+> occurs in linux using many malloc calls.
+> > I am trying to reproduce the page fragmentation
+> problem in linux 2.6.29.x on a linux mobile(without Swap)
+> using a small malloc(in loop) test program of BLOCK_SIZE
+> (64*(4*K)).
+> > And then monitoring the page changes in
+> /proc/buddyinfo after each operation.
+> > From the output I can see that the page values under
+> buddyinfo keeps changing. But I am not able to relate these
+> changes with my malloc BLOCK_SIZE.
+> > I mean with my BLOCK_SIZE of (2^6 x 4K =3D=3D> 2^6
+> PAGES) the 2^6 th block under /proc/buddyinfo should change.
+> But this is not the actual behaviour.
+> > Whatever is the blocksize, the buddyinfo changes only
+> for 2^0 or 2^1 or 2^2 or 2^3.
+> >
+> > I am trying to measure the level of fragmentation
+> after each page allocation.
+> > Can somebody explain me in detail, how actually
+> /proc/buddyinfo changes after each allocation and
+> deallocation.
+> >
+>=20
+> What malloc() sees is virtual memory of the process, while
+> buddyinfo
+> shows physical memory pages.
+>=20
+> When you malloc() 64K memory, the kernel may not allocate a
+> 64K
+> physical memory at one time
+> for you.
+>=20
+> Thanks.
+> =0A=0A=0A      
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
