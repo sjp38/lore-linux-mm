@@ -1,52 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id C82F5900086
-	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 15:21:04 -0400 (EDT)
-Date: Wed, 13 Apr 2011 12:19:25 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 94F91900086
+	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 15:28:49 -0400 (EDT)
+Received: from wpaz17.hot.corp.google.com (wpaz17.hot.corp.google.com [172.24.198.81])
+	by smtp-out.google.com with ESMTP id p3DJSkgG021512
+	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 12:28:46 -0700
+Received: from pwi3 (pwi3.prod.google.com [10.241.219.3])
+	by wpaz17.hot.corp.google.com with ESMTP id p3DJSiHG028634
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 12:28:44 -0700
+Received: by pwi3 with SMTP id 3so651544pwi.37
+        for <linux-mm@kvack.org>; Wed, 13 Apr 2011 12:28:43 -0700 (PDT)
+Date: Wed, 13 Apr 2011 12:28:42 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
 Subject: Re: [PATCH] mm/thp: Use conventional format for boolean attributes
-Message-Id: <20110413121925.55493041.akpm@linux-foundation.org>
-In-Reply-To: <alpine.DEB.2.00.1104131202230.5563@chino.kir.corp.google.com>
-References: <1300772711.26693.473.camel@localhost>
-	<alpine.DEB.2.00.1104131202230.5563@chino.kir.corp.google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20110413121925.55493041.akpm@linux-foundation.org>
+Message-ID: <alpine.DEB.2.00.1104131224430.7052@chino.kir.corp.google.com>
+References: <1300772711.26693.473.camel@localhost> <alpine.DEB.2.00.1104131202230.5563@chino.kir.corp.google.com> <20110413121925.55493041.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Ben Hutchings <ben@decadent.org.uk>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Ben Hutchings <ben@decadent.org.uk>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>
 
-On Wed, 13 Apr 2011 12:04:59 -0700 (PDT)
-David Rientjes <rientjes@google.com> wrote:
+On Wed, 13 Apr 2011, Andrew Morton wrote:
 
-> On Tue, 22 Mar 2011, Ben Hutchings wrote:
+> It's a bit naughty to change the existing interface in 2.6.38.x but the time
+> window is small and few people will be affected and they were nuts to be
+> using 2.6.38.0 anyway ;)
 > 
-> > The conventional format for boolean attributes in sysfs is numeric
-> > ("0" or "1" followed by new-line).  Any boolean attribute can then be
-> > read and written using a generic function.  Using the strings
-> > "yes [no]", "[yes] no" (read), "yes" and "no" (write) will frustrate
-> > this.
-> > 
-> > Cc'd to stable in order to change this before many scripts depend on
-> > the current strings.
-> > 
+> I suppose we could support both the old and new formats for a while,
+> then retire the old format but I doubt if it's worth it.
 > 
-> I agree with this in general, it's certainly the standard way of altering 
-> a boolean tunable throughout the kernel so it would be nice to use the 
-> same userspace libraries with THP.
+> Isn't there some user documentation which needs to be updated to
+> reflect this change?  If not, why not?  :)
+> 
 
-yup.
+Indeed there is, in Documentation/vm/transhuge.txt -- only for 
+/sys/kernel/mm/transparent_hugepage/khugepaged/defrag, though, we lack 
+documentation of debug_cow.
 
-It's a bit naughty to change the existing interface in 2.6.38.x but the time
-window is small and few people will be affected and they were nuts to be
-using 2.6.38.0 anyway ;)
-
-I suppose we could support both the old and new formats for a while,
-then retire the old format but I doubt if it's worth it.
-
-Isn't there some user documentation which needs to be updated to
-reflect this change?  If not, why not?  :)
+Ben, do you have time to update the patch?  It sounds like this is 2.6.39 
+material.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
