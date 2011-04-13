@@ -1,48 +1,195 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id A325B90008A
-	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 05:07:11 -0400 (EDT)
-Message-Id: <20110413090415.389888354@intel.com>
-Date: Wed, 13 Apr 2011 16:59:38 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 1/4] writeback: add bdi_dirty_limit() kernel-doc
-References: <20110413085937.981293444@intel.com>
-Content-Disposition: inline; filename=writeback-task_dirty_limit-comment.patch
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 67118900086
+	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 05:12:00 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 278323EE0B6
+	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 18:11:57 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0697F45DE98
+	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 18:11:57 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id E312B45DE97
+	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 18:11:56 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id D462AE18003
+	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 18:11:56 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 91127E08003
+	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 18:11:56 +0900 (JST)
+Date: Wed, 13 Apr 2011 18:05:20 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH V3 6/7] Enable per-memcg background reclaim.
+Message-Id: <20110413180520.dc7ce1d4.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1302678187-24154-7-git-send-email-yinghan@google.com>
+References: <1302678187-24154-1-git-send-email-yinghan@google.com>
+	<1302678187-24154-7-git-send-email-yinghan@google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
+To: Ying Han <yinghan@google.com>
+Cc: Pavel Emelyanov <xemul@openvz.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org
 
-Clarify the bdi_dirty_limit() comment.
+On Wed, 13 Apr 2011 00:03:06 -0700
+Ying Han <yinghan@google.com> wrote:
 
-Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
----
- mm/page-writeback.c |   11 +++++++++--
- 1 file changed, 9 insertions(+), 2 deletions(-)
+> By default the per-memcg background reclaim is disabled when the limit_in_bytes
+> is set the maximum or the wmark_ratio is 0. The kswapd_run() is called when the
+> memcg is being resized, and kswapd_stop() is called when the memcg is being
+> deleted.
+> 
+> The per-memcg kswapd is waked up based on the usage and low_wmark, which is
+> checked once per 1024 increments per cpu. The memcg's kswapd is waked up if the
+> usage is larger than the low_wmark.
+> 
+> changelog v3..v2:
+> 1. some clean-ups
+> 
+> changelog v2..v1:
+> 1. start/stop the per-cgroup kswapd at create/delete cgroup stage.
+> 2. remove checking the wmark from per-page charging. now it checks the wmark
+> periodically based on the event counter.
+> 
+> Signed-off-by: Ying Han <yinghan@google.com>
 
---- linux-next.orig/mm/page-writeback.c	2011-03-03 14:38:12.000000000 +0800
-+++ linux-next/mm/page-writeback.c	2011-03-03 14:40:52.000000000 +0800
-@@ -437,10 +437,17 @@ void global_dirty_limits(unsigned long *
- 	*pdirty = dirty;
- }
- 
--/*
-+/**
-  * bdi_dirty_limit - @bdi's share of dirty throttling threshold
-+ * @bdi: the backing_dev_info to query
-+ * @dirty: global dirty limit in pages
-+ *
-+ * Returns @bdi's dirty limit in pages. The term "dirty" in the context of
-+ * dirty balancing includes all PG_dirty, PG_writeback and NFS unstable pages.
-+ * And the "limit" in the name is not seriously taken as hard limit in
-+ * balance_dirty_pages().
-  *
-- * Allocate high/low dirty limits to fast/slow devices, in order to prevent
-+ * It allocates high/low dirty limits to fast/slow devices, in order to prevent
-  * - starving fast devices
-  * - piling up dirty pages (that will take long time to sync) on slow devices
-  *
+This event logic seems to make sense.
 
+> ---
+>  mm/memcontrol.c |   37 +++++++++++++++++++++++++++++++++++++
+>  1 files changed, 37 insertions(+), 0 deletions(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index efeade3..bfa8646 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -105,10 +105,12 @@ enum mem_cgroup_events_index {
+>  enum mem_cgroup_events_target {
+>  	MEM_CGROUP_TARGET_THRESH,
+>  	MEM_CGROUP_TARGET_SOFTLIMIT,
+> +	MEM_CGROUP_WMARK_EVENTS_THRESH,
+>  	MEM_CGROUP_NTARGETS,
+>  };
+>  #define THRESHOLDS_EVENTS_TARGET (128)
+>  #define SOFTLIMIT_EVENTS_TARGET (1024)
+> +#define WMARK_EVENTS_TARGET (1024)
+>  
+>  struct mem_cgroup_stat_cpu {
+>  	long count[MEM_CGROUP_STAT_NSTATS];
+> @@ -366,6 +368,7 @@ static void mem_cgroup_put(struct mem_cgroup *mem);
+>  static struct mem_cgroup *parent_mem_cgroup(struct mem_cgroup *mem);
+>  static void drain_all_stock_async(void);
+>  static unsigned long get_wmark_ratio(struct mem_cgroup *mem);
+> +static void wake_memcg_kswapd(struct mem_cgroup *mem);
+>  
+>  static struct mem_cgroup_per_zone *
+>  mem_cgroup_zoneinfo(struct mem_cgroup *mem, int nid, int zid)
+> @@ -545,6 +548,12 @@ mem_cgroup_largest_soft_limit_node(struct mem_cgroup_tree_per_zone *mctz)
+>  	return mz;
+>  }
+>  
+> +static void mem_cgroup_check_wmark(struct mem_cgroup *mem)
+> +{
+> +	if (!mem_cgroup_watermark_ok(mem, CHARGE_WMARK_LOW))
+> +		wake_memcg_kswapd(mem);
+> +}
+> +
+>  /*
+>   * Implementation Note: reading percpu statistics for memcg.
+>   *
+> @@ -675,6 +684,9 @@ static void __mem_cgroup_target_update(struct mem_cgroup *mem, int target)
+>  	case MEM_CGROUP_TARGET_SOFTLIMIT:
+>  		next = val + SOFTLIMIT_EVENTS_TARGET;
+>  		break;
+> +	case MEM_CGROUP_WMARK_EVENTS_THRESH:
+> +		next = val + WMARK_EVENTS_TARGET;
+> +		break;
+>  	default:
+>  		return;
+>  	}
+> @@ -698,6 +710,10 @@ static void memcg_check_events(struct mem_cgroup *mem, struct page *page)
+>  			__mem_cgroup_target_update(mem,
+>  				MEM_CGROUP_TARGET_SOFTLIMIT);
+>  		}
+> +		if (unlikely(__memcg_event_check(mem,
+> +			MEM_CGROUP_WMARK_EVENTS_THRESH))){
+> +			mem_cgroup_check_wmark(mem);
+> +		}
+>  	}
+>  }
+>  
+> @@ -3384,6 +3400,10 @@ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
+>  	if (!ret && enlarge)
+>  		memcg_oom_recover(memcg);
+>  
+> +	if (!mem_cgroup_is_root(memcg) && !memcg->kswapd_wait &&
+> +			memcg->wmark_ratio)
+> +		kswapd_run(0, memcg);
+> +
+
+Isn't it enough to have trigger in charge() path ?
+
+rather than here, I think we should check _move_task(). It changes res usage
+dramatically without updating events.
+
+Thanks,
+-Kame
+
+
+>  	return ret;
+>  }
+>  
+> @@ -4680,6 +4700,7 @@ static void __mem_cgroup_free(struct mem_cgroup *mem)
+>  {
+>  	int node;
+>  
+> +	kswapd_stop(0, mem);
+>  	mem_cgroup_remove_from_trees(mem);
+>  	free_css_id(&mem_cgroup_subsys, &mem->css);
+>  
+
+I think kswapd should stop at mem_cgroup_destroy(). No more tasks will use
+this memcg after _destroy().
+
+Thanks,
+-Kame
+
+
+
+> @@ -4786,6 +4807,22 @@ int mem_cgroup_last_scanned_node(struct mem_cgroup *mem)
+>  	return mem->last_scanned_node;
+>  }
+>  
+> +static inline
+> +void wake_memcg_kswapd(struct mem_cgroup *mem)
+> +{
+> +	wait_queue_head_t *wait;
+> +
+> +	if (!mem || !mem->wmark_ratio)
+> +		return;
+> +
+> +	wait = mem->kswapd_wait;
+> +
+> +	if (!wait || !waitqueue_active(wait))
+> +		return;
+> +
+> +	wake_up_interruptible(wait);
+> +}
+> +
+>  static int mem_cgroup_soft_limit_tree_init(void)
+>  {
+>  	struct mem_cgroup_tree_per_node *rtpn;
+> -- 
+> 1.7.3.1
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
