@@ -1,78 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 56C70900086
-	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 17:55:33 -0400 (EDT)
-Date: Wed, 13 Apr 2011 14:54:40 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: Regression from 2.6.36
-Message-Id: <20110413145440.f81f30ed.akpm@linux-foundation.org>
-In-Reply-To: <alpine.DEB.2.00.1104131432460.10702@chino.kir.corp.google.com>
-References: <20110315132527.130FB80018F1@mail1005.cent>
-	<20110317001519.GB18911@kroah.com>
-	<20110407120112.E08DCA03@pobox.sk>
-	<4D9D8FAA.9080405@suse.cz>
-	<BANLkTinnTnjZvQ9S1AmudZcZBokMy8-93w@mail.gmail.com>
-	<1302177428.3357.25.camel@edumazet-laptop>
-	<1302178426.3357.34.camel@edumazet-laptop>
-	<BANLkTikxWy-Pw1PrcAJMHs2R7JKksyQzMQ@mail.gmail.com>
-	<1302190586.3357.45.camel@edumazet-laptop>
-	<20110412154906.70829d60.akpm@linux-foundation.org>
-	<BANLkTincoaxp5Soe6O-eb8LWpgra=k2NsQ@mail.gmail.com>
-	<20110412183132.a854bffc.akpm@linux-foundation.org>
-	<1302662256.2811.27.camel@edumazet-laptop>
-	<20110413141600.28793661.akpm@linux-foundation.org>
-	<alpine.DEB.2.00.1104131432460.10702@chino.kir.corp.google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 8DB2E900086
+	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 18:04:47 -0400 (EDT)
+Date: Thu, 14 Apr 2011 00:04:44 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 4/4] writeback: reduce per-bdi dirty threshold ramp up
+ time
+Message-ID: <20110413220444.GF4648@quack.suse.cz>
+References: <20110413085937.981293444@intel.com>
+ <20110413090415.763161169@intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110413090415.763161169@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Eric Dumazet <eric.dumazet@gmail.com>, Changli Gao <xiaosuo@gmail.com>, =?ISO-8859-1?Q?Am=E9rico?= Wang <xiyou.wangcong@gmail.com>, Jiri Slaby <jslaby@suse.cz>, azurIt <azurit@pobox.sk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Jiri Slaby <jirislaby@gmail.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Richard Kennedy <richard@rsk.demon.co.uk>, Jan Kara <jack@suse.cz>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Dave Chinner <david@fromorbit.com>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
 
-On Wed, 13 Apr 2011 14:44:16 -0700 (PDT)
-David Rientjes <rientjes@google.com> wrote:
+On Wed 13-04-11 16:59:41, Wu Fengguang wrote:
+> Reduce the dampening for the control system, yielding faster
+> convergence. The change is a bit conservative, as smaller values may
+> lead to noticeable bdi threshold fluctuates in low memory JBOD setup.
+> 
+> CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
+> CC: Richard Kennedy <richard@rsk.demon.co.uk>
+> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+  Well, I have nothing against this change as such but what I don't like is
+that it just changes magical +2 for similarly magical +0. It's clear that
+this will lead to more rapid updates of proportions of bdi's share of
+writeback and thread's share of dirtying but why +0? Why not +1 or -1? So
+I'd prefer to get some understanding of why do we need to update the
+proportion period and why 4-times faster is just the right amount of faster
+:) If I remember right you had some numbers for this, didn't you?
 
-> > -static inline void *alloc_fdmem(unsigned int size)
-> > +static void *alloc_fdmem(unsigned int size)
-> >  {
-> > -	void *data;
-> > -
-> > -	data = kmalloc(size, GFP_KERNEL|__GFP_NOWARN);
-> > -	if (data != NULL)
-> > -		return data;
-> > -
-> > +	/*
-> > +	 * Very large allocations can stress page reclaim, so fall back to
-> > +	 * vmalloc() if the allocation size will be considered "large" by the VM.
-> > +	 */
-> > +	if (size <= (PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER) {
-> > +		void *data = kmalloc(size, GFP_KERNEL|__GFP_NOWARN);
-> > +		if (data != NULL)
-> > +			return data;
-> > +	}
-> >  	return vmalloc(size);
-> >  }
-> >  
+								Honza
+> ---
+>  mm/page-writeback.c |    2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
 > 
-> It's a shame that we can't at least try kmalloc() with sufficiently large 
-> sizes by doing something like
+> --- linux-next.orig/mm/page-writeback.c	2011-03-02 14:52:19.000000000 +0800
+> +++ linux-next/mm/page-writeback.c	2011-03-02 15:00:17.000000000 +0800
+> @@ -145,7 +145,7 @@ static int calc_period_shift(void)
+>  	else
+>  		dirty_total = (vm_dirty_ratio * determine_dirtyable_memory()) /
+>  				100;
+> -	return 2 + ilog2(dirty_total - 1);
+> +	return ilog2(dirty_total - 1);
+>  }
+>  
+>  /*
 > 
-> 	gfp_t flags = GFP_NOWAIT | __GFP_NOWARN;
 > 
-> 	if (size <= (PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER))
-> 		flags |= GFP_KERNEL;
-> 	data = kmalloc(size, flags);
-> 	if (data)
-> 		return data;
-> 	return vmalloc(size);
-> 
-> which would at least attempt to use the slab allocator.
-
-Maybe.  If the fdtable is that huge then the fork() is probably going
-to be pretty slow anyway.  And the large allocation might cause
-depletion of high-order free pages and might cause fragmentation of
-even-higher-order pages by splitting them up. </handwaving>
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
