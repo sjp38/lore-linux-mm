@@ -1,56 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 78637900086
-	for <linux-mm@kvack.org>; Tue, 12 Apr 2011 21:29:10 -0400 (EDT)
-Date: Tue, 12 Apr 2011 18:31:32 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: Regression from 2.6.36
-Message-Id: <20110412183132.a854bffc.akpm@linux-foundation.org>
-In-Reply-To: <BANLkTincoaxp5Soe6O-eb8LWpgra=k2NsQ@mail.gmail.com>
-References: <20110315132527.130FB80018F1@mail1005.cent>
-	<20110317001519.GB18911@kroah.com>
-	<20110407120112.E08DCA03@pobox.sk>
-	<4D9D8FAA.9080405@suse.cz>
-	<BANLkTinnTnjZvQ9S1AmudZcZBokMy8-93w@mail.gmail.com>
-	<1302177428.3357.25.camel@edumazet-laptop>
-	<1302178426.3357.34.camel@edumazet-laptop>
-	<BANLkTikxWy-Pw1PrcAJMHs2R7JKksyQzMQ@mail.gmail.com>
-	<1302190586.3357.45.camel@edumazet-laptop>
-	<20110412154906.70829d60.akpm@linux-foundation.org>
-	<BANLkTincoaxp5Soe6O-eb8LWpgra=k2NsQ@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 607BC900086
+	for <linux-mm@kvack.org>; Tue, 12 Apr 2011 22:16:32 -0400 (EDT)
+Received: from wpaz21.hot.corp.google.com (wpaz21.hot.corp.google.com [172.24.198.85])
+	by smtp-out.google.com with ESMTP id p3D2GSZJ020012
+	for <linux-mm@kvack.org>; Tue, 12 Apr 2011 19:16:29 -0700
+Received: from pvg12 (pvg12.prod.google.com [10.241.210.140])
+	by wpaz21.hot.corp.google.com with ESMTP id p3D2G9ou028896
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 12 Apr 2011 19:16:27 -0700
+Received: by pvg12 with SMTP id 12so64896pvg.19
+        for <linux-mm@kvack.org>; Tue, 12 Apr 2011 19:16:23 -0700 (PDT)
+Date: Tue, 12 Apr 2011 19:16:19 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] slub: Fix a typo in config name
+In-Reply-To: <alpine.DEB.2.00.1104121301430.14692@router.home>
+Message-ID: <alpine.DEB.2.00.1104121913410.15979@chino.kir.corp.google.com>
+References: <4DA3FDB2.9090100@cn.fujitsu.com> <alpine.DEB.2.00.1104121301430.14692@router.home>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Changli Gao <xiaosuo@gmail.com>
-Cc: Eric Dumazet <eric.dumazet@gmail.com>, =?ISO-8859-1?Q?Am=E9rico?= Wang <xiyou.wangcong@gmail.com>, Jiri Slaby <jslaby@suse.cz>, azurIt <azurit@pobox.sk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Jiri Slaby <jirislaby@gmail.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: Li Zefan <lizf@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On Wed, 13 Apr 2011 09:23:11 +0800 Changli Gao <xiaosuo@gmail.com> wrote:
+On Tue, 12 Apr 2011, Christoph Lameter wrote:
 
-> On Wed, Apr 13, 2011 at 6:49 AM, Andrew Morton
-> <akpm@linux-foundation.org> wrote:
-> >
-> > It's somewhat unclear (to me) what caused this regression.
-> >
-> > Is it because the kernel is now doing large kmalloc()s for the fdtable,
-> > and this makes the page allocator go nuts trying to satisfy high-order
-> > page allocation requests?
-> >
-> > Is it because the kernel now will usually free the fdtable
-> > synchronously within the rcu callback, rather than deferring this to a
-> > workqueue?
-> >
-> > The latter seems unlikely, so I'm thinking this was a case of
-> > high-order-allocations-considered-harmful?
-> >
+> On Tue, 12 Apr 2011, Li Zefan wrote:
 > 
-> Maybe, but I am not sure. Maybe my patch causes too many inner
-> fragments. For example, when asking for 5 pages, get 8 pages, and 3
-> pages are wasted, then memory thrash happens finally.
+> > There's no config named SLAB_DEBUG, and it should be a typo
+> > of SLUB_DEBUG.
+> >
+> > Signed-off-by: Li Zefan <lizf@cn.fujitsu.com>
+> > ---
+> >
+> > not slub expert, don't know how this bug affects slub debugging.
+> 
+> Affects the bootstrap code.
+> 
 
-That theory sounds less likely, but could be tested by using
-alloc_pages_exact().
+I don't see how, there should be no partial or full slabs for either 
+kmem_cache or kmem_cache_node at this point in the boot sequence.  I think 
+kmem_cache_bootstrap_fixup() should only need to add the cache to the list 
+of slab caches and set the refcount accordingly.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
