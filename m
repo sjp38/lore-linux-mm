@@ -1,52 +1,204 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id F0A90900086
-	for <linux-mm@kvack.org>; Thu, 14 Apr 2011 15:51:06 -0400 (EDT)
-Received: from wpaz37.hot.corp.google.com (wpaz37.hot.corp.google.com [172.24.198.101])
-	by smtp-out.google.com with ESMTP id p3EJp4D5019871
-	for <linux-mm@kvack.org>; Thu, 14 Apr 2011 12:51:04 -0700
-Received: from pvg4 (pvg4.prod.google.com [10.241.210.132])
-	by wpaz37.hot.corp.google.com with ESMTP id p3EJp1KG006168
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 14 Apr 2011 12:51:03 -0700
-Received: by pvg4 with SMTP id 4so1051299pvg.14
-        for <linux-mm@kvack.org>; Thu, 14 Apr 2011 12:51:01 -0700 (PDT)
-Date: Thu, 14 Apr 2011 12:50:58 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] mm/thp: Use conventional format for boolean attributes
-In-Reply-To: <20110414120920.1e6c04ff.akpm@linux-foundation.org>
-Message-ID: <alpine.DEB.2.00.1104141250360.20747@chino.kir.corp.google.com>
-References: <1300772711.26693.473.camel@localhost> <alpine.DEB.2.00.1104131202230.5563@chino.kir.corp.google.com> <20110414144807.19ec5f69@notabene.brown> <20110414120920.1e6c04ff.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 66C19900086
+	for <linux-mm@kvack.org>; Thu, 14 Apr 2011 16:01:50 -0400 (EDT)
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e32.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p3EJoijR009803
+	for <linux-mm@kvack.org>; Thu, 14 Apr 2011 13:50:44 -0600
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id p3EK1gnj014604
+	for <linux-mm@kvack.org>; Thu, 14 Apr 2011 14:01:43 -0600
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p3EK1eaq013285
+	for <linux-mm@kvack.org>; Thu, 14 Apr 2011 14:01:42 -0600
+Subject: [PATCH 1/3] rename alloc_pages_exact()
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+Date: Thu, 14 Apr 2011 13:01:39 -0700
+Message-Id: <20110414200139.ABD98551@kernel>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: NeilBrown <neilb@suse.de>, Ben Hutchings <ben@decadent.org.uk>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, Timur Tabi <timur@freescale.com>, Andi Kleen <andi@firstfloor.org>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Michal Nazarewicz <mina86@mina86.com>, David Rientjes <rientjes@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>
 
-On Thu, 14 Apr 2011, Andrew Morton wrote:
 
-> From: Ben Hutchings <ben@decadent.org.uk>
-> 
-> The conventional format for boolean attributes in sysfs is numeric ("0" or
-> "1" followed by new-line).  Any boolean attribute can then be read and
-> written using a generic function.  Using the strings "yes [no]", "[yes]
-> no" (read), "yes" and "no" (write) will frustrate this.
-> 
-> [akpm@linux-foundation.org: use kstrtoul()]
-> [akpm@linux-foundation.org: test_bit() doesn't return 1/0, per Neil]
-> Signed-off-by: Ben Hutchings <ben@decadent.org.uk>
-> Cc: Andrea Arcangeli <aarcange@redhat.com>
-> Cc: Mel Gorman <mel@csn.ul.ie>
-> Cc: Johannes Weiner <jweiner@redhat.com>
-> Cc: Rik van Riel <riel@redhat.com>
-> Cc: Hugh Dickins <hughd@google.com>
-> Cc: David Rientjes <rientjes@google.com>
-> Cc: NeilBrown <neilb@suse.de>
-> Cc: <stable@kernel.org> 	[2.6.38.x]
-> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+alloc_pages_exact() returns a virtual address.  But, alloc_pages() returns
+a 'struct page *'.  That makes for very confused kernel hackers.
 
-Tested-by: David Rientjes <rientjes@google.com>
+__get_free_pages(), on the other hand, returns virtual addresses.  That
+makes alloc_pages_exact() a much closer match to __get_free_pages(), so
+rename it to get_free_pages_exact().  Also change the arguments to have
+flags first, just like __get_free_pages().
+
+Note that alloc_pages_exact()'s partner, free_pages_exact() already
+matches free_pages(), so we do not have to touch the free side of things.
+
+Signed-off-by: Dave Hansen <dave@linux.vnet.ibm.com>
+Acked-by: Andi Kleen <ak@linux.intel.com>
+Acked-by: David Rientjes <rientjes@google.com>
+---
+
+ linux-2.6.git-dave/drivers/video/fsl-diu-fb.c  |    2 +-
+ linux-2.6.git-dave/drivers/video/mxsfb.c       |    2 +-
+ linux-2.6.git-dave/drivers/video/pxafb.c       |    6 +++---
+ linux-2.6.git-dave/drivers/virtio/virtio_pci.c |    2 +-
+ linux-2.6.git-dave/include/linux/gfp.h         |    2 +-
+ linux-2.6.git-dave/kernel/profile.c            |    4 ++--
+ linux-2.6.git-dave/mm/page_alloc.c             |   18 +++++++++---------
+ linux-2.6.git-dave/mm/page_cgroup.c            |    2 +-
+ 8 files changed, 19 insertions(+), 19 deletions(-)
+
+diff -puN drivers/video/fsl-diu-fb.c~change-alloc_pages_exact-name drivers/video/fsl-diu-fb.c
+--- linux-2.6.git/drivers/video/fsl-diu-fb.c~change-alloc_pages_exact-name	2011-04-14 09:46:37.956713204 -0700
++++ linux-2.6.git-dave/drivers/video/fsl-diu-fb.c	2011-04-14 09:46:38.068713144 -0700
+@@ -294,7 +294,7 @@ static void *fsl_diu_alloc(size_t size, 
+ 
+ 	pr_debug("size=%zu\n", size);
+ 
+-	virt = alloc_pages_exact(size, GFP_DMA | __GFP_ZERO);
++	virt = get_free_pages_exact(GFP_DMA | __GFP_ZERO, size);
+ 	if (virt) {
+ 		*phys = virt_to_phys(virt);
+ 		pr_debug("virt=%p phys=%llx\n", virt,
+diff -puN drivers/video/mxsfb.c~change-alloc_pages_exact-name drivers/video/mxsfb.c
+--- linux-2.6.git/drivers/video/mxsfb.c~change-alloc_pages_exact-name	2011-04-14 09:46:37.960713202 -0700
++++ linux-2.6.git-dave/drivers/video/mxsfb.c	2011-04-14 09:46:38.068713144 -0700
+@@ -718,7 +718,7 @@ static int __devinit mxsfb_init_fbinfo(s
+ 	} else {
+ 		if (!fb_size)
+ 			fb_size = SZ_2M; /* default */
+-		fb_virt = alloc_pages_exact(fb_size, GFP_DMA);
++		fb_virt = get_free_pages_exact(GFP_DMA, fb_size);
+ 		if (!fb_virt)
+ 			return -ENOMEM;
+ 
+diff -puN drivers/video/pxafb.c~change-alloc_pages_exact-name drivers/video/pxafb.c
+--- linux-2.6.git/drivers/video/pxafb.c~change-alloc_pages_exact-name	2011-04-14 09:46:37.964713200 -0700
++++ linux-2.6.git-dave/drivers/video/pxafb.c	2011-04-14 09:46:38.072713142 -0700
+@@ -905,8 +905,8 @@ static int __devinit pxafb_overlay_map_v
+ 	/* We assume that user will use at most video_mem_size for overlay fb,
+ 	 * anyway, it's useless to use 16bpp main plane and 24bpp overlay
+ 	 */
+-	ofb->video_mem = alloc_pages_exact(PAGE_ALIGN(pxafb->video_mem_size),
+-		GFP_KERNEL | __GFP_ZERO);
++	ofb->video_mem = get_free_pages_exact(GFP_KERNEL | __GFP_ZERO,
++		PAGE_ALIGN(pxafb->video_mem_size));
+ 	if (ofb->video_mem == NULL)
+ 		return -ENOMEM;
+ 
+@@ -1714,7 +1714,7 @@ static int __devinit pxafb_init_video_me
+ {
+ 	int size = PAGE_ALIGN(fbi->video_mem_size);
+ 
+-	fbi->video_mem = alloc_pages_exact(size, GFP_KERNEL | __GFP_ZERO);
++	fbi->video_mem = get_free_pages_exact(GFP_KERNEL | __GFP_ZERO, size);
+ 	if (fbi->video_mem == NULL)
+ 		return -ENOMEM;
+ 
+diff -puN drivers/virtio/virtio_pci.c~change-alloc_pages_exact-name drivers/virtio/virtio_pci.c
+--- linux-2.6.git/drivers/virtio/virtio_pci.c~change-alloc_pages_exact-name	2011-04-14 09:46:37.972713196 -0700
++++ linux-2.6.git-dave/drivers/virtio/virtio_pci.c	2011-04-14 09:46:38.072713142 -0700
+@@ -385,7 +385,7 @@ static struct virtqueue *setup_vq(struct
+ 	info->msix_vector = msix_vec;
+ 
+ 	size = PAGE_ALIGN(vring_size(num, VIRTIO_PCI_VRING_ALIGN));
+-	info->queue = alloc_pages_exact(size, GFP_KERNEL|__GFP_ZERO);
++	info->queue = get_free_pages_exact(GFP_KERNEL|__GFP_ZERO, size);
+ 	if (info->queue == NULL) {
+ 		err = -ENOMEM;
+ 		goto out_info;
+diff -puN include/linux/gfp.h~change-alloc_pages_exact-name include/linux/gfp.h
+--- linux-2.6.git/include/linux/gfp.h~change-alloc_pages_exact-name	2011-04-14 09:46:37.976713194 -0700
++++ linux-2.6.git-dave/include/linux/gfp.h	2011-04-14 12:25:16.716342247 -0700
+@@ -351,7 +351,7 @@ extern struct page *alloc_pages_vma(gfp_
+ extern unsigned long __get_free_pages(gfp_t gfp_mask, unsigned int order);
+ extern unsigned long get_zeroed_page(gfp_t gfp_mask);
+ 
+-void *alloc_pages_exact(size_t size, gfp_t gfp_mask);
++void *get_free_pages_exact(gfp_t gfp_mask, size_t size);
+ void free_pages_exact(void *virt, size_t size);
+ 
+ #define __get_free_page(gfp_mask) \
+diff -puN kernel/profile.c~change-alloc_pages_exact-name kernel/profile.c
+--- linux-2.6.git/kernel/profile.c~change-alloc_pages_exact-name	2011-04-14 09:46:37.980713192 -0700
++++ linux-2.6.git-dave/kernel/profile.c	2011-04-14 12:21:36.608430941 -0700
+@@ -121,8 +121,8 @@ int __ref profile_init(void)
+ 	if (prof_buffer)
+ 		return 0;
+ 
+-	prof_buffer = alloc_pages_exact(buffer_bytes,
+-					GFP_KERNEL|__GFP_ZERO|__GFP_NOWARN);
++	prof_buffer = get_free_pages_exact(GFP_KERNEL|__GFP_ZERO|__GFP_NOWARN,
++					buffer_bytes);
+ 	if (prof_buffer)
+ 		return 0;
+ 
+diff -puN mm/page_alloc.c~change-alloc_pages_exact-name mm/page_alloc.c
+--- linux-2.6.git/mm/page_alloc.c~change-alloc_pages_exact-name	2011-04-14 09:46:37.984713190 -0700
++++ linux-2.6.git-dave/mm/page_alloc.c	2011-04-14 12:25:16.716342247 -0700
+@@ -2318,7 +2318,7 @@ void free_pages(unsigned long addr, unsi
+ EXPORT_SYMBOL(free_pages);
+ 
+ /**
+- * alloc_pages_exact - allocate an exact number physically-contiguous pages.
++ * get_free_pages_exact - allocate an exact number physically-contiguous pages.
+  * @size: the number of bytes to allocate
+  * @gfp_mask: GFP flags for the allocation
+  *
+@@ -2330,7 +2330,7 @@ EXPORT_SYMBOL(free_pages);
+  *
+  * Memory allocated by this function must be released by free_pages_exact().
+  */
+-void *alloc_pages_exact(size_t size, gfp_t gfp_mask)
++void *get_free_pages_exact(gfp_t gfp_mask, size_t size)
+ {
+ 	unsigned int order = get_order(size);
+ 	unsigned long addr;
+@@ -2349,14 +2349,14 @@ void *alloc_pages_exact(size_t size, gfp
+ 
+ 	return (void *)addr;
+ }
+-EXPORT_SYMBOL(alloc_pages_exact);
++EXPORT_SYMBOL(get_free_pages_exact);
+ 
+ /**
+- * free_pages_exact - release memory allocated via alloc_pages_exact()
+- * @virt: the value returned by alloc_pages_exact.
+- * @size: size of allocation, same value as passed to alloc_pages_exact().
++ * free_pages_exact - release memory allocated via get_free_pages_exact()
++ * @virt: the value returned by get_free_pages_exact.
++ * @size: size of allocation, same value as passed to get_free_pages_exact().
+  *
+- * Release the memory allocated by a previous call to alloc_pages_exact.
++ * Release the memory allocated by a previous call to get_free_pages_exact().
+  */
+ void free_pages_exact(void *virt, size_t size)
+ {
+@@ -5308,10 +5308,10 @@ void *__init alloc_large_system_hash(con
+ 			/*
+ 			 * If bucketsize is not a power-of-two, we may free
+ 			 * some pages at the end of hash table which
+-			 * alloc_pages_exact() automatically does
++			 * get_free_pages_exact() automatically does
+ 			 */
+ 			if (get_order(size) < MAX_ORDER) {
+-				table = alloc_pages_exact(size, GFP_ATOMIC);
++				table = get_free_pages_exact(GFP_ATOMIC, size);
+ 				kmemleak_alloc(table, size, 1, GFP_ATOMIC);
+ 			}
+ 		}
+diff -puN mm/page_cgroup.c~change-alloc_pages_exact-name mm/page_cgroup.c
+--- linux-2.6.git/mm/page_cgroup.c~change-alloc_pages_exact-name	2011-04-14 09:46:37.988713188 -0700
++++ linux-2.6.git-dave/mm/page_cgroup.c	2011-04-14 09:46:38.084713136 -0700
+@@ -134,7 +134,7 @@ static void *__init_refok alloc_page_cgr
+ {
+ 	void *addr = NULL;
+ 
+-	addr = alloc_pages_exact(size, GFP_KERNEL | __GFP_NOWARN);
++	addr = get_free_pages_exact(GFP_KERNEL | __GFP_NOWARN, size);
+ 	if (addr)
+ 		return addr;
+ 
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
