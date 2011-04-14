@@ -1,158 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id F2126900094
-	for <linux-mm@kvack.org>; Thu, 14 Apr 2011 06:41:51 -0400 (EDT)
-From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 12/12] mm: Throttle direct reclaimers if PF_MEMALLOC reserves are low and swap is backed by network storage
-Date: Thu, 14 Apr 2011 11:41:38 +0100
-Message-Id: <1302777698-28237-13-git-send-email-mgorman@suse.de>
-In-Reply-To: <1302777698-28237-1-git-send-email-mgorman@suse.de>
-References: <1302777698-28237-1-git-send-email-mgorman@suse.de>
+	by kanga.kvack.org (Postfix) with ESMTP id 697F0900094
+	for <linux-mm@kvack.org>; Thu, 14 Apr 2011 06:47:59 -0400 (EDT)
+Received: by bwz17 with SMTP id 17so1901939bwz.14
+        for <linux-mm@kvack.org>; Thu, 14 Apr 2011 03:47:56 -0700 (PDT)
+Content-Type: text/plain; charset=utf-8; format=flowed; delsp=yes
+Subject: Re: Regarding memory fragmentation using malloc....
+References: <475805.23113.qm@web162014.mail.bf1.yahoo.com>
+Date: Thu, 14 Apr 2011 12:47:53 +0200
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7bit
+From: "Michal Nazarewicz" <mina86@mina86.com>
+Message-ID: <op.vtxb92f73l0zgt@mnazarewicz-glaptop>
+In-Reply-To: <475805.23113.qm@web162014.mail.bf1.yahoo.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mgorman@suse.de>
+To: =?utf-8?Q?Am=C3=A9rico_Wang?= <xiyou.wangcong@gmail.com>, Pintu Agarwal <pintu_agarwal@yahoo.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Eric Dumazet <eric.dumazet@gmail.com>, Changli Gao <xiaosuo@gmail.com>, Jiri Slaby <jslaby@suse.cz>, azurIt <azurit@pobox.sk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Jiri Slaby <jirislaby@gmail.com>
 
-If swap is backed by network storage such as NBD, there is a risk that a
-large number of reclaimers can hang the system by consuming all
-PF_MEMALLOC reserves. To avoid these hangs, the administrator must tune
-min_free_kbytes in advance. This patch will throttle direct reclaimers
-if half the PF_MEMALLOC reserves are in use as the system is at risk of
-hanging. A message will be displayed so the administrator knows that
-min_free_kbytes should be tuned to a higher value to avoid the
-throttling in the future.
+On Thu, 14 Apr 2011 08:44:50 +0200, Pintu Agarwal  
+<pintu_agarwal@yahoo.com> wrote:
+> As I can understand from your comments that, malloc from user space will  
+> not have much impact on memory fragmentation.
 
-Signed-off-by: Mel Gorman <mgorman@suse.de>
----
- include/linux/mmzone.h |    1 +
- mm/page_alloc.c        |    1 +
- mm/vmscan.c            |   66 ++++++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 68 insertions(+), 0 deletions(-)
+It has an impact, just like any kind of allocation, it just don't care  
+about
+fragmentation of physical memory.  You can have only 0-order pages and
+successfully allocate megabytes of memory with malloc().
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 02ecb01..e86dcaf 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -638,6 +638,7 @@ typedef struct pglist_data {
- 					     range, including holes */
- 	int node_id;
- 	wait_queue_head_t kswapd_wait;
-+	wait_queue_head_t pfmemalloc_wait;
- 	struct task_struct *kswapd;
- 	int kswapd_max_order;
- 	enum zone_type classzone_idx;
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 2b87dfd..4b1170f 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -4160,6 +4160,7 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
- 	pgdat_resize_init(pgdat);
- 	pgdat->nr_zones = 0;
- 	init_waitqueue_head(&pgdat->kswapd_wait);
-+	init_waitqueue_head(&pgdat->pfmemalloc_wait);
- 	pgdat->kswapd_max_order = 0;
- 	pgdat_page_cgroup_init(pgdat);
- 	
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 6771ea7..2dad23d 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -42,6 +42,8 @@
- #include <linux/delayacct.h>
- #include <linux/sysctl.h>
- 
-+#include <net/sock.h>
-+
- #include <asm/tlbflush.h>
- #include <asm/div64.h>
- 
-@@ -2115,6 +2117,61 @@ out:
- 	return 0;
- }
- 
-+static bool pfmemalloc_watermark_ok(pg_data_t *pgdat, int high_zoneidx)
-+{
-+	struct zone *zone;
-+	unsigned long pfmemalloc_reserve = 0;
-+	unsigned long free_pages = 0;
-+	int i;
-+
-+	for (i = 0; i <= high_zoneidx; i++) {
-+		zone = &pgdat->node_zones[i];
-+		pfmemalloc_reserve += min_wmark_pages(zone);
-+		free_pages += zone_page_state(zone, NR_FREE_PAGES);
-+	}
-+
-+	return (free_pages > pfmemalloc_reserve / 2) ? true : false;
-+}
-+
-+/*
-+ * Throttle direct reclaimers if backing storage is backed by the network
-+ * and the PFMEMALLOC reserve for the preferred node is getting dangerously
-+ * depleted. kswapd will continue to make progress and wake the processes
-+ * when the low watermark is reached
-+ */
-+static void throttle_direct_reclaim(gfp_t gfp_mask, struct zonelist *zonelist,
-+					nodemask_t *nodemask)
-+{
-+	struct zone *zone;
-+	int high_zoneidx = gfp_zone(gfp_mask);
-+	DEFINE_WAIT(wait);
-+
-+	/*
-+	 * Only worry about the PFMEMALLOC reserves when network-backed
-+	 * storage is configured.
-+	 */
-+	if (!sk_memalloc_socks())
-+		return;
-+
-+	/* Check if the pfmemalloc reserves are ok */
-+	first_zones_zonelist(zonelist, high_zoneidx, NULL, &zone);
-+	if (pfmemalloc_watermark_ok(zone->zone_pgdat, high_zoneidx))
-+		return;
-+
-+	/* Throttle */
-+	if (printk_ratelimit())
-+		printk(KERN_INFO "Throttling %s due to reclaim pressure on "
-+				 "network storage\n",
-+			current->comm);
-+	do {
-+		prepare_to_wait(&zone->zone_pgdat->pfmemalloc_wait, &wait,
-+							TASK_INTERRUPTIBLE);
-+		schedule();
-+		finish_wait(&zone->zone_pgdat->pfmemalloc_wait, &wait);
-+	} while (!pfmemalloc_watermark_ok(zone->zone_pgdat, high_zoneidx) &&
-+			!fatal_signal_pending(current));
-+}
-+
- unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
- 				gfp_t gfp_mask, nodemask_t *nodemask)
- {
-@@ -2131,6 +2188,8 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
- 		.nodemask = nodemask,
- 	};
- 
-+	throttle_direct_reclaim(gfp_mask, zonelist, nodemask);
-+
- 	trace_mm_vmscan_direct_reclaim_begin(order,
- 				sc.may_writepage,
- 				gfp_mask);
-@@ -2482,6 +2541,13 @@ loop_again:
- 			}
- 
- 		}
-+
-+		/* Wake throttled direct reclaimers if low watermark is met */
-+		if (sk_memalloc_socks() &&
-+				waitqueue_active(&pgdat->pfmemalloc_wait) &&
-+				pfmemalloc_watermark_ok(pgdat, MAX_NR_ZONES - 1))
-+			wake_up_interruptible(&pgdat->pfmemalloc_wait);
-+
- 		if (all_zones_ok || (order && pgdat_balanced(pgdat, balanced, *classzone_idx)))
- 			break;		/* kswapd: all done */
- 		/*
+> Will the memory fragmentation be visible if I do kmalloc from
+> the kernel module????
+
+It will be more visible in the sense that if you allocate 8 KiB, kernel  
+will
+have to find 8 KiB contiguous physical memory (ie. 1-order page).
+
+>> No.  When you call malloc() only virtual address space is allocated.
+>> The actual allocation of physical space occurs when user space accesses
+>> the memory (either reads or writes) and it happens page at a time.
+>
+> Here, if I do memset then I am accessing the memory...right? That I am  
+> doing already in my sample program.
+
+Yes.  But note that even though it's a single memset() call, you are
+accessing page at a time and kernel is allocating page at a time.
+
+On some architectures (not ARM) you could access two pages with a single
+instructions but I think that would result in two page faults anyway.  I
+might be wrong though, the details are not important though.
+
+>> what really happens is that kernel allocates the 0-order
+>> pages and when
+>> it runs out of those, splits a 1-order page into two
+>> 0-order pages and
+>> takes one of those.
+>
+> Actually, if I understand buddy allocator, it allocates pages from top  
+> to bottom.
+
+No.  If you want to allocate a single 0-order page, buddy looks for a
+a free 0-order page.  If one is not found, it will look for 1-order page
+and split it.  This goes up till buddy reaches (MAX_ORDER-1)-page.
+
+> Is the memory fragmentation is always a cause of the kernel space  
+> program and not user space at all?
+
+Well, no.  If you allocate memory in user space, kernel will have to
+allocate physical memory and *every* allocation may contribute to
+fragmentation.  The point is, that all allocations from user-space are
+single-page allocations even if you malloc() MiBs of memory.
+
+> Can you provide me with some references for migitating memory  
+> fragmentation in linux?
+
+I'm not sure what you mean by that.
+
 -- 
-1.7.3.4
+Best regards,                                         _     _
+.o. | Liege of Serenely Enlightened Majesty of      o' \,=./ `o
+..o | Computer Science,  Michal "mina86" Nazarewicz    (o o)
+ooo +-----<email/xmpp: mnazarewicz@google.com>-----ooO--(_)--Ooo--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
