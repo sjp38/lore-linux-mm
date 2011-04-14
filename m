@@ -1,107 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 11F43900086
-	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 20:30:49 -0400 (EDT)
-Date: Thu, 14 Apr 2011 08:30:45 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 2/4] writeback: avoid duplicate
- balance_dirty_pages_ratelimited() calls
-Message-ID: <20110414003045.GB6097@localhost>
-References: <20110413085937.981293444@intel.com>
- <20110413090415.511675208@intel.com>
- <20110413215307.GD4648@quack.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110413215307.GD4648@quack.suse.cz>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 98F33900086
+	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 20:34:35 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id E3AFF3EE0BD
+	for <linux-mm@kvack.org>; Thu, 14 Apr 2011 09:34:32 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id C934645DE58
+	for <linux-mm@kvack.org>; Thu, 14 Apr 2011 09:34:32 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 9E56E45DE53
+	for <linux-mm@kvack.org>; Thu, 14 Apr 2011 09:34:32 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 89E251DB8041
+	for <linux-mm@kvack.org>; Thu, 14 Apr 2011 09:34:32 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 3BA371DB803B
+	for <linux-mm@kvack.org>; Thu, 14 Apr 2011 09:34:32 +0900 (JST)
+Date: Thu, 14 Apr 2011 09:27:56 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH V3 2/7] Add per memcg reclaim watermarks
+Message-Id: <20110414092756.a7d8b1bb.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <BANLkTi=z5F40qWgHWmzpJ6jseeGyBJ+fAQ@mail.gmail.com>
+References: <1302678187-24154-1-git-send-email-yinghan@google.com>
+	<1302678187-24154-3-git-send-email-yinghan@google.com>
+	<20110413172502.7f7edb2c.kamezawa.hiroyu@jp.fujitsu.com>
+	<BANLkTi=z5F40qWgHWmzpJ6jseeGyBJ+fAQ@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Dave Chinner <david@fromorbit.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>
+To: Ying Han <yinghan@google.com>
+Cc: Pavel Emelyanov <xemul@openvz.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org
 
-On Thu, Apr 14, 2011 at 05:53:07AM +0800, Jan Kara wrote:
-> On Wed 13-04-11 16:59:39, Wu Fengguang wrote:
-> > When dd in 512bytes, balance_dirty_pages_ratelimited() could be called 8
-> > times for the same page, but obviously the page is only dirtied once.
-> > 
-> > Fix it with a (slightly racy) PageDirty() test.
-> > 
-> > Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> > ---
-> >  mm/filemap.c |    5 ++++-
-> >  1 file changed, 4 insertions(+), 1 deletion(-)
-> > 
-> > --- linux-next.orig/mm/filemap.c	2011-04-13 16:46:01.000000000 +0800
-> > +++ linux-next/mm/filemap.c	2011-04-13 16:47:26.000000000 +0800
-> > @@ -2313,6 +2313,7 @@ static ssize_t generic_perform_write(str
-> >  	long status = 0;
-> >  	ssize_t written = 0;
-> >  	unsigned int flags = 0;
-> > +	unsigned int dirty;
-> >  
-> >  	/*
-> >  	 * Copies from kernel address space cannot fail (NFSD is a big user).
-> > @@ -2361,6 +2362,7 @@ again:
-> >  		pagefault_enable();
-> >  		flush_dcache_page(page);
-> >  
-> > +		dirty = PageDirty(page);
->   This isn't completely right as we sometimes dirty the page in
-> ->write_begin() (see e.g. block_write_begin() when we allocate blocks under
-> an already uptodate page) and in such cases we would not call
-> balance_dirty_pages(). So I'm not sure we can really do this
-> optimization (although it's sad)...
+On Wed, 13 Apr 2011 11:40:26 -0700
+Ying Han <yinghan@google.com> wrote:
 
-Good catch, thanks! I evaluated three possible options, the last one
-looks most promising (however is a radical change).
-
-- do radix_tree_tag_get() before calling ->write_begin()
-  simple but heavy weight
-
-- add balance_dirty_pages_ratelimited() in __block_write_begin()
-  seems not easy, too
-
-- accurately account the dirtied pages in account_page_dirtied() rather than
-  in balance_dirty_pages_ratelimited_nr(). This diff on top of my patchset
-  illustrates the idea, but will need to sort out cases like direct IO ...
-
---- linux-next.orig/mm/page-writeback.c	2011-04-14 07:50:09.000000000 +0800
-+++ linux-next/mm/page-writeback.c	2011-04-14 07:52:35.000000000 +0800
-@@ -1295,8 +1295,6 @@ void balance_dirty_pages_ratelimited_nr(
- 	if (!bdi_cap_account_dirty(bdi))
- 		return;
- 
--	current->nr_dirtied += nr_pages_dirtied;
--
- 	if (dirty_exceeded_recently(bdi, MAX_PAUSE)) {
- 		unsigned long max = current->nr_dirtied +
- 						(128 >> (PAGE_SHIFT - 10));
-@@ -1752,6 +1750,7 @@ void account_page_dirtied(struct page *p
- 		__inc_bdi_stat(mapping->backing_dev_info, BDI_DIRTIED);
- 		task_dirty_inc(current);
- 		task_io_account_write(PAGE_CACHE_SIZE);
-+		current->nr_dirtied++;
- 	}
- }
- EXPORT_SYMBOL(account_page_dirtied);
-
-> >  		mark_page_accessed(page);
-> >  		status = a_ops->write_end(file, mapping, pos, bytes, copied,
-> >  						page, fsdata);
-> > @@ -2387,7 +2389,8 @@ again:
-> >  		pos += copied;
-> >  		written += copied;
-> >  
-> > -		balance_dirty_pages_ratelimited(mapping);
-> > +		if (!dirty)
-> > +			balance_dirty_pages_ratelimited(mapping);
-> >  
-> >  	} while (iov_iter_count(i));
+> On Wed, Apr 13, 2011 at 1:25 AM, KAMEZAWA Hiroyuki <
+> kamezawa.hiroyu@jp.fujitsu.com> wrote:
 > 
-> 								Honza
-> -- 
-> Jan Kara <jack@suse.cz>
-> SUSE Labs, CR
+> > On Wed, 13 Apr 2011 00:03:02 -0700
+> > Ying Han <yinghan@google.com> wrote:
+
+> > > +static void setup_per_memcg_wmarks(struct mem_cgroup *mem)
+> > > +{
+> > > +     u64 limit;
+> > > +     unsigned long wmark_ratio;
+> > > +
+> > > +     wmark_ratio = get_wmark_ratio(mem);
+> > > +     limit = mem_cgroup_get_limit(mem);
+> > > +     if (wmark_ratio == 0) {
+> > > +             res_counter_set_low_wmark_limit(&mem->res, limit);
+> > > +             res_counter_set_high_wmark_limit(&mem->res, limit);
+> > > +     } else {
+> > > +             unsigned long low_wmark, high_wmark;
+> > > +             unsigned long long tmp = (wmark_ratio * limit) / 100;
+> >
+> > could you make this ratio as /1000 ? percent is too big.
+> > And, considering misc. cases, I don't think having per-memcg "ratio" is
+> > good.
+> >
+> > How about following ?
+> >
+> >  - provides an automatic wmark without knob. 0 wmark is okay, for me.
+> >  - provides 2 intrerfaces as
+> >        memory.low_wmark_distance_in_bytes,  # == hard_limit - low_wmark.
+> >        memory.high_wmark_in_bytes,          # == hard_limit - high_wmark.
+> >   (need to add sanity check into set_limit.)
+> >
+> > Hmm. Making the wmarks tunable individually make sense to me. One problem I
+> do notice is that making the hard_limit as the bar might not working well on
+> over-committing system. Which means the per-cgroup background reclaim might
+> not be triggered before global memory pressure. Ideally, we would like to do
+> more per-cgroup reclaim before triggering global memory pressure.
+> 
+hmm.
+
+> How about adding the two APIs but make the calculation based on:
+> 
+> -- by default, the wmarks are equal to hard_limit. ( no background reclaim)
+
+ok.
+
+> -- provides 2 intrerfaces as
+>        memory.low_wmark_distance_in_bytes,  # == min(hard_limit, soft_limit)
+> - low_wmark.
+>        memory.high_wmark_in_bytes,          # == min(hard_limit, soft_limit)
+> - high_wmark.
+> 
+
+Hmm, with that interface, soflimit=0(or some low value) will disable background
+reclaim. (IOW, all memory will be reclaimed.)
+
+IMHO, we don't need take care of softlimit v.s. high/low wmark. It's userland job.
+And we cannot know global relcaim's run via memcg' memory uasge....because of
+nodes and zones. I think low/high wmark should work against hard_limit.
+
+
+> >
+> > In this patch, kswapd runs while
+> >
+> >        high_wmark < usage < low_wmark
+> > ?
+> >
+> > Hmm, I like
+> >        low_wmark < usage < high_wmark.
+> >
+> > ;) because it's kswapd.
+> >
+> > I adopt the same concept of global kswapd where low_wmark triggers the
+> kswpd and hight_wmark stop it. And here, we have
+> 
+> (limit - high_wmark) < free < (limit - low_wmark)
+> 
+
+Hm, ok. please add comment somewhere.
+
+Thanks,
+-Kame
+
+
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
