@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id BB460900086
-	for <linux-mm@kvack.org>; Thu, 14 Apr 2011 17:21:07 -0400 (EDT)
-Date: Thu, 14 Apr 2011 14:18:02 -0700
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 067E9900086
+	for <linux-mm@kvack.org>; Thu, 14 Apr 2011 17:21:38 -0400 (EDT)
+Date: Thu, 14 Apr 2011 14:19:02 -0700
 From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: [PATCH V8 5/8] ext3: add cleancache support
-Message-ID: <20110414211802.GA27779@ca-server1.us.oracle.com>
+Subject: [PATCH V8 7/8] ext4: add cleancache support
+Message-ID: <20110414211902.GA27813@ca-server1.us.oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
@@ -13,13 +13,13 @@ Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: chris.mason@oracle.com, viro@zeniv.linux.org.uk, akpm@linux-foundation.org, adilger.kernel@dilger.ca, tytso@mit.edu, mfasheh@suse.com, jlbec@evilplan.org, matthew@wil.cx, linux-btrfs@vger.kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, ocfs2-devel@oss.oracle.com, linux-mm@kvack.org, hch@infradead.org, ngupta@vflare.org, jeremy@goop.org, JBeulich@novell.com, kurt.hackel@oracle.com, npiggin@kernel.dk, dave.mccracken@oracle.com, riel@redhat.com, avi@redhat.com, konrad.wilk@oracle.com, dan.magenheimer@oracle.com, mel@csn.ul.ie, yinghan@google.com, gthelen@google.com, torvalds@linux-foundation.org
 
-[PATCH V8 5/8] ext3: add cleancache support
+[PATCH V8 7/8] ext4: add cleancache support
 
-This fifth patch of eight in this cleancache series "opts-in"
-cleancache for ext3.  Filesystems must explicitly enable
-cleancache by calling cleancache_init_fs anytime an instance
-of the filesystem is mounted. For ext3, all other cleancache
-hooks are in the VFS layer including the matching cleancache_flush_fs
+This seventh patch of eight in this cleancache series "opts-in"
+cleancache for ext4.  Filesystems must explicitly enable cleancache
+by calling cleancache_init_fs anytime an instance of the filesystem
+is mounted. For ext4, all other cleancache hooks are in
+the VFS layer including the matching cleancache_flush_fs
 hook which must be called on unmount.
 
 Details and a FAQ can be found in Documentation/vm/cleancache.txt
@@ -46,23 +46,23 @@ Cc: Nitin Gupta <ngupta@vflare.org>
 ---
 
 Diffstat:
- fs/ext3/super.c                          |    2 ++
+ fs/ext4/super.c                          |    2 ++
  1 file changed, 2 insertions(+)
 
---- linux-2.6.39-rc3/fs/ext3/super.c	2011-04-11 18:21:51.000000000 -0600
-+++ linux-2.6.39-rc3-cleancache/fs/ext3/super.c	2011-04-13 17:10:40.918915872 -0600
-@@ -36,6 +36,7 @@
- #include <linux/quotaops.h>
- #include <linux/seq_file.h>
+--- linux-2.6.39-rc3/fs/ext4/super.c	2011-04-11 18:21:51.000000000 -0600
++++ linux-2.6.39-rc3-cleancache/fs/ext4/super.c	2011-04-13 17:10:52.708850707 -0600
+@@ -38,6 +38,7 @@
+ #include <linux/ctype.h>
  #include <linux/log2.h>
+ #include <linux/crc16.h>
 +#include <linux/cleancache.h>
- 
  #include <asm/uaccess.h>
  
-@@ -1367,6 +1368,7 @@ static int ext3_setup_super(struct super
- 	} else {
- 		ext3_msg(sb, KERN_INFO, "using internal journal");
- 	}
+ #include <linux/kthread.h>
+@@ -1932,6 +1933,7 @@ static int ext4_setup_super(struct super
+ 			EXT4_INODES_PER_GROUP(sb),
+ 			sbi->s_mount_opt, sbi->s_mount_opt2);
+ 
 +	cleancache_init_fs(sb);
  	return res;
  }
