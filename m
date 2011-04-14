@@ -1,75 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id E55B9900086
-	for <linux-mm@kvack.org>; Thu, 14 Apr 2011 16:22:23 -0400 (EDT)
-Date: Thu, 14 Apr 2011 13:22:20 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: BUILD_BUG_ON() breaks sparse gfp_t checks
-Message-Id: <20110414132220.970cfb2a.akpm@linux-foundation.org>
-In-Reply-To: <1302795695.14658.6801.camel@nimitz>
-References: <1302795695.14658.6801.camel@nimitz>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id B6335900086
+	for <linux-mm@kvack.org>; Thu, 14 Apr 2011 17:10:37 -0400 (EDT)
+Date: Thu, 14 Apr 2011 16:10:34 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH] percpu: preemptless __per_cpu_counter_add
+In-Reply-To: <1302747263.3549.9.camel@edumazet-laptop>
+Message-ID: <alpine.DEB.2.00.1104141608300.19533@router.home>
+References: <alpine.DEB.2.00.1104130942500.16214@router.home>  <alpine.DEB.2.00.1104131148070.20908@router.home>  <20110413185618.GA3987@mtj.dyndns.org>  <alpine.DEB.2.00.1104131521050.25812@router.home> <1302747263.3549.9.camel@edumazet-laptop>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: Rusty Russell <rusty@rustcorp.com.au>, Jan Beulich <JBeulich@novell.com>, Christoph Lameter <cl@linux.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
+To: Eric Dumazet <eric.dumazet@gmail.com>
+Cc: Tejun Heo <tj@kernel.org>, akpm@linux-foundation.org, linux-mm@kvack.org, shaohua.li@intel.com
 
-On Thu, 14 Apr 2011 08:41:35 -0700
-Dave Hansen <dave@sr71.net> wrote:
+On Thu, 14 Apr 2011, Eric Dumazet wrote:
 
-> Running sparse on page_alloc.c today, it errors out:
->         
->         mm/page_alloc.c:96:5: warning: symbol 'percpu_pagelist_fraction' was not declared. Should it be static?
->         mm/page_alloc.c:175:5: warning: symbol 'min_free_kbytes' was not declared. Should it be static?
->         include/linux/gfp.h:254:17: error: bad constant expression
->         include/linux/gfp.h:254:17: error: cannot size expression
-> 
-> which is a line in gfp_zone():
-> 
-> 	BUILD_BUG_ON((GFP_ZONE_BAD >> bit) & 1);
-> 
-> That's really unfortunate, because it ends up hiding all of the other
-> legitimate sparse messages (like I introduced with the appended patch):
-> 
->         mm/page_alloc.c:96:5: warning: symbol 'percpu_pagelist_fraction' was not declared. Should it be static?
->         mm/page_alloc.c:175:5: warning: symbol 'min_free_kbytes' was not declared. Should it be static?
->         mm/page_alloc.c:3692:15: warning: symbol '__early_pfn_to_nid' was not declared. Should it be static?
->         mm/page_alloc.c:5315:59: warning: incorrect type in argument 1 (different base types)
->         mm/page_alloc.c:5315:59:    expected unsigned long [unsigned] [usertype] size
->         mm/page_alloc.c:5315:59:    got restricted gfp_t [usertype] <noident>
-> ...
-> 
-> Is sparse broken, or is that ?  Even if it is, should we be working
-> around this somehow?  It looks like we've basically crippled sparse in
-> some spots.
+> Not sure its a win for my servers, where CONFIG_PREEMPT_NONE=y
 
-Is sparse having conniptions over that monster expression for
-GFP_ZONE_BAD?
+Well the fast path would then also be irq safe. Does that bring us
+anything?
 
-The kernel calls gfp_zone() with a constant arg in very few places. 
-This?
+We could not do the cmpxchg in the !PREEMPT case and instead simply store
+the value.
 
---- a/include/linux/gfp.h~a
-+++ a/include/linux/gfp.h
-@@ -249,14 +249,9 @@ static inline enum zone_type gfp_zone(gf
- 
- 	z = (GFP_ZONE_TABLE >> (bit * ZONES_SHIFT)) &
- 					 ((1 << ZONES_SHIFT) - 1);
--
--	if (__builtin_constant_p(bit))
--		BUILD_BUG_ON((GFP_ZONE_BAD >> bit) & 1);
--	else {
- #ifdef CONFIG_DEBUG_VM
--		BUG_ON((GFP_ZONE_BAD >> bit) & 1);
-+	BUG_ON((GFP_ZONE_BAD >> bit) & 1);
- #endif
--	}
- 	return z;
- }
- 
-_
+The preempt on/off seems to be a bigger deal for realtime.
+
+> Maybe use here latest cmpxchg16b stuff instead and get rid of spinlock ?
+
+Shaohua already got an atomic in there. You mean get rid of his preempt
+disable/enable in the slow path?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
