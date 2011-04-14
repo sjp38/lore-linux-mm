@@ -1,158 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 012BE900086
-	for <linux-mm@kvack.org>; Thu, 14 Apr 2011 04:24:50 -0400 (EDT)
-Received: by pxi10 with SMTP id 10so837716pxi.8
-        for <linux-mm@kvack.org>; Thu, 14 Apr 2011 01:24:47 -0700 (PDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id F1255900086
+	for <linux-mm@kvack.org>; Thu, 14 Apr 2011 05:08:20 -0400 (EDT)
+Subject: Re: Regression from 2.6.36
+Date: Thu, 14 Apr 2011 11:08:16 +0200
+From: "azurIt" <azurit@pobox.sk>
+References: <20110315132527.130FB80018F1@mail1005.cent>	 <20110317001519.GB18911@kroah.com> <20110407120112.E08DCA03@pobox.sk>	 <4D9D8FAA.9080405@suse.cz>	 <BANLkTinnTnjZvQ9S1AmudZcZBokMy8-93w@mail.gmail.com>	 <1302177428.3357.25.camel@edumazet-laptop>	 <1302178426.3357.34.camel@edumazet-laptop>	 <BANLkTikxWy-Pw1PrcAJMHs2R7JKksyQzMQ@mail.gmail.com>	 <1302190586.3357.45.camel@edumazet-laptop>	 <20110412154906.70829d60.akpm@linux-foundation.org>	 <BANLkTincoaxp5Soe6O-eb8LWpgra=k2NsQ@mail.gmail.com>	 <20110412183132.a854bffc.akpm@linux-foundation.org>	 <1302662256.2811.27.camel@edumazet-laptop>	 <20110413141600.28793661.akpm@linux-foundation.org>	 <1302747058.3549.7.camel@edumazet-laptop>	 <20110413222803.38e42baf.akpm@linux-foundation.org> <1302762718.3549.229.camel@edumazet-laptop>
+In-Reply-To: <1302762718.3549.229.camel@edumazet-laptop>
 MIME-Version: 1.0
-In-Reply-To: <1302678187-24154-3-git-send-email-yinghan@google.com>
-References: <1302678187-24154-1-git-send-email-yinghan@google.com> <1302678187-24154-3-git-send-email-yinghan@google.com>
-From: Zhu Yanhai <zhu.yanhai@gmail.com>
-Date: Thu, 14 Apr 2011 16:24:27 +0800
-Message-ID: <BANLkTimR+Tn+AccUt3dxqXhSVA8tUp_xDg@mail.gmail.com>
-Subject: Re: [PATCH V3 2/7] Add per memcg reclaim watermarks
+Message-Id: <20110414110816.EA841944@pobox.sk>
 Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Pavel Emelyanov <xemul@openvz.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org
-
-Hi Ying,
-
-2011/4/13 Ying Han <yinghan@google.com>:
-> +static void setup_per_memcg_wmarks(struct mem_cgroup *mem)
-> +{
-> + =C2=A0 =C2=A0 =C2=A0 u64 limit;
-> + =C2=A0 =C2=A0 =C2=A0 unsigned long wmark_ratio;
-> +
-> + =C2=A0 =C2=A0 =C2=A0 wmark_ratio =3D get_wmark_ratio(mem);
-> + =C2=A0 =C2=A0 =C2=A0 limit =3D mem_cgroup_get_limit(mem);
-
-mem_cgroup_get_limit doesn't return the correct limit for you,
-actually it's only for OOM killer.
-You should use
-limit =3D res_counter_read_u64(&mem->res, RES_LIMIT) directly.
-Otherwise in the box which has swapon, you will get a huge
-number here.
-e.g.
- [root@zyh-fedora a]# echo 500m > memory.limit_in_bytes
-[root@zyh-fedora a]# cat memory.limit_in_bytes
-524288000
-[root@zyh-fedora a]# cat memory.reclaim_wmarks
-low_wmark 9114218496
-high_wmark 9114218496
-
-Regards,
-Zhu Yanhai
+To: Eric Dumazet <eric.dumazet@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Changli Gao <xiaosuo@gmail.com>, =?UTF-8?Q?Am=C3=A9rico=20Wang?= <xiyou.wangcong@gmail.com>, Jiri Slaby <jslaby@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Jiri Slaby <jirislaby@gmail.com>, Mel Gorman <mel@csn.ul.ie>
 
 
-> + =C2=A0 =C2=A0 =C2=A0 if (wmark_ratio =3D=3D 0) {
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 res_counter_set_low_wm=
-ark_limit(&mem->res, limit);
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 res_counter_set_high_w=
-mark_limit(&mem->res, limit);
-> + =C2=A0 =C2=A0 =C2=A0 } else {
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 unsigned long low_wmar=
-k, high_wmark;
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 unsigned long long tmp=
- =3D (wmark_ratio * limit) / 100;
-> +
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 low_wmark =3D tmp;
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 high_wmark =3D tmp - (=
-tmp >> 8);
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 res_counter_set_low_wm=
-ark_limit(&mem->res, low_wmark);
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 res_counter_set_high_w=
-mark_limit(&mem->res, high_wmark);
-> + =C2=A0 =C2=A0 =C2=A0 }
-> +}
-> +
-> =C2=A0/*
-> =C2=A0* Following LRU functions are allowed to be used without PCG_LOCK.
-> =C2=A0* Operations are called by routine of global LRU independently from=
- memcg.
-> @@ -1195,6 +1219,16 @@ static unsigned int get_swappiness(struct mem_cgro=
-up *memcg)
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0return memcg->swappiness;
-> =C2=A0}
+Here it is:
+
+
+# ls /proc/31416/fd | wc -l
+5926
+
+
+azur
+
+
+______________________________________________________________
+> Od: "Eric Dumazet" <eric.dumazet@gmail.com>
+> Komu: Andrew Morton <akpm@linux-foundation.org>
+> DA!tum: 14.04.2011 08:32
+> Predmet: Re: Regression from 2.6.36
 >
-> +static unsigned long get_wmark_ratio(struct mem_cgroup *memcg)
-> +{
-> + =C2=A0 =C2=A0 =C2=A0 struct cgroup *cgrp =3D memcg->css.cgroup;
-> +
-> + =C2=A0 =C2=A0 =C2=A0 VM_BUG_ON(!cgrp);
-> + =C2=A0 =C2=A0 =C2=A0 VM_BUG_ON(!cgrp->parent);
-> +
-> + =C2=A0 =C2=A0 =C2=A0 return memcg->wmark_ratio;
-> +}
-> +
-> =C2=A0static void mem_cgroup_start_move(struct mem_cgroup *mem)
-> =C2=A0{
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0int cpu;
-> @@ -3205,6 +3239,7 @@ static int mem_cgroup_resize_limit(struct mem_cgrou=
-p *memcg,
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0else
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0memcg->memsw_is_minimum =3D false;
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0}
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 setup_per_memcg_wmarks=
-(memcg);
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0mutex_unlock(&set_=
-limit_mutex);
+> CC: "Changli Gao" <xiaosuo@gmail.com>, "AmA(C)rico Wang" <xiyou.wangcong@gmail.com>, "Jiri Slaby" <jslaby@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Jiri Slaby" <jirislaby@gmail.com>, "Mel Gorman" <mel@csn.ul.ie>
+>Le mercredi 13 avril 2011 A  22:28 -0700, Andrew Morton a A(C)crit :
+>> On Thu, 14 Apr 2011 04:10:58 +0200 Eric Dumazet <eric.dumazet@gmail.com> wrote:
+>> 
+>> > > --- a/fs/file.c~a
+>> > > +++ a/fs/file.c
+>> > > @@ -39,14 +39,17 @@ int sysctl_nr_open_max = 1024 * 1024; /*
+>> > >   */
+>> > >  static DEFINE_PER_CPU(struct fdtable_defer, fdtable_defer_list);
+>> > >  
+>> > > -static inline void *alloc_fdmem(unsigned int size)
+>> > > +static void *alloc_fdmem(unsigned int size)
+>> > >  {
+>> > > -	void *data;
+>> > > -
+>> > > -	data = kmalloc(size, GFP_KERNEL|__GFP_NOWARN);
+>> > > -	if (data != NULL)
+>> > > -		return data;
+>> > > -
+>> > > +	/*
+>> > > +	 * Very large allocations can stress page reclaim, so fall back to
+>> > > +	 * vmalloc() if the allocation size will be considered "large" by the VM.
+>> > > +	 */
+>> > > +	if (size <= (PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER) {
+>> > > +		void *data = kmalloc(size, GFP_KERNEL|__GFP_NOWARN);
+>> > > +		if (data != NULL)
+>> > > +			return data;
+>> > > +	}
+>> > >  	return vmalloc(size);
+>> > >  }
+>> > >  
+>> > > _
+>> > > 
+>> > 
+>> > Acked-by: Eric Dumazet <eric.dumazet@gmail.com>
+>> > 
+>> > #define PAGE_ALLOC_COSTLY_ORDER 3
+>> > 
+>> > On x86_64, this means we try kmalloc() up to 4096 files in fdtable.
+>> 
+>> Thanks.  I added the cc:stable to the changelog.
+>> 
+>> It'd be nice to get this tested if poss, to confrm that it actually
+>> fixes things.
+>> 
+>> Also, Melpoke.
 >
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0if (!ret)
-> @@ -3264,6 +3299,7 @@ static int mem_cgroup_resize_memsw_limit(struct mem=
-_cgroup *memcg,
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0else
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0memcg->memsw_is_minimum =3D false;
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0}
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 setup_per_memcg_wmarks=
-(memcg);
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0mutex_unlock(&set_=
-limit_mutex);
+>Azurit, could you check how many fds are opened by your apache servers ?
+>(must be related to number of virtual hosts / acces_log / error_log
+>files)
 >
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0if (!ret)
-> @@ -4521,6 +4557,22 @@ static void __init enable_swap_cgroup(void)
-> =C2=A0}
-> =C2=A0#endif
+>Pick one pid from ps list
+>ps aux | grep apache
 >
-> +int mem_cgroup_watermark_ok(struct mem_cgroup *mem,
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 int charge_flags)
-> +{
-> + =C2=A0 =C2=A0 =C2=A0 long ret =3D 0;
-> + =C2=A0 =C2=A0 =C2=A0 int flags =3D CHARGE_WMARK_LOW | CHARGE_WMARK_HIGH=
-;
-> +
-> + =C2=A0 =C2=A0 =C2=A0 VM_BUG_ON((charge_flags & flags) =3D=3D flags);
-> +
-> + =C2=A0 =C2=A0 =C2=A0 if (charge_flags & CHARGE_WMARK_LOW)
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 ret =3D res_counter_ch=
-eck_under_low_wmark_limit(&mem->res);
-> + =C2=A0 =C2=A0 =C2=A0 if (charge_flags & CHARGE_WMARK_HIGH)
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 ret =3D res_counter_ch=
-eck_under_high_wmark_limit(&mem->res);
-> +
-> + =C2=A0 =C2=A0 =C2=A0 return ret;
-> +}
-> +
-> =C2=A0static int mem_cgroup_soft_limit_tree_init(void)
-> =C2=A0{
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0struct mem_cgroup_tree_per_node *rtpn;
-> --
-> 1.7.3.1
+>ls /proc/{pid_of_one_apache}/fd | wc -l
 >
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org. =C2=A0For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom internet charges in Canada: sign http://stopthemeter=
-.ca/
-> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
+>or
+>
+>lsof -p { pid_of_one_apache} | tail -n 2
+>apache2 8501 httpadm   13w   REG     104,7  2350407   3866638 /data/logs/httpd/rewrites.log
+>apache2 8501 httpadm   14r  0000      0,10        0 263148343 eventpoll
+>
+>Here it's "14"
+>
+>Thanks
+>
+>
 >
 
 --
