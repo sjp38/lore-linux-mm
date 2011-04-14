@@ -1,45 +1,144 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 8DCA0900086
-	for <linux-mm@kvack.org>; Thu, 14 Apr 2011 09:00:48 -0400 (EDT)
-Received: by bwz17 with SMTP id 17so2036315bwz.14
-        for <linux-mm@kvack.org>; Thu, 14 Apr 2011 06:00:45 -0700 (PDT)
-Content-Type: text/plain; charset=utf-8; format=flowed; delsp=yes
-Subject: Re: Regarding memory fragmentation using malloc....
-References: <858878.89812.qm@web162015.mail.bf1.yahoo.com>
-Date: Thu, 14 Apr 2011 14:31:57 +0200
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 3F96A900086
+	for <linux-mm@kvack.org>; Thu, 14 Apr 2011 09:49:46 -0400 (EDT)
+Date: Thu, 14 Apr 2011 21:49:40 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 4/4] writeback: reduce per-bdi dirty threshold ramp up
+ time
+Message-ID: <20110414134940.GA19392@localhost>
+References: <20110413085937.981293444@intel.com>
+ <20110413090415.763161169@intel.com>
+ <20110413220444.GF4648@quack.suse.cz>
+ <20110413233122.GA6097@localhost>
+ <20110413235211.GN31057@dastard>
+ <20110414002301.GA9826@localhost>
+ <1302777382.1994.24.camel@castor.rsk>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7bit
-From: "Michal Nazarewicz" <mina86@mina86.com>
-Message-ID: <op.vtxg3jzl3l0zgt@mnazarewicz-glaptop>
-In-Reply-To: <858878.89812.qm@web162015.mail.bf1.yahoo.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1302777382.1994.24.camel@castor.rsk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?utf-8?Q?Am=C3=A9rico_Wang?= <xiyou.wangcong@gmail.com>, Pintu Agarwal <pintu_agarwal@yahoo.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Eric Dumazet <eric.dumazet@gmail.com>, Changli Gao <xiaosuo@gmail.com>, Jiri Slaby <jslaby@suse.cz>, azurIt <azurit@pobox.sk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Jiri Slaby <jirislaby@gmail.com>
+To: Richard Kennedy <richard@rsk.demon.co.uk>
+Cc: Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>
 
-On Thu, 14 Apr 2011 14:24:56 +0200, Pintu Agarwal  
-<pintu_agarwal@yahoo.com> wrote:
+On Thu, Apr 14, 2011 at 06:36:22PM +0800, Richard Kennedy wrote:
+> On Thu, 2011-04-14 at 08:23 +0800, Wu Fengguang wrote:
+> > On Thu, Apr 14, 2011 at 07:52:11AM +0800, Dave Chinner wrote:
+> > > On Thu, Apr 14, 2011 at 07:31:22AM +0800, Wu Fengguang wrote:
+> > > > On Thu, Apr 14, 2011 at 06:04:44AM +0800, Jan Kara wrote:
+> > > > > On Wed 13-04-11 16:59:41, Wu Fengguang wrote:
+> > > > > > Reduce the dampening for the control system, yielding faster
+> > > > > > convergence. The change is a bit conservative, as smaller values may
+> > > > > > lead to noticeable bdi threshold fluctuates in low memory JBOD setup.
+> > > > > > 
+> > > > > > CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
+> > > > > > CC: Richard Kennedy <richard@rsk.demon.co.uk>
+> > > > > > Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+> > > > >   Well, I have nothing against this change as such but what I don't like is
+> > > > > that it just changes magical +2 for similarly magical +0. It's clear that
+> > > > 
+> > > > The patch tends to make the rampup time a bit more reasonable for
+> > > > common desktops. From 100s to 25s (see below).
+> > > > 
+> > > > > this will lead to more rapid updates of proportions of bdi's share of
+> > > > > writeback and thread's share of dirtying but why +0? Why not +1 or -1? So
+> > > > 
+> > > > Yes, it will especially be a problem on _small memory_ JBOD setups.
+> > > > Richard actually has requested for a much radical change (decrease by
+> > > > 6) but that looks too much.
+> > > > 
+> > > > My team has a 12-disk JBOD with only 6G memory. The memory is pretty
+> > > > small as a server, but it's a real setup and serves well as the
+> > > > reference minimal setup that Linux should be able to run well on.
+> > > 
+> > > FWIW, linux runs on a lot of low power NAS boxes with jbod and/or
+> > > raid setups that have <= 1GB of RAM (many of them run XFS), so even
+> > > your setup could be considered large by a significant fraction of
+> > > the storage world. Hence you need to be careful of optimising for
+> > > what you think is a "normal" server, because there simply isn't such
+> > > a thing....
+> > 
+> > Good point! This patch is likely to hurt a loaded 1GB 4-disk NAS box...
+> > I'll test the setup.
+> > 
+> > I did test low memory setups -- but only on simple 1-disk cases.
+> > 
+> > For example, when dirty thresh is lowered to 7MB, the dirty pages are
+> > fluctuating like mad within the controlled scope:
+> > 
+> > http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/dirty-throttling-v6/512M-2%25/xfs-4dd-1M-8p-435M-2%25-2.6.38-rc5-dt6+-2011-02-22-14-34/balance_dirty_pages-pages.png
+> > 
+> > But still, it achieves 100% disk utilization
+> > 
+> > http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/dirty-throttling-v6/512M-2%25/xfs-4dd-1M-8p-435M-2%25-2.6.38-rc5-dt6+-2011-02-22-14-34/iostat-util.png
+> > 
+> > and good IO throughput:
+> > 
+> > http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/dirty-throttling-v6/512M-2%25/xfs-4dd-1M-8p-435M-2%25-2.6.38-rc5-dt6+-2011-02-22-14-34/balance_dirty_pages-bandwidth.png
+> > 
+> > And even better, less than 120ms writeback latencies:
+> > 
+> > http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/dirty-throttling-v6/512M-2%25/xfs-4dd-1M-8p-435M-2%25-2.6.38-rc5-dt6+-2011-02-22-14-34/balance_dirty_pages-pause.png
+> > 
+> > Thanks,
+> > Fengguang
+> > 
+> 
+> I'm only testing on a desktop with 2 drives. I use a simple test to
+> write 2gb to sda then 2gb to sdb while recording the threshold values.
+> On 2.6.39-rc3, after the 2nd write starts it take approx 90 seconds for
+> sda's threshold value to drop from its maximum to minimum and sdb's to
+> rise from min to max. So this seems much too slow for normal desktop
+> workloads. 
 
-> Sorry. There was a small typo in my last sentence (mitigating not  
-> *migitating* memory fragmentation)
-> That means how can I measure the memory fragmentation either from user  
-> space or from kernel space.
-> Is there a way to measure the amount of memory fragmentation in linux?
+Yes.
 
-I'm still not entirely sure what you need.  You may try to measure
-fragmentation by the number of low order pages -- the more low order
-pages compared to high order pages the bigger the fragmentation.
+> I haven't tested with this patch on 2.6.39-rc3 yet, but I'm just about
+> to set that up. 
 
-As of how to mitigate...  There's memory compaction.  There's some
-optimisations in buddy system.  I'm probably not the best person to
-ask anyway.
+It will sure help, but the problem is now the low-memory NAS servers..
 
--- 
-Best regards,                                         _     _
-.o. | Liege of Serenely Enlightened Majesty of      o' \,=./ `o
-..o | Computer Science,  Michal "mina86" Nazarewicz    (o o)
-ooo +-----<email/xmpp: mnazarewicz@google.com>-----ooO--(_)--Ooo--
+Fortunately my patchset could make the dirty pages ramp up much more
+fast than the ramp up speed of the per-bdi threshold, and is also less
+sensitive to the fluctuations of per-bdi thresholds in JBOD setup.
+
+In fact my main concern in the low-memory NAS setup is how to prevent
+disk from going idle from time to time due to bdi dirty pages running
+low. The fluctuations of per-bdi thresholds in this case is no longer
+relevant for me. I end up adding a rule to throttle the task less when
+the bdi is running low of dirty pages. I find that the vanilla kernel
+also has this problem.
+
+> I know it's difficult to pick one magic number to fit every case, but I
+> don't see any easy way to make this more adaptive. We could make this
+> calculation take account of more things, but I don't know what.
+> 
+> 
+> Nice graphs :) BTW do you know what's causing that 10 second (1/10 Hz)
+> fluctuation in write bandwidth? and does this change effect that in any
+> way?   
+
+In fact each filesystems is fluctuating in its unique way. For example,
+
+ext4, 4 dd
+http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/dirty-throttling-v6/512M-2%25/ext4-4dd-1M-8p-435M-2%25-2.6.38-rc5-dt6+-2011-02-22-14-49/balance_dirty_pages-bandwidth.png
+
+btrfs, 4 dd
+http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/dirty-throttling-v6/512M-2%25/btrfs-4dd-1M-8p-435M-2%25-2.6.38-rc5-dt6+-2011-02-22-15-03/balance_dirty_pages-bandwidth.png
+
+btrfs, 1 dd
+http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/dirty-throttling-v6/512M-2%25/btrfs-1dd-1M-8p-435M-2%25-2.6.38-rc5-dt6+-2011-02-22-14-56/balance_dirty_pages-bandwidth.png
+
+I'm not sure about the exact root cause, but it's more or less related
+to the fluctuations of IO completion events. For example, the
+"written" curve is not a strictly straight line:
+
+http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/dirty-throttling-v6/512M-2%25/btrfs-1dd-1M-8p-435M-2%25-2.6.38-rc5-dt6+-2011-02-22-14-56/global_dirtied_written.png
+
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
