@@ -1,82 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 9C626900086
-	for <linux-mm@kvack.org>; Thu, 14 Apr 2011 14:16:14 -0400 (EDT)
-Date: Thu, 14 Apr 2011 20:16:09 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 4/4] writeback: reduce per-bdi dirty threshold ramp up
- time
-Message-ID: <20110414181609.GH5054@quack.suse.cz>
-References: <20110413085937.981293444@intel.com>
- <20110413090415.763161169@intel.com>
- <20110413220444.GF4648@quack.suse.cz>
- <20110413233122.GA6097@localhost>
- <20110413235211.GN31057@dastard>
- <20110414002301.GA9826@localhost>
- <20110414151424.GA367@localhost>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110414151424.GA367@localhost>
+	by kanga.kvack.org (Postfix) with ESMTP id 2AFC0900086
+	for <linux-mm@kvack.org>; Thu, 14 Apr 2011 15:10:55 -0400 (EDT)
+Date: Thu, 14 Apr 2011 12:09:20 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm/thp: Use conventional format for boolean attributes
+Message-Id: <20110414120920.1e6c04ff.akpm@linux-foundation.org>
+In-Reply-To: <20110414144807.19ec5f69@notabene.brown>
+References: <1300772711.26693.473.camel@localhost>
+	<alpine.DEB.2.00.1104131202230.5563@chino.kir.corp.google.com>
+	<20110414144807.19ec5f69@notabene.brown>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Richard Kennedy <richard@rsk.demon.co.uk>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>
+To: NeilBrown <neilb@suse.de>
+Cc: David Rientjes <rientjes@google.com>, Ben Hutchings <ben@decadent.org.uk>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>
 
-On Thu 14-04-11 23:14:25, Wu Fengguang wrote:
-> On Thu, Apr 14, 2011 at 08:23:02AM +0800, Wu Fengguang wrote:
-> > On Thu, Apr 14, 2011 at 07:52:11AM +0800, Dave Chinner wrote:
-> > > On Thu, Apr 14, 2011 at 07:31:22AM +0800, Wu Fengguang wrote:
-> > > > On Thu, Apr 14, 2011 at 06:04:44AM +0800, Jan Kara wrote:
-> > > > > On Wed 13-04-11 16:59:41, Wu Fengguang wrote:
-> > > > > > Reduce the dampening for the control system, yielding faster
-> > > > > > convergence. The change is a bit conservative, as smaller values may
-> > > > > > lead to noticeable bdi threshold fluctuates in low memory JBOD setup.
-> > > > > > 
-> > > > > > CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
-> > > > > > CC: Richard Kennedy <richard@rsk.demon.co.uk>
-> > > > > > Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> > > > >   Well, I have nothing against this change as such but what I don't like is
-> > > > > that it just changes magical +2 for similarly magical +0. It's clear that
-> > > > 
-> > > > The patch tends to make the rampup time a bit more reasonable for
-> > > > common desktops. From 100s to 25s (see below).
-> > > > 
-> > > > > this will lead to more rapid updates of proportions of bdi's share of
-> > > > > writeback and thread's share of dirtying but why +0? Why not +1 or -1? So
-> > > > 
-> > > > Yes, it will especially be a problem on _small memory_ JBOD setups.
-> > > > Richard actually has requested for a much radical change (decrease by
-> > > > 6) but that looks too much.
-> > > > 
-> > > > My team has a 12-disk JBOD with only 6G memory. The memory is pretty
-> > > > small as a server, but it's a real setup and serves well as the
-> > > > reference minimal setup that Linux should be able to run well on.
-> > > 
-> > > FWIW, linux runs on a lot of low power NAS boxes with jbod and/or
-> > > raid setups that have <= 1GB of RAM (many of them run XFS), so even
-> > > your setup could be considered large by a significant fraction of
-> > > the storage world. Hence you need to be careful of optimising for
-> > > what you think is a "normal" server, because there simply isn't such
-> > > a thing....
-> > 
-> > Good point! This patch is likely to hurt a loaded 1GB 4-disk NAS box...
-> > I'll test the setup.
+On Thu, 14 Apr 2011 14:48:07 +1000
+NeilBrown <neilb@suse.de> wrote:
+
+> > > --- a/mm/huge_memory.c
+> > > +++ b/mm/huge_memory.c
+> > > @@ -244,24 +244,25 @@ static ssize_t single_flag_show(struct kobject *kobj,
+> > >  				struct kobj_attribute *attr, char *buf,
+> > >  				enum transparent_hugepage_flag flag)
+> > >  {
+> > > -	if (test_bit(flag, &transparent_hugepage_flags))
+> > > -		return sprintf(buf, "[yes] no\n");
+> > > -	else
+> > > -		return sprintf(buf, "yes [no]\n");
+> > > +	return sprintf(buf, "%d\n",
+> > > +		       test_bit(flag, &transparent_hugepage_flags));
 > 
-> Just did a comparison of the IO-less patches' performance with and
-> without this patch. I hardly notice any differences besides some more
-> bdi goal fluctuations in the attached graphs. The write throughput is
-> a bit large with this patch (80MB/s vs 76MB/s), however the delta is
-> within the even larger stddev range (20MB/s).
-  Thanks for the test but I cannot find out from the numbers you provided
-how much did the per-bdi thresholds fluctuate in this low memory NAS case?
-You can gather current bdi threshold from /sys/kernel/debug/bdi/<dev>/stats
-so it shouldn't be hard to get the numbers...
+> It test bit guaranteed to return 0 or 1?
+> 
+> I think the x86 version returns 0 or -1 (that is from reading the code and
+> using google to check what 'sbb' does).
 
-								Honza
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+Thanks for catching that.  One wonders how well-tested the patch was!
+
+Speaking of which...
+
+Here's the current status.  Ben, can you please test this soon?
+
+From: Ben Hutchings <ben@decadent.org.uk>
+
+The conventional format for boolean attributes in sysfs is numeric ("0" or
+"1" followed by new-line).  Any boolean attribute can then be read and
+written using a generic function.  Using the strings "yes [no]", "[yes]
+no" (read), "yes" and "no" (write) will frustrate this.
+
+[akpm@linux-foundation.org: use kstrtoul()]
+[akpm@linux-foundation.org: test_bit() doesn't return 1/0, per Neil]
+Signed-off-by: Ben Hutchings <ben@decadent.org.uk>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Mel Gorman <mel@csn.ul.ie>
+Cc: Johannes Weiner <jweiner@redhat.com>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: David Rientjes <rientjes@google.com>
+Cc: NeilBrown <neilb@suse.de>
+Cc: <stable@kernel.org> 	[2.6.38.x]
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+---
+
+ mm/huge_memory.c |   24 ++++++++++++++----------
+ 1 file changed, 14 insertions(+), 10 deletions(-)
+
+diff -puN mm/huge_memory.c~mm-thp-use-conventional-format-for-boolean-attributes mm/huge_memory.c
+--- a/mm/huge_memory.c~mm-thp-use-conventional-format-for-boolean-attributes
++++ a/mm/huge_memory.c
+@@ -244,24 +244,28 @@ static ssize_t single_flag_show(struct k
+ 				struct kobj_attribute *attr, char *buf,
+ 				enum transparent_hugepage_flag flag)
+ {
+-	if (test_bit(flag, &transparent_hugepage_flags))
+-		return sprintf(buf, "[yes] no\n");
+-	else
+-		return sprintf(buf, "yes [no]\n");
++	return sprintf(buf, "%d\n",
++		       !!test_bit(flag, &transparent_hugepage_flags));
+ }
++
+ static ssize_t single_flag_store(struct kobject *kobj,
+ 				 struct kobj_attribute *attr,
+ 				 const char *buf, size_t count,
+ 				 enum transparent_hugepage_flag flag)
+ {
+-	if (!memcmp("yes", buf,
+-		    min(sizeof("yes")-1, count))) {
++	unsigned long value;
++	int ret;
++
++	ret = kstrtoul(buf, 10, &value);
++	if (ret < 0)
++		return ret;
++	if (value > 1)
++		return -EINVAL;
++
++	if (value)
+ 		set_bit(flag, &transparent_hugepage_flags);
+-	} else if (!memcmp("no", buf,
+-			   min(sizeof("no")-1, count))) {
++	else
+ 		clear_bit(flag, &transparent_hugepage_flags);
+-	} else
+-		return -EINVAL;
+ 
+ 	return count;
+ }
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
