@@ -1,39 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id EE7DA900086
-	for <linux-mm@kvack.org>; Thu, 14 Apr 2011 12:57:24 -0400 (EDT)
-Date: Thu, 14 Apr 2011 17:57:14 +0100
-From: Ben Hutchings <ben@decadent.org.uk>
-Subject: Re: [PATCH] mm/thp: Use conventional format for boolean attributes
-Message-ID: <20110414165714.GR2268@decadent.org.uk>
-References: <1300772711.26693.473.camel@localhost>
- <alpine.DEB.2.00.1104131202230.5563@chino.kir.corp.google.com>
- <20110414144807.19ec5f69@notabene.brown>
- <20110414142954.GB15707@random.random>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 67036900086
+	for <linux-mm@kvack.org>; Thu, 14 Apr 2011 13:27:12 -0400 (EDT)
+Message-ID: <4DA72E1C.7090900@fiec.espol.edu.ec>
+Date: Thu, 14 Apr 2011 12:25:48 -0500
+From: =?ISO-8859-1?Q?Alex_Villac=ED=ADs_Lasso?=
+ <avillaci@fiec.espol.edu.ec>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110414142954.GB15707@random.random>
+Subject: Re: [Bugme-new] [Bug 31142] New: Large write to USB stick freezes
+ unrelated tasks for a long time
+References: <20110321163742.GA24244@csn.ul.ie> <4D878564.6080608@fiec.espol.edu.ec> <20110321201641.GA5698@random.random> <20110322112032.GD24244@csn.ul.ie> <20110322150314.GC5698@random.random> <4D8907C2.7010304@fiec.espol.edu.ec> <20110322214020.GD5698@random.random> <20110323003718.GH5698@random.random> <4D8A2517.3090403@fiec.espol.edu.ec> <4D99E5C8.7090505@fiec.espol.edu.ec> <20110408190912.GI29444@random.random> <4D9F6AB6.6000809@fiec.espol.edu.ec> <4DA47D83.30707@fiec.espol.edu.ec>
+In-Reply-To: <4DA47D83.30707@fiec.espol.edu.ec>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: NeilBrown <neilb@suse.de>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, avillaci@ceibo.fiec.espol.edu.ec, bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org, linux-mm@kvack.org
 
-On Thu, Apr 14, 2011 at 04:29:54PM +0200, Andrea Arcangeli wrote:
-> On Thu, Apr 14, 2011 at 02:48:07PM +1000, Neil Brown wrote:
-> > I think the x86 version returns 0 or -1 (that is from reading the code and
-> > using google to check what 'sbb' does).
-> 
-> It really returns -1...
-> 
-Sorry, thought I checked this before sending the patch.
-
-Ben.
-
--- 
-Ben Hutchings
-We get into the habit of living before acquiring the habit of thinking.
-                                                              - Albert Camus
+El 12/04/11 11:27, Alex Villaci-s Lasso escribio:
+>>> ===
+>>> Subject: compaction: reverse the change that forbid sync migraton with __GFP_NO_KSWAPD
+>>>
+>>> From: Andrea Arcangeli<aarcange@redhat.com>
+>>>
+>>> It's uncertain this has been beneficial, so it's safer to undo it. All other
+>>> compaction users would still go in synchronous mode if a first attempt of async
+>>> compaction failed. Hopefully we don't need to force special behavior for THP
+>>> (which is the only __GFP_NO_KSWAPD user so far and it's the easier to exercise
+>>> and to be noticeable). This also make __GFP_NO_KSWAPD return to its original
+>>> strict semantics specific to bypass kswapd, as THP allocations have khugepaged
+>>> for the async THP allocations/compactions.
+>>>
+>>> Signed-off-by: Andrea Arcangeli<aarcange@redhat.com>
+>>> ---
+>>>   mm/page_alloc.c |    2 +-
+>>>   1 file changed, 1 insertion(+), 1 deletion(-)
+>>>
+>>> --- a/mm/page_alloc.c
+>>> +++ b/mm/page_alloc.c
+>>> @@ -2105,7 +2105,7 @@ rebalance:
+>>>                       sync_migration);
+>>>       if (page)
+>>>           goto got_pg;
+>>> -    sync_migration = !(gfp_mask&  __GFP_NO_KSWAPD);
+>>> +    sync_migration = true;
+>>>
+>>>       /* Try direct reclaim and then allocating */
+>>>       page = __alloc_pages_direct_reclaim(gfp_mask, order,
+>>>
+>> The stalls occur even with vfat. I am no longer using udf, since (right now) it is not necessary. I will test this patch now.
+>>
+>
+> From preliminary tests, I feel that the patch actually eliminates the stalls. I have just copied nearly 6 GB of data into my USB stick and noticed no application freezes.
+>
+I retract that. I have tested 2.6.39-rc3 after a day of having several heavy applications loaded in memory, and the stalls do get worse when reversing the patch.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
