@@ -1,65 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 4B676900086
-	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 20:46:55 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 421C03EE0B6
-	for <linux-mm@kvack.org>; Thu, 14 Apr 2011 09:46:52 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 265E945DE92
-	for <linux-mm@kvack.org>; Thu, 14 Apr 2011 09:46:52 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0D35E45DE90
-	for <linux-mm@kvack.org>; Thu, 14 Apr 2011 09:46:52 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 01BA8E18001
-	for <linux-mm@kvack.org>; Thu, 14 Apr 2011 09:46:52 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id C1BB5E08002
-	for <linux-mm@kvack.org>; Thu, 14 Apr 2011 09:46:51 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [patch v2] oom: replace PF_OOM_ORIGIN with toggling oom_score_adj
-In-Reply-To: <alpine.DEB.2.00.1104131740280.16515@chino.kir.corp.google.com>
-References: <20110414090310.07FF.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1104131740280.16515@chino.kir.corp.google.com>
-Message-Id: <20110414094652.080D.A69D9226@jp.fujitsu.com>
+	by kanga.kvack.org (Postfix) with ESMTP id E20F3900086
+	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 20:47:08 -0400 (EDT)
+Received: from wpaz5.hot.corp.google.com (wpaz5.hot.corp.google.com [172.24.198.69])
+	by smtp-out.google.com with ESMTP id p3E0l4VR013276
+	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 17:47:05 -0700
+Received: from pvh11 (pvh11.prod.google.com [10.241.210.203])
+	by wpaz5.hot.corp.google.com with ESMTP id p3E0l1sP017025
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 17:47:03 -0700
+Received: by pvh11 with SMTP id 11so512984pvh.36
+        for <linux-mm@kvack.org>; Wed, 13 Apr 2011 17:47:03 -0700 (PDT)
+Date: Wed, 13 Apr 2011 17:47:01 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH V3] Add the pagefault count into memcg stats
+In-Reply-To: <20110414085239.a597fb5c.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1104131742250.16515@chino.kir.corp.google.com>
+References: <1301419953-2282-1-git-send-email-yinghan@google.com> <alpine.DEB.2.00.1104131301180.8140@chino.kir.corp.google.com> <20110414085239.a597fb5c.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Thu, 14 Apr 2011 09:46:51 +0900 (JST)
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Izik Eidus <ieidus@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Ying Han <yinghan@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Mark Brown <broonie@opensource.wolfsonmicro.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-> There's a kernel-wide shortage of per-process flags, so it's always 
-> helpful to trim one when possible without incurring a significant 
-> penalty.  It's even more important when you're planning on adding a per-
-> process flag yourself, which I plan to do shortly for transparent 
-> hugepages.
+On Thu, 14 Apr 2011, KAMEZAWA Hiroyuki wrote:
+
+> > I'm wondering if we can just modify count_vm_event() directly for 
+> > CONFIG_CGROUP_MEM_RES_CTLR so that we automatically track all vmstat items 
+> > (those in enum vm_event_item) for each memcg.  We could add an array of 
+> > NR_VM_EVENT_ITEMS into each struct mem_cgroup to be incremented on 
+> > count_vm_event() for current's memcg.
+> > 
+> > If that's done, we wouldn't have to add additional calls for every vmstat 
+> > item we want to duplicate from the global counters.
+> > 
 > 
-> PF_OOM_ORIGIN is used by ksm and swapoff to prefer current since it has a 
-> tendency to allocate large amounts of memory and should be preferred for 
-> killing over other tasks.  We'd rather immediately kill the task making 
-> the errant syscall rather than penalizing an innocent task.
+> Maybe we do that finally.
 > 
-> This patch removes PF_OOM_ORIGIN since its behavior is equivalent to 
-> setting the process's oom_score_adj to OOM_SCORE_ADJ_MAX.
+> For now, IIUC, over 50% of VM_EVENTS are needless for memcg (ex. per zone stats)
+> and this array consumes large size of percpu area. I think we need to select
+> events carefully even if we do that. And current memcg's percpu stat is mixture
+> of vm_events and vm_stat. We may need to sort out them and re-design it.
+> My concern is that I'm not sure we have enough percpu area for vmstat+vmevents
+> for 1000+ memcg, and it's allowed even if we can do.
 > 
-> The process's old oom_score_adj is stored and then set to 
-> OOM_SCORE_ADJ_MAX during the time it used to have PF_OOM_ORIGIN.  The old 
-> value is then reinstated when the process should no longer be considered 
-> a high priority for oom killing.
-> 
-> Signed-off-by: David Rientjes <rientjes@google.com>
-> ---
->  v2: s/OOM_SCORE_ADJ_MIN/OOM_SCORE_ADJ_MAX/ as pointed out by
->      KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-Good patch.
-	Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+What I proposed above was adding an array directly into struct mem_cgroup 
+so that we don't collect the stats percpu, they are incremented directly 
+in the mem_cgroup.  Perhaps if we separated enum vm_event_item out into 
+two separate arrays (those useful only globally and those useful for both 
+global and memcg), then this would be simple.
 
+Something like
 
+	enum vm_event_item {
+		PGPGIN,
+		PGPGOUT,
+		PSWPIN,
+		PSWPOUT,
+		...
+		NR_VM_EVENT_ITEMS,
+	};
 
+	enum vm_global_event_item {
+		KSWAPD_STEAL = NR_VM_EVENT_ITEMS,
+		KSWAPD_INODESTEAL,
+		...
+	};
+
+and then in count_vm_event(), check
+
+	if (item < NR_VM_EVENT_ITEMS) {
+		memcg_add_vm_event(mem, item, count);
+	}
+
+I don't think we need to be concerned about reordering the global 
+/proc/vmstat to fit this purpose.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
