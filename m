@@ -1,250 +1,436 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id E2F39900086
-	for <linux-mm@kvack.org>; Thu, 14 Apr 2011 18:45:05 -0400 (EDT)
-Message-Id: <201104142244.p3EMiWTC010977@imap1.linux-foundation.org>
-Subject: mmotm 2011-04-14-15-08 uploaded
-From: akpm@linux-foundation.org
-Date: Thu, 14 Apr 2011 15:08:47 -0700
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id E2205900086
+	for <linux-mm@kvack.org>; Thu, 14 Apr 2011 18:55:41 -0400 (EDT)
+From: Ying Han <yinghan@google.com>
+Subject: [PATCH V4 04/10] Infrastructure to support per-memcg reclaim.
+Date: Thu, 14 Apr 2011 15:54:23 -0700
+Message-Id: <1302821669-29862-5-git-send-email-yinghan@google.com>
+In-Reply-To: <1302821669-29862-1-git-send-email-yinghan@google.com>
+References: <1302821669-29862-1-git-send-email-yinghan@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>
+Cc: linux-mm@kvack.org
 
-The mm-of-the-moment snapshot 2011-04-14-15-08 has been uploaded to
+Add the kswapd_mem field in kswapd descriptor which links the kswapd
+kernel thread to a memcg. The per-memcg kswapd is sleeping in the wait
+queue headed at kswapd_wait field of the kswapd descriptor.
 
-   http://userweb.kernel.org/~akpm/mmotm/
+The kswapd() function is now shared between global and per-memcg kswapd. It
+is passed in with the kswapd descriptor which contains the information of
+either node or memcg. Then the new function balance_mem_cgroup_pgdat is
+invoked if it is per-mem kswapd thread, and the implementation of the function
+is on the following patch.
 
-and will soon be available at
+changelog v4..v3:
+1. fix up the kswapd_run and kswapd_stop for online_pages() and offline_pages.
+2. drop the PF_MEMALLOC flag for memcg kswapd for now per KAMAZAWA's request.
 
-   git://zen-kernel.org/kernel/mmotm.git
+changelog v3..v2:
+1. split off from the initial patch which includes all changes of the following
+three patches.
 
-It contains the following patches against 2.6.39-rc3:
+Signed-off-by: Ying Han <yinghan@google.com>
+---
+ include/linux/memcontrol.h |    5 ++
+ include/linux/swap.h       |    5 +-
+ mm/memcontrol.c            |   29 ++++++++
+ mm/memory_hotplug.c        |    4 +-
+ mm/vmscan.c                |  157 ++++++++++++++++++++++++++++++--------------
+ 5 files changed, 147 insertions(+), 53 deletions(-)
 
-origin.patch
-memcg-fix-mem_cgroup_rotate_reclaimable_page.patch
-mm-optimize-pfn-calculation-in-online_page.patch
-rtc-rtc-mc13xxx-fix-unterminated-platform_device_id-table.patch
-fs-partitions-ldmc-fix-oops-caused-by-corrupted-partition-table.patch
-mm-page_allocc-silence-build_all_zonelists-section-mismatch.patch
-vmstat-update-comment-regarding-stat_threshold.patch
-leds-leds-regulatorc-fix-handling-of-already-enabled-regulators.patch
-kstrtox-fix-compile-warnings-in-test.patch
-kstrtox-simpler-code-in-_kstrtoull.patch
-maintainers-add-arm-ts78xx-setup-platform-maintainer.patch
-maintainers-update-m68knommu-patterns.patch
-maintainers-update-various-tty-patterns.patch
-mm-add-vm-counters-for-transparent-hugepages.patch
-maintainers-update-stable-branch-info.patch
-tmpfs-fix-off-by-one-in-max_blocks-checks.patch
-drivers-misc-sgi-gru-grufilec-fix-the-wrong-members-of-gru_chip.patch
-brk-compat_brk-fix-detection-of-randomized-brk.patch
-mm-check-that-we-have-the-right-vma-in-__access_remote_vm.patch
-vmscan-all_unreclaimable-use-zone-all_unreclaimable-as-a-name.patch
-oom-kill-remove-boost_dying_task_prio.patch
-rapidio-add-idt-cps-1432-switch-definitions.patch
-rapidio-mpc85xx-fix-possible-mport-registration-problems.patch
-maintainers-change-mail-adress-of-hans-j-koch.patch
-fs-fhandlec-add-linux-personalityh-for-ia64.patch
-um-fix-call-tracer-and-bug-handler.patch
-um-disable-config_cmpxchg_local.patch
-ramfs-fix-memleak-on-no-mmu-arch.patch
-mm-thp-use-conventional-format-for-boolean-attributes.patch
-backlight-new-driver-for-the-adp8870-backlight-devices.patch
-linux-next.patch
-next-remove-localversion.patch
-i-need-old-gcc.patch
-hid-examplec-is-borked.patch
-arch-alpha-kernel-systblss-remove-debug-check.patch
-include-asm-generic-vmlinuxldsh-fix-__modver-section-warnings.patch
-drivers-i2c-busses-i2c-designware-corec-needs-delayh.patch
-vfs-avoid-large-kmallocs-for-the-fdtable.patch
-drivers-char-agp-genericc-fix-arbitrary-kernel-memory-writes.patch
-drivers-char-agp-genericc-fix-oom-and-buffer-overflow.patch
-drivers-scsi-pmcraid-reject-negative-request-size.patch
-drivers-scsi-mpt2sas-mpt2sas_ctlc-fix-unbounded-copy_to_user.patch
-acpi-remove-acpi_sleep=s4_nonvs.patch
-acerhdf-add-support-for-aspire-1410-bios-v13314.patch
-arch-x86-include-asm-delayh-fix-udelay-and-ndelay-for-8-bit-args.patch
-x86-fix-mmap-random-address-range.patch
-leds-new-pcengines-alix-system-driver-enables-leds-via-gpio-interface.patch
-gpio-show-explicit-dependency-between-gpio_cs5535-and-mfd_cs5535.patch
-sound-pci-hda-hda_codecc-fix-warning.patch
-msm-timer-migrate-to-timer-based-__delay.patch
-arch-arm-mach-ux500-mbox-db5500c-world-writable-sysfs-fifo-file.patch
-audit-always-follow-va_copy-with-va_end.patch
-fs-btrfs-inodec-eliminate-memory-leak.patch
-btrfs-dont-dereference-extent_mapping-if-null.patch
-drivers-gpu-drm-radeon-atomc-fix-warning.patch
-fb-fix-potential-deadlock-between-lock_fb_info-and-console_lock.patch
-cyber2000fb-avoid-palette-corruption-at-higher-clocks.patch
-fscache-remove-dead-code-under-config_workqueue_debugfs.patch
-bitmap-irq-add-smp_affinity_list-interface-to-proc-irq.patch
-leds-support-automatic-start-of-blinking-with-ledtrig-timer.patch
-drivers-leds-leds-pca9532c-add-gpio-capability.patch
-leds-route-kbd-leds-through-the-generic-leds-layer.patch
-net-irda-convert-bfin_sir-to-common-blackfin-uart-header.patch
-net-convert-%p-usage-to-%pk.patch
-backlight-add-backlight-type-fix.patch
-backlight-add-backlight-type-fix-fix.patch
-drivers-video-backlight-adp5520_blc-check-strict_strtoul-return-value.patch
-drivers-video-backlight-adp5520_blc-check-strict_strtoul-return-value-fix.patch
-i915-add-native-backlight-control.patch
-btusb-patch-add_apple_macbookpro62.patch
-drivers-message-fusion-mptsasc-fix-warning.patch
-scsi-fix-a-header-to-include-linux-typesh.patch
-aic94xx-world-writable-sysfs-update_bios-file.patch
-osst-wrong-index-used-in-inner-loop.patch
-osst-wrong-index-used-in-inner-loop-checkpatch-fixes.patch
-drivers-scsi-osstc-fix-warning.patch
-drbd-fix-warning.patch
-usb-yurex-recognize-generalkeys-wireless-presenter-as-generic-hid.patch
-drivers-usb-misc-usbtestc-fix-warning.patch
-xtensa-s-irq_chip-irq_data-in-various-places.patch
-mm.patch
-arch-mm-filter-disallowed-nodes-from-arch-specific-show_mem-functions.patch
-mmap-add-alignment-for-some-variables.patch
-mmap-avoid-unnecessary-anon_vma-lock.patch
-mmap-avoid-merging-cloned-vmas.patch
-mm-remove-unused-zone_idx-variable-from-set_migratetype_isolate.patch
-mm-nommu-sort-mm-mmap-list-properly.patch
-mm-nommu-sort-mm-mmap-list-properly-fix.patch
-mm-nommu-dont-scan-the-vma-list-when-deleting.patch
-mm-nommu-find-vma-using-the-sorted-vma-list.patch
-mm-nommu-check-the-vma-list-when-unmapping-file-mapped-vma.patch
-mm-nommu-fix-a-potential-memory-leak-in-do_mmap_private.patch
-mm-nommu-fix-a-compile-warning-in-do_mmap_pgoff.patch
-mm-per-node-vmstat-show-proper-vmstats.patch
-mm-per-node-vmstat-show-proper-vmstats-fix.patch
-mm-increase-reclaim_distance-to-30.patch
-mm-introduce-wait_on_page_locked_killable.patch
-x86mm-make-pagefault-killable.patch
-mm-mem-hotplug-fix-section-mismatch-setup_per_zone_inactive_ratio-should-be-__meminit.patch
-mm-mem-hotplug-recalculate-lowmem_reserve-when-memory-hotplug-occur.patch
-mm-mem-hotplug-update-pcp-stat_threshold-when-memory-hotplug-occur.patch
-mm-mem-hotplug-update-pcp-stat_threshold-when-memory-hotplug-occur-fix.patch
-mm-convert-vma-vm_flags-to-64-bit.patch
-mm-add-__nocast-attribute-to-vm_flags.patch
-fremap-convert-vm_flags-to-unsigned-long-long.patch
-procfs-convert-vm_flags-to-unsigned-long-long.patch
-mm-compaction-reverse-the-change-that-forbade-sync-migraton-with-__gfp_no_kswapd.patch
-oom-replace-pf_oom_origin-with-toggling-oom_score_adj.patch
-oom-replace-pf_oom_origin-with-toggling-oom_score_adj-update.patch
-mm-remove-unused-token-argument-from-apply_to_page_range-callback.patch
-mm-add-apply_to_page_range_batch.patch
-ioremap-use-apply_to_page_range_batch-for-ioremap_page_range.patch
-vmalloc-use-plain-pte_clear-for-unmaps.patch
-vmalloc-use-apply_to_page_range_batch-for-vunmap_page_range.patch
-vmalloc-use-apply_to_page_range_batch-for-vmap_page_range_noflush.patch
-vmalloc-use-apply_to_page_range_batch-in-alloc_vm_area.patch
-xen-mmu-use-apply_to_page_range_batch-in-xen_remap_domain_mfn_range.patch
-xen-grant-table-use-apply_to_page_range_batch.patch
-memsw-remove-noswapaccount-kernel-parameter.patch
-mm-batch-activate_page-to-reduce-lock-contention.patch
-xattrh-expose-string-defines-to-userspace.patch
-frv-duplicate-output_buffer-of-e03.patch
-frv-duplicate-output_buffer-of-e03-checkpatch-fixes.patch
-hpet-factor-timer-allocate-from-open.patch
-arch-alpha-include-asm-ioh-s-extern-inline-static-inline.patch
-bluetooth-fix-build-warnings-on-defconfigs.patch
-init-calibratec-fix-for-critical-bogomips-intermittent-calculation-failure.patch
-init-calibratec-fix-for-critical-bogomips-intermittent-calculation-failure-checkpatch-fixes.patch
-init-calibratec-fix-for-critical-bogomips-intermittent-calculation-failure-fix.patch
-lib-vsprintfc-fix-interaction-of-kasprintf-and-vsnprintf-when-using-%pv.patch
-fcntlf_setfl-allow-setting-of-o_sync.patch
-lru_cache-use-correct-type-in-sizeof-for-allocation.patch
-lru_cache-use-correct-type-in-sizeof-for-allocation-fix.patch
-lib-add-kstrto_from_user.patch
-lib-consolidate-debug_per_cpu_maps.patch
-include-linux-genalloch-add-multiple-inclusion-guards.patch
-lib-genallocc-add-support-for-specifying-the-physical-address.patch
-lib-genpoolc-document-return-values-fix-gen_pool_add_virt-return-value.patch
-percpu_counter-change-return-value-and-add-comments.patch
-percpu_counter-change-return-value-and-add-comments-fix.patch
-checkpatch-add-check-for-line-continuations-in-quoted-strings.patch
-lib-hexdumpc-make-hex2bin-return-the-updated-src-address.patch
-fs-binfmt_miscc-use-kernels-hex_to_bin-method.patch
-fs-binfmt_miscc-use-kernels-hex_to_bin-method-fix.patch
-fs-binfmt_miscc-use-kernels-hex_to_bin-method-fix-fix.patch
-fs-ncpfs-inodec-suppress-used-uninitialised-warning.patch
-vt-add-k_off-return-value-to-vt_ioctl-kdgkbmode.patch
-drivers-tty-vt-vt_ioctlc-repair-insane-expression.patch
-rtc-add-support-for-the-rtc-in-via-vt8500-and-compatibles.patch
-rtc-add-em3027-rtc-driver.patch
-rtc-add-rv3029c2-rtc-support.patch
-rtc-add-basic-support-for-st-m41t93-spi-rtc.patch
-drivers-rtc-rtc-mrstc-use-release_mem_region-after-request_mem_region.patch
-drivers-rtc-rtc-mrstc-use-release_mem_region-after-request_mem_region-fix.patch
-rtc-driver-for-pt7c4338-chip.patch
-rtc-driver-for-pt7c4338-chip-checkpatch-fixes.patch
-rtc-driver-for-pt7c4338-chip-fix.patch
-gpio-add-new-altera-pio-driver.patch
-gpio-add-new-altera-pio-driver-update.patch
-gpio-make-gpio_requestfree_array-gpio-array-parameter-const.patch
-jbd-remove-dependency-on-__gfp_nofail.patch
-ufs-truncated-values-handling-64-bit-metadata.patch
-documentation-atomic_opstxt-avoid-volatile-in-sample-code.patch
-documentation-accounting-getdelaysc-fix-unused-var-warning.patch
-documentation-accounting-getdelaysc-handle-sendto-failures.patch
-cgroups-read-write-lock-clone_thread-forking-per-threadgroup.patch
-cgroups-add-per-thread-subsystem-callbacks.patch
-cgroups-make-procs-file-writable.patch
-cgroups-use-flex_array-in-attach_proc.patch
-cgroup-remove-the-ns_cgroup.patch
-mm-move-enum-vm_event_item-into-a-standalone-header-file.patch
-memcg-count-the-soft_limit-reclaim-in-global-background-reclaim.patch
-memcg-add-stats-to-monitor-soft_limit-reclaim.patch
-add-the-pagefault-count-into-memcg-stats.patch
-add-the-pagefault-count-into-memcg-stats-fix.patch
-memcg-remove-pointless-next_mz-nullification-in-mem_cgroup_soft_limit_reclaim.patch
-memcg-mark-init_section_page_cgroup-properly.patch
-memcg-fix-off-by-one-when-calculating-swap-cgroup-map-length.patch
-memcg-move-page-freeing-code-out-of-lock.patch
-maintainers-add-mm-page_cgroupc-into-memcg-subsystem.patch
-cpusets-randomize-node-rotor-used-in-cpuset_mem_spread_node.patch
-signal-introduce-retarget_shared_pending.patch
-signal-retarget_shared_pending-consider-shared-unblocked-signals-only.patch
-signal-sigprocmask-narrow-the-scope-of-sigloc.patch
-signal-sigprocmask-should-do-retarget_shared_pending.patch
-x86-signal-handle_signal-should-use-sigprocmask.patch
-x86-signal-sys_rt_sigreturn-should-use-sigprocmask.patch
-kstrtox-convert-fs-proc.patch
-proc-constify-status-array.patch
-proc-stat-use-defined-macro-kmalloc_max_size.patch
-dev-kmsg-properly-support-writev-to-avoid-interleaved-printk-lines.patch
-dev-kmsg-properly-support-writev-to-avoid-interleaved-printk-lines-fix.patch
-fs-partitions-efic-corrupted-guid-partition-tables-can-cause-kernel-oops.patch
-fs-partitions-efic-corrupted-guid-partition-tables-can-cause-kernel-oops-fix.patch
-sysctl-add-proc_dointvec_bool-handler.patch
-sysctl-use-proc_dointvec_bool-where-appropriate.patch
-sysctl-add-proc_dointvec_unsigned-handler.patch
-sysctl-use-proc_dointvec_unsigned-where-appropriate.patch
-pid-fix-typo-in-function-description.patch
-fs-execc-provide-the-correct-process-pid-to-the-pipe-helper.patch
-scatterlist-new-helper-functions.patch
-scatterlist-new-helper-functions-update.patch
-scatterlist-new-helper-functions-update-fix.patch
-memstick-add-support-for-legacy-memorysticks.patch
-memstick-add-support-for-legacy-memorysticks-update-2.patch
-w1-add-1-wire-w1-reset-and-resume-command-api-support.patch
-w1-add-1-wire-w1-ds2408-8-channel-addressable-switch-support.patch
-w1-complete-the-1-wire-w1-ds1wm-driver-search-algorithm.patch
-kexec-remove-kmsg_dump_kexec.patch
-kexec-remove-kmsg_dump_kexec-fix.patch
-make-sure-nobodys-leaking-resources.patch
-journal_add_journal_head-debug.patch
-releasing-resources-with-children.patch
-make-frame_pointer-default=y.patch
-mutex-subsystem-synchro-test-module.patch
-mutex-subsystem-synchro-test-module-fix.patch
-slab-leaks3-default-y.patch
-put_bh-debug.patch
-add-debugging-aid-for-memory-initialisation-problems.patch
-workaround-for-a-pci-restoring-bug.patch
-prio_tree-debugging-patch.patch
-single_open-seq_release-leak-diagnostics.patch
-add-a-refcount-check-in-dput.patch
-memblock-add-input-size-checking-to-memblock_find_region.patch
-memblock-add-input-size-checking-to-memblock_find_region-fix.patch
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 3ece36d..f7ffd1f 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -24,6 +24,7 @@ struct mem_cgroup;
+ struct page_cgroup;
+ struct page;
+ struct mm_struct;
++struct kswapd;
+ 
+ /* Stats that can be updated by kernel. */
+ enum mem_cgroup_page_stat_item {
+@@ -83,6 +84,10 @@ int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *mem);
+ extern struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page);
+ extern struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p);
+ extern int mem_cgroup_watermark_ok(struct mem_cgroup *mem, int charge_flags);
++extern int mem_cgroup_init_kswapd(struct mem_cgroup *mem,
++				  struct kswapd *kswapd_p);
++extern void mem_cgroup_clear_kswapd(struct mem_cgroup *mem);
++extern wait_queue_head_t *mem_cgroup_kswapd_wait(struct mem_cgroup *mem);
+ 
+ static inline
+ int mm_match_cgroup(const struct mm_struct *mm, const struct mem_cgroup *cgroup)
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index f43d406..17e0511 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -30,6 +30,7 @@ struct kswapd {
+ 	struct task_struct *kswapd_task;
+ 	wait_queue_head_t kswapd_wait;
+ 	pg_data_t *kswapd_pgdat;
++	struct mem_cgroup *kswapd_mem;
+ };
+ 
+ int kswapd(void *p);
+@@ -303,8 +304,8 @@ static inline void scan_unevictable_unregister_node(struct node *node)
+ }
+ #endif
+ 
+-extern int kswapd_run(int nid);
+-extern void kswapd_stop(int nid);
++extern int kswapd_run(int nid, struct mem_cgroup *mem);
++extern void kswapd_stop(int nid, struct mem_cgroup *mem);
+ 
+ #ifdef CONFIG_MMU
+ /* linux/mm/shmem.c */
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 685645c..c4e1904 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -278,6 +278,8 @@ struct mem_cgroup {
+ 	 */
+ 	u64 high_wmark_distance;
+ 	u64 low_wmark_distance;
++
++	wait_queue_head_t *kswapd_wait;
+ };
+ 
+ /* Stuffs for move charges at task migration. */
+@@ -4664,6 +4666,33 @@ int mem_cgroup_watermark_ok(struct mem_cgroup *mem,
+ 	return ret;
+ }
+ 
++int mem_cgroup_init_kswapd(struct mem_cgroup *mem, struct kswapd *kswapd_p)
++{
++	if (!mem || !kswapd_p)
++		return 0;
++
++	mem->kswapd_wait = &kswapd_p->kswapd_wait;
++	kswapd_p->kswapd_mem = mem;
++
++	return css_id(&mem->css);
++}
++
++void mem_cgroup_clear_kswapd(struct mem_cgroup *mem)
++{
++	if (mem)
++		mem->kswapd_wait = NULL;
++
++	return;
++}
++
++wait_queue_head_t *mem_cgroup_kswapd_wait(struct mem_cgroup *mem)
++{
++	if (!mem)
++		return NULL;
++
++	return mem->kswapd_wait;
++}
++
+ static int mem_cgroup_soft_limit_tree_init(void)
+ {
+ 	struct mem_cgroup_tree_per_node *rtpn;
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 321fc74..2f78ff6 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -462,7 +462,7 @@ int online_pages(unsigned long pfn, unsigned long nr_pages)
+ 	setup_per_zone_wmarks();
+ 	calculate_zone_inactive_ratio(zone);
+ 	if (onlined_pages) {
+-		kswapd_run(zone_to_nid(zone));
++		kswapd_run(zone_to_nid(zone), NULL);
+ 		node_set_state(zone_to_nid(zone), N_HIGH_MEMORY);
+ 	}
+ 
+@@ -897,7 +897,7 @@ repeat:
+ 	calculate_zone_inactive_ratio(zone);
+ 	if (!node_present_pages(node)) {
+ 		node_clear_state(node, N_HIGH_MEMORY);
+-		kswapd_stop(node);
++		kswapd_stop(node, NULL);
+ 	}
+ 
+ 	vm_total_pages = nr_free_pagecache_pages();
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 77ac74f..4deb9c8 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2242,6 +2242,7 @@ static bool pgdat_balanced(pg_data_t *pgdat, unsigned long balanced_pages,
+ }
+ 
+ static DEFINE_SPINLOCK(kswapds_spinlock);
++#define is_node_kswapd(kswapd_p) (!(kswapd_p)->kswapd_mem)
+ 
+ /* is kswapd sleeping prematurely? */
+ static int sleeping_prematurely(struct kswapd *kswapd, int order,
+@@ -2251,11 +2252,16 @@ static int sleeping_prematurely(struct kswapd *kswapd, int order,
+ 	unsigned long balanced = 0;
+ 	bool all_zones_ok = true;
+ 	pg_data_t *pgdat = kswapd->kswapd_pgdat;
++	struct mem_cgroup *mem = kswapd->kswapd_mem;
+ 
+ 	/* If a direct reclaimer woke kswapd within HZ/10, it's premature */
+ 	if (remaining)
+ 		return true;
+ 
++	/* Doesn't support for per-memcg reclaim */
++	if (mem)
++		return false;
++
+ 	/* Check the watermark levels */
+ 	for (i = 0; i < pgdat->nr_zones; i++) {
+ 		struct zone *zone = pgdat->node_zones + i;
+@@ -2598,19 +2604,25 @@ static void kswapd_try_to_sleep(struct kswapd *kswapd_p, int order,
+ 	 * go fully to sleep until explicitly woken up.
+ 	 */
+ 	if (!sleeping_prematurely(kswapd_p, order, remaining, classzone_idx)) {
+-		trace_mm_vmscan_kswapd_sleep(pgdat->node_id);
++		if (is_node_kswapd(kswapd_p)) {
++			trace_mm_vmscan_kswapd_sleep(pgdat->node_id);
+ 
+-		/*
+-		 * vmstat counters are not perfectly accurate and the estimated
+-		 * value for counters such as NR_FREE_PAGES can deviate from the
+-		 * true value by nr_online_cpus * threshold. To avoid the zone
+-		 * watermarks being breached while under pressure, we reduce the
+-		 * per-cpu vmstat threshold while kswapd is awake and restore
+-		 * them before going back to sleep.
+-		 */
+-		set_pgdat_percpu_threshold(pgdat, calculate_normal_threshold);
+-		schedule();
+-		set_pgdat_percpu_threshold(pgdat, calculate_pressure_threshold);
++			/*
++			 * vmstat counters are not perfectly accurate and the
++			 * estimated value for counters such as NR_FREE_PAGES
++			 * can deviate from the true value by nr_online_cpus *
++			 * threshold. To avoid the zone watermarks being
++			 * breached while under pressure, we reduce the per-cpu
++			 * vmstat threshold while kswapd is awake and restore
++			 * them before going back to sleep.
++			 */
++			set_pgdat_percpu_threshold(pgdat,
++						   calculate_normal_threshold);
++			schedule();
++			set_pgdat_percpu_threshold(pgdat,
++						calculate_pressure_threshold);
++		} else
++			schedule();
+ 	} else {
+ 		if (remaining)
+ 			count_vm_event(KSWAPD_LOW_WMARK_HIT_QUICKLY);
+@@ -2620,6 +2632,12 @@ static void kswapd_try_to_sleep(struct kswapd *kswapd_p, int order,
+ 	finish_wait(wait_h, &wait);
+ }
+ 
++static unsigned long balance_mem_cgroup_pgdat(struct mem_cgroup *mem_cont,
++							int order)
++{
++	return 0;
++}
++
+ /*
+  * The background pageout daemon, started as a kernel thread
+  * from the init process.
+@@ -2639,6 +2657,7 @@ int kswapd(void *p)
+ 	int classzone_idx;
+ 	struct kswapd *kswapd_p = (struct kswapd *)p;
+ 	pg_data_t *pgdat = kswapd_p->kswapd_pgdat;
++	struct mem_cgroup *mem = kswapd_p->kswapd_mem;
+ 	wait_queue_head_t *wait_h = &kswapd_p->kswapd_wait;
+ 	struct task_struct *tsk = current;
+ 
+@@ -2649,10 +2668,12 @@ int kswapd(void *p)
+ 
+ 	lockdep_set_current_reclaim_state(GFP_KERNEL);
+ 
+-	BUG_ON(pgdat->kswapd_wait != wait_h);
+-	cpumask = cpumask_of_node(pgdat->node_id);
+-	if (!cpumask_empty(cpumask))
+-		set_cpus_allowed_ptr(tsk, cpumask);
++	if (is_node_kswapd(kswapd_p)) {
++		BUG_ON(pgdat->kswapd_wait != wait_h);
++		cpumask = cpumask_of_node(pgdat->node_id);
++		if (!cpumask_empty(cpumask))
++			set_cpus_allowed_ptr(tsk, cpumask);
++	}
+ 	current->reclaim_state = &reclaim_state;
+ 
+ 	/*
+@@ -2667,7 +2688,10 @@ int kswapd(void *p)
+ 	 * us from recursively trying to free more memory as we're
+ 	 * trying to free the first piece of memory in the first place).
+ 	 */
+-	tsk->flags |= PF_MEMALLOC | PF_SWAPWRITE | PF_KSWAPD;
++	if (is_node_kswapd(kswapd_p))
++		tsk->flags |= PF_MEMALLOC | PF_SWAPWRITE | PF_KSWAPD;
++	else
++		tsk->flags |= PF_SWAPWRITE | PF_KSWAPD;
+ 	set_freezable();
+ 
+ 	order = 0;
+@@ -2677,24 +2701,29 @@ int kswapd(void *p)
+ 		int new_classzone_idx;
+ 		int ret;
+ 
+-		new_order = pgdat->kswapd_max_order;
+-		new_classzone_idx = pgdat->classzone_idx;
+-		pgdat->kswapd_max_order = 0;
+-		pgdat->classzone_idx = MAX_NR_ZONES - 1;
+-		if (order < new_order || classzone_idx > new_classzone_idx) {
+-			/*
+-			 * Don't sleep if someone wants a larger 'order'
+-			 * allocation or has tigher zone constraints
+-			 */
+-			order = new_order;
+-			classzone_idx = new_classzone_idx;
+-		} else {
+-			kswapd_try_to_sleep(kswapd_p, order, classzone_idx);
+-			order = pgdat->kswapd_max_order;
+-			classzone_idx = pgdat->classzone_idx;
++		if (is_node_kswapd(kswapd_p)) {
++			new_order = pgdat->kswapd_max_order;
++			new_classzone_idx = pgdat->classzone_idx;
+ 			pgdat->kswapd_max_order = 0;
+ 			pgdat->classzone_idx = MAX_NR_ZONES - 1;
+-		}
++			if (order < new_order ||
++					classzone_idx > new_classzone_idx) {
++				/*
++				 * Don't sleep if someone wants a larger 'order'
++				 * allocation or has tigher zone constraints
++				 */
++				order = new_order;
++				classzone_idx = new_classzone_idx;
++			} else {
++				kswapd_try_to_sleep(kswapd_p, order,
++						    classzone_idx);
++				order = pgdat->kswapd_max_order;
++				classzone_idx = pgdat->classzone_idx;
++				pgdat->kswapd_max_order = 0;
++				pgdat->classzone_idx = MAX_NR_ZONES - 1;
++			}
++		} else
++			kswapd_try_to_sleep(kswapd_p, order, classzone_idx);
+ 
+ 		ret = try_to_freeze();
+ 		if (kthread_should_stop())
+@@ -2705,8 +2734,13 @@ int kswapd(void *p)
+ 		 * after returning from the refrigerator
+ 		 */
+ 		if (!ret) {
+-			trace_mm_vmscan_kswapd_wake(pgdat->node_id, order);
+-			order = balance_pgdat(pgdat, order, &classzone_idx);
++			if (is_node_kswapd(kswapd_p)) {
++				trace_mm_vmscan_kswapd_wake(pgdat->node_id,
++								order);
++				order = balance_pgdat(pgdat, order,
++							&classzone_idx);
++			} else
++				balance_mem_cgroup_pgdat(mem, order);
+ 		}
+ 	}
+ 	return 0;
+@@ -2853,30 +2887,53 @@ static int __devinit cpu_callback(struct notifier_block *nfb,
+  * This kswapd start function will be called by init and node-hot-add.
+  * On node-hot-add, kswapd will moved to proper cpus if cpus are hot-added.
+  */
+-int kswapd_run(int nid)
++int kswapd_run(int nid, struct mem_cgroup *mem)
+ {
+-	pg_data_t *pgdat = NODE_DATA(nid);
+ 	struct task_struct *kswapd_thr;
++	pg_data_t *pgdat = NULL;
+ 	struct kswapd *kswapd_p;
++	static char name[TASK_COMM_LEN];
++	int memcg_id;
+ 	int ret = 0;
+ 
+-	if (pgdat->kswapd_wait)
+-		return 0;
++	if (!mem) {
++		pgdat = NODE_DATA(nid);
++		if (pgdat->kswapd_wait)
++			return ret;
++	}
+ 
+ 	kswapd_p = kzalloc(sizeof(struct kswapd), GFP_KERNEL);
+ 	if (!kswapd_p)
+ 		return -ENOMEM;
+ 
+ 	init_waitqueue_head(&kswapd_p->kswapd_wait);
+-	pgdat->kswapd_wait = &kswapd_p->kswapd_wait;
+-	kswapd_p->kswapd_pgdat = pgdat;
+ 
+-	kswapd_thr = kthread_run(kswapd, kswapd_p, "kswapd%d", nid);
++	if (!mem) {
++		pgdat->kswapd_wait = &kswapd_p->kswapd_wait;
++		kswapd_p->kswapd_pgdat = pgdat;
++		snprintf(name, TASK_COMM_LEN, "kswapd_%d", nid);
++	} else {
++		memcg_id = mem_cgroup_init_kswapd(mem, kswapd_p);
++		if (!memcg_id) {
++			kfree(kswapd_p);
++			return ret;
++		}
++		snprintf(name, TASK_COMM_LEN, "memcg_%d", memcg_id);
++	}
++
++	kswapd_thr = kthread_run(kswapd, kswapd_p, name);
+ 	if (IS_ERR(kswapd_thr)) {
+ 		/* failure at boot is fatal */
+ 		BUG_ON(system_state == SYSTEM_BOOTING);
+-		printk("Failed to start kswapd on node %d\n",nid);
+-		pgdat->kswapd_wait = NULL;
++		if (!mem) {
++			printk(KERN_ERR "Failed to start kswapd on node %d\n",
++								nid);
++			pgdat->kswapd_wait = NULL;
++		} else {
++			printk(KERN_ERR "Failed to start kswapd on memcg %d\n",
++								memcg_id);
++			mem_cgroup_clear_kswapd(mem);
++		}
+ 		kfree(kswapd_p);
+ 		ret = -1;
+ 	} else
+@@ -2887,16 +2944,18 @@ int kswapd_run(int nid)
+ /*
+  * Called by memory hotplug when all memory in a node is offlined.
+  */
+-void kswapd_stop(int nid)
++void kswapd_stop(int nid, struct mem_cgroup *mem)
+ {
+ 	struct task_struct *kswapd_thr = NULL;
+ 	struct kswapd *kswapd_p = NULL;
+ 	wait_queue_head_t *wait;
+ 
+-	pg_data_t *pgdat = NODE_DATA(nid);
+-
+ 	spin_lock(&kswapds_spinlock);
+-	wait = pgdat->kswapd_wait;
++	if (!mem)
++		wait = NODE_DATA(nid)->kswapd_wait;
++	else
++		wait = mem_cgroup_kswapd_wait(mem);
++
+ 	if (wait) {
+ 		kswapd_p = container_of(wait, struct kswapd, kswapd_wait);
+ 		kswapd_thr = kswapd_p->kswapd_task;
+@@ -2916,7 +2975,7 @@ static int __init kswapd_init(void)
+ 
+ 	swap_setup();
+ 	for_each_node_state(nid, N_HIGH_MEMORY)
+- 		kswapd_run(nid);
++		kswapd_run(nid, NULL);
+ 	hotcpu_notifier(cpu_callback, 0);
+ 	return 0;
+ }
+-- 
+1.7.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
