@@ -1,99 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 8846D900086
-	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 22:14:30 -0400 (EDT)
-Received: by wwi36 with SMTP id 36so1242669wwi.26
-        for <linux-mm@kvack.org>; Wed, 13 Apr 2011 19:14:27 -0700 (PDT)
-Subject: Re: [PATCH] percpu: preemptless __per_cpu_counter_add
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id E2714900086
+	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 22:19:12 -0400 (EDT)
+Received: by wwi36 with SMTP id 36so1245388wwi.26
+        for <linux-mm@kvack.org>; Wed, 13 Apr 2011 19:19:09 -0700 (PDT)
+Subject: Re: Regression from 2.6.36
 From: Eric Dumazet <eric.dumazet@gmail.com>
-In-Reply-To: <alpine.DEB.2.00.1104131521050.25812@router.home>
-References: <alpine.DEB.2.00.1104130942500.16214@router.home>
-	 <alpine.DEB.2.00.1104131148070.20908@router.home>
-	 <20110413185618.GA3987@mtj.dyndns.org>
-	 <alpine.DEB.2.00.1104131521050.25812@router.home>
+In-Reply-To: <20110413141600.28793661.akpm@linux-foundation.org>
+References: <20110315132527.130FB80018F1@mail1005.cent>
+	 <20110317001519.GB18911@kroah.com> <20110407120112.E08DCA03@pobox.sk>
+	 <4D9D8FAA.9080405@suse.cz>
+	 <BANLkTinnTnjZvQ9S1AmudZcZBokMy8-93w@mail.gmail.com>
+	 <1302177428.3357.25.camel@edumazet-laptop>
+	 <1302178426.3357.34.camel@edumazet-laptop>
+	 <BANLkTikxWy-Pw1PrcAJMHs2R7JKksyQzMQ@mail.gmail.com>
+	 <1302190586.3357.45.camel@edumazet-laptop>
+	 <20110412154906.70829d60.akpm@linux-foundation.org>
+	 <BANLkTincoaxp5Soe6O-eb8LWpgra=k2NsQ@mail.gmail.com>
+	 <20110412183132.a854bffc.akpm@linux-foundation.org>
+	 <1302662256.2811.27.camel@edumazet-laptop>
+	 <20110413141600.28793661.akpm@linux-foundation.org>
 Content-Type: text/plain; charset="UTF-8"
-Date: Thu, 14 Apr 2011 04:14:23 +0200
-Message-ID: <1302747263.3549.9.camel@edumazet-laptop>
+Date: Thu, 14 Apr 2011 04:10:58 +0200
+Message-ID: <1302747058.3549.7.camel@edumazet-laptop>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Tejun Heo <tj@kernel.org>, akpm@linux-foundation.org, linux-mm@kvack.org, shaohua.li@intel.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Changli Gao <xiaosuo@gmail.com>, =?ISO-8859-1?Q?Am=E9rico?= Wang <xiyou.wangcong@gmail.com>, Jiri Slaby <jslaby@suse.cz>, azurIt <azurit@pobox.sk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Jiri Slaby <jirislaby@gmail.com>, Mel Gorman <mel@csn.ul.ie>
 
-Le mercredi 13 avril 2011 A  15:22 -0500, Christoph Lameter a A(C)crit :
-> On Thu, 14 Apr 2011, Tejun Heo wrote:
+Le mercredi 13 avril 2011 A  14:16 -0700, Andrew Morton a A(C)crit :
+
+> So am I correct in believing that this regression is due to the
+> high-order allocations putting excess stress onto page reclaim?
 > 
-> > On Wed, Apr 13, 2011 at 11:49:51AM -0500, Christoph Lameter wrote:
-> > > Duh the retry setup if the number overflows is not correct.
-> > >
-> > > Signed-off-by: Christoph Lameter <cl@linux.com>
-> >
-> > Can you please repost folded patch with proper [PATCH] subject line
-> > and cc shaohua.li@intel.com so that he can resolve conflicts?
-> >
-> > Thanks.
+
+I suppose so.
+
+> If so, then how large _are_ these allocations?  This perhaps can be
+> determined from /proc/slabinfo.  They must be pretty huge, because slub
+> likes to do excessively-large allocations and the system handles that
+> reasonably well.
 > 
-> Ok here it is:
-> 
-> 
+> I suppose that a suitable fix would be
 > 
 > 
-> From: Christoph Lameter <cl@linux.com>
-> Subject: [PATCH] percpu: preemptless __per_cpu_counter_add
+> From: Andrew Morton <akpm@linux-foundation.org>
 > 
-> Use this_cpu_cmpxchg to avoid preempt_disable/enable in __percpu_add.
+> Azurit reports large increases in system time after 2.6.36 when running
+> Apache.  It was bisected down to a892e2d7dcdfa6c76e6 ("vfs: use kmalloc()
+> to allocate fdmem if possible").
 > 
-> Signed-off-by: Christoph Lameter <cl@linux.com>
+> That patch caused the vfs to use kmalloc() for very large allocations and
+> this is causing excessive work (and presumably excessive reclaim) within
+> the page allocator.
 > 
+> Fix it by falling back to vmalloc() earlier - when the allocation attempt
+> would have been considered "costly" by reclaim.
+> 
+> Reported-by: azurIt <azurit@pobox.sk>
+> Cc: Changli Gao <xiaosuo@gmail.com>
+> Cc: Americo Wang <xiyou.wangcong@gmail.com>
+> Cc: Jiri Slaby <jslaby@suse.cz>
+> Cc: Eric Dumazet <eric.dumazet@gmail.com>
+> Cc: Mel Gorman <mel@csn.ul.ie>
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 > ---
->  lib/percpu_counter.c |   27 +++++++++++++++------------
->  1 file changed, 15 insertions(+), 12 deletions(-)
 > 
-> Index: linux-2.6/lib/percpu_counter.c
-> ===================================================================
-> --- linux-2.6.orig/lib/percpu_counter.c	2011-04-13 09:26:19.000000000 -0500
-> +++ linux-2.6/lib/percpu_counter.c	2011-04-13 09:36:37.000000000 -0500
-> @@ -71,19 +71,22 @@ EXPORT_SYMBOL(percpu_counter_set);
+>  fs/file.c |   17 ++++++++++-------
+>  1 file changed, 10 insertions(+), 7 deletions(-)
 > 
->  void __percpu_counter_add(struct percpu_counter *fbc, s64 amount, s32 batch)
+> diff -puN fs/file.c~a fs/file.c
+> --- a/fs/file.c~a
+> +++ a/fs/file.c
+> @@ -39,14 +39,17 @@ int sysctl_nr_open_max = 1024 * 1024; /*
+>   */
+>  static DEFINE_PER_CPU(struct fdtable_defer, fdtable_defer_list);
+>  
+> -static inline void *alloc_fdmem(unsigned int size)
+> +static void *alloc_fdmem(unsigned int size)
 >  {
-> -	s64 count;
-> +	s64 count, new;
-> 
-> -	preempt_disable();
-> -	count = __this_cpu_read(*fbc->counters) + amount;
-> -	if (count >= batch || count <= -batch) {
-> -		spin_lock(&fbc->lock);
-> -		fbc->count += count;
-> -		__this_cpu_write(*fbc->counters, 0);
-> -		spin_unlock(&fbc->lock);
-> -	} else {
-> -		__this_cpu_write(*fbc->counters, count);
-> -	}
-> -	preempt_enable();
-> +	do {
-> +		count = this_cpu_read(*fbc->counters);
-> +
-> +		new = count + amount;
-> +		/* In case of overflow fold it into the global counter instead */
-> +		if (new >= batch || new <= -batch) {
-> +			spin_lock(&fbc->lock);
-> +			fbc->count += __this_cpu_read(*fbc->counters) + amount;
-> +			spin_unlock(&fbc->lock);
-> +			amount = 0;
-> +			new = 0;
-> +		}
-> +
-> +	} while (this_cpu_cmpxchg(*fbc->counters, count, new) != count);
+> -	void *data;
+> -
+> -	data = kmalloc(size, GFP_KERNEL|__GFP_NOWARN);
+> -	if (data != NULL)
+> -		return data;
+> -
+> +	/*
+> +	 * Very large allocations can stress page reclaim, so fall back to
+> +	 * vmalloc() if the allocation size will be considered "large" by the VM.
+> +	 */
+> +	if (size <= (PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER) {
+> +		void *data = kmalloc(size, GFP_KERNEL|__GFP_NOWARN);
+> +		if (data != NULL)
+> +			return data;
+> +	}
+>  	return vmalloc(size);
 >  }
->  EXPORT_SYMBOL(__percpu_counter_add);
+>  
+> _
 > 
 
-Not sure its a win for my servers, where CONFIG_PREEMPT_NONE=y
+Acked-by: Eric Dumazet <eric.dumazet@gmail.com>
 
-Maybe use here latest cmpxchg16b stuff instead and get rid of spinlock ?
+#define PAGE_ALLOC_COSTLY_ORDER 3
 
+On x86_64, this means we try kmalloc() up to 4096 files in fdtable.
+
+Thanks !
 
 
 --
