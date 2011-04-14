@@ -1,203 +1,210 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 66C19900086
-	for <linux-mm@kvack.org>; Thu, 14 Apr 2011 16:01:50 -0400 (EDT)
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e32.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p3EJoijR009803
-	for <linux-mm@kvack.org>; Thu, 14 Apr 2011 13:50:44 -0600
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id p3EK1gnj014604
-	for <linux-mm@kvack.org>; Thu, 14 Apr 2011 14:01:43 -0600
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p3EK1eaq013285
-	for <linux-mm@kvack.org>; Thu, 14 Apr 2011 14:01:42 -0600
-Subject: [PATCH 1/3] rename alloc_pages_exact()
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 87FB4900086
+	for <linux-mm@kvack.org>; Thu, 14 Apr 2011 16:02:02 -0400 (EDT)
+Received: from d03relay01.boulder.ibm.com (d03relay01.boulder.ibm.com [9.17.195.226])
+	by e37.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p3EJxBx2021718
+	for <linux-mm@kvack.org>; Thu, 14 Apr 2011 13:59:11 -0600
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d03relay01.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p3EK1iYA043990
+	for <linux-mm@kvack.org>; Thu, 14 Apr 2011 14:01:44 -0600
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p3EK1g3w012700
+	for <linux-mm@kvack.org>; Thu, 14 Apr 2011 14:01:44 -0600
+Subject: [PATCH 2/3] make new alloc_pages_exact()
 From: Dave Hansen <dave@linux.vnet.ibm.com>
-Date: Thu, 14 Apr 2011 13:01:39 -0700
-Message-Id: <20110414200139.ABD98551@kernel>
+Date: Thu, 14 Apr 2011 13:01:40 -0700
+References: <20110414200139.ABD98551@kernel>
+In-Reply-To: <20110414200139.ABD98551@kernel>
+Message-Id: <20110414200140.CDE09A20@kernel>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org, Timur Tabi <timur@freescale.com>, Andi Kleen <andi@firstfloor.org>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Michal Nazarewicz <mina86@mina86.com>, David Rientjes <rientjes@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>
 
 
-alloc_pages_exact() returns a virtual address.  But, alloc_pages() returns
-a 'struct page *'.  That makes for very confused kernel hackers.
+What I really wanted in the end was a highmem-capable
+alloc_pages_exact(), so here it is.  This function can be used to
+allocate unmapped (like highmem) non-power-of-two-sized areas of
+memory.  This is in constast to get_free_pages_exact() which can only
+allocate from lowmem.
 
-__get_free_pages(), on the other hand, returns virtual addresses.  That
-makes alloc_pages_exact() a much closer match to __get_free_pages(), so
-rename it to get_free_pages_exact().  Also change the arguments to have
-flags first, just like __get_free_pages().
+My plan is to use this in the virtio_balloon driver to allocate large,
+oddly-sized contiguous areas.
 
-Note that alloc_pages_exact()'s partner, free_pages_exact() already
-matches free_pages(), so we do not have to touch the free side of things.
+The new __alloc_pages_exact() now takes a size in numbers of pages,
+and returns a 'struct page', which means it can now address
+highmem.  The (new) argument order mirrors alloc_pages() itself.
+
+It's a bit unfortunate that this introduces __free_pages_exact()
+alongside free_pages_exact().  But that mess already exists with
+__free_pages() vs. free_pages_exact().  So, at worst, this mirrors the
+mess that we already have.
+
+I'm also a bit worried that I've not put in something named
+alloc_pages_exact(), but that behaves differently than it did before
+this set.  I got all of the in-tree cases, but I'm a bit worried about
+stragglers elsewhere.  So, I'm calling this __alloc_pages_exact() for
+the moment.  We can take out the __ some day if it bothers people.
+
+Note that the __get_free_pages() has a !GFP_HIGHMEM check.  Now that
+we are using alloc_pages_exact() instead of __get_free_pages() for
+get_free_pages_exact(), we had to add a new check in
+get_free_pages_exact().
+
+This has been compile and boot tested, and I checked that
+
+	echo 2 > /sys/kernel/profiling
+
+still works, since it uses get_free_pages_exact().
 
 Signed-off-by: Dave Hansen <dave@linux.vnet.ibm.com>
-Acked-by: Andi Kleen <ak@linux.intel.com>
-Acked-by: David Rientjes <rientjes@google.com>
 ---
 
- linux-2.6.git-dave/drivers/video/fsl-diu-fb.c  |    2 +-
- linux-2.6.git-dave/drivers/video/mxsfb.c       |    2 +-
- linux-2.6.git-dave/drivers/video/pxafb.c       |    6 +++---
- linux-2.6.git-dave/drivers/virtio/virtio_pci.c |    2 +-
- linux-2.6.git-dave/include/linux/gfp.h         |    2 +-
- linux-2.6.git-dave/kernel/profile.c            |    4 ++--
- linux-2.6.git-dave/mm/page_alloc.c             |   18 +++++++++---------
- linux-2.6.git-dave/mm/page_cgroup.c            |    2 +-
- 8 files changed, 19 insertions(+), 19 deletions(-)
+ linux-2.6.git-dave/include/linux/gfp.h |    4 +
+ linux-2.6.git-dave/mm/page_alloc.c     |   85 ++++++++++++++++++++++++---------
+ 2 files changed, 68 insertions(+), 21 deletions(-)
 
-diff -puN drivers/video/fsl-diu-fb.c~change-alloc_pages_exact-name drivers/video/fsl-diu-fb.c
---- linux-2.6.git/drivers/video/fsl-diu-fb.c~change-alloc_pages_exact-name	2011-04-14 09:46:37.956713204 -0700
-+++ linux-2.6.git-dave/drivers/video/fsl-diu-fb.c	2011-04-14 09:46:38.068713144 -0700
-@@ -294,7 +294,7 @@ static void *fsl_diu_alloc(size_t size, 
- 
- 	pr_debug("size=%zu\n", size);
- 
--	virt = alloc_pages_exact(size, GFP_DMA | __GFP_ZERO);
-+	virt = get_free_pages_exact(GFP_DMA | __GFP_ZERO, size);
- 	if (virt) {
- 		*phys = virt_to_phys(virt);
- 		pr_debug("virt=%p phys=%llx\n", virt,
-diff -puN drivers/video/mxsfb.c~change-alloc_pages_exact-name drivers/video/mxsfb.c
---- linux-2.6.git/drivers/video/mxsfb.c~change-alloc_pages_exact-name	2011-04-14 09:46:37.960713202 -0700
-+++ linux-2.6.git-dave/drivers/video/mxsfb.c	2011-04-14 09:46:38.068713144 -0700
-@@ -718,7 +718,7 @@ static int __devinit mxsfb_init_fbinfo(s
- 	} else {
- 		if (!fb_size)
- 			fb_size = SZ_2M; /* default */
--		fb_virt = alloc_pages_exact(fb_size, GFP_DMA);
-+		fb_virt = get_free_pages_exact(GFP_DMA, fb_size);
- 		if (!fb_virt)
- 			return -ENOMEM;
- 
-diff -puN drivers/video/pxafb.c~change-alloc_pages_exact-name drivers/video/pxafb.c
---- linux-2.6.git/drivers/video/pxafb.c~change-alloc_pages_exact-name	2011-04-14 09:46:37.964713200 -0700
-+++ linux-2.6.git-dave/drivers/video/pxafb.c	2011-04-14 09:46:38.072713142 -0700
-@@ -905,8 +905,8 @@ static int __devinit pxafb_overlay_map_v
- 	/* We assume that user will use at most video_mem_size for overlay fb,
- 	 * anyway, it's useless to use 16bpp main plane and 24bpp overlay
- 	 */
--	ofb->video_mem = alloc_pages_exact(PAGE_ALIGN(pxafb->video_mem_size),
--		GFP_KERNEL | __GFP_ZERO);
-+	ofb->video_mem = get_free_pages_exact(GFP_KERNEL | __GFP_ZERO,
-+		PAGE_ALIGN(pxafb->video_mem_size));
- 	if (ofb->video_mem == NULL)
- 		return -ENOMEM;
- 
-@@ -1714,7 +1714,7 @@ static int __devinit pxafb_init_video_me
- {
- 	int size = PAGE_ALIGN(fbi->video_mem_size);
- 
--	fbi->video_mem = alloc_pages_exact(size, GFP_KERNEL | __GFP_ZERO);
-+	fbi->video_mem = get_free_pages_exact(GFP_KERNEL | __GFP_ZERO, size);
- 	if (fbi->video_mem == NULL)
- 		return -ENOMEM;
- 
-diff -puN drivers/virtio/virtio_pci.c~change-alloc_pages_exact-name drivers/virtio/virtio_pci.c
---- linux-2.6.git/drivers/virtio/virtio_pci.c~change-alloc_pages_exact-name	2011-04-14 09:46:37.972713196 -0700
-+++ linux-2.6.git-dave/drivers/virtio/virtio_pci.c	2011-04-14 09:46:38.072713142 -0700
-@@ -385,7 +385,7 @@ static struct virtqueue *setup_vq(struct
- 	info->msix_vector = msix_vec;
- 
- 	size = PAGE_ALIGN(vring_size(num, VIRTIO_PCI_VRING_ALIGN));
--	info->queue = alloc_pages_exact(size, GFP_KERNEL|__GFP_ZERO);
-+	info->queue = get_free_pages_exact(GFP_KERNEL|__GFP_ZERO, size);
- 	if (info->queue == NULL) {
- 		err = -ENOMEM;
- 		goto out_info;
-diff -puN include/linux/gfp.h~change-alloc_pages_exact-name include/linux/gfp.h
---- linux-2.6.git/include/linux/gfp.h~change-alloc_pages_exact-name	2011-04-14 09:46:37.976713194 -0700
-+++ linux-2.6.git-dave/include/linux/gfp.h	2011-04-14 12:25:16.716342247 -0700
-@@ -351,7 +351,7 @@ extern struct page *alloc_pages_vma(gfp_
+diff -puN include/linux/gfp.h~make_new_alloc_pages_exact include/linux/gfp.h
+--- linux-2.6.git/include/linux/gfp.h~make_new_alloc_pages_exact	2011-04-14 09:14:35.533886248 -0700
++++ linux-2.6.git-dave/include/linux/gfp.h	2011-04-14 09:14:35.573886242 -0700
+@@ -352,6 +352,10 @@ extern struct page *alloc_pages_vma(gfp_
  extern unsigned long __get_free_pages(gfp_t gfp_mask, unsigned int order);
  extern unsigned long get_zeroed_page(gfp_t gfp_mask);
  
--void *alloc_pages_exact(size_t size, gfp_t gfp_mask);
-+void *get_free_pages_exact(gfp_t gfp_mask, size_t size);
++/* 'struct page' version */
++struct page *__alloc_pages_exact(gfp_t gfp_mask, unsigned long nr_pages);
++void __free_pages_exact(struct page *page, unsigned long nr_pages);
++/* virtual address version */
+ void *get_free_pages_exact(gfp_t gfp_mask, size_t size);
  void free_pages_exact(void *virt, size_t size);
  
- #define __get_free_page(gfp_mask) \
-diff -puN kernel/profile.c~change-alloc_pages_exact-name kernel/profile.c
---- linux-2.6.git/kernel/profile.c~change-alloc_pages_exact-name	2011-04-14 09:46:37.980713192 -0700
-+++ linux-2.6.git-dave/kernel/profile.c	2011-04-14 12:21:36.608430941 -0700
-@@ -121,8 +121,8 @@ int __ref profile_init(void)
- 	if (prof_buffer)
- 		return 0;
- 
--	prof_buffer = alloc_pages_exact(buffer_bytes,
--					GFP_KERNEL|__GFP_ZERO|__GFP_NOWARN);
-+	prof_buffer = get_free_pages_exact(GFP_KERNEL|__GFP_ZERO|__GFP_NOWARN,
-+					buffer_bytes);
- 	if (prof_buffer)
- 		return 0;
- 
-diff -puN mm/page_alloc.c~change-alloc_pages_exact-name mm/page_alloc.c
---- linux-2.6.git/mm/page_alloc.c~change-alloc_pages_exact-name	2011-04-14 09:46:37.984713190 -0700
-+++ linux-2.6.git-dave/mm/page_alloc.c	2011-04-14 12:25:16.716342247 -0700
-@@ -2318,7 +2318,7 @@ void free_pages(unsigned long addr, unsi
+diff -puN mm/page_alloc.c~make_new_alloc_pages_exact mm/page_alloc.c
+--- linux-2.6.git/mm/page_alloc.c~make_new_alloc_pages_exact	2011-04-14 09:14:35.545886248 -0700
++++ linux-2.6.git-dave/mm/page_alloc.c	2011-04-14 09:24:48.793504357 -0700
+@@ -2318,9 +2318,10 @@ void free_pages(unsigned long addr, unsi
  EXPORT_SYMBOL(free_pages);
  
  /**
-- * alloc_pages_exact - allocate an exact number physically-contiguous pages.
-+ * get_free_pages_exact - allocate an exact number physically-contiguous pages.
-  * @size: the number of bytes to allocate
+- * get_free_pages_exact - allocate an exact number physically-contiguous pages.
+- * @size: the number of bytes to allocate
++ * __alloc_pages_exact - allocate an exact number physically-contiguous pages.
++ * @nr_pages: the number of pages to allocate
   * @gfp_mask: GFP flags for the allocation
++ * returns: struct page for allocated memory
   *
-@@ -2330,7 +2330,7 @@ EXPORT_SYMBOL(free_pages);
+  * This function is similar to alloc_pages(), except that it allocates the
+  * minimum number of pages to satisfy the request.  alloc_pages() can only
+@@ -2330,29 +2331,76 @@ EXPORT_SYMBOL(free_pages);
   *
   * Memory allocated by this function must be released by free_pages_exact().
   */
--void *alloc_pages_exact(size_t size, gfp_t gfp_mask)
-+void *get_free_pages_exact(gfp_t gfp_mask, size_t size)
+-void *get_free_pages_exact(gfp_t gfp_mask, size_t size)
++struct page *__alloc_pages_exact(gfp_t gfp_mask, unsigned long nr_pages)
  {
- 	unsigned int order = get_order(size);
- 	unsigned long addr;
-@@ -2349,14 +2349,14 @@ void *alloc_pages_exact(size_t size, gfp
+-	unsigned int order = get_order(size);
+-	unsigned long addr;
++	unsigned int order = get_order(nr_pages * PAGE_SIZE);
++	struct page *page;
  
- 	return (void *)addr;
+-	addr = __get_free_pages(gfp_mask, order);
+-	if (addr) {
+-		unsigned long alloc_end = addr + (PAGE_SIZE << order);
+-		unsigned long used = addr + PAGE_ALIGN(size);
++	page = alloc_pages(gfp_mask, order);
++	if (page) {
++		struct page *alloc_end = page + (1 << order);
++		struct page *used = page + nr_pages;
+ 
+-		split_page(virt_to_page((void *)addr), order);
++		split_page(page, order);
+ 		while (used < alloc_end) {
+-			free_page(used);
+-			used += PAGE_SIZE;
++			__free_page(used);
++			used++;
+ 		}
+ 	}
+ 
+-	return (void *)addr;
++	return page;
++}
++EXPORT_SYMBOL(__alloc_pages_exact);
++
++/**
++ * __free_pages_exact - release memory allocated via __alloc_pages_exact()
++ * @virt: the value returned by get_free_pages_exact.
++ * @nr_pages: size in pages, same value as passed to __alloc_pages_exact().
++ *
++ * Release the memory allocated by a previous call to __alloc_pages_exact().
++ */
++void __free_pages_exact(struct page *page, unsigned long nr_pages)
++{
++	struct page *end = page + nr_pages;
++
++	while (page < end) {
++		__free_page(page);
++		page++;
++	}
++}
++EXPORT_SYMBOL(__free_pages_exact);
++
++/**
++ * get_free_pages_exact - allocate an exact number physically-contiguous pages.
++ * @gfp_mask: GFP flags for the allocation
++ * @size: the number of bytes to allocate
++ * returns: virtual address of allocated memory
++ *
++ * This function is similar to __get_free_pages(), except that it allocates the
++ * minimum number of pages to satisfy the request.  get_free_pages() can only
++ * allocate memory in power-of-two pages.
++ *
++ * This function is also limited by MAX_ORDER.
++ *
++ * Memory allocated by this function must be released by free_pages_exact().
++ */
++void *get_free_pages_exact(gfp_t gfp_mask, size_t size)
++{
++	struct page *page;
++	unsigned long nr_pages = PAGE_ALIGN(size) / PAGE_SIZE;
++
++	/* If we are using page_address(), we can not allow highmem */
++	VM_BUG_ON((gfp_mask & __GFP_HIGHMEM) != 0);
++
++	page = __alloc_pages_exact(gfp_mask, nr_pages);
++	if (page)
++		return (void *) page_address(page);
++	return NULL;
  }
--EXPORT_SYMBOL(alloc_pages_exact);
-+EXPORT_SYMBOL(get_free_pages_exact);
+ EXPORT_SYMBOL(get_free_pages_exact);
  
  /**
-- * free_pages_exact - release memory allocated via alloc_pages_exact()
-- * @virt: the value returned by alloc_pages_exact.
-- * @size: size of allocation, same value as passed to alloc_pages_exact().
-+ * free_pages_exact - release memory allocated via get_free_pages_exact()
-+ * @virt: the value returned by get_free_pages_exact.
-+ * @size: size of allocation, same value as passed to get_free_pages_exact().
+- * free_pages_exact - release memory allocated via get_free_pages_exact()
++ * __free_pages_exact - release memory allocated via get_free_pages_exact()
+  * @virt: the value returned by get_free_pages_exact.
+  * @size: size of allocation, same value as passed to get_free_pages_exact().
   *
-- * Release the memory allocated by a previous call to alloc_pages_exact.
-+ * Release the memory allocated by a previous call to get_free_pages_exact().
+@@ -2360,13 +2408,8 @@ EXPORT_SYMBOL(get_free_pages_exact);
   */
  void free_pages_exact(void *virt, size_t size)
  {
-@@ -5308,10 +5308,10 @@ void *__init alloc_large_system_hash(con
- 			/*
- 			 * If bucketsize is not a power-of-two, we may free
- 			 * some pages at the end of hash table which
--			 * alloc_pages_exact() automatically does
-+			 * get_free_pages_exact() automatically does
- 			 */
- 			if (get_order(size) < MAX_ORDER) {
--				table = alloc_pages_exact(size, GFP_ATOMIC);
-+				table = get_free_pages_exact(GFP_ATOMIC, size);
- 				kmemleak_alloc(table, size, 1, GFP_ATOMIC);
- 			}
- 		}
-diff -puN mm/page_cgroup.c~change-alloc_pages_exact-name mm/page_cgroup.c
---- linux-2.6.git/mm/page_cgroup.c~change-alloc_pages_exact-name	2011-04-14 09:46:37.988713188 -0700
-+++ linux-2.6.git-dave/mm/page_cgroup.c	2011-04-14 09:46:38.084713136 -0700
-@@ -134,7 +134,7 @@ static void *__init_refok alloc_page_cgr
- {
- 	void *addr = NULL;
+-	unsigned long addr = (unsigned long)virt;
+-	unsigned long end = addr + PAGE_ALIGN(size);
+-
+-	while (addr < end) {
+-		free_page(addr);
+-		addr += PAGE_SIZE;
+-	}
++	int nr_pages = PAGE_ALIGN(size)/PAGE_SIZE;
++	__free_pages_exact(virt_to_page(virt), nr_pages);
+ }
+ EXPORT_SYMBOL(free_pages_exact);
  
--	addr = alloc_pages_exact(size, GFP_KERNEL | __GFP_NOWARN);
-+	addr = get_free_pages_exact(GFP_KERNEL | __GFP_NOWARN, size);
- 	if (addr)
- 		return addr;
- 
+diff -puN mm/swap.c~make_new_alloc_pages_exact mm/swap.c
+diff -puN tools/virtio/linux/virtio.h~make_new_alloc_pages_exact tools/virtio/linux/virtio.h
+diff -puN include/linux/types.h~make_new_alloc_pages_exact include/linux/types.h
+diff -puN Documentation/kbuild/kbuild.txt~make_new_alloc_pages_exact Documentation/kbuild/kbuild.txt
+diff -puN Documentation/sparse.txt~make_new_alloc_pages_exact Documentation/sparse.txt
 _
 
 --
