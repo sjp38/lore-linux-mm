@@ -1,86 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 29B9F900086
-	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 20:57:46 -0400 (EDT)
-Received: by vws4 with SMTP id 4so1436011vws.14
-        for <linux-mm@kvack.org>; Wed, 13 Apr 2011 17:57:43 -0700 (PDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D96D900086
+	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 21:09:20 -0400 (EDT)
+Received: by vws4 with SMTP id 4so1444228vws.14
+        for <linux-mm@kvack.org>; Wed, 13 Apr 2011 18:09:18 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20110414093549.80539260.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20110329101234.54d5d45a.kamezawa.hiroyu@jp.fujitsu.com>
-	<BANLkTi=pMapbVoUO6+7nUEg1bY4fb844-A@mail.gmail.com>
-	<20110414092033.0809.A69D9226@jp.fujitsu.com>
-	<20110414093549.80539260.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Thu, 14 Apr 2011 09:57:42 +0900
-Message-ID: <BANLkTikj9EcEQTmz6vDBAW6oGnqyhnCkSQ@mail.gmail.com>
-Subject: Re: [PATCH 0/4] forkbomb killer
+In-Reply-To: <alpine.DEB.2.00.1104131740280.16515@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1104131132240.5563@chino.kir.corp.google.com>
+	<20110414090310.07FF.A69D9226@jp.fujitsu.com>
+	<alpine.DEB.2.00.1104131740280.16515@chino.kir.corp.google.com>
+Date: Thu, 14 Apr 2011 10:09:17 +0900
+Message-ID: <BANLkTikx12d+vBpc6esRDYSaFr1dH+9HMA@mail.gmail.com>
+Subject: Re: [patch v2] oom: replace PF_OOM_ORIGIN with toggling oom_score_adj
 From: Minchan Kim <minchan.kim@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>, Michel Lespinasse <walken@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "rientjes@google.com" <rientjes@google.com>, Andrey Vagin <avagin@openvz.org>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Izik Eidus <ieidus@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
 
-Hi, KOSAKI and Kame.
+On Thu, Apr 14, 2011 at 9:41 AM, David Rientjes <rientjes@google.com> wrote=
+:
+> There's a kernel-wide shortage of per-process flags, so it's always
+> helpful to trim one when possible without incurring a significant
+> penalty. =C2=A0It's even more important when you're planning on adding a =
+per-
+> process flag yourself, which I plan to do shortly for transparent
+> hugepages.
+>
+> PF_OOM_ORIGIN is used by ksm and swapoff to prefer current since it has a
+> tendency to allocate large amounts of memory and should be preferred for
+> killing over other tasks. =C2=A0We'd rather immediately kill the task mak=
+ing
+> the errant syscall rather than penalizing an innocent task.
+>
+> This patch removes PF_OOM_ORIGIN since its behavior is equivalent to
+> setting the process's oom_score_adj to OOM_SCORE_ADJ_MAX.
+>
+> The process's old oom_score_adj is stored and then set to
+> OOM_SCORE_ADJ_MAX during the time it used to have PF_OOM_ORIGIN. =C2=A0Th=
+e old
+> value is then reinstated when the process should no longer be considered
+> a high priority for oom killing.
+>
+> Signed-off-by: David Rientjes <rientjes@google.com>
+Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
 
-On Thu, Apr 14, 2011 at 9:35 AM, KAMEZAWA Hiroyuki
-<kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> On Thu, 14 Apr 2011 09:20:41 +0900 (JST)
-> KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
->
->> Hi, Minchan, Kamezawa-san,
->>
->> > >> So whenever user push sysrq, older tasks would be killed and at las=
-t,
->> > >> root forkbomb task would be killed.
->> > >>
->> > >
->> > > Maybe good for a single user system and it can send Sysrq.
->> > > But I myself not very excited with this new feature becasuse I need =
-to
->> > > run to push Sysrq ....
->> > >
->> > > Please do as you like, I think the idea itself is interesting.
->> > > But I love some automatic ones. I do other jobs.
->> >
->> > Okay. Thanks for the comment, Kame.
->> >
->> > I hope Andrew or someone gives feedback forkbomb problem itself before
->> > diving into this.
->>
->> May I ask current status of this thread? I'm unhappy if our kernel keep
->> to have forkbomb weakness. ;)
->
-> I've stopped updating but can restart at any time. (And I found a bug ;)
->
->> Can we consider to take either or both idea?
->>
-> I think yes, both idea can be used.
-> One idea is
-> =C2=A0- kill all recent threads by Sysrq. The user can use Sysrq multiple=
- times
-> =C2=A0 until forkbomb stops.
-> Another(mine) is
-> =C2=A0- kill all problematic in automatic. This adds some tracking costs =
-but
-> =C2=A0 can be configurable.
->
-> Thanks,
-> -Kame
->
->
-
-Unfortunately, we didn't have a slot to discuss the oom and forkbomb.
-So, personally, I talked it with some guys(who we know very well :) )
-for a moment during lunch time at LSF/MM. It seems he doesn't feel
-strongly we really need it and still I am not sure it, either.
-
-Now most important thing is to listen other's opinions about we really
-need it and  we need it in kernel.
-
-And I have a idea to implement my one in automatic, too.  :)
-
-Thanks for your interest.
+Seem to be reasonable and code don't have a problem.
+But couldn't we make the function in general(ex, passed task_struct)
+and use it when we change oom_score_adj(ex, oom_score_adj_write)?
 
 --=20
 Kind regards,
