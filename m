@@ -1,297 +1,210 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id BFA06900091
-	for <linux-mm@kvack.org>; Thu, 14 Apr 2011 18:55:51 -0400 (EDT)
-From: Ying Han <yinghan@google.com>
-Subject: [PATCH V4 07/10] Add per-memcg zone "unreclaimable"
-Date: Thu, 14 Apr 2011 15:54:26 -0700
-Message-Id: <1302821669-29862-8-git-send-email-yinghan@google.com>
-In-Reply-To: <1302821669-29862-1-git-send-email-yinghan@google.com>
-References: <1302821669-29862-1-git-send-email-yinghan@google.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 08299900086
+	for <linux-mm@kvack.org>; Thu, 14 Apr 2011 19:37:52 -0400 (EDT)
+Received: by iwg8 with SMTP id 8so2644319iwg.14
+        for <linux-mm@kvack.org>; Thu, 14 Apr 2011 16:37:50 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20110414211732.GA27761@ca-server1.us.oracle.com>
+References: <20110414211732.GA27761@ca-server1.us.oracle.com>
+Date: Fri, 15 Apr 2011 08:37:49 +0900
+Message-ID: <BANLkTimEbtY8F6bpsfhfQ770ao9Hn7Spww@mail.gmail.com>
+Subject: Re: [PATCH V8 4/8] mm/fs: add hooks to support cleancache
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>
-Cc: linux-mm@kvack.org
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: chris.mason@oracle.com, viro@zeniv.linux.org.uk, akpm@linux-foundation.org, adilger.kernel@dilger.ca, tytso@mit.edu, mfasheh@suse.com, jlbec@evilplan.org, matthew@wil.cx, linux-btrfs@vger.kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, ocfs2-devel@oss.oracle.com, linux-mm@kvack.org, hch@infradead.org, ngupta@vflare.org, jeremy@goop.org, JBeulich@novell.com, kurt.hackel@oracle.com, npiggin@kernel.dk, dave.mccracken@oracle.com, riel@redhat.com, avi@redhat.com, konrad.wilk@oracle.com, mel@csn.ul.ie, yinghan@google.com, gthelen@google.com, torvalds@linux-foundation.org
 
-After reclaiming each node per memcg, it checks mem_cgroup_watermark_ok()
-and breaks the priority loop if it returns true. The per-memcg zone will
-be marked as "unreclaimable" if the scanning rate is much greater than the
-reclaiming rate on the per-memcg LRU. The bit is cleared when there is a
-page charged to the memcg being freed. Kswapd breaks the priority loop if
-all the zones are marked as "unreclaimable".
+Hi Dan,
 
-changelog v4..v3:
-1. split off from the per-memcg background reclaim patch in V3.
+On Fri, Apr 15, 2011 at 6:17 AM, Dan Magenheimer
+<dan.magenheimer@oracle.com> wrote:
+> [PATCH V8 4/8] mm/fs: add hooks to support cleancache
+>
+> This fourth patch of eight in this cleancache series provides the
+> core hooks in VFS for: initializing cleancache per filesystem;
+> capturing clean pages reclaimed by page cache; attempting to get
+> pages from cleancache before filesystem read; and ensuring coherency
+> between pagecache, disk, and cleancache. =C2=A0Note that the placement
+> of these hooks was stable from 2.6.18 to 2.6.38; a minor semantic
+> change was required due to a patchset in 2.6.39.
+>
+> All hooks become no-ops if CONFIG_CLEANCACHE is unset, or become
+> a check of a boolean global if CONFIG_CLEANCACHE is set but no
+> cleancache "backend" has claimed cleancache_ops.
+>
+> Details and a FAQ can be found in Documentation/vm/cleancache.txt
+>
+> [v8: minchan.kim@gmail.com: adapt to new remove_from_page_cache function]
+> Signed-off-by: Chris Mason <chris.mason@oracle.com>
+> Signed-off-by: Dan Magenheimer <dan.magenheimer@oracle.com>
+> Reviewed-by: Jeremy Fitzhardinge <jeremy@goop.org>
+> Reviewed-by: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Al Viro <viro@ZenIV.linux.org.uk>
+> Cc: Matthew Wilcox <matthew@wil.cx>
+> Cc: Nick Piggin <npiggin@kernel.dk>
+> Cc: Mel Gorman <mel@csn.ul.ie>
+> Cc: Rik Van Riel <riel@redhat.com>
+> Cc: Jan Beulich <JBeulich@novell.com>
+> Cc: Andreas Dilger <adilger@sun.com>
+> Cc: Ted Ts'o <tytso@mit.edu>
+> Cc: Mark Fasheh <mfasheh@suse.com>
+> Cc: Joel Becker <joel.becker@oracle.com>
+> Cc: Nitin Gupta <ngupta@vflare.org>
+>
+> ---
+>
+> Diffstat:
+> =C2=A0fs/buffer.c =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0=
+ =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0| =C2=A0 =C2=A05 +++++
+> =C2=A0fs/mpage.c =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 | =C2=A0 =C2=A07 +++++++
+> =C2=A0fs/super.c =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 | =C2=A0 =C2=A03 +++
+> =C2=A0mm/filemap.c =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 | =C2=A0 11 +++++++++++
+> =C2=A0mm/truncate.c =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0| =C2=A0 =C2=A06 ++++++
+> =C2=A05 files changed, 32 insertions(+)
+>
+> --- linux-2.6.39-rc3/fs/super.c 2011-04-11 18:21:51.000000000 -0600
+> +++ linux-2.6.39-rc3-cleancache/fs/super.c =C2=A0 =C2=A0 =C2=A02011-04-13=
+ 17:08:09.175853426 -0600
+> @@ -31,6 +31,7 @@
+> =C2=A0#include <linux/mutex.h>
+> =C2=A0#include <linux/backing-dev.h>
+> =C2=A0#include <linux/rculist_bl.h>
+> +#include <linux/cleancache.h>
+> =C2=A0#include "internal.h"
+>
+>
+> @@ -112,6 +113,7 @@ static struct super_block *alloc_super(s
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0s->s_maxbytes =3D =
+MAX_NON_LFS;
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0s->s_op =3D &defau=
+lt_op;
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0s->s_time_gran =3D=
+ 1000000000;
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 s->cleancache_poolid =
+=3D -1;
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0}
+> =C2=A0out:
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0return s;
+> @@ -177,6 +179,7 @@ void deactivate_locked_super(struct supe
+> =C2=A0{
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0struct file_system_type *fs =3D s->s_type;
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0if (atomic_dec_and_test(&s->s_active)) {
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 cleancache_flush_fs(s)=
+;
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0fs->kill_sb(s);
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0/*
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 * We need to call=
+ rcu_barrier so all the delayed rcu free
+> --- linux-2.6.39-rc3/fs/buffer.c =C2=A0 =C2=A0 =C2=A0 =C2=A02011-04-11 18=
+:21:51.000000000 -0600
+> +++ linux-2.6.39-rc3-cleancache/fs/buffer.c =C2=A0 =C2=A0 2011-04-13 17:0=
+7:24.700917174 -0600
+> @@ -41,6 +41,7 @@
+> =C2=A0#include <linux/bitops.h>
+> =C2=A0#include <linux/mpage.h>
+> =C2=A0#include <linux/bit_spinlock.h>
+> +#include <linux/cleancache.h>
+>
+> =C2=A0static int fsync_buffers_list(spinlock_t *lock, struct list_head *l=
+ist);
+>
+> @@ -269,6 +270,10 @@ void invalidate_bdev(struct block_device
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0invalidate_bh_lrus();
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0lru_add_drain_all(); =C2=A0 =C2=A0/* make sure=
+ all lru add caches are flushed */
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0invalidate_mapping_pages(mapping, 0, -1);
+> + =C2=A0 =C2=A0 =C2=A0 /* 99% of the time, we don't need to flush the cle=
+ancache on the bdev.
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0* But, for the strange corners, lets be caut=
+ious
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0*/
+> + =C2=A0 =C2=A0 =C2=A0 cleancache_flush_inode(mapping);
+> =C2=A0}
+> =C2=A0EXPORT_SYMBOL(invalidate_bdev);
+>
+> --- linux-2.6.39-rc3/fs/mpage.c 2011-04-11 18:21:51.000000000 -0600
+> +++ linux-2.6.39-rc3-cleancache/fs/mpage.c =C2=A0 =C2=A0 =C2=A02011-04-13=
+ 17:07:24.706913410 -0600
+> @@ -27,6 +27,7 @@
+> =C2=A0#include <linux/writeback.h>
+> =C2=A0#include <linux/backing-dev.h>
+> =C2=A0#include <linux/pagevec.h>
+> +#include <linux/cleancache.h>
+>
+> =C2=A0/*
+> =C2=A0* I/O completion handler for multipage BIOs.
+> @@ -271,6 +272,12 @@ do_mpage_readpage(struct bio *bio, struc
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0SetPageMappedToDis=
+k(page);
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0}
+>
+> + =C2=A0 =C2=A0 =C2=A0 if (fully_mapped && blocks_per_page =3D=3D 1 && !P=
+ageUptodate(page) &&
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 cleancache_get_page(page) =3D=3D 0) =
+{
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 SetPageUptodate(page);
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 goto confused;
+> + =C2=A0 =C2=A0 =C2=A0 }
+> +
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0/*
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 * This page will go to BIO. =C2=A0Do we need =
+to send this BIO off first?
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 */
+> --- linux-2.6.39-rc3/mm/filemap.c =C2=A0 =C2=A0 =C2=A0 2011-04-11 18:21:5=
+1.000000000 -0600
+> +++ linux-2.6.39-rc3-cleancache/mm/filemap.c =C2=A0 =C2=A02011-04-13 17:0=
+9:46.367852002 -0600
+> @@ -34,6 +34,7 @@
+> =C2=A0#include <linux/hardirq.h> /* for BUG_ON(!in_atomic()) only */
+> =C2=A0#include <linux/memcontrol.h>
+> =C2=A0#include <linux/mm_inline.h> /* for page_is_file_cache() */
+> +#include <linux/cleancache.h>
+> =C2=A0#include "internal.h"
+>
+> =C2=A0/*
+> @@ -118,6 +119,16 @@ void __delete_from_page_cache(struct pag
+> =C2=A0{
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0struct address_space *mapping =3D page->mappin=
+g;
+>
+> + =C2=A0 =C2=A0 =C2=A0 /*
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0* if we're uptodate, flush out into the clea=
+ncache, otherwise
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0* invalidate any existing cleancache entries=
+. =C2=A0We can't leave
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0* stale data around in the cleancache once o=
+ur page is gone
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0*/
+> + =C2=A0 =C2=A0 =C2=A0 if (PageUptodate(page) && PageMappedToDisk(page))
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 cleancache_put_page(pa=
+ge);
+> + =C2=A0 =C2=A0 =C2=A0 else
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 cleancache_flush_page(=
+mapping, page);
+> +
 
-Signed-off-by: Ying Han <yinghan@google.com>
----
- include/linux/memcontrol.h |   30 ++++++++++++++
- include/linux/swap.h       |    2 +
- mm/memcontrol.c            |   96 ++++++++++++++++++++++++++++++++++++++++++++
- mm/vmscan.c                |   19 +++++++++
- 4 files changed, 147 insertions(+), 0 deletions(-)
+First of all, thanks for resolving conflict with my patch.
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index d4ff7f2..a8159f5 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -155,6 +155,12 @@ static inline void mem_cgroup_dec_page_stat(struct page *page,
- unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
- 						gfp_t gfp_mask);
- u64 mem_cgroup_get_limit(struct mem_cgroup *mem);
-+void mem_cgroup_clear_unreclaimable(struct mem_cgroup *mem, struct page *page);
-+bool mem_cgroup_zone_reclaimable(struct mem_cgroup *mem, int nid, int zid);
-+bool mem_cgroup_mz_unreclaimable(struct mem_cgroup *mem, struct zone *zone);
-+void mem_cgroup_mz_set_unreclaimable(struct mem_cgroup *mem, struct zone *zone);
-+void mem_cgroup_mz_pages_scanned(struct mem_cgroup *mem, struct zone* zone,
-+				unsigned long nr_scanned);
- 
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
- void mem_cgroup_split_huge_fixup(struct page *head, struct page *tail);
-@@ -345,6 +351,25 @@ static inline void mem_cgroup_dec_page_stat(struct page *page,
- {
- }
- 
-+static inline void mem_cgroup_mz_pages_scanned(struct mem_cgroup *mem,
-+						struct zone *zone,
-+						unsigned long nr_scanned)
-+{
-+}
-+
-+static inline void mem_cgroup_clear_unreclaimable(struct page *page,
-+							struct zone *zone)
-+{
-+}
-+static inline void mem_cgroup_mz_set_unreclaimable(struct mem_cgroup *mem,
-+		struct zone *zone)
-+{
-+}
-+static inline bool mem_cgroup_mz_unreclaimable(struct mem_cgroup *mem,
-+						struct zone *zone)
-+{
-+}
-+
- static inline
- unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
- 					    gfp_t gfp_mask)
-@@ -363,6 +388,11 @@ static inline void mem_cgroup_split_huge_fixup(struct page *head,
- {
- }
- 
-+static inline bool mem_cgroup_zone_reclaimable(struct mem_cgroup *mem, int nid,
-+								int zid)
-+{
-+	return false;
-+}
- #endif /* CONFIG_CGROUP_MEM_CONT */
- 
- #if !defined(CONFIG_CGROUP_MEM_RES_CTLR) || !defined(CONFIG_DEBUG_VM)
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index 17e0511..319b800 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -160,6 +160,8 @@ enum {
- 	SWP_SCANNING	= (1 << 8),	/* refcount in scan_swap_map */
- };
- 
-+#define ZONE_RECLAIMABLE_RATE 6
-+
- #define SWAP_CLUSTER_MAX 32
- #define COMPACT_CLUSTER_MAX SWAP_CLUSTER_MAX
- 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index e22351a..da6a130 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -133,7 +133,10 @@ struct mem_cgroup_per_zone {
- 	bool			on_tree;
- 	struct mem_cgroup	*mem;		/* Back pointer, we cannot */
- 						/* use container_of	   */
-+	unsigned long		pages_scanned;	/* since last reclaim */
-+	bool			all_unreclaimable;	/* All pages pinned */
- };
-+
- /* Macro for accessing counter */
- #define MEM_CGROUP_ZSTAT(mz, idx)	((mz)->count[(idx)])
- 
-@@ -1135,6 +1138,96 @@ mem_cgroup_get_reclaim_stat_from_page(struct page *page)
- 	return &mz->reclaim_stat;
- }
- 
-+static unsigned long mem_cgroup_zone_reclaimable_pages(
-+					struct mem_cgroup_per_zone *mz)
-+{
-+	int nr;
-+	nr = MEM_CGROUP_ZSTAT(mz, LRU_ACTIVE_FILE) +
-+		MEM_CGROUP_ZSTAT(mz, LRU_INACTIVE_FILE);
-+
-+	if (nr_swap_pages > 0)
-+		nr += MEM_CGROUP_ZSTAT(mz, LRU_ACTIVE_ANON) +
-+			MEM_CGROUP_ZSTAT(mz, LRU_INACTIVE_ANON);
-+
-+	return nr;
-+}
-+
-+void mem_cgroup_mz_pages_scanned(struct mem_cgroup *mem, struct zone* zone,
-+						unsigned long nr_scanned)
-+{
-+	struct mem_cgroup_per_zone *mz = NULL;
-+	int nid = zone_to_nid(zone);
-+	int zid = zone_idx(zone);
-+
-+	if (!mem)
-+		return;
-+
-+	mz = mem_cgroup_zoneinfo(mem, nid, zid);
-+	if (mz)
-+		mz->pages_scanned += nr_scanned;
-+}
-+
-+bool mem_cgroup_zone_reclaimable(struct mem_cgroup *mem, int nid, int zid)
-+{
-+	struct mem_cgroup_per_zone *mz = NULL;
-+
-+	if (!mem)
-+		return 0;
-+
-+	mz = mem_cgroup_zoneinfo(mem, nid, zid);
-+	if (mz)
-+		return mz->pages_scanned <
-+				mem_cgroup_zone_reclaimable_pages(mz) *
-+				ZONE_RECLAIMABLE_RATE;
-+	return 0;
-+}
-+
-+bool mem_cgroup_mz_unreclaimable(struct mem_cgroup *mem, struct zone *zone)
-+{
-+	struct mem_cgroup_per_zone *mz = NULL;
-+	int nid = zone_to_nid(zone);
-+	int zid = zone_idx(zone);
-+
-+	if (!mem)
-+		return false;
-+
-+	mz = mem_cgroup_zoneinfo(mem, nid, zid);
-+	if (mz)
-+		return mz->all_unreclaimable;
-+
-+	return false;
-+}
-+
-+void mem_cgroup_mz_set_unreclaimable(struct mem_cgroup *mem, struct zone *zone)
-+{
-+	struct mem_cgroup_per_zone *mz = NULL;
-+	int nid = zone_to_nid(zone);
-+	int zid = zone_idx(zone);
-+
-+	if (!mem)
-+		return;
-+
-+	mz = mem_cgroup_zoneinfo(mem, nid, zid);
-+	if (mz)
-+		mz->all_unreclaimable = true;
-+}
-+
-+void mem_cgroup_clear_unreclaimable(struct mem_cgroup *mem, struct page *page)
-+{
-+	struct mem_cgroup_per_zone *mz = NULL;
-+
-+	if (!mem)
-+		return;
-+
-+	mz = page_cgroup_zoneinfo(mem, page);
-+	if (mz) {
-+		mz->pages_scanned = 0;
-+		mz->all_unreclaimable = false;
-+	}
-+
-+	return;
-+}
-+
- unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
- 					struct list_head *dst,
- 					unsigned long *scanned, int order,
-@@ -2801,6 +2894,7 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
- 	 * special functions.
- 	 */
- 
-+	mem_cgroup_clear_unreclaimable(mem, page);
- 	unlock_page_cgroup(pc);
- 	/*
- 	 * even after unlock, we have mem->res.usage here and this memcg
-@@ -4569,6 +4663,8 @@ static int alloc_mem_cgroup_per_zone_info(struct mem_cgroup *mem, int node)
- 		mz->usage_in_excess = 0;
- 		mz->on_tree = false;
- 		mz->mem = mem;
-+		mz->pages_scanned = 0;
-+		mz->all_unreclaimable = false;
- 	}
- 	return 0;
- }
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index b8345d2..c081112 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1414,6 +1414,9 @@ shrink_inactive_list(unsigned long nr_to_scan, struct zone *zone,
- 					ISOLATE_BOTH : ISOLATE_INACTIVE,
- 			zone, sc->mem_cgroup,
- 			0, file);
-+
-+		mem_cgroup_mz_pages_scanned(sc->mem_cgroup, zone, nr_scanned);
-+
- 		/*
- 		 * mem_cgroup_isolate_pages() keeps track of
- 		 * scanned pages on its own.
-@@ -1533,6 +1536,7 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
- 		 * mem_cgroup_isolate_pages() keeps track of
- 		 * scanned pages on its own.
- 		 */
-+		mem_cgroup_mz_pages_scanned(sc->mem_cgroup, zone, pgscanned);
- 	}
- 
- 	reclaim_stat->recent_scanned[file] += nr_taken;
-@@ -2648,6 +2652,7 @@ static void balance_pgdat_node(pg_data_t *pgdat, int order,
- 	unsigned long total_scanned = 0;
- 	struct mem_cgroup *mem_cont = sc->mem_cgroup;
- 	int priority = sc->priority;
-+	int nid = pgdat->node_id;
- 
- 	/*
- 	 * Now scan the zone in the dma->highmem direction, and we scan
-@@ -2664,10 +2669,20 @@ static void balance_pgdat_node(pg_data_t *pgdat, int order,
- 		if (!populated_zone(zone))
- 			continue;
- 
-+		if (mem_cgroup_mz_unreclaimable(mem_cont, zone) &&
-+			priority != DEF_PRIORITY)
-+			continue;
-+
- 		sc->nr_scanned = 0;
- 		shrink_zone(priority, zone, sc);
- 		total_scanned += sc->nr_scanned;
- 
-+		if (mem_cgroup_mz_unreclaimable(mem_cont, zone))
-+			continue;
-+
-+		if (!mem_cgroup_zone_reclaimable(mem_cont, nid, i))
-+			mem_cgroup_mz_set_unreclaimable(mem_cont, zone);
-+
- 		/*
- 		 * If we've done a decent amount of scanning and
- 		 * the reclaim ratio is low, start doing writepage
-@@ -2752,6 +2767,10 @@ loop_again:
- 
- 				if (!populated_zone(zone))
- 					continue;
-+
-+				if (!mem_cgroup_mz_unreclaimable(mem_cont,
-+								zone))
-+					break;
- 			}
- 			if (i < 0)
- 				node_clear(nid, do_nodes);
--- 
-1.7.3.1
+Before I suggested a thing about cleancache_flush_page, cleancache_flush_in=
+ode.
+
+what's the meaning of flush's semantic?
+I thought it means invalidation.
+AFAIC, how about change flush with invalidate?
+
+
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
