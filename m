@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 0B69190008E
-	for <linux-mm@kvack.org>; Thu, 14 Apr 2011 18:55:47 -0400 (EDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id D95EE90008E
+	for <linux-mm@kvack.org>; Thu, 14 Apr 2011 18:55:50 -0400 (EDT)
 From: Ying Han <yinghan@google.com>
-Subject: [PATCH V4 01/10] Add kswapd descriptor
-Date: Thu, 14 Apr 2011 15:54:20 -0700
-Message-Id: <1302821669-29862-2-git-send-email-yinghan@google.com>
+Subject: [PATCH V4 09/10] Add API to export per-memcg kswapd pid.
+Date: Thu, 14 Apr 2011 15:54:28 -0700
+Message-Id: <1302821669-29862-10-git-send-email-yinghan@google.com>
 In-Reply-To: <1302821669-29862-1-git-send-email-yinghan@google.com>
 References: <1302821669-29862-1-git-send-email-yinghan@google.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,290 +13,110 @@ List-ID: <linux-mm.kvack.org>
 To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>
 Cc: linux-mm@kvack.org
 
-There is a kswapd kernel thread for each numa node. We will add a different
-kswapd for each memcg. The kswapd is sleeping in the wait queue headed at
-kswapd_wait field of a kswapd descriptor. The kswapd descriptor stores
-information of node or memcg and it allows the global and per-memcg background
-reclaim to share common reclaim algorithms.
+This add the API which exports per-memcg kswapd thread pid. The kswapd
+thread is named as "memcg_" + css_id, and the pid can be used to put
+kswapd thread into cpu cgroup later.
 
-This patch adds the kswapd descriptor and moves the per-node kswapd to use the
-new structure.
+$ mkdir /dev/cgroup/memory/A
+$ cat /dev/cgroup/memory/A/memory.kswapd_pid
+memcg_null 0
 
-changelog v2..v1:
-1. dynamic allocate kswapd descriptor and initialize the wait_queue_head of pgdat
-at kswapd_run.
-2. add helper macro is_node_kswapd to distinguish per-node/per-cgroup kswapd
-descriptor.
+$ echo 500m >/dev/cgroup/memory/A/memory.limit_in_bytes
+$ echo 50m >/dev/cgroup/memory/A/memory.high_wmark_distance
+$ ps -ef | grep memcg
+root      6727     2  0 14:32 ?        00:00:00 [memcg_3]
+root      6729  6044  0 14:32 ttyS0    00:00:00 grep memcg
 
-changelog v3..v2:
-1. move the struct mem_cgroup *kswapd_mem in kswapd sruct to later patch.
-2. rename thr in kswapd_run to something else.
+$ cat memory.kswapd_pid
+memcg_3 6727
+
+changelog v4..v3
+1. Add the API based on KAMAZAWA's request on patch v3.
 
 Signed-off-by: Ying Han <yinghan@google.com>
 ---
- include/linux/mmzone.h |    3 +-
- include/linux/swap.h   |    7 ++++
- mm/page_alloc.c        |    1 -
- mm/vmscan.c            |   95 ++++++++++++++++++++++++++++++++++++------------
- 4 files changed, 80 insertions(+), 26 deletions(-)
+ include/linux/swap.h |    2 ++
+ mm/memcontrol.c      |   33 +++++++++++++++++++++++++++++++++
+ mm/vmscan.c          |    2 +-
+ 3 files changed, 36 insertions(+), 1 deletions(-)
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 628f07b..6cba7d2 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -640,8 +640,7 @@ typedef struct pglist_data {
- 	unsigned long node_spanned_pages; /* total size of physical page
- 					     range, including holes */
- 	int node_id;
--	wait_queue_head_t kswapd_wait;
--	struct task_struct *kswapd;
-+	wait_queue_head_t *kswapd_wait;
- 	int kswapd_max_order;
- 	enum zone_type classzone_idx;
- } pg_data_t;
 diff --git a/include/linux/swap.h b/include/linux/swap.h
-index ed6ebe6..f43d406 100644
+index 319b800..2d3e21a 100644
 --- a/include/linux/swap.h
 +++ b/include/linux/swap.h
-@@ -26,6 +26,13 @@ static inline int current_is_kswapd(void)
- 	return current->flags & PF_KSWAPD;
- }
+@@ -34,6 +34,8 @@ struct kswapd {
+ };
  
-+struct kswapd {
-+	struct task_struct *kswapd_task;
-+	wait_queue_head_t kswapd_wait;
-+	pg_data_t *kswapd_pgdat;
-+};
+ int kswapd(void *p);
++extern spinlock_t kswapds_spinlock;
 +
-+int kswapd(void *p);
  /*
   * MAX_SWAPFILES defines the maximum number of swaptypes: things which can
   * be swapped to.  The swap type and the offset into that swap type are
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 6e1b52a..6340865 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -4205,7 +4205,6 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
- 
- 	pgdat_resize_init(pgdat);
- 	pgdat->nr_zones = 0;
--	init_waitqueue_head(&pgdat->kswapd_wait);
- 	pgdat->kswapd_max_order = 0;
- 	pgdat_page_cgroup_init(pgdat);
- 	
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 060e4c1..77ac74f 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2241,13 +2241,16 @@ static bool pgdat_balanced(pg_data_t *pgdat, unsigned long balanced_pages,
- 	return balanced_pages > (present_pages >> 2);
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 1b23ff4..606b680 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -4493,6 +4493,35 @@ static int mem_cgroup_wmark_read(struct cgroup *cgrp,
+ 	return 0;
  }
  
-+static DEFINE_SPINLOCK(kswapds_spinlock);
-+
- /* is kswapd sleeping prematurely? */
--static bool sleeping_prematurely(pg_data_t *pgdat, int order, long remaining,
--					int classzone_idx)
-+static int sleeping_prematurely(struct kswapd *kswapd, int order,
-+				long remaining, int classzone_idx)
- {
- 	int i;
- 	unsigned long balanced = 0;
- 	bool all_zones_ok = true;
-+	pg_data_t *pgdat = kswapd->kswapd_pgdat;
- 
- 	/* If a direct reclaimer woke kswapd within HZ/10, it's premature */
- 	if (remaining)
-@@ -2570,28 +2573,31 @@ out:
- 	return order;
- }
- 
--static void kswapd_try_to_sleep(pg_data_t *pgdat, int order, int classzone_idx)
-+static void kswapd_try_to_sleep(struct kswapd *kswapd_p, int order,
-+				int classzone_idx)
- {
- 	long remaining = 0;
- 	DEFINE_WAIT(wait);
-+	pg_data_t *pgdat = kswapd_p->kswapd_pgdat;
-+	wait_queue_head_t *wait_h = &kswapd_p->kswapd_wait;
- 
- 	if (freezing(current) || kthread_should_stop())
- 		return;
- 
--	prepare_to_wait(&pgdat->kswapd_wait, &wait, TASK_INTERRUPTIBLE);
-+	prepare_to_wait(wait_h, &wait, TASK_INTERRUPTIBLE);
- 
- 	/* Try to sleep for a short interval */
--	if (!sleeping_prematurely(pgdat, order, remaining, classzone_idx)) {
-+	if (!sleeping_prematurely(kswapd_p, order, remaining, classzone_idx)) {
- 		remaining = schedule_timeout(HZ/10);
--		finish_wait(&pgdat->kswapd_wait, &wait);
--		prepare_to_wait(&pgdat->kswapd_wait, &wait, TASK_INTERRUPTIBLE);
-+		finish_wait(wait_h, &wait);
-+		prepare_to_wait(wait_h, &wait, TASK_INTERRUPTIBLE);
- 	}
- 
- 	/*
- 	 * After a short sleep, check if it was a premature sleep. If not, then
- 	 * go fully to sleep until explicitly woken up.
- 	 */
--	if (!sleeping_prematurely(pgdat, order, remaining, classzone_idx)) {
-+	if (!sleeping_prematurely(kswapd_p, order, remaining, classzone_idx)) {
- 		trace_mm_vmscan_kswapd_sleep(pgdat->node_id);
- 
- 		/*
-@@ -2611,7 +2617,7 @@ static void kswapd_try_to_sleep(pg_data_t *pgdat, int order, int classzone_idx)
- 		else
- 			count_vm_event(KSWAPD_HIGH_WMARK_HIT_QUICKLY);
- 	}
--	finish_wait(&pgdat->kswapd_wait, &wait);
-+	finish_wait(wait_h, &wait);
- }
- 
- /*
-@@ -2627,20 +2633,24 @@ static void kswapd_try_to_sleep(pg_data_t *pgdat, int order, int classzone_idx)
-  * If there are applications that are active memory-allocators
-  * (most normal use), this basically shouldn't matter.
-  */
--static int kswapd(void *p)
-+int kswapd(void *p)
- {
- 	unsigned long order;
- 	int classzone_idx;
--	pg_data_t *pgdat = (pg_data_t*)p;
-+	struct kswapd *kswapd_p = (struct kswapd *)p;
-+	pg_data_t *pgdat = kswapd_p->kswapd_pgdat;
-+	wait_queue_head_t *wait_h = &kswapd_p->kswapd_wait;
- 	struct task_struct *tsk = current;
- 
- 	struct reclaim_state reclaim_state = {
- 		.reclaimed_slab = 0,
- 	};
--	const struct cpumask *cpumask = cpumask_of_node(pgdat->node_id);
-+	const struct cpumask *cpumask;
- 
- 	lockdep_set_current_reclaim_state(GFP_KERNEL);
- 
-+	BUG_ON(pgdat->kswapd_wait != wait_h);
-+	cpumask = cpumask_of_node(pgdat->node_id);
- 	if (!cpumask_empty(cpumask))
- 		set_cpus_allowed_ptr(tsk, cpumask);
- 	current->reclaim_state = &reclaim_state;
-@@ -2679,7 +2689,7 @@ static int kswapd(void *p)
- 			order = new_order;
- 			classzone_idx = new_classzone_idx;
- 		} else {
--			kswapd_try_to_sleep(pgdat, order, classzone_idx);
-+			kswapd_try_to_sleep(kswapd_p, order, classzone_idx);
- 			order = pgdat->kswapd_max_order;
- 			classzone_idx = pgdat->classzone_idx;
- 			pgdat->kswapd_max_order = 0;
-@@ -2719,13 +2729,13 @@ void wakeup_kswapd(struct zone *zone, int order, enum zone_type classzone_idx)
- 		pgdat->kswapd_max_order = order;
- 		pgdat->classzone_idx = min(pgdat->classzone_idx, classzone_idx);
- 	}
--	if (!waitqueue_active(&pgdat->kswapd_wait))
-+	if (!waitqueue_active(pgdat->kswapd_wait))
- 		return;
- 	if (zone_watermark_ok_safe(zone, order, low_wmark_pages(zone), 0, 0))
- 		return;
- 
- 	trace_mm_vmscan_wakeup_kswapd(pgdat->node_id, zone_idx(zone), order);
--	wake_up_interruptible(&pgdat->kswapd_wait);
-+	wake_up_interruptible(pgdat->kswapd_wait);
- }
- 
- /*
-@@ -2817,12 +2827,23 @@ static int __devinit cpu_callback(struct notifier_block *nfb,
- 		for_each_node_state(nid, N_HIGH_MEMORY) {
- 			pg_data_t *pgdat = NODE_DATA(nid);
- 			const struct cpumask *mask;
-+			struct kswapd *kswapd_p;
-+			struct task_struct *kswapd_thr;
-+			wait_queue_head_t *wait;
- 
- 			mask = cpumask_of_node(pgdat->node_id);
- 
-+			spin_lock(&kswapds_spinlock);
-+			wait = pgdat->kswapd_wait;
-+			kswapd_p = container_of(wait, struct kswapd,
-+						kswapd_wait);
-+			kswapd_thr = kswapd_p->kswapd_task;
-+			spin_unlock(&kswapds_spinlock);
-+
- 			if (cpumask_any_and(cpu_online_mask, mask) < nr_cpu_ids)
- 				/* One of our CPUs online: restore mask */
--				set_cpus_allowed_ptr(pgdat->kswapd, mask);
-+				if (kswapd_thr)
-+					set_cpus_allowed_ptr(kswapd_thr, mask);
- 		}
- 	}
- 	return NOTIFY_OK;
-@@ -2835,18 +2856,31 @@ static int __devinit cpu_callback(struct notifier_block *nfb,
- int kswapd_run(int nid)
- {
- 	pg_data_t *pgdat = NODE_DATA(nid);
-+	struct task_struct *kswapd_thr;
-+	struct kswapd *kswapd_p;
- 	int ret = 0;
- 
--	if (pgdat->kswapd)
-+	if (pgdat->kswapd_wait)
- 		return 0;
- 
--	pgdat->kswapd = kthread_run(kswapd, pgdat, "kswapd%d", nid);
--	if (IS_ERR(pgdat->kswapd)) {
-+	kswapd_p = kzalloc(sizeof(struct kswapd), GFP_KERNEL);
-+	if (!kswapd_p)
-+		return -ENOMEM;
-+
-+	init_waitqueue_head(&kswapd_p->kswapd_wait);
-+	pgdat->kswapd_wait = &kswapd_p->kswapd_wait;
-+	kswapd_p->kswapd_pgdat = pgdat;
-+
-+	kswapd_thr = kthread_run(kswapd, kswapd_p, "kswapd%d", nid);
-+	if (IS_ERR(kswapd_thr)) {
- 		/* failure at boot is fatal */
- 		BUG_ON(system_state == SYSTEM_BOOTING);
- 		printk("Failed to start kswapd on node %d\n",nid);
-+		pgdat->kswapd_wait = NULL;
-+		kfree(kswapd_p);
- 		ret = -1;
--	}
-+	} else
-+		kswapd_p->kswapd_task = kswapd_thr;
- 	return ret;
- }
- 
-@@ -2855,10 +2889,25 @@ int kswapd_run(int nid)
-  */
- void kswapd_stop(int nid)
- {
--	struct task_struct *kswapd = NODE_DATA(nid)->kswapd;
++static int mem_cgroup_kswapd_pid_read(struct cgroup *cgrp,
++	struct cftype *cft,  struct cgroup_map_cb *cb)
++{
++	struct mem_cgroup *mem = mem_cgroup_from_cont(cgrp);
 +	struct task_struct *kswapd_thr = NULL;
 +	struct kswapd *kswapd_p = NULL;
 +	wait_queue_head_t *wait;
++	char name[TASK_COMM_LEN];
++	pid_t pid = 0;
 +
-+	pg_data_t *pgdat = NODE_DATA(nid);
++	sprintf(name, "memcg_null");
 +
 +	spin_lock(&kswapds_spinlock);
-+	wait = pgdat->kswapd_wait;
++	wait = mem_cgroup_kswapd_wait(mem);
 +	if (wait) {
 +		kswapd_p = container_of(wait, struct kswapd, kswapd_wait);
 +		kswapd_thr = kswapd_p->kswapd_task;
-+		kswapd_p->kswapd_task = NULL;
++		if (kswapd_thr) {
++			get_task_comm(name, kswapd_thr);
++			pid = kswapd_thr->pid;
++		}
 +	}
 +	spin_unlock(&kswapds_spinlock);
 +
-+	if (kswapd_thr)
-+		kthread_stop(kswapd_thr);
++	cb->fill(cb, name, pid);
++
++	return 0;
++}
++
+ static int mem_cgroup_oom_control_read(struct cgroup *cgrp,
+ 	struct cftype *cft,  struct cgroup_map_cb *cb)
+ {
+@@ -4610,6 +4639,10 @@ static struct cftype mem_cgroup_files[] = {
+ 		.name = "reclaim_wmarks",
+ 		.read_map = mem_cgroup_wmark_read,
+ 	},
++	{
++		.name = "kswapd_pid",
++		.read_map = mem_cgroup_kswapd_pid_read,
++	},
+ };
  
--	if (kswapd)
--		kthread_stop(kswapd);
-+	kfree(kswapd_p);
+ #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index c081112..df4e5dd 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2249,7 +2249,7 @@ static bool pgdat_balanced(pg_data_t *pgdat, unsigned long balanced_pages,
+ 	return balanced_pages > (present_pages >> 2);
  }
  
- static int __init kswapd_init(void)
+-static DEFINE_SPINLOCK(kswapds_spinlock);
++DEFINE_SPINLOCK(kswapds_spinlock);
+ #define is_node_kswapd(kswapd_p) (!(kswapd_p)->kswapd_mem)
+ 
+ /* is kswapd sleeping prematurely? */
 -- 
 1.7.3.1
 
