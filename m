@@ -1,112 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 6310F900086
-	for <linux-mm@kvack.org>; Thu, 14 Apr 2011 00:48:25 -0400 (EDT)
-Date: Thu, 14 Apr 2011 14:48:07 +1000
-From: NeilBrown <neilb@suse.de>
-Subject: Re: [PATCH] mm/thp: Use conventional format for boolean attributes
-Message-ID: <20110414144807.19ec5f69@notabene.brown>
-In-Reply-To: <alpine.DEB.2.00.1104131202230.5563@chino.kir.corp.google.com>
-References: <1300772711.26693.473.camel@localhost>
-	<alpine.DEB.2.00.1104131202230.5563@chino.kir.corp.google.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id BB2CC900086
+	for <linux-mm@kvack.org>; Thu, 14 Apr 2011 01:25:51 -0400 (EDT)
+Date: Wed, 13 Apr 2011 22:28:03 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: Regression from 2.6.36
+Message-Id: <20110413222803.38e42baf.akpm@linux-foundation.org>
+In-Reply-To: <1302747058.3549.7.camel@edumazet-laptop>
+References: <20110315132527.130FB80018F1@mail1005.cent>
+	<20110317001519.GB18911@kroah.com>
+	<20110407120112.E08DCA03@pobox.sk>
+	<4D9D8FAA.9080405@suse.cz>
+	<BANLkTinnTnjZvQ9S1AmudZcZBokMy8-93w@mail.gmail.com>
+	<1302177428.3357.25.camel@edumazet-laptop>
+	<1302178426.3357.34.camel@edumazet-laptop>
+	<BANLkTikxWy-Pw1PrcAJMHs2R7JKksyQzMQ@mail.gmail.com>
+	<1302190586.3357.45.camel@edumazet-laptop>
+	<20110412154906.70829d60.akpm@linux-foundation.org>
+	<BANLkTincoaxp5Soe6O-eb8LWpgra=k2NsQ@mail.gmail.com>
+	<20110412183132.a854bffc.akpm@linux-foundation.org>
+	<1302662256.2811.27.camel@edumazet-laptop>
+	<20110413141600.28793661.akpm@linux-foundation.org>
+	<1302747058.3549.7.camel@edumazet-laptop>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Ben Hutchings <ben@decadent.org.uk>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>
+To: Eric Dumazet <eric.dumazet@gmail.com>
+Cc: Changli Gao <xiaosuo@gmail.com>, =?ISO-8859-1?Q?Am=E9rico?= Wang <xiyou.wangcong@gmail.com>, Jiri Slaby <jslaby@suse.cz>, azurIt <azurit@pobox.sk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Jiri Slaby <jirislaby@gmail.com>, Mel Gorman <mel@csn.ul.ie>
 
-On Wed, 13 Apr 2011 12:04:59 -0700 (PDT) David Rientjes <rientjes@google.com>
-wrote:
+On Thu, 14 Apr 2011 04:10:58 +0200 Eric Dumazet <eric.dumazet@gmail.com> wrote:
 
-> On Tue, 22 Mar 2011, Ben Hutchings wrote:
-> 
-> > The conventional format for boolean attributes in sysfs is numeric
-> > ("0" or "1" followed by new-line).  Any boolean attribute can then be
-> > read and written using a generic function.  Using the strings
-> > "yes [no]", "[yes] no" (read), "yes" and "no" (write) will frustrate
-> > this.
-> > 
-> > Cc'd to stable in order to change this before many scripts depend on
-> > the current strings.
-> > 
-> 
-> I agree with this in general, it's certainly the standard way of altering 
-> a boolean tunable throughout the kernel so it would be nice to use the 
-> same userspace libraries with THP.
-> 
-> Let's cc Andrew on this since it will go through the -mm tree if it's 
-> merged.
-> 
-> > Signed-off-by: Ben Hutchings <ben@decadent.org.uk>
-> > Cc: stable@kernel.org [2.6.38]
-> > ---
-> >  mm/huge_memory.c |   21 +++++++++++----------
-> >  1 files changed, 11 insertions(+), 10 deletions(-)
-> > 
-> > diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> > index 113e35c..dc0b3f0 100644
-> > --- a/mm/huge_memory.c
-> > +++ b/mm/huge_memory.c
-> > @@ -244,24 +244,25 @@ static ssize_t single_flag_show(struct kobject *kobj,
-> >  				struct kobj_attribute *attr, char *buf,
-> >  				enum transparent_hugepage_flag flag)
-> >  {
-> > -	if (test_bit(flag, &transparent_hugepage_flags))
-> > -		return sprintf(buf, "[yes] no\n");
-> > -	else
-> > -		return sprintf(buf, "yes [no]\n");
-> > +	return sprintf(buf, "%d\n",
-> > +		       test_bit(flag, &transparent_hugepage_flags));
-
-It test bit guaranteed to return 0 or 1?
-
-I think the x86 version returns 0 or -1 (that is from reading the code and
-using google to check what 'sbb' does).
-
-Maybe make it "!!test_bit" or even
-
-     strcpy(buf, test_bit(...) ? "1\n" : "0\n");
-     return 2;
-
-
-NeilBrown
-
-
-> >  }
-> >  static ssize_t single_flag_store(struct kobject *kobj,
-> >  				 struct kobj_attribute *attr,
-> >  				 const char *buf, size_t count,
-> >  				 enum transparent_hugepage_flag flag)
-> >  {
-> > -	if (!memcmp("yes", buf,
-> > -		    min(sizeof("yes")-1, count))) {
-> > +	unsigned long value;
-> > +	char *endp;
-> > +
-> > +	value = simple_strtoul(buf, &endp, 0);
-> > +	if (endp == buf || value > 1)
-> > +		return -EINVAL;
-> > +
-> > +	if (value)
-> >  		set_bit(flag, &transparent_hugepage_flags);
-> > -	} else if (!memcmp("no", buf,
-> > -			   min(sizeof("no")-1, count))) {
-> > +	else
-> >  		clear_bit(flag, &transparent_hugepage_flags);
-> > -	} else
-> > -		return -EINVAL;
+> > --- a/fs/file.c~a
+> > +++ a/fs/file.c
+> > @@ -39,14 +39,17 @@ int sysctl_nr_open_max = 1024 * 1024; /*
+> >   */
+> >  static DEFINE_PER_CPU(struct fdtable_defer, fdtable_defer_list);
 > >  
-> >  	return count;
+> > -static inline void *alloc_fdmem(unsigned int size)
+> > +static void *alloc_fdmem(unsigned int size)
+> >  {
+> > -	void *data;
+> > -
+> > -	data = kmalloc(size, GFP_KERNEL|__GFP_NOWARN);
+> > -	if (data != NULL)
+> > -		return data;
+> > -
+> > +	/*
+> > +	 * Very large allocations can stress page reclaim, so fall back to
+> > +	 * vmalloc() if the allocation size will be considered "large" by the VM.
+> > +	 */
+> > +	if (size <= (PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER) {
+> > +		void *data = kmalloc(size, GFP_KERNEL|__GFP_NOWARN);
+> > +		if (data != NULL)
+> > +			return data;
+> > +	}
+> >  	return vmalloc(size);
 > >  }
+> >  
+> > _
+> > 
 > 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> Acked-by: Eric Dumazet <eric.dumazet@gmail.com>
+> 
+> #define PAGE_ALLOC_COSTLY_ORDER 3
+> 
+> On x86_64, this means we try kmalloc() up to 4096 files in fdtable.
+
+Thanks.  I added the cc:stable to the changelog.
+
+It'd be nice to get this tested if poss, to confrm that it actually
+fixes things.
+
+Also, Melpoke.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
