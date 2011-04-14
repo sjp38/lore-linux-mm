@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 207DE900086
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id C8B62900088
 	for <linux-mm@kvack.org>; Thu, 14 Apr 2011 18:55:44 -0400 (EDT)
 From: Ying Han <yinghan@google.com>
-Subject: [PATCH V4 06/10] Per-memcg background reclaim.
-Date: Thu, 14 Apr 2011 15:54:25 -0700
-Message-Id: <1302821669-29862-7-git-send-email-yinghan@google.com>
+Subject: [PATCH V4 08/10] Enable per-memcg background reclaim.
+Date: Thu, 14 Apr 2011 15:54:27 -0700
+Message-Id: <1302821669-29862-9-git-send-email-yinghan@google.com>
 In-Reply-To: <1302821669-29862-1-git-send-email-yinghan@google.com>
 References: <1302821669-29862-1-git-send-email-yinghan@google.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,231 +13,133 @@ List-ID: <linux-mm.kvack.org>
 To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>
 Cc: linux-mm@kvack.org
 
-This is the main loop of per-memcg background reclaim which is implemented in
-function balance_mem_cgroup_pgdat().
+By default the per-memcg background reclaim is disabled when the limit_in_bytes
+is set the maximum. The kswapd_run() is called when the memcg is being resized,
+and kswapd_stop() is called when the memcg is being deleted.
 
-The function performs a priority loop similar to global reclaim. During each
-iteration it invokes balance_pgdat_node() for all nodes on the system, which
-is another new function performs background reclaim per node. After reclaiming
-each node, it checks mem_cgroup_watermark_ok() and breaks the priority loop if
-it returns true.
+The per-memcg kswapd is waked up based on the usage and low_wmark, which is
+checked once per 1024 increments per cpu. The memcg's kswapd is waked up if the
+usage is larger than the low_wmark.
 
 changelog v4..v3:
-1. split the select_victim_node and zone_unreclaimable to a seperate patches
-2. remove the logic tries to do zone balancing.
+1. move kswapd_stop to mem_cgroup_destroy based on comments from KAMAZAWA
+2. move kswapd_run to setup_mem_cgroup_wmark, since the actual watermarks
+determines whether or not enabling per-memcg background reclaim.
 
 changelog v3..v2:
-1. change mz->all_unreclaimable to be boolean.
-2. define ZONE_RECLAIMABLE_RATE macro shared by zone and per-memcg reclaim.
-3. some more clean-up.
+1. some clean-ups
 
 changelog v2..v1:
-1. move the per-memcg per-zone clear_unreclaimable into uncharge stage.
-2. shared the kswapd_run/kswapd_stop for per-memcg and global background
-reclaim.
-3. name the per-memcg memcg as "memcg-id" (css->id). And the global kswapd
-keeps the same name.
-4. fix a race on kswapd_stop while the per-memcg-per-zone info could be accessed
-after freeing.
-5. add the fairness in zonelist where memcg remember the last zone reclaimed
-from.
+1. start/stop the per-cgroup kswapd at create/delete cgroup stage.
+2. remove checking the wmark from per-page charging. now it checks the wmark
+periodically based on the event counter.
 
 Signed-off-by: Ying Han <yinghan@google.com>
 ---
- mm/vmscan.c |  161 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 files changed, 161 insertions(+), 0 deletions(-)
+ mm/memcontrol.c |   37 +++++++++++++++++++++++++++++++++++++
+ 1 files changed, 37 insertions(+), 0 deletions(-)
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 4deb9c8..b8345d2 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -47,6 +47,8 @@
- 
- #include <linux/swapops.h>
- 
-+#include <linux/res_counter.h>
-+
- #include "internal.h"
- 
- #define CREATE_TRACE_POINTS
-@@ -111,6 +113,8 @@ struct scan_control {
- 	 * are scanned.
- 	 */
- 	nodemask_t	*nodemask;
-+
-+	int priority;
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index da6a130..1b23ff4 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -105,10 +105,12 @@ enum mem_cgroup_events_index {
+ enum mem_cgroup_events_target {
+ 	MEM_CGROUP_TARGET_THRESH,
+ 	MEM_CGROUP_TARGET_SOFTLIMIT,
++	MEM_CGROUP_WMARK_EVENTS_THRESH,
+ 	MEM_CGROUP_NTARGETS,
  };
+ #define THRESHOLDS_EVENTS_TARGET (128)
+ #define SOFTLIMIT_EVENTS_TARGET (1024)
++#define WMARK_EVENTS_TARGET (1024)
  
- #define lru_to_page(_head) (list_entry((_head)->prev, struct page, lru))
-@@ -2632,11 +2636,168 @@ static void kswapd_try_to_sleep(struct kswapd *kswapd_p, int order,
- 	finish_wait(wait_h, &wait);
- }
+ struct mem_cgroup_stat_cpu {
+ 	long count[MEM_CGROUP_STAT_NSTATS];
+@@ -370,6 +372,8 @@ static void mem_cgroup_put(struct mem_cgroup *mem);
+ static struct mem_cgroup *parent_mem_cgroup(struct mem_cgroup *mem);
+ static void drain_all_stock_async(void);
  
-+#ifdef CONFIG_CGROUP_MEM_RES_CTLR
-+/*
-+ * The function is used for per-memcg LRU. It scanns all the zones of the
-+ * node and returns the nr_scanned and nr_reclaimed.
-+ */
-+static void balance_pgdat_node(pg_data_t *pgdat, int order,
-+					struct scan_control *sc)
-+{
-+	int i;
-+	unsigned long total_scanned = 0;
-+	struct mem_cgroup *mem_cont = sc->mem_cgroup;
-+	int priority = sc->priority;
++static void wake_memcg_kswapd(struct mem_cgroup *mem);
 +
-+	/*
-+	 * Now scan the zone in the dma->highmem direction, and we scan
-+	 * every zones for each node.
-+	 *
-+	 * We do this because the page allocator works in the opposite
-+	 * direction.  This prevents the page allocator from allocating
-+	 * pages behind kswapd's direction of progress, which would
-+	 * cause too much scanning of the lower zones.
-+	 */
-+	for (i = 0; i < pgdat->nr_zones; i++) {
-+		struct zone *zone = pgdat->node_zones + i;
-+
-+		if (!populated_zone(zone))
-+			continue;
-+
-+		sc->nr_scanned = 0;
-+		shrink_zone(priority, zone, sc);
-+		total_scanned += sc->nr_scanned;
-+
-+		/*
-+		 * If we've done a decent amount of scanning and
-+		 * the reclaim ratio is low, start doing writepage
-+		 * even in laptop mode
-+		 */
-+		if (total_scanned > SWAP_CLUSTER_MAX * 2 &&
-+		    total_scanned > sc->nr_reclaimed + sc->nr_reclaimed / 2) {
-+			sc->may_writepage = 1;
-+		}
-+	}
-+
-+	sc->nr_scanned = total_scanned;
-+	return;
-+}
-+
-+/*
-+ * Per cgroup background reclaim.
-+ * TODO: Take off the order since memcg always do order 0
-+ */
-+static unsigned long balance_mem_cgroup_pgdat(struct mem_cgroup *mem_cont,
-+					      int order)
-+{
-+	int i, nid;
-+	int start_node;
-+	int priority;
-+	bool wmark_ok;
-+	int loop;
-+	pg_data_t *pgdat;
-+	nodemask_t do_nodes;
-+	unsigned long total_scanned;
-+	struct scan_control sc = {
-+		.gfp_mask = GFP_KERNEL,
-+		.may_unmap = 1,
-+		.may_swap = 1,
-+		.nr_to_reclaim = ULONG_MAX,
-+		.swappiness = vm_swappiness,
-+		.order = order,
-+		.mem_cgroup = mem_cont,
-+	};
-+
-+loop_again:
-+	do_nodes = NODE_MASK_NONE;
-+	sc.may_writepage = !laptop_mode;
-+	sc.nr_reclaimed = 0;
-+	total_scanned = 0;
-+
-+	for (priority = DEF_PRIORITY; priority >= 0; priority--) {
-+		sc.priority = priority;
-+		wmark_ok = false;
-+		loop = 0;
-+
-+		/* The swap token gets in the way of swapout... */
-+		if (!priority)
-+			disable_swap_token();
-+
-+		if (priority == DEF_PRIORITY)
-+			do_nodes = node_states[N_ONLINE];
-+
-+		while (1) {
-+			nid = mem_cgroup_select_victim_node(mem_cont,
-+							&do_nodes);
-+
-+			/* Indicate we have cycled the nodelist once
-+			 * TODO: we might add MAX_RECLAIM_LOOP for preventing
-+			 * kswapd burning cpu cycles.
-+			 */
-+			if (loop == 0) {
-+				start_node = nid;
-+				loop++;
-+			} else if (nid == start_node)
-+				break;
-+
-+			pgdat = NODE_DATA(nid);
-+			balance_pgdat_node(pgdat, order, &sc);
-+			total_scanned += sc.nr_scanned;
-+
-+			/* Set the node which has at least
-+			 * one reclaimable zone
-+			 */
-+			for (i = pgdat->nr_zones - 1; i >= 0; i--) {
-+				struct zone *zone = pgdat->node_zones + i;
-+
-+				if (!populated_zone(zone))
-+					continue;
-+			}
-+			if (i < 0)
-+				node_clear(nid, do_nodes);
-+
-+			if (mem_cgroup_watermark_ok(mem_cont,
-+							CHARGE_WMARK_HIGH)) {
-+				wmark_ok = true;
-+				goto out;
-+			}
-+
-+			if (nodes_empty(do_nodes)) {
-+				wmark_ok = true;
-+				goto out;
-+			}
-+		}
-+
-+		/* All the nodes are unreclaimable, kswapd is done */
-+		if (nodes_empty(do_nodes)) {
-+			wmark_ok = true;
-+			goto out;
-+		}
-+
-+		if (total_scanned && priority < DEF_PRIORITY - 2)
-+			congestion_wait(WRITE, HZ/10);
-+
-+		if (sc.nr_reclaimed >= SWAP_CLUSTER_MAX)
-+			break;
-+	}
-+out:
-+	if (!wmark_ok) {
-+		cond_resched();
-+
-+		try_to_freeze();
-+
-+		goto loop_again;
-+	}
-+
-+	return sc.nr_reclaimed;
-+}
-+#else
- static unsigned long balance_mem_cgroup_pgdat(struct mem_cgroup *mem_cont,
- 							int order)
+ static struct mem_cgroup_per_zone *
+ mem_cgroup_zoneinfo(struct mem_cgroup *mem, int nid, int zid)
  {
- 	return 0;
+@@ -548,6 +552,12 @@ mem_cgroup_largest_soft_limit_node(struct mem_cgroup_tree_per_zone *mctz)
+ 	return mz;
  }
-+#endif
  
++static void mem_cgroup_check_wmark(struct mem_cgroup *mem)
++{
++	if (!mem_cgroup_watermark_ok(mem, CHARGE_WMARK_LOW))
++		wake_memcg_kswapd(mem);
++}
++
  /*
-  * The background pageout daemon, started as a kernel thread
+  * Implementation Note: reading percpu statistics for memcg.
+  *
+@@ -678,6 +688,9 @@ static void __mem_cgroup_target_update(struct mem_cgroup *mem, int target)
+ 	case MEM_CGROUP_TARGET_SOFTLIMIT:
+ 		next = val + SOFTLIMIT_EVENTS_TARGET;
+ 		break;
++	case MEM_CGROUP_WMARK_EVENTS_THRESH:
++		next = val + WMARK_EVENTS_TARGET;
++		break;
+ 	default:
+ 		return;
+ 	}
+@@ -701,6 +714,10 @@ static void memcg_check_events(struct mem_cgroup *mem, struct page *page)
+ 			__mem_cgroup_target_update(mem,
+ 				MEM_CGROUP_TARGET_SOFTLIMIT);
+ 		}
++		if (unlikely(__memcg_event_check(mem,
++			MEM_CGROUP_WMARK_EVENTS_THRESH))){
++			mem_cgroup_check_wmark(mem);
++		}
+ 	}
+ }
+ 
+@@ -845,6 +862,9 @@ static void setup_per_memcg_wmarks(struct mem_cgroup *mem)
+ 
+ 		res_counter_set_low_wmark_limit(&mem->res, low_wmark);
+ 		res_counter_set_high_wmark_limit(&mem->res, high_wmark);
++
++		if (!mem_cgroup_is_root(mem) && !mem->kswapd_wait)
++			kswapd_run(0, mem);
+ 	}
+ }
+ 
+@@ -4828,6 +4848,22 @@ int mem_cgroup_last_scanned_node(struct mem_cgroup *mem)
+ 	return mem->last_scanned_node;
+ }
+ 
++static inline
++void wake_memcg_kswapd(struct mem_cgroup *mem)
++{
++	wait_queue_head_t *wait;
++
++	if (!mem || !mem->high_wmark_distance)
++		return;
++
++	wait = mem->kswapd_wait;
++
++	if (!wait || !waitqueue_active(wait))
++		return;
++
++	wake_up_interruptible(wait);
++}
++
+ static int mem_cgroup_soft_limit_tree_init(void)
+ {
+ 	struct mem_cgroup_tree_per_node *rtpn;
+@@ -4931,6 +4967,7 @@ static void mem_cgroup_destroy(struct cgroup_subsys *ss,
+ {
+ 	struct mem_cgroup *mem = mem_cgroup_from_cont(cont);
+ 
++	kswapd_stop(0, mem);
+ 	mem_cgroup_put(mem);
+ }
+ 
 -- 
 1.7.3.1
 
