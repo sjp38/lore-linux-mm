@@ -1,101 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 415CE900086
-	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 21:25:04 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 3E1963EE0C8
-	for <linux-mm@kvack.org>; Thu, 14 Apr 2011 10:25:00 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 2486E45DE55
-	for <linux-mm@kvack.org>; Thu, 14 Apr 2011 10:25:00 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id F21FB45DE54
-	for <linux-mm@kvack.org>; Thu, 14 Apr 2011 10:24:59 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id E5E8AE08001
-	for <linux-mm@kvack.org>; Thu, 14 Apr 2011 10:24:59 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 86AB3E38005
-	for <linux-mm@kvack.org>; Thu, 14 Apr 2011 10:24:59 +0900 (JST)
-Date: Thu, 14 Apr 2011 10:18:28 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH V3] Add the pagefault count into memcg stats
-Message-Id: <20110414101828.b0f3729b.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <alpine.DEB.2.00.1104131742250.16515@chino.kir.corp.google.com>
-References: <1301419953-2282-1-git-send-email-yinghan@google.com>
-	<alpine.DEB.2.00.1104131301180.8140@chino.kir.corp.google.com>
-	<20110414085239.a597fb5c.kamezawa.hiroyu@jp.fujitsu.com>
-	<alpine.DEB.2.00.1104131742250.16515@chino.kir.corp.google.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 274A0900086
+	for <linux-mm@kvack.org>; Wed, 13 Apr 2011 22:00:48 -0400 (EDT)
+Received: by wwi36 with SMTP id 36so1234124wwi.26
+        for <linux-mm@kvack.org>; Wed, 13 Apr 2011 19:00:45 -0700 (PDT)
+Subject: Re: [PATCH] percpu: preemptless __per_cpu_counter_add
+From: Eric Dumazet <eric.dumazet@gmail.com>
+In-Reply-To: <20110413235500.GA12781@mtj.dyndns.org>
+References: <alpine.DEB.2.00.1104130942500.16214@router.home>
+	 <alpine.DEB.2.00.1104131148070.20908@router.home>
+	 <20110413185618.GA3987@mtj.dyndns.org>
+	 <alpine.DEB.2.00.1104131521050.25812@router.home>
+	 <20110413215022.GI3987@mtj.dyndns.org>
+	 <alpine.DEB.2.00.1104131712070.29766@router.home>
+	 <alpine.DEB.2.00.1104131721590.30103@router.home>
+	 <20110413235500.GA12781@mtj.dyndns.org>
+Content-Type: text/plain; charset="UTF-8"
+Date: Thu, 14 Apr 2011 04:00:40 +0200
+Message-ID: <1302746440.3549.2.camel@edumazet-laptop>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Ying Han <yinghan@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Mark Brown <broonie@opensource.wolfsonmicro.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Tejun Heo <tj@kernel.org>
+Cc: Christoph Lameter <cl@linux.com>, akpm@linux-foundation.org, linux-mm@kvack.org, shaohua.li@intel.com
 
-On Wed, 13 Apr 2011 17:47:01 -0700 (PDT)
-David Rientjes <rientjes@google.com> wrote:
-
-> On Thu, 14 Apr 2011, KAMEZAWA Hiroyuki wrote:
+Le jeudi 14 avril 2011 A  08:55 +0900, Tejun Heo a A(C)crit :
+> Hello, Christoph.
 > 
-> > > I'm wondering if we can just modify count_vm_event() directly for 
-> > > CONFIG_CGROUP_MEM_RES_CTLR so that we automatically track all vmstat items 
-> > > (those in enum vm_event_item) for each memcg.  We could add an array of 
-> > > NR_VM_EVENT_ITEMS into each struct mem_cgroup to be incremented on 
-> > > count_vm_event() for current's memcg.
-> > > 
-> > > If that's done, we wouldn't have to add additional calls for every vmstat 
-> > > item we want to duplicate from the global counters.
-> > > 
+> On Wed, Apr 13, 2011 at 05:23:04PM -0500, Christoph Lameter wrote:
 > > 
-> > Maybe we do that finally.
+> > Suggested fixup. Return from slowpath and update percpu variable under
+> > spinlock.
 > > 
-> > For now, IIUC, over 50% of VM_EVENTS are needless for memcg (ex. per zone stats)
-> > and this array consumes large size of percpu area. I think we need to select
-> > events carefully even if we do that. And current memcg's percpu stat is mixture
-> > of vm_events and vm_stat. We may need to sort out them and re-design it.
-> > My concern is that I'm not sure we have enough percpu area for vmstat+vmevents
-> > for 1000+ memcg, and it's allowed even if we can do.
+> > Signed-off-by: Christoph Lameter <cl@linux.com>
 > > 
+> > ---
+> >  lib/percpu_counter.c |    8 ++------
+> >  1 file changed, 2 insertions(+), 6 deletions(-)
+> > 
+> > Index: linux-2.6/lib/percpu_counter.c
+> > ===================================================================
+> > --- linux-2.6.orig/lib/percpu_counter.c	2011-04-13 17:20:41.000000000 -0500
+> > +++ linux-2.6/lib/percpu_counter.c	2011-04-13 17:21:33.000000000 -0500
+> > @@ -82,13 +82,9 @@ void __percpu_counter_add(struct percpu_
+> >  			spin_lock(&fbc->lock);
+> >  			count = __this_cpu_read(*fbc->counters);
+> >  			fbc->count += count + amount;
+> > +			__this_cpu_write(*fbc->counters, 0);
+> >  			spin_unlock(&fbc->lock);
+> > -			/*
+> > -			 * If cmpxchg fails then we need to subtract the amount that
+> > -			 * we found in the percpu value.
+> > -			 */
+> > -			amount = -count;
+> > -			new = 0;
+> > +			return;
 > 
-> What I proposed above was adding an array directly into struct mem_cgroup 
-> so that we don't collect the stats percpu, they are incremented directly 
-> in the mem_cgroup.  Perhaps if we separated enum vm_event_item out into 
-> two separate arrays (those useful only globally and those useful for both 
-> global and memcg), then this would be simple.
+> Yeah, looks pretty good to me now.  Just a couple more things.
 > 
-> Something like
+> * Please fold this one into the original patch.
 > 
-> 	enum vm_event_item {
-> 		PGPGIN,
-> 		PGPGOUT,
-> 		PSWPIN,
-> 		PSWPOUT,
-> 		...
-> 		NR_VM_EVENT_ITEMS,
-> 	};
+> * While you're restructuring the functions, can you add unlikely to
+>   the slow path?
 > 
-> 	enum vm_global_event_item {
-> 		KSWAPD_STEAL = NR_VM_EVENT_ITEMS,
-> 		KSWAPD_INODESTEAL,
-> 		...
-> 	};
+> It now looks correct to me but just in case, Eric, do you mind
+> reviewing and acking it?
 > 
-> and then in count_vm_event(), check
+> Thanks.
 > 
-> 	if (item < NR_VM_EVENT_ITEMS) {
-> 		memcg_add_vm_event(mem, item, count);
-> 	}
-> 
-> I don't think we need to be concerned about reordering the global 
-> /proc/vmstat to fit this purpose.
-> 
-Hmm, ok. will try that.
 
-Thanks,
--Kame
-
+I am not sure its worth it, considering we hit this on machines where
+preemption is off (CONFIG_PREEMPT_NONE=y) ?
 
 
 
