@@ -1,64 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 66955900086
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 96737900089
 	for <linux-mm@kvack.org>; Fri, 15 Apr 2011 16:12:58 -0400 (EDT)
-Message-Id: <20110415201246.096634892@linux.com>
-Date: Fri, 15 Apr 2011 15:12:46 -0500
+Message-Id: <20110415201256.138618098@linux.com>
+Date: Fri, 15 Apr 2011 15:12:48 -0500
 From: Christoph Lameter <cl@linux.com>
-Subject: [slubllv333num@/21] SLUB: Lockless freelists for objects V3
+Subject: [slubllv333num@/21] slub: get_map() function to establish map of free objects in a slab
+References: <20110415201246.096634892@linux.com>
+Content-Disposition: inline; filename=slub_slowpath_get_map
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Pekka Enberg <penberg@cs.helsinki.fi>
 Cc: David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Eric Dumazet <eric.dumazet@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, linux-mm@kvack.org
 
-V2->V3
-	- Provide statistics
-	- Fallback logic to page lock if cmpxchg16b is not available.
-	- Better counter support
-	- More cleanups and clarifications
+The bit map of free objects in a slab page is determined in various functions
+if debugging is enabled.
 
-Well here is another result of my obsession with SLAB allocators. There must be
-some way to get an allocator done that is faster without queueing and I hope
-that we are now there (maybe only almost...).
+Provide a common function for that purpose.
 
-This patchset implement wider lockless operations in slub affecting most of the
-slowpaths. In particular the patch decreases the overhead in the performance
-critical section of __slab_free.
+Signed-off-by: Christoph Lameter <cl@linux.com>
 
-One test that I ran was "hackbench 200 process 200" on 2.6.29-rc3 under KVM
+---
+ mm/slub.c |   34 ++++++++++++++++++++++------------
+ 1 file changed, 22 insertions(+), 12 deletions(-)
 
-Run	SLAB	SLUB	SLUB LL
-1st	35.2	35.9	31.9
-2nd	34.6	30.8	27.9
-3rd	33.8	29.9	28.8
-
-Note that the SLUB version in 2.6.29-rc1 already has an optimized allocation
-and free path using this_cpu_cmpxchg_double(). SLUB LL takes it to new heights
-by also using cmpxchg_double() in the slowpaths (especially in the kfree()
-case where we cannot queue).
-
-The patch uses a cmpxchg_double (also introduced here) to do an atomic change
-on the state of a slab page that includes the following pieces of information:
-
-1. Freelist pointer
-2. Number of objects inuse
-3. Frozen state of a slab
-
-Disabling of interrupts (which is a significant latency in the
-allocator paths) is avoided in the __slab_free case.
-
-There are some concerns with this patch. The use of cmpxchg_double on
-fields of the page struct requires alignment of the fields to double
-word boundaries. That can only be accomplished by adding some padding
-to struct page which blows it up to 64 byte  (on x86_64). Comments
-in the source describe these things in more detail.
-
-The cmpxchg_double() operation introduced here could also be used to
-update other doublewords in the page struct in a lockless fashion. One
-can envision page state changes that involved flags and mappings or
-maybe do list operations locklessly (but with the current scheme we
-would need to update two other words elsewhere at the same time too,
-so another scheme would be needed).
+Index: linux-2.6/mm/slub.c
+===================================================================
+--- linux-2.6.orig/mm/slub.c	2011-03-30 14:09:27.000000000 -0500
++++ linux-2.6/mm/slub.c	2011-03-30 14:30:24.000000000 -0500
+@@ -271,10 +271,6 @@ static inline void set_freepointer(struc
+ 	for (__p = (__addr); __p < (__addr) + (__objects) * (__s)->size;\
+ 			__p += (__s)->size)
+ 
+-/* Scan freelist */
+-#define for_each_free_object(__p, __s, __free) \
+-	for (__p = (__free); __p; __p = get_freepointer((__s), __p))
+-
+ /* Determine object index from a given position */
+ static inline int slab_index(void *p, struct kmem_cache *s, void *addr)
+ {
+@@ -330,6 +326,21 @@ static inline int oo_objects(struct kmem
+ 	return x.x & OO_MASK;
+ }
+ 
++/*
++ * Determine a map of object in use on a page.
++ *
++ * Slab lock or node listlock must be held to guarantee that the page does
++ * not vanish from under us.
++ */
++static void get_map(struct kmem_cache *s, struct page *page, unsigned long *map)
++{
++	void *p;
++	void *addr = page_address(page);
++
++	for (p = page->freelist; p; p = get_freepointer(s, p))
++		set_bit(slab_index(p, s, addr), map);
++}
++
+ #ifdef CONFIG_SLUB_DEBUG
+ /*
+  * Debug settings:
+@@ -2673,9 +2684,8 @@ static void list_slab_objects(struct kme
+ 		return;
+ 	slab_err(s, page, "%s", text);
+ 	slab_lock(page);
+-	for_each_free_object(p, s, page->freelist)
+-		set_bit(slab_index(p, s, addr), map);
+ 
++	get_map(s, page, map);
+ 	for_each_object(p, s, addr, page->objects) {
+ 
+ 		if (!test_bit(slab_index(p, s, addr), map)) {
+@@ -3610,10 +3620,11 @@ static int validate_slab(struct kmem_cac
+ 	/* Now we know that a valid freelist exists */
+ 	bitmap_zero(map, page->objects);
+ 
+-	for_each_free_object(p, s, page->freelist) {
+-		set_bit(slab_index(p, s, addr), map);
+-		if (!check_object(s, page, p, SLUB_RED_INACTIVE))
+-			return 0;
++	get_map(s, page, map);
++	for_each_object(p, s, addr, page->objects) {
++		if (test_bit(slab_index(p, s, addr), map))
++			if (!check_object(s, page, p, SLUB_RED_INACTIVE))
++				return 0;
+ 	}
+ 
+ 	for_each_object(p, s, addr, page->objects)
+@@ -3821,8 +3832,7 @@ static void process_slab(struct loc_trac
+ 	void *p;
+ 
+ 	bitmap_zero(map, page->objects);
+-	for_each_free_object(p, s, page->freelist)
+-		set_bit(slab_index(p, s, addr), map);
++	get_map(s, page, map);
+ 
+ 	for_each_object(p, s, addr, page->objects)
+ 		if (!test_bit(slab_index(p, s, addr), map))
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
