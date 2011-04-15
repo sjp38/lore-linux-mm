@@ -1,69 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 96030900089
-	for <linux-mm@kvack.org>; Fri, 15 Apr 2011 13:39:10 -0400 (EDT)
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e6.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p3FHEpud026090
-	for <linux-mm@kvack.org>; Fri, 15 Apr 2011 13:14:51 -0400
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p3FHcQCG029248
-	for <linux-mm@kvack.org>; Fri, 15 Apr 2011 13:38:36 -0400
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p3FHcOCa015281
-	for <linux-mm@kvack.org>; Fri, 15 Apr 2011 11:38:24 -0600
-Subject: [RFC][PATCH 2/3] track numbers of pagetable pages
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 7072C900086
+	for <linux-mm@kvack.org>; Fri, 15 Apr 2011 13:44:14 -0400 (EDT)
+Received: from d03relay03.boulder.ibm.com (d03relay03.boulder.ibm.com [9.17.195.228])
+	by e37.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p3FHfNvp021315
+	for <linux-mm@kvack.org>; Fri, 15 Apr 2011 11:41:23 -0600
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay03.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p3FHi50V113676
+	for <linux-mm@kvack.org>; Fri, 15 Apr 2011 11:44:05 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p3FHi4sX026246
+	for <linux-mm@kvack.org>; Fri, 15 Apr 2011 11:44:05 -0600
+Subject: [PATCH 2/2] print vmalloc() state after allocation failures
 From: Dave Hansen <dave@linux.vnet.ibm.com>
-Date: Fri, 15 Apr 2011 10:38:23 -0700
-References: <20110415173821.62660715@kernel>
-In-Reply-To: <20110415173821.62660715@kernel>
-Message-Id: <20110415173823.EA7A7473@kernel>
+In-Reply-To: <op.vtzo4ejf3l0zgt@mnazarewicz-glaptop>
+References: <20110415170437.17E1AF36@kernel>
+	 <20110415170438.D5C317D5@kernel>  <op.vtzo4ejf3l0zgt@mnazarewicz-glaptop>
+Content-Type: text/plain; charset="ISO-8859-1"
+Date: Fri, 15 Apr 2011 10:44:01 -0700
+Message-ID: <1302889441.16562.3525.camel@nimitz>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, Dave Hansen <dave@linux.vnet.ibm.com>
+To: Michal Nazarewicz <mina86@mina86.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, David Rientjes <rientjes@google.com>, akpm@osdl.org
 
+On Fri, 2011-04-15 at 19:20 +0200, Michal Nazarewicz wrote:
+> On Fri, 15 Apr 2011 19:04:38 +0200, Dave Hansen wrote:
+> > diff -puN mm/vmalloc.c~vmalloc-warn mm/vmalloc.c
+> > --- linux-2.6.git/mm/vmalloc.c~vmalloc-warn	2011-04-15  
+> > 08:49:06.823306620 -0700
+> > +++ linux-2.6.git-dave/mm/vmalloc.c	2011-04-15 09:20:17.926460283 -0700
+> > @@ -1534,6 +1534,7 @@ static void *__vmalloc_node(unsigned lon
+> >  static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
+> >  				 pgprot_t prot, int node, void *caller)
+> >  {
+> > +	int order = 0;
+> 
+> Could we make that const?
 
-Now that we have the mm in the constructor and destructor, it's
-simple to to bump a counter.  Add the counter to the mm and use
-the existing MM_* counter infrastructure.
+Sure.  Here's a replacement patch.  Compiles and boots for me.
+
+--
+
+I was tracking down a page allocation failure that ended up in vmalloc().
+Since vmalloc() uses 0-order pages, if somebody asks for an insane amount
+of memory, we'll still get a warning with "order:0" in it.  That's not
+very useful.
+
+During recovery, vmalloc() also nicely frees all of the memory that it
+got up to the point of the failure.  That is wonderful, but it also
+quickly hides any issues.  We have a much different sitation if vmalloc()
+repeatedly fails 10GB in to:
+
+	vmalloc(100 * 1<<30);
+
+versus repeatedly failing 4096 bytes in to a:
+
+	vmalloc(8192);
+
+This patch will print out messages that look like this:
+
+[   68.123503] vmalloc: allocation failure, allocated 6680576 of 13426688 bytes
+[   68.124218] bash: page allocation failure: order:0, mode:0xd2
+[   68.124811] Pid: 3770, comm: bash Not tainted 2.6.39-rc3-00082-g85f2e68-dirty #333
+[   68.125579] Call Trace:
+[   68.125853]  [<ffffffff810f6da6>] warn_alloc_failed+0x146/0x170
+[   68.126464]  [<ffffffff8107e05c>] ? printk+0x6c/0x70
+[   68.126791]  [<ffffffff8112b5d4>] ? alloc_pages_current+0x94/0xe0
+[   68.127661]  [<ffffffff8111ed37>] __vmalloc_node_range+0x237/0x290
+...
+
+The 'order' variable is added for clarity when calling
+warn_alloc_failed() to avoid having an unexplained '0' as an argument.
+The 'tmp_mask' is there to keep the alloc_pages_node() looking sane.
+Adding __GFP_NOWARN is done because we now have our own, full error
+message in vmalloc code.
+
+As a side issue, I also noticed that ctl_ioctl() does vmalloc() based
+solely on an unverified value passed in from userspace.  Granted, it's
+under CAP_SYS_ADMIN, but it still frightens me a bit.
 
 Signed-off-by: Dave Hansen <dave@linux.vnet.ibm.com>
 ---
 
- linux-2.6.git-dave/include/linux/mm.h       |    2 ++
- linux-2.6.git-dave/include/linux/mm_types.h |    1 +
- 2 files changed, 3 insertions(+)
+ linux-2.6.git-dave/mm/vmalloc.c |    9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)
 
-diff -puN include/linux/mm.h~track-pagetable-pages include/linux/mm.h
---- linux-2.6.git/include/linux/mm.h~track-pagetable-pages	2011-04-15 10:37:10.768832396 -0700
-+++ linux-2.6.git-dave/include/linux/mm.h	2011-04-15 10:37:10.780832393 -0700
-@@ -1245,12 +1245,14 @@ static inline pmd_t *pmd_alloc(struct mm
- static inline void pgtable_page_ctor(struct mm_struct *mm, struct page *page)
+diff -puN mm/vmalloc.c~vmalloc-warn mm/vmalloc.c
+--- linux-2.6.git/mm/vmalloc.c~vmalloc-warn	2011-04-15 10:39:05.928793559 -0700
++++ linux-2.6.git-dave/mm/vmalloc.c	2011-04-15 10:39:18.716789177 -0700
+@@ -1534,6 +1534,7 @@ static void *__vmalloc_node(unsigned lon
+ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
+ 				 pgprot_t prot, int node, void *caller)
  {
- 	pte_lock_init(page);
-+	inc_mm_counter(mm, MM_PTEPAGES);
- 	inc_zone_page_state(page, NR_PAGETABLE);
++	const int order = 0;
+ 	struct page **pages;
+ 	unsigned int nr_pages, array_size, i;
+ 	gfp_t nested_gfp = (gfp_mask & GFP_RECLAIM_MASK) | __GFP_ZERO;
+@@ -1560,11 +1561,12 @@ static void *__vmalloc_area_node(struct 
+ 
+ 	for (i = 0; i < area->nr_pages; i++) {
+ 		struct page *page;
++		gfp_t tmp_mask = gfp_mask | __GFP_NOWARN;
+ 
+ 		if (node < 0)
+-			page = alloc_page(gfp_mask);
++			page = alloc_page(tmp_mask);
+ 		else
+-			page = alloc_pages_node(node, gfp_mask, 0);
++			page = alloc_pages_node(node, tmp_mask, order);
+ 
+ 		if (unlikely(!page)) {
+ 			/* Successfully allocated i pages, free them in __vunmap() */
+@@ -1579,6 +1581,9 @@ static void *__vmalloc_area_node(struct 
+ 	return area->addr;
+ 
+ fail:
++	warn_alloc_failed(gfp_mask, order, "vmalloc: allocation failure, "
++			  "allocated %ld of %ld bytes\n",
++			  (area->nr_pages*PAGE_SIZE), area->size);
+ 	vfree(area->addr);
+ 	return NULL;
  }
- 
- static inline void pgtable_page_dtor(struct mm_struct *mm, struct page *page)
- {
- 	pte_lock_deinit(page);
-+	dec_mm_counter(mm, MM_PTEPAGES);
- 	dec_zone_page_state(page, NR_PAGETABLE);
- }
- 
-diff -puN include/linux/mm_types.h~track-pagetable-pages include/linux/mm_types.h
---- linux-2.6.git/include/linux/mm_types.h~track-pagetable-pages	2011-04-15 10:37:10.772832395 -0700
-+++ linux-2.6.git-dave/include/linux/mm_types.h	2011-04-15 10:37:10.780832393 -0700
-@@ -200,6 +200,7 @@ enum {
- 	MM_FILEPAGES,
- 	MM_ANONPAGES,
- 	MM_SWAPENTS,
-+	MM_PTEPAGES,
- 	NR_MM_COUNTERS
- };
- 
 _
+
+
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
