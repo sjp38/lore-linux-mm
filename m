@@ -1,158 +1,359 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 3AE21900086
-	for <linux-mm@kvack.org>; Thu, 14 Apr 2011 21:27:37 -0400 (EDT)
-Received: from wpaz13.hot.corp.google.com (wpaz13.hot.corp.google.com [172.24.198.77])
-	by smtp-out.google.com with ESMTP id p3F1RXW9018493
-	for <linux-mm@kvack.org>; Thu, 14 Apr 2011 18:27:34 -0700
-Received: from yie12 (yie12.prod.google.com [10.243.66.12])
-	by wpaz13.hot.corp.google.com with ESMTP id p3F1RWiF024497
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 14 Apr 2011 18:27:32 -0700
-Received: by yie12 with SMTP id 12so1193647yie.13
-        for <linux-mm@kvack.org>; Thu, 14 Apr 2011 18:27:32 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <1302524879-4737-1-git-send-email-namhyung@gmail.com>
-References: <1302524879-4737-1-git-send-email-namhyung@gmail.com>
-Date: Thu, 14 Apr 2011 18:27:31 -0700
-Message-ID: <BANLkTin4mOMZqq4Sg04hj8Ep2XiCcZOBLg@mail.gmail.com>
-Subject: Re: [PATCH] shmem: factor out remove_indirect_page()
-From: Hugh Dickins <hughd@google.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: base64
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 5AB0D900086
+	for <linux-mm@kvack.org>; Thu, 14 Apr 2011 21:39:27 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 3E42C3EE0B6
+	for <linux-mm@kvack.org>; Fri, 15 Apr 2011 10:39:23 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 23F9B45DE5C
+	for <linux-mm@kvack.org>; Fri, 15 Apr 2011 10:39:23 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 0CC1F45DE5A
+	for <linux-mm@kvack.org>; Fri, 15 Apr 2011 10:39:23 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 005C7E08001
+	for <linux-mm@kvack.org>; Fri, 15 Apr 2011 10:39:23 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id B3FC7E38003
+	for <linux-mm@kvack.org>; Fri, 15 Apr 2011 10:39:22 +0900 (JST)
+Date: Fri, 15 Apr 2011 10:32:40 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH V4 07/10] Add per-memcg zone "unreclaimable"
+Message-Id: <20110415103240.3bea9069.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1302821669-29862-8-git-send-email-yinghan@google.com>
+References: <1302821669-29862-1-git-send-email-yinghan@google.com>
+	<1302821669-29862-8-git-send-email-yinghan@google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Namhyung Kim <namhyung@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Ying Han <yinghan@google.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>, linux-mm@kvack.org
 
-T24gTW9uLCBBcHIgMTEsIDIwMTEgYXQgNToyNyBBTSwgTmFtaHl1bmcgS2ltIDxuYW1oeXVuZ0Bn
-bWFpbC5jb20+IHdyb3RlOgo+IFNwbGl0IG91dCBzb21lIGNvbW1vbiBjb2RlIGluIHNobWVtX3Ry
-dW5jYXRlX3JhbmdlKCkgaW4gb3JkZXIgdG8KPiBpbXByb3ZlIHJlYWRhYmlsaXR5IChob3BlZnVs
-bHkpIGFuZCB0byByZWR1Y2UgY29kZSBkdXBsaWNhdGlvbi4KPgo+IFNpZ25lZC1vZmYtYnk6IE5h
-bWh5dW5nIEtpbSA8bmFtaHl1bmdAZ21haWwuY29tPgoKVGhhbmsgeW91IGZvciB0YWtpbmcgdGhl
-IHRyb3VibGUgdG8gZG8gdGhpcy4KCkhvd2V2ZXIuLi4gYWxsIHRoYXQgc2htZW1fc3dwIGluZGV4
-IGNvZGUgaXMgaXJyZWRlZW1hYmx5IHVucmVhZGFibGUKKG15IGZhdWx0LCBkYXRpbmcgZnJvbSB3
-aGVuIEkgY29udmVydGVkIGl0IHRvIHVzZSBoaWdobWVtIHdpdGgga21hcHMpLAphbmQgSSdkIHJh
-dGhlciBsZWF2ZSBpdCB1bnRvdWNoZWQgdW50aWwgd2Ugc2ltcGx5IGRlbGV0ZSBpdApjb21wbGV0
-ZWx5LgoKSSBoYXZlIGEgcGF0Y2gvc2V0IChnb29kIGZvciBteSB0ZXN0aW5nIGJ1dCBub3QgeWV0
-IGdvb2QgZm9yIGZpbmFsCnN1Ym1pc3Npb24pIHdoaWNoIHJlbW92ZXMgYWxsIHRoYXQgY29kZSwg
-YW5kIHRoZSBuZWVkIHRvIGFsbG9jYXRlCnNobWVtX3N3cCBpbmRleCBwYWdlcyAoZXZlbiB3aGVu
-IENPTkZJR19TV0FQIGlzIG5vdCBzZXQhKTogaW5zdGVhZApzYXZpbmcgdGhlIHN3cF9lbnRyaWVz
-IGluIHRoZSBzdGFuZGFyZCBwYWdlY2FjaGUgcmFkaXhfdHJlZSBmb3IgdGhlCmZpbGUsIHNvIG5v
-IGV4dHJhIGFsbG9jYXRpb25zIGFyZSBuZWVkZWQgYXQgYWxsLgoKSXQgaXMgcG9zc2libGUgdGhh
-dCBteSBwYXRjaC9zZXQgd2lsbCBub3QgYmUgYWNjZXB0ZWQgKGV4dGVuZGluZyB0aGUKcmFkaXhf
-dHJlZSBpbiB0aGF0IHdheSBtYXkgbWVldCBzb21lIHJlc2lzdGFuY2UpOyBidXQgSSBkbyB0aGlu
-awp0aGF0J3MgdGhlIHJpZ2h0IHdheSBmb3J3YXJkLgoKVGhhbmtzLApIdWdoCgo+IC0tLQo+IMKg
-bW0vc2htZW0uYyB8IMKgIDYyICsrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKystLS0t
-LS0tLS0tLS0tLS0tLS0tLS0tLS0tCj4gwqAxIGZpbGVzIGNoYW5nZWQsIDM2IGluc2VydGlvbnMo
-KyksIDI2IGRlbGV0aW9ucygtKQo+Cj4gZGlmZiAtLWdpdCBhL21tL3NobWVtLmMgYi9tbS9zaG1l
-bS5jCj4gaW5kZXggNThkYTdjMTUwYmE2Li41OGFkMTE1OTY3OGYgMTAwNjQ0Cj4gLS0tIGEvbW0v
-c2htZW0uYwo+ICsrKyBiL21tL3NobWVtLmMKPiBAQCAtNTMxLDYgKzUzMSwzMSBAQCBzdGF0aWMg
-dm9pZCBzaG1lbV9mcmVlX3BhZ2VzKHN0cnVjdCBsaXN0X2hlYWQgKm5leHQpCj4gwqAgwqAgwqAg
-wqB9IHdoaWxlIChuZXh0KTsKPiDCoH0KPgo+ICsvKioKPiArICogcmVtb3ZlX2luZGlyZWN0X3Bh
-Z2UgLSByZW1vdmUgYSBpbmRpcmVjdCBwYWdlIGZyb20gdXBwZXIgbGF5ZXIKPiArICogQGRpcjog
-wqAgwqAgwqAgcG9pbnRlciB0byB0aGUgaW5kaXJlY3QgcGFnZSBpbiB0aGUgdXBwZXIgbGF5ZXIK
-PiArICogQHBhZ2U6IMKgIMKgIMKgaW5kaXJlY3QgcGFnZSB0byBiZSByZW1vdmVkCj4gKyAqIEBu
-ZWVkc19sb2NrOiDCoCDCoCDCoCDCoHBvaW50ZXIgdG8gc3BpbmxvY2sgaWYgbmVlZGVkCj4gKyAq
-IEBmcmVlX2xpc3Q6IGxpc3Qgd2hpY2ggdGhlIHJlbW92ZWQgcGFnZSB3aWxsIGJlIGluc2VydGVk
-IGludG8KPiArICoKPiArICogVGhpcyBmdW5jdGlvbiByZW1vdmVzIEBwYWdlIGZyb20gQGRpciBh
-bmQgaW5zZXJ0IGl0IGludG8gQGZyZWVfbGlzdC4KPiArICogVGhlIEBwYWdlIHN0aWxsIHJlbWFp
-bnMgYWZ0ZXIgdGhpcyBmdW5jdGlvbiBidXQgd2lsbCBub3QgYmUgc2VlbiBieQo+ICsgKiBvdGhl
-ciB0YXNrcy4gRmluYWxseSBpdCB3aWxsIGJlIGZyZWVkIHZpYSBzaG1lbV9mcmVlX3BhZ2VzKCku
-Cj4gKyAqLwo+ICtzdGF0aWMgdm9pZCByZW1vdmVfaW5kaXJlY3RfcGFnZShzdHJ1Y3QgcGFnZSAq
-KmRpciwgc3RydWN0IHBhZ2UgKnBhZ2UsCj4gKyDCoCDCoCDCoCDCoCDCoCDCoCDCoCBzcGlubG9j
-a190ICpuZWVkc19sb2NrLCBzdHJ1Y3QgbGlzdF9oZWFkICpmcmVlX2xpc3QpCj4gK3sKPiArIMKg
-IMKgIMKgIGlmIChuZWVkc19sb2NrKSB7Cj4gKyDCoCDCoCDCoCDCoCDCoCDCoCDCoCBzcGluX2xv
-Y2sobmVlZHNfbG9jayk7Cj4gKyDCoCDCoCDCoCDCoCDCoCDCoCDCoCAqZGlyID0gTlVMTDsKPiAr
-IMKgIMKgIMKgIMKgIMKgIMKgIMKgIHNwaW5fdW5sb2NrKG5lZWRzX2xvY2spOwo+ICsgwqAgwqAg
-wqAgfSBlbHNlIHsKPiArIMKgIMKgIMKgIMKgIMKgIMKgIMKgICpkaXIgPSBOVUxMOwo+ICsgwqAg
-wqAgwqAgfQo+ICsKPiArIMKgIMKgIMKgIGxpc3RfYWRkKCZwYWdlLT5scnUsIGZyZWVfbGlzdCk7
-Cj4gK30KPiArCj4gwqBzdGF0aWMgdm9pZCBzaG1lbV90cnVuY2F0ZV9yYW5nZShzdHJ1Y3QgaW5v
-ZGUgKmlub2RlLCBsb2ZmX3Qgc3RhcnQsIGxvZmZfdCBlbmQpCj4gwqB7Cj4gwqAgwqAgwqAgwqBz
-dHJ1Y3Qgc2htZW1faW5vZGVfaW5mbyAqaW5mbyA9IFNITUVNX0koaW5vZGUpOwo+IEBAIC01ODIs
-OSArNjA3LDkgQEAgc3RhdGljIHZvaWQgc2htZW1fdHJ1bmNhdGVfcmFuZ2Uoc3RydWN0IGlub2Rl
-ICppbm9kZSwgbG9mZl90IHN0YXJ0LCBsb2ZmX3QgZW5kKQo+Cj4gwqAgwqAgwqAgwqB0b3BkaXIg
-PSBpbmZvLT5pX2luZGlyZWN0Owo+IMKgIMKgIMKgIMKgaWYgKHRvcGRpciAmJiBpZHggPD0gU0hN
-RU1fTlJfRElSRUNUICYmICFwdW5jaF9ob2xlKSB7Cj4gLSDCoCDCoCDCoCDCoCDCoCDCoCDCoCBp
-bmZvLT5pX2luZGlyZWN0ID0gTlVMTDsKPiArIMKgIMKgIMKgIMKgIMKgIMKgIMKgIHJlbW92ZV9p
-bmRpcmVjdF9wYWdlKCZpbmZvLT5pX2luZGlyZWN0LCB0b3BkaXIsIE5VTEwsCj4gKyDCoCDCoCDC
-oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCZwYWdlc190b19m
-cmVlKTsKPiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoG5yX3BhZ2VzX3RvX2ZyZWUrKzsKPiAtIMKg
-IMKgIMKgIMKgIMKgIMKgIMKgIGxpc3RfYWRkKCZ0b3BkaXItPmxydSwgJnBhZ2VzX3RvX2ZyZWUp
-Owo+IMKgIMKgIMKgIMKgfQo+IMKgIMKgIMKgIMKgc3Bpbl91bmxvY2soJmluZm8tPmxvY2spOwo+
-Cj4gQEAgLTYzNywxNSArNjYyLDEwIEBAIHN0YXRpYyB2b2lkIHNobWVtX3RydW5jYXRlX3Jhbmdl
-KHN0cnVjdCBpbm9kZSAqaW5vZGUsIGxvZmZfdCBzdGFydCwgbG9mZl90IGVuZCkKPiDCoCDCoCDC
-oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoGRpcm9mZiA9ICgoaWR4IC0gRU5UUklFU19QRVJf
-UEFHRVBBR0UvMikgJQo+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
-IMKgIMKgRU5UUklFU19QRVJfUEFHRVBBR0UpIC8gRU5UUklFU19QRVJfUEFHRTsKPiDCoCDCoCDC
-oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoGlmICghZGlyb2ZmICYmICFvZmZzZXQgJiYgdXBw
-ZXJfbGltaXQgPj0gc3RhZ2UpIHsKPiAtIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
-IMKgIMKgIMKgIMKgIGlmIChuZWVkc19sb2NrKSB7Cj4gLSDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
-oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCBzcGluX2xvY2sobmVlZHNfbG9jayk7
-Cj4gLSDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
-oCDCoCAqZGlyID0gTlVMTDsKPiAtIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
-IMKgIMKgIMKgIMKgIMKgIMKgIMKgIHNwaW5fdW5sb2NrKG5lZWRzX2xvY2spOwo+IC0gwqAgwqAg
-wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgbmVlZHNf
-bG9jayA9IE5VTEw7Cj4gLSDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
-oCDCoCB9IGVsc2UKPiAtIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
-IMKgIMKgIMKgIMKgIMKgICpkaXIgPSBOVUxMOwo+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
-wqAgwqAgwqAgwqAgwqAgwqAgwqAgcmVtb3ZlX2luZGlyZWN0X3BhZ2UoZGlyLCBtaWRkaXIsIG5l
-ZWRzX2xvY2ssCj4gKyDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
-oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCZwYWdlc190b19mcmVlKTsKPiDCoCDC
-oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoG5yX3BhZ2VzX3RvX2Zy
-ZWUrKzsKPiAtIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIGxp
-c3RfYWRkKCZtaWRkaXItPmxydSwgJnBhZ2VzX3RvX2ZyZWUpOwo+ICsgwqAgwqAgwqAgwqAgwqAg
-wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgbmVlZHNfbG9jayA9IE5VTEw7Cj4gwqAgwqAg
-wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqB9Cj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
-wqAgwqAgwqAgwqBzaG1lbV9kaXJfdW5tYXAoZGlyKTsKPiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
-oCDCoCDCoCDCoCDCoGRpciA9IHNobWVtX2Rpcl9tYXAobWlkZGlyKTsKPiBAQCAtNjcyLDE1ICs2
-OTIsMTAgQEAgc3RhdGljIHZvaWQgc2htZW1fdHJ1bmNhdGVfcmFuZ2Uoc3RydWN0IGlub2RlICpp
-bm9kZSwgbG9mZl90IHN0YXJ0LCBsb2ZmX3QgZW5kKQo+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
-IMKgIMKgIMKgIMKgaWYgKHB1bmNoX2hvbGUpCj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
-wqAgwqAgwqAgwqAgwqAgwqAgwqBuZWVkc19sb2NrID0gJmluZm8tPmxvY2s7Cj4gwqAgwqAgwqAg
-wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqBpZiAodXBwZXJfbGltaXQgPj0gc3RhZ2UpIHsKPiAt
-IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIGlmIChuZWVkc19s
-b2NrKSB7Cj4gLSDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
-oCDCoCDCoCDCoCBzcGluX2xvY2sobmVlZHNfbG9jayk7Cj4gLSDCoCDCoCDCoCDCoCDCoCDCoCDC
-oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCAqZGlyID0gTlVMTDsKPiAtIMKg
-IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIHNw
-aW5fdW5sb2NrKG5lZWRzX2xvY2spOwo+IC0gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
-wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgbmVlZHNfbG9jayA9IE5VTEw7Cj4gLSDCoCDCoCDC
-oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCB9IGVsc2UKPiAtIMKgIMKgIMKg
-IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgICpkaXIgPSBO
-VUxMOwo+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgcmVt
-b3ZlX2luZGlyZWN0X3BhZ2UoZGlyLCBtaWRkaXIsIG5lZWRzX2xvY2ssCj4gKyDCoCDCoCDCoCDC
-oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
-oCDCoCDCoCDCoCZwYWdlc190b19mcmVlKTsKPiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
-oCDCoCDCoCDCoCDCoCDCoCDCoG5yX3BhZ2VzX3RvX2ZyZWUrKzsKPiAtIMKgIMKgIMKgIMKgIMKg
-IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIGxpc3RfYWRkKCZtaWRkaXItPmxydSwgJnBh
-Z2VzX3RvX2ZyZWUpOwo+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
-wqAgwqAgbmVlZHNfbG9jayA9IE5VTEw7Cj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
-wqAgwqB9Cj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqBzaG1lbV9kaXJfdW5t
-YXAoZGlyKTsKPiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoGNvbmRfcmVzY2hl
-ZCgpOwo+IEBAIC02OTAsMTUgKzcwNSwxMCBAQCBzdGF0aWMgdm9pZCBzaG1lbV90cnVuY2F0ZV9y
-YW5nZShzdHJ1Y3QgaW5vZGUgKmlub2RlLCBsb2ZmX3Qgc3RhcnQsIGxvZmZfdCBlbmQpCj4gwqAg
-wqAgwqAgwqAgwqAgwqAgwqAgwqBwdW5jaF9sb2NrID0gbmVlZHNfbG9jazsKPiDCoCDCoCDCoCDC
-oCDCoCDCoCDCoCDCoHN1YmRpciA9IGRpcltkaXJvZmZdOwo+IMKgIMKgIMKgIMKgIMKgIMKgIMKg
-IMKgaWYgKHN1YmRpciAmJiAhb2Zmc2V0ICYmIHVwcGVyX2xpbWl0LWlkeCA+PSBFTlRSSUVTX1BF
-Ul9QQUdFKSB7Cj4gLSDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCBpZiAobmVlZHNf
-bG9jaykgewo+IC0gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
-c3Bpbl9sb2NrKG5lZWRzX2xvY2spOwo+IC0gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
-wqAgwqAgwqAgwqAgwqAgZGlyW2Rpcm9mZl0gPSBOVUxMOwo+IC0gwqAgwqAgwqAgwqAgwqAgwqAg
-wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgc3Bpbl91bmxvY2sobmVlZHNfbG9jayk7Cj4gLSDC
-oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCBwdW5jaF9sb2NrID0g
-TlVMTDsKPiAtIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIH0gZWxzZQo+IC0gwqAg
-wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgZGlyW2Rpcm9mZl0gPSBO
-VUxMOwo+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgcmVtb3ZlX2luZGlyZWN0
-X3BhZ2UoJmRpcltkaXJvZmZdLCBzdWJkaXIsIG5lZWRzX2xvY2ssCj4gKyDCoCDCoCDCoCDCoCDC
-oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCZwYWdl
-c190b19mcmVlKTsKPiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoG5yX3BhZ2Vz
-X3RvX2ZyZWUrKzsKPiAtIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIGxpc3RfYWRk
-KCZzdWJkaXItPmxydSwgJnBhZ2VzX3RvX2ZyZWUpOwo+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
-wqAgwqAgwqAgwqAgcHVuY2hfbG9jayA9IE5VTEw7Cj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqB9
-Cj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqBpZiAoc3ViZGlyICYmIHBhZ2VfcHJpdmF0ZShzdWJk
-aXIpIC8qIGhhcyBzd2FwIGVudHJpZXMgKi8pIHsKPiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
-oCDCoCDCoCDCoHNpemUgPSBsaW1pdCAtIGlkeDsKPiAtLQo+IDEuNy40Cj4KPgo=
+On Thu, 14 Apr 2011 15:54:26 -0700
+Ying Han <yinghan@google.com> wrote:
+
+> After reclaiming each node per memcg, it checks mem_cgroup_watermark_ok()
+> and breaks the priority loop if it returns true. The per-memcg zone will
+> be marked as "unreclaimable" if the scanning rate is much greater than the
+> reclaiming rate on the per-memcg LRU. The bit is cleared when there is a
+> page charged to the memcg being freed. Kswapd breaks the priority loop if
+> all the zones are marked as "unreclaimable".
+> 
+> changelog v4..v3:
+> 1. split off from the per-memcg background reclaim patch in V3.
+> 
+> Signed-off-by: Ying Han <yinghan@google.com>
+> ---
+>  include/linux/memcontrol.h |   30 ++++++++++++++
+>  include/linux/swap.h       |    2 +
+>  mm/memcontrol.c            |   96 ++++++++++++++++++++++++++++++++++++++++++++
+>  mm/vmscan.c                |   19 +++++++++
+>  4 files changed, 147 insertions(+), 0 deletions(-)
+> 
+> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> index d4ff7f2..a8159f5 100644
+> --- a/include/linux/memcontrol.h
+> +++ b/include/linux/memcontrol.h
+> @@ -155,6 +155,12 @@ static inline void mem_cgroup_dec_page_stat(struct page *page,
+>  unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
+>  						gfp_t gfp_mask);
+>  u64 mem_cgroup_get_limit(struct mem_cgroup *mem);
+> +void mem_cgroup_clear_unreclaimable(struct mem_cgroup *mem, struct page *page);
+> +bool mem_cgroup_zone_reclaimable(struct mem_cgroup *mem, int nid, int zid);
+> +bool mem_cgroup_mz_unreclaimable(struct mem_cgroup *mem, struct zone *zone);
+> +void mem_cgroup_mz_set_unreclaimable(struct mem_cgroup *mem, struct zone *zone);
+> +void mem_cgroup_mz_pages_scanned(struct mem_cgroup *mem, struct zone* zone,
+> +				unsigned long nr_scanned);
+>  
+>  #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+>  void mem_cgroup_split_huge_fixup(struct page *head, struct page *tail);
+> @@ -345,6 +351,25 @@ static inline void mem_cgroup_dec_page_stat(struct page *page,
+>  {
+>  }
+>  
+> +static inline void mem_cgroup_mz_pages_scanned(struct mem_cgroup *mem,
+> +						struct zone *zone,
+> +						unsigned long nr_scanned)
+> +{
+> +}
+> +
+> +static inline void mem_cgroup_clear_unreclaimable(struct page *page,
+> +							struct zone *zone)
+> +{
+> +}
+> +static inline void mem_cgroup_mz_set_unreclaimable(struct mem_cgroup *mem,
+> +		struct zone *zone)
+> +{
+> +}
+> +static inline bool mem_cgroup_mz_unreclaimable(struct mem_cgroup *mem,
+> +						struct zone *zone)
+> +{
+> +}
+> +
+>  static inline
+>  unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
+>  					    gfp_t gfp_mask)
+> @@ -363,6 +388,11 @@ static inline void mem_cgroup_split_huge_fixup(struct page *head,
+>  {
+>  }
+>  
+> +static inline bool mem_cgroup_zone_reclaimable(struct mem_cgroup *mem, int nid,
+> +								int zid)
+> +{
+> +	return false;
+> +}
+>  #endif /* CONFIG_CGROUP_MEM_CONT */
+>  
+>  #if !defined(CONFIG_CGROUP_MEM_RES_CTLR) || !defined(CONFIG_DEBUG_VM)
+> diff --git a/include/linux/swap.h b/include/linux/swap.h
+> index 17e0511..319b800 100644
+> --- a/include/linux/swap.h
+> +++ b/include/linux/swap.h
+> @@ -160,6 +160,8 @@ enum {
+>  	SWP_SCANNING	= (1 << 8),	/* refcount in scan_swap_map */
+>  };
+>  
+> +#define ZONE_RECLAIMABLE_RATE 6
+> +
+>  #define SWAP_CLUSTER_MAX 32
+>  #define COMPACT_CLUSTER_MAX SWAP_CLUSTER_MAX
+>  
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index e22351a..da6a130 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -133,7 +133,10 @@ struct mem_cgroup_per_zone {
+>  	bool			on_tree;
+>  	struct mem_cgroup	*mem;		/* Back pointer, we cannot */
+>  						/* use container_of	   */
+> +	unsigned long		pages_scanned;	/* since last reclaim */
+> +	bool			all_unreclaimable;	/* All pages pinned */
+>  };
+> +
+>  /* Macro for accessing counter */
+>  #define MEM_CGROUP_ZSTAT(mz, idx)	((mz)->count[(idx)])
+>  
+> @@ -1135,6 +1138,96 @@ mem_cgroup_get_reclaim_stat_from_page(struct page *page)
+>  	return &mz->reclaim_stat;
+>  }
+>  
+> +static unsigned long mem_cgroup_zone_reclaimable_pages(
+> +					struct mem_cgroup_per_zone *mz)
+> +{
+> +	int nr;
+> +	nr = MEM_CGROUP_ZSTAT(mz, LRU_ACTIVE_FILE) +
+> +		MEM_CGROUP_ZSTAT(mz, LRU_INACTIVE_FILE);
+> +
+> +	if (nr_swap_pages > 0)
+> +		nr += MEM_CGROUP_ZSTAT(mz, LRU_ACTIVE_ANON) +
+> +			MEM_CGROUP_ZSTAT(mz, LRU_INACTIVE_ANON);
+> +
+> +	return nr;
+> +}
+> +
+> +void mem_cgroup_mz_pages_scanned(struct mem_cgroup *mem, struct zone* zone,
+> +						unsigned long nr_scanned)
+> +{
+> +	struct mem_cgroup_per_zone *mz = NULL;
+> +	int nid = zone_to_nid(zone);
+> +	int zid = zone_idx(zone);
+> +
+> +	if (!mem)
+> +		return;
+> +
+> +	mz = mem_cgroup_zoneinfo(mem, nid, zid);
+> +	if (mz)
+> +		mz->pages_scanned += nr_scanned;
+> +}
+> +
+> +bool mem_cgroup_zone_reclaimable(struct mem_cgroup *mem, int nid, int zid)
+> +{
+> +	struct mem_cgroup_per_zone *mz = NULL;
+> +
+> +	if (!mem)
+> +		return 0;
+> +
+> +	mz = mem_cgroup_zoneinfo(mem, nid, zid);
+> +	if (mz)
+> +		return mz->pages_scanned <
+> +				mem_cgroup_zone_reclaimable_pages(mz) *
+> +				ZONE_RECLAIMABLE_RATE;
+> +	return 0;
+> +}
+> +
+> +bool mem_cgroup_mz_unreclaimable(struct mem_cgroup *mem, struct zone *zone)
+> +{
+> +	struct mem_cgroup_per_zone *mz = NULL;
+> +	int nid = zone_to_nid(zone);
+> +	int zid = zone_idx(zone);
+> +
+> +	if (!mem)
+> +		return false;
+> +
+> +	mz = mem_cgroup_zoneinfo(mem, nid, zid);
+> +	if (mz)
+> +		return mz->all_unreclaimable;
+> +
+> +	return false;
+> +}
+> +
+> +void mem_cgroup_mz_set_unreclaimable(struct mem_cgroup *mem, struct zone *zone)
+> +{
+> +	struct mem_cgroup_per_zone *mz = NULL;
+> +	int nid = zone_to_nid(zone);
+> +	int zid = zone_idx(zone);
+> +
+> +	if (!mem)
+> +		return;
+> +
+> +	mz = mem_cgroup_zoneinfo(mem, nid, zid);
+> +	if (mz)
+> +		mz->all_unreclaimable = true;
+> +}
+> +
+> +void mem_cgroup_clear_unreclaimable(struct mem_cgroup *mem, struct page *page)
+> +{
+> +	struct mem_cgroup_per_zone *mz = NULL;
+> +
+> +	if (!mem)
+> +		return;
+> +
+> +	mz = page_cgroup_zoneinfo(mem, page);
+> +	if (mz) {
+> +		mz->pages_scanned = 0;
+> +		mz->all_unreclaimable = false;
+> +	}
+> +
+> +	return;
+> +}
+> +
+>  unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
+>  					struct list_head *dst,
+>  					unsigned long *scanned, int order,
+> @@ -2801,6 +2894,7 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
+>  	 * special functions.
+>  	 */
+>  
+> +	mem_cgroup_clear_unreclaimable(mem, page);
+
+Hmm, this will easily cause cache ping-pong. (free_page() clears it after taking
+zone->lock....in batched manner.)
+
+Could you consider a way to make this low cost ?
+
+One way is using memcg_check_event() with some low event trigger.
+Second way is usign memcg_batch.
+In many case, we can expect a chunk of free pages are from the same zone.
+Then, add a new member to batch_memcg as
+
+struct memcg_batch_info {
+	.....
+	struct zone *zone;	# a zone page is last uncharged.
+	...
+}
+
+Then,
+==
+static void mem_cgroup_do_uncharge(struct mem_cgroup *mem,
+                                   unsigned int nr_pages,
++				   struct page *page,
+                                   const enum charge_type ctype)
+{
+        struct memcg_batch_info *batch = NULL;
+.....
+
+	if (batch->zone != page_zone(page)) { 
+		mem_cgroup_clear_unreclaimable(mem, page);
+	}
+direct_uncharge:
+	mem_cgroup_clear_unreclaimable(mem, page);
+....
+}
+==
+
+This will reduce overhead dramatically.
+
+
+
+>  	unlock_page_cgroup(pc);
+>  	/*
+>  	 * even after unlock, we have mem->res.usage here and this memcg
+> @@ -4569,6 +4663,8 @@ static int alloc_mem_cgroup_per_zone_info(struct mem_cgroup *mem, int node)
+>  		mz->usage_in_excess = 0;
+>  		mz->on_tree = false;
+>  		mz->mem = mem;
+> +		mz->pages_scanned = 0;
+> +		mz->all_unreclaimable = false;
+>  	}
+>  	return 0;
+>  }
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index b8345d2..c081112 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -1414,6 +1414,9 @@ shrink_inactive_list(unsigned long nr_to_scan, struct zone *zone,
+>  					ISOLATE_BOTH : ISOLATE_INACTIVE,
+>  			zone, sc->mem_cgroup,
+>  			0, file);
+> +
+> +		mem_cgroup_mz_pages_scanned(sc->mem_cgroup, zone, nr_scanned);
+> +
+>  		/*
+>  		 * mem_cgroup_isolate_pages() keeps track of
+>  		 * scanned pages on its own.
+> @@ -1533,6 +1536,7 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
+>  		 * mem_cgroup_isolate_pages() keeps track of
+>  		 * scanned pages on its own.
+>  		 */
+> +		mem_cgroup_mz_pages_scanned(sc->mem_cgroup, zone, pgscanned);
+>  	}
+>  
+>  	reclaim_stat->recent_scanned[file] += nr_taken;
+> @@ -2648,6 +2652,7 @@ static void balance_pgdat_node(pg_data_t *pgdat, int order,
+>  	unsigned long total_scanned = 0;
+>  	struct mem_cgroup *mem_cont = sc->mem_cgroup;
+>  	int priority = sc->priority;
+> +	int nid = pgdat->node_id;
+>  
+>  	/*
+>  	 * Now scan the zone in the dma->highmem direction, and we scan
+> @@ -2664,10 +2669,20 @@ static void balance_pgdat_node(pg_data_t *pgdat, int order,
+>  		if (!populated_zone(zone))
+>  			continue;
+>  
+> +		if (mem_cgroup_mz_unreclaimable(mem_cont, zone) &&
+> +			priority != DEF_PRIORITY)
+> +			continue;
+> +
+>  		sc->nr_scanned = 0;
+>  		shrink_zone(priority, zone, sc);
+>  		total_scanned += sc->nr_scanned;
+>  
+> +		if (mem_cgroup_mz_unreclaimable(mem_cont, zone))
+> +			continue;
+> +
+> +		if (!mem_cgroup_zone_reclaimable(mem_cont, nid, i))
+> +			mem_cgroup_mz_set_unreclaimable(mem_cont, zone);
+> +
+>  		/*
+>  		 * If we've done a decent amount of scanning and
+>  		 * the reclaim ratio is low, start doing writepage
+> @@ -2752,6 +2767,10 @@ loop_again:
+>  
+>  				if (!populated_zone(zone))
+>  					continue;
+> +
+> +				if (!mem_cgroup_mz_unreclaimable(mem_cont,
+> +								zone))
+> +	
+
+Ah, okay. this will work.
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
