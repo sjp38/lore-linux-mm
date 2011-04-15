@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 2C80B900086
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id A45F5900090
 	for <linux-mm@kvack.org>; Fri, 15 Apr 2011 19:24:53 -0400 (EDT)
 From: Ying Han <yinghan@google.com>
-Subject: [PATCH V5 09/10] Add API to export per-memcg kswapd pid.
-Date: Fri, 15 Apr 2011 16:23:34 -0700
-Message-Id: <1302909815-4362-10-git-send-email-yinghan@google.com>
+Subject: [PATCH V5 04/10] Infrastructure to support per-memcg reclaim.
+Date: Fri, 15 Apr 2011 16:23:29 -0700
+Message-Id: <1302909815-4362-5-git-send-email-yinghan@google.com>
 In-Reply-To: <1302909815-4362-1-git-send-email-yinghan@google.com>
 References: <1302909815-4362-1-git-send-email-yinghan@google.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,99 +13,421 @@ List-ID: <linux-mm.kvack.org>
 To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>
 Cc: linux-mm@kvack.org
 
-This add the API which exports per-memcg kswapd thread pid. The kswapd
-thread is named as "memcg_" + css_id, and the pid can be used to put
-kswapd thread into cpu cgroup later.
+Add the kswapd_mem field in kswapd descriptor which links the kswapd
+kernel thread to a memcg. The per-memcg kswapd is sleeping in the wait
+queue headed at kswapd_wait field of the kswapd descriptor.
 
-$ mkdir /dev/cgroup/memory/A
-$ cat /dev/cgroup/memory/A/memory.kswapd_pid
-memcg_null 0
+The kswapd() function is now shared between global and per-memcg kswapd. It
+is passed in with the kswapd descriptor which contains the information of
+either node or memcg. Then the new function balance_mem_cgroup_pgdat is
+invoked if it is per-mem kswapd thread, and the implementation of the function
+is on the following patch.
 
-$ echo 500m >/dev/cgroup/memory/A/memory.limit_in_bytes
-$ echo 50m >/dev/cgroup/memory/A/memory.high_wmark_distance
-$ ps -ef | grep memcg
-root      6727     2  0 14:32 ?        00:00:00 [memcg_3]
-root      6729  6044  0 14:32 ttyS0    00:00:00 grep memcg
+changelog v4..v3:
+1. fix up the kswapd_run and kswapd_stop for online_pages() and offline_pages.
+2. drop the PF_MEMALLOC flag for memcg kswapd for now per KAMAZAWA's request.
 
-$ cat memory.kswapd_pid
-memcg_3 6727
+changelog v3..v2:
+1. split off from the initial patch which includes all changes of the following
+three patches.
 
-changelog v5..v4
-1. Initialize the memcg-kswapd pid to -1 instead of 0.
-2. Remove the kswapds_spinlock.
-
-changelog v4..v3
-1. Add the API based on KAMAZAWA's request on patch v3.
-
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Signed-off-by: Ying Han <yinghan@google.com>
 ---
- include/linux/swap.h |    2 ++
- mm/memcontrol.c      |   31 +++++++++++++++++++++++++++++++
- 2 files changed, 33 insertions(+), 0 deletions(-)
+ include/linux/memcontrol.h |    5 ++
+ include/linux/swap.h       |    5 +-
+ mm/memcontrol.c            |   29 ++++++++
+ mm/memory_hotplug.c        |    4 +-
+ mm/vmscan.c                |  156 ++++++++++++++++++++++++++++++--------------
+ 5 files changed, 147 insertions(+), 52 deletions(-)
 
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 3ece36d..f7ffd1f 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -24,6 +24,7 @@ struct mem_cgroup;
+ struct page_cgroup;
+ struct page;
+ struct mm_struct;
++struct kswapd;
+ 
+ /* Stats that can be updated by kernel. */
+ enum mem_cgroup_page_stat_item {
+@@ -83,6 +84,10 @@ int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *mem);
+ extern struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page);
+ extern struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p);
+ extern int mem_cgroup_watermark_ok(struct mem_cgroup *mem, int charge_flags);
++extern int mem_cgroup_init_kswapd(struct mem_cgroup *mem,
++				  struct kswapd *kswapd_p);
++extern void mem_cgroup_clear_kswapd(struct mem_cgroup *mem);
++extern wait_queue_head_t *mem_cgroup_kswapd_wait(struct mem_cgroup *mem);
+ 
+ static inline
+ int mm_match_cgroup(const struct mm_struct *mm, const struct mem_cgroup *cgroup)
 diff --git a/include/linux/swap.h b/include/linux/swap.h
-index 319b800..2d3e21a 100644
+index f43d406..17e0511 100644
 --- a/include/linux/swap.h
 +++ b/include/linux/swap.h
-@@ -34,6 +34,8 @@ struct kswapd {
+@@ -30,6 +30,7 @@ struct kswapd {
+ 	struct task_struct *kswapd_task;
+ 	wait_queue_head_t kswapd_wait;
+ 	pg_data_t *kswapd_pgdat;
++	struct mem_cgroup *kswapd_mem;
  };
  
  int kswapd(void *p);
-+extern spinlock_t kswapds_spinlock;
-+
- /*
-  * MAX_SWAPFILES defines the maximum number of swaptypes: things which can
-  * be swapped to.  The swap type and the offset into that swap type are
+@@ -303,8 +304,8 @@ static inline void scan_unevictable_unregister_node(struct node *node)
+ }
+ #endif
+ 
+-extern int kswapd_run(int nid);
+-extern void kswapd_stop(int nid);
++extern int kswapd_run(int nid, struct mem_cgroup *mem);
++extern void kswapd_stop(int nid, struct mem_cgroup *mem);
+ 
+ #ifdef CONFIG_MMU
+ /* linux/mm/shmem.c */
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 52e8344..347e861 100644
+index 76ad009..8761a6f 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -4526,6 +4526,33 @@ static int mem_cgroup_wmark_read(struct cgroup *cgrp,
- 	return 0;
+@@ -278,6 +278,8 @@ struct mem_cgroup {
+ 	 */
+ 	u64 high_wmark_distance;
+ 	u64 low_wmark_distance;
++
++	wait_queue_head_t *kswapd_wait;
+ };
+ 
+ /* Stuffs for move charges at task migration. */
+@@ -4670,6 +4672,33 @@ int mem_cgroup_watermark_ok(struct mem_cgroup *mem,
+ 	return ret;
  }
  
-+static int mem_cgroup_kswapd_pid_read(struct cgroup *cgrp,
-+	struct cftype *cft,  struct cgroup_map_cb *cb)
++int mem_cgroup_init_kswapd(struct mem_cgroup *mem, struct kswapd *kswapd_p)
 +{
-+	struct mem_cgroup *mem = mem_cgroup_from_cont(cgrp);
-+	struct task_struct *kswapd_thr = NULL;
-+	struct kswapd *kswapd_p = NULL;
-+	wait_queue_head_t *wait;
-+	char name[TASK_COMM_LEN];
-+	pid_t pid = -1;
++	if (!mem || !kswapd_p)
++		return 0;
 +
-+	sprintf(name, "memcg_null");
++	mem->kswapd_wait = &kswapd_p->kswapd_wait;
++	kswapd_p->kswapd_mem = mem;
 +
-+	wait = mem_cgroup_kswapd_wait(mem);
-+	if (wait) {
-+		kswapd_p = container_of(wait, struct kswapd, kswapd_wait);
-+		kswapd_thr = kswapd_p->kswapd_task;
-+		if (kswapd_thr) {
-+			get_task_comm(name, kswapd_thr);
-+			pid = kswapd_thr->pid;
-+		}
-+	}
++	return css_id(&mem->css);
++}
 +
-+	cb->fill(cb, name, pid);
++void mem_cgroup_clear_kswapd(struct mem_cgroup *mem)
++{
++	if (mem)
++		mem->kswapd_wait = NULL;
 +
++	return;
++}
++
++wait_queue_head_t *mem_cgroup_kswapd_wait(struct mem_cgroup *mem)
++{
++	if (!mem)
++		return NULL;
++
++	return mem->kswapd_wait;
++}
++
+ static int mem_cgroup_soft_limit_tree_init(void)
+ {
+ 	struct mem_cgroup_tree_per_node *rtpn;
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 321fc74..2f78ff6 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -462,7 +462,7 @@ int online_pages(unsigned long pfn, unsigned long nr_pages)
+ 	setup_per_zone_wmarks();
+ 	calculate_zone_inactive_ratio(zone);
+ 	if (onlined_pages) {
+-		kswapd_run(zone_to_nid(zone));
++		kswapd_run(zone_to_nid(zone), NULL);
+ 		node_set_state(zone_to_nid(zone), N_HIGH_MEMORY);
+ 	}
+ 
+@@ -897,7 +897,7 @@ repeat:
+ 	calculate_zone_inactive_ratio(zone);
+ 	if (!node_present_pages(node)) {
+ 		node_clear_state(node, N_HIGH_MEMORY);
+-		kswapd_stop(node);
++		kswapd_stop(node, NULL);
+ 	}
+ 
+ 	vm_total_pages = nr_free_pagecache_pages();
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 61fb96e..06036d2 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2241,6 +2241,8 @@ static bool pgdat_balanced(pg_data_t *pgdat, unsigned long balanced_pages,
+ 	return balanced_pages > (present_pages >> 2);
+ }
+ 
++#define is_node_kswapd(kswapd_p) (!(kswapd_p)->kswapd_mem)
++
+ /* is kswapd sleeping prematurely? */
+ static int sleeping_prematurely(struct kswapd *kswapd, int order,
+ 				long remaining, int classzone_idx)
+@@ -2249,11 +2251,16 @@ static int sleeping_prematurely(struct kswapd *kswapd, int order,
+ 	unsigned long balanced = 0;
+ 	bool all_zones_ok = true;
+ 	pg_data_t *pgdat = kswapd->kswapd_pgdat;
++	struct mem_cgroup *mem = kswapd->kswapd_mem;
+ 
+ 	/* If a direct reclaimer woke kswapd within HZ/10, it's premature */
+ 	if (remaining)
+ 		return true;
+ 
++	/* Doesn't support for per-memcg reclaim */
++	if (mem)
++		return false;
++
+ 	/* Check the watermark levels */
+ 	for (i = 0; i < pgdat->nr_zones; i++) {
+ 		struct zone *zone = pgdat->node_zones + i;
+@@ -2596,19 +2603,25 @@ static void kswapd_try_to_sleep(struct kswapd *kswapd_p, int order,
+ 	 * go fully to sleep until explicitly woken up.
+ 	 */
+ 	if (!sleeping_prematurely(kswapd_p, order, remaining, classzone_idx)) {
+-		trace_mm_vmscan_kswapd_sleep(pgdat->node_id);
++		if (is_node_kswapd(kswapd_p)) {
++			trace_mm_vmscan_kswapd_sleep(pgdat->node_id);
+ 
+-		/*
+-		 * vmstat counters are not perfectly accurate and the estimated
+-		 * value for counters such as NR_FREE_PAGES can deviate from the
+-		 * true value by nr_online_cpus * threshold. To avoid the zone
+-		 * watermarks being breached while under pressure, we reduce the
+-		 * per-cpu vmstat threshold while kswapd is awake and restore
+-		 * them before going back to sleep.
+-		 */
+-		set_pgdat_percpu_threshold(pgdat, calculate_normal_threshold);
+-		schedule();
+-		set_pgdat_percpu_threshold(pgdat, calculate_pressure_threshold);
++			/*
++			 * vmstat counters are not perfectly accurate and the
++			 * estimated value for counters such as NR_FREE_PAGES
++			 * can deviate from the true value by nr_online_cpus *
++			 * threshold. To avoid the zone watermarks being
++			 * breached while under pressure, we reduce the per-cpu
++			 * vmstat threshold while kswapd is awake and restore
++			 * them before going back to sleep.
++			 */
++			set_pgdat_percpu_threshold(pgdat,
++						   calculate_normal_threshold);
++			schedule();
++			set_pgdat_percpu_threshold(pgdat,
++						calculate_pressure_threshold);
++		} else
++			schedule();
+ 	} else {
+ 		if (remaining)
+ 			count_vm_event(KSWAPD_LOW_WMARK_HIT_QUICKLY);
+@@ -2618,6 +2631,12 @@ static void kswapd_try_to_sleep(struct kswapd *kswapd_p, int order,
+ 	finish_wait(wait_h, &wait);
+ }
+ 
++static unsigned long balance_mem_cgroup_pgdat(struct mem_cgroup *mem_cont,
++							int order)
++{
 +	return 0;
 +}
 +
- static int mem_cgroup_oom_control_read(struct cgroup *cgrp,
- 	struct cftype *cft,  struct cgroup_map_cb *cb)
- {
-@@ -4643,6 +4670,10 @@ static struct cftype mem_cgroup_files[] = {
- 		.name = "reclaim_wmarks",
- 		.read_map = mem_cgroup_wmark_read,
- 	},
-+	{
-+		.name = "kswapd_pid",
-+		.read_map = mem_cgroup_kswapd_pid_read,
-+	},
- };
+ /*
+  * The background pageout daemon, started as a kernel thread
+  * from the init process.
+@@ -2637,6 +2656,7 @@ int kswapd(void *p)
+ 	int classzone_idx;
+ 	struct kswapd *kswapd_p = (struct kswapd *)p;
+ 	pg_data_t *pgdat = kswapd_p->kswapd_pgdat;
++	struct mem_cgroup *mem = kswapd_p->kswapd_mem;
+ 	wait_queue_head_t *wait_h = &kswapd_p->kswapd_wait;
+ 	struct task_struct *tsk = current;
  
- #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
+@@ -2647,10 +2667,12 @@ int kswapd(void *p)
+ 
+ 	lockdep_set_current_reclaim_state(GFP_KERNEL);
+ 
+-	BUG_ON(pgdat->kswapd_wait != wait_h);
+-	cpumask = cpumask_of_node(pgdat->node_id);
+-	if (!cpumask_empty(cpumask))
+-		set_cpus_allowed_ptr(tsk, cpumask);
++	if (is_node_kswapd(kswapd_p)) {
++		BUG_ON(pgdat->kswapd_wait != wait_h);
++		cpumask = cpumask_of_node(pgdat->node_id);
++		if (!cpumask_empty(cpumask))
++			set_cpus_allowed_ptr(tsk, cpumask);
++	}
+ 	current->reclaim_state = &reclaim_state;
+ 
+ 	/*
+@@ -2665,7 +2687,10 @@ int kswapd(void *p)
+ 	 * us from recursively trying to free more memory as we're
+ 	 * trying to free the first piece of memory in the first place).
+ 	 */
+-	tsk->flags |= PF_MEMALLOC | PF_SWAPWRITE | PF_KSWAPD;
++	if (is_node_kswapd(kswapd_p))
++		tsk->flags |= PF_MEMALLOC | PF_SWAPWRITE | PF_KSWAPD;
++	else
++		tsk->flags |= PF_SWAPWRITE | PF_KSWAPD;
+ 	set_freezable();
+ 
+ 	order = 0;
+@@ -2675,24 +2700,29 @@ int kswapd(void *p)
+ 		int new_classzone_idx;
+ 		int ret;
+ 
+-		new_order = pgdat->kswapd_max_order;
+-		new_classzone_idx = pgdat->classzone_idx;
+-		pgdat->kswapd_max_order = 0;
+-		pgdat->classzone_idx = MAX_NR_ZONES - 1;
+-		if (order < new_order || classzone_idx > new_classzone_idx) {
+-			/*
+-			 * Don't sleep if someone wants a larger 'order'
+-			 * allocation or has tigher zone constraints
+-			 */
+-			order = new_order;
+-			classzone_idx = new_classzone_idx;
+-		} else {
+-			kswapd_try_to_sleep(kswapd_p, order, classzone_idx);
+-			order = pgdat->kswapd_max_order;
+-			classzone_idx = pgdat->classzone_idx;
++		if (is_node_kswapd(kswapd_p)) {
++			new_order = pgdat->kswapd_max_order;
++			new_classzone_idx = pgdat->classzone_idx;
+ 			pgdat->kswapd_max_order = 0;
+ 			pgdat->classzone_idx = MAX_NR_ZONES - 1;
+-		}
++			if (order < new_order ||
++					classzone_idx > new_classzone_idx) {
++				/*
++				 * Don't sleep if someone wants a larger 'order'
++				 * allocation or has tigher zone constraints
++				 */
++				order = new_order;
++				classzone_idx = new_classzone_idx;
++			} else {
++				kswapd_try_to_sleep(kswapd_p, order,
++						    classzone_idx);
++				order = pgdat->kswapd_max_order;
++				classzone_idx = pgdat->classzone_idx;
++				pgdat->kswapd_max_order = 0;
++				pgdat->classzone_idx = MAX_NR_ZONES - 1;
++			}
++		} else
++			kswapd_try_to_sleep(kswapd_p, order, classzone_idx);
+ 
+ 		ret = try_to_freeze();
+ 		if (kthread_should_stop())
+@@ -2703,8 +2733,13 @@ int kswapd(void *p)
+ 		 * after returning from the refrigerator
+ 		 */
+ 		if (!ret) {
+-			trace_mm_vmscan_kswapd_wake(pgdat->node_id, order);
+-			order = balance_pgdat(pgdat, order, &classzone_idx);
++			if (is_node_kswapd(kswapd_p)) {
++				trace_mm_vmscan_kswapd_wake(pgdat->node_id,
++								order);
++				order = balance_pgdat(pgdat, order,
++							&classzone_idx);
++			} else
++				balance_mem_cgroup_pgdat(mem, order);
+ 		}
+ 	}
+ 	return 0;
+@@ -2849,30 +2884,53 @@ static int __devinit cpu_callback(struct notifier_block *nfb,
+  * This kswapd start function will be called by init and node-hot-add.
+  * On node-hot-add, kswapd will moved to proper cpus if cpus are hot-added.
+  */
+-int kswapd_run(int nid)
++int kswapd_run(int nid, struct mem_cgroup *mem)
+ {
+-	pg_data_t *pgdat = NODE_DATA(nid);
+ 	struct task_struct *kswapd_thr;
++	pg_data_t *pgdat = NULL;
+ 	struct kswapd *kswapd_p;
++	static char name[TASK_COMM_LEN];
++	int memcg_id;
+ 	int ret = 0;
+ 
+-	if (pgdat->kswapd_wait)
+-		return 0;
++	if (!mem) {
++		pgdat = NODE_DATA(nid);
++		if (pgdat->kswapd_wait)
++			return ret;
++	}
+ 
+ 	kswapd_p = kzalloc(sizeof(struct kswapd), GFP_KERNEL);
+ 	if (!kswapd_p)
+ 		return -ENOMEM;
+ 
+ 	init_waitqueue_head(&kswapd_p->kswapd_wait);
+-	pgdat->kswapd_wait = &kswapd_p->kswapd_wait;
+-	kswapd_p->kswapd_pgdat = pgdat;
+ 
+-	kswapd_thr = kthread_run(kswapd, kswapd_p, "kswapd%d", nid);
++	if (!mem) {
++		pgdat->kswapd_wait = &kswapd_p->kswapd_wait;
++		kswapd_p->kswapd_pgdat = pgdat;
++		snprintf(name, TASK_COMM_LEN, "kswapd_%d", nid);
++	} else {
++		memcg_id = mem_cgroup_init_kswapd(mem, kswapd_p);
++		if (!memcg_id) {
++			kfree(kswapd_p);
++			return ret;
++		}
++		snprintf(name, TASK_COMM_LEN, "memcg_%d", memcg_id);
++	}
++
++	kswapd_thr = kthread_run(kswapd, kswapd_p, name);
+ 	if (IS_ERR(kswapd_thr)) {
+ 		/* failure at boot is fatal */
+ 		BUG_ON(system_state == SYSTEM_BOOTING);
+-		printk("Failed to start kswapd on node %d\n",nid);
+-		pgdat->kswapd_wait = NULL;
++		if (!mem) {
++			printk(KERN_ERR "Failed to start kswapd on node %d\n",
++								nid);
++			pgdat->kswapd_wait = NULL;
++		} else {
++			printk(KERN_ERR "Failed to start kswapd on memcg %d\n",
++								memcg_id);
++			mem_cgroup_clear_kswapd(mem);
++		}
+ 		kfree(kswapd_p);
+ 		ret = -1;
+ 	} else
+@@ -2883,15 +2941,17 @@ int kswapd_run(int nid)
+ /*
+  * Called by memory hotplug when all memory in a node is offlined.
+  */
+-void kswapd_stop(int nid)
++void kswapd_stop(int nid, struct mem_cgroup *mem)
+ {
+ 	struct task_struct *kswapd_thr = NULL;
+ 	struct kswapd *kswapd_p = NULL;
+ 	wait_queue_head_t *wait;
+ 
+-	pg_data_t *pgdat = NODE_DATA(nid);
++	if (!mem)
++		wait = NODE_DATA(nid)->kswapd_wait;
++	else
++		wait = mem_cgroup_kswapd_wait(mem);
+ 
+-	wait = pgdat->kswapd_wait;
+ 	if (wait) {
+ 		kswapd_p = container_of(wait, struct kswapd, kswapd_wait);
+ 		kswapd_thr = kswapd_p->kswapd_task;
+@@ -2910,7 +2970,7 @@ static int __init kswapd_init(void)
+ 
+ 	swap_setup();
+ 	for_each_node_state(nid, N_HIGH_MEMORY)
+- 		kswapd_run(nid);
++		kswapd_run(nid, NULL);
+ 	hotcpu_notifier(cpu_callback, 0);
+ 	return 0;
+ }
 -- 
 1.7.3.1
 
