@@ -1,175 +1,152 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id CE8DA900086
-	for <linux-mm@kvack.org>; Fri, 15 Apr 2011 05:59:06 -0400 (EDT)
-Subject: Re: Regression from 2.6.36
-Date: Fri, 15 Apr 2011 11:59:03 +0200
-From: "azurIt" <azurit@pobox.sk>
-References: <BANLkTinnTnjZvQ9S1AmudZcZBokMy8-93w@mail.gmail.com> <1302177428.3357.25.camel@edumazet-laptop> <1302178426.3357.34.camel@edumazet-laptop> <BANLkTikxWy-Pw1PrcAJMHs2R7JKksyQzMQ@mail.gmail.com> <1302190586.3357.45.camel@edumazet-laptop> <20110412154906.70829d60.akpm@linux-foundation.org> <BANLkTincoaxp5Soe6O-eb8LWpgra=k2NsQ@mail.gmail.com> <20110412183132.a854bffc.akpm@linux-foundation.org> <1302662256.2811.27.camel@edumazet-laptop> <20110413141600.28793661.akpm@linux-foundation.org> <20110414102501.GE11871@csn.ul.ie>
-In-Reply-To: <20110414102501.GE11871@csn.ul.ie>
-MIME-Version: 1.0
-Message-Id: <20110415115903.315DEAA1@pobox.sk>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+	by kanga.kvack.org (Postfix) with ESMTP id B77C8900086
+	for <linux-mm@kvack.org>; Fri, 15 Apr 2011 06:01:12 -0400 (EDT)
+From: Phil Carmody <ext-phil.2.carmody@nokia.com>
+Subject: [PATCH] mm: make read-only accessors take const parameters
+Date: Fri, 15 Apr 2011 12:56:17 +0300
+Message-Id: <1302861377-8048-2-git-send-email-ext-phil.2.carmody@nokia.com>
+In-Reply-To: <1302861377-8048-1-git-send-email-ext-phil.2.carmody@nokia.com>
+References: <1302861377-8048-1-git-send-email-ext-phil.2.carmody@nokia.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Eric Dumazet <eric.dumazet@gmail.com>, Changli Gao <xiaosuo@gmail.com>, Am?rico Wang <xiyou.wangcong@gmail.com>, Jiri Slaby <jslaby@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Jiri Slaby <jirislaby@gmail.com>
+To: akpm@linux-foundation.org
+Cc: aarcange@redhat.com, cl@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
+Pulling out bits from flags and atomic_read() do not modify
+anything, nor do we want to modify anything. We can extend that
+insight to clients. This makes static code analysis easier.
 
-Also this new patch is working fine and fixing the problem.
+I'm not happy with the _ro bloat, but at least it doesn't change
+the size of the generated code. An alternative would be a type-
+less macro.
 
-Mel, I cannot run your script:
-# perl watch-highorder-latency.pl
-Failed to open /sys/kernel/debug/tracing/set_ftrace_filter for writing at watch-highorder-latency.pl line 17.
+Also cleaned up some unnecessary (brackets).
 
-# ls -ld /sys/kernel/debug/
-ls: cannot access /sys/kernel/debug/: No such file or directory
+Signed-off-by: Phil Carmody <ext-phil.2.carmody@nokia.com>
+---
+ include/linux/mm.h         |   27 +++++++++++++++++----------
+ include/linux/page-flags.h |    8 ++++----
+ 2 files changed, 21 insertions(+), 14 deletions(-)
 
-
-azur
-
-______________________________________________________________
-> Od: "Mel Gorman" <mel@csn.ul.ie>
-> Komu: Andrew Morton <akpm@linux-foundation.org>
-> DA!tum: 14.04.2011 12:25
-> Predmet: Re: Regression from 2.6.36
->
-> CC: "Eric Dumazet" <eric.dumazet@gmail.com>, "Changli Gao" <xiaosuo@gmail.com>, "Am?rico Wang" <xiyou.wangcong@gmail.com>, "Jiri Slaby" <jslaby@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Jiri Slaby" <jirislaby@gmail.com>
->On Wed, Apr 13, 2011 at 02:16:00PM -0700, Andrew Morton wrote:
->> On Wed, 13 Apr 2011 04:37:36 +0200
->> Eric Dumazet <eric.dumazet@gmail.com> wrote:
->> 
->> > Le mardi 12 avril 2011 __ 18:31 -0700, Andrew Morton a __crit :
->> > > On Wed, 13 Apr 2011 09:23:11 +0800 Changli Gao <xiaosuo@gmail.com> wrote:
->> > > 
->> > > > On Wed, Apr 13, 2011 at 6:49 AM, Andrew Morton
->> > > > <akpm@linux-foundation.org> wrote:
->> > > > >
->> > > > > It's somewhat unclear (to me) what caused this regression.
->> > > > >
->> > > > > Is it because the kernel is now doing large kmalloc()s for the fdtable,
->> > > > > and this makes the page allocator go nuts trying to satisfy high-order
->> > > > > page allocation requests?
->> > > > >
->> > > > > Is it because the kernel now will usually free the fdtable
->> > > > > synchronously within the rcu callback, rather than deferring this to a
->> > > > > workqueue?
->> > > > >
->> > > > > The latter seems unlikely, so I'm thinking this was a case of
->> > > > > high-order-allocations-considered-harmful?
->> > > > >
->> > > > 
->> > > > Maybe, but I am not sure. Maybe my patch causes too many inner
->> > > > fragments. For example, when asking for 5 pages, get 8 pages, and 3
->> > > > pages are wasted, then memory thrash happens finally.
->> > > 
->> > > That theory sounds less likely, but could be tested by using
->> > > alloc_pages_exact().
->> > > 
->> > 
->> > Very unlikely, since fdtable sizes are powers of two, unless you hit
->> > sysctl_nr_open and it was changed (default value being 2^20)
->> > 
->> 
->> So am I correct in believing that this regression is due to the
->> high-order allocations putting excess stress onto page reclaim?
->> 
->
->This is very plausible but it would be nice to get confirmation on
->what the size of the fdtable was to be sure. If it's big enough for
->high-order allocations and it's a fork-heavy workload with memory
->mostly in use, the fork() latencies could be getting very high. In
->addition, each fork is potentially kicking kswapd awake (to rebalance
->the zone for higher orders). I do not see CONFIG_COMPACTION enabled
->meaning that if I'm right in that kswapd is awake and fork() is
->entering direct reclaim, then we are lumpy reclaiming as well which
->can stall pretty severely.
->
->> If so, then how large _are_ these allocations?  This perhaps can be
->> determined from /proc/slabinfo.  They must be pretty huge, because slub
->> likes to do excessively-large allocations and the system handles that
->> reasonably well.
->> 
->
->I'd be interested in finding out the value of /proc/sys/fs/file-max and
->the output of ulimit -n (max open files) for the main server is. This
->should help us determine what the size of the fdtable is.
->
->> I suppose that a suitable fix would be
->> 
->> 
->> From: Andrew Morton <akpm@linux-foundation.org>
->> 
->> Azurit reports large increases in system time after 2.6.36 when running
->> Apache.  It was bisected down to a892e2d7dcdfa6c76e6 ("vfs: use kmalloc()
->> to allocate fdmem if possible").
->> 
->> That patch caused the vfs to use kmalloc() for very large allocations and
->> this is causing excessive work (and presumably excessive reclaim) within
->> the page allocator.
->> 
->> Fix it by falling back to vmalloc() earlier - when the allocation attempt
->> would have been considered "costly" by reclaim.
->> 
->> Reported-by: azurIt <azurit@pobox.sk>
->> Cc: Changli Gao <xiaosuo@gmail.com>
->> Cc: Americo Wang <xiyou.wangcong@gmail.com>
->> Cc: Jiri Slaby <jslaby@suse.cz>
->> Cc: Eric Dumazet <eric.dumazet@gmail.com>
->> Cc: Mel Gorman <mel@csn.ul.ie>
->> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
->> ---
->> 
->>  fs/file.c |   17 ++++++++++-------
->>  1 file changed, 10 insertions(+), 7 deletions(-)
->> 
->> diff -puN fs/file.c~a fs/file.c
->> --- a/fs/file.c~a
->> +++ a/fs/file.c
->> @@ -39,14 +39,17 @@ int sysctl_nr_open_max = 1024 * 1024; /*
->>   */
->>  static DEFINE_PER_CPU(struct fdtable_defer, fdtable_defer_list);
->>  
->> -static inline void *alloc_fdmem(unsigned int size)
->> +static void *alloc_fdmem(unsigned int size)
->>  {
->> -	void *data;
->> -
->> -	data = kmalloc(size, GFP_KERNEL|__GFP_NOWARN);
->> -	if (data != NULL)
->> -		return data;
->> -
->> +	/*
->> +	 * Very large allocations can stress page reclaim, so fall back to
->> +	 * vmalloc() if the allocation size will be considered "large" by the VM.
->> +	 */
->> +	if (size <= (PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER) {
->
->The reporter will need to retest this is really ok. The patch that was
->reported to help avoided high-order allocations entirely. If fork-heavy
->workloads are really entering direct reclaim and increasing fork latency
->enough to ruin performance, then this patch will also suffer. How much
->it helps depends on how big fdtable.
->
->> +		void *data = kmalloc(size, GFP_KERNEL|__GFP_NOWARN);
->> +		if (data != NULL)
->> +			return data;
->> +	}
->>  	return vmalloc(size);
->>  }
->>  
->
->I'm attaching a primitive perl script that reports high-order allocation
->latencies. I'd be interesting to see what the output of it looks like,
->particularly when the server is in trouble if the bug reporter as the
->time.
->
->-- 
->Mel Gorman
->SUSE Labs
->
->
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 692dbae..7134563 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -353,9 +353,16 @@ static inline struct page *compound_head(struct page *page)
+ 	return page;
+ }
+ 
+-static inline int page_count(struct page *page)
++static inline const struct page *compound_head_ro(const struct page *page)
+ {
+-	return atomic_read(&compound_head(page)->_count);
++	if (unlikely(PageTail(page)))
++		return page->first_page;
++	return page;
++}
++
++static inline int page_count(const struct page *page)
++{
++	return atomic_read(&compound_head_ro(page)->_count);
+ }
+ 
+ static inline void get_page(struct page *page)
+@@ -638,7 +645,7 @@ static inline pte_t maybe_mkwrite(pte_t pte, struct vm_area_struct *vma)
+ #define SECTIONS_MASK		((1UL << SECTIONS_WIDTH) - 1)
+ #define ZONEID_MASK		((1UL << ZONEID_SHIFT) - 1)
+ 
+-static inline enum zone_type page_zonenum(struct page *page)
++static inline enum zone_type page_zonenum(const struct page *page)
+ {
+ 	return (page->flags >> ZONES_PGSHIFT) & ZONES_MASK;
+ }
+@@ -651,7 +658,7 @@ static inline enum zone_type page_zonenum(struct page *page)
+  * We guarantee only that it will return the same value for two
+  * combinable pages in a zone.
+  */
+-static inline int page_zone_id(struct page *page)
++static inline int page_zone_id(const struct page *page)
+ {
+ 	return (page->flags >> ZONEID_PGSHIFT) & ZONEID_MASK;
+ }
+@@ -786,7 +793,7 @@ static inline void *page_rmapping(struct page *page)
+ 	return (void *)((unsigned long)page->mapping & ~PAGE_MAPPING_FLAGS);
+ }
+ 
+-static inline int PageAnon(struct page *page)
++static inline int PageAnon(const struct page *page)
+ {
+ 	return ((unsigned long)page->mapping & PAGE_MAPPING_ANON) != 0;
+ }
+@@ -809,20 +816,20 @@ static inline pgoff_t page_index(struct page *page)
+  */
+ static inline void reset_page_mapcount(struct page *page)
+ {
+-	atomic_set(&(page)->_mapcount, -1);
++	atomic_set(&page->_mapcount, -1);
+ }
+ 
+-static inline int page_mapcount(struct page *page)
++static inline int page_mapcount(const struct page *page)
+ {
+-	return atomic_read(&(page)->_mapcount) + 1;
++	return atomic_read(&page->_mapcount) + 1;
+ }
+ 
+ /*
+  * Return true if this page is mapped into pagetables.
+  */
+-static inline int page_mapped(struct page *page)
++static inline int page_mapped(const struct page *page)
+ {
+-	return atomic_read(&(page)->_mapcount) >= 0;
++	return atomic_read(&page->_mapcount) >= 0;
+ }
+ 
+ /*
+diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+index 811183d..7f8e553 100644
+--- a/include/linux/page-flags.h
++++ b/include/linux/page-flags.h
+@@ -135,7 +135,7 @@ enum pageflags {
+  * Macros to create function definitions for page flags
+  */
+ #define TESTPAGEFLAG(uname, lname)					\
+-static inline int Page##uname(struct page *page) 			\
++static inline int Page##uname(const struct page *page)			\
+ 			{ return test_bit(PG_##lname, &page->flags); }
+ 
+ #define SETPAGEFLAG(uname, lname)					\
+@@ -173,7 +173,7 @@ static inline int __TestClearPage##uname(struct page *page)		\
+ 	__SETPAGEFLAG(uname, lname)  __CLEARPAGEFLAG(uname, lname)
+ 
+ #define PAGEFLAG_FALSE(uname) 						\
+-static inline int Page##uname(struct page *page) 			\
++static inline int Page##uname(const struct page *page)			\
+ 			{ return 0; }
+ 
+ #define TESTSCFLAG(uname, lname)					\
+@@ -345,7 +345,7 @@ static inline void set_page_writeback(struct page *page)
+ __PAGEFLAG(Head, head) CLEARPAGEFLAG(Head, head)
+ __PAGEFLAG(Tail, tail)
+ 
+-static inline int PageCompound(struct page *page)
++static inline int PageCompound(const struct page *page)
+ {
+ 	return page->flags & ((1L << PG_head) | (1L << PG_tail));
+ 
+@@ -379,7 +379,7 @@ __PAGEFLAG(Head, compound)
+  */
+ #define PG_head_tail_mask ((1L << PG_compound) | (1L << PG_reclaim))
+ 
+-static inline int PageTail(struct page *page)
++static inline int PageTail(const struct page *page)
+ {
+ 	return ((page->flags & PG_head_tail_mask) == PG_head_tail_mask);
+ }
+-- 
+1.7.2.rc1.37.gf8c40
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
