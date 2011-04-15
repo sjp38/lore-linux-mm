@@ -1,59 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 39517900086
-	for <linux-mm@kvack.org>; Fri, 15 Apr 2011 15:38:40 -0400 (EDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 3B152900086
+	for <linux-mm@kvack.org>; Fri, 15 Apr 2011 15:43:19 -0400 (EDT)
+Date: Fri, 15 Apr 2011 14:43:15 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH] percpu: preemptless __per_cpu_counter_add
+In-Reply-To: <20110415182734.GB15916@mtj.dyndns.org>
+Message-ID: <alpine.DEB.2.00.1104151440070.8055@router.home>
+References: <alpine.DEB.2.00.1104130942500.16214@router.home> <alpine.DEB.2.00.1104131148070.20908@router.home> <20110413185618.GA3987@mtj.dyndns.org> <alpine.DEB.2.00.1104131521050.25812@router.home> <1302747263.3549.9.camel@edumazet-laptop>
+ <alpine.DEB.2.00.1104141608300.19533@router.home> <20110414211522.GE21397@mtj.dyndns.org> <alpine.DEB.2.00.1104151235350.8055@router.home> <20110415182734.GB15916@mtj.dyndns.org>
 MIME-Version: 1.0
-Message-ID: <67d72d8f-9809-4e43-9e90-417d4eb14db1@default>
-Date: Fri, 15 Apr 2011 12:37:11 -0700 (PDT)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [PATCH V8 1/8] mm/fs: cleancache documentation
-References: <20110414211601.GA27691@ca-server1.us.oracle.com
- 87mxjr4a6o.fsf@devron.myhome.or.jp>
-In-Reply-To: <87mxjr4a6o.fsf@devron.myhome.or.jp>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>
-Cc: Chris Mason <chris.mason@oracle.com>, viro@zeniv.linux.org.uk, akpm@linux-foundation.org, adilger.kernel@dilger.ca, tytso@mit.edu, mfasheh@suse.com, jlbec@evilplan.org, matthew@wil.cx, linux-btrfs@vger.kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, ocfs2-devel@oss.oracle.com, linux-mm@kvack.org, hch@infradead.org, ngupta@vflare.org, jeremy@goop.org, JBeulich@novell.com, Kurt Hackel <kurt.hackel@oracle.com>, npiggin@kernel.dk, Dave Mccracken <dave.mccracken@oracle.com>, riel@redhat.com, avi@redhat.com, Konrad Wilk <konrad.wilk@oracle.com>, mel@csn.ul.ie, yinghan@google.com, gthelen@google.com, torvalds@linux-foundation.org
+To: Tejun Heo <tj@kernel.org>
+Cc: Eric Dumazet <eric.dumazet@gmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org, shaohua.li@intel.com
 
-Hi Hirofumi-san --
+On Sat, 16 Apr 2011, Tejun Heo wrote:
 
-> Another question: why can't this enable/disable per sb, e.g. via mount
-> options? (I have the interest the cache stuff like this by SSD on
-> physical systems like dragonfly's swapcache.)
+> > +			new = 0;
+> > +		}
+> > +#ifdef CONFIG_PREEMPT
+> > +	} while (this_cpu_cmpxchg(*fbc->counters, count, new) != count);
+> > +#else
+> > +	} while (0);
+> > +	this_cpu_write(*fbc->counters, new);
+> > +#endif
+>
+> Eeeek, no.  If you want to do the above, please put it in a separate
+> inline function with sufficient comment.
 
-This would be useful and could be added later if individual
-filesystems choose to add the mount functionality.  My goal with
-this patchset is to enable only minimal functionality so
-that other kernel developers can build on it.
+That would not work well with the control flow. Just leave the cmpxchg for
+both cases? That would make the function irq safe as well!
 
-> Well, anyway, I guess force enabling this for mostly unused sb can just
-> add cache-write overhead and call for unpleasing reclaim to backend
-> (because of limited space of backend) like updatedb.
+> > +	if (unlikely(overflow)) {
+> >  		spin_lock(&fbc->lock);
+> > -		fbc->count += count;
+> > -		__this_cpu_write(*fbc->counters, 0);
+> > +		fbc->count += overflow;
+> >  		spin_unlock(&fbc->lock);
+>
+> Why put this outside and use yet another branch?
 
-If the sb is mostly unused, there should be few puts.  But you
-are correct that if the backend has only very limited space,
-cleancache adds cost and has little value.  On these systems,
-cleancache should probably be disabled.  However, the cost
-is very small so leaving it enabled may not even show a
-measureable performance impact.
+Because that way we do not need preempt enable/disable. The cmpxchg is
+used to update the per cpu counter in the slow case as well. All that is
+left then is to add the count to the global counter.
 
-> And already there is in FAQ though, I also have interest about async
-> interface because of SDD backend (I'm not sure for now though). Is
-> there any plan like SSD backend?
+The branches are not an issue since they are forward branches over one
+(after converting to an atomic operation) or two instructions each. A
+possible stall is only possible in case of the cmpxchg failing.
 
-Yes, I think an SSD backend is very interesting, especially
-if the SSD is "very near" to the processor so that it can
-be used as a RAM extension rather than as an I/O device.
-
-The existing cleancache hooks will work for this and I am
-working on a cleancache backend called RAMster that will
-be a good foundation to access other asynchronous devices.
-See: http://marc.info/?l=3Dlinux-mm&m=3D130013567810410&w=3D2=20
-
-Thanks for your feedback!
-Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
