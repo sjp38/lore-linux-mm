@@ -1,59 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id CC7FD900086
-	for <linux-mm@kvack.org>; Fri, 15 Apr 2011 10:51:35 -0400 (EDT)
-Date: Fri, 15 Apr 2011 16:51:33 +0200
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 0ABC4900086
+	for <linux-mm@kvack.org>; Fri, 15 Apr 2011 11:06:13 -0400 (EDT)
+Date: Fri, 15 Apr 2011 17:06:06 +0200
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 0/1] mm: make read-only accessors take const pointer
- parameters
-Message-ID: <20110415145133.GO15707@random.random>
-References: <1302861377-8048-1-git-send-email-ext-phil.2.carmody@nokia.com>
+Subject: Re: [PATCH] mm: Check if PTE is already allocated during page fault
+Message-ID: <20110415150606.GP15707@random.random>
+References: <20110415101248.GB22688@suse.de>
+ <20110415143916.GN15707@random.random>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1302861377-8048-1-git-send-email-ext-phil.2.carmody@nokia.com>
+In-Reply-To: <20110415143916.GN15707@random.random>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Phil Carmody <ext-phil.2.carmody@nokia.com>
-Cc: akpm@linux-foundation.org, cl@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: akpm@linux-foundation.org, raz ben yehuda <raziebe@gmail.com>, riel@redhat.com, kosaki.motohiro@jp.fujitsu.com, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, stable@kernel.org
 
-Hello Phil,
+On Fri, Apr 15, 2011 at 04:39:16PM +0200, Andrea Arcangeli wrote:
+> On Fri, Apr 15, 2011 at 11:12:48AM +0100, Mel Gorman wrote:
+> > diff --git a/mm/memory.c b/mm/memory.c
+> > index 5823698..1659574 100644
+> > --- a/mm/memory.c
+> > +++ b/mm/memory.c
+> > @@ -3322,7 +3322,7 @@ int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+> >  	 * run pte_offset_map on the pmd, if an huge pmd could
+> >  	 * materialize from under us from a different thread.
+> >  	 */
+> > -	if (unlikely(__pte_alloc(mm, vma, pmd, address)))
+> > +	if (unlikely(pmd_none(*pmd)) && __pte_alloc(mm, vma, pmd, address))
 
-On Fri, Apr 15, 2011 at 12:56:16PM +0300, Phil Carmody wrote:
-> 
-> Sending this one its own as it either becomes an enabler for further
-> related patches, or if nacked, shuts the door on them. Better to test
-> the water before investing too much time on such things.
-> 
-> Whilst following a few static code analysis warnings, it became clear
-> that either the tool (which I believe is considered practically state of
-> the art) was very dumb when sniffing into called functions, or that a
-> simple const flag would either help it not make the incorrect paranoid
-> assumptions that it did, or help me dismiss the report as a false
-> positive more quickly.
-> 
-> Of course, this is core core code, and shouldn't be diddled with lightly,
-> but it's because it's core code that it's an enabler.
-> 
-> Awaiting the judgement of the Solomons,
+I started hacking on this and I noticed it'd be better to extend the
+unlikely through the end. At first review I didn't notice the
+parenthesis closure stops after pte_none and __pte_alloc is now
+uncovered. I'd prefer this:
 
-What's the benefit of having it const other than shutdown the warnings
-from the static code analysis? I doubt gcc can generate any better
-output from this change because it's all inline anyway.
+    if (unlikely(pmd_none(*pmd) && __pte_alloc(mm, vma, pmd, address)))
 
-I guess the only chance this could help is if we call an extern
-function and we read the pointer before and after the external call,
-in that case gcc could assume the memory didn't change across the
-extern function and just cache the value in callee-saved register
-without having to re-read memory after the extern function
-returns. But there isn't any extern function there...
+I mean the real unlikely thing is that we return VM_FAULT_OOM, if we
+end up calling __pte_alloc or not, depends on the app. Generally it
+sounds more frequent that the pte is not none, so it's not wrong, but
+it's even less likely that __pte_alloc fails so that can be taken into
+account too, and __pte_alloc runs still quite frequently. So either
+above or:
 
-I guess the static code analysis shouldn't suggest a const if it's all
-inline and gcc has full visibility on everything that is done inside
-those functions at build time.
+    if (unlikely(pmd_none(*pmd)) && unlikely(__pte_alloc(mm, vma, pmd, address)))
 
-But maybe I'm missing something gcc could do better with const that it
-can't now.
+I generally prefer unlikely only when it's 100% sure thing it's less
+likely (like the VM_FAULT_OOM), so the first version I guess it's
+enough (I'm afraid unlikely for pte_none too, may make gcc generate a
+far away jump possibly going out of l1 icache for a case that is only
+512 times less likely at best). My point is that it's certainly hugely
+more unlikely that __pte_alloc fails than the pte is none.
+
+This is a real nitpick though ;).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
