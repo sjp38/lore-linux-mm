@@ -1,55 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 3B152900086
-	for <linux-mm@kvack.org>; Fri, 15 Apr 2011 15:43:19 -0400 (EDT)
-Date: Fri, 15 Apr 2011 14:43:15 -0500 (CDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 4B04D900086
+	for <linux-mm@kvack.org>; Fri, 15 Apr 2011 15:48:33 -0400 (EDT)
+Message-Id: <20110415194830.256999587@linux.com>
+Date: Fri, 15 Apr 2011 14:48:12 -0500
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH] percpu: preemptless __per_cpu_counter_add
-In-Reply-To: <20110415182734.GB15916@mtj.dyndns.org>
-Message-ID: <alpine.DEB.2.00.1104151440070.8055@router.home>
-References: <alpine.DEB.2.00.1104130942500.16214@router.home> <alpine.DEB.2.00.1104131148070.20908@router.home> <20110413185618.GA3987@mtj.dyndns.org> <alpine.DEB.2.00.1104131521050.25812@router.home> <1302747263.3549.9.camel@edumazet-laptop>
- <alpine.DEB.2.00.1104141608300.19533@router.home> <20110414211522.GE21397@mtj.dyndns.org> <alpine.DEB.2.00.1104151235350.8055@router.home> <20110415182734.GB15916@mtj.dyndns.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: [Slub cleanup6 1/5] slub: Use NUMA_NO_NODE in get_partial
+References: <20110415194811.810587216@linux.com>
+Content-Disposition: inline; filename=use_numa_nonode
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Eric Dumazet <eric.dumazet@gmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org, shaohua.li@intel.com
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>
 
-On Sat, 16 Apr 2011, Tejun Heo wrote:
+A -1 was leftover during the conversion.
 
-> > +			new = 0;
-> > +		}
-> > +#ifdef CONFIG_PREEMPT
-> > +	} while (this_cpu_cmpxchg(*fbc->counters, count, new) != count);
-> > +#else
-> > +	} while (0);
-> > +	this_cpu_write(*fbc->counters, new);
-> > +#endif
->
-> Eeeek, no.  If you want to do the above, please put it in a separate
-> inline function with sufficient comment.
+Signed-off-by: Christoph Lameter <cl@linux.com>
 
-That would not work well with the control flow. Just leave the cmpxchg for
-both cases? That would make the function irq safe as well!
+---
+ mm/slub.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-> > +	if (unlikely(overflow)) {
-> >  		spin_lock(&fbc->lock);
-> > -		fbc->count += count;
-> > -		__this_cpu_write(*fbc->counters, 0);
-> > +		fbc->count += overflow;
-> >  		spin_unlock(&fbc->lock);
->
-> Why put this outside and use yet another branch?
-
-Because that way we do not need preempt enable/disable. The cmpxchg is
-used to update the per cpu counter in the slow case as well. All that is
-left then is to add the count to the global counter.
-
-The branches are not an issue since they are forward branches over one
-(after converting to an atomic operation) or two instructions each. A
-possible stall is only possible in case of the cmpxchg failing.
-
+Index: linux-2.6/mm/slub.c
+===================================================================
+--- linux-2.6.orig/mm/slub.c	2011-04-15 14:27:58.000000000 -0500
++++ linux-2.6/mm/slub.c	2011-04-15 14:28:18.000000000 -0500
+@@ -1487,7 +1487,7 @@ static struct page *get_partial(struct k
+ 	int searchnode = (node == NUMA_NO_NODE) ? numa_node_id() : node;
+ 
+ 	page = get_partial_node(get_node(s, searchnode));
+-	if (page || node != -1)
++	if (page || node != NUMA_NO_NODE)
+ 		return page;
+ 
+ 	return get_any_partial(s, flags);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
