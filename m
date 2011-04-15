@@ -1,103 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 2840390008C
-	for <linux-mm@kvack.org>; Fri, 15 Apr 2011 16:13:07 -0400 (EDT)
-Message-Id: <20110415201304.808185101@linux.com>
-Date: Fri, 15 Apr 2011 15:13:03 -0500
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 32E56900097
+	for <linux-mm@kvack.org>; Fri, 15 Apr 2011 16:13:08 -0400 (EDT)
+Message-Id: <20110415201305.961665970@linux.com>
+Date: Fri, 15 Apr 2011 15:13:05 -0500
 From: Christoph Lameter <cl@linux.com>
-Subject: [slubllv333num@/21] slub: Avoid disabling interrupts in free slowpath
+Subject: [slubllv333num@/21] slub: fast release on full slab
 References: <20110415201246.096634892@linux.com>
-Content-Disposition: inline; filename=slab_free_without_irqoff
+Content-Disposition: inline; filename=slab_alloc_fast_release
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Pekka Enberg <penberg@cs.helsinki.fi>
 Cc: David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Eric Dumazet <eric.dumazet@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, linux-mm@kvack.org
 
-Disabling interrupts can be avoided now. However, list operation still require
-disabling interrupts since allocations can occur from interrupt
-contexts and there is no way to perform atomic list operations. So
-acquire the list lock opportunistically if there is a chance
-that list operations would be needed. This may result in
-needless synchronizations but allows the avoidance of synchronization
-in the majority of the cases.
+Make deactivation occur implicitly while checking out the current freelist.
 
-Dropping interrupt handling significantly simplifies the slowpath.
+This avoids one cmpxchg operation on a slab that is now fully in use.
 
 Signed-off-by: Christoph Lameter <cl@linux.com>
 
 ---
- mm/slub.c |   23 ++++++++++++-----------
- 1 file changed, 12 insertions(+), 11 deletions(-)
+ mm/slub.c |   18 ++++++++++++++++--
+ 1 file changed, 16 insertions(+), 2 deletions(-)
 
 Index: linux-2.6/mm/slub.c
 ===================================================================
---- linux-2.6.orig/mm/slub.c	2011-04-15 14:30:05.000000000 -0500
-+++ linux-2.6/mm/slub.c	2011-04-15 14:30:06.000000000 -0500
-@@ -2225,13 +2225,11 @@ static void __slab_free(struct kmem_cach
- 	struct kmem_cache_node *n = NULL;
- #ifdef CONFIG_CMPXCHG_LOCAL
- 	unsigned long flags;
--
--	local_irq_save(flags);
- #endif
- 	stat(s, FREE_SLOWPATH);
+--- linux-2.6.orig/mm/slub.c	2011-04-15 14:30:10.000000000 -0500
++++ linux-2.6/mm/slub.c	2011-04-15 14:30:12.000000000 -0500
+@@ -1953,9 +1953,21 @@ static void *__slab_alloc(struct kmem_ca
+ 			object = page->freelist;
+ 			counters = page->counters;
+ 			new.counters = counters;
+-			new.inuse = page->objects;
+ 			VM_BUG_ON(!new.frozen);
  
- 	if (kmem_cache_debug(s) && !free_debug_processing(s, page, x, addr))
--		goto out_unlock;
-+		return;
++			/*
++			 * If there is no object left then we use this loop to
++			 * deactivate the slab which is simple since no objects
++			 * are left in the slab and therefore we do not need to
++			 * put the page back onto the partial list.
++			 *
++			 * If there are objects left then we retrieve them
++			 * and use them to refill the per cpu queue.
++			*/
++
++			new.inuse = page->objects;
++			new.frozen = object != NULL;
++
+ 		} while (!cmpxchg_double_slab(s, page,
+ 				object, counters,
+ 				NULL, new.counters,
+@@ -1965,8 +1977,10 @@ static void *__slab_alloc(struct kmem_ca
+ load_freelist:
+ 	VM_BUG_ON(!page->frozen);
  
- 	do {
- 		prior = page->freelist;
-@@ -2250,7 +2248,11 @@ static void __slab_free(struct kmem_cach
- 			 * Otherwise the list_lock will synchronize with
- 			 * other processors updating the list of slabs.
- 			 */
-+#ifdef CONFIG_CMPXCHG_LOCAL
-+                        spin_lock_irqsave(&n->list_lock, flags);
-+#else
-                         spin_lock(&n->list_lock);
-+#endif
- 		}
- 		inuse = new.inuse;
+-	if (unlikely(!object))
++	if (unlikely(!object)) {
++		c->page = NULL;
+ 		goto new_slab;
++	}
  
-@@ -2266,7 +2268,7 @@ static void __slab_free(struct kmem_cach
- 		 */
-                 if (was_frozen)
-                         stat(s, FREE_FROZEN);
--                goto out_unlock;
-+                return;
-         }
+ 	c->freelist = get_freepointer(s, object);
  
- 	/*
-@@ -2289,12 +2291,10 @@ static void __slab_free(struct kmem_cach
- 			stat(s, FREE_ADD_PARTIAL);
- 		}
- 	}
--
--	spin_unlock(&n->list_lock);
--
--out_unlock:
- #ifdef CONFIG_CMPXCHG_LOCAL
--	local_irq_restore(flags);
-+	spin_unlock_irqrestore(&n->list_lock, flags);
-+#else
-+	spin_unlock(&n->list_lock);
- #endif
- 	return;
- 
-@@ -2307,9 +2307,10 @@ slab_empty:
- 		stat(s, FREE_REMOVE_PARTIAL);
- 	}
- 
--	spin_unlock(&n->list_lock);
- #ifdef CONFIG_CMPXCHG_LOCAL
--	local_irq_restore(flags);
-+	spin_unlock_irqrestore(&n->list_lock, flags);
-+#else
-+	spin_unlock(&n->list_lock);
- #endif
- 	stat(s, FREE_SLAB);
- 	discard_slab(s, page);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
