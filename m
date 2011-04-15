@@ -1,67 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 091C390008D
-	for <linux-mm@kvack.org>; Fri, 15 Apr 2011 16:13:00 -0400 (EDT)
-Message-Id: <20110415201258.442821107@linux.com>
-Date: Fri, 15 Apr 2011 15:12:52 -0500
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 85E0690008E
+	for <linux-mm@kvack.org>; Fri, 15 Apr 2011 16:13:01 -0400 (EDT)
+Message-Id: <20110415201259.018029060@linux.com>
+Date: Fri, 15 Apr 2011 15:12:53 -0500
 From: Christoph Lameter <cl@linux.com>
-Subject: [slubllv333num@/21] slub: Per object NUMA support
+Subject: [slubllv333num@/21] slub: Do not use frozen page flag but a bit in the page counters
 References: <20110415201246.096634892@linux.com>
-Content-Disposition: inline; filename=rr_slabs
+Content-Disposition: inline; filename=frozen_field
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Pekka Enberg <penberg@cs.helsinki.fi>
 Cc: David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Eric Dumazet <eric.dumazet@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, linux-mm@kvack.org
 
-Currently slub applies NUMA policies per allocated slab page. Change
-that to apply memory policies for each individual object allocated.
+Do not use a page flag for the frozen bit. It needs to be part
+of the state that is handled with cmpxchg_double(). So use a bit
+in the counter struct in the page struct for that purpose.
 
-F.e. before this patch MPOL_INTERLEAVE would return objects from the
-same slab page until a new slab page was allocated. Now an object
-from a different page is taken for each allocation.
-
-This increases the overhead of the fastpath under NUMA.
+Also all page start out as frozen pages so set the bit
+when the page is allocated.
 
 Signed-off-by: Christoph Lameter <cl@linux.com>
 
----
- mm/slub.c |   16 ++++++++++++++++
- 1 file changed, 16 insertions(+)
 
+---
+ include/linux/mm_types.h   |    5 +++--
+ include/linux/page-flags.h |    2 --
+ mm/slub.c                  |   12 ++++++------
+ 3 files changed, 9 insertions(+), 10 deletions(-)
+
+Index: linux-2.6/include/linux/mm_types.h
+===================================================================
+--- linux-2.6.orig/include/linux/mm_types.h	2011-04-15 12:54:32.000000000 -0500
++++ linux-2.6/include/linux/mm_types.h	2011-04-15 13:14:36.000000000 -0500
+@@ -41,8 +41,9 @@ struct page {
+ 					 * & limit reverse map searches.
+ 					 */
+ 		struct {		/* SLUB */
+-			u16 inuse;
+-			u16 objects;
++			unsigned inuse:16;
++			unsigned objects:15;
++			unsigned frozen:1;
+ 		};
+ 	};
+ 	union {
+Index: linux-2.6/include/linux/page-flags.h
+===================================================================
+--- linux-2.6.orig/include/linux/page-flags.h	2011-04-15 12:54:32.000000000 -0500
++++ linux-2.6/include/linux/page-flags.h	2011-04-15 13:14:36.000000000 -0500
+@@ -212,8 +212,6 @@ PAGEFLAG(SwapBacked, swapbacked) __CLEAR
+ 
+ __PAGEFLAG(SlobFree, slob_free)
+ 
+-__PAGEFLAG(SlubFrozen, slub_frozen)
+-
+ /*
+  * Private page markings that may be used by the filesystem that owns the page
+  * for its own purposes.
 Index: linux-2.6/mm/slub.c
 ===================================================================
---- linux-2.6.orig/mm/slub.c	2011-04-15 12:54:42.000000000 -0500
-+++ linux-2.6/mm/slub.c	2011-04-15 13:11:25.000000000 -0500
-@@ -1887,6 +1887,21 @@ debug:
- 	goto unlock_out;
- }
+--- linux-2.6.orig/mm/slub.c	2011-04-15 13:11:25.000000000 -0500
++++ linux-2.6/mm/slub.c	2011-04-15 13:14:36.000000000 -0500
+@@ -166,7 +166,7 @@ static inline int kmem_cache_debug(struc
  
-+static __always_inline int alternate_slab_node(struct kmem_cache *s,
-+						gfp_t flags, int node)
-+{
-+#ifdef CONFIG_NUMA
-+	if (unlikely(node == NUMA_NO_NODE &&
-+			!(flags & __GFP_THISNODE) &&
-+			!in_interrupt())) {
-+		if ((s->flags & SLAB_MEM_SPREAD) && cpuset_do_slab_mem_spread())
-+			node = cpuset_slab_spread_node();
-+		else if (current->mempolicy)
-+		node = slab_node(current->mempolicy);
-+	}
-+#endif
-+	return node;
-+}
- /*
-  * Inlined fastpath so that allocation functions (kmalloc, kmem_cache_alloc)
-  * have the fastpath folded into their functions. So no function call
-@@ -1911,6 +1926,7 @@ static __always_inline void *slab_alloc(
- 	if (slab_pre_alloc_hook(s, gfpflags))
- 		return NULL;
+ #define OO_SHIFT	16
+ #define OO_MASK		((1 << OO_SHIFT) - 1)
+-#define MAX_OBJS_PER_PAGE	65535 /* since page.objects is u16 */
++#define MAX_OBJS_PER_PAGE	32767 /* since page.objects is u15 */
  
-+	node = alternate_slab_node(s, gfpflags, node);
- #ifndef CONFIG_CMPXCHG_LOCAL
- 	local_irq_save(flags);
- #else
+ /* Internal SLUB flags */
+ #define __OBJECT_POISON		0x80000000UL /* Poison object */
+@@ -1013,7 +1013,7 @@ static noinline int free_debug_processin
+ 	}
+ 
+ 	/* Special debug activities for freeing objects */
+-	if (!PageSlubFrozen(page) && !page->freelist)
++	if (!page->frozen && !page->freelist)
+ 		remove_full(s, page);
+ 	if (s->flags & SLAB_STORE_USER)
+ 		set_track(s, object, TRACK_FREE, addr);
+@@ -1402,7 +1402,7 @@ static inline int lock_and_freeze_slab(s
+ {
+ 	if (slab_trylock(page)) {
+ 		__remove_partial(n, page);
+-		__SetPageSlubFrozen(page);
++		page->frozen = 1;
+ 		return 1;
+ 	}
+ 	return 0;
+@@ -1516,7 +1516,7 @@ static void unfreeze_slab(struct kmem_ca
+ {
+ 	struct kmem_cache_node *n = get_node(s, page_to_nid(page));
+ 
+-	__ClearPageSlubFrozen(page);
++	page->frozen = 0;
+ 	if (page->inuse) {
+ 
+ 		if (page->freelist) {
+@@ -1867,7 +1867,7 @@ load_from_page:
+ 			flush_slab(s, c);
+ 
+ 		slab_lock(page);
+-		__SetPageSlubFrozen(page);
++		page->frozen = 1;
+ 
+ 		goto load_from_page;
+ 	}
+@@ -2081,7 +2081,7 @@ static void __slab_free(struct kmem_cach
+ 	page->freelist = object;
+ 	page->inuse--;
+ 
+-	if (unlikely(PageSlubFrozen(page))) {
++	if (unlikely(page->frozen)) {
+ 		stat(s, FREE_FROZEN);
+ 		goto out_unlock;
+ 	}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
