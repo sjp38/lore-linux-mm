@@ -1,56 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id A63AB90008B
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 091C390008D
 	for <linux-mm@kvack.org>; Fri, 15 Apr 2011 16:13:00 -0400 (EDT)
-Message-Id: <20110415201257.871538165@linux.com>
-Date: Fri, 15 Apr 2011 15:12:51 -0500
+Message-Id: <20110415201258.442821107@linux.com>
+Date: Fri, 15 Apr 2011 15:12:52 -0500
 From: Christoph Lameter <cl@linux.com>
-Subject: [slubllv333num@/21] slub: Move debug handlign in __slab_free
+Subject: [slubllv333num@/21] slub: Per object NUMA support
 References: <20110415201246.096634892@linux.com>
-Content-Disposition: inline; filename=move_debug
+Content-Disposition: inline; filename=rr_slabs
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Pekka Enberg <penberg@cs.helsinki.fi>
 Cc: David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Eric Dumazet <eric.dumazet@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, linux-mm@kvack.org
 
-Its easier to read if its with the check for debugging flags.
+Currently slub applies NUMA policies per allocated slab page. Change
+that to apply memory policies for each individual object allocated.
+
+F.e. before this patch MPOL_INTERLEAVE would return objects from the
+same slab page until a new slab page was allocated. Now an object
+from a different page is taken for each allocation.
+
+This increases the overhead of the fastpath under NUMA.
 
 Signed-off-by: Christoph Lameter <cl@linux.com>
 
 ---
- mm/slub.c |   11 ++---------
- 1 file changed, 2 insertions(+), 9 deletions(-)
+ mm/slub.c |   16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)
 
 Index: linux-2.6/mm/slub.c
 ===================================================================
---- linux-2.6.orig/mm/slub.c	2011-04-15 12:54:21.000000000 -0500
-+++ linux-2.6/mm/slub.c	2011-04-15 12:54:21.000000000 -0500
-@@ -2057,10 +2057,9 @@ static void __slab_free(struct kmem_cach
- 	slab_lock(page);
- 	stat(s, FREE_SLOWPATH);
- 
--	if (kmem_cache_debug(s))
--		goto debug;
-+	if (kmem_cache_debug(s) && !free_debug_processing(s, page, x, addr))
-+		goto out_unlock;
- 
--checks_ok:
- 	prior = page->freelist;
- 	set_freepointer(s, object, prior);
- 	page->freelist = object;
-@@ -2104,12 +2103,6 @@ slab_empty:
- #endif
- 	stat(s, FREE_SLAB);
- 	discard_slab(s, page);
--	return;
--
--debug:
--	if (!free_debug_processing(s, page, x, addr))
--		goto out_unlock;
--	goto checks_ok;
+--- linux-2.6.orig/mm/slub.c	2011-04-15 12:54:42.000000000 -0500
++++ linux-2.6/mm/slub.c	2011-04-15 13:11:25.000000000 -0500
+@@ -1887,6 +1887,21 @@ debug:
+ 	goto unlock_out;
  }
  
++static __always_inline int alternate_slab_node(struct kmem_cache *s,
++						gfp_t flags, int node)
++{
++#ifdef CONFIG_NUMA
++	if (unlikely(node == NUMA_NO_NODE &&
++			!(flags & __GFP_THISNODE) &&
++			!in_interrupt())) {
++		if ((s->flags & SLAB_MEM_SPREAD) && cpuset_do_slab_mem_spread())
++			node = cpuset_slab_spread_node();
++		else if (current->mempolicy)
++		node = slab_node(current->mempolicy);
++	}
++#endif
++	return node;
++}
  /*
+  * Inlined fastpath so that allocation functions (kmalloc, kmem_cache_alloc)
+  * have the fastpath folded into their functions. So no function call
+@@ -1911,6 +1926,7 @@ static __always_inline void *slab_alloc(
+ 	if (slab_pre_alloc_hook(s, gfpflags))
+ 		return NULL;
+ 
++	node = alternate_slab_node(s, gfpflags, node);
+ #ifndef CONFIG_CMPXCHG_LOCAL
+ 	local_irq_save(flags);
+ #else
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
