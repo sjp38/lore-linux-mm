@@ -1,153 +1,208 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 19369900086
-	for <linux-mm@kvack.org>; Fri, 15 Apr 2011 18:13:22 -0400 (EDT)
-Date: Sat, 16 Apr 2011 00:13:14 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 4/4] writeback: reduce per-bdi dirty threshold ramp up
- time
-Message-ID: <20110415221314.GE5432@quack.suse.cz>
-References: <20110413085937.981293444@intel.com>
- <20110413090415.763161169@intel.com>
- <20110413220444.GF4648@quack.suse.cz>
- <20110413233122.GA6097@localhost>
- <20110413235211.GN31057@dastard>
- <20110414002301.GA9826@localhost>
- <20110414151424.GA367@localhost>
- <20110414181609.GH5054@quack.suse.cz>
- <20110415034300.GA23430@localhost>
- <20110415143711.GA17181@localhost>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id F01C5900086
+	for <linux-mm@kvack.org>; Fri, 15 Apr 2011 18:35:48 -0400 (EDT)
+Received: from kpbe13.cbf.corp.google.com (kpbe13.cbf.corp.google.com [172.25.105.77])
+	by smtp-out.google.com with ESMTP id p3FMZipn003645
+	for <linux-mm@kvack.org>; Fri, 15 Apr 2011 15:35:44 -0700
+Received: from pzk9 (pzk9.prod.google.com [10.243.19.137])
+	by kpbe13.cbf.corp.google.com with ESMTP id p3FMZBsc010594
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 15 Apr 2011 15:35:43 -0700
+Received: by pzk9 with SMTP id 9so1717531pzk.33
+        for <linux-mm@kvack.org>; Fri, 15 Apr 2011 15:35:38 -0700 (PDT)
+Date: Fri, 15 Apr 2011 15:35:39 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [patch v3] oom: replace PF_OOM_ORIGIN with toggling
+ oom_score_adj
+In-Reply-To: <alpine.DEB.2.00.1104141316450.20747@chino.kir.corp.google.com>
+Message-ID: <alpine.LSU.2.00.1104151528050.4774@sister.anvils>
+References: <alpine.DEB.2.00.1104131132240.5563@chino.kir.corp.google.com> <20110414090310.07FF.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1104131740280.16515@chino.kir.corp.google.com> <alpine.DEB.2.00.1104141316450.20747@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110415143711.GA17181@localhost>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Richard Kennedy <richard@rsk.demon.co.uk>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Matt Fleming <matt@console-pimps.org>, linux-mm@kvack.org
 
-On Fri 15-04-11 22:37:11, Wu Fengguang wrote:
-> On Fri, Apr 15, 2011 at 11:43:00AM +0800, Wu Fengguang wrote:
-> > On Fri, Apr 15, 2011 at 02:16:09AM +0800, Jan Kara wrote:
-> > > On Thu 14-04-11 23:14:25, Wu Fengguang wrote:
-> > > > On Thu, Apr 14, 2011 at 08:23:02AM +0800, Wu Fengguang wrote:
-> > > > > On Thu, Apr 14, 2011 at 07:52:11AM +0800, Dave Chinner wrote:
-> > > > > > On Thu, Apr 14, 2011 at 07:31:22AM +0800, Wu Fengguang wrote:
-> > > > > > > On Thu, Apr 14, 2011 at 06:04:44AM +0800, Jan Kara wrote:
-> > > > > > > > On Wed 13-04-11 16:59:41, Wu Fengguang wrote:
-> > > > > > > > > Reduce the dampening for the control system, yielding faster
-> > > > > > > > > convergence. The change is a bit conservative, as smaller values may
-> > > > > > > > > lead to noticeable bdi threshold fluctuates in low memory JBOD setup.
-> > > > > > > > > 
-> > > > > > > > > CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
-> > > > > > > > > CC: Richard Kennedy <richard@rsk.demon.co.uk>
-> > > > > > > > > Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> > > > > > > >   Well, I have nothing against this change as such but what I don't like is
-> > > > > > > > that it just changes magical +2 for similarly magical +0. It's clear that
-> > > > > > > 
-> > > > > > > The patch tends to make the rampup time a bit more reasonable for
-> > > > > > > common desktops. From 100s to 25s (see below).
-> > > > > > > 
-> > > > > > > > this will lead to more rapid updates of proportions of bdi's share of
-> > > > > > > > writeback and thread's share of dirtying but why +0? Why not +1 or -1? So
-> > > > > > > 
-> > > > > > > Yes, it will especially be a problem on _small memory_ JBOD setups.
-> > > > > > > Richard actually has requested for a much radical change (decrease by
-> > > > > > > 6) but that looks too much.
-> > > > > > > 
-> > > > > > > My team has a 12-disk JBOD with only 6G memory. The memory is pretty
-> > > > > > > small as a server, but it's a real setup and serves well as the
-> > > > > > > reference minimal setup that Linux should be able to run well on.
-> > > > > > 
-> > > > > > FWIW, linux runs on a lot of low power NAS boxes with jbod and/or
-> > > > > > raid setups that have <= 1GB of RAM (many of them run XFS), so even
-> > > > > > your setup could be considered large by a significant fraction of
-> > > > > > the storage world. Hence you need to be careful of optimising for
-> > > > > > what you think is a "normal" server, because there simply isn't such
-> > > > > > a thing....
-> > > > > 
-> > > > > Good point! This patch is likely to hurt a loaded 1GB 4-disk NAS box...
-> > > > > I'll test the setup.
-> > > > 
-> > > > Just did a comparison of the IO-less patches' performance with and
-> > > > without this patch. I hardly notice any differences besides some more
-> > > > bdi goal fluctuations in the attached graphs. The write throughput is
-> > > > a bit large with this patch (80MB/s vs 76MB/s), however the delta is
-> > > > within the even larger stddev range (20MB/s).
-> > >   Thanks for the test but I cannot find out from the numbers you provided
-> > > how much did the per-bdi thresholds fluctuate in this low memory NAS case?
-> > > You can gather current bdi threshold from /sys/kernel/debug/bdi/<dev>/stats
-> > > so it shouldn't be hard to get the numbers...
-> > 
-> > Hi Jan, attached are your results w/o this patch. The "bdi goal" (gray
-> > line) is calculated as (bdi_thresh - bdi_thresh/8) and is fluctuating
-> > all over the place.. and average wkB/s is only 49MB/s..
+On Thu, 14 Apr 2011, David Rientjes wrote:
+
+> There's a kernel-wide shortage of per-process flags, so it's always 
+> helpful to trim one when possible without incurring a significant 
+> penalty.  It's even more important when you're planning on adding a per-
+> process flag yourself, which I plan to do shortly for transparent 
+> hugepages.
 > 
-> I got the numbers for vanilla kernel: XFS can do 57MB/s and 63MB/s in
-> the two runs.  There are large fluctuations in the attached graphs, too.
-  Hmm, so the graphs from previous email are with longer "proportion
-period (without patch we discuss here)" and graphs from this email are
-with it?
-
-> To summary it up, for a 1GB mem, 4 disks JBOD setup, running 1 dd per
-> disk:
+> PF_OOM_ORIGIN is used by ksm and swapoff to prefer current since it has a 
+> tendency to allocate large amounts of memory and should be preferred for 
+> killing over other tasks.  We'd rather immediately kill the task making 
+> the errant syscall rather than penalizing an innocent task.
 > 
-> vanilla: 57MB/s, 63MB/s
-> Jan:     49MB/s, 103MB/s
-> Wu:      76MB/s, 80MB/s
+> This patch removes PF_OOM_ORIGIN since its behavior is equivalent to 
+> setting the process's oom_score_adj to OOM_SCORE_ADJ_MAX.
 > 
-> The balance_dirty_pages-task-bw-jan.png and
-> balance_dirty_pages-pages-jan.png shows very unfair allocation of
-> dirty pages and throughput among the disks...
-  Fengguang, can we please stay on topic? It's good to know that throughput
-fluctuates so much with my patches (although not that surprising seeing the
-fluctuations of bdi limits) but for the sake of this patch throughput
-numbers with different balance_dirty_pages() implementations do not seem
-that interesting.  What is interesting (at least to me) is how this
-particular patch changes fluctuations of bdi thresholds (fractions) in
-vanilla kernel. In the graphs, I can see only bdi goal - that is the
-per-bdi threshold we have in balance_dirty_pages() am I right? And it is
-there for only a single device, right?
+> The process's old oom_score_adj is stored and then set to 
+> OOM_SCORE_ADJ_MAX during the time it used to have PF_OOM_ORIGIN.  The old 
+> value is then reinstated when the process should no longer be considered 
+> a high priority for oom killing.
+> 
+> Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+> Signed-off-by: David Rientjes <rientjes@google.com>
 
-Anyway either with or without the patch, bdi thresholds are jumping rather
-wildly if I'm interpreting the graphs right. Hmm, which is not that surprising
-given that in ideal case we should have about 0.5s worth of writeback for
-each disk in the page cache. So with your patch the period for proportion
-estimation is also just about 0.5s worth of page writeback which is
-understandably susceptible to fluctuations. Thinking about it, the original
-period of 4*"dirty limit" on your machine is about 2.5 GB which is about
-50s worth of writeback on that machine so it is in match with your
-observation that it takes ~100s for bdi threshold to climb up.
+Sorry, I'm trailing along way behind as usual.
 
-So what is a takeaway from this for me is that scaling the period
-with the dirty limit is not the right thing. If you'd have 4-times more
-memory, your choice of "dirty limit" as the period would be as bad as
-current 4*"dirty limit". What would seem like a better choice of period
-to me would be to have the period in an order of a few seconds worth of
-writeback. That would allow the bdi limit to scale up reasonably fast when
-new bdi starts to be used and still not make it fluctuate that much
-(hopefully).
+This makes good sense (now you're using MAX instead of MIN!),
+but may I helatedly ask you to change the name test_set_oom_score_adj()
+to replace_oom_score_adj()?  test_set means a bitflag operation to me.
 
-Looking at math in lib/proportions.c, nothing really fundamental requires
-that each period has the same length. So it shouldn't be hard to actually
-create proportions calculator that would have timer triggered periods -
-simply whenever the timer fires, we would declare a new period. The only
-things which would be broken by this are (t represents global counter of
-events):
-a) counting of periods as t/period_len - we would have to maintain global
-period counter but that's trivial
-b) trick that we don't do t=t/2 for each new period but rather use
-period_len/2+(t % (period_len/2)) when calculating fractions - again we
-would have to bite the bullet and divide the global counter when we declare
-new period but again it's not a big deal in our case.
+Otherwise,
+Acked-by: Hugh Dickins <hughd@google.com>
 
-Peter what do you think about this? Do you (or anyone else) think it makes
-sense?
-
-								Honza
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+> ---
+>  v3: add comment for test_set_oom_score_adj()
+>      disable irqs when taking siglock, thanks to Matt Fleming
+> 
+>  include/linux/oom.h   |    2 ++
+>  include/linux/sched.h |    1 -
+>  mm/ksm.c              |    7 +++++--
+>  mm/oom_kill.c         |   36 +++++++++++++++++++++++++++---------
+>  mm/swapfile.c         |    6 ++++--
+>  5 files changed, 38 insertions(+), 14 deletions(-)
+> 
+> diff --git a/include/linux/oom.h b/include/linux/oom.h
+> --- a/include/linux/oom.h
+> +++ b/include/linux/oom.h
+> @@ -40,6 +40,8 @@ enum oom_constraint {
+>  	CONSTRAINT_MEMCG,
+>  };
+>  
+> +extern int test_set_oom_score_adj(int new_val);
+> +
+>  extern unsigned int oom_badness(struct task_struct *p, struct mem_cgroup *mem,
+>  			const nodemask_t *nodemask, unsigned long totalpages);
+>  extern int try_set_zonelist_oom(struct zonelist *zonelist, gfp_t gfp_flags);
+> diff --git a/include/linux/sched.h b/include/linux/sched.h
+> --- a/include/linux/sched.h
+> +++ b/include/linux/sched.h
+> @@ -1738,7 +1738,6 @@ extern void thread_group_times(struct task_struct *p, cputime_t *ut, cputime_t *
+>  #define PF_FROZEN	0x00010000	/* frozen for system suspend */
+>  #define PF_FSTRANS	0x00020000	/* inside a filesystem transaction */
+>  #define PF_KSWAPD	0x00040000	/* I am kswapd */
+> -#define PF_OOM_ORIGIN	0x00080000	/* Allocating much memory to others */
+>  #define PF_LESS_THROTTLE 0x00100000	/* Throttle me less: I clean memory */
+>  #define PF_KTHREAD	0x00200000	/* I am a kernel thread */
+>  #define PF_RANDOMIZE	0x00400000	/* randomize virtual address space */
+> diff --git a/mm/ksm.c b/mm/ksm.c
+> --- a/mm/ksm.c
+> +++ b/mm/ksm.c
+> @@ -35,6 +35,7 @@
+>  #include <linux/ksm.h>
+>  #include <linux/hash.h>
+>  #include <linux/freezer.h>
+> +#include <linux/oom.h>
+>  
+>  #include <asm/tlbflush.h>
+>  #include "internal.h"
+> @@ -1894,9 +1895,11 @@ static ssize_t run_store(struct kobject *kobj, struct kobj_attribute *attr,
+>  	if (ksm_run != flags) {
+>  		ksm_run = flags;
+>  		if (flags & KSM_RUN_UNMERGE) {
+> -			current->flags |= PF_OOM_ORIGIN;
+> +			int oom_score_adj;
+> +
+> +			oom_score_adj = test_set_oom_score_adj(OOM_SCORE_ADJ_MAX);
+>  			err = unmerge_and_remove_all_rmap_items();
+> -			current->flags &= ~PF_OOM_ORIGIN;
+> +			test_set_oom_score_adj(oom_score_adj);
+>  			if (err) {
+>  				ksm_run = KSM_RUN_STOP;
+>  				count = err;
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -38,6 +38,33 @@ int sysctl_oom_kill_allocating_task;
+>  int sysctl_oom_dump_tasks = 1;
+>  static DEFINE_SPINLOCK(zone_scan_lock);
+>  
+> +/**
+> + * test_set_oom_score_adj() - set current's oom_score_adj and return old value
+> + * @new_val: new oom_score_adj value
+> + *
+> + * Sets the oom_score_adj value for current to @new_val with proper
+> + * synchronization and returns the old value.  Usually used to temporarily
+> + * set a value, save the old value in the caller, and then reinstate it later.
+> + */
+> +int test_set_oom_score_adj(int new_val)
+> +{
+> +	struct sighand_struct *sighand = current->sighand;
+> +	int old_val;
+> +
+> +	spin_lock_irq(&sighand->siglock);
+> +	old_val = current->signal->oom_score_adj;
+> +	if (new_val != old_val) {
+> +		if (new_val == OOM_SCORE_ADJ_MIN)
+> +			atomic_inc(&current->mm->oom_disable_count);
+> +		else if (old_val == OOM_SCORE_ADJ_MIN)
+> +			atomic_dec(&current->mm->oom_disable_count);
+> +		current->signal->oom_score_adj = new_val;
+> +	}
+> +	spin_unlock_irq(&sighand->siglock);
+> +
+> +	return old_val;
+> +}
+> +
+>  #ifdef CONFIG_NUMA
+>  /**
+>   * has_intersects_mems_allowed() - check task eligiblity for kill
+> @@ -173,15 +200,6 @@ unsigned int oom_badness(struct task_struct *p, struct mem_cgroup *mem,
+>  	}
+>  
+>  	/*
+> -	 * When the PF_OOM_ORIGIN bit is set, it indicates the task should have
+> -	 * priority for oom killing.
+> -	 */
+> -	if (p->flags & PF_OOM_ORIGIN) {
+> -		task_unlock(p);
+> -		return 1000;
+> -	}
+> -
+> -	/*
+>  	 * The memory controller may have a limit of 0 bytes, so avoid a divide
+>  	 * by zero, if necessary.
+>  	 */
+> diff --git a/mm/swapfile.c b/mm/swapfile.c
+> --- a/mm/swapfile.c
+> +++ b/mm/swapfile.c
+> @@ -31,6 +31,7 @@
+>  #include <linux/syscalls.h>
+>  #include <linux/memcontrol.h>
+>  #include <linux/poll.h>
+> +#include <linux/oom.h>
+>  
+>  #include <asm/pgtable.h>
+>  #include <asm/tlbflush.h>
+> @@ -1555,6 +1556,7 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
+>  	struct address_space *mapping;
+>  	struct inode *inode;
+>  	char *pathname;
+> +	int oom_score_adj;
+>  	int i, type, prev;
+>  	int err;
+>  
+> @@ -1613,9 +1615,9 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
+>  	p->flags &= ~SWP_WRITEOK;
+>  	spin_unlock(&swap_lock);
+>  
+> -	current->flags |= PF_OOM_ORIGIN;
+> +	oom_score_adj = test_set_oom_score_adj(OOM_SCORE_ADJ_MAX);
+>  	err = try_to_unuse(type);
+> -	current->flags &= ~PF_OOM_ORIGIN;
+> +	test_set_oom_score_adj(oom_score_adj);
+>  
+>  	if (err) {
+>  		/*
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
