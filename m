@@ -1,39 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 4B04D900086
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id E47D5900086
 	for <linux-mm@kvack.org>; Fri, 15 Apr 2011 15:48:33 -0400 (EDT)
-Message-Id: <20110415194830.256999587@linux.com>
-Date: Fri, 15 Apr 2011 14:48:12 -0500
+Message-Id: <20110415194831.991653328@linux.com>
+Date: Fri, 15 Apr 2011 14:48:15 -0500
 From: Christoph Lameter <cl@linux.com>
-Subject: [Slub cleanup6 1/5] slub: Use NUMA_NO_NODE in get_partial
+Subject: [Slub cleanup6 4/5] slub: Move node determination out of hotpath
 References: <20110415194811.810587216@linux.com>
-Content-Disposition: inline; filename=use_numa_nonode
+Content-Disposition: inline; filename=move_slab_node
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Pekka Enberg <penberg@cs.helsinki.fi>
 Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>
 
-A -1 was leftover during the conversion.
+If the node does not change then there is no need to recalculate
+the node from the page struct. So move the node determination
+into the places where we acquire a new slab page.
 
 Signed-off-by: Christoph Lameter <cl@linux.com>
 
 ---
- mm/slub.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ mm/slub.c |    9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)
 
 Index: linux-2.6/mm/slub.c
 ===================================================================
---- linux-2.6.orig/mm/slub.c	2011-04-15 14:27:58.000000000 -0500
-+++ linux-2.6/mm/slub.c	2011-04-15 14:28:18.000000000 -0500
-@@ -1487,7 +1487,7 @@ static struct page *get_partial(struct k
- 	int searchnode = (node == NUMA_NO_NODE) ? numa_node_id() : node;
+--- linux-2.6.orig/mm/slub.c	2011-04-15 12:52:17.000000000 -0500
++++ linux-2.6/mm/slub.c	2011-04-15 12:54:15.000000000 -0500
+@@ -1828,7 +1828,6 @@ load_freelist:
+ 	c->freelist = get_freepointer(s, object);
+ 	page->inuse = page->objects;
+ 	page->freelist = NULL;
+-	c->node = page_to_nid(page);
  
- 	page = get_partial_node(get_node(s, searchnode));
--	if (page || node != -1)
-+	if (page || node != NUMA_NO_NODE)
- 		return page;
+ unlock_out:
+ 	slab_unlock(page);
+@@ -1845,8 +1844,10 @@ another_slab:
+ new_slab:
+ 	page = get_partial(s, gfpflags, node);
+ 	if (page) {
+-		c->page = page;
+ 		stat(s, ALLOC_FROM_PARTIAL);
++load_from_page:
++		c->node = page_to_nid(page);
++		c->page = page;
+ 		goto load_freelist;
+ 	}
  
- 	return get_any_partial(s, flags);
+@@ -1867,8 +1868,8 @@ new_slab:
+ 
+ 		slab_lock(page);
+ 		__SetPageSlubFrozen(page);
+-		c->page = page;
+-		goto load_freelist;
++
++		goto load_from_page;
+ 	}
+ 	if (!(gfpflags & __GFP_NOWARN) && printk_ratelimit())
+ 		slab_out_of_memory(s, gfpflags, node);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
