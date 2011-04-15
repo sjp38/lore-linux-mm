@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 8CA9D900086
-	for <linux-mm@kvack.org>; Fri, 15 Apr 2011 19:24:51 -0400 (EDT)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 1FCA590008B
+	for <linux-mm@kvack.org>; Fri, 15 Apr 2011 19:24:52 -0400 (EDT)
 From: Ying Han <yinghan@google.com>
-Subject: [PATCH V5 06/10] Per-memcg background reclaim.
-Date: Fri, 15 Apr 2011 16:23:31 -0700
-Message-Id: <1302909815-4362-7-git-send-email-yinghan@google.com>
+Subject: [PATCH V5 03/10] New APIs to adjust per-memcg wmarks
+Date: Fri, 15 Apr 2011 16:23:28 -0700
+Message-Id: <1302909815-4362-4-git-send-email-yinghan@google.com>
 In-Reply-To: <1302909815-4362-1-git-send-email-yinghan@google.com>
 References: <1302909815-4362-1-git-send-email-yinghan@google.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,233 +13,166 @@ List-ID: <linux-mm.kvack.org>
 To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>
 Cc: linux-mm@kvack.org
 
-This is the main loop of per-memcg background reclaim which is implemented in
-function balance_mem_cgroup_pgdat().
+Add memory.low_wmark_distance, memory.high_wmark_distance and reclaim_wmarks
+APIs per-memcg. The first two adjust the internal low/high wmark calculation
+and the reclaim_wmarks exports the current value of watermarks.
 
-The function performs a priority loop similar to global reclaim. During each
-iteration it invokes balance_pgdat_node() for all nodes on the system, which
-is another new function performs background reclaim per node. After reclaiming
-each node, it checks mem_cgroup_watermark_ok() and breaks the priority loop if
-it returns true.
+By default, the low/high_wmark is calculated by subtracting the distance from
+the hard_limit(limit_in_bytes).
 
-changelog v5..v4:
-1. remove duplicate check on nodes_empty()
-2. add logic to check if the per-memcg lru is empty on the zone.
-3. make per-memcg kswapd to reclaim SWAP_CLUSTER_MAX per zone. It make senses
-since it helps to balance the pressure across zones within the memcg.
+$ echo 500m >/dev/cgroup/A/memory.limit_in_bytes
+$ cat /dev/cgroup/A/memory.limit_in_bytes
+524288000
+
+$ echo 50m >/dev/cgroup/A/memory.high_wmark_distance
+$ echo 40m >/dev/cgroup/A/memory.low_wmark_distance
+
+$ cat /dev/cgroup/A/memory.reclaim_wmarks
+low_wmark 482344960
+high_wmark 471859200
+
+change v5..v4
+1. add sanity check for setting high/low_wmark_distance for root cgroup.
 
 changelog v4..v3:
-1. split the select_victim_node and zone_unreclaimable to a seperate patches
-2. remove the logic tries to do zone balancing.
+1. replace the "wmark_ratio" API with individual tunable for low/high_wmarks.
 
 changelog v3..v2:
-1. change mz->all_unreclaimable to be boolean.
-2. define ZONE_RECLAIMABLE_RATE macro shared by zone and per-memcg reclaim.
-3. some more clean-up.
+1. replace the "min_free_kbytes" api with "wmark_ratio". This is part of
+feedbacks
 
-changelog v2..v1:
-1. move the per-memcg per-zone clear_unreclaimable into uncharge stage.
-2. shared the kswapd_run/kswapd_stop for per-memcg and global background
-reclaim.
-3. name the per-memcg memcg as "memcg-id" (css->id). And the global kswapd
-keeps the same name.
-4. fix a race on kswapd_stop while the per-memcg-per-zone info could be accessed
-after freeing.
-5. add the fairness in zonelist where memcg remember the last zone reclaimed
-from.
-
+Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Signed-off-by: Ying Han <yinghan@google.com>
 ---
- mm/vmscan.c |  157 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 files changed, 157 insertions(+), 0 deletions(-)
+ mm/memcontrol.c |  101 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 files changed, 101 insertions(+), 0 deletions(-)
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 06036d2..39e6300 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -47,6 +47,8 @@
- 
- #include <linux/swapops.h>
- 
-+#include <linux/res_counter.h>
-+
- #include "internal.h"
- 
- #define CREATE_TRACE_POINTS
-@@ -111,6 +113,8 @@ struct scan_control {
- 	 * are scanned.
- 	 */
- 	nodemask_t	*nodemask;
-+
-+	int priority;
- };
- 
- #define lru_to_page(_head) (list_entry((_head)->prev, struct page, lru))
-@@ -2631,11 +2635,164 @@ static void kswapd_try_to_sleep(struct kswapd *kswapd_p, int order,
- 	finish_wait(wait_h, &wait);
- }
- 
-+#ifdef CONFIG_CGROUP_MEM_RES_CTLR
-+/*
-+ * The function is used for per-memcg LRU. It scanns all the zones of the
-+ * node and returns the nr_scanned and nr_reclaimed.
-+ */
-+static void balance_pgdat_node(pg_data_t *pgdat, int order,
-+					struct scan_control *sc)
-+{
-+	int i;
-+	unsigned long total_scanned = 0;
-+	struct mem_cgroup *mem_cont = sc->mem_cgroup;
-+	int priority = sc->priority;
-+	enum lru_list l;
-+
-+	/*
-+	 * This dma->highmem order is consistant with global reclaim.
-+	 * We do this because the page allocator works in the opposite
-+	 * direction although memcg user pages are mostly allocated at
-+	 * highmem.
-+	 */
-+	for (i = 0; i < pgdat->nr_zones; i++) {
-+		struct zone *zone = pgdat->node_zones + i;
-+		unsigned long scan = 0;
-+
-+		for_each_evictable_lru(l)
-+			scan += mem_cgroup_zone_nr_pages(mem_cont, zone, l);
-+
-+		if (!populated_zone(zone) || !scan)
-+			continue;
-+
-+		sc->nr_scanned = 0;
-+		shrink_zone(priority, zone, sc);
-+		total_scanned += sc->nr_scanned;
-+
-+		/*
-+		 * If we've done a decent amount of scanning and
-+		 * the reclaim ratio is low, start doing writepage
-+		 * even in laptop mode
-+		 */
-+		if (total_scanned > SWAP_CLUSTER_MAX * 2 &&
-+		    total_scanned > sc->nr_reclaimed + sc->nr_reclaimed / 2) {
-+			sc->may_writepage = 1;
-+		}
-+	}
-+
-+	sc->nr_scanned = total_scanned;
-+	return;
-+}
-+
-+/*
-+ * Per cgroup background reclaim.
-+ * TODO: Take off the order since memcg always do order 0
-+ */
-+static unsigned long balance_mem_cgroup_pgdat(struct mem_cgroup *mem_cont,
-+					      int order)
-+{
-+	int i, nid;
-+	int start_node;
-+	int priority;
-+	bool wmark_ok;
-+	int loop;
-+	pg_data_t *pgdat;
-+	nodemask_t do_nodes;
-+	unsigned long total_scanned;
-+	struct scan_control sc = {
-+		.gfp_mask = GFP_KERNEL,
-+		.may_unmap = 1,
-+		.may_swap = 1,
-+		.nr_to_reclaim = SWAP_CLUSTER_MAX,
-+		.swappiness = vm_swappiness,
-+		.order = order,
-+		.mem_cgroup = mem_cont,
-+	};
-+
-+loop_again:
-+	do_nodes = NODE_MASK_NONE;
-+	sc.may_writepage = !laptop_mode;
-+	sc.nr_reclaimed = 0;
-+	total_scanned = 0;
-+
-+	for (priority = DEF_PRIORITY; priority >= 0; priority--) {
-+		sc.priority = priority;
-+		wmark_ok = false;
-+		loop = 0;
-+
-+		/* The swap token gets in the way of swapout... */
-+		if (!priority)
-+			disable_swap_token();
-+
-+		if (priority == DEF_PRIORITY)
-+			do_nodes = node_states[N_ONLINE];
-+
-+		while (1) {
-+			nid = mem_cgroup_select_victim_node(mem_cont,
-+							&do_nodes);
-+
-+			/* Indicate we have cycled the nodelist once
-+			 * TODO: we might add MAX_RECLAIM_LOOP for preventing
-+			 * kswapd burning cpu cycles.
-+			 */
-+			if (loop == 0) {
-+				start_node = nid;
-+				loop++;
-+			} else if (nid == start_node)
-+				break;
-+
-+			pgdat = NODE_DATA(nid);
-+			balance_pgdat_node(pgdat, order, &sc);
-+			total_scanned += sc.nr_scanned;
-+
-+			/* Set the node which has at least
-+			 * one reclaimable zone
-+			 */
-+			for (i = pgdat->nr_zones - 1; i >= 0; i--) {
-+				struct zone *zone = pgdat->node_zones + i;
-+
-+				if (!populated_zone(zone))
-+					continue;
-+			}
-+			if (i < 0)
-+				node_clear(nid, do_nodes);
-+
-+			if (mem_cgroup_watermark_ok(mem_cont,
-+							CHARGE_WMARK_HIGH)) {
-+				wmark_ok = true;
-+				goto out;
-+			}
-+
-+			if (nodes_empty(do_nodes)) {
-+				wmark_ok = true;
-+				goto out;
-+			}
-+		}
-+
-+		if (total_scanned && priority < DEF_PRIORITY - 2)
-+			congestion_wait(WRITE, HZ/10);
-+
-+		if (sc.nr_reclaimed >= SWAP_CLUSTER_MAX)
-+			break;
-+	}
-+out:
-+	if (!wmark_ok) {
-+		cond_resched();
-+
-+		try_to_freeze();
-+
-+		goto loop_again;
-+	}
-+
-+	return sc.nr_reclaimed;
-+}
-+#else
- static unsigned long balance_mem_cgroup_pgdat(struct mem_cgroup *mem_cont,
- 							int order)
- {
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 1ec4014..76ad009 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -3974,6 +3974,78 @@ static int mem_cgroup_swappiness_write(struct cgroup *cgrp, struct cftype *cft,
  	return 0;
  }
-+#endif
  
- /*
-  * The background pageout daemon, started as a kernel thread
++static u64 mem_cgroup_high_wmark_distance_read(struct cgroup *cgrp,
++					       struct cftype *cft)
++{
++	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
++
++	return memcg->high_wmark_distance;
++}
++
++static u64 mem_cgroup_low_wmark_distance_read(struct cgroup *cgrp,
++					      struct cftype *cft)
++{
++	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
++
++	return memcg->low_wmark_distance;
++}
++
++static int mem_cgroup_high_wmark_distance_write(struct cgroup *cont,
++						struct cftype *cft,
++						const char *buffer)
++{
++	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
++	u64 low_wmark_distance = memcg->low_wmark_distance;
++	unsigned long long val;
++	u64 limit;
++	int ret;
++
++	if (!cont->parent)
++		return -EINVAL;
++
++	ret = res_counter_memparse_write_strategy(buffer, &val);
++	if (ret)
++		return -EINVAL;
++
++	limit = res_counter_read_u64(&memcg->res, RES_LIMIT);
++	if ((val >= limit) || (val < low_wmark_distance) ||
++	   (low_wmark_distance && val == low_wmark_distance))
++		return -EINVAL;
++
++	memcg->high_wmark_distance = val;
++
++	setup_per_memcg_wmarks(memcg);
++	return 0;
++}
++
++static int mem_cgroup_low_wmark_distance_write(struct cgroup *cont,
++					       struct cftype *cft,
++					       const char *buffer)
++{
++	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
++	u64 high_wmark_distance = memcg->high_wmark_distance;
++	unsigned long long val;
++	u64 limit;
++	int ret;
++
++	if (!cont->parent)
++		return -EINVAL;
++
++	ret = res_counter_memparse_write_strategy(buffer, &val);
++	if (ret)
++		return -EINVAL;
++
++	limit = res_counter_read_u64(&memcg->res, RES_LIMIT);
++	if ((val >= limit) || (val > high_wmark_distance) ||
++	    (high_wmark_distance && val == high_wmark_distance))
++		return -EINVAL;
++
++	memcg->low_wmark_distance = val;
++
++	setup_per_memcg_wmarks(memcg);
++	return 0;
++}
++
+ static void __mem_cgroup_threshold(struct mem_cgroup *memcg, bool swap)
+ {
+ 	struct mem_cgroup_threshold_ary *t;
+@@ -4265,6 +4337,21 @@ static void mem_cgroup_oom_unregister_event(struct cgroup *cgrp,
+ 	mutex_unlock(&memcg_oom_mutex);
+ }
+ 
++static int mem_cgroup_wmark_read(struct cgroup *cgrp,
++	struct cftype *cft,  struct cgroup_map_cb *cb)
++{
++	struct mem_cgroup *mem = mem_cgroup_from_cont(cgrp);
++	u64 low_wmark, high_wmark;
++
++	low_wmark = res_counter_read_u64(&mem->res, RES_LOW_WMARK_LIMIT);
++	high_wmark = res_counter_read_u64(&mem->res, RES_HIGH_WMARK_LIMIT);
++
++	cb->fill(cb, "low_wmark", low_wmark);
++	cb->fill(cb, "high_wmark", high_wmark);
++
++	return 0;
++}
++
+ static int mem_cgroup_oom_control_read(struct cgroup *cgrp,
+ 	struct cftype *cft,  struct cgroup_map_cb *cb)
+ {
+@@ -4368,6 +4455,20 @@ static struct cftype mem_cgroup_files[] = {
+ 		.unregister_event = mem_cgroup_oom_unregister_event,
+ 		.private = MEMFILE_PRIVATE(_OOM_TYPE, OOM_CONTROL),
+ 	},
++	{
++		.name = "high_wmark_distance",
++		.write_string = mem_cgroup_high_wmark_distance_write,
++		.read_u64 = mem_cgroup_high_wmark_distance_read,
++	},
++	{
++		.name = "low_wmark_distance",
++		.write_string = mem_cgroup_low_wmark_distance_write,
++		.read_u64 = mem_cgroup_low_wmark_distance_read,
++	},
++	{
++		.name = "reclaim_wmarks",
++		.read_map = mem_cgroup_wmark_read,
++	},
+ };
+ 
+ #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
 -- 
 1.7.3.1
 
