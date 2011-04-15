@@ -1,48 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 06861900086
-	for <linux-mm@kvack.org>; Fri, 15 Apr 2011 10:45:59 -0400 (EDT)
-Date: Fri, 15 Apr 2011 09:45:56 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: BUILD_BUG_ON() breaks sparse gfp_t checks
-In-Reply-To: <1302817191.16562.1036.camel@nimitz>
-Message-ID: <alpine.DEB.2.00.1104150945230.5863@router.home>
-References: <1302795695.14658.6801.camel@nimitz>  <20110414132220.970cfb2a.akpm@linux-foundation.org> <1302817191.16562.1036.camel@nimitz>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 1ADF0900086
+	for <linux-mm@kvack.org>; Fri, 15 Apr 2011 10:50:24 -0400 (EDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <83ef8b69-f041-43e6-a5a9-880ff3da26f2@default>
+Date: Fri, 15 Apr 2011 07:47:57 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [PATCH V8 4/8] mm/fs: add hooks to support cleancache
+References: <20110414211732.GA27761@ca-server1.us.oracle.com
+ BANLkTimEbtY8F6bpsfhfQ770ao9Hn7Spww@mail.gmail.com>
+In-Reply-To: <BANLkTimEbtY8F6bpsfhfQ770ao9Hn7Spww@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rusty Russell <rusty@rustcorp.com.au>, Jan Beulich <JBeulich@novell.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Chris Mason <chris.mason@oracle.com>, viro@zeniv.linux.org.uk, akpm@linux-foundation.org, adilger.kernel@dilger.ca, tytso@mit.edu, mfasheh@suse.com, jlbec@evilplan.org, matthew@wil.cx, linux-btrfs@vger.kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, ocfs2-devel@oss.oracle.com, linux-mm@kvack.org, hch@infradead.org, ngupta@vflare.org, jeremy@goop.org, JBeulich@novell.com, Kurt Hackel <kurt.hackel@oracle.com>, npiggin@kernel.dk, Dave Mccracken <dave.mccracken@oracle.com>, riel@redhat.com, avi@redhat.com, Konrad Wilk <konrad.wilk@oracle.com>, mel@csn.ul.ie, yinghan@google.com, gthelen@google.com, torvalds@linux-foundation.org
 
-On Thu, 14 Apr 2011, Dave Hansen wrote:
+Hi Minchan --
 
-> On Thu, 2011-04-14 at 13:22 -0700, Andrew Morton wrote:
-> > The kernel calls gfp_zone() with a constant arg in very few places.
-> > This?
-> >
-> > --- a/include/linux/gfp.h~a
-> > +++ a/include/linux/gfp.h
-> > @@ -249,14 +249,9 @@ static inline enum zone_type gfp_zone(gf
-> >
-> >         z = (GFP_ZONE_TABLE >> (bit * ZONES_SHIFT)) &
-> >                                          ((1 << ZONES_SHIFT) - 1);
-> > -
-> > -       if (__builtin_constant_p(bit))
-> > -               BUILD_BUG_ON((GFP_ZONE_BAD >> bit) & 1);
-> > -       else {
-> >  #ifdef CONFIG_DEBUG_VM
-> > -               BUG_ON((GFP_ZONE_BAD >> bit) & 1);
-> > +       BUG_ON((GFP_ZONE_BAD >> bit) & 1);
-> >  #endif
-> > -       }
-> >         return z;
-> >  }
->
-> That definitely makes sparse happier.  I hope the folks on cc will chime
-> in if they wanted something special at build time.
+> First of all, thanks for resolving conflict with my patch.
 
-You can also remove the #ifdef. Use VM_BUG_ON.
+You're welcome!  As I pointed out offlist, yours was the first
+change in MM that caused any semantic changes to the cleancache
+core hooks patch since before 2.6.18.
+=20
+> Before I suggested a thing about cleancache_flush_page,
+> cleancache_flush_inode.
+>=20
+> what's the meaning of flush's semantic?
+> I thought it means invalidation.
+> AFAIC, how about change flush with invalidate?
+
+I'm not sure the words "flush" and "invalidate" are defined
+precisely or used consistently everywhere in computer
+science, but I think that "invalidate" is to destroy
+a "pointer" to some data, but not necessarily destroy the
+data itself.   And "flush" means to actually remove
+the data.  So one would "invalidate a mapping" but one
+would "flush a cache".
+
+Since cleancache_flush_page and cleancache_flush_inode
+semantically remove data from cleancache, I think flush
+is a better name than invalidate.
+
+Does that make sense?
+
+Thanks,
+Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
