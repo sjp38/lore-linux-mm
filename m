@@ -1,126 +1,198 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 0F960900087
-	for <linux-mm@kvack.org>; Fri, 15 Apr 2011 00:23:07 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id D222C3EE0C0
-	for <linux-mm@kvack.org>; Fri, 15 Apr 2011 13:23:04 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id B675B45DE6D
-	for <linux-mm@kvack.org>; Fri, 15 Apr 2011 13:23:04 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 91F0345DE67
-	for <linux-mm@kvack.org>; Fri, 15 Apr 2011 13:23:04 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 7F989E08004
-	for <linux-mm@kvack.org>; Fri, 15 Apr 2011 13:23:04 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 397831DB803A
-	for <linux-mm@kvack.org>; Fri, 15 Apr 2011 13:23:04 +0900 (JST)
-Date: Fri, 15 Apr 2011 13:16:17 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH V4 01/10] Add kswapd descriptor
-Message-Id: <20110415131617.91b0485c.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <BANLkTikE6dyLJVebk65-6A8RdF-fpTFQ+g@mail.gmail.com>
-References: <1302821669-29862-1-git-send-email-yinghan@google.com>
-	<1302821669-29862-2-git-send-email-yinghan@google.com>
-	<20110415090445.4578f987.kamezawa.hiroyu@jp.fujitsu.com>
-	<BANLkTikE6dyLJVebk65-6A8RdF-fpTFQ+g@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 23D2D900086
+	for <linux-mm@kvack.org>; Fri, 15 Apr 2011 00:34:07 -0400 (EDT)
+Received: by pwi10 with SMTP id 10so1317193pwi.14
+        for <linux-mm@kvack.org>; Thu, 14 Apr 2011 21:34:05 -0700 (PDT)
+From: Namhyung Kim <namhyung@gmail.com>
+Subject: [PATCH] mempolicy: reduce references to the current
+Date: Fri, 15 Apr 2011 13:33:59 +0900
+Message-Id: <1302842039-7190-1-git-send-email-namhyung@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, 14 Apr 2011 20:35:00 -0700
-Ying Han <yinghan@google.com> wrote:
+Remove duplicated reference to the 'current' task using a local
+variable. Since refering the current can be a burden, it'd better
+cache the reference, IMHO. At least this saves some bytes on x86_64.
 
-> On Thu, Apr 14, 2011 at 5:04 PM, KAMEZAWA Hiroyuki <
-> kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> 
-> > On Thu, 14 Apr 2011 15:54:20 -0700
-> > Ying Han <yinghan@google.com> wrote:
-> >
-> > > There is a kswapd kernel thread for each numa node. We will add a
-> > different
-> > > kswapd for each memcg. The kswapd is sleeping in the wait queue headed at
-> > > kswapd_wait field of a kswapd descriptor. The kswapd descriptor stores
-> > > information of node or memcg and it allows the global and per-memcg
-> > background
-> > > reclaim to share common reclaim algorithms.
-> > >
-> > > This patch adds the kswapd descriptor and moves the per-node kswapd to
-> > use the
-> > > new structure.
-> > >
-> >
-> > No objections to your direction but some comments.
-> >
-> > > changelog v2..v1:
-> > > 1. dynamic allocate kswapd descriptor and initialize the wait_queue_head
-> > of pgdat
-> > > at kswapd_run.
-> > > 2. add helper macro is_node_kswapd to distinguish per-node/per-cgroup
-> > kswapd
-> > > descriptor.
-> > >
-> > > changelog v3..v2:
-> > > 1. move the struct mem_cgroup *kswapd_mem in kswapd sruct to later patch.
-> > > 2. rename thr in kswapd_run to something else.
-> > >
-> > > Signed-off-by: Ying Han <yinghan@google.com>
-> > > ---
-> > >  include/linux/mmzone.h |    3 +-
-> > >  include/linux/swap.h   |    7 ++++
-> > >  mm/page_alloc.c        |    1 -
-> > >  mm/vmscan.c            |   95
-> > ++++++++++++++++++++++++++++++++++++------------
-> > >  4 files changed, 80 insertions(+), 26 deletions(-)
-> > >
-> > > diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> > > index 628f07b..6cba7d2 100644
-> > > --- a/include/linux/mmzone.h
-> > > +++ b/include/linux/mmzone.h
-> > > @@ -640,8 +640,7 @@ typedef struct pglist_data {
-> > >       unsigned long node_spanned_pages; /* total size of physical page
-> > >                                            range, including holes */
-> > >       int node_id;
-> > > -     wait_queue_head_t kswapd_wait;
-> > > -     struct task_struct *kswapd;
-> > > +     wait_queue_head_t *kswapd_wait;
-> > >       int kswapd_max_order;
-> > >       enum zone_type classzone_idx;
-> >
-> > I think pg_data_t should include struct kswapd in it, as
-> >
-> >        struct pglist_data {
-> >        .....
-> >                struct kswapd   kswapd;
-> >        };
-> > and you can add a macro as
-> >
-> > #define kswapd_waitqueue(kswapd)        (&(kswapd)->kswapd_wait)
-> > if it looks better.
-> >
-> > Why I recommend this is I think it's better to have 'struct kswapd'
-> > on the same page of pg_data_t or struct memcg.
-> > Do you have benefits to kmalloc() struct kswapd on damand ?
-> >
-> 
-> So we don't end of have kswapd struct on memcgs' which doesn't have
-> per-memcg kswapd enabled. I don't see one is strongly better than the other
-> for the two approaches. If ok, I would like to keep as it is for this
-> verion. Hope this is ok for now.
-> 
+  $ size mempolicy-{old,new}.o
+     text    data    bss     dec     hex filename
+    25203    2448   9176   36827    8fdb mempolicy-old.o
+    25136    2448   9184   36768    8fa0 mempolicy-new.o
 
-My intension is to remove kswapd_spinlock. Can we remove it with
-dynamic allocation ? IOW, static allocation still requires spinlock ?
+Signed-off-by: Namhyung Kim <namhyung@gmail.com>
+---
+ mm/mempolicy.c |   58 +++++++++++++++++++++++++++++--------------------------
+ 1 files changed, 31 insertions(+), 27 deletions(-)
 
-Thanks,
--Kame
-
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index 959a8b8c7350..37cc80ce5054 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -304,6 +304,7 @@ static void mpol_rebind_nodemask(struct mempolicy *pol, const nodemask_t *nodes,
+ 				 enum mpol_rebind_step step)
+ {
+ 	nodemask_t tmp;
++	struct task_struct *curr = current;
+ 
+ 	if (pol->flags & MPOL_F_STATIC_NODES)
+ 		nodes_and(tmp, pol->w.user_nodemask, *nodes);
+@@ -335,12 +336,12 @@ static void mpol_rebind_nodemask(struct mempolicy *pol, const nodemask_t *nodes,
+ 	else
+ 		BUG();
+ 
+-	if (!node_isset(current->il_next, tmp)) {
+-		current->il_next = next_node(current->il_next, tmp);
+-		if (current->il_next >= MAX_NUMNODES)
+-			current->il_next = first_node(tmp);
+-		if (current->il_next >= MAX_NUMNODES)
+-			current->il_next = numa_node_id();
++	if (!node_isset(curr->il_next, tmp)) {
++		curr->il_next = next_node(curr->il_next, tmp);
++		if (curr->il_next >= MAX_NUMNODES)
++			curr->il_next = first_node(tmp);
++		if (curr->il_next >= MAX_NUMNODES)
++			curr->il_next = numa_node_id();
+ 	}
+ }
+ 
+@@ -714,7 +715,8 @@ static long do_set_mempolicy(unsigned short mode, unsigned short flags,
+ 			     nodemask_t *nodes)
+ {
+ 	struct mempolicy *new, *old;
+-	struct mm_struct *mm = current->mm;
++	struct task_struct *curr = current;
++	struct mm_struct *mm = curr->mm;
+ 	NODEMASK_SCRATCH(scratch);
+ 	int ret;
+ 
+@@ -734,22 +736,22 @@ static long do_set_mempolicy(unsigned short mode, unsigned short flags,
+ 	 */
+ 	if (mm)
+ 		down_write(&mm->mmap_sem);
+-	task_lock(current);
++	task_lock(curr);
+ 	ret = mpol_set_nodemask(new, nodes, scratch);
+ 	if (ret) {
+-		task_unlock(current);
++		task_unlock(curr);
+ 		if (mm)
+ 			up_write(&mm->mmap_sem);
+ 		mpol_put(new);
+ 		goto out;
+ 	}
+-	old = current->mempolicy;
+-	current->mempolicy = new;
++	old = curr->mempolicy;
++	curr->mempolicy = new;
+ 	mpol_set_task_struct_flag();
+ 	if (new && new->mode == MPOL_INTERLEAVE &&
+ 	    nodes_weight(new->v.nodes))
+-		current->il_next = first_node(new->v.nodes);
+-	task_unlock(current);
++		curr->il_next = first_node(new->v.nodes);
++	task_unlock(curr);
+ 	if (mm)
+ 		up_write(&mm->mmap_sem);
+ 
+@@ -805,9 +807,10 @@ static long do_get_mempolicy(int *policy, nodemask_t *nmask,
+ 			     unsigned long addr, unsigned long flags)
+ {
+ 	int err;
+-	struct mm_struct *mm = current->mm;
++	struct task_struct *curr = current;
++	struct mm_struct *mm = curr->mm;
+ 	struct vm_area_struct *vma = NULL;
+-	struct mempolicy *pol = current->mempolicy;
++	struct mempolicy *pol = curr->mempolicy;
+ 
+ 	if (flags &
+ 		~(unsigned long)(MPOL_F_NODE|MPOL_F_ADDR|MPOL_F_MEMS_ALLOWED))
+@@ -817,9 +820,9 @@ static long do_get_mempolicy(int *policy, nodemask_t *nmask,
+ 		if (flags & (MPOL_F_NODE|MPOL_F_ADDR))
+ 			return -EINVAL;
+ 		*policy = 0;	/* just so it's initialized */
+-		task_lock(current);
++		task_lock(curr);
+ 		*nmask  = cpuset_current_mems_allowed;
+-		task_unlock(current);
++		task_unlock(curr);
+ 		return 0;
+ 	}
+ 
+@@ -851,9 +854,9 @@ static long do_get_mempolicy(int *policy, nodemask_t *nmask,
+ 			if (err < 0)
+ 				goto out;
+ 			*policy = err;
+-		} else if (pol == current->mempolicy &&
++		} else if (pol == curr->mempolicy &&
+ 				pol->mode == MPOL_INTERLEAVE) {
+-			*policy = current->il_next;
++			*policy = curr->il_next;
+ 		} else {
+ 			err = -EINVAL;
+ 			goto out;
+@@ -869,7 +872,7 @@ static long do_get_mempolicy(int *policy, nodemask_t *nmask,
+ 	}
+ 
+ 	if (vma) {
+-		up_read(&current->mm->mmap_sem);
++		up_read(&mm->mmap_sem);
+ 		vma = NULL;
+ 	}
+ 
+@@ -878,16 +881,16 @@ static long do_get_mempolicy(int *policy, nodemask_t *nmask,
+ 		if (mpol_store_user_nodemask(pol)) {
+ 			*nmask = pol->w.user_nodemask;
+ 		} else {
+-			task_lock(current);
++			task_lock(curr);
+ 			get_policy_nodemask(pol, nmask);
+-			task_unlock(current);
++			task_unlock(curr);
+ 		}
+ 	}
+ 
+  out:
+ 	mpol_cond_put(pol);
+ 	if (vma)
+-		up_read(&current->mm->mmap_sem);
++		up_read(&mm->mmap_sem);
+ 	return err;
+ }
+ 
+@@ -1912,22 +1915,23 @@ EXPORT_SYMBOL(alloc_pages_current);
+ /* Slow path of a mempolicy duplicate */
+ struct mempolicy *__mpol_dup(struct mempolicy *old)
+ {
++	struct task_struct *curr = current;
+ 	struct mempolicy *new = kmem_cache_alloc(policy_cache, GFP_KERNEL);
+ 
+ 	if (!new)
+ 		return ERR_PTR(-ENOMEM);
+ 
+ 	/* task's mempolicy is protected by alloc_lock */
+-	if (old == current->mempolicy) {
+-		task_lock(current);
++	if (old == curr->mempolicy) {
++		task_lock(curr);
+ 		*new = *old;
+-		task_unlock(current);
++		task_unlock(curr);
+ 	} else
+ 		*new = *old;
+ 
+ 	rcu_read_lock();
+ 	if (current_cpuset_is_being_rebound()) {
+-		nodemask_t mems = cpuset_mems_allowed(current);
++		nodemask_t mems = cpuset_mems_allowed(curr);
+ 		if (new->flags & MPOL_F_REBINDING)
+ 			mpol_rebind_policy(new, &mems, MPOL_REBIND_STEP2);
+ 		else
+-- 
+1.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
