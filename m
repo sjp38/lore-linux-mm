@@ -1,573 +1,348 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id A54A890008E
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id C5F85900096
 	for <linux-mm@kvack.org>; Fri, 15 Apr 2011 16:13:06 -0400 (EDT)
-Message-Id: <20110415201303.076881612@linux.com>
-Date: Fri, 15 Apr 2011 15:13:00 -0500
+Message-Id: <20110415201303.659996282@linux.com>
+Date: Fri, 15 Apr 2011 15:13:01 -0500
 From: Christoph Lameter <cl@linux.com>
-Subject: [slubllv333num@/21] slub: Rework allocator fastpaths
+Subject: [slubllv333num@/21] slub: Invert locking and avoid slab lock
 References: <20110415201246.096634892@linux.com>
-Content-Disposition: inline; filename=rework_fastpaths
+Content-Disposition: inline; filename=slab_lock_subsume
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Pekka Enberg <penberg@cs.helsinki.fi>
 Cc: David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Eric Dumazet <eric.dumazet@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, linux-mm@kvack.org
 
-Rework the allocation paths so that updates of the page freelist, frozen state
-and number of objects use cmpxchg_double_slab().
+Locking slabs is no longer necesary if the arch supports cmpxchg operations
+and if no debuggin features are used on a slab. If the arch does not support
+cmpxchg then we fallback to use the slab lock to do a cmpxchg like operation.
+
+The patch also changes the lock order. Slab locks are subsumed to the node lock
+now. With that approach slab_trylocking is no longer necessary.
 
 Signed-off-by: Christoph Lameter <cl@linux.com>
 
 ---
- mm/slub.c |  420 ++++++++++++++++++++++++++++++++++++++++++--------------------
- 1 file changed, 290 insertions(+), 130 deletions(-)
+ mm/slub.c |  131 +++++++++++++++++++++++++-------------------------------------
+ 1 file changed, 53 insertions(+), 78 deletions(-)
 
 Index: linux-2.6/mm/slub.c
 ===================================================================
---- linux-2.6.orig/mm/slub.c	2011-04-15 14:29:35.000000000 -0500
-+++ linux-2.6/mm/slub.c	2011-04-15 14:29:57.000000000 -0500
-@@ -975,11 +975,6 @@ static noinline int alloc_debug_processi
- 	if (!check_slab(s, page))
- 		goto bad;
+--- linux-2.6.orig/mm/slub.c	2011-04-15 14:29:57.000000000 -0500
++++ linux-2.6/mm/slub.c	2011-04-15 14:30:01.000000000 -0500
+@@ -2,10 +2,11 @@
+  * SLUB: A slab allocator that limits cache line use instead of queuing
+  * objects in per cpu and per node lists.
+  *
+- * The allocator synchronizes using per slab locks and only
+- * uses a centralized lock to manage a pool of partial slabs.
++ * The allocator synchronizes using per slab locks or atomic operatios
++ * and only uses a centralized lock to manage a pool of partial slabs.
+  *
+  * (C) 2007 SGI, Christoph Lameter
++ * (C) 2011 Linux Foundation, Christoph Lameter
+  */
  
--	if (!on_freelist(s, page, object)) {
--		object_err(s, page, object, "Object already allocated");
--		goto bad;
--	}
--
- 	if (!check_valid_pointer(s, page, object)) {
- 		object_err(s, page, object, "Freelist Pointer check fails");
- 		goto bad;
-@@ -1043,14 +1038,6 @@ static noinline int free_debug_processin
- 		goto fail;
+ #include <linux/mm.h>
+@@ -32,15 +33,27 @@
+ 
+ /*
+  * Lock order:
+- *   1. slab_lock(page)
+- *   2. slab->list_lock
+- *
+- *   The slab_lock protects operations on the object of a particular
+- *   slab and its metadata in the page struct. If the slab lock
+- *   has been taken then no allocations nor frees can be performed
+- *   on the objects in the slab nor can the slab be added or removed
+- *   from the partial or full lists since this would mean modifying
+- *   the page_struct of the slab.
++ *   1. slub_lock (Global Semaphore)
++ *   2. node->list_lock
++ *   3. slab_lock(page) (Only on some arches and for debugging)
++ *
++ *   slub_lock
++ *
++ *   The role of the slub_lock is to protect the list of all the slabs
++ *   and to synchronize major metadata changes to slab cache structures.
++ *
++ *   The slab_lock is only used for debugging and on arches that do not
++ *   have the ability to do a cmpxchg_double. It only protects the second
++ *   double word in the page struct. Meaning
++ *	A. page->freelist	-> List of object free in a page
++ *	B. page->counters	-> Counters of objects
++ *	C. page->frozen		-> frozen state
++ *
++ *   If a slab is frozen then it is exempt from list management. It is not
++ *   on any list. The processor that froze the slab is the one who can
++ *   perform list operations on the page. Other processors may put objects
++ *   onto the freelist but the processor that froze the slab is the only
++ *   one that can retrieve the objects from the page's freelist.
+  *
+  *   The list_lock protects the partial and full list on each node and
+  *   the partial slab counter. If taken then no new slabs may be added or
+@@ -53,20 +66,6 @@
+  *   slabs, operations can continue without any centralized lock. F.e.
+  *   allocating a long series of objects that fill up slabs does not require
+  *   the list lock.
+- *
+- *   The lock order is sometimes inverted when we are trying to get a slab
+- *   off a list. We take the list_lock and then look for a page on the list
+- *   to use. While we do that objects in the slabs may be freed. We can
+- *   only operate on the slab if we have also taken the slab_lock. So we use
+- *   a slab_trylock() on the slab. If trylock was successful then no frees
+- *   can occur anymore and we can use the slab for allocations etc. If the
+- *   slab_trylock() does not succeed then frees are in progress in the slab and
+- *   we must stay away from it for a while since we may cause a bouncing
+- *   cacheline if we try to acquire the lock. So go onto the next slab.
+- *   If all pages are busy then we may allocate a new slab instead of reusing
+- *   a partial slab. A new slab has no one operating on it and thus there is
+- *   no danger of cacheline contention.
+- *
+  *   Interrupts are disabled during allocation and deallocation in order to
+  *   make the slab allocator safe to use in the context of an irq. In addition
+  *   interrupts are disabled to ensure that the processor does not change
+@@ -330,6 +329,19 @@ static inline int oo_objects(struct kmem
+ 	return x.x & OO_MASK;
+ }
+ 
++/*
++ * Per slab locking using the pagelock
++ */
++static __always_inline void slab_lock(struct page *page)
++{
++	bit_spin_lock(PG_locked, &page->flags);
++}
++
++static __always_inline void slab_unlock(struct page *page)
++{
++	__bit_spin_unlock(PG_locked, &page->flags);
++}
++
+ static inline bool cmpxchg_double_slab(struct kmem_cache *s, struct page *page,
+ 		void *freelist_old, unsigned long counters_old,
+ 		void *freelist_new, unsigned long counters_new,
+@@ -344,11 +356,14 @@ static inline bool cmpxchg_double_slab(s
+ 	} else
+ #endif
+ 	{
++		slab_lock(page);
+ 		if (page->freelist == freelist_old && page->counters == counters_old) {
+ 			page->freelist = freelist_new;
+ 			page->counters = counters_new;
++			slab_unlock(page);
+ 			return 1;
+ 		}
++		slab_unlock(page);
  	}
  
--	/* Special debug activities for freeing objects */
--	if (!page->frozen && !page->freelist) {
--		struct kmem_cache_node *n = get_node(s, page_to_nid(page));
--
--		spin_lock(&n->list_lock);
--		remove_full(s, page);
--		spin_unlock(&n->list_lock);
--	}
- 	if (s->flags & SLAB_STORE_USER)
+ 	cpu_relax();
+@@ -364,7 +379,7 @@ static inline bool cmpxchg_double_slab(s
+ /*
+  * Determine a map of object in use on a page.
+  *
+- * Slab lock or node listlock must be held to guarantee that the page does
++ * Node listlock must be held to guarantee that the page does
+  * not vanish from under us.
+  */
+ static void get_map(struct kmem_cache *s, struct page *page, unsigned long *map)
+@@ -796,10 +811,11 @@ static int check_slab(struct kmem_cache
+ static int on_freelist(struct kmem_cache *s, struct page *page, void *search)
+ {
+ 	int nr = 0;
+-	void *fp = page->freelist;
++	void *fp;
+ 	void *object = NULL;
+ 	unsigned long max_objects;
+ 
++	fp = page->freelist;
+ 	while (fp && nr <= page->objects) {
+ 		if (fp == search)
+ 			return 1;
+@@ -1007,6 +1023,8 @@ bad:
+ static noinline int free_debug_processing(struct kmem_cache *s,
+ 		 struct page *page, void *object, unsigned long addr)
+ {
++	slab_lock(page);
++
+ 	if (!check_slab(s, page))
+ 		goto fail;
+ 
+@@ -1042,10 +1060,12 @@ static noinline int free_debug_processin
  		set_track(s, object, TRACK_FREE, addr);
  	trace(s, page, object, 0);
-@@ -1427,11 +1414,52 @@ static inline void remove_partial(struct
- static inline int lock_and_freeze_slab(struct kmem_cache *s,
- 		struct kmem_cache_node *n, struct page *page)
- {
--	if (slab_trylock(page)) {
--		remove_partial(n, page);
-+	void *freelist;
-+	unsigned long counters;
-+	struct page new;
-+
-+
-+	if (!slab_trylock(page))
-+		return 0;
-+
-+	/*
-+	 * Zap the freelist and set the frozen bit.
-+	 * The old freelist is the list of objects for the
-+	 * per cpu allocation list.
-+	 */
-+	do {
-+		freelist = page->freelist;
-+		counters = page->counters;
-+		new.counters = counters;
-+		new.inuse = page->objects;
-+
-+		VM_BUG_ON(new.frozen);
-+		new.frozen = 1;
-+
-+	} while (!cmpxchg_double_slab(s, page,
-+			freelist, counters,
-+			NULL, new.counters,
-+			"lock and freeze"));
-+
-+	remove_partial(n, page);
-+
-+	if (freelist) {
-+		/* Populate the per cpu freelist */
-+		this_cpu_write(s->cpu_slab->freelist, freelist);
-+		this_cpu_write(s->cpu_slab->page, page);
-+		this_cpu_write(s->cpu_slab->node, page_to_nid(page));
- 		return 1;
-+	} else {
-+		/*
-+		 * Slab page came from the wrong list. No object to allocate
-+		 * from. Put it onto the correct list and continue partial
-+		 * scan.
-+		 */
-+		printk(KERN_ERR "SLUB: %s : Page without available objects on"
-+			" partial list\n", s->name);
-+		slab_unlock(page);
-+		return 0;
- 	}
--	return 0;
+ 	init_object(s, object, SLUB_RED_INACTIVE);
++	slab_unlock(page);
+ 	return 1;
+ 
+ fail:
+ 	slab_fix(s, "Object at 0x%p not freed", object);
++	slab_unlock(page);
+ 	return 0;
+ }
+ 
+@@ -1365,27 +1385,6 @@ static void discard_slab(struct kmem_cac
  }
  
  /*
-@@ -1531,59 +1559,6 @@ static struct page *get_partial(struct k
- 	return get_any_partial(s, flags);
- }
- 
--/*
-- * Move a page back to the lists.
-- *
-- * Must be called with the slab lock held.
-- *
-- * On exit the slab lock will have been dropped.
+- * Per slab locking using the pagelock
 - */
--static void unfreeze_slab(struct kmem_cache *s, struct page *page, int tail)
--	__releases(bitlock)
+-static __always_inline void slab_lock(struct page *page)
 -{
--	struct kmem_cache_node *n = get_node(s, page_to_nid(page));
--
--	if (page->inuse) {
--
--		if (page->freelist) {
--			spin_lock(&n->list_lock);
--			add_partial(n, page, tail);
--			spin_unlock(&n->list_lock);
--			stat(s, tail ? DEACTIVATE_TO_TAIL : DEACTIVATE_TO_HEAD);
--		} else {
--			stat(s, DEACTIVATE_FULL);
--			if (kmem_cache_debug(s) && (s->flags & SLAB_STORE_USER)) {
--				spin_lock(&n->list_lock);
--				add_full(s, n, page);
--				spin_unlock(&n->list_lock);
--			}
--		}
--		slab_unlock(page);
--	} else {
--		stat(s, DEACTIVATE_EMPTY);
--		if (n->nr_partial < s->min_partial) {
--			/*
--			 * Adding an empty slab to the partial slabs in order
--			 * to avoid page allocator overhead. This slab needs
--			 * to come after the other slabs with objects in
--			 * so that the others get filled first. That way the
--			 * size of the partial list stays small.
--			 *
--			 * kmem_cache_shrink can reclaim any empty slabs from
--			 * the partial list.
--			 */
--			spin_lock(&n->list_lock);
--			add_partial(n, page, 1);
--			spin_unlock(&n->list_lock);
--			slab_unlock(page);
--		} else {
--			slab_unlock(page);
--			stat(s, FREE_SLAB);
--			discard_slab(s, page);
--		}
--	}
+-	bit_spin_lock(PG_locked, &page->flags);
 -}
 -
- #ifdef CONFIG_CMPXCHG_LOCAL
- #ifdef CONFIG_PREEMPT
- /*
-@@ -1659,39 +1634,159 @@ void init_kmem_cache_cpus(struct kmem_ca
- /*
-  * Remove the cpu slab
+-static __always_inline void slab_unlock(struct page *page)
+-{
+-	__bit_spin_unlock(PG_locked, &page->flags);
+-}
+-
+-static __always_inline int slab_trylock(struct page *page)
+-{
+-	int rc = 1;
+-
+-	rc = bit_spin_trylock(PG_locked, &page->flags);
+-	return rc;
+-}
+-
+-/*
+  * Management of partially allocated slabs
   */
-+
-+/*
-+ * Remove the cpu slab
-+ */
- static void deactivate_slab(struct kmem_cache *s, struct kmem_cache_cpu *c)
--	__releases(bitlock)
+ static inline void add_partial(struct kmem_cache_node *n,
+@@ -1411,17 +1410,13 @@ static inline void remove_partial(struct
+  *
+  * Must hold list_lock.
+  */
+-static inline int lock_and_freeze_slab(struct kmem_cache *s,
++static inline int acquire_slab(struct kmem_cache *s,
+ 		struct kmem_cache_node *n, struct page *page)
  {
-+	enum slab_modes { M_NONE, M_PARTIAL, M_FULL, M_FREE };
- 	struct page *page = c->page;
--	int tail = 1;
-+	struct kmem_cache_node *n = get_node(s, page_to_nid(page));
-+	int lock = 0;
-+	enum slab_modes l = M_NONE, m = M_NONE;
-+	void *freelist;
-+	void *nextfree;
-+	int tail = 0;
-+	struct page new;
-+	struct page old;
+ 	void *freelist;
+ 	unsigned long counters;
+ 	struct page new;
  
--	if (page->freelist)
-+	if (page->freelist) {
- 		stat(s, DEACTIVATE_REMOTE_FREES);
-+		tail = 1;
-+	}
-+
-+#ifdef CONFIG_CMPXCHG_LOCAL
-+	c->tid = next_tid(c->tid);
-+#endif
-+	c->page = NULL;
-+	freelist = c->freelist;
-+	c->freelist = NULL;
-+
-+	/*
-+	 * Stage one: Free all available per cpu objects back
-+	 * to the page freelist while it is still frozen. Leave the
-+	 * last one.
-+	 *
-+	 * There is no need to take the list->lock because the page
-+	 * is still frozen.
-+	 */
-+	while (freelist && (nextfree = get_freepointer(s, freelist))) {
-+		void *prior;
-+		unsigned long counters;
-+
-+		do {
-+			prior = page->freelist;
-+			counters = page->counters;
-+			set_freepointer(s, freelist, prior);
-+			new.counters = counters;
-+			new.inuse--;
-+			VM_BUG_ON(!new.frozen);
-+
-+		} while (!cmpxchg_double_slab(s, page,
-+			prior, counters,
-+			freelist, new.counters,
-+			"drain percpu freelist"));
-+
-+		freelist = nextfree;
-+	}
-+
+-
+-	if (!slab_trylock(page))
+-		return 0;
+-
  	/*
--	 * Merge cpu freelist into slab freelist. Typically we get here
--	 * because both freelists are empty. So this is unlikely
--	 * to occur.
-+	 * Stage two: Ensure that the page is unfrozen while the
-+	 * list presence reflects the actual number of objects
-+	 * during unfreeze.
-+	 *
-+	 * We setup the list membership and then perform a cmpxchg
-+	 * with the count. If there is a mismatch then the page
-+	 * is not unfrozen but the page is on the wrong list.
-+	 *
-+	 * Then we restart the process which may have to remove
-+	 * the page from the list that we just put it on again
-+	 * because the number of objects in the slab may have
-+	 * changed.
- 	 */
--	while (unlikely(c->freelist)) {
--		void **object;
-+redo:
- 
--		tail = 0;	/* Hot objects. Put the slab first */
-+	old.freelist = page->freelist;
-+	old.counters = page->counters;
-+	VM_BUG_ON(!old.frozen);
-+
-+	/* Determine target state of the slab */
-+	new.counters = old.counters;
-+	if (freelist) {
-+		new.inuse--;
-+		set_freepointer(s, freelist, old.freelist);
-+		new.freelist = freelist;
-+	} else
-+		new.freelist = old.freelist;
- 
--		/* Retrieve object from cpu_freelist */
--		object = c->freelist;
--		c->freelist = get_freepointer(s, c->freelist);
-+	new.frozen = 0;
- 
--		/* And put onto the regular freelist */
--		set_freepointer(s, object, page->freelist);
--		page->freelist = object;
--		page->inuse--;
-+	if (!new.inuse && n->nr_partial < s->min_partial)
-+		m = M_FREE;
-+	else if (new.freelist) {
-+		m = M_PARTIAL;
-+		if (!lock) {
-+			lock = 1;
-+			/*
-+			 * Taking the spinlock removes the possiblity
-+			 * that acquire_slab() will see a slab page that
-+			 * is frozen
-+			 */
-+			spin_lock(&n->list_lock);
-+		}
-+	} else {
-+		m = M_FULL;
-+		if (kmem_cache_debug(s) && !lock) {
-+			lock = 1;
-+			/*
-+			 * This also ensures that the scanning of full
-+			 * slabs from diagnostic functions will not see
-+			 * any frozen slabs.
-+			 */
-+			spin_lock(&n->list_lock);
-+		}
-+	}
-+
-+	if (l != m) {
-+
-+		if (l == M_PARTIAL)
-+
-+			remove_partial(n, page);
-+
-+		else if (l == M_FULL)
-+
-+			remove_full(s, page);
-+
-+		if (m == M_PARTIAL) {
-+
-+			add_partial(n, page, tail);
-+			stat(s, tail ? DEACTIVATE_TO_TAIL : DEACTIVATE_TO_HEAD);
-+
-+		} else if (m == M_FULL) {
-+
-+			stat(s, DEACTIVATE_FULL);
-+			add_full(s, n, page);
-+
-+		}
-+	}
-+
-+	l = m;
-+	if (!cmpxchg_double_slab(s, page,
-+				old.freelist, old.counters,
-+				new.freelist, new.counters,
-+				"unfreezing slab"))
-+		goto redo;
-+
-+	slab_unlock(page);
-+
-+	if (lock)
-+		spin_unlock(&n->list_lock);
-+
-+	if (m == M_FREE) {
-+		discard_slab(s, page);
-+		stat(s, FREE_SLAB);
+ 	 * Zap the freelist and set the frozen bit.
+ 	 * The old freelist is the list of objects for the
+@@ -1457,7 +1452,6 @@ static inline int lock_and_freeze_slab(s
+ 		 */
+ 		printk(KERN_ERR "SLUB: %s : Page without available objects on"
+ 			" partial list\n", s->name);
+-		slab_unlock(page);
+ 		return 0;
  	}
--	c->page = NULL;
--#ifdef CONFIG_CMPXCHG_LOCAL
--	c->tid = next_tid(c->tid);
--#endif
--	page->frozen = 0;
--	unfreeze_slab(s, page, tail);
+ }
+@@ -1481,7 +1475,7 @@ static struct page *get_partial_node(str
+ 
+ 	spin_lock(&n->list_lock);
+ 	list_for_each_entry(page, &n->partial, lru)
+-		if (lock_and_freeze_slab(s, n, page))
++		if (acquire_slab(s, n, page))
+ 			goto out;
+ 	page = NULL;
+ out:
+@@ -1778,8 +1772,6 @@ redo:
+ 				"unfreezing slab"))
+ 		goto redo;
+ 
+-	slab_unlock(page);
+-
+ 	if (lock)
+ 		spin_unlock(&n->list_lock);
+ 
+@@ -1792,7 +1784,6 @@ redo:
+ static inline void flush_slab(struct kmem_cache *s, struct kmem_cache_cpu *c)
+ {
+ 	stat(s, CPUSLAB_FLUSH);
+-	slab_lock(c->page);
+ 	deactivate_slab(s, c);
  }
  
- static inline void flush_slab(struct kmem_cache *s, struct kmem_cache_cpu *c)
-@@ -1852,21 +1947,33 @@ static void *__slab_alloc(struct kmem_ca
+@@ -1941,7 +1932,6 @@ static void *__slab_alloc(struct kmem_ca
+ 	if (!page)
+ 		goto new_slab;
  
- 	stat(s, ALLOC_REFILL);
+-	slab_lock(page);
+ 	if (unlikely(!node_match(c, node)))
+ 		goto another_slab;
  
-+	{
-+		struct page new;
-+		unsigned long counters;
-+
-+		do {
-+			object = page->freelist;
-+			counters = page->counters;
-+			new.counters = counters;
-+			new.inuse = page->objects;
-+			VM_BUG_ON(!new.frozen);
-+
-+		} while (!cmpxchg_double_slab(s, page,
-+				object, counters,
-+				NULL, new.counters,
-+				"__slab_alloc"));
-+	}
-+
- load_freelist:
- 	VM_BUG_ON(!page->frozen);
- 
--	object = page->freelist;
+@@ -1970,8 +1960,6 @@ load_freelist:
  	if (unlikely(!object))
  		goto another_slab;
--	if (kmem_cache_debug(s))
--		goto debug;
-+
-+	slab_unlock(page);
  
- 	c->freelist = get_freepointer(s, object);
--	page->inuse = page->objects;
--	page->freelist = NULL;
- 
--unlock_out:
 -	slab_unlock(page);
+-
+ 	c->freelist = get_freepointer(s, object);
+ 
  #ifdef CONFIG_CMPXCHG_LOCAL
- 	c->tid = next_tid(c->tid);
- 	local_irq_restore(flags);
-@@ -1881,10 +1988,11 @@ new_slab:
- 	page = get_partial(s, gfpflags, node);
- 	if (page) {
- 		stat(s, ALLOC_FROM_PARTIAL);
--		page->frozen = 1;
- load_from_page:
--		c->node = page_to_nid(page);
--		c->page = page;
-+		object = c->freelist;
-+
-+		if (kmem_cache_debug(s))
-+			goto debug;
- 		goto load_freelist;
- 	}
+@@ -2022,7 +2010,6 @@ load_from_page:
+ 		c->page = page;
  
-@@ -1899,10 +2007,21 @@ load_from_page:
- 
- 	if (page) {
- 		c = __this_cpu_ptr(s->cpu_slab);
--		stat(s, ALLOC_SLAB);
- 		if (c->page)
- 			flush_slab(s, c);
- 
-+		/*
-+		 * No other reference to the page yet so we can
-+		 * muck around with it freely without cmpxchg
-+		 */
-+		c->freelist = page->freelist;
-+		page->freelist = NULL;
-+		page->inuse = page->objects;
-+
-+		c->node = page_to_nid(page);
-+		c->page = page;
-+
-+		stat(s, ALLOC_SLAB);
- 		slab_lock(page);
+ 		stat(s, ALLOC_SLAB);
+-		slab_lock(page);
  
  		goto load_from_page;
-@@ -1913,14 +2032,19 @@ load_from_page:
+ 	}
+@@ -2235,7 +2222,6 @@ static void __slab_free(struct kmem_cach
+ 
+ 	local_irq_save(flags);
+ #endif
+-	slab_lock(page);
+ 	stat(s, FREE_SLOWPATH);
+ 
+ 	if (kmem_cache_debug(s) && !free_debug_processing(s, page, x, addr))
+@@ -2301,7 +2287,6 @@ static void __slab_free(struct kmem_cach
+ 	spin_unlock(&n->list_lock);
+ 
+ out_unlock:
+-	slab_unlock(page);
+ #ifdef CONFIG_CMPXCHG_LOCAL
  	local_irq_restore(flags);
  #endif
- 	return NULL;
-+
- debug:
--	if (!alloc_debug_processing(s, page, object, addr))
--		goto another_slab;
-+	if (!object || !alloc_debug_processing(s, page, object, addr))
-+		goto new_slab;
- 
--	page->inuse++;
--	page->freelist = get_freepointer(s, object);
-+	c->freelist = get_freepointer(s, object);
-+	deactivate_slab(s, c);
- 	c->node = NUMA_NO_NODE;
--	goto unlock_out;
-+
-+#ifdef CONFIG_CMPXCHG_LOCAL
-+	local_irq_restore(flags);
-+#endif
-+	return object;
- }
- 
- static __always_inline int alternate_slab_node(struct kmem_cache *s,
-@@ -2101,6 +2225,11 @@ static void __slab_free(struct kmem_cach
- {
- 	void *prior;
- 	void **object = (void *)x;
-+	int was_frozen;
-+	int inuse;
-+	struct page new;
-+	unsigned long counters;
-+	struct kmem_cache_node *n = NULL;
- #ifdef CONFIG_CMPXCHG_LOCAL
- 	unsigned long flags;
- 
-@@ -2112,32 +2241,65 @@ static void __slab_free(struct kmem_cach
- 	if (kmem_cache_debug(s) && !free_debug_processing(s, page, x, addr))
- 		goto out_unlock;
- 
--	prior = page->freelist;
--	set_freepointer(s, object, prior);
--	page->freelist = object;
--	page->inuse--;
--
--	if (unlikely(page->frozen)) {
--		stat(s, FREE_FROZEN);
--		goto out_unlock;
--	}
-+	do {
-+		prior = page->freelist;
-+		counters = page->counters;
-+		set_freepointer(s, object, prior);
-+		new.counters = counters;
-+		was_frozen = new.frozen;
-+		new.inuse--;
-+		if ((!new.inuse || !prior) && !was_frozen && !n) {
-+                        n = get_node(s, page_to_nid(page));
-+			/*
-+			 * Speculatively acquire the list_lock.
-+			 * If the cmpxchg does not succeed then we may
-+			 * drop the list_lock without any processing.
-+			 *
-+			 * Otherwise the list_lock will synchronize with
-+			 * other processors updating the list of slabs.
-+			 */
-+                        spin_lock(&n->list_lock);
-+		}
-+		inuse = new.inuse;
- 
--	if (unlikely(!page->inuse))
--		goto slab_empty;
-+	} while (!cmpxchg_double_slab(s, page,
-+		prior, counters,
-+		object, new.counters,
-+		"__slab_free"));
-+
-+	if (likely(!n)) {
-+                /*
-+		 * The list lock was not taken therefore no list
-+		 * activity can be necessary.
-+		 */
-+                if (was_frozen)
-+                        stat(s, FREE_FROZEN);
-+                goto out_unlock;
-+        }
- 
- 	/*
--	 * Objects left in the slab. If it was not on the partial list before
--	 * then add it.
-+	 * was_frozen may have been set after we acquired the list_lock in
-+	 * an earlier loop. So we need to check it here again.
- 	 */
--	if (unlikely(!prior)) {
--		struct kmem_cache_node *n = get_node(s, page_to_nid(page));
-+	if (was_frozen)
-+		stat(s, FREE_FROZEN);
-+	else {
-+		if (unlikely(!inuse && n->nr_partial > s->min_partial))
-+                        goto slab_empty;
- 
--		spin_lock(&n->list_lock);
--		add_partial(get_node(s, page_to_nid(page)), page, 1);
--		spin_unlock(&n->list_lock);
--		stat(s, FREE_ADD_PARTIAL);
-+		/*
-+		 * Objects left in the slab. If it was not on the partial list before
-+		 * then add it.
-+		 */
-+		if (unlikely(!prior)) {
-+			remove_full(s, page);
-+			add_partial(n, page, 0);
-+			stat(s, FREE_ADD_PARTIAL);
-+		}
+@@ -2317,7 +2302,6 @@ slab_empty:
  	}
  
-+	spin_unlock(&n->list_lock);
-+
- out_unlock:
- 	slab_unlock(page);
- #ifdef CONFIG_CMPXCHG_LOCAL
-@@ -2150,13 +2312,11 @@ slab_empty:
- 		/*
- 		 * Slab still on the partial list.
- 		 */
--		struct kmem_cache_node *n = get_node(s, page_to_nid(page));
--
--		spin_lock(&n->list_lock);
- 		remove_partial(n, page);
--		spin_unlock(&n->list_lock);
- 		stat(s, FREE_REMOVE_PARTIAL);
- 	}
-+
-+	spin_unlock(&n->list_lock);
- 	slab_unlock(page);
+ 	spin_unlock(&n->list_lock);
+-	slab_unlock(page);
  #ifdef CONFIG_CMPXCHG_LOCAL
  	local_irq_restore(flags);
+ #endif
+@@ -3258,14 +3242,8 @@ int kmem_cache_shrink(struct kmem_cache
+ 		 * list_lock. page->inuse here is the upper limit.
+ 		 */
+ 		list_for_each_entry_safe(page, t, &n->partial, lru) {
+-			if (!page->inuse && slab_trylock(page)) {
+-				/*
+-				 * Must hold slab lock here because slab_free
+-				 * may have freed the last object and be
+-				 * waiting to release the slab.
+-				 */
++			if (!page->inuse) {
+ 				remove_partial(n, page);
+-				slab_unlock(page);
+ 				discard_slab(s, page);
+ 			} else {
+ 				list_move(&page->lru,
+@@ -3853,12 +3831,9 @@ static int validate_slab(struct kmem_cac
+ static void validate_slab_slab(struct kmem_cache *s, struct page *page,
+ 						unsigned long *map)
+ {
+-	if (slab_trylock(page)) {
+-		validate_slab(s, page, map);
+-		slab_unlock(page);
+-	} else
+-		printk(KERN_INFO "SLUB %s: Skipped busy slab 0x%p\n",
+-			s->name, page);
++	slab_lock(page);
++	validate_slab(s, page, map);
++	slab_unlock(page);
+ }
+ 
+ static int validate_slab_node(struct kmem_cache *s,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
