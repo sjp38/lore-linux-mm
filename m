@@ -1,79 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id CC830900086
-	for <linux-mm@kvack.org>; Fri, 15 Apr 2011 13:20:36 -0400 (EDT)
-Received: by bwz17 with SMTP id 17so3647971bwz.14
-        for <linux-mm@kvack.org>; Fri, 15 Apr 2011 10:20:31 -0700 (PDT)
-Content-Type: text/plain; charset=utf-8; format=flowed; delsp=yes
-Subject: Re: [PATCH 2/2] print vmalloc() state after allocation failures
-References: <20110415170437.17E1AF36@kernel> <20110415170438.D5C317D5@kernel>
-Date: Fri, 15 Apr 2011 19:20:28 +0200
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 81FA0900086
+	for <linux-mm@kvack.org>; Fri, 15 Apr 2011 13:37:20 -0400 (EDT)
+Date: Fri, 15 Apr 2011 12:37:16 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH] percpu: preemptless __per_cpu_counter_add
+In-Reply-To: <20110414211522.GE21397@mtj.dyndns.org>
+Message-ID: <alpine.DEB.2.00.1104151235350.8055@router.home>
+References: <alpine.DEB.2.00.1104130942500.16214@router.home> <alpine.DEB.2.00.1104131148070.20908@router.home> <20110413185618.GA3987@mtj.dyndns.org> <alpine.DEB.2.00.1104131521050.25812@router.home> <1302747263.3549.9.camel@edumazet-laptop>
+ <alpine.DEB.2.00.1104141608300.19533@router.home> <20110414211522.GE21397@mtj.dyndns.org>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7bit
-From: "Michal Nazarewicz" <mina86@mina86.com>
-Message-ID: <op.vtzo4ejf3l0zgt@mnazarewicz-glaptop>
-In-Reply-To: <20110415170438.D5C317D5@kernel>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, David Rientjes <rientjes@google.com>, akpm@osdl.org
+To: Tejun Heo <tj@kernel.org>
+Cc: Eric Dumazet <eric.dumazet@gmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org, shaohua.li@intel.com
 
-On Fri, 15 Apr 2011 19:04:38 +0200, Dave Hansen wrote:
-> diff -puN mm/vmalloc.c~vmalloc-warn mm/vmalloc.c
-> --- linux-2.6.git/mm/vmalloc.c~vmalloc-warn	2011-04-15  
-> 08:49:06.823306620 -0700
-> +++ linux-2.6.git-dave/mm/vmalloc.c	2011-04-15 09:20:17.926460283 -0700
-> @@ -1534,6 +1534,7 @@ static void *__vmalloc_node(unsigned lon
->  static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
->  				 pgprot_t prot, int node, void *caller)
->  {
-> +	int order = 0;
+On Fri, 15 Apr 2011, Tejun Heo wrote:
 
-Could we make that const?
-
->  	struct page **pages;
->  	unsigned int nr_pages, array_size, i;
->  	gfp_t nested_gfp = (gfp_mask & GFP_RECLAIM_MASK) | __GFP_ZERO;
-> @@ -1560,11 +1561,12 @@ static void *__vmalloc_area_node(struct
-> 	for (i = 0; i < area->nr_pages; i++) {
->  		struct page *page;
-> +		gfp_t tmp_mask = gfp_mask | __GFP_NOWARN;
-> 		if (node < 0)
-> -			page = alloc_page(gfp_mask);
-> +			page = alloc_page(tmp_mask);
->  		else
-> -			page = alloc_pages_node(node, gfp_mask, 0);
-> +			page = alloc_pages_node(node, tmp_mask, order);
-
-so it'll be more visible that we are passing 0 here.
-
-> 		if (unlikely(!page)) {
->  			/* Successfully allocated i pages, free them in __vunmap() */
-> @@ -1579,6 +1581,9 @@ static void *__vmalloc_area_node(struct
->  	return area->addr;
-> fail:
-> +	warn_alloc_failed(gfp_mask, order, "vmalloc: allocation failure, "
-> +			  "allocated %ld of %ld bytes\n",
-> +			  (area->nr_pages*PAGE_SIZE), area->size);
->  	vfree(area->addr);
->  	return NULL;
->  }
-> _
+> > The preempt on/off seems to be a bigger deal for realtime.
 >
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom internet charges in Canada: sign  
-> http://stopthemeter.ca/
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> Also, the cmpxchg used is local one w/o LOCK prefix.  It might not
+> bring anything to table on !PREEMPT kernels but at the same time it
+> shouldn't hurt either.  One way or the other, some benchmark numbers
+> showing that it at least doesn't hurt would be nice.
+
+Maybe just fall back to this_cpu_write()?
+> > > Maybe use here latest cmpxchg16b stuff instead and get rid of spinlock ?
+> >
+> > Shaohua already got an atomic in there. You mean get rid of his preempt
+> > disable/enable in the slow path?
+>
+> I personally care much less about slow path.  According to Shaohua,
+> atomic64_t behaves pretty nice and it isn't too complex, so I'd like
+> to stick with that unless complex this_cpu ops can deliver something
+> much better.
+
+Ok here is a new patch that will allow Shaohua to simply convert the
+slowpath to a single atomic op. No preemption anymore anywhere.
 
 
--- 
-Best regards,                                         _     _
-.o. | Liege of Serenely Enlightened Majesty of      o' \,=./ `o
-..o | Computer Science,  Michal "mina86" Nazarewicz    (o o)
-ooo +-----<email/xmpp: mnazarewicz@google.com>-----ooO--(_)--Ooo--
+
+Subject: percpu: preemptless __per_cpu_counter_add V3
+
+Use this_cpu_cmpxchg to avoid preempt_disable/enable in __percpu_add.
+
+V3 - separate out the slow path so that the slowpath can also be done with
+	a simple atomic add without preemption enable/disable.
+   - Fallback in the !PREEMPT case to a simple this_cpu_write().
+
+Signed-off-by: Christoph Lameter <cl@linux.com>
+
+---
+ lib/percpu_counter.c |   29 ++++++++++++++++++++---------
+ 1 file changed, 20 insertions(+), 9 deletions(-)
+
+Index: linux-2.6/lib/percpu_counter.c
+===================================================================
+--- linux-2.6.orig/lib/percpu_counter.c	2011-04-13 17:12:59.000000000 -0500
++++ linux-2.6/lib/percpu_counter.c	2011-04-15 12:34:39.000000000 -0500
+@@ -71,19 +71,30 @@ EXPORT_SYMBOL(percpu_counter_set);
+
+ void __percpu_counter_add(struct percpu_counter *fbc, s64 amount, s32 batch)
+ {
+-	s64 count;
++	s64 count, new, overflow;
+
+-	preempt_disable();
+-	count = __this_cpu_read(*fbc->counters) + amount;
+-	if (count >= batch || count <= -batch) {
++	do {
++		overflow = 0;
++		count = this_cpu_read(*fbc->counters);
++
++		new = count + amount;
++		/* In case of overflow fold it into the global counter instead */
++		if (new >= batch || new <= -batch) {
++			overflow = new;
++			new = 0;
++		}
++#ifdef CONFIG_PREEMPT
++	} while (this_cpu_cmpxchg(*fbc->counters, count, new) != count);
++#else
++	} while (0);
++	this_cpu_write(*fbc->counters, new);
++#endif
++
++	if (unlikely(overflow)) {
+ 		spin_lock(&fbc->lock);
+-		fbc->count += count;
+-		__this_cpu_write(*fbc->counters, 0);
++		fbc->count += overflow;
+ 		spin_unlock(&fbc->lock);
+-	} else {
+-		__this_cpu_write(*fbc->counters, count);
+ 	}
+-	preempt_enable();
+ }
+ EXPORT_SYMBOL(__percpu_counter_add);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
