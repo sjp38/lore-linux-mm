@@ -1,315 +1,158 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 1EEC9900086
-	for <linux-mm@kvack.org>; Thu, 14 Apr 2011 21:18:32 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 163C13EE081
-	for <linux-mm@kvack.org>; Fri, 15 Apr 2011 10:18:29 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id ECE7A45DE96
-	for <linux-mm@kvack.org>; Fri, 15 Apr 2011 10:18:28 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id D112345DE91
-	for <linux-mm@kvack.org>; Fri, 15 Apr 2011 10:18:28 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id C526CE08001
-	for <linux-mm@kvack.org>; Fri, 15 Apr 2011 10:18:28 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8461EE08004
-	for <linux-mm@kvack.org>; Fri, 15 Apr 2011 10:18:28 +0900 (JST)
-Date: Fri, 15 Apr 2011 10:11:48 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH V4 06/10] Per-memcg background reclaim.
-Message-Id: <20110415101148.80cb6721.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1302821669-29862-7-git-send-email-yinghan@google.com>
-References: <1302821669-29862-1-git-send-email-yinghan@google.com>
-	<1302821669-29862-7-git-send-email-yinghan@google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 3AE21900086
+	for <linux-mm@kvack.org>; Thu, 14 Apr 2011 21:27:37 -0400 (EDT)
+Received: from wpaz13.hot.corp.google.com (wpaz13.hot.corp.google.com [172.24.198.77])
+	by smtp-out.google.com with ESMTP id p3F1RXW9018493
+	for <linux-mm@kvack.org>; Thu, 14 Apr 2011 18:27:34 -0700
+Received: from yie12 (yie12.prod.google.com [10.243.66.12])
+	by wpaz13.hot.corp.google.com with ESMTP id p3F1RWiF024497
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 14 Apr 2011 18:27:32 -0700
+Received: by yie12 with SMTP id 12so1193647yie.13
+        for <linux-mm@kvack.org>; Thu, 14 Apr 2011 18:27:32 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <1302524879-4737-1-git-send-email-namhyung@gmail.com>
+References: <1302524879-4737-1-git-send-email-namhyung@gmail.com>
+Date: Thu, 14 Apr 2011 18:27:31 -0700
+Message-ID: <BANLkTin4mOMZqq4Sg04hj8Ep2XiCcZOBLg@mail.gmail.com>
+Subject: Re: [PATCH] shmem: factor out remove_indirect_page()
+From: Hugh Dickins <hughd@google.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: base64
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>, linux-mm@kvack.org
+To: Namhyung Kim <namhyung@gmail.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, 14 Apr 2011 15:54:25 -0700
-Ying Han <yinghan@google.com> wrote:
-
-> This is the main loop of per-memcg background reclaim which is implemented in
-> function balance_mem_cgroup_pgdat().
-> 
-> The function performs a priority loop similar to global reclaim. During each
-> iteration it invokes balance_pgdat_node() for all nodes on the system, which
-> is another new function performs background reclaim per node. After reclaiming
-> each node, it checks mem_cgroup_watermark_ok() and breaks the priority loop if
-> it returns true.
-> 
-> changelog v4..v3:
-> 1. split the select_victim_node and zone_unreclaimable to a seperate patches
-> 2. remove the logic tries to do zone balancing.
-> 
-> changelog v3..v2:
-> 1. change mz->all_unreclaimable to be boolean.
-> 2. define ZONE_RECLAIMABLE_RATE macro shared by zone and per-memcg reclaim.
-> 3. some more clean-up.
-> 
-> changelog v2..v1:
-> 1. move the per-memcg per-zone clear_unreclaimable into uncharge stage.
-> 2. shared the kswapd_run/kswapd_stop for per-memcg and global background
-> reclaim.
-> 3. name the per-memcg memcg as "memcg-id" (css->id). And the global kswapd
-> keeps the same name.
-> 4. fix a race on kswapd_stop while the per-memcg-per-zone info could be accessed
-> after freeing.
-> 5. add the fairness in zonelist where memcg remember the last zone reclaimed
-> from.
-> 
-> Signed-off-by: Ying Han <yinghan@google.com>
-> ---
->  mm/vmscan.c |  161 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
->  1 files changed, 161 insertions(+), 0 deletions(-)
-> 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 4deb9c8..b8345d2 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -47,6 +47,8 @@
->  
->  #include <linux/swapops.h>
->  
-> +#include <linux/res_counter.h>
-> +
->  #include "internal.h"
->  
->  #define CREATE_TRACE_POINTS
-> @@ -111,6 +113,8 @@ struct scan_control {
->  	 * are scanned.
->  	 */
->  	nodemask_t	*nodemask;
-> +
-> +	int priority;
->  };
->  
->  #define lru_to_page(_head) (list_entry((_head)->prev, struct page, lru))
-> @@ -2632,11 +2636,168 @@ static void kswapd_try_to_sleep(struct kswapd *kswapd_p, int order,
->  	finish_wait(wait_h, &wait);
->  }
->  
-> +#ifdef CONFIG_CGROUP_MEM_RES_CTLR
-> +/*
-> + * The function is used for per-memcg LRU. It scanns all the zones of the
-> + * node and returns the nr_scanned and nr_reclaimed.
-> + */
-> +static void balance_pgdat_node(pg_data_t *pgdat, int order,
-> +					struct scan_control *sc)
-> +{
-> +	int i;
-> +	unsigned long total_scanned = 0;
-> +	struct mem_cgroup *mem_cont = sc->mem_cgroup;
-> +	int priority = sc->priority;
-> +
-> +	/*
-> +	 * Now scan the zone in the dma->highmem direction, and we scan
-> +	 * every zones for each node.
-> +	 *
-> +	 * We do this because the page allocator works in the opposite
-> +	 * direction.  This prevents the page allocator from allocating
-> +	 * pages behind kswapd's direction of progress, which would
-> +	 * cause too much scanning of the lower zones.
-> +	 */
-
-I guess this comment is a cut-n-paste from global kswapd. It works when
-alloc_page() stalls....hmm, I'd like to think whether dma->highmem direction
-is good in this case.
-
-As you know, memcg works against user's memory, memory should be in highmem zone.
-Memcg-kswapd is not for memory-shortage, but for voluntary page dropping by
-_user_.
-
-If this memcg-kswapd drops pages from lower zones first, ah, ok, it's good for
-the system because memcg's pages should be on higher zone if we have free memory.
-
-So, I think the reason for dma->highmem is different from global kswapd.
-
-
-
-
-> +	for (i = 0; i < pgdat->nr_zones; i++) {
-> +		struct zone *zone = pgdat->node_zones + i;
-> +
-> +		if (!populated_zone(zone))
-> +			continue;
-> +
-> +		sc->nr_scanned = 0;
-> +		shrink_zone(priority, zone, sc);
-> +		total_scanned += sc->nr_scanned;
-> +
-> +		/*
-> +		 * If we've done a decent amount of scanning and
-> +		 * the reclaim ratio is low, start doing writepage
-> +		 * even in laptop mode
-> +		 */
-> +		if (total_scanned > SWAP_CLUSTER_MAX * 2 &&
-> +		    total_scanned > sc->nr_reclaimed + sc->nr_reclaimed / 2) {
-> +			sc->may_writepage = 1;
-> +		}
-> +	}
-> +
-> +	sc->nr_scanned = total_scanned;
-> +	return;
-> +}
-> +
-> +/*
-> + * Per cgroup background reclaim.
-> + * TODO: Take off the order since memcg always do order 0
-> + */
-> +static unsigned long balance_mem_cgroup_pgdat(struct mem_cgroup *mem_cont,
-> +					      int order)
-> +{
-> +	int i, nid;
-> +	int start_node;
-> +	int priority;
-> +	bool wmark_ok;
-> +	int loop;
-> +	pg_data_t *pgdat;
-> +	nodemask_t do_nodes;
-> +	unsigned long total_scanned;
-> +	struct scan_control sc = {
-> +		.gfp_mask = GFP_KERNEL,
-> +		.may_unmap = 1,
-> +		.may_swap = 1,
-> +		.nr_to_reclaim = ULONG_MAX,
-> +		.swappiness = vm_swappiness,
-> +		.order = order,
-> +		.mem_cgroup = mem_cont,
-> +	};
-> +
-> +loop_again:
-> +	do_nodes = NODE_MASK_NONE;
-> +	sc.may_writepage = !laptop_mode;
-
-I think may_writepage should start from '0' always. We're not sure
-the system is in memory shortage...we just want to release memory
-volunatary. write_page will add huge costs, I guess.
-
-For exmaple,
-	sc.may_writepage = !!loop
-may be better for memcg.
-
-BTW, you set nr_to_reclaim as ULONG_MAX here and doesn't modify it later.
-
-I think you should add some logic to fix it to right value. 
-
-For example, before calling shrink_zone(),
-
-sc->nr_to_reclaim = min(SWAP_CLUSETR_MAX, memcg_usage_in_this_zone() / 100);  # 1% in this zone.
-
-if we love 'fair pressure for each zone'.
-
-
-
-
-
-
-> +	sc.nr_reclaimed = 0;
-> +	total_scanned = 0;
-> +
-> +	for (priority = DEF_PRIORITY; priority >= 0; priority--) {
-> +		sc.priority = priority;
-> +		wmark_ok = false;
-> +		loop = 0;
-> +
-> +		/* The swap token gets in the way of swapout... */
-> +		if (!priority)
-> +			disable_swap_token();
-> +
-> +		if (priority == DEF_PRIORITY)
-> +			do_nodes = node_states[N_ONLINE];
-> +
-> +		while (1) {
-> +			nid = mem_cgroup_select_victim_node(mem_cont,
-> +							&do_nodes);
-> +
-> +			/* Indicate we have cycled the nodelist once
-> +			 * TODO: we might add MAX_RECLAIM_LOOP for preventing
-> +			 * kswapd burning cpu cycles.
-> +			 */
-> +			if (loop == 0) {
-> +				start_node = nid;
-> +				loop++;
-> +			} else if (nid == start_node)
-> +				break;
-> +
-> +			pgdat = NODE_DATA(nid);
-> +			balance_pgdat_node(pgdat, order, &sc);
-> +			total_scanned += sc.nr_scanned;
-> +
-> +			/* Set the node which has at least
-> +			 * one reclaimable zone
-> +			 */
-> +			for (i = pgdat->nr_zones - 1; i >= 0; i--) {
-> +				struct zone *zone = pgdat->node_zones + i;
-> +
-> +				if (!populated_zone(zone))
-> +					continue;
-
-How about checking whether memcg has pages on this node ?
-
-> +			}
-> +			if (i < 0)
-> +				node_clear(nid, do_nodes);
-> +
-> +			if (mem_cgroup_watermark_ok(mem_cont,
-> +							CHARGE_WMARK_HIGH)) {
-> +				wmark_ok = true;
-> +				goto out;
-> +			}
-> +
-> +			if (nodes_empty(do_nodes)) {
-> +				wmark_ok = true;
-> +				goto out;
-> +			}
-> +		}
-> +
-> +		/* All the nodes are unreclaimable, kswapd is done */
-> +		if (nodes_empty(do_nodes)) {
-> +			wmark_ok = true;
-> +			goto out;
-> +		}
-
-Can this happen ?
-
-
-> +
-> +		if (total_scanned && priority < DEF_PRIORITY - 2)
-> +			congestion_wait(WRITE, HZ/10);
-> +
-> +		if (sc.nr_reclaimed >= SWAP_CLUSTER_MAX)
-> +			break;
-> +	}
-> +out:
-> +	if (!wmark_ok) {
-> +		cond_resched();
-> +
-> +		try_to_freeze();
-> +
-> +		goto loop_again;
-> +	}
-> +
-> +	return sc.nr_reclaimed;
-> +}
-> +#else
->  static unsigned long balance_mem_cgroup_pgdat(struct mem_cgroup *mem_cont,
->  							int order)
->  {
->  	return 0;
->  }
-> +#endif
->  
-
-
-Thanks,
--Kame
+T24gTW9uLCBBcHIgMTEsIDIwMTEgYXQgNToyNyBBTSwgTmFtaHl1bmcgS2ltIDxuYW1oeXVuZ0Bn
+bWFpbC5jb20+IHdyb3RlOgo+IFNwbGl0IG91dCBzb21lIGNvbW1vbiBjb2RlIGluIHNobWVtX3Ry
+dW5jYXRlX3JhbmdlKCkgaW4gb3JkZXIgdG8KPiBpbXByb3ZlIHJlYWRhYmlsaXR5IChob3BlZnVs
+bHkpIGFuZCB0byByZWR1Y2UgY29kZSBkdXBsaWNhdGlvbi4KPgo+IFNpZ25lZC1vZmYtYnk6IE5h
+bWh5dW5nIEtpbSA8bmFtaHl1bmdAZ21haWwuY29tPgoKVGhhbmsgeW91IGZvciB0YWtpbmcgdGhl
+IHRyb3VibGUgdG8gZG8gdGhpcy4KCkhvd2V2ZXIuLi4gYWxsIHRoYXQgc2htZW1fc3dwIGluZGV4
+IGNvZGUgaXMgaXJyZWRlZW1hYmx5IHVucmVhZGFibGUKKG15IGZhdWx0LCBkYXRpbmcgZnJvbSB3
+aGVuIEkgY29udmVydGVkIGl0IHRvIHVzZSBoaWdobWVtIHdpdGgga21hcHMpLAphbmQgSSdkIHJh
+dGhlciBsZWF2ZSBpdCB1bnRvdWNoZWQgdW50aWwgd2Ugc2ltcGx5IGRlbGV0ZSBpdApjb21wbGV0
+ZWx5LgoKSSBoYXZlIGEgcGF0Y2gvc2V0IChnb29kIGZvciBteSB0ZXN0aW5nIGJ1dCBub3QgeWV0
+IGdvb2QgZm9yIGZpbmFsCnN1Ym1pc3Npb24pIHdoaWNoIHJlbW92ZXMgYWxsIHRoYXQgY29kZSwg
+YW5kIHRoZSBuZWVkIHRvIGFsbG9jYXRlCnNobWVtX3N3cCBpbmRleCBwYWdlcyAoZXZlbiB3aGVu
+IENPTkZJR19TV0FQIGlzIG5vdCBzZXQhKTogaW5zdGVhZApzYXZpbmcgdGhlIHN3cF9lbnRyaWVz
+IGluIHRoZSBzdGFuZGFyZCBwYWdlY2FjaGUgcmFkaXhfdHJlZSBmb3IgdGhlCmZpbGUsIHNvIG5v
+IGV4dHJhIGFsbG9jYXRpb25zIGFyZSBuZWVkZWQgYXQgYWxsLgoKSXQgaXMgcG9zc2libGUgdGhh
+dCBteSBwYXRjaC9zZXQgd2lsbCBub3QgYmUgYWNjZXB0ZWQgKGV4dGVuZGluZyB0aGUKcmFkaXhf
+dHJlZSBpbiB0aGF0IHdheSBtYXkgbWVldCBzb21lIHJlc2lzdGFuY2UpOyBidXQgSSBkbyB0aGlu
+awp0aGF0J3MgdGhlIHJpZ2h0IHdheSBmb3J3YXJkLgoKVGhhbmtzLApIdWdoCgo+IC0tLQo+IMKg
+bW0vc2htZW0uYyB8IMKgIDYyICsrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKystLS0t
+LS0tLS0tLS0tLS0tLS0tLS0tLS0tCj4gwqAxIGZpbGVzIGNoYW5nZWQsIDM2IGluc2VydGlvbnMo
+KyksIDI2IGRlbGV0aW9ucygtKQo+Cj4gZGlmZiAtLWdpdCBhL21tL3NobWVtLmMgYi9tbS9zaG1l
+bS5jCj4gaW5kZXggNThkYTdjMTUwYmE2Li41OGFkMTE1OTY3OGYgMTAwNjQ0Cj4gLS0tIGEvbW0v
+c2htZW0uYwo+ICsrKyBiL21tL3NobWVtLmMKPiBAQCAtNTMxLDYgKzUzMSwzMSBAQCBzdGF0aWMg
+dm9pZCBzaG1lbV9mcmVlX3BhZ2VzKHN0cnVjdCBsaXN0X2hlYWQgKm5leHQpCj4gwqAgwqAgwqAg
+wqB9IHdoaWxlIChuZXh0KTsKPiDCoH0KPgo+ICsvKioKPiArICogcmVtb3ZlX2luZGlyZWN0X3Bh
+Z2UgLSByZW1vdmUgYSBpbmRpcmVjdCBwYWdlIGZyb20gdXBwZXIgbGF5ZXIKPiArICogQGRpcjog
+wqAgwqAgwqAgcG9pbnRlciB0byB0aGUgaW5kaXJlY3QgcGFnZSBpbiB0aGUgdXBwZXIgbGF5ZXIK
+PiArICogQHBhZ2U6IMKgIMKgIMKgaW5kaXJlY3QgcGFnZSB0byBiZSByZW1vdmVkCj4gKyAqIEBu
+ZWVkc19sb2NrOiDCoCDCoCDCoCDCoHBvaW50ZXIgdG8gc3BpbmxvY2sgaWYgbmVlZGVkCj4gKyAq
+IEBmcmVlX2xpc3Q6IGxpc3Qgd2hpY2ggdGhlIHJlbW92ZWQgcGFnZSB3aWxsIGJlIGluc2VydGVk
+IGludG8KPiArICoKPiArICogVGhpcyBmdW5jdGlvbiByZW1vdmVzIEBwYWdlIGZyb20gQGRpciBh
+bmQgaW5zZXJ0IGl0IGludG8gQGZyZWVfbGlzdC4KPiArICogVGhlIEBwYWdlIHN0aWxsIHJlbWFp
+bnMgYWZ0ZXIgdGhpcyBmdW5jdGlvbiBidXQgd2lsbCBub3QgYmUgc2VlbiBieQo+ICsgKiBvdGhl
+ciB0YXNrcy4gRmluYWxseSBpdCB3aWxsIGJlIGZyZWVkIHZpYSBzaG1lbV9mcmVlX3BhZ2VzKCku
+Cj4gKyAqLwo+ICtzdGF0aWMgdm9pZCByZW1vdmVfaW5kaXJlY3RfcGFnZShzdHJ1Y3QgcGFnZSAq
+KmRpciwgc3RydWN0IHBhZ2UgKnBhZ2UsCj4gKyDCoCDCoCDCoCDCoCDCoCDCoCDCoCBzcGlubG9j
+a190ICpuZWVkc19sb2NrLCBzdHJ1Y3QgbGlzdF9oZWFkICpmcmVlX2xpc3QpCj4gK3sKPiArIMKg
+IMKgIMKgIGlmIChuZWVkc19sb2NrKSB7Cj4gKyDCoCDCoCDCoCDCoCDCoCDCoCDCoCBzcGluX2xv
+Y2sobmVlZHNfbG9jayk7Cj4gKyDCoCDCoCDCoCDCoCDCoCDCoCDCoCAqZGlyID0gTlVMTDsKPiAr
+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIHNwaW5fdW5sb2NrKG5lZWRzX2xvY2spOwo+ICsgwqAgwqAg
+wqAgfSBlbHNlIHsKPiArIMKgIMKgIMKgIMKgIMKgIMKgIMKgICpkaXIgPSBOVUxMOwo+ICsgwqAg
+wqAgwqAgfQo+ICsKPiArIMKgIMKgIMKgIGxpc3RfYWRkKCZwYWdlLT5scnUsIGZyZWVfbGlzdCk7
+Cj4gK30KPiArCj4gwqBzdGF0aWMgdm9pZCBzaG1lbV90cnVuY2F0ZV9yYW5nZShzdHJ1Y3QgaW5v
+ZGUgKmlub2RlLCBsb2ZmX3Qgc3RhcnQsIGxvZmZfdCBlbmQpCj4gwqB7Cj4gwqAgwqAgwqAgwqBz
+dHJ1Y3Qgc2htZW1faW5vZGVfaW5mbyAqaW5mbyA9IFNITUVNX0koaW5vZGUpOwo+IEBAIC01ODIs
+OSArNjA3LDkgQEAgc3RhdGljIHZvaWQgc2htZW1fdHJ1bmNhdGVfcmFuZ2Uoc3RydWN0IGlub2Rl
+ICppbm9kZSwgbG9mZl90IHN0YXJ0LCBsb2ZmX3QgZW5kKQo+Cj4gwqAgwqAgwqAgwqB0b3BkaXIg
+PSBpbmZvLT5pX2luZGlyZWN0Owo+IMKgIMKgIMKgIMKgaWYgKHRvcGRpciAmJiBpZHggPD0gU0hN
+RU1fTlJfRElSRUNUICYmICFwdW5jaF9ob2xlKSB7Cj4gLSDCoCDCoCDCoCDCoCDCoCDCoCDCoCBp
+bmZvLT5pX2luZGlyZWN0ID0gTlVMTDsKPiArIMKgIMKgIMKgIMKgIMKgIMKgIMKgIHJlbW92ZV9p
+bmRpcmVjdF9wYWdlKCZpbmZvLT5pX2luZGlyZWN0LCB0b3BkaXIsIE5VTEwsCj4gKyDCoCDCoCDC
+oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCZwYWdlc190b19m
+cmVlKTsKPiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoG5yX3BhZ2VzX3RvX2ZyZWUrKzsKPiAtIMKg
+IMKgIMKgIMKgIMKgIMKgIMKgIGxpc3RfYWRkKCZ0b3BkaXItPmxydSwgJnBhZ2VzX3RvX2ZyZWUp
+Owo+IMKgIMKgIMKgIMKgfQo+IMKgIMKgIMKgIMKgc3Bpbl91bmxvY2soJmluZm8tPmxvY2spOwo+
+Cj4gQEAgLTYzNywxNSArNjYyLDEwIEBAIHN0YXRpYyB2b2lkIHNobWVtX3RydW5jYXRlX3Jhbmdl
+KHN0cnVjdCBpbm9kZSAqaW5vZGUsIGxvZmZfdCBzdGFydCwgbG9mZl90IGVuZCkKPiDCoCDCoCDC
+oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoGRpcm9mZiA9ICgoaWR4IC0gRU5UUklFU19QRVJf
+UEFHRVBBR0UvMikgJQo+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
+IMKgIMKgRU5UUklFU19QRVJfUEFHRVBBR0UpIC8gRU5UUklFU19QRVJfUEFHRTsKPiDCoCDCoCDC
+oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoGlmICghZGlyb2ZmICYmICFvZmZzZXQgJiYgdXBw
+ZXJfbGltaXQgPj0gc3RhZ2UpIHsKPiAtIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
+IMKgIMKgIMKgIMKgIGlmIChuZWVkc19sb2NrKSB7Cj4gLSDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
+oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCBzcGluX2xvY2sobmVlZHNfbG9jayk7
+Cj4gLSDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
+oCDCoCAqZGlyID0gTlVMTDsKPiAtIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIHNwaW5fdW5sb2NrKG5lZWRzX2xvY2spOwo+IC0gwqAgwqAg
+wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgbmVlZHNf
+bG9jayA9IE5VTEw7Cj4gLSDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
+oCDCoCB9IGVsc2UKPiAtIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
+IMKgIMKgIMKgIMKgIMKgICpkaXIgPSBOVUxMOwo+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
+wqAgwqAgwqAgwqAgwqAgwqAgwqAgcmVtb3ZlX2luZGlyZWN0X3BhZ2UoZGlyLCBtaWRkaXIsIG5l
+ZWRzX2xvY2ssCj4gKyDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
+oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCZwYWdlc190b19mcmVlKTsKPiDCoCDC
+oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoG5yX3BhZ2VzX3RvX2Zy
+ZWUrKzsKPiAtIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIGxp
+c3RfYWRkKCZtaWRkaXItPmxydSwgJnBhZ2VzX3RvX2ZyZWUpOwo+ICsgwqAgwqAgwqAgwqAgwqAg
+wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgbmVlZHNfbG9jayA9IE5VTEw7Cj4gwqAgwqAg
+wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqB9Cj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
+wqAgwqAgwqAgwqBzaG1lbV9kaXJfdW5tYXAoZGlyKTsKPiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
+oCDCoCDCoCDCoCDCoGRpciA9IHNobWVtX2Rpcl9tYXAobWlkZGlyKTsKPiBAQCAtNjcyLDE1ICs2
+OTIsMTAgQEAgc3RhdGljIHZvaWQgc2htZW1fdHJ1bmNhdGVfcmFuZ2Uoc3RydWN0IGlub2RlICpp
+bm9kZSwgbG9mZl90IHN0YXJ0LCBsb2ZmX3QgZW5kKQo+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
+IMKgIMKgIMKgIMKgaWYgKHB1bmNoX2hvbGUpCj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
+wqAgwqAgwqAgwqAgwqAgwqAgwqBuZWVkc19sb2NrID0gJmluZm8tPmxvY2s7Cj4gwqAgwqAgwqAg
+wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqBpZiAodXBwZXJfbGltaXQgPj0gc3RhZ2UpIHsKPiAt
+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIGlmIChuZWVkc19s
+b2NrKSB7Cj4gLSDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
+oCDCoCDCoCDCoCBzcGluX2xvY2sobmVlZHNfbG9jayk7Cj4gLSDCoCDCoCDCoCDCoCDCoCDCoCDC
+oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCAqZGlyID0gTlVMTDsKPiAtIMKg
+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIHNw
+aW5fdW5sb2NrKG5lZWRzX2xvY2spOwo+IC0gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
+wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgbmVlZHNfbG9jayA9IE5VTEw7Cj4gLSDCoCDCoCDC
+oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCB9IGVsc2UKPiAtIMKgIMKgIMKg
+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgICpkaXIgPSBO
+VUxMOwo+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgcmVt
+b3ZlX2luZGlyZWN0X3BhZ2UoZGlyLCBtaWRkaXIsIG5lZWRzX2xvY2ssCj4gKyDCoCDCoCDCoCDC
+oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
+oCDCoCDCoCDCoCZwYWdlc190b19mcmVlKTsKPiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
+oCDCoCDCoCDCoCDCoCDCoCDCoG5yX3BhZ2VzX3RvX2ZyZWUrKzsKPiAtIMKgIMKgIMKgIMKgIMKg
+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIGxpc3RfYWRkKCZtaWRkaXItPmxydSwgJnBh
+Z2VzX3RvX2ZyZWUpOwo+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
+wqAgwqAgbmVlZHNfbG9jayA9IE5VTEw7Cj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
+wqAgwqB9Cj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqBzaG1lbV9kaXJfdW5t
+YXAoZGlyKTsKPiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoGNvbmRfcmVzY2hl
+ZCgpOwo+IEBAIC02OTAsMTUgKzcwNSwxMCBAQCBzdGF0aWMgdm9pZCBzaG1lbV90cnVuY2F0ZV9y
+YW5nZShzdHJ1Y3QgaW5vZGUgKmlub2RlLCBsb2ZmX3Qgc3RhcnQsIGxvZmZfdCBlbmQpCj4gwqAg
+wqAgwqAgwqAgwqAgwqAgwqAgwqBwdW5jaF9sb2NrID0gbmVlZHNfbG9jazsKPiDCoCDCoCDCoCDC
+oCDCoCDCoCDCoCDCoHN1YmRpciA9IGRpcltkaXJvZmZdOwo+IMKgIMKgIMKgIMKgIMKgIMKgIMKg
+IMKgaWYgKHN1YmRpciAmJiAhb2Zmc2V0ICYmIHVwcGVyX2xpbWl0LWlkeCA+PSBFTlRSSUVTX1BF
+Ul9QQUdFKSB7Cj4gLSDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCBpZiAobmVlZHNf
+bG9jaykgewo+IC0gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
+c3Bpbl9sb2NrKG5lZWRzX2xvY2spOwo+IC0gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
+wqAgwqAgwqAgwqAgwqAgZGlyW2Rpcm9mZl0gPSBOVUxMOwo+IC0gwqAgwqAgwqAgwqAgwqAgwqAg
+wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgc3Bpbl91bmxvY2sobmVlZHNfbG9jayk7Cj4gLSDC
+oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCBwdW5jaF9sb2NrID0g
+TlVMTDsKPiAtIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIH0gZWxzZQo+IC0gwqAg
+wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgZGlyW2Rpcm9mZl0gPSBO
+VUxMOwo+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgcmVtb3ZlX2luZGlyZWN0
+X3BhZ2UoJmRpcltkaXJvZmZdLCBzdWJkaXIsIG5lZWRzX2xvY2ssCj4gKyDCoCDCoCDCoCDCoCDC
+oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCZwYWdl
+c190b19mcmVlKTsKPiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoG5yX3BhZ2Vz
+X3RvX2ZyZWUrKzsKPiAtIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIGxpc3RfYWRk
+KCZzdWJkaXItPmxydSwgJnBhZ2VzX3RvX2ZyZWUpOwo+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
+wqAgwqAgwqAgwqAgcHVuY2hfbG9jayA9IE5VTEw7Cj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqB9
+Cj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqBpZiAoc3ViZGlyICYmIHBhZ2VfcHJpdmF0ZShzdWJk
+aXIpIC8qIGhhcyBzd2FwIGVudHJpZXMgKi8pIHsKPiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
+oCDCoCDCoCDCoHNpemUgPSBsaW1pdCAtIGlkeDsKPiAtLQo+IDEuNy40Cj4KPgo=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
