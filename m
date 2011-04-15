@@ -1,52 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id C5B84900086
-	for <linux-mm@kvack.org>; Fri, 15 Apr 2011 12:11:25 -0400 (EDT)
-Date: Fri, 15 Apr 2011 19:07:01 +0300
-From: Phil Carmody <ext-phil.2.carmody@nokia.com>
-Subject: Re: [PATCH] mm: make read-only accessors take const parameters
-Message-ID: <20110415160701.GE7112@esdhcp04044.research.nokia.com>
-References: <1302861377-8048-1-git-send-email-ext-phil.2.carmody@nokia.com> <1302861377-8048-2-git-send-email-ext-phil.2.carmody@nokia.com> <alpine.DEB.2.00.1104150949210.5863@router.home>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id BBA66900086
+	for <linux-mm@kvack.org>; Fri, 15 Apr 2011 12:12:40 -0400 (EDT)
+Received: by bwz17 with SMTP id 17so3573464bwz.14
+        for <linux-mm@kvack.org>; Fri, 15 Apr 2011 09:12:36 -0700 (PDT)
+Content-Type: text/plain; charset=utf-8; format=flowed; delsp=yes
+Subject: Re: [PATCH 0/1] mm: make read-only accessors take const pointer
+ parameters
+References: <1302861377-8048-1-git-send-email-ext-phil.2.carmody@nokia.com>
+ <20110415145133.GO15707@random.random>
+ <20110415155916.GD7112@esdhcp04044.research.nokia.com>
+Date: Fri, 15 Apr 2011 18:12:33 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1104150949210.5863@router.home>
+Content-Transfer-Encoding: Quoted-Printable
+From: "Michal Nazarewicz" <mina86@mina86.com>
+Message-ID: <op.vtzly7dk3l0zgt@mnazarewicz-glaptop>
+In-Reply-To: <20110415155916.GD7112@esdhcp04044.research.nokia.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: ext Christoph Lameter <cl@linux.com>
-Cc: akpm@linux-foundation.org, aarcange@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: ext Andrea Arcangeli <aarcange@redhat.com>, Phil Carmody <ext-phil.2.carmody@nokia.com>
+Cc: akpm@linux-foundation.org, cl@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 15/04/11 09:51 -0500, ext Christoph Lameter wrote:
-> On Fri, 15 Apr 2011, Phil Carmody wrote:
-> 
-> > +++ b/include/linux/mm.h
-> > @@ -353,9 +353,16 @@ static inline struct page *compound_head(struct page *page)
-> >  	return page;
-> >  }
-> >
-> > -static inline int page_count(struct page *page)
-> > +static inline const struct page *compound_head_ro(const struct page *page)
-> >  {
-> > -	return atomic_read(&compound_head(page)->_count);
-> > +	if (unlikely(PageTail(page)))
-> > +		return page->first_page;
-> > +	return page;
-> > +}
-> 
-> Can you make compound_head take a const pointer too to avoid this?
+On Fri, 15 Apr 2011 17:59:16 +0200, Phil Carmody wrote:
+> I'm just glad this wasn't an insta-nack, as I am quite a fan of
+> consts, and hopefully something can be worked out.
 
-Not in C, alas. As it returns what it's given I wouldn't want it to lie
-about the type of what it returns, and some of its clients want it to
-return something writeable.
+I feel you man.  Unfortunately, I think that const, since it's an
+after-thought, is not very usable in C.
 
-The simplest macro would have multiple-evaluation issues:
+For instance, as you've pointed in your patch, the "_ro" suffix
+is sort of dumb, but without it compound_head would have to take
+const and return non-const (like strchr() does) which is kinda
+stupid as well.
 
-#define compound_head(page) (PageTail(page) ? (page)->first_page : (page))
+What's more, because of lack of encapsulation, =E2=80=9Cconst struct pag=
+e=E2=80=9D
+only means that the object is const but thighs it points to aren't.
+As such, const does not really play that well with structs anyway.
 
-Not that there are any clients who would misuse that currently, but setting
-traps isn't a good way to make things cleaner.
+const is, in my opinion, one of those things C++ actually got
+right (or close to right).
 
-Phil
+-- =
+
+Best regards,                                         _     _
+.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
+..o | Computer Science,  Michal "mina86" Nazarewicz    (o o)
+ooo +-----<email/xmpp: mnazarewicz@google.com>-----ooO--(_)--Ooo--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
