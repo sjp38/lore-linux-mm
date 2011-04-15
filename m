@@ -1,59 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 0ABC4900086
-	for <linux-mm@kvack.org>; Fri, 15 Apr 2011 11:06:13 -0400 (EDT)
-Date: Fri, 15 Apr 2011 17:06:06 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH] mm: Check if PTE is already allocated during page fault
-Message-ID: <20110415150606.GP15707@random.random>
-References: <20110415101248.GB22688@suse.de>
- <20110415143916.GN15707@random.random>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110415143916.GN15707@random.random>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 8FA64900086
+	for <linux-mm@kvack.org>; Fri, 15 Apr 2011 11:08:58 -0400 (EDT)
+Date: Fri, 15 Apr 2011 08:10:54 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH V8 4/8] mm/fs: add hooks to support cleancache
+Message-Id: <20110415081054.79a164d3.akpm@linux-foundation.org>
+In-Reply-To: <83ef8b69-f041-43e6-a5a9-880ff3da26f2@default>
+References: <20110414211732.GA27761@ca-server1.us.oracle.com
+ BANLkTimEbtY8F6bpsfhfQ770ao9Hn7Spww@mail.gmail.com>
+	<83ef8b69-f041-43e6-a5a9-880ff3da26f2@default>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: akpm@linux-foundation.org, raz ben yehuda <raziebe@gmail.com>, riel@redhat.com, kosaki.motohiro@jp.fujitsu.com, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, stable@kernel.org
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: Minchan Kim <minchan.kim@gmail.com>, Chris Mason <chris.mason@oracle.com>, viro@zeniv.linux.org.uk, adilger.kernel@dilger.ca, tytso@mit.edu, mfasheh@suse.com, jlbec@evilplan.org, matthew@wil.cx, linux-btrfs@vger.kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, ocfs2-devel@oss.oracle.com, linux-mm@kvack.org, hch@infradead.org, ngupta@vflare.org, jeremy@goop.org, JBeulich@novell.com, Kurt Hackel <kurt.hackel@oracle.com>, npiggin@kernel.dk, Dave Mccracken <dave.mccracken@oracle.com>, riel@redhat.com, avi@redhat.com, Konrad Wilk <konrad.wilk@oracle.com>, mel@csn.ul.ie, yinghan@google.com, gthelen@google.com, torvalds@linux-foundation.org
 
-On Fri, Apr 15, 2011 at 04:39:16PM +0200, Andrea Arcangeli wrote:
-> On Fri, Apr 15, 2011 at 11:12:48AM +0100, Mel Gorman wrote:
-> > diff --git a/mm/memory.c b/mm/memory.c
-> > index 5823698..1659574 100644
-> > --- a/mm/memory.c
-> > +++ b/mm/memory.c
-> > @@ -3322,7 +3322,7 @@ int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
-> >  	 * run pte_offset_map on the pmd, if an huge pmd could
-> >  	 * materialize from under us from a different thread.
-> >  	 */
-> > -	if (unlikely(__pte_alloc(mm, vma, pmd, address)))
-> > +	if (unlikely(pmd_none(*pmd)) && __pte_alloc(mm, vma, pmd, address))
+On Fri, 15 Apr 2011 07:47:57 -0700 (PDT) Dan Magenheimer <dan.magenheimer@oracle.com> wrote:
 
-I started hacking on this and I noticed it'd be better to extend the
-unlikely through the end. At first review I didn't notice the
-parenthesis closure stops after pte_none and __pte_alloc is now
-uncovered. I'd prefer this:
+> Hi Minchan --
+> 
+> > First of all, thanks for resolving conflict with my patch.
+> 
+> You're welcome!  As I pointed out offlist, yours was the first
+> change in MM that caused any semantic changes to the cleancache
+> core hooks patch since before 2.6.18.
+>  
+> > Before I suggested a thing about cleancache_flush_page,
+> > cleancache_flush_inode.
+> > 
+> > what's the meaning of flush's semantic?
+> > I thought it means invalidation.
+> > AFAIC, how about change flush with invalidate?
+> 
+> I'm not sure the words "flush" and "invalidate" are defined
+> precisely or used consistently everywhere in computer
+> science, but I think that "invalidate" is to destroy
+> a "pointer" to some data, but not necessarily destroy the
+> data itself.   And "flush" means to actually remove
+> the data.  So one would "invalidate a mapping" but one
+> would "flush a cache".
+> 
+> Since cleancache_flush_page and cleancache_flush_inode
+> semantically remove data from cleancache, I think flush
+> is a better name than invalidate.
+> 
+> Does that make sense?
+> 
 
-    if (unlikely(pmd_none(*pmd) && __pte_alloc(mm, vma, pmd, address)))
+nope ;)
 
-I mean the real unlikely thing is that we return VM_FAULT_OOM, if we
-end up calling __pte_alloc or not, depends on the app. Generally it
-sounds more frequent that the pte is not none, so it's not wrong, but
-it's even less likely that __pte_alloc fails so that can be taken into
-account too, and __pte_alloc runs still quite frequently. So either
-above or:
-
-    if (unlikely(pmd_none(*pmd)) && unlikely(__pte_alloc(mm, vma, pmd, address)))
-
-I generally prefer unlikely only when it's 100% sure thing it's less
-likely (like the VM_FAULT_OOM), so the first version I guess it's
-enough (I'm afraid unlikely for pte_none too, may make gcc generate a
-far away jump possibly going out of l1 icache for a case that is only
-512 times less likely at best). My point is that it's certainly hugely
-more unlikely that __pte_alloc fails than the pte is none.
-
-This is a real nitpick though ;).
+Kernel code freely uses "flush" to refer to both invalidation and to
+writeback, sometimes in confusing ways.  In this case,
+cleancache_flush_inode and cleancache_flush_page rather sound like they
+might write those things to backing store.  
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
