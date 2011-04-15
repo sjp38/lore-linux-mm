@@ -1,56 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id A0A53900086
-	for <linux-mm@kvack.org>; Fri, 15 Apr 2011 12:10:33 -0400 (EDT)
-Date: Fri, 15 Apr 2011 18:09:57 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 0/1] mm: make read-only accessors take const pointer
- parameters
-Message-ID: <20110415160957.GV15707@random.random>
-References: <1302861377-8048-1-git-send-email-ext-phil.2.carmody@nokia.com>
- <20110415145133.GO15707@random.random>
- <20110415155916.GD7112@esdhcp04044.research.nokia.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id C5B84900086
+	for <linux-mm@kvack.org>; Fri, 15 Apr 2011 12:11:25 -0400 (EDT)
+Date: Fri, 15 Apr 2011 19:07:01 +0300
+From: Phil Carmody <ext-phil.2.carmody@nokia.com>
+Subject: Re: [PATCH] mm: make read-only accessors take const parameters
+Message-ID: <20110415160701.GE7112@esdhcp04044.research.nokia.com>
+References: <1302861377-8048-1-git-send-email-ext-phil.2.carmody@nokia.com> <1302861377-8048-2-git-send-email-ext-phil.2.carmody@nokia.com> <alpine.DEB.2.00.1104150949210.5863@router.home>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110415155916.GD7112@esdhcp04044.research.nokia.com>
+In-Reply-To: <alpine.DEB.2.00.1104150949210.5863@router.home>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Phil Carmody <ext-phil.2.carmody@nokia.com>
-Cc: akpm@linux-foundation.org, cl@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: ext Christoph Lameter <cl@linux.com>
+Cc: akpm@linux-foundation.org, aarcange@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Apr 15, 2011 at 06:59:16PM +0300, Phil Carmody wrote:
-> of these functions to propagate constness up another layer. It was
-> probably in FUSE, as that's the warning at the top of my screen
-> currently.
-
-These function themselfs are inline too, so gcc already can see if
-memory has been modified inside the inline function, so it shouldn't
-provide an advantage. It would provide an advantage if page_count and
-friends weren't inline.
-
-> I think gcc itself is smart enough to have already concluded what it 
-> can and it will not immediately benefit the build from just this change.
-
-Hmm not sure... but I would hope it is smart enough already with
-inline (it should never be worse to inline than encoding the whole
-thing by hand in the caller, so skipping the function call
-alltogether which then wouldn't require any const).
-
-> I don't think the static analysis tools are as smart as gcc though, by
-> any means. GCC actually inlines, so everything is visible to it. The
-> static analysis tools only remember the subset of information that they
-> think is useful, and apparently 'didn't change anything, even though it 
-> could' isn't considered so useful.
+On 15/04/11 09:51 -0500, ext Christoph Lameter wrote:
+> On Fri, 15 Apr 2011, Phil Carmody wrote:
 > 
-> I'm just glad this wasn't an insta-nack, as I am quite a fan of consts,
-> and hopefully something can be worked out.
+> > +++ b/include/linux/mm.h
+> > @@ -353,9 +353,16 @@ static inline struct page *compound_head(struct page *page)
+> >  	return page;
+> >  }
+> >
+> > -static inline int page_count(struct page *page)
+> > +static inline const struct page *compound_head_ro(const struct page *page)
+> >  {
+> > -	return atomic_read(&compound_head(page)->_count);
+> > +	if (unlikely(PageTail(page)))
+> > +		return page->first_page;
+> > +	return page;
+> > +}
+> 
+> Can you make compound_head take a const pointer too to avoid this?
 
-I'm not against it if it's from code strict point of view, I was
-mostly trying to understand if this could have any impact, in which
-case it wouldn't be false positive. I think it's a false positive if
-gcc is as smart as I hope it to be. If we want it from coding style
-reasons to keep the code more strict that's fine with me of course.
+Not in C, alas. As it returns what it's given I wouldn't want it to lie
+about the type of what it returns, and some of its clients want it to
+return something writeable.
+
+The simplest macro would have multiple-evaluation issues:
+
+#define compound_head(page) (PageTail(page) ? (page)->first_page : (page))
+
+Not that there are any clients who would misuse that currently, but setting
+traps isn't a good way to make things cleaner.
+
+Phil
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
