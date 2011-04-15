@@ -1,52 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id F349A900086
-	for <linux-mm@kvack.org>; Fri, 15 Apr 2011 19:42:19 -0400 (EDT)
-Received: from hpaq7.eem.corp.google.com (hpaq7.eem.corp.google.com [172.25.149.7])
-	by smtp-out.google.com with ESMTP id p3FNgHjx004659
-	for <linux-mm@kvack.org>; Fri, 15 Apr 2011 16:42:18 -0700
-Received: from pwj6 (pwj6.prod.google.com [10.241.219.70])
-	by hpaq7.eem.corp.google.com with ESMTP id p3FNgFsY009613
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 15 Apr 2011 16:42:16 -0700
-Received: by pwj6 with SMTP id 6so1867073pwj.18
-        for <linux-mm@kvack.org>; Fri, 15 Apr 2011 16:42:14 -0700 (PDT)
-Date: Fri, 15 Apr 2011 16:42:13 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH v2] cpusets: randomize node rotor used in
- cpuset_mem_spread_node()
-In-Reply-To: <20110415082051.GB8828@tiehlicka.suse.cz>
-Message-ID: <alpine.DEB.2.00.1104151639080.3967@chino.kir.corp.google.com>
-References: <20110414065146.GA19685@tiehlicka.suse.cz> <20110414160145.0830.A69D9226@jp.fujitsu.com> <20110415161831.12F8.A69D9226@jp.fujitsu.com> <20110415082051.GB8828@tiehlicka.suse.cz>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id DF8F7900086
+	for <linux-mm@kvack.org>; Fri, 15 Apr 2011 19:52:30 -0400 (EDT)
+Received: by pzk32 with SMTP id 32so1691540pzk.14
+        for <linux-mm@kvack.org>; Fri, 15 Apr 2011 16:52:29 -0700 (PDT)
+Date: Sat, 16 Apr 2011 08:52:22 +0900
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH] percpu: preemptless __per_cpu_counter_add
+Message-ID: <20110415235222.GA18694@mtj.dyndns.org>
+References: <alpine.DEB.2.00.1104130942500.16214@router.home>
+ <alpine.DEB.2.00.1104131148070.20908@router.home>
+ <20110413185618.GA3987@mtj.dyndns.org>
+ <alpine.DEB.2.00.1104131521050.25812@router.home>
+ <1302747263.3549.9.camel@edumazet-laptop>
+ <alpine.DEB.2.00.1104141608300.19533@router.home>
+ <20110414211522.GE21397@mtj.dyndns.org>
+ <alpine.DEB.2.00.1104151235350.8055@router.home>
+ <20110415182734.GB15916@mtj.dyndns.org>
+ <alpine.DEB.2.00.1104151440070.8055@router.home>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1104151440070.8055@router.home>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, Jack Steiner <steiner@sgi.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Paul Menage <menage@google.com>, Robin Holt <holt@sgi.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org
+To: Christoph Lameter <cl@linux.com>
+Cc: Eric Dumazet <eric.dumazet@gmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org, shaohua.li@intel.com
 
-On Fri, 15 Apr 2011, Michal Hocko wrote:
+Hello, Christoph.
 
-> You are right. I was thinking about lazy approach and initialize those
-> values when they are used for the first time. What about the patch
-> below?
+On Fri, Apr 15, 2011 at 02:43:15PM -0500, Christoph Lameter wrote:
+> On Sat, 16 Apr 2011, Tejun Heo wrote:
 > 
-> Change from v1:
-> - initialize cpuset_{mem,slab}_spread_rotor lazily
+> > > +			new = 0;
+> > > +		}
+> > > +#ifdef CONFIG_PREEMPT
+> > > +	} while (this_cpu_cmpxchg(*fbc->counters, count, new) != count);
+> > > +#else
+> > > +	} while (0);
+> > > +	this_cpu_write(*fbc->counters, new);
+> > > +#endif
+> >
+> > Eeeek, no.  If you want to do the above, please put it in a separate
+> > inline function with sufficient comment.
 > 
+> That would not work well with the control flow.
 
-The difference between this v2 patch and what is already in the -mm tree 
-(http://userweb.kernel.org/~akpm/mmotm/broken-out/cpusets-randomize-node-rotor-used-in-cpuset_mem_spread_node.patch) 
-is the lazy initialization by adding cpuset_{mem,slab}_spread_node()?
+It doesn't have to be that way.  ie.
 
-It'd probably be better to just make an incremental patch on top of 
-mmotm-2011-04-14-15-08 with a new changelog and then propose with with 
-your list of reviewed-by lines.
+	static inline bool pcnt_add_cmpxchg(counter, count, new)
+	{
+		/* blah blah */
+	#ifdef PREEMPT
+		return this_cpu_cmpxchg() == count;
+	#else
+		this_cpu_write();
+		return true;
+	#endif
+	}
 
-Andrew could easily drop the earlier version and merge this v2, but I'm 
-asking for selfish reasons: please use NUMA_NO_NODE instead of -1.
+	void __percpu_counter_add(...)
+	{
+		...
+		do {
+			...
+		} while (!pcnt_add_cmpxchg(counter, count, new))
+		...
+	}
 
-Thanks!
+It's the same thing but ifdef'd "} while()"'s are just too ugly.
+
+> Just leave the cmpxchg for both cases? That would make the function
+> irq safe as well!
+
+Maybe, I don't know.  On x86, it shouldn't be a problem on both 32 and
+64bit.  Even on archs which lack local cmpxchg, preemption flips are
+cheap anyway so yeah maybe.
+
+> > > +	if (unlikely(overflow)) {
+> > >  		spin_lock(&fbc->lock);
+> > > -		fbc->count += count;
+> > > -		__this_cpu_write(*fbc->counters, 0);
+> > > +		fbc->count += overflow;
+> > >  		spin_unlock(&fbc->lock);
+> >
+> > Why put this outside and use yet another branch?
+> 
+> Because that way we do not need preempt enable/disable. The cmpxchg is
+> used to update the per cpu counter in the slow case as well. All that is
+> left then is to add the count to the global counter.
+> 
+> The branches are not an issue since they are forward branches over one
+> (after converting to an atomic operation) or two instructions each. A
+> possible stall is only possible in case of the cmpxchg failing.
+
+It's slow path and IMHO it's needlessly complex.  I really don't care
+whether the counter is reloaded once more or the task gets migrated to
+another cpu before spin_lock() and ends up flushing local counter on a
+cpu where it isn't strictly necessary.  Let's keep it simple.
+
+Thank you.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
