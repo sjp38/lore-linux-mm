@@ -1,73 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 9D8D1900086
-	for <linux-mm@kvack.org>; Fri, 15 Apr 2011 14:27:42 -0400 (EDT)
-Received: by pwi10 with SMTP id 10so1732603pwi.14
-        for <linux-mm@kvack.org>; Fri, 15 Apr 2011 11:27:39 -0700 (PDT)
-Date: Sat, 16 Apr 2011 03:27:34 +0900
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH] percpu: preemptless __per_cpu_counter_add
-Message-ID: <20110415182734.GB15916@mtj.dyndns.org>
-References: <alpine.DEB.2.00.1104130942500.16214@router.home>
- <alpine.DEB.2.00.1104131148070.20908@router.home>
- <20110413185618.GA3987@mtj.dyndns.org>
- <alpine.DEB.2.00.1104131521050.25812@router.home>
- <1302747263.3549.9.camel@edumazet-laptop>
- <alpine.DEB.2.00.1104141608300.19533@router.home>
- <20110414211522.GE21397@mtj.dyndns.org>
- <alpine.DEB.2.00.1104151235350.8055@router.home>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 6B3D5900086
+	for <linux-mm@kvack.org>; Fri, 15 Apr 2011 14:54:55 -0400 (EDT)
+From: OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>
+Subject: Re: [PATCH V8 1/8] mm/fs: cleancache documentation
+References: <20110414211601.GA27691@ca-server1.us.oracle.com>
+Date: Sat, 16 Apr 2011 03:54:39 +0900
+In-Reply-To: <20110414211601.GA27691@ca-server1.us.oracle.com> (Dan
+	Magenheimer's message of "Thu, 14 Apr 2011 14:16:01 -0700")
+Message-ID: <87mxjr4a6o.fsf@devron.myhome.or.jp>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1104151235350.8055@router.home>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Eric Dumazet <eric.dumazet@gmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org, shaohua.li@intel.com
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: chris.mason@oracle.com, viro@zeniv.linux.org.uk, akpm@linux-foundation.org, adilger.kernel@dilger.ca, tytso@mit.edu, mfasheh@suse.com, jlbec@evilplan.org, matthew@wil.cx, linux-btrfs@vger.kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, ocfs2-devel@oss.oracle.com, linux-mm@kvack.org, hch@infradead.org, ngupta@vflare.org, jeremy@goop.org, JBeulich@novell.com, kurt.hackel@oracle.com, npiggin@kernel.dk, dave.mccracken@oracle.com, riel@redhat.com, avi@redhat.com, konrad.wilk@oracle.com, mel@csn.ul.ie, yinghan@google.com, gthelen@google.com, torvalds@linux-foundation.org
 
-Hello, Christoph.
+Dan Magenheimer <dan.magenheimer@oracle.com> writes:
 
->  void __percpu_counter_add(struct percpu_counter *fbc, s64 amount, s32 batch)
->  {
-> -	s64 count;
-> +	s64 count, new, overflow;
-> 
-> -	preempt_disable();
-> -	count = __this_cpu_read(*fbc->counters) + amount;
-> -	if (count >= batch || count <= -batch) {
-> +	do {
-> +		overflow = 0;
-> +		count = this_cpu_read(*fbc->counters);
-> +
-> +		new = count + amount;
-> +		/* In case of overflow fold it into the global counter instead */
-> +		if (new >= batch || new <= -batch) {
-> +			overflow = new;
-> +			new = 0;
-> +		}
-> +#ifdef CONFIG_PREEMPT
-> +	} while (this_cpu_cmpxchg(*fbc->counters, count, new) != count);
-> +#else
-> +	} while (0);
-> +	this_cpu_write(*fbc->counters, new);
-> +#endif
+> [PATCH V8 1/8] mm/fs: cleancache documentation
+>
+> This patchset introduces cleancache, an optional new feature exposed
+> by the VFS layer that potentially dramatically increases page cache
+> effectiveness for many workloads in many environments at a negligible
+> cost.  It does this by providing an interface to transcendent memory,
+> which is memory/storage that is not otherwise visible to and/or directly
+> addressable by the kernel.
+>
+> Instead of being discarded, hooks in the reclaim code "put" clean
+> pages to cleancache.  Filesystems that "opt-in" may "get" pages 
+> from cleancache that were previously put, but pages in cleancache are 
+> "ephemeral", meaning they may disappear at any time. And the size
+> of cleancache is entirely dynamic and unknowable to the kernel.
+> Filesystems currently supported by this patchset include ext3, ext4,
+> btrfs, and ocfs2.  Other filesystems (especially those built entirely
+> on VFS) should be easy to add, but should first be thoroughly tested to
+> ensure coherency.
+>
+> Details and a FAQ are provided in Documentation/vm/cleancache.txt
+>
+> This first patch of eight in this cleancache series only adds two
+> new documentation files.
 
-Eeeek, no.  If you want to do the above, please put it in a separate
-inline function with sufficient comment.
+Another question: why can't this enable/disable per sb, e.g. via mount
+options? (I have the interest the cache stuff like this by SSD on
+physical systems like dragonfly's swapcache.)
 
-> +	if (unlikely(overflow)) {
->  		spin_lock(&fbc->lock);
-> -		fbc->count += count;
-> -		__this_cpu_write(*fbc->counters, 0);
-> +		fbc->count += overflow;
->  		spin_unlock(&fbc->lock);
+Well, anyway, I guess force enabling this for mostly unused sb can just
+add cache-write overhead and call for unpleasing reclaim to backend
+(because of limited space of backend) like updatedb.
 
-Why put this outside and use yet another branch?
+And already there is in FAQ though, I also have interest about async
+interface because of SDD backend (I'm not sure for now though). Is there
+any plan like SSD backend?
 
 Thanks.
-
 -- 
-tejun
+OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
