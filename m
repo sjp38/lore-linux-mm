@@ -1,108 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id DF8F7900086
-	for <linux-mm@kvack.org>; Fri, 15 Apr 2011 19:52:30 -0400 (EDT)
-Received: by pzk32 with SMTP id 32so1691540pzk.14
-        for <linux-mm@kvack.org>; Fri, 15 Apr 2011 16:52:29 -0700 (PDT)
-Date: Sat, 16 Apr 2011 08:52:22 +0900
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH] percpu: preemptless __per_cpu_counter_add
-Message-ID: <20110415235222.GA18694@mtj.dyndns.org>
-References: <alpine.DEB.2.00.1104130942500.16214@router.home>
- <alpine.DEB.2.00.1104131148070.20908@router.home>
- <20110413185618.GA3987@mtj.dyndns.org>
- <alpine.DEB.2.00.1104131521050.25812@router.home>
- <1302747263.3549.9.camel@edumazet-laptop>
- <alpine.DEB.2.00.1104141608300.19533@router.home>
- <20110414211522.GE21397@mtj.dyndns.org>
- <alpine.DEB.2.00.1104151235350.8055@router.home>
- <20110415182734.GB15916@mtj.dyndns.org>
- <alpine.DEB.2.00.1104151440070.8055@router.home>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 3220B900086
+	for <linux-mm@kvack.org>; Fri, 15 Apr 2011 21:48:17 -0400 (EDT)
+Received: from wpaz21.hot.corp.google.com (wpaz21.hot.corp.google.com [172.24.198.85])
+	by smtp-out.google.com with ESMTP id p3G1mF60008176
+	for <linux-mm@kvack.org>; Fri, 15 Apr 2011 18:48:15 -0700
+Received: from gwb19 (gwb19.prod.google.com [10.200.2.19])
+	by wpaz21.hot.corp.google.com with ESMTP id p3G1mAcD030483
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 15 Apr 2011 18:48:14 -0700
+Received: by gwb19 with SMTP id 19so1633539gwb.18
+        for <linux-mm@kvack.org>; Fri, 15 Apr 2011 18:48:10 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1104151440070.8055@router.home>
+In-Reply-To: <alpine.DEB.2.00.1104151602270.2738@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1104131132240.5563@chino.kir.corp.google.com>
+	<20110414090310.07FF.A69D9226@jp.fujitsu.com>
+	<alpine.DEB.2.00.1104131740280.16515@chino.kir.corp.google.com>
+	<alpine.DEB.2.00.1104141316450.20747@chino.kir.corp.google.com>
+	<alpine.LSU.2.00.1104151528050.4774@sister.anvils>
+	<alpine.DEB.2.00.1104151602270.2738@chino.kir.corp.google.com>
+Date: Fri, 15 Apr 2011 18:48:09 -0700
+Message-ID: <BANLkTi=BD0PRHPGqmc1KrxwX2cyPdjSc5w@mail.gmail.com>
+Subject: Re: [patch v3] oom: replace PF_OOM_ORIGIN with toggling oom_score_adj
+From: Hugh Dickins <hughd@google.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Eric Dumazet <eric.dumazet@gmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org, shaohua.li@intel.com
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Matt Fleming <matt@console-pimps.org>, linux-mm@kvack.org
 
-Hello, Christoph.
+On Fri, Apr 15, 2011 at 4:03 PM, David Rientjes <rientjes@google.com> wrote=
+:
+> On Fri, 15 Apr 2011, Hugh Dickins wrote:
+>
+>> This makes good sense (now you're using MAX instead of MIN!),
+>> but may I helatedly ask you to change the name test_set_oom_score_adj()
+>> to replace_oom_score_adj()? =C2=A0test_set means a bitflag operation to =
+me.
+>>
+>
+> Does replace_oom_score_adj() imply that it will be returning the old valu=
+e
+> of oom_score_adj like test_set_oom_score_adj() does?
 
-On Fri, Apr 15, 2011 at 02:43:15PM -0500, Christoph Lameter wrote:
-> On Sat, 16 Apr 2011, Tejun Heo wrote:
-> 
-> > > +			new = 0;
-> > > +		}
-> > > +#ifdef CONFIG_PREEMPT
-> > > +	} while (this_cpu_cmpxchg(*fbc->counters, count, new) != count);
-> > > +#else
-> > > +	} while (0);
-> > > +	this_cpu_write(*fbc->counters, new);
-> > > +#endif
-> >
-> > Eeeek, no.  If you want to do the above, please put it in a separate
-> > inline function with sufficient comment.
-> 
-> That would not work well with the control flow.
+I can easily imagine an implementation of "replace_oom_score_adj"
+which does not return the old value: so no, that name does not imply
+that it will be returning the old value.  But since it does return
+something, it's quite reasonable that what it returns is the old
+value.
 
-It doesn't have to be that way.  ie.
+Whereas "test_set_oom_score_adj" tends to imply that it will set the
+oom_score_adj only if it's currently zero.
 
-	static inline bool pcnt_add_cmpxchg(counter, count, new)
-	{
-		/* blah blah */
-	#ifdef PREEMPT
-		return this_cpu_cmpxchg() == count;
-	#else
-		this_cpu_write();
-		return true;
-	#endif
-	}
-
-	void __percpu_counter_add(...)
-	{
-		...
-		do {
-			...
-		} while (!pcnt_add_cmpxchg(counter, count, new))
-		...
-	}
-
-It's the same thing but ifdef'd "} while()"'s are just too ugly.
-
-> Just leave the cmpxchg for both cases? That would make the function
-> irq safe as well!
-
-Maybe, I don't know.  On x86, it shouldn't be a problem on both 32 and
-64bit.  Even on archs which lack local cmpxchg, preemption flips are
-cheap anyway so yeah maybe.
-
-> > > +	if (unlikely(overflow)) {
-> > >  		spin_lock(&fbc->lock);
-> > > -		fbc->count += count;
-> > > -		__this_cpu_write(*fbc->counters, 0);
-> > > +		fbc->count += overflow;
-> > >  		spin_unlock(&fbc->lock);
-> >
-> > Why put this outside and use yet another branch?
-> 
-> Because that way we do not need preempt enable/disable. The cmpxchg is
-> used to update the per cpu counter in the slow case as well. All that is
-> left then is to add the count to the global counter.
-> 
-> The branches are not an issue since they are forward branches over one
-> (after converting to an atomic operation) or two instructions each. A
-> possible stall is only possible in case of the cmpxchg failing.
-
-It's slow path and IMHO it's needlessly complex.  I really don't care
-whether the counter is reloaded once more or the task gets migrated to
-another cpu before spin_lock() and ends up flushing local counter on a
-cpu where it isn't strictly necessary.  Let's keep it simple.
-
-Thank you.
-
--- 
-tejun
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
