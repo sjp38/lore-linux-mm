@@ -1,99 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id E6FB2900087
-	for <linux-mm@kvack.org>; Sat, 16 Apr 2011 10:03:33 -0400 (EDT)
-Message-Id: <20110416134333.693350038@intel.com>
-Date: Sat, 16 Apr 2011 21:25:56 +0800
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 6885E90008A
+	for <linux-mm@kvack.org>; Sat, 16 Apr 2011 10:03:34 -0400 (EDT)
+Message-Id: <20110416134332.538809646@intel.com>
+Date: Sat, 16 Apr 2011 21:25:47 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 10/12] writeback: trace dirty_ratelimit
+Subject: [PATCH 01/12] writeback: account per-bdi accumulated written pages
 References: <20110416132546.765212221@intel.com>
-Content-Disposition: inline; filename=writeback-trace-throttle-bandwidth.patch
+Content-Disposition: inline; filename=writeback-bdi-written.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jan Kara <jack@suse.cz>, Wu Fengguang <fengguang.wu@intel.com>, Christoph Hellwig <hch@lst.de>, Trond Myklebust <Trond.Myklebust@netapp.com>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+Cc: Jan Kara <jack@suse.cz>, Michael Rubin <mrubin@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Christoph Hellwig <hch@lst.de>, Trond Myklebust <Trond.Myklebust@netapp.com>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 
-It provides critical information to understand how various throttle
-bandwidths are updated.
+From: Jan Kara <jack@suse.cz>
 
+Introduce the BDI_WRITTEN counter. It will be used for estimating the
+bdi's write bandwidth.
+
+Peter Zijlstra <a.p.zijlstra@chello.nl>:
+Move BDI_WRITTEN accounting into __bdi_writeout_inc().
+This will cover and fix fuse, which only calls bdi_writeout_inc().
+
+CC: Michael Rubin <mrubin@google.com>
+Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Signed-off-by: Jan Kara <jack@suse.cz>
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- include/trace/events/writeback.h |   51 +++++++++++++++++++++++++++--
- mm/page-writeback.c              |    1 
- 2 files changed, 49 insertions(+), 3 deletions(-)
+ include/linux/backing-dev.h |    1 +
+ mm/backing-dev.c            |    6 ++++--
+ mm/page-writeback.c         |    1 +
+ 3 files changed, 6 insertions(+), 2 deletions(-)
 
---- linux-next.orig/mm/page-writeback.c	2011-04-16 11:28:21.000000000 +0800
-+++ linux-next/mm/page-writeback.c	2011-04-16 11:28:27.000000000 +0800
-@@ -974,6 +974,7 @@ adjust:
- 	bdi->dirty_ratelimit = bw;
- out:
- 	bdi_update_reference_ratelimit(bdi, ref_bw);
-+	trace_dirty_ratelimit(bdi, dirty_bw, pos_bw, ref_bw);
+--- linux-next.orig/include/linux/backing-dev.h	2011-04-13 17:18:06.000000000 +0800
++++ linux-next/include/linux/backing-dev.h	2011-04-13 17:18:11.000000000 +0800
+@@ -40,6 +40,7 @@ typedef int (congested_fn)(void *, int);
+ enum bdi_stat_item {
+ 	BDI_RECLAIMABLE,
+ 	BDI_WRITEBACK,
++	BDI_WRITTEN,
+ 	NR_BDI_STAT_ITEMS
+ };
+ 
+--- linux-next.orig/mm/backing-dev.c	2011-04-13 17:18:06.000000000 +0800
++++ linux-next/mm/backing-dev.c	2011-04-13 17:18:11.000000000 +0800
+@@ -86,6 +86,7 @@ static int bdi_debug_stats_show(struct s
+ 		   "BdiDirtyThresh:   %8lu kB\n"
+ 		   "DirtyThresh:      %8lu kB\n"
+ 		   "BackgroundThresh: %8lu kB\n"
++		   "BdiWritten:       %8lu kB\n"
+ 		   "b_dirty:          %8lu\n"
+ 		   "b_io:             %8lu\n"
+ 		   "b_more_io:        %8lu\n"
+@@ -93,8 +94,9 @@ static int bdi_debug_stats_show(struct s
+ 		   "state:            %8lx\n",
+ 		   (unsigned long) K(bdi_stat(bdi, BDI_WRITEBACK)),
+ 		   (unsigned long) K(bdi_stat(bdi, BDI_RECLAIMABLE)),
+-		   K(bdi_thresh), K(dirty_thresh),
+-		   K(background_thresh), nr_dirty, nr_io, nr_more_io,
++		   K(bdi_thresh), K(dirty_thresh), K(background_thresh),
++		   (unsigned long) K(bdi_stat(bdi, BDI_WRITTEN)),
++		   nr_dirty, nr_io, nr_more_io,
+ 		   !list_empty(&bdi->bdi_list), bdi->state);
+ #undef K
+ 
+--- linux-next.orig/mm/page-writeback.c	2011-04-13 17:18:11.000000000 +0800
++++ linux-next/mm/page-writeback.c	2011-04-13 17:18:11.000000000 +0800
+@@ -219,6 +219,7 @@ int dirty_bytes_handler(struct ctl_table
+  */
+ static inline void __bdi_writeout_inc(struct backing_dev_info *bdi)
+ {
++	__inc_bdi_stat(bdi, BDI_WRITTEN);
+ 	__prop_inc_percpu_max(&vm_completions, &bdi->completions,
+ 			      bdi->max_prop_frac);
  }
- 
- void bdi_update_bandwidth(struct backing_dev_info *bdi,
---- linux-next.orig/include/trace/events/writeback.h	2011-04-16 11:28:17.000000000 +0800
-+++ linux-next/include/trace/events/writeback.h	2011-04-16 11:28:27.000000000 +0800
-@@ -147,11 +147,56 @@ DEFINE_EVENT(wbc_class, name, \
- DEFINE_WBC_EVENT(wbc_writeback_start);
- DEFINE_WBC_EVENT(wbc_writeback_written);
- DEFINE_WBC_EVENT(wbc_writeback_wait);
--DEFINE_WBC_EVENT(wbc_balance_dirty_start);
--DEFINE_WBC_EVENT(wbc_balance_dirty_written);
--DEFINE_WBC_EVENT(wbc_balance_dirty_wait);
- DEFINE_WBC_EVENT(wbc_writepage);
- 
-+#define KBps(x)			((x) << (PAGE_SHIFT - 10))
-+
-+TRACE_EVENT(dirty_ratelimit,
-+
-+	TP_PROTO(struct backing_dev_info *bdi,
-+		 unsigned long dirty_bw,
-+		 unsigned long pos_bw,
-+		 unsigned long ref_bw),
-+
-+	TP_ARGS(bdi, dirty_bw, pos_bw, ref_bw),
-+
-+	TP_STRUCT__entry(
-+		__array(char,		bdi, 32)
-+		__field(unsigned long,	write_bw)
-+		__field(unsigned long,	avg_bw)
-+		__field(unsigned long,	dirty_bw)
-+		__field(unsigned long,	base_bw)
-+		__field(unsigned long,	pos_bw)
-+		__field(unsigned long,	ref_bw)
-+		__field(unsigned long,	avg_ref_bw)
-+	),
-+
-+	TP_fast_assign(
-+		strlcpy(__entry->bdi, dev_name(bdi->dev), 32);
-+		__entry->write_bw	= KBps(bdi->write_bandwidth);
-+		__entry->avg_bw		= KBps(bdi->avg_write_bandwidth);
-+		__entry->dirty_bw	= KBps(dirty_bw);
-+		__entry->base_bw	= KBps(bdi->dirty_ratelimit);
-+		__entry->pos_bw		= KBps(pos_bw);
-+		__entry->ref_bw		= KBps(ref_bw);
-+		__entry->avg_ref_bw	= KBps(bdi->reference_ratelimit);
-+	),
-+
-+
-+	TP_printk("bdi %s: "
-+		  "write_bw=%lu awrite_bw=%lu dirty_bw=%lu "
-+		  "base_bw=%lu pos_bw=%lu ref_bw=%lu aref_bw=%lu",
-+		  __entry->bdi,
-+		  __entry->write_bw,	/* write bandwidth */
-+		  __entry->avg_bw,	/* avg write bandwidth */
-+		  __entry->dirty_bw,	/* dirty bandwidth */
-+		  __entry->base_bw,	/* dirty ratelimit on each task */
-+		  __entry->pos_bw,	/* position control ratelimit */
-+		  __entry->ref_bw,	/* the reference ratelimit */
-+		  __entry->avg_ref_bw	/* smoothed reference ratelimit */
-+	)
-+);
-+
- DECLARE_EVENT_CLASS(writeback_congest_waited_template,
- 
- 	TP_PROTO(unsigned int usec_timeout, unsigned int usec_delayed),
 
 
 --
