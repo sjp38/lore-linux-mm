@@ -1,69 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 491F1900088
-	for <linux-mm@kvack.org>; Sat, 16 Apr 2011 10:03:38 -0400 (EDT)
-Message-Id: <20110416134332.667289668@intel.com>
-Date: Sat, 16 Apr 2011 21:25:48 +0800
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id E58A0900093
+	for <linux-mm@kvack.org>; Sat, 16 Apr 2011 10:03:46 -0400 (EDT)
+Message-Id: <20110416134333.960669369@intel.com>
+Date: Sat, 16 Apr 2011 21:25:58 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 02/12] writeback: account per-bdi accumulated dirtied pages
+Subject: [PATCH 12/12] writeback: trace global_dirty_state
 References: <20110416132546.765212221@intel.com>
-Content-Disposition: inline; filename=writeback-bdi-dirtied.patch
+Content-Disposition: inline; filename=writeback-trace-global-dirty-states.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jan Kara <jack@suse.cz>, Michael Rubin <mrubin@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Wu Fengguang <fengguang.wu@intel.com>, Christoph Hellwig <hch@lst.de>, Trond Myklebust <Trond.Myklebust@netapp.com>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+Cc: Jan Kara <jack@suse.cz>, Wu Fengguang <fengguang.wu@intel.com>, Christoph Hellwig <hch@lst.de>, Trond Myklebust <Trond.Myklebust@netapp.com>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 
-Introduce the BDI_DIRTIED counter. It will be used for estimating the
-bdi's dirty bandwidth.
+Add trace balance_dirty_state for showing the global dirty page counts
+and thresholds at each balance_dirty_pages() loop.
 
-CC: Jan Kara <jack@suse.cz>
-CC: Michael Rubin <mrubin@google.com>
-CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- include/linux/backing-dev.h |    1 +
- mm/backing-dev.c            |    2 ++
- mm/page-writeback.c         |    1 +
- 3 files changed, 4 insertions(+)
+ include/trace/events/writeback.h |   48 +++++++++++++++++++++++++++++
+ mm/page-writeback.c              |    1 
+ 2 files changed, 49 insertions(+)
 
---- linux-next.orig/include/linux/backing-dev.h	2011-04-14 09:21:06.000000000 +0800
-+++ linux-next/include/linux/backing-dev.h	2011-04-14 21:51:23.000000000 +0800
-@@ -40,6 +40,7 @@ typedef int (congested_fn)(void *, int);
- enum bdi_stat_item {
- 	BDI_RECLAIMABLE,
- 	BDI_WRITEBACK,
-+	BDI_DIRTIED,
- 	BDI_WRITTEN,
- 	NR_BDI_STAT_ITEMS
- };
---- linux-next.orig/mm/page-writeback.c	2011-04-14 09:21:06.000000000 +0800
-+++ linux-next/mm/page-writeback.c	2011-04-14 21:51:23.000000000 +0800
-@@ -1133,6 +1133,7 @@ void account_page_dirtied(struct page *p
- 		__inc_zone_page_state(page, NR_FILE_DIRTY);
- 		__inc_zone_page_state(page, NR_DIRTIED);
- 		__inc_bdi_stat(mapping->backing_dev_info, BDI_RECLAIMABLE);
-+		__inc_bdi_stat(mapping->backing_dev_info, BDI_DIRTIED);
- 		task_dirty_inc(current);
- 		task_io_account_write(PAGE_CACHE_SIZE);
- 	}
---- linux-next.orig/mm/backing-dev.c	2011-04-14 09:21:06.000000000 +0800
-+++ linux-next/mm/backing-dev.c	2011-04-14 21:51:23.000000000 +0800
-@@ -86,6 +86,7 @@ static int bdi_debug_stats_show(struct s
- 		   "BdiDirtyThresh:   %8lu kB\n"
- 		   "DirtyThresh:      %8lu kB\n"
- 		   "BackgroundThresh: %8lu kB\n"
-+		   "BdiDirtied:       %8lu kB\n"
- 		   "BdiWritten:       %8lu kB\n"
- 		   "b_dirty:          %8lu\n"
- 		   "b_io:             %8lu\n"
-@@ -95,6 +96,7 @@ static int bdi_debug_stats_show(struct s
- 		   (unsigned long) K(bdi_stat(bdi, BDI_WRITEBACK)),
- 		   (unsigned long) K(bdi_stat(bdi, BDI_RECLAIMABLE)),
- 		   K(bdi_thresh), K(dirty_thresh), K(background_thresh),
-+		   (unsigned long) K(bdi_stat(bdi, BDI_DIRTIED)),
- 		   (unsigned long) K(bdi_stat(bdi, BDI_WRITTEN)),
- 		   nr_dirty, nr_io, nr_more_io,
- 		   !list_empty(&bdi->bdi_list), bdi->state);
+--- linux-next.orig/mm/page-writeback.c	2011-04-16 11:28:28.000000000 +0800
++++ linux-next/mm/page-writeback.c	2011-04-16 11:28:30.000000000 +0800
+@@ -387,6 +387,7 @@ void global_dirty_limits(unsigned long *
+ 	tsk = current;
+ 	*pbackground = background;
+ 	*pdirty = dirty;
++	trace_global_dirty_state(background, dirty);
+ }
+ 
+ /**
+--- linux-next.orig/include/trace/events/writeback.h	2011-04-16 11:28:28.000000000 +0800
++++ linux-next/include/trace/events/writeback.h	2011-04-16 11:28:30.000000000 +0800
+@@ -277,6 +277,54 @@ TRACE_EVENT(balance_dirty_pages,
+ 		  )
+ );
+ 
++TRACE_EVENT(global_dirty_state,
++
++	TP_PROTO(unsigned long background_thresh,
++		 unsigned long dirty_thresh
++	),
++
++	TP_ARGS(background_thresh,
++		dirty_thresh
++	),
++
++	TP_STRUCT__entry(
++		__field(unsigned long,	nr_dirty)
++		__field(unsigned long,	nr_writeback)
++		__field(unsigned long,	nr_unstable)
++		__field(unsigned long,	background_thresh)
++		__field(unsigned long,	dirty_thresh)
++		__field(unsigned long,	dirty_limit)
++		__field(unsigned long,	nr_dirtied)
++		__field(unsigned long,	nr_written)
++	),
++
++	TP_fast_assign(
++		__entry->nr_dirty	= global_page_state(NR_FILE_DIRTY);
++		__entry->nr_writeback	= global_page_state(NR_WRITEBACK);
++		__entry->nr_unstable	= global_page_state(NR_UNSTABLE_NFS);
++		__entry->nr_dirtied	= global_page_state(NR_DIRTIED);
++		__entry->nr_written	= global_page_state(NR_WRITTEN);
++		__entry->background_thresh = background_thresh;
++		__entry->dirty_thresh	= dirty_thresh;
++		__entry->dirty_limit = default_backing_dev_info.dirty_threshold;
++	),
++
++	TP_printk("dirty=%lu writeback=%lu unstable=%lu "
++		  "bg_thresh=%lu thresh=%lu limit=%lu gap=%ld "
++		  "dirtied=%lu written=%lu",
++		  __entry->nr_dirty,
++		  __entry->nr_writeback,
++		  __entry->nr_unstable,
++		  __entry->background_thresh,
++		  __entry->dirty_thresh,
++		  __entry->dirty_limit,
++		  __entry->dirty_thresh - __entry->nr_dirty -
++		  __entry->nr_writeback - __entry->nr_unstable,
++		  __entry->nr_dirtied,
++		  __entry->nr_written
++	)
++);
++
+ DECLARE_EVENT_CLASS(writeback_congest_waited_template,
+ 
+ 	TP_PROTO(unsigned int usec_timeout, unsigned int usec_delayed),
 
 
 --
