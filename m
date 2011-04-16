@@ -1,79 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 6885E90008A
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 166C9900088
 	for <linux-mm@kvack.org>; Sat, 16 Apr 2011 10:03:34 -0400 (EDT)
-Message-Id: <20110416134332.538809646@intel.com>
-Date: Sat, 16 Apr 2011 21:25:47 +0800
+Message-Id: <20110416134333.176703613@intel.com>
+Date: Sat, 16 Apr 2011 21:25:52 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 01/12] writeback: account per-bdi accumulated written pages
+Subject: [PATCH 06/12] writeback: enforce 1/4 gap between the dirty/background thresholds
 References: <20110416132546.765212221@intel.com>
-Content-Disposition: inline; filename=writeback-bdi-written.patch
+Content-Disposition: inline; filename=writeback-fix-oversize-background-thresh.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jan Kara <jack@suse.cz>, Michael Rubin <mrubin@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Christoph Hellwig <hch@lst.de>, Trond Myklebust <Trond.Myklebust@netapp.com>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+Cc: Jan Kara <jack@suse.cz>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Wu Fengguang <fengguang.wu@intel.com>, Christoph Hellwig <hch@lst.de>, Trond Myklebust <Trond.Myklebust@netapp.com>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 
-From: Jan Kara <jack@suse.cz>
+The change is virtually a no-op for the majority users that use the
+default 10/20 background/dirty ratios. For others don't know why they
+are setting background ratio close enough to dirty ratio. Someone must
+set background ratio equal to dirty ratio, but no one seems to notice or
+complain that it's then silently halved under the hood..
 
-Introduce the BDI_WRITTEN counter. It will be used for estimating the
-bdi's write bandwidth.
+The other solution is to return -EIO when setting a too large background
+threshold or a too small dirty threshold. However that could possibly
+break some disordered usage scenario, eg.
 
-Peter Zijlstra <a.p.zijlstra@chello.nl>:
-Move BDI_WRITTEN accounting into __bdi_writeout_inc().
-This will cover and fix fuse, which only calls bdi_writeout_inc().
+	echo 10 > /proc/sys/vm/dirty_ratio
+	echo  5 > /proc/sys/vm/dirty_background_ratio
 
-CC: Michael Rubin <mrubin@google.com>
-Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Signed-off-by: Jan Kara <jack@suse.cz>
+The first echo will fail because the background ratio is still 10.
+Such order dependent behavior seems disgusting for end users.
+
+CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- include/linux/backing-dev.h |    1 +
- mm/backing-dev.c            |    6 ++++--
- mm/page-writeback.c         |    1 +
- 3 files changed, 6 insertions(+), 2 deletions(-)
+ mm/page-writeback.c |   10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)
 
---- linux-next.orig/include/linux/backing-dev.h	2011-04-13 17:18:06.000000000 +0800
-+++ linux-next/include/linux/backing-dev.h	2011-04-13 17:18:11.000000000 +0800
-@@ -40,6 +40,7 @@ typedef int (congested_fn)(void *, int);
- enum bdi_stat_item {
- 	BDI_RECLAIMABLE,
- 	BDI_WRITEBACK,
-+	BDI_WRITTEN,
- 	NR_BDI_STAT_ITEMS
- };
+--- linux-next.orig/mm/page-writeback.c	2011-04-13 17:18:13.000000000 +0800
++++ linux-next/mm/page-writeback.c	2011-04-13 17:18:13.000000000 +0800
+@@ -422,8 +422,14 @@ void global_dirty_limits(unsigned long *
+ 	else
+ 		background = (dirty_background_ratio * available_memory) / 100;
  
---- linux-next.orig/mm/backing-dev.c	2011-04-13 17:18:06.000000000 +0800
-+++ linux-next/mm/backing-dev.c	2011-04-13 17:18:11.000000000 +0800
-@@ -86,6 +86,7 @@ static int bdi_debug_stats_show(struct s
- 		   "BdiDirtyThresh:   %8lu kB\n"
- 		   "DirtyThresh:      %8lu kB\n"
- 		   "BackgroundThresh: %8lu kB\n"
-+		   "BdiWritten:       %8lu kB\n"
- 		   "b_dirty:          %8lu\n"
- 		   "b_io:             %8lu\n"
- 		   "b_more_io:        %8lu\n"
-@@ -93,8 +94,9 @@ static int bdi_debug_stats_show(struct s
- 		   "state:            %8lx\n",
- 		   (unsigned long) K(bdi_stat(bdi, BDI_WRITEBACK)),
- 		   (unsigned long) K(bdi_stat(bdi, BDI_RECLAIMABLE)),
--		   K(bdi_thresh), K(dirty_thresh),
--		   K(background_thresh), nr_dirty, nr_io, nr_more_io,
-+		   K(bdi_thresh), K(dirty_thresh), K(background_thresh),
-+		   (unsigned long) K(bdi_stat(bdi, BDI_WRITTEN)),
-+		   nr_dirty, nr_io, nr_more_io,
- 		   !list_empty(&bdi->bdi_list), bdi->state);
- #undef K
- 
---- linux-next.orig/mm/page-writeback.c	2011-04-13 17:18:11.000000000 +0800
-+++ linux-next/mm/page-writeback.c	2011-04-13 17:18:11.000000000 +0800
-@@ -219,6 +219,7 @@ int dirty_bytes_handler(struct ctl_table
-  */
- static inline void __bdi_writeout_inc(struct backing_dev_info *bdi)
- {
-+	__inc_bdi_stat(bdi, BDI_WRITTEN);
- 	__prop_inc_percpu_max(&vm_completions, &bdi->completions,
- 			      bdi->max_prop_frac);
- }
+-	if (background >= dirty)
+-		background = dirty / 2;
++	/*
++	 * Ensure at least 1/4 gap between background and dirty thresholds, so
++	 * that when dirty throttling starts at (background + dirty)/2, it's
++	 * below or at the entrance of the soft dirty throttle scope.
++	 */
++	if (background > dirty - dirty / DIRTY_FULL_SCOPE)
++		background = dirty - dirty / DIRTY_FULL_SCOPE;
++
+ 	tsk = current;
+ 	if (tsk->flags & PF_LESS_THROTTLE || rt_task(tsk)) {
+ 		background += background / 4;
 
 
 --
