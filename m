@@ -1,59 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 166C9900088
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id C757F90008B
 	for <linux-mm@kvack.org>; Sat, 16 Apr 2011 10:03:34 -0400 (EDT)
-Message-Id: <20110416134333.176703613@intel.com>
-Date: Sat, 16 Apr 2011 21:25:52 +0800
+Message-Id: <20110416134332.918936130@intel.com>
+Date: Sat, 16 Apr 2011 21:25:50 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 06/12] writeback: enforce 1/4 gap between the dirty/background thresholds
+Subject: [PATCH 04/12] writeback: smoothed global/bdi dirty pages
 References: <20110416132546.765212221@intel.com>
-Content-Disposition: inline; filename=writeback-fix-oversize-background-thresh.patch
+Content-Disposition: inline; filename=writeback-smooth-dirty.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jan Kara <jack@suse.cz>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Wu Fengguang <fengguang.wu@intel.com>, Christoph Hellwig <hch@lst.de>, Trond Myklebust <Trond.Myklebust@netapp.com>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+Cc: Jan Kara <jack@suse.cz>, larry <lantianyu1986@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, Christoph Hellwig <hch@lst.de>, Trond Myklebust <Trond.Myklebust@netapp.com>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 
-The change is virtually a no-op for the majority users that use the
-default 10/20 background/dirty ratios. For others don't know why they
-are setting background ratio close enough to dirty ratio. Someone must
-set background ratio equal to dirty ratio, but no one seems to notice or
-complain that it's then silently halved under the hood..
+Maintain a smoothed version of dirty pages for use in the throttle
+bandwidth calculations.
 
-The other solution is to return -EIO when setting a too large background
-threshold or a too small dirty threshold. However that could possibly
-break some disordered usage scenario, eg.
+default_backing_dev_info.avg_dirty holds the smoothed global dirty
+pages.
 
-	echo 10 > /proc/sys/vm/dirty_ratio
-	echo  5 > /proc/sys/vm/dirty_background_ratio
+The calculation favors smoothness rather than accuracy. It's non-sense
+trying to track a much fluctuated value "accurately". And its users
+don't really rely on it being accurate.
 
-The first echo will fail because the background ratio is still 10.
-Such order dependent behavior seems disgusting for end users.
-
-CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
+CC: larry <lantianyu1986@gmail.com>
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- mm/page-writeback.c |   10 ++++++++--
- 1 file changed, 8 insertions(+), 2 deletions(-)
+ include/linux/backing-dev.h |    2 +
+ mm/backing-dev.c            |    3 +
+ mm/page-writeback.c         |   66 ++++++++++++++++++++++++++++++++++
+ 3 files changed, 71 insertions(+)
 
---- linux-next.orig/mm/page-writeback.c	2011-04-13 17:18:13.000000000 +0800
-+++ linux-next/mm/page-writeback.c	2011-04-13 17:18:13.000000000 +0800
-@@ -422,8 +422,14 @@ void global_dirty_limits(unsigned long *
- 	else
- 		background = (dirty_background_ratio * available_memory) / 100;
+--- linux-next.orig/mm/page-writeback.c	2011-04-13 17:18:12.000000000 +0800
++++ linux-next/mm/page-writeback.c	2011-04-13 17:18:12.000000000 +0800
+@@ -471,6 +471,64 @@ unsigned long bdi_dirty_limit(struct bac
+ 	return bdi_dirty;
+ }
  
--	if (background >= dirty)
--		background = dirty / 2;
-+	/*
-+	 * Ensure at least 1/4 gap between background and dirty thresholds, so
-+	 * that when dirty throttling starts at (background + dirty)/2, it's
-+	 * below or at the entrance of the soft dirty throttle scope.
-+	 */
-+	if (background > dirty - dirty / DIRTY_FULL_SCOPE)
-+		background = dirty - dirty / DIRTY_FULL_SCOPE;
++static void bdi_update_dirty_smooth(struct backing_dev_info *bdi,
++				    unsigned long dirty)
++{
++	unsigned long avg = bdi->avg_dirty;
++	unsigned long old = bdi->old_dirty;
 +
- 	tsk = current;
- 	if (tsk->flags & PF_LESS_THROTTLE || rt_task(tsk)) {
- 		background += background / 4;
++	if (unlikely(!avg)) {
++		avg = dirty;
++		goto update;
++	}
++
++	/*
++	 * dirty pages are departing upwards, follow up
++	 */
++	if (avg < old && old <= dirty) {
++		avg += (old - avg) >> 2;
++		goto update;
++	}
++
++	/*
++	 * dirty pages are departing downwards, follow down
++	 */
++	if (avg > old && old >= dirty) {
++		avg -= (avg - old) >> 2;
++		goto update;
++	}
++
++	/*
++	 * This can filter out one half unnecessary updates when bdi_dirty is
++	 * fluctuating around the balance point, and is most effective on XFS,
++	 * whose pattern is
++	 *                                                             .
++	 *	[.] dirty	[-] avg                       .       .
++	 *                                                   .       .
++	 *              .         .         .         .     .       .
++	 *      ---------------------------------------    .       .
++	 *            .         .         .         .     .       .
++	 *           .         .         .         .     .       .
++	 *          .         .         .         .     .       .
++	 *         .         .         .         .     .       .
++	 *        .         .         .         .
++	 *       .         .         .         .      (fluctuated)
++	 *      .         .         .         .
++	 *     .         .         .         .
++	 *
++	 * @avg will remain flat at the cost of being biased towards high. In
++	 * practice the error tend to be much smaller: thanks to more coarse
++	 * grained fluctuations, @avg becomes the real average number for the
++	 * last two rising lines of @dirty.
++	 */
++	goto out;
++
++update:
++	bdi->avg_dirty = avg;
++out:
++	bdi->old_dirty = dirty;
++}
++
+ static void __bdi_update_write_bandwidth(struct backing_dev_info *bdi,
+ 					 unsigned long elapsed,
+ 					 unsigned long written)
+@@ -535,6 +593,14 @@ void bdi_update_bandwidth(struct backing
+ 	if (elapsed <= HZ / 5)
+ 		goto unlock;
+ 
++	if (thresh &&
++	    now - default_backing_dev_info.bw_time_stamp >= HZ / 5) {
++		bdi_update_dirty_smooth(&default_backing_dev_info, dirty);
++		default_backing_dev_info.bw_time_stamp = now;
++	}
++	if (thresh) {
++		bdi_update_dirty_smooth(bdi, bdi_dirty);
++	}
+ 	__bdi_update_write_bandwidth(bdi, elapsed, written);
+ 
+ snapshot:
+--- linux-next.orig/include/linux/backing-dev.h	2011-04-13 17:18:12.000000000 +0800
++++ linux-next/include/linux/backing-dev.h	2011-04-13 17:18:12.000000000 +0800
+@@ -77,6 +77,8 @@ struct backing_dev_info {
+ 	unsigned long written_stamp;
+ 	unsigned long write_bandwidth;
+ 	unsigned long avg_write_bandwidth;
++	unsigned long avg_dirty;
++	unsigned long old_dirty;
+ 
+ 	struct prop_local_percpu completions;
+ 	int dirty_exceeded;
+--- linux-next.orig/mm/backing-dev.c	2011-04-13 17:18:12.000000000 +0800
++++ linux-next/mm/backing-dev.c	2011-04-13 17:18:12.000000000 +0800
+@@ -669,6 +669,9 @@ int bdi_init(struct backing_dev_info *bd
+ 	bdi->write_bandwidth = INIT_BW;
+ 	bdi->avg_write_bandwidth = INIT_BW;
+ 
++	bdi->avg_dirty = 0;
++	bdi->old_dirty = 0;
++
+ 	err = prop_local_init_percpu(&bdi->completions);
+ 
+ 	if (err) {
 
 
 --
