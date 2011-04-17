@@ -1,73 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id D1EBE900086
-	for <linux-mm@kvack.org>; Sat, 16 Apr 2011 20:04:01 -0400 (EDT)
-Received: from wpaz33.hot.corp.google.com (wpaz33.hot.corp.google.com [172.24.198.97])
-	by smtp-out.google.com with ESMTP id p3H03ucx023850
-	for <linux-mm@kvack.org>; Sat, 16 Apr 2011 17:03:57 -0700
-Received: from pwj8 (pwj8.prod.google.com [10.241.219.72])
-	by wpaz33.hot.corp.google.com with ESMTP id p3H03twE015108
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Sat, 16 Apr 2011 17:03:55 -0700
-Received: by pwj8 with SMTP id 8so2160020pwj.13
-        for <linux-mm@kvack.org>; Sat, 16 Apr 2011 17:03:54 -0700 (PDT)
-Date: Sat, 16 Apr 2011 17:03:53 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 2/2] print vmalloc() state after allocation failures
-In-Reply-To: <1302889441.16562.3525.camel@nimitz>
-Message-ID: <alpine.DEB.2.00.1104161702300.14788@chino.kir.corp.google.com>
-References: <20110415170437.17E1AF36@kernel> <20110415170438.D5C317D5@kernel>  <op.vtzo4ejf3l0zgt@mnazarewicz-glaptop> <1302889441.16562.3525.camel@nimitz>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id E00B1900086
+	for <linux-mm@kvack.org>; Sat, 16 Apr 2011 21:45:10 -0400 (EDT)
+Date: Sun, 17 Apr 2011 09:44:30 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 00/12] IO-less dirty throttling v7
+Message-ID: <20110417014430.GA9419@localhost>
+References: <20110416132546.765212221@intel.com>
+ <BANLkTimY3t6Kc-+=00k3QR+AK2uqJpph4g@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: multipart/mixed; boundary="NzB8fVQJ5HfG6fxh"
+Content-Disposition: inline
+In-Reply-To: <BANLkTimY3t6Kc-+=00k3QR+AK2uqJpph4g@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: Michal Nazarewicz <mina86@mina86.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>
+To: "sedat.dilek@gmail.com" <sedat.dilek@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Trond Myklebust <Trond.Myklebust@netapp.com>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, 15 Apr 2011, Dave Hansen wrote:
 
-> diff -puN mm/vmalloc.c~vmalloc-warn mm/vmalloc.c
-> --- linux-2.6.git/mm/vmalloc.c~vmalloc-warn	2011-04-15 10:39:05.928793559 -0700
-> +++ linux-2.6.git-dave/mm/vmalloc.c	2011-04-15 10:39:18.716789177 -0700
-> @@ -1534,6 +1534,7 @@ static void *__vmalloc_node(unsigned lon
->  static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
->  				 pgprot_t prot, int node, void *caller)
->  {
-> +	const int order = 0;
->  	struct page **pages;
->  	unsigned int nr_pages, array_size, i;
->  	gfp_t nested_gfp = (gfp_mask & GFP_RECLAIM_MASK) | __GFP_ZERO;
-> @@ -1560,11 +1561,12 @@ static void *__vmalloc_area_node(struct 
->  
->  	for (i = 0; i < area->nr_pages; i++) {
->  		struct page *page;
-> +		gfp_t tmp_mask = gfp_mask | __GFP_NOWARN;
->  
->  		if (node < 0)
-> -			page = alloc_page(gfp_mask);
-> +			page = alloc_page(tmp_mask);
->  		else
-> -			page = alloc_pages_node(node, gfp_mask, 0);
-> +			page = alloc_pages_node(node, tmp_mask, order);
->  
->  		if (unlikely(!page)) {
->  			/* Successfully allocated i pages, free them in __vunmap() */
-> @@ -1579,6 +1581,9 @@ static void *__vmalloc_area_node(struct 
->  	return area->addr;
->  
->  fail:
-> +	warn_alloc_failed(gfp_mask, order, "vmalloc: allocation failure, "
-> +			  "allocated %ld of %ld bytes\n",
-> +			  (area->nr_pages*PAGE_SIZE), area->size);
->  	vfree(area->addr);
->  	return NULL;
->  }
+--NzB8fVQJ5HfG6fxh
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 
-Sorry, I still don't understand why this isn't just a three-liner patch to 
-call warn_alloc_failed().  I don't see the benefit of the "order" or 
-"tmp_mask" variables at all, they'll just be removed next time someone 
-goes down the mm/* directory and looks for variables that are used only 
-once or are unchanged as a cleanup.
+Hi Sedat,
+
+On Sun, Apr 17, 2011 at 12:27:58AM +0800, Sedat Dilek wrote:
+
+> I pulled your tree into linux-next (next-20110415) on an i386 Debian host.
+> 
+> My build breaks here:
+> ...
+>   MODPOST vmlinux.o
+>   GEN     .version
+>   CHK     include/generated/compile.h
+>   UPD     include/generated/compile.h
+>   CC      init/version.o
+>   LD      init/built-in.o
+>   LD      .tmp_vmlinux1
+> mm/built-in.o: In function `bdi_position_ratio':
+> page-writeback.c:(.text+0x5c83): undefined reference to `__udivdi3'
+
+Yes it can be fixed by the attached patch.
+
+> mm/built-in.o: In function `calc_period_shift.part.10':
+> page-writeback.c:(.text+0x6446): undefined reference to `____ilog2_NaN'
+
+I cannot reproduce this error. In the git tree, calc_period_shift() is
+actually quite simple:
+
+static int calc_period_shift(void)                
+{                                                 
+        return 2 + ilog2(default_backing_dev_info.avg_write_bandwidth);
+}
+
+where avg_write_bandwidth is of type "unsigned long".
+
+> make[4]: *** [.tmp_vmlinux1] Error
+> 
+> BTW, which kernel-config options have to be set besides
+> CONFIG_BLK_DEV_THROTTLING=y?
+
+No. I used your kconfig on 2.6.39-rc3 and it compiles OK for i386.
+
+I've pushed two patches into the git tree fixing the compile errors.
+Thank you for trying it out and report!
+
+Thanks,
+Fengguang
+
+--NzB8fVQJ5HfG6fxh
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: attachment; filename=bdi_position_ratio-__udivdi3-fix
+
+Subject: writeback: i386 compile fix
+Date: Sun Apr 17 09:04:44 CST 2011
+
+
+mm/built-in.o: In function `bdi_position_ratio':
+page-writeback.c:(.text+0x5c83): undefined reference to `__udivdi3'
+mm/built-in.o: In function `calc_period_shift.part.10':
+page-writeback.c:(.text+0x6446): undefined reference to `____ilog2_NaN'
+make[4]: *** [.tmp_vmlinux1] Error
+
+Reported-by: Sedat Dilek <sedat.dilek@googlemail.com>
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+---
+ mm/page-writeback.c |    7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
+
+--- linux-next.orig/mm/page-writeback.c	2011-04-17 09:02:32.000000000 +0800
++++ linux-next/mm/page-writeback.c	2011-04-17 09:03:58.000000000 +0800
+@@ -634,9 +634,10 @@ static unsigned long bdi_position_ratio(
+ 	origin = bdi->avg_write_bandwidth + 2 * MIN_WRITEBACK_PAGES;
+ 	origin = min(origin, thresh - thresh / DIRTY_FULL_SCOPE);
+ 	if (bdi_dirty < origin) {
+-		if (bdi_dirty > origin / 4)
+-			bw = bw * origin / bdi_dirty;
+-		else
++		if (bdi_dirty > origin / 4) {
++			bw *= origin;
++			do_div(bw, bdi_dirty);
++		} else
+ 			bw = bw * 4;
+ 	}
+ 
+
+--NzB8fVQJ5HfG6fxh--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
