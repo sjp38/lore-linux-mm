@@ -1,199 +1,165 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 9EFD1900086
-	for <linux-mm@kvack.org>; Sat, 16 Apr 2011 19:48:57 -0400 (EDT)
-Received: from hpaq2.eem.corp.google.com (hpaq2.eem.corp.google.com [172.25.149.2])
-	by smtp-out.google.com with ESMTP id p3GNmqse008202
-	for <linux-mm@kvack.org>; Sat, 16 Apr 2011 16:48:55 -0700
-Received: from pwi10 (pwi10.prod.google.com [10.241.219.10])
-	by hpaq2.eem.corp.google.com with ESMTP id p3GNmnCp006614
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id E07E9900086
+	for <linux-mm@kvack.org>; Sat, 16 Apr 2011 20:02:26 -0400 (EDT)
+Received: from wpaz5.hot.corp.google.com (wpaz5.hot.corp.google.com [172.24.198.69])
+	by smtp-out.google.com with ESMTP id p3H02ORo028091
+	for <linux-mm@kvack.org>; Sat, 16 Apr 2011 17:02:24 -0700
+Received: from pvc30 (pvc30.prod.google.com [10.241.209.158])
+	by wpaz5.hot.corp.google.com with ESMTP id p3H02Nkb000368
 	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Sat, 16 Apr 2011 16:48:51 -0700
-Received: by pwi10 with SMTP id 10so1851424pwi.28
-        for <linux-mm@kvack.org>; Sat, 16 Apr 2011 16:48:49 -0700 (PDT)
-Date: Sat, 16 Apr 2011 16:48:47 -0700 (PDT)
+	for <linux-mm@kvack.org>; Sat, 16 Apr 2011 17:02:23 -0700
+Received: by pvc30 with SMTP id 30so1910049pvc.20
+        for <linux-mm@kvack.org>; Sat, 16 Apr 2011 17:02:22 -0700 (PDT)
+Date: Sat, 16 Apr 2011 17:02:21 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] mm: make read-only accessors take const parameters
-In-Reply-To: <1302861377-8048-2-git-send-email-ext-phil.2.carmody@nokia.com>
-Message-ID: <alpine.DEB.2.00.1104161609380.827@chino.kir.corp.google.com>
-References: <1302861377-8048-1-git-send-email-ext-phil.2.carmody@nokia.com> <1302861377-8048-2-git-send-email-ext-phil.2.carmody@nokia.com>
+Subject: Re: [PATCH 1/2] break out page allocation warning code
+In-Reply-To: <20110415170437.17E1AF36@kernel>
+Message-ID: <alpine.DEB.2.00.1104161653220.14788@chino.kir.corp.google.com>
+References: <20110415170437.17E1AF36@kernel>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Phil Carmody <ext-phil.2.carmody@nokia.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Nazarewicz <mina86@mina86.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Fri, 15 Apr 2011, Phil Carmody wrote:
+On Fri, 15 Apr 2011, Dave Hansen wrote:
 
-> Pulling out bits from flags and atomic_read() do not modify
-> anything, nor do we want to modify anything. We can extend that
-> insight to clients. This makes static code analysis easier.
 > 
-> I'm not happy with the _ro bloat, but at least it doesn't change
-> the size of the generated code. An alternative would be a type-
-> less macro.
+> This originally started as a simple patch to give vmalloc()
+> some more verbose output on failure on top of the plain
+> page allocator messages.  Johannes suggested that it might
+> be nicer to lead with the vmalloc() info _before_ the page
+> allocator messages.
 > 
-
-The only advantage I can see by doing this is that functions calling these 
-helpers can mark their struct page * formals or automatic variables with 
-const as well.
-
-That's only worthwhile if you have actual usecases where these newly-
-converted helpers generate more efficient code as a result of being able 
-to be marked const themselves.  If that's the case, then they should 
-be proposed as an individual patch with both the caller and the helper 
-being marked const at the same time.
-
-It doesn't really matter that these helpers are all inline since the 
-qualifiers will still be enforced at compile time.
-
-> Also cleaned up some unnecessary (brackets).
+> But, I do think there's a lot of value in what
+> __alloc_pages_slowpath() does with its filtering and so
+> forth.
 > 
-
-These cleanups can be pushed through the trivial tree if you're 
-interested, email Jiri Kosina <trivial@kernel.org>.
-
-> Signed-off-by: Phil Carmody <ext-phil.2.carmody@nokia.com>
+> This patch creates a new function which other allocators
+> can call instead of relying on the internal page allocator
+> warnings.  It also gives this function private rate-limiting
+> which separates it from other printk_ratelimit() users.
+> 
+> Signed-off-by: Dave Hansen <dave@linux.vnet.ibm.com>
 > ---
->  include/linux/mm.h         |   27 +++++++++++++++++----------
->  include/linux/page-flags.h |    8 ++++----
->  2 files changed, 21 insertions(+), 14 deletions(-)
 > 
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index 692dbae..7134563 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -353,9 +353,16 @@ static inline struct page *compound_head(struct page *page)
->  	return page;
+>  linux-2.6.git-dave/include/linux/mm.h |    2 +
+>  linux-2.6.git-dave/mm/page_alloc.c    |   63 ++++++++++++++++++++++------------
+>  2 files changed, 44 insertions(+), 21 deletions(-)
+> 
+> diff -puN include/linux/mm.h~break-out-alloc-failure-messages include/linux/mm.h
+> --- linux-2.6.git/include/linux/mm.h~break-out-alloc-failure-messages	2011-04-15 08:44:06.911445625 -0700
+> +++ linux-2.6.git-dave/include/linux/mm.h	2011-04-15 08:45:10.087416551 -0700
+> @@ -1365,6 +1365,8 @@ extern void si_meminfo(struct sysinfo * 
+>  extern void si_meminfo_node(struct sysinfo *val, int nid);
+>  extern int after_bootmem;
+>  
+> +extern void warn_alloc_failed(gfp_t gfp_mask, int order, const char *fmt, ...);
+> +
+>  extern void setup_per_cpu_pageset(void);
+>  
+>  extern void zone_pcp_update(struct zone *zone);
+> diff -puN mm/page_alloc.c~break-out-alloc-failure-messages mm/page_alloc.c
+> --- linux-2.6.git/mm/page_alloc.c~break-out-alloc-failure-messages	2011-04-15 08:44:06.915445623 -0700
+> +++ linux-2.6.git-dave/mm/page_alloc.c	2011-04-15 08:48:34.255321834 -0700
+> @@ -54,6 +54,7 @@
+>  #include <trace/events/kmem.h>
+>  #include <linux/ftrace_event.h>
+>  #include <linux/memcontrol.h>
+> +#include <linux/ratelimit.h>
+>  
+>  #include <asm/tlbflush.h>
+>  #include <asm/div64.h>
+> @@ -1734,6 +1735,46 @@ static inline bool should_suppress_show_
+>  	return ret;
 >  }
 >  
-> -static inline int page_count(struct page *page)
-> +static inline const struct page *compound_head_ro(const struct page *page)
->  {
-> -	return atomic_read(&compound_head(page)->_count);
-> +	if (unlikely(PageTail(page)))
-> +		return page->first_page;
-> +	return page;
+> +static DEFINE_RATELIMIT_STATE(nopage_rs,
+> +		DEFAULT_RATELIMIT_INTERVAL,
+> +		DEFAULT_RATELIMIT_BURST);
+> +
+> +void warn_alloc_failed(gfp_t gfp_mask, int order, const char *fmt, ...)
+> +{
+> +	va_list args;
+> +	unsigned int filter = SHOW_MEM_FILTER_NODES;
+> +	const gfp_t wait = gfp_mask & __GFP_WAIT;
+> +
+
+"wait" is unnecessary.  You didn't do "const gfp_t nowarn = gfp_mask & 
+__GFP_NOWARN;" for the same reason.
+
+> +	if ((gfp_mask & __GFP_NOWARN) || !__ratelimit(&nopage_rs))
+> +		return;
+> +
+> +	/*
+> +	 * This documents exceptions given to allocations in certain
+> +	 * contexts that are allowed to allocate outside current's set
+> +	 * of allowed nodes.
+> +	 */
+> +	if (!(gfp_mask & __GFP_NOMEMALLOC))
+> +		if (test_thread_flag(TIF_MEMDIE) ||
+> +		    (current->flags & (PF_MEMALLOC | PF_EXITING)))
+> +			filter &= ~SHOW_MEM_FILTER_NODES;
+> +	if (in_interrupt() || !wait)
+> +		filter &= ~SHOW_MEM_FILTER_NODES;
+> +
+> +	if (fmt) {
+> +		printk(KERN_WARNING);
+> +		va_start(args, fmt);
+> +		vprintk(fmt, args);
+> +		va_end(args);
+> +	}
+> +
+> +	printk(KERN_WARNING "%s: page allocation failure: order:%d, mode:0x%x\n",
+> +			current->comm, order, gfp_mask);
+
+pr_warning()?
+
+current->comm should always be printed with get_task_comm() to avoid 
+racing with /proc/pid/comm.  Since this function can be called potentially 
+deep in the stack, you may need to serialize this with a 
+statically-allocated buffer.
+
+> +
+> +	dump_stack();
+> +	if (!should_suppress_show_mem())
+> +		show_mem(filter);
 > +}
 > +
-> +static inline int page_count(const struct page *page)
-> +{
-> +	return atomic_read(&compound_head_ro(page)->_count);
->  }
+>  static inline int
+>  should_alloc_retry(gfp_t gfp_mask, unsigned int order,
+>  				unsigned long pages_reclaimed)
+> @@ -2176,27 +2217,7 @@ rebalance:
+>  	}
 >  
->  static inline void get_page(struct page *page)
-
-Adding this excess code, however, is unnecessary since no caller of 
-page_count() is optimized to use a const struct page * itself; if such an 
-optimization actually exists, then it would need to be demonstrated with 
-data before we'd want to add this extra function.
-
-If you'd like to propose a patch for the remainder of the 
-"struct page *" -> "const struct page *" changes in this email, then 
-there's no downside and could potentially be useful in the future for 
-callers, so you can add my
-
-	Acked-by: David Rientjes <rientjes@google.com>
-
-to such a patch.
-
- [ Please separate out the trivial changes by removing the brackets, 
-   though, and submit them to Jiri instead. ]
-
-> @@ -638,7 +645,7 @@ static inline pte_t maybe_mkwrite(pte_t pte, struct vm_area_struct *vma)
->  #define SECTIONS_MASK		((1UL << SECTIONS_WIDTH) - 1)
->  #define ZONEID_MASK		((1UL << ZONEID_SHIFT) - 1)
->  
-> -static inline enum zone_type page_zonenum(struct page *page)
-> +static inline enum zone_type page_zonenum(const struct page *page)
->  {
->  	return (page->flags >> ZONES_PGSHIFT) & ZONES_MASK;
->  }
-> @@ -651,7 +658,7 @@ static inline enum zone_type page_zonenum(struct page *page)
->   * We guarantee only that it will return the same value for two
->   * combinable pages in a zone.
->   */
-> -static inline int page_zone_id(struct page *page)
-> +static inline int page_zone_id(const struct page *page)
->  {
->  	return (page->flags >> ZONEID_PGSHIFT) & ZONEID_MASK;
->  }
-> @@ -786,7 +793,7 @@ static inline void *page_rmapping(struct page *page)
->  	return (void *)((unsigned long)page->mapping & ~PAGE_MAPPING_FLAGS);
->  }
->  
-> -static inline int PageAnon(struct page *page)
-> +static inline int PageAnon(const struct page *page)
->  {
->  	return ((unsigned long)page->mapping & PAGE_MAPPING_ANON) != 0;
->  }
-> @@ -809,20 +816,20 @@ static inline pgoff_t page_index(struct page *page)
->   */
->  static inline void reset_page_mapcount(struct page *page)
->  {
-> -	atomic_set(&(page)->_mapcount, -1);
-> +	atomic_set(&page->_mapcount, -1);
->  }
->  
-> -static inline int page_mapcount(struct page *page)
-> +static inline int page_mapcount(const struct page *page)
->  {
-> -	return atomic_read(&(page)->_mapcount) + 1;
-> +	return atomic_read(&page->_mapcount) + 1;
->  }
->  
->  /*
->   * Return true if this page is mapped into pagetables.
->   */
-> -static inline int page_mapped(struct page *page)
-> +static inline int page_mapped(const struct page *page)
->  {
-> -	return atomic_read(&(page)->_mapcount) >= 0;
-> +	return atomic_read(&page->_mapcount) >= 0;
->  }
->  
->  /*
-> diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-> index 811183d..7f8e553 100644
-> --- a/include/linux/page-flags.h
-> +++ b/include/linux/page-flags.h
-> @@ -135,7 +135,7 @@ enum pageflags {
->   * Macros to create function definitions for page flags
->   */
->  #define TESTPAGEFLAG(uname, lname)					\
-> -static inline int Page##uname(struct page *page) 			\
-> +static inline int Page##uname(const struct page *page)			\
->  			{ return test_bit(PG_##lname, &page->flags); }
->  
->  #define SETPAGEFLAG(uname, lname)					\
-> @@ -173,7 +173,7 @@ static inline int __TestClearPage##uname(struct page *page)		\
->  	__SETPAGEFLAG(uname, lname)  __CLEARPAGEFLAG(uname, lname)
->  
->  #define PAGEFLAG_FALSE(uname) 						\
-> -static inline int Page##uname(struct page *page) 			\
-> +static inline int Page##uname(const struct page *page)			\
->  			{ return 0; }
->  
->  #define TESTSCFLAG(uname, lname)					\
-> @@ -345,7 +345,7 @@ static inline void set_page_writeback(struct page *page)
->  __PAGEFLAG(Head, head) CLEARPAGEFLAG(Head, head)
->  __PAGEFLAG(Tail, tail)
->  
-> -static inline int PageCompound(struct page *page)
-> +static inline int PageCompound(const struct page *page)
->  {
->  	return page->flags & ((1L << PG_head) | (1L << PG_tail));
->  
-> @@ -379,7 +379,7 @@ __PAGEFLAG(Head, compound)
->   */
->  #define PG_head_tail_mask ((1L << PG_compound) | (1L << PG_reclaim))
->  
-> -static inline int PageTail(struct page *page)
-> +static inline int PageTail(const struct page *page)
->  {
->  	return ((page->flags & PG_head_tail_mask) == PG_head_tail_mask);
->  }
+>  nopage:
+> -	if (!(gfp_mask & __GFP_NOWARN) && printk_ratelimit()) {
+> -		unsigned int filter = SHOW_MEM_FILTER_NODES;
+> -
+> -		/*
+> -		 * This documents exceptions given to allocations in certain
+> -		 * contexts that are allowed to allocate outside current's set
+> -		 * of allowed nodes.
+> -		 */
+> -		if (!(gfp_mask & __GFP_NOMEMALLOC))
+> -			if (test_thread_flag(TIF_MEMDIE) ||
+> -			    (current->flags & (PF_MEMALLOC | PF_EXITING)))
+> -				filter &= ~SHOW_MEM_FILTER_NODES;
+> -		if (in_interrupt() || !wait)
+> -			filter &= ~SHOW_MEM_FILTER_NODES;
+> -
+> -		pr_warning("%s: page allocation failure. order:%d, mode:0x%x\n",
+> -			current->comm, order, gfp_mask);
+> -		dump_stack();
+> -		if (!should_suppress_show_mem())
+> -			show_mem(filter);
+> -	}
+> +	warn_alloc_failed(gfp_mask, order, NULL);
+>  	return page;
+>  got_pg:
+>  	if (kmemcheck_enabled)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
