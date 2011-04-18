@@ -1,63 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 77359900086
-	for <linux-mm@kvack.org>; Mon, 18 Apr 2011 10:08:10 -0400 (EDT)
-Date: Mon, 18 Apr 2011 15:08:04 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 12/12] mm: Throttle direct reclaimers if PF_MEMALLOC
- reserves are low and swap is backed by network storage
-Message-ID: <20110418140804.GC16908@suse.de>
-References: <1302777698-28237-1-git-send-email-mgorman@suse.de>
- <1302777698-28237-13-git-send-email-mgorman@suse.de>
- <20110418223251.7ab148bb@notabene.brown>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 86C8F900086
+	for <linux-mm@kvack.org>; Mon, 18 Apr 2011 10:15:18 -0400 (EDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20110418223251.7ab148bb@notabene.brown>
+Message-ID: <276f7410-ff4d-4a3b-ab9c-fd1b5fe8c952@default>
+Date: Mon, 18 Apr 2011 07:12:46 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [PATCH] xen: cleancache shim to Xen Transcendent Memory
+References: <20110414212002.GA27846@ca-server1.us.oracle.com>
+ <1302904935.22658.9.camel@localhost.localdomain>
+ <5d23c6c4-5d68-4c2e-af24-2a08f592cb8e@default
+ 1303116441.5997.107.camel@zakaz.uk.xensource.com>
+In-Reply-To: <1303116441.5997.107.camel@zakaz.uk.xensource.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: NeilBrown <neilb@suse.de>
-Cc: Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Ian Campbell <Ian.Campbell@eu.citrix.com>
+Cc: Chris Mason <chris.mason@oracle.com>, viro@zeniv.linux.org.uk, akpm@linux-foundation.org, adilger.kernel@dilger.ca, tytso@mit.edu, mfasheh@suse.com, jlbec@evilplan.org, matthew@wil.cx, linux-btrfs@vger.kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, ocfs2-devel@oss.oracle.com, linux-mm@kvack.org, hch@infradead.org, ngupta@vflare.org, jeremy@goop.org, JBeulich@novell.com, Kurt Hackel <kurt.hackel@oracle.com>, npiggin@kernel.dk, Dave Mccracken <dave.mccracken@oracle.com>, riel@redhat.com, avi@redhat.com, Konrad Wilk <konrad.wilk@oracle.com>, mel@csn.ul.ie, yinghan@google.com, gthelen@google.com, torvalds@linux-foundation.org
 
-On Mon, Apr 18, 2011 at 10:32:51PM +1000, NeilBrown wrote:
-> On Thu, 14 Apr 2011 11:41:38 +0100 Mel Gorman <mgorman@suse.de> wrote:
-> 
-> > If swap is backed by network storage such as NBD, there is a risk that a
-> > large number of reclaimers can hang the system by consuming all
-> > PF_MEMALLOC reserves. To avoid these hangs, the administrator must tune
-> > min_free_kbytes in advance. This patch will throttle direct reclaimers
-> > if half the PF_MEMALLOC reserves are in use as the system is at risk of
-> > hanging. A message will be displayed so the administrator knows that
-> > min_free_kbytes should be tuned to a higher value to avoid the
-> > throttling in the future.
-> > 
-> 
-> (I knew there was something else).
-> 
-> I understand that there are suggestions that direct reclaim should always be
-> serialised as this reduces lock contention and improve data patterns (or
-> something like that).
-> 
+> From: Ian Campbell [mailto:Ian.Campbell@eu.citrix.com]
+> > >
+> > > On Thu, 2011-04-14 at 14:20 -0700, Dan Magenheimer wrote:
+> > >
+> > > There's no need to build this into a kernel which doesn't have
+> > > cleancache (or one of the other frontends), is there? I think there
+> > > should be a Kconfig option (even if its not a user visible one)
+> with
+> > > the appropriate depends/selects.
+> >
+> > Yes, you're right.  It should eventually depend on
+> >
+> > CONFIG_CLEANCACHE || CONFIG_FRONTSWAP
+> >
+> > though there's no sense merging this xen cleancache
+> > shim at all unless/until Linus merges cleancache
+> > (and hopefully later some evolution of frontswap).
+>=20
+> Cleancache isn't in already? I thought I saw references to it in
+> drivers/staging?
 
-AFAIK, this suggestion never got much beyond the "hand-waving" stage
-of development. It tended to trip up on the fact that such a feature
-could also throttle processes on machines with plenty of free clean
-unmapped pagecache which would be undesirable.
+Linus said he would review it after 2.6.39-rc1 was released,
+but has neither given thumbs up nor thumbs down so I'm
+assuming he didn't have time and it will be reconsidered
+for 2.6.40.  This latest patchset (V8) is updated in linux-next.
 
-> Would that make this patch redundant? 
+Yes, zcache is in driver/staging and has references to it.
+I guess that proves the chicken comes before the egg...
+or was it vice versa? :-)
+=20
+> > And once cleancache (and/or frontswap) is merged,
+> > there's very little reason NOT to enable one or
+> > both on a Xen guest kernel.
+>=20
+> There are software knobs to allow the host- and guest-admin to opt in
+> or out as they desire though, right?
 
-Depends on how it was being serialised but ....
+Definitely.  Both Xen and a Linux guest have runtime
+options, which currently default to off.
 
-> Or does this provide some extra
-> guarantee that the other proposal would not?
-> 
-
-This patch could be extended to serialise direct reclaims in situations
-other than PFMEMALLOC is low if someone demonstrated the benefit.
-
--- 
-Mel Gorman
-SUSE Labs
+Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
