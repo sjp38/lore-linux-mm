@@ -1,58 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 5DE40900088
-	for <linux-mm@kvack.org>; Mon, 18 Apr 2011 08:21:14 -0400 (EDT)
-Subject: Re: [PATCH v3 2.6.39-rc1-tip 6/26]  6: Uprobes:
- register/unregister probes.
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <20110401143338.15455.98645.sendpatchset@localhost6.localdomain6>
-References: 
-	 <20110401143223.15455.19844.sendpatchset@localhost6.localdomain6>
-	 <20110401143338.15455.98645.sendpatchset@localhost6.localdomain6>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 3A41F900086
+	for <linux-mm@kvack.org>; Mon, 18 Apr 2011 08:29:28 -0400 (EDT)
+Subject: Re: [PATCH 1/1] Add check for dirty_writeback_interval in
+ bdi_wakeup_thread_delayed
+From: Artem Bityutskiy <Artem.Bityutskiy@nokia.com>
+Reply-To: Artem.Bityutskiy@nokia.com
+In-Reply-To: <20110418091609.GC5143@Xye>
+References: <20110417162308.GA1208@Xye> <1303111152.2815.29.camel@localhost>
+	 <20110418091609.GC5143@Xye>
 Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-Date: Mon, 18 Apr 2011 14:20:36 +0200
-Message-ID: <1303129236.32491.778.camel@twins>
+Date: Mon, 18 Apr 2011 15:26:29 +0300
+Message-ID: <1303129589.8589.5.camel@localhost>
 Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Christoph Hellwig <hch@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, SystemTap <systemtap@sources.redhat.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>
+To: Raghavendra D Prabhu <rprabhu@wnohang.net>
+Cc: linux-mm@kvack.org, Jens Axboe <jaxboe@fusionio.com>, Christoph Hellwig <hch@lst.de>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
 
-On Fri, 2011-04-01 at 20:03 +0530, Srikar Dronamraju wrote:
-> +static int remove_uprobe(struct mm_struct *mm, struct uprobe *uprobe)
-> +{
-> +       int ret =3D 0;
-> +
-> +       /*TODO: remove breakpoint */
-> +       if (!ret)
-> +               atomic_dec(&mm->uprobes_count);
-> +
-> +       return ret;
-> +}
+On Mon, 2011-04-18 at 14:46 +0530, Raghavendra D Prabhu wrote:
+> I have set it to 500 centisecs as that is the default value of
+> dirty_writeback_interval. I used this logic for following reason: the
+> purpose for which dirty_writeback_interval is set to 0 is to disable
+> periodic writeback
+> (http://tomoyo.sourceforge.jp/cgi-bin/lxr/source/fs/fs-writeback.c#L818)
+> , whereas here (in bdi_wakeup_thread_delayed) it is being used for a
+> different purpose -- to delay the bdi wakeup in order to reduce context
+> switches for  dirty inode writeback.
 
-> +static void delete_uprobe(struct mm_struct *mm, struct uprobe *uprobe)
-> +{
-> +       down_read(&mm->mmap_sem);
-> +       remove_uprobe(mm, uprobe);
-> +       list_del(&mm->uprobes_list);
-> +       up_read(&mm->mmap_sem);
-> +       mmput(mm);
-> +}
+But why it wakes up the bdi thread? Exactly to make sure the periodic
+write-back happen.
 
-> +static void erase_uprobe(struct uprobe *uprobe)
-> +{
-> +       unsigned long flags;
-> +
-> +       synchronize_sched();
-> +       spin_lock_irqsave(&treelock, flags);
-> +       rb_erase(&uprobe->rb_node, &uprobes_tree);
-> +       spin_unlock_irqrestore(&treelock, flags);
-> +       iput(uprobe->inode);
-> +}=20
-
-remove,delete,erase.. head spins.. ;-)
-
+-- 
+Best Regards,
+Artem Bityutskiy (D?N?N?N?D 1/4  D?D,N?N?N?DoD,D1)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
