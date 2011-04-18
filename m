@@ -1,78 +1,152 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id D0BE7900086
-	for <linux-mm@kvack.org>; Mon, 18 Apr 2011 17:22:59 -0400 (EDT)
-Received: from d01relay01.pok.ibm.com (d01relay01.pok.ibm.com [9.56.227.233])
-	by e9.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p3IKsnxa013642
-	for <linux-mm@kvack.org>; Mon, 18 Apr 2011 16:54:49 -0400
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p3ILMvDA409022
-	for <linux-mm@kvack.org>; Mon, 18 Apr 2011 17:22:57 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p3ILMvJt010497
-	for <linux-mm@kvack.org>; Mon, 18 Apr 2011 17:22:57 -0400
-Subject: Re: [PATCH 1/2] break out page allocation warning code
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <alpine.DEB.2.00.1104181321480.31186@chino.kir.corp.google.com>
-References: <20110415170437.17E1AF36@kernel>
-	 <alpine.DEB.2.00.1104161653220.14788@chino.kir.corp.google.com>
-	 <1303139455.9615.2533.camel@nimitz>
-	 <alpine.DEB.2.00.1104181321480.31186@chino.kir.corp.google.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Date: Mon, 18 Apr 2011 14:22:54 -0700
-Message-ID: <1303161774.9887.346.camel@nimitz>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id E4BB3900086
+	for <linux-mm@kvack.org>; Mon, 18 Apr 2011 17:29:19 -0400 (EDT)
+Date: Mon, 18 Apr 2011 23:29:16 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH incremental] cpusets: initialize spread rotor lazily
+Message-ID: <20110418212915.GA17376@tiehlicka.suse.cz>
+References: <20110414065146.GA19685@tiehlicka.suse.cz>
+ <20110414160145.0830.A69D9226@jp.fujitsu.com>
+ <20110415161831.12F8.A69D9226@jp.fujitsu.com>
+ <20110415082051.GB8828@tiehlicka.suse.cz>
+ <alpine.DEB.2.00.1104151639080.3967@chino.kir.corp.google.com>
+ <20110418084248.GB8925@tiehlicka.suse.cz>
+ <alpine.DEB.2.00.1104181316110.31186@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1104181316110.31186@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: David Rientjes <rientjes@google.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Nazarewicz <mina86@mina86.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, Jack Steiner <steiner@sgi.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Paul Menage <menage@google.com>, Robin Holt <holt@sgi.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org
 
-On Mon, 2011-04-18 at 13:25 -0700, David Rientjes wrote:
-> It shouldn't be a follow-on patch since you're introducing a new feature 
-> here (vmalloc allocation failure warnings) and what I'm identifying is a 
-> race in the access to current->comm.  A bug fix for a race should always 
-> preceed a feature that touches the same code. 
+On Mon 18-04-11 13:19:09, David Rientjes wrote:
+> On Mon, 18 Apr 2011, Michal Hocko wrote:
+[...]
+> > > Andrew could easily drop the earlier version and merge this v2, but I'm 
+> > > asking for selfish reasons:
+> > 
+> > Just out of curiosity. What is the reason? Don't want to wait for new mmotm?
+> > 
+> 
+> Because lazy initialization is another feature on top of the existing 
+> patch so it should be done incrementally instead of proposing an entirely 
+> new patch which is already mostly in -mm.
 
-So, what's the race here?  kmemleak.c says?
+ok, makes sense
 
-                /*
-                 * There is a small chance of a race with set_task_comm(),
-                 * however using get_task_comm() here may cause locking
-                 * dependency issues with current->alloc_lock. In the worst
-                 * case, the command line is not correct.
-                 */
-                strncpy(object->comm, current->comm, sizeof(object->comm));
+> > 
+> > [Here is the follow-up patch based on top of
+> > http://userweb.kernel.org/~akpm/mmotm/broken-out/cpusets-randomize-node-rotor-used-in-cpuset_mem_spread_node.patch]
+> > ---
+> > From: Michal Hocko <mhocko@suse.cz>
+> > Subject: cpusets: initialize spread mem/slab rotor lazily
+> > 
+[...]
+> > Also do not use -1 for unitialized nodes and rather use NUMA_NO_NODE
+> > instead.
+> > 
+> 
+> Don't need to refer to a previous version that used -1 since it will never 
+> be committed and nobody will know what you're talking about in the git 
+> log.
 
-We're trying to make sure we don't print out a partially updated
-tsk->comm?  Or, is there a bigger issue here like potential oopses or
-kernel information leaks.
+removed
 
-1. We require that no memory allocator ever holds the task lock for the
-   current task, and we audit all the existing GFP_ATOMIC users in the
-   kernel to ensure they're not doing it now.  In the case of a problem,
-   we end up with a hung kernel while trying to get a message out to the
-   console.
-2. We remove current->comm from the printk(), and deal with the
-   information loss.
-3. We live with corrupted output, like the other ~400 in-kernel users of
-   ->comm do. (I'm assuming that very few of them hold the task lock). 
-   In the case of a race, we get junk on the console, but an otherwise
-   fine bug report (the way it is now).
-4. We come up with some way to print out current->comm, without holding
-   any task locks.  We could do this by copying it somewhere safe on
-   each context switch.  Could probably also do it with RCU.
+[...]
+> >  int cpuset_mem_spread_node(void)
+> >  {
+> > +	if (current->cpuset_mem_spread_rotor == NUMA_NO_NODE)
+> > +		current->cpuset_mem_spread_rotor =
+> > +			node_random(&current->mems_allowed);
+> > +
+> >  	return cpuset_spread_node(&current->cpuset_mem_spread_rotor);
+> >  }
+> >  
+> >  int cpuset_slab_spread_node(void)
+> >  {
+> > +	if (current->cpuset_slab_spread_rotor == NUMA_NO_NODE)
+> > +		current->cpuset_slab_spread_rotor
+> > +			= node_random(&current->mems_allowed);
+> > +
+> 
+> So one function has the `=' on the line with the assignment (preferred) 
+> and the other has it on the new value?
 
-There's also a very, very odd message in fs/exec.c:
+fixed
 
-        /*
-         * Threads may access current->comm without holding
-         * the task lock, so write the string carefully.
-         * Readers without a lock may see incomplete new
-         * names but are safe from non-terminating string reads.
-         */
+Thanks! Updated patch bellow.
 
--- Dave
+Changes from v3:
+ - code style fix
+Changes from v2:
+ - use NUMA_NO_NODE rather than hardcoded -1
+ - make the patch incremental to the original one because that one is in
+   -mm tree already.
+Changes from v1:
+ - initialize cpuset_{mem,slab}_spread_rotor lazily}
+---
+From: Michal Hocko <mhocko@suse.cz>
+Subject: cpusets: initialize spread mem/slab rotor lazily
+
+Kosaki Motohiro raised a concern that copy_process is hot path and we do
+not want to initialize cpuset_{mem,slab}_spread_rotor if they are not
+used most of the time.
+
+I think that we should rather initialize it lazily when rotors are used
+for the first time.
+This will also catch the case when we set up spread mem/slab later.
+
+Signed-off-by: Michal Hocko <mhocko@suse.cz>
+Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Index: linus_tree/kernel/cpuset.c
+===================================================================
+--- linus_tree.orig/kernel/cpuset.c	2011-04-18 10:33:15.000000000 +0200
++++ linus_tree/kernel/cpuset.c	2011-04-18 23:24:02.000000000 +0200
+@@ -2460,11 +2460,19 @@ static int cpuset_spread_node(int *rotor
+ 
+ int cpuset_mem_spread_node(void)
+ {
++	if (current->cpuset_mem_spread_rotor == NUMA_NO_NODE)
++		current->cpuset_mem_spread_rotor =
++			node_random(&current->mems_allowed);
++
+ 	return cpuset_spread_node(&current->cpuset_mem_spread_rotor);
+ }
+ 
+ int cpuset_slab_spread_node(void)
+ {
++	if (current->cpuset_slab_spread_rotor == NUMA_NO_NODE)
++		current->cpuset_slab_spread_rotor =
++			node_random(&current->mems_allowed);
++
+ 	return cpuset_spread_node(&current->cpuset_slab_spread_rotor);
+ }
+ 
+Index: linus_tree/kernel/fork.c
+===================================================================
+--- linus_tree.orig/kernel/fork.c	2011-04-18 10:33:15.000000000 +0200
++++ linus_tree/kernel/fork.c	2011-04-18 10:33:56.000000000 +0200
+@@ -1126,8 +1126,8 @@ static struct task_struct *copy_process(
+ 	mpol_fix_fork_child_flag(p);
+ #endif
+ #ifdef CONFIG_CPUSETS
+-	p->cpuset_mem_spread_rotor = node_random(&p->mems_allowed);
+-	p->cpuset_slab_spread_rotor = node_random(&p->mems_allowed);
++	p->cpuset_mem_spread_rotor = NUMA_NO_NODE;
++	p->cpuset_slab_spread_rotor = NUMA_NO_NODE;
+ #endif
+ #ifdef CONFIG_TRACE_IRQFLAGS
+ 	p->irq_events = 0;
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
