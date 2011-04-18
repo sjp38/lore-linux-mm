@@ -1,7 +1,7 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id C492F900086
-	for <linux-mm@kvack.org>; Mon, 18 Apr 2011 12:22:28 -0400 (EDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 14B49900086
+	for <linux-mm@kvack.org>; Mon, 18 Apr 2011 12:30:10 -0400 (EDT)
 Subject: Re: [PATCH v3 2.6.39-rc1-tip 9/26]  9: uprobes: mmap and fork
  hooks.
 From: Peter Zijlstra <peterz@infradead.org>
@@ -11,8 +11,8 @@ References:
 	 <20110401143413.15455.75831.sendpatchset@localhost6.localdomain6>
 Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: quoted-printable
-Date: Mon, 18 Apr 2011 18:21:57 +0200
-Message-ID: <1303143717.32491.872.camel@twins>
+Date: Mon, 18 Apr 2011 18:29:23 +0200
+Message-ID: <1303144163.32491.875.camel@twins>
 Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
@@ -20,25 +20,19 @@ To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
 Cc: Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Christoph Hellwig <hch@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, SystemTap <systemtap@sources.redhat.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>
 
 On Fri, 2011-04-01 at 20:04 +0530, Srikar Dronamraju wrote:
-> +       if (vma) {
-> +               /*
-> +                * We get here from uprobe_mmap() -- the case where we
-> +                * are trying to copy an instruction from a page that's
-> +                * not yet in page cache.
-> +                *
-> +                * Read page in before copy.
-> +                */
-> +               struct file *filp =3D vma->vm_file;
-> +
-> +               if (!filp)
-> +                       return -EINVAL;
-> +               page_cache_sync_readahead(mapping, &filp->f_ra, filp, idx=
-, 1);
-> +       }
-> +       page =3D grab_cache_page(mapping, idx);=20
+> +               if (vaddr > ULONG_MAX)
+> +                       /*
+> +                        * We cannot have a virtual address that is
+> +                        * greater than ULONG_MAX
+> +                        */
+> +                       continue;=20
 
-So I don't see why that isn't so for the normal install_uprobe() <-
-register_uprobe() path.
+I'm having trouble with those checks.. while they're not wrong they're
+not correct either. Mostly the top address space is where the kernel
+lives and on 32-on-64 compat the boundary is much lower still. Ideally
+it'd be TASK_SIZE, but that doesn't work since it assumes you're testing
+for the current task.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
