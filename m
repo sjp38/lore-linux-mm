@@ -1,65 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 86C8F900086
-	for <linux-mm@kvack.org>; Mon, 18 Apr 2011 10:15:18 -0400 (EDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 3AB39900086
+	for <linux-mm@kvack.org>; Mon, 18 Apr 2011 10:38:07 -0400 (EDT)
+Date: Mon, 18 Apr 2011 09:38:03 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH] percpu: preemptless __per_cpu_counter_add
+In-Reply-To: <20110415235222.GA18694@mtj.dyndns.org>
+Message-ID: <alpine.DEB.2.00.1104180930580.23207@router.home>
+References: <alpine.DEB.2.00.1104130942500.16214@router.home> <alpine.DEB.2.00.1104131148070.20908@router.home> <20110413185618.GA3987@mtj.dyndns.org> <alpine.DEB.2.00.1104131521050.25812@router.home> <1302747263.3549.9.camel@edumazet-laptop>
+ <alpine.DEB.2.00.1104141608300.19533@router.home> <20110414211522.GE21397@mtj.dyndns.org> <alpine.DEB.2.00.1104151235350.8055@router.home> <20110415182734.GB15916@mtj.dyndns.org> <alpine.DEB.2.00.1104151440070.8055@router.home>
+ <20110415235222.GA18694@mtj.dyndns.org>
 MIME-Version: 1.0
-Message-ID: <276f7410-ff4d-4a3b-ab9c-fd1b5fe8c952@default>
-Date: Mon, 18 Apr 2011 07:12:46 -0700 (PDT)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [PATCH] xen: cleancache shim to Xen Transcendent Memory
-References: <20110414212002.GA27846@ca-server1.us.oracle.com>
- <1302904935.22658.9.camel@localhost.localdomain>
- <5d23c6c4-5d68-4c2e-af24-2a08f592cb8e@default
- 1303116441.5997.107.camel@zakaz.uk.xensource.com>
-In-Reply-To: <1303116441.5997.107.camel@zakaz.uk.xensource.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ian Campbell <Ian.Campbell@eu.citrix.com>
-Cc: Chris Mason <chris.mason@oracle.com>, viro@zeniv.linux.org.uk, akpm@linux-foundation.org, adilger.kernel@dilger.ca, tytso@mit.edu, mfasheh@suse.com, jlbec@evilplan.org, matthew@wil.cx, linux-btrfs@vger.kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, ocfs2-devel@oss.oracle.com, linux-mm@kvack.org, hch@infradead.org, ngupta@vflare.org, jeremy@goop.org, JBeulich@novell.com, Kurt Hackel <kurt.hackel@oracle.com>, npiggin@kernel.dk, Dave Mccracken <dave.mccracken@oracle.com>, riel@redhat.com, avi@redhat.com, Konrad Wilk <konrad.wilk@oracle.com>, mel@csn.ul.ie, yinghan@google.com, gthelen@google.com, torvalds@linux-foundation.org
+To: Tejun Heo <tj@kernel.org>
+Cc: Eric Dumazet <eric.dumazet@gmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org, shaohua.li@intel.com
 
-> From: Ian Campbell [mailto:Ian.Campbell@eu.citrix.com]
-> > >
-> > > On Thu, 2011-04-14 at 14:20 -0700, Dan Magenheimer wrote:
-> > >
-> > > There's no need to build this into a kernel which doesn't have
-> > > cleancache (or one of the other frontends), is there? I think there
-> > > should be a Kconfig option (even if its not a user visible one)
-> with
-> > > the appropriate depends/selects.
-> >
-> > Yes, you're right.  It should eventually depend on
-> >
-> > CONFIG_CLEANCACHE || CONFIG_FRONTSWAP
-> >
-> > though there's no sense merging this xen cleancache
-> > shim at all unless/until Linus merges cleancache
-> > (and hopefully later some evolution of frontswap).
->=20
-> Cleancache isn't in already? I thought I saw references to it in
-> drivers/staging?
+On Sat, 16 Apr 2011, Tejun Heo wrote:
 
-Linus said he would review it after 2.6.39-rc1 was released,
-but has neither given thumbs up nor thumbs down so I'm
-assuming he didn't have time and it will be reconsidered
-for 2.6.40.  This latest patchset (V8) is updated in linux-next.
+> Maybe, I don't know.  On x86, it shouldn't be a problem on both 32 and
+> 64bit.  Even on archs which lack local cmpxchg, preemption flips are
+> cheap anyway so yeah maybe.
 
-Yes, zcache is in driver/staging and has references to it.
-I guess that proves the chicken comes before the egg...
-or was it vice versa? :-)
-=20
-> > And once cleancache (and/or frontswap) is merged,
-> > there's very little reason NOT to enable one or
-> > both on a Xen guest kernel.
->=20
-> There are software knobs to allow the host- and guest-admin to opt in
-> or out as they desire though, right?
+Preemption flips are not cheap since enabling preemption may mean a call
+into the scheduler. On RT things get more expensive.
 
-Definitely.  Both Xen and a Linux guest have runtime
-options, which currently default to off.
+Preempt_enable means at least one additional branch. We are saving a
+branch by not using preempt.
 
-Dan
+> > The branches are not an issue since they are forward branches over one
+> > (after converting to an atomic operation) or two instructions each. A
+> > possible stall is only possible in case of the cmpxchg failing.
+>
+> It's slow path and IMHO it's needlessly complex.  I really don't care
+> whether the counter is reloaded once more or the task gets migrated to
+> another cpu before spin_lock() and ends up flushing local counter on a
+> cpu where it isn't strictly necessary.  Let's keep it simple.
+
+In order to make it simple I avoided an preempt enable/disable. With
+Shaohua's patches there will be a simple atomic_add within the last if
+cluase. I was able to consolidate multiple code paths into the cmpxchg
+loop with this approach.
+
+The one below avoids the #ifdef that is ugly...
+
+
+
+Subject: percpu: preemptless __per_cpu_counter_add V4
+
+Use this_cpu_cmpxchg to avoid preempt_disable/enable in __percpu_add.
+
+Signed-off-by: Christoph Lameter <cl@linux.com>
+
+---
+ lib/percpu_counter.c |   24 +++++++++++++++---------
+ 1 file changed, 15 insertions(+), 9 deletions(-)
+
+Index: linux-2.6/lib/percpu_counter.c
+===================================================================
+--- linux-2.6.orig/lib/percpu_counter.c	2011-04-15 15:34:23.000000000 -0500
++++ linux-2.6/lib/percpu_counter.c	2011-04-18 09:31:37.000000000 -0500
+@@ -71,19 +71,25 @@ EXPORT_SYMBOL(percpu_counter_set);
+
+ void __percpu_counter_add(struct percpu_counter *fbc, s64 amount, s32 batch)
+ {
+-	s64 count;
++	s64 count, new, overflow;
+
+-	preempt_disable();
+-	count = __this_cpu_read(*fbc->counters) + amount;
+-	if (count >= batch || count <= -batch) {
++	do {
++		count = this_cpu_read(*fbc->counters);
++
++		new = count + amount;
++		/* In case of overflow fold it into the global counter instead */
++		if (new >= batch || new <= -batch) {
++			overflow = new;
++			new = 0;
++		} else
++			overflow = 0;
++	} while (this_cpu_cmpxchg(*fbc->counters, count, new) != count);
++
++	if (unlikely(overflow)) {
+ 		spin_lock(&fbc->lock);
+-		fbc->count += count;
+-		__this_cpu_write(*fbc->counters, 0);
++		fbc->count += overflow;
+ 		spin_unlock(&fbc->lock);
+-	} else {
+-		__this_cpu_write(*fbc->counters, count);
+ 	}
+-	preempt_enable();
+ }
+ EXPORT_SYMBOL(__percpu_counter_add);
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
