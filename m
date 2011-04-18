@@ -1,81 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 930D3900086
-	for <linux-mm@kvack.org>; Mon, 18 Apr 2011 06:23:07 -0400 (EDT)
-Date: Mon, 18 Apr 2011 11:23:00 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH] mm: Check if PTE is already allocated during page fault
-Message-ID: <20110418102300.GA16908@suse.de>
-References: <20110415101248.GB22688@suse.de>
- <20110415143916.GN15707@random.random>
- <20110415150606.GP15707@random.random>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D426900086
+	for <linux-mm@kvack.org>; Mon, 18 Apr 2011 08:14:09 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 1AF743EE0B5
+	for <linux-mm@kvack.org>; Mon, 18 Apr 2011 21:14:06 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0144645DE50
+	for <linux-mm@kvack.org>; Mon, 18 Apr 2011 21:14:06 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id DCE4345DE4D
+	for <linux-mm@kvack.org>; Mon, 18 Apr 2011 21:14:05 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id CC9541DB803F
+	for <linux-mm@kvack.org>; Mon, 18 Apr 2011 21:14:05 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 96C111DB803B
+	for <linux-mm@kvack.org>; Mon, 18 Apr 2011 21:14:05 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: [PATCH 0/3] convert mm->cpu_vm_mask into cpumask_var_t
+Message-Id: <20110418211455.9359.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20110415150606.GP15707@random.random>
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Mon, 18 Apr 2011 21:14:04 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: akpm@linux-foundation.org, raz ben yehuda <raziebe@gmail.com>, riel@redhat.com, kosaki.motohiro@jp.fujitsu.com, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, stable@kernel.org
+To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>
+Cc: kosaki.motohiro@jp.fujitsu.com
 
-On Fri, Apr 15, 2011 at 05:06:06PM +0200, Andrea Arcangeli wrote:
-> On Fri, Apr 15, 2011 at 04:39:16PM +0200, Andrea Arcangeli wrote:
-> > On Fri, Apr 15, 2011 at 11:12:48AM +0100, Mel Gorman wrote:
-> > > diff --git a/mm/memory.c b/mm/memory.c
-> > > index 5823698..1659574 100644
-> > > --- a/mm/memory.c
-> > > +++ b/mm/memory.c
-> > > @@ -3322,7 +3322,7 @@ int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
-> > >  	 * run pte_offset_map on the pmd, if an huge pmd could
-> > >  	 * materialize from under us from a different thread.
-> > >  	 */
-> > > -	if (unlikely(__pte_alloc(mm, vma, pmd, address)))
-> > > +	if (unlikely(pmd_none(*pmd)) && __pte_alloc(mm, vma, pmd, address))
-> 
-> I started hacking on this and I noticed it'd be better to extend the
-> unlikely through the end. At first review I didn't notice the
-> parenthesis closure stops after pte_none and __pte_alloc is now
-> uncovered. I'd prefer this:
-> 
->     if (unlikely(pmd_none(*pmd) && __pte_alloc(mm, vma, pmd, address)))
-> 
+Recently, I and Hugh discussed about size of mm_struct. And then, I decided
+to spend some time to diet it.
 
-I had this at one point and then decided to match what we do for
-pte_alloc_map(). My reasoning was that the most important part of this
-check is pmd_none(). It's relatively unlikely we even call __pte_alloc
-which is why I didn't think it belonged in the unlikely block. I also
-preferred being consistent with pte_alloc_map.
+Unfortunately, We don't finished to convert cpumask_size() into full
+nr_cpu_ids-ism. then, We can't get full benefit of cpumask_var_t yet.
+However I expect it will be solved in this or next year.
 
-> I mean the real unlikely thing is that we return VM_FAULT_OOM, if we
-> end up calling __pte_alloc or not, depends on the app. Generally it
-> sounds more frequent that the pte is not none, so it's not wrong, but
-> it's even less likely that __pte_alloc fails so that can be taken into
-> account too, and __pte_alloc runs still quite frequently. So either
-> above or:
-> 
->     if (unlikely(pmd_none(*pmd)) && unlikely(__pte_alloc(mm, vma, pmd, address)))
-> 
 
-I'd prefer this than putting everything inside the same unlikely block.
-But if this makes a noticeable, why do we not do it for pte_alloc_map,
-pmd_alloc and other similar functions?
+KOSAKI Motohiro (3):
+  mn10300: replace mm->cpu_vm_mask with mm_cpumask
+  tile: replace mm->cpu_vm_mask with mm_cpumask()
+  mm: convert mm->cpu_vm_cpumask into cpumask_var_t
 
-> I generally prefer unlikely only when it's 100% sure thing it's less
-> likely (like the VM_FAULT_OOM), so the first version I guess it's
-> enough (I'm afraid unlikely for pte_none too, may make gcc generate a
-> far away jump possibly going out of l1 icache for a case that is only
-> 512 times less likely at best). My point is that it's certainly hugely
-> more unlikely that __pte_alloc fails than the pte is none.
-> 
-
-For the bug fix, it's best to match what pte_alloc_map, pmd_alloc,
-pud_alloc and others do in terms of how it uses unlikely. If what we are
-currently doing is sub-optimal, a single patch should change all the
-helpers.
+ Documentation/cachetlb.txt          |    2 +-
+ arch/mn10300/kernel/smp.c           |    2 +-
+ arch/mn10300/mm/tlb-smp.c           |    6 ++--
+ arch/tile/include/asm/mmu_context.h |    4 +-
+ arch/tile/kernel/tlb.c              |   12 +++++-----
+ include/linux/mm_types.h            |    9 +++++--
+ include/linux/sched.h               |    1 +
+ init/main.c                         |    2 +
+ kernel/fork.c                       |   37 ++++++++++++++++++++++++++++++++--
+ mm/init-mm.c                        |    1 -
+ 10 files changed, 56 insertions(+), 20 deletions(-)
 
 -- 
-Mel Gorman
-SUSE Labs
+1.7.3.1
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
