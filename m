@@ -1,72 +1,188 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 8DCDC900086
-	for <linux-mm@kvack.org>; Mon, 18 Apr 2011 01:01:43 -0400 (EDT)
-Received: by iwg8 with SMTP id 8so5406845iwg.14
-        for <linux-mm@kvack.org>; Sun, 17 Apr 2011 22:01:40 -0700 (PDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 1CB81900086
+	for <linux-mm@kvack.org>; Mon, 18 Apr 2011 01:32:14 -0400 (EDT)
+Received: by iwg8 with SMTP id 8so5426708iwg.14
+        for <linux-mm@kvack.org>; Sun, 17 Apr 2011 22:32:09 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1302909815-4362-10-git-send-email-yinghan@google.com>
-References: <1302909815-4362-1-git-send-email-yinghan@google.com>
-	<1302909815-4362-10-git-send-email-yinghan@google.com>
-Date: Mon, 18 Apr 2011 14:01:40 +0900
-Message-ID: <BANLkTik5g_+7KYVRM8tmpHzM55vjekk1EA@mail.gmail.com>
-Subject: Re: [PATCH V5 09/10] Add API to export per-memcg kswapd pid.
+In-Reply-To: <040a7fa3-14dd-4960-a296-cfdd061e015f@default>
+References: <83ef8b69-f041-43e6-a5a9-880ff3da26f2@default>
+	<871v135xvj.fsf@devron.myhome.or.jp>
+	<040a7fa3-14dd-4960-a296-cfdd061e015f@default>
+Date: Mon, 18 Apr 2011 14:32:08 +0900
+Message-ID: <BANLkTikDQ_PuYPJEZRX_24uUi1DYWbvpzQ@mail.gmail.com>
+Subject: Re: [PATCH V8 4/8] mm/fs: add hooks to support cleancache
 From: Minchan Kim <minchan.kim@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>, linux-mm@kvack.org
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>, Andrew Morton <akpm@linux-foundation.org>, Chris Mason <chris.mason@oracle.com>, viro@zeniv.linux.org.uk, adilger.kernel@dilger.ca, tytso@mit.edu, mfasheh@suse.com, jlbec@evilplan.org, matthew@wil.cx, linux-btrfs@vger.kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, ocfs2-devel@oss.oracle.com, linux-mm@kvack.org, hch@infradead.org, ngupta@vflare.org, jeremy@goop.org, JBeulich@novell.com, Kurt Hackel <kurt.hackel@oracle.com>, npiggin@kernel.dk, Dave Mccracken <dave.mccracken@oracle.com>, riel@redhat.com, avi@redhat.com, Konrad Wilk <konrad.wilk@oracle.com>, mel@csn.ul.ie, yinghan@google.com, gthelen@google.com, torvalds@linux-foundation.org
 
-On Sat, Apr 16, 2011 at 8:23 AM, Ying Han <yinghan@google.com> wrote:
-> This add the API which exports per-memcg kswapd thread pid. The kswapd
-> thread is named as "memcg_" + css_id, and the pid can be used to put
-> kswapd thread into cpu cgroup later.
+On Sat, Apr 16, 2011 at 3:53 AM, Dan Magenheimer
+<dan.magenheimer@oracle.com> wrote:
+>> From: OGAWA Hirofumi [mailto:hirofumi@mail.parknet.co.jp]
+>>
+>> Andrew Morton <akpm@linux-foundation.org> writes:
+>>
+>> >> > Before I suggested a thing about cleancache_flush_page,
+>> >> > cleancache_flush_inode.
+>> >> >
+>> >> > what's the meaning of flush's semantic?
+>> >> > I thought it means invalidation.
+>> >> > AFAIC, how about change flush with invalidate?
+>> >>
+>> >> I'm not sure the words "flush" and "invalidate" are defined
+>> >> precisely or used consistently everywhere in computer
+>> >> science, but I think that "invalidate" is to destroy
+>> >> a "pointer" to some data, but not necessarily destroy the
+>> >> data itself. =C2=A0 And "flush" means to actually remove
+>> >> the data. =C2=A0So one would "invalidate a mapping" but one
+>> >> would "flush a cache".
+>> >>
+>> >> Since cleancache_flush_page and cleancache_flush_inode
+>> >> semantically remove data from cleancache, I think flush
+>> >> is a better name than invalidate.
+>> >>
+>> >> Does that make sense?
+>> >
+>> > nope ;)
+>> >
+>> > Kernel code freely uses "flush" to refer to both invalidation and to
+>> > writeback, sometimes in confusing ways. =C2=A0In this case,
+>> > cleancache_flush_inode and cleancache_flush_page rather sound like
+>> they
+>> > might write those things to backing store.
+>>
+>> I'd like to mention about *_{get,put}_page too. In linux get/put is not
+>> meaning read/write. There is {get,put}_page those are refcount stuff
+>> (Yeah, and I felt those methods does refcount by quick read. But it
+>> seems to be false. There is no xen codes, so I don't know actually
+>> though.).
+>>
+>> And I agree, I also think the needing thing is consistency on the linux
+>> codes (term).
+>>
+>> Thanks.
+>> --
+>> OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>
 >
-> $ mkdir /dev/cgroup/memory/A
-> $ cat /dev/cgroup/memory/A/memory.kswapd_pid
-> memcg_null 0
+> Hmmm, yes, that's a point of confusion also. =C2=A0No, cleancache put/get
+> do not have any relationship with reference counting.
 >
-> $ echo 500m >/dev/cgroup/memory/A/memory.limit_in_bytes
-> $ echo 50m >/dev/cgroup/memory/A/memory.high_wmark_distance
-> $ ps -ef | grep memcg
-> root =C2=A0 =C2=A0 =C2=A06727 =C2=A0 =C2=A0 2 =C2=A00 14:32 ? =C2=A0 =C2=
-=A0 =C2=A0 =C2=A000:00:00 [memcg_3]
-> root =C2=A0 =C2=A0 =C2=A06729 =C2=A06044 =C2=A00 14:32 ttyS0 =C2=A0 =C2=
-=A000:00:00 grep memcg
+> Andrew, I wonder if you would be so kind as to read the following
+> and make a "ruling". =C2=A0If you determine a preferable set of names,
+> I will abide by your decision and repost (if necessary).
 >
-> $ cat memory.kswapd_pid
-> memcg_3 6727
+> The problem is this: The English language has a limited number
+> of words that can be used to represent data motion and mapping
+> and most/all of them are already used in the kernel, often,
+> to quote Andrew, "in confusing ways." =C2=A0Complicating this, I
+> think the semantics of the cleancache operations are different
+> from the semantics of any other kernel operation... intentionally
+> so, because the value of cleancache is a direct result of those
+> differing semantics. =C2=A0And the cleancache semantics
+> are fairly complex (again intentionally) so a single function
+> name can't possibly describe the semantics.
 >
-> changelog v5..v4
-> 1. Initialize the memcg-kswapd pid to -1 instead of 0.
-> 2. Remove the kswapds_spinlock.
+> The cleancache operations are:
+> - put (page)
+> - get (page)
+> - flush page
+> - flush inode
+> - init fs
+> - flush fs
 >
-> changelog v4..v3
-> 1. Add the API based on KAMAZAWA's request on patch v3.
+> I think these names are reasonable representations of the
+> semantics of the operations performed... but I'm not a kernel
+> expert so there is certainly room for disagreement. =C2=A0Though I
+> absolutely recognize the importance of a "name", I am primarily
+> interested in merging the semantics of the operations and
+> would happily accept any name that kernel developers could
+> agree on. =C2=A0However, I fear that there will be NO name that
+> will satisfy all, so would prefer to keep the existing names.
+> If some renaming is eventually agreed upon, this could be done
+> post-merge.
 >
-> Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Signed-off-by: Ying Han <yinghan@google.com>
-> ---
-> =C2=A0include/linux/swap.h | =C2=A0 =C2=A02 ++
-> =C2=A0mm/memcontrol.c =C2=A0 =C2=A0 =C2=A0| =C2=A0 31 +++++++++++++++++++=
-++++++++++++
-> =C2=A02 files changed, 33 insertions(+), 0 deletions(-)
+> Here's a brief description of the semantics:
 >
-> diff --git a/include/linux/swap.h b/include/linux/swap.h
-> index 319b800..2d3e21a 100644
-> --- a/include/linux/swap.h
-> +++ b/include/linux/swap.h
-> @@ -34,6 +34,8 @@ struct kswapd {
-> =C2=A0};
+> The cleancache operation currently known as "put" has the
+> following semantics: =C2=A0If *possible*, please take the data
+> contained in the pageframe referred to by this struct page
+> into cleancache and associate it with the filesystem-determined
+> "handle" derived from the struct page.
 >
-> =C2=A0int kswapd(void *p);
-> +extern spinlock_t kswapds_spinlock;
+> The cleancache operation currently known as "get" has the
+> following semantics: =C2=A0Derive the filesystem-determined handle
+> from this struct page. =C2=A0If cleancache contains a page matching
+> that handle, recreate the page of data from cleancache and
+> place the results in the pageframe referred to by the
+> struct page. =C2=A0Then delete in cleancache any record of the
+> handle and any data associated with it, so that a
+> subsequent "get" will no longer find a match for the handle;
+> any space used for the data can also be freed.
+>
+> (Note that "take the data" and "recreate the page of data" are
+> similar in semantics to "copy to" and "copy from", but since
+> the cleancache operation may perform an "inflight" transformation
+> on the data, and "copy" usually means a byte-for-byte replication,
+> the word "copy" is also misleading.)
+>
+> The cleancache operation currently known as "flush" has the
+> following semantics: =C2=A0Derive the filesystem-determined handle
+> from this struct page and struct mapping. =C2=A0If cleancache
+> contains a page matching that handle, delete in cleancache any
+> record of the handle and any data associated with it, so that a
+> subsequent "get" will no longer find a match for the handle;
+> any space used for the data can also be freed
+>
+> The cleancache operation currently known as "flush inode" has
+> the following semantics: Derive the filesystem-determined filekey
+> from this struct mapping. =C2=A0If cleancache contains ANY handles
+> matching that filekey, delete in cleancache any record of
+> any matching handle and any data associated with those handles;
+> any space used for the data can also be freed.
+>
+> The cleancache operation currently known as "init fs" has
+> the following semantics: Create a unique poolid to refer
+> to this filesystem and save it in the superblock's
+> cleancache_poolid field.
+>
+> The cleancache operation currently known as "flush fs" has
+> the following semantics: Get the cleancache_poolid field
+> from this superblock. =C2=A0If cleancache contains ANY handles
+> associated with that poolid, delete in cleancache any
+> record of any matching handles and any data associated with
+> those handles; any space used for the data can also be freed.
+> Also, set the superblock's cleancache_poolid to be invalid
+> and, in cleancache, recycle the poolid so a subsequent init_fs
+> operation can reuse it.
+>
+> That's all!
+>
+> Thanks,
+> Dan
+>
 
-Remove spinlock.
+At least, I didn't confused your semantics except just flush. That's
+why I suggested only flush but after seeing your explaining, there is
+another thing I want to change. The get/put is common semantic of
+reference counting in kernel but in POV your semantics, it makes sense
+to me but get has a exclusive semantic so I want to represent it with
+API name. Maybe cleancache_get_page_exclusive.
 
+The summary is that I don't want to change all API name. Just two thing.
+(I am not sure you and others agree on me. It's just suggestion).
 
+1. cleancache_flush_page -> cleancache_[invalidate|remove]_page
+2. cleancache_get_page -> cleancache_get_page_exclusive
+
+BTW, Nice description.
+Please include it in documentation if we can't reach the conclusion.
+It will help others to understand semantic of cleancache.
+
+Thanks, Dan.
 
 --=20
 Kind regards,
