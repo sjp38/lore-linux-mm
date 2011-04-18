@@ -1,82 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 1ADDA900086
-	for <linux-mm@kvack.org>; Mon, 18 Apr 2011 03:23:11 -0400 (EDT)
-Subject: Re: [PATCH 1/1] Add check for dirty_writeback_interval in
- bdi_wakeup_thread_delayed
-From: Artem Bityutskiy <Artem.Bityutskiy@nokia.com>
-Reply-To: Artem.Bityutskiy@nokia.com
-In-Reply-To: <20110417162308.GA1208@Xye>
-References: <20110417162308.GA1208@Xye>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D0BD900086
+	for <linux-mm@kvack.org>; Mon, 18 Apr 2011 03:27:35 -0400 (EDT)
+Received: by wyf19 with SMTP id 19so4972436wyf.14
+        for <linux-mm@kvack.org>; Mon, 18 Apr 2011 00:27:30 -0700 (PDT)
+Subject: Re: [PATCH] mm: Check if PTE is already allocated during page fault
+From: raz ben yehuda <raziebe@gmail.com>
+In-Reply-To: <20110415150606.GP15707@random.random>
+References: <20110415101248.GB22688@suse.de>
+	 <20110415143916.GN15707@random.random>
+	 <20110415150606.GP15707@random.random>
 Content-Type: text/plain; charset="UTF-8"
-Date: Mon, 18 Apr 2011 10:19:12 +0300
-Message-ID: <1303111152.2815.29.camel@localhost>
+Date: Mon, 18 Apr 2011 10:21:13 +0300
+Message-ID: <1303111273.3425.0.camel@raz.scalemp.com>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Raghavendra D Prabhu <rprabhu@wnohang.net>
-Cc: linux-mm@kvack.org, Jens Axboe <jaxboe@fusionio.com>, Christoph Hellwig <hch@lst.de>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Mel Gorman <mgorman@suse.de>, akpm@linux-foundation.org, riel@redhat.com, kosaki.motohiro@jp.fujitsu.com, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, stable@kernel.org, shai@scalex86.com
 
-On Sun, 2011-04-17 at 21:53 +0530, Raghavendra D Prabhu wrote:
-> In the function bdi_wakeup_thread_delayed, no checks are performed on
-> dirty_writeback_interval unlike other places and timeout is being set to
-> zero as result, thus defeating the purpose. So, I have changed it to be
-> passed default value of interval which is 500 centiseconds, when it is
-> set to zero.
-> I have also verified this and tested it.
+patch works great. thank you Andrea.
+
+
+On Fri, 2011-04-15 at 17:06 +0200, Andrea Arcangeli wrote:
+> On Fri, Apr 15, 2011 at 04:39:16PM +0200, Andrea Arcangeli wrote:
+> > On Fri, Apr 15, 2011 at 11:12:4A.M +0100, Mel Gorman wrote:
+> > > diff --git a/mm/memory.c b/mm/memory.c
+> > > index 5823698..1659574 100644
+> > > --- a/mm/memory.c
+> > > +++ b/mm/memory.c
+> > > @@ -3322,7 +3322,7 @@ int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+> > >  	 * run pte_offset_map on the pmd, if an huge pmd could
+> > >  	 * materialize from under us from a different thread.
+> > >  	 */
+> > > -	if (unlikely(__pte_alloc(mm, vma, pmd, address)))
+> > > +	if (unlikely(pmd_none(*pmd)) && __pte_alloc(mm, vma, pmd, address))
 > 
-> Signed-off-by: Raghavendra D Prabhu <rprabhu@wnohang.net>
-
-If  dirty_writeback_interval then the periodic write-back has to be
-disabled. Which means we should rather do something like this:
-
-diff --git a/mm/backing-dev.c b/mm/backing-dev.c
-index 0d9a036..f38722c 100644
---- a/mm/backing-dev.c
-+++ b/mm/backing-dev.c
-@@ -334,10 +334,12 @@ static void wakeup_timer_fn(unsigned long data)
-  */
- void bdi_wakeup_thread_delayed(struct backing_dev_info *bdi)
- {
--       unsigned long timeout;
-+       if (dirty_writeback_interval) {
-+               unsigned long timeout;
- 
--       timeout = msecs_to_jiffies(dirty_writeback_interval * 10);
--       mod_timer(&bdi->wb.wakeup_timer, jiffies + timeout);
-+               timeout = msecs_to_jiffies(dirty_writeback_interval * 10);
-+               mod_timer(&bdi->wb.wakeup_timer, jiffies + timeout);
-+       }
- }
-
-I do not see why you use 500 centisecs instead - I think this is wrong.
-
-> ---
->   mm/backing-dev.c |    5 ++++-
->   1 files changed, 4 insertions(+), 1 deletions(-)
+> I started hacking on this and I noticed it'd be better to extend the
+> unlikely through the end. At first review I didn't notice the
+> parenthesis closure stops after pte_none and __pte_alloc is now
+> uncovered. I'd prefer this:
 > 
-> diff --git a/mm/backing-dev.c b/mm/backing-dev.c
-> index befc875..d06533c 100644
-> --- a/mm/backing-dev.c
-> +++ b/mm/backing-dev.c
-> @@ -336,7 +336,10 @@ void bdi_wakeup_thread_delayed(struct backing_dev_info *bdi)
->   {
->   	unsigned long timeout;
->   
-> -	timeout = msecs_to_jiffies(dirty_writeback_interval * 10);
-> +	if (dirty_writeback_interval)
-> +		timeout = msecs_to_jiffies(dirty_writeback_interval * 10);
-> +	else
-> +		timeout = msecs_to_jiffies(5000);
->   	mod_timer(&bdi->wb.wakeup_timer, jiffies + timeout);
->   }
->   
+>     if (unlikely(pmd_none(*pmd) && __pte_alloc(mm, vma, pmd, address)))
+> 
+> I mean the real unlikely thing is that we return VM_FAULT_OOM, if we
+> end up calling __pte_alloc or not, depends on the app. Generally it
+> sounds more frequent that the pte is not none, so it's not wrong, but
+> it's even less likely that __pte_alloc fails so that can be taken into
+> account too, and __pte_alloc runs still quite frequently. So either
+> above or:
+> 
+>     if (unlikely(pmd_none(*pmd)) && unlikely(__pte_alloc(mm, vma, pmd, address)))
+> 
+> I generally prefer unlikely only when it's 100% sure thing it's less
+> likely (like the VM_FAULT_OOM), so the first version I guess it's
+> enough (I'm afraid unlikely for pte_none too, may make gcc generate a
+> far away jump possibly going out of l1 icache for a case that is only
+> 512 times less likely at best). My point is that it's certainly hugely
+> more unlikely that __pte_alloc fails than the pte is none.
+> 
+> This is a real nitpick though ;).
 
-
--- 
-Best Regards,
-Artem Bityutskiy (D?N?N?N?D 1/4  D?D,N?N?N?DoD,D1)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
