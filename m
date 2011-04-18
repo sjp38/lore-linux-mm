@@ -1,114 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 554F0900086
-	for <linux-mm@kvack.org>; Sun, 17 Apr 2011 23:00:18 -0400 (EDT)
-Received: from kpbe18.cbf.corp.google.com (kpbe18.cbf.corp.google.com [172.25.105.82])
-	by smtp-out.google.com with ESMTP id p3I30E4h005363
-	for <linux-mm@kvack.org>; Sun, 17 Apr 2011 20:00:14 -0700
-Received: from pzk12 (pzk12.prod.google.com [10.243.19.140])
-	by kpbe18.cbf.corp.google.com with ESMTP id p3I30CZL008955
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 7814E900086
+	for <linux-mm@kvack.org>; Sun, 17 Apr 2011 23:05:32 -0400 (EDT)
+Received: from wpaz24.hot.corp.google.com (wpaz24.hot.corp.google.com [172.24.198.88])
+	by smtp-out.google.com with ESMTP id p3I35NiF029841
+	for <linux-mm@kvack.org>; Sun, 17 Apr 2011 20:05:24 -0700
+Received: from pvg11 (pvg11.prod.google.com [10.241.210.139])
+	by wpaz24.hot.corp.google.com with ESMTP id p3I35LO9008261
 	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Sun, 17 Apr 2011 20:00:12 -0700
-Received: by pzk12 with SMTP id 12so2442758pzk.39
-        for <linux-mm@kvack.org>; Sun, 17 Apr 2011 20:00:12 -0700 (PDT)
-Date: Sun, 17 Apr 2011 20:00:17 -0700 (PDT)
+	for <linux-mm@kvack.org>; Sun, 17 Apr 2011 20:05:22 -0700
+Received: by pvg11 with SMTP id 11so3105307pvg.27
+        for <linux-mm@kvack.org>; Sun, 17 Apr 2011 20:05:16 -0700 (PDT)
+Date: Sun, 17 Apr 2011 20:05:19 -0700 (PDT)
 From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH] mm: make expand_downwards symmetrical to
- expand_upwards
-In-Reply-To: <20110415135144.GE8828@tiehlicka.suse.cz>
-Message-ID: <alpine.LSU.2.00.1104171952040.22679@sister.anvils>
-References: <20110415135144.GE8828@tiehlicka.suse.cz>
+Subject: Re: [PATCH]mmap: avoid unnecessary anon_vma lock
+In-Reply-To: <1301277532.3981.25.camel@sli10-conroe>
+Message-ID: <alpine.LSU.2.00.1104172003330.22756@sister.anvils>
+References: <1301277532.3981.25.camel@sli10-conroe>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
+To: Shaohua Li <shaohua.li@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>
 
-On Fri, 14 Apr 2011, Michal Hocko wrote:
+On Mon, 28 Mar 2011, Shaohua Li wrote:
 
-> Hi,
-> the following patch is just a cleanup for better readability without any
-> functional changes. What do you think about it?
+> If we only change vma->vm_end, we can avoid taking anon_vma lock even 'insert'
+> isn't NULL, which is the case of split_vma.
+> From my understanding, we need the lock before because rmap must get the
+> 'insert' VMA when we adjust old VMA's vm_end (the 'insert' VMA is linked to
+> anon_vma list in __insert_vm_struct before).
+> But now this isn't true any more. The 'insert' VMA is already linked to
+> anon_vma list in __split_vma(with anon_vma_clone()) instead of
+> __insert_vm_struct. There is no race rmap can't get required VMAs.
+> So the anon_vma lock is unnecessary, and this can reduce one locking in brk
+> case and improve scalability.
+> 
+> Signed-off-by: Shaohua Li<shaohua.li@intel.com>
+
+I was sceptical at first, but yes, you're right: thanks.
+Acked-by: Hugh Dickins <hughd@google.com>
+
+> 
 > ---
-> From 71de71aaa725ee87459b3a256e8bb0af7de4abeb Mon Sep 17 00:00:00 2001
-> From: Michal Hocko <mhocko@suse.cz>
-> Date: Fri, 15 Apr 2011 14:56:26 +0200
-> Subject: [PATCH] mm: make expand_downwards symmetrical to expand_upwards
+>  mm/mmap.c |    2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
 > 
-> Currently we have expand_upwards exported while expand_downwards is
-> accessible only via expand_stack.
-> 
-> check_stack_guard_page is a nice example of the asymmetry. It uses
-> expand_stack for VM_GROWSDOWN while expand_upwards is called for
-> VM_GROWSUP case. Let's make this consistent and export expand_downwards
-> same way we do with expand_upwards.
-> 
-> Signed-off-by: Michal Hocko <mhocko@suse.cz>
-
-Yes, I've just been looking around here, and I like your symmetry.
-But two points:
-
-> ---
->  include/linux/mm.h |    2 ++
->  mm/memory.c        |    2 +-
->  mm/mmap.c          |    2 +-
->  3 files changed, 4 insertions(+), 2 deletions(-)
-> 
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index 692dbae..765cf4e 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -1498,8 +1498,10 @@ unsigned long ra_submit(struct file_ra_state *ra,
->  extern int expand_stack(struct vm_area_struct *vma, unsigned long address);
->  #if VM_GROWSUP
->  extern int expand_upwards(struct vm_area_struct *vma, unsigned long address);
-> +  #define expand_downwards(vma, address) do { } while (0)
-
-I think this is wrong: doesn't the VM_GROWSUP case actually want
-a real expand_downwards() in addition to expand_upwards()?
-
->  #else
->    #define expand_upwards(vma, address) do { } while (0)
-> +extern int expand_downwards(struct vm_area_struct *vma, unsigned long address);
->  #endif
->  extern int expand_stack_downwards(struct vm_area_struct *vma,
->  				  unsigned long address);
-
-And if you're going for symmetry, wouldn't it be nice to add fs/exec.c
-to the patch and remove this silly expand_stack_downwards() wrapper?
-
-Hugh
-
-
-> diff --git a/mm/memory.c b/mm/memory.c
-> index ce22a25..f404fb6 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -2969,7 +2969,7 @@ static inline int check_stack_guard_page(struct vm_area_struct *vma, unsigned lo
->  		if (prev && prev->vm_end == address)
->  			return prev->vm_flags & VM_GROWSDOWN ? 0 : -ENOMEM;
->  
-> -		expand_stack(vma, address - PAGE_SIZE);
-> +		expand_downwards(vma, address - PAGE_SIZE);
+> Index: linux/mm/mmap.c
+> ===================================================================
+> --- linux.orig/mm/mmap.c	2011-03-24 09:08:27.000000000 +0800
+> +++ linux/mm/mmap.c	2011-03-24 09:14:03.000000000 +0800
+> @@ -605,7 +605,7 @@ again:			remove_next = 1 + (end > next->
+>  	 * lock may be shared between many sibling processes.  Skipping
+>  	 * the lock for brk adjustments makes a difference sometimes.
+>  	 */
+> -	if (vma->anon_vma && (insert || importer || start != vma->vm_start)) {
+> +	if (vma->anon_vma && (importer || start != vma->vm_start)) {
+>  		anon_vma = vma->anon_vma;
+>  		anon_vma_lock(anon_vma);
 >  	}
->  	if ((vma->vm_flags & VM_GROWSUP) && address + PAGE_SIZE == vma->vm_end) {
->  		struct vm_area_struct *next = vma->vm_next;
-> diff --git a/mm/mmap.c b/mm/mmap.c
-> index e27e0cf..6b2a817 100644
-> --- a/mm/mmap.c
-> +++ b/mm/mmap.c
-> @@ -1782,7 +1782,7 @@ int expand_upwards(struct vm_area_struct *vma, unsigned long address)
->  /*
->   * vma is the first one with address < vma->vm_start.  Have to extend vma.
->   */
-> -static int expand_downwards(struct vm_area_struct *vma,
-> +int expand_downwards(struct vm_area_struct *vma,
->  				   unsigned long address)
->  {
->  	int error;
-> -- 
-> 1.7.4.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
