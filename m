@@ -1,101 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 3AB39900086
-	for <linux-mm@kvack.org>; Mon, 18 Apr 2011 10:38:07 -0400 (EDT)
-Date: Mon, 18 Apr 2011 09:38:03 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH] percpu: preemptless __per_cpu_counter_add
-In-Reply-To: <20110415235222.GA18694@mtj.dyndns.org>
-Message-ID: <alpine.DEB.2.00.1104180930580.23207@router.home>
-References: <alpine.DEB.2.00.1104130942500.16214@router.home> <alpine.DEB.2.00.1104131148070.20908@router.home> <20110413185618.GA3987@mtj.dyndns.org> <alpine.DEB.2.00.1104131521050.25812@router.home> <1302747263.3549.9.camel@edumazet-laptop>
- <alpine.DEB.2.00.1104141608300.19533@router.home> <20110414211522.GE21397@mtj.dyndns.org> <alpine.DEB.2.00.1104151235350.8055@router.home> <20110415182734.GB15916@mtj.dyndns.org> <alpine.DEB.2.00.1104151440070.8055@router.home>
- <20110415235222.GA18694@mtj.dyndns.org>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id BE450900086
+	for <linux-mm@kvack.org>; Mon, 18 Apr 2011 10:59:34 -0400 (EDT)
+Date: Mon, 18 Apr 2011 16:59:29 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 4/4] writeback: reduce per-bdi dirty threshold ramp up
+ time
+Message-ID: <20110418145929.GH5557@quack.suse.cz>
+References: <20110413220444.GF4648@quack.suse.cz>
+ <20110413233122.GA6097@localhost>
+ <20110413235211.GN31057@dastard>
+ <20110414002301.GA9826@localhost>
+ <20110414151424.GA367@localhost>
+ <20110414181609.GH5054@quack.suse.cz>
+ <20110415034300.GA23430@localhost>
+ <20110415143711.GA17181@localhost>
+ <20110415221314.GE5432@quack.suse.cz>
+ <1302942809.2388.254.camel@twins>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1302942809.2388.254.camel@twins>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Eric Dumazet <eric.dumazet@gmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org, shaohua.li@intel.com
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Jan Kara <jack@suse.cz>, Wu Fengguang <fengguang.wu@intel.com>, Dave Chinner <david@fromorbit.com>, Andrew Morton <akpm@linux-foundation.org>, Richard Kennedy <richard@rsk.demon.co.uk>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>
 
-On Sat, 16 Apr 2011, Tejun Heo wrote:
+On Sat 16-04-11 10:33:29, Peter Zijlstra wrote:
+> On Sat, 2011-04-16 at 00:13 +0200, Jan Kara wrote:
+> > 
+> > So what is a takeaway from this for me is that scaling the period
+> > with the dirty limit is not the right thing. If you'd have 4-times more
+> > memory, your choice of "dirty limit" as the period would be as bad as
+> > current 4*"dirty limit". What would seem like a better choice of period
+> > to me would be to have the period in an order of a few seconds worth of
+> > writeback. That would allow the bdi limit to scale up reasonably fast when
+> > new bdi starts to be used and still not make it fluctuate that much
+> > (hopefully).
+> 
+> No best would be to scale the period with the writeout bandwidth, but
+> lacking that the dirty limit had to do. Since we're counting pages, and
+> bandwidth is pages/second we'll end up with a time measure, exactly the
+> thing you wanted.
+  Yes, I was thinking about this as well. We could measure the throughput
+but essentially it's a changing entity (dependent on the type of load and
+possibly other things like network load for NFS, or other machines
+accessing your NAS). So I'm not sure one constant value will work (esp.
+because you have to measure it and you never know at which state you did
+the measurement). And when you have changing values, you have to solve the
+same problem as with time based periods - that's how I came to them.
 
-> Maybe, I don't know.  On x86, it shouldn't be a problem on both 32 and
-> 64bit.  Even on archs which lack local cmpxchg, preemption flips are
-> cheap anyway so yeah maybe.
+> > Looking at math in lib/proportions.c, nothing really fundamental requires
+> > that each period has the same length. So it shouldn't be hard to actually
+> > create proportions calculator that would have timer triggered periods -
+> > simply whenever the timer fires, we would declare a new period. The only
+> > things which would be broken by this are (t represents global counter of
+> > events):
+> > a) counting of periods as t/period_len - we would have to maintain global
+> > period counter but that's trivial
+> > b) trick that we don't do t=t/2 for each new period but rather use
+> > period_len/2+(t % (period_len/2)) when calculating fractions - again we
+> > would have to bite the bullet and divide the global counter when we declare
+> > new period but again it's not a big deal in our case.
+> > 
+> > Peter what do you think about this? Do you (or anyone else) think it makes
+> > sense? 
+> 
+> But if you don't have a fixed sized period, then how do you catch up on
+> fractions that haven't been updated for several periods? You cannot go
+> remember all the individual period lengths.
+  OK, I wrote the expressions down and the way I want to do it would get
+different fractions than your original formula:
 
-Preemption flips are not cheap since enabling preemption may mean a call
-into the scheduler. On RT things get more expensive.
+  Your formula is:
+p(j)=\sum_i x_i(j)/(t_i*2^{i+1})
+  where $i$ sums from 0 to \infty, x_i(j) is the number of events of type
+$j$ in period $i$, $t_i$ is the total number of events in period $i$.
 
-Preempt_enable means at least one additional branch. We are saving a
-branch by not using preempt.
+  I want to compute
+l(j)=\sum_i x_i(j)/2^{i+1}
+g=\sum_i t_i/2^{i+1}
+  and
+p(j)=l(j)/g
 
-> > The branches are not an issue since they are forward branches over one
-> > (after converting to an atomic operation) or two instructions each. A
-> > possible stall is only possible in case of the cmpxchg failing.
->
-> It's slow path and IMHO it's needlessly complex.  I really don't care
-> whether the counter is reloaded once more or the task gets migrated to
-> another cpu before spin_lock() and ends up flushing local counter on a
-> cpu where it isn't strictly necessary.  Let's keep it simple.
+  Clearly, all these values can be computed in O(1). Now for t_i = t for every
+i, the results of both formulas are the same (which is what made me make my
+mistake). But when t_i differ, the results are different. I'd say that the
+new formula also provides a meaningful notion of writeback share although
+it's hard to quantify how far the computations will be in practice...
+  
+> The whole trick to the proportion stuff is that its all O(1) regardless
+> of the number of contestants. There isn't a single loop that iterates
+> over all BDIs or tasks to update their cycle, that wouldn't have scaled.
+  Sure, I understand.
 
-In order to make it simple I avoided an preempt enable/disable. With
-Shaohua's patches there will be a simple atomic_add within the last if
-cluase. I was able to consolidate multiple code paths into the cmpxchg
-loop with this approach.
-
-The one below avoids the #ifdef that is ugly...
-
-
-
-Subject: percpu: preemptless __per_cpu_counter_add V4
-
-Use this_cpu_cmpxchg to avoid preempt_disable/enable in __percpu_add.
-
-Signed-off-by: Christoph Lameter <cl@linux.com>
-
----
- lib/percpu_counter.c |   24 +++++++++++++++---------
- 1 file changed, 15 insertions(+), 9 deletions(-)
-
-Index: linux-2.6/lib/percpu_counter.c
-===================================================================
---- linux-2.6.orig/lib/percpu_counter.c	2011-04-15 15:34:23.000000000 -0500
-+++ linux-2.6/lib/percpu_counter.c	2011-04-18 09:31:37.000000000 -0500
-@@ -71,19 +71,25 @@ EXPORT_SYMBOL(percpu_counter_set);
-
- void __percpu_counter_add(struct percpu_counter *fbc, s64 amount, s32 batch)
- {
--	s64 count;
-+	s64 count, new, overflow;
-
--	preempt_disable();
--	count = __this_cpu_read(*fbc->counters) + amount;
--	if (count >= batch || count <= -batch) {
-+	do {
-+		count = this_cpu_read(*fbc->counters);
-+
-+		new = count + amount;
-+		/* In case of overflow fold it into the global counter instead */
-+		if (new >= batch || new <= -batch) {
-+			overflow = new;
-+			new = 0;
-+		} else
-+			overflow = 0;
-+	} while (this_cpu_cmpxchg(*fbc->counters, count, new) != count);
-+
-+	if (unlikely(overflow)) {
- 		spin_lock(&fbc->lock);
--		fbc->count += count;
--		__this_cpu_write(*fbc->counters, 0);
-+		fbc->count += overflow;
- 		spin_unlock(&fbc->lock);
--	} else {
--		__this_cpu_write(*fbc->counters, count);
- 	}
--	preempt_enable();
- }
- EXPORT_SYMBOL(__percpu_counter_add);
-
+								Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
