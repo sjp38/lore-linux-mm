@@ -1,166 +1,213 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 08A46900087
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id DF4FE900086
 	for <linux-mm@kvack.org>; Mon, 18 Apr 2011 08:21:13 -0400 (EDT)
-Subject: Re: [PATCH v3 2.6.39-rc1-tip 4/26]  4: uprobes: Breakground page
- replacement.
+Subject: Re: [PATCH v3 2.6.39-rc1-tip 5/26]  5: uprobes: Adding and remove
+ a uprobe in a rb tree.
 From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <20110401143318.15455.64841.sendpatchset@localhost6.localdomain6>
+In-Reply-To: <20110401143328.15455.19094.sendpatchset@localhost6.localdomain6>
 References: 
 	 <20110401143223.15455.19844.sendpatchset@localhost6.localdomain6>
-	 <20110401143318.15455.64841.sendpatchset@localhost6.localdomain6>
+	 <20110401143328.15455.19094.sendpatchset@localhost6.localdomain6>
 Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: quoted-printable
-Date: Mon, 18 Apr 2011 14:20:25 +0200
-Message-ID: <1303129225.32491.776.camel@twins>
+Date: Mon, 18 Apr 2011 14:20:28 +0200
+Message-ID: <1303129228.32491.777.camel@twins>
 Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Jonathan Corbet <corbet@lwn.net>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, SystemTap <systemtap@sources.redhat.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, LKML <linux-kernel@vger.kernel.org>
+Cc: Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Christoph Hellwig <hch@infradead.org>, Andi Kleen <andi@firstfloor.org>, Thomas Gleixner <tglx@linutronix.de>, Jonathan Corbet <corbet@lwn.net>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, SystemTap <systemtap@sources.redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 
 On Fri, 2011-04-01 at 20:03 +0530, Srikar Dronamraju wrote:
-
-> +static int write_opcode(struct task_struct *tsk, struct uprobe * uprobe,
-> +			unsigned long vaddr, uprobe_opcode_t opcode)
+> +static int match_inode(struct uprobe *uprobe, struct inode *inode,
+> +                                               struct rb_node **p)
 > +{
-> +	struct page *old_page, *new_page;
-> +	void *vaddr_old, *vaddr_new;
-> +	struct vm_area_struct *vma;
-> +	spinlock_t *ptl;
-> +	pte_t *orig_pte;
-> +	unsigned long addr;
-> +	int ret;
+> +       struct rb_node *n =3D *p;
 > +
-> +	/* Read the page with vaddr into memory */
-> +	ret =3D get_user_pages(tsk, tsk->mm, vaddr, 1, 1, 1, &old_page, &vma);
-> +	if (ret <=3D 0)
-> +		return -EINVAL;
-
-Why not return the actual gup() error?
-
-> +	ret =3D -EINVAL;
-> +
-> +	/*
-> +	 * We are interested in text pages only. Our pages of interest
-> +	 * should be mapped for read and execute only. We desist from
-> +	 * adding probes in write mapped pages since the breakpoints
-> +	 * might end up in the file copy.
-> +	 */
-> +	if ((vma->vm_flags & (VM_READ|VM_WRITE|VM_EXEC|VM_SHARED)) !=3D
-> +						(VM_READ|VM_EXEC))
-> +		goto put_out;
-
-Note how you return -EINVAL here when we're attempting to poke at the
-wrong kind of mapping.
-
-> +	/* Allocate a page */
-> +	new_page =3D alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma, vaddr);
-> +	if (!new_page) {
-> +		ret =3D -ENOMEM;
-> +		goto put_out;
-> +	}
-> +
-> +	/*
-> +	 * lock page will serialize against do_wp_page()'s
-> +	 * PageAnon() handling
-> +	 */
-> +	lock_page(old_page);
-> +	/* copy the page now that we've got it stable */
-> +	vaddr_old =3D kmap_atomic(old_page, KM_USER0);
-> +	vaddr_new =3D kmap_atomic(new_page, KM_USER1);
-> +
-> +	memcpy(vaddr_new, vaddr_old, PAGE_SIZE);
-> +	/* poke the new insn in, ASSUMES we don't cross page boundary */
-
-Why not test this assertion with a VM_BUG_ON() or something.
-
-> +	addr =3D vaddr;
-> +	vaddr &=3D ~PAGE_MASK;
-> +	memcpy(vaddr_new + vaddr, &opcode, uprobe_opcode_sz);
-> +
-> +	kunmap_atomic(vaddr_new, KM_USER1);
-> +	kunmap_atomic(vaddr_old, KM_USER0);
-
-The use of KM_foo is obsolete and un-needed.
-
-> +	orig_pte =3D page_check_address(old_page, tsk->mm, addr, &ptl, 0);
-> +	if (!orig_pte)
-> +		goto unlock_out;
-> +	pte_unmap_unlock(orig_pte, ptl);
-> +
-> +	lock_page(new_page);
-> +	ret =3D anon_vma_prepare(vma);
-> +	if (!ret)
-> +		ret =3D replace_page(vma, old_page, new_page, *orig_pte);
-> +
-> +	unlock_page(new_page);
-> +	if (ret !=3D 0)
-> +		page_cache_release(new_page);
-> +unlock_out:
-> +	unlock_page(old_page);
-> +
-> +put_out:
-> +	put_page(old_page); /* we did a get_page in the beginning */
-> +	return ret;
+> +       if (inode < uprobe->inode)
+> +               *p =3D n->rb_left;
+> +       else if (inode > uprobe->inode)
+> +               *p =3D n->rb_right;
+> +       else
+> +               return 1;
+> +       return 0;
 > +}
 > +
-> +/**
-> + * read_opcode - read the opcode at a given virtual address.
-> + * @tsk: the probed task.
-> + * @vaddr: the virtual address to read the opcode.
-> + * @opcode: location to store the read opcode.
-> + *
-> + * Called with tsk->mm->mmap_sem held (for read and with a reference to
-> + * tsk->mm.
-> + *
-> + * For task @tsk, read the opcode at @vaddr and store it in @opcode.
-> + * Return 0 (success) or a negative errno.
+> +static int match_offset(struct uprobe *uprobe, loff_t offset,
+> +                                               struct rb_node **p)
+> +{
+> +       struct rb_node *n =3D *p;
+> +
+> +       if (offset < uprobe->offset)
+> +               *p =3D n->rb_left;
+> +       else if (offset > uprobe->offset)
+> +               *p =3D n->rb_right;
+> +       else
+> +               return 1;
+> +       return 0;
+> +}
+>+
+> +/* Called with treelock held */
+> +static struct uprobe *__find_uprobe(struct inode * inode,
+> +                        loff_t offset, struct rb_node **near_match)
+> +{
+> +       struct rb_node *n =3D uprobes_tree.rb_node;
+> +       struct uprobe *uprobe, *u =3D NULL;
+> +
+> +       while (n) {
+> +               uprobe =3D rb_entry(n, struct uprobe, rb_node);
+> +               if (match_inode(uprobe, inode, &n)) {
+> +                       if (near_match)
+> +                               *near_match =3D n;
+> +                       if (match_offset(uprobe, offset, &n)) {
+> +                               /* get access ref */
+> +                               atomic_inc(&uprobe->ref);
+> +                               u =3D uprobe;
+> +                               break;
+> +                       }
+> +               }
+> +       }
+> +       return u;
+> +}
+
+Here you break out the match functions for some reason.
+
+> +/*
+> + * Find a uprobe corresponding to a given inode:offset
+> + * Acquires treelock
 > + */
-> +int __weak read_opcode(struct task_struct *tsk, unsigned long vaddr,
-> +						uprobe_opcode_t *opcode)
+> +static struct uprobe *find_uprobe(struct inode * inode, loff_t offset)
 > +{
-> +	struct vm_area_struct *vma;
-> +	struct page *page;
-> +	void *vaddr_new;
-> +	int ret;
+> +       struct uprobe *uprobe;
+> +       unsigned long flags;
 > +
-> +	ret =3D get_user_pages(tsk, tsk->mm, vaddr, 1, 0, 0, &page, &vma);
-> +	if (ret <=3D 0)
-> +		return -EFAULT;
-
-Again, why not return the gup() error proper?
-
-> +	ret =3D -EFAULT;
-> +
-> +	/*
-> +	 * We are interested in text pages only. Our pages of interest
-> +	 * should be mapped for read and execute only. We desist from
-> +	 * adding probes in write mapped pages since the breakpoints
-> +	 * might end up in the file copy.
-> +	 */
-> +	if ((vma->vm_flags & (VM_READ|VM_WRITE|VM_EXEC|VM_SHARED)) !=3D
-> +						(VM_READ|VM_EXEC))
-> +		goto put_out;
-
-But now you return -EFAULT if we peek at the wrong kind of mapping,
-which is inconsistent with the -EINVAL of write_opcode().
-
-> +	lock_page(page);
-> +	vaddr_new =3D kmap_atomic(page, KM_USER0);
-> +	vaddr &=3D ~PAGE_MASK;
-> +	memcpy(opcode, vaddr_new + vaddr, uprobe_opcode_sz);
-> +	kunmap_atomic(vaddr_new, KM_USER0);
-
-Again, loose the KM_foo.
-
-> +	unlock_page(page);
-> +	ret =3D  0;
-> +
-> +put_out:
-> +	put_page(page); /* we did a get_page in the beginning */
-> +	return ret;
+> +       spin_lock_irqsave(&treelock, flags);
+> +       uprobe =3D __find_uprobe(inode, offset, NULL);
+> +       spin_unlock_irqrestore(&treelock, flags);
+> +       return uprobe;
 > +}
+> +
+> +/*
+> + * Acquires treelock.
+> + * Matching uprobe already exists in rbtree;
+> + *     increment (access refcount) and return the matching uprobe.
+> + *
+> + * No matching uprobe; insert the uprobe in rb_tree;
+> + *     get a double refcount (access + creation) and return NULL.
+> + */
+> +static struct uprobe *insert_uprobe(struct uprobe *uprobe)
+> +{
+> +       struct rb_node **p =3D &uprobes_tree.rb_node;
+> +       struct rb_node *parent =3D NULL;
+> +       struct uprobe *u;
+> +       unsigned long flags;
+> +
+> +       spin_lock_irqsave(&treelock, flags);
+> +       while (*p) {
+> +               parent =3D *p;
+> +               u =3D rb_entry(parent, struct uprobe, rb_node);
+> +               if (u->inode > uprobe->inode)
+> +                       p =3D &(*p)->rb_left;
+> +               else if (u->inode < uprobe->inode)
+> +                       p =3D &(*p)->rb_right;
+> +               else {
+> +                       if (u->offset > uprobe->offset)
+> +                               p =3D &(*p)->rb_left;
+> +                       else if (u->offset < uprobe->offset)
+> +                               p =3D &(*p)->rb_right;
+> +                       else {
+> +                               /* get access ref */
+> +                               atomic_inc(&u->ref);
+> +                               goto unlock_return;
+> +                       }
+> +               }
+> +       }
+> +       u =3D NULL;
+> +       rb_link_node(&uprobe->rb_node, parent, p);
+> +       rb_insert_color(&uprobe->rb_node, &uprobes_tree);
+> +       /* get access + drop ref */
+> +       atomic_set(&uprobe->ref, 2);
+> +
+> +unlock_return:
+> +       spin_unlock_irqrestore(&treelock, flags);
+> +       return u;
+> +}=20
+
+And here you open-code the match functions..
+
+Why not have something like:
+
+static int match_probe(struct uprobe *l, struct uprobe *r)
+{
+	if (l->inode < r->inode)
+		return -1;
+	else if (l->inode > r->inode)
+		return 1;
+	else {
+		if (l->offset < r->offset)
+			return -1;
+		else if (l->offset > r->offset)
+			return 1;
+	}
+
+	return 0;
+}
+
+And use that as:
+
+static struct uprobe *
+__find_uprobe(struct inode *inode, loff_t offset)
+{
+	struct uprobe r =3D { .inode =3D inode, .offset =3D offset };
+	struct rb_node *n =3D uprobes_tree.rb_node;
+	struct uprobe *uprobe;
+	int match;
+
+	while (n) {
+		uprobe =3D rb_node(n, struct uprobe, rb_node);
+		match =3D match_probe(uprobe, &r);
+		if (!match) {
+			atomic_inc(&uprobe->ref);
+			return uprobe;
+		}
+		if (match < 0)
+			n =3D n->rb_left;
+		else
+			n =3D n->rb_right;
+	}
+
+	return NULL;
+}
+
+static struct uprobe *__insert_uprobe(struct uprobe *uprobe)
+{
+	struct rb_node **p =3D &uprobes_tree.rb_node;
+	struct rn_node *parent =3D NULL;
+	struct uprobe *u;
+	int match;
+
+	while (*p) {
+		parent =3D *p;
+		u =3D rb_entry(parent, struct uprobe, rb_node);
+		match =3D match_uprobe(u, uprobe);
+		if (!match) {
+			atomic_inc(&u->ref);
+			return u;
+		}
+		if (match < 0)
+			p =3D &parent->rb_left;
+		else
+			p =3D &parent->rb_right;
+	}
+
+	atomic_set(&uprobe->ref, 2);
+	rb_link_node(&uprobe->rb_node, parent, p);
+	rb_insert_color(&uprobe->rb_node, &uprobes_tree);
+	return uprobe;
+}
+
+Isn't that much nicer?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
