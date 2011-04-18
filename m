@@ -1,47 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 40C9B900086
-	for <linux-mm@kvack.org>; Mon, 18 Apr 2011 08:33:04 -0400 (EDT)
-Date: Mon, 18 Apr 2011 22:32:51 +1000
-From: NeilBrown <neilb@suse.de>
-Subject: Re: [PATCH 12/12] mm: Throttle direct reclaimers if PF_MEMALLOC
- reserves are low and swap is backed by network storage
-Message-ID: <20110418223251.7ab148bb@notabene.brown>
-In-Reply-To: <1302777698-28237-13-git-send-email-mgorman@suse.de>
-References: <1302777698-28237-1-git-send-email-mgorman@suse.de>
-	<1302777698-28237-13-git-send-email-mgorman@suse.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 44F9B900086
+	for <linux-mm@kvack.org>; Mon, 18 Apr 2011 09:08:59 -0400 (EDT)
+Message-ID: <4DAC37E7.5010809@tilera.com>
+Date: Mon, 18 Apr 2011 09:08:55 -0400
+From: Chris Metcalf <cmetcalf@tilera.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 2/3] tile: replace mm->cpu_vm_mask with mm_cpumask()
+References: <20110418211455.9359.A69D9226@jp.fujitsu.com> <20110418211914.9361.A69D9226@jp.fujitsu.com>
+In-Reply-To: <20110418211914.9361.A69D9226@jp.fujitsu.com>
+Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>
 
-On Thu, 14 Apr 2011 11:41:38 +0100 Mel Gorman <mgorman@suse.de> wrote:
+On 4/18/2011 8:18 AM, KOSAKI Motohiro wrote:
+> We plan to change mm->cpu_vm_mask definition later. Thus, this patch convert
+> it into proper macro.
+>
+> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Cc: Chris Metcalf <cmetcalf@tilera.com>
 
-> If swap is backed by network storage such as NBD, there is a risk that a
-> large number of reclaimers can hang the system by consuming all
-> PF_MEMALLOC reserves. To avoid these hangs, the administrator must tune
-> min_free_kbytes in advance. This patch will throttle direct reclaimers
-> if half the PF_MEMALLOC reserves are in use as the system is at risk of
-> hanging. A message will be displayed so the administrator knows that
-> min_free_kbytes should be tuned to a higher value to avoid the
-> throttling in the future.
-> 
+Thanks; I wasn't aware of this macro.  I'll take this change into my tree
+unless you would like to push it.
 
-(I knew there was something else).
+> Chris, I couldn't get cross compiler for tile. thus I hope you check it carefully.
 
-I understand that there are suggestions that direct reclaim should always be
-serialised as this reduces lock contention and improve data patterns (or
-something like that).
+The toolchain support is currently only available from Tilera (at
+http://www.tilera.com/scm/) but we are in the process of cleaning it up to
+push it up to the community.
 
-Would that make this patch redundant?  Or does this provide some extra
-guarantee that the other proposal would not?
-
-Thanks again,
-
-NeilBrown
+-- 
+Chris Metcalf, Tilera Corp.
+http://www.tilera.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
