@@ -1,201 +1,159 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 16C648D0040
-	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 13:58:38 -0400 (EDT)
-Received: from hpaq1.eem.corp.google.com (hpaq1.eem.corp.google.com [172.25.149.1])
-	by smtp-out.google.com with ESMTP id p3JHwYQZ032700
-	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 10:58:34 -0700
-Received: from qwh5 (qwh5.prod.google.com [10.241.194.197])
-	by hpaq1.eem.corp.google.com with ESMTP id p3JHwLqr015461
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 02B678D003B
+	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 14:02:54 -0400 (EDT)
+Received: from hpaq12.eem.corp.google.com (hpaq12.eem.corp.google.com [172.25.149.12])
+	by smtp-out.google.com with ESMTP id p3JI2p0X018304
+	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 11:02:51 -0700
+Received: from qyk35 (qyk35.prod.google.com [10.241.83.163])
+	by hpaq12.eem.corp.google.com with ESMTP id p3JI2DPq024180
 	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 10:58:32 -0700
-Received: by qwh5 with SMTP id 5so4212952qwh.34
-        for <linux-mm@kvack.org>; Tue, 19 Apr 2011 10:58:32 -0700 (PDT)
+	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 11:02:50 -0700
+Received: by qyk35 with SMTP id 35so1805731qyk.13
+        for <linux-mm@kvack.org>; Tue, 19 Apr 2011 11:02:49 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1303235496-3060-2-git-send-email-yinghan@google.com>
+In-Reply-To: <1303235496-3060-3-git-send-email-yinghan@google.com>
 References: <1303235496-3060-1-git-send-email-yinghan@google.com>
-	<1303235496-3060-2-git-send-email-yinghan@google.com>
-Date: Tue, 19 Apr 2011 10:58:32 -0700
-Message-ID: <BANLkTinoz_+DW40fV23j1-PeTbHHEXcywA@mail.gmail.com>
-Subject: Re: [PATCH 1/3] move scan_control definition to header file
+	<1303235496-3060-3-git-send-email-yinghan@google.com>
+Date: Tue, 19 Apr 2011 11:02:48 -0700
+Message-ID: <BANLkTingCh_TEDDtcsOzorxX80WwkAD00Q@mail.gmail.com>
+Subject: Re: [PATCH 2/3] change the shrink_slab by passing scan_control.
 From: Ying Han <yinghan@google.com>
-Content-Type: multipart/alternative; boundary=000e0cd68ee09b39e104a14941cd
+Content-Type: multipart/alternative; boundary=00248c6a84cadbe31604a1495052
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Nick Piggin <npiggin@kernel.dk>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>
 Cc: linux-mm@kvack.org
 
---000e0cd68ee09b39e104a14941cd
+--00248c6a84cadbe31604a1495052
 Content-Type: text/plain; charset=ISO-8859-1
 
 On Tue, Apr 19, 2011 at 10:51 AM, Ying Han <yinghan@google.com> wrote:
 
-> This patch moves the scan_control definition from vmscan to swap.h
-> header file, which is needed later to pass the struct to shrinkers.
+> This patch consolidates existing parameters to shrink_slab() to
+> scan_control struct. This is needed later to pass the same struct
+> to shrinkers.
 >
 > Signed-off-by: Ying Han <yinghan@google.com>
 > ---
->  include/linux/swap.h |   61
-> ++++++++++++++++++++++++++++++++++++++++++++++++++
->  mm/vmscan.c          |   61
-> --------------------------------------------------
->  2 files changed, 61 insertions(+), 61 deletions(-)
+>  fs/drop_caches.c   |    7 ++++++-
+>  include/linux/mm.h |    4 ++--
+>  mm/vmscan.c        |   12 ++++++------
+>  3 files changed, 14 insertions(+), 9 deletions(-)
 >
-> diff --git a/include/linux/swap.h b/include/linux/swap.h
-> index ed6ebe6..cb48fbd 100644
-> --- a/include/linux/swap.h
-> +++ b/include/linux/swap.h
-> @@ -16,6 +16,67 @@ struct notifier_block;
+> diff --git a/fs/drop_caches.c b/fs/drop_caches.c
+> index 816f88e..0e5ef62 100644
+> --- a/fs/drop_caches.c
+> +++ b/fs/drop_caches.c
+> @@ -8,6 +8,7 @@
+>  #include <linux/writeback.h>
+>  #include <linux/sysctl.h>
+>  #include <linux/gfp.h>
+> +#include <linux/swap.h>
 >
->  struct bio;
+>  /* A global variable is a bit ugly, but it keeps the code simple */
+>  int sysctl_drop_caches;
+> @@ -36,9 +37,13 @@ static void drop_pagecache_sb(struct super_block *sb,
+> void *unused)
+>  static void drop_slab(void)
+>  {
+>        int nr_objects;
+> +       struct scan_control sc = {
+> +               .gfp_mask = GFP_KERNEL,
+> +               .nr_scanned = 1000,
+> +       };
 >
-> +/*
-> + * reclaim_mode determines how the inactive list is shrunk
-> + * RECLAIM_MODE_SINGLE: Reclaim only order-0 pages
-> + * RECLAIM_MODE_ASYNC:  Do not block
-> + * RECLAIM_MODE_SYNC:   Allow blocking e.g. call wait_on_page_writeback
-> + * RECLAIM_MODE_LUMPYRECLAIM: For high-order allocations, take a reference
-> + *                     page from the LRU and reclaim all pages within a
-> + *                     naturally aligned range
-> + * RECLAIM_MODE_COMPACTION: For high-order allocations, reclaim a number
-> of
-> + *                     order-0 pages and then compact the zone
-> + */
-> +typedef unsigned __bitwise__ reclaim_mode_t;
-> +#define RECLAIM_MODE_SINGLE            ((__force reclaim_mode_t)0x01u)
-> +#define RECLAIM_MODE_ASYNC             ((__force reclaim_mode_t)0x02u)
-> +#define RECLAIM_MODE_SYNC              ((__force reclaim_mode_t)0x04u)
-> +#define RECLAIM_MODE_LUMPYRECLAIM      ((__force reclaim_mode_t)0x08u)
-> +#define RECLAIM_MODE_COMPACTION                ((__force
-> reclaim_mode_t)0x10u)
-> +
-> +struct scan_control {
-> +       /* Incremented by the number of inactive pages that were scanned */
-> +       unsigned long nr_scanned;
-> +
-> +       /* Number of pages freed so far during a call to shrink_zones() */
-> +       unsigned long nr_reclaimed;
-> +
-> +       /* How many pages shrink_list() should reclaim */
-> +       unsigned long nr_to_reclaim;
-> +
-> +       unsigned long hibernation_mode;
-> +
-> +       /* This context's GFP mask */
-> +       gfp_t gfp_mask;
-> +
-> +       int may_writepage;
-> +
-> +       /* Can mapped pages be reclaimed? */
-> +       int may_unmap;
-> +
-> +       /* Can pages be swapped as part of reclaim? */
-> +       int may_swap;
-> +
-> +       int swappiness;
-> +
-> +       int order;
-> +
-> +       /*
-> +        * Intend to reclaim enough continuous memory rather than reclaim
-> +        * enough amount of memory. i.e, mode for high order allocation.
-> +        */
-> +       reclaim_mode_t reclaim_mode;
-> +
-> +       /* Which cgroup do we reclaim from */
-> +       struct mem_cgroup *mem_cgroup;
-> +
-> +       /*
-> +        * Nodemask of nodes allowed by the caller. If NULL, all nodes
-> +        * are scanned.
-> +        */
-> +       nodemask_t      *nodemask;
-> +};
-> +
->  #define SWAP_FLAG_PREFER       0x8000  /* set if swap priority specified
+>        do {
+> -               nr_objects = shrink_slab(1000, GFP_KERNEL, 1000);
+> +               nr_objects = shrink_slab(&sc, 1000);
+>        } while (nr_objects > 10);
+>  }
+>
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 0716517..42c2bf4 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -21,6 +21,7 @@ struct anon_vma;
+>  struct file_ra_state;
+>  struct user_struct;
+>  struct writeback_control;
+> +struct scan_control;
+>
+>  #ifndef CONFIG_DISCONTIGMEM          /* Don't use mapnrs, do it properly
 > */
->  #define SWAP_FLAG_PRIO_MASK    0x7fff
->  #define SWAP_FLAG_PRIO_SHIFT   0
+>  extern unsigned long max_mapnr;
+> @@ -1601,8 +1602,7 @@ int in_gate_area_no_task(unsigned long addr);
+>
+>  int drop_caches_sysctl_handler(struct ctl_table *, int,
+>                                        void __user *, size_t *, loff_t *);
+> -unsigned long shrink_slab(unsigned long scanned, gfp_t gfp_mask,
+> -                       unsigned long lru_pages);
+> +unsigned long shrink_slab(struct scan_control *sc, unsigned long
+> lru_pages);
+>
+>  #ifndef CONFIG_MMU
+>  #define randomize_va_space 0
 > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 060e4c1..08b1ab5 100644
+> index 08b1ab5..9662166 100644
 > --- a/mm/vmscan.c
 > +++ b/mm/vmscan.c
-> @@ -52,67 +52,6 @@
->  #define CREATE_TRACE_POINTS
->  #include <trace/events/vmscan.h>
+> @@ -159,11 +159,12 @@ EXPORT_SYMBOL(unregister_shrinker);
+>  *
+>  * Returns the number of slab objects which we shrunk.
+>  */
+> -unsigned long shrink_slab(unsigned long scanned, gfp_t gfp_mask,
+> -                       unsigned long lru_pages)
+> +unsigned long shrink_slab(struct scan_control *sc, unsigned long
+> lru_pages)
+>  {
+>        struct shrinker *shrinker;
+>        unsigned long ret = 0;
+> +       unsigned long scanned = sc->nr_scanned;
+> +       gfp_t gfp_mask = sc->gfp_mask;
 >
-> -/*
-> - * reclaim_mode determines how the inactive list is shrunk
-> - * RECLAIM_MODE_SINGLE: Reclaim only order-0 pages
-> - * RECLAIM_MODE_ASYNC:  Do not block
-> - * RECLAIM_MODE_SYNC:   Allow blocking e.g. call wait_on_page_writeback
-> - * RECLAIM_MODE_LUMPYRECLAIM: For high-order allocations, take a reference
-> - *                     page from the LRU and reclaim all pages within a
-> - *                     naturally aligned range
-> - * RECLAIM_MODE_COMPACTION: For high-order allocations, reclaim a number
-> of
-> - *                     order-0 pages and then compact the zone
-> - */
-> -typedef unsigned __bitwise__ reclaim_mode_t;
-> -#define RECLAIM_MODE_SINGLE            ((__force reclaim_mode_t)0x01u)
-> -#define RECLAIM_MODE_ASYNC             ((__force reclaim_mode_t)0x02u)
-> -#define RECLAIM_MODE_SYNC              ((__force reclaim_mode_t)0x04u)
-> -#define RECLAIM_MODE_LUMPYRECLAIM      ((__force reclaim_mode_t)0x08u)
-> -#define RECLAIM_MODE_COMPACTION                ((__force
-> reclaim_mode_t)0x10u)
-> -
-> -struct scan_control {
-> -       /* Incremented by the number of inactive pages that were scanned */
-> -       unsigned long nr_scanned;
-> -
-> -       /* Number of pages freed so far during a call to shrink_zones() */
-> -       unsigned long nr_reclaimed;
-> -
-> -       /* How many pages shrink_list() should reclaim */
-> -       unsigned long nr_to_reclaim;
-> -
-> -       unsigned long hibernation_mode;
-> -
-> -       /* This context's GFP mask */
-> -       gfp_t gfp_mask;
-> -
-> -       int may_writepage;
-> -
-> -       /* Can mapped pages be reclaimed? */
-> -       int may_unmap;
-> -
-> -       /* Can pages be swapped as part of reclaim? */
-> -       int may_swap;
-> -
-> -       int swappiness;
-> -
-> -       int order;
-> -
-> -       /*
-> -        * Intend to reclaim enough continuous memory rather than reclaim
-> -        * enough amount of memory. i.e, mode for high order allocation.
-> -        */
-> -       reclaim_mode_t reclaim_mode;
-> -
-> -       /* Which cgroup do we reclaim from */
-> -       struct mem_cgroup *mem_cgroup;
-> -
-> -       /*
-> -        * Nodemask of nodes allowed by the caller. If NULL, all nodes
-> -        * are scanned.
-> -        */
-> -       nodemask_t      *nodemask;
-> -};
-> -
->  #define lru_to_page(_head) (list_entry((_head)->prev, struct page, lru))
+>        if (scanned == 0)
+>                scanned = SWAP_CLUSTER_MAX;
+> @@ -2005,7 +2006,7 @@ static unsigned long do_try_to_free_pages(struct
+> zonelist *zonelist,
+>                                lru_pages += zone_reclaimable_pages(zone);
+>                        }
 >
->  #ifdef ARCH_HAS_PREFETCH
+> -                       shrink_slab(sc->nr_scanned, sc->gfp_mask,
+> lru_pages);
+> +                       shrink_slab(sc, lru_pages);
+>                        if (reclaim_state) {
+>                                sc->nr_reclaimed +=
+> reclaim_state->reclaimed_slab;
+>                                reclaim_state->reclaimed_slab = 0;
+> @@ -2371,8 +2372,7 @@ loop_again:
+>                                        end_zone, 0))
+>                                shrink_zone(priority, zone, &sc);
+>                        reclaim_state->reclaimed_slab = 0;
+> -                       nr_slab = shrink_slab(sc.nr_scanned, GFP_KERNEL,
+> -                                               lru_pages);
+> +                       nr_slab = shrink_slab(&sc, lru_pages);
+>                        sc.nr_reclaimed += reclaim_state->reclaimed_slab;
+>                        total_scanned += sc.nr_scanned;
+>
+> @@ -2949,7 +2949,7 @@ static int __zone_reclaim(struct zone *zone, gfp_t
+> gfp_mask, unsigned int order)
+>                        unsigned long lru_pages =
+> zone_reclaimable_pages(zone);
+>
+>                        /* No reclaimable slab or very low memory pressure
+> */
+> -                       if (!shrink_slab(sc.nr_scanned, gfp_mask,
+> lru_pages))
+> +                       if (!shrink_slab(&sc, lru_pages))
+>                                break;
+>
+>                        /* Freed enough memory */
 > --
 > 1.7.3.1
 >
 >
 
---000e0cd68ee09b39e104a14941cd
+--00248c6a84cadbe31604a1495052
 Content-Type: text/html; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
 
@@ -203,200 +161,147 @@ Content-Transfer-Encoding: quoted-printable
 an <span dir=3D"ltr">&lt;<a href=3D"mailto:yinghan@google.com">yinghan@goog=
 le.com</a>&gt;</span> wrote:<br><blockquote class=3D"gmail_quote" style=3D"=
 margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex;">
-This patch moves the scan_control definition from vmscan to swap.h<br>
-header file, which is needed later to pass the struct to shrinkers.<br>
+This patch consolidates existing parameters to shrink_slab() to<br>
+scan_control struct. This is needed later to pass the same struct<br>
+to shrinkers.<br>
 <br>
 Signed-off-by: Ying Han &lt;<a href=3D"mailto:yinghan@google.com">yinghan@g=
 oogle.com</a>&gt;<br>
 ---<br>
-=A0include/linux/swap.h | =A0 61 ++++++++++++++++++++++++++++++++++++++++++=
-++++++++<br>
-=A0mm/vmscan.c =A0 =A0 =A0 =A0 =A0| =A0 61 --------------------------------=
-------------------<br>
-=A02 files changed, 61 insertions(+), 61 deletions(-)<br>
+=A0fs/drop_caches.c =A0 | =A0 =A07 ++++++-<br>
+=A0include/linux/mm.h | =A0 =A04 ++--<br>
+=A0mm/vmscan.c =A0 =A0 =A0 =A0| =A0 12 ++++++------<br>
+=A03 files changed, 14 insertions(+), 9 deletions(-)<br>
 <br>
-diff --git a/include/linux/swap.h b/include/linux/swap.h<br>
-index ed6ebe6..cb48fbd 100644<br>
---- a/include/linux/swap.h<br>
-+++ b/include/linux/swap.h<br>
-@@ -16,6 +16,67 @@ struct notifier_block;<br>
+diff --git a/fs/drop_caches.c b/fs/drop_caches.c<br>
+index 816f88e..0e5ef62 100644<br>
+--- a/fs/drop_caches.c<br>
++++ b/fs/drop_caches.c<br>
+@@ -8,6 +8,7 @@<br>
+=A0#include &lt;linux/writeback.h&gt;<br>
+=A0#include &lt;linux/sysctl.h&gt;<br>
+=A0#include &lt;linux/gfp.h&gt;<br>
++#include &lt;linux/swap.h&gt;<br>
 <br>
-=A0struct bio;<br>
+=A0/* A global variable is a bit ugly, but it keeps the code simple */<br>
+=A0int sysctl_drop_caches;<br>
+@@ -36,9 +37,13 @@ static void drop_pagecache_sb(struct super_block *sb, vo=
+id *unused)<br>
+=A0static void drop_slab(void)<br>
+=A0{<br>
+ =A0 =A0 =A0 =A0int nr_objects;<br>
++ =A0 =A0 =A0 struct scan_control sc =3D {<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 .gfp_mask =3D GFP_KERNEL,<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 .nr_scanned =3D 1000,<br>
++ =A0 =A0 =A0 };<br>
 <br>
-+/*<br>
-+ * reclaim_mode determines how the inactive list is shrunk<br>
-+ * RECLAIM_MODE_SINGLE: Reclaim only order-0 pages<br>
-+ * RECLAIM_MODE_ASYNC: =A0Do not block<br>
-+ * RECLAIM_MODE_SYNC: =A0 Allow blocking e.g. call wait_on_page_writeback<=
-br>
-+ * RECLAIM_MODE_LUMPYRECLAIM: For high-order allocations, take a reference=
+ =A0 =A0 =A0 =A0do {<br>
+- =A0 =A0 =A0 =A0 =A0 =A0 =A0 nr_objects =3D shrink_slab(1000, GFP_KERNEL, =
+1000);<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 nr_objects =3D shrink_slab(&amp;sc, 1000);<br=
+>
+ =A0 =A0 =A0 =A0} while (nr_objects &gt; 10);<br>
+=A0}<br>
 <br>
-+ * =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 page from the LRU and reclaim a=
-ll pages within a<br>
-+ * =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 naturally aligned range<br>
-+ * RECLAIM_MODE_COMPACTION: For high-order allocations, reclaim a number o=
-f<br>
-+ * =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 order-0 pages and then compact =
-the zone<br>
-+ */<br>
-+typedef unsigned __bitwise__ reclaim_mode_t;<br>
-+#define RECLAIM_MODE_SINGLE =A0 =A0 =A0 =A0 =A0 =A0((__force reclaim_mode_=
-t)0x01u)<br>
-+#define RECLAIM_MODE_ASYNC =A0 =A0 =A0 =A0 =A0 =A0 ((__force reclaim_mode_=
-t)0x02u)<br>
-+#define RECLAIM_MODE_SYNC =A0 =A0 =A0 =A0 =A0 =A0 =A0((__force reclaim_mod=
-e_t)0x04u)<br>
-+#define RECLAIM_MODE_LUMPYRECLAIM =A0 =A0 =A0((__force reclaim_mode_t)0x08=
-u)<br>
-+#define RECLAIM_MODE_COMPACTION =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0((__force r=
-eclaim_mode_t)0x10u)<br>
-+<br>
-+struct scan_control {<br>
-+ =A0 =A0 =A0 /* Incremented by the number of inactive pages that were scan=
-ned */<br>
-+ =A0 =A0 =A0 unsigned long nr_scanned;<br>
-+<br>
-+ =A0 =A0 =A0 /* Number of pages freed so far during a call to shrink_zones=
-() */<br>
-+ =A0 =A0 =A0 unsigned long nr_reclaimed;<br>
-+<br>
-+ =A0 =A0 =A0 /* How many pages shrink_list() should reclaim */<br>
-+ =A0 =A0 =A0 unsigned long nr_to_reclaim;<br>
-+<br>
-+ =A0 =A0 =A0 unsigned long hibernation_mode;<br>
-+<br>
-+ =A0 =A0 =A0 /* This context&#39;s GFP mask */<br>
-+ =A0 =A0 =A0 gfp_t gfp_mask;<br>
-+<br>
-+ =A0 =A0 =A0 int may_writepage;<br>
-+<br>
-+ =A0 =A0 =A0 /* Can mapped pages be reclaimed? */<br>
-+ =A0 =A0 =A0 int may_unmap;<br>
-+<br>
-+ =A0 =A0 =A0 /* Can pages be swapped as part of reclaim? */<br>
-+ =A0 =A0 =A0 int may_swap;<br>
-+<br>
-+ =A0 =A0 =A0 int swappiness;<br>
-+<br>
-+ =A0 =A0 =A0 int order;<br>
-+<br>
-+ =A0 =A0 =A0 /*<br>
-+ =A0 =A0 =A0 =A0* Intend to reclaim enough continuous memory rather than r=
-eclaim<br>
-+ =A0 =A0 =A0 =A0* enough amount of memory. i.e, mode for high order alloca=
-tion.<br>
-+ =A0 =A0 =A0 =A0*/<br>
-+ =A0 =A0 =A0 reclaim_mode_t reclaim_mode;<br>
-+<br>
-+ =A0 =A0 =A0 /* Which cgroup do we reclaim from */<br>
-+ =A0 =A0 =A0 struct mem_cgroup *mem_cgroup;<br>
-+<br>
-+ =A0 =A0 =A0 /*<br>
-+ =A0 =A0 =A0 =A0* Nodemask of nodes allowed by the caller. If NULL, all no=
-des<br>
-+ =A0 =A0 =A0 =A0* are scanned.<br>
-+ =A0 =A0 =A0 =A0*/<br>
-+ =A0 =A0 =A0 nodemask_t =A0 =A0 =A0*nodemask;<br>
-+};<br>
-+<br>
-=A0#define SWAP_FLAG_PREFER =A0 =A0 =A0 0x8000 =A0/* set if swap priority s=
-pecified */<br>
-=A0#define SWAP_FLAG_PRIO_MASK =A0 =A00x7fff<br>
-=A0#define SWAP_FLAG_PRIO_SHIFT =A0 0<br>
+diff --git a/include/linux/mm.h b/include/linux/mm.h<br>
+index 0716517..42c2bf4 100644<br>
+--- a/include/linux/mm.h<br>
++++ b/include/linux/mm.h<br>
+@@ -21,6 +21,7 @@ struct anon_vma;<br>
+=A0struct file_ra_state;<br>
+=A0struct user_struct;<br>
+=A0struct writeback_control;<br>
++struct scan_control;<br>
+<br>
+=A0#ifndef CONFIG_DISCONTIGMEM =A0 =A0 =A0 =A0 =A0/* Don&#39;t use mapnrs, =
+do it properly */<br>
+=A0extern unsigned long max_mapnr;<br>
+@@ -1601,8 +1602,7 @@ int in_gate_area_no_task(unsigned long addr);<br>
+<br>
+=A0int drop_caches_sysctl_handler(struct ctl_table *, int,<br>
+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 =A0void __user *, size_t *, loff_t *);<br>
+-unsigned long shrink_slab(unsigned long scanned, gfp_t gfp_mask,<br>
+- =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 unsigned long lru_pages);<br>
++unsigned long shrink_slab(struct scan_control *sc, unsigned long lru_pages=
+);<br>
+<br>
+=A0#ifndef CONFIG_MMU<br>
+=A0#define randomize_va_space 0<br>
 diff --git a/mm/vmscan.c b/mm/vmscan.c<br>
-index 060e4c1..08b1ab5 100644<br>
+index 08b1ab5..9662166 100644<br>
 --- a/mm/vmscan.c<br>
 +++ b/mm/vmscan.c<br>
-@@ -52,67 +52,6 @@<br>
-=A0#define CREATE_TRACE_POINTS<br>
-=A0#include &lt;trace/events/vmscan.h&gt;<br>
+@@ -159,11 +159,12 @@ EXPORT_SYMBOL(unregister_shrinker);<br>
+ =A0*<br>
+ =A0* Returns the number of slab objects which we shrunk.<br>
+ =A0*/<br>
+-unsigned long shrink_slab(unsigned long scanned, gfp_t gfp_mask,<br>
+- =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 unsigned long lru_pages)<br>
++unsigned long shrink_slab(struct scan_control *sc, unsigned long lru_pages=
+)<br>
+=A0{<br>
+ =A0 =A0 =A0 =A0struct shrinker *shrinker;<br>
+ =A0 =A0 =A0 =A0unsigned long ret =3D 0;<br>
++ =A0 =A0 =A0 unsigned long scanned =3D sc-&gt;nr_scanned;<br>
++ =A0 =A0 =A0 gfp_t gfp_mask =3D sc-&gt;gfp_mask;<br>
 <br>
--/*<br>
-- * reclaim_mode determines how the inactive list is shrunk<br>
-- * RECLAIM_MODE_SINGLE: Reclaim only order-0 pages<br>
-- * RECLAIM_MODE_ASYNC: =A0Do not block<br>
-- * RECLAIM_MODE_SYNC: =A0 Allow blocking e.g. call wait_on_page_writeback<=
-br>
-- * RECLAIM_MODE_LUMPYRECLAIM: For high-order allocations, take a reference=
+ =A0 =A0 =A0 =A0if (scanned =3D=3D 0)<br>
+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0scanned =3D SWAP_CLUSTER_MAX;<br>
+@@ -2005,7 +2006,7 @@ static unsigned long do_try_to_free_pages(struct zone=
+list *zonelist,<br>
+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0lru_pages +=
+=3D zone_reclaimable_pages(zone);<br>
+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0}<br>
 <br>
-- * =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 page from the LRU and reclaim a=
-ll pages within a<br>
-- * =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 naturally aligned range<br>
-- * RECLAIM_MODE_COMPACTION: For high-order allocations, reclaim a number o=
-f<br>
-- * =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 order-0 pages and then compact =
-the zone<br>
-- */<br>
--typedef unsigned __bitwise__ reclaim_mode_t;<br>
--#define RECLAIM_MODE_SINGLE =A0 =A0 =A0 =A0 =A0 =A0((__force reclaim_mode_=
-t)0x01u)<br>
--#define RECLAIM_MODE_ASYNC =A0 =A0 =A0 =A0 =A0 =A0 ((__force reclaim_mode_=
-t)0x02u)<br>
--#define RECLAIM_MODE_SYNC =A0 =A0 =A0 =A0 =A0 =A0 =A0((__force reclaim_mod=
-e_t)0x04u)<br>
--#define RECLAIM_MODE_LUMPYRECLAIM =A0 =A0 =A0((__force reclaim_mode_t)0x08=
-u)<br>
--#define RECLAIM_MODE_COMPACTION =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0((__force r=
-eclaim_mode_t)0x10u)<br>
--<br>
--struct scan_control {<br>
-- =A0 =A0 =A0 /* Incremented by the number of inactive pages that were scan=
-ned */<br>
-- =A0 =A0 =A0 unsigned long nr_scanned;<br>
--<br>
-- =A0 =A0 =A0 /* Number of pages freed so far during a call to shrink_zones=
-() */<br>
-- =A0 =A0 =A0 unsigned long nr_reclaimed;<br>
--<br>
-- =A0 =A0 =A0 /* How many pages shrink_list() should reclaim */<br>
-- =A0 =A0 =A0 unsigned long nr_to_reclaim;<br>
--<br>
-- =A0 =A0 =A0 unsigned long hibernation_mode;<br>
--<br>
-- =A0 =A0 =A0 /* This context&#39;s GFP mask */<br>
-- =A0 =A0 =A0 gfp_t gfp_mask;<br>
--<br>
-- =A0 =A0 =A0 int may_writepage;<br>
--<br>
-- =A0 =A0 =A0 /* Can mapped pages be reclaimed? */<br>
-- =A0 =A0 =A0 int may_unmap;<br>
--<br>
-- =A0 =A0 =A0 /* Can pages be swapped as part of reclaim? */<br>
-- =A0 =A0 =A0 int may_swap;<br>
--<br>
-- =A0 =A0 =A0 int swappiness;<br>
--<br>
-- =A0 =A0 =A0 int order;<br>
--<br>
-- =A0 =A0 =A0 /*<br>
-- =A0 =A0 =A0 =A0* Intend to reclaim enough continuous memory rather than r=
-eclaim<br>
-- =A0 =A0 =A0 =A0* enough amount of memory. i.e, mode for high order alloca=
-tion.<br>
-- =A0 =A0 =A0 =A0*/<br>
-- =A0 =A0 =A0 reclaim_mode_t reclaim_mode;<br>
--<br>
-- =A0 =A0 =A0 /* Which cgroup do we reclaim from */<br>
-- =A0 =A0 =A0 struct mem_cgroup *mem_cgroup;<br>
--<br>
-- =A0 =A0 =A0 /*<br>
-- =A0 =A0 =A0 =A0* Nodemask of nodes allowed by the caller. If NULL, all no=
-des<br>
-- =A0 =A0 =A0 =A0* are scanned.<br>
-- =A0 =A0 =A0 =A0*/<br>
-- =A0 =A0 =A0 nodemask_t =A0 =A0 =A0*nodemask;<br>
--};<br>
--<br>
-=A0#define lru_to_page(_head) (list_entry((_head)-&gt;prev, struct page, lr=
-u))<br>
+- =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 shrink_slab(sc-&gt;nr_scanned=
+, sc-&gt;gfp_mask, lru_pages);<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 shrink_slab(sc, lru_pages);<b=
+r>
+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0if (reclaim_state) {<br>
+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0sc-&gt;nr_r=
+eclaimed +=3D reclaim_state-&gt;reclaimed_slab;<br>
+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0reclaim_sta=
+te-&gt;reclaimed_slab =3D 0;<br>
+@@ -2371,8 +2372,7 @@ loop_again:<br>
+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 =A0end_zone, 0))<br>
+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0shrink_zone=
+(priority, zone, &amp;sc);<br>
+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0reclaim_state-&gt;reclaimed=
+_slab =3D 0;<br>
+- =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 nr_slab =3D shrink_slab(sc.nr=
+_scanned, GFP_KERNEL,<br>
+- =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 =A0 =A0 =A0 =A0 lru_pages);<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 nr_slab =3D shrink_slab(&amp;=
+sc, lru_pages);<br>
+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0sc.nr_reclaimed +=3D reclai=
+m_state-&gt;reclaimed_slab;<br>
+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0total_scanned +=3D sc.nr_sc=
+anned;<br>
 <br>
-=A0#ifdef ARCH_HAS_PREFETCH<br>
+@@ -2949,7 +2949,7 @@ static int __zone_reclaim(struct zone *zone, gfp_t gf=
+p_mask, unsigned int order)<br>
+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0unsigned long lru_pages =3D=
+ zone_reclaimable_pages(zone);<br>
+<br>
+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0/* No reclaimable slab or v=
+ery low memory pressure */<br>
+- =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!shrink_slab(sc.nr_scanne=
+d, gfp_mask, lru_pages))<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!shrink_slab(&amp;sc, lru=
+_pages))<br>
+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0break;<br>
+<br>
+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0/* Freed enough memory */<b=
+r>
 <font color=3D"#888888">--<br>
 1.7.3.1<br>
 <br>
 </font></blockquote></div><br>
 
---000e0cd68ee09b39e104a14941cd--
+--00248c6a84cadbe31604a1495052--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
