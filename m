@@ -1,89 +1,236 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id B065D900086
-	for <linux-mm@kvack.org>; Mon, 18 Apr 2011 21:15:25 -0400 (EDT)
-Received: from wpaz29.hot.corp.google.com (wpaz29.hot.corp.google.com [172.24.198.93])
-	by smtp-out.google.com with ESMTP id p3J1FJJ3010594
-	for <linux-mm@kvack.org>; Mon, 18 Apr 2011 18:15:19 -0700
-Received: from pxi7 (pxi7.prod.google.com [10.243.27.7])
-	by wpaz29.hot.corp.google.com with ESMTP id p3J1F0wq029669
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 18 Apr 2011 18:15:12 -0700
-Received: by pxi7 with SMTP id 7so4198573pxi.16
-        for <linux-mm@kvack.org>; Mon, 18 Apr 2011 18:15:12 -0700 (PDT)
-Date: Mon, 18 Apr 2011 18:15:10 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH incremental] cpusets: initialize spread rotor lazily
-In-Reply-To: <20110418212915.GA17376@tiehlicka.suse.cz>
-Message-ID: <alpine.DEB.2.00.1104181814320.7351@chino.kir.corp.google.com>
-References: <20110414065146.GA19685@tiehlicka.suse.cz> <20110414160145.0830.A69D9226@jp.fujitsu.com> <20110415161831.12F8.A69D9226@jp.fujitsu.com> <20110415082051.GB8828@tiehlicka.suse.cz> <alpine.DEB.2.00.1104151639080.3967@chino.kir.corp.google.com>
- <20110418084248.GB8925@tiehlicka.suse.cz> <alpine.DEB.2.00.1104181316110.31186@chino.kir.corp.google.com> <20110418212915.GA17376@tiehlicka.suse.cz>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 0405C900086
+	for <linux-mm@kvack.org>; Mon, 18 Apr 2011 22:42:47 -0400 (EDT)
+Received: from wpaz37.hot.corp.google.com (wpaz37.hot.corp.google.com [172.24.198.101])
+	by smtp-out.google.com with ESMTP id p3J2gdqS025678
+	for <linux-mm@kvack.org>; Mon, 18 Apr 2011 19:42:39 -0700
+Received: from qyk7 (qyk7.prod.google.com [10.241.83.135])
+	by wpaz37.hot.corp.google.com with ESMTP id p3J2ftti023484
+	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 18 Apr 2011 19:42:38 -0700
+Received: by qyk7 with SMTP id 7so1683364qyk.5
+        for <linux-mm@kvack.org>; Mon, 18 Apr 2011 19:42:38 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <BANLkTi=pyRWb9npHe_SJdYXR-TbrtVtLRg@mail.gmail.com>
+References: <1302909815-4362-1-git-send-email-yinghan@google.com>
+	<1302909815-4362-7-git-send-email-yinghan@google.com>
+	<BANLkTi=2yQZXhHrDxjPvpKJ-KpmQ242cVQ@mail.gmail.com>
+	<BANLkTikZcTj9GAGrsTnMMCq1b9HjnDnGWA@mail.gmail.com>
+	<BANLkTi=pyRWb9npHe_SJdYXR-TbrtVtLRg@mail.gmail.com>
+Date: Mon, 18 Apr 2011 19:42:37 -0700
+Message-ID: <BANLkTi=3VOJCr+xc8Z9zOYznP7m8Lyy9ag@mail.gmail.com>
+Subject: Re: [PATCH V5 06/10] Per-memcg background reclaim.
+From: Ying Han <yinghan@google.com>
+Content-Type: multipart/alternative; boundary=000e0cdfd08213747d04a13c765b
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, Jack Steiner <steiner@sgi.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Paul Menage <menage@google.com>, Robin Holt <holt@sgi.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>, linux-mm@kvack.org
 
-On Mon, 18 Apr 2011, Michal Hocko wrote:
+--000e0cdfd08213747d04a13c765b
+Content-Type: text/plain; charset=ISO-8859-1
 
-> From: Michal Hocko <mhocko@suse.cz>
-> Subject: cpusets: initialize spread mem/slab rotor lazily
-> 
-> Kosaki Motohiro raised a concern that copy_process is hot path and we do
-> not want to initialize cpuset_{mem,slab}_spread_rotor if they are not
-> used most of the time.
-> 
-> I think that we should rather initialize it lazily when rotors are used
-> for the first time.
-> This will also catch the case when we set up spread mem/slab later.
-> 
-> Signed-off-by: Michal Hocko <mhocko@suse.cz>
-> Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+On Mon, Apr 18, 2011 at 4:32 PM, Minchan Kim <minchan.kim@gmail.com> wrote:
 
-Acked-by: David Rientjes <rientjes@google.com>
+> On Tue, Apr 19, 2011 at 6:38 AM, Ying Han <yinghan@google.com> wrote:
+> >
+> >
+> > On Sun, Apr 17, 2011 at 8:51 PM, Minchan Kim <minchan.kim@gmail.com>
+> wrote:
+> >>
+> >> On Sat, Apr 16, 2011 at 8:23 AM, Ying Han <yinghan@google.com> wrote:
+> >> > +
+> >> > +               sc->nr_scanned = 0;
+> >> > +               shrink_zone(priority, zone, sc);
+> >> > +               total_scanned += sc->nr_scanned;
+> >> > +
+> >> > +               /*
+> >> > +                * If we've done a decent amount of scanning and
+> >> > +                * the reclaim ratio is low, start doing writepage
+> >> > +                * even in laptop mode
+> >> > +                */
+> >> > +               if (total_scanned > SWAP_CLUSTER_MAX * 2 &&
+> >> > +                   total_scanned > sc->nr_reclaimed +
+> sc->nr_reclaimed
+> >> > / 2) {
+> >> > +                       sc->may_writepage = 1;
+> >>
+> >> I don't want to add more random write any more although we don't have
+> >> a trouble of real memory shortage.
+> >
+> >
+> >>
+> >> Do you have any reason to reclaim memory urgently as writing dirty
+> pages?
+> >> Maybe if we wait a little bit of time, flusher would write out the page.
+> >
+> > We would like to reduce the writing dirty pages from page reclaim,
+> > especially from direct reclaim. AFAIK, the try_to_free_mem_cgroup_pages()
+> > still need to write dirty pages when there is a need. removing this from
+> the
+> > per-memcg kswap will only add more pressure to the per-memcg direct
+> reclaim,
+> > which seems to be worse. (stack overflow as one example which we would
+> like
+> > to get rid of)
+> >
+>
+> Stack overflow would be another topic.
+>
+> Normal situation :
+>
+> The softlimit memory pressure of memcg isn't real memory shortage and
+> if we have gap between hardlimit and softlimit, periodic writeback of
+> flusher would write it out before reaching the hardlimit. In the end,
+> direct reclaim don't need to write it out.
+>
+> Exceptional situation :
+>
+> Of course, it doesn't work well in congestion of bdi, sudden big
+> memory consumption in memcg in wrong [hard/soft]limit(small gap)
+> configuration of administrator.
+>
+> I think we have to design it by normal situation.
+> The point is that softlimit isn't real memory shortage so that we are
+> not urgent.
+>
 
-Thanks Michal!
+This patch is not dealing with soft_limit, but hard_limit. The soft_limit
+reclaim which we talked about during LSF
+is something i am currently looking at right now. This patch is doing the
+per-memcg background reclaim which
+based on the watermarks calculated on the hard_limit. We don't have the
+memcg entering the direct reclaim each
+time it is reaching the hard_limit, so we add the background reclaim which
+reclaiming pages proactively.
 
-> Index: linus_tree/kernel/cpuset.c
-> ===================================================================
-> --- linus_tree.orig/kernel/cpuset.c	2011-04-18 10:33:15.000000000 +0200
-> +++ linus_tree/kernel/cpuset.c	2011-04-18 23:24:02.000000000 +0200
-> @@ -2460,11 +2460,19 @@ static int cpuset_spread_node(int *rotor
->  
->  int cpuset_mem_spread_node(void)
->  {
-> +	if (current->cpuset_mem_spread_rotor == NUMA_NO_NODE)
-> +		current->cpuset_mem_spread_rotor =
-> +			node_random(&current->mems_allowed);
-> +
->  	return cpuset_spread_node(&current->cpuset_mem_spread_rotor);
->  }
->  
->  int cpuset_slab_spread_node(void)
->  {
-> +	if (current->cpuset_slab_spread_rotor == NUMA_NO_NODE)
-> +		current->cpuset_slab_spread_rotor =
-> +			node_random(&current->mems_allowed);
-> +
->  	return cpuset_spread_node(&current->cpuset_slab_spread_rotor);
->  }
->  
-> Index: linus_tree/kernel/fork.c
-> ===================================================================
-> --- linus_tree.orig/kernel/fork.c	2011-04-18 10:33:15.000000000 +0200
-> +++ linus_tree/kernel/fork.c	2011-04-18 10:33:56.000000000 +0200
-> @@ -1126,8 +1126,8 @@ static struct task_struct *copy_process(
->  	mpol_fix_fork_child_flag(p);
->  #endif
->  #ifdef CONFIG_CPUSETS
-> -	p->cpuset_mem_spread_rotor = node_random(&p->mems_allowed);
-> -	p->cpuset_slab_spread_rotor = node_random(&p->mems_allowed);
-> +	p->cpuset_mem_spread_rotor = NUMA_NO_NODE;
-> +	p->cpuset_slab_spread_rotor = NUMA_NO_NODE;
->  #endif
->  #ifdef CONFIG_TRACE_IRQFLAGS
->  	p->irq_events = 0;
+
+> How about adding new function which checks global memory pressure and
+> if we have a trouble by global memory pressure, we can change
+> may_write with 1 dynamically in memcg_kswapd?
+>
+
+Like I mentioned, the may_write is still needed in this case otherwise we
+are just put this further to per-memcg
+direct reclaim.
+
+
+Thanks
+
+--Ying
+
+> --
+> Kind regards,
+> Minchan Kim
+>
+
+--000e0cdfd08213747d04a13c765b
+Content-Type: text/html; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
+
+<br><br><div class=3D"gmail_quote">On Mon, Apr 18, 2011 at 4:32 PM, Minchan=
+ Kim <span dir=3D"ltr">&lt;<a href=3D"mailto:minchan.kim@gmail.com">minchan=
+.kim@gmail.com</a>&gt;</span> wrote:<br><blockquote class=3D"gmail_quote" s=
+tyle=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex;">
+<div class=3D"im">On Tue, Apr 19, 2011 at 6:38 AM, Ying Han &lt;<a href=3D"=
+mailto:yinghan@google.com">yinghan@google.com</a>&gt; wrote:<br>
+&gt;<br>
+&gt;<br>
+&gt; On Sun, Apr 17, 2011 at 8:51 PM, Minchan Kim &lt;<a href=3D"mailto:min=
+chan.kim@gmail.com">minchan.kim@gmail.com</a>&gt; wrote:<br>
+&gt;&gt;<br>
+&gt;&gt; On Sat, Apr 16, 2011 at 8:23 AM, Ying Han &lt;<a href=3D"mailto:yi=
+nghan@google.com">yinghan@google.com</a>&gt; wrote:<br>
+</div><div class=3D"im">&gt;&gt; &gt; +<br>
+&gt;&gt; &gt; + =A0 =A0 =A0 =A0 =A0 =A0 =A0 sc-&gt;nr_scanned =3D 0;<br>
+&gt;&gt; &gt; + =A0 =A0 =A0 =A0 =A0 =A0 =A0 shrink_zone(priority, zone, sc)=
+;<br>
+&gt;&gt; &gt; + =A0 =A0 =A0 =A0 =A0 =A0 =A0 total_scanned +=3D sc-&gt;nr_sc=
+anned;<br>
+&gt;&gt; &gt; +<br>
+&gt;&gt; &gt; + =A0 =A0 =A0 =A0 =A0 =A0 =A0 /*<br>
+&gt;&gt; &gt; + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* If we&#39;ve done a decent=
+ amount of scanning and<br>
+&gt;&gt; &gt; + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* the reclaim ratio is low, =
+start doing writepage<br>
+&gt;&gt; &gt; + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* even in laptop mode<br>
+&gt;&gt; &gt; + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0*/<br>
+&gt;&gt; &gt; + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (total_scanned &gt; SWAP_CLU=
+STER_MAX * 2 &amp;&amp;<br>
+&gt;&gt; &gt; + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 total_scanned &gt; sc-&=
+gt;nr_reclaimed + sc-&gt;nr_reclaimed<br>
+&gt;&gt; &gt; / 2) {<br>
+&gt;&gt; &gt; + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 sc-&gt;may_writ=
+epage =3D 1;<br>
+&gt;&gt;<br>
+&gt;&gt; I don&#39;t want to add more random write any more although we don=
+&#39;t have<br>
+&gt;&gt; a trouble of real memory shortage.<br>
+&gt;<br>
+&gt;<br>
+&gt;&gt;<br>
+&gt;&gt; Do you have any reason to reclaim memory urgently as writing dirty=
+ pages?<br>
+&gt;&gt; Maybe if we wait a little bit of time, flusher would write out the=
+ page.<br>
+&gt;<br>
+&gt; We would like to reduce the writing dirty pages from page reclaim,<br>
+&gt; especially from direct reclaim. AFAIK, the=A0try_to_free_mem_cgroup_pa=
+ges()<br>
+&gt; still need to write dirty pages when there is a need. removing this fr=
+om the<br>
+&gt; per-memcg kswap will only add more pressure to the per-memcg direct re=
+claim,<br>
+&gt; which seems to be worse. (stack overflow as one example which we would=
+ like<br>
+&gt; to get rid of)<br>
+&gt;<br>
+<br>
+</div>Stack overflow would be another topic.<br>
+<br>
+Normal situation :<br>
+<br>
+The softlimit memory pressure of memcg isn&#39;t real memory shortage and<b=
+r>
+if we have gap between hardlimit and softlimit, periodic writeback of<br>
+flusher would write it out before reaching the hardlimit. In the end,<br>
+direct reclaim don&#39;t need to write it out.<br>
+<br>
+Exceptional situation :<br>
+<br>
+Of course, it doesn&#39;t work well in congestion of bdi, sudden big<br>
+memory consumption in memcg in wrong [hard/soft]limit(small gap)<br>
+configuration of administrator.<br>
+<br>
+I think we have to design it by normal situation.<br>
+The point is that softlimit isn&#39;t real memory shortage so that we are<b=
+r>
+not urgent.<br></blockquote><div><br></div><div>This patch is not dealing w=
+ith soft_limit, but hard_limit. The soft_limit reclaim which we talked abou=
+t during LSF</div><div>is something i am currently looking at right now. Th=
+is patch is doing the per-memcg background reclaim which</div>
+<div>based on the watermarks calculated on the hard_limit. We don&#39;t hav=
+e the memcg entering the direct reclaim each</div><div>time it is reaching =
+the hard_limit, so we add the background reclaim which reclaiming pages pro=
+actively.</div>
+<div><br></div><blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex=
+;border-left:1px #ccc solid;padding-left:1ex;"><br>
+How about adding new function which checks global memory pressure and<br>
+if we have a trouble by global memory pressure, we can change<br>
+may_write with 1 dynamically in memcg_kswapd?<br></blockquote><div>=A0</div=
+><div><meta http-equiv=3D"content-type" content=3D"text/html; charset=3Dutf=
+-8"><div>Like I mentioned, the may_write is still needed in this case other=
+wise we are just put this further to per-memcg</div>
+<div>direct reclaim.</div></div><div><br></div><div><br></div><div>Thanks</=
+div><div><br></div><div>--Ying</div><blockquote class=3D"gmail_quote" style=
+=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex;">
+--<br>
+Kind regards,<br>
+<font color=3D"#888888">Minchan Kim<br>
+</font></blockquote></div><br>
+
+--000e0cdfd08213747d04a13c765b--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
