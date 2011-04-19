@@ -1,72 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id D6795900087
-	for <linux-mm@kvack.org>; Mon, 18 Apr 2011 23:29:11 -0400 (EDT)
-Subject: Re: [PATCH 6/6] NFS: return -EAGAIN when skipped commit in
- nfs_commit_unstable_pages()
-From: Trond Myklebust <Trond.Myklebust@netapp.com>
-In-Reply-To: <20110419030532.902141228@intel.com>
-References: <20110419030003.108796967@intel.com>
-	 <20110419030532.902141228@intel.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-Date: Mon, 18 Apr 2011 23:29:07 -0400
-Message-ID: <1303183747.5417.11.camel@lade.trondhjem.org>
-Mime-Version: 1.0
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 3C661900086
+	for <linux-mm@kvack.org>; Mon, 18 Apr 2011 23:46:24 -0400 (EDT)
+Received: from wpaz21.hot.corp.google.com (wpaz21.hot.corp.google.com [172.24.198.85])
+	by smtp-out.google.com with ESMTP id p3J3kF3v001632
+	for <linux-mm@kvack.org>; Mon, 18 Apr 2011 20:46:20 -0700
+Received: from qyk2 (qyk2.prod.google.com [10.241.83.130])
+	by wpaz21.hot.corp.google.com with ESMTP id p3J3kEvO011265
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 18 Apr 2011 20:46:14 -0700
+Received: by qyk2 with SMTP id 2so3976466qyk.2
+        for <linux-mm@kvack.org>; Mon, 18 Apr 2011 20:46:14 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <BANLkTi=CeBGF63gDj=jvWyXs3OjjkTsEpg@mail.gmail.com>
+References: <1302821669-29862-1-git-send-email-yinghan@google.com>
+	<20110415094040.GC8828@tiehlicka.suse.cz>
+	<BANLkTimJ2hhuP-Rph+2DtHG-F_gHXg4CWg@mail.gmail.com>
+	<20110418091351.GC8925@tiehlicka.suse.cz>
+	<BANLkTimkPasX8AA=HCOgVeSyPBSivz8pMg@mail.gmail.com>
+	<20110418184240.GA11653@tiehlicka.suse.cz>
+	<BANLkTi=HotRcWiRc4qa1aN+NJ4H5vfCWWA@mail.gmail.com>
+	<BANLkTi=CeBGF63gDj=jvWyXs3OjjkTsEpg@mail.gmail.com>
+Date: Mon, 18 Apr 2011 20:46:14 -0700
+Message-ID: <BANLkTimyHimoqjmkLePcuzq41+in0aJBAw@mail.gmail.com>
+Subject: Re: [PATCH V4 00/10] memcg: per cgroup background reclaim
+From: Ying Han <yinghan@google.com>
+Content-Type: multipart/alternative; boundary=0023544706748c1c4a04a13d5971
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mel Gorman <mel@linux.vnet.ibm.com>, Dave Chinner <david@fromorbit.com>, Itaru Kitayama <kitayama@cl.bb4u.ne.jp>, Minchan Kim <minchan.kim@gmail.com>, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>
+To: Zhu Yanhai <zhu.yanhai@gmail.com>
+Cc: Michal Hocko <mhocko@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org
 
-On Tue, 2011-04-19 at 11:00 +0800, Wu Fengguang wrote:
-> plain text document attachment (nfs-fix-write_inode-retval.patch)
-> It's probably not sane to return success while redirtying the inode at
-> the same time in ->write_inode().
->=20
-> CC: Trond Myklebust <Trond.Myklebust@netapp.com>
-> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> ---
->  fs/nfs/write.c |    2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
->=20
-> --- linux-next.orig/fs/nfs/write.c	2011-04-19 10:18:16.000000000 +0800
-> +++ linux-next/fs/nfs/write.c	2011-04-19 10:18:32.000000000 +0800
-> @@ -1519,7 +1519,7 @@ static int nfs_commit_unstable_pages(str
->  {
->  	struct nfs_inode *nfsi =3D NFS_I(inode);
->  	int flags =3D FLUSH_SYNC;
-> -	int ret =3D 0;
-> +	int ret =3D -EAGAIN;
-> =20
->  	if (wbc->sync_mode =3D=3D WB_SYNC_NONE) {
->  		/* Don't commit yet if this is a non-blocking flush and there
->=20
->=20
+--0023544706748c1c4a04a13d5971
+Content-Type: text/plain; charset=ISO-8859-1
 
-Hi Fengguang,
+On Mon, Apr 18, 2011 at 7:48 PM, Zhu Yanhai <zhu.yanhai@gmail.com> wrote:
 
-I don't understand the purpose of this patch...
+> Hi,
+>
+> 2011/4/19 Ying Han <yinghan@google.com>:
+> >
+> > that is true.  I adopt the initial comment from Mel where we keep the
+> same
+> > logic of triggering and stopping kswapd with low/high_wmarks and also
+> > comparing the usage_in_bytes to the wmarks. Either way is confusing and
+> > guess we just need to document it well.
+>
+> IMO another thing need to document well is that a user must setup
+> high_wmark_distance before setup low_wmark_distance to to make it
+> start work, and zero  low_wmark_distance before zero
+> high_wmark_distance to stop it. Otherwise it won't pass the sanity
+> check, which is not quite obvious.
+>
 
-Currently, the value of 'ret' only affects the case where the commit
-exits early due to this being a non-blocking flush where we have not yet
-written back enough pages to make it worth our while to send a commit.
+yes. will add into the document.
 
-In essence, this really only matters for the cases where someone calls
-'write_inode_now' (not used by anybody calling into the NFS client) and
-'sync_inode', which is only called by nfs_wb_all (with sync_mode =3D
-WB_SYNC_ALL).
+--Ying
 
-So can you please elaborate on the possible use cases for this change?
+>
+> Thanks,
+> Zhu Yanhai
+>
+> > --Ying
+> >>
+> >> --
+> >> Michal Hocko
+> >> SUSE Labs
+> >> SUSE LINUX s.r.o.
+> >> Lihovarska 1060/12
+> >> 190 00 Praha 9
+> >> Czech Republic
+> >
+> >
+>
 
-Cheers
-  Trond
---=20
-Trond Myklebust
-Linux NFS client maintainer
+--0023544706748c1c4a04a13d5971
+Content-Type: text/html; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 
-NetApp
-Trond.Myklebust@netapp.com
-www.netapp.com
+<br><br><div class=3D"gmail_quote">On Mon, Apr 18, 2011 at 7:48 PM, Zhu Yan=
+hai <span dir=3D"ltr">&lt;<a href=3D"mailto:zhu.yanhai@gmail.com">zhu.yanha=
+i@gmail.com</a>&gt;</span> wrote:<br><blockquote class=3D"gmail_quote" styl=
+e=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex;">
+Hi,<br>
+<br>
+2011/4/19 Ying Han &lt;<a href=3D"mailto:yinghan@google.com">yinghan@google=
+.com</a>&gt;:<br>
+<div class=3D"im">&gt;<br>
+&gt; that is true. =A0I adopt the initial comment from Mel where we keep th=
+e same<br>
+&gt; logic of triggering and stopping kswapd with low/high_wmarks and also<=
+br>
+&gt; comparing the usage_in_bytes to the wmarks.=A0Either way is confusing =
+and<br>
+&gt; guess we just need to document it well.<br>
+<br>
+</div>IMO another thing need to document well is that a user must setup<br>
+high_wmark_distance before setup low_wmark_distance to to make it<br>
+start work, and zero =A0low_wmark_distance before zero<br>
+high_wmark_distance to stop it. Otherwise it won&#39;t pass the sanity<br>
+check, which is not quite obvious.<br></blockquote><div><br></div><div>yes.=
+ will add into the document.</div><div><br></div><div>--Ying=A0</div><block=
+quote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1px #ccc=
+ solid;padding-left:1ex;">
+
+<br>
+Thanks,<br>
+<font color=3D"#888888">Zhu Yanhai<br>
+</font><div><div></div><div class=3D"h5"><br>
+&gt; --Ying<br>
+&gt;&gt;<br>
+&gt;&gt; --<br>
+&gt;&gt; Michal Hocko<br>
+&gt;&gt; SUSE Labs<br>
+&gt;&gt; SUSE LINUX s.r.o.<br>
+&gt;&gt; Lihovarska 1060/12<br>
+&gt;&gt; 190 00 Praha 9<br>
+&gt;&gt; Czech Republic<br>
+&gt;<br>
+&gt;<br>
+</div></div></blockquote></div><br>
+
+--0023544706748c1c4a04a13d5971--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
