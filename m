@@ -1,88 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id F39138D003B
-	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 08:02:24 -0400 (EDT)
-Date: Tue, 19 Apr 2011 16:02:20 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 0/6] writeback: moving expire targets for
- background/kupdate works
-Message-ID: <20110419080220.GA7056@localhost>
-References: <20110419030003.108796967@intel.com>
- <20110419063823.GD23985@dastard>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 07A838D003B
+	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 08:14:19 -0400 (EDT)
+Date: Tue, 19 Apr 2011 14:14:14 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH v2] memcg: update documentation to describe usage_in_bytes
+Message-ID: <20110419121414.GF21689@tiehlicka.suse.cz>
+References: <20110323092708.021d555d.nishimura@mxp.nes.nec.co.jp>
+ <20110323133517.de33d624.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110328085508.c236e929.nishimura@mxp.nes.nec.co.jp>
+ <20110328132550.08be4389.nishimura@mxp.nes.nec.co.jp>
+ <20110328074341.GA5693@tiehlicka.suse.cz>
+ <20110328181127.b8a2a1c5.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110328094820.GC5693@tiehlicka.suse.cz>
+ <20110328193108.07965b4a.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110329101511.d30f3518.nishimura@mxp.nes.nec.co.jp>
+ <20110329072122.GA30671@tiehlicka.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110419063823.GD23985@dastard>
+In-Reply-To: <20110329072122.GA30671@tiehlicka.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mel Gorman <mel@linux.vnet.ibm.com>, Trond Myklebust <Trond.Myklebust@netapp.com>, Itaru Kitayama <kitayama@cl.bb4u.ne.jp>, Minchan Kim <minchan.kim@gmail.com>, LKML <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, Apr 19, 2011 at 02:38:23PM +0800, Dave Chinner wrote:
-> On Tue, Apr 19, 2011 at 11:00:03AM +0800, Wu Fengguang wrote:
+Hi,
+
+On Tue 29-03-11 09:21:22, Michal Hocko wrote:
+> On Tue 29-03-11 10:15:11, Daisuke Nishimura wrote:
+> [...]
+> > From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 > > 
-> > Andrew,
+> > Since 569b846d(memcg: coalesce uncharge during unmap/truncate), we do batched
+> > (delayed) uncharge at truncation/unmap. And since cdec2e42(memcg: coalesce
+> > charging via percpu storage), we have percpu cache for res_counter.
 > > 
-> > This aims to reduce possible pageout() calls by making the flusher
-> > concentrate a bit more on old/expired dirty inodes.
+> > These changes improved performance of memory cgroup very much, but made
+> > res_counter->usage usually have a bigger value than the actual value of memory usage.
+> > So, *.usage_in_bytes, which show res_counter->usage, are not desirable for precise
+> > values of memory(and swap) usage anymore.
+> > 
+> > Instead of removing these files completely(because we cannot know res_counter->usage
+> > without them), this patch updates the meaning of those files.
+> > 
+> > Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+> > ---
+> >  Documentation/cgroups/memory.txt |   15 +++++++++++++--
+> >  1 files changed, 13 insertions(+), 2 deletions(-)
+> > 
+> > diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
+> > index 7781857..4f49d91 100644
+> > --- a/Documentation/cgroups/memory.txt
+> > +++ b/Documentation/cgroups/memory.txt
+> > @@ -52,8 +52,10 @@ Brief summary of control files.
+> >   tasks				 # attach a task(thread) and show list of threads
+> >   cgroup.procs			 # show list of processes
+> >   cgroup.event_control		 # an interface for event_fd()
+> > - memory.usage_in_bytes		 # show current memory(RSS+Cache) usage.
+> > - memory.memsw.usage_in_bytes	 # show current memory+Swap usage
+> > + memory.usage_in_bytes		 # show current res_counter usage for memory
+> > +				 (See 5.5 for details)
+> > + memory.memsw.usage_in_bytes	 # show current res_counter usage for memory+Swap
+> > +				 (See 5.5 for details)
+> >   memory.limit_in_bytes		 # set/show limit of memory usage
+> >   memory.memsw.limit_in_bytes	 # set/show limit of memory+Swap usage
+> >   memory.failcnt			 # show the number of memory usage hits limits
+> > @@ -453,6 +455,15 @@ memory under it will be reclaimed.
+> >  You can reset failcnt by writing 0 to failcnt file.
+> >  # echo 0 > .../memory.failcnt
+> >  
+> > +5.5 usage_in_bytes
+> > +
+> > +For efficiency, as other kernel components, memory cgroup uses some optimization
+> > +to avoid unnecessary cacheline false sharing. usage_in_bytes is affected by the
+> > +method and doesn't show 'exact' value of memory(and swap) usage, it's an fuzz
+> > +value for efficient access. (Of course, when necessary, it's synchronized.)
+> > +If you want to know more exact memory usage, you should use RSS+CACHE(+SWAP)
+> > +value in memory.stat(see 5.2).
+> > +
+> >  6. Hierarchy support
+> >  
+> >  The memory controller supports a deep hierarchy and hierarchical accounting.
 > 
-> In what situation is this a problem? Can you demonstrate how you
-> trigger it? And then how much improvement does this patchset make?
-
-As Mel put it, "it makes sense to write old pages first to reduce the
-chances page reclaim is initiating IO."
-
-In last year's LSF, Rik presented the situation with a graph:
-
-LRU head                                 [*] dirty page
-[                          *              *      * *  *  * * * * * *]
-
-Ideally, most dirty pages should lie close to the LRU tail instead of
-LRU head. That requires the flusher thread to sync old/expired inodes
-first (as there are obvious correlations between inode age and page
-age), and to give fair opportunities to newly expired inodes rather
-than sticking with some large eldest inodes (as larger inodes have
-weaker correlations in the inode<=>page ages).
-
-This patchset helps the flusher to meet both the above requirements.
-
-The measurable improvements will depend a lot on the workload.  Mel
-once did some tests and observed it to help (but as large as his
-forward flush patches ;)
-
-https://lkml.org/lkml/2010/7/28/124
-
-> > Patches 04, 05 have been updated since last post, please review.
-> > The concerns from last review have been addressed.
-> > 
-> > It runs fine on simple workloads over ext3/4, xfs, btrfs and NFS.
+> Acked-by: Michal Hocko <mhocko@suse.cz>
 > 
-> But it starts propagating new differences between background and
-> kupdate style writeback. We've been trying to reduce the number of
-> permutations of writeback behaviour, so it seems to me to be wrong
-> to further increase the behavioural differences. Indeed, why do we
-> need "for kupdate" style writeback and "background" writeback
-> anymore - can' we just use background style writeback for both?
+> Although I would like to see a mention about what is the reason for
+> keeping that file(s) if their usage is very limited. Something like.
+> "We are keeping the file because we want to be consistent with other
+> cgroups implementations and all of them export usage counter in some
+> way. Make sure you exactly know the meaning before you use the value
+> in userspace."
+> 
+> If nobody else feels that this is that important then please forget
+> about this comment.
 
-This patchset actually brings the background work semantic/behavior
-closer to the kupdate work.
+I am wondering what happened to the patch. Do you have any plans to
+update/push it?
 
-The two type of works have different termination rules: one is the 30s
-dirty expire time, another is the background_thresh in number of dirty
-pages. So they have to be treated differently when selecting the inodes
-to sync.
-
-This "if" could possibly be eliminated later, but should be done
-carefully in an independent patch, preferably after this patchset is
-confirmed to work reliably in upstream.
-
--       if (wbc->for_kupdate || wbc->for_background) {
-                expire_interval = msecs_to_jiffies(dirty_expire_interval * 10);
-                older_than_this = jiffies - expire_interval;
--       }
-
-Thanks,
-Fengguang
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
