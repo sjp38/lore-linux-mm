@@ -1,141 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 650D88D003B
-	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 07:16:05 -0400 (EDT)
-Date: Tue, 19 Apr 2011 19:16:01 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 5/6] writeback: try more writeback as long as something
- was written
-Message-ID: <20110419111601.GA18961@localhost>
-References: <20110419030003.108796967@intel.com>
- <20110419030532.778889102@intel.com>
- <20110419102016.GD5257@quack.suse.cz>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 9599E8D003B
+	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 07:18:27 -0400 (EDT)
+Date: Tue, 19 Apr 2011 10:31:18 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [patch] mm/vmalloc: remove block allocation bitmap
+Message-ID: <20110419093118.GB23041@csn.ul.ie>
+References: <20110414211656.GB1700@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20110419102016.GD5257@quack.suse.cz>
+In-Reply-To: <20110414211656.GB1700@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@linux.vnet.ibm.com>, Dave Chinner <david@fromorbit.com>, Trond Myklebust <Trond.Myklebust@netapp.com>, Itaru Kitayama <kitayama@cl.bb4u.ne.jp>, Minchan Kim <minchan.kim@gmail.com>, LKML <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@kernel.dk>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Apr 19, 2011 at 06:20:16PM +0800, Jan Kara wrote:
-> On Tue 19-04-11 11:00:08, Wu Fengguang wrote:
-> > writeback_inodes_wb()/__writeback_inodes_sb() are not aggressive in that
-> > they only populate possibly a subset of elegible inodes into b_io at
-> > entrance time. When the queued set of inodes are all synced, they just
-> > return, possibly with all queued inode pages written but still
-> > wbc.nr_to_write > 0.
-> > 
-> > For kupdate and background writeback, there may be more eligible inodes
-> > sitting in b_dirty when the current set of b_io inodes are completed. So
-> > it is necessary to try another round of writeback as long as we made some
-> > progress in this round. When there are no more eligible inodes, no more
-> > inodes will be enqueued in queue_io(), hence nothing could/will be
-> > synced and we may safely bail.
->   Let me understand your concern here: You are afraid that if we do
-> for_background or for_kupdate writeback and we write less than
-> MAX_WRITEBACK_PAGES, we stop doing writeback although there could be more
-> inodes to write at the time we are stopping writeback - the two realistic
-
-Yes.
-
-> cases I can think of are:
-> a) when inodes just freshly expired during writeback
-> b) when bdi has less than MAX_WRITEBACK_PAGES of dirty data but we are over
->   background threshold due to data on some other bdi. And then while we are
->   doing writeback someone does dirtying at our bdi.
-> Or do you see some other case as well?
+On Thu, Apr 14, 2011 at 05:16:56PM -0400, Johannes Weiner wrote:
+> Space in a vmap block that was once allocated is considered dirty and
+> not made available for allocation again before the whole block is
+> recycled.
 > 
-> The a) case does not seem like a big issue to me after your changes to
+> The result is that free space within a vmap block is always contiguous
+> and the allocation bitmap can be replaced by remembering the offset of
+> free space in the block.
+> 
+> The fragmented block purging was never invoked from vb_alloc() either,
+> as it skips blocks that do not have enough free space for the
+> allocation in the first place.  According to the above, it is
+> impossible for a block to have enough free space and still fail the
+> allocation.  Thus, this dead code is removed.  Partially consumed
+> blocks will be reclaimed anyway when an attempt is made to allocate a
+> new vmap block altogether and no free space is found.
+> 
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Nick Piggin <npiggin@kernel.dk>
+> Cc: Mel Gorman <mel@csn.ul.ie>
+> Cc: Hugh Dickins <hughd@google.com>
 
-Yeah (a) is not an issue with kupdate writeback.
+I didn't see a problem with the patch per-se but I wonder if your patch
+is the intended behaviour. It looks like the intention was that dirty
+blocks could be flushed from the TLB and made available for allocations
+leading to the possibility of fragmented vmap blocks.
 
-> move_expired_inodes(). The b) case maybe but do you think it will make any
-> difference? 
+It's this check that is skipping over blocks without taking dirty into
+account.
 
-(b) seems also weird. What in my mind is this for_background case.
-Imagine 100 inodes
+  		spin_lock(&vb->lock);
+ 		if (vb->free < 1UL << order)
+ 			goto next;
 
-        i0, i1, i2, ..., i90, i91, i99
+It was introduced by [02b709d: mm: purge fragmented percpu vmap blocks]
+but is there any possibility that this is what should be fixed instead?
+Do we know what the consequences of blocks only getting flushed when
+they have been fully allocated are?
 
-At queue_io() time, i90-i99 happen to be expired and moved to s_io for
-IO. When finished successfully, if their total size is less than
-MAX_WRITEBACK_PAGES, nr_to_write will be > 0. Then wb_writeback() will
-quit the background work (w/o this patch) while it's still over
-background threshold.
+> <SNIP>
 
-This will be a fairly normal/frequent case I guess.
-
-Thanks,
-Fengguang
-
-> 								Honza
-> > 
-> > Jan raised the concern
-> > 
-> > 	I'm just afraid that in some pathological cases this could
-> > 	result in bad writeback pattern - like if there is some process
-> > 	which manages to dirty just a few pages while we are doing
-> > 	writeout, this looping could result in writing just a few pages
-> > 	in each round which is bad for fragmentation etc.
-> > 
-> > However it requires really strong timing to make that to (continuously)
-> > happen.  In practice it's very hard to produce such a pattern even if
-> > it's possible in theory. I actually tried to write 1 page per 1ms with
-> > this command
-> > 
-> > 	write-and-fsync -n10000 -S 1000 -c 4096 /fs/test
-> > 
-> > and do sync(1) at the same time. The sync completes quickly on ext4,
-> > xfs, btrfs. The readers could try other write-and-sleep patterns and
-> > check if it can block sync for longer time.
-> > 
-> > CC: Jan Kara <jack@suse.cz>
-> > Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> > ---
-> >  fs/fs-writeback.c |   16 ++++++++--------
-> >  1 file changed, 8 insertions(+), 8 deletions(-)
-> > 
-> > --- linux-next.orig/fs/fs-writeback.c	2011-04-19 10:18:30.000000000 +0800
-> > +++ linux-next/fs/fs-writeback.c	2011-04-19 10:18:31.000000000 +0800
-> > @@ -750,23 +750,23 @@ static long wb_writeback(struct bdi_writ
-> >  		wrote += write_chunk - wbc.nr_to_write;
-> >  
-> >  		/*
-> > -		 * If we consumed everything, see if we have more
-> > +		 * Did we write something? Try for more
-> > +		 *
-> > +		 * Dirty inodes are moved to b_io for writeback in batches.
-> > +		 * The completion of the current batch does not necessarily
-> > +		 * mean the overall work is done. So we keep looping as long
-> > +		 * as made some progress on cleaning pages or inodes.
-> >  		 */
-> > -		if (wbc.nr_to_write <= 0)
-> > +		if (wbc.nr_to_write < write_chunk)
-> >  			continue;
-> >  		if (wbc.inodes_cleaned)
-> >  			continue;
-> >  		/*
-> > -		 * Didn't write everything and we don't have more IO, bail
-> > +		 * No more inodes for IO, bail
-> >  		 */
-> >  		if (!wbc.more_io)
-> >  			break;
-> >  		/*
-> > -		 * Did we write something? Try for more
-> > -		 */
-> > -		if (wbc.nr_to_write < write_chunk)
-> > -			continue;
-> > -		/*
-> >  		 * Nothing written. Wait for some inode to
-> >  		 * become available for writeback. Otherwise
-> >  		 * we'll just busyloop.
-> > 
-> > 
-> -- 
-> Jan Kara <jack@suse.cz>
-> SUSE Labs, CR
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
