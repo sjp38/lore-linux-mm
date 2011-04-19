@@ -1,57 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id AE505900086
-	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 06:58:51 -0400 (EDT)
-Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
-	by e1.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p3J6mBvb025530
-	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 02:48:11 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p3J6wnpG331814
-	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 02:58:49 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p3J6wl3n032746
-	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 03:58:49 -0300
-Date: Tue, 19 Apr 2011 12:15:11 +0530
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: Re: [PATCH v3 2.6.39-rc1-tip 9/26]  9: uprobes: mmap and fork
- hooks.
-Message-ID: <20110419064511.GC10698@linux.vnet.ibm.com>
-Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-References: <20110401143223.15455.19844.sendpatchset@localhost6.localdomain6>
- <20110401143413.15455.75831.sendpatchset@localhost6.localdomain6>
- <1303144163.32491.875.camel@twins>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 650328D003B
+	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 07:06:43 -0400 (EDT)
+Date: Tue, 19 Apr 2011 17:02:47 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH 2/6] writeback: the kupdate expire timestamp should be
+ a moving target
+Message-ID: <20110419070247.GE23985@dastard>
+References: <20110419030003.108796967@intel.com>
+ <20110419030532.392203618@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1303144163.32491.875.camel@twins>
+In-Reply-To: <20110419030532.392203618@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Christoph Hellwig <hch@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, SystemTap <systemtap@sources.redhat.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mel Gorman <mel@linux.vnet.ibm.com>, Mel Gorman <mel@csn.ul.ie>, Itaru Kitayama <kitayama@cl.bb4u.ne.jp>, Trond Myklebust <Trond.Myklebust@netapp.com>, Minchan Kim <minchan.kim@gmail.com>, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>
 
-* Peter Zijlstra <peterz@infradead.org> [2011-04-18 18:29:23]:
-
-> On Fri, 2011-04-01 at 20:04 +0530, Srikar Dronamraju wrote:
-> > +               if (vaddr > ULONG_MAX)
-> > +                       /*
-> > +                        * We cannot have a virtual address that is
-> > +                        * greater than ULONG_MAX
-> > +                        */
-> > +                       continue; 
+On Tue, Apr 19, 2011 at 11:00:05AM +0800, Wu Fengguang wrote:
+> Dynamically compute the dirty expire timestamp at queue_io() time.
 > 
-> I'm having trouble with those checks.. while they're not wrong they're
-> not correct either. Mostly the top address space is where the kernel
-> lives and on 32-on-64 compat the boundary is much lower still. Ideally
-> it'd be TASK_SIZE, but that doesn't work since it assumes you're testing
-> for the current task.
+> writeback_control.older_than_this used to be determined at entrance to
+> the kupdate writeback work. This _static_ timestamp may go stale if the
+> kupdate work runs on and on. The flusher may then stuck with some old
+> busy inodes, never considering newly expired inodes thereafter.
 > 
+> This has two possible problems:
+> 
+> - It is unfair for a large dirty inode to delay (for a long time) the
+>   writeback of small dirty inodes.
+> 
+> - As time goes by, the large and busy dirty inode may contain only
+>   _freshly_ dirtied pages. Ignoring newly expired dirty inodes risks
+>   delaying the expired dirty pages to the end of LRU lists, triggering
+>   the evil pageout(). Nevertheless this patch merely addresses part
+>   of the problem.
 
-Guess I can use TASK_SIZE_OF(tsk) instead of ULONG_MAX ?
-I think TASK_SIZE_OF handles 32-on-64 correctly.
+When wb_writeback() is called with for_kupdate set, it initialises
+wbc->older_than_this appropriately outside the writeback loop.
+queue_io() is called once per writeback_inodes_wb() call, which is
+once per loop in wb_writeback. All your change does is re-initialise
+older_than_this once per loop in wb_writeback, jus tin a different
+and very non-obvious place.
 
+So why didn't you just re-initialise it inside the loop in
+wb_writeback() and leave all the other code alone?
+
+Cheers,
+
+Dave.
 -- 
-Thanks and Regards
-Srikar
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
