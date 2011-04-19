@@ -1,115 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 0A7FB900086
-	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 06:40:37 -0400 (EDT)
-Received: from d03relay01.boulder.ibm.com (d03relay01.boulder.ibm.com [9.17.195.226])
-	by e35.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p3J6OM4K020408
-	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 00:24:22 -0600
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay01.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p3J6eXAI150762
-	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 00:40:33 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p3J6eVuP010330
-	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 00:40:33 -0600
-Date: Tue, 19 Apr 2011 11:56:54 +0530
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id A4FE0900087
+	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 06:58:54 -0400 (EDT)
 Subject: Re: [PATCH v3 2.6.39-rc1-tip 12/26] 12: uprobes: slot allocation
  for uprobes
-Message-ID: <20110419062654.GB10698@linux.vnet.ibm.com>
-Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-References: <20110401143223.15455.19844.sendpatchset@localhost6.localdomain6>
- <20110401143457.15455.64839.sendpatchset@localhost6.localdomain6>
- <1303145171.32491.886.camel@twins>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <1303145171.32491.886.camel@twins>
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <20110419062654.GB10698@linux.vnet.ibm.com>
+References: 
+	 <20110401143223.15455.19844.sendpatchset@localhost6.localdomain6>
+	 <20110401143457.15455.64839.sendpatchset@localhost6.localdomain6>
+	 <1303145171.32491.886.camel@twins>
+	 <20110419062654.GB10698@linux.vnet.ibm.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+Date: Tue, 19 Apr 2011 11:11:48 +0200
+Message-ID: <1303204308.32491.923.camel@twins>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>, James Morris <jmorris@namei.org>
-Cc: Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Christoph Hellwig <hch@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, SystemTap <systemtap@sources.redhat.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>
+To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Cc: James Morris <jmorris@namei.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Christoph Hellwig <hch@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>
 
-* Peter Zijlstra <peterz@infradead.org> [2011-04-18 18:46:11]:
+(Dropped the systemtap list since its mis-behaving, please leave it out on =
+future postings)
 
-> On Fri, 2011-04-01 at 20:04 +0530, Srikar Dronamraju wrote:
-> > Every task is allocated a fixed slot. When a probe is hit, the original
-> > instruction corresponding to the probe hit is copied to per-task fixed
-> > slot. Currently we allocate one page of slots for each mm. Bitmaps are
-> > used to know which slots are free. Each slot is made of 128 bytes so
-> > that its cache aligned.
-> > 
-> > TODO: On massively threaded processes (or if a huge number of processes
-> > share the same mm), there is a possiblilty of running out of slots.
-> > One alternative could be to extend the slots as when slots are required.
-> 
-> As long as you're single stepping things and not using boosted probes
-> you can fully serialize the slot usage. Claim a slot on trap and release
-> the slot on finish. Claiming can wait on a free slot since you already
-> have the whole SLEEPY thing.
-> 
+On Tue, 2011-04-19 at 11:56 +0530, Srikar Dronamraju wrote:
+> > > TODO: On massively threaded processes (or if a huge number of process=
+es
+> > > share the same mm), there is a possiblilty of running out of slots.
+> > > One alternative could be to extend the slots as when slots are requir=
+ed.
+> >=20
+> > As long as you're single stepping things and not using boosted probes
+> > you can fully serialize the slot usage. Claim a slot on trap and releas=
+e
+> > the slot on finish. Claiming can wait on a free slot since you already
+> > have the whole SLEEPY thing.
+> >=20
+>=20
+> Yes, thats certainly one approach but that approach makes every
+> breakpoint hit contend for spinlock. (Infact we will have to change it
+> to mutex lock (as you rightly pointed out) so that we allow threads to
+> wait when slots are not free). Assuming a 4K page, we would be taxing
+> applications that have less than 32 threads (which is probably the
+> default case). If we continue with the current approach, then we
+> could only add additional page(s) for apps which has more than 32
+> threads and only when more than 32 __live__ threads have actually hit a
+> breakpoint.=20
 
-Yes, thats certainly one approach but that approach makes every
-breakpoint hit contend for spinlock. (Infact we will have to change it
-to mutex lock (as you rightly pointed out) so that we allow threads to
-wait when slots are not free). Assuming a 4K page, we would be taxing
-applications that have less than 32 threads (which is probably the
-default case). If we continue with the current approach, then we
-could only add additional page(s) for apps which has more than 32
-threads and only when more than 32 __live__ threads have actually hit a
-breakpoint.
+That very much depends on what you do, some folks think its entirely
+reasonable for processes to have thousands of threads. Now I completely
+agree with you that that is not 'normal', but then I think using Java
+isn't normal either ;-)
 
-> 
-> > +static int xol_add_vma(struct uprobes_xol_area *area)
-> > +{
-> > +	struct vm_area_struct *vma;
-> > +	struct mm_struct *mm;
-> > +	struct file *file;
-> > +	unsigned long addr;
-> > +	int ret = -ENOMEM;
-> > +
-> > +	mm = get_task_mm(current);
-> > +	if (!mm)
-> > +		return -ESRCH;
-> > +
-> > +	down_write(&mm->mmap_sem);
-> > +	if (mm->uprobes_xol_area) {
-> > +		ret = -EALREADY;
-> > +		goto fail;
-> > +	}
-> > +
-> > +	/*
-> > +	 * Find the end of the top mapping and skip a page.
-> > +	 * If there is no space for PAGE_SIZE above
-> > +	 * that, mmap will ignore our address hint.
-> > +	 *
-> > +	 * We allocate a "fake" unlinked shmem file because
-> > +	 * anonymous memory might not be granted execute
-> > +	 * permission when the selinux security hooks have
-> > +	 * their way.
-> > +	 */
-> 
-> That just annoys me, so we're working around some stupid sekurity crap,
-> executable anonymous maps are perfectly fine, also what do JITs do?
+Anyway, avoiding that spinlock/mutex for each trap isn't hard, avoiding
+a process wide cacheline bounce is slightly harder but still not
+impossible.=20
 
-Yes, we are working around selinux security hooks, but do we have a
-choice. 
+With 32 slots in 4k you have 128 bytes to play with, all we need is a
+single bit per slot to mark it being in-use. If a task remembers what
+slot it used last and tries to claim that using an atomic test and set
+for that bit it will, in the 'normal' case, never contend on a process
+wide cacheline.
 
-James can you please comment on this.
-
-> 
-> > +	vma = rb_entry(rb_last(&mm->mm_rb), struct vm_area_struct, vm_rb);
-> > +	addr = vma->vm_end + PAGE_SIZE;
-> > +	file = shmem_file_setup("uprobes/xol", PAGE_SIZE, VM_NORESERVE);
-> > +	if (!file) {
-> > +		printk(KERN_ERR "uprobes_xol failed to setup shmem_file "
-> > +			"while allocating vma for pid/tgid %d/%d for "
-> > +			"single-stepping out of line.\n",
-> > +			current->pid, current->tgid);
-> > +		goto fail;
-> > +	}
-> > +	addr = do_mmap_pgoff(file, addr, PAGE_SIZE, PROT_EXEC, MAP_PRIVATE, 0);
-> > +	fput(file);
-> > +
+In case it does find the slot taken, it'll have to go the slow route and
+scan for a free slot and possibly wait for one to become free.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
