@@ -1,82 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 798108D003B
-	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 17:21:47 -0400 (EDT)
-Subject: Re: [PATCH v3] mm: make expand_downwards symmetrical to
- expand_upwards
-From: James Bottomley <James.Bottomley@HansenPartnership.com>
-In-Reply-To: <alpine.DEB.2.00.1104191530040.23077@router.home>
-References: <20110415135144.GE8828@tiehlicka.suse.cz>
-	 <alpine.LSU.2.00.1104171952040.22679@sister.anvils>
-	 <20110418100131.GD8925@tiehlicka.suse.cz>
-	 <20110418135637.5baac204.akpm@linux-foundation.org>
-	 <20110419111004.GE21689@tiehlicka.suse.cz>
-	 <1303228009.3171.18.camel@mulgrave.site>
-	 <BANLkTimYrD_Sby_u-fPSwn-RJJyEVavU5w@mail.gmail.com>
-	 <1303233088.3171.26.camel@mulgrave.site>
-	 <alpine.DEB.2.00.1104191213120.17888@router.home>
-	 <1303235306.3171.33.camel@mulgrave.site>
-	 <alpine.DEB.2.00.1104191254300.19358@router.home>
-	 <1303237217.3171.39.camel@mulgrave.site>
-	 <alpine.DEB.2.00.1104191325470.19358@router.home>
-	 <1303242580.11237.10.camel@mulgrave.site>
-	 <alpine.DEB.2.00.1104191530040.23077@router.home>
-Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 19 Apr 2011 16:21:43 -0500
-Message-ID: <1303248103.11237.16.camel@mulgrave.site>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E1FF8D003B
+	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 17:22:13 -0400 (EDT)
+Received: from wpaz1.hot.corp.google.com (wpaz1.hot.corp.google.com [172.24.198.65])
+	by smtp-out.google.com with ESMTP id p3JLM3PJ005581
+	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 14:22:04 -0700
+Received: from pwj3 (pwj3.prod.google.com [10.241.219.67])
+	by wpaz1.hot.corp.google.com with ESMTP id p3JLM1Ni003275
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 14:22:02 -0700
+Received: by pwj3 with SMTP id 3so109469pwj.15
+        for <linux-mm@kvack.org>; Tue, 19 Apr 2011 14:22:01 -0700 (PDT)
+Date: Tue, 19 Apr 2011 14:21:59 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 1/2] break out page allocation warning code
+In-Reply-To: <20110419094422.9375.A69D9226@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1104191419470.510@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1104181321480.31186@chino.kir.corp.google.com> <1303161774.9887.346.camel@nimitz> <20110419094422.9375.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-parisc@vger.kernel.org, David Rientjes <rientjes@google.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Nazarewicz <mina86@mina86.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Tue, 2011-04-19 at 15:56 -0500, Christoph Lameter wrote:
-> On Tue, 19 Apr 2011, James Bottomley wrote:
+On Tue, 19 Apr 2011, KOSAKI Motohiro wrote:
+
+> The rule is,
 > 
-> > > > I told you ... I forced an allocation into the first discontiguous
-> > > > region.  That will return 1 for page_to_nid().
-> > >
-> > > How? The kernel has no concept of a node 1 without CONFIG_NUMA and so you
-> > > cannot tell the page allocator to allocate from node 1.
-> >
-> > Yes, it does, as I explained in the email.
+> 1) writing comm
+> 	need task_lock
+> 2) read _another_ thread's comm
+> 	need task_lock
+> 3) read own comm
+> 	no need task_lock
 > 
-> Looked through it and canot find it. How would that be possible to do
-> with core kernel calls since the page allocator calls do not allow you to
-> specify a node under !NUMA.
 
-it's used under DISCONTIGMEM to identify the pfn array.
-
-> > Don't be silly: alpha, ia64, m32r, m68k, mips, parisc, tile and even x86
-> > all use the discontigmem memory model in some configurations.
-> 
-> I guess DISCONTIGMEM is typically used together with NUMA. Otherwise we
-> would have run into this before.
-
-Which bit of my telling you that six architectures already use it this
-way did you not get?  I'm not really interested in reconciling your
-theories with how we currently operate.  If you want to require NUMA
-with DISCONTIGMEM, fine, we'll just define SLUB as broken if that's not
-true ... that will fix my boot panic reports.
-
-James
-
----
-
-diff --git a/init/Kconfig b/init/Kconfig
-index 56240e7..a7ad8fb 100644
---- a/init/Kconfig
-+++ b/init/Kconfig
-@@ -1226,6 +1226,7 @@ config SLAB
- 	  per cpu and per node queues.
- 
- config SLUB
-+	depends on BROKEN || NUMA || !DISCONTIGMEM
- 	bool "SLUB (Unqueued Allocator)"
- 	help
- 	   SLUB is a slab allocator that minimizes cache line usage
-
+That was true a while ago, but you now need to protect every thread's 
+->comm with get_task_comm() or ensuring task_lock() is held to protect 
+against /proc/pid/comm which can change other thread's ->comm.  That was 
+different before when prctl(PR_SET_NAME) would only operate on current, so 
+no lock was needed when reading current->comm.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
