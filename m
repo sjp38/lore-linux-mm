@@ -1,46 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 9FAF58D003B
-	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 17:23:40 -0400 (EDT)
-Received: from kpbe13.cbf.corp.google.com (kpbe13.cbf.corp.google.com [172.25.105.77])
-	by smtp-out.google.com with ESMTP id p3JLNcaQ031282
-	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 14:23:38 -0700
-Received: from pzk30 (pzk30.prod.google.com [10.243.19.158])
-	by kpbe13.cbf.corp.google.com with ESMTP id p3JLMiJV032484
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 14:23:36 -0700
-Received: by pzk30 with SMTP id 30so67102pzk.3
-        for <linux-mm@kvack.org>; Tue, 19 Apr 2011 14:23:36 -0700 (PDT)
-Date: Tue, 19 Apr 2011 14:23:35 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 1/2] break out page allocation warning code
-In-Reply-To: <1303160221.9887.301.camel@nimitz>
-Message-ID: <alpine.DEB.2.00.1104191422080.510@chino.kir.corp.google.com>
-References: <20110415170437.17E1AF36@kernel> <alpine.DEB.2.00.1104161653220.14788@chino.kir.corp.google.com> <1303139455.9615.2533.camel@nimitz> <alpine.DEB.2.00.1104181321480.31186@chino.kir.corp.google.com> <1303160221.9887.301.camel@nimitz>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 90D7C8D003B
+	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 17:39:42 -0400 (EDT)
+Date: Tue, 19 Apr 2011 16:39:38 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH v3] mm: make expand_downwards symmetrical to
+ expand_upwards
+In-Reply-To: <1303248103.11237.16.camel@mulgrave.site>
+Message-ID: <alpine.DEB.2.00.1104191627040.23077@router.home>
+References: <20110415135144.GE8828@tiehlicka.suse.cz>  <alpine.LSU.2.00.1104171952040.22679@sister.anvils>  <20110418100131.GD8925@tiehlicka.suse.cz>  <20110418135637.5baac204.akpm@linux-foundation.org>  <20110419111004.GE21689@tiehlicka.suse.cz>
+ <1303228009.3171.18.camel@mulgrave.site>  <BANLkTimYrD_Sby_u-fPSwn-RJJyEVavU5w@mail.gmail.com>  <1303233088.3171.26.camel@mulgrave.site>  <alpine.DEB.2.00.1104191213120.17888@router.home>  <1303235306.3171.33.camel@mulgrave.site>
+ <alpine.DEB.2.00.1104191254300.19358@router.home>  <1303237217.3171.39.camel@mulgrave.site>  <alpine.DEB.2.00.1104191325470.19358@router.home>  <1303242580.11237.10.camel@mulgrave.site>  <alpine.DEB.2.00.1104191530040.23077@router.home>
+ <1303248103.11237.16.camel@mulgrave.site>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Nazarewicz <mina86@mina86.com>, Andrew Morton <akpm@linux-foundation.org>
+To: James Bottomley <James.Bottomley@HansenPartnership.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-parisc@vger.kernel.org, David Rientjes <rientjes@google.com>
 
-On Mon, 18 Apr 2011, Dave Hansen wrote:
+On Tue, 19 Apr 2011, James Bottomley wrote:
 
-> > It shouldn't be a follow-on patch since you're introducing a new feature 
-> > here (vmalloc allocation failure warnings) and what I'm identifying is a 
-> > race in the access to current->comm.  A bug fix for a race should always 
-> > preceed a feature that touches the same code.
-> 
-> Dude.  Seriously.  Glass house!  a63d83f4
-> 
+> > I guess DISCONTIGMEM is typically used together with NUMA. Otherwise we
+> > would have run into this before.
+>
+> Which bit of my telling you that six architectures already use it this
+> way did you not get?  I'm not really interested in reconciling your
+> theories with how we currently operate.  If you want to require NUMA
+> with DISCONTIGMEM, fine, we'll just define SLUB as broken if that's not
+> true ... that will fix my boot panic reports.
 
-Not sure what you're implying here.  The commit you've identified is the 
-oom killer rewrite and the oom killer is very specific about making sure 
-to always hold task_lock() whenever dereferencing ->comm, even for 
-current, to guard against /proc/pid/comm or prctl().  The oom killer is 
-different from your usecase, however, because we can always take 
-task_lock(current) in the oom killer because it's in a blockable context, 
-whereas page allocation warnings can occur in a superset.
+Which part of me telling you that you will break lots of other things in
+the core kernel dont you get? If you were able to get to a command prompt
+with SLAB then lets all be happy for as long as it lasts.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
