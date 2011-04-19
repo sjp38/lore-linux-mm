@@ -1,104 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 94C49900086
-	for <linux-mm@kvack.org>; Mon, 18 Apr 2011 19:32:20 -0400 (EDT)
-Received: by iyh42 with SMTP id 42so6471210iyh.14
-        for <linux-mm@kvack.org>; Mon, 18 Apr 2011 16:32:19 -0700 (PDT)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id DC7C0900086
+	for <linux-mm@kvack.org>; Mon, 18 Apr 2011 20:09:21 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id D9F2B3EE0AE
+	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 09:09:17 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id C247F45DE92
+	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 09:09:17 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id A918645DE88
+	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 09:09:17 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 9D312E38001
+	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 09:09:17 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 673B21DB8049
+	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 09:09:17 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 2/3] tile: replace mm->cpu_vm_mask with mm_cpumask()
+In-Reply-To: <4DAC37E7.5010809@tilera.com>
+References: <20110418211914.9361.A69D9226@jp.fujitsu.com> <4DAC37E7.5010809@tilera.com>
+Message-Id: <20110419090923.9369.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <BANLkTikZcTj9GAGrsTnMMCq1b9HjnDnGWA@mail.gmail.com>
-References: <1302909815-4362-1-git-send-email-yinghan@google.com>
-	<1302909815-4362-7-git-send-email-yinghan@google.com>
-	<BANLkTi=2yQZXhHrDxjPvpKJ-KpmQ242cVQ@mail.gmail.com>
-	<BANLkTikZcTj9GAGrsTnMMCq1b9HjnDnGWA@mail.gmail.com>
-Date: Tue, 19 Apr 2011 08:32:18 +0900
-Message-ID: <BANLkTi=pyRWb9npHe_SJdYXR-TbrtVtLRg@mail.gmail.com>
-Subject: Re: [PATCH V5 06/10] Per-memcg background reclaim.
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Tue, 19 Apr 2011 09:09:16 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>, linux-mm@kvack.org
+To: Chris Metcalf <cmetcalf@tilera.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>
 
-On Tue, Apr 19, 2011 at 6:38 AM, Ying Han <yinghan@google.com> wrote:
->
->
-> On Sun, Apr 17, 2011 at 8:51 PM, Minchan Kim <minchan.kim@gmail.com> wrot=
-e:
->>
->> On Sat, Apr 16, 2011 at 8:23 AM, Ying Han <yinghan@google.com> wrote:
->> > +
->> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 sc->nr_scanned =3D =
-0;
->> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 shrink_zone(priorit=
-y, zone, sc);
->> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 total_scanned +=3D =
-sc->nr_scanned;
->> > +
->> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 /*
->> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0* If we've do=
-ne a decent amount of scanning and
->> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0* the reclaim=
- ratio is low, start doing writepage
->> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0* even in lap=
-top mode
->> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0*/
->> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (total_scanned >=
- SWAP_CLUSTER_MAX * 2 &&
->> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 total=
-_scanned > sc->nr_reclaimed + sc->nr_reclaimed
->> > / 2) {
->> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 sc->may_writepage =3D 1;
->>
->> I don't want to add more random write any more although we don't have
->> a trouble of real memory shortage.
->
->
->>
->> Do you have any reason to reclaim memory urgently as writing dirty pages=
-?
->> Maybe if we wait a little bit of time, flusher would write out the page.
->
-> We would like to reduce the writing dirty pages from page reclaim,
-> especially from direct reclaim. AFAIK, the=C2=A0try_to_free_mem_cgroup_pa=
-ges()
-> still need to write dirty pages when there is a need. removing this from =
-the
-> per-memcg kswap will only add more pressure to the per-memcg direct recla=
-im,
-> which seems to be worse. (stack overflow as one example which we would li=
-ke
-> to get rid of)
->
+> On 4/18/2011 8:18 AM, KOSAKI Motohiro wrote:
+> > We plan to change mm->cpu_vm_mask definition later. Thus, this patch convert
+> > it into proper macro.
+> >
+> > Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> > Cc: Chris Metcalf <cmetcalf@tilera.com>
+> 
+> Thanks; I wasn't aware of this macro.  I'll take this change into my tree
+> unless you would like to push it.
 
-Stack overflow would be another topic.
+Thanks. 
 
-Normal situation :
+I hope this patch route  your tree. I don't want to push patch 3/3 to linus-tree
+until all architecture finish to convert mm_cpumask().
 
-The softlimit memory pressure of memcg isn't real memory shortage and
-if we have gap between hardlimit and softlimit, periodic writeback of
-flusher would write it out before reaching the hardlimit. In the end,
-direct reclaim don't need to write it out.
 
-Exceptional situation :
+> > Chris, I couldn't get cross compiler for tile. thus I hope you check it carefully.
+> 
+> The toolchain support is currently only available from Tilera (at
+> http://www.tilera.com/scm/) but we are in the process of cleaning it up to
+> push it up to the community.
 
-Of course, it doesn't work well in congestion of bdi, sudden big
-memory consumption in memcg in wrong [hard/soft]limit(small gap)
-configuration of administrator.
+Thank you, too.
 
-I think we have to design it by normal situation.
-The point is that softlimit isn't real memory shortage so that we are
-not urgent.
 
-How about adding new function which checks global memory pressure and
-if we have a trouble by global memory pressure, we can change
-may_write with 1 dynamically in memcg_kswapd?
-
---=20
-Kind regards,
-Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
