@@ -1,52 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B0928D003B
-	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 07:35:13 -0400 (EDT)
-Subject: Re: [PATCH v3 2.6.39-rc1-tip 12/26] 12: uprobes: slot allocation
- for uprobes
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <20110419062654.GB10698@linux.vnet.ibm.com>
-References: 
-	 <20110401143223.15455.19844.sendpatchset@localhost6.localdomain6>
-	 <20110401143457.15455.64839.sendpatchset@localhost6.localdomain6>
-	 <1303145171.32491.886.camel@twins>
-	 <20110419062654.GB10698@linux.vnet.ibm.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-Date: Tue, 19 Apr 2011 11:02:26 +0200
-Message-ID: <1303203746.32491.913.camel@twins>
-Mime-Version: 1.0
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id F39138D003B
+	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 08:02:24 -0400 (EDT)
+Date: Tue, 19 Apr 2011 16:02:20 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 0/6] writeback: moving expire targets for
+ background/kupdate works
+Message-ID: <20110419080220.GA7056@localhost>
+References: <20110419030003.108796967@intel.com>
+ <20110419063823.GD23985@dastard>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110419063823.GD23985@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: James Morris <jmorris@namei.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Christoph Hellwig <hch@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, SystemTap <systemtap@sources.redhat.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mel Gorman <mel@linux.vnet.ibm.com>, Trond Myklebust <Trond.Myklebust@netapp.com>, Itaru Kitayama <kitayama@cl.bb4u.ne.jp>, Minchan Kim <minchan.kim@gmail.com>, LKML <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-On Tue, 2011-04-19 at 11:56 +0530, Srikar Dronamraju wrote:
-> > > +   /*
-> > > +    * Find the end of the top mapping and skip a page.
-> > > +    * If there is no space for PAGE_SIZE above
-> > > +    * that, mmap will ignore our address hint.
-> > > +    *
-> > > +    * We allocate a "fake" unlinked shmem file because
-> > > +    * anonymous memory might not be granted execute
-> > > +    * permission when the selinux security hooks have
-> > > +    * their way.
-> > > +    */
-> >=20
-> > That just annoys me, so we're working around some stupid sekurity crap,
-> > executable anonymous maps are perfectly fine, also what do JITs do?
->=20
-> Yes, we are working around selinux security hooks, but do we have a
-> choice.=20
+On Tue, Apr 19, 2011 at 02:38:23PM +0800, Dave Chinner wrote:
+> On Tue, Apr 19, 2011 at 11:00:03AM +0800, Wu Fengguang wrote:
+> > 
+> > Andrew,
+> > 
+> > This aims to reduce possible pageout() calls by making the flusher
+> > concentrate a bit more on old/expired dirty inodes.
+> 
+> In what situation is this a problem? Can you demonstrate how you
+> trigger it? And then how much improvement does this patchset make?
 
-Of course you have a choice, mark selinux broken and let them sort
-it ;-)
+As Mel put it, "it makes sense to write old pages first to reduce the
+chances page reclaim is initiating IO."
 
-Anyway, it looks like install_special_mapping() the thing I think you
-ought to use (and I'm sure I said that before) also wobbles around
-selinux by using security_file_mmap() even though its very clearly not a
-file mmap (hint: vm_file =3D=3D NULL).
+In last year's LSF, Rik presented the situation with a graph:
 
+LRU head                                 [*] dirty page
+[                          *              *      * *  *  * * * * * *]
+
+Ideally, most dirty pages should lie close to the LRU tail instead of
+LRU head. That requires the flusher thread to sync old/expired inodes
+first (as there are obvious correlations between inode age and page
+age), and to give fair opportunities to newly expired inodes rather
+than sticking with some large eldest inodes (as larger inodes have
+weaker correlations in the inode<=>page ages).
+
+This patchset helps the flusher to meet both the above requirements.
+
+The measurable improvements will depend a lot on the workload.  Mel
+once did some tests and observed it to help (but as large as his
+forward flush patches ;)
+
+https://lkml.org/lkml/2010/7/28/124
+
+> > Patches 04, 05 have been updated since last post, please review.
+> > The concerns from last review have been addressed.
+> > 
+> > It runs fine on simple workloads over ext3/4, xfs, btrfs and NFS.
+> 
+> But it starts propagating new differences between background and
+> kupdate style writeback. We've been trying to reduce the number of
+> permutations of writeback behaviour, so it seems to me to be wrong
+> to further increase the behavioural differences. Indeed, why do we
+> need "for kupdate" style writeback and "background" writeback
+> anymore - can' we just use background style writeback for both?
+
+This patchset actually brings the background work semantic/behavior
+closer to the kupdate work.
+
+The two type of works have different termination rules: one is the 30s
+dirty expire time, another is the background_thresh in number of dirty
+pages. So they have to be treated differently when selecting the inodes
+to sync.
+
+This "if" could possibly be eliminated later, but should be done
+carefully in an independent patch, preferably after this patchset is
+confirmed to work reliably in upstream.
+
+-       if (wbc->for_kupdate || wbc->for_background) {
+                expire_interval = msecs_to_jiffies(dirty_expire_interval * 10);
+                older_than_this = jiffies - expire_interval;
+-       }
+
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
