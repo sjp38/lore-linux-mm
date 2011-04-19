@@ -1,56 +1,145 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 110CD8D003B
-	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 07:10:10 -0400 (EDT)
-Date: Tue, 19 Apr 2011 13:10:04 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: [PATCH v3] mm: make expand_downwards symmetrical to expand_upwards
-Message-ID: <20110419111004.GE21689@tiehlicka.suse.cz>
-References: <20110415135144.GE8828@tiehlicka.suse.cz>
- <alpine.LSU.2.00.1104171952040.22679@sister.anvils>
- <20110418100131.GD8925@tiehlicka.suse.cz>
- <20110418135637.5baac204.akpm@linux-foundation.org>
+	by kanga.kvack.org (Postfix) with SMTP id 650D88D003B
+	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 07:16:05 -0400 (EDT)
+Date: Tue, 19 Apr 2011 19:16:01 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 5/6] writeback: try more writeback as long as something
+ was written
+Message-ID: <20110419111601.GA18961@localhost>
+References: <20110419030003.108796967@intel.com>
+ <20110419030532.778889102@intel.com>
+ <20110419102016.GD5257@quack.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110418135637.5baac204.akpm@linux-foundation.org>
+In-Reply-To: <20110419102016.GD5257@quack.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-parisc@vger.kernel.org
+To: Jan Kara <jack@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@linux.vnet.ibm.com>, Dave Chinner <david@fromorbit.com>, Trond Myklebust <Trond.Myklebust@netapp.com>, Itaru Kitayama <kitayama@cl.bb4u.ne.jp>, Minchan Kim <minchan.kim@gmail.com>, LKML <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-On Mon 18-04-11 13:56:37, Andrew Morton wrote:
-> On Mon, 18 Apr 2011 12:01:31 +0200
-> Michal Hocko <mhocko@suse.cz> wrote:
-> 
-> > Currently we have expand_upwards exported while expand_downwards is
-> > accessible only via expand_stack or expand_stack_downwards.
+On Tue, Apr 19, 2011 at 06:20:16PM +0800, Jan Kara wrote:
+> On Tue 19-04-11 11:00:08, Wu Fengguang wrote:
+> > writeback_inodes_wb()/__writeback_inodes_sb() are not aggressive in that
+> > they only populate possibly a subset of elegible inodes into b_io at
+> > entrance time. When the queued set of inodes are all synced, they just
+> > return, possibly with all queued inode pages written but still
+> > wbc.nr_to_write > 0.
 > > 
-> > check_stack_guard_page is a nice example of the asymmetry. It uses
-> > expand_stack for VM_GROWSDOWN while expand_upwards is called for
-> > VM_GROWSUP case.
-> > 
-> > Let's clean this up by exporting both functions and make those name
-> > consistent. Let's use expand_stack_{upwards,downwards} so that we are
-> > explicit about stack manipulation in the name. expand_stack_downwards
-> > has to be defined for both CONFIG_STACK_GROWS{UP,DOWN} because
-> > get_arg_page calls the downwards version in the early process
-> > initialization phase for growsup configuration.
+> > For kupdate and background writeback, there may be more eligible inodes
+> > sitting in b_dirty when the current set of b_io inodes are completed. So
+> > it is necessary to try another round of writeback as long as we made some
+> > progress in this round. When there are no more eligible inodes, no more
+> > inodes will be enqueued in queue_io(), hence nothing could/will be
+> > synced and we may safely bail.
+>   Let me understand your concern here: You are afraid that if we do
+> for_background or for_kupdate writeback and we write less than
+> MAX_WRITEBACK_PAGES, we stop doing writeback although there could be more
+> inodes to write at the time we are stopping writeback - the two realistic
+
+Yes.
+
+> cases I can think of are:
+> a) when inodes just freshly expired during writeback
+> b) when bdi has less than MAX_WRITEBACK_PAGES of dirty data but we are over
+>   background threshold due to data on some other bdi. And then while we are
+>   doing writeback someone does dirtying at our bdi.
+> Or do you see some other case as well?
 > 
-> Has this patch been tested on any stack-grows-upwards architecture?
+> The a) case does not seem like a big issue to me after your changes to
 
-The only one I can find in the tree is parisc and I do not have access
-to any such machine. Maybe someone on the list (CCed) can help with
-testing the patch bellow? Nevertheless, the patch doesn't change growsup
-case. It just renames functions and exports growsdown.
+Yeah (a) is not an issue with kupdate writeback.
 
-IA64 which grows upwards only for registers still needs a fix because of
-the rename, though. I'm sorry, I must have missed it in the grep output
-before. No other arch specific code uses expand_{down,up}wards directly.
+> move_expired_inodes(). The b) case maybe but do you think it will make any
+> difference? 
 
-Changes since v2
- - fix compilation error on ia64
-Changes since v1
- - fixed expand_downwards case for CONFIG_STACK_GROWSUP in get_arg_page.
- - rename expand_{downwards,upwards} -> expand_stack_{downwards,upwards}
---- 
+(b) seems also weird. What in my mind is this for_background case.
+Imagine 100 inodes
+
+        i0, i1, i2, ..., i90, i91, i99
+
+At queue_io() time, i90-i99 happen to be expired and moved to s_io for
+IO. When finished successfully, if their total size is less than
+MAX_WRITEBACK_PAGES, nr_to_write will be > 0. Then wb_writeback() will
+quit the background work (w/o this patch) while it's still over
+background threshold.
+
+This will be a fairly normal/frequent case I guess.
+
+Thanks,
+Fengguang
+
+> 								Honza
+> > 
+> > Jan raised the concern
+> > 
+> > 	I'm just afraid that in some pathological cases this could
+> > 	result in bad writeback pattern - like if there is some process
+> > 	which manages to dirty just a few pages while we are doing
+> > 	writeout, this looping could result in writing just a few pages
+> > 	in each round which is bad for fragmentation etc.
+> > 
+> > However it requires really strong timing to make that to (continuously)
+> > happen.  In practice it's very hard to produce such a pattern even if
+> > it's possible in theory. I actually tried to write 1 page per 1ms with
+> > this command
+> > 
+> > 	write-and-fsync -n10000 -S 1000 -c 4096 /fs/test
+> > 
+> > and do sync(1) at the same time. The sync completes quickly on ext4,
+> > xfs, btrfs. The readers could try other write-and-sleep patterns and
+> > check if it can block sync for longer time.
+> > 
+> > CC: Jan Kara <jack@suse.cz>
+> > Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+> > ---
+> >  fs/fs-writeback.c |   16 ++++++++--------
+> >  1 file changed, 8 insertions(+), 8 deletions(-)
+> > 
+> > --- linux-next.orig/fs/fs-writeback.c	2011-04-19 10:18:30.000000000 +0800
+> > +++ linux-next/fs/fs-writeback.c	2011-04-19 10:18:31.000000000 +0800
+> > @@ -750,23 +750,23 @@ static long wb_writeback(struct bdi_writ
+> >  		wrote += write_chunk - wbc.nr_to_write;
+> >  
+> >  		/*
+> > -		 * If we consumed everything, see if we have more
+> > +		 * Did we write something? Try for more
+> > +		 *
+> > +		 * Dirty inodes are moved to b_io for writeback in batches.
+> > +		 * The completion of the current batch does not necessarily
+> > +		 * mean the overall work is done. So we keep looping as long
+> > +		 * as made some progress on cleaning pages or inodes.
+> >  		 */
+> > -		if (wbc.nr_to_write <= 0)
+> > +		if (wbc.nr_to_write < write_chunk)
+> >  			continue;
+> >  		if (wbc.inodes_cleaned)
+> >  			continue;
+> >  		/*
+> > -		 * Didn't write everything and we don't have more IO, bail
+> > +		 * No more inodes for IO, bail
+> >  		 */
+> >  		if (!wbc.more_io)
+> >  			break;
+> >  		/*
+> > -		 * Did we write something? Try for more
+> > -		 */
+> > -		if (wbc.nr_to_write < write_chunk)
+> > -			continue;
+> > -		/*
+> >  		 * Nothing written. Wait for some inode to
+> >  		 * become available for writeback. Otherwise
+> >  		 * we'll just busyloop.
+> > 
+> > 
+> -- 
+> Jan Kara <jack@suse.cz>
+> SUSE Labs, CR
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
