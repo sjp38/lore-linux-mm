@@ -1,279 +1,177 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 630A1900088
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 8A31890008D
 	for <linux-mm@kvack.org>; Mon, 18 Apr 2011 23:59:00 -0400 (EDT)
 From: Ying Han <yinghan@google.com>
-Subject: [PATCH V6 01/10] Add kswapd descriptor
-Date: Mon, 18 Apr 2011 20:57:37 -0700
-Message-Id: <1303185466-2532-2-git-send-email-yinghan@google.com>
-In-Reply-To: <1303185466-2532-1-git-send-email-yinghan@google.com>
-References: <1303185466-2532-1-git-send-email-yinghan@google.com>
+Subject: [PATCH V6 00/10] memcg: per cgroup background reclaim
+Date: Mon, 18 Apr 2011 20:57:36 -0700
+Message-Id: <1303185466-2532-1-git-send-email-yinghan@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>
 Cc: linux-mm@kvack.org
 
-There is a kswapd kernel thread for each numa node. We will add a different
-kswapd for each memcg. The kswapd is sleeping in the wait queue headed at
-kswapd_wait field of a kswapd descriptor. The kswapd descriptor stores
-information of node or memcg and it allows the global and per-memcg background
-reclaim to share common reclaim algorithms.
+The current implementation of memcg supports targeting reclaim when the
+cgroup is reaching its hard_limit and we do direct reclaim per cgroup.
+Per cgroup background reclaim is needed which helps to spread out memory
+pressure over longer period of time and smoothes out the cgroup performance.
 
-This patch adds the kswapd descriptor and moves the per-node kswapd to use the
-new structure.
+If the cgroup is configured to use per cgroup background reclaim, a kswapd
+thread is created which only scans the per-memcg LRU list. Two watermarks
+("high_wmark", "low_wmark") are added to trigger the background reclaim and
+stop it. The watermarks are calculated based on the cgroup's limit_in_bytes.
+By default, the per-memcg kswapd threads are running under root cgroup. There
+is a per-memcg API which exports the pid of each kswapd thread, and userspace
+can configure cpu cgroup seperately.
 
-changelog v6..v5:
-1. rename kswapd_thr to kswapd_tsk
-2. revert the api change on sleeping_prematurely since memcg doesn't support it.
+I run through dd test on large file and then cat the file. Then I compared
+the reclaim related stats in memory.stat.
 
-changelog v5..v4:
-1. add comment on kswapds_spinlock
-2. remove the kswapds_spinlock. we don't need it here since the kswapd and pgdat
-have 1:1 mapping.
+Step1: Create a cgroup with 500M memory_limit.
+$ mkdir /dev/cgroup/memory/A
+$ echo 500m >/dev/cgroup/memory/A/memory.limit_in_bytes
+$ echo $$ >/dev/cgroup/memory/A/tasks
 
-changelog v3..v2:
-1. move the struct mem_cgroup *kswapd_mem in kswapd sruct to later patch.
-2. rename thr in kswapd_run to something else.
+Step2: Test and set the wmarks.
+$ cat /dev/cgroup/memory/A/memory.low_wmark_distance
+0
+$ cat /dev/cgroup/memory/A/memory.high_wmark_distance
+0
 
-changelog v2..v1:
-1. dynamic allocate kswapd descriptor and initialize the wait_queue_head of pgdat
-at kswapd_run.
-2. add helper macro is_node_kswapd to distinguish per-node/per-cgroup kswapd
-descriptor.
+$ cat /dev/cgroup/memory/A/memory.reclaim_wmarks
+low_wmark 524288000
+high_wmark 524288000
 
-Signed-off-by: Ying Han <yinghan@google.com>
----
- include/linux/mmzone.h |    3 +-
- include/linux/swap.h   |    7 ++++
- mm/page_alloc.c        |    1 -
- mm/vmscan.c            |   80 ++++++++++++++++++++++++++++++++++++-----------
- 4 files changed, 69 insertions(+), 22 deletions(-)
+$ echo 50m >/dev/cgroup/memory/A/memory.high_wmark_distance
+$ echo 40m >/dev/cgroup/memory/A/memory.low_wmark_distance
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 628f07b..6cba7d2 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -640,8 +640,7 @@ typedef struct pglist_data {
- 	unsigned long node_spanned_pages; /* total size of physical page
- 					     range, including holes */
- 	int node_id;
--	wait_queue_head_t kswapd_wait;
--	struct task_struct *kswapd;
-+	wait_queue_head_t *kswapd_wait;
- 	int kswapd_max_order;
- 	enum zone_type classzone_idx;
- } pg_data_t;
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index ed6ebe6..f43d406 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -26,6 +26,13 @@ static inline int current_is_kswapd(void)
- 	return current->flags & PF_KSWAPD;
- }
- 
-+struct kswapd {
-+	struct task_struct *kswapd_task;
-+	wait_queue_head_t kswapd_wait;
-+	pg_data_t *kswapd_pgdat;
-+};
-+
-+int kswapd(void *p);
- /*
-  * MAX_SWAPFILES defines the maximum number of swaptypes: things which can
-  * be swapped to.  The swap type and the offset into that swap type are
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 6e1b52a..6340865 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -4205,7 +4205,6 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
- 
- 	pgdat_resize_init(pgdat);
- 	pgdat->nr_zones = 0;
--	init_waitqueue_head(&pgdat->kswapd_wait);
- 	pgdat->kswapd_max_order = 0;
- 	pgdat_page_cgroup_init(pgdat);
- 	
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 060e4c1..ba5e591 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2570,21 +2570,24 @@ out:
- 	return order;
- }
- 
--static void kswapd_try_to_sleep(pg_data_t *pgdat, int order, int classzone_idx)
-+static void kswapd_try_to_sleep(struct kswapd *kswapd_p, int order,
-+				int classzone_idx)
- {
- 	long remaining = 0;
- 	DEFINE_WAIT(wait);
-+	pg_data_t *pgdat = kswapd_p->kswapd_pgdat;
-+	wait_queue_head_t *wait_h = &kswapd_p->kswapd_wait;
- 
- 	if (freezing(current) || kthread_should_stop())
- 		return;
- 
--	prepare_to_wait(&pgdat->kswapd_wait, &wait, TASK_INTERRUPTIBLE);
-+	prepare_to_wait(wait_h, &wait, TASK_INTERRUPTIBLE);
- 
- 	/* Try to sleep for a short interval */
- 	if (!sleeping_prematurely(pgdat, order, remaining, classzone_idx)) {
- 		remaining = schedule_timeout(HZ/10);
--		finish_wait(&pgdat->kswapd_wait, &wait);
--		prepare_to_wait(&pgdat->kswapd_wait, &wait, TASK_INTERRUPTIBLE);
-+		finish_wait(wait_h, &wait);
-+		prepare_to_wait(wait_h, &wait, TASK_INTERRUPTIBLE);
- 	}
- 
- 	/*
-@@ -2611,7 +2614,7 @@ static void kswapd_try_to_sleep(pg_data_t *pgdat, int order, int classzone_idx)
- 		else
- 			count_vm_event(KSWAPD_HIGH_WMARK_HIT_QUICKLY);
- 	}
--	finish_wait(&pgdat->kswapd_wait, &wait);
-+	finish_wait(wait_h, &wait);
- }
- 
- /*
-@@ -2627,20 +2630,24 @@ static void kswapd_try_to_sleep(pg_data_t *pgdat, int order, int classzone_idx)
-  * If there are applications that are active memory-allocators
-  * (most normal use), this basically shouldn't matter.
-  */
--static int kswapd(void *p)
-+int kswapd(void *p)
- {
- 	unsigned long order;
- 	int classzone_idx;
--	pg_data_t *pgdat = (pg_data_t*)p;
-+	struct kswapd *kswapd_p = (struct kswapd *)p;
-+	pg_data_t *pgdat = kswapd_p->kswapd_pgdat;
-+	wait_queue_head_t *wait_h = &kswapd_p->kswapd_wait;
- 	struct task_struct *tsk = current;
- 
- 	struct reclaim_state reclaim_state = {
- 		.reclaimed_slab = 0,
- 	};
--	const struct cpumask *cpumask = cpumask_of_node(pgdat->node_id);
-+	const struct cpumask *cpumask;
- 
- 	lockdep_set_current_reclaim_state(GFP_KERNEL);
- 
-+	BUG_ON(pgdat->kswapd_wait != wait_h);
-+	cpumask = cpumask_of_node(pgdat->node_id);
- 	if (!cpumask_empty(cpumask))
- 		set_cpus_allowed_ptr(tsk, cpumask);
- 	current->reclaim_state = &reclaim_state;
-@@ -2679,7 +2686,7 @@ static int kswapd(void *p)
- 			order = new_order;
- 			classzone_idx = new_classzone_idx;
- 		} else {
--			kswapd_try_to_sleep(pgdat, order, classzone_idx);
-+			kswapd_try_to_sleep(kswapd_p, order, classzone_idx);
- 			order = pgdat->kswapd_max_order;
- 			classzone_idx = pgdat->classzone_idx;
- 			pgdat->kswapd_max_order = 0;
-@@ -2719,13 +2726,13 @@ void wakeup_kswapd(struct zone *zone, int order, enum zone_type classzone_idx)
- 		pgdat->kswapd_max_order = order;
- 		pgdat->classzone_idx = min(pgdat->classzone_idx, classzone_idx);
- 	}
--	if (!waitqueue_active(&pgdat->kswapd_wait))
-+	if (!waitqueue_active(pgdat->kswapd_wait))
- 		return;
- 	if (zone_watermark_ok_safe(zone, order, low_wmark_pages(zone), 0, 0))
- 		return;
- 
- 	trace_mm_vmscan_wakeup_kswapd(pgdat->node_id, zone_idx(zone), order);
--	wake_up_interruptible(&pgdat->kswapd_wait);
-+	wake_up_interruptible(pgdat->kswapd_wait);
- }
- 
- /*
-@@ -2817,12 +2824,21 @@ static int __devinit cpu_callback(struct notifier_block *nfb,
- 		for_each_node_state(nid, N_HIGH_MEMORY) {
- 			pg_data_t *pgdat = NODE_DATA(nid);
- 			const struct cpumask *mask;
-+			struct kswapd *kswapd_p;
-+			struct task_struct *kswapd_tsk;
-+			wait_queue_head_t *wait;
- 
- 			mask = cpumask_of_node(pgdat->node_id);
- 
-+			wait = pgdat->kswapd_wait;
-+			kswapd_p = container_of(wait, struct kswapd,
-+						kswapd_wait);
-+			kswapd_tsk = kswapd_p->kswapd_task;
-+
- 			if (cpumask_any_and(cpu_online_mask, mask) < nr_cpu_ids)
- 				/* One of our CPUs online: restore mask */
--				set_cpus_allowed_ptr(pgdat->kswapd, mask);
-+				if (kswapd_tsk)
-+					set_cpus_allowed_ptr(kswapd_tsk, mask);
- 		}
- 	}
- 	return NOTIFY_OK;
-@@ -2835,18 +2851,31 @@ static int __devinit cpu_callback(struct notifier_block *nfb,
- int kswapd_run(int nid)
- {
- 	pg_data_t *pgdat = NODE_DATA(nid);
-+	struct task_struct *kswapd_tsk;
-+	struct kswapd *kswapd_p;
- 	int ret = 0;
- 
--	if (pgdat->kswapd)
-+	if (pgdat->kswapd_wait)
- 		return 0;
- 
--	pgdat->kswapd = kthread_run(kswapd, pgdat, "kswapd%d", nid);
--	if (IS_ERR(pgdat->kswapd)) {
-+	kswapd_p = kzalloc(sizeof(struct kswapd), GFP_KERNEL);
-+	if (!kswapd_p)
-+		return -ENOMEM;
-+
-+	init_waitqueue_head(&kswapd_p->kswapd_wait);
-+	pgdat->kswapd_wait = &kswapd_p->kswapd_wait;
-+	kswapd_p->kswapd_pgdat = pgdat;
-+
-+	kswapd_tsk = kthread_run(kswapd, kswapd_p, "kswapd%d", nid);
-+	if (IS_ERR(kswapd_tsk)) {
- 		/* failure at boot is fatal */
- 		BUG_ON(system_state == SYSTEM_BOOTING);
- 		printk("Failed to start kswapd on node %d\n",nid);
-+		pgdat->kswapd_wait = NULL;
-+		kfree(kswapd_p);
- 		ret = -1;
--	}
-+	} else
-+		kswapd_p->kswapd_task = kswapd_tsk;
- 	return ret;
- }
- 
-@@ -2855,10 +2884,23 @@ int kswapd_run(int nid)
-  */
- void kswapd_stop(int nid)
- {
--	struct task_struct *kswapd = NODE_DATA(nid)->kswapd;
-+	struct task_struct *kswapd_tsk = NULL;
-+	struct kswapd *kswapd_p = NULL;
-+	wait_queue_head_t *wait;
-+
-+	pg_data_t *pgdat = NODE_DATA(nid);
-+
-+	wait = pgdat->kswapd_wait;
-+	if (wait) {
-+		kswapd_p = container_of(wait, struct kswapd, kswapd_wait);
-+		kswapd_tsk = kswapd_p->kswapd_task;
-+		kswapd_p->kswapd_task = NULL;
-+	}
-+
-+	if (kswapd_tsk)
-+		kthread_stop(kswapd_tsk);
- 
--	if (kswapd)
--		kthread_stop(kswapd);
-+	kfree(kswapd_p);
- }
- 
- static int __init kswapd_init(void)
+$ cat /dev/cgroup/memory/A/memory.reclaim_wmarks
+low_wmark 482344960
+high_wmark 471859200
+
+$ ps -ef | grep memcg
+root     18126     2  0 22:43 ?        00:00:00 [memcg_3]
+root     18129  7999  0 22:44 pts/1    00:00:00 grep memcg
+
+$ cat /dev/cgroup/memory/A/memory.kswapd_pid
+memcg_3 18126
+
+Step3: Dirty the pages by creating a 20g file on hard drive.
+$ ddtest -D /export/hdc3/dd -b 1024 -n 20971520 -t 1
+
+Here are the memory.stat with vs without the per-memcg reclaim. It used to be
+all the pages are reclaimed from direct reclaim, and now some of the pages are
+also being reclaimed at background.
+
+Only direct reclaim                      With background reclaim:
+
+pgpgin 5243222                           pgpgin 5243267
+pgpgout 5115252                          pgpgout 5127978
+kswapd_steal 0                           kswapd_steal 2699807
+pg_pgsteal 5115229                       pg_pgsteal 2428102
+kswapd_pgscan 0                          kswapd_pgscan 10527319
+pg_scan 5918875                          pg_scan 15533740
+pgrefill 264761                          pgrefill 294801
+pgoutrun 0                               pgoutrun 81097
+allocstall 158406                        allocstall 73799
+
+real   4m55.684s                         real    5m1.123s
+user   0m1.227s                          user    0m1.205s
+sys    1m7.793s                          sys     1m6.647s
+
+throughput is 67.37 MB/sec               throughput is 68.04 MB/sec
+
+Step 4: Cleanup
+$ echo $$ >/dev/cgroup/memory/tasks
+$ echo 1 > /dev/cgroup/memory/A/memory.force_empty
+$ rmdir /dev/cgroup/memory/A
+$ echo 3 >/proc/sys/vm/drop_caches
+
+Step 5: Create the same cgroup and read the 20g file into pagecache.
+$ cat /export/hdc3/dd/tf0 > /dev/zero
+
+All the pages are reclaimed from background instead of direct reclaim with
+the per cgroup reclaim.
+
+Only direct reclaim                       With background reclaim:
+
+pgpgin 5242929                            pgpgin 5242935
+pgpgout 5114974                           pgpgout 5125504
+kswapd_steal 0                            kswapd_steal 5125470
+pg_pgsteal 5114944                        pg_pgsteal 0
+kswapd_pgscan 0                           kswapd_pgscan 5125472
+pg_scan 5114944                           pg_scan 0
+pgrefill 0                                pgrefill 0
+pgoutrun 0                                pgoutrun 160184
+allocstall 159842                         allocstall 0
+
+real    4m20.678s                         real    4m20.632s
+user    0m0.198s                          user    0m0.280s
+sys     0m32.569s                         sys     0m24.580s
+
+Note:
+This is the first effort of enhancing the target reclaim into memcg. Here are
+the existing known issues and our plan:
+
+1. there are one kswapd thread per cgroup. the thread is created when the
+cgroup changes its limit_in_bytes and is deleted when the cgroup is being
+removed. In some enviroment when thousand of cgroups are being configured on
+a single host, we will have thousand of kswapd threads. The memory consumption
+would be 8k*100 = 8M. We don't see a big issue for now if the host can host
+that many of cgroups.
+
+2. regarding to the alternative workqueue, which is more complicated and we
+need to be very careful of work items in the workqueue. We've experienced in
+one workitem stucks and the rest of the work item won't proceed. For example
+in dirty page writeback, one heavily writer cgroup could starve the other
+cgroups from flushing dirty pages to the same disk. In the kswapd case, I can
+imagine we might have similar senario. How to prioritize the workitems is
+another problem. The order of adding the workitems in the queue reflects the
+order of cgroups being reclaimed. We don't have that restriction currently but
+relying on the cpu scheduler to put kswapd on the right cpu-core to run. We
+"might" introduce priority later for reclaim and how are we gonna deal with
+that.
+
+3. there is a potential lock contention between per cgroup kswapds, and the
+worst case depends on the number of cpu cores on the system. Basically we
+now are sharing the zone->lru_lock between per-memcg LRU and global LRU. I have
+a plan to get rid of the global LRU eventually, which requires to enhance the
+existing targeting reclaim (this patch is included). I would like to get to that
+where the locking contention problem will be solved naturely.
+
+4. no hierarchical reclaim support in this patchset. I would like to get to
+after the basic stuff are being accepted.
+
+5. By default, it is running under root. If there is a need to put the kswapd
+thread into a cpu cgroup, userspace can make that change by reading the pid from
+the new API and echo-ing. In non preemption kernel, we need to be careful of
+priority inversion when restricting kswapd cpu time while it is holding a mutex.
+
+Ying Han (10):
+  Add kswapd descriptor
+  Add per memcg reclaim watermarks
+  New APIs to adjust per-memcg wmarks
+  Infrastructure to support per-memcg reclaim.
+  Implement the select_victim_node within memcg.
+  Per-memcg background reclaim.
+  Add per-memcg zone "unreclaimable"
+  Enable per-memcg background reclaim.
+  Add API to export per-memcg kswapd pid.
+  Add some per-memcg stats
+
+ Documentation/cgroups/memory.txt |   14 +
+ include/linux/memcontrol.h       |  109 +++++++++
+ include/linux/mmzone.h           |    3 +-
+ include/linux/res_counter.h      |   78 ++++++
+ include/linux/sched.h            |    1 +
+ include/linux/swap.h             |   14 +-
+ kernel/res_counter.c             |    6 +
+ mm/memcontrol.c                  |  490 +++++++++++++++++++++++++++++++++++++-
+ mm/memory_hotplug.c              |    4 +-
+ mm/page_alloc.c                  |    1 -
+ mm/vmscan.c                      |  391 ++++++++++++++++++++++++++----
+ 11 files changed, 1053 insertions(+), 58 deletions(-)
+
 -- 
 1.7.3.1
 
