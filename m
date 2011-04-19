@@ -1,116 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id BF3718D003B
-	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 12:21:36 -0400 (EDT)
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e32.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p3JGAPwh023983
-	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 10:10:25 -0600
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p3JGLHm7139572
-	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 10:21:18 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p3JGLG6C031526
-	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 10:21:17 -0600
-Subject: [PATCH 2/2] print vmalloc() state after allocation failures
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-Date: Tue, 19 Apr 2011 09:21:14 -0700
-References: <20110419162113.D64B2BAB@kernel>
-In-Reply-To: <20110419162113.D64B2BAB@kernel>
-Message-Id: <20110419162114.43478CFB@kernel>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 08A828D003B
+	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 12:59:12 -0400 (EDT)
+Subject: Re: [PATCH v3] mm: make expand_downwards symmetrical to
+From: James Bottomley <James.Bottomley@HansenPartnership.com>
+In-Reply-To: <20110419160606.932084E6A@hiauly1.hia.nrc.ca>
+References: <20110419160606.932084E6A@hiauly1.hia.nrc.ca>
+Content-Type: text/plain; charset="UTF-8"
+Date: Tue, 19 Apr 2011 11:59:09 -0500
+Message-ID: <1303232349.3171.21.camel@mulgrave.site>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, David Rientjes <rientjes@google.com>, Michal Nazarewicz <mina86@mina86.com>, akpm@osdl.org, Dave Hansen <dave@linux.vnet.ibm.com>
+To: John David Anglin <dave@hiauly1.hia.nrc.ca>
+Cc: mhocko@suse.cz, akpm@linux-foundation.org, hughd@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-parisc@vger.kernel.org
 
+On Tue, 2011-04-19 at 12:06 -0400, John David Anglin wrote:
+> > It compiles OK, but crashes on boot in fsck.  The crash is definitely mm
+> > but looks to be a slab problem (it's a null deref on a spinlock in
+> > add_partial(), which seems unrelated to this patch).
+> 
+> I had a somewhat similar crash Sunday with the "debian" config building GCC.
+> This is with 2.6.39-rc3+  without the mm patch:
+> 
+> mx3210 login: [12244.664000] Backtrace:
+> [12244.664000]  [<000000004020c9a0>] __slab_free+0x100/0x200
+> [12244.664000]  [<000000004020d23c>] kmem_cache_free+0xf4/0x108
+> [12244.668000]  [<000000001c7e9efc>] __journal_remove_journal_head+0x214/0x248 [
+> jbd]
+> [12244.668000]  [<000000001c7edd48>] journal_put_journal_head+0xc8/0x168 [jbd]
+> [12244.668000]  [<000000001c7e158c>] journal_invalidatepage+0x45c/0x710 [jbd]
+> [12244.672000]  [<000000001c8652d8>] ext3_invalidatepage+0x88/0xe8 [ext3]
+> [12244.672000]  [<00000000401d76f4>] do_invalidatepage+0x34/0x40
+> [12244.672000]  [<00000000401d7770>] truncate_inode_page+0x70/0x178
+> [12244.676000]  [<00000000401d798c>] truncate_inode_pages_range+0x114/0x518
+> [12244.676000]  [<00000000401d7da4>] truncate_inode_pages+0x14/0x20
+> [12244.680000]  [<000000001c86ac1c>] ext3_evict_inode+0x64/0x2a8 [ext3]
+> [12244.680000]  [<0000000040234424>] evict+0xac/0x1c8
+> 
+> [12244.692000] PSW: 00001000000001101111001100001110 Not tainted
+> [12244.692000] r00-03  000000ff0806f30e 0000000040745e50 000000004020c9a0 000000
+> 01453d6000
+> [12244.692000] r04-07  0000000040722e50 0000000000000000 00000002bf400000 000000
+> 001c7dc000
+> [12244.696000] r08-11  0000000000000002 0000000040630298 0000000000000001 000000
+> 007bba4940
+> [12244.696000] r12-15  00000002bf400000 0000000000000001 0000000000000000 000000
+> 0000000001
+> [12244.700000] r16-19  000000007e71d888 000000007e71d888 0000000000001000 200000
+> 0000000081
+> [12244.700000] r20-23  0000000000000000 0000000040630290 0000000000000001 000000
+> 001c7e9efc
+> [12244.704000] r24-27  000000000800000e 00000001453d6000 0000000000000000 000000
+> 0040722e50
+> [12244.704000] r28-31  0000000000000001 000000007bba4b70 000000007bba4ba0 000000
+> 0000000023
+> [12244.708000] sr00-03  000000000556c000 000000000556c000 0000000000000000 000000000556c000
+> [12244.708000] sr04-07  0000000000000000 0000000000000000 0000000000000000 0000000000000000
+> 
+> [12244.712000]
+> [12244.712000] IASQ: 0000000000000000 0000000000000000 IAOQ: 000000004011b240 000000004011b244
+> [12244.712000]  IIR: 0f4015dc    ISR: 0000000000000000  IOR: 0000000000000000
+> [12244.716000]  CPU:        3   CR30: 000000007bba4000 CR31: ffffffffffffffff
+> [12244.716000]  ORIG_R28: 0000000000000001
+> [12244.720000]  IAOQ[0]: _raw_spin_lock+0x10/0x20
+> [12244.720000]  IAOQ[1]: _raw_spin_lock+0x14/0x20
+> [12244.720000]  RP(r2): __slab_free+0x100/0x200
 
-New in this version:
-- updated description to clarify why I added local variables
+Yes, it's the same crash.  Apparently get_node() is returning NULL for
+some reason.
 
---
+James
 
-I was tracking down a page allocation failure that ended up in vmalloc().
-Since vmalloc() uses 0-order pages, if somebody asks for an insane amount
-of memory, we'll still get a warning with "order:0" in it.  That's not
-very useful.
-
-During recovery, vmalloc() also nicely frees all of the memory that it
-got up to the point of the failure.  That is wonderful, but it also
-quickly hides any issues.  We have a much different sitation if vmalloc()
-repeatedly fails 10GB in to:
-
-	vmalloc(100 * 1<<30);
-
-versus repeatedly failing 4096 bytes in to a:
-
-	vmalloc(8192);
-
-This patch will print out messages that look like this:
-
-[   68.123503] vmalloc: allocation failure, allocated 6680576 of 13426688 bytes
-[   68.124218] bash: page allocation failure: order:0, mode:0xd2
-[   68.124811] Pid: 3770, comm: bash Not tainted 2.6.39-rc3-00082-g85f2e68-dirty #333
-[   68.125579] Call Trace:
-[   68.125853]  [<ffffffff810f6da6>] warn_alloc_failed+0x146/0x170
-[   68.126464]  [<ffffffff8107e05c>] ? printk+0x6c/0x70
-[   68.126791]  [<ffffffff8112b5d4>] ? alloc_pages_current+0x94/0xe0
-[   68.127661]  [<ffffffff8111ed37>] __vmalloc_node_range+0x237/0x290
-...
-
-The 'order' variable is added for clarity when calling
-warn_alloc_failed() to avoid having an unexplained '0' as an argument.
-
-The 'tmp_mask' is because adding an open-coded '| __GFP_NOWARN' would
-take us over 80 columns for the alloc_pages_node() call.  If we are
-going to add a line, it might as well be one that makes the sucker
-easier to read.
-
-As a side issue, I also noticed that ctl_ioctl() does vmalloc() based
-solely on an unverified value passed in from userspace.  Granted, it's
-under CAP_SYS_ADMIN, but it still frightens me a bit.
-
-Signed-off-by: Dave Hansen <dave@linux.vnet.ibm.com>
----
-
- linux-2.6.git-dave/mm/vmalloc.c |    9 +++++++--
- 1 file changed, 7 insertions(+), 2 deletions(-)
-
-diff -puN mm/vmalloc.c~vmalloc-warn mm/vmalloc.c
---- linux-2.6.git/mm/vmalloc.c~vmalloc-warn	2011-04-18 15:03:35.658506887 -0700
-+++ linux-2.6.git-dave/mm/vmalloc.c	2011-04-18 15:04:48.762499842 -0700
-@@ -1534,6 +1534,7 @@ static void *__vmalloc_node(unsigned lon
- static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
- 				 pgprot_t prot, int node, void *caller)
- {
-+	const int order = 0;
- 	struct page **pages;
- 	unsigned int nr_pages, array_size, i;
- 	gfp_t nested_gfp = (gfp_mask & GFP_RECLAIM_MASK) | __GFP_ZERO;
-@@ -1560,11 +1561,12 @@ static void *__vmalloc_area_node(struct 
- 
- 	for (i = 0; i < area->nr_pages; i++) {
- 		struct page *page;
-+		gfp_t tmp_mask = gfp_mask | __GFP_NOWARN;
- 
- 		if (node < 0)
--			page = alloc_page(gfp_mask);
-+			page = alloc_page(tmp_mask);
- 		else
--			page = alloc_pages_node(node, gfp_mask, 0);
-+			page = alloc_pages_node(node, tmp_mask, order);
- 
- 		if (unlikely(!page)) {
- 			/* Successfully allocated i pages, free them in __vunmap() */
-@@ -1579,6 +1581,9 @@ static void *__vmalloc_area_node(struct 
- 	return area->addr;
- 
- fail:
-+	warn_alloc_failed(gfp_mask, order, "vmalloc: allocation failure, "
-+			  "allocated %ld of %ld bytes\n",
-+			  (area->nr_pages*PAGE_SIZE), area->size);
- 	vfree(area->addr);
- 	return NULL;
- }
-_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
