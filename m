@@ -1,161 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 31C7F900086
-	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 02:03:24 -0400 (EDT)
-Date: Mon, 18 Apr 2011 23:06:51 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [Bugme-new] [Bug 33682] New: mprotect got stuck when THP is
- "always" enabled
-Message-Id: <20110418230651.54da5b82.akpm@linux-foundation.org>
-In-Reply-To: <bug-33682-10286@https.bugzilla.kernel.org/>
-References: <bug-33682-10286@https.bugzilla.kernel.org/>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 503C5900086
+	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 06:20:21 -0400 (EDT)
+Date: Tue, 19 Apr 2011 12:20:16 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 5/6] writeback: try more writeback as long as something
+ was written
+Message-ID: <20110419102016.GD5257@quack.suse.cz>
+References: <20110419030003.108796967@intel.com>
+ <20110419030532.778889102@intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110419030532.778889102@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>
-Cc: bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org, bugs@casparzhang.com
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mel Gorman <mel@linux.vnet.ibm.com>, Dave Chinner <david@fromorbit.com>, Trond Myklebust <Trond.Myklebust@netapp.com>, Itaru Kitayama <kitayama@cl.bb4u.ne.jp>, Minchan Kim <minchan.kim@gmail.com>, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>
 
+On Tue 19-04-11 11:00:08, Wu Fengguang wrote:
+> writeback_inodes_wb()/__writeback_inodes_sb() are not aggressive in that
+> they only populate possibly a subset of elegible inodes into b_io at
+> entrance time. When the queued set of inodes are all synced, they just
+> return, possibly with all queued inode pages written but still
+> wbc.nr_to_write > 0.
+> 
+> For kupdate and background writeback, there may be more eligible inodes
+> sitting in b_dirty when the current set of b_io inodes are completed. So
+> it is necessary to try another round of writeback as long as we made some
+> progress in this round. When there are no more eligible inodes, no more
+> inodes will be enqueued in queue_io(), hence nothing could/will be
+> synced and we may safely bail.
+  Let me understand your concern here: You are afraid that if we do
+for_background or for_kupdate writeback and we write less than
+MAX_WRITEBACK_PAGES, we stop doing writeback although there could be more
+inodes to write at the time we are stopping writeback - the two realistic
+cases I can think of are:
+a) when inodes just freshly expired during writeback
+b) when bdi has less than MAX_WRITEBACK_PAGES of dirty data but we are over
+  background threshold due to data on some other bdi. And then while we are
+  doing writeback someone does dirtying at our bdi.
+Or do you see some other case as well?
 
-(switched to email.  Please respond via emailed reply-to-all, not via the
-bugzilla web interface).
+The a) case does not seem like a big issue to me after your changes to
+move_expired_inodes(). The b) case maybe but do you think it will make any
+difference? 
 
-On Tue, 19 Apr 2011 05:25:41 GMT bugzilla-daemon@bugzilla.kernel.org wrote:
-
-> https://bugzilla.kernel.org/show_bug.cgi?id=33682
+								Honza
 > 
->            Summary: mprotect got stuck when THP is "always" enabled
->            Product: Memory Management
->            Version: 2.5
->     Kernel Version: 2.6.38-r1
->           Platform: All
->         OS/Version: Linux
->               Tree: Mainline
->             Status: NEW
->           Severity: normal
->           Priority: P1
->          Component: Other
->         AssignedTo: akpm@linux-foundation.org
->         ReportedBy: bugs@casparzhang.com
->         Regression: No
+> Jan raised the concern
+> 
+> 	I'm just afraid that in some pathological cases this could
+> 	result in bad writeback pattern - like if there is some process
+> 	which manages to dirty just a few pages while we are doing
+> 	writeout, this looping could result in writing just a few pages
+> 	in each round which is bad for fragmentation etc.
+> 
+> However it requires really strong timing to make that to (continuously)
+> happen.  In practice it's very hard to produce such a pattern even if
+> it's possible in theory. I actually tried to write 1 page per 1ms with
+> this command
+> 
+> 	write-and-fsync -n10000 -S 1000 -c 4096 /fs/test
+> 
+> and do sync(1) at the same time. The sync completes quickly on ext4,
+> xfs, btrfs. The readers could try other write-and-sleep patterns and
+> check if it can block sync for longer time.
+> 
+> CC: Jan Kara <jack@suse.cz>
+> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+> ---
+>  fs/fs-writeback.c |   16 ++++++++--------
+>  1 file changed, 8 insertions(+), 8 deletions(-)
+> 
+> --- linux-next.orig/fs/fs-writeback.c	2011-04-19 10:18:30.000000000 +0800
+> +++ linux-next/fs/fs-writeback.c	2011-04-19 10:18:31.000000000 +0800
+> @@ -750,23 +750,23 @@ static long wb_writeback(struct bdi_writ
+>  		wrote += write_chunk - wbc.nr_to_write;
+>  
+>  		/*
+> -		 * If we consumed everything, see if we have more
+> +		 * Did we write something? Try for more
+> +		 *
+> +		 * Dirty inodes are moved to b_io for writeback in batches.
+> +		 * The completion of the current batch does not necessarily
+> +		 * mean the overall work is done. So we keep looping as long
+> +		 * as made some progress on cleaning pages or inodes.
+>  		 */
+> -		if (wbc.nr_to_write <= 0)
+> +		if (wbc.nr_to_write < write_chunk)
+>  			continue;
+>  		if (wbc.inodes_cleaned)
+>  			continue;
+>  		/*
+> -		 * Didn't write everything and we don't have more IO, bail
+> +		 * No more inodes for IO, bail
+>  		 */
+>  		if (!wbc.more_io)
+>  			break;
+>  		/*
+> -		 * Did we write something? Try for more
+> -		 */
+> -		if (wbc.nr_to_write < write_chunk)
+> -			continue;
+> -		/*
+>  		 * Nothing written. Wait for some inode to
+>  		 * become available for writeback. Otherwise
+>  		 * we'll just busyloop.
 > 
 > 
-> Created an attachment (id=54662)
->  --> (https://bugzilla.kernel.org/attachment.cgi?id=54662)
-> mprotect test program 
-> 
-> Description of problem:
-> 
-> see attached test program. This program can be run like this:
-> 
-> ./mprotect <times> <length> <flag>
-> 
-> times: how many times the mprotect() function execute;
-> length: same as the "length" option in mprotect() function;
-> flag: when flag is set to 1, the program would touch every page within the
-> range [addr, addr+length-1] before it calls mprotect().
-> 
-> to reproduce the stuck, execute: ./mprotect 50 128 1
-> 
-> Note that the stuck only happens when the following conditions are all
-> satisfied:
-> 
-> flag == 1, i.e. touch page before mprotect()
-> proto = PROT_NONE in mprotect()
-> THP is enabled with "always" option
-> 
-> Version-Release number of selected component (if applicable):
-> 
-> Linux version 2.6.39-rc3 (caspar@caspar-gentoo) (gcc version 4.5.2 (Gentoo
-> 4.5.2 p1.0, pie-0.4.5) ) #1 SMP Tue Apr 19 12:32:20 CST 2011
-> 
-> How reproducible:
-> very often
-> 
-> Actual results:
-> test program got stuck when touching pages + THP always enabled:
-> 
-> caspar-gentoo tmp # echo always > /sys/kernel/mm/transparent_hugepage/enabled 
-> caspar-gentoo tmp # ./mprotect 50 128 1
-> ^C <- stuck
-> caspar-gentoo tmp # ./mprotect 50 128 1
-> ^C
-> caspar-gentoo tmp # ./mprotect 50 128 1
-> ^C
-> caspar-gentoo tmp # ./mprotect 50 128 1
-> ^C
-> caspar-gentoo tmp # echo madvise > /sys/kernel/mm/transparent_hugepage/enabled 
-> caspar-gentoo tmp # ./mprotect 50 128 1
-> done caspar-gentoo tmp # ./mprotect 50 128 1
-> done caspar-gentoo tmp # ./mprotect 50 128 1
-> done caspar-gentoo tmp # ./mprotect 50 128 1
-> done caspar-gentoo tmp # echo never >
-> /sys/kernel/mm/transparent_hugepage/enabled 
-> caspar-gentoo tmp # ./mprotect 50 128 1
-> done caspar-gentoo tmp # ./mprotect 50 128 1
-> done caspar-gentoo tmp # ./mprotect 50 128 1
-> done caspar-gentoo tmp # ./mprotect 50 128 1
-> done caspar-gentoo tmp # ./mprotect 50 128 1
-> done caspar-gentoo tmp # ./mprotect 50 128 1
-> done caspar-gentoo tmp # ./mprotect 50 128 1
-> 
-> Expected results:
-> test program exit normally
-> 
-> Additional info:
-> 
-> This reproducer was similar to a test program in upstream test suite: libMicro
-> (http://hub.opensolaris.org/bin/view/Project+libmicro/)
-> 
-> strace ouput: 
-> 
-> # strace ./mprotect 50 128 1
-> execve("./mprotect", ["./mprotect", "50", "128", "1"], [/* 35 vars */]) = 0
-> brk(0)                                  = 0x16ad000
-> mmap(NULL, 4096, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) =
-> 0x7ffa0c266000
-> access("/etc/ld.so.preload", R_OK)      = -1 ENOENT (No such file or directory)
-> open("/etc/ld.so.cache", O_RDONLY)      = 3
-> fstat(3, {st_mode=S_IFREG|0644, st_size=163815, ...}) = 0
-> mmap(NULL, 163815, PROT_READ, MAP_PRIVATE, 3, 0) = 0x7ffa0c23e000
-> close(3)                                = 0
-> open("/lib64/libc.so.6", O_RDONLY)      = 3
-> read(3,
-> "\177ELF\2\1\1\0\0\0\0\0\0\0\0\0\3\0>\0\1\0\0\0\320\357\1\0\0\0\0\0"..., 832) =
-> 832
-> fstat(3, {st_mode=S_IFREG|0755, st_size=1608912, ...}) = 0
-> mmap(NULL, 3718152, PROT_READ|PROT_EXEC, MAP_PRIVATE|MAP_DENYWRITE, 3, 0) =
-> 0x7ffa0bcbc000
-> mprotect(0x7ffa0be3f000, 2093056, PROT_NONE) = 0
-> mmap(0x7ffa0c03e000, 20480, PROT_READ|PROT_WRITE,
-> MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x182000) = 0x7ffa0c03e000
-> mmap(0x7ffa0c043000, 19464, PROT_READ|PROT_WRITE,
-> MAP_PRIVATE|MAP_FIXED|MAP_ANONYMOUS, -1, 0) = 0x7ffa0c043000
-> close(3)                                = 0
-> mmap(NULL, 4096, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) =
-> 0x7ffa0c23d000
-> mmap(NULL, 4096, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) =
-> 0x7ffa0c23c000
-> mmap(NULL, 4096, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) =
-> 0x7ffa0c23b000
-> arch_prctl(ARCH_SET_FS, 0x7ffa0c23c700) = 0
-> mprotect(0x7ffa0c03e000, 16384, PROT_READ) = 0
-> mprotect(0x600000, 4096, PROT_READ)     = 0
-> mprotect(0x7ffa0c267000, 4096, PROT_READ) = 0
-> munmap(0x7ffa0c23e000, 163815)          = 0
-> open("/dev/zero", O_RDWR)               = 3
-> mmap(NULL, 6553600, PROT_READ|PROT_WRITE, MAP_PRIVATE, 3, 0) = 0x7ffa0b67c000
-> mprotect(0x7ffa0b67c000, 131072, PROT_NONE) = 0
-> mprotect(0x7ffa0b69c000, 131072, PROT_NONE) = 0
-> mprotect(0x7ffa0b6bc000, 131072, PROT_NONE) = 0
-> mprotect(0x7ffa0b6dc000, 131072, PROT_NONE) = 0
-> mprotect(0x7ffa0b6fc000, 131072, PROT_NONE) = 0
-> mprotect(0x7ffa0b71c000, 131072, PROT_NONE) = 0
-> mprotect(0x7ffa0b73c000, 131072, PROT_NONE) = 0
-> mprotect(0x7ffa0b75c000, 131072, PROT_NONE) = 0
-> <repeated random times, snip>
-> 
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
