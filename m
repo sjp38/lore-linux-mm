@@ -1,58 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 650328D003B
-	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 07:06:43 -0400 (EDT)
-Date: Tue, 19 Apr 2011 17:02:47 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH 2/6] writeback: the kupdate expire timestamp should be
- a moving target
-Message-ID: <20110419070247.GE23985@dastard>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 889028D003B
+	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 07:09:21 -0400 (EDT)
+Received: from relay2.suse.de (charybdis-ext.suse.de [195.135.221.2])
+	by mx2.suse.de (Postfix) with ESMTP id A50D786391
+	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 12:42:39 +0200 (CEST)
+Date: Tue, 19 Apr 2011 11:47:24 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 4/6] writeback: introduce
+ writeback_control.inodes_cleaned
+Message-ID: <20110419094724.GB5257@quack.suse.cz>
 References: <20110419030003.108796967@intel.com>
- <20110419030532.392203618@intel.com>
+ <20110419030532.638670778@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110419030532.392203618@intel.com>
+In-Reply-To: <20110419030532.638670778@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mel Gorman <mel@linux.vnet.ibm.com>, Mel Gorman <mel@csn.ul.ie>, Itaru Kitayama <kitayama@cl.bb4u.ne.jp>, Trond Myklebust <Trond.Myklebust@netapp.com>, Minchan Kim <minchan.kim@gmail.com>, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mel Gorman <mel@linux.vnet.ibm.com>, Mel Gorman <mel@csn.ul.ie>, Dave Chinner <david@fromorbit.com>, Trond Myklebust <Trond.Myklebust@netapp.com>, Itaru Kitayama <kitayama@cl.bb4u.ne.jp>, Minchan Kim <minchan.kim@gmail.com>, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>
 
-On Tue, Apr 19, 2011 at 11:00:05AM +0800, Wu Fengguang wrote:
-> Dynamically compute the dirty expire timestamp at queue_io() time.
+On Tue 19-04-11 11:00:07, Wu Fengguang wrote:
+> The flusher works on dirty inodes in batches, and may quit prematurely
+> if the batch of inodes happen to be metadata-only dirtied: in this case
+> wbc->nr_to_write won't be decreased at all, which stands for "no pages
+> written" but also mis-interpreted as "no progress".
 > 
-> writeback_control.older_than_this used to be determined at entrance to
-> the kupdate writeback work. This _static_ timestamp may go stale if the
-> kupdate work runs on and on. The flusher may then stuck with some old
-> busy inodes, never considering newly expired inodes thereafter.
+> So introduce writeback_control.inodes_cleaned to count the inodes get
+> cleaned.  A non-zero value means there are some progress on writeback,
+> in which case more writeback can be tried.
 > 
-> This has two possible problems:
+> about v1: The initial version was to count successful ->write_inode()
+> calls.  However it leads to busy loops for sync() over NFS, because NFS
+> ridiculously returns 0 (success) while at the same time redirties the
+> inode.  The NFS case can be trivially fixed, however there may be more
+> hidden bugs in other filesystems..
+  OK, makes sense.
+Acked-by: Jan Kara <jack@suse.cz>
+
+								Honza
 > 
-> - It is unfair for a large dirty inode to delay (for a long time) the
->   writeback of small dirty inodes.
+> Acked-by: Mel Gorman <mel@csn.ul.ie>
+> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+> ---
+>  fs/fs-writeback.c         |    4 ++++
+>  include/linux/writeback.h |    1 +
+>  2 files changed, 5 insertions(+)
 > 
-> - As time goes by, the large and busy dirty inode may contain only
->   _freshly_ dirtied pages. Ignoring newly expired dirty inodes risks
->   delaying the expired dirty pages to the end of LRU lists, triggering
->   the evil pageout(). Nevertheless this patch merely addresses part
->   of the problem.
-
-When wb_writeback() is called with for_kupdate set, it initialises
-wbc->older_than_this appropriately outside the writeback loop.
-queue_io() is called once per writeback_inodes_wb() call, which is
-once per loop in wb_writeback. All your change does is re-initialise
-older_than_this once per loop in wb_writeback, jus tin a different
-and very non-obvious place.
-
-So why didn't you just re-initialise it inside the loop in
-wb_writeback() and leave all the other code alone?
-
-Cheers,
-
-Dave.
+> --- linux-next.orig/fs/fs-writeback.c	2011-04-19 10:18:30.000000000 +0800
+> +++ linux-next/fs/fs-writeback.c	2011-04-19 10:18:30.000000000 +0800
+> @@ -473,6 +473,7 @@ writeback_single_inode(struct inode *ino
+>  			 * No need to add it back to the LRU.
+>  			 */
+>  			list_del_init(&inode->i_wb_list);
+> +			wbc->inodes_cleaned++;
+>  		}
+>  	}
+>  	inode_sync_complete(inode);
+> @@ -736,6 +737,7 @@ static long wb_writeback(struct bdi_writ
+>  		wbc.more_io = 0;
+>  		wbc.nr_to_write = write_chunk;
+>  		wbc.pages_skipped = 0;
+> +		wbc.inodes_cleaned = 0;
+>  
+>  		trace_wbc_writeback_start(&wbc, wb->bdi);
+>  		if (work->sb)
+> @@ -752,6 +754,8 @@ static long wb_writeback(struct bdi_writ
+>  		 */
+>  		if (wbc.nr_to_write <= 0)
+>  			continue;
+> +		if (wbc.inodes_cleaned)
+> +			continue;
+>  		/*
+>  		 * Didn't write everything and we don't have more IO, bail
+>  		 */
+> --- linux-next.orig/include/linux/writeback.h	2011-04-19 10:18:17.000000000 +0800
+> +++ linux-next/include/linux/writeback.h	2011-04-19 10:18:30.000000000 +0800
+> @@ -34,6 +34,7 @@ struct writeback_control {
+>  	long nr_to_write;		/* Write this many pages, and decrement
+>  					   this for each page written */
+>  	long pages_skipped;		/* Pages which were not written */
+> +	long inodes_cleaned;		/* # of inodes cleaned */
+>  
+>  	/*
+>  	 * For a_ops->writepages(): is start or end are non-zero then this is
+> 
+> 
 -- 
-Dave Chinner
-david@fromorbit.com
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
