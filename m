@@ -1,93 +1,173 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 988EF8D003B
-	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 13:48:30 -0400 (EDT)
-Subject: Re: [PATCH v3] mm: make expand_downwards symmetrical to
- expand_upwards
-From: James Bottomley <James.Bottomley@HansenPartnership.com>
-In-Reply-To: <alpine.DEB.2.00.1104191213120.17888@router.home>
-References: <20110415135144.GE8828@tiehlicka.suse.cz>
-	 <alpine.LSU.2.00.1104171952040.22679@sister.anvils>
-	 <20110418100131.GD8925@tiehlicka.suse.cz>
-	 <20110418135637.5baac204.akpm@linux-foundation.org>
-	 <20110419111004.GE21689@tiehlicka.suse.cz>
-	 <1303228009.3171.18.camel@mulgrave.site>
-	 <BANLkTimYrD_Sby_u-fPSwn-RJJyEVavU5w@mail.gmail.com>
-	 <1303233088.3171.26.camel@mulgrave.site>
-	 <alpine.DEB.2.00.1104191213120.17888@router.home>
-Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 19 Apr 2011 12:48:26 -0500
-Message-ID: <1303235306.3171.33.camel@mulgrave.site>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 700A28D003B
+	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 13:52:53 -0400 (EDT)
+From: Ying Han <yinghan@google.com>
+Subject: [PATCH 1/3] move scan_control definition to header file
+Date: Tue, 19 Apr 2011 10:51:34 -0700
+Message-Id: <1303235496-3060-2-git-send-email-yinghan@google.com>
+In-Reply-To: <1303235496-3060-1-git-send-email-yinghan@google.com>
+References: <1303235496-3060-1-git-send-email-yinghan@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-parisc@vger.kernel.org, David Rientjes <rientjes@google.com>
+To: Nick Piggin <nickpiggin@yahoo.com.au>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>
+Cc: linux-mm@kvack.org
 
-On Tue, 2011-04-19 at 12:15 -0500, Christoph Lameter wrote:
-> On Tue, 19 Apr 2011, James Bottomley wrote:
-> 
-> > On Tue, 2011-04-19 at 20:05 +0300, Pekka Enberg wrote:
-> > > > It seems to be a random intermittent mm crash because the next reboot
-> > > > crashed with the same trace but after the fsck had completed and the
-> > > > third came up to the login prompt.
-> > >
-> > > Looks like a genuine SLUB problem on parisc. Christoph?
-> >
-> > Looking through the slub code, it seems to be making invalid
-> > assumptions.  All of the node stuff is dependent on CONFIG_NUMA.
-> > However, we're CONFIG_DISCONTIGMEM (with CONFIG_NUMA not set): on the
-> > machines I and Dave Anglin have, our physical memory ranges are 0-1GB
-> > and 64-65GB, so I think slub crashes when we get a page from the high
-> > memory range ... because it's not expecting a non-zero node number.
-> 
-> Right !NUMA systems only have node 0.
+This patch moves the scan_control definition from vmscan to swap.h
+header file, which is needed later to pass the struct to shrinkers.
 
-That's rubbish.  Discontigmem uses the nodes field to identify the
-discontiguous region.  page_to_nid() returns this value.  Your code
-wrongly assumes this is zero for non NUMA.
-
-This simple program triggers the problem instantly because it forces
-allocation up into the upper discontigmem range:
-
-#include <stdlib.h>
-
-void main(void)
-{
-  const long size = 1024*1024*1024;
-  char *a = malloc(size);
-  int i;
-
-  for (i=0; i < size; i += 4096)
-    a[i] = '\0';
-}
-
-I can fix the panic by hard coding get_nodes() to return the zero node
-for the non-numa case ... however, presumably it's more than just this
-that's broken in slub?
-
-James
-
+Signed-off-by: Ying Han <yinghan@google.com>
 ---
+ include/linux/swap.h |   61 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ mm/vmscan.c          |   61 --------------------------------------------------
+ 2 files changed, 61 insertions(+), 61 deletions(-)
 
-diff --git a/mm/slub.c b/mm/slub.c
-index 94d2a33..243bd9c 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -235,7 +235,11 @@ int slab_is_available(void)
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index ed6ebe6..cb48fbd 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -16,6 +16,67 @@ struct notifier_block;
  
- static inline struct kmem_cache_node *get_node(struct kmem_cache *s, int node)
- {
-+#ifdef CONFIG_NUMA
- 	return s->node[node];
-+#else
-+	return s->node[0];
-+#endif
- }
+ struct bio;
  
- /* Verify that a pointer has an address that is valid within a slab page */
-
++/*
++ * reclaim_mode determines how the inactive list is shrunk
++ * RECLAIM_MODE_SINGLE: Reclaim only order-0 pages
++ * RECLAIM_MODE_ASYNC:  Do not block
++ * RECLAIM_MODE_SYNC:   Allow blocking e.g. call wait_on_page_writeback
++ * RECLAIM_MODE_LUMPYRECLAIM: For high-order allocations, take a reference
++ *			page from the LRU and reclaim all pages within a
++ *			naturally aligned range
++ * RECLAIM_MODE_COMPACTION: For high-order allocations, reclaim a number of
++ *			order-0 pages and then compact the zone
++ */
++typedef unsigned __bitwise__ reclaim_mode_t;
++#define RECLAIM_MODE_SINGLE		((__force reclaim_mode_t)0x01u)
++#define RECLAIM_MODE_ASYNC		((__force reclaim_mode_t)0x02u)
++#define RECLAIM_MODE_SYNC		((__force reclaim_mode_t)0x04u)
++#define RECLAIM_MODE_LUMPYRECLAIM	((__force reclaim_mode_t)0x08u)
++#define RECLAIM_MODE_COMPACTION		((__force reclaim_mode_t)0x10u)
++
++struct scan_control {
++	/* Incremented by the number of inactive pages that were scanned */
++	unsigned long nr_scanned;
++
++	/* Number of pages freed so far during a call to shrink_zones() */
++	unsigned long nr_reclaimed;
++
++	/* How many pages shrink_list() should reclaim */
++	unsigned long nr_to_reclaim;
++
++	unsigned long hibernation_mode;
++
++	/* This context's GFP mask */
++	gfp_t gfp_mask;
++
++	int may_writepage;
++
++	/* Can mapped pages be reclaimed? */
++	int may_unmap;
++
++	/* Can pages be swapped as part of reclaim? */
++	int may_swap;
++
++	int swappiness;
++
++	int order;
++
++	/*
++	 * Intend to reclaim enough continuous memory rather than reclaim
++	 * enough amount of memory. i.e, mode for high order allocation.
++	 */
++	reclaim_mode_t reclaim_mode;
++
++	/* Which cgroup do we reclaim from */
++	struct mem_cgroup *mem_cgroup;
++
++	/*
++	 * Nodemask of nodes allowed by the caller. If NULL, all nodes
++	 * are scanned.
++	 */
++	nodemask_t	*nodemask;
++};
++
+ #define SWAP_FLAG_PREFER	0x8000	/* set if swap priority specified */
+ #define SWAP_FLAG_PRIO_MASK	0x7fff
+ #define SWAP_FLAG_PRIO_SHIFT	0
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 060e4c1..08b1ab5 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -52,67 +52,6 @@
+ #define CREATE_TRACE_POINTS
+ #include <trace/events/vmscan.h>
+ 
+-/*
+- * reclaim_mode determines how the inactive list is shrunk
+- * RECLAIM_MODE_SINGLE: Reclaim only order-0 pages
+- * RECLAIM_MODE_ASYNC:  Do not block
+- * RECLAIM_MODE_SYNC:   Allow blocking e.g. call wait_on_page_writeback
+- * RECLAIM_MODE_LUMPYRECLAIM: For high-order allocations, take a reference
+- *			page from the LRU and reclaim all pages within a
+- *			naturally aligned range
+- * RECLAIM_MODE_COMPACTION: For high-order allocations, reclaim a number of
+- *			order-0 pages and then compact the zone
+- */
+-typedef unsigned __bitwise__ reclaim_mode_t;
+-#define RECLAIM_MODE_SINGLE		((__force reclaim_mode_t)0x01u)
+-#define RECLAIM_MODE_ASYNC		((__force reclaim_mode_t)0x02u)
+-#define RECLAIM_MODE_SYNC		((__force reclaim_mode_t)0x04u)
+-#define RECLAIM_MODE_LUMPYRECLAIM	((__force reclaim_mode_t)0x08u)
+-#define RECLAIM_MODE_COMPACTION		((__force reclaim_mode_t)0x10u)
+-
+-struct scan_control {
+-	/* Incremented by the number of inactive pages that were scanned */
+-	unsigned long nr_scanned;
+-
+-	/* Number of pages freed so far during a call to shrink_zones() */
+-	unsigned long nr_reclaimed;
+-
+-	/* How many pages shrink_list() should reclaim */
+-	unsigned long nr_to_reclaim;
+-
+-	unsigned long hibernation_mode;
+-
+-	/* This context's GFP mask */
+-	gfp_t gfp_mask;
+-
+-	int may_writepage;
+-
+-	/* Can mapped pages be reclaimed? */
+-	int may_unmap;
+-
+-	/* Can pages be swapped as part of reclaim? */
+-	int may_swap;
+-
+-	int swappiness;
+-
+-	int order;
+-
+-	/*
+-	 * Intend to reclaim enough continuous memory rather than reclaim
+-	 * enough amount of memory. i.e, mode for high order allocation.
+-	 */
+-	reclaim_mode_t reclaim_mode;
+-
+-	/* Which cgroup do we reclaim from */
+-	struct mem_cgroup *mem_cgroup;
+-
+-	/*
+-	 * Nodemask of nodes allowed by the caller. If NULL, all nodes
+-	 * are scanned.
+-	 */
+-	nodemask_t	*nodemask;
+-};
+-
+ #define lru_to_page(_head) (list_entry((_head)->prev, struct page, lru))
+ 
+ #ifdef ARCH_HAS_PREFETCH
+-- 
+1.7.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
