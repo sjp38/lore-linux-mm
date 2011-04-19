@@ -1,53 +1,161 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id B7820900086
-	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 01:57:07 -0400 (EDT)
-Received: from d01relay06.pok.ibm.com (d01relay06.pok.ibm.com [9.56.227.116])
-	by e4.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p3J5apRG023689
-	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 01:36:51 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p3J5v1AB2695272
-	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 01:57:01 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p3J5v0xM005037
-	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 02:57:01 -0300
-Date: Tue, 19 Apr 2011 11:13:25 +0530
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: Re: [PATCH v3 2.6.39-rc1-tip 14/26] 14: x86: x86 specific probe
- handling
-Message-ID: <20110419054325.GA10698@linux.vnet.ibm.com>
-Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-References: <20110401143223.15455.19844.sendpatchset@localhost6.localdomain6>
- <20110401143517.15455.88373.sendpatchset@localhost6.localdomain6>
- <1303145700.32491.891.camel@twins>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <1303145700.32491.891.camel@twins>
+	by kanga.kvack.org (Postfix) with ESMTP id 31C7F900086
+	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 02:03:24 -0400 (EDT)
+Date: Mon, 18 Apr 2011 23:06:51 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [Bugme-new] [Bug 33682] New: mprotect got stuck when THP is
+ "always" enabled
+Message-Id: <20110418230651.54da5b82.akpm@linux-foundation.org>
+In-Reply-To: <bug-33682-10286@https.bugzilla.kernel.org/>
+References: <bug-33682-10286@https.bugzilla.kernel.org/>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Christoph Hellwig <hch@infradead.org>, Andi Kleen <andi@firstfloor.org>, Thomas Gleixner <tglx@linutronix.de>, Jonathan Corbet <corbet@lwn.net>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, SystemTap <systemtap@sources.redhat.com>, LKML <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>
+Cc: bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org, bugs@casparzhang.com
 
-* Peter Zijlstra <peterz@infradead.org> [2011-04-18 18:55:00]:
 
-> On Fri, 2011-04-01 at 20:05 +0530, Srikar Dronamraju wrote:
-> > +/*
-> > + * @reg: reflects the saved state of the task
-> > + * @vaddr: the virtual address to jump to.
-> > + * Return 0 on success or a -ve number on error.
-> > + */
-> > +void set_ip(struct pt_regs *regs, unsigned long vaddr)
-> > +{
-> > +       regs->ip = vaddr;
-> > +} 
+(switched to email.  Please respond via emailed reply-to-all, not via the
+bugzilla web interface).
+
+On Tue, 19 Apr 2011 05:25:41 GMT bugzilla-daemon@bugzilla.kernel.org wrote:
+
+> https://bugzilla.kernel.org/show_bug.cgi?id=33682
 > 
-> Since we have the cross-architecture function:
-> instruction_pointer(struct pt_regs*) to read the thing, this ought to be
-> called set_instruction_pointer(struct pt_regs*, unsigned long) or
-> somesuch.
-
-Okay, will rename set_ip to set_instruction_pointer.
+>            Summary: mprotect got stuck when THP is "always" enabled
+>            Product: Memory Management
+>            Version: 2.5
+>     Kernel Version: 2.6.38-r1
+>           Platform: All
+>         OS/Version: Linux
+>               Tree: Mainline
+>             Status: NEW
+>           Severity: normal
+>           Priority: P1
+>          Component: Other
+>         AssignedTo: akpm@linux-foundation.org
+>         ReportedBy: bugs@casparzhang.com
+>         Regression: No
+> 
+> 
+> Created an attachment (id=54662)
+>  --> (https://bugzilla.kernel.org/attachment.cgi?id=54662)
+> mprotect test program 
+> 
+> Description of problem:
+> 
+> see attached test program. This program can be run like this:
+> 
+> ./mprotect <times> <length> <flag>
+> 
+> times: how many times the mprotect() function execute;
+> length: same as the "length" option in mprotect() function;
+> flag: when flag is set to 1, the program would touch every page within the
+> range [addr, addr+length-1] before it calls mprotect().
+> 
+> to reproduce the stuck, execute: ./mprotect 50 128 1
+> 
+> Note that the stuck only happens when the following conditions are all
+> satisfied:
+> 
+> flag == 1, i.e. touch page before mprotect()
+> proto = PROT_NONE in mprotect()
+> THP is enabled with "always" option
+> 
+> Version-Release number of selected component (if applicable):
+> 
+> Linux version 2.6.39-rc3 (caspar@caspar-gentoo) (gcc version 4.5.2 (Gentoo
+> 4.5.2 p1.0, pie-0.4.5) ) #1 SMP Tue Apr 19 12:32:20 CST 2011
+> 
+> How reproducible:
+> very often
+> 
+> Actual results:
+> test program got stuck when touching pages + THP always enabled:
+> 
+> caspar-gentoo tmp # echo always > /sys/kernel/mm/transparent_hugepage/enabled 
+> caspar-gentoo tmp # ./mprotect 50 128 1
+> ^C <- stuck
+> caspar-gentoo tmp # ./mprotect 50 128 1
+> ^C
+> caspar-gentoo tmp # ./mprotect 50 128 1
+> ^C
+> caspar-gentoo tmp # ./mprotect 50 128 1
+> ^C
+> caspar-gentoo tmp # echo madvise > /sys/kernel/mm/transparent_hugepage/enabled 
+> caspar-gentoo tmp # ./mprotect 50 128 1
+> done caspar-gentoo tmp # ./mprotect 50 128 1
+> done caspar-gentoo tmp # ./mprotect 50 128 1
+> done caspar-gentoo tmp # ./mprotect 50 128 1
+> done caspar-gentoo tmp # echo never >
+> /sys/kernel/mm/transparent_hugepage/enabled 
+> caspar-gentoo tmp # ./mprotect 50 128 1
+> done caspar-gentoo tmp # ./mprotect 50 128 1
+> done caspar-gentoo tmp # ./mprotect 50 128 1
+> done caspar-gentoo tmp # ./mprotect 50 128 1
+> done caspar-gentoo tmp # ./mprotect 50 128 1
+> done caspar-gentoo tmp # ./mprotect 50 128 1
+> done caspar-gentoo tmp # ./mprotect 50 128 1
+> 
+> Expected results:
+> test program exit normally
+> 
+> Additional info:
+> 
+> This reproducer was similar to a test program in upstream test suite: libMicro
+> (http://hub.opensolaris.org/bin/view/Project+libmicro/)
+> 
+> strace ouput: 
+> 
+> # strace ./mprotect 50 128 1
+> execve("./mprotect", ["./mprotect", "50", "128", "1"], [/* 35 vars */]) = 0
+> brk(0)                                  = 0x16ad000
+> mmap(NULL, 4096, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) =
+> 0x7ffa0c266000
+> access("/etc/ld.so.preload", R_OK)      = -1 ENOENT (No such file or directory)
+> open("/etc/ld.so.cache", O_RDONLY)      = 3
+> fstat(3, {st_mode=S_IFREG|0644, st_size=163815, ...}) = 0
+> mmap(NULL, 163815, PROT_READ, MAP_PRIVATE, 3, 0) = 0x7ffa0c23e000
+> close(3)                                = 0
+> open("/lib64/libc.so.6", O_RDONLY)      = 3
+> read(3,
+> "\177ELF\2\1\1\0\0\0\0\0\0\0\0\0\3\0>\0\1\0\0\0\320\357\1\0\0\0\0\0"..., 832) =
+> 832
+> fstat(3, {st_mode=S_IFREG|0755, st_size=1608912, ...}) = 0
+> mmap(NULL, 3718152, PROT_READ|PROT_EXEC, MAP_PRIVATE|MAP_DENYWRITE, 3, 0) =
+> 0x7ffa0bcbc000
+> mprotect(0x7ffa0be3f000, 2093056, PROT_NONE) = 0
+> mmap(0x7ffa0c03e000, 20480, PROT_READ|PROT_WRITE,
+> MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x182000) = 0x7ffa0c03e000
+> mmap(0x7ffa0c043000, 19464, PROT_READ|PROT_WRITE,
+> MAP_PRIVATE|MAP_FIXED|MAP_ANONYMOUS, -1, 0) = 0x7ffa0c043000
+> close(3)                                = 0
+> mmap(NULL, 4096, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) =
+> 0x7ffa0c23d000
+> mmap(NULL, 4096, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) =
+> 0x7ffa0c23c000
+> mmap(NULL, 4096, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) =
+> 0x7ffa0c23b000
+> arch_prctl(ARCH_SET_FS, 0x7ffa0c23c700) = 0
+> mprotect(0x7ffa0c03e000, 16384, PROT_READ) = 0
+> mprotect(0x600000, 4096, PROT_READ)     = 0
+> mprotect(0x7ffa0c267000, 4096, PROT_READ) = 0
+> munmap(0x7ffa0c23e000, 163815)          = 0
+> open("/dev/zero", O_RDWR)               = 3
+> mmap(NULL, 6553600, PROT_READ|PROT_WRITE, MAP_PRIVATE, 3, 0) = 0x7ffa0b67c000
+> mprotect(0x7ffa0b67c000, 131072, PROT_NONE) = 0
+> mprotect(0x7ffa0b69c000, 131072, PROT_NONE) = 0
+> mprotect(0x7ffa0b6bc000, 131072, PROT_NONE) = 0
+> mprotect(0x7ffa0b6dc000, 131072, PROT_NONE) = 0
+> mprotect(0x7ffa0b6fc000, 131072, PROT_NONE) = 0
+> mprotect(0x7ffa0b71c000, 131072, PROT_NONE) = 0
+> mprotect(0x7ffa0b73c000, 131072, PROT_NONE) = 0
+> mprotect(0x7ffa0b75c000, 131072, PROT_NONE) = 0
+> <repeated random times, snip>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
