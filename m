@@ -1,70 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id A4FE0900087
-	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 06:58:54 -0400 (EDT)
-Subject: Re: [PATCH v3 2.6.39-rc1-tip 12/26] 12: uprobes: slot allocation
- for uprobes
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <20110419062654.GB10698@linux.vnet.ibm.com>
-References: 
-	 <20110401143223.15455.19844.sendpatchset@localhost6.localdomain6>
-	 <20110401143457.15455.64839.sendpatchset@localhost6.localdomain6>
-	 <1303145171.32491.886.camel@twins>
-	 <20110419062654.GB10698@linux.vnet.ibm.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-Date: Tue, 19 Apr 2011 11:11:48 +0200
-Message-ID: <1303204308.32491.923.camel@twins>
-Mime-Version: 1.0
+	by kanga.kvack.org (Postfix) with ESMTP id AE505900086
+	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 06:58:51 -0400 (EDT)
+Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
+	by e1.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p3J6mBvb025530
+	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 02:48:11 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p3J6wnpG331814
+	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 02:58:49 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p3J6wl3n032746
+	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 03:58:49 -0300
+Date: Tue, 19 Apr 2011 12:15:11 +0530
+From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Subject: Re: [PATCH v3 2.6.39-rc1-tip 9/26]  9: uprobes: mmap and fork
+ hooks.
+Message-ID: <20110419064511.GC10698@linux.vnet.ibm.com>
+Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+References: <20110401143223.15455.19844.sendpatchset@localhost6.localdomain6>
+ <20110401143413.15455.75831.sendpatchset@localhost6.localdomain6>
+ <1303144163.32491.875.camel@twins>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <1303144163.32491.875.camel@twins>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: James Morris <jmorris@namei.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Christoph Hellwig <hch@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Christoph Hellwig <hch@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, SystemTap <systemtap@sources.redhat.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>
 
-(Dropped the systemtap list since its mis-behaving, please leave it out on =
-future postings)
+* Peter Zijlstra <peterz@infradead.org> [2011-04-18 18:29:23]:
 
-On Tue, 2011-04-19 at 11:56 +0530, Srikar Dronamraju wrote:
-> > > TODO: On massively threaded processes (or if a huge number of process=
-es
-> > > share the same mm), there is a possiblilty of running out of slots.
-> > > One alternative could be to extend the slots as when slots are requir=
-ed.
-> >=20
-> > As long as you're single stepping things and not using boosted probes
-> > you can fully serialize the slot usage. Claim a slot on trap and releas=
-e
-> > the slot on finish. Claiming can wait on a free slot since you already
-> > have the whole SLEEPY thing.
-> >=20
->=20
-> Yes, thats certainly one approach but that approach makes every
-> breakpoint hit contend for spinlock. (Infact we will have to change it
-> to mutex lock (as you rightly pointed out) so that we allow threads to
-> wait when slots are not free). Assuming a 4K page, we would be taxing
-> applications that have less than 32 threads (which is probably the
-> default case). If we continue with the current approach, then we
-> could only add additional page(s) for apps which has more than 32
-> threads and only when more than 32 __live__ threads have actually hit a
-> breakpoint.=20
+> On Fri, 2011-04-01 at 20:04 +0530, Srikar Dronamraju wrote:
+> > +               if (vaddr > ULONG_MAX)
+> > +                       /*
+> > +                        * We cannot have a virtual address that is
+> > +                        * greater than ULONG_MAX
+> > +                        */
+> > +                       continue; 
+> 
+> I'm having trouble with those checks.. while they're not wrong they're
+> not correct either. Mostly the top address space is where the kernel
+> lives and on 32-on-64 compat the boundary is much lower still. Ideally
+> it'd be TASK_SIZE, but that doesn't work since it assumes you're testing
+> for the current task.
+> 
 
-That very much depends on what you do, some folks think its entirely
-reasonable for processes to have thousands of threads. Now I completely
-agree with you that that is not 'normal', but then I think using Java
-isn't normal either ;-)
+Guess I can use TASK_SIZE_OF(tsk) instead of ULONG_MAX ?
+I think TASK_SIZE_OF handles 32-on-64 correctly.
 
-Anyway, avoiding that spinlock/mutex for each trap isn't hard, avoiding
-a process wide cacheline bounce is slightly harder but still not
-impossible.=20
-
-With 32 slots in 4k you have 128 bytes to play with, all we need is a
-single bit per slot to mark it being in-use. If a task remembers what
-slot it used last and tries to claim that using an atomic test and set
-for that bit it will, in the 'normal' case, never contend on a process
-wide cacheline.
-
-In case it does find the slot taken, it'll have to go the slow route and
-scan for a free slot and possibly wait for one to become free.
+-- 
+Thanks and Regards
+Srikar
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
