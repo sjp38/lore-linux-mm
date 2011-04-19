@@ -1,38 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 79014900088
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 829A2900089
 	for <linux-mm@kvack.org>; Mon, 18 Apr 2011 23:10:22 -0400 (EDT)
-Message-Id: <20110419030532.902141228@intel.com>
-Date: Tue, 19 Apr 2011 11:00:09 +0800
+Message-Id: <20110419030532.268874944@intel.com>
+Date: Tue, 19 Apr 2011 11:00:04 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 6/6] NFS: return -EAGAIN when skipped commit in nfs_commit_unstable_pages()
+Subject: [PATCH 1/6] writeback: pass writeback_control down to move_expired_inodes()
 References: <20110419030003.108796967@intel.com>
-Content-Disposition: inline; filename=nfs-fix-write_inode-retval.patch
+Content-Disposition: inline; filename=writeback-pass-wbc-to-queue_io.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jan Kara <jack@suse.cz>, Mel Gorman <mel@linux.vnet.ibm.com>, Trond Myklebust <Trond.Myklebust@netapp.com>, Wu Fengguang <fengguang.wu@intel.com>, Dave Chinner <david@fromorbit.com>, Itaru Kitayama <kitayama@cl.bb4u.ne.jp>, Minchan Kim <minchan.kim@gmail.com>, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>
+Cc: Jan Kara <jack@suse.cz>, Mel Gorman <mel@linux.vnet.ibm.com>, Mel Gorman <mel@csn.ul.ie>, Wu Fengguang <fengguang.wu@intel.com>, Dave Chinner <david@fromorbit.com>, Trond Myklebust <Trond.Myklebust@netapp.com>, Itaru Kitayama <kitayama@cl.bb4u.ne.jp>, Minchan Kim <minchan.kim@gmail.com>, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>
 
-It's probably not sane to return success while redirtying the inode at
-the same time in ->write_inode().
+This is to prepare for moving the dirty expire policy to move_expired_inodes().
+No behavior change.
 
-CC: Trond Myklebust <Trond.Myklebust@netapp.com>
+Acked-by: Jan Kara <jack@suse.cz>
+Acked-by: Mel Gorman <mel@csn.ul.ie>
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- fs/nfs/write.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ fs/fs-writeback.c |   16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)
 
---- linux-next.orig/fs/nfs/write.c	2011-04-19 10:18:16.000000000 +0800
-+++ linux-next/fs/nfs/write.c	2011-04-19 10:18:32.000000000 +0800
-@@ -1519,7 +1519,7 @@ static int nfs_commit_unstable_pages(str
+--- linux-next.orig/fs/fs-writeback.c	2011-04-19 10:18:17.000000000 +0800
++++ linux-next/fs/fs-writeback.c	2011-04-19 10:18:28.000000000 +0800
+@@ -251,8 +251,8 @@ static bool inode_dirtied_after(struct i
+  * Move expired dirty inodes from @delaying_queue to @dispatch_queue.
+  */
+ static void move_expired_inodes(struct list_head *delaying_queue,
+-			       struct list_head *dispatch_queue,
+-				unsigned long *older_than_this)
++				struct list_head *dispatch_queue,
++				struct writeback_control *wbc)
  {
- 	struct nfs_inode *nfsi = NFS_I(inode);
- 	int flags = FLUSH_SYNC;
--	int ret = 0;
-+	int ret = -EAGAIN;
+ 	LIST_HEAD(tmp);
+ 	struct list_head *pos, *node;
+@@ -262,8 +262,8 @@ static void move_expired_inodes(struct l
  
- 	if (wbc->sync_mode == WB_SYNC_NONE) {
- 		/* Don't commit yet if this is a non-blocking flush and there
+ 	while (!list_empty(delaying_queue)) {
+ 		inode = wb_inode(delaying_queue->prev);
+-		if (older_than_this &&
+-		    inode_dirtied_after(inode, *older_than_this))
++		if (wbc->older_than_this &&
++		    inode_dirtied_after(inode, *wbc->older_than_this))
+ 			break;
+ 		if (sb && sb != inode->i_sb)
+ 			do_sb_sort = 1;
+@@ -299,11 +299,11 @@ static void move_expired_inodes(struct l
+  *                                           |
+  *                                           +--> dequeue for IO
+  */
+-static void queue_io(struct bdi_writeback *wb, unsigned long *older_than_this)
++static void queue_io(struct bdi_writeback *wb, struct writeback_control *wbc)
+ {
+ 	assert_spin_locked(&inode_wb_list_lock);
+ 	list_splice_init(&wb->b_more_io, &wb->b_io);
+-	move_expired_inodes(&wb->b_dirty, &wb->b_io, older_than_this);
++	move_expired_inodes(&wb->b_dirty, &wb->b_io, wbc);
+ }
+ 
+ static int write_inode(struct inode *inode, struct writeback_control *wbc)
+@@ -579,7 +579,7 @@ void writeback_inodes_wb(struct bdi_writ
+ 		wbc->wb_start = jiffies; /* livelock avoidance */
+ 	spin_lock(&inode_wb_list_lock);
+ 	if (!wbc->for_kupdate || list_empty(&wb->b_io))
+-		queue_io(wb, wbc->older_than_this);
++		queue_io(wb, wbc);
+ 
+ 	while (!list_empty(&wb->b_io)) {
+ 		struct inode *inode = wb_inode(wb->b_io.prev);
+@@ -606,7 +606,7 @@ static void __writeback_inodes_sb(struct
+ 
+ 	spin_lock(&inode_wb_list_lock);
+ 	if (!wbc->for_kupdate || list_empty(&wb->b_io))
+-		queue_io(wb, wbc->older_than_this);
++		queue_io(wb, wbc);
+ 	writeback_sb_inodes(sb, wb, wbc, true);
+ 	spin_unlock(&inode_wb_list_lock);
+ }
 
 
 --
