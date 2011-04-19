@@ -1,144 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 2CA468D0040
-	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 11:47:17 -0400 (EDT)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id AB76B8D003B
+	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 12:06:09 -0400 (EDT)
 Subject: Re: [PATCH v3] mm: make expand_downwards symmetrical to
- expand_upwards
-From: James Bottomley <James.Bottomley@HansenPartnership.com>
-In-Reply-To: <20110419111004.GE21689@tiehlicka.suse.cz>
-References: <20110415135144.GE8828@tiehlicka.suse.cz>
-	 <alpine.LSU.2.00.1104171952040.22679@sister.anvils>
-	 <20110418100131.GD8925@tiehlicka.suse.cz>
-	 <20110418135637.5baac204.akpm@linux-foundation.org>
-	 <20110419111004.GE21689@tiehlicka.suse.cz>
-Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 19 Apr 2011 10:46:49 -0500
-Message-ID: <1303228009.3171.18.camel@mulgrave.site>
-Mime-Version: 1.0
+Date: Tue, 19 Apr 2011 12:06:06 -0400 (EDT)
+From: "John David Anglin" <dave@hiauly1.hia.nrc.ca>
+In-Reply-To: <1303228009.3171.18.camel@mulgrave.site> from "James Bottomley" at Apr 19, 2011 10:46:49 am
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
+Message-Id: <20110419160606.932084E6A@hiauly1.hia.nrc.ca>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-parisc@vger.kernel.org
+To: James Bottomley <James.Bottomley@HansenPartnership.com>
+Cc: mhocko@suse.cz, akpm@linux-foundation.org, hughd@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-parisc@vger.kernel.org
 
-On Tue, 2011-04-19 at 13:10 +0200, Michal Hocko wrote:
-> On Mon 18-04-11 13:56:37, Andrew Morton wrote:
-> > On Mon, 18 Apr 2011 12:01:31 +0200
-> > Michal Hocko <mhocko@suse.cz> wrote:
-> > 
-> > > Currently we have expand_upwards exported while expand_downwards is
-> > > accessible only via expand_stack or expand_stack_downwards.
-> > > 
-> > > check_stack_guard_page is a nice example of the asymmetry. It uses
-> > > expand_stack for VM_GROWSDOWN while expand_upwards is called for
-> > > VM_GROWSUP case.
-> > > 
-> > > Let's clean this up by exporting both functions and make those name
-> > > consistent. Let's use expand_stack_{upwards,downwards} so that we are
-> > > explicit about stack manipulation in the name. expand_stack_downwards
-> > > has to be defined for both CONFIG_STACK_GROWS{UP,DOWN} because
-> > > get_arg_page calls the downwards version in the early process
-> > > initialization phase for growsup configuration.
-> > 
-> > Has this patch been tested on any stack-grows-upwards architecture?
-> 
-> The only one I can find in the tree is parisc and I do not have access
-> to any such machine. Maybe someone on the list (CCed) can help with
-> testing the patch bellow? Nevertheless, the patch doesn't change growsup
-> case. It just renames functions and exports growsdown.
+> It compiles OK, but crashes on boot in fsck.  The crash is definitely mm
+> but looks to be a slab problem (it's a null deref on a spinlock in
+> add_partial(), which seems unrelated to this patch).
 
-It compiles OK, but crashes on boot in fsck.  The crash is definitely mm
-but looks to be a slab problem (it's a null deref on a spinlock in
-add_partial(), which seems unrelated to this patch).
+I had a somewhat similar crash Sunday with the "debian" config building GCC.
+This is with 2.6.39-rc3+  without the mm patch:
 
-[   15.628000] sd 1:0:2:0: [sdc] Attached SCSI disk
-done.
-[   16.632000] EXT3-fs: barriers not enabled
-[   16.640000] kjournald starting.  Commit interval 5 seconds
-[   16.640000] EXT3-fs (sda3): mounted filesystem with ordered data mode
-Begin: Running /scripts/local-bottom ... done.
-done.
-Begin: Running /scripts/init-bottom ... done.
-INIT: version 2.88 booting
-Setting hostname to 'ion'...done.
-Starting the hotplug events dispatcher: udevd[   22.008000] udev[211]: starting version 164
-.
-Synthesizing the initial hotplug events...done.
-Waiting for /dev to be fully populated...done.
-Activating swap:swapon on /dev/sda2
-swapon: /dev/sda2: found swap signature: version 1, page-size 4, same byte order
-swapon: /dev/sda2: pagesize=4096, swapsize=1028157440, devsize=1028160000
-[   28.780000] Adding 1004056k swap on /dev/sda2.  Priority:-1 extents:1 across:1004056k 
-.
-Will now check root file system:fsck from util-linux-ng 2.17.2
-[/sbin/fsck.ext3 (1) -- /] fsck.ext3 -a -C0 /dev/sda3 
-/dev/sda3 has been mounted 37 times without being checked, check forced.
-[  257.192000] Backtrace:===========                                \ 42.8%   
-[  257.192000]  [<0000000040214f78>] add_partial+0x28/0x98
-[  257.192000]  [<0000000040217ff8>] __slab_free+0x1d0/0x1d8
-[  257.192000]  [<000000004021825c>] kmem_cache_free+0xc4/0x128
-[  257.192000]  [<00000000401fd1a4>] remove_vma+0x8c/0xc0
-[  257.192000]  [<00000000401fd3a8>] exit_mmap+0x1d0/0x220
-[  257.192000]  [<0000000040156514>] mmput+0xd4/0x200
-[  257.192000]  [<000000004015c7b8>] exit_mm+0x100/0x2c0
-[  257.192000]  [<000000004015ef40>] do_exit+0x778/0x9d8
-[  257.192000]  [<000000004015f1ec>] do_group_exit+0x4c/0xe0
-[  257.192000]  [<000000004015f298>] sys_exit_group+0x18/0x28
-[  257.192000]  [<0000000040106034>] syscall_exit+0x0/0x14
-[  257.192000] 
-[  257.192000] 
-[  257.192000] Kernel Fault: Code=26 regs=00000040bf1807d0 (Addr=0000000000000000)
-[  257.192000] 
-[  257.192000]      YZrvWESTHLNXBCVMcbcbcbcbOGFRQPDI
-[  257.192000] PSW: 00001000000001001111000000001110 Not tainted
-[  257.192000] r00-03  000000ff0804f00e 0000000040769e40 0000000040214f78 0000000000000000
-[  257.192000] r04-07  0000000040746e40 0000000000000001 0000004080ded370 0000000000000001
-[  257.192000] r08-11  0000000040654150 0000000000000000 0000000000000001 0000000000000001
-[  257.192000] r12-15  0000000000000000 00000000ffffffff 0000000000000024 0000000000000000
-[  257.192000] r16-19  00000000fb4ead9c 00000000fb4eac54 0000000000000000 0000000000000000
-[  257.192000] r20-23  000000000800000e 0000000000000001 000000007bbb7180 00000000401fd1a4
-[  257.192000] r24-27  0000000000000001 0000004080ded370 0000000000000000 0000000040746e40
-[  257.192000] r28-31  000000007ec0a908 00000040bf1807a0 00000040bf1807d0 0000000000000016
-[  257.192000] sr00-03  00000000002d9000 0000000000000000 0000000000000000 00000000002d9000
-[  257.192000] sr04-07  0000000000000000 0000000000000000 0000000000000000 0000000000000000
-[  257.192000] 
-[  257.192000] IASQ: 0000000000000000 0000000000000000 IAOQ: 000000004011bbc0 000000004011bbc4
-[  257.192000]  IIR: 0f4015dc    ISR: 0000000000000000  IOR: 0000000000000000
-[  257.192000]  CPU:        0   CR30: 00000040bf180000 CR31: fffffff0f0e098e0
-[  257.192000]  ORIG_R28: 0000000040769e40
-[  257.192000]  IAOQ[0]: _raw_spin_lock+0x0/0x20
-[  257.192000]  IAOQ[1]: _raw_spin_lock+0x4/0x20
-[  257.192000]  RP(r2): add_partial+0x28/0x98
-[  257.192000] Backtrace:
-[  257.192000]  [<0000000040214f78>] add_partial+0x28/0x98
-[  257.192000]  [<0000000040217ff8>] __slab_free+0x1d0/0x1d8
-[  257.192000]  [<000000004021825c>] kmem_cache_free+0xc4/0x128
-[  257.192000]  [<00000000401fd1a4>] remove_vma+0x8c/0xc0
-[  257.192000]  [<00000000401fd3a8>] exit_mmap+0x1d0/0x220
-[  257.192000]  [<0000000040156514>] mmput+0xd4/0x200
-[  257.192000]  [<000000004015c7b8>] exit_mm+0x100/0x2c0
-[  257.192000]  [<000000004015ef40>] do_exit+0x778/0x9d8
-[  257.192000]  [<000000004015f1ec>] do_group_exit+0x4c/0xe0
-[  257.192000]  [<000000004015f298>] sys_exit_group+0x18/0x28
-[  257.192000]  [<0000000040106034>] syscall_exit+0x0/0x14
-[  257.192000] 
-[  257.192000] Kernel panic - not syncing: Kernel Fault
-[  257.192000] Backtrace:
-[  257.192000]  [<000000004011f984>] show_stack+0x14/0x20
-[  257.192000]  [<000000004011f9a8>] dump_stack+0x18/0x28
-[  257.192000]  [<000000004015946c>] panic+0xd4/0x368
-[  257.192000]  [<0000000040120024>] parisc_terminate+0x14c/0x170
-[  257.192000]  [<000000004012059c>] handle_interruption+0x2ac/0x8f8
-[  257.192000]  [<000000004011bbc0>] _raw_spin_lock+0x0/0x20
-[  257.192000] 
-[  257.192000] Rebooting in 5 seconds..
+mx3210 login: [12244.664000] Backtrace:
+[12244.664000]  [<000000004020c9a0>] __slab_free+0x100/0x200
+[12244.664000]  [<000000004020d23c>] kmem_cache_free+0xf4/0x108
+[12244.668000]  [<000000001c7e9efc>] __journal_remove_journal_head+0x214/0x248 [
+jbd]
+[12244.668000]  [<000000001c7edd48>] journal_put_journal_head+0xc8/0x168 [jbd]
+[12244.668000]  [<000000001c7e158c>] journal_invalidatepage+0x45c/0x710 [jbd]
+[12244.672000]  [<000000001c8652d8>] ext3_invalidatepage+0x88/0xe8 [ext3]
+[12244.672000]  [<00000000401d76f4>] do_invalidatepage+0x34/0x40
+[12244.672000]  [<00000000401d7770>] truncate_inode_page+0x70/0x178
+[12244.676000]  [<00000000401d798c>] truncate_inode_pages_range+0x114/0x518
+[12244.676000]  [<00000000401d7da4>] truncate_inode_pages+0x14/0x20
+[12244.680000]  [<000000001c86ac1c>] ext3_evict_inode+0x64/0x2a8 [ext3]
+[12244.680000]  [<0000000040234424>] evict+0xac/0x1c8
 
-It seems to be a random intermittent mm crash because the next reboot
-crashed with the same trace but after the fsck had completed and the
-third came up to the login prompt.
+[12244.692000] PSW: 00001000000001101111001100001110 Not tainted
+[12244.692000] r00-03  000000ff0806f30e 0000000040745e50 000000004020c9a0 000000
+01453d6000
+[12244.692000] r04-07  0000000040722e50 0000000000000000 00000002bf400000 000000
+001c7dc000
+[12244.696000] r08-11  0000000000000002 0000000040630298 0000000000000001 000000
+007bba4940
+[12244.696000] r12-15  00000002bf400000 0000000000000001 0000000000000000 000000
+0000000001
+[12244.700000] r16-19  000000007e71d888 000000007e71d888 0000000000001000 200000
+0000000081
+[12244.700000] r20-23  0000000000000000 0000000040630290 0000000000000001 000000
+001c7e9efc
+[12244.704000] r24-27  000000000800000e 00000001453d6000 0000000000000000 000000
+0040722e50
+[12244.704000] r28-31  0000000000000001 000000007bba4b70 000000007bba4ba0 000000
+0000000023
+[12244.708000] sr00-03  000000000556c000 000000000556c000 0000000000000000 000000000556c000
+[12244.708000] sr04-07  0000000000000000 0000000000000000 0000000000000000 0000000000000000
 
-James
+[12244.712000]
+[12244.712000] IASQ: 0000000000000000 0000000000000000 IAOQ: 000000004011b240 000000004011b244
+[12244.712000]  IIR: 0f4015dc    ISR: 0000000000000000  IOR: 0000000000000000
+[12244.716000]  CPU:        3   CR30: 000000007bba4000 CR31: ffffffffffffffff
+[12244.716000]  ORIG_R28: 0000000000000001
+[12244.720000]  IAOQ[0]: _raw_spin_lock+0x10/0x20
+[12244.720000]  IAOQ[1]: _raw_spin_lock+0x14/0x20
+[12244.720000]  RP(r2): __slab_free+0x100/0x200
 
+Dave
+-- 
+J. David Anglin                                  dave.anglin@nrc-cnrc.gc.ca
+National Research Council of Canada              (613) 990-0752 (FAX: 952-6602)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
