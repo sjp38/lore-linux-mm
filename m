@@ -1,133 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id C8C7E900086
-	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 01:51:00 -0400 (EDT)
-Received: by iyh42 with SMTP id 42so6748803iyh.14
-        for <linux-mm@kvack.org>; Mon, 18 Apr 2011 22:50:59 -0700 (PDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id B7820900086
+	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 01:57:07 -0400 (EDT)
+Received: from d01relay06.pok.ibm.com (d01relay06.pok.ibm.com [9.56.227.116])
+	by e4.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p3J5apRG023689
+	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 01:36:51 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p3J5v1AB2695272
+	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 01:57:01 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p3J5v0xM005037
+	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 02:57:01 -0300
+Date: Tue, 19 Apr 2011 11:13:25 +0530
+From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Subject: Re: [PATCH v3 2.6.39-rc1-tip 14/26] 14: x86: x86 specific probe
+ handling
+Message-ID: <20110419054325.GA10698@linux.vnet.ibm.com>
+Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+References: <20110401143223.15455.19844.sendpatchset@localhost6.localdomain6>
+ <20110401143517.15455.88373.sendpatchset@localhost6.localdomain6>
+ <1303145700.32491.891.camel@twins>
 MIME-Version: 1.0
-In-Reply-To: <BANLkTi=3VOJCr+xc8Z9zOYznP7m8Lyy9ag@mail.gmail.com>
-References: <1302909815-4362-1-git-send-email-yinghan@google.com>
-	<1302909815-4362-7-git-send-email-yinghan@google.com>
-	<BANLkTi=2yQZXhHrDxjPvpKJ-KpmQ242cVQ@mail.gmail.com>
-	<BANLkTikZcTj9GAGrsTnMMCq1b9HjnDnGWA@mail.gmail.com>
-	<BANLkTi=pyRWb9npHe_SJdYXR-TbrtVtLRg@mail.gmail.com>
-	<BANLkTi=3VOJCr+xc8Z9zOYznP7m8Lyy9ag@mail.gmail.com>
-Date: Tue, 19 Apr 2011 14:50:59 +0900
-Message-ID: <BANLkTimsU7rRxG0R+zS3ORbAVys_9O5+CQ@mail.gmail.com>
-Subject: Re: [PATCH V5 06/10] Per-memcg background reclaim.
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <1303145700.32491.891.camel@twins>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>, linux-mm@kvack.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Christoph Hellwig <hch@infradead.org>, Andi Kleen <andi@firstfloor.org>, Thomas Gleixner <tglx@linutronix.de>, Jonathan Corbet <corbet@lwn.net>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, SystemTap <systemtap@sources.redhat.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, Apr 19, 2011 at 11:42 AM, Ying Han <yinghan@google.com> wrote:
->
->
-> On Mon, Apr 18, 2011 at 4:32 PM, Minchan Kim <minchan.kim@gmail.com> wrot=
-e:
->>
->> On Tue, Apr 19, 2011 at 6:38 AM, Ying Han <yinghan@google.com> wrote:
->> >
->> >
->> > On Sun, Apr 17, 2011 at 8:51 PM, Minchan Kim <minchan.kim@gmail.com>
->> > wrote:
->> >>
->> >> On Sat, Apr 16, 2011 at 8:23 AM, Ying Han <yinghan@google.com> wrote:
->> >> > +
->> >> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 sc->nr_scanned =
-=3D 0;
->> >> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 shrink_zone(prio=
-rity, zone, sc);
->> >> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 total_scanned +=
-=3D sc->nr_scanned;
->> >> > +
->> >> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 /*
->> >> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0* If we've=
- done a decent amount of scanning and
->> >> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0* the recl=
-aim ratio is low, start doing writepage
->> >> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0* even in =
-laptop mode
->> >> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0*/
->> >> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (total_scanne=
-d > SWAP_CLUSTER_MAX * 2 &&
->> >> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 to=
-tal_scanned > sc->nr_reclaimed +
->> >> > sc->nr_reclaimed
->> >> > / 2) {
->> >> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 sc->may_writepage =3D 1;
->> >>
->> >> I don't want to add more random write any more although we don't have
->> >> a trouble of real memory shortage.
->> >
->> >
->> >>
->> >> Do you have any reason to reclaim memory urgently as writing dirty
->> >> pages?
->> >> Maybe if we wait a little bit of time, flusher would write out the
->> >> page.
->> >
->> > We would like to reduce the writing dirty pages from page reclaim,
->> > especially from direct reclaim. AFAIK,
->> > the=C2=A0try_to_free_mem_cgroup_pages()
->> > still need to write dirty pages when there is a need. removing this fr=
-om
->> > the
->> > per-memcg kswap will only add more pressure to the per-memcg direct
->> > reclaim,
->> > which seems to be worse. (stack overflow as one example which we would
->> > like
->> > to get rid of)
->> >
->>
->> Stack overflow would be another topic.
->>
->> Normal situation :
->>
->> The softlimit memory pressure of memcg isn't real memory shortage and
->> if we have gap between hardlimit and softlimit, periodic writeback of
->> flusher would write it out before reaching the hardlimit. In the end,
->> direct reclaim don't need to write it out.
->>
->> Exceptional situation :
->>
->> Of course, it doesn't work well in congestion of bdi, sudden big
->> memory consumption in memcg in wrong [hard/soft]limit(small gap)
->> configuration of administrator.
->>
->> I think we have to design it by normal situation.
->> The point is that softlimit isn't real memory shortage so that we are
->> not urgent.
->
-> This patch is not dealing with soft_limit, but hard_limit. The soft_limit
-> reclaim which we talked about during LSF
-> is something i am currently looking at right now. This patch is doing the
-> per-memcg background reclaim which
-> based on the watermarks calculated on the hard_limit. We don't have the
-> memcg entering the direct reclaim each
-> time it is reaching the hard_limit, so we add the background reclaim whic=
-h
-> reclaiming pages proactively.
->>
->> How about adding new function which checks global memory pressure and
->> if we have a trouble by global memory pressure, we can change
->> may_write with 1 dynamically in memcg_kswapd?
->
->
-> Like I mentioned, the may_write is still needed in this case otherwise we
-> are just put this further to per-memcg
-> direct reclaim.
+* Peter Zijlstra <peterz@infradead.org> [2011-04-18 18:55:00]:
 
-Totally, you're right. I misunderstood some point.
-Thanks.
+> On Fri, 2011-04-01 at 20:05 +0530, Srikar Dronamraju wrote:
+> > +/*
+> > + * @reg: reflects the saved state of the task
+> > + * @vaddr: the virtual address to jump to.
+> > + * Return 0 on success or a -ve number on error.
+> > + */
+> > +void set_ip(struct pt_regs *regs, unsigned long vaddr)
+> > +{
+> > +       regs->ip = vaddr;
+> > +} 
+> 
+> Since we have the cross-architecture function:
+> instruction_pointer(struct pt_regs*) to read the thing, this ought to be
+> called set_instruction_pointer(struct pt_regs*, unsigned long) or
+> somesuch.
 
---=20
-Kind regards,
-Minchan Kim
+Okay, will rename set_ip to set_instruction_pointer.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
