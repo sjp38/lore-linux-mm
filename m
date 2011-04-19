@@ -1,46 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 871388D003B
-	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 09:12:25 -0400 (EDT)
-Subject: Re: [PATCH v3 2.6.39-rc1-tip 15/26] 15: uprobes: Handing int3 and
- singlestep exception.
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id ABF938D003B
+	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 09:29:13 -0400 (EDT)
+Subject: Re: [PATCH v3 2.6.39-rc1-tip 7/26]  7: x86: analyze instruction
+ and determine fixups.
 From: Steven Rostedt <rostedt@goodmis.org>
-In-Reply-To: <1303218185.8345.0.camel@twins>
+In-Reply-To: <20110401143348.15455.68644.sendpatchset@localhost6.localdomain6>
 References: 
 	 <20110401143223.15455.19844.sendpatchset@localhost6.localdomain6>
-	 <20110401143527.15455.32854.sendpatchset@localhost6.localdomain6>
-	 <1303218185.8345.0.camel@twins>
+	 <20110401143348.15455.68644.sendpatchset@localhost6.localdomain6>
 Content-Type: text/plain; charset="ISO-8859-15"
-Date: Tue, 19 Apr 2011 09:12:21 -0400
-Message-ID: <1303218742.7181.96.camel@gandalf.stny.rr.com>
+Date: Tue, 19 Apr 2011 09:29:11 -0400
+Message-ID: <1303219751.7181.101.camel@gandalf.stny.rr.com>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Christoph Hellwig <hch@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, SystemTap <systemtap@sources.redhat.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Jonathan Corbet <corbet@lwn.net>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, SystemTap <systemtap@sources.redhat.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Tue, 2011-04-19 at 15:03 +0200, Peter Zijlstra wrote:
-> On Fri, 2011-04-01 at 20:05 +0530, Srikar Dronamraju wrote:
-> > +       if (unlikely(!utask)) {
-> > +               utask = add_utask();
-> > +
-> > +               /* Failed to allocate utask for the current task. */
-> > +               BUG_ON(!utask);
-> 
-> That's not really nice is it ;-) means I can make the kernel go BUG by
-> simply applying memory pressure.
+On Fri, 2011-04-01 at 20:03 +0530, Srikar Dronamraju wrote:
 
-Agreed,
+> +
+> +static void report_bad_prefix(void)
+> +{
+> +	printk(KERN_ERR "uprobes does not currently support probing "
+> +		"instructions with any of the following prefixes: "
+> +		"cs:, ds:, es:, ss:, lock:\n");
+> +}
+> +
+> +static void report_bad_1byte_opcode(int mode, uprobe_opcode_t op)
+> +{
+> +	printk(KERN_ERR "In %d-bit apps, "
+> +		"uprobes does not currently support probing "
+> +		"instructions whose first byte is 0x%2.2x\n", mode, op);
+> +}
+> +
+> +static void report_bad_2byte_opcode(uprobe_opcode_t op)
+> +{
+> +	printk(KERN_ERR "uprobes does not currently support probing "
+> +		"instructions with the 2-byte opcode 0x0f 0x%2.2x\n", op);
+> +}
 
-None of these patches should have a single BUG_ON(). They all must fail
-nicely.
+Should these really be KERN_ERR, or is KERN_WARNING a better fit?
+
+Also, can a non-privileged user cause these printks to spam the console
+and cause a DoS to the system?
 
 -- Steve
-
-> 
-> > +               utask->state = UTASK_BP_HIT;
-> > +       } 
 
 
 --
