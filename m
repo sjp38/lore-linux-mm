@@ -1,78 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 01779900089
-	for <linux-mm@kvack.org>; Mon, 18 Apr 2011 23:10:37 -0400 (EDT)
-Message-Id: <20110419030532.638670778@intel.com>
-Date: Tue, 19 Apr 2011 11:00:07 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 4/6] writeback: introduce writeback_control.inodes_cleaned
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id D6795900087
+	for <linux-mm@kvack.org>; Mon, 18 Apr 2011 23:29:11 -0400 (EDT)
+Subject: Re: [PATCH 6/6] NFS: return -EAGAIN when skipped commit in
+ nfs_commit_unstable_pages()
+From: Trond Myklebust <Trond.Myklebust@netapp.com>
+In-Reply-To: <20110419030532.902141228@intel.com>
 References: <20110419030003.108796967@intel.com>
-Content-Disposition: inline; filename=writeback-inodes_written.patch
+	 <20110419030532.902141228@intel.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+Date: Mon, 18 Apr 2011 23:29:07 -0400
+Message-ID: <1303183747.5417.11.camel@lade.trondhjem.org>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jan Kara <jack@suse.cz>, Mel Gorman <mel@linux.vnet.ibm.com>, Mel Gorman <mel@csn.ul.ie>, Wu Fengguang <fengguang.wu@intel.com>, Dave Chinner <david@fromorbit.com>, Trond Myklebust <Trond.Myklebust@netapp.com>, Itaru Kitayama <kitayama@cl.bb4u.ne.jp>, Minchan Kim <minchan.kim@gmail.com>, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mel Gorman <mel@linux.vnet.ibm.com>, Dave Chinner <david@fromorbit.com>, Itaru Kitayama <kitayama@cl.bb4u.ne.jp>, Minchan Kim <minchan.kim@gmail.com>, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>
 
-The flusher works on dirty inodes in batches, and may quit prematurely
-if the batch of inodes happen to be metadata-only dirtied: in this case
-wbc->nr_to_write won't be decreased at all, which stands for "no pages
-written" but also mis-interpreted as "no progress".
+On Tue, 2011-04-19 at 11:00 +0800, Wu Fengguang wrote:
+> plain text document attachment (nfs-fix-write_inode-retval.patch)
+> It's probably not sane to return success while redirtying the inode at
+> the same time in ->write_inode().
+>=20
+> CC: Trond Myklebust <Trond.Myklebust@netapp.com>
+> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+> ---
+>  fs/nfs/write.c |    2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+>=20
+> --- linux-next.orig/fs/nfs/write.c	2011-04-19 10:18:16.000000000 +0800
+> +++ linux-next/fs/nfs/write.c	2011-04-19 10:18:32.000000000 +0800
+> @@ -1519,7 +1519,7 @@ static int nfs_commit_unstable_pages(str
+>  {
+>  	struct nfs_inode *nfsi =3D NFS_I(inode);
+>  	int flags =3D FLUSH_SYNC;
+> -	int ret =3D 0;
+> +	int ret =3D -EAGAIN;
+> =20
+>  	if (wbc->sync_mode =3D=3D WB_SYNC_NONE) {
+>  		/* Don't commit yet if this is a non-blocking flush and there
+>=20
+>=20
 
-So introduce writeback_control.inodes_cleaned to count the inodes get
-cleaned.  A non-zero value means there are some progress on writeback,
-in which case more writeback can be tried.
+Hi Fengguang,
 
-about v1: The initial version was to count successful ->write_inode()
-calls.  However it leads to busy loops for sync() over NFS, because NFS
-ridiculously returns 0 (success) while at the same time redirties the
-inode.  The NFS case can be trivially fixed, however there may be more
-hidden bugs in other filesystems..
+I don't understand the purpose of this patch...
 
-Acked-by: Mel Gorman <mel@csn.ul.ie>
-Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
----
- fs/fs-writeback.c         |    4 ++++
- include/linux/writeback.h |    1 +
- 2 files changed, 5 insertions(+)
+Currently, the value of 'ret' only affects the case where the commit
+exits early due to this being a non-blocking flush where we have not yet
+written back enough pages to make it worth our while to send a commit.
 
---- linux-next.orig/fs/fs-writeback.c	2011-04-19 10:18:30.000000000 +0800
-+++ linux-next/fs/fs-writeback.c	2011-04-19 10:18:30.000000000 +0800
-@@ -473,6 +473,7 @@ writeback_single_inode(struct inode *ino
- 			 * No need to add it back to the LRU.
- 			 */
- 			list_del_init(&inode->i_wb_list);
-+			wbc->inodes_cleaned++;
- 		}
- 	}
- 	inode_sync_complete(inode);
-@@ -736,6 +737,7 @@ static long wb_writeback(struct bdi_writ
- 		wbc.more_io = 0;
- 		wbc.nr_to_write = write_chunk;
- 		wbc.pages_skipped = 0;
-+		wbc.inodes_cleaned = 0;
- 
- 		trace_wbc_writeback_start(&wbc, wb->bdi);
- 		if (work->sb)
-@@ -752,6 +754,8 @@ static long wb_writeback(struct bdi_writ
- 		 */
- 		if (wbc.nr_to_write <= 0)
- 			continue;
-+		if (wbc.inodes_cleaned)
-+			continue;
- 		/*
- 		 * Didn't write everything and we don't have more IO, bail
- 		 */
---- linux-next.orig/include/linux/writeback.h	2011-04-19 10:18:17.000000000 +0800
-+++ linux-next/include/linux/writeback.h	2011-04-19 10:18:30.000000000 +0800
-@@ -34,6 +34,7 @@ struct writeback_control {
- 	long nr_to_write;		/* Write this many pages, and decrement
- 					   this for each page written */
- 	long pages_skipped;		/* Pages which were not written */
-+	long inodes_cleaned;		/* # of inodes cleaned */
- 
- 	/*
- 	 * For a_ops->writepages(): is start or end are non-zero then this is
+In essence, this really only matters for the cases where someone calls
+'write_inode_now' (not used by anybody calling into the NFS client) and
+'sync_inode', which is only called by nfs_wb_all (with sync_mode =3D
+WB_SYNC_ALL).
 
+So can you please elaborate on the possible use cases for this change?
+
+Cheers
+  Trond
+--=20
+Trond Myklebust
+Linux NFS client maintainer
+
+NetApp
+Trond.Myklebust@netapp.com
+www.netapp.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
