@@ -1,66 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 97A238D003B
-	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 07:04:46 -0400 (EDT)
-Subject: Re: [PATCH 13/20] lockdep, mutex: Provide mutex_lock_nest_lock
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <20110419130654.95a14117.akpm@linux-foundation.org>
-References: <20110401121258.211963744@chello.nl>
-	 <20110401121725.940769985@chello.nl>
-	 <20110419130654.95a14117.akpm@linux-foundation.org>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-Date: Wed, 20 Apr 2011 13:03:56 +0200
-Message-ID: <1303297436.8345.158.camel@twins>
-Mime-Version: 1.0
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B9F68D003B
+	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 07:20:26 -0400 (EDT)
+Received: by bwz17 with SMTP id 17so793279bwz.14
+        for <linux-mm@kvack.org>; Wed, 20 Apr 2011 04:20:22 -0700 (PDT)
+Content-Type: text/plain; charset=utf-8; format=flowed; delsp=yes
+Subject: Re: [PATCH 0/1] mm: make read-only accessors take const pointer
+ parameters
+References: <1302861377-8048-1-git-send-email-ext-phil.2.carmody@nokia.com>
+ <20110415145133.GO15707@random.random>
+ <20110415155916.GD7112@esdhcp04044.research.nokia.com>
+ <20110415160957.GV15707@random.random> <1303291717.2700.20.camel@localhost>
+Date: Wed, 20 Apr 2011 13:20:19 +0200
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7bit
+From: "Michal Nazarewicz" <mina86@mina86.com>
+Message-ID: <op.vt8hr5j73l0zgt@mnazarewicz-glaptop>
+In-Reply-To: <1303291717.2700.20.camel@localhost>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Avi Kivity <avi@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@elte.hu>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Yanmin Zhang <yanmin_zhang@linux.intel.com>
+To: Andrea Arcangeli <aarcange@redhat.com>, Artem Bityutskiy <dedekind1@gmail.com>
+Cc: Phil Carmody <ext-phil.2.carmody@nokia.com>, akpm@linux-foundation.org, cl@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, 2011-04-19 at 13:06 -0700, Andrew Morton wrote:
-> On Fri, 01 Apr 2011 14:13:11 +0200
-> Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
->=20
-> > Provide the mutex_lock_nest_lock() annotation.
->=20
-> why?
->=20
-> Neither the changelog nor the code provide any documentation for this add=
-ition to
-> the lokdep API.
+On Wed, 20 Apr 2011 11:28:37 +0200, Artem Bityutskiy <dedekind1@gmail.com>  
+wrote:
+> I think it is good when small core functions like this are strict and
+> use 'const' whenever possible, even though 'const' is so imperfect in C.
+>
+> Let me give an example from my own experience. I was writing code which
+> was using the kernel RB trees, and I was trying to be strict and use
+> 'const' whenever possible. But because the core functions like 'rb_next'
+> do not have 'const' modifier, I could not use const in many many places
+> of my code, because gcc was yelling. And I was not very enthusiastic to
+> touch the RB-tree code that time.
 
----
-Subject: lockdep, mutex: Provide mutex_lock_nest_lock                      =
-                 =20
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>                              =
-                 =20
-Date: Fri, 26 Nov 2010 15:39:00 +0100                                      =
-                 =20
-                                                                           =
-                 =20
-In order to convert i_mmap_lock to a mutex we need a mutex equivalent      =
-                 =20
-to spin_lock_nest_lock(), thus provide the mutex_lock_nest_lock()          =
-                 =20
-annotation.                                                                =
-                 =20
-                                                                           =
-                 =20
-As with spin_lock_nest_lock(), mutex_lock_nest_lock() allows               =
-                 =20
-annotation of the locking pattern where an outer lock serializes the       =
-                 =20
-acquisition order of nested locks. That is, if every time you lock         =
-                  =20
-multiple locks A, say A1 and A2 you first acquire N, the order of          =
-                 =20
-acquiring A1 and A2 is irrelevant.                                         =
-                 =20
-                                                                           =
-                 =20
-Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl> =20
----
+The problem is that you end up with two sets of functions (one taking const
+another taking non-const), a bunch of macros or a function that takes const
+but returns non-const.  If we settle on anything I would probably vote for
+the last option but the all are far from ideal.
+
+-- 
+Best regards,                                         _     _
+.o. | Liege of Serenely Enlightened Majesty of      o' \,=./ `o
+..o | Computer Science,  Michal "mina86" Nazarewicz    (o o)
+ooo +-----<email/xmpp: mnazarewicz@google.com>-----ooO--(_)--Ooo--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
