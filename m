@@ -1,82 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 1C9F98D003B
-	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 16:05:56 -0400 (EDT)
-Date: Wed, 20 Apr 2011 13:04:53 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] tmpfs: fix race between umount and writepage
-Message-Id: <20110420130453.3985144c.akpm@linux-foundation.org>
-In-Reply-To: <20110405103452.18737.28363.stgit@localhost6>
-References: <20110405103452.18737.28363.stgit@localhost6>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F7468D003B
+	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 16:24:37 -0400 (EDT)
+Received: from wpaz5.hot.corp.google.com (wpaz5.hot.corp.google.com [172.24.198.69])
+	by smtp-out.google.com with ESMTP id p3KKOWJ3009100
+	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 13:24:32 -0700
+Received: from pvg7 (pvg7.prod.google.com [10.241.210.135])
+	by wpaz5.hot.corp.google.com with ESMTP id p3KKOHuc027890
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 13:24:30 -0700
+Received: by pvg7 with SMTP id 7so743853pvg.23
+        for <linux-mm@kvack.org>; Wed, 20 Apr 2011 13:24:28 -0700 (PDT)
+Date: Wed, 20 Apr 2011 13:24:26 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 1/2] break out page allocation warning code
+In-Reply-To: <20110420093900.45F6.A69D9226@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1104201317410.31768@chino.kir.corp.google.com>
+References: <20110419094422.9375.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1104191419470.510@chino.kir.corp.google.com> <20110420093900.45F6.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Cc: Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, John Stultz <johnstul@us.ibm.com>
+Cc: Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Nazarewicz <mina86@mina86.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Tue, 5 Apr 2011 14:34:52 +0400
-Konstantin Khlebnikov <khlebnikov@openvz.org> wrote:
+On Wed, 20 Apr 2011, KOSAKI Motohiro wrote:
 
-> shmem_writepage() call igrab() on the inode for the page which is came from
-> reclaimer to add it later into shmem_swaplist for swap-unuse operation.
+> > That was true a while ago, but you now need to protect every thread's 
+> > ->comm with get_task_comm() or ensuring task_lock() is held to protect 
+> > against /proc/pid/comm which can change other thread's ->comm.  That was 
+> > different before when prctl(PR_SET_NAME) would only operate on current, so 
+> > no lock was needed when reading current->comm.
 > 
-> This igrab() can race with super-block deactivating process:
+> Right. /proc/pid/comm is evil. We have to fix it. otherwise we need change
+> all of current->comm user. It's very lots!
 > 
-> shrink_inactive_list()		deactivate_super()
-> pageout()			tmpfs_fs_type->kill_sb()
-> shmem_writepage()		kill_litter_super()
-> 				generic_shutdown_super()
-> 				 evict_inodes()
->  igrab()
-> 				  atomic_read(&inode->i_count)
-> 				   skip-inode
->  iput()
-> 				 if (!list_empty(&sb->s_inodes))
-> 					printk("VFS: Busy inodes after...
 
-Generally, ->writepage implementations shouldn't play with the inode,
-for the reasons you've discovered.  A more common race is
-writepage-versus-reclaim, where writepage is playing with the inode
-when a concurrent reclaim frees the inode (and hence the
-address_space).
+Fixing it in this case would be removing it and only allowing it for 
+current via the usual prctl() :)  The code was introduced in 4614a696bd1c 
+(procfs: allow threads to rename siblings via /proc/pid/tasks/tid/comm) in 
+December 2009 and seems to originally be meant for debugging.  We simply 
+can't continue to let it modify any thread's ->comm unless we change the 
+over 300 current->comm deferences in the kernel.
 
-It is safe to play with the inode while the passed-in page is locked
-because nobody will free an inode which has an attached locked page. 
-But once the page is unlocked, nothing pins the inode.  Typically,
-tmpfs goes and breakes this rule.
-
-
-Question is: why is shmem_writepage() doing the igrab/iput?
-
-Read 1b1b32f2c6f6bb3253 and weep.
-
-That changelog is a little incorrect:
-
-: Ah, I'd never suspected it, but shmem_writepage's swaplist manipulation
-: is unsafe: though still hold page lock, which would hold off inode
-: deletion if the page were i pagecache, it doesn't hold off once it's in
-: swapcache (free_swap_and_cache doesn't wait on locked pages).  Hmm: we
-: could put the the inode on swaplist earlier, but then shmem_unuse_inode
-: could never prune unswapped inodes.
-
-We don't actually hold the page lock when altering the swaplist:
-swap_writepage() unlocks the page.  Doesn't seem to matter.
-
-
-I think we should get the igrab/iput out of there and come up with a
-different way of pinning the inode in ->writepage().
-
-Can we do it in this order?
-
-	mutex_lock(&shmem_swaplist_mutex);
-	list_move_tail(&info->swaplist, &shmem_swaplist);
-	delete_from_page_cache(page);
-	shmem_swp_set(info, entry, swap.val);
-	shmem_swp_unmap(entry);
-	mutex_unlock(&shmem_swaplist_mutex);
-	swap_writepage(page, wbc);									
+I'd prefer that we remove /proc/pid/comm entirely or at least prevent 
+writing to it unless CONFIG_EXPERT.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
