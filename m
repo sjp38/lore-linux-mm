@@ -1,58 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id BEFE28D003B
-	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 20:39:05 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id AAB443EE0BD
-	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 09:39:02 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0F99445DE92
-	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 09:39:02 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id EC5FB45DE8F
-	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 09:39:01 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id DF78EE08002
-	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 09:39:01 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id A0D66E08001
-	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 09:39:01 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 1/2] break out page allocation warning code
-In-Reply-To: <alpine.DEB.2.00.1104191419470.510@chino.kir.corp.google.com>
-References: <20110419094422.9375.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1104191419470.510@chino.kir.corp.google.com>
-Message-Id: <20110420093900.45F6.A69D9226@jp.fujitsu.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id B4A858D003B
+	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 20:51:20 -0400 (EDT)
+Received: from wpaz21.hot.corp.google.com (wpaz21.hot.corp.google.com [172.24.198.85])
+	by smtp-out.google.com with ESMTP id p3K0pEQw000633
+	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 17:51:14 -0700
+Received: from qwi2 (qwi2.prod.google.com [10.241.195.2])
+	by wpaz21.hot.corp.google.com with ESMTP id p3K0osoY012533
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 17:51:13 -0700
+Received: by qwi2 with SMTP id 2so166133qwi.22
+        for <linux-mm@kvack.org>; Tue, 19 Apr 2011 17:51:13 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Wed, 20 Apr 2011 09:39:00 +0900 (JST)
+In-Reply-To: <20110420092003.45EB.A69D9226@jp.fujitsu.com>
+References: <1303235496-3060-1-git-send-email-yinghan@google.com>
+	<20110420092003.45EB.A69D9226@jp.fujitsu.com>
+Date: Tue, 19 Apr 2011 17:51:12 -0700
+Message-ID: <BANLkTikJfOevEUqivf8b1XkL1vTmL6RBEQ@mail.gmail.com>
+Subject: Re: [PATCH 0/3] pass the scan_control into shrinkers
+From: Ying Han <yinghan@google.com>
+Content-Type: multipart/alternative; boundary=00248c6a84ca73547804a14f0509
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Nazarewicz <mina86@mina86.com>, Andrew Morton <akpm@linux-foundation.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>, linux-mm@kvack.org
 
-> On Tue, 19 Apr 2011, KOSAKI Motohiro wrote:
-> 
-> > The rule is,
-> > 
-> > 1) writing comm
-> > 	need task_lock
-> > 2) read _another_ thread's comm
-> > 	need task_lock
-> > 3) read own comm
-> > 	no need task_lock
-> > 
-> 
-> That was true a while ago, but you now need to protect every thread's 
-> ->comm with get_task_comm() or ensuring task_lock() is held to protect 
-> against /proc/pid/comm which can change other thread's ->comm.  That was 
-> different before when prctl(PR_SET_NAME) would only operate on current, so 
-> no lock was needed when reading current->comm.
+--00248c6a84ca73547804a14f0509
+Content-Type: text/plain; charset=ISO-8859-1
 
-Right. /proc/pid/comm is evil. We have to fix it. otherwise we need change
-all of current->comm user. It's very lots!
+On Tue, Apr 19, 2011 at 5:20 PM, KOSAKI Motohiro <
+kosaki.motohiro@jp.fujitsu.com> wrote:
 
+> > This patch changes the shrink_slab and shrinker APIs by consolidating
+> existing
+> > parameters into scan_control struct. This simplifies any further attempts
+> to
+> > pass extra info to the shrinker. Instead of modifying all the shrinker
+> files
+> > each time, we just need to extend the scan_control struct.
+> >
+>
+> Ugh. No, please no.
+> Current scan_control has a lot of vmscan internal information. Please
+> export only you need one, not all.
+>
+> Otherwise, we can't change any vmscan code while any shrinker are using it.
+>
 
+So, are you suggesting maybe add another struct for this purpose?
+
+--Ying
+
+--00248c6a84ca73547804a14f0509
+Content-Type: text/html; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
+
+<br><br><div class=3D"gmail_quote">On Tue, Apr 19, 2011 at 5:20 PM, KOSAKI =
+Motohiro <span dir=3D"ltr">&lt;<a href=3D"mailto:kosaki.motohiro@jp.fujitsu=
+.com">kosaki.motohiro@jp.fujitsu.com</a>&gt;</span> wrote:<br><blockquote c=
+lass=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid;=
+padding-left:1ex;">
+<div class=3D"im">&gt; This patch changes the shrink_slab and shrinker APIs=
+ by consolidating existing<br>
+&gt; parameters into scan_control struct. This simplifies any further attem=
+pts to<br>
+&gt; pass extra info to the shrinker. Instead of modifying all the shrinker=
+ files<br>
+&gt; each time, we just need to extend the scan_control struct.<br>
+&gt;<br>
+<br>
+</div>Ugh. No, please no.<br>
+Current scan_control has a lot of vmscan internal information. Please<br>
+export only you need one, not all.<br>
+<br>
+Otherwise, we can&#39;t change any vmscan code while any shrinker are using=
+ it.<br></blockquote><div><br></div><div>So, are you suggesting maybe add a=
+nother struct for this purpose?</div><div><br></div><div>--Ying=A0</div>
+</div><br>
+
+--00248c6a84ca73547804a14f0509--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
