@@ -1,64 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id ADED18D003B
-	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 03:08:55 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 3A2823EE0AE
-	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 16:08:52 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 1FFEE45DE95
-	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 16:08:52 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 08F0D45DE88
-	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 16:08:52 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id F0991E38002
-	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 16:08:51 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id BE063E08003
-	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 16:08:51 +0900 (JST)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 41B788D003B
+	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 03:15:29 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id D7DB13EE0C0
+	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 16:15:25 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id BDD3345DE9F
+	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 16:15:25 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id A64B745DEA5
+	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 16:15:25 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8AFC11DB803C
+	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 16:15:25 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 506D2E18005
+	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 16:15:25 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH followup] mm: get rid of CONFIG_STACK_GROWSUP || CONFIG_IA64
-In-Reply-To: <20110420065943.GA18799@tiehlicka.suse.cz>
-References: <20110420093326.45EF.A69D9226@jp.fujitsu.com> <20110420065943.GA18799@tiehlicka.suse.cz>
-Message-Id: <20110420160946.4629.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCH v3] mm: make expand_downwards symmetrical to expand_upwards
+In-Reply-To: <BANLkTi=mxWwLPEnB+rGg29b06xNUD0XvsA@mail.gmail.com>
+References: <20110420102314.4604.A69D9226@jp.fujitsu.com> <BANLkTi=mxWwLPEnB+rGg29b06xNUD0XvsA@mail.gmail.com>
+Message-Id: <20110420161615.462D.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Date: Wed, 20 Apr 2011 16:08:51 +0900 (JST)
+Date: Wed, 20 Apr 2011 16:15:23 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Pekka Enberg <penberg@kernel.org>
+Cc: kosaki.motohiro@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, James Bottomley <James.Bottomley@hansenpartnership.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-parisc@vger.kernel.org, David Rientjes <rientjes@google.com>
 
-> Hi Kosaki,
+> On Wed, Apr 20, 2011 at 4:23 AM, KOSAKI Motohiro
+> <kosaki.motohiro@jp.fujitsu.com> wrote:
+> > I'm worry about this patch. A lot of mm code assume !NUMA systems
+> > only have node 0. Not only SLUB.
 > 
-> On Wed 20-04-11 09:33:26, KOSAKI Motohiro wrote:
-> > > While I am in the cleanup mode. We should use VM_GROWSUP rather than
-> > > tricky CONFIG_STACK_GROWSUP||CONFIG_IA64.
-> > > 
-> > > What do you think?
-> > 
-> > Now, VM_GROWSUP share the same value with VM_NOHUGEPAGE.
-> > (this trick use the fact that thp don't support any stack growup architecture)
-> 
-> I am not sure I understand you. AFAICS, VM_GROWSUP is defined to non 0
-> only if CONFIG_STACK_GROWSUP||CONFIG_IA64 (include/linux/mm.h).
-> And we use it to determine whether expand_stack_growsup[*] should be
-> defined (in include/linux/mm.h).
-> 
-> The patch basically unifies the way how we export expand_stack_growsup
-> function and how define it (in mm/mmap.c).
-> 
-> So either we should use CONFIG_STACK_GROWSUP||CONFIG_IA64 at both places
-> or we should use VM_GROWSUP trick. I am for the later one.
-> 
-> Am I missing something?
-> 
-> --- 
-> [*] the previous patch renamed expand_growsup to expand_stack_growsup.
+> So is that a valid assumption or not? Christoph seems to think it is
+> and James seems to think it's not. Which way should we aim to fix it?
+> Would be nice if other people chimed in as we already know what James
+> and Christoph think.
 
-Right you are. sorry.
+I'm sorry. I don't know it really. The fact was gone into historical myst. ;-)
+
+Now, CONFIG_NUMA has mainly five meanings.
+
+1) system may has !0 node id.
+2) compile mm/mempolicy.c (ie enable mempolicy APIs)
+3) Allocator (kmalloc, vmalloc, alloc_page, et al) awake NUMA topology.
+4) enable zone-reclaim feature
+5) scheduler makes per-node load balancing scheduler domain
+
+Anyway, we have to fix this issue.  I'm digging which fixing way has least risk.
+
+
+btw, x86 don't have an issue. Probably it's a reason why this issue was neglected
+long time.
+
+arch/x86/Kconfig
+-------------------------------------
+config ARCH_DISCONTIGMEM_ENABLE
+        def_bool y
+        depends on NUMA && X86_32
 
 
 
