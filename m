@@ -1,49 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 0991A8D003B
-	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 10:52:24 -0400 (EDT)
-Subject: Re: [PATCH v3 2.6.39-rc1-tip 12/26] 12: uprobes: slot allocation for uprobes
-References: <20110401143223.15455.19844.sendpatchset@localhost6.localdomain6>
-	<20110401143457.15455.64839.sendpatchset@localhost6.localdomain6>
-	<1303145171.32491.886.camel@twins>
-	<20110419062654.GB10698@linux.vnet.ibm.com>
-	<BANLkTimw7dV9_aSsrUfzwSdwr6UwZDsRwg@mail.gmail.com>
-From: fche@redhat.com (Frank Ch. Eigler)
-Date: Wed, 20 Apr 2011 10:51:45 -0400
-In-Reply-To: <BANLkTimw7dV9_aSsrUfzwSdwr6UwZDsRwg@mail.gmail.com> (Eric Paris's message of "Wed, 20 Apr 2011 09:40:57 -0400")
-Message-ID: <y0m7hapc6wu.fsf@fche.csb>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id ED8898D003B
+	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 11:01:10 -0400 (EDT)
+Subject: Re: [PATCH 20/20] mm: Optimize page_lock_anon_vma() fast-path
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <1303303124.8345.218.camel@twins>
+References: <20110401121258.211963744@chello.nl>
+	 <20110401121726.285750519@chello.nl>
+	 <20110419130800.7148a602.akpm@linux-foundation.org>
+	 <1303303124.8345.218.camel@twins>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+Date: Wed, 20 Apr 2011 17:00:29 +0200
+Message-ID: <1303311629.8345.230.camel@twins>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric Paris <eparis@parisplace.org>
-Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, int-list-linux-mm@kvack.orglinux-mm@kvack.org, Peter Zijlstra <peterz@infradead.org>, James Morris <jmorris@namei.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Christoph Hellwig <hch@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, SystemTap <systemtap@sources.redhat.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>, Eric Paris <eparis@redhat.com>, sds@tycho.nsa.gov
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Avi Kivity <avi@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@elte.hu>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Yanmin Zhang <yanmin_zhang@linux.intel.com>
 
+On Wed, 2011-04-20 at 14:38 +0200, Peter Zijlstra wrote:
+> > > +   if (!page_mapped(page)) {
+> > > +           put_anon_vma(anon_vma);
+> > > +           anon_vma =3D NULL;
+> > > +           goto out;
+> > > +   }
+> >=20
+> > Also quite opaque, needs decent commentary.
+> >=20
+> > I'd have expected this test to occur after the lock was acquired.
+>=20
+> Right, so I think we could drop that test from both here and
+> page_get_anon_vma() and nothing would break, its simply avoiding some
+> work in case we do detect the race with page_remove_rmap().
+>=20
+> So yes, I think I'll move it down because that'll widen the scope of
+> this optimization.=20
 
-eparis wrote:
+OK, so I went trawling through the linux-mm logs and actually found why
+this is needed under rcu_read_lock(), sadly I cannot seem to find a web
+reference to 2006 linux-mm emails.
 
-> [...]
-> Now how to fix the problems you were seeing.  If you run a modern
-> system with a GUI I'm willing to bet the pop-up window told you
-> exactly how to fix your problem.  [...]
->
-> 1) chcon -t unconfined_execmem_t /path/to/your/binary
-> 2) setsebool -P allow_execmem 1
-> [...]
-> I believe there was a question about how JIT's work with SELinux
-> systems.  They work mostly by method #1.
+It was Hugh who noted that page_remove_rmap() only decrements
+page->_mapcount but does not clear page->mapping, therefore we must test
+page_mapped() after reading page->mapping while under the
+rcu_read_lock() in order to determine if the pointer obtained is still
+valid.
 
-Actually, that's a solution to a different problem.  Here, it's not
-particular /path/to/your/binaries that want/need selinux provileges.
-It's a kernel-driven debugging facility that needs it temporarily for
-arbitrary processes.
+The comment that exists today in __page_lock_anon_vma() actually tries
+to explain this
 
-It's not like JITs, with known binary names.  It's not like GDB, which
-simply overwrites existing instructions in the text segment.  To make
-uprobes work fast (single-step-out-of-line), one needs one or emore
-temporary pages with unusual mapping permissions.
-
-- FChE
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
