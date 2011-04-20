@@ -1,101 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 8CC1F8D0047
-	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 04:46:39 -0400 (EDT)
-Message-Id: <20110420080918.047125995@intel.com>
-Date: Wed, 20 Apr 2011 16:03:39 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 3/6] writeback: try more writeback as long as something was written
-References: <20110420080336.441157866@intel.com>
-Content-Disposition: inline; filename=writeback-background-retry.patch
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 828A28D0047
+	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 04:48:35 -0400 (EDT)
+Subject: Re: [PATCH 01/20] mm: mmu_gather rework
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <20110419130606.fb7139b2.akpm@linux-foundation.org>
+References: <20110401121258.211963744@chello.nl>
+	 <20110401121725.360704327@chello.nl>
+	 <20110419130606.fb7139b2.akpm@linux-foundation.org>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+Date: Wed, 20 Apr 2011 10:47:28 +0200
+Message-ID: <1303289248.8345.62.camel@twins>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jan Kara <jack@suse.cz>, Mel Gorman <mel@linux.vnet.ibm.com>, Wu Fengguang <fengguang.wu@intel.com>, Dave Chinner <david@fromorbit.com>, Itaru Kitayama <kitayama@cl.bb4u.ne.jp>, Minchan Kim <minchan.kim@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Avi Kivity <avi@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@elte.hu>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Yanmin Zhang <yanmin_zhang@linux.intel.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Russell King <rmk@arm.linux.org.uk>, Paul Mundt <lethal@linux-sh.org>, Jeff Dike <jdike@addtoit.com>, Tony Luck <tony.luck@intel.com>, Hugh Dickins <hughd@google.com>
 
-writeback_inodes_wb()/__writeback_inodes_sb() are not aggressive in that
-they only populate possibly a subset of eligible inodes into b_io at
-entrance time. When the queued set of inodes are all synced, they just
-return, possibly with all queued inode pages written but still
-wbc.nr_to_write > 0.
+On Tue, 2011-04-19 at 13:06 -0700, Andrew Morton wrote:
+> On Fri, 01 Apr 2011 14:12:59 +0200
+> Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
+>=20
+> > Remove the first obstackle towards a fully preemptible mmu_gather.
+> >=20
+> > The current scheme assumes mmu_gather is always done with preemption
+> > disabled and uses per-cpu storage for the page batches. Change this to
+> > try and allocate a page for batching and in case of failure, use a
+> > small on-stack array to make some progress.
+> >=20
+> > Preemptible mmu_gather is desired in general and usable once
+> > i_mmap_lock becomes a mutex. Doing it before the mutex conversion
+> > saves us from having to rework the code by moving the mmu_gather
+> > bits inside the pte_lock.
+> >=20
+> > Also avoid flushing the tlb batches from under the pte lock,
+> > this is useful even without the i_mmap_lock conversion as it
+> > significantly reduces pte lock hold times.
+>=20
+> There doesn't seem much point in reviewing this closely, as a lot of it
+> gets tossed away later in the series..
 
-For kupdate and background writeback, there may be more eligible inodes
-sitting in b_dirty when the current set of b_io inodes are completed. So
-it is necessary to try another round of writeback as long as we made some
-progress in this round. When there are no more eligible inodes, no more
-inodes will be enqueued in queue_io(), hence nothing could/will be
-synced and we may safely bail.
+That's a result of breaking patches along concept boundaries :/
 
-For example, imagine 100 inodes
+> >  		free_pages_and_swap_cache(tlb->pages, tlb->nr);
+>=20
+> It seems inappropriate that this code uses
+> free_page[s]_and_swap_cache().  It should go direct to put_page() and
+> release_pages()?  Please review this code's implicit decision to pass
+> "cold=3D=3D0" into release_pages().
 
-        i0, i1, i2, ..., i90, i91, i99
+Well, that isn't new with this patch, however it does look to be
+correct. We're freeing user pages, those could indeed still be part of
+the swapcache. Furthermore, the PAGEVEC_SIZE split in
+free_pages_and_swap_cache() alone makes it worth calling that over
+release_pages().
 
-At queue_io() time, i90-i99 happen to be expired and moved to s_io for
-IO. When finished successfully, if their total size is less than
-MAX_WRITEBACK_PAGES, nr_to_write will be > 0. Then wb_writeback() will
-quit the background work (w/o this patch) while it's still over
-background threshold. This will be a fairly normal/frequent case I guess.
+As to the cold=3D=3D0, I think that too is correct since we don't actually
+touch the pages themselves and we have no inkling as to their cache
+state, we're simply wiping out user pages.
 
-Jan raised the concern
+> > -static inline void tlb_remove_page(struct mmu_gather *tlb, struct page=
+ *page)
+> > +static inline int __tlb_remove_page(struct mmu_gather *tlb, struct pag=
+e *page)
+>=20
+> I wonder if all the inlining which remains in this code is needed and
+> desirable.
 
-	I'm just afraid that in some pathological cases this could
-	result in bad writeback pattern - like if there is some process
-	which manages to dirty just a few pages while we are doing
-	writeout, this looping could result in writing just a few pages
-	in each round which is bad for fragmentation etc.
+Probably not, the big plan was to make everybody use the generic code
+and then move it into mm/memory.c or so.
 
-However it requires really strong timing to make that to (continuously)
-happen.  In practice it's very hard to produce such a pattern even if
-there is such a possibility in theory. I actually tried to write 1 page
-per 1ms with this command
-
-	write-and-fsync -n10000 -S 1000 -c 4096 /fs/test
-
-and do sync(1) at the same time. The sync completes quickly on ext4,
-xfs, btrfs. The readers could try other write-and-sleep patterns and
-check if it can block sync for longer time.
-
-CC: Jan Kara <jack@suse.cz>
-Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
----
- fs/fs-writeback.c |   16 ++++++++--------
- 1 file changed, 8 insertions(+), 8 deletions(-)
-
---- linux-next.orig/fs/fs-writeback.c	2011-04-20 11:53:35.000000000 +0800
-+++ linux-next/fs/fs-writeback.c	2011-04-20 11:53:37.000000000 +0800
-@@ -730,23 +730,23 @@ static long wb_writeback(struct bdi_writ
- 		wrote += write_chunk - wbc.nr_to_write;
- 
- 		/*
--		 * If we consumed everything, see if we have more
-+		 * Did we write something? Try for more
-+		 *
-+		 * Dirty inodes are moved to b_io for writeback in batches.
-+		 * The completion of the current batch does not necessarily
-+		 * mean the overall work is done. So we keep looping as long
-+		 * as made some progress on cleaning pages or inodes.
- 		 */
--		if (wbc.nr_to_write <= 0)
-+		if (wbc.nr_to_write < write_chunk)
- 			continue;
- 		if (wbc.inodes_cleaned)
- 			continue;
- 		/*
--		 * Didn't write everything and we don't have more IO, bail
-+		 * No more inodes for IO, bail
- 		 */
- 		if (!wbc.more_io)
- 			break;
- 		/*
--		 * Did we write something? Try for more
--		 */
--		if (wbc.nr_to_write < write_chunk)
--			continue;
--		/*
- 		 * Nothing written. Wait for some inode to
- 		 * become available for writeback. Otherwise
- 		 * we'll just busyloop.
-
+But I guess I can have asm-generic/tlb.h define HAVE_GENERIC_MMU_GATHER
+and make the compilation in mm/memory.c conditional on that (or generate
+lots of Kconfig churn).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
