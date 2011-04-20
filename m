@@ -1,88 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id C015D8D003B
-	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 19:39:32 -0400 (EDT)
-Date: Wed, 20 Apr 2011 01:39:05 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch] mm/vmalloc: remove block allocation bitmap
-Message-ID: <20110419233905.GA2333@cmpxchg.org>
-References: <20110414211656.GB1700@cmpxchg.org>
- <20110419093118.GB23041@csn.ul.ie>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id AE7EB8D003B
+	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 20:20:25 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id CDF8C3EE0BD
+	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 09:20:22 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id B122645DE95
+	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 09:20:22 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9085C45DE76
+	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 09:20:22 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 837831DB803C
+	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 09:20:22 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4AE25E08003
+	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 09:20:22 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 0/3] pass the scan_control into shrinkers
+In-Reply-To: <1303235496-3060-1-git-send-email-yinghan@google.com>
+References: <1303235496-3060-1-git-send-email-yinghan@google.com>
+Message-Id: <20110420092003.45EB.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110419093118.GB23041@csn.ul.ie>
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Wed, 20 Apr 2011 09:20:21 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@kernel.dk>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Ying Han <yinghan@google.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Nick Piggin <nickpiggin@yahoo.com.au>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>, linux-mm@kvack.org
 
-On Tue, Apr 19, 2011 at 10:31:18AM +0100, Mel Gorman wrote:
-> On Thu, Apr 14, 2011 at 05:16:56PM -0400, Johannes Weiner wrote:
-> > Space in a vmap block that was once allocated is considered dirty and
-> > not made available for allocation again before the whole block is
-> > recycled.
-> > 
-> > The result is that free space within a vmap block is always contiguous
-> > and the allocation bitmap can be replaced by remembering the offset of
-> > free space in the block.
-> > 
-> > The fragmented block purging was never invoked from vb_alloc() either,
-> > as it skips blocks that do not have enough free space for the
-> > allocation in the first place.  According to the above, it is
-> > impossible for a block to have enough free space and still fail the
-> > allocation.  Thus, this dead code is removed.  Partially consumed
-> > blocks will be reclaimed anyway when an attempt is made to allocate a
-> > new vmap block altogether and no free space is found.
-> > 
-> > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> > Cc: Nick Piggin <npiggin@kernel.dk>
-> > Cc: Mel Gorman <mel@csn.ul.ie>
-> > Cc: Hugh Dickins <hughd@google.com>
+> This patch changes the shrink_slab and shrinker APIs by consolidating existing
+> parameters into scan_control struct. This simplifies any further attempts to
+> pass extra info to the shrinker. Instead of modifying all the shrinker files
+> each time, we just need to extend the scan_control struct.
 > 
-> I didn't see a problem with the patch per-se but I wonder if your patch
-> is the intended behaviour. It looks like the intention was that dirty
-> blocks could be flushed from the TLB and made available for allocations
-> leading to the possibility of fragmented vmap blocks.
->
-> It's this check that is skipping over blocks without taking dirty into
-> account.
-> 
->   		spin_lock(&vb->lock);
->  		if (vb->free < 1UL << order)
->  			goto next;
-> 
-> It was introduced by [02b709d: mm: purge fragmented percpu vmap blocks]
-> but is there any possibility that this is what should be fixed instead?
 
-I would like to emphasize that the quoted check only made it clear
-that the allocation bitmap is superfluous.  There is no partial
-recycling of a block with live allocations, not even before this
-commit.
+Ugh. No, please no.
+Current scan_control has a lot of vmscan internal information. Please
+export only you need one, not all.
 
-> Do we know what the consequences of blocks only getting flushed when
-> they have been fully allocated are?
+Otherwise, we can't change any vmscan code while any shrinker are using it.
 
-Note that it can get recycled earlier if there is no outstanding
-allocation on it, even if only a small amount of it is dirty (the
-purge_fragmented_blocks code does this).
 
-A single outstanding allocation prevents the block from being
-recycled, blocking the reuse of the dirty area.
-
-Theoretically, we could end up with all possible vmap blocks being
-pinned by single allocations with most of their area being dirty and
-not reusable.  But I believe this is unlikely to happen.
-
-Would you be okay with printing out block usage statistics on
-allocation errors for the time being, so we can identify this case if
-problems show up?
-
-And consider this patch an optimization/simplification of a status quo
-that does not appear problematic?  We can still revert it and
-implement live block recycling when it turns out to be necessary.
-
-	Hannes
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
