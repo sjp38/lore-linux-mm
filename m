@@ -1,49 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B9F68D003B
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 46F358D0040
 	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 07:20:26 -0400 (EDT)
-Received: by bwz17 with SMTP id 17so793279bwz.14
-        for <linux-mm@kvack.org>; Wed, 20 Apr 2011 04:20:22 -0700 (PDT)
-Content-Type: text/plain; charset=utf-8; format=flowed; delsp=yes
-Subject: Re: [PATCH 0/1] mm: make read-only accessors take const pointer
- parameters
-References: <1302861377-8048-1-git-send-email-ext-phil.2.carmody@nokia.com>
- <20110415145133.GO15707@random.random>
- <20110415155916.GD7112@esdhcp04044.research.nokia.com>
- <20110415160957.GV15707@random.random> <1303291717.2700.20.camel@localhost>
-Date: Wed, 20 Apr 2011 13:20:19 +0200
+Date: Wed, 20 Apr 2011 05:20:20 -0600
+From: Matthew Wilcox <matthew@wil.cx>
+Subject: Re: [PATCH v3] mm: make expand_downwards symmetrical to
+	expand_upwards
+Message-ID: <20110420112020.GA31296@parisc-linux.org>
+References: <20110420102314.4604.A69D9226@jp.fujitsu.com> <BANLkTi=mxWwLPEnB+rGg29b06xNUD0XvsA@mail.gmail.com> <20110420161615.462D.A69D9226@jp.fujitsu.com> <BANLkTimfpY3gq8oY6bPDajBW7JN6Hp+A0A@mail.gmail.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7bit
-From: "Michal Nazarewicz" <mina86@mina86.com>
-Message-ID: <op.vt8hr5j73l0zgt@mnazarewicz-glaptop>
-In-Reply-To: <1303291717.2700.20.camel@localhost>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <BANLkTimfpY3gq8oY6bPDajBW7JN6Hp+A0A@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>, Artem Bityutskiy <dedekind1@gmail.com>
-Cc: Phil Carmody <ext-phil.2.carmody@nokia.com>, akpm@linux-foundation.org, cl@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Pekka Enberg <penberg@kernel.org>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, James Bottomley <James.Bottomley@hansenpartnership.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-parisc@vger.kernel.org, David Rientjes <rientjes@google.com>, Ingo Molnar <mingo@elte.hu>, x86 maintainers <x86@kernel.org>
 
-On Wed, 20 Apr 2011 11:28:37 +0200, Artem Bityutskiy <dedekind1@gmail.com>  
-wrote:
-> I think it is good when small core functions like this are strict and
-> use 'const' whenever possible, even though 'const' is so imperfect in C.
->
-> Let me give an example from my own experience. I was writing code which
-> was using the kernel RB trees, and I was trying to be strict and use
-> 'const' whenever possible. But because the core functions like 'rb_next'
-> do not have 'const' modifier, I could not use const in many many places
-> of my code, because gcc was yelling. And I was not very enthusiastic to
-> touch the RB-tree code that time.
+On Wed, Apr 20, 2011 at 10:34:23AM +0300, Pekka Enberg wrote:
+> That part makes me think the best option is to make parisc do
+> CONFIG_NUMA as well regardless of the historical intent was.
 
-The problem is that you end up with two sets of functions (one taking const
-another taking non-const), a bunch of macros or a function that takes const
-but returns non-const.  If we settle on anything I would probably vote for
-the last option but the all are far from ideal.
+But it's not just parisc.  It's six other architectures as well, some
+of which aren't even SMP.  Does !SMP && NUMA make any kind of sense?
+
+I think really, this is just a giant horrible misunderstanding on the part
+of the MM people.  There's no reason why an ARM chip with 16MB of memory
+at 0 and 16MB of memory at 1GB should be saddled with all the NUMA gunk.
 
 -- 
-Best regards,                                         _     _
-.o. | Liege of Serenely Enlightened Majesty of      o' \,=./ `o
-..o | Computer Science,  Michal "mina86" Nazarewicz    (o o)
-ooo +-----<email/xmpp: mnazarewicz@google.com>-----ooO--(_)--Ooo--
+Matthew Wilcox				Intel Open Source Technology Centre
+"Bill, look, we understand that you're interested in selling us this
+operating system, but compare it to ours.  We can't possibly take such
+a retrograde step."
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
