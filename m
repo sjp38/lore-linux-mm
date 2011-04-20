@@ -1,386 +1,268 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 395398D003B
-	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 21:10:00 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id CDBA53EE0B6
-	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 10:09:56 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id ABA8D45DE56
-	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 10:09:56 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 82AD445DE50
-	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 10:09:56 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 738451DB8044
-	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 10:09:56 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 31C541DB8042
-	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 10:09:56 +0900 (JST)
-Date: Wed, 20 Apr 2011 10:03:17 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH V6 06/10] Per-memcg background reclaim.
-Message-Id: <20110420100317.e7d43bab.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1303185466-2532-7-git-send-email-yinghan@google.com>
-References: <1303185466-2532-1-git-send-email-yinghan@google.com>
-	<1303185466-2532-7-git-send-email-yinghan@google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with SMTP id C17CB8D003B
+	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 21:21:27 -0400 (EDT)
+Date: Wed, 20 Apr 2011 11:21:20 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH 3/6] writeback: sync expired inodes first in background
+ writeback
+Message-ID: <20110420012120.GK23985@dastard>
+References: <20110419030003.108796967@intel.com>
+ <20110419030532.515923886@intel.com>
+ <20110419073523.GF23985@dastard>
+ <20110419095740.GC5257@quack.suse.cz>
+ <20110419125616.GA20059@localhost>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110419125616.GA20059@localhost>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>, linux-mm@kvack.org
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@linux.vnet.ibm.com>, Mel Gorman <mel@csn.ul.ie>, Trond Myklebust <Trond.Myklebust@netapp.com>, Itaru Kitayama <kitayama@cl.bb4u.ne.jp>, Minchan Kim <minchan.kim@gmail.com>, LKML <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-On Mon, 18 Apr 2011 20:57:42 -0700
-Ying Han <yinghan@google.com> wrote:
-
-> This is the main loop of per-memcg background reclaim which is implemented in
-> function balance_mem_cgroup_pgdat().
+On Tue, Apr 19, 2011 at 08:56:16PM +0800, Wu Fengguang wrote:
+> On Tue, Apr 19, 2011 at 05:57:40PM +0800, Jan Kara wrote:
+> > On Tue 19-04-11 17:35:23, Dave Chinner wrote:
+> > > On Tue, Apr 19, 2011 at 11:00:06AM +0800, Wu Fengguang wrote:
+> > > > A background flush work may run for ever. So it's reasonable for it to
+> > > > mimic the kupdate behavior of syncing old/expired inodes first.
+> > > > 
+> > > > The policy is
+> > > > - enqueue all newly expired inodes at each queue_io() time
+> > > > - enqueue all dirty inodes if there are no more expired inodes to sync
+> > > > 
+> > > > This will help reduce the number of dirty pages encountered by page
+> > > > reclaim, eg. the pageout() calls. Normally older inodes contain older
+> > > > dirty pages, which are more close to the end of the LRU lists. So
+> > > > syncing older inodes first helps reducing the dirty pages reached by
+> > > > the page reclaim code.
+> > > 
+> > > Once again I think this is the wrong place to be changing writeback
+> > > policy decisions. for_background writeback only goes through
+> > > wb_writeback() and writeback_inodes_wb() (same as for_kupdate
+> > > writeback), so a decision to change from expired inodes to fresh
+> > > inodes, IMO, should be made in wb_writeback.
+> > > 
+> > > That is, for_background and for_kupdate writeback start with the
+> > > same policy (older_than_this set) to writeback expired inodes first,
+> > > then when background writeback runs out of expired inodes, it should
+> > > switch to all remaining inodes by clearing older_than_this instead
+> > > of refreshing it for the next loop.
+> >   Yes, I agree with this and my impression is that Fengguang is trying to
+> > achieve exactly this behavior.
+> > 
+> > > This keeps all the policy decisions in the one place, all using the
+> > > same (existing) mechanism, and all relatively simple to understand,
+> > > and easy to tracepoint for debugging.  Changing writeback policy
+> > > deep in the writeback stack is not a good idea as it will make
+> > > extending writeback policies in future (e.g. for cgroup awareness)
+> > > very messy.
+> >   Hmm, I see. I agree the policy decisions should be at one place if
+> > reasonably possible. Fengguang moves them from wb_writeback() to inode
+> > queueing code which looks like a logical place to me as well - there we
+> > have the largest control over what inodes do we decide to write and don't
+> > have to pass all the detailed 'instructions' down in wbc structure. So if
+> > we later want to add cgroup awareness to writeback, I imagine we just add
+> > the knowledge to inode queueing code.
 > 
-> The function performs a priority loop similar to global reclaim. During each
-> iteration it invokes balance_pgdat_node() for all nodes on the system, which
-> is another new function performs background reclaim per node. After reclaiming
-> each node, it checks mem_cgroup_watermark_ok() and breaks the priority loop if
-> it returns true.
+> I actually started with wb_writeback() as a natural choice, and then
+> found it much easier to do the expired-only=>all-inodes switching in
+> move_expired_inodes() since it needs to know the @b_dirty and @tmp
+> lists' emptiness to trigger the switch. It's not sane for
+> wb_writeback() to look into such details. And once you do the switch
+> part in move_expired_inodes(), the whole policy naturally follows.
+
+Well, not really. You didn't need to modify move_expired_inodes() at
+all to implement these changes - all you needed to do was modify how
+older_than_this is configured.
+
+writeback policy is defined by the struct writeback_control.
+move_expired_inodes() is pure mechanism. What you've done is remove
+policy from the struct wbc and moved it to move_expired_inodes(),
+which now defines both policy and mechanism.
+
+Furhter, this means that all the tracing that uses the struct wbc no
+no longer shows the entire writeback policy that is being worked on,
+so we lose visibility into policy decisions that writeback is
+making.
+
+This same change is as simple as updating wbc->older_than_this
+appropriately after the wb_writeback() call for both background and
+kupdate and leaving the lower layers untouched. It's just a policy
+change. If you thinkthe mechanism is inefficient, copy
+wbc->older_than_this to a local variable inside
+move_expired_inodes()....
+
+> > > > @@ -585,7 +597,8 @@ void writeback_inodes_wb(struct bdi_writ
+> > > >  	if (!wbc->wb_start)
+> > > >  		wbc->wb_start = jiffies; /* livelock avoidance */
+> > > >  	spin_lock(&inode_wb_list_lock);
+> > > > -	if (!wbc->for_kupdate || list_empty(&wb->b_io))
+> > > > +
+> > > > +	if (list_empty(&wb->b_io))
+> > > >  		queue_io(wb, wbc);
+> > > >  
+> > > >  	while (!list_empty(&wb->b_io)) {
+> > > > @@ -612,7 +625,7 @@ static void __writeback_inodes_sb(struct
+> > > >  	WARN_ON(!rwsem_is_locked(&sb->s_umount));
+> > > >  
+> > > >  	spin_lock(&inode_wb_list_lock);
+> > > > -	if (!wbc->for_kupdate || list_empty(&wb->b_io))
+> > > > +	if (list_empty(&wb->b_io))
+> > > >  		queue_io(wb, wbc);
+> > > >  	writeback_sb_inodes(sb, wb, wbc, true);
+> > > >  	spin_unlock(&inode_wb_list_lock);
+> > > 
+> > > That changes the order in which we queue inodes for writeback.
+> > > Instead of calling every time to move b_more_io inodes onto the b_io
+> > > list and expiring more aged inodes, we only ever do it when the list
+> > > is empty. That is, it seems to me that this will tend to give
+> > > b_more_io inodes a smaller share of writeback because they are being
+> > > moved back to the b_io list less frequently where there are lots of
+> > > other inodes being dirtied. Have you tested the impact of this
+> > > change on mixed workload performance? Indeed, can you starve
+> > > writeback of a large file simply by creating lots of small files in
+> > > another thread?
+> >   Yeah, this change looks suspicious to me as well.
 > 
+> The exact behaviors are indeed rather complex. I personally feel the
+> new "always refill iff empty" policy more consistent, clean and easy
+> to understand.
 
-Seems getting better. But some comments, below.
+That may be so, but that doesn't make the change good from an IO
+perspective. You said you'd only done light testing, and that's not
+sufficient to guage the impact of such a change.
 
+> It basically says: at each round started by a b_io refill, setup a
+> _fixed_ work set with all current expired (or all currently dirtied
+> inodes if non is expired) and walk through it. "Fixed" work set means
+> no new inodes will be added to the work set during the walk.  When a
+> complete walk is done, start over with a new set of inodes that are
+> eligible at the time.
 
-> changelog v6..v5:
-> 1. add mem_cgroup_zone_reclaimable_pages()
-> 2. fix some comment style.
+Yes, I know what it does - I can read the code. You haven't however,
+answered why it is a good change from an IO persepctive, however.
+
+> The figure in page 14 illustrates the "rounds" idea:
+> http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/slides/linux-writeback-queues.pdf
 > 
-> changelog v5..v4:
-> 1. remove duplicate check on nodes_empty()
-> 2. add logic to check if the per-memcg lru is empty on the zone.
+> This procedure provides fairness among the inodes and guarantees each
+> inode to be synced once and only once at each round. So it's free from
+> starvations.
+
+Perhaps you should add some of this commentary to the commit
+message? That talks about the VM and LRU writeback, but that has
+nothing to do with writeback fairness. The commit message or
+comments in the code need to explain why something is being
+changed....
+
 > 
-> changelog v4..v3:
-> 1. split the select_victim_node and zone_unreclaimable to a seperate patches
-> 2. remove the logic tries to do zone balancing.
-> 
-> changelog v3..v2:
-> 1. change mz->all_unreclaimable to be boolean.
-> 2. define ZONE_RECLAIMABLE_RATE macro shared by zone and per-memcg reclaim.
-> 3. some more clean-up.
-> 
-> changelog v2..v1:
-> 1. move the per-memcg per-zone clear_unreclaimable into uncharge stage.
-> 2. shared the kswapd_run/kswapd_stop for per-memcg and global background
-> reclaim.
-> 3. name the per-memcg memcg as "memcg-id" (css->id). And the global kswapd
-> keeps the same name.
-> 4. fix a race on kswapd_stop while the per-memcg-per-zone info could be accessed
-> after freeing.
-> 5. add the fairness in zonelist where memcg remember the last zone reclaimed
-> from.
-> 
-> Signed-off-by: Ying Han <yinghan@google.com>
-> ---
->  include/linux/memcontrol.h |    9 +++
->  mm/memcontrol.c            |   18 +++++
->  mm/vmscan.c                |  151 ++++++++++++++++++++++++++++++++++++++++++++
->  3 files changed, 178 insertions(+), 0 deletions(-)
-> 
-> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-> index d4ff7f2..a4747b0 100644
-> --- a/include/linux/memcontrol.h
-> +++ b/include/linux/memcontrol.h
-> @@ -115,6 +115,8 @@ extern void mem_cgroup_end_migration(struct mem_cgroup *mem,
->   */
->  int mem_cgroup_inactive_anon_is_low(struct mem_cgroup *memcg);
->  int mem_cgroup_inactive_file_is_low(struct mem_cgroup *memcg);
-> +unsigned long mem_cgroup_zone_reclaimable_pages(struct mem_cgroup *memcg,
-> +						  struct zone *zone);
->  unsigned long mem_cgroup_zone_nr_pages(struct mem_cgroup *memcg,
->  				       struct zone *zone,
->  				       enum lru_list lru);
-> @@ -311,6 +313,13 @@ mem_cgroup_inactive_file_is_low(struct mem_cgroup *memcg)
->  }
->  
->  static inline unsigned long
-> +mem_cgroup_zone_reclaimable_pages(struct mem_cgroup *memcg,
-> +				    struct zone *zone)
-> +{
-> +	return 0;
-> +}
-> +
-> +static inline unsigned long
->  mem_cgroup_zone_nr_pages(struct mem_cgroup *memcg, struct zone *zone,
->  			 enum lru_list lru)
->  {
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 06fddd2..7490147 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -1097,6 +1097,24 @@ int mem_cgroup_inactive_file_is_low(struct mem_cgroup *memcg)
->  	return (active > inactive);
->  }
->  
-> +unsigned long mem_cgroup_zone_reclaimable_pages(struct mem_cgroup *memcg,
-> +						struct zone *zone)
-> +{
-> +	int nr;
-> +	int nid = zone_to_nid(zone);
-> +	int zid = zone_idx(zone);
-> +	struct mem_cgroup_per_zone *mz = mem_cgroup_zoneinfo(memcg, nid, zid);
-> +
-> +	nr = MEM_CGROUP_ZSTAT(mz, NR_ACTIVE_FILE) +
-> +	     MEM_CGROUP_ZSTAT(mz, NR_INACTIVE_FILE);
-> +
-> +	if (nr_swap_pages > 0)
-> +		nr += MEM_CGROUP_ZSTAT(mz, NR_ACTIVE_ANON) +
-> +		      MEM_CGROUP_ZSTAT(mz, NR_INACTIVE_ANON);
-> +
-> +	return nr;
-> +}
-> +
->  unsigned long mem_cgroup_zone_nr_pages(struct mem_cgroup *memcg,
->  				       struct zone *zone,
->  				       enum lru_list lru)
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 0060d1e..2a5c734 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -47,6 +47,8 @@
->  
->  #include <linux/swapops.h>
->  
-> +#include <linux/res_counter.h>
-> +
->  #include "internal.h"
->  
->  #define CREATE_TRACE_POINTS
-> @@ -111,6 +113,8 @@ struct scan_control {
->  	 * are scanned.
->  	 */
->  	nodemask_t	*nodemask;
-> +
-> +	int priority;
->  };
->  
->  #define lru_to_page(_head) (list_entry((_head)->prev, struct page, lru))
-> @@ -2625,11 +2629,158 @@ out:
->  	finish_wait(wait_h, &wait);
->  }
->  
-> +#ifdef CONFIG_CGROUP_MEM_RES_CTLR
-> +/*
-> + * The function is used for per-memcg LRU. It scanns all the zones of the
-> + * node and returns the nr_scanned and nr_reclaimed.
-> + */
-> +static void balance_pgdat_node(pg_data_t *pgdat, int order,
-> +					struct scan_control *sc)
-> +{
+> If you are worried about performance, here is a simple tar+dd benchmark.
+> Both commands are actually running faster with this patchset:
+.....
+> The base kernel is 2.6.39-rc3+ plus IO-less patchset plus large write
+> chunk size. The test box has 3G mem and runs XFS. Test script is:
 
+<sigh>
 
-shrink_memcg_node() instead of balance_pgdat_node() ?
+The numbers are meaningless to me - you've got a large number of
+other changes that are affecting writeback behaviour, and that's
+especially important because, at minimum, the change in write chunk
+size will hide any differences in IO patterns that this change will
+make. Please test against a vanilla kernel if that is what you are
+aiming these patches for. If you aren't aiming for a vanilla kernel,
+please say so in the patch series header...
 
-I guess the name is misleading.
+Anyway, I'm going to put some numbers into a hypothetical steady
+state situation to demonstrate the differences in algorithms.
+Let's say we have lots of inodes with 100 dirty pages being created,
+and one large writeback going on. We expire 8 new inodes for every
+1024 pages we write back.
 
-> +	int i;
-> +	unsigned long total_scanned = 0;
-> +	struct mem_cgroup *mem_cont = sc->mem_cgroup;
-> +	int priority = sc->priority;
-> +
-> +	/*
-> +	 * This dma->highmem order is consistant with global reclaim.
-> +	 * We do this because the page allocator works in the opposite
-> +	 * direction although memcg user pages are mostly allocated at
-> +	 * highmem.
-> +	 */
-> +	for (i = 0; i < pgdat->nr_zones; i++) {
-> +		struct zone *zone = pgdat->node_zones + i;
-> +		unsigned long scan = 0;
-> +
-> +		scan = mem_cgroup_zone_reclaimable_pages(mem_cont, zone);
-> +		if (!scan)
-> +			continue;
-> +
-> +		sc->nr_scanned = 0;
-> +		shrink_zone(priority, zone, sc);
-> +		total_scanned += sc->nr_scanned;
-> +
-> +		/*
-> +		 * If we've done a decent amount of scanning and
-> +		 * the reclaim ratio is low, start doing writepage
-> +		 * even in laptop mode
-> +		 */
-> +		if (total_scanned > SWAP_CLUSTER_MAX * 2 &&
-> +		    total_scanned > sc->nr_reclaimed + sc->nr_reclaimed / 2) {
-> +			sc->may_writepage = 1;
-> +		}
-> +	}
-> +
-> +	sc->nr_scanned = total_scanned;
-> +}
-> +
-> +/*
-> + * Per cgroup background reclaim.
-> + * TODO: Take off the order since memcg always do order 0
-> + */
-> +static unsigned long balance_mem_cgroup_pgdat(struct mem_cgroup *mem_cont,
-> +					      int order)
+With the old code, we do:
 
-Here, too. shrink_mem_cgroup() may be straightforward.
+	b_more_io (large inode) -> b_io (1l)
+	8 newly expired inodes -> b_io (1l, 8s)
 
+	writeback  large inode 1024 pages -> b_more_io
 
-> +{
-> +	int i, nid;
-> +	int start_node;
-> +	int priority;
-> +	bool wmark_ok;
-> +	int loop;
-> +	pg_data_t *pgdat;
-> +	nodemask_t do_nodes;
-> +	unsigned long total_scanned;
-> +	struct scan_control sc = {
-> +		.gfp_mask = GFP_KERNEL,
-> +		.may_unmap = 1,
-> +		.may_swap = 1,
-> +		.nr_to_reclaim = SWAP_CLUSTER_MAX,
-> +		.swappiness = vm_swappiness,
-> +		.order = order,
-> +		.mem_cgroup = mem_cont,
-> +	};
-> +
-> +loop_again:
-> +	do_nodes = NODE_MASK_NONE;
-> +	sc.may_writepage = !laptop_mode;
+	b_more_io (large inode) -> b_io (8s, 1l)
+	8 newly expired inodes -> b_io (8s, 1l, 8s)
 
-Even with !laptop_mode, "write_page since the 1st scan" should be avoided.
-How about sc.may_writepage = 1 when we do "goto loop_again;" ?
+	writeback  8 small inodes 800 pages
+		   1 large inode 224 pages -> b_more_io
 
+	b_more_io (large inode) -> b_io (8s, 1l)
+	8 newly expired inodes -> b_io (8s, 1l, 8s)
+	.....
 
-> +	sc.nr_reclaimed = 0;
-> +	total_scanned = 0;
-> +
-> +	for (priority = DEF_PRIORITY; priority >= 0; priority--) {
-> +		sc.priority = priority;
-> +		wmark_ok = false;
-> +		loop = 0;
-> +
-> +		/* The swap token gets in the way of swapout... */
-> +		if (!priority)
-> +			disable_swap_token();
-> +
-> +		if (priority == DEF_PRIORITY)
-> +			do_nodes = node_states[N_ONLINE];
+Your new code:
 
-This can be moved out from the loop.
+	b_more_io (large inode) -> b_io (1l)
+	8 newly expired inodes -> b_io (1l, 8s)
 
-> +
-> +		while (1) {
-> +			nid = mem_cgroup_select_victim_node(mem_cont,
-> +							&do_nodes);
-> +
-> +			/*
-> +			 * Indicate we have cycled the nodelist once
-> +			 * TODO: we might add MAX_RECLAIM_LOOP for preventing
-> +			 * kswapd burning cpu cycles.
-> +			 */
-> +			if (loop == 0) {
-> +				start_node = nid;
-> +				loop++;
-> +			} else if (nid == start_node)
-> +				break;
-> +
+	writeback  large inode 1024 pages -> b_more_io
+	(b_io == 8s)
+	writeback  8 small inodes 800 pages
 
-Hmm...let me try a different style.
-==
-	start_node = mem_cgroup_select_victim_node(mem_cont, &do_nodes);
-	for (nid = start_node;
-             nid != start_node && !node_empty(do_nodes);
-             nid = mem_cgroup_select_victim_node(mem_cont, &do_nodes)) {
+	b_io empty: (1800 pages written)
+		b_more_io (large inode) -> b_io (1l)
+		14 newly expired inodes -> b_io (1l, 14s)
 
-		shrink_memcg_node(NODE_DATA(nid), order, &sc);
-		total_scanned += sc.nr_scanned;
-		for (i = 0; i < NODE_DATA(nid)->nr_zones; i++) {
-			if (populated_zone(NODE_DATA(nid)->node_zones + i))
-				break;
-		}
-		if (i == NODE_DATA(nid)->nr_zones)
-			node_clear(nid, do_nodes);
-		if (mem_cgroup_watermark_ok(mem_cont, CHARGE_WMARK_HIGH))
-			break;
-	}
-==
+	writeback  large inode 1024 pages -> b_more_io
+	(b_io == 14s)
+	writeback  10 small inodes 1000 pages
+		   1 small inode 24 pages -> b_more_io (1l, 1s(24))
+	writeback  5 small inodes 500 pages
+	b_io empty: (2548 pages written)
+		b_more_io (large inode) -> b_io (1l, 1s(24))
+		20 newly expired inodes -> b_io (1l, 1s(24), 20s)
+	......
 
-In short, I like for() loop rather than while(1) because next calculation and
-end condition are clear.
+Rough progression of pages written at b_io refill:
 
+Old code:
 
+	total	large file	% of writeback
+	1024	224		21.9% (fixed)
+	
+New code:
+	total	large file	% of writeback
+	1800	1024		~55%
+	2550	1024		~40%
+	3050	1024		~33%
+	3500	1024		~29%
+	3950	1024		~26%
+	4250	1024		~24%
+	4500	1024		~22.7%
+	4700	1024		~21.7%
+	4800	1024		~21.3%
+	4800	1024		~21.3%
+	(pretty much steady state from here)
 
-> +			pgdat = NODE_DATA(nid);
-> +			balance_pgdat_node(pgdat, order, &sc);
-> +			total_scanned += sc.nr_scanned;
-> +
-> +			for (i = pgdat->nr_zones - 1; i >= 0; i--) {
-> +				struct zone *zone = pgdat->node_zones + i;
-> +
-> +				if (!populated_zone(zone))
-> +					continue;
-> +			}
-> +			if (i < 0)
-> +				node_clear(nid, do_nodes);
-Isn't this wrong ? I guess
-		if (populated_zone(zone))
-			break;
-is what you want to do.
+Ok, so the steady state is reached with a similar percentage of
+writeback to the large file as the existing code. Ok, that's good,
+but providing some evidence that is doesn't change the shared of
+writeback to the large should be in the commit message ;)
 
-Thanks,
--Kame
-> +
-> +			if (mem_cgroup_watermark_ok(mem_cont,
-> +							CHARGE_WMARK_HIGH)) {
-> +				wmark_ok = true;
-> +				goto out;
-> +			}
-> +
-> +			if (nodes_empty(do_nodes)) {
-> +				wmark_ok = true;
-> +				goto out;
-> +			}
-> +		}
-> +
-> +		if (total_scanned && priority < DEF_PRIORITY - 2)
-> +			congestion_wait(WRITE, HZ/10);
-> +
-> +		if (sc.nr_reclaimed >= SWAP_CLUSTER_MAX)
-> +			break;
-> +	}
-> +out:
-> +	if (!wmark_ok) {
-> +		cond_resched();
-> +
-> +		try_to_freeze();
-> +
-> +		goto loop_again;
-> +	}
-> +
-> +	return sc.nr_reclaimed;
-> +}
-> +#else
->  static unsigned long balance_mem_cgroup_pgdat(struct mem_cgroup *mem_cont,
->  							int order)
->  {
->  	return 0;
->  }
-> +#endif
->  
->  /*
->   * The background pageout daemon, started as a kernel thread
-> -- 
-> 1.7.3.1
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+The other advantage to this is that we always write 1024 page chunks
+to the large file, rather than smaller "whatever remains" chunks. I
+think this will have a bigger effect on a vanilla kernel than on the
+kernel you tested on above because of the smaller writeback chunk
+size.
+
+I'm convinced that the refilling only when the queue is empty is a
+sane change now. you need to separate this from the
+move_expired_inodes() changes because it is doing something very
+different to writeback.
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
