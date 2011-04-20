@@ -1,100 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id CF19D8D003B
-	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 03:50:57 -0400 (EDT)
-Date: Wed, 20 Apr 2011 15:50:53 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 5/6] writeback: try more writeback as long as something
- was written
-Message-ID: <20110420075053.GB30672@localhost>
-References: <20110419030003.108796967@intel.com>
- <20110419030532.778889102@intel.com>
- <20110419102016.GD5257@quack.suse.cz>
- <20110419111601.GA18961@localhost>
- <20110419211008.GD9556@quack.suse.cz>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D6548D003B
+	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 04:40:30 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 415273EE0AE
+	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 17:40:27 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 2983645DE94
+	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 17:40:27 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 0798445DE92
+	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 17:40:27 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id EF569E38001
+	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 17:40:26 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id B9AF7E08001
+	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 17:40:26 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH v3] mm: make expand_downwards symmetrical to expand_upwards
+In-Reply-To: <BANLkTimfpY3gq8oY6bPDajBW7JN6Hp+A0A@mail.gmail.com>
+References: <20110420161615.462D.A69D9226@jp.fujitsu.com> <BANLkTimfpY3gq8oY6bPDajBW7JN6Hp+A0A@mail.gmail.com>
+Message-Id: <20110420174027.4631.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110419211008.GD9556@quack.suse.cz>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: quoted-printable
+Date: Wed, 20 Apr 2011 17:40:25 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@linux.vnet.ibm.com>, Dave Chinner <david@fromorbit.com>, Trond Myklebust <Trond.Myklebust@netapp.com>, Itaru Kitayama <kitayama@cl.bb4u.ne.jp>, Minchan Kim <minchan.kim@gmail.com>, LKML <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Pekka Enberg <penberg@kernel.org>
+Cc: kosaki.motohiro@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, James Bottomley <James.Bottomley@hansenpartnership.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-parisc@vger.kernel.org, David Rientjes <rientjes@google.com>, Ingo Molnar <mingo@elte.hu>, x86 maintainers <x86@kernel.org>
 
-On Wed, Apr 20, 2011 at 05:10:08AM +0800, Jan Kara wrote:
-> On Tue 19-04-11 19:16:01, Wu Fengguang wrote:
-> > On Tue, Apr 19, 2011 at 06:20:16PM +0800, Jan Kara wrote:
-> > > On Tue 19-04-11 11:00:08, Wu Fengguang wrote:
-> > > > writeback_inodes_wb()/__writeback_inodes_sb() are not aggressive in that
-> > > > they only populate possibly a subset of elegible inodes into b_io at
-> > > > entrance time. When the queued set of inodes are all synced, they just
-> > > > return, possibly with all queued inode pages written but still
-> > > > wbc.nr_to_write > 0.
-> > > > 
-> > > > For kupdate and background writeback, there may be more eligible inodes
-> > > > sitting in b_dirty when the current set of b_io inodes are completed. So
-> > > > it is necessary to try another round of writeback as long as we made some
-> > > > progress in this round. When there are no more eligible inodes, no more
-> > > > inodes will be enqueued in queue_io(), hence nothing could/will be
-> > > > synced and we may safely bail.
-> > >   Let me understand your concern here: You are afraid that if we do
-> > > for_background or for_kupdate writeback and we write less than
-> > > MAX_WRITEBACK_PAGES, we stop doing writeback although there could be more
-> > > inodes to write at the time we are stopping writeback - the two realistic
-> > 
-> > Yes.
-> > 
-> > > cases I can think of are:
-> > > a) when inodes just freshly expired during writeback
-> > > b) when bdi has less than MAX_WRITEBACK_PAGES of dirty data but we are over
-> > >   background threshold due to data on some other bdi. And then while we are
-> > >   doing writeback someone does dirtying at our bdi.
-> > > Or do you see some other case as well?
-> > > 
-> > > The a) case does not seem like a big issue to me after your changes to
-> > 
-> > Yeah (a) is not an issue with kupdate writeback.
-> > 
-> > > move_expired_inodes(). The b) case maybe but do you think it will make any
-> > > difference? 
-> > 
-> > (b) seems also weird. What in my mind is this for_background case.
-> > Imagine 100 inodes
-> > 
-> >         i0, i1, i2, ..., i90, i91, i99
-> > 
-> > At queue_io() time, i90-i99 happen to be expired and moved to s_io for
-> > IO. When finished successfully, if their total size is less than
-> > MAX_WRITEBACK_PAGES, nr_to_write will be > 0. Then wb_writeback() will
-> > quit the background work (w/o this patch) while it's still over
-> > background threshold.
-> > 
-> > This will be a fairly normal/frequent case I guess.
->   Ah OK, I see. I missed this case your patch set has added. Also your
-> changes of
->         if (!wbc->for_kupdate || list_empty(&wb->b_io))
-> to
-> 	if (list_empty(&wb->b_io))
-> are going to cause more cases when we'd hit nr_to_write > 0 (e.g. when one
-> pass of b_io does not write all the inodes so some are left in b_io list
-> and then next call to writeback finds these inodes there but there's less
-> than MAX_WRITEBACK_PAGES in them).
+> > btw, x86 don't have an issue. Probably it's a reason why this issue was=
+ neglected
+> > long time.
+> >
+> > arch/x86/Kconfig
+> > -------------------------------------
+> > config ARCH_DISCONTIGMEM_ENABLE
+> > =A0 =A0 =A0 =A0def_bool y
+> > =A0 =A0 =A0 =A0depends on NUMA && X86_32
+>=20
+> That part makes me think the best option is to make parisc do
+> CONFIG_NUMA as well regardless of the historical intent was.
+>=20
+>                         Pekka
 
-Yes. It's exactly the more aggressive retry logic in wb_writeback()
-that allows me to comfortably kill that !wbc->for_kupdate test :)
+This?
 
-> Frankly, it makes me like the above change even less. I'd rather see
-> writeback_inodes_wb / __writeback_inodes_sb always work on a fresh
-> set of inodes which is initialized whenever we enter these
-> functions. It just seems less surprising to me...
+compile test only.
 
-The old aggressive enqueue policy is an ad-hoc workaround to prevent
-background work to miss some inodes and quit early. Now that we have
-the complete solution, why not killing it for more consistent code and
-behavior? And get better performance numbers :)
+---
+ arch/parisc/Kconfig            |    7 +++++++
+ include/asm-generic/topology.h |    4 ----
+ include/linux/topology.h       |    2 +-
+ 3 files changed, 8 insertions(+), 5 deletions(-)
 
-Thanks,
-Fengguang
+diff --git a/arch/parisc/Kconfig b/arch/parisc/Kconfig
+index 69ff049..0bf9ae8 100644
+--- a/arch/parisc/Kconfig
++++ b/arch/parisc/Kconfig
+@@ -229,6 +229,12 @@ config HOTPLUG_CPU
+ 	default y if SMP
+ 	select HOTPLUG
+=20
++config NUMA
++	bool "NUMA support"
++	help
++	  Say Y to compile the kernel to support NUMA (Non-Uniform Memory
++	  Access).
++
+ config ARCH_SELECT_MEMORY_MODEL
+ 	def_bool y
+ 	depends on 64BIT
+@@ -236,6 +242,7 @@ config ARCH_SELECT_MEMORY_MODEL
+ config ARCH_DISCONTIGMEM_ENABLE
+ 	def_bool y
+ 	depends on 64BIT
++	depends on NUMA
+=20
+ config ARCH_FLATMEM_ENABLE
+ 	def_bool y
+diff --git a/include/asm-generic/topology.h b/include/asm-generic/topology.=
+h
+index fc824e2..932567b 100644
+--- a/include/asm-generic/topology.h
++++ b/include/asm-generic/topology.h
+@@ -27,8 +27,6 @@
+ #ifndef _ASM_GENERIC_TOPOLOGY_H
+ #define _ASM_GENERIC_TOPOLOGY_H
+=20
+-#ifndef	CONFIG_NUMA
+-
+ /* Other architectures wishing to use this simple topology API should fill
+    in the below functions as appropriate in their own <asm/topology.h> fil=
+e. */
+ #ifndef cpu_to_node
+@@ -60,8 +58,6 @@
+ 				 cpumask_of_node(pcibus_to_node(bus)))
+ #endif
+=20
+-#endif	/* CONFIG_NUMA */
+-
+ #if !defined(CONFIG_NUMA) || !defined(CONFIG_HAVE_MEMORYLESS_NODES)
+=20
+ #ifndef set_numa_mem
+diff --git a/include/linux/topology.h b/include/linux/topology.h
+index b91a40e..e1e535b 100644
+--- a/include/linux/topology.h
++++ b/include/linux/topology.h
+@@ -209,7 +209,7 @@ int arch_update_cpu_topology(void);
+=20
+ #ifdef CONFIG_NUMA
+ #ifndef SD_NODE_INIT
+-#error Please define an appropriate SD_NODE_INIT in include/asm/topology.h=
+!!!
++#define SD_NODE_INIT SD_ALLNODES_INIT
+ #endif
+=20
+ #endif /* CONFIG_NUMA */
+--=20
+1.7.3.1
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
