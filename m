@@ -1,72 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id E36128D003B
-	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 22:57:54 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 759573EE0BB
-	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 11:57:50 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 4DEFA45DE97
-	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 11:57:50 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 3187745DE92
-	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 11:57:50 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 21E33E38008
-	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 11:57:50 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id DA5CEE38004
-	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 11:57:49 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH v3] mm: make expand_downwards symmetrical to expand_upwards
-In-Reply-To: <1303267733.11237.42.camel@mulgrave.site>
-References: <20110420102314.4604.A69D9226@jp.fujitsu.com> <1303267733.11237.42.camel@mulgrave.site>
-Message-Id: <20110420115804.461E.A69D9226@jp.fujitsu.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 1445A8D003B
+	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 22:59:49 -0400 (EDT)
+Received: from DE01MGRG01.AM.MOT-MOBILITY.COM ([10.176.129.42])
+	by DE01MGRG01.AM.MOT-MOBILITY.COM (8.14.3/8.14.3) with ESMTP id p3K30AU2016973
+	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 23:00:10 -0400 (EDT)
+Received: from mail-pz0-f42.google.com (mail-pz0-f42.google.com [209.85.210.42])
+	by DE01MGRG01.AM.MOT-MOBILITY.COM (8.14.3/8.14.3) with ESMTP id p3K2oREG013244
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=OK)
+	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 23:00:09 -0400 (EDT)
+Received: by mail-pz0-f42.google.com with SMTP id 4so264312pzk.15
+        for <linux-mm@kvack.org>; Tue, 19 Apr 2011 19:59:45 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 8bit
-Date: Wed, 20 Apr 2011 11:57:48 +0900 (JST)
+Date: Wed, 20 Apr 2011 10:59:45 +0800
+Message-ID: <BANLkTinOV=tXcC-XipPzUhs-yODjnOu=8g@mail.gmail.com>
+Subject: [HELP] OOM:Page allocation fragment issue
+From: TAO HU <tghk48@motorola.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Bottomley <James.Bottomley@HansenPartnership.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-parisc@vger.kernel.org, David Rientjes <rientjes@google.com>
+To: linux-mm@kvack.org
+Cc: linux-input@vger.kernel.org, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Matt Mackall <mpm@selenic.com>
 
-> On Wed, 2011-04-20 at 10:23 +0900, KOSAKI Motohiro wrote:
-> > > On Tue, 19 Apr 2011, James Bottomley wrote:
-> > > 
-> > > > > Which part of me telling you that you will break lots of other things in
-> > > > > the core kernel dont you get?
-> > > >
-> > > > I get that you tell me this ... however, the systems that, according to
-> > > > you, should be failing to get to boot prompt do, in fact, manage it.
-> > > 
-> > > If you dont use certain subsystems then it may work. Also do you run with
-> > > debuggin on.
-> > > 
-> > > The following patch is I think what would be needed to fix it.
-> > 
-> > I'm worry about this patch. A lot of mm code assume !NUMA systems 
-> > only have node 0. Not only SLUB.
-> > 
-> > I'm not sure why this unfortunate mismatch occur. but I think DISCONTIG
-> > hacks makes less sense. Can we consider parisc turn NUMA on instead?
-> 
-> Well, you mean a patch like this?  It won't build ... obviously we need
-> some more machinery
-> 
->   CC      arch/parisc/kernel/asm-offsets.s
-> In file included from include/linux/sched.h:78,
->                  from arch/parisc/kernel/asm-offsets.c:31:
-> include/linux/topology.h:212:2: error: #error Please define an appropriate SD_NODE_INIT in include/asm/topology.h!!!
-> In file included from include/linux/sched.h:78,
->                  from arch/parisc/kernel/asm-offsets.c:31:
-> include/linux/topology.h: In function 'numa_node_id':
-> include/linux/topology.h:255: error: implicit declaration of function 'cpu_to_node'
+Hi, All
 
-Sorry about that. I'll see more carefully the code later. Probably long
-time discontig-mem uninterest made multiple level breakage. Grr. ;-)
+I got a issue that kmalloc() fails to allocate 32-K page while there
+are still pretty much total memory available (60+MB).
+Any suggestions? Any thing I can tune to reduced the failure cases?
+
+It happens with 2.6.35 kernel
+
+<4>[ 6232.631622] getevent invoked oom-killer: gfp_mask=0xd0, order=3, oom_adj=0
+<4>[ 6232.639312] [<c0053230>] (unwind_backtrace+0x0/0xf0) from
+[<c0109a88>] (dump_header.clone.1+0x50/0x84)
+<4>[ 6232.649597] [<c0109a88>] (dump_header.clone.1+0x50/0x84) from
+[<c0109af0>] (oom_kill_process.clone.0+0x34/0xec)
+<4>[ 6232.660705] [<c0109af0>] (oom_kill_process.clone.0+0x34/0xec)
+from [<c0109d04>] (__out_of_memory+0x15c/0x184)
+<4>[ 6232.671630] [<c0109d04>] (__out_of_memory+0x15c/0x184) from
+[<c0109dc0>] (out_of_memory+0x94/0xd4)
+<4>[ 6232.681488] [<c0109dc0>] (out_of_memory+0x94/0xd4) from
+[<c010d474>] (__alloc_pages_nodemask+0x4c4/0x6e8)
+<4>[ 6232.692016] [<c010d474>] (__alloc_pages_nodemask+0x4c4/0x6e8)
+from [<c0131fec>] (cache_grow.clone.0+0xac/0x3e4)
+<4>[ 6232.703125] [<c0131fec>] (cache_grow.clone.0+0xac/0x3e4) from
+[<c013334c>] (__kmalloc+0x3ec/0x6c4)
+<4>[ 6232.712982] [<c013334c>] (__kmalloc+0x3ec/0x6c4) from
+[<c0393f9c>] (evdev_open+0x94/0x1ec)
+<4>[ 6232.722137] [<c0393f9c>] (evdev_open+0x94/0x1ec) from
+[<c0390cac>] (input_open_file+0x184/0x2d8)
+<4>[ 6232.731781] [<c0390cac>] (input_open_file+0x184/0x2d8) from
+[<c013b668>] (chrdev_open+0x20c/0x234)
+<4>[ 6232.741638] [<c013b668>] (chrdev_open+0x20c/0x234) from
+[<c0136b80>] (__dentry_open+0x200/0x324)
+<4>[ 6232.751281] [<c0136b80>] (__dentry_open+0x200/0x324) from
+[<c0136d60>] (nameidata_to_filp+0x3c/0x50)
+<4>[ 6232.761322] [<c0136d60>] (nameidata_to_filp+0x3c/0x50) from
+[<c0142878>] (do_last+0x4c8/0x5ec)
+<4>[ 6232.770782] [<c0142878>] (do_last+0x4c8/0x5ec) from [<c0144450>]
+(do_filp_open+0x184/0x514)
+<4>[ 6232.779937] [<c0144450>] (do_filp_open+0x184/0x514) from
+[<c0136824>] (do_sys_open+0x58/0x18c)
+<4>[ 6232.789428] [<c0136824>] (do_sys_open+0x58/0x18c) from
+[<c004db20>] (ret_fast_syscall+0x0/0x30)
+<4>[ 6232.798980] Mem-info:
+<4>[ 6232.801483] Normal per-cpu:
+<4>[ 6232.804565] CPU    0: hi:  186, btch:  31 usd:  15
+<4>[ 6232.809844] active_anon:34424 inactive_anon:36745 isolated_anon:3
+<4>[ 6232.809875]  active_file:2 inactive_file:0 isolated_file:65
+<4>[ 6232.809875]  unevictable:95 dirty:0 writeback:0 unstable:0
+<4>[ 6232.809906]  free:16133 slab_reclaimable:1274 slab_unreclaimable:3892
+<4>[ 6232.809906]  mapped:8809 shmem:263 pagetables:4657 bounce:0
+<4>[ 6232.841766] Normal free:64532kB min:2884kB low:3604kB
+high:4324kB active_anon:137696kB inactive_anon:146980kB
+active_file:8kB inactive_file:0kB unevictable:380kB
+isolated(anon):12kB isolated(file):260kB present:520192kB mlocked:0kB
+dirty:0kB writeback:0kB mapped:35236kB shmem:1052kB
+slab_reclaimable:5096kB slab_unreclaimable:15568kB kernel_stack:6544kB
+pagetables:18628kB unstable:0kB bounce:0kB writeback_tmp:0kB
+pages_scanned:34 all_unreclaimable? no
+<4>[ 6232.885314] lowmem_reserve[]: 0 0 0
+<4>[ 6232.889190] Normal: 10659*4kB 2735*8kB 1*16kB 0*32kB 0*64kB
+0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 64532kB
+<4>[ 6232.901367] 397 total pagecache pages
+<4>[ 6232.905395] 0 pages in swap cache
+<4>[ 6232.909027] Swap cache stats: add 0, delete 0, find 0/0
+<4>[ 6232.914764] Free swap  = 0kB
+<4>[ 6232.917968] Total swap = 0kB
+<4>[ 6232.945617] 131072 pages of RAM
+<4>[ 6232.949127] 17229 free pages
+<4>[ 6232.952270] 22953 reserved pages
+<4>[ 6232.955810] 5166 slab pages
+<4>[ 6232.958892] 123153 pages shared
+<4>[ 6232.962341] 0 pages swap cached
 
 
+-- 
+Best Regards
+Hu Tao
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
