@@ -1,41 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 959698D003B
-	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 07:48:14 -0400 (EDT)
-Received: by ewy9 with SMTP id 9so278426ewy.14
-        for <linux-mm@kvack.org>; Wed, 20 Apr 2011 04:48:12 -0700 (PDT)
-Subject: Re: [PATCH] mm: make read-only accessors take const parameters
-From: Artem Bityutskiy <dedekind1@gmail.com>
-Reply-To: dedekind1@gmail.com
-In-Reply-To: <20110415160701.GE7112@esdhcp04044.research.nokia.com>
-References: <1302861377-8048-1-git-send-email-ext-phil.2.carmody@nokia.com>
-	 <1302861377-8048-2-git-send-email-ext-phil.2.carmody@nokia.com>
-	 <alpine.DEB.2.00.1104150949210.5863@router.home>
-	 <20110415160701.GE7112@esdhcp04044.research.nokia.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Wed, 20 Apr 2011 14:45:19 +0300
-Message-ID: <1303299919.2700.26.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id B6DD68D003B
+	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 07:51:35 -0400 (EDT)
+Received: by gxk23 with SMTP id 23so234545gxk.14
+        for <linux-mm@kvack.org>; Wed, 20 Apr 2011 04:51:34 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20110420112020.GA31296@parisc-linux.org>
+References: <20110420102314.4604.A69D9226@jp.fujitsu.com>
+	<BANLkTi=mxWwLPEnB+rGg29b06xNUD0XvsA@mail.gmail.com>
+	<20110420161615.462D.A69D9226@jp.fujitsu.com>
+	<BANLkTimfpY3gq8oY6bPDajBW7JN6Hp+A0A@mail.gmail.com>
+	<20110420112020.GA31296@parisc-linux.org>
+Date: Wed, 20 Apr 2011 14:28:26 +0300
+Message-ID: <BANLkTim+m-v-4k17HUSOYSbmNFDtJTgD6g@mail.gmail.com>
+Subject: Re: [PATCH v3] mm: make expand_downwards symmetrical to expand_upwards
+From: Pekka Enberg <penberg@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Phil Carmody <ext-phil.2.carmody@nokia.com>
-Cc: ext Christoph Lameter <cl@linux.com>, akpm@linux-foundation.org, aarcange@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Matthew Wilcox <matthew@wil.cx>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, James Bottomley <James.Bottomley@hansenpartnership.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-parisc@vger.kernel.org, David Rientjes <rientjes@google.com>, Ingo Molnar <mingo@elte.hu>, x86 maintainers <x86@kernel.org>
 
-On Fri, 2011-04-15 at 19:07 +0300, Phil Carmody wrote:
-> Not in C, alas. As it returns what it's given I wouldn't want it to
-> lie
-> about the type of what it returns, and some of its clients want it to
-> return something writeable. 
+Hi Matthew,
 
-I think this little lie is prettier than _ro variants of functions. I do
-not think you'll go far with your 'const' quest if you start adding _ro
-variants for different core functions, but if you just cast the return
-pointer to non-const you might be more successful.
+On Wed, Apr 20, 2011 at 10:34:23AM +0300, Pekka Enberg wrote:
+>> That part makes me think the best option is to make parisc do
+>> CONFIG_NUMA as well regardless of the historical intent was.
 
--- 
-Best Regards,
-Artem Bityutskiy (D?N?N?N?D 1/4  D?D,N?N?N?DoD,D1)
+On Wed, Apr 20, 2011 at 2:20 PM, Matthew Wilcox <matthew@wil.cx> wrote:
+> But it's not just parisc. =A0It's six other architectures as well, some
+> of which aren't even SMP. =A0Does !SMP && NUMA make any kind of sense?
+
+IIRC, we actually fixed SLAB or SLUB to work on such configs in the past.
+
+On Wed, Apr 20, 2011 at 2:20 PM, Matthew Wilcox <matthew@wil.cx> wrote:
+> I think really, this is just a giant horrible misunderstanding on the par=
+t
+> of the MM people. =A0There's no reason why an ARM chip with 16MB of memor=
+y
+> at 0 and 16MB of memory at 1GB should be saddled with all the NUMA gunk.
+
+Right. My point was simply that since x86 doesn't support DISCONTIGMEM
+without NUMA, the misunderstanding is likely very wide-spread.
+
+                       Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
