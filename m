@@ -1,364 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 6171C8D0047
-	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 05:11:21 -0400 (EDT)
-Subject: Re: [PATCH 01/20] mm: mmu_gather rework
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <1303289248.8345.62.camel@twins>
-References: <20110401121258.211963744@chello.nl>
-	 <20110401121725.360704327@chello.nl>
-	 <20110419130606.fb7139b2.akpm@linux-foundation.org>
-	 <1303289248.8345.62.camel@twins>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-Date: Wed, 20 Apr 2011 11:10:28 +0200
-Message-ID: <1303290628.8345.64.camel@twins>
-Mime-Version: 1.0
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 4E9CB8D0047
+	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 05:47:19 -0400 (EDT)
+Date: Wed, 20 Apr 2011 10:46:47 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [patch] mm/vmalloc: remove block allocation bitmap
+Message-ID: <20110420094647.GB1306@csn.ul.ie>
+References: <20110414211656.GB1700@cmpxchg.org>
+ <20110419093118.GB23041@csn.ul.ie>
+ <20110419233905.GA2333@cmpxchg.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20110419233905.GA2333@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Avi Kivity <avi@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@elte.hu>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Yanmin Zhang <yanmin_zhang@linux.intel.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Russell King <rmk@arm.linux.org.uk>, Paul Mundt <lethal@linux-sh.org>, Jeff Dike <jdike@addtoit.com>, Tony Luck <tony.luck@intel.com>, Hugh Dickins <hughd@google.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@kernel.dk>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, 2011-04-20 at 10:47 +0200, Peter Zijlstra wrote:
->=20
-> But I guess I can have asm-generic/tlb.h define HAVE_GENERIC_MMU_GATHER
-> and make the compilation in mm/memory.c conditional on that (or generate
-> lots of Kconfig churn).=20
+On Wed, Apr 20, 2011 at 01:39:05AM +0200, Johannes Weiner wrote:
+> On Tue, Apr 19, 2011 at 10:31:18AM +0100, Mel Gorman wrote:
+> > On Thu, Apr 14, 2011 at 05:16:56PM -0400, Johannes Weiner wrote:
+> > > Space in a vmap block that was once allocated is considered dirty and
+> > > not made available for allocation again before the whole block is
+> > > recycled.
+> > > 
+> > > The result is that free space within a vmap block is always contiguous
+> > > and the allocation bitmap can be replaced by remembering the offset of
+> > > free space in the block.
+> > > 
+> > > The fragmented block purging was never invoked from vb_alloc() either,
+> > > as it skips blocks that do not have enough free space for the
+> > > allocation in the first place.  According to the above, it is
+> > > impossible for a block to have enough free space and still fail the
+> > > allocation.  Thus, this dead code is removed.  Partially consumed
+> > > blocks will be reclaimed anyway when an attempt is made to allocate a
+> > > new vmap block altogether and no free space is found.
+> > > 
+> > > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> > > Cc: Nick Piggin <npiggin@kernel.dk>
+> > > Cc: Mel Gorman <mel@csn.ul.ie>
+> > > Cc: Hugh Dickins <hughd@google.com>
+> > 
+> > I didn't see a problem with the patch per-se but I wonder if your patch
+> > is the intended behaviour. It looks like the intention was that dirty
+> > blocks could be flushed from the TLB and made available for allocations
+> > leading to the possibility of fragmented vmap blocks.
+> >
+> > It's this check that is skipping over blocks without taking dirty into
+> > account.
+> > 
+> >   		spin_lock(&vb->lock);
+> >  		if (vb->free < 1UL << order)
+> >  			goto next;
+> > 
+> > It was introduced by [02b709d: mm: purge fragmented percpu vmap blocks]
+> > but is there any possibility that this is what should be fixed instead?
+> 
+> I would like to emphasize that the quoted check only made it clear
+> that the allocation bitmap is superfluous.  There is no partial
+> recycling of a block with live allocations, not even before this
+> commit.
+> 
 
-Something like so:
+You're right in that the allocation bitmap does look superfluous. I was
+wondering if it was meant to be doing something useful.
 
----
-Subject: mm: Uninline large generic tlb.h functions
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Date: Wed Apr 20 11:04:42 CEST 2011
+> > Do we know what the consequences of blocks only getting flushed when
+> > they have been fully allocated are?
+> 
+> Note that it can get recycled earlier if there is no outstanding
+> allocation on it, even if only a small amount of it is dirty (the
+> purge_fragmented_blocks code does this).
+> 
 
-Some of these functions have grown beyond inline sanity, move them
-out-of-line.
+Yep.
 
-Requested-by: Andrew Morton <akpm@linux-foundation.org>
-Requested-by: Hugh Dickins <hughd@google.com>
-Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
----
- include/asm-generic/tlb.h |  135 ++++-------------------------------------=
------
- mm/memory.c               |  124 +++++++++++++++++++++++++++++++++++++++++=
--
- 2 files changed, 135 insertions(+), 124 deletions(-)
+> A single outstanding allocation prevents the block from being
+> recycled, blocking the reuse of the dirty area.
+> 
 
-Index: linux-2.6/include/asm-generic/tlb.h
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
---- linux-2.6.orig/include/asm-generic/tlb.h
-+++ linux-2.6/include/asm-generic/tlb.h
-@@ -96,134 +96,25 @@ struct mmu_gather {
- 	struct page		*__pages[MMU_GATHER_BUNDLE];
- };
-=20
--/*
-- * For UP we don't need to worry about TLB flush
-- * and page free order so much..
-- */
--#ifdef CONFIG_SMP
--  #define tlb_fast_mode(tlb) (tlb->fast_mode)
--#else
--  #define tlb_fast_mode(tlb) 1
--#endif
-+#define HAVE_GENERIC_MMU_GATHER
-=20
--static inline int tlb_next_batch(struct mmu_gather *tlb)
-+static inline int tlb_fast_mode(struct mmu_gather *tlb)
- {
--	struct mmu_gather_batch *batch;
--
--	batch =3D tlb->active;
--	if (batch->next) {
--		tlb->active =3D batch->next;
--		return 1;
--	}
--
--	batch =3D (void *)__get_free_pages(GFP_NOWAIT | __GFP_NOWARN, 0);
--	if (!batch)
--		return 0;
--
--	batch->next =3D NULL;
--	batch->nr   =3D 0;
--	batch->max  =3D MAX_GATHER_BATCH;
--
--	tlb->active->next =3D batch;
--	tlb->active =3D batch;
--
-+#ifdef CONFIG_SMP
-+	return tlb->fast_mode;
-+#else
-+	/*
-+	 * For UP we don't need to worry about TLB flush
-+	 * and page free order so much..
-+	 */
- 	return 1;
--}
--
--/* tlb_gather_mmu
-- *	Called to initialize an (on-stack) mmu_gather structure for page-table
-- *	tear-down from @mm. The @fullmm argument is used when @mm is without
-- *	users and we're going to destroy the full address space (exit/execve).
-- */
--static inline void
--tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm, bool fullmm)
--{
--	tlb->mm =3D mm;
--
--	tlb->fullmm     =3D fullmm;
--	tlb->need_flush =3D 0;
--	tlb->fast_mode  =3D (num_possible_cpus() =3D=3D 1);
--	tlb->local.next =3D NULL;
--	tlb->local.nr   =3D 0;
--	tlb->local.max  =3D ARRAY_SIZE(tlb->__pages);
--	tlb->active     =3D &tlb->local;
--
--#ifdef CONFIG_HAVE_RCU_TABLE_FREE
--	tlb->batch =3D NULL;
- #endif
- }
-=20
--static inline void
--tlb_flush_mmu(struct mmu_gather *tlb)
--{
--	struct mmu_gather_batch *batch;
--
--	if (!tlb->need_flush)
--		return;
--	tlb->need_flush =3D 0;
--	tlb_flush(tlb);
--#ifdef CONFIG_HAVE_RCU_TABLE_FREE
--	tlb_table_flush(tlb);
--#endif
--
--	if (tlb_fast_mode(tlb))
--		return;
--
--	for (batch =3D &tlb->local; batch; batch =3D batch->next) {
--		free_pages_and_swap_cache(batch->pages, batch->nr);
--		batch->nr =3D 0;
--	}
--	tlb->active =3D &tlb->local;
--}
--
--/* tlb_finish_mmu
-- *	Called at the end of the shootdown operation to free up any resources
-- *	that were required.
-- */
--static inline void
--tlb_finish_mmu(struct mmu_gather *tlb, unsigned long start, unsigned long =
-end)
--{
--	struct mmu_gather_batch *batch, *next;
--
--	tlb_flush_mmu(tlb);
--
--	/* keep the page table cache within bounds */
--	check_pgt_cache();
--
--	for (batch =3D tlb->local.next; batch; batch =3D next) {
--		next =3D batch->next;
--		free_pages((unsigned long)batch, 0);
--	}
--	tlb->local.next =3D NULL;
--}
--
--/* __tlb_remove_page
-- *	Must perform the equivalent to __free_pte(pte_get_and_clear(ptep)), whi=
-le
-- *	handling the additional races in SMP caused by other CPUs caching valid
-- *	mappings in their TLBs. Returns the number of free page slots left.
-- *	When out of page slots we must call tlb_flush_mmu().
-- */
--static inline int __tlb_remove_page(struct mmu_gather *tlb, struct page *p=
-age)
--{
--	struct mmu_gather_batch *batch;
--
--	tlb->need_flush =3D 1;
--
--	if (tlb_fast_mode(tlb)) {
--		free_page_and_swap_cache(page);
--		return 1; /* avoid calling tlb_flush_mmu() */
--	}
--
--	batch =3D tlb->active;
--	batch->pages[batch->nr++] =3D page;
--	VM_BUG_ON(batch->nr > batch->max);
--	if (batch->nr =3D=3D batch->max) {
--		if (!tlb_next_batch(tlb))
--			return 0;
--	}
--
--	return batch->max - batch->nr;
--}
-+void tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm, bool ful=
-lmm);
-+void tlb_flush_mmu(struct mmu_gather *tlb);
-+void tlb_finish_mmu(struct mmu_gather *tlb, unsigned long start, unsigned =
-long end);
-+int __tlb_remove_page(struct mmu_gather *tlb, struct page *page);
-=20
- /* tlb_remove_page
-  *	Similar to __tlb_remove_page but will call tlb_flush_mmu() itself when
-Index: linux-2.6/mm/memory.c
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
---- linux-2.6.orig/mm/memory.c
-+++ linux-2.6/mm/memory.c
-@@ -182,7 +182,7 @@ void sync_mm_rss(struct task_struct *tas
- {
- 	__sync_task_rss_stat(task, mm);
- }
--#else
-+#else /* SPLIT_RSS_COUNTING */
-=20
- #define inc_mm_counter_fast(mm, member) inc_mm_counter(mm, member)
- #define dec_mm_counter_fast(mm, member) dec_mm_counter(mm, member)
-@@ -191,7 +191,127 @@ static void check_sync_rss_stat(struct t
- {
- }
-=20
-+#endif /* SPLIT_RSS_COUNTING */
-+
-+#ifdef HAVE_GENERIC_MMU_GATHER
-+
-+static int tlb_next_batch(struct mmu_gather *tlb)
-+{
-+	struct mmu_gather_batch *batch;
-+
-+	batch =3D tlb->active;
-+	if (batch->next) {
-+		tlb->active =3D batch->next;
-+		return 1;
-+	}
-+
-+	batch =3D (void *)__get_free_pages(GFP_NOWAIT | __GFP_NOWARN, 0);
-+	if (!batch)
-+		return 0;
-+
-+	batch->next =3D NULL;
-+	batch->nr   =3D 0;
-+	batch->max  =3D MAX_GATHER_BATCH;
-+
-+	tlb->active->next =3D batch;
-+	tlb->active =3D batch;
-+
-+	return 1;
-+}
-+
-+/* tlb_gather_mmu
-+ *	Called to initialize an (on-stack) mmu_gather structure for page-table
-+ *	tear-down from @mm. The @fullmm argument is used when @mm is without
-+ *	users and we're going to destroy the full address space (exit/execve).
-+ */
-+void tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm, bool ful=
-lmm)
-+{
-+	tlb->mm =3D mm;
-+
-+	tlb->fullmm     =3D fullmm;
-+	tlb->need_flush =3D 0;
-+	tlb->fast_mode  =3D (num_possible_cpus() =3D=3D 1);
-+	tlb->local.next =3D NULL;
-+	tlb->local.nr   =3D 0;
-+	tlb->local.max  =3D ARRAY_SIZE(tlb->__pages);
-+	tlb->active     =3D &tlb->local;
-+
-+#ifdef CONFIG_HAVE_RCU_TABLE_FREE
-+	tlb->batch =3D NULL;
- #endif
-+}
-+
-+void tlb_flush_mmu(struct mmu_gather *tlb)
-+{
-+	struct mmu_gather_batch *batch;
-+
-+	if (!tlb->need_flush)
-+		return;
-+	tlb->need_flush =3D 0;
-+	tlb_flush(tlb);
-+#ifdef CONFIG_HAVE_RCU_TABLE_FREE
-+	tlb_table_flush(tlb);
-+#endif
-+
-+	if (tlb_fast_mode(tlb))
-+		return;
-+
-+	for (batch =3D &tlb->local; batch; batch =3D batch->next) {
-+		free_pages_and_swap_cache(batch->pages, batch->nr);
-+		batch->nr =3D 0;
-+	}
-+	tlb->active =3D &tlb->local;
-+}
-+
-+/* tlb_finish_mmu
-+ *	Called at the end of the shootdown operation to free up any resources
-+ *	that were required.
-+ */
-+void tlb_finish_mmu(struct mmu_gather *tlb, unsigned long start, unsigned =
-long end)
-+{
-+	struct mmu_gather_batch *batch, *next;
-+
-+	tlb_flush_mmu(tlb);
-+
-+	/* keep the page table cache within bounds */
-+	check_pgt_cache();
-+
-+	for (batch =3D tlb->local.next; batch; batch =3D next) {
-+		next =3D batch->next;
-+		free_pages((unsigned long)batch, 0);
-+	}
-+	tlb->local.next =3D NULL;
-+}
-+
-+/* __tlb_remove_page
-+ *	Must perform the equivalent to __free_pte(pte_get_and_clear(ptep)), whi=
-le
-+ *	handling the additional races in SMP caused by other CPUs caching valid
-+ *	mappings in their TLBs. Returns the number of free page slots left.
-+ *	When out of page slots we must call tlb_flush_mmu().
-+ */
-+int __tlb_remove_page(struct mmu_gather *tlb, struct page *page)
-+{
-+	struct mmu_gather_batch *batch;
-+
-+	tlb->need_flush =3D 1;
-+
-+	if (tlb_fast_mode(tlb)) {
-+		free_page_and_swap_cache(page);
-+		return 1; /* avoid calling tlb_flush_mmu() */
-+	}
-+
-+	batch =3D tlb->active;
-+	batch->pages[batch->nr++] =3D page;
-+	if (batch->nr =3D=3D batch->max) {
-+		if (!tlb_next_batch(tlb))
-+			return 0;
-+	}
-+	VM_BUG_ON(batch->nr > batch->max);
-+
-+	return batch->max - batch->nr;
-+}
-+
-+#endif /* HAVE_GENERIC_MMU_GATHER */
-=20
- #ifdef CONFIG_HAVE_RCU_TABLE_FREE
-=20
-@@ -268,7 +388,7 @@ void tlb_remove_table(struct mmu_gather=20
- 		tlb_table_flush(tlb);
- }
-=20
--#endif
-+#endif /* CONFIG_HAVE_RCU_TABLE_FREE */
-=20
- /*
-  * If a p?d_bad entry is found while walking page tables, report
+Yes although your patch doesn't appear to make the current situation
+better or worse.  It's tricky to know exactly when a full flush
+will take place and what the conseqeuences are. For example, look
+at vb_alloc(). If all the blocks have a single allocation preventing
+recycling, we call new_vmap_block() which in itself is not too bad,
+but it may mean we are using more memory than necessary in the name
+of avoiding flushes. This is avoided if a lot of freeing is going on
+at the same time but it's unpredictable.
+
+> Theoretically, we could end up with all possible vmap blocks being
+> pinned by single allocations with most of their area being dirty and
+> not reusable.  But I believe this is unlikely to happen.
+> 
+> Would you be okay with printing out block usage statistics on
+> allocation errors for the time being, so we can identify this case if
+> problems show up?
+> 
+
+It'd be interesting but for the purposes of this patch I think it
+would be more useful to see the results of some benchmark that is vmap
+intensive. Something directory intensive running on XFS should do the
+job just to confirm no regression, right? A profile might indicate
+how often we end up scanning the full list, finding it dirty and
+calling new_vmap_block but even if something odd showed up there,
+it would be a new patch.
+
+> And consider this patch an optimization/simplification of a status quo
+> that does not appear problematic?  We can still revert it and
+> implement live block recycling when it turns out to be necessary.
+> 
+
+I see no problem with your patch so;
+
+Acked-by: Mel Gorman <mel@csn.ul.ie>
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
