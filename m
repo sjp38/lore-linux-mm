@@ -1,56 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 36B2C8D003B
-	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 21:23:40 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 5C5B03EE0C0
-	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 10:23:37 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4075445DE8F
-	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 10:23:37 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2843E45DE93
-	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 10:23:37 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 1B9151DB8038
-	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 10:23:37 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id DAACBE08001
-	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 10:23:36 +0900 (JST)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 4227A8D003B
+	for <linux-mm@kvack.org>; Tue, 19 Apr 2011 21:25:30 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id D2B423EE0C2
+	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 10:25:26 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id AC8202E68E4
+	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 10:25:26 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 8A3451EF084
+	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 10:25:26 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 74D19E78007
+	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 10:25:26 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 369DAE78002
+	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 10:25:26 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH v3] mm: make expand_downwards symmetrical to expand_upwards
-In-Reply-To: <alpine.DEB.2.00.1104191657030.26867@router.home>
-References: <1303249716.11237.26.camel@mulgrave.site> <alpine.DEB.2.00.1104191657030.26867@router.home>
-Message-Id: <20110420102314.4604.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCH 0/3] pass the scan_control into shrinkers
+In-Reply-To: <BANLkTimWMr9Fp=cFF3q2Q5_pyrUVnFsS2w@mail.gmail.com>
+References: <20110420095429.45FD.A69D9226@jp.fujitsu.com> <BANLkTimWMr9Fp=cFF3q2Q5_pyrUVnFsS2w@mail.gmail.com>
+Message-Id: <20110420102523.4608.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Date: Wed, 20 Apr 2011 10:23:35 +0900 (JST)
+Date: Wed, 20 Apr 2011 10:25:24 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, James Bottomley <James.Bottomley@HansenPartnership.com>, Pekka Enberg <penberg@kernel.org>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-parisc@vger.kernel.org, David Rientjes <rientjes@google.com>
+To: Ying Han <yinghan@google.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Nick Piggin <nickpiggin@yahoo.com.au>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>, linux-mm@kvack.org
 
-> On Tue, 19 Apr 2011, James Bottomley wrote:
+> For now, I added the "nr_slab_to_reclaim" and also consolidate the
+> gfp_mask. More importantly this makes any further change (pass stuff from
+> reclaim to the shrinkers) easier w/o modifying each file of the shrinker.
 > 
-> > > Which part of me telling you that you will break lots of other things in
-> > > the core kernel dont you get?
-> >
-> > I get that you tell me this ... however, the systems that, according to
-> > you, should be failing to get to boot prompt do, in fact, manage it.
-> 
-> If you dont use certain subsystems then it may work. Also do you run with
-> debuggin on.
-> 
-> The following patch is I think what would be needed to fix it.
+> So make it into a new struct sounds reasonable to me. How about something
+> called "slab_control".
 
-I'm worry about this patch. A lot of mm code assume !NUMA systems 
-only have node 0. Not only SLUB.
+Both looks ok to me.
 
-I'm not sure why this unfortunate mismatch occur. but I think DISCONTIG
-hacks makes less sense. Can we consider parisc turn NUMA on instead?
-
-
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
