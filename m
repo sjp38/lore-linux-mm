@@ -1,83 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 8ADD28D003B
-	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 11:03:04 -0400 (EDT)
-Subject: Re: [PATCH v3] mm: make expand_downwards symmetrical to
- expand_upwards
-From: James Bottomley <James.Bottomley@HansenPartnership.com>
-In-Reply-To: <alpine.DEB.2.00.1104200943580.9266@router.home>
-References: <20110420102314.4604.A69D9226@jp.fujitsu.com>
-	 <BANLkTi=mxWwLPEnB+rGg29b06xNUD0XvsA@mail.gmail.com>
-	 <20110420161615.462D.A69D9226@jp.fujitsu.com>
-	 <BANLkTimfpY3gq8oY6bPDajBW7JN6Hp+A0A@mail.gmail.com>
-	 <20110420112020.GA31296@parisc-linux.org>
-	 <BANLkTim+m-v-4k17HUSOYSbmNFDtJTgD6g@mail.gmail.com>
-	 <1303308938.2587.8.camel@mulgrave.site>
-	 <alpine.DEB.2.00.1104200943580.9266@router.home>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 71FD88D003B
+	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 11:17:36 -0400 (EDT)
+Subject: Re: [PATCH v3 2.6.39-rc1-tip 12/26] 12: uprobes: slot allocation
+ for uprobes
+From: Stephen Smalley <sds@tycho.nsa.gov>
+In-Reply-To: <y0m7hapc6wu.fsf@fche.csb>
+References: 
+	 <20110401143223.15455.19844.sendpatchset@localhost6.localdomain6>
+	 <20110401143457.15455.64839.sendpatchset@localhost6.localdomain6>
+	 <1303145171.32491.886.camel@twins>
+	 <20110419062654.GB10698@linux.vnet.ibm.com>
+	 <BANLkTimw7dV9_aSsrUfzwSdwr6UwZDsRwg@mail.gmail.com>
+	 <y0m7hapc6wu.fsf@fche.csb>
 Content-Type: text/plain; charset="UTF-8"
-Date: Wed, 20 Apr 2011 10:02:59 -0500
-Message-ID: <1303311779.2587.19.camel@mulgrave.site>
+Date: Wed, 20 Apr 2011 11:16:21 -0400
+Message-ID: <1303312581.3739.22.camel@moss-pluto>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>, Matthew Wilcox <matthew@wil.cx>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-parisc@vger.kernel.org, David Rientjes <rientjes@google.com>, Ingo Molnar <mingo@elte.hu>, x86 maintainers <x86@kernel.org>, linux-arch@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>
+To: "Frank Ch. Eigler" <fche@redhat.com>
+Cc: Eric Paris <eparis@parisplace.org>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, int-list-linux-mm@kvack.orglinux-mm@kvack.org, Peter Zijlstra <peterz@infradead.org>, James Morris <jmorris@namei.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Christoph Hellwig <hch@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, SystemTap <systemtap@sources.redhat.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>, Eric Paris <eparis@redhat.com>
 
-On Wed, 2011-04-20 at 09:50 -0500, Christoph Lameter wrote:
-> On Wed, 20 Apr 2011, James Bottomley wrote:
+On Wed, 2011-04-20 at 10:51 -0400, Frank Ch. Eigler wrote:
+> eparis wrote:
 > 
-> >      1. We can look at what imposing NUMA on the DISCONTIGMEM archs
-> >         would do ... the embedded ones are going to be hardest hit, but
-> >         if it's not too much extra code, it might be palatable.
-> >      2. The other is that we can audit mm to look at all the node
-> >         assumptions in the non-numa case.  My suspicion is that
-> >         accidentally or otherwise, it mostly works for the normal case,
-> >         so there might not be much needed to pull it back to working
-> >         properly for DISCONTIGMEM.
+> > [...]
+> > Now how to fix the problems you were seeing.  If you run a modern
+> > system with a GUI I'm willing to bet the pop-up window told you
+> > exactly how to fix your problem.  [...]
+> >
+> > 1) chcon -t unconfined_execmem_t /path/to/your/binary
+> > 2) setsebool -P allow_execmem 1
+> > [...]
+> > I believe there was a question about how JIT's work with SELinux
+> > systems.  They work mostly by method #1.
 > 
-> The older code may work. SLAB f.e. does not call page_to_nid() in the
-> !NUMA case but keeps special metadata structures around in each slab page
-> that records the node used for allocation. The problem is with new code
-> added/revised in the last 5 years or so that uses page_to_nid() and
-> allocates only a single structure for !NUMA. There are also VM_BUG_ONs in
-> the page allocator that should trigger if page_to_nid() returns strange
-> values. I wonder why that never occurred.
-
-Actually, I think slab got changed when discontigmem was added ...
-that's why it all works OK.
-
-> >      3. Finally we could look at deprecating DISCONTIGMEM in favour
-> of >         SPARSEMEM, but we'd still need to fix -stable for that case.
-> >         Especially as it will take time to convert all the architectures
+> Actually, that's a solution to a different problem.  Here, it's not
+> particular /path/to/your/binaries that want/need selinux provileges.
+> It's a kernel-driven debugging facility that needs it temporarily for
+> arbitrary processes.
 > 
-> The fix needed is to mark DISCONTIGMEM without NUMA as broken for now. We
-> need an audit of the core VM before removing that or making it contingent
-> on the configurations of various VM subsystems.
+> It's not like JITs, with known binary names.  It's not like GDB, which
+> simply overwrites existing instructions in the text segment.  To make
+> uprobes work fast (single-step-out-of-line), one needs one or emore
+> temporary pages with unusual mapping permissions.
 
-Don't be stupid ... that would cause six architectures to get marked
-broken.
+I would expect that (2) would solve it, but couldn't distinguish the
+kernel-created mappings from userspace doing the same thing.
+Alternatively, you could temporarily switch your credentials around the
+mapping operation, e.g.:
+old_cred = override_creds(&init_cred);
+do_mmap_pgoff(...);
+revert_creds(old_cred);
 
-> > I'm certainly with Matthew: DISCONTIGMEM is supposed to be a lightweight
-> > framework which allows machines with split physical memory ranges to
-> > work.  That's a very common case nowadays.  Numa is supposed to be a
-> > heavyweight framework to preserve node locality for non-uniform memory
-> > access boxes (which none of the DISCONTIGMEM && !NUMA systems are).
-> 
-> Well yes but we have SPARSE for that today. DISCONTIG with multiple per
-> pgdat structures in a !NUMA case is just weird and unexpected for many who
-> have done VM coding in the last years.
+devtmpfs does something similar to avoid triggering permission checks on
+userspace when it is internally creating and deleting nodes.
 
-Look, I'm not really interested in who understands what.  The fact is we
-have six architectures with the possibility for DISCONTIGMEM && !NUMA,
-so that's the case we need to fix in -stable.
+How is this ability to use this facility controlled?
 
-They oops with SLUB, as far as I can tell, there are still no oops
-reports with SLAB.  The simplest -stable fix seems to be to mark SLUB
-broken on DISCONTIGMEM && !NUMA.
-
-James
-
+-- 
+Stephen Smalley
+National Security Agency
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
