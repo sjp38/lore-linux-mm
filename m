@@ -1,58 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id A867F8D003B
-	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 10:50:46 -0400 (EDT)
-Date: Wed, 20 Apr 2011 09:50:40 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH v3] mm: make expand_downwards symmetrical to
- expand_upwards
-In-Reply-To: <1303308938.2587.8.camel@mulgrave.site>
-Message-ID: <alpine.DEB.2.00.1104200943580.9266@router.home>
-References: <20110420102314.4604.A69D9226@jp.fujitsu.com>  <BANLkTi=mxWwLPEnB+rGg29b06xNUD0XvsA@mail.gmail.com>  <20110420161615.462D.A69D9226@jp.fujitsu.com>  <BANLkTimfpY3gq8oY6bPDajBW7JN6Hp+A0A@mail.gmail.com>  <20110420112020.GA31296@parisc-linux.org>
- <BANLkTim+m-v-4k17HUSOYSbmNFDtJTgD6g@mail.gmail.com> <1303308938.2587.8.camel@mulgrave.site>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 0991A8D003B
+	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 10:52:24 -0400 (EDT)
+Subject: Re: [PATCH v3 2.6.39-rc1-tip 12/26] 12: uprobes: slot allocation for uprobes
+References: <20110401143223.15455.19844.sendpatchset@localhost6.localdomain6>
+	<20110401143457.15455.64839.sendpatchset@localhost6.localdomain6>
+	<1303145171.32491.886.camel@twins>
+	<20110419062654.GB10698@linux.vnet.ibm.com>
+	<BANLkTimw7dV9_aSsrUfzwSdwr6UwZDsRwg@mail.gmail.com>
+From: fche@redhat.com (Frank Ch. Eigler)
+Date: Wed, 20 Apr 2011 10:51:45 -0400
+In-Reply-To: <BANLkTimw7dV9_aSsrUfzwSdwr6UwZDsRwg@mail.gmail.com> (Eric Paris's message of "Wed, 20 Apr 2011 09:40:57 -0400")
+Message-ID: <y0m7hapc6wu.fsf@fche.csb>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Bottomley <James.Bottomley@HansenPartnership.com>
-Cc: Pekka Enberg <penberg@kernel.org>, Matthew Wilcox <matthew@wil.cx>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-parisc@vger.kernel.org, David Rientjes <rientjes@google.com>, Ingo Molnar <mingo@elte.hu>, x86 maintainers <x86@kernel.org>, linux-arch@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>
+To: Eric Paris <eparis@parisplace.org>
+Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, int-list-linux-mm@kvack.orglinux-mm@kvack.org, Peter Zijlstra <peterz@infradead.org>, James Morris <jmorris@namei.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Christoph Hellwig <hch@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, SystemTap <systemtap@sources.redhat.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>, Eric Paris <eparis@redhat.com>, sds@tycho.nsa.gov
 
-On Wed, 20 Apr 2011, James Bottomley wrote:
 
->      1. We can look at what imposing NUMA on the DISCONTIGMEM archs
->         would do ... the embedded ones are going to be hardest hit, but
->         if it's not too much extra code, it might be palatable.
->      2. The other is that we can audit mm to look at all the node
->         assumptions in the non-numa case.  My suspicion is that
->         accidentally or otherwise, it mostly works for the normal case,
->         so there might not be much needed to pull it back to working
->         properly for DISCONTIGMEM.
+eparis wrote:
 
-The older code may work. SLAB f.e. does not call page_to_nid() in the
-!NUMA case but keeps special metadata structures around in each slab page
-that records the node used for allocation. The problem is with new code
-added/revised in the last 5 years or so that uses page_to_nid() and
-allocates only a single structure for !NUMA. There are also VM_BUG_ONs in
-the page allocator that should trigger if page_to_nid() returns strange
-values. I wonder why that never occurred.
+> [...]
+> Now how to fix the problems you were seeing.  If you run a modern
+> system with a GUI I'm willing to bet the pop-up window told you
+> exactly how to fix your problem.  [...]
+>
+> 1) chcon -t unconfined_execmem_t /path/to/your/binary
+> 2) setsebool -P allow_execmem 1
+> [...]
+> I believe there was a question about how JIT's work with SELinux
+> systems.  They work mostly by method #1.
 
->      3. Finally we could look at deprecating DISCONTIGMEM in favour
-of >         SPARSEMEM, but we'd still need to fix -stable for that case.
->         Especially as it will take time to convert all the architectures
+Actually, that's a solution to a different problem.  Here, it's not
+particular /path/to/your/binaries that want/need selinux provileges.
+It's a kernel-driven debugging facility that needs it temporarily for
+arbitrary processes.
 
-The fix needed is to mark DISCONTIGMEM without NUMA as broken for now. We
-need an audit of the core VM before removing that or making it contingent
-on the configurations of various VM subsystems.
+It's not like JITs, with known binary names.  It's not like GDB, which
+simply overwrites existing instructions in the text segment.  To make
+uprobes work fast (single-step-out-of-line), one needs one or emore
+temporary pages with unusual mapping permissions.
 
-> I'm certainly with Matthew: DISCONTIGMEM is supposed to be a lightweight
-> framework which allows machines with split physical memory ranges to
-> work.  That's a very common case nowadays.  Numa is supposed to be a
-> heavyweight framework to preserve node locality for non-uniform memory
-> access boxes (which none of the DISCONTIGMEM && !NUMA systems are).
-
-Well yes but we have SPARSE for that today. DISCONTIG with multiple per
-pgdat structures in a !NUMA case is just weird and unexpected for many who
-have done VM coding in the last years.
+- FChE
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
