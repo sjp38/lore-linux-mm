@@ -1,138 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id B997F8D003B
-	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 08:44:06 -0400 (EDT)
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.31.245])
-	by e23smtp07.au.ibm.com (8.14.4/8.13.1) with ESMTP id p3KCi0Tr006004
-	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 22:44:00 +1000
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p3KCi0ZB2457732
-	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 22:44:00 +1000
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p3KCi0Lv008239
-	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 22:44:00 +1000
-Date: Wed, 20 Apr 2011 22:13:53 +0930
-From: Christopher Yeoh <cyeoh@au1.ibm.com>
-Subject: [Resend] Re: [Resend] Cross Memory Attach v3 [PATCH]
-Message-ID: <20110420221353.308ce02d@lilo>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 737838D003B
+	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 09:41:00 -0400 (EDT)
+Received: by iwg8 with SMTP id 8so931424iwg.14
+        for <linux-mm@kvack.org>; Wed, 20 Apr 2011 06:40:57 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20110419062654.GB10698@linux.vnet.ibm.com>
+References: <20110401143223.15455.19844.sendpatchset@localhost6.localdomain6>
+	<20110401143457.15455.64839.sendpatchset@localhost6.localdomain6>
+	<1303145171.32491.886.camel@twins>
+	<20110419062654.GB10698@linux.vnet.ibm.com>
+Date: Wed, 20 Apr 2011 09:40:57 -0400
+Message-ID: <BANLkTimw7dV9_aSsrUfzwSdwr6UwZDsRwg@mail.gmail.com>
+Subject: Re: [PATCH v3 2.6.39-rc1-tip 12/26] 12: uprobes: slot allocation for uprobes
+From: Eric Paris <eparis@parisplace.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Rusty Russell <rusty@rustcorp.com.au>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>
+To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, James Morris <jmorris@namei.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Christoph Hellwig <hch@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, SystemTap <systemtap@sources.redhat.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>, Eric Paris <eparis@redhat.com>, sds@tycho.nsa.gov
 
-On Fri, 25 Mar 2011 23:52:25 +1030
-cyeoh@ozlabs.au.ibm.com wrote:
-> On Thu, 24 Mar 2011 09:20:41 +1030
-> Rusty Russell <rusty@rustcorp.com.au> wrote:
->   
-> > On Wed, 23 Mar 2011 12:52:13 +1030, Christopher Yeoh
-> > <cyeoh@au1.ibm.com> wrote:  
-> > > On Sun, 20 Mar 2011 18:55:32 -0700
-> > > Andrew Morton <akpm@linux-foundation.org> wrote:  
-> > > > On Mon, 21 Mar 2011 12:20:18 +1030 Christopher Yeoh
-> > > > <cyeoh@au1.ibm.com> wrote:
-> > > >   
-> > > > > On Thu, 17 Mar 2011 12:54:27 -0700
-> > > > > Andrew Morton <akpm@linux-foundation.org> wrote:  
-> > > > > > On Thu, 17 Mar 2011 15:40:26 +1030
-> > > > > > Christopher Yeoh <cyeoh@au1.ibm.com> wrote:
-> > > > > >   
-> > > > > > > > Thinking out loud: if we had a way in which a process
-> > > > > > > > can add and remove a local anonymous page into
-> > > > > > > > pagecache then other processes could access that page
-> > > > > > > > via mmap.  If both processes map the file with a
-> > > > > > > > nonlinear vma they they can happily sit there flipping
-> > > > > > > > pages into and out of the shared mmap at arbitrary file
-> > > > > > > > offsets. The details might get hairy ;) We wouldn't
-> > > > > > > > want all the regular mmap semantics of  
-> > > > > > > 
-> > > > > > > Yea, its the complexity of trying to do it that way that
-> > > > > > > eventually lead me to implementing it via a syscall and
-> > > > > > > get_user_pages instead, trying to keep things as simple as
-> > > > > > > possible.  
-> > > > > > 
-> > > > > > The pagecache trick potentially gives zero-copy access,
-> > > > > > whereas the proposed code is single-copy.  Although the
-> > > > > > expected benefits of that may not be so great due to TLB
-> > > > > > manipulation overheads.
-> > > > > > 
-> > > > > > I worry that one day someone will come along and implement
-> > > > > > the pagecache trick, then we're stuck with obsolete code
-> > > > > > which we have to maintain for ever.  
-> > 
-> > Since this is for MPI (ie. message passing), they really want copy
-> > semantics.  If they didn't want copy semantics, they could just
-> > MAP_SHARED some memory and away they go...
-> > 
-> > You don't want to implement copy semantics with page-flipping; you
-> > would need to COW the outgoing pages, so you end up copying *and*
-> > trapping.
-> > 
-> > If you are allowed to replace "sent" pages with zeroed ones or
-> > something then you don't have to COW.  Yet even if your messages
-> > were a few MB, it's still not clear you'd win; in a NUMA world
-> > you're better off copying into a local page and then working on it.
-> > 
-> > Copying just isn't that bad when it's cache-hot on the sender and
-> > you are about to use it on the receiver, as MPI tends to be.  And
-> > it's damn simple.
-> > 
-> > But we should be able to benchmark an approximation to the
-> > page-flipping approach anyway, by not copying the data and doing the
-> > appropriate tlb flushes in the system call.  
-> 
-> I've done some hacking on the naturally ordered and randomly ordered
-> ring bandwidth tests of hpcc to try to simulate what we'd get with a
-> page flipping approach.
-> 
-> - Modified hpcc so it checksums the data on the receiver. normally it
->   just checks the data in a couple of places but the checksum
-> simulates the receiver actually using all of the data
-> 
-> - For the page flipping scenario
->   - allocate from a shared memory pool for data that is to be
->     transferred
->   - instead of sending the data via OpenMPI send some control data
->     instead which describes where the receiver can read the data in
->     shared memory. Thus "zero copy" with just checksum
->   - Adds tlb flushing for sender/receiver processes
-> 
-> The results are below (numbers are in MB/s, higher the better). Base
-> is double copy via shared memory, CMA is single copy.
-> 
-> 	                     Num MPI Processes			
-> Naturally Ordered	4	8	16	32
-> Base	               1152	929	567	370
-> CMA	               3682	3071	2753	2548
-> Zero Copy	       4634	4039	3149	2852
-> 				
->                       	Num MPI Processes
-> Randomly Ordered       	4	8	16	32
-> Base	                1154	927	588	389
-> CMA	                3632	3060	2897	2904
-> Zero Copy	        4668	3970	3077	2962
-> 
-> the benchmarks were run on a 32 way (SMT-off) Power6 machine.
-> 
-> So we can see that on lower numbers of processes there is a gain in
-> performance between single and zero copy (though the big jump is
-> between double and single copy), but this reduces as the number of
-> processes increases. The difference between the single and zero copy
-> approach reduces to almost nothing for when the number of MPI
-> processes is equal to the number of processors (for the randomly
-> ordered ring bandwidth).  
+On Tue, Apr 19, 2011 at 2:26 AM, Srikar Dronamraju
+<srikar@linux.vnet.ibm.com> wrote:
+> * Peter Zijlstra <peterz@infradead.org> [2011-04-18 18:46:11]:
+>
+>> On Fri, 2011-04-01 at 20:04 +0530, Srikar Dronamraju wrote:
 
-Andrew - just wondering if you had any more thoughts about this?
-Any other information you were looking for?
+>> > +static int xol_add_vma(struct uprobes_xol_area *area)
+>> > +{
+>> > + =A0 struct vm_area_struct *vma;
+>> > + =A0 struct mm_struct *mm;
+>> > + =A0 struct file *file;
+>> > + =A0 unsigned long addr;
+>> > + =A0 int ret =3D -ENOMEM;
+>> > +
+>> > + =A0 mm =3D get_task_mm(current);
+>> > + =A0 if (!mm)
+>> > + =A0 =A0 =A0 =A0 =A0 return -ESRCH;
+>> > +
+>> > + =A0 down_write(&mm->mmap_sem);
+>> > + =A0 if (mm->uprobes_xol_area) {
+>> > + =A0 =A0 =A0 =A0 =A0 ret =3D -EALREADY;
+>> > + =A0 =A0 =A0 =A0 =A0 goto fail;
+>> > + =A0 }
+>> > +
+>> > + =A0 /*
+>> > + =A0 =A0* Find the end of the top mapping and skip a page.
+>> > + =A0 =A0* If there is no space for PAGE_SIZE above
+>> > + =A0 =A0* that, mmap will ignore our address hint.
+>> > + =A0 =A0*
+>> > + =A0 =A0* We allocate a "fake" unlinked shmem file because
+>> > + =A0 =A0* anonymous memory might not be granted execute
+>> > + =A0 =A0* permission when the selinux security hooks have
+>> > + =A0 =A0* their way.
+>> > + =A0 =A0*/
+>>
+>> That just annoys me, so we're working around some stupid sekurity crap,
+>> executable anonymous maps are perfectly fine, also what do JITs do?
+>
+> Yes, we are working around selinux security hooks, but do we have a
+> choice.
+>
+> James can you please comment on this.
 
-Regards,
+[added myself and stephen, the 2 SELinux maintainers]
 
-Chris
--- 
-cyeoh@au.ibm.com
+This is just wrong.  Anything to 'work around' SELinux in the kernel
+is wrong.  SELinux access decisions are determined by policy not by
+dirty hacks in the code to subvert any kind of security claims that
+policy might hope to enforce.
+
+[side note, security_file_mmap() is the right call if there is a file
+or not.  It should just be called security_mmap() but the _file_ has
+been around a long time and just never had a need to be changed]
+
+Now how to fix the problems you were seeing.  If you run a modern
+system with a GUI I'm willing to bet the pop-up window told you
+exactly how to fix your problem.  If you are not on a GUI I accept
+it's a more difficult as you most likely don't have the setroubleshoot
+tools installed to help you out.  I'm just guess what your problem
+was, but I think you have two solutions either:
+
+1) chcon -t unconfined_execmem_t /path/to/your/binary
+2) setsebool -P allow_execmem 1
+
+The first will cause the binary to execute in a domain with
+permissions to execute anonymous memory, the second will allow all
+unconfined domains to execute anonymous memory.
+
+I believe there was a question about how JIT's work with SELinux
+systems.  They work mostly by method #1.
+
+I did hear this question though: On a different but related note, how
+is the use of uprobes controlled? Does it apply the same checking as
+for ptrace?
+
+Thanks guys!  If you have SELinux or LSM problems in the future let me
+know.  It's likely the solution is easier than you imagine   ;)
+
+-Eric
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
