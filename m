@@ -1,93 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id B300D8D003B
-	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 05:53:32 -0400 (EDT)
-Received: by ewy9 with SMTP id 9so239646ewy.14
-        for <linux-mm@kvack.org>; Wed, 20 Apr 2011 02:53:29 -0700 (PDT)
-Subject: Re: [PATCH 0/1] mm: make read-only accessors take const pointer
- parameters
-From: Artem Bityutskiy <dedekind1@gmail.com>
-Reply-To: dedekind1@gmail.com
-In-Reply-To: <20110415160957.GV15707@random.random>
-References: <1302861377-8048-1-git-send-email-ext-phil.2.carmody@nokia.com>
-	 <20110415145133.GO15707@random.random>
-	 <20110415155916.GD7112@esdhcp04044.research.nokia.com>
-	 <20110415160957.GV15707@random.random>
-Content-Type: text/plain; charset="UTF-8"
-Date: Wed, 20 Apr 2011 12:28:37 +0300
-Message-ID: <1303291717.2700.20.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id B4F0B8D003B
+	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 06:01:43 -0400 (EDT)
+Date: Wed, 20 Apr 2011 11:01:13 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [Bugme-new] [Bug 33682] New: mprotect got stuck when THP is
+ "always" enabled
+Message-ID: <20110420100113.GC1306@csn.ul.ie>
+References: <bug-33682-10286@https.bugzilla.kernel.org/>
+ <20110418230651.54da5b82.akpm@linux-foundation.org>
+ <20110419112506.GB5641@random.random>
+ <20110419135119.GA5611@random.random>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20110419135119.GA5611@random.random>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Phil Carmody <ext-phil.2.carmody@nokia.com>, akpm@linux-foundation.org, cl@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org, bugs@casparzhang.com, Rik van Riel <riel@redhat.com>
 
-On Fri, 2011-04-15 at 18:09 +0200, Andrea Arcangeli wrote:
-> On Fri, Apr 15, 2011 at 06:59:16PM +0300, Phil Carmody wrote:
-> > of these functions to propagate constness up another layer. It was
-> > probably in FUSE, as that's the warning at the top of my screen
-> > currently.
+On Tue, Apr 19, 2011 at 03:51:19PM +0200, Andrea Arcangeli wrote:
+> Hi,
 > 
-> These function themselfs are inline too, so gcc already can see if
-> memory has been modified inside the inline function, so it shouldn't
-> provide an advantage. It would provide an advantage if page_count and
-> friends weren't inline.
+> this should fix bug
+> https://bugzilla.kernel.org/show_bug.cgi?id=33682 .
 > 
-> > I think gcc itself is smart enough to have already concluded what it 
-> > can and it will not immediately benefit the build from just this change.
+> ====
+> Subject: thp: fix /dev/zero MAP_PRIVATE and vm_flags cleanups
 > 
-> Hmm not sure... but I would hope it is smart enough already with
-> inline (it should never be worse to inline than encoding the whole
-> thing by hand in the caller, so skipping the function call
-> alltogether which then wouldn't require any const).
+> From: Andrea Arcangeli <aarcange@redhat.com>
 > 
-> > I don't think the static analysis tools are as smart as gcc though, by
-> > any means. GCC actually inlines, so everything is visible to it. The
-> > static analysis tools only remember the subset of information that they
-> > think is useful, and apparently 'didn't change anything, even though it 
-> > could' isn't considered so useful.
-> > 
-> > I'm just glad this wasn't an insta-nack, as I am quite a fan of consts,
-> > and hopefully something can be worked out.
+> The huge_memory.c THP page fault was allowed to run if vm_ops was null (which
+> would succeed for /dev/zero MAP_PRIVATE, as the f_op->mmap wouldn't setup a
+> special vma->vm_ops and it would fallback to regular anonymous memory) but
+> other THP logics weren't fully activated for vmas with vm_file not NULL
+> (/dev/zero has a not NULL vma->vm_file).
 > 
-> I'm not against it if it's from code strict point of view, I was
-> mostly trying to understand if this could have any impact, in which
-> case it wouldn't be false positive. I think it's a false positive if
-> gcc is as smart as I hope it to be. If we want it from coding style
-> reasons to keep the code more strict that's fine with me of course.
+> So this removes the vm_file checks so that /dev/zero also can safely
+> use THP (the other albeit safer approach to fix this bug would have
+> been to prevent the THP initial page fault to run if vm_file was set).
+> 
+> After removing the vm_file checks, this also makes huge_memory.c
+> stricter in khugepaged for the DEBUG_VM=y case. It doesn't replace the
+> vm_file check with a is_pfn_mapping check (but it keeps checking for
+> VM_PFNMAP under VM_BUG_ON) because for a is_cow_mapping() mapping
+> VM_PFNMAP should only be allowed to exist before the first page fault,
+> and in turn when vma->anon_vma is null (so preventing khugepaged
+> registration). So I tend to think the previous comment saying if
+> vm_file was set, VM_PFNMAP might have been set and we could still be
+> registered in khugepaged (despite anon_vma was not NULL to be
+> registered in khugepaged) was too paranoid. The is_linear_pfn_mapping
+> check is also I think superfluous (as described by comment) but under
+> DEBUG_VM it is safe to stay.
+> 
+> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 
-I think it is good when small core functions like this are strict and
-use 'const' whenever possible, even though 'const' is so imperfect in C.
-
-Let me give an example from my own experience. I was writing code which
-was using the kernel RB trees, and I was trying to be strict and use
-'const' whenever possible. But because the core functions like 'rb_next'
-do not have 'const' modifier, I could not use const in many many places
-of my code, because gcc was yelling. And I was not very enthusiastic to
-touch the RB-tree code that time.
-
-So the outline is that when core functions are not strict, they force
-the upper layers to not use 'const' so making the linux less strict
-overall, and making gcc _potential_ to optimize less.
-
-The kernel is large and complex, if if today we do not see any apparent
-optimization out of this, to tomorrow when the code changes, new clients
-come to the picture - we might get it!
-
-Hence,
-
-Acked-by: Artem Bityutskiy <Artem.Bityutskiy@nokia.com>
-
-And
-
-Thanks-by: Artem Bityutskiy <Artem.Bityutskiy@nokia.com>
-
-P.S.: Phil, probably you've noticed my hint about the RB-trees? :-)
+Acked-by: Mel Gorman <mel@csn.ul.ie>
 
 -- 
-Best Regards,
-Artem Bityutskiy (D?N?N?N?D 1/4  D?D,N?N?N?DoD,D1)
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
