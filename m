@@ -1,123 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E9CB8D0047
-	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 05:47:19 -0400 (EDT)
-Date: Wed, 20 Apr 2011 10:46:47 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [patch] mm/vmalloc: remove block allocation bitmap
-Message-ID: <20110420094647.GB1306@csn.ul.ie>
-References: <20110414211656.GB1700@cmpxchg.org>
- <20110419093118.GB23041@csn.ul.ie>
- <20110419233905.GA2333@cmpxchg.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20110419233905.GA2333@cmpxchg.org>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id B300D8D003B
+	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 05:53:32 -0400 (EDT)
+Received: by ewy9 with SMTP id 9so239646ewy.14
+        for <linux-mm@kvack.org>; Wed, 20 Apr 2011 02:53:29 -0700 (PDT)
+Subject: Re: [PATCH 0/1] mm: make read-only accessors take const pointer
+ parameters
+From: Artem Bityutskiy <dedekind1@gmail.com>
+Reply-To: dedekind1@gmail.com
+In-Reply-To: <20110415160957.GV15707@random.random>
+References: <1302861377-8048-1-git-send-email-ext-phil.2.carmody@nokia.com>
+	 <20110415145133.GO15707@random.random>
+	 <20110415155916.GD7112@esdhcp04044.research.nokia.com>
+	 <20110415160957.GV15707@random.random>
+Content-Type: text/plain; charset="UTF-8"
+Date: Wed, 20 Apr 2011 12:28:37 +0300
+Message-ID: <1303291717.2700.20.camel@localhost>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@kernel.dk>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Phil Carmody <ext-phil.2.carmody@nokia.com>, akpm@linux-foundation.org, cl@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Apr 20, 2011 at 01:39:05AM +0200, Johannes Weiner wrote:
-> On Tue, Apr 19, 2011 at 10:31:18AM +0100, Mel Gorman wrote:
-> > On Thu, Apr 14, 2011 at 05:16:56PM -0400, Johannes Weiner wrote:
-> > > Space in a vmap block that was once allocated is considered dirty and
-> > > not made available for allocation again before the whole block is
-> > > recycled.
-> > > 
-> > > The result is that free space within a vmap block is always contiguous
-> > > and the allocation bitmap can be replaced by remembering the offset of
-> > > free space in the block.
-> > > 
-> > > The fragmented block purging was never invoked from vb_alloc() either,
-> > > as it skips blocks that do not have enough free space for the
-> > > allocation in the first place.  According to the above, it is
-> > > impossible for a block to have enough free space and still fail the
-> > > allocation.  Thus, this dead code is removed.  Partially consumed
-> > > blocks will be reclaimed anyway when an attempt is made to allocate a
-> > > new vmap block altogether and no free space is found.
-> > > 
-> > > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> > > Cc: Nick Piggin <npiggin@kernel.dk>
-> > > Cc: Mel Gorman <mel@csn.ul.ie>
-> > > Cc: Hugh Dickins <hughd@google.com>
+On Fri, 2011-04-15 at 18:09 +0200, Andrea Arcangeli wrote:
+> On Fri, Apr 15, 2011 at 06:59:16PM +0300, Phil Carmody wrote:
+> > of these functions to propagate constness up another layer. It was
+> > probably in FUSE, as that's the warning at the top of my screen
+> > currently.
+> 
+> These function themselfs are inline too, so gcc already can see if
+> memory has been modified inside the inline function, so it shouldn't
+> provide an advantage. It would provide an advantage if page_count and
+> friends weren't inline.
+> 
+> > I think gcc itself is smart enough to have already concluded what it 
+> > can and it will not immediately benefit the build from just this change.
+> 
+> Hmm not sure... but I would hope it is smart enough already with
+> inline (it should never be worse to inline than encoding the whole
+> thing by hand in the caller, so skipping the function call
+> alltogether which then wouldn't require any const).
+> 
+> > I don't think the static analysis tools are as smart as gcc though, by
+> > any means. GCC actually inlines, so everything is visible to it. The
+> > static analysis tools only remember the subset of information that they
+> > think is useful, and apparently 'didn't change anything, even though it 
+> > could' isn't considered so useful.
 > > 
-> > I didn't see a problem with the patch per-se but I wonder if your patch
-> > is the intended behaviour. It looks like the intention was that dirty
-> > blocks could be flushed from the TLB and made available for allocations
-> > leading to the possibility of fragmented vmap blocks.
-> >
-> > It's this check that is skipping over blocks without taking dirty into
-> > account.
-> > 
-> >   		spin_lock(&vb->lock);
-> >  		if (vb->free < 1UL << order)
-> >  			goto next;
-> > 
-> > It was introduced by [02b709d: mm: purge fragmented percpu vmap blocks]
-> > but is there any possibility that this is what should be fixed instead?
+> > I'm just glad this wasn't an insta-nack, as I am quite a fan of consts,
+> > and hopefully something can be worked out.
 > 
-> I would like to emphasize that the quoted check only made it clear
-> that the allocation bitmap is superfluous.  There is no partial
-> recycling of a block with live allocations, not even before this
-> commit.
-> 
+> I'm not against it if it's from code strict point of view, I was
+> mostly trying to understand if this could have any impact, in which
+> case it wouldn't be false positive. I think it's a false positive if
+> gcc is as smart as I hope it to be. If we want it from coding style
+> reasons to keep the code more strict that's fine with me of course.
 
-You're right in that the allocation bitmap does look superfluous. I was
-wondering if it was meant to be doing something useful.
+I think it is good when small core functions like this are strict and
+use 'const' whenever possible, even though 'const' is so imperfect in C.
 
-> > Do we know what the consequences of blocks only getting flushed when
-> > they have been fully allocated are?
-> 
-> Note that it can get recycled earlier if there is no outstanding
-> allocation on it, even if only a small amount of it is dirty (the
-> purge_fragmented_blocks code does this).
-> 
+Let me give an example from my own experience. I was writing code which
+was using the kernel RB trees, and I was trying to be strict and use
+'const' whenever possible. But because the core functions like 'rb_next'
+do not have 'const' modifier, I could not use const in many many places
+of my code, because gcc was yelling. And I was not very enthusiastic to
+touch the RB-tree code that time.
 
-Yep.
+So the outline is that when core functions are not strict, they force
+the upper layers to not use 'const' so making the linux less strict
+overall, and making gcc _potential_ to optimize less.
 
-> A single outstanding allocation prevents the block from being
-> recycled, blocking the reuse of the dirty area.
-> 
+The kernel is large and complex, if if today we do not see any apparent
+optimization out of this, to tomorrow when the code changes, new clients
+come to the picture - we might get it!
 
-Yes although your patch doesn't appear to make the current situation
-better or worse.  It's tricky to know exactly when a full flush
-will take place and what the conseqeuences are. For example, look
-at vb_alloc(). If all the blocks have a single allocation preventing
-recycling, we call new_vmap_block() which in itself is not too bad,
-but it may mean we are using more memory than necessary in the name
-of avoiding flushes. This is avoided if a lot of freeing is going on
-at the same time but it's unpredictable.
+Hence,
 
-> Theoretically, we could end up with all possible vmap blocks being
-> pinned by single allocations with most of their area being dirty and
-> not reusable.  But I believe this is unlikely to happen.
-> 
-> Would you be okay with printing out block usage statistics on
-> allocation errors for the time being, so we can identify this case if
-> problems show up?
-> 
+Acked-by: Artem Bityutskiy <Artem.Bityutskiy@nokia.com>
 
-It'd be interesting but for the purposes of this patch I think it
-would be more useful to see the results of some benchmark that is vmap
-intensive. Something directory intensive running on XFS should do the
-job just to confirm no regression, right? A profile might indicate
-how often we end up scanning the full list, finding it dirty and
-calling new_vmap_block but even if something odd showed up there,
-it would be a new patch.
+And
 
-> And consider this patch an optimization/simplification of a status quo
-> that does not appear problematic?  We can still revert it and
-> implement live block recycling when it turns out to be necessary.
-> 
+Thanks-by: Artem Bityutskiy <Artem.Bityutskiy@nokia.com>
 
-I see no problem with your patch so;
-
-Acked-by: Mel Gorman <mel@csn.ul.ie>
+P.S.: Phil, probably you've noticed my hint about the RB-trees? :-)
 
 -- 
-Mel Gorman
-SUSE Labs
+Best Regards,
+Artem Bityutskiy (D?N?N?N?D 1/4  D?D,N?N?N?DoD,D1)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
