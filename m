@@ -1,36 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id B07ED8D003B
-	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 12:40:45 -0400 (EDT)
-Date: Wed, 20 Apr 2011 12:39:54 -0400
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [patch] mm/vmalloc: remove block allocation bitmap
-Message-ID: <20110420163954.GA7297@infradead.org>
-References: <20110414211656.GB1700@cmpxchg.org>
- <20110419093118.GB23041@csn.ul.ie>
- <20110419233905.GA2333@cmpxchg.org>
- <20110420094647.GB1306@csn.ul.ie>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 98D058D003B
+	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 12:51:03 -0400 (EDT)
+Date: Wed, 20 Apr 2011 11:50:58 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH v3] mm: make expand_downwards symmetrical to
+ expand_upwards
+In-Reply-To: <1303317178.2587.30.camel@mulgrave.site>
+Message-ID: <alpine.DEB.2.00.1104201149520.12154@router.home>
+References: <20110420161615.462D.A69D9226@jp.fujitsu.com>  <BANLkTimfpY3gq8oY6bPDajBW7JN6Hp+A0A@mail.gmail.com>  <20110420174027.4631.A69D9226@jp.fujitsu.com> <1303317178.2587.30.camel@mulgrave.site>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110420094647.GB1306@csn.ul.ie>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@kernel.dk>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: James Bottomley <James.Bottomley@HansenPartnership.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Pekka Enberg <penberg@kernel.org>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-parisc@vger.kernel.org, David Rientjes <rientjes@google.com>, Ingo Molnar <mingo@elte.hu>, x86 maintainers <x86@kernel.org>
 
-On Wed, Apr 20, 2011 at 10:46:47AM +0100, Mel Gorman wrote:
-> It'd be interesting but for the purposes of this patch I think it
-> would be more useful to see the results of some benchmark that is vmap
-> intensive. Something directory intensive running on XFS should do the
-> job just to confirm no regression, right? A profile might indicate
-> how often we end up scanning the full list, finding it dirty and
-> calling new_vmap_block but even if something odd showed up there,
-> it would be a new patch.
+On Wed, 20 Apr 2011, James Bottomley wrote:
 
-Note that the default mkfs.xfs options will not trigger any vmap
-calls at runtime.  You'll need a filesystem with a large directory
-block size to trigger heavy vmap usage.
+> > > That part makes me think the best option is to make parisc do
+> > > CONFIG_NUMA as well regardless of the historical intent was.
+
+Well if it never supported NUMA then this is going to be problematic.
+> > >
+> > >                         Pekka
+> >
+> > This?
+>
+> I'm afraid it doesn't boot (it's another slub crash):
+
+Is there any simulator available that we can use to run a parisc boot?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
