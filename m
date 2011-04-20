@@ -1,69 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 1C6058D003B
-	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 15:18:03 -0400 (EDT)
-Date: Thu, 21 Apr 2011 00:47:57 +0530
-From: Raghavendra D Prabhu <rprabhu@wnohang.net>
-Subject: Re: [PATCH 1/1] Add check for dirty_writeback_interval in
- bdi_wakeup_thread_delayed
-Message-ID: <20110420191757.GA5169@Xye>
-References: <20110417162308.GA1208@Xye>
- <1303111152.2815.29.camel@localhost>
- <20110418091609.GC5143@Xye>
- <1303129589.8589.5.camel@localhost>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 54F618D003B
+	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 15:25:45 -0400 (EDT)
+Date: Wed, 20 Apr 2011 13:25:41 -0600
+From: Matthew Wilcox <matthew@wil.cx>
+Subject: Re: [PATCH v3] mm: make expand_downwards symmetrical to
+	expand_upwards
+Message-ID: <20110420192540.GC31296@parisc-linux.org>
+References: <20110420102314.4604.A69D9226@jp.fujitsu.com> <BANLkTi=mxWwLPEnB+rGg29b06xNUD0XvsA@mail.gmail.com> <20110420161615.462D.A69D9226@jp.fujitsu.com> <BANLkTimfpY3gq8oY6bPDajBW7JN6Hp+A0A@mail.gmail.com> <20110420112020.GA31296@parisc-linux.org> <BANLkTim+m-v-4k17HUSOYSbmNFDtJTgD6g@mail.gmail.com> <1303308938.2587.8.camel@mulgrave.site> <alpine.DEB.2.00.1104200943580.9266@router.home> <1303311779.2587.19.camel@mulgrave.site> <alpine.DEB.2.00.1104201018360.9266@router.home>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="opJtzjQTFsWo+cga"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1303129589.8589.5.camel@localhost>
+In-Reply-To: <alpine.DEB.2.00.1104201018360.9266@router.home>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Artem Bityutskiy <Artem.Bityutskiy@nokia.com>
-Cc: linux-mm@kvack.org, Jens Axboe <jaxboe@fusionio.com>, Christoph Hellwig <hch@lst.de>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
+To: Christoph Lameter <cl@linux.com>
+Cc: James Bottomley <James.Bottomley@HansenPartnership.com>, Pekka Enberg <penberg@kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-parisc@vger.kernel.org, David Rientjes <rientjes@google.com>, Ingo Molnar <mingo@elte.hu>, x86 maintainers <x86@kernel.org>, linux-arch@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>
 
+On Wed, Apr 20, 2011 at 10:22:04AM -0500, Christoph Lameter wrote:
+> There is barely any testing going on at all of this since we have had this
+> issue for more than 5 years and have not noticed it. The absence of bug
+> reports therefore proves nothing. Code inspection of the VM shows
+> that this is an issue that arises in multiple subsystems and that we have
+> VM_BUG_ONs in the page allocator that should trigger for these situations.
 
---opJtzjQTFsWo+cga
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Disposition: inline
+So ... we've proven that people using these architectures use SLAB
+instead of SLUB, don't enable CONFIG_DEBUG_VM and don't use hugepages
+(not really a surprise ... nobody's running Oracle on these arches :-)
 
-* On Mon, Apr 18, 2011 at 03:26:29PM +0300, Artem Bityutskiy <Artem.Bityutskiy@nokia.com> wrote:
->On Mon, 2011-04-18 at 14:46 +0530, Raghavendra D Prabhu wrote:
->> I have set it to 500 centisecs as that is the default value of
->> dirty_writeback_interval. I used this logic for following reason: the
->> purpose for which dirty_writeback_interval is set to 0 is to disable
->> periodic writeback
->> (http://tomoyo.sourceforge.jp/cgi-bin/lxr/source/fs/fs-writeback.c#L818)
->> , whereas here (in bdi_wakeup_thread_delayed) it is being used for a
->> different purpose -- to delay the bdi wakeup in order to reduce context
->> switches for  dirty inode writeback.
->
->But why it wakes up the bdi thread? Exactly to make sure the periodic
->write-back happen.
-I checked the callgraph of bdi_wakeup_thread_delayed and found out that
-even though it may be called in the aftermath of wb_do_writeback(), it
-is certainly called in the call-chain of sync. So effectively making
-that function do nothing when dirty_writeback_interval is unset will
-also make sync do nothing. On the other hand, not applying the original
-change at all will make it run instantly (jiffies + 0, 0 being the
-writeback interval in this case ) thus reversing the benefits of
-d7dd01adc098eadc5d5fb07a7d2bf942d09b15df.
+I don't think that qualifies as "barely any testing".  I think that's
+"nobody developing the Linux MM uses one of these architectures".
 
---opJtzjQTFsWo+cga
-Content-Type: application/pgp-signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.11 (GNU/Linux)
-
-iQEcBAEBAgAGBQJNrzFlAAoJEKYW3KHXK+l3UF8IAKjhFw7kqDwwaTP5A8HVXyaE
-J1Q4bjTpGWqRCnzUlu9VxrofeWT9eXkWhvP7szG9lPEQf+FE+EIP5l15CjvxGIOg
-GKVp+HZjVLnD9vqp4BP3qOF/7vVuZOBuk7Rvsa/WpAOm+wgjGwyI+KFoJ3BFiKAC
-wsoe33lNrAHSgvb+j2lsWD8G9QjpNNDghTdBYpCQsAoIANQ5UxsCzjfkuxSJ4ygZ
-KLhBKC7p1ilZiSnntB4pJF5PY3+MvI9a6TQXSA/SwUWg6rRVFZKH8MeZZklrGfiS
-Ngl567bJbKdPNRoQCQj8GPMo3tip9CKBRL78aAO8733IqXOazrAq40cdIzIzPz4=
-=D+0j
------END PGP SIGNATURE-----
-
---opJtzjQTFsWo+cga--
+-- 
+Matthew Wilcox				Intel Open Source Technology Centre
+"Bill, look, we understand that you're interested in selling us this
+operating system, but compare it to ours.  We can't possibly take such
+a retrograde step."
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
