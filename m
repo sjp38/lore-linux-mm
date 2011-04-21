@@ -1,77 +1,146 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E9B88D003B
-	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 19:41:20 -0400 (EDT)
-Date: Wed, 20 Apr 2011 16:40:05 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 5/6] writeback: sync expired inodes first in background
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id D4C588D003B
+	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 20:45:53 -0400 (EDT)
+Date: Thu, 21 Apr 2011 10:45:47 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH 3/6] writeback: sync expired inodes first in background
  writeback
-Message-Id: <20110420164005.e3925965.akpm@linux-foundation.org>
-In-Reply-To: <20110420080918.383880412@intel.com>
-References: <20110420080336.441157866@intel.com>
-	<20110420080918.383880412@intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Message-ID: <20110421004547.GD1814@dastard>
+References: <20110419030003.108796967@intel.com>
+ <20110419030532.515923886@intel.com>
+ <20110419073523.GF23985@dastard>
+ <20110419095740.GC5257@quack.suse.cz>
+ <20110419125616.GA20059@localhost>
+ <20110420012120.GK23985@dastard>
+ <20110420025321.GA14398@localhost>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110420025321.GA14398@localhost>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Jan Kara <jack@suse.cz>, Mel Gorman <mel@linux.vnet.ibm.com>, Dave Chinner <david@fromorbit.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Itaru Kitayama <kitayama@cl.bb4u.ne.jp>, Minchan Kim <minchan.kim@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+Cc: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@linux.vnet.ibm.com>, Mel Gorman <mel@csn.ul.ie>, Trond Myklebust <Trond.Myklebust@netapp.com>, Itaru Kitayama <kitayama@cl.bb4u.ne.jp>, Minchan Kim <minchan.kim@gmail.com>, LKML <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-On Wed, 20 Apr 2011 16:03:41 +0800
-Wu Fengguang <fengguang.wu@intel.com> wrote:
+On Wed, Apr 20, 2011 at 10:53:21AM +0800, Wu Fengguang wrote:
+> On Wed, Apr 20, 2011 at 09:21:20AM +0800, Dave Chinner wrote:
+> > On Tue, Apr 19, 2011 at 08:56:16PM +0800, Wu Fengguang wrote:
+> > > I actually started with wb_writeback() as a natural choice, and then
+> > > found it much easier to do the expired-only=>all-inodes switching in
+> > > move_expired_inodes() since it needs to know the @b_dirty and @tmp
+> > > lists' emptiness to trigger the switch. It's not sane for
+> > > wb_writeback() to look into such details. And once you do the switch
+> > > part in move_expired_inodes(), the whole policy naturally follows.
+> > 
+> > Well, not really. You didn't need to modify move_expired_inodes() at
+> > all to implement these changes - all you needed to do was modify how
+> > older_than_this is configured.
+> > 
+> > writeback policy is defined by the struct writeback_control.
+> > move_expired_inodes() is pure mechanism. What you've done is remove
+> > policy from the struct wbc and moved it to move_expired_inodes(),
+> > which now defines both policy and mechanism.
+> 
+> > Furhter, this means that all the tracing that uses the struct wbc no
+> > no longer shows the entire writeback policy that is being worked on,
+> > so we lose visibility into policy decisions that writeback is
+> > making.
+> 
+> Good point! I'm convinced, visibility is a necessity for debugging the
+> complex writeback behaviors.
+> 
+> > This same change is as simple as updating wbc->older_than_this
+> > appropriately after the wb_writeback() call for both background and
+> > kupdate and leaving the lower layers untouched. It's just a policy
+> > change. If you thinkthe mechanism is inefficient, copy
+> > wbc->older_than_this to a local variable inside
+> > move_expired_inodes()....
+> 
+> Do you like something like this? (details will change a bit when
+> rearranging the patchset)
 
-> A background flush work may run for ever. So it's reasonable for it to
-> mimic the kupdate behavior of syncing old/expired inodes first.
-> 
-> At each queue_io() time, first try enqueuing only newly expired inodes.
-> If there are zero expired inodes to work with, then relax the rule and
-> enqueue all dirty inodes.
-> 
-> This will help reduce the number of dirty pages encountered by page
-> reclaim, eg. the pageout() calls. Normally older inodes contain older
-> dirty pages, which are more close to the end of the LRU lists. So
-> syncing older inodes first helps reducing the dirty pages reached by
-> the page reclaim code.
-> 
-> More background: as Mel put it, "it makes sense to write old pages first
-> to reduce the chances page reclaim is initiating IO."
-> 
-> Rik also presented the situation with a graph:
-> 
-> LRU head                                 [*] dirty page
-> [                          *              *      * *  *  * * * * * *]
-> 
-> Ideally, most dirty pages should lie close to the LRU tail instead of
-> LRU head. That requires the flusher thread to sync old/expired inodes
-> first (as there are obvious correlations between inode age and page
-> age), and to give fair opportunities to newly expired inodes rather
-> than sticking with some large eldest inodes (as larger inodes have
-> weaker correlations in the inode<=>page ages).
-> 
-> This patch helps the flusher to meet both the above requirements.
-> 
-> Side effects: it might reduce the batch size and hence reduce
-> inode_wb_list_lock hold time, but in turn make the cluster-by-partition
-> logic in the same function less effective on reducing disk seeks.
+Yeah, this is close to what I had in mind.
 
-One of the many requirements for writeback is that if userspace is
-continually dirtying pages in a particular file, that shouldn't cause
-the kupdate function to concentrate on that file's newly-dirtied pages,
-neglecting pages from other files which were less-recently dirtied. 
-(and dirty nodes, etc).
+> 
+> --- linux-next.orig/fs/fs-writeback.c	2011-04-20 10:30:47.000000000 +0800
+> +++ linux-next/fs/fs-writeback.c	2011-04-20 10:40:19.000000000 +0800
+> @@ -660,11 +660,6 @@ static long wb_writeback(struct bdi_writ
+>  	long write_chunk;
+>  	struct inode *inode;
+>  
+> -	if (wbc.for_kupdate) {
+> -		wbc.older_than_this = &oldest_jif;
+> -		oldest_jif = jiffies -
+> -				msecs_to_jiffies(dirty_expire_interval * 10);
+> -	}
 
-And the background writeback function and fsync() and msync() and
-everything else shouldn't cause starvation of expired pages, either.  I
-guess you could say that the expired dirty pages become the
-highest-priority writeback item.
+Right here I'd do:
 
+	if (work->for_kupdate || work->for_background)
+		wbc.older_than_this = &oldest_jif;
 
-Are you testing for this failure scenario?  If so, can you briefly
-describe the testing?
+so that the setting of wbc.older_than_this in the loop can trigger
+on whether it is null or not.
 
-It would be hlpeful if you could explain how the current code
-implements this requirement?
+>  	if (!wbc.range_cyclic) {
+>  		wbc.range_start = 0;
+>  		wbc.range_end = LLONG_MAX;
+> @@ -713,10 +708,17 @@ static long wb_writeback(struct bdi_writ
+>  		if (work->for_background && !over_bground_thresh())
+>  			break;
+>  
+> +		if (work->for_kupdate || work->for_background) {
+> +			oldest_jif = jiffies -
+> +				msecs_to_jiffies(dirty_expire_interval * 10);
+> +			wbc.older_than_this = &oldest_jif;
+> +		}
+> +
+
+if you change that to:
+
+		if (wbc.older_than_this) {
+			*wbc.older_than_this = jiffies -
+				msecs_to_jiffies(dirty_expire_interval * 10);
+		}
+
+>  		wbc.more_io = 0;
+>  		wbc.nr_to_write = write_chunk;
+>  		wbc.pages_skipped = 0;
+>  
+> +retry_all:
+
+You can get rid of this retry_all label and have the changeover in
+behaviour re-initialise nr_to_write, etc.
+
+>  		trace_wbc_writeback_start(&wbc, wb->bdi);
+>  		if (work->sb)
+>  			__writeback_inodes_sb(work->sb, wb, &wbc);
+> @@ -733,6 +735,17 @@ static long wb_writeback(struct bdi_writ
+>  		if (wbc.nr_to_write <= 0)
+>  			continue;
+>  		/*
+> +		 * No expired inode? Try all fresh ones
+> +		 */
+> +		if ((work->for_kupdate || work->for_background) &&
+> +		    wbc.older_than_this &&
+> +		    wbc.nr_to_write == write_chunk &&
+> +		    list_empty(&wb->b_io) &&
+> +		    list_empty(&wb->b_more_io)) {
+> +			wbc.older_than_this = NULL;
+> +			goto retry_all;
+> +		}
+
+And here only do this for work->for_background as kupdate writeback
+stops when we run out of expired inodes (i.e. it doesn't writeback
+non-expired inodes).
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
