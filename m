@@ -1,95 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 734C08D003B
-	for <linux-mm@kvack.org>; Thu, 21 Apr 2011 00:07:01 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 19E523EE0C0
-	for <linux-mm@kvack.org>; Thu, 21 Apr 2011 13:06:58 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id F069B45DE53
-	for <linux-mm@kvack.org>; Thu, 21 Apr 2011 13:06:57 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id B596845DE50
-	for <linux-mm@kvack.org>; Thu, 21 Apr 2011 13:06:57 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id A9A84E78005
-	for <linux-mm@kvack.org>; Thu, 21 Apr 2011 13:06:57 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 5B5F31DB803F
-	for <linux-mm@kvack.org>; Thu, 21 Apr 2011 13:06:57 +0900 (JST)
-Date: Thu, 21 Apr 2011 13:00:16 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH V6 00/10] memcg: per cgroup background reclaim
-Message-Id: <20110421130016.3333cb39.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20110421025107.GG2333@cmpxchg.org>
-References: <1303185466-2532-1-git-send-email-yinghan@google.com>
-	<20110421025107.GG2333@cmpxchg.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 383198D003B
+	for <linux-mm@kvack.org>; Thu, 21 Apr 2011 00:10:16 -0400 (EDT)
+Date: Thu, 21 Apr 2011 12:10:11 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 3/6] writeback: sync expired inodes first in background
+ writeback
+Message-ID: <20110421041010.GA18710@localhost>
+References: <20110419030532.515923886@intel.com>
+ <20110419073523.GF23985@dastard>
+ <20110419095740.GC5257@quack.suse.cz>
+ <20110419125616.GA20059@localhost>
+ <20110420012120.GK23985@dastard>
+ <20110420025321.GA14398@localhost>
+ <20110421004547.GD1814@dastard>
+ <20110421020617.GB12191@localhost>
+ <20110421030152.GG1814@dastard>
+ <20110421035954.GA15461@localhost>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110421035954.GA15461@localhost>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Ying Han <yinghan@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>, linux-mm@kvack.org
+To: Dave Chinner <david@fromorbit.com>
+Cc: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@linux.vnet.ibm.com>, Mel Gorman <mel@csn.ul.ie>, Trond Myklebust <Trond.Myklebust@netapp.com>, Itaru Kitayama <kitayama@cl.bb4u.ne.jp>, Minchan Kim <minchan.kim@gmail.com>, LKML <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-On Thu, 21 Apr 2011 04:51:07 +0200
-Johannes Weiner <hannes@cmpxchg.org> wrote:
-
-> > If the cgroup is configured to use per cgroup background reclaim, a kswapd
-> > thread is created which only scans the per-memcg LRU list.
+> > Still, given wb_writeback() is the only caller of both
+> > __writeback_inodes_sb and writeback_inodes_wb(), I'm wondering if
+> > moving the queue_io calls up into wb_writeback() would clean up this
+> > logic somewhat. I think Jan mentioned doing something like this as
+> > well elsewhere in the thread...
 > 
-> We already have direct reclaim, direct reclaim on behalf of a memcg,
-> and global kswapd-reclaim.  Please don't add yet another reclaim path
-> that does its own thing and interacts unpredictably with the rest of
-> them.
-> 
-> As discussed on LSF, we want to get rid of the global LRU.  So the
-> goal is to have each reclaim entry end up at the same core part of
-> reclaim that round-robin scans a subset of zones from a subset of
-> memory control groups.
-> 
+> Unfortunately they call queue_io() inside the lock..
 
-It's not related to this set. And I think even if we remove global LRU,
-global-kswapd and memcg-kswapd need to do independent work.
-
-global-kswapd : works for zone/node balancing and making free pages,
-                and compaction. select a memcg vicitm and ask it
-                to reduce memory with regard to gfp_mask. Starts its work
-                when zone/node is unbalanced.
-
-memcg-kswapd  : works for reducing usage of memory, no interests on
-                zone/nodes. Starts when high/low watermaks hits.
-
-We can share 'recalim_memcg_this_zone()' code finally, but it can be
-changed when we remove global LRU. 
-
-
-> > Two watermarks ("high_wmark", "low_wmark") are added to trigger the
-> > background reclaim and stop it. The watermarks are calculated based
-> > on the cgroup's limit_in_bytes.
-> 
-> Which brings me to the next issue: making the watermarks configurable.
-> 
-> You argued that having them adjustable from userspace is required for
-> overcommitting the hardlimits and per-memcg kswapd reclaim not kicking
-> in in case of global memory pressure.  But that is only a problem
-> because global kswapd reclaim is (apart from soft limit reclaim)
-> unaware of memory control groups.
-> 
-> I think the much better solution is to make global kswapd memcg aware
-> (with the above mentioned round-robin reclaim scheduler), compared to
-> adding new (and final!) kernel ABI to avoid an internal shortcoming.
-> 
-
-I don't think its a good idea to kick kswapd even when free memory is enough.
-
-If memcg-kswapd implemted, I'd like to add auto-cgroup for memcg-kswapd and
-limit its cpu usage because it works even when memory is not in-short.
-
+OK, let's try moving up the lock too. Do you like this change? :)
 
 Thanks,
--Kame
+Fengguang
+---
+ fs/fs-writeback.c |   22 ++++++----------------
+ mm/backing-dev.c  |    4 ++++
+ 2 files changed, 10 insertions(+), 16 deletions(-)
 
+--- linux-next.orig/fs/fs-writeback.c	2011-04-21 12:04:02.000000000 +0800
++++ linux-next/fs/fs-writeback.c	2011-04-21 12:05:54.000000000 +0800
+@@ -591,7 +591,6 @@ void writeback_inodes_wb(struct bdi_writ
+ 
+ 	if (!wbc->wb_start)
+ 		wbc->wb_start = jiffies; /* livelock avoidance */
+-	spin_lock(&inode_wb_list_lock);
+ 
+ 	if (list_empty(&wb->b_io))
+ 		queue_io(wb, wbc);
+@@ -610,22 +609,9 @@ void writeback_inodes_wb(struct bdi_writ
+ 		if (ret)
+ 			break;
+ 	}
+-	spin_unlock(&inode_wb_list_lock);
+ 	/* Leave any unwritten inodes on b_io */
+ }
+ 
+-static void __writeback_inodes_sb(struct super_block *sb,
+-		struct bdi_writeback *wb, struct writeback_control *wbc)
+-{
+-	WARN_ON(!rwsem_is_locked(&sb->s_umount));
+-
+-	spin_lock(&inode_wb_list_lock);
+-	if (list_empty(&wb->b_io))
+-		queue_io(wb, wbc);
+-	writeback_sb_inodes(sb, wb, wbc, true);
+-	spin_unlock(&inode_wb_list_lock);
+-}
+-
+ static inline bool over_bground_thresh(void)
+ {
+ 	unsigned long background_thresh, dirty_thresh;
+@@ -652,7 +638,7 @@ static unsigned long writeback_chunk_siz
+ 	 * The intended call sequence for WB_SYNC_ALL writeback is:
+ 	 *
+ 	 *      wb_writeback()
+-	 *          __writeback_inodes_sb()     <== called only once
++	 *          writeback_sb_inodes()       <== called only once
+ 	 *              write_cache_pages()     <== called once for each inode
+ 	 *                  (quickly) tag currently dirty pages
+ 	 *                  (maybe slowly) sync all tagged pages
+@@ -742,10 +728,14 @@ static long wb_writeback(struct bdi_writ
+ 
+ retry:
+ 		trace_wbc_writeback_start(&wbc, wb->bdi);
++		spin_lock(&inode_wb_list_lock);
++		if (list_empty(&wb->b_io))
++			queue_io(wb, wbc);
+ 		if (work->sb)
+-			__writeback_inodes_sb(work->sb, wb, &wbc);
++			writeback_sb_inodes(work->sb, wb, &wbc, true);
+ 		else
+ 			writeback_inodes_wb(wb, &wbc);
++		spin_unlock(&inode_wb_list_lock);
+ 		trace_wbc_writeback_written(&wbc, wb->bdi);
+ 
+ 		bdi_update_write_bandwidth(wb->bdi, wbc.wb_start);
+--- linux-next.orig/mm/backing-dev.c	2011-04-21 12:06:02.000000000 +0800
++++ linux-next/mm/backing-dev.c	2011-04-21 12:06:31.000000000 +0800
+@@ -268,7 +268,11 @@ static void bdi_flush_io(struct backing_
+ 		.nr_to_write		= 1024,
+ 	};
+ 
++	spin_lock(&inode_wb_list_lock);
++	if (list_empty(&wb->b_io))
++		queue_io(wb, wbc);
+ 	writeback_inodes_wb(&bdi->wb, &wbc);
++	spin_unlock(&inode_wb_list_lock);
+ }
+ 
+ /*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
