@@ -1,62 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id ACC7A8D003B
-	for <linux-mm@kvack.org>; Thu, 21 Apr 2011 13:50:15 -0400 (EDT)
-Date: Thu, 21 Apr 2011 12:50:11 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id BCC1E8D003B
+	for <linux-mm@kvack.org>; Thu, 21 Apr 2011 14:02:06 -0400 (EDT)
+Received: by fxm18 with SMTP id 18so3383fxm.14
+        for <linux-mm@kvack.org>; Thu, 21 Apr 2011 11:02:02 -0700 (PDT)
+Date: Thu, 21 Apr 2011 20:01:59 +0200
+From: Tejun Heo <tj@kernel.org>
 Subject: Re: [PATCH] percpu: preemptless __per_cpu_counter_add
-In-Reply-To: <20110421145837.GB22898@htj.dyndns.org>
-Message-ID: <alpine.DEB.2.00.1104211243350.5741@router.home>
-References: <alpine.DEB.2.00.1104131521050.25812@router.home> <1302747263.3549.9.camel@edumazet-laptop> <alpine.DEB.2.00.1104141608300.19533@router.home> <20110414211522.GE21397@mtj.dyndns.org> <alpine.DEB.2.00.1104151235350.8055@router.home>
- <20110415182734.GB15916@mtj.dyndns.org> <alpine.DEB.2.00.1104151440070.8055@router.home> <20110415235222.GA18694@mtj.dyndns.org> <alpine.DEB.2.00.1104180930580.23207@router.home> <20110421144300.GA22898@htj.dyndns.org>
+Message-ID: <20110421180159.GF15988@htj.dyndns.org>
+References: <alpine.DEB.2.00.1104141608300.19533@router.home>
+ <20110414211522.GE21397@mtj.dyndns.org>
+ <alpine.DEB.2.00.1104151235350.8055@router.home>
+ <20110415182734.GB15916@mtj.dyndns.org>
+ <alpine.DEB.2.00.1104151440070.8055@router.home>
+ <20110415235222.GA18694@mtj.dyndns.org>
+ <alpine.DEB.2.00.1104180930580.23207@router.home>
+ <20110421144300.GA22898@htj.dyndns.org>
  <20110421145837.GB22898@htj.dyndns.org>
+ <alpine.DEB.2.00.1104211243350.5741@router.home>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1104211243350.5741@router.home>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
+To: Christoph Lameter <cl@linux.com>
 Cc: Eric Dumazet <eric.dumazet@gmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org, shaohua.li@intel.com
 
-On Thu, 21 Apr 2011, Tejun Heo wrote:
+Hello, Christoph.
 
-> Unfortunately, I have a new concern for __percpu_counter_sum(), which
-> applies to both your and Shaohua's change.  Before these changes,
-> percpu_counter->lock protects whole of batch transfer.  IOW, while
-> __percpu_counter_sum() is holding ->lock, it can be sure that batch
-> transfer from percpu counter to the main counter isn't in progress and
-> that the deviation it might see is limited by the number of on-going
-> percpu inc/dec's which is much lower than batch transfers.
+On Thu, Apr 21, 2011 at 12:50:11PM -0500, Christoph Lameter wrote:
+> Yes. But there was already a fuzzyiness coming with the
+> __percpu_counter_sum() not seeing the percpu counters that are being
+> updated due to unserialized access to the counters before this patch.
+> There is no material difference here. The VM statistics counters work the
+> same way and have to deal with similar fuzziness effects.
 
-Yes. But there was already a fuzzyiness coming with the
-__percpu_counter_sum() not seeing the percpu counters that are being
-updated due to unserialized access to the counters before this patch.
-There is no material difference here. The VM statistics counters work the
-same way and have to deal with similar fuzziness effects.
+That basically amounts to "there's no difference between
+percpu_counter_sum() and percpu_counter_read()", which is true in the
+sense that both don't guarantee complete correctness.
 
-> With the proposed changes to percpu counter, this no longer holds.
-> cl's patch de-couples local counter update from the global counter
-> update and __percpu_counter_sum() can see batch amount of deviation
-> per concurrent updater making the whole visit-each-counter thing more
-> or less meaningless.  This, however, can be fixed by putting the whole
-> slow path inside spin_lock() as suggested before so that the whole
-> batch transferring from local to global is enclosed inside spinlock.
+The only difference between the two is the level of fuziness.  The
+former deviates only by the number of concurrent updaters (and maybe
+cacheline update latencies) while the latter may deviate in multiples
+of @batch.
 
-The local counter increment was already decoupled before. The shifting of
-the overflow into the global counter was also not serialized before.
+If you wanna say that the difference in the level of fuzziness is
+irrelevant, the first patch of this series should be removing
+percpu_counter_sum() before making any other changes.
 
-> Unfortunately, Shaohua's atomic64_t update ain't that easy.  The whole
-> point of that update was avoiding spinlocks in favor of atomic64_t,
-> which naturally collides with the ability to enclosing local and
-> global updates into the same exclusion block, which is necessary for
-> __percpu_counter_sum() accuracy.
+So, yeah, here, the level of fuzziness matters and that's exactly why
+we have the hugely costly percpu_counter_sum().  Even with the
+proposed change, percpu_counter_sum() would tend to be more accurate
+because the number of batch deviations is limited by the number of
+concurrent updaters but it would still be much worse than before.
 
-There was no total accuracy before either.
+> The local counter increment was already decoupled before. The shifting of
+> the overflow into the global counter was also not serialized before.
 
-> So, Christoph, please put the whole slow path inside spin_lock().
-> Shaohua, unfortunately, I think your change is caught inbetween rock
-> and hard place.  Any ideas?
+No, it wasn't.
 
-I think there is no new problem here.
+	...
+	if (count >= batch || count <= -batch) {
+		spin_lock(&fbc->lock);
+		fbc->count += count;
+		__this_cpu_write(*fbc->counters, 0);
+		spin_unlock(&fbc->lock);
+	} else {
+	...
+
+percpu_counter_sum() would see either both the percpu and global
+counters updated or un-updated.  It will never see local counter reset
+with global counter not updated yet.
+
+> There was no total accuracy before either.
+
+It's not about total accuracy.  It's about different levels of
+fuzziness.  If it can be shown that the different levels of fuzziness
+doesn't matter and thus percpu_counter_sum() can be removed, I'll be a
+happy camper.
+
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
