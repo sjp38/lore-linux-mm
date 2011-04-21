@@ -1,58 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 3598D8D003B
-	for <linux-mm@kvack.org>; Thu, 21 Apr 2011 09:30:02 -0400 (EDT)
-Received: from canuck.infradead.org ([2001:4978:20e::1])
-	by bombadil.infradead.org with esmtps (Exim 4.72 #1 (Red Hat Linux))
-	id 1QCtxI-0004Oi-Gr
-	for linux-mm@kvack.org; Thu, 21 Apr 2011 13:30:00 +0000
-Received: from j77219.upc-j.chello.nl ([24.132.77.219] helo=dyad.programming.kicks-ass.net)
-	by canuck.infradead.org with esmtpsa (Exim 4.72 #1 (Red Hat Linux))
-	id 1QCtxH-00027n-IP
-	for linux-mm@kvack.org; Thu, 21 Apr 2011 13:29:59 +0000
-Subject: Re: [PATCH 14/20] mm: Remove i_mmap_lock lockbreak
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <20110419130719.86093a27.akpm@linux-foundation.org>
-References: <20110401121258.211963744@chello.nl>
-	 <20110401121725.991633993@chello.nl>
-	 <20110419130719.86093a27.akpm@linux-foundation.org>
-Content-Type: text/plain; charset="UTF-8"
-Date: Thu, 21 Apr 2011 15:32:35 +0200
-Message-ID: <1303392755.2035.141.camel@laptop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id ABB528D003B
+	for <linux-mm@kvack.org>; Thu, 21 Apr 2011 09:33:45 -0400 (EDT)
+Received: by fxm18 with SMTP id 18so1440350fxm.14
+        for <linux-mm@kvack.org>; Thu, 21 Apr 2011 06:33:42 -0700 (PDT)
+Date: Thu, 21 Apr 2011 15:32:48 +0200
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH v3] mm: make expand_downwards symmetrical to
+ expand_upwards
+Message-ID: <20110421133248.GD31724@htj.dyndns.org>
+References: <20110420102314.4604.A69D9226@jp.fujitsu.com>
+ <1303267733.11237.42.camel@mulgrave.site>
+ <20110420115804.461E.A69D9226@jp.fujitsu.com>
+ <alpine.DEB.2.00.1104200847240.8634@router.home>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1104200847240.8634@router.home>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Avi Kivity <avi@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@elte.hu>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Yanmin Zhang <yanmin_zhang@linux.intel.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, James Bottomley <James.Bottomley@HansenPartnership.com>, Pekka Enberg <penberg@kernel.org>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-parisc@vger.kernel.org, David Rientjes <rientjes@google.com>
 
-On Tue, 2011-04-19 at 13:07 -0700, Andrew Morton wrote:
-> On Fri, 01 Apr 2011 14:13:12 +0200
-> Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
-> 
-> > Hugh says:
-> >  "The only significant loser, I think, would be page reclaim (when
-> >   concurrent with truncation): could spin for a long time waiting for
-> >   the i_mmap_mutex it expects would soon be dropped? "
-> > 
-> > Counter points:
-> >  - cpu contention makes the spin stop (need_resched())
-> >  - zap pages should be freeing pages at a higher rate than reclaim
-> >    ever can
-> > 
-> > I think the simplification of the truncate code is definately worth it.
-> 
-> Well, we don't need to guess.  These things are testable!
+Hey,
 
-I suppose you're right, but I'm having a bit of a hard time coming up
-with a sensible (reproducible) test case for the page reclaim part of
-this problem set.
+On Wed, Apr 20, 2011 at 08:50:15AM -0500, Christoph Lameter wrote:
+> Tejon was working on getting rid of DISCONTIG. SPARSEMEM is the favored
+> alternative today. So we could potentially change the arches to use SPARSE
+> configs in the !NUMA case.
 
-I'll try running 3 cyclic file scanners sized such that 2 exceed the
-memory footprint of the machine and truncate the 3rd's file after
-warming up.
+Well, the thing is that sparsemem w/ vmemmap is definitely better than
+discontigmem on x86-64; however, on x86-32, vmemmap can't be used due
+to address space shortage and there are some minor disadvantages to
+sparsemem compared to discontigmem.
 
-That is, unless someone has a saner idea..
+IIRC, the biggest was losing a bit of granuality in memsections and
+possibly wasting slightly more memory on the page array.  Both didn't
+seem critical to me but given that the actual amount of code needed
+for discontigmem in arch code was fairly small (although the amount of
+added complexity for auditing/testing can be much higher) I didn't
+feel sure about dropping discontigmem and thus the patchset to drop
+discontigmem was posted as RFC, to which nobody commented.
+
+  http://thread.gmane.org/gmane.linux.kernel/1121321
+
+What do you guys think?
+
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
