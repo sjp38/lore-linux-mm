@@ -1,74 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 28F998D003B
-	for <linux-mm@kvack.org>; Thu, 21 Apr 2011 13:45:49 -0400 (EDT)
-Received: from d03relay01.boulder.ibm.com (d03relay01.boulder.ibm.com [9.17.195.226])
-	by e38.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p3LA02BL027639
-	for <linux-mm@kvack.org>; Thu, 21 Apr 2011 04:00:02 -0600
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay01.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p3LHjYE7139002
-	for <linux-mm@kvack.org>; Thu, 21 Apr 2011 11:45:35 -0600
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p3LHjVk8014791
-	for <linux-mm@kvack.org>; Thu, 21 Apr 2011 11:45:32 -0600
-Date: Thu, 21 Apr 2011 23:01:20 +0530
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id D81AF8D003B
+	for <linux-mm@kvack.org>; Thu, 21 Apr 2011 13:49:50 -0400 (EDT)
+Received: from canuck.infradead.org ([2001:4978:20e::1])
+	by bombadil.infradead.org with esmtps (Exim 4.72 #1 (Red Hat Linux))
+	id 1QCy0j-0003RB-Cd
+	for linux-mm@kvack.org; Thu, 21 Apr 2011 17:49:49 +0000
+Received: from j77219.upc-j.chello.nl ([24.132.77.219] helo=dyad.programming.kicks-ass.net)
+	by canuck.infradead.org with esmtpsa (Exim 4.72 #1 (Red Hat Linux))
+	id 1QCy0i-0003WQ-7X
+	for linux-mm@kvack.org; Thu, 21 Apr 2011 17:49:48 +0000
 Subject: Re: [PATCH v3 2.6.39-rc1-tip 7/26]  7: x86: analyze instruction
  and determine fixups.
-Message-ID: <20110421173120.GJ10698@linux.vnet.ibm.com>
-Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-References: <20110401143223.15455.19844.sendpatchset@localhost6.localdomain6>
- <20110401143348.15455.68644.sendpatchset@localhost6.localdomain6>
- <1303219751.7181.101.camel@gandalf.stny.rr.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <1303219751.7181.101.camel@gandalf.stny.rr.com>
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <20110421173120.GJ10698@linux.vnet.ibm.com>
+References: 
+	 <20110401143223.15455.19844.sendpatchset@localhost6.localdomain6>
+	 <20110401143348.15455.68644.sendpatchset@localhost6.localdomain6>
+	 <1303219751.7181.101.camel@gandalf.stny.rr.com>
+	 <20110421173120.GJ10698@linux.vnet.ibm.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Thu, 21 Apr 2011 19:52:25 +0200
+Message-ID: <1303408345.2035.161.camel@laptop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steven Rostedt <rostedt@goodmis.org>
-Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Jonathan Corbet <corbet@lwn.net>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, SystemTap <systemtap@sources.redhat.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Cc: Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@elte.hu>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Jonathan Corbet <corbet@lwn.net>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, SystemTap <systemtap@sources.redhat.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
 
-* Steven Rostedt <rostedt@goodmis.org> [2011-04-19 09:29:11]:
-
-> On Fri, 2011-04-01 at 20:03 +0530, Srikar Dronamraju wrote:
+On Thu, 2011-04-21 at 23:01 +0530, Srikar Dronamraju wrote:
 > 
-> > +
-> > +static void report_bad_prefix(void)
-> > +{
-> > +	printk(KERN_ERR "uprobes does not currently support probing "
-> > +		"instructions with any of the following prefixes: "
-> > +		"cs:, ds:, es:, ss:, lock:\n");
-> > +}
-> > +
-> > +static void report_bad_1byte_opcode(int mode, uprobe_opcode_t op)
-> > +{
-> > +	printk(KERN_ERR "In %d-bit apps, "
-> > +		"uprobes does not currently support probing "
-> > +		"instructions whose first byte is 0x%2.2x\n", mode, op);
-> > +}
-> > +
-> > +static void report_bad_2byte_opcode(uprobe_opcode_t op)
-> > +{
-> > +	printk(KERN_ERR "uprobes does not currently support probing "
-> > +		"instructions with the 2-byte opcode 0x0f 0x%2.2x\n", op);
-> > +}
-> 
-> Should these really be KERN_ERR, or is KERN_WARNING a better fit?
-> 
-> Also, can a non-privileged user cause these printks to spam the console
-> and cause a DoS to the system?
-> 
+> Sometimes, the user might try registering a probe at a valid file +
+> valid offset + valid consumer; but an instruction that we cant probe.
+> Then trying to figure why its failing would be very hard. 
 
-Sometimes, the user might try registering a probe at a valid file +
-valid offset + valid consumer; but an instruction that we cant probe.
-Then trying to figure why its failing would be very hard.
+Uhm, how about failing to create the probe to begin with?
 
-how about pr_warn_ratelimited()?
-
--- 
-Thanks and Regards
-Srikar
+You can even do that in userspace as you can inspect the DSO you're
+going to probe (and pretty much have to, since you'll have to pass the
+kernel a fd to hand it the proper inode).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
