@@ -1,50 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 9D7698D003B
-	for <linux-mm@kvack.org>; Thu, 21 Apr 2011 04:01:15 -0400 (EDT)
-Date: Thu, 21 Apr 2011 04:00:39 -0400
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH 5/6] writeback: try more writeback as long as something
- was written
-Message-ID: <20110421080038.GA4959@infradead.org>
-References: <20110419030532.778889102@intel.com>
- <20110419102016.GD5257@quack.suse.cz>
- <20110419111601.GA18961@localhost>
- <20110419211008.GD9556@quack.suse.cz>
- <20110420075053.GB30672@localhost>
- <20110420152211.GC4991@quack.suse.cz>
- <20110421033325.GA13764@localhost>
- <20110421070947.GA12436@dastard>
- <20110421071426.GA24790@infradead.org>
- <20110421075258.GB12436@dastard>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D3EB8D003B
+	for <linux-mm@kvack.org>; Thu, 21 Apr 2011 04:10:25 -0400 (EDT)
+Received: by iyh42 with SMTP id 42so1847215iyh.14
+        for <linux-mm@kvack.org>; Thu, 21 Apr 2011 01:10:24 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110421075258.GB12436@dastard>
+In-Reply-To: <20110421124357.c94a03a5.kamezawa.hiroyu@jp.fujitsu.com>
+References: <1303185466-2532-1-git-send-email-yinghan@google.com>
+	<20110421124357.c94a03a5.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Thu, 21 Apr 2011 17:10:23 +0900
+Message-ID: <BANLkTi=a967ofJGV1_i2vMb9QDGuK7vtog@mail.gmail.com>
+Subject: Re: [PATCH 1/3] memcg kswapd thread pool (Was Re: [PATCH V6 00/10]
+ memcg: per cgroup background reclaim
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Christoph Hellwig <hch@infradead.org>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@linux.vnet.ibm.com>, Trond Myklebust <Trond.Myklebust@netapp.com>, Itaru Kitayama <kitayama@cl.bb4u.ne.jp>, Minchan Kim <minchan.kim@gmail.com>, LKML <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Ying Han <yinghan@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>, linux-mm@kvack.org
 
-On Thu, Apr 21, 2011 at 05:52:58PM +1000, Dave Chinner wrote:
-> > We shouldn't have I_DIRTY_PAGES set for that case, as we only redirty
-> > metadata.  But we're actually doing a xfs_mark_inode_dirty, which
-> > dirties all of I_DIRTY, which includes I_DIRTY_PAGES.  I guess it
-> > should change to
-> > 
-> > 	__mark_inode_dirty(inode, I_DIRTY_SYNC | I_DIRTY_DATASYNC);
-> 
-> Probably should. Using xfs_mark_inode_dirty_sync() might be the best
-> thing to do.
+Hi Kame,
 
-That's not correct either - we need to set I_DIRTY_DATASYNC so that it
-gets caught by fsync and not just fdatasync.
+On Thu, Apr 21, 2011 at 12:43 PM, KAMEZAWA Hiroyuki
+<kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> Ying, please take this just a hint, you don't need to implement this as is.
+> ==
+> Now, memcg-kswapd is created per a cgroup. Considering there are users
+> who creates hundreds on cgroup on a system, it consumes too much
+> resources, memory, cputime.
+>
+> This patch creates a thread pool for memcg-kswapd. All memcg which
+> needs background recalim are linked to a list and memcg-kswapd
+> picks up a memcg from the list and run reclaim. This reclaimes
+> SWAP_CLUSTER_MAX of pages and putback the memcg to the lail of
+> list. memcg-kswapd will visit memcgs in round-robin manner and
+> reduce usages.
+>
 
-But thinking about it I'm actually not sure we need it at all.  We already
-wait for the i_iocount to go to zero both in fsync and ->sync_fs, which will
-catch pending I/O completions even without any VFS dirty state.  So just
-marking the inode dirty (as I_DIRTY_SYNC | I_DIRTY_DATASYNC) on I/O
-completion should be enough these days.
+I didn't look at code yet but as I just look over the description, I
+have a concern.
+We have discussed LRU separation between global and memcg.
+The clear goal is that how to keep _fairness_.
+
+For example,
+
+memcg-1 : # pages of LRU : 64
+memcg-2 : # pages of LRU : 128
+memcg-3 : # pages of LRU : 256
+
+If we have to reclaim 96 pages, memcg-1 would be lost half of pages.
+It's much greater than others so memcg 1's page LRU rotation cycle
+would be very fast, then working set pages in memcg-1 don't have a
+chance to promote.
+Is it fair?
+
+I think we should consider memcg-LRU size as doing round-robin.
+
+Thanks.
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
