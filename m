@@ -1,11 +1,12 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 305128D003B
-	for <linux-mm@kvack.org>; Thu, 21 Apr 2011 09:12:45 -0400 (EDT)
-Subject: [PATCH 2/3] mem-hwpoison: fix page refcount around isolate_lru_page()
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 167FD8D0041
+	for <linux-mm@kvack.org>; Thu, 21 Apr 2011 09:12:48 -0400 (EDT)
+Subject: [PATCH 3/3] mm: strictly require elevated page refcount in
+ isolate_lru_page()
 From: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Date: Thu, 21 Apr 2011 17:12:40 +0400
-Message-ID: <20110421131240.17363.15414.stgit@localhost6>
+Date: Thu, 21 Apr 2011 17:12:42 +0400
+Message-ID: <20110421131242.17363.49785.stgit@localhost6>
 In-Reply-To: <20110421131239.17363.82750.stgit@localhost6>
 References: <20110421131239.17363.82750.stgit@localhost6>
 MIME-Version: 1.0
@@ -16,48 +17,69 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 Cc: Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org
 
-Drop first page reference only after calling isolate_lru_page()
-to keep page stable reference while isolating.
+isolate_lru_page() must be called only with stable reference to the page,
+this is what is written in the comment above it, this is reasonable.
+
+current isolate_lru_page() users and its page extra reference sources:
+
+mm/huge_memory.c
+__collapse_huge_page_isolate()		- reference from pte
+
+mm/memcontrol.c
+mem_cgroup_move_parent()		- get_page_unless_zero()
+mem_cgroup_move_charge_pte_range()	- reference from pte
+
+mm/memory-failure.c
+soft_offline_page()			- fixed, reference from get_any_page()
+delete_from_lru_cache() - reference from caller or get_page_unless_zero()
+[seems like there bug, because __memory_failure() can call page_action() for
+ hpages tail, but it is ok for isolate_lru_page(), tail getted and not in lru]
+
+mm/memory_hotplug.c
+do_migrate_range()			- fixed, get_page_unless_zero()
+
+mm/mempolicy.c
+migrate_page_add()			- reference from pte
+
+mm/migrate.c
+do_move_page_to_node_array()		- reference from follow_page()
+
+mlock.c					- various external references
+
+mm/vmscan.c
+putback_lru_page()			- reference from isolate_lru_page()
+
+It seems that all isolate_lru_page() users are ready now for this restriction.
+So, let's replace redundant get_page_unless_zero() with get_page() and
+add page initial reference count check with VM_BUG_ON()
 
 Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
 ---
- mm/memory-failure.c |   11 ++++++-----
- 1 files changed, 6 insertions(+), 5 deletions(-)
+ mm/vmscan.c |    5 ++++-
+ 1 files changed, 4 insertions(+), 1 deletions(-)
 
-diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-index 2b9a5ee..a17d31e 100644
---- a/mm/memory-failure.c
-+++ b/mm/memory-failure.c
-@@ -1440,16 +1440,12 @@ int soft_offline_page(struct page *page, int flags)
- 	 */
- 	ret = invalidate_inode_page(page);
- 	unlock_page(page);
--
- 	/*
--	 * Drop count because page migration doesn't like raised
--	 * counts. The page could get re-allocated, but if it becomes
--	 * LRU the isolation will just fail.
- 	 * RED-PEN would be better to keep it isolated here, but we
- 	 * would need to fix isolation locking first.
- 	 */
--	put_page(page);
- 	if (ret == 1) {
-+		put_page(page);
- 		ret = 0;
- 		pr_info("soft_offline: %#lx: invalidated\n", pfn);
- 		goto done;
-@@ -1461,6 +1457,11 @@ int soft_offline_page(struct page *page, int flags)
- 	 * handles a large number of cases for us.
- 	 */
- 	ret = isolate_lru_page(page);
-+	/*
-+	 * Drop page reference which is came from get_any_page()
-+	 * successful isolate_lru_page() already took another one.
-+	 */
-+	put_page(page);
- 	if (!ret) {
- 		LIST_HEAD(pagelist);
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index f6b435c..0175f39 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1201,13 +1201,16 @@ int isolate_lru_page(struct page *page)
+ {
+ 	int ret = -EBUSY;
  
++	VM_BUG_ON(!page_count(page));
++
+ 	if (PageLRU(page)) {
+ 		struct zone *zone = page_zone(page);
+ 
+ 		spin_lock_irq(&zone->lru_lock);
+-		if (PageLRU(page) && get_page_unless_zero(page)) {
++		if (PageLRU(page)) {
+ 			int lru = page_lru(page);
+ 			ret = 0;
++			get_page(page);
+ 			ClearPageLRU(page);
+ 
+ 			del_page_from_lru_list(zone, page, lru);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
