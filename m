@@ -1,91 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 755738D003B
-	for <linux-mm@kvack.org>; Thu, 21 Apr 2011 03:21:12 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 6C3353EE0C0
-	for <linux-mm@kvack.org>; Thu, 21 Apr 2011 16:21:08 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 510ED45DE4E
-	for <linux-mm@kvack.org>; Thu, 21 Apr 2011 16:21:08 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 2D51145DE61
-	for <linux-mm@kvack.org>; Thu, 21 Apr 2011 16:21:08 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 1BE1F1DB802C
-	for <linux-mm@kvack.org>; Thu, 21 Apr 2011 16:21:08 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id DBC271DB8038
-	for <linux-mm@kvack.org>; Thu, 21 Apr 2011 16:21:07 +0900 (JST)
-Date: Thu, 21 Apr 2011 16:14:27 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 1/3] memcg kswapd thread pool (Was Re: [PATCH V6 00/10]
- memcg: per cgroup background reclaim
-Message-Id: <20110421161427.21b3ed80.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <BANLkTin+Hghwx6L-jy_3n7ySPunECEiA3g@mail.gmail.com>
-References: <1303185466-2532-1-git-send-email-yinghan@google.com>
-	<20110421124357.c94a03a5.kamezawa.hiroyu@jp.fujitsu.com>
-	<BANLkTin+Hghwx6L-jy_3n7ySPunECEiA3g@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 1D7618D003B
+	for <linux-mm@kvack.org>; Thu, 21 Apr 2011 03:53:08 -0400 (EDT)
+Date: Thu, 21 Apr 2011 17:52:58 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH 5/6] writeback: try more writeback as long as something
+ was written
+Message-ID: <20110421075258.GB12436@dastard>
+References: <20110419030003.108796967@intel.com>
+ <20110419030532.778889102@intel.com>
+ <20110419102016.GD5257@quack.suse.cz>
+ <20110419111601.GA18961@localhost>
+ <20110419211008.GD9556@quack.suse.cz>
+ <20110420075053.GB30672@localhost>
+ <20110420152211.GC4991@quack.suse.cz>
+ <20110421033325.GA13764@localhost>
+ <20110421070947.GA12436@dastard>
+ <20110421071426.GA24790@infradead.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110421071426.GA24790@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>, linux-mm@kvack.org
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@linux.vnet.ibm.com>, Trond Myklebust <Trond.Myklebust@netapp.com>, Itaru Kitayama <kitayama@cl.bb4u.ne.jp>, Minchan Kim <minchan.kim@gmail.com>, LKML <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-On Thu, 21 Apr 2011 00:09:13 -0700
-Ying Han <yinghan@google.com> wrote:
+On Thu, Apr 21, 2011 at 03:14:26AM -0400, Christoph Hellwig wrote:
+> On Thu, Apr 21, 2011 at 05:09:47PM +1000, Dave Chinner wrote:
+> > Likely just timing. When IO completes and updates the inode IO size,
+> > XFS calls mark_inode_dirty() again to ensure that the metadata that
+> > was changed gets written out at a later point in time.
+> > Hence every single file that is created by the test will be marked
+> > dirty again after the first write has returned and disappeared.
+> > 
+> > Why you see different numbers? it's timing dependent based on Io
+> > completion rates - if you have a fast disk the IO completion can
+> > occur before write_inode() is called and so the inode can be written
+> > and the dirty page state removed in the one writeback_single_inode()
+> > call...
+> > 
+> > That's my initial guess without looking at it in any real detail,
+> > anyway.
+> 
+> We shouldn't have I_DIRTY_PAGES set for that case, as we only redirty
+> metadata.  But we're actually doing a xfs_mark_inode_dirty, which
+> dirties all of I_DIRTY, which includes I_DIRTY_PAGES.  I guess it
+> should change to
+> 
+> 	__mark_inode_dirty(inode, I_DIRTY_SYNC | I_DIRTY_DATASYNC);
 
-> On Wed, Apr 20, 2011 at 8:43 PM, KAMEZAWA Hiroyuki <
-> kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> 
-> > Ying, please take this just a hint, you don't need to implement this as is.
-> >
-> 
-> Thank you for the patch.
-> 
-> 
-> > ==
-> > Now, memcg-kswapd is created per a cgroup. Considering there are users
-> > who creates hundreds on cgroup on a system, it consumes too much
-> > resources, memory, cputime.
-> >
-> > This patch creates a thread pool for memcg-kswapd. All memcg which
-> > needs background recalim are linked to a list and memcg-kswapd
-> > picks up a memcg from the list and run reclaim. This reclaimes
-> > SWAP_CLUSTER_MAX of pages and putback the memcg to the lail of
-> > list. memcg-kswapd will visit memcgs in round-robin manner and
-> > reduce usages.
-> >
-> > This patch does
-> >
-> >  - adds memcg-kswapd thread pool, the number of threads is now
-> >   sqrt(num_of_cpus) + 1.
-> >  - use unified kswapd_waitq for all memcgs.
-> >
-> 
-> So I looked through the patch, it implements an alternative threading model
-> using thread-pool. Also it includes some changes on calculating how much
-> pages to reclaim per memcg. Other than that, all the existing implementation
-> of per-memcg-kswapd seems not being impacted.
-> 
-> I tried to apply the patch but get some conflicts on vmscan.c/ I will try
-> some manual work tomorrow. Meantime, after applying the patch, I will try to
-> test it w/ the same test suite i used on original patch. AFAIK, the only
-> difference of the two threading model is the amount of resources we consume
-> on the kswapd kernel thread, which shouldn't have run-time performance
-> differences.
-> 
+Probably should. Using xfs_mark_inode_dirty_sync() might be the best
+thing to do.
 
-I hope so. 
-To be honest, I don't like one-thread-per-one-job model because it's wastes
-resouce and cache foot print and what we can do is just hoping schedulre
-schedules tasks well. I like one-thread-per-mulutiple job and switching in
-finer grain with knowledge of memory cgroup.
+Cheers,
 
-Thanks,
--Kame
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
