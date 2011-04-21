@@ -1,57 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 01C088D003B
-	for <linux-mm@kvack.org>; Thu, 21 Apr 2011 07:44:22 -0400 (EDT)
-From: Phil Carmody <ext-phil.2.carmody@nokia.com>
-Subject: [PATCH] kmemleak: Never return a pointer you didn't 'get'
-Date: Thu, 21 Apr 2011 14:39:32 +0300
-Message-Id: <1303385972-2518-1-git-send-email-ext-phil.2.carmody@nokia.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id B87308D003B
+	for <linux-mm@kvack.org>; Thu, 21 Apr 2011 08:03:58 -0400 (EDT)
+Received: from d01relay07.pok.ibm.com (d01relay07.pok.ibm.com [9.56.227.147])
+	by e1.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p3LBrG3g026349
+	for <linux-mm@kvack.org>; Thu, 21 Apr 2011 07:53:16 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay07.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p3LC3j6G1749062
+	for <linux-mm@kvack.org>; Thu, 21 Apr 2011 08:03:45 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p3LC3ehh000597
+	for <linux-mm@kvack.org>; Thu, 21 Apr 2011 09:03:42 -0300
+Date: Thu, 21 Apr 2011 17:19:36 +0530
+From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Subject: Re: [PATCH v3 2.6.39-rc1-tip 18/26] 18: uprobes: commonly used
+ filters.
+Message-ID: <20110421114936.GF10698@linux.vnet.ibm.com>
+Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+References: <20110401143223.15455.19844.sendpatchset@localhost6.localdomain6>
+ <20110401143602.15455.82211.sendpatchset@localhost6.localdomain6>
+ <1303221477.8345.6.camel@twins>
+ <20110421110911.GE10698@linux.vnet.ibm.com>
+ <1303385835.2035.75.camel@laptop>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <1303385835.2035.75.camel@laptop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: catalin.marinas@arm.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, ext-phil.2.carmody@nokia.com
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Christoph Hellwig <hch@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, SystemTap <systemtap@sources.redhat.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>
 
-Old - If you don't get the last pointer that you looked at, then it will
-still be put, as there's no way of knowing you didn't get it.
+* Peter Zijlstra <peterz@infradead.org> [2011-04-21 13:37:15]:
 
-New - If you didn't get it, then it refers to something deleted, and
-your work is done, so return NULL.
+> On Thu, 2011-04-21 at 16:39 +0530, Srikar Dronamraju wrote:
+> > > What you want is to save the pid-namespace of the task creating the
+> > > filter in your uprobe_simple_consumer and use that to obtain the task's
+> > > pid for matching with the provided number.
+> > > 
+> > 
+> > Okay, will do by adding the pid-namespace of the task creating the
+> > filter in the uprobe_simple_consumer. 
+> 
+> Maybe you could convert to the global pid namespace on construction and
+> always use that for comparison.
+> 
+> That would avoid the namespace muck on comparison.. 
+> 
 
-Signed-off-by: Phil Carmody <ext-phil.2.carmody@nokia.com>
----
- mm/kmemleak.c |    8 ++++++--
- 1 files changed, 6 insertions(+), 2 deletions(-)
+Yeah, this idea also seems feasible.
 
-diff --git a/mm/kmemleak.c b/mm/kmemleak.c
-index 8bf765c..3bf204d 100644
---- a/mm/kmemleak.c
-+++ b/mm/kmemleak.c
-@@ -1350,17 +1350,21 @@ static void *kmemleak_seq_next(struct seq_file *seq, void *v, loff_t *pos)
- 	struct kmemleak_object *prev_obj = v;
- 	struct kmemleak_object *next_obj = NULL;
- 	struct list_head *n = &prev_obj->object_list;
-+	int found = 0;
- 
- 	++(*pos);
- 
- 	list_for_each_continue_rcu(n, &object_list) {
- 		next_obj = list_entry(n, struct kmemleak_object, object_list);
--		if (get_object(next_obj))
-+		if (get_object(next_obj)) {
-+			found = 1;
- 			break;
-+		}
- 	}
- 
- 	put_object(prev_obj);
--	return next_obj;
-+
-+	return found ? next_obj : NULL;
- }
- 
- /*
 -- 
-1.7.2.rc1.37.gf8c40
+Thanks and Regards
+Srikar
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
