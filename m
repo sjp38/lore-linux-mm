@@ -1,50 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 406D58D003B
-	for <linux-mm@kvack.org>; Thu, 21 Apr 2011 12:14:14 -0400 (EDT)
-Date: Thu, 21 Apr 2011 18:14:02 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH] mm: Check if PTE is already allocated during page fault
-Message-ID: <20110421161402.GS5611@random.random>
-References: <20110415101248.GB22688@suse.de>
- <BANLkTik7H+cmA8iToV4j1ncbQqeraCaeTg@mail.gmail.com>
- <20110421110841.GA612@suse.de>
- <20110421142636.GA1835@barrios-desktop>
- <20110421160057.GA28712@suse.de>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 5BB388D003B
+	for <linux-mm@kvack.org>; Thu, 21 Apr 2011 12:22:04 -0400 (EDT)
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110421160057.GA28712@suse.de>
+Content-Transfer-Encoding: 7bit
+From: Roland McGrath <roland@hack.frob.com>
+Subject: Re: [PATCH v3 2.6.39-rc1-tip 12/26] 12: uprobes: slot allocation
+ for uprobes
+In-Reply-To: Eric Paris's message of  Thursday, 21 April 2011 10:45:33 -0400 <1303397133.1708.41.camel@unknown001a4b0c2895>
+References: <20110401143223.15455.19844.sendpatchset@localhost6.localdomain6>
+	<20110401143457.15455.64839.sendpatchset@localhost6.localdomain6>
+	<1303145171.32491.886.camel@twins>
+	<20110419062654.GB10698@linux.vnet.ibm.com>
+	<BANLkTimw7dV9_aSsrUfzwSdwr6UwZDsRwg@mail.gmail.com>
+	<20110421141125.GG10698@linux.vnet.ibm.com>
+	<1303397133.1708.41.camel@unknown001a4b0c2895>
+Message-Id: <20110421161442.61A532C15B@topped-with-meat.com>
+Date: Thu, 21 Apr 2011 09:14:42 -0700 (PDT)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Minchan Kim <minchan.kim@gmail.com>, akpm@linux-foundation.org, raz ben yehuda <raziebe@gmail.com>, riel@redhat.com, kosaki.motohiro@jp.fujitsu.com, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, stable@kernel.org
+To: Eric Paris <eparis@redhat.com>
+Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Eric Paris <eparis@parisplace.org>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, SystemTap <systemtap@sources.redhat.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>, sds@tycho.nsa.gov
 
-On Thu, Apr 21, 2011 at 05:00:57PM +0100, Mel Gorman wrote:
-> If you want to create a new patch with either your comment or mine
-> (whichever you prefer) I'll add my ack. I'm about to drop offline
-> for a few days but if it's still there Tuesday, I'll put together an
-> appropriate patch and submit. I'd keep it separate from the other patch
-> because it's a performance fix (which I'd like to see in -stable) where
-> as this is more of a cleanup IMO.
+> Unrelated note: I'd prefer to see that page be READ+EXEC only once it
+> has been mapped into the victim task.  Obviously the portion of the code
+> that creates this page and sets up the instructions to run is going to
+> need write.  Maybe this isn't feasible.  Maybe this magic pages gets
+> written a lot even after it's been mapped in.  But I'd rather, if
+> possible, know that my victim tasks didn't have a WRITE+EXEC page
+> available......
 
-I think the older patch should have more priority agreed. This one may
-actually waste cpu cycles overall, rather than saving them, it
-shouldn't be a common occurrence.
+AIUI the page never really needs to be writable in the page tables.  It's
+never written from user mode.  It's only written by kernel code, and that
+can use a separate momentary kmap to do its writing.
 
->From a code consistency point of view maybe we should just implement a
-pte_alloc macro (to put after pte_alloc_map) and use it in both
-places, and hide the glory details of the unlikely in the macro. When
-implementing pte_alloc, I suggest also adding unlikely to both, I mean
-we added unlikely to the fast path ok, but __pte_alloc is orders of
-magnitude less likely to fail than pte_none, and it still runs 1 every
-512 4k page faults, so I think __pte_alloc deserves an unlikely too.
 
-Minchan, you suggested this cleanup, so I suggest you to send a patch,
-but if you're busy we can help.
-
-Thanks!
-Andrea
+Thanks,
+Roland
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
