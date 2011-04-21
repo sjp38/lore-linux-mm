@@ -1,43 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 23D788D003B
-	for <linux-mm@kvack.org>; Thu, 21 Apr 2011 12:37:31 -0400 (EDT)
-Subject: Re: [PATCH v3] mm: make expand_downwards symmetrical to
- expand_upwards
-From: James Bottomley <James.Bottomley@HansenPartnership.com>
-In-Reply-To: <20110421221712.9184.A69D9226@jp.fujitsu.com>
-References: <1303337718.2587.51.camel@mulgrave.site>
-	 <alpine.DEB.2.00.1104201530430.13948@chino.kir.corp.google.com>
-	 <20110421221712.9184.A69D9226@jp.fujitsu.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Thu, 21 Apr 2011 11:37:27 -0500
-Message-ID: <1303403847.4025.11.camel@mulgrave.site>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id E01498D003B
+	for <linux-mm@kvack.org>; Thu, 21 Apr 2011 12:41:59 -0400 (EDT)
+Date: Thu, 21 Apr 2011 18:41:54 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 5/6] writeback: try more writeback as long as something
+ was written
+Message-ID: <20110421164154.GC4476@quack.suse.cz>
+References: <20110419030003.108796967@intel.com>
+ <20110419030532.778889102@intel.com>
+ <20110419102016.GD5257@quack.suse.cz>
+ <20110419111601.GA18961@localhost>
+ <20110419211008.GD9556@quack.suse.cz>
+ <20110420075053.GB30672@localhost>
+ <20110420152211.GC4991@quack.suse.cz>
+ <20110421033325.GA13764@localhost>
+ <20110421043940.GC22423@infradead.org>
+ <20110421060556.GA24232@localhost>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110421060556.GA24232@localhost>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-parisc@vger.kernel.org, Ingo Molnar <mingo@elte.hu>, x86 maintainers <x86@kernel.org>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Christoph Hellwig <hch@infradead.org>, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@linux.vnet.ibm.com>, Dave Chinner <david@fromorbit.com>, Trond Myklebust <Trond.Myklebust@netapp.com>, Itaru Kitayama <kitayama@cl.bb4u.ne.jp>, Minchan Kim <minchan.kim@gmail.com>, LKML <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-On Thu, 2011-04-21 at 22:16 +0900, KOSAKI Motohiro wrote:
-> > This should fix the remaining architectures so they can use CONFIG_SLUB, 
-> > but I hope it can be tested by the individual arch maintainers like you 
-> > did for parisc.
+On Thu 21-04-11 14:05:56, Wu Fengguang wrote:
+> On Thu, Apr 21, 2011 at 12:39:40PM +0800, Christoph Hellwig wrote:
+> > On Thu, Apr 21, 2011 at 11:33:25AM +0800, Wu Fengguang wrote:
+> > > I collected the writeback_single_inode() traces (patch attached for
+> > > your reference) each for several test runs, and find much more
+> > > I_DIRTY_PAGES after patchset. Dave, do you know why there are so many
+> > > I_DIRTY_PAGES (or radix tag) remained after the XFS ->writepages() call,
+> > > even for small files?
+> > 
+> > What is your defintion of a small file?  As soon as it has multiple
+> > extents or holes there's absolutely no way to clean it with a single
+> > writepage call.
 > 
-> ia64 and mips have CONFIG_ARCH_POPULATES_NODE_MAP and it initialize
-> N_NORMAL_MEMORY automatically if my understand is correct.
-> (plz see free_area_init_nodes)
-> 
-> I guess alpha and m32r have no active developrs. only m68k seems to be need
-> fix and we have a chance to get a review... 
+> It's writing a kernel source tree to XFS. You can find in the below
+> trace that it often leaves more dirty pages behind (indicated by the
+> I_DIRTY_PAGES flag) after writing as less as 1 page (indicated by the
+> wrote=1 field).
+  As Dave said, it's probably just a race since XFS redirties the inode on
+IO completion. So I think the inodes are just small so they have only a few
+dirty pages so you don't have much to write and they are written and
+redirtied before you check the I_DIRTY flags. You could use radix tree
+dirty tag to verify whether there are really dirty pages or not...
 
-Actually, it's not quite a fix yet, I'm afraid.  I've just been
-investigating why my main 4 way box got slower with kernel builds:
-Apparently userspace processes are now all stuck on CPU0, so we're
-obviously tripping over some NUMA scheduling stuff that's missing.
+  BTW a quick check of kernel tree shows the following distribution of
+sizes (in KB):
+  Count KB  Cumulative Percent
+    257 0   0.9%
+  13309 4   45%
+   5553 8   63%
+   2997 12  73%
+   1879 16  80%
+   1275 20  83%
+    987 24  87%
+    685 28  89%
+    540 32  91%
+    387 36  ...
+    309 40
+    264 44
+    249 48
+    170 52
+    143 56
+    144 60
+    132 64
+    100 68
+    ...
+Total 30155
 
-James
+And the distribution of your 'wrote=xxx' roughly corresponds to this...
 
+								Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
