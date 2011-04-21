@@ -1,135 +1,248 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 2202A8D003B
-	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 23:01:58 -0400 (EDT)
-Date: Thu, 21 Apr 2011 13:01:52 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH 3/6] writeback: sync expired inodes first in background
- writeback
-Message-ID: <20110421030152.GG1814@dastard>
-References: <20110419030003.108796967@intel.com>
- <20110419030532.515923886@intel.com>
- <20110419073523.GF23985@dastard>
- <20110419095740.GC5257@quack.suse.cz>
- <20110419125616.GA20059@localhost>
- <20110420012120.GK23985@dastard>
- <20110420025321.GA14398@localhost>
- <20110421004547.GD1814@dastard>
- <20110421020617.GB12191@localhost>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F2AF8D003B
+	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 23:05:11 -0400 (EDT)
+Received: from hpaq6.eem.corp.google.com (hpaq6.eem.corp.google.com [172.25.149.6])
+	by smtp-out.google.com with ESMTP id p3L357w8009488
+	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 20:05:08 -0700
+Received: from qwa26 (qwa26.prod.google.com [10.241.193.26])
+	by hpaq6.eem.corp.google.com with ESMTP id p3L34etV026455
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 20:05:06 -0700
+Received: by qwa26 with SMTP id 26so1000869qwa.14
+        for <linux-mm@kvack.org>; Wed, 20 Apr 2011 20:05:06 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110421020617.GB12191@localhost>
+In-Reply-To: <20110421025107.GG2333@cmpxchg.org>
+References: <1303185466-2532-1-git-send-email-yinghan@google.com>
+	<20110421025107.GG2333@cmpxchg.org>
+Date: Wed, 20 Apr 2011 20:05:05 -0700
+Message-ID: <BANLkTi=JTGngiosgEsWEo5A-xGAOeEpVGQ@mail.gmail.com>
+Subject: Re: [PATCH V6 00/10] memcg: per cgroup background reclaim
+From: Ying Han <yinghan@google.com>
+Content-Type: multipart/alternative; boundary=002354470aa81c45ee04a165023f
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@linux.vnet.ibm.com>, Mel Gorman <mel@csn.ul.ie>, Trond Myklebust <Trond.Myklebust@netapp.com>, Itaru Kitayama <kitayama@cl.bb4u.ne.jp>, Minchan Kim <minchan.kim@gmail.com>, LKML <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>, linux-mm@kvack.org
 
-On Thu, Apr 21, 2011 at 10:06:17AM +0800, Wu Fengguang wrote:
-> On Thu, Apr 21, 2011 at 08:45:47AM +0800, Dave Chinner wrote:
-> > On Wed, Apr 20, 2011 at 10:53:21AM +0800, Wu Fengguang wrote:
-> > > On Wed, Apr 20, 2011 at 09:21:20AM +0800, Dave Chinner wrote:
-> > > > On Tue, Apr 19, 2011 at 08:56:16PM +0800, Wu Fengguang wrote:
-> > > > > I actually started with wb_writeback() as a natural choice, and then
-> > > > > found it much easier to do the expired-only=>all-inodes switching in
-> > > > > move_expired_inodes() since it needs to know the @b_dirty and @tmp
-> > > > > lists' emptiness to trigger the switch. It's not sane for
-> > > > > wb_writeback() to look into such details. And once you do the switch
-> > > > > part in move_expired_inodes(), the whole policy naturally follows.
-> > > > 
-> > > > Well, not really. You didn't need to modify move_expired_inodes() at
-> > > > all to implement these changes - all you needed to do was modify how
-> > > > older_than_this is configured.
-> > > > 
-> > > > writeback policy is defined by the struct writeback_control.
-> > > > move_expired_inodes() is pure mechanism. What you've done is remove
-> > > > policy from the struct wbc and moved it to move_expired_inodes(),
-> > > > which now defines both policy and mechanism.
-> > > 
-> > > > Furhter, this means that all the tracing that uses the struct wbc no
-> > > > no longer shows the entire writeback policy that is being worked on,
-> > > > so we lose visibility into policy decisions that writeback is
-> > > > making.
-> > > 
-> > > Good point! I'm convinced, visibility is a necessity for debugging the
-> > > complex writeback behaviors.
-> > > 
-> > > > This same change is as simple as updating wbc->older_than_this
-> > > > appropriately after the wb_writeback() call for both background and
-> > > > kupdate and leaving the lower layers untouched. It's just a policy
-> > > > change. If you thinkthe mechanism is inefficient, copy
-> > > > wbc->older_than_this to a local variable inside
-> > > > move_expired_inodes()....
-> > > 
-> > > Do you like something like this? (details will change a bit when
-> > > rearranging the patchset)
-> > 
-> > Yeah, this is close to what I had in mind.
-> > 
-> > > 
-> > > --- linux-next.orig/fs/fs-writeback.c	2011-04-20 10:30:47.000000000 +0800
-> > > +++ linux-next/fs/fs-writeback.c	2011-04-20 10:40:19.000000000 +0800
-> > > @@ -660,11 +660,6 @@ static long wb_writeback(struct bdi_writ
-> > >  	long write_chunk;
-> > >  	struct inode *inode;
-> > >  
-> > > -	if (wbc.for_kupdate) {
-> > > -		wbc.older_than_this = &oldest_jif;
-> > > -		oldest_jif = jiffies -
-> > > -				msecs_to_jiffies(dirty_expire_interval * 10);
-> > > -	}
-> > 
-> > Right here I'd do:
-> > 
-> > 	if (work->for_kupdate || work->for_background)
-> > 		wbc.older_than_this = &oldest_jif;
-> > 
-> > so that the setting of wbc.older_than_this in the loop can trigger
-> > on whether it is null or not.
-> 
-> That's the tricky part that drove me to change move_expired_inodes()
-> directly..
-> 
-> One important thing to bear in mind is, the background work can run on
-> for one hour, one day or whatever. During the time dirty inodes come
-> and go, expired and cleaned.  If we only reset wbc.older_than_this and
-> never restore it _inside_ the loop, we'll quickly lose the ability to
-> "start with expired inodes" shortly after f.g. 5 minutes.
+--002354470aa81c45ee04a165023f
+Content-Type: text/plain; charset=ISO-8859-1
 
-However, there's not need to implicity switch back to expired inodes
-on the next wb_writeback loop - it only needs to switch back when
-b_io is emptied. And I suspect that it really only needs to switch
-if there are inodes on b_more_io because if we didn't put any inodes
-onto b_more_io, then then we most likely cleaned the entire list of
-unexpired inodes in a single write chunk...
+On Wed, Apr 20, 2011 at 7:51 PM, Johannes Weiner <hannes@cmpxchg.org> wrote:
 
-That is, something like this when updating the background state in
-the loop tail:
+> Hello Ying,
+>
+> I'm sorry that I chime in so late, I was still traveling until Monday.
+>
 
-	if (work->for_background && list_empty(&wb->b_io)) {
-		if (wbc.older_than_this) {
-			if (list_empty(&wb->b_more_io)) {
-				wbc.older_than_this = NULL;
-				continue;
-			}
-		} else if (!list_empty(&wb->b_more_io)) {
-			wbc.older_than_this = &oldest_jif;
-			continue;
-		}
-	}
+Hey, hope you had a great trip :)
 
-Still, given wb_writeback() is the only caller of both
-__writeback_inodes_sb and writeback_inodes_wb(), I'm wondering if
-moving the queue_io calls up into wb_writeback() would clean up this
-logic somewhat. I think Jan mentioned doing something like this as
-well elsewhere in the thread...
+>
+> On Mon, Apr 18, 2011 at 08:57:36PM -0700, Ying Han wrote:
+> > The current implementation of memcg supports targeting reclaim when the
+> > cgroup is reaching its hard_limit and we do direct reclaim per cgroup.
+> > Per cgroup background reclaim is needed which helps to spread out memory
+> > pressure over longer period of time and smoothes out the cgroup
+> performance.
+>
+> Latency reduction makes perfect sense, the reasons kswapd exists apply
+> to memory control groups as well.  But I disagree with the design
+> choices you made.
+>
+> > If the cgroup is configured to use per cgroup background reclaim, a
+> kswapd
+> > thread is created which only scans the per-memcg LRU list.
+>
+> We already have direct reclaim, direct reclaim on behalf of a memcg,
+> and global kswapd-reclaim.  Please don't add yet another reclaim path
+> that does its own thing and interacts unpredictably with the rest of
+> them.
+>
 
-Cheers,
+Yes, we do have per-memcg direct reclaim and kswapd-reclaim. but the later
+one is global and we don't want to start reclaiming from each memcg until we
+reach the global memory pressure.
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+>
+> As discussed on LSF, we want to get rid of the global LRU.  So the
+> goal is to have each reclaim entry end up at the same core part of
+> reclaim that round-robin scans a subset of zones from a subset of
+> memory control groups.
+>
+
+True, but that is for system under global memory pressure and we would like
+to do targeting reclaim instead of reclaiming from the global LRU. That is
+not the same in this patch, which is doing targeting reclaim proactively
+per-memcg based on their hard_limit.
+
+>
+> > Two watermarks ("high_wmark", "low_wmark") are added to trigger the
+> > background reclaim and stop it. The watermarks are calculated based
+> > on the cgroup's limit_in_bytes.
+>
+> Which brings me to the next issue: making the watermarks configurable.
+>
+> You argued that having them adjustable from userspace is required for
+> overcommitting the hardlimits and per-memcg kswapd reclaim not kicking
+> in in case of global memory pressure.  But that is only a problem
+> because global kswapd reclaim is (apart from soft limit reclaim)
+> unaware of memory control groups.
+>
+> I think the much better solution is to make global kswapd memcg aware
+> (with the above mentioned round-robin reclaim scheduler), compared to
+> adding new (and final!) kernel ABI to avoid an internal shortcoming.
+>
+
+We need to make the global kswapd memcg aware and that is the
+soft_limit hierarchical reclaim.
+It is different from doing per-memcg background reclaim which we want to
+reclaim memory per-memcg
+before they goes to per-memcg direct reclaim.
+
+>
+> The whole excercise of asynchroneous background reclaim is to reduce
+> reclaim latency.  We already have a mechanism for global memory
+> pressure in place.  Per-memcg watermarks should only exist to avoid
+> direct reclaim due to hitting the hardlimit, nothing else.
+>
+
+Yes, but we have per-memcg direct reclaim which is based on the hard_limit.
+The latency we need to reduce is the direct reclaim which is different from
+global memory pressure.
+
+>
+> So in summary, I think converting the reclaim core to this round-robin
+> scheduler solves all these problems at once: a single code path for
+> reclaim, breaking up of the global lru lock, fair soft limit reclaim,
+> and a mechanism for latency reduction that just DTRT without any
+> user-space configuration necessary.
+>
+
+Not exactly. We will have cases where only few cgroups configured and the
+total hard_limit always less than the machine capacity. So we will never
+trigger the global memory pressure. However, we still need to smooth out the
+performance per-memcg by doing background page reclaim proactively before
+they hit their hard_limit (direct reclaim)
+
+--Ying
+
+
+>
+>        Hannes
+>
+
+--002354470aa81c45ee04a165023f
+Content-Type: text/html; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
+
+<br><br><div class=3D"gmail_quote">On Wed, Apr 20, 2011 at 7:51 PM, Johanne=
+s Weiner <span dir=3D"ltr">&lt;<a href=3D"mailto:hannes@cmpxchg.org">hannes=
+@cmpxchg.org</a>&gt;</span> wrote:<br><blockquote class=3D"gmail_quote" sty=
+le=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex;">
+Hello Ying,<br>
+<br>
+I&#39;m sorry that I chime in so late, I was still traveling until Monday.<=
+br></blockquote><div><br></div><div>Hey, hope you had a great trip :)=A0</d=
+iv><blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left=
+:1px #ccc solid;padding-left:1ex;">
+
+<div class=3D"im"><br>
+On Mon, Apr 18, 2011 at 08:57:36PM -0700, Ying Han wrote:<br>
+&gt; The current implementation of memcg supports targeting reclaim when th=
+e<br>
+&gt; cgroup is reaching its hard_limit and we do direct reclaim per cgroup.=
+<br>
+&gt; Per cgroup background reclaim is needed which helps to spread out memo=
+ry<br>
+&gt; pressure over longer period of time and smoothes out the cgroup perfor=
+mance.<br>
+<br>
+</div>Latency reduction makes perfect sense, the reasons kswapd exists appl=
+y<br>
+to memory control groups as well. =A0But I disagree with the design<br>
+choices you made.<br>
+<div class=3D"im"><br>
+&gt; If the cgroup is configured to use per cgroup background reclaim, a ks=
+wapd<br>
+&gt; thread is created which only scans the per-memcg LRU list.<br>
+<br>
+</div>We already have direct reclaim, direct reclaim on behalf of a memcg,<=
+br>
+and global kswapd-reclaim. =A0Please don&#39;t add yet another reclaim path=
+<br>
+that does its own thing and interacts unpredictably with the rest of<br>
+them.<br></blockquote><div><br></div><div>Yes, we do have per-memcg direct =
+reclaim and kswapd-reclaim. but the later one is global and we don&#39;t wa=
+nt to start reclaiming from each memcg until we reach the global memory pre=
+ssure.</div>
+<blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1p=
+x #ccc solid;padding-left:1ex;">
+<br>
+As discussed on LSF, we want to get rid of the global LRU. =A0So the<br>
+goal is to have each reclaim entry end up at the same core part of<br>
+reclaim that round-robin scans a subset of zones from a subset of<br>
+memory control groups.<br></blockquote><div><br></div><div>True, but that i=
+s for system under global memory pressure and we would like to do targeting=
+ reclaim instead of reclaiming from the global LRU. That is not the same in=
+ this patch, which is doing targeting reclaim proactively per-memcg based o=
+n their hard_limit.=A0</div>
+<blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1p=
+x #ccc solid;padding-left:1ex;">
+<div class=3D"im"><br>
+&gt; Two watermarks (&quot;high_wmark&quot;, &quot;low_wmark&quot;) are add=
+ed to trigger the<br>
+&gt; background reclaim and stop it. The watermarks are calculated based<br=
+>
+&gt; on the cgroup&#39;s limit_in_bytes.<br>
+<br>
+</div>Which brings me to the next issue: making the watermarks configurable=
+.<br>
+<br>
+You argued that having them adjustable from userspace is required for<br>
+overcommitting the hardlimits and per-memcg kswapd reclaim not kicking<br>
+in in case of global memory pressure. =A0But that is only a problem<br>
+because global kswapd reclaim is (apart from soft limit reclaim)<br>
+unaware of memory control groups.<br>
+<br>
+I think the much better solution is to make global kswapd memcg aware<br>
+(with the above mentioned round-robin reclaim scheduler), compared to<br>
+adding new (and final!) kernel ABI to avoid an internal shortcoming.<br></b=
+lockquote><div><br></div><div>We need to make the global kswapd memcg aware=
+ and that is the soft_limit=A0hierarchical reclaim.</div><div>It is differe=
+nt from doing per-memcg background reclaim which we want to reclaim memory =
+per-memcg</div>
+<div>before they goes to per-memcg direct reclaim. =A0</div><blockquote cla=
+ss=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid;pa=
+dding-left:1ex;">
+<br>
+The whole excercise of asynchroneous background reclaim is to reduce<br>
+reclaim latency. =A0We already have a mechanism for global memory<br>
+pressure in place. =A0Per-memcg watermarks should only exist to avoid<br>
+direct reclaim due to hitting the hardlimit, nothing else.<br></blockquote>=
+<div><br></div><div>Yes, but we have per-memcg direct reclaim which is base=
+d on the hard_limit. The latency we need to reduce is the direct reclaim wh=
+ich is different from global memory pressure.</div>
+<blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1p=
+x #ccc solid;padding-left:1ex;">
+<br>
+So in summary, I think converting the reclaim core to this round-robin<br>
+scheduler solves all these problems at once: a single code path for<br>
+reclaim, breaking up of the global lru lock, fair soft limit reclaim,<br>
+and a mechanism for latency reduction that just DTRT without any<br>
+user-space configuration necessary.<br></blockquote><div><br></div><div>Not=
+ exactly. We will have cases where only few cgroups configured and the tota=
+l hard_limit always less than the machine capacity. So we will never trigge=
+r the global memory pressure. However, we still need to smooth out the perf=
+ormance per-memcg by doing background page reclaim proactively before they =
+hit their hard_limit (direct reclaim)</div>
+<div><br></div><div>--Ying</div><div>=A0</div><blockquote class=3D"gmail_qu=
+ote" style=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex=
+;">
+<br>
+ =A0 =A0 =A0 =A0Hannes<br>
+</blockquote></div><br>
+
+--002354470aa81c45ee04a165023f--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
