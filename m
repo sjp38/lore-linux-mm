@@ -1,120 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 383198D003B
-	for <linux-mm@kvack.org>; Thu, 21 Apr 2011 00:10:16 -0400 (EDT)
-Date: Thu, 21 Apr 2011 12:10:11 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 3/6] writeback: sync expired inodes first in background
- writeback
-Message-ID: <20110421041010.GA18710@localhost>
-References: <20110419030532.515923886@intel.com>
- <20110419073523.GF23985@dastard>
- <20110419095740.GC5257@quack.suse.cz>
- <20110419125616.GA20059@localhost>
- <20110420012120.GK23985@dastard>
- <20110420025321.GA14398@localhost>
- <20110421004547.GD1814@dastard>
- <20110421020617.GB12191@localhost>
- <20110421030152.GG1814@dastard>
- <20110421035954.GA15461@localhost>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id DDD588D003B
+	for <linux-mm@kvack.org>; Thu, 21 Apr 2011 00:22:48 -0400 (EDT)
+Received: from kpbe14.cbf.corp.google.com (kpbe14.cbf.corp.google.com [172.25.105.78])
+	by smtp-out.google.com with ESMTP id p3L4MjTj001523
+	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 21:22:46 -0700
+Received: from qyk29 (qyk29.prod.google.com [10.241.83.157])
+	by kpbe14.cbf.corp.google.com with ESMTP id p3L4Mh6Y030191
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 20 Apr 2011 21:22:44 -0700
+Received: by qyk29 with SMTP id 29so2575539qyk.10
+        for <linux-mm@kvack.org>; Wed, 20 Apr 2011 21:22:43 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110421035954.GA15461@localhost>
+In-Reply-To: <20110421124059.79990661.kamezawa.hiroyu@jp.fujitsu.com>
+References: <1303185466-2532-1-git-send-email-yinghan@google.com>
+	<20110421124059.79990661.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Wed, 20 Apr 2011 21:22:43 -0700
+Message-ID: <BANLkTin7BDchrD_L+UFBwsyn2oAbuU03qA@mail.gmail.com>
+Subject: Re: [PATCH V6 00/10] memcg: per cgroup background reclaim
+From: Ying Han <yinghan@google.com>
+Content-Type: multipart/alternative; boundary=002354470aa8b82caa04a166177f
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@linux.vnet.ibm.com>, Mel Gorman <mel@csn.ul.ie>, Trond Myklebust <Trond.Myklebust@netapp.com>, Itaru Kitayama <kitayama@cl.bb4u.ne.jp>, Minchan Kim <minchan.kim@gmail.com>, LKML <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>, linux-mm@kvack.org
 
-> > Still, given wb_writeback() is the only caller of both
-> > __writeback_inodes_sb and writeback_inodes_wb(), I'm wondering if
-> > moving the queue_io calls up into wb_writeback() would clean up this
-> > logic somewhat. I think Jan mentioned doing something like this as
-> > well elsewhere in the thread...
-> 
-> Unfortunately they call queue_io() inside the lock..
+--002354470aa8b82caa04a166177f
+Content-Type: text/plain; charset=ISO-8859-1
 
-OK, let's try moving up the lock too. Do you like this change? :)
+On Wed, Apr 20, 2011 at 8:40 PM, KAMEZAWA Hiroyuki <
+kamezawa.hiroyu@jp.fujitsu.com> wrote:
+
+> On Mon, 18 Apr 2011 20:57:36 -0700
+> Ying Han <yinghan@google.com> wrote:
+>
+> > 1. there are one kswapd thread per cgroup. the thread is created when the
+> > cgroup changes its limit_in_bytes and is deleted when the cgroup is being
+> > removed. In some enviroment when thousand of cgroups are being configured
+> on
+> > a single host, we will have thousand of kswapd threads. The memory
+> consumption
+> > would be 8k*100 = 8M. We don't see a big issue for now if the host can
+> host
+> > that many of cgroups.
+> >
+>
+> I don't think no-fix to this is ok.
+>
+> Here is a thread pool patch on your set. (and includes some more).
+> 3 patches in following e-mails.
+> Any comments are welocme, but my response may be delayed.
+>
+> Thank you for making up the patch, and I will take a look. Do I apply the 3
+patches on top of my patchset or they comes separately?
+
+--Ying
 
 Thanks,
-Fengguang
----
- fs/fs-writeback.c |   22 ++++++----------------
- mm/backing-dev.c  |    4 ++++
- 2 files changed, 10 insertions(+), 16 deletions(-)
+> -Kame
+>
+>
+>
 
---- linux-next.orig/fs/fs-writeback.c	2011-04-21 12:04:02.000000000 +0800
-+++ linux-next/fs/fs-writeback.c	2011-04-21 12:05:54.000000000 +0800
-@@ -591,7 +591,6 @@ void writeback_inodes_wb(struct bdi_writ
- 
- 	if (!wbc->wb_start)
- 		wbc->wb_start = jiffies; /* livelock avoidance */
--	spin_lock(&inode_wb_list_lock);
- 
- 	if (list_empty(&wb->b_io))
- 		queue_io(wb, wbc);
-@@ -610,22 +609,9 @@ void writeback_inodes_wb(struct bdi_writ
- 		if (ret)
- 			break;
- 	}
--	spin_unlock(&inode_wb_list_lock);
- 	/* Leave any unwritten inodes on b_io */
- }
- 
--static void __writeback_inodes_sb(struct super_block *sb,
--		struct bdi_writeback *wb, struct writeback_control *wbc)
--{
--	WARN_ON(!rwsem_is_locked(&sb->s_umount));
--
--	spin_lock(&inode_wb_list_lock);
--	if (list_empty(&wb->b_io))
--		queue_io(wb, wbc);
--	writeback_sb_inodes(sb, wb, wbc, true);
--	spin_unlock(&inode_wb_list_lock);
--}
--
- static inline bool over_bground_thresh(void)
- {
- 	unsigned long background_thresh, dirty_thresh;
-@@ -652,7 +638,7 @@ static unsigned long writeback_chunk_siz
- 	 * The intended call sequence for WB_SYNC_ALL writeback is:
- 	 *
- 	 *      wb_writeback()
--	 *          __writeback_inodes_sb()     <== called only once
-+	 *          writeback_sb_inodes()       <== called only once
- 	 *              write_cache_pages()     <== called once for each inode
- 	 *                  (quickly) tag currently dirty pages
- 	 *                  (maybe slowly) sync all tagged pages
-@@ -742,10 +728,14 @@ static long wb_writeback(struct bdi_writ
- 
- retry:
- 		trace_wbc_writeback_start(&wbc, wb->bdi);
-+		spin_lock(&inode_wb_list_lock);
-+		if (list_empty(&wb->b_io))
-+			queue_io(wb, wbc);
- 		if (work->sb)
--			__writeback_inodes_sb(work->sb, wb, &wbc);
-+			writeback_sb_inodes(work->sb, wb, &wbc, true);
- 		else
- 			writeback_inodes_wb(wb, &wbc);
-+		spin_unlock(&inode_wb_list_lock);
- 		trace_wbc_writeback_written(&wbc, wb->bdi);
- 
- 		bdi_update_write_bandwidth(wb->bdi, wbc.wb_start);
---- linux-next.orig/mm/backing-dev.c	2011-04-21 12:06:02.000000000 +0800
-+++ linux-next/mm/backing-dev.c	2011-04-21 12:06:31.000000000 +0800
-@@ -268,7 +268,11 @@ static void bdi_flush_io(struct backing_
- 		.nr_to_write		= 1024,
- 	};
- 
-+	spin_lock(&inode_wb_list_lock);
-+	if (list_empty(&wb->b_io))
-+		queue_io(wb, wbc);
- 	writeback_inodes_wb(&bdi->wb, &wbc);
-+	spin_unlock(&inode_wb_list_lock);
- }
- 
- /*
+--002354470aa8b82caa04a166177f
+Content-Type: text/html; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
+
+<br><br><div class=3D"gmail_quote">On Wed, Apr 20, 2011 at 8:40 PM, KAMEZAW=
+A Hiroyuki <span dir=3D"ltr">&lt;<a href=3D"mailto:kamezawa.hiroyu@jp.fujit=
+su.com">kamezawa.hiroyu@jp.fujitsu.com</a>&gt;</span> wrote:<br><blockquote=
+ class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1px #ccc soli=
+d;padding-left:1ex;">
+<div class=3D"im">On Mon, 18 Apr 2011 20:57:36 -0700<br>
+Ying Han &lt;<a href=3D"mailto:yinghan@google.com">yinghan@google.com</a>&g=
+t; wrote:<br>
+<br>
+&gt; 1. there are one kswapd thread per cgroup. the thread is created when =
+the<br>
+&gt; cgroup changes its limit_in_bytes and is deleted when the cgroup is be=
+ing<br>
+&gt; removed. In some enviroment when thousand of cgroups are being configu=
+red on<br>
+&gt; a single host, we will have thousand of kswapd threads. The memory con=
+sumption<br>
+&gt; would be 8k*100 =3D 8M. We don&#39;t see a big issue for now if the ho=
+st can host<br>
+&gt; that many of cgroups.<br>
+&gt;<br>
+<br>
+</div>I don&#39;t think no-fix to this is ok.<br>
+<br>
+Here is a thread pool patch on your set. (and includes some more).<br>
+3 patches in following e-mails.<br>
+Any comments are welocme, but my response may be delayed.<br>
+<br></blockquote><div>Thank you for making up the patch, and I will take a =
+look. Do I apply the 3 patches on top of my patchset or they comes=A0separa=
+tely?</div><div>=A0</div><div>--Ying</div><div><br></div><blockquote class=
+=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid;padd=
+ing-left:1ex;">
+
+Thanks,<br>
+-Kame<br>
+<br>
+<br>
+</blockquote></div><br>
+
+--002354470aa8b82caa04a166177f--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
