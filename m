@@ -1,88 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 980718D003B
-	for <linux-mm@kvack.org>; Thu, 21 Apr 2011 14:20:42 -0400 (EDT)
-Date: Thu, 21 Apr 2011 13:20:39 -0500 (CDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 103A18D0040
+	for <linux-mm@kvack.org>; Thu, 21 Apr 2011 14:33:49 -0400 (EDT)
+Date: Thu, 21 Apr 2011 13:33:38 -0500 (CDT)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH] percpu: preemptless __per_cpu_counter_add
-In-Reply-To: <20110421180159.GF15988@htj.dyndns.org>
-Message-ID: <alpine.DEB.2.00.1104211308300.5741@router.home>
-References: <alpine.DEB.2.00.1104141608300.19533@router.home> <20110414211522.GE21397@mtj.dyndns.org> <alpine.DEB.2.00.1104151235350.8055@router.home> <20110415182734.GB15916@mtj.dyndns.org> <alpine.DEB.2.00.1104151440070.8055@router.home>
- <20110415235222.GA18694@mtj.dyndns.org> <alpine.DEB.2.00.1104180930580.23207@router.home> <20110421144300.GA22898@htj.dyndns.org> <20110421145837.GB22898@htj.dyndns.org> <alpine.DEB.2.00.1104211243350.5741@router.home>
- <20110421180159.GF15988@htj.dyndns.org>
+Subject: Re: [PATCH v3] mm: make expand_downwards symmetrical to
+ expand_upwards
+In-Reply-To: <1303403847.4025.11.camel@mulgrave.site>
+Message-ID: <alpine.DEB.2.00.1104211328000.5741@router.home>
+References: <1303337718.2587.51.camel@mulgrave.site>  <alpine.DEB.2.00.1104201530430.13948@chino.kir.corp.google.com>  <20110421221712.9184.A69D9226@jp.fujitsu.com> <1303403847.4025.11.camel@mulgrave.site>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Eric Dumazet <eric.dumazet@gmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org, shaohua.li@intel.com
+To: James Bottomley <James.Bottomley@HansenPartnership.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-parisc@vger.kernel.org, Ingo Molnar <mingo@elte.hu>, x86 maintainers <x86@kernel.org>, Tejun Heo <tj@kernel.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Mel Gorman <mel@csn.ul.ie>
 
-On Thu, 21 Apr 2011, Tejun Heo wrote:
+On Thu, 21 Apr 2011, James Bottomley wrote:
 
-> The only difference between the two is the level of fuziness.  The
-> former deviates only by the number of concurrent updaters (and maybe
-> cacheline update latencies) while the latter may deviate in multiples
-> of @batch.
-
-I dont think multiple times of batch is such a concern. Either the per cpu
-counter is high or the overflow has been folded into the global counter.
-
-The interregnum is very short and since the counters are already fuzzy
-this is tolerable. We do the same thing elsewhere for vmstats.
-
-> If you wanna say that the difference in the level of fuzziness is
-> irrelevant, the first patch of this series should be removing
-> percpu_counter_sum() before making any other changes.
-
-percpu_counter_sum() is more accurate since it considers the per cpu
-counters. That is vastly different.
-
-> > The local counter increment was already decoupled before. The shifting of
-> > the overflow into the global counter was also not serialized before.
+> On Thu, 2011-04-21 at 22:16 +0900, KOSAKI Motohiro wrote:
+> > > This should fix the remaining architectures so they can use CONFIG_SLUB,
+> > > but I hope it can be tested by the individual arch maintainers like you
+> > > did for parisc.
+> >
+> > ia64 and mips have CONFIG_ARCH_POPULATES_NODE_MAP and it initialize
+> > N_NORMAL_MEMORY automatically if my understand is correct.
+> > (plz see free_area_init_nodes)
+> >
+> > I guess alpha and m32r have no active developrs. only m68k seems to be need
+> > fix and we have a chance to get a review...
 >
-> No, it wasn't.
+> Actually, it's not quite a fix yet, I'm afraid.  I've just been
+> investigating why my main 4 way box got slower with kernel builds:
+> Apparently userspace processes are now all stuck on CPU0, so we're
+> obviously tripping over some NUMA scheduling stuff that's missing.
 
->
-> 	...
-> 	if (count >= batch || count <= -batch) {
-> 		spin_lock(&fbc->lock);
-> 		fbc->count += count;
-> 		__this_cpu_write(*fbc->counters, 0);
-> 		spin_unlock(&fbc->lock);
-> 	} else {
-> 	...
->
-> percpu_counter_sum() would see either both the percpu and global
-> counters updated or un-updated.  It will never see local counter reset
-> with global counter not updated yet.
+The simplest solution may be to move these arches to use SPARSE instead.
+AFAICT this was relatively easy for the arm guys.
 
-Sure there is a slight race there and there is no way to avoid that race
-without a lock.
+Here is short guide on how to do that from the mips people:
 
-> > There was no total accuracy before either.
->
-> It's not about total accuracy.  It's about different levels of
-> fuzziness.  If it can be shown that the different levels of fuzziness
-> doesn't matter and thus percpu_counter_sum() can be removed, I'll be a
-> happy camper.
+http://www.linux-mips.org/archives/linux-mips/2008-08/msg00154.html
 
-percpu_counter_sum() is a totally different animal since it considers the
-per cpu differentials but while it does that the per cpu differentials can
-be updated. So the fuzziness is much lower than just looking at the global
-counter for wich all sorts of counters differentials on multiple cpus can
-be outstanding over long time periods.
+http://mytechkorner.blogspot.com/2010/12/sparsemem.html
 
-Look at mm/vmstat.c. There is __inc_zone_state() which does an analogous
-thing. and include/linux/vmstat.h:zone_page_state_snapshot() which is
-analoguous to percpu_counter_sum().
-
-In fact as far as I can tell the percpu_counter stuff was cribbed from
-that one. What I did is the same process as in mm/vmstat.c:mod_state.
-
-
-
-
-
+Dave Hansen, Mel: Can you provide us with some help? (Its Easter and so
+the europeans may be off for awhile)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
