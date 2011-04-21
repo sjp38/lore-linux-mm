@@ -1,51 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 103A18D0040
-	for <linux-mm@kvack.org>; Thu, 21 Apr 2011 14:33:49 -0400 (EDT)
-Date: Thu, 21 Apr 2011 13:33:38 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH v3] mm: make expand_downwards symmetrical to
- expand_upwards
-In-Reply-To: <1303403847.4025.11.camel@mulgrave.site>
-Message-ID: <alpine.DEB.2.00.1104211328000.5741@router.home>
-References: <1303337718.2587.51.camel@mulgrave.site>  <alpine.DEB.2.00.1104201530430.13948@chino.kir.corp.google.com>  <20110421221712.9184.A69D9226@jp.fujitsu.com> <1303403847.4025.11.camel@mulgrave.site>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 3DAD08D003B
+	for <linux-mm@kvack.org>; Thu, 21 Apr 2011 14:37:33 -0400 (EDT)
+Received: by fxm18 with SMTP id 18so27373fxm.14
+        for <linux-mm@kvack.org>; Thu, 21 Apr 2011 11:37:30 -0700 (PDT)
+Date: Thu, 21 Apr 2011 20:37:27 +0200
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH] percpu: preemptless __per_cpu_counter_add
+Message-ID: <20110421183727.GG15988@htj.dyndns.org>
+References: <alpine.DEB.2.00.1104151235350.8055@router.home>
+ <20110415182734.GB15916@mtj.dyndns.org>
+ <alpine.DEB.2.00.1104151440070.8055@router.home>
+ <20110415235222.GA18694@mtj.dyndns.org>
+ <alpine.DEB.2.00.1104180930580.23207@router.home>
+ <20110421144300.GA22898@htj.dyndns.org>
+ <20110421145837.GB22898@htj.dyndns.org>
+ <alpine.DEB.2.00.1104211243350.5741@router.home>
+ <20110421180159.GF15988@htj.dyndns.org>
+ <alpine.DEB.2.00.1104211308300.5741@router.home>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1104211308300.5741@router.home>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Bottomley <James.Bottomley@HansenPartnership.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-parisc@vger.kernel.org, Ingo Molnar <mingo@elte.hu>, x86 maintainers <x86@kernel.org>, Tejun Heo <tj@kernel.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Mel Gorman <mel@csn.ul.ie>
+To: Christoph Lameter <cl@linux.com>
+Cc: Eric Dumazet <eric.dumazet@gmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org, shaohua.li@intel.com
 
-On Thu, 21 Apr 2011, James Bottomley wrote:
+Hello, Christoph.
 
-> On Thu, 2011-04-21 at 22:16 +0900, KOSAKI Motohiro wrote:
-> > > This should fix the remaining architectures so they can use CONFIG_SLUB,
-> > > but I hope it can be tested by the individual arch maintainers like you
-> > > did for parisc.
-> >
-> > ia64 and mips have CONFIG_ARCH_POPULATES_NODE_MAP and it initialize
-> > N_NORMAL_MEMORY automatically if my understand is correct.
-> > (plz see free_area_init_nodes)
-> >
-> > I guess alpha and m32r have no active developrs. only m68k seems to be need
-> > fix and we have a chance to get a review...
->
-> Actually, it's not quite a fix yet, I'm afraid.  I've just been
-> investigating why my main 4 way box got slower with kernel builds:
-> Apparently userspace processes are now all stuck on CPU0, so we're
-> obviously tripping over some NUMA scheduling stuff that's missing.
+On Thu, Apr 21, 2011 at 01:20:39PM -0500, Christoph Lameter wrote:
+> I dont think multiple times of batch is such a concern. Either the per cpu
+> counter is high or the overflow has been folded into the global counter.
+> 
+> The interregnum is very short and since the counters are already fuzzy
+> this is tolerable. We do the same thing elsewhere for vmstats.
 
-The simplest solution may be to move these arches to use SPARSE instead.
-AFAICT this was relatively easy for the arm guys.
+We're talking about three different levels of fuzziness.
 
-Here is short guide on how to do that from the mips people:
+1. percpu_counter_sum() before the changes
 
-http://www.linux-mips.org/archives/linux-mips/2008-08/msg00154.html
+	May deviate by the number of concurrent updaters and cacheline
+	update latencies.
 
-http://mytechkorner.blogspot.com/2010/12/sparsemem.html
+2. percpu_counter_sum() after the changes
 
-Dave Hansen, Mel: Can you provide us with some help? (Its Easter and so
-the europeans may be off for awhile)
+	May deviate by multiples of @batch; however, the duration
+	during which the deviation may be visible is brief (really?
+	we're allowing preemption between local and global updates).
+
+3. percpu_counter_read()
+
+	May deviate by multiples of @batch.  Deviations are visible
+	almost always.
+
+You're arguing that change from #1 to #2 should be okay, which might
+as well be true, but your change per-se doesn't require such
+compromise and there's no reason to bundle the two changes together,
+so, again, please update your patch to avoid the transition from #1 to
+#2.
+
+Shaohua's change requires transition from #1 to #2, which might or
+might not be okay.  I really don't know.  You say it should be okay as
+it came from vmstat and vmstat is updated the same way; however, no
+matter where it came from, percpu_counter is now used in different
+places which may or may not have different expectations regarding the
+level of fuzziness in percpu_counter_sum(), so we would need more than
+"but vmstat does that too" to make the change.
+
+If you haven't noticed yet, I'm not feeling too enthusiastic about
+cold path optimizations.  If cold path is kicking in too often, change
+the code such that things don't happen that way instead of trying to
+make cold paths go faster.  Leave cold paths robust and easy to
+understand.
+
+So, unless someone can show me that percpu_counter_sum() is
+unnecessary (ie. the differences between not only #1 and #2 but also
+between #1 and #3 are irrelevant), I don't think I'm gonna change the
+slow path.  It's silly to micro optimize slow path to begin with and
+I'm not gonna do that at the cost of subtle functionality change which
+can bite us in the ass in twisted ways.
+
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
