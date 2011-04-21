@@ -1,90 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 3DAD08D003B
-	for <linux-mm@kvack.org>; Thu, 21 Apr 2011 14:37:33 -0400 (EDT)
-Received: by fxm18 with SMTP id 18so27373fxm.14
-        for <linux-mm@kvack.org>; Thu, 21 Apr 2011 11:37:30 -0700 (PDT)
-Date: Thu, 21 Apr 2011 20:37:27 +0200
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH] percpu: preemptless __per_cpu_counter_add
-Message-ID: <20110421183727.GG15988@htj.dyndns.org>
-References: <alpine.DEB.2.00.1104151235350.8055@router.home>
- <20110415182734.GB15916@mtj.dyndns.org>
- <alpine.DEB.2.00.1104151440070.8055@router.home>
- <20110415235222.GA18694@mtj.dyndns.org>
- <alpine.DEB.2.00.1104180930580.23207@router.home>
- <20110421144300.GA22898@htj.dyndns.org>
- <20110421145837.GB22898@htj.dyndns.org>
- <alpine.DEB.2.00.1104211243350.5741@router.home>
- <20110421180159.GF15988@htj.dyndns.org>
- <alpine.DEB.2.00.1104211308300.5741@router.home>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1104211308300.5741@router.home>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id CF5868D003B
+	for <linux-mm@kvack.org>; Thu, 21 Apr 2011 14:46:05 -0400 (EDT)
+Received: from d01relay07.pok.ibm.com (d01relay07.pok.ibm.com [9.56.227.147])
+	by e9.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p3LIHjZq001958
+	for <linux-mm@kvack.org>; Thu, 21 Apr 2011 14:17:45 -0400
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d01relay07.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p3LIjkDo1798376
+	for <linux-mm@kvack.org>; Thu, 21 Apr 2011 14:45:46 -0400
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p3LIjd15027698
+	for <linux-mm@kvack.org>; Thu, 21 Apr 2011 12:45:46 -0600
+Subject: Re: [PATCH v3] mm: make expand_downwards symmetrical to
+ expand_upwards
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <alpine.DEB.2.00.1104211328000.5741@router.home>
+References: <1303337718.2587.51.camel@mulgrave.site>
+	 <alpine.DEB.2.00.1104201530430.13948@chino.kir.corp.google.com>
+	 <20110421221712.9184.A69D9226@jp.fujitsu.com>
+	 <1303403847.4025.11.camel@mulgrave.site>
+	 <alpine.DEB.2.00.1104211328000.5741@router.home>
+Content-Type: text/plain; charset="ISO-8859-1"
+Date: Thu, 21 Apr 2011 11:45:37 -0700
+Message-ID: <1303411537.9048.3583.camel@nimitz>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Christoph Lameter <cl@linux.com>
-Cc: Eric Dumazet <eric.dumazet@gmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org, shaohua.li@intel.com
+Cc: James Bottomley <James.Bottomley@HansenPartnership.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-parisc@vger.kernel.org, Ingo Molnar <mingo@elte.hu>, x86 maintainers <x86@kernel.org>, Tejun Heo <tj@kernel.org>, Mel Gorman <mel@csn.ul.ie>
 
-Hello, Christoph.
-
-On Thu, Apr 21, 2011 at 01:20:39PM -0500, Christoph Lameter wrote:
-> I dont think multiple times of batch is such a concern. Either the per cpu
-> counter is high or the overflow has been folded into the global counter.
+On Thu, 2011-04-21 at 13:33 -0500, Christoph Lameter wrote:
+> http://www.linux-mips.org/archives/linux-mips/2008-08/msg00154.html
 > 
-> The interregnum is very short and since the counters are already fuzzy
-> this is tolerable. We do the same thing elsewhere for vmstats.
+> http://mytechkorner.blogspot.com/2010/12/sparsemem.html
+> 
+> Dave Hansen, Mel: Can you provide us with some help? (Its Easter and so
+> the europeans may be off for awhile) 
 
-We're talking about three different levels of fuzziness.
+Yup, for sure.  It's also interesting how much code ppc64 removed when
+they did this:
 
-1. percpu_counter_sum() before the changes
+http://lists.ozlabs.org/pipermail/linuxppc64-dev/2005-November/006646.html
 
-	May deviate by the number of concurrent updaters and cacheline
-	update latencies.
+Please cc me on patches.  Or, if nobody else was planning on doing it, I
+can take a stab at doing SPARSEMEM on one of the arches.  I won't be
+able to _run_ it outside of qemu, but it might be quicker than someone
+starting from scratch.
 
-2. percpu_counter_sum() after the changes
+Was it really just m68k and parisc that need immediate attention?
 
-	May deviate by multiples of @batch; however, the duration
-	during which the deviation may be visible is brief (really?
-	we're allowing preemption between local and global updates).
-
-3. percpu_counter_read()
-
-	May deviate by multiples of @batch.  Deviations are visible
-	almost always.
-
-You're arguing that change from #1 to #2 should be okay, which might
-as well be true, but your change per-se doesn't require such
-compromise and there's no reason to bundle the two changes together,
-so, again, please update your patch to avoid the transition from #1 to
-#2.
-
-Shaohua's change requires transition from #1 to #2, which might or
-might not be okay.  I really don't know.  You say it should be okay as
-it came from vmstat and vmstat is updated the same way; however, no
-matter where it came from, percpu_counter is now used in different
-places which may or may not have different expectations regarding the
-level of fuzziness in percpu_counter_sum(), so we would need more than
-"but vmstat does that too" to make the change.
-
-If you haven't noticed yet, I'm not feeling too enthusiastic about
-cold path optimizations.  If cold path is kicking in too often, change
-the code such that things don't happen that way instead of trying to
-make cold paths go faster.  Leave cold paths robust and easy to
-understand.
-
-So, unless someone can show me that percpu_counter_sum() is
-unnecessary (ie. the differences between not only #1 and #2 but also
-between #1 and #3 are irrelevant), I don't think I'm gonna change the
-slow path.  It's silly to micro optimize slow path to begin with and
-I'm not gonna do that at the cost of subtle functionality change which
-can bite us in the ass in twisted ways.
-
-Thanks.
-
--- 
-tejun
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
