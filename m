@@ -1,64 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id F3C598D003B
-	for <linux-mm@kvack.org>; Fri, 22 Apr 2011 01:27:06 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 02A613EE0BC
-	for <linux-mm@kvack.org>; Fri, 22 Apr 2011 14:27:03 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id D532D45DF07
-	for <linux-mm@kvack.org>; Fri, 22 Apr 2011 14:27:02 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id B8A7A45DF05
-	for <linux-mm@kvack.org>; Fri, 22 Apr 2011 14:27:02 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id AC6721DB8038
-	for <linux-mm@kvack.org>; Fri, 22 Apr 2011 14:27:02 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 783AF1DB803E
-	for <linux-mm@kvack.org>; Fri, 22 Apr 2011 14:27:02 +0900 (JST)
+	by kanga.kvack.org (Postfix) with ESMTP id B4ECE8D003B
+	for <linux-mm@kvack.org>; Fri, 22 Apr 2011 01:39:28 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 1AE8D3EE0C0
+	for <linux-mm@kvack.org>; Fri, 22 Apr 2011 14:39:26 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id F2D4645DE99
+	for <linux-mm@kvack.org>; Fri, 22 Apr 2011 14:39:25 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id D920F45DE94
+	for <linux-mm@kvack.org>; Fri, 22 Apr 2011 14:39:25 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id C817EE18002
+	for <linux-mm@kvack.org>; Fri, 22 Apr 2011 14:39:25 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8FCFE1DB8038
+	for <linux-mm@kvack.org>; Fri, 22 Apr 2011 14:39:25 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH V7 5/9] Infrastructure to support per-memcg reclaim.
-In-Reply-To: <1303446260-21333-6-git-send-email-yinghan@google.com>
-References: <1303446260-21333-1-git-send-email-yinghan@google.com> <1303446260-21333-6-git-send-email-yinghan@google.com>
-Message-Id: <20110422142734.FA69.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCH V7 4/9] Add memcg kswapd thread pool
+In-Reply-To: <1303446260-21333-5-git-send-email-yinghan@google.com>
+References: <1303446260-21333-1-git-send-email-yinghan@google.com> <1303446260-21333-5-git-send-email-yinghan@google.com>
+Message-Id: <20110422143957.FA6D.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Date: Fri, 22 Apr 2011 14:27:01 +0900 (JST)
+Date: Fri, 22 Apr 2011 14:39:24 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Ying Han <yinghan@google.com>
 Cc: kosaki.motohiro@jp.fujitsu.com, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>, linux-mm@kvack.org
 
-> +static unsigned long shrink_mem_cgroup(struct mem_cgroup *mem_cont, int order)
+> +bool mem_cgroup_kswapd_can_sleep(void)
 > +{
-> +	return 0;
+> +	return list_empty(&memcg_kswapd_control.list);
 > +}
 
-this one and
+and, 
 
-> @@ -2672,36 +2686,48 @@ int kswapd(void *p)
-(snip)
->  		/*
->  		 * We can speed up thawing tasks if we don't call balance_pgdat
->  		 * after returning from the refrigerator
->  		 */
-> -		if (!ret) {
-> +		if (is_global_kswapd(kswapd_p)) {
->  			trace_mm_vmscan_kswapd_wake(pgdat->node_id, order);
->  			order = balance_pgdat(pgdat, order, &classzone_idx);
-> +		} else {
-> +			mem = mem_cgroup_get_shrink_target();
-> +			if (mem)
-> +				shrink_mem_cgroup(mem, order);
-> +			mem_cgroup_put_shrink_target(mem);
->  		}
->  	}
+> @@ -2583,40 +2585,46 @@ static void kswapd_try_to_sleep(struct kswapd *kswapd_p, int order,
+>  	} else {
+> +		/* For now, we just check the remaining works.*/
+> +		if (mem_cgroup_kswapd_can_sleep())
+> +			schedule();
 
-this one shold be placed in "[7/9] Per-memcg background reclaim". isn't it?
+has bad assumption. If freeable memory is very little and kswapds are
+contended, memcg-kswap also have to give up and go into sleep as global
+kswapd.
 
-
+Otherwise, We are going to see kswapd cpu 100% consumption issue again.
 
 
 --
