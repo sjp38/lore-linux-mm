@@ -1,142 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 899A68D003B
-	for <linux-mm@kvack.org>; Fri, 22 Apr 2011 04:08:58 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 88C7C8D003B
+	for <linux-mm@kvack.org>; Fri, 22 Apr 2011 04:45:03 -0400 (EDT)
 Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 392F83EE0C2
-	for <linux-mm@kvack.org>; Fri, 22 Apr 2011 17:08:56 +0900 (JST)
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id DC4D53EE0AE
+	for <linux-mm@kvack.org>; Fri, 22 Apr 2011 17:45:00 +0900 (JST)
 Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 0C5A545DE62
-	for <linux-mm@kvack.org>; Fri, 22 Apr 2011 17:08:56 +0900 (JST)
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id C35F745DE56
+	for <linux-mm@kvack.org>; Fri, 22 Apr 2011 17:45:00 +0900 (JST)
 Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id E550245DE5C
-	for <linux-mm@kvack.org>; Fri, 22 Apr 2011 17:08:55 +0900 (JST)
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id A2ABA45DE54
+	for <linux-mm@kvack.org>; Fri, 22 Apr 2011 17:45:00 +0900 (JST)
 Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id B5F9BE78003
-	for <linux-mm@kvack.org>; Fri, 22 Apr 2011 17:08:55 +0900 (JST)
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 8D7DA1DB804A
+	for <linux-mm@kvack.org>; Fri, 22 Apr 2011 17:45:00 +0900 (JST)
 Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 7792D1DB8049
-	for <linux-mm@kvack.org>; Fri, 22 Apr 2011 17:08:55 +0900 (JST)
-Date: Fri, 22 Apr 2011 17:02:12 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH V7 4/9] Add memcg kswapd thread pool
-Message-Id: <20110422170212.b21852ed.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <BANLkTikfsLB8kTFZe+qj_jK=psgtFMfBMA@mail.gmail.com>
-References: <1303446260-21333-1-git-send-email-yinghan@google.com>
-	<1303446260-21333-5-git-send-email-yinghan@google.com>
-	<20110422133643.6a36d838.kamezawa.hiroyu@jp.fujitsu.com>
-	<BANLkTinkJC2-HiGtxgTTo8RvRjZqYuq2pA@mail.gmail.com>
-	<20110422140023.949e5737.kamezawa.hiroyu@jp.fujitsu.com>
-	<BANLkTim91aHXjqfukn6rJxK0SDSSG2wrrg@mail.gmail.com>
-	<20110422145943.a8f5a4ef.kamezawa.hiroyu@jp.fujitsu.com>
-	<BANLkTikRvjNR94tUf2p9UPQFGLUYp41Twg@mail.gmail.com>
-	<20110422164622.a8350bc5.kamezawa.hiroyu@jp.fujitsu.com>
-	<BANLkTikfsLB8kTFZe+qj_jK=psgtFMfBMA@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 47A491DB8042
+	for <linux-mm@kvack.org>; Fri, 22 Apr 2011 17:45:00 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH V7 7/9] Per-memcg background reclaim.
+In-Reply-To: <BANLkTi=BewF6TtSAsqY+bYQB6UUR_yt9yQ@mail.gmail.com>
+References: <20110422150050.FA6E.A69D9226@jp.fujitsu.com> <BANLkTi=BewF6TtSAsqY+bYQB6UUR_yt9yQ@mail.gmail.com>
+Message-Id: <20110422174554.71F2.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Fri, 22 Apr 2011 17:44:59 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Ying Han <yinghan@google.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>, linux-mm@kvack.org
+Cc: kosaki.motohiro@jp.fujitsu.com, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>, linux-mm@kvack.org
 
-On Fri, 22 Apr 2011 00:59:26 -0700
-Ying Han <yinghan@google.com> wrote:
-
-> On Fri, Apr 22, 2011 at 12:46 AM, KAMEZAWA Hiroyuki <
-> kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> 
-> > On Thu, 21 Apr 2011 23:10:58 -0700
-> > Ying Han <yinghan@google.com> wrote:
+> > > @@ -111,6 +113,8 @@ struct scan_control {
+> > >        * are scanned.
+> > >        */
+> > >       nodemask_t      *nodemask;
+> > > +
+> > > +     int priority;
+> > >  };
 > >
-> > > On Thu, Apr 21, 2011 at 10:59 PM, KAMEZAWA Hiroyuki <
-> > > kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > >
-> > > > On Thu, 21 Apr 2011 22:53:19 -0700
-> > > > Ying Han <yinghan@google.com> wrote:
-> > > >
-> > > > > On Thu, Apr 21, 2011 at 10:00 PM, KAMEZAWA Hiroyuki <
-> > > > > kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > > > >
-> > > > > > On Thu, 21 Apr 2011 21:49:04 -0700
-> > > > > > Ying Han <yinghan@google.com> wrote:
-> > > > > >
-> > > > > > > On Thu, Apr 21, 2011 at 9:36 PM, KAMEZAWA Hiroyuki <
-> > > > > > > kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> > Bah!
+> > If you need sc.priority, you have to make cleanup patch at first. and
+> > all current reclaim path have to use sc.priority. Please don't increase
+> > unnecessary mess.
 > >
-> > > > add a counter for kswapd-scan and kswapd-reclaim, kswapd-pickup will
-> > show
-> > > > you information, if necessary it's good to show some latecy stat. I
-> > think
-> > > > we can add enough information by adding stats (or debug by perf tools.)
-> > > > I'll consider this a a bit more.
-> > > >
-> > >
-> > > Something like "kswapd_pgscan" and "kswapd_steal" per memcg? If we are
-> > going
-> > > to the thread-pool, we definitely need to add more stats to give us
-> > enough
-> > > visibility of per-memcg background reclaim activity. Still, not sure
-> > about
-> > > the cpu-cycles.
-> > >
+> > hmm. so then I would change it by passing the priority
+> > as separate parameter.
+
+ok.
+
+> > > +             /*
+> > > +              * If we've done a decent amount of scanning and
+> > > +              * the reclaim ratio is low, start doing writepage
+> > > +              * even in laptop mode
+> > > +              */
+> > > +             if (total_scanned > SWAP_CLUSTER_MAX * 2 &&
+> > > +                 total_scanned > sc->nr_reclaimed + sc->nr_reclaimed /
+> > 2) {
+> > > +                     sc->may_writepage = 1;
 > >
-> > BTW, Kosaki requeted me not to have private thread pool implementation and
-> > use workqueue. I think he is right. So, I'd like to write a patch to
-> > enhance
-> > workqueue for using it for memcg (Of couse, I'll make a private workqueue.)
+> > please make helper function for may_writepage. iow, don't cut-n-paste.
 > >
-> > Hmm. Can you give a bit more details of the logic behind? 
+> > hmm, can you help to clarify that?
 
-Kosaki just says please avoid reinventing the wheel. It seems it's used in many
-places and has rich functions. I think we should do try. With my patch for
-threadl pools, I think I can avoid starvation problem.
+I meant completely cut-n-paste code and comments is here.
 
-> and what's about the private workqueue? 
 
-Dont use schedule_work() but use  queue_work(). 
-
-> Also, how we plan to solve the better debug-ability issue.
-> 
-
-I'll add patch for debug ability. I belive I can record cputime usage
-for memory reclaim per memcg, both for direct and background. I think it's
-a good feature for memcg regardless of background reclaim.
- 
+> > > +     total_scanned = 0;
+> > > +
+> > > +     do_nodes = node_states[N_ONLINE];
 > >
-> > ==
-> > 2. regarding to the alternative workqueue, which is more complicated and we
-> > need to be very careful of work items in the workqueue. We've experienced
-> > in
-> > one workitem stucks and the rest of the work item won't proceed. For
-> > example
-> > in dirty page writeback, one heavily writer cgroup could starve the other
-> > cgroups from flushing dirty pages to the same disk. In the kswapd case, I
-> > can
-> > imagine we might have similar senario. How to prioritize the workitems is
-> > another problem. The order of adding the workitems in the queue reflects
-> > the
-> > order of cgroups being reclaimed. We don't have that restriction currently
-> > but
-> > relying on the cpu scheduler to put kswapd on the right cpu-core to run. We
-> > "might" introduce priority later for reclaim and how are we gonna deal with
-> > that.
-> > ==
+> > Why do we need care memoryless node? N_HIGH_MEMORY is wrong?
 > >
-> > From this, I feel I need to use unbound workqueue. BTW, with patches for
-> > current thread pool model, I think starvation problem by dirty pages
-> > cannot be seen.
-> > Anyway, I'll give a try.
+> hmm, let me look into that.
+
+
+> > > +             sc.priority = priority;
+> > > +             /* The swap token gets in the way of swapout... */
+> > > +             if (!priority)
+> > > +                     disable_swap_token();
+> >
+> > Why?
+> >
+> > disable swap token mean "Please devest swap preventation privilege from
+> > owner task. Instead we endure swap storm and performance hit".
+> > However I doublt memcg memory shortage is good situation to make swap
+> > storm.
 > >
 > 
-> Then do you suggest me to wait for your patch for my next post?
+> I am not sure about that either way. we probably can leave as it is and make
+> corresponding change if real problem is observed?
+
+Why?
+This is not only memcg issue, but also can lead to global swap ping-pong.
+
+But I give up. I have no time to persuade you.
+
+
+> > > +                     nid = mem_cgroup_select_victim_node(mem_cont,
+> > > +                                                     &do_nodes);
+> > > +
+> > > +                     pgdat = NODE_DATA(nid);
+> > > +                     shrink_memcg_node(pgdat, order, &sc);
+> > > +                     total_scanned += sc.nr_scanned;
+> > > +
+> > > +                     for (i = pgdat->nr_zones - 1; i >= 0; i--) {
+> > > +                             struct zone *zone = pgdat->node_zones + i;
+> > > +
+> > > +                             if (populated_zone(zone))
+> > > +                                     break;
+> > > +                     }
+> >
+> > memory less node check is here. but we can check it before.
 > 
+> Not sure I understand this, can you help to clarify?
 
-Feel free to do. But I think it's near to weekend and posting patch right
-now or posting patch at Monday will not make big changes.
+Same with above N_HIGH_MEMORY comments.
 
-Thanks,
--Kame
 
 
 --
