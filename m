@@ -1,29 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 4702F8D003B
-	for <linux-mm@kvack.org>; Fri, 22 Apr 2011 00:51:46 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 860503EE0AE
-	for <linux-mm@kvack.org>; Fri, 22 Apr 2011 13:51:43 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6E3D945DE98
-	for <linux-mm@kvack.org>; Fri, 22 Apr 2011 13:51:40 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id DBBE745DE97
-	for <linux-mm@kvack.org>; Fri, 22 Apr 2011 13:51:39 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id CCCFAE08002
-	for <linux-mm@kvack.org>; Fri, 22 Apr 2011 13:51:39 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 970601DB803B
-	for <linux-mm@kvack.org>; Fri, 22 Apr 2011 13:51:39 +0900 (JST)
-Date: Fri, 22 Apr 2011 13:44:55 +0900
+	by kanga.kvack.org (Postfix) with ESMTP id 96F188D003B
+	for <linux-mm@kvack.org>; Fri, 22 Apr 2011 01:07:09 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id C2D703EE0C2
+	for <linux-mm@kvack.org>; Fri, 22 Apr 2011 14:07:05 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 969E045DE5E
+	for <linux-mm@kvack.org>; Fri, 22 Apr 2011 14:07:05 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 750BF45DE55
+	for <linux-mm@kvack.org>; Fri, 22 Apr 2011 14:07:05 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 62DB01DB8042
+	for <linux-mm@kvack.org>; Fri, 22 Apr 2011 14:07:05 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 1D6681DB803F
+	for <linux-mm@kvack.org>; Fri, 22 Apr 2011 14:07:05 +0900 (JST)
+Date: Fri, 22 Apr 2011 14:00:23 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH V7 9/9] Enable per-memcg background reclaim.
-Message-Id: <20110422134455.6bd83c7c.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1303446260-21333-10-git-send-email-yinghan@google.com>
+Subject: Re: [PATCH V7 4/9] Add memcg kswapd thread pool
+Message-Id: <20110422140023.949e5737.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <BANLkTinkJC2-HiGtxgTTo8RvRjZqYuq2pA@mail.gmail.com>
 References: <1303446260-21333-1-git-send-email-yinghan@google.com>
-	<1303446260-21333-10-git-send-email-yinghan@google.com>
+	<1303446260-21333-5-git-send-email-yinghan@google.com>
+	<20110422133643.6a36d838.kamezawa.hiroyu@jp.fujitsu.com>
+	<BANLkTinkJC2-HiGtxgTTo8RvRjZqYuq2pA@mail.gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -32,40 +34,92 @@ List-ID: <linux-mm.kvack.org>
 To: Ying Han <yinghan@google.com>
 Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>, linux-mm@kvack.org
 
-On Thu, 21 Apr 2011 21:24:20 -0700
+On Thu, 21 Apr 2011 21:49:04 -0700
 Ying Han <yinghan@google.com> wrote:
 
-> By default the per-memcg background reclaim is disabled when the limit_in_bytes
-> is set the maximum. The kswapd_run() is called when the memcg is being resized,
-> and kswapd_stop() is called when the memcg is being deleted.
+> On Thu, Apr 21, 2011 at 9:36 PM, KAMEZAWA Hiroyuki <
+> kamezawa.hiroyu@jp.fujitsu.com> wrote:
 > 
-> The per-memcg kswapd is waked up based on the usage and low_wmark, which is
-> checked once per 1024 increments per cpu. The memcg's kswapd is waked up if the
-> usage is larger than the low_wmark.
+> > On Thu, 21 Apr 2011 21:24:15 -0700
+> > Ying Han <yinghan@google.com> wrote:
+> >
+> > > This patch creates a thread pool for memcg-kswapd. All memcg which needs
+> > > background recalim are linked to a list and memcg-kswapd picks up a memcg
+> > > from the list and run reclaim.
+> > >
+> > > The concern of using per-memcg-kswapd thread is the system overhead
+> > including
+> > > memory and cputime.
+> > >
+> > > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > > Signed-off-by: Ying Han <yinghan@google.com>
+> >
+> > Thank you for merging. This seems ok to me.
+> >
+> > Further development may make this better or change thread pools (to some
+> > other),
+> > but I think this is enough good.
+> >
 > 
-> changelog v7..v6:
-> 1. merge the thread-pool and add memcg_kswapd_stop(), memcg_kswapd_init() based
-> on thread-pool.
+> Thank you for reviewing and Acking. At the same time, I do have wondering on
+> the thread-pool modeling which I posted on the cover-letter :)
 > 
-> changelog v4..v3:
-> 1. move kswapd_stop to mem_cgroup_destroy based on comments from KAMAZAWA
-> 2. move kswapd_run to setup_mem_cgroup_wmark, since the actual watermarks
-> determines whether or not enabling per-memcg background reclaim.
+> The per-memcg-per-kswapd model
+> Pros:
+> 1. memory overhead per thread, and The memory consumption would be 8k*1000 =
+> 8M
+> with 1k cgroup.
+> 2. we see lots of threads at 'ps -elf'
 > 
-> changelog v3..v2:
-> 1. some clean-ups
+> Cons:
+> 1. the implementation is simply and straigh-forward.
+> 2. we can easily isolate the background reclaim overhead between cgroups.
+> 3. better latency from memory pressure to actual start reclaiming
 > 
-> changelog v2..v1:
-> 1. start/stop the per-cgroup kswapd at create/delete cgroup stage.
-> 2. remove checking the wmark from per-page charging. now it checks the wmark
-> periodically based on the event counter.
+> The thread-pool model
+> Pros:
+> 1. there is no isolation between memcg background reclaim, since the memcg
+> threads
+> are shared.
+> 2. it is hard for visibility and debugability. I have been experienced a lot
+> when
+> some kswapds running creazy and we need a stright-forward way to identify
+> which
+> cgroup causing the reclaim.
+> 3. potential starvation for some memcgs, if one workitem stucks and the rest
+> of work
+> won't proceed.
 > 
-> Signed-off-by: Ying Han <yinghan@google.com>
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Cons:
+> 1. save some memory resource.
+> 
+> In general, the per-memcg-per-kswapd implmentation looks sane to me at this
+> point, esepcially the sharing memcg thread model will make debugging issue
+> very hard later.
+> 
+> Comments?
+> 
+Pros <-> Cons ?
 
-seems ok to me. Maybe we need to revisit the suitable number of threads after
-seeing real world workload.
+My idea is adding trace point for memcg-kswapd and seeing what it's now doing.
+(We don't have too small trace point in memcg...)
+
+I don't think its sane to create kthread per memcg because we know there is a user
+who makes hundreds/thousands of memcg.
+
+And, I think that creating threads, which does the same job, more than the number
+of cpus will cause much more difficult starvation, priority inversion issue.
+Keeping scheduling knob/chances of jobs in memcg is important. I don't want to
+give a hint to scheduler because of memcg internal issue.
+
+And, even if memcg-kswapd doesn't exist, memcg works (well?). 
+memcg-kswapd just helps making things better but not do any critical jobs.
+So, it's okay to have this as best-effort service.
+Of course, better scheduling idea for picking up memcg is welcomed. It's now
+round-robin.
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
