@@ -1,102 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 837F28D003B
-	for <linux-mm@kvack.org>; Fri, 22 Apr 2011 17:23:05 -0400 (EDT)
-Date: Fri, 22 Apr 2011 23:23:00 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 5/6] writeback: try more writeback as long as something
- was written
-Message-ID: <20110422212300.GC2977@quack.suse.cz>
-References: <20110419102016.GD5257@quack.suse.cz>
- <20110419111601.GA18961@localhost>
- <20110419211008.GD9556@quack.suse.cz>
- <20110420075053.GB30672@localhost>
- <20110420152211.GC4991@quack.suse.cz>
- <20110421033325.GA13764@localhost>
- <20110421043940.GC22423@infradead.org>
- <20110421060556.GA24232@localhost>
- <20110421164154.GC4476@quack.suse.cz>
- <20110422023226.GB6199@localhost>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110422023226.GB6199@localhost>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id E9E4C8D003B
+	for <linux-mm@kvack.org>; Fri, 22 Apr 2011 17:33:11 -0400 (EDT)
+Subject: Re: [PATCH v3] mm: make expand_downwards symmetrical to
+ expand_upwards
+From: James Bottomley <James.Bottomley@HansenPartnership.com>
+In-Reply-To: <1303411537.9048.3583.camel@nimitz>
+References: <1303337718.2587.51.camel@mulgrave.site>
+	 <alpine.DEB.2.00.1104201530430.13948@chino.kir.corp.google.com>
+	 <20110421221712.9184.A69D9226@jp.fujitsu.com>
+	 <1303403847.4025.11.camel@mulgrave.site>
+	 <alpine.DEB.2.00.1104211328000.5741@router.home>
+	 <1303411537.9048.3583.camel@nimitz>
+Content-Type: text/plain; charset="UTF-8"
+Date: Fri, 22 Apr 2011 16:33:05 -0500
+Message-ID: <1303507985.2590.47.camel@mulgrave.site>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@linux.vnet.ibm.com>, Dave Chinner <david@fromorbit.com>, Trond Myklebust <Trond.Myklebust@netapp.com>, Itaru Kitayama <kitayama@cl.bb4u.ne.jp>, Minchan Kim <minchan.kim@gmail.com>, LKML <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: Christoph Lameter <cl@linux.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-parisc@vger.kernel.org, Ingo Molnar <mingo@elte.hu>, x86 maintainers <x86@kernel.org>, Tejun Heo <tj@kernel.org>, Mel Gorman <mel@csn.ul.ie>
 
-On Fri 22-04-11 10:32:26, Wu Fengguang wrote:
-> On Fri, Apr 22, 2011 at 12:41:54AM +0800, Jan Kara wrote:
-> > On Thu 21-04-11 14:05:56, Wu Fengguang wrote:
-> > > On Thu, Apr 21, 2011 at 12:39:40PM +0800, Christoph Hellwig wrote:
-> > > > On Thu, Apr 21, 2011 at 11:33:25AM +0800, Wu Fengguang wrote:
-> > > > > I collected the writeback_single_inode() traces (patch attached for
-> > > > > your reference) each for several test runs, and find much more
-> > > > > I_DIRTY_PAGES after patchset. Dave, do you know why there are so many
-> > > > > I_DIRTY_PAGES (or radix tag) remained after the XFS ->writepages() call,
-> > > > > even for small files?
-> > > > 
-> > > > What is your defintion of a small file?  As soon as it has multiple
-> > > > extents or holes there's absolutely no way to clean it with a single
-> > > > writepage call.
-> > > 
-> > > It's writing a kernel source tree to XFS. You can find in the below
-> > > trace that it often leaves more dirty pages behind (indicated by the
-> > > I_DIRTY_PAGES flag) after writing as less as 1 page (indicated by the
-> > > wrote=1 field).
-> >   As Dave said, it's probably just a race since XFS redirties the inode on
-> > IO completion. So I think the inodes are just small so they have only a few
-> > dirty pages so you don't have much to write and they are written and
-> > redirtied before you check the I_DIRTY flags. You could use radix tree
-> > dirty tag to verify whether there are really dirty pages or not...
-> 
-> Yeah, Dave and Christoph root caused it in the other email -- XFS sets
-> I_DIRTY which accidentally sets I_DIRTY_PAGES. We can safely bet there
-> are no real dirty pages -- otherwise it would have turned up as
-> performance regressions.
-  Yes, but then the question what we actually do better is still open,
-right? :) I'm really curious what it could be because especially in your
-copy-kernel case I should not make much different - maybe except if we
-occasionally managed to block on PageLock behind the writing thread and now
-we don't because we queue the inode later but I find that highly unlikely.
-
-> >   BTW a quick check of kernel tree shows the following distribution of
-> > sizes (in KB):
-> >   Count KB  Cumulative Percent
-> >     257 0   0.9%
-> >   13309 4   45%
-> >    5553 8   63%
-> >    2997 12  73%
-> >    1879 16  80%
-> >    1275 20  83%
-> >     987 24  87%
-> >     685 28  89%
-> >     540 32  91%
-> >     387 36  ...
-> >     309 40
-> >     264 44
-> >     249 48
-> >     170 52
-> >     143 56
-> >     144 60
-> >     132 64
-> >     100 68
-> >     ...
-> > Total 30155
+On Thu, 2011-04-21 at 11:45 -0700, Dave Hansen wrote:
+> On Thu, 2011-04-21 at 13:33 -0500, Christoph Lameter wrote:
+> > http://www.linux-mips.org/archives/linux-mips/2008-08/msg00154.html
 > > 
-> > And the distribution of your 'wrote=xxx' roughly corresponds to this...
-> 
-> Nice numbers! How do you manage to account them? :)
-  Easy shell command (and I handcomputed the percentages because I was lazy
-to write a script for that):
-find . -type f -name "*.[ch]" -exec du {} \; | cut -d '	' -f 1 |
-sort -n | uniq -c
 
-								Honza
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+By the way, this reference is actively wrong for parisc (having just
+debugged the problem).  The basic issue is that until we start paging,
+we have the kernel and some memory beyond it barely covered with the pg0
+page table set up in head.S  On our systems, that extends out to 16MB.
+SPARSEMEM is much more bootmem resource greedy than DISCONTIGMEM, so if
+we actually call sparse_init() before we have the page tables set up, we
+fall off the end of our 16MB mapping and go boom.  For us, therefore, we
+can't call sparse_init() until we have our proper page tables in place.
+
+James
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
