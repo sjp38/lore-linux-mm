@@ -1,57 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 979578D003B
-	for <linux-mm@kvack.org>; Thu, 21 Apr 2011 20:34:30 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id CB81C3EE0BC
-	for <linux-mm@kvack.org>; Fri, 22 Apr 2011 09:34:26 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id AFAB745DE60
-	for <linux-mm@kvack.org>; Fri, 22 Apr 2011 09:34:26 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 9249745DE5A
-	for <linux-mm@kvack.org>; Fri, 22 Apr 2011 09:34:26 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 83C531DB804D
-	for <linux-mm@kvack.org>; Fri, 22 Apr 2011 09:34:26 +0900 (JST)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 3C86D8D003B
+	for <linux-mm@kvack.org>; Thu, 21 Apr 2011 20:36:20 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id DAF9D3EE0B5
+	for <linux-mm@kvack.org>; Fri, 22 Apr 2011 09:36:16 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id BB7E545DE95
+	for <linux-mm@kvack.org>; Fri, 22 Apr 2011 09:36:16 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id A538945DE78
+	for <linux-mm@kvack.org>; Fri, 22 Apr 2011 09:36:16 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 96176E18003
+	for <linux-mm@kvack.org>; Fri, 22 Apr 2011 09:36:16 +0900 (JST)
 Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 4AE801DB8046
-	for <linux-mm@kvack.org>; Fri, 22 Apr 2011 09:34:26 +0900 (JST)
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 594B3E08005
+	for <linux-mm@kvack.org>; Fri, 22 Apr 2011 09:36:16 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH v3] mm: make expand_downwards symmetrical to expand_upwards
-In-Reply-To: <alpine.DEB.2.00.1104211230030.5829@chino.kir.corp.google.com>
-References: <20110421221712.9184.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1104211230030.5829@chino.kir.corp.google.com>
-Message-Id: <20110422093406.FA56.A69D9226@jp.fujitsu.com>
+Subject: Re: [patch] mm: always set nodes with regular memory in N_NORMAL_MEMORY
+In-Reply-To: <alpine.DEB.2.00.1104211440240.20201@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1104211411540.20201@chino.kir.corp.google.com> <alpine.DEB.2.00.1104211440240.20201@chino.kir.corp.google.com>
+Message-Id: <20110422093619.FA5A.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Date: Fri, 22 Apr 2011 09:34:25 +0900 (JST)
+Date: Fri, 22 Apr 2011 09:36:15 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: David Rientjes <rientjes@google.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, James Bottomley <James.Bottomley@hansenpartnership.com>, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-parisc@vger.kernel.org, Ingo Molnar <mingo@elte.hu>, x86 maintainers <x86@kernel.org>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-> On Thu, 21 Apr 2011, KOSAKI Motohiro wrote:
+> N_NORMAL_MEMORY is intended to include all nodes that have present memory 
+> in regular zones, that is, zones below ZONE_HIGHMEM.  This should be done 
+> regardless of whether CONFIG_HIGHMEM is set or not.
 > 
-> > ia64 and mips have CONFIG_ARCH_POPULATES_NODE_MAP and it initialize
-> > N_NORMAL_MEMORY automatically if my understand is correct.
-> > (plz see free_area_init_nodes)
-> > 
+> This fixes ia64 so that the nodes get set appropriately in the nodemask 
+> for DISCONTIGMEM and mips if it does not enable CONFIG_HIGHMEM even for 
+> 32-bit kernels.
 > 
-> ia64 doesn't enable CONFIG_HIGHMEM, so it never gets set via this generic 
-> code; mips also doesn't enable it for all configs even for 32-bit.
+> If N_NORMAL_MEMORY is not accurate, slub may encounter errors since it 
+> relies on this nodemask to setup kmem_cache_node data structures for each 
+> cache.
 > 
-> So we'll either want to take check_for_regular_memory() out from under 
-> CONFIG_HIGHMEM and do it for all configs or teach slub to use 
-> N_HIGH_MEMORY rather than N_NORMAL_MEMORY.
+> Signed-off-by: David Rientjes <rientjes@google.com>
+> ---
+>  mm/page_alloc.c |    2 --
+>  1 files changed, 0 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -4727,7 +4727,6 @@ out:
+>  /* Any regular memory on that node ? */
+>  static void check_for_regular_memory(pg_data_t *pgdat)
+>  {
+> -#ifdef CONFIG_HIGHMEM
+>  	enum zone_type zone_type;
+>  
+>  	for (zone_type = 0; zone_type <= ZONE_NORMAL; zone_type++) {
+> @@ -4735,7 +4734,6 @@ static void check_for_regular_memory(pg_data_t *pgdat)
+>  		if (zone->present_pages)
+>  			node_set_state(zone_to_nid(zone), N_NORMAL_MEMORY);
+>  	}
+> -#endif
 
-Hey, I already told this thing.
+enum node_states {
+        N_POSSIBLE,             /* The node could become online at some point */
+        N_ONLINE,               /* The node is online */
+        N_NORMAL_MEMORY,        /* The node has regular memory */
+#ifdef CONFIG_HIGHMEM
+        N_HIGH_MEMORY,          /* The node has regular or high memory */
+#else
+        N_HIGH_MEMORY = N_NORMAL_MEMORY,
+#endif
+        N_CPU,          /* The node has one or more cpus */
+        NR_NODE_STATES
+};
 
-If CONFIG_HIGHMEM=n, N_HIGH_MEMORY and N_NORMAL_MEMORY are share the
-same value. then, 
-	node_set_state(nid, N_HIGH_MEMORY) in free_area_init_nodes()
-
-mean set both N_HIGH_MEMORY and N_NORMAL_MEMORY.
+Then, only node_set_state(nid, N_HIGH_MEMORY) is enough initialization, IIUC.
+Can you please explain when do we need this patch?
 
 
 --
