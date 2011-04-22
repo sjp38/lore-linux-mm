@@ -1,86 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C86D8D003B
-	for <linux-mm@kvack.org>; Thu, 21 Apr 2011 20:36:20 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id DAF9D3EE0B5
-	for <linux-mm@kvack.org>; Fri, 22 Apr 2011 09:36:16 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id BB7E545DE95
-	for <linux-mm@kvack.org>; Fri, 22 Apr 2011 09:36:16 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id A538945DE78
-	for <linux-mm@kvack.org>; Fri, 22 Apr 2011 09:36:16 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 96176E18003
-	for <linux-mm@kvack.org>; Fri, 22 Apr 2011 09:36:16 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 594B3E08005
-	for <linux-mm@kvack.org>; Fri, 22 Apr 2011 09:36:16 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [patch] mm: always set nodes with regular memory in N_NORMAL_MEMORY
-In-Reply-To: <alpine.DEB.2.00.1104211440240.20201@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1104211411540.20201@chino.kir.corp.google.com> <alpine.DEB.2.00.1104211440240.20201@chino.kir.corp.google.com>
-Message-Id: <20110422093619.FA5A.A69D9226@jp.fujitsu.com>
+	by kanga.kvack.org (Postfix) with ESMTP id B21528D003B
+	for <linux-mm@kvack.org>; Thu, 21 Apr 2011 20:54:29 -0400 (EDT)
+Received: by iyh42 with SMTP id 42so263104iyh.14
+        for <linux-mm@kvack.org>; Thu, 21 Apr 2011 17:54:25 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Fri, 22 Apr 2011 09:36:15 +0900 (JST)
+In-Reply-To: <20110421161402.GS5611@random.random>
+References: <20110415101248.GB22688@suse.de>
+	<BANLkTik7H+cmA8iToV4j1ncbQqeraCaeTg@mail.gmail.com>
+	<20110421110841.GA612@suse.de>
+	<20110421142636.GA1835@barrios-desktop>
+	<20110421160057.GA28712@suse.de>
+	<20110421161402.GS5611@random.random>
+Date: Fri, 22 Apr 2011 09:54:24 +0900
+Message-ID: <BANLkTi=+fGe-hrV3c8r2jKzWG2BHU0GsFA@mail.gmail.com>
+Subject: Re: [PATCH] mm: Check if PTE is already allocated during page fault
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Mel Gorman <mgorman@suse.de>, akpm@linux-foundation.org, raz ben yehuda <raziebe@gmail.com>, riel@redhat.com, kosaki.motohiro@jp.fujitsu.com, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, stable@kernel.org
 
-> N_NORMAL_MEMORY is intended to include all nodes that have present memory 
-> in regular zones, that is, zones below ZONE_HIGHMEM.  This should be done 
-> regardless of whether CONFIG_HIGHMEM is set or not.
-> 
-> This fixes ia64 so that the nodes get set appropriately in the nodemask 
-> for DISCONTIGMEM and mips if it does not enable CONFIG_HIGHMEM even for 
-> 32-bit kernels.
-> 
-> If N_NORMAL_MEMORY is not accurate, slub may encounter errors since it 
-> relies on this nodemask to setup kmem_cache_node data structures for each 
-> cache.
-> 
-> Signed-off-by: David Rientjes <rientjes@google.com>
-> ---
->  mm/page_alloc.c |    2 --
->  1 files changed, 0 insertions(+), 2 deletions(-)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -4727,7 +4727,6 @@ out:
->  /* Any regular memory on that node ? */
->  static void check_for_regular_memory(pg_data_t *pgdat)
->  {
-> -#ifdef CONFIG_HIGHMEM
->  	enum zone_type zone_type;
->  
->  	for (zone_type = 0; zone_type <= ZONE_NORMAL; zone_type++) {
-> @@ -4735,7 +4734,6 @@ static void check_for_regular_memory(pg_data_t *pgdat)
->  		if (zone->present_pages)
->  			node_set_state(zone_to_nid(zone), N_NORMAL_MEMORY);
->  	}
-> -#endif
+Hi Andrea,
 
-enum node_states {
-        N_POSSIBLE,             /* The node could become online at some point */
-        N_ONLINE,               /* The node is online */
-        N_NORMAL_MEMORY,        /* The node has regular memory */
-#ifdef CONFIG_HIGHMEM
-        N_HIGH_MEMORY,          /* The node has regular or high memory */
-#else
-        N_HIGH_MEMORY = N_NORMAL_MEMORY,
-#endif
-        N_CPU,          /* The node has one or more cpus */
-        NR_NODE_STATES
-};
+On Fri, Apr 22, 2011 at 1:14 AM, Andrea Arcangeli <aarcange@redhat.com> wrote:
+> On Thu, Apr 21, 2011 at 05:00:57PM +0100, Mel Gorman wrote:
+>> If you want to create a new patch with either your comment or mine
+>> (whichever you prefer) I'll add my ack. I'm about to drop offline
+>> for a few days but if it's still there Tuesday, I'll put together an
+>> appropriate patch and submit. I'd keep it separate from the other patch
+>> because it's a performance fix (which I'd like to see in -stable) where
+>> as this is more of a cleanup IMO.
+>
+> I think the older patch should have more priority agreed. This one may
+> actually waste cpu cycles overall, rather than saving them, it
+> shouldn't be a common occurrence.
+>
+> From a code consistency point of view maybe we should just implement a
+> pte_alloc macro (to put after pte_alloc_map) and use it in both
+> places, and hide the glory details of the unlikely in the macro. When
+> implementing pte_alloc, I suggest also adding unlikely to both, I mean
+> we added unlikely to the fast path ok, but __pte_alloc is orders of
+> magnitude less likely to fail than pte_none, and it still runs 1 every
+> 512 4k page faults, so I think __pte_alloc deserves an unlikely too.
+>
+> Minchan, you suggested this cleanup, so I suggest you to send a patch,
+> but if you're busy we can help.
 
-Then, only node_set_state(nid, N_HIGH_MEMORY) is enough initialization, IIUC.
-Can you please explain when do we need this patch?
+It's no problem to send a patch but I can do it at out-of-office time.
+Maybe weekend. :)
+Before doing that, let's clear the point. You mentioned  it shouldn't
+be a common occurrence but you are suggesting we should do for code
+consistency POV. Am I right?
 
+>
+> Thanks!
+> Andrea
+>
+
+
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
