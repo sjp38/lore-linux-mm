@@ -1,90 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id F18078D003B
-	for <linux-mm@kvack.org>; Thu, 21 Apr 2011 22:32:30 -0400 (EDT)
-Date: Fri, 22 Apr 2011 10:32:26 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 5/6] writeback: try more writeback as long as something
- was written
-Message-ID: <20110422023226.GB6199@localhost>
-References: <20110419030532.778889102@intel.com>
- <20110419102016.GD5257@quack.suse.cz>
- <20110419111601.GA18961@localhost>
- <20110419211008.GD9556@quack.suse.cz>
- <20110420075053.GB30672@localhost>
- <20110420152211.GC4991@quack.suse.cz>
- <20110421033325.GA13764@localhost>
- <20110421043940.GC22423@infradead.org>
- <20110421060556.GA24232@localhost>
- <20110421164154.GC4476@quack.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110421164154.GC4476@quack.suse.cz>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id AF5F78D003B
+	for <linux-mm@kvack.org>; Thu, 21 Apr 2011 22:33:03 -0400 (EDT)
+Subject: Re: [PATCH] percpu: preemptless __per_cpu_counter_add
+From: Shaohua Li <shaohua.li@intel.com>
+In-Reply-To: <20110421190807.GK15988@htj.dyndns.org>
+References: <alpine.DEB.2.00.1104151440070.8055@router.home>
+	 <20110415235222.GA18694@mtj.dyndns.org>
+	 <alpine.DEB.2.00.1104180930580.23207@router.home>
+	 <20110421144300.GA22898@htj.dyndns.org>
+	 <20110421145837.GB22898@htj.dyndns.org>
+	 <alpine.DEB.2.00.1104211243350.5741@router.home>
+	 <20110421180159.GF15988@htj.dyndns.org>
+	 <alpine.DEB.2.00.1104211308300.5741@router.home>
+	 <20110421183727.GG15988@htj.dyndns.org>
+	 <alpine.DEB.2.00.1104211350310.5741@router.home>
+	 <20110421190807.GK15988@htj.dyndns.org>
+Content-Type: text/plain; charset="UTF-8"
+Date: Fri, 22 Apr 2011 10:33:00 +0800
+Message-ID: <1303439580.3981.241.camel@sli10-conroe>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@linux.vnet.ibm.com>, Dave Chinner <david@fromorbit.com>, Trond Myklebust <Trond.Myklebust@netapp.com>, Itaru Kitayama <kitayama@cl.bb4u.ne.jp>, Minchan Kim <minchan.kim@gmail.com>, LKML <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Tejun Heo <tj@kernel.org>
+Cc: Christoph Lameter <cl@linux.com>, Eric Dumazet <eric.dumazet@gmail.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Fri, Apr 22, 2011 at 12:41:54AM +0800, Jan Kara wrote:
-> On Thu 21-04-11 14:05:56, Wu Fengguang wrote:
-> > On Thu, Apr 21, 2011 at 12:39:40PM +0800, Christoph Hellwig wrote:
-> > > On Thu, Apr 21, 2011 at 11:33:25AM +0800, Wu Fengguang wrote:
-> > > > I collected the writeback_single_inode() traces (patch attached for
-> > > > your reference) each for several test runs, and find much more
-> > > > I_DIRTY_PAGES after patchset. Dave, do you know why there are so many
-> > > > I_DIRTY_PAGES (or radix tag) remained after the XFS ->writepages() call,
-> > > > even for small files?
-> > > 
-> > > What is your defintion of a small file?  As soon as it has multiple
-> > > extents or holes there's absolutely no way to clean it with a single
-> > > writepage call.
-> > 
-> > It's writing a kernel source tree to XFS. You can find in the below
-> > trace that it often leaves more dirty pages behind (indicated by the
-> > I_DIRTY_PAGES flag) after writing as less as 1 page (indicated by the
-> > wrote=1 field).
->   As Dave said, it's probably just a race since XFS redirties the inode on
-> IO completion. So I think the inodes are just small so they have only a few
-> dirty pages so you don't have much to write and they are written and
-> redirtied before you check the I_DIRTY flags. You could use radix tree
-> dirty tag to verify whether there are really dirty pages or not...
-
-Yeah, Dave and Christoph root caused it in the other email -- XFS sets
-I_DIRTY which accidentally sets I_DIRTY_PAGES. We can safely bet there
-are no real dirty pages -- otherwise it would have turned up as
-performance regressions.
-
->   BTW a quick check of kernel tree shows the following distribution of
-> sizes (in KB):
->   Count KB  Cumulative Percent
->     257 0   0.9%
->   13309 4   45%
->    5553 8   63%
->    2997 12  73%
->    1879 16  80%
->    1275 20  83%
->     987 24  87%
->     685 28  89%
->     540 32  91%
->     387 36  ...
->     309 40
->     264 44
->     249 48
->     170 52
->     143 56
->     144 60
->     132 64
->     100 68
->     ...
-> Total 30155
+On Fri, 2011-04-22 at 03:08 +0800, Tejun Heo wrote:
+> Hello,
 > 
-> And the distribution of your 'wrote=xxx' roughly corresponds to this...
+> On Thu, Apr 21, 2011 at 01:54:51PM -0500, Christoph Lameter wrote:
+> > Well again there is general fuzziness here and we are trying to make the
+> > best of it without compromising performance too much. Shaohua's numbers
+> > indicate that removing the lock is very advantagous. More over we do the
+> > same thing in other places.
+> 
+> The problem with Shaohua's numbers is that it's a pessimistic test
+> case with too low batch count.  If an optimization improves such
+> situations without compromising funcitionality or introducing too much
+> complexity, sure, why not?  But I'm not sure that's the case here.
+> 
+> > Actually its good to make the code paths for vmstats and percpu counters
+> > similar. That is what this does too.
+> > 
+> > Preempt enable/disable in any function that is supposedly fast is
+> > something bad that can be avoided with these patches as well.
+> 
+> If you really wanna push the _sum() fuziness change, the only way to
+> do that would be auditing all the current users and making sure that
+> it won't affect any of them.  It really doesn't matter what vmstat is
+> doing.  They're different users.
+> 
+> And, no matter what, that's a separate issue from the this_cpu hot
+> path optimizations and should be done separately.  So, _please_ update
+> this_cpu patch so that it doesn't change the slow path semantics.
+in the original implementation, a updater can change several times too,
+it can update the count from -(batch -1) to (batch -1) without holding
+the lock. so we always have batch*num_cpus*2 deviate
 
-Nice numbers! How do you manage to account them? :)
-
-Thanks,
-Fengguang
+if we really worry about _sum deviates too much. can we do something
+like this:
+percpu_counter_sum
+{
+again:
+	sum=0
+	old = atomic64_read(&fbc->counter)
+	for_each_online_cpu()
+		sum += per cpu counter
+	new = atomic64_read(&fbc->counter)
+	if (new - old > batch * num_cpus || old - new > batch * num_cpus)
+		goto again;
+	return new + sum;
+}
+in this way we limited the deviate to number of concurrent updater. This
+doesn't make _sum too slow too, because we have the batch * num_cpus
+check.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
