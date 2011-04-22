@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 056CB8D003B
-	for <linux-mm@kvack.org>; Fri, 22 Apr 2011 09:49:59 -0400 (EDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 15D6F8D003B
+	for <linux-mm@kvack.org>; Fri, 22 Apr 2011 13:00:58 -0400 (EDT)
 Subject: Re: [PATCH v3] mm: make expand_downwards symmetrical to
  expand_upwards
-From: James Bottomley <James.Bottomley@HansenPartnership.com>
-In-Reply-To: <BANLkTi=JGeWiFm-9H-2vHDsU1v7ykDt1UA@mail.gmail.com>
+From: Pekka Enberg <penberg@kernel.org>
+In-Reply-To: <1303480195.2590.2.camel@mulgrave.site>
 References: <1303317178.2587.30.camel@mulgrave.site>
 	 <alpine.DEB.2.00.1104201410350.31768@chino.kir.corp.google.com>
 	 <20110421220351.9180.A69D9226@jp.fujitsu.com>
@@ -17,56 +17,43 @@ References: <1303317178.2587.30.camel@mulgrave.site>
 	 <1303422566.4025.56.camel@mulgrave.site>
 	 <alpine.DEB.2.00.1104211505320.20201@chino.kir.corp.google.com>
 	 <BANLkTi=JGeWiFm-9H-2vHDsU1v7ykDt1UA@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Fri, 22 Apr 2011 08:49:54 -0500
-Message-ID: <1303480195.2590.2.camel@mulgrave.site>
+	 <1303480195.2590.2.camel@mulgrave.site>
+Content-Type: text/plain; charset="ISO-8859-1"
+Date: Fri, 22 Apr 2011 20:00:52 +0300
+Message-ID: <1303491652.15231.81.camel@jaguar>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
+To: James Bottomley <James.Bottomley@HansenPartnership.com>
 Cc: David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-parisc@vger.kernel.org, Ingo Molnar <mingo@elte.hu>, x86 maintainers <x86@kernel.org>
 
-On Fri, 2011-04-22 at 11:02 +0300, Pekka Enberg wrote:
-> On Fri, Apr 22, 2011 at 1:12 AM, David Rientjes <rientjes@google.com> wrote:
-> >> > diff --git a/init/Kconfig b/init/Kconfig
-> >> > index 56240e7..a7ad8fb 100644
-> >> > --- a/init/Kconfig
-> >> > +++ b/init/Kconfig
-> >> > @@ -1226,6 +1226,7 @@ config SLAB
-> >> >           per cpu and per node queues.
-> >> >
-> >> >  config SLUB
-> >> > +       depends on BROKEN || NUMA || !DISCONTIGMEM
-> >> >         bool "SLUB (Unqueued Allocator)"
-> >> >         help
-> >> >            SLUB is a slab allocator that minimizes cache line usage
-> >>
-> >>
-> >> I already sent it to linux-arch and there's been no dissent; there have
-> >> been a few "will that fix my slub bug?" type of responses.
-> >
-> > I was concerned about tile because it actually got all this right by using
-> > N_NORMAL_MEMORY appropriately and it uses slub by default, but it always
-> > enables NUMA at the moment so this won't impact it.
-> >
-> > Acked-by: David Rientjes <rientjes@google.com>
+Hi James,
+
+On Fri, 2011-04-22 at 08:49 -0500, James Bottomley wrote:
+> > I'm OK with this Kconfig patch. Can someone send a proper patch with
+> > signoffs and such? Do we want to tag this for -stable too?
 > 
-> I'm OK with this Kconfig patch. Can someone send a proper patch with
-> signoffs and such? Do we want to tag this for -stable too?
+> I already did here:
+> 
+> http://marc.info/?l=linux-arch&m=130324857801976
+> 
+> I got the wrong linux-mm email address, though (I thought you were on
+> vger).
 
-I already did here:
+Grr, it's a SLUB patch and you didn't CC any of the maintainers! If that
+was an attempt to sneak it past me, that's not cool. And if you left it
+out by mistake, that's not cool either!
 
-http://marc.info/?l=linux-arch&m=130324857801976
+> I've got a parisc specific patch already for this (also for stable), so
+> I can just queue this alongside if everyone's OK with that?
 
-I got the wrong linux-mm email address, though (I thought you were on
-vger).
+Feel free, I'm not subscribed to linux-arch so I don't have the patch in
+my inbox at all:
 
-I've got a parisc specific patch already for this (also for stable), so
-I can just queue this alongside if everyone's OK with that?
+Acked-by: Pekka Enberg <penberg@kernel.org>
 
-James
-
+			Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
