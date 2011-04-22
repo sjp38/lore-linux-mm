@@ -1,333 +1,360 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C2188D003B
-	for <linux-mm@kvack.org>; Fri, 22 Apr 2011 02:13:36 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id EF9D43EE0BD
-	for <linux-mm@kvack.org>; Fri, 22 Apr 2011 15:13:32 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id C156945DF18
-	for <linux-mm@kvack.org>; Fri, 22 Apr 2011 15:13:32 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id A7BFD45DF13
-	for <linux-mm@kvack.org>; Fri, 22 Apr 2011 15:13:32 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 979CEE18005
-	for <linux-mm@kvack.org>; Fri, 22 Apr 2011 15:13:32 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5AAA51DB803C
-	for <linux-mm@kvack.org>; Fri, 22 Apr 2011 15:13:32 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH V7 8/9] Add per-memcg zone "unreclaimable"
-In-Reply-To: <1303446260-21333-9-git-send-email-yinghan@google.com>
-References: <1303446260-21333-1-git-send-email-yinghan@google.com> <1303446260-21333-9-git-send-email-yinghan@google.com>
-Message-Id: <20110422151420.FA72.A69D9226@jp.fujitsu.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 89A038D003B
+	for <linux-mm@kvack.org>; Fri, 22 Apr 2011 02:14:43 -0400 (EDT)
+Received: from wpaz9.hot.corp.google.com (wpaz9.hot.corp.google.com [172.24.198.73])
+	by smtp-out.google.com with ESMTP id p3M6EdBj017429
+	for <linux-mm@kvack.org>; Thu, 21 Apr 2011 23:14:40 -0700
+Received: from qyk35 (qyk35.prod.google.com [10.241.83.163])
+	by wpaz9.hot.corp.google.com with ESMTP id p3M6EEVl020189
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 21 Apr 2011 23:14:38 -0700
+Received: by qyk35 with SMTP id 35so258983qyk.6
+        for <linux-mm@kvack.org>; Thu, 21 Apr 2011 23:14:38 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Fri, 22 Apr 2011 15:13:31 +0900 (JST)
+In-Reply-To: <BANLkTinRyZyeJh-v2XeFRPCCd=x5OpWr+g@mail.gmail.com>
+References: <1303446260-21333-1-git-send-email-yinghan@google.com>
+	<1303446260-21333-5-git-send-email-yinghan@google.com>
+	<20110422133643.6a36d838.kamezawa.hiroyu@jp.fujitsu.com>
+	<BANLkTinkJC2-HiGtxgTTo8RvRjZqYuq2pA@mail.gmail.com>
+	<20110422140023.949e5737.kamezawa.hiroyu@jp.fujitsu.com>
+	<BANLkTinRyZyeJh-v2XeFRPCCd=x5OpWr+g@mail.gmail.com>
+Date: Thu, 21 Apr 2011 23:14:38 -0700
+Message-ID: <BANLkTincprGh-_58EugPyoCQod70ED9gGQ@mail.gmail.com>
+Subject: Re: [PATCH V7 4/9] Add memcg kswapd thread pool
+From: Ying Han <yinghan@google.com>
+Content-Type: multipart/alternative; boundary=0016e64aefdacabc9904a17bc5eb
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>, linux-mm@kvack.org
+To: Zhu Yanhai <zhu.yanhai@gmail.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org
 
-> diff --git a/include/linux/sched.h b/include/linux/sched.h
-> index 98fc7ed..3370c5a 100644
-> --- a/include/linux/sched.h
-> +++ b/include/linux/sched.h
-> @@ -1526,6 +1526,7 @@ struct task_struct {
->  		struct mem_cgroup *memcg; /* target memcg of uncharge */
->  		unsigned long nr_pages;	/* uncharged usage */
->  		unsigned long memsw_nr_pages; /* uncharged mem+swap usage */
-> +		struct zone *zone; /* a zone page is last uncharged */
+--0016e64aefdacabc9904a17bc5eb
+Content-Type: text/plain; charset=ISO-8859-1
 
-"zone" is bad name for task_struct. :-/
+On Thu, Apr 21, 2011 at 11:02 PM, Zhu Yanhai <zhu.yanhai@gmail.com> wrote:
 
+> Hi Kame,
+>
+> 2011/4/22 KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>
+>> On Thu, 21 Apr 2011 21:49:04 -0700
+>> Ying Han <yinghan@google.com> wrote:
+>>
+>> > On Thu, Apr 21, 2011 at 9:36 PM, KAMEZAWA Hiroyuki <
+>> > kamezawa.hiroyu@jp.fujitsu.com> wrote:
+>> >
+>> > > On Thu, 21 Apr 2011 21:24:15 -0700
+>> > > Ying Han <yinghan@google.com> wrote:
+>> > >
+>> > > > This patch creates a thread pool for memcg-kswapd. All memcg which
+>> needs
+>> > > > background recalim are linked to a list and memcg-kswapd picks up a
+>> memcg
+>> > > > from the list and run reclaim.
+>> > > >
+>> > > > The concern of using per-memcg-kswapd thread is the system overhead
+>> > > including
+>> > > > memory and cputime.
+>> > > >
+>> > > > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>> > > > Signed-off-by: Ying Han <yinghan@google.com>
+>> > >
+>> > > Thank you for merging. This seems ok to me.
+>> > >
+>> > > Further development may make this better or change thread pools (to
+>> some
+>> > > other),
+>> > > but I think this is enough good.
+>> > >
+>> >
+>> > Thank you for reviewing and Acking. At the same time, I do have
+>> wondering on
+>> > the thread-pool modeling which I posted on the cover-letter :)
+>> >
+>> > The per-memcg-per-kswapd model
+>> > Pros:
+>> > 1. memory overhead per thread, and The memory consumption would be
+>> 8k*1000 =
+>> > 8M
+>> > with 1k cgroup.
+>> > 2. we see lots of threads at 'ps -elf'
+>> >
+>> > Cons:
+>> > 1. the implementation is simply and straigh-forward.
+>> > 2. we can easily isolate the background reclaim overhead between
+>> cgroups.
+>> > 3. better latency from memory pressure to actual start reclaiming
+>> >
+>> > The thread-pool model
+>> > Pros:
+>> > 1. there is no isolation between memcg background reclaim, since the
+>> memcg
+>> > threads
+>> > are shared.
+>> > 2. it is hard for visibility and debugability. I have been experienced a
+>> lot
+>> > when
+>> > some kswapds running creazy and we need a stright-forward way to
+>> identify
+>> > which
+>> > cgroup causing the reclaim.
+>> > 3. potential starvation for some memcgs, if one workitem stucks and the
+>> rest
+>> > of work
+>> > won't proceed.
+>> >
+>> > Cons:
+>> > 1. save some memory resource.
+>> >
+>> > In general, the per-memcg-per-kswapd implmentation looks sane to me at
+>> this
+>> > point, esepcially the sharing memcg thread model will make debugging
+>> issue
+>> > very hard later.
+>> >
+>> > Comments?
+>> >
+>> Pros <-> Cons ?
+>>
+>> My idea is adding trace point for memcg-kswapd and seeing what it's now
+>> doing.
+>> (We don't have too small trace point in memcg...)
+>>
+>> I don't think its sane to create kthread per memcg because we know there
+>> is a user
+>> who makes hundreds/thousands of memcg.
+>>
+>
+> I think we need to think about the exact usage of  'thousands of cgroups'
+> in this case. Although not quite in detail, in Ying's previous email she did
+> say that they created thousands of cgroups on each box in Google's cluster
+> and most of them _slept_ in most of the time. So I guess actually what they
+> did is creating a larger number of cgroups, each of them has different
+> limits on various resources. Then on the time of job dispatching, they can
+> choose a suitable group from each box and submit the job into it - without
+> touching the other thousands of sleeping groups. That's to say, though
+> Google has a huge number of groups on each box, they have only few jobs on
+> it, so it's impossible to see too many busy groups at the same time.
+>
 
->  	} memcg_batch;
->  #endif
->  };
-> diff --git a/include/linux/swap.h b/include/linux/swap.h
-> index a062f0b..b868e597 100644
-> --- a/include/linux/swap.h
-> +++ b/include/linux/swap.h
-> @@ -159,6 +159,8 @@ enum {
->  	SWP_SCANNING	= (1 << 8),	/* refcount in scan_swap_map */
->  };
->  
-> +#define ZONE_RECLAIMABLE_RATE 6
-> +
-
-Need comment?
-
-
->  #define SWAP_CLUSTER_MAX 32
->  #define COMPACT_CLUSTER_MAX SWAP_CLUSTER_MAX
->  
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 41eaa62..9e535b2 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -135,7 +135,10 @@ struct mem_cgroup_per_zone {
->  	bool			on_tree;
->  	struct mem_cgroup	*mem;		/* Back pointer, we cannot */
->  						/* use container_of	   */
-> +	unsigned long		pages_scanned;	/* since last reclaim */
-> +	bool			all_unreclaimable;	/* All pages pinned */
->  };
-> +
->  /* Macro for accessing counter */
->  #define MEM_CGROUP_ZSTAT(mz, idx)	((mz)->count[(idx)])
->  
-> @@ -1162,6 +1165,103 @@ mem_cgroup_get_reclaim_stat_from_page(struct page *page)
->  	return &mz->reclaim_stat;
->  }
->  
-> +void mem_cgroup_mz_pages_scanned(struct mem_cgroup *mem, struct zone *zone,
-> +						unsigned long nr_scanned)
-
-this names sound like pages_scanned value getting helper function.
-
-
-> +{
-> +	struct mem_cgroup_per_zone *mz = NULL;
-> +	int nid = zone_to_nid(zone);
-> +	int zid = zone_idx(zone);
-> +
-> +	if (!mem)
-> +		return;
-> +
-> +	mz = mem_cgroup_zoneinfo(mem, nid, zid);
-> +	if (mz)
-> +		mz->pages_scanned += nr_scanned;
-> +}
-> +
-> +bool mem_cgroup_zone_reclaimable(struct mem_cgroup *mem, struct zone *zone)
-> +{
-> +	struct mem_cgroup_per_zone *mz = NULL;
-> +	int nid = zone_to_nid(zone);
-> +	int zid = zone_idx(zone);
-> +
-> +	if (!mem)
-> +		return 0;
-> +
-> +	mz = mem_cgroup_zoneinfo(mem, nid, zid);
-> +	if (mz)
-> +		return mz->pages_scanned <
-> +				mem_cgroup_zone_reclaimable_pages(mem, zone) *
-> +				ZONE_RECLAIMABLE_RATE;
-> +	return 0;
-> +}
-> +
-> +bool mem_cgroup_mz_unreclaimable(struct mem_cgroup *mem, struct zone *zone)
-> +{
-> +	struct mem_cgroup_per_zone *mz = NULL;
-> +	int nid = zone_to_nid(zone);
-> +	int zid = zone_idx(zone);
-> +
-> +	if (!mem)
-> +		return false;
-> +
-> +	mz = mem_cgroup_zoneinfo(mem, nid, zid);
-> +	if (mz)
-> +		return mz->all_unreclaimable;
-> +
-> +	return false;
-> +}
-> +
-> +void mem_cgroup_mz_set_unreclaimable(struct mem_cgroup *mem, struct zone *zone)
-> +{
-> +	struct mem_cgroup_per_zone *mz = NULL;
-> +	int nid = zone_to_nid(zone);
-> +	int zid = zone_idx(zone);
-> +
-> +	if (!mem)
-> +		return;
-> +
-> +	mz = mem_cgroup_zoneinfo(mem, nid, zid);
-> +	if (mz)
-> +		mz->all_unreclaimable = true;
-> +}
-> +
-> +void mem_cgroup_mz_clear_unreclaimable(struct mem_cgroup *mem,
-> +				       struct zone *zone)
-> +{
-> +	struct mem_cgroup_per_zone *mz = NULL;
-> +	int nid = zone_to_nid(zone);
-> +	int zid = zone_idx(zone);
-> +
-> +	if (!mem)
-> +		return;
-> +
-> +	mz = mem_cgroup_zoneinfo(mem, nid, zid);
-> +	if (mz) {
-> +		mz->pages_scanned = 0;
-> +		mz->all_unreclaimable = false;
-> +	}
-> +
-> +	return;
-> +}
-> +
-> +void mem_cgroup_clear_unreclaimable(struct mem_cgroup *mem, struct page *page)
-> +{
-> +	struct mem_cgroup_per_zone *mz = NULL;
-> +
-> +	if (!mem)
-> +		return;
-> +
-> +	mz = page_cgroup_zoneinfo(mem, page);
-> +	if (mz) {
-> +		mz->pages_scanned = 0;
-> +		mz->all_unreclaimable = false;
-> +	}
-> +
-> +	return;
-> +}
-> +
->  unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
->  					struct list_head *dst,
->  					unsigned long *scanned, int order,
-> @@ -2709,6 +2809,7 @@ void mem_cgroup_cancel_charge_swapin(struct mem_cgroup *mem)
->  
->  static void mem_cgroup_do_uncharge(struct mem_cgroup *mem,
->  				   unsigned int nr_pages,
-> +				   struct page *page,
->  				   const enum charge_type ctype)
->  {
->  	struct memcg_batch_info *batch = NULL;
-> @@ -2726,6 +2827,10 @@ static void mem_cgroup_do_uncharge(struct mem_cgroup *mem,
->  	 */
->  	if (!batch->memcg)
->  		batch->memcg = mem;
-> +
-> +	if (!batch->zone)
-> +		batch->zone = page_zone(page);
-> +
->  	/*
->  	 * do_batch > 0 when unmapping pages or inode invalidate/truncate.
->  	 * In those cases, all pages freed continously can be expected to be in
-> @@ -2747,12 +2852,17 @@ static void mem_cgroup_do_uncharge(struct mem_cgroup *mem,
->  	 */
->  	if (batch->memcg != mem)
->  		goto direct_uncharge;
-> +
-> +	if (batch->zone != page_zone(page))
-> +		mem_cgroup_mz_clear_unreclaimable(mem, page_zone(page));
-> +
->  	/* remember freed charge and uncharge it later */
->  	batch->nr_pages++;
->  	if (uncharge_memsw)
->  		batch->memsw_nr_pages++;
->  	return;
->  direct_uncharge:
-> +	mem_cgroup_mz_clear_unreclaimable(mem, page_zone(page));
->  	res_counter_uncharge(&mem->res, nr_pages * PAGE_SIZE);
->  	if (uncharge_memsw)
->  		res_counter_uncharge(&mem->memsw, nr_pages * PAGE_SIZE);
-> @@ -2834,7 +2944,7 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
->  		mem_cgroup_get(mem);
->  	}
->  	if (!mem_cgroup_is_root(mem))
-> -		mem_cgroup_do_uncharge(mem, nr_pages, ctype);
-> +		mem_cgroup_do_uncharge(mem, nr_pages, page, ctype);
->  
->  	return mem;
->  
-> @@ -2902,6 +3012,10 @@ void mem_cgroup_uncharge_end(void)
->  	if (batch->memsw_nr_pages)
->  		res_counter_uncharge(&batch->memcg->memsw,
->  				     batch->memsw_nr_pages * PAGE_SIZE);
-> +	if (batch->zone)
-> +		mem_cgroup_mz_clear_unreclaimable(batch->memcg, batch->zone);
-> +	batch->zone = NULL;
-> +
->  	memcg_oom_recover(batch->memcg);
->  	/* forget this pointer (for sanity check) */
->  	batch->memcg = NULL;
-> @@ -4667,6 +4781,8 @@ static int alloc_mem_cgroup_per_zone_info(struct mem_cgroup *mem, int node)
->  		mz->usage_in_excess = 0;
->  		mz->on_tree = false;
->  		mz->mem = mem;
-> +		mz->pages_scanned = 0;
-> +		mz->all_unreclaimable = false;
->  	}
->  	return 0;
->  }
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index ba03a10..87653d6 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -1414,6 +1414,9 @@ shrink_inactive_list(unsigned long nr_to_scan, struct zone *zone,
->  					ISOLATE_BOTH : ISOLATE_INACTIVE,
->  			zone, sc->mem_cgroup,
->  			0, file);
-> +
-> +		mem_cgroup_mz_pages_scanned(sc->mem_cgroup, zone, nr_scanned);
-> +
->  		/*
->  		 * mem_cgroup_isolate_pages() keeps track of
->  		 * scanned pages on its own.
-> @@ -1533,6 +1536,7 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
->  		 * mem_cgroup_isolate_pages() keeps track of
->  		 * scanned pages on its own.
->  		 */
-> +		mem_cgroup_mz_pages_scanned(sc->mem_cgroup, zone, pgscanned);
->  	}
->  
->  	reclaim_stat->recent_scanned[file] += nr_taken;
-> @@ -1989,7 +1993,8 @@ static void shrink_zones(int priority, struct zonelist *zonelist,
->  
->  static bool zone_reclaimable(struct zone *zone)
->  {
-> -	return zone->pages_scanned < zone_reclaimable_pages(zone) * 6;
-> +	return zone->pages_scanned < zone_reclaimable_pages(zone) *
-> +					ZONE_RECLAIMABLE_RATE;
->  }
->  
->  /*
-> @@ -2651,10 +2656,20 @@ static void shrink_memcg_node(pg_data_t *pgdat, int order,
->  		if (!scan)
->  			continue;
->  
-> +		if (mem_cgroup_mz_unreclaimable(mem_cont, zone) &&
-> +			priority != DEF_PRIORITY)
-> +			continue;
-> +
->  		sc->nr_scanned = 0;
->  		shrink_zone(priority, zone, sc);
->  		total_scanned += sc->nr_scanned;
->  
-> +		if (mem_cgroup_mz_unreclaimable(mem_cont, zone))
-> +			continue;
-> +
-> +		if (!mem_cgroup_zone_reclaimable(mem_cont, zone))
-> +			mem_cgroup_mz_set_unreclaimable(mem_cont, zone);
-> +
->  		/*
->  		 * If we've done a decent amount of scanning and
->  		 * the reclaim ratio is low, start doing writepage
-> @@ -2716,10 +2731,16 @@ static unsigned long shrink_mem_cgroup(struct mem_cgroup *mem_cont, int order)
->  			shrink_memcg_node(pgdat, order, &sc);
->  			total_scanned += sc.nr_scanned;
->  
-> +			/*
-> +			 * Set the node which has at least one reclaimable
-> +			 * zone
-> +			 */
->  			for (i = pgdat->nr_zones - 1; i >= 0; i--) {
->  				struct zone *zone = pgdat->node_zones + i;
->  
-> -				if (populated_zone(zone))
-> +				if (populated_zone(zone) &&
-> +				    !mem_cgroup_mz_unreclaimable(mem_cont,
-> +								zone))
->  					break;
-
-global reclaim call shrink_zone() when priority==DEF_PRIORITY even if 
-all_unreclaimable is set. Is this intentional change?
-If so, please add some comments.
+The number of memcg thread running at the same time is capped w/ the number
+of cpu-cores. The rest of them just idle.
 
 
+> If above is correct, then I think Ying can call kthread_stop at the moment
+> we find there's no tasks in the group anymore, to kill the memcg thread (as
+> this group is expected to sleep for a long time after all the job leave). In
+> this way we can keep the number of memcg threads small and don't lose the
+> debug-ability.
+> What do you think?
+>
+
+In the V6, I have the kswapd_stop() in mem_cgroup_destroy().
+
+--Ying
+
+>
+> Regards,
+> Zhu Yanhai
+>
+>>
+>> And, I think that creating threads, which does the same job, more than the
+>> number
+>> of cpus will cause much more difficult starvation, priority inversion
+>> issue.
+>> Keeping scheduling knob/chances of jobs in memcg is important. I don't
+>> want to
+>> give a hint to scheduler because of memcg internal issue.
+>>
+>> And, even if memcg-kswapd doesn't exist, memcg works (well?).
+>> memcg-kswapd just helps making things better but not do any critical jobs.
+>> So, it's okay to have this as best-effort service.
+>> Of course, better scheduling idea for picking up memcg is welcomed. It's
+>> now
+>> round-robin.
+>>
+>> Thanks,
+>> -Kame
+>>
+>>
+>
+
+--0016e64aefdacabc9904a17bc5eb
+Content-Type: text/html; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
+
+<br><br><div class=3D"gmail_quote">On Thu, Apr 21, 2011 at 11:02 PM, Zhu Ya=
+nhai <span dir=3D"ltr">&lt;<a href=3D"mailto:zhu.yanhai@gmail.com">zhu.yanh=
+ai@gmail.com</a>&gt;</span> wrote:<br><blockquote class=3D"gmail_quote" sty=
+le=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex;">
+Hi Kame,<br><br><div class=3D"gmail_quote"><div><div></div><div class=3D"h5=
+">2011/4/22 KAMEZAWA Hiroyuki <span dir=3D"ltr">&lt;<a href=3D"mailto:kamez=
+awa.hiroyu@jp.fujitsu.com" target=3D"_blank">kamezawa.hiroyu@jp.fujitsu.com=
+</a>&gt;</span><br>
+<blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1p=
+x #ccc solid;padding-left:1ex">
+
+On Thu, 21 Apr 2011 21:49:04 -0700<br>
+<div><div></div><div>Ying Han &lt;<a href=3D"mailto:yinghan@google.com" tar=
+get=3D"_blank">yinghan@google.com</a>&gt; wrote:<br>
+<br>
+&gt; On Thu, Apr 21, 2011 at 9:36 PM, KAMEZAWA Hiroyuki &lt;<br>
+&gt; <a href=3D"mailto:kamezawa.hiroyu@jp.fujitsu.com" target=3D"_blank">ka=
+mezawa.hiroyu@jp.fujitsu.com</a>&gt; wrote:<br>
+&gt;<br>
+&gt; &gt; On Thu, 21 Apr 2011 21:24:15 -0700<br>
+&gt; &gt; Ying Han &lt;<a href=3D"mailto:yinghan@google.com" target=3D"_bla=
+nk">yinghan@google.com</a>&gt; wrote:<br>
+&gt; &gt;<br>
+&gt; &gt; &gt; This patch creates a thread pool for memcg-kswapd. All memcg=
+ which needs<br>
+&gt; &gt; &gt; background recalim are linked to a list and memcg-kswapd pic=
+ks up a memcg<br>
+&gt; &gt; &gt; from the list and run reclaim.<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt; The concern of using per-memcg-kswapd thread is the system o=
+verhead<br>
+&gt; &gt; including<br>
+&gt; &gt; &gt; memory and cputime.<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt; Signed-off-by: KAMEZAWA Hiroyuki &lt;<a href=3D"mailto:kamez=
+awa.hiroyu@jp.fujitsu.com" target=3D"_blank">kamezawa.hiroyu@jp.fujitsu.com=
+</a>&gt;<br>
+&gt; &gt; &gt; Signed-off-by: Ying Han &lt;<a href=3D"mailto:yinghan@google=
+.com" target=3D"_blank">yinghan@google.com</a>&gt;<br>
+&gt; &gt;<br>
+&gt; &gt; Thank you for merging. This seems ok to me.<br>
+&gt; &gt;<br>
+&gt; &gt; Further development may make this better or change thread pools (=
+to some<br>
+&gt; &gt; other),<br>
+&gt; &gt; but I think this is enough good.<br>
+&gt; &gt;<br>
+&gt;<br>
+&gt; Thank you for reviewing and Acking. At the same time, I do have wonder=
+ing on<br>
+&gt; the thread-pool modeling which I posted on the cover-letter :)<br>
+&gt;<br>
+&gt; The per-memcg-per-kswapd model<br>
+&gt; Pros:<br>
+&gt; 1. memory overhead per thread, and The memory consumption would be 8k*=
+1000 =3D<br>
+&gt; 8M<br>
+&gt; with 1k cgroup.<br>
+&gt; 2. we see lots of threads at &#39;ps -elf&#39;<br>
+&gt;<br>
+&gt; Cons:<br>
+&gt; 1. the implementation is simply and straigh-forward.<br>
+&gt; 2. we can easily isolate the background reclaim overhead between cgrou=
+ps.<br>
+&gt; 3. better latency from memory pressure to actual start reclaiming<br>
+&gt;<br>
+&gt; The thread-pool model<br>
+&gt; Pros:<br>
+&gt; 1. there is no isolation between memcg background reclaim, since the m=
+emcg<br>
+&gt; threads<br>
+&gt; are shared.<br>
+&gt; 2. it is hard for visibility and debugability. I have been experienced=
+ a lot<br>
+&gt; when<br>
+&gt; some kswapds running creazy and we need a stright-forward way to ident=
+ify<br>
+&gt; which<br>
+&gt; cgroup causing the reclaim.<br>
+&gt; 3. potential starvation for some memcgs, if one workitem stucks and th=
+e rest<br>
+&gt; of work<br>
+&gt; won&#39;t proceed.<br>
+&gt;<br>
+&gt; Cons:<br>
+&gt; 1. save some memory resource.<br>
+&gt;<br>
+&gt; In general, the per-memcg-per-kswapd implmentation looks sane to me at=
+ this<br>
+&gt; point, esepcially the sharing memcg thread model will make debugging i=
+ssue<br>
+&gt; very hard later.<br>
+&gt;<br>
+&gt; Comments?<br>
+&gt;<br>
+</div></div>Pros &lt;-&gt; Cons ?<br>
+<br>
+My idea is adding trace point for memcg-kswapd and seeing what it&#39;s now=
+ doing.<br>
+(We don&#39;t have too small trace point in memcg...)<br>
+<br>
+I don&#39;t think its sane to create kthread per memcg because we know ther=
+e is a user<br>
+who makes hundreds/thousands of memcg.<br></blockquote><div><br></div></div=
+></div><div>I think we need to think about the exact usage of =A0&#39;thous=
+ands of cgroups&#39; in this case. Although not quite in detail, in Ying&#3=
+9;s previous email she did say that they created thousands of cgroups on ea=
+ch box in Google&#39;s cluster and most of them _slept_ in most of the time=
+. So I guess=A0actually what they did is creating a larger number of cgroup=
+s, each of them has different limits on various resources. Then on the time=
+ of job dispatching, they can choose a suitable group from each box and sub=
+mit the job into it - without touching the other thousands of sleeping grou=
+ps. That&#39;s to say, though Google has a huge number of groups on each bo=
+x, they have only few jobs on it, so it&#39;s impossible to see too many bu=
+sy groups at the same time.</div>
+</div></blockquote><div>=A0</div><div>The number of memcg thread running at=
+ the same time is capped w/ the number of cpu-cores. The rest of them just =
+idle.</div><div>=A0</div><blockquote class=3D"gmail_quote" style=3D"margin:=
+0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex;">
+<div class=3D"gmail_quote">
+
+<div>If above is correct, then I think Ying can call kthread_stop at the mo=
+ment we find there&#39;s no tasks in the group anymore, to kill the memcg t=
+hread (as this group is expected to sleep for a long time after all the job=
+ leave). In this way we can keep the number of memcg threads small and don&=
+#39;t lose the=A0<span style=3D"border-collapse:collapse;font-family:arial,=
+ sans-serif;font-size:13px">debug-ability.</span></div>
+
+
+<div><font face=3D"arial, sans-serif"><span style=3D"border-collapse:collap=
+se">What do you think?</span></font></div></div></blockquote><div><br></div=
+><div>In the V6, I have the kswapd_stop() in=A0mem_cgroup_destroy().</div><=
+div>
+<br></div><div>--Ying</div><blockquote class=3D"gmail_quote" style=3D"margi=
+n:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex;"><div class=3D"gm=
+ail_quote"><div><font face=3D"arial, sans-serif"><span style=3D"border-coll=
+apse:collapse"><br>
+
+
+</span></font></div><div><font face=3D"arial, sans-serif"><span style=3D"bo=
+rder-collapse:collapse">Regards,</span></font></div><div><font face=3D"aria=
+l, sans-serif"><span style=3D"border-collapse:collapse">Zhu Yanhai</span></=
+font></div>
+<div class=3D"im">
+
+<blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1p=
+x #ccc solid;padding-left:1ex">
+<br>
+And, I think that creating threads, which does the same job, more than the =
+number<br>
+of cpus will cause much more difficult starvation, priority inversion issue=
+.<br>
+Keeping scheduling knob/chances of jobs in memcg is important. I don&#39;t =
+want to<br>
+give a hint to scheduler because of memcg internal issue.<br>
+<br>
+And, even if memcg-kswapd doesn&#39;t exist, memcg works (well?).<br>
+memcg-kswapd just helps making things better but not do any critical jobs.<=
+br>
+So, it&#39;s okay to have this as best-effort service.<br>
+Of course, better scheduling idea for picking up memcg is welcomed. It&#39;=
+s now<br>
+round-robin.<br>
+<br>
+Thanks,<br>
+-Kame<br>
+<br>
+</blockquote></div></div><br>
+</blockquote></div><br>
+
+--0016e64aefdacabc9904a17bc5eb--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
