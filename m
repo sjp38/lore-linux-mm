@@ -1,166 +1,284 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 1A7128D003B
-	for <linux-mm@kvack.org>; Fri, 22 Apr 2011 23:49:48 -0400 (EDT)
-Received: from hpaq1.eem.corp.google.com (hpaq1.eem.corp.google.com [172.25.149.1])
-	by smtp-out.google.com with ESMTP id p3N3nhnS000485
-	for <linux-mm@kvack.org>; Fri, 22 Apr 2011 20:49:43 -0700
-Received: from qwc23 (qwc23.prod.google.com [10.241.193.151])
-	by hpaq1.eem.corp.google.com with ESMTP id p3N3nANn016833
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 22 Apr 2011 20:49:42 -0700
-Received: by qwc23 with SMTP id 23so466061qwc.3
-        for <linux-mm@kvack.org>; Fri, 22 Apr 2011 20:49:41 -0700 (PDT)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id CE8208D003B
+	for <linux-mm@kvack.org>; Sat, 23 Apr 2011 09:08:26 -0400 (EDT)
+Received: by bwz17 with SMTP id 17so1364965bwz.14
+        for <linux-mm@kvack.org>; Sat, 23 Apr 2011 06:08:23 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <4DB24A62.7060602@redhat.com>
-References: <1303185466-2532-1-git-send-email-yinghan@google.com>
-	<20110421025107.GG2333@cmpxchg.org>
-	<20110421130016.3333cb39.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110421050851.GI2333@cmpxchg.org>
-	<BANLkTimUQjW_XVdzoLJJwwFDuFvm=Qg_FA@mail.gmail.com>
-	<20110423013534.GK2333@cmpxchg.org>
-	<BANLkTi=UgLihmoRwdA4E4MXmGc4BmqkqTg@mail.gmail.com>
-	<20110423023407.GN2333@cmpxchg.org>
-	<BANLkTimwMcBwTvi8aNDPXkS_Vu+bxdciMg@mail.gmail.com>
-	<4DB24A62.7060602@redhat.com>
-Date: Fri, 22 Apr 2011 20:49:41 -0700
-Message-ID: <BANLkTi=A+SD_V_ag3z97w1eA1QfbAqAbAg@mail.gmail.com>
-Subject: Re: [PATCH V6 00/10] memcg: per cgroup background reclaim
-From: Ying Han <yinghan@google.com>
-Content-Type: multipart/alternative; boundary=0016364eec7e44d32704a18ddd37
+In-Reply-To: <BANLkTim_A-r4Khdx20tLKFU8ybtB+=wcyg@mail.gmail.com>
+References: <BANLkTi=6T8SxqnsXTY5ceyikg2NTKLVSKw@mail.gmail.com>
+	<BANLkTimN4vbAPJVKgH8iTZy7B5Fr8B+ibA@mail.gmail.com>
+	<BANLkTikSRStQO6cyE+L2vHHe0TnkoBe8=A@mail.gmail.com>
+	<BANLkTim_A-r4Khdx20tLKFU8ybtB+=wcyg@mail.gmail.com>
+Date: Sat, 23 Apr 2011 15:08:23 +0200
+Message-ID: <BANLkTin4=QFyQUT95d7eoXXrdkNJc=T9Tw@mail.gmail.com>
+Subject: Re: Fix for SLUB? (was: Fwd: [PATCH v3] mm: make expand_downwards
+ symmetrical to expand_upwards)
+From: Geert Uytterhoeven <geert@linux-m68k.org>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>, linux-mm@kvack.org
+To: Michael Schmitz <schmitzmic@googlemail.com>
+Cc: Thorsten Glaser <tg@mirbsd.de>, Linux/m68k <linux-m68k@vger.kernel.org>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 
---0016364eec7e44d32704a18ddd37
-Content-Type: text/plain; charset=ISO-8859-1
+[Added some CCs]
 
-On Fri, Apr 22, 2011 at 8:41 PM, Rik van Riel <riel@redhat.com> wrote:
-
-> On 04/22/2011 11:33 PM, Ying Han wrote:
+On Sat, Apr 23, 2011 at 05:47, Michael Schmitz
+<schmitzmic@googlemail.com> wrote:
+> Hi,
 >
->  Now we would like to launch another job C, since we know there are A(16G
->> - 10G) + B(16G - 10G)  = 12G "cold" memory can be reclaimed (w/o
->> impacting the A and B's performance). So what will happen
+> node_present_pages(node) returns false:
+>
+> m68k_setup_node: node 0 addr 0 size 14680064
+> m68k_setup_node: node 0 not present!
+> m68k_setup_node: node 1 addr 16777216 size 268435456
+> m68k_setup_node: node 1 not present!
+>
+> Changing the patch to
+>
+> diff --git a/arch/m68k/mm/init_mm.c b/arch/m68k/mm/init_mm.c
+> --- a/arch/m68k/mm/init_mm.c
+> +++ b/arch/m68k/mm/init_mm.c
+> @@ -59,6 +59,7 @@ void __init m68k_setup_node(int node)
+> =C2=A0 =C2=A0 =C2=A0 }
+> =C2=A0#endif
+> =C2=A0 =C2=A0 =C2=A0 pg_data_map[node].bdata =3D bootmem_node_data + node=
+;
+> + =C2=A0 =C2=A0 =C2=A0 node_set_state(node, N_NORMAL_MEMORY);
+> =C2=A0 =C2=A0 =C2=A0 node_set_online(node);
+> =C2=A0}
+>
+> i.e. ignoring the node_present_pages return value does result in a
+> booting kernel even with the problematic commit included.
+>
+> I'll leave it to the mm experts to explain why node_present_pages
+> returns zero here.
+>
+> Cheers,
+>
+> =C2=A0Michael
+>
+>
+>
+> On Sat, Apr 23, 2011 at 2:14 PM, Michael Schmitz
+> <schmitzmic@googlemail.com> wrote:
+>> Looks like that wasn't helping after all. I still need to revert said
+>> commit. Guess I'll have to check what node_present_pages(node) returns
+>> in each case ...
 >>
->> 1. start running C on the host, which triggers global memory pressure
->> right away. If the reclaim is fast, C start growing with the free pages
->> from A and B.
+>> Cheers,
 >>
->> However, it might be possible that the reclaim can not catch-up with the
->> job's page allocation. We end up with either OOM condition or
->> performance spike on any of the running jobs.
+>> =C2=A0MIchael
 >>
->> One way to improve it is to set a wmark on either A/B to be proactively
->> reclaiming pages before launching C. The global memory pressure won't
->> help much here since we won't trigger that.
 >>
->>    min_free_kbytes more or less indirectly provides the same on a global
->>    level, but I don't think anybody tunes it just for aggressiveness of
->>    background reclaim.
->>
->
-> This sounds like yet another reason to have a tunable that
-> can increase the gap between min_free_kbytes and low_free_kbytes
-> (automatically scaled to size in every zone).
->
-> The realtime people want this to reduce allocation latencies.
->
-> I want it for dynamic virtual machine resizing, without the
-> memory fragmentation inherent in balloons (which would destroy
-> the performance benefit of transparent hugepages).
->
-> Now Google wants it for job placement.
->
+>> On Sat, Apr 23, 2011 at 1:31 PM, Michael Schmitz
+>> <schmitzmic@googlemail.com> wrote:
+>>> I'll check this out - might well be the correct fix for our problems.
+>>>
+>>> Cheers,
+>>>
+>>> =C2=A0Michael
+>>>
+>>>
+>>> On Thu, Apr 21, 2011 at 8:19 PM, Geert Uytterhoeven
+>>> <geert@linux-m68k.org> wrote:
+>>>> ---------- Forwarded message ----------
+>>>> From: David Rientjes <rientjes@google.com>
+>>>> Date: Thu, Apr 21, 2011 at 01:12
+>>>> Subject: Re: [PATCH v3] mm: make expand_downwards symmetrical to expan=
+d_upwards
+>>>> To: James Bottomley <James.Bottomley@hansenpartnership.com>
+>>>> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Pekka Enberg
+>>>> <penberg@kernel.org>, Christoph Lameter <cl@linux.com>, Michal Hocko
+>>>> <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Hugh
+>>>> Dickins <hughd@google.com>, linux-mm@kvack.org, LKML
+>>>> <linux-kernel@vger.kernel.org>, linux-parisc@vger.kernel.org, Ingo
+>>>> Molnar <mingo@elte.hu>, x86 maintainers <x86@kernel.org>
+>>>>
+>>>>
+>>>> On Wed, 20 Apr 2011, James Bottomley wrote:
+>>>>
+>>>>> > This is probably because the parisc's DISCONTIGMEM memory ranges do=
+n't
+>>>>> > have bits set in N_NORMAL_MEMORY.
+>>>>> >
+>>>>> > diff --git a/arch/parisc/mm/init.c b/arch/parisc/mm/init.c
+>>>>> > --- a/arch/parisc/mm/init.c
+>>>>> > +++ b/arch/parisc/mm/init.c
+>>>>> > @@ -266,8 +266,10 @@ static void __init setup_bootmem(void)
+>>>>> > =C2=A0 =C2=A0 }
+>>>>> > =C2=A0 =C2=A0 memset(pfnnid_map, 0xff, sizeof(pfnnid_map));
+>>>>> >
+>>>>> > - =C2=A0 for (i =3D 0; i < npmem_ranges; i++)
+>>>>> > + =C2=A0 for (i =3D 0; i < npmem_ranges; i++) {
+>>>>> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 node_set_state(i, N_NORMAL_MEM=
+ORY);
+>>>>> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 node_set_online(i);
+>>>>> > + =C2=A0 }
+>>>>> > =C2=A0#endif
+>>>>>
+>>>>> Yes, this seems to be the missing piece that gets it to boot. =C2=A0W=
+e really
+>>>>> need this in generic code, unless someone wants to run through all th=
+e
+>>>>> other arch's doing it ...
+>>>>>
+>>>>
+>>>> Looking at all other architectures that allow ARCH_DISCONTIGMEM_ENABLE=
+, we
+>>>> already know x86 is fine, avr32 disables ARCH_DISCONTIGMEM_ENABLE enti=
+rely
+>>>> because its code only brings online node 0, and tile already sets the =
+bit
+>>>> in N_NORMAL_MEMORY correctly when bringing a node online, probably bec=
+ause
+>>>> it was introduced after the various node state masks were added in
+>>>> 7ea1530ab3fd back in October 2007.
+>>>>
+>>>> So we're really only talking about alpha, ia64, m32r, m68k, and mips a=
+nd
+>>>> it only seems to matter when using CONFIG_SLUB, which isn't surprising
+>>>> when greping for it:
+>>>>
+>>>> =C2=A0 =C2=A0 =C2=A0 =C2=A0$ grep -r N_NORMAL_MEMORY mm/*
+>>>> =C2=A0 =C2=A0 =C2=A0 =C2=A0mm/memcontrol.c: =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0if (!node_state(node, N_NORMAL_MEMORY))
+>>>> =C2=A0 =C2=A0 =C2=A0 =C2=A0mm/memcontrol.c: =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0if (!node_state(node, N_NORMAL_MEMORY))
+>>>> =C2=A0 =C2=A0 =C2=A0 =C2=A0mm/page_alloc.c: =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0[N_NORMAL_MEMORY] =3D { { [0] =3D 1UL } },
+>>>> =C2=A0 =C2=A0 =C2=A0 =C2=A0mm/page_alloc.c:
+>>>> node_set_state(zone_to_nid(zone), N_NORMAL_MEMORY);
+>>>> =C2=A0 =C2=A0 =C2=A0 =C2=A0mm/slub.c: =C2=A0 =C2=A0 =C2=A0for_each_nod=
+e_state(node, N_NORMAL_MEMORY) {
+>>>> =C2=A0 =C2=A0 =C2=A0 =C2=A0mm/slub.c: =C2=A0 =C2=A0 =C2=A0for_each_nod=
+e_state(node, N_NORMAL_MEMORY) {
+>>>> =C2=A0 =C2=A0 =C2=A0 =C2=A0mm/slub.c: =C2=A0 =C2=A0 =C2=A0for_each_nod=
+e_state(node, N_NORMAL_MEMORY) {
+>>>> =C2=A0 =C2=A0 =C2=A0 =C2=A0mm/slub.c: =C2=A0 =C2=A0 =C2=A0for_each_nod=
+e_state(node, N_NORMAL_MEMORY) {
+>>>> =C2=A0 =C2=A0 =C2=A0 =C2=A0mm/slub.c: =C2=A0 =C2=A0 =C2=A0for_each_nod=
+e_state(node, N_NORMAL_MEMORY) {
+>>>> =C2=A0 =C2=A0 =C2=A0 =C2=A0mm/slub.c: =C2=A0 =C2=A0 =C2=A0for_each_nod=
+e_state(node, N_NORMAL_MEMORY) {
+>>>> =C2=A0 =C2=A0 =C2=A0 =C2=A0mm/slub.c: =C2=A0 =C2=A0 =C2=A0for_each_nod=
+e_state(node, N_NORMAL_MEMORY) {
+>>>> =C2=A0 =C2=A0 =C2=A0 =C2=A0mm/slub.c: =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0for_each_node_state(node, N_NORMAL_MEMORY) {
+>>>> =C2=A0 =C2=A0 =C2=A0 =C2=A0mm/slub.c: =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0for_each_node_state(node, N_NORMAL_MEMORY) {
+>>>> =C2=A0 =C2=A0 =C2=A0 =C2=A0mm/slub.c: =C2=A0 =C2=A0 =C2=A0for_each_nod=
+e_state(node, N_NORMAL_MEMORY)
+>>>>
+>>>> Those memory controller occurrences only result in it passing a node i=
+d of
+>>>> -1 to kmalloc_node() which means no specific node target, and that's f=
+ine
+>>>> for DISCONTIGMEM since we don't care about any proximity between memor=
+y
+>>>> ranges.
+>>>>
+>>>> This should fix the remaining architectures so they can use CONFIG_SLU=
+B,
+>>>> but I hope it can be tested by the individual arch maintainers like yo=
+u
+>>>> did for parisc.
+>>>>
+>>>> diff --git a/arch/alpha/mm/numa.c b/arch/alpha/mm/numa.c
+>>>> --- a/arch/alpha/mm/numa.c
+>>>> +++ b/arch/alpha/mm/numa.c
+>>>> @@ -245,6 +245,7 @@ setup_memory_node(int nid, void *kernel_end)
+>>>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0bootmap_size, BOOTMEM_DEFAULT);
+>>>> =C2=A0 =C2=A0 =C2=A0 =C2=A0printk(" reserving pages %ld:%ld\n", bootma=
+p_start,
+>>>> bootmap_start+PFN_UP(bootmap_size));
+>>>>
+>>>> + =C2=A0 =C2=A0 =C2=A0 node_set_state(nid, N_NORMAL_MEMORY);
+>>>> =C2=A0 =C2=A0 =C2=A0 =C2=A0node_set_online(nid);
+>>>> =C2=A0}
+>>>>
+>>>> diff --git a/arch/ia64/mm/discontig.c b/arch/ia64/mm/discontig.c
+>>>> --- a/arch/ia64/mm/discontig.c
+>>>> +++ b/arch/ia64/mm/discontig.c
+>>>> @@ -573,6 +573,8 @@ void __init find_memory(void)
+>>>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0map>>PAGE_SHIFT,
+>>>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0bdp->node_min_pfn,
+>>>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0bdp->node_low_pfn);
+>>>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (node_present_pa=
+ges(node))
+>>>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 node_set_state(node, N_NORMAL_MEMORY);
+>>>> =C2=A0 =C2=A0 =C2=A0 =C2=A0}
+>>>>
+>>>> =C2=A0 =C2=A0 =C2=A0 =C2=A0efi_memmap_walk(filter_rsvd_memory, free_no=
+de_bootmem);
+>>>> diff --git a/arch/m32r/kernel/setup.c b/arch/m32r/kernel/setup.c
+>>>> --- a/arch/m32r/kernel/setup.c
+>>>> +++ b/arch/m32r/kernel/setup.c
+>>>> @@ -247,7 +247,9 @@ void __init setup_arch(char **cmdline_p)
+>>>>
+>>>> =C2=A0#ifdef CONFIG_DISCONTIGMEM
+>>>> =C2=A0 =C2=A0 =C2=A0 =C2=A0nodes_clear(node_online_map);
+>>>> + =C2=A0 =C2=A0 =C2=A0 node_set_state(0, N_NORMAL_MEMORY); =C2=A0 =C2=
+=A0 /* always has memory */
+>>>> =C2=A0 =C2=A0 =C2=A0 =C2=A0node_set_online(0);
+>>>> + =C2=A0 =C2=A0 =C2=A0 node_set_state(1, N_NORMAL_MEMORY); =C2=A0 =C2=
+=A0 /* always has memory */
+>>>> =C2=A0 =C2=A0 =C2=A0 =C2=A0node_set_online(1);
+>>>> =C2=A0#endif /* CONFIG_DISCONTIGMEM */
+>>>>
+>>>> diff --git a/arch/m68k/mm/init_mm.c b/arch/m68k/mm/init_mm.c
+>>>> --- a/arch/m68k/mm/init_mm.c
+>>>> +++ b/arch/m68k/mm/init_mm.c
+>>>> @@ -59,6 +59,8 @@ void __init m68k_setup_node(int node)
+>>>> =C2=A0 =C2=A0 =C2=A0 =C2=A0}
+>>>> =C2=A0#endif
+>>>> =C2=A0 =C2=A0 =C2=A0 =C2=A0pg_data_map[node].bdata =3D bootmem_node_da=
+ta + node;
+>>>> + =C2=A0 =C2=A0 =C2=A0 if (node_present_pages(node))
+>>>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 node_set_state(node=
+, N_NORMAL_MEMORY);
+>>>> =C2=A0 =C2=A0 =C2=A0 =C2=A0node_set_online(node);
+>>>> =C2=A0}
+>>>>
+>>>> diff --git a/arch/mips/sgi-ip27/ip27-memory.c b/arch/mips/sgi-ip27/ip2=
+7-memory.c
+>>>> --- a/arch/mips/sgi-ip27/ip27-memory.c
+>>>> +++ b/arch/mips/sgi-ip27/ip27-memory.c
+>>>> @@ -471,6 +471,8 @@ void __init paging_init(void)
+>>>>
+>>>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0if (end_pfn > m=
+ax_low_pfn)
+>>>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0max_low_pfn =3D end_pfn;
+>>>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (end_pfn > start=
+_pfn)
+>>>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 node_set_state(node, N_NORMAL_MEMORY);
+>>>> =C2=A0 =C2=A0 =C2=A0 =C2=A0}
+>>>> =C2=A0 =C2=A0 =C2=A0 =C2=A0zones_size[ZONE_NORMAL] =3D max_low_pfn;
+>>>> =C2=A0 =C2=A0 =C2=A0 =C2=A0free_area_init_nodes(zones_size);
 
-To clarify a bit, we scale the min_free_kbytes to reduce the likelyhood of
-page allocation failure. This is still the global per-zone page allocation,
-and is different from the memcg discussion we have in this thread. To be
-more specific, our case is more or less caused by the 128M fake node size.
+Gr{oetje,eeting}s,
 
-Anyway, this is different from what have been discussed so far on this
-thread. :)
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 Geert
 
---Ying
+--
+Geert Uytterhoeven -- There's lots of Linux beyond ia32 -- geert@linux-m68k=
+.org
 
->
-> Is there any good reason we can't have a low watermark
-> equivalent to min_free_kbytes? :)
->
-> --
-> All rights reversed
->
-
---0016364eec7e44d32704a18ddd37
-Content-Type: text/html; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
-
-<br><br><div class=3D"gmail_quote">On Fri, Apr 22, 2011 at 8:41 PM, Rik van=
- Riel <span dir=3D"ltr">&lt;<a href=3D"mailto:riel@redhat.com">riel@redhat.=
-com</a>&gt;</span> wrote:<br><blockquote class=3D"gmail_quote" style=3D"mar=
-gin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex;">
-<div class=3D"im">On 04/22/2011 11:33 PM, Ying Han wrote:<br>
-<br>
-<blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1p=
-x #ccc solid;padding-left:1ex">
-Now we would like to launch another job C, since we know there are A(16G<br=
->
-- 10G) + B(16G - 10G) =A0=3D 12G &quot;cold&quot; memory can be reclaimed (=
-w/o<br>
-impacting the A and B&#39;s performance). So what will happen<br>
-<br>
-1. start running C on the host, which triggers global memory pressure<br>
-right away. If the reclaim is fast, C start growing with the free pages<br>
-from A and B.<br>
-<br>
-However, it might be possible that the reclaim can not catch-up with the<br=
->
-job&#39;s page allocation. We end up with either OOM condition or<br>
-performance spike on any of the running jobs.<br>
-<br>
-One way to improve it is to set a wmark on either A/B to be proactively<br>
-reclaiming pages before launching C. The global memory pressure won&#39;t<b=
-r>
-help much here since we won&#39;t trigger that.<br>
-<br>
- =A0 =A0min_free_kbytes more or less indirectly provides the same on a glob=
-al<br>
- =A0 =A0level, but I don&#39;t think anybody tunes it just for aggressivene=
-ss of<br>
- =A0 =A0background reclaim.<br>
-</blockquote>
-<br></div>
-This sounds like yet another reason to have a tunable that<br>
-can increase the gap between min_free_kbytes and low_free_kbytes<br>
-(automatically scaled to size in every zone).<br>
-<br>
-The realtime people want this to reduce allocation latencies.<br>
-<br>
-I want it for dynamic virtual machine resizing, without the<br>
-memory fragmentation inherent in balloons (which would destroy<br>
-the performance benefit of transparent hugepages).<br>
-<br>
-Now Google wants it for job placement.<br></blockquote><div><br></div><div>=
-To clarify a bit, we scale the min_free_kbytes to reduce the likelyhood of =
-page allocation failure. This is still the global per-zone page allocation,=
- and is different from the memcg discussion we have in this thread. To be m=
-ore specific, our case is more or less caused by the 128M fake node size.</=
-div>
-<div><br></div><div>Anyway, this is different from what have been discussed=
- so far on this thread. :)</div><div><br></div><div>--Ying</div><blockquote=
- class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1px #ccc soli=
-d;padding-left:1ex;">
-
-<br>
-Is there any good reason we can&#39;t have a low watermark<br>
-equivalent to min_free_kbytes? :)<br><font color=3D"#888888">
-<br>
--- <br>
-All rights reversed<br>
-</font></blockquote></div><br>
-
---0016364eec7e44d32704a18ddd37--
+In personal conversations with technical people, I call myself a hacker. Bu=
+t
+when I'm talking to journalists I just say "programmer" or something like t=
+hat.
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0=C2=A0 =C2=A0=C2=A0 -- Linus Torvalds
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
