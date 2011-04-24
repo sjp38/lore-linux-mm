@@ -1,51 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id D44ED8D003B
-	for <linux-mm@kvack.org>; Sat, 23 Apr 2011 23:15:35 -0400 (EDT)
-Date: Sun, 24 Apr 2011 11:15:31 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 5/6] writeback: sync expired inodes first in background
- writeback
-Message-ID: <20110424031531.GA11220@localhost>
-References: <20110420080336.441157866@intel.com>
- <20110420080918.383880412@intel.com>
- <20110420164005.e3925965.akpm@linux-foundation.org>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D1E98D003B
+	for <linux-mm@kvack.org>; Sun, 24 Apr 2011 01:37:14 -0400 (EDT)
+Received: by iyh42 with SMTP id 42so1845796iyh.14
+        for <linux-mm@kvack.org>; Sat, 23 Apr 2011 22:37:12 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110420164005.e3925965.akpm@linux-foundation.org>
+In-Reply-To: <1303604751-4980-1-git-send-email-minchan.kim@gmail.com>
+References: <1303604751-4980-1-git-send-email-minchan.kim@gmail.com>
+Date: Sun, 24 Apr 2011 14:37:12 +0900
+Message-ID: <BANLkTinW7+14b-DSK80-3ujdgVjTbZ4KCQ@mail.gmail.com>
+Subject: Re: [PATCH] Check PageActive when evictable page and unevicetable
+ page race happen
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jan Kara <jack@suse.cz>, Mel Gorman <mel@linux.vnet.ibm.com>, Dave Chinner <david@fromorbit.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Itaru Kitayama <kitayama@cl.bb4u.ne.jp>, Minchan Kim <minchan.kim@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
+Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan.kim@gmail.com>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Lee Schermerhorn <lee.schermerhorn@hp.com>
 
-> One of the many requirements for writeback is that if userspace is
-> continually dirtying pages in a particular file, that shouldn't cause
-> the kupdate function to concentrate on that file's newly-dirtied pages,
-> neglecting pages from other files which were less-recently dirtied. 
-> (and dirty nodes, etc).
+On Sun, Apr 24, 2011 at 9:25 AM, Minchan Kim <minchan.kim@gmail.com> wrote:
+> In putback_lru_page, unevictable page can be changed into evictable
+> 's one while we move it among lru. So we have checked it again and
+> rescued it. But we don't check PageActive, again. It could add
+> active page into inactive list so we can see the BUG in isolate_lru_pages.
+> (But I didn't see any report because I think it's very subtle)
+>
+> It could happen in race that zap_pte_range's mark_page_accessed and
+> putback_lru_page. It's subtle but could be possible.
 
-Sadly I do find the old pages that the flusher never get a chance to
-catch and write them out.
+Please Ignore this. I was confused.
+The race never happens.
 
-In the below case, if the task dirties pages fast enough at the end of
-file, writeback_index will never get a chance to wrap back. There may
-be various variations of this case.
 
-file head
-[          ***                        ==>***************]==>
-           old pages          writeback_index            fresh dirties
-
-Ironically the current kernel relies on pageout() to catch these
-old pages, which is not only inefficient, but also not reliable.
-If a full LRU walk takes an hour, the old pages may stay dirtied
-for an hour.
-
-We may have to do (conditional) tagged ->writepages to safeguard users
-from losing data he'd expect to be written hours ago.
-
-Thanks,
-Fengguang
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
