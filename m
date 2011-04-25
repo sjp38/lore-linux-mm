@@ -1,26 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 972718D003B
-	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 05:46:58 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 5D6973EE0BB
-	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 18:46:55 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 3F2C845DE58
-	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 18:46:55 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 1C22E45DE55
-	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 18:46:55 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 110FAEF8004
-	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 18:46:55 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id B4BD6E08001
-	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 18:46:54 +0900 (JST)
-Date: Mon, 25 Apr 2011 18:40:15 +0900
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 838338D003B
+	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 05:49:02 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 48BA93EE0C0
+	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 18:48:57 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 285E645DE50
+	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 18:48:57 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0F56745DE4D
+	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 18:48:57 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id F2FA0E78002
+	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 18:48:56 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id B3DCCE78003
+	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 18:48:56 +0900 (JST)
+Date: Mon, 25 Apr 2011 18:42:19 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH 6/7] memcg add zone_all_unreclaimable.
-Message-Id: <20110425184015.c1d97d33.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH 7/7] memcg watermark reclaim workqueue.
+Message-Id: <20110425184219.285c2396.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20110425182529.c7c37bb4.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20110425182529.c7c37bb4.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
@@ -31,365 +31,258 @@ List-ID: <linux-mm.kvack.org>
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: Ying Han <yinghan@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Johannes Weiner <jweiner@redhat.com>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, Michal Hocko <mhocko@suse.cz>
 
+By default the per-memcg background reclaim is disabled when the limit_in_bytes
+is set the maximum. The kswapd_run() is called when the memcg is being resized,
+and kswapd_stop() is called when the memcg is being deleted.
 
-After reclaiming each node per memcg, it checks mem_cgroup_watermark_ok()
-and breaks the priority loop if it returns true. The per-memcg zone will
-be marked as "unreclaimable" if the scanning rate is much greater than the
-reclaiming rate on the per-memcg LRU. The bit is cleared when there is a
-page charged to the memcg being freed. Kswapd breaks the priority loop if
-all the zones are marked as "unreclaimable".
+The per-memcg kswapd is waked up based on the usage and low_wmark, which is
+checked once per 1024 increments per cpu. The memcg's kswapd is waked up if the
+usage is larger than the low_wmark.
 
-changelog v8a..v7
-  remove using priority.
+At each iteration of work, the work frees memory at most 2048 pages and switch
+to next work for round robin. And if the memcg seems congested, it adds
+delay for the next work.
 
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Signed-off-by: Ying Han <yinghan@google.com>
 ---
- include/linux/memcontrol.h |   40 ++++++++++++++
- include/linux/sched.h      |    1 
- include/linux/swap.h       |    2 
- mm/memcontrol.c            |  126 +++++++++++++++++++++++++++++++++++++++++++--
- mm/vmscan.c                |   13 ++++
- 5 files changed, 177 insertions(+), 5 deletions(-)
+ include/linux/memcontrol.h |    2 -
+ mm/memcontrol.c            |   86 +++++++++++++++++++++++++++++++++++++++++++++
+ mm/vmscan.c                |   23 +++++++-----
+ 3 files changed, 102 insertions(+), 9 deletions(-)
 
-Index: memcg/include/linux/memcontrol.h
-===================================================================
---- memcg.orig/include/linux/memcontrol.h
-+++ memcg/include/linux/memcontrol.h
-@@ -158,6 +158,14 @@ unsigned long mem_cgroup_soft_limit_recl
- 						unsigned long *total_scanned);
- u64 mem_cgroup_get_limit(struct mem_cgroup *mem);
- u64 mem_cgroup_get_usage(struct mem_cgroup *mem);
-+bool mem_cgroup_zone_reclaimable(struct mem_cgroup *mem, struct zone *zone);
-+bool mem_cgroup_mz_unreclaimable(struct mem_cgroup *mem, struct zone *zone);
-+void mem_cgroup_mz_set_unreclaimable(struct mem_cgroup *mem, struct zone *zone);
-+void mem_cgroup_clear_unreclaimable(struct mem_cgroup *mem, struct page *page);
-+void mem_cgroup_mz_clear_unreclaimable(struct mem_cgroup *mem,
-+					struct zone *zone);
-+void mem_cgroup_mz_pages_scanned(struct mem_cgroup *mem, struct zone* zone,
-+					unsigned long nr_scanned);
- 
- void mem_cgroup_count_vm_event(struct mm_struct *mm, enum vm_event_item idx);
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
-@@ -355,6 +363,38 @@ static inline void mem_cgroup_dec_page_s
- {
- }
- 
-+static inline bool mem_cgroup_zone_reclaimable(struct mem_cgroup *mem,
-+					       struct zone *zone)
-+{
-+	return false;
-+}
-+
-+static inline bool mem_cgroup_mz_unreclaimable(struct mem_cgroup *mem,
-+						struct zone *zone)
-+{
-+	return false;
-+}
-+
-+static inline void mem_cgroup_mz_set_unreclaimable(struct mem_cgroup *mem,
-+							struct zone *zone)
-+{
-+}
-+
-+static inline void mem_cgroup_clear_unreclaimable(struct mem_cgroup *mem,
-+							struct page *page)
-+{
-+}
-+
-+static inline void mem_cgroup_mz_clear_unreclaimable(struct mem_cgroup *mem,
-+							struct zone *zone)
-+{
-+}
-+static inline void mem_cgroup_mz_pages_scanned(struct mem_cgroup *mem,
-+						struct zone *zone,
-+						unsigned long nr_scanned)
-+{
-+}
-+
- static inline
- unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
- 					    gfp_t gfp_mask,
-Index: memcg/include/linux/sched.h
-===================================================================
---- memcg.orig/include/linux/sched.h
-+++ memcg/include/linux/sched.h
-@@ -1540,6 +1540,7 @@ struct task_struct {
- 		struct mem_cgroup *memcg; /* target memcg of uncharge */
- 		unsigned long nr_pages;	/* uncharged usage */
- 		unsigned long memsw_nr_pages; /* uncharged mem+swap usage */
-+		struct zone *zone; /* a zone page is last uncharged */
- 	} memcg_batch;
- #endif
- };
-Index: memcg/include/linux/swap.h
-===================================================================
---- memcg.orig/include/linux/swap.h
-+++ memcg/include/linux/swap.h
-@@ -152,6 +152,8 @@ enum {
- 	SWP_SCANNING	= (1 << 8),	/* refcount in scan_swap_map */
- };
- 
-+#define ZONE_RECLAIMABLE_RATE 6
-+
- #define SWAP_CLUSTER_MAX 32
- #define COMPACT_CLUSTER_MAX SWAP_CLUSTER_MAX
- 
 Index: memcg/mm/memcontrol.c
 ===================================================================
 --- memcg.orig/mm/memcontrol.c
 +++ memcg/mm/memcontrol.c
-@@ -139,7 +139,10 @@ struct mem_cgroup_per_zone {
- 	bool			on_tree;
- 	struct mem_cgroup	*mem;		/* Back pointer, we cannot */
- 						/* use container_of	   */
-+	unsigned long		pages_scanned;	/* since last reclaim */
-+	bool			all_unreclaimable;	/* All pages pinned */
+@@ -111,10 +111,12 @@ enum mem_cgroup_events_index {
+ enum mem_cgroup_events_target {
+ 	MEM_CGROUP_TARGET_THRESH,
+ 	MEM_CGROUP_TARGET_SOFTLIMIT,
++	MEM_CGROUP_WMARK_EVENTS_THRESH,
+ 	MEM_CGROUP_NTARGETS,
  };
-+
- /* Macro for accessing counter */
- #define MEM_CGROUP_ZSTAT(mz, idx)	((mz)->count[(idx)])
+ #define THRESHOLDS_EVENTS_TARGET (128)
+ #define SOFTLIMIT_EVENTS_TARGET (1024)
++#define WMARK_EVENTS_TARGET (1024)
  
-@@ -1166,12 +1169,15 @@ int mem_cgroup_inactive_file_is_low(stru
- 	return (active > inactive);
- }
+ struct mem_cgroup_stat_cpu {
+ 	long count[MEM_CGROUP_STAT_NSTATS];
+@@ -267,6 +269,11 @@ struct mem_cgroup {
+ 	struct list_head oom_notify;
  
--unsigned long mem_cgroup_zone_reclaimable_pages(struct mem_cgroup *memcg,
-+unsigned long mem_cgroup_zone_reclaimable_pages(struct mem_cgroup *mem,
- 						int nid, int zone_idx)
- {
- 	int nr;
--	struct mem_cgroup_per_zone *mz =
--		mem_cgroup_zoneinfo(memcg, nid, zone_idx);
-+	struct mem_cgroup_per_zone *mz;
-+
-+	if (!mem)
-+		return 0;
-+	mz = mem_cgroup_zoneinfo(mem, nid, zone_idx);
- 
- 	nr = MEM_CGROUP_ZSTAT(mz, NR_ACTIVE_FILE) +
- 	     MEM_CGROUP_ZSTAT(mz, NR_INACTIVE_FILE);
-@@ -1222,6 +1228,102 @@ mem_cgroup_get_reclaim_stat_from_page(st
- 	return &mz->reclaim_stat;
- }
- 
-+void mem_cgroup_mz_pages_scanned(struct mem_cgroup *mem, struct zone *zone,
-+						unsigned long nr_scanned)
-+{
-+	struct mem_cgroup_per_zone *mz = NULL;
-+	int nid = zone_to_nid(zone);
-+	int zid = zone_idx(zone);
-+
-+	if (!mem)
-+		return;
-+
-+	mz = mem_cgroup_zoneinfo(mem, nid, zid);
-+	if (mz)
-+		mz->pages_scanned += nr_scanned;
-+}
-+
-+bool mem_cgroup_zone_reclaimable(struct mem_cgroup *mem, struct zone *zone)
-+{
-+	struct mem_cgroup_per_zone *mz = NULL;
-+	int nid = zone_to_nid(zone);
-+	int zid = zone_idx(zone);
-+
-+	if (!mem)
-+		return 0;
-+
-+	mz = mem_cgroup_zoneinfo(mem, nid, zid);
-+
-+	return mz->pages_scanned <
-+			mem_cgroup_zone_reclaimable_pages(mem, nid, zid) *
-+			ZONE_RECLAIMABLE_RATE;
-+}
-+
-+bool mem_cgroup_mz_unreclaimable(struct mem_cgroup *mem, struct zone *zone)
-+{
-+	struct mem_cgroup_per_zone *mz = NULL;
-+	int nid = zone_to_nid(zone);
-+	int zid = zone_idx(zone);
-+
-+	if (!mem)
-+		return false;
-+
-+	mz = mem_cgroup_zoneinfo(mem, nid, zid);
-+	if (mz)
-+		return mz->all_unreclaimable;
-+
-+	return false;
-+}
-+
-+void mem_cgroup_mz_set_unreclaimable(struct mem_cgroup *mem, struct zone *zone)
-+{
-+	struct mem_cgroup_per_zone *mz = NULL;
-+	int nid = zone_to_nid(zone);
-+	int zid = zone_idx(zone);
-+
-+	if (!mem)
-+		return;
-+
-+	mz = mem_cgroup_zoneinfo(mem, nid, zid);
-+	if (mz)
-+		mz->all_unreclaimable = true;
-+}
-+
-+void mem_cgroup_mz_clear_unreclaimable(struct mem_cgroup *mem,
-+				       struct zone *zone)
-+{
-+	struct mem_cgroup_per_zone *mz = NULL;
-+	int nid = zone_to_nid(zone);
-+	int zid = zone_idx(zone);
-+
-+	if (!mem)
-+		return;
-+
-+	mz = mem_cgroup_zoneinfo(mem, nid, zid);
-+	if (mz) {
-+		mz->pages_scanned = 0;
-+		mz->all_unreclaimable = false;
-+	}
-+
-+	return;
-+}
-+
-+void mem_cgroup_clear_unreclaimable(struct mem_cgroup *mem, struct page *page)
-+{
-+	struct mem_cgroup_per_zone *mz = NULL;
-+
-+	if (!mem)
-+		return;
-+
-+	mz = page_cgroup_zoneinfo(mem, page);
-+	if (mz) {
-+		mz->pages_scanned = 0;
-+		mz->all_unreclaimable = false;
-+	}
-+
-+	return;
-+}
-+
- unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
- 					struct list_head *dst,
- 					unsigned long *scanned, int order,
-@@ -2791,6 +2893,7 @@ void mem_cgroup_cancel_charge_swapin(str
- 
- static void mem_cgroup_do_uncharge(struct mem_cgroup *mem,
- 				   unsigned int nr_pages,
-+				   struct page *page,
- 				   const enum charge_type ctype)
- {
- 	struct memcg_batch_info *batch = NULL;
-@@ -2808,6 +2911,10 @@ static void mem_cgroup_do_uncharge(struc
- 	 */
- 	if (!batch->memcg)
- 		batch->memcg = mem;
-+
-+	if (!batch->zone)
-+		batch->zone = page_zone(page);
-+
  	/*
- 	 * do_batch > 0 when unmapping pages or inode invalidate/truncate.
- 	 * In those cases, all pages freed continuously can be expected to be in
-@@ -2829,12 +2936,17 @@ static void mem_cgroup_do_uncharge(struc
++ 	 * For high/low watermark.
++ 	 */
++	bool			bgreclaim_resched;
++	struct delayed_work	bgreclaim_work;
++	/*
+ 	 * Should we move charges of a task when a task is moved into this
+ 	 * mem_cgroup ? And what type of charges should we move ?
  	 */
- 	if (batch->memcg != mem)
- 		goto direct_uncharge;
-+
-+	if (batch->zone != page_zone(page))
-+		mem_cgroup_mz_clear_unreclaimable(mem, page_zone(page));
-+
- 	/* remember freed charge and uncharge it later */
- 	batch->nr_pages++;
- 	if (uncharge_memsw)
- 		batch->memsw_nr_pages++;
- 	return;
- direct_uncharge:
-+	mem_cgroup_mz_clear_unreclaimable(mem, page_zone(page));
- 	res_counter_uncharge(&mem->res, nr_pages * PAGE_SIZE);
- 	if (uncharge_memsw)
- 		res_counter_uncharge(&mem->memsw, nr_pages * PAGE_SIZE);
-@@ -2916,7 +3028,7 @@ __mem_cgroup_uncharge_common(struct page
- 		mem_cgroup_get(mem);
- 	}
- 	if (!mem_cgroup_is_root(mem))
--		mem_cgroup_do_uncharge(mem, nr_pages, ctype);
-+		mem_cgroup_do_uncharge(mem, nr_pages, page, ctype);
+@@ -374,6 +381,8 @@ static void mem_cgroup_put(struct mem_cg
+ static struct mem_cgroup *parent_mem_cgroup(struct mem_cgroup *mem);
+ static void drain_all_stock_async(void);
  
++static void wake_memcg_kswapd(struct mem_cgroup *mem);
++
+ static struct mem_cgroup_per_zone *
+ mem_cgroup_zoneinfo(struct mem_cgroup *mem, int nid, int zid)
+ {
+@@ -552,6 +561,12 @@ mem_cgroup_largest_soft_limit_node(struc
+ 	return mz;
+ }
+ 
++static void mem_cgroup_check_wmark(struct mem_cgroup *mem)
++{
++	if (!mem_cgroup_watermark_ok(mem, CHARGE_WMARK_LOW))
++		wake_memcg_kswapd(mem);
++}
++
+ /*
+  * Implementation Note: reading percpu statistics for memcg.
+  *
+@@ -702,6 +717,9 @@ static void __mem_cgroup_target_update(s
+ 	case MEM_CGROUP_TARGET_SOFTLIMIT:
+ 		next = val + SOFTLIMIT_EVENTS_TARGET;
+ 		break;
++	case MEM_CGROUP_WMARK_EVENTS_THRESH:
++		next = val + WMARK_EVENTS_TARGET;
++		break;
+ 	default:
+ 		return;
+ 	}
+@@ -725,6 +743,10 @@ static void memcg_check_events(struct me
+ 			__mem_cgroup_target_update(mem,
+ 				MEM_CGROUP_TARGET_SOFTLIMIT);
+ 		}
++		if (unlikely(__memcg_event_check(mem,
++			MEM_CGROUP_WMARK_EVENTS_THRESH))){
++			mem_cgroup_check_wmark(mem);
++		}
+ 	}
+ }
+ 
+@@ -3661,6 +3683,67 @@ unsigned long mem_cgroup_soft_limit_recl
+ 	return nr_reclaimed;
+ }
+ 
++struct workqueue_struct *memcg_bgreclaimq;
++
++static int memcg_bgreclaim_init(void)
++{
++	/*
++	 * use UNBOUND workqueue because we traverse nodes (no locality) and
++	 * the work is cpu-intensive.
++	 */
++	memcg_bgreclaimq = alloc_workqueue("memcg",
++			WQ_MEM_RECLAIM | WQ_UNBOUND | WQ_FREEZABLE, 0);
++	return 0;
++}
++module_init(memcg_bgreclaim_init);
++
++static void memcg_bgreclaim(struct work_struct *work)
++{
++	struct delayed_work *dw = to_delayed_work(work);
++	struct mem_cgroup *mem =
++		container_of(dw, struct mem_cgroup, bgreclaim_work);
++	int delay = 0;
++	unsigned long long required, usage, hiwat;
++
++	hiwat = res_counter_read_u64(&mem->res, RES_HIGH_WMARK_LIMIT);
++	usage = res_counter_read_u64(&mem->res, RES_USAGE);
++	required = usage - hiwat;
++	if (required >= 0)  {
++		required = ((usage - hiwat) >> PAGE_SHIFT) + 1;
++		delay = shrink_mem_cgroup(mem, (long)required);
++	}
++	if (!mem->bgreclaim_resched  ||
++		mem_cgroup_watermark_ok(mem, CHARGE_WMARK_HIGH)) {
++		cgroup_release_and_wakeup_rmdir(&mem->css);
++		return;
++	}
++	/* need reschedule */
++	if (!queue_delayed_work(memcg_bgreclaimq, &mem->bgreclaim_work, delay))
++		cgroup_release_and_wakeup_rmdir(&mem->css);
++}
++
++static void wake_memcg_kswapd(struct mem_cgroup *mem)
++{
++	if (delayed_work_pending(&mem->bgreclaim_work))
++		return;
++	cgroup_exclude_rmdir(&mem->css);
++	if (!queue_delayed_work(memcg_bgreclaimq, &mem->bgreclaim_work, 0))
++		cgroup_release_and_wakeup_rmdir(&mem->css);
++	return;
++}
++
++static void stop_memcg_kswapd(struct mem_cgroup *mem)
++{
++	/*
++	 * at destroy(), there is no task and we don't need to take care of
++	 * new bgreclaim work queued. But we need to prevent it from reschedule
++	 * use bgreclaim_resched to tell no more reschedule.
++	 */
++	mem->bgreclaim_resched = false;
++	flush_delayed_work(&mem->bgreclaim_work);
++	mem->bgreclaim_resched = true;
++}
++
+ /*
+  * This routine traverse page_cgroup in given list and drop them all.
+  * *And* this routine doesn't reclaim page itself, just removes page_cgroup.
+@@ -3742,6 +3825,7 @@ move_account:
+ 		ret = -EBUSY;
+ 		if (cgroup_task_count(cgrp) || !list_empty(&cgrp->children))
+ 			goto out;
++		stop_memcg_kswapd(mem);
+ 		ret = -EINTR;
+ 		if (signal_pending(current))
+ 			goto out;
+@@ -4804,6 +4888,8 @@ static struct mem_cgroup *mem_cgroup_all
+ 	if (!mem->stat)
+ 		goto out_free;
+ 	spin_lock_init(&mem->pcp_counter_lock);
++	INIT_DELAYED_WORK(&mem->bgreclaim_work, memcg_bgreclaim);
++	mem->bgreclaim_resched = true;
  	return mem;
  
-@@ -2984,6 +3096,10 @@ void mem_cgroup_uncharge_end(void)
- 	if (batch->memsw_nr_pages)
- 		res_counter_uncharge(&batch->memcg->memsw,
- 				     batch->memsw_nr_pages * PAGE_SIZE);
-+	if (batch->zone)
-+		mem_cgroup_mz_clear_unreclaimable(batch->memcg, batch->zone);
-+	batch->zone = NULL;
-+
- 	memcg_oom_recover(batch->memcg);
- 	/* forget this pointer (for sanity check) */
- 	batch->memcg = NULL;
-@@ -4659,6 +4775,8 @@ static int alloc_mem_cgroup_per_zone_inf
- 		mz->usage_in_excess = 0;
- 		mz->on_tree = false;
- 		mz->mem = mem;
-+		mz->pages_scanned = 0;
-+		mz->all_unreclaimable = false;
- 	}
- 	return 0;
- }
+ out_free:
+Index: memcg/include/linux/memcontrol.h
+===================================================================
+--- memcg.orig/include/linux/memcontrol.h
++++ memcg/include/linux/memcontrol.h
+@@ -89,7 +89,7 @@ extern int mem_cgroup_last_scanned_node(
+ extern int mem_cgroup_select_victim_node(struct mem_cgroup *mem,
+ 					const nodemask_t *nodes);
+ 
+-unsigned long shrink_mem_cgroup(struct mem_cgroup *mem);
++int shrink_mem_cgroup(struct mem_cgroup *mem, long required);
+ 
+ static inline
+ int mm_match_cgroup(const struct mm_struct *mm, const struct mem_cgroup *cgroup)
 Index: memcg/mm/vmscan.c
 ===================================================================
 --- memcg.orig/mm/vmscan.c
 +++ memcg/mm/vmscan.c
-@@ -1412,6 +1412,9 @@ shrink_inactive_list(unsigned long nr_to
- 					ISOLATE_BOTH : ISOLATE_INACTIVE,
- 			zone, sc->mem_cgroup,
- 			0, file);
-+
-+		mem_cgroup_mz_pages_scanned(sc->mem_cgroup, zone, nr_scanned);
-+
- 		/*
- 		 * mem_cgroup_isolate_pages() keeps track of
- 		 * scanned pages on its own.
-@@ -1531,6 +1534,7 @@ static void shrink_active_list(unsigned 
- 		 * mem_cgroup_isolate_pages() keeps track of
- 		 * scanned pages on its own.
- 		 */
-+		mem_cgroup_mz_pages_scanned(sc->mem_cgroup, zone, pgscanned);
- 	}
- 
- 	reclaim_stat->recent_scanned[file] += nr_taken;
-@@ -1998,7 +2002,8 @@ static void shrink_zones(int priority, s
- 
- static bool zone_reclaimable(struct zone *zone)
+@@ -2373,20 +2373,19 @@ shrink_memcg_node(int nid, int priority,
+ /*
+  * Per cgroup background reclaim.
+  */
+-unsigned long shrink_mem_cgroup(struct mem_cgroup *mem)
++int shrink_mem_cgroup(struct mem_cgroup *mem, long required)
  {
--	return zone->pages_scanned < zone_reclaimable_pages(zone) * 6;
-+	return zone->pages_scanned < zone_reclaimable_pages(zone) *
-+					ZONE_RECLAIMABLE_RATE;
- }
- 
- /* All zones in zonelist are unreclaimable? */
-@@ -2343,6 +2348,10 @@ shrink_memcg_node(int nid, int priority,
- 		scan = mem_cgroup_zone_reclaimable_pages(mem_cont, nid, i);
- 		if (!scan)
- 			continue;
-+		/* we would like to remove memory from where we can do easy */
-+		if ((sc->nr_reclaimed >= total_scanned/4) &&
-+		     mem_cgroup_mz_unreclaimable(mem_cont, zone))
-+			continue;
- 		/* If recent memory reclaim on this zone doesn't get good */
- 		zrs = get_reclaim_stat(zone, sc);
- 		scan = zrs->recent_scanned[0] + zrs->recent_scanned[1];
-@@ -2355,6 +2364,8 @@ shrink_memcg_node(int nid, int priority,
- 		shrink_zone(priority, zone, sc);
- 		total_scanned += sc->nr_scanned;
- 		sc->may_writepage = 0;
-+		if (!mem_cgroup_zone_reclaimable(mem_cont, zone))
-+			mem_cgroup_mz_set_unreclaimable(mem_cont, zone);
+-	int nid, priority, next_prio;
++	int nid, priority, next_prio, delay;
+ 	nodemask_t nodes;
+ 	unsigned long total_scanned;
+ 	struct scan_control sc = {
+ 		.gfp_mask = GFP_HIGHUSER_MOVABLE,
+ 		.may_unmap = 1,
+ 		.may_swap = 1,
+-		.nr_to_reclaim = SWAP_CLUSTER_MAX,
+ 		.order = 0,
+ 		.mem_cgroup = mem,
+ 	};
+-
++	/* writepage will be set later per zone */
+ 	sc.may_writepage = 0;
+ 	sc.nr_reclaimed = 0;
+ 	total_scanned = 0;
+@@ -2400,9 +2399,12 @@ unsigned long shrink_mem_cgroup(struct m
+ 	 * Now, we scan MEMCG_BGRECLAIM_SCAN_LIMIT pages per scan.
+ 	 * We use static priority 0.
+ 	 */
++	sc.nr_to_reclaim = min(required, (long)MEMCG_BGSCAN_LIMIT/2);
+ 	next_prio = min(SWAP_CLUSTER_MAX * num_node_state(N_HIGH_MEMORY),
+ 			MEMCG_BGSCAN_LIMIT/8);
+ 	priority = DEF_PRIORITY;
++	/* delay for next work at congestion */
++	delay = HZ/10;
+ 	while ((total_scanned < MEMCG_BGSCAN_LIMIT) &&
+ 	       !nodes_empty(nodes) &&
+ 	       (sc.nr_to_reclaim > sc.nr_reclaimed)) {
+@@ -2423,12 +2425,17 @@ unsigned long shrink_mem_cgroup(struct m
+ 			priority--;
+ 			next_prio <<= 1;
+ 		}
+-		if (sc.nr_scanned &&
+-		    total_scanned > sc.nr_reclaimed * 2)
+-			congestion_wait(WRITE, HZ/10);
++		/* give up early ? */
++		if (total_scanned > MEMCG_BGSCAN_LIMIT/8 &&
++		    total_scanned > sc.nr_reclaimed * 4)
++			goto out;
  	}
- 	sc->nr_scanned = total_scanned;
++	/* We scanned enough...If we reclaimed half of requested, no delay */
++	if (sc.nr_reclaimed > sc.nr_to_reclaim/2)
++		delay = 0;
++out:
+ 	current->flags &= ~PF_SWAPWRITE;
+-	return sc.nr_reclaimed;
++	return delay;
  }
+ #endif
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
