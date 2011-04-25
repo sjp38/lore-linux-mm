@@ -1,62 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 4ABE78D003B
-	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 00:21:34 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id D1DFC3EE0B5
-	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 13:21:29 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id BA2D845DE96
-	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 13:21:29 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id A1A4945DE93
-	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 13:21:29 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 93D16E08001
-	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 13:21:29 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 61C521DB8037
-	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 13:21:29 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 1/2] break out page allocation warning code
-In-Reply-To: <20110421103009.731B.A69D9226@jp.fujitsu.com>
-References: <1303331695.2796.159.camel@work-vm> <20110421103009.731B.A69D9226@jp.fujitsu.com>
-Message-Id: <20110425132333.266E.A69D9226@jp.fujitsu.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 574328D003B
+	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 03:47:31 -0400 (EDT)
+Received: by yib18 with SMTP id 18so761921yib.14
+        for <linux-mm@kvack.org>; Mon, 25 Apr 2011 00:47:29 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 8bit
-Date: Mon, 25 Apr 2011 13:21:28 +0900 (JST)
+In-Reply-To: <20110425114429.266A.A69D9226@jp.fujitsu.com>
+References: <20110424202158.45578f31@neptune.home> <20110424235928.71af51e0@neptune.home>
+ <20110425114429.266A.A69D9226@jp.fujitsu.com>
+From: Mike Frysinger <vapier.adi@gmail.com>
+Date: Mon, 25 Apr 2011 03:47:09 -0400
+Message-ID: <BANLkTinVQtLbmBknBZeY=7w7AOyQk61Pew@mail.gmail.com>
+Subject: Re: 2.6.39-rc4+: Kernel leaking memory during FS scanning, regression?
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: john stultz <johnstul@us.ibm.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, David Rientjes <rientjes@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Nazarewicz <mina86@mina86.com>, Andrew Morton <akpm@linux-foundation.org>
+To: =?UTF-8?Q?Bruno_Pr=C3=A9mont?= <bonbons@linux-vserver.org>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 
-> > > I'd prefer that we remove /proc/pid/comm entirely or at least prevent 
-> > > writing to it unless CONFIG_EXPERT.
-> > 
-> > Eeeh. That's probably going to be a tough sell, as I think there is
-> > wider interest in what it provides. Its useful for debugging
-> > applications not kernels, so I doubt folks will want to rebuild their
-> > kernel to try to analyze a java issue.
-> > 
-> > So I'm well aware that there is the chance that you catch the race and
-> > read an incomplete/invalid comm (it was discussed at length when the
-> > change went in), but somewhere I've missed how that's causing actual
-> > problems. Other then just being "evil" and having the documented race,
-> > could you clarify what the issue is that your hitting?
-> 
-> The problem is, there is no documented as well. Okay, I recognized you
-> introduced new locking rule for task->comm. But there is no documented
-> it. Thus, We have no way to review current callsites are correct or not.
-> Can you please do it? And, I have a question. Do you mean now task->comm
-> reader don't need task_lock() even if it is another thread?
-> 
-> _if_ every task->comm reader have to realize it has a chance to read
-> incomplete/invalid comm, task_lock() doesn't makes any help.
+On Sun, Apr 24, 2011 at 22:42, KOSAKI Motohiro wrote:
+>> On Sun, 24 April 2011 Bruno Pr=C3=A9mont wrote:
+>> > On an older system I've been running Gentoo's revdep-rebuild to check
+>> > for system linking/*.la consistency and after doing most of the work t=
+he
+>> > system starved more or less, just complaining about stuck tasks now an=
+d
+>> > then.
+>> > Memory usage graph as seen from userspace showed sudden quick increase=
+ of
+>> > memory usage though only a very few MB were swapped out (c.f. attached=
+ RRD
+>> > graph).
+>>
+>> Seems I've hit it once again (though detected before system was fully
+>> stalled by trying to reclaim memory without success).
+>>
+>> This time it was during simple compiling...
+>> Gathered info below:
+>>
+>> /proc/meminfo:
+>> MemTotal: =C2=A0 =C2=A0 =C2=A0 =C2=A0 480660 kB
+>> MemFree: =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 64948 kB
+>> Buffers: =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 10304 kB
+>> Cached: =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 6924 kB
+>> SwapCached: =C2=A0 =C2=A0 =C2=A0 =C2=A0 4220 kB
+>> Active: =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A011100 kB
+>> Inactive: =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A015732 kB
+>> Active(anon): =C2=A0 =C2=A0 =C2=A0 4732 kB
+>> Inactive(anon): =C2=A0 =C2=A0 4876 kB
+>> Active(file): =C2=A0 =C2=A0 =C2=A0 6368 kB
+>> Inactive(file): =C2=A0 =C2=A010856 kB
+>> Unevictable: =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A032 kB
+>> Mlocked: =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A032 kB
+>> SwapTotal: =C2=A0 =C2=A0 =C2=A0 =C2=A0524284 kB
+>> SwapFree: =C2=A0 =C2=A0 =C2=A0 =C2=A0 456432 kB
+>> Dirty: =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A080 kB
+>> Writeback: =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 0 kB
+>> AnonPages: =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A06268 kB
+>> Mapped: =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 2604 kB
+>> Shmem: =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 4 kB
+>> Slab: =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 250632 kB
+>> SReclaimable: =C2=A0 =C2=A0 =C2=A051144 kB
+>> SUnreclaim: =C2=A0 =C2=A0 =C2=A0 199488 kB =C2=A0 <--- look big as well.=
+..
+>> KernelStack: =C2=A0 =C2=A0 =C2=A0131032 kB =C2=A0 <--- what???
+>
+> KernelStack is used 8K bytes per thread. then, your system should have
+> 16000 threads. but your ps only showed about 80 processes.
+> Hmm... stack leak?
 
-ping?
+i might have a similar report for 2.6.39-rc4 (seems to be working fine
+in 2.6.38.4), but for embedded Blackfin systems running gdbserver
+processes over and over (so lots of short lived forks)
 
-
+i wonder if you have a lot of zombies or otherwise unclaimed resources
+?  does `ps aux` show anything unusual ?
+-mike
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
