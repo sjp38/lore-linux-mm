@@ -1,26 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 765CF8D003B
-	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 05:56:04 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 7E3993EE0C3
-	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 18:55:58 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 6378C45DE61
-	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 18:55:58 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 49EFC45DD74
-	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 18:55:58 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 382DB1DB8041
-	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 18:55:58 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id F33501DB803A
-	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 18:55:57 +0900 (JST)
-Date: Mon, 25 Apr 2011 18:49:20 +0900
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 408C68D003B
+	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 06:21:20 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 2D0B83EE0BD
+	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 19:21:17 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0E7F845DE95
+	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 19:21:17 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id E945A45DE92
+	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 19:21:16 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id D9DD0E08003
+	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 19:21:16 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id A51391DB8038
+	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 19:21:16 +0900 (JST)
+Date: Mon, 25 Apr 2011 19:14:37 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Subject: Re: [PATCH 0/7] memcg background reclaim , yet another one.
-Message-Id: <20110425184920.71a90442.kamezawa.hiroyu@jp.fujitsu.com>
+Message-Id: <20110425191437.d881ee68.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20110425182529.c7c37bb4.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20110425182529.c7c37bb4.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
@@ -34,14 +34,34 @@ Cc: Ying Han <yinghan@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "k
 On Mon, 25 Apr 2011 18:25:29 +0900
 KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-> 1) == hard limit = 400M ==
-> [root@rhel6-test hilow]# time cp ./tmpfile xxx                
-> real    0m7.353s
-> user    0m0.009s
-> sys     0m3.280s
+
+> 2) == hard limit 500M/ hi_watermark = 400M ==
+> [root@rhel6-test hilow]# time cp ./tmpfile xxx
+> 
+> real    0m6.421s
+> user    0m0.059s
+> sys     0m2.707s
 > 
 
-Sorry, size of tmpfile is 400M here.
+When doing this, we see usage changes as
+(sec) (bytes)
+   0: 401408        <== cp start
+   1: 98603008
+   2: 262705152
+   3: 433491968     <== wmark reclaim triggerd.
+   4: 486502400
+   5: 507748352
+   6: 524189696     <== cp ends (and hit limits)
+   7: 501231616
+   8: 499511296
+   9: 477118464
+  10: 417980416     <== usage goes below watermark.
+  11: 417980416
+ .....
+
+If we have dirty_ratio, this result will be some different.
+(and flusher thread will work sooner...)
+
 
 Thanks,
 -Kame
