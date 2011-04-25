@@ -1,14 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 611538D003B
-	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 14:50:26 -0400 (EDT)
-Message-ID: <4DB5C191.3090804@parallels.com>
-Date: Mon, 25 Apr 2011 22:46:41 +0400
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 7219B8D003B
+	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 14:50:45 -0400 (EDT)
+Message-ID: <4DB5C1B0.9050405@parallels.com>
+Date: Mon, 25 Apr 2011 22:47:12 +0400
 From: Pavel Emelyanov <xemul@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH V2 1/2] change the shrink_slab by passing shrink_control
-References: <1303752134-4856-1-git-send-email-yinghan@google.com> <1303752134-4856-2-git-send-email-yinghan@google.com>
-In-Reply-To: <1303752134-4856-2-git-send-email-yinghan@google.com>
+Subject: Re: [PATCH V2 2/2] change shrinker API by passing shrink_control
+ struct
+References: <1303752134-4856-1-git-send-email-yinghan@google.com> <1303752134-4856-3-git-send-email-yinghan@google.com>
+In-Reply-To: <1303752134-4856-3-git-send-email-yinghan@google.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -17,13 +18,13 @@ To: Ying Han <yinghan@google.com>
 Cc: Nick Piggin <nickpiggin@yahoo.com.au>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
 On 04/25/2011 09:22 PM, Ying Han wrote:
-> This patch consolidates existing parameters to shrink_slab() to
-> a new shrink_control struct. This is needed later to pass the same
-> struct to shrinkers.
+> The patch changes each shrinkers API by consolidating the existing
+> parameters into shrink_control struct. This will simplify any further
+> features added w/o touching each file of shrinker.
 > 
 > changelog v2..v1:
-> 1. define a new struct shrink_control and only pass some values down
-> to the shrinker instead of the scan_control.
+> 1. replace the scan_control to shrink_control, and only pass the set
+> of values down to the shrinker.
 > 
 > Signed-off-by: Ying Han <yinghan@google.com>
 
