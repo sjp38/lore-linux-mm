@@ -1,103 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F1CD8D003B
-	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 15:16:15 -0400 (EDT)
-Received: from d01relay06.pok.ibm.com (d01relay06.pok.ibm.com [9.56.227.116])
-	by e9.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p3PIli6x010461
-	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 14:47:44 -0400
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p3PJGBkQ1167560
-	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 15:16:11 -0400
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p3PJG9RZ017193
-	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 15:16:10 -0400
-Date: Mon, 25 Apr 2011 12:16:07 -0700
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: 2.6.39-rc4+: Kernel leaking memory during FS scanning,
- regression?
-Message-ID: <20110425191607.GL2468@linux.vnet.ibm.com>
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <20110424235928.71af51e0@neptune.home>
- <20110425114429.266A.A69D9226@jp.fujitsu.com>
- <BANLkTinVQtLbmBknBZeY=7w7AOyQk61Pew@mail.gmail.com>
- <20110425111705.786ef0c5@neptune.home>
- <BANLkTi=d0UHrYXyTK0CBZYCSK-ax8+wuWQ@mail.gmail.com>
- <20110425180450.1ede0845@neptune.home>
- <BANLkTikSLA59tdgRL4B=cr5tvP2NbzZ=KA@mail.gmail.com>
- <20110425190032.7904c95d@neptune.home>
- <BANLkTi=hQ=HcPLCdbb1pSi+xJByMTah-gw@mail.gmail.com>
- <20110425203606.4e78246c@neptune.home>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20110425203606.4e78246c@neptune.home>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 0D2E58D003B
+	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 16:24:35 -0400 (EDT)
+Message-Id: <20110425200237.166324095@pcw.home.local>
+Date: Mon, 25 Apr 2011 22:04:08 +0200
+From: Willy Tarreau <w@1wt.eu>
+Subject: [PATCH 096/173] x86: Flush TLB if PGD entry is changed in i386 PAE mode
+In-Reply-To: <46075c3a3ef08be6d70339617d6afc98@local>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bruno =?iso-8859-1?Q?Pr=E9mont?= <bonbons@linux-vserver.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Mike Frysinger <vapier.adi@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Paul E. McKenney" <paul.mckenney@linaro.org>, Pekka Enberg <penberg@kernel.org>
+To: linux-kernel@vger.kernel.org, stable@kernel.org, stable-review@kernel.org
+Cc: Shaohua Li <shaohua.li@intel.com>, Mallick Asit K <asit.k.mallick@intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>, Greg Kroah-Hartman <gregkh@suse.de>
 
-On Mon, Apr 25, 2011 at 08:36:06PM +0200, Bruno Premont wrote:
-> On Mon, 25 April 2011 Linus Torvalds wrote:
-> > On Mon, Apr 25, 2011 at 10:00 AM, Bruno Premont wrote:
-> > >
-> > > I hope tiny-rcu is not that broken... as it would mean driving any
-> > > PREEMPT_NONE or PREEMPT_VOLUNTARY system out of memory when compiling
-> > > packages (and probably also just unpacking larger tarballs or running
-> > > things like du).
-> > 
-> > I'm sure that TINYRCU can be fixed if it really is the problem.
-> > 
-> > So I just want to make sure that we know what the root cause of your
-> > problem is. It's quite possible that it _is_ a real leak of filp or
-> > something, but before possibly wasting time trying to figure that out,
-> > let's see if your config is to blame.
-> 
-> With changed config (PREEMPT=y, TREE_PREEMPT_RCU=y) I haven't reproduced
-> yet.
-> 
-> When I was reproducing with TINYRCU things went normally for some time
-> until suddenly slabs stopped being freed.
+2.6.27.59-stable review patch.  If anyone has any objections, please let us know.
 
-Hmmm... If the system is responsive during this time, could you please
-do the following after the slabs stop being freed?
+------------------
 
-ps -eo pid,class,sched,rtprio,stat,state,sgi_p,cpu_time,cmd | grep '\[rcu'
+From: Shaohua Li <shaohua.li@intel.com>
 
-							Thanx, Paul
+commit 4981d01eada5354d81c8929d5b2836829ba3df7b upstream.
 
-> > > And with system doing nothing (except monitoring itself) memory usage
-> > > goes increasing all the time until it starves (well it seems to keep
-> > > ~20M free, pushing processes it can to swap). Config is just being
-> > > make oldconfig from working 2.6.38 kernel (answering default for new
-> > > options)
-> > 
-> > How sure are you that the system really is idle? Quite frankly, the
-> > constant growing doesn't really look idle to me.
-> 
-> Except the SIGSTOPed build there is not much left, collectd running in
-> background (it polls /proc for process counts, fork rate, memory usage,
-> ... opening, reading, closing the files -- scanning every 10 seconds),
-> slabtop on one terminal.
-> 
-> CPU activity was near-zero with 10%-20% spikes of system use every 10
-> minutes and io-wait when all cache had been pushed out.
-> 
-> > > Attached graph matching numbers of previous mail. (dropping caches was at
-> > > 17:55, system idle since then)
-> > 
-> > Nothing at all going on in 'ps' during that time? And what does
-> > slabinfo say at that point now that kmemleak isn't dominating
-> > everything else?
-> 
-> ps definitely does not show anything special, 30 or so userspace processes.
-> Didn't check ls /proc/*/fd though. Will do at next occurrence.
-> 
-> 
-> Going to test further with various PREEMPT and RCU selections. Will report
-> back as I progress (but won't have much time tomorrow).
-> 
-> Bruno
+According to intel CPU manual, every time PGD entry is changed in i386 PAE
+mode, we need do a full TLB flush. Current code follows this and there is
+comment for this too in the code.
+
+But current code misses the multi-threaded case. A changed page table
+might be used by several CPUs, every such CPU should flush TLB. Usually
+this isn't a problem, because we prepopulate all PGD entries at process
+fork. But when the process does munmap and follows new mmap, this issue
+will be triggered.
+
+When it happens, some CPUs keep doing page faults:
+
+  http://marc.info/?l=linux-kernel&m=129915020508238&w=2
+
+Reported-by: Yasunori Goto<y-goto@jp.fujitsu.com>
+Tested-by: Yasunori Goto<y-goto@jp.fujitsu.com>
+Reviewed-by: Rik van Riel <riel@redhat.com>
+Signed-off-by: Shaohua Li<shaohua.li@intel.com>
+Cc: Mallick Asit K <asit.k.mallick@intel.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm <linux-mm@kvack.org>
+LKML-Reference: <1300246649.2337.95.camel@sli10-conroe>
+Signed-off-by: Ingo Molnar <mingo@elte.hu>
+Signed-off-by: Greg Kroah-Hartman <gregkh@suse.de>
+
+---
+ arch/x86/include/asm/pgtable-3level.h |   11 +++--------
+ arch/x86/mm/pgtable.c                 |    3 +--
+ 2 files changed, 4 insertions(+), 10 deletions(-)
+
+Index: longterm-2.6.27/include/asm-x86/pgtable-3level.h
+===================================================================
+--- longterm-2.6.27.orig/include/asm-x86/pgtable-3level.h	2011-01-23 10:52:33.916066510 +0100
++++ longterm-2.6.27/include/asm-x86/pgtable-3level.h	2011-04-25 15:55:12.384279160 +0200
+@@ -101,8 +101,6 @@
+ 
+ static inline void pud_clear(pud_t *pudp)
+ {
+-	unsigned long pgd;
+-
+ 	set_pud(pudp, __pud(0));
+ 
+ 	/*
+@@ -111,13 +109,10 @@
+ 	 * section 8.1: in PAE mode we explicitly have to flush the
+ 	 * TLB via cr3 if the top-level pgd is changed...
+ 	 *
+-	 * Make sure the pud entry we're updating is within the
+-	 * current pgd to avoid unnecessary TLB flushes.
++	 * Currently all places where pud_clear() is called either have
++	 * flush_tlb_mm() followed or don't need TLB flush (x86_64 code or
++	 * pud_clear_bad()), so we don't need TLB flush here.
+ 	 */
+-	pgd = read_cr3();
+-	if (__pa(pudp) >= pgd && __pa(pudp) <
+-	    (pgd + sizeof(pgd_t)*PTRS_PER_PGD))
+-		write_cr3(pgd);
+ }
+ 
+ #define pud_page(pud) ((struct page *) __va(pud_val(pud) & PTE_PFN_MASK))
+Index: longterm-2.6.27/arch/x86/mm/pgtable.c
+===================================================================
+--- longterm-2.6.27.orig/arch/x86/mm/pgtable.c	2011-01-23 10:52:13.760064270 +0100
++++ longterm-2.6.27/arch/x86/mm/pgtable.c	2011-04-25 15:55:12.391278523 +0200
+@@ -138,8 +138,7 @@
+ 	 * section 8.1: in PAE mode we explicitly have to flush the
+ 	 * TLB via cr3 if the top-level pgd is changed...
+ 	 */
+-	if (mm == current->active_mm)
+-		write_cr3(read_cr3());
++	flush_tlb_mm(mm);
+ }
+ #else  /* !CONFIG_X86_PAE */
+ 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
