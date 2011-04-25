@@ -1,95 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id E60AD8D003B
-	for <linux-mm@kvack.org>; Sun, 24 Apr 2011 22:42:29 -0400 (EDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 4ABE78D003B
+	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 00:21:34 -0400 (EDT)
 Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id CA8CE3EE0BB
-	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 11:42:26 +0900 (JST)
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id D1DFC3EE0B5
+	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 13:21:29 +0900 (JST)
 Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4B58045DE93
-	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 11:42:26 +0900 (JST)
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id BA2D845DE96
+	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 13:21:29 +0900 (JST)
 Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2E9E545DE92
-	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 11:42:26 +0900 (JST)
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id A1A4945DE93
+	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 13:21:29 +0900 (JST)
 Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 1A82AE08002
-	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 11:42:26 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id D90B1E18001
-	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 11:42:25 +0900 (JST)
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 93D16E08001
+	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 13:21:29 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 61C521DB8037
+	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 13:21:29 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: 2.6.39-rc4+: Kernel leaking memory during FS scanning, regression?
-In-Reply-To: <20110424235928.71af51e0@neptune.home>
-References: <20110424202158.45578f31@neptune.home> <20110424235928.71af51e0@neptune.home>
-Message-Id: <20110425114429.266A.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCH 1/2] break out page allocation warning code
+In-Reply-To: <20110421103009.731B.A69D9226@jp.fujitsu.com>
+References: <1303331695.2796.159.camel@work-vm> <20110421103009.731B.A69D9226@jp.fujitsu.com>
+Message-Id: <20110425132333.266E.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: 8bit
-Date: Mon, 25 Apr 2011 11:42:25 +0900 (JST)
+Date: Mon, 25 Apr 2011 13:21:28 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bruno =?UTF-8?B?UHLDqW1vbnQ=?= <bonbons@linux-vserver.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: john stultz <johnstul@us.ibm.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, David Rientjes <rientjes@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Nazarewicz <mina86@mina86.com>, Andrew Morton <akpm@linux-foundation.org>
 
-> On Sun, 24 April 2011 Bruno PrA(C)mont <bonbons@linux-vserver.org> wrote:
-> > On an older system I've been running Gentoo's revdep-rebuild to check
-> > for system linking/*.la consistency and after doing most of the work the
-> > system starved more or less, just complaining about stuck tasks now and
-> > then.
-> > Memory usage graph as seen from userspace showed sudden quick increase of
-> > memory usage though only a very few MB were swapped out (c.f. attached RRD
-> > graph).
+> > > I'd prefer that we remove /proc/pid/comm entirely or at least prevent 
+> > > writing to it unless CONFIG_EXPERT.
+> > 
+> > Eeeh. That's probably going to be a tough sell, as I think there is
+> > wider interest in what it provides. Its useful for debugging
+> > applications not kernels, so I doubt folks will want to rebuild their
+> > kernel to try to analyze a java issue.
+> > 
+> > So I'm well aware that there is the chance that you catch the race and
+> > read an incomplete/invalid comm (it was discussed at length when the
+> > change went in), but somewhere I've missed how that's causing actual
+> > problems. Other then just being "evil" and having the documented race,
+> > could you clarify what the issue is that your hitting?
 > 
-> Seems I've hit it once again (though detected before system was fully
-> stalled by trying to reclaim memory without success).
+> The problem is, there is no documented as well. Okay, I recognized you
+> introduced new locking rule for task->comm. But there is no documented
+> it. Thus, We have no way to review current callsites are correct or not.
+> Can you please do it? And, I have a question. Do you mean now task->comm
+> reader don't need task_lock() even if it is another thread?
 > 
-> This time it was during simple compiling...
-> Gathered info below:
-> 
-> /proc/meminfo:
-> MemTotal:         480660 kB
-> MemFree:           64948 kB
-> Buffers:           10304 kB
-> Cached:             6924 kB
-> SwapCached:         4220 kB
-> Active:            11100 kB
-> Inactive:          15732 kB
-> Active(anon):       4732 kB
-> Inactive(anon):     4876 kB
-> Active(file):       6368 kB
-> Inactive(file):    10856 kB
-> Unevictable:          32 kB
-> Mlocked:              32 kB
-> SwapTotal:        524284 kB
-> SwapFree:         456432 kB
-> Dirty:                80 kB
-> Writeback:             0 kB
-> AnonPages:          6268 kB
-> Mapped:             2604 kB
-> Shmem:                 4 kB
-> Slab:             250632 kB
-> SReclaimable:      51144 kB
-> SUnreclaim:       199488 kB   <--- look big as well...
-> KernelStack:      131032 kB   <--- what???
+> _if_ every task->comm reader have to realize it has a chance to read
+> incomplete/invalid comm, task_lock() doesn't makes any help.
 
-KernelStack is used 8K bytes per thread. then, your system should have
-16000 threads. but your ps only showed about 80 processes.
-Hmm... stack leak?
+ping?
 
-
-> PageTables:          920 kB
-> NFS_Unstable:          0 kB
-> Bounce:                0 kB
-> WritebackTmp:          0 kB
-> CommitLimit:      764612 kB
-> Committed_AS:     132632 kB
-> VmallocTotal:     548548 kB
-> VmallocUsed:       18500 kB
-> VmallocChunk:     525952 kB
-> AnonHugePages:         0 kB
-> DirectMap4k:       32704 kB
-> DirectMap4M:      458752 kB
-> 
 
 
 --
