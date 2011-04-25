@@ -1,89 +1,326 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 8AEB68D003B
-	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 05:32:39 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 597453EE0C8
-	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 18:32:36 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 3BD2445DE5C
-	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 18:32:36 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 229A845DE58
-	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 18:32:36 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 15E4EE08006
-	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 18:32:36 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id D117DE08002
-	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 18:32:35 +0900 (JST)
-Date: Mon, 25 Apr 2011 18:25:29 +0900
+	by kanga.kvack.org (Postfix) with ESMTP id C50708D003B
+	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 05:35:32 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id CA8433EE0BD
+	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 18:35:29 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id AF5C945DE96
+	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 18:35:29 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 977F145DE92
+	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 18:35:29 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8C10EE08004
+	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 18:35:29 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4DDAA1DB8037
+	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 18:35:29 +0900 (JST)
+Date: Mon, 25 Apr 2011 18:28:49 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH 0/7] memcg background reclaim , yet another one.
-Message-Id: <20110425182529.c7c37bb4.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH 1/7] memcg: add high/low watermark to res_counter
+Message-Id: <20110425182849.ab708f12.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110425182529.c7c37bb4.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20110425182529.c7c37bb4.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Johannes Weiner <jweiner@redhat.com>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, Michal Hocko <mhocko@suse.cz>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Ying Han <yinghan@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Johannes Weiner <jweiner@redhat.com>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, Michal Hocko <mhocko@suse.cz>
 
+There are two watermarks added per-memcg including "high_wmark" and "low_wmark".
+The per-memcg kswapd is invoked when the memcg's memory usage(usage_in_bytes)
+is higher than the low_wmark. Then the kswapd thread starts to reclaim pages
+until the usage is lower than the high_wmark.
 
-This patch is based on Ying Han's one....at its origin, but I changed too much ;)
-Then, start this as new thread.
+Each watermark is calculated based on the hard_limit(limit_in_bytes) for each
+memcg. Each time the hard_limit is changed, the corresponding wmarks are
+re-calculated. Since memory controller charges only user pages, there is
+no need for a "min_wmark". The current calculation of wmarks is based on
+individual tunable high_wmark_distance, which are set to 0 by default.
+low_wmark is calculated in automatic way.
 
-(*) This work is not related to the topic "rewriting global LRU using memcg"
-    discussion, at all. This kind of hi/low watermark has been planned since
-    memcg was born. 
+Changelog:v8b...v7
+1. set low_wmark_distance in automatic using fixed HILOW_DISTANCE.
 
-At first, per-memcg background reclaim is used for
-  - helping memory reclaim and avoid direct reclaim.
-  - set a not-hard limit of memory usage.
+Signed-off-by: Ying Han <yinghan@google.com>
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+---
+ include/linux/memcontrol.h  |    1 
+ include/linux/res_counter.h |   78 ++++++++++++++++++++++++++++++++++++++++++++
+ kernel/res_counter.c        |    6 +++
+ mm/memcontrol.c             |   69 ++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 154 insertions(+)
 
-For example, assume a memcg has its hard-limit as 500M bytes.
-Then, set high-watermark as 400M. Here, memory usage can exceed 400M up to 500M
-but memory usage will be reduced automatically to 400M as time goes by.
-
-This is useful when a user want to limit memory usage to 400M but don't want to
-see big performance regression by hitting limit when memory usage spike happens.
-
-1) == hard limit = 400M ==
-[root@rhel6-test hilow]# time cp ./tmpfile xxx                
-real    0m7.353s
-user    0m0.009s
-sys     0m3.280s
-
-2) == hard limit 500M/ hi_watermark = 400M ==
-[root@rhel6-test hilow]# time cp ./tmpfile xxx
-
-real    0m6.421s
-user    0m0.059s
-sys     0m2.707s
-
-Above is a brief result on VM and needs more study. But my impression is positive.
-I'd like to use bigger real machine in the next time.
-
-Here is a short list of updates from Ying Han's one.
-
- 1. use workqueue and visit memcg in round robin.
- 2. only allow setting hi watermark. low-watermark is automatically determined.
-    This is good for avoiding bad cpu usage by background reclaim.
- 3. totally rewrite algorithm of shrink_mem_cgroup for round-robin.
- 4. fixed get_scan_count() , this was problematic.
- 5. added some statistics, which I think necessary.
- 6. added documenation
-
-Then, the algorithm is not a cut-n-paste from kswapd. I thought kswapd should be
-updated...and 'priority' in vmscan.c seems to be an enemy of memcg ;)
-
-
-Thanks
--Kame
-
-
-
-
+Index: memcg/include/linux/memcontrol.h
+===================================================================
+--- memcg.orig/include/linux/memcontrol.h
++++ memcg/include/linux/memcontrol.h
+@@ -84,6 +84,7 @@ int task_in_mem_cgroup(struct task_struc
+ 
+ extern struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page);
+ extern struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p);
++extern int mem_cgroup_watermark_ok(struct mem_cgroup *mem, int charge_flags);
+ 
+ static inline
+ int mm_match_cgroup(const struct mm_struct *mm, const struct mem_cgroup *cgroup)
+Index: memcg/include/linux/res_counter.h
+===================================================================
+--- memcg.orig/include/linux/res_counter.h
++++ memcg/include/linux/res_counter.h
+@@ -39,6 +39,14 @@ struct res_counter {
+ 	 */
+ 	unsigned long long soft_limit;
+ 	/*
++	 * the limit that reclaim triggers.
++	 */
++	unsigned long long low_wmark_limit;
++	/*
++	 * the limit that reclaim stops.
++	 */
++	unsigned long long high_wmark_limit;
++	/*
+ 	 * the number of unsuccessful attempts to consume the resource
+ 	 */
+ 	unsigned long long failcnt;
+@@ -55,6 +63,9 @@ struct res_counter {
+ 
+ #define RESOURCE_MAX (unsigned long long)LLONG_MAX
+ 
++#define CHARGE_WMARK_LOW	0x01
++#define CHARGE_WMARK_HIGH	0x02
++
+ /**
+  * Helpers to interact with userspace
+  * res_counter_read_u64() - returns the value of the specified member.
+@@ -92,6 +103,8 @@ enum {
+ 	RES_LIMIT,
+ 	RES_FAILCNT,
+ 	RES_SOFT_LIMIT,
++	RES_LOW_WMARK_LIMIT,
++	RES_HIGH_WMARK_LIMIT
+ };
+ 
+ /*
+@@ -147,6 +160,24 @@ static inline unsigned long long res_cou
+ 	return margin;
+ }
+ 
++static inline bool
++res_counter_under_high_wmark_limit_check_locked(struct res_counter *cnt)
++{
++	if (cnt->usage < cnt->high_wmark_limit)
++		return true;
++
++	return false;
++}
++
++static inline bool
++res_counter_under_low_wmark_limit_check_locked(struct res_counter *cnt)
++{
++	if (cnt->usage < cnt->low_wmark_limit)
++		return true;
++
++	return false;
++}
++
+ /**
+  * Get the difference between the usage and the soft limit
+  * @cnt: The counter
+@@ -169,6 +200,30 @@ res_counter_soft_limit_excess(struct res
+ 	return excess;
+ }
+ 
++static inline bool
++res_counter_under_low_wmark_limit(struct res_counter *cnt)
++{
++	bool ret;
++	unsigned long flags;
++
++	spin_lock_irqsave(&cnt->lock, flags);
++	ret = res_counter_under_low_wmark_limit_check_locked(cnt);
++	spin_unlock_irqrestore(&cnt->lock, flags);
++	return ret;
++}
++
++static inline bool
++res_counter_under_high_wmark_limit(struct res_counter *cnt)
++{
++	bool ret;
++	unsigned long flags;
++
++	spin_lock_irqsave(&cnt->lock, flags);
++	ret = res_counter_under_high_wmark_limit_check_locked(cnt);
++	spin_unlock_irqrestore(&cnt->lock, flags);
++	return ret;
++}
++
+ static inline void res_counter_reset_max(struct res_counter *cnt)
+ {
+ 	unsigned long flags;
+@@ -214,4 +269,27 @@ res_counter_set_soft_limit(struct res_co
+ 	return 0;
+ }
+ 
++static inline int
++res_counter_set_high_wmark_limit(struct res_counter *cnt,
++				unsigned long long wmark_limit)
++{
++	unsigned long flags;
++
++	spin_lock_irqsave(&cnt->lock, flags);
++	cnt->high_wmark_limit = wmark_limit;
++	spin_unlock_irqrestore(&cnt->lock, flags);
++	return 0;
++}
++
++static inline int
++res_counter_set_low_wmark_limit(struct res_counter *cnt,
++				unsigned long long wmark_limit)
++{
++	unsigned long flags;
++
++	spin_lock_irqsave(&cnt->lock, flags);
++	cnt->low_wmark_limit = wmark_limit;
++	spin_unlock_irqrestore(&cnt->lock, flags);
++	return 0;
++}
+ #endif
+Index: memcg/kernel/res_counter.c
+===================================================================
+--- memcg.orig/kernel/res_counter.c
++++ memcg/kernel/res_counter.c
+@@ -19,6 +19,8 @@ void res_counter_init(struct res_counter
+ 	spin_lock_init(&counter->lock);
+ 	counter->limit = RESOURCE_MAX;
+ 	counter->soft_limit = RESOURCE_MAX;
++	counter->low_wmark_limit = RESOURCE_MAX;
++	counter->high_wmark_limit = RESOURCE_MAX;
+ 	counter->parent = parent;
+ }
+ 
+@@ -103,6 +105,10 @@ res_counter_member(struct res_counter *c
+ 		return &counter->failcnt;
+ 	case RES_SOFT_LIMIT:
+ 		return &counter->soft_limit;
++	case RES_LOW_WMARK_LIMIT:
++		return &counter->low_wmark_limit;
++	case RES_HIGH_WMARK_LIMIT:
++		return &counter->high_wmark_limit;
+ 	};
+ 
+ 	BUG();
+Index: memcg/mm/memcontrol.c
+===================================================================
+--- memcg.orig/mm/memcontrol.c
++++ memcg/mm/memcontrol.c
+@@ -278,6 +278,11 @@ struct mem_cgroup {
+ 	 */
+ 	struct mem_cgroup_stat_cpu nocpu_base;
+ 	spinlock_t pcp_counter_lock;
++
++	/*
++	 * used to calculate the low/high_wmarks based on the limit_in_bytes.
++	 */
++	u64 high_wmark_distance;
+ };
+ 
+ /* Stuffs for move charges at task migration. */
+@@ -867,6 +872,44 @@ out:
+ EXPORT_SYMBOL(mem_cgroup_count_vm_event);
+ 
+ /*
++ * If Hi-Low distance is too big, background reclaim tend to be cpu hogging.
++ * If Hi-Low distance is too small, small memory usage spike (by temporal
++ * shell scripts) causes background reclaim and make thing worse. But memory
++ * spike can be avoided by setting high-wmark a bit higier. We use fixed size
++ * size of HiLow Distance, this will be easy to use.
++ */
++#ifdef CONFIG_64BIT /* object size tend do be twice */
++#define HILOW_DISTANCE	(4 * 1024 * 1024)
++#else
++#define HILOW_DISTANCE	(2 * 1024 * 1024)
++#endif
++
++static void setup_per_memcg_wmarks(struct mem_cgroup *mem)
++{
++	u64 limit;
++
++	limit = res_counter_read_u64(&mem->res, RES_LIMIT);
++	if (mem->high_wmark_distance == 0) {
++		res_counter_set_low_wmark_limit(&mem->res, limit);
++		res_counter_set_high_wmark_limit(&mem->res, limit);
++	} else {
++		u64 low_wmark, high_wmark, low_distance;
++		if (mem->high_wmark_distance <= HILOW_DISTANCE)
++			low_distance = mem->high_wmark_distance / 2;
++		else
++			low_distance = HILOW_DISTANCE;
++		if (low_distance < PAGE_SIZE * 2)
++			low_distance = PAGE_SIZE * 2;
++
++		low_wmark = limit - low_distance;
++		high_wmark = limit - mem->high_wmark_distance;
++
++		res_counter_set_low_wmark_limit(&mem->res, low_wmark);
++		res_counter_set_high_wmark_limit(&mem->res, high_wmark);
++	}
++}
++
++/*
+  * Following LRU functions are allowed to be used without PCG_LOCK.
+  * Operations are called by routine of global LRU independently from memcg.
+  * What we have to take care of here is validness of pc->mem_cgroup.
+@@ -3264,6 +3307,7 @@ static int mem_cgroup_resize_limit(struc
+ 			else
+ 				memcg->memsw_is_minimum = false;
+ 		}
++		setup_per_memcg_wmarks(memcg);
+ 		mutex_unlock(&set_limit_mutex);
+ 
+ 		if (!ret)
+@@ -3324,6 +3368,7 @@ static int mem_cgroup_resize_memsw_limit
+ 			else
+ 				memcg->memsw_is_minimum = false;
+ 		}
++		setup_per_memcg_wmarks(memcg);
+ 		mutex_unlock(&set_limit_mutex);
+ 
+ 		if (!ret)
+@@ -4603,6 +4648,30 @@ static void __init enable_swap_cgroup(vo
+ }
+ #endif
+ 
++/*
++ * We use low_wmark and high_wmark for triggering per-memcg kswapd.
++ * The reclaim is triggered by low_wmark (usage > low_wmark) and stopped
++ * by high_wmark (usage < high_wmark).
++ */
++int mem_cgroup_watermark_ok(struct mem_cgroup *mem,
++				int charge_flags)
++{
++	long ret = 0;
++	int flags = CHARGE_WMARK_LOW | CHARGE_WMARK_HIGH;
++
++	if (!mem->high_wmark_distance)
++		return 1;
++
++	VM_BUG_ON((charge_flags & flags) == flags);
++
++	if (charge_flags & CHARGE_WMARK_LOW)
++		ret = res_counter_under_low_wmark_limit(&mem->res);
++	if (charge_flags & CHARGE_WMARK_HIGH)
++		ret = res_counter_under_high_wmark_limit(&mem->res);
++
++	return ret;
++}
++
+ static int mem_cgroup_soft_limit_tree_init(void)
+ {
+ 	struct mem_cgroup_tree_per_node *rtpn;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
