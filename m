@@ -1,70 +1,203 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 408C68D003B
-	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 06:21:20 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 2D0B83EE0BD
-	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 19:21:17 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0E7F845DE95
-	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 19:21:17 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id E945A45DE92
-	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 19:21:16 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id D9DD0E08003
-	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 19:21:16 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id A51391DB8038
-	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 19:21:16 +0900 (JST)
-Date: Mon, 25 Apr 2011 19:14:37 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 0/7] memcg background reclaim , yet another one.
-Message-Id: <20110425191437.d881ee68.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20110425182529.c7c37bb4.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20110425182529.c7c37bb4.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 364E68D003B
+	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 06:35:03 -0400 (EDT)
+Date: Mon, 25 Apr 2011 12:34:44 +0200
+From: Bruno =?UTF-8?B?UHLDqW1vbnQ=?= <bonbons@linux-vserver.org>
+Subject: Re: 2.6.39-rc4+: Kernel leaking memory during FS scanning,
+ regression?
+Message-ID: <20110425123444.639aad34@neptune.home>
+In-Reply-To: <BANLkTi=2DK+iq-5NEFKexe0QhpW8G0RL8Q@mail.gmail.com>
+References: <20110424202158.45578f31@neptune.home>
+	<20110424235928.71af51e0@neptune.home>
+	<20110425114429.266A.A69D9226@jp.fujitsu.com>
+	<BANLkTinVQtLbmBknBZeY=7w7AOyQk61Pew@mail.gmail.com>
+	<20110425111705.786ef0c5@neptune.home>
+	<BANLkTi=2DK+iq-5NEFKexe0QhpW8G0RL8Q@mail.gmail.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Ying Han <yinghan@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Johannes Weiner <jweiner@redhat.com>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, Michal Hocko <mhocko@suse.cz>
+To: Pekka Enberg <penberg@kernel.org>
+Cc: Mike Frysinger <vapier.adi@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Catalin Marinas <catalin.marinas@arm.com>
 
-On Mon, 25 Apr 2011 18:25:29 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+On Mon, 25 April 2011 Pekka Enberg <penberg@kernel.org> wrote:
 
+> On Mon, Apr 25, 2011 at 12:17 PM, Bruno Pr=C3=A9mont
+> <bonbons@linux-vserver.org> wrote:
+> > On Mon, 25 April 2011 Mike Frysinger wrote:
+> >> On Sun, Apr 24, 2011 at 22:42, KOSAKI Motohiro wrote:
+> >> >> On Sun, 24 April 2011 Bruno Pr=C3=A9mont wrote:
+> >> >> > On an older system I've been running Gentoo's revdep-rebuild to c=
+heck
+> >> >> > for system linking/*.la consistency and after doing most of the w=
+ork the
+> >> >> > system starved more or less, just complaining about stuck tasks n=
+ow and
+> >> >> > then.
+> >> >> > Memory usage graph as seen from userspace showed sudden quick inc=
+rease of
+> >> >> > memory usage though only a very few MB were swapped out (c.f. att=
+ached RRD
+> >> >> > graph).
+> >> >>
+> >> >> Seems I've hit it once again (though detected before system was ful=
+ly
+> >> >> stalled by trying to reclaim memory without success).
+> >> >>
+> >> >> This time it was during simple compiling...
+> >> >> Gathered info below:
+> >> >>
+> >> >> /proc/meminfo:
+> >> >> MemTotal: =C2=A0 =C2=A0 =C2=A0 =C2=A0 480660 kB
+> >> >> MemFree: =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 64948 kB
+> >> >> Buffers: =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 10304 kB
+> >> >> Cached: =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 6924 kB
+> >> >> SwapCached: =C2=A0 =C2=A0 =C2=A0 =C2=A0 4220 kB
+> >> >> Active: =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A011100 kB
+> >> >> Inactive: =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A015732 kB
+> >> >> Active(anon): =C2=A0 =C2=A0 =C2=A0 4732 kB
+> >> >> Inactive(anon): =C2=A0 =C2=A0 4876 kB
+> >> >> Active(file): =C2=A0 =C2=A0 =C2=A0 6368 kB
+> >> >> Inactive(file): =C2=A0 =C2=A010856 kB
+> >> >> Unevictable: =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A032 kB
+> >> >> Mlocked: =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A032 kB
+> >> >> SwapTotal: =C2=A0 =C2=A0 =C2=A0 =C2=A0524284 kB
+> >> >> SwapFree: =C2=A0 =C2=A0 =C2=A0 =C2=A0 456432 kB
+> >> >> Dirty: =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A080 kB
+> >> >> Writeback: =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 0 kB
+> >> >> AnonPages: =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A06268 kB
+> >> >> Mapped: =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 2604 kB
+> >> >> Shmem: =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 4 kB
+> >> >> Slab: =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 250632 kB
+> >> >> SReclaimable: =C2=A0 =C2=A0 =C2=A051144 kB
+> >> >> SUnreclaim: =C2=A0 =C2=A0 =C2=A0 199488 kB =C2=A0 <--- look big as =
+well...
+> >> >> KernelStack: =C2=A0 =C2=A0 =C2=A0131032 kB =C2=A0 <--- what???
+> >> >
+> >> > KernelStack is used 8K bytes per thread. then, your system should ha=
+ve
+> >> > 16000 threads. but your ps only showed about 80 processes.
+> >> > Hmm... stack leak?
+> >>
+> >> i might have a similar report for 2.6.39-rc4 (seems to be working fine
+> >> in 2.6.38.4), but for embedded Blackfin systems running gdbserver
+> >> processes over and over (so lots of short lived forks)
+> >>
+> >> i wonder if you have a lot of zombies or otherwise unclaimed resources
+> >> ? =C2=A0does `ps aux` show anything unusual ?
+> >
+> > I've not seen anything special (no big amount of threads behind my abou=
+t 80
+> > processes, even after kernel oom-killed nearly all processes the hogged
+> > memory has not been freed. And no, there are no zombies around).
+> >
+> > Here it seems to happened when I run 2 intensive tasks in parallel, e.g.
+> > (re)emerging gimp and running revdep-rebuild -pi in another terminal.
+> > This produces a fork rate of about 100-300 per second.
+> >
+> > Suddenly kmalloc-128 slabs stop being freed and things degrade.
+> >
+> > Trying to trace some of the kmalloc-128 slab allocations I end up seeing
+> > lots of allocations like this:
+> >
+> > [ 1338.554429] TRACE kmalloc-128 alloc 0xc294ff00 inuse=3D30 fp=3D0xc29=
+4ff00
+> > [ 1338.554434] Pid: 1573, comm: collectd Tainted: G =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0W =C2=A0 2.6.39-rc4-jupiter-00187-g686c4cb #1
+> > [ 1338.554437] Call Trace:
+> > [ 1338.554442] =C2=A0[<c10aef47>] trace+0x57/0xa0
+> > [ 1338.554447] =C2=A0[<c10b07b3>] alloc_debug_processing+0xf3/0x140
+> > [ 1338.554452] =C2=A0[<c10b0972>] T.999+0x172/0x1a0
+> > [ 1338.554455] =C2=A0[<c10b95d8>] ? get_empty_filp+0x58/0xc0
+> > [ 1338.554459] =C2=A0[<c10b95d8>] ? get_empty_filp+0x58/0xc0
+> > [ 1338.554464] =C2=A0[<c10b0a52>] kmem_cache_alloc+0xb2/0x100
+> > [ 1338.554468] =C2=A0[<c10c08b5>] ? path_put+0x15/0x20
+> > [ 1338.554472] =C2=A0[<c10b95d8>] ? get_empty_filp+0x58/0xc0
+> > [ 1338.554476] =C2=A0[<c10b95d8>] get_empty_filp+0x58/0xc0
+> > [ 1338.554481] =C2=A0[<c10c323f>] path_openat+0x1f/0x320
+> > [ 1338.554485] =C2=A0[<c10a0a4e>] ? __access_remote_vm+0x19e/0x1d0
+> > [ 1338.554490] =C2=A0[<c10c3620>] do_filp_open+0x30/0x80
+> > [ 1338.554495] =C2=A0[<c10b0a30>] ? kmem_cache_alloc+0x90/0x100
+> > [ 1338.554500] =C2=A0[<c10c16f8>] ? getname_flags+0x28/0xe0
+> > [ 1338.554505] =C2=A0[<c10cd522>] ? alloc_fd+0x62/0xe0
+> > [ 1338.554509] =C2=A0[<c10c1731>] ? getname_flags+0x61/0xe0
+> > [ 1338.554514] =C2=A0[<c10b781d>] do_sys_open+0xed/0x1e0
+> > [ 1338.554519] =C2=A0[<c10b7979>] sys_open+0x29/0x40
+> > [ 1338.554524] =C2=A0[<c1391390>] sysenter_do_call+0x12/0x26
+> > [ 1338.556764] TRACE kmalloc-128 alloc 0xc294ff80 inuse=3D31 fp=3D0xc29=
+4ff80
+> > [ 1338.556774] Pid: 1332, comm: bash Tainted: G =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0W =C2=A0 2.6.39-rc4-jupiter-00187-g686c4cb #1
+> > [ 1338.556779] Call Trace:
+> > [ 1338.556794] =C2=A0[<c10aef47>] trace+0x57/0xa0
+> > [ 1338.556802] =C2=A0[<c10b07b3>] alloc_debug_processing+0xf3/0x140
+> > [ 1338.556807] =C2=A0[<c10b0972>] T.999+0x172/0x1a0
+> > [ 1338.556812] =C2=A0[<c10b95d8>] ? get_empty_filp+0x58/0xc0
+> > [ 1338.556817] =C2=A0[<c10b95d8>] ? get_empty_filp+0x58/0xc0
+> > [ 1338.556821] =C2=A0[<c10b0a52>] kmem_cache_alloc+0xb2/0x100
+> > [ 1338.556826] =C2=A0[<c10b95d8>] ? get_empty_filp+0x58/0xc0
+> > [ 1338.556830] =C2=A0[<c10b95d8>] get_empty_filp+0x58/0xc0
+> > [ 1338.556841] =C2=A0[<c121fca8>] ? tty_ldisc_deref+0x8/0x10
+> > [ 1338.556849] =C2=A0[<c10c323f>] path_openat+0x1f/0x320
+> > [ 1338.556857] =C2=A0[<c11e2b3e>] ? fbcon_cursor+0xfe/0x180
+> > [ 1338.556863] =C2=A0[<c10c3620>] do_filp_open+0x30/0x80
+> > [ 1338.556868] =C2=A0[<c10b0a30>] ? kmem_cache_alloc+0x90/0x100
+> > [ 1338.556873] =C2=A0[<c10c5e8e>] ? do_vfs_ioctl+0x7e/0x580
+> > [ 1338.556878] =C2=A0[<c10c16f8>] ? getname_flags+0x28/0xe0
+> > [ 1338.556886] =C2=A0[<c10cd522>] ? alloc_fd+0x62/0xe0
+> > [ 1338.556891] =C2=A0[<c10c1731>] ? getname_flags+0x61/0xe0
+> > [ 1338.556898] =C2=A0[<c10b781d>] do_sys_open+0xed/0x1e0
+> > [ 1338.556903] =C2=A0[<c10b7979>] sys_open+0x29/0x40
+> > [ 1338.556913] =C2=A0[<c1391390>] sysenter_do_call+0x12/0x26
+> >
+> > Collectd is system monitoring daemon that counts processes, memory
+> > usage an much more, reading lots of files under /proc every 10
+> > seconds.
+> > Maybe it opens a process related file at a racy moment and thus
+> > prevents the 128 slabs and kernel stacks from being released?
+> >
+> > Replaying the scenario I'm at:
+> > Slab: =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A043112 kB
+> > SReclaimable: =C2=A0 =C2=A0 =C2=A025396 kB
+> > SUnreclaim: =C2=A0 =C2=A0 =C2=A0 =C2=A017716 kB
+> > KernelStack: =C2=A0 =C2=A0 =C2=A0 16432 kB
+> > PageTables: =C2=A0 =C2=A0 =C2=A0 =C2=A0 1320 kB
+> >
+> > with
+> > kmalloc-256 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 55 =C2=A0 =C2=A0 64 =C2=
+=A0 =C2=A0256 =C2=A0 16 =C2=A0 =C2=A01 : tunables =C2=A0 =C2=A00 =C2=A0 =C2=
+=A00 =C2=A0 =C2=A00 : slabdata =C2=A0 =C2=A0 =C2=A04 =C2=A0 =C2=A0 =C2=A04 =
+=C2=A0 =C2=A0 =C2=A00
+> > kmalloc-128 =C2=A0 =C2=A0 =C2=A0 =C2=A066656 =C2=A066656 =C2=A0 =C2=A01=
+28 =C2=A0 32 =C2=A0 =C2=A01 : tunables =C2=A0 =C2=A00 =C2=A0 =C2=A00 =C2=A0=
+ =C2=A00 : slabdata =C2=A0 2083 =C2=A0 2083 =C2=A0 =C2=A0 =C2=A00
+> > kmalloc-64 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A03902 =C2=A0 3904 =C2=A0 =
+=C2=A0 64 =C2=A0 64 =C2=A0 =C2=A01 : tunables =C2=A0 =C2=A00 =C2=A0 =C2=A00=
+ =C2=A0 =C2=A00 : slabdata =C2=A0 =C2=A0 61 =C2=A0 =C2=A0 61 =C2=A0 =C2=A0 =
+=C2=A00
+> >
+> > (and compiling process tree now SIGSTOPped in order to have system
+> > not starve immediately so I can look around for information)
+> >
+> > If I resume one of the compiling process trees both KernelStack and
+> > slab (kmalloc-128) usage increase quite quickly (and seems to never
+> > get down anymore) - probably at same rate as processes get born (no
+> > matter when they end).
+>=20
+> Looks like it might be a leak in VFS. You could try kmemleak to narrow
+> it down some more. See Documentation/kmemleak.txt for details.
 
-> 2) == hard limit 500M/ hi_watermark = 400M ==
-> [root@rhel6-test hilow]# time cp ./tmpfile xxx
-> 
-> real    0m6.421s
-> user    0m0.059s
-> sys     0m2.707s
-> 
+Hm, seems not to be willing to let me run kmemleak... each time I put
+on my load scenario I get "BUG: unable to handle kernel " on console
+as a last breath from the system. (the rest of the trace never shows up)
 
-When doing this, we see usage changes as
-(sec) (bytes)
-   0: 401408        <== cp start
-   1: 98603008
-   2: 262705152
-   3: 433491968     <== wmark reclaim triggerd.
-   4: 486502400
-   5: 507748352
-   6: 524189696     <== cp ends (and hit limits)
-   7: 501231616
-   8: 499511296
-   9: 477118464
-  10: 417980416     <== usage goes below watermark.
-  11: 417980416
- .....
+Going to try harder to get at least a complete trace...
 
-If we have dirty_ratio, this result will be some different.
-(and flusher thread will work sooner...)
+Bruno
 
-
-Thanks,
--Kame
+>                        Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
