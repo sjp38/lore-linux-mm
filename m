@@ -1,55 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 819EB9000C1
-	for <linux-mm@kvack.org>; Tue, 26 Apr 2011 04:57:02 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 5F72B3EE081
-	for <linux-mm@kvack.org>; Tue, 26 Apr 2011 17:56:58 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 48B3045DE92
-	for <linux-mm@kvack.org>; Tue, 26 Apr 2011 17:56:58 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 30C4345DE76
-	for <linux-mm@kvack.org>; Tue, 26 Apr 2011 17:56:58 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 22AA1E08002
-	for <linux-mm@kvack.org>; Tue, 26 Apr 2011 17:56:58 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id E42CC1DB8037
-	for <linux-mm@kvack.org>; Tue, 26 Apr 2011 17:56:57 +0900 (JST)
-Date: Tue, 26 Apr 2011 17:50:21 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: (resend) [PATCH] vmscan,memcg: memcg aware swap token
-Message-Id: <20110426175021.c783e57d.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20110426170146.F396.A69D9226@jp.fujitsu.com>
-References: <20110426170146.F396.A69D9226@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with SMTP id 3EF6C9000C1
+	for <linux-mm@kvack.org>; Tue, 26 Apr 2011 05:20:33 -0400 (EDT)
+Date: Tue, 26 Apr 2011 17:20:29 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: readahead and oom
+Message-ID: <20110426092029.GA27053@localhost>
+References: <BANLkTin8mE=DLWma=U+CdJaQW03X2M2W1w@mail.gmail.com>
+ <20110426055521.GA18473@localhost>
+ <BANLkTik8k9A8N8CPk+eXo9c_syxJFRyFCA@mail.gmail.com>
+ <BANLkTim0MNgqeh1KTfvpVFuAvebKyQV8Hg@mail.gmail.com>
+ <20110426062535.GB19717@localhost>
+ <BANLkTinM9DjK9QsGtN0Sh308rr+86UMF0A@mail.gmail.com>
+ <20110426063421.GC19717@localhost>
+ <BANLkTi=xDozFNBXNdGDLK6EwWrfHyBifQw@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <BANLkTi=xDozFNBXNdGDLK6EwWrfHyBifQw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Nishimura Daisuke <d-nishimura@mtf.biglobe.ne.jp>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Dave Young <hidave.darkstar@gmail.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@linux.vnet.ibm.com>
 
-On Tue, 26 Apr 2011 16:59:19 +0900 (JST)
-KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+Minchan,
 
-> Currently, memcg reclaim can disable swap token even if the swap token
-> mm doesn't belong in its memory cgroup. It's slightly riskly. If an
-> admin makes very small mem-cgroup and silly guy runs contenious heavy
-> memory pressure workloa, whole tasks in the system are going to lose
-> swap-token and then system may become unresponsive. That's bad.
+> > +static inline struct page *page_cache_alloc_cold_noretry(struct address_space *x)
+> > +{
+> > + A  A  A  return __page_cache_alloc(mapping_gfp_mask(x)|__GFP_COLD|__GFP_NORETRY);
 > 
-> This patch adds 'memcg' parameter into disable_swap_token(). and if
-> the parameter doesn't match swap-token, VM doesn't put swap-token.
-> 
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> It makes sense to me but it could make a noise about page allocation
+> failure. I think it's not desirable.
+> How about adding __GFP_NOWARAN?
 
-Ack. Thank you.
+Yeah it makes sense. Here is the new version.
 
--Kame
+Thanks,
+Fengguang
+---
+Subject: readahead: readahead page allocations is OK to fail
+Date: Tue Apr 26 14:29:40 CST 2011
 
+Pass __GFP_NORETRY|__GFP_NOWARN for readahead page allocations.
+
+readahead page allocations are completely optional. They are OK to
+fail and in particular shall not trigger OOM on themselves.
+
+Reported-by: Dave Young <hidave.darkstar@gmail.com>
+Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+---
+ include/linux/pagemap.h |    6 ++++++
+ mm/readahead.c          |    2 +-
+ 2 files changed, 7 insertions(+), 1 deletion(-)
+
+--- linux-next.orig/include/linux/pagemap.h	2011-04-26 14:27:46.000000000 +0800
++++ linux-next/include/linux/pagemap.h	2011-04-26 17:17:13.000000000 +0800
+@@ -219,6 +219,12 @@ static inline struct page *page_cache_al
+ 	return __page_cache_alloc(mapping_gfp_mask(x)|__GFP_COLD);
+ }
+ 
++static inline struct page *page_cache_alloc_readahead(struct address_space *x)
++{
++	return __page_cache_alloc(mapping_gfp_mask(x) |
++				  __GFP_COLD | __GFP_NORETRY | __GFP_NOWARN);
++}
++
+ typedef int filler_t(void *, struct page *);
+ 
+ extern struct page * find_get_page(struct address_space *mapping,
+--- linux-next.orig/mm/readahead.c	2011-04-26 14:27:02.000000000 +0800
++++ linux-next/mm/readahead.c	2011-04-26 17:17:25.000000000 +0800
+@@ -180,7 +180,7 @@ __do_page_cache_readahead(struct address
+ 		if (page)
+ 			continue;
+ 
+-		page = page_cache_alloc_cold(mapping);
++		page = page_cache_alloc_readahead(mapping);
+ 		if (!page)
+ 			break;
+ 		page->index = page_offset;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
