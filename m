@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D5149000C1
-	for <linux-mm@kvack.org>; Tue, 26 Apr 2011 12:25:59 -0400 (EDT)
-Received: by mail-iy0-f169.google.com with SMTP id 42so951630iyh.14
-        for <linux-mm@kvack.org>; Tue, 26 Apr 2011 09:25:58 -0700 (PDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 545649000C1
+	for <linux-mm@kvack.org>; Tue, 26 Apr 2011 12:26:04 -0400 (EDT)
+Received: by mail-iw0-f169.google.com with SMTP id 8so955640iwg.14
+        for <linux-mm@kvack.org>; Tue, 26 Apr 2011 09:26:03 -0700 (PDT)
 From: Minchan Kim <minchan.kim@gmail.com>
-Subject: [RFC 4/8] Make clear description of putback_lru_page
-Date: Wed, 27 Apr 2011 01:25:21 +0900
-Message-Id: <bb2acc3882594cf54689d9e29c61077ff581c533.1303833417.git.minchan.kim@gmail.com>
+Subject: [RFC 5/8] compaction: remove active list counting
+Date: Wed, 27 Apr 2011 01:25:22 +0900
+Message-Id: <2b79bbf9ddceb73624f49bbe9477126147d875fd.1303833417.git.minchan.kim@gmail.com>
 In-Reply-To: <cover.1303833415.git.minchan.kim@gmail.com>
 References: <cover.1303833415.git.minchan.kim@gmail.com>
 In-Reply-To: <cover.1303833415.git.minchan.kim@gmail.com>
@@ -17,11 +17,9 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux.com>, Johannes Weiner <jweiner@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>
 
-Commonly, putback_lru_page is used with isolated_lru_page.
-The isolated_lru_page picks the page in middle of LRU and
-putback_lru_page insert the lru in head of LRU.
-It means it could make LRU churning so we have to be very careful.
-Let's clear description of putback_lru_page.
+acct_isolated of compaction uses page_lru_base_type which returns only
+base type of LRU list so it never returns LRU_ACTIVE_ANON or LRU_ACTIVE_FILE.
+So it's pointless to add lru[LRU_ACTIVE_[ANON|FILE]] to get sum.
 
 Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Cc: Mel Gorman <mgorman@suse.de>
@@ -29,40 +27,24 @@ Cc: Rik van Riel <riel@redhat.com>
 Cc: Andrea Arcangeli <aarcange@redhat.com>
 Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
 ---
- mm/migrate.c |    2 +-
- mm/vmscan.c  |    4 ++--
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ mm/compaction.c |    4 ++--
+ 1 files changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 34132f8..819d233 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -68,7 +68,7 @@ int migrate_prep_local(void)
- }
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 9f80b5a..653b02b 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -219,8 +219,8 @@ static void acct_isolated(struct zone *zone, struct compact_control *cc)
+ 		count[lru]++;
+ 	}
  
- /*
-- * Add isolated pages on the list back to the LRU under page lock
-+ * Add isolated pages on the list back to the LRU's head under page lock
-  * to avoid leaking evictable pages back onto unevictable list.
-  */
- void putback_lru_pages(struct list_head *l)
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index e8d6190..5196f0c 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -551,10 +551,10 @@ int remove_mapping(struct address_space *mapping, struct page *page)
+-	cc->nr_anon = count[LRU_ACTIVE_ANON] + count[LRU_INACTIVE_ANON];
+-	cc->nr_file = count[LRU_ACTIVE_FILE] + count[LRU_INACTIVE_FILE];
++	cc->nr_anon = count[LRU_INACTIVE_ANON];
++	cc->nr_file = count[LRU_INACTIVE_FILE];
+ 	__mod_zone_page_state(zone, NR_ISOLATED_ANON, cc->nr_anon);
+ 	__mod_zone_page_state(zone, NR_ISOLATED_FILE, cc->nr_file);
  }
- 
- /**
-- * putback_lru_page - put previously isolated page onto appropriate LRU list
-+ * putback_lru_page - put previously isolated page onto appropriate LRU list's head
-  * @page: page to be put back to appropriate lru list
-  *
-- * Add previously isolated @page to appropriate LRU list.
-+ * Add previously isolated @page to appropriate LRU list's head
-  * Page may still be unevictable for other reasons.
-  *
-  * lru_lock must not be held, interrupts must be enabled.
 -- 
 1.7.1
 
