@@ -1,105 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 597EA9000C1
-	for <linux-mm@kvack.org>; Tue, 26 Apr 2011 10:44:19 -0400 (EDT)
-Date: Tue, 26 Apr 2011 22:44:02 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 2/2] writeback: elevate queue_io() into wb_writeback()
-Message-ID: <20110426144402.GA15166@localhost>
-References: <20110426144218.GA14862@localhost>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 81C769000C1
+	for <linux-mm@kvack.org>; Tue, 26 Apr 2011 10:46:40 -0400 (EDT)
+Date: Tue, 26 Apr 2011 15:46:35 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 00/13] Swap-over-NBD without deadlocking
+Message-ID: <20110426144635.GK4658@suse.de>
+References: <1303803414-5937-1-git-send-email-mgorman@suse.de>
+ <1303827785.20212.266.camel@twins>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20110426144218.GA14862@localhost>
+In-Reply-To: <1303827785.20212.266.camel@twins>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Christoph Hellwig <hch@infradead.org>, Jan Kara <jack@suse.cz>, Mel Gorman <mel@linux.vnet.ibm.com>, Dave Chinner <david@fromorbit.com>, Trond Myklebust <Trond.Myklebust@netapp.com>, Itaru Kitayama <kitayama@cl.bb4u.ne.jp>, Minchan Kim <minchan.kim@gmail.com>, LKML <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Neil Brown <neilb@suse.de>
 
-Code refactor for more logical code layout.
-No behavior change.
+On Tue, Apr 26, 2011 at 04:23:05PM +0200, Peter Zijlstra wrote:
+> On Tue, 2011-04-26 at 08:36 +0100, Mel Gorman wrote:
+> > Comments?
+> 
+> Last time I brought up the whole swap over network bits I was pointed
+> towards the generic skb recycling work:
+> 
+>   http://lwn.net/Articles/332037/
+> 
+> as a means to pre-allocate memory,
 
-- remove the mis-named __writeback_inodes_sb()
+I'd taken note of this to take a much closer look if it turned
+out reservations were necessary and to find out what happened with
+these patches. So far, bigger reservations have *not* been required
+but I agree recycling SKBs may be a better alternative than large
+reservations or preallocations if they are necessary.
 
-- wb_writeback()/writeback_inodes_wb() will decide when to queue_io()
-  before calling __writeback_inodes_wb()
+>  and it was suggested to simply pin
+> the few route-cache entries required to route these packets and
+> dis-allow swap packets to be fragmented (these last two avoid lots of
+> funny allocation cases in the network stack).
+> 
 
-Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
----
- fs/fs-writeback.c |   27 ++++++++++++---------------
- 1 file changed, 12 insertions(+), 15 deletions(-)
+I did find that only a few route-cache entries should be required. In
+the original patches I worked with, there was a reservation for the
+maximum possible number of route-cache entries. I thought this was
+overkill and instead reserved 1-per-active-swapfile-backed-by-NFS.
 
---- linux-next.orig/fs/fs-writeback.c	2011-04-26 13:20:17.000000000 +0800
-+++ linux-next/fs/fs-writeback.c	2011-04-26 13:30:19.000000000 +0800
-@@ -570,17 +570,13 @@ static int writeback_sb_inodes(struct su
- 	return 1;
- }
- 
--void writeback_inodes_wb(struct bdi_writeback *wb,
--		struct writeback_control *wbc)
-+static void __writeback_inodes_wb(struct bdi_writeback *wb,
-+				  struct writeback_control *wbc)
- {
- 	int ret = 0;
- 
- 	if (!wbc->wb_start)
- 		wbc->wb_start = jiffies; /* livelock avoidance */
--	spin_lock(&wb->list_lock);
--
--	if (list_empty(&wb->b_io))
--		queue_io(wb, wbc);
- 
- 	while (!list_empty(&wb->b_io)) {
- 		struct inode *inode = wb_inode(wb->b_io.prev);
-@@ -596,19 +592,16 @@ void writeback_inodes_wb(struct bdi_writ
- 		if (ret)
- 			break;
- 	}
--	spin_unlock(&wb->list_lock);
- 	/* Leave any unwritten inodes on b_io */
- }
- 
--static void __writeback_inodes_sb(struct super_block *sb,
--		struct bdi_writeback *wb, struct writeback_control *wbc)
-+void writeback_inodes_wb(struct bdi_writeback *wb,
-+		struct writeback_control *wbc)
- {
--	WARN_ON(!rwsem_is_locked(&sb->s_umount));
--
- 	spin_lock(&wb->list_lock);
- 	if (list_empty(&wb->b_io))
- 		queue_io(wb, wbc);
--	writeback_sb_inodes(sb, wb, wbc, true);
-+	__writeback_inodes_wb(wb, wbc);
- 	spin_unlock(&wb->list_lock);
- }
- 
-@@ -674,7 +667,7 @@ static long wb_writeback(struct bdi_writ
- 	 * The intended call sequence for WB_SYNC_ALL writeback is:
- 	 *
- 	 *      wb_writeback()
--	 *          __writeback_inodes_sb()     <== called only once
-+	 *          writeback_sb_inodes()       <== called only once
- 	 *              write_cache_pages()     <== called once for each inode
- 	 *                   (quickly) tag currently dirty pages
- 	 *                   (maybe slowly) sync all tagged pages
-@@ -722,10 +715,14 @@ static long wb_writeback(struct bdi_writ
- 
- retry:
- 		trace_wbc_writeback_start(&wbc, wb->bdi);
-+		spin_lock(&wb->list_lock);
-+		if (list_empty(&wb->b_io))
-+			queue_io(wb, &wbc);
- 		if (work->sb)
--			__writeback_inodes_sb(work->sb, wb, &wbc);
-+			writeback_sb_inodes(work->sb, wb, &wbc, true);
- 		else
--			writeback_inodes_wb(wb, &wbc);
-+			__writeback_inodes_wb(wb, &wbc);
-+		spin_unlock(&wb->list_lock);
- 		trace_wbc_writeback_written(&wbc, wb->bdi);
- 
- 		work->nr_pages -= write_chunk - wbc.nr_to_write;
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
