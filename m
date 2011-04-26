@@ -1,171 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B8FD9000C1
-	for <linux-mm@kvack.org>; Tue, 26 Apr 2011 10:30:14 -0400 (EDT)
-Date: Tue, 26 Apr 2011 16:30:07 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 3/6] writeback: sync expired inodes first in background
- writeback
-Message-ID: <20110426143007.GC5114@quack.suse.cz>
-References: <20110420025321.GA14398@localhost>
- <20110421004547.GD1814@dastard>
- <20110421020617.GB12191@localhost>
- <20110421030152.GG1814@dastard>
- <20110421035954.GA15461@localhost>
- <20110421041010.GA18710@localhost>
- <20110421160405.GB4476@quack.suse.cz>
- <20110422022459.GA6199@localhost>
- <20110422211255.GB2977@quack.suse.cz>
- <20110426053706.GA17262@localhost>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id E95359000C1
+	for <linux-mm@kvack.org>; Tue, 26 Apr 2011 10:36:51 -0400 (EDT)
+Date: Tue, 26 Apr 2011 22:36:47 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: [PATCH 3/3 with new changelog] readahead: trigger mmap sequential
+ readahead on PG_readahead
+Message-ID: <20110426143647.GA14604@localhost>
+References: <20110426094352.030753173@intel.com>
+ <20110426094859.591091128@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110426053706.GA17262@localhost>
+In-Reply-To: <20110426094859.591091128@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@linux.vnet.ibm.com>, Mel Gorman <mel@csn.ul.ie>, Trond Myklebust <Trond.Myklebust@netapp.com>, Itaru Kitayama <kitayama@cl.bb4u.ne.jp>, Minchan Kim <minchan.kim@gmail.com>, LKML <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>
+Cc: "Chen, Tim C" <tim.c.chen@intel.com>, "Li, Shaohua" <shaohua.li@intel.com>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-On Tue 26-04-11 13:37:06, Wu Fengguang wrote:
-> On Sat, Apr 23, 2011 at 05:12:55AM +0800, Jan Kara wrote:
-> > On Fri 22-04-11 10:24:59, Wu Fengguang wrote:
-> > > > 2) The intention of both bdi_flush_io() and balance_dirty_pages() is to
-> > > > write .nr_to_write pages. So they should either do queue_io()
-> > > > unconditionally (I kind of like that for simplicity) or they should requeue
-> > > > once if they have not written enough - otherwise it could happen that they
-> > > > are called just at the moment when b_io contains a single inode with a few
-> > > > dirty pages and they end up doing almost nothing.
-> > > 
-> > > It makes much more sense to keep the policy consistent. When the
-> > > flusher and the throttled tasks are both actively manipulating the
-> > > shared lists but in different ways, how are we going to analyze the
-> > > resulted mixture behavior?
-> > > 
-> > > Note that bdi_flush_io() and balance_dirty_pages() both have outer
-> > > loops to retry writeout, so smallish b_io is not a problem at all.
-> >   Well, it changes how balance_dirty_pages() behaves in some corner cases
-> > (I'm not that much concerned about bdi_flush_io() because that is a last
-> > resort thing anyway). But I see your point in consistency as well.
-> > 
-> > > > 3) I guess your patch does not compile because queue_io() is static ;).
-> > > 
-> > > Yeah, good spot~ :) Here is the updated patch. I feel like moving
-> > > bdi_flush_io() to fs-writeback.c rather than exporting the low level
-> > > queue_io() (and enable others to conveniently change the queue policy!).
-> > > 
-> > > balance_dirty_pages() cannot be moved.. so I plan to submit it after
-> > > any IO-less merges. It's a cleanup patch after all.
-> > Can't we just have a wrapper in fs/fs-writeback.c that will do:
-> >      spin_lock(&bdi->wb.list_lock);
-> >      if (list_empty(&bdi->wb.b_io))
-> >              queue_io(&bdi->wb, &wbc);
-> >      writeback_inodes_wb(&bdi->wb, &wbc);
-> >      spin_unlock(&bdi->wb.list_lock);
-> > 
-> > And call it wherever we need? We can then also unexport
-> > writeback_inodes_wb() which is not really a function someone would want to
-> > call externally after your changes.
-> 
-> OK, this avoids the need to move bdi_flush_io(). Here is the updated
-> patch, do you see any more problems?
-  Yes, with this patch I think your change to the queueing logic is OK.
-Thanks.
+Previously the mmap sequential readahead is triggered by updating
+ra->prev_pos on each page fault and compare it with current page offset.
 
-								Honza
-> 
-> Thanks,
-> Fengguang
-> ---
-> Subject: writeback: elevate queue_io() into wb_writeback()
-> Date: Thu Apr 21 12:06:32 CST 2011
-> 
-> Code refactor for more logical code layout.
-> No behavior change.
-> 
-> - remove the mis-named __writeback_inodes_sb()
-> 
-> - wb_writeback()/writeback_inodes_wb() will decide when to queue_io()
->   before calling __writeback_inodes_wb()
-> 
-> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> ---
->  fs/fs-writeback.c |   27 ++++++++++++---------------
->  1 file changed, 12 insertions(+), 15 deletions(-)
-> 
-> --- linux-next.orig/fs/fs-writeback.c	2011-04-26 13:20:17.000000000 +0800
-> +++ linux-next/fs/fs-writeback.c	2011-04-26 13:30:19.000000000 +0800
-> @@ -570,17 +570,13 @@ static int writeback_sb_inodes(struct su
->  	return 1;
->  }
->  
-> -void writeback_inodes_wb(struct bdi_writeback *wb,
-> -		struct writeback_control *wbc)
-> +static void __writeback_inodes_wb(struct bdi_writeback *wb,
-> +				  struct writeback_control *wbc)
->  {
->  	int ret = 0;
->  
->  	if (!wbc->wb_start)
->  		wbc->wb_start = jiffies; /* livelock avoidance */
-> -	spin_lock(&wb->list_lock);
-> -
-> -	if (list_empty(&wb->b_io))
-> -		queue_io(wb, wbc);
->  
->  	while (!list_empty(&wb->b_io)) {
->  		struct inode *inode = wb_inode(wb->b_io.prev);
-> @@ -596,19 +592,16 @@ void writeback_inodes_wb(struct bdi_writ
->  		if (ret)
->  			break;
->  	}
-> -	spin_unlock(&wb->list_lock);
->  	/* Leave any unwritten inodes on b_io */
->  }
->  
-> -static void __writeback_inodes_sb(struct super_block *sb,
-> -		struct bdi_writeback *wb, struct writeback_control *wbc)
-> +void writeback_inodes_wb(struct bdi_writeback *wb,
-> +		struct writeback_control *wbc)
->  {
-> -	WARN_ON(!rwsem_is_locked(&sb->s_umount));
-> -
->  	spin_lock(&wb->list_lock);
->  	if (list_empty(&wb->b_io))
->  		queue_io(wb, wbc);
-> -	writeback_sb_inodes(sb, wb, wbc, true);
-> +	__writeback_inodes_wb(wb, wbc);
->  	spin_unlock(&wb->list_lock);
->  }
->  
-> @@ -674,7 +667,7 @@ static long wb_writeback(struct bdi_writ
->  	 * The intended call sequence for WB_SYNC_ALL writeback is:
->  	 *
->  	 *      wb_writeback()
-> -	 *          __writeback_inodes_sb()     <== called only once
-> +	 *          writeback_sb_inodes()       <== called only once
->  	 *              write_cache_pages()     <== called once for each inode
->  	 *                   (quickly) tag currently dirty pages
->  	 *                   (maybe slowly) sync all tagged pages
-> @@ -722,10 +715,14 @@ static long wb_writeback(struct bdi_writ
->  
->  retry:
->  		trace_wbc_writeback_start(&wbc, wb->bdi);
-> +		spin_lock(&wb->list_lock);
-> +		if (list_empty(&wb->b_io))
-> +			queue_io(wb, &wbc);
->  		if (work->sb)
-> -			__writeback_inodes_sb(work->sb, wb, &wbc);
-> +			writeback_sb_inodes(work->sb, wb, &wbc, true);
->  		else
-> -			writeback_inodes_wb(wb, &wbc);
-> +			__writeback_inodes_wb(wb, &wbc);
-> +		spin_unlock(&wb->list_lock);
->  		trace_wbc_writeback_written(&wbc, wb->bdi);
->  
->  		work->nr_pages -= write_chunk - wbc.nr_to_write;
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+In the mosbench exim benchmark which does multi-threaded page faults on
+shared struct file, the ra->mmap_miss and ra->prev_pos updates are found
+to cause excessive cache line bouncing on tmpfs, which actually disabled
+readahead totally (shmem_backing_dev_info.ra_pages == 0).
+
+So remove the ra->prev_pos recording, and instead tag PG_readahead to
+trigger the possible sequential readahead. It's not only more simple,
+but also will work more reliably on concurrent reads on shared struct file.
+
+Tested-by: Tim Chen <tim.c.chen@intel.com>
+Reported-by: Andi Kleen <ak@linux.intel.com>
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+---
+ mm/filemap.c |    6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)
+
+--- linux-next.orig/mm/filemap.c	2011-04-23 16:52:21.000000000 +0800
++++ linux-next/mm/filemap.c	2011-04-24 09:59:08.000000000 +0800
+@@ -1531,8 +1531,7 @@ static void do_sync_mmap_readahead(struc
+ 	if (!ra->ra_pages)
+ 		return;
+ 
+-	if (VM_SequentialReadHint(vma) ||
+-			offset - 1 == (ra->prev_pos >> PAGE_CACHE_SHIFT)) {
++	if (VM_SequentialReadHint(vma)) {
+ 		page_cache_sync_readahead(mapping, ra, file, offset,
+ 					  ra->ra_pages);
+ 		return;
+@@ -1555,7 +1554,7 @@ static void do_sync_mmap_readahead(struc
+ 	ra_pages = max_sane_readahead(ra->ra_pages);
+ 	ra->start = max_t(long, 0, offset - ra_pages / 2);
+ 	ra->size = ra_pages;
+-	ra->async_size = 0;
++	ra->async_size = ra_pages / 4;
+ 	ra_submit(ra, mapping, file);
+ }
+ 
+@@ -1661,7 +1660,6 @@ retry_find:
+ 		return VM_FAULT_SIGBUS;
+ 	}
+ 
+-	ra->prev_pos = (loff_t)offset << PAGE_CACHE_SHIFT;
+ 	vmf->page = page;
+ 	return ret | VM_FAULT_LOCKED;
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
