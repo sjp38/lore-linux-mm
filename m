@@ -1,58 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 4AAE09000C1
-	for <linux-mm@kvack.org>; Tue, 26 Apr 2011 13:19:15 -0400 (EDT)
-Received: from mail-vw0-f41.google.com (mail-vw0-f41.google.com [209.85.212.41])
-	(authenticated bits=0)
-	by smtp1.linux-foundation.org (8.14.2/8.13.5/Debian-3ubuntu1.1) with ESMTP id p3QHIgRs023721
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=FAIL)
-	for <linux-mm@kvack.org>; Tue, 26 Apr 2011 10:18:43 -0700
-Received: by vws4 with SMTP id 4so898827vws.14
-        for <linux-mm@kvack.org>; Tue, 26 Apr 2011 10:18:42 -0700 (PDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 08C1E9000C1
+	for <linux-mm@kvack.org>; Tue, 26 Apr 2011 13:20:55 -0400 (EDT)
+Date: Tue, 26 Apr 2011 13:19:54 -0400
+From: Vivek Goyal <vgoyal@redhat.com>
+Subject: Re: [PATCH 00/12] IO-less dirty throttling v7
+Message-ID: <20110426171954.GD9414@redhat.com>
+References: <20110416132546.765212221@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20110426190918.01660ccf@neptune.home>
-References: <20110425180450.1ede0845@neptune.home> <BANLkTikSLA59tdgRL4B=cr5tvP2NbzZ=KA@mail.gmail.com>
- <20110425190032.7904c95d@neptune.home> <BANLkTi=hQ=HcPLCdbb1pSi+xJByMTah-gw@mail.gmail.com>
- <20110425203606.4e78246c@neptune.home> <20110425191607.GL2468@linux.vnet.ibm.com>
- <20110425231016.34b4293e@neptune.home> <BANLkTin7wSGi1=E2c2u6Jb5TG_KUpYh=Dw@mail.gmail.com>
- <20110425214933.GO2468@linux.vnet.ibm.com> <20110426081904.0d2b1494@pluto.restena.lu>
- <20110426112756.GF4308@linux.vnet.ibm.com> <20110426183859.6ff6279b@neptune.home>
- <20110426190918.01660ccf@neptune.home>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Tue, 26 Apr 2011 10:18:22 -0700
-Message-ID: <BANLkTikjuqWP+PAsObJH4EAOyzgr2RbYNA@mail.gmail.com>
-Subject: Re: 2.6.39-rc4+: Kernel leaking memory during FS scanning, regression?
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110416132546.765212221@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?ISO-8859-1?Q?Bruno_Pr=E9mont?= <bonbons@linux-vserver.org>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: paulmck@linux.vnet.ibm.com, Mike Frysinger <vapier.adi@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Paul E. McKenney" <paul.mckenney@linaro.org>, Pekka Enberg <penberg@kernel.org>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Trond Myklebust <Trond.Myklebust@netapp.com>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, Apr 26, 2011 at 10:09 AM, Bruno Pr=E9mont
-<bonbons@linux-vserver.org> wrote:
->
-> Just in case, /proc/$(pidof rcu_kthread)/status shows ~20k voluntary
-> context switches and exactly one non-voluntary one.
->
-> In addition when rcu_kthread has stopped doing its work
-> `swapoff $(swapdevice)` seems to block forever (at least normal shutdown
-> blocks on disabling swap device).
-> If I get to do it when I get back home I will manually try to swapoff
-> and take process traces with sysrq-t.
+On Sat, Apr 16, 2011 at 09:25:46PM +0800, Wu Fengguang wrote:
+> Andrew,
+> 
+> This revision undergoes a number of simplifications, cleanups and fixes.
+> Independent patches are separated out. The core patches (07, 08) now have
+> easier to understand changelog. Detailed rationals can be found in patch 08.
+> 
+> In response to the complexity complaints, an introduction document is
+> written explaining the rationals, algorithm and visual case studies:
+> 
+> http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/slides/smooth-dirty-throttling.pdf
+> 
 
-That "exactly one non-voluntary one" sounds like the smoking gun.
+Hi Fenguang,
 
-Normally SCHED_FIFO runs until it voluntarily gives up the CPU. That's
-kind of the point of SCHED_FIFO. Involuntary context switches happen
-when some higher-priority SCHED_FIFO process becomes runnable (irq
-handlers? You _do_ have CONFIG_IRQ_FORCED_THREADING=3Dy in your config
-too), and maybe there is a bug in the runqueue handling for that case.
+I went quickly browsed through above document and am trying to understand
+the meaning of following lines and see how does it fit into the framework
+of existing IO conroller.
 
-Ingo, do you have any tests for SCHED_FIFO scheduling? Particularly
-with UP and voluntary preempt?
+- task IO controller endogenous
+- cgroup IO controller well integrated
+- proportional IO controller endogenous
 
-                          Linus
+You had sent me a link where you had prepared a patch to control the
+async IO completely. So because this code is all about measuring the
+bdi writeback rate and then coming up task ratelimit accoridingly, it
+will never know about other IO going on in the cgroup. READS and direct
+IO.
+
+So IIUC, to make use of above logic for cgroup throttling, one shall have
+to come up with explicity notion of async bandwidth per cgroup which does
+not control other writes. Currently we have following when it comes to
+throttling.
+
+blkio.throttle_read_bps
+blkio.throttle_write_bps
+
+The intention is to be able to control the WRITE bandwidth of cgroup and
+it could be any kind of WRITE (be it buffered WRITE or direct WRITES). 
+Currently we control only direct WRITES and question of how to also
+control buffered writes is still on the table.
+
+Because your patch does not know about other WRITES happening in the
+system, one needs to create a way so that buffered WRITES and direct
+WRITES can be accounted together against a group and throttled
+accordingly.
+
+What does "proportional IO controller endogenous" mean? Currently we do
+all proportional IO division in CFQ. So are you proposing that for 
+buffered WRITES we come up with a different policy altogether in writeback
+layer or somehow it is integrating with CFQ mechanism?
+
+Thanks
+Vivek
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
