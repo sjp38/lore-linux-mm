@@ -1,72 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 1BD4690010C
-	for <linux-mm@kvack.org>; Tue, 26 Apr 2011 03:37:10 -0400 (EDT)
-From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 11/13] nbd: Set SOCK_MEMALLOC for access to PFMEMALLOC reserves
-Date: Tue, 26 Apr 2011 08:36:52 +0100
-Message-Id: <1303803414-5937-12-git-send-email-mgorman@suse.de>
-In-Reply-To: <1303803414-5937-1-git-send-email-mgorman@suse.de>
-References: <1303803414-5937-1-git-send-email-mgorman@suse.de>
+	by kanga.kvack.org (Postfix) with ESMTP id 27762900001
+	for <linux-mm@kvack.org>; Tue, 26 Apr 2011 03:41:07 -0400 (EDT)
+Received: by vws4 with SMTP id 4so431327vws.14
+        for <linux-mm@kvack.org>; Tue, 26 Apr 2011 00:41:04 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20110426063421.GC19717@localhost>
+References: <BANLkTin8mE=DLWma=U+CdJaQW03X2M2W1w@mail.gmail.com>
+	<20110426055521.GA18473@localhost>
+	<BANLkTik8k9A8N8CPk+eXo9c_syxJFRyFCA@mail.gmail.com>
+	<BANLkTim0MNgqeh1KTfvpVFuAvebKyQV8Hg@mail.gmail.com>
+	<20110426062535.GB19717@localhost>
+	<BANLkTinM9DjK9QsGtN0Sh308rr+86UMF0A@mail.gmail.com>
+	<20110426063421.GC19717@localhost>
+Date: Tue, 26 Apr 2011 16:41:04 +0900
+Message-ID: <BANLkTi=xDozFNBXNdGDLK6EwWrfHyBifQw@mail.gmail.com>
+Subject: Re: readahead and oom
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Neil Brown <neilb@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mgorman@suse.de>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Dave Young <hidave.darkstar@gmail.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@linux.vnet.ibm.com>
 
-Set SOCK_MEMALLOC on the NBD socket to allow access to PFMEMALLOC
-reserves so pages backed by NBD, particularly if swap related,
-can be cleaned to prevent the machine being deadlocked. It is
-still possible that the PFMEMALLOC reserves get depleted resulting
-in deadlock but this can be resolved by the administrator by
-increasing min_free_kbytes.
+Hi Wu,
 
-Signed-off-by: Mel Gorman <mgorman@suse.de>
----
- drivers/block/nbd.c |    7 ++++++-
- 1 files changed, 6 insertions(+), 1 deletions(-)
+On Tue, Apr 26, 2011 at 3:34 PM, Wu Fengguang <fengguang.wu@intel.com> wrot=
+e:
+> On Tue, Apr 26, 2011 at 02:29:15PM +0800, Dave Young wrote:
+>> On Tue, Apr 26, 2011 at 2:25 PM, Wu Fengguang <fengguang.wu@intel.com> w=
+rote:
+>> > On Tue, Apr 26, 2011 at 02:07:17PM +0800, Dave Young wrote:
+>> >> On Tue, Apr 26, 2011 at 2:05 PM, Dave Young <hidave.darkstar@gmail.co=
+m> wrote:
+>> >> > On Tue, Apr 26, 2011 at 1:55 PM, Wu Fengguang <fengguang.wu@intel.c=
+om> wrote:
+>> >> >> On Tue, Apr 26, 2011 at 01:49:25PM +0800, Dave Young wrote:
+>> >> >>> Hi,
+>> >> >>>
+>> >> >>> When memory pressure is high, readahead could cause oom killing.
+>> >> >>> IMHO we should stop readaheading under such circumstances=E3=80=
+=82If it's true
+>> >> >>> how to fix it?
+>> >> >>
+>> >> >> Good question. Before OOM there will be readahead thrashings, whic=
+h
+>> >> >> can be addressed by this patch:
+>> >> >>
+>> >> >> http://lkml.org/lkml/2010/2/2/229
+>> >> >
+>> >> > Hi, I'm not clear about the patch, could be regard as below cases?
+>> >> > 1) readahead alloc fail due to low memory such as other large alloc=
+ation
+>> >>
+>> >> For example vm balloon allocate lots of memory, then readahead could
+>> >> fail immediately and then oom
+>> >
+>> > If true, that would be the problem of vm balloon. It's not good to
+>> > consume lots of memory all of a sudden, which will likely impact lots
+>> > of kernel subsystems.
+>> >
+>> > btw readahead page allocations are completely optional. They are OK to
+>> > fail and in theory shall not trigger OOM on themselves. We may
+>> > consider passing __GFP_NORETRY for readahead page allocations.
+>>
+>> Good idea, care to submit a patch?
+>
+> Here it is :)
+>
+> Thanks,
+> Fengguang
+> ---
+> readahead: readahead page allocations is OK to fail
+>
+> Pass __GFP_NORETRY for readahead page allocations.
+>
+> readahead page allocations are completely optional. They are OK to
+> fail and in particular shall not trigger OOM on themselves.
+>
+> Reported-by: Dave Young <hidave.darkstar@gmail.com>
+> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+> ---
+> =C2=A0include/linux/pagemap.h | =C2=A0 =C2=A05 +++++
+> =C2=A0mm/readahead.c =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0| =C2=A0 =C2=A02 +=
+-
+> =C2=A02 files changed, 6 insertions(+), 1 deletion(-)
+>
+> --- linux-next.orig/include/linux/pagemap.h =C2=A0 =C2=A0 2011-04-26 14:2=
+7:46.000000000 +0800
+> +++ linux-next/include/linux/pagemap.h =C2=A02011-04-26 14:29:31.00000000=
+0 +0800
+> @@ -219,6 +219,11 @@ static inline struct page *page_cache_al
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0return __page_cache_alloc(mapping_gfp_mask(x)|=
+__GFP_COLD);
+> =C2=A0}
+>
+> +static inline struct page *page_cache_alloc_cold_noretry(struct address_=
+space *x)
+> +{
+> + =C2=A0 =C2=A0 =C2=A0 return __page_cache_alloc(mapping_gfp_mask(x)|__GF=
+P_COLD|__GFP_NORETRY);
 
-diff --git a/drivers/block/nbd.c b/drivers/block/nbd.c
-index e6fc716..322cef8 100644
---- a/drivers/block/nbd.c
-+++ b/drivers/block/nbd.c
-@@ -156,6 +156,7 @@ static int sock_xmit(struct nbd_device *lo, int send, void *buf, int size,
- 	struct msghdr msg;
- 	struct kvec iov;
- 	sigset_t blocked, oldset;
-+	unsigned long pflags = current->flags;
- 
- 	if (unlikely(!sock)) {
- 		printk(KERN_ERR "%s: Attempted %s on closed socket in sock_xmit\n",
-@@ -168,8 +169,9 @@ static int sock_xmit(struct nbd_device *lo, int send, void *buf, int size,
- 	siginitsetinv(&blocked, sigmask(SIGKILL));
- 	sigprocmask(SIG_SETMASK, &blocked, &oldset);
- 
-+	current->flags |= PF_MEMALLOC;
- 	do {
--		sock->sk->sk_allocation = GFP_NOIO;
-+		sock->sk->sk_allocation = GFP_NOIO | __GFP_MEMALLOC;
- 		iov.iov_base = buf;
- 		iov.iov_len = size;
- 		msg.msg_name = NULL;
-@@ -214,6 +216,7 @@ static int sock_xmit(struct nbd_device *lo, int send, void *buf, int size,
- 	} while (size > 0);
- 
- 	sigprocmask(SIG_SETMASK, &oldset, NULL);
-+	tsk_restore_flags(current, pflags, PF_MEMALLOC);
- 
- 	return result;
- }
-@@ -404,6 +407,8 @@ static int nbd_do_it(struct nbd_device *lo)
- 
- 	BUG_ON(lo->magic != LO_MAGIC);
- 
-+	sk_set_memalloc(lo->sock->sk);
-+
- 	lo->pid = current->pid;
- 	ret = sysfs_create_file(&disk_to_dev(lo->disk)->kobj, &pid_attr.attr);
- 	if (ret) {
--- 
-1.7.3.4
+It makes sense to me but it could make a noise about page allocation
+failure. I think it's not desirable.
+How about adding __GFP_NOWARAN?
+
+
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
