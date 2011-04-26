@@ -1,57 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 545E18D003B
-	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 22:08:19 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 208783EE0C7
-	for <linux-mm@kvack.org>; Tue, 26 Apr 2011 11:08:16 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id E7D9A45DE58
-	for <linux-mm@kvack.org>; Tue, 26 Apr 2011 11:08:15 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id CE82445DE51
-	for <linux-mm@kvack.org>; Tue, 26 Apr 2011 11:08:15 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id C0E151DB8046
-	for <linux-mm@kvack.org>; Tue, 26 Apr 2011 11:08:15 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 8E0A41DB803E
-	for <linux-mm@kvack.org>; Tue, 26 Apr 2011 11:08:15 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH] vmscan,memcg: memcg aware swap token
-In-Reply-To: <BANLkTikCZpCZdLV7M_38MvnRYbZFS5zQGQ@mail.gmail.com>
-References: <20110425112333.2662.A69D9226@jp.fujitsu.com> <BANLkTikCZpCZdLV7M_38MvnRYbZFS5zQGQ@mail.gmail.com>
-Message-Id: <20110426110945.F36D.A69D9226@jp.fujitsu.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 422528D003B
+	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 22:43:44 -0400 (EDT)
+Received: by pvc12 with SMTP id 12so221246pvc.14
+        for <linux-mm@kvack.org>; Mon, 25 Apr 2011 19:43:42 -0700 (PDT)
+Date: Tue, 26 Apr 2011 10:54:29 +0800
+From: Dave Young <hidave.darkstar@gmail.com>
+Subject: [PATCH] use oom_killer_disabled in all oom pathes
+Message-ID: <20110426025429.GA11812@darkstar>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Tue, 26 Apr 2011 11:08:14 +0900 (JST)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>, linux-mm@kvack.org
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-> > The better approach is swap-token recognize memcg and behave clever? :)
-> 
-> Ok, this makes sense for memcg case. Maybe I missed something on the
-> per-node balance_pgdat, where it seems it will blindly disable the
-> swap_token_mm if there is a one.
+oom_killer_disable should be a global switch, also fit for oom paths
+other than __alloc_pages_slowpath 
 
-That's design. 'disable' of disable_swap_token() mean blindly disable.
-The intention is,
-  priority != 0:   try to avoid swap storm
-  priority == 0:  allow thrashing. it's better than false positive oom.
+Here add it to mem_cgroup_handle_oom and pagefault_out_of_memory as well.
 
+Signed-off-by: Dave Young <hidave.darkstar@gmail.com>
+---
+ mm/memcontrol.c |    2 +-
+ mm/oom_kill.c   |    3 +++
 
-> Should I include this patch into the per-memcg kswapd patset?
-
-Nope.
-This is standalone patch. current memcg direct reclaim path has the same
-problem.
-
-
-
-
+ 2 files changed, 4 insertions(+), 1 deletion(-)
+--- linux-2.6.orig/mm/memcontrol.c	2011-04-20 15:49:10.336660690 +0800
++++ linux-2.6/mm/memcontrol.c	2011-04-26 10:41:04.746459757 +0800
+@@ -1610,7 +1610,7 @@ bool mem_cgroup_handle_oom(struct mem_cg
+ 	 * under OOM is always welcomed, use TASK_KILLABLE here.
+ 	 */
+ 	prepare_to_wait(&memcg_oom_waitq, &owait.wait, TASK_KILLABLE);
+-	if (!locked || mem->oom_kill_disable)
++	if (!locked || mem->oom_kill_disable || oom_killer_disabled)
+ 		need_to_kill = false;
+ 	if (locked)
+ 		mem_cgroup_oom_notify(mem);
+--- linux-2.6.orig/mm/oom_kill.c	2011-04-20 15:49:10.353327356 +0800
++++ linux-2.6/mm/oom_kill.c	2011-04-26 10:41:04.753126423 +0800
+@@ -747,6 +747,9 @@ out:
+  */
+ void pagefault_out_of_memory(void)
+ {
++	if (oom_killer_disabled)
++		return;
++
+ 	if (try_set_system_oom()) {
+ 		out_of_memory(NULL, 0, 0, NULL);
+ 		clear_system_oom();
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
