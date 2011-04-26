@@ -1,87 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 8BB929000C1
-	for <linux-mm@kvack.org>; Tue, 26 Apr 2011 10:10:52 -0400 (EDT)
-Date: Tue, 26 Apr 2011 15:10:48 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 09/13] netvm: Set PF_MEMALLOC as appropriate during SKB
- processing
-Message-ID: <20110426141048.GG4658@suse.de>
+	by kanga.kvack.org (Postfix) with ESMTP id 823C09000C1
+	for <linux-mm@kvack.org>; Tue, 26 Apr 2011 10:23:24 -0400 (EDT)
+Subject: Re: [PATCH 00/13] Swap-over-NBD without deadlocking
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <1303803414-5937-1-git-send-email-mgorman@suse.de>
 References: <1303803414-5937-1-git-send-email-mgorman@suse.de>
- <1303803414-5937-10-git-send-email-mgorman@suse.de>
- <20110426222157.33a461f8@notabene.brown>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20110426222157.33a461f8@notabene.brown>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+Date: Tue, 26 Apr 2011 16:23:05 +0200
+Message-ID: <1303827785.20212.266.camel@twins>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: NeilBrown <neilb@suse.de>
-Cc: Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Neil Brown <neilb@suse.de>
 
-On Tue, Apr 26, 2011 at 10:21:57PM +1000, NeilBrown wrote:
-> On Tue, 26 Apr 2011 08:36:50 +0100 Mel Gorman <mgorman@suse.de> wrote:
-> 
-> > diff --git a/net/core/dev.c b/net/core/dev.c
-> > index 3871bf6..2d79a20 100644
-> > --- a/net/core/dev.c
-> > +++ b/net/core/dev.c
-> > @@ -3095,6 +3095,27 @@ static void vlan_on_bond_hook(struct sk_buff *skb)
-> >  	}
-> >  }
-> >  
-> > +/*
-> > + * Limit which protocols can use the PFMEMALLOC reserves to those that are
-> > + * expected to be used for communication with swap.
-> > + */
-> > +static bool skb_pfmemalloc_protocol(struct sk_buff *skb)
-> > +{
-> > +	if (skb_pfmemalloc(skb))
-> > +		switch (skb->protocol) {
-> > +		case __constant_htons(ETH_P_ARP):
-> > +		case __constant_htons(ETH_P_IP):
-> > +		case __constant_htons(ETH_P_IPV6):
-> > +		case __constant_htons(ETH_P_8021Q):
-> > +			break;
-> > +
-> > +		default:
-> > +			return false;
-> > +		}
-> > +
-> > +	return true;
-> > +}
-> 
-> This sort of thing really bugs me :-)
-> Neither the comment nor the function name actually describe what the function
-> is doing.  The function is checking *2* things.
->    is_pfmemalloc_skb_or_pfmemalloc_protocol()
-> might be a more correct name, but is too verbose.
-> 
-> I would prefer the skb_pfmemalloc test were removed from here and ....
-> 
-> > +	if (!skb_pfmemalloc_protocol(skb))
-> > +		goto drop;
-> > +
-> 
-> ...added here so this becomes:
-> 
->       if (!skb_pfmemalloc(skb) && !skb_pfmemalloc_protocol(skb))
->                 goto drop;
-> 
-> which actually makes sense.
-> 
+On Tue, 2011-04-26 at 08:36 +0100, Mel Gorman wrote:
+> Comments?
 
-Moving the check is neater but that check should be
+Last time I brought up the whole swap over network bits I was pointed
+towards the generic skb recycling work:
 
-	if (skb_pfmemalloc(skb) && !skb_pfmemalloc_protocol(skb))
+  http://lwn.net/Articles/332037/
 
-? It's only if the skb was allocated from emergency reserves that we
-need to consider dropping it to make way for other packets to be
-received.
+as a means to pre-allocate memory, and it was suggested to simply pin
+the few route-cache entries required to route these packets and
+dis-allow swap packets to be fragmented (these last two avoid lots of
+funny allocation cases in the network stack).
 
--- 
-Mel Gorman
-SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
