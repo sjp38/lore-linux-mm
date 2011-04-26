@@ -1,409 +1,313 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 4B64C900001
-	for <linux-mm@kvack.org>; Tue, 26 Apr 2011 00:59:14 -0400 (EDT)
-Received: from kpbe13.cbf.corp.google.com (kpbe13.cbf.corp.google.com [172.25.105.77])
-	by smtp-out.google.com with ESMTP id p3Q4x96c008572
-	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 21:59:09 -0700
-Received: from qwe5 (qwe5.prod.google.com [10.241.194.5])
-	by kpbe13.cbf.corp.google.com with ESMTP id p3Q4wSDc022426
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 25 Apr 2011 21:59:07 -0700
-Received: by qwe5 with SMTP id 5so143536qwe.23
-        for <linux-mm@kvack.org>; Mon, 25 Apr 2011 21:59:07 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20110425183629.144d3f19.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D55B900001
+	for <linux-mm@kvack.org>; Tue, 26 Apr 2011 01:15:09 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 8328F3EE0BC
+	for <linux-mm@kvack.org>; Tue, 26 Apr 2011 14:15:05 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 599AA45DE98
+	for <linux-mm@kvack.org>; Tue, 26 Apr 2011 14:15:05 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 41DC245DE95
+	for <linux-mm@kvack.org>; Tue, 26 Apr 2011 14:15:05 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2F29AE08003
+	for <linux-mm@kvack.org>; Tue, 26 Apr 2011 14:15:05 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id DBF56E08004
+	for <linux-mm@kvack.org>; Tue, 26 Apr 2011 14:15:04 +0900 (JST)
+Date: Tue, 26 Apr 2011 14:08:15 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 5/7] memcg bgreclaim core.
+Message-Id: <20110426140815.8847062b.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <BANLkTinn5Cs8F5beX6od41xhH4qQuRR5Rw@mail.gmail.com>
 References: <20110425182529.c7c37bb4.kamezawa.hiroyu@jp.fujitsu.com>
 	<20110425183629.144d3f19.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Mon, 25 Apr 2011 21:59:06 -0700
-Message-ID: <BANLkTinn5Cs8F5beX6od41xhH4qQuRR5Rw@mail.gmail.com>
-Subject: Re: [PATCH 5/7] memcg bgreclaim core.
-From: Ying Han <yinghan@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+	<BANLkTinn5Cs8F5beX6od41xhH4qQuRR5Rw@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Ying Han <yinghan@google.com>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Johannes Weiner <jweiner@redhat.com>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, Michal Hocko <mhocko@suse.cz>
 
-On Mon, Apr 25, 2011 at 2:36 AM, KAMEZAWA Hiroyuki
-<kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> Following patch will chagnge the logic. This is a core.
-> =3D=3D
-> This is the main loop of per-memcg background reclaim which is implemente=
-d in
-> function balance_mem_cgroup_pgdat().
->
-> The function performs a priority loop similar to global reclaim. During e=
-ach
-> iteration it frees memory from a selected victim node.
-> After reclaiming enough pages or scanning enough pages, it returns and fi=
-nd
-> next work with round-robin.
->
-> changelog v8b..v7
-> 1. reworked for using work_queue rather than threads.
-> 2. changed shrink_mem_cgroup algorithm to fit workqueue. In short, avoid
-> =A0 long running and allow quick round-robin and unnecessary write page.
-> =A0 When a thread make pages dirty continuously, write back them by flush=
-er
-> =A0 is far faster than writeback by background reclaim. This detail will
-> =A0 be fixed when dirty_ratio implemented. The logic around this will be
-> =A0 revisited in following patche.
->
-> Signed-off-by: Ying Han <yinghan@google.com>
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> ---
-> =A0include/linux/memcontrol.h | =A0 11 ++++
-> =A0mm/memcontrol.c =A0 =A0 =A0 =A0 =A0 =A0| =A0 44 ++++++++++++++---
-> =A0mm/vmscan.c =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0| =A0115 ++++++++++++++++++=
-+++++++++++++++++++++++++++
-> =A03 files changed, 162 insertions(+), 8 deletions(-)
->
-> Index: memcg/include/linux/memcontrol.h
-> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-> --- memcg.orig/include/linux/memcontrol.h
-> +++ memcg/include/linux/memcontrol.h
-> @@ -89,6 +89,8 @@ extern int mem_cgroup_last_scanned_node(
-> =A0extern int mem_cgroup_select_victim_node(struct mem_cgroup *mem,
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0const nodemask_t *nodes);
->
-> +unsigned long shrink_mem_cgroup(struct mem_cgroup *mem);
-> +
-> =A0static inline
-> =A0int mm_match_cgroup(const struct mm_struct *mm, const struct mem_cgrou=
-p *cgroup)
-> =A0{
-> @@ -112,6 +114,9 @@ extern void mem_cgroup_end_migration(str
-> =A0*/
-> =A0int mem_cgroup_inactive_anon_is_low(struct mem_cgroup *memcg);
-> =A0int mem_cgroup_inactive_file_is_low(struct mem_cgroup *memcg);
-> +unsigned int mem_cgroup_swappiness(struct mem_cgroup *memcg);
-> +unsigned long mem_cgroup_zone_reclaimable_pages(struct mem_cgroup *memcg=
-,
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 int nid, in=
-t zone_idx);
-> =A0unsigned long mem_cgroup_zone_nr_pages(struct mem_cgroup *memcg,
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 struct zone *zone,
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 enum lru_list lru);
-> @@ -310,6 +315,12 @@ mem_cgroup_inactive_file_is_low(struct m
-> =A0}
->
-> =A0static inline unsigned long
-> +mem_cgroup_zone_reclaimable_pages(struct mem_cgroup *memcg, int nid, int=
- zone_idx)
-> +{
-> + =A0 =A0 =A0 return 0;
-> +}
-> +
-> +static inline unsigned long
-> =A0mem_cgroup_zone_nr_pages(struct mem_cgroup *memcg, struct zone *zone,
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 enum lru_list lru)
-> =A0{
-> Index: memcg/mm/memcontrol.c
-> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-> --- memcg.orig/mm/memcontrol.c
-> +++ memcg/mm/memcontrol.c
-> @@ -1166,6 +1166,23 @@ int mem_cgroup_inactive_file_is_low(stru
-> =A0 =A0 =A0 =A0return (active > inactive);
-> =A0}
->
-> +unsigned long mem_cgroup_zone_reclaimable_pages(struct mem_cgroup *memcg=
-,
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
- =A0 =A0 =A0 =A0 =A0 int nid, int zone_idx)
-> +{
-> + =A0 =A0 =A0 int nr;
-> + =A0 =A0 =A0 struct mem_cgroup_per_zone *mz =3D
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 mem_cgroup_zoneinfo(memcg, nid, zone_idx);
-> +
-> + =A0 =A0 =A0 nr =3D MEM_CGROUP_ZSTAT(mz, NR_ACTIVE_FILE) +
-> + =A0 =A0 =A0 =A0 =A0 =A0MEM_CGROUP_ZSTAT(mz, NR_INACTIVE_FILE);
-> +
-> + =A0 =A0 =A0 if (nr_swap_pages > 0)
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 nr +=3D MEM_CGROUP_ZSTAT(mz, NR_ACTIVE_ANON=
-) +
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 MEM_CGROUP_ZSTAT(mz, NR_INACTIV=
-E_ANON);
-> +
-> + =A0 =A0 =A0 return nr;
-> +}
-> +
-> =A0unsigned long mem_cgroup_zone_nr_pages(struct mem_cgroup *memcg,
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 struct zone *zone,
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 enum lru_list lru)
-> @@ -1286,7 +1303,7 @@ static unsigned long mem_cgroup_margin(s
-> =A0 =A0 =A0 =A0return margin >> PAGE_SHIFT;
-> =A0}
->
-> -static unsigned int get_swappiness(struct mem_cgroup *memcg)
-> +unsigned int mem_cgroup_swappiness(struct mem_cgroup *memcg)
-> =A0{
-> =A0 =A0 =A0 =A0struct cgroup *cgrp =3D memcg->css.cgroup;
->
-> @@ -1595,14 +1612,15 @@ static int mem_cgroup_hierarchical_recla
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0/* we use swappiness of local cgroup */
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0if (check_soft) {
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0ret =3D mem_cgroup_shrink_=
-node_zone(victim, gfp_mask,
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 noswap, get=
-_swappiness(victim), zone,
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 noswap, mem=
-_cgroup_swappiness(victim), zone,
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0&nr_scanne=
-d);
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0*total_scanned +=3D nr_sca=
-nned;
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0mem_cgroup_soft_steal(vict=
-im, ret);
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0mem_cgroup_soft_scan(victi=
-m, nr_scanned);
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0} else
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0ret =3D try_to_free_mem_cg=
-roup_pages(victim, gfp_mask,
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
- =A0 =A0 =A0 =A0 =A0 noswap, get_swappiness(victim));
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
- =A0 =A0 =A0 =A0 =A0 noswap,
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
- =A0 =A0 =A0 =A0 =A0 mem_cgroup_swappiness(victim));
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0css_put(&victim->css);
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0/*
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 * At shrinking usage, we can't check we s=
-hould stop here or
-> @@ -1628,15 +1646,25 @@ static int mem_cgroup_hierarchical_recla
-> =A0int
-> =A0mem_cgroup_select_victim_node(struct mem_cgroup *mem, const nodemask_t=
- *nodes)
-> =A0{
-> - =A0 =A0 =A0 int next_nid;
-> + =A0 =A0 =A0 int next_nid, i;
-> =A0 =A0 =A0 =A0int last_scanned;
->
-> =A0 =A0 =A0 =A0last_scanned =3D mem->last_scanned_node;
-> - =A0 =A0 =A0 next_nid =3D next_node(last_scanned, *nodes);
-> + =A0 =A0 =A0 next_nid =3D last_scanned;
-> +rescan:
-> + =A0 =A0 =A0 next_nid =3D next_node(next_nid, *nodes);
->
-> =A0 =A0 =A0 =A0if (next_nid =3D=3D MAX_NUMNODES)
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0next_nid =3D first_node(*nodes);
->
-> + =A0 =A0 =A0 /* If no page on this node, skip */
-> + =A0 =A0 =A0 for (i =3D 0; i < MAX_NR_ZONES; i++)
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (mem_cgroup_zone_reclaimable_pages(mem, =
-next_nid, i))
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 break;
-> +
-> + =A0 =A0 =A0 if (next_nid !=3D last_scanned && (i =3D=3D MAX_NR_ZONES))
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 goto rescan;
-> +
-> =A0 =A0 =A0 =A0mem->last_scanned_node =3D next_nid;
->
-> =A0 =A0 =A0 =A0return next_nid;
-> @@ -3649,7 +3677,7 @@ try_to_free:
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0goto out;
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0}
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0progress =3D try_to_free_mem_cgroup_pages(=
-mem, GFP_KERNEL,
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
- =A0 =A0 =A0 =A0 =A0 false, get_swappiness(mem));
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
- =A0 false, mem_cgroup_swappiness(mem));
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0if (!progress) {
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0nr_retries--;
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0/* maybe some writeback is=
- necessary */
-> @@ -4073,7 +4101,7 @@ static u64 mem_cgroup_swappiness_read(st
-> =A0{
-> =A0 =A0 =A0 =A0struct mem_cgroup *memcg =3D mem_cgroup_from_cont(cgrp);
->
-> - =A0 =A0 =A0 return get_swappiness(memcg);
-> + =A0 =A0 =A0 return mem_cgroup_swappiness(memcg);
-> =A0}
->
-> =A0static int mem_cgroup_swappiness_write(struct cgroup *cgrp, struct cft=
-ype *cft,
-> @@ -4849,7 +4877,7 @@ mem_cgroup_create(struct cgroup_subsys *
-> =A0 =A0 =A0 =A0INIT_LIST_HEAD(&mem->oom_notify);
->
-> =A0 =A0 =A0 =A0if (parent)
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 mem->swappiness =3D get_swappiness(parent);
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 mem->swappiness =3D mem_cgroup_swappiness(p=
-arent);
-> =A0 =A0 =A0 =A0atomic_set(&mem->refcnt, 1);
-> =A0 =A0 =A0 =A0mem->move_charge_at_immigrate =3D 0;
-> =A0 =A0 =A0 =A0mutex_init(&mem->thresholds_lock);
-> Index: memcg/mm/vmscan.c
-> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-> --- memcg.orig/mm/vmscan.c
-> +++ memcg/mm/vmscan.c
-> @@ -42,6 +42,7 @@
-> =A0#include <linux/delayacct.h>
-> =A0#include <linux/sysctl.h>
-> =A0#include <linux/oom.h>
-> +#include <linux/res_counter.h>
->
-> =A0#include <asm/tlbflush.h>
-> =A0#include <asm/div64.h>
-> @@ -2308,6 +2309,120 @@ static bool sleeping_prematurely(pg_data
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return !all_zones_ok;
-> =A0}
->
-> +#ifdef CONFIG_CGROUP_MEM_RES_CTLR
-> +/*
-> + * The function is used for per-memcg LRU. It scanns all the zones of th=
-e
-> + * node and returns the nr_scanned and nr_reclaimed.
-> + */
-> +/*
-> + * Limit of scanning per iteration. For round-robin.
-> + */
-> +#define MEMCG_BGSCAN_LIMIT =A0 =A0 (2048)
-> +
-> +static void
-> +shrink_memcg_node(int nid, int priority, struct scan_control *sc)
-> +{
-> + =A0 =A0 =A0 unsigned long total_scanned =3D 0;
-> + =A0 =A0 =A0 struct mem_cgroup *mem_cont =3D sc->mem_cgroup;
-> + =A0 =A0 =A0 int i;
-> +
-> + =A0 =A0 =A0 /*
-> + =A0 =A0 =A0 =A0* This dma->highmem order is consistant with global recl=
-aim.
-> + =A0 =A0 =A0 =A0* We do this because the page allocator works in the opp=
-osite
-> + =A0 =A0 =A0 =A0* direction although memcg user pages are mostly allocat=
-ed at
-> + =A0 =A0 =A0 =A0* highmem.
-> + =A0 =A0 =A0 =A0*/
-> + =A0 =A0 =A0 for (i =3D 0;
-> + =A0 =A0 =A0 =A0 =A0 =A0(i < NODE_DATA(nid)->nr_zones) &&
-> + =A0 =A0 =A0 =A0 =A0 =A0(total_scanned < MEMCG_BGSCAN_LIMIT);
-> + =A0 =A0 =A0 =A0 =A0 =A0i++) {
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 struct zone *zone =3D NODE_DATA(nid)->node_=
-zones + i;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 struct zone_reclaim_stat *zrs;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 unsigned long scan, rotate;
-> +
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!populated_zone(zone))
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 continue;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 scan =3D mem_cgroup_zone_reclaimable_pages(=
-mem_cont, nid, i);
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!scan)
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 continue;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 /* If recent memory reclaim on this zone do=
-esn't get good */
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 zrs =3D get_reclaim_stat(zone, sc);
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 scan =3D zrs->recent_scanned[0] + zrs->rece=
-nt_scanned[1];
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 rotate =3D zrs->recent_rotated[0] + zrs->re=
-cent_rotated[1];
-> +
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (rotate > scan/2)
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 sc->may_writepage =3D 1;
-> +
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 sc->nr_scanned =3D 0;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 shrink_zone(priority, zone, sc);
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 total_scanned +=3D sc->nr_scanned;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 sc->may_writepage =3D 0;
-> + =A0 =A0 =A0 }
-> + =A0 =A0 =A0 sc->nr_scanned =3D total_scanned;
-> +}
+On Mon, 25 Apr 2011 21:59:06 -0700
+Ying Han <yinghan@google.com> wrote:
 
-I see the MEMCG_BGSCAN_LIMIT is a newly defined macro from previous
-post. So, now the number of pages to scan is capped on 2k for each
-memcg, and does it make difference on big vs small cgroup?
+> On Mon, Apr 25, 2011 at 2:36 AM, KAMEZAWA Hiroyuki
+> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> > Following patch will chagnge the logic. This is a core.
+> > ==
+> > This is the main loop of per-memcg background reclaim which is implemented in
+> > function balance_mem_cgroup_pgdat().
+> >
+> > The function performs a priority loop similar to global reclaim. During each
+> > iteration it frees memory from a selected victim node.
+> > After reclaiming enough pages or scanning enough pages, it returns and find
+> > next work with round-robin.
+> >
+> > changelog v8b..v7
+> > 1. reworked for using work_queue rather than threads.
+> > 2. changed shrink_mem_cgroup algorithm to fit workqueue. In short, avoid
+> > A  long running and allow quick round-robin and unnecessary write page.
+> > A  When a thread make pages dirty continuously, write back them by flusher
+> > A  is far faster than writeback by background reclaim. This detail will
+> > A  be fixed when dirty_ratio implemented. The logic around this will be
+> > A  revisited in following patche.
+> >
+> > Signed-off-by: Ying Han <yinghan@google.com>
+> > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > ---
+> > A include/linux/memcontrol.h | A  11 ++++
+> > A mm/memcontrol.c A  A  A  A  A  A | A  44 ++++++++++++++---
+> > A mm/vmscan.c A  A  A  A  A  A  A  A | A 115 +++++++++++++++++++++++++++++++++++++++++++++
+> > A 3 files changed, 162 insertions(+), 8 deletions(-)
+> >
+> > Index: memcg/include/linux/memcontrol.h
+> > ===================================================================
+> > --- memcg.orig/include/linux/memcontrol.h
+> > +++ memcg/include/linux/memcontrol.h
+> > @@ -89,6 +89,8 @@ extern int mem_cgroup_last_scanned_node(
+> > A extern int mem_cgroup_select_victim_node(struct mem_cgroup *mem,
+> > A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A const nodemask_t *nodes);
+> >
+> > +unsigned long shrink_mem_cgroup(struct mem_cgroup *mem);
+> > +
+> > A static inline
+> > A int mm_match_cgroup(const struct mm_struct *mm, const struct mem_cgroup *cgroup)
+> > A {
+> > @@ -112,6 +114,9 @@ extern void mem_cgroup_end_migration(str
+> > A */
+> > A int mem_cgroup_inactive_anon_is_low(struct mem_cgroup *memcg);
+> > A int mem_cgroup_inactive_file_is_low(struct mem_cgroup *memcg);
+> > +unsigned int mem_cgroup_swappiness(struct mem_cgroup *memcg);
+> > +unsigned long mem_cgroup_zone_reclaimable_pages(struct mem_cgroup *memcg,
+> > + A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  int nid, int zone_idx);
+> > A unsigned long mem_cgroup_zone_nr_pages(struct mem_cgroup *memcg,
+> > A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  struct zone *zone,
+> > A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  enum lru_list lru);
+> > @@ -310,6 +315,12 @@ mem_cgroup_inactive_file_is_low(struct m
+> > A }
+> >
+> > A static inline unsigned long
+> > +mem_cgroup_zone_reclaimable_pages(struct mem_cgroup *memcg, int nid, int zone_idx)
+> > +{
+> > + A  A  A  return 0;
+> > +}
+> > +
+> > +static inline unsigned long
+> > A mem_cgroup_zone_nr_pages(struct mem_cgroup *memcg, struct zone *zone,
+> > A  A  A  A  A  A  A  A  A  A  A  A  enum lru_list lru)
+> > A {
+> > Index: memcg/mm/memcontrol.c
+> > ===================================================================
+> > --- memcg.orig/mm/memcontrol.c
+> > +++ memcg/mm/memcontrol.c
+> > @@ -1166,6 +1166,23 @@ int mem_cgroup_inactive_file_is_low(stru
+> > A  A  A  A return (active > inactive);
+> > A }
+> >
+> > +unsigned long mem_cgroup_zone_reclaimable_pages(struct mem_cgroup *memcg,
+> > + A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  int nid, int zone_idx)
+> > +{
+> > + A  A  A  int nr;
+> > + A  A  A  struct mem_cgroup_per_zone *mz =
+> > + A  A  A  A  A  A  A  mem_cgroup_zoneinfo(memcg, nid, zone_idx);
+> > +
+> > + A  A  A  nr = MEM_CGROUP_ZSTAT(mz, NR_ACTIVE_FILE) +
+> > + A  A  A  A  A  A MEM_CGROUP_ZSTAT(mz, NR_INACTIVE_FILE);
+> > +
+> > + A  A  A  if (nr_swap_pages > 0)
+> > + A  A  A  A  A  A  A  nr += MEM_CGROUP_ZSTAT(mz, NR_ACTIVE_ANON) +
+> > + A  A  A  A  A  A  A  A  A  A  MEM_CGROUP_ZSTAT(mz, NR_INACTIVE_ANON);
+> > +
+> > + A  A  A  return nr;
+> > +}
+> > +
+> > A unsigned long mem_cgroup_zone_nr_pages(struct mem_cgroup *memcg,
+> > A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  struct zone *zone,
+> > A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  enum lru_list lru)
+> > @@ -1286,7 +1303,7 @@ static unsigned long mem_cgroup_margin(s
+> > A  A  A  A return margin >> PAGE_SHIFT;
+> > A }
+> >
+> > -static unsigned int get_swappiness(struct mem_cgroup *memcg)
+> > +unsigned int mem_cgroup_swappiness(struct mem_cgroup *memcg)
+> > A {
+> > A  A  A  A struct cgroup *cgrp = memcg->css.cgroup;
+> >
+> > @@ -1595,14 +1612,15 @@ static int mem_cgroup_hierarchical_recla
+> > A  A  A  A  A  A  A  A /* we use swappiness of local cgroup */
+> > A  A  A  A  A  A  A  A if (check_soft) {
+> > A  A  A  A  A  A  A  A  A  A  A  A ret = mem_cgroup_shrink_node_zone(victim, gfp_mask,
+> > - A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  noswap, get_swappiness(victim), zone,
+> > + A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  noswap, mem_cgroup_swappiness(victim), zone,
+> > A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A &nr_scanned);
+> > A  A  A  A  A  A  A  A  A  A  A  A *total_scanned += nr_scanned;
+> > A  A  A  A  A  A  A  A  A  A  A  A mem_cgroup_soft_steal(victim, ret);
+> > A  A  A  A  A  A  A  A  A  A  A  A mem_cgroup_soft_scan(victim, nr_scanned);
+> > A  A  A  A  A  A  A  A } else
+> > A  A  A  A  A  A  A  A  A  A  A  A ret = try_to_free_mem_cgroup_pages(victim, gfp_mask,
+> > - A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  noswap, get_swappiness(victim));
+> > + A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  noswap,
+> > + A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  mem_cgroup_swappiness(victim));
+> > A  A  A  A  A  A  A  A css_put(&victim->css);
+> > A  A  A  A  A  A  A  A /*
+> > A  A  A  A  A  A  A  A  * At shrinking usage, we can't check we should stop here or
+> > @@ -1628,15 +1646,25 @@ static int mem_cgroup_hierarchical_recla
+> > A int
+> > A mem_cgroup_select_victim_node(struct mem_cgroup *mem, const nodemask_t *nodes)
+> > A {
+> > - A  A  A  int next_nid;
+> > + A  A  A  int next_nid, i;
+> > A  A  A  A int last_scanned;
+> >
+> > A  A  A  A last_scanned = mem->last_scanned_node;
+> > - A  A  A  next_nid = next_node(last_scanned, *nodes);
+> > + A  A  A  next_nid = last_scanned;
+> > +rescan:
+> > + A  A  A  next_nid = next_node(next_nid, *nodes);
+> >
+> > A  A  A  A if (next_nid == MAX_NUMNODES)
+> > A  A  A  A  A  A  A  A next_nid = first_node(*nodes);
+> >
+> > + A  A  A  /* If no page on this node, skip */
+> > + A  A  A  for (i = 0; i < MAX_NR_ZONES; i++)
+> > + A  A  A  A  A  A  A  if (mem_cgroup_zone_reclaimable_pages(mem, next_nid, i))
+> > + A  A  A  A  A  A  A  A  A  A  A  break;
+> > +
+> > + A  A  A  if (next_nid != last_scanned && (i == MAX_NR_ZONES))
+> > + A  A  A  A  A  A  A  goto rescan;
+> > +
+> > A  A  A  A mem->last_scanned_node = next_nid;
+> >
+> > A  A  A  A return next_nid;
+> > @@ -3649,7 +3677,7 @@ try_to_free:
+> > A  A  A  A  A  A  A  A  A  A  A  A goto out;
+> > A  A  A  A  A  A  A  A }
+> > A  A  A  A  A  A  A  A progress = try_to_free_mem_cgroup_pages(mem, GFP_KERNEL,
+> > - A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  false, get_swappiness(mem));
+> > + A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  false, mem_cgroup_swappiness(mem));
+> > A  A  A  A  A  A  A  A if (!progress) {
+> > A  A  A  A  A  A  A  A  A  A  A  A nr_retries--;
+> > A  A  A  A  A  A  A  A  A  A  A  A /* maybe some writeback is necessary */
+> > @@ -4073,7 +4101,7 @@ static u64 mem_cgroup_swappiness_read(st
+> > A {
+> > A  A  A  A struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
+> >
+> > - A  A  A  return get_swappiness(memcg);
+> > + A  A  A  return mem_cgroup_swappiness(memcg);
+> > A }
+> >
+> > A static int mem_cgroup_swappiness_write(struct cgroup *cgrp, struct cftype *cft,
+> > @@ -4849,7 +4877,7 @@ mem_cgroup_create(struct cgroup_subsys *
+> > A  A  A  A INIT_LIST_HEAD(&mem->oom_notify);
+> >
+> > A  A  A  A if (parent)
+> > - A  A  A  A  A  A  A  mem->swappiness = get_swappiness(parent);
+> > + A  A  A  A  A  A  A  mem->swappiness = mem_cgroup_swappiness(parent);
+> > A  A  A  A atomic_set(&mem->refcnt, 1);
+> > A  A  A  A mem->move_charge_at_immigrate = 0;
+> > A  A  A  A mutex_init(&mem->thresholds_lock);
+> > Index: memcg/mm/vmscan.c
+> > ===================================================================
+> > --- memcg.orig/mm/vmscan.c
+> > +++ memcg/mm/vmscan.c
+> > @@ -42,6 +42,7 @@
+> > A #include <linux/delayacct.h>
+> > A #include <linux/sysctl.h>
+> > A #include <linux/oom.h>
+> > +#include <linux/res_counter.h>
+> >
+> > A #include <asm/tlbflush.h>
+> > A #include <asm/div64.h>
+> > @@ -2308,6 +2309,120 @@ static bool sleeping_prematurely(pg_data
+> > A  A  A  A  A  A  A  A return !all_zones_ok;
+> > A }
+> >
+> > +#ifdef CONFIG_CGROUP_MEM_RES_CTLR
+> > +/*
+> > + * The function is used for per-memcg LRU. It scanns all the zones of the
+> > + * node and returns the nr_scanned and nr_reclaimed.
+> > + */
+> > +/*
+> > + * Limit of scanning per iteration. For round-robin.
+> > + */
+> > +#define MEMCG_BGSCAN_LIMIT A  A  (2048)
+> > +
+> > +static void
+> > +shrink_memcg_node(int nid, int priority, struct scan_control *sc)
+> > +{
+> > + A  A  A  unsigned long total_scanned = 0;
+> > + A  A  A  struct mem_cgroup *mem_cont = sc->mem_cgroup;
+> > + A  A  A  int i;
+> > +
+> > + A  A  A  /*
+> > + A  A  A  A * This dma->highmem order is consistant with global reclaim.
+> > + A  A  A  A * We do this because the page allocator works in the opposite
+> > + A  A  A  A * direction although memcg user pages are mostly allocated at
+> > + A  A  A  A * highmem.
+> > + A  A  A  A */
+> > + A  A  A  for (i = 0;
+> > + A  A  A  A  A  A (i < NODE_DATA(nid)->nr_zones) &&
+> > + A  A  A  A  A  A (total_scanned < MEMCG_BGSCAN_LIMIT);
+> > + A  A  A  A  A  A i++) {
+> > + A  A  A  A  A  A  A  struct zone *zone = NODE_DATA(nid)->node_zones + i;
+> > + A  A  A  A  A  A  A  struct zone_reclaim_stat *zrs;
+> > + A  A  A  A  A  A  A  unsigned long scan, rotate;
+> > +
+> > + A  A  A  A  A  A  A  if (!populated_zone(zone))
+> > + A  A  A  A  A  A  A  A  A  A  A  continue;
+> > + A  A  A  A  A  A  A  scan = mem_cgroup_zone_reclaimable_pages(mem_cont, nid, i);
+> > + A  A  A  A  A  A  A  if (!scan)
+> > + A  A  A  A  A  A  A  A  A  A  A  continue;
+> > + A  A  A  A  A  A  A  /* If recent memory reclaim on this zone doesn't get good */
+> > + A  A  A  A  A  A  A  zrs = get_reclaim_stat(zone, sc);
+> > + A  A  A  A  A  A  A  scan = zrs->recent_scanned[0] + zrs->recent_scanned[1];
+> > + A  A  A  A  A  A  A  rotate = zrs->recent_rotated[0] + zrs->recent_rotated[1];
+> > +
+> > + A  A  A  A  A  A  A  if (rotate > scan/2)
+> > + A  A  A  A  A  A  A  A  A  A  A  sc->may_writepage = 1;
+> > +
+> > + A  A  A  A  A  A  A  sc->nr_scanned = 0;
+> > + A  A  A  A  A  A  A  shrink_zone(priority, zone, sc);
+> > + A  A  A  A  A  A  A  total_scanned += sc->nr_scanned;
+> > + A  A  A  A  A  A  A  sc->may_writepage = 0;
+> > + A  A  A  }
+> > + A  A  A  sc->nr_scanned = total_scanned;
+> > +}
+> 
+> I see the MEMCG_BGSCAN_LIMIT is a newly defined macro from previous
+> post. So, now the number of pages to scan is capped on 2k for each
+> memcg, and does it make difference on big vs small cgroup?
+> 
 
---Ying
+Now, no difference. One reason is because low_watermark - high_watermark is
+limited to 4MB, at most. It should be static 4MB in many cases and 2048 pages
+is for scanning 8MB, twice of low_wmark - high_wmark. Another reason is
+that I didn't have enough time for considering to tune this. 
+By MEMCG_BGSCAN_LIMIT, round-robin can be simply fair and I think it's a
+good start point.
 
-> +/*
-> + * Per cgroup background reclaim.
-> + */
-> +unsigned long shrink_mem_cgroup(struct mem_cgroup *mem)
-> +{
-> + =A0 =A0 =A0 int nid, priority, next_prio;
-> + =A0 =A0 =A0 nodemask_t nodes;
-> + =A0 =A0 =A0 unsigned long total_scanned;
-> + =A0 =A0 =A0 struct scan_control sc =3D {
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 .gfp_mask =3D GFP_HIGHUSER_MOVABLE,
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 .may_unmap =3D 1,
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 .may_swap =3D 1,
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 .nr_to_reclaim =3D SWAP_CLUSTER_MAX,
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 .order =3D 0,
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 .mem_cgroup =3D mem,
-> + =A0 =A0 =A0 };
-> +
-> + =A0 =A0 =A0 sc.may_writepage =3D 0;
-> + =A0 =A0 =A0 sc.nr_reclaimed =3D 0;
-> + =A0 =A0 =A0 total_scanned =3D 0;
-> + =A0 =A0 =A0 nodes =3D node_states[N_HIGH_MEMORY];
-> + =A0 =A0 =A0 sc.swappiness =3D mem_cgroup_swappiness(mem);
-> +
-> + =A0 =A0 =A0 current->flags |=3D PF_SWAPWRITE;
-> + =A0 =A0 =A0 /*
-> + =A0 =A0 =A0 =A0* Unlike kswapd, we need to traverse cgroups one by one.=
- So, we don't
-> + =A0 =A0 =A0 =A0* use full priority. Just scan small number of pages and=
- visit next.
-> + =A0 =A0 =A0 =A0* Now, we scan MEMCG_BGRECLAIM_SCAN_LIMIT pages per scan=
-.
-> + =A0 =A0 =A0 =A0* We use static priority 0.
-> + =A0 =A0 =A0 =A0*/
-> + =A0 =A0 =A0 next_prio =3D min(SWAP_CLUSTER_MAX * num_node_state(N_HIGH_=
-MEMORY),
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 MEMCG_BGSCAN_LIMIT/8);
-> + =A0 =A0 =A0 priority =3D DEF_PRIORITY;
-> + =A0 =A0 =A0 while ((total_scanned < MEMCG_BGSCAN_LIMIT) &&
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0!nodes_empty(nodes) &&
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0(sc.nr_to_reclaim > sc.nr_reclaimed)) {
-> +
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 nid =3D mem_cgroup_select_victim_node(mem, =
-&nodes);
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 shrink_memcg_node(nid, priority, &sc);
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 /*
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* the node seems to have no pages.
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* skip this for a while
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0*/
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!sc.nr_scanned)
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 node_clear(nid, nodes);
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 total_scanned +=3D sc.nr_scanned;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (mem_cgroup_watermark_ok(mem, CHARGE_WMA=
-RK_HIGH))
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 break;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 /* emulate priority */
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (total_scanned > next_prio) {
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 priority--;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 next_prio <<=3D 1;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 }
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (sc.nr_scanned &&
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 total_scanned > sc.nr_reclaimed * 2=
-)
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 congestion_wait(WRITE, HZ/1=
-0);
-> + =A0 =A0 =A0 }
-> + =A0 =A0 =A0 current->flags &=3D ~PF_SWAPWRITE;
-> + =A0 =A0 =A0 return sc.nr_reclaimed;
-> +}
-> +#endif
-> +
-> =A0/*
-> =A0* For kswapd, balance_pgdat() will work across all this node's zones u=
-ntil
-> =A0* they are all at high_wmark_pages(zone).
->
->
+If memory eater enough slow (because the threads needs to do some
+work on allocated memory), this shrink_mem_cgroup() works fine and
+helps to avoid hitting limit. Here, the amount of dirty pages is troublesome.
+
+The penaly for cpu eating (hard-to-reclaim) cgroup is given by 'delay'.
+(see patch 7.) This patch's congestion_wait is too bad and will be replaced
+in patch 7 as 'delay'. In short, if memcg scanning seems to be not successful,
+it gets HZ/10 delay until the next work.
+
+If we have dirty_ratio + I/O less dirty throttling, I think we'll see much
+better fairness on this watermark reclaim round robin.
+
+
+Thanks,
+-Kame
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
