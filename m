@@ -1,104 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 0C4BE9000C1
-	for <linux-mm@kvack.org>; Tue, 26 Apr 2011 08:10:17 -0400 (EDT)
-Received: by fxm18 with SMTP id 18so522804fxm.14
-        for <linux-mm@kvack.org>; Tue, 26 Apr 2011 05:10:14 -0700 (PDT)
-Date: Tue, 26 Apr 2011 14:10:11 +0200
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH] percpu: preemptless __per_cpu_counter_add
-Message-ID: <20110426121011.GD878@htj.dyndns.org>
-References: <alpine.DEB.2.00.1104180930580.23207@router.home>
- <20110421144300.GA22898@htj.dyndns.org>
- <20110421145837.GB22898@htj.dyndns.org>
- <alpine.DEB.2.00.1104211243350.5741@router.home>
- <20110421180159.GF15988@htj.dyndns.org>
- <alpine.DEB.2.00.1104211308300.5741@router.home>
- <20110421183727.GG15988@htj.dyndns.org>
- <alpine.DEB.2.00.1104211350310.5741@router.home>
- <20110421190807.GK15988@htj.dyndns.org>
- <1303439580.3981.241.camel@sli10-conroe>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C3689000C1
+	for <linux-mm@kvack.org>; Tue, 26 Apr 2011 08:17:57 -0400 (EDT)
+Date: Tue, 26 Apr 2011 14:17:51 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 5/6] writeback: sync expired inodes first in background
+ writeback
+Message-ID: <20110426121751.GB5114@quack.suse.cz>
+References: <20110420080336.441157866@intel.com>
+ <20110420080918.383880412@intel.com>
+ <20110420164005.e3925965.akpm@linux-foundation.org>
+ <20110424031531.GA11220@localhost>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1303439580.3981.241.camel@sli10-conroe>
+In-Reply-To: <20110424031531.GA11220@localhost>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shaohua.li@intel.com>
-Cc: Christoph Lameter <cl@linux.com>, Eric Dumazet <eric.dumazet@gmail.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mel Gorman <mel@linux.vnet.ibm.com>, Dave Chinner <david@fromorbit.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Itaru Kitayama <kitayama@cl.bb4u.ne.jp>, Minchan Kim <minchan.kim@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
 
-Hello, please pardon delay (and probably bad temper).  I'm still sick
-& slow.
+On Sun 24-04-11 11:15:31, Wu Fengguang wrote:
+> > One of the many requirements for writeback is that if userspace is
+> > continually dirtying pages in a particular file, that shouldn't cause
+> > the kupdate function to concentrate on that file's newly-dirtied pages,
+> > neglecting pages from other files which were less-recently dirtied. 
+> > (and dirty nodes, etc).
+> 
+> Sadly I do find the old pages that the flusher never get a chance to
+> catch and write them out.
+  What kind of load do you use?
 
-On Fri, Apr 22, 2011 at 10:33:00AM +0800, Shaohua Li wrote:
-> > And, no matter what, that's a separate issue from the this_cpu hot
-> > path optimizations and should be done separately.  So, _please_ update
-> > this_cpu patch so that it doesn't change the slow path semantics.
->
-> in the original implementation, a updater can change several times too,
-> it can update the count from -(batch -1) to (batch -1) without holding
-> the lock. so we always have batch*num_cpus*2 deviate
+> In the below case, if the task dirties pages fast enough at the end of
+> file, writeback_index will never get a chance to wrap back. There may
+> be various variations of this case.
+> 
+> file head
+> [          ***                        ==>***************]==>
+>            old pages          writeback_index            fresh dirties
+> 
+> Ironically the current kernel relies on pageout() to catch these
+> old pages, which is not only inefficient, but also not reliable.
+> If a full LRU walk takes an hour, the old pages may stay dirtied
+> for an hour.
+  Well, the kupdate behavior has always been just a best-effort thing. We
+always tried to handle well common cases but didn't try to solve all of
+them. Unless we want to track dirty-age of every page (which we don't
+want because it's too expensive), there is really no way to make syncing
+of old pages 100% working for all the cases unless we do data-integrity
+type of writeback for the whole inode - but that could create new problems
+with stalling other files for too long I suspect.
 
-That would be a pathelogical case but, even then, after the change the
-number becomes much higher as it becomes a function of batch *
-num_updaters, right?
+> We may have to do (conditional) tagged ->writepages to safeguard users
+> from losing data he'd expect to be written hours ago.
+  Well, if the file is continuously written (and in your case it must be
+even continuosly grown) I'd be content if we handle well the common case of
+linear append (that happens for log files etc.). If we can do well for more
+cases, even better but I'd be cautious not to disrupt some other more
+common cases.
 
-I'll try to re-summarize my concerns as my communications don't seem
-to be getting through very well these few days (likely my fault).
-
-The biggest issue I have with the change is that with the suggested
-changes, the devaition seen by _sum becomes much less predictable.
-_sum can't be accurate.  It never was and never will be, but the
-deviations have been quite predictable regardless of @batch.  It's
-dependent only on the number and frequency of concurrent updaters.
-
-If concurrent updates aren't very frequent and numerous, the caller is
-guaranteed to get a result which deviates only by quite small margin.
-If concurrent updates are very frequent and numerous, the caller
-natuarally can't expect a very accurate result.
-
-However, after the change, especially with high @batch count, the
-result may deviate significantly even with low frequency concurrent
-updates.  @batch deviations won't happen often but will happen once in
-a while, which is just nasty and makes the API much less useful and
-those occasional deviations can cause sporadic erratic behaviors -
-e.g. filesystems use it for free block accounting.  It's actually used
-for somewhat critical decision making.
-
-If it were in the fast path, sure, we might and plan for slower
-contingencies where accuracy is more important, but we're talking
-about slow path already - it's visiting each per-cpu area for $DEITY's
-sake, so the tradeoff doesn't make a lot of sense to me.
-
-> if we really worry about _sum deviates too much. can we do something
-> like this:
-> percpu_counter_sum
-> {
-> again:
-> 	sum=0
-> 	old = atomic64_read(&fbc->counter)
-> 	for_each_online_cpu()
-> 		sum += per cpu counter
-> 	new = atomic64_read(&fbc->counter)
-> 	if (new - old > batch * num_cpus || old - new > batch * num_cpus)
-> 		goto again;
-> 	return new + sum;
-> }
-> in this way we limited the deviate to number of concurrent updater. This
-> doesn't make _sum too slow too, because we have the batch * num_cpus
-> check.
-
-I don't really worry about _sum performance.  It's a quite slow path
-and most of the cost is from causing cacheline bounces anyway.  That
-said, I don't see how the above would help the deviation problem.
-Let's say an updater reset per cpu counter but got preempted before
-updating the global counter.  What differences does it make to check
-fbc->counter before & after like above?
-
-Thanks.
-
+								Honza
 -- 
-tejun
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
