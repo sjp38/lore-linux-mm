@@ -1,81 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 97AA39000C2
-	for <linux-mm@kvack.org>; Tue, 26 Apr 2011 05:50:02 -0400 (EDT)
-Date: Tue, 26 Apr 2011 19:49:47 +1000
-From: NeilBrown <neilb@suse.de>
-Subject: Re: [PATCH 03/13] mm: Introduce __GFP_MEMALLOC to allow access to
- emergency reserves
-Message-ID: <20110426194947.764e048a@notabene.brown>
-In-Reply-To: <1303803414-5937-4-git-send-email-mgorman@suse.de>
-References: <1303803414-5937-1-git-send-email-mgorman@suse.de>
-	<1303803414-5937-4-git-send-email-mgorman@suse.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 2C0389000C1
+	for <linux-mm@kvack.org>; Tue, 26 Apr 2011 05:51:07 -0400 (EDT)
+Message-Id: <20110426094859.591091128@intel.com>
+Date: Tue, 26 Apr 2011 17:43:55 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: [PATCH 3/3] readahead: trigger mmap sequential readahead on PG_readahead
+References: <20110426094352.030753173@intel.com>
+Content-Disposition: inline; filename=readahead-no-mmap-prev_pos.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>
+Cc: Tim Chen <tim.c.chen@intel.com>, Wu Fengguang <fengguang.wu@intel.com>, Li Shaohua <shaohua.li@intel.com>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-On Tue, 26 Apr 2011 08:36:44 +0100 Mel Gorman <mgorman@suse.de> wrote:
+Previously the mmap sequential readahead is triggered by updating
+ra->prev_pos on each page fault and compare it with current page offset.
 
-> __GFP_MEMALLOC will allow the allocation to disregard the watermarks,
-> much like PF_MEMALLOC. It allows one to pass along the memalloc state in
-> object related allocation flags as opposed to task related flags, such
-> as sk->sk_allocation. This removes the need for ALLOC_PFMEMALLOC as
-> callers using __GFP_MEMALLOC can get the ALLOC_NO_WATERMARK flag which
-> is now enough to identify allocations related to page reclaim.
-> 
-> Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
-> ---
->  include/linux/gfp.h      |    4 +++-
->  include/linux/mm_types.h |    2 +-
->  mm/page_alloc.c          |   14 ++++++--------
->  mm/slab.c                |    2 +-
->  4 files changed, 11 insertions(+), 11 deletions(-)
-> 
-> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-> index bfb8f93..4e011e7 100644
-> --- a/include/linux/gfp.h
-> +++ b/include/linux/gfp.h
-> @@ -23,6 +23,7 @@ struct vm_area_struct;
->  #define ___GFP_REPEAT		0x400u
->  #define ___GFP_NOFAIL		0x800u
->  #define ___GFP_NORETRY		0x1000u
-> +#define ___GFP_MEMALLOC		0x2000u
->  #define ___GFP_COMP		0x4000u
->  #define ___GFP_ZERO		0x8000u
->  #define ___GFP_NOMEMALLOC	0x10000u
-> @@ -75,6 +76,7 @@ struct vm_area_struct;
->  #define __GFP_REPEAT	((__force gfp_t)___GFP_REPEAT)	/* See above */
->  #define __GFP_NOFAIL	((__force gfp_t)___GFP_NOFAIL)	/* See above */
->  #define __GFP_NORETRY	((__force gfp_t)___GFP_NORETRY) /* See above */
-> +#define __GFP_MEMALLOC	((__force gfp_t)___GFP_MEMALLOC)/* Allow access to emergency reserves */
->  #define __GFP_COMP	((__force gfp_t)___GFP_COMP)	/* Add compound page metadata */
->  #define __GFP_ZERO	((__force gfp_t)___GFP_ZERO)	/* Return zeroed page on success */
->  #define __GFP_NOMEMALLOC ((__force gfp_t)___GFP_NOMEMALLOC) /* Don't use emergency reserves */
+In the mosbench exim benchmark which does multi-threaded page faults on
+shared struct file, this is found to cause excessive cache line bouncing
+on tmpfs, which does not need readahead at all.
 
-Having both "MEMALLOC" and  "NOMEMALLOC" seems ... unfortunate.
+So remove the ra->prev_pos recording, and instead tag PG_readahead to
+trigger the possible sequential readahead. It's not only more simple,
+but also will work more reliably on concurrent reads on shared struct file.
 
-It appears that NOMEMALLOC over-rides MEMALLOC.  It might be good to document
-this 
+Tested-by: Tim Chen <tim.c.chen@intel.com>
+Reported-by: Andi Kleen <ak@linux.intel.com>
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+---
+ mm/filemap.c |    6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)
 
-> +#define __GFP_MEMALLOC	((__force gfp_t)___GFP_MEMALLOC)/* Allow access to emergency reserves
-                                                                   unless __GFP_NOMEMALLOC is set*/
+--- linux-next.orig/mm/filemap.c	2011-04-23 16:52:21.000000000 +0800
++++ linux-next/mm/filemap.c	2011-04-24 09:59:08.000000000 +0800
+@@ -1531,8 +1531,7 @@ static void do_sync_mmap_readahead(struc
+ 	if (!ra->ra_pages)
+ 		return;
+ 
+-	if (VM_SequentialReadHint(vma) ||
+-			offset - 1 == (ra->prev_pos >> PAGE_CACHE_SHIFT)) {
++	if (VM_SequentialReadHint(vma)) {
+ 		page_cache_sync_readahead(mapping, ra, file, offset,
+ 					  ra->ra_pages);
+ 		return;
+@@ -1555,7 +1554,7 @@ static void do_sync_mmap_readahead(struc
+ 	ra_pages = max_sane_readahead(ra->ra_pages);
+ 	ra->start = max_t(long, 0, offset - ra_pages / 2);
+ 	ra->size = ra_pages;
+-	ra->async_size = 0;
++	ra->async_size = ra_pages / 4;
+ 	ra_submit(ra, mapping, file);
+ }
+ 
+@@ -1661,7 +1660,6 @@ retry_find:
+ 		return VM_FAULT_SIGBUS;
+ 	}
+ 
+-	ra->prev_pos = (loff_t)offset << PAGE_CACHE_SHIFT;
+ 	vmf->page = page;
+ 	return ret | VM_FAULT_LOCKED;
+ 
 
->  #define __GFP_NOMEMALLOC ((__force gfp_t)___GFP_NOMEMALLOC) /* Don't use emergency reserves
-                                                                  Overrides __GFP_MEMALLOC */
-
-I suspect that it is never valid to set both.  So NOMEMALLOC is really
-NO_PF_MEMALLOC, but making that change is probably just noise.
-
-Maybe a
-   WARN_ON((gfp_mask & __GFP_MEMALLOC) && (gfp_mask & __GFP_NOMEMALLOC));
-might be wise?
-
-NeilBrown.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
