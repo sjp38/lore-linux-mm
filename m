@@ -1,91 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id AA65690010D
-	for <linux-mm@kvack.org>; Tue, 26 Apr 2011 19:22:14 -0400 (EDT)
-Date: Wed, 27 Apr 2011 09:22:03 +1000
-From: NeilBrown <neilb@suse.de>
-Subject: Re: [PATCH 09/13] netvm: Set PF_MEMALLOC as appropriate during SKB
- processing
-Message-ID: <20110427092203.659fbc25@notabene.brown>
-In-Reply-To: <20110426141048.GG4658@suse.de>
-References: <1303803414-5937-1-git-send-email-mgorman@suse.de>
-	<1303803414-5937-10-git-send-email-mgorman@suse.de>
-	<20110426222157.33a461f8@notabene.brown>
-	<20110426141048.GG4658@suse.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 6FF3D9000C1
+	for <linux-mm@kvack.org>; Tue, 26 Apr 2011 19:33:47 -0400 (EDT)
+Received: by vxk20 with SMTP id 20so1284559vxk.14
+        for <linux-mm@kvack.org>; Tue, 26 Apr 2011 16:33:46 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <BANLkTin0wj3AhCtR5ZD=N_LUKjE1etBcFg@mail.gmail.com>
+References: <20110426085953.GA12389@darkstar>
+	<BANLkTikkUq7rg4umYQ5yt9ve+q34Pf+=Ag@mail.gmail.com>
+	<BANLkTin0wj3AhCtR5ZD=N_LUKjE1etBcFg@mail.gmail.com>
+Date: Wed, 27 Apr 2011 08:33:46 +0900
+Message-ID: <BANLkTim067_+bycA-rJk6u595YucMmruqQ@mail.gmail.com>
+Subject: Re: [PATCH v2] virtio_balloon: disable oom killer when fill balloon
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Dave Young <hidave.darkstar@gmail.com>
+Cc: kvm@vger.kernel.org, linux-kernel@vger.kernel.org, kosaki.motohiro@jp.fujitsu.com, linux-mm <linux-mm@kvack.org>
 
-On Tue, 26 Apr 2011 15:10:48 +0100 Mel Gorman <mgorman@suse.de> wrote:
+On Tue, Apr 26, 2011 at 6:39 PM, Dave Young <hidave.darkstar@gmail.com> wrote:
+> On Tue, Apr 26, 2011 at 5:28 PM, Minchan Kim <minchan.kim@gmail.com> wrote:
+>> Please resend this with [2/2] to linux-mm.
+>>
+>> On Tue, Apr 26, 2011 at 5:59 PM, Dave Young <hidave.darkstar@gmail.com> wrote:
+>>> When memory pressure is high, virtio ballooning will probably cause oom killing.
+>>> Even if alloc_page with GFP_NORETRY itself does not directly trigger oom it
+>>> will make memory becoming low then memory alloc of other processes will trigger
+>>> oom killing. It is not desired behaviour.
+>>
+>> I can't understand why it is undesirable.
+>> Why do we have to handle it specially?
+>>
+>
+> Suppose user run some random memory hogging process while ballooning
+> it will be undesirable.
 
-> On Tue, Apr 26, 2011 at 10:21:57PM +1000, NeilBrown wrote:
-> > On Tue, 26 Apr 2011 08:36:50 +0100 Mel Gorman <mgorman@suse.de> wrote:
-> > 
-> > > diff --git a/net/core/dev.c b/net/core/dev.c
-> > > index 3871bf6..2d79a20 100644
-> > > --- a/net/core/dev.c
-> > > +++ b/net/core/dev.c
-> > > @@ -3095,6 +3095,27 @@ static void vlan_on_bond_hook(struct sk_buff *skb)
-> > >  	}
-> > >  }
-> > >  
-> > > +/*
-> > > + * Limit which protocols can use the PFMEMALLOC reserves to those that are
-> > > + * expected to be used for communication with swap.
-> > > + */
-> > > +static bool skb_pfmemalloc_protocol(struct sk_buff *skb)
-> > > +{
-> > > +	if (skb_pfmemalloc(skb))
-> > > +		switch (skb->protocol) {
-> > > +		case __constant_htons(ETH_P_ARP):
-> > > +		case __constant_htons(ETH_P_IP):
-> > > +		case __constant_htons(ETH_P_IPV6):
-> > > +		case __constant_htons(ETH_P_8021Q):
-> > > +			break;
-> > > +
-> > > +		default:
-> > > +			return false;
-> > > +		}
-> > > +
-> > > +	return true;
-> > > +}
-> > 
-> > This sort of thing really bugs me :-)
-> > Neither the comment nor the function name actually describe what the function
-> > is doing.  The function is checking *2* things.
-> >    is_pfmemalloc_skb_or_pfmemalloc_protocol()
-> > might be a more correct name, but is too verbose.
-> > 
-> > I would prefer the skb_pfmemalloc test were removed from here and ....
-> > 
-> > > +	if (!skb_pfmemalloc_protocol(skb))
-> > > +		goto drop;
-> > > +
-> > 
-> > ...added here so this becomes:
-> > 
-> >       if (!skb_pfmemalloc(skb) && !skb_pfmemalloc_protocol(skb))
-> >                 goto drop;
-> > 
-> > which actually makes sense.
-> > 
-> 
-> Moving the check is neater but that check should be
-> 
-> 	if (skb_pfmemalloc(skb) && !skb_pfmemalloc_protocol(skb))
-> 
-> ? It's only if the skb was allocated from emergency reserves that we
-> need to consider dropping it to make way for other packets to be
-> received.
-> 
 
-Correct.  I got my Boolean algebra all confused. Sorry 'bout that.
+In VM POV, kvm and random memory hogging processes are customers.
+If we handle ballooning specially with disable OOM, what happens other
+processes requires memory at same time? Should they wait for balloon
+driver to release memory?
 
-NeilBrown
+I don't know your point. Sorry.
+Could you explain your scenario in detail for justify your idea?
+And as I previous said, we have to solve oom_killer_disabled issue in
+do_try_to_free_pages.
+
+Thanks, Dave.
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
