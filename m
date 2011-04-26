@@ -1,49 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 619B19000C1
-	for <linux-mm@kvack.org>; Tue, 26 Apr 2011 16:07:29 -0400 (EDT)
-Date: Tue, 26 Apr 2011 13:07:24 -0700
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 039F09000C1
+	for <linux-mm@kvack.org>; Tue, 26 Apr 2011 16:59:41 -0400 (EDT)
+Date: Tue, 26 Apr 2011 13:59:34 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: (resend) [PATCH] vmscan,memcg: memcg aware swap token
-Message-Id: <20110426130724.f2ae18e3.akpm@linux-foundation.org>
-In-Reply-To: <20110426170146.F396.A69D9226@jp.fujitsu.com>
-References: <20110426170146.F396.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCH] fix get_scan_count for working well with small targets
+Message-Id: <20110426135934.c1992c3e.akpm@linux-foundation.org>
+In-Reply-To: <20110426181724.f8cdad57.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20110426181724.f8cdad57.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Nishimura Daisuke <d-nishimura@mtf.biglobe.ne.jp>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, "mgorman@suse.de" <mgorman@suse.de>, Ying Han <yinghan@google.com>
 
-On Tue, 26 Apr 2011 16:59:19 +0900 (JST)
-KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+On Tue, 26 Apr 2011 18:17:24 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-> @@ -75,3 +76,19 @@ void __put_swap_token(struct mm_struct *mm)
->  		swap_token_mm = NULL;
->  	spin_unlock(&swap_token_lock);
->  }
-> +
-> +int has_swap_token_memcg(struct mm_struct *mm, struct mem_cgroup *memcg)
-> +{
-> +	if (memcg) {
-> +		struct mem_cgroup *swap_token_memcg;
-> +
-> +		/*
-> +		 * memcgroup reclaim can disable swap token only if token task
-> +		 * is in the same cgroup.
-> +		 */
-> +		swap_token_memcg = try_get_mem_cgroup_from_mm(swap_token_mm);
-> +		return ((mm == swap_token_mm) && (memcg == swap_token_memcg));
-> +	} else
-> +		return (mm == swap_token_mm);
-> +}
+> At memory reclaim, we determine the number of pages to be scanned
+> per zone as
+> 	(anon + file) >> priority.
+> Assume 
+> 	scan = (anon + file) >> priority.
+> 
+> If scan < SWAP_CLUSTER_MAX, shlink_list will be skipped for this
+> priority and results no-sacn.  This has some problems.
+> 
+>   1. This increases priority as 1 without any scan.
+>      To do scan in DEF_PRIORITY always, amount of pages should be larger than
+>      512M. If pages>>priority < SWAP_CLUSTER_MAX, it's recorded and scan will be
+>      batched, later. (But we lose 1 priority.)
+>      But if the amount of pages is smaller than 16M, no scan at priority==0
+>      forever.
+> 
+>   2. If zone->all_unreclaimabe==true, it's scanned only when priority==0.
+>      So, x86's ZONE_DMA will never be recoverred until the user of pages
+>      frees memory by itself.
+> 
+>   3. With memcg, the limit of memory can be small. When using small memcg,
+>      it gets priority < DEF_PRIORITY-2 very easily and need to call
+>      wait_iff_congested().
+>      For doing scan before priorty=9, 64MB of memory should be used.
+> 
+> This patch tries to scan SWAP_CLUSTER_MAX of pages in force...when
+> 
+>   1. the target is enough small.
+>   2. it's kswapd or memcg reclaim.
+> 
+> Then we can avoid rapid priority drop and may be able to recover
+> all_unreclaimable in a small zones.
 
-Seems to be missing a css_put()?
+What about simply removing the nr_saved_scan logic and permitting small
+scans?  That simplifies the code and I bet it makes no measurable
+performance difference.
 
-Either I'm mistaken or that's a bug.  Perhaps neither of these would
-have happened if we'd bothered to document
-try_get_mem_cgroup_from_mm().
+(A good thing to do here would be to instrument the code and determine
+the frequency with which we perform short scans, as well as their
+shortness.  ie: a histogram).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
