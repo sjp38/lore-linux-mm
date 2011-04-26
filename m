@@ -1,56 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 92A33900001
-	for <linux-mm@kvack.org>; Tue, 26 Apr 2011 02:25:38 -0400 (EDT)
-Date: Tue, 26 Apr 2011 14:25:35 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: readahead and oom
-Message-ID: <20110426062535.GB19717@localhost>
-References: <BANLkTin8mE=DLWma=U+CdJaQW03X2M2W1w@mail.gmail.com>
- <20110426055521.GA18473@localhost>
- <BANLkTik8k9A8N8CPk+eXo9c_syxJFRyFCA@mail.gmail.com>
- <BANLkTim0MNgqeh1KTfvpVFuAvebKyQV8Hg@mail.gmail.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id A781B900001
+	for <linux-mm@kvack.org>; Tue, 26 Apr 2011 02:26:29 -0400 (EDT)
+Received: by pvc12 with SMTP id 12so325431pvc.14
+        for <linux-mm@kvack.org>; Mon, 25 Apr 2011 23:26:27 -0700 (PDT)
+Date: Tue, 26 Apr 2011 13:31:50 +0800
+From: Dave Young <hidave.darkstar@gmail.com>
+Subject: [PATCH 2/2] use oom_killer_disabled in page fault oom path
+Message-ID: <20110426053150.GA11949@darkstar>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <BANLkTim0MNgqeh1KTfvpVFuAvebKyQV8Hg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Young <hidave.darkstar@gmail.com>
-Cc: linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, kosaki.motohiro@jp.fujitsu.com
 
-On Tue, Apr 26, 2011 at 02:07:17PM +0800, Dave Young wrote:
-> On Tue, Apr 26, 2011 at 2:05 PM, Dave Young <hidave.darkstar@gmail.com> wrote:
-> > On Tue, Apr 26, 2011 at 1:55 PM, Wu Fengguang <fengguang.wu@intel.com> wrote:
-> >> On Tue, Apr 26, 2011 at 01:49:25PM +0800, Dave Young wrote:
-> >>> Hi,
-> >>>
-> >>> When memory pressure is high, readahead could cause oom killing.
-> >>> IMHO we should stop readaheading under such circumstancesa??If it's true
-> >>> how to fix it?
-> >>
-> >> Good question. Before OOM there will be readahead thrashings, which
-> >> can be addressed by this patch:
-> >>
-> >> http://lkml.org/lkml/2010/2/2/229
-> >
-> > Hi, I'm not clear about the patch, could be regard as below cases?
-> > 1) readahead alloc fail due to low memory such as other large allocation
-> 
-> For example vm balloon allocate lots of memory, then readahead could
-> fail immediately and then oom
+Currently oom_killer_disabled is only used in __alloc_pages_slowpath,
+For page fault oom case it is not considered. One use case is
+virtio balloon driver, when memory pressure is high, virtio ballooning
+will cause oom killing due to such as page fault oom.
 
-If true, that would be the problem of vm balloon. It's not good to
-consume lots of memory all of a sudden, which will likely impact lots
-of kernel subsystems.
+Thus add oom_killer_disabled checking in pagefault_out_of_memory.
 
-btw readahead page allocations are completely optional. They are OK to
-fail and in theory shall not trigger OOM on themselves. We may
-consider passing __GFP_NORETRY for readahead page allocations.
+Signed-off-by: Dave Young <hidave.darkstar@gmail.com>
+---
+ mm/oom_kill.c |    3 +++
+ 1 file changed, 3 insertions(+)
 
-Thanks,
-Fengguang
+--- linux-2.6.orig/mm/oom_kill.c	2011-04-26 11:32:21.446452686 +0800
++++ linux-2.6/mm/oom_kill.c	2011-04-26 11:33:05.426452586 +0800
+@@ -747,6 +747,9 @@ out:
+  */
+ void pagefault_out_of_memory(void)
+ {
++	if (oom_killer_disabled)
++		return;
++
+ 	if (try_set_system_oom()) {
+ 		out_of_memory(NULL, 0, 0, NULL);
+ 		clear_system_oom();
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
