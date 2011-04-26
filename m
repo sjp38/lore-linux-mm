@@ -1,17 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 25A9E9000C1
-	for <linux-mm@kvack.org>; Tue, 26 Apr 2011 06:53:43 -0400 (EDT)
-Date: Tue, 26 Apr 2011 20:53:30 +1000
+	by kanga.kvack.org (Postfix) with ESMTP id 361409000C1
+	for <linux-mm@kvack.org>; Tue, 26 Apr 2011 07:15:13 -0400 (EDT)
+Date: Tue, 26 Apr 2011 21:15:00 +1000
 From: NeilBrown <neilb@suse.de>
-Subject: Re: [PATCH 03/13] mm: Introduce __GFP_MEMALLOC to allow access to
- emergency reserves
-Message-ID: <20110426205330.539a2766@notabene.brown>
-In-Reply-To: <20110426103646.GD4658@suse.de>
+Subject: Re: [PATCH 02/13] mm: sl[au]b: Add knowledge of PFMEMALLOC reserve
+ pages
+Message-ID: <20110426211500.02d6a5a6@notabene.brown>
+In-Reply-To: <1303803414-5937-3-git-send-email-mgorman@suse.de>
 References: <1303803414-5937-1-git-send-email-mgorman@suse.de>
-	<1303803414-5937-4-git-send-email-mgorman@suse.de>
-	<20110426194947.764e048a@notabene.brown>
-	<20110426103646.GD4658@suse.de>
+	<1303803414-5937-3-git-send-email-mgorman@suse.de>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -20,41 +18,42 @@ List-ID: <linux-mm.kvack.org>
 To: Mel Gorman <mgorman@suse.de>
 Cc: Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-On Tue, 26 Apr 2011 11:36:46 +0100 Mel Gorman <mgorman@suse.de> wrote:
+On Tue, 26 Apr 2011 08:36:43 +0100 Mel Gorman <mgorman@suse.de> wrote:
 
-> On Tue, Apr 26, 2011 at 07:49:47PM +1000, NeilBrown wrote:
+> +bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
+> +{
+> +	return gfp_to_alloc_flags(gfp_mask) & ALLOC_PFMEMALLOC;
+> +}
+> +
+>  static inline struct page *
+>  __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+>  	struct zonelist *zonelist, enum zone_type high_zoneidx,
+> @@ -2202,8 +2211,16 @@ nopage:
+>  got_pg:
+>  	if (kmemcheck_enabled)
+>  		kmemcheck_pagealloc_alloc(page, order, gfp_mask);
+> -	return page;
+>  
+> +	/*
+> +	 * page->pfmemalloc is set when the caller had PFMEMALLOC set or is
+> +	 * been OOM killed. The expectation is that the caller is taking
+> +	 * steps that will free more memory. The caller should avoid the
+> +	 * page being used for !PFMEMALLOC purposes.
+> +	 */
+> +	page->pfmemalloc = (alloc_flags & ALLOC_PFMEMALLOC);
+> +
+> +	return page;
 
-> > Maybe a
-> >    WARN_ON((gfp_mask & __GFP_MEMALLOC) && (gfp_mask & __GFP_NOMEMALLOC));
-> > might be wise?
-> > 
-> 
-> Both MEMALLOC and NOMEMALLOC are related to PFMEMALLOC reserves so
-> it's reasonable for them to have similar names. This warning will
-> also trigger because it's a combination of flags that does happen.
-> 
-> Consider for example
-> 
-> any interrupt
->   -> __netdev_alloc_skb		(mask == GFP_ATOMIC)
->     -> __alloc_skb		(mask == GFP_ATOMIC)
->        if (sk_memalloc_socks() && (flags & SKB_ALLOC_RX))
->                gfp_mask |= __GFP_MEMALLOC;
-> 				(mask == GFP_ATOMIC|__GFP_NOMEMALLOC)
->       -> __kmalloc_reserve
-> 		First attempt tries to avoid reserves so adds __GFP_MEMALLOC
-> 				(mask == GFP_ATOMIC|__GFP_NOMEMALLOC|__GFP_MEMALLOC)
-> 
+Linus doesn't seem to be a fan of this construct:
+   https://lkml.org/lkml/2011/4/1/255
 
-You have the "NO"s mixed up a bit which confused me for a while :-)
-But I see your point - I guess the WARN_ON isn't really needed.
+pfmemalloc is a bool, and the value on the right is either 0 or 0x1000.
 
+If bool happens to be typedefed to 'char' or even 'short', pfmemalloc would
+always be set to 0.
+Ditto for the gfp_pfmemalloc_allowed function.
 
-> You're right in that __GFP_NOMEMALLOC overrides __GFP_MEMALLOC so that
-> could do with a note.
-> 
-
-Thanks,
+Prefixing with '!!' would make it safe.
 
 NeilBrown
 
