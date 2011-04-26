@@ -1,61 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 703FB9000C1
-	for <linux-mm@kvack.org>; Tue, 26 Apr 2011 05:37:21 -0400 (EDT)
-Date: Tue, 26 Apr 2011 17:37:17 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH] mm: readahead page allocations are OK to fail
-Message-ID: <20110426093717.GA28812@localhost>
-References: <BANLkTin8mE=DLWma=U+CdJaQW03X2M2W1w@mail.gmail.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 0A3699000C1
+	for <linux-mm@kvack.org>; Tue, 26 Apr 2011 05:39:48 -0400 (EDT)
+Received: by wyf19 with SMTP id 19so384396wyf.14
+        for <linux-mm@kvack.org>; Tue, 26 Apr 2011 02:39:47 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <BANLkTin8mE=DLWma=U+CdJaQW03X2M2W1w@mail.gmail.com>
+In-Reply-To: <BANLkTikkUq7rg4umYQ5yt9ve+q34Pf+=Ag@mail.gmail.com>
+References: <20110426085953.GA12389@darkstar>
+	<BANLkTikkUq7rg4umYQ5yt9ve+q34Pf+=Ag@mail.gmail.com>
+Date: Tue, 26 Apr 2011 17:39:47 +0800
+Message-ID: <BANLkTin0wj3AhCtR5ZD=N_LUKjE1etBcFg@mail.gmail.com>
+Subject: Re: [PATCH v2] virtio_balloon: disable oom killer when fill balloon
+From: Dave Young <hidave.darkstar@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Dave Young <hidave.darkstar@gmail.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mel@linux.vnet.ibm.com>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: kvm@vger.kernel.org, linux-kernel@vger.kernel.org, kosaki.motohiro@jp.fujitsu.com, linux-mm <linux-mm@kvack.org>
 
-Pass __GFP_NORETRY|__GFP_NOWARN for readahead page allocations.
+On Tue, Apr 26, 2011 at 5:28 PM, Minchan Kim <minchan.kim@gmail.com> wrote:
+> Please resend this with [2/2] to linux-mm.
+>
+> On Tue, Apr 26, 2011 at 5:59 PM, Dave Young <hidave.darkstar@gmail.com> w=
+rote:
+>> When memory pressure is high, virtio ballooning will probably cause oom =
+killing.
+>> Even if alloc_page with GFP_NORETRY itself does not directly trigger oom=
+ it
+>> will make memory becoming low then memory alloc of other processes will =
+trigger
+>> oom killing. It is not desired behaviour.
+>
+> I can't understand why it is undesirable.
+> Why do we have to handle it specially?
+>
 
-readahead page allocations are completely optional. They are OK to
-fail and in particular shall not trigger OOM on themselves.
+Suppose user run some random memory hogging process while ballooning
+it will be undesirable.
 
-Reported-by: Dave Young <hidave.darkstar@gmail.com>
-Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
-Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
----
- include/linux/pagemap.h |    6 ++++++
- mm/readahead.c          |    2 +-
- 2 files changed, 7 insertions(+), 1 deletion(-)
+>
+>>
+>> Here disable oom killer in fill_balloon to address this issue.
+>> Add code comment as KOSAKI Motohiro's suggestion.
+>>
+>> Signed-off-by: Dave Young <hidave.darkstar@gmail.com>
+>> ---
+>> =C2=A0drivers/virtio/virtio_balloon.c | =C2=A0 =C2=A08 ++++++++
+>> =C2=A01 file changed, 8 insertions(+)
+>>
+>> --- linux-2.6.orig/drivers/virtio/virtio_balloon.c =C2=A0 =C2=A0 =C2=A02=
+011-04-26 11:39:14.053118406 +0800
+>> +++ linux-2.6/drivers/virtio/virtio_balloon.c =C2=A0 2011-04-26 16:54:56=
+.419741542 +0800
+>> @@ -25,6 +25,7 @@
+>> =C2=A0#include <linux/freezer.h>
+>> =C2=A0#include <linux/delay.h>
+>> =C2=A0#include <linux/slab.h>
+>> +#include <linux/oom.h>
+>>
+>> =C2=A0struct virtio_balloon
+>> =C2=A0{
+>> @@ -102,6 +103,12 @@ static void fill_balloon(struct virtio_b
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0/* We can only do one array worth at a time. =
+*/
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0num =3D min(num, ARRAY_SIZE(vb->pfns));
+>>
+>> + =C2=A0 =C2=A0 =C2=A0 /* Disable oom killer for indirect oom due to our=
+ memory consuming
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0* Currently only hibernation code use oom_k=
+iller_disable,
+>
+> Hmm, Please look at current mmotm. Now oom_killer_disabled is used by
+> do_try_to_free_pages in mmotm so it could make unnecessary oom kill.
+>
+> BTW, I can't understand why we need to handle virtio by special.
+> Could you explain it in detail? :)
+>
+>
+>
+> --
+> Kind regards,
+> Minchan Kim
+>
 
---- linux-next.orig/include/linux/pagemap.h	2011-04-26 14:27:46.000000000 +0800
-+++ linux-next/include/linux/pagemap.h	2011-04-26 17:17:13.000000000 +0800
-@@ -219,6 +219,12 @@ static inline struct page *page_cache_al
- 	return __page_cache_alloc(mapping_gfp_mask(x)|__GFP_COLD);
- }
- 
-+static inline struct page *page_cache_alloc_readahead(struct address_space *x)
-+{
-+	return __page_cache_alloc(mapping_gfp_mask(x) |
-+				  __GFP_COLD | __GFP_NORETRY | __GFP_NOWARN);
-+}
-+
- typedef int filler_t(void *, struct page *);
- 
- extern struct page * find_get_page(struct address_space *mapping,
---- linux-next.orig/mm/readahead.c	2011-04-26 14:27:02.000000000 +0800
-+++ linux-next/mm/readahead.c	2011-04-26 17:17:25.000000000 +0800
-@@ -180,7 +180,7 @@ __do_page_cache_readahead(struct address
- 		if (page)
- 			continue;
- 
--		page = page_cache_alloc_cold(mapping);
-+		page = page_cache_alloc_readahead(mapping);
- 		if (!page)
- 			break;
- 		page->index = page_offset;
+
+
+--=20
+Regards
+dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
