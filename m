@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id ADD779000C1
-	for <linux-mm@kvack.org>; Tue, 26 Apr 2011 12:26:12 -0400 (EDT)
-Received: by mail-iw0-f169.google.com with SMTP id 8so955640iwg.14
-        for <linux-mm@kvack.org>; Tue, 26 Apr 2011 09:26:09 -0700 (PDT)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id B685A900110
+	for <linux-mm@kvack.org>; Tue, 26 Apr 2011 12:26:15 -0400 (EDT)
+Received: by mail-iy0-f169.google.com with SMTP id 42so951630iyh.14
+        for <linux-mm@kvack.org>; Tue, 26 Apr 2011 09:26:14 -0700 (PDT)
 From: Minchan Kim <minchan.kim@gmail.com>
-Subject: [RFC 6/8] In order putback lru core
-Date: Wed, 27 Apr 2011 01:25:23 +0900
-Message-Id: <51e7412097fa62f86656c77c1934e3eb96d5eef6.1303833417.git.minchan.kim@gmail.com>
+Subject: [RFC 7/8] migration: make in-order-putback aware
+Date: Wed, 27 Apr 2011 01:25:24 +0900
+Message-Id: <1f162d17040ab50ffea1ef53d4cd16348d3e7c2d.1303833418.git.minchan.kim@gmail.com>
 In-Reply-To: <cover.1303833415.git.minchan.kim@gmail.com>
 References: <cover.1303833415.git.minchan.kim@gmail.com>
 In-Reply-To: <cover.1303833415.git.minchan.kim@gmail.com>
@@ -17,42 +17,9 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux.com>, Johannes Weiner <jweiner@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>
 
-This patch defines new APIs to putback the page into previous position of LRU.
-The idea is simple.
-
-When we try to putback the page into lru list and if friends(prev, next) of the pages
-still is nearest neighbor, we can insert isolated page into prev's next instead of
-head of LRU list. So it keeps LRU history without losing the LRU information.
-
-Before :
-	LRU POV : H - P1 - P2 - P3 - P4 -T
-
-Isolate P3 :
-	LRU POV : H - P1 - P2 - P4 - T
-
-Putback P3 :
-	if (P2->next == P4)
-		putback(P3, P2);
-	So,
-	LRU POV : H - P1 - P2 - P3 - P4 -T
-
-For implement, we defines new structure pages_lru which remebers
-both lru friend pages of isolated one and handling functions.
-
-But this approach has a problem on contiguous pages.
-In this case, my idea can not work since friend pages are isolated, too.
-It means prev_page->next == next_page always is false and both pages are not
-LRU any more at that time. It's pointed out by Rik at LSF/MM summit.
-So for solving the problem, I can change the idea.
-I think we don't need both friend(prev, next) pages relation but
-just consider either prev or next page that it is still same LRU.
-Worset case in this approach, prev or next page is free and allocate new
-so it's in head of LRU and our isolated page is located on next of head.
-But it's almost same situation with current problem. So it doesn't make worse
-than now and it would be rare. But in this version, I implement based on idea
-discussed at LSF/MM. If my new idea makes sense, I will change it.
-
-Any comment?
+This patch makes migrate_pages is aware of in-order putback
+This patch should be not changed old behavior.
+It's used by next patch.
 
 Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Cc: Mel Gorman <mgorman@suse.de>
@@ -60,301 +27,244 @@ Cc: Rik van Riel <riel@redhat.com>
 Cc: Andrea Arcangeli <aarcange@redhat.com>
 Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
 ---
- include/linux/migrate.h  |    2 +
- include/linux/mm_types.h |    7 ++++
- include/linux/swap.h     |    4 ++-
- mm/compaction.c          |    3 +-
- mm/internal.h            |    2 +
- mm/memcontrol.c          |    2 +-
- mm/migrate.c             |   36 +++++++++++++++++++++
- mm/swap.c                |    2 +-
- mm/vmscan.c              |   79 +++++++++++++++++++++++++++++++++++++++++++--
- 9 files changed, 129 insertions(+), 8 deletions(-)
+ include/linux/migrate.h |    4 +-
+ mm/compaction.c         |    2 +-
+ mm/memory-failure.c     |    2 +-
+ mm/memory_hotplug.c     |    2 +-
+ mm/mempolicy.c          |    4 +-
+ mm/migrate.c            |   95 +++++++++++++++++++++++++++++++++++------------
+ 6 files changed, 78 insertions(+), 31 deletions(-)
 
 diff --git a/include/linux/migrate.h b/include/linux/migrate.h
-index e39aeec..3aa5ab6 100644
+index 3aa5ab6..f842fc8 100644
 --- a/include/linux/migrate.h
 +++ b/include/linux/migrate.h
-@@ -9,6 +9,7 @@ typedef struct page *new_page_t(struct page *, unsigned long private, int **);
- #ifdef CONFIG_MIGRATION
- #define PAGE_MIGRATION 1
- 
-+extern void putback_pages_lru(struct list_head *l);
- extern void putback_lru_pages(struct list_head *l);
- extern int migrate_page(struct address_space *,
+@@ -15,7 +15,7 @@ extern int migrate_page(struct address_space *,
  			struct page *, struct page *);
-@@ -33,6 +34,7 @@ extern int migrate_huge_page_move_mapping(struct address_space *mapping,
- #else
- #define PAGE_MIGRATION 0
- 
-+static inline void putback_pages_lru(struct list_head *l) {}
+ extern int migrate_pages(struct list_head *l, new_page_t x,
+ 			unsigned long private, bool offlining,
+-			bool sync);
++			bool sync, bool keep_lru);
+ extern int migrate_huge_pages(struct list_head *l, new_page_t x,
+ 			unsigned long private, bool offlining,
+ 			bool sync);
+@@ -38,7 +38,7 @@ static inline void putback_pages_lru(struct list_head *l) {}
  static inline void putback_lru_pages(struct list_head *l) {}
  static inline int migrate_pages(struct list_head *l, new_page_t x,
  		unsigned long private, bool offlining,
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index ca01ab2..35e80fb 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -102,6 +102,13 @@ struct page {
- #endif
- };
- 
-+/* This structure is used for keeping LRU ordering of isolated page */
-+struct pages_lru {
-+        struct page *page;      /* isolated page */
-+        struct page *prev_page; /* previous page of isolate page as LRU order */
-+        struct page *next_page; /* next page of isolate page as LRU order */
-+        struct list_head lru;
-+};
- /*
-  * A region containing a mapping of a non-memory backed file under NOMMU
-  * conditions.  These are held in a global tree and are pinned by the VMAs that
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index baef4ad..4ad0a0c 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -227,6 +227,8 @@ extern void rotate_reclaimable_page(struct page *page);
- extern void deactivate_page(struct page *page);
- extern void swap_setup(void);
- 
-+extern void update_page_reclaim_stat(struct zone *zone, struct page *page,
-+                                    int file, int rotated);
- extern void add_page_to_unevictable_list(struct page *page);
- 
- /**
-@@ -260,7 +262,7 @@ extern unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *mem,
- 						struct zone *zone,
- 						unsigned long *nr_scanned);
- extern int __isolate_lru_page(struct page *page, int mode, int file,
--				int not_dirty, int not_mapped);
-+		int not_dirty, int not_mapped, struct pages_lru *pages_lru);
- extern unsigned long shrink_all_memory(unsigned long nr_pages);
- extern int vm_swappiness;
- extern int remove_mapping(struct address_space *mapping, struct page *page);
+-		bool sync) { return -ENOSYS; }
++		bool sync, bool keep_lru) { return -ENOSYS; }
+ static inline int migrate_huge_pages(struct list_head *l, new_page_t x,
+ 		unsigned long private, bool offlining,
+ 		bool sync) { return -ENOSYS; }
 diff --git a/mm/compaction.c b/mm/compaction.c
-index 653b02b..c453000 100644
+index c453000..a2f6e96 100644
 --- a/mm/compaction.c
 +++ b/mm/compaction.c
-@@ -335,7 +335,8 @@ static unsigned long isolate_migratepages(struct zone *zone,
+@@ -529,7 +529,7 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
+ 		nr_migrate = cc->nr_migratepages;
+ 		err = migrate_pages(&cc->migratepages, compaction_alloc,
+ 				(unsigned long)cc, false,
+-				cc->sync);
++				cc->sync, false);
+ 		update_nr_listpages(cc);
+ 		nr_remaining = cc->nr_migratepages;
+ 
+diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+index 2b9a5ee..395a99e 100644
+--- a/mm/memory-failure.c
++++ b/mm/memory-failure.c
+@@ -1466,7 +1466,7 @@ int soft_offline_page(struct page *page, int flags)
+ 
+ 		list_add(&page->lru, &pagelist);
+ 		ret = migrate_pages(&pagelist, new_page, MPOL_MF_MOVE_ALL,
+-								0, true);
++								0, true, false);
+ 		if (ret) {
+ 			putback_lru_pages(&pagelist);
+ 			pr_info("soft offline: %#lx: migration failed %d, type %lx\n",
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 59ac18f..75dd241 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -741,7 +741,7 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
  		}
+ 		/* this function returns # of failed pages */
+ 		ret = migrate_pages(&source, hotremove_migrate_alloc, 0,
+-								true, true);
++								true, true, false);
+ 		if (ret)
+ 			putback_lru_pages(&source);
+ 	}
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index 8e57a72..9fe702a 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -938,7 +938,7 @@ static int migrate_to_node(struct mm_struct *mm, int source, int dest,
  
- 		/* Try isolate the page */
--		if (__isolate_lru_page(page, ISOLATE_BOTH, 0, !cc->sync, 0) != 0)
-+		if (__isolate_lru_page(page, ISOLATE_BOTH, 0,
-+					!cc->sync, 0, NULL) != 0)
- 			continue;
- 
- 		VM_BUG_ON(PageTransCompound(page));
-diff --git a/mm/internal.h b/mm/internal.h
-index d071d38..3c8182c 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -43,6 +43,8 @@ extern unsigned long highest_memmap_pfn;
-  * in mm/vmscan.c:
-  */
- extern int isolate_lru_page(struct page *page);
-+extern bool keep_lru_order(struct pages_lru *pages_lru);
-+extern void putback_page_to_lru(struct page *page, struct list_head *head);
- extern void putback_lru_page(struct page *page);
- 
- /*
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 471e7fd..92a9046 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1193,7 +1193,7 @@ unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
- 			continue;
- 
- 		scan++;
--		ret = __isolate_lru_page(page, mode, file, 0, 0);
-+		ret = __isolate_lru_page(page, mode, file, 0, 0, NULL);
- 		switch (ret) {
- 		case 0:
- 			list_move(&page->lru, dst);
+ 	if (!list_empty(&pagelist)) {
+ 		err = migrate_pages(&pagelist, new_node_page, dest,
+-								false, true);
++						false, true, false);
+ 		if (err)
+ 			putback_lru_pages(&pagelist);
+ 	}
+@@ -1159,7 +1159,7 @@ static long do_mbind(unsigned long start, unsigned long len,
+ 		if (!list_empty(&pagelist)) {
+ 			nr_failed = migrate_pages(&pagelist, new_vma_page,
+ 						(unsigned long)vma,
+-						false, true);
++						false, true, false);
+ 			if (nr_failed)
+ 				putback_lru_pages(&pagelist);
+ 		}
 diff --git a/mm/migrate.c b/mm/migrate.c
-index 819d233..9cfb63b 100644
+index 9cfb63b..871e6ee 100644
 --- a/mm/migrate.c
 +++ b/mm/migrate.c
-@@ -85,6 +85,42 @@ void putback_lru_pages(struct list_head *l)
- }
- 
- /*
-+ * This function is almost same iwth putback_lru_pages.
-+ * The difference is that function receives struct pages_lru list
-+ * and if possible, we add pages into original position of LRU
-+ * instead of LRU's head.
-+ */
-+void putback_pages_lru(struct list_head *l)
-+{
-+        struct pages_lru *isolated_page;
-+        struct pages_lru *isolated_page2;
-+        struct page *page;
-+
-+        list_for_each_entry_safe(isolated_page, isolated_page2, l, lru) {
-+                struct zone *zone;
-+                page = isolated_page->page;
-+                list_del(&isolated_page->lru);
-+
-+                dec_zone_page_state(page, NR_ISOLATED_ANON +
-+                                page_is_file_cache(page));
-+
-+                zone = page_zone(page);
-+                spin_lock_irq(&zone->lru_lock);
-+                if (keep_lru_order(isolated_page)) {
-+                        putback_page_to_lru(page, &isolated_page->prev_page->lru);
-+                        spin_unlock_irq(&zone->lru_lock);
-+                }
-+                else {
-+                        spin_unlock_irq(&zone->lru_lock);
-+                        putback_lru_page(page);
-+                }
-+
-+                kfree(isolated_page);
-+        }
-+}
-+
-+
-+/*
-  * Restore a potential migration pte to a working pte entry
+@@ -662,7 +662,8 @@ static int move_to_new_page(struct page *newpage, struct page *page,
+  * to the newly allocated page in newpage.
   */
- static int remove_migration_pte(struct page *new, struct vm_area_struct *vma,
-diff --git a/mm/swap.c b/mm/swap.c
-index a83ec5a..0cb15b7 100644
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -252,7 +252,7 @@ void rotate_reclaimable_page(struct page *page)
- 	}
- }
- 
--static void update_page_reclaim_stat(struct zone *zone, struct page *page,
-+void update_page_reclaim_stat(struct zone *zone, struct page *page,
- 				     int file, int rotated)
+ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
+-			struct page *page, int force, bool offlining, bool sync)
++			struct page *page, int force, bool offlining,
++			bool sync, struct pages_lru *pages_lru)
  {
- 	struct zone_reclaim_stat *reclaim_stat = &zone->reclaim_stat;
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 5196f0c..06a7c9b 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -550,6 +550,58 @@ int remove_mapping(struct address_space *mapping, struct page *page)
- 	return 0;
- }
+ 	int rc = 0;
+ 	int *result = NULL;
+@@ -671,6 +672,7 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
+ 	int charge = 0;
+ 	struct mem_cgroup *mem;
+ 	struct anon_vma *anon_vma = NULL;
++	bool del_pages_lru = false;
  
-+/* zone->lru_lock must be hold */
-+bool keep_lru_order(struct pages_lru *pages_lru)
-+{
-+        bool ret = false;
-+        struct page *prev, *next;
+ 	if (!newpage)
+ 		return -ENOMEM;
+@@ -834,7 +836,13 @@ move_newpage:
+  		 * migrated will have kepts its references and be
+  		 * restored.
+  		 */
+- 		list_del(&page->lru);
++		if (pages_lru) {
++			list_del(&pages_lru->lru);
++			del_pages_lru = true;
++		}
++		else
++			list_del(&page->lru);
 +
-+        if (!pages_lru->prev_page)
-+                return ret;
-+
-+        prev = pages_lru->prev_page;
-+        next = pages_lru->next_page;
-+
-+        if (!PageLRU(prev) || !PageLRU(next))
-+                return ret;
-+
-+        if (prev->lru.next == &next->lru)
-+                ret = true;
-+
-+	if (unlikely(PageUnevictable(prev)))
-+		ret = false;
-+
-+        return ret;
-+}
-+
-+/**
-+ * putback_page_to_lru - put isolated @page onto @head
-+ * @page: page to be put back to appropriate lru list
-+ * @head: lru position to be put back
-+ *
-+ * Insert previously isolated @page to appropriate position of lru list
-+ * zone->lru_lock must be hold.
-+ */
-+void putback_page_to_lru(struct page *page, struct list_head *head)
-+{
-+        int lru, active, file;
-+        struct zone *zone = page_zone(page);
-+        struct page *prev_page = container_of(head, struct page, lru);
-+
-+        lru = page_lru(prev_page);
-+        active = is_active_lru(lru);
-+        file = is_file_lru(lru);
-+
-+        if (active)
-+                SetPageActive(page);
-+	else
-+		ClearPageActive(page);
-+
-+        update_page_reclaim_stat(zone, page, file, active);
-+        SetPageLRU(page);
-+        __add_page_to_lru_list(zone, page, lru, head);
-+}
-+
- /**
-  * putback_lru_page - put previously isolated page onto appropriate LRU list's head
-  * @page: page to be put back to appropriate lru list
-@@ -959,8 +1011,8 @@ keep_lumpy:
-  * not_mapped:	page should be not mapped
-  * returns 0 on success, -ve errno on failure.
-  */
--int __isolate_lru_page(struct page *page, int mode, int file,
--				int not_dirty, int not_mapped)
-+int __isolate_lru_page(struct page *page, int mode, int file, int not_dirty,
-+				int not_mapped, struct pages_lru *pages_lru)
- {
- 	int ret = -EINVAL;
- 
-@@ -996,12 +1048,31 @@ int __isolate_lru_page(struct page *page, int mode, int file,
- 	ret = -EBUSY;
- 
- 	if (likely(get_page_unless_zero(page))) {
+ 		dec_zone_page_state(page, NR_ISOLATED_ANON +
+ 				page_is_file_cache(page));
+ 		putback_lru_page(page);
+@@ -844,7 +852,21 @@ move_newpage:
+ 	 * Move the new page to the LRU. If migration was not successful
+ 	 * then this will free the page.
+ 	 */
+-	putback_lru_page(newpage);
++	if (pages_lru) {
 +		struct zone *zone = page_zone(page);
-+		enum lru_list l = page_lru(page);
- 		/*
- 		 * Be careful not to clear PageLRU until after we're
- 		 * sure the page is not being freed elsewhere -- the
- 		 * page release code relies on it.
- 		 */
- 		ClearPageLRU(page);
-+
-+		if (!pages_lru)
-+			goto skip;
-+
-+		pages_lru->page = page;
-+		if (&zone->lru[l].list == pages_lru->lru.prev ||
-+			&zone->lru[l].list == pages_lru->lru.next) {
-+			pages_lru->prev_page = NULL;
-+			pages_lru->next_page = NULL;
-+			goto skip;
++		spin_lock_irq(&zone->lru_lock);
++		if (keep_lru_order(pages_lru)) {
++			putback_page_to_lru(newpage, &pages_lru->prev_page->lru);
++			spin_unlock_irq(&zone->lru_lock);
++		}
++		else {
++			spin_unlock_irq(&zone->lru_lock);
++			putback_lru_page(newpage);
 +		}
 +
-+		pages_lru->prev_page =
-+			list_entry(page->lru.prev, struct page, lru);
-+		pages_lru->next_page =
-+			list_entry(page->lru.next, struct page, lru);
-+skip:
- 		ret = 0;
++		if (del_pages_lru)
++			kfree(pages_lru);
++	}
+ 
+ 	if (result) {
+ 		if (rc)
+@@ -947,13 +969,13 @@ out:
+  */
+ int migrate_pages(struct list_head *from,
+ 		new_page_t get_new_page, unsigned long private, bool offlining,
+-		bool sync)
++		bool sync, bool keep_lru)
+ {
+ 	int retry = 1;
+ 	int nr_failed = 0;
+ 	int pass = 0;
+-	struct page *page;
+-	struct page *page2;
++	struct page *page, *page2;
++	struct pages_lru *pages_lru, *pages_lru2;
+ 	int swapwrite = current->flags & PF_SWAPWRITE;
+ 	int rc;
+ 
+@@ -962,26 +984,51 @@ int migrate_pages(struct list_head *from,
+ 
+ 	for(pass = 0; pass < 10 && retry; pass++) {
+ 		retry = 0;
++		if (!keep_lru) {
++			list_for_each_entry_safe(page, page2, from, lru) {
++				cond_resched();
+ 
+-		list_for_each_entry_safe(page, page2, from, lru) {
+-			cond_resched();
+-
+-			rc = unmap_and_move(get_new_page, private,
++				rc = unmap_and_move(get_new_page, private,
+ 						page, pass > 2, offlining,
+-						sync);
+-
+-			switch(rc) {
+-			case -ENOMEM:
+-				goto out;
+-			case -EAGAIN:
+-				retry++;
+-				break;
+-			case 0:
+-				break;
+-			default:
+-				/* Permanent failure */
+-				nr_failed++;
+-				break;
++						sync, NULL);
++
++				switch(rc) {
++					case -ENOMEM:
++						goto out;
++					case -EAGAIN:
++						retry++;
++						break;
++					case 0:
++						break;
++					default:
++						/* Permanent failure */
++						nr_failed++;
++						break;
++				}
++			}
++		}
++		else {
++
++			list_for_each_entry_safe(pages_lru, pages_lru2, from, lru) {
++				cond_resched();
++
++				rc = unmap_and_move(get_new_page, private,
++						pages_lru->page, pass > 2, offlining,
++						sync, pages_lru);
++
++				switch(rc) {
++					case -ENOMEM:
++						goto out;
++					case -EAGAIN:
++						retry++;
++						break;
++					case 0:
++						break;
++					default:
++						/* Permanent failure */
++						nr_failed++;
++						break;
++				}
+ 			}
+ 		}
  	}
- 
-@@ -1054,7 +1125,7 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
- 		VM_BUG_ON(!PageLRU(page));
- 
- 		switch (__isolate_lru_page(page, mode, file,
--					not_dirty, not_mapped)) {
-+					not_dirty, not_mapped, NULL)) {
- 		case 0:
- 			list_move(&page->lru, dst);
- 			mem_cgroup_del_lru(page);
-@@ -1114,7 +1185,7 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
- 				break;
- 
- 			if (__isolate_lru_page(cursor_page, mode, file,
--					not_dirty, not_mapped) == 0) {
-+					not_dirty, not_mapped, NULL) == 0) {
- 				list_move(&cursor_page->lru, dst);
- 				mem_cgroup_del_lru(cursor_page);
- 				nr_taken += hpage_nr_pages(page);
 -- 
 1.7.1
 
