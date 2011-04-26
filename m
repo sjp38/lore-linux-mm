@@ -1,30 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 39BDC900001
-	for <linux-mm@kvack.org>; Tue, 26 Apr 2011 01:49:28 -0400 (EDT)
-Received: by wwi18 with SMTP id 18so1961732wwi.2
-        for <linux-mm@kvack.org>; Mon, 25 Apr 2011 22:49:25 -0700 (PDT)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 834D1900001
+	for <linux-mm@kvack.org>; Tue, 26 Apr 2011 01:51:10 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id A451A3EE0BC
+	for <linux-mm@kvack.org>; Tue, 26 Apr 2011 14:51:07 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 89FCF45DE92
+	for <linux-mm@kvack.org>; Tue, 26 Apr 2011 14:51:07 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 71B8545DE91
+	for <linux-mm@kvack.org>; Tue, 26 Apr 2011 14:51:07 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 65C1B1DB8038
+	for <linux-mm@kvack.org>; Tue, 26 Apr 2011 14:51:07 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 313C01DB8037
+	for <linux-mm@kvack.org>; Tue, 26 Apr 2011 14:51:07 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 2/2] use oom_killer_disabled in page fault oom path
+In-Reply-To: <20110426053150.GA11949@darkstar>
+References: <20110426053150.GA11949@darkstar>
+Message-Id: <20110426145320.F387.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Date: Tue, 26 Apr 2011 13:49:25 +0800
-Message-ID: <BANLkTin8mE=DLWma=U+CdJaQW03X2M2W1w@mail.gmail.com>
-Subject: readahead and oom
-From: Dave Young <hidave.darkstar@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Tue, 26 Apr 2011 14:51:06 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Wu Fengguang <fengguang.wu@intel.com>
+To: Dave Young <hidave.darkstar@gmail.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com
 
-Hi,
+> Currently oom_killer_disabled is only used in __alloc_pages_slowpath,
+> For page fault oom case it is not considered. One use case is
+> virtio balloon driver, when memory pressure is high, virtio ballooning
+> will cause oom killing due to such as page fault oom.
+> 
+> Thus add oom_killer_disabled checking in pagefault_out_of_memory.
+> 
+> Signed-off-by: Dave Young <hidave.darkstar@gmail.com>
 
-When memory pressure is high, readahead could cause oom killing.
-IMHO we should stop readaheading under such circumstances=E3=80=82If it's t=
-rue
-how to fix it?
+Thank you.
+	Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
---=20
-Regards
-dave
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
