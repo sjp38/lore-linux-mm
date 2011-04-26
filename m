@@ -1,33 +1,59 @@
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: mmotm 2011-03-31-14-48 uploaded
-Date: Tue,  5 Apr 2011 14:23:44 +0900 (JST)
-Message-ID: <20110405142357.432E.A69D9226@jp.fujitsu.com>
-References: <20110403181147.AE42.A69D9226@jp.fujitsu.com> <1301949991.2221.5.camel@twins>
-Mime-Version: 1.0
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 8bit
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: [PATCH 3/3] readahead: trigger mmap sequential readahead on PG_readahead
+Date: Tue, 26 Apr 2011 17:43:55 +0800
+Message-ID: <20110426094859.591091128__28847.7085800425$1303811483$gmane$org@intel.com>
+References: <20110426094352.030753173@intel.com>
 Return-path: <linux-kernel-owner@vger.kernel.org>
-In-Reply-To: <1301949991.2221.5.camel@twins>
+Content-Disposition: inline; filename=readahead-no-mmap-prev_pos.patch
 Sender: linux-kernel-owner@vger.kernel.org
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: kosaki.motohiro@jp.fujitsu.com, akpm@linux-foundation.org, mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Ingo Molnar <mingo@elte.hu>
+To: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>
+Cc: Tim Chen <tim.c.chen@intel.com>, Wu Fengguang <fengguang.wu@intel.com>, Li Shaohua <shaohua.li@intel.com>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-Id: linux-mm.kvack.org
 
-> On Sun, 2011-04-03 at 18:11 +0900, KOSAKI Motohiro wrote:
-> > Ingo, Perter, Is this known issue?
-> > 
-> > 
-> > =======================================================================
-> > [    0.169037] divide error: 0000 [#1] SMP
-> > [    0.169982] last sysfs file:
-> > [    0.169982] CPU 0
-> > [    0.169982] Modules linked in:
-> > [    0.169982]
-> > [    0.169982] Pid: 1, comm: swapper Not tainted 2.6.39-rc1-mm1+ #2 FUJITSU-SV      PRIMERGY                      /D2559-A1
-> > [    0.169982] RIP: 0010:[<ffffffff8104ad4c>]  [<ffffffff8104ad4c>] find_busiest_group+0x38c/0xd30 
-> 
-> Not something I've recently seen, so no.
+Previously the mmap sequential readahead is triggered by updating
+ra->prev_pos on each page fault and compare it with current page offset.
 
-OK, I'll digg it later.
+In the mosbench exim benchmark which does multi-threaded page faults on
+shared struct file, this is found to cause excessive cache line bouncing
+on tmpfs, which does not need readahead at all.
 
-Thanks.
+So remove the ra->prev_pos recording, and instead tag PG_readahead to
+trigger the possible sequential readahead. It's not only more simple,
+but also will work more reliably on concurrent reads on shared struct file.
+
+Tested-by: Tim Chen <tim.c.chen@intel.com>
+Reported-by: Andi Kleen <ak@linux.intel.com>
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+---
+ mm/filemap.c |    6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)
+
+--- linux-next.orig/mm/filemap.c	2011-04-23 16:52:21.000000000 +0800
++++ linux-next/mm/filemap.c	2011-04-24 09:59:08.000000000 +0800
+@@ -1531,8 +1531,7 @@ static void do_sync_mmap_readahead(struc
+ 	if (!ra->ra_pages)
+ 		return;
+ 
+-	if (VM_SequentialReadHint(vma) ||
+-			offset - 1 == (ra->prev_pos >> PAGE_CACHE_SHIFT)) {
++	if (VM_SequentialReadHint(vma)) {
+ 		page_cache_sync_readahead(mapping, ra, file, offset,
+ 					  ra->ra_pages);
+ 		return;
+@@ -1555,7 +1554,7 @@ static void do_sync_mmap_readahead(struc
+ 	ra_pages = max_sane_readahead(ra->ra_pages);
+ 	ra->start = max_t(long, 0, offset - ra_pages / 2);
+ 	ra->size = ra_pages;
+-	ra->async_size = 0;
++	ra->async_size = ra_pages / 4;
+ 	ra_submit(ra, mapping, file);
+ }
+ 
+@@ -1661,7 +1660,6 @@ retry_find:
+ 		return VM_FAULT_SIGBUS;
+ 	}
+ 
+-	ra->prev_pos = (loff_t)offset << PAGE_CACHE_SHIFT;
+ 	vmf->page = page;
+ 	return ret | VM_FAULT_LOCKED;
+ 
