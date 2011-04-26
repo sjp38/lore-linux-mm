@@ -1,118 +1,259 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 771B09000C1
-	for <linux-mm@kvack.org>; Tue, 26 Apr 2011 05:49:07 -0400 (EDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E33C9000C1
+	for <linux-mm@kvack.org>; Tue, 26 Apr 2011 05:49:10 -0400 (EDT)
 From: Jiri Slaby <jslaby@suse.cz>
-Subject: [PATCH 2/2] coredump: add support for exe_file in core name
-Date: Tue, 26 Apr 2011 11:48:25 +0200
-Message-Id: <1303811305-1191-2-git-send-email-jslaby@suse.cz>
-In-Reply-To: <1303811305-1191-1-git-send-email-jslaby@suse.cz>
-References: <1303811305-1191-1-git-send-email-jslaby@suse.cz>
+Subject: [PATCH 1/2] MM: extract exe_file handling from procfs
+Date: Tue, 26 Apr 2011 11:48:24 +0200
+Message-Id: <1303811305-1191-1-git-send-email-jslaby@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, jirislaby@gmail.com, Al Viro <viro@zeniv.linux.org.uk>
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, jirislaby@gmail.com, Alexander Viro <viro@zeniv.linux.org.uk>
 
-Now, exe_file is not proc FS dependent, so we can use it to name core
-file. So we add %E pattern for core file name cration which extract
-path from mm_struct->exe_file. Then it converts slashes to exclamation
-marks and pastes the result to the core file name itself.
+Setup and cleanup of mm_struct->exe_file is currently done in
+fs/proc/. This was because exe_file was needed only for
+/proc/<pid>/exe. Since we will need the exe_file functionality also
+for core dumps (so core name can contain full binary path), built this
+functionality always into the kernel.
 
-This is useful for environments where binary names are longer than 16
-character (the current->comm limitation). Also where there are
-binaries with same name but in a different path. Further in case the
-binery itself changes its current->comm after exec.
-
-So by doing (s/$/#/ -- # is treated as git comment):
-$ sysctl kernel.core_pattern='core.%p.%e.%E'
-$ ln /bin/cat cat45678901234567890
-$ ./cat45678901234567890
-^Z
-$ rm cat45678901234567890
-$ fg
-^\Quit (core dumped)
-$ ls core*
-
-we now get:
-core.2434.cat456789012345.!root!cat45678901234567890 (deleted)
+To achieve that move that out of proc FS to the kernel/ where in fact
+it should belong. By doing that we can make dup_mm_exe_file static.
+Also we can drop linux/proc_fs.h inclusion in fs/exec.c and
+kernel/fork.c.
 
 Signed-off-by: Jiri Slaby <jslaby@suse.cz>
-Cc: Al Viro <viro@zeniv.linux.org.uk>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>
 ---
- Documentation/sysctl/kernel.txt |    3 ++-
- fs/exec.c                       |   38 ++++++++++++++++++++++++++++++++++++++
- 2 files changed, 40 insertions(+), 1 deletions(-)
+ fs/exec.c                |    1 -
+ fs/proc/base.c           |   51 ---------------------------------------------
+ include/linux/mm.h       |   10 +-------
+ include/linux/mm_types.h |    2 -
+ include/linux/proc_fs.h  |   19 ----------------
+ kernel/fork.c            |   52 +++++++++++++++++++++++++++++++++++++++++++++-
+ 6 files changed, 53 insertions(+), 82 deletions(-)
 
-diff --git a/Documentation/sysctl/kernel.txt b/Documentation/sysctl/kernel.txt
-index 36f0075..5e7cb39 100644
---- a/Documentation/sysctl/kernel.txt
-+++ b/Documentation/sysctl/kernel.txt
-@@ -161,7 +161,8 @@ core_pattern is used to specify a core dumpfile pattern name.
- 	%s	signal number
- 	%t	UNIX time of dump
- 	%h	hostname
--	%e	executable filename
-+	%e	executable filename (may be shortened)
-+	%E	executable path
- 	%<OTHER> both are dropped
- . If the first character of the pattern is a '|', the kernel will treat
-   the rest of the pattern as a command to run.  The core dump will be
 diff --git a/fs/exec.c b/fs/exec.c
-index 5d27d5c..27ed2a2 100644
+index 451c7e5..5d27d5c 100644
 --- a/fs/exec.c
 +++ b/fs/exec.c
-@@ -1547,6 +1547,41 @@ expand_fail:
- 	return ret;
+@@ -42,7 +42,6 @@
+ #include <linux/pid_namespace.h>
+ #include <linux/module.h>
+ #include <linux/namei.h>
+-#include <linux/proc_fs.h>
+ #include <linux/mount.h>
+ #include <linux/security.h>
+ #include <linux/syscalls.h>
+diff --git a/fs/proc/base.c b/fs/proc/base.c
+index 4deef2e..bb308a1 100644
+--- a/fs/proc/base.c
++++ b/fs/proc/base.c
+@@ -1576,57 +1576,6 @@ static const struct file_operations proc_pid_set_comm_operations = {
+ 	.release	= single_release,
+ };
+ 
+-/*
+- * We added or removed a vma mapping the executable. The vmas are only mapped
+- * during exec and are not mapped with the mmap system call.
+- * Callers must hold down_write() on the mm's mmap_sem for these
+- */
+-void added_exe_file_vma(struct mm_struct *mm)
+-{
+-	mm->num_exe_file_vmas++;
+-}
+-
+-void removed_exe_file_vma(struct mm_struct *mm)
+-{
+-	mm->num_exe_file_vmas--;
+-	if ((mm->num_exe_file_vmas == 0) && mm->exe_file){
+-		fput(mm->exe_file);
+-		mm->exe_file = NULL;
+-	}
+-
+-}
+-
+-void set_mm_exe_file(struct mm_struct *mm, struct file *new_exe_file)
+-{
+-	if (new_exe_file)
+-		get_file(new_exe_file);
+-	if (mm->exe_file)
+-		fput(mm->exe_file);
+-	mm->exe_file = new_exe_file;
+-	mm->num_exe_file_vmas = 0;
+-}
+-
+-struct file *get_mm_exe_file(struct mm_struct *mm)
+-{
+-	struct file *exe_file;
+-
+-	/* We need mmap_sem to protect against races with removal of
+-	 * VM_EXECUTABLE vmas */
+-	down_read(&mm->mmap_sem);
+-	exe_file = mm->exe_file;
+-	if (exe_file)
+-		get_file(exe_file);
+-	up_read(&mm->mmap_sem);
+-	return exe_file;
+-}
+-
+-void dup_mm_exe_file(struct mm_struct *oldmm, struct mm_struct *newmm)
+-{
+-	/* It's safe to write the exe_file pointer without exe_file_lock because
+-	 * this is called during fork when the task is not yet in /proc */
+-	newmm->exe_file = get_mm_exe_file(oldmm);
+-}
+-
+ static int proc_exe_link(struct inode *inode, struct path *exe_path)
+ {
+ 	struct task_struct *task;
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index dd87a78..f65877d 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1414,17 +1414,11 @@ extern void exit_mmap(struct mm_struct *);
+ extern int mm_take_all_locks(struct mm_struct *mm);
+ extern void mm_drop_all_locks(struct mm_struct *mm);
+ 
+-#ifdef CONFIG_PROC_FS
+ /* From fs/proc/base.c. callers must _not_ hold the mm's exe_file_lock */
+ extern void added_exe_file_vma(struct mm_struct *mm);
+ extern void removed_exe_file_vma(struct mm_struct *mm);
+-#else
+-static inline void added_exe_file_vma(struct mm_struct *mm)
+-{}
+-
+-static inline void removed_exe_file_vma(struct mm_struct *mm)
+-{}
+-#endif /* CONFIG_PROC_FS */
++extern void set_mm_exe_file(struct mm_struct *mm, struct file *new_exe_file);
++extern struct file *get_mm_exe_file(struct mm_struct *mm);
+ 
+ extern int may_expand_vm(struct mm_struct *mm, unsigned long npages);
+ extern int install_special_mapping(struct mm_struct *mm,
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index ca01ab2..fb0f614 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -307,11 +307,9 @@ struct mm_struct {
+ 	struct task_struct __rcu *owner;
+ #endif
+ 
+-#ifdef CONFIG_PROC_FS
+ 	/* store ref to file /proc/<pid>/exe symlink points to */
+ 	struct file *exe_file;
+ 	unsigned long num_exe_file_vmas;
+-#endif
+ #ifdef CONFIG_MMU_NOTIFIER
+ 	struct mmu_notifier_mm *mmu_notifier_mm;
+ #endif
+diff --git a/include/linux/proc_fs.h b/include/linux/proc_fs.h
+index 838c114..2fdbd61 100644
+--- a/include/linux/proc_fs.h
++++ b/include/linux/proc_fs.h
+@@ -173,12 +173,6 @@ extern void proc_net_remove(struct net *net, const char *name);
+ extern struct proc_dir_entry *proc_net_mkdir(struct net *net, const char *name,
+ 	struct proc_dir_entry *parent);
+ 
+-/* While the {get|set|dup}_mm_exe_file functions are for mm_structs, they are
+- * only needed to implement /proc/<pid>|self/exe so we define them here. */
+-extern void set_mm_exe_file(struct mm_struct *mm, struct file *new_exe_file);
+-extern struct file *get_mm_exe_file(struct mm_struct *mm);
+-extern void dup_mm_exe_file(struct mm_struct *oldmm, struct mm_struct *newmm);
+-
+ #else
+ 
+ #define proc_net_fops_create(net, name, mode, fops)  ({ (void)(mode), NULL; })
+@@ -226,19 +220,6 @@ static inline void pid_ns_release_proc(struct pid_namespace *ns)
+ {
  }
  
-+static int cn_print_exe_file(struct core_name *cn)
+-static inline void set_mm_exe_file(struct mm_struct *mm,
+-				   struct file *new_exe_file)
+-{}
+-
+-static inline struct file *get_mm_exe_file(struct mm_struct *mm)
+-{
+-	return NULL;
+-}
+-
+-static inline void dup_mm_exe_file(struct mm_struct *oldmm,
+-	       			   struct mm_struct *newmm)
+-{}
+-
+ #endif /* CONFIG_PROC_FS */
+ 
+ #if !defined(CONFIG_PROC_KCORE)
+diff --git a/kernel/fork.c b/kernel/fork.c
+index cc04197..062cb42 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -59,7 +59,6 @@
+ #include <linux/taskstats_kern.h>
+ #include <linux/random.h>
+ #include <linux/tty.h>
+-#include <linux/proc_fs.h>
+ #include <linux/blkdev.h>
+ #include <linux/fs_struct.h>
+ #include <linux/magic.h>
+@@ -573,6 +572,57 @@ void mmput(struct mm_struct *mm)
+ }
+ EXPORT_SYMBOL_GPL(mmput);
+ 
++/*
++ * We added or removed a vma mapping the executable. The vmas are only mapped
++ * during exec and are not mapped with the mmap system call.
++ * Callers must hold down_write() on the mm's mmap_sem for these
++ */
++void added_exe_file_vma(struct mm_struct *mm)
 +{
-+	struct file *exe_file;
-+	char *pathbuf, *path, *p;
-+	int ret;
-+
-+	exe_file = get_mm_exe_file(current->mm);
-+	if (!exe_file)
-+		return cn_printf(cn, "(unknown)");
-+
-+	pathbuf = kmalloc(PATH_MAX, GFP_TEMPORARY);
-+	if (!pathbuf) {
-+		ret = -ENOMEM;
-+		goto put_exe_file;
-+	}
-+
-+	path = d_path(&exe_file->f_path, pathbuf, PATH_MAX);
-+	if (IS_ERR(path)) {
-+		ret = PTR_ERR(path);
-+		goto free_buf;
-+	}
-+
-+	for (p = path; *p; p++)
-+		if (*p == '/')
-+			*p = '!';
-+
-+	ret = cn_printf(cn, "%s", path);
-+
-+free_buf:
-+	kfree(pathbuf);
-+put_exe_file:
-+	fput(exe_file);
-+	return ret;
++	mm->num_exe_file_vmas++;
 +}
 +
- /* format_corename will inspect the pattern parameter, and output a
-  * name into corename, which must have space for at least
-  * CORENAME_MAX_SIZE bytes plus one byte for the zero terminator.
-@@ -1624,6 +1659,9 @@ static int format_corename(struct core_name *cn, long signr)
- 			case 'e':
- 				err = cn_printf(cn, "%s", current->comm);
- 				break;
-+			case 'E':
-+				err = cn_print_exe_file(cn);
-+				break;
- 			/* core limit size */
- 			case 'c':
- 				err = cn_printf(cn, "%lu",
++void removed_exe_file_vma(struct mm_struct *mm)
++{
++	mm->num_exe_file_vmas--;
++	if ((mm->num_exe_file_vmas == 0) && mm->exe_file){
++		fput(mm->exe_file);
++		mm->exe_file = NULL;
++	}
++
++}
++
++void set_mm_exe_file(struct mm_struct *mm, struct file *new_exe_file)
++{
++	if (new_exe_file)
++		get_file(new_exe_file);
++	if (mm->exe_file)
++		fput(mm->exe_file);
++	mm->exe_file = new_exe_file;
++	mm->num_exe_file_vmas = 0;
++}
++
++struct file *get_mm_exe_file(struct mm_struct *mm)
++{
++	struct file *exe_file;
++
++	/* We need mmap_sem to protect against races with removal of
++	 * VM_EXECUTABLE vmas */
++	down_read(&mm->mmap_sem);
++	exe_file = mm->exe_file;
++	if (exe_file)
++		get_file(exe_file);
++	up_read(&mm->mmap_sem);
++	return exe_file;
++}
++
++static void dup_mm_exe_file(struct mm_struct *oldmm, struct mm_struct *newmm)
++{
++	/* It's safe to write the exe_file pointer without exe_file_lock because
++	 * this is called during fork when the task is not yet in /proc */
++	newmm->exe_file = get_mm_exe_file(oldmm);
++}
++
+ /**
+  * get_task_mm - acquire a reference to the task's mm
+  *
 -- 
 1.7.4.2
 
