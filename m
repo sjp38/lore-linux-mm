@@ -1,72 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 5BEE19000C1
-	for <linux-mm@kvack.org>; Tue, 26 Apr 2011 17:25:23 -0400 (EDT)
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e4.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p3QL4vbJ013413
-	for <linux-mm@kvack.org>; Tue, 26 Apr 2011 17:04:57 -0400
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p3QLPJiq076734
-	for <linux-mm@kvack.org>; Tue, 26 Apr 2011 17:25:19 -0400
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p3QLPI5t014819
-	for <linux-mm@kvack.org>; Tue, 26 Apr 2011 17:25:19 -0400
-Subject: Re: [PATCH 1/2] break out page allocation warning code
-From: john stultz <johnstul@us.ibm.com>
-In-Reply-To: <20110421103009.731B.A69D9226@jp.fujitsu.com>
-References: <alpine.DEB.2.00.1104201317410.31768@chino.kir.corp.google.com>
-	 <1303331695.2796.159.camel@work-vm>
-	 <20110421103009.731B.A69D9226@jp.fujitsu.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 26 Apr 2011 14:25:15 -0700
-Message-ID: <1303853115.2816.129.camel@work-vm>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F9F49000C1
+	for <linux-mm@kvack.org>; Tue, 26 Apr 2011 17:43:06 -0400 (EDT)
+Date: Tue, 26 Apr 2011 14:42:09 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/2] split inode_wb_list_lock into
+ bdi_writeback.list_lock
+Message-Id: <20110426144209.06317674.akpm@linux-foundation.org>
+In-Reply-To: <20110426144218.GA14862@localhost>
+References: <20110426144218.GA14862@localhost>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: David Rientjes <rientjes@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Nazarewicz <mina86@mina86.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Christoph Hellwig <hch@infradead.org>, Jan Kara <jack@suse.cz>, Mel Gorman <mel@linux.vnet.ibm.com>, Dave Chinner <david@fromorbit.com>, Trond Myklebust <Trond.Myklebust@netapp.com>, Itaru Kitayama <kitayama@cl.bb4u.ne.jp>, Minchan Kim <minchan.kim@gmail.com>, LKML <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-On Thu, 2011-04-21 at 10:29 +0900, KOSAKI Motohiro wrote:
-> And one correction.
-> ------------------------------------------------------------------
-> static ssize_t comm_write(struct file *file, const char __user *buf,
->                                 size_t count, loff_t *offset)
-> {
->         struct inode *inode = file->f_path.dentry->d_inode;
->         struct task_struct *p;
->         char buffer[TASK_COMM_LEN];
-> 
->         memset(buffer, 0, sizeof(buffer));
->         if (count > sizeof(buffer) - 1)
->                 count = sizeof(buffer) - 1;
->         if (copy_from_user(buffer, buf, count))
->                 return -EFAULT;
-> 
->         p = get_proc_task(inode);
->         if (!p)
->                 return -ESRCH;
-> 
->         if (same_thread_group(current, p))
->                 set_task_comm(p, buffer);
->         else
->                 count = -EINVAL;
-> ------------------------------------------------------------------
-> 
-> This code doesn't have proper credential check. IOW, you forgot to
-> pthread_setuid_np() case.
+On Tue, 26 Apr 2011 22:42:19 +0800
+Wu Fengguang <fengguang.wu@intel.com> wrote:
 
-Sorry, could you expand on this a bit? Google isn't coming up with much
-for pthread_setuid_np. Can a thread actually end up with different uid
-then the process it is a member of?
+> @@ -55,13 +55,16 @@ EXPORT_SYMBOL(I_BDEV);
+>  static void bdev_inode_switch_bdi(struct inode *inode,
+>  			struct backing_dev_info *dst)
+>  {
+> -	spin_lock(&inode_wb_list_lock);
+> +	struct backing_dev_info *old = inode->i_data.backing_dev_info;
+> +
+> +	bdi_lock_two(&old->wb, &dst->wb);
+>  	spin_lock(&inode->i_lock);
+>  	inode->i_data.backing_dev_info = dst;
+>  	if (inode->i_state & I_DIRTY)
+>  		list_move(&inode->i_wb_list, &dst->wb.b_dirty);
+>  	spin_unlock(&inode->i_lock);
+> -	spin_unlock(&inode_wb_list_lock);
+> +	spin_unlock(&old->wb.list_lock);
+> +	spin_unlock(&dst->wb.list_lock);
+>  }
 
-Or is same_thread_group not really what I think it is? What would be a
-better way to check that the two threads are members of the same
-process?
-
-thanks
--john
-
+Has this patch been well tested under lockdep?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
