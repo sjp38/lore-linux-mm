@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 2443A9000C1
-	for <linux-mm@kvack.org>; Tue, 26 Apr 2011 08:22:13 -0400 (EDT)
-Date: Tue, 26 Apr 2011 22:21:57 +1000
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 2CB689000C1
+	for <linux-mm@kvack.org>; Tue, 26 Apr 2011 08:31:14 -0400 (EDT)
+Date: Tue, 26 Apr 2011 22:30:59 +1000
 From: NeilBrown <neilb@suse.de>
-Subject: Re: [PATCH 09/13] netvm: Set PF_MEMALLOC as appropriate during SKB
- processing
-Message-ID: <20110426222157.33a461f8@notabene.brown>
-In-Reply-To: <1303803414-5937-10-git-send-email-mgorman@suse.de>
+Subject: Re: [PATCH 12/13] mm: Throttle direct reclaimers if PF_MEMALLOC
+ reserves are low and swap is backed by network storage
+Message-ID: <20110426223059.10f3edda@notabene.brown>
+In-Reply-To: <1303803414-5937-13-git-send-email-mgorman@suse.de>
 References: <1303803414-5937-1-git-send-email-mgorman@suse.de>
-	<1303803414-5937-10-git-send-email-mgorman@suse.de>
+	<1303803414-5937-13-git-send-email-mgorman@suse.de>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -18,58 +18,55 @@ List-ID: <linux-mm.kvack.org>
 To: Mel Gorman <mgorman@suse.de>
 Cc: Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-On Tue, 26 Apr 2011 08:36:50 +0100 Mel Gorman <mgorman@suse.de> wrote:
+On Tue, 26 Apr 2011 08:36:53 +0100 Mel Gorman <mgorman@suse.de> wrote:
 
-> diff --git a/net/core/dev.c b/net/core/dev.c
-> index 3871bf6..2d79a20 100644
-> --- a/net/core/dev.c
-> +++ b/net/core/dev.c
-> @@ -3095,6 +3095,27 @@ static void vlan_on_bond_hook(struct sk_buff *skb)
->  	}
->  }
->  
+
 > +/*
-> + * Limit which protocols can use the PFMEMALLOC reserves to those that are
-> + * expected to be used for communication with swap.
+> + * Throttle direct reclaimers if backing storage is backed by the network
+> + * and the PFMEMALLOC reserve for the preferred node is getting dangerously
+> + * depleted. kswapd will continue to make progress and wake the processes
+> + * when the low watermark is reached
 > + */
-> +static bool skb_pfmemalloc_protocol(struct sk_buff *skb)
+> +static void throttle_direct_reclaim(gfp_t gfp_mask, struct zonelist *zonelist,
+> +					nodemask_t *nodemask)
 > +{
-> +	if (skb_pfmemalloc(skb))
-> +		switch (skb->protocol) {
-> +		case __constant_htons(ETH_P_ARP):
-> +		case __constant_htons(ETH_P_IP):
-> +		case __constant_htons(ETH_P_IPV6):
-> +		case __constant_htons(ETH_P_8021Q):
-> +			break;
+> +	struct zone *zone;
+> +	int high_zoneidx = gfp_zone(gfp_mask);
+> +	DEFINE_WAIT(wait);
 > +
-> +		default:
-> +			return false;
-> +		}
+> +	/* Check if the pfmemalloc reserves are ok */
+> +	first_zones_zonelist(zonelist, high_zoneidx, NULL, &zone);
+> +	prepare_to_wait(&zone->zone_pgdat->pfmemalloc_wait, &wait,
+> +							TASK_INTERRUPTIBLE);
+> +	if (pfmemalloc_watermark_ok(zone->zone_pgdat, high_zoneidx))
+> +		goto out;
 > +
-> +	return true;
+> +	/* Throttle */
+> +	do {
+> +		schedule();
+> +		finish_wait(&zone->zone_pgdat->pfmemalloc_wait, &wait);
+> +		prepare_to_wait(&zone->zone_pgdat->pfmemalloc_wait, &wait,
+> +							TASK_INTERRUPTIBLE);
+> +	} while (!pfmemalloc_watermark_ok(zone->zone_pgdat, high_zoneidx) &&
+> +			!fatal_signal_pending(current));
+> +
+> +out:
+> +	finish_wait(&zone->zone_pgdat->pfmemalloc_wait, &wait);
 > +}
 
-This sort of thing really bugs me :-)
-Neither the comment nor the function name actually describe what the function
-is doing.  The function is checking *2* things.
-   is_pfmemalloc_skb_or_pfmemalloc_protocol()
-might be a more correct name, but is too verbose.
+You are doing an interruptible wait, but only checking for fatal signals.
+So if a non-fatal signal arrives, you will busy-wait.
 
-I would prefer the skb_pfmemalloc test were removed from here and ....
+So I suspect you want TASK_KILLABLE, so just use:
 
-> +	if (!skb_pfmemalloc_protocol(skb))
-> +		goto drop;
-> +
+    wait_event_killable(zone->zone_pgdat->pfmemalloc_wait,
+                        pgmemalloc_watermark_ok(zone->zone_pgdata,
+                                                high_zoneidx));
 
-...added here so this becomes:
+(You also have an extraneous call to finish_wait)
 
-      if (!skb_pfmemalloc(skb) && !skb_pfmemalloc_protocol(skb))
-                goto drop;
-
-which actually makes sense.
-
-Thanks,
 NeilBrown
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
