@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id DC4366B0011
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 18:07:23 -0400 (EDT)
-Received: from d01relay07.pok.ibm.com (d01relay07.pok.ibm.com [9.56.227.147])
-	by e7.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p3RLisNL007614
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 17:44:54 -0400
+	by kanga.kvack.org (Postfix) with ESMTP id 8BAE96B0012
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 18:27:33 -0400 (EDT)
+Received: from d01relay06.pok.ibm.com (d01relay06.pok.ibm.com [9.56.227.116])
+	by e7.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p3RM54eW020181
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 18:05:04 -0400
 Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay07.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p3RM7LNt467010
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 18:07:21 -0400
+	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p3RMRVTk1278146
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 18:27:31 -0400
 Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p3RM7If0027689
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 18:07:21 -0400
-Date: Wed, 27 Apr 2011 15:07:17 -0700
+	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p3RMRUDA001247
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 18:27:31 -0400
+Date: Wed, 27 Apr 2011 15:27:27 -0700
 From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 Subject: Re: 2.6.39-rc4+: Kernel leaking memory during FS scanning,
  regression?
-Message-ID: <20110427220717.GR2135@linux.vnet.ibm.com>
+Message-ID: <20110427222727.GU2135@linux.vnet.ibm.com>
 Reply-To: paulmck@linux.vnet.ibm.com
 References: <20110425214933.GO2468@linux.vnet.ibm.com>
  <20110426081904.0d2b1494@pluto.restena.lu>
@@ -26,52 +26,87 @@ References: <20110425214933.GO2468@linux.vnet.ibm.com>
  <alpine.LFD.2.02.1104262314110.3323@ionos>
  <20110427081501.5ba28155@pluto.restena.lu>
  <20110427204139.1b0ea23b@neptune.home>
- <20110427224023.10bd4f33@neptune.home>
+ <alpine.LFD.2.02.1104272351290.3323@ionos>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <20110427224023.10bd4f33@neptune.home>
+In-Reply-To: <alpine.LFD.2.02.1104272351290.3323@ionos>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bruno =?iso-8859-1?Q?Pr=E9mont?= <bonbons@linux-vserver.org>
-Cc: Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Frysinger <vapier.adi@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Paul E. McKenney" <paul.mckenney@linaro.org>, Pekka Enberg <penberg@kernel.org>
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: Bruno =?iso-8859-1?Q?Pr=E9mont?= <bonbons@linux-vserver.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Frysinger <vapier.adi@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Paul E. McKenney" <paul.mckenney@linaro.org>, Pekka Enberg <penberg@kernel.org>
 
-On Wed, Apr 27, 2011 at 10:40:23PM +0200, Bruno Premont wrote:
-> On Wed, 27 April 2011 Bruno Premont wrote:
+On Thu, Apr 28, 2011 at 12:06:11AM +0200, Thomas Gleixner wrote:
+> On Wed, 27 Apr 2011, Bruno Premont wrote:
 > > On Wed, 27 April 2011 Bruno Premont wrote:
-> > > On Wed, 27 Apr 2011 00:28:37 +0200 (CEST) Thomas Gleixner wrote:
-> > > > Also please apply the patch below and check, whether the printk shows
-> > > > up in your dmesg.
-> > > 
-> > > > Index: linux-2.6-tip/kernel/sched_rt.c
-> > > > ===================================================================
-> > > > --- linux-2.6-tip.orig/kernel/sched_rt.c
-> > > > +++ linux-2.6-tip/kernel/sched_rt.c
-> > > > @@ -609,6 +609,7 @@ static int sched_rt_runtime_exceeded(str
-> > > >  
-> > > >  	if (rt_rq->rt_time > runtime) {
-> > > >  		rt_rq->rt_throttled = 1;
-> > > > +		printk_once(KERN_WARNING "sched: RT throttling activated\n");
+> > Voluntary context switches stay constant from the time on SLABs pile up.
+> > (which makes sense as it doesn't run get CPU slices anymore)
 > > 
-> > This gun is triggering right before RCU-managed slabs start piling up as
-> > visible under slabtop so chances are it's at least a related!
+> > > > Can you please enable CONFIG_SCHED_DEBUG and provide the output of
+> > > > /proc/sched_stat when the problem surfaces and a minute after the
+> > > > first snapshot?
+> > 
+> > hm, did you mean CONFIG_SCHEDSTAT or /proc/sched_debug?
+> > 
+> > I did use CONFIG_SCHED_DEBUG (and there is no /proc/sched_stat) so I took
+> > /proc/sched_debug which exists... (attached, taken about 7min and +1min
+> > after SLABs started piling up), though build processes were SIGSTOPped
+> > during first minute.
 > 
-> Letting the machine idle (except running collectd and slabtop) scheduler
-> suddenly decided to restart giving rcu_kthread CPU cycles (after two hours
-> or so! if I read my statistics graphs correctly)
+> Oops. /proc/sched_debug is the right thing.
+> 
+> > printk wrote (in case its timestamp is useful, more below):
+> > [  518.480103] sched: RT throttling activated
+> 
+> Ok. Aside of the fact that the CPU time accounting is completely hosed
+> this is pointing to the root cause of the problem.
+> 
+> kthread_rcu seems to run in circles for whatever reason and the RT
+> throttler catches it. After that things go down the drain completely
+> as it should get on the CPU again after that 50ms throttling break.
 
-And this also returned the slab memory, right?
+Ah.  This could happen if there was a huge number of callbacks, in
+which case blimit would be set very large and kthread_rcu could then
+go CPU-bound.  And this workload was generating large numbers of
+callbacks due to filesystem operations, right?
 
-Two hours is quite some time...
+So, perhaps I should kick kthread_rcu back to SCHED_NORMAL if blimit
+has been set high.  Or have some throttling of my own.  I must confess
+that throttling kthread_rcu for two hours seems a bit harsh.  ;-)
+
+If this was just throttling kthread_rcu for a few hundred milliseconds,
+or even for a second or two, things would be just fine.
+
+Left to myself, I will put together a patch that puts callback processing
+down to SCHED_NORMAL in the case where there are huge numbers of
+callbacks to be processed.
+
+> Though we should not ignore the fact, that the RT throttler hit, but
+> none of the RT tasks actually accumulated runtime.
+> 
+> So there is a couple of questions:
+> 
+>    - Why does the scheduler detect the 950 ms RT runtime, but does
+>      not accumulate that runtime to any thread
+> 
+>    - Why is the runtime accounting totally hosed
+> 
+>    - Why does that not happen (at least not reproducible) with 
+>      TREE_RCU
+
+This one I can answer -- In Linus's tree, TREE_RCU still uses softirq,
+so there is no RCU kthread, so there is nothing to throttle other
+than ksoftirqd itself.
 
 							Thanx, Paul
 
-> While looking at lkml during the above 2 hours I stumbled across this (the
-> patch of which doesn't help in my case) which looked possibly related.
->   http://thread.gmane.org/gmane.linux.kernel/1129614
+> I need some sleep now, but I will try to come up with sensible
+> debugging tomorrow unless Paul or someone else beats me to it.
 > 
-> Bruno
+> Thanks,
+> 
+> 	tglx
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
