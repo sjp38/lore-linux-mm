@@ -1,29 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 748E39000C1
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 04:18:39 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 8D58D3EE0C2
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 17:18:35 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 73A1C45DE97
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 17:18:35 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5A6F845DE77
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 17:18:35 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4885DE18002
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 17:18:35 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 11DC1E08003
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 17:18:35 +0900 (JST)
-Date: Wed, 27 Apr 2011 17:11:57 +0900
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id C964A9000C1
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 04:21:49 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id A55273EE0C2
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 17:21:43 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8646445DEA1
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 17:21:43 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 6D9A745DE9F
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 17:21:43 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 61AE1E08001
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 17:21:43 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 2ED3F1DB802C
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 17:21:43 +0900 (JST)
+Date: Wed, 27 Apr 2011 17:15:05 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC 4/8] Make clear description of putback_lru_page
-Message-Id: <20110427171157.3751528f.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <bb2acc3882594cf54689d9e29c61077ff581c533.1303833417.git.minchan.kim@gmail.com>
+Subject: Re: [RFC 5/8] compaction: remove active list counting
+Message-Id: <20110427171505.5d7bf485.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <2b79bbf9ddceb73624f49bbe9477126147d875fd.1303833417.git.minchan.kim@gmail.com>
 References: <cover.1303833415.git.minchan.kim@gmail.com>
-	<bb2acc3882594cf54689d9e29c61077ff581c533.1303833417.git.minchan.kim@gmail.com>
+	<2b79bbf9ddceb73624f49bbe9477126147d875fd.1303833417.git.minchan.kim@gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -32,14 +32,12 @@ List-ID: <linux-mm.kvack.org>
 To: Minchan Kim <minchan.kim@gmail.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux.com>, Johannes Weiner <jweiner@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>
 
-On Wed, 27 Apr 2011 01:25:21 +0900
+On Wed, 27 Apr 2011 01:25:22 +0900
 Minchan Kim <minchan.kim@gmail.com> wrote:
 
-> Commonly, putback_lru_page is used with isolated_lru_page.
-> The isolated_lru_page picks the page in middle of LRU and
-> putback_lru_page insert the lru in head of LRU.
-> It means it could make LRU churning so we have to be very careful.
-> Let's clear description of putback_lru_page.
+> acct_isolated of compaction uses page_lru_base_type which returns only
+> base type of LRU list so it never returns LRU_ACTIVE_ANON or LRU_ACTIVE_FILE.
+> So it's pointless to add lru[LRU_ACTIVE_[ANON|FILE]] to get sum.
 > 
 > Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 > Cc: Mel Gorman <mgorman@suse.de>
@@ -47,12 +45,38 @@ Minchan Kim <minchan.kim@gmail.com> wrote:
 > Cc: Andrea Arcangeli <aarcange@redhat.com>
 > Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
 
-seems good...
+I think some comments are necessary to explain why INACTIVE only.
 Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-But is there consensus which side of LRU is tail? head?
-I always need to revisit codes when I see a word head/tail....
 
+> ---
+>  mm/compaction.c |    4 ++--
+>  1 files changed, 2 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> index 9f80b5a..653b02b 100644
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -219,8 +219,8 @@ static void acct_isolated(struct zone *zone, struct compact_control *cc)
+>  		count[lru]++;
+>  	}
+>  
+> -	cc->nr_anon = count[LRU_ACTIVE_ANON] + count[LRU_INACTIVE_ANON];
+> -	cc->nr_file = count[LRU_ACTIVE_FILE] + count[LRU_INACTIVE_FILE];
+> +	cc->nr_anon = count[LRU_INACTIVE_ANON];
+> +	cc->nr_file = count[LRU_INACTIVE_FILE];
+>  	__mod_zone_page_state(zone, NR_ISOLATED_ANON, cc->nr_anon);
+>  	__mod_zone_page_state(zone, NR_ISOLATED_FILE, cc->nr_file);
+>  }
+> -- 
+> 1.7.1
+> 
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
