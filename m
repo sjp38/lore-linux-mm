@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id C5BB09000C1
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 06:20:40 -0400 (EDT)
-Received: by fxm18 with SMTP id 18so1484090fxm.14
-        for <linux-mm@kvack.org>; Wed, 27 Apr 2011 03:20:37 -0700 (PDT)
-Date: Wed, 27 Apr 2011 12:20:34 +0200
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 2BD939000C1
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 06:28:08 -0400 (EDT)
+Received: by fxm18 with SMTP id 18so1488638fxm.14
+        for <linux-mm@kvack.org>; Wed, 27 Apr 2011 03:28:05 -0700 (PDT)
+Date: Wed, 27 Apr 2011 12:28:01 +0200
 From: Tejun Heo <tj@kernel.org>
 Subject: Re: [PATCH] percpu: preemptless __per_cpu_counter_add
-Message-ID: <20110427102034.GE31015@htj.dyndns.org>
+Message-ID: <20110427102801.GF31015@htj.dyndns.org>
 References: <20110421145837.GB22898@htj.dyndns.org>
  <alpine.DEB.2.00.1104211243350.5741@router.home>
  <20110421180159.GF15988@htj.dyndns.org>
@@ -17,52 +17,51 @@ References: <20110421145837.GB22898@htj.dyndns.org>
  <20110421190807.GK15988@htj.dyndns.org>
  <1303439580.3981.241.camel@sli10-conroe>
  <20110426121011.GD878@htj.dyndns.org>
- <1303883009.3981.316.camel@sli10-conroe>
+ <alpine.LSU.2.00.1104261140010.9169@sister.anvils>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1303883009.3981.316.camel@sli10-conroe>
+In-Reply-To: <alpine.LSU.2.00.1104261140010.9169@sister.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shaohua.li@intel.com>
-Cc: Christoph Lameter <cl@linux.com>, Eric Dumazet <eric.dumazet@gmail.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Hugh Dickins <hughd@google.com>
+Cc: Shaohua Li <shaohua.li@intel.com>, Christoph Lameter <cl@linux.com>, Eric Dumazet <eric.dumazet@gmail.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-Hello, Shaohua.
+Hello, Hugh.
 
-On Wed, Apr 27, 2011 at 01:43:29PM +0800, Shaohua Li wrote:
-> > That would be a pathelogical case but, even then, after the change the
-> > number becomes much higher as it becomes a function of batch *
-> > num_updaters, right?
->
-> I don't understand the difference between batch * num_updaters and batch
-> * num_cpus except preempt. So the only problem here is _add should have
-> preempt disabled? I agree preempt can make deviation worse.
-> except the preempt issue, are there other concerns against the atomic
-> convert? in the preempt disabled case, before/after the atomic convert
-> the deviation is the same (batch*num_cpus)
+On Tue, Apr 26, 2011 at 12:02:15PM -0700, Hugh Dickins wrote:
+> This worried me a little when the percpu block counting went into tmpfs,
+> though it's not really critical there.
+> 
+> Would it be feasible, with these counters that are used against limits,
+> to have an adaptive batching scheme such that the batches get smaller
+> and smaller, down to 1 and to 0, as the total approaches the limit?
+> (Of course a single global percpu_counter_batch won't do for this.)
+> 
+> Perhaps it's a demonstrable logical impossibility, perhaps it would
+> slow down the fast (far from limit) path more than we can afford,
+> perhaps I haven't read enough of this thread and I'm taking it
+> off-topic.  Forgive me if so.
 
-Yes, with preemption disabled, I think the patheological worst case
-wouldn't be too different.
+Hmmm... it seems like what you're suggesting is basically a simple
+per-cpu slot allocator.
 
-> > I don't really worry about _sum performance.  It's a quite slow path
-> > and most of the cost is from causing cacheline bounces anyway.  That
-> > said, I don't see how the above would help the deviation problem.
-> > Let's say an updater reset per cpu counter but got preempted before
-> > updating the global counter.  What differences does it make to check
-> > fbc->counter before & after like above?
->
-> yes, this is a problem. Again I don't mind to disable preempt in _add.
+* The global counter is initialized with predefined number of slots
+  and per-cpu buffers start at zero (or with initial chunks).
 
-Okay, this communication failure isn't my fault.  Please re-read what
-I wrote before, my concern wasn't primarily about pathological worst
-case - if that many concurrent updates are happening && the counter
-needs to be accurate, it can't even use atomic counter.  It should be
-doing full exclusion around the counter and the associated operation
-_together_.
+* Allocation first consults per-cpu buffer and if enough slots are
+  there, they're consumed.  If not, global counter is accessed and
+  some portion of it is transferred to per-cpu buffer and allocation
+  is retried.  The amount transferred is adjusted according to the
+  amount of slots available in the global pool.
 
-I'm worried about sporadic erratic behavior happening regardless of
-update frequency and preemption would contribute but isn't necessary
-for that to happen.
+* Free populates the per-cpu buffer.  If it meets certain criteria,
+  part of the buffer is returned to the global pool.
+
+The principles are easy but as with any per-cpu allocation scheme
+balancing and reclaiming would be the complex part.  ie. What to do
+when the global and some per-cpu buffers are draining while a few
+still have some left.
 
 Thanks.
 
