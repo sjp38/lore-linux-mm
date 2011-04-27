@@ -1,121 +1,137 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 2E5E69000C1
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 02:15:05 -0400 (EDT)
-Date: Wed, 27 Apr 2011 08:15:01 +0200
-From: Bruno =?UTF-8?B?UHLDqW1vbnQ=?= <bonbons@linux-vserver.org>
-Subject: Re: 2.6.39-rc4+: Kernel leaking memory during FS scanning,
- regression?
-Message-ID: <20110427081501.5ba28155@pluto.restena.lu>
-In-Reply-To: <alpine.LFD.2.02.1104262314110.3323@ionos>
-References: <20110425180450.1ede0845@neptune.home>
-	<BANLkTikSLA59tdgRL4B=cr5tvP2NbzZ=KA@mail.gmail.com>
-	<20110425190032.7904c95d@neptune.home>
-	<BANLkTi=hQ=HcPLCdbb1pSi+xJByMTah-gw@mail.gmail.com>
-	<20110425203606.4e78246c@neptune.home>
-	<20110425191607.GL2468@linux.vnet.ibm.com>
-	<20110425231016.34b4293e@neptune.home>
-	<BANLkTin7wSGi1=E2c2u6Jb5TG_KUpYh=Dw@mail.gmail.com>
-	<20110425214933.GO2468@linux.vnet.ibm.com>
-	<20110426081904.0d2b1494@pluto.restena.lu>
-	<20110426112756.GF4308@linux.vnet.ibm.com>
-	<20110426183859.6ff6279b@neptune.home>
-	<20110426190918.01660ccf@neptune.home>
-	<BANLkTikjuqWP+PAsObJH4EAOyzgr2RbYNA@mail.gmail.com>
-	<alpine.LFD.2.02.1104262314110.3323@ionos>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 3DB129000C1
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 02:55:11 -0400 (EDT)
+Received: from mail23-am1 (localhost.localdomain [127.0.0.1])	by
+ mail23-am1-R.bigfish.com (Postfix) with ESMTP id 01494C1024E	for
+ <linux-mm@kvack.org>; Wed, 27 Apr 2011 06:55:07 +0000 (UTC)
+Received: from AM1EHSMHS003.bigfish.com (unknown [10.3.201.245])	by
+ mail23-am1.bigfish.com (Postfix) with ESMTP id B37508E804B	for
+ <linux-mm@kvack.org>; Wed, 27 Apr 2011 06:55:06 +0000 (UTC)
+From: Bob Liu <lliubbo@gmail.com>
+Subject: [PATCH] nommu: add page_align to mmap
+Date: Wed, 27 Apr 2011 15:12:14 +0800
+Message-ID: <1303888334-16062-1-git-send-email-lliubbo@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <a.p.zijlstra@chello.nl>, paulmck@linux.vnet.ibm.com, Mike Frysinger <vapier.adi@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Paul E. McKenney" <paul.mckenney@linaro.org>, Pekka Enberg <penberg@kernel.org>
+To: linux-mm@kvack.org
+Cc: akpm@linux-foundation.org, dhowells@redhat.com, lethal@linux-sh.org, gerg@uclinux.org, walken@google.com, daniel-gl@gmx.net, vapier@gentoo.org, Bob Liu <lliubbo@gmail.com>
 
-On Wed, 27 Apr 2011 00:28:37 +0200 (CEST) Thomas Gleixner wrote:
-> On Tue, 26 Apr 2011, Linus Torvalds wrote:
-> > On Tue, Apr 26, 2011 at 10:09 AM, Bruno Pr=C3=A9mont wrote:
-> > >
-> > > Just in case, /proc/$(pidof rcu_kthread)/status shows ~20k voluntary
-> > > context switches and exactly one non-voluntary one.
-> > >
-> > > In addition when rcu_kthread has stopped doing its work
-> > > `swapoff $(swapdevice)` seems to block forever (at least normal shutd=
-own
-> > > blocks on disabling swap device).
-> > > If I get to do it when I get back home I will manually try to swapoff
-> > > and take process traces with sysrq-t.
-> >=20
-> > That "exactly one non-voluntary one" sounds like the smoking gun.
-> >=20
-> > Normally SCHED_FIFO runs until it voluntarily gives up the CPU. That's
-> > kind of the point of SCHED_FIFO. Involuntary context switches happen
-> > when some higher-priority SCHED_FIFO process becomes runnable (irq
-> > handlers? You _do_ have CONFIG_IRQ_FORCED_THREADING=3Dy in your config
-> > too), and maybe there is a bug in the runqueue handling for that case.
->=20
-> The forced irq threading is only effective when you add the command
-> line parameter "threadirqs". I don't see any irq threads in the ps
-> outputs, so that's not the problem.
->=20
-> Though the whole ps output is weird. There is only one thread/process
-> which accumulated CPU time
->=20
-> collectd  1605  0.6  0.7  49924  3748 ?        SNLsl 22:14   0:14
+Currently on nommu arch mmap(),mremap() and munmap() doesn't do page_align()
+which is incorrect and not consist with mmu arch.
+This patch fix it.
 
-Whole system does not have much uptime so it's quite expected that CPU
-time remains low. collectd is the only daemon that has more work to do
-(scan many files every 10s)
-On the ps output with stopped build processes there should be some more
-with accumulated CPU time... though looking at it only top and python
-have accumulated anything.
+Signed-off-by: Bob Liu <lliubbo@gmail.com>
+---
+ mm/nommu.c |   24 ++++++++++++++----------
+ 1 files changed, 14 insertions(+), 10 deletions(-)
 
-Next time I can scan /proc/${PID}/ for more precise CPU times to see
-how zero they are.
+diff --git a/mm/nommu.c b/mm/nommu.c
+index c4c542c..3febfd9 100644
+--- a/mm/nommu.c
++++ b/mm/nommu.c
+@@ -1133,7 +1133,7 @@ static int do_mmap_private(struct vm_area_struct *vma,
+ 			   unsigned long capabilities)
+ {
+ 	struct page *pages;
+-	unsigned long total, point, n, rlen;
++	unsigned long total, point, n;
+ 	void *base;
+ 	int ret, order;
+ 
+@@ -1157,13 +1157,12 @@ static int do_mmap_private(struct vm_area_struct *vma,
+ 		 * make a private copy of the data and map that instead */
+ 	}
+ 
+-	rlen = PAGE_ALIGN(len);
+ 
+ 	/* allocate some memory to hold the mapping
+ 	 * - note that this may not return a page-aligned address if the object
+ 	 *   we're allocating is smaller than a page
+ 	 */
+-	order = get_order(rlen);
++	order = get_order(len);
+ 	kdebug("alloc order %d for %lx", order, len);
+ 
+ 	pages = alloc_pages(GFP_KERNEL, order);
+@@ -1173,7 +1172,7 @@ static int do_mmap_private(struct vm_area_struct *vma,
+ 	total = 1 << order;
+ 	atomic_long_add(total, &mmap_pages_allocated);
+ 
+-	point = rlen >> PAGE_SHIFT;
++	point = len >> PAGE_SHIFT;
+ 
+ 	/* we allocated a power-of-2 sized page set, so we may want to trim off
+ 	 * the excess */
+@@ -1195,7 +1194,7 @@ static int do_mmap_private(struct vm_area_struct *vma,
+ 	base = page_address(pages);
+ 	region->vm_flags = vma->vm_flags |= VM_MAPPED_COPY;
+ 	region->vm_start = (unsigned long) base;
+-	region->vm_end   = region->vm_start + rlen;
++	region->vm_end   = region->vm_start + len;
+ 	region->vm_top   = region->vm_start + (total << PAGE_SHIFT);
+ 
+ 	vma->vm_start = region->vm_start;
+@@ -1211,15 +1210,15 @@ static int do_mmap_private(struct vm_area_struct *vma,
+ 
+ 		old_fs = get_fs();
+ 		set_fs(KERNEL_DS);
+-		ret = vma->vm_file->f_op->read(vma->vm_file, base, rlen, &fpos);
++		ret = vma->vm_file->f_op->read(vma->vm_file, base, len, &fpos);
+ 		set_fs(old_fs);
+ 
+ 		if (ret < 0)
+ 			goto error_free;
+ 
+ 		/* clear the last little bit */
+-		if (ret < rlen)
+-			memset(base + ret, 0, rlen - ret);
++		if (ret < len)
++			memset(base + ret, 0, len - ret);
+ 
+ 	}
+ 
+@@ -1268,6 +1267,7 @@ unsigned long do_mmap_pgoff(struct file *file,
+ 
+ 	/* we ignore the address hint */
+ 	addr = 0;
++	len = PAGE_ALIGN(len);
+ 
+ 	/* we've determined that we can make the mapping, now translate what we
+ 	 * now know into VMA flags */
+@@ -1645,14 +1645,16 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len)
+ {
+ 	struct vm_area_struct *vma;
+ 	struct rb_node *rb;
+-	unsigned long end = start + len;
++	unsigned long end;
+ 	int ret;
+ 
+ 	kenter(",%lx,%zx", start, len);
+ 
+-	if (len == 0)
++	if ((len = PAGE_ALIGN(len)) == 0)
+ 		return -EINVAL;
+ 
++	end = start + len;
++
+ 	/* find the first potentially overlapping VMA */
+ 	vma = find_vma(mm, start);
+ 	if (!vma) {
+@@ -1773,6 +1775,8 @@ unsigned long do_mremap(unsigned long addr,
+ 	struct vm_area_struct *vma;
+ 
+ 	/* insanity checks first */
++	old_len = PAGE_ALIGN(old_len);
++	new_len = PAGE_ALIGN(new_len);
+ 	if (old_len == 0 || new_len == 0)
+ 		return (unsigned long) -EINVAL;
+ 
+-- 
+1.6.3.3
 
-> All others show 0:00 CPU time - not only kthread_rcu.
->=20
-> Bruno, are you running on real hardware or in a virtual machine?
-
-It's real hardware (nforce420 chipset - aka first nforce generation -,
-AMD Athlon 1800 CPU, 512MB of RAM out of which 32MB taken by
-IGP, so something like 7-10 or so years old)
-
-> Can you please enable CONFIG_SCHED_DEBUG and provide the output of
-> /proc/sched_stat when the problem surfaces and a minute after the
-> first snapshot?
->=20
-> Also please apply the patch below and check, whether the printk shows
-> up in your dmesg.
-
-Will include in my testing when back home this evening. (Will have to
-offload kernel compilations to a quicker box otherwise my evening will
-be much too short...)
-
-Bruno
-
-
-> Thanks,
->=20
-> 	tglx
->=20
-> ---
->  kernel/sched_rt.c |    1 +
->  1 file changed, 1 insertion(+)
->=20
-> Index: linux-2.6-tip/kernel/sched_rt.c
-> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-> --- linux-2.6-tip.orig/kernel/sched_rt.c
-> +++ linux-2.6-tip/kernel/sched_rt.c
-> @@ -609,6 +609,7 @@ static int sched_rt_runtime_exceeded(str
-> =20
->  	if (rt_rq->rt_time > runtime) {
->  		rt_rq->rt_throttled =3D 1;
-> +		printk_once(KERN_WARNING "sched: RT throttling activated\n");
->  		if (rt_rq_throttled(rt_rq)) {
->  			sched_rt_rq_dequeue(rt_rq);
->  			return 1;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
