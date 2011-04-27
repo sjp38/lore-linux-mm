@@ -1,82 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id C964A9000C1
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 04:21:49 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id A55273EE0C2
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 17:21:43 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8646445DEA1
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 17:21:43 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 6D9A745DE9F
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 17:21:43 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 61AE1E08001
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 17:21:43 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 2ED3F1DB802C
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 17:21:43 +0900 (JST)
-Date: Wed, 27 Apr 2011 17:15:05 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC 5/8] compaction: remove active list counting
-Message-Id: <20110427171505.5d7bf485.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <2b79bbf9ddceb73624f49bbe9477126147d875fd.1303833417.git.minchan.kim@gmail.com>
-References: <cover.1303833415.git.minchan.kim@gmail.com>
-	<2b79bbf9ddceb73624f49bbe9477126147d875fd.1303833417.git.minchan.kim@gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 5B1BC9000C1
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 04:36:26 -0400 (EDT)
+Date: Wed, 27 Apr 2011 09:36:20 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 12/13] mm: Throttle direct reclaimers if PF_MEMALLOC
+ reserves are low and swap is backed by network storage
+Message-ID: <20110427083620.GL4658@suse.de>
+References: <1303803414-5937-1-git-send-email-mgorman@suse.de>
+ <1303803414-5937-13-git-send-email-mgorman@suse.de>
+ <20110426223059.10f3edda@notabene.brown>
+ <20110426142624.GH4658@suse.de>
+ <20110427091811.153ca78b@notabene.brown>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20110427091811.153ca78b@notabene.brown>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux.com>, Johannes Weiner <jweiner@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>
+To: NeilBrown <neilb@suse.de>
+Cc: Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-On Wed, 27 Apr 2011 01:25:22 +0900
-Minchan Kim <minchan.kim@gmail.com> wrote:
-
-> acct_isolated of compaction uses page_lru_base_type which returns only
-> base type of LRU list so it never returns LRU_ACTIVE_ANON or LRU_ACTIVE_FILE.
-> So it's pointless to add lru[LRU_ACTIVE_[ANON|FILE]] to get sum.
+On Wed, Apr 27, 2011 at 09:18:11AM +1000, NeilBrown wrote:
+> On Tue, 26 Apr 2011 15:26:24 +0100 Mel Gorman <mgorman@suse.de> wrote:
 > 
-> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Cc: Mel Gorman <mgorman@suse.de>
-> Cc: Rik van Riel <riel@redhat.com>
-> Cc: Andrea Arcangeli <aarcange@redhat.com>
-> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
-
-I think some comments are necessary to explain why INACTIVE only.
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-
-
-> ---
->  mm/compaction.c |    4 ++--
->  1 files changed, 2 insertions(+), 2 deletions(-)
+> > On Tue, Apr 26, 2011 at 10:30:59PM +1000, NeilBrown wrote:
+> > > On Tue, 26 Apr 2011 08:36:53 +0100 Mel Gorman <mgorman@suse.de> wrote:
+> > > 
+> > > 
+> > > > +/*
+> > > > + * Throttle direct reclaimers if backing storage is backed by the network
+> > > > + * and the PFMEMALLOC reserve for the preferred node is getting dangerously
+> > > > + * depleted. kswapd will continue to make progress and wake the processes
+> > > > + * when the low watermark is reached
+> > > > + */
+> > > > +static void throttle_direct_reclaim(gfp_t gfp_mask, struct zonelist *zonelist,
+> > > > +					nodemask_t *nodemask)
+> > > > +{
+> > > > +	struct zone *zone;
+> > > > +	int high_zoneidx = gfp_zone(gfp_mask);
+> > > > +	DEFINE_WAIT(wait);
+> > > > +
+> > > > +	/* Check if the pfmemalloc reserves are ok */
+> > > > +	first_zones_zonelist(zonelist, high_zoneidx, NULL, &zone);
+> > > > +	prepare_to_wait(&zone->zone_pgdat->pfmemalloc_wait, &wait,
+> > > > +							TASK_INTERRUPTIBLE);
+> > > > +	if (pfmemalloc_watermark_ok(zone->zone_pgdat, high_zoneidx))
+> > > > +		goto out;
+> > > > +
+> > > > +	/* Throttle */
+> > > > +	do {
+> > > > +		schedule();
+> > > > +		finish_wait(&zone->zone_pgdat->pfmemalloc_wait, &wait);
+> > > > +		prepare_to_wait(&zone->zone_pgdat->pfmemalloc_wait, &wait,
+> > > > +							TASK_INTERRUPTIBLE);
+> > > > +	} while (!pfmemalloc_watermark_ok(zone->zone_pgdat, high_zoneidx) &&
+> > > > +			!fatal_signal_pending(current));
+> > > > +
+> > > > +out:
+> > > > +	finish_wait(&zone->zone_pgdat->pfmemalloc_wait, &wait);
+> > > > +}
+> > > 
+> > > You are doing an interruptible wait, but only checking for fatal signals.
+> > > So if a non-fatal signal arrives, you will busy-wait.
+> > > 
+> > > So I suspect you want TASK_KILLABLE, so just use:
+> > > 
+> > >     wait_event_killable(zone->zone_pgdat->pfmemalloc_wait,
+> > >                         pgmemalloc_watermark_ok(zone->zone_pgdata,
+> > >                                                 high_zoneidx));
+> > > 
+> > 
+> > Well, if a normal signal arrives, we do not necessarily want the
+> > process to enter reclaim. For fatal signals, I allow it to continue
+> > because it's not likely to be putting the system under more pressure
+> > if it's exiting.
 > 
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> index 9f80b5a..653b02b 100644
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -219,8 +219,8 @@ static void acct_isolated(struct zone *zone, struct compact_control *cc)
->  		count[lru]++;
->  	}
->  
-> -	cc->nr_anon = count[LRU_ACTIVE_ANON] + count[LRU_INACTIVE_ANON];
-> -	cc->nr_file = count[LRU_ACTIVE_FILE] + count[LRU_INACTIVE_FILE];
-> +	cc->nr_anon = count[LRU_INACTIVE_ANON];
-> +	cc->nr_file = count[LRU_INACTIVE_FILE];
->  	__mod_zone_page_state(zone, NR_ISOLATED_ANON, cc->nr_anon);
->  	__mod_zone_page_state(zone, NR_ISOLATED_FILE, cc->nr_file);
->  }
-> -- 
-> 1.7.1
+> Yep, I understand that and it doesn't seem unreasonable.
 > 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+> However I don't think the code implements that correctly.
 > 
+> If you get a non-fatal signal, schedule will exit immediately (because of the
+> TASK_INTERRUPTIBLE setting) and the 'while' clause will succeed because the
+> signal is not fatal, so it will loop around and try to schedule again, which
+> will again exit immediately - busy loop.
+> 
+
+Ah, I see. Once again, well spotted.
+
+> > 
+> > > (You also have an extraneous call to finish_wait)
+> > > 
+> > 
+> > Which one? I'm not seeing a flow where finish_wait gets called twice
+> > without a prepare_to_wait in between. 
+> > 
+> 
+> You don't need to call finish_wait immediately before prepare_to_wait.
+> 
+> It really is best to just use the appropriate 'wait_event*' macro....
+> 
+
+wait_event_interruptible it is. Thanks
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
