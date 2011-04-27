@@ -1,76 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id EAE266B0012
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 19:51:19 -0400 (EDT)
-Received: from wpaz37.hot.corp.google.com (wpaz37.hot.corp.google.com [172.24.198.101])
-	by smtp-out.google.com with ESMTP id p3RNpGuk022701
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 16:51:16 -0700
-Received: from pvg3 (pvg3.prod.google.com [10.241.210.131])
-	by wpaz37.hot.corp.google.com with ESMTP id p3RNooFo007413
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 16:51:10 -0700
-Received: by pvg3 with SMTP id 3so1814627pvg.32
-        for <linux-mm@kvack.org>; Wed, 27 Apr 2011 16:51:10 -0700 (PDT)
-Date: Wed, 27 Apr 2011 16:51:07 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 1/2] break out page allocation warning code
-In-Reply-To: <1303846026.2816.117.camel@work-vm>
-Message-ID: <alpine.DEB.2.00.1104271641350.25369@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1104201317410.31768@chino.kir.corp.google.com> <1303331695.2796.159.camel@work-vm> <20110421103009.731B.A69D9226@jp.fujitsu.com> <1303846026.2816.117.camel@work-vm>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 39E916B0012
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 19:54:27 -0400 (EDT)
+Received: from mail-ew0-f41.google.com (mail-ew0-f41.google.com [209.85.215.41])
+	(authenticated bits=0)
+	by smtp1.linux-foundation.org (8.14.2/8.13.5/Debian-3ubuntu1.1) with ESMTP id p3RNsNPd025954
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=FAIL)
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 16:54:25 -0700
+Received: by ewy9 with SMTP id 9so963045ewy.14
+        for <linux-mm@kvack.org>; Wed, 27 Apr 2011 16:54:23 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <BANLkTi=Ad2DUQ2Lr-Q5Y+eYxKMyz04fL2g@mail.gmail.com>
+References: <20110425214933.GO2468@linux.vnet.ibm.com> <20110426081904.0d2b1494@pluto.restena.lu>
+ <20110426112756.GF4308@linux.vnet.ibm.com> <20110426183859.6ff6279b@neptune.home>
+ <20110426190918.01660ccf@neptune.home> <BANLkTikjuqWP+PAsObJH4EAOyzgr2RbYNA@mail.gmail.com>
+ <alpine.LFD.2.02.1104262314110.3323@ionos> <20110427081501.5ba28155@pluto.restena.lu>
+ <20110427204139.1b0ea23b@neptune.home> <alpine.LFD.2.02.1104272351290.3323@ionos>
+ <20110427222727.GU2135@linux.vnet.ibm.com> <alpine.LFD.2.02.1104280028250.3323@ionos>
+ <BANLkTi=Ad2DUQ2Lr-Q5Y+eYxKMyz04fL2g@mail.gmail.com>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Wed, 27 Apr 2011 16:46:16 -0700
+Message-ID: <BANLkTikknBQeSi0w7LeUTwSiMed-6LNKBw@mail.gmail.com>
+Subject: Re: 2.6.39-rc4+: Kernel leaking memory during FS scanning, regression?
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: john stultz <johnstul@us.ibm.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Nazarewicz <mina86@mina86.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, =?ISO-8859-1?Q?Bruno_Pr=E9mont?= <bonbons@linux-vserver.org>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Frysinger <vapier.adi@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Paul E. McKenney" <paul.mckenney@linaro.org>, Pekka Enberg <penberg@kernel.org>
 
-On Tue, 26 Apr 2011, john stultz wrote:
+On Wed, Apr 27, 2011 at 4:28 PM, Linus Torvalds
+<torvalds@linux-foundation.org> wrote:
+>
+> We _know_ it didn't run continuously for 950ms. That number is totally
+> made up. There's not enough work for it to run that long, but more
+> importantly, the thread has zero CPU time. There is _zero_ reason to
+> believe that it runs for long periods.
 
-> Sorry if this somehow got off on the wrong foot. Its just surprising to
-> see such passion bubble up after almost two years of quiet since the
-> proc patch went in.
-> 
+Hmm. But it might certainly have run for a _total_ of 950ms. Since
+that's just under a second, we wouldn't see it in the "ps" output.
 
-It hasn't been two years, it hasn't even been 18 months.
+Where is rt_time cleared? I see that subtract in
+do_sched_rt_period_timer(), but judging by the caller that is only
+called for some timer overrun case (I didn't look at what the
+definition of such an overrun is, though). Shouldn't rt_time be
+cleared when the task goes to sleep voluntarily?
 
-	$ git diff 4614a696bd1c.. | grep "^+.*current\->comm" | wc -l
-	42
+What am I missing?
 
-Apparently those dozens of new references directly to current->comm since 
-the change also were unaware of the need to use get_task_comm() to avoid a 
-racy writer.  I don't think there's any code in the kernel that is ok with 
-corrupted task names being printed: those messages are usually important.
-
-> So I'm not proposing comm be totally lock free (Dave Hansen might do
-> that for me, we'll see :) but when the original patch was proposed, the
-> idea that transient empty or incomplete comms would be possible was
-> brought up and didn't seem to be a big enough issue at the time to block
-> it from being merged.
-> 
-
-I'm not really interested in the discussion that happened at the time, I'm 
-concerned about racy readers of any thread's comm that result in corrupted 
-strings being printed or used in the kernel.
-
-> Its just having a more specific case where these transient
-> null/incomplete comms causes an issue would help prioritize the need for
-> correctness.
-> 
-
-It doesn't seem like there was any due diligence to ensure other code 
-wasn't broken.  When comm could only be changed by prctl(), we needed no 
-protection for current->comm and so code naturally will reference it 
-directly.  Since that's now changed, no audit was done to ensure the 300+ 
-references throughout the tree doesn't require non-racy reads.
-
-> In the meantime, I'll put some effort into trying to protect unlocked
-> current->comm acccess using get_task_comm() where possible. Won't happen
-> in a day, and help would be appreciated. 
-> 
-
-We need to stop protecting ->comm with ->alloc_lock since it is used for 
-other members of task_struct that may or may not be held in a function 
-that wants to read ->comm.  We should probably introduce a seqlock.
+                   Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
