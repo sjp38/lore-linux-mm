@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 458786B0028
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 12:08:22 -0400 (EDT)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id A34CB6B0023
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 12:08:23 -0400 (EDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 07/13] netvm: Allow the use of __GFP_MEMALLOC by specific sockets
-Date: Wed, 27 Apr 2011 17:08:05 +0100
-Message-Id: <1303920491-25302-8-git-send-email-mgorman@suse.de>
+Subject: [PATCH 10/13] mm: Micro-optimise slab to avoid a function call
+Date: Wed, 27 Apr 2011 17:08:08 +0100
+Message-Id: <1303920491-25302-11-git-send-email-mgorman@suse.de>
 In-Reply-To: <1303920491-25302-1-git-send-email-mgorman@suse.de>
 References: <1303920491-25302-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -13,86 +13,76 @@ List-ID: <linux-mm.kvack.org>
 To: Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>
 Cc: LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Neil Brown <neilb@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mgorman@suse.de>
 
-Allow specific sockets to be tagged SOCK_MEMALLOC and use __GFP_MEMALLOC
-for their allocations. These sockets will be able to go below watermarks
-and allocate from the emergency reserve. Such sockets are to be used
-to service the VM (iow. to swap over). They must be handled kernel side,
-exposing such a socket to user-space is a bug.
+Getting and putting objects in SLAB currently requires a function call
+but the bulk of the work is related to PFMEMALLOC reserves which are
+only consumed when network-backed storage is critical. Use an inline
+function to determine if the function call is required.
 
-There is a risk that the reserves be depleted so for now, the administrator is
-responsible for increasing min_free_kbytes as necessary to prevent deadlock
-for their workloads.
-
-[a.p.zijlstra@chello.nl: Original patches]
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- include/net/sock.h |    5 ++++-
- net/core/sock.c    |   22 ++++++++++++++++++++++
- 2 files changed, 26 insertions(+), 1 deletions(-)
+ mm/slab.c |   28 ++++++++++++++++++++++++++--
+ 1 files changed, 26 insertions(+), 2 deletions(-)
 
-diff --git a/include/net/sock.h b/include/net/sock.h
-index e89c38f..046bc97 100644
---- a/include/net/sock.h
-+++ b/include/net/sock.h
-@@ -554,6 +554,7 @@ enum sock_flags {
- 	SOCK_RCVTSTAMPNS, /* %SO_TIMESTAMPNS setting */
- 	SOCK_LOCALROUTE, /* route locally only, %SO_DONTROUTE setting */
- 	SOCK_QUEUE_SHRUNK, /* write queue has been shrunk recently */
-+	SOCK_MEMALLOC, /* VM depends on this socket for swapping */
- 	SOCK_TIMESTAMPING_TX_HARDWARE,  /* %SOF_TIMESTAMPING_TX_HARDWARE */
- 	SOCK_TIMESTAMPING_TX_SOFTWARE,  /* %SOF_TIMESTAMPING_TX_SOFTWARE */
- 	SOCK_TIMESTAMPING_RX_HARDWARE,  /* %SOF_TIMESTAMPING_RX_HARDWARE */
-@@ -587,7 +588,7 @@ static inline int sock_flag(struct sock *sk, enum sock_flags flag)
+diff --git a/mm/slab.c b/mm/slab.c
+index 342c7c7..1504096 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -116,6 +116,8 @@
+ #include	<linux/kmemcheck.h>
+ #include	<linux/memory.h>
  
- static inline gfp_t sk_allocation(struct sock *sk, gfp_t gfp_mask)
- {
--	return gfp_mask;
-+	return gfp_mask | (sk->sk_allocation & __GFP_MEMALLOC);
++#include	<net/sock.h>
++
+ #include	<asm/cacheflush.h>
+ #include	<asm/tlbflush.h>
+ #include	<asm/page.h>
+@@ -944,7 +946,7 @@ static void check_ac_pfmemalloc(struct kmem_cache *cachep,
+ 	ac->pfmemalloc = false;
  }
  
- static inline void sk_acceptq_removed(struct sock *sk)
-@@ -717,6 +718,8 @@ extern int sk_stream_wait_memory(struct sock *sk, long *timeo_p);
- extern void sk_stream_wait_close(struct sock *sk, long timeo_p);
- extern int sk_stream_error(struct sock *sk, int flags, int err);
- extern void sk_stream_kill_queues(struct sock *sk);
-+extern void sk_set_memalloc(struct sock *sk);
-+extern void sk_clear_memalloc(struct sock *sk);
+-static void *ac_get_obj(struct kmem_cache *cachep, struct array_cache *ac,
++static void *__ac_get_obj(struct kmem_cache *cachep, struct array_cache *ac,
+ 						gfp_t flags, bool force_refill)
+ {
+ 	int i;
+@@ -991,7 +993,20 @@ static void *ac_get_obj(struct kmem_cache *cachep, struct array_cache *ac,
+ 	return objp;
+ }
  
- extern int sk_wait_data(struct sock *sk, long *timeo);
- 
-diff --git a/net/core/sock.c b/net/core/sock.c
-index 6e81978..c685eda 100644
---- a/net/core/sock.c
-+++ b/net/core/sock.c
-@@ -219,6 +219,28 @@ __u32 sysctl_rmem_default __read_mostly = SK_RMEM_MAX;
- int sysctl_optmem_max __read_mostly = sizeof(unsigned long)*(2*UIO_MAXIOV+512);
- EXPORT_SYMBOL(sysctl_optmem_max);
- 
-+/**
-+ * sk_set_memalloc - sets %SOCK_MEMALLOC
-+ * @sk: socket to set it on
-+ *
-+ * Set %SOCK_MEMALLOC on a socket for access to emergency reserves.
-+ * It's the responsibility of the admin to adjust min_free_kbytes
-+ * to meet the requirements
-+ */
-+void sk_set_memalloc(struct sock *sk)
+-static void ac_put_obj(struct kmem_cache *cachep, struct array_cache *ac,
++static inline void *ac_get_obj(struct kmem_cache *cachep,
++			struct array_cache *ac, gfp_t flags, bool force_refill)
 +{
-+	sock_set_flag(sk, SOCK_MEMALLOC);
-+	sk->sk_allocation |= __GFP_MEMALLOC;
-+}
-+EXPORT_SYMBOL_GPL(sk_set_memalloc);
++	void *objp;
 +
-+void sk_clear_memalloc(struct sock *sk)
++	if (unlikely(sk_memalloc_socks()))
++		objp = __ac_get_obj(cachep, ac, flags, force_refill);
++	else
++		objp = ac->entry[--ac->avail];
++
++	return objp;
++}
++
++static void *__ac_put_obj(struct kmem_cache *cachep, struct array_cache *ac,
+ 								void *objp)
+ {
+ 	struct slab *slabp;
+@@ -1004,6 +1019,15 @@ static void ac_put_obj(struct kmem_cache *cachep, struct array_cache *ac,
+ 			set_obj_pfmemalloc(&objp);
+ 	}
+ 
++	return objp;
++}
++
++static inline void ac_put_obj(struct kmem_cache *cachep, struct array_cache *ac,
++								void *objp)
 +{
-+	sock_reset_flag(sk, SOCK_MEMALLOC);
-+	sk->sk_allocation &= ~__GFP_MEMALLOC;
-+}
-+EXPORT_SYMBOL_GPL(sk_clear_memalloc);
++	if (unlikely(sk_memalloc_socks()))
++		objp = __ac_put_obj(cachep, ac, objp);
 +
- #if defined(CONFIG_CGROUPS) && !defined(CONFIG_NET_CLS_CGROUP)
- int net_cls_subsys_id = -1;
- EXPORT_SYMBOL_GPL(net_cls_subsys_id);
+ 	ac->entry[ac->avail++] = objp;
+ }
+ 
 -- 
 1.7.3.4
 
