@@ -1,178 +1,201 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id A71BD6B0011
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 11:09:44 -0400 (EDT)
-Date: Wed, 27 Apr 2011 16:09:40 +0100
-From: Matt Fleming <matt@console-pimps.org>
-Subject: Re: [PATCH] mm: Delete non-atomic mm counter implementation
-Message-ID: <20110427160940.0493f24f@mfleming-mobl1.ger.corp.intel.com>
-In-Reply-To: <1303914965-868-1-git-send-email-matt@console-pimps.org>
-References: <1303914965-868-1-git-send-email-matt@console-pimps.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 780F06B0011
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 12:08:15 -0400 (EDT)
+From: Mel Gorman <mgorman@suse.de>
+Subject: [PATCH 00/13] Swap-over-NBD without deadlocking v3
+Date: Wed, 27 Apr 2011 17:07:58 +0100
+Message-Id: <1303920491-25302-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Neil Brown <neilb@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mgorman@suse.de>
 
-[Oops! Replying with the correct linux-mm address]
+Changelog since V2
+  o Document that __GFP_NOMEMALLOC overrides __GFP_MEMALLOC		(Neil)
+  o Use wait_event_interruptible					(Neil)
+  o Use !! when casting to bool to avoid any possibilitity of type
+    truncation								(Neil)
+  o Nicer logic when using skb_pfmemalloc_protocol			(Neil)
 
-On Wed, 27 Apr 2011 15:36:05 +0100
-Matt Fleming <matt@console-pimps.org> wrote:
+Changelog since V1
+  o Rebase on top of mmotm
+  o Use atomic_t for memalloc_socks		(David Miller)
+  o Remove use of sk_memalloc_socks in vmscan	(Neil Brown)
+  o Check throttle within prepare_to_wait	(Neil Brown)
+  o Add statistics on throttling instead of printk
 
-> From: Matt Fleming <matt.fleming@linux.intel.com>
-> 
-> The problem with having two different types of counters is that
-> developers adding new code need to keep in mind whether it's safe to
-> use both the atomic and non-atomic implementations. For example, when
-> adding new callers of the *_mm_counter() functions a developer needs
-> to ensure that those paths are always executed with page_table_lock
-> held, in case we're using the non-atomic implementation of mm
-> counters.
-> 
-> Hugh Dickins introduced the atomic mm counters in commit f412ac08c986
-> ("[PATCH] mm: fix rss and mmlist locking"). When asked why he left the
-> non-atomic counters around he said,
-> 
->   | The only reason was to avoid adding costly atomic operations into a
->   | configuration that had no need for them there: the page_table_lock
->   | sufficed.
->   |
->   | Certainly it would be simpler just to delete the non-atomic variant.
->   |
->   | And I think it's fair to say that any configuration on which we're
->   | measuring performance to that degree (rather than "does it boot fast?"
->   | type measurements), would already be going the split ptlocks route.
-> 
-> Removing the non-atomic counters eases the maintenance burden because
-> developers no longer have to mindful of the two implementations when
-> using *_mm_counter().
-> 
-> Note that all architectures provide a means of atomically updating
-> atomic_long_t variables, even if they have to revert to the generic
-> spinlock implementation because they don't support 64-bit atomic
-> instructions (see lib/atomic64.c).
-> 
-> Signed-off-by: Matt Fleming <matt.fleming@linux.intel.com>
-> ---
-> 
-> Dave, you might want to take this into your pagetable counters series
-> so that you only need to worry about atomic mm counters.
-> 
->  include/linux/mm.h       |   44 +++++++-------------------------------------
->  include/linux/mm_types.h |    9 +++------
->  2 files changed, 10 insertions(+), 43 deletions(-)
-> 
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index dd87a78..ee64af2 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -1034,65 +1034,35 @@ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
->  /*
->   * per-process(per-mm_struct) statistics.
->   */
-> -#if defined(SPLIT_RSS_COUNTING)
-> -/*
-> - * The mm counters are not protected by its page_table_lock,
-> - * so must be incremented atomically.
-> - */
->  static inline void set_mm_counter(struct mm_struct *mm, int member, long value)
->  {
->  	atomic_long_set(&mm->rss_stat.count[member], value);
->  }
->  
-> +#if defined(SPLIT_RSS_COUNTING)
->  unsigned long get_mm_counter(struct mm_struct *mm, int member);
-> -
-> -static inline void add_mm_counter(struct mm_struct *mm, int member, long value)
-> -{
-> -	atomic_long_add(value, &mm->rss_stat.count[member]);
-> -}
-> -
-> -static inline void inc_mm_counter(struct mm_struct *mm, int member)
-> -{
-> -	atomic_long_inc(&mm->rss_stat.count[member]);
-> -}
-> -
-> -static inline void dec_mm_counter(struct mm_struct *mm, int member)
-> -{
-> -	atomic_long_dec(&mm->rss_stat.count[member]);
-> -}
-> -
-> -#else  /* !USE_SPLIT_PTLOCKS */
-> -/*
-> - * The mm counters are protected by its page_table_lock,
-> - * so can be incremented directly.
-> - */
-> -static inline void set_mm_counter(struct mm_struct *mm, int member, long value)
-> -{
-> -	mm->rss_stat.count[member] = value;
-> -}
-> -
-> +#else
->  static inline unsigned long get_mm_counter(struct mm_struct *mm, int member)
->  {
-> -	return mm->rss_stat.count[member];
-> +	return atomic_long_read(&mm->rss_stat.count[member]);
->  }
-> +#endif
->  
->  static inline void add_mm_counter(struct mm_struct *mm, int member, long value)
->  {
-> -	mm->rss_stat.count[member] += value;
-> +	atomic_long_add(value, &mm->rss_stat.count[member]);
->  }
->  
->  static inline void inc_mm_counter(struct mm_struct *mm, int member)
->  {
-> -	mm->rss_stat.count[member]++;
-> +	atomic_long_inc(&mm->rss_stat.count[member]);
->  }
->  
->  static inline void dec_mm_counter(struct mm_struct *mm, int member)
->  {
-> -	mm->rss_stat.count[member]--;
-> +	atomic_long_dec(&mm->rss_stat.count[member]);
->  }
->  
-> -#endif /* !USE_SPLIT_PTLOCKS */
-> -
->  static inline unsigned long get_mm_rss(struct mm_struct *mm)
->  {
->  	return get_mm_counter(mm, MM_FILEPAGES) +
-> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-> index ca01ab2..b8ca318 100644
-> --- a/include/linux/mm_types.h
-> +++ b/include/linux/mm_types.h
-> @@ -205,19 +205,16 @@ enum {
->  
->  #if USE_SPLIT_PTLOCKS && defined(CONFIG_MMU)
->  #define SPLIT_RSS_COUNTING
-> -struct mm_rss_stat {
-> -	atomic_long_t count[NR_MM_COUNTERS];
-> -};
->  /* per-thread cached information, */
->  struct task_rss_stat {
->  	int events;	/* for synchronization threshold */
->  	int count[NR_MM_COUNTERS];
->  };
-> -#else  /* !USE_SPLIT_PTLOCKS */
-> +#endif /* USE_SPLIT_PTLOCKS */
-> +
->  struct mm_rss_stat {
-> -	unsigned long count[NR_MM_COUNTERS];
-> +	atomic_long_t count[NR_MM_COUNTERS];
->  };
-> -#endif /* !USE_SPLIT_PTLOCKS */
->  
->  struct mm_struct {
->  	struct vm_area_struct * mmap;		/* list of VMAs */
+Swapping over NBD is something that is technically possible but not
+often advised. While there are number of guides on the internet
+on how to configure it and nbd-client supports a -swap switch to
+"prevent deadlocks", the fact of the matter is a machine using NBD
+for swap can be locked up within minutes if swap is used intensively.
 
+The problem is that network block devices do not use mempools like
+normal block devices do. As the host cannot control where they receive
+packets from, they cannot reliably work out in advance how much memory
+they might need.
 
+Some years ago, Peter Ziljstra developed a series of patches that
+supported swap over an NFS that some distributions are carrying in
+their kernels. This patch series borrows very heavily from Peter's work
+to support swapping over NBD (the relatively straight-forward case)
+and uses throttling instead of dynamically resized memory reserves
+so the series is not too unwieldy for review.
+
+Patch 1 serialises access to min_free_kbytes. It's not strictly needed
+	by this series but as the series cares about watermarks in
+	general, it's a harmless fix. It could be merged independently.
+
+Patch 2 adds knowledge of the PFMEMALLOC reserves to SLAB and SLUB to
+	preserve access to pages allocated under low memory situations
+	to callers that are freeying memory.
+
+Patch 3 introduces __GFP_MEMALLOC to allow access to the PFMEMALLOC
+	reserves without setting PFMEMALLOC.
+
+Patch 4 opens the possibility for softirqs to use PFMEMALLOC reserves
+	for later use by network packet processing.
+
+Patch 5 ignores memory policies when ALLOC_NO_WATERMARKS is set.
+
+Patches 6-9 allows network processing to use PFMEMALLOC reserves when
+	the socket has been marked as being used by the VM to clean
+	pages. If packets are received and stored in pages that were
+	allocated under low-memory situations and are unrelated to
+	the VM, the packets are dropped.
+
+Patch 10 is a micro-optimisation to avoid a function call in the
+	common case.
+
+Patch 11 tags NBD sockets as being SOCK_MEMALLOC so they can use
+	PFMEMALLOC if necessary.
+
+Patch 12 notes that it is still possible for the PFMEMALLOC reserve
+	to be depleted. To prevent this, direct reclaimers get
+	throttled on a waitqueue if 50% of the PFMEMALLOC reserves are
+	depleted.  It is expected that kswapd and the direct reclaimers
+	already running will clean enough pages for the low watermark
+	to be reached and the throttled processes are woken up.
+
+Patch 13 adds a statistic to track how often processes get throttled
+
+Some basic performance testing was run using kernel builds, netperf
+on loopback for UDP and TCP, hackbench (pipes and sockets), iozone
+and sysbench. Each of them were expected to use the sl*b allocators
+reasonably heavily but there did not appear to be significant
+performance variances. Here is the results from netperf using
+slab as an example
+
+NETPERF UDP
+                   netperf-udp       udp-swapnbd
+                  vanilla-slab        v1r17-slab
+      64   178.06 ( 0.00%)*   189.46 ( 6.02%) 
+             1.02%             1.00%        
+     128   355.06 ( 0.00%)    370.75 ( 4.23%) 
+     256   662.47 ( 0.00%)    721.62 ( 8.20%) 
+    1024  2229.39 ( 0.00%)   2567.04 (13.15%) 
+    2048  3974.20 ( 0.00%)   4114.70 ( 3.41%) 
+    3312  5619.89 ( 0.00%)   5800.09 ( 3.11%) 
+    4096  6460.45 ( 0.00%)   6702.45 ( 3.61%) 
+    8192  9580.24 ( 0.00%)   9927.97 ( 3.50%) 
+   16384 13259.14 ( 0.00%)  13493.88 ( 1.74%) 
+MMTests Statistics: duration
+User/Sys Time Running Test (seconds)       2960.17   2540.14
+Total Elapsed Time (seconds)               3554.10   3050.10
+
+NETPERF TCP
+                   netperf-tcp       tcp-swapnbd
+                  vanilla-slab        v1r17-slab
+      64  1230.29 ( 0.00%)   1273.17 ( 3.37%) 
+     128  2309.97 ( 0.00%)   2375.22 ( 2.75%) 
+     256  3659.32 ( 0.00%)   3704.87 ( 1.23%) 
+    1024  7267.80 ( 0.00%)   7251.02 (-0.23%) 
+    2048  8358.26 ( 0.00%)   8204.74 (-1.87%) 
+    3312  8631.07 ( 0.00%)   8637.62 ( 0.08%) 
+    4096  8770.95 ( 0.00%)   8704.08 (-0.77%) 
+    8192  9749.33 ( 0.00%)   9769.06 ( 0.20%) 
+   16384 11151.71 ( 0.00%)  11135.32 (-0.15%) 
+MMTests Statistics: duration
+User/Sys Time Running Test (seconds)       1245.04   1619.89
+Total Elapsed Time (seconds)               1250.66   1622.18
+
+Here is the equivalent test for SLUB
+
+NETPERF UDP
+                   netperf-udp       udp-swapnbd
+                  vanilla-slub        v1r17-slub
+      64   180.83 ( 0.00%)    183.68 ( 1.55%) 
+     128   357.29 ( 0.00%)    367.11 ( 2.67%) 
+     256   679.64 ( 0.00%)*   724.03 ( 6.13%) 
+             1.15%             1.00%        
+    1024  2343.40 ( 0.00%)*  2610.63 (10.24%) 
+             1.68%             1.00%        
+    2048  3971.53 ( 0.00%)   4102.21 ( 3.19%)*
+             1.00%             1.40%        
+    3312  5677.04 ( 0.00%)   5748.69 ( 1.25%) 
+    4096  6436.75 ( 0.00%)   6549.41 ( 1.72%) 
+    8192  9698.56 ( 0.00%)   9808.84 ( 1.12%) 
+   16384 13337.06 ( 0.00%)  13404.38 ( 0.50%) 
+MMTests Statistics: duration
+User/Sys Time Running Test (seconds)       2880.15   2180.13
+Total Elapsed Time (seconds)               3458.10   2618.09
+
+NETPERF TCP
+                   netperf-tcp       tcp-swapnbd
+                  vanilla-slub        v1r17-slub
+      64  1256.79 ( 0.00%)   1287.32 ( 2.37%) 
+     128  2308.71 ( 0.00%)   2371.09 ( 2.63%) 
+     256  3672.03 ( 0.00%)   3771.05 ( 2.63%) 
+    1024  7245.08 ( 0.00%)   7261.60 ( 0.23%) 
+    2048  8315.17 ( 0.00%)   8244.14 (-0.86%) 
+    3312  8611.43 ( 0.00%)   8616.90 ( 0.06%) 
+    4096  8711.64 ( 0.00%)   8695.97 (-0.18%) 
+    8192  9795.71 ( 0.00%)   9774.11 (-0.22%) 
+   16384 11145.48 ( 0.00%)  11225.70 ( 0.71%) 
+MMTests Statistics: duration
+User/Sys Time Running Test (seconds)       1345.05   1425.06
+Total Elapsed Time (seconds)               1350.61   1430.66
+
+Time to completion varied a lot but this can happen with netperf as
+it tries to find results within a sufficiently high confidence. I
+wouldn't read too much into the performance gains of netperf-udp
+as it can sometimes be affected by code just shuffling around for
+whatever reason.
+
+For testing swap-over-NBD, a machine was booted with 2G of RAM with a
+swapfile backed by NBD. 16*NUM_CPU processes were started that create
+anonymous memory mappings and read them linearly in a loop. The total
+size of the mappings were 4*PHYSICAL_MEMORY to use swap heavily under
+memory pressure. Without the patches, the machine locks up within
+minutes and runs to completion with them applied.
+
+ drivers/block/nbd.c           |    7 +-
+ include/linux/gfp.h           |   13 ++-
+ include/linux/mm_types.h      |    8 ++
+ include/linux/mmzone.h        |    1 +
+ include/linux/sched.h         |    7 ++
+ include/linux/skbuff.h        |   19 +++-
+ include/linux/slub_def.h      |    1 +
+ include/linux/vm_event_item.h |    1 +
+ include/net/sock.h            |   19 ++++
+ kernel/softirq.c              |    3 +
+ mm/page_alloc.c               |   57 ++++++++--
+ mm/slab.c                     |  240 +++++++++++++++++++++++++++++++++++------
+ mm/slub.c                     |   35 +++++-
+ mm/vmscan.c                   |   55 ++++++++++
+ mm/vmstat.c                   |    1 +
+ net/core/dev.c                |   48 ++++++++-
+ net/core/filter.c             |    8 ++
+ net/core/skbuff.c             |   95 ++++++++++++++---
+ net/core/sock.c               |   42 +++++++
+ net/ipv4/tcp.c                |    3 +-
+ net/ipv4/tcp_output.c         |   13 ++-
+ net/ipv6/tcp_ipv6.c           |   12 ++-
+ 22 files changed, 601 insertions(+), 87 deletions(-)
 
 -- 
-Matt Fleming, Intel Open Source Technology Center
+1.7.3.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
