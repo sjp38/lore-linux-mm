@@ -1,80 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id D8AA49000C1
-	for <linux-mm@kvack.org>; Tue, 26 Apr 2011 22:22:28 -0400 (EDT)
-Received: by wyf19 with SMTP id 19so1248543wyf.14
-        for <linux-mm@kvack.org>; Tue, 26 Apr 2011 19:22:24 -0700 (PDT)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 494F19000C1
+	for <linux-mm@kvack.org>; Tue, 26 Apr 2011 22:34:19 -0400 (EDT)
+Date: Wed, 27 Apr 2011 10:34:04 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 1/2] split inode_wb_list_lock into
+ bdi_writeback.list_lock
+Message-ID: <20110427023404.GA5821@localhost>
+References: <20110426144218.GA14862@localhost>
+ <20110426144209.06317674.akpm@linux-foundation.org>
 MIME-Version: 1.0
-In-Reply-To: <20110427110838.D178.A69D9226@jp.fujitsu.com>
-References: <BANLkTi=8ySUPP6_GUL9CTFh98J1PH0a4=g@mail.gmail.com>
-	<BANLkTikfyi2FBykk1D1H-tdrSjmRYEh6ug@mail.gmail.com>
-	<20110427110838.D178.A69D9226@jp.fujitsu.com>
-Date: Wed, 27 Apr 2011 10:22:24 +0800
-Message-ID: <BANLkTinwrKWAgJJPxGU-9GySu9Vro6d2mA@mail.gmail.com>
-Subject: Re: [PATCH v2] virtio_balloon: disable oom killer when fill balloon
-From: Dave Young <hidave.darkstar@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110426144209.06317674.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Minchan Kim <minchan.kim@gmail.com>, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Hellwig <hch@infradead.org>, Jan Kara <jack@suse.cz>, Mel Gorman <mel@linux.vnet.ibm.com>, Dave Chinner <david@fromorbit.com>, Trond Myklebust <Trond.Myklebust@netapp.com>, Itaru Kitayama <kitayama@cl.bb4u.ne.jp>, Minchan Kim <minchan.kim@gmail.com>, LKML <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-On Wed, Apr 27, 2011 at 10:06 AM, KOSAKI Motohiro
-<kosaki.motohiro@jp.fujitsu.com> wrote:
->> On Wed, Apr 27, 2011 at 9:37 AM, Dave Young <hidave.darkstar@gmail.com> wrote:
->> > On Wed, Apr 27, 2011 at 7:33 AM, Minchan Kim <minchan.kim@gmail.com> wrote:
->> >> On Tue, Apr 26, 2011 at 6:39 PM, Dave Young <hidave.darkstar@gmail.com> wrote:
->> >>> On Tue, Apr 26, 2011 at 5:28 PM, Minchan Kim <minchan.kim@gmail.com> wrote:
->> >>>> Please resend this with [2/2] to linux-mm.
->> >>>>
->> >>>> On Tue, Apr 26, 2011 at 5:59 PM, Dave Young <hidave.darkstar@gmail.com> wrote:
->> >>>>> When memory pressure is high, virtio ballooning will probably cause oom killing.
->> >>>>> Even if alloc_page with GFP_NORETRY itself does not directly trigger oom it
->> >>>>> will make memory becoming low then memory alloc of other processes will trigger
->> >>>>> oom killing. It is not desired behaviour.
->> >>>>
->> >>>> I can't understand why it is undesirable.
->> >>>> Why do we have to handle it specially?
->> >>>>
->> >>>
->> >>> Suppose user run some random memory hogging process while ballooning
->> >>> it will be undesirable.
->> >>
->> >>
->> >> In VM POV, kvm and random memory hogging processes are customers.
->> >> If we handle ballooning specially with disable OOM, what happens other
->> >> processes requires memory at same time? Should they wait for balloon
->> >> driver to release memory?
->> >>
->> >> I don't know your point. Sorry.
->> >> Could you explain your scenario in detail for justify your idea?
->> >
->> > What you said make sense I understand what you said now. Lets ignore
->> > my above argue and see what I'm actually doing.
->> >
->> > I'm hacking with balloon driver to fit to short the vm migration time.
->> >
->> > while migrating host tell guest to balloon as much memory as it can, then start
->> > migrate, just skip the ballooned pages, after migration done tell
->> > guest to release the memory.
->> >
->> > In migration case oom is not I want to see and disable oom will be good.
->>
->> BTW, if oom_killer_disabled is really not recommended to use I can
->> switch back to oom_notifier way.
->
-> Could you please explain why you dislike oom_notifier and what problem
-> you faced? I haven't understand why oom_notifier is bad. probably my
-> less knowledge of balloon is a reason.
->
+On Wed, Apr 27, 2011 at 05:42:09AM +0800, Andrew Morton wrote:
+> On Tue, 26 Apr 2011 22:42:19 +0800
+> Wu Fengguang <fengguang.wu@intel.com> wrote:
+> 
+> > @@ -55,13 +55,16 @@ EXPORT_SYMBOL(I_BDEV);
+> >  static void bdev_inode_switch_bdi(struct inode *inode,
+> >  			struct backing_dev_info *dst)
+> >  {
+> > -	spin_lock(&inode_wb_list_lock);
+> > +	struct backing_dev_info *old = inode->i_data.backing_dev_info;
+> > +
+> > +	bdi_lock_two(&old->wb, &dst->wb);
+> >  	spin_lock(&inode->i_lock);
+> >  	inode->i_data.backing_dev_info = dst;
+> >  	if (inode->i_state & I_DIRTY)
+> >  		list_move(&inode->i_wb_list, &dst->wb.b_dirty);
+> >  	spin_unlock(&inode->i_lock);
+> > -	spin_unlock(&inode_wb_list_lock);
+> > +	spin_unlock(&old->wb.list_lock);
+> > +	spin_unlock(&dst->wb.list_lock);
+> >  }
+> 
+> Has this patch been well tested under lockdep?
 
-Both is fine for me indeed, oom_killer_disable is more simple to use
-instead. I ever sent a oom_notifier patch last year and did not get
-much intention, I can refresh and resend it.
+Yes, it runs OK on concurrent dd and dd+tar workloads over all major
+filesystems, including NFS. Lockdep is always enabled in my kernels,
+no warnings are found in dmesg.
 
--- 
-Regards
-dave
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
