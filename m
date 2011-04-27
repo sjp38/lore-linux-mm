@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 8E57B6B0022
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 19:36:42 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with SMTP id D7F1E6B0024
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 19:36:51 -0400 (EDT)
 From: Stephen Wilson <wilsons@start.ca>
-Subject: [PATCH 2/8] mm: use walk_page_range() instead of custom page table walking code
-Date: Wed, 27 Apr 2011 19:35:43 -0400
-Message-Id: <1303947349-3620-3-git-send-email-wilsons@start.ca>
+Subject: [PATCH 4/8] mm: make gather_stats() type-safe and remove forward declaration
+Date: Wed, 27 Apr 2011 19:35:45 -0400
+Message-Id: <1303947349-3620-5-git-send-email-wilsons@start.ca>
 In-Reply-To: <1303947349-3620-1-git-send-email-wilsons@start.ca>
 References: <1303947349-3620-1-git-send-email-wilsons@start.ca>
 Sender: owner-linux-mm@kvack.org
@@ -13,117 +13,78 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Alexander Viro <viro@zeniv.linux.org.uk>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-In the specific case of show_numa_map(), the custom page table walking
-logic implemented in mempolicy.c does not provide any special service
-beyond that provided by walk_page_range().
+Improve the prototype of gather_stats() to take a struct numa_maps as
+argument instead of a generic void *.  Update all callers to make the
+required type explicit.
 
-Also, converting show_numa_map() to use the generic routine decouples
-the function from mempolicy.c, allowing it to be moved out of the mm
-subsystem and into fs/proc.
+Since gather_stats() is not needed before its definition and is
+scheduled to be moved out of mempolicy.c the declaration is removed as
+well.
 
 Signed-off-by: Stephen Wilson <wilsons@start.ca>
 ---
- mm/mempolicy.c |   53 ++++++++++++++++++++++++++++++++++++++++++++++-------
- 1 files changed, 46 insertions(+), 7 deletions(-)
+ mm/mempolicy.c |   12 +++++++-----
+ 1 files changed, 7 insertions(+), 5 deletions(-)
 
 diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index 5bfb03e..dfe27e3 100644
+index 63c0d69..d4c0b8d 100644
 --- a/mm/mempolicy.c
 +++ b/mm/mempolicy.c
-@@ -2568,6 +2568,22 @@ static void gather_stats(struct page *page, void *private, int pte_dirty)
- 	md->node[page_to_nid(page)]++;
- }
+@@ -456,7 +456,6 @@ static const struct mempolicy_operations mpol_ops[MPOL_MAX] = {
+ 	},
+ };
  
-+static int gather_pte_stats(pte_t *pte, unsigned long addr,
-+		unsigned long pte_size, struct mm_walk *walk)
-+{
-+	struct page *page;
-+
-+	if (pte_none(*pte))
-+		return 0;
-+
-+	page = pte_page(*pte);
-+	if (!page)
-+		return 0;
-+
-+	gather_stats(page, walk->private, pte_dirty(*pte));
-+	return 0;
-+}
-+
- #ifdef CONFIG_HUGETLB_PAGE
- static void check_huge_range(struct vm_area_struct *vma,
- 		unsigned long start, unsigned long end,
-@@ -2597,12 +2613,35 @@ static void check_huge_range(struct vm_area_struct *vma,
- 		gather_stats(page, md, pte_dirty(*ptep));
- 	}
- }
-+
-+static int gather_hugetbl_stats(pte_t *pte, unsigned long hmask,
-+		unsigned long addr, unsigned long end, struct mm_walk *walk)
-+{
-+	struct page *page;
-+
-+	if (pte_none(*pte))
-+		return 0;
-+
-+	page = pte_page(*pte);
-+	if (!page)
-+		return 0;
-+
-+	gather_stats(page, walk->private, pte_dirty(*pte));
-+	return 0;
-+}
-+
- #else
- static inline void check_huge_range(struct vm_area_struct *vma,
- 		unsigned long start, unsigned long end,
- 		struct numa_maps *md)
+-static void gather_stats(struct page *, void *, int pte_dirty);
+ static void migrate_page_add(struct page *page, struct list_head *pagelist,
+ 				unsigned long flags);
+ 
+@@ -2538,9 +2537,8 @@ struct numa_maps {
+ 	unsigned long node[MAX_NUMNODES];
+ };
+ 
+-static void gather_stats(struct page *page, void *private, int pte_dirty)
++static void gather_stats(struct page *page, struct numa_maps *md, int pte_dirty)
  {
- }
-+
-+static int gather_hugetbl_stats(pte_t *pte, unsigned long hmask,
-+		unsigned long addr, unsigned long end, struct mm_walk *walk)
-+{
-+	return 0;
-+}
- #endif
+-	struct numa_maps *md = private;
+ 	int count = page_mapcount(page);
  
- /*
-@@ -2615,6 +2654,7 @@ int show_numa_map(struct seq_file *m, void *v)
- 	struct numa_maps *md;
- 	struct file *file = vma->vm_file;
- 	struct mm_struct *mm = vma->vm_mm;
-+	struct mm_walk walk = {};
- 	struct mempolicy *pol;
- 	int n;
- 	char buffer[50];
-@@ -2626,6 +2666,11 @@ int show_numa_map(struct seq_file *m, void *v)
- 	if (!md)
+ 	md->pages++;
+@@ -2568,6 +2566,7 @@ static void gather_stats(struct page *page, void *private, int pte_dirty)
+ static int gather_pte_stats(pte_t *pte, unsigned long addr,
+ 		unsigned long pte_size, struct mm_walk *walk)
+ {
++	struct numa_maps *md;
+ 	struct page *page;
+ 	int nid;
+ 
+@@ -2582,7 +2581,8 @@ static int gather_pte_stats(pte_t *pte, unsigned long addr,
+ 	if (!node_isset(nid, node_states[N_HIGH_MEMORY]))
  		return 0;
  
-+	walk.hugetlb_entry = gather_hugetbl_stats;
-+	walk.pte_entry = gather_pte_stats;
-+	walk.private = md;
-+	walk.mm = mm;
-+
- 	pol = get_vma_policy(priv->task, vma, vma->vm_start);
- 	mpol_to_str(buffer, sizeof(buffer), pol, 0);
- 	mpol_cond_put(pol);
-@@ -2642,13 +2687,7 @@ int show_numa_map(struct seq_file *m, void *v)
- 		seq_printf(m, " stack");
- 	}
+-	gather_stats(page, walk->private, pte_dirty(*pte));
++	md = walk->private;
++	gather_stats(page, md, pte_dirty(*pte));
+ 	return 0;
+ }
  
--	if (is_vm_hugetlb_page(vma)) {
--		check_huge_range(vma, vma->vm_start, vma->vm_end, md);
--		seq_printf(m, " huge");
--	} else {
--		check_pgd_range(vma, vma->vm_start, vma->vm_end,
--			&node_states[N_HIGH_MEMORY], MPOL_MF_STATS, md);
--	}
-+	walk_page_range(vma->vm_start, vma->vm_end, &walk);
+@@ -2619,6 +2619,7 @@ static void check_huge_range(struct vm_area_struct *vma,
+ static int gather_hugetbl_stats(pte_t *pte, unsigned long hmask,
+ 		unsigned long addr, unsigned long end, struct mm_walk *walk)
+ {
++	struct numa_maps *md;
+ 	struct page *page;
  
- 	if (!md->pages)
- 		goto out;
+ 	if (pte_none(*pte))
+@@ -2628,7 +2629,8 @@ static int gather_hugetbl_stats(pte_t *pte, unsigned long hmask,
+ 	if (!page)
+ 		return 0;
+ 
+-	gather_stats(page, walk->private, pte_dirty(*pte));
++	md = walk->private;
++	gather_stats(page, md, pte_dirty(*pte));
+ 	return 0;
+ }
+ 
 -- 
 1.7.3.5
 
