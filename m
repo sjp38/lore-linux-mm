@@ -1,60 +1,139 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 3168A6B0011
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 19:18:58 -0400 (EDT)
-Received: by wwi18 with SMTP id 18so3835887wwi.2
-        for <linux-mm@kvack.org>; Wed, 27 Apr 2011 16:18:55 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20110427170304.d31c1398.kamezawa.hiroyu@jp.fujitsu.com>
-References: <cover.1303833415.git.minchan.kim@gmail.com>
-	<232562452317897b5acb1445803410d74233a923.1303833417.git.minchan.kim@gmail.com>
-	<20110427170304.d31c1398.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Thu, 28 Apr 2011 08:18:54 +0900
-Message-ID: <BANLkTik9c7MVoHH+hjn7SHqMhW-6d4eoLg@mail.gmail.com>
-Subject: Re: [RFC 3/8] vmscan: make isolate_lru_page with filter aware
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 44CD06B0011
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 19:21:23 -0400 (EDT)
+Date: Thu, 28 Apr 2011 09:21:10 +1000
+From: NeilBrown <neilb@suse.de>
+Subject: Re: [PATCH 02/13] mm: sl[au]b: Add knowledge of PFMEMALLOC reserve
+ pages
+Message-ID: <20110428092110.608eb354@notabene.brown>
+In-Reply-To: <20110426135940.GE4658@suse.de>
+References: <1303803414-5937-1-git-send-email-mgorman@suse.de>
+	<1303803414-5937-3-git-send-email-mgorman@suse.de>
+	<20110426213758.450f6f49@notabene.brown>
+	<20110426135940.GE4658@suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux.com>, Johannes Weiner <jweiner@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-On Wed, Apr 27, 2011 at 5:03 PM, KAMEZAWA Hiroyuki
-<kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> On Wed, 27 Apr 2011 01:25:20 +0900
-> Minchan Kim <minchan.kim@gmail.com> wrote:
->
->> In some __zone_reclaim case, we don't want to shrink mapped page.
->> Nonetheless, we have isolated mapped page and re-add it into
->> LRU's head. It's unnecessary CPU overhead and makes LRU churning.
->>
->> Of course, when we isolate the page, the page might be mapped but
->> when we try to migrate the page, the page would be not mapped.
->> So it could be migrated. But race is rare and although it happens,
->> it's no big deal.
->>
->> Cc: Christoph Lameter <cl@linux.com>
->> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
->> Cc: Mel Gorman <mgorman@suse.de>
->> Cc: Rik van Riel <riel@redhat.com>
->> Cc: Andrea Arcangeli <aarcange@redhat.com>
->> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
->
->
-> Hmm, it seems mm/memcontrol.c::mem_cgroup_isolate_pages() should be updated, too.
->
-> But it's okay you start from global LRU.
+On Tue, 26 Apr 2011 14:59:40 +0100 Mel Gorman <mgorman@suse.de> wrote:
 
-Yes. That's exactly what  I want. :)
-I am supposed to consider memcg after concept is approved.
+> On Tue, Apr 26, 2011 at 09:37:58PM +1000, NeilBrown wrote:
+> > On Tue, 26 Apr 2011 08:36:43 +0100 Mel Gorman <mgorman@suse.de> wrote:
+> > 
+> > > +		/*
+> > > +		 * If there are full empty slabs and we were not forced to
+> > > +		 * allocate a slab, mark this one !pfmemalloc
+> > > +		 */
+> > > +		l3 = cachep->nodelists[numa_mem_id()];
+> > > +		if (!list_empty(&l3->slabs_free) && force_refill) {
+> > > +			struct slab *slabp = virt_to_slab(objp);
+> > > +			slabp->pfmemalloc = false;
+> > > +			clear_obj_pfmemalloc(&objp);
+> > > +			check_ac_pfmemalloc(cachep, ac);
+> > > +			return objp;
+> > > +		}
+> > 
+> > The comment doesn't match the code.  I think you need to remove the words
+> > "full" and "not" assuming the code is correct which it probably is...
+> > 
+> 
+> I'll fix up the comment, you're right, it's confusing.
+> 
+> > But the code seems to be much more complex than Peter's original, and I don't
+> > see the gain.
+> > 
+> 
+> You're right, it is more complex.
+> 
+> > Peter's code had only one 'reserved' flag for each kmem_cache. 
+> 
+> The reserve was set in a per-cpu structure so there was a "lag" time
+> before that information was available to other CPUs. Fine on smaller
+> machines but a bit more of a problem today. 
+> 
+> > You seem to
+> > have one for every slab.  I don't see the point.
+> > It is true that yours is in some sense more fair - but I'm not sure the
+> > complexity is worth it.
+> > 
+> 
+> More fairness was one of the objects.
+> 
+> > Was there some particular reason you made the change?
+> > 
+> 
+> This version survives under considerably more stress than Peter's
+> original version did without requiring the additional complexity of
+> memory reserves.
+> 
 
->
-> Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+That is certainly a very compelling argument .... but I still don't get why.
+I'm sorry if I'm being dense, but I still don't see why the complexity buys
+us better stability and I really would like to understand.
 
-Thanks fore the review, Kame.
--- 
-Kind regards,
-Minchan Kim
+You don't seem to need the same complexity for SLUB with the justification
+of "SLUB generally maintaining smaller lists than SLAB".
+
+Presumably these are per-CPU lists of free objects or slabs?  If the things
+on those lists could be used by anyone long lists couldn't hurt.
+So the problem must be that the lists get long while the array_cache is still
+marked as 'pfmemalloc' (or 'reserve' in Peter's patches).
+
+Is that the problem?  That reserve memory gets locked up in SLAB freelists?
+If so - would that be more easily addressed by effectively reducing the
+'batching' when the array_cache had dipped into reserves, so slabs are
+returned to the VM more promptly?
+
+Probably related, now that you've fixed the comment here (thanks):
+
++		/*
++		 * If there are empty slabs on the slabs_free list and we are
++		 * being forced to refill the cache, mark this one !pfmemalloc.
++		 */
++		l3 = cachep->nodelists[numa_mem_id()];
++		if (!list_empty(&l3->slabs_free) && force_refill) {
++			struct slab *slabp = virt_to_slab(objp);
++			slabp->pfmemalloc = false;
++			clear_obj_pfmemalloc(&objp);
++			check_ac_pfmemalloc(cachep, ac);
++			return objp;
++		}
+
+I'm trying to understand it...
+The context is that a non-MEMALLOC allocation is happening and everything on
+the free lists is reserved for MEMALLOC allocations.
+So if in that case there is a completely free slab on the free list we decide
+that it is OK to mark the current slab as non-MEMALLOC.
+The logic seems to be that we could just release that free slab to the VM,
+then an alloc_page would be able to get it back.  But if we are still well
+below the reserve watermark, then there might be some other allocation that
+is more deserving of the page and we shouldn't just assume we can take
+it with actually calling in to alloc_pages to check that we are no longer
+running on reserves..
+
+So this looks like an optimisation that is wrong.
+
+
+
+BTW, 
+
+
++	/* Record if ALLOC_PFMEMALLOC was set when allocating the slab */
++	if (pfmemalloc) {
++		struct array_cache *ac = cpu_cache_get(cachep);
++		slabp->pfmemalloc = true;
++		ac->pfmemalloc = 1;
++	}
++
+
+I think that "= 1"  should be "= true".  :-)
+
+NeilBrown
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
