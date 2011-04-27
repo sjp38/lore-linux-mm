@@ -1,107 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 01C0F6B0011
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 12:28:44 -0400 (EDT)
-Date: Wed, 27 Apr 2011 09:28:41 -0700
-From: Randy Dunlap <rdunlap@xenotime.net>
-Subject: Re: [RFC PATCH 1/3] Add string parsing function get_next_ulong
-Message-Id: <20110427092841.1442fe5f.rdunlap@xenotime.net>
-In-Reply-To: <1303921007-1769-2-git-send-email-sassmann@kpanic.de>
-References: <1303921007-1769-1-git-send-email-sassmann@kpanic.de>
-	<1303921007-1769-2-git-send-email-sassmann@kpanic.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 0259A6B0011
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 12:33:51 -0400 (EDT)
+Content-Type: text/plain; charset=UTF-8
+From: Chris Mason <chris.mason@oracle.com>
+Subject: Re: [BUG] fatal hang untarring 90GB file, possibly writeback related.
+In-reply-to: <1303920553.2583.7.camel@mulgrave.site>
+References: <1303920553.2583.7.camel@mulgrave.site>
+Date: Wed, 27 Apr 2011 12:33:37 -0400
+Message-Id: <1303921583-sup-4021@think>
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Stefan Assmann <sassmann@kpanic.de>
-Cc: linux-mm@kvack.org, tony.luck@intel.com, andi@firstfloor.org, mingo@elte.hu, hpa@zytor.com, rick@vanrein.org, akpm@linux-foundation.org, lwoodman@redhat.com, riel@redhat.com
+To: James Bottomley <james.bottomley@hansenpartnership.com>
+Cc: linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 
-On Wed, 27 Apr 2011 18:16:45 +0200 Stefan Assmann wrote:
-
-> Adding this function to allow easy parsing of unsigned long values from the
-> beginning of strings. Convenience function to parse pointers from the kernel
-> command line.
+Excerpts from James Bottomley's message of 2011-04-27 12:09:13 -0400:
+> The bug manifests as a soft lockup in kswapd:
 > 
-> Signed-off-by: Stefan Assmann <sassmann@kpanic.de>
-> ---
->  include/linux/kernel.h |    1 +
->  lib/cmdline.c          |   35 +++++++++++++++++++++++++++++++++++
->  2 files changed, 36 insertions(+), 0 deletions(-)
-> 
-> diff --git a/include/linux/kernel.h b/include/linux/kernel.h
-> index 2fe6e84..b6ded39 100644
-> --- a/include/linux/kernel.h
-> +++ b/include/linux/kernel.h
-> @@ -218,6 +218,7 @@ extern int vsscanf(const char *, const char *, va_list)
->  
->  extern int get_option(char **str, int *pint);
->  extern char *get_options(const char *str, int nints, int *ints);
-> +extern int get_next_ulong(char **str, unsigned long *val, char sep, int base);
->  extern unsigned long long memparse(const char *ptr, char **retptr);
->  
->  extern int core_kernel_text(unsigned long addr);
-> diff --git a/lib/cmdline.c b/lib/cmdline.c
-> index f5f3ad8..82a6616 100644
-> --- a/lib/cmdline.c
-> +++ b/lib/cmdline.c
-> @@ -114,6 +114,41 @@ char *get_options(const char *str, int nints, int *ints)
->  }
->  
->  /**
-> + *	get_next_ulong - Parse unsigned long at the beginning of a string
-> + *	@strp: (output) String to be parsed
+> [  155.759084] netconsole: network logging started
+> [  598.920430] BUG: soft lockup - CPU#1 stuck for 67s! [kswapd0:46]
+> [  598.920472] Modules linked in: netconsole configfs fuse sunrpc cpufreq_ondemand acpi_cpufreq freq_table mperf ip6t_REJECT nf_conntrack_ipv6 nf_defrag_ipv6 ip6table_filter ip6_tables snd_hda_codec_hdmi snd_hda_codec_conexant snd_hda_intel snd_hda_codec snd_hwdep arc4 snd_seq snd_seq_device snd_pcm iwlagn mac80211 snd_timer uvcvideo btusb bluetooth snd cfg80211 videodev soundcore v4l2_compat_ioctl32 iTCO_wdt xhci_hcd e1000e snd_page_alloc rfkill i2c_i801 wmi iTCO_vendor_support microcode pcspkr joydev uinput ipv6 sdhci_pci sdhci mmc_core i915 drm_kms_helper drm i2c_algo_bit i2c_core video [last unloaded: netconsole]
+> [  598.920834] CPU 1 
+> [  598.920843] Modules linked in: netconsole configfs fuse sunrpc cpufreq_ondemand acpi_cpufreq freq_table mperf ip6t_REJECT nf_conntrack_ipv6 nf_defrag_ipv6 ip6table_filter ip6_tables snd_hda_codec_hdmi snd_hda_codec_conexant snd_hda_intel snd_hda_codec snd_hwdep arc4 snd_seq snd_seq_device snd_pcm iwlagn mac80211 snd_timer uvcvideo btusb bluetooth snd cfg80211 videodev soundcore v4l2_compat_ioctl32 iTCO_wdt xhci_hcd e1000e snd_page_alloc rfkill i2c_i801 wmi iTCO_vendor_support microcode pcspkr joydev uinput ipv6 sdhci_pci sdhci mmc_core i915 drm_kms_helper drm i2c_algo_bit i2c_core video [last unloaded: netconsole]
+> [  598.926818] 
 
-                ^ input/output
+Probably easier to debug with a sysrq-l and sysrq-w.  If you get stuck
+on the filesystem, it is probably waiting on ram, which it probably
+can't get because kswapd is spinning.  Eventually everyone backs up
+waiting for the transaction that never ends.  If we're really lucky it
+is just GFP_KERNEL where it should NOFS.
 
-> + *	@val: (output) unsigned long carrying the result
-> + *	@sep: character specifying the separator
-> + *	@base: number system of the parsed value
-> + *
-> + *	This function parses an unsigned long value at the beginning of a
-> + *	string. The string may begin with a separator or an unsigned long
-> + *	value.
-> + *	After the function is run val will contain the parsed value and strp
+Since you're often stuck in different spots inside shrink_slab, we're
+probably not stuck on a lock.  But, trying with lock debugging, lockdep
+enabled and preempt on is a good idea to rule out locking mistakes.
 
-                                  @val                                  @strp
+Does the fedora debug kernel enable preempt?
 
-> + *	will point to the character *after* the parsed unsigned long.
-> + *
-> + *	In the error case 0 is returned, val and *strp stay unaltered.
-
-                                         @val and @strp
-
-> + *	Otherwise return 1.
-> + */
-> +int get_next_ulong(char **strp, unsigned long *val, char sep, int base)
-> +{
-> +	char *tmp;
-> +
-> +	if (!strp || !(*strp))
-> +		return 0;
-> +
-> +	tmp = *strp;
-> +	if (*tmp == sep)
-> +		tmp++;
-> +
-> +	*val = simple_strtoul(tmp, strp, base);
-> +
-> +	if (tmp == *strp)
-> +		return 0; /* no new value parsed */
-> +	else
-> +		return 1;
-> +}
-> +
-> +/**
->   *	memparse - parse a string with mem suffixes into a number
->   *	@ptr: Where parse begins
->   *	@retptr: (output) Optional pointer to next char after parse completes
-> -- 
-
-
----
-~Randy
-*** Remember to use Documentation/SubmitChecklist when testing your code ***
+-chris
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
