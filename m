@@ -1,111 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B1BC9000C1
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 04:36:26 -0400 (EDT)
-Date: Wed, 27 Apr 2011 09:36:20 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 12/13] mm: Throttle direct reclaimers if PF_MEMALLOC
- reserves are low and swap is backed by network storage
-Message-ID: <20110427083620.GL4658@suse.de>
-References: <1303803414-5937-1-git-send-email-mgorman@suse.de>
- <1303803414-5937-13-git-send-email-mgorman@suse.de>
- <20110426223059.10f3edda@notabene.brown>
- <20110426142624.GH4658@suse.de>
- <20110427091811.153ca78b@notabene.brown>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20110427091811.153ca78b@notabene.brown>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id DBF8F9000C1
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 04:41:34 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 602D33EE0C3
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 17:41:32 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 48F0C45DE4E
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 17:41:32 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 30C1245DE4D
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 17:41:32 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 227A1E78002
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 17:41:32 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 95FC9E78004
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 17:41:31 +0900 (JST)
+Date: Wed, 27 Apr 2011 17:34:50 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC 6/8] In order putback lru core
+Message-Id: <20110427173450.82cef21e.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <51e7412097fa62f86656c77c1934e3eb96d5eef6.1303833417.git.minchan.kim@gmail.com>
+References: <cover.1303833415.git.minchan.kim@gmail.com>
+	<51e7412097fa62f86656c77c1934e3eb96d5eef6.1303833417.git.minchan.kim@gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: NeilBrown <neilb@suse.de>
-Cc: Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux.com>, Johannes Weiner <jweiner@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>
 
-On Wed, Apr 27, 2011 at 09:18:11AM +1000, NeilBrown wrote:
-> On Tue, 26 Apr 2011 15:26:24 +0100 Mel Gorman <mgorman@suse.de> wrote:
+On Wed, 27 Apr 2011 01:25:23 +0900
+Minchan Kim <minchan.kim@gmail.com> wrote:
+
+> This patch defines new APIs to putback the page into previous position of LRU.
+> The idea is simple.
 > 
-> > On Tue, Apr 26, 2011 at 10:30:59PM +1000, NeilBrown wrote:
-> > > On Tue, 26 Apr 2011 08:36:53 +0100 Mel Gorman <mgorman@suse.de> wrote:
-> > > 
-> > > 
-> > > > +/*
-> > > > + * Throttle direct reclaimers if backing storage is backed by the network
-> > > > + * and the PFMEMALLOC reserve for the preferred node is getting dangerously
-> > > > + * depleted. kswapd will continue to make progress and wake the processes
-> > > > + * when the low watermark is reached
-> > > > + */
-> > > > +static void throttle_direct_reclaim(gfp_t gfp_mask, struct zonelist *zonelist,
-> > > > +					nodemask_t *nodemask)
-> > > > +{
-> > > > +	struct zone *zone;
-> > > > +	int high_zoneidx = gfp_zone(gfp_mask);
-> > > > +	DEFINE_WAIT(wait);
-> > > > +
-> > > > +	/* Check if the pfmemalloc reserves are ok */
-> > > > +	first_zones_zonelist(zonelist, high_zoneidx, NULL, &zone);
-> > > > +	prepare_to_wait(&zone->zone_pgdat->pfmemalloc_wait, &wait,
-> > > > +							TASK_INTERRUPTIBLE);
-> > > > +	if (pfmemalloc_watermark_ok(zone->zone_pgdat, high_zoneidx))
-> > > > +		goto out;
-> > > > +
-> > > > +	/* Throttle */
-> > > > +	do {
-> > > > +		schedule();
-> > > > +		finish_wait(&zone->zone_pgdat->pfmemalloc_wait, &wait);
-> > > > +		prepare_to_wait(&zone->zone_pgdat->pfmemalloc_wait, &wait,
-> > > > +							TASK_INTERRUPTIBLE);
-> > > > +	} while (!pfmemalloc_watermark_ok(zone->zone_pgdat, high_zoneidx) &&
-> > > > +			!fatal_signal_pending(current));
-> > > > +
-> > > > +out:
-> > > > +	finish_wait(&zone->zone_pgdat->pfmemalloc_wait, &wait);
-> > > > +}
-> > > 
-> > > You are doing an interruptible wait, but only checking for fatal signals.
-> > > So if a non-fatal signal arrives, you will busy-wait.
-> > > 
-> > > So I suspect you want TASK_KILLABLE, so just use:
-> > > 
-> > >     wait_event_killable(zone->zone_pgdat->pfmemalloc_wait,
-> > >                         pgmemalloc_watermark_ok(zone->zone_pgdata,
-> > >                                                 high_zoneidx));
-> > > 
-> > 
-> > Well, if a normal signal arrives, we do not necessarily want the
-> > process to enter reclaim. For fatal signals, I allow it to continue
-> > because it's not likely to be putting the system under more pressure
-> > if it's exiting.
+> When we try to putback the page into lru list and if friends(prev, next) of the pages
+> still is nearest neighbor, we can insert isolated page into prev's next instead of
+> head of LRU list. So it keeps LRU history without losing the LRU information.
 > 
-> Yep, I understand that and it doesn't seem unreasonable.
+> Before :
+> 	LRU POV : H - P1 - P2 - P3 - P4 -T
 > 
-> However I don't think the code implements that correctly.
+> Isolate P3 :
+> 	LRU POV : H - P1 - P2 - P4 - T
 > 
-> If you get a non-fatal signal, schedule will exit immediately (because of the
-> TASK_INTERRUPTIBLE setting) and the 'while' clause will succeed because the
-> signal is not fatal, so it will loop around and try to schedule again, which
-> will again exit immediately - busy loop.
+> Putback P3 :
+> 	if (P2->next == P4)
+> 		putback(P3, P2);
+> 	So,
+> 	LRU POV : H - P1 - P2 - P3 - P4 -T
+> 
+> For implement, we defines new structure pages_lru which remebers
+> both lru friend pages of isolated one and handling functions.
+> 
+> But this approach has a problem on contiguous pages.
+> In this case, my idea can not work since friend pages are isolated, too.
+> It means prev_page->next == next_page always is false and both pages are not
+> LRU any more at that time. It's pointed out by Rik at LSF/MM summit.
+> So for solving the problem, I can change the idea.
+> I think we don't need both friend(prev, next) pages relation but
+> just consider either prev or next page that it is still same LRU.
+> Worset case in this approach, prev or next page is free and allocate new
+> so it's in head of LRU and our isolated page is located on next of head.
+> But it's almost same situation with current problem. So it doesn't make worse
+> than now and it would be rare. But in this version, I implement based on idea
+> discussed at LSF/MM. If my new idea makes sense, I will change it.
 > 
 
-Ah, I see. Once again, well spotted.
+I think using only 'next'(prev?) pointer will be enough.
 
-> > 
-> > > (You also have an extraneous call to finish_wait)
-> > > 
-> > 
-> > Which one? I'm not seeing a flow where finish_wait gets called twice
-> > without a prepare_to_wait in between. 
-> > 
-> 
-> You don't need to call finish_wait immediately before prepare_to_wait.
-> 
-> It really is best to just use the appropriate 'wait_event*' macro....
-> 
-
-wait_event_interruptible it is. Thanks
-
--- 
-Mel Gorman
-SUSE Labs
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
