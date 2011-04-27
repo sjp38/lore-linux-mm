@@ -1,132 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id ACC0F9000C1
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 01:38:04 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 464E73EE0BB
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 14:38:01 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 2C84745DE51
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 14:38:01 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0826A45DE4E
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 14:38:01 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id ED79E1DB803F
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 14:38:00 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id A80ED1DB803B
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 14:38:00 +0900 (JST)
-Date: Wed, 27 Apr 2011 14:31:21 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH v2] fix get_scan_count for working well with small
- targets
-Message-Id: <20110427143121.e2a7e158.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <BANLkTi=zDFrgqn-Mpo2R1M0F_+aMo-byZg@mail.gmail.com>
-References: <20110426181724.f8cdad57.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110426135934.c1992c3e.akpm@linux-foundation.org>
-	<20110427105031.db203b95.kamezawa.hiroyu@jp.fujitsu.com>
-	<BANLkTi=zDFrgqn-Mpo2R1M0F_+aMo-byZg@mail.gmail.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 364C89000C1
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 01:43:32 -0400 (EDT)
+Subject: Re: [PATCH] percpu: preemptless __per_cpu_counter_add
+From: Shaohua Li <shaohua.li@intel.com>
+In-Reply-To: <20110426121011.GD878@htj.dyndns.org>
+References: <alpine.DEB.2.00.1104180930580.23207@router.home>
+	 <20110421144300.GA22898@htj.dyndns.org>
+	 <20110421145837.GB22898@htj.dyndns.org>
+	 <alpine.DEB.2.00.1104211243350.5741@router.home>
+	 <20110421180159.GF15988@htj.dyndns.org>
+	 <alpine.DEB.2.00.1104211308300.5741@router.home>
+	 <20110421183727.GG15988@htj.dyndns.org>
+	 <alpine.DEB.2.00.1104211350310.5741@router.home>
+	 <20110421190807.GK15988@htj.dyndns.org>
+	 <1303439580.3981.241.camel@sli10-conroe>
+	 <20110426121011.GD878@htj.dyndns.org>
+Content-Type: text/plain; charset="UTF-8"
+Date: Wed, 27 Apr 2011 13:43:29 +0800
+Message-ID: <1303883009.3981.316.camel@sli10-conroe>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "mgorman@suse.de" <mgorman@suse.de>, Ying Han <yinghan@google.com>
+To: Tejun Heo <tj@kernel.org>
+Cc: Christoph Lameter <cl@linux.com>, Eric Dumazet <eric.dumazet@gmail.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Wed, 27 Apr 2011 14:08:18 +0900
-Minchan Kim <minchan.kim@gmail.com> wrote:
+On Tue, 2011-04-26 at 20:10 +0800, Tejun Heo wrote:
+> Hello, please pardon delay (and probably bad temper).  I'm still sick
+> & slow.
+no problem.
 
-> Hi Kame,
-> 
-> On Wed, Apr 27, 2011 at 10:50 AM, KAMEZAWA Hiroyuki
-> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > On Tue, 26 Apr 2011 13:59:34 -0700
-> > Andrew Morton <akpm@linux-foundation.org> wrote:
+> On Fri, Apr 22, 2011 at 10:33:00AM +0800, Shaohua Li wrote:
+> > > And, no matter what, that's a separate issue from the this_cpu hot
+> > > path optimizations and should be done separately.  So, _please_ update
+> > > this_cpu patch so that it doesn't change the slow path semantics.
 > >
-> >> What about simply removing the nr_saved_scan logic and permitting small
-> >> scans? A That simplifies the code and I bet it makes no measurable
-> >> performance difference.
-> >>
-> >
-> > ok, v2 here. How this looks ?
-> > For memcg, I think I should add select_victim_node() for direct reclaim,
-> > then, we'll be tune big memcg using small memory on a zone case.
-> >
-> > ==
-> > At memory reclaim, we determine the number of pages to be scanned
-> > per zone as
-> > A  A  A  A (anon + file) >> priority.
-> > Assume
-> > A  A  A  A scan = (anon + file) >> priority.
-> >
-> > If scan < SWAP_CLUSTER_MAX, the scan will be skipped for this time
-> > and priority gets higher. This has some problems.
-> >
-> > A 1. This increases priority as 1 without any scan.
-> > A  A  To do scan in this priority, amount of pages should be larger than 512M.
-> > A  A  If pages>>priority < SWAP_CLUSTER_MAX, it's recorded and scan will be
-> > A  A  batched, later. (But we lose 1 priority.)
+> > in the original implementation, a updater can change several times too,
+> > it can update the count from -(batch -1) to (batch -1) without holding
+> > the lock. so we always have batch*num_cpus*2 deviate
 > 
-> Nice catch!  It looks to be much enhance.
+> That would be a pathelogical case but, even then, after the change the
+> number becomes much higher as it becomes a function of batch *
+> num_updaters, right?
+I don't understand the difference between batch * num_updaters and batch
+* num_cpus except preempt. So the only problem here is _add should have
+preempt disabled? I agree preempt can make deviation worse.
+except the preempt issue, are there other concerns against the atomic
+convert? in the preempt disabled case, before/after the atomic convert
+the deviation is the same (batch*num_cpus)
+
+> I'll try to re-summarize my concerns as my communications don't seem
+> to be getting through very well these few days (likely my fault).
 > 
-> > A  A  But if the amount of pages is smaller than 16M, no scan at priority==0
-> > A  A  forever.
+> The biggest issue I have with the change is that with the suggested
+> changes, the devaition seen by _sum becomes much less predictable.
+> _sum can't be accurate.  It never was and never will be, but the
+> deviations have been quite predictable regardless of @batch.  It's
+> dependent only on the number and frequency of concurrent updaters.
 > 
-
-
-> Before reviewing the code, I have a question about this.
-> Now, in case of (priority = 0), we don't do shift operation with priority.>
- So nr_saved_scan would be the number of lru list pages. ie, 16M.
-> Why no-scan happens in case of (priority == 0 and 16M lru pages)?
-> What am I missing now?
+> If concurrent updates aren't very frequent and numerous, the caller is
+> guaranteed to get a result which deviates only by quite small margin.
+> If concurrent updates are very frequent and numerous, the caller
+> natuarally can't expect a very accurate result.
 > 
-An, sorry. My comment is wrong. no scan at priority == DEF_PRIORITY.
-I'll fix description.
-
-But....
-Now, in direct reclaim path
-==
-static void shrink_zones(int priority, struct zonelist *zonelist,
-                                        struct scan_control *sc)
-{
-....
-                if (scanning_global_lru(sc)) {
-                        if (!cpuset_zone_allowed_hardwall(zone, GFP_KERNEL))
-                                continue;
-                        if (zone->all_unreclaimable && priority != DEF_PRIORITY)
-                                continue;       /* Let kswapd poll it */
-                }
-==
-
-And in kswapd path
-==
-                /*
-                 * Scan in the highmem->dma direction for the highest
-                 * zone which needs scanning
-                 */
-                for (i = pgdat->nr_zones - 1; i >= 0; i--) {
-                        struct zone *zone = pgdat->node_zones + i;
-
-                        if (!populated_zone(zone))
-                                continue;
-
-                        if (zone->all_unreclaimable && priority != DEF_PRIORITY)
-                                continue;
-....
-               for (i = 0; i <= end_zone; i++) {
-                        if (zone->all_unreclaimable && priority != DEF_PRIORITY)
-                                continue;
-
-==
-
-So, all_unreclaimable zones are only scanned when priority==DEF_PRIORITY.
-But, in DEF_PRIORITY, scan count is always zero because of priority shift.
-So, yes, no scan even if priority==0 even after setting all_unreclaimable == true.
+> However, after the change, especially with high @batch count, the
+> result may deviate significantly even with low frequency concurrent
+> updates.  @batch deviations won't happen often but will happen once in
+> a while, which is just nasty and makes the API much less useful and
+> those occasional deviations can cause sporadic erratic behaviors -
+> e.g. filesystems use it for free block accounting.  It's actually used
+> for somewhat critical decision making.
+> 
+> If it were in the fast path, sure, we might and plan for slower
+> contingencies where accuracy is more important, but we're talking
+> about slow path already - it's visiting each per-cpu area for $DEITY's
+> sake, so the tradeoff doesn't make a lot of sense to me.
+> 
+> > if we really worry about _sum deviates too much. can we do something
+> > like this:
+> > percpu_counter_sum
+> > {
+> > again:
+> > 	sum=0
+> > 	old = atomic64_read(&fbc->counter)
+> > 	for_each_online_cpu()
+> > 		sum += per cpu counter
+> > 	new = atomic64_read(&fbc->counter)
+> > 	if (new - old > batch * num_cpus || old - new > batch * num_cpus)
+> > 		goto again;
+> > 	return new + sum;
+> > }
+> > in this way we limited the deviate to number of concurrent updater. This
+> > doesn't make _sum too slow too, because we have the batch * num_cpus
+> > check.
+> 
+> I don't really worry about _sum performance.  It's a quite slow path
+> and most of the cost is from causing cacheline bounces anyway.  That
+> said, I don't see how the above would help the deviation problem.
+> Let's say an updater reset per cpu counter but got preempted before
+> updating the global counter.  What differences does it make to check
+> fbc->counter before & after like above?
+yes, this is a problem. Again I don't mind to disable preempt in _add.
 
 Thanks,
--Kame
+Shaohua
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
