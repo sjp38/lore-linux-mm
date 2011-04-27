@@ -1,171 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id B249D9000C1
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 01:24:57 -0400 (EDT)
-Date: Wed, 27 Apr 2011 14:20:59 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [PATCH] memcg: reclaim memory from nodes in round robin
-Message-Id: <20110427142059.a364a8e7.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20110427115718.ab6c55ae.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20110427115718.ab6c55ae.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id ACC0F9000C1
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 01:38:04 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 464E73EE0BB
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 14:38:01 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 2C84745DE51
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 14:38:01 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0826A45DE4E
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 14:38:01 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id ED79E1DB803F
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 14:38:00 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id A80ED1DB803B
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 14:38:00 +0900 (JST)
+Date: Wed, 27 Apr 2011 14:31:21 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH v2] fix get_scan_count for working well with small
+ targets
+Message-Id: <20110427143121.e2a7e158.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <BANLkTi=zDFrgqn-Mpo2R1M0F_+aMo-byZg@mail.gmail.com>
+References: <20110426181724.f8cdad57.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110426135934.c1992c3e.akpm@linux-foundation.org>
+	<20110427105031.db203b95.kamezawa.hiroyu@jp.fujitsu.com>
+	<BANLkTi=zDFrgqn-Mpo2R1M0F_+aMo-byZg@mail.gmail.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, Ying Han <yinghan@google.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "mgorman@suse.de" <mgorman@suse.de>, Ying Han <yinghan@google.com>
 
-Hi,
+On Wed, 27 Apr 2011 14:08:18 +0900
+Minchan Kim <minchan.kim@gmail.com> wrote:
 
-On Wed, 27 Apr 2011 11:57:18 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-
-> Now, memory cgroup's direct reclaim frees memory from the current node.
-> But this has some troubles. In usual, when a set of threads works in
-> cooperative way, they are tend to on the same node. So, if they hit
-> limits under memcg, it will reclaim memory from themselves, it may be
-> active working set.
+> Hi Kame,
 > 
-> For example, assume 2 node system which has Node 0 and Node 1
-> and a memcg which has 1G limit. After some work, file cacne remains and
-> and usages are
->    Node 0:  1M
->    Node 1:  998M.
+> On Wed, Apr 27, 2011 at 10:50 AM, KAMEZAWA Hiroyuki
+> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> > On Tue, 26 Apr 2011 13:59:34 -0700
+> > Andrew Morton <akpm@linux-foundation.org> wrote:
+> >
+> >> What about simply removing the nr_saved_scan logic and permitting small
+> >> scans? A That simplifies the code and I bet it makes no measurable
+> >> performance difference.
+> >>
+> >
+> > ok, v2 here. How this looks ?
+> > For memcg, I think I should add select_victim_node() for direct reclaim,
+> > then, we'll be tune big memcg using small memory on a zone case.
+> >
+> > ==
+> > At memory reclaim, we determine the number of pages to be scanned
+> > per zone as
+> > A  A  A  A (anon + file) >> priority.
+> > Assume
+> > A  A  A  A scan = (anon + file) >> priority.
+> >
+> > If scan < SWAP_CLUSTER_MAX, the scan will be skipped for this time
+> > and priority gets higher. This has some problems.
+> >
+> > A 1. This increases priority as 1 without any scan.
+> > A  A  To do scan in this priority, amount of pages should be larger than 512M.
+> > A  A  If pages>>priority < SWAP_CLUSTER_MAX, it's recorded and scan will be
+> > A  A  batched, later. (But we lose 1 priority.)
 > 
-> and run an application on Node 0, it will eats its foot before freeing
-> unnecessary file caches.
+> Nice catch!  It looks to be much enhance.
 > 
-> This patch adds round-robin for NUMA and adds equal pressure to each
-> node. When using cpuset's spread memory feature, this will work very well.
+> > A  A  But if the amount of pages is smaller than 16M, no scan at priority==0
+> > A  A  forever.
 > 
-> But yes, better algorithm is appreciated.
->
-At first, I thought the process may be oom-killed easily if we have many NUMA nodes
-and we try to reclaim only from nodes where no processes in the memcg allocate memory.
-But considering more, node_zonelists contains zones from other NUMA nodes IIUC,
-so it doesn't happen. 
 
-Acked-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 
-Except for some typos which have already been pointed out.
+> Before reviewing the code, I have a question about this.
+> Now, in case of (priority = 0), we don't do shift operation with priority.>
+ So nr_saved_scan would be the number of lru list pages. ie, 16M.
+> Why no-scan happens in case of (priority == 0 and 16M lru pages)?
+> What am I missing now?
+> 
+An, sorry. My comment is wrong. no scan at priority == DEF_PRIORITY.
+I'll fix description.
+
+But....
+Now, in direct reclaim path
+==
+static void shrink_zones(int priority, struct zonelist *zonelist,
+                                        struct scan_control *sc)
+{
+....
+                if (scanning_global_lru(sc)) {
+                        if (!cpuset_zone_allowed_hardwall(zone, GFP_KERNEL))
+                                continue;
+                        if (zone->all_unreclaimable && priority != DEF_PRIORITY)
+                                continue;       /* Let kswapd poll it */
+                }
+==
+
+And in kswapd path
+==
+                /*
+                 * Scan in the highmem->dma direction for the highest
+                 * zone which needs scanning
+                 */
+                for (i = pgdat->nr_zones - 1; i >= 0; i--) {
+                        struct zone *zone = pgdat->node_zones + i;
+
+                        if (!populated_zone(zone))
+                                continue;
+
+                        if (zone->all_unreclaimable && priority != DEF_PRIORITY)
+                                continue;
+....
+               for (i = 0; i <= end_zone; i++) {
+                        if (zone->all_unreclaimable && priority != DEF_PRIORITY)
+                                continue;
+
+==
+
+So, all_unreclaimable zones are only scanned when priority==DEF_PRIORITY.
+But, in DEF_PRIORITY, scan count is always zero because of priority shift.
+So, yes, no scan even if priority==0 even after setting all_unreclaimable == true.
 
 Thanks,
-Daisuke Nishimura.
-
-P.S.
-I'm very sorry for my laziness these days. We have a long holidays in Japan
-from this weekend, so I hope I can review recent patches about bgreclaim etc
-in my home.
-
-> From: Ying Han <yinghan@google.com>
-> Signed-off-by: Ying Han <yinghan@google.com>
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> ---
->  include/linux/memcontrol.h |    1 +
->  mm/memcontrol.c            |   25 +++++++++++++++++++++++++
->  mm/vmscan.c                |    9 ++++++++-
->  3 files changed, 34 insertions(+), 1 deletion(-)
-> 
-> Index: memcg/include/linux/memcontrol.h
-> ===================================================================
-> --- memcg.orig/include/linux/memcontrol.h
-> +++ memcg/include/linux/memcontrol.h
-> @@ -108,6 +108,7 @@ extern void mem_cgroup_end_migration(str
->   */
->  int mem_cgroup_inactive_anon_is_low(struct mem_cgroup *memcg);
->  int mem_cgroup_inactive_file_is_low(struct mem_cgroup *memcg);
-> +int mem_cgroup_select_victim_node(struct mem_cgroup *memcg);
->  unsigned long mem_cgroup_zone_nr_pages(struct mem_cgroup *memcg,
->  				       struct zone *zone,
->  				       enum lru_list lru);
-> Index: memcg/mm/memcontrol.c
-> ===================================================================
-> --- memcg.orig/mm/memcontrol.c
-> +++ memcg/mm/memcontrol.c
-> @@ -237,6 +237,7 @@ struct mem_cgroup {
->  	 * reclaimed from.
->  	 */
->  	int last_scanned_child;
-> +	int last_scanned_node;
->  	/*
->  	 * Should the accounting and control be hierarchical, per subtree?
->  	 */
-> @@ -1472,6 +1473,29 @@ mem_cgroup_select_victim(struct mem_cgro
->  }
->  
->  /*
-> + * Selecting a node where we start reclaim from. Because what we need is just
-> + * reducing usage counter, start from anywhere is O,K. When considering
-> + * memory reclaim from current node, there are pros. and cons.
-> + * Freeing memory from current node means freeing memory from a node which
-> + * we'll use or we've used. So, it may make LRU bad. And if several threads
-> + * hit limits, it will see a contention on a node. But freeing from remote
-> + * node mean more costs for memory reclaim because of memory latency.
-> + *
-> + * Now, we use round-robin. Better algorithm is welcomed.
-> + */
-> +int mem_cgroup_select_victim_node(struct mem_cgroup *mem)
-> +{
-> +	int node;
-> +
-> +	node = next_node(mem->last_scanned_node, node_states[N_HIGH_MEMORY]);
-> +	if (node == MAX_NUMNODES)
-> +		node = first_node(node_states[N_HIGH_MEMORY]);
-> +
-> +	mem->last_scanned_node = node;
-> +	return node;
-> +}
-> +
-> +/*
->   * Scan the hierarchy if needed to reclaim memory. We remember the last child
->   * we reclaimed from, so that we don't end up penalizing one child extensively
->   * based on its position in the children list.
-> @@ -4678,6 +4702,7 @@ mem_cgroup_create(struct cgroup_subsys *
->  		res_counter_init(&mem->memsw, NULL);
->  	}
->  	mem->last_scanned_child = 0;
-> +	mem->last_scanned_node = MAX_NUMNODES;
->  	INIT_LIST_HEAD(&mem->oom_notify);
->  
->  	if (parent)
-> Index: memcg/mm/vmscan.c
-> ===================================================================
-> --- memcg.orig/mm/vmscan.c
-> +++ memcg/mm/vmscan.c
-> @@ -2198,6 +2198,7 @@ unsigned long try_to_free_mem_cgroup_pag
->  {
->  	struct zonelist *zonelist;
->  	unsigned long nr_reclaimed;
-> +	int nid;
->  	struct scan_control sc = {
->  		.may_writepage = !laptop_mode,
->  		.may_unmap = 1,
-> @@ -2208,10 +2209,16 @@ unsigned long try_to_free_mem_cgroup_pag
->  		.mem_cgroup = mem_cont,
->  		.nodemask = NULL, /* we don't care the placement */
->  	};
-> +	/*
-> +	 * Unlike direct reclaim via allo_pages(), memcg's reclaim
-> +	 * don't take care from where we get free resouce. So, the node where
-> +	 * we need to start scan is not need to be current node.
-> +	 */
-> +	nid = mem_cgroup_select_victim_node(mem_cont);
->  
->  	sc.gfp_mask = (gfp_mask & GFP_RECLAIM_MASK) |
->  			(GFP_HIGHUSER_MOVABLE & ~GFP_RECLAIM_MASK);
-> -	zonelist = NODE_DATA(numa_node_id())->node_zonelists;
-> +	zonelist = NODE_DATA(nid)->node_zonelists;
->  
->  	trace_mm_vmscan_memcg_reclaim_begin(0,
->  					    sc.may_writepage,
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
