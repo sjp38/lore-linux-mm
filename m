@@ -1,68 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 2E50A6B0011
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 16:40:38 -0400 (EDT)
-Date: Wed, 27 Apr 2011 22:40:23 +0200
-From: Bruno =?UTF-8?B?UHLDqW1vbnQ=?= <bonbons@linux-vserver.org>
-Subject: Re: 2.6.39-rc4+: Kernel leaking memory during FS scanning,
- regression?
-Message-ID: <20110427224023.10bd4f33@neptune.home>
-In-Reply-To: <20110427204139.1b0ea23b@neptune.home>
-References: <20110425180450.1ede0845@neptune.home>
-	<BANLkTikSLA59tdgRL4B=cr5tvP2NbzZ=KA@mail.gmail.com>
-	<20110425190032.7904c95d@neptune.home>
-	<BANLkTi=hQ=HcPLCdbb1pSi+xJByMTah-gw@mail.gmail.com>
-	<20110425203606.4e78246c@neptune.home>
-	<20110425191607.GL2468@linux.vnet.ibm.com>
-	<20110425231016.34b4293e@neptune.home>
-	<BANLkTin7wSGi1=E2c2u6Jb5TG_KUpYh=Dw@mail.gmail.com>
-	<20110425214933.GO2468@linux.vnet.ibm.com>
-	<20110426081904.0d2b1494@pluto.restena.lu>
-	<20110426112756.GF4308@linux.vnet.ibm.com>
-	<20110426183859.6ff6279b@neptune.home>
-	<20110426190918.01660ccf@neptune.home>
-	<BANLkTikjuqWP+PAsObJH4EAOyzgr2RbYNA@mail.gmail.com>
-	<alpine.LFD.2.02.1104262314110.3323@ionos>
-	<20110427081501.5ba28155@pluto.restena.lu>
-	<20110427204139.1b0ea23b@neptune.home>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 982516B0011
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 17:13:02 -0400 (EDT)
+Date: Wed, 27 Apr 2011 23:12:58 +0200
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [RFC PATCH 2/3] support for broken memory modules (BadRAM)
+Message-ID: <20110427211258.GQ16484@one.firstfloor.org>
+References: <1303921007-1769-1-git-send-email-sassmann@kpanic.de> <1303921007-1769-3-git-send-email-sassmann@kpanic.de>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1303921007-1769-3-git-send-email-sassmann@kpanic.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <a.p.zijlstra@chello.nl>, paulmck@linux.vnet.ibm.com, Mike Frysinger <vapier.adi@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Paul E. McKenney" <paul.mckenney@linaro.org>, Pekka Enberg <penberg@kernel.org>
+To: Stefan Assmann <sassmann@kpanic.de>
+Cc: linux-mm@kvack.org, tony.luck@intel.com, andi@firstfloor.org, mingo@elte.hu, hpa@zytor.com, rick@vanrein.org, akpm@linux-foundation.org, lwoodman@redhat.com, riel@redhat.com
 
-On Wed, 27 April 2011 Bruno Pr=C3=A9mont wrote:
-> On Wed, 27 April 2011 Bruno Pr=C3=A9mont wrote:
-> > On Wed, 27 Apr 2011 00:28:37 +0200 (CEST) Thomas Gleixner wrote:
-> > > Also please apply the patch below and check, whether the printk shows
-> > > up in your dmesg.
-> >=20
-> > > Index: linux-2.6-tip/kernel/sched_rt.c
-> > > =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-> > > --- linux-2.6-tip.orig/kernel/sched_rt.c
-> > > +++ linux-2.6-tip/kernel/sched_rt.c
-> > > @@ -609,6 +609,7 @@ static int sched_rt_runtime_exceeded(str
-> > > =20
-> > >  	if (rt_rq->rt_time > runtime) {
-> > >  		rt_rq->rt_throttled =3D 1;
-> > > +		printk_once(KERN_WARNING "sched: RT throttling activated\n");
->=20
-> This gun is triggering right before RCU-managed slabs start piling up as
-> visible under slabtop so chances are it's at least a related!
+On Wed, Apr 27, 2011 at 06:16:46PM +0200, Stefan Assmann wrote:
+> BadRAM is a mechanism to exclude memory addresses (pages) from being used by
+> the system. The addresses are given to the kernel via kernel command line.
+> This is useful for systems with defective RAM modules, especially if the RAM
+> modules cannot be replaced.
+> 
+> command line parameter: badram=<addr>,<mask>[,...]
+> 
+> Patterns for the command line parameter can be obtained by running Memtest86.
+> In Memtest86 press "c" for configuration, select "Error Report Mode" and
+> finally "BadRAM Patterns"
+> 
+> This has already been done by Rick van Rein a long time ago but it never found
+> it's way into the kernel.
 
-Letting the machine idle (except running collectd and slabtop) scheduler
-suddenly decided to restart giving rcu_kthread CPU cycles (after two hours
-or so! if I read my statistics graphs correctly)
+Looks good to me, except for the too verbose printks. Logging
+every page this way will be very noisy for larger areas.
 
-While looking at lkml during the above 2 hours I stumbled across this (the
-patch of which doesn't help in my case) which looked possibly related.
-  http://thread.gmane.org/gmane.linux.kernel/1129614
+The mask will also only work for very simple memory interleaving
+setups, so I suspect it won't work for a lot of modern systems
+unless you go more fancy.
 
-Bruno
+Longer term there should be also likely a better way to specify
+these pages than the kernel command line, e.g. the new persistent
+store on some systems.
+
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
