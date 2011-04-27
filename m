@@ -1,74 +1,243 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id E45746B0011
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 12:37:08 -0400 (EDT)
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e1.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p3RGQAoZ032402
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 12:26:10 -0400
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p3RGavVs089468
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 12:36:57 -0400
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p3RGabQT013057
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 10:36:38 -0600
-Subject: Re: [PATCH] convert parisc to sparsemem (was Re: [PATCH v3] mm:
- make expand_downwards symmetrical to expand_upwards)
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <1303583657.4116.11.camel@mulgrave.site>
-References: <1303337718.2587.51.camel@mulgrave.site>
-	 <alpine.DEB.2.00.1104201530430.13948@chino.kir.corp.google.com>
-	 <20110421221712.9184.A69D9226@jp.fujitsu.com>
-	 <1303403847.4025.11.camel@mulgrave.site>
-	 <alpine.DEB.2.00.1104211328000.5741@router.home>
-	 <1303411537.9048.3583.camel@nimitz>
-	 <1303507985.2590.47.camel@mulgrave.site>
-	 <1303583657.4116.11.camel@mulgrave.site>
-Content-Type: text/plain; charset="ISO-8859-1"
-Date: Wed, 27 Apr 2011 09:36:29 -0700
-Message-ID: <1303922189.9516.33.camel@nimitz>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id E80A46B0011
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 12:49:59 -0400 (EDT)
+Date: Wed, 27 Apr 2011 09:49:53 -0700
+From: Randy Dunlap <rdunlap@xenotime.net>
+Subject: Re: [RFC PATCH 3/3] Add documentation and credits for BadRAM
+Message-Id: <20110427094953.57f01df1.rdunlap@xenotime.net>
+In-Reply-To: <1303921007-1769-4-git-send-email-sassmann@kpanic.de>
+References: <1303921007-1769-1-git-send-email-sassmann@kpanic.de>
+	<1303921007-1769-4-git-send-email-sassmann@kpanic.de>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Bottomley <James.Bottomley@HansenPartnership.com>
-Cc: Christoph Lameter <cl@linux.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-parisc@vger.kernel.org, Ingo Molnar <mingo@elte.hu>, x86 maintainers <x86@kernel.org>, Tejun Heo <tj@kernel.org>, Mel Gorman <mel@csn.ul.ie>, Andy Whitcroft <apw@shadowen.org>
+To: Stefan Assmann <sassmann@kpanic.de>
+Cc: linux-mm@kvack.org, tony.luck@intel.com, andi@firstfloor.org, mingo@elte.hu, hpa@zytor.com, rick@vanrein.org, akpm@linux-foundation.org, lwoodman@redhat.com, riel@redhat.com
 
-On Sat, 2011-04-23 at 13:34 -0500, James Bottomley wrote: 
-> This is the preliminary conversion.  It's very nasty on parisc because
-> the memory allocation isn't symmetric anymore: under DISCONTIGMEM, we
-> push all memory into bootmem and then let free_all_bootmem() do the
-> magic for us;
+On Wed, 27 Apr 2011 18:16:47 +0200 Stefan Assmann wrote:
 
-Urg, that's unfortunate.  I bet we could fairly easily teach the bootmem
-allocator to allow a couple of bootmem_data's to hang off of an
-individual pgdat.  Put each pmem_ranges in one of those instead of a
-pgdat.  That would at least help with the bitmap size explosion and
-extra loops.
-
-> now we have to do separate initialisations for ranges
-> because SPARSEMEM can't do multi-range boot memory. It's also got the
-> horrible hack that I only use the first found range for bootmem.  I'm
-> not sure if this is correct (it won't be if the first found range can be
-> under about 50MB because we'll run out of bootmem during boot) ... we
-> might have to sort the ranges and use the larges, but that will involve
-> us in even more hackery around the bootmem reservations code.
+> Add Documentation/BadRAM.txt for in-depth information and update
+> Documentation/kernel-parameters.txt.
 > 
-> The boot sequence got a few seconds slower because now all of the loops
-> over our pfn ranges actually have to skip through the holes (which takes
-> time for 64GB).
+> Signed-off-by: Stefan Assmann <sassmann@kpanic.de>
+> ---
+>  CREDITS                             |    9 +
+>  Documentation/BadRAM.txt            |  369 +++++++++++++++++++++++++++++++++++
+>  Documentation/kernel-parameters.txt |    5 +
+>  3 files changed, 383 insertions(+), 0 deletions(-)
+>  create mode 100644 Documentation/BadRAM.txt
 
-Which iterations were these, btw?  All of the ones I saw the patch touch
-seemed to be running over just a single pmem_range.
+> diff --git a/Documentation/BadRAM.txt b/Documentation/BadRAM.txt
+> new file mode 100644
+> index 0000000..67a7ccc
+> --- /dev/null
+> +++ b/Documentation/BadRAM.txt
+> @@ -0,0 +1,369 @@
 
-> All in all, I've not been very impressed with SPARSEMEM over
-> DISCONTIGMEM.  It seems to have a lot of rough edges (necessitating
-> exception code) which DISCONTIGMEM just copes with.
+> +Reasons for using BadRAM
+> +------------------------
+> +
+> +Chip manufacturing process use lots of harsh chemicals, and the less
 
-We definitely need to look at extending it to cover bootmem-time a bit.
-Is that even worth it these days with the no-bootmem bits around?
+                      processes
 
--- Dave
+> +of these used, the better.  Being able to make good use of partially
+> +failed memory chips means that far less of those chemicals are needed
+> +to provide storage.  This reduces expenses and it is lighter on the
+> +environment in which we live.
+> +
+...
 
+> +
+> +
+> +Running example
+> +---------------
+> +
+...
+> +
+> +After being patched and invoked with the properly formatted description,
+> +the kernel held back only the memory pages with faults, and never haded
+
+                                                                     handed
+
+> +them out for allocation. The allocation routines could therefore
+> +progress as normally, without any adaption.  This is important, since
+> +all the work is done at booting time.  After booting, the kernel does
+> +not have to do spend any time to implement BadRAM.
+> +
+> +As a result of this initial exercise, I gained 30 MB out of the 32 MB
+> +DIMM that would otherwise have been thrown away.  Of course, these
+> +numbers scale up with larger memory modules, but the principle is
+> +the same.
+> +
+> +
+
+> +BadRAM's notation for memory faults
+> +-----------------------------------
+> +
+> +Instead of manually providing all 512 errors in the running example
+> +to the kernel, it's easier to use a pattern notation. Since the
+> +regularity is based on address decoding software, which generally
+> +takes certain bits into account and ignores others, we shall
+> +provide a faulty address F, together with a bit mask M that
+> +specifies which bits must be equal to F. In C code, an address A
+> +is faulty if and only if
+> +
+> +	(F & M) == (A & M)
+> +
+> +or alternately (closer to a hardware implementation):
+> +
+> +	~((F ^ A) & M)
+> +
+> +In the example 32 MB chip, I had the faulty addresses in 8MB-16MB:
+> +
+> +	xxx42f4         ....0100....
+> +	xxx62f4         ....0110....
+> +	xxxc2f4         ....1100....
+> +	xxxe2f4         ....1110....
+> +
+> +The second column represents the alternating hex digit in binary form.
+> +Apperantly, the first and next to last binary digit can be anything,
+
+   Apparently,
+
+> +so the binary mask for that part is 0101. The mask for the part after
+> +this is 0xfff, and the part before should select anything in the range
+> +8MB-16MB, or 0x00800000-0x01000000; this is done with a bitmask
+> +0xff80xxxx. Combining these partial masks, we get:
+> +
+> +	F=0x008042f4    M=0xff805fff
+> +
+> +That covers every fault in this DIMM; for more complicated failing
+> +DIMMs, or for a combination of multiple failing DIMMs, it can be
+> +necessary to set up a number of such F/M pairs.
+> +
+> +
+> +Running a memory checker
+> +------------------------
+> +
+> +There is no memory checker built into the kernel, to avoid delays
+> +at runtime or while booting. If you experience problems that may
+> +be caused by RAM, run a good outside RAM checker.  The Memtest86
+> +checker is a popular, free, high-quality checker.  Many Linux
+> +distributions include it as an alternate boot option, so you may
+> +simply find it in your GRUB boot menu.
+
+                          boot loader's boot menu.
+
+> +
+> +The memory checker lists all addresses that have a fault.  It will
+> +do this for a given configuration of the DIMMs in your motherboard;
+> +if you replace or move memory modules you may find other addresses.
+> +In the running example's 32 MB chip, with the DIMM in slot #0 on
+> +the motherboard, the errors were found in the 8MB-16MB range:
+> +
+> +	xxx42f4
+> +	xxx62f4
+> +	xxxc2f4
+> +	xxxe2f4
+> +
+> +The error reported was a "sticky 1 bit", a memory bit that always
+> +reads as "1" even if a "0" was just written to it.  This is
+> +probably caused by a damaged buffer on one of the rows or columns
+> +in one of the memory chips.
+> +
+...
+> +
+> +Rebooting Linux
+> +---------------
+> +
+> +Once the fault patterns are known we simply restart Linux with
+> +these F/M pairs as a parameter If your normal boot options look
+> +like
+> +
+> +       root=/dev/sda1 ro
+> +
+> +you should now boot with options
+> +
+> +       root=/dev/sda1 ro badram=0x008042f4,0xff805fff
+> +
+> +or perhaps by mentioning more F/M pairs in an order F0,M0,F1,M1,...
+> +When you provide an odd number of arguments to badram, the default
+> +mask 0xffffffff (meaning that only one address is matched) is
+> +applied to the last address.
+> +
+> +If your bootloader is GRUB, you can supply this additional
+> +parameter interactively during boot.  This way, you can try them
+> +before you edit /boot/grub/menu.lst to put them in forever.
+
+I thought that /boot/grub/grub.conf was the current file name. (?)
+
+> +
+> +When the kernel now boots, it should not give any trouble with RAM.
+> +Mind you, this is under the assumption that the kernel and its data
+> +storage do not overlap an erroneous part. If they do, and the
+> +kernel does not choke on it right away, BadRAM itself will stop the
+> +system with a kernel panic.  When the error is that low in memory,
+> +you will need additional bootloader magic, to load the kernel at an
+> +alternative address.
+> +
+> +Now look up your memory status with
+> +
+> +	cat /proc/meminfo |grep HardwareCorrupted
+> +
+> +which prints a single line with information like
+> +
+> +HardwareCorrupted:  2048 kB
+> +
+> +The entry HardwareCorrupted: 2048k represents the loss of 2MB
+> +of general purpose RAM due to the errors. Or, positively rephrased,
+> +instead of throwing out 32MB as useless, you only throw out 2MB.
+> +Note that 2048 kB equals 512 pages of 4kB.  The size of a page is
+> +defined by the processor architecture.
+> +
+> +If the system is stable (which you can test by compiling a few
+> +kernels, and a few file finds in / or so) you can decide to add
+> +the boot parameter to /boot/grub/menu.lst, in addition to any
+
+file name?
+
+> +other boot parameters that may already be there.  For example,
+> +
+> +	kernel /boot/vmlinuz root=/dev/sda1 ro
+> +
+> +would become
+> +
+> +	kernel /boot/vmlinuz root=/dev/sda1 ro badram=0x008042f4,0xff805fff
+> +
+> +Depending on how helpful your Linux distribution is, you may
+> +have to add this feature again after upgrading your kernel.  If
+> +your boot loader is GRUB, you can always do this manually if you
+> +rebooted before you remembered to make that adaption.
+> +
+> +
+...
+
+
+> diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
+> index f4a04c0..84f9ef5 100644
+> --- a/Documentation/kernel-parameters.txt
+> +++ b/Documentation/kernel-parameters.txt
+> @@ -373,6 +373,11 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
+>  
+>  	autotest	[IA64]
+>  
+> +	badram=		When CONFIG_MEMORY_FAILURE is set, this parameter
+> +			allows memory areas to be flagged as hwpoison.
+
+hwpoison??  undefined.
+
+> +			Format: <addr>,<mask>[,...]
+> +			See Documentation/BadRAM.txt
+> +
+
+
+---
+~Randy
+*** Remember to use Documentation/SubmitChecklist when testing your code ***
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
