@@ -1,80 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 38F1C6B0011
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 18:06:24 -0400 (EDT)
-Date: Thu, 28 Apr 2011 00:06:11 +0200 (CEST)
-From: Thomas Gleixner <tglx@linutronix.de>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id DC4366B0011
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 18:07:23 -0400 (EDT)
+Received: from d01relay07.pok.ibm.com (d01relay07.pok.ibm.com [9.56.227.147])
+	by e7.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p3RLisNL007614
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 17:44:54 -0400
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay07.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p3RM7LNt467010
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 18:07:21 -0400
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p3RM7If0027689
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 18:07:21 -0400
+Date: Wed, 27 Apr 2011 15:07:17 -0700
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 Subject: Re: 2.6.39-rc4+: Kernel leaking memory during FS scanning,
  regression?
-In-Reply-To: <20110427204139.1b0ea23b@neptune.home>
-Message-ID: <alpine.LFD.2.02.1104272351290.3323@ionos>
-References: <20110425180450.1ede0845@neptune.home> <BANLkTikSLA59tdgRL4B=cr5tvP2NbzZ=KA@mail.gmail.com> <20110425190032.7904c95d@neptune.home> <BANLkTi=hQ=HcPLCdbb1pSi+xJByMTah-gw@mail.gmail.com> <20110425203606.4e78246c@neptune.home> <20110425191607.GL2468@linux.vnet.ibm.com>
- <20110425231016.34b4293e@neptune.home> <BANLkTin7wSGi1=E2c2u6Jb5TG_KUpYh=Dw@mail.gmail.com> <20110425214933.GO2468@linux.vnet.ibm.com> <20110426081904.0d2b1494@pluto.restena.lu> <20110426112756.GF4308@linux.vnet.ibm.com> <20110426183859.6ff6279b@neptune.home>
- <20110426190918.01660ccf@neptune.home> <BANLkTikjuqWP+PAsObJH4EAOyzgr2RbYNA@mail.gmail.com> <alpine.LFD.2.02.1104262314110.3323@ionos> <20110427081501.5ba28155@pluto.restena.lu> <20110427204139.1b0ea23b@neptune.home>
+Message-ID: <20110427220717.GR2135@linux.vnet.ibm.com>
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <20110425214933.GO2468@linux.vnet.ibm.com>
+ <20110426081904.0d2b1494@pluto.restena.lu>
+ <20110426112756.GF4308@linux.vnet.ibm.com>
+ <20110426183859.6ff6279b@neptune.home>
+ <20110426190918.01660ccf@neptune.home>
+ <BANLkTikjuqWP+PAsObJH4EAOyzgr2RbYNA@mail.gmail.com>
+ <alpine.LFD.2.02.1104262314110.3323@ionos>
+ <20110427081501.5ba28155@pluto.restena.lu>
+ <20110427204139.1b0ea23b@neptune.home>
+ <20110427224023.10bd4f33@neptune.home>
 MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="8323328-1129399958-1303941699=:3323"
-Content-ID: <alpine.LFD.2.02.1104280006080.3323@ionos>
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20110427224023.10bd4f33@neptune.home>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?ISO-8859-15?Q?Bruno_Pr=E9mont?= <bonbons@linux-vserver.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <a.p.zijlstra@chello.nl>, paulmck@linux.vnet.ibm.com, Mike Frysinger <vapier.adi@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Paul E. McKenney" <paul.mckenney@linaro.org>, Pekka Enberg <penberg@kernel.org>
+To: Bruno =?iso-8859-1?Q?Pr=E9mont?= <bonbons@linux-vserver.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Frysinger <vapier.adi@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Paul E. McKenney" <paul.mckenney@linaro.org>, Pekka Enberg <penberg@kernel.org>
 
-  This message is in MIME format.  The first part should be readable text,
-  while the remaining parts are likely unreadable without MIME-aware tools.
-
---8323328-1129399958-1303941699=:3323
-Content-Type: TEXT/PLAIN; CHARSET=ISO-8859-15
-Content-Transfer-Encoding: 8BIT
-Content-ID: <alpine.LFD.2.02.1104280006081.3323@ionos>
-
-On Wed, 27 Apr 2011, Bruno Premont wrote:
+On Wed, Apr 27, 2011 at 10:40:23PM +0200, Bruno Premont wrote:
 > On Wed, 27 April 2011 Bruno Premont wrote:
-> Voluntary context switches stay constant from the time on SLABs pile up.
-> (which makes sense as it doesn't run get CPU slices anymore)
+> > On Wed, 27 April 2011 Bruno Premont wrote:
+> > > On Wed, 27 Apr 2011 00:28:37 +0200 (CEST) Thomas Gleixner wrote:
+> > > > Also please apply the patch below and check, whether the printk shows
+> > > > up in your dmesg.
+> > > 
+> > > > Index: linux-2.6-tip/kernel/sched_rt.c
+> > > > ===================================================================
+> > > > --- linux-2.6-tip.orig/kernel/sched_rt.c
+> > > > +++ linux-2.6-tip/kernel/sched_rt.c
+> > > > @@ -609,6 +609,7 @@ static int sched_rt_runtime_exceeded(str
+> > > >  
+> > > >  	if (rt_rq->rt_time > runtime) {
+> > > >  		rt_rq->rt_throttled = 1;
+> > > > +		printk_once(KERN_WARNING "sched: RT throttling activated\n");
+> > 
+> > This gun is triggering right before RCU-managed slabs start piling up as
+> > visible under slabtop so chances are it's at least a related!
 > 
-> > > Can you please enable CONFIG_SCHED_DEBUG and provide the output of
-> > > /proc/sched_stat when the problem surfaces and a minute after the
-> > > first snapshot?
+> Letting the machine idle (except running collectd and slabtop) scheduler
+> suddenly decided to restart giving rcu_kthread CPU cycles (after two hours
+> or so! if I read my statistics graphs correctly)
+
+And this also returned the slab memory, right?
+
+Two hours is quite some time...
+
+							Thanx, Paul
+
+> While looking at lkml during the above 2 hours I stumbled across this (the
+> patch of which doesn't help in my case) which looked possibly related.
+>   http://thread.gmane.org/gmane.linux.kernel/1129614
 > 
-> hm, did you mean CONFIG_SCHEDSTAT or /proc/sched_debug?
-> 
-> I did use CONFIG_SCHED_DEBUG (and there is no /proc/sched_stat) so I took
-> /proc/sched_debug which exists... (attached, taken about 7min and +1min
-> after SLABs started piling up), though build processes were SIGSTOPped
-> during first minute.
-
-Oops. /proc/sched_debug is the right thing.
- 
-> printk wrote (in case its timestamp is useful, more below):
-> [  518.480103] sched: RT throttling activated
-
-Ok. Aside of the fact that the CPU time accounting is completely hosed
-this is pointing to the root cause of the problem.
-
-kthread_rcu seems to run in circles for whatever reason and the RT
-throttler catches it. After that things go down the drain completely
-as it should get on the CPU again after that 50ms throttling break.
-
-Though we should not ignore the fact, that the RT throttler hit, but
-none of the RT tasks actually accumulated runtime.
-
-So there is a couple of questions:
-
-   - Why does the scheduler detect the 950 ms RT runtime, but does
-     not accumulate that runtime to any thread
-
-   - Why is the runtime accounting totally hosed
-
-   - Why does that not happen (at least not reproducible) with 
-     TREE_RCU
-
-I need some sleep now, but I will try to come up with sensible
-debugging tomorrow unless Paul or someone else beats me to it.
-
-Thanks,
-
-	tglx
---8323328-1129399958-1303941699=:3323--
+> Bruno
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
