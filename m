@@ -1,101 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 03E9B9000C1
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 05:08:05 -0400 (EDT)
-Received: by vws4 with SMTP id 4so1653200vws.14
-        for <linux-mm@kvack.org>; Wed, 27 Apr 2011 02:08:04 -0700 (PDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 22A679000C1
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 05:14:58 -0400 (EDT)
+Received: by vws4 with SMTP id 4so1658965vws.14
+        for <linux-mm@kvack.org>; Wed, 27 Apr 2011 02:14:56 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20110427173922.4d65534b.kamezawa.hiroyu@jp.fujitsu.com>
-References: <cover.1303833415.git.minchan.kim@gmail.com>
-	<b7bcce639e9b9bf515431cda79b15d482f889ff2.1303833418.git.minchan.kim@gmail.com>
-	<20110427173922.4d65534b.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Wed, 27 Apr 2011 18:08:04 +0900
-Message-ID: <BANLkTikNa+Bq3PjXwX12-uKaNjFRrwdhaQ@mail.gmail.com>
-Subject: Re: [RFC 8/8] compaction: make compaction use in-order putback
+In-Reply-To: <20110427174813.8b34df90.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20110427164708.1143395e.kamezawa.hiroyu@jp.fujitsu.com>
+	<BANLkTin+rDOWGYq9dg-XcCWs+yT8Yw-VMw@mail.gmail.com>
+	<20110427174813.8b34df90.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Wed, 27 Apr 2011 18:14:56 +0900
+Message-ID: <BANLkTim-U3MTnToFPL11NcVnOCig4zJMAQ@mail.gmail.com>
+Subject: Re: [PATCHv3] memcg: fix get_scan_count for small targets
 From: Minchan Kim <minchan.kim@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux.com>, Johannes Weiner <jweiner@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Ying Han <yinghan@google.com>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "mgorman@suse.de" <mgorman@suse.de>
 
-On Wed, Apr 27, 2011 at 5:39 PM, KAMEZAWA Hiroyuki
+On Wed, Apr 27, 2011 at 5:48 PM, KAMEZAWA Hiroyuki
 <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> On Wed, 27 Apr 2011 01:25:25 +0900
+> On Wed, 27 Apr 2011 17:48:18 +0900
 > Minchan Kim <minchan.kim@gmail.com> wrote:
 >
->> Compaction is good solution to get contiguos page but it makes
->> LRU churing which is not good.
->> This patch makes that compaction code use in-order putback so
->> after compaction completion, migrated pages are keeping LRU ordering.
+>> On Wed, Apr 27, 2011 at 4:47 PM, KAMEZAWA Hiroyuki
+>> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+>> > At memory reclaim, we determine the number of pages to be scanned
+>> > per zone as
+>> > =C2=A0 =C2=A0 =C2=A0 =C2=A0(anon + file) >> priority.
+>> > Assume
+>> > =C2=A0 =C2=A0 =C2=A0 =C2=A0scan =3D (anon + file) >> priority.
+>> >
+>> > If scan < SWAP_CLUSTER_MAX, the scan will be skipped for this time
+>> > and priority gets higher. This has some problems.
+>> >
+>> > =C2=A01. This increases priority as 1 without any scan.
+>> > =C2=A0 =C2=A0 To do scan in this priority, amount of pages should be l=
+arger than 512M.
+>> > =C2=A0 =C2=A0 If pages>>priority < SWAP_CLUSTER_MAX, it's recorded and=
+ scan will be
+>> > =C2=A0 =C2=A0 batched, later. (But we lose 1 priority.)
+>> > =C2=A0 =C2=A0 If memory size is below 16M, pages >> priority is 0 and =
+no scan in
+>> > =C2=A0 =C2=A0 DEF_PRIORITY forever.
+>> >
+>> > =C2=A02. If zone->all_unreclaimabe=3D=3Dtrue, it's scanned only when p=
+riority=3D=3D0.
+>> > =C2=A0 =C2=A0 So, x86's ZONE_DMA will never be recoverred until the us=
+er of pages
+>> > =C2=A0 =C2=A0 frees memory by itself.
+>> >
+>> > =C2=A03. With memcg, the limit of memory can be small. When using smal=
+l memcg,
+>> > =C2=A0 =C2=A0 it gets priority < DEF_PRIORITY-2 very easily and need t=
+o call
+>> > =C2=A0 =C2=A0 wait_iff_congested().
+>> > =C2=A0 =C2=A0 For doing scan before priorty=3D9, 64MB of memory should=
+ be used.
+>> >
+>> > Then, this patch tries to scan SWAP_CLUSTER_MAX of pages in force...wh=
+en
+>> >
+>> > =C2=A01. the target is enough small.
+>> > =C2=A02. it's kswapd or memcg reclaim.
+>> >
+>> > Then we can avoid rapid priority drop and may be able to recover
+>> > all_unreclaimable in a small zones. And this patch removes nr_saved_sc=
+an.
+>> > This will allow scanning in this priority even when pages >> priority
+>> > is very small.
+>> >
+>> > Changelog v2->v3
+>> > =C2=A0- removed nr_saved_scan completely.
+>> >
+>> > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>> Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
 >>
->> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
->> Cc: Mel Gorman <mgorman@suse.de>
->> Cc: Rik van Riel <riel@redhat.com>
->> Cc: Andrea Arcangeli <aarcange@redhat.com>
->> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
->> ---
->> =C2=A0mm/compaction.c | =C2=A0 22 +++++++++++++++-------
->> =C2=A01 files changed, 15 insertions(+), 7 deletions(-)
+>> The patch looks good to me but I have a nitpick about just coding style.
+>> How about this? I think below looks better but it's just my private
+>> opinion and I can't insist on my style. If you don't mind it, ignore.
 >>
->> diff --git a/mm/compaction.c b/mm/compaction.c
->> index a2f6e96..480d2ac 100644
->> --- a/mm/compaction.c
->> +++ b/mm/compaction.c
->> @@ -211,11 +211,11 @@ static void isolate_freepages(struct zone *zone,
->> =C2=A0/* Update the number of anon and file isolated pages in the zone *=
-/
->> =C2=A0static void acct_isolated(struct zone *zone, struct compact_contro=
-l *cc)
->> =C2=A0{
->> - =C2=A0 =C2=A0 struct page *page;
->> + =C2=A0 =C2=A0 struct pages_lru *pages_lru;
->> =C2=A0 =C2=A0 =C2=A0 unsigned int count[NR_LRU_LISTS] =3D { 0, };
->>
->> - =C2=A0 =C2=A0 list_for_each_entry(page, &cc->migratepages, lru) {
->> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 int lru =3D page_lru_base_ty=
-pe(page);
->> + =C2=A0 =C2=A0 list_for_each_entry(pages_lru, &cc->migratepages, lru) {
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 int lru =3D page_lru_base_ty=
-pe(pages_lru->page);
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 count[lru]++;
->> =C2=A0 =C2=A0 =C2=A0 }
->>
->> @@ -281,6 +281,7 @@ static unsigned long isolate_migratepages(struct zon=
-e *zone,
->> =C2=A0 =C2=A0 =C2=A0 spin_lock_irq(&zone->lru_lock);
->> =C2=A0 =C2=A0 =C2=A0 for (; low_pfn < end_pfn; low_pfn++) {
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 struct page *page;
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 struct pages_lru *pages_lru;
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 bool locked =3D true;
->>
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 /* give a chance to irq=
-s before checking need_resched() */
->> @@ -334,10 +335,16 @@ static unsigned long isolate_migratepages(struct z=
-one *zone,
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 continue;
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 }
->>
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 pages_lru =3D kmalloc(sizeof=
-(struct pages_lru), GFP_ATOMIC);
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (pages_lru)
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-continue;
 >
-> Hmm, can't we use fixed size of statically allocated pages_lru, per-node =
-or
-> per-zone ? I think using kmalloc() in memory reclaim path is risky.
+> I did this at the 1st try and got bug.....a variable 'file' here is
+> reused and now broken. Renaming it with new variable will be ok, but it
 
-Yes. we can enhance it with pagevec-like approach.
-It's my TODO list.  :)
-
-In compaction POV, it is used by reclaiming big order pages so most of
-time order-0 pages are enough. It's basic assumption of compaction so
-it shouldn't be a problem.
-
-Thanks for the review, Kame.
+Right you are. I missed that. :)
+Thanks.
 
 
 --=20
