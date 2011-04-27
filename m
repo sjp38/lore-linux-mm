@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id A34CB6B0023
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 12:08:23 -0400 (EDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 6EFD16B0029
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 12:08:24 -0400 (EDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 10/13] mm: Micro-optimise slab to avoid a function call
-Date: Wed, 27 Apr 2011 17:08:08 +0100
-Message-Id: <1303920491-25302-11-git-send-email-mgorman@suse.de>
+Subject: [PATCH 09/13] netvm: Set PF_MEMALLOC as appropriate during SKB processing
+Date: Wed, 27 Apr 2011 17:08:07 +0100
+Message-Id: <1303920491-25302-10-git-send-email-mgorman@suse.de>
 In-Reply-To: <1303920491-25302-1-git-send-email-mgorman@suse.de>
 References: <1303920491-25302-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -13,76 +13,182 @@ List-ID: <linux-mm.kvack.org>
 To: Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>
 Cc: LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Neil Brown <neilb@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mgorman@suse.de>
 
-Getting and putting objects in SLAB currently requires a function call
-but the bulk of the work is related to PFMEMALLOC reserves which are
-only consumed when network-backed storage is critical. Use an inline
-function to determine if the function call is required.
+In order to make sure pfmemalloc packets receive all memory needed to proceed,
+ensure processing of pfmemalloc SKBs happens under PF_MEMALLOC. This is
+limited to a subset of protocols that are expected to be used for writing
+to swap. Taps are not allowed to use PF_MEMALLOC as these are expected to
+communicate with userspace processes which could be paged out.
 
+[a.p.zijlstra@chello.nl: Ideas taken from various patches]
+[jslaby@suse.cz: Lock imbalance fix]
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- mm/slab.c |   28 ++++++++++++++++++++++++++--
- 1 files changed, 26 insertions(+), 2 deletions(-)
+ include/net/sock.h |    5 +++++
+ net/core/dev.c     |   48 ++++++++++++++++++++++++++++++++++++++++++++----
+ net/core/sock.c    |   16 ++++++++++++++++
+ 3 files changed, 65 insertions(+), 4 deletions(-)
 
-diff --git a/mm/slab.c b/mm/slab.c
-index 342c7c7..1504096 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -116,6 +116,8 @@
- #include	<linux/kmemcheck.h>
- #include	<linux/memory.h>
- 
-+#include	<net/sock.h>
-+
- #include	<asm/cacheflush.h>
- #include	<asm/tlbflush.h>
- #include	<asm/page.h>
-@@ -944,7 +946,7 @@ static void check_ac_pfmemalloc(struct kmem_cache *cachep,
- 	ac->pfmemalloc = false;
+diff --git a/include/net/sock.h b/include/net/sock.h
+index e3aaa88..e928880 100644
+--- a/include/net/sock.h
++++ b/include/net/sock.h
+@@ -668,8 +668,13 @@ static inline __must_check int sk_add_backlog(struct sock *sk, struct sk_buff *s
+ 	return 0;
  }
  
--static void *ac_get_obj(struct kmem_cache *cachep, struct array_cache *ac,
-+static void *__ac_get_obj(struct kmem_cache *cachep, struct array_cache *ac,
- 						gfp_t flags, bool force_refill)
++extern int __sk_backlog_rcv(struct sock *sk, struct sk_buff *skb);
++
+ static inline int sk_backlog_rcv(struct sock *sk, struct sk_buff *skb)
  {
- 	int i;
-@@ -991,7 +993,20 @@ static void *ac_get_obj(struct kmem_cache *cachep, struct array_cache *ac,
- 	return objp;
++	if (skb_pfmemalloc(skb))
++		return __sk_backlog_rcv(sk, skb);
++
+ 	return sk->sk_backlog_rcv(sk, skb);
  }
  
--static void ac_put_obj(struct kmem_cache *cachep, struct array_cache *ac,
-+static inline void *ac_get_obj(struct kmem_cache *cachep,
-+			struct array_cache *ac, gfp_t flags, bool force_refill)
+diff --git a/net/core/dev.c b/net/core/dev.c
+index 3871bf6..0b69efb 100644
+--- a/net/core/dev.c
++++ b/net/core/dev.c
+@@ -3095,6 +3095,23 @@ static void vlan_on_bond_hook(struct sk_buff *skb)
+ 	}
+ }
+ 
++/*
++ * Limit which protocols can use the PFMEMALLOC reserves to those that are
++ * expected to be used for communication with swap.
++ */
++static bool skb_pfmemalloc_protocol(struct sk_buff *skb)
 +{
-+	void *objp;
-+
-+	if (unlikely(sk_memalloc_socks()))
-+		objp = __ac_get_obj(cachep, ac, flags, force_refill);
-+	else
-+		objp = ac->entry[--ac->avail];
-+
-+	return objp;
++	switch (skb->protocol) {
++	case __constant_htons(ETH_P_ARP):
++	case __constant_htons(ETH_P_IP):
++	case __constant_htons(ETH_P_IPV6):
++	case __constant_htons(ETH_P_8021Q):
++		return true;
++	default:
++		return false;
++	}
 +}
 +
-+static void *__ac_put_obj(struct kmem_cache *cachep, struct array_cache *ac,
- 								void *objp)
+ static int __netif_receive_skb(struct sk_buff *skb)
  {
- 	struct slab *slabp;
-@@ -1004,6 +1019,15 @@ static void ac_put_obj(struct kmem_cache *cachep, struct array_cache *ac,
- 			set_obj_pfmemalloc(&objp);
+ 	struct packet_type *ptype, *pt_prev;
+@@ -3104,15 +3121,28 @@ static int __netif_receive_skb(struct sk_buff *skb)
+ 	bool deliver_exact = false;
+ 	int ret = NET_RX_DROP;
+ 	__be16 type;
++	unsigned long pflags = current->flags;
+ 
+ 	if (!netdev_tstamp_prequeue)
+ 		net_timestamp_check(skb);
+ 
+ 	trace_netif_receive_skb(skb);
+ 
++	/*
++	 * PFMEMALLOC skbs are special, they should
++	 * - be delivered to SOCK_MEMALLOC sockets only
++	 * - stay away from userspace
++	 * - have bounded memory usage
++	 *
++	 * Use PF_MEMALLOC as this saves us from propagating the allocation
++	 * context down to all allocation sites.
++	 */
++	if (skb_pfmemalloc(skb))
++		current->flags |= PF_MEMALLOC;
++
+ 	/* if we've gotten here through NAPI, check netpoll */
+ 	if (netpoll_receive_skb(skb))
+-		return NET_RX_DROP;
++		goto out;
+ 
+ 	if (!skb->skb_iif)
+ 		skb->skb_iif = skb->dev->ifindex;
+@@ -3143,6 +3173,9 @@ another_round:
+ 	}
+ #endif
+ 
++	if (skb_pfmemalloc(skb))
++		goto skip_taps;
++
+ 	list_for_each_entry_rcu(ptype, &ptype_all, list) {
+ 		if (!ptype->dev || ptype->dev == skb->dev) {
+ 			if (pt_prev)
+@@ -3151,13 +3184,17 @@ another_round:
+ 		}
  	}
  
-+	return objp;
-+}
++skip_taps:
+ #ifdef CONFIG_NET_CLS_ACT
+ 	skb = handle_ing(skb, &pt_prev, &ret, orig_dev);
+ 	if (!skb)
+-		goto out;
++		goto unlock;
+ ncls:
+ #endif
+ 
++	if (skb_pfmemalloc(skb) && !skb_pfmemalloc_protocol(skb))
++		goto drop;
 +
-+static inline void ac_put_obj(struct kmem_cache *cachep, struct array_cache *ac,
-+								void *objp)
-+{
-+	if (unlikely(sk_memalloc_socks()))
-+		objp = __ac_put_obj(cachep, ac, objp);
-+
- 	ac->entry[ac->avail++] = objp;
+ 	rx_handler = rcu_dereference(skb->dev->rx_handler);
+ 	if (rx_handler) {
+ 		if (pt_prev) {
+@@ -3166,7 +3203,7 @@ ncls:
+ 		}
+ 		switch (rx_handler(&skb)) {
+ 		case RX_HANDLER_CONSUMED:
+-			goto out;
++			goto unlock;
+ 		case RX_HANDLER_ANOTHER:
+ 			goto another_round;
+ 		case RX_HANDLER_EXACT:
+@@ -3210,6 +3247,7 @@ ncls:
+ 	if (pt_prev) {
+ 		ret = pt_prev->func(skb, skb->dev, pt_prev, orig_dev);
+ 	} else {
++drop:
+ 		atomic_long_inc(&skb->dev->rx_dropped);
+ 		kfree_skb(skb);
+ 		/* Jamal, now you will not able to escape explaining
+@@ -3218,8 +3256,10 @@ ncls:
+ 		ret = NET_RX_DROP;
+ 	}
+ 
+-out:
++unlock:
+ 	rcu_read_unlock();
++out:
++	tsk_restore_flags(current, pflags, PF_MEMALLOC);
+ 	return ret;
  }
  
+diff --git a/net/core/sock.c b/net/core/sock.c
+index 8308609..ac36807 100644
+--- a/net/core/sock.c
++++ b/net/core/sock.c
+@@ -245,6 +245,22 @@ void sk_clear_memalloc(struct sock *sk)
+ }
+ EXPORT_SYMBOL_GPL(sk_clear_memalloc);
+ 
++int __sk_backlog_rcv(struct sock *sk, struct sk_buff *skb)
++{
++	int ret;
++	unsigned long pflags = current->flags;
++
++	/* these should have been dropped before queueing */
++	BUG_ON(!sock_flag(sk, SOCK_MEMALLOC));
++
++	current->flags |= PF_MEMALLOC;
++	ret = sk->sk_backlog_rcv(sk, skb);
++	tsk_restore_flags(current, pflags, PF_MEMALLOC);
++
++	return ret;
++}
++EXPORT_SYMBOL(__sk_backlog_rcv);
++
+ #if defined(CONFIG_CGROUPS) && !defined(CONFIG_NET_CLS_CGROUP)
+ int net_cls_subsys_id = -1;
+ EXPORT_SYMBOL_GPL(net_cls_subsys_id);
 -- 
 1.7.3.4
 
