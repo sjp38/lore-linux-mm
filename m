@@ -1,296 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 64C2D6B0011
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 13:33:52 -0400 (EDT)
-Received: from kpbe15.cbf.corp.google.com (kpbe15.cbf.corp.google.com [172.25.105.79])
-	by smtp-out.google.com with ESMTP id p3RHXjdD014396
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 10:33:45 -0700
-Received: from qwi4 (qwi4.prod.google.com [10.241.195.4])
-	by kpbe15.cbf.corp.google.com with ESMTP id p3RHXFNO025651
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 10:33:44 -0700
-Received: by qwi4 with SMTP id 4so1923633qwi.1
-        for <linux-mm@kvack.org>; Wed, 27 Apr 2011 10:33:44 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20110427165120.a60c6609.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20110427165120.a60c6609.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Wed, 27 Apr 2011 10:33:43 -0700
-Message-ID: <BANLkTinx+4zXaO3rhHRUzr3m-K-2_NMTQw@mail.gmail.com>
-Subject: Re: [PATCHv2] memcg: reclaim memory from node in round-robin
-From: Ying Han <yinghan@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id C00F06B0012
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 13:34:13 -0400 (EDT)
+Content-Type: text/plain; charset=UTF-8
+From: Chris Mason <chris.mason@oracle.com>
+Subject: Re: [BUG] fatal hang untarring 90GB file, possibly writeback related.
+In-reply-to: <1303924902.2583.13.camel@mulgrave.site>
+References: <1303920553.2583.7.camel@mulgrave.site> <1303921583-sup-4021@think> <1303923000.2583.8.camel@mulgrave.site> <1303923177-sup-2603@think> <1303924902.2583.13.camel@mulgrave.site>
+Date: Wed, 27 Apr 2011 13:34:03 -0400
+Message-Id: <1303925374-sup-7968@think>
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>
+To: James Bottomley <james.bottomley@hansenpartnership.com>
+Cc: linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-ext4 <linux-ext4@vger.kernel.org>
 
-On Wed, Apr 27, 2011 at 12:51 AM, KAMEZAWA Hiroyuki
-<kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> I changed the logic a little and add a filter for skipping nodes.
-> With large NUMA, tasks may under cpuset or mempolicy and the usage of mem=
-ory
-> can be unbalanced. So, I think a filter is required.
+[ cc'd linux-ext4 ]
 
-Thank you.
+James is hitting softlockups in kswapd while doing writes to a large
+ext4 file.
 
->
-> =3D=3D
-> Now, memory cgroup's direct reclaim frees memory from the current node.
-> But this has some troubles. In usual, when a set of threads works in
-> cooperative way, they are tend to on the same node. So, if they hit
-> limits under memcg, it will reclaim memory from themselves, it may be
-> active working set.
->
-> For example, assume 2 node system which has Node 0 and Node 1
-> and a memcg which has 1G limit. After some work, file cacne remains and
-> and usages are
-> =A0 Node 0: =A01M
-> =A0 Node 1: =A0998M.
->
-> and run an application on Node 0, it will eats its foot before freeing
-> unnecessary file caches.
->
-> This patch adds round-robin for NUMA and adds equal pressure to each
-> node. When using cpuset's spread memory feature, this will work very well=
-.
->
->
-> From: Ying Han <yinghan@google.com>
-> Signed-off-by: Ying Han <yinghan@google.com>
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->
-> Changelog v1->v2:
-> =A0- fixed comments.
-> =A0- added a logic to avoid scanning unused node.
->
-> ---
-> =A0include/linux/memcontrol.h | =A0 =A01
-> =A0mm/memcontrol.c =A0 =A0 =A0 =A0 =A0 =A0| =A0 98 ++++++++++++++++++++++=
-++++++++++++++++++++---
-> =A0mm/vmscan.c =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0| =A0 =A09 +++-
-> =A03 files changed, 101 insertions(+), 7 deletions(-)
->
-> Index: memcg/include/linux/memcontrol.h
-> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-> --- memcg.orig/include/linux/memcontrol.h
-> +++ memcg/include/linux/memcontrol.h
-> @@ -108,6 +108,7 @@ extern void mem_cgroup_end_migration(str
-> =A0*/
-> =A0int mem_cgroup_inactive_anon_is_low(struct mem_cgroup *memcg);
-> =A0int mem_cgroup_inactive_file_is_low(struct mem_cgroup *memcg);
-> +int mem_cgroup_select_victim_node(struct mem_cgroup *memcg);
-> =A0unsigned long mem_cgroup_zone_nr_pages(struct mem_cgroup *memcg,
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 struct zone *zone,
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 enum lru_list lru);
-> Index: memcg/mm/memcontrol.c
-> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-> --- memcg.orig/mm/memcontrol.c
-> +++ memcg/mm/memcontrol.c
-> @@ -237,6 +237,11 @@ struct mem_cgroup {
-> =A0 =A0 =A0 =A0 * reclaimed from.
-> =A0 =A0 =A0 =A0 */
-> =A0 =A0 =A0 =A0int last_scanned_child;
-> + =A0 =A0 =A0 int last_scanned_node;
-> +#if MAX_NUMNODES > 1
-> + =A0 =A0 =A0 nodemask_t =A0 =A0 =A0scan_nodes;
-> + =A0 =A0 =A0 unsigned long =A0 next_scan_node_update;
-> +#endif
-> =A0 =A0 =A0 =A0/*
-> =A0 =A0 =A0 =A0 * Should the accounting and control be hierarchical, per =
-subtree?
-> =A0 =A0 =A0 =A0 */
-> @@ -650,18 +655,27 @@ static void mem_cgroup_soft_scan(struct
-> =A0 =A0 =A0 =A0this_cpu_add(mem->stat->events[MEM_CGROUP_EVENTS_SOFT_SCAN=
-], val);
-> =A0}
->
-> +static unsigned long
-> +mem_cgroup_get_zonestat_node(struct mem_cgroup *mem, int nid, enum lru_l=
-ist idx)
-> +{
-> + =A0 =A0 =A0 struct mem_cgroup_per_zone *mz;
-> + =A0 =A0 =A0 u64 total;
-> + =A0 =A0 =A0 int zid;
-> +
-> + =A0 =A0 =A0 for (zid =3D 0; zid < MAX_NR_ZONES; zid++) {
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 mz =3D mem_cgroup_zoneinfo(mem, nid, zid);
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 total +=3D MEM_CGROUP_ZSTAT(mz, idx);
-> + =A0 =A0 =A0 }
-> + =A0 =A0 =A0 return total;
-> +}
-> =A0static unsigned long mem_cgroup_get_local_zonestat(struct mem_cgroup *=
-mem,
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0enum lru_list idx)
-> =A0{
-> - =A0 =A0 =A0 int nid, zid;
-> - =A0 =A0 =A0 struct mem_cgroup_per_zone *mz;
-> + =A0 =A0 =A0 int nid;
-> =A0 =A0 =A0 =A0u64 total =3D 0;
->
-> =A0 =A0 =A0 =A0for_each_online_node(nid)
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 for (zid =3D 0; zid < MAX_NR_ZONES; zid++) =
-{
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 mz =3D mem_cgroup_zoneinfo(=
-mem, nid, zid);
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 total +=3D MEM_CGROUP_ZSTAT=
-(mz, idx);
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 }
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 total +=3D mem_cgroup_get_zonestat_node(mem=
-, nid, idx);
-> =A0 =A0 =A0 =A0return total;
-> =A0}
->
-> @@ -1471,6 +1485,77 @@ mem_cgroup_select_victim(struct mem_cgro
-> =A0 =A0 =A0 =A0return ret;
-> =A0}
->
-> +#if MAX_NUMNODES > 1
-> +
-> +/*
-> + * Update nodemask always is not very good. Even if we have empty
-> + * list, or wrong list here, we can start from some node and traverse al=
-l nodes
-> + * based on zonelist. So, update the list loosely once in 10 secs.
-> + *
-> + */
-> +static void mem_cgroup_may_update_nodemask(struct mem_cgroup *mem)
-> +{
-> + =A0 =A0 =A0 int nid;
-> +
-> + =A0 =A0 =A0 if (time_after(mem->next_scan_node_update, jiffies))
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 return;
-> +
-> + =A0 =A0 =A0 mem->next_scan_node_update =3D jiffies + 10*HZ;
-> + =A0 =A0 =A0 /* make a nodemask where this memcg uses memory from */
-> + =A0 =A0 =A0 mem->scan_nodes =3D node_states[N_HIGH_MEMORY];
-> +
-> + =A0 =A0 =A0 for_each_node_mask(nid, node_states[N_HIGH_MEMORY]) {
-> +
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (mem_cgroup_get_zonestat_node(mem, nid, =
-LRU_INACTIVE_FILE) ||
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 mem_cgroup_get_zonestat_node(mem, n=
-id, LRU_ACTIVE_FILE))
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 continue;
-> +
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (total_swap_pages &&
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 (mem_cgroup_get_zonestat_node(mem, =
-nid, LRU_INACTIVE_ANON) ||
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0mem_cgroup_get_zonestat_node(mem=
-, nid, LRU_ACTIVE_ANON)))
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 continue;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 node_clear(nid, mem->scan_nodes);
-> + =A0 =A0 =A0 }
-> +
-> +}
-> +
-> +/*
-> + * Selecting a node where we start reclaim from. Because what we need is=
- just
-> + * reducing usage counter, start from anywhere is O,K. Considering
-> + * memory reclaim from current node, there are pros. and cons.
-> + *
-> + * Freeing memory from current node means freeing memory from a node whi=
-ch
-> + * we'll use or we've used. So, it may make LRU bad. And if several thre=
-ads
-> + * hit limits, it will see a contention on a node. But freeing from remo=
-te
-> + * node means more costs for memory reclaim because of memory latency.
-> + *
-> + * Now, we use round-robin. Better algorithm is welcomed.
-> + */
-> +int mem_cgroup_select_victim_node(struct mem_cgroup *mem)
-> +{
-> + =A0 =A0 =A0 int node;
-> +
-> + =A0 =A0 =A0 mem_cgroup_may_update_nodemask(mem);
-> + =A0 =A0 =A0 node =3D mem->last_scanned_node;
-> +
-> + =A0 =A0 =A0 node =3D next_node(node, mem->scan_nodes);
-> + =A0 =A0 =A0 if (node =3D=3D MAX_NUMNODES) {
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 node =3D first_node(mem->scan_nodes);
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (unlikely(node =3D=3D MAX_NUMNODES))
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 node =3D numa_node_id();
-not sure about this logic, is that possible we reclaim from a node
-with all "unreclaimable" pages (based on the
-mem_cgroup_may_update_nodemask check).
-If i missed anything here, it would be helpful to add comment.
+Excerpts from James Bottomley's message of 2011-04-27 13:21:42 -0400:
+> On Wed, 2011-04-27 at 12:54 -0400, Chris Mason wrote:
+> > Ok, I'd try turning it on so we catch the sleeping with a spinlock held
+> > case better.
+> 
+> Will do, that's CONFIG_PREEMPT (rather than CONFIG_PREEMPT_VOLUNTARY)?
+> 
+> This is the trace with sysrq-l and sysrq-w
 
---Ying
+> 
+> The repro this time doesn't have a soft lockup, just the tar is hung and
+> one of my CPUs is in 99% system.
+> [  454.742935] flush-253:2     D 0000000000000000     0   793      2 0x00000000
+> [  454.745425]  ffff88006355b710 0000000000000046 ffff88006355b6b0 ffffffff00000000
+> [  454.747955]  ffff880037ee9700 ffff88006355bfd8 ffff88006355bfd8 0000000000013b40
+> [  454.750506]  ffffffff81a0b020 ffff880037ee9700 ffff88006355b710 000000018106e7c3
+> [  454.753048] Call Trace:
+> [  454.755537]  [<ffffffff811c82b8>] do_get_write_access+0x1c6/0x38d
+> [  454.758071]  [<ffffffff8106e88b>] ? autoremove_wake_function+0x3d/0x3d
+> [  454.760644]  [<ffffffff811c8588>] jbd2_journal_get_write_access+0x2b/0x42
+> [  454.763206]  [<ffffffff8118ea4f>] ? ext4_read_block_bitmap+0x54/0x2d0
+> [  454.765770]  [<ffffffff811b5888>] __ext4_journal_get_write_access+0x58/0x66
+> [  454.768353]  [<ffffffff811b8dbe>] ext4_mb_mark_diskspace_used+0x70/0x2ae
+> [  454.770942]  [<ffffffff811bb10e>] ext4_mb_new_blocks+0x1c8/0x3c2
+> [  454.773501]  [<ffffffff811b4628>] ext4_ext_map_blocks+0x1961/0x1c04
+> [  454.776082]  [<ffffffff8122ed78>] ? radix_tree_gang_lookup_tag_slot+0x81/0xa2
+> [  454.778711]  [<ffffffff810d55f9>] ? find_get_pages_tag+0x3b/0xd6
+> [  454.781323]  [<ffffffff811967fa>] ext4_map_blocks+0x112/0x1e7
+> [  454.783894]  [<ffffffff811984e8>] mpage_da_map_and_submit+0x93/0x2cd
+> [  454.786491]  [<ffffffff81198de5>] ext4_da_writepages+0x2c1/0x44d
+> [  454.789090]  [<ffffffff810ddeb4>] do_writepages+0x21/0x2a
 
-> + =A0 =A0 =A0 }
-> +
-> + =A0 =A0 =A0 mem->last_scanned_node =3D node;
-> + =A0 =A0 =A0 return node;
-> +}
-> +
-> +#else
-> +int mem_cgroup_select_victim_node(struct mem_cgroup *mem)
-> +{
-> + =A0 =A0 =A0 return 0;
-> +}
-> +#endif
-> +
-> =A0/*
-> =A0* Scan the hierarchy if needed to reclaim memory. We remember the last=
- child
-> =A0* we reclaimed from, so that we don't end up penalizing one child exte=
-nsively
-> @@ -4678,6 +4763,7 @@ mem_cgroup_create(struct cgroup_subsys *
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0res_counter_init(&mem->memsw, NULL);
-> =A0 =A0 =A0 =A0}
-> =A0 =A0 =A0 =A0mem->last_scanned_child =3D 0;
-> + =A0 =A0 =A0 mem->last_scanned_node =3D MAX_NUMNODES;
-> =A0 =A0 =A0 =A0INIT_LIST_HEAD(&mem->oom_notify);
->
-> =A0 =A0 =A0 =A0if (parent)
-> Index: memcg/mm/vmscan.c
-> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-> --- memcg.orig/mm/vmscan.c
-> +++ memcg/mm/vmscan.c
-> @@ -2198,6 +2198,7 @@ unsigned long try_to_free_mem_cgroup_pag
-> =A0{
-> =A0 =A0 =A0 =A0struct zonelist *zonelist;
-> =A0 =A0 =A0 =A0unsigned long nr_reclaimed;
-> + =A0 =A0 =A0 int nid;
-> =A0 =A0 =A0 =A0struct scan_control sc =3D {
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0.may_writepage =3D !laptop_mode,
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0.may_unmap =3D 1,
-> @@ -2208,10 +2209,16 @@ unsigned long try_to_free_mem_cgroup_pag
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0.mem_cgroup =3D mem_cont,
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0.nodemask =3D NULL, /* we don't care the p=
-lacement */
-> =A0 =A0 =A0 =A0};
-> + =A0 =A0 =A0 /*
-> + =A0 =A0 =A0 =A0* Unlike direct reclaim via alloc_pages(), memcg's recla=
-im
-> + =A0 =A0 =A0 =A0* don't take care of from where we get pages . So, the n=
-ode where
-> + =A0 =A0 =A0 =A0* we start scan is not needed to be current node.
-> + =A0 =A0 =A0 =A0*/
-> + =A0 =A0 =A0 nid =3D mem_cgroup_select_victim_node(mem_cont);
->
-> =A0 =A0 =A0 =A0sc.gfp_mask =3D (gfp_mask & GFP_RECLAIM_MASK) |
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0(GFP_HIGHUSER_MOVABLE & ~G=
-FP_RECLAIM_MASK);
-> - =A0 =A0 =A0 zonelist =3D NODE_DATA(numa_node_id())->node_zonelists;
-> + =A0 =A0 =A0 zonelist =3D NODE_DATA(nid)->node_zonelists;
->
-> =A0 =A0 =A0 =A0trace_mm_vmscan_memcg_reclaim_begin(0,
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0 =A0 =A0sc.may_writepage,
->
->
+So our flusher threads are stuck waiting in
+jbd2_journal_get_write_access, which means they aren't cleaning dirty
+pages.
+
+In order to get write access, they probably need the transaction to
+commit:
+
+> [  454.828711] jbd2/dm-2-8     D 0000000000000000     0   799      2 0x00000000
+> [  454.831390]  ffff88006d59db10 0000000000000046 ffff88006d59daa0 ffffffff00000000
+> [  454.834094]  ffff88006deb4500 ffff88006d59dfd8 ffff88006d59dfd8 0000000000013b40
+> [  454.836788]  ffffffff81a0b020 ffff88006deb4500 ffff88006d59dad0 000000016d59dad0
+> [  454.839453] Call Trace:
+> [  454.842098]  [<ffffffff810d5904>] ? lock_page+0x3e/0x3e
+> [  454.844738]  [<ffffffff810d5904>] ? lock_page+0x3e/0x3e
+> [  454.847303]  [<ffffffff8147a7c9>] io_schedule+0x63/0x7e
+> [  454.849877]  [<ffffffff810d5912>] sleep_on_page+0xe/0x12
+> [  454.852469]  [<ffffffff8147aea9>] __wait_on_bit+0x48/0x7b
+> [  454.855021]  [<ffffffff810d5a8c>] wait_on_page_bit+0x72/0x74
+> [  454.857583]  [<ffffffff8106e88b>] ? autoremove_wake_function+0x3d/0x3d
+> [  454.860171]  [<ffffffff810d5b6b>] filemap_fdatawait_range+0x84/0x163
+> [  454.862744]  [<ffffffff810d5c6e>] filemap_fdatawait+0x24/0x26
+> [  454.865299]  [<ffffffff811c94a2>] jbd2_journal_commit_transaction+0x922/0x1194
+
+But that seems to be waiting for a page lock.  Probably the same page
+lock held by the flusher thread?  Looks like tar is stuck in the same
+boat down below.
+
+> [  454.867892]  [<ffffffff81008714>] ? __switch_to+0xc6/0x220
+> [  454.870496]  [<ffffffff811cd3b6>] kjournald2+0xc9/0x20a
+> [  454.873103]  [<ffffffff8106e84e>] ? remove_wait_queue+0x3a/0x3a
+> [  454.875690]  [<ffffffff811cd2ed>] ? commit_timeout+0x10/0x10
+> [  454.878327]  [<ffffffff8106e157>] kthread+0x84/0x8c
+> [  454.880961]  [<ffffffff81483764>] kernel_thread_helper+0x4/0x10
+> [  454.883604]  [<ffffffff8106e0d3>] ? kthread_worker_fn+0x148/0x148
+> [  454.886262]  [<ffffffff81483760>] ? gs_change+0x13/0x13
+> [  454.888875] tar             D ffff88006e573af8     0   991    838 0x00000000
+> [  454.891546]  ffff880037f5b8a8 0000000000000086 ffff8801002a1d40 0000000000000282
+> [  454.894213]  ffff88006d644500 ffff880037f5bfd8 ffff880037f5bfd8 0000000000013b40
+> [  454.896889]  ffff8801002b4500 ffff88006d644500 ffff880037f5b8a8 ffffffff8106e7c3
+> [  454.899530] Call Trace:
+> [  454.902118]  [<ffffffff8106e7c3>] ? prepare_to_wait+0x6c/0x78
+> [  454.904724]  [<ffffffff811c82b8>] do_get_write_access+0x1c6/0x38d
+> [  454.907344]  [<ffffffff8106e88b>] ? autoremove_wake_function+0x3d/0x3d
+> [  454.909967]  [<ffffffff811991cc>] ? ext4_dirty_inode+0x33/0x4c
+> [  454.912574]  [<ffffffff811c8588>] jbd2_journal_get_write_access+0x2b/0x42
+> [  454.915192]  [<ffffffff811b5888>] __ext4_journal_get_write_access+0x58/0x66
+> [  454.917819]  [<ffffffff81195526>] ext4_reserve_inode_write+0x41/0x83
+> [  454.920459]  [<ffffffff811955e4>] ext4_mark_inode_dirty+0x7c/0x1f0
+> [  454.923070]  [<ffffffff811991cc>] ext4_dirty_inode+0x33/0x4c
+> [  454.925660]  [<ffffffff8113c3d6>] __mark_inode_dirty+0x2f/0x175
+> [  454.928247]  [<ffffffff81143a0d>] generic_write_end+0x6c/0x7e
+> [  454.930865]  [<ffffffff811983f6>] ext4_da_write_end+0x1a5/0x204
+> [  454.933454]  [<ffffffff810d5e9d>] generic_file_buffered_write+0x17e/0x23a
+> [  454.936062]  [<ffffffff810d6c9d>] __generic_file_aio_write+0x242/0x272
+> [  454.938648]  [<ffffffff810d6d2e>] generic_file_aio_write+0x61/0xba
+> [  454.941288]  [<ffffffff8118fe00>] ext4_file_write+0x1dc/0x234
+> [  454.943909]  [<ffffffff8111edab>] do_sync_write+0xbf/0xff
+> [  454.946501]  [<ffffffff8114b9fc>] ? fsnotify+0x1eb/0x217
+> [  454.949114]  [<ffffffff811f1866>] ? selinux_file_permission+0x58/0xb4
+> [  454.951736]  [<ffffffff811e9cfe>] ? security_file_permission+0x2e/0x33
+> [  454.954349]  [<ffffffff8111f196>] ? rw_verify_area+0xb0/0xcd
+> [  454.956943]  [<ffffffff8111f421>] vfs_write+0xac/0xf3
+> [  454.959530]  [<ffffffff8111f610>] sys_write+0x4a/0x6e
+> [  454.962129]  [<ffffffff81482642>] system_call_fastpath+0x16/0x1b
+
+-chris
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
