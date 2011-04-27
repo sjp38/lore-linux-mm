@@ -1,101 +1,203 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 0BA369000C1
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 03:37:20 -0400 (EDT)
-Date: Wed, 27 Apr 2011 09:36:18 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH V6 00/10] memcg: per cgroup background reclaim
-Message-ID: <20110427073618.GC6152@cmpxchg.org>
-References: <1303185466-2532-1-git-send-email-yinghan@google.com>
- <20110421025107.GG2333@cmpxchg.org>
- <20110421130016.3333cb39.kamezawa.hiroyu@jp.fujitsu.com>
- <20110421050851.GI2333@cmpxchg.org>
- <BANLkTimUQjW_XVdzoLJJwwFDuFvm=Qg_FA@mail.gmail.com>
- <20110423013534.GK2333@cmpxchg.org>
- <BANLkTi=UgLihmoRwdA4E4MXmGc4BmqkqTg@mail.gmail.com>
- <20110423023407.GN2333@cmpxchg.org>
- <BANLkTimwMcBwTvi8aNDPXkS_Vu+bxdciMg@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <BANLkTimwMcBwTvi8aNDPXkS_Vu+bxdciMg@mail.gmail.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 2CA4B9000C1
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 03:53:50 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 611A73EE0B6
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 16:53:45 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 4909345DE4D
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 16:53:45 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 2F44945DE52
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 16:53:45 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 1265D1DB802F
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 16:53:45 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id C6F6E1DB803E
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 16:53:44 +0900 (JST)
+Date: Wed, 27 Apr 2011 16:47:08 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCHv3] memcg: fix get_scan_count for small targets
+Message-Id: <20110427164708.1143395e.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>, linux-mm@kvack.org
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, Ying Han <yinghan@google.com>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "mgorman@suse.de" <mgorman@suse.de>
 
-On Fri, Apr 22, 2011 at 08:33:58PM -0700, Ying Han wrote:
-> On Fri, Apr 22, 2011 at 7:34 PM, Johannes Weiner <hannes@cmpxchg.org> wrote:
-> 
-> > On Fri, Apr 22, 2011 at 07:10:25PM -0700, Ying Han wrote: >
-> > However, i still think there is a need from the admin to have some
-> > controls > of which memcg to do background reclaim proactively
-> > (before global memory > pressure) and that was the initial logic
-> > behind the API.
-> >
-> > That sounds more interesting.  Do you have a specific use case
-> > that requires this?
-> 
-> There might be more interesting use cases there, and here is one I
-> can think of:
-> 
-> let's say we three jobs A, B and C, and one host with 32G of RAM. We
-> configure each job's hard_limit as their peak memory usage.
-> A: 16G
-> B: 16G
-> C: 10G
-> 
-> 1. we start running A with hard_limit 15G, and start running B with
-> hard_limit 15G.
-> 2. we set A and B's soft_limit based on their "hot" memory. Let's say
-> setting A's soft_limit 10G and B's soft_limit 10G.
-> (The soft_limit will be changing based on their runtime memory usage)
-> 
-> If no more jobs running on the system, A and B will easily fill up the whole
-> system with pagecache pages. Since we are not over-committing the machine
-> with their hard_limit, there will be no pressure to push their memory usage
-> down to soft_limit.
-> 
-> Now we would like to launch another job C, since we know there are A(16G -
-> 10G) + B(16G - 10G)  = 12G "cold" memory can be reclaimed (w/o impacting the
-> A and B's performance). So what will happen
-> 
-> 1. start running C on the host, which triggers global memory pressure right
-> away. If the reclaim is fast, C start growing with the free pages from A and
-> B.
-> 
-> However, it might be possible that the reclaim can not catch-up with the
-> job's page allocation. We end up with either OOM condition or performance
-> spike on any of the running jobs.
+At memory reclaim, we determine the number of pages to be scanned
+per zone as
+	(anon + file) >> priority.
+Assume 
+	scan = (anon + file) >> priority.
 
-If background reclaim can not catch up, C will go into direct reclaim,
-which will have exactly the same effect, only that C will have to do
-the work itself.
+If scan < SWAP_CLUSTER_MAX, the scan will be skipped for this time
+and priority gets higher. This has some problems.
 
-> One way to improve it is to set a wmark on either A/B to be proactively
-> reclaiming pages before launching C. The global memory pressure won't help
-> much here since we won't trigger that.
+  1. This increases priority as 1 without any scan.
+     To do scan in this priority, amount of pages should be larger than 512M.
+     If pages>>priority < SWAP_CLUSTER_MAX, it's recorded and scan will be
+     batched, later. (But we lose 1 priority.)
+     If memory size is below 16M, pages >> priority is 0 and no scan in
+     DEF_PRIORITY forever.
 
-Ok, so you want to use the watermarks to push back and limit the usage
-of A and B to make room for C.  Isn't this exactly what the hard limit
-is for?
+  2. If zone->all_unreclaimabe==true, it's scanned only when priority==0.
+     So, x86's ZONE_DMA will never be recoverred until the user of pages
+     frees memory by itself.
 
-I don't understand the second sentence: global memory pressure won't
-kick in with only A and B, but it will once C starts up.
+  3. With memcg, the limit of memory can be small. When using small memcg,
+     it gets priority < DEF_PRIORITY-2 very easily and need to call
+     wait_iff_congested().
+     For doing scan before priorty=9, 64MB of memory should be used.
 
-> > min_free_kbytes more or less indirectly provides the same on a global
-> > level, but I don't think anybody tunes it just for aggressiveness of
-> > background reclaim.
-> >
-> 
-> Hmm, we do scale that in google workload. With large machines under lots of
-> memory pressure and heavily network traffic workload, we would like to
-> reduce the likelyhood of page alloc failure. But this is kind of different
-> from what we are talking about here.
+Then, this patch tries to scan SWAP_CLUSTER_MAX of pages in force...when
 
-My point indeed ;-)
+  1. the target is enough small.
+  2. it's kswapd or memcg reclaim.
 
-	Hannes
+Then we can avoid rapid priority drop and may be able to recover
+all_unreclaimable in a small zones. And this patch removes nr_saved_scan.
+This will allow scanning in this priority even when pages >> priority
+is very small.
+
+Changelog v2->v3
+  - removed nr_saved_scan completely.
+
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+---
+ include/linux/mmzone.h |    5 ----
+ mm/page_alloc.c        |    4 ---
+ mm/vmscan.c            |   60 ++++++++++++++++++++++++++-----------------------
+ 3 files changed, 34 insertions(+), 35 deletions(-)
+
+Index: memcg/mm/vmscan.c
+===================================================================
+--- memcg.orig/mm/vmscan.c
++++ memcg/mm/vmscan.c
+@@ -1700,26 +1700,6 @@ static unsigned long shrink_list(enum lr
+ }
+ 
+ /*
+- * Smallish @nr_to_scan's are deposited in @nr_saved_scan,
+- * until we collected @swap_cluster_max pages to scan.
+- */
+-static unsigned long nr_scan_try_batch(unsigned long nr_to_scan,
+-				       unsigned long *nr_saved_scan)
+-{
+-	unsigned long nr;
+-
+-	*nr_saved_scan += nr_to_scan;
+-	nr = *nr_saved_scan;
+-
+-	if (nr >= SWAP_CLUSTER_MAX)
+-		*nr_saved_scan = 0;
+-	else
+-		nr = 0;
+-
+-	return nr;
+-}
+-
+-/*
+  * Determine how aggressively the anon and file LRU lists should be
+  * scanned.  The relative value of each set of LRU lists is determined
+  * by looking at the fraction of the pages scanned we did rotate back
+@@ -1737,6 +1717,22 @@ static void get_scan_count(struct zone *
+ 	u64 fraction[2], denominator;
+ 	enum lru_list l;
+ 	int noswap = 0;
++	int force_scan = 0;
++
++
++	anon  = zone_nr_lru_pages(zone, sc, LRU_ACTIVE_ANON) +
++		zone_nr_lru_pages(zone, sc, LRU_INACTIVE_ANON);
++	file  = zone_nr_lru_pages(zone, sc, LRU_ACTIVE_FILE) +
++		zone_nr_lru_pages(zone, sc, LRU_INACTIVE_FILE);
++
++	if (((anon + file) >> priority) < SWAP_CLUSTER_MAX) {
++		/* kswapd does zone balancing and need to scan this zone */
++		if (scanning_global_lru(sc) && current_is_kswapd())
++			force_scan = 1;
++		/* memcg may have small limit and need to avoid priority drop */
++		if (!scanning_global_lru(sc))
++			force_scan = 1;
++	}
+ 
+ 	/* If we have no swap space, do not bother scanning anon pages. */
+ 	if (!sc->may_swap || (nr_swap_pages <= 0)) {
+@@ -1747,11 +1743,6 @@ static void get_scan_count(struct zone *
+ 		goto out;
+ 	}
+ 
+-	anon  = zone_nr_lru_pages(zone, sc, LRU_ACTIVE_ANON) +
+-		zone_nr_lru_pages(zone, sc, LRU_INACTIVE_ANON);
+-	file  = zone_nr_lru_pages(zone, sc, LRU_ACTIVE_FILE) +
+-		zone_nr_lru_pages(zone, sc, LRU_INACTIVE_FILE);
+-
+ 	if (scanning_global_lru(sc)) {
+ 		free  = zone_page_state(zone, NR_FREE_PAGES);
+ 		/* If we have very few page cache pages,
+@@ -1818,8 +1809,23 @@ out:
+ 			scan >>= priority;
+ 			scan = div64_u64(scan * fraction[file], denominator);
+ 		}
+-		nr[l] = nr_scan_try_batch(scan,
+-					  &reclaim_stat->nr_saved_scan[l]);
++
++		/*
++		 * If zone is small or memcg is small, nr[l] can be 0.
++		 * This results no-scan on this priority and priority drop down.
++		 * For global direct reclaim, it can visit next zone and tend
++		 * not to have problems. For global kswapd, it's for zone
++		 * balancing and it need to scan a small amounts. When using
++		 * memcg, priority drop can cause big latency. So, it's better
++		 * to scan small amount. See may_noscan above.
++		 */
++		if (!scan && force_scan) {
++			if (file)
++				scan = SWAP_CLUSTER_MAX;
++			else if (!noswap)
++				scan = SWAP_CLUSTER_MAX;
++		}
++		nr[l] = scan;
+ 	}
+ }
+ 
+Index: memcg/include/linux/mmzone.h
+===================================================================
+--- memcg.orig/include/linux/mmzone.h
++++ memcg/include/linux/mmzone.h
+@@ -273,11 +273,6 @@ struct zone_reclaim_stat {
+ 	 */
+ 	unsigned long		recent_rotated[2];
+ 	unsigned long		recent_scanned[2];
+-
+-	/*
+-	 * accumulated for batching
+-	 */
+-	unsigned long		nr_saved_scan[NR_LRU_LISTS];
+ };
+ 
+ struct zone {
+Index: memcg/mm/page_alloc.c
+===================================================================
+--- memcg.orig/mm/page_alloc.c
++++ memcg/mm/page_alloc.c
+@@ -4256,10 +4256,8 @@ static void __paginginit free_area_init_
+ 		zone->zone_pgdat = pgdat;
+ 
+ 		zone_pcp_init(zone);
+-		for_each_lru(l) {
++		for_each_lru(l)
+ 			INIT_LIST_HEAD(&zone->lru[l].list);
+-			zone->reclaim_stat.nr_saved_scan[l] = 0;
+-		}
+ 		zone->reclaim_stat.recent_rotated[0] = 0;
+ 		zone->reclaim_stat.recent_rotated[1] = 0;
+ 		zone->reclaim_stat.recent_scanned[0] = 0;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
