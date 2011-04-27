@@ -1,53 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 39E916B0012
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 19:54:27 -0400 (EDT)
-Received: from mail-ew0-f41.google.com (mail-ew0-f41.google.com [209.85.215.41])
-	(authenticated bits=0)
-	by smtp1.linux-foundation.org (8.14.2/8.13.5/Debian-3ubuntu1.1) with ESMTP id p3RNsNPd025954
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=FAIL)
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 16:54:25 -0700
-Received: by ewy9 with SMTP id 9so963045ewy.14
-        for <linux-mm@kvack.org>; Wed, 27 Apr 2011 16:54:23 -0700 (PDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id F35606B0011
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 19:59:19 -0400 (EDT)
+Received: by wyf19 with SMTP id 19so2281027wyf.14
+        for <linux-mm@kvack.org>; Wed, 27 Apr 2011 16:59:17 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <BANLkTi=Ad2DUQ2Lr-Q5Y+eYxKMyz04fL2g@mail.gmail.com>
-References: <20110425214933.GO2468@linux.vnet.ibm.com> <20110426081904.0d2b1494@pluto.restena.lu>
- <20110426112756.GF4308@linux.vnet.ibm.com> <20110426183859.6ff6279b@neptune.home>
- <20110426190918.01660ccf@neptune.home> <BANLkTikjuqWP+PAsObJH4EAOyzgr2RbYNA@mail.gmail.com>
- <alpine.LFD.2.02.1104262314110.3323@ionos> <20110427081501.5ba28155@pluto.restena.lu>
- <20110427204139.1b0ea23b@neptune.home> <alpine.LFD.2.02.1104272351290.3323@ionos>
- <20110427222727.GU2135@linux.vnet.ibm.com> <alpine.LFD.2.02.1104280028250.3323@ionos>
- <BANLkTi=Ad2DUQ2Lr-Q5Y+eYxKMyz04fL2g@mail.gmail.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Wed, 27 Apr 2011 16:46:16 -0700
-Message-ID: <BANLkTikknBQeSi0w7LeUTwSiMed-6LNKBw@mail.gmail.com>
-Subject: Re: 2.6.39-rc4+: Kernel leaking memory during FS scanning, regression?
-Content-Type: text/plain; charset=ISO-8859-1
+In-Reply-To: <4DB8AAE3.20806@redhat.com>
+References: <cover.1303833415.git.minchan.kim@gmail.com>
+	<51e7412097fa62f86656c77c1934e3eb96d5eef6.1303833417.git.minchan.kim@gmail.com>
+	<4DB8AAE3.20806@redhat.com>
+Date: Thu, 28 Apr 2011 08:59:17 +0900
+Message-ID: <BANLkTimPAU-uc=FCV9Z-LKmQm-GGusHfiw@mail.gmail.com>
+Subject: Re: [RFC 6/8] In order putback lru core
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, =?ISO-8859-1?Q?Bruno_Pr=E9mont?= <bonbons@linux-vserver.org>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Frysinger <vapier.adi@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Paul E. McKenney" <paul.mckenney@linaro.org>, Pekka Enberg <penberg@kernel.org>
+To: Rik van Riel <riel@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux.com>, Johannes Weiner <jweiner@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>
 
-On Wed, Apr 27, 2011 at 4:28 PM, Linus Torvalds
-<torvalds@linux-foundation.org> wrote:
+Hi Rik,
+
+On Thu, Apr 28, 2011 at 8:46 AM, Rik van Riel <riel@redhat.com> wrote:
+> On 04/26/2011 12:25 PM, Minchan Kim wrote:
 >
-> We _know_ it didn't run continuously for 950ms. That number is totally
-> made up. There's not enough work for it to run that long, but more
-> importantly, the thread has zero CPU time. There is _zero_ reason to
-> believe that it runs for long periods.
+>> But this approach has a problem on contiguous pages.
+>> In this case, my idea can not work since friend pages are isolated, too.
+>> It means prev_page->next == next_page always is false and both pages are
+>> not
+>> LRU any more at that time. It's pointed out by Rik at LSF/MM summit.
+>> So for solving the problem, I can change the idea.
+>> I think we don't need both friend(prev, next) pages relation but
+>> just consider either prev or next page that it is still same LRU.
+>
+>> Any comment?
+>
+> If the friend pages are isolated too, then your condition
+> "either prev or next page that it is still same LRU" is
+> likely to be false, no?
 
-Hmm. But it might certainly have run for a _total_ of 950ms. Since
-that's just under a second, we wouldn't see it in the "ps" output.
+H - P1 - P2 - P3 - P4 - P5 - P6 - P7 - P8 - P9 - P10 - T
 
-Where is rt_time cleared? I see that subtract in
-do_sched_rt_period_timer(), but judging by the caller that is only
-called for some timer overrun case (I didn't look at what the
-definition of such an overrun is, though). Shouldn't rt_time be
-cleared when the task goes to sleep voluntarily?
+assume : we isolate pages P3~P7 and we consider only next pointer.
 
-What am I missing?
+H - P1 - P2 - P8 - P9 - P10 - T
 
-                   Linus
+If we start to putback P7 as starting point, next P8 is valid so,
+
+H - P1 - P2 - P7 - P8 - P9 - P10 - T
+Then, if we consider P6, next P7 is valid, too. So,
+
+H - P1 - P2 - P6 - P7 - P8 - P9 - P10 - T
+
+continue until P3.
+
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
