@@ -1,53 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 74CF46B0011
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 04:45:16 -0400 (EDT)
-Date: Thu, 28 Apr 2011 10:45:00 +0200
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 718E76B0011
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 04:48:26 -0400 (EDT)
+Date: Thu, 28 Apr 2011 10:48:20 +0200
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [RFC 4/8] Make clear description of putback_lru_page
-Message-ID: <20110428084500.GG12437@cmpxchg.org>
+Subject: Re: [RFC 2/8] compaction: make isolate_lru_page with filter aware
+Message-ID: <20110428084820.GH12437@cmpxchg.org>
 References: <cover.1303833415.git.minchan.kim@gmail.com>
- <bb2acc3882594cf54689d9e29c61077ff581c533.1303833417.git.minchan.kim@gmail.com>
- <20110427171157.3751528f.kamezawa.hiroyu@jp.fujitsu.com>
- <BANLkTik2FTKgSSYkyP4XT4pkhOYvpjgSTA@mail.gmail.com>
+ <4dc5e63cfc8672426336e43dea29057d5bb6e863.1303833417.git.minchan.kim@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <BANLkTik2FTKgSSYkyP4XT4pkhOYvpjgSTA@mail.gmail.com>
+In-Reply-To: <4dc5e63cfc8672426336e43dea29057d5bb6e863.1303833417.git.minchan.kim@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Minchan Kim <minchan.kim@gmail.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux.com>, Johannes Weiner <jweiner@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux.com>, Johannes Weiner <jweiner@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>
 
-On Thu, Apr 28, 2011 at 08:20:32AM +0900, Minchan Kim wrote:
-> On Wed, Apr 27, 2011 at 5:11 PM, KAMEZAWA Hiroyuki
-> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > On Wed, 27 Apr 2011 01:25:21 +0900
-> > Minchan Kim <minchan.kim@gmail.com> wrote:
-> >
-> >> Commonly, putback_lru_page is used with isolated_lru_page.
-> >> The isolated_lru_page picks the page in middle of LRU and
-> >> putback_lru_page insert the lru in head of LRU.
-> >> It means it could make LRU churning so we have to be very careful.
-> >> Let's clear description of putback_lru_page.
-> >>
-> >> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> >> Cc: Mel Gorman <mgorman@suse.de>
-> >> Cc: Rik van Riel <riel@redhat.com>
-> >> Cc: Andrea Arcangeli <aarcange@redhat.com>
-> >> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
-> >
-> > seems good...
-> > Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> >
-> > But is there consensus which side of LRU is tail? head?
+On Wed, Apr 27, 2011 at 01:25:19AM +0900, Minchan Kim wrote:
+> In async mode, compaction doesn't migrate dirty or writeback pages.
+> So, it's meaningless to pick the page and re-add it to lru list.
 > 
-> I don't know. I used to think it's head.
-> If other guys raise a concern as well, let's talk about it. :)
-> Thanks
+> Of course, when we isolate the page in compaction, the page might
+> be dirty or writeback but when we try to migrate the page, the page
+> would be not dirty, writeback. So it could be migrated. But it's
+> very unlikely as isolate and migration cycle is much faster than
+> writeout.
+> 
+> So, this patch helps cpu and prevent unnecessary LRU churning.
+> 
+> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Cc: Mel Gorman <mgorman@suse.de>
+> Cc: Rik van Riel <riel@redhat.com>
+> Cc: Andrea Arcangeli <aarcange@redhat.com>
+> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+> ---
+>  mm/compaction.c |    2 +-
+>  1 files changed, 1 insertions(+), 1 deletions(-)
+> 
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> index dea32e3..9f80b5a 100644
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -335,7 +335,7 @@ static unsigned long isolate_migratepages(struct zone *zone,
+>  		}
+>  
+>  		/* Try isolate the page */
+> -		if (__isolate_lru_page(page, ISOLATE_BOTH, 0, 0, 0) != 0)
+> +		if (__isolate_lru_page(page, ISOLATE_BOTH, 0, !cc->sync, 0) != 0)
+>  			continue;
 
-I suppose we add new pages to the head of the LRU and reclaim old
-pages from the tail.
+With the suggested flags argument from 1/8, this would look like:
+
+	flags = ISOLATE_BOTH;
+	if (!cc->sync)
+		flags |= ISOLATE_CLEAN;
+
+?
+
+Anyway, nice change indeed!
 
 Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
