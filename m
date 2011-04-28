@@ -1,99 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 43FE96B0011
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 23:55:57 -0400 (EDT)
-Received: from wpaz21.hot.corp.google.com (wpaz21.hot.corp.google.com [172.24.198.85])
-	by smtp-out.google.com with ESMTP id p3S3ttbg004674
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 20:55:55 -0700
-Received: from qyk7 (qyk7.prod.google.com [10.241.83.135])
-	by wpaz21.hot.corp.google.com with ESMTP id p3S3sQoG014192
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 20:55:54 -0700
-Received: by qyk7 with SMTP id 7so2509244qyk.5
-        for <linux-mm@kvack.org>; Wed, 27 Apr 2011 20:55:50 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20110426174754.07a58f22.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20110425182529.c7c37bb4.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110425191437.d881ee68.kamezawa.hiroyu@jp.fujitsu.com>
-	<BANLkTikYeV8JpMHd1Lvh7kRXXpLyQEOw4w@mail.gmail.com>
-	<20110426103859.05eb7a35.kamezawa.hiroyu@jp.fujitsu.com>
-	<BANLkTi=aoRhgu3SOKZ8OLRqTew67ciquFg@mail.gmail.com>
-	<20110426164341.fb6c80a4.kamezawa.hiroyu@jp.fujitsu.com>
-	<BANLkTi=sSrrQCMXKJor95Cn-JmiQ=XUAkA@mail.gmail.com>
-	<20110426174754.07a58f22.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Wed, 27 Apr 2011 20:55:49 -0700
-Message-ID: <BANLkTin=VW4kbBbeiipEx0pqByWpSjbi=Q@mail.gmail.com>
-Subject: Re: [PATCH 0/7] memcg background reclaim , yet another one.
-From: Ying Han <yinghan@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id F34286B0011
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 00:03:40 -0400 (EDT)
+Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
+	by e7.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p3S3fBOr014994
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 23:41:11 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p3S43dbI073416
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 00:03:39 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p3S03mPI032647
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 21:03:48 -0300
+From: John Stultz <john.stultz@linaro.org>
+Subject: [RFC][PATCH 0/3] Improve task->comm locking situation.
+Date: Wed, 27 Apr 2011 21:03:28 -0700
+Message-Id: <1303963411-2064-1-git-send-email-john.stultz@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Johannes Weiner <jweiner@redhat.com>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>
+To: LKML <linux-kernel@vger.kernel.org>
+Cc: John Stultz <john.stultz@linaro.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-On Tue, Apr 26, 2011 at 1:47 AM, KAMEZAWA Hiroyuki
-<kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> On Tue, 26 Apr 2011 01:43:17 -0700
-> Ying Han <yinghan@google.com> wrote:
->
->> On Tue, Apr 26, 2011 at 12:43 AM, KAMEZAWA Hiroyuki <
->> kamezawa.hiroyu@jp.fujitsu.com> wrote:
->>
->> > On Tue, 26 Apr 2011 00:19:46 -0700
->> > Ying Han <yinghan@google.com> wrote:
->> >
->> > > On Mon, Apr 25, 2011 at 6:38 PM, KAMEZAWA Hiroyuki
->> > > <kamezawa.hiroyu@jp.fujitsu.com> wrote:
->> > > > On Mon, 25 Apr 2011 15:21:21 -0700
->> > > > Ying Han <yinghan@google.com> wrote:
->
->>
->> > To clarify a bit, my question was meant to account it but not necessar=
-y to
->> > limit it. We can use existing cpu cgroup to do the cpu limiting, and I=
- am
->> >
->> just wondering how to configure it for the memcg kswapd thread.
->>
->> =A0 =A0Let's say in the per-memcg-kswapd model, i can echo the kswapd th=
-read pid
->> into the cpu cgroup ( the same set of process of memcg, but in a cpu
->> limiting cgroup instead). =A0If the kswapd is shared, we might need extr=
-a work
->> to account the cpu cycles correspondingly.
->>
->
-> Hm ? statistics of elapsed_time isn't enough ?
->
-> Now, I think limiting scan/sec interface is more promissing rather than t=
-ime
-> or thread controls. It's easier to understand.
+Since my commit 4614a696bd1c3a9af3a08f0e5874830a85b889d4, the
+current->comm value could be changed by other threads.
 
-I think it will work on the cpu accounting by recording the
-elapsed_time per memcg workitem.
+This changed the comm locking rules, which previously allowed for
+unlocked current->comm access, since only the thread itself could
+change its comm.
 
-But, we might still need the cpu throttling as well. To give one use
-cases from google, we'd rather kill a low priority job for running
-tight on memory rather than having its reclaim thread affecting the
-latency of high priority job. It is quite easy to understand how to
-accomplish that in per-memcg-per-kswapd model, but harder in the
-shared workqueue model. It is straight-forward to read  the cpu usage
-by the cpuacct.usage* and limit the cpu usage by setting cpu.shares.
-One concern we have here is the scan/sec implementation will make
-things quite complex.
+While this was brought up at the time, it was not considered
+problematic, as the comm writing was done in such a way that
+only null or incomplete comms could be read. However, recently
+folks have made it clear they want to see this issue resolved.
 
---Ying
+So fair enough, as I opened this can of worms, I should work
+to resolve it and this patchset is my initial attempt.
 
->
-> BTW, I think it's better to avoid the watermark reclaim work as kswapd.
-> It's confusing because we've talked about global reclaim at LSF.
->
->
-> Thanks,
-> -Kame
->
->
+The proposed solution here is to introduce a new seqlock that
+exclusively protects the comm value. We use it to serialize
+access via get_task_comm() and set_task_comm(). Since some 
+comm access is open-coded using the task lock, we preserve
+the task locking in set_task_comm for now. Once all comm 
+access is converted to using get_task_comm, we can clean that
+up as well.
+
+Hopefully this will allow for a smooth transition, where we can
+slowly fix up the unlocked current->comm access bit by bit,
+reducing the race window with each patch, while not making the
+situation any worse then it was yesterday.
+
+Also in this patch set I have a few examples of how I've
+converted comm access to use get_task_comm. I've got quite 
+a number of similar patches queued, but wanted to get some
+feedback on the approach before I start patchbombing everyone.
+
+Comments/feedback would be appreciated.
+
+thanks
+-john
+
+CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+CC: David Rientjes <rientjes@google.com>
+CC: Dave Hansen <dave@linux.vnet.ibm.com>
+CC: Andrew Morton <akpm@linux-foundation.org>
+CC: linux-mm@kvack.org
+
+John Stultz (3):
+  comm: Introduce comm_lock seqlock to protect task->comm access
+  comm: timerstats: Protect task->comm access by using get_task_comm()
+  comm: ext4: Protect task->comm access by using get_task_comm()
+
+ fs/exec.c                 |   25 ++++++++++++++++++++-----
+ fs/ext4/file.c            |    8 ++++++--
+ fs/ext4/super.c           |   13 ++++++++++---
+ include/linux/init_task.h |    1 +
+ include/linux/sched.h     |    5 ++---
+ kernel/timer.c            |    2 +-
+ 6 files changed, 40 insertions(+), 14 deletions(-)
+
+-- 
+1.7.3.2.146.gca209
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
