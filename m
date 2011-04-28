@@ -1,63 +1,181 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 2A2FB6B0012
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 06:26:24 -0400 (EDT)
-Date: Thu, 28 Apr 2011 12:26:06 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [RFC 3/8] vmscan: make isolate_lru_page with filter aware
-Message-ID: <20110428102606.GL12437@cmpxchg.org>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id B6B8E6B0022
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 06:26:47 -0400 (EDT)
+Date: Thu, 28 Apr 2011 11:26:40 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [RFC 1/8] Only isolate page we can handle
+Message-ID: <20110428102640.GQ4658@suse.de>
 References: <cover.1303833415.git.minchan.kim@gmail.com>
- <232562452317897b5acb1445803410d74233a923.1303833417.git.minchan.kim@gmail.com>
- <20110427170304.d31c1398.kamezawa.hiroyu@jp.fujitsu.com>
- <20110428085432.GI12437@cmpxchg.org>
- <20110428181046.b81635ce.kamezawa.hiroyu@jp.fujitsu.com>
+ <1d9791f27df2341cb6750f5d6279b804151f57f9.1303833417.git.minchan.kim@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20110428181046.b81635ce.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1d9791f27df2341cb6750f5d6279b804151f57f9.1303833417.git.minchan.kim@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux.com>, Johannes Weiner <jweiner@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux.com>, Johannes Weiner <jweiner@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>
 
-On Thu, Apr 28, 2011 at 06:10:46PM +0900, KAMEZAWA Hiroyuki wrote:
-> On Thu, 28 Apr 2011 10:54:32 +0200
-> Johannes Weiner <hannes@cmpxchg.org> wrote:
+On Wed, Apr 27, 2011 at 01:25:18AM +0900, Minchan Kim wrote:
+> There are some places to isolate lru page and I believe
+> users of isolate_lru_page will be growing.
+> The purpose of them is each different so part of isolated pages
+> should put back to LRU, again.
 > 
-> > On Wed, Apr 27, 2011 at 05:03:04PM +0900, KAMEZAWA Hiroyuki wrote:
-> > > On Wed, 27 Apr 2011 01:25:20 +0900
-> > > Minchan Kim <minchan.kim@gmail.com> wrote:
-> > > 
-> > > > In some __zone_reclaim case, we don't want to shrink mapped page.
-> > > > Nonetheless, we have isolated mapped page and re-add it into
-> > > > LRU's head. It's unnecessary CPU overhead and makes LRU churning.
-> > > > 
-> > > > Of course, when we isolate the page, the page might be mapped but
-> > > > when we try to migrate the page, the page would be not mapped.
-> > > > So it could be migrated. But race is rare and although it happens,
-> > > > it's no big deal.
-> > > > 
-> > > > Cc: Christoph Lameter <cl@linux.com>
-> > > > Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> > > > Cc: Mel Gorman <mgorman@suse.de>
-> > > > Cc: Rik van Riel <riel@redhat.com>
-> > > > Cc: Andrea Arcangeli <aarcange@redhat.com>
-> > > > Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
-> > > 
-> > > 
-> > > Hmm, it seems mm/memcontrol.c::mem_cgroup_isolate_pages() should be updated, too.
-> > 
-> > memcg reclaim always does sc->may_unmap = 1.  What is there to
-> > communicate to mem_cgroup_isolate_pages?
-> >
+> The problem is when we put back the page into LRU,
+> we lose LRU ordering and the page is inserted at head of LRU list.
+> It makes unnecessary LRU churning so that vm can evict working set pages
+> rather than idle pages.
 > 
-> Hmm, maybe you're right and nothing to do until memcg need to support soft
-> limit in zone reclaim mode. I hope no more users.
+> This patch adds new filter mask when we isolate page in LRU.
+> So, we don't isolate pages if we can't handle it.
+> It could reduce LRU churning.
+> 
+> This patch shouldn't change old behavior.
+> It's just used by next patches.
+> 
+> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Cc: Mel Gorman <mgorman@suse.de>
+> Cc: Rik van Riel <riel@redhat.com>
+> Cc: Andrea Arcangeli <aarcange@redhat.com>
+> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+> ---
+>  include/linux/swap.h |    3 ++-
+>  mm/compaction.c      |    2 +-
+>  mm/memcontrol.c      |    2 +-
+>  mm/vmscan.c          |   26 ++++++++++++++++++++------
+>  4 files changed, 24 insertions(+), 9 deletions(-)
+> 
+> diff --git a/include/linux/swap.h b/include/linux/swap.h
+> index 384eb5f..baef4ad 100644
+> --- a/include/linux/swap.h
+> +++ b/include/linux/swap.h
+> @@ -259,7 +259,8 @@ extern unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *mem,
+>  						unsigned int swappiness,
+>  						struct zone *zone,
+>  						unsigned long *nr_scanned);
+> -extern int __isolate_lru_page(struct page *page, int mode, int file);
+> +extern int __isolate_lru_page(struct page *page, int mode, int file,
+> +				int not_dirty, int not_mapped);
 
-Ah, okay.  I thought I may have missed something.  Thanks for the
-clarification, Kame.
+bool? If you use bitmask later, it's not important though.
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+>  extern unsigned long shrink_all_memory(unsigned long nr_pages);
+>  extern int vm_swappiness;
+>  extern int remove_mapping(struct address_space *mapping, struct page *page);
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> index 021a296..dea32e3 100644
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -335,7 +335,7 @@ static unsigned long isolate_migratepages(struct zone *zone,
+>  		}
+>  
+>  		/* Try isolate the page */
+> -		if (__isolate_lru_page(page, ISOLATE_BOTH, 0) != 0)
+> +		if (__isolate_lru_page(page, ISOLATE_BOTH, 0, 0, 0) != 0)
+>  			continue;
+>  
+>  		VM_BUG_ON(PageTransCompound(page));
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index c2776f1..471e7fd 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -1193,7 +1193,7 @@ unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
+>  			continue;
+>  
+>  		scan++;
+> -		ret = __isolate_lru_page(page, mode, file);
+> +		ret = __isolate_lru_page(page, mode, file, 0, 0);
+>  		switch (ret) {
+>  		case 0:
+>  			list_move(&page->lru, dst);
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index b3a569f..71d2da9 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -954,10 +954,13 @@ keep_lumpy:
+>   *
+>   * page:	page to consider
+>   * mode:	one of the LRU isolation modes defined above
+> - *
+> + * file:	page be on a file LRU
+> + * not_dirty:	page should be not dirty or not writeback
+> + * not_mapped:	page should be not mapped
+>   * returns 0 on success, -ve errno on failure.
+>   */
+> -int __isolate_lru_page(struct page *page, int mode, int file)
+> +int __isolate_lru_page(struct page *page, int mode, int file,
+> +				int not_dirty, int not_mapped)
+>  {
+>  	int ret = -EINVAL;
+>  
+> @@ -976,6 +979,12 @@ int __isolate_lru_page(struct page *page, int mode, int file)
+>  	if (mode != ISOLATE_BOTH && page_is_file_cache(page) != file)
+>  		return ret;
+>  
+> +	if (not_dirty)
+> +		if (PageDirty(page) || PageWriteback(page))
+> +			return ret;
+> +	if (not_mapped)
+> +		if (page_mapped(page))
+> +			return ret;
+>  	/*
+>  	 * When this function is being called for lumpy reclaim, we
+>  	 * initially look into all LRU pages, active, inactive and
+> @@ -1016,12 +1025,15 @@ int __isolate_lru_page(struct page *page, int mode, int file)
+>   * @order:	The caller's attempted allocation order
+>   * @mode:	One of the LRU isolation modes
+>   * @file:	True [1] if isolating file [!anon] pages
+> + * @not_dirty:	True [1] if isolating file [!dirty] pages
+> + * @not_mapped:	True [1] if isolating file [!mapped] pages
+>   *
+>   * returns how many pages were moved onto *@dst.
+>   */
+>  static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
+>  		struct list_head *src, struct list_head *dst,
+> -		unsigned long *scanned, int order, int mode, int file)
+> +		unsigned long *scanned, int order, int mode, int file,
+> +		int not_dirty, int not_mapped)
+>  {
+>  	unsigned long nr_taken = 0;
+>  	unsigned long nr_lumpy_taken = 0;
+> @@ -1041,7 +1053,8 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
+>  
+>  		VM_BUG_ON(!PageLRU(page));
+>  
+> -		switch (__isolate_lru_page(page, mode, file)) {
+> +		switch (__isolate_lru_page(page, mode, file,
+> +					not_dirty, not_mapped)) {
+>  		case 0:
+>  			list_move(&page->lru, dst);
+>  			mem_cgroup_del_lru(page);
+> @@ -1100,7 +1113,8 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
+>  			    !PageSwapCache(cursor_page))
+>  				break;
+>  
+> -			if (__isolate_lru_page(cursor_page, mode, file) == 0) {
+> +			if (__isolate_lru_page(cursor_page, mode, file,
+> +					not_dirty, not_mapped) == 0) {
+>  				list_move(&cursor_page->lru, dst);
+>  				mem_cgroup_del_lru(cursor_page);
+>  				nr_taken += hpage_nr_pages(page);
+> @@ -1143,7 +1157,7 @@ static unsigned long isolate_pages_global(unsigned long nr,
+>  	if (file)
+>  		lru += LRU_FILE;
+>  	return isolate_lru_pages(nr, &z->lru[lru].list, dst, scanned, order,
+> -								mode, file);
+> +					mode, file, 0, 0);
+>  }
+>  
+>  /*
+> -- 
+> 1.7.1
+> 
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
