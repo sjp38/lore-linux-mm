@@ -1,86 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id CF4776B0011
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 06:26:19 -0400 (EDT)
-Received: from d01relay06.pok.ibm.com (d01relay06.pok.ibm.com [9.56.227.116])
-	by e9.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p3S9vdHi015736
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 05:57:39 -0400
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p3SAQCfH1097778
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 06:26:12 -0400
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p3SAQBcg017776
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 06:26:12 -0400
-Date: Thu, 28 Apr 2011 03:26:09 -0700
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: 2.6.39-rc4+: Kernel leaking memory during FS scanning,
- regression?
-Message-ID: <20110428102609.GJ2135@linux.vnet.ibm.com>
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <20110426112756.GF4308@linux.vnet.ibm.com>
- <20110426183859.6ff6279b@neptune.home>
- <20110426190918.01660ccf@neptune.home>
- <BANLkTikjuqWP+PAsObJH4EAOyzgr2RbYNA@mail.gmail.com>
- <alpine.LFD.2.02.1104262314110.3323@ionos>
- <20110427081501.5ba28155@pluto.restena.lu>
- <20110427204139.1b0ea23b@neptune.home>
- <alpine.LFD.2.02.1104272351290.3323@ionos>
- <alpine.LFD.2.02.1104281051090.19095@ionos>
- <BANLkTinB5S7q88dch78i-h28jDHx5dvfQw@mail.gmail.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 2A2FB6B0012
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 06:26:24 -0400 (EDT)
+Date: Thu, 28 Apr 2011 12:26:06 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [RFC 3/8] vmscan: make isolate_lru_page with filter aware
+Message-ID: <20110428102606.GL12437@cmpxchg.org>
+References: <cover.1303833415.git.minchan.kim@gmail.com>
+ <232562452317897b5acb1445803410d74233a923.1303833417.git.minchan.kim@gmail.com>
+ <20110427170304.d31c1398.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110428085432.GI12437@cmpxchg.org>
+ <20110428181046.b81635ce.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <BANLkTinB5S7q88dch78i-h28jDHx5dvfQw@mail.gmail.com>
+In-Reply-To: <20110428181046.b81635ce.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: sedat.dilek@gmail.com
-Cc: Bruno =?iso-8859-1?Q?Pr=E9mont?= <bonbons@linux-vserver.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Frysinger <vapier.adi@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Paul E. McKenney" <paul.mckenney@linaro.org>, Pekka Enberg <penberg@kernel.org>, Mike Galbraith <efault@gmx.de>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux.com>, Johannes Weiner <jweiner@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>
 
-On Thu, Apr 28, 2011 at 11:45:03AM +0200, Sedat Dilek wrote:
-> Hi,
+On Thu, Apr 28, 2011 at 06:10:46PM +0900, KAMEZAWA Hiroyuki wrote:
+> On Thu, 28 Apr 2011 10:54:32 +0200
+> Johannes Weiner <hannes@cmpxchg.org> wrote:
 > 
-> not sure if my problem from linux-2.6-rcu.git#sedat.2011.04.23a is
-> related to the issue here.
+> > On Wed, Apr 27, 2011 at 05:03:04PM +0900, KAMEZAWA Hiroyuki wrote:
+> > > On Wed, 27 Apr 2011 01:25:20 +0900
+> > > Minchan Kim <minchan.kim@gmail.com> wrote:
+> > > 
+> > > > In some __zone_reclaim case, we don't want to shrink mapped page.
+> > > > Nonetheless, we have isolated mapped page and re-add it into
+> > > > LRU's head. It's unnecessary CPU overhead and makes LRU churning.
+> > > > 
+> > > > Of course, when we isolate the page, the page might be mapped but
+> > > > when we try to migrate the page, the page would be not mapped.
+> > > > So it could be migrated. But race is rare and although it happens,
+> > > > it's no big deal.
+> > > > 
+> > > > Cc: Christoph Lameter <cl@linux.com>
+> > > > Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> > > > Cc: Mel Gorman <mgorman@suse.de>
+> > > > Cc: Rik van Riel <riel@redhat.com>
+> > > > Cc: Andrea Arcangeli <aarcange@redhat.com>
+> > > > Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+> > > 
+> > > 
+> > > Hmm, it seems mm/memcontrol.c::mem_cgroup_isolate_pages() should be updated, too.
+> > 
+> > memcg reclaim always does sc->may_unmap = 1.  What is there to
+> > communicate to mem_cgroup_isolate_pages?
+> >
 > 
-> Just FYI:
-> I am here on a Pentium-M (uniprocessor aka UP) and still unsure if I
-> have the correct (optimal?) kernel-configs set.
-> 
-> Paul gave me a script to collect RCU data and I enhanced it with
-> collecting SCHED data.
-> 
-> In the above mentionned GIT branch I applied these two extra commits
-> (0001 requested by Paul and 0002 proposed by Thomas):
-> 
-> patches/0001-Revert-rcu-restrict-TREE_RCU-to-SMP-builds-with-PREE.patch
-> patches/0002-sched-Add-warning-when-RT-throttling-is-activated.patch
-> 
-> Furthermore, I have added my kernel-config file, scripts, patches and
-> logs (also output of 'cat /proc/cpuinfo').
-> 
-> Hope this helps the experts to narrow down the problem.
+> Hmm, maybe you're right and nothing to do until memcg need to support soft
+> limit in zone reclaim mode. I hope no more users.
 
-Yow!!!
+Ah, okay.  I thought I may have missed something.  Thanks for the
+clarification, Kame.
 
-Now this one might well be able to hit the 950 millisecond limit.
-There are no fewer than 1,314,958 RCU callbacks queued up at the end of
-the test.  And RCU has indeed noticed this and cranked up the number
-of callbacks to be handled by each invocation of rcu_do_batch() to
-2,147,483,647.  And only 15 seconds earlier, there were zero callbacks
-queued and the rcu_do_batch() limit was at the default of 10 callbacks
-per invocation.
-
-							Thanx, Paul
-
-> Regards,
-> - Sedat -
-> 
-> P.S.: I adapted the patch from [1] against
-> linux-2.6-rcu.git#sedat.2011.04.23a, but did not help here.
-> 
-> [1] http://lkml.org/lkml/2011/4/22/35
-
-
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
