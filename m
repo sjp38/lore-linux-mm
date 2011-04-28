@@ -1,65 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 959EA6B0011
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 06:05:11 -0400 (EDT)
-Date: Thu, 28 Apr 2011 11:05:06 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 08/13] netvm: Allow skb allocation to use PFMEMALLOC
- reserves
-Message-ID: <20110428100035.GO4658@suse.de>
-References: <1303920491-25302-1-git-send-email-mgorman@suse.de>
- <1303920491-25302-9-git-send-email-mgorman@suse.de>
- <20110428161933.1f1266e6@notabene.brown>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 936356B0011
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 06:09:45 -0400 (EDT)
+Received: by fxm18 with SMTP id 18so2495161fxm.14
+        for <linux-mm@kvack.org>; Thu, 28 Apr 2011 03:09:42 -0700 (PDT)
+Date: Thu, 28 Apr 2011 12:09:38 +0200
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH] percpu: preemptless __per_cpu_counter_add
+Message-ID: <20110428100938.GA10721@htj.dyndns.org>
+References: <20110421180159.GF15988@htj.dyndns.org>
+ <alpine.DEB.2.00.1104211308300.5741@router.home>
+ <20110421183727.GG15988@htj.dyndns.org>
+ <alpine.DEB.2.00.1104211350310.5741@router.home>
+ <20110421190807.GK15988@htj.dyndns.org>
+ <1303439580.3981.241.camel@sli10-conroe>
+ <20110426121011.GD878@htj.dyndns.org>
+ <1303883009.3981.316.camel@sli10-conroe>
+ <20110427102034.GE31015@htj.dyndns.org>
+ <1303961284.3981.318.camel@sli10-conroe>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110428161933.1f1266e6@notabene.brown>
+In-Reply-To: <1303961284.3981.318.camel@sli10-conroe>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: NeilBrown <neilb@suse.de>
-Cc: Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Shaohua Li <shaohua.li@intel.com>
+Cc: Christoph Lameter <cl@linux.com>, Eric Dumazet <eric.dumazet@gmail.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Thu, Apr 28, 2011 at 04:19:33PM +1000, NeilBrown wrote:
-> On Wed, 27 Apr 2011 17:08:06 +0100 Mel Gorman <mgorman@suse.de> wrote:
-> 
-> 
-> > @@ -1578,7 +1589,7 @@ static inline struct sk_buff *netdev_alloc_skb_ip_align(struct net_device *dev,
-> >   */
-> >  static inline struct page *__netdev_alloc_page(struct net_device *dev, gfp_t gfp_mask)
-> >  {
-> > -	return alloc_pages_node(NUMA_NO_NODE, gfp_mask, 0);
-> > +	return alloc_pages_node(NUMA_NO_NODE, gfp_mask | __GFP_MEMALLOC, 0);
-> >  }
-> >  
-> 
-> I'm puzzling a bit over this change.
-> __netdev_alloc_page appears to be used to get pages to put in ring buffer
-> for a network card to DMA received packets into.  So it is OK to use
-> __GFP_MEMALLOC for these allocations providing we mark the resulting skb as
-> 'pfmemalloc' if a reserved page was used.
-> 
-> However I don't see where that marking is done.
-> I think it should be in skb_fill_page_desc, something like:
-> 
->   if (page->pfmemalloc)
-> 	skb->pfmemalloc = true;
-> 
-> Is this covered somewhere else that I am missing?
-> 
+Hey,
 
-You're not missing anything.
+On Thu, Apr 28, 2011 at 11:28:04AM +0800, Shaohua Li wrote:
+> > Okay, this communication failure isn't my fault.  Please re-read what
+> > I wrote before, my concern wasn't primarily about pathological worst
+> > case - if that many concurrent updates are happening && the counter
+> > needs to be accurate, it can't even use atomic counter.  It should be
+> > doing full exclusion around the counter and the associated operation
+> > _together_.
+> > 
+> > I'm worried about sporadic erratic behavior happening regardless of
+> > update frequency and preemption would contribute but isn't necessary
+> > for that to happen.
+>
+> Ok, I misunderstood the mail you sent to Christoph, sorry. So you have
+> no problem about the atomic convert. I'll update the patch against base
+> tree, given the preemptless patch has problem.
 
->From the context of __netdev_alloc_page, we do not know if the skb
-is suitable for marking pfmemalloc or not (we don't have SKB_ALLOC_RX
-flag for example that __alloc_skb has). The reserves are potentially
-being dipped into for an unsuitable packet but it gets dropped in
-__netif_receive_skb() and the memory is returned. If we mark the skb
-pfmemalloc as a result of __netdev_alloc_page using a reserve page, the
-packets would not get dropped as expected.
+Hmm... we're now more lost than ever. :-( Can you please re-read my
+message two replies ago?  The one where I talked about sporadic
+erratic behaviors in length and why I was worried about it.
+
+In your last reply, you talked about preemption and that you didn't
+have problems with disabling preemption, which, unfortunately, doesn't
+have much to do with my concern with the sporadic erratic behaviors
+and that's what I pointed out in my previous reply.  So, it doesn't
+feel like anything is resolved.
+
+Thanks.
 
 -- 
-Mel Gorman
-SUSE Labs
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
