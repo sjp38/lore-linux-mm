@@ -1,53 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id D6B936B002C
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 13:00:04 -0400 (EDT)
-Received: by wyf19 with SMTP id 19so3045512wyf.14
-        for <linux-mm@kvack.org>; Thu, 28 Apr 2011 10:00:02 -0700 (PDT)
-Subject: Re: [PATCH] percpu: preemptless __per_cpu_counter_add
-From: Eric Dumazet <eric.dumazet@gmail.com>
-In-Reply-To: <alpine.DEB.2.00.1104281152110.18213@router.home>
-References: <20110427102034.GE31015@htj.dyndns.org>
-	 <1303961284.3981.318.camel@sli10-conroe>
-	 <20110428100938.GA10721@htj.dyndns.org>
-	 <alpine.DEB.2.00.1104280904240.15775@router.home>
-	 <20110428142331.GA16552@htj.dyndns.org>
-	 <alpine.DEB.2.00.1104280935460.16323@router.home>
-	 <20110428144446.GC16552@htj.dyndns.org>
-	 <alpine.DEB.2.00.1104280951480.16323@router.home>
-	 <20110428145657.GD16552@htj.dyndns.org>
-	 <alpine.DEB.2.00.1104281003000.16323@router.home>
-	 <20110428151203.GE16552@htj.dyndns.org>
-	 <alpine.DEB.2.00.1104281017240.16323@router.home>
-	 <1304005726.3360.69.camel@edumazet-laptop>
-	 <1304006345.3360.72.camel@edumazet-laptop>
-	 <alpine.DEB.2.00.1104281116270.18213@router.home>
-	 <1304008533.3360.88.camel@edumazet-laptop>
-	 <alpine.DEB.2.00.1104281152110.18213@router.home>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 676756B002C
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 13:11:04 -0400 (EDT)
+Subject: Re: [BUG] fatal hang untarring 90GB file, possibly writeback
+ related.
+From: Colin Ian King <colin.king@canonical.com>
+In-Reply-To: <20110428150827.GY4658@suse.de>
+References: <1303923000.2583.8.camel@mulgrave.site>
+	 <1303923177-sup-2603@think> <1303924902.2583.13.camel@mulgrave.site>
+	 <1303925374-sup-7968@think> <1303926637.2583.17.camel@mulgrave.site>
+	 <1303934716.2583.22.camel@mulgrave.site> <1303990590.2081.9.camel@lenovo>
+	 <20110428135228.GC1696@quack.suse.cz> <20110428140725.GX4658@suse.de>
+	 <1304000714.2598.0.camel@mulgrave.site>  <20110428150827.GY4658@suse.de>
 Content-Type: text/plain; charset="UTF-8"
-Date: Thu, 28 Apr 2011 18:59:56 +0200
-Message-ID: <1304009996.5827.3.camel@edumazet-laptop>
+Date: Thu, 28 Apr 2011 18:10:54 +0100
+Message-ID: <1304010654.2081.25.camel@lenovo>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Tejun Heo <tj@kernel.org>, Shaohua Li <shaohua.li@intel.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: James Bottomley <James.Bottomley@suse.de>, Jan Kara <jack@suse.cz>, Chris Mason <chris.mason@oracle.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-ext4 <linux-ext4@vger.kernel.org>, mgorman@novell.com
 
-Le jeudi 28 avril 2011 A  11:52 -0500, Christoph Lameter a A(C)crit :
+On Thu, 2011-04-28 at 16:08 +0100, Mel Gorman wrote:
 
-> I can still add (batch - 1) without causing the seqcount to be
-> incremented.
+[ text deleted ]
 
-It always had been like that, from the very beginning.
+> Another consequence of this patch is that when high order allocations
+> are in progress (is the test case fork heavy in any way for
+> example? alternatively, it might be something in the storage stack
+> that requires high-order allocs) we are no longer necessarily going
+> to sleep because of should_reclaim_continue() check. This could
+> explain kswapd-at-99% but would only apply if CONFIG_COMPACTION is
+> set (does unsetting CONFIG_COMPACTION help). If the bug only triggers
+> for CONFIG_COMPACTION, does the following *untested* patch help any?
 
-Point was trying to remove the lock, and Tejun said it was going to
-increase fuzzyness.
+Afraid to report this patch didn't help either.
+> 
+> (as a warning, I'm offline Friday until Tuesday morning. I'll try
+> check mail over the weekend but it's unlikely I'll find a terminal
+> or be allowed to use it without an ass kicking)
 
-I said : Readers should specify what max fuzzyness they allow.
-
-Most users dont care at all, but we can provide an API.
-
+Ditto, me, to, I will pick this up Tuesday.
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 148c6e6..c74a501 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -1842,15 +1842,22 @@ static inline bool should_continue_reclaim(struct zone *zone,
+>  		return false;
+>  
+>  	/*
+> -	 * If we failed to reclaim and have scanned the full list, stop.
+> -	 * NOTE: Checking just nr_reclaimed would exit reclaim/compaction far
+> -	 *       faster but obviously would be less likely to succeed
+> -	 *       allocation. If this is desirable, use GFP_REPEAT to decide
+> -	 *       if both reclaimed and scanned should be checked or just
+> -	 *       reclaimed
+> +	 * For direct reclaimers
+> +	 *   If we failed to reclaim and have scanned the full list, stop.
+> +	 *   The caller will check congestion and sleep if necessary until
+> +	 *   some IO completes.
+> +	 * For kswapd
+> +	 *   Check just nr_reclaimed. If we are failing to reclaim, we
+> +	 *   want to stop this reclaim loop, increase the priority and
+> +	 *   go to sleep if necessary to allow IO a change to complete.
+> +	 *   This avoids kswapd going into a busy loop in shrink_zone()
+>  	 */
+> -	if (!nr_reclaimed && !nr_scanned)
+> -		return false;
+> +	if (!nr_reclaimed) {
+> +		if (current_is_kswapd())
+> +			return false;
+> +		else if (!nr_scanned)
+> +			return false;
+> +	}
+>  
+>  	/*
+>  	 * If we have not reclaimed enough pages for compaction and the
+> @@ -1924,8 +1931,13 @@ restart:
+>  
+>  	/* reclaim/compaction might need reclaim to continue */
+>  	if (should_continue_reclaim(zone, nr_reclaimed,
+> -					sc->nr_scanned - nr_scanned, sc))
+> +					sc->nr_scanned - nr_scanned, sc)) {
+> +		/* Throttle direct reclaimers if congested */
+> +		if (!current_is_kswapd())
+> +			wait_iff_congested(zone, BLK_RW_ASYNC, HZ/10);
+> +
+>  		goto restart;
+> +	}
+>  
+>  	throttle_vm_writeout(sc->gfp_mask);
+>  }
 
 
 --
