@@ -1,106 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 8295890010B
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 14:39:02 -0400 (EDT)
-Received: by pzk4 with SMTP id 4so2389572pzk.14
-        for <linux-mm@kvack.org>; Thu, 28 Apr 2011 11:39:00 -0700 (PDT)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 4151A90010B
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 14:50:17 -0400 (EDT)
+Date: Thu, 28 Apr 2011 20:49:42 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: 2.6.39-rc4+: Kernel leaking memory during FS scanning,
+ regression?
+In-Reply-To: <BANLkTik4+PAGHF-9KREYk8y+KDQLDAp2Mg@mail.gmail.com>
+Message-ID: <alpine.LFD.2.02.1104282044120.3005@ionos>
+References: <20110426112756.GF4308@linux.vnet.ibm.com> <20110426183859.6ff6279b@neptune.home> <20110426190918.01660ccf@neptune.home> <BANLkTikjuqWP+PAsObJH4EAOyzgr2RbYNA@mail.gmail.com> <alpine.LFD.2.02.1104262314110.3323@ionos> <20110427081501.5ba28155@pluto.restena.lu>
+ <20110427204139.1b0ea23b@neptune.home> <alpine.LFD.2.02.1104272351290.3323@ionos> <alpine.LFD.2.02.1104281051090.19095@ionos> <BANLkTinB5S7q88dch78i-h28jDHx5dvfQw@mail.gmail.com> <20110428102609.GJ2135@linux.vnet.ibm.com> <1303997401.7819.5.camel@marge.simson.net>
+ <BANLkTik4+PAGHF-9KREYk8y+KDQLDAp2Mg@mail.gmail.com>
 MIME-Version: 1.0
-Date: Thu, 28 Apr 2011 20:39:00 +0200
-Message-ID: <BANLkTinhK_K1oSJDEoqD6EQK8Qy5Wy3v+g@mail.gmail.com>
-Subject: mmc blkqueue is empty even if there are pending reads in do_generic_file_read()
-From: Per Forlin <per.forlin@linaro.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-mmc@vger.kernel.org, linaro-kernel@lists.linaro.org
+To: sedat.dilek@gmail.com
+Cc: Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, =?ISO-8859-15?Q?Bruno_Pr=E9mont?= <bonbons@linux-vserver.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Frysinger <vapier.adi@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Paul E. McKenney" <paul.mckenney@linaro.org>, Pekka Enberg <penberg@kernel.org>
 
-Hi,
+On Thu, 28 Apr 2011, Sedat Dilek wrote:
+> On Thu, Apr 28, 2011 at 3:30 PM, Mike Galbraith <efault@gmx.de> wrote:
+> rt_rq[0]:
+>   .rt_nr_running                 : 0
+>   .rt_throttled                  : 0
 
-I am working on minimizing the latency between two block requests in
-the mmc framework. The approach is simple. If there are more than one
-request in the block queue the 2nd request will be prepared while the
-1st request is being transfered. When the 1 st request is completed
-the 2nd request will start with minimal latency cost.
+>   .rt_time                       : 888.893877
 
-For writes this work fine:
-root@(none):/ dd of=/dev/mmcblk0p2 if=/dev/zero bs=4k count=2560
-2560+0 records in
-2560+0 records out
-root@(none):/ dmesg
-[mmc_queue_thread] req d97a2ac8 blocks 1024
-[mmc_queue_thread] req d97a2ba0 blocks 1024
-[mmc_queue_thread] req d97a2c78 blocks 1024
-[mmc_queue_thread] req d97a2d50 blocks 1024
-[mmc_queue_thread] req d97a2e28 blocks 1024
-[mmc_queue_thread] req d97a2f00 blocks 1024
-[mmc_queue_thread] req d954c9b0 blocks 1024
-[mmc_queue_thread] req d954c800 blocks 1024
-[mmc_queue_thread] req d954c728 blocks 1024
-[mmc_queue_thread] req d954c650 blocks 1024
-[mmc_queue_thread] req d954c578 blocks 1024
-[mmc_queue_thread] req d954c4a0 blocks 1024
-[mmc_queue_thread] req d954c8d8 blocks 1024
-[mmc_queue_thread] req d954c3c8 blocks 1024
-[mmc_queue_thread] req d954c2f0 blocks 1024
-[mmc_queue_thread] req d954c218 blocks 1024
-[mmc_queue_thread] req d954c140 blocks 1024
-[mmc_queue_thread] req d954c068 blocks 1024
-[mmc_queue_thread] req d954cde8 blocks 1024
-[mmc_queue_thread] req d954cec0 blocks 1024
-mmc block queue is never empty. All the mmc request preparations can
-run in parallel with an ongoing transfer.
+>   .rt_time                       : 950.005460
 
-[mmc_queue_thread] req   (null) blocks 0
-[mmc_queue_thread] req   (null) blocks 0
-"req (null)" indicates there are no requests pending in the mmc block
-queue. This is expected since there are no more requests to process.
+So rt_time is constantly accumulated, but never decreased. The
+decrease happens in the timer callback. Looks like the timer is not
+running for whatever reason.
 
-For reads on the other hand it look like this
-root@(none):/ dd if=/dev/mmcblk0 of=/dev/null bs=4k count=256
-256+0 records in
-256+0 records out
-root@(none):/ dmesg
-[mmc_queue_thread] req d954cec0 blocks 32
-[mmc_queue_thread] req   (null) blocks 0
-[mmc_queue_thread] req   (null) blocks 0
-[mmc_queue_thread] req d954cec0 blocks 64
-[mmc_queue_thread] req   (null) blocks 0
-[mmc_queue_thread] req d954cde8 blocks 128
-[mmc_queue_thread] req   (null) blocks 0
-[mmc_queue_thread] req d954cec0 blocks 256
-[mmc_queue_thread] req   (null) blocks 0
-[mmc_queue_thread] req d954cde8 blocks 256
-[mmc_queue_thread] req   (null) blocks 0
-[mmc_queue_thread] req d954cec0 blocks 256
-[mmc_queue_thread] req   (null) blocks 0
-[mmc_queue_thread] req d954cde8 blocks 256
-[mmc_queue_thread] req   (null) blocks 0
-[mmc_queue_thread] req d954cec0 blocks 256
-[mmc_queue_thread] req   (null) blocks 0
-[mmc_queue_thread] req d954cde8 blocks 256
-[mmc_queue_thread] req   (null) blocks 0
-[mmc_queue_thread] req d954cec0 blocks 256
-[mmc_queue_thread] req   (null) blocks 0
-[mmc_queue_thread] req d954cde8 blocks 256
-[mmc_queue_thread] req   (null) blocks 0
-[mmc_queue_thread] req d954cec0 blocks 256
-[mmc_queue_thread] req   (null) blocks 0
-[mmc_queue_thread] req   (null) blocks 0
-There are never more than one read request in the mmc block queue. All
-the mmc request preparations will be serialized and the cost for this
-is roughly 10% lower bandwidth (verified on ARM platforms ux500 and
-Pandaboard).
-
-> page_not_up_to_date:
-> /* Get exclusive access to the page ... */
-> error = lock_page_killable(page);
-I looked at the code in do_generic_file_read(). lock_page_killable
-waits until the current read ahead is completed.
-Is it possible to configure the read ahead to push multiple read
-request to the block device queue?
+Can you add the following patch as well ?
 
 Thanks,
-Per
+
+	tglx
+
+--- linux-2.6.orig/kernel/sched.c
++++ linux-2.6/kernel/sched.c
+@@ -172,7 +172,7 @@ static enum hrtimer_restart sched_rt_per
+ 		idle = do_sched_rt_period_timer(rt_b, overrun);
+ 	}
+ 
+-	return idle ? HRTIMER_NORESTART : HRTIMER_RESTART;
++	return HRTIMER_RESTART;
+ }
+ 
+ static
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
