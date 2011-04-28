@@ -1,185 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 9E4E96B0022
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 08:37:05 -0400 (EDT)
-Date: Thu, 28 Apr 2011 14:36:52 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: Fw: [PATCH] memcg: add reclaim statistics accounting
-Message-ID: <20110428123652.GM12437@cmpxchg.org>
-References: <20110428121643.b3cbf420.kamezawa.hiroyu@jp.fujitsu.com>
- <BANLkTimywCF06gfKWFcbAsWtFUbs73rZrQ@mail.gmail.com>
- <20110428180139.6ec67196.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20110428180139.6ec67196.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 29C186B0011
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 09:30:12 -0400 (EDT)
+Subject: Re: 2.6.39-rc4+: Kernel leaking memory during FS scanning,
+ regression?
+From: Mike Galbraith <efault@gmx.de>
+In-Reply-To: <20110428102609.GJ2135@linux.vnet.ibm.com>
+References: <20110426112756.GF4308@linux.vnet.ibm.com>
+	 <20110426183859.6ff6279b@neptune.home>
+	 <20110426190918.01660ccf@neptune.home>
+	 <BANLkTikjuqWP+PAsObJH4EAOyzgr2RbYNA@mail.gmail.com>
+	 <alpine.LFD.2.02.1104262314110.3323@ionos>
+	 <20110427081501.5ba28155@pluto.restena.lu>
+	 <20110427204139.1b0ea23b@neptune.home>
+	 <alpine.LFD.2.02.1104272351290.3323@ionos>
+	 <alpine.LFD.2.02.1104281051090.19095@ionos>
+	 <BANLkTinB5S7q88dch78i-h28jDHx5dvfQw@mail.gmail.com>
+	 <20110428102609.GJ2135@linux.vnet.ibm.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Thu, 28 Apr 2011 15:30:01 +0200
+Message-ID: <1303997401.7819.5.camel@marge.simson.net>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Ying Han <yinghan@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: paulmck@linux.vnet.ibm.com
+Cc: sedat.dilek@gmail.com, Bruno =?ISO-8859-1?Q?Pr=E9mont?= <bonbons@linux-vserver.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Frysinger <vapier.adi@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Paul E. McKenney" <paul.mckenney@linaro.org>, Pekka Enberg <penberg@kernel.org>
 
-On Thu, Apr 28, 2011 at 06:01:39PM +0900, KAMEZAWA Hiroyuki wrote:
-> On Wed, 27 Apr 2011 20:43:58 -0700
-> Ying Han <yinghan@google.com> wrote:
-> 
-> > On Wed, Apr 27, 2011 at 8:16 PM, KAMEZAWA Hiroyuki
-> > <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > > sorry, I had wrong TO:...
-> > >
-> > > Begin forwarded message:
-> > >
-> > > Date: Thu, 28 Apr 2011 12:02:34 +0900
-> > > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > > To: linux-mm@vger.kernel.org
-> > > Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, Ying Han <yinghan@google.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
-> > > Subject: [PATCH] memcg: add reclaim statistics accounting
-> > >
-> > >
-> > >
-> > > Now, memory cgroup provides poor reclaim statistics per memcg. This
-> > > patch adds statistics for direct/soft reclaim as the number of
-> > > pages scans, the number of page freed by reclaim, the nanoseconds of
-> > > latency at reclaim.
-> > >
-> > > It's good to add statistics before we modify memcg/global reclaim, largely.
-> > > This patch refactors current soft limit status and add an unified update logic.
-> > >
-> > > For example, After #cat 195Mfile > /dev/null under 100M limit.
-> > >        # cat /cgroup/memory/A/memory.stat
-> > >        ....
-> > >        limit_freed 24592
+On Thu, 2011-04-28 at 03:26 -0700, Paul E. McKenney wrote:
+> On Thu, Apr 28, 2011 at 11:45:03AM +0200, Sedat Dilek wrote:
+> > Hi,
 > > 
-> > why not "limit_steal" ?
+> > not sure if my problem from linux-2.6-rcu.git#sedat.2011.04.23a is
+> > related to the issue here.
 > > 
-> > >        soft_steal 0
-> > >        limit_scan 43974
-> > >        soft_scan 0
-> > >        limit_latency 133837417
-> > >
-> > > nearly 96M caches are freed. scanned twice. used 133ms.
+> > Just FYI:
+> > I am here on a Pentium-M (uniprocessor aka UP) and still unsure if I
+> > have the correct (optimal?) kernel-configs set.
 > > 
-> > Does it make sense to split up the soft_steal/scan for bg reclaim and
-> > direct reclaim? The same for the limit_steal/scan. I am now testing
-> > the patch to add the soft_limit reclaim on global ttfp, and i already
-> > have the patch to add the following:
+> > Paul gave me a script to collect RCU data and I enhanced it with
+> > collecting SCHED data.
 > > 
-> > kswapd_soft_steal 0
-> > kswapd_soft_scan 0
-> > direct_soft_steal 0
-> > direct_soft_scan 0
-> > kswapd_steal 0
-> > pg_pgsteal 0
-> > kswapd_pgscan 0
-> > pg_scan 0
+> > In the above mentionned GIT branch I applied these two extra commits
+> > (0001 requested by Paul and 0002 proposed by Thomas):
 > > 
+> > patches/0001-Revert-rcu-restrict-TREE_RCU-to-SMP-builds-with-PREE.patch
+> > patches/0002-sched-Add-warning-when-RT-throttling-is-activated.patch
+> > 
+> > Furthermore, I have added my kernel-config file, scripts, patches and
+> > logs (also output of 'cat /proc/cpuinfo').
+> > 
+> > Hope this helps the experts to narrow down the problem.
 > 
-> I'll not post updated version until the end of holidays but my latest plan is
-> adding
+> Yow!!!
 > 
-> 
-> limit_direct_free   - # of pages freed by limit in foreground (not stealed, you freed by yourself's limit)
-> soft_kswapd_steal   - # of pages stealed by kswapd based on soft limit
-> limit_direct_scan   - # of pages scanned by limit in foreground
-> soft_kswapd_scan    - # of pages scanned by kswapd based on soft limit
-> 
-> And then, you can add
-> 
-> soft_direct_steal     - # of pages stealed by foreground reclaim based on soft limit
-> soft_direct_scan        - # of pages scanned by foreground reclaim based on soft limit
-> 
-> And
-> 
-> kern_direct_steal  - # of pages stealed by foreground reclaim at memory shortage.
-> kern_direct_scan   - # of pages scanned by foreground reclaim at memory shortage.
-> kern_direct_steal  - # of pages stealed by kswapd at memory shortage
-> kern_direct_scan   - # of pages scanned by kswapd at memory shortage
-> 
-> (Above kern_xxx number includes soft_xxx in it. ) These will show influence by
-> other cgroups.
-> 
-> And
-> 
-> wmark_bg_free      - # of pages freed by watermark in background(not kswapd)
-> wmark_bg_scan      - # of pages scanned by watermark in background(not kswapd)
-> 
-> Hmm ? too many stats ;)
+> Now this one might well be able to hit the 950 millisecond limit.
+> There are no fewer than 1,314,958 RCU callbacks queued up at the end of
+> the test.  And RCU has indeed noticed this and cranked up the number
+> of callbacks to be handled by each invocation of rcu_do_batch() to
+> 2,147,483,647.  And only 15 seconds earlier, there were zero callbacks
+> queued and the rcu_do_batch() limit was at the default of 10 callbacks
+> per invocation.
 
-Indeed, and you have not even taken hierarchical reclaim into account.
-What I propose is the separation of reclaim that happens within a
-memcg due to an internal memcg condition, and reclaim that happens
-within a memcg due to outside conditions - either the hierarchy or
-global memory pressure.  Something like the following, maybe?
+Yeah, yow.  Once the RT throttle hit, it stuck.
 
-1. Limit-triggered direct reclaim
+  .clock                         : 1386824.201768
+  .rt_nr_running                 : 2
+  .rt_throttled                  : 1
+  .rt_time                       : 950.132427
+  .rt_runtime                    : 950.000000
+           rcuc0     7         0.034118     10857    98         0.034118      1472.309646         0.000000 /
+FF    1      1 R    R 0 [rcuc0]
+  .clock                         : 1402450.997994
+  .rt_nr_running                 : 2
+  .rt_throttled                  : 1
+  .rt_time                       : 950.132427
+  .rt_runtime                    : 950.000000
+           rcuc0     7         0.034118     10857    98         0.034118      1472.309646         0.000000 /
+FF    1      1 R    R 0 [rcuc0]
 
-The memory cgroup hits its limit and the task does direct reclaim from
-its own memcg.  We probably want statistics for this separately from
-background reclaim to see how successful background reclaim is, the
-same reason we have this separation in the global vmstat as well.
+...
 
-	pgscan_direct_limit
-	pgfree_direct_limit
+  .clock                         : 2707432.862374
+  .rt_nr_running                 : 2
+  .rt_throttled                  : 1
+  .rt_time                       : 950.132427
+  .rt_runtime                    : 950.000000                                                                                              
+           rcuc0     7         0.034118     10857    98         0.034118      1472.309646         0.000000 /                               
+FF    1      1 R    R 0 [rcuc0]
+  .clock                         : 2722572.958381                                                                                          
+  .rt_nr_running                 : 2
+  .rt_throttled                  : 1
+  .rt_time                       : 950.132427
+  .rt_runtime                    : 950.000000                                                                                              
+           rcuc0     7         0.034118     10857    98         0.034118      1472.309646         0.000000 /
+FF    1      1 R    R 0 [rcuc0]                                                                                                            
 
-2. Limit-triggered background reclaim
-
-This is the watermark-based asynchroneous reclaim that is currently in
-discussion.  It's triggered by the memcg breaching its watermark,
-which is relative to its hard-limit.  I named it kswapd because I
-still think kswapd should do this job, but it is all open for
-discussion, obviously.  Treat it as meaning 'background' or
-'asynchroneous'.
-
-	pgscan_kswapd_limit
-	pgfree_kswapd_limit
-
-3. Hierarchy-triggered direct reclaim
-
-A condition outside the memcg leads to a task directly reclaiming from
-this memcg.  This could be global memory pressure for example, but
-also a parent cgroup hitting its limit.  It's probably helpful to
-assume global memory pressure meaning that the root cgroup hit its
-limit, conceptually.  We don't have that yet, but this could be the
-direct softlimit reclaim Ying mentioned above.
-
-	pgscan_direct_hierarchy
-	pgsteal_direct_hierarchy
-
-4. Hierarchy-triggered background reclaim
-
-An outside condition leads to kswapd reclaiming from this memcg, like
-kswapd doing softlimit pushback due to global memory pressure.
-
-	pgscan_kswapd_hierarchy
-	pgsteal_kswapd_hierarchy
-
----
-
-With these stats in place, you can see how much pressure there is on
-your memcg hierarchy.  This includes machine utilization and if you
-overcommitted too much on a global level if there is a lot of reclaim
-activity indicated in the hierarchical stats.
-
-With the limit-based stats, you can see the amount of internal
-pressure of memcgs, which shows you if you overcommitted on a local
-level.
-
-And for both cases, you can also see the effectiveness of background
-reclaim by comparing the direct and the kswapd stats.
-
-> And making current soft_steal/soft_scan planned to be obsolete...
-
-It's in -mm, but not merged upstream.
-
-Regardless of my proposol for any stats above, I want to ask everybody
-involved that we do not add any more ABI and exports of random
-internals of the memcg reclaim process at this point.
-
-We have a lot of plans and ideas still in flux for memcg reclaim, I
-think it's about the worst point in time to commit ourselves to
-certain behaviour, knobs, and statistics regarding this code.
-
-	Hannes
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
