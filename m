@@ -1,107 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id A15886B0011
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 06:14:51 -0400 (EDT)
-Date: Thu, 28 Apr 2011 11:14:46 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 12/13] mm: Throttle direct reclaimers if PF_MEMALLOC
- reserves are low and swap is backed by network storage
-Message-ID: <20110428101446.GP4658@suse.de>
-References: <1303920491-25302-1-git-send-email-mgorman@suse.de>
- <1303920491-25302-13-git-send-email-mgorman@suse.de>
- <20110428102244.6e1113e9@notabene.brown>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id CF4776B0011
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 06:26:19 -0400 (EDT)
+Received: from d01relay06.pok.ibm.com (d01relay06.pok.ibm.com [9.56.227.116])
+	by e9.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p3S9vdHi015736
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 05:57:39 -0400
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p3SAQCfH1097778
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 06:26:12 -0400
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p3SAQBcg017776
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 06:26:12 -0400
+Date: Thu, 28 Apr 2011 03:26:09 -0700
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: 2.6.39-rc4+: Kernel leaking memory during FS scanning,
+ regression?
+Message-ID: <20110428102609.GJ2135@linux.vnet.ibm.com>
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <20110426112756.GF4308@linux.vnet.ibm.com>
+ <20110426183859.6ff6279b@neptune.home>
+ <20110426190918.01660ccf@neptune.home>
+ <BANLkTikjuqWP+PAsObJH4EAOyzgr2RbYNA@mail.gmail.com>
+ <alpine.LFD.2.02.1104262314110.3323@ionos>
+ <20110427081501.5ba28155@pluto.restena.lu>
+ <20110427204139.1b0ea23b@neptune.home>
+ <alpine.LFD.2.02.1104272351290.3323@ionos>
+ <alpine.LFD.2.02.1104281051090.19095@ionos>
+ <BANLkTinB5S7q88dch78i-h28jDHx5dvfQw@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110428102244.6e1113e9@notabene.brown>
+In-Reply-To: <BANLkTinB5S7q88dch78i-h28jDHx5dvfQw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: NeilBrown <neilb@suse.de>
-Cc: Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: sedat.dilek@gmail.com
+Cc: Bruno =?iso-8859-1?Q?Pr=E9mont?= <bonbons@linux-vserver.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Frysinger <vapier.adi@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Paul E. McKenney" <paul.mckenney@linaro.org>, Pekka Enberg <penberg@kernel.org>, Mike Galbraith <efault@gmx.de>
 
-On Thu, Apr 28, 2011 at 10:22:44AM +1000, NeilBrown wrote:
-> On Wed, 27 Apr 2011 17:08:10 +0100 Mel Gorman <mgorman@suse.de> wrote:
+On Thu, Apr 28, 2011 at 11:45:03AM +0200, Sedat Dilek wrote:
+> Hi,
 > 
+> not sure if my problem from linux-2.6-rcu.git#sedat.2011.04.23a is
+> related to the issue here.
 > 
-> > +/*
-> > + * Throttle direct reclaimers if backing storage is backed by the network
-> > + * and the PFMEMALLOC reserve for the preferred node is getting dangerously
-> > + * depleted. kswapd will continue to make progress and wake the processes
-> > + * when the low watermark is reached
-> > + */
-> > +static void throttle_direct_reclaim(gfp_t gfp_mask, struct zonelist *zonelist,
-> > +					nodemask_t *nodemask)
-> > +{
-> > +	struct zone *zone;
-> > +	int high_zoneidx = gfp_zone(gfp_mask);
-> > +	DEFINE_WAIT(wait);
-> > +
-> > +	/* Check if the pfmemalloc reserves are ok */
-> > +	first_zones_zonelist(zonelist, high_zoneidx, NULL, &zone);
-> > +	if (pfmemalloc_watermark_ok(zone->zone_pgdat, high_zoneidx))
-> > +		return;
+> Just FYI:
+> I am here on a Pentium-M (uniprocessor aka UP) and still unsure if I
+> have the correct (optimal?) kernel-configs set.
 > 
-> As the first thing that 'wait_event_interruptible" does is test the condition
-> and return if it is true, this "if () return;" is pointless.
->  
+> Paul gave me a script to collect RCU data and I enhanced it with
+> collecting SCHED data.
+> 
+> In the above mentionned GIT branch I applied these two extra commits
+> (0001 requested by Paul and 0002 proposed by Thomas):
+> 
+> patches/0001-Revert-rcu-restrict-TREE_RCU-to-SMP-builds-with-PREE.patch
+> patches/0002-sched-Add-warning-when-RT-throttling-is-activated.patch
+> 
+> Furthermore, I have added my kernel-config file, scripts, patches and
+> logs (also output of 'cat /proc/cpuinfo').
+> 
+> Hope this helps the experts to narrow down the problem.
 
-In patch 13, we count the number of times we got throttled. In this
-patch, the check is pointless but it makes sense in the context of
-the following patch.
+Yow!!!
 
-> > +
-> > +	/* Throttle */
-> > +	wait_event_interruptible(zone->zone_pgdat->pfmemalloc_wait,
-> > +		pfmemalloc_watermark_ok(zone->zone_pgdat, high_zoneidx));
-> > +}
-> 
-> I was surprised that you chose wait_event_interruptible as your previous code
-> was almost exactly "wait_event_killable".
-> 
-> Is there some justification for not throttling processes which happen to have
-> a (non-fatal) signal pending?
-> 
+Now this one might well be able to hit the 950 millisecond limit.
+There are no fewer than 1,314,958 RCU callbacks queued up at the end of
+the test.  And RCU has indeed noticed this and cranked up the number
+of callbacks to be handled by each invocation of rcu_do_batch() to
+2,147,483,647.  And only 15 seconds earlier, there were zero callbacks
+queued and the rcu_do_batch() limit was at the default of 10 callbacks
+per invocation.
 
-No justification, wait_event_killable() is indeed a better fit.
+							Thanx, Paul
 
-> > +
-> >  unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
-> >  				gfp_t gfp_mask, nodemask_t *nodemask)
-> >  {
-> > @@ -2133,6 +2172,15 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
-> >  		.nodemask = nodemask,
-> >  	};
-> >  
-> > +	throttle_direct_reclaim(gfp_mask, zonelist, nodemask);
-> > +
-> > +	/*
-> > +	 * Do not enter reclaim if fatal signal is pending. 1 is returned so
-> > +	 * that the page allocator does not consider triggering OOM
-> > +	 */
-> > +	if (fatal_signal_pending(current))
-> > +		return 1;
-> > +
-> >  	trace_mm_vmscan_direct_reclaim_begin(order,
-> >  				sc.may_writepage,
-> >  				gfp_mask);
-> > @@ -2488,6 +2536,12 @@ loop_again:
-> >  			}
-> >  
-> >  		}
-> > +
-> > +		/* Wake throttled direct reclaimers if low watermark is met */
-> > +		if (waitqueue_active(&pgdat->pfmemalloc_wait) &&
-> > +				pfmemalloc_watermark_ok(pgdat, MAX_NR_ZONES - 1))
-> > +			wake_up_interruptible(&pgdat->pfmemalloc_wait);
-> > +
-> >  		if (all_zones_ok || (order && pgdat_balanced(pgdat, balanced, *classzone_idx)))
-> >  			break;		/* kswapd: all done */
-> >  		/*
+> Regards,
+> - Sedat -
 > 
+> P.S.: I adapted the patch from [1] against
+> linux-2.6-rcu.git#sedat.2011.04.23a, but did not help here.
+> 
+> [1] http://lkml.org/lkml/2011/4/22/35
 
--- 
-Mel Gorman
-SUSE Labs
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
