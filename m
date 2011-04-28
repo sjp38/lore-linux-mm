@@ -1,43 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 481B06B0023
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 09:45:51 -0400 (EDT)
-Content-Type: text/plain; charset=UTF-8
-From: Chris Mason <chris.mason@oracle.com>
-Subject: Re: [BUG] fatal hang untarring 90GB file, possibly writeback related.
-In-reply-to: <1303998140.2081.11.camel@lenovo>
-References: <1303920553.2583.7.camel@mulgrave.site> <1303921583-sup-4021@think> <1303923000.2583.8.camel@mulgrave.site> <1303923177-sup-2603@think> <1303924902.2583.13.camel@mulgrave.site> <1303925374-sup-7968@think> <1303926637.2583.17.camel@mulgrave.site> <1303934716.2583.22.camel@mulgrave.site> <1303990590.2081.9.camel@lenovo> <1303993705-sup-5213@think> <1303998140.2081.11.camel@lenovo>
-Date: Thu, 28 Apr 2011 09:45:34 -0400
-Message-Id: <1303998300-sup-4941@think>
-Content-Transfer-Encoding: 8bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id CEAC86B0024
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 09:50:22 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id A8E8B3EE0AE
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 22:50:19 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8C9E345DE61
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 22:50:19 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 736AB45DE4D
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 22:50:19 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 65F7AE08001
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 22:50:19 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 3193A1DB803A
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 22:50:19 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [patch] vmstat: account page allocation failures
+In-Reply-To: <20110428133838.GA12573@localhost>
+References: <20110428133644.GA12400@localhost> <20110428133838.GA12573@localhost>
+Message-Id: <20110428225144.3D4D.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Thu, 28 Apr 2011 22:50:18 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Colin Ian King <colin.king@ubuntu.com>
-Cc: James Bottomley <james.bottomley@suse.de>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-ext4 <linux-ext4@vger.kernel.org>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, Dave Young <hidave.darkstar@gmail.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Mel Gorman <mel@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, Dave Chinner <david@fromorbit.com>, David Rientjes <rientjes@google.com>
 
-Excerpts from Colin Ian King's message of 2011-04-28 09:42:20 -0400:
-> 
-> On Thu, 2011-04-28 at 08:29 -0400, Chris Mason wrote:
-> > Excerpts from Colin Ian King's message of 2011-04-28 07:36:30 -0400:
-> > > One more data point to add, I've been looking at an identical issue when
-> > > copying large amounts of data.  I bisected this - and the lockups occur
-> > > with commit 
-> > > 3e7d344970673c5334cf7b5bb27c8c0942b06126 - before that I don't see the
-> > > issue. With this commit, my file copy test locks up after ~8-10
-> > > iterations, before this commit I can copy > 100 times and don't see the
-> > > lockup.
-> > 
-> > Well, that's really interesting.  I tried with compaction on here and
-> > couldn't trigger it, but this (very very lightly) tested patch might
-> > help.
-> > 
-> Thanks Chris,
-> 
-> I've given this a soak test but I still see the same lockup.
+>  nopage:
+> +	inc_zone_state(preferred_zone, NR_ALLOC_FAIL);
+> +	/* count_zone_vm_events(PGALLOCFAIL, preferred_zone, 1 << order); */
+>  	if (!(gfp_mask & __GFP_NOWARN) && printk_ratelimit()) {
+>  		unsigned int filter = SHOW_MEM_FILTER_NODES;
+>  
+> --- linux-next.orig/mm/vmstat.c	2011-04-28 21:34:30.000000000 +0800
+> +++ linux-next/mm/vmstat.c	2011-04-28 21:34:35.000000000 +0800
+> @@ -879,6 +879,7 @@ static const char * const vmstat_text[] 
+>  	"nr_shmem",
+>  	"nr_dirtied",
+>  	"nr_written",
+> +	"nr_alloc_fail",
 
-Could you post the soft lockups you're seeing?
+I'm using very similar patch for debugging. However, this is useless for
+admins because typical linux load have plenty GFP_ATOMIC allocation failure.
+So, typical user have no way that failure rate is high or not.
 
--chris
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
