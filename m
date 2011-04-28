@@ -1,157 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 49D3F6B0024
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 11:44:23 -0400 (EDT)
-Received: by qwa26 with SMTP id 26so1948610qwa.14
-        for <linux-mm@kvack.org>; Thu, 28 Apr 2011 08:44:21 -0700 (PDT)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 422B66B0026
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 11:47:40 -0400 (EDT)
+Date: Thu, 28 Apr 2011 10:47:36 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH] percpu: preemptless __per_cpu_counter_add
+In-Reply-To: <20110428154012.GG16552@htj.dyndns.org>
+Message-ID: <alpine.DEB.2.00.1104281044160.16323@router.home>
+References: <alpine.DEB.2.00.1104280904240.15775@router.home> <20110428142331.GA16552@htj.dyndns.org> <alpine.DEB.2.00.1104280935460.16323@router.home> <20110428144446.GC16552@htj.dyndns.org> <alpine.DEB.2.00.1104280951480.16323@router.home>
+ <20110428145657.GD16552@htj.dyndns.org> <alpine.DEB.2.00.1104281003000.16323@router.home> <20110428151203.GE16552@htj.dyndns.org> <alpine.DEB.2.00.1104281017240.16323@router.home> <20110428153101.GF16552@htj.dyndns.org>
+ <20110428154012.GG16552@htj.dyndns.org>
 MIME-Version: 1.0
-Reply-To: sedat.dilek@gmail.com
-In-Reply-To: <BANLkTik4+PAGHF-9KREYk8y+KDQLDAp2Mg@mail.gmail.com>
-References: <20110426112756.GF4308@linux.vnet.ibm.com>
-	<20110426183859.6ff6279b@neptune.home>
-	<20110426190918.01660ccf@neptune.home>
-	<BANLkTikjuqWP+PAsObJH4EAOyzgr2RbYNA@mail.gmail.com>
-	<alpine.LFD.2.02.1104262314110.3323@ionos>
-	<20110427081501.5ba28155@pluto.restena.lu>
-	<20110427204139.1b0ea23b@neptune.home>
-	<alpine.LFD.2.02.1104272351290.3323@ionos>
-	<alpine.LFD.2.02.1104281051090.19095@ionos>
-	<BANLkTinB5S7q88dch78i-h28jDHx5dvfQw@mail.gmail.com>
-	<20110428102609.GJ2135@linux.vnet.ibm.com>
-	<1303997401.7819.5.camel@marge.simson.net>
-	<BANLkTik4+PAGHF-9KREYk8y+KDQLDAp2Mg@mail.gmail.com>
-Date: Thu, 28 Apr 2011 17:44:20 +0200
-Message-ID: <BANLkTi=guS_Vc3XAs0xfp6tBZP4FxudFQg@mail.gmail.com>
-Subject: Re: 2.6.39-rc4+: Kernel leaking memory during FS scanning, regression?
-From: Sedat Dilek <sedat.dilek@googlemail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: base64
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Galbraith <efault@gmx.de>, Thomas Gleixner <tglx@linutronix.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Cc: =?UTF-8?Q?Bruno_Pr=C3=A9mont?= <bonbons@linux-vserver.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Frysinger <vapier.adi@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Paul E. McKenney" <paul.mckenney@linaro.org>, Pekka Enberg <penberg@kernel.org>
+To: Tejun Heo <tj@kernel.org>
+Cc: Shaohua Li <shaohua.li@intel.com>, Eric Dumazet <eric.dumazet@gmail.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-T24gVGh1LCBBcHIgMjgsIDIwMTEgYXQgNToyOCBQTSwgU2VkYXQgRGlsZWsgPHNlZGF0LmRpbGVr
-QGdvb2dsZW1haWwuY29tPiB3cm90ZToKPiBPbiBUaHUsIEFwciAyOCwgMjAxMSBhdCAzOjMwIFBN
-LCBNaWtlIEdhbGJyYWl0aCA8ZWZhdWx0QGdteC5kZT4gd3JvdGU6Cj4+IE9uIFRodSwgMjAxMS0w
-NC0yOCBhdCAwMzoyNiAtMDcwMCwgUGF1bCBFLiBNY0tlbm5leSB3cm90ZToKPj4+IE9uIFRodSwg
-QXByIDI4LCAyMDExIGF0IDExOjQ1OjAzQU0gKzAyMDAsIFNlZGF0IERpbGVrIHdyb3RlOgo+Pj4g
-PiBIaSwKPj4+ID4KPj4+ID4gbm90IHN1cmUgaWYgbXkgcHJvYmxlbSBmcm9tIGxpbnV4LTIuNi1y
-Y3UuZ2l0I3NlZGF0LjIwMTEuMDQuMjNhIGlzCj4+PiA+IHJlbGF0ZWQgdG8gdGhlIGlzc3VlIGhl
-cmUuCj4+PiA+Cj4+PiA+IEp1c3QgRllJOgo+Pj4gPiBJIGFtIGhlcmUgb24gYSBQZW50aXVtLU0g
-KHVuaXByb2Nlc3NvciBha2EgVVApIGFuZCBzdGlsbCB1bnN1cmUgaWYgSQo+Pj4gPiBoYXZlIHRo
-ZSBjb3JyZWN0IChvcHRpbWFsPykga2VybmVsLWNvbmZpZ3Mgc2V0Lgo+Pj4gPgo+Pj4gPiBQYXVs
-IGdhdmUgbWUgYSBzY3JpcHQgdG8gY29sbGVjdCBSQ1UgZGF0YSBhbmQgSSBlbmhhbmNlZCBpdCB3
-aXRoCj4+PiA+IGNvbGxlY3RpbmcgU0NIRUQgZGF0YS4KPj4+ID4KPj4+ID4gSW4gdGhlIGFib3Zl
-IG1lbnRpb25uZWQgR0lUIGJyYW5jaCBJIGFwcGxpZWQgdGhlc2UgdHdvIGV4dHJhIGNvbW1pdHMK
-Pj4+ID4gKDAwMDEgcmVxdWVzdGVkIGJ5IFBhdWwgYW5kIDAwMDIgcHJvcG9zZWQgYnkgVGhvbWFz
-KToKPj4+ID4KPj4+ID4gcGF0Y2hlcy8wMDAxLVJldmVydC1yY3UtcmVzdHJpY3QtVFJFRV9SQ1Ut
-dG8tU01QLWJ1aWxkcy13aXRoLVBSRUUucGF0Y2gKPj4+ID4gcGF0Y2hlcy8wMDAyLXNjaGVkLUFk
-ZC13YXJuaW5nLXdoZW4tUlQtdGhyb3R0bGluZy1pcy1hY3RpdmF0ZWQucGF0Y2gKPj4+ID4KPj4+
-ID4gRnVydGhlcm1vcmUsIEkgaGF2ZSBhZGRlZCBteSBrZXJuZWwtY29uZmlnIGZpbGUsIHNjcmlw
-dHMsIHBhdGNoZXMgYW5kCj4+PiA+IGxvZ3MgKGFsc28gb3V0cHV0IG9mICdjYXQgL3Byb2MvY3B1
-aW5mbycpLgo+Pj4gPgo+Pj4gPiBIb3BlIHRoaXMgaGVscHMgdGhlIGV4cGVydHMgdG8gbmFycm93
-IGRvd24gdGhlIHByb2JsZW0uCj4+Pgo+Pj4gWW93ISEhCj4+Pgo+Pj4gTm93IHRoaXMgb25lIG1p
-Z2h0IHdlbGwgYmUgYWJsZSB0byBoaXQgdGhlIDk1MCBtaWxsaXNlY29uZCBsaW1pdC4KPj4+IFRo
-ZXJlIGFyZSBubyBmZXdlciB0aGFuIDEsMzE0LDk1OCBSQ1UgY2FsbGJhY2tzIHF1ZXVlZCB1cCBh
-dCB0aGUgZW5kIG9mCj4+PiB0aGUgdGVzdC4gwqBBbmQgUkNVIGhhcyBpbmRlZWQgbm90aWNlZCB0
-aGlzIGFuZCBjcmFua2VkIHVwIHRoZSBudW1iZXIKPj4+IG9mIGNhbGxiYWNrcyB0byBiZSBoYW5k
-bGVkIGJ5IGVhY2ggaW52b2NhdGlvbiBvZiByY3VfZG9fYmF0Y2goKSB0bwo+Pj4gMiwxNDcsNDgz
-LDY0Ny4gwqBBbmQgb25seSAxNSBzZWNvbmRzIGVhcmxpZXIsIHRoZXJlIHdlcmUgemVybyBjYWxs
-YmFja3MKPj4+IHF1ZXVlZCBhbmQgdGhlIHJjdV9kb19iYXRjaCgpIGxpbWl0IHdhcyBhdCB0aGUg
-ZGVmYXVsdCBvZiAxMCBjYWxsYmFja3MKPj4+IHBlciBpbnZvY2F0aW9uLgo+Pgo+PiBZZWFoLCB5
-b3cuIMKgT25jZSB0aGUgUlQgdGhyb3R0bGUgaGl0LCBpdCBzdHVjay4KPj4KPj4gwqAuY2xvY2sg
-wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgOiAxMzg2ODI0LjIwMTc2OAo+PiDC
-oC5ydF9ucl9ydW5uaW5nIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIDogMgo+PiDCoC5ydF90aHJv
-dHRsZWQgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqA6IDEKPj4gwqAucnRfdGltZSDCoCDCoCDC
-oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCA6IDk1MC4xMzI0MjcKPj4gwqAucnRfcnVudGltZSDC
-oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoDogOTUwLjAwMDAwMAo+PiDCoCDCoCDCoCDCoCDC
-oCByY3VjMCDCoCDCoCA3IMKgIMKgIMKgIMKgIDAuMDM0MTE4IMKgIMKgIDEwODU3IMKgIMKgOTgg
-wqAgwqAgwqAgwqAgMC4wMzQxMTggwqAgwqAgwqAxNDcyLjMwOTY0NiDCoCDCoCDCoCDCoCAwLjAw
-MDAwMCAvCj4+IEZGIMKgIMKgMSDCoCDCoCDCoDEgUiDCoCDCoFIgMCBbcmN1YzBdCj4+IMKgLmNs
-b2NrIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIDogMTQwMjQ1MC45OTc5OTQK
-Pj4gwqAucnRfbnJfcnVubmluZyDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCA6IDIKPj4gwqAucnRf
-dGhyb3R0bGVkIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgOiAxCj4+IMKgLnJ0X3RpbWUgwqAg
-wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgOiA5NTAuMTMyNDI3Cj4+IMKgLnJ0X3J1bnRp
-bWUgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqA6IDk1MC4wMDAwMDAKPj4gwqAgwqAgwqAg
-wqAgwqAgcmN1YzAgwqAgwqAgNyDCoCDCoCDCoCDCoCAwLjAzNDExOCDCoCDCoCAxMDg1NyDCoCDC
-oDk4IMKgIMKgIMKgIMKgIDAuMDM0MTE4IMKgIMKgIMKgMTQ3Mi4zMDk2NDYgwqAgwqAgwqAgwqAg
-MC4wMDAwMDAgLwo+PiBGRiDCoCDCoDEgwqAgwqAgwqAxIFIgwqAgwqBSIDAgW3JjdWMwXQo+Pgo+
-PiAuLi4KPj4KPj4gwqAuY2xvY2sgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
-OiAyNzA3NDMyLjg2MjM3NAo+PiDCoC5ydF9ucl9ydW5uaW5nIMKgIMKgIMKgIMKgIMKgIMKgIMKg
-IMKgIDogMgo+PiDCoC5ydF90aHJvdHRsZWQgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqA6IDEK
-Pj4gwqAucnRfdGltZSDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCA6IDk1MC4xMzI0
-MjcKPj4gwqAucnRfcnVudGltZSDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoDogOTUwLjAw
-MDAwMAo+PiDCoCDCoCDCoCDCoCDCoCByY3VjMCDCoCDCoCA3IMKgIMKgIMKgIMKgIDAuMDM0MTE4
-IMKgIMKgIDEwODU3IMKgIMKgOTggwqAgwqAgwqAgwqAgMC4wMzQxMTggwqAgwqAgwqAxNDcyLjMw
-OTY0NiDCoCDCoCDCoCDCoCAwLjAwMDAwMCAvCj4+IEZGIMKgIMKgMSDCoCDCoCDCoDEgUiDCoCDC
-oFIgMCBbcmN1YzBdCj4+IMKgLmNsb2NrIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
-IMKgIDogMjcyMjU3Mi45NTgzODEKPj4gwqAucnRfbnJfcnVubmluZyDCoCDCoCDCoCDCoCDCoCDC
-oCDCoCDCoCA6IDIKPj4gwqAucnRfdGhyb3R0bGVkIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
-OiAxCj4+IMKgLnJ0X3RpbWUgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgOiA5NTAu
-MTMyNDI3Cj4+IMKgLnJ0X3J1bnRpbWUgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqA6IDk1
-MC4wMDAwMDAKPj4gwqAgwqAgwqAgwqAgwqAgcmN1YzAgwqAgwqAgNyDCoCDCoCDCoCDCoCAwLjAz
-NDExOCDCoCDCoCAxMDg1NyDCoCDCoDk4IMKgIMKgIMKgIMKgIDAuMDM0MTE4IMKgIMKgIMKgMTQ3
-Mi4zMDk2NDYgwqAgwqAgwqAgwqAgMC4wMDAwMDAgLwo+PiBGRiDCoCDCoDEgwqAgwqAgwqAxIFIg
-wqAgwqBSIDAgW3JjdWMwXQo+Pgo+Pgo+Cj4gSGksCj4KPiBPSywgSSB0cmllZCB3aXRoIHRoZSBw
-YXRjaCBwcm9wb3NlZCBieSBUaG9tYXMgKDAwMDMpOgo+Cj4gcGF0Y2hlcy8wMDAxLVJldmVydC1y
-Y3UtcmVzdHJpY3QtVFJFRV9SQ1UtdG8tU01QLWJ1aWxkcy13aXRoLVBSRUUucGF0Y2gKPiBwYXRj
-aGVzLzAwMDItc2NoZWQtQWRkLXdhcm5pbmctd2hlbi1SVC10aHJvdHRsaW5nLWlzLWFjdGl2YXRl
-ZC5wYXRjaAo+IHBhdGNoZXMvMDAwMy1zY2hlZC1SZW1vdmUtc2tpcF9jbG9ja191cGRhdGUtY2hl
-Y2sucGF0Y2gKPgo+IEZyb20gdGhlIHZlcnkgYmVnaW5uaW5nIGl0IGxvb2tlZCBhcyB0aGUgc3lz
-dGVtIGlzICJzdGFibGUiIGR1ZSB0bzoKPgo+IMKgLnJ0X25yX3J1bm5pbmcgwqAgwqAgwqAgwqAg
-wqAgwqAgwqAgwqAgOiAwCj4gwqAucnRfdGhyb3R0bGVkIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
-IMKgOiAwCj4KPiBUaGlzIGNoYW5nZWQgd2hlbiBJIHN0YXJ0ZWQgYSBzaW1wbGUgdGFyLWpvYiB0
-byBzYXZlIG15IGtlcm5lbAo+IGJ1aWxkLWRpciB0byBhbiBleHRlcm5hbCBVU0ItaGRkLgo+IEZy
-b20uLi4KPgo+IMKgLnJ0X25yX3J1bm5pbmcgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgOiAxCj4g
-wqAucnRfdGhyb3R0bGVkIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgOiAxCj4KPiAuLi5UbzoK
-Pgo+IMKgLnJ0X25yX3J1bm5pbmcgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgOiAyCj4gwqAucnRf
-dGhyb3R0bGVkIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgOiAxCj4KPiBVbmZvcnR1bmF0ZWx5
-LCByZWR1Y2luZyBhbGwgYWN0aXZpdGllcyB0byBhIG1pbmltdW0gbG9hZCwgZGlkIG5vdAo+IGNo
-YW5nZSBmcm9tIGxhc3Qga25vd24gUlQgdGhyb3R0bGluZyBzdGF0ZS4KPgo+IEp1c3Qgbm90aWNl
-ZCBydF90aW1lIGV4Y2VlZHMgdGhlIHZhbHVlIG9mIDk1MCBmaXJzdCB0aW1lIGhlcmU6Cj4KPiDC
-oC5ydF9ucl9ydW5uaW5nIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIDogMQo+IMKgLnJ0X3Rocm90
-dGxlZCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoDogMQo+IMKgLnJ0X3RpbWUgwqAgwqAgwqAg
-wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgOiA5NTAuMDA1NDYwCj4KPiBGdWxsIGRhdGEgYXR0Y2hh
-Y2hlZCBhcyB0YXJiYWxsLgo+Cj4gLSBTZWRhdCAtCj4KPiBQLlMuOiBFeGNlcnB0IGZyb20KPiBj
-b2xsZWN0ZGVidWdmcy12Ml8yLjYuMzktcmMzLXJjdXRyZWUtc2VkYXQuMjAxMS4wNC4yM2ErLmxv
-ZyAoMDowIC0+Cj4gMToxIC0+IDI6MSkKPgo+IC0tCj4gcnRfcnFbMF06Cj4gwqAucnRfbnJfcnVu
-bmluZyDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCA6IDAKPiDCoC5ydF90aHJvdHRsZWQgwqAgwqAg
-wqAgwqAgwqAgwqAgwqAgwqAgwqA6IDAKPiDCoC5ydF90aW1lIMKgIMKgIMKgIMKgIMKgIMKgIMKg
-IMKgIMKgIMKgIMKgIDogODg4Ljg5Mzg3Nwo+IMKgLnJ0X3J1bnRpbWUgwqAgwqAgwqAgwqAgwqAg
-wqAgwqAgwqAgwqAgwqA6IDk1MC4wMDAwMDAKPgo+IHJ1bm5hYmxlIHRhc2tzOgo+IMKgIMKgIMKg
-IMKgIMKgIMKgdGFzayDCoCBQSUQgwqAgwqAgwqAgwqAgdHJlZS1rZXkgwqBzd2l0Y2hlcyDCoHBy
-aW8KPiBleGVjLXJ1bnRpbWUgwqAgwqAgwqAgwqAgc3VtLWV4ZWMgwqAgwqAgwqAgwqBzdW0tc2xl
-ZXAKPiAtLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0t
-LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tCj4g
-UiDCoCDCoCDCoCDCoCDCoCDCoGNhdCDCoDI2NTIgwqAgwqAxMTUxMDguOTkzNDYwIMKgIMKgIMKg
-IMKgIDEgwqAgMTIwCj4gMTE1MTA4Ljk5MzQ2MCDCoCDCoCDCoCDCoCAxLjE0Nzk4NiDCoCDCoCDC
-oCDCoCAwLjAwMDAwMCAvCj4gLS0KPiBydF9ycVswXToKPiDCoC5ydF9ucl9ydW5uaW5nIMKgIMKg
-IMKgIMKgIMKgIMKgIMKgIMKgIDogMQo+IMKgLnJ0X3Rocm90dGxlZCDCoCDCoCDCoCDCoCDCoCDC
-oCDCoCDCoCDCoDogMQo+IMKgLnJ0X3RpbWUgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
-wqAgOiA5NTAuMDA1NDYwCj4gwqAucnRfcnVudGltZSDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
-oCDCoDogOTUwLjAwMDAwMAo+Cj4gcnVubmFibGUgdGFza3M6Cj4gwqAgwqAgwqAgwqAgwqAgwqB0
-YXNrIMKgIFBJRCDCoCDCoCDCoCDCoCB0cmVlLWtleSDCoHN3aXRjaGVzIMKgcHJpbwo+IGV4ZWMt
-cnVudGltZSDCoCDCoCDCoCDCoCBzdW0tZXhlYyDCoCDCoCDCoCDCoHN1bS1zbGVlcAo+IC0tLS0t
-LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0t
-LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0KPiDCoCDCoCDCoCDC
-oCDCoCByY3VjMCDCoCDCoCA3IMKgIMKgIMKgIMKgIDAuMDAwMDAwIMKgIMKgIDU2ODY5IMKgIMKg
-OTgKPiAwLjAwMDAwMCDCoCDCoCDCoCA5ODEuMzg1NjA1IMKgIMKgIMKgIMKgIDAuMDAwMDAwIC8K
-PiAtLQo+IHJ0X3JxWzBdOgo+IMKgLnJ0X25yX3J1bm5pbmcgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
-wqAgOiAyCj4gwqAucnRfdGhyb3R0bGVkIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgOiAxCj4g
-wqAucnRfdGltZSDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCA6IDk1MC4wMDU0NjAK
-PiDCoC5ydF9ydW50aW1lIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgOiA5NTAuMDAwMDAw
-Cj4KPiBydW5uYWJsZSB0YXNrczoKPiDCoCDCoCDCoCDCoCDCoCDCoHRhc2sgwqAgUElEIMKgIMKg
-IMKgIMKgIHRyZWUta2V5IMKgc3dpdGNoZXMgwqBwcmlvCj4gZXhlYy1ydW50aW1lIMKgIMKgIMKg
-IMKgIHN1bS1leGVjIMKgIMKgIMKgIMKgc3VtLXNsZWVwCj4gLS0tLS0tLS0tLS0tLS0tLS0tLS0t
-LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0t
-LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLQo+IMKgIMKgIMKgIMKgIMKgIHJjdWMwIMKgIMKg
-IDcgwqAgwqAgwqAgwqAgMC4wMDAwMDAgwqAgwqAgNTY4NjkgwqAgwqA5OAo+IDAuMDAwMDAwIMKg
-IMKgIMKgIDk4MS4zODU2MDUgwqAgwqAgwqAgwqAgMC4wMDAwMDAgLwo+IC0tCj4KCkFzIGFuIGFk
-ZGVuZHVtOgoKRmlyc3QgY2FsbCB0cmFjZSBpcyBzZWVuIGFmdGVyOgoKWyAgNjUxLjYxNjA1N10g
-c2NoZWQ6IFJUIHRocm90dGxpbmcgYWN0aXZhdGVkClsgIDcxMS42MTYwMzNdIElORk86IHJjdV9z
-Y2hlZF9zdGF0ZSBkZXRlY3RlZCBzdGFsbCBvbiBDUFUgMCAodD0xNTAwMCBqaWZmaWVzKQoKLSBT
-ZWRhdCAtCg==
+On Thu, 28 Apr 2011, Tejun Heo wrote:
+
+> On Thu, Apr 28, 2011 at 05:31:01PM +0200, Tejun Heo wrote:
+> > > The hugely expensive _sum() is IMHO pretty useless given the above. It is
+> > > a function that is called with the *hope* of getting a more accurate
+> > > result.
+> ...
+> > Christoph, I'm sorry but I really can't explain it any better and am
+> > out of this thread.  If you still wanna proceed, you'll need to route
+> > the patches yourself.  Please keep me cc'd.
+>
+> Oh, another way to proceed would be, if _sum() is as useless as you
+> suggested above, remove _sum() first and see how that goes.  If that
+> flies, there will be no reason to argue over anything, right?
+
+There is no point of arguing anymore since you do not accept that the
+percpu counters do not have atomic_t consistency properties. The relaxing
+of the consistency requirements in order to increase performance was the
+intend when these schemes were created.
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
