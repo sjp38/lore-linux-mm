@@ -1,56 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id CEAC86B0024
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 09:50:22 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id A8E8B3EE0AE
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 22:50:19 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8C9E345DE61
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 22:50:19 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 736AB45DE4D
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 22:50:19 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 65F7AE08001
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 22:50:19 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 3193A1DB803A
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 22:50:19 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [patch] vmstat: account page allocation failures
-In-Reply-To: <20110428133838.GA12573@localhost>
-References: <20110428133644.GA12400@localhost> <20110428133838.GA12573@localhost>
-Message-Id: <20110428225144.3D4D.A69D9226@jp.fujitsu.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E0A26B0024
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 09:52:33 -0400 (EDT)
+Date: Thu, 28 Apr 2011 15:52:28 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [BUG] fatal hang untarring 90GB file, possibly writeback
+ related.
+Message-ID: <20110428135228.GC1696@quack.suse.cz>
+References: <1303920553.2583.7.camel@mulgrave.site>
+ <1303921583-sup-4021@think>
+ <1303923000.2583.8.camel@mulgrave.site>
+ <1303923177-sup-2603@think>
+ <1303924902.2583.13.camel@mulgrave.site>
+ <1303925374-sup-7968@think>
+ <1303926637.2583.17.camel@mulgrave.site>
+ <1303934716.2583.22.camel@mulgrave.site>
+ <1303990590.2081.9.camel@lenovo>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Thu, 28 Apr 2011 22:50:18 +0900 (JST)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1303990590.2081.9.camel@lenovo>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, Dave Young <hidave.darkstar@gmail.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Mel Gorman <mel@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, Dave Chinner <david@fromorbit.com>, David Rientjes <rientjes@google.com>
+To: colin.king@canonical.com
+Cc: James Bottomley <James.Bottomley@suse.de>, Chris Mason <chris.mason@oracle.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-ext4 <linux-ext4@vger.kernel.org>, mgorman@novell.com
 
->  nopage:
-> +	inc_zone_state(preferred_zone, NR_ALLOC_FAIL);
-> +	/* count_zone_vm_events(PGALLOCFAIL, preferred_zone, 1 << order); */
->  	if (!(gfp_mask & __GFP_NOWARN) && printk_ratelimit()) {
->  		unsigned int filter = SHOW_MEM_FILTER_NODES;
->  
-> --- linux-next.orig/mm/vmstat.c	2011-04-28 21:34:30.000000000 +0800
-> +++ linux-next/mm/vmstat.c	2011-04-28 21:34:35.000000000 +0800
-> @@ -879,6 +879,7 @@ static const char * const vmstat_text[] 
->  	"nr_shmem",
->  	"nr_dirtied",
->  	"nr_written",
-> +	"nr_alloc_fail",
+On Thu 28-04-11 12:36:30, Colin Ian King wrote:
+> One more data point to add, I've been looking at an identical issue when
+> copying large amounts of data.  I bisected this - and the lockups occur
+> with commit 
+> 3e7d344970673c5334cf7b5bb27c8c0942b06126 - before that I don't see the
+> issue. With this commit, my file copy test locks up after ~8-10
+> iterations, before this commit I can copy > 100 times and don't see the
+> lockup.
+  Adding Mel to CC, I guess he'll be interested. Mel, it seems this commit
+of yours causes kswapd on non-preempt kernels spin for a *long* time...
 
-I'm using very similar patch for debugging. However, this is useless for
-admins because typical linux load have plenty GFP_ATOMIC allocation failure.
-So, typical user have no way that failure rate is high or not.
-
-
-
+								Honza
+> On Wed, 2011-04-27 at 15:05 -0500, James Bottomley wrote:
+> > On Wed, 2011-04-27 at 12:50 -0500, James Bottomley wrote:
+> > > To test the theory, Chris asked me to try with data=ordered.
+> > > Unfortunately, the deadlock still shows up.  This is what I get.
+> > 
+> > As another data point: I'm trying the same kernel with CONFIG_PREEMPT
+> > enabled.  This time the deadlock doesn't happen.  Instead, kswapd0 gets
+> > pegged at 99% CPU for much of the untar, but it does eventually
+> > complete.
+> > 
+> > James
+> > 
+> > 
+> > --
+> > To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> > the body of a message to majordomo@vger.kernel.org
+> > More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> > Please read the FAQ at  http://www.tux.org/lkml/
+> 
+> 
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-fsdevel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
