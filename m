@@ -1,181 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id B6B8E6B0022
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 06:26:47 -0400 (EDT)
-Date: Thu, 28 Apr 2011 11:26:40 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [RFC 1/8] Only isolate page we can handle
-Message-ID: <20110428102640.GQ4658@suse.de>
-References: <cover.1303833415.git.minchan.kim@gmail.com>
- <1d9791f27df2341cb6750f5d6279b804151f57f9.1303833417.git.minchan.kim@gmail.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 0C9976B0011
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 06:27:02 -0400 (EDT)
+Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
+	by e5.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p3SA0cZE019204
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 06:00:38 -0400
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p3SAR1Cq081192
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 06:27:01 -0400
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p3SAR0v9020151
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 06:27:01 -0400
+Date: Thu, 28 Apr 2011 03:26:58 -0700
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: 2.6.39-rc4+: Kernel leaking memory during FS scanning,
+ regression?
+Message-ID: <20110428102658.GK2135@linux.vnet.ibm.com>
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <BANLkTin7wSGi1=E2c2u6Jb5TG_KUpYh=Dw@mail.gmail.com>
+ <20110425214933.GO2468@linux.vnet.ibm.com>
+ <20110426081904.0d2b1494@pluto.restena.lu>
+ <20110426112756.GF4308@linux.vnet.ibm.com>
+ <20110426183859.6ff6279b@neptune.home>
+ <20110426190918.01660ccf@neptune.home>
+ <BANLkTikjuqWP+PAsObJH4EAOyzgr2RbYNA@mail.gmail.com>
+ <alpine.LFD.2.02.1104262314110.3323@ionos>
+ <20110427215549.GN2135@linux.vnet.ibm.com>
+ <20110428082229.187c38c6@pluto.restena.lu>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <1d9791f27df2341cb6750f5d6279b804151f57f9.1303833417.git.minchan.kim@gmail.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20110428082229.187c38c6@pluto.restena.lu>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux.com>, Johannes Weiner <jweiner@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>
+To: Bruno =?iso-8859-1?Q?Pr=E9mont?= <bonbons@linux-vserver.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Frysinger <vapier.adi@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Paul E. McKenney" <paul.mckenney@linaro.org>, Pekka Enberg <penberg@kernel.org>
 
-On Wed, Apr 27, 2011 at 01:25:18AM +0900, Minchan Kim wrote:
-> There are some places to isolate lru page and I believe
-> users of isolate_lru_page will be growing.
-> The purpose of them is each different so part of isolated pages
-> should put back to LRU, again.
+On Thu, Apr 28, 2011 at 08:22:29AM +0200, Bruno Premont wrote:
+> On Wed, 27 Apr 2011 14:55:49 "Paul E. McKenney" wrote:
+> > On Wed, Apr 27, 2011 at 12:28:37AM +0200, Thomas Gleixner wrote:
+> > > On Tue, 26 Apr 2011, Linus Torvalds wrote:
+> > > > Normally SCHED_FIFO runs until it voluntarily gives up the CPU. That's
+> > > > kind of the point of SCHED_FIFO. Involuntary context switches happen
+> > > > when some higher-priority SCHED_FIFO process becomes runnable (irq
+> > > > handlers? You _do_ have CONFIG_IRQ_FORCED_THREADING=y in your config
+> > > > too), and maybe there is a bug in the runqueue handling for that case.
+> > > 
+> > > The forced irq threading is only effective when you add the command
+> > > line parameter "threadirqs". I don't see any irq threads in the ps
+> > > outputs, so that's not the problem.
+> > > 
+> > > Though the whole ps output is weird. There is only one thread/process
+> > > which accumulated CPU time
+> > > 
+> > > collectd  1605  0.6  0.7  49924  3748 ?        SNLsl 22:14   0:14
+> > 
+> > I believe that the above is the script that prints out the RCU debugfs
+> > information periodically.  Unless there is something else that begins
+> > with "collectd" instead of just collectdebugfs.sh.
 > 
-> The problem is when we put back the page into LRU,
-> we lose LRU ordering and the page is inserted at head of LRU list.
-> It makes unnecessary LRU churning so that vm can evict working set pages
-> rather than idle pages.
-> 
-> This patch adds new filter mask when we isolate page in LRU.
-> So, we don't isolate pages if we can't handle it.
-> It could reduce LRU churning.
-> 
-> This patch shouldn't change old behavior.
-> It's just used by next patches.
-> 
-> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Cc: Mel Gorman <mgorman@suse.de>
-> Cc: Rik van Riel <riel@redhat.com>
-> Cc: Andrea Arcangeli <aarcange@redhat.com>
-> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
-> ---
->  include/linux/swap.h |    3 ++-
->  mm/compaction.c      |    2 +-
->  mm/memcontrol.c      |    2 +-
->  mm/vmscan.c          |   26 ++++++++++++++++++++------
->  4 files changed, 24 insertions(+), 9 deletions(-)
-> 
-> diff --git a/include/linux/swap.h b/include/linux/swap.h
-> index 384eb5f..baef4ad 100644
-> --- a/include/linux/swap.h
-> +++ b/include/linux/swap.h
-> @@ -259,7 +259,8 @@ extern unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *mem,
->  						unsigned int swappiness,
->  						struct zone *zone,
->  						unsigned long *nr_scanned);
-> -extern int __isolate_lru_page(struct page *page, int mode, int file);
-> +extern int __isolate_lru_page(struct page *page, int mode, int file,
-> +				int not_dirty, int not_mapped);
+> No, collectd is a multi-threaded daemon that collects statistics of all
+> kinds, see  http://www.collectd.org/  for details (on my machine it
+> collects CPU usage, memory usage [just the basics], disk statistics,
+> network statistics load and a few more)
 
-bool? If you use bitmask later, it's not important though.
+OK, thank you for the info!
 
->  extern unsigned long shrink_all_memory(unsigned long nr_pages);
->  extern int vm_swappiness;
->  extern int remove_mapping(struct address_space *mapping, struct page *page);
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> index 021a296..dea32e3 100644
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -335,7 +335,7 @@ static unsigned long isolate_migratepages(struct zone *zone,
->  		}
->  
->  		/* Try isolate the page */
-> -		if (__isolate_lru_page(page, ISOLATE_BOTH, 0) != 0)
-> +		if (__isolate_lru_page(page, ISOLATE_BOTH, 0, 0, 0) != 0)
->  			continue;
->  
->  		VM_BUG_ON(PageTransCompound(page));
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index c2776f1..471e7fd 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -1193,7 +1193,7 @@ unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
->  			continue;
->  
->  		scan++;
-> -		ret = __isolate_lru_page(page, mode, file);
-> +		ret = __isolate_lru_page(page, mode, file, 0, 0);
->  		switch (ret) {
->  		case 0:
->  			list_move(&page->lru, dst);
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index b3a569f..71d2da9 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -954,10 +954,13 @@ keep_lumpy:
->   *
->   * page:	page to consider
->   * mode:	one of the LRU isolation modes defined above
-> - *
-> + * file:	page be on a file LRU
-> + * not_dirty:	page should be not dirty or not writeback
-> + * not_mapped:	page should be not mapped
->   * returns 0 on success, -ve errno on failure.
->   */
-> -int __isolate_lru_page(struct page *page, int mode, int file)
-> +int __isolate_lru_page(struct page *page, int mode, int file,
-> +				int not_dirty, int not_mapped)
->  {
->  	int ret = -EINVAL;
->  
-> @@ -976,6 +979,12 @@ int __isolate_lru_page(struct page *page, int mode, int file)
->  	if (mode != ISOLATE_BOTH && page_is_file_cache(page) != file)
->  		return ret;
->  
-> +	if (not_dirty)
-> +		if (PageDirty(page) || PageWriteback(page))
-> +			return ret;
-> +	if (not_mapped)
-> +		if (page_mapped(page))
-> +			return ret;
->  	/*
->  	 * When this function is being called for lumpy reclaim, we
->  	 * initially look into all LRU pages, active, inactive and
-> @@ -1016,12 +1025,15 @@ int __isolate_lru_page(struct page *page, int mode, int file)
->   * @order:	The caller's attempted allocation order
->   * @mode:	One of the LRU isolation modes
->   * @file:	True [1] if isolating file [!anon] pages
-> + * @not_dirty:	True [1] if isolating file [!dirty] pages
-> + * @not_mapped:	True [1] if isolating file [!mapped] pages
->   *
->   * returns how many pages were moved onto *@dst.
->   */
->  static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
->  		struct list_head *src, struct list_head *dst,
-> -		unsigned long *scanned, int order, int mode, int file)
-> +		unsigned long *scanned, int order, int mode, int file,
-> +		int not_dirty, int not_mapped)
->  {
->  	unsigned long nr_taken = 0;
->  	unsigned long nr_lumpy_taken = 0;
-> @@ -1041,7 +1053,8 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
->  
->  		VM_BUG_ON(!PageLRU(page));
->  
-> -		switch (__isolate_lru_page(page, mode, file)) {
-> +		switch (__isolate_lru_page(page, mode, file,
-> +					not_dirty, not_mapped)) {
->  		case 0:
->  			list_move(&page->lru, dst);
->  			mem_cgroup_del_lru(page);
-> @@ -1100,7 +1113,8 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
->  			    !PageSwapCache(cursor_page))
->  				break;
->  
-> -			if (__isolate_lru_page(cursor_page, mode, file) == 0) {
-> +			if (__isolate_lru_page(cursor_page, mode, file,
-> +					not_dirty, not_mapped) == 0) {
->  				list_move(&cursor_page->lru, dst);
->  				mem_cgroup_del_lru(cursor_page);
->  				nr_taken += hpage_nr_pages(page);
-> @@ -1143,7 +1157,7 @@ static unsigned long isolate_pages_global(unsigned long nr,
->  	if (file)
->  		lru += LRU_FILE;
->  	return isolate_lru_pages(nr, &z->lru[lru].list, dst, scanned, order,
-> -								mode, file);
-> +					mode, file, 0, 0);
->  }
->  
->  /*
-> -- 
-> 1.7.1
-> 
-
--- 
-Mel Gorman
-SUSE Labs
+							Thanx, Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
