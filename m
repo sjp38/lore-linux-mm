@@ -1,44 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 1A01C6B0022
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 11:05:13 -0400 (EDT)
-Date: Thu, 28 Apr 2011 10:05:09 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH] percpu: preemptless __per_cpu_counter_add
-In-Reply-To: <20110428145657.GD16552@htj.dyndns.org>
-Message-ID: <alpine.DEB.2.00.1104281003000.16323@router.home>
-References: <20110426121011.GD878@htj.dyndns.org> <1303883009.3981.316.camel@sli10-conroe> <20110427102034.GE31015@htj.dyndns.org> <1303961284.3981.318.camel@sli10-conroe> <20110428100938.GA10721@htj.dyndns.org> <alpine.DEB.2.00.1104280904240.15775@router.home>
- <20110428142331.GA16552@htj.dyndns.org> <alpine.DEB.2.00.1104280935460.16323@router.home> <20110428144446.GC16552@htj.dyndns.org> <alpine.DEB.2.00.1104280951480.16323@router.home> <20110428145657.GD16552@htj.dyndns.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id E947B6B0022
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 11:08:25 -0400 (EDT)
+Date: Thu, 28 Apr 2011 17:08:21 +0200
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [RFC PATCH 2/3] support for broken memory modules (BadRAM)
+Message-ID: <20110428150821.GT16484@one.firstfloor.org>
+References: <1303921007-1769-1-git-send-email-sassmann@kpanic.de> <1303921007-1769-3-git-send-email-sassmann@kpanic.de> <20110427211258.GQ16484@one.firstfloor.org> <4DB90A66.3020805@kpanic.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4DB90A66.3020805@kpanic.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Shaohua Li <shaohua.li@intel.com>, Eric Dumazet <eric.dumazet@gmail.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Stefan Assmann <sassmann@kpanic.de>
+Cc: Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org, tony.luck@intel.com, mingo@elte.hu, hpa@zytor.com, rick@vanrein.org, akpm@linux-foundation.org, lwoodman@redhat.com, riel@redhat.com
 
-On Thu, 28 Apr 2011, Tejun Heo wrote:
+> You're right, logging every page marked would be too verbose. That's why
+> I wrapped that logging into pr_debug.
 
-> Hey,
->
-> On Thu, Apr 28, 2011 at 09:52:35AM -0500, Christoph Lameter wrote:
-> > On Thu, 28 Apr 2011, Tejun Heo wrote:
-> >
-> > > Eh?  Are you saying the above can't happen or the above doesn't
-> > > matter?
-> >
-> > Its an artificial use case that does not reflect the realities on how
-> > these counters are typically used.
->
-> Gees, Christoph.  That is a test case to show the issue prominently,
-> which is what a test case is supposed to do.  What it means is that
-> _any_ update can trigger @batch deviation on _sum() regardless of its
-> frequency or concurrency level and that's the nastiness I've been
-> talking about over and over again.
+pr_debug still floods the kernel log buffer. On large systems
+it often already overflows.
 
-As far as I understand it: This is a test case where you want to show us
-the atomic_t type behavior of _sum. This only works in such an artificial
-test case. In reality batches of updates will modify any 'accurate' result
-that you may have obtained from the _sum function.
+> However I kept the printk in the case of early allocated pages. The user
+> should be notified of the attempt to mark a page that's already been
+> allocated by the kernel itself.
+
+That's ok, although if you're unlucky (e.g. hit a large mem_map area)
+it can be also very nosiy.
+
+It would be better if you fixed the printks to output ranges.
+
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
