@@ -1,84 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 88505900001
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 19:48:32 -0400 (EDT)
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e39.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p3SNYpCp028969
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 17:34:51 -0600
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id p3SNmPdZ151434
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 17:48:25 -0600
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p3SNmOdo027433
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 17:48:24 -0600
-Subject: Re: [PATCH 1/2] break out page allocation warning code
-From: john stultz <johnstul@us.ibm.com>
-In-Reply-To: <alpine.DEB.2.00.1104281545590.24536@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1104201317410.31768@chino.kir.corp.google.com>
-	 <1303331695.2796.159.camel@work-vm>
-	 <20110421103009.731B.A69D9226@jp.fujitsu.com>
-	 <1303846026.2816.117.camel@work-vm>
-	 <alpine.DEB.2.00.1104271641350.25369@chino.kir.corp.google.com>
-	 <1303950728.2971.35.camel@work-vm> <1303954193.2971.43.camel@work-vm>
-	 <alpine.DEB.2.00.1104281545590.24536@chino.kir.corp.google.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Thu, 28 Apr 2011 16:48:20 -0700
-Message-ID: <1304034500.2971.160.camel@work-vm>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with ESMTP id 9AD35900001
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 19:51:34 -0400 (EDT)
+Received: by bwz17 with SMTP id 17so4176415bwz.14
+        for <linux-mm@kvack.org>; Thu, 28 Apr 2011 16:51:29 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <BANLkTimP_0-ErmnGUnJPVjYRG=fcRN8eOA@mail.gmail.com>
+References: <1304030226-19332-1-git-send-email-yinghan@google.com>
+	<1304030226-19332-3-git-send-email-yinghan@google.com>
+	<BANLkTimP_0-ErmnGUnJPVjYRG=fcRN8eOA@mail.gmail.com>
+Date: Fri, 29 Apr 2011 08:51:29 +0900
+Message-ID: <BANLkTimum+TkOxGcqQYfaYEVN+U5oLQqhA@mail.gmail.com>
+Subject: Re: [PATCH 2/2] Add stats to monitor soft_limit reclaim
+From: Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Nazarewicz <mina86@mina86.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Ying Han <yinghan@google.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>, linux-mm@kvack.org
 
-On Thu, 2011-04-28 at 15:48 -0700, David Rientjes wrote:
-> On Wed, 27 Apr 2011, john stultz wrote:
-> 
-> > So thinking further, this can be simplified by adding the seqlock first,
-> > and then retaining the task_locking only in the set_task_comm path until
-> > all comm accessors are converted to using get_task_comm.
-> > 
-> 
-> On second thought, I think it would be better to just retain using a 
-> spinlock but instead of using alloc_lock, introduce a new spinlock to 
-> task_struct for the sole purpose of protecting comm.
-> 
-> And, instead, of using get_task_comm() to write into a preallocated 
-> buffer, I think it would be easier in the vast majority of cases that 
-> you'll need to convert to just provide task_comm_lock(p) and 
-> task_comm_unlock(p) so that p->comm can be dereferenced safely.  
+2011/4/29 Ying Han <yinghan@google.com>:
+> On Thu, Apr 28, 2011 at 3:37 PM, Ying Han <yinghan@google.com> wrote:
+>> This patch extend the soft_limit reclaim stats to both global background
+>> reclaim and global direct reclaim.
+>>
+>> We have a thread discussing the naming of some of the stats. Both
+>> KAMEZAWA and Johannes posted the proposals. The following stats are base=
+d
+>> on what i had before that thread. I will make the corresponding change o=
+n
+>> the next post when we make decision.
+>>
+>> $cat /dev/cgroup/memory/A/memory.stat
+>> kswapd_soft_steal 1053626
+>> kswapd_soft_scan 1053693
+>> direct_soft_steal 1481810
+>> direct_soft_scan 1481996
+>>
+>> Signed-off-by: Ying Han <yinghan@google.com>
+>> ---
+>> =A0Documentation/cgroups/memory.txt | =A0 10 ++++-
+>> =A0mm/memcontrol.c =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0| =A0 68 +++++++++=
++++++++++++++++++++----------
+>> =A02 files changed, 58 insertions(+), 20 deletions(-)
+>>
+>> diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/me=
+mory.txt
+>> index 0c40dab..fedc107 100644
+>> --- a/Documentation/cgroups/memory.txt
+>> +++ b/Documentation/cgroups/memory.txt
+>> @@ -387,8 +387,14 @@ pgpgout =A0 =A0 =A0 =A0 =A0 =A0- # of pages paged o=
+ut (equivalent to # of uncharging events).
+>> =A0swap =A0 =A0 =A0 =A0 =A0 - # of bytes of swap usage
+>> =A0pgfault =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0- # of page faults.
+>> =A0pgmajfault =A0 =A0 - # of major page faults.
+>> -soft_steal =A0 =A0 - # of pages reclaimed from global hierarchical recl=
+aim
+>> -soft_scan =A0 =A0 =A0- # of pages scanned from global hierarchical recl=
+aim
+>> +soft_kswapd_steal- # of pages reclaimed in global hierarchical reclaim =
+from
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 background reclaim
+>> +soft_kswapd_scan - # of pages scanned in global hierarchical reclaim fr=
+om
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 background reclaim
+>> +soft_direct_steal- # of pages reclaimed in global hierarchical reclaim =
+from
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 direct reclaim
+>> +soft_direct_scan- # of pages scanned in global hierarchical reclaim fro=
+m
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 direct reclaim
 
-So my concern with this is that it means one more lock that could be
-mis-nested. By keeping the locking isolated to the get/set_task_comm, we
-can be sure that won't happen. 
+Thank you for CC.
 
-Also tracking new current->comm references will be easier if we just
-don't allow new ones. Validating that all the comm references are
-correctly locked becomes more difficult if we need locking at each use
-site.
+I don't have strong opinion but once we add interfaces to mainline,
+it's hard to rename them. So, it's better to make a list of what name
+we'll need in future.
 
-Further, since I'm not convinced that we never reference current->comm
-from irq context, if we go with spinlocks, we're going to have to
-disable irqs in the read path as well. seqlocks were nice for that
-aspect.
+Now, your naming has a format as [Reason]-[Who reclaim]-[What count?]
+soft_kswapd_steal
+soft_kswapd_scan
+soft_direct_steal
+soft_direct_scan
 
-> get_task_comm() could use that interface itself and then write into a 
-> preallocated buffer.
-> 
-> The problem with using get_task_comm() everywhere is it requires 16 
-> additional bytes to be allocated on the stack in hundreds of locations 
-> around the kernel which may or may not be safe.
+Ok, we can make a name for wmark and limit reclaim as
 
-True. Although is this maybe a bit overzealous?
+limit_direct_steal/scan
+wmark_bg_steal/scan
 
-Maybe I can make sure not to add any mid-layer stack nesting by limiting
-the scope of the 16bytes to just around where it is used.  This would
-ensure we're only adding 16bytes to any current usage.
+Then, assume we finally do round-robin scan of memcg regardless of softlimi=
+t by
+removing global LRU, what name do we have ? Hmm,
 
-Other ideas?
+kernel_kswapd_scan/steal
+kernel_direct_scan/steal
 
-thanks
--john
+?
+
+BTW, your changelog has different name of counters. please fix.
+
+And I'm sorry I'll not be very active for a while.
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
