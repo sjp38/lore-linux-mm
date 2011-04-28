@@ -1,31 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 2ED716B0024
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 10:04:56 -0400 (EDT)
-Content-Type: text/plain; charset=UTF-8
-From: Chris Mason <chris.mason@oracle.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 2651B6B0024
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 10:07:31 -0400 (EDT)
+Date: Thu, 28 Apr 2011 15:07:25 +0100
+From: Mel Gorman <mgorman@suse.de>
 Subject: Re: [BUG] fatal hang untarring 90GB file, possibly writeback related.
-In-reply-to: <1303999282.2081.15.camel@lenovo>
-References: <1303920553.2583.7.camel@mulgrave.site> <1303921583-sup-4021@think> <1303923000.2583.8.camel@mulgrave.site> <1303923177-sup-2603@think> <1303924902.2583.13.camel@mulgrave.site> <1303925374-sup-7968@think> <1303926637.2583.17.camel@mulgrave.site> <1303934716.2583.22.camel@mulgrave.site> <1303990590.2081.9.camel@lenovo> <1303993705-sup-5213@think> <1303998140.2081.11.camel@lenovo> <1303998300-sup-4941@think> <1303999282.2081.15.camel@lenovo>
-Date: Thu, 28 Apr 2011 10:04:34 -0400
-Message-Id: <1303999415-sup-362@think>
-Content-Transfer-Encoding: 8bit
+Message-ID: <20110428140725.GX4658@suse.de>
+References: <1303920553.2583.7.camel@mulgrave.site>
+ <1303921583-sup-4021@think>
+ <1303923000.2583.8.camel@mulgrave.site>
+ <1303923177-sup-2603@think>
+ <1303924902.2583.13.camel@mulgrave.site>
+ <1303925374-sup-7968@think>
+ <1303926637.2583.17.camel@mulgrave.site>
+ <1303934716.2583.22.camel@mulgrave.site>
+ <1303990590.2081.9.camel@lenovo>
+ <20110428135228.GC1696@quack.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20110428135228.GC1696@quack.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Colin Ian King <colin.king@ubuntu.com>
-Cc: James Bottomley <james.bottomley@suse.de>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-ext4 <linux-ext4@vger.kernel.org>
+To: Jan Kara <jack@suse.cz>
+Cc: colin.king@canonical.com, James Bottomley <James.Bottomley@suse.de>, Chris Mason <chris.mason@oracle.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-ext4 <linux-ext4@vger.kernel.org>, mgorman@novell.com
 
-Excerpts from Colin Ian King's message of 2011-04-28 10:01:22 -0400:
+On Thu, Apr 28, 2011 at 03:52:28PM +0200, Jan Kara wrote:
+> On Thu 28-04-11 12:36:30, Colin Ian King wrote:
+> > One more data point to add, I've been looking at an identical issue when
+> > copying large amounts of data.  I bisected this - and the lockups occur
+> > with commit 
+> > 3e7d344970673c5334cf7b5bb27c8c0942b06126 - before that I don't see the
+> > issue. With this commit, my file copy test locks up after ~8-10
+> > iterations, before this commit I can copy > 100 times and don't see the
+> > lockup.
+>   Adding Mel to CC, I guess he'll be interested. Mel, it seems this commit
+> of yours causes kswapd on non-preempt kernels spin for a *long* time...
 > 
-> > Could you post the soft lockups you're seeing?
-> 
-> As requested, attached
 
-These are not good, but they aren't the lockup James was seeing.  Were
-these messages with my patch?  If yes, please post the messages from
-without my patch.
+I'm still thinking about the traces which do not point the finger
+directly at compaction per-se but it's possible that the change means
+kswapd is not reclaiming like it should be.
 
--chris
+To test this theory, does applying
+[d527caf2: mm: compaction: prevent kswapd compacting memory to reduce
+CPU usage] help?
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
