@@ -1,97 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id B5CB36B0011
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 20:23:31 -0400 (EDT)
-Date: Thu, 28 Apr 2011 10:22:44 +1000
-From: NeilBrown <neilb@suse.de>
-Subject: Re: [PATCH 12/13] mm: Throttle direct reclaimers if PF_MEMALLOC
- reserves are low and swap is backed by network storage
-Message-ID: <20110428102244.6e1113e9@notabene.brown>
-In-Reply-To: <1303920491-25302-13-git-send-email-mgorman@suse.de>
-References: <1303920491-25302-1-git-send-email-mgorman@suse.de>
-	<1303920491-25302-13-git-send-email-mgorman@suse.de>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F7086B0011
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 20:32:14 -0400 (EDT)
+Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
+	by e1.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p3S0LPNR010930
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 20:21:25 -0400
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p3S0WD0p095102
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 20:32:13 -0400
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p3S0WCpu007247
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 20:32:13 -0400
+Subject: Re: [PATCH 1/2] break out page allocation warning code
+From: john stultz <johnstul@us.ibm.com>
+In-Reply-To: <alpine.DEB.2.00.1104271641350.25369@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1104201317410.31768@chino.kir.corp.google.com>
+	 <1303331695.2796.159.camel@work-vm>
+	 <20110421103009.731B.A69D9226@jp.fujitsu.com>
+	 <1303846026.2816.117.camel@work-vm>
+	 <alpine.DEB.2.00.1104271641350.25369@chino.kir.corp.google.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Wed, 27 Apr 2011 17:32:08 -0700
+Message-ID: <1303950728.2971.35.camel@work-vm>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: David Rientjes <rientjes@google.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Nazarewicz <mina86@mina86.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Wed, 27 Apr 2011 17:08:10 +0100 Mel Gorman <mgorman@suse.de> wrote:
+On Wed, 2011-04-27 at 16:51 -0700, David Rientjes wrote:
+> On Tue, 26 Apr 2011, john stultz wrote:
+> > In the meantime, I'll put some effort into trying to protect unlocked
+> > current->comm acccess using get_task_comm() where possible. Won't happen
+> > in a day, and help would be appreciated. 
+> > 
+> 
+> We need to stop protecting ->comm with ->alloc_lock since it is used for 
+> other members of task_struct that may or may not be held in a function 
+> that wants to read ->comm.  We should probably introduce a seqlock.
 
+Agreed. My initial approach is to consolidate accesses to use
+get_task_comm(), with special case to skip the locking if tsk==current,
+as well as a lock free __get_task_comm() for cases where its not current
+being accessed and the task locking is already done.
 
-> +/*
-> + * Throttle direct reclaimers if backing storage is backed by the network
-> + * and the PFMEMALLOC reserve for the preferred node is getting dangerously
-> + * depleted. kswapd will continue to make progress and wake the processes
-> + * when the low watermark is reached
-> + */
-> +static void throttle_direct_reclaim(gfp_t gfp_mask, struct zonelist *zonelist,
-> +					nodemask_t *nodemask)
-> +{
-> +	struct zone *zone;
-> +	int high_zoneidx = gfp_zone(gfp_mask);
-> +	DEFINE_WAIT(wait);
-> +
-> +	/* Check if the pfmemalloc reserves are ok */
-> +	first_zones_zonelist(zonelist, high_zoneidx, NULL, &zone);
-> +	if (pfmemalloc_watermark_ok(zone->zone_pgdat, high_zoneidx))
-> +		return;
+Once that's all done, the next step is to switch to a seqlock (or
+possibly RCU if Dave is still playing with that idea), internally in the
+get_task_comm implementation and then yank the special __get_task_comm. 
 
-As the first thing that 'wait_event_interruptible" does is test the condition
-and return if it is true, this "if () return;" is pointless.
- 
-> +
-> +	/* Throttle */
-> +	wait_event_interruptible(zone->zone_pgdat->pfmemalloc_wait,
-> +		pfmemalloc_watermark_ok(zone->zone_pgdat, high_zoneidx));
-> +}
+But other suggestions are welcome.
 
-I was surprised that you chose wait_event_interruptible as your previous code
-was almost exactly "wait_event_killable".
+thanks
+-john
 
-Is there some justification for not throttling processes which happen to have
-a (non-fatal) signal pending?
-
-Thanks,
-NeilBrown
-
-
-
-> +
->  unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
->  				gfp_t gfp_mask, nodemask_t *nodemask)
->  {
-> @@ -2133,6 +2172,15 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
->  		.nodemask = nodemask,
->  	};
->  
-> +	throttle_direct_reclaim(gfp_mask, zonelist, nodemask);
-> +
-> +	/*
-> +	 * Do not enter reclaim if fatal signal is pending. 1 is returned so
-> +	 * that the page allocator does not consider triggering OOM
-> +	 */
-> +	if (fatal_signal_pending(current))
-> +		return 1;
-> +
->  	trace_mm_vmscan_direct_reclaim_begin(order,
->  				sc.may_writepage,
->  				gfp_mask);
-> @@ -2488,6 +2536,12 @@ loop_again:
->  			}
->  
->  		}
-> +
-> +		/* Wake throttled direct reclaimers if low watermark is met */
-> +		if (waitqueue_active(&pgdat->pfmemalloc_wait) &&
-> +				pfmemalloc_watermark_ok(pgdat, MAX_NR_ZONES - 1))
-> +			wake_up_interruptible(&pgdat->pfmemalloc_wait);
-> +
->  		if (all_zones_ok || (order && pgdat_balanced(pgdat, balanced, *classzone_idx)))
->  			break;		/* kswapd: all done */
->  		/*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
