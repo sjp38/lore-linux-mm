@@ -1,79 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 6D01490010B
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 12:01:46 -0400 (EDT)
-Subject: Re: [BUG] fatal hang untarring 90GB file, possibly writeback
- related.
-From: James Bottomley <James.Bottomley@suse.de>
-In-Reply-To: <20110428150827.GY4658@suse.de>
-References: <1303923000.2583.8.camel@mulgrave.site>
-	 <1303923177-sup-2603@think> <1303924902.2583.13.camel@mulgrave.site>
-	 <1303925374-sup-7968@think> <1303926637.2583.17.camel@mulgrave.site>
-	 <1303934716.2583.22.camel@mulgrave.site> <1303990590.2081.9.camel@lenovo>
-	 <20110428135228.GC1696@quack.suse.cz> <20110428140725.GX4658@suse.de>
-	 <1304000714.2598.0.camel@mulgrave.site>  <20110428150827.GY4658@suse.de>
-Content-Type: text/plain; charset="UTF-8"
-Date: Thu, 28 Apr 2011 11:01:39 -0500
-Message-ID: <1304006499.2598.5.camel@mulgrave.site>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 06E0D90010B
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 12:03:06 -0400 (EDT)
+Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
+	by e6.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p3SFclEi001572
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 11:38:47 -0400
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p3SG315I099156
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 12:03:01 -0400
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p3SC2mqD018909
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 09:02:49 -0300
+Subject: Re: [PATCH 2/3] make new alloc_pages_exact()
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <4DB88DAF.2010504@freescale.com>
+References: <20110414200139.ABD98551@kernel>
+	 <20110414200140.CDE09A20@kernel> <4DB88AF0.1050501@freescale.com>
+	 <1303940249.9516.366.camel@nimitz>  <4DB88DAF.2010504@freescale.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Date: Thu, 28 Apr 2011 09:02:57 -0700
+Message-ID: <1304006577.9516.2578.camel@nimitz>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Jan Kara <jack@suse.cz>, colin.king@canonical.com, Chris Mason <chris.mason@oracle.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-ext4 <linux-ext4@vger.kernel.org>, mgorman@novell.com
+To: Timur Tabi <timur@freescale.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andi Kleen <andi@firstfloor.org>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Michal Nazarewicz <mina86@mina86.com>, David Rientjes <rientjes@google.com>
 
-On Thu, 2011-04-28 at 16:08 +0100, Mel Gorman wrote:
-> On Thu, Apr 28, 2011 at 09:25:14AM -0500, James Bottomley wrote:
-> > On Thu, 2011-04-28 at 15:07 +0100, Mel Gorman wrote:
-> > > On Thu, Apr 28, 2011 at 03:52:28PM +0200, Jan Kara wrote:
-> > > > On Thu 28-04-11 12:36:30, Colin Ian King wrote:
-> > > > > One more data point to add, I've been looking at an identical issue when
-> > > > > copying large amounts of data.  I bisected this - and the lockups occur
-> > > > > with commit 
-> > > > > 3e7d344970673c5334cf7b5bb27c8c0942b06126 - before that I don't see the
-> > > > > issue. With this commit, my file copy test locks up after ~8-10
-> > > > > iterations, before this commit I can copy > 100 times and don't see the
-> > > > > lockup.
-> > > >   Adding Mel to CC, I guess he'll be interested. Mel, it seems this commit
-> > > > of yours causes kswapd on non-preempt kernels spin for a *long* time...
-> > > > 
-> > > 
-> > > I'm still thinking about the traces which do not point the finger
-> > > directly at compaction per-se but it's possible that the change means
-> > > kswapd is not reclaiming like it should be.
-> > > 
-> > > To test this theory, does applying
-> > > [d527caf2: mm: compaction: prevent kswapd compacting memory to reduce
-> > > CPU usage] help?
-> > 
-> > I can answer definitively no to this.  The upstream kernel I reproduced
-> > this on has that patch included.
-> > 
+On Wed, 2011-04-27 at 16:42 -0500, Timur Tabi wrote:
+> Dave Hansen wrote:
+> >> Is there an easy way to verify that alloc_pages_exact(5MB) really does allocate
+> >> > only 5MB and not 8MB?
 > 
-> So it is.
+> > I'm not sure why you're asking.  How do we know that the _normal_
+> > allocator only gives us 4k when we ask for 4k?  Well, that's just how it
+> > works.  If alloc_pages_exact() returns success, you know it's got the
+> > amount of memory that you asked for, and only that plus a bit of masking
+> > for page alignment.
+> > 
+> > Have you seen alloc_pages_exact() behaving in some other way?
 > 
-> Another consequence of this patch is that when high order allocations
-> are in progress (is the test case fork heavy in any way for
-> example?
+> I've never tested this part of alloc_pages_exact(), even when I wrote (the first
+> version of) it.  I just took it on faith that it actually did what it was
+> supposed to do.
 
-It's a simple huge untar, so it shouldn't fork.
+I did actually go add a bunch of printks to it at one point.  It did
+seem to be working just fine and freeing the right amount of memory.
 
->  alternatively, it might be something in the storage stack
-> that requires high-order allocs)
-
-I've tried switching from CFQ to deadline with no apparent changes
-
->  we are no longer necessarily going
-> to sleep because of should_reclaim_continue() check. This could
-> explain kswapd-at-99% but would only apply if CONFIG_COMPACTION is
-> set (does unsetting CONFIG_COMPACTION help). If the bug only triggers
-> for CONFIG_COMPACTION, does the following *untested* patch help any?
-
-Turning off COMPACTION and HUGEPAGES doesn't help ... kswapd still goes
-to 99% on the PREEMPT kernel, so it doesn't seem to be related
-
-James
-
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
