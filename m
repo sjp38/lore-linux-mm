@@ -1,143 +1,169 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 7D9316B0011
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 00:19:50 -0400 (EDT)
-Date: Thu, 28 Apr 2011 12:19:47 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: readahead and oom
-Message-ID: <20110428041947.GA8761@localhost>
-References: <BANLkTin8mE=DLWma=U+CdJaQW03X2M2W1w@mail.gmail.com>
- <20110426055521.GA18473@localhost>
- <BANLkTik8k9A8N8CPk+eXo9c_syxJFRyFCA@mail.gmail.com>
- <BANLkTim0MNgqeh1KTfvpVFuAvebKyQV8Hg@mail.gmail.com>
- <20110426062535.GB19717@localhost>
- <BANLkTinM9DjK9QsGtN0Sh308rr+86UMF0A@mail.gmail.com>
- <20110426063421.GC19717@localhost>
- <BANLkTi=xDozFNBXNdGDLK6EwWrfHyBifQw@mail.gmail.com>
- <20110426092029.GA27053@localhost>
- <20110426124743.e58d9746.akpm@linux-foundation.org>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id BAC456B0011
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 00:24:35 -0400 (EDT)
+Received: from kpbe13.cbf.corp.google.com (kpbe13.cbf.corp.google.com [172.25.105.77])
+	by smtp-out.google.com with ESMTP id p3S4OWTF002384
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 21:24:32 -0700
+Received: from qyl38 (qyl38.prod.google.com [10.241.83.230])
+	by kpbe13.cbf.corp.google.com with ESMTP id p3S4NqNv006598
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 21:24:30 -0700
+Received: by qyl38 with SMTP id 38so1967776qyl.1
+        for <linux-mm@kvack.org>; Wed, 27 Apr 2011 21:24:30 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="9amGYk9869ThD9tj"
-Content-Disposition: inline
-In-Reply-To: <20110426124743.e58d9746.akpm@linux-foundation.org>
+In-Reply-To: <20110428125739.15e252a7.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20110428121643.b3cbf420.kamezawa.hiroyu@jp.fujitsu.com>
+	<BANLkTimywCF06gfKWFcbAsWtFUbs73rZrQ@mail.gmail.com>
+	<20110428125739.15e252a7.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Wed, 27 Apr 2011 21:24:30 -0700
+Message-ID: <BANLkTikgJWYJ8_rAkuNtD0vTehCG7vPpow@mail.gmail.com>
+Subject: Re: Fw: [PATCH] memcg: add reclaim statistics accounting
+From: Ying Han <yinghan@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Minchan Kim <minchan.kim@gmail.com>, Dave Young <hidave.darkstar@gmail.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Mel Gorman <mel@linux.vnet.ibm.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
 
+On Wed, Apr 27, 2011 at 8:57 PM, KAMEZAWA Hiroyuki
+<kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> On Wed, 27 Apr 2011 20:43:58 -0700
+> Ying Han <yinghan@google.com> wrote:
+>
+>> On Wed, Apr 27, 2011 at 8:16 PM, KAMEZAWA Hiroyuki
+>> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+>> > sorry, I had wrong TO:...
+>> >
+>> > Begin forwarded message:
+>> >
+>> > Date: Thu, 28 Apr 2011 12:02:34 +0900
+>> > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>> > To: linux-mm@vger.kernel.org
+>> > Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "ni=
+shimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vne=
+t.ibm.com" <balbir@linux.vnet.ibm.com>, Ying Han <yinghan@google.com>, "akp=
+m@linux-foundation.org" <akpm@linux-foundation.org>
+>> > Subject: [PATCH] memcg: add reclaim statistics accounting
+>> >
+>> >
+>> >
+>> > Now, memory cgroup provides poor reclaim statistics per memcg. This
+>> > patch adds statistics for direct/soft reclaim as the number of
+>> > pages scans, the number of page freed by reclaim, the nanoseconds of
+>> > latency at reclaim.
+>> >
+>> > It's good to add statistics before we modify memcg/global reclaim, lar=
+gely.
+>> > This patch refactors current soft limit status and add an unified upda=
+te logic.
+>> >
+>> > For example, After #cat 195Mfile > /dev/null under 100M limit.
+>> > =A0 =A0 =A0 =A0# cat /cgroup/memory/A/memory.stat
+>> > =A0 =A0 =A0 =A0....
+>> > =A0 =A0 =A0 =A0limit_freed 24592
+>>
+>> why not "limit_steal" ?
+>>
+>
+> It's not "stealed". Freed by itself.
+> pages reclaimed by soft-limit is stealed because of global memory pressur=
+e.
+> I don't like the name "steal" but I can't change it because of API breaka=
+ge.
+>
+>
+>> > =A0 =A0 =A0 =A0soft_steal 0
+>> > =A0 =A0 =A0 =A0limit_scan 43974
+>> > =A0 =A0 =A0 =A0soft_scan 0
+>> > =A0 =A0 =A0 =A0limit_latency 133837417
+>> >
+>> > nearly 96M caches are freed. scanned twice. used 133ms.
+>>
+>> Does it make sense to split up the soft_steal/scan for bg reclaim and
+>> direct reclaim?
+>
+> Please clarify what you're talking about before asking. Maybe you want to=
+ say
+> "I'm now working for supporting softlimit in direct reclaim path. So, doe=
+s
+> =A0it make sense to account direct/kswapd works in statistics ?"
+>
+> I think bg/direct reclaim is not required to be splitted.
 
---9amGYk9869ThD9tj
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Ok, thanks for the clarification. The patch i am working now to be
+more specific is to add the
+soft_limit hierarchical reclaim on the global direct reclaim.
 
-On Wed, Apr 27, 2011 at 03:47:43AM +0800, Andrew Morton wrote:
-> On Tue, 26 Apr 2011 17:20:29 +0800
-> Wu Fengguang <fengguang.wu@intel.com> wrote:
-> 
-> > Pass __GFP_NORETRY|__GFP_NOWARN for readahead page allocations.
-> > 
-> > readahead page allocations are completely optional. They are OK to
-> > fail and in particular shall not trigger OOM on themselves.
-> 
-> I have distinct recollections of trying this many years ago, finding
-> that it caused problems then deciding not to do it.  But I can't find
-> an email trail and I don't remember the reasons :(
+I am adding similar stats to monitor the soft_steal, but i split-off
+the soft_steal from global direct reclaim and
+global background reclaim. I am wondering isn't that give us more
+visibility of the reclaim path?
 
-The most possible reason can be page allocation failures even if there
-are plenty of _global_ reclaimable pages.
+>
+>> The same for the limit_steal/scan.
+>
+> limit has only direct reclaim, now. And this is independent from any
+> soft limit works.
 
-> If the system is so stressed for memory that the oom-killer might get
-> involved then the readahead pages may well be getting reclaimed before
-> the application actually gets to use them.  But that's just an aside.
+agree.
 
-Yes, when direct reclaim is working as expected, readahead thrashing
-should happen long before NORETRY page allocation failures and OOM.
+>
+>> I am now testing
+>> the patch to add the soft_limit reclaim on global ttfp, and i already
+>> have the patch to add the following:
+>>
+>> kswapd_soft_steal 0
+>> kswapd_soft_scan 0
+>
+> please don't change the name of _used_ statisitcs.
 
-With that assumption I think it's OK to do this patch.  As for
-readahead, sporadic allocation failures are acceptable. But there is a
-problem, see below.
+good point. thanks
 
-> Ho hum.  The patch *seems* good (as it did 5-10 years ago ;)) but there
-> may be surprising side-effects which could be exposed under heavy
-> testing.  Testing which I'm sure hasn't been performed...
+>
+>
+>> direct_soft_steal 0
+>> direct_soft_scan 0
+>
+> Maybe these are new ones added by your work. But should be merged to
+> soft_steal/soft_scan.
+the same question above, why we don't want to have better visibility
+of where we triggered
+the soft_limit reclaim and how much has been done on behalf of each.
 
-The NORETRY direct reclaim does tend to fail a lot more on concurrent
-reclaims, where one task's reclaimed pages can be stoled by others
-before it's able to get it.
+>
+>> kswapd_steal 0
+>> pg_pgsteal 0
+>> kswapd_pgscan 0
+>> pg_scan 0
+>>
+>
+> Maybe this indicates reclaimed-by-other-tasks-than-this-memcg. Right ?
+> Maybe good for checking isolation of memcg, hmm, can these be accounted
+> in scalable way ?
 
-        __alloc_pages_direct_reclaim()
-        {
-                did_some_progress = try_to_free_pages();
+you can ignore those four stats. They are part of the per-memcg-kswapd
+patchset, and i guess you might
+have similar patch for that purpose.
 
-                // pages stolen by others
+>
+> BTW, my office will be closed for a week because of holidays. So, I'll no=
+t make
+> responce tomorrow. please CC kamezawa.hiroyuki@gmail.com if you need.
+> I may read e-mails.
 
-                page = get_page_from_freelist();
-        }
+Thanks for the heads up ~
 
-Here are the tests to demonstrate this problem.
+--Ying
 
-Out of 1000GB reads and page allocations,
-
-        test-ra-thrash.sh: read 1000 1G files interleaved in 1 single task:
-
-        nr_alloc_fail 733
-
-        test-dd-sparse.sh: read 1000 1G files concurrently in 1000 tasks:
-
-        nr_alloc_fail 11799
-
-
-Thanks,
-Fengguang
----
-
---- linux-next.orig/include/linux/mmzone.h	2011-04-27 21:58:27.000000000 +0800
-+++ linux-next/include/linux/mmzone.h	2011-04-27 21:58:39.000000000 +0800
-@@ -106,6 +106,7 @@ enum zone_stat_item {
- 	NR_SHMEM,		/* shmem pages (included tmpfs/GEM pages) */
- 	NR_DIRTIED,		/* page dirtyings since bootup */
- 	NR_WRITTEN,		/* page writings since bootup */
-+	NR_ALLOC_FAIL,
- #ifdef CONFIG_NUMA
- 	NUMA_HIT,		/* allocated in intended node */
- 	NUMA_MISS,		/* allocated in non intended node */
---- linux-next.orig/mm/page_alloc.c	2011-04-27 21:58:27.000000000 +0800
-+++ linux-next/mm/page_alloc.c	2011-04-27 21:58:39.000000000 +0800
-@@ -2176,6 +2176,8 @@ rebalance:
- 	}
- 
- nopage:
-+	inc_zone_state(preferred_zone, NR_ALLOC_FAIL);
-+	/* count_zone_vm_events(PGALLOCFAIL, preferred_zone, 1 << order); */
- 	if (!(gfp_mask & __GFP_NOWARN) && printk_ratelimit()) {
- 		unsigned int filter = SHOW_MEM_FILTER_NODES;
- 
---- linux-next.orig/mm/vmstat.c	2011-04-27 21:58:27.000000000 +0800
-+++ linux-next/mm/vmstat.c	2011-04-27 21:58:53.000000000 +0800
-@@ -879,6 +879,7 @@ static const char * const vmstat_text[] 
- 	"nr_shmem",
- 	"nr_dirtied",
- 	"nr_written",
-+	"nr_alloc_fail",
- 
- #ifdef CONFIG_NUMA
- 	"numa_hit",
-
---9amGYk9869ThD9tj
-Content-Type: application/x-sh
-Content-Disposition: attachment; filename="test-dd-sparse.sh"
-Content-Transfer-Encoding: quoted-printable
-
-#!/bin/sh=0A=0Amount /dev/sda7 /fs=0A=0Afor i in `seq 1000`=0Ado=0A	truncat=
-e -s 1G /fs/sparse-$i=0A	dd if=3D/fs/sparse-$i of=3D/dev/null &=0Adone=0A
---9amGYk9869ThD9tj
-Content-Type: application/x-sh
-Content-Disposition: attachment; filename="test-ra-thrash.sh"
-Content-Transfer-Encoding: quoted-printable
-
-#!/bin/sh=0A=0Amount /dev/sda7 /fs=0A=0Afor i in `seq 1000`=0Ado=0A	truncat=
-e -s 1G /fs/sparse-$i=0Adone=0A=0Ara-thrash /fs/sparse-*=0A
---9amGYk9869ThD9tj--
+>
+> Thanks,
+> -Kame
+>
+>
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
