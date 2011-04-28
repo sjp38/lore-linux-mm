@@ -1,104 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 514C16B0011
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 07:19:00 -0400 (EDT)
-Date: Thu, 28 Apr 2011 12:18:54 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 08/13] netvm: Allow skb allocation to use PFMEMALLOC
- reserves
-Message-ID: <20110428111854.GV4658@suse.de>
-References: <1303920491-25302-1-git-send-email-mgorman@suse.de>
- <1303920491-25302-9-git-send-email-mgorman@suse.de>
- <20110428161933.1f1266e6@notabene.brown>
- <20110428100035.GO4658@suse.de>
- <20110428204755.2e07147e@notabene.brown>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20110428204755.2e07147e@notabene.brown>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id E95F76B0011
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 07:36:35 -0400 (EDT)
+Received: by wwi36 with SMTP id 36so2526100wwi.26
+        for <linux-mm@kvack.org>; Thu, 28 Apr 2011 04:36:33 -0700 (PDT)
+Subject: Re: [BUG] fatal hang untarring 90GB file, possibly writeback
+ related.
+From: Colin Ian King <colin.king.lkml@gmail.com>
+Reply-To: colin.king@canonical.com
+In-Reply-To: <1303934716.2583.22.camel@mulgrave.site>
+References: <1303920553.2583.7.camel@mulgrave.site>
+	 <1303921583-sup-4021@think> <1303923000.2583.8.camel@mulgrave.site>
+	 <1303923177-sup-2603@think> <1303924902.2583.13.camel@mulgrave.site>
+	 <1303925374-sup-7968@think>  <1303926637.2583.17.camel@mulgrave.site>
+	 <1303934716.2583.22.camel@mulgrave.site>
+Content-Type: text/plain; charset="UTF-8"
+Date: Thu, 28 Apr 2011 12:36:30 +0100
+Message-ID: <1303990590.2081.9.camel@lenovo>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: NeilBrown <neilb@suse.de>
-Cc: Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: James Bottomley <James.Bottomley@suse.de>
+Cc: Chris Mason <chris.mason@oracle.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-ext4 <linux-ext4@vger.kernel.org>
 
-On Thu, Apr 28, 2011 at 08:47:55PM +1000, NeilBrown wrote:
-> On Thu, 28 Apr 2011 11:05:06 +0100 Mel Gorman <mgorman@suse.de> wrote:
-> 
-> > On Thu, Apr 28, 2011 at 04:19:33PM +1000, NeilBrown wrote:
-> > > On Wed, 27 Apr 2011 17:08:06 +0100 Mel Gorman <mgorman@suse.de> wrote:
-> > > 
-> > > 
-> > > > @@ -1578,7 +1589,7 @@ static inline struct sk_buff *netdev_alloc_skb_ip_align(struct net_device *dev,
-> > > >   */
-> > > >  static inline struct page *__netdev_alloc_page(struct net_device *dev, gfp_t gfp_mask)
-> > > >  {
-> > > > -	return alloc_pages_node(NUMA_NO_NODE, gfp_mask, 0);
-> > > > +	return alloc_pages_node(NUMA_NO_NODE, gfp_mask | __GFP_MEMALLOC, 0);
-> > > >  }
-> > > >  
-> > > 
-> > > I'm puzzling a bit over this change.
-> > > __netdev_alloc_page appears to be used to get pages to put in ring buffer
-> > > for a network card to DMA received packets into.  So it is OK to use
-> > > __GFP_MEMALLOC for these allocations providing we mark the resulting skb as
-> > > 'pfmemalloc' if a reserved page was used.
-> > > 
-> > > However I don't see where that marking is done.
-> > > I think it should be in skb_fill_page_desc, something like:
-> > > 
-> > >   if (page->pfmemalloc)
-> > > 	skb->pfmemalloc = true;
-> > > 
-> > > Is this covered somewhere else that I am missing?
-> > > 
-> > 
-> > You're not missing anything.
-> > 
-> > >From the context of __netdev_alloc_page, we do not know if the skb
-> > is suitable for marking pfmemalloc or not (we don't have SKB_ALLOC_RX
-> > flag for example that __alloc_skb has). The reserves are potentially
-> > being dipped into for an unsuitable packet but it gets dropped in
-> > __netif_receive_skb() and the memory is returned. If we mark the skb
-> > pfmemalloc as a result of __netdev_alloc_page using a reserve page, the
-> > packets would not get dropped as expected.
-> > 
-> 
-> The only code in __netif_receive_skb that seems to drop packets is
-> 
-> +	if (skb_pfmemalloc(skb) && !skb_pfmemalloc_protocol(skb))
-> +		goto drop;
-> +
-> 
-> which requires that the skb have pfmemalloc set before it will be dropped.
-> 
+One more data point to add, I've been looking at an identical issue when
+copying large amounts of data.  I bisected this - and the lockups occur
+with commit 
+3e7d344970673c5334cf7b5bb27c8c0942b06126 - before that I don't see the
+issue. With this commit, my file copy test locks up after ~8-10
+iterations, before this commit I can copy > 100 times and don't see the
+lockup.
 
-Yes, I only wanted to drop the packet if we were under pressure
-when skb was allocated. If we hit pressure between when skb was
-allocated and when __netdev_alloc_page is called, then the PFMEMALLOC
-reserves may be used for packet receive unnecessarily but the next skb
-allocation that grows slab will have the flag set appropriately. There
-is a window during which we use reserves where we did not have to
-but it's limited. Again, the throttling if pfmemalloc reserves gets too
-depleted comes into play.
-
-> Actually ... I'm expecting to find code that says:
->    if (skb_pfmalloc(skb) && !sock_flag(sk, SOCK_MEMALLOC))
-> 	drop_packet();
+On Wed, 2011-04-27 at 15:05 -0500, James Bottomley wrote:
+> On Wed, 2011-04-27 at 12:50 -0500, James Bottomley wrote:
+> > To test the theory, Chris asked me to try with data=ordered.
+> > Unfortunately, the deadlock still shows up.  This is what I get.
 > 
-> but I cannot find it.  Where is the code that discard pfmalloc packets for
-> non-memalloc sockets?
+> As another data point: I'm trying the same kernel with CONFIG_PREEMPT
+> enabled.  This time the deadlock doesn't happen.  Instead, kswapd0 gets
+> pegged at 99% CPU for much of the untar, but it does eventually
+> complete.
 > 
-> I can see similar code in sk_filter but that doesn't drop the packet, it just
-> avoids filtering it.
+> James
 > 
+> 
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 
-hmm, if sk_filter is returning -ENOMEM then things like
-sock_queue_rcv_skb() return error and the skb does not get queued and I
-expected it to get dropped. What did I miss?
-
--- 
-Mel Gorman
-SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
