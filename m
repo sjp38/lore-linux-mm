@@ -1,54 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 2651B6B0024
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 10:07:31 -0400 (EDT)
-Date: Thu, 28 Apr 2011 15:07:25 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [BUG] fatal hang untarring 90GB file, possibly writeback related.
-Message-ID: <20110428140725.GX4658@suse.de>
-References: <1303920553.2583.7.camel@mulgrave.site>
- <1303921583-sup-4021@think>
- <1303923000.2583.8.camel@mulgrave.site>
- <1303923177-sup-2603@think>
- <1303924902.2583.13.camel@mulgrave.site>
- <1303925374-sup-7968@think>
- <1303926637.2583.17.camel@mulgrave.site>
- <1303934716.2583.22.camel@mulgrave.site>
- <1303990590.2081.9.camel@lenovo>
- <20110428135228.GC1696@quack.suse.cz>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 0EC5B6B0011
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 10:11:24 -0400 (EDT)
+Date: Thu, 28 Apr 2011 09:11:20 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH] percpu: preemptless __per_cpu_counter_add
+In-Reply-To: <20110428100938.GA10721@htj.dyndns.org>
+Message-ID: <alpine.DEB.2.00.1104280904240.15775@router.home>
+References: <20110421180159.GF15988@htj.dyndns.org> <alpine.DEB.2.00.1104211308300.5741@router.home> <20110421183727.GG15988@htj.dyndns.org> <alpine.DEB.2.00.1104211350310.5741@router.home> <20110421190807.GK15988@htj.dyndns.org> <1303439580.3981.241.camel@sli10-conroe>
+ <20110426121011.GD878@htj.dyndns.org> <1303883009.3981.316.camel@sli10-conroe> <20110427102034.GE31015@htj.dyndns.org> <1303961284.3981.318.camel@sli10-conroe> <20110428100938.GA10721@htj.dyndns.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20110428135228.GC1696@quack.suse.cz>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: colin.king@canonical.com, James Bottomley <James.Bottomley@suse.de>, Chris Mason <chris.mason@oracle.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-ext4 <linux-ext4@vger.kernel.org>, mgorman@novell.com
+To: Tejun Heo <tj@kernel.org>
+Cc: Shaohua Li <shaohua.li@intel.com>, Eric Dumazet <eric.dumazet@gmail.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Thu, Apr 28, 2011 at 03:52:28PM +0200, Jan Kara wrote:
-> On Thu 28-04-11 12:36:30, Colin Ian King wrote:
-> > One more data point to add, I've been looking at an identical issue when
-> > copying large amounts of data.  I bisected this - and the lockups occur
-> > with commit 
-> > 3e7d344970673c5334cf7b5bb27c8c0942b06126 - before that I don't see the
-> > issue. With this commit, my file copy test locks up after ~8-10
-> > iterations, before this commit I can copy > 100 times and don't see the
-> > lockup.
->   Adding Mel to CC, I guess he'll be interested. Mel, it seems this commit
-> of yours causes kswapd on non-preempt kernels spin for a *long* time...
-> 
+On Thu, 28 Apr 2011, Tejun Heo wrote:
 
-I'm still thinking about the traces which do not point the finger
-directly at compaction per-se but it's possible that the change means
-kswapd is not reclaiming like it should be.
+> Hmm... we're now more lost than ever. :-( Can you please re-read my
+> message two replies ago?  The one where I talked about sporadic
+> erratic behaviors in length and why I was worried about it.
+>
+> In your last reply, you talked about preemption and that you didn't
+> have problems with disabling preemption, which, unfortunately, doesn't
+> have much to do with my concern with the sporadic erratic behaviors
+> and that's what I pointed out in my previous reply.  So, it doesn't
+> feel like anything is resolved.
 
-To test this theory, does applying
-[d527caf2: mm: compaction: prevent kswapd compacting memory to reduce
-CPU usage] help?
+Sporadic erratic behavior exists today since any thread can add an
+abitrary number to its local counter while you are adding up all the per
+cpu differentials. If this happens just after you picked up the value then
+a single cpu can cause a high deviation. If multiple cpus do this then a
+high degree of deviation can even be had with todays implementation.
 
--- 
-Mel Gorman
-SUSE Labs
+Can you show in some tests how the chance of deviations is increased? If
+at all then in some special sitations. Maybe others get better?
+
+The counters were always designed to be racy for performance reasons.
+Trying to serialize them goes against the design of these things. In order
+to increase accuracy you have to decrease the allowable delta in the per
+cpu differentials.
+
+Looping over all differentials to get more accuracy is something that may
+not work as we have seen recently with the VM counters issues that caused
+bad behavior during reclaim.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
