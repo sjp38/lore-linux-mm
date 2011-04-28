@@ -1,40 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 5E5466B0011
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 17:12:34 -0400 (EDT)
-Subject: Re: [BUG] fatal hang untarring 90GB file, possibly writeback
- related.
-From: James Bottomley <James.Bottomley@suse.de>
-In-Reply-To: <1304020767.2598.21.camel@mulgrave.site>
-References: <1303990590.2081.9.camel@lenovo>
-	 <20110428135228.GC1696@quack.suse.cz> <20110428140725.GX4658@suse.de>
-	 <1304000714.2598.0.camel@mulgrave.site> <20110428150827.GY4658@suse.de>
-	 <1304006499.2598.5.camel@mulgrave.site>
-	 <1304009438.2598.9.camel@mulgrave.site>
-	 <1304009778.2598.10.camel@mulgrave.site> <20110428171826.GZ4658@suse.de>
-	 <1304015436.2598.19.camel@mulgrave.site>  <20110428192104.GA4658@suse.de>
-	 <1304020767.2598.21.camel@mulgrave.site>
-Content-Type: text/plain; charset="UTF-8"
-Date: Thu, 28 Apr 2011 16:12:24 -0500
-Message-ID: <1304025145.2598.24.camel@mulgrave.site>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 630456B0011
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 17:35:54 -0400 (EDT)
+Received: from hpaq11.eem.corp.google.com (hpaq11.eem.corp.google.com [172.25.149.11])
+	by smtp-out.google.com with ESMTP id p3SLZZMK029417
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 14:35:35 -0700
+Received: from pzk30 (pzk30.prod.google.com [10.243.19.158])
+	by hpaq11.eem.corp.google.com with ESMTP id p3SLZJG3002390
+	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 14:35:34 -0700
+Received: by pzk30 with SMTP id 30so2396121pzk.18
+        for <linux-mm@kvack.org>; Thu, 28 Apr 2011 14:35:33 -0700 (PDT)
+Date: Thu, 28 Apr 2011 14:35:32 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 3/3] comm: ext4: Protect task->comm access by using
+ get_task_comm()
+In-Reply-To: <1303963411-2064-4-git-send-email-john.stultz@linaro.org>
+Message-ID: <alpine.DEB.2.00.1104281426210.21665@chino.kir.corp.google.com>
+References: <1303963411-2064-1-git-send-email-john.stultz@linaro.org> <1303963411-2064-4-git-send-email-john.stultz@linaro.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Jan Kara <jack@suse.cz>, colin.king@canonical.com, Chris Mason <chris.mason@oracle.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-ext4 <linux-ext4@vger.kernel.org>, mgorman@novell.com
+To: John Stultz <john.stultz@linaro.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-On Thu, 2011-04-28 at 14:59 -0500, James Bottomley wrote:
-> Actually, talking to Chris, I think I can get the system up using
-> init=/bin/bash without systemd, so I can try the no cgroup config.
+On Wed, 27 Apr 2011, John Stultz wrote:
 
-OK, so a non-PREEMPT non-CGROUP kernel has survived three back to back
-runs of untar without locking or getting kswapd pegged, so I'm pretty
-certain this is cgroups related.  The next steps are to turn cgroups
-back on but try disabling the memory and IO controllers.
+> diff --git a/fs/ext4/file.c b/fs/ext4/file.c
+> index 7b80d54..d37414e 100644
+> --- a/fs/ext4/file.c
+> +++ b/fs/ext4/file.c
+> @@ -124,11 +124,15 @@ ext4_file_write(struct kiocb *iocb, const struct iovec *iov,
+>  		static unsigned long unaligned_warn_time;
+>  
+>  		/* Warn about this once per day */
+> -		if (printk_timed_ratelimit(&unaligned_warn_time, 60*60*24*HZ))
+> +		if (printk_timed_ratelimit(&unaligned_warn_time, 60*60*24*HZ)) {
+> +			char comm[TASK_COMM_LEN];
+> +
+> +			get_task_comm(comm, current);
+>  			ext4_msg(inode->i_sb, KERN_WARNING,
+>  				 "Unaligned AIO/DIO on inode %ld by %s; "
+>  				 "performance will be poor.",
+> -				 inode->i_ino, current->comm);
+> +				 inode->i_ino, comm);
+> +		}
+>  		mutex_lock(ext4_aio_mutex(inode));
+>  		ext4_aiodio_wait(inode);
+>  	}
 
-James
+Thanks very much for looking into concurrent readers of current->comm, 
+John!
 
+This patch in the series demonstrates one of the problems with using 
+get_task_comm(), however: we must allocate a 16-byte buffer on the stack 
+and that could become risky if we don't know its current depth.  We may be 
+particularly deep in the stack and then cause an overflow because of the 
+16 bytes.
+
+I'm wondering if it would be better for ->comm to be protected by a 
+spinlock (or rwlock) other than ->alloc_lock and then just require readers 
+to take the lock prior to dereferencing it?  That's what is done in the 
+oom killer with task_lock().  Perhaps you could introduce new 
+task_comm_lock() and task_comm_unlock() to prevent the extra stack usage 
+in over 300 locations within the kernel?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
