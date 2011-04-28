@@ -1,108 +1,143 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id D702E6B0011
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 00:12:14 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id BCB2D3EE0C0
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 13:12:11 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id A4C1245DE92
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 13:12:11 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 855E745DE77
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 13:12:11 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 793D91DB803C
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 13:12:11 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 324771DB8037
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 13:12:11 +0900 (JST)
-Date: Thu, 28 Apr 2011 13:05:29 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 0/7] memcg background reclaim , yet another one.
-Message-Id: <20110428130529.41d264d0.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <BANLkTin=VW4kbBbeiipEx0pqByWpSjbi=Q@mail.gmail.com>
-References: <20110425182529.c7c37bb4.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110425191437.d881ee68.kamezawa.hiroyu@jp.fujitsu.com>
-	<BANLkTikYeV8JpMHd1Lvh7kRXXpLyQEOw4w@mail.gmail.com>
-	<20110426103859.05eb7a35.kamezawa.hiroyu@jp.fujitsu.com>
-	<BANLkTi=aoRhgu3SOKZ8OLRqTew67ciquFg@mail.gmail.com>
-	<20110426164341.fb6c80a4.kamezawa.hiroyu@jp.fujitsu.com>
-	<BANLkTi=sSrrQCMXKJor95Cn-JmiQ=XUAkA@mail.gmail.com>
-	<20110426174754.07a58f22.kamezawa.hiroyu@jp.fujitsu.com>
-	<BANLkTin=VW4kbBbeiipEx0pqByWpSjbi=Q@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 7D9316B0011
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 00:19:50 -0400 (EDT)
+Date: Thu, 28 Apr 2011 12:19:47 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: readahead and oom
+Message-ID: <20110428041947.GA8761@localhost>
+References: <BANLkTin8mE=DLWma=U+CdJaQW03X2M2W1w@mail.gmail.com>
+ <20110426055521.GA18473@localhost>
+ <BANLkTik8k9A8N8CPk+eXo9c_syxJFRyFCA@mail.gmail.com>
+ <BANLkTim0MNgqeh1KTfvpVFuAvebKyQV8Hg@mail.gmail.com>
+ <20110426062535.GB19717@localhost>
+ <BANLkTinM9DjK9QsGtN0Sh308rr+86UMF0A@mail.gmail.com>
+ <20110426063421.GC19717@localhost>
+ <BANLkTi=xDozFNBXNdGDLK6EwWrfHyBifQw@mail.gmail.com>
+ <20110426092029.GA27053@localhost>
+ <20110426124743.e58d9746.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="9amGYk9869ThD9tj"
+Content-Disposition: inline
+In-Reply-To: <20110426124743.e58d9746.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Johannes Weiner <jweiner@redhat.com>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Minchan Kim <minchan.kim@gmail.com>, Dave Young <hidave.darkstar@gmail.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Mel Gorman <mel@linux.vnet.ibm.com>
 
-On Wed, 27 Apr 2011 20:55:49 -0700
-Ying Han <yinghan@google.com> wrote:
 
-> On Tue, Apr 26, 2011 at 1:47 AM, KAMEZAWA Hiroyuki
-> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > On Tue, 26 Apr 2011 01:43:17 -0700
-> > Ying Han <yinghan@google.com> wrote:
-> >
-> >> On Tue, Apr 26, 2011 at 12:43 AM, KAMEZAWA Hiroyuki <
-> >> kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> >>
-> >> > On Tue, 26 Apr 2011 00:19:46 -0700
-> >> > Ying Han <yinghan@google.com> wrote:
-> >> >
-> >> > > On Mon, Apr 25, 2011 at 6:38 PM, KAMEZAWA Hiroyuki
-> >> > > <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> >> > > > On Mon, 25 Apr 2011 15:21:21 -0700
-> >> > > > Ying Han <yinghan@google.com> wrote:
-> >
-> >>
-> >> > To clarify a bit, my question was meant to account it but not necessary to
-> >> > limit it. We can use existing cpu cgroup to do the cpu limiting, and I am
-> >> >
-> >> just wondering how to configure it for the memcg kswapd thread.
-> >>
-> >> A  A Let's say in the per-memcg-kswapd model, i can echo the kswapd thread pid
-> >> into the cpu cgroup ( the same set of process of memcg, but in a cpu
-> >> limiting cgroup instead). A If the kswapd is shared, we might need extra work
-> >> to account the cpu cycles correspondingly.
-> >>
-> >
-> > Hm ? statistics of elapsed_time isn't enough ?
-> >
-> > Now, I think limiting scan/sec interface is more promissing rather than time
-> > or thread controls. It's easier to understand.
+--9amGYk9869ThD9tj
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+
+On Wed, Apr 27, 2011 at 03:47:43AM +0800, Andrew Morton wrote:
+> On Tue, 26 Apr 2011 17:20:29 +0800
+> Wu Fengguang <fengguang.wu@intel.com> wrote:
 > 
-> I think it will work on the cpu accounting by recording the
-> elapsed_time per memcg workitem.
+> > Pass __GFP_NORETRY|__GFP_NOWARN for readahead page allocations.
+> > 
+> > readahead page allocations are completely optional. They are OK to
+> > fail and in particular shall not trigger OOM on themselves.
 > 
-> But, we might still need the cpu throttling as well. To give one use
-> cases from google, we'd rather kill a low priority job for running
-> tight on memory rather than having its reclaim thread affecting the
-> latency of high priority job. It is quite easy to understand how to
-> accomplish that in per-memcg-per-kswapd model, but harder in the
-> shared workqueue model. It is straight-forward to read  the cpu usage
-> by the cpuacct.usage* and limit the cpu usage by setting cpu.shares.
-> One concern we have here is the scan/sec implementation will make
-> things quite complex.
-> 
+> I have distinct recollections of trying this many years ago, finding
+> that it caused problems then deciding not to do it.  But I can't find
+> an email trail and I don't remember the reasons :(
 
-I think you should check how distance between limit<->hiwater works
-before jumping onto cpu scheduler. If you can see a memcg's bgreclaim is
-cpu hogging, you can stop it easily by setting limit==hiwat. per-memcg
-statistics seems enough for me. I don't like splitting up features
-between cgroups, more. "To reduce cpu usage by memcg, please check
-cpu cgroup and...." how complex it is! Do you remember what Hugh Dickins
-pointed out at LSF ? It's a big concern.
+The most possible reason can be page allocation failures even if there
+are plenty of _global_ reclaimable pages.
 
-Setting up of combination of cgroup subsys is too complex.
+> If the system is so stressed for memory that the oom-killer might get
+> involved then the readahead pages may well be getting reclaimed before
+> the application actually gets to use them.  But that's just an aside.
+
+Yes, when direct reclaim is working as expected, readahead thrashing
+should happen long before NORETRY page allocation failures and OOM.
+
+With that assumption I think it's OK to do this patch.  As for
+readahead, sporadic allocation failures are acceptable. But there is a
+problem, see below.
+
+> Ho hum.  The patch *seems* good (as it did 5-10 years ago ;)) but there
+> may be surprising side-effects which could be exposed under heavy
+> testing.  Testing which I'm sure hasn't been performed...
+
+The NORETRY direct reclaim does tend to fail a lot more on concurrent
+reclaims, where one task's reclaimed pages can be stoled by others
+before it's able to get it.
+
+        __alloc_pages_direct_reclaim()
+        {
+                did_some_progress = try_to_free_pages();
+
+                // pages stolen by others
+
+                page = get_page_from_freelist();
+        }
+
+Here are the tests to demonstrate this problem.
+
+Out of 1000GB reads and page allocations,
+
+        test-ra-thrash.sh: read 1000 1G files interleaved in 1 single task:
+
+        nr_alloc_fail 733
+
+        test-dd-sparse.sh: read 1000 1G files concurrently in 1000 tasks:
+
+        nr_alloc_fail 11799
+
 
 Thanks,
--Kame
+Fengguang
+---
 
+--- linux-next.orig/include/linux/mmzone.h	2011-04-27 21:58:27.000000000 +0800
++++ linux-next/include/linux/mmzone.h	2011-04-27 21:58:39.000000000 +0800
+@@ -106,6 +106,7 @@ enum zone_stat_item {
+ 	NR_SHMEM,		/* shmem pages (included tmpfs/GEM pages) */
+ 	NR_DIRTIED,		/* page dirtyings since bootup */
+ 	NR_WRITTEN,		/* page writings since bootup */
++	NR_ALLOC_FAIL,
+ #ifdef CONFIG_NUMA
+ 	NUMA_HIT,		/* allocated in intended node */
+ 	NUMA_MISS,		/* allocated in non intended node */
+--- linux-next.orig/mm/page_alloc.c	2011-04-27 21:58:27.000000000 +0800
++++ linux-next/mm/page_alloc.c	2011-04-27 21:58:39.000000000 +0800
+@@ -2176,6 +2176,8 @@ rebalance:
+ 	}
+ 
+ nopage:
++	inc_zone_state(preferred_zone, NR_ALLOC_FAIL);
++	/* count_zone_vm_events(PGALLOCFAIL, preferred_zone, 1 << order); */
+ 	if (!(gfp_mask & __GFP_NOWARN) && printk_ratelimit()) {
+ 		unsigned int filter = SHOW_MEM_FILTER_NODES;
+ 
+--- linux-next.orig/mm/vmstat.c	2011-04-27 21:58:27.000000000 +0800
++++ linux-next/mm/vmstat.c	2011-04-27 21:58:53.000000000 +0800
+@@ -879,6 +879,7 @@ static const char * const vmstat_text[] 
+ 	"nr_shmem",
+ 	"nr_dirtied",
+ 	"nr_written",
++	"nr_alloc_fail",
+ 
+ #ifdef CONFIG_NUMA
+ 	"numa_hit",
 
+--9amGYk9869ThD9tj
+Content-Type: application/x-sh
+Content-Disposition: attachment; filename="test-dd-sparse.sh"
+Content-Transfer-Encoding: quoted-printable
+
+#!/bin/sh=0A=0Amount /dev/sda7 /fs=0A=0Afor i in `seq 1000`=0Ado=0A	truncat=
+e -s 1G /fs/sparse-$i=0A	dd if=3D/fs/sparse-$i of=3D/dev/null &=0Adone=0A
+--9amGYk9869ThD9tj
+Content-Type: application/x-sh
+Content-Disposition: attachment; filename="test-ra-thrash.sh"
+Content-Transfer-Encoding: quoted-printable
+
+#!/bin/sh=0A=0Amount /dev/sda7 /fs=0A=0Afor i in `seq 1000`=0Ado=0A	truncat=
+e -s 1G /fs/sparse-$i=0Adone=0A=0Ara-thrash /fs/sparse-*=0A
+--9amGYk9869ThD9tj--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
