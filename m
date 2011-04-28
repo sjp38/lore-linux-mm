@@ -1,365 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id D9638900001
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 19:17:29 -0400 (EDT)
-Received: from hpaq11.eem.corp.google.com (hpaq11.eem.corp.google.com [172.25.149.11])
-	by smtp-out.google.com with ESMTP id p3SNHQCC007117
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 16:17:26 -0700
-Received: from wyb29 (wyb29.prod.google.com [10.241.225.93])
-	by hpaq11.eem.corp.google.com with ESMTP id p3SNHPok003197
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 69A4C900001
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 19:25:04 -0400 (EDT)
+Received: from hpaq7.eem.corp.google.com (hpaq7.eem.corp.google.com [172.25.149.7])
+	by smtp-out.google.com with ESMTP id p3SNP1NK025820
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 16:25:01 -0700
+Received: from qwi4 (qwi4.prod.google.com [10.241.195.4])
+	by hpaq7.eem.corp.google.com with ESMTP id p3SNOx5g027739
 	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 16:17:25 -0700
-Received: by wyb29 with SMTP id 29so4023071wyb.17
-        for <linux-mm@kvack.org>; Thu, 28 Apr 2011 16:17:25 -0700 (PDT)
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 16:24:59 -0700
+Received: by qwi4 with SMTP id 4so3272946qwi.1
+        for <linux-mm@kvack.org>; Thu, 28 Apr 2011 16:24:59 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1303775584-13347-1-git-send-email-vnagarnaik@google.com>
-References: <1303513209-26436-1-git-send-email-vnagarnaik@google.com> <1303775584-13347-1-git-send-email-vnagarnaik@google.com>
-From: Vaibhav Nagarnaik <vnagarnaik@google.com>
-Date: Thu, 28 Apr 2011 16:16:55 -0700
-Message-ID: <BANLkTikMgP1k0kKrGBaXhT4juD8admdcqA@mail.gmail.com>
-Subject: Re: [PATCH] trace: Add tracepoints to fs subsystem
+In-Reply-To: <1304030226-19332-1-git-send-email-yinghan@google.com>
+References: <1304030226-19332-1-git-send-email-yinghan@google.com>
+Date: Thu, 28 Apr 2011 16:24:58 -0700
+Message-ID: <BANLkTikgpyyZxcTP4f3y9XDYij_SNsng6Q@mail.gmail.com>
+Subject: Re: [PATCH 0/2] memcg: add the soft_limit reclaim in global direct reclaim
+From: Ying Han <yinghan@google.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Viro <viro@zeniv.linux.org.uk>, Steven Rostedt <rostedt@goodmis.org>
-Cc: Michael Rubin <mrubin@google.com>, David Sharp <dhsharp@google.com>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Jiaying Zhang <jiayingz@google.com>, Vaibhav Nagarnaik <vnagarnaik@google.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>, kamezawa.hiroyuki@gmail.com
+Cc: linux-mm@kvack.org
 
-Hi Alexander
-
-Do you think this patch makes sense for mainline inclusion?
-
-Thanks
-Vaibhav Nagarnaik
-
-
-
-On Mon, Apr 25, 2011 at 4:53 PM, Vaibhav Nagarnaik
-<vnagarnaik@google.com> wrote:
-> From: Jiaying Zhang <jiayingz@google.com>
+On Thu, Apr 28, 2011 at 3:37 PM, Ying Han <yinghan@google.com> wrote:
+> We recently added the change in global background reclaim which counts th=
+e
+> return value of soft_limit reclaim. Now this patch adds the similar logic
+> on global direct reclaim.
 >
-> These few fs tracepoints are useful while debugging latency issues in
-> filesystems and were used specifically for debugging various writeback
-> subsystem issues. This patch adds entry and exit tracepoints for the
-> following functions, viz.:
-> wait_on_buffer
-> block_write_full_page
-> mpage_readpages
-> file_read
+> We should skip scanning global LRU on shrink_zone if soft_limit reclaim d=
+oes
+> enough work. This is the first step where we start with counting the nr_s=
+canned
+> and nr_reclaimed from soft_limit reclaim into global scan_control.
 >
-> Signed-off-by: Vaibhav Nagarnaik <vnagarnaik@google.com>
-> ---
-> =A0fs/buffer.c =A0 =A0 =A0 =A0 =A0 =A0 =A0 | =A0 10 +++
-> =A0fs/mpage.c =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0| =A0 =A03 +
-> =A0include/trace/events/fs.h | =A0162 +++++++++++++++++++++++++++++++++++=
-++++++++++
-> =A0mm/filemap.c =A0 =A0 =A0 =A0 =A0 =A0 =A0| =A0 =A04 +-
-> =A04 files changed, 178 insertions(+), 1 deletions(-)
-> =A0create mode 100644 include/trace/events/fs.h
+> The patch is based on mmotm-04-14 and i triggered kernel BUG at mm/vmscan=
+.c:1058!
 >
-> diff --git a/fs/buffer.c b/fs/buffer.c
-> index a08bb8e..1c118f4 100644
-> --- a/fs/buffer.c
-> +++ b/fs/buffer.c
-> @@ -42,6 +42,9 @@
-> =A0#include <linux/mpage.h>
-> =A0#include <linux/bit_spinlock.h>
+> [ =A0938.242033] kernel BUG at mm/vmscan.c:1058!
+> [ =A0938.242033] invalid opcode: 0000 [#1] SMP=B7
+> [ =A0938.242033] last sysfs file: /sys/devices/pci0000:00/0000:00:1f.2/de=
+vice
+> [ =A0938.242033] Pid: 546, comm: kswapd0 Tainted: G =A0 =A0 =A0 =A0W =A0 =
+2.6.39-smp-direct_reclaim
+> [ =A0938.242033] RIP: 0010:[<ffffffff810ed174>] =A0[<ffffffff810ed174>] i=
+solate_pages_global+0x18c/0x34f
+> [ =A0938.242033] RSP: 0018:ffff88082f83bb50 =A0EFLAGS: 00010082
+> [ =A0938.242033] RAX: 00000000ffffffea RBX: ffff88082f83bc90 RCX: 0000000=
+000000401
+> [ =A0938.242033] RDX: 0000000000000001 RSI: 0000000000000000 RDI: ffffea0=
+01ca653e8
+> [ =A0938.242033] RBP: ffff88082f83bc20 R08: 0000000000000000 R09: ffff880=
+85ffb6e00
+> [ =A0938.242033] R10: ffff88085ffb73d0 R11: ffff88085ffb6e00 R12: ffff880=
+85ffb6e00
+> [ =A0938.242033] R13: ffffea001ca65410 R14: 0000000000000001 R15: ffffea0=
+01ca653e8
+> [ =A0938.242033] FS: =A00000000000000000(0000) GS:ffff88085fd00000(0000) =
+knlGS:0000000000000000
+> [ =A0938.242033] CS: =A00010 DS: 0000 ES: 0000 CR0: 000000008005003b
+> [ =A0938.242033] CR2: 00007f5c3405c320 CR3: 0000000001803000 CR4: 0000000=
+0000006e0
+> [ =A0938.242033] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000=
+000000000
+> [ =A0938.242033] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000=
+000000400
+> [ =A0938.242033] Process kswapd0 (pid: 546, threadinfo ffff88082f83a000, =
+task ffff88082fe52080)
+> [ =A0938.242033] Stack:
+> [ =A0938.242033] =A0ffff88085ffb6e00 ffffea0000000002 0000000000000021 00=
+00000000000000
+> [ =A0938.242033] =A00000000000000000 ffff88082f83bcb8 ffffea00108eec80 ff=
+ffea00108eecb8
+> [ =A0938.242033] =A0ffffea00108eecf0 0000000000000004 fffffffffffffffc 00=
+00000000000020
+> [ =A0938.242033] Call Trace:
+> [ =A0938.242033] =A0[<ffffffff810ee8a5>] shrink_inactive_list+0x185/0x418
+> [ =A0938.242033] =A0[<ffffffff810366cc>] ? __switch_to+0xea/0x212
+> [ =A0938.242033] =A0[<ffffffff810e8b35>] ? determine_dirtyable_memory+0x1=
+a/0x2c
+> [ =A0938.242033] =A0[<ffffffff810ef19b>] shrink_zone+0x380/0x44d
+> [ =A0938.242033] =A0[<ffffffff810e5188>] ? zone_watermark_ok_safe+0xa1/0x=
+ae
+> [ =A0938.242033] =A0[<ffffffff810efbd8>] kswapd+0x41b/0x76b
+> [ =A0938.242033] =A0[<ffffffff810ef7bd>] ? zone_reclaim+0x2fb/0x2fb
+> [ =A0938.242033] =A0[<ffffffff81088569>] kthread+0x82/0x8a
+> [ =A0938.242033] =A0[<ffffffff8141b0d4>] kernel_thread_helper+0x4/0x10
+> [ =A0938.242033] =A0[<ffffffff810884e7>] ? kthread_worker_fn+0x112/0x112
+> [ =A0938.242033] =A0[<ffffffff8141b0d0>] ? gs_change+0xb/0xb
 >
-> +#define CREATE_TRACE_POINTS
-> +#include <trace/events/fs.h>
-> +
-> =A0static int fsync_buffers_list(spinlock_t *lock, struct list_head *list=
-);
+> Thank you Minchan for the pointer. I reverted the following commit and I
+> haven't seen the problem with the same operation. I haven't looked deeply
+> on the patch yet, but figured it would be a good idea to post the dump.
+> The dump looks not directly related to this patchset, but ppl can use it =
+to
+> reproduce the problem.
 >
-> =A0#define BH_ENTRY(list) list_entry((list), struct buffer_head, b_assoc_=
-buffers)
-> @@ -82,7 +85,9 @@ EXPORT_SYMBOL(unlock_buffer);
-> =A0*/
-> =A0void __wait_on_buffer(struct buffer_head * bh)
-> =A0{
-> + =A0 =A0 =A0 trace_fs_buffer_wait_enter(bh);
-> =A0 =A0 =A0 =A0wait_on_bit(&bh->b_state, BH_Lock, sleep_on_buffer, TASK_U=
-NINTERRUPTIBLE);
-> + =A0 =A0 =A0 trace_fs_buffer_wait_exit(bh);
-> =A0}
-> =A0EXPORT_SYMBOL(__wait_on_buffer);
+> commit 278df9f451dc71dcd002246be48358a473504ad0
+> Author: Minchan Kim <minchan.kim@gmail.com>
+> Date: =A0 Tue Mar 22 16:32:54 2011 -0700
 >
-> @@ -1647,6 +1652,8 @@ static int __block_write_full_page(struct inode *in=
-ode, struct page *page,
-> =A0 =A0 =A0 =A0head =3D page_buffers(page);
-> =A0 =A0 =A0 =A0bh =3D head;
+> =A0 mm: reclaim invalidated page ASAP
 >
-> + =A0 =A0 =A0 trace_block_write_full_page_enter(inode, block, last_block)=
-;
-> +
-> =A0 =A0 =A0 =A0/*
-> =A0 =A0 =A0 =A0 * Get all the dirty buffers mapped to disk addresses and
-> =A0 =A0 =A0 =A0 * handle any aliases from the underlying blockdev's mappi=
-ng.
-> @@ -1736,6 +1743,9 @@ done:
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 * here on.
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 */
-> =A0 =A0 =A0 =A0}
-> +
-> + =A0 =A0 =A0 trace_block_write_full_page_exit(inode, nr_underway, err);
-> +
-> =A0 =A0 =A0 =A0return err;
+> How to reproduce it, On my 32G of machine
+> 1. I create two memcgs and set their hard_limit and soft_limit:
+> $echo 20g >A/memory.limit_in_bytes
+> $echo 20g >B/memory.limit_in_bytes
+> $echo 3g >A/memory.soft_limit_in_bytes
+> $echo 3g >B/memory.soft_limit_in_bytes
 >
-> =A0recover:
-> diff --git a/fs/mpage.c b/fs/mpage.c
-> index 0afc809..1c3b8e1 100644
-> --- a/fs/mpage.c
-> +++ b/fs/mpage.c
-> @@ -28,6 +28,7 @@
-> =A0#include <linux/backing-dev.h>
-> =A0#include <linux/pagevec.h>
+> 2. Reading a 20g file on each container
+> $echo $$ >A/tasks
+> $cat /export/hdc3/dd_A/tf0 > /dev/zero
 >
-> +#include <trace/events/fs.h>
-> =A0/*
-> =A0* I/O completion handler for multipage BIOs.
-> =A0*
-> @@ -373,6 +374,8 @@ mpage_readpages(struct address_space *mapping, struct=
- list_head *pages,
-> =A0 =A0 =A0 =A0for (page_idx =3D 0; page_idx < nr_pages; page_idx++) {
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0struct page *page =3D list_entry(pages->pr=
-ev, struct page, lru);
+> $echo $$ >B/tasks
+> $cat /export/hdc3/dd_B/tf0 > /dev/zero
 >
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (page_idx =3D=3D 0)
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 trace_mpage_readpages(page,=
- mapping, nr_pages);
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0prefetchw(&page->flags);
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0list_del(&page->lru);
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0if (!add_to_page_cache_lru(page, mapping,
-> diff --git a/include/trace/events/fs.h b/include/trace/events/fs.h
-> new file mode 100644
-> index 0000000..95f7bc8
-> --- /dev/null
-> +++ b/include/trace/events/fs.h
-> @@ -0,0 +1,162 @@
-> +#undef TRACE_SYSTEM
-> +#define TRACE_SYSTEM fs
-> +
-> +#if !defined(_TRACE_FS_H) || defined(TRACE_HEADER_MULTI_READ)
-> +#define _TRACE_FS_H
-> +
-> +#include <linux/tracepoint.h>
-> +
-> +DECLARE_EVENT_CLASS(fs_buffer_wait,
-> +
-> + =A0 =A0 =A0 TP_PROTO(struct buffer_head *bh),
-> +
-> + =A0 =A0 =A0 TP_ARGS(bh),
-> +
-> + =A0 =A0 =A0 TP_STRUCT__entry(
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __field( =A0 =A0 =A0 =A0void *, bh =A0 =A0 =
-=A0)
-> + =A0 =A0 =A0 ),
-> +
-> + =A0 =A0 =A0 TP_fast_assign(
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __entry->bh =3D bh;
-> + =A0 =A0 =A0 ),
-> +
-> + =A0 =A0 =A0 TP_printk("bh %p", __entry->bh)
-> +);
-> +
-> +DEFINE_EVENT(fs_buffer_wait, fs_buffer_wait_enter,
-> +
-> + =A0 =A0 =A0 TP_PROTO(struct buffer_head *bh),
-> +
-> + =A0 =A0 =A0 TP_ARGS(bh)
-> +);
-> +
-> +DEFINE_EVENT(fs_buffer_wait, fs_buffer_wait_exit,
-> +
-> + =A0 =A0 =A0 TP_PROTO(struct buffer_head *bh),
-> +
-> + =A0 =A0 =A0 TP_ARGS(bh)
-> +);
-> +
-> +TRACE_EVENT(block_write_full_page_enter,
-> +
-> + =A0 =A0 =A0 TP_PROTO(struct inode *inode, sector_t block, sector_t last=
-_block),
-> +
-> + =A0 =A0 =A0 TP_ARGS(inode, block, last_block),
-> +
-> + =A0 =A0 =A0 TP_STRUCT__entry(
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __field( =A0 =A0 =A0 =A0dev_t, =A0 =A0 =A0 =
-=A0 =A0dev =A0 =A0 =A0 =A0 =A0 =A0 )
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __field( =A0 =A0 =A0 =A0unsigned long, =A0i=
-no =A0 =A0 =A0 =A0 =A0 =A0 )
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __field( =A0 =A0 =A0 =A0sector_t, =A0 =A0 =
-=A0 block =A0 =A0 =A0 =A0 =A0 )
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __field( =A0 =A0 =A0 =A0sector_t, =A0 =A0 =
-=A0 last_block =A0 =A0 =A0)
-> + =A0 =A0 =A0 ),
-> +
-> + =A0 =A0 =A0 TP_fast_assign(
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __entry->dev =A0 =A0 =A0 =A0 =A0 =A0=3D ino=
-de->i_sb->s_dev;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __entry->ino =A0 =A0 =A0 =A0 =A0 =A0=3D ino=
-de->i_ino;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __entry->block =A0 =A0 =A0 =A0 =A0=3D block=
-;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __entry->last_block =A0 =A0 =3D last_block;
-> + =A0 =A0 =A0 ),
-> +
-> + =A0 =A0 =A0 TP_printk("dev %d,%d ino %lu block %lu last block %lu",
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 MAJOR(__entry->dev), MINOR(__entry->dev=
-),
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 __entry->ino,
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 (unsigned long)__entry->block,
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 (unsigned long)__entry->last_block)
-> +);
-> +
-> +TRACE_EVENT(block_write_full_page_exit,
-> +
-> + =A0 =A0 =A0 TP_PROTO(struct inode *inode, int nr_underway, int err),
-> +
-> + =A0 =A0 =A0 TP_ARGS(inode, nr_underway, err),
-> +
-> + =A0 =A0 =A0 TP_STRUCT__entry(
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __field( =A0 =A0 =A0 =A0dev_t, =A0 =A0 =A0 =
-=A0 =A0dev =A0 =A0 =A0 =A0 =A0 =A0 )
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __field( =A0 =A0 =A0 =A0unsigned long, =A0i=
-no =A0 =A0 =A0 =A0 =A0 =A0 )
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __field( =A0 =A0 =A0 =A0int, =A0 =A0 =A0 =
-=A0 =A0 =A0nr_underway =A0 =A0 )
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __field( =A0 =A0 =A0 =A0int, =A0 =A0 =A0 =
-=A0 =A0 =A0err =A0 =A0 =A0 =A0 =A0 =A0 )
-> + =A0 =A0 =A0 ),
-> +
-> + =A0 =A0 =A0 TP_fast_assign(
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __entry->dev =A0 =A0 =A0 =A0 =A0 =A0=3D ino=
-de->i_sb->s_dev;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __entry->ino =A0 =A0 =A0 =A0 =A0 =A0=3D ino=
-de->i_ino;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __entry->nr_underway =A0 =A0=3D nr_underway=
-;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __entry->err =A0 =A0 =A0 =A0 =A0 =A0=3D err=
-;
-> + =A0 =A0 =A0 ),
-> +
-> + =A0 =A0 =A0 TP_printk("dev %d,%d ino %lu nr_underway %d err %d",
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 MAJOR(__entry->dev), MINOR(__entry->dev=
-),
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 __entry->ino, __entry->nr_underway, __e=
-ntry->err)
-> +);
-> +
-> +DECLARE_EVENT_CLASS(file_read,
-> + =A0 =A0 =A0 TP_PROTO(struct inode *inode, loff_t pos, size_t len),
-> +
-> + =A0 =A0 =A0 TP_ARGS(inode, pos, len),
-> +
-> + =A0 =A0 =A0 TP_STRUCT__entry(
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __field( =A0 =A0 =A0 =A0ino_t, =A0ino =A0 =
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 )
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __field( =A0 =A0 =A0 =A0dev_t, =A0dev =A0 =
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 )
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __field( =A0 =A0 =A0 =A0loff_t, pos =A0 =A0=
- =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 )
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __field( =A0 =A0 =A0 =A0size_t, len =A0 =A0=
- =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 )
-> + =A0 =A0 =A0 ),
-> +
-> + =A0 =A0 =A0 TP_fast_assign(
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __entry->ino =A0 =A0=3D inode->i_ino;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __entry->dev =A0 =A0=3D inode->i_sb->s_dev;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __entry->pos =A0 =A0=3D pos;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __entry->len =A0 =A0=3D len;
-> + =A0 =A0 =A0 ),
-> +
-> + =A0 =A0 =A0 TP_printk("dev %d,%d ino %lu pos %llu len %lu",
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 MAJOR(__entry->dev), MINOR(__entry->dev=
-),
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 (unsigned long) __entry->ino,
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0__entry->pos, =A0__entry->len)
-> +);
-> +
-> +DEFINE_EVENT(file_read, file_read_enter,
-> +
-> + =A0 =A0 =A0 TP_PROTO(struct inode *inode, loff_t pos, size_t len),
-> +
-> + =A0 =A0 =A0 TP_ARGS(inode, pos, len)
-> +);
-> +
-> +DEFINE_EVENT(file_read, file_read_exit,
-> +
-> + =A0 =A0 =A0 TP_PROTO(struct inode *inode, loff_t pos, size_t len),
-> +
-> + =A0 =A0 =A0 TP_ARGS(inode, pos, len)
-> +);
-> +
-> +TRACE_EVENT(mpage_readpages,
-> + =A0 =A0 =A0 TP_PROTO(struct page *page, struct address_space *mapping,
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0unsigned nr_pages),
-> +
-> + =A0 =A0 =A0 TP_ARGS(page, mapping, nr_pages),
-> +
-> + =A0 =A0 =A0 TP_STRUCT__entry(
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __field( =A0 =A0 =A0 =A0pgoff_t, index =A0 =
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0)
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __field( =A0 =A0 =A0 =A0ino_t, =A0ino =A0 =
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 )
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __field( =A0 =A0 =A0 =A0dev_t, =A0dev =A0 =
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 )
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __field( =A0 =A0 =A0 =A0unsigned, =A0 =A0 =
-=A0 nr_pages =A0 =A0 =A0 =A0)
-> +
-> + =A0 =A0 =A0 ),
-> +
-> + =A0 =A0 =A0 TP_fast_assign(
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __entry->index =A0=3D page->index;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __entry->ino =A0 =A0=3D mapping->host->i_in=
-o;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __entry->dev =A0 =A0=3D mapping->host->i_sb=
-->s_dev;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __entry->nr_pages =A0 =A0 =A0 =3D nr_pages;
-> + =A0 =A0 =A0 ),
-> +
-> + =A0 =A0 =A0 TP_printk("dev %d,%d ino %lu page_index %lu nr_pages %u",
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 MAJOR(__entry->dev), MINOR(__entry->dev=
-),
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 (unsigned long) __entry->ino,
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 __entry->index, __entry->nr_pages)
-> +);
-> +
-> +#endif /* _TRACE_FS_H */
-> +
-> +/* This part must be outside protection */
-> +#include <trace/define_trace.h>
-> +
-> diff --git a/mm/filemap.c b/mm/filemap.c
-> index c641edf..94e549c 100644
-> --- a/mm/filemap.c
-> +++ b/mm/filemap.c
-> @@ -42,7 +42,7 @@
-> =A0#include <linux/buffer_head.h> /* for try_to_free_buffers */
+> 3. Add memory pressure by allocating anon + mlock. And trigger global
+> reclaim.
 >
-> =A0#include <asm/mman.h>
-> -
-> +#include <trace/events/fs.h>
-> =A0/*
-> =A0* Shared mappings implemented 30.11.1994. It's not fully working yet,
-> =A0* though.
-> @@ -1054,6 +1054,7 @@ static void do_generic_file_read(struct file *filp,=
- loff_t *ppos,
-> =A0 =A0 =A0 =A0unsigned int prev_offset;
-> =A0 =A0 =A0 =A0int error;
+> Ying Han (2):
+> =A0Add the soft_limit reclaim in global direct reclaim.
+> =A0Add stats to monitor soft_limit reclaim
 >
-> + =A0 =A0 =A0 trace_file_read_enter(inode, *ppos, desc->count);
-> =A0 =A0 =A0 =A0index =3D *ppos >> PAGE_CACHE_SHIFT;
-> =A0 =A0 =A0 =A0prev_index =3D ra->prev_pos >> PAGE_CACHE_SHIFT;
-> =A0 =A0 =A0 =A0prev_offset =3D ra->prev_pos & (PAGE_CACHE_SIZE-1);
-> @@ -1254,6 +1255,7 @@ out:
-> =A0 =A0 =A0 =A0ra->prev_pos <<=3D PAGE_CACHE_SHIFT;
-> =A0 =A0 =A0 =A0ra->prev_pos |=3D prev_offset;
+> =A0Documentation/cgroups/memory.txt | =A0 10 ++++-
+> =A0mm/memcontrol.c =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0| =A0 68 ++++++++++=
+++++++++++++++++++----------
+> =A0mm/vmscan.c =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0| =A0 16 ++++++=
+++-
+> =A03 files changed, 72 insertions(+), 22 deletions(-)
 >
-> + =A0 =A0 =A0 trace_file_read_exit(inode, *ppos, desc->written);
-> =A0 =A0 =A0 =A0*ppos =3D ((loff_t)index << PAGE_CACHE_SHIFT) + offset;
-> =A0 =A0 =A0 =A0file_accessed(filp);
-> =A0}
 > --
 > 1.7.3.1
 >
