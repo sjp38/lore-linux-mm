@@ -1,64 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 4EFDC6B0011
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 02:34:19 -0400 (EDT)
-Message-ID: <4DB90A66.3020805@kpanic.de>
-Date: Thu, 28 Apr 2011 08:34:14 +0200
-From: Stefan Assmann <sassmann@kpanic.de>
-MIME-Version: 1.0
-Subject: Re: [RFC PATCH 2/3] support for broken memory modules (BadRAM)
-References: <1303921007-1769-1-git-send-email-sassmann@kpanic.de> <1303921007-1769-3-git-send-email-sassmann@kpanic.de> <20110427211258.GQ16484@one.firstfloor.org>
-In-Reply-To: <20110427211258.GQ16484@one.firstfloor.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 90C8F6B0011
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 03:09:25 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id EAB4D3EE0C1
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 16:09:21 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id D257B45DD74
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 16:09:21 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id BC3D845DE4E
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 16:09:21 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id B1EDF1DB803F
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 16:09:21 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 7842D1DB803A
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 16:09:21 +0900 (JST)
+Date: Thu, 28 Apr 2011 16:02:49 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: Fw: [PATCH] memcg: add reclaim statistics accounting
+Message-Id: <20110428160249.79e67823.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <BANLkTinicqanpcVHtAWsgQxu1gkbzVpXdg@mail.gmail.com>
+References: <20110428121643.b3cbf420.kamezawa.hiroyu@jp.fujitsu.com>
+	<BANLkTimywCF06gfKWFcbAsWtFUbs73rZrQ@mail.gmail.com>
+	<20110428125739.15e252a7.kamezawa.hiroyu@jp.fujitsu.com>
+	<BANLkTikgJWYJ8_rAkuNtD0vTehCG7vPpow@mail.gmail.com>
+	<20110428132757.130b4206.kamezawa.hiroyu@jp.fujitsu.com>
+	<BANLkTinicqanpcVHtAWsgQxu1gkbzVpXdg@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: linux-mm@kvack.org, tony.luck@intel.com, mingo@elte.hu, hpa@zytor.com, rick@vanrein.org, akpm@linux-foundation.org, lwoodman@redhat.com, riel@redhat.com
+To: Ying Han <yinghan@google.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On 27.04.2011 23:12, Andi Kleen wrote:
-> On Wed, Apr 27, 2011 at 06:16:46PM +0200, Stefan Assmann wrote:
->> BadRAM is a mechanism to exclude memory addresses (pages) from being used by
->> the system. The addresses are given to the kernel via kernel command line.
->> This is useful for systems with defective RAM modules, especially if the RAM
->> modules cannot be replaced.
->>
->> command line parameter: badram=<addr>,<mask>[,...]
->>
->> Patterns for the command line parameter can be obtained by running Memtest86.
->> In Memtest86 press "c" for configuration, select "Error Report Mode" and
->> finally "BadRAM Patterns"
->>
->> This has already been done by Rick van Rein a long time ago but it never found
->> it's way into the kernel.
+On Wed, 27 Apr 2011 21:40:06 -0700
+Ying Han <yinghan@google.com> wrote:
+
+> On Wed, Apr 27, 2011 at 9:27 PM, KAMEZAWA Hiroyuki
+> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> > On Wed, 27 Apr 2011 21:24:30 -0700
+> > Ying Han <yinghan@google.com> wrote:
+
+> > BTW, ff I add more statistics, I'll add per-node statistics.
+> > Hmm, memory.node_stat is required ?
 > 
-> Looks good to me, except for the too verbose printks. Logging
-> every page this way will be very noisy for larger areas.
-
-You're right, logging every page marked would be too verbose. That's why
-I wrapped that logging into pr_debug.
-http://www.kernel.org/doc/local/pr_debug.txt
-This way it shouldn't bother anybody but it still could be useful in the
-case of debugging.
-However I kept the printk in the case of early allocated pages. The user
-should be notified of the attempt to mark a page that's already been
-allocated by the kernel itself.
-
+> Yes and this will be useful. One of the stats I would like add now is
+> the number of pages allocated on behalf of the memcg per numa node.
+> This is a piece of useful information to evaluate the numa locality
+> correlated to the application
+> performance.
 > 
-> The mask will also only work for very simple memory interleaving
-> setups, so I suspect it won't work for a lot of modern systems
-> unless you go more fancy.
+> I was wondering where to add the stats and memory.stat seems not to be
+> the best fit. If we have memory.node_stat, that would be a good place
+> for those kind of info?
 > 
-> Longer term there should be also likely a better way to specify
-> these pages than the kernel command line, e.g. the new persistent
-> store on some systems.
 
-I'd be happy to help improving and refining things for more fancy
-scenarios after this is done.
+Maybe it's better to add memory.node_stat ....memory.stat seems a bit long ;)
+I'd like to consider to add a tool to grab information easily under somewhere
+...as cgroup-top.
 
-Thanks for the feedback Andi.
-
-  Stefan
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
