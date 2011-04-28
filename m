@@ -1,121 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id C12116B0022
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 00:04:19 -0400 (EDT)
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e4.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p3S3hqwk006360
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2011 23:43:52 -0400
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p3S43jBw428660
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 00:03:45 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p3S43fIV028814
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 00:03:42 -0400
-From: John Stultz <john.stultz@linaro.org>
-Subject: [PATCH 3/3] comm: ext4: Protect task->comm access by using get_task_comm()
-Date: Wed, 27 Apr 2011 21:03:31 -0700
-Message-Id: <1303963411-2064-4-git-send-email-john.stultz@linaro.org>
-In-Reply-To: <1303963411-2064-1-git-send-email-john.stultz@linaro.org>
-References: <1303963411-2064-1-git-send-email-john.stultz@linaro.org>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id A23766B0022
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 00:04:22 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 2E2253EE0C1
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 13:04:17 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 1335F45DE50
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 13:04:17 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id E862945DE4F
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 13:04:16 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id DC0E61DB8037
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 13:04:16 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 997911DB802F
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 13:04:16 +0900 (JST)
+Date: Thu, 28 Apr 2011 12:57:39 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: Fw: [PATCH] memcg: add reclaim statistics accounting
+Message-Id: <20110428125739.15e252a7.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <BANLkTimywCF06gfKWFcbAsWtFUbs73rZrQ@mail.gmail.com>
+References: <20110428121643.b3cbf420.kamezawa.hiroyu@jp.fujitsu.com>
+	<BANLkTimywCF06gfKWFcbAsWtFUbs73rZrQ@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: LKML <linux-kernel@vger.kernel.org>
-Cc: John Stultz <john.stultz@linaro.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Ying Han <yinghan@google.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-Converts ext4 comm access to use the safe get_task_comm accessor.
+On Wed, 27 Apr 2011 20:43:58 -0700
+Ying Han <yinghan@google.com> wrote:
 
-CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-CC: David Rientjes <rientjes@google.com>
-CC: Dave Hansen <dave@linux.vnet.ibm.com>
-CC: Andrew Morton <akpm@linux-foundation.org>
-CC: linux-mm@kvack.org
-Signed-off-by: John Stultz <john.stultz@linaro.org>
----
- fs/ext4/file.c  |    8 ++++++--
- fs/ext4/super.c |   13 ++++++++++---
- 2 files changed, 16 insertions(+), 5 deletions(-)
+> On Wed, Apr 27, 2011 at 8:16 PM, KAMEZAWA Hiroyuki
+> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> > sorry, I had wrong TO:...
+> >
+> > Begin forwarded message:
+> >
+> > Date: Thu, 28 Apr 2011 12:02:34 +0900
+> > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > To: linux-mm@vger.kernel.org
+> > Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, Ying Han <yinghan@google.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+> > Subject: [PATCH] memcg: add reclaim statistics accounting
+> >
+> >
+> >
+> > Now, memory cgroup provides poor reclaim statistics per memcg. This
+> > patch adds statistics for direct/soft reclaim as the number of
+> > pages scans, the number of page freed by reclaim, the nanoseconds of
+> > latency at reclaim.
+> >
+> > It's good to add statistics before we modify memcg/global reclaim, largely.
+> > This patch refactors current soft limit status and add an unified update logic.
+> >
+> > For example, After #cat 195Mfile > /dev/null under 100M limit.
+> > A  A  A  A # cat /cgroup/memory/A/memory.stat
+> > A  A  A  A ....
+> > A  A  A  A limit_freed 24592
+> 
+> why not "limit_steal" ?
+> 
 
-diff --git a/fs/ext4/file.c b/fs/ext4/file.c
-index 7b80d54..d37414e 100644
---- a/fs/ext4/file.c
-+++ b/fs/ext4/file.c
-@@ -124,11 +124,15 @@ ext4_file_write(struct kiocb *iocb, const struct iovec *iov,
- 		static unsigned long unaligned_warn_time;
- 
- 		/* Warn about this once per day */
--		if (printk_timed_ratelimit(&unaligned_warn_time, 60*60*24*HZ))
-+		if (printk_timed_ratelimit(&unaligned_warn_time, 60*60*24*HZ)) {
-+			char comm[TASK_COMM_LEN];
-+
-+			get_task_comm(comm, current);
- 			ext4_msg(inode->i_sb, KERN_WARNING,
- 				 "Unaligned AIO/DIO on inode %ld by %s; "
- 				 "performance will be poor.",
--				 inode->i_ino, current->comm);
-+				 inode->i_ino, comm);
-+		}
- 		mutex_lock(ext4_aio_mutex(inode));
- 		ext4_aiodio_wait(inode);
- 	}
-diff --git a/fs/ext4/super.c b/fs/ext4/super.c
-index 8553dfb..6c9151f 100644
---- a/fs/ext4/super.c
-+++ b/fs/ext4/super.c
-@@ -409,12 +409,15 @@ void __ext4_error(struct super_block *sb, const char *function,
- {
- 	struct va_format vaf;
- 	va_list args;
-+	char comm[TASK_COMM_LEN];
- 
- 	va_start(args, fmt);
- 	vaf.fmt = fmt;
- 	vaf.va = &args;
-+
-+	get_task_comm(comm, current);
- 	printk(KERN_CRIT "EXT4-fs error (device %s): %s:%d: comm %s: %pV\n",
--	       sb->s_id, function, line, current->comm, &vaf);
-+	       sb->s_id, function, line, comm, &vaf);
- 	va_end(args);
- 
- 	ext4_handle_error(sb);
-@@ -427,6 +430,7 @@ void ext4_error_inode(struct inode *inode, const char *function,
- 	va_list args;
- 	struct va_format vaf;
- 	struct ext4_super_block *es = EXT4_SB(inode->i_sb)->s_es;
-+	char comm[TASK_COMM_LEN];
- 
- 	es->s_last_error_ino = cpu_to_le32(inode->i_ino);
- 	es->s_last_error_block = cpu_to_le64(block);
-@@ -438,7 +442,8 @@ void ext4_error_inode(struct inode *inode, const char *function,
- 	       inode->i_sb->s_id, function, line, inode->i_ino);
- 	if (block)
- 		printk(KERN_CONT "block %llu: ", block);
--	printk(KERN_CONT "comm %s: %pV\n", current->comm, &vaf);
-+	get_task_comm(comm, current);
-+	printk(KERN_CONT "comm %s: %pV\n", comm, &vaf);
- 	va_end(args);
- 
- 	ext4_handle_error(inode->i_sb);
-@@ -453,6 +458,7 @@ void ext4_error_file(struct file *file, const char *function,
- 	struct ext4_super_block *es;
- 	struct inode *inode = file->f_dentry->d_inode;
- 	char pathname[80], *path;
-+	char comm[TASK_COMM_LEN];
- 
- 	es = EXT4_SB(inode->i_sb)->s_es;
- 	es->s_last_error_ino = cpu_to_le32(inode->i_ino);
-@@ -468,7 +474,8 @@ void ext4_error_file(struct file *file, const char *function,
- 	va_start(args, fmt);
- 	vaf.fmt = fmt;
- 	vaf.va = &args;
--	printk(KERN_CONT "comm %s: path %s: %pV\n", current->comm, path, &vaf);
-+	get_task_comm(comm, current);
-+	printk(KERN_CONT "comm %s: path %s: %pV\n", comm, path, &vaf);
- 	va_end(args);
- 
- 	ext4_handle_error(inode->i_sb);
--- 
-1.7.3.2.146.gca209
+It's not "stealed". Freed by itself.
+pages reclaimed by soft-limit is stealed because of global memory pressure.
+I don't like the name "steal" but I can't change it because of API breakage.
+
+
+> > A  A  A  A soft_steal 0
+> > A  A  A  A limit_scan 43974
+> > A  A  A  A soft_scan 0
+> > A  A  A  A limit_latency 133837417
+> >
+> > nearly 96M caches are freed. scanned twice. used 133ms.
+> 
+> Does it make sense to split up the soft_steal/scan for bg reclaim and
+> direct reclaim? 
+
+Please clarify what you're talking about before asking. Maybe you want to say
+"I'm now working for supporting softlimit in direct reclaim path. So, does
+ it make sense to account direct/kswapd works in statistics ?"
+
+I think bg/direct reclaim is not required to be splitted.
+
+> The same for the limit_steal/scan. 
+
+limit has only direct reclaim, now. And this is independent from any
+soft limit works.
+
+> I am now testing
+> the patch to add the soft_limit reclaim on global ttfp, and i already
+> have the patch to add the following:
+> 
+> kswapd_soft_steal 0
+> kswapd_soft_scan 0
+
+please don't change the name of _used_ statisitcs.
+
+
+> direct_soft_steal 0
+> direct_soft_scan 0
+
+Maybe these are new ones added by your work. But should be merged to
+soft_steal/soft_scan.
+
+> kswapd_steal 0
+> pg_pgsteal 0
+> kswapd_pgscan 0
+> pg_scan 0
+> 
+
+Maybe this indicates reclaimed-by-other-tasks-than-this-memcg. Right ?
+Maybe good for checking isolation of memcg, hmm, can these be accounted
+in scalable way ?
+
+BTW, my office will be closed for a week because of holidays. So, I'll not make
+responce tomorrow. please CC kamezawa.hiroyuki@gmail.com if you need.
+I may read e-mails.
+
+Thanks,
+-Kame
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
