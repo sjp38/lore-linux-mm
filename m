@@ -1,101 +1,191 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 01318900001
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 18:37:57 -0400 (EDT)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id E718490010C
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 18:37:58 -0400 (EDT)
 From: Ying Han <yinghan@google.com>
-Subject: =?UTF-8?q?=5BPATCH=200/2=5D=20memcg=3A=20add=20the=20soft=5Flimit=20reclaim=20in=20global=20direct=20reclaim?=
-Date: Thu, 28 Apr 2011 15:37:04 -0700
-Message-Id: <1304030226-19332-1-git-send-email-yinghan@google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Subject: [PATCH 2/2] Add stats to monitor soft_limit reclaim
+Date: Thu, 28 Apr 2011 15:37:06 -0700
+Message-Id: <1304030226-19332-3-git-send-email-yinghan@google.com>
+In-Reply-To: <1304030226-19332-1-git-send-email-yinghan@google.com>
+References: <1304030226-19332-1-git-send-email-yinghan@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>
 Cc: linux-mm@kvack.org
 
-We recently added the change in global background reclaim which counts the
-return value of soft_limit reclaim. Now this patch adds the similar logic
-on global direct reclaim.
+This patch extend the soft_limit reclaim stats to both global background
+reclaim and global direct reclaim.
 
-We should skip scanning global LRU on shrink_zone if soft_limit reclaim does
-enough work. This is the first step where we start with counting the nr_scanned
-and nr_reclaimed from soft_limit reclaim into global scan_control.
+We have a thread discussing the naming of some of the stats. Both
+KAMEZAWA and Johannes posted the proposals. The following stats are based
+on what i had before that thread. I will make the corresponding change on
+the next post when we make decision.
 
-The patch is based on mmotm-04-14 and i triggered kernel BUG at mm/vmscan.c:1058!
+$cat /dev/cgroup/memory/A/memory.stat
+kswapd_soft_steal 1053626
+kswapd_soft_scan 1053693
+direct_soft_steal 1481810
+direct_soft_scan 1481996
 
-[  938.242033] kernel BUG at mm/vmscan.c:1058!
-[  938.242033] invalid opcode: 0000 [#1] SMPA.
-[  938.242033] last sysfs file: /sys/devices/pci0000:00/0000:00:1f.2/device
-[  938.242033] Pid: 546, comm: kswapd0 Tainted: G        W   2.6.39-smp-direct_reclaim
-[  938.242033] RIP: 0010:[<ffffffff810ed174>]  [<ffffffff810ed174>] isolate_pages_global+0x18c/0x34f
-[  938.242033] RSP: 0018:ffff88082f83bb50  EFLAGS: 00010082
-[  938.242033] RAX: 00000000ffffffea RBX: ffff88082f83bc90 RCX: 0000000000000401
-[  938.242033] RDX: 0000000000000001 RSI: 0000000000000000 RDI: ffffea001ca653e8
-[  938.242033] RBP: ffff88082f83bc20 R08: 0000000000000000 R09: ffff88085ffb6e00
-[  938.242033] R10: ffff88085ffb73d0 R11: ffff88085ffb6e00 R12: ffff88085ffb6e00
-[  938.242033] R13: ffffea001ca65410 R14: 0000000000000001 R15: ffffea001ca653e8
-[  938.242033] FS:  0000000000000000(0000) GS:ffff88085fd00000(0000) knlGS:0000000000000000
-[  938.242033] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
-[  938.242033] CR2: 00007f5c3405c320 CR3: 0000000001803000 CR4: 00000000000006e0
-[  938.242033] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-[  938.242033] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
-[  938.242033] Process kswapd0 (pid: 546, threadinfo ffff88082f83a000, task ffff88082fe52080)
-[  938.242033] Stack:
-[  938.242033]  ffff88085ffb6e00 ffffea0000000002 0000000000000021 0000000000000000
-[  938.242033]  0000000000000000 ffff88082f83bcb8 ffffea00108eec80 ffffea00108eecb8
-[  938.242033]  ffffea00108eecf0 0000000000000004 fffffffffffffffc 0000000000000020
-[  938.242033] Call Trace:
-[  938.242033]  [<ffffffff810ee8a5>] shrink_inactive_list+0x185/0x418
-[  938.242033]  [<ffffffff810366cc>] ? __switch_to+0xea/0x212
-[  938.242033]  [<ffffffff810e8b35>] ? determine_dirtyable_memory+0x1a/0x2c
-[  938.242033]  [<ffffffff810ef19b>] shrink_zone+0x380/0x44d
-[  938.242033]  [<ffffffff810e5188>] ? zone_watermark_ok_safe+0xa1/0xae
-[  938.242033]  [<ffffffff810efbd8>] kswapd+0x41b/0x76b
-[  938.242033]  [<ffffffff810ef7bd>] ? zone_reclaim+0x2fb/0x2fb
-[  938.242033]  [<ffffffff81088569>] kthread+0x82/0x8a
-[  938.242033]  [<ffffffff8141b0d4>] kernel_thread_helper+0x4/0x10
-[  938.242033]  [<ffffffff810884e7>] ? kthread_worker_fn+0x112/0x112
-[  938.242033]  [<ffffffff8141b0d0>] ? gs_change+0xb/0xb
-
-Thank you Minchan for the pointer. I reverted the following commit and I
-haven't seen the problem with the same operation. I haven't looked deeply
-on the patch yet, but figured it would be a good idea to post the dump.
-The dump looks not directly related to this patchset, but ppl can use it to
-reproduce the problem.
-
-commit 278df9f451dc71dcd002246be48358a473504ad0
-Author: Minchan Kim <minchan.kim@gmail.com>
-Date:   Tue Mar 22 16:32:54 2011 -0700
-
-   mm: reclaim invalidated page ASAP
-
-How to reproduce it, On my 32G of machine
-1. I create two memcgs and set their hard_limit and soft_limit:
-$echo 20g >A/memory.limit_in_bytes
-$echo 20g >B/memory.limit_in_bytes
-$echo 3g >A/memory.soft_limit_in_bytes
-$echo 3g >B/memory.soft_limit_in_bytes
-
-2. Reading a 20g file on each container
-$echo $$ >A/tasks
-$cat /export/hdc3/dd_A/tf0 > /dev/zero
-
-$echo $$ >B/tasks
-$cat /export/hdc3/dd_B/tf0 > /dev/zero
-
-3. Add memory pressure by allocating anon + mlock. And trigger global
-reclaim.
-
-Ying Han (2):
-  Add the soft_limit reclaim in global direct reclaim.
-  Add stats to monitor soft_limit reclaim
-
+Signed-off-by: Ying Han <yinghan@google.com>
+---
  Documentation/cgroups/memory.txt |   10 ++++-
  mm/memcontrol.c                  |   68 ++++++++++++++++++++++++++++----------
- mm/vmscan.c                      |   16 ++++++++-
- 3 files changed, 72 insertions(+), 22 deletions(-)
+ 2 files changed, 58 insertions(+), 20 deletions(-)
 
+diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
+index 0c40dab..fedc107 100644
+--- a/Documentation/cgroups/memory.txt
++++ b/Documentation/cgroups/memory.txt
+@@ -387,8 +387,14 @@ pgpgout		- # of pages paged out (equivalent to # of uncharging events).
+ swap		- # of bytes of swap usage
+ pgfault		- # of page faults.
+ pgmajfault	- # of major page faults.
+-soft_steal	- # of pages reclaimed from global hierarchical reclaim
+-soft_scan	- # of pages scanned from global hierarchical reclaim
++soft_kswapd_steal- # of pages reclaimed in global hierarchical reclaim from
++		background reclaim
++soft_kswapd_scan - # of pages scanned in global hierarchical reclaim from
++		background reclaim
++soft_direct_steal- # of pages reclaimed in global hierarchical reclaim from
++		direct reclaim
++soft_direct_scan- # of pages scanned in global hierarchical reclaim from
++		direct reclaim
+ inactive_anon	- # of bytes of anonymous memory and swap cache memory on
+ 		LRU list.
+ active_anon	- # of bytes of anonymous and swap cache memory on active
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index c2776f1..392ed9c 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -96,10 +96,14 @@ enum mem_cgroup_events_index {
+ 	MEM_CGROUP_EVENTS_COUNT,	/* # of pages paged in/out */
+ 	MEM_CGROUP_EVENTS_PGFAULT,	/* # of page-faults */
+ 	MEM_CGROUP_EVENTS_PGMAJFAULT,	/* # of major page-faults */
+-	MEM_CGROUP_EVENTS_SOFT_STEAL,	/* # of pages reclaimed from */
+-					/* soft reclaim               */
+-	MEM_CGROUP_EVENTS_SOFT_SCAN,	/* # of pages scanned from */
+-					/* soft reclaim               */
++	MEM_CGROUP_EVENTS_SOFT_KSWAPD_STEAL, /* # of pages reclaimed from */
++					/* soft reclaim in background reclaim */
++	MEM_CGROUP_EVENTS_SOFT_KSWAPD_SCAN, /* # of pages scanned from */
++					/* soft reclaim in background reclaim */
++	MEM_CGROUP_EVENTS_SOFT_DIRECT_STEAL, /* # of pages reclaimed from */
++					/* soft reclaim in direct reclaim */
++	MEM_CGROUP_EVENTS_SOFT_DIRECT_SCAN, /* # of pages scanned from */
++					/* soft reclaim in direct reclaim */
+ 	MEM_CGROUP_EVENTS_NSTATS,
+ };
+ /*
+@@ -640,14 +644,30 @@ static void mem_cgroup_charge_statistics(struct mem_cgroup *mem,
+ 	preempt_enable();
+ }
+ 
+-static void mem_cgroup_soft_steal(struct mem_cgroup *mem, int val)
++static void mem_cgroup_soft_steal(struct mem_cgroup *mem, bool is_kswapd,
++				  int val)
+ {
+-	this_cpu_add(mem->stat->events[MEM_CGROUP_EVENTS_SOFT_STEAL], val);
++	if (is_kswapd)
++		this_cpu_add(
++			mem->stat->events[MEM_CGROUP_EVENTS_SOFT_KSWAPD_STEAL],
++									val);
++	else
++		this_cpu_add(
++			mem->stat->events[MEM_CGROUP_EVENTS_SOFT_DIRECT_STEAL],
++									val);
+ }
+ 
+-static void mem_cgroup_soft_scan(struct mem_cgroup *mem, int val)
++static void mem_cgroup_soft_scan(struct mem_cgroup *mem, bool is_kswapd,
++				 int val)
+ {
+-	this_cpu_add(mem->stat->events[MEM_CGROUP_EVENTS_SOFT_SCAN], val);
++	if (is_kswapd)
++		this_cpu_add(
++			mem->stat->events[MEM_CGROUP_EVENTS_SOFT_KSWAPD_SCAN],
++									val);
++	else
++		this_cpu_add(
++			mem->stat->events[MEM_CGROUP_EVENTS_SOFT_DIRECT_SCAN],
++									val);
+ }
+ 
+ static unsigned long mem_cgroup_get_local_zonestat(struct mem_cgroup *mem,
+@@ -1495,6 +1515,7 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
+ 	bool noswap = reclaim_options & MEM_CGROUP_RECLAIM_NOSWAP;
+ 	bool shrink = reclaim_options & MEM_CGROUP_RECLAIM_SHRINK;
+ 	bool check_soft = reclaim_options & MEM_CGROUP_RECLAIM_SOFT;
++	bool is_kswapd = false;
+ 	unsigned long excess;
+ 	unsigned long nr_scanned;
+ 
+@@ -1504,6 +1525,9 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
+ 	if (root_mem->memsw_is_minimum)
+ 		noswap = true;
+ 
++	if (current_is_kswapd())
++		is_kswapd = true;
++
+ 	while (1) {
+ 		victim = mem_cgroup_select_victim(root_mem);
+ 		if (victim == root_mem) {
+@@ -1544,8 +1568,8 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
+ 				noswap, get_swappiness(victim), zone,
+ 				&nr_scanned);
+ 			*total_scanned += nr_scanned;
+-			mem_cgroup_soft_steal(victim, ret);
+-			mem_cgroup_soft_scan(victim, nr_scanned);
++			mem_cgroup_soft_steal(victim, is_kswapd, ret);
++			mem_cgroup_soft_scan(victim, is_kswapd, nr_scanned);
+ 		} else
+ 			ret = try_to_free_mem_cgroup_pages(victim, gfp_mask,
+ 						noswap, get_swappiness(victim));
+@@ -3840,8 +3864,10 @@ enum {
+ 	MCS_SWAP,
+ 	MCS_PGFAULT,
+ 	MCS_PGMAJFAULT,
+-	MCS_SOFT_STEAL,
+-	MCS_SOFT_SCAN,
++	MCS_SOFT_KSWAPD_STEAL,
++	MCS_SOFT_KSWAPD_SCAN,
++	MCS_SOFT_DIRECT_STEAL,
++	MCS_SOFT_DIRECT_SCAN,
+ 	MCS_INACTIVE_ANON,
+ 	MCS_ACTIVE_ANON,
+ 	MCS_INACTIVE_FILE,
+@@ -3866,8 +3892,10 @@ struct {
+ 	{"swap", "total_swap"},
+ 	{"pgfault", "total_pgfault"},
+ 	{"pgmajfault", "total_pgmajfault"},
+-	{"soft_steal", "total_soft_steal"},
+-	{"soft_scan", "total_soft_scan"},
++	{"kswapd_soft_steal", "total_kswapd_soft_steal"},
++	{"kswapd_soft_scan", "total_kswapd_soft_scan"},
++	{"direct_soft_steal", "total_direct_soft_steal"},
++	{"direct_soft_scan", "total_direct_soft_scan"},
+ 	{"inactive_anon", "total_inactive_anon"},
+ 	{"active_anon", "total_active_anon"},
+ 	{"inactive_file", "total_inactive_file"},
+@@ -3896,10 +3924,14 @@ mem_cgroup_get_local_stat(struct mem_cgroup *mem, struct mcs_total_stat *s)
+ 		val = mem_cgroup_read_stat(mem, MEM_CGROUP_STAT_SWAPOUT);
+ 		s->stat[MCS_SWAP] += val * PAGE_SIZE;
+ 	}
+-	val = mem_cgroup_read_events(mem, MEM_CGROUP_EVENTS_SOFT_STEAL);
+-	s->stat[MCS_SOFT_STEAL] += val;
+-	val = mem_cgroup_read_events(mem, MEM_CGROUP_EVENTS_SOFT_SCAN);
+-	s->stat[MCS_SOFT_SCAN] += val;
++	val = mem_cgroup_read_events(mem, MEM_CGROUP_EVENTS_SOFT_KSWAPD_STEAL);
++	s->stat[MCS_SOFT_KSWAPD_STEAL] += val;
++	val = mem_cgroup_read_events(mem, MEM_CGROUP_EVENTS_SOFT_KSWAPD_SCAN);
++	s->stat[MCS_SOFT_KSWAPD_SCAN] += val;
++	val = mem_cgroup_read_events(mem, MEM_CGROUP_EVENTS_SOFT_DIRECT_STEAL);
++	s->stat[MCS_SOFT_DIRECT_STEAL] += val;
++	val = mem_cgroup_read_events(mem, MEM_CGROUP_EVENTS_SOFT_DIRECT_SCAN);
++	s->stat[MCS_SOFT_DIRECT_SCAN] += val;
+ 	val = mem_cgroup_read_events(mem, MEM_CGROUP_EVENTS_PGFAULT);
+ 	s->stat[MCS_PGFAULT] += val;
+ 	val = mem_cgroup_read_events(mem, MEM_CGROUP_EVENTS_PGMAJFAULT);
 -- 
 1.7.3.1
 
