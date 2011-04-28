@@ -1,135 +1,369 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 51D24900001
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 19:06:57 -0400 (EDT)
-Received: by qwa26 with SMTP id 26so2210725qwa.14
-        for <linux-mm@kvack.org>; Thu, 28 Apr 2011 16:06:53 -0700 (PDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id D9638900001
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 19:17:29 -0400 (EDT)
+Received: from hpaq11.eem.corp.google.com (hpaq11.eem.corp.google.com [172.25.149.11])
+	by smtp-out.google.com with ESMTP id p3SNHQCC007117
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 16:17:26 -0700
+Received: from wyb29 (wyb29.prod.google.com [10.241.225.93])
+	by hpaq11.eem.corp.google.com with ESMTP id p3SNHPok003197
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 16:17:25 -0700
+Received: by wyb29 with SMTP id 29so4023071wyb.17
+        for <linux-mm@kvack.org>; Thu, 28 Apr 2011 16:17:25 -0700 (PDT)
 MIME-Version: 1.0
-Reply-To: sedat.dilek@gmail.com
-In-Reply-To: <alpine.LFD.2.02.1104282353140.3005@ionos>
-References: <20110426112756.GF4308@linux.vnet.ibm.com>
-	<20110426183859.6ff6279b@neptune.home>
-	<20110426190918.01660ccf@neptune.home>
-	<BANLkTikjuqWP+PAsObJH4EAOyzgr2RbYNA@mail.gmail.com>
-	<alpine.LFD.2.02.1104262314110.3323@ionos>
-	<20110427081501.5ba28155@pluto.restena.lu>
-	<20110427204139.1b0ea23b@neptune.home>
-	<alpine.LFD.2.02.1104272351290.3323@ionos>
-	<alpine.LFD.2.02.1104281051090.19095@ionos>
-	<BANLkTinB5S7q88dch78i-h28jDHx5dvfQw@mail.gmail.com>
-	<20110428102609.GJ2135@linux.vnet.ibm.com>
-	<1303997401.7819.5.camel@marge.simson.net>
-	<BANLkTik4+PAGHF-9KREYk8y+KDQLDAp2Mg@mail.gmail.com>
-	<alpine.LFD.2.02.1104282044120.3005@ionos>
-	<20110428222301.0b745a0a@neptune.home>
-	<alpine.LFD.2.02.1104282227340.3005@ionos>
-	<20110428224444.43107883@neptune.home>
-	<alpine.LFD.2.02.1104282251080.3005@ionos>
-	<1304027480.2971.121.camel@work-vm>
-	<alpine.LFD.2.02.1104282353140.3005@ionos>
-Date: Fri, 29 Apr 2011 01:06:52 +0200
-Message-ID: <BANLkTi=uDstjKEQaPOkxX94NxMQU2Pu5gA@mail.gmail.com>
-Subject: Re: 2.6.39-rc4+: Kernel leaking memory during FS scanning, regression?
-From: Sedat Dilek <sedat.dilek@googlemail.com>
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <1303775584-13347-1-git-send-email-vnagarnaik@google.com>
+References: <1303513209-26436-1-git-send-email-vnagarnaik@google.com> <1303775584-13347-1-git-send-email-vnagarnaik@google.com>
+From: Vaibhav Nagarnaik <vnagarnaik@google.com>
+Date: Thu, 28 Apr 2011 16:16:55 -0700
+Message-ID: <BANLkTikMgP1k0kKrGBaXhT4juD8admdcqA@mail.gmail.com>
+Subject: Re: [PATCH] trace: Add tracepoints to fs subsystem
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: john stultz <johnstul@us.ibm.com>, =?UTF-8?Q?Bruno_Pr=C3=A9mont?= <bonbons@linux-vserver.org>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Frysinger <vapier.adi@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Paul E. McKenney" <paul.mckenney@linaro.org>, Pekka Enberg <penberg@kernel.org>
+To: Alexander Viro <viro@zeniv.linux.org.uk>, Steven Rostedt <rostedt@goodmis.org>
+Cc: Michael Rubin <mrubin@google.com>, David Sharp <dhsharp@google.com>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Jiaying Zhang <jiayingz@google.com>, Vaibhav Nagarnaik <vnagarnaik@google.com>
 
-On Fri, Apr 29, 2011 at 12:02 AM, Thomas Gleixner <tglx@linutronix.de> wrot=
-e:
-> On Thu, 28 Apr 2011, john stultz wrote:
->> On Thu, 2011-04-28 at 23:04 +0200, Thomas Gleixner wrote:
->> > /me suspects hrtimer changes to be the real culprit.
->>
->> I'm not seeing anything on right off, but it does smell like
->> e06383db9ec591696a06654257474b85bac1f8cb would be where such an issue
->> would crop up.
->>
->> Bruno, could you try checking out e06383db9ec, confirming it still
->> occurs (and then maybe seeing if it goes away at e06383db9ec^1)?
->>
->> I'll keep digging in the meantime.
+Hi Alexander
+
+Do you think this patch makes sense for mainline inclusion?
+
+Thanks
+Vaibhav Nagarnaik
+
+
+
+On Mon, Apr 25, 2011 at 4:53 PM, Vaibhav Nagarnaik
+<vnagarnaik@google.com> wrote:
+> From: Jiaying Zhang <jiayingz@google.com>
 >
-> I found the bug already. The problem is that sched_init() calls
-> init_rt_bandwidth() which calls hrtimer_init() _BEFORE_
-> hrtimers_init() is called.
+> These few fs tracepoints are useful while debugging latency issues in
+> filesystems and were used specifically for debugging various writeback
+> subsystem issues. This patch adds entry and exit tracepoints for the
+> following functions, viz.:
+> wait_on_buffer
+> block_write_full_page
+> mpage_readpages
+> file_read
 >
-> That was unnoticed so far as the CLOCK id to hrtimer base conversion
-> was hardcoded. Now we use a table which is set up at hrtimers_init(),
-> so the bandwith hrtimer ends up on CLOCK_REALTIME because the table is
-> in the bss.
+> Signed-off-by: Vaibhav Nagarnaik <vnagarnaik@google.com>
+> ---
+> =A0fs/buffer.c =A0 =A0 =A0 =A0 =A0 =A0 =A0 | =A0 10 +++
+> =A0fs/mpage.c =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0| =A0 =A03 +
+> =A0include/trace/events/fs.h | =A0162 +++++++++++++++++++++++++++++++++++=
+++++++++++
+> =A0mm/filemap.c =A0 =A0 =A0 =A0 =A0 =A0 =A0| =A0 =A04 +-
+> =A04 files changed, 178 insertions(+), 1 deletions(-)
+> =A0create mode 100644 include/trace/events/fs.h
 >
-> The patch below fixes this, by providing the table statically rather
-> than runtime initialized. Though that whole ordering wants to be
-> revisited.
+> diff --git a/fs/buffer.c b/fs/buffer.c
+> index a08bb8e..1c118f4 100644
+> --- a/fs/buffer.c
+> +++ b/fs/buffer.c
+> @@ -42,6 +42,9 @@
+> =A0#include <linux/mpage.h>
+> =A0#include <linux/bit_spinlock.h>
 >
-> Thanks,
+> +#define CREATE_TRACE_POINTS
+> +#include <trace/events/fs.h>
+> +
+> =A0static int fsync_buffers_list(spinlock_t *lock, struct list_head *list=
+);
 >
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0tglx
+> =A0#define BH_ENTRY(list) list_entry((list), struct buffer_head, b_assoc_=
+buffers)
+> @@ -82,7 +85,9 @@ EXPORT_SYMBOL(unlock_buffer);
+> =A0*/
+> =A0void __wait_on_buffer(struct buffer_head * bh)
+> =A0{
+> + =A0 =A0 =A0 trace_fs_buffer_wait_enter(bh);
+> =A0 =A0 =A0 =A0wait_on_bit(&bh->b_state, BH_Lock, sleep_on_buffer, TASK_U=
+NINTERRUPTIBLE);
+> + =A0 =A0 =A0 trace_fs_buffer_wait_exit(bh);
+> =A0}
+> =A0EXPORT_SYMBOL(__wait_on_buffer);
 >
-> --- linux-2.6.orig/kernel/hrtimer.c
-> +++ linux-2.6/kernel/hrtimer.c
-> @@ -81,7 +81,11 @@ DEFINE_PER_CPU(struct hrtimer_cpu_base,
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0}
-> =C2=A0};
+> @@ -1647,6 +1652,8 @@ static int __block_write_full_page(struct inode *in=
+ode, struct page *page,
+> =A0 =A0 =A0 =A0head =3D page_buffers(page);
+> =A0 =A0 =A0 =A0bh =3D head;
 >
-> -static int hrtimer_clock_to_base_table[MAX_CLOCKS];
-> +static int hrtimer_clock_to_base_table[MAX_CLOCKS] =3D {
-> + =C2=A0 =C2=A0 =C2=A0 [CLOCK_REALTIME] =3D HRTIMER_BASE_REALTIME,
-> + =C2=A0 =C2=A0 =C2=A0 [CLOCK_MONOTONIC] =3D HRTIMER_BASE_MONOTONIC,
-> + =C2=A0 =C2=A0 =C2=A0 [CLOCK_BOOTTIME] =3D HRTIMER_BASE_BOOTTIME,
-> +};
+> + =A0 =A0 =A0 trace_block_write_full_page_enter(inode, block, last_block)=
+;
+> +
+> =A0 =A0 =A0 =A0/*
+> =A0 =A0 =A0 =A0 * Get all the dirty buffers mapped to disk addresses and
+> =A0 =A0 =A0 =A0 * handle any aliases from the underlying blockdev's mappi=
+ng.
+> @@ -1736,6 +1743,9 @@ done:
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 * here on.
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 */
+> =A0 =A0 =A0 =A0}
+> +
+> + =A0 =A0 =A0 trace_block_write_full_page_exit(inode, nr_underway, err);
+> +
+> =A0 =A0 =A0 =A0return err;
 >
-> =C2=A0static inline int hrtimer_clockid_to_base(clockid_t clock_id)
-> =C2=A0{
-> @@ -1722,10 +1726,6 @@ static struct notifier_block __cpuinitda
+> =A0recover:
+> diff --git a/fs/mpage.c b/fs/mpage.c
+> index 0afc809..1c3b8e1 100644
+> --- a/fs/mpage.c
+> +++ b/fs/mpage.c
+> @@ -28,6 +28,7 @@
+> =A0#include <linux/backing-dev.h>
+> =A0#include <linux/pagevec.h>
 >
-> =C2=A0void __init hrtimers_init(void)
-> =C2=A0{
-> - =C2=A0 =C2=A0 =C2=A0 hrtimer_clock_to_base_table[CLOCK_REALTIME] =3D HR=
-TIMER_BASE_REALTIME;
-> - =C2=A0 =C2=A0 =C2=A0 hrtimer_clock_to_base_table[CLOCK_MONOTONIC] =3D H=
-RTIMER_BASE_MONOTONIC;
-> - =C2=A0 =C2=A0 =C2=A0 hrtimer_clock_to_base_table[CLOCK_BOOTTIME] =3D HR=
-TIMER_BASE_BOOTTIME;
+> +#include <trace/events/fs.h>
+> =A0/*
+> =A0* I/O completion handler for multipage BIOs.
+> =A0*
+> @@ -373,6 +374,8 @@ mpage_readpages(struct address_space *mapping, struct=
+ list_head *pages,
+> =A0 =A0 =A0 =A0for (page_idx =3D 0; page_idx < nr_pages; page_idx++) {
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0struct page *page =3D list_entry(pages->pr=
+ev, struct page, lru);
+>
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (page_idx =3D=3D 0)
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 trace_mpage_readpages(page,=
+ mapping, nr_pages);
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0prefetchw(&page->flags);
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0list_del(&page->lru);
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0if (!add_to_page_cache_lru(page, mapping,
+> diff --git a/include/trace/events/fs.h b/include/trace/events/fs.h
+> new file mode 100644
+> index 0000000..95f7bc8
+> --- /dev/null
+> +++ b/include/trace/events/fs.h
+> @@ -0,0 +1,162 @@
+> +#undef TRACE_SYSTEM
+> +#define TRACE_SYSTEM fs
+> +
+> +#if !defined(_TRACE_FS_H) || defined(TRACE_HEADER_MULTI_READ)
+> +#define _TRACE_FS_H
+> +
+> +#include <linux/tracepoint.h>
+> +
+> +DECLARE_EVENT_CLASS(fs_buffer_wait,
+> +
+> + =A0 =A0 =A0 TP_PROTO(struct buffer_head *bh),
+> +
+> + =A0 =A0 =A0 TP_ARGS(bh),
+> +
+> + =A0 =A0 =A0 TP_STRUCT__entry(
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __field( =A0 =A0 =A0 =A0void *, bh =A0 =A0 =
+=A0)
+> + =A0 =A0 =A0 ),
+> +
+> + =A0 =A0 =A0 TP_fast_assign(
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __entry->bh =3D bh;
+> + =A0 =A0 =A0 ),
+> +
+> + =A0 =A0 =A0 TP_printk("bh %p", __entry->bh)
+> +);
+> +
+> +DEFINE_EVENT(fs_buffer_wait, fs_buffer_wait_enter,
+> +
+> + =A0 =A0 =A0 TP_PROTO(struct buffer_head *bh),
+> +
+> + =A0 =A0 =A0 TP_ARGS(bh)
+> +);
+> +
+> +DEFINE_EVENT(fs_buffer_wait, fs_buffer_wait_exit,
+> +
+> + =A0 =A0 =A0 TP_PROTO(struct buffer_head *bh),
+> +
+> + =A0 =A0 =A0 TP_ARGS(bh)
+> +);
+> +
+> +TRACE_EVENT(block_write_full_page_enter,
+> +
+> + =A0 =A0 =A0 TP_PROTO(struct inode *inode, sector_t block, sector_t last=
+_block),
+> +
+> + =A0 =A0 =A0 TP_ARGS(inode, block, last_block),
+> +
+> + =A0 =A0 =A0 TP_STRUCT__entry(
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __field( =A0 =A0 =A0 =A0dev_t, =A0 =A0 =A0 =
+=A0 =A0dev =A0 =A0 =A0 =A0 =A0 =A0 )
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __field( =A0 =A0 =A0 =A0unsigned long, =A0i=
+no =A0 =A0 =A0 =A0 =A0 =A0 )
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __field( =A0 =A0 =A0 =A0sector_t, =A0 =A0 =
+=A0 block =A0 =A0 =A0 =A0 =A0 )
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __field( =A0 =A0 =A0 =A0sector_t, =A0 =A0 =
+=A0 last_block =A0 =A0 =A0)
+> + =A0 =A0 =A0 ),
+> +
+> + =A0 =A0 =A0 TP_fast_assign(
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __entry->dev =A0 =A0 =A0 =A0 =A0 =A0=3D ino=
+de->i_sb->s_dev;
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __entry->ino =A0 =A0 =A0 =A0 =A0 =A0=3D ino=
+de->i_ino;
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __entry->block =A0 =A0 =A0 =A0 =A0=3D block=
+;
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __entry->last_block =A0 =A0 =3D last_block;
+> + =A0 =A0 =A0 ),
+> +
+> + =A0 =A0 =A0 TP_printk("dev %d,%d ino %lu block %lu last block %lu",
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 MAJOR(__entry->dev), MINOR(__entry->dev=
+),
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 __entry->ino,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 (unsigned long)__entry->block,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 (unsigned long)__entry->last_block)
+> +);
+> +
+> +TRACE_EVENT(block_write_full_page_exit,
+> +
+> + =A0 =A0 =A0 TP_PROTO(struct inode *inode, int nr_underway, int err),
+> +
+> + =A0 =A0 =A0 TP_ARGS(inode, nr_underway, err),
+> +
+> + =A0 =A0 =A0 TP_STRUCT__entry(
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __field( =A0 =A0 =A0 =A0dev_t, =A0 =A0 =A0 =
+=A0 =A0dev =A0 =A0 =A0 =A0 =A0 =A0 )
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __field( =A0 =A0 =A0 =A0unsigned long, =A0i=
+no =A0 =A0 =A0 =A0 =A0 =A0 )
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __field( =A0 =A0 =A0 =A0int, =A0 =A0 =A0 =
+=A0 =A0 =A0nr_underway =A0 =A0 )
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __field( =A0 =A0 =A0 =A0int, =A0 =A0 =A0 =
+=A0 =A0 =A0err =A0 =A0 =A0 =A0 =A0 =A0 )
+> + =A0 =A0 =A0 ),
+> +
+> + =A0 =A0 =A0 TP_fast_assign(
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __entry->dev =A0 =A0 =A0 =A0 =A0 =A0=3D ino=
+de->i_sb->s_dev;
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __entry->ino =A0 =A0 =A0 =A0 =A0 =A0=3D ino=
+de->i_ino;
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __entry->nr_underway =A0 =A0=3D nr_underway=
+;
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __entry->err =A0 =A0 =A0 =A0 =A0 =A0=3D err=
+;
+> + =A0 =A0 =A0 ),
+> +
+> + =A0 =A0 =A0 TP_printk("dev %d,%d ino %lu nr_underway %d err %d",
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 MAJOR(__entry->dev), MINOR(__entry->dev=
+),
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 __entry->ino, __entry->nr_underway, __e=
+ntry->err)
+> +);
+> +
+> +DECLARE_EVENT_CLASS(file_read,
+> + =A0 =A0 =A0 TP_PROTO(struct inode *inode, loff_t pos, size_t len),
+> +
+> + =A0 =A0 =A0 TP_ARGS(inode, pos, len),
+> +
+> + =A0 =A0 =A0 TP_STRUCT__entry(
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __field( =A0 =A0 =A0 =A0ino_t, =A0ino =A0 =
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 )
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __field( =A0 =A0 =A0 =A0dev_t, =A0dev =A0 =
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 )
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __field( =A0 =A0 =A0 =A0loff_t, pos =A0 =A0=
+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 )
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __field( =A0 =A0 =A0 =A0size_t, len =A0 =A0=
+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 )
+> + =A0 =A0 =A0 ),
+> +
+> + =A0 =A0 =A0 TP_fast_assign(
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __entry->ino =A0 =A0=3D inode->i_ino;
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __entry->dev =A0 =A0=3D inode->i_sb->s_dev;
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __entry->pos =A0 =A0=3D pos;
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __entry->len =A0 =A0=3D len;
+> + =A0 =A0 =A0 ),
+> +
+> + =A0 =A0 =A0 TP_printk("dev %d,%d ino %lu pos %llu len %lu",
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 MAJOR(__entry->dev), MINOR(__entry->dev=
+),
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 (unsigned long) __entry->ino,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0__entry->pos, =A0__entry->len)
+> +);
+> +
+> +DEFINE_EVENT(file_read, file_read_enter,
+> +
+> + =A0 =A0 =A0 TP_PROTO(struct inode *inode, loff_t pos, size_t len),
+> +
+> + =A0 =A0 =A0 TP_ARGS(inode, pos, len)
+> +);
+> +
+> +DEFINE_EVENT(file_read, file_read_exit,
+> +
+> + =A0 =A0 =A0 TP_PROTO(struct inode *inode, loff_t pos, size_t len),
+> +
+> + =A0 =A0 =A0 TP_ARGS(inode, pos, len)
+> +);
+> +
+> +TRACE_EVENT(mpage_readpages,
+> + =A0 =A0 =A0 TP_PROTO(struct page *page, struct address_space *mapping,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0unsigned nr_pages),
+> +
+> + =A0 =A0 =A0 TP_ARGS(page, mapping, nr_pages),
+> +
+> + =A0 =A0 =A0 TP_STRUCT__entry(
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __field( =A0 =A0 =A0 =A0pgoff_t, index =A0 =
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0)
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __field( =A0 =A0 =A0 =A0ino_t, =A0ino =A0 =
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 )
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __field( =A0 =A0 =A0 =A0dev_t, =A0dev =A0 =
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 )
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __field( =A0 =A0 =A0 =A0unsigned, =A0 =A0 =
+=A0 nr_pages =A0 =A0 =A0 =A0)
+> +
+> + =A0 =A0 =A0 ),
+> +
+> + =A0 =A0 =A0 TP_fast_assign(
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __entry->index =A0=3D page->index;
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __entry->ino =A0 =A0=3D mapping->host->i_in=
+o;
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __entry->dev =A0 =A0=3D mapping->host->i_sb=
+->s_dev;
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __entry->nr_pages =A0 =A0 =A0 =3D nr_pages;
+> + =A0 =A0 =A0 ),
+> +
+> + =A0 =A0 =A0 TP_printk("dev %d,%d ino %lu page_index %lu nr_pages %u",
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 MAJOR(__entry->dev), MINOR(__entry->dev=
+),
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 (unsigned long) __entry->ino,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 __entry->index, __entry->nr_pages)
+> +);
+> +
+> +#endif /* _TRACE_FS_H */
+> +
+> +/* This part must be outside protection */
+> +#include <trace/define_trace.h>
+> +
+> diff --git a/mm/filemap.c b/mm/filemap.c
+> index c641edf..94e549c 100644
+> --- a/mm/filemap.c
+> +++ b/mm/filemap.c
+> @@ -42,7 +42,7 @@
+> =A0#include <linux/buffer_head.h> /* for try_to_free_buffers */
+>
+> =A0#include <asm/mman.h>
 > -
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0hrtimer_cpu_notify(&hrtimers_nb, (unsigned lon=
-g)CPU_UP_PREPARE,
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0(void *)(long)smp_processor_id());
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0register_cpu_notifier(&hrtimers_nb);
+> +#include <trace/events/fs.h>
+> =A0/*
+> =A0* Shared mappings implemented 30.11.1994. It's not fully working yet,
+> =A0* though.
+> @@ -1054,6 +1054,7 @@ static void do_generic_file_read(struct file *filp,=
+ loff_t *ppos,
+> =A0 =A0 =A0 =A0unsigned int prev_offset;
+> =A0 =A0 =A0 =A0int error;
+>
+> + =A0 =A0 =A0 trace_file_read_enter(inode, *ppos, desc->count);
+> =A0 =A0 =A0 =A0index =3D *ppos >> PAGE_CACHE_SHIFT;
+> =A0 =A0 =A0 =A0prev_index =3D ra->prev_pos >> PAGE_CACHE_SHIFT;
+> =A0 =A0 =A0 =A0prev_offset =3D ra->prev_pos & (PAGE_CACHE_SIZE-1);
+> @@ -1254,6 +1255,7 @@ out:
+> =A0 =A0 =A0 =A0ra->prev_pos <<=3D PAGE_CACHE_SHIFT;
+> =A0 =A0 =A0 =A0ra->prev_pos |=3D prev_offset;
+>
+> + =A0 =A0 =A0 trace_file_read_exit(inode, *ppos, desc->written);
+> =A0 =A0 =A0 =A0*ppos =3D ((loff_t)index << PAGE_CACHE_SHIFT) + offset;
+> =A0 =A0 =A0 =A0file_accessed(filp);
+> =A0}
+> --
+> 1.7.3.1
 >
 >
->
-
-Looks good so far, no stalls or call-traces.
-
-Really stressing with 20+ open tabs in firefox with flash-movie
-running in one of them , tar-job, IRC-client etc.
-I will run some more tests and collect data and send them later.
-
-- Sedat -
-
-P.S.: Patchset against linux-2.6-rcu.git#sedat.2011.04.23a where 0003
-is from [2]
-
-[1] http://git.us.kernel.org/?p=3Dlinux/kernel/git/paulmck/linux-2.6-rcu.gi=
-t;a=3Dshortlog;h=3Drefs/heads/sedat.2011.04.23a
-[2] https://patchwork.kernel.org/patch/739782/
-
-$ l ../RCU-HOORAY/
-insgesamt 40
-drwxr-xr-x  2 sd sd  4096 29. Apr 01:02 .
-drwxr-xr-x 35 sd sd 20480 29. Apr 01:01 ..
--rw-r--r--  1 sd sd   726 29. Apr 01:01
-0001-Revert-rcu-restrict-TREE_RCU-to-SMP-builds-with-PREE.patch
--rw-r--r--  1 sd sd   735 29. Apr 01:01
-0002-sched-Add-warning-when-RT-throttling-is-activated.patch
--rw-r--r--  1 sd sd  2376 29. Apr 01:01
-0003-2.6.39-rc4-Kernel-leaking-memory-during-FS-scanning-.patch
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
