@@ -1,125 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id A23766B0022
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 00:04:22 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 2E2253EE0C1
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 13:04:17 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 1335F45DE50
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 13:04:17 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id E862945DE4F
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 13:04:16 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id DC0E61DB8037
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 13:04:16 +0900 (JST)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id D702E6B0011
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 00:12:14 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id BCB2D3EE0C0
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 13:12:11 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id A4C1245DE92
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 13:12:11 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 855E745DE77
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 13:12:11 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 793D91DB803C
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 13:12:11 +0900 (JST)
 Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 997911DB802F
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 13:04:16 +0900 (JST)
-Date: Thu, 28 Apr 2011 12:57:39 +0900
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 324771DB8037
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 13:12:11 +0900 (JST)
+Date: Thu, 28 Apr 2011 13:05:29 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: Fw: [PATCH] memcg: add reclaim statistics accounting
-Message-Id: <20110428125739.15e252a7.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <BANLkTimywCF06gfKWFcbAsWtFUbs73rZrQ@mail.gmail.com>
-References: <20110428121643.b3cbf420.kamezawa.hiroyu@jp.fujitsu.com>
-	<BANLkTimywCF06gfKWFcbAsWtFUbs73rZrQ@mail.gmail.com>
+Subject: Re: [PATCH 0/7] memcg background reclaim , yet another one.
+Message-Id: <20110428130529.41d264d0.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <BANLkTin=VW4kbBbeiipEx0pqByWpSjbi=Q@mail.gmail.com>
+References: <20110425182529.c7c37bb4.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110425191437.d881ee68.kamezawa.hiroyu@jp.fujitsu.com>
+	<BANLkTikYeV8JpMHd1Lvh7kRXXpLyQEOw4w@mail.gmail.com>
+	<20110426103859.05eb7a35.kamezawa.hiroyu@jp.fujitsu.com>
+	<BANLkTi=aoRhgu3SOKZ8OLRqTew67ciquFg@mail.gmail.com>
+	<20110426164341.fb6c80a4.kamezawa.hiroyu@jp.fujitsu.com>
+	<BANLkTi=sSrrQCMXKJor95Cn-JmiQ=XUAkA@mail.gmail.com>
+	<20110426174754.07a58f22.kamezawa.hiroyu@jp.fujitsu.com>
+	<BANLkTin=VW4kbBbeiipEx0pqByWpSjbi=Q@mail.gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Ying Han <yinghan@google.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Johannes Weiner <jweiner@redhat.com>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>
 
-On Wed, 27 Apr 2011 20:43:58 -0700
+On Wed, 27 Apr 2011 20:55:49 -0700
 Ying Han <yinghan@google.com> wrote:
 
-> On Wed, Apr 27, 2011 at 8:16 PM, KAMEZAWA Hiroyuki
+> On Tue, Apr 26, 2011 at 1:47 AM, KAMEZAWA Hiroyuki
 > <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > sorry, I had wrong TO:...
+> > On Tue, 26 Apr 2011 01:43:17 -0700
+> > Ying Han <yinghan@google.com> wrote:
 > >
-> > Begin forwarded message:
+> >> On Tue, Apr 26, 2011 at 12:43 AM, KAMEZAWA Hiroyuki <
+> >> kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> >>
+> >> > On Tue, 26 Apr 2011 00:19:46 -0700
+> >> > Ying Han <yinghan@google.com> wrote:
+> >> >
+> >> > > On Mon, Apr 25, 2011 at 6:38 PM, KAMEZAWA Hiroyuki
+> >> > > <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> >> > > > On Mon, 25 Apr 2011 15:21:21 -0700
+> >> > > > Ying Han <yinghan@google.com> wrote:
 > >
-> > Date: Thu, 28 Apr 2011 12:02:34 +0900
-> > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > To: linux-mm@vger.kernel.org
-> > Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, Ying Han <yinghan@google.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
-> > Subject: [PATCH] memcg: add reclaim statistics accounting
+> >>
+> >> > To clarify a bit, my question was meant to account it but not necessary to
+> >> > limit it. We can use existing cpu cgroup to do the cpu limiting, and I am
+> >> >
+> >> just wondering how to configure it for the memcg kswapd thread.
+> >>
+> >> A  A Let's say in the per-memcg-kswapd model, i can echo the kswapd thread pid
+> >> into the cpu cgroup ( the same set of process of memcg, but in a cpu
+> >> limiting cgroup instead). A If the kswapd is shared, we might need extra work
+> >> to account the cpu cycles correspondingly.
+> >>
 > >
+> > Hm ? statistics of elapsed_time isn't enough ?
 > >
-> >
-> > Now, memory cgroup provides poor reclaim statistics per memcg. This
-> > patch adds statistics for direct/soft reclaim as the number of
-> > pages scans, the number of page freed by reclaim, the nanoseconds of
-> > latency at reclaim.
-> >
-> > It's good to add statistics before we modify memcg/global reclaim, largely.
-> > This patch refactors current soft limit status and add an unified update logic.
-> >
-> > For example, After #cat 195Mfile > /dev/null under 100M limit.
-> > A  A  A  A # cat /cgroup/memory/A/memory.stat
-> > A  A  A  A ....
-> > A  A  A  A limit_freed 24592
+> > Now, I think limiting scan/sec interface is more promissing rather than time
+> > or thread controls. It's easier to understand.
 > 
-> why not "limit_steal" ?
+> I think it will work on the cpu accounting by recording the
+> elapsed_time per memcg workitem.
 > 
-
-It's not "stealed". Freed by itself.
-pages reclaimed by soft-limit is stealed because of global memory pressure.
-I don't like the name "steal" but I can't change it because of API breakage.
-
-
-> > A  A  A  A soft_steal 0
-> > A  A  A  A limit_scan 43974
-> > A  A  A  A soft_scan 0
-> > A  A  A  A limit_latency 133837417
-> >
-> > nearly 96M caches are freed. scanned twice. used 133ms.
-> 
-> Does it make sense to split up the soft_steal/scan for bg reclaim and
-> direct reclaim? 
-
-Please clarify what you're talking about before asking. Maybe you want to say
-"I'm now working for supporting softlimit in direct reclaim path. So, does
- it make sense to account direct/kswapd works in statistics ?"
-
-I think bg/direct reclaim is not required to be splitted.
-
-> The same for the limit_steal/scan. 
-
-limit has only direct reclaim, now. And this is independent from any
-soft limit works.
-
-> I am now testing
-> the patch to add the soft_limit reclaim on global ttfp, and i already
-> have the patch to add the following:
-> 
-> kswapd_soft_steal 0
-> kswapd_soft_scan 0
-
-please don't change the name of _used_ statisitcs.
-
-
-> direct_soft_steal 0
-> direct_soft_scan 0
-
-Maybe these are new ones added by your work. But should be merged to
-soft_steal/soft_scan.
-
-> kswapd_steal 0
-> pg_pgsteal 0
-> kswapd_pgscan 0
-> pg_scan 0
+> But, we might still need the cpu throttling as well. To give one use
+> cases from google, we'd rather kill a low priority job for running
+> tight on memory rather than having its reclaim thread affecting the
+> latency of high priority job. It is quite easy to understand how to
+> accomplish that in per-memcg-per-kswapd model, but harder in the
+> shared workqueue model. It is straight-forward to read  the cpu usage
+> by the cpuacct.usage* and limit the cpu usage by setting cpu.shares.
+> One concern we have here is the scan/sec implementation will make
+> things quite complex.
 > 
 
-Maybe this indicates reclaimed-by-other-tasks-than-this-memcg. Right ?
-Maybe good for checking isolation of memcg, hmm, can these be accounted
-in scalable way ?
+I think you should check how distance between limit<->hiwater works
+before jumping onto cpu scheduler. If you can see a memcg's bgreclaim is
+cpu hogging, you can stop it easily by setting limit==hiwat. per-memcg
+statistics seems enough for me. I don't like splitting up features
+between cgroups, more. "To reduce cpu usage by memcg, please check
+cpu cgroup and...." how complex it is! Do you remember what Hugh Dickins
+pointed out at LSF ? It's a big concern.
 
-BTW, my office will be closed for a week because of holidays. So, I'll not make
-responce tomorrow. please CC kamezawa.hiroyuki@gmail.com if you need.
-I may read e-mails.
+Setting up of combination of cgroup subsys is too complex.
 
 Thanks,
 -Kame
