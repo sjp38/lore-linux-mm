@@ -1,69 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 90C8F6B0011
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 03:09:25 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id EAB4D3EE0C1
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 16:09:21 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id D257B45DD74
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 16:09:21 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id BC3D845DE4E
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 16:09:21 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id B1EDF1DB803F
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 16:09:21 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 7842D1DB803A
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 16:09:21 +0900 (JST)
-Date: Thu, 28 Apr 2011 16:02:49 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: Fw: [PATCH] memcg: add reclaim statistics accounting
-Message-Id: <20110428160249.79e67823.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <BANLkTinicqanpcVHtAWsgQxu1gkbzVpXdg@mail.gmail.com>
-References: <20110428121643.b3cbf420.kamezawa.hiroyu@jp.fujitsu.com>
-	<BANLkTimywCF06gfKWFcbAsWtFUbs73rZrQ@mail.gmail.com>
-	<20110428125739.15e252a7.kamezawa.hiroyu@jp.fujitsu.com>
-	<BANLkTikgJWYJ8_rAkuNtD0vTehCG7vPpow@mail.gmail.com>
-	<20110428132757.130b4206.kamezawa.hiroyu@jp.fujitsu.com>
-	<BANLkTinicqanpcVHtAWsgQxu1gkbzVpXdg@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with ESMTP id 74CF46B0011
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 04:45:16 -0400 (EDT)
+Date: Thu, 28 Apr 2011 10:45:00 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [RFC 4/8] Make clear description of putback_lru_page
+Message-ID: <20110428084500.GG12437@cmpxchg.org>
+References: <cover.1303833415.git.minchan.kim@gmail.com>
+ <bb2acc3882594cf54689d9e29c61077ff581c533.1303833417.git.minchan.kim@gmail.com>
+ <20110427171157.3751528f.kamezawa.hiroyu@jp.fujitsu.com>
+ <BANLkTik2FTKgSSYkyP4XT4pkhOYvpjgSTA@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <BANLkTik2FTKgSSYkyP4XT4pkhOYvpjgSTA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux.com>, Johannes Weiner <jweiner@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>
 
-On Wed, 27 Apr 2011 21:40:06 -0700
-Ying Han <yinghan@google.com> wrote:
-
-> On Wed, Apr 27, 2011 at 9:27 PM, KAMEZAWA Hiroyuki
+On Thu, Apr 28, 2011 at 08:20:32AM +0900, Minchan Kim wrote:
+> On Wed, Apr 27, 2011 at 5:11 PM, KAMEZAWA Hiroyuki
 > <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > On Wed, 27 Apr 2011 21:24:30 -0700
-> > Ying Han <yinghan@google.com> wrote:
-
-> > BTW, ff I add more statistics, I'll add per-node statistics.
-> > Hmm, memory.node_stat is required ?
+> > On Wed, 27 Apr 2011 01:25:21 +0900
+> > Minchan Kim <minchan.kim@gmail.com> wrote:
+> >
+> >> Commonly, putback_lru_page is used with isolated_lru_page.
+> >> The isolated_lru_page picks the page in middle of LRU and
+> >> putback_lru_page insert the lru in head of LRU.
+> >> It means it could make LRU churning so we have to be very careful.
+> >> Let's clear description of putback_lru_page.
+> >>
+> >> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> >> Cc: Mel Gorman <mgorman@suse.de>
+> >> Cc: Rik van Riel <riel@redhat.com>
+> >> Cc: Andrea Arcangeli <aarcange@redhat.com>
+> >> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+> >
+> > seems good...
+> > Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> >
+> > But is there consensus which side of LRU is tail? head?
 > 
-> Yes and this will be useful. One of the stats I would like add now is
-> the number of pages allocated on behalf of the memcg per numa node.
-> This is a piece of useful information to evaluate the numa locality
-> correlated to the application
-> performance.
-> 
-> I was wondering where to add the stats and memory.stat seems not to be
-> the best fit. If we have memory.node_stat, that would be a good place
-> for those kind of info?
-> 
+> I don't know. I used to think it's head.
+> If other guys raise a concern as well, let's talk about it. :)
+> Thanks
 
-Maybe it's better to add memory.node_stat ....memory.stat seems a bit long ;)
-I'd like to consider to add a tool to grab information easily under somewhere
-...as cgroup-top.
+I suppose we add new pages to the head of the LRU and reclaim old
+pages from the tail.
 
-Thanks,
--Kame
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
