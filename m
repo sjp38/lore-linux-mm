@@ -1,109 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 9AD35900001
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 19:51:34 -0400 (EDT)
-Received: by bwz17 with SMTP id 17so4176415bwz.14
-        for <linux-mm@kvack.org>; Thu, 28 Apr 2011 16:51:29 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <BANLkTimP_0-ErmnGUnJPVjYRG=fcRN8eOA@mail.gmail.com>
-References: <1304030226-19332-1-git-send-email-yinghan@google.com>
-	<1304030226-19332-3-git-send-email-yinghan@google.com>
-	<BANLkTimP_0-ErmnGUnJPVjYRG=fcRN8eOA@mail.gmail.com>
-Date: Fri, 29 Apr 2011 08:51:29 +0900
-Message-ID: <BANLkTimum+TkOxGcqQYfaYEVN+U5oLQqhA@mail.gmail.com>
-Subject: Re: [PATCH 2/2] Add stats to monitor soft_limit reclaim
-From: Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 4393D900001
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 20:05:02 -0400 (EDT)
+Received: from d01relay06.pok.ibm.com (d01relay06.pok.ibm.com [9.56.227.116])
+	by e5.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p3SNca99006814
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 19:38:36 -0400
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p3T04xUn1192102
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 20:04:59 -0400
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p3SK4l01022298
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 17:04:48 -0300
+Subject: Re: [PATCH 1/2] break out page allocation warning code
+From: john stultz <johnstul@us.ibm.com>
+In-Reply-To: <1304034500.2971.160.camel@work-vm>
+References: <alpine.DEB.2.00.1104201317410.31768@chino.kir.corp.google.com>
+	 <1303331695.2796.159.camel@work-vm>
+	 <20110421103009.731B.A69D9226@jp.fujitsu.com>
+	 <1303846026.2816.117.camel@work-vm>
+	 <alpine.DEB.2.00.1104271641350.25369@chino.kir.corp.google.com>
+	 <1303950728.2971.35.camel@work-vm> <1303954193.2971.43.camel@work-vm>
+	 <alpine.DEB.2.00.1104281545590.24536@chino.kir.corp.google.com>
+	 <1304034500.2971.160.camel@work-vm>
+Content-Type: text/plain; charset="UTF-8"
+Date: Thu, 28 Apr 2011 17:04:55 -0700
+Message-ID: <1304035495.2971.169.camel@work-vm>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Nazarewicz <mina86@mina86.com>, Andrew Morton <akpm@linux-foundation.org>
 
-2011/4/29 Ying Han <yinghan@google.com>:
-> On Thu, Apr 28, 2011 at 3:37 PM, Ying Han <yinghan@google.com> wrote:
->> This patch extend the soft_limit reclaim stats to both global background
->> reclaim and global direct reclaim.
->>
->> We have a thread discussing the naming of some of the stats. Both
->> KAMEZAWA and Johannes posted the proposals. The following stats are base=
-d
->> on what i had before that thread. I will make the corresponding change o=
-n
->> the next post when we make decision.
->>
->> $cat /dev/cgroup/memory/A/memory.stat
->> kswapd_soft_steal 1053626
->> kswapd_soft_scan 1053693
->> direct_soft_steal 1481810
->> direct_soft_scan 1481996
->>
->> Signed-off-by: Ying Han <yinghan@google.com>
->> ---
->> =A0Documentation/cgroups/memory.txt | =A0 10 ++++-
->> =A0mm/memcontrol.c =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0| =A0 68 +++++++++=
-+++++++++++++++++++----------
->> =A02 files changed, 58 insertions(+), 20 deletions(-)
->>
->> diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/me=
-mory.txt
->> index 0c40dab..fedc107 100644
->> --- a/Documentation/cgroups/memory.txt
->> +++ b/Documentation/cgroups/memory.txt
->> @@ -387,8 +387,14 @@ pgpgout =A0 =A0 =A0 =A0 =A0 =A0- # of pages paged o=
-ut (equivalent to # of uncharging events).
->> =A0swap =A0 =A0 =A0 =A0 =A0 - # of bytes of swap usage
->> =A0pgfault =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0- # of page faults.
->> =A0pgmajfault =A0 =A0 - # of major page faults.
->> -soft_steal =A0 =A0 - # of pages reclaimed from global hierarchical recl=
-aim
->> -soft_scan =A0 =A0 =A0- # of pages scanned from global hierarchical recl=
-aim
->> +soft_kswapd_steal- # of pages reclaimed in global hierarchical reclaim =
-from
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 background reclaim
->> +soft_kswapd_scan - # of pages scanned in global hierarchical reclaim fr=
-om
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 background reclaim
->> +soft_direct_steal- # of pages reclaimed in global hierarchical reclaim =
-from
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 direct reclaim
->> +soft_direct_scan- # of pages scanned in global hierarchical reclaim fro=
-m
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 direct reclaim
+On Thu, 2011-04-28 at 16:48 -0700, john stultz wrote:
+> On Thu, 2011-04-28 at 15:48 -0700, David Rientjes wrote:
+> > On Wed, 27 Apr 2011, john stultz wrote:
+> > 
+> > > So thinking further, this can be simplified by adding the seqlock first,
+> > > and then retaining the task_locking only in the set_task_comm path until
+> > > all comm accessors are converted to using get_task_comm.
+> > > 
+> > 
+> > On second thought, I think it would be better to just retain using a 
+> > spinlock but instead of using alloc_lock, introduce a new spinlock to 
+> > task_struct for the sole purpose of protecting comm.
+> > 
+> > And, instead, of using get_task_comm() to write into a preallocated 
+> > buffer, I think it would be easier in the vast majority of cases that 
+> > you'll need to convert to just provide task_comm_lock(p) and 
+> > task_comm_unlock(p) so that p->comm can be dereferenced safely.  
 
-Thank you for CC.
+Ok.. trying to find a middle ground here by replying to my own
+concerns. :)
 
-I don't have strong opinion but once we add interfaces to mainline,
-it's hard to rename them. So, it's better to make a list of what name
-we'll need in future.
+> So my concern with this is that it means one more lock that could be
+> mis-nested. By keeping the locking isolated to the get/set_task_comm, we
+> can be sure that won't happen. 
+> 
+> Also tracking new current->comm references will be easier if we just
+> don't allow new ones. Validating that all the comm references are
+> correctly locked becomes more difficult if we need locking at each use
+> site.
 
-Now, your naming has a format as [Reason]-[Who reclaim]-[What count?]
-soft_kswapd_steal
-soft_kswapd_scan
-soft_direct_steal
-soft_direct_scan
+So maybe we still ban current->comm access and instead have a
+lightweight get_comm_locked() accessor or something that. Then we can
+add debugging options to validate that the lock is properly held
+internally.
 
-Ok, we can make a name for wmark and limit reclaim as
+> Further, since I'm not convinced that we never reference current->comm
+> from irq context, if we go with spinlocks, we're going to have to
+> disable irqs in the read path as well. seqlocks were nice for that
+> aspect.
 
-limit_direct_steal/scan
-wmark_bg_steal/scan
+rwlocks can resolve this concern.
 
-Then, assume we finally do round-robin scan of memcg regardless of softlimi=
-t by
-removing global LRU, what name do we have ? Hmm,
 
-kernel_kswapd_scan/steal
-kernel_direct_scan/steal
+Any other thoughts?
 
-?
-
-BTW, your changelog has different name of counters. please fix.
-
-And I'm sorry I'll not be very active for a while.
-
-Thanks,
--Kame
+-john
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
