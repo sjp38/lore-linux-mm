@@ -1,159 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id B6D6E900001
-	for <linux-mm@kvack.org>; Fri, 29 Apr 2011 15:12:44 -0400 (EDT)
-Received: from hpaq11.eem.corp.google.com (hpaq11.eem.corp.google.com [172.25.149.11])
-	by smtp-out.google.com with ESMTP id p3TJCfBK025968
-	for <linux-mm@kvack.org>; Fri, 29 Apr 2011 12:12:41 -0700
-Received: from qyj19 (qyj19.prod.google.com [10.241.83.83])
-	by hpaq11.eem.corp.google.com with ESMTP id p3TJCYex009990
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 29 Apr 2011 12:12:40 -0700
-Received: by qyj19 with SMTP id 19so414486qyj.9
-        for <linux-mm@kvack.org>; Fri, 29 Apr 2011 12:12:34 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20110429103038.GL6547@balbir.in.ibm.com>
-References: <1304030226-19332-1-git-send-email-yinghan@google.com>
-	<1304030226-19332-3-git-send-email-yinghan@google.com>
-	<BANLkTimP_0-ErmnGUnJPVjYRG=fcRN8eOA@mail.gmail.com>
-	<BANLkTimum+TkOxGcqQYfaYEVN+U5oLQqhA@mail.gmail.com>
-	<BANLkTik-kyPO_UFoMu=WcjRoBvA0NiCikg@mail.gmail.com>
-	<20110429103038.GL6547@balbir.in.ibm.com>
-Date: Fri, 29 Apr 2011 12:12:33 -0700
-Message-ID: <BANLkTinbBfE+1dDrti1b-K9_=mM_6OTS-w@mail.gmail.com>
-Subject: Re: [PATCH 2/2] Add stats to monitor soft_limit reclaim
-From: Ying Han <yinghan@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 950F6900001
+	for <linux-mm@kvack.org>; Fri, 29 Apr 2011 15:31:14 -0400 (EDT)
+Date: Fri, 29 Apr 2011 21:31:00 +0200
+From: Bruno =?UTF-8?B?UHLDqW1vbnQ=?= <bonbons@linux-vserver.org>
+Subject: Re: 2.6.39-rc4+: Kernel leaking memory during FS scanning,
+ regression?
+Message-ID: <20110429213100.75f771eb@neptune.home>
+In-Reply-To: <alpine.LFD.2.02.1104282353140.3005@ionos>
+References: <20110426112756.GF4308@linux.vnet.ibm.com>
+	<20110426183859.6ff6279b@neptune.home>
+	<20110426190918.01660ccf@neptune.home>
+	<BANLkTikjuqWP+PAsObJH4EAOyzgr2RbYNA@mail.gmail.com>
+	<alpine.LFD.2.02.1104262314110.3323@ionos>
+	<20110427081501.5ba28155@pluto.restena.lu>
+	<20110427204139.1b0ea23b@neptune.home>
+	<alpine.LFD.2.02.1104272351290.3323@ionos>
+	<alpine.LFD.2.02.1104281051090.19095@ionos>
+	<BANLkTinB5S7q88dch78i-h28jDHx5dvfQw@mail.gmail.com>
+	<20110428102609.GJ2135@linux.vnet.ibm.com>
+	<1303997401.7819.5.camel@marge.simson.net>
+	<BANLkTik4+PAGHF-9KREYk8y+KDQLDAp2Mg@mail.gmail.com>
+	<alpine.LFD.2.02.1104282044120.3005@ionos>
+	<20110428222301.0b745a0a@neptune.home>
+	<alpine.LFD.2.02.1104282227340.3005@ionos>
+	<20110428224444.43107883@neptune.home>
+	<alpine.LFD.2.02.1104282251080.3005@ionos>
+	<1304027480.2971.121.camel@work-vm>
+	<alpine.LFD.2.02.1104282353140.3005@ionos>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: balbir@linux.vnet.ibm.com
-Cc: Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>, linux-mm@kvack.org
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: john stultz <johnstul@us.ibm.com>, sedat.dilek@gmail.com, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Frysinger <vapier.adi@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Paul E. McKenney" <paul.mckenney@linaro.org>, Pekka Enberg <penberg@kernel.org>
 
-On Fri, Apr 29, 2011 at 3:30 AM, Balbir Singh <balbir@linux.vnet.ibm.com> w=
-rote:
-> * Ying Han <yinghan@google.com> [2011-04-28 20:28:54]:
->
->> On Thu, Apr 28, 2011 at 4:51 PM, Hiroyuki Kamezawa
->> <kamezawa.hiroyuki@gmail.com> wrote:
->> > 2011/4/29 Ying Han <yinghan@google.com>:
->> >> On Thu, Apr 28, 2011 at 3:37 PM, Ying Han <yinghan@google.com> wrote:
->> >>> This patch extend the soft_limit reclaim stats to both global backgr=
-ound
->> >>> reclaim and global direct reclaim.
->> >>>
->> >>> We have a thread discussing the naming of some of the stats. Both
->> >>> KAMEZAWA and Johannes posted the proposals. The following stats are =
-based
->> >>> on what i had before that thread. I will make the corresponding chan=
-ge on
->> >>> the next post when we make decision.
->> >>>
->> >>> $cat /dev/cgroup/memory/A/memory.stat
->> >>> kswapd_soft_steal 1053626
->> >>> kswapd_soft_scan 1053693
->> >>> direct_soft_steal 1481810
->> >>> direct_soft_scan 1481996
->> >>>
->> >>> Signed-off-by: Ying Han <yinghan@google.com>
->> >>> ---
->> >>> =A0Documentation/cgroups/memory.txt | =A0 10 ++++-
->> >>> =A0mm/memcontrol.c =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0| =A0 68 +++++=
-+++++++++++++++++++++++----------
->> >>> =A02 files changed, 58 insertions(+), 20 deletions(-)
->> >>>
->> >>> diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroup=
-s/memory.txt
->> >>> index 0c40dab..fedc107 100644
->> >>> --- a/Documentation/cgroups/memory.txt
->> >>> +++ b/Documentation/cgroups/memory.txt
->> >>> @@ -387,8 +387,14 @@ pgpgout =A0 =A0 =A0 =A0 =A0 =A0- # of pages pag=
-ed out (equivalent to # of uncharging events).
->> >>> =A0swap =A0 =A0 =A0 =A0 =A0 - # of bytes of swap usage
->> >>> =A0pgfault =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0- # of page faults.
->> >>> =A0pgmajfault =A0 =A0 - # of major page faults.
->> >>> -soft_steal =A0 =A0 - # of pages reclaimed from global hierarchical =
-reclaim
->> >>> -soft_scan =A0 =A0 =A0- # of pages scanned from global hierarchical =
-reclaim
->> >>> +soft_kswapd_steal- # of pages reclaimed in global hierarchical recl=
-aim from
->> >>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 background reclaim
->> >>> +soft_kswapd_scan - # of pages scanned in global hierarchical reclai=
-m from
->> >>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 background reclaim
->> >>> +soft_direct_steal- # of pages reclaimed in global hierarchical recl=
-aim from
->> >>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 direct reclaim
->> >>> +soft_direct_scan- # of pages scanned in global hierarchical reclaim=
- from
->> >>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 direct reclaim
->> >
->> > Thank you for CC.
->> >
->> > I don't have strong opinion but once we add interfaces to mainline,
->> > it's hard to rename them. So, it's better to make a list of what name
->> > we'll need in future.
->> >
->> > Now, your naming has a format as [Reason]-[Who reclaim]-[What count?]
->> > soft_kswapd_steal
->> > soft_kswapd_scan
->> > soft_direct_steal
->> > soft_direct_scan
->> >
->> > Ok, we can make a name for wmark and limit reclaim as
->> >
->> > limit_direct_steal/scan
->> > wmark_bg_steal/scan
->> >
->> > Then, assume we finally do round-robin scan of memcg regardless of sof=
-tlimit by
->> > removing global LRU, what name do we have ? Hmm,
->> >
->> > kernel_kswapd_scan/steal
->> > kernel_direct_scan/steal
->> >
->> > ?
->>
->> Johannes has the proposal to separate out reclaims on the memcg
->> internally and externally. And then apply the format
->> [Reason]-[Who reclaim]-[What count?], also i added the 4th item .
->>
->> 1. when the memcg hits its hard_limit
->> > limit_direct_steal
->> > limit_direct_scan
->>
->> 2. when the memcg hits its wmark
->> > wmark_kswapd_steal
->> > wmark_kswapd_scan
->>
->> 3. the global direct reclaim triggers soft_limit pushback
->> > soft_direct_steal
->> > soft_direct_scan
->>
->> 4. hierarchy-triggered direct reclaim
->> > limit_hierarchy_steal
->> > limit_hierarchy_scan
->>
->> 5. the global bg reclaim triggers soft_limit pushback
->> > soft_kswapd_steal
->> > soft_kswapd_scan
->>
->
-> I like these names, but these are more developer friendly than end
-> user friendly.
+On Fri, 29 April 2011 Thomas Gleixner wrote:
+> On Thu, 28 Apr 2011, john stultz wrote:
+> > On Thu, 2011-04-28 at 23:04 +0200, Thomas Gleixner wrote:
+> > > /me suspects hrtimer changes to be the real culprit.
+> > 
+> > I'm not seeing anything on right off, but it does smell like
+> > e06383db9ec591696a06654257474b85bac1f8cb would be where such an issue
+> > would crop up.
+> > 
+> > Bruno, could you try checking out e06383db9ec, confirming it still
+> > occurs (and then maybe seeing if it goes away at e06383db9ec^1)?
+> > 
+> > I'll keep digging in the meantime.
+> 
+> I found the bug already. The problem is that sched_init() calls
+> init_rt_bandwidth() which calls hrtimer_init() _BEFORE_
+> hrtimers_init() is called.
+> 
+> That was unnoticed so far as the CLOCK id to hrtimer base conversion
+> was hardcoded. Now we use a table which is set up at hrtimers_init(),
+> so the bandwith hrtimer ends up on CLOCK_REALTIME because the table is
+> in the bss.
+> 
+> The patch below fixes this, by providing the table statically rather
+> than runtime initialized. Though that whole ordering wants to be
+> revisited.
 
-Thank you for reviewing. One thing that I can think of to help is
-better documentation. :)
+Works here as well (applied alone), /proc/$(pidof rcu_kthread)/sched shows
+total runtime continuing to increase beyond 950 and slubs continue being
+released!
 
---Ying
+Thanks,
+Bruno
 
-Thank you
->
-> --
-> =A0 =A0 =A0 =A0Three Cheers,
-> =A0 =A0 =A0 =A0Balbir
->
+> Thanks,
+> 
+> 	tglx
+> 
+> --- linux-2.6.orig/kernel/hrtimer.c
+> +++ linux-2.6/kernel/hrtimer.c
+> @@ -81,7 +81,11 @@ DEFINE_PER_CPU(struct hrtimer_cpu_base, 
+>  	}
+>  };
+>  
+> -static int hrtimer_clock_to_base_table[MAX_CLOCKS];
+> +static int hrtimer_clock_to_base_table[MAX_CLOCKS] = {
+> +	[CLOCK_REALTIME] = HRTIMER_BASE_REALTIME,
+> +	[CLOCK_MONOTONIC] = HRTIMER_BASE_MONOTONIC,
+> +	[CLOCK_BOOTTIME] = HRTIMER_BASE_BOOTTIME,
+> +};
+>  
+>  static inline int hrtimer_clockid_to_base(clockid_t clock_id)
+>  {
+> @@ -1722,10 +1726,6 @@ static struct notifier_block __cpuinitda
+>  
+>  void __init hrtimers_init(void)
+>  {
+> -	hrtimer_clock_to_base_table[CLOCK_REALTIME] = HRTIMER_BASE_REALTIME;
+> -	hrtimer_clock_to_base_table[CLOCK_MONOTONIC] = HRTIMER_BASE_MONOTONIC;
+> -	hrtimer_clock_to_base_table[CLOCK_BOOTTIME] = HRTIMER_BASE_BOOTTIME;
+> -
+>  	hrtimer_cpu_notify(&hrtimers_nb, (unsigned long)CPU_UP_PREPARE,
+>  			  (void *)(long)smp_processor_id());
+>  	register_cpu_notifier(&hrtimers_nb);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
