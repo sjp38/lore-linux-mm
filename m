@@ -1,60 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 68063900001
-	for <linux-mm@kvack.org>; Fri, 29 Apr 2011 11:25:45 -0400 (EDT)
-Received: by qwa26 with SMTP id 26so2620778qwa.14
-        for <linux-mm@kvack.org>; Fri, 29 Apr 2011 08:25:42 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20110428105027.GT4658@suse.de>
-References: <cover.1303833415.git.minchan.kim@gmail.com>
-	<2b79bbf9ddceb73624f49bbe9477126147d875fd.1303833417.git.minchan.kim@gmail.com>
-	<20110428105027.GT4658@suse.de>
-Date: Sat, 30 Apr 2011 00:25:41 +0900
-Message-ID: <BANLkTi=bMm+iyO23+16FxK__V1-aM50zWQ@mail.gmail.com>
-Subject: Re: [RFC 5/8] compaction: remove active list counting
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id D85BC900001
+	for <linux-mm@kvack.org>; Fri, 29 Apr 2011 11:37:24 -0400 (EDT)
+Subject: Re: [BUG] fatal hang untarring 90GB file, possibly writeback
+ related.
+From: James Bottomley <James.Bottomley@suse.de>
+In-Reply-To: <BANLkTimpMJRX0CF7tZ75_x1kWmTkFx3XxA@mail.gmail.com>
+References: <1303920553.2583.7.camel@mulgrave.site>
+	 <1303921583-sup-4021@think> <1303923000.2583.8.camel@mulgrave.site>
+	 <1303923177-sup-2603@think> <1303924902.2583.13.camel@mulgrave.site>
+	 <BANLkTimpMJRX0CF7tZ75_x1kWmTkFx3XxA@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Fri, 29 Apr 2011 10:37:16 -0500
+Message-ID: <1304091436.2559.8.camel@mulgrave.site>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux.com>, Johannes Weiner <jweiner@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>
+To: sedat.dilek@gmail.com
+Cc: Chris Mason <chris.mason@oracle.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 
-On Thu, Apr 28, 2011 at 7:50 PM, Mel Gorman <mgorman@suse.de> wrote:
-> On Wed, Apr 27, 2011 at 01:25:22AM +0900, Minchan Kim wrote:
->> acct_isolated of compaction uses page_lru_base_type which returns only
->> base type of LRU list so it never returns LRU_ACTIVE_ANON or LRU_ACTIVE_FILE.
->> So it's pointless to add lru[LRU_ACTIVE_[ANON|FILE]] to get sum.
->>
->> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
->> Cc: Mel Gorman <mgorman@suse.de>
->> Cc: Rik van Riel <riel@redhat.com>
->> Cc: Andrea Arcangeli <aarcange@redhat.com>
->> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
->
-> hmm, isolate_migratepages() is doing a linear scan of PFNs and is
-> calling __isolate_lru_page(..ISOLATE_BOTH..). Using page_lru_base_type
-> happens to work because we're only interested in the number of isolated
-> pages and your patch still covers that. Using page_lru might be more
-> accurate in terms of accountancy but does not seem necessary.
+On Fri, 2011-04-29 at 12:23 +0200, Sedat Dilek wrote:
+> But as I see these RCU (CPU) stalls, the patch from [1] might be worth a try.
+> First, I have seen negative effects on my UP-system was when playing
+> with linux-next [2].
+> It was not clear what the origin was and the the side-effects were
+> somehow "bizarre".
+> The issue could be easily reproduced by tar-ing the kernel build-dir
+> to an external USB-hdd.
+> The issue kept RCU and TIP folks really busy.
+> Before stepping 4 weeks in the dark, give it a try and let me know in
+> case of success.
 
-True.
+Well, it's highly unlikely because that's a 2.6.39 artifact and the bug
+showed up in 2.6.38 ... I tried it just in case with no effect, so we
+know it isn't the cause.
 
->
-> Adding a comment explaining why we account for it as inactive and why
-> that's ok would be nice although I admit this is something I should have
-> done when acct_isolated() was introduced.
+> For the systemd/cgroups part of the discussion (yes, I followed this
+> thread in parallel):
+> The patch from [4] might be interesting (untested here).
 
-When Kame pointed out comment, I wanted to avoid unnecessary comment
-so decided changing it with page_lru although it adds overhead a
-little bit. But Hannes, you and maybe Kame don't want it. I don't mind
-adding comment.
-Okay. fix it in next version.
+What makes you think that?  This patch is about rcu problems in cgroup
+manipulation through the mounted cgroup control filesystems.  The bug in
+question manifests when all of that is quiescent, so it's not likely to
+be related.
 
-Thanks.
+James
 
--- 
-Kind regards,
-Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
