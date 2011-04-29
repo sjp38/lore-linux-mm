@@ -1,82 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 84DE9900001
-	for <linux-mm@kvack.org>; Fri, 29 Apr 2011 11:15:04 -0400 (EDT)
-Received: by qwa26 with SMTP id 26so2613900qwa.14
-        for <linux-mm@kvack.org>; Fri, 29 Apr 2011 08:15:01 -0700 (PDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 280C4900001
+	for <linux-mm@kvack.org>; Fri, 29 Apr 2011 11:18:04 -0400 (EDT)
+Received: by qyk2 with SMTP id 2so386497qyk.14
+        for <linux-mm@kvack.org>; Fri, 29 Apr 2011 08:18:03 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20110428084820.GH12437@cmpxchg.org>
+In-Reply-To: <20110428103505.GS4658@suse.de>
 References: <cover.1303833415.git.minchan.kim@gmail.com>
-	<4dc5e63cfc8672426336e43dea29057d5bb6e863.1303833417.git.minchan.kim@gmail.com>
-	<20110428084820.GH12437@cmpxchg.org>
-Date: Sat, 30 Apr 2011 00:15:01 +0900
-Message-ID: <BANLkTina+YuDgACZfDV8T_Lnipo50J6zVA@mail.gmail.com>
-Subject: Re: [RFC 2/8] compaction: make isolate_lru_page with filter aware
+	<232562452317897b5acb1445803410d74233a923.1303833417.git.minchan.kim@gmail.com>
+	<20110428103505.GS4658@suse.de>
+Date: Sat, 30 Apr 2011 00:18:02 +0900
+Message-ID: <BANLkTi=kLjZRp+kxrhG8Q-bEFw7x-O6vgg@mail.gmail.com>
+Subject: Re: [RFC 3/8] vmscan: make isolate_lru_page with filter aware
 From: Minchan Kim <minchan.kim@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux.com>, Johannes Weiner <jweiner@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux.com>, Johannes Weiner <jweiner@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>
 
-Hi Hannes,
-
-On Thu, Apr 28, 2011 at 5:48 PM, Johannes Weiner <hannes@cmpxchg.org> wrote=
-:
-> On Wed, Apr 27, 2011 at 01:25:19AM +0900, Minchan Kim wrote:
->> In async mode, compaction doesn't migrate dirty or writeback pages.
->> So, it's meaningless to pick the page and re-add it to lru list.
+On Thu, Apr 28, 2011 at 7:35 PM, Mel Gorman <mgorman@suse.de> wrote:
+> On Wed, Apr 27, 2011 at 01:25:20AM +0900, Minchan Kim wrote:
+>> In some __zone_reclaim case, we don't want to shrink mapped page.
+>> Nonetheless, we have isolated mapped page and re-add it into
+>> LRU's head. It's unnecessary CPU overhead and makes LRU churning.
 >>
->> Of course, when we isolate the page in compaction, the page might
->> be dirty or writeback but when we try to migrate the page, the page
->> would be not dirty, writeback. So it could be migrated. But it's
->> very unlikely as isolate and migration cycle is much faster than
->> writeout.
+>> Of course, when we isolate the page, the page might be mapped but
+>> when we try to migrate the page, the page would be not mapped.
+>> So it could be migrated. But race is rare and although it happens,
+>> it's no big deal.
 >>
->> So, this patch helps cpu and prevent unnecessary LRU churning.
->>
+>> Cc: Christoph Lameter <cl@linux.com>
 >> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 >> Cc: Mel Gorman <mgorman@suse.de>
 >> Cc: Rik van Riel <riel@redhat.com>
 >> Cc: Andrea Arcangeli <aarcange@redhat.com>
 >> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
->> ---
->> =C2=A0mm/compaction.c | =C2=A0 =C2=A02 +-
->> =C2=A01 files changed, 1 insertions(+), 1 deletions(-)
+>
+>> index 71d2da9..e8d6190 100644
+>> --- a/mm/vmscan.c
+>> +++ b/mm/vmscan.c
+>> @@ -1147,7 +1147,8 @@ static unsigned long isolate_lru_pages(unsigned lo=
+ng nr_to_scan,
 >>
->> diff --git a/mm/compaction.c b/mm/compaction.c
->> index dea32e3..9f80b5a 100644
->> --- a/mm/compaction.c
->> +++ b/mm/compaction.c
->> @@ -335,7 +335,7 @@ static unsigned long isolate_migratepages(struct zon=
-e *zone,
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 }
->>
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 /* Try isolate the page=
- */
->> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (__isolate_lru_page(page,=
- ISOLATE_BOTH, 0, 0, 0) !=3D 0)
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (__isolate_lru_page(page,=
- ISOLATE_BOTH, 0, !cc->sync, 0) !=3D 0)
+>> =C2=A0static unsigned long isolate_pages_global(unsigned long nr,
 >> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 continue;
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 struct list_=
+head *dst,
+>> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 unsigned long *scan=
+ned, int order,
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 unsigned long *scan=
+ned,
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 struct scan_control=
+ *sc,
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 int mode, st=
+ruct zone *z,
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 int active, =
+int file)
+>> =C2=A0{
+>> @@ -1156,8 +1157,8 @@ static unsigned long isolate_pages_global(unsigned=
+ long nr,
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 lru +=3D LRU_ACTIVE;
+>> =C2=A0 =C2=A0 =C2=A0 if (file)
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 lru +=3D LRU_FILE;
+>> - =C2=A0 =C2=A0 return isolate_lru_pages(nr, &z->lru[lru].list, dst, sca=
+nned, order,
+>> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 mode, file, 0, 0);
+>> + =C2=A0 =C2=A0 return isolate_lru_pages(nr, &z->lru[lru].list, dst, sca=
+nned, sc->order,
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 mode, file, 0, !sc-=
+>may_unmap);
+>> =C2=A0}
+>>
 >
-> With the suggested flags argument from 1/8, this would look like:
->
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0flags =3D ISOLATE_BOTH;
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0if (!cc->sync)
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0flags |=3D ISOLATE=
-_CLEAN;
->
-> ?
+> Why not take may_writepage into account for dirty pages?
 
-Yes. I will change it.
-
->
-> Anyway, nice change indeed!
-
-Thanks!
+I missed it.
+I will consider it in next version.
+Thanks, Mel.
 
 
 --=20
