@@ -1,85 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 99D4F900001
-	for <linux-mm@kvack.org>; Fri, 29 Apr 2011 05:14:59 -0400 (EDT)
-Message-ID: <4DBA818E.6040501@kpanic.de>
-Date: Fri, 29 Apr 2011 11:14:54 +0200
-From: Stefan Assmann <sassmann@kpanic.de>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id C76AC900001
+	for <linux-mm@kvack.org>; Fri, 29 Apr 2011 05:34:50 -0400 (EDT)
+Date: Fri, 29 Apr 2011 11:34:13 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: 2.6.39-rc4+: Kernel leaking memory during FS scanning,
+ regression?
+In-Reply-To: <20110429004255.GF2191@linux.vnet.ibm.com>
+Message-ID: <alpine.LFD.2.02.1104291133100.3005@ionos>
+References: <BANLkTik4+PAGHF-9KREYk8y+KDQLDAp2Mg@mail.gmail.com> <alpine.LFD.2.02.1104282044120.3005@ionos> <20110428222301.0b745a0a@neptune.home> <alpine.LFD.2.02.1104282227340.3005@ionos> <20110428224444.43107883@neptune.home> <alpine.LFD.2.02.1104282251080.3005@ionos>
+ <1304027480.2971.121.camel@work-vm> <alpine.LFD.2.02.1104282353140.3005@ionos> <BANLkTi=uDstjKEQaPOkxX94NxMQU2Pu5gA@mail.gmail.com> <BANLkTikS-PN0PDBbCz3emWRBL90sGMY+Kg@mail.gmail.com> <20110429004255.GF2191@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH 2/3] support for broken memory modules (BadRAM)
-References: <1303921007-1769-1-git-send-email-sassmann@kpanic.de> <1303921007-1769-3-git-send-email-sassmann@kpanic.de> <20110427211258.GQ16484@one.firstfloor.org> <4DB90A66.3020805@kpanic.de> <20110428150821.GT16484@one.firstfloor.org> <4DB98D13.1050107@kpanic.de>
-In-Reply-To: <4DB98D13.1050107@kpanic.de>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: linux-mm@kvack.org, tony.luck@intel.com, mingo@elte.hu, hpa@zytor.com, rick@vanrein.org, akpm@linux-foundation.org, lwoodman@redhat.com, riel@redhat.com
+To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Cc: sedat.dilek@gmail.com, john stultz <johnstul@us.ibm.com>, =?ISO-8859-15?Q?Bruno_Pr=E9mont?= <bonbons@linux-vserver.org>, Mike Galbraith <efault@gmx.de>, Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Frysinger <vapier.adi@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Paul E. McKenney" <paul.mckenney@linaro.org>, Pekka Enberg <penberg@kernel.org>
 
-On 28.04.2011 17:51, Stefan Assmann wrote:
-> On 04/28/2011 05:08 PM, Andi Kleen wrote:
->>> You're right, logging every page marked would be too verbose. That's why
->>> I wrapped that logging into pr_debug.
->>
->> pr_debug still floods the kernel log buffer. On large systems
->> it often already overflows.
+On Thu, 28 Apr 2011, Paul E. McKenney wrote:
+> On Fri, Apr 29, 2011 at 01:35:44AM +0200, Sedat Dilek wrote:
+> >  01:35:17 up 45 min,  3 users,  load average: 0.45, 0.57, 1.27
+> > 
+> > Thanks to all involved people helping to kill that bug (Come on Paul, smile!).
 > 
-> That's a pain then, I understand.
-
-I took a closer look at pr_debug and it seems that pr_debug gets
-evaluated to a conditional branch and thus does not flood the log buffer
-if not explicitly enabled. I confirmed that by dumping the log buffer.
-So in the normal use-case things should be fine and if pr_debug really
-is enabled it dumps a lot of data, which I hope is acceptable for
-debugging purposes.
-
+> Woo-hoo!!!!
 > 
->>
->>> However I kept the printk in the case of early allocated pages. The user
->>> should be notified of the attempt to mark a page that's already been
->>> allocated by the kernel itself.
->>
->> That's ok, although if you're unlucky (e.g. hit a large mem_map area)
->> it can be also very nosiy.
->>
->> It would be better if you fixed the printks to output ranges.
-> 
-> BadRAM patterns might often mark non-consecutive pages so outputting
-> ranges could be more verbose than what we have now. I'll try to think
-> of something to minimize log output.
+> Many thanks to Thomas for tracking this down -- it is fair to say that
+> I never would have thought to look at timer initialization!  ;-)
 
-How about the following:
-static int __init badram_mark_pages(unsigned long addr, unsigned long mask)
-{
-	unsigned long pagecount = 0, is_reserved = 0;
-[...]
-	printk(KERN_INFO "BadRAM: mark 0x%lx with mask 0x%0lx\n", addr, mask);
+Many thanks to the reporters who provided all the information and
+tested all the random debug patches we threw at them !
 
-	do {
-[...]
-		if (memblock_is_reserved(addr)) {
-			pr_debug("BadRAM: page %lu reserved by kernel\n", pfn);
-			is_reserved++;
-			continue;
-		}
-[...]
-		pr_debug("BadRAM: page %lu (addr 0x%0lx) marked bad "
-			 "[total %lu]\n", pfn, addr, pagecount);
-	} while (next_masked_address(&addr, mask));
-
-	if (is_reserved)
-		printk(KERN_WARNING "BadRAM: %lu page(s) already reserved and "
-		       "could not be marked bad\n", is_reserved);
-
-	return pagecount;
-}
-
-This way everything with possibly high volume log output is guarded by
-pr_debug and only the summary gets printed by default. No log_buf
-cluttering but also a bit harder to debug for somebody who's interested
-in finding out which pages are already reserved.
-
-  Stefan
+       tglx
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
