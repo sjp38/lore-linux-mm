@@ -1,61 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id AAA55900001
-	for <linux-mm@kvack.org>; Fri, 29 Apr 2011 04:52:17 -0400 (EDT)
-Received: by fxm18 with SMTP id 18so3459331fxm.14
-        for <linux-mm@kvack.org>; Fri, 29 Apr 2011 01:52:13 -0700 (PDT)
-Date: Fri, 29 Apr 2011 10:52:10 +0200
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH] percpu: preemptless __per_cpu_counter_add
-Message-ID: <20110429085210.GK16552@htj.dyndns.org>
-References: <20110428145657.GD16552@htj.dyndns.org>
- <alpine.DEB.2.00.1104281003000.16323@router.home>
- <20110428151203.GE16552@htj.dyndns.org>
- <alpine.DEB.2.00.1104281017240.16323@router.home>
- <1304005726.3360.69.camel@edumazet-laptop>
- <1304006345.3360.72.camel@edumazet-laptop>
- <alpine.DEB.2.00.1104281116270.18213@router.home>
- <1304008533.3360.88.camel@edumazet-laptop>
- <alpine.DEB.2.00.1104281152110.18213@router.home>
- <1304009996.5827.3.camel@edumazet-laptop>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 99D4F900001
+	for <linux-mm@kvack.org>; Fri, 29 Apr 2011 05:14:59 -0400 (EDT)
+Message-ID: <4DBA818E.6040501@kpanic.de>
+Date: Fri, 29 Apr 2011 11:14:54 +0200
+From: Stefan Assmann <sassmann@kpanic.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <1304009996.5827.3.camel@edumazet-laptop>
+Subject: Re: [RFC PATCH 2/3] support for broken memory modules (BadRAM)
+References: <1303921007-1769-1-git-send-email-sassmann@kpanic.de> <1303921007-1769-3-git-send-email-sassmann@kpanic.de> <20110427211258.GQ16484@one.firstfloor.org> <4DB90A66.3020805@kpanic.de> <20110428150821.GT16484@one.firstfloor.org> <4DB98D13.1050107@kpanic.de>
+In-Reply-To: <4DB98D13.1050107@kpanic.de>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric Dumazet <eric.dumazet@gmail.com>
-Cc: Christoph Lameter <cl@linux.com>, Shaohua Li <shaohua.li@intel.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: linux-mm@kvack.org, tony.luck@intel.com, mingo@elte.hu, hpa@zytor.com, rick@vanrein.org, akpm@linux-foundation.org, lwoodman@redhat.com, riel@redhat.com
 
-On Thu, Apr 28, 2011 at 06:59:56PM +0200, Eric Dumazet wrote:
-> Le jeudi 28 avril 2011 a 11:52 -0500, Christoph Lameter a ecrit :
+On 28.04.2011 17:51, Stefan Assmann wrote:
+> On 04/28/2011 05:08 PM, Andi Kleen wrote:
+>>> You're right, logging every page marked would be too verbose. That's why
+>>> I wrapped that logging into pr_debug.
+>>
+>> pr_debug still floods the kernel log buffer. On large systems
+>> it often already overflows.
 > 
-> > I can still add (batch - 1) without causing the seqcount to be
-> > incremented.
+> That's a pain then, I understand.
+
+I took a closer look at pr_debug and it seems that pr_debug gets
+evaluated to a conditional branch and thus does not flood the log buffer
+if not explicitly enabled. I confirmed that by dumping the log buffer.
+So in the normal use-case things should be fine and if pr_debug really
+is enabled it dumps a lot of data, which I hope is acceptable for
+debugging purposes.
+
 > 
-> It always had been like that, from the very beginning.
+>>
+>>> However I kept the printk in the case of early allocated pages. The user
+>>> should be notified of the attempt to mark a page that's already been
+>>> allocated by the kernel itself.
+>>
+>> That's ok, although if you're unlucky (e.g. hit a large mem_map area)
+>> it can be also very nosiy.
+>>
+>> It would be better if you fixed the printks to output ranges.
+> 
+> BadRAM patterns might often mark non-consecutive pages so outputting
+> ranges could be more verbose than what we have now. I'll try to think
+> of something to minimize log output.
 
-This doesn't matter.  At this level, the order of concurrent
-operations is not well defined.  You might as well say "oh well, then
-the update happened after the sum is calculated".
+How about the following:
+static int __init badram_mark_pages(unsigned long addr, unsigned long mask)
+{
+	unsigned long pagecount = 0, is_reserved = 0;
+[...]
+	printk(KERN_INFO "BadRAM: mark 0x%lx with mask 0x%0lx\n", addr, mask);
 
-The problem I have with the interface are two-folds.
+	do {
+[...]
+		if (memblock_is_reserved(addr)) {
+			pr_debug("BadRAM: page %lu reserved by kernel\n", pfn);
+			is_reserved++;
+			continue;
+		}
+[...]
+		pr_debug("BadRAM: page %lu (addr 0x%0lx) marked bad "
+			 "[total %lu]\n", pfn, addr, pagecount);
+	} while (next_masked_address(&addr, mask));
 
-1. Is it even necessary?  With concurrent updates, we don't and can't
-   define strict order of updates across multiple CPUs.  If we sweep
-   the counters without being intervened (IRQ or, well, NMI), it
-   should be and has been acceptable enough.
+	if (is_reserved)
+		printk(KERN_WARNING "BadRAM: %lu page(s) already reserved and "
+		       "could not be marked bad\n", is_reserved);
 
-2. Let's say we need this.  Then, @maxfuzzy.  Few people are gonna
-   understand it well and use it properly.  Why can't you track the
-   actual deviation introduced since sum started instead of tracking
-   the number of deviation events?
+	return pagecount;
+}
 
-Thanks.
+This way everything with possibly high volume log output is guarded by
+pr_debug and only the summary gets printed by default. No log_buf
+cluttering but also a bit harder to debug for somebody who's interested
+in finding out which pages are already reserved.
 
--- 
-tejun
+  Stefan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
