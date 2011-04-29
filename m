@@ -1,36 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 8A850900001
-	for <linux-mm@kvack.org>; Fri, 29 Apr 2011 13:42:25 -0400 (EDT)
-Received: from hpaq14.eem.corp.google.com (hpaq14.eem.corp.google.com [172.25.149.14])
-	by smtp-out.google.com with ESMTP id p3THgJ4P020747
-	for <linux-mm@kvack.org>; Fri, 29 Apr 2011 10:42:19 -0700
-Received: from qyk32 (qyk32.prod.google.com [10.241.83.160])
-	by hpaq14.eem.corp.google.com with ESMTP id p3THfm1p004342
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 249CE900001
+	for <linux-mm@kvack.org>; Fri, 29 Apr 2011 13:44:20 -0400 (EDT)
+Received: from wpaz13.hot.corp.google.com (wpaz13.hot.corp.google.com [172.24.198.77])
+	by smtp-out.google.com with ESMTP id p3THiI11029012
+	for <linux-mm@kvack.org>; Fri, 29 Apr 2011 10:44:18 -0700
+Received: from qyg14 (qyg14.prod.google.com [10.241.82.142])
+	by wpaz13.hot.corp.google.com with ESMTP id p3THiHsO016352
 	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 29 Apr 2011 10:42:18 -0700
-Received: by qyk32 with SMTP id 32so489976qyk.8
-        for <linux-mm@kvack.org>; Fri, 29 Apr 2011 10:42:18 -0700 (PDT)
+	for <linux-mm@kvack.org>; Fri, 29 Apr 2011 10:44:17 -0700
+Received: by qyg14 with SMTP id 14so2307086qyg.12
+        for <linux-mm@kvack.org>; Fri, 29 Apr 2011 10:44:17 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20110429102649.GK6547@balbir.in.ibm.com>
+In-Reply-To: <20110429130503.GA306@tiehlicka.suse.cz>
 References: <1304030226-19332-1-git-send-email-yinghan@google.com>
 	<1304030226-19332-2-git-send-email-yinghan@google.com>
-	<20110429102649.GK6547@balbir.in.ibm.com>
-Date: Fri, 29 Apr 2011 10:42:18 -0700
-Message-ID: <BANLkTik297jFZk1PUXLHhS9OY-paLn8Qgg@mail.gmail.com>
+	<20110429130503.GA306@tiehlicka.suse.cz>
+Date: Fri, 29 Apr 2011 10:44:16 -0700
+Message-ID: <BANLkTinkB+qF6u6TtsSoahdPOmNtAht39A@mail.gmail.com>
 Subject: Re: [PATCH 1/2] Add the soft_limit reclaim in global direct reclaim.
 From: Ying Han <yinghan@google.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: balbir@linux.vnet.ibm.com
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>, linux-mm@kvack.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>, linux-mm@kvack.org
 
-On Fri, Apr 29, 2011 at 3:26 AM, Balbir Singh <balbir@linux.vnet.ibm.com> w=
-rote:
-> * Ying Han <yinghan@google.com> [2011-04-28 15:37:05]:
->
+On Fri, Apr 29, 2011 at 6:05 AM, Michal Hocko <mhocko@suse.cz> wrote:
+> On Thu 28-04-11 15:37:05, Ying Han wrote:
 >> We recently added the change in global background reclaim which
 >> counts the return value of soft_limit reclaim. Now this patch adds
 >> the similar logic on global direct reclaim.
@@ -39,6 +37,9 @@ rote:
 >> does enough work. This is the first step where we start with counting
 >> the nr_scanned and nr_reclaimed from soft_limit reclaim into global
 >> scan_control.
+>
+> Makes sense.
+>
 >>
 >> Signed-off-by: Ying Han <yinghan@google.com>
 >> ---
@@ -86,40 +87,24 @@ claim(zone,
 >> + =A0 =A0 =A0 =A0 =A0 =A0 total_scanned +=3D nr_soft_scanned;
 >> +
 >> =A0 =A0 =A0 =A0 =A0 =A0 =A0 shrink_zone(priority, zone, sc);
->> =A0 =A0 =A0 }
->> +
->> + =A0 =A0 return total_scanned;
->> =A0}
->>
->> =A0static bool zone_reclaimable(struct zone *zone)
->> @@ -2045,7 +2057,7 @@ static unsigned long do_try_to_free_pages(struct z=
-onelist *zonelist,
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 sc->nr_scanned =3D 0;
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!priority)
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 disable_swap_token();
->> - =A0 =A0 =A0 =A0 =A0 =A0 shrink_zones(priority, zonelist, sc);
->> + =A0 =A0 =A0 =A0 =A0 =A0 total_scanned +=3D shrink_zones(priority, zone=
-list, sc);
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 /*
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* Don't shrink slabs when reclaiming memo=
-ry from
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* over limit cgroups
 >
-> Seems reasonable to me, are you able to see the benefits of setting
-> soft limits and then adding back the stats on global LRU scan if
-> soft limits did a good job?
+> This can cause more aggressive reclaiming, right? Shouldn't we check
+> whether shrink_zone is still needed?
 
-I can list the stats on my next post which shows the how many reclaimed fro=
-m
-soft_limit reclaim vs per-zone recalim before and after the patch.
-
-Thanks
+We decided to leave the shrink_zone for now before making further
+changes for soft_limit reclaim. The same
+patch I did last time for global background reclaim. It is safer to do
+this step-by-step :)
 
 --Ying
 >
 > --
-> =A0 =A0 =A0 =A0Three Cheers,
-> =A0 =A0 =A0 =A0Balbir
+> Michal Hocko
+> SUSE Labs
+> SUSE LINUX s.r.o.
+> Lihovarska 1060/12
+> 190 00 Praha 9
+> Czech Republic
 >
 
 --
