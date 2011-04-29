@@ -1,64 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id F24AE900001
-	for <linux-mm@kvack.org>; Fri, 29 Apr 2011 04:19:34 -0400 (EDT)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id BF5C5900001
+	for <linux-mm@kvack.org>; Fri, 29 Apr 2011 04:32:46 -0400 (EDT)
 Subject: Re: [PATCH] percpu: preemptless __per_cpu_counter_add
 From: Shaohua Li <shaohua.li@intel.com>
-In-Reply-To: <20110428100938.GA10721@htj.dyndns.org>
-References: <20110421180159.GF15988@htj.dyndns.org>
-	 <alpine.DEB.2.00.1104211308300.5741@router.home>
-	 <20110421183727.GG15988@htj.dyndns.org>
-	 <alpine.DEB.2.00.1104211350310.5741@router.home>
-	 <20110421190807.GK15988@htj.dyndns.org>
-	 <1303439580.3981.241.camel@sli10-conroe>
-	 <20110426121011.GD878@htj.dyndns.org>
-	 <1303883009.3981.316.camel@sli10-conroe>
-	 <20110427102034.GE31015@htj.dyndns.org>
+In-Reply-To: <1304008533.3360.88.camel@edumazet-laptop>
+References: <20110427102034.GE31015@htj.dyndns.org>
 	 <1303961284.3981.318.camel@sli10-conroe>
 	 <20110428100938.GA10721@htj.dyndns.org>
+	 <alpine.DEB.2.00.1104280904240.15775@router.home>
+	 <20110428142331.GA16552@htj.dyndns.org>
+	 <alpine.DEB.2.00.1104280935460.16323@router.home>
+	 <20110428144446.GC16552@htj.dyndns.org>
+	 <alpine.DEB.2.00.1104280951480.16323@router.home>
+	 <20110428145657.GD16552@htj.dyndns.org>
+	 <alpine.DEB.2.00.1104281003000.16323@router.home>
+	 <20110428151203.GE16552@htj.dyndns.org>
+	 <alpine.DEB.2.00.1104281017240.16323@router.home>
+	 <1304005726.3360.69.camel@edumazet-laptop>
+	 <1304006345.3360.72.camel@edumazet-laptop>
+	 <alpine.DEB.2.00.1104281116270.18213@router.home>
+	 <1304008533.3360.88.camel@edumazet-laptop>
 Content-Type: text/plain; charset="UTF-8"
-Date: Fri, 29 Apr 2011 16:19:31 +0800
-Message-ID: <1304065171.3981.594.camel@sli10-conroe>
+Date: Fri, 29 Apr 2011 16:32:43 +0800
+Message-ID: <1304065963.3981.600.camel@sli10-conroe>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Christoph Lameter <cl@linux.com>, Eric Dumazet <eric.dumazet@gmail.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Eric Dumazet <eric.dumazet@gmail.com>
+Cc: Christoph Lameter <cl@linux.com>, Tejun Heo <tj@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-Hi,
-On Thu, 2011-04-28 at 18:09 +0800, Tejun Heo wrote:
-> On Thu, Apr 28, 2011 at 11:28:04AM +0800, Shaohua Li wrote:
-> > > Okay, this communication failure isn't my fault.  Please re-read what
-> > > I wrote before, my concern wasn't primarily about pathological worst
-> > > case - if that many concurrent updates are happening && the counter
-> > > needs to be accurate, it can't even use atomic counter.  It should be
-> > > doing full exclusion around the counter and the associated operation
-> > > _together_.
-> > > 
-> > > I'm worried about sporadic erratic behavior happening regardless of
-> > > update frequency and preemption would contribute but isn't necessary
-> > > for that to happen.
-> >
-> > Ok, I misunderstood the mail you sent to Christoph, sorry. So you have
-> > no problem about the atomic convert. I'll update the patch against base
-> > tree, given the preemptless patch has problem.
+On Fri, 2011-04-29 at 00:35 +0800, Eric Dumazet wrote:
+> Le jeudi 28 avril 2011 A  11:17 -0500, Christoph Lameter a A(C)crit :
+> > On Thu, 28 Apr 2011, Eric Dumazet wrote:
+> > 
+> > > > If _sum() notices seqcount was changed too much, restart the loop.
+> > 
+> > This does not address the issue of cpus adding batch -1 while the
+> > loop is going on.
 > 
-> Hmm... we're now more lost than ever. :-( Can you please re-read my
-> message two replies ago?  The one where I talked about sporadic
-> erratic behaviors in length and why I was worried about it.
 > 
-> In your last reply, you talked about preemption and that you didn't
-> have problems with disabling preemption, which, unfortunately, doesn't
-> have much to do with my concern with the sporadic erratic behaviors
-> and that's what I pointed out in my previous reply.  So, it doesn't
-> feel like anything is resolved.
-ok, I got your point. I'd agree there is sporadic erratic behaviors, but
-I expect there is no problem here. We all agree the worst case is the
-same before/after the change. Any program should be able to handle the
-worst case, otherwise the program itself is buggy. Discussing a buggy
-program is meaningless. After the change, something behavior is changed,
-but the worst case isn't. So I don't think this is a big problem.
+> Yes, it does, I left the needed changes to write side as an exercice ;)
+> 
+> 
+> For example, based on current linux-2.6 code
+> 
+> 
+> void __percpu_counter_add(struct percpu_counter *fbc, s64 amount, s32 batch)
+> {
+>         s64 count;
+> 
+>         preempt_disable();
+>         count = __this_cpu_read(*fbc->counters) + amount;
+>         if (count >= batch || count <= -batch) {
+>                 spin_lock(&fbc->lock);
+> 		fbc->seqcount++;
+>                 fbc->count += count;
+>                 __this_cpu_write(*fbc->counters, 0);
+>                 spin_unlock(&fbc->lock);
+>         } else {
+>                 __this_cpu_write(*fbc->counters, count);
+>         }
+>         preempt_enable();
+> }
+yep, this can resolve Tejun's concern. The problem is how do you
+determine maxfuzzy. This can mislead user too. Because in the worst
+case, the deviation is num_cpu*batch. If a user uses a small maxfuzzy
+and expect the max deviation is maxfuzzy, he actually will get a bigger
+deviation in worst case.
 
 Thanks,
 Shaohua
