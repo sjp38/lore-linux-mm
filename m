@@ -1,28 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 97C37900001
-	for <linux-mm@kvack.org>; Fri, 29 Apr 2011 10:03:51 -0400 (EDT)
-Date: Fri, 29 Apr 2011 09:03:46 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH] percpu: preemptless __per_cpu_counter_add
-In-Reply-To: <alpine.DEB.2.00.1104290855060.7776@router.home>
-Message-ID: <alpine.DEB.2.00.1104290903230.7776@router.home>
-References: <20110421183727.GG15988@htj.dyndns.org> <alpine.DEB.2.00.1104211350310.5741@router.home> <20110421190807.GK15988@htj.dyndns.org> <1303439580.3981.241.camel@sli10-conroe> <20110426121011.GD878@htj.dyndns.org> <1303883009.3981.316.camel@sli10-conroe>
- <20110427102034.GE31015@htj.dyndns.org> <1303961284.3981.318.camel@sli10-conroe> <20110428100938.GA10721@htj.dyndns.org> <1304065171.3981.594.camel@sli10-conroe> <20110429084424.GJ16552@htj.dyndns.org> <alpine.DEB.2.00.1104290855060.7776@router.home>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id BC477900001
+	for <linux-mm@kvack.org>; Fri, 29 Apr 2011 10:17:44 -0400 (EDT)
+Message-ID: <4DBAC85D.50306@freescale.com>
+Date: Fri, 29 Apr 2011 09:17:01 -0500
+From: Timur Tabi <timur@freescale.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH 1/3] rename alloc_pages_exact()
+References: <20110414200139.ABD98551@kernel>
+In-Reply-To: <20110414200139.ABD98551@kernel>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Shaohua Li <shaohua.li@intel.com>, Eric Dumazet <eric.dumazet@gmail.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andi Kleen <andi@firstfloor.org>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Michal Nazarewicz <mina86@mina86.com>, David Rientjes <rientjes@google.com>
 
-On Fri, 29 Apr 2011, Christoph Lameter wrote:
+Dave Hansen wrote:
+> alloc_pages_exact() returns a virtual address.  But, alloc_pages() returns
+> a 'struct page *'.  That makes for very confused kernel hackers.
+> 
+> __get_free_pages(), on the other hand, returns virtual addresses.  That
+> makes alloc_pages_exact() a much closer match to __get_free_pages(), so
+> rename it to get_free_pages_exact().  Also change the arguments to have
+> flags first, just like __get_free_pages().
+> 
+> Note that alloc_pages_exact()'s partner, free_pages_exact() already
+> matches free_pages(), so we do not have to touch the free side of things.
+> 
+> Signed-off-by: Dave Hansen <dave@linux.vnet.ibm.com>
+> Acked-by: Andi Kleen <ak@linux.intel.com>
+> Acked-by: David Rientjes <rientjes@google.com>
 
-> If someone wants more accuracy then we need the ability to dynamically set
-> the batch limit similar to what the vm statistics do.
+All three patches:
 
-Forget the key point: After these measures it should be possible to remove
-_sum.
+Acked-by: Timur Tabi <timur@freescale.com>
+
+-- 
+Timur Tabi
+Linux kernel developer at Freescale
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
