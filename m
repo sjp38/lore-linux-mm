@@ -1,145 +1,256 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 77E5F900001
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 20:43:01 -0400 (EDT)
-Received: from d01relay01.pok.ibm.com (d01relay01.pok.ibm.com [9.56.227.233])
-	by e9.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p3T0EOjY002402
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 20:14:24 -0400
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p3T0gxff094564
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 20:43:00 -0400
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p3T0gwk6024199
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 20:42:59 -0400
-Date: Thu, 28 Apr 2011 17:42:55 -0700
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: 2.6.39-rc4+: Kernel leaking memory during FS scanning,
- regression?
-Message-ID: <20110429004255.GF2191@linux.vnet.ibm.com>
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <BANLkTik4+PAGHF-9KREYk8y+KDQLDAp2Mg@mail.gmail.com>
- <alpine.LFD.2.02.1104282044120.3005@ionos>
- <20110428222301.0b745a0a@neptune.home>
- <alpine.LFD.2.02.1104282227340.3005@ionos>
- <20110428224444.43107883@neptune.home>
- <alpine.LFD.2.02.1104282251080.3005@ionos>
- <1304027480.2971.121.camel@work-vm>
- <alpine.LFD.2.02.1104282353140.3005@ionos>
- <BANLkTi=uDstjKEQaPOkxX94NxMQU2Pu5gA@mail.gmail.com>
- <BANLkTikS-PN0PDBbCz3emWRBL90sGMY+Kg@mail.gmail.com>
+	by kanga.kvack.org (Postfix) with SMTP id 35A78900001
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 22:28:29 -0400 (EDT)
+Date: Fri, 29 Apr 2011 10:28:24 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [RFC][PATCH] mm: cut down __GFP_NORETRY page allocation
+ failures
+Message-ID: <20110429022824.GA8061@localhost>
+References: <20110426055521.GA18473@localhost>
+ <BANLkTik8k9A8N8CPk+eXo9c_syxJFRyFCA@mail.gmail.com>
+ <BANLkTim0MNgqeh1KTfvpVFuAvebKyQV8Hg@mail.gmail.com>
+ <20110426062535.GB19717@localhost>
+ <BANLkTinM9DjK9QsGtN0Sh308rr+86UMF0A@mail.gmail.com>
+ <20110426063421.GC19717@localhost>
+ <BANLkTi=xDozFNBXNdGDLK6EwWrfHyBifQw@mail.gmail.com>
+ <20110426092029.GA27053@localhost>
+ <20110426124743.e58d9746.akpm@linux-foundation.org>
+ <20110428133644.GA12400@localhost>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <BANLkTikS-PN0PDBbCz3emWRBL90sGMY+Kg@mail.gmail.com>
+In-Reply-To: <20110428133644.GA12400@localhost>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: sedat.dilek@gmail.com
-Cc: Thomas Gleixner <tglx@linutronix.de>, john stultz <johnstul@us.ibm.com>, Bruno =?iso-8859-1?Q?Pr=E9mont?= <bonbons@linux-vserver.org>, Mike Galbraith <efault@gmx.de>, Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Frysinger <vapier.adi@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Paul E. McKenney" <paul.mckenney@linaro.org>, Pekka Enberg <penberg@kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Minchan Kim <minchan.kim@gmail.com>, Dave Young <hidave.darkstar@gmail.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Mel Gorman <mel@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, Dave Chinner <david@fromorbit.com>, David Rientjes <rientjes@google.com>
 
-On Fri, Apr 29, 2011 at 01:35:44AM +0200, Sedat Dilek wrote:
-> On Fri, Apr 29, 2011 at 1:06 AM, Sedat Dilek <sedat.dilek@googlemail.com> wrote:
-> > On Fri, Apr 29, 2011 at 12:02 AM, Thomas Gleixner <tglx@linutronix.de> wrote:
-> >> On Thu, 28 Apr 2011, john stultz wrote:
-> >>> On Thu, 2011-04-28 at 23:04 +0200, Thomas Gleixner wrote:
-> >>> > /me suspects hrtimer changes to be the real culprit.
-> >>>
-> >>> I'm not seeing anything on right off, but it does smell like
-> >>> e06383db9ec591696a06654257474b85bac1f8cb would be where such an issue
-> >>> would crop up.
-> >>>
-> >>> Bruno, could you try checking out e06383db9ec, confirming it still
-> >>> occurs (and then maybe seeing if it goes away at e06383db9ec^1)?
-> >>>
-> >>> I'll keep digging in the meantime.
-> >>
-> >> I found the bug already. The problem is that sched_init() calls
-> >> init_rt_bandwidth() which calls hrtimer_init() _BEFORE_
-> >> hrtimers_init() is called.
-> >>
-> >> That was unnoticed so far as the CLOCK id to hrtimer base conversion
-> >> was hardcoded. Now we use a table which is set up at hrtimers_init(),
-> >> so the bandwith hrtimer ends up on CLOCK_REALTIME because the table is
-> >> in the bss.
-> >>
-> >> The patch below fixes this, by providing the table statically rather
-> >> than runtime initialized. Though that whole ordering wants to be
-> >> revisited.
-> >>
-> >> Thanks,
-> >>
-> >>        tglx
-> >>
-> >> --- linux-2.6.orig/kernel/hrtimer.c
-> >> +++ linux-2.6/kernel/hrtimer.c
-> >> @@ -81,7 +81,11 @@ DEFINE_PER_CPU(struct hrtimer_cpu_base,
-> >>        }
-> >>  };
-> >>
-> >> -static int hrtimer_clock_to_base_table[MAX_CLOCKS];
-> >> +static int hrtimer_clock_to_base_table[MAX_CLOCKS] = {
-> >> +       [CLOCK_REALTIME] = HRTIMER_BASE_REALTIME,
-> >> +       [CLOCK_MONOTONIC] = HRTIMER_BASE_MONOTONIC,
-> >> +       [CLOCK_BOOTTIME] = HRTIMER_BASE_BOOTTIME,
-> >> +};
-> >>
-> >>  static inline int hrtimer_clockid_to_base(clockid_t clock_id)
-> >>  {
-> >> @@ -1722,10 +1726,6 @@ static struct notifier_block __cpuinitda
-> >>
-> >>  void __init hrtimers_init(void)
-> >>  {
-> >> -       hrtimer_clock_to_base_table[CLOCK_REALTIME] = HRTIMER_BASE_REALTIME;
-> >> -       hrtimer_clock_to_base_table[CLOCK_MONOTONIC] = HRTIMER_BASE_MONOTONIC;
-> >> -       hrtimer_clock_to_base_table[CLOCK_BOOTTIME] = HRTIMER_BASE_BOOTTIME;
-> >> -
-> >>        hrtimer_cpu_notify(&hrtimers_nb, (unsigned long)CPU_UP_PREPARE,
-> >>                          (void *)(long)smp_processor_id());
-> >>        register_cpu_notifier(&hrtimers_nb);
-> >>
-> >>
-> >>
-> >
-> > Looks good so far, no stalls or call-traces.
-> >
-> > Really stressing with 20+ open tabs in firefox with flash-movie
-> > running in one of them , tar-job, IRC-client etc.
-> > I will run some more tests and collect data and send them later.
-> >
-> > - Sedat -
-> >
-> > P.S.: Patchset against linux-2.6-rcu.git#sedat.2011.04.23a where 0003
-> > is from [2]
-> >
-> > [1] http://git.us.kernel.org/?p=linux/kernel/git/paulmck/linux-2.6-rcu.git;a=shortlog;h=refs/heads/sedat.2011.04.23a
-> > [2] https://patchwork.kernel.org/patch/739782/
-> >
-> > $ l ../RCU-HOORAY/
-> > insgesamt 40
-> > drwxr-xr-x  2 sd sd  4096 29. Apr 01:02 .
-> > drwxr-xr-x 35 sd sd 20480 29. Apr 01:01 ..
-> > -rw-r--r--  1 sd sd   726 29. Apr 01:01
-> > 0001-Revert-rcu-restrict-TREE_RCU-to-SMP-builds-with-PREE.patch
-> > -rw-r--r--  1 sd sd   735 29. Apr 01:01
-> > 0002-sched-Add-warning-when-RT-throttling-is-activated.patch
-> > -rw-r--r--  1 sd sd  2376 29. Apr 01:01
-> > 0003-2.6.39-rc4-Kernel-leaking-memory-during-FS-scanning-.patch
-> >
+> Test results:
 > 
-> As promised the tarball (at the end of the log I made some XZ compressing).
+> - the failure rate is pretty sensible to the page reclaim size,
+>   from 282 (WMARK_HIGH) to 704 (WMARK_MIN) to 10496 (SWAP_CLUSTER_MAX)
 > 
-> Wow!
-> $ uptime
->  01:35:17 up 45 min,  3 users,  load average: 0.45, 0.57, 1.27
-> 
-> Thanks to all involved people helping to kill that bug (Come on Paul, smile!).
+> - the IPIs are reduced by over 100 times
 
-Woo-hoo!!!!
+It's reduced by 500 times indeed.
 
-Many thanks to Thomas for tracking this down -- it is fair to say that
-I never would have thought to look at timer initialization!  ;-)
+CAL:     220449     220246     220372     220558     220251     219740     220043     219968   Function call interrupts
+CAL:         93        463        410        540        298        282        272        306   Function call interrupts
 
-							Thanx, Paul
+> base kernel: vanilla 2.6.39-rc3 + __GFP_NORETRY readahead page allocation patch
+> -------------------------------------------------------------------------------
+> nr_alloc_fail 10496
+> allocstall 1576602
+
+> patched (WMARK_MIN)
+> -------------------
+> nr_alloc_fail 704
+> allocstall 105551
+
+> patched (WMARK_HIGH)
+> --------------------
+> nr_alloc_fail 282
+> allocstall 53860
+
+> this patch (WMARK_HIGH, limited scan)
+> -------------------------------------
+> nr_alloc_fail 276
+> allocstall 54034
+
+There is a bad side effect though: the much reduced "allocstall" means
+each direct reclaim will take much more time to complete. A simple solution
+is to terminate direct reclaim after 10ms. I noticed that an 100ms
+time threshold can reduce the reclaim latency from 621ms to 358ms.
+Further lowering the time threshold to 20ms does not help reducing the
+real latencies though.
+
+However the very subjective perception is, in such heavy 1000-dd
+workload, the reduced reclaim latency hardly improves the overall
+responsiveness.
+
+base kernel
+-----------
+
+start time: 243
+total time: 529
+
+wfg@fat ~% getdelays -dip 3971
+print delayacct stats ON
+printing IO accounting
+PID     3971
+
+
+CPU             count     real total  virtual total    delay total
+                  961     3176517096     3158468847   313952766099
+IO              count    delay total  delay average
+                    2      181251847             60ms
+SWAP            count    delay total  delay average
+                    0              0              0ms
+RECLAIM         count    delay total  delay average
+                 1205    38120615476             31ms
+dd: read=16384, write=0, cancelled_write=0
+wfg@fat ~% getdelays -dip 3383
+print delayacct stats ON
+printing IO accounting
+PID     3383
+
+
+CPU             count     real total  virtual total    delay total
+                 1270     4206360536     4181445838   358641985177
+IO              count    delay total  delay average
+                    0              0              0ms
+SWAP            count    delay total  delay average
+                    0              0              0ms
+RECLAIM         count    delay total  delay average
+                 1606    39897314399             24ms
+dd: read=0, write=0, cancelled_write=0
+
+no time limit
+-------------
+wfg@fat ~% getdelays -dip `pidof dd`
+print delayacct stats ON
+printing IO accounting
+PID     9609
+
+
+CPU             count     real total  virtual total    delay total
+                  865     2792575464     2779071029   235345541230
+IO              count    delay total  delay average
+                    4      300247552             60ms
+SWAP            count    delay total  delay average
+                    0              0              0ms
+RECLAIM         count    delay total  delay average
+                   32    20504634169            621ms
+dd: read=106496, write=0, cancelled_write=0
+
+100ms limit
+-----------
+
+start time: 288
+total time: 514
+nr_alloc_fail 1269
+allocstall 128915
+
+wfg@fat ~% getdelays -dip `pidof dd`
+print delayacct stats ON
+printing IO accounting
+PID     5077
+
+
+CPU             count     real total  virtual total    delay total
+                  937     2949551600     2935087806   207877301298
+IO              count    delay total  delay average
+                    1      151891691            151ms
+SWAP            count    delay total  delay average
+                    0              0              0ms
+RECLAIM         count    delay total  delay average
+                   71    25475514278            358ms
+dd: read=507904, write=0, cancelled_write=0
+
+PID     5101
+
+
+CPU             count     real total  virtual total    delay total
+                 1201     3827418144     3805399187   221075772599
+IO              count    delay total  delay average
+                    4      300331997             60ms
+SWAP            count    delay total  delay average
+                    0              0              0ms
+RECLAIM         count    delay total  delay average
+                   94    31996779648            336ms
+dd: read=618496, write=0, cancelled_write=0
+
+nr_alloc_fail 937
+allocstall 128684
+
+slabs_scanned 63616
+kswapd_steal 4616011
+kswapd_inodesteal 5
+kswapd_low_wmark_hit_quickly 5394
+kswapd_high_wmark_hit_quickly 2826
+kswapd_skip_congestion_wait 0
+pageoutrun 36679
+
+20ms limit
+----------
+
+start time: 294
+total time: 516
+nr_alloc_fail 1662
+allocstall 132101
+
+CPU             count     real total  virtual total    delay total
+                  839     2750581848     2734464704   198489159459
+IO              count    delay total  delay average
+                    1       43566814             43ms
+SWAP            count    delay total  delay average
+                    0              0              0ms
+RECLAIM         count    delay total  delay average
+                   95    35234061367            370ms
+dd: read=20480, write=0, cancelled_write=0
+
+test script
+-----------
+tic=$(date +'%s')
+
+for i in `seq 1000`
+do
+        truncate -s 1G /fs/sparse-$i
+        dd if=/fs/sparse-$i of=/dev/null &>/dev/null &
+done
+
+tac=$(date +'%s')
+echo start time: $((tac-tic))
+
+wait
+
+tac=$(date +'%s')
+echo total time: $((tac-tic))
+
+egrep '(nr_alloc_fail|allocstall)' /proc/vmstat
+
+Thanks,
+Fengguang
+---
+Subject: mm: limit direct reclaim delays
+Date: Fri Apr 29 09:04:11 CST 2011
+
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+---
+ mm/vmscan.c |   14 +++++++++-----
+ 1 file changed, 9 insertions(+), 5 deletions(-)
+
+--- linux-next.orig/mm/vmscan.c	2011-04-29 09:02:42.000000000 +0800
++++ linux-next/mm/vmscan.c	2011-04-29 09:04:10.000000000 +0800
+@@ -2037,6 +2037,7 @@ static unsigned long do_try_to_free_page
+ 	struct zone *zone;
+ 	unsigned long writeback_threshold;
+ 	unsigned long min_reclaim = sc->nr_to_reclaim;
++	unsigned long start_time = jiffies;
+ 
+ 	get_mems_allowed();
+ 	delayacct_freepages_start();
+@@ -2070,11 +2071,14 @@ static unsigned long do_try_to_free_page
+ 			}
+ 		}
+ 		total_scanned += sc->nr_scanned;
+-		if (sc->nr_reclaimed >= min_reclaim &&
+-		    total_scanned > 2 * sc->nr_to_reclaim)
+-			goto out;
+-		if (sc->nr_reclaimed >= sc->nr_to_reclaim)
+-			goto out;
++		if (sc->nr_reclaimed >= min_reclaim) {
++			if (sc->nr_reclaimed >= sc->nr_to_reclaim)
++				goto out;
++			if (total_scanned > 2 * sc->nr_to_reclaim)
++				goto out;
++			if (jiffies - start_time > HZ / 100)
++				goto out;
++		}
+ 
+ 		/*
+ 		 * Try to write back as many pages as we just scanned.  This
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
