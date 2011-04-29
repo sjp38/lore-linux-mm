@@ -1,120 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 4910B900001
-	for <linux-mm@kvack.org>; Fri, 29 Apr 2011 03:55:50 -0400 (EDT)
-Received: by qyk30 with SMTP id 30so2366956qyk.14
-        for <linux-mm@kvack.org>; Fri, 29 Apr 2011 00:55:47 -0700 (PDT)
-MIME-Version: 1.0
-Reply-To: sedat.dilek@gmail.com
-In-Reply-To: <alpine.LFD.2.02.1104282353140.3005@ionos>
-References: <20110426112756.GF4308@linux.vnet.ibm.com>
-	<20110426183859.6ff6279b@neptune.home>
-	<20110426190918.01660ccf@neptune.home>
-	<BANLkTikjuqWP+PAsObJH4EAOyzgr2RbYNA@mail.gmail.com>
-	<alpine.LFD.2.02.1104262314110.3323@ionos>
-	<20110427081501.5ba28155@pluto.restena.lu>
-	<20110427204139.1b0ea23b@neptune.home>
-	<alpine.LFD.2.02.1104272351290.3323@ionos>
-	<alpine.LFD.2.02.1104281051090.19095@ionos>
-	<BANLkTinB5S7q88dch78i-h28jDHx5dvfQw@mail.gmail.com>
-	<20110428102609.GJ2135@linux.vnet.ibm.com>
-	<1303997401.7819.5.camel@marge.simson.net>
-	<BANLkTik4+PAGHF-9KREYk8y+KDQLDAp2Mg@mail.gmail.com>
-	<alpine.LFD.2.02.1104282044120.3005@ionos>
-	<20110428222301.0b745a0a@neptune.home>
-	<alpine.LFD.2.02.1104282227340.3005@ionos>
-	<20110428224444.43107883@neptune.home>
-	<alpine.LFD.2.02.1104282251080.3005@ionos>
-	<1304027480.2971.121.camel@work-vm>
-	<alpine.LFD.2.02.1104282353140.3005@ionos>
-Date: Fri, 29 Apr 2011 09:55:47 +0200
-Message-ID: <BANLkTinr4==+BGqoNJseqTJ94hjK1kD1bw@mail.gmail.com>
-Subject: Re: 2.6.39-rc4+: Kernel leaking memory during FS scanning, regression?
-From: Sedat Dilek <sedat.dilek@googlemail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+	by kanga.kvack.org (Postfix) with SMTP id F24AE900001
+	for <linux-mm@kvack.org>; Fri, 29 Apr 2011 04:19:34 -0400 (EDT)
+Subject: Re: [PATCH] percpu: preemptless __per_cpu_counter_add
+From: Shaohua Li <shaohua.li@intel.com>
+In-Reply-To: <20110428100938.GA10721@htj.dyndns.org>
+References: <20110421180159.GF15988@htj.dyndns.org>
+	 <alpine.DEB.2.00.1104211308300.5741@router.home>
+	 <20110421183727.GG15988@htj.dyndns.org>
+	 <alpine.DEB.2.00.1104211350310.5741@router.home>
+	 <20110421190807.GK15988@htj.dyndns.org>
+	 <1303439580.3981.241.camel@sli10-conroe>
+	 <20110426121011.GD878@htj.dyndns.org>
+	 <1303883009.3981.316.camel@sli10-conroe>
+	 <20110427102034.GE31015@htj.dyndns.org>
+	 <1303961284.3981.318.camel@sli10-conroe>
+	 <20110428100938.GA10721@htj.dyndns.org>
+Content-Type: text/plain; charset="UTF-8"
+Date: Fri, 29 Apr 2011 16:19:31 +0800
+Message-ID: <1304065171.3981.594.camel@sli10-conroe>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: john stultz <johnstul@us.ibm.com>, =?UTF-8?Q?Bruno_Pr=C3=A9mont?= <bonbons@linux-vserver.org>, Mike Galbraith <efault@gmx.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Frysinger <vapier.adi@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Paul E. McKenney" <paul.mckenney@linaro.org>, Pekka Enberg <penberg@kernel.org>
+To: Tejun Heo <tj@kernel.org>
+Cc: Christoph Lameter <cl@linux.com>, Eric Dumazet <eric.dumazet@gmail.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Fri, Apr 29, 2011 at 12:02 AM, Thomas Gleixner <tglx@linutronix.de> wrot=
-e:
-> On Thu, 28 Apr 2011, john stultz wrote:
->> On Thu, 2011-04-28 at 23:04 +0200, Thomas Gleixner wrote:
->> > /me suspects hrtimer changes to be the real culprit.
->>
->> I'm not seeing anything on right off, but it does smell like
->> e06383db9ec591696a06654257474b85bac1f8cb would be where such an issue
->> would crop up.
->>
->> Bruno, could you try checking out e06383db9ec, confirming it still
->> occurs (and then maybe seeing if it goes away at e06383db9ec^1)?
->>
->> I'll keep digging in the meantime.
->
-> I found the bug already. The problem is that sched_init() calls
-> init_rt_bandwidth() which calls hrtimer_init() _BEFORE_
-> hrtimers_init() is called.
->
-> That was unnoticed so far as the CLOCK id to hrtimer base conversion
-> was hardcoded. Now we use a table which is set up at hrtimers_init(),
-> so the bandwith hrtimer ends up on CLOCK_REALTIME because the table is
-> in the bss.
->
-> The patch below fixes this, by providing the table statically rather
-> than runtime initialized. Though that whole ordering wants to be
-> revisited.
->
-> Thanks,
->
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0tglx
->
-> --- linux-2.6.orig/kernel/hrtimer.c
-> +++ linux-2.6/kernel/hrtimer.c
-> @@ -81,7 +81,11 @@ DEFINE_PER_CPU(struct hrtimer_cpu_base,
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0}
-> =C2=A0};
->
-> -static int hrtimer_clock_to_base_table[MAX_CLOCKS];
-> +static int hrtimer_clock_to_base_table[MAX_CLOCKS] =3D {
-> + =C2=A0 =C2=A0 =C2=A0 [CLOCK_REALTIME] =3D HRTIMER_BASE_REALTIME,
-> + =C2=A0 =C2=A0 =C2=A0 [CLOCK_MONOTONIC] =3D HRTIMER_BASE_MONOTONIC,
-> + =C2=A0 =C2=A0 =C2=A0 [CLOCK_BOOTTIME] =3D HRTIMER_BASE_BOOTTIME,
-> +};
->
-> =C2=A0static inline int hrtimer_clockid_to_base(clockid_t clock_id)
-> =C2=A0{
-> @@ -1722,10 +1726,6 @@ static struct notifier_block __cpuinitda
->
-> =C2=A0void __init hrtimers_init(void)
-> =C2=A0{
-> - =C2=A0 =C2=A0 =C2=A0 hrtimer_clock_to_base_table[CLOCK_REALTIME] =3D HR=
-TIMER_BASE_REALTIME;
-> - =C2=A0 =C2=A0 =C2=A0 hrtimer_clock_to_base_table[CLOCK_MONOTONIC] =3D H=
-RTIMER_BASE_MONOTONIC;
-> - =C2=A0 =C2=A0 =C2=A0 hrtimer_clock_to_base_table[CLOCK_BOOTTIME] =3D HR=
-TIMER_BASE_BOOTTIME;
-> -
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0hrtimer_cpu_notify(&hrtimers_nb, (unsigned lon=
-g)CPU_UP_PREPARE,
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0(void *)(long)smp_processor_id());
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0register_cpu_notifier(&hrtimers_nb);
->
+Hi,
+On Thu, 2011-04-28 at 18:09 +0800, Tejun Heo wrote:
+> On Thu, Apr 28, 2011 at 11:28:04AM +0800, Shaohua Li wrote:
+> > > Okay, this communication failure isn't my fault.  Please re-read what
+> > > I wrote before, my concern wasn't primarily about pathological worst
+> > > case - if that many concurrent updates are happening && the counter
+> > > needs to be accurate, it can't even use atomic counter.  It should be
+> > > doing full exclusion around the counter and the associated operation
+> > > _together_.
+> > > 
+> > > I'm worried about sporadic erratic behavior happening regardless of
+> > > update frequency and preemption would contribute but isn't necessary
+> > > for that to happen.
+> >
+> > Ok, I misunderstood the mail you sent to Christoph, sorry. So you have
+> > no problem about the atomic convert. I'll update the patch against base
+> > tree, given the preemptless patch has problem.
+> 
+> Hmm... we're now more lost than ever. :-( Can you please re-read my
+> message two replies ago?  The one where I talked about sporadic
+> erratic behaviors in length and why I was worried about it.
+> 
+> In your last reply, you talked about preemption and that you didn't
+> have problems with disabling preemption, which, unfortunately, doesn't
+> have much to do with my concern with the sporadic erratic behaviors
+> and that's what I pointed out in my previous reply.  So, it doesn't
+> feel like anything is resolved.
+ok, I got your point. I'd agree there is sporadic erratic behaviors, but
+I expect there is no problem here. We all agree the worst case is the
+same before/after the change. Any program should be able to handle the
+worst case, otherwise the program itself is buggy. Discussing a buggy
+program is meaningless. After the change, something behavior is changed,
+but the worst case isn't. So I don't think this is a big problem.
 
-Will you send this as a separate patch?
-
-Please also feel free to add:
-
-     Tested-by: Sedat Dilek <sedat.dilek@gmail.com>
-
-If you like also a Reported-by... as the issue is not new, I have
-first reported it here [1].
-
-- Sedat -
-
-[1] http://lkml.org/lkml/2011/3/25/97
+Thanks,
+Shaohua
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
