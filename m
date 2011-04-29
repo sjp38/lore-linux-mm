@@ -1,256 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 35A78900001
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 22:28:29 -0400 (EDT)
-Date: Fri, 29 Apr 2011 10:28:24 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [RFC][PATCH] mm: cut down __GFP_NORETRY page allocation
- failures
-Message-ID: <20110429022824.GA8061@localhost>
-References: <20110426055521.GA18473@localhost>
- <BANLkTik8k9A8N8CPk+eXo9c_syxJFRyFCA@mail.gmail.com>
- <BANLkTim0MNgqeh1KTfvpVFuAvebKyQV8Hg@mail.gmail.com>
- <20110426062535.GB19717@localhost>
- <BANLkTinM9DjK9QsGtN0Sh308rr+86UMF0A@mail.gmail.com>
- <20110426063421.GC19717@localhost>
- <BANLkTi=xDozFNBXNdGDLK6EwWrfHyBifQw@mail.gmail.com>
- <20110426092029.GA27053@localhost>
- <20110426124743.e58d9746.akpm@linux-foundation.org>
- <20110428133644.GA12400@localhost>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110428133644.GA12400@localhost>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 10007900001
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2011 22:55:44 -0400 (EDT)
+Date: Fri, 29 Apr 2011 12:55:31 +1000
+From: NeilBrown <neilb@suse.de>
+Subject: Re: [PATCH 08/13] netvm: Allow skb allocation to use PFMEMALLOC
+ reserves
+Message-ID: <20110429125531.22f6e8f1@notabene.brown>
+In-Reply-To: <20110428111854.GV4658@suse.de>
+References: <1303920491-25302-1-git-send-email-mgorman@suse.de>
+	<1303920491-25302-9-git-send-email-mgorman@suse.de>
+	<20110428161933.1f1266e6@notabene.brown>
+	<20110428100035.GO4658@suse.de>
+	<20110428204755.2e07147e@notabene.brown>
+	<20110428111854.GV4658@suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Minchan Kim <minchan.kim@gmail.com>, Dave Young <hidave.darkstar@gmail.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Mel Gorman <mel@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, Dave Chinner <david@fromorbit.com>, David Rientjes <rientjes@google.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-> Test results:
+On Thu, 28 Apr 2011 12:18:54 +0100 Mel Gorman <mgorman@suse.de> wrote:
+
+> On Thu, Apr 28, 2011 at 08:47:55PM +1000, NeilBrown wrote:
+> > On Thu, 28 Apr 2011 11:05:06 +0100 Mel Gorman <mgorman@suse.de> wrote:
+> > 
+> > > On Thu, Apr 28, 2011 at 04:19:33PM +1000, NeilBrown wrote:
+> > > > On Wed, 27 Apr 2011 17:08:06 +0100 Mel Gorman <mgorman@suse.de> wrote:
+> > > > 
+> > > > 
+> > > > > @@ -1578,7 +1589,7 @@ static inline struct sk_buff *netdev_alloc_skb_ip_align(struct net_device *dev,
+> > > > >   */
+> > > > >  static inline struct page *__netdev_alloc_page(struct net_device *dev, gfp_t gfp_mask)
+> > > > >  {
+> > > > > -	return alloc_pages_node(NUMA_NO_NODE, gfp_mask, 0);
+> > > > > +	return alloc_pages_node(NUMA_NO_NODE, gfp_mask | __GFP_MEMALLOC, 0);
+> > > > >  }
+> > > > >  
+> > > > 
+> > > > I'm puzzling a bit over this change.
+> > > > __netdev_alloc_page appears to be used to get pages to put in ring buffer
+> > > > for a network card to DMA received packets into.  So it is OK to use
+> > > > __GFP_MEMALLOC for these allocations providing we mark the resulting skb as
+> > > > 'pfmemalloc' if a reserved page was used.
+> > > > 
+> > > > However I don't see where that marking is done.
+> > > > I think it should be in skb_fill_page_desc, something like:
+> > > > 
+> > > >   if (page->pfmemalloc)
+> > > > 	skb->pfmemalloc = true;
+> > > > 
+> > > > Is this covered somewhere else that I am missing?
+> > > > 
+> > > 
+> > > You're not missing anything.
+> > > 
+> > > >From the context of __netdev_alloc_page, we do not know if the skb
+> > > is suitable for marking pfmemalloc or not (we don't have SKB_ALLOC_RX
+> > > flag for example that __alloc_skb has). The reserves are potentially
+> > > being dipped into for an unsuitable packet but it gets dropped in
+> > > __netif_receive_skb() and the memory is returned. If we mark the skb
+> > > pfmemalloc as a result of __netdev_alloc_page using a reserve page, the
+> > > packets would not get dropped as expected.
+> > > 
+> > 
+> > The only code in __netif_receive_skb that seems to drop packets is
+> > 
+> > +	if (skb_pfmemalloc(skb) && !skb_pfmemalloc_protocol(skb))
+> > +		goto drop;
+> > +
+> > 
+> > which requires that the skb have pfmemalloc set before it will be dropped.
+> > 
 > 
-> - the failure rate is pretty sensible to the page reclaim size,
->   from 282 (WMARK_HIGH) to 704 (WMARK_MIN) to 10496 (SWAP_CLUSTER_MAX)
+> Yes, I only wanted to drop the packet if we were under pressure
+> when skb was allocated. If we hit pressure between when skb was
+> allocated and when __netdev_alloc_page is called, then the PFMEMALLOC
+> reserves may be used for packet receive unnecessarily but the next skb
+> allocation that grows slab will have the flag set appropriately. There
+> is a window during which we use reserves where we did not have to
+> but it's limited. Again, the throttling if pfmemalloc reserves gets too
+> depleted comes into play.
+
+I don't find this very convincing...
+It seems inconsistent that you are doing precise accounting inside slab so
+that you know which object used reserved memory and which did not, yet you
+get sloppy with the accounting of whole pages on network receive.
+
+Is there a clear upper bound on how many reserve pages could slip into
+non-reserve skbs before skbs start getting the pfmalloc flag set?
+
+I just think it is safer to mark an skb as pfmalloc if any part of the memory
+associated with it came from reserves.
+
+Also I find the throttling argument hard to reason about.  Certainly
+some things get throttles, but incoming packets don't...
+
+I'm certainly not saying that the code is clearly wrong, but I'm having
+trouble convincing myself that it is clearly right (or at least 'safe').
+
 > 
-> - the IPIs are reduced by over 100 times
+> > Actually ... I'm expecting to find code that says:
+> >    if (skb_pfmalloc(skb) && !sock_flag(sk, SOCK_MEMALLOC))
+> > 	drop_packet();
+> > 
+> > but I cannot find it.  Where is the code that discard pfmalloc packets for
+> > non-memalloc sockets?
+> > 
+> > I can see similar code in sk_filter but that doesn't drop the packet, it just
+> > avoids filtering it.
+> > 
+> 
+> hmm, if sk_filter is returning -ENOMEM then things like
+> sock_queue_rcv_skb() return error and the skb does not get queued and I
+> expected it to get dropped. What did I miss?
+> 
 
-It's reduced by 500 times indeed.
-
-CAL:     220449     220246     220372     220558     220251     219740     220043     219968   Function call interrupts
-CAL:         93        463        410        540        298        282        272        306   Function call interrupts
-
-> base kernel: vanilla 2.6.39-rc3 + __GFP_NORETRY readahead page allocation patch
-> -------------------------------------------------------------------------------
-> nr_alloc_fail 10496
-> allocstall 1576602
-
-> patched (WMARK_MIN)
-> -------------------
-> nr_alloc_fail 704
-> allocstall 105551
-
-> patched (WMARK_HIGH)
-> --------------------
-> nr_alloc_fail 282
-> allocstall 53860
-
-> this patch (WMARK_HIGH, limited scan)
-> -------------------------------------
-> nr_alloc_fail 276
-> allocstall 54034
-
-There is a bad side effect though: the much reduced "allocstall" means
-each direct reclaim will take much more time to complete. A simple solution
-is to terminate direct reclaim after 10ms. I noticed that an 100ms
-time threshold can reduce the reclaim latency from 621ms to 358ms.
-Further lowering the time threshold to 20ms does not help reducing the
-real latencies though.
-
-However the very subjective perception is, in such heavy 1000-dd
-workload, the reduced reclaim latency hardly improves the overall
-responsiveness.
-
-base kernel
------------
-
-start time: 243
-total time: 529
-
-wfg@fat ~% getdelays -dip 3971
-print delayacct stats ON
-printing IO accounting
-PID     3971
-
-
-CPU             count     real total  virtual total    delay total
-                  961     3176517096     3158468847   313952766099
-IO              count    delay total  delay average
-                    2      181251847             60ms
-SWAP            count    delay total  delay average
-                    0              0              0ms
-RECLAIM         count    delay total  delay average
-                 1205    38120615476             31ms
-dd: read=16384, write=0, cancelled_write=0
-wfg@fat ~% getdelays -dip 3383
-print delayacct stats ON
-printing IO accounting
-PID     3383
-
-
-CPU             count     real total  virtual total    delay total
-                 1270     4206360536     4181445838   358641985177
-IO              count    delay total  delay average
-                    0              0              0ms
-SWAP            count    delay total  delay average
-                    0              0              0ms
-RECLAIM         count    delay total  delay average
-                 1606    39897314399             24ms
-dd: read=0, write=0, cancelled_write=0
-
-no time limit
--------------
-wfg@fat ~% getdelays -dip `pidof dd`
-print delayacct stats ON
-printing IO accounting
-PID     9609
-
-
-CPU             count     real total  virtual total    delay total
-                  865     2792575464     2779071029   235345541230
-IO              count    delay total  delay average
-                    4      300247552             60ms
-SWAP            count    delay total  delay average
-                    0              0              0ms
-RECLAIM         count    delay total  delay average
-                   32    20504634169            621ms
-dd: read=106496, write=0, cancelled_write=0
-
-100ms limit
------------
-
-start time: 288
-total time: 514
-nr_alloc_fail 1269
-allocstall 128915
-
-wfg@fat ~% getdelays -dip `pidof dd`
-print delayacct stats ON
-printing IO accounting
-PID     5077
-
-
-CPU             count     real total  virtual total    delay total
-                  937     2949551600     2935087806   207877301298
-IO              count    delay total  delay average
-                    1      151891691            151ms
-SWAP            count    delay total  delay average
-                    0              0              0ms
-RECLAIM         count    delay total  delay average
-                   71    25475514278            358ms
-dd: read=507904, write=0, cancelled_write=0
-
-PID     5101
-
-
-CPU             count     real total  virtual total    delay total
-                 1201     3827418144     3805399187   221075772599
-IO              count    delay total  delay average
-                    4      300331997             60ms
-SWAP            count    delay total  delay average
-                    0              0              0ms
-RECLAIM         count    delay total  delay average
-                   94    31996779648            336ms
-dd: read=618496, write=0, cancelled_write=0
-
-nr_alloc_fail 937
-allocstall 128684
-
-slabs_scanned 63616
-kswapd_steal 4616011
-kswapd_inodesteal 5
-kswapd_low_wmark_hit_quickly 5394
-kswapd_high_wmark_hit_quickly 2826
-kswapd_skip_congestion_wait 0
-pageoutrun 36679
-
-20ms limit
-----------
-
-start time: 294
-total time: 516
-nr_alloc_fail 1662
-allocstall 132101
-
-CPU             count     real total  virtual total    delay total
-                  839     2750581848     2734464704   198489159459
-IO              count    delay total  delay average
-                    1       43566814             43ms
-SWAP            count    delay total  delay average
-                    0              0              0ms
-RECLAIM         count    delay total  delay average
-                   95    35234061367            370ms
-dd: read=20480, write=0, cancelled_write=0
-
-test script
------------
-tic=$(date +'%s')
-
-for i in `seq 1000`
-do
-        truncate -s 1G /fs/sparse-$i
-        dd if=/fs/sparse-$i of=/dev/null &>/dev/null &
-done
-
-tac=$(date +'%s')
-echo start time: $((tac-tic))
-
-wait
-
-tac=$(date +'%s')
-echo total time: $((tac-tic))
-
-egrep '(nr_alloc_fail|allocstall)' /proc/vmstat
+Just that I was making incorrect assumptions about code that I wasn't
+familiar with.
+Make sense now.
 
 Thanks,
-Fengguang
----
-Subject: mm: limit direct reclaim delays
-Date: Fri Apr 29 09:04:11 CST 2011
-
-Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
----
- mm/vmscan.c |   14 +++++++++-----
- 1 file changed, 9 insertions(+), 5 deletions(-)
-
---- linux-next.orig/mm/vmscan.c	2011-04-29 09:02:42.000000000 +0800
-+++ linux-next/mm/vmscan.c	2011-04-29 09:04:10.000000000 +0800
-@@ -2037,6 +2037,7 @@ static unsigned long do_try_to_free_page
- 	struct zone *zone;
- 	unsigned long writeback_threshold;
- 	unsigned long min_reclaim = sc->nr_to_reclaim;
-+	unsigned long start_time = jiffies;
- 
- 	get_mems_allowed();
- 	delayacct_freepages_start();
-@@ -2070,11 +2071,14 @@ static unsigned long do_try_to_free_page
- 			}
- 		}
- 		total_scanned += sc->nr_scanned;
--		if (sc->nr_reclaimed >= min_reclaim &&
--		    total_scanned > 2 * sc->nr_to_reclaim)
--			goto out;
--		if (sc->nr_reclaimed >= sc->nr_to_reclaim)
--			goto out;
-+		if (sc->nr_reclaimed >= min_reclaim) {
-+			if (sc->nr_reclaimed >= sc->nr_to_reclaim)
-+				goto out;
-+			if (total_scanned > 2 * sc->nr_to_reclaim)
-+				goto out;
-+			if (jiffies - start_time > HZ / 100)
-+				goto out;
-+		}
- 
- 		/*
- 		 * Try to write back as many pages as we just scanned.  This
+NeilBrown
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
