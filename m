@@ -1,77 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id BF5C5900001
-	for <linux-mm@kvack.org>; Fri, 29 Apr 2011 04:32:46 -0400 (EDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 8A5A7900001
+	for <linux-mm@kvack.org>; Fri, 29 Apr 2011 04:44:31 -0400 (EDT)
+Received: by fxm18 with SMTP id 18so3455335fxm.14
+        for <linux-mm@kvack.org>; Fri, 29 Apr 2011 01:44:28 -0700 (PDT)
+Date: Fri, 29 Apr 2011 10:44:24 +0200
+From: Tejun Heo <tj@kernel.org>
 Subject: Re: [PATCH] percpu: preemptless __per_cpu_counter_add
-From: Shaohua Li <shaohua.li@intel.com>
-In-Reply-To: <1304008533.3360.88.camel@edumazet-laptop>
-References: <20110427102034.GE31015@htj.dyndns.org>
-	 <1303961284.3981.318.camel@sli10-conroe>
-	 <20110428100938.GA10721@htj.dyndns.org>
-	 <alpine.DEB.2.00.1104280904240.15775@router.home>
-	 <20110428142331.GA16552@htj.dyndns.org>
-	 <alpine.DEB.2.00.1104280935460.16323@router.home>
-	 <20110428144446.GC16552@htj.dyndns.org>
-	 <alpine.DEB.2.00.1104280951480.16323@router.home>
-	 <20110428145657.GD16552@htj.dyndns.org>
-	 <alpine.DEB.2.00.1104281003000.16323@router.home>
-	 <20110428151203.GE16552@htj.dyndns.org>
-	 <alpine.DEB.2.00.1104281017240.16323@router.home>
-	 <1304005726.3360.69.camel@edumazet-laptop>
-	 <1304006345.3360.72.camel@edumazet-laptop>
-	 <alpine.DEB.2.00.1104281116270.18213@router.home>
-	 <1304008533.3360.88.camel@edumazet-laptop>
-Content-Type: text/plain; charset="UTF-8"
-Date: Fri, 29 Apr 2011 16:32:43 +0800
-Message-ID: <1304065963.3981.600.camel@sli10-conroe>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Message-ID: <20110429084424.GJ16552@htj.dyndns.org>
+References: <20110421183727.GG15988@htj.dyndns.org>
+ <alpine.DEB.2.00.1104211350310.5741@router.home>
+ <20110421190807.GK15988@htj.dyndns.org>
+ <1303439580.3981.241.camel@sli10-conroe>
+ <20110426121011.GD878@htj.dyndns.org>
+ <1303883009.3981.316.camel@sli10-conroe>
+ <20110427102034.GE31015@htj.dyndns.org>
+ <1303961284.3981.318.camel@sli10-conroe>
+ <20110428100938.GA10721@htj.dyndns.org>
+ <1304065171.3981.594.camel@sli10-conroe>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1304065171.3981.594.camel@sli10-conroe>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric Dumazet <eric.dumazet@gmail.com>
-Cc: Christoph Lameter <cl@linux.com>, Tejun Heo <tj@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Shaohua Li <shaohua.li@intel.com>
+Cc: Christoph Lameter <cl@linux.com>, Eric Dumazet <eric.dumazet@gmail.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Fri, 2011-04-29 at 00:35 +0800, Eric Dumazet wrote:
-> Le jeudi 28 avril 2011 A  11:17 -0500, Christoph Lameter a A(C)crit :
-> > On Thu, 28 Apr 2011, Eric Dumazet wrote:
-> > 
-> > > > If _sum() notices seqcount was changed too much, restart the loop.
-> > 
-> > This does not address the issue of cpus adding batch -1 while the
-> > loop is going on.
-> 
-> 
-> Yes, it does, I left the needed changes to write side as an exercice ;)
-> 
-> 
-> For example, based on current linux-2.6 code
-> 
-> 
-> void __percpu_counter_add(struct percpu_counter *fbc, s64 amount, s32 batch)
-> {
->         s64 count;
-> 
->         preempt_disable();
->         count = __this_cpu_read(*fbc->counters) + amount;
->         if (count >= batch || count <= -batch) {
->                 spin_lock(&fbc->lock);
-> 		fbc->seqcount++;
->                 fbc->count += count;
->                 __this_cpu_write(*fbc->counters, 0);
->                 spin_unlock(&fbc->lock);
->         } else {
->                 __this_cpu_write(*fbc->counters, count);
->         }
->         preempt_enable();
-> }
-yep, this can resolve Tejun's concern. The problem is how do you
-determine maxfuzzy. This can mislead user too. Because in the worst
-case, the deviation is num_cpu*batch. If a user uses a small maxfuzzy
-and expect the max deviation is maxfuzzy, he actually will get a bigger
-deviation in worst case.
+On Fri, Apr 29, 2011 at 04:19:31PM +0800, Shaohua Li wrote:
+> > In your last reply, you talked about preemption and that you didn't
+> > have problems with disabling preemption, which, unfortunately, doesn't
+> > have much to do with my concern with the sporadic erratic behaviors
+> > and that's what I pointed out in my previous reply.  So, it doesn't
+> > feel like anything is resolved.
+>
+> ok, I got your point. I'd agree there is sporadic erratic behaviors, but
+> I expect there is no problem here. We all agree the worst case is the
+> same before/after the change. Any program should be able to handle the
+> worst case, otherwise the program itself is buggy. Discussing a buggy
+> program is meaningless. After the change, something behavior is changed,
+> but the worst case isn't. So I don't think this is a big problem.
 
-Thanks,
-Shaohua
+If you really think that, go ahead and remove _sum(), really.  If you
+still can't see the difference between "reasonably accurate unless
+there's concurrent high frequency update" and "can jump on whatever",
+I can't help you.  Worst case is important to consider but that's not
+the only criterion you base your decisions on.
+
+Think about it.  It becomes the difference between "oh yeah, while my
+crazy concurrent FS benchmark is running, free block count is an
+estimate but otherwise it's pretty accruate" and "holy shit, it jumped
+while there's almost nothing going on the filesystem".  It drastically
+limits both the usefulness of _sum() and thus the percpu counter and
+how much we can scale @batch on heavily loaded counters because it
+ends up directly affecting the accuracy of _sum().
+
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
