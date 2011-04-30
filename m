@@ -1,44 +1,57 @@
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 2/3] readahead: reduce unnecessary mmap_miss increases
-Date: Sat, 30 Apr 2011 11:22:45 +0800
-Message-ID: <20110430033018.057418160__29975.9999187247$1304134323$gmane$org@intel.com>
+Subject: [PATCH 3/3] readahead: trigger mmap sequential readahead on PG_readahead
+Date: Sat, 30 Apr 2011 11:22:46 +0800
+Message-ID: <20110430033018.169293004__15828.4592595466$1304134323$gmane$org@intel.com>
 References: <20110430032243.355805181@intel.com>
 Return-path: <linux-kernel-owner@vger.kernel.org>
-Content-Disposition: inline; filename=readahead-reduce-mmap_miss-increases.patch
+Content-Disposition: inline; filename=readahead-no-mmap-prev_pos.patch
 Sender: linux-kernel-owner@vger.kernel.org
 To: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>
-Cc: Tim Chen <tim.c.chen@intel.com>, Andi Kleen <ak@linux.intel.com>, Wu Fengguang <fengguang.wu@intel.com>, Li Shaohua <shaohua.li@intel.com>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+Cc: Tim Chen <tim.c.chen@intel.com>, Wu Fengguang <fengguang.wu@intel.com>, Li Shaohua <shaohua.li@intel.com>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-Id: linux-mm.kvack.org
 
-From: Andi Kleen <ak@linux.intel.com>
+Previously the mmap sequential readahead is triggered by updating
+ra->prev_pos on each page fault and compare it with current page offset.
 
-The original INT_MAX is too large, reduce it to
-
-- avoid unnecessarily dirtying/bouncing the cache line
-- restore mmap read-around faster on changed access pattern
-
-Background: in the mosbench exim benchmark which does multi-threaded
-page faults on shared struct file, the ra->mmap_miss updates are found
-to cause excessive cache line bouncing on tmpfs. The ra state updates
-are needless for tmpfs because it actually disabled readahead totally
-(shmem_backing_dev_info.ra_pages == 0).
+It costs dirtying the cache line on each _minor_ page fault.  So remove
+the ra->prev_pos recording, and instead tag PG_readahead to trigger the
+possible sequential readahead. It's not only more simple, but also will
+work more reliably and reduce cache line bouncing on concurrent page
+faults on shared struct file.
 
 Tested-by: Tim Chen <tim.c.chen@intel.com>
-Signed-off-by: Andi Kleen <ak@linux.intel.com>
+Reported-by: Andi Kleen <ak@linux.intel.com>
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- mm/filemap.c |    3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ mm/filemap.c |    6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)
 
---- linux-next.orig/mm/filemap.c	2011-04-23 09:01:44.000000000 +0800
-+++ linux-next/mm/filemap.c	2011-04-23 09:17:21.000000000 +0800
-@@ -1538,7 +1538,8 @@ static void do_sync_mmap_readahead(struc
+--- linux-next.orig/mm/filemap.c	2011-04-23 16:52:21.000000000 +0800
++++ linux-next/mm/filemap.c	2011-04-24 09:59:08.000000000 +0800
+@@ -1531,8 +1531,7 @@ static void do_sync_mmap_readahead(struc
+ 	if (!ra->ra_pages)
  		return;
+ 
+-	if (VM_SequentialReadHint(vma) ||
+-			offset - 1 == (ra->prev_pos >> PAGE_CACHE_SHIFT)) {
++	if (VM_SequentialReadHint(vma)) {
+ 		page_cache_sync_readahead(mapping, ra, file, offset,
+ 					  ra->ra_pages);
+ 		return;
+@@ -1555,7 +1554,7 @@ static void do_sync_mmap_readahead(struc
+ 	ra_pages = max_sane_readahead(ra->ra_pages);
+ 	ra->start = max_t(long, 0, offset - ra_pages / 2);
+ 	ra->size = ra_pages;
+-	ra->async_size = 0;
++	ra->async_size = ra_pages / 4;
+ 	ra_submit(ra, mapping, file);
+ }
+ 
+@@ -1661,7 +1660,6 @@ retry_find:
+ 		return VM_FAULT_SIGBUS;
  	}
  
--	if (ra->mmap_miss < INT_MAX)
-+	/* Avoid banging the cache line if not needed */
-+	if (ra->mmap_miss < MMAP_LOTSAMISS * 10)
- 		ra->mmap_miss++;
+-	ra->prev_pos = (loff_t)offset << PAGE_CACHE_SHIFT;
+ 	vmf->page = page;
+ 	return ret | VM_FAULT_LOCKED;
  
- 	/*
