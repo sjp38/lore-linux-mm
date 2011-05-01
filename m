@@ -1,76 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id F3E27900001
-	for <linux-mm@kvack.org>; Sun,  1 May 2011 09:19:48 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 56ADA3EE0AE
-	for <linux-mm@kvack.org>; Sun,  1 May 2011 22:19:46 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 40C4B45DE55
-	for <linux-mm@kvack.org>; Sun,  1 May 2011 22:19:46 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 2789E45DD74
-	for <linux-mm@kvack.org>; Sun,  1 May 2011 22:19:46 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 1902E1DB803A
-	for <linux-mm@kvack.org>; Sun,  1 May 2011 22:19:46 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id D4DE01DB802C
-	for <linux-mm@kvack.org>; Sun,  1 May 2011 22:19:45 +0900 (JST)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 3C50D900001
+	for <linux-mm@kvack.org>; Sun,  1 May 2011 09:47:16 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id EF3EE3EE0BB
+	for <linux-mm@kvack.org>; Sun,  1 May 2011 22:47:12 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id D040045DE99
+	for <linux-mm@kvack.org>; Sun,  1 May 2011 22:47:12 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id AB43245DE92
+	for <linux-mm@kvack.org>; Sun,  1 May 2011 22:47:12 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 97F51E08003
+	for <linux-mm@kvack.org>; Sun,  1 May 2011 22:47:12 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5CEB21DB8038
+	for <linux-mm@kvack.org>; Sun,  1 May 2011 22:47:12 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [RFC 5/8] compaction: remove active list counting
-In-Reply-To: <BANLkTi=bMm+iyO23+16FxK__V1-aM50zWQ@mail.gmail.com>
-References: <20110428105027.GT4658@suse.de> <BANLkTi=bMm+iyO23+16FxK__V1-aM50zWQ@mail.gmail.com>
-Message-Id: <20110501222117.75E8.A69D9226@jp.fujitsu.com>
+Subject: Re: [RFC 6/8] In order putback lru core
+In-Reply-To: <20110428110623.GU4658@suse.de>
+References: <51e7412097fa62f86656c77c1934e3eb96d5eef6.1303833417.git.minchan.kim@gmail.com> <20110428110623.GU4658@suse.de>
+Message-Id: <20110501224844.75EC.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 8bit
-Date: Sun,  1 May 2011 22:19:45 +0900 (JST)
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Sun,  1 May 2011 22:47:11 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux.com>, Johannes Weiner <jweiner@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: kosaki.motohiro@jp.fujitsu.com, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux.com>, Johannes Weiner <jweiner@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>
 
-> On Thu, Apr 28, 2011 at 7:50 PM, Mel Gorman <mgorman@suse.de> wrote:
-> > On Wed, Apr 27, 2011 at 01:25:22AM +0900, Minchan Kim wrote:
-> >> acct_isolated of compaction uses page_lru_base_type which returns only
-> >> base type of LRU list so it never returns LRU_ACTIVE_ANON or LRU_ACTIVE_FILE.
-> >> So it's pointless to add lru[LRU_ACTIVE_[ANON|FILE]] to get sum.
-> >>
-> >> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> >> Cc: Mel Gorman <mgorman@suse.de>
-> >> Cc: Rik van Riel <riel@redhat.com>
-> >> Cc: Andrea Arcangeli <aarcange@redhat.com>
-> >> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
-> >
-> > hmm, isolate_migratepages() is doing a linear scan of PFNs and is
-> > calling __isolate_lru_page(..ISOLATE_BOTH..). Using page_lru_base_type
-> > happens to work because we're only interested in the number of isolated
-> > pages and your patch still covers that. Using page_lru might be more
-> > accurate in terms of accountancy but does not seem necessary.
+> > +/* This structure is used for keeping LRU ordering of isolated page */
+> > +struct pages_lru {
+> > +        struct page *page;      /* isolated page */
+> > +        struct page *prev_page; /* previous page of isolate page as LRU order */
+> > +        struct page *next_page; /* next page of isolate page as LRU order */
+> > +        struct list_head lru;
+> > +};
+> >  /*
 > 
-> True.
+> So this thing has to be allocated from somewhere. We can't put it
+> on the stack as we're already in danger there so we must be using
+> kmalloc. In the reclaim paths, this should be avoided obviously.
+> For compaction, we might hurt the compaction success rates if pages
+> are pinned with control structures. It's something to be wary of.
 > 
-> >
-> > Adding a comment explaining why we account for it as inactive and why
-> > that's ok would be nice although I admit this is something I should have
-> > done when acct_isolated() was introduced.
-> 
-> When Kame pointed out comment, I wanted to avoid unnecessary comment
-> so decided changing it with page_lru although it adds overhead a
-> little bit. But Hannes, you and maybe Kame don't want it. I don't mind
-> adding comment.
-> Okay. fix it in next version.
+> At LSF/MM, I stated a preference for swapping the source and
+> destination pages in the LRU. This unfortunately means that the LRU
+> now contains a page in the process of being migrated to and the backout
+> paths for migration failure become a lot more complex. Reclaim should
+> be ok as it'll should fail to lock the page and recycle it in the list.
+> This avoids allocations but I freely admit that I'm not in the position
+> to implement such a thing right now :(
 
-Or
+I like swaping to fake page. one way pointer might become dangerous. vmscan can
+detect fake page and ignore it.
 
-	unsigned int count[2];
+ie, 
+is_fake_page(page)
+{
+	if (is_stack_addr((void*)page))
+		return true;
+	return false;
+}
 
-        list_for_each_entry(page, &cc->migratepages, lru) {
-                count[page_is_file_cache(page)]++;
-        }
+Also, I like to use stack rather than kmalloc in compaction.
 
-is also clear to me.
 
 
 --
