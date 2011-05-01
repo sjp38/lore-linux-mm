@@ -1,41 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 82889900113
-	for <linux-mm@kvack.org>; Sun,  1 May 2011 12:37:46 -0400 (EDT)
-Received: by pwi10 with SMTP id 10so3194663pwi.14
-        for <linux-mm@kvack.org>; Sun, 01 May 2011 09:37:45 -0700 (PDT)
-Date: Mon, 2 May 2011 01:37:37 +0900
-From: Minchan Kim <minchan.kim@gmail.com>
-Subject: Re: [RFC][PATCH] mm: cut down __GFP_NORETRY page allocation
- failures
-Message-ID: <20110501163737.GB3204@barrios-desktop>
-References: <20110426062535.GB19717@localhost>
- <BANLkTinM9DjK9QsGtN0Sh308rr+86UMF0A@mail.gmail.com>
- <20110426063421.GC19717@localhost>
- <BANLkTi=xDozFNBXNdGDLK6EwWrfHyBifQw@mail.gmail.com>
- <20110426092029.GA27053@localhost>
- <20110426124743.e58d9746.akpm@linux-foundation.org>
- <20110428133644.GA12400@localhost>
- <20110429022824.GA8061@localhost>
- <20110430141741.GA4511@localhost>
- <20110501163542.GA3204@barrios-desktop>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 0433B900113
+	for <linux-mm@kvack.org>; Sun,  1 May 2011 18:11:05 -0400 (EDT)
+Received: from hpaq12.eem.corp.google.com (hpaq12.eem.corp.google.com [172.25.149.12])
+	by smtp-out.google.com with ESMTP id p41MB27r019111
+	for <linux-mm@kvack.org>; Sun, 1 May 2011 15:11:02 -0700
+Received: from qyk35 (qyk35.prod.google.com [10.241.83.163])
+	by hpaq12.eem.corp.google.com with ESMTP id p41MAwbf023352
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Sun, 1 May 2011 15:11:01 -0700
+Received: by qyk35 with SMTP id 35so1147107qyk.13
+        for <linux-mm@kvack.org>; Sun, 01 May 2011 15:10:58 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110501163542.GA3204@barrios-desktop>
+In-Reply-To: <c7a7b3ceafe4fdc4bc038774374504827c01481f.1304261567.git.minchan.kim@gmail.com>
+References: <cover.1304261567.git.minchan.kim@gmail.com>
+	<c7a7b3ceafe4fdc4bc038774374504827c01481f.1304261567.git.minchan.kim@gmail.com>
+Date: Sun, 1 May 2011 15:10:58 -0700
+Message-ID: <BANLkTi=c2tBcXJnFi-i4r1_ADiMFebmxMA@mail.gmail.com>
+Subject: Re: [PATCH 1/2] Check PageUnevictable in lru_deactivate_fn
+From: Ying Han <yinghan@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@linux.vnet.ibm.com>, Dave Young <hidave.darkstar@gmail.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, Dave Chinner <david@fromorbit.com>, David Rientjes <rientjes@google.com>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>
 
-On Mon, May 02, 2011 at 01:35:42AM +0900, Minchan Kim wrote:
- 
-> Do you see my old patch? The patch want't incomplet but it's not bad for showing an idea.
-                                     ^^^^^^^^^^^^^^^^
-                              typo : wasn't complete
--- 
-Kind regards,
-Minchan Kim
+On Sun, May 1, 2011 at 8:03 AM, Minchan Kim <minchan.kim@gmail.com> wrote:
+> The lru_deactivate_fn should not move page which in on unevictable lru
+> into inactive list. Otherwise, we can meet BUG when we use isolate_lru_pa=
+ges
+> as __isolate_lru_page could return -EINVAL.
+> It's really BUG and let's fix it.
+>
+> Reported-by: Ying Han <yinghan@google.com>
+> Tested-by: Ying Han <yinghan@google.com>
+> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+> ---
+> =A0mm/swap.c | =A0 =A03 +++
+> =A01 files changed, 3 insertions(+), 0 deletions(-)
+>
+> diff --git a/mm/swap.c b/mm/swap.c
+> index a83ec5a..2e9656d 100644
+> --- a/mm/swap.c
+> +++ b/mm/swap.c
+> @@ -429,6 +429,9 @@ static void lru_deactivate_fn(struct page *page, void=
+ *arg)
+> =A0 =A0 =A0 =A0if (!PageLRU(page))
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return;
+>
+> + =A0 =A0 =A0 if (PageUnevictable(page))
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 return;
+> +
+> =A0 =A0 =A0 =A0/* Some processes are using the page */
+> =A0 =A0 =A0 =A0if (page_mapped(page))
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return;
+> --
+> 1.7.1
+
+Thanks Minchan for the fix, and i haven't been able to reproducing the
+issue after applying the patch.
+
+--Ying
+
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
