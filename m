@@ -1,46 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 54BE0900001
-	for <linux-mm@kvack.org>; Sat, 30 Apr 2011 12:46:19 -0400 (EDT)
-Date: Sat, 30 Apr 2011 09:46:16 -0700
-From: Randy Dunlap <rdunlap@xenotime.net>
-Subject: Re: mmotm 2011-04-29-16-25 uploaded
-Message-Id: <20110430094616.1fd43735.rdunlap@xenotime.net>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id B5B55900001
+	for <linux-mm@kvack.org>; Sat, 30 Apr 2011 22:35:38 -0400 (EDT)
+Received: from hpaq3.eem.corp.google.com (hpaq3.eem.corp.google.com [172.25.149.3])
+	by smtp-out.google.com with ESMTP id p412Za4v022016
+	for <linux-mm@kvack.org>; Sat, 30 Apr 2011 19:35:36 -0700
+Received: from pve37 (pve37.prod.google.com [10.241.210.37])
+	by hpaq3.eem.corp.google.com with ESMTP id p412ZVRE004403
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Sat, 30 Apr 2011 19:35:35 -0700
+Received: by pve37 with SMTP id 37so3901411pve.35
+        for <linux-mm@kvack.org>; Sat, 30 Apr 2011 19:35:31 -0700 (PDT)
+Date: Sat, 30 Apr 2011 19:35:38 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: [PATCH] mmotm: fix hang at startup
 In-Reply-To: <201104300002.p3U02Ma2026266@imap1.linux-foundation.org>
+Message-ID: <alpine.LSU.2.00.1104301929520.1343@sister.anvils>
 References: <201104300002.p3U02Ma2026266@imap1.linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Hellwig <hch@lst.de>, Wu Fengguang <fengguang.wu@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 
-On Fri, 29 Apr 2011 16:26:16 -0700 akpm@linux-foundation.org wrote:
+Yesterday's mmotm hangs at startup, and with lockdep it reports:
+BUG: spinlock recursion on CPU#1, blkid/284 - with bdi_lock_two()
+called from bdev_inode_switch_bdi() in the backtrace.  It appears
+that this function is sometimes called with new the same as old.
 
-> The mm-of-the-moment snapshot 2011-04-29-16-25 has been uploaded to
-> 
->    http://userweb.kernel.org/~akpm/mmotm/
-> 
-> and will soon be available at
-> 
->    git://zen-kernel.org/kernel/mmotm.git
-> 
-> It contains the following patches against 2.6.39-rc5:
-
-
-mm-per-node-vmstat-show-proper-vmstats.patch
-
-when CONFIG_PROC_FS is not enabled:
-
-drivers/built-in.o: In function `node_read_vmstat':
-node.c:(.text+0x1e995): undefined reference to `vmstat_text'
-
-from drivers/base/node.c
-
+Signed-off-by: Hugh Dickins <hughd@google.com>
 ---
-~Randy
-*** Remember to use Documentation/SubmitChecklist when testing your code ***
+Fix to
+writeback-split-inode_wb_list_lock-into-bdi_writebacklist_lock.patch
+
+ fs/block_dev.c |    2 ++
+ 1 file changed, 2 insertions(+)
+
+--- 2.6.39-rc5-mm1/fs/block_dev.c	2011-04-29 18:20:09.183314733 -0700
++++ linux/fs/block_dev.c	2011-04-30 17:55:45.718785263 -0700
+@@ -57,6 +57,8 @@ static void bdev_inode_switch_bdi(struct
+ {
+ 	struct backing_dev_info *old = inode->i_data.backing_dev_info;
+ 
++	if (dst == old)
++		return;
+ 	bdi_lock_two(&old->wb, &dst->wb);
+ 	spin_lock(&inode->i_lock);
+ 	inode->i_data.backing_dev_info = dst;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
