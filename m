@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id CD5DA900001
-	for <linux-mm@kvack.org>; Sun,  1 May 2011 11:03:56 -0400 (EDT)
-Received: by pvc12 with SMTP id 12so3861592pvc.14
-        for <linux-mm@kvack.org>; Sun, 01 May 2011 08:03:55 -0700 (PDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 76DDB900001
+	for <linux-mm@kvack.org>; Sun,  1 May 2011 11:04:01 -0400 (EDT)
+Received: by mail-pw0-f41.google.com with SMTP id 10so3171312pwi.14
+        for <linux-mm@kvack.org>; Sun, 01 May 2011 08:04:00 -0700 (PDT)
 From: Minchan Kim <minchan.kim@gmail.com>
-Subject: [PATCH 1/2] Check PageUnevictable in lru_deactivate_fn
-Date: Mon,  2 May 2011 00:03:30 +0900
-Message-Id: <c7a7b3ceafe4fdc4bc038774374504827c01481f.1304261567.git.minchan.kim@gmail.com>
+Subject: [PATCH 2/2] Filter unevictable page out in deactivate_page
+Date: Mon,  2 May 2011 00:03:31 +0900
+Message-Id: <dc54a5771cf1f580a91d16816100d4a2bcf2cdf5.1304261567.git.minchan.kim@gmail.com>
 In-Reply-To: <cover.1304261567.git.minchan.kim@gmail.com>
 References: <cover.1304261567.git.minchan.kim@gmail.com>
 In-Reply-To: <cover.1304261567.git.minchan.kim@gmail.com>
@@ -17,32 +17,36 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Ying Han <yinghan@google.com>, Minchan Kim <minchan.kim@gmail.com>
 
-The lru_deactivate_fn should not move page which in on unevictable lru
-into inactive list. Otherwise, we can meet BUG when we use isolate_lru_pages
-as __isolate_lru_page could return -EINVAL.
-It's really BUG and let's fix it.
+It's pointless that deactive_page's pagevec operation about
+unevictable page as it's nop.
+This patch removes unnecessary overhead which might be a bit problem
+in case that there are many unevictable page in system(ex, mprotect workload)
 
-Reported-by: Ying Han <yinghan@google.com>
-Tested-by: Ying Han <yinghan@google.com>
 Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
 ---
- mm/swap.c |    3 +++
- 1 files changed, 3 insertions(+), 0 deletions(-)
+ mm/swap.c |    9 +++++++++
+ 1 files changed, 9 insertions(+), 0 deletions(-)
 
 diff --git a/mm/swap.c b/mm/swap.c
-index a83ec5a..2e9656d 100644
+index 2e9656d..b707694 100644
 --- a/mm/swap.c
 +++ b/mm/swap.c
-@@ -429,6 +429,9 @@ static void lru_deactivate_fn(struct page *page, void *arg)
- 	if (!PageLRU(page))
- 		return;
- 
+@@ -511,6 +511,15 @@ static void drain_cpu_pagevecs(int cpu)
+  */
+ void deactivate_page(struct page *page)
+ {
++
++	/*
++	 * In workload which system has many unevictable page(ex, mprotect),
++	 * unevictalge page deactivation for accelerating reclaim
++	 * is pointless.
++	 */
 +	if (PageUnevictable(page))
 +		return;
 +
- 	/* Some processes are using the page */
- 	if (page_mapped(page))
- 		return;
+ 	if (likely(get_page_unless_zero(page))) {
+ 		struct pagevec *pvec = &get_cpu_var(lru_deactivate_pvecs);
+ 
 -- 
 1.7.1
 
