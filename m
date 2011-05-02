@@ -1,63 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id C802B90011A
-	for <linux-mm@kvack.org>; Mon,  2 May 2011 03:22:56 -0400 (EDT)
-Date: Mon, 2 May 2011 09:22:10 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 1/2] Add the soft_limit reclaim in global direct reclaim.
-Message-ID: <20110502072210.GA24305@cmpxchg.org>
-References: <1304030226-19332-1-git-send-email-yinghan@google.com>
- <1304030226-19332-2-git-send-email-yinghan@google.com>
- <20110429130503.GA306@tiehlicka.suse.cz>
- <BANLkTinkB+qF6u6TtsSoahdPOmNtAht39A@mail.gmail.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 1466C90010C
+	for <linux-mm@kvack.org>; Mon,  2 May 2011 06:14:51 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 3201C3EE0C5
+	for <linux-mm@kvack.org>; Mon,  2 May 2011 19:14:47 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id CB89045DE74
+	for <linux-mm@kvack.org>; Mon,  2 May 2011 19:14:46 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id A6D8545DE5F
+	for <linux-mm@kvack.org>; Mon,  2 May 2011 19:14:44 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 9FEECEF805F
+	for <linux-mm@kvack.org>; Mon,  2 May 2011 19:14:18 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 6AF94EF805D
+	for <linux-mm@kvack.org>; Mon,  2 May 2011 19:14:18 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH] mm: cut down __GFP_NORETRY page allocation failures
+In-Reply-To: <20110501163737.GB3204@barrios-desktop>
+References: <20110501163542.GA3204@barrios-desktop> <20110501163737.GB3204@barrios-desktop>
+Message-Id: <20110502191535.2D55.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <BANLkTinkB+qF6u6TtsSoahdPOmNtAht39A@mail.gmail.com>
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Mon,  2 May 2011 19:14:17 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: Michal Hocko <mhocko@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>, linux-mm@kvack.org
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@linux.vnet.ibm.com>, Dave Young <hidave.darkstar@gmail.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, Dave Chinner <david@fromorbit.com>, David Rientjes <rientjes@google.com>
 
-On Fri, Apr 29, 2011 at 10:44:16AM -0700, Ying Han wrote:
-> On Fri, Apr 29, 2011 at 6:05 AM, Michal Hocko <mhocko@suse.cz> wrote:
-> > On Thu 28-04-11 15:37:05, Ying Han wrote:
-> >> We recently added the change in global background reclaim which
-> >> counts the return value of soft_limit reclaim. Now this patch adds
-> >> the similar logic on global direct reclaim.
+> On Mon, May 02, 2011 at 01:35:42AM +0900, Minchan Kim wrote:
+>  
+> > Do you see my old patch? The patch want't incomplet but it's not bad for showing an idea.
+>                                      ^^^^^^^^^^^^^^^^
+>                               typo : wasn't complete
 
-The changelog is a bit misleading: you don't just add something that
-counts something.  You add code that can result in actual page
-reclamation.
+I think your idea is eligible. Wu's approach may increase throughput but
+may decrease latency. So, do you have a plan to finish the work?
 
-> >> @@ -1980,8 +1983,17 @@ static void shrink_zones(int priority, struct zonelist *zonelist,
-> >>                               continue;       /* Let kswapd poll it */
-> >>               }
-> >>
-> >> +             nr_soft_scanned = 0;
-> >> +             nr_soft_reclaimed = mem_cgroup_soft_limit_reclaim(zone,
-> >> +                                                     sc->order, sc->gfp_mask,
-> >> +                                                     &nr_soft_scanned);
-> >> +             sc->nr_reclaimed += nr_soft_reclaimed;
-> >> +             total_scanned += nr_soft_scanned;
-> >> +
-> >>               shrink_zone(priority, zone, sc);
-> >
-> > This can cause more aggressive reclaiming, right? Shouldn't we check
-> > whether shrink_zone is still needed?
-> 
-> We decided to leave the shrink_zone for now before making further
-> changes for soft_limit reclaim. The same
-> patch I did last time for global background reclaim. It is safer to do
-> this step-by-step :)
 
-I am sorry, but I kinda lost track of what's going on because there
-are so many patches and concurrent discussions...  who is we and do
-you have a pointer to the email where this conclusion was reached?
-
-And safe how?  Do you want to trade a potential regression against a
-certain one (overreclaim)?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
