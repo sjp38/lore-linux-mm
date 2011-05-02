@@ -1,78 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 574906B0024
-	for <linux-mm@kvack.org>; Mon,  2 May 2011 11:46:33 -0400 (EDT)
-Date: Mon, 2 May 2011 08:46:30 -0700
-From: Randy Dunlap <rdunlap@xenotime.net>
-Subject: Re: mmotm 2011-04-29-16-25 uploaded
-Message-Id: <20110502084630.82f7e7c6.rdunlap@xenotime.net>
-In-Reply-To: <20110501164918.75E0.A69D9226@jp.fujitsu.com>
-References: <201104300002.p3U02Ma2026266@imap1.linux-foundation.org>
-	<20110430094616.1fd43735.rdunlap@xenotime.net>
-	<20110501164918.75E0.A69D9226@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id DD8D96B0011
+	for <linux-mm@kvack.org>; Mon,  2 May 2011 12:51:37 -0400 (EDT)
+From: Ying Han <yinghan@google.com>
+Subject: [PATCH V2 1/2] Add the soft_limit reclaim in global direct reclaim.
+Date: Mon,  2 May 2011 09:50:24 -0700
+Message-Id: <1304355025-1421-2-git-send-email-yinghan@google.com>
+In-Reply-To: <1304355025-1421-1-git-send-email-yinghan@google.com>
+References: <1304355025-1421-1-git-send-email-yinghan@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>
+Cc: linux-mm@kvack.org
 
-On Sun,  1 May 2011 16:47:43 +0900 (JST) KOSAKI Motohiro wrote:
+We recently added the change in global background reclaim which
+counts the return value of soft_limit reclaim. Now this patch adds
+the similar logic on global direct reclaim.
 
-> > On Fri, 29 Apr 2011 16:26:16 -0700 akpm@linux-foundation.org wrote:
-> > 
-> > > The mm-of-the-moment snapshot 2011-04-29-16-25 has been uploaded to
-> > > 
-> > >    http://userweb.kernel.org/~akpm/mmotm/
-> > > 
-> > > and will soon be available at
-> > > 
-> > >    git://zen-kernel.org/kernel/mmotm.git
-> > > 
-> > > It contains the following patches against 2.6.39-rc5:
-> > 
-> > 
-> > mm-per-node-vmstat-show-proper-vmstats.patch
-> > 
-> > when CONFIG_PROC_FS is not enabled:
-> > 
-> > drivers/built-in.o: In function `node_read_vmstat':
-> > node.c:(.text+0x1e995): undefined reference to `vmstat_text'
-> > 
-> > from drivers/base/node.c
-> 
-> 
-> Thank you for finding that!
-> 
-> 
-> 
-> From 63ad7c06f082f8423c033b9f54070e14d561db7e Mon Sep 17 00:00:00 2001
-> From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Date: Sun, 1 May 2011 16:00:09 +0900
-> Subject: [PATCH] vmstat: fix build error when SYSFS=y and PROC_FS=n
-> 
-> Randy Dunlap pointed out node.c makes build error when
-> PROC_FS=n. Because node.c#node_read_vmstat() uses vmstat_text
-> and it depend on PROC_FS.
-> 
-> Thus, this patch change it to depend both SYSFS and PROC_FS.
-> 
-> Reported-by: Randy Dunlap <rdunlap@xenotime.net>
+We should skip scanning global LRU on shrink_zone if soft_limit reclaim
+does enough work. This is the first step where we start with counting
+the nr_scanned and nr_reclaimed from soft_limit reclaim into global
+scan_control.
 
-Acked-by: Randy Dunlap <rdunlap@xenotime.net>
+no change since v1.
 
-Thanks.
-
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> ---
->  mm/vmstat.c |  261 ++++++++++++++++++++++++++++++-----------------------------
->  1 files changed, 132 insertions(+), 129 deletions(-)
-
-
+Signed-off-by: Ying Han <yinghan@google.com>
 ---
-~Randy
-*** Remember to use Documentation/SubmitChecklist when testing your code ***
+ mm/vmscan.c |   16 ++++++++++++++--
+ 1 files changed, 14 insertions(+), 2 deletions(-)
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index b3a569f..84003cc 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1959,11 +1959,14 @@ restart:
+  * If a zone is deemed to be full of pinned pages then just give it a light
+  * scan then give up on it.
+  */
+-static void shrink_zones(int priority, struct zonelist *zonelist,
++static unsigned long shrink_zones(int priority, struct zonelist *zonelist,
+ 					struct scan_control *sc)
+ {
+ 	struct zoneref *z;
+ 	struct zone *zone;
++	unsigned long nr_soft_reclaimed;
++	unsigned long nr_soft_scanned;
++	unsigned long total_scanned = 0;
+ 
+ 	for_each_zone_zonelist_nodemask(zone, z, zonelist,
+ 					gfp_zone(sc->gfp_mask), sc->nodemask) {
+@@ -1980,8 +1983,17 @@ static void shrink_zones(int priority, struct zonelist *zonelist,
+ 				continue;	/* Let kswapd poll it */
+ 		}
+ 
++		nr_soft_scanned = 0;
++		nr_soft_reclaimed = mem_cgroup_soft_limit_reclaim(zone,
++							sc->order, sc->gfp_mask,
++							&nr_soft_scanned);
++		sc->nr_reclaimed += nr_soft_reclaimed;
++		total_scanned += nr_soft_scanned;
++
+ 		shrink_zone(priority, zone, sc);
+ 	}
++
++	return total_scanned;
+ }
+ 
+ static bool zone_reclaimable(struct zone *zone)
+@@ -2045,7 +2057,7 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
+ 		sc->nr_scanned = 0;
+ 		if (!priority)
+ 			disable_swap_token();
+-		shrink_zones(priority, zonelist, sc);
++		total_scanned += shrink_zones(priority, zonelist, sc);
+ 		/*
+ 		 * Don't shrink slabs when reclaiming memory from
+ 		 * over limit cgroups
+-- 
+1.7.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
