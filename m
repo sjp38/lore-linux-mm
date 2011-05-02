@@ -1,92 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 7821E900123
-	for <linux-mm@kvack.org>; Mon,  2 May 2011 10:03:33 -0400 (EDT)
-Date: Mon, 2 May 2011 22:02:57 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH] getdelays: show average CPU/IO/SWAP/RECLAIM delays
-Message-ID: <20110502140257.GA12780@localhost>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C61A900125
+	for <linux-mm@kvack.org>; Mon,  2 May 2011 10:37:27 -0400 (EDT)
+Subject: Re: mmotm 2011-04-29 - wonky VmRSS and VmHWM values after swapping
+In-Reply-To: Your message of "Sun, 01 May 2011 20:26:54 EDT."
+             <49683.1304296014@localhost>
+From: Valdis.Kletnieks@vt.edu
+References: <201104300002.p3U02Ma2026266@imap1.linux-foundation.org>
+            <49683.1304296014@localhost>
+Mime-Version: 1.0
+Content-Type: multipart/signed; boundary="==_Exmh_1304347041_5428P";
+	 micalg=pgp-sha1; protocol="application/pgp-signature"
+Content-Transfer-Encoding: 7bit
+Date: Mon, 02 May 2011 10:37:22 -0400
+Message-ID: <8185.1304347042@localhost>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Mel Gorman <mel@linux.vnet.ibm.com>, Dave Young <hidave.darkstar@gmail.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, Dave Chinner <david@fromorbit.com>, David Rientjes <rientjes@google.com>
+To: akpm@linux-foundation.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-I find it very handy to show the average delays in milliseconds.
+--==_Exmh_1304347041_5428P
+Content-Type: text/plain; charset=us-ascii
 
-Example output (on 100 concurrent dd reading sparse files):
+On Sun, 01 May 2011 20:26:54 EDT, Valdis.Kletnieks@vt.edu said:
+> On Fri, 29 Apr 2011 16:26:16 PDT, akpm@linux-foundation.org said:
+> > The mm-of-the-moment snapshot 2011-04-29-16-25 has been uploaded to
+> > 
+> >    http://userweb.kernel.org/~akpm/mmotm/
+>  
+> Dell Latitude E6500 laptop, Core2 Due P8700, 4G RAM, 2G swap.Z86_64 kernel.
+> 
+> I was running a backup of the system to an external USB hard drive.
 
-CPU             count     real total  virtual total    delay total  delay average
-                  986     3223509952     3207643301    38863410579         39.415ms
-IO              count    delay total  delay average
-                    0              0              0ms
-SWAP            count    delay total  delay average
-                    0              0              0ms
-RECLAIM         count    delay total  delay average
-                 1059     5131834899              4ms
-dd: read=0, write=0, cancelled_write=0
+Is a red herring.  Am seeing it again, after only 20 minutes of uptime, and so
+far I've only gotten 1.2G or so into the 4G ram (2.5G still free), and never
+touched swap yet.
 
-CC: Mel Gorman <mel@linux.vnet.ibm.com>
-Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
----
- Documentation/accounting/getdelays.c |   33 +++++++++++++++----------
- 1 file changed, 20 insertions(+), 13 deletions(-)
+Aha! I have a reproducer (found while composing this note).  /bin/su will
+reliably trigger it (4 tries out of 4, launching from a bash shell that itself
+has sane VmRSS and VmHWM values).  So it's a specific code sequence doing it
+(probably one syscall doing something quirky).
 
---- linux-next.orig/Documentation/accounting/getdelays.c	2011-05-02 11:33:44.000000000 +0800
-+++ linux-next/Documentation/accounting/getdelays.c	2011-05-02 21:36:45.000000000 +0800
-@@ -191,30 +191,37 @@ static int get_family_id(int sd)
- 	return id;
- }
- 
-+#define average_ms(t, c) (t / 1000000ULL / (c ? c : 1))
-+
- static void print_delayacct(struct taskstats *t)
- {
--	printf("\n\nCPU   %15s%15s%15s%15s\n"
--	       "      %15llu%15llu%15llu%15llu\n"
--	       "IO    %15s%15s\n"
--	       "      %15llu%15llu\n"
--	       "SWAP  %15s%15s\n"
--	       "      %15llu%15llu\n"
--	       "RECLAIM  %12s%15s\n"
--	       "      %15llu%15llu\n",
--	       "count", "real total", "virtual total", "delay total",
-+	printf("\n\nCPU   %15s%15s%15s%15s%15s\n"
-+	       "      %15llu%15llu%15llu%15llu%15.3fms\n"
-+	       "IO    %15s%15s%15s\n"
-+	       "      %15llu%15llu%15llums\n"
-+	       "SWAP  %15s%15s%15s\n"
-+	       "      %15llu%15llu%15llums\n"
-+	       "RECLAIM  %12s%15s%15s\n"
-+	       "      %15llu%15llu%15llums\n",
-+	       "count", "real total", "virtual total",
-+	       "delay total", "delay average",
- 	       (unsigned long long)t->cpu_count,
- 	       (unsigned long long)t->cpu_run_real_total,
- 	       (unsigned long long)t->cpu_run_virtual_total,
- 	       (unsigned long long)t->cpu_delay_total,
--	       "count", "delay total",
-+	       average_ms((double)t->cpu_delay_total, t->cpu_count),
-+	       "count", "delay total", "delay average",
- 	       (unsigned long long)t->blkio_count,
- 	       (unsigned long long)t->blkio_delay_total,
--	       "count", "delay total",
-+	       average_ms(t->blkio_delay_total, t->blkio_count),
-+	       "count", "delay total", "delay average",
- 	       (unsigned long long)t->swapin_count,
- 	       (unsigned long long)t->swapin_delay_total,
--	       "count", "delay total",
-+	       average_ms(t->swapin_delay_total, t->swapin_count),
-+	       "count", "delay total", "delay average",
- 	       (unsigned long long)t->freepages_count,
--	       (unsigned long long)t->freepages_delay_total);
-+	       (unsigned long long)t->freepages_delay_total,
-+	       average_ms(t->freepages_delay_total, t->freepages_count));
- }
- 
- static void task_context_switch_counts(struct taskstats *t)
+Now if I could figure out how to make strace look at the VmRSS after each
+syscall, or get gdb to do similar.  Any suggestions?  Am open to perf/other
+solutions as well, if anybody has one handy...
+
+
+--==_Exmh_1304347041_5428P
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.11 (GNU/Linux)
+Comment: Exmh version 2.5 07/13/2001
+
+iD8DBQFNvsGhcC3lWbTT17ARAtCbAKCWm//9w+BymVQxhZnY9g2ApPDh9QCeMGDq
+trcg1I8d5c4Kt6lWqewriEE=
+=gk5i
+-----END PGP SIGNATURE-----
+
+--==_Exmh_1304347041_5428P--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
