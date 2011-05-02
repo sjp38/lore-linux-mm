@@ -1,42 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 9DF586B0012
-	for <linux-mm@kvack.org>; Mon,  2 May 2011 18:50:20 -0400 (EDT)
-Received: from d01relay06.pok.ibm.com (d01relay06.pok.ibm.com [9.56.227.116])
-	by e5.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p42MNmjG018963
-	for <linux-mm@kvack.org>; Mon, 2 May 2011 18:23:48 -0400
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p42MoIJ1569458
-	for <linux-mm@kvack.org>; Mon, 2 May 2011 18:50:18 -0400
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p42Io5ni004231
-	for <linux-mm@kvack.org>; Mon, 2 May 2011 15:50:07 -0300
-Subject: Re: [PATCH 2/4] mm: Enable set_page_section() only if
- CONFIG_SPARSEMEM and !CONFIG_SPARSEMEM_VMEMMAP
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <20110502212012.GC4623@router-fw-old.local.net-space.pl>
-References: <20110502212012.GC4623@router-fw-old.local.net-space.pl>
-Content-Type: text/plain; charset="ISO-8859-1"
-Date: Mon, 02 May 2011 15:50:14 -0700
-Message-ID: <1304376614.30823.48.camel@nimitz>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id CEA716B0012
+	for <linux-mm@kvack.org>; Mon,  2 May 2011 18:53:56 -0400 (EDT)
+Received: from wpaz1.hot.corp.google.com (wpaz1.hot.corp.google.com [172.24.198.65])
+	by smtp-out.google.com with ESMTP id p42MrsIT015804
+	for <linux-mm@kvack.org>; Mon, 2 May 2011 15:53:54 -0700
+Received: from ywa8 (ywa8.prod.google.com [10.192.1.8])
+	by wpaz1.hot.corp.google.com with ESMTP id p42MqtOQ015275
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 2 May 2011 15:53:52 -0700
+Received: by ywa8 with SMTP id 8so2167822ywa.9
+        for <linux-mm@kvack.org>; Mon, 02 May 2011 15:53:52 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <1304366849.15370.27.camel@mulgrave.site>
+References: <1304366849.15370.27.camel@mulgrave.site>
+From: Paul Menage <menage@google.com>
+Date: Mon, 2 May 2011 15:53:31 -0700
+Message-ID: <BANLkTimhZAdL-HXftE86SyjRrDy9KB+qsg@mail.gmail.com>
+Subject: Re: memcg: fix fatal livelock in kswapd
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Kiper <dkiper@net-space.pl>
-Cc: ian.campbell@citrix.com, akpm@linux-foundation.org, andi.kleen@intel.com, haicheng.li@linux.intel.com, fengguang.wu@intel.com, jeremy@goop.org, konrad.wilk@oracle.com, dan.magenheimer@oracle.com, v.tolstov@selfip.ru, pasik@iki.fi, wdauchy@gmail.com, rientjes@google.com, xen-devel@lists.xensource.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: James Bottomley <James.Bottomley@hansenpartnership.com>, Balbir Singh <balbir@in.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, nishimura@mxp.nes.nec.co.jp
+Cc: Chris Mason <chris.mason@oracle.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Li Zefan <lizf@cn.fujitsu.com>, containers@lists.linux-foundation.org
 
-On Mon, 2011-05-02 at 23:20 +0200, Daniel Kiper wrote:
-> set_page_section() is valid only in CONFIG_SPARSEMEM and
-> !CONFIG_SPARSEMEM_VMEMMAP context. Move it to proper place
-> and amend accordingly functions which are using it.
+[ Adding the memcg maintainers ]
 
-I guess we've been wasting all that time setting section bits in
-page->flags that we'll never use.  Looks sane to me.
-
-Acked-by: Dave Hansen <dave@linux.vnet.ibm.com>
-
--- Dave
+On Mon, May 2, 2011 at 1:07 PM, James Bottomley
+<James.Bottomley@hansenpartnership.com> wrote:
+> The fatal livelock in kswapd, reported in this thread:
+>
+> http://marc.info/?t=3D130392066000001
+>
+> Is mitigateable if we prevent the cgroups code being so aggressive in
+> its zone shrinking (by reducing it's default shrink from 0 [everything]
+> to DEF_PRIORITY [some things]). =A0This will have an obvious knock on
+> effect to cgroup accounting, but it's better than hanging systems.
+>
+> Signed-off-by: James Bottomley <James.Bottomley@suse.de>
+>
+> ---
+>
+> From 74b62fc417f07e1411d98181631e4e097c8e3e68 Mon Sep 17 00:00:00 2001
+> From: James Bottomley <James.Bottomley@HansenPartnership.com>
+> Date: Mon, 2 May 2011 14:56:29 -0500
+> Subject: [PATCH] vmscan: move containers scan back to default priority
+>
+>
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index f6b435c..46cde92 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2173,8 +2173,12 @@ unsigned long mem_cgroup_shrink_node_zone(struct m=
+em_cgroup *mem,
+> =A0 =A0 =A0 =A0 * if we don't reclaim here, the shrink_zone from balance_=
+pgdat
+> =A0 =A0 =A0 =A0 * will pick up pages from other mem cgroup's as well. We =
+hack
+> =A0 =A0 =A0 =A0 * the priority and make it zero.
+> + =A0 =A0 =A0 =A0*
+> + =A0 =A0 =A0 =A0* FIXME: jejb: zero here was causing a livelock in the
+> + =A0 =A0 =A0 =A0* shrinker so changed to DEF_PRIORITY to fix this. Now n=
+eed to
+> + =A0 =A0 =A0 =A0* sort out cgroup accounting.
+> =A0 =A0 =A0 =A0 */
+> - =A0 =A0 =A0 shrink_zone(0, zone, &sc);
+> + =A0 =A0 =A0 shrink_zone(DEF_PRIORITY, zone, &sc);
+>
+> =A0 =A0 =A0 =A0trace_mm_vmscan_memcg_softlimit_reclaim_end(sc.nr_reclaime=
+d);
+>
+>
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
