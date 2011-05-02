@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 1BB9F6B0012
-	for <linux-mm@kvack.org>; Mon,  2 May 2011 17:49:46 -0400 (EDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 16A6F6B0012
+	for <linux-mm@kvack.org>; Mon,  2 May 2011 18:02:17 -0400 (EDT)
 Received: (from localhost user: 'dkiper' uid#4000 fake: STDIN
 	(dkiper@router-fw.net-space.pl)) by router-fw-old.local.net-space.pl
-	id S1581921Ab1EBVtV (ORCPT <rfc822;linux-mm@kvack.org>);
-	Mon, 2 May 2011 23:49:21 +0200
-Date: Mon, 2 May 2011 23:49:21 +0200
+	id S1581748Ab1EBWBs (ORCPT <rfc822;linux-mm@kvack.org>);
+	Tue, 3 May 2011 00:01:48 +0200
+Date: Tue, 3 May 2011 00:01:48 +0200
 From: Daniel Kiper <dkiper@net-space.pl>
-Subject: [PATCH V2 2/2] mm: Extend memory hotplug API to allow memory hotplug in virtual machines
-Message-ID: <20110502214921.GH4623@router-fw-old.local.net-space.pl>
+Subject: [PATCH V2] xen/balloon: Memory hotplug support for Xen balloon driver
+Message-ID: <20110502220148.GI4623@router-fw-old.local.net-space.pl>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
@@ -17,154 +17,261 @@ Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: ian.campbell@citrix.com, akpm@linux-foundation.org, andi.kleen@intel.com, haicheng.li@linux.intel.com, fengguang.wu@intel.com, jeremy@goop.org, konrad.wilk@oracle.com, dan.magenheimer@oracle.com, v.tolstov@selfip.ru, pasik@iki.fi, dave@linux.vnet.ibm.com, wdauchy@gmail.com, rientjes@google.com, xen-devel@lists.xensource.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-This patch contains online_page_callback and apropriate functions for
-registering/unregistering online page callbacks. It allows to do some
-machine specific tasks during online page stage which is required
-to implement memory hotplug in virtual machines. Additionally,
-__online_page_set_limits(), __online_page_increment_counters() and
-__online_page_free() function was added to ease generic
-hotplug operation.
+Memory hotplug support for Xen balloon driver. It should be
+mentioned that hotplugged memory is not onlined automatically.
+It should be onlined by user through standard sysfs interface.
+
+This patch applies to Linus' git tree, v2.6.39-rc5 tag with a few
+prerequisite patches available at https://lkml.org/lkml/2011/5/2/339
+and at https://lkml.org/lkml/2011/3/28/98.
+
+I have received notice that previous series of patches broke machine
+migration under Xen. I am going to confirm that and solve that problem
+ASAP (#define ASAP LATER_THEN_SOONER_HOWEVER_IT_WILL_BE_DONE). I do not
+have received any notices about other problems till now.
 
 Signed-off-by: Daniel Kiper <dkiper@net-space.pl>
 ---
- include/linux/memory_hotplug.h |   11 +++++-
- mm/memory_hotplug.c            |   68 ++++++++++++++++++++++++++++++++++++++--
- 2 files changed, 74 insertions(+), 5 deletions(-)
+ drivers/xen/Kconfig   |   10 ++++
+ drivers/xen/balloon.c |  139 ++++++++++++++++++++++++++++++++++++++++++++++++-
+ include/xen/balloon.h |    4 ++
+ 3 files changed, 151 insertions(+), 2 deletions(-)
 
-diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-index 8122018..014bd96 100644
---- a/include/linux/memory_hotplug.h
-+++ b/include/linux/memory_hotplug.h
-@@ -68,12 +68,19 @@ static inline void zone_seqlock_init(struct zone *zone)
- extern int zone_grow_free_lists(struct zone *zone, unsigned long new_nr_pages);
- extern int zone_grow_waitqueues(struct zone *zone, unsigned long nr_pages);
- extern int add_one_highpage(struct page *page, int pfn, int bad_ppro);
--/* need some defines for these for archs that don't support it */
--extern void online_page(struct page *page);
- /* VM interface that may be used by firmware interface */
- extern int online_pages(unsigned long, unsigned long);
- extern void __offline_isolated_pages(unsigned long, unsigned long);
+diff --git a/drivers/xen/Kconfig b/drivers/xen/Kconfig
+index a59638b..bd8cfae 100644
+--- a/drivers/xen/Kconfig
++++ b/drivers/xen/Kconfig
+@@ -9,6 +9,16 @@ config XEN_BALLOON
+ 	  the system to expand the domain's memory allocation, or alternatively
+ 	  return unneeded memory to the system.
  
-+typedef void (*online_page_callback_t)(struct page *page);
++config XEN_BALLOON_MEMORY_HOTPLUG
++	bool "Memory hotplug support for Xen balloon driver"
++	default n
++	depends on XEN_BALLOON && MEMORY_HOTPLUG
++	help
++	  Memory hotplug support for Xen balloon driver allows expanding memory
++	  available for the system above limit declared at system startup.
++	  It is very useful on critical systems which require long
++	  run without rebooting.
 +
-+extern int register_online_page_callback(online_page_callback_t callback);
-+extern int unregister_online_page_callback(online_page_callback_t callback);
-+
-+extern void __online_page_set_limits(struct page *page);
-+extern void __online_page_increment_counters(struct page *page);
-+extern void __online_page_free(struct page *page);
-+
- #ifdef CONFIG_MEMORY_HOTREMOVE
- extern bool is_pageblock_removable_nolock(struct page *page);
- #endif /* CONFIG_MEMORY_HOTREMOVE */
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index a807ccb..6bf78be 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -34,6 +34,17 @@
+ config XEN_SCRUB_PAGES
+ 	bool "Scrub pages before returning them to system"
+ 	depends on XEN_BALLOON
+diff --git a/drivers/xen/balloon.c b/drivers/xen/balloon.c
+index f54290b..e16cf26 100644
+--- a/drivers/xen/balloon.c
++++ b/drivers/xen/balloon.c
+@@ -4,6 +4,12 @@
+  * Copyright (c) 2003, B Dragovic
+  * Copyright (c) 2003-2004, M Williamson, K Fraser
+  * Copyright (c) 2005 Dan M. Smith, IBM Corporation
++ * Copyright (c) 2010 Daniel Kiper
++ *
++ * Memory hotplug support was written by Daniel Kiper. Work on
++ * it was sponsored by Google under Google Summer of Code 2010
++ * program. Jeremy Fitzhardinge from Xen.org was the mentor for
++ * this project.
+  *
+  * This program is free software; you can redistribute it and/or
+  * modify it under the terms of the GNU General Public License version 2
+@@ -40,6 +46,9 @@
+ #include <linux/mutex.h>
+ #include <linux/list.h>
+ #include <linux/gfp.h>
++#include <linux/notifier.h>
++#include <linux/memory.h>
++#include <linux/memory_hotplug.h>
  
- #include "internal.h"
+ #include <asm/page.h>
+ #include <asm/pgalloc.h>
+@@ -194,6 +203,87 @@ static enum bp_state update_schedule(enum bp_state state)
+ 	return BP_EAGAIN;
+ }
  
++#ifdef CONFIG_XEN_BALLOON_MEMORY_HOTPLUG
++static long current_credit(void)
++{
++	return balloon_stats.target_pages - balloon_stats.current_pages -
++		balloon_stats.hotplug_pages;
++}
++
++static bool balloon_is_inflated(void)
++{
++	if (balloon_stats.balloon_low || balloon_stats.balloon_high ||
++			balloon_stats.balloon_hotplug)
++		return true;
++	else
++		return false;
++}
++
 +/*
-+ * online_page_callback contains pointer to current page onlining function.
-+ * Initially it is generic_online_page(). If it is required it could be
-+ * changed by calling register_online_page_callback() for callback registration
-+ * and unregister_online_page_callback() for callback unregistration.
++ * reserve_additional_memory() adds memory region of size >= credit above
++ * max_pfn. New region is section aligned and size is modified to be multiple
++ * of section size. Those features allow optimal use of address space and
++ * establish proper alignment when this function is called first time after
++ * boot (last section not fully populated at boot time contains unused memory
++ * pages with PG_reserved bit not set; online_pages_range() does not allow page
++ * onlining in whole range if first onlined page does not have PG_reserved
++ * bit set). Real size of added memory is established at page onlining stage.
 + */
 +
-+static void generic_online_page(struct page *page);
-+
-+static online_page_callback_t online_page_callback = generic_online_page;
-+
- DEFINE_MUTEX(mem_hotplug_mutex);
- 
- void lock_memory_hotplug(void)
-@@ -361,23 +372,74 @@ int __remove_pages(struct zone *zone, unsigned long phys_start_pfn,
- }
- EXPORT_SYMBOL_GPL(__remove_pages);
- 
--void online_page(struct page *page)
-+int register_online_page_callback(online_page_callback_t callback)
++static enum bp_state reserve_additional_memory(long credit)
 +{
-+	int rc = -EPERM;
++	int nid, rc;
++	u64 hotplug_start_paddr;
++	unsigned long balloon_hotplug = credit;
 +
-+	lock_memory_hotplug();
++	hotplug_start_paddr = PFN_PHYS(SECTION_ALIGN_UP(max_pfn));
++	balloon_hotplug = round_up(balloon_hotplug, PAGES_PER_SECTION);
++	nid = memory_add_physaddr_to_nid(hotplug_start_paddr);
 +
-+	if (online_page_callback == generic_online_page) {
-+		online_page_callback = callback;
-+		rc = 0;
++	rc = add_memory(nid, hotplug_start_paddr, balloon_hotplug << PAGE_SHIFT);
++
++	if (rc) {
++		pr_info("xen_balloon: %s: add_memory() failed: %i\n", __func__, rc);
++		return BP_EAGAIN;
 +	}
 +
-+	unlock_memory_hotplug();
++	balloon_hotplug -= credit;
 +
-+	return rc;
++	balloon_stats.hotplug_pages += credit;
++	balloon_stats.balloon_hotplug = balloon_hotplug;
++
++	return BP_DONE;
 +}
-+EXPORT_SYMBOL_GPL(register_online_page_callback);
 +
-+int unregister_online_page_callback(online_page_callback_t callback)
-+{
-+	int rc = -EPERM;
-+
-+	lock_memory_hotplug();
-+
-+	if (online_page_callback == callback) {
-+		online_page_callback = generic_online_page;
-+		rc = 0;
-+	}
-+
-+	unlock_memory_hotplug();
-+
-+	return rc;
-+}
-+EXPORT_SYMBOL_GPL(unregister_online_page_callback);
-+
-+void __online_page_set_limits(struct page *page)
- {
- 	unsigned long pfn = page_to_pfn(page);
- 
--	totalram_pages++;
- 	if (pfn >= num_physpages)
- 		num_physpages = pfn + 1;
-+}
-+EXPORT_SYMBOL_GPL(__online_page_set_limits);
-+
-+void __online_page_increment_counters(struct page *page)
-+{
-+	totalram_pages++;
- 
- #ifdef CONFIG_HIGHMEM
- 	if (PageHighMem(page))
- 		totalhigh_pages++;
- #endif
-+}
-+EXPORT_SYMBOL_GPL(__online_page_increment_counters);
- 
-+void __online_page_free(struct page *page)
-+{
- 	ClearPageReserved(page);
- 	init_page_count(page);
- 	__free_page(page);
- }
-+EXPORT_SYMBOL_GPL(__online_page_free);
-+
-+static void generic_online_page(struct page *page)
++static void xen_online_page(struct page *page)
 +{
 +	__online_page_set_limits(page);
-+	__online_page_increment_counters(page);
-+	__online_page_free(page);
++
++	mutex_lock(&balloon_mutex);
++
++	__balloon_append(page);
++
++	if (balloon_stats.hotplug_pages)
++		--balloon_stats.hotplug_pages;
++	else
++		--balloon_stats.balloon_hotplug;
++
++	mutex_unlock(&balloon_mutex);
 +}
++
++static int xen_memory_notifier(struct notifier_block *nb, unsigned long val, void *v)
++{
++	if (val == MEM_ONLINE)
++		schedule_delayed_work(&balloon_worker, 0);
++
++	return NOTIFY_OK;
++}
++
++static struct notifier_block xen_memory_nb = {
++	.notifier_call = xen_memory_notifier,
++	.priority = 0
++};
++#else
+ static long current_credit(void)
+ {
+ 	unsigned long target = balloon_stats.target_pages;
+@@ -206,6 +296,21 @@ static long current_credit(void)
+ 	return target - balloon_stats.current_pages;
+ }
  
- static int online_pages_range(unsigned long start_pfn, unsigned long nr_pages,
- 			void *arg)
-@@ -388,7 +450,7 @@ static int online_pages_range(unsigned long start_pfn, unsigned long nr_pages,
- 	if (PageReserved(pfn_to_page(start_pfn)))
- 		for (i = 0; i < nr_pages; i++) {
- 			page = pfn_to_page(start_pfn + i);
--			online_page(page);
-+			online_page_callback(page);
- 			onlined_pages++;
- 		}
- 	*(unsigned long *)arg = onlined_pages;
++static bool balloon_is_inflated(void)
++{
++	if (balloon_stats.balloon_low || balloon_stats.balloon_high)
++		return true;
++	else
++		return false;
++}
++
++static enum bp_state reserve_additional_memory(long credit)
++{
++	balloon_stats.target_pages = balloon_stats.current_pages;
++	return BP_DONE;
++}
++#endif /* CONFIG_XEN_BALLOON_MEMORY_HOTPLUG */
++
+ static enum bp_state increase_reservation(unsigned long nr_pages)
+ {
+ 	int rc;
+@@ -217,6 +322,15 @@ static enum bp_state increase_reservation(unsigned long nr_pages)
+ 		.domid        = DOMID_SELF
+ 	};
+ 
++#ifdef CONFIG_XEN_BALLOON_MEMORY_HOTPLUG
++	if (!balloon_stats.balloon_low && !balloon_stats.balloon_high) {
++		nr_pages = min(nr_pages, balloon_stats.balloon_hotplug);
++		balloon_stats.hotplug_pages += nr_pages;
++		balloon_stats.balloon_hotplug -= nr_pages;
++		return BP_DONE;
++	}
++#endif
++
+ 	if (nr_pages > ARRAY_SIZE(frame_list))
+ 		nr_pages = ARRAY_SIZE(frame_list);
+ 
+@@ -279,6 +393,15 @@ static enum bp_state decrease_reservation(unsigned long nr_pages, gfp_t gfp)
+ 		.domid        = DOMID_SELF
+ 	};
+ 
++#ifdef CONFIG_XEN_BALLOON_MEMORY_HOTPLUG
++	if (balloon_stats.hotplug_pages) {
++		nr_pages = min(nr_pages, balloon_stats.hotplug_pages);
++		balloon_stats.hotplug_pages -= nr_pages;
++		balloon_stats.balloon_hotplug += nr_pages;
++		return BP_DONE;
++	}
++#endif
++
+ 	if (nr_pages > ARRAY_SIZE(frame_list))
+ 		nr_pages = ARRAY_SIZE(frame_list);
+ 
+@@ -340,8 +463,12 @@ static void balloon_process(struct work_struct *work)
+ 	do {
+ 		credit = current_credit();
+ 
+-		if (credit > 0)
+-			state = increase_reservation(credit);
++		if (credit > 0) {
++			if (balloon_is_inflated())
++				state = increase_reservation(credit);
++			else
++				state = reserve_additional_memory(credit);
++		}
+ 
+ 		if (credit < 0)
+ 			state = decrease_reservation(-credit, GFP_BALLOON);
+@@ -448,6 +575,14 @@ static int __init balloon_init(void)
+ 	balloon_stats.retry_count = 1;
+ 	balloon_stats.max_retry_count = RETRY_UNLIMITED;
+ 
++#ifdef CONFIG_XEN_BALLOON_MEMORY_HOTPLUG
++	balloon_stats.hotplug_pages = 0;
++	balloon_stats.balloon_hotplug = 0;
++
++	register_online_page_callback(&xen_online_page);
++	register_memory_notifier(&xen_memory_nb);
++#endif
++
+ 	/*
+ 	 * Initialise the balloon with excess memory space.  We need
+ 	 * to make sure we don't add memory which doesn't exist or
+diff --git a/include/xen/balloon.h b/include/xen/balloon.h
+index a2b22f0..aeca6ae 100644
+--- a/include/xen/balloon.h
++++ b/include/xen/balloon.h
+@@ -15,6 +15,10 @@ struct balloon_stats {
+ 	unsigned long max_schedule_delay;
+ 	unsigned long retry_count;
+ 	unsigned long max_retry_count;
++#ifdef CONFIG_XEN_BALLOON_MEMORY_HOTPLUG
++	unsigned long hotplug_pages;
++	unsigned long balloon_hotplug;
++#endif
+ };
+ 
+ extern struct balloon_stats balloon_stats;
 -- 
 1.5.6.5
 
