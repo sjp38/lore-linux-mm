@@ -1,13 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id CBFCC6B002B
-	for <linux-mm@kvack.org>; Mon,  2 May 2011 07:08:45 -0400 (EDT)
-Date: Mon, 2 May 2011 19:08:40 +0800
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 21656900123
+	for <linux-mm@kvack.org>; Mon,  2 May 2011 09:30:05 -0400 (EDT)
+Date: Mon, 2 May 2011 21:29:58 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
 Subject: Re: [RFC][PATCH] mm: cut down __GFP_NORETRY page allocation
  failures
-Message-ID: <20110502110840.GA31900@localhost>
-References: <BANLkTinM9DjK9QsGtN0Sh308rr+86UMF0A@mail.gmail.com>
+Message-ID: <20110502132958.GA9690@localhost>
+References: <20110426062535.GB19717@localhost>
+ <BANLkTinM9DjK9QsGtN0Sh308rr+86UMF0A@mail.gmail.com>
  <20110426063421.GC19717@localhost>
  <BANLkTi=xDozFNBXNdGDLK6EwWrfHyBifQw@mail.gmail.com>
  <20110426092029.GA27053@localhost>
@@ -16,274 +17,361 @@ References: <BANLkTinM9DjK9QsGtN0Sh308rr+86UMF0A@mail.gmail.com>
  <20110429022824.GA8061@localhost>
  <20110430141741.GA4511@localhost>
  <20110501163542.GA3204@barrios-desktop>
- <20110502102945.GA7688@localhost>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110502102945.GA7688@localhost>
+In-Reply-To: <20110501163542.GA3204@barrios-desktop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@linux.vnet.ibm.com>, Dave Young <hidave.darkstar@gmail.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, Dave Chinner <david@fromorbit.com>, David Rientjes <rientjes@google.com>, Li Shaohua <shaohua.li@intel.com>, Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@linux.vnet.ibm.com>, Dave Young <hidave.darkstar@gmail.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, Dave Chinner <david@fromorbit.com>, David Rientjes <rientjes@google.com>
 
-> > Do you see my old patch? The patch want't incomplet but it's not bad for showing an idea.
-> > http://marc.info/?l=linux-mm&m=129187231129887&w=4
-> > The idea is to keep a page at leat for direct reclaimed process.
-> > Could it mitigate your problem or could you enhacne the idea?
-> > I think it's very simple and fair solution.
+> > +                     if (preferred_zone &&
+> > +                         zone_watermark_ok_safe(preferred_zone, sc->order,
+> > +                                     high_wmark_pages(preferred_zone),
+> > +                                     zone_idx(preferred_zone), 0))
+> > +                             goto out;
+> > +             }
 > 
-> No it's not helping my problem, nr_alloc_fail and CAL are still high:
-> 
-> root@fat /home/wfg# ./test-dd-sparse.sh
-> start time: 246
-> total time: 531
-> nr_alloc_fail 14097
-> allocstall 1578332
-> LOC:     542698     538947     536986     567118     552114     539605     541201     537623   Local timer interrupts
-> RES:       3368       1908       1474       1476       2809       1602       1500       1509   Rescheduling interrupts
-> CAL:     223844     224198     224268     224436     223952     224056     223700     223743   Function call interrupts
-> TLB:        381         27         22         19         96        404        111         67   TLB shootdowns
-> 
-> root@fat /home/wfg# getdelays -dip `pidof dd`
-> print delayacct stats ON
-> printing IO accounting
-> PID     5202
-> 
-> 
-> CPU             count     real total  virtual total    delay total
->                  1132     3635447328     3627947550   276722091605
-> IO              count    delay total  delay average
->                     2      187809974             62ms
-> SWAP            count    delay total  delay average
->                     0              0              0ms
-> RECLAIM         count    delay total  delay average
->                  1334    35304580824             26ms
-> dd: read=278528, write=0, cancelled_write=0
-> 
-> I guess your patch is mainly fixing the high order allocations while
-> my workload is mainly order 0 readahead page allocations. There are
-> 1000 forks, however the "start time: 246" seems to indicate that the
-> order-1 reclaim latency is not improved.
-> 
-> I'll try modifying your patch and see how it works out. The obvious
-> change is to apply it to the order-0 case. Hope this won't create much
-> more isolated pages.
+> As I said, I think direct reclaim path sould be fast if possbile and
+> it should not a function of min_free_kbytes.
 
-I tried the below modified patch, removing the high order test and the
-drain_all_pages() call. The results are not idea either:
+It can be made not a function of min_free_kbytes by simply changing
+high_wmark_pages() to low_wmark_pages() in the above chunk, since
+direct reclaim is triggered when ALLOC_WMARK_LOW cannot be satisfied,
+ie. it just dropped below low_wmark_pages().
 
-root@fat /home/wfg# ./test-dd-sparse.sh
-start time: 246
-total time: 526
-nr_alloc_fail 15582
-allocstall 1583727
-LOC:     532518     528880     528184     533426     532765     530526     531177     528757   Local timer interrupts
-RES:       2350       1929       1538       1430       3359       1547       1422       1502   Rescheduling interrupts
-CAL:     200017     200384     200336     199763     200369     199776     199504     199407   Function call interrupts
-TLB:        285         19         24         10        121        306        113         69   TLB shootdowns
-
-CPU             count     real total  virtual total    delay total
-                 1154     3767427264     3742671454   273770720370
-IO              count    delay total  delay average
-                    1      279795961            279ms
-SWAP            count    delay total  delay average
-                    0              0              0ms
-RECLAIM         count    delay total  delay average
-                 1385    27228068276             19ms
-dd: read=12288, write=0, cancelled_write=0
+But still, it costs 62ms reclaim latency (base kernel is 29ms).
 
 Thanks,
 Fengguang
 ---
-Subject: Keep freed pages in direct reclaim
-Date: Thu, 9 Dec 2010 14:01:32 +0900
+Subject: mm: cut down __GFP_NORETRY page allocation failures
+Date: Thu Apr 28 13:46:39 CST 2011
 
-From: Minchan Kim <minchan.kim@gmail.com>
+Concurrent page allocations are suffering from high failure rates.
 
-direct reclaimed process often sleep and race with other processes.
-Although direct reclaim proceess requires high order pags(order > 0) and
-reclaims page successfully, other processes which require order-0 page
-could steal the high order page for direct reclaimed process.
+On a 8p, 3GB ram test box, when reading 1000 sparse files of size 1GB,
+the page allocation failures are
 
-After all, direct reclaimed process try it again and it still has a
-possibility of above scenario. It can make bad effects following as
+nr_alloc_fail 733 	# interleaved reads by 1 single task
+nr_alloc_fail 11799	# concurrent reads by 1000 tasks
 
-1. direct reclaimed process latency is big
-2. eviction working set page due to lumpy reclaim
-3. continue to wake up kswapd
+The concurrent read test script is:
 
-This patch solves it.
+	for i in `seq 1000`
+	do
+		truncate -s 1G /fs/sparse-$i
+		dd if=/fs/sparse-$i of=/dev/null &
+	done
 
-Fengguang:
-fix
-[ 1514.892933] BUG: unable to handle kernel
-[ 1514.892958] ---[ end trace be7cb17861e1d25b ]---
-[ 1514.893589] NULL pointer dereference at           (null)
-[ 1514.893968] IP: [<ffffffff81101b2e>] shrink_page_list+0x3dc/0x501
+In order for get_page_from_freelist() to get free page,
 
-Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+(1) try_to_free_pages() should use much higher .nr_to_reclaim than the
+    current SWAP_CLUSTER_MAX=32, in order to draw the zone out of the
+    possible low watermark state 
+
+(2) the get_page_from_freelist() _after_ direct reclaim should use lower
+    watermark than its normal invocations, so that it can reasonably
+    "reserve" some free pages for itself and prevent other concurrent
+    page allocators stealing all its reclaimed pages.
+
+Some notes:
+
+- commit 9ee493ce ("mm: page allocator: drain per-cpu lists after direct
+  reclaim allocation fails") has the same target, however is obviously
+  costly and less effective. It seems more clean to just remove the
+  retry and drain code than to retain it.
+
+- it's a bit hacky to reclaim more than requested pages inside
+  do_try_to_free_page(), and it won't help cgroup for now
+
+- it only aims to reduce failures when there are plenty of reclaimable
+  pages, so it stops the opportunistic reclaim when scanned 2 times pages
+
+Test results (1000 dd case):
+
+- the failure rate is pretty sensible to the page reclaim size,
+  from 282 (WMARK_HIGH) to 704 (WMARK_MIN) to 5004 (WMARK_HIGH, stop on low
+  watermark ok) to 10496 (SWAP_CLUSTER_MAX)
+
+- the IPIs are reduced by over 500 times
+
+- the reclaim delay is doubled, from 29ms to 62ms
+
+Base kernel is vanilla 2.6.39-rc3 + __GFP_NORETRY readahead page allocations.
+
+base kernel, 1000 dd
+--------------------
+
+start time: 245
+total time: 526
+nr_alloc_fail 14586
+allocstall 1578343
+LOC:     533981     529210     528283     532346     533392     531314     531705     528983   Local timer interrupts
+RES:       3123       2177       1676       1580       2157       1974       1606       1696   Rescheduling interrupts
+CAL:     218392     218631     219167     219217     218840     218985     218429     218440   Function call interrupts
+TLB:        175         13         21         18         62        309        119         42   TLB shootdowns
+
+
+CPU             count     real total  virtual total    delay total
+                 1122     3676441096     3656793547   274182127286
+IO              count    delay total  delay average
+                    3      291765493             97ms
+SWAP            count    delay total  delay average
+                    0              0              0ms
+RECLAIM         count    delay total  delay average
+                 1350    39229752193             29ms
+dd: read=45056, write=0, cancelled_write=0
+
+patched, 1000 dd
+----------------
+
+root@fat /home/wfg# ./test-dd-sparse.sh
+start time: 260
+total time: 519
+nr_alloc_fail 5004
+allocstall 551429
+LOC:     524861     521832     520945     524632     524666     523334     523797     521562   Local timer interrupts
+RES:       1323       1976       2505       1610       1544       1848       3310       1644   Rescheduling interrupts
+CAL:         67        335        353        614        289        287        293        325   Function call interrupts
+TLB:        288         29         26         34        103        321        123         70   TLB shootdowns
+
+CPU             count     real total  virtual total    delay total
+                 1177     3797422704     3775174301   253228435955
+IO              count    delay total  delay average
+                    1      198528820            198ms
+SWAP            count    delay total  delay average
+                    0              0              0ms
+RECLAIM         count    delay total  delay average
+                  508    31660219699             62ms
+
+base kernel, 100 dd
+-------------------
+root@fat /home/wfg# ./test-dd-sparse.sh
+start time: 3
+total time: 53
+nr_alloc_fail 849
+allocstall 131330
+LOC:      59843      56506      55838      65283      61774      57929      58880      56246   Local timer interrupts
+RES:        376        308        372        239        374        307        491        239   Rescheduling interrupts
+CAL:      17737      18083      17948      18192      17929      17845      17893      17906   Function call interrupts
+TLB:        307         26         25         21         80        324        137         79   TLB shootdowns
+
+CPU             count     real total  virtual total    delay total
+                  974     3197513904     3180727460    38504429363
+IO              count    delay total  delay average
+                    1       18156696             18ms
+SWAP            count    delay total  delay average
+                    0              0              0ms
+RECLAIM         count    delay total  delay average
+                 1036     3439387298              3ms
+dd: read=12288, write=0, cancelled_write=0
+
+patched, 100 dd
+---------------
+
+root@fat /home/wfg# ./test-dd-sparse.sh
+start time: 3
+total time: 52
+nr_alloc_fail 307
+allocstall 48178
+LOC:      56486      53514      52792      55879      56317      55383      55311      53168   Local timer interrupts
+RES:        604        345        257        250        775        371        272        252   Rescheduling interrupts
+CAL:         75        373        369        543        272        278        295        296   Function call interrupts
+TLB:        259         24         19         24         82        306        139         53   TLB shootdowns
+
+
+CPU             count     real total  virtual total    delay total
+                  974     3177516944     3161771347    38508053977
+IO              count    delay total  delay average
+                    0              0              0ms
+SWAP            count    delay total  delay average
+                    0              0              0ms
+RECLAIM         count    delay total  delay average
+                  393     5389030889             13ms
+dd: read=0, write=0, cancelled_write=0
+
+CC: Mel Gorman <mel@linux.vnet.ibm.com>
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- fs/buffer.c          |    2 +-
- include/linux/swap.h |    4 +++-
- mm/page_alloc.c      |   25 +++++++++++++++++++++----
- mm/vmscan.c          |   23 +++++++++++++++++++----
- 4 files changed, 44 insertions(+), 10 deletions(-)
-
---- linux-next.orig/fs/buffer.c	2011-05-02 17:18:01.000000000 +0800
-+++ linux-next/fs/buffer.c	2011-05-02 18:30:17.000000000 +0800
-@@ -289,7 +289,7 @@ static void free_more_memory(void)
- 						&zone);
- 		if (zone)
- 			try_to_free_pages(node_zonelist(nid, GFP_NOFS), 0,
--						GFP_NOFS, NULL);
-+						GFP_NOFS, NULL, NULL);
- 	}
+ fs/buffer.c          |    4 ++--
+ include/linux/swap.h |    3 ++-
+ mm/page_alloc.c      |   22 +++++-----------------
+ mm/vmscan.c          |   38 ++++++++++++++++++++++++++++++--------
+ 4 files changed, 39 insertions(+), 28 deletions(-)
+--- linux-next.orig/mm/vmscan.c	2011-05-02 19:15:21.000000000 +0800
++++ linux-next/mm/vmscan.c	2011-05-02 19:47:05.000000000 +0800
+@@ -2025,8 +2025,9 @@ static bool all_unreclaimable(struct zon
+  * returns:	0, if no pages reclaimed
+  * 		else, the number of pages reclaimed
+  */
+-static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
+-					struct scan_control *sc)
++static unsigned long do_try_to_free_pages(struct zone *preferred_zone,
++					  struct zonelist *zonelist,
++					  struct scan_control *sc)
+ {
+ 	int priority;
+ 	unsigned long total_scanned = 0;
+@@ -2034,6 +2035,7 @@ static unsigned long do_try_to_free_page
+ 	struct zoneref *z;
+ 	struct zone *zone;
+ 	unsigned long writeback_threshold;
++	unsigned long min_reclaim = sc->nr_to_reclaim;
+ 
+ 	get_mems_allowed();
+ 	delayacct_freepages_start();
+@@ -2041,6 +2043,16 @@ static unsigned long do_try_to_free_page
+ 	if (scanning_global_lru(sc))
+ 		count_vm_event(ALLOCSTALL);
+ 
++	for_each_zone_zonelist_nodemask(zone, z, zonelist,
++					gfp_zone(sc->gfp_mask), sc->nodemask) {
++		if (!populated_zone(zone))
++			continue;
++		preferred_zone = zone;
++		break;
++	}
++	if (preferred_zone)
++		sc->nr_to_reclaim += preferred_zone->watermark[WMARK_HIGH];
++
+ 	for (priority = DEF_PRIORITY; priority >= 0; priority--) {
+ 		sc->nr_scanned = 0;
+ 		if (!priority)
+@@ -2067,8 +2079,17 @@ static unsigned long do_try_to_free_page
+ 			}
+ 		}
+ 		total_scanned += sc->nr_scanned;
+-		if (sc->nr_reclaimed >= sc->nr_to_reclaim)
+-			goto out;
++		if (sc->nr_reclaimed >= min_reclaim) {
++			if (sc->nr_reclaimed >= sc->nr_to_reclaim)
++				goto out;
++			if (total_scanned > 2 * sc->nr_to_reclaim)
++				goto out;
++			if (preferred_zone &&
++			    zone_watermark_ok(preferred_zone, sc->order,
++					low_wmark_pages(preferred_zone),
++					zone_idx(preferred_zone), 0))
++				goto out;
++		}
+ 
+ 		/*
+ 		 * Try to write back as many pages as we just scanned.  This
+@@ -2117,7 +2138,8 @@ out:
+ 	return 0;
  }
  
---- linux-next.orig/include/linux/swap.h	2011-05-02 17:18:01.000000000 +0800
-+++ linux-next/include/linux/swap.h	2011-05-02 18:30:17.000000000 +0800
-@@ -249,8 +249,10 @@ static inline void lru_cache_add_file(st
- #define ISOLATE_BOTH 2		/* Isolate both active and inactive pages. */
+-unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
++unsigned long try_to_free_pages(struct zone *preferred_zone,
++				struct zonelist *zonelist, int order,
+ 				gfp_t gfp_mask, nodemask_t *nodemask)
+ {
+ 	unsigned long nr_reclaimed;
+@@ -2137,7 +2159,7 @@ unsigned long try_to_free_pages(struct z
+ 				sc.may_writepage,
+ 				gfp_mask);
  
- /* linux/mm/vmscan.c */
-+extern noinline_for_stack void free_page_list(struct list_head *free_pages);
- extern unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
--					gfp_t gfp_mask, nodemask_t *mask);
-+					gfp_t gfp_mask, nodemask_t *mask,
-+					struct list_head *freed_pages);
- extern unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem,
- 						  gfp_t gfp_mask, bool noswap,
- 						  unsigned int swappiness);
---- linux-next.orig/mm/page_alloc.c	2011-05-02 17:18:01.000000000 +0800
-+++ linux-next/mm/page_alloc.c	2011-05-02 18:31:30.000000000 +0800
-@@ -1891,6 +1891,7 @@ __alloc_pages_direct_reclaim(gfp_t gfp_m
- 	struct page *page = NULL;
+-	nr_reclaimed = do_try_to_free_pages(zonelist, &sc);
++	nr_reclaimed = do_try_to_free_pages(preferred_zone, zonelist, &sc);
+ 
+ 	trace_mm_vmscan_direct_reclaim_end(nr_reclaimed);
+ 
+@@ -2207,7 +2229,7 @@ unsigned long try_to_free_mem_cgroup_pag
+ 					    sc.may_writepage,
+ 					    sc.gfp_mask);
+ 
+-	nr_reclaimed = do_try_to_free_pages(zonelist, &sc);
++	nr_reclaimed = do_try_to_free_pages(NULL, zonelist, &sc);
+ 
+ 	trace_mm_vmscan_memcg_reclaim_end(nr_reclaimed);
+ 
+@@ -2796,7 +2818,7 @@ unsigned long shrink_all_memory(unsigned
+ 	reclaim_state.reclaimed_slab = 0;
+ 	p->reclaim_state = &reclaim_state;
+ 
+-	nr_reclaimed = do_try_to_free_pages(zonelist, &sc);
++	nr_reclaimed = do_try_to_free_pages(NULL, zonelist, &sc);
+ 
+ 	p->reclaim_state = NULL;
+ 	lockdep_clear_current_reclaim_state();
+--- linux-next.orig/mm/page_alloc.c	2011-05-02 19:15:21.000000000 +0800
++++ linux-next/mm/page_alloc.c	2011-05-02 19:39:51.000000000 +0800
+@@ -1888,9 +1888,8 @@ __alloc_pages_direct_reclaim(gfp_t gfp_m
+ 	nodemask_t *nodemask, int alloc_flags, struct zone *preferred_zone,
+ 	int migratetype, unsigned long *did_some_progress)
+ {
+-	struct page *page = NULL;
++	struct page *page;
  	struct reclaim_state reclaim_state;
- 	bool drained = false;
-+	LIST_HEAD(freed_pages);
+-	bool drained = false;
  
  	cond_resched();
  
-@@ -1901,16 +1902,31 @@ __alloc_pages_direct_reclaim(gfp_t gfp_m
+@@ -1901,33 +1900,22 @@ __alloc_pages_direct_reclaim(gfp_t gfp_m
  	reclaim_state.reclaimed_slab = 0;
  	current->reclaim_state = &reclaim_state;
  
 -	*did_some_progress = try_to_free_pages(zonelist, order, gfp_mask, nodemask);
--
-+	/*
-+	 * If request is high order, keep the pages which are reclaimed
-+	 * in own list for preventing the lose by other processes.
-+	 */
-+	*did_some_progress = try_to_free_pages(zonelist, order, gfp_mask,
-+				nodemask, &freed_pages);
++	*did_some_progress = try_to_free_pages(preferred_zone, zonelist, order,
++					       gfp_mask, nodemask);
+ 
  	current->reclaim_state = NULL;
  	lockdep_clear_current_reclaim_state();
  	current->flags &= ~PF_MEMALLOC;
  
-+	if (!list_empty(&freed_pages)) {
-+		free_page_list(&freed_pages);
-+		/* drain_all_pages(); */
-+		/* drained = true; */
-+		page = get_page_from_freelist(gfp_mask, nodemask, order,
-+					zonelist, high_zoneidx,
-+					alloc_flags, preferred_zone,
-+					migratetype);
-+		if (page)
-+			goto out;
-+	}
- 	cond_resched();
- 
- 	if (unlikely(!(*did_some_progress)))
--		return NULL;
-+		goto out;
- 
- retry:
- 	page = get_page_from_freelist(gfp_mask, nodemask, order,
-@@ -1927,7 +1943,8 @@ retry:
- 		drained = true;
- 		goto retry;
- 	}
+-	cond_resched();
 -
-+out:
-+	VM_BUG_ON(!list_empty(&freed_pages));
+ 	if (unlikely(!(*did_some_progress)))
+ 		return NULL;
+ 
+-retry:
++	alloc_flags |= ALLOC_HARDER;
++
+ 	page = get_page_from_freelist(gfp_mask, nodemask, order,
+ 					zonelist, high_zoneidx,
+ 					alloc_flags, preferred_zone,
+ 					migratetype);
+-
+-	/*
+-	 * If an allocation failed after direct reclaim, it could be because
+-	 * pages are pinned on the per-cpu lists. Drain them and try again
+-	 */
+-	if (!page && !drained) {
+-		drain_all_pages();
+-		drained = true;
+-		goto retry;
+-	}
+-
  	return page;
  }
  
---- linux-next.orig/mm/vmscan.c	2011-05-02 17:18:01.000000000 +0800
-+++ linux-next/mm/vmscan.c	2011-05-02 18:30:17.000000000 +0800
-@@ -112,6 +112,9 @@ struct scan_control {
- 	 * are scanned.
- 	 */
- 	nodemask_t	*nodemask;
-+
-+	/* keep freed pages */
-+	struct list_head *freed_pages;
- };
- 
- #define lru_to_page(_head) (list_entry((_head)->prev, struct page, lru))
-@@ -681,7 +684,7 @@ static enum page_references page_check_r
- 	return PAGEREF_RECLAIM;
+--- linux-next.orig/fs/buffer.c	2011-05-02 19:15:21.000000000 +0800
++++ linux-next/fs/buffer.c	2011-05-02 19:15:33.000000000 +0800
+@@ -288,8 +288,8 @@ static void free_more_memory(void)
+ 						gfp_zone(GFP_NOFS), NULL,
+ 						&zone);
+ 		if (zone)
+-			try_to_free_pages(node_zonelist(nid, GFP_NOFS), 0,
+-						GFP_NOFS, NULL);
++			try_to_free_pages(zone, node_zonelist(nid, GFP_NOFS),
++					  0, GFP_NOFS, NULL);
+ 	}
  }
  
--static noinline_for_stack void free_page_list(struct list_head *free_pages)
-+noinline_for_stack void free_page_list(struct list_head *free_pages)
- {
- 	struct pagevec freed_pvec;
- 	struct page *page, *tmp;
-@@ -712,6 +715,10 @@ static unsigned long shrink_page_list(st
- 	unsigned long nr_dirty = 0;
- 	unsigned long nr_congested = 0;
- 	unsigned long nr_reclaimed = 0;
-+	struct list_head *free_list = &free_pages;
-+
-+	if (sc->freed_pages)
-+		free_list = sc->freed_pages;
+--- linux-next.orig/include/linux/swap.h	2011-05-02 19:15:21.000000000 +0800
++++ linux-next/include/linux/swap.h	2011-05-02 19:15:33.000000000 +0800
+@@ -249,7 +249,8 @@ static inline void lru_cache_add_file(st
+ #define ISOLATE_BOTH 2		/* Isolate both active and inactive pages. */
  
- 	cond_resched();
- 
-@@ -904,7 +911,7 @@ free_it:
- 		 * Is there need to periodically free_page_list? It would
- 		 * appear not as the counts should be low
- 		 */
--		list_add(&page->lru, &free_pages);
-+		list_add(&page->lru, free_list);
- 		continue;
- 
- cull_mlocked:
-@@ -940,7 +947,13 @@ keep_lumpy:
- 	if (nr_dirty == nr_congested && nr_dirty != 0)
- 		zone_set_flag(zone, ZONE_CONGESTED);
- 
--	free_page_list(&free_pages);
-+	/*
-+	 * If reclaim is direct path and high order, caller should
-+	 * free reclaimed pages. It is for preventing reclaimed pages
-+	 * lose by other processes.
-+	 */
-+	if (!sc->freed_pages)
-+		free_page_list(&free_pages);
- 
- 	list_splice(&ret_pages, page_list);
- 	count_vm_events(PGACTIVATE, pgactivate);
-@@ -2118,7 +2131,8 @@ out:
- }
- 
- unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
--				gfp_t gfp_mask, nodemask_t *nodemask)
-+				gfp_t gfp_mask, nodemask_t *nodemask,
-+				struct list_head *freed_pages)
- {
- 	unsigned long nr_reclaimed;
- 	struct scan_control sc = {
-@@ -2131,6 +2145,7 @@ unsigned long try_to_free_pages(struct z
- 		.order = order,
- 		.mem_cgroup = NULL,
- 		.nodemask = nodemask,
-+		.freed_pages = freed_pages,
- 	};
- 
- 	trace_mm_vmscan_direct_reclaim_begin(order,
+ /* linux/mm/vmscan.c */
+-extern unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
++extern unsigned long try_to_free_pages(struct zone *preferred_zone,
++					struct zonelist *zonelist, int order,
+ 					gfp_t gfp_mask, nodemask_t *mask);
+ extern unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem,
+ 						  gfp_t gfp_mask, bool noswap,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
