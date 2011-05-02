@@ -1,60 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 4D6316B0026
-	for <linux-mm@kvack.org>; Mon,  2 May 2011 09:50:09 -0400 (EDT)
-Date: Mon, 2 May 2011 21:49:54 +0800
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 7821E900123
+	for <linux-mm@kvack.org>; Mon,  2 May 2011 10:03:33 -0400 (EDT)
+Date: Mon, 2 May 2011 22:02:57 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [RFC][PATCH] mm: cut down __GFP_NORETRY page allocation
- failures
-Message-ID: <20110502134953.GA12281@localhost>
-References: <BANLkTinM9DjK9QsGtN0Sh308rr+86UMF0A@mail.gmail.com>
- <20110426063421.GC19717@localhost>
- <BANLkTi=xDozFNBXNdGDLK6EwWrfHyBifQw@mail.gmail.com>
- <20110426092029.GA27053@localhost>
- <20110426124743.e58d9746.akpm@linux-foundation.org>
- <20110428133644.GA12400@localhost>
- <20110429022824.GA8061@localhost>
- <20110430141741.GA4511@localhost>
- <20110501163542.GA3204@barrios-desktop>
- <20110502132958.GA9690@localhost>
+Subject: [PATCH] getdelays: show average CPU/IO/SWAP/RECLAIM delays
+Message-ID: <20110502140257.GA12780@localhost>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110502132958.GA9690@localhost>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@linux.vnet.ibm.com>, Dave Young <hidave.darkstar@gmail.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, Dave Chinner <david@fromorbit.com>, David Rientjes <rientjes@google.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Mel Gorman <mel@linux.vnet.ibm.com>, Dave Young <hidave.darkstar@gmail.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, Dave Chinner <david@fromorbit.com>, David Rientjes <rientjes@google.com>
 
-On Mon, May 02, 2011 at 09:29:58PM +0800, Wu Fengguang wrote:
-> > > +                     if (preferred_zone &&
-> > > +                         zone_watermark_ok_safe(preferred_zone, sc->order,
-> > > +                                     high_wmark_pages(preferred_zone),
-> > > +                                     zone_idx(preferred_zone), 0))
-> > > +                             goto out;
-> > > +             }
-> > 
-> > As I said, I think direct reclaim path sould be fast if possbile and
-> > it should not a function of min_free_kbytes.
-> 
-> It can be made not a function of min_free_kbytes by simply changing
-> high_wmark_pages() to low_wmark_pages() in the above chunk, since
-> direct reclaim is triggered when ALLOC_WMARK_LOW cannot be satisfied,
-> ie. it just dropped below low_wmark_pages().
-> 
-> But still, it costs 62ms reclaim latency (base kernel is 29ms).
+I find it very handy to show the average delays in milliseconds.
 
-I got new findings: the CPU schedule delays are much larger than
-reclaim delays. It does make the "direct reclaim until low watermark
-OK" latency less a problem :)
+Example output (on 100 concurrent dd reading sparse files):
 
-1000 dd test case:
-                RECLAIM delay   CPU delay       nr_alloc_fail   CAL (last CPU)
-base kernel     29ms            244ms           14586           218440
-patched         62ms            215ms           5004            325
+CPU             count     real total  virtual total    delay total  delay average
+                  986     3223509952     3207643301    38863410579         39.415ms
+IO              count    delay total  delay average
+                    0              0              0ms
+SWAP            count    delay total  delay average
+                    0              0              0ms
+RECLAIM         count    delay total  delay average
+                 1059     5131834899              4ms
+dd: read=0, write=0, cancelled_write=0
 
-Thanks,
-Fengguang
+CC: Mel Gorman <mel@linux.vnet.ibm.com>
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+---
+ Documentation/accounting/getdelays.c |   33 +++++++++++++++----------
+ 1 file changed, 20 insertions(+), 13 deletions(-)
+
+--- linux-next.orig/Documentation/accounting/getdelays.c	2011-05-02 11:33:44.000000000 +0800
++++ linux-next/Documentation/accounting/getdelays.c	2011-05-02 21:36:45.000000000 +0800
+@@ -191,30 +191,37 @@ static int get_family_id(int sd)
+ 	return id;
+ }
+ 
++#define average_ms(t, c) (t / 1000000ULL / (c ? c : 1))
++
+ static void print_delayacct(struct taskstats *t)
+ {
+-	printf("\n\nCPU   %15s%15s%15s%15s\n"
+-	       "      %15llu%15llu%15llu%15llu\n"
+-	       "IO    %15s%15s\n"
+-	       "      %15llu%15llu\n"
+-	       "SWAP  %15s%15s\n"
+-	       "      %15llu%15llu\n"
+-	       "RECLAIM  %12s%15s\n"
+-	       "      %15llu%15llu\n",
+-	       "count", "real total", "virtual total", "delay total",
++	printf("\n\nCPU   %15s%15s%15s%15s%15s\n"
++	       "      %15llu%15llu%15llu%15llu%15.3fms\n"
++	       "IO    %15s%15s%15s\n"
++	       "      %15llu%15llu%15llums\n"
++	       "SWAP  %15s%15s%15s\n"
++	       "      %15llu%15llu%15llums\n"
++	       "RECLAIM  %12s%15s%15s\n"
++	       "      %15llu%15llu%15llums\n",
++	       "count", "real total", "virtual total",
++	       "delay total", "delay average",
+ 	       (unsigned long long)t->cpu_count,
+ 	       (unsigned long long)t->cpu_run_real_total,
+ 	       (unsigned long long)t->cpu_run_virtual_total,
+ 	       (unsigned long long)t->cpu_delay_total,
+-	       "count", "delay total",
++	       average_ms((double)t->cpu_delay_total, t->cpu_count),
++	       "count", "delay total", "delay average",
+ 	       (unsigned long long)t->blkio_count,
+ 	       (unsigned long long)t->blkio_delay_total,
+-	       "count", "delay total",
++	       average_ms(t->blkio_delay_total, t->blkio_count),
++	       "count", "delay total", "delay average",
+ 	       (unsigned long long)t->swapin_count,
+ 	       (unsigned long long)t->swapin_delay_total,
+-	       "count", "delay total",
++	       average_ms(t->swapin_delay_total, t->swapin_count),
++	       "count", "delay total", "delay average",
+ 	       (unsigned long long)t->freepages_count,
+-	       (unsigned long long)t->freepages_delay_total);
++	       (unsigned long long)t->freepages_delay_total,
++	       average_ms(t->freepages_delay_total, t->freepages_count));
+ }
+ 
+ static void task_context_switch_counts(struct taskstats *t)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
