@@ -1,149 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 00D8890010C
-	for <linux-mm@kvack.org>; Sun,  1 May 2011 20:26:59 -0400 (EDT)
-Subject: mmotm 2011-04-29 - wonky VmRSS and VmHWM values after swapping
-In-Reply-To: Your message of "Fri, 29 Apr 2011 16:26:16 PDT."
-             <201104300002.p3U02Ma2026266@imap1.linux-foundation.org>
-From: Valdis.Kletnieks@vt.edu
-References: <201104300002.p3U02Ma2026266@imap1.linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: multipart/signed; boundary="==_Exmh_1304296014_6647P";
-	 micalg=pgp-sha1; protocol="application/pgp-signature"
-Content-Transfer-Encoding: 7bit
-Date: Sun, 01 May 2011 20:26:54 -0400
-Message-ID: <49683.1304296014@localhost>
+	by kanga.kvack.org (Postfix) with ESMTP id 7BAC66B002E
+	for <linux-mm@kvack.org>; Mon,  2 May 2011 02:10:00 -0400 (EDT)
+Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
+	by e28smtp05.in.ibm.com (8.14.4/8.13.1) with ESMTP id p4269qVA004185
+	for <linux-mm@kvack.org>; Mon, 2 May 2011 11:39:52 +0530
+Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p4269q2V2834616
+	for <linux-mm@kvack.org>; Mon, 2 May 2011 11:39:52 +0530
+Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
+	by d28av05.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p4269p0i011136
+	for <linux-mm@kvack.org>; Mon, 2 May 2011 16:09:51 +1000
+Date: Mon, 2 May 2011 11:39:49 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [PATCH 0/7] memcg background reclaim , yet another one.
+Message-ID: <20110502060949.GN6547@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20110425182529.c7c37bb4.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20110425182529.c7c37bb4.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Ying Han <yinghan@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Johannes Weiner <jweiner@redhat.com>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, Michal Hocko <mhocko@suse.cz>
 
---==_Exmh_1304296014_6647P
-Content-Type: text/plain; charset=us-ascii
+* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2011-04-25 18:25:29]:
 
-On Fri, 29 Apr 2011 16:26:16 PDT, akpm@linux-foundation.org said:
-> The mm-of-the-moment snapshot 2011-04-29-16-25 has been uploaded to
 > 
->    http://userweb.kernel.org/~akpm/mmotm/
+> This patch is based on Ying Han's one....at its origin, but I changed too much ;)
+> Then, start this as new thread.
+> 
+> (*) This work is not related to the topic "rewriting global LRU using memcg"
+>     discussion, at all. This kind of hi/low watermark has been planned since
+>     memcg was born. 
+> 
+> At first, per-memcg background reclaim is used for
+>   - helping memory reclaim and avoid direct reclaim.
+>   - set a not-hard limit of memory usage.
+> 
+> For example, assume a memcg has its hard-limit as 500M bytes.
+> Then, set high-watermark as 400M. Here, memory usage can exceed 400M up to 500M
+> but memory usage will be reduced automatically to 400M as time goes by.
+> 
+> This is useful when a user want to limit memory usage to 400M but don't want to
+> see big performance regression by hitting limit when memory usage spike happens.
+> 
+> 1) == hard limit = 400M ==
+> [root@rhel6-test hilow]# time cp ./tmpfile xxx                
+> real    0m7.353s
+> user    0m0.009s
+> sys     0m3.280s
+>
+
+What do the stats look like (graphed during this period?)
  
-Dell Latitude E6500 laptop, Core2 Due P8700, 4G RAM, 2G swap.Z86_64 kernel.
+> 2) == hard limit 500M/ hi_watermark = 400M ==
+> [root@rhel6-test hilow]# time cp ./tmpfile xxx
+> 
+> real    0m6.421s
+> user    0m0.059s
+> sys     0m2.707s
+> 
+What do the stats look like (graphed during this period?) for
+comparison. Does the usage extend beyond 400 very often?
 
-I was running a backup of the system to an external USB hard drive.  Source and
-target filesystems were ext4 on LVM on a LUKS encrypted partition.  Same backup
-script to same destination drive worked fine a few days ago on a -rc1-mmotm0331
-kernel.
+> Above is a brief result on VM and needs more study. But my impression is positive.
+> I'd like to use bigger real machine in the next time.
+> 
+> Here is a short list of updates from Ying Han's one.
+> 
+>  1. use workqueue and visit memcg in round robin.
+>  2. only allow setting hi watermark. low-watermark is automatically determined.
+>     This is good for avoiding bad cpu usage by background reclaim.
+>  3. totally rewrite algorithm of shrink_mem_cgroup for round-robin.
+>  4. fixed get_scan_count() , this was problematic.
+>  5. added some statistics, which I think necessary.
+>  6. added documenation
+> 
+> Then, the algorithm is not a cut-n-paste from kswapd. I thought kswapd should be
+> updated...and 'priority' in vmscan.c seems to be an enemy of memcg ;)
+>
 
-System ran out of RAM, and went about 50M into the 2G of swap. Not sure why *that*
-happened, as previously the backup script didn't cause any swapping.  After that, the
-VmRSS and VmHWM values were corrupted for some 20 processes, including systemd,
-the X server, pidgin, firefox, rsyslogd
+Thanks for looking into this. 
 
-Nothing notable in dmesg output, Nothing noted by abrtd, no processes crashed
-or misbehaving that I can tell.  Just wonky numbers.
-
-top says:
-
-Tasks: 186 total,   3 running, 183 sleeping,   0 stopped,   0 zombie
-Cpu(s):  9.1%us,  9.1%sy,  0.0%ni, 74.8%id,  6.7%wa,  0.0%hi,  0.2%si,  0.0%st
-Mem:   4028664k total,  3839128k used,   189536k free,  1728880k buffers
-Swap:  2097148k total,    52492k used,  2044656k free,  1081528k cached
-
-   PID USER      PR  NI  VIRT  RES  SHR S %CPU %MEM    TIME+  COMMAND          
- 47720 root      20   0     0    0    0 R 17.6  0.0   0:21.64 kworker/0:0       
- 47453 root      20   0     0    0    0 D 13.7  0.0   0:36.10 kworker/1:3       
- 26854 root      20   0     0    0    0 R  3.9  0.0   1:02.24 usb-storage       
- 46917 root      20   0 18192    ?  208 D  3.9 457887369396224.0   4:18.50 dump 
- 46918 root      20   0 18192    ?  208 S  3.9 457887369396224.0   4:18.38 dump 
- 46919 root      20   0 18192    ?  208 D  3.9 457887369396224.0   4:18.48 dump 
-     3 root      20   0     0    0    0 S  2.0  0.0   0:29.20 ksoftirqd/0       
-    13 root      20   0     0    0    0 S  2.0  0.0   0:29.13 ksoftirqd/1       
-  5467 root      20   0 12848  448  168 S  2.0  0.0  30:59.25 eTSrv             
-  5655 root      20   0  178m    ?    ? S  2.0 457887369396224.0  89:18.03 Xorg 
-  6079 valdis    20   0  347m 3936 5440 S  2.0  0.1  31:17.23 gkrellm           
-  6479 valdis    20   0 1251m    ?    ? S  2.0 457887369396224.0  46:33.43 firef
- 46916 root      20   0 22296 2708  328 S  2.0  0.1   0:39.38 dump              
- 48406 root      20   0     0    0    0 S  2.0  0.0   0:00.06 kworker/1:1       
-     1 root      20   0 72228    ?  924 S  0.0 457887369396224.0   0:06.69 syste
-
-grep ^Vm /proc/5655/status (the X server)
-
-VmPeak:   215788 kB
-VmSize:   182440 kB
-VmLck:         0 kB
-VmHWM:  18446744073709544032 kB
-VmRSS:  18446744073408330104 kB
-VmData:    67688 kB
-VmStk:       288 kB
-VmExe:      1824 kB
-VmLib:     37800 kB
-VmPTE:       308 kB
-VmSwap:        0 kB
-
-Probably noteworth - the HWM in hex is FFFFFFFFFFFFE260,  and
-similarly for VmRSS.  Looks like an underflow someplace?
-
-It ended up hitting a bunch of processes:
-
-grep 184467 /proc/*/status
-/proc/1/status:VmHWM:   18446744073709551612 kB
-/proc/1/status:VmRSS:   18446744073709550072 kB
-/proc/26902/status:VmHWM:       18446744073709548820 kB
-/proc/26902/status:VmRSS:       18446744073709547948 kB
-/proc/27079/status:VmHWM:       18446744073709546764 kB
-/proc/27079/status:VmRSS:       18446744073709382820 kB
-/proc/28359/status:VmHWM:       18446744073709550700 kB
-/proc/28359/status:VmRSS:       18446744073709510496 kB
-/proc/42136/status:VmHWM:       18446744073709550528 kB
-/proc/42136/status:VmRSS:       18446744073709549656 kB
-/proc/46917/status:VmHWM:       18446744073709551568 kB
-/proc/46917/status:VmRSS:       18446744073640042856 kB
-/proc/46918/status:VmHWM:       18446744073709551568 kB
-/proc/46918/status:VmRSS:       18446744073640042056 kB
-/proc/46919/status:VmHWM:       18446744073709551568 kB
-/proc/46919/status:VmRSS:       18446744073640037512 kB
-/proc/4742/status:VmHWM:        18446744073709550144 kB
-/proc/4742/status:VmRSS:        18446744073709549520 kB
-/proc/4821/status:VmHWM:        18446744073709519576 kB
-/proc/4821/status:VmRSS:        18446744073709519428 kB
-/proc/5412/status:VmHWM:        18446744073709547064 kB
-/proc/5412/status:VmRSS:        18446744073709546976 kB
-/proc/5641/status:VmHWM:        18446744073709027168 kB
-/proc/5641/status:VmRSS:        18446744073708532364 kB
-/proc/5655/status:VmHWM:        18446744073709544032 kB
-/proc/5655/status:VmRSS:        18446744073407790088 kB
-/proc/5856/status:VmHWM:        18446744073709550760 kB
-/proc/5856/status:VmRSS:        18446744073708844568 kB
-/proc/5997/status:VmHWM:        18446744073709308884 kB
-/proc/5997/status:VmRSS:        18446744073411781076 kB
-/proc/6306/status:VmHWM:        18446744073709546960 kB
-/proc/6306/status:VmRSS:        18446744073709425144 kB
-/proc/6416/status:VmHWM:        18446744073709532884 kB
-/proc/6416/status:VmRSS:        18446744073706032272 kB
-/proc/6446/status:VmHWM:        18446744073709534900 kB
-/proc/6446/status:VmRSS:        18446744073709527604 kB
-/proc/6479/status:VmHWM:        18446744073709547196 kB
-/proc/6479/status:VmRSS:        18446744073654889656 kB
-/proc/6555/status:VmHWM:        18446744073709551612 kB
-/proc/6555/status:VmRSS:        18446744073709526840 kB
-/proc/6647/status:VmHWM:        18446744073709549680 kB
-/proc/6647/status:VmRSS:        18446744073685279348 kB
-
-Any ideas?  The backup has finished, but the corrupted values are hanging around.
-Not sure if it's repeatable.
-
---==_Exmh_1304296014_6647P
-Content-Type: application/pgp-signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.11 (GNU/Linux)
-Comment: Exmh version 2.5 07/13/2001
-
-iD8DBQFNvfpOcC3lWbTT17ARAgaaAKDIc7ayhS+I6jnyxq5Fm6xexmrhQwCfQFcn
-utWYwwI+yUGPPy1LqgNAoC0=
-=RqjZ
------END PGP SIGNATURE-----
-
---==_Exmh_1304296014_6647P--
+-- 
+	Three Cheers,
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
