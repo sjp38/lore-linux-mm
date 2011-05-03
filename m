@@ -1,49 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id B4B4E6B0022
-	for <linux-mm@kvack.org>; Tue,  3 May 2011 12:35:55 -0400 (EDT)
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e38.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p4392cMd012538
-	for <linux-mm@kvack.org>; Tue, 3 May 2011 03:02:38 -0600
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id p43GZlo6142934
-	for <linux-mm@kvack.org>; Tue, 3 May 2011 10:35:47 -0600
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p43GZjJA014952
-	for <linux-mm@kvack.org>; Tue, 3 May 2011 10:35:46 -0600
-Subject: Re: [PATCH V2] xen/balloon: Memory hotplug support for Xen balloon
- driver
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <20110502220148.GI4623@router-fw-old.local.net-space.pl>
-References: <20110502220148.GI4623@router-fw-old.local.net-space.pl>
-Content-Type: text/plain; charset="ISO-8859-1"
-Date: Tue, 03 May 2011 09:32:33 -0700
-Message-ID: <1304440353.30823.73.camel@nimitz>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 03B7D6B0012
+	for <linux-mm@kvack.org>; Tue,  3 May 2011 12:59:17 -0400 (EDT)
+Received: from hpaq11.eem.corp.google.com (hpaq11.eem.corp.google.com [172.25.149.11])
+	by smtp-out.google.com with ESMTP id p43Gx9e8006481
+	for <linux-mm@kvack.org>; Tue, 3 May 2011 09:59:09 -0700
+Received: from gyh20 (gyh20.prod.google.com [10.243.50.212])
+	by hpaq11.eem.corp.google.com with ESMTP id p43GwWx4029417
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 3 May 2011 09:59:08 -0700
+Received: by gyh20 with SMTP id 20so133805gyh.8
+        for <linux-mm@kvack.org>; Tue, 03 May 2011 09:59:07 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <4DC0092D.2060902@redhat.com>
+References: <1304355025-1421-1-git-send-email-yinghan@google.com>
+	<1304355025-1421-3-git-send-email-yinghan@google.com>
+	<4DC0092D.2060902@redhat.com>
+Date: Tue, 3 May 2011 09:59:07 -0700
+Message-ID: <BANLkTikw09E1ojhxMeqb38wjsnRYzwYfhg@mail.gmail.com>
+Subject: Re: [PATCH V2 2/2] Add stats to monitor soft_limit reclaim
+From: Ying Han <yinghan@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Kiper <dkiper@net-space.pl>
-Cc: ian.campbell@citrix.com, akpm@linux-foundation.org, andi.kleen@intel.com, haicheng.li@linux.intel.com, fengguang.wu@intel.com, jeremy@goop.org, konrad.wilk@oracle.com, dan.magenheimer@oracle.com, v.tolstov@selfip.ru, pasik@iki.fi, wdauchy@gmail.com, rientjes@google.com, xen-devel@lists.xensource.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Rik van Riel <riel@redhat.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>, linux-mm@kvack.org
 
-On Tue, 2011-05-03 at 00:01 +0200, Daniel Kiper wrote:
-> @@ -448,6 +575,14 @@ static int __init balloon_init(void)
->         balloon_stats.retry_count = 1;
->         balloon_stats.max_retry_count = RETRY_UNLIMITED;
-> 
-> +#ifdef CONFIG_XEN_BALLOON_MEMORY_HOTPLUG
-> +       balloon_stats.hotplug_pages = 0;
-> +       balloon_stats.balloon_hotplug = 0;
-> +
-> +       register_online_page_callback(&xen_online_page);
-> +       register_memory_notifier(&xen_memory_nb);
-> +#endif 
+On Tue, May 3, 2011 at 6:54 AM, Rik van Riel <riel@redhat.com> wrote:
+> On 05/02/2011 12:50 PM, Ying Han wrote:
+>>
+>> This patch extend the soft_limit reclaim stats to both global background
+>> reclaim and global direct reclaim.
+>>
+>> The following stats are renamed and added:
+>>
+>> $cat /dev/cgroup/memory/A/memory.stat
+>> soft_kswapd_steal 1053626
+>> soft_kswapd_scan 1053693
+>> soft_direct_steal 1481810
+>> soft_direct_scan 1481996
+>>
+>> changelog v2..v1:
+>> 1. rename the stats on soft_kswapd/direct_steal/scan.
+>> 2. fix the documentation to match the stat name.
+>
+>> Signed-off-by: Ying Han<yinghan@google.com>
+>
+> Acked-by: Rik van Riel<riel@redhat.com>
+>
+> I expect people to continue arguing over the names a little
+> longer, but feel free to keep my Acked-by: across the various
+> name changes :)
 
-This is 100% static, apparently.  XEN_BALLOON can't be a module, so I
-still don't see the point of having the un/register stuff.  
+Hi Rik:
 
--- Dave
+Thank you for reviewing and acking. Regarding the name, i think we are
+reaching some stage. And my
+current naming is following that as well. :)
 
+--Ying
+>
+> --
+> All rights reversed
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
