@@ -1,55 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 1512D900001
-	for <linux-mm@kvack.org>; Tue,  3 May 2011 10:48:54 -0400 (EDT)
-Received: by mail-pw0-f41.google.com with SMTP id 10so111546pwi.14
-        for <linux-mm@kvack.org>; Tue, 03 May 2011 07:48:52 -0700 (PDT)
-From: Minchan Kim <minchan.kim@gmail.com>
-Subject: [PATCH v2 2/2] Filter unevictable page out in deactivate_page
-Date: Tue,  3 May 2011 23:48:33 +0900
-Message-Id: <60486ca121ee8f526a0046f47384579e465bb59e.1304433952.git.minchan.kim@gmail.com>
-In-Reply-To: <cover.1304433952.git.minchan.kim@gmail.com>
-References: <cover.1304433952.git.minchan.kim@gmail.com>
-In-Reply-To: <cover.1304433952.git.minchan.kim@gmail.com>
-References: <cover.1304433952.git.minchan.kim@gmail.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 9B66E900001
+	for <linux-mm@kvack.org>; Tue,  3 May 2011 10:50:27 -0400 (EDT)
+Message-ID: <4DC0162A.8020505@redhat.com>
+Date: Tue, 03 May 2011 10:50:18 -0400
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v2 2/2] Filter unevictable page out in deactivate_page
+References: <cover.1304433952.git.minchan.kim@gmail.com> <60486ca121ee8f526a0046f47384579e465bb59e.1304433952.git.minchan.kim@gmail.com>
+In-Reply-To: <60486ca121ee8f526a0046f47384579e465bb59e.1304433952.git.minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Ying Han <yinghan@google.com>, Minchan Kim <minchan.kim@gmail.com>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Ying Han <yinghan@google.com>
 
-It's pointless that deactive_page's pagevec operation about
-unevictable page as it's nop.
-This patch removes unnecessary overhead which might be a bit problem
-in case that there are many unevictable page in system(ex, mprotect workload)
+On 05/03/2011 10:48 AM, Minchan Kim wrote:
+> It's pointless that deactive_page's pagevec operation about
+> unevictable page as it's nop.
+> This patch removes unnecessary overhead which might be a bit problem
+> in case that there are many unevictable page in system(ex, mprotect workload)
+>
+> Reviewed-by: KOSAKI Motohiro<kosaki.motohiro@jp.fujitsu.com>
+> Signed-off-by: Minchan Kim<minchan.kim@gmail.com>
 
-Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
----
- mm/swap.c |    9 +++++++++
- 1 files changed, 9 insertions(+), 0 deletions(-)
+Reviewed-by: Rik van Riel<riel@redhat.com>
 
-diff --git a/mm/swap.c b/mm/swap.c
-index 2e9656d..e121ceb 100644
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -511,6 +511,15 @@ static void drain_cpu_pagevecs(int cpu)
-  */
- void deactivate_page(struct page *page)
- {
-+
-+	/*
-+	 * In workload which system has many unevictable page(ex, mprotect),
-+	 * unevictable page deactivation for accelerating reclaim
-+	 * is pointless.
-+	 */
-+	if (PageUnevictable(page))
-+		return;
-+
- 	if (likely(get_page_unless_zero(page))) {
- 		struct pagevec *pvec = &get_cpu_var(lru_deactivate_pvecs);
- 
 -- 
-1.7.1
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
