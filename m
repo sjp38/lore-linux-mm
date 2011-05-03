@@ -1,61 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id B6A816B0012
-	for <linux-mm@kvack.org>; Tue,  3 May 2011 04:25:59 -0400 (EDT)
-Date: Tue, 3 May 2011 10:25:50 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 1/7] memcg: add high/low watermark to res_counter
-Message-ID: <20110503082550.GD18927@tiehlicka.suse.cz>
-References: <20110425182849.ab708f12.kamezawa.hiroyu@jp.fujitsu.com>
- <20110429133313.GB306@tiehlicka.suse.cz>
- <20110501150410.75D2.A69D9226@jp.fujitsu.com>
- <20110503064945.GA18927@tiehlicka.suse.cz>
- <BANLkTimmpHcSJuO_8+P=GjYf+wB=Nyq=4w@mail.gmail.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id EEA156B0012
+	for <linux-mm@kvack.org>; Tue,  3 May 2011 05:13:44 -0400 (EDT)
+Date: Tue, 3 May 2011 10:13:20 +0100
+From: Mel Gorman <mgorman@novell.com>
+Subject: Re: [BUG] fatal hang untarring 90GB file, possibly writeback related.
+Message-ID: <20110503091320.GA4542@novell.com>
+References: <20110428150827.GY4658@suse.de>
+ <1304006499.2598.5.camel@mulgrave.site>
+ <1304009438.2598.9.camel@mulgrave.site>
+ <1304009778.2598.10.camel@mulgrave.site>
+ <20110428171826.GZ4658@suse.de>
+ <1304015436.2598.19.camel@mulgrave.site>
+ <20110428192104.GA4658@suse.de>
+ <1304020767.2598.21.camel@mulgrave.site>
+ <1304025145.2598.24.camel@mulgrave.site>
+ <1304030629.2598.42.camel@mulgrave.site>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <BANLkTimmpHcSJuO_8+P=GjYf+wB=Nyq=4w@mail.gmail.com>
+In-Reply-To: <1304030629.2598.42.camel@mulgrave.site>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ying Han <yinghan@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Johannes Weiner <jweiner@redhat.com>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>
+To: James Bottomley <James.Bottomley@suse.de>
+Cc: Mel Gorman <mgorman@suse.de>, Jan Kara <jack@suse.cz>, colin.king@canonical.com, Chris Mason <chris.mason@oracle.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-ext4 <linux-ext4@vger.kernel.org>
 
-On Tue 03-05-11 16:45:23, KOSAKI Motohiro wrote:
-> 2011/5/3 Michal Hocko <mhocko@suse.cz>:
-> > On Sun 01-05-11 15:06:02, KOSAKI Motohiro wrote:
-> >> > On Mon 25-04-11 18:28:49, KAMEZAWA Hiroyuki wrote:
-> >> > > There are two watermarks added per-memcg including "high_wmark" and "low_wmark".
-> >> > > The per-memcg kswapd is invoked when the memcg's memory usage(usage_in_bytes)
-> >> > > is higher than the low_wmark. Then the kswapd thread starts to reclaim pages
-> >> > > until the usage is lower than the high_wmark.
-> >> >
-> >> > I have mentioned this during Ying's patchsets already, but do we really
-> >> > want to have this confusing naming? High and low watermarks have
-> >> > opposite semantic for zones.
-> >>
-> >> Can you please clarify this? I feel it is not opposite semantics.
-> >
-> > In the global reclaim low watermark represents the point when we _start_
-> > background reclaim while high watermark is the _stopper_. Watermarks are
-> > based on the free memory while this proposal makes it based on the used
-> > memory.
-> > I understand that the result is same in the end but it is really
-> > confusing because you have to switch your mindset from free to used and
-> > from under the limit to above the limit.
+On Thu, Apr 28, 2011 at 05:43:48PM -0500, James Bottomley wrote:
+> On Thu, 2011-04-28 at 16:12 -0500, James Bottomley wrote:
+> > On Thu, 2011-04-28 at 14:59 -0500, James Bottomley wrote:
+> > > Actually, talking to Chris, I think I can get the system up using
+> > > init=/bin/bash without systemd, so I can try the no cgroup config.
+> > 
+> > OK, so a non-PREEMPT non-CGROUP kernel has survived three back to back
+> > runs of untar without locking or getting kswapd pegged, so I'm pretty
+> > certain this is cgroups related.  The next steps are to turn cgroups
+> > back on but try disabling the memory and IO controllers.
 > 
-> Ah, right. So, do you have an alternative idea?
+> I tried non-PREEMPT CGROUP but disabled GROUP_MEM_RES_CTLR.
+> 
+> The results are curious:  the tar does complete (I've done three back to
+> back).  However, I did get one soft lockup in kswapd (below).  But the
+> system recovers instead of halting I/O and hanging like it did
+> previously.
+> 
+> The soft lockup is in shrink_slab, so perhaps it's a combination of slab
+> shrinker and cgroup memory controller issues?
+> 
 
-Why cannot we just keep the global reclaim semantic and make it free
-memory (hard_limit - usage_in_bytes) based with low limit as the trigger
-for reclaiming? 
+So, kswapd is still looping in reclaim and spending a lot of time in
+shrink_slab but it must not be the shrinker itself or that debug patch
+would have triggered. It's curious that cgroups are involved with
+systemd considering that one would expect those groups to be fairly
+small. I still don't have a new theory but will get hold of a Fedora 15
+install CD and see can I reproduce it locally.
 
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+One last thing, what is the value of /proc/sys/vm/zone_reclaim_mode? Two
+of the reporting machines could be NUMA and if that proc file reads as
+1, I'd be interested in hearing the results of a test with it set to 0.
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
