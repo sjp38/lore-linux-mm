@@ -1,35 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 0EDD16B0024
-	for <linux-mm@kvack.org>; Tue,  3 May 2011 10:48:45 -0400 (EDT)
-Received: by pwi10 with SMTP id 10so111546pwi.14
-        for <linux-mm@kvack.org>; Tue, 03 May 2011 07:48:43 -0700 (PDT)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id ED7B490010C
+	for <linux-mm@kvack.org>; Tue,  3 May 2011 10:48:49 -0400 (EDT)
+Received: by pxi7 with SMTP id 7so90313pxi.30
+        for <linux-mm@kvack.org>; Tue, 03 May 2011 07:48:48 -0700 (PDT)
 From: Minchan Kim <minchan.kim@gmail.com>
-Subject: [PATCH v2 0/2] Fix and Enhance deactive_page
-Date: Tue,  3 May 2011 23:48:31 +0900
-Message-Id: <cover.1304433952.git.minchan.kim@gmail.com>
+Subject: [PATCH v2 1/2] Check PageUnevictable in lru_deactivate_fn
+Date: Tue,  3 May 2011 23:48:32 +0900
+Message-Id: <bdccc644d628b8da0f1bc52332370191903371b2.1304433952.git.minchan.kim@gmail.com>
+In-Reply-To: <cover.1304433952.git.minchan.kim@gmail.com>
+References: <cover.1304433952.git.minchan.kim@gmail.com>
+In-Reply-To: <cover.1304433952.git.minchan.kim@gmail.com>
+References: <cover.1304433952.git.minchan.kim@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Ying Han <yinghan@google.com>, Minchan Kim <minchan.kim@gmail.com>
 
-A few days ago, Ying reported a problem.
-http://marc.info/?l=linux-mm&m=130403310601663&w=2
-After I and Ying dive in problem, We found deactive_page
-has a problem. Apparently, It's a BUG so 
-[1/2] is fix of the problem and [2/2] is enhancement for 
-helping CPU.
+The lru_deactivate_fn should not move page which in on unevictable lru
+into inactive list. Otherwise, we can meet BUG when we use isolate_lru_pages
+as __isolate_lru_page could return -EINVAL.
+It's really BUG and let's fix it.
 
-* v2
-  - add Reviewed-by signs
-  - Fix typo
+Reported-by: Ying Han <yinghan@google.com>
+Tested-by: Ying Han <yinghan@google.com>
+Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Reviewed-by: Rik van Riel<riel@redhat.com>
+Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+---
+ mm/swap.c |    3 +++
+ 1 files changed, 3 insertions(+), 0 deletions(-)
 
-Minchan Kim (2):
-  [1/2] Check PageUnevictable in lru_deactivate_fn
-  [2/2] Filter unevictable page out in deactivate_page
-
- mm/swap.c |   12 ++++++++++++
- 1 files changed, 12 insertions(+), 0 deletions(-)
+diff --git a/mm/swap.c b/mm/swap.c
+index a83ec5a..2e9656d 100644
+--- a/mm/swap.c
++++ b/mm/swap.c
+@@ -429,6 +429,9 @@ static void lru_deactivate_fn(struct page *page, void *arg)
+ 	if (!PageLRU(page))
+ 		return;
+ 
++	if (PageUnevictable(page))
++		return;
++
+ 	/* Some processes are using the page */
+ 	if (page_mapped(page))
+ 		return;
+-- 
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
