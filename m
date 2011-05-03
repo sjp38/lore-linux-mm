@@ -1,78 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 29DF66B0022
-	for <linux-mm@kvack.org>; Mon,  2 May 2011 20:28:20 -0400 (EDT)
-From: Satoru Moriya <satoru.moriya@hds.com>
-Date: Mon, 2 May 2011 20:27:43 -0400
-Subject: RE: [RFC][PATCH] mm: cut down __GFP_NORETRY page allocation failures
-Message-ID: <65795E11DBF1E645A09CEC7EAEE94B9C3DED479C@USINDEVS02.corp.hds.com>
-References: <BANLkTinM9DjK9QsGtN0Sh308rr+86UMF0A@mail.gmail.com>
- <20110426063421.GC19717@localhost>
- <BANLkTi=xDozFNBXNdGDLK6EwWrfHyBifQw@mail.gmail.com>
- <20110426092029.GA27053@localhost>
- <20110426124743.e58d9746.akpm@linux-foundation.org>
- <20110428133644.GA12400@localhost> <20110429022824.GA8061@localhost>
- <20110430141741.GA4511@localhost> <20110501163542.GA3204@barrios-desktop>
- <20110502132958.GA9690@localhost> <20110502134953.GA12281@localhost>
-In-Reply-To: <20110502134953.GA12281@localhost>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 8A4EA6B0012
+	for <linux-mm@kvack.org>; Mon,  2 May 2011 20:30:01 -0400 (EDT)
+Received: by qyk2 with SMTP id 2so1960579qyk.14
+        for <linux-mm@kvack.org>; Mon, 02 May 2011 17:29:59 -0700 (PDT)
 MIME-Version: 1.0
+In-Reply-To: <20110502193820.2D60.A69D9226@jp.fujitsu.com>
+References: <cover.1304261567.git.minchan.kim@gmail.com>
+	<dc54a5771cf1f580a91d16816100d4a2bcf2cdf5.1304261567.git.minchan.kim@gmail.com>
+	<20110502193820.2D60.A69D9226@jp.fujitsu.com>
+Date: Tue, 3 May 2011 09:29:59 +0900
+Message-ID: <BANLkTika5G_7Z8t-ED4RcYfKoYpLnZsjSg@mail.gmail.com>
+Subject: Re: [PATCH 2/2] Filter unevictable page out in deactivate_page
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wu Fengguang <fengguang.wu@intel.com>, Minchan Kim <minchan.kim@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@linux.vnet.ibm.com>, Dave Young <hidave.darkstar@gmail.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, Dave Chinner <david@fromorbit.com>, David Rientjes <rientjes@google.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Ying Han <yinghan@google.com>
 
-Hi Wu,
-=20
-> On Mon, May 02, 2011 at 09:29:58PM +0800, Wu Fengguang wrote:
-> > > > +                     if (preferred_zone &&
-> > > > +                         zone_watermark_ok_safe(preferred_zone, sc=
-->order,
-> > > > +                                     high_wmark_pages(preferred_zo=
-ne),
-> > > > +                                     zone_idx(preferred_zone), 0))
-> > > > +                             goto out;
-> > > > +             }
-> > >
-> > > As I said, I think direct reclaim path sould be fast if possbile and
-> > > it should not a function of min_free_kbytes.
-> >
-> > It can be made not a function of min_free_kbytes by simply changing
-> > high_wmark_pages() to low_wmark_pages() in the above chunk, since
-> > direct reclaim is triggered when ALLOC_WMARK_LOW cannot be satisfied,
-> > ie. it just dropped below low_wmark_pages().
-> >
-> > But still, it costs 62ms reclaim latency (base kernel is 29ms).
->=20
-> I got new findings: the CPU schedule delays are much larger than
-> reclaim delays. It does make the "direct reclaim until low watermark
-> OK" latency less a problem :)
->=20
-> 1000 dd test case:
->                 RECLAIM delay   CPU delay       nr_alloc_fail   CAL (last=
- CPU)
-> base kernel     29ms            244ms           14586           218440
-> patched         62ms            215ms           5004            325
+Hi KOSAKI,
 
-Hmm, in your system, the latency of direct reclaim may be a less problem.
+On Mon, May 2, 2011 at 7:37 PM, KOSAKI Motohiro
+<kosaki.motohiro@jp.fujitsu.com> wrote:
+>> It's pointless that deactive_page's pagevec operation about
+>> unevictable page as it's nop.
+>> This patch removes unnecessary overhead which might be a bit problem
+>> in case that there are many unevictable page in system(ex, mprotect work=
+load)
+>>
+>> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+>> ---
+>> =C2=A0mm/swap.c | =C2=A0 =C2=A09 +++++++++
+>> =C2=A01 files changed, 9 insertions(+), 0 deletions(-)
+>>
+>> diff --git a/mm/swap.c b/mm/swap.c
+>> index 2e9656d..b707694 100644
+>> --- a/mm/swap.c
+>> +++ b/mm/swap.c
+>> @@ -511,6 +511,15 @@ static void drain_cpu_pagevecs(int cpu)
+>> =C2=A0 */
+>> =C2=A0void deactivate_page(struct page *page)
+>> =C2=A0{
+>> +
+>> + =C2=A0 =C2=A0 /*
+>> + =C2=A0 =C2=A0 =C2=A0* In workload which system has many unevictable pa=
+ge(ex, mprotect),
+>> + =C2=A0 =C2=A0 =C2=A0* unevictalge page deactivation for accelerating r=
+eclaim
+>> + =C2=A0 =C2=A0 =C2=A0* is pointless.
+>> + =C2=A0 =C2=A0 =C2=A0*/
+>> + =C2=A0 =C2=A0 if (PageUnevictable(page))
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return;
+>> +
+>
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@=
+jp.fujitsu.com>
+>
 
-But, generally speaking, in a latency sensitive system in enterprise area
-there are two kind of processes. One is latency sensitive -(A) the other
-is not-latency sensitive -(B). And usually we set cpu affinity for both pro=
-cesses
-to avoid scheduling issue in (A). In this situation, CPU delay tends to be =
-lower
-than the above and a less problem but reclaim delay is more critical.=20
+Thanks!
 
-Regards,
-Satoru
+>
+> btw, I think we should check PageLRU too.
+>
 
->=20
-> Thanks,
-> Fengguang
->=20
+Yes. I remember you advised it when we push this patch but I didn't.
+That's because I think most of pages in such context would be LRU as
+they are cached pages.
+So IMO, PageLRU checking in deactivate_page couldn't help much.
+
+
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
