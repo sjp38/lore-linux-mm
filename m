@@ -1,148 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 2E8896B0023
-	for <linux-mm@kvack.org>; Mon,  2 May 2011 21:24:39 -0400 (EDT)
-Date: Mon, 2 May 2011 21:24:27 -0400
-From: Rik van Riel <riel@redhat.com>
-Subject: [RFC PATCH -mm] add extra free kbytes tunable
-Message-ID: <20110502212427.42b5a90f@annuminas.surriel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id EDE296B0025
+	for <linux-mm@kvack.org>; Mon,  2 May 2011 21:26:16 -0400 (EDT)
+Received: by wwi36 with SMTP id 36so5814411wwi.26
+        for <linux-mm@kvack.org>; Mon, 02 May 2011 18:26:13 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <BANLkTikA-oP9ftAE_TXQdU5yBObgn2KG=g@mail.gmail.com>
+References: <20110501163542.GA3204@barrios-desktop> <20110501163737.GB3204@barrios-desktop>
+ <20110502191535.2D55.A69D9226@jp.fujitsu.com> <BANLkTikA-oP9ftAE_TXQdU5yBObgn2KG=g@mail.gmail.com>
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Date: Tue, 3 May 2011 10:25:52 +0900
+Message-ID: <BANLkTikLNrQR6UVoAoUYfk7aAewKWcgAww@mail.gmail.com>
+Subject: Re: [RFC][PATCH] mm: cut down __GFP_NORETRY page allocation failures
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Satoru Moriya <satoru.moriya@hds.com>
-Cc: linux-mm@kvack.org, Ying Han <yinghan@google.com>, Mel Gorman <mel@suse.de>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@linux.vnet.ibm.com>, Dave Young <hidave.darkstar@gmail.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, Dave Chinner <david@fromorbit.com>, David Rientjes <rientjes@google.com>
 
-Add a userspace visible knob to tell the VM to keep an extra amount
-of memory free, by increasing the gap between each zone's min and
-low watermarks.
+2011/5/3 Minchan Kim <minchan.kim@gmail.com>:
+> On Mon, May 2, 2011 at 7:14 PM, KOSAKI Motohiro
+> <kosaki.motohiro@jp.fujitsu.com> wrote:
+>>> On Mon, May 02, 2011 at 01:35:42AM +0900, Minchan Kim wrote:
+>>>
+>>> > Do you see my old patch? The patch want't incomplet but it's not bad =
+for showing an idea.
+>>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
+ =A0^^^^^^^^^^^^^^^^
+>>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 typo : wasn=
+'t complete
+>>
+>> I think your idea is eligible. Wu's approach may increase throughput but
+>
+> Yes. it doesn't change many subtle things and make much fair but the
+> Wu's concern is order-0 pages with __GFP_NORETRY. By his experiment,
+> my patch doesn't help much his concern.
+> The problem I have is I don't have any infrastructure for reproducing
+> his experiment. :(
+>
+>> may decrease latency. So, do you have a plan to finish the work?
+>
+> I want it but the day would be after finishing inorder-putback series. :)
+> Maybe you have a environment(8core system). If you want it, go ahead. :)
 
-This can be used to make the VM free up memory, for when an extra
-workload is to be added to a system, or to temporarily reduce the
-memory use of a virtual machine. In this application, extra_free_kbytes
-would be raised temporarily and reduced again later.  The workload
-management system could also monitor the current workloads with
-reduced memory, to verify that there really is memory space for
-an additional workload, before starting it.
-
-It may also be useful for realtime applications that call system
-calls and have a bound on the number of allocations that happen
-in any short time period.  In this application, extra_free_kbytes
-would be left at an amount equal to or larger than than the
-maximum number of allocations that happen in any burst.
-
-I realize nobody really likes this solution to their particular
-issue, but it is hard to deny the simplicity - especially
-considering that this one knob could solve three different issues
-and is fairly simple to understand.
-
-Signed-off-by: Rik van Riel<riel@redhat.com>
-
-diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-index c0bb324..feecc1a 100644
---- a/kernel/sysctl.c
-+++ b/kernel/sysctl.c
-@@ -95,6 +95,7 @@ extern char core_pattern[];
- extern unsigned int core_pipe_limit;
- extern int pid_max;
- extern int min_free_kbytes;
-+extern int extra_free_kbytes;
- extern int pid_max_min, pid_max_max;
- extern int sysctl_drop_caches;
- extern int percpu_pagelist_fraction;
-@@ -1173,6 +1174,14 @@ static struct ctl_table vm_table[] = {
- 		.extra1		= &zero,
- 	},
- 	{
-+		.procname	= "extra_free_kbytes",
-+		.data		= &extra_free_kbytes,
-+		.maxlen		= sizeof(extra_free_kbytes),
-+		.mode		= 0644,
-+		.proc_handler	= min_free_kbytes_sysctl_handler,
-+		.extra1		= &zero,
-+	},
-+	{
- 		.procname	= "percpu_pagelist_fraction",
- 		.data		= &percpu_pagelist_fraction,
- 		.maxlen		= sizeof(percpu_pagelist_fraction),
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 9f8a97b..b85dcb1 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -172,8 +172,20 @@ static char * const zone_names[MAX_NR_ZONES] = {
- 	 "Movable",
- };
- 
-+/*
-+ * Try to keep at least this much lowmem free.  Do not allow normal
-+ * allocations below this point, only high priority ones. Automatically
-+ * tuned according to the amount of memory in the system.
-+ */
- int min_free_kbytes = 1024;
- 
-+/*
-+ * Extra memory for the system to try freeing. Used to temporarily
-+ * free memory, to make space for new workloads. Anyone can allocate
-+ * down to the min watermarks controlled by min_free_kbytes above.
-+ */
-+int extra_free_kbytes = 0;
-+
- static unsigned long __meminitdata nr_kernel_pages;
- static unsigned long __meminitdata nr_all_pages;
- static unsigned long __meminitdata dma_reserve;
-@@ -4999,6 +5011,7 @@ static void setup_per_zone_lowmem_reserve(void)
- void setup_per_zone_wmarks(void)
- {
- 	unsigned long pages_min = min_free_kbytes >> (PAGE_SHIFT - 10);
-+	unsigned long pages_low = extra_free_kbytes >> (PAGE_SHIFT - 10);
- 	unsigned long lowmem_pages = 0;
- 	struct zone *zone;
- 	unsigned long flags;
-@@ -5010,11 +5023,14 @@ void setup_per_zone_wmarks(void)
- 	}
- 
- 	for_each_zone(zone) {
--		u64 tmp;
-+		u64 min, low;
- 
- 		spin_lock_irqsave(&zone->lock, flags);
--		tmp = (u64)pages_min * zone->present_pages;
--		do_div(tmp, lowmem_pages);
-+		min = (u64)pages_min * zone->present_pages;
-+		do_div(min, lowmem_pages);
-+		low = (u64)pages_low * zone->present_pages;
-+		do_div(low, vm_total_pages);
-+
- 		if (is_highmem(zone)) {
- 			/*
- 			 * __GFP_HIGH and PF_MEMALLOC allocations usually don't
-@@ -5038,11 +5054,13 @@ void setup_per_zone_wmarks(void)
- 			 * If it's a lowmem zone, reserve a number of pages
- 			 * proportionate to the zone's size.
- 			 */
--			zone->watermark[WMARK_MIN] = tmp;
-+			zone->watermark[WMARK_MIN] = min;
- 		}
- 
--		zone->watermark[WMARK_LOW]  = min_wmark_pages(zone) + (tmp >> 2);
--		zone->watermark[WMARK_HIGH] = min_wmark_pages(zone) + (tmp >> 1);
-+		zone->watermark[WMARK_LOW]  = min_wmark_pages(zone) +
-+					low + (min >> 2);
-+		zone->watermark[WMARK_HIGH] = min_wmark_pages(zone) +
-+					low + (min >> 1);
- 		setup_zone_migrate_reserve(zone);
- 		spin_unlock_irqrestore(&zone->lock, flags);
- 	}
-@@ -5139,7 +5157,7 @@ module_init(init_per_zone_wmark_min)
- /*
-  * min_free_kbytes_sysctl_handler - just a wrapper around proc_dointvec() so 
-  *	that we can call two helper functions whenever min_free_kbytes
-- *	changes.
-+ *	or extra_free_kbytes changes.
-  */
- int min_free_kbytes_sysctl_handler(ctl_table *table, int write, 
- 	void __user *buffer, size_t *length, loff_t *ppos)
+Hahaha, no. I lost such ia64 box by physical crash. ;-)
+I haven't reproduce his issue yet too.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
