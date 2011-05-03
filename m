@@ -1,72 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 5277F6B0011
-	for <linux-mm@kvack.org>; Tue,  3 May 2011 16:10:12 -0400 (EDT)
-Received: from wpaz24.hot.corp.google.com (wpaz24.hot.corp.google.com [172.24.198.88])
-	by smtp-out.google.com with ESMTP id p43KA9Kk013521
-	for <linux-mm@kvack.org>; Tue, 3 May 2011 13:10:09 -0700
-Received: from gxk10 (gxk10.prod.google.com [10.202.11.10])
-	by wpaz24.hot.corp.google.com with ESMTP id p43KA8Cc007979
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 3 May 2011 13:10:08 -0700
-Received: by gxk10 with SMTP id 10so242252gxk.11
-        for <linux-mm@kvack.org>; Tue, 03 May 2011 13:10:08 -0700 (PDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 72DDD6B0023
+	for <linux-mm@kvack.org>; Tue,  3 May 2011 16:11:04 -0400 (EDT)
+Received: by iwg8 with SMTP id 8so561640iwg.14
+        for <linux-mm@kvack.org>; Tue, 03 May 2011 13:11:02 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <4DC0483F.50609@redhat.com>
-References: <1304444135-14128-1-git-send-email-yinghan@google.com>
-	<4DC0483F.50609@redhat.com>
-Date: Tue, 3 May 2011 13:10:08 -0700
-Message-ID: <BANLkTinitqs6VwZyon=ew3-GhWqc6m5sUw@mail.gmail.com>
-Subject: Re: [PATCH] Eliminate task stack trace duplication.
-From: Ying Han <yinghan@google.com>
+In-Reply-To: <201105032202.42662.arnd@arndb.de>
+References: <BANLkTinhK_K1oSJDEoqD6EQK8Qy5Wy3v+g@mail.gmail.com>
+	<201105031516.28907.arnd@arndb.de>
+	<BANLkTi=74Mp1vWBt2F-sqqqkeNfP69+9vg@mail.gmail.com>
+	<201105032202.42662.arnd@arndb.de>
+Date: Tue, 3 May 2011 22:11:02 +0200
+Message-ID: <BANLkTinJxkauY+WUnJet+T5QM4_ROiKzGQ@mail.gmail.com>
+Subject: Re: mmc blkqueue is empty even if there are pending reads in do_generic_file_read()
+From: Per Forlin <per.forlin@linaro.org>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Salman Qazi <sqazi@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>, linux-mm@kvack.org
+To: Arnd Bergmann <arnd@arndb.de>
+Cc: linux-mm@kvack.org, linux-mmc@vger.kernel.org, linaro-kernel@lists.linaro.org
 
-On Tue, May 3, 2011 at 11:23 AM, Rik van Riel <riel@redhat.com> wrote:
-> On 05/03/2011 01:35 PM, Ying Han wrote:
+On 3 May 2011 22:02, Arnd Bergmann <arnd@arndb.de> wrote:
+> On Tuesday 03 May 2011 20:54:43 Per Forlin wrote:
+>> >> page_not_up_to_date:
+>> >> /* Get exclusive access to the page ... */
+>> >> error =3D lock_page_killable(page);
+>> > I looked at the code in do_generic_file_read(). lock_page_killable
+>> > waits until the current read ahead is completed.
+>> > Is it possible to configure the read ahead to push multiple read
+>> > request to the block device queue?add
+>
+> I believe sleeping in __lock_page_killable is the best possible scenario.
+> Most cards I've seen work best when you use at least 64KB reads, so it wi=
+ll
+> be faster to wait there than to read smaller units.
+>
+>> When I first looked at this I used dd if=3D/dev/mmcblk0 of=3D/dev/null b=
+s=3D1M count=3D4
+>> If bs is larger than read ahead, this will make the execution loop in
+>> do_generic_file_read() reading 512 until 1M is read. The second time
+>> in this loop it will wait on lock_page_killable.
 >>
->> The problem with small dmesg ring buffer like 512k is that only limited
->> number
->> of task traces will be logged. Sometimes we lose important information
->> only
->> because of too many duplicated stack traces.
+>> If bs=3D16k the execution wont stuck at lock_page_killable.
 >
-> I like it. =A0I often overlook information from staring
-> myself blind on way too many duplicate stack traces.
->
->> This patch tries to reduce the duplication of task stack trace in the du=
-mp
->> message by hashing the task stack. The hashtable is a 32k pre-allocated
->> buffer
->> during bootup.
->
-> This changelog doesn't tell the whole story of what
-> the code does.
-
-Thanks Rik for reviewing it. I can add more details to the changelog .
-
---Ying
+> submitting small 512 byte read requests is a real problem when the
+> underlying page size is 16 KB. If your interpretation is right,
+> we should probably find a way to make it read larger chunks
+> on flash media.
+Sorry a typo. I missed out a "k" :)
+It reads 512k until 1M.
 
 >
-> It appears to store stack traces in the table, and
-> use the hash to look them up. Somehow there's a global
-> pointer, called cur_stack, involved too.
+> =A0 =A0 =A0 =A0Arnd
 >
-> The code looks correct, but somehow I'm not happy with
-> it. Having said that, I also don't have ideas on how to
-> make it better.
->
-> If nobody else knows how to make this code better, maybe
-> it should just be merged as is. I hope someone has ideas,
-> though :)
->
-> --
-> All rights reversed
->
+Per
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
