@@ -1,322 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 4D4646B0022
-	for <linux-mm@kvack.org>; Tue,  3 May 2011 10:11:15 -0400 (EDT)
-Subject: Re: memcg: fix fatal livelock in kswapd
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 9F1796B0012
+	for <linux-mm@kvack.org>; Tue,  3 May 2011 10:13:12 -0400 (EDT)
+Subject: Re: [BUG] fatal hang untarring 90GB file, possibly writeback
+ related.
 From: James Bottomley <James.Bottomley@suse.de>
-In-Reply-To: <20110503063817.GD10278@cmpxchg.org>
-References: <1304366849.15370.27.camel@mulgrave.site>
-	 <20110502224838.GB10278@cmpxchg.org>
-	 <BANLkTikDyL9-XLpwyLwUQNuUfkBwbUBcZg@mail.gmail.com>
-	 <1304380698.15370.36.camel@mulgrave.site>
-	 <20110503063817.GD10278@cmpxchg.org>
+In-Reply-To: <20110503091320.GA4542@novell.com>
+References: <20110428150827.GY4658@suse.de>
+	 <1304006499.2598.5.camel@mulgrave.site>
+	 <1304009438.2598.9.camel@mulgrave.site>
+	 <1304009778.2598.10.camel@mulgrave.site> <20110428171826.GZ4658@suse.de>
+	 <1304015436.2598.19.camel@mulgrave.site> <20110428192104.GA4658@suse.de>
+	 <1304020767.2598.21.camel@mulgrave.site>
+	 <1304025145.2598.24.camel@mulgrave.site>
+	 <1304030629.2598.42.camel@mulgrave.site> <20110503091320.GA4542@novell.com>
 Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 03 May 2011 09:11:04 -0500
-Message-ID: <1304431865.2576.3.camel@mulgrave.site>
+Date: Tue, 03 May 2011 09:13:02 -0500
+Message-ID: <1304431982.2576.5.camel@mulgrave.site>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Ying Han <yinghan@google.com>, Chris Mason <chris.mason@oracle.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, containers@lists.linux-foundation.org, Balbir Singh <balbir@linux.vnet.ibm.com>
+To: Mel Gorman <mgorman@novell.com>
+Cc: Mel Gorman <mgorman@suse.de>, Jan Kara <jack@suse.cz>, colin.king@canonical.com, Chris Mason <chris.mason@oracle.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-ext4 <linux-ext4@vger.kernel.org>
 
-On Tue, 2011-05-03 at 08:38 +0200, Johannes Weiner wrote:
-> On Mon, May 02, 2011 at 06:58:18PM -0500, James Bottomley wrote:
-> > On Mon, 2011-05-02 at 16:14 -0700, Ying Han wrote:
-> > > On Mon, May 2, 2011 at 3:48 PM, Johannes Weiner <hannes@cmpxchg.org> wrote:
-> > > > I am very much for removing this hack.  There is still more scan
-> > > > pressure applied to memcgs in excess of their soft limit even if the
-> > > > extra scan is happening at a sane priority level.  And the fact that
-> > > > global reclaim operates completely unaware of memcgs is a different
-> > > > story.
-> > > >
-> > > > However, this code came into place with v2.6.31-8387-g4e41695.  Why is
-> > > > it only now showing up?
-> > > >
-> > > > You also wrote in that thread that this happens on a standard F15
-> > > > installation.  On the F15 I am running here, systemd does not
-> > > > configure memcgs, however.  Did you manually configure memcgs and set
-> > > > soft limits?  Because I wonder how it ended up in soft limit reclaim
-> > > > in the first place.
+On Tue, 2011-05-03 at 10:13 +0100, Mel Gorman wrote:
+> On Thu, Apr 28, 2011 at 05:43:48PM -0500, James Bottomley wrote:
+> > On Thu, 2011-04-28 at 16:12 -0500, James Bottomley wrote:
+> > > On Thu, 2011-04-28 at 14:59 -0500, James Bottomley wrote:
+> > > > Actually, talking to Chris, I think I can get the system up using
+> > > > init=/bin/bash without systemd, so I can try the no cgroup config.
+> > > 
+> > > OK, so a non-PREEMPT non-CGROUP kernel has survived three back to back
+> > > runs of untar without locking or getting kswapd pegged, so I'm pretty
+> > > certain this is cgroups related.  The next steps are to turn cgroups
+> > > back on but try disabling the memory and IO controllers.
 > > 
-> > It doesn't ... it's standard FC15 ... the mere fact of having memcg
-> > compiled into the kernel is enough to do it (conversely disabling it at
-> > compile time fixes the problem).
-> 
-> Does this mean you have not set one up yourself, or does it mean that
-> you have checked no other software is setting up a soft-limited memcg?
-
-Right, I've done nothing other than install and boot.  As far as I can
-tell from /sys/fs/cgroup/memory, nothing is defined other than the
-standard limits.
-
-> Right now, I still don't see how we could enter the problematic path
-> without one memcg exceeding its soft limit.
-
-Yes, that's what we all think too.  The limit is way above my memory
-size, though.
-
-> So if you have not done this yet, can you check the cgroup fs for
-> memcgs, their memory.soft_limit_in_bytes and .usage_in_bytes right
-> before you would run the workload that reproduces the problem?
-
-Sure ... I've got the entire contents at the bottom.
-
-> > > curious as well. if we have workload to reproduce it, i would like to try
+> > I tried non-PREEMPT CGROUP but disabled GROUP_MEM_RES_CTLR.
 > > 
-> > Well, the only one I can suggest is the one that produces it (large
-> > untar).  There seems to be something magical about the memory size (mine
-> > is 2G) because adding more also seems to make the problem go away.
+> > The results are curious:  the tar does complete (I've done three back to
+> > back).  However, I did get one soft lockup in kswapd (below).  But the
+> > system recovers instead of halting I/O and hanging like it did
+> > previously.
+> > 
+> > The soft lockup is in shrink_slab, so perhaps it's a combination of slab
+> > shrinker and cgroup memory controller issues?
+> > 
 > 
-> I'll try to reproduce this on my F15 as well.
+> So, kswapd is still looping in reclaim and spending a lot of time in
+> shrink_slab but it must not be the shrinker itself or that debug patch
+> would have triggered. It's curious that cgroups are involved with
+> systemd considering that one would expect those groups to be fairly
+> small. I still don't have a new theory but will get hold of a Fedora 15
+> install CD and see can I reproduce it locally.
 
-It's an SMP kernel (The core i5 Lenovo laptop has two cores with two
-threads).  Turning on PREEMPT makes the hang go away, but still causes
-kswapd to loop.
+I've got a ftrace output of kswapd ... it's 500k compressed, so I'll
+send under separate cover.
+
+> One last thing, what is the value of /proc/sys/vm/zone_reclaim_mode? Two
+> of the reporting machines could be NUMA and if that proc file reads as
+> 1, I'd be interested in hearing the results of a test with it set to 0.
+> Thanks.
+
+It's zero, I'm afraid
 
 James
-
----
-
-]# for f in *; do echo -e "$f\t"; cat $f;done
-cgroup.clone_children
-0
-cgroup.event_control
-cat: cgroup.event_control: Invalid argument
-cgroup.procs
-1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-16
-17
-18
-19
-20
-21
-22
-23
-24
-25
-26
-27
-28
-29
-30
-31
-32
-33
-49
-50
-51
-52
-53
-54
-60
-61
-62
-63
-64
-65
-66
-67
-68
-69
-70
-71
-72
-73
-74
-75
-76
-77
-78
-335
-339
-352
-370
-371
-408
-409
-415
-427
-431
-443
-613
-614
-679
-690
-704
-732
-758
-759
-775
-799
-800
-825
-840
-849
-851
-865
-866
-890
-948
-964
-997
-1000
-1037
-memory.failcnt
-0
-memory.force_empty
-cat: memory.force_empty: Invalid argument
-memory.limit_in_bytes
-9223372036854775807
-memory.max_usage_in_bytes
-0
-memory.move_charge_at_immigrate
-0
-memory.oom_control
-oom_kill_disable 0
-under_oom 0
-memory.soft_limit_in_bytes
-9223372036854775807
-memory.stat
-cache 68370432
-rss 34246656
-mapped_file 6008832
-pgpgin 132627
-pgpgout 107574
-inactive_anon 6766592
-active_anon 34226176
-inactive_file 45350912
-active_file 16228352
-unevictable 0
-hierarchical_memory_limit 9223372036854775807
-total_cache 68370432
-total_rss 34246656
-total_mapped_file 6008832
-total_pgpgin 132627
-total_pgpgout 107574
-total_inactive_anon 6766592
-total_active_anon 34226176
-total_inactive_file 45350912
-total_active_file 16228352
-total_unevictable 0
-memory.swappiness
-60
-memory.usage_in_bytes
-102617088
-memory.use_hierarchy
-0
-notify_on_release
-0
-release_agent
-
-tasks
-1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-16
-17
-18
-19
-20
-21
-22
-23
-24
-25
-26
-27
-28
-29
-30
-31
-32
-33
-49
-50
-51
-52
-53
-54
-60
-61
-62
-63
-64
-65
-66
-67
-68
-69
-70
-71
-72
-73
-74
-75
-76
-77
-78
-335
-339
-352
-370
-371
-408
-409
-415
-427
-431
-443
-613
-614
-679
-690
-704
-732
-758
-759
-775
-799
-800
-825
-840
-849
-851
-865
-866
-890
-891
-948
-964
-997
-1000
-1051
 
 
 --
