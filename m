@@ -1,67 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id CD2BA6B0012
-	for <linux-mm@kvack.org>; Tue,  3 May 2011 09:16:44 -0400 (EDT)
-From: Arnd Bergmann <arnd@arndb.de>
-Subject: Re: mmc blkqueue is empty even if there are pending reads in do_generic_file_read()
-Date: Tue, 3 May 2011 15:16:28 +0200
-References: <BANLkTinhK_K1oSJDEoqD6EQK8Qy5Wy3v+g@mail.gmail.com>
-In-Reply-To: <BANLkTinhK_K1oSJDEoqD6EQK8Qy5Wy3v+g@mail.gmail.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id EA58E900001
+	for <linux-mm@kvack.org>; Tue,  3 May 2011 09:26:24 -0400 (EDT)
+Message-ID: <4DC00254.3010603@redhat.com>
+Date: Tue, 03 May 2011 09:25:40 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="iso-8859-1"
+Subject: Re: [PATCH V2 1/2] Add the soft_limit reclaim in global direct reclaim.
+References: <1304355025-1421-1-git-send-email-yinghan@google.com> <1304355025-1421-2-git-send-email-yinghan@google.com>
+In-Reply-To: <1304355025-1421-2-git-send-email-yinghan@google.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
-Message-Id: <201105031516.28907.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Per Forlin <per.forlin@linaro.org>
-Cc: linux-mm@kvack.org, linux-mmc@vger.kernel.org, linaro-kernel@lists.linaro.org
+To: Ying Han <yinghan@google.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>, linux-mm@kvack.org
 
-On Thursday 28 April 2011, Per Forlin wrote:
+On 05/02/2011 12:50 PM, Ying Han wrote:
+> We recently added the change in global background reclaim which
+> counts the return value of soft_limit reclaim. Now this patch adds
+> the similar logic on global direct reclaim.
+>
+> We should skip scanning global LRU on shrink_zone if soft_limit reclaim
+> does enough work. This is the first step where we start with counting
+> the nr_scanned and nr_reclaimed from soft_limit reclaim into global
+> scan_control.
 
-> For reads on the other hand it look like this
-> root@(none):/ dd if=/dev/mmcblk0 of=/dev/null bs=4k count=256
-> 256+0 records in
-> 256+0 records out
-> root@(none):/ dmesg
-> [mmc_queue_thread] req d954cec0 blocks 32
-> [mmc_queue_thread] req   (null) blocks 0
-> [mmc_queue_thread] req   (null) blocks 0
-> [mmc_queue_thread] req d954cec0 blocks 64
-> [mmc_queue_thread] req   (null) blocks 0
-> [mmc_queue_thread] req d954cde8 blocks 128
-> [mmc_queue_thread] req   (null) blocks 0
-> [mmc_queue_thread] req d954cec0 blocks 256
-> [mmc_queue_thread] req   (null) blocks 0
+Would be nice to see that at some point, but simply counting
+the amount reclaimed from the over softlimit groups is a good
+start.
 
-> There are never more than one read request in the mmc block queue. All
-> the mmc request preparations will be serialized and the cost for this
-> is roughly 10% lower bandwidth (verified on ARM platforms ux500 and
-> Pandaboard).
+> no change since v1.
+>
+> Signed-off-by: Ying Han<yinghan@google.com>
 
-After some offline discussions, I went back to look at your mail, and I think
-the explanation is much simpler than you expected:
+Acked-by: Rik van Riel<riel@redhat.com>
 
-You have only a single process reading blocks synchronously, so the round
-trip goes all the way to user space. The block layer does some readahead,
-so it will start reading 32 blocks instead of just 8 (4KB) for the first
-read, but then the user process just sits waiting for data. After the
-mmc driver has finished reading the entire 32 blocks, the user needs a
-little time to read them from the page cache in 4 KB chunks (8 syscalls),
-during which the block layer has no clue about what the user wants to do
-next.
-
-The readahead scales up to 256 blocks, but there is still only one reader,
-so you never have additional requests in the queue.
-
-Try running multiple readers in parallel, e.g.
-
-for i in 1 2 3 4 5 ; do 
-	dd if=/dev/mmcblk0 bs=16k count=256 iflag=direct skip=$[$i * 1024] &
-done
-
-
-	Arnd
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
