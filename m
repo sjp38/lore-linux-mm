@@ -1,195 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 476036B0012
-	for <linux-mm@kvack.org>; Tue,  3 May 2011 00:17:23 -0400 (EDT)
-Received: by qyk2 with SMTP id 2so2030620qyk.14
-        for <linux-mm@kvack.org>; Mon, 02 May 2011 21:17:21 -0700 (PDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 12BB86B0022
+	for <linux-mm@kvack.org>; Tue,  3 May 2011 02:12:14 -0400 (EDT)
+Date: Tue, 3 May 2011 08:11:56 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: memcg: fix fatal livelock in kswapd
+Message-ID: <20110503061156.GC10278@cmpxchg.org>
+References: <1304366849.15370.27.camel@mulgrave.site>
+ <20110502224838.GB10278@cmpxchg.org>
+ <BANLkTikDyL9-XLpwyLwUQNuUfkBwbUBcZg@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20110503035112.GA10906@localhost>
-References: <20110426063421.GC19717@localhost>
-	<BANLkTi=xDozFNBXNdGDLK6EwWrfHyBifQw@mail.gmail.com>
-	<20110426092029.GA27053@localhost>
-	<20110426124743.e58d9746.akpm@linux-foundation.org>
-	<20110428133644.GA12400@localhost>
-	<20110429022824.GA8061@localhost>
-	<20110430141741.GA4511@localhost>
-	<20110501163542.GA3204@barrios-desktop>
-	<20110502102945.GA7688@localhost>
-	<BANLkTinXnhh5V0eH71=6PxZWpQxvti7QVw@mail.gmail.com>
-	<20110503035112.GA10906@localhost>
-Date: Tue, 3 May 2011 13:17:20 +0900
-Message-ID: <BANLkTims2WkEAkH1HgHZp=GDmjQ42WzG=w@mail.gmail.com>
-Subject: Re: [RFC][PATCH] mm: cut down __GFP_NORETRY page allocation failures
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <BANLkTikDyL9-XLpwyLwUQNuUfkBwbUBcZg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@linux.vnet.ibm.com>, Dave Young <hidave.darkstar@gmail.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, Dave Chinner <david@fromorbit.com>, David Rientjes <rientjes@google.com>, "Li, Shaohua" <shaohua.li@intel.com>, Hugh Dickins <hughd@google.com>
+To: Ying Han <yinghan@google.com>
+Cc: James Bottomley <James.Bottomley@hansenpartnership.com>, Chris Mason <chris.mason@oracle.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, containers@lists.linux-foundation.org, Balbir Singh <balbir@linux.vnet.ibm.com>
 
-On Tue, May 3, 2011 at 12:51 PM, Wu Fengguang <fengguang.wu@intel.com> wrot=
-e:
-> Hi Minchan,
->
-> On Tue, May 03, 2011 at 08:49:20AM +0800, Minchan Kim wrote:
->> Hi Wu, Sorry for slow response.
->> I guess you know why I am slow. :)
->
-> Yeah, never mind :)
->
->> Unfortunately, my patch doesn't consider order-0 pages, as you mentioned=
- below.
->> I read your mail which states it doesn't help although it considers
->> order-0 pages and drain.
->> Actually, I tried to look into that but in my poor system(core2duo, 2G
->> ram), nr_alloc_fail never happens. :(
->
-> I'm running a 4-core 8-thread CPU with 3G ram.
->
-> Did you run with this patch?
->
-> [PATCH] mm: readahead page allocations are OK to fail
-> https://lkml.org/lkml/2011/4/26/129
->
+On Mon, May 02, 2011 at 04:14:09PM -0700, Ying Han wrote:
+> On Mon, May 2, 2011 at 3:48 PM, Johannes Weiner <hannes@cmpxchg.org> wrote:
+> > Hi,
+> >
+> > On Mon, May 02, 2011 at 03:07:29PM -0500, James Bottomley wrote:
+> >> The fatal livelock in kswapd, reported in this thread:
+> >>
+> >> http://marc.info/?t=130392066000001
+> >>
+> >> Is mitigateable if we prevent the cgroups code being so aggressive in
+> >> its zone shrinking (by reducing it's default shrink from 0 [everything]
+> >> to DEF_PRIORITY [some things]).  This will have an obvious knock on
+> >> effect to cgroup accounting, but it's better than hanging systems.
+> >
+> > Actually, it's not that obvious.  At least not to me.  I added Balbir,
+> > who added said comment and code in the first place, to CC: Here is the
+> > comment in full quote:
+> >
+> >        /*
+> >         * NOTE: Although we can get the priority field, using it
+> >         * here is not a good idea, since it limits the pages we can scan.
+> >         * if we don't reclaim here, the shrink_zone from balance_pgdat
+> >         * will pick up pages from other mem cgroup's as well. We hack
+> >         * the priority and make it zero.
+> >         */
+> >
+> > The idea is that if one memcg is above its softlimit, we prefer
+> > reducing pages from this memcg over reclaiming random other pages,
+> > including those of other memcgs.
+> >
+> > But the code flow looks like this:
+> >
+> >        balance_pgdat
+> >          mem_cgroup_soft_limit_reclaim
+> >            mem_cgroup_shrink_node_zone
+> >              shrink_zone(0, zone, &sc)
+> >          shrink_zone(prio, zone, &sc)
+> >
+> > so the success of the inner memcg shrink_zone does at least not
+> > explicitely result in the outer, global shrink_zone steering clear of
+> > other memcgs' pages.  It just tries to move the pressure of balancing
+> > the zones to the memcg with the biggest soft limit excess.  That can
+> > only really work if the memcg is a large enough contributor to the
+> > zone's total number of lru pages, though, and looks very likely to hit
+> > the exceeding memcg too hard in other cases.
+> yes, the logic is selecting one memcg(the one exceeding the most) and
+> starting hierarchical reclaim on it. It will looping until the the
+> following condition becomes true:
+> 1. memcg usage is below its soft_limit
+> 2. looping 100 times
+> 3. reclaimed pages equal or greater than (excess >>2) where excess is
+> the (usage - soft_limit)
 
-Of course.
-I will try it in my better machine  i5 4 core 3G ram.
+There is no need to loop if we beat up the memcg in question with a
+hammer during the first iteration ;-)
 
-> It's very good at generating lots of __GFP_NORETRY order-0 page
-> allocation requests.
->
->> I will try it in other desktop but I am not sure I can reproduce it.
->>
->> >
->> > root@fat /home/wfg# ./test-dd-sparse.sh
->> > start time: 246
->> > total time: 531
->> > nr_alloc_fail 14097
->> > allocstall 1578332
->> > LOC: =C2=A0 =C2=A0 542698 =C2=A0 =C2=A0 538947 =C2=A0 =C2=A0 536986 =
-=C2=A0 =C2=A0 567118 =C2=A0 =C2=A0 552114 =C2=A0 =C2=A0 539605 =C2=A0 =C2=
-=A0 541201 =C2=A0 =C2=A0 537623 =C2=A0 Local timer interrupts
->> > RES: =C2=A0 =C2=A0 =C2=A0 3368 =C2=A0 =C2=A0 =C2=A0 1908 =C2=A0 =C2=A0=
- =C2=A0 1474 =C2=A0 =C2=A0 =C2=A0 1476 =C2=A0 =C2=A0 =C2=A0 2809 =C2=A0 =C2=
-=A0 =C2=A0 1602 =C2=A0 =C2=A0 =C2=A0 1500 =C2=A0 =C2=A0 =C2=A0 1509 =C2=A0 =
-Rescheduling interrupts
->> > CAL: =C2=A0 =C2=A0 223844 =C2=A0 =C2=A0 224198 =C2=A0 =C2=A0 224268 =
-=C2=A0 =C2=A0 224436 =C2=A0 =C2=A0 223952 =C2=A0 =C2=A0 224056 =C2=A0 =C2=
-=A0 223700 =C2=A0 =C2=A0 223743 =C2=A0 Function call interrupts
->> > TLB: =C2=A0 =C2=A0 =C2=A0 =C2=A0381 =C2=A0 =C2=A0 =C2=A0 =C2=A0 27 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 22 =C2=A0 =C2=A0 =C2=A0 =C2=A0 19 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 96 =C2=A0 =C2=A0 =C2=A0 =C2=A0404 =C2=A0 =C2=A0 =C2=A0 =C2=A0=
-111 =C2=A0 =C2=A0 =C2=A0 =C2=A0 67 =C2=A0 TLB shootdowns
->> >
->> > root@fat /home/wfg# getdelays -dip `pidof dd`
->> > print delayacct stats ON
->> > printing IO accounting
->> > PID =C2=A0 =C2=A0 5202
->> >
->> >
->> > CPU =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 count =C2=A0 =C2=A0 real=
- total =C2=A0virtual total =C2=A0 =C2=A0delay total
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 1132 =C2=A0 =
-=C2=A0 3635447328 =C2=A0 =C2=A0 3627947550 =C2=A0 276722091605
->> > IO =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0count =C2=A0 =C2=A0=
-delay total =C2=A0delay average
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A02=
- =C2=A0 =C2=A0 =C2=A0187809974 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 62=
-ms
->> > SWAP =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0count =C2=A0 =C2=A0delay=
- total =C2=A0delay average
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A00=
- =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A00 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A00ms
->> > RECLAIM =C2=A0 =C2=A0 =C2=A0 =C2=A0 count =C2=A0 =C2=A0delay total =C2=
-=A0delay average
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 1334 =C2=A0 =
-=C2=A035304580824 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 26ms
->> > dd: read=3D278528, write=3D0, cancelled_write=3D0
->> >
->> > I guess your patch is mainly fixing the high order allocations while
->> > my workload is mainly order 0 readahead page allocations. There are
->> > 1000 forks, however the "start time: 246" seems to indicate that the
->> > order-1 reclaim latency is not improved.
->>
->> Maybe, 8K * 1000 isn't big footprint so I think reclaim doesn't happen.
->
-> It's mainly a guess. In an earlier experiment of simply increasing
-> nr_to_reclaim to high_wmark_pages() without any other constraints, it
-> does manage to reduce start time to about 25 seconds.
+That is, we already did the aggressive scan when all these conditions
+are checked.
 
-If so, I guess the workload might depend on order-0 page, not stack allocat=
-ion.
+> hmm, the worst case i can think of is the memcg only has one page
+> allocate on the zone, and we end up looping 100 time each time and not
+> contributing much to the global reclaim.
 
->
->> > I'll try modifying your patch and see how it works out. The obvious
->> > change is to apply it to the order-0 case. Hope this won't create much
->> > more isolated pages.
->> >
->> > Attached is your patch rebased to 2.6.39-rc3, after resolving some
->> > merge conflicts and fixing a trivial NULL pointer bug.
->>
->> Thanks!
->> I would like to see detail with it in my system if I can reproduce it.
->
-> OK.
->
->> >> > no cond_resched():
->> >>
->> >> What's this?
->> >
->> > I tried a modified patch that also removes the cond_resched() call in
->> > __alloc_pages_direct_reclaim(), between try_to_free_pages() and
->> > get_page_from_freelist(). It seems not helping noticeably.
->> >
->> > It looks safe to remove that cond_resched() as we already have such
->> > calls in shrink_page_list().
->>
->> I tried similar thing but Andrew have a concern about it.
->> https://lkml.org/lkml/2011/3/24/138
->
-> Yeah cond_resched() is at least not the root cause of our problems..
->
->> >> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 if (total_scanned > 2 * sc->nr_to_reclaim)
->> >> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 goto out;
->> >>
->> >> If there are lots of dirty pages in LRU?
->> >> If there are lots of unevictable pages in LRU?
->> >> If there are lots of mapped page in LRU but may_unmap =3D 0 cases?
->> >> I means it's rather risky early conclusion.
->> >
->> > That test means to avoid scanning too much on __GFP_NORETRY direct
->> > reclaims. My assumption for __GFP_NORETRY is, it should fail fast when
->> > the LRU pages seem hard to reclaim. And the problem in the 1000 dd
->> > case is, it's all easy to reclaim LRU pages but __GFP_NORETRY still
->> > fails from time to time, with lots of IPIs that may hurt large
->> > machines a lot.
->>
->> I don't have =C2=A0enough time and a environment to test it.
->> So I can't make sure of it but my concern is a latency.
->> If you solve latency problem considering CPU scaling, I won't oppose it.=
- :)
->
-> OK, let's head for that direction :)
-
-Anyway,  the problem about draining overhead with __GFP_NORETRY is
-valuable, I think.
-We should handle it
-
->
-> Thanks,
-> Fengguang
->
-
-Thanks for the good experiments and numbers.
-
-
---=20
-Kind regards,
-Minchan Kim
+Good point, it should probably bail earlier on a zone that does not
+really contribute to the soft limit excess.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
