@@ -1,48 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id A7A156B0022
-	for <linux-mm@kvack.org>; Wed,  4 May 2011 03:32:50 -0400 (EDT)
-From: Jiri Slaby <jslaby@suse.cz>
-Subject: [PATCH 1/1] coredump: use task comm instead of (unknown)
-Date: Wed,  4 May 2011 09:32:34 +0200
-Message-Id: <1304494354-21487-1-git-send-email-jslaby@suse.cz>
-In-Reply-To: <4DC0FFAB.1000805@gmail.com>
-References: <4DC0FFAB.1000805@gmail.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 2F3966B0023
+	for <linux-mm@kvack.org>; Wed,  4 May 2011 03:33:35 -0400 (EDT)
+Received: by wyf19 with SMTP id 19so834757wyf.14
+        for <linux-mm@kvack.org>; Wed, 04 May 2011 00:33:32 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20110504040018.GB6500@localhost>
+References: <BANLkTik8k9A8N8CPk+eXo9c_syxJFRyFCA@mail.gmail.com>
+	<BANLkTim0MNgqeh1KTfvpVFuAvebKyQV8Hg@mail.gmail.com>
+	<20110426062535.GB19717@localhost>
+	<BANLkTinM9DjK9QsGtN0Sh308rr+86UMF0A@mail.gmail.com>
+	<20110426063421.GC19717@localhost>
+	<BANLkTi=xDozFNBXNdGDLK6EwWrfHyBifQw@mail.gmail.com>
+	<20110426092029.GA27053@localhost>
+	<20110426124743.e58d9746.akpm@linux-foundation.org>
+	<20110428133644.GA12400@localhost>
+	<BANLkTimpT-N5--3QjcNg8CyNNwfEWxFyKA@mail.gmail.com>
+	<20110504040018.GB6500@localhost>
+Date: Wed, 4 May 2011 15:33:32 +0800
+Message-ID: <BANLkTimCK9kxrepvvCjXDNEhWaX2sxC5zA@mail.gmail.com>
+Subject: Re: [RFC][PATCH] mm: cut down __GFP_NORETRY page allocation failures
+From: Dave Young <hidave.darkstar@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, jirislaby@gmail.com, Alan Cox <alan@lxorguk.ukuu.org.uk>, Al Viro <viro@zeniv.linux.org.uk>, Andi Kleen <andi@firstfloor.org>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Mel Gorman <mel@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, Dave Chinner <david@fromorbit.com>, David Rientjes <rientjes@google.com>
 
-If we don't know the file corresponding to the binary (i.e. exe_file
-is unknown), use "task->comm (path unknown)" instead of simple
-"(unknown)" as suggested by ak.
+On Wed, May 4, 2011 at 12:00 PM, Wu Fengguang <fengguang.wu@intel.com> wrot=
+e:
+>> > CAL: =C2=A0 =C2=A0 220449 =C2=A0 =C2=A0 220246 =C2=A0 =C2=A0 220372 =
+=C2=A0 =C2=A0 220558 =C2=A0 =C2=A0 220251 =C2=A0 =C2=A0 219740 =C2=A0 =C2=
+=A0 220043 =C2=A0 =C2=A0 219968 =C2=A0 Function call interrupts
+>> >
+>> > LOC: =C2=A0 =C2=A0 536274 =C2=A0 =C2=A0 532529 =C2=A0 =C2=A0 531734 =
+=C2=A0 =C2=A0 536801 =C2=A0 =C2=A0 536510 =C2=A0 =C2=A0 533676 =C2=A0 =C2=
+=A0 534853 =C2=A0 =C2=A0 532038 =C2=A0 Local timer interrupts
+>> > RES: =C2=A0 =C2=A0 =C2=A0 3032 =C2=A0 =C2=A0 =C2=A0 2128 =C2=A0 =C2=A0=
+ =C2=A0 1792 =C2=A0 =C2=A0 =C2=A0 1765 =C2=A0 =C2=A0 =C2=A0 2184 =C2=A0 =C2=
+=A0 =C2=A0 1703 =C2=A0 =C2=A0 =C2=A0 1754 =C2=A0 =C2=A0 =C2=A0 1865 =C2=A0 =
+Rescheduling interrupts
+>> > TLB: =C2=A0 =C2=A0 =C2=A0 =C2=A0189 =C2=A0 =C2=A0 =C2=A0 =C2=A0 15 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 13 =C2=A0 =C2=A0 =C2=A0 =C2=A0 17 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 64 =C2=A0 =C2=A0 =C2=A0 =C2=A0294 =C2=A0 =C2=A0 =C2=A0 =C2=A0=
+ 97 =C2=A0 =C2=A0 =C2=A0 =C2=A0 63 =C2=A0 TLB shootdowns
+>>
+>> Could you tell how to get above info?
+>
+> It's /proc/interrupts.
+>
+> I have two lines at the end of the attached script to collect the
+> information, and another script to call getdelays on every 10s. The
+> posted reclaim delays are the last successful getdelays output.
+>
+> I've automated the test process, so that with one single command line
+> a new kernel will be built and the test box will rerun tests on the
+> new kernel :)
 
-The fallback is the same as %e except it will append "(path unknown)".
+Thank you for that effort!
 
-Signed-off-by: Jiri Slaby <jslaby@suse.cz>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: Al Viro <viro@zeniv.linux.org.uk>
-Cc: Andi Kleen <andi@firstfloor.org>
----
- fs/exec.c |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
+>
+> Thanks,
+> Fengguang
+>
 
-diff --git a/fs/exec.c b/fs/exec.c
-index 5ee7562..0a4d281 100644
---- a/fs/exec.c
-+++ b/fs/exec.c
-@@ -1555,7 +1555,7 @@ static int cn_print_exe_file(struct core_name *cn)
- 
- 	exe_file = get_mm_exe_file(current->mm);
- 	if (!exe_file)
--		return cn_printf(cn, "(unknown)");
-+		return cn_printf(cn, "%s (path unknown)", current->comm);
- 
- 	pathbuf = kmalloc(PATH_MAX, GFP_TEMPORARY);
- 	if (!pathbuf) {
--- 
-1.7.4.2
 
+
+--=20
+Regards
+dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
