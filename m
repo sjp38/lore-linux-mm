@@ -1,85 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id D0C976B0011
-	for <linux-mm@kvack.org>; Wed,  4 May 2011 15:33:42 -0400 (EDT)
-Received: from wpaz13.hot.corp.google.com (wpaz13.hot.corp.google.com [172.24.198.77])
-	by smtp-out.google.com with ESMTP id p44JXdns011843
-	for <linux-mm@kvack.org>; Wed, 4 May 2011 12:33:39 -0700
-Received: from pvc12 (pvc12.prod.google.com [10.241.209.140])
-	by wpaz13.hot.corp.google.com with ESMTP id p44JXbOm001917
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 4 May 2011 12:33:37 -0700
-Received: by pvc12 with SMTP id 12so908511pvc.0
-        for <linux-mm@kvack.org>; Wed, 04 May 2011 12:33:37 -0700 (PDT)
-Date: Wed, 4 May 2011 12:33:35 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch] mm: fail GFP_DMA allocations when ZONE_DMA is not
- configured
-In-Reply-To: <20110414145458.f9bb7744.akpm@linux-foundation.org>
-Message-ID: <alpine.DEB.2.00.1105041219130.22426@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1104141443260.13286@chino.kir.corp.google.com> <20110414145458.f9bb7744.akpm@linux-foundation.org>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id E2EC76B0011
+	for <linux-mm@kvack.org>; Wed,  4 May 2011 16:00:36 -0400 (EDT)
+Received: from d01relay06.pok.ibm.com (d01relay06.pok.ibm.com [9.56.227.116])
+	by e4.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p44Je2OS002288
+	for <linux-mm@kvack.org>; Wed, 4 May 2011 15:40:02 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p44K0XGt1364194
+	for <linux-mm@kvack.org>; Wed, 4 May 2011 16:00:34 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p44K0WlC030935
+	for <linux-mm@kvack.org>; Wed, 4 May 2011 17:00:33 -0300
+Date: Wed, 4 May 2011 13:00:31 -0700
+From: "Darrick J. Wong" <djwong@us.ibm.com>
+Subject: Re: [PATCH v3 0/3] data integrity: Stabilize pages during
+	writeback for ext4
+Message-ID: <20110504200031.GI20579@tux1.beaverton.ibm.com>
+Reply-To: djwong@us.ibm.com
+References: <20110408203135.GH1110@tux1.beaverton.ibm.com> <20110411124229.47bc28f6@corrin.poochiereds.net> <1302543595-sup-4352@think> <1302569212.2580.13.camel@mingming-laptop> <20110412005719.GA23077@infradead.org> <1302742128.2586.274.camel@mingming-laptop> <20110422000226.GA22189@tux1.beaverton.ibm.com> <20110504173704.GE20579@tux1.beaverton.ibm.com> <20110504184644.GA23246@infradead.org> <1304536162-sup-3721@think>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1304536162-sup-3721@think>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mel@csn.ul.ie>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Alex Williamson <alex.williamson@redhat.com>, David Woodhouse <David.Woodhouse@intel.com>, linux-mm@kvack.org
+To: Chris Mason <chris.mason@oracle.com>
+Cc: Christoph Hellwig <hch@infradead.org>, Theodore Ts'o <tytso@mit.edu>, Jeff Layton <jlayton@redhat.com>, Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>, Joel Becker <jlbec@evilplan.org>, "Martin K. Petersen" <martin.petersen@oracle.com>, Jens Axboe <axboe@kernel.dk>, linux-kernel <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Mingming Cao <mcao@us.ibm.com>, linux-scsi <linux-scsi@vger.kernel.org>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>
 
-On Thu, 14 Apr 2011, Andrew Morton wrote:
-
-> > The page allocator will improperly return a page from ZONE_NORMAL even 
-> > when __GFP_DMA is passed if CONFIG_ZONE_DMA is disabled.  The caller 
-> > expects DMA memory, perhaps for ISA devices with 16-bit address 
-> > registers, and may get higher memory resulting in undefined behavior.
-> > 
-> > This patch causes the page allocator to return NULL in such circumstances 
-> > with a warning emitted to the kernel log on the first occurrence.
-> > 
-> > Signed-off-by: David Rientjes <rientjes@google.com>
-> > ---
-> >  mm/page_alloc.c |    4 ++++
-> >  1 files changed, 4 insertions(+), 0 deletions(-)
-> > 
-> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -2225,6 +2225,10 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
-> >  
-> >  	if (should_fail_alloc_page(gfp_mask, order))
-> >  		return NULL;
-> > +#ifndef CONFIG_ZONE_DMA
-> > +	if (WARN_ON_ONCE(gfp_mask & __GFP_DMA))
-> > +		return NULL;
-> > +#endif
+On Wed, May 04, 2011 at 03:21:55PM -0400, Chris Mason wrote:
+> Excerpts from Christoph Hellwig's message of 2011-05-04 14:46:44 -0400:
+> > This seems to miss out on a lot of the generic functionality like
+> > write_cache_pages and block_page_mkwrite and just patch it into
+> > the ext4 copy & paste variants.  Please make sure your patches also
+> > work for filesystem that use more of the generic functionality like
+> > xfs or ext2 (the latter one might be fun for the mmap case).
 > 
-> Worried.  We have a large number of drivers which use GFP_DMA and I bet
-> some of them didn't really need to set it, and can use DMA32 memory. 
-> They will now break.
+> Probably after the block_commit_write in block_page_mkwrite()
+
+Yes, I'm working on providing more generic fixes for ext3 & friends too, but
+they're not really working yet, so I was posting the parts that fix ext4, since
+they seem usable.
+
+> Another question is, do we want to introduce a wait_on_stable_page_writeback()?
 > 
+> This would allow us to add a check against the bdi requesting stable
+> pages.
 
-They were already broken for CONFIG_ZONE_DMA=n since passing __GFP_DMA 
-never guaranteed the memory came from ZONE_DMA32 (and would return 
-ZONE_NORMAL memory even if CONFIG_ZONE_DMA32=n).
+Sounds like a good idea.
 
-> What is drivers/pci/intel-iommu.c doing with GFP_DMA btw?
+> > Also what's the status of btrfs?  I remembered there was one or two
+> > bits missing despite doing the right thing in most areas.
 > 
-
-Looks like if no identity mapping is needed for that device (using a 
-non-identity mapping instead), then there is no lowmem restriction on its 
-allocation; otherwise, we use lowmem is used when the device's mask 
-specifically requires it.
-
-Adding Alex and David to the cc.
-
-> How commonly are people disabling ZONE_DMA?
+> As far as I know btrfs is getting it right.  The only bit missing is the
+> one Nick Piggin pointed out where it is possible to change mmap'd O_DIRECT
+> memory in flight while a DIO is in progress.  Josef has a test case that
+> demonstrates this.
 > 
+> Nick had a plan to fix it, but it involved redoing the get_user_pages
+> api.
 
-Probably not that much, it's usually def_bool y everywhere and just 
-implicitly on.  I'm changing that for x86 on a CONFIG_EXPERT kernel so 
-that we can avoid a ZONE_DMA entirely; that prevents reserving memory we 
-don't need with the lowmem reserve by default, we can eliminate the DMA 
-slab caches, etc.  Google has been running with CONFIG_ZONE_DMA=n for a 
-couple years because we simply don't need it.
+I ran the same six tests A-F on btrfs and it reported -ENOSPC with 1% of the
+space used, though until it did that I didn't see any checksum errors.
+
+--D
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
