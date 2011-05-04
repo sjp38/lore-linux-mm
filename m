@@ -1,71 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id BB0D96B0011
-	for <linux-mm@kvack.org>; Wed,  4 May 2011 14:48:15 -0400 (EDT)
-Date: Wed, 4 May 2011 14:48:03 -0400
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH v3 3/3] mm: Wait for writeback when grabbing pages to
- begin a write
-Message-ID: <20110504184803.GB23246@infradead.org>
-References: <20110406232938.GF1110@tux1.beaverton.ibm.com>
- <20110407165700.GB7363@quack.suse.cz>
- <20110408203135.GH1110@tux1.beaverton.ibm.com>
- <20110411124229.47bc28f6@corrin.poochiereds.net>
- <1302543595-sup-4352@think>
- <1302569212.2580.13.camel@mingming-laptop>
- <20110412005719.GA23077@infradead.org>
- <1302742128.2586.274.camel@mingming-laptop>
- <20110422000226.GA22189@tux1.beaverton.ibm.com>
- <20110504174227.GH20579@tux1.beaverton.ibm.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E60C6B0011
+	for <linux-mm@kvack.org>; Wed,  4 May 2011 15:13:12 -0400 (EDT)
+Received: by iwg8 with SMTP id 8so1775989iwg.14
+        for <linux-mm@kvack.org>; Wed, 04 May 2011 12:13:11 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110504174227.GH20579@tux1.beaverton.ibm.com>
+In-Reply-To: <201105032202.42662.arnd@arndb.de>
+References: <BANLkTinhK_K1oSJDEoqD6EQK8Qy5Wy3v+g@mail.gmail.com>
+	<201105031516.28907.arnd@arndb.de>
+	<BANLkTi=74Mp1vWBt2F-sqqqkeNfP69+9vg@mail.gmail.com>
+	<201105032202.42662.arnd@arndb.de>
+Date: Wed, 4 May 2011 21:13:10 +0200
+Message-ID: <BANLkTi=omboE=fh16KSAa__JyG=hARmw=A@mail.gmail.com>
+Subject: Re: mmc blkqueue is empty even if there are pending reads in do_generic_file_read()
+From: Per Forlin <per.forlin@linaro.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Darrick J. Wong" <djwong@us.ibm.com>
-Cc: Theodore Ts'o <tytso@mit.edu>, Christoph Hellwig <hch@infradead.org>, Chris Mason <chris.mason@oracle.com>, Jeff Layton <jlayton@redhat.com>, Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>, Joel Becker <jlbec@evilplan.org>, "Martin K. Petersen" <martin.petersen@oracle.com>, Jens Axboe <axboe@kernel.dk>, linux-kernel <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Mingming Cao <mcao@us.ibm.com>, linux-scsi <linux-scsi@vger.kernel.org>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-ext4 <linux-ext4@vger.kernel.org>
+To: Arnd Bergmann <arnd@arndb.de>
+Cc: linux-mm@kvack.org, linux-mmc@vger.kernel.org, linaro-kernel@lists.linaro.org
 
-On Wed, May 04, 2011 at 10:42:27AM -0700, Darrick J. Wong wrote:
-> When grabbing a page for a buffered IO write, the mm should wait for writeback
-> on the page to complete so that the page does not become writable during the IO
-> operation.
-> 
-> Signed-off-by: Darrick J. Wong <djwong@us.ibm.com>
-> ---
-> 
->  mm/filemap.c |    5 ++++-
->  1 files changed, 4 insertions(+), 1 deletions(-)
-> 
-> diff --git a/mm/filemap.c b/mm/filemap.c
-> index c641edf..c22675f 100644
-> --- a/mm/filemap.c
-> +++ b/mm/filemap.c
-> @@ -2287,8 +2287,10 @@ struct page *grab_cache_page_write_begin(struct address_space *mapping,
->  		gfp_notmask = __GFP_FS;
->  repeat:
->  	page = find_lock_page(mapping, index);
-> -	if (page)
-> +	if (page) {
-> +		wait_on_page_writeback(page);
->  		return page;
-> +	}
+On 3 May 2011 22:02, Arnd Bergmann <arnd@arndb.de> wrote:
+> On Tuesday 03 May 2011 20:54:43 Per Forlin wrote:
+>> >> page_not_up_to_date:
+>> >> /* Get exclusive access to the page ... */
+>> >> error = lock_page_killable(page);
+>> > I looked at the code in do_generic_file_read(). lock_page_killable
+>> > waits until the current read ahead is completed.
+>> > Is it possible to configure the read ahead to push multiple read
+>> > request to the block device queue?add
+>
+> I believe sleeping in __lock_page_killable is the best possible scenario.
+> Most cards I've seen work best when you use at least 64KB reads, so it will
+> be faster to wait there than to read smaller units.
+>
+Sleeping is ok but I don't wont the read execution to stop (mmc going
+to idle when there is actually more to read).
+I did an interesting discovery when I forced host mmc_req_size to 64k
+The reads now look like:
+dd if=/dev/mmcblk0 of=/dev/null bs=4k count=256
+ [mmc_queue_thread] req d955f9b0 blocks 32
+ [mmc_queue_thread] req   (null) blocks 0
+ [mmc_queue_thread] req   (null) blocks 0
+ [mmc_queue_thread] req d955f9b0 blocks 64
+ [mmc_queue_thread] req   (null) blocks 0
+ [mmc_queue_thread] req d955f8d8 blocks 128
+ [mmc_queue_thread] req   (null) blocks 0
+ [mmc_queue_thread] req d955f9b0 blocks 128
+ [mmc_queue_thread] req d955f800 blocks 128
+ [mmc_queue_thread] req d955f8d8 blocks 128
+ [do_generic_file_read] lock_page_killable-wait sec 0 nsec 7811230
+ [mmc_queue_thread] req d955fec0 blocks 128
+ [mmc_queue_thread] req d955f800 blocks 128
+ [do_generic_file_read] lock_page_killable-wait sec 0 nsec 7811492
+ [mmc_queue_thread] req d955f9b0 blocks 128
+ [mmc_queue_thread] req d967cd30 blocks 128
+ [do_generic_file_read] lock_page_killable-wait sec 0 nsec 7810848
+ [mmc_queue_thread] req d967cc58 blocks 128
+ [mmc_queue_thread] req d967cb80 blocks 128
+ [do_generic_file_read] lock_page_killable-wait sec 0 nsec 7810654
+ [mmc_queue_thread] req d967caa8 blocks 128
+ [mmc_queue_thread] req d967c9d0 blocks 128
+ [mmc_queue_thread] req d967c8f8 blocks 128
+ [do_generic_file_read] lock_page_killable-wait sec 0 nsec 7810652
+ [mmc_queue_thread] req d967c820 blocks 128
+ [mmc_queue_thread] req d967c748 blocks 128
+ [do_generic_file_read] lock_page_killable-wait sec 0 nsec 7810952
+ [mmc_queue_thread] req d967c670 blocks 128
+ [mmc_queue_thread] req d967c598 blocks 128
+ [mmc_queue_thread] req d967c4c0 blocks 128
+ [mmc_queue_thread] req d967c3e8 blocks 128
+ [mmc_queue_thread] req   (null) blocks 0
+ [mmc_queue_thread] req   (null) blocks 0
+The mmc queue never runs empty until end of transfer.. The requests
+are 128 blocks (64k limit set in mmc host driver) compared to 256
+blocks before. This will not improve performance much since the
+transfer now are smaller than before. The latency is minimal but
+instead there extra number of transfer cause more mmc cmd overhead.
+I added prints to print the wait time in lock_page_killable too.
+I wonder if I can achieve a none empty mmc block queue without
+compromising the mmc host driver performance.
 
-		goto found;
-
->  
->  	page = __page_cache_alloc(mapping_gfp_mask(mapping) & ~gfp_notmask);
->  	if (!page)
-> @@ -2301,6 +2303,7 @@ repeat:
->  			goto repeat;
->  		return NULL;
->  	}
-
-found:
-> +	wait_on_page_writeback(page);
->  	return page;
->  }
->  EXPORT_SYMBOL(grab_cache_page_write_begin);
+Regards,
+Per
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
