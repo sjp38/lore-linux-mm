@@ -1,92 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 72BF36B0022
-	for <linux-mm@kvack.org>; Wed,  4 May 2011 19:10:29 -0400 (EDT)
-Date: Wed, 4 May 2011 16:10:20 -0700
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 0B7EE6B0023
+	for <linux-mm@kvack.org>; Wed,  4 May 2011 19:37:29 -0400 (EDT)
+Date: Wed, 4 May 2011 16:36:57 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 0/8] avoid allocation in show_numa_map()
-Message-Id: <20110504161020.e2d0a7f2.akpm@linux-foundation.org>
-In-Reply-To: <1303947349-3620-1-git-send-email-wilsons@start.ca>
-References: <1303947349-3620-1-git-send-email-wilsons@start.ca>
+Subject: Re: [PATCH 3/3] comm: ext4: Protect task->comm access by using
+ get_task_comm()
+Message-Id: <20110504163657.52dca3fc.akpm@linux-foundation.org>
+In-Reply-To: <alpine.DEB.2.00.1104281426210.21665@chino.kir.corp.google.com>
+References: <1303963411-2064-1-git-send-email-john.stultz@linaro.org>
+	<1303963411-2064-4-git-send-email-john.stultz@linaro.org>
+	<alpine.DEB.2.00.1104281426210.21665@chino.kir.corp.google.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Stephen Wilson <wilsons@start.ca>
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jeremy Fitzhardinge <jeremy@goop.org>
+To: David Rientjes <rientjes@google.com>
+Cc: John Stultz <john.stultz@linaro.org>, LKML <linux-kernel@vger.kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org
 
-On Wed, 27 Apr 2011 19:35:41 -0400
-Stephen Wilson <wilsons@start.ca> wrote:
+On Thu, 28 Apr 2011 14:35:32 -0700 (PDT)
+David Rientjes <rientjes@google.com> wrote:
 
-> Recently a concern was raised[1] that performing an allocation while holding a
-> reference on a tasks mm could lead to a stalemate in the oom killer.  The
-> concern was specific to the goings-on in /proc.  Hugh Dickins stated the issue
-> thusly:
+> On Wed, 27 Apr 2011, John Stultz wrote:
 > 
->     ...imagine what happens if the system is out of memory, and the mm
->     we're looking at is selected for killing by the OOM killer: while we
->     wait in __get_free_page for more memory, no memory is freed from the
->     selected mm because it cannot reach exit_mmap while we hold that
->     reference.
+> > diff --git a/fs/ext4/file.c b/fs/ext4/file.c
+> > index 7b80d54..d37414e 100644
+> > --- a/fs/ext4/file.c
+> > +++ b/fs/ext4/file.c
+> > @@ -124,11 +124,15 @@ ext4_file_write(struct kiocb *iocb, const struct iovec *iov,
+> >  		static unsigned long unaligned_warn_time;
+> >  
+> >  		/* Warn about this once per day */
+> > -		if (printk_timed_ratelimit(&unaligned_warn_time, 60*60*24*HZ))
+> > +		if (printk_timed_ratelimit(&unaligned_warn_time, 60*60*24*HZ)) {
+> > +			char comm[TASK_COMM_LEN];
+> > +
+> > +			get_task_comm(comm, current);
+> >  			ext4_msg(inode->i_sb, KERN_WARNING,
+> >  				 "Unaligned AIO/DIO on inode %ld by %s; "
+> >  				 "performance will be poor.",
+> > -				 inode->i_ino, current->comm);
+> > +				 inode->i_ino, comm);
+> > +		}
+> >  		mutex_lock(ext4_aio_mutex(inode));
+> >  		ext4_aiodio_wait(inode);
+> >  	}
 > 
-> The primary goal of this series is to eliminate repeated allocation/free cycles
-> currently happening in show_numa_maps() while we hold a reference to an mm.
+> Thanks very much for looking into concurrent readers of current->comm, 
+> John!
 > 
-> The strategy is to perform the allocation once when /proc/pid/numa_maps is
-> opened, before a reference on the target tasks mm is taken.
+> This patch in the series demonstrates one of the problems with using 
+> get_task_comm(), however: we must allocate a 16-byte buffer on the stack 
+> and that could become risky if we don't know its current depth.  We may be 
+> particularly deep in the stack and then cause an overflow because of the 
+> 16 bytes.
 > 
-> Unfortunately, show_numa_maps() is implemented in mm/mempolicy.c while the
-> primary procfs implementation  lives in fs/proc/task_mmu.c.  This makes
-> clean cooperation between show_numa_maps() and the other seq_file operations
-> (start(), stop(), etc) difficult.
-> 
-> 
-> Patches 1-5 convert show_numa_maps() to use the generic walk_page_range()
-> functionality instead of the mempolicy.c specific page table walking logic.
-> Also, get_vma_policy() is exported.  This makes the show_numa_maps()
-> implementation independent of mempolicy.c. 
-> 
-> Patch 6 moves show_numa_maps() and supporting routines over to
-> fs/proc/task_mmu.c.
-> 
-> Finally, patches 7 and 8 provide minor cleanup and eliminates the troublesome
-> allocation.
-> 
->  
-> Please note that moving show_numa_maps() into fs/proc/task_mmu.c essentially
-> reverts 1a75a6c825 and 48fce3429d.  Also, please see the discussion at [2].  My
-> main justifications for moving the code back into task_mmu.c is:
-> 
->   - Having the show() operation "miles away" from the corresponding
->     seq_file iteration operations is a maintenance burden. 
->     
->   - The need to export ad hoc info like struct proc_maps_private is
->     eliminated.
-> 
-> 
-> These patches are based on v2.6.39-rc5.
+> I'm wondering if it would be better for ->comm to be protected by a 
+> spinlock (or rwlock) other than ->alloc_lock and then just require readers 
+> to take the lock prior to dereferencing it?  That's what is done in the 
+> oom killer with task_lock().  Perhaps you could introduce new 
+> task_comm_lock() and task_comm_unlock() to prevent the extra stack usage 
+> in over 300 locations within the kernel?
 
-The patches look reasonable.  It would be nice to get some more review
-happening (poke).
+16 bytes isn't all that much.  It's just two longs worth.
 
-> 
-> Please note that this series is VERY LIGHTLY TESTED.  I have been using
-> CONFIG_NUMA_EMU=y thus far as I will not have access to a real NUMA system for
-> another week or two.
+I'm suspecting that approximately 100% of the get_task_comm() callsites
+are using it for a printk, so how about we add a %p thingy for it then
+zap lots of code?
 
-"lightly tested" evokes fear, but the patches don't look too scary to
-me.
-
-Did you look at using apply_to_page_range()?
-
-I'm trying to remember why we're carrying both walk_page_range() and
-apply_to_page_range() but can't immediately think of a reason.
-
-There's also an apply_to_page_range_batch() in -mm but that code is
-broken on PPC and not much is happening with it, so it will probably go
-away again.
-
+I read the changelogs and can't work out why a seqlock was added.  What
+was wrong with the task_lock()?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
