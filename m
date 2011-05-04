@@ -1,31 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 0B34B6B0023
-	for <linux-mm@kvack.org>; Wed,  4 May 2011 18:11:28 -0400 (EDT)
-Date: Thu, 5 May 2011 00:11:25 +0200
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH] Allocate memory cgroup structures in local nodes v2 II
-Message-ID: <20110504221125.GB2925@one.firstfloor.org>
-References: <1304540783-8247-1-git-send-email-andi@firstfloor.org> <20110504213850.GA16685@cmpxchg.org>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 72BF36B0022
+	for <linux-mm@kvack.org>; Wed,  4 May 2011 19:10:29 -0400 (EDT)
+Date: Wed, 4 May 2011 16:10:20 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 0/8] avoid allocation in show_numa_map()
+Message-Id: <20110504161020.e2d0a7f2.akpm@linux-foundation.org>
+In-Reply-To: <1303947349-3620-1-git-send-email-wilsons@start.ca>
+References: <1303947349-3620-1-git-send-email-wilsons@start.ca>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110504213850.GA16685@cmpxchg.org>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andi Kleen <andi@firstfloor.org>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andi Kleen <ak@linux.intel.com>, rientjes@google.com, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Balbir Singh <balbir@in.ibm.com>
+To: Stephen Wilson <wilsons@start.ca>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jeremy Fitzhardinge <jeremy@goop.org>
 
-> alloc_pages_exact_node takes an order, not a size argument.
+On Wed, 27 Apr 2011 19:35:41 -0400
+Stephen Wilson <wilsons@start.ca> wrote:
+
+> Recently a concern was raised[1] that performing an allocation while holding a
+> reference on a tasks mm could lead to a stalemate in the oom killer.  The
+> concern was specific to the goings-on in /proc.  Hugh Dickins stated the issue
+> thusly:
 > 
-> alloc_pages_exact_node returns a pointer to the struct page, not to
-> the allocated memory, like all other alloc_pages* functions with the
-> exception of alloc_pages_exact.
+>     ...imagine what happens if the system is out of memory, and the mm
+>     we're looking at is selected for killing by the OOM killer: while we
+>     wait in __get_free_page for more memory, no memory is freed from the
+>     selected mm because it cannot reach exit_mmap while we hold that
+>     reference.
+> 
+> The primary goal of this series is to eliminate repeated allocation/free cycles
+> currently happening in show_numa_maps() while we hold a reference to an mm.
+> 
+> The strategy is to perform the allocation once when /proc/pid/numa_maps is
+> opened, before a reference on the target tasks mm is taken.
+> 
+> Unfortunately, show_numa_maps() is implemented in mm/mempolicy.c while the
+> primary procfs implementation  lives in fs/proc/task_mmu.c.  This makes
+> clean cooperation between show_numa_maps() and the other seq_file operations
+> (start(), stop(), etc) difficult.
+> 
+> 
+> Patches 1-5 convert show_numa_maps() to use the generic walk_page_range()
+> functionality instead of the mempolicy.c specific page table walking logic.
+> Also, get_vma_policy() is exported.  This makes the show_numa_maps()
+> implementation independent of mempolicy.c. 
+> 
+> Patch 6 moves show_numa_maps() and supporting routines over to
+> fs/proc/task_mmu.c.
+> 
+> Finally, patches 7 and 8 provide minor cleanup and eliminates the troublesome
+> allocation.
+> 
+>  
+> Please note that moving show_numa_maps() into fs/proc/task_mmu.c essentially
+> reverts 1a75a6c825 and 48fce3429d.  Also, please see the discussion at [2].  My
+> main justifications for moving the code back into task_mmu.c is:
+> 
+>   - Having the show() operation "miles away" from the corresponding
+>     seq_file iteration operations is a maintenance burden. 
+>     
+>   - The need to export ad hoc info like struct proc_maps_private is
+>     eliminated.
+> 
+> 
+> These patches are based on v2.6.39-rc5.
 
-In addition to all of this it's also not exact, but just a normal
-order of two allocation.
+The patches look reasonable.  It would be nice to get some more review
+happening (poke).
 
--Andi
+> 
+> Please note that this series is VERY LIGHTLY TESTED.  I have been using
+> CONFIG_NUMA_EMU=y thus far as I will not have access to a real NUMA system for
+> another week or two.
+
+"lightly tested" evokes fear, but the patches don't look too scary to
+me.
+
+Did you look at using apply_to_page_range()?
+
+I'm trying to remember why we're carrying both walk_page_range() and
+apply_to_page_range() but can't immediately think of a reason.
+
+There's also an apply_to_page_range_batch() in -mm but that code is
+broken on PPC and not much is happening with it, so it will probably go
+away again.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
