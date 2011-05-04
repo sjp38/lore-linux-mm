@@ -1,68 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id E2EC76B0011
-	for <linux-mm@kvack.org>; Wed,  4 May 2011 16:00:36 -0400 (EDT)
-Received: from d01relay06.pok.ibm.com (d01relay06.pok.ibm.com [9.56.227.116])
-	by e4.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p44Je2OS002288
-	for <linux-mm@kvack.org>; Wed, 4 May 2011 15:40:02 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p44K0XGt1364194
-	for <linux-mm@kvack.org>; Wed, 4 May 2011 16:00:34 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p44K0WlC030935
-	for <linux-mm@kvack.org>; Wed, 4 May 2011 17:00:33 -0300
-Date: Wed, 4 May 2011 13:00:31 -0700
-From: "Darrick J. Wong" <djwong@us.ibm.com>
-Subject: Re: [PATCH v3 0/3] data integrity: Stabilize pages during
-	writeback for ext4
-Message-ID: <20110504200031.GI20579@tux1.beaverton.ibm.com>
-Reply-To: djwong@us.ibm.com
-References: <20110408203135.GH1110@tux1.beaverton.ibm.com> <20110411124229.47bc28f6@corrin.poochiereds.net> <1302543595-sup-4352@think> <1302569212.2580.13.camel@mingming-laptop> <20110412005719.GA23077@infradead.org> <1302742128.2586.274.camel@mingming-laptop> <20110422000226.GA22189@tux1.beaverton.ibm.com> <20110504173704.GE20579@tux1.beaverton.ibm.com> <20110504184644.GA23246@infradead.org> <1304536162-sup-3721@think>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 9BC636B0011
+	for <linux-mm@kvack.org>; Wed,  4 May 2011 16:04:41 -0400 (EDT)
+Message-ID: <4DC1B151.7010300@linux.intel.com>
+Date: Wed, 04 May 2011 13:04:33 -0700
+From: Andi Kleen <ak@linux.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1304536162-sup-3721@think>
+Subject: Re: [PATCH] Allocate memory cgroup structures in local nodes
+References: <1304533058-18228-1-git-send-email-andi@firstfloor.org> <alpine.DEB.2.00.1105041213310.22426@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1105041213310.22426@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chris Mason <chris.mason@oracle.com>
-Cc: Christoph Hellwig <hch@infradead.org>, Theodore Ts'o <tytso@mit.edu>, Jeff Layton <jlayton@redhat.com>, Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>, Joel Becker <jlbec@evilplan.org>, "Martin K. Petersen" <martin.petersen@oracle.com>, Jens Axboe <axboe@kernel.dk>, linux-kernel <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Mingming Cao <mcao@us.ibm.com>, linux-scsi <linux-scsi@vger.kernel.org>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Andi Kleen <andi@firstfloor.org>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Balbir Singh <balbir@in.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Wed, May 04, 2011 at 03:21:55PM -0400, Chris Mason wrote:
-> Excerpts from Christoph Hellwig's message of 2011-05-04 14:46:44 -0400:
-> > This seems to miss out on a lot of the generic functionality like
-> > write_cache_pages and block_page_mkwrite and just patch it into
-> > the ext4 copy & paste variants.  Please make sure your patches also
-> > work for filesystem that use more of the generic functionality like
-> > xfs or ext2 (the latter one might be fun for the mmap case).
-> 
-> Probably after the block_commit_write in block_page_mkwrite()
 
-Yes, I'm working on providing more generic fixes for ext3 & friends too, but
-they're not really working yet, so I was posting the parts that fix ext4, since
-they seem usable.
+> Before that's considered, the order of the arguments to
+> alloc_pages_exact_node() needs to be fixed.
 
-> Another question is, do we want to introduce a wait_on_stable_page_writeback()?
-> 
-> This would allow us to add a check against the bdi requesting stable
-> pages.
+Good point. I'll send another one.
 
-Sounds like a good idea.
+This is really misleading BTW. Grumble.  Maybe it would be actually 
+better to
+change the prototype too.
 
-> > Also what's the status of btrfs?  I remembered there was one or two
-> > bits missing despite doing the right thing in most areas.
-> 
-> As far as I know btrfs is getting it right.  The only bit missing is the
-> one Nick Piggin pointed out where it is possible to change mmap'd O_DIRECT
-> memory in flight while a DIO is in progress.  Josef has a test case that
-> demonstrates this.
-> 
-> Nick had a plan to fix it, but it involved redoing the get_user_pages
-> api.
 
-I ran the same six tests A-F on btrfs and it reported -ENOSPC with 1% of the
-space used, though until it did that I didn't see any checksum errors.
+>  The vmalloc_node() calls ensure that the nid is actually set in
+>N_HIGH_MEMORY and fails otherwise (we don't fallback to using vmalloc()),
+>so it looks like the failures for alloc_pages_exact_node() and
+>vmalloc_node() would be different?  Why do we want to fallback for one and
+>not the other?
 
---D
+The right order would be to try everything (alloc_pages + vmalloc)
+to get it node local, before trying everything else. Right now that's
+not how it's done.
+
+-Andi
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
