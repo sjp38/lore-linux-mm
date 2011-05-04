@@ -1,83 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id A13FA6B0011
-	for <linux-mm@kvack.org>; Wed,  4 May 2011 15:17:31 -0400 (EDT)
-Received: from wpaz37.hot.corp.google.com (wpaz37.hot.corp.google.com [172.24.198.101])
-	by smtp-out.google.com with ESMTP id p44JHPu8020012
-	for <linux-mm@kvack.org>; Wed, 4 May 2011 12:17:26 -0700
-Received: from pwj5 (pwj5.prod.google.com [10.241.219.69])
-	by wpaz37.hot.corp.google.com with ESMTP id p44JHNof009230
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 4 May 2011 12:17:24 -0700
-Received: by pwj5 with SMTP id 5so827761pwj.12
-        for <linux-mm@kvack.org>; Wed, 04 May 2011 12:17:23 -0700 (PDT)
-Date: Wed, 4 May 2011 12:17:22 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] Allocate memory cgroup structures in local nodes
-In-Reply-To: <1304533058-18228-1-git-send-email-andi@firstfloor.org>
-Message-ID: <alpine.DEB.2.00.1105041213310.22426@chino.kir.corp.google.com>
-References: <1304533058-18228-1-git-send-email-andi@firstfloor.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 0FCD46B0011
+	for <linux-mm@kvack.org>; Wed,  4 May 2011 15:22:55 -0400 (EDT)
+Content-Type: text/plain; charset=UTF-8
+From: Chris Mason <chris.mason@oracle.com>
+Subject: Re: [PATCH v3 0/3] data integrity: Stabilize pages during writeback for ext4
+In-reply-to: <20110504184644.GA23246@infradead.org>
+References: <20110406232938.GF1110@tux1.beaverton.ibm.com> <20110407165700.GB7363@quack.suse.cz> <20110408203135.GH1110@tux1.beaverton.ibm.com> <20110411124229.47bc28f6@corrin.poochiereds.net> <1302543595-sup-4352@think> <1302569212.2580.13.camel@mingming-laptop> <20110412005719.GA23077@infradead.org> <1302742128.2586.274.camel@mingming-laptop> <20110422000226.GA22189@tux1.beaverton.ibm.com> <20110504173704.GE20579@tux1.beaverton.ibm.com> <20110504184644.GA23246@infradead.org>
+Date: Wed, 04 May 2011 15:21:55 -0400
+Message-Id: <1304536162-sup-3721@think>
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Balbir Singh <balbir@in.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: "Darrick J. Wong" <djwong@us.ibm.com>, Theodore Ts'o <tytso@mit.edu>, Jeff Layton <jlayton@redhat.com>, Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>, Joel Becker <jlbec@evilplan.org>, "Martin K. Petersen" <martin.petersen@oracle.com>, Jens Axboe <axboe@kernel.dk>, linux-kernel <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Mingming Cao <mcao@us.ibm.com>, linux-scsi <linux-scsi@vger.kernel.org>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>
 
-On Wed, 4 May 2011, Andi Kleen wrote:
+Excerpts from Christoph Hellwig's message of 2011-05-04 14:46:44 -0400:
+> This seems to miss out on a lot of the generic functionality like
+> write_cache_pages and block_page_mkwrite and just patch it into
+> the ext4 copy & paste variants.  Please make sure your patches also
+> work for filesystem that use more of the generic functionality like
+> xfs or ext2 (the latter one might be fun for the mmap case).
 
-> From: Andi Kleen <ak@linux.intel.com>
-> 
-> [Andrew: since this is a regression and a very simple fix
-> could you still consider it for .39? Thanks]
-> 
+Probably after the block_commit_write in block_page_mkwrite()
+Another question is, do we want to introduce a wait_on_stable_page_writeback()?
 
-Before that's considered, the order of the arguments to 
-alloc_pages_exact_node() needs to be fixed.
+This would allow us to add a check against the bdi requesting stable
+pages.
 
-> dde79e005a769 added a regression that the memory cgroup data structures
-> all end up in node 0 because the first attempt at allocating them
-> would not pass in a node hint. Since the initialization runs on CPU #0
-> it would all end up node 0. This is a problem on large memory systems,
-> where node 0 would lose a lot of memory.
 > 
-> Change the alloc_pages_exact to alloc_pages_exact_node. This will
-> still fall back to other nodes if not enough memory is available.
-> 
+> Also what's the status of btrfs?  I remembered there was one or two
+> bits missing despite doing the right thing in most areas.
 
-The vmalloc_node() calls ensure that the nid is actually set in 
-N_HIGH_MEMORY and fails otherwise (we don't fallback to using vmalloc()), 
-so it looks like the failures for alloc_pages_exact_node() and 
-vmalloc_node() would be different?  Why do we want to fallback for one and 
-not the other?
+As far as I know btrfs is getting it right.  The only bit missing is the
+one Nick Piggin pointed out where it is possible to change mmap'd O_DIRECT
+memory in flight while a DIO is in progress.  Josef has a test case that
+demonstrates this.
 
-> [RED-PEN: right now it would fall back first before trying
-> vmalloc_node. Probably not the best strategy ... But I left it like
-> that for now.]
-> 
-> Reported-by: Doug Nelson
-> CC: Michal Hocko <mhocko@suse.cz>
-> Cc: Dave Hansen <dave@linux.vnet.ibm.com>
-> Cc: Balbir Singh <balbir@in.ibm.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Signed-off-by: Andi Kleen <ak@linux.intel.com>
-> ---
->  mm/page_cgroup.c |    2 +-
->  1 files changed, 1 insertions(+), 1 deletions(-)
-> 
-> diff --git a/mm/page_cgroup.c b/mm/page_cgroup.c
-> index 9905501..1f4e20f 100644
-> --- a/mm/page_cgroup.c
-> +++ b/mm/page_cgroup.c
-> @@ -134,7 +134,7 @@ static void *__init_refok alloc_page_cgroup(size_t size, int nid)
->  {
->  	void *addr = NULL;
->  
-> -	addr = alloc_pages_exact(size, GFP_KERNEL | __GFP_NOWARN);
-> +	addr = alloc_pages_exact_node(nid, size, GFP_KERNEL | __GFP_NOWARN);
->  	if (addr)
->  		return addr;
->  
+Nick had a plan to fix it, but it involved redoing the get_user_pages
+api.
+
+-chris
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
