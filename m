@@ -1,42 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 520A96B0011
-	for <linux-mm@kvack.org>; Wed,  4 May 2011 04:55:38 -0400 (EDT)
-Date: Wed, 4 May 2011 10:55:34 +0200
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 107D06B0011
+	for <linux-mm@kvack.org>; Wed,  4 May 2011 04:58:53 -0400 (EDT)
+Date: Wed, 4 May 2011 10:58:51 +0200
 From: Michal Hocko <mhocko@suse.cz>
 Subject: Re: [PATCH 1/7] memcg: add high/low watermark to res_counter
-Message-ID: <20110504085533.GB1375@tiehlicka.suse.cz>
+Message-ID: <20110504085851.GC1375@tiehlicka.suse.cz>
 References: <20110425182849.ab708f12.kamezawa.hiroyu@jp.fujitsu.com>
  <20110429133313.GB306@tiehlicka.suse.cz>
  <20110501150410.75D2.A69D9226@jp.fujitsu.com>
  <20110503064945.GA18927@tiehlicka.suse.cz>
  <BANLkTimmpHcSJuO_8+P=GjYf+wB=Nyq=4w@mail.gmail.com>
  <20110503082550.GD18927@tiehlicka.suse.cz>
- <BANLkTi=ZNWG97XgTGoK6moHds4MTQHXAHg@mail.gmail.com>
+ <BANLkTikZtOdzsnjH=43AegLCpYc6ecfKsg@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <BANLkTi=ZNWG97XgTGoK6moHds4MTQHXAHg@mail.gmail.com>
+In-Reply-To: <BANLkTikZtOdzsnjH=43AegLCpYc6ecfKsg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ying Han <yinghan@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Johannes Weiner <jweiner@redhat.com>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>
+To: Ying Han <yinghan@google.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Johannes Weiner <jweiner@redhat.com>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>
 
-On Wed 04-05-11 12:55:19, KOSAKI Motohiro wrote:
+On Tue 03-05-11 10:01:27, Ying Han wrote:
+> On Tue, May 3, 2011 at 1:25 AM, Michal Hocko <mhocko@suse.cz> wrote:
+> > On Tue 03-05-11 16:45:23, KOSAKI Motohiro wrote:
+> >> 2011/5/3 Michal Hocko <mhocko@suse.cz>:
+> >> > On Sun 01-05-11 15:06:02, KOSAKI Motohiro wrote:
+> >> >> > On Mon 25-04-11 18:28:49, KAMEZAWA Hiroyuki wrote:
+[...]
+> >> >> Can you please clarify this? I feel it is not opposite semantics.
+> >> >
+> >> > In the global reclaim low watermark represents the point when we _start_
+> >> > background reclaim while high watermark is the _stopper_. Watermarks are
+> >> > based on the free memory while this proposal makes it based on the used
+> >> > memory.
+> >> > I understand that the result is same in the end but it is really
+> >> > confusing because you have to switch your mindset from free to used and
+> >> > from under the limit to above the limit.
+> >>
 > >> Ah, right. So, do you have an alternative idea?
 > >
 > > Why cannot we just keep the global reclaim semantic and make it free
 > > memory (hard_limit - usage_in_bytes) based with low limit as the trigger
 > > for reclaiming?
 > 
-> Because it's not free memory. 
+[...]
+> The current scheme 
 
-In some sense it is because it defines the available memory for a group.
+What is the current scheme?
 
-> the cgroup doesn't reach a limit. but....
-
-Same way how we do not get down to no free memory (due to reserves
-etc.). Or am I missing something.
+> is closer to the global bg reclaim which the low is triggering reclaim
+> and high is stopping reclaim. And we can only use the "usage" to keep
+> the same API.
 
 -- 
 Michal Hocko
