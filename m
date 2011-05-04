@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D00E6B0011
-	for <linux-mm@kvack.org>; Tue,  3 May 2011 21:56:37 -0400 (EDT)
-Received: by wyf19 with SMTP id 19so677289wyf.14
-        for <linux-mm@kvack.org>; Tue, 03 May 2011 18:56:32 -0700 (PDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id D97206B0022
+	for <linux-mm@kvack.org>; Tue,  3 May 2011 22:32:04 -0400 (EDT)
+Received: by wyf19 with SMTP id 19so692796wyf.14
+        for <linux-mm@kvack.org>; Tue, 03 May 2011 19:32:01 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20110428133644.GA12400@localhost>
+In-Reply-To: <BANLkTimpT-N5--3QjcNg8CyNNwfEWxFyKA@mail.gmail.com>
 References: <BANLkTin8mE=DLWma=U+CdJaQW03X2M2W1w@mail.gmail.com>
 	<20110426055521.GA18473@localhost>
 	<BANLkTik8k9A8N8CPk+eXo9c_syxJFRyFCA@mail.gmail.com>
@@ -17,175 +17,337 @@ References: <BANLkTin8mE=DLWma=U+CdJaQW03X2M2W1w@mail.gmail.com>
 	<20110426092029.GA27053@localhost>
 	<20110426124743.e58d9746.akpm@linux-foundation.org>
 	<20110428133644.GA12400@localhost>
-Date: Wed, 4 May 2011 09:56:31 +0800
-Message-ID: <BANLkTimpT-N5--3QjcNg8CyNNwfEWxFyKA@mail.gmail.com>
+	<BANLkTimpT-N5--3QjcNg8CyNNwfEWxFyKA@mail.gmail.com>
+Date: Wed, 4 May 2011 10:32:01 +0800
+Message-ID: <BANLkTi=q6oKMewfWAN+2UgEmaVt03W_gLQ@mail.gmail.com>
 Subject: Re: [RFC][PATCH] mm: cut down __GFP_NORETRY page allocation failures
 From: Dave Young <hidave.darkstar@gmail.com>
 Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: base64
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Wu Fengguang <fengguang.wu@intel.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Mel Gorman <mel@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, Dave Chinner <david@fromorbit.com>, David Rientjes <rientjes@google.com>
 
-T24gVGh1LCBBcHIgMjgsIDIwMTEgYXQgOTozNiBQTSwgV3UgRmVuZ2d1YW5nIDxmZW5nZ3Vhbmcu
-d3VAaW50ZWwuY29tPiB3cm90ZToKPiBDb25jdXJyZW50IHBhZ2UgYWxsb2NhdGlvbnMgYXJlIHN1
-ZmZlcmluZyBmcm9tIGhpZ2ggZmFpbHVyZSByYXRlcy4KPgo+IE9uIGEgOHAsIDNHQiByYW0gdGVz
-dCBib3gsIHdoZW4gcmVhZGluZyAxMDAwIHNwYXJzZSBmaWxlcyBvZiBzaXplIDFHQiwKPiB0aGUg
-cGFnZSBhbGxvY2F0aW9uIGZhaWx1cmVzIGFyZQo+Cj4gbnJfYWxsb2NfZmFpbCA3MzMgwqAgwqAg
-wqAgIyBpbnRlcmxlYXZlZCByZWFkcyBieSAxIHNpbmdsZSB0YXNrCj4gbnJfYWxsb2NfZmFpbCAx
-MTc5OSDCoCDCoCAjIGNvbmN1cnJlbnQgcmVhZHMgYnkgMTAwMCB0YXNrcwo+Cj4gVGhlIGNvbmN1
-cnJlbnQgcmVhZCB0ZXN0IHNjcmlwdCBpczoKPgo+IMKgIMKgIMKgIMKgZm9yIGkgaW4gYHNlcSAx
-MDAwYAo+IMKgIMKgIMKgIMKgZG8KPiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoHRydW5jYXRlIC1z
-IDFHIC9mcy9zcGFyc2UtJGkKPiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoGRkIGlmPS9mcy9zcGFy
-c2UtJGkgb2Y9L2Rldi9udWxsICYKPiDCoCDCoCDCoCDCoGRvbmUKPgoKV2l0aCBDb3JlMiBEdW8s
-IDNHIHJhbSwgTm8gc3dhcCBwYXJ0aXRpb24gSSBjYW4gbm90IHByb2R1Y2UgdGhlIGFsbG9jIGZh
-aWwKCj4gSW4gb3JkZXIgZm9yIGdldF9wYWdlX2Zyb21fZnJlZWxpc3QoKSB0byBnZXQgZnJlZSBw
-YWdlLAo+Cj4gKDEpIHRyeV90b19mcmVlX3BhZ2VzKCkgc2hvdWxkIHVzZSBtdWNoIGhpZ2hlciAu
-bnJfdG9fcmVjbGFpbSB0aGFuIHRoZQo+IMKgIMKgY3VycmVudCBTV0FQX0NMVVNURVJfTUFYPTMy
-LCBpbiBvcmRlciB0byBkcmF3IHRoZSB6b25lIG91dCBvZiB0aGUKPiDCoCDCoHBvc3NpYmxlIGxv
-dyB3YXRlcm1hcmsgc3RhdGUgYXMgd2VsbCBhcyBmaWxsIHRoZSBwY3Agd2l0aCBlbm91Z2ggZnJl
-ZQo+IMKgIMKgcGFnZXMgdG8gb3ZlcmZsb3cgaXRzIGhpZ2ggd2F0ZXJtYXJrLgo+Cj4gKDIpIHRo
-ZSBnZXRfcGFnZV9mcm9tX2ZyZWVsaXN0KCkgX2FmdGVyXyBkaXJlY3QgcmVjbGFpbSBzaG91bGQg
-dXNlIGxvd2VyCj4gwqAgwqB3YXRlcm1hcmsgdGhhbiBpdHMgbm9ybWFsIGludm9jYXRpb25zLCBz
-byB0aGF0IGl0IGNhbiByZWFzb25hYmx5Cj4gwqAgwqAicmVzZXJ2ZSIgc29tZSBmcmVlIHBhZ2Vz
-IGZvciBpdHNlbGYgYW5kIHByZXZlbnQgb3RoZXIgY29uY3VycmVudAo+IMKgIMKgcGFnZSBhbGxv
-Y2F0b3JzIHN0ZWFsaW5nIGFsbCBpdHMgcmVjbGFpbWVkIHBhZ2VzLgo+Cj4gU29tZSBub3RlczoK
-Pgo+IC0gY29tbWl0IDllZTQ5M2NlICgibW06IHBhZ2UgYWxsb2NhdG9yOiBkcmFpbiBwZXItY3B1
-IGxpc3RzIGFmdGVyIGRpcmVjdAo+IMKgcmVjbGFpbSBhbGxvY2F0aW9uIGZhaWxzIikgaGFzIHRo
-ZSBzYW1lIHRhcmdldCwgaG93ZXZlciBpcyBvYnZpb3VzbHkKPiDCoGNvc3RseSBhbmQgbGVzcyBl
-ZmZlY3RpdmUuIEl0IHNlZW1zIG1vcmUgY2xlYW4gdG8ganVzdCByZW1vdmUgdGhlCj4gwqByZXRy
-eSBhbmQgZHJhaW4gY29kZSB0aGFuIHRvIHJldGFpbiBpdC4KPgo+IC0gaXQncyBhIGJpdCBoYWNr
-eSB0byByZWNsYWltIG1vcmUgdGhhbiByZXF1ZXN0ZWQgcGFnZXMgaW5zaWRlCj4gwqBkb190cnlf
-dG9fZnJlZV9wYWdlKCksIGFuZCBpdCB3b24ndCBoZWxwIGNncm91cCBmb3Igbm93Cj4KPiAtIGl0
-IG9ubHkgYWltcyB0byByZWR1Y2UgZmFpbHVyZXMgd2hlbiB0aGVyZSBhcmUgcGxlbnR5IG9mIHJl
-Y2xhaW1hYmxlCj4gwqBwYWdlcywgc28gaXQgc3RvcHMgdGhlIG9wcG9ydHVuaXN0aWMgcmVjbGFp
-bSB3aGVuIHNjYW5uZWQgMiB0aW1lcyBwYWdlcwo+Cj4gVGVzdCByZXN1bHRzOgo+Cj4gLSB0aGUg
-ZmFpbHVyZSByYXRlIGlzIHByZXR0eSBzZW5zaWJsZSB0byB0aGUgcGFnZSByZWNsYWltIHNpemUs
-Cj4gwqBmcm9tIDI4MiAoV01BUktfSElHSCkgdG8gNzA0IChXTUFSS19NSU4pIHRvIDEwNDk2IChT
-V0FQX0NMVVNURVJfTUFYKQo+Cj4gLSB0aGUgSVBJcyBhcmUgcmVkdWNlZCBieSBvdmVyIDEwMCB0
-aW1lcwo+Cj4gYmFzZSBrZXJuZWw6IHZhbmlsbGEgMi42LjM5LXJjMyArIF9fR0ZQX05PUkVUUlkg
-cmVhZGFoZWFkIHBhZ2UgYWxsb2NhdGlvbiBwYXRjaAo+IC0tLS0tLS0tLS0tLS0tLS0tLS0tLS0t
-LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0K
-PiBucl9hbGxvY19mYWlsIDEwNDk2Cj4gYWxsb2NzdGFsbCAxNTc2NjAyCj4KPiBzbGFic19zY2Fu
-bmVkIDIxNjMyCj4ga3N3YXBkX3N0ZWFsIDQzOTMzODIKPiBrc3dhcGRfaW5vZGVzdGVhbCAxMjQK
-PiBrc3dhcGRfbG93X3dtYXJrX2hpdF9xdWlja2x5IDg4NQo+IGtzd2FwZF9oaWdoX3dtYXJrX2hp
-dF9xdWlja2x5IDIzMjEKPiBrc3dhcGRfc2tpcF9jb25nZXN0aW9uX3dhaXQgMAo+IHBhZ2VvdXRy
-dW4gMjk0MjYKPgo+IENBTDogwqAgwqAgMjIwNDQ5IMKgIMKgIDIyMDI0NiDCoCDCoCAyMjAzNzIg
-wqAgwqAgMjIwNTU4IMKgIMKgIDIyMDI1MSDCoCDCoCAyMTk3NDAgwqAgwqAgMjIwMDQzIMKgIMKg
-IDIxOTk2OCDCoCBGdW5jdGlvbiBjYWxsIGludGVycnVwdHMKPgo+IExPQzogwqAgwqAgNTM2Mjc0
-IMKgIMKgIDUzMjUyOSDCoCDCoCA1MzE3MzQgwqAgwqAgNTM2ODAxIMKgIMKgIDUzNjUxMCDCoCDC
-oCA1MzM2NzYgwqAgwqAgNTM0ODUzIMKgIMKgIDUzMjAzOCDCoCBMb2NhbCB0aW1lciBpbnRlcnJ1
-cHRzCj4gUkVTOiDCoCDCoCDCoCAzMDMyIMKgIMKgIMKgIDIxMjggwqAgwqAgwqAgMTc5MiDCoCDC
-oCDCoCAxNzY1IMKgIMKgIMKgIDIxODQgwqAgwqAgwqAgMTcwMyDCoCDCoCDCoCAxNzU0IMKgIMKg
-IMKgIDE4NjUgwqAgUmVzY2hlZHVsaW5nIGludGVycnVwdHMKPiBUTEI6IMKgIMKgIMKgIMKgMTg5
-IMKgIMKgIMKgIMKgIDE1IMKgIMKgIMKgIMKgIDEzIMKgIMKgIMKgIMKgIDE3IMKgIMKgIMKgIMKg
-IDY0IMKgIMKgIMKgIMKgMjk0IMKgIMKgIMKgIMKgIDk3IMKgIMKgIMKgIMKgIDYzIMKgIFRMQiBz
-aG9vdGRvd25zCgpDb3VsZCB5b3UgdGVsbCBob3cgdG8gZ2V0IGFib3ZlIGluZm8/Cgo+Cj4gcGF0
-Y2hlZCAoV01BUktfTUlOKQo+IC0tLS0tLS0tLS0tLS0tLS0tLS0KPiBucl9hbGxvY19mYWlsIDcw
-NAo+IGFsbG9jc3RhbGwgMTA1NTUxCj4KPiBzbGFic19zY2FubmVkIDMzMjgwCj4ga3N3YXBkX3N0
-ZWFsIDQ1MjU1MzcKPiBrc3dhcGRfaW5vZGVzdGVhbCAxODcKPiBrc3dhcGRfbG93X3dtYXJrX2hp
-dF9xdWlja2x5IDQ5ODAKPiBrc3dhcGRfaGlnaF93bWFya19oaXRfcXVpY2tseSAyNTczCj4ga3N3
-YXBkX3NraXBfY29uZ2VzdGlvbl93YWl0IDAKPiBwYWdlb3V0cnVuIDM1NDI5Cj4KPiBDQUw6IMKg
-IMKgIMKgIMKgIDkzIMKgIMKgIMKgIMKgMjg2IMKgIMKgIMKgIMKgMzk2IMKgIMKgIMKgIMKgNzU0
-IMKgIMKgIMKgIMKgMjcyIMKgIMKgIMKgIMKgMjk3IMKgIMKgIMKgIMKgMjc1IMKgIMKgIMKgIMKg
-MjgxIMKgIEZ1bmN0aW9uIGNhbGwgaW50ZXJydXB0cwo+Cj4gTE9DOiDCoCDCoCA1MjA1NTAgwqAg
-wqAgNTE3NzUxIMKgIMKgIDUxNzA0MyDCoCDCoCA1MjIwMTYgwqAgwqAgNTIwMzAyIMKgIMKgIDUx
-ODQ3OSDCoCDCoCA1MTkzMjkgwqAgwqAgNTE3MTc5IMKgIExvY2FsIHRpbWVyIGludGVycnVwdHMK
-PiBSRVM6IMKgIMKgIMKgIDIxMzEgwqAgwqAgwqAgMTM3MSDCoCDCoCDCoCAxMzc2IMKgIMKgIMKg
-IDEyNjkgwqAgwqAgwqAgMTM5MCDCoCDCoCDCoCAxMTgxIMKgIMKgIMKgIDE0MDkgwqAgwqAgwqAg
-MTI4MCDCoCBSZXNjaGVkdWxpbmcgaW50ZXJydXB0cwo+IFRMQjogwqAgwqAgwqAgwqAyODAgwqAg
-wqAgwqAgwqAgMjYgwqAgwqAgwqAgwqAgMjcgwqAgwqAgwqAgwqAgMzAgwqAgwqAgwqAgwqAgNjUg
-wqAgwqAgwqAgwqAzMDUgwqAgwqAgwqAgwqAxMzQgwqAgwqAgwqAgwqAgNzUgwqAgVExCIHNob290
-ZG93bnMKPgo+IHBhdGNoZWQgKFdNQVJLX0hJR0gpCj4gLS0tLS0tLS0tLS0tLS0tLS0tLS0KPiBu
-cl9hbGxvY19mYWlsIDI4Mgo+IGFsbG9jc3RhbGwgNTM4NjAKPgo+IHNsYWJzX3NjYW5uZWQgMjM5
-MzYKPiBrc3dhcGRfc3RlYWwgNDU2MTE3OAo+IGtzd2FwZF9pbm9kZXN0ZWFsIDAKPiBrc3dhcGRf
-bG93X3dtYXJrX2hpdF9xdWlja2x5IDI3NjAKPiBrc3dhcGRfaGlnaF93bWFya19oaXRfcXVpY2ts
-eSAxNzQ4Cj4ga3N3YXBkX3NraXBfY29uZ2VzdGlvbl93YWl0IDAKPiBwYWdlb3V0cnVuIDMyNjM5
-Cj4KPiBDQUw6IMKgIMKgIMKgIMKgIDkzIMKgIMKgIMKgIMKgNDYzIMKgIMKgIMKgIMKgNDEwIMKg
-IMKgIMKgIMKgNTQwIMKgIMKgIMKgIMKgMjk4IMKgIMKgIMKgIMKgMjgyIMKgIMKgIMKgIMKgMjcy
-IMKgIMKgIMKgIMKgMzA2IMKgIEZ1bmN0aW9uIGNhbGwgaW50ZXJydXB0cwo+Cj4gTE9DOiDCoCDC
-oCA1MTM5NTYgwqAgwqAgNTEwNzQ5IMKgIMKgIDUwOTg5MCDCoCDCoCA1MTQ4OTcgwqAgwqAgNTE0
-MzAwIMKgIMKgIDUxMjM5MiDCoCDCoCA1MTI4MjUgwqAgwqAgNTEwNTc0IMKgIExvY2FsIHRpbWVy
-IGludGVycnVwdHMKPiBSRVM6IMKgIMKgIMKgIDExNzQgwqAgwqAgwqAgMjA4MSDCoCDCoCDCoCAx
-NDExIMKgIMKgIMKgIDEzMjAgwqAgwqAgwqAgMTc0MiDCoCDCoCDCoCAyNjgzIMKgIMKgIMKgIDEz
-ODAgwqAgwqAgwqAgMTIzMCDCoCBSZXNjaGVkdWxpbmcgaW50ZXJydXB0cwo+IFRMQjogwqAgwqAg
-wqAgwqAyNzQgwqAgwqAgwqAgwqAgMjEgwqAgwqAgwqAgwqAgMTkgwqAgwqAgwqAgwqAgMjIgwqAg
-wqAgwqAgwqAgNTcgwqAgwqAgwqAgwqAzMTcgwqAgwqAgwqAgwqAxMzEgwqAgwqAgwqAgwqAgNjEg
-wqAgVExCIHNob290ZG93bnMKPgo+IHRoaXMgcGF0Y2ggKFdNQVJLX0hJR0gsIGxpbWl0ZWQgc2Nh
-bikKPiAtLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tCj4gbnJfYWxsb2NfZmFp
-bCAyNzYKPiBhbGxvY3N0YWxsIDU0MDM0Cj4KPiBzbGFic19zY2FubmVkIDI0MzIwCj4ga3N3YXBk
-X3N0ZWFsIDQ1MDc0ODIKPiBrc3dhcGRfaW5vZGVzdGVhbCAyNjIKPiBrc3dhcGRfbG93X3dtYXJr
-X2hpdF9xdWlja2x5IDI2MzgKPiBrc3dhcGRfaGlnaF93bWFya19oaXRfcXVpY2tseSAxNzEwCj4g
-a3N3YXBkX3NraXBfY29uZ2VzdGlvbl93YWl0IDAKPiBwYWdlb3V0cnVuIDMyMTgyCj4KPiBDQUw6
-IMKgIMKgIMKgIMKgIDY5IMKgIMKgIMKgIMKgNDQzIMKgIMKgIMKgIMKgNDIxIMKgIMKgIMKgIMKg
-NTY3IMKgIMKgIMKgIMKgMjczIMKgIMKgIMKgIMKgMjc5IMKgIMKgIMKgIMKgMjY5IMKgIMKgIMKg
-IMKgMzM0IMKgIEZ1bmN0aW9uIGNhbGwgaW50ZXJydXB0cwo+Cj4gTE9DOiDCoCDCoCA1MTQ3MzYg
-wqAgwqAgNTExNjk4IMKgIMKgIDUxMDk5MyDCoCDCoCA1MTQwNjkgwqAgwqAgNTE0MTg1IMKgIMKg
-IDUxMjk4NiDCoCDCoCA1MTM4MzggwqAgwqAgNTExMjI5IMKgIExvY2FsIHRpbWVyIGludGVycnVw
-dHMKPiBSRVM6IMKgIMKgIMKgIDIxNTMgwqAgwqAgwqAgMTU1NiDCoCDCoCDCoCAxMTI2IMKgIMKg
-IMKgIDEzNTEgwqAgwqAgwqAgMzA0NyDCoCDCoCDCoCAxNTU0IMKgIMKgIMKgIDExMzEgwqAgwqAg
-wqAgMTU2MCDCoCBSZXNjaGVkdWxpbmcgaW50ZXJydXB0cwo+IFRMQjogwqAgwqAgwqAgwqAyMDkg
-wqAgwqAgwqAgwqAgMjYgwqAgwqAgwqAgwqAgMjAgwqAgwqAgwqAgwqAgMTUgwqAgwqAgwqAgwqAg
-NzEgwqAgwqAgwqAgwqAzMTUgwqAgwqAgwqAgwqAxMTcgwqAgwqAgwqAgwqAgNzEgwqAgVExCIHNo
-b290ZG93bnMKPgo+IENDOiBNZWwgR29ybWFuIDxtZWxAbGludXgudm5ldC5pYm0uY29tPgo+IFNp
-Z25lZC1vZmYtYnk6IFd1IEZlbmdndWFuZyA8ZmVuZ2d1YW5nLnd1QGludGVsLmNvbT4KPiAtLS0K
-PiDCoG1tL3BhZ2VfYWxsb2MuYyB8IMKgIDE3ICsrKy0tLS0tLS0tLS0tLS0tCj4gwqBtbS92bXNj
-YW4uYyDCoCDCoCB8IMKgIMKgNiArKysrKysKPiDCoDIgZmlsZXMgY2hhbmdlZCwgOSBpbnNlcnRp
-b25zKCspLCAxNCBkZWxldGlvbnMoLSkKPiAtLS0gbGludXgtbmV4dC5vcmlnL21tL3Ztc2Nhbi5j
-IDIwMTEtMDQtMjggMjE6MTY6MTYuMDAwMDAwMDAwICswODAwCj4gKysrIGxpbnV4LW5leHQvbW0v
-dm1zY2FuLmMgwqAgwqAgwqAyMDExLTA0LTI4IDIxOjI4OjU3LjAwMDAwMDAwMCArMDgwMAo+IEBA
-IC0xOTc4LDYgKzE5NzgsOCBAQCBzdGF0aWMgdm9pZCBzaHJpbmtfem9uZXMoaW50IHByaW9yaXR5
-LCBzCj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqBjb250
-aW51ZTsKPiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoGlmICh6b25lLT5hbGxf
-dW5yZWNsYWltYWJsZSAmJiBwcmlvcml0eSAhPSBERUZfUFJJT1JJVFkpCj4gwqAgwqAgwqAgwqAg
-wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqBjb250aW51ZTsgwqAgwqAgwqAgLyog
-TGV0IGtzd2FwZCBwb2xsIGl0ICovCj4gKyDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
-oCBzYy0+bnJfdG9fcmVjbGFpbSA9IG1heChzYy0+bnJfdG9fcmVjbGFpbSwKPiArIMKgIMKgIMKg
-IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
-IMKgIHpvbmUtPndhdGVybWFya1tXTUFSS19ISUdIXSk7Cj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAg
-wqB9Cj4KPiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoHNocmlua196b25lKHByaW9yaXR5LCB6b25l
-LCBzYyk7Cj4gQEAgLTIwMzQsNiArMjAzNiw3IEBAIHN0YXRpYyB1bnNpZ25lZCBsb25nIGRvX3Ry
-eV90b19mcmVlX3BhZ2UKPiDCoCDCoCDCoCDCoHN0cnVjdCB6b25lcmVmICp6Owo+IMKgIMKgIMKg
-IMKgc3RydWN0IHpvbmUgKnpvbmU7Cj4gwqAgwqAgwqAgwqB1bnNpZ25lZCBsb25nIHdyaXRlYmFj
-a190aHJlc2hvbGQ7Cj4gKyDCoCDCoCDCoCB1bnNpZ25lZCBsb25nIG1pbl9yZWNsYWltID0gc2Mt
-Pm5yX3RvX3JlY2xhaW07Cj4KPiDCoCDCoCDCoCDCoGdldF9tZW1zX2FsbG93ZWQoKTsKPiDCoCDC
-oCDCoCDCoGRlbGF5YWNjdF9mcmVlcGFnZXNfc3RhcnQoKTsKPiBAQCAtMjA2Nyw2ICsyMDcwLDkg
-QEAgc3RhdGljIHVuc2lnbmVkIGxvbmcgZG9fdHJ5X3RvX2ZyZWVfcGFnZQo+IMKgIMKgIMKgIMKg
-IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgfQo+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgfQo+IMKg
-IMKgIMKgIMKgIMKgIMKgIMKgIMKgdG90YWxfc2Nhbm5lZCArPSBzYy0+bnJfc2Nhbm5lZDsKPiAr
-IMKgIMKgIMKgIMKgIMKgIMKgIMKgIGlmIChzYy0+bnJfcmVjbGFpbWVkID49IG1pbl9yZWNsYWlt
-ICYmCj4gKyDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCB0b3RhbF9zY2FubmVkID4gMiAqIHNj
-LT5ucl90b19yZWNsYWltKQo+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgZ290
-byBvdXQ7Cj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqBpZiAoc2MtPm5yX3JlY2xhaW1lZCA+PSBz
-Yy0+bnJfdG9fcmVjbGFpbSkKPiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoGdv
-dG8gb3V0Owo+Cj4gLS0tIGxpbnV4LW5leHQub3JpZy9tbS9wYWdlX2FsbG9jLmMgwqAgwqAgMjAx
-MS0wNC0yOCAyMToxNjoxNi4wMDAwMDAwMDAgKzA4MDAKPiArKysgbGludXgtbmV4dC9tbS9wYWdl
-X2FsbG9jLmMgwqAyMDExLTA0LTI4IDIxOjE2OjE4LjAwMDAwMDAwMCArMDgwMAo+IEBAIC0xODg4
-LDkgKzE4ODgsOCBAQCBfX2FsbG9jX3BhZ2VzX2RpcmVjdF9yZWNsYWltKGdmcF90IGdmcF9tCj4g
-wqAgwqAgwqAgwqBub2RlbWFza190ICpub2RlbWFzaywgaW50IGFsbG9jX2ZsYWdzLCBzdHJ1Y3Qg
-em9uZSAqcHJlZmVycmVkX3pvbmUsCj4gwqAgwqAgwqAgwqBpbnQgbWlncmF0ZXR5cGUsIHVuc2ln
-bmVkIGxvbmcgKmRpZF9zb21lX3Byb2dyZXNzKQo+IMKgewo+IC0gwqAgwqAgwqAgc3RydWN0IHBh
-Z2UgKnBhZ2UgPSBOVUxMOwo+ICsgwqAgwqAgwqAgc3RydWN0IHBhZ2UgKnBhZ2U7Cj4gwqAgwqAg
-wqAgwqBzdHJ1Y3QgcmVjbGFpbV9zdGF0ZSByZWNsYWltX3N0YXRlOwo+IC0gwqAgwqAgwqAgYm9v
-bCBkcmFpbmVkID0gZmFsc2U7Cj4KPiDCoCDCoCDCoCDCoGNvbmRfcmVzY2hlZCgpOwo+Cj4gQEAg
-LTE5MTIsMjIgKzE5MTEsMTIgQEAgX19hbGxvY19wYWdlc19kaXJlY3RfcmVjbGFpbShnZnBfdCBn
-ZnBfbQo+IMKgIMKgIMKgIMKgaWYgKHVubGlrZWx5KCEoKmRpZF9zb21lX3Byb2dyZXNzKSkpCj4g
-wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqByZXR1cm4gTlVMTDsKPgo+IC1yZXRyeToKPiArIMKgIMKg
-IMKgIGFsbG9jX2ZsYWdzIHw9IEFMTE9DX0hBUkRFUjsKPiArCj4gwqAgwqAgwqAgwqBwYWdlID0g
-Z2V0X3BhZ2VfZnJvbV9mcmVlbGlzdChnZnBfbWFzaywgbm9kZW1hc2ssIG9yZGVyLAo+IMKgIMKg
-IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgem9u
-ZWxpc3QsIGhpZ2hfem9uZWlkeCwKPiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
-oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoGFsbG9jX2ZsYWdzLCBwcmVmZXJyZWRfem9uZSwKPiDC
-oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
-oG1pZ3JhdGV0eXBlKTsKPiAtCj4gLSDCoCDCoCDCoCAvKgo+IC0gwqAgwqAgwqAgwqAqIElmIGFu
-IGFsbG9jYXRpb24gZmFpbGVkIGFmdGVyIGRpcmVjdCByZWNsYWltLCBpdCBjb3VsZCBiZSBiZWNh
-dXNlCj4gLSDCoCDCoCDCoCDCoCogcGFnZXMgYXJlIHBpbm5lZCBvbiB0aGUgcGVyLWNwdSBsaXN0
-cy4gRHJhaW4gdGhlbSBhbmQgdHJ5IGFnYWluCj4gLSDCoCDCoCDCoCDCoCovCj4gLSDCoCDCoCDC
-oCBpZiAoIXBhZ2UgJiYgIWRyYWluZWQpIHsKPiAtIMKgIMKgIMKgIMKgIMKgIMKgIMKgIGRyYWlu
-X2FsbF9wYWdlcygpOwo+IC0gwqAgwqAgwqAgwqAgwqAgwqAgwqAgZHJhaW5lZCA9IHRydWU7Cj4g
-LSDCoCDCoCDCoCDCoCDCoCDCoCDCoCBnb3RvIHJldHJ5Owo+IC0gwqAgwqAgwqAgfQo+IC0KPiDC
-oCDCoCDCoCDCoHJldHVybiBwYWdlOwo+IMKgfQo+Cj4KCgoKLS0gClJlZ2FyZHMKZGF2ZQo=
+On Wed, May 4, 2011 at 9:56 AM, Dave Young <hidave.darkstar@gmail.com> wrot=
+e:
+> On Thu, Apr 28, 2011 at 9:36 PM, Wu Fengguang <fengguang.wu@intel.com> wr=
+ote:
+>> Concurrent page allocations are suffering from high failure rates.
+>>
+>> On a 8p, 3GB ram test box, when reading 1000 sparse files of size 1GB,
+>> the page allocation failures are
+>>
+>> nr_alloc_fail 733 =C2=A0 =C2=A0 =C2=A0 # interleaved reads by 1 single t=
+ask
+>> nr_alloc_fail 11799 =C2=A0 =C2=A0 # concurrent reads by 1000 tasks
+>>
+>> The concurrent read test script is:
+>>
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0for i in `seq 1000`
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0do
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0truncate -s 1G /f=
+s/sparse-$i
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0dd if=3D/fs/spars=
+e-$i of=3D/dev/null &
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0done
+>>
+>
+> With Core2 Duo, 3G ram, No swap partition I can not produce the alloc fai=
+l
+
+unset CONFIG_SCHED_AUTOGROUP and CONFIG_CGROUP_SCHED seems affects the
+test results, now I see several nr_alloc_fail (dd is not finished
+yet):
+
+dave@darkstar-32:$ grep fail /proc/vmstat:
+nr_alloc_fail 4
+compact_pagemigrate_failed 0
+compact_fail 3
+htlb_buddy_alloc_fail 0
+thp_collapse_alloc_fail 4
+
+So the result is related to cpu scheduler.
+
+>
+>> In order for get_page_from_freelist() to get free page,
+>>
+>> (1) try_to_free_pages() should use much higher .nr_to_reclaim than the
+>> =C2=A0 =C2=A0current SWAP_CLUSTER_MAX=3D32, in order to draw the zone ou=
+t of the
+>> =C2=A0 =C2=A0possible low watermark state as well as fill the pcp with e=
+nough free
+>> =C2=A0 =C2=A0pages to overflow its high watermark.
+>>
+>> (2) the get_page_from_freelist() _after_ direct reclaim should use lower
+>> =C2=A0 =C2=A0watermark than its normal invocations, so that it can reaso=
+nably
+>> =C2=A0 =C2=A0"reserve" some free pages for itself and prevent other conc=
+urrent
+>> =C2=A0 =C2=A0page allocators stealing all its reclaimed pages.
+>>
+>> Some notes:
+>>
+>> - commit 9ee493ce ("mm: page allocator: drain per-cpu lists after direct
+>> =C2=A0reclaim allocation fails") has the same target, however is obvious=
+ly
+>> =C2=A0costly and less effective. It seems more clean to just remove the
+>> =C2=A0retry and drain code than to retain it.
+>>
+>> - it's a bit hacky to reclaim more than requested pages inside
+>> =C2=A0do_try_to_free_page(), and it won't help cgroup for now
+>>
+>> - it only aims to reduce failures when there are plenty of reclaimable
+>> =C2=A0pages, so it stops the opportunistic reclaim when scanned 2 times =
+pages
+>>
+>> Test results:
+>>
+>> - the failure rate is pretty sensible to the page reclaim size,
+>> =C2=A0from 282 (WMARK_HIGH) to 704 (WMARK_MIN) to 10496 (SWAP_CLUSTER_MA=
+X)
+>>
+>> - the IPIs are reduced by over 100 times
+>>
+>> base kernel: vanilla 2.6.39-rc3 + __GFP_NORETRY readahead page allocatio=
+n patch
+>> ------------------------------------------------------------------------=
+-------
+>> nr_alloc_fail 10496
+>> allocstall 1576602
+>>
+>> slabs_scanned 21632
+>> kswapd_steal 4393382
+>> kswapd_inodesteal 124
+>> kswapd_low_wmark_hit_quickly 885
+>> kswapd_high_wmark_hit_quickly 2321
+>> kswapd_skip_congestion_wait 0
+>> pageoutrun 29426
+>>
+>> CAL: =C2=A0 =C2=A0 220449 =C2=A0 =C2=A0 220246 =C2=A0 =C2=A0 220372 =C2=
+=A0 =C2=A0 220558 =C2=A0 =C2=A0 220251 =C2=A0 =C2=A0 219740 =C2=A0 =C2=A0 2=
+20043 =C2=A0 =C2=A0 219968 =C2=A0 Function call interrupts
+>>
+>> LOC: =C2=A0 =C2=A0 536274 =C2=A0 =C2=A0 532529 =C2=A0 =C2=A0 531734 =C2=
+=A0 =C2=A0 536801 =C2=A0 =C2=A0 536510 =C2=A0 =C2=A0 533676 =C2=A0 =C2=A0 5=
+34853 =C2=A0 =C2=A0 532038 =C2=A0 Local timer interrupts
+>> RES: =C2=A0 =C2=A0 =C2=A0 3032 =C2=A0 =C2=A0 =C2=A0 2128 =C2=A0 =C2=A0 =
+=C2=A0 1792 =C2=A0 =C2=A0 =C2=A0 1765 =C2=A0 =C2=A0 =C2=A0 2184 =C2=A0 =C2=
+=A0 =C2=A0 1703 =C2=A0 =C2=A0 =C2=A0 1754 =C2=A0 =C2=A0 =C2=A0 1865 =C2=A0 =
+Rescheduling interrupts
+>> TLB: =C2=A0 =C2=A0 =C2=A0 =C2=A0189 =C2=A0 =C2=A0 =C2=A0 =C2=A0 15 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 13 =C2=A0 =C2=A0 =C2=A0 =C2=A0 17 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 64 =C2=A0 =C2=A0 =C2=A0 =C2=A0294 =C2=A0 =C2=A0 =C2=A0 =C2=A0=
+ 97 =C2=A0 =C2=A0 =C2=A0 =C2=A0 63 =C2=A0 TLB shootdowns
+>
+> Could you tell how to get above info?
+>
+>>
+>> patched (WMARK_MIN)
+>> -------------------
+>> nr_alloc_fail 704
+>> allocstall 105551
+>>
+>> slabs_scanned 33280
+>> kswapd_steal 4525537
+>> kswapd_inodesteal 187
+>> kswapd_low_wmark_hit_quickly 4980
+>> kswapd_high_wmark_hit_quickly 2573
+>> kswapd_skip_congestion_wait 0
+>> pageoutrun 35429
+>>
+>> CAL: =C2=A0 =C2=A0 =C2=A0 =C2=A0 93 =C2=A0 =C2=A0 =C2=A0 =C2=A0286 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0396 =C2=A0 =C2=A0 =C2=A0 =C2=A0754 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0272 =C2=A0 =C2=A0 =C2=A0 =C2=A0297 =C2=A0 =C2=A0 =C2=A0 =C2=A0=
+275 =C2=A0 =C2=A0 =C2=A0 =C2=A0281 =C2=A0 Function call interrupts
+>>
+>> LOC: =C2=A0 =C2=A0 520550 =C2=A0 =C2=A0 517751 =C2=A0 =C2=A0 517043 =C2=
+=A0 =C2=A0 522016 =C2=A0 =C2=A0 520302 =C2=A0 =C2=A0 518479 =C2=A0 =C2=A0 5=
+19329 =C2=A0 =C2=A0 517179 =C2=A0 Local timer interrupts
+>> RES: =C2=A0 =C2=A0 =C2=A0 2131 =C2=A0 =C2=A0 =C2=A0 1371 =C2=A0 =C2=A0 =
+=C2=A0 1376 =C2=A0 =C2=A0 =C2=A0 1269 =C2=A0 =C2=A0 =C2=A0 1390 =C2=A0 =C2=
+=A0 =C2=A0 1181 =C2=A0 =C2=A0 =C2=A0 1409 =C2=A0 =C2=A0 =C2=A0 1280 =C2=A0 =
+Rescheduling interrupts
+>> TLB: =C2=A0 =C2=A0 =C2=A0 =C2=A0280 =C2=A0 =C2=A0 =C2=A0 =C2=A0 26 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 27 =C2=A0 =C2=A0 =C2=A0 =C2=A0 30 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 65 =C2=A0 =C2=A0 =C2=A0 =C2=A0305 =C2=A0 =C2=A0 =C2=A0 =C2=A0=
+134 =C2=A0 =C2=A0 =C2=A0 =C2=A0 75 =C2=A0 TLB shootdowns
+>>
+>> patched (WMARK_HIGH)
+>> --------------------
+>> nr_alloc_fail 282
+>> allocstall 53860
+>>
+>> slabs_scanned 23936
+>> kswapd_steal 4561178
+>> kswapd_inodesteal 0
+>> kswapd_low_wmark_hit_quickly 2760
+>> kswapd_high_wmark_hit_quickly 1748
+>> kswapd_skip_congestion_wait 0
+>> pageoutrun 32639
+>>
+>> CAL: =C2=A0 =C2=A0 =C2=A0 =C2=A0 93 =C2=A0 =C2=A0 =C2=A0 =C2=A0463 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0410 =C2=A0 =C2=A0 =C2=A0 =C2=A0540 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0298 =C2=A0 =C2=A0 =C2=A0 =C2=A0282 =C2=A0 =C2=A0 =C2=A0 =C2=A0=
+272 =C2=A0 =C2=A0 =C2=A0 =C2=A0306 =C2=A0 Function call interrupts
+>>
+>> LOC: =C2=A0 =C2=A0 513956 =C2=A0 =C2=A0 510749 =C2=A0 =C2=A0 509890 =C2=
+=A0 =C2=A0 514897 =C2=A0 =C2=A0 514300 =C2=A0 =C2=A0 512392 =C2=A0 =C2=A0 5=
+12825 =C2=A0 =C2=A0 510574 =C2=A0 Local timer interrupts
+>> RES: =C2=A0 =C2=A0 =C2=A0 1174 =C2=A0 =C2=A0 =C2=A0 2081 =C2=A0 =C2=A0 =
+=C2=A0 1411 =C2=A0 =C2=A0 =C2=A0 1320 =C2=A0 =C2=A0 =C2=A0 1742 =C2=A0 =C2=
+=A0 =C2=A0 2683 =C2=A0 =C2=A0 =C2=A0 1380 =C2=A0 =C2=A0 =C2=A0 1230 =C2=A0 =
+Rescheduling interrupts
+>> TLB: =C2=A0 =C2=A0 =C2=A0 =C2=A0274 =C2=A0 =C2=A0 =C2=A0 =C2=A0 21 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 19 =C2=A0 =C2=A0 =C2=A0 =C2=A0 22 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 57 =C2=A0 =C2=A0 =C2=A0 =C2=A0317 =C2=A0 =C2=A0 =C2=A0 =C2=A0=
+131 =C2=A0 =C2=A0 =C2=A0 =C2=A0 61 =C2=A0 TLB shootdowns
+>>
+>> this patch (WMARK_HIGH, limited scan)
+>> -------------------------------------
+>> nr_alloc_fail 276
+>> allocstall 54034
+>>
+>> slabs_scanned 24320
+>> kswapd_steal 4507482
+>> kswapd_inodesteal 262
+>> kswapd_low_wmark_hit_quickly 2638
+>> kswapd_high_wmark_hit_quickly 1710
+>> kswapd_skip_congestion_wait 0
+>> pageoutrun 32182
+>>
+>> CAL: =C2=A0 =C2=A0 =C2=A0 =C2=A0 69 =C2=A0 =C2=A0 =C2=A0 =C2=A0443 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0421 =C2=A0 =C2=A0 =C2=A0 =C2=A0567 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0273 =C2=A0 =C2=A0 =C2=A0 =C2=A0279 =C2=A0 =C2=A0 =C2=A0 =C2=A0=
+269 =C2=A0 =C2=A0 =C2=A0 =C2=A0334 =C2=A0 Function call interrupts
+>>
+>> LOC: =C2=A0 =C2=A0 514736 =C2=A0 =C2=A0 511698 =C2=A0 =C2=A0 510993 =C2=
+=A0 =C2=A0 514069 =C2=A0 =C2=A0 514185 =C2=A0 =C2=A0 512986 =C2=A0 =C2=A0 5=
+13838 =C2=A0 =C2=A0 511229 =C2=A0 Local timer interrupts
+>> RES: =C2=A0 =C2=A0 =C2=A0 2153 =C2=A0 =C2=A0 =C2=A0 1556 =C2=A0 =C2=A0 =
+=C2=A0 1126 =C2=A0 =C2=A0 =C2=A0 1351 =C2=A0 =C2=A0 =C2=A0 3047 =C2=A0 =C2=
+=A0 =C2=A0 1554 =C2=A0 =C2=A0 =C2=A0 1131 =C2=A0 =C2=A0 =C2=A0 1560 =C2=A0 =
+Rescheduling interrupts
+>> TLB: =C2=A0 =C2=A0 =C2=A0 =C2=A0209 =C2=A0 =C2=A0 =C2=A0 =C2=A0 26 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 20 =C2=A0 =C2=A0 =C2=A0 =C2=A0 15 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 71 =C2=A0 =C2=A0 =C2=A0 =C2=A0315 =C2=A0 =C2=A0 =C2=A0 =C2=A0=
+117 =C2=A0 =C2=A0 =C2=A0 =C2=A0 71 =C2=A0 TLB shootdowns
+>>
+>> CC: Mel Gorman <mel@linux.vnet.ibm.com>
+>> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+>> ---
+>> =C2=A0mm/page_alloc.c | =C2=A0 17 +++--------------
+>> =C2=A0mm/vmscan.c =C2=A0 =C2=A0 | =C2=A0 =C2=A06 ++++++
+>> =C2=A02 files changed, 9 insertions(+), 14 deletions(-)
+>> --- linux-next.orig/mm/vmscan.c 2011-04-28 21:16:16.000000000 +0800
+>> +++ linux-next/mm/vmscan.c =C2=A0 =C2=A0 =C2=A02011-04-28 21:28:57.00000=
+0000 +0800
+>> @@ -1978,6 +1978,8 @@ static void shrink_zones(int priority, s
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0continue;
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0if (zone->all_unreclaimable && priority !=3D DEF_PRIORITY)
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0continue; =C2=A0 =C2=A0 =C2=A0 /* =
+Let kswapd poll it */
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 sc->nr_to_reclaim =3D max(sc->nr_to_reclaim,
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 zone->watermark[WMARK_HIGH]);
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0}
+>>
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0shrink_zone(prior=
+ity, zone, sc);
+>> @@ -2034,6 +2036,7 @@ static unsigned long do_try_to_free_page
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0struct zoneref *z;
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0struct zone *zone;
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0unsigned long writeback_threshold;
+>> + =C2=A0 =C2=A0 =C2=A0 unsigned long min_reclaim =3D sc->nr_to_reclaim;
+>>
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0get_mems_allowed();
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0delayacct_freepages_start();
+>> @@ -2067,6 +2070,9 @@ static unsigned long do_try_to_free_page
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0}
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0}
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0total_scanned +=
+=3D sc->nr_scanned;
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (sc->nr_reclaimed =
+>=3D min_reclaim &&
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 total_s=
+canned > 2 * sc->nr_to_reclaim)
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 goto out;
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0if (sc->nr_reclai=
+med >=3D sc->nr_to_reclaim)
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0goto out;
+>>
+>> --- linux-next.orig/mm/page_alloc.c =C2=A0 =C2=A0 2011-04-28 21:16:16.00=
+0000000 +0800
+>> +++ linux-next/mm/page_alloc.c =C2=A02011-04-28 21:16:18.000000000 +0800
+>> @@ -1888,9 +1888,8 @@ __alloc_pages_direct_reclaim(gfp_t gfp_m
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0nodemask_t *nodemask, int alloc_flags, struct=
+ zone *preferred_zone,
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0int migratetype, unsigned long *did_some_prog=
+ress)
+>> =C2=A0{
+>> - =C2=A0 =C2=A0 =C2=A0 struct page *page =3D NULL;
+>> + =C2=A0 =C2=A0 =C2=A0 struct page *page;
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0struct reclaim_state reclaim_state;
+>> - =C2=A0 =C2=A0 =C2=A0 bool drained =3D false;
+>>
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0cond_resched();
+>>
+>> @@ -1912,22 +1911,12 @@ __alloc_pages_direct_reclaim(gfp_t gfp_m
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0if (unlikely(!(*did_some_progress)))
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0return NULL;
+>>
+>> -retry:
+>> + =C2=A0 =C2=A0 =C2=A0 alloc_flags |=3D ALLOC_HARDER;
+>> +
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0page =3D get_page_from_freelist(gfp_mask, nod=
+emask, order,
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0zoneli=
+st, high_zoneidx,
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0alloc_=
+flags, preferred_zone,
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0migrat=
+etype);
+>> -
+>> - =C2=A0 =C2=A0 =C2=A0 /*
+>> - =C2=A0 =C2=A0 =C2=A0 =C2=A0* If an allocation failed after direct recl=
+aim, it could be because
+>> - =C2=A0 =C2=A0 =C2=A0 =C2=A0* pages are pinned on the per-cpu lists. Dr=
+ain them and try again
+>> - =C2=A0 =C2=A0 =C2=A0 =C2=A0*/
+>> - =C2=A0 =C2=A0 =C2=A0 if (!page && !drained) {
+>> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 drain_all_pages();
+>> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 drained =3D true;
+>> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 goto retry;
+>> - =C2=A0 =C2=A0 =C2=A0 }
+>> -
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0return page;
+>> =C2=A0}
+>>
+>>
+>
+>
+>
+> --
+> Regards
+> dave
+>
+
+
+
+--=20
+Regards
+dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
