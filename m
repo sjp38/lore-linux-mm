@@ -1,81 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id A31B36B0011
-	for <linux-mm@kvack.org>; Wed,  4 May 2011 13:16:45 -0400 (EDT)
-Received: from hpaq7.eem.corp.google.com (hpaq7.eem.corp.google.com [172.25.149.7])
-	by smtp-out.google.com with ESMTP id p44HGgrp032711
-	for <linux-mm@kvack.org>; Wed, 4 May 2011 10:16:42 -0700
-Received: from qyk36 (qyk36.prod.google.com [10.241.83.164])
-	by hpaq7.eem.corp.google.com with ESMTP id p44HFQiQ029426
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 904EC6B0011
+	for <linux-mm@kvack.org>; Wed,  4 May 2011 13:28:37 -0400 (EDT)
+Received: from hpaq12.eem.corp.google.com (hpaq12.eem.corp.google.com [172.25.149.12])
+	by smtp-out.google.com with ESMTP id p44HSZue001686
+	for <linux-mm@kvack.org>; Wed, 4 May 2011 10:28:35 -0700
+Received: from pzk35 (pzk35.prod.google.com [10.243.19.163])
+	by hpaq12.eem.corp.google.com with ESMTP id p44HS6gc026598
 	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 4 May 2011 10:16:40 -0700
-Received: by qyk36 with SMTP id 36so3234013qyk.4
-        for <linux-mm@kvack.org>; Wed, 04 May 2011 10:16:40 -0700 (PDT)
+	for <linux-mm@kvack.org>; Wed, 4 May 2011 10:28:33 -0700
+Received: by pzk35 with SMTP id 35so2236047pzk.25
+        for <linux-mm@kvack.org>; Wed, 04 May 2011 10:28:33 -0700 (PDT)
+Date: Wed, 4 May 2011 10:28:36 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH resend] mm: get rid of CONFIG_STACK_GROWSUP ||
+ CONFIG_IA64
+In-Reply-To: <20110504083005.GA1375@tiehlicka.suse.cz>
+Message-ID: <alpine.LSU.2.00.1105041016110.23159@sister.anvils>
+References: <20110503141044.GA25351@tiehlicka.suse.cz> <alpine.LSU.2.00.1105031142260.7349@sister.anvils> <20110504083005.GA1375@tiehlicka.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20110504085851.GC1375@tiehlicka.suse.cz>
-References: <20110425182849.ab708f12.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110429133313.GB306@tiehlicka.suse.cz>
-	<20110501150410.75D2.A69D9226@jp.fujitsu.com>
-	<20110503064945.GA18927@tiehlicka.suse.cz>
-	<BANLkTimmpHcSJuO_8+P=GjYf+wB=Nyq=4w@mail.gmail.com>
-	<20110503082550.GD18927@tiehlicka.suse.cz>
-	<BANLkTikZtOdzsnjH=43AegLCpYc6ecfKsg@mail.gmail.com>
-	<20110504085851.GC1375@tiehlicka.suse.cz>
-Date: Wed, 4 May 2011 10:16:39 -0700
-Message-ID: <BANLkTinxuSaCEvN4_vB=uA1rdGUwCpovog@mail.gmail.com>
-Subject: Re: [PATCH 1/7] memcg: add high/low watermark to res_counter
-From: Ying Han <yinghan@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@suse.cz>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Johannes Weiner <jweiner@redhat.com>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, May 4, 2011 at 1:58 AM, Michal Hocko <mhocko@suse.cz> wrote:
-> On Tue 03-05-11 10:01:27, Ying Han wrote:
->> On Tue, May 3, 2011 at 1:25 AM, Michal Hocko <mhocko@suse.cz> wrote:
->> > On Tue 03-05-11 16:45:23, KOSAKI Motohiro wrote:
->> >> 2011/5/3 Michal Hocko <mhocko@suse.cz>:
->> >> > On Sun 01-05-11 15:06:02, KOSAKI Motohiro wrote:
->> >> >> > On Mon 25-04-11 18:28:49, KAMEZAWA Hiroyuki wrote:
-> [...]
->> >> >> Can you please clarify this? I feel it is not opposite semantics.
->> >> >
->> >> > In the global reclaim low watermark represents the point when we _start_
->> >> > background reclaim while high watermark is the _stopper_. Watermarks are
->> >> > based on the free memory while this proposal makes it based on the used
->> >> > memory.
->> >> > I understand that the result is same in the end but it is really
->> >> > confusing because you have to switch your mindset from free to used and
->> >> > from under the limit to above the limit.
->> >>
->> >> Ah, right. So, do you have an alternative idea?
->> >
->> > Why cannot we just keep the global reclaim semantic and make it free
->> > memory (hard_limit - usage_in_bytes) based with low limit as the trigger
->> > for reclaiming?
->>
-> [...]
->> The current scheme
->
-> What is the current scheme?
+On Wed, 4 May 2011, Michal Hocko wrote:
+> 
+> This case is obscure enough already because we are using VM_GROWSUP to
+> declare expand_stack_upwards in include/linux/mm.h
 
-using the "usage_in_bytes" instead of "free"
+Ah yes, I didn't notice that it was already done that way there
+(closer to the definitions of VM_GROWSUP so not as bad).
 
---Ying
->
->> is closer to the global bg reclaim which the low is triggering reclaim
->> and high is stopping reclaim. And we can only use the "usage" to keep
->> the same API.
->
-> --
-> Michal Hocko
-> SUSE Labs
-> SUSE LINUX s.r.o.
-> Lihovarska 1060/12
-> 190 00 Praha 9
-> Czech Republic
->
+> while definition is guarded by CONFIG_STACK_GROWSUP||CONFIG_IA64. 
+> What the patch does is just "make it consistent" thing. I think we
+> should at least use CONFIG_STACK_GROWSUP||CONFIG_IA64 at both places if
+> you do not like VM_GROWSUP misuse.
+
+If it's worth changing anything, yes, that would be better.
+
+> 
+> > Not a nack: others may well disagree with me.
+> > 
+> > And, though I didn't find time to comment on your later "symmetrical"
+> > patch before it went into mmotm, I didn't see how renaming expand_downwards
+> > and expand_upwards to expand_stack_downwards and expand_stack_upwards was
+> > helpful either - needless change, and you end up using expand_stack_upwards
+> > on something which is not (what we usually call) the stack.
+> 
+> OK, I see your point. expand_stack_upwards in ia64_do_page_fault can be
+> confusing as well. Maybe if we stick with the original expand_upwards
+> and just make expand_downwards symmetrical without renameing to
+> "_stack_" like the patch does? I can rework that patch if there is an
+> interest. I would like to have it symmetrical, though, because the
+> original code was rather confusing.
+
+Yes, what I suggested before was an expand_upwards, an expand_downwards
+and an expand_stack (with mod to fs/exec.c to replace its call to
+expand_stack_downwards by direct call to expand_downwards).
+
+But it's always going to be somewhat confusing and asymmetrical
+because of the ia64 register backing store case.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
