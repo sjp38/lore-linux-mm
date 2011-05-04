@@ -1,34 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 0D8226B0011
-	for <linux-mm@kvack.org>; Wed,  4 May 2011 16:18:04 -0400 (EDT)
-Message-ID: <4DC1B47B.1010209@linux.intel.com>
-Date: Wed, 04 May 2011 13:18:03 -0700
-From: Andi Kleen <ak@linux.intel.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] Allocate memory cgroup structures in local nodes
-References: <1304533058-18228-1-git-send-email-andi@firstfloor.org> <alpine.DEB.2.00.1105041213310.22426@chino.kir.corp.google.com> <4DC1B151.7010300@linux.intel.com> <alpine.DEB.2.00.1105041309001.24395@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1105041309001.24395@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 557D96B0024
+	for <linux-mm@kvack.org>; Wed,  4 May 2011 16:26:41 -0400 (EDT)
+From: Andi Kleen <andi@firstfloor.org>
+Subject: [PATCH] Allocate memory cgroup structures in local nodes v2
+Date: Wed,  4 May 2011 13:26:23 -0700
+Message-Id: <1304540783-8247-1-git-send-email-andi@firstfloor.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andi Kleen <andi@firstfloor.org>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Balbir Singh <balbir@in.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andi Kleen <ak@linux.intel.com>, rientjes@google.com, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Balbir Singh <balbir@in.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>
 
+From: Andi Kleen <ak@linux.intel.com>
 
-> Completely agreed, I think that's how it should be patched instead of only
-> touching the alloc_pages() allocation; we care much more about local node
-> than whether we're using vmalloc.
+[Andrew: since this is a regression and a very simple fix
+could you still consider it for .39? Thanks]
 
-Right now the problem is you end up in node 0 always and then run out of 
-memory
-later on it on a large system. That's the problem I'm trying to solve ASAP
+dde79e005a769 added a regression that the memory cgroup data structures
+all end up in node 0 because the first attempt at allocating them
+would not pass in a node hint. Since the initialization runs on CPU #0
+it would all end up node 0. This is a problem on large memory systems,
+where node 0 would lose a lot of memory.
 
-The rest is much less important.
+Change the alloc_pages_exact to alloc_pages_exact_node. This will
+still fall back to other nodes if not enough memory is available.
 
+[RED-PEN: right now it would fall back first before trying
+vmalloc_node. Probably not the best strategy ... But I left it like
+that for now.]
 
--Andi
+v2: Fix argument order. Thanks David Rientjes.
+Reported-by: Doug Nelson
+Cc: rientjes@google.com
+CC: Michal Hocko <mhocko@suse.cz>
+Cc: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: Balbir Singh <balbir@in.ibm.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Signed-off-by: Andi Kleen <ak@linux.intel.com>
+---
+ mm/page_cgroup.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/mm/page_cgroup.c b/mm/page_cgroup.c
+index 9905501..a362215 100644
+--- a/mm/page_cgroup.c
++++ b/mm/page_cgroup.c
+@@ -134,7 +134,7 @@ static void *__init_refok alloc_page_cgroup(size_t size, int nid)
+ {
+ 	void *addr = NULL;
+ 
+-	addr = alloc_pages_exact(size, GFP_KERNEL | __GFP_NOWARN);
++	addr = alloc_pages_exact_node(nid, GFP_KERNEL | __GFP_NOWARN, size);
+ 	if (addr)
+ 		return addr;
+ 
+-- 
+1.7.4.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
