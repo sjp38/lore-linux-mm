@@ -1,86 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 009626B0011
-	for <linux-mm@kvack.org>; Thu,  5 May 2011 00:26:20 -0400 (EDT)
-Received: from kpbe16.cbf.corp.google.com (kpbe16.cbf.corp.google.com [172.25.105.80])
-	by smtp-out.google.com with ESMTP id p454QGll030934
-	for <linux-mm@kvack.org>; Wed, 4 May 2011 21:26:17 -0700
-Received: from qwk3 (qwk3.prod.google.com [10.241.195.131])
-	by kpbe16.cbf.corp.google.com with ESMTP id p454Pu9S027505
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 4 May 2011 21:26:15 -0700
-Received: by qwk3 with SMTP id 3so1747647qwk.33
-        for <linux-mm@kvack.org>; Wed, 04 May 2011 21:26:15 -0700 (PDT)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id EE3896B0011
+	for <linux-mm@kvack.org>; Thu,  5 May 2011 01:25:14 -0400 (EDT)
+Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [202.81.31.247])
+	by e23smtp05.au.ibm.com (8.14.4/8.13.1) with ESMTP id p455J8KW024141
+	for <linux-mm@kvack.org>; Thu, 5 May 2011 15:19:08 +1000
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p455Owrv1073380
+	for <linux-mm@kvack.org>; Thu, 5 May 2011 15:24:58 +1000
+Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
+	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p455P3Yl016182
+	for <linux-mm@kvack.org>; Thu, 5 May 2011 15:25:04 +1000
+Date: Thu, 5 May 2011 01:06:58 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [PATCH] Allocate memory cgroup structures in local nodes
+Message-ID: <20110504193658.GB4713@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <1304533058-18228-1-git-send-email-andi@firstfloor.org>
 MIME-Version: 1.0
-In-Reply-To: <BANLkTi=0NMdnaxBigtcW3vx1VpRQQrYcpA@mail.gmail.com>
-References: <alpine.LSU.2.00.1102232136020.2239@sister.anvils>
-	<AANLkTi==MQV=_qq1HaCxGLRu8DdT6FYddqzBkzp1TQs7@mail.gmail.com>
-	<AANLkTimv66fV1+JDqSAxRwddvy_kggCuhoJLMTpMTtJM@mail.gmail.com>
-	<alpine.LSU.2.00.1103182158200.18771@sister.anvils>
-	<BANLkTinoNMudwkcOOgU5d+imPUfZhDbWWQ@mail.gmail.com>
-	<AANLkTimfArmB7judMW7Qd4ATtVaR=yTf_-0DBRAfCJ7w@mail.gmail.com>
-	<BANLkTi=Limr3NUaG7RLoQLv5TuEDmm7Rqg@mail.gmail.com>
-	<BANLkTi=UZcocVk_16MbbV432g9a3nDFauA@mail.gmail.com>
-	<BANLkTi=KTdLRC_hRvxfpFoMSbz=vOjpObw@mail.gmail.com>
-	<BANLkTindeX9-ECPjgd_V62ZbXCd7iEG9_w@mail.gmail.com>
-	<BANLkTikcZK+AQvwe2ED=b0dLZ0hqg0B95w@mail.gmail.com>
-	<BANLkTimV1f1YDTWZUU9uvAtCO_fp6EKH9Q@mail.gmail.com>
-	<BANLkTi=tavhpytcSV+nKaXJzw19Bo3W9XQ@mail.gmail.com>
-	<alpine.LSU.2.00.1104060837590.4909@sister.anvils>
-	<BANLkTi=-Zb+vrQuY6J+dAMsmz+cQDD-KUw@mail.gmail.com>
-	<BANLkTim0MZfa8vFgHB3W6NsoPHp2jfirrA@mail.gmail.com>
-	<BANLkTim-hyXpLj537asC__8exMo3o-WCLA@mail.gmail.com>
-	<alpine.LSU.2.00.1104070718120.28555@sister.anvils>
-	<BANLkTik_9YW5+64FHrzNy7kPz1FUWrw-rw@mail.gmail.com>
-	<BANLkTiniyAN40p0q+2wxWsRZ5PJFn9zE0Q@mail.gmail.com>
-	<BANLkTik6U21r91DYiUsz9A0P--=5QcsBrA@mail.gmail.com>
-	<BANLkTim6ATGxTiMcfK5-03azgcWuT4wtJA@mail.gmail.com>
-	<BANLkTiktvcBWsLKEk5iBYVEbPJS3i+U+hA@mail.gmail.com>
-	<BANLkTikdM2kF=qOy4d4bZ_wfb5ykEdkZPQ@mail.gmail.com>
-	<BANLkTikZ1szdH5HZdjKEEzG2+1VPusWEeg@mail.gmail.com>
-	<BANLkTingV3eiHEco+36YyM4YTDHFHc9_jA@mail.gmail.com>
-	<BANLkTi=D+oe_zyxA1Oj5S36F6Tk0J+26iQ@mail.gmail.com>
-	<BANLkTim_QtaQLa9GV5hMZyCmW_WAz_Ucvg@mail.gmail.com>
-	<BANLkTik-s3Gr6GDMN4L24wX2BK9n3okzQA@mail.gmail.com>
-	<BANLkTi=gtiZU3W+UfkgaygURtVWNE6qyEw@mail.gmail.com>
-	<BANLkTi=0NMdnaxBigtcW3vx1VpRQQrYcpA@mail.gmail.com>
-Date: Wed, 4 May 2011 21:26:14 -0700
-Message-ID: <BANLkTi=wfr1O0c5CjLfjJastN-RKup0zBQ@mail.gmail.com>
-Subject: Re: [PATCH] mm: fix possible cause of a page_mapped BUG
-From: Michel Lespinasse <walken@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <1304533058-18228-1-git-send-email-andi@firstfloor.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: =?UTF-8?B?Um9iZXJ0IMWad2nEmWNraQ==?= <robert@swiecki.net>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Miklos Szeredi <miklos@szeredi.hu>, "Eric W. Biederman" <ebiederm@xmission.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Wed, May 4, 2011 at 8:37 PM, Linus Torvalds
-<torvalds@linux-foundation.org> wrote:
-> I seriously considered making that "skip stack guard page" and the
-> "mlock lookup" be two separate bits, because conceptually they are
-> really pretty independent, but right now the only _users_ seem to be
-> tied together, so I kept it as one single bit (FOLL_MLOCK).
+* Andi Kleen <andi@firstfloor.org> [2011-05-04 11:17:38]:
 
-Yes, this seems best for now.
+> From: Andi Kleen <ak@linux.intel.com>
+> 
+> [Andrew: since this is a regression and a very simple fix
+> could you still consider it for .39? Thanks]
+> 
+> dde79e005a769 added a regression that the memory cgroup data structures
+> all end up in node 0 because the first attempt at allocating them
+> would not pass in a node hint. Since the initialization runs on CPU #0
+> it would all end up node 0. This is a problem on large memory systems,
+> where node 0 would lose a lot of memory.
+> 
+> Change the alloc_pages_exact to alloc_pages_exact_node. This will
+> still fall back to other nodes if not enough memory is available.
+> 
+> [RED-PEN: right now it would fall back first before trying
+> vmalloc_node. Probably not the best strategy ... But I left it like
+> that for now.]
+> 
+> Reported-by: Doug Nelson
+> CC: Michal Hocko <mhocko@suse.cz>
+> Cc: Dave Hansen <dave@linux.vnet.ibm.com>
+> Cc: Balbir Singh <balbir@in.ibm.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Signed-off-by: Andi Kleen <ak@linux.intel.com>
+> ---
+>  mm/page_cgroup.c |    2 +-
+>  1 files changed, 1 insertions(+), 1 deletions(-)
+> 
+> diff --git a/mm/page_cgroup.c b/mm/page_cgroup.c
+> index 9905501..1f4e20f 100644
+> --- a/mm/page_cgroup.c
+> +++ b/mm/page_cgroup.c
+> @@ -134,7 +134,7 @@ static void *__init_refok alloc_page_cgroup(size_t size, int nid)
+>  {
+>  	void *addr = NULL;
+> 
+> -	addr = alloc_pages_exact(size, GFP_KERNEL | __GFP_NOWARN);
+> +	addr = alloc_pages_exact_node(nid, size, GFP_KERNEL | __GFP_NOWARN);
 
-> But as far as I can tell, the attached patch is 100% equivalent to
-> what we do now, except for that "skip stack guard pages only for
-> mlock" change.
->
-> Comments? I like this patch because it seems to make the logic more
-> straightforward.
->
-> But somebody else should double-check my logic.
+Excellent catch! My eyes might be cheating me, I see
+alloc_pages_exact_node doing what you expect it to do, I think the
+size is interpreted as order.
 
-It makes perfect sense.
-
-Reviewed-by: Michel Lespinasse <walken@google.com>
-
-(I would argue for it to go to stable trees as well)
+>  	if (addr)
+>  		return addr;
+> 
+> -- 
+> 1.7.4.4
+> 
 
 -- 
-Michel "Walken" Lespinasse
-A program is never fully debugged until the last user dies.
+	Three Cheers,
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
