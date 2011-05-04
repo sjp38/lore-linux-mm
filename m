@@ -1,34 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 241586B0011
-	for <linux-mm@kvack.org>; Wed,  4 May 2011 07:13:22 -0400 (EDT)
-Date: Wed, 4 May 2011 19:13:10 +0800
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 13F156B0011
+	for <linux-mm@kvack.org>; Wed,  4 May 2011 07:15:59 -0400 (EDT)
+Date: Wed, 4 May 2011 19:15:47 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 1/6] writeback: pass writeback_control down to
- move_expired_inodes()
-Message-ID: <20110504111310.GB5191@localhost>
-References: <20110420080336.441157866@intel.com>
- <20110420080917.759855316@intel.com>
- <20110504110430.GA4646@infradead.org>
+Subject: Re: [PATCH 2/2] writeback: elevate queue_io() into wb_writeback()
+Message-ID: <20110504111547.GA5441@localhost>
+References: <20110426144218.GA14862@localhost>
+ <20110426144402.GA15166@localhost>
+ <20110504110849.GC4646@infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110504110430.GA4646@infradead.org>
+In-Reply-To: <20110504110849.GC4646@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Christoph Hellwig <hch@infradead.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mel Gorman <mel@linux.vnet.ibm.com>, Mel Gorman <mel@csn.ul.ie>, Dave Chinner <david@fromorbit.com>, Itaru Kitayama <kitayama@cl.bb4u.ne.jp>, Minchan Kim <minchan.kim@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mel Gorman <mel@linux.vnet.ibm.com>, Dave Chinner <david@fromorbit.com>, Trond Myklebust <Trond.Myklebust@netapp.com>, Itaru Kitayama <kitayama@cl.bb4u.ne.jp>, Minchan Kim <minchan.kim@gmail.com>, LKML <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-On Wed, May 04, 2011 at 07:04:32PM +0800, Christoph Hellwig wrote:
-> On Wed, Apr 20, 2011 at 04:03:37PM +0800, Wu Fengguang wrote:
-> > No behavior change. This will add debug visibility to the code, for
-> > example, to dump the wbc contents when kprobing queue_io().
+On Wed, May 04, 2011 at 07:08:49PM +0800, Christoph Hellwig wrote:
+> >  	return 1;
+> >  }
+> >  
+> > -void writeback_inodes_wb(struct bdi_writeback *wb,
+> > -		struct writeback_control *wbc)
+> > +static void __writeback_inodes_wb(struct bdi_writeback *wb,
+> > +				  struct writeback_control *wbc)
+> >  {
+> >  	int ret = 0;
+> >  
+> >  	if (!wbc->wb_start)
+> >  		wbc->wb_start = jiffies; /* livelock avoidance */
 > 
-> I don't think it's a good idea.  The writeback_control should move
-> back to just controlling per-inode writeback and not be passed to
-> more routines dealing with high-level writeback.
+> This should move to writeback_inodes_wb and be unconditional as
+> wb_writeback already always initializes it.
 
-Good point. I can do without this patch.
+Never mind :) wbc->wb_start has been killed in a later patch named
+"writeback: avoid extra sync work at enqueue time".
 
 Thanks,
 Fengguang
