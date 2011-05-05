@@ -1,82 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 660766B0011
-	for <linux-mm@kvack.org>; Thu,  5 May 2011 06:19:58 -0400 (EDT)
-Received: by qyk2 with SMTP id 2so4074308qyk.14
-        for <linux-mm@kvack.org>; Thu, 05 May 2011 03:19:56 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 8D74D6B0025
+	for <linux-mm@kvack.org>; Thu,  5 May 2011 11:26:21 -0400 (EDT)
+Date: Thu, 5 May 2011 17:26:01 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH v3 0/3] data integrity: Stabilize pages during
+ writeback for ext4
+Message-ID: <20110505152601.GI5323@quack.suse.cz>
+References: <20110411124229.47bc28f6@corrin.poochiereds.net>
+ <1302543595-sup-4352@think>
+ <1302569212.2580.13.camel@mingming-laptop>
+ <20110412005719.GA23077@infradead.org>
+ <1302742128.2586.274.camel@mingming-laptop>
+ <20110422000226.GA22189@tux1.beaverton.ibm.com>
+ <20110504173704.GE20579@tux1.beaverton.ibm.com>
+ <20110504184644.GA23246@infradead.org>
+ <1304536162-sup-3721@think>
+ <20110504235706.GJ20579@tux1.beaverton.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <4DC1FFA5.1090207@snapgear.com>
-References: <1303888334-16062-1-git-send-email-lliubbo@gmail.com>
-	<20110504141353.842409e1.akpm@linux-foundation.org>
-	<4DC1FFA5.1090207@snapgear.com>
-Date: Thu, 5 May 2011 18:19:56 +0800
-Message-ID: <BANLkTimB+ZnvH2BdP5m=VypDnYKNbnmZVQ@mail.gmail.com>
-Subject: Re: [PATCH] nommu: add page_align to mmap
-From: Bob Liu <lliubbo@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110504235706.GJ20579@tux1.beaverton.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Ungerer <gerg@snapgear.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, dhowells@redhat.com, lethal@linux-sh.org, gerg@uclinux.org, walken@google.com, daniel-gl@gmx.net, vapier@gentoo.org, Geert Uytterhoeven <geert@linux-m68k.org>
+To: "Darrick J. Wong" <djwong@us.ibm.com>
+Cc: Chris Mason <chris.mason@oracle.com>, Christoph Hellwig <hch@infradead.org>, Theodore Ts'o <tytso@mit.edu>, Jeff Layton <jlayton@redhat.com>, Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>, Joel Becker <jlbec@evilplan.org>, "Martin K. Petersen" <martin.petersen@oracle.com>, Jens Axboe <axboe@kernel.dk>, linux-kernel <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Mingming Cao <cmm@us.ibm.com>, linux-scsi <linux-scsi@vger.kernel.org>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>
 
-On Thu, May 5, 2011 at 9:38 AM, Greg Ungerer <gerg@snapgear.com> wrote:
-> On 05/05/11 07:13, Andrew Morton wrote:
->>
->> On Wed, 27 Apr 2011 15:12:14 +0800
->> Bob Liu<lliubbo@gmail.com> =C2=A0wrote:
->>
->>> Currently on nommu arch mmap(),mremap() and munmap() doesn't do
->>> page_align()
->>> which is incorrect and not consist with mmu arch.
->>> This patch fix it.
->>>
->>
->> Can you explain this fully please? =C2=A0What was the user-observeable
->> behaviour before the patch, and after?
->>
->> And some input from nommu maintainers would be nice.
->
-> Its not obvious to me that there is a problem here. Are there
-> any issues caused by the current behavior that this fixes?
->
+  Hello,
 
-Yes, there is a issue.
+On Wed 04-05-11 16:57:06, Darrick J. Wong wrote:
+> On Wed, May 04, 2011 at 03:21:55PM -0400, Chris Mason wrote:
+> > Excerpts from Christoph Hellwig's message of 2011-05-04 14:46:44 -0400:
+> > > This seems to miss out on a lot of the generic functionality like
+> > > write_cache_pages and block_page_mkwrite and just patch it into
+> > > the ext4 copy & paste variants.  Please make sure your patches also
+> > > work for filesystem that use more of the generic functionality like
+> > > xfs or ext2 (the latter one might be fun for the mmap case).
+> > 
+> > Probably after the block_commit_write in block_page_mkwrite()
+> > Another question is, do we want to introduce a wait_on_stable_page_writeback()?
+> 
+> Something like this here?  It fixes block_page_mkwrite users and sticks in a
+> simple page_mkwrite for fses that don't provide one at all.  From a quick wac
+> run it seems to make xfs work.  ext2 seems to have some issues with modifying a
+> buffer_head's bh_data without locking the bh during the update, so I guess it
+> needs some review.
+  Yes, ext2 is rather difficult because of all the metadata updates to
+buffers happening. That would need a serious work I suspect.
 
-Some drivers'  mmap() function depend on (vma->vm_end - vma->start) is
-page aligned which is true on mmu arch but not on nommu.
-eg: uvc camera driver.
+> fs: Modify/provide generic writepage/page_mkwrite functions to wait for writeback
+> 
+> Modify the generic writepage function, and add an empty page_mkwrite function,
+> to wait for page writeback to finish before allowing writes.  This is so that
+> simple filesystems have stable pages during write operations.
+> 
+> Signed-off-by: Darrick J. Wong <djwong@us.ibm.com>
+> ---
+> 
+>  fs/buffer.c  |    1 +
+>  mm/filemap.c |   10 ++++++++++
+>  2 files changed, 11 insertions(+), 0 deletions(-)
+> 
+> diff --git a/fs/buffer.c b/fs/buffer.c
+> index a08bb8e..cf9a795 100644
+> --- a/fs/buffer.c
+> +++ b/fs/buffer.c
+> @@ -2361,6 +2361,7 @@ block_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf,
+>  	if (!ret)
+>  		ret = block_commit_write(page, 0, end);
+>  
+> +	wait_on_page_writeback(page);
+>  	if (unlikely(ret)) {
+>  		unlock_page(page);
+>  		if (ret == -ENOMEM)
+> diff --git a/mm/filemap.c b/mm/filemap.c
+> index c22675f..9cb4e51 100644
+> --- a/mm/filemap.c
+> +++ b/mm/filemap.c
+> @@ -1713,8 +1713,18 @@ page_not_uptodate:
+>  }
+>  EXPORT_SYMBOL(filemap_fault);
+>  
+> +static int empty_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
+> +{
+> +	struct page *page = vmf->page;
+> +
+> +	lock_page(page);
+> +	wait_on_page_writeback(page);
+> +	return VM_FAULT_LOCKED;
+> +}
+> +
+  I guess you miss the whether the page has been truncated here (in which
+case you should return VM_FAULT_NOPAGE).
 
-What's more, sometimes I got munmap() error.
-The reason is split file: mm/nommu.c
-                   do {
-1614                         if (start > vma->vm_start) {
-1615                                 kleave(" =3D -EINVAL [miss]");
-1616                                 return -EINVAL;
-1617                         }
-1618                         if (end =3D=3D vma->vm_end)
-1619                                 goto erase_whole_vma;
+>  const struct vm_operations_struct generic_file_vm_ops = {
+>  	.fault		= filemap_fault,
+> +	.page_mkwrite	= empty_page_mkwrite,
+>  };
+>  
+>  /* This is used for a general mmap of a disk file */
 
-<<=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3Dhere
-1620                         rb =3D rb_next(&vma->vm_rb);
-1621                         vma =3D rb_entry(rb, struct vm_area_struct, vm=
-_rb);
-1622                 } while (rb);
-1623                 kleave(" =3D -EINVAL [split file]");
-
-Because end is not page aligned (passed into from userspace) while
-some unknown reason
-vma->vm_end is aligned,  this loop will fail and -EINVAL[split file]
-error returned.
-But it's hard to reproduce.
-
-And in my opinion consist with mmu alway a better choice.
-
-Thanks for your review.
-
---=20
-Regards,
---Bob
+									Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
