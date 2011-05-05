@@ -1,143 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 37C616B0024
-	for <linux-mm@kvack.org>; Wed,  4 May 2011 19:57:14 -0400 (EDT)
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e6.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p44NWvkc001892
-	for <linux-mm@kvack.org>; Wed, 4 May 2011 19:32:57 -0400
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p44Nv9D9332430
-	for <linux-mm@kvack.org>; Wed, 4 May 2011 19:57:09 -0400
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p44Nv7uv024708
-	for <linux-mm@kvack.org>; Wed, 4 May 2011 19:57:08 -0400
-Date: Wed, 4 May 2011 16:57:06 -0700
-From: "Darrick J. Wong" <djwong@us.ibm.com>
-Subject: Re: [PATCH v3 0/3] data integrity: Stabilize pages during
-	writeback for ext4
-Message-ID: <20110504235706.GJ20579@tux1.beaverton.ibm.com>
-Reply-To: djwong@us.ibm.com
-References: <20110408203135.GH1110@tux1.beaverton.ibm.com> <20110411124229.47bc28f6@corrin.poochiereds.net> <1302543595-sup-4352@think> <1302569212.2580.13.camel@mingming-laptop> <20110412005719.GA23077@infradead.org> <1302742128.2586.274.camel@mingming-laptop> <20110422000226.GA22189@tux1.beaverton.ibm.com> <20110504173704.GE20579@tux1.beaverton.ibm.com> <20110504184644.GA23246@infradead.org> <1304536162-sup-3721@think>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id A3CAC6B0024
+	for <linux-mm@kvack.org>; Wed,  4 May 2011 20:09:44 -0400 (EDT)
+Received: from wpaz5.hot.corp.google.com (wpaz5.hot.corp.google.com [172.24.198.69])
+	by smtp-out.google.com with ESMTP id p4509f5I031976
+	for <linux-mm@kvack.org>; Wed, 4 May 2011 17:09:41 -0700
+Received: from ywl41 (ywl41.prod.google.com [10.192.12.41])
+	by wpaz5.hot.corp.google.com with ESMTP id p4509Il2010236
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 4 May 2011 17:09:40 -0700
+Received: by ywl41 with SMTP id 41so701448ywl.4
+        for <linux-mm@kvack.org>; Wed, 04 May 2011 17:09:40 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1304536162-sup-3721@think>
+In-Reply-To: <BANLkTingV3eiHEco+36YyM4YTDHFHc9_jA@mail.gmail.com>
+References: <alpine.LSU.2.00.1102232136020.2239@sister.anvils>
+	<AANLkTi==MQV=_qq1HaCxGLRu8DdT6FYddqzBkzp1TQs7@mail.gmail.com>
+	<AANLkTimv66fV1+JDqSAxRwddvy_kggCuhoJLMTpMTtJM@mail.gmail.com>
+	<alpine.LSU.2.00.1103182158200.18771@sister.anvils>
+	<BANLkTinoNMudwkcOOgU5d+imPUfZhDbWWQ@mail.gmail.com>
+	<AANLkTimfArmB7judMW7Qd4ATtVaR=yTf_-0DBRAfCJ7w@mail.gmail.com>
+	<BANLkTi=Limr3NUaG7RLoQLv5TuEDmm7Rqg@mail.gmail.com>
+	<BANLkTi=UZcocVk_16MbbV432g9a3nDFauA@mail.gmail.com>
+	<BANLkTi=KTdLRC_hRvxfpFoMSbz=vOjpObw@mail.gmail.com>
+	<BANLkTindeX9-ECPjgd_V62ZbXCd7iEG9_w@mail.gmail.com>
+	<BANLkTikcZK+AQvwe2ED=b0dLZ0hqg0B95w@mail.gmail.com>
+	<BANLkTimV1f1YDTWZUU9uvAtCO_fp6EKH9Q@mail.gmail.com>
+	<BANLkTi=tavhpytcSV+nKaXJzw19Bo3W9XQ@mail.gmail.com>
+	<alpine.LSU.2.00.1104060837590.4909@sister.anvils>
+	<BANLkTi=-Zb+vrQuY6J+dAMsmz+cQDD-KUw@mail.gmail.com>
+	<BANLkTim0MZfa8vFgHB3W6NsoPHp2jfirrA@mail.gmail.com>
+	<BANLkTim-hyXpLj537asC__8exMo3o-WCLA@mail.gmail.com>
+	<alpine.LSU.2.00.1104070718120.28555@sister.anvils>
+	<BANLkTik_9YW5+64FHrzNy7kPz1FUWrw-rw@mail.gmail.com>
+	<BANLkTiniyAN40p0q+2wxWsRZ5PJFn9zE0Q@mail.gmail.com>
+	<BANLkTik6U21r91DYiUsz9A0P--=5QcsBrA@mail.gmail.com>
+	<BANLkTim6ATGxTiMcfK5-03azgcWuT4wtJA@mail.gmail.com>
+	<BANLkTiktvcBWsLKEk5iBYVEbPJS3i+U+hA@mail.gmail.com>
+	<BANLkTikdM2kF=qOy4d4bZ_wfb5ykEdkZPQ@mail.gmail.com>
+	<BANLkTikZ1szdH5HZdjKEEzG2+1VPusWEeg@mail.gmail.com>
+	<BANLkTingV3eiHEco+36YyM4YTDHFHc9_jA@mail.gmail.com>
+Date: Wed, 4 May 2011 17:09:40 -0700
+Message-ID: <BANLkTi=D+oe_zyxA1Oj5S36F6Tk0J+26iQ@mail.gmail.com>
+Subject: Re: [PATCH] mm: fix possible cause of a page_mapped BUG
+From: Michel Lespinasse <walken@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chris Mason <chris.mason@oracle.com>
-Cc: Christoph Hellwig <hch@infradead.org>, Theodore Ts'o <tytso@mit.edu>, Jeff Layton <jlayton@redhat.com>, Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>, Joel Becker <jlbec@evilplan.org>, "Martin K. Petersen" <martin.petersen@oracle.com>, Jens Axboe <axboe@kernel.dk>, linux-kernel <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Mingming Cao <cmm@us.ibm.com>, linux-scsi <linux-scsi@vger.kernel.org>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: =?UTF-8?B?Um9iZXJ0IMWad2nEmWNraQ==?= <robert@swiecki.net>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Miklos Szeredi <miklos@szeredi.hu>, "Eric W. Biederman" <ebiederm@xmission.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>
 
-On Wed, May 04, 2011 at 03:21:55PM -0400, Chris Mason wrote:
-> Excerpts from Christoph Hellwig's message of 2011-05-04 14:46:44 -0400:
-> > This seems to miss out on a lot of the generic functionality like
-> > write_cache_pages and block_page_mkwrite and just patch it into
-> > the ext4 copy & paste variants.  Please make sure your patches also
-> > work for filesystem that use more of the generic functionality like
-> > xfs or ext2 (the latter one might be fun for the mmap case).
-> 
-> Probably after the block_commit_write in block_page_mkwrite()
-> Another question is, do we want to introduce a wait_on_stable_page_writeback()?
+FYI, the attached code causes an infinite loop in kernels that have
+the 95042f9eb7 commit:
 
-Something like this here?  It fixes block_page_mkwrite users and sticks in a
-simple page_mkwrite for fses that don't provide one at all.  From a quick wac
-run it seems to make xfs work.  ext2 seems to have some issues with modifying a
-buffer_head's bh_data without locking the bh during the update, so I guess it
-needs some review.
+#include <stdio.h>
+#include <string.h>
 
---D
+#include <unistd.h>
+#include <sys/syscall.h>
+#include <linux/futex.h>
 
---
+int *get_stack_guard(void)
+{
+  FILE *map;
+  char buf[1000];
 
-fs: Modify/provide generic writepage/page_mkwrite functions to wait for writeback
+  map =3D fopen("/proc/self/maps", "r");
+  if (!map)
+    return NULL;
+  while(fgets(buf, 1000, map)) {
+    long a, b;
+    char c[1000], d[1000], e[1000], f[1000], g[1000];
+    if (sscanf(buf, "%lx-%lx %s %s %s %s %s", &a, &b, c, d, e, f, g) =3D=3D=
+ 7 &&
+        !strcmp(g, "[stack]")) {
+      fclose(map);
+      return (int *)(a - 4096);
+    }
+  }
+  fclose(map);
+  return NULL;
+}
 
-Modify the generic writepage function, and add an empty page_mkwrite function,
-to wait for page writeback to finish before allowing writes.  This is so that
-simple filesystems have stable pages during write operations.
+int main(void)
+{
+  int *uaddr =3D get_stack_guard();
+  syscall(SYS_futex, uaddr, FUTEX_LOCK_PI_PRIVATE, 0, NULL, NULL, 0);
+  return 0;
+}
 
-Signed-off-by: Darrick J. Wong <djwong@us.ibm.com>
----
+Linus, I am not sure as to what would be the preferred way to fix
+this. One option could be to modify fault_in_user_writeable so that it
+passes a non-NULL page pointer, and just does a put_page on it
+afterwards. While this would work, this is kinda ugly and would slow
+down futex operations somewhat. A more conservative alternative could
+be to enable the guard page special case under an new GUP flag, but
+this loses much of the elegance of your original proposal...
 
- fs/buffer.c  |    1 +
- mm/filemap.c |   10 ++++++++++
- 2 files changed, 11 insertions(+), 0 deletions(-)
+On Mon, Apr 18, 2011 at 2:15 PM, Michel Lespinasse <walken@google.com> wrot=
+e:
+> This second patch looks more attractive than the first, but is also
+> harder to prove correct. Hugh looked at all gup call sites and
+> convinced himself that the change was safe, except for the
+> fault_in_user_writeable() site in futex.c which he asked me to look
+> at. I am worried that we would have an issue there, as places like
+> futex_wake_op() or fixup_pi_state_owner() operate on user memory with
+> page faults disabled, and expect fault_in_user_writeable() to set up
+> the user page so that they can retry if the initial access failed.
+> With this proposal, fault_in_user_writeable() would become inoperative
+> when the =A0address is within the guard page; this could cause some
+> malicious futex operation to create an infinite loop.
 
-diff --git a/fs/buffer.c b/fs/buffer.c
-index a08bb8e..cf9a795 100644
---- a/fs/buffer.c
-+++ b/fs/buffer.c
-@@ -2361,6 +2361,7 @@ block_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf,
- 	if (!ret)
- 		ret = block_commit_write(page, 0, end);
- 
-+	wait_on_page_writeback(page);
- 	if (unlikely(ret)) {
- 		unlock_page(page);
- 		if (ret == -ENOMEM)
-diff --git a/mm/filemap.c b/mm/filemap.c
-index c22675f..9cb4e51 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -1713,8 +1713,18 @@ page_not_uptodate:
- }
- EXPORT_SYMBOL(filemap_fault);
- 
-+static int empty_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
-+{
-+	struct page *page = vmf->page;
-+
-+	lock_page(page);
-+	wait_on_page_writeback(page);
-+	return VM_FAULT_LOCKED;
-+}
-+
- const struct vm_operations_struct generic_file_vm_ops = {
- 	.fault		= filemap_fault,
-+	.page_mkwrite	= empty_page_mkwrite,
- };
- 
- /* This is used for a general mmap of a disk file */
---
-
-Here's the beginning of a patch against ext2 also.  It fixes most of the
-checksum errors when metadata writes are in progress, though I suspect there
-are more spots that I haven't caught yet.
-
---
-
-ext2: Lock buffer_heads during metadata update
-
-ext2 does not protect buffer head that represent metadata against modifications
-during write operations.  This is a problem if the memory buffer needs to be
-stable during writes; I think there are a few more spots in ext2 that need this
-treatment. :)
-
-Signed-off-by: Darrick J. Wong <djwong@us.ibm.com>
----
-
- fs/ext2/inode.c |    3 +++
- 1 files changed, 3 insertions(+), 0 deletions(-)
-
-diff --git a/fs/ext2/inode.c b/fs/ext2/inode.c
-index 788e09a..5314b0b 100644
---- a/fs/ext2/inode.c
-+++ b/fs/ext2/inode.c
-@@ -1426,6 +1426,7 @@ static int __ext2_write_inode(struct inode *inode, int do_sync)
- 	if (IS_ERR(raw_inode))
-  		return -EIO;
- 
-+	lock_buffer(bh);
- 	/* For fields not not tracking in the in-memory inode,
- 	 * initialise them to zero for new inodes. */
- 	if (ei->i_state & EXT2_STATE_NEW)
-@@ -1502,6 +1503,8 @@ static int __ext2_write_inode(struct inode *inode, int do_sync)
- 		}
- 	} else for (n = 0; n < EXT2_N_BLOCKS; n++)
- 		raw_inode->i_block[n] = ei->i_data[n];
-+	unlock_buffer(bh);
-+
- 	mark_buffer_dirty(bh);
- 	if (do_sync) {
- 		sync_dirty_buffer(bh);
+--=20
+Michel "Walken" Lespinasse
+A program is never fully debugged until the last user dies.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
