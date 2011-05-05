@@ -1,85 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id E75CF6B0022
-	for <linux-mm@kvack.org>; Thu,  5 May 2011 02:59:08 -0400 (EDT)
-Date: Thu, 5 May 2011 08:59:01 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 1/7] memcg: add high/low watermark to res_counter
-Message-ID: <20110505065901.GC11529@tiehlicka.suse.cz>
-References: <20110425182849.ab708f12.kamezawa.hiroyu@jp.fujitsu.com>
- <20110429133313.GB306@tiehlicka.suse.cz>
- <20110501150410.75D2.A69D9226@jp.fujitsu.com>
- <20110503064945.GA18927@tiehlicka.suse.cz>
- <BANLkTimmpHcSJuO_8+P=GjYf+wB=Nyq=4w@mail.gmail.com>
- <20110503082550.GD18927@tiehlicka.suse.cz>
- <BANLkTikZtOdzsnjH=43AegLCpYc6ecfKsg@mail.gmail.com>
- <20110504085851.GC1375@tiehlicka.suse.cz>
- <BANLkTinxuSaCEvN4_vB=uA1rdGUwCpovog@mail.gmail.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id AB1DC6B0011
+	for <linux-mm@kvack.org>; Thu,  5 May 2011 05:21:59 -0400 (EDT)
+Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [202.81.31.246])
+	by e23smtp03.au.ibm.com (8.14.4/8.13.1) with ESMTP id p459GtT5021400
+	for <linux-mm@kvack.org>; Thu, 5 May 2011 19:16:55 +1000
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p459Llkg2400320
+	for <linux-mm@kvack.org>; Thu, 5 May 2011 19:21:47 +1000
+Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
+	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p459LgRe020983
+	for <linux-mm@kvack.org>; Thu, 5 May 2011 19:21:46 +1000
+Date: Thu, 5 May 2011 14:51:40 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [PATCH V2] Eliminate task stack trace duplication.
+Message-ID: <20110505092140.GC14830@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <1304529244-31051-1-git-send-email-yinghan@google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <BANLkTinxuSaCEvN4_vB=uA1rdGUwCpovog@mail.gmail.com>
+In-Reply-To: <1304529244-31051-1-git-send-email-yinghan@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Ying Han <yinghan@google.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Johannes Weiner <jweiner@redhat.com>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>, Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org
 
-On Wed 04-05-11 10:16:39, Ying Han wrote:
-> On Wed, May 4, 2011 at 1:58 AM, Michal Hocko <mhocko@suse.cz> wrote:
-> > On Tue 03-05-11 10:01:27, Ying Han wrote:
-> >> On Tue, May 3, 2011 at 1:25 AM, Michal Hocko <mhocko@suse.cz> wrote:
-> >> > On Tue 03-05-11 16:45:23, KOSAKI Motohiro wrote:
-> >> >> 2011/5/3 Michal Hocko <mhocko@suse.cz>:
-> >> >> > On Sun 01-05-11 15:06:02, KOSAKI Motohiro wrote:
-> >> >> >> > On Mon 25-04-11 18:28:49, KAMEZAWA Hiroyuki wrote:
-> > [...]
-> >> >> >> Can you please clarify this? I feel it is not opposite semantics.
-> >> >> >
-> >> >> > In the global reclaim low watermark represents the point when we _start_
-> >> >> > background reclaim while high watermark is the _stopper_. Watermarks are
-> >> >> > based on the free memory while this proposal makes it based on the used
-> >> >> > memory.
-> >> >> > I understand that the result is same in the end but it is really
-> >> >> > confusing because you have to switch your mindset from free to used and
-> >> >> > from under the limit to above the limit.
-> >> >>
-> >> >> Ah, right. So, do you have an alternative idea?
-> >> >
-> >> > Why cannot we just keep the global reclaim semantic and make it free
-> >> > memory (hard_limit - usage_in_bytes) based with low limit as the trigger
-> >> > for reclaiming?
-> >>
-> > [...]
-> >> The current scheme
-> >
-> > What is the current scheme?
+* Ying Han <yinghan@google.com> [2011-05-04 10:14:04]:
+
+> The problem with small dmesg ring buffer like 512k is that only limited number
+> of task traces will be logged. Sometimes we lose important information only
+> because of too many duplicated stack traces.
 > 
-> using the "usage_in_bytes" instead of "free"
+> This patch tries to reduce the duplication of task stack trace in the dump
+> message by hashing the task stack. The hashtable is a 32k pre-allocated buffer
+> during bootup. Then we hash the task stack with stack_depth 32 for each stack
+> entry. Each time if we find the identical task trace in the task stack, we dump
+> only the pid of the task which has the task trace dumped. So it is easy to back
+> track to the full stack with the pid.
 > 
-> >> is closer to the global bg reclaim which the low is triggering reclaim
-> >> and high is stopping reclaim. And we can only use the "usage" to keep
-> >> the same API.
+> [   58.469730] kworker/0:0     S 0000000000000000     0     4      2 0x00000000
+> [   58.469735]  ffff88082fcfde80 0000000000000046 ffff88082e9d8000 ffff88082fcfc010
+> [   58.469739]  ffff88082fce9860 0000000000011440 ffff88082fcfdfd8 ffff88082fcfdfd8
+> [   58.469743]  0000000000011440 0000000000000000 ffff88082fcee180 ffff88082fce9860
+> [   58.469747] Call Trace:
+> [   58.469751]  [<ffffffff8108525a>] worker_thread+0x24b/0x250
+> [   58.469754]  [<ffffffff8108500f>] ? manage_workers+0x192/0x192
+> [   58.469757]  [<ffffffff810885bd>] kthread+0x82/0x8a
+> [   58.469760]  [<ffffffff8141aed4>] kernel_thread_helper+0x4/0x10
+> [   58.469763]  [<ffffffff8108853b>] ? kthread_worker_fn+0x112/0x112
+> [   58.469765]  [<ffffffff8141aed0>] ? gs_change+0xb/0xb
+> [   58.469768] kworker/u:0     S 0000000000000004     0     5      2 0x00000000
+> [   58.469773]  ffff88082fcffe80 0000000000000046 ffff880800000000 ffff88082fcfe010
+> [   58.469777]  ffff88082fcea080 0000000000011440 ffff88082fcfffd8 ffff88082fcfffd8
+> [   58.469781]  0000000000011440 0000000000000000 ffff88082fd4e9a0 ffff88082fcea080
+> [   58.469785] Call Trace:
+> [   58.469786] <Same stack as pid 4>
+> [   58.470235] kworker/0:1     S 0000000000000000     0    13      2 0x00000000
+> [   58.470255]  ffff88082fd3fe80 0000000000000046 ffff880800000000 ffff88082fd3e010
+> [   58.470279]  ffff88082fcee180 0000000000011440 ffff88082fd3ffd8 ffff88082fd3ffd8
+> [   58.470301]  0000000000011440 0000000000000000 ffffffff8180b020 ffff88082fcee180
+> [   58.470325] Call Trace:
+> [   58.470332] <Same stack as pid 4>
 
-And how is this closer to the global reclaim semantic which is based on
-the available memory?
-What I am trying to say here is that this new watermark concept doesn't
-fit in with the global reclaim. Well, standard user might not be aware
-of the zone watermarks at all because they cannot be set. But still if
-you are analyzing your memory usage you still check and compare free
-memory to min/low/high watermarks to find out what is the current memory
-pressure.
-If we had another concept with cgroups you would need to switch your 
-mindset to analyze things.
+Given that pid's can be reused, I wonder if in a large time window the
+output can be confusing? The dmesg ring buffer can be scaled with a
+config option .. (CONFIG_LOG_BUF_LEN??)
 
-I am sorry, but I still do not see any reason why those cgroup watermaks
-cannot be based on total-usage.
 -- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+	Three Cheers,
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
