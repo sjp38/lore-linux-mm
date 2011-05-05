@@ -1,39 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 553D26B0011
-	for <linux-mm@kvack.org>; Thu,  5 May 2011 17:00:51 -0400 (EDT)
-Date: Thu, 5 May 2011 14:00:00 -0700
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D0E76B0023
+	for <linux-mm@kvack.org>; Thu,  5 May 2011 17:50:00 -0400 (EDT)
+Received: from imap1.linux-foundation.org (imap1.linux-foundation.org [140.211.169.55])
+	by smtp1.linux-foundation.org (8.14.2/8.13.5/Debian-3ubuntu1.1) with ESMTP id p45Lnv2X004738
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=NO)
+	for <linux-mm@kvack.org>; Thu, 5 May 2011 14:49:57 -0700
+Received: from akpm.mtv.corp.google.com (localhost [127.0.0.1])
+	by imap1.linux-foundation.org (8.13.5.20060308/8.13.5/Debian-3ubuntu1.1) with SMTP id p45LhhH1004740
+	for <linux-mm@kvack.org>; Thu, 5 May 2011 14:43:43 -0700
+Date: Thu, 5 May 2011 14:43:43 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: memcg: fix fatal livelock in kswapd
-Message-Id: <20110505140000.e4f315b5.akpm@linux-foundation.org>
-In-Reply-To: <1304431865.2576.3.camel@mulgrave.site>
-References: <1304366849.15370.27.camel@mulgrave.site>
-	<20110502224838.GB10278@cmpxchg.org>
-	<BANLkTikDyL9-XLpwyLwUQNuUfkBwbUBcZg@mail.gmail.com>
-	<1304380698.15370.36.camel@mulgrave.site>
-	<20110503063817.GD10278@cmpxchg.org>
-	<1304431865.2576.3.camel@mulgrave.site>
+Subject: Re: [Bugme-new] [Bug 34132] New: System is unresponsive while using
+ dd to copy DVD ISO to USB stick/key
+Message-Id: <20110505144343.7c98bfce.akpm@linux-foundation.org>
+In-Reply-To: <bug-34132-10286@https.bugzilla.kernel.org/>
+References: <bug-34132-10286@https.bugzilla.kernel.org/>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Bottomley <James.Bottomley@suse.de>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Ying Han <yinghan@google.com>, Chris Mason <chris.mason@oracle.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, containers@lists.linux-foundation.org, Balbir Singh <balbir@linux.vnet.ibm.com>
+To: linux-mm@kvack.org
 
+In case anyone was wondering if we've stopped sucking yet.
 
-The trail seems to have cooled off here, but it's pretty urgent.
+On Sat, 30 Apr 2011 16:12:15 GMT
+bugzilla-daemon@bugzilla.kernel.org wrote:
 
-Having re-read the threads I find it notable that James hit a kswapd
-softlockup with "non-PREEMPT CGROUP but disabled GROUP_MEM_RES_CTLR". 
-This suggests that the problem isn't with memcg.  Or at least, we
-should fix this kswapd lockup before worrying about memcg.
+> https://bugzilla.kernel.org/show_bug.cgi?id=34132
+> 
+>            Summary: System is unresponsive while using dd to copy DVD ISO
+>                     to USB stick/key
+>            Product: IO/Storage
+>            Version: 2.5
+>     Kernel Version: 2.6.38.2
+>           Platform: All
+>         OS/Version: Linux
+>               Tree: Mainline
+>             Status: NEW
+>           Severity: high
+>           Priority: P1
+>          Component: Other
+>         AssignedTo: io_other@kernel-bugs.osdl.org
+>         ReportedBy: jlp.bugs@gmail.com
+>         Regression: No
+> 
+> 
+> When I use
+> 
+> dd if=<some_iso_file> of=<device_of_usb_key>
+> 
+> The system becomes very unresponsive. X is almost completely unusable, maybe
+> you can move a mouse for some time but click do nothing. Even togling the Caps
+> Lock doesn't do anything. Trying to SSH is also almost impossible during this.
+> System is like this all the time while using the dd command. After it finishes
+> system again becomes responsive. I've noticed this on two of my computers:
+> 1: AMD Athlon 64 3000+, 2 GB of memory, kernel 2.6.38.2
+> 2: AMD Athlon II P320 Dual-Core, 4 GB of memory, kernel 2.6.39-rc2
+> The USB key is this one:
+> http://www.takems.com/products.php?categ=usb&prod=MEM-Drive_Easy_II
+> 
+> What I expected was that the doing dd wouldn't have a noticable impact on
+> responsivness of the rest of the system.
+> 
 
-And I'm not sure that we should be assuming that there's something
-wrong in shrink_slab().  We know that kswapd has gone berserk, and that
-it will frequently call shrink_slab() when in that mode.  But this may
-be because the top-level balance_pgdat() loop isn't terminating for
-reasons unrelated to shrink_slab().
+Maybe it's not VM-related.  This time.  Maybe.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
