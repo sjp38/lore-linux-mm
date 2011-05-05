@@ -1,33 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id AD44A900001
-	for <linux-mm@kvack.org>; Thu,  5 May 2011 14:50:40 -0400 (EDT)
-Date: Thu, 5 May 2011 14:42:02 -0400
-From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Subject: Re: [PATCH V2] xen/balloon: Memory hotplug support for Xen balloon
- driver
-Message-ID: <20110505184202.GB10142@dumpdata.com>
-References: <20110502220148.GI4623@router-fw-old.local.net-space.pl>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110502220148.GI4623@router-fw-old.local.net-space.pl>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id EEDFD900001
+	for <linux-mm@kvack.org>; Thu,  5 May 2011 15:33:17 -0400 (EDT)
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Batch locking for rmap fork/exit processing
+Date: Thu,  5 May 2011 12:32:48 -0700
+Message-Id: <1304623972-9159-1-git-send-email-andi@firstfloor.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Kiper <dkiper@net-space.pl>
-Cc: ian.campbell@citrix.com, akpm@linux-foundation.org, andi.kleen@intel.com, haicheng.li@linux.intel.com, fengguang.wu@intel.com, jeremy@goop.org, dan.magenheimer@oracle.com, v.tolstov@selfip.ru, pasik@iki.fi, dave@linux.vnet.ibm.com, wdauchy@gmail.com, rientjes@google.com, xen-devel@lists.xensource.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, tim.c.chen@linux.intel.com, torvalds@linux-foundation.org, lwoodman@redhat.com, mel@csn.ul.ie
 
-On Tue, May 03, 2011 at 12:01:48AM +0200, Daniel Kiper wrote:
-> Memory hotplug support for Xen balloon driver. It should be
-> mentioned that hotplugged memory is not onlined automatically.
-> It should be onlined by user through standard sysfs interface.
-> 
-> This patch applies to Linus' git tree, v2.6.39-rc5 tag with a few
-> prerequisite patches available at https://lkml.org/lkml/2011/5/2/339
-> and at https://lkml.org/lkml/2011/3/28/98.
+012f18004da33ba67 in 2.6.36 caused a significant performance regression in 
+fork/exit intensive workloads with a lot of sharing. The problem is that 
+fork/exit now contend heavily on the lock of the root anon_vma.
 
-The patch looks good. How do I use it? Should the writeup or the
-Kconfig include a little section on how to online the memory?
+This patchkit attempts to lower this a bit by batching the lock acquisions.
+Right now the lock is taken for every shared vma individually. This
+patchkit batches this and only reaquires the lock when actually needed.
+
+When multiple processes are doing this in parallel, they will now 
+spend much less time bouncing the lock cache line around. In addition
+there should be also lower overhead in the uncontended case because
+locks are relatively slow (not measured) 
+
+This doesn't completely fix the regression on a 4S system, but cuts 
+it down somewhat. One particular workload suffering from this gets
+about 5% faster.
+
+This is essentially a micro optimization that just tries to mitigate
+the problem a bit.
+
+Better would be to switch back to more local locking like .35 had, but I 
+guess then we would be back with the old deadlocks? I was thinking also of 
+adding some deadlock avoidance as an alternative.
+
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
