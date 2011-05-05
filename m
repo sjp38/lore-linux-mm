@@ -1,86 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id E30F8900110
-	for <linux-mm@kvack.org>; Thu,  5 May 2011 15:33:20 -0400 (EDT)
-From: Andi Kleen <andi@firstfloor.org>
-Subject: [PATCH 3/4] VM/RMAP: Batch anon_vma_unlink in exit
-Date: Thu,  5 May 2011 12:32:51 -0700
-Message-Id: <1304623972-9159-4-git-send-email-andi@firstfloor.org>
-In-Reply-To: <1304623972-9159-1-git-send-email-andi@firstfloor.org>
-References: <1304623972-9159-1-git-send-email-andi@firstfloor.org>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id B8CB6900114
+	for <linux-mm@kvack.org>; Thu,  5 May 2011 15:46:00 -0400 (EDT)
+Date: Thu, 5 May 2011 12:45:56 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] cpumask: alloc_cpumask_var() use NUMA_NO_NODE
+Message-Id: <20110505124556.3c8a7e5b.akpm@linux-foundation.org>
+In-Reply-To: <20110428231856.3D54.A69D9226@jp.fujitsu.com>
+References: <20110428231856.3D54.A69D9226@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, tim.c.chen@linux.intel.com, torvalds@linux-foundation.org, lwoodman@redhat.com, mel@csn.ul.ie, Andi Kleen <ak@linux.intel.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-From: Andi Kleen <ak@linux.intel.com>
+On Thu, 28 Apr 2011 23:17:15 +0900 (JST)
+KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
 
-Apply the rmap chain lock batching to anon_vma_unlink() too.
-This speeds up exit() on process chains with many processes,
-when there is a lot of sharing.
+> NUMA_NO_NODE and numa_node_id() are different meanings. NUMA_NO_NODE 
+> is obviously recomended fallback.
+> 
+> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> ---
+>  lib/cpumask.c |    2 +-
+>  1 files changed, 1 insertions(+), 1 deletions(-)
+> 
+> diff --git a/lib/cpumask.c b/lib/cpumask.c
+> index 4f6425d..af3e581 100644
+> --- a/lib/cpumask.c
+> +++ b/lib/cpumask.c
+> @@ -131,7 +131,7 @@ EXPORT_SYMBOL(zalloc_cpumask_var_node);
+>   */
+>  bool alloc_cpumask_var(cpumask_var_t *mask, gfp_t flags)
+>  {
+> -	return alloc_cpumask_var_node(mask, flags, numa_node_id());
+> +	return alloc_cpumask_var_node(mask, flags, NUMA_NO_NODE);
+>  }
+>  EXPORT_SYMBOL(alloc_cpumask_var);
+>  
 
-Unfortunately this doesn't fix all lock contention -- file vmas
-have a mapping lock that is also a problem. And even existing
-anon_vmas still contend. But it's better than before.
-
-Signed-off-by: Andi Kleen <ak@linux.intel.com>
----
- mm/rmap.c |   14 +++++++++-----
- 1 files changed, 9 insertions(+), 5 deletions(-)
-
-diff --git a/mm/rmap.c b/mm/rmap.c
-index fbac55a..2076d78 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -297,7 +297,9 @@ int anon_vma_fork(struct vm_area_struct *vma, struct vm_area_struct *pvma)
- 	return -ENOMEM;
- }
- 
--static void anon_vma_unlink(struct anon_vma_chain *anon_vma_chain)
-+/* Caller must call anon_vma_unlock_batch */
-+static void anon_vma_unlink(struct anon_vma_chain *anon_vma_chain,
-+			    struct anon_vma_lock_state *avs)
- {
- 	struct anon_vma *anon_vma = anon_vma_chain->anon_vma;
- 	int empty;
-@@ -306,12 +308,11 @@ static void anon_vma_unlink(struct anon_vma_chain *anon_vma_chain)
- 	if (!anon_vma)
- 		return;
- 
--	anon_vma_lock(anon_vma);
-+	anon_vma_lock_batch(anon_vma, avs);
- 	list_del(&anon_vma_chain->same_anon_vma);
- 
- 	/* We must garbage collect the anon_vma if it's empty */
- 	empty = list_empty(&anon_vma->head);
--	anon_vma_unlock(anon_vma);
- 
- 	if (empty)
- 		put_anon_vma(anon_vma);
-@@ -320,16 +321,19 @@ static void anon_vma_unlink(struct anon_vma_chain *anon_vma_chain)
- void unlink_anon_vmas(struct vm_area_struct *vma)
- {
- 	struct anon_vma_chain *avc, *next;
--
-+	struct anon_vma_lock_state avs;
-+	
- 	/*
- 	 * Unlink each anon_vma chained to the VMA.  This list is ordered
- 	 * from newest to oldest, ensuring the root anon_vma gets freed last.
- 	 */
-+	init_anon_vma_lock_batch(&avs);
- 	list_for_each_entry_safe(avc, next, &vma->anon_vma_chain, same_vma) {
--		anon_vma_unlink(avc);
-+		anon_vma_unlink(avc, &avs);
- 		list_del(&avc->same_vma);
- 		anon_vma_chain_free(avc);
- 	}
-+	anon_vma_unlock_batch(&avs);
- }
- 
- static void anon_vma_ctor(void *data)
--- 
-1.7.4.4
+So effectively this will replace numa_node_id() with numa_mem_id(),
+yes?  What runtime effects might this have?  
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
