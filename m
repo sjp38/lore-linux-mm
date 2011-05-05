@@ -1,114 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id C66D9900114
-	for <linux-mm@kvack.org>; Thu,  5 May 2011 15:46:42 -0400 (EDT)
-From: Andi Kleen <andi@firstfloor.org>
-Subject: [PATCH 1/2] Add alloc_pages_exact_nid()
-Date: Thu,  5 May 2011 12:46:01 -0700
-Message-Id: <1304624762-27960-1-git-send-email-andi@firstfloor.org>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 553D26B0011
+	for <linux-mm@kvack.org>; Thu,  5 May 2011 17:00:51 -0400 (EDT)
+Date: Thu, 5 May 2011 14:00:00 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: memcg: fix fatal livelock in kswapd
+Message-Id: <20110505140000.e4f315b5.akpm@linux-foundation.org>
+In-Reply-To: <1304431865.2576.3.camel@mulgrave.site>
+References: <1304366849.15370.27.camel@mulgrave.site>
+	<20110502224838.GB10278@cmpxchg.org>
+	<BANLkTikDyL9-XLpwyLwUQNuUfkBwbUBcZg@mail.gmail.com>
+	<1304380698.15370.36.camel@mulgrave.site>
+	<20110503063817.GD10278@cmpxchg.org>
+	<1304431865.2576.3.camel@mulgrave.site>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: akpm@linux-foundation.org, Andi Kleen <ak@linux.intel.com>
+To: James Bottomley <James.Bottomley@suse.de>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Ying Han <yinghan@google.com>, Chris Mason <chris.mason@oracle.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, containers@lists.linux-foundation.org, Balbir Singh <balbir@linux.vnet.ibm.com>
 
-From: Andi Kleen <ak@linux.intel.com>
 
-Add a alloc_pages_exact_nid() that allocates on a specific node.
+The trail seems to have cooled off here, but it's pretty urgent.
 
-The naming is quite broken, but fixing that would need a larger
-renaming action.
+Having re-read the threads I find it notable that James hit a kswapd
+softlockup with "non-PREEMPT CGROUP but disabled GROUP_MEM_RES_CTLR". 
+This suggests that the problem isn't with memcg.  Or at least, we
+should fix this kswapd lockup before worrying about memcg.
 
-Signed-off-by: Andi Kleen <ak@linux.intel.com>
----
- include/linux/gfp.h |    2 ++
- mm/page_alloc.c     |   48 ++++++++++++++++++++++++++++++++++++------------
- 2 files changed, 38 insertions(+), 12 deletions(-)
-
-diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-index bfb8f93..56d8fc8 100644
---- a/include/linux/gfp.h
-+++ b/include/linux/gfp.h
-@@ -353,6 +353,8 @@ extern unsigned long get_zeroed_page(gfp_t gfp_mask);
- 
- void *alloc_pages_exact(size_t size, gfp_t gfp_mask);
- void free_pages_exact(void *virt, size_t size);
-+/* This is different from alloc_pages_exact_node !!! */
-+void *alloc_pages_exact_nid(int nid, size_t size, gfp_t gfp_mask);
- 
- #define __get_free_page(gfp_mask) \
- 		__get_free_pages((gfp_mask), 0)
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 9f8a97b..5219dac 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2317,6 +2317,21 @@ void free_pages(unsigned long addr, unsigned int order)
- 
- EXPORT_SYMBOL(free_pages);
- 
-+static void *make_alloc_exact(void *addr, unsigned order, size_t size)
-+{
-+	if (addr) {
-+		unsigned long alloc_end = addr + (PAGE_SIZE << order);
-+		unsigned long used = addr + PAGE_ALIGN(size);
-+
-+		split_page(virt_to_page((void *)addr), order);
-+		while (used < alloc_end) {
-+			free_page(used);
-+			used += PAGE_SIZE;
-+		}
-+	}
-+	return (void *)addr;	
-+}
-+
- /**
-  * alloc_pages_exact - allocate an exact number physically-contiguous pages.
-  * @size: the number of bytes to allocate
-@@ -2336,22 +2351,31 @@ void *alloc_pages_exact(size_t size, gfp_t gfp_mask)
- 	unsigned long addr;
- 
- 	addr = __get_free_pages(gfp_mask, order);
--	if (addr) {
--		unsigned long alloc_end = addr + (PAGE_SIZE << order);
--		unsigned long used = addr + PAGE_ALIGN(size);
--
--		split_page(virt_to_page((void *)addr), order);
--		while (used < alloc_end) {
--			free_page(used);
--			used += PAGE_SIZE;
--		}
--	}
--
--	return (void *)addr;
-+	return make_alloc_exact(addr, order, size);
- }
- EXPORT_SYMBOL(alloc_pages_exact);
- 
- /**
-+ * alloc_pages_exact_nid - allocate an exact number physically-contiguous pages on node.
-+ * @size: the number of bytes to allocate
-+ * @gfp_mask: GFP flags for the allocation
-+ *
-+ * Like alloc_pages_exact, but try to allocate on node nid first
-+ * before falling back.
-+ * Note this is not alloc_pages_exact_node() which allocates
-+ * on a specific node, but is not exact.
-+ */
-+void *alloc_pages_exact_nid(int nid, size_t size, gfp_t gfp_mask)
-+{
-+	unsigned order = get_order(size);
-+	struct page *p = alloc_pages_node(nid, gfp_mask, order);
-+	if (!p)
-+		return NULL;
-+	return make_alloc_exact(page_address(p), order, size);
-+}
-+EXPORT_SYMBOL(alloc_pages_exact_nid);
-+
-+/**
-  * free_pages_exact - release memory allocated via alloc_pages_exact()
-  * @virt: the value returned by alloc_pages_exact.
-  * @size: size of allocation, same value as passed to alloc_pages_exact().
--- 
-1.7.4.4
+And I'm not sure that we should be assuming that there's something
+wrong in shrink_slab().  We know that kswapd has gone berserk, and that
+it will frequently call shrink_slab() when in that mode.  But this may
+be because the top-level balance_pgdat() loop isn't terminating for
+reasons unrelated to shrink_slab().
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
