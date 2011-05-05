@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 919C6900001
-	for <linux-mm@kvack.org>; Thu,  5 May 2011 15:33:19 -0400 (EDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id B484C900001
+	for <linux-mm@kvack.org>; Thu,  5 May 2011 15:33:20 -0400 (EDT)
 From: Andi Kleen <andi@firstfloor.org>
-Subject: [PATCH 1/4] VM/RMAP: Add infrastructure for batching the rmap chain locking
-Date: Thu,  5 May 2011 12:32:49 -0700
-Message-Id: <1304623972-9159-2-git-send-email-andi@firstfloor.org>
+Subject: [PATCH 4/4] VM/RMAP: Move avc freeing outside the lock
+Date: Thu,  5 May 2011 12:32:52 -0700
+Message-Id: <1304623972-9159-5-git-send-email-andi@firstfloor.org>
 In-Reply-To: <1304623972-9159-1-git-send-email-andi@firstfloor.org>
 References: <1304623972-9159-1-git-send-email-andi@firstfloor.org>
 Sender: owner-linux-mm@kvack.org
@@ -15,77 +15,72 @@ Cc: Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, tim.
 
 From: Andi Kleen <ak@linux.intel.com>
 
-In fork and exit it's quite common to take same rmap chain locks
-again and again when the whole address space is processed  for a
-address space that has a lot of sharing. Also since the locking
-has changed to always lock the root anon_vma this can be very
-contended.
+Now that the avc locking is batched move the freeing of AVCs
+outside the lock. This lowers lock contention somewhat more on
+a fork/exit intensive workload.
 
-This patch adds a simple wrapper to batch these lock acquisitions
-and only reaquire the lock when another is needed. The main
-advantage is that when multiple processes are doing this in
-parallel they will avoid a lot of communication overhead
-on the lock cache line.
-
-I added a simple lock break (100 locks) for paranoia reason,
-but it's unclear if that's needed or not.
-
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Rik van Riel <riel@redhat.com>
 Signed-off-by: Andi Kleen <ak@linux.intel.com>
 ---
- include/linux/rmap.h |   38 ++++++++++++++++++++++++++++++++++++++
- 1 files changed, 38 insertions(+), 0 deletions(-)
+ mm/rmap.c |   24 ++++++++++++++----------
+ 1 files changed, 14 insertions(+), 10 deletions(-)
 
-diff --git a/include/linux/rmap.h b/include/linux/rmap.h
-index 830e65d..d5bb9f8 100644
---- a/include/linux/rmap.h
-+++ b/include/linux/rmap.h
-@@ -113,6 +113,44 @@ static inline void anon_vma_unlock(struct anon_vma *anon_vma)
- 	spin_unlock(&anon_vma->root->lock);
+diff --git a/mm/rmap.c b/mm/rmap.c
+index 2076d78..92070f4 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -302,7 +302,6 @@ static void anon_vma_unlink(struct anon_vma_chain *anon_vma_chain,
+ 			    struct anon_vma_lock_state *avs)
+ {
+ 	struct anon_vma *anon_vma = anon_vma_chain->anon_vma;
+-	int empty;
+ 
+ 	/* If anon_vma_fork fails, we can get an empty anon_vma_chain. */
+ 	if (!anon_vma)
+@@ -310,19 +309,14 @@ static void anon_vma_unlink(struct anon_vma_chain *anon_vma_chain,
+ 
+ 	anon_vma_lock_batch(anon_vma, avs);
+ 	list_del(&anon_vma_chain->same_anon_vma);
+-
+-	/* We must garbage collect the anon_vma if it's empty */
+-	empty = list_empty(&anon_vma->head);
+-
+-	if (empty)
+-		put_anon_vma(anon_vma);
  }
  
-+/* 
-+ * Batched locking for anon VMA chains to avoid too much cache line 
-+ * bouncing.
-+ */
+ void unlink_anon_vmas(struct vm_area_struct *vma)
+ {
+ 	struct anon_vma_chain *avc, *next;
+ 	struct anon_vma_lock_state avs;
+-	
++	LIST_HEAD(avmas);
 +
-+#define AVL_LOCKBREAK 500
+ 	/*
+ 	 * Unlink each anon_vma chained to the VMA.  This list is ordered
+ 	 * from newest to oldest, ensuring the root anon_vma gets freed last.
+@@ -330,10 +324,20 @@ void unlink_anon_vmas(struct vm_area_struct *vma)
+ 	init_anon_vma_lock_batch(&avs);
+ 	list_for_each_entry_safe(avc, next, &vma->anon_vma_chain, same_vma) {
+ 		anon_vma_unlink(avc, &avs);
+-		list_del(&avc->same_vma);
+-		anon_vma_chain_free(avc);
++		list_move(&avc->same_vma, &avmas);
+ 	}
+ 	anon_vma_unlock_batch(&avs);
 +
-+struct anon_vma_lock_state {
-+	struct anon_vma *root_anon_vma;
-+	int counter;
-+};
-+
-+static inline void init_anon_vma_lock_batch(struct anon_vma_lock_state *avs)
-+{
-+	avs->root_anon_vma = NULL;
-+	avs->counter = 0;
-+}
-+
-+static inline void anon_vma_lock_batch(struct anon_vma *anon_vma,
-+				       struct anon_vma_lock_state *state)
-+{
-+	if (state->root_anon_vma == anon_vma->root &&
-+	    state->counter++ < AVL_LOCKBREAK)
-+		return;
-+	if (state->root_anon_vma) {
-+		state->counter = 0;
-+		spin_unlock(&state->root_anon_vma->lock);
++	/* Now free them outside the lock */
++	list_for_each_entry_safe(avc, next, &avmas, same_vma) {
++		/* 
++		 * list_empty check can be done lockless because
++		 * once it is empty noone will readd.
++		 */
++		if (list_empty(&avc->anon_vma->head))
++			put_anon_vma(avc->anon_vma);
++		anon_vma_chain_free(avc);		
 +	}
-+	state->root_anon_vma = anon_vma->root;
-+	spin_lock(&state->root_anon_vma->lock);
-+}
-+
-+static inline void anon_vma_unlock_batch(struct anon_vma_lock_state *avs)
-+{
-+	if (avs->root_anon_vma)
-+		spin_unlock(&avs->root_anon_vma->lock);
-+}
-+
- /*
-  * anon_vma helper functions.
-  */
+ }
+ 
+ static void anon_vma_ctor(void *data)
 -- 
 1.7.4.4
 
