@@ -1,75 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id AB1DC6B0011
-	for <linux-mm@kvack.org>; Thu,  5 May 2011 05:21:59 -0400 (EDT)
-Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [202.81.31.246])
-	by e23smtp03.au.ibm.com (8.14.4/8.13.1) with ESMTP id p459GtT5021400
-	for <linux-mm@kvack.org>; Thu, 5 May 2011 19:16:55 +1000
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p459Llkg2400320
-	for <linux-mm@kvack.org>; Thu, 5 May 2011 19:21:47 +1000
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p459LgRe020983
-	for <linux-mm@kvack.org>; Thu, 5 May 2011 19:21:46 +1000
-Date: Thu, 5 May 2011 14:51:40 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [PATCH V2] Eliminate task stack trace duplication.
-Message-ID: <20110505092140.GC14830@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <1304529244-31051-1-git-send-email-yinghan@google.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 660766B0011
+	for <linux-mm@kvack.org>; Thu,  5 May 2011 06:19:58 -0400 (EDT)
+Received: by qyk2 with SMTP id 2so4074308qyk.14
+        for <linux-mm@kvack.org>; Thu, 05 May 2011 03:19:56 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <1304529244-31051-1-git-send-email-yinghan@google.com>
+In-Reply-To: <4DC1FFA5.1090207@snapgear.com>
+References: <1303888334-16062-1-git-send-email-lliubbo@gmail.com>
+	<20110504141353.842409e1.akpm@linux-foundation.org>
+	<4DC1FFA5.1090207@snapgear.com>
+Date: Thu, 5 May 2011 18:19:56 +0800
+Message-ID: <BANLkTimB+ZnvH2BdP5m=VypDnYKNbnmZVQ@mail.gmail.com>
+Subject: Re: [PATCH] nommu: add page_align to mmap
+From: Bob Liu <lliubbo@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>, Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org
+To: Greg Ungerer <gerg@snapgear.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, dhowells@redhat.com, lethal@linux-sh.org, gerg@uclinux.org, walken@google.com, daniel-gl@gmx.net, vapier@gentoo.org, Geert Uytterhoeven <geert@linux-m68k.org>
 
-* Ying Han <yinghan@google.com> [2011-05-04 10:14:04]:
+On Thu, May 5, 2011 at 9:38 AM, Greg Ungerer <gerg@snapgear.com> wrote:
+> On 05/05/11 07:13, Andrew Morton wrote:
+>>
+>> On Wed, 27 Apr 2011 15:12:14 +0800
+>> Bob Liu<lliubbo@gmail.com> =C2=A0wrote:
+>>
+>>> Currently on nommu arch mmap(),mremap() and munmap() doesn't do
+>>> page_align()
+>>> which is incorrect and not consist with mmu arch.
+>>> This patch fix it.
+>>>
+>>
+>> Can you explain this fully please? =C2=A0What was the user-observeable
+>> behaviour before the patch, and after?
+>>
+>> And some input from nommu maintainers would be nice.
+>
+> Its not obvious to me that there is a problem here. Are there
+> any issues caused by the current behavior that this fixes?
+>
 
-> The problem with small dmesg ring buffer like 512k is that only limited number
-> of task traces will be logged. Sometimes we lose important information only
-> because of too many duplicated stack traces.
-> 
-> This patch tries to reduce the duplication of task stack trace in the dump
-> message by hashing the task stack. The hashtable is a 32k pre-allocated buffer
-> during bootup. Then we hash the task stack with stack_depth 32 for each stack
-> entry. Each time if we find the identical task trace in the task stack, we dump
-> only the pid of the task which has the task trace dumped. So it is easy to back
-> track to the full stack with the pid.
-> 
-> [   58.469730] kworker/0:0     S 0000000000000000     0     4      2 0x00000000
-> [   58.469735]  ffff88082fcfde80 0000000000000046 ffff88082e9d8000 ffff88082fcfc010
-> [   58.469739]  ffff88082fce9860 0000000000011440 ffff88082fcfdfd8 ffff88082fcfdfd8
-> [   58.469743]  0000000000011440 0000000000000000 ffff88082fcee180 ffff88082fce9860
-> [   58.469747] Call Trace:
-> [   58.469751]  [<ffffffff8108525a>] worker_thread+0x24b/0x250
-> [   58.469754]  [<ffffffff8108500f>] ? manage_workers+0x192/0x192
-> [   58.469757]  [<ffffffff810885bd>] kthread+0x82/0x8a
-> [   58.469760]  [<ffffffff8141aed4>] kernel_thread_helper+0x4/0x10
-> [   58.469763]  [<ffffffff8108853b>] ? kthread_worker_fn+0x112/0x112
-> [   58.469765]  [<ffffffff8141aed0>] ? gs_change+0xb/0xb
-> [   58.469768] kworker/u:0     S 0000000000000004     0     5      2 0x00000000
-> [   58.469773]  ffff88082fcffe80 0000000000000046 ffff880800000000 ffff88082fcfe010
-> [   58.469777]  ffff88082fcea080 0000000000011440 ffff88082fcfffd8 ffff88082fcfffd8
-> [   58.469781]  0000000000011440 0000000000000000 ffff88082fd4e9a0 ffff88082fcea080
-> [   58.469785] Call Trace:
-> [   58.469786] <Same stack as pid 4>
-> [   58.470235] kworker/0:1     S 0000000000000000     0    13      2 0x00000000
-> [   58.470255]  ffff88082fd3fe80 0000000000000046 ffff880800000000 ffff88082fd3e010
-> [   58.470279]  ffff88082fcee180 0000000000011440 ffff88082fd3ffd8 ffff88082fd3ffd8
-> [   58.470301]  0000000000011440 0000000000000000 ffffffff8180b020 ffff88082fcee180
-> [   58.470325] Call Trace:
-> [   58.470332] <Same stack as pid 4>
+Yes, there is a issue.
 
-Given that pid's can be reused, I wonder if in a large time window the
-output can be confusing? The dmesg ring buffer can be scaled with a
-config option .. (CONFIG_LOG_BUF_LEN??)
+Some drivers'  mmap() function depend on (vma->vm_end - vma->start) is
+page aligned which is true on mmu arch but not on nommu.
+eg: uvc camera driver.
 
--- 
-	Three Cheers,
-	Balbir
+What's more, sometimes I got munmap() error.
+The reason is split file: mm/nommu.c
+                   do {
+1614                         if (start > vma->vm_start) {
+1615                                 kleave(" =3D -EINVAL [miss]");
+1616                                 return -EINVAL;
+1617                         }
+1618                         if (end =3D=3D vma->vm_end)
+1619                                 goto erase_whole_vma;
+
+<<=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3Dhere
+1620                         rb =3D rb_next(&vma->vm_rb);
+1621                         vma =3D rb_entry(rb, struct vm_area_struct, vm=
+_rb);
+1622                 } while (rb);
+1623                 kleave(" =3D -EINVAL [split file]");
+
+Because end is not page aligned (passed into from userspace) while
+some unknown reason
+vma->vm_end is aligned,  this loop will fail and -EINVAL[split file]
+error returned.
+But it's hard to reproduce.
+
+And in my opinion consist with mmu alway a better choice.
+
+Thanks for your review.
+
+--=20
+Regards,
+--Bob
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
