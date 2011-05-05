@@ -1,86 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id EE3896B0011
-	for <linux-mm@kvack.org>; Thu,  5 May 2011 01:25:14 -0400 (EDT)
-Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [202.81.31.247])
-	by e23smtp05.au.ibm.com (8.14.4/8.13.1) with ESMTP id p455J8KW024141
-	for <linux-mm@kvack.org>; Thu, 5 May 2011 15:19:08 +1000
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p455Owrv1073380
-	for <linux-mm@kvack.org>; Thu, 5 May 2011 15:24:58 +1000
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p455P3Yl016182
-	for <linux-mm@kvack.org>; Thu, 5 May 2011 15:25:04 +1000
-Date: Thu, 5 May 2011 01:06:58 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [PATCH] Allocate memory cgroup structures in local nodes
-Message-ID: <20110504193658.GB4713@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <1304533058-18228-1-git-send-email-andi@firstfloor.org>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A7036B0011
+	for <linux-mm@kvack.org>; Thu,  5 May 2011 02:30:19 -0400 (EDT)
+Date: Thu, 5 May 2011 08:30:12 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH resend] mm: get rid of CONFIG_STACK_GROWSUP || CONFIG_IA64
+Message-ID: <20110505063012.GA11529@tiehlicka.suse.cz>
+References: <20110503141044.GA25351@tiehlicka.suse.cz>
+ <alpine.LSU.2.00.1105031142260.7349@sister.anvils>
+ <20110504083005.GA1375@tiehlicka.suse.cz>
+ <alpine.LSU.2.00.1105041016110.23159@sister.anvils>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1304533058-18228-1-git-send-email-andi@firstfloor.org>
+In-Reply-To: <alpine.LSU.2.00.1105041016110.23159@sister.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-* Andi Kleen <andi@firstfloor.org> [2011-05-04 11:17:38]:
+On Wed 04-05-11 10:28:36, Hugh Dickins wrote:
+> On Wed, 4 May 2011, Michal Hocko wrote:
+> > 
+> > This case is obscure enough already because we are using VM_GROWSUP to
+> > declare expand_stack_upwards in include/linux/mm.h
+> 
+> Ah yes, I didn't notice that it was already done that way there
+> (closer to the definitions of VM_GROWSUP so not as bad).
+> 
+> > while definition is guarded by CONFIG_STACK_GROWSUP||CONFIG_IA64. 
+> > What the patch does is just "make it consistent" thing. I think we
+> > should at least use CONFIG_STACK_GROWSUP||CONFIG_IA64 at both places if
+> > you do not like VM_GROWSUP misuse.
+> 
+> If it's worth changing anything, yes, that would be better.
 
-> From: Andi Kleen <ak@linux.intel.com>
-> 
-> [Andrew: since this is a regression and a very simple fix
-> could you still consider it for .39? Thanks]
-> 
-> dde79e005a769 added a regression that the memory cgroup data structures
-> all end up in node 0 because the first attempt at allocating them
-> would not pass in a node hint. Since the initialization runs on CPU #0
-> it would all end up node 0. This is a problem on large memory systems,
-> where node 0 would lose a lot of memory.
-> 
-> Change the alloc_pages_exact to alloc_pages_exact_node. This will
-> still fall back to other nodes if not enough memory is available.
-> 
-> [RED-PEN: right now it would fall back first before trying
-> vmalloc_node. Probably not the best strategy ... But I left it like
-> that for now.]
-> 
-> Reported-by: Doug Nelson
-> CC: Michal Hocko <mhocko@suse.cz>
-> Cc: Dave Hansen <dave@linux.vnet.ibm.com>
-> Cc: Balbir Singh <balbir@in.ibm.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Signed-off-by: Andi Kleen <ak@linux.intel.com>
-> ---
->  mm/page_cgroup.c |    2 +-
->  1 files changed, 1 insertions(+), 1 deletions(-)
-> 
-> diff --git a/mm/page_cgroup.c b/mm/page_cgroup.c
-> index 9905501..1f4e20f 100644
-> --- a/mm/page_cgroup.c
-> +++ b/mm/page_cgroup.c
-> @@ -134,7 +134,7 @@ static void *__init_refok alloc_page_cgroup(size_t size, int nid)
->  {
->  	void *addr = NULL;
-> 
-> -	addr = alloc_pages_exact(size, GFP_KERNEL | __GFP_NOWARN);
-> +	addr = alloc_pages_exact_node(nid, size, GFP_KERNEL | __GFP_NOWARN);
+I have looked into the history again and the current VM_GROWSUP usage
+for the CONFIG_STACK_GROWSUP||CONFIG_IA64 has been introduced by
+commit 8ca3eb08097f6839b2206e2242db4179aee3cfb3
+Author: Luck, Tony <tony.luck@intel.com>
+Date:   Tue Aug 24 11:44:18 2010 -0700
 
-Excellent catch! My eyes might be cheating me, I see
-alloc_pages_exact_node doing what you expect it to do, I think the
-size is interpreted as order.
+    guard page for stacks that grow upwards
+    
+    pa-risc and ia64 have stacks that grow upwards. Check that
+    they do not run into other mappings. By making VM_GROWSUP
+    0x0 on architectures that do not ever use it, we can avoid
+    some unpleasant #ifdefs in check_stack_guard_page().
+    
+    Signed-off-by: Tony Luck <tony.luck@intel.com>
+    Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
 
->  	if (addr)
->  		return addr;
-> 
-> -- 
-> 1.7.4.4
-> 
+So I think the flag should be used that way. If we ever going to add a
+new architecture like IA64 which uses both ways of expanding we should
+make it easier by minimizing the places which have to be examined.
 
+> > > Not a nack: others may well disagree with me.
+> > > 
+> > > And, though I didn't find time to comment on your later "symmetrical"
+> > > patch before it went into mmotm, I didn't see how renaming expand_downwards
+> > > and expand_upwards to expand_stack_downwards and expand_stack_upwards was
+> > > helpful either - needless change, and you end up using expand_stack_upwards
+> > > on something which is not (what we usually call) the stack.
+> > 
+> > OK, I see your point. expand_stack_upwards in ia64_do_page_fault can be
+> > confusing as well. Maybe if we stick with the original expand_upwards
+> > and just make expand_downwards symmetrical without renameing to
+> > "_stack_" like the patch does? I can rework that patch if there is an
+> > interest. I would like to have it symmetrical, though, because the
+> > original code was rather confusing.
+> 
+> Yes, what I suggested before was an expand_upwards, an expand_downwards
+> and an expand_stack (with mod to fs/exec.c to replace its call to
+> expand_stack_downwards by direct call to expand_downwards).
+
+OK, now, with the cleanup patch, we have expand_stack and
+expand_stack_{downwards,upwards}. I will repost the patch to Andrew with
+up and down cases renamed. Does it work for you?
+
+> But it's always going to be somewhat confusing and asymmetrical
+> because of the ia64 register backing store case.
+
+How come? We would have expand_stack which is pretty much clear that it
+is expanding stack in the architecture specific way. And then we would
+have expand_{upwards,downward} which are clear about way how we expand
+whatever VMA, right?
 -- 
-	Three Cheers,
-	Balbir
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
