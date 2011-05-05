@@ -1,53 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 1ADA96B0023
-	for <linux-mm@kvack.org>; Thu,  5 May 2011 02:39:08 -0400 (EDT)
-Date: Thu, 5 May 2011 08:38:54 +0200
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id E75CF6B0022
+	for <linux-mm@kvack.org>; Thu,  5 May 2011 02:59:08 -0400 (EDT)
+Date: Thu, 5 May 2011 08:59:01 +0200
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] Allocate memory cgroup structures in local nodes v2
-Message-ID: <20110505063854.GB11529@tiehlicka.suse.cz>
-References: <1304540783-8247-1-git-send-email-andi@firstfloor.org>
- <20110504213850.GA16685@cmpxchg.org>
+Subject: Re: [PATCH 1/7] memcg: add high/low watermark to res_counter
+Message-ID: <20110505065901.GC11529@tiehlicka.suse.cz>
+References: <20110425182849.ab708f12.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110429133313.GB306@tiehlicka.suse.cz>
+ <20110501150410.75D2.A69D9226@jp.fujitsu.com>
+ <20110503064945.GA18927@tiehlicka.suse.cz>
+ <BANLkTimmpHcSJuO_8+P=GjYf+wB=Nyq=4w@mail.gmail.com>
+ <20110503082550.GD18927@tiehlicka.suse.cz>
+ <BANLkTikZtOdzsnjH=43AegLCpYc6ecfKsg@mail.gmail.com>
+ <20110504085851.GC1375@tiehlicka.suse.cz>
+ <BANLkTinxuSaCEvN4_vB=uA1rdGUwCpovog@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110504213850.GA16685@cmpxchg.org>
+In-Reply-To: <BANLkTinxuSaCEvN4_vB=uA1rdGUwCpovog@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andi Kleen <andi@firstfloor.org>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andi Kleen <ak@linux.intel.com>, rientjes@google.com, Dave Hansen <dave@linux.vnet.ibm.com>, Balbir Singh <balbir@in.ibm.com>
+To: Ying Han <yinghan@google.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Johannes Weiner <jweiner@redhat.com>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>
 
-On Wed 04-05-11 23:38:50, Johannes Weiner wrote:
-> On Wed, May 04, 2011 at 01:26:23PM -0700, Andi Kleen wrote:
-> > diff --git a/mm/page_cgroup.c b/mm/page_cgroup.c
-> > index 9905501..a362215 100644
-> > --- a/mm/page_cgroup.c
-> > +++ b/mm/page_cgroup.c
-> > @@ -134,7 +134,7 @@ static void *__init_refok alloc_page_cgroup(size_t size, int nid)
-> >  {
-> >  	void *addr = NULL;
-> >  
-> > -	addr = alloc_pages_exact(size, GFP_KERNEL | __GFP_NOWARN);
-> > +	addr = alloc_pages_exact_node(nid, GFP_KERNEL | __GFP_NOWARN, size);
+On Wed 04-05-11 10:16:39, Ying Han wrote:
+> On Wed, May 4, 2011 at 1:58 AM, Michal Hocko <mhocko@suse.cz> wrote:
+> > On Tue 03-05-11 10:01:27, Ying Han wrote:
+> >> On Tue, May 3, 2011 at 1:25 AM, Michal Hocko <mhocko@suse.cz> wrote:
+> >> > On Tue 03-05-11 16:45:23, KOSAKI Motohiro wrote:
+> >> >> 2011/5/3 Michal Hocko <mhocko@suse.cz>:
+> >> >> > On Sun 01-05-11 15:06:02, KOSAKI Motohiro wrote:
+> >> >> >> > On Mon 25-04-11 18:28:49, KAMEZAWA Hiroyuki wrote:
+> > [...]
+> >> >> >> Can you please clarify this? I feel it is not opposite semantics.
+> >> >> >
+> >> >> > In the global reclaim low watermark represents the point when we _start_
+> >> >> > background reclaim while high watermark is the _stopper_. Watermarks are
+> >> >> > based on the free memory while this proposal makes it based on the used
+> >> >> > memory.
+> >> >> > I understand that the result is same in the end but it is really
+> >> >> > confusing because you have to switch your mindset from free to used and
+> >> >> > from under the limit to above the limit.
+> >> >>
+> >> >> Ah, right. So, do you have an alternative idea?
+> >> >
+> >> > Why cannot we just keep the global reclaim semantic and make it free
+> >> > memory (hard_limit - usage_in_bytes) based with low limit as the trigger
+> >> > for reclaiming?
+> >>
+> > [...]
+> >> The current scheme
+> >
+> > What is the current scheme?
 > 
-> alloc_pages_exact_node is not the 'specify node as well'-version of
-> alloc_pages_exact, it refers to 'exact node'.  Thus the
-> free_pages_exact call is no longer the right counter-part.
+> using the "usage_in_bytes" instead of "free"
 > 
-> alloc_pages_exact_node takes an order, not a size argument.
-> 
-> alloc_pages_exact_node returns a pointer to the struct page, not to
-> the allocated memory, like all other alloc_pages* functions with the
-> exception of alloc_pages_exact.
-> 
-> I don't think any of those mistakes even triggers a compiler warning.
-> Wow.  This API is so thoroughly fscked beyond belief that I think the
-> only way to top this is to have one of the functions invert the bits
-> of its return value depending on the parity of the uptime counter.
+> >> is closer to the global bg reclaim which the low is triggering reclaim
+> >> and high is stopping reclaim. And we can only use the "usage" to keep
+> >> the same API.
 
-I think Dave Hansen is doing a cleanup in that area
-(https://lkml.org/lkml/2011/4/11/337).
+And how is this closer to the global reclaim semantic which is based on
+the available memory?
+What I am trying to say here is that this new watermark concept doesn't
+fit in with the global reclaim. Well, standard user might not be aware
+of the zone watermarks at all because they cannot be set. But still if
+you are analyzing your memory usage you still check and compare free
+memory to min/low/high watermarks to find out what is the current memory
+pressure.
+If we had another concept with cgroups you would need to switch your 
+mindset to analyze things.
 
+I am sorry, but I still do not see any reason why those cgroup watermaks
+cannot be based on total-usage.
 -- 
 Michal Hocko
 SUSE Labs
