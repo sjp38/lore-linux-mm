@@ -1,70 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id CC28A6B0023
-	for <linux-mm@kvack.org>; Fri,  6 May 2011 01:36:41 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id C0F563EE0C1
-	for <linux-mm@kvack.org>; Fri,  6 May 2011 14:36:38 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id A2ABA45DE96
-	for <linux-mm@kvack.org>; Fri,  6 May 2011 14:36:38 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8709845DE94
-	for <linux-mm@kvack.org>; Fri,  6 May 2011 14:36:38 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6F6A0E18004
-	for <linux-mm@kvack.org>; Fri,  6 May 2011 14:36:38 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 35026E08004
-	for <linux-mm@kvack.org>; Fri,  6 May 2011 14:36:38 +0900 (JST)
-Date: Fri, 6 May 2011 14:30:00 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 1/7] memcg: add high/low watermark to res_counter
-Message-Id: <20110506143000.7151eab6.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20110502090741.GP6547@balbir.in.ibm.com>
-References: <20110425182529.c7c37bb4.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110425182849.ab708f12.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110502090741.GP6547@balbir.in.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id A44676B0023
+	for <linux-mm@kvack.org>; Fri,  6 May 2011 01:44:47 -0400 (EDT)
+From: Bob Liu <lliubbo@gmail.com>
+Subject: [PATCH v2] nommu: add page_align to mmap
+Date: Fri, 6 May 2011 14:03:04 +0800
+Message-ID: <1304661784-11654-1-git-send-email-lliubbo@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: balbir@linux.vnet.ibm.com
-Cc: Ying Han <yinghan@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Johannes Weiner <jweiner@redhat.com>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, Michal Hocko <mhocko@suse.cz>
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, gerg@snapgear.com, dhowells@redhat.com, lethal@linux-sh.org, gerg@uclinux.org, walken@google.com, daniel-gl@gmx.net, vapier@gentoo.org, geert@linux-m68k.org, uclinux-dist-devel@blackfin.uclinux.org, Bob Liu <lliubbo@gmail.com>
 
-On Mon, 2 May 2011 14:37:41 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+Currently on nommu arch mmap(),mremap() and munmap() doesn't do page_align()
+which isn't consist with mmu arch and cause some issues.
 
-> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2011-04-25 18:28:49]:
-		res_counter_set_high_wmark_limit(&mem->res, limit);
-> > +	} else {
-> > +		u64 low_wmark, high_wmark, low_distance;
-> > +		if (mem->high_wmark_distance <= HILOW_DISTANCE)
-> > +			low_distance = mem->high_wmark_distance / 2;
-> > +		else
-> > +			low_distance = HILOW_DISTANCE;
-> > +		if (low_distance < PAGE_SIZE * 2)
-> > +			low_distance = PAGE_SIZE * 2;
-> > +
-> > +		low_wmark = limit - low_distance;
-> > +		high_wmark = limit - mem->high_wmark_distance;
-> > +
-> > +		res_counter_set_low_wmark_limit(&mem->res, low_wmark);
-> > +		res_counter_set_high_wmark_limit(&mem->res, high_wmark);
-> > +	}
-> > +}
-> > +
-> 
-> I've not seen the documentation patch, but it might be good to have
-> some comments with what to expect the watermarks to be and who sets up
-> up high_wmark_distance. 
-> 
+First, some drivers' mmap() function depends on vma->vm_end - vma->start is
+page aligned which is true on mmu arch but not on nommu. eg: uvc camera driver.
 
-I'll refine these namings.
+Second munmap() may return -EINVAL[split file] error in cases when end is not
+page aligned(passed into from userspace) but vma->vm_end is aligned dure to
+split or driver's mmap() ops.
 
-Thanks,
--Kame
+This patch add page align to fix those issues.
+
+Changelog v1->v2:
+- added more commit message
+
+Signed-off-by: Bob Liu <lliubbo@gmail.com>
+---
+ mm/nommu.c |   24 ++++++++++++++----------
+ 1 files changed, 14 insertions(+), 10 deletions(-)
+
+diff --git a/mm/nommu.c b/mm/nommu.c
+index c4c542c..3febfd9 100644
+--- a/mm/nommu.c
++++ b/mm/nommu.c
+@@ -1133,7 +1133,7 @@ static int do_mmap_private(struct vm_area_struct *vma,
+ 			   unsigned long capabilities)
+ {
+ 	struct page *pages;
+-	unsigned long total, point, n, rlen;
++	unsigned long total, point, n;
+ 	void *base;
+ 	int ret, order;
+ 
+@@ -1157,13 +1157,12 @@ static int do_mmap_private(struct vm_area_struct *vma,
+ 		 * make a private copy of the data and map that instead */
+ 	}
+ 
+-	rlen = PAGE_ALIGN(len);
+ 
+ 	/* allocate some memory to hold the mapping
+ 	 * - note that this may not return a page-aligned address if the object
+ 	 *   we're allocating is smaller than a page
+ 	 */
+-	order = get_order(rlen);
++	order = get_order(len);
+ 	kdebug("alloc order %d for %lx", order, len);
+ 
+ 	pages = alloc_pages(GFP_KERNEL, order);
+@@ -1173,7 +1172,7 @@ static int do_mmap_private(struct vm_area_struct *vma,
+ 	total = 1 << order;
+ 	atomic_long_add(total, &mmap_pages_allocated);
+ 
+-	point = rlen >> PAGE_SHIFT;
++	point = len >> PAGE_SHIFT;
+ 
+ 	/* we allocated a power-of-2 sized page set, so we may want to trim off
+ 	 * the excess */
+@@ -1195,7 +1194,7 @@ static int do_mmap_private(struct vm_area_struct *vma,
+ 	base = page_address(pages);
+ 	region->vm_flags = vma->vm_flags |= VM_MAPPED_COPY;
+ 	region->vm_start = (unsigned long) base;
+-	region->vm_end   = region->vm_start + rlen;
++	region->vm_end   = region->vm_start + len;
+ 	region->vm_top   = region->vm_start + (total << PAGE_SHIFT);
+ 
+ 	vma->vm_start = region->vm_start;
+@@ -1211,15 +1210,15 @@ static int do_mmap_private(struct vm_area_struct *vma,
+ 
+ 		old_fs = get_fs();
+ 		set_fs(KERNEL_DS);
+-		ret = vma->vm_file->f_op->read(vma->vm_file, base, rlen, &fpos);
++		ret = vma->vm_file->f_op->read(vma->vm_file, base, len, &fpos);
+ 		set_fs(old_fs);
+ 
+ 		if (ret < 0)
+ 			goto error_free;
+ 
+ 		/* clear the last little bit */
+-		if (ret < rlen)
+-			memset(base + ret, 0, rlen - ret);
++		if (ret < len)
++			memset(base + ret, 0, len - ret);
+ 
+ 	}
+ 
+@@ -1268,6 +1267,7 @@ unsigned long do_mmap_pgoff(struct file *file,
+ 
+ 	/* we ignore the address hint */
+ 	addr = 0;
++	len = PAGE_ALIGN(len);
+ 
+ 	/* we've determined that we can make the mapping, now translate what we
+ 	 * now know into VMA flags */
+@@ -1645,14 +1645,16 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len)
+ {
+ 	struct vm_area_struct *vma;
+ 	struct rb_node *rb;
+-	unsigned long end = start + len;
++	unsigned long end;
+ 	int ret;
+ 
+ 	kenter(",%lx,%zx", start, len);
+ 
+-	if (len == 0)
++	if ((len = PAGE_ALIGN(len)) == 0)
+ 		return -EINVAL;
+ 
++	end = start + len;
++
+ 	/* find the first potentially overlapping VMA */
+ 	vma = find_vma(mm, start);
+ 	if (!vma) {
+@@ -1773,6 +1775,8 @@ unsigned long do_mremap(unsigned long addr,
+ 	struct vm_area_struct *vma;
+ 
+ 	/* insanity checks first */
++	old_len = PAGE_ALIGN(old_len);
++	new_len = PAGE_ALIGN(new_len);
+ 	if (old_len == 0 || new_len == 0)
+ 		return (unsigned long) -EINVAL;
+ 
+-- 
+1.6.3.3
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
