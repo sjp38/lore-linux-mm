@@ -1,35 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 2664B6B0024
-	for <linux-mm@kvack.org>; Fri,  6 May 2011 14:07:21 -0400 (EDT)
-Date: Fri, 6 May 2011 20:06:46 +0200
+	by kanga.kvack.org (Postfix) with SMTP id 311656B0012
+	for <linux-mm@kvack.org>; Fri,  6 May 2011 14:22:18 -0400 (EDT)
+Date: Fri, 6 May 2011 20:21:51 +0200
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH]mm/page_alloc.c: no need del from lru
-Message-ID: <20110506180646.GF6330@random.random>
-References: <1304694099.2450.3.camel@figo-desktop>
+Subject: Re: [PATCH]mm/compation.c: checking page in lru twice
+Message-ID: <20110506182151.GG6330@random.random>
+References: <1304681575.15473.4.camel@figo-desktop>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1304694099.2450.3.camel@figo-desktop>
+In-Reply-To: <1304681575.15473.4.camel@figo-desktop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: "Figo.zhang" <figo1802@gmail.com>
-Cc: lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, mel@csn.ul.ie, kamezawa.hiroyu@jp.fujisu.com, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@osdl.org>
+Cc: lkml <linux-kernel@vger.kernel.org>, mel@csn.ul.ie, "linux-mm@kvack.org" <linux-mm@kvack.org>, kamezawa.hiroyu@jp.fujisu.com, minchan.kim@gmail.com, Andrew Morton <akpm@osdl.org>
 
-Hello,
-
-On Fri, May 06, 2011 at 11:01:21PM +0800, Figo.zhang wrote:
+On Fri, May 06, 2011 at 07:32:46PM +0800, Figo.zhang wrote:
 > 
-> split_free_page() the page is still free page, it is no need del from lru.
+> in isolate_migratepages() have check page in LRU twice, the next one
+> at _isolate_lru_page(). 
 
-This is in the buddy freelist, see the other list_add in
-page_alloc.c. It's not the lru as in release_pages. I see little
-chance that if this was wrong it could go unnoticed so long without
-major mm corruption reported. Removing it also should result in heavy
-mm corruption.
+hugetlbfs or any other compound page won't have PageLRU set and they
+may go away from under us leading to compound_order not being reliable
+if we remove the PageLRU check before compound_order. So we need to
+verify the page is in LRU before running compound_order safely. And if
+we hold the lru_lock, the page won't be isolated under us, and we know
+it's not going to get splitted either.
 
-Thanks,
-Andrea
+We might use compound_trans_order but that's only reliable if run on
+the head page so it's not so reliable, and so far it's only used by
+memory-failure to "diminish" the risk of races in reading the compound
+order, but it's not the best having to use compound_trans_order (and
+memory-failure remains unsafe w.r.t to hugetlbfs being released during
+hwpoisoning, so compound_trans_order might have to be improved for
+it).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
