@@ -1,90 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id A0C826B0025
-	for <linux-mm@kvack.org>; Thu,  5 May 2011 20:33:36 -0400 (EDT)
-Message-ID: <4DC34185.4040106@snapgear.com>
-Date: Fri, 6 May 2011 10:32:05 +1000
-From: Greg Ungerer <gerg@snapgear.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 2D4C16B0023
+	for <linux-mm@kvack.org>; Thu,  5 May 2011 21:12:21 -0400 (EDT)
+Received: from kpbe13.cbf.corp.google.com (kpbe13.cbf.corp.google.com [172.25.105.77])
+	by smtp-out.google.com with ESMTP id p461CJFu009270
+	for <linux-mm@kvack.org>; Thu, 5 May 2011 18:12:19 -0700
+Received: from gxk7 (gxk7.prod.google.com [10.202.11.7])
+	by kpbe13.cbf.corp.google.com with ESMTP id p461Bf0V030521
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 5 May 2011 18:12:18 -0700
+Received: by gxk7 with SMTP id 7so1321255gxk.21
+        for <linux-mm@kvack.org>; Thu, 05 May 2011 18:12:13 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH] nommu: add page_align to mmap
-References: <1303888334-16062-1-git-send-email-lliubbo@gmail.com>	<20110504141353.842409e1.akpm@linux-foundation.org>	<4DC1FFA5.1090207@snapgear.com> <BANLkTimB+ZnvH2BdP5m=VypDnYKNbnmZVQ@mail.gmail.com>
-In-Reply-To: <BANLkTimB+ZnvH2BdP5m=VypDnYKNbnmZVQ@mail.gmail.com>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <20110505063012.GA11529@tiehlicka.suse.cz>
+References: <20110503141044.GA25351@tiehlicka.suse.cz>
+	<alpine.LSU.2.00.1105031142260.7349@sister.anvils>
+	<20110504083005.GA1375@tiehlicka.suse.cz>
+	<alpine.LSU.2.00.1105041016110.23159@sister.anvils>
+	<20110505063012.GA11529@tiehlicka.suse.cz>
+Date: Thu, 5 May 2011 18:12:12 -0700
+Message-ID: <BANLkTikGduoi8DVapz0H-uVPrrXPYF=YGg@mail.gmail.com>
+Subject: Re: [PATCH resend] mm: get rid of CONFIG_STACK_GROWSUP || CONFIG_IA64
+From: Hugh Dickins <hughd@google.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bob Liu <lliubbo@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, dhowells@redhat.com, lethal@linux-sh.org, gerg@uclinux.org, walken@google.com, daniel-gl@gmx.net, vapier@gentoo.org, Geert Uytterhoeven <geert@linux-m68k.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-Hi Bob,
+On Wed, May 4, 2011 at 11:30 PM, Michal Hocko <mhocko@suse.cz> wrote:
 
-On 05/05/11 20:19, Bob Liu wrote:
-> On Thu, May 5, 2011 at 9:38 AM, Greg Ungerer<gerg@snapgear.com>  wrote:
->> On 05/05/11 07:13, Andrew Morton wrote:
->>>
->>> On Wed, 27 Apr 2011 15:12:14 +0800
->>> Bob Liu<lliubbo@gmail.com>  =C3=A1wrote:
->>>
->>>> Currently on nommu arch mmap(),mremap() and munmap() doesn't do
->>>> page_align()
->>>> which is incorrect and not consist with mmu arch.
->>>> This patch fix it.
->>>>
->>>
->>> Can you explain this fully please? =C3=A1What was the user-observeable
->>> behaviour before the patch, and after?
->>>
->>> And some input from nommu maintainers would be nice.
->>
->> Its not obvious to me that there is a problem here. Are there
->> any issues caused by the current behavior that this fixes?
->>
->
-> Yes, there is a issue.
->
-> Some drivers'  mmap() function depend on (vma->vm_end - vma->start) is
-> page aligned which is true on mmu arch but not on nommu.
-> eg: uvc camera driver.
->
-> What's more, sometimes I got munmap() error.
-> The reason is split file: mm/nommu.c
->                     do {
-> 1614                         if (start>  vma->vm_start) {
-> 1615                                 kleave(" =3D -EINVAL [miss]");
-> 1616                                 return -EINVAL;
-> 1617                         }
-> 1618                         if (end =3D=3D vma->vm_end)
-> 1619                                 goto erase_whole_vma;
->
-> <<=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3Dhere
-> 1620                         rb =3D rb_next(&vma->vm_rb);
-> 1621                         vma =3D rb_entry(rb, struct vm_area_struct, =
-vm_rb);
-> 1622                 } while (rb);
-> 1623                 kleave(" =3D -EINVAL [split file]");
->
-> Because end is not page aligned (passed into from userspace) while
-> some unknown reason
-> vma->vm_end is aligned,  this loop will fail and -EINVAL[split file]
-> error returned.
-> But it's hard to reproduce.
->
-> And in my opinion consist with mmu alway a better choice.
->
-> Thanks for your review.
+> So I think the flag should be used that way. If we ever going to add a
+> new architecture like IA64 which uses both ways of expanding we should
+> make it easier by minimizing the places which have to be examined.
 
-Ok, makes sense. Can you add some of this writeup to the patch
-commit message?
+If, yes.  Let's just agree to disagree.  It looks like I'm preferring
+to think of the ia64 case as exceptional, and I want to be reminded of
+that peculiar case; whereas you are wanting to generalize and make it
+not stand out.  Both valid.
 
-Regards
-Greg
+> OK, now, with the cleanup patch, we have expand_stack and
+> expand_stack_{downwards,upwards}. I will repost the patch to Andrew with
+> up and down cases renamed. Does it work for you?
 
+Sounds right.
 
-------------------------------------------------------------------------
-Greg Ungerer  --  Principal Engineer        EMAIL:     gerg@snapgear.com
-SnapGear Group, McAfee                      PHONE:       +61 7 3435 2888
-8 Gardner Close                             FAX:         +61 7 3217 5323
-Milton, QLD, 4064, Australia                WEB: http://www.SnapGear.com
+>
+>> But it's always going to be somewhat confusing and asymmetrical
+>> because of the ia64 register backing store case.
+>
+> How come? We would have expand_stack which is pretty much clear that it
+> is expanding stack in the architecture specific way. And then we would
+> have expand_{upwards,downward} which are clear about way how we expand
+> whatever VMA, right?
+
+Right.  I'm preferring to be reminded of the confusion and asymmetry,
+you're preferring to smooth over it.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
