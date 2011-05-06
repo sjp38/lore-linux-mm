@@ -1,72 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 2E43C6B0025
-	for <linux-mm@kvack.org>; Fri,  6 May 2011 04:08:02 -0400 (EDT)
-From: <groupshield@sgi.com>
-Subject: McAfee GroupShield Alert      
-Date: Fri, 6 May 2011 03:08:00 -0500
-Message-ID: <3F2D4671E92C4ED6B852FC1B7DBB5671@americas.sgi.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 455BE6B0022
+	for <linux-mm@kvack.org>; Fri,  6 May 2011 04:42:55 -0400 (EDT)
+Date: Fri, 6 May 2011 16:42:38 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: [RFC][PATCH] writeback: limit number of moved inodes in queue_io()
+Message-ID: <20110506084238.GA487@localhost>
+References: <20110420080336.441157866@intel.com>
+ <20110420080918.560499032@intel.com>
+ <20110504073931.GA22675@localhost>
+ <20110505163708.GN5323@quack.suse.cz>
+ <20110506052955.GA24904@localhost>
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_0000_01CC0B9A.CE515E90"
-Content-Class: urn:content-classes:message
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110506052955.GA24904@localhost>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James.Bottomley@suse.de, mgorman@novell.com, jack@suse.cz, colin.king@canonical.com, chris.mason@oracle.com, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-ext4@vger.kernel.org
+To: Jan Kara <jack@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@linux.vnet.ibm.com>, Mel Gorman <mel@csn.ul.ie>, Dave Chinner <david@fromorbit.com>, Itaru Kitayama <kitayama@cl.bb4u.ne.jp>, Minchan Kim <minchan.kim@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, "Li, Shaohua" <shaohua.li@intel.com>
 
-This is a multi-part message in MIME format.
+> patched trace-tar-dd-ext4-2.6.39-rc3+
 
-------=_NextPart_000_0000_01CC0B9A.CE515E90
-Content-Type: text/plain;
-	charset="utf-8"
-Content-Transfer-Encoding: quoted-printable
+>        flush-8:0-3048  [004]  1929.981734: writeback_queue_io: bdi 8:0: older=4296600898 age=2 enqueue=13227
 
-McAfee GroupShield=C2=99 Alert=20
+> vanilla trace-tar-dd-ext4-2.6.39-rc3
 
-McAfee GroupShield discovered a problem with the following email. See
-your system administrator for further information.=20
+>        flush-8:0-2911  [004]    77.158312: writeback_queue_io: bdi 8:0: older=0 age=-1 enqueue=18938
 
-Date/Time sent: 06 May 2011 03:07:59
-Subject line: Re: [BUG] fatal hang untarring 90GB file, possibly
-writeback related.
-From: linux-fsdevel-owner@vger.kernel.org
-To: James Bottomley
-Detected file name: watch-highorder.pl
-Quarantined item: 0
-Action taken: Replaced
-Reason: File Filter
-Rule Group: On-Access - Banned attachment types
+>        flush-8:0-2911  [000]    82.461064: writeback_queue_io: bdi 8:0: older=0 age=-1 enqueue=6957
+
+It looks too much to move 13227 and 18938 inodes at once. So I tried
+arbitrarily limiting the max move number to 1000 and it helps reduce
+the lock hold time and contentions a lot.
+
+---
+Subject: writeback: limit number of moved inodes in queue_io()
+Date: Fri May 06 13:34:08 CST 2011
+
+Only move 1000 inodes from b_dirty to b_io at one time. This reduces
+lock hold time and lock contentions by many times in a simple dd+tar
+workload in a 8p test box. This workload was observed to move 10000+
+inodes in one shot on ext4 which was obviously too much.
+
+                              class name    con-bounces    contentions   waittime-min   waittime-max waittime-total    acq-b
+ounces   acquisitions   holdtime-min   holdtime-max holdtime-total
+----------------------------------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------
+                      inode_wb_list_lock:          2063           2065           0.12        2648.66        5948.99
+ 27475         943778           0.09        2704.76      498340.24
+                      ------------------
+                      inode_wb_list_lock             89          [<ffffffff8115cf3a>] sync_inode+0x28/0x5f
+                      inode_wb_list_lock             38          [<ffffffff8115ccab>] inode_wait_for_writeback+0xa8/0xc6
+                      inode_wb_list_lock            629          [<ffffffff8115da35>] __mark_inode_dirty+0x170/0x1d0
+                      inode_wb_list_lock            842          [<ffffffff8115d334>] writeback_sb_inodes+0x10f/0x157
+                      ------------------
+                      inode_wb_list_lock            891          [<ffffffff8115ce3e>] writeback_single_inode+0x175/0x249
+                      inode_wb_list_lock             13          [<ffffffff8115dc4e>] writeback_inodes_wb+0x3a/0x143
+                      inode_wb_list_lock            499          [<ffffffff8115da35>] __mark_inode_dirty+0x170/0x1d0
+                      inode_wb_list_lock            617          [<ffffffff8115d334>] writeback_sb_inodes+0x10f/0x157
 
 
-Copyright =C2=A9 1999-2007, McAfee, Inc.
-All Rights Reserved.
-http://www.mcafee.com <http://www.mcafee.com/> =20
+                &(&wb->list_lock)->rlock:           842            842           0.14         101.10        1013.34
+ 20489         970892           0.09         234.11      509829.79
+                ------------------------
+                &(&wb->list_lock)->rlock            275          [<ffffffff8115db09>] __mark_inode_dirty+0x173/0x1cf
+                &(&wb->list_lock)->rlock            114          [<ffffffff8115cdd3>] writeback_single_inode+0x18a/0x27e
+                &(&wb->list_lock)->rlock             56          [<ffffffff8115cc29>] inode_wait_for_writeback+0xac/0xcc
+                &(&wb->list_lock)->rlock            132          [<ffffffff8115cf2a>] sync_inode+0x63/0xa2
+                ------------------------
+                &(&wb->list_lock)->rlock              2          [<ffffffff8115dfea>] inode_wb_list_del+0x5f/0x85
+                &(&wb->list_lock)->rlock             33          [<ffffffff8115cf2a>] sync_inode+0x63/0xa2
+                &(&wb->list_lock)->rlock              9          [<ffffffff8115cc29>] inode_wait_for_writeback+0xac/0xcc
+                &(&wb->list_lock)->rlock            430          [<ffffffff8115cdd3>] writeback_single_inode+0x18a/0x27e
 
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+---
+ fs/fs-writeback.c |    2 ++
+ 1 file changed, 2 insertions(+)
 
-------=_NextPart_000_0000_01CC0B9A.CE515E90
-Content-Type: text/html;
-	charset="utf-8"
-Content-Transfer-Encoding: 8bit
-
-
-<body bgcolor="#91bbd3">
-<!-- Copyright (C) 2007 McAfee Inc. All rights reserved. -->
-<FONT color=#ff0000>McAfee GroupShield&#153 Alert</FONT> 
-<P>McAfee GroupShield discovered a problem with the following email. See your system administrator for further information. </P>
-
-Date/Time sent: 06 May 2011 03:07:59<br>
-Subject line: Re: [BUG] fatal hang untarring 90GB file, possibly writeback related.<br>
-From: linux-fsdevel-owner@vger.kernel.org<br>
-To: James Bottomley<br>
-Detected file name: watch-highorder.pl<br>
-Quarantined item: 0<br>
-Action taken: Replaced<br>
-Reason: File Filter<br>
-Rule Group: On-Access - Banned attachment types<br>
-
-<P>Copyright A(C) 1999-2007, McAfee, Inc.<BR>All Rights Reserved.<BR><A href="http://www.mcafee.com/">http://www.mcafee.com</A> </P>
-</body>
-------=_NextPart_000_0000_01CC0B9A.CE515E90--
+--- linux-next.orig/fs/fs-writeback.c	2011-05-06 13:32:41.000000000 +0800
++++ linux-next/fs/fs-writeback.c	2011-05-06 13:34:08.000000000 +0800
+@@ -279,6 +279,8 @@ static int move_expired_inodes(struct li
+ 		sb = inode->i_sb;
+ 		list_move(&inode->i_wb_list, &tmp);
+ 		moved++;
++		if (unlikely(moved >= 1000))	/* limit spinlock hold time */
++			break;
+ 	}
+ 
+ 	/* just one sb in list, splice to dispatch_queue and we're done */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
