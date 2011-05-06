@@ -1,41 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 9E1A96B0024
-	for <linux-mm@kvack.org>; Fri,  6 May 2011 14:26:49 -0400 (EDT)
-Date: Fri, 6 May 2011 20:26:43 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH]mm/compation.c: checking page in lru twice
-Message-ID: <20110506182643.GH6330@random.random>
-References: <1304681575.15473.4.camel@figo-desktop>
- <20110506130955.GF4941@csn.ul.ie>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 39CFF6B0012
+	for <linux-mm@kvack.org>; Fri,  6 May 2011 14:28:06 -0400 (EDT)
+Received: by qyk2 with SMTP id 2so5714977qyk.14
+        for <linux-mm@kvack.org>; Fri, 06 May 2011 11:28:04 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110506130955.GF4941@csn.ul.ie>
+Date: Fri, 6 May 2011 21:28:04 +0300
+Message-ID: <BANLkTi=Jdxu7am8-jhJbT0t-uhNmW4zWhw@mail.gmail.com>
+Subject: [PATCH] slub: slub_def.h: needs additional check for "index"
+From: Maxin John <maxin.john@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: "Figo.zhang" <figo1802@gmail.com>, lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, kamezawa.hiroyu@jp.fujisu.com, minchan.kim@gmail.com, Andrew Morton <akpm@osdl.org>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, May 06, 2011 at 02:09:55PM +0100, Mel Gorman wrote:
-> On Fri, May 06, 2011 at 07:32:46PM +0800, Figo.zhang wrote:
-> > 
-> > in isolate_migratepages() have check page in LRU twice, the next one
-> > at _isolate_lru_page(). 
-> > 
-> > Signed-off-by: Figo.zhang <figo1802@gmail.com> 
-> 
-> Not checking for PageLRU means that PageTransHuge() gets called
-> for each page. While the scanner is active and the lock released,
-> a transparent hugepage can be created and potentially we test
-> PageTransHuge() on a tail page. This will trigger a BUG if
-> CONFIG_DEBUG_VM is set.
+In slub_def.h file, the kmalloc_index() may return -1 for some special cases.
+If that negative return value gets assigned to "index", it might lead to issues
+later as the variable "index" is used as index to array "kmalloc_caches" in :
 
-Agreed. The compound_order also would become unsafe even if it was
-initially an head page (if it's a compound page not in lru). And
-compound_trans_order isn't a solution either because we need to be
-head for it to be safe like you said, better not having to use
-compound_trans_order.
+return kmalloc_caches[index];
+
+Please let me know your comments.
+
+Signed-off-by: Maxin B. John <maxin.john@gmail.com>
+---
+diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
+index 45ca123..3db4b33 100644
+--- a/include/linux/slub_def.h
++++ b/include/linux/slub_def.h
+@@ -211,7 +211,7 @@ static __always_inline struct kmem_cache
+*kmalloc_slab(size_t size)
+ {
+        int index = kmalloc_index(size);
+
+-       if (index == 0)
++       if (index <= 0)
+                return NULL;
+
+        return kmalloc_caches[index];
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
