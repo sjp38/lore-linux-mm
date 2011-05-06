@@ -1,66 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 5884C6B0023
-	for <linux-mm@kvack.org>; Thu,  5 May 2011 18:06:11 -0400 (EDT)
-Date: Thu, 5 May 2011 15:06:01 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/1] coredump: use task comm instead of (unknown)
-Message-Id: <20110505150601.a4457970.akpm@linux-foundation.org>
-In-Reply-To: <1304494354-21487-1-git-send-email-jslaby@suse.cz>
-References: <4DC0FFAB.1000805@gmail.com>
-	<1304494354-21487-1-git-send-email-jslaby@suse.cz>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id A0C826B0025
+	for <linux-mm@kvack.org>; Thu,  5 May 2011 20:33:36 -0400 (EDT)
+Message-ID: <4DC34185.4040106@snapgear.com>
+Date: Fri, 6 May 2011 10:32:05 +1000
+From: Greg Ungerer <gerg@snapgear.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] nommu: add page_align to mmap
+References: <1303888334-16062-1-git-send-email-lliubbo@gmail.com>	<20110504141353.842409e1.akpm@linux-foundation.org>	<4DC1FFA5.1090207@snapgear.com> <BANLkTimB+ZnvH2BdP5m=VypDnYKNbnmZVQ@mail.gmail.com>
+In-Reply-To: <BANLkTimB+ZnvH2BdP5m=VypDnYKNbnmZVQ@mail.gmail.com>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jiri Slaby <jslaby@suse.cz>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, jirislaby@gmail.com, Alan Cox <alan@lxorguk.ukuu.org.uk>, Al Viro <viro@zeniv.linux.org.uk>, Andi Kleen <andi@firstfloor.org>, John Stultz <john.stultz@linaro.org>
+To: Bob Liu <lliubbo@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, dhowells@redhat.com, lethal@linux-sh.org, gerg@uclinux.org, walken@google.com, daniel-gl@gmx.net, vapier@gentoo.org, Geert Uytterhoeven <geert@linux-m68k.org>
 
-On Wed,  4 May 2011 09:32:34 +0200
-Jiri Slaby <jslaby@suse.cz> wrote:
+Hi Bob,
 
-> If we don't know the file corresponding to the binary (i.e. exe_file
-> is unknown), use "task->comm (path unknown)" instead of simple
-> "(unknown)" as suggested by ak.
-> 
-> The fallback is the same as %e except it will append "(path unknown)".
-> 
-> Signed-off-by: Jiri Slaby <jslaby@suse.cz>
-> Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>
-> Cc: Al Viro <viro@zeniv.linux.org.uk>
-> Cc: Andi Kleen <andi@firstfloor.org>
-> ---
->  fs/exec.c |    2 +-
->  1 files changed, 1 insertions(+), 1 deletions(-)
-> 
-> diff --git a/fs/exec.c b/fs/exec.c
-> index 5ee7562..0a4d281 100644
-> --- a/fs/exec.c
-> +++ b/fs/exec.c
-> @@ -1555,7 +1555,7 @@ static int cn_print_exe_file(struct core_name *cn)
->  
->  	exe_file = get_mm_exe_file(current->mm);
->  	if (!exe_file)
-> -		return cn_printf(cn, "(unknown)");
-> +		return cn_printf(cn, "%s (path unknown)", current->comm);
->  
->  	pathbuf = kmalloc(PATH_MAX, GFP_TEMPORARY);
->  	if (!pathbuf) {
+On 05/05/11 20:19, Bob Liu wrote:
+> On Thu, May 5, 2011 at 9:38 AM, Greg Ungerer<gerg@snapgear.com>  wrote:
+>> On 05/05/11 07:13, Andrew Morton wrote:
+>>>
+>>> On Wed, 27 Apr 2011 15:12:14 +0800
+>>> Bob Liu<lliubbo@gmail.com>  =C3=A1wrote:
+>>>
+>>>> Currently on nommu arch mmap(),mremap() and munmap() doesn't do
+>>>> page_align()
+>>>> which is incorrect and not consist with mmu arch.
+>>>> This patch fix it.
+>>>>
+>>>
+>>> Can you explain this fully please? =C3=A1What was the user-observeable
+>>> behaviour before the patch, and after?
+>>>
+>>> And some input from nommu maintainers would be nice.
+>>
+>> Its not obvious to me that there is a problem here. Are there
+>> any issues caused by the current behavior that this fixes?
+>>
+>
+> Yes, there is a issue.
+>
+> Some drivers'  mmap() function depend on (vma->vm_end - vma->start) is
+> page aligned which is true on mmu arch but not on nommu.
+> eg: uvc camera driver.
+>
+> What's more, sometimes I got munmap() error.
+> The reason is split file: mm/nommu.c
+>                     do {
+> 1614                         if (start>  vma->vm_start) {
+> 1615                                 kleave(" =3D -EINVAL [miss]");
+> 1616                                 return -EINVAL;
+> 1617                         }
+> 1618                         if (end =3D=3D vma->vm_end)
+> 1619                                 goto erase_whole_vma;
+>
+> <<=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3Dhere
+> 1620                         rb =3D rb_next(&vma->vm_rb);
+> 1621                         vma =3D rb_entry(rb, struct vm_area_struct, =
+vm_rb);
+> 1622                 } while (rb);
+> 1623                 kleave(" =3D -EINVAL [split file]");
+>
+> Because end is not page aligned (passed into from userspace) while
+> some unknown reason
+> vma->vm_end is aligned,  this loop will fail and -EINVAL[split file]
+> error returned.
+> But it's hard to reproduce.
+>
+> And in my opinion consist with mmu alway a better choice.
+>
+> Thanks for your review.
 
-Direct access to current->comm is racy since we added
-prctl(PR_SET_NAME).
+Ok, makes sense. Can you add some of this writeup to the patch
+commit message?
 
-Hopefully John Stultz will soon be presenting us with a %p modifier for
-displaying task_struct.comm.
+Regards
+Greg
 
-But we should get this settled pretty promptly as this is a form of
-userspace-visible API.  Use get_task_comm() for now.
 
-Also, there's nothing which prevents userspace from rewriting
-task->comm to something which contains slashes (this seems bad).  If
-that is done, your patch will do Bad Things - it should be modified to
-use cn_print_exe_file()'s slash-overwriting codepath.
+------------------------------------------------------------------------
+Greg Ungerer  --  Principal Engineer        EMAIL:     gerg@snapgear.com
+SnapGear Group, McAfee                      PHONE:       +61 7 3435 2888
+8 Gardner Close                             FAX:         +61 7 3217 5323
+Milton, QLD, 4064, Australia                WEB: http://www.SnapGear.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
