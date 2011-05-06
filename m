@@ -1,114 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 5B8E06B0025
-	for <linux-mm@kvack.org>; Fri,  6 May 2011 17:17:35 -0400 (EDT)
-From: Andi Kleen <andi@firstfloor.org>
-Subject: [PATCH 1/2] Add alloc_pages_exact_nid()
-Date: Fri,  6 May 2011 14:17:16 -0700
-Message-Id: <1304716637-19556-1-git-send-email-andi@firstfloor.org>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id CDB066B0024
+	for <linux-mm@kvack.org>; Fri,  6 May 2011 18:49:10 -0400 (EDT)
+Received: from hpaq11.eem.corp.google.com (hpaq11.eem.corp.google.com [172.25.149.11])
+	by smtp-out.google.com with ESMTP id p46Mn6L5029908
+	for <linux-mm@kvack.org>; Fri, 6 May 2011 15:49:07 -0700
+Received: from pxi9 (pxi9.prod.google.com [10.243.27.9])
+	by hpaq11.eem.corp.google.com with ESMTP id p46Mmwkm022700
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 6 May 2011 15:49:05 -0700
+Received: by pxi9 with SMTP id 9so6707173pxi.28
+        for <linux-mm@kvack.org>; Fri, 06 May 2011 15:49:00 -0700 (PDT)
+Date: Fri, 6 May 2011 15:48:58 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [Question] how to detect mm leaker and kill?
+In-Reply-To: <BANLkTi=S_gSvnQimgqrMmq9eWJYDCDRVmA@mail.gmail.com>
+Message-ID: <alpine.DEB.2.00.1105061547150.2451@chino.kir.corp.google.com>
+References: <BANLkTi=S_gSvnQimgqrMmq9eWJYDCDRVmA@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>
+To: Hillf Danton <dhillf@gmail.com>
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Yong Zhang <yong.zhang0@gmail.com>
 
-From: Andi Kleen <ak@linux.intel.com>
+On Fri, 6 May 2011, Hillf Danton wrote:
 
-Add a alloc_pages_exact_nid() that allocates on a specific node.
+> Hi
+> 
+> In the scenario that 2GB  physical RAM is available, and there is a
+> database application that eats 1.4GB RAM without leakage already
+> running, another leaker who leaks 4KB an hour is also running, could
+> the leaker be detected and killed in mm/oom_kill.c with default
+> configure when oom happens?
+> 
 
-The naming is quite broken, but fixing that would need a larger
-renaming action.
+Yes, if you know the database application is going to use 70% of your 
+system RAM and you wish to discount that from its memory use when being 
+considered for oom kill, set its /proc/pid/oom_score_adj to -700.
 
-Signed-off-by: Andi Kleen <ak@linux.intel.com>
----
- include/linux/gfp.h |    2 ++
- mm/page_alloc.c     |   48 ++++++++++++++++++++++++++++++++++++------------
- 2 files changed, 38 insertions(+), 12 deletions(-)
+This is only possible on 2.6.36 and later kernels when oom_score_adj was 
+introduced.
 
-diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-index bfb8f93..56d8fc8 100644
---- a/include/linux/gfp.h
-+++ b/include/linux/gfp.h
-@@ -353,6 +353,8 @@ extern unsigned long get_zeroed_page(gfp_t gfp_mask);
- 
- void *alloc_pages_exact(size_t size, gfp_t gfp_mask);
- void free_pages_exact(void *virt, size_t size);
-+/* This is different from alloc_pages_exact_node !!! */
-+void *alloc_pages_exact_nid(int nid, size_t size, gfp_t gfp_mask);
- 
- #define __get_free_page(gfp_mask) \
- 		__get_free_pages((gfp_mask), 0)
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 9f8a97b..44e175d 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2317,6 +2317,21 @@ void free_pages(unsigned long addr, unsigned int order)
- 
- EXPORT_SYMBOL(free_pages);
- 
-+static void *make_alloc_exact(unsigned long addr, unsigned order, size_t size)
-+{
-+	if (addr) {
-+		unsigned long alloc_end = addr + (PAGE_SIZE << order);
-+		unsigned long used = addr + PAGE_ALIGN(size);
-+
-+		split_page(virt_to_page((void *)addr), order);
-+		while (used < alloc_end) {
-+			free_page(used);
-+			used += PAGE_SIZE;
-+		}
-+	}
-+	return (void *)addr;	
-+}
-+
- /**
-  * alloc_pages_exact - allocate an exact number physically-contiguous pages.
-  * @size: the number of bytes to allocate
-@@ -2336,22 +2351,31 @@ void *alloc_pages_exact(size_t size, gfp_t gfp_mask)
- 	unsigned long addr;
- 
- 	addr = __get_free_pages(gfp_mask, order);
--	if (addr) {
--		unsigned long alloc_end = addr + (PAGE_SIZE << order);
--		unsigned long used = addr + PAGE_ALIGN(size);
--
--		split_page(virt_to_page((void *)addr), order);
--		while (used < alloc_end) {
--			free_page(used);
--			used += PAGE_SIZE;
--		}
--	}
--
--	return (void *)addr;
-+	return make_alloc_exact(addr, order, size);
- }
- EXPORT_SYMBOL(alloc_pages_exact);
- 
- /**
-+ * alloc_pages_exact_nid - allocate an exact number physically-contiguous pages on node.
-+ * @size: the number of bytes to allocate
-+ * @gfp_mask: GFP flags for the allocation
-+ *
-+ * Like alloc_pages_exact, but try to allocate on node nid first
-+ * before falling back.
-+ * Note this is not alloc_pages_exact_node() which allocates
-+ * on a specific node, but is not exact.
-+ */
-+void *alloc_pages_exact_nid(int nid, size_t size, gfp_t gfp_mask)
-+{
-+	unsigned order = get_order(size);
-+	struct page *p = alloc_pages_node(nid, gfp_mask, order);
-+	if (!p)
-+		return NULL;
-+	return make_alloc_exact((unsigned long)page_address(p), order, size);
-+}
-+EXPORT_SYMBOL(alloc_pages_exact_nid);
-+
-+/**
-  * free_pages_exact - release memory allocated via alloc_pages_exact()
-  * @virt: the value returned by alloc_pages_exact.
-  * @size: size of allocation, same value as passed to alloc_pages_exact().
--- 
-1.7.4.4
+If you'd like to completely disable oom killing, set 
+/proc/pid/oom_score_adj to -1000.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
