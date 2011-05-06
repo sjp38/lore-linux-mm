@@ -1,142 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id A44676B0023
-	for <linux-mm@kvack.org>; Fri,  6 May 2011 01:44:47 -0400 (EDT)
-From: Bob Liu <lliubbo@gmail.com>
-Subject: [PATCH v2] nommu: add page_align to mmap
-Date: Fri, 6 May 2011 14:03:04 +0800
-Message-ID: <1304661784-11654-1-git-send-email-lliubbo@gmail.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F29D6B0023
+	for <linux-mm@kvack.org>; Fri,  6 May 2011 02:01:39 -0400 (EDT)
+Received: by bwz17 with SMTP id 17so3744847bwz.14
+        for <linux-mm@kvack.org>; Thu, 05 May 2011 23:01:36 -0700 (PDT)
+Message-ID: <4DC38EBD.5060300@suse.cz>
+Date: Fri, 06 May 2011 08:01:33 +0200
+From: Jiri Slaby <jslaby@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain
+Subject: Re: [PATCH 1/1] coredump: use task comm instead of (unknown)
+References: <4DC0FFAB.1000805@gmail.com>	<1304494354-21487-1-git-send-email-jslaby@suse.cz> <20110505150601.a4457970.akpm@linux-foundation.org>
+In-Reply-To: <20110505150601.a4457970.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, gerg@snapgear.com, dhowells@redhat.com, lethal@linux-sh.org, gerg@uclinux.org, walken@google.com, daniel-gl@gmx.net, vapier@gentoo.org, geert@linux-m68k.org, uclinux-dist-devel@blackfin.uclinux.org, Bob Liu <lliubbo@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, jirislaby@gmail.com, Alan Cox <alan@lxorguk.ukuu.org.uk>, Al Viro <viro@zeniv.linux.org.uk>, Andi Kleen <andi@firstfloor.org>, John Stultz <john.stultz@linaro.org>, Oleg Nesterov <oleg@redhat.com>Jiri Slaby <jirislaby@gmail.com>
 
-Currently on nommu arch mmap(),mremap() and munmap() doesn't do page_align()
-which isn't consist with mmu arch and cause some issues.
+Ccing Oleg.
 
-First, some drivers' mmap() function depends on vma->vm_end - vma->start is
-page aligned which is true on mmu arch but not on nommu. eg: uvc camera driver.
+On 05/06/2011 12:06 AM, Andrew Morton wrote:
+> On Wed,  4 May 2011 09:32:34 +0200
+> Jiri Slaby <jslaby@suse.cz> wrote:
+> 
+>> If we don't know the file corresponding to the binary (i.e. exe_file
+>> is unknown), use "task->comm (path unknown)" instead of simple
+>> "(unknown)" as suggested by ak.
+>>
+>> The fallback is the same as %e except it will append "(path unknown)".
+>>
+>> Signed-off-by: Jiri Slaby <jslaby@suse.cz>
+>> Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>
+>> Cc: Al Viro <viro@zeniv.linux.org.uk>
+>> Cc: Andi Kleen <andi@firstfloor.org>
+>> ---
+>>  fs/exec.c |    2 +-
+>>  1 files changed, 1 insertions(+), 1 deletions(-)
+>>
+>> diff --git a/fs/exec.c b/fs/exec.c
+>> index 5ee7562..0a4d281 100644
+>> --- a/fs/exec.c
+>> +++ b/fs/exec.c
+>> @@ -1555,7 +1555,7 @@ static int cn_print_exe_file(struct core_name *cn)
+>>  
+>>  	exe_file = get_mm_exe_file(current->mm);
+>>  	if (!exe_file)
+>> -		return cn_printf(cn, "(unknown)");
+>> +		return cn_printf(cn, "%s (path unknown)", current->comm);
+>>  
+>>  	pathbuf = kmalloc(PATH_MAX, GFP_TEMPORARY);
+>>  	if (!pathbuf) {
+> 
+> Direct access to current->comm is racy since we added
+> prctl(PR_SET_NAME).
+> 
+> Hopefully John Stultz will soon be presenting us with a %p modifier for
+> displaying task_struct.comm.
 
-Second munmap() may return -EINVAL[split file] error in cases when end is not
-page aligned(passed into from userspace) but vma->vm_end is aligned dure to
-split or driver's mmap() ops.
+Then just make sure, you won't nest alloc_lock (task_lock) into siglock.
 
-This patch add page align to fix those issues.
+> But we should get this settled pretty promptly as this is a form of
+> userspace-visible API.  Use get_task_comm() for now.
 
-Changelog v1->v2:
-- added more commit message
+I thought about using get_task_comm, but was not sure, if it is safe to
+task_lock() at that place. Note that this is copied from %e.
 
-Signed-off-by: Bob Liu <lliubbo@gmail.com>
----
- mm/nommu.c |   24 ++++++++++++++----------
- 1 files changed, 14 insertions(+), 10 deletions(-)
+> Also, there's nothing which prevents userspace from rewriting
+> task->comm to something which contains slashes (this seems bad).  If
+> that is done, your patch will do Bad Things - it should be modified to
+> use cn_print_exe_file()'s slash-overwriting codepath.
 
-diff --git a/mm/nommu.c b/mm/nommu.c
-index c4c542c..3febfd9 100644
---- a/mm/nommu.c
-+++ b/mm/nommu.c
-@@ -1133,7 +1133,7 @@ static int do_mmap_private(struct vm_area_struct *vma,
- 			   unsigned long capabilities)
- {
- 	struct page *pages;
--	unsigned long total, point, n, rlen;
-+	unsigned long total, point, n;
- 	void *base;
- 	int ret, order;
- 
-@@ -1157,13 +1157,12 @@ static int do_mmap_private(struct vm_area_struct *vma,
- 		 * make a private copy of the data and map that instead */
- 	}
- 
--	rlen = PAGE_ALIGN(len);
- 
- 	/* allocate some memory to hold the mapping
- 	 * - note that this may not return a page-aligned address if the object
- 	 *   we're allocating is smaller than a page
- 	 */
--	order = get_order(rlen);
-+	order = get_order(len);
- 	kdebug("alloc order %d for %lx", order, len);
- 
- 	pages = alloc_pages(GFP_KERNEL, order);
-@@ -1173,7 +1172,7 @@ static int do_mmap_private(struct vm_area_struct *vma,
- 	total = 1 << order;
- 	atomic_long_add(total, &mmap_pages_allocated);
- 
--	point = rlen >> PAGE_SHIFT;
-+	point = len >> PAGE_SHIFT;
- 
- 	/* we allocated a power-of-2 sized page set, so we may want to trim off
- 	 * the excess */
-@@ -1195,7 +1194,7 @@ static int do_mmap_private(struct vm_area_struct *vma,
- 	base = page_address(pages);
- 	region->vm_flags = vma->vm_flags |= VM_MAPPED_COPY;
- 	region->vm_start = (unsigned long) base;
--	region->vm_end   = region->vm_start + rlen;
-+	region->vm_end   = region->vm_start + len;
- 	region->vm_top   = region->vm_start + (total << PAGE_SHIFT);
- 
- 	vma->vm_start = region->vm_start;
-@@ -1211,15 +1210,15 @@ static int do_mmap_private(struct vm_area_struct *vma,
- 
- 		old_fs = get_fs();
- 		set_fs(KERNEL_DS);
--		ret = vma->vm_file->f_op->read(vma->vm_file, base, rlen, &fpos);
-+		ret = vma->vm_file->f_op->read(vma->vm_file, base, len, &fpos);
- 		set_fs(old_fs);
- 
- 		if (ret < 0)
- 			goto error_free;
- 
- 		/* clear the last little bit */
--		if (ret < rlen)
--			memset(base + ret, 0, rlen - ret);
-+		if (ret < len)
-+			memset(base + ret, 0, len - ret);
- 
- 	}
- 
-@@ -1268,6 +1267,7 @@ unsigned long do_mmap_pgoff(struct file *file,
- 
- 	/* we ignore the address hint */
- 	addr = 0;
-+	len = PAGE_ALIGN(len);
- 
- 	/* we've determined that we can make the mapping, now translate what we
- 	 * now know into VMA flags */
-@@ -1645,14 +1645,16 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len)
- {
- 	struct vm_area_struct *vma;
- 	struct rb_node *rb;
--	unsigned long end = start + len;
-+	unsigned long end;
- 	int ret;
- 
- 	kenter(",%lx,%zx", start, len);
- 
--	if (len == 0)
-+	if ((len = PAGE_ALIGN(len)) == 0)
- 		return -EINVAL;
- 
-+	end = start + len;
-+
- 	/* find the first potentially overlapping VMA */
- 	vma = find_vma(mm, start);
- 	if (!vma) {
-@@ -1773,6 +1775,8 @@ unsigned long do_mremap(unsigned long addr,
- 	struct vm_area_struct *vma;
- 
- 	/* insanity checks first */
-+	old_len = PAGE_ALIGN(old_len);
-+	new_len = PAGE_ALIGN(new_len);
- 	if (old_len == 0 || new_len == 0)
- 		return (unsigned long) -EINVAL;
- 
+%E (cn_print_exe_file) does exactly what %e (format_corename) does. So
+if this is really broken in the two ways, we should fix both the old %e
+and the new %E.
+
+I'm not sure whether at this point when the task is being killed and
+dumped, it can still change comm?
+
+For the slashes, I agree. That should be fixed in both cases.
+
+thanks,
 -- 
-1.6.3.3
-
+js
+suse labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
