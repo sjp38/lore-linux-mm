@@ -1,37 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 3A0CB6B0011
-	for <linux-mm@kvack.org>; Fri,  6 May 2011 13:38:08 -0400 (EDT)
-Message-ID: <4DC42735.7010306@redhat.com>
-Date: Fri, 06 May 2011 12:52:05 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 2664B6B0024
+	for <linux-mm@kvack.org>; Fri,  6 May 2011 14:07:21 -0400 (EDT)
+Date: Fri, 6 May 2011 20:06:46 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH]mm/page_alloc.c: no need del from lru
+Message-ID: <20110506180646.GF6330@random.random>
+References: <1304694099.2450.3.camel@figo-desktop>
 MIME-Version: 1.0
-Subject: Re: [PATCH 4/4] VM/RMAP: Move avc freeing outside the lock
-References: <1304623972-9159-1-git-send-email-andi@firstfloor.org> <1304623972-9159-5-git-send-email-andi@firstfloor.org>
-In-Reply-To: <1304623972-9159-5-git-send-email-andi@firstfloor.org>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1304694099.2450.3.camel@figo-desktop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, tim.c.chen@linux.intel.com, torvalds@linux-foundation.org, lwoodman@redhat.com, mel@csn.ul.ie, Andi Kleen <ak@linux.intel.com>
+To: "Figo.zhang" <figo1802@gmail.com>
+Cc: lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, mel@csn.ul.ie, kamezawa.hiroyu@jp.fujisu.com, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@osdl.org>
 
-On 05/05/2011 03:32 PM, Andi Kleen wrote:
-> From: Andi Kleen<ak@linux.intel.com>
->
-> Now that the avc locking is batched move the freeing of AVCs
-> outside the lock. This lowers lock contention somewhat more on
-> a fork/exit intensive workload.
->
-> Signed-off-by: Andi Kleen<ak@linux.intel.com>
+Hello,
 
-Acked-by: Rik van Riel<riel@redhat.com>
+On Fri, May 06, 2011 at 11:01:21PM +0800, Figo.zhang wrote:
+> 
+> split_free_page() the page is still free page, it is no need del from lru.
 
-I believe that calling put_anon_vma outside of the lock is
-safe, but am not 100% sure.
+This is in the buddy freelist, see the other list_add in
+page_alloc.c. It's not the lru as in release_pages. I see little
+chance that if this was wrong it could go unnoticed so long without
+major mm corruption reported. Removing it also should result in heavy
+mm corruption.
 
--- 
-All rights reversed
+Thanks,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
