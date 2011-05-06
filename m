@@ -1,27 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id A6CA06B0022
-	for <linux-mm@kvack.org>; Fri,  6 May 2011 13:07:01 -0400 (EDT)
-Date: Fri, 6 May 2011 19:06:59 +0200
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH 2/2] Allocate memory cgroup structures in local nodes v3
-Message-ID: <20110506170659.GH11636@one.firstfloor.org>
-References: <1304624762-27960-1-git-send-email-andi@firstfloor.org> <1304624762-27960-2-git-send-email-andi@firstfloor.org> <20110506084939.GD32495@tiehlicka.suse.cz>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110506084939.GD32495@tiehlicka.suse.cz>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 70AB96B0025
+	for <linux-mm@kvack.org>; Fri,  6 May 2011 13:28:02 -0400 (EDT)
+Message-ID: <4DC42644.5020500@redhat.com>
+Date: Fri, 06 May 2011 12:48:04 -0400
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 3/4] VM/RMAP: Batch anon_vma_unlink in exit
+References: <1304623972-9159-1-git-send-email-andi@firstfloor.org> <1304623972-9159-4-git-send-email-andi@firstfloor.org>
+In-Reply-To: <1304623972-9159-4-git-send-email-andi@firstfloor.org>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org, akpm@linux-foundation.org, Andi Kleen <ak@linux.intel.com>, rientjes@google.com, Dave Hansen <dave@linux.vnet.ibm.com>, Balbir Singh <balbir@in.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, tim.c.chen@linux.intel.com, torvalds@linux-foundation.org, lwoodman@redhat.com, mel@csn.ul.ie, Andi Kleen <ak@linux.intel.com>
 
-> What is this printk for? Other than that the change looks good to me.
+On 05/05/2011 03:32 PM, Andi Kleen wrote:
+> From: Andi Kleen<ak@linux.intel.com>
+>
+> Apply the rmap chain lock batching to anon_vma_unlink() too.
+> This speeds up exit() on process chains with many processes,
+> when there is a lot of sharing.
+>
+> Unfortunately this doesn't fix all lock contention -- file vmas
+> have a mapping lock that is also a problem. And even existing
+> anon_vmas still contend. But it's better than before.
+>
+> Signed-off-by: Andi Kleen<ak@linux.intel.com>
 
-Leftover debugging code. I'll remove it.
+Reviewed-by: Rik van Riel<riel@redhat.com>
 
-Thanks.
--Andi
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
