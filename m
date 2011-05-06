@@ -1,44 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 39CFF6B0012
-	for <linux-mm@kvack.org>; Fri,  6 May 2011 14:28:06 -0400 (EDT)
-Received: by qyk2 with SMTP id 2so5714977qyk.14
-        for <linux-mm@kvack.org>; Fri, 06 May 2011 11:28:04 -0700 (PDT)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id DABE16B0011
+	for <linux-mm@kvack.org>; Fri,  6 May 2011 14:56:58 -0400 (EDT)
+Date: Fri, 6 May 2011 13:56:52 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH] slub: slub_def.h: needs additional check for "index"
+In-Reply-To: <BANLkTi=Jdxu7am8-jhJbT0t-uhNmW4zWhw@mail.gmail.com>
+Message-ID: <alpine.DEB.2.00.1105061355020.5832@router.home>
+References: <BANLkTi=Jdxu7am8-jhJbT0t-uhNmW4zWhw@mail.gmail.com>
 MIME-Version: 1.0
-Date: Fri, 6 May 2011 21:28:04 +0300
-Message-ID: <BANLkTi=Jdxu7am8-jhJbT0t-uhNmW4zWhw@mail.gmail.com>
-Subject: [PATCH] slub: slub_def.h: needs additional check for "index"
-From: Maxin John <maxin.john@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux-foundation.org>
+To: Maxin John <maxin.john@gmail.com>
 Cc: Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-In slub_def.h file, the kmalloc_index() may return -1 for some special cases.
-If that negative return value gets assigned to "index", it might lead to issues
-later as the variable "index" is used as index to array "kmalloc_caches" in :
+On Fri, 6 May 2011, Maxin John wrote:
 
-return kmalloc_caches[index];
+> In slub_def.h file, the kmalloc_index() may return -1 for some special cases.
+> If that negative return value gets assigned to "index", it might lead to issues
+> later as the variable "index" is used as index to array "kmalloc_caches" in :
 
-Please let me know your comments.
 
-Signed-off-by: Maxin B. John <maxin.john@gmail.com>
----
-diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
-index 45ca123..3db4b33 100644
---- a/include/linux/slub_def.h
-+++ b/include/linux/slub_def.h
-@@ -211,7 +211,7 @@ static __always_inline struct kmem_cache
-*kmalloc_slab(size_t size)
- {
-        int index = kmalloc_index(size);
+The value passed to kmalloc_slab is tested before the result is used.
+kmalloc_slab() only returns -1 for values > 4MB.
 
--       if (index == 0)
-+       if (index <= 0)
-                return NULL;
+The size of the object is checked against SLUB_MAX size which is
+significantly smaller than 4MB. 8kb by default.
 
-        return kmalloc_caches[index];
+So kmalloc_slab() cannot return -1 if the parameter is checked first.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
