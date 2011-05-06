@@ -1,71 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 4B9006B0023
-	for <linux-mm@kvack.org>; Fri,  6 May 2011 03:15:43 -0400 (EDT)
-Date: Fri, 6 May 2011 09:15:35 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH resend] mm: get rid of CONFIG_STACK_GROWSUP || CONFIG_IA64
-Message-ID: <20110506071534.GA32495@tiehlicka.suse.cz>
-References: <20110503141044.GA25351@tiehlicka.suse.cz>
- <alpine.LSU.2.00.1105031142260.7349@sister.anvils>
- <20110504083005.GA1375@tiehlicka.suse.cz>
- <alpine.LSU.2.00.1105041016110.23159@sister.anvils>
- <20110505063012.GA11529@tiehlicka.suse.cz>
- <BANLkTikGduoi8DVapz0H-uVPrrXPYF=YGg@mail.gmail.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 5728E6B0023
+	for <linux-mm@kvack.org>; Fri,  6 May 2011 03:42:32 -0400 (EDT)
+Date: Fri, 6 May 2011 08:42:24 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [BUG] fatal hang untarring 90GB file, possibly writeback related.
+Message-ID: <20110506074224.GB6591@suse.de>
+References: <1304009778.2598.10.camel@mulgrave.site>
+ <20110428171826.GZ4658@suse.de>
+ <1304015436.2598.19.camel@mulgrave.site>
+ <20110428192104.GA4658@suse.de>
+ <1304020767.2598.21.camel@mulgrave.site>
+ <1304025145.2598.24.camel@mulgrave.site>
+ <1304030629.2598.42.camel@mulgrave.site>
+ <20110503091320.GA4542@novell.com>
+ <1304431982.2576.5.camel@mulgrave.site>
+ <1304432553.2576.10.camel@mulgrave.site>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <BANLkTikGduoi8DVapz0H-uVPrrXPYF=YGg@mail.gmail.com>
+In-Reply-To: <1304432553.2576.10.camel@mulgrave.site>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: James Bottomley <James.Bottomley@suse.de>
+Cc: Mel Gorman <mgorman@novell.com>, Jan Kara <jack@suse.cz>, colin.king@canonical.com, Chris Mason <chris.mason@oracle.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-ext4 <linux-ext4@vger.kernel.org>
 
-On Thu 05-05-11 18:12:12, Hugh Dickins wrote:
-> On Wed, May 4, 2011 at 11:30 PM, Michal Hocko <mhocko@suse.cz> wrote:
+On Tue, May 03, 2011 at 09:22:33AM -0500, James Bottomley wrote:
+> On Tue, 2011-05-03 at 09:13 -0500, James Bottomley wrote:
+> > I've got a ftrace output of kswapd ... it's 500k compressed, so I'll
+> > send under separate cover.
 > 
-> > So I think the flag should be used that way. If we ever going to add a
-> > new architecture like IA64 which uses both ways of expanding we should
-> > make it easier by minimizing the places which have to be examined.
+> Here it is ... it's under 2.6.38.4 vanilla, but the code is similar. 
 > 
-> If, yes.  Let's just agree to disagree.  It looks like I'm preferring
-> to think of the ia64 case as exceptional, and I want to be reminded of
-> that peculiar case; whereas you are wanting to generalize and make it
-> not stand out.  Both valid.
 
-Probably a call for Andrew?
-Anyway, whatever is the way we go I think that both declaration and
-definition should be guarded by the same ifdefs.
+I was quiet because I was off trying to reproduce this but not having
+much luck. It doesn't seem directly related to filesystems or
+cgroups. For example, here is what I see with ext4 without cgroups
 
-> > OK, now, with the cleanup patch, we have expand_stack and
-> > expand_stack_{downwards,upwards}. I will repost the patch to Andrew with
-> > up and down cases renamed. Does it work for you?
-> 
-> Sounds right.
+                2.6.34-vanilla    2.6.37-vanilla    2.6.38-vanilla       rc6-vanilla
+download tar           70 ( 0.00%)   68 ( 2.94%)   69 ( 1.45%)   70 ( 0.00%)
+unpack tar            601 ( 0.00%)  605 (-0.66%)  604 (-0.50%)  605 (-0.66%)
+copy source files     319 ( 0.00%)  321 (-0.62%)  320 (-0.31%)  332 (-3.92%)
+create tarfile       1368 ( 0.00%) 1372 (-0.29%) 1371 (-0.22%) 1363 ( 0.37%)
+delete source dirs     21 ( 0.00%)   21 ( 0.00%)   23 (-8.70%)   22 (-4.55%)
+expand tar            263 ( 0.00%)  261 ( 0.77%)  257 ( 2.33%)  259 ( 1.54%)
 
-OK, I will repost the updated patch.
+(all results are in seconds)
 
-> >> But it's always going to be somewhat confusing and asymmetrical
-> >> because of the ia64 register backing store case.
-> >
-> > How come? We would have expand_stack which is pretty much clear that it
-> > is expanding stack in the architecture specific way. And then we would
-> > have expand_{upwards,downward} which are clear about way how we expand
-> > whatever VMA, right?
-> 
-> Right.  I'm preferring to be reminded of the confusion and asymmetry,
-> you're preferring to smooth over it.
+When running in cgroups, the results are similar - bit slower but
+not remarkably so. ext3 is slower but not enough to count as the bug.
 
-OK
+The trace you posted is very short but kswapd is not going to sleep
+in it. It's less than a seconds worth on different cpus so it's hard
+to draw any conclusion from it other than sleeping_prematurely()
+is often deciding that kswapd should not sleep.
+
+So lets consider what keeps it awake.
+
+1. High-order allocations? You machine is using i915 and RPC, something
+   neither of my test machine uses. i915 is potentially a source for
+   high-order allocations. I'm attaching a perl script. Please run it as
+   ./watch-highorder.pl --output /tmp/highorders.txt
+   while you are running tar. When kswapd is running for about 30
+   seconds, interrupt it with ctrl+c twice in quick succession and
+   post /tmp/highorders.txt
+
+2. All unreclaimable is not being set or we are not balancing at all.
+   Can you post the output of sysrq+m while the machine is struggling
+   please?
+
+3. Slab may not be shrinking for some reason. Can you run a shell
+   script like this during the whole test and record its output please?
+
+   #!/bin/bash
+   while [ 1 ]; do
+	   echo time: `date +%s`
+	   cat /proc/vmstat
+	   sleep 2
+   done
+
+   Similarly if this is a slab issue, it'd be nice to know who it is so
+
+   #!/bin/bash
+   while [ 1 ]; do
+	   echo time: `date +%s`
+	   cat /proc/slabinfo
+	   sleep $MONITOR_UPDATE_FREQUENCY
+   done
+
+4. Lets get a better look at what is going on in kswapd
+
+   echo 1 > /sys/kernel/debug/tracing/events/vmscan/enable
+   cat /sys/kernel/debug/tracing/trace_pipe > vmscan-ftrace.txt
+
+Out of curiousity, what's the exact machine you are testing on
+because I want to see what sort of hardware combination triggers
+this problem? Is the tar local or is it copied over NFS? What is the
+configuration of the disk or partition you are copying to?
 
 Thanks
+
 -- 
-Michal Hocko
+Mel Gorman
 SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
