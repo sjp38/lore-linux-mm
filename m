@@ -1,62 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id D0FE26B0012
-	for <linux-mm@kvack.org>; Fri,  6 May 2011 15:37:52 -0400 (EDT)
-Date: Fri, 6 May 2011 20:37:48 +0100
-From: Mel Gorman <mgorman@novell.com>
-Subject: Re: [BUG] fatal hang untarring 90GB file, possibly writeback related.
-Message-ID: <20110506193748.GJ6657@novell.com>
-References: <20110428192104.GA4658@suse.de>
- <1304020767.2598.21.camel@mulgrave.site>
- <1304025145.2598.24.camel@mulgrave.site>
- <1304030629.2598.42.camel@mulgrave.site>
- <20110503091320.GA4542@novell.com>
- <1304431982.2576.5.camel@mulgrave.site>
- <1304432553.2576.10.camel@mulgrave.site>
- <20110506074224.GB6591@suse.de>
- <20110506154444.GG6591@suse.de>
- <1304709277.12427.29.camel@mulgrave.site>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <1304709277.12427.29.camel@mulgrave.site>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 382F86B0012
+	for <linux-mm@kvack.org>; Fri,  6 May 2011 17:17:35 -0400 (EDT)
+From: Andi Kleen <andi@firstfloor.org>
+Subject: [PATCH 2/2] Allocate memory cgroup structures in local nodes v4
+Date: Fri,  6 May 2011 14:17:17 -0700
+Message-Id: <1304716637-19556-2-git-send-email-andi@firstfloor.org>
+In-Reply-To: <1304716637-19556-1-git-send-email-andi@firstfloor.org>
+References: <1304716637-19556-1-git-send-email-andi@firstfloor.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Bottomley <James.Bottomley@suse.de>
-Cc: Mel Gorman <mgorman@suse.de>, Jan Kara <jack@suse.cz>, colin.king@canonical.com, Chris Mason <chris.mason@oracle.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-ext4 <linux-ext4@vger.kernel.org>
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, rientjes@google.com, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Balbir Singh <balbir@in.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Fri, May 06, 2011 at 02:14:37PM -0500, James Bottomley wrote:
-> On Fri, 2011-05-06 at 16:44 +0100, Mel Gorman wrote:
-> > Colin and James: Did you happen to switch from SLAB to SLUB between
-> > 2.6.37 and 2.6.38? My own tests were against SLAB which might be why I
-> > didn't see the problem. Am restarting the tests with SLUB.
-> 
-> Aargh ... I'm an idiot.  I should have thought of SLUB immediately ...
-> it's been causing oopses since debian switched to it.
-> 
-> So I recompiled the 2.6.38.4 stable kernel with SLAB instead of SLUB and
-> the problem goes away ... at least from three untar runs on a loaded
-> box ... of course it could manifest a few ms after I send this email ...
-> 
-> There are material differences, as well: SLAB isn't taking my system
-> down to very low memory on the untar ... it's keeping about 0.5Gb listed
-> as free.  SLUB took that to under 100kb, so it could just be that SLAB
-> isn't wandering as close to the cliff edge?
-> 
+From: Andi Kleen <ak@linux.intel.com>
 
-A comparison of watch-highorder.pl with SLAB and SLUB may be
-enlightening as well as testing SLUB altering allocate_slab() to read
+dde79e005a769 added a regression that the memory cgroup data structures
+all end up in node 0 because the first attempt at allocating them
+would not pass in a node hint. Since the initialization runs on CPU #0
+it would all end up node 0. This is a problem on large memory systems,
+where node 0 would lose a lot of memory.
 
-alloc_gfp = (flags | __GFP_NOWARN | __GFP_NORETRY | __GFP_NO_KSWAPD) & ~__GFP_NOFAIL;
+Change the alloc_pages_exact to alloc_pages_exact_node. This will
+still fall back to other nodes if not enough memory is available.
 
-i.e. try adding the __GFP_NO_KSWAPD. My own tests are still in progress
-but I'm still not seeing the problem. I'm installing Fedora on another
-test machine at the moment to see if X and other applications have to be
-running to pressure high-order allocations properly.
+[RED-PEN: right now it would fall back first before trying
+vmalloc_node. Probably not the best strategy ... But I left it like
+that for now.]
 
+v4: Remove debugging code.
+v3: Really call the correct function now. Thanks for everyone who commented.
+Reported-by: Doug Nelson
+Cc: rientjes@google.com
+CC: Michal Hocko <mhocko@suse.cz>
+Cc: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: Balbir Singh <balbir@in.ibm.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Signed-off-by: Andi Kleen <ak@linux.intel.com>
+---
+ mm/page_cgroup.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/mm/page_cgroup.c b/mm/page_cgroup.c
+index 9905501..2daadc3 100644
+--- a/mm/page_cgroup.c
++++ b/mm/page_cgroup.c
+@@ -134,7 +134,7 @@ static void *__init_refok alloc_page_cgroup(size_t size, int nid)
+ {
+ 	void *addr = NULL;
+ 
+-	addr = alloc_pages_exact(size, GFP_KERNEL | __GFP_NOWARN);
++	addr = alloc_pages_exact_nid(nid, size, GFP_KERNEL | __GFP_NOWARN);
+ 	if (addr)
+ 		return addr;
+ 
 -- 
-Mel Gorman
-SUSE Labs
+1.7.4.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
