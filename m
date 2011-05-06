@@ -1,15 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id E9F106B0011
-	for <linux-mm@kvack.org>; Fri,  6 May 2011 12:00:00 -0400 (EDT)
-Message-ID: <4DC41AE2.8060301@redhat.com>
-Date: Fri, 06 May 2011 11:59:30 -0400
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 01DBE90010B
+	for <linux-mm@kvack.org>; Fri,  6 May 2011 12:00:12 -0400 (EDT)
+Message-ID: <4DC41AF2.6000804@redhat.com>
+Date: Fri, 06 May 2011 11:59:46 -0400
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/4] VM/RMAP: Add infrastructure for batching the rmap
- chain locking
-References: <1304623972-9159-1-git-send-email-andi@firstfloor.org> <1304623972-9159-2-git-send-email-andi@firstfloor.org>
-In-Reply-To: <1304623972-9159-2-git-send-email-andi@firstfloor.org>
+Subject: Re: [PATCH 2/4] VM/RMAP: Batch anon vma chain root locking in fork
+References: <1304623972-9159-1-git-send-email-andi@firstfloor.org> <1304623972-9159-3-git-send-email-andi@firstfloor.org>
+In-Reply-To: <1304623972-9159-3-git-send-email-andi@firstfloor.org>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -20,21 +19,19 @@ Cc: linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, tim.c.chen@linux
 On 05/05/2011 03:32 PM, Andi Kleen wrote:
 > From: Andi Kleen<ak@linux.intel.com>
 >
-> In fork and exit it's quite common to take same rmap chain locks
-> again and again when the whole address space is processed  for a
-> address space that has a lot of sharing. Also since the locking
-> has changed to always lock the root anon_vma this can be very
-> contended.
+> We found that the changes to take anon vma root chain lock lead
+> to excessive lock contention on a fork intensive workload on a 4S
+> system.
 >
-> This patch adds a simple wrapper to batch these lock acquisitions
-> and only reaquire the lock when another is needed. The main
-> advantage is that when multiple processes are doing this in
-> parallel they will avoid a lot of communication overhead
-> on the lock cache line.
+> Use the new batch lock infrastructure to optimize the fork()
+> path, where it is very common to acquire always the same lock.
 >
-> I added a simple lock break (100 locks) for paranoia reason,
-> but it's unclear if that's needed or not.
+> This patch does not really lower the contention, but batches
+> the lock taking/freeing to lower the bouncing overhead when
+> multiple forks are working at the same time. Essentially each
+> user will get more work done inside a locking region.
 >
+> Reported-by: Tim Chen<tim.c.chen@linux.intel.com>
 > Cc: Andrea Arcangeli<aarcange@redhat.com>
 > Cc: Rik van Riel<riel@redhat.com>
 > Signed-off-by: Andi Kleen<ak@linux.intel.com>
