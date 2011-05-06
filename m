@@ -1,41 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 602EE6B0012
-	for <linux-mm@kvack.org>; Fri,  6 May 2011 13:05:46 -0400 (EDT)
-Date: Fri, 6 May 2011 19:05:42 +0200
+	by kanga.kvack.org (Postfix) with ESMTP id A6CA06B0022
+	for <linux-mm@kvack.org>; Fri,  6 May 2011 13:07:01 -0400 (EDT)
+Date: Fri, 6 May 2011 19:06:59 +0200
 From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: Batch locking for rmap fork/exit processing
-Message-ID: <20110506170542.GG11636@one.firstfloor.org>
-References: <1304623972-9159-1-git-send-email-andi@firstfloor.org> <BANLkTi=kxGkRS-VamLBnZCoHC7TpMsJ90w@mail.gmail.com>
+Subject: Re: [PATCH 2/2] Allocate memory cgroup structures in local nodes v3
+Message-ID: <20110506170659.GH11636@one.firstfloor.org>
+References: <1304624762-27960-1-git-send-email-andi@firstfloor.org> <1304624762-27960-2-git-send-email-andi@firstfloor.org> <20110506084939.GD32495@tiehlicka.suse.cz>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <BANLkTi=kxGkRS-VamLBnZCoHC7TpMsJ90w@mail.gmail.com>
+In-Reply-To: <20110506084939.GD32495@tiehlicka.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, tim.c.chen@linux.intel.com, lwoodman@redhat.com, mel@csn.ul.ie
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org, akpm@linux-foundation.org, Andi Kleen <ak@linux.intel.com>, rientjes@google.com, Dave Hansen <dave@linux.vnet.ibm.com>, Balbir Singh <balbir@in.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Fri, May 06, 2011 at 09:44:40AM -0700, Linus Torvalds wrote:
-> Hmm. Andrew wasn't cc'd on this series, and usually things like this
-> go through the -mm tree
-> 
-> Maybe Andrew saw it by virtue of the linux-mm list, but maybe he
-> didn't. So here he is cc'd directly.
-> 
-> The series looks reasonable to me,
+> What is this printk for? Other than that the change looks good to me.
+
+Leftover debugging code. I'll remove it.
 
 Thanks.
-
-To be honest I'm not really happy about it, it's more a short term
-bandaid.  anon_vma lock and file mapping i_mmap_lock lock are still very hot
-in the test, compared to .35. And I didn't find any way to improve
-i_mmap_lock.
-
-If someone has better ideas to fix this I would be interested.
-
-Still it's probably a useful short term bandaid.
-
 -Andi
 
 --
