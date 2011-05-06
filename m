@@ -1,89 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F29D6B0023
-	for <linux-mm@kvack.org>; Fri,  6 May 2011 02:01:39 -0400 (EDT)
-Received: by bwz17 with SMTP id 17so3744847bwz.14
-        for <linux-mm@kvack.org>; Thu, 05 May 2011 23:01:36 -0700 (PDT)
-Message-ID: <4DC38EBD.5060300@suse.cz>
-Date: Fri, 06 May 2011 08:01:33 +0200
-From: Jiri Slaby <jslaby@suse.cz>
-MIME-Version: 1.0
-Subject: Re: [PATCH 1/1] coredump: use task comm instead of (unknown)
-References: <4DC0FFAB.1000805@gmail.com>	<1304494354-21487-1-git-send-email-jslaby@suse.cz> <20110505150601.a4457970.akpm@linux-foundation.org>
-In-Reply-To: <20110505150601.a4457970.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 2D75F900001
+	for <linux-mm@kvack.org>; Fri,  6 May 2011 02:19:43 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 55F433EE0BB
+	for <linux-mm@kvack.org>; Fri,  6 May 2011 15:19:40 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 3C37F45DE53
+	for <linux-mm@kvack.org>; Fri,  6 May 2011 15:19:40 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 19B9445DE50
+	for <linux-mm@kvack.org>; Fri,  6 May 2011 15:19:40 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0C9871DB8037
+	for <linux-mm@kvack.org>; Fri,  6 May 2011 15:19:40 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id B4B291DB803E
+	for <linux-mm@kvack.org>; Fri,  6 May 2011 15:19:39 +0900 (JST)
+Date: Fri, 6 May 2011 15:13:02 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCHv4] memcg: reclaim memory from node in round-robin
+Message-Id: <20110506151302.a7256987.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110504142623.8aa3bddb.akpm@linux-foundation.org>
+References: <20110427165120.a60c6609.kamezawa.hiroyu@jp.fujitsu.com>
+	<BANLkTinx+4zXaO3rhHRUzr3m-K-2_NMTQw@mail.gmail.com>
+	<20110428093513.5a6970c0.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110428103705.a284df87.nishimura@mxp.nes.nec.co.jp>
+	<20110428104912.6f86b2ee.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110504142623.8aa3bddb.akpm@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, jirislaby@gmail.com, Alan Cox <alan@lxorguk.ukuu.org.uk>, Al Viro <viro@zeniv.linux.org.uk>, Andi Kleen <andi@firstfloor.org>, John Stultz <john.stultz@linaro.org>, Oleg Nesterov <oleg@redhat.com>Jiri Slaby <jirislaby@gmail.com>
+Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Ying Han <yinghan@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>
 
-Ccing Oleg.
+On Wed, 4 May 2011 14:26:23 -0700
+Andrew Morton <akpm@linux-foundation.org> wrote:
 
-On 05/06/2011 12:06 AM, Andrew Morton wrote:
-> On Wed,  4 May 2011 09:32:34 +0200
-> Jiri Slaby <jslaby@suse.cz> wrote:
+> On Thu, 28 Apr 2011 10:49:12 +0900
+> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 > 
->> If we don't know the file corresponding to the binary (i.e. exe_file
->> is unknown), use "task->comm (path unknown)" instead of simple
->> "(unknown)" as suggested by ak.
->>
->> The fallback is the same as %e except it will append "(path unknown)".
->>
->> Signed-off-by: Jiri Slaby <jslaby@suse.cz>
->> Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>
->> Cc: Al Viro <viro@zeniv.linux.org.uk>
->> Cc: Andi Kleen <andi@firstfloor.org>
->> ---
->>  fs/exec.c |    2 +-
->>  1 files changed, 1 insertions(+), 1 deletions(-)
->>
->> diff --git a/fs/exec.c b/fs/exec.c
->> index 5ee7562..0a4d281 100644
->> --- a/fs/exec.c
->> +++ b/fs/exec.c
->> @@ -1555,7 +1555,7 @@ static int cn_print_exe_file(struct core_name *cn)
->>  
->>  	exe_file = get_mm_exe_file(current->mm);
->>  	if (!exe_file)
->> -		return cn_printf(cn, "(unknown)");
->> +		return cn_printf(cn, "%s (path unknown)", current->comm);
->>  
->>  	pathbuf = kmalloc(PATH_MAX, GFP_TEMPORARY);
->>  	if (!pathbuf) {
+> > On Thu, 28 Apr 2011 10:37:05 +0900
+> > Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+> > > > +	if (time_after(mem->next_scan_node_update, jiffies))
+> > > > +		return;
+> > > > +
+> > > Shouldn't it be time_before() or time_after(jiffies, next_scan_node_update) ?
+> > > 
+> > > Looks good to me, otherwise.
+> > > 
+> > 
+> > time_after(a, b) returns true when a is after b.....you're right.
+> > ==
+> > Now, memory cgroup's direct reclaim frees memory from the current node.
+> > But this has some troubles. In usual, when a set of threads works in
+> > cooperative way, they are tend to on the same node. So, if they hit
+> > limits under memcg, it will reclaim memory from themselves, it may be
+> > active working set.
+> > 
+> > For example, assume 2 node system which has Node 0 and Node 1
+> > and a memcg which has 1G limit. After some work, file cacne remains and
+> > and usages are
+> >    Node 0:  1M
+> >    Node 1:  998M.
+> > 
+> > and run an application on Node 0, it will eats its foot before freeing
+> > unnecessary file caches.
+> > 
+> > This patch adds round-robin for NUMA and adds equal pressure to each
+> > node. When using cpuset's spread memory feature, this will work very well.
+> > 
+> > But yes, better algorithm is appreciated.
 > 
-> Direct access to current->comm is racy since we added
-> prctl(PR_SET_NAME).
+> That ten-second thing is a gruesome and ghastly hack, but didn't even
+> get a mention in the patch description?
 > 
-> Hopefully John Stultz will soon be presenting us with a %p modifier for
-> displaying task_struct.comm.
+> Talk to us about it.  Why is it there?  What are the implications of
+> getting it wrong?  What alternatives are there? 
+> 
 
-Then just make sure, you won't nest alloc_lock (task_lock) into siglock.
+Ah, sorry I couldn't think of fix to that levet, I posted.
 
-> But we should get this settled pretty promptly as this is a form of
-> userspace-visible API.  Use get_task_comm() for now.
+> It would be much better to work out the optimum time at which to rotate
+> the index via some deterministic means.
+> 
+> If we can't think of a way of doing that then we should at least pace
+> the rotation frequency via something saner than wall-time.  Such as
+> number-of-pages-scanned.
+> 
 
-I thought about using get_task_comm, but was not sure, if it is safe to
-task_lock() at that place. Note that this is copied from %e.
 
-> Also, there's nothing which prevents userspace from rewriting
-> task->comm to something which contains slashes (this seems bad).  If
-> that is done, your patch will do Bad Things - it should be modified to
-> use cn_print_exe_file()'s slash-overwriting codepath.
+What I think now is using reclaim_stat or usigng some fairness based on
+the ratio of inactive file caches. We can calculate the total sum of
+recalaim_stat which gives us a scan_ratio for a whole memcg. And we can
+calculate LRU rotate/scan ratio per node. If rotate/scan ratio is small,
+it will be a good candidate of reclaim target. Hmm,
 
-%E (cn_print_exe_file) does exactly what %e (format_corename) does. So
-if this is really broken in the two ways, we should fix both the old %e
-and the new %E.
+  - check which memory(anon or file) should be scanned.
+    (If file is too small, rotate/scan ratio of file is meaningless.)
+  - check rotate/scan ratio of each nodes.
+  - calculate weights for each nodes (by some logic ?)
+  - give a fair scan w.r.t node's weight.
 
-I'm not sure whether at this point when the task is being killed and
-dumped, it can still change comm?
+Hmm, I'll have a study on this.
 
-For the slashes, I agree. That should be fixed in both cases.
+Thanks.
+-Kame
 
-thanks,
--- 
-js
-suse labs
+
+
+
+
+
+
+
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
