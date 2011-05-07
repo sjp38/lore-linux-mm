@@ -1,56 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C8FD6B0012
-	for <linux-mm@kvack.org>; Sat,  7 May 2011 05:00:54 -0400 (EDT)
-Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [202.81.31.247])
-	by e23smtp02.au.ibm.com (8.14.4/8.13.1) with ESMTP id p478t7fQ004246
-	for <linux-mm@kvack.org>; Sat, 7 May 2011 18:55:07 +1000
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p4790ZM2999620
-	for <linux-mm@kvack.org>; Sat, 7 May 2011 19:00:39 +1000
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p4790hOq022936
-	for <linux-mm@kvack.org>; Sat, 7 May 2011 19:00:43 +1000
-Date: Sat, 7 May 2011 01:16:47 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [PATCH 2/2] Allocate memory cgroup structures in local nodes v3
-Message-ID: <20110506194647.GC2970@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <1304624762-27960-1-git-send-email-andi@firstfloor.org>
- <1304624762-27960-2-git-send-email-andi@firstfloor.org>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id A61826B0022
+	for <linux-mm@kvack.org>; Sat,  7 May 2011 06:45:43 -0400 (EDT)
+Received: by iyh42 with SMTP id 42so4739741iyh.14
+        for <linux-mm@kvack.org>; Sat, 07 May 2011 03:45:41 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <1304624762-27960-2-git-send-email-andi@firstfloor.org>
+In-Reply-To: <BANLkTi=omboE=fh16KSAa__JyG=hARmw=A@mail.gmail.com>
+References: <BANLkTinhK_K1oSJDEoqD6EQK8Qy5Wy3v+g@mail.gmail.com>
+	<201105031516.28907.arnd@arndb.de>
+	<BANLkTi=74Mp1vWBt2F-sqqqkeNfP69+9vg@mail.gmail.com>
+	<201105032202.42662.arnd@arndb.de>
+	<BANLkTi=omboE=fh16KSAa__JyG=hARmw=A@mail.gmail.com>
+Date: Sat, 7 May 2011 12:45:41 +0200
+Message-ID: <BANLkTimrN_T-nGws6T6baLPV+sWtFYC6Bw@mail.gmail.com>
+Subject: Re: mmc blkqueue is empty even if there are pending reads in do_generic_file_read()
+From: Per Forlin <per.forlin@linaro.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, Andi Kleen <ak@linux.intel.com>, rientjes@google.com, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Arnd Bergmann <arnd@arndb.de>
+Cc: linux-mm@kvack.org, linux-mmc@vger.kernel.org, linaro-kernel@lists.linaro.org
 
-* Andi Kleen <andi@firstfloor.org> [2011-05-05 12:46:02]:
-
-> From: Andi Kleen <ak@linux.intel.com>
-> 
-> dde79e005a769 added a regression that the memory cgroup data structures
-> all end up in node 0 because the first attempt at allocating them
-> would not pass in a node hint. Since the initialization runs on CPU #0
-> it would all end up node 0. This is a problem on large memory systems,
-> where node 0 would lose a lot of memory.
-> 
-> Change the alloc_pages_exact to alloc_pages_exact_node. This will
-                                 ^^^ (typo should be nid)
-> still fall back to other nodes if not enough memory is available.
-> 
-> [RED-PEN: right now it would fall back first before trying
-> vmalloc_node. Probably not the best strategy ... But I left it like
-> that for now.]
+On 4 May 2011 21:13, Per Forlin <per.forlin@linaro.org> wrote:
+> On 3 May 2011 22:02, Arnd Bergmann <arnd@arndb.de> wrote:
+>> On Tuesday 03 May 2011 20:54:43 Per Forlin wrote:
+>>> >> page_not_up_to_date:
+>>> >> /* Get exclusive access to the page ... */
+>>> >> error =3D lock_page_killable(page);
+>>> > I looked at the code in do_generic_file_read(). lock_page_killable
+>>> > waits until the current read ahead is completed.
+>>> > Is it possible to configure the read ahead to push multiple read
+>>> > request to the block device queue?add
+>>
+>> I believe sleeping in __lock_page_killable is the best possible scenario=
+.
+>> Most cards I've seen work best when you use at least 64KB reads, so it w=
+ill
+>> be faster to wait there than to read smaller units.
+>>
+> Sleeping is ok but I don't wont the read execution to stop (mmc going
+> to idle when there is actually more to read).
+> I did an interesting discovery when I forced host mmc_req_size to 64k
+> The reads now look like:
+> dd if=3D/dev/mmcblk0 of=3D/dev/null bs=3D4k count=3D256
+> =A0[mmc_queue_thread] req d955f9b0 blocks 32
+> =A0[mmc_queue_thread] req =A0 (null) blocks 0
+> =A0[mmc_queue_thread] req =A0 (null) blocks 0
+> =A0[mmc_queue_thread] req d955f9b0 blocks 64
+> =A0[mmc_queue_thread] req =A0 (null) blocks 0
+> =A0[mmc_queue_thread] req d955f8d8 blocks 128
+> =A0[mmc_queue_thread] req =A0 (null) blocks 0
+> =A0[mmc_queue_thread] req d955f9b0 blocks 128
+> =A0[mmc_queue_thread] req d955f800 blocks 128
+> =A0[mmc_queue_thread] req d955f8d8 blocks 128
+> =A0[do_generic_file_read] lock_page_killable-wait sec 0 nsec 7811230
+> =A0[mmc_queue_thread] req d955fec0 blocks 128
+> =A0[mmc_queue_thread] req d955f800 blocks 128
+> =A0[do_generic_file_read] lock_page_killable-wait sec 0 nsec 7811492
+> =A0[mmc_queue_thread] req d955f9b0 blocks 128
+> =A0[mmc_queue_thread] req d967cd30 blocks 128
+> =A0[do_generic_file_read] lock_page_killable-wait sec 0 nsec 7810848
+> =A0[mmc_queue_thread] req d967cc58 blocks 128
+> =A0[mmc_queue_thread] req d967cb80 blocks 128
+> =A0[do_generic_file_read] lock_page_killable-wait sec 0 nsec 7810654
+> =A0[mmc_queue_thread] req d967caa8 blocks 128
+> =A0[mmc_queue_thread] req d967c9d0 blocks 128
+> =A0[mmc_queue_thread] req d967c8f8 blocks 128
+> =A0[do_generic_file_read] lock_page_killable-wait sec 0 nsec 7810652
+> =A0[mmc_queue_thread] req d967c820 blocks 128
+> =A0[mmc_queue_thread] req d967c748 blocks 128
+> =A0[do_generic_file_read] lock_page_killable-wait sec 0 nsec 7810952
+> =A0[mmc_queue_thread] req d967c670 blocks 128
+> =A0[mmc_queue_thread] req d967c598 blocks 128
+> =A0[mmc_queue_thread] req d967c4c0 blocks 128
+> =A0[mmc_queue_thread] req d967c3e8 blocks 128
+> =A0[mmc_queue_thread] req =A0 (null) blocks 0
+> =A0[mmc_queue_thread] req =A0 (null) blocks 0
+> The mmc queue never runs empty until end of transfer.. The requests
+> are 128 blocks (64k limit set in mmc host driver) compared to 256
+> blocks before. This will not improve performance much since the
+> transfer now are smaller than before. The latency is minimal but
+> instead there extra number of transfer cause more mmc cmd overhead.
+> I added prints to print the wait time in lock_page_killable too.
+> I wonder if I can achieve a none empty mmc block queue without
+> compromising the mmc host driver performance.
 >
+There is actually a performance increase from 16.5 MB/s to 18.4 MB/s
+when lowering the max_req_size to 64k.
+I run a dd test on a pandaboard using 2.6.39-rc5 kernel.
 
-The patch looks good except for the printk.
+First case when block queue gets empty after every request:
+root@(none):/ dd if=3D/dev/mmcblk0p3 of=3D/dev/null bs=3D4k count=3D25600
+25600+0 records in
+25600+0 records out
+104857600 bytes (100.0MB) copied, 6.061107 seconds, 16.5MB/s
 
--- 
-	Three Cheers,
-	Balbir
+Second case when modifying omap_hsmmc to force request size is to half
+(128 instead of 256). This results in queue is never empty
+dd if=3D/dev/mmcblk0p3 of=3D/dev/null bs=3D4k count=3D25600
+25600+0 records in
+25600+0 records out
+104857600 bytes (100.0MB) copied, 5.423362 seconds, 18.4MB/s
+
+Regards,
+Per
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
