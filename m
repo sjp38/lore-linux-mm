@@ -1,124 +1,169 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D2276B0012
-	for <linux-mm@kvack.org>; Sat,  7 May 2011 18:00:50 -0400 (EDT)
-Received: by vxk20 with SMTP id 20so6863906vxk.14
-        for <linux-mm@kvack.org>; Sat, 07 May 2011 15:00:48 -0700 (PDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id B49086B0022
+	for <linux-mm@kvack.org>; Sat,  7 May 2011 19:19:59 -0400 (EDT)
+Received: from kpbe13.cbf.corp.google.com (kpbe13.cbf.corp.google.com [172.25.105.77])
+	by smtp-out.google.com with ESMTP id p47NJsGw021821
+	for <linux-mm@kvack.org>; Sat, 7 May 2011 16:19:58 -0700
+Received: from pvc12 (pvc12.prod.google.com [10.241.209.140])
+	by kpbe13.cbf.corp.google.com with ESMTP id p47NJlKk027942
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Sat, 7 May 2011 16:19:53 -0700
+Received: by pvc12 with SMTP id 12so2613190pvc.14
+        for <linux-mm@kvack.org>; Sat, 07 May 2011 16:19:47 -0700 (PDT)
+Date: Sat, 7 May 2011 16:19:44 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH v4] mm: make expand_downwards symmetrical to
+ expand_upwards
+In-Reply-To: <20110506075027.GB32495@tiehlicka.suse.cz>
+Message-ID: <alpine.LSU.2.00.1105071617310.3645@sister.anvils>
+References: <20110506075027.GB32495@tiehlicka.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <BANLkTikKhjmPJKHiJa2hRBdUF2=oe8HZzg@mail.gmail.com>
-References: <1304366849.15370.27.camel@mulgrave.site>
-	<20110502224838.GB10278@cmpxchg.org>
-	<BANLkTikKhjmPJKHiJa2hRBdUF2=oe8HZzg@mail.gmail.com>
-Date: Sun, 8 May 2011 03:30:48 +0530
-Message-ID: <BANLkTik2npu-b1AnLx_tyrhLZ366CkWSTQ@mail.gmail.com>
-Subject: Re: memcg: fix fatal livelock in kswapd
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: James Bottomley <James.Bottomley@hansenpartnership.com>, Chris Mason <chris.mason@oracle.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, containers@lists.linux-foundation.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-Sorry, my mailer might have used intelligence to send HTML (that is
-what happens when the setup changes, I apologize). Resending in text
-format
+On Fri, 6 May 2011, Michal Hocko wrote:
 
-On Sun, May 8, 2011 at 3:29 AM, Balbir Singh <balbir@linux.vnet.ibm.com> wr=
-ote:
->
->
-> On Tue, May 3, 2011 at 4:18 AM, Johannes Weiner <hannes@cmpxchg.org> wrot=
-e:
->>
->> Hi,
->>
->> On Mon, May 02, 2011 at 03:07:29PM -0500, James Bottomley wrote:
->> > The fatal livelock in kswapd, reported in this thread:
->> >
->> > http://marc.info/?t=3D130392066000001
->> >
->> > Is mitigateable if we prevent the cgroups code being so aggressive in
->> > its zone shrinking (by reducing it's default shrink from 0 [everything=
-]
->> > to DEF_PRIORITY [some things]). =A0This will have an obvious knock on
->> > effect to cgroup accounting, but it's better than hanging systems.
->>
->> Actually, it's not that obvious. =A0At least not to me. =A0I added Balbi=
-r,
->> who added said comment and code in the first place, to CC: Here is the
->> comment in full quote:
->>
->
-> I missed this email in my inbox, just saw it and responding
->
->>
->> =A0 =A0 =A0 =A0/*
->> =A0 =A0 =A0 =A0 * NOTE: Although we can get the priority field, using it
->> =A0 =A0 =A0 =A0 * here is not a good idea, since it limits the pages we =
-can scan.
->> =A0 =A0 =A0 =A0 * if we don't reclaim here, the shrink_zone from balance=
-_pgdat
->> =A0 =A0 =A0 =A0 * will pick up pages from other mem cgroup's as well. We=
- hack
->> =A0 =A0 =A0 =A0 * the priority and make it zero.
->> =A0 =A0 =A0 =A0 */
->>
->> The idea is that if one memcg is above its softlimit, we prefer
->> reducing pages from this memcg over reclaiming random other pages,
->> including those of other memcgs.
->>
->
-> My comment and code were based on the observations I saw during my tests.
-> With DEF_PRIORITY we see scan >> priority in get_scan_count(), since we k=
-now
-> how much exactly we are over the soft limit, it makes sense to go after t=
-he
-> pages, so that normal balancing can be restored.
->
->>
->> But the code flow looks like this:
->>
->> =A0 =A0 =A0 =A0balance_pgdat
->> =A0 =A0 =A0 =A0 =A0mem_cgroup_soft_limit_reclaim
->> =A0 =A0 =A0 =A0 =A0 =A0mem_cgroup_shrink_node_zone
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0shrink_zone(0, zone, &sc)
->> =A0 =A0 =A0 =A0 =A0shrink_zone(prio, zone, &sc)
->>
->> so the success of the inner memcg shrink_zone does at least not
->> explicitely result in the outer, global shrink_zone steering clear of
->> other memcgs' pages.
->
-> Yes, but it allows soft reclaim to know what to target first for success
->
->>
->> =A0It just tries to move the pressure of balancing
->> the zones to the memcg with the biggest soft limit excess. =A0That can
->> only really work if the memcg is a large enough contributor to the
->> zone's total number of lru pages, though, and looks very likely to hit
->> the exceeding memcg too hard in other cases.
->>
->> I am very much for removing this hack. =A0There is still more scan
->> pressure applied to memcgs in excess of their soft limit even if the
->> extra scan is happening at a sane priority level. =A0And the fact that
->> global reclaim operates completely unaware of memcgs is a different
->> story.
->>
->> However, this code came into place with v2.6.31-8387-g4e41695. =A0Why is
->> it only now showing up?
->>
->> You also wrote in that thread that this happens on a standard F15
->> installation. =A0On the F15 I am running here, systemd does not
->> configure memcgs, however. =A0Did you manually configure memcgs and set
->> soft limits? =A0Because I wonder how it ended up in soft limit reclaim
->> in the first place.
->>
->
-> I am running F15 as well, but never hit the problem so far. I am surprise=
-d
-> to see the stack posted on the thread, it seemed like you
-> never=A0explicitly=A0enabled anything to wake up the memcg beast :)
-> Balbir
+> Hi Andrew,
+> I am sorry to repost this kind of trivial cleanup for the 4th time,
+> but after recent discussion (https://lkml.org/lkml/2011/5/3/323)
+> with Hugh I think that it makes sense to keep the original
+> expand_{upwards,downwards} without being explicit about the stack in the
+> name. As Hugh pointed out, IA64 uses expand_upwards for something that
+> is not really a stack (it is a backing storage for registers).
+> The following patch reworks the original one so it is not incremental.
+> If you prefer incremental one I can send that one instead. 
+> Just for record this patch obsoletes:
+> 	mm-make-expand_downwards-symmetrical-with-expand_upwards.patch
+> 	mm-make-expand_downwards-symmetrical-with-expand_upwards-v3.patch
+> in your current (2011-04-29-16-25) mm tree.
+> 
+> ---
+> From 1b679558f464530c59c93930b958a3436a250c25 Mon Sep 17 00:00:00 2001
+> From: Michal Hocko <mhocko@suse.cz>
+> Date: Fri, 15 Apr 2011 14:56:26 +0200
+> Subject: [PATCH] mm: make expand_downwards symmetrical to expand_upwards
+> 
+> Currently we have expand_upwards exported while expand_downwards is
+> accessible only via expand_stack or expand_stack_downwards.
+> 
+> check_stack_guard_page is a nice example of the asymmetry. It uses
+> expand_stack for VM_GROWSDOWN while expand_upwards is called for
+> VM_GROWSUP case.
+> 
+> Let's clean this up by exporting both functions and make those names
+> consistent. Let's use expand_{upwards,downwards} because expanding
+> doesn't always involve stack manipulation (an example is
+> ia64_do_page_fault which uses expand_upwards for registers backing store
+> expansion).
+> expand_downwards has to be defined for both CONFIG_STACK_GROWS{UP,DOWN}
+> because get_arg_page calls the downwards version in the early process
+> initialization phase for growsup configuration.
+> 
+> CC: Hugh Dickins <hughd@google.com>
+> Signed-off-by: Michal Hocko <mhocko@suse.cz>
+
+Thanks, Michal: yes, I much prefer it done this way:
+Acked-by: Hugh Dickins <hughd@google.com>
+
+> ---
+>  fs/exec.c          |    2 +-
+>  include/linux/mm.h |    8 +++++---
+>  mm/memory.c        |    2 +-
+>  mm/mmap.c          |    7 +------
+>  4 files changed, 8 insertions(+), 11 deletions(-)
+> 
+> diff --git a/fs/exec.c b/fs/exec.c
+> index 5e62d26..c2668ff 100644
+> --- a/fs/exec.c
+> +++ b/fs/exec.c
+> @@ -194,7 +194,7 @@ struct page *get_arg_page(struct linux_binprm *bprm, unsigned long pos,
+>  
+>  #ifdef CONFIG_STACK_GROWSUP
+>  	if (write) {
+> -		ret = expand_stack_downwards(bprm->vma, pos);
+> +		ret = expand_downwards(bprm->vma, pos);
+>  		if (ret < 0)
+>  			return NULL;
+>  	}
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 692dbae..2d4f62b 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -1494,15 +1494,17 @@ unsigned long ra_submit(struct file_ra_state *ra,
+>  			struct address_space *mapping,
+>  			struct file *filp);
+>  
+> -/* Do stack extension */
+> +/* Generic expand stack which grows the stack according to GROWS{UP,DOWN} */
+>  extern int expand_stack(struct vm_area_struct *vma, unsigned long address);
+> +
+> +/* CONFIG_STACK_GROWSUP still needs to to grow downwards at some places */
+> +extern int expand_downwards(struct vm_area_struct *vma,
+> +		unsigned long address);
+>  #if VM_GROWSUP
+>  extern int expand_upwards(struct vm_area_struct *vma, unsigned long address);
+>  #else
+>    #define expand_upwards(vma, address) do { } while (0)
+>  #endif
+> -extern int expand_stack_downwards(struct vm_area_struct *vma,
+> -				  unsigned long address);
+>  
+>  /* Look up the first VMA which satisfies  addr < vm_end,  NULL if none. */
+>  extern struct vm_area_struct * find_vma(struct mm_struct * mm, unsigned long addr);
+> diff --git a/mm/memory.c b/mm/memory.c
+> index ce22a25..f404fb6 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -2969,7 +2969,7 @@ static inline int check_stack_guard_page(struct vm_area_struct *vma, unsigned lo
+>  		if (prev && prev->vm_end == address)
+>  			return prev->vm_flags & VM_GROWSDOWN ? 0 : -ENOMEM;
+>  
+> -		expand_stack(vma, address - PAGE_SIZE);
+> +		expand_downwards(vma, address - PAGE_SIZE);
+>  	}
+>  	if ((vma->vm_flags & VM_GROWSUP) && address + PAGE_SIZE == vma->vm_end) {
+>  		struct vm_area_struct *next = vma->vm_next;
+> diff --git a/mm/mmap.c b/mm/mmap.c
+> index e27e0cf..4c10287 100644
+> --- a/mm/mmap.c
+> +++ b/mm/mmap.c
+> @@ -1782,7 +1782,7 @@ int expand_upwards(struct vm_area_struct *vma, unsigned long address)
+>  /*
+>   * vma is the first one with address < vma->vm_start.  Have to extend vma.
+>   */
+> -static int expand_downwards(struct vm_area_struct *vma,
+> +int expand_downwards(struct vm_area_struct *vma,
+>  				   unsigned long address)
+>  {
+>  	int error;
+> @@ -1829,11 +1829,6 @@ static int expand_downwards(struct vm_area_struct *vma,
+>  	return error;
+>  }
+>  
+> -int expand_stack_downwards(struct vm_area_struct *vma, unsigned long address)
+> -{
+> -	return expand_downwards(vma, address);
+> -}
+> -
+>  #ifdef CONFIG_STACK_GROWSUP
+>  int expand_stack(struct vm_area_struct *vma, unsigned long address)
+>  {
+> -- 
+> 1.7.4.4
+> 
+> 
+> -- 
+> Michal Hocko
+> SUSE Labs
+> SUSE LINUX s.r.o.
+> Lihovarska 1060/12
+> 190 00 Praha 9    
+> Czech Republic
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
