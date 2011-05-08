@@ -1,23 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 05A976B0022
-	for <linux-mm@kvack.org>; Sun,  8 May 2011 15:41:43 -0400 (EDT)
-Received: from hpaq1.eem.corp.google.com (hpaq1.eem.corp.google.com [172.25.149.1])
-	by smtp-out.google.com with ESMTP id p48Jfe4i011422
-	for <linux-mm@kvack.org>; Sun, 8 May 2011 12:41:40 -0700
-Received: from pxi7 (pxi7.prod.google.com [10.243.27.7])
-	by hpaq1.eem.corp.google.com with ESMTP id p48Jfb1f028429
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id AB26F6B0022
+	for <linux-mm@kvack.org>; Sun,  8 May 2011 15:43:13 -0400 (EDT)
+Received: from kpbe17.cbf.corp.google.com (kpbe17.cbf.corp.google.com [172.25.105.81])
+	by smtp-out.google.com with ESMTP id p48JhAAl026900
+	for <linux-mm@kvack.org>; Sun, 8 May 2011 12:43:10 -0700
+Received: from pzk9 (pzk9.prod.google.com [10.243.19.137])
+	by kpbe17.cbf.corp.google.com with ESMTP id p48Jh8fn025510
 	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Sun, 8 May 2011 12:41:39 -0700
-Received: by pxi7 with SMTP id 7so3196263pxi.30
-        for <linux-mm@kvack.org>; Sun, 08 May 2011 12:41:37 -0700 (PDT)
-Date: Sun, 8 May 2011 12:41:48 -0700 (PDT)
+	for <linux-mm@kvack.org>; Sun, 8 May 2011 12:43:08 -0700
+Received: by pzk9 with SMTP id 9so3017738pzk.33
+        for <linux-mm@kvack.org>; Sun, 08 May 2011 12:43:08 -0700 (PDT)
+Date: Sun, 8 May 2011 12:43:19 -0700 (PDT)
 From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH 1/3] tmpfs: fix race between umount and writepage
-In-Reply-To: <4DC691D0.6050104@parallels.com>
-Message-ID: <alpine.LSU.2.00.1105081238010.15963@sister.anvils>
+Subject: [PATCH 2/3] tmpfs: fix race between umount and swapoff
+In-Reply-To: <alpine.LSU.2.00.1105081238010.15963@sister.anvils>
+Message-ID: <alpine.LSU.2.00.1105081241590.15963@sister.anvils>
 References: <4DAFD0B1.9090603@parallels.com> <20110421064150.6431.84511.stgit@localhost6> <20110421124424.0a10ed0c.akpm@linux-foundation.org> <4DB0FE8F.9070407@parallels.com> <alpine.LSU.2.00.1105031223120.9845@sister.anvils> <4DC4D9A6.9070103@parallels.com>
- <alpine.LSU.2.00.1105071621330.3668@sister.anvils> <4DC691D0.6050104@parallels.com>
+ <alpine.LSU.2.00.1105071621330.3668@sister.anvils> <4DC691D0.6050104@parallels.com> <alpine.LSU.2.00.1105081238010.15963@sister.anvils>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -25,152 +25,196 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Konstantin Khlebnikov <khlebnikov@openvz.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Konstanin Khlebnikov reports that a dangerous race between umount and
-shmem_writepage can be reproduced by this script:
+The use of igrab() in swapoff's shmem_unuse_inode() is just as vulnerable
+to umount as that in shmem_writepage().
 
-for i in {1..300} ; do
-	mkdir $i
-	while true ; do
-		mount -t tmpfs none $i
-		dd if=/dev/zero of=$i/test bs=1M count=$(($RANDOM % 100))
-		umount $i
-	done &
-done
+Fix this instance by extending the protection of shmem_swaplist_mutex
+right across shmem_unuse_inode(): while it's on the list, the inode
+cannot be evicted (and the filesystem cannot be unmounted) without
+shmem_evict_inode() taking that mutex to remove it from the list.
 
-on a 6xCPU node with 8Gb RAM: kernel very unstable after this accident. =)
+But since shmem_writepage() might take that mutex, we should avoid
+making memory allocations or memcg charges while holding it: prepare
+them at the outer level in shmem_unuse().  When mem_cgroup_cache_charge()
+was originally placed, we didn't know until that point that the page from
+swap was actually a shmem page; but nowadays it's noted in the swap_map,
+so we're safe to charge upfront.  For the radix_tree, do as is done in
+shmem_getpage(): preload upfront, but don't pin to the cpu; so we make
+a habit of refreshing the node pool, but might dip into GFP_NOWAIT
+reserves on occasion if subsequently preempted.
 
-Kernel log:
+With the allocation and charge moved out from shmem_unuse_inode(),
+we can also hold index map and info->lock over from finding the entry.
 
-VFS: Busy inodes after unmount of tmpfs.
-               Self-destruct in 5 seconds.  Have a nice day...
-
-WARNING: at lib/list_debug.c:53 __list_del_entry+0x8d/0x98()
-list_del corruption. prev->next should be ffff880222fdaac8, but was (null)
-Pid: 11222, comm: mount.tmpfs Not tainted 2.6.39-rc2+ #4
-Call Trace:
- warn_slowpath_common+0x80/0x98
- warn_slowpath_fmt+0x41/0x43
- __list_del_entry+0x8d/0x98
- evict+0x50/0x113
- iput+0x138/0x141
-...
-BUG: unable to handle kernel paging request at ffffffffffffffff
-IP: shmem_free_blocks+0x18/0x4c
-Pid: 10422, comm: dd Tainted: G        W   2.6.39-rc2+ #4
-Call Trace:
- shmem_recalc_inode+0x61/0x66
- shmem_writepage+0xba/0x1dc
- pageout+0x13c/0x24c
- shrink_page_list+0x28e/0x4be
- shrink_inactive_list+0x21f/0x382
-...
-
-shmem_writepage() calls igrab() on the inode for the page which came from
-page reclaim, to add it later into shmem_swaplist for swapoff operation.
-
-This igrab() can race with super-block deactivating process:
-
-shrink_inactive_list()		deactivate_super()
-pageout()			tmpfs_fs_type->kill_sb()
-shmem_writepage()		kill_litter_super()
-				generic_shutdown_super()
-				 evict_inodes()
- igrab()
-				  atomic_read(&inode->i_count)
-				   skip-inode
- iput()
-				 if (!list_empty(&sb->s_inodes))
-					printk("VFS: Busy inodes after...
-
-This igrap-iput pair was added in commit 1b1b32f2c6f6
-"tmpfs: fix shmem_swaplist races" based on incorrect assumptions:
-igrab() protects the inode from concurrent eviction by deletion, but
-it does nothing to protect it from concurrent unmounting, which goes
-ahead despite the raised i_count.
-
-So this use of igrab() was wrong all along, but the race made much
-worse in 2.6.37 when commit 63997e98a3be "split invalidate_inodes()"
-replaced two attempts at invalidate_inodes() by a single evict_inodes().
-
-Konstantin posted a plausible patch, raising sb->s_active too:
-I'm unsure whether it was correct or not; but burnt once by igrab(),
-I am sure that we don't want to rely more deeply upon externals here.
-
-Fix it by adding the inode to shmem_swaplist earlier, while the page
-lock on page in page cache still secures the inode against eviction,
-without artifically raising i_count.  It was originally added later
-because shmem_unuse_inode() is liable to remove an inode from the
-list while it's unswapped; but we can guard against that by taking
-spinlock before dropping mutex.
-
-Reported-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
 Signed-off-by: Hugh Dickins <hughd@google.com>
-Tested-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: Konstantin Khlebnikov <khlebnikov@openvz.org>
 Cc: stable@kernel.org
 ---
 
- mm/shmem.c |   31 ++++++++++++++++++++-----------
- 1 file changed, 20 insertions(+), 11 deletions(-)
+ mm/shmem.c |   88 +++++++++++++++++++++++--------------------------
+ 1 file changed, 43 insertions(+), 45 deletions(-)
 
---- 2.6.39-rc6/mm/shmem.c	2011-04-28 09:52:49.066135001 -0700
-+++ tmpfs1/mm/shmem.c	2011-05-07 17:38:00.648660817 -0700
-@@ -1039,6 +1039,7 @@ static int shmem_writepage(struct page *
- 	struct address_space *mapping;
- 	unsigned long index;
- 	struct inode *inode;
-+	bool unlock_mutex = false;
+--- tmpfs1/mm/shmem.c	2011-05-07 17:38:00.648660817 -0700
++++ tmpfs2/mm/shmem.c	2011-05-07 17:39:00.656959448 -0700
+@@ -852,7 +852,7 @@ static inline int shmem_find_swp(swp_ent
  
- 	BUG_ON(!PageLocked(page));
- 	mapping = page->mapping;
-@@ -1064,7 +1065,26 @@ static int shmem_writepage(struct page *
- 	else
- 		swap.val = 0;
- 
-+	/*
-+	 * Add inode to shmem_unuse()'s list of swapped-out inodes,
-+	 * if it's not already there.  Do it now because we cannot take
-+	 * mutex while holding spinlock, and must do so before the page
-+	 * is moved to swap cache, when its pagelock no longer protects
-+	 * the inode from eviction.  But don't unlock the mutex until
-+	 * we've taken the spinlock, because shmem_unuse_inode() will
-+	 * prune a !swapped inode from the swaplist under both locks.
-+	 */
-+	if (swap.val && list_empty(&info->swaplist)) {
-+		mutex_lock(&shmem_swaplist_mutex);
-+		/* move instead of add in case we're racing */
-+		list_move_tail(&info->swaplist, &shmem_swaplist);
-+		unlock_mutex = true;
+ static int shmem_unuse_inode(struct shmem_inode_info *info, swp_entry_t entry, struct page *page)
+ {
+-	struct inode *inode;
++	struct address_space *mapping;
+ 	unsigned long idx;
+ 	unsigned long size;
+ 	unsigned long limit;
+@@ -875,8 +875,10 @@ static int shmem_unuse_inode(struct shme
+ 	if (size > SHMEM_NR_DIRECT)
+ 		size = SHMEM_NR_DIRECT;
+ 	offset = shmem_find_swp(entry, ptr, ptr+size);
+-	if (offset >= 0)
++	if (offset >= 0) {
++		shmem_swp_balance_unmap();
+ 		goto found;
 +	}
-+
- 	spin_lock(&info->lock);
-+	if (unlock_mutex)
-+		mutex_unlock(&shmem_swaplist_mutex);
-+
- 	if (index >= info->next_index) {
- 		BUG_ON(!(info->flags & SHMEM_TRUNCATE));
- 		goto unlock;
-@@ -1084,21 +1104,10 @@ static int shmem_writepage(struct page *
- 		delete_from_page_cache(page);
- 		shmem_swp_set(info, entry, swap.val);
- 		shmem_swp_unmap(entry);
--		if (list_empty(&info->swaplist))
--			inode = igrab(inode);
--		else
--			inode = NULL;
- 		spin_unlock(&info->lock);
- 		swap_shmem_alloc(swap);
- 		BUG_ON(page_mapped(page));
- 		swap_writepage(page, wbc);
--		if (inode) {
--			mutex_lock(&shmem_swaplist_mutex);
--			/* move instead of add in case we're racing */
--			list_move_tail(&info->swaplist, &shmem_swaplist);
--			mutex_unlock(&shmem_swaplist_mutex);
--			iput(inode);
--		}
- 		return 0;
- 	}
+ 	if (!info->i_indirect)
+ 		goto lost2;
  
+@@ -914,11 +916,11 @@ static int shmem_unuse_inode(struct shme
+ 			if (size > ENTRIES_PER_PAGE)
+ 				size = ENTRIES_PER_PAGE;
+ 			offset = shmem_find_swp(entry, ptr, ptr+size);
+-			shmem_swp_unmap(ptr);
+ 			if (offset >= 0) {
+ 				shmem_dir_unmap(dir);
+ 				goto found;
+ 			}
++			shmem_swp_unmap(ptr);
+ 		}
+ 	}
+ lost1:
+@@ -928,8 +930,7 @@ lost2:
+ 	return 0;
+ found:
+ 	idx += offset;
+-	inode = igrab(&info->vfs_inode);
+-	spin_unlock(&info->lock);
++	ptr += offset;
+ 
+ 	/*
+ 	 * Move _head_ to start search for next from here.
+@@ -940,37 +941,18 @@ found:
+ 	 */
+ 	if (shmem_swaplist.next != &info->swaplist)
+ 		list_move_tail(&shmem_swaplist, &info->swaplist);
+-	mutex_unlock(&shmem_swaplist_mutex);
+ 
+-	error = 1;
+-	if (!inode)
+-		goto out;
+ 	/*
+-	 * Charge page using GFP_KERNEL while we can wait.
+-	 * Charged back to the user(not to caller) when swap account is used.
+-	 * add_to_page_cache() will be called with GFP_NOWAIT.
++	 * We rely on shmem_swaplist_mutex, not only to protect the swaplist,
++	 * but also to hold up shmem_evict_inode(): so inode cannot be freed
++	 * beneath us (pagelock doesn't help until the page is in pagecache).
+ 	 */
+-	error = mem_cgroup_cache_charge(page, current->mm, GFP_KERNEL);
+-	if (error)
+-		goto out;
+-	error = radix_tree_preload(GFP_KERNEL);
+-	if (error) {
+-		mem_cgroup_uncharge_cache_page(page);
+-		goto out;
+-	}
+-	error = 1;
+-
+-	spin_lock(&info->lock);
+-	ptr = shmem_swp_entry(info, idx, NULL);
+-	if (ptr && ptr->val == entry.val) {
+-		error = add_to_page_cache_locked(page, inode->i_mapping,
+-						idx, GFP_NOWAIT);
+-		/* does mem_cgroup_uncharge_cache_page on error */
+-	} else	/* we must compensate for our precharge above */
+-		mem_cgroup_uncharge_cache_page(page);
++	mapping = info->vfs_inode.i_mapping;
++	error = add_to_page_cache_locked(page, mapping, idx, GFP_NOWAIT);
++	/* which does mem_cgroup_uncharge_cache_page on error */
+ 
+ 	if (error == -EEXIST) {
+-		struct page *filepage = find_get_page(inode->i_mapping, idx);
++		struct page *filepage = find_get_page(mapping, idx);
+ 		error = 1;
+ 		if (filepage) {
+ 			/*
+@@ -990,14 +972,8 @@ found:
+ 		swap_free(entry);
+ 		error = 1;	/* not an error, but entry was found */
+ 	}
+-	if (ptr)
+-		shmem_swp_unmap(ptr);
++	shmem_swp_unmap(ptr);
+ 	spin_unlock(&info->lock);
+-	radix_tree_preload_end();
+-out:
+-	unlock_page(page);
+-	page_cache_release(page);
+-	iput(inode);		/* allows for NULL */
+ 	return error;
+ }
+ 
+@@ -1009,6 +985,26 @@ int shmem_unuse(swp_entry_t entry, struc
+ 	struct list_head *p, *next;
+ 	struct shmem_inode_info *info;
+ 	int found = 0;
++	int error;
++
++	/*
++	 * Charge page using GFP_KERNEL while we can wait, before taking
++	 * the shmem_swaplist_mutex which might hold up shmem_writepage().
++	 * Charged back to the user (not to caller) when swap account is used.
++	 * add_to_page_cache() will be called with GFP_NOWAIT.
++	 */
++	error = mem_cgroup_cache_charge(page, current->mm, GFP_KERNEL);
++	if (error)
++		goto out;
++	/*
++	 * Try to preload while we can wait, to not make a habit of
++	 * draining atomic reserves; but don't latch on to this cpu,
++	 * it's okay if sometimes we get rescheduled after this.
++	 */
++	error = radix_tree_preload(GFP_KERNEL);
++	if (error)
++		goto uncharge;
++	radix_tree_preload_end();
+ 
+ 	mutex_lock(&shmem_swaplist_mutex);
+ 	list_for_each_safe(p, next, &shmem_swaplist) {
+@@ -1016,17 +1012,19 @@ int shmem_unuse(swp_entry_t entry, struc
+ 		found = shmem_unuse_inode(info, entry, page);
+ 		cond_resched();
+ 		if (found)
+-			goto out;
++			break;
+ 	}
+ 	mutex_unlock(&shmem_swaplist_mutex);
+-	/*
+-	 * Can some race bring us here?  We've been holding page lock,
+-	 * so I think not; but would rather try again later than BUG()
+-	 */
++
++uncharge:
++	if (!found)
++		mem_cgroup_uncharge_cache_page(page);
++	if (found < 0)
++		error = found;
++out:
+ 	unlock_page(page);
+ 	page_cache_release(page);
+-out:
+-	return (found < 0) ? found : 0;
++	return error;
+ }
+ 
+ /*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
