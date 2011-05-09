@@ -1,65 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 31D956B0023
-	for <linux-mm@kvack.org>; Mon,  9 May 2011 03:40:04 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id E35693EE0AE
-	for <linux-mm@kvack.org>; Mon,  9 May 2011 16:40:00 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id B484445DF43
-	for <linux-mm@kvack.org>; Mon,  9 May 2011 16:40:00 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9BC1B45DEE6
-	for <linux-mm@kvack.org>; Mon,  9 May 2011 16:40:00 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8CFECE08002
-	for <linux-mm@kvack.org>; Mon,  9 May 2011 16:40:00 +0900 (JST)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 3DF406B0023
+	for <linux-mm@kvack.org>; Mon,  9 May 2011 03:44:30 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id D1BAD3EE0C7
+	for <linux-mm@kvack.org>; Mon,  9 May 2011 16:44:25 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id AC19A45DE74
+	for <linux-mm@kvack.org>; Mon,  9 May 2011 16:44:25 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 88B5645DE6B
+	for <linux-mm@kvack.org>; Mon,  9 May 2011 16:44:25 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 761411DB8046
+	for <linux-mm@kvack.org>; Mon,  9 May 2011 16:44:25 +0900 (JST)
 Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 57FC41DB8037
-	for <linux-mm@kvack.org>; Mon,  9 May 2011 16:40:00 +0900 (JST)
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 3D41E1DB8041
+	for <linux-mm@kvack.org>; Mon,  9 May 2011 16:44:25 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 1/8] mm: export get_vma_policy()
-In-Reply-To: <1303947349-3620-2-git-send-email-wilsons@start.ca>
-References: <1303947349-3620-1-git-send-email-wilsons@start.ca> <1303947349-3620-2-git-send-email-wilsons@start.ca>
-Message-Id: <20110509164143.1650.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCH 3/8] mm: remove MPOL_MF_STATS
+In-Reply-To: <1303947349-3620-4-git-send-email-wilsons@start.ca>
+References: <1303947349-3620-1-git-send-email-wilsons@start.ca> <1303947349-3620-4-git-send-email-wilsons@start.ca>
+Message-Id: <20110509164609.1657.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Date: Mon,  9 May 2011 16:39:59 +0900 (JST)
+Date: Mon,  9 May 2011 16:44:24 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Stephen Wilson <wilsons@start.ca>
 Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-> diff --git a/include/linux/mempolicy.h b/include/linux/mempolicy.h
-> index 31ac26c..c2f6032 100644
-> --- a/include/linux/mempolicy.h
-> +++ b/include/linux/mempolicy.h
-> @@ -199,6 +199,9 @@ void mpol_free_shared_policy(struct shared_policy *p);
->  struct mempolicy *mpol_shared_policy_lookup(struct shared_policy *sp,
->  					    unsigned long idx);
->  
-> +struct mempolicy *get_vma_policy(struct task_struct *tsk,
-> +		struct vm_area_struct *vma, unsigned long addr);
-> +
->  extern void numa_default_policy(void);
->  extern void numa_policy_init(void);
->  extern void mpol_rebind_task(struct task_struct *tsk, const nodemask_t *new,
+> Mapping statistics in a NUMA environment is now computed using the
+> generic walk_page_range() logic.  Remove the old/equivalent
+> functionality.
+> 
+> Signed-off-by: Stephen Wilson <wilsons@start.ca>
+> ---
+>  mm/mempolicy.c |   10 ++++++----
+>  1 files changed, 6 insertions(+), 4 deletions(-)
+> 
 > diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-> index 959a8b8..5bfb03e 100644
+> index dfe27e3..63c0d69 100644
 > --- a/mm/mempolicy.c
 > +++ b/mm/mempolicy.c
-> @@ -1489,7 +1489,7 @@ asmlinkage long compat_sys_mbind(compat_ulong_t start, compat_ulong_t len,
->   * freeing by another task.  It is the caller's responsibility to free the
->   * extra reference for shared policies.
->   */
-> -static struct mempolicy *get_vma_policy(struct task_struct *task,
-> +struct mempolicy *get_vma_policy(struct task_struct *task,
->  		struct vm_area_struct *vma, unsigned long addr)
+> @@ -99,7 +99,6 @@
+>  /* Internal flags */
+>  #define MPOL_MF_DISCONTIG_OK (MPOL_MF_INTERNAL << 0)	/* Skip checks for continuous vmas */
+>  #define MPOL_MF_INVERT (MPOL_MF_INTERNAL << 1)		/* Invert check for nodemask */
+> -#define MPOL_MF_STATS (MPOL_MF_INTERNAL << 2)		/* Gather statistics */
+>  
+>  static struct kmem_cache *policy_cache;
+>  static struct kmem_cache *sn_cache;
+> @@ -492,9 +491,7 @@ static int check_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+>  		if (node_isset(nid, *nodes) == !!(flags & MPOL_MF_INVERT))
+>  			continue;
+>  
+> -		if (flags & MPOL_MF_STATS)
+> -			gather_stats(page, private, pte_dirty(*pte));
+> -		else if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL))
+> +		if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL))
+>  			migrate_page_add(page, private, flags);
+>  		else
+>  			break;
 
-Looks reasonable to me.
-	Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+This hunk looks good to me.
 
+
+> @@ -2572,6 +2569,7 @@ static int gather_pte_stats(pte_t *pte, unsigned long addr,
+>  		unsigned long pte_size, struct mm_walk *walk)
+>  {
+>  	struct page *page;
+> +	int nid;
+>  
+>  	if (pte_none(*pte))
+>  		return 0;
+> @@ -2580,6 +2578,10 @@ static int gather_pte_stats(pte_t *pte, unsigned long addr,
+>  	if (!page)
+>  		return 0;
+>  
+> +	nid = page_to_nid(page);
+> +	if (!node_isset(nid, node_states[N_HIGH_MEMORY]))
+> +		return 0;
+> +
+>  	gather_stats(page, walk->private, pte_dirty(*pte));
+>  	return 0;
+
+However this hunk should be moved into patch [2/8]. because 1) keeping
+bisectability 2) The description says "Remove the old/equivalent
+functionality." but it added new functionality.
 
 
 
