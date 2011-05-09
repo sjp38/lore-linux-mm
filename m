@@ -1,98 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id ED17F90010E
-	for <linux-mm@kvack.org>; Mon,  9 May 2011 19:04:52 -0400 (EDT)
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e1.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p49MrfgT014244
-	for <linux-mm@kvack.org>; Mon, 9 May 2011 18:53:41 -0400
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p49N40UJ416642
-	for <linux-mm@kvack.org>; Mon, 9 May 2011 19:04:14 -0400
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p49N3wIc010061
-	for <linux-mm@kvack.org>; Mon, 9 May 2011 19:04:00 -0400
-Subject: [PATCH 5/7] ext4: Wait for writeback to complete while making pages
-	writable
-From: "Darrick J. Wong" <djwong@us.ibm.com>
-Date: Mon, 09 May 2011 16:03:56 -0700
-Message-ID: <20110509230356.19566.48351.stgit@elm3c44.beaverton.ibm.com>
-In-Reply-To: <20110509230318.19566.66202.stgit@elm3c44.beaverton.ibm.com>
-References: <20110509230318.19566.66202.stgit@elm3c44.beaverton.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
+	by kanga.kvack.org (Postfix) with ESMTP id A1EEC6B0024
+	for <linux-mm@kvack.org>; Mon,  9 May 2011 19:16:56 -0400 (EDT)
+Date: Mon, 9 May 2011 16:16:22 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/4] VM/RMAP: Add infrastructure for batching the rmap
+ chain locking
+Message-Id: <20110509161622.57093622.akpm@linux-foundation.org>
+In-Reply-To: <20110509230255.GA6008@one.firstfloor.org>
+References: <1304623972-9159-1-git-send-email-andi@firstfloor.org>
+	<1304623972-9159-2-git-send-email-andi@firstfloor.org>
+	<20110509144324.8e79654a.akpm@linux-foundation.org>
+	<4DC86947.30607@linux.intel.com>
+	<20110509152841.ec957d23.akpm@linux-foundation.org>
+	<20110509230255.GA6008@one.firstfloor.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Theodore Tso <tytso@mit.edu>, Jan Kara <jack@suse.cz>, Alexander Viro <viro@zeniv.linux.org.uk>, OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>, "Darrick J. Wong" <djwong@us.ibm.com>
-Cc: Jens Axboe <axboe@kernel.dk>, "Martin K. Petersen" <martin.petersen@oracle.com>, Jeff Layton <jlayton@redhat.com>, Dave Chinner <david@fromorbit.com>, linux-kernel <linux-kernel@vger.kernel.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, Chris Mason <chris.mason@oracle.com>, Joel Becker <jlbec@evilplan.org>, linux-scsi <linux-scsi@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-ext4@vger.kernel.org, Mingming Cao <mcao@us.ibm.com>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Andi Kleen <ak@linux.intel.com>, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, tim.c.chen@linux.intel.com, torvalds@linux-foundation.org, lwoodman@redhat.com, mel@csn.ul.ie
 
-In order to stabilize pages during disk writes, ext4_page_mkwrite must wait for
-writeback operations to complete before making a page writable.  Furthermore,
-the function must return locked pages, and recheck the writeback status if the
-page lock is ever dropped.  The "someone could wander in" part of this patch
-was suggested by Chris Mason.
+On Tue, 10 May 2011 01:02:55 +0200
+Andi Kleen <andi@firstfloor.org> wrote:
 
-Signed-off-by: Darrick J. Wong <djwong@us.ibm.com>
----
- fs/ext4/inode.c |   24 +++++++++++++++++++-----
- 1 files changed, 19 insertions(+), 5 deletions(-)
+> On Mon, May 09, 2011 at 03:28:41PM -0700, Andrew Morton wrote:
+> > On Mon, 09 May 2011 15:23:03 -0700
+> > Andi Kleen <ak@linux.intel.com> wrote:
+> > 
+> > > > After fixing that and doing an allnoconfig x86_64 build, the patchset
+> > > > takes rmap.o's .text from 6167 bytes to 6551.  This is likely to be a
+> > > > regression for uniprocessor machines.  What can we do about this?
+> > > >
+> > > 
+> > > Regression in what way?
+> > 
+> > It makes the code larger and probably slower, for no gain?
+> 
+> It should be actually faster because there are much less atomic ops.
+> Atomic ops are quite expensive -- especially on some older CPUs, even when
+> not contended.
 
+hm, which atomic ops are those?  We shouldn't need buslocked operations
+on UP.
 
-diff --git a/fs/ext4/inode.c b/fs/ext4/inode.c
-index 3db34b2..1d162a2 100644
---- a/fs/ext4/inode.c
-+++ b/fs/ext4/inode.c
-@@ -5809,15 +5809,19 @@ int ext4_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
- 		goto out_unlock;
- 	}
- 	ret = 0;
--	if (PageMappedToDisk(page))
--		goto out_unlock;
-+
-+	lock_page(page);
-+	wait_on_page_writeback(page);
-+	if (PageMappedToDisk(page)) {
-+		up_read(&inode->i_alloc_sem);
-+		return VM_FAULT_LOCKED;
-+	}
- 
- 	if (page->index == size >> PAGE_CACHE_SHIFT)
- 		len = size & ~PAGE_CACHE_MASK;
- 	else
- 		len = PAGE_CACHE_SIZE;
- 
--	lock_page(page);
- 	/*
- 	 * return if we have all the buffers mapped. This avoid
- 	 * the need to call write_begin/write_end which does a
-@@ -5827,8 +5831,8 @@ int ext4_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
- 	if (page_has_buffers(page)) {
- 		if (!walk_page_buffers(NULL, page_buffers(page), 0, len, NULL,
- 					ext4_bh_unmapped)) {
--			unlock_page(page);
--			goto out_unlock;
-+			up_read(&inode->i_alloc_sem);
-+			return VM_FAULT_LOCKED;
- 		}
- 	}
- 	unlock_page(page);
-@@ -5848,6 +5852,16 @@ int ext4_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
- 	if (ret < 0)
- 		goto out_unlock;
- 	ret = 0;
-+
-+	/*
-+	 * write_begin/end might have created a dirty page and someone
-+	 * could wander in and start the IO.  Make sure that hasn't
-+	 * happened.
-+	 */
-+	lock_page(page);
-+	wait_on_page_writeback(page);
-+	up_read(&inode->i_alloc_sem);
-+	return VM_FAULT_LOCKED;
- out_unlock:
- 	if (ret)
- 		ret = VM_FAULT_SIGBUS;
+> > 
+> > > I guess I can move some of the functions out of 
+> > > line.
+> > 
+> > I don't know how much that will help.  Perhaps a wholesale refactoring
+> > and making it all SMP-only will be justified.  
+> 
+> Yes I don't think there were a lot of callers.
+> 
+> I can take out the lockbreak. I was a bit dubious on its utility
+> anyways.
+
+I guess that running something like latencytop with a suitably nasty
+workload would permit detection of any problems.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
