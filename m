@@ -1,90 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 542AA6B0022
-	for <linux-mm@kvack.org>; Mon,  9 May 2011 15:39:29 -0400 (EDT)
-Date: Mon, 9 May 2011 15:39:16 -0400
-From: Stephen Wilson <wilsons@start.ca>
-Subject: Re: [PATCH 3/8] mm: remove MPOL_MF_STATS
-Message-ID: <20110509193916.GB2865@wicker.gateway.2wire.net>
-References: <1303947349-3620-1-git-send-email-wilsons@start.ca>
- <1303947349-3620-4-git-send-email-wilsons@start.ca>
- <20110509164609.1657.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110509164609.1657.A69D9226@jp.fujitsu.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 072186B0023
+	for <linux-mm@kvack.org>; Mon,  9 May 2011 17:14:45 -0400 (EDT)
+Date: Mon, 9 May 2011 14:13:47 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH]mm/migrate.c: clean up comment
+Message-Id: <20110509141347.51ccc087.akpm@linux-foundation.org>
+In-Reply-To: <1304697799.2450.9.camel@figo-desktop>
+References: <1304697799.2450.9.camel@figo-desktop>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Stephen Wilson <wilsons@start.ca>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Figo.zhang" <figo1802@gmail.com>
+Cc: lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>
 
-On Mon, May 09, 2011 at 04:44:24PM +0900, KOSAKI Motohiro wrote:
-> > Mapping statistics in a NUMA environment is now computed using the
-> > generic walk_page_range() logic.  Remove the old/equivalent
-> > functionality.
-> > 
-> > Signed-off-by: Stephen Wilson <wilsons@start.ca>
-> > ---
-> >  mm/mempolicy.c |   10 ++++++----
-> >  1 files changed, 6 insertions(+), 4 deletions(-)
-> > 
-> > diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-> > index dfe27e3..63c0d69 100644
-> > --- a/mm/mempolicy.c
-> > +++ b/mm/mempolicy.c
-> > @@ -99,7 +99,6 @@
-> >  /* Internal flags */
-> >  #define MPOL_MF_DISCONTIG_OK (MPOL_MF_INTERNAL << 0)	/* Skip checks for continuous vmas */
-> >  #define MPOL_MF_INVERT (MPOL_MF_INTERNAL << 1)		/* Invert check for nodemask */
-> > -#define MPOL_MF_STATS (MPOL_MF_INTERNAL << 2)		/* Gather statistics */
-> >  
-> >  static struct kmem_cache *policy_cache;
-> >  static struct kmem_cache *sn_cache;
-> > @@ -492,9 +491,7 @@ static int check_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
-> >  		if (node_isset(nid, *nodes) == !!(flags & MPOL_MF_INVERT))
-> >  			continue;
-> >  
-> > -		if (flags & MPOL_MF_STATS)
-> > -			gather_stats(page, private, pte_dirty(*pte));
-> > -		else if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL))
-> > +		if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL))
-> >  			migrate_page_add(page, private, flags);
-> >  		else
-> >  			break;
-> 
-> This hunk looks good to me.
-> 
-> 
-> > @@ -2572,6 +2569,7 @@ static int gather_pte_stats(pte_t *pte, unsigned long addr,
-> >  		unsigned long pte_size, struct mm_walk *walk)
-> >  {
-> >  	struct page *page;
-> > +	int nid;
-> >  
-> >  	if (pte_none(*pte))
-> >  		return 0;
-> > @@ -2580,6 +2578,10 @@ static int gather_pte_stats(pte_t *pte, unsigned long addr,
-> >  	if (!page)
-> >  		return 0;
-> >  
-> > +	nid = page_to_nid(page);
-> > +	if (!node_isset(nid, node_states[N_HIGH_MEMORY]))
-> > +		return 0;
-> > +
-> >  	gather_stats(page, walk->private, pte_dirty(*pte));
-> >  	return 0;
-> 
-> However this hunk should be moved into patch [2/8]. because 1) keeping
-> bisectability 2) The description says "Remove the old/equivalent
-> functionality." but it added new functionality.
+On Sat, 07 May 2011 00:03:11 +0800
+"Figo.zhang" <figo1802@gmail.com> wrote:
 
-Absolutely.  Will move into the proper location and resend the whole
-series.
+> 
+> clean up comment. prepare cgroup return 0 or -ENOMEN, others return -EAGAIN.
+> avoid conflict meanings.
+> 
+> Signed-off-by: Figo.zhang <figo1802@gmail.com>
+> ---
+> mm/migrate.c |    3 +--
+>  1 files changed, 1 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/migrate.c b/mm/migrate.c
+> index 34132f8..d65b351 100644
+> --- a/mm/migrate.c
+> +++ b/mm/migrate.c
+> @@ -647,7 +647,6 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
+>  		if (unlikely(split_huge_page(page)))
+>  			goto move_newpage;
+>  
+> -	/* prepare cgroup just returns 0 or -ENOMEM */
+>  	rc = -EAGAIN;
+>  
+>  	if (!trylock_page(page)) {
+> @@ -687,7 +686,7 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
+>  		goto unlock;
+>  	}
+>  
+> -	/* charge against new page */
+> +	/* charge against new page, return 0 or -ENOMEM */
+>  	charge = mem_cgroup_prepare_migration(page, newpage, &mem, GFP_KERNEL);
+>  	if (charge == -ENOMEM) {
+>  		rc = -ENOMEM;
 
-Thanks again,
+Well it's still pretty confusing - the function can also return -EAGAIN
+and -EBUSY, at least.
 
--- 
-steve
+It would be better to remove this random sprinkle of commentlets and to
+properly document unmap_and_move()'s interface in the usual fashion, in
+its leading comment block.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
