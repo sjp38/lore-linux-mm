@@ -1,59 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 8F9F26B0023
-	for <linux-mm@kvack.org>; Mon,  9 May 2011 03:49:22 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id D5C893EE0BB
-	for <linux-mm@kvack.org>; Mon,  9 May 2011 16:49:18 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id BB14545DE5C
-	for <linux-mm@kvack.org>; Mon,  9 May 2011 16:49:18 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 8DB8545DE5A
-	for <linux-mm@kvack.org>; Mon,  9 May 2011 16:49:18 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 7DDC51DB8048
-	for <linux-mm@kvack.org>; Mon,  9 May 2011 16:49:18 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 498691DB8043
-	for <linux-mm@kvack.org>; Mon,  9 May 2011 16:49:18 +0900 (JST)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 792816B0024
+	for <linux-mm@kvack.org>; Mon,  9 May 2011 03:51:14 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id CA6743EE0C5
+	for <linux-mm@kvack.org>; Mon,  9 May 2011 16:51:10 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id B0AFD45DE4F
+	for <linux-mm@kvack.org>; Mon,  9 May 2011 16:51:10 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 8F96945DE59
+	for <linux-mm@kvack.org>; Mon,  9 May 2011 16:51:10 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 836C21DB802F
+	for <linux-mm@kvack.org>; Mon,  9 May 2011 16:51:10 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 41E731DB8043
+	for <linux-mm@kvack.org>; Mon,  9 May 2011 16:51:10 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 6/8] mm: proc: move show_numa_map() to fs/proc/task_mmu.c
-In-Reply-To: <1303947349-3620-7-git-send-email-wilsons@start.ca>
-References: <1303947349-3620-1-git-send-email-wilsons@start.ca> <1303947349-3620-7-git-send-email-wilsons@start.ca>
-Message-Id: <20110509165102.1663.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCH 7/8] proc: make struct proc_maps_private truly private
+In-Reply-To: <1303947349-3620-8-git-send-email-wilsons@start.ca>
+References: <1303947349-3620-1-git-send-email-wilsons@start.ca> <1303947349-3620-8-git-send-email-wilsons@start.ca>
+Message-Id: <20110509165255.1667.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Date: Mon,  9 May 2011 16:49:17 +0900 (JST)
+Date: Mon,  9 May 2011 16:51:09 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Stephen Wilson <wilsons@start.ca>
 Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-> Moving show_numa_map() from mempolicy.c to task_mmu.c solves several
-> issues.
-> 
->   - Having the show() operation "miles away" from the corresponding
->     seq_file iteration operations is a maintenance burden.
-> 
->   - The need to export ad hoc info like struct proc_maps_private is
->     eliminated.
-> 
->   - The implementation of show_numa_map() can be improved in a simple
->     manner by cooperating with the other seq_file operations (start,
->     stop, etc) -- something that would be messy to do without this
->     change.
+> Now that mm/mempolicy.c is no longer implementing /proc/pid/numa_maps
+> there is no need to export struct proc_maps_private to the world.  Move
+> it to fs/proc/internal.h instead.
 > 
 > Signed-off-by: Stephen Wilson <wilsons@start.ca>
 > ---
->  fs/proc/task_mmu.c |  170 +++++++++++++++++++++++++++++++++++++++++++++++++++-
->  mm/mempolicy.c     |  168 ---------------------------------------------------
->  2 files changed, 168 insertions(+), 170 deletions(-)
+>  fs/proc/internal.h      |    8 ++++++++
+>  include/linux/proc_fs.h |    8 --------
+>  2 files changed, 8 insertions(+), 8 deletions(-)
 
 Looks good to me.
 	Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-
 
 
 
