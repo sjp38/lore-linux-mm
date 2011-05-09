@@ -1,170 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 32FF56B0023
-	for <linux-mm@kvack.org>; Mon,  9 May 2011 01:47:07 -0400 (EDT)
-Received: from wpaz5.hot.corp.google.com (wpaz5.hot.corp.google.com [172.24.198.69])
-	by smtp-out.google.com with ESMTP id p495l5XR020083
-	for <linux-mm@kvack.org>; Sun, 8 May 2011 22:47:05 -0700
-Received: from qyk2 (qyk2.prod.google.com [10.241.83.130])
-	by wpaz5.hot.corp.google.com with ESMTP id p495l3NN019533
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Sun, 8 May 2011 22:47:04 -0700
-Received: by qyk2 with SMTP id 2so849923qyk.14
-        for <linux-mm@kvack.org>; Sun, 08 May 2011 22:47:03 -0700 (PDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 4063C6B0023
+	for <linux-mm@kvack.org>; Mon,  9 May 2011 01:49:16 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 8C73B3EE0AE
+	for <linux-mm@kvack.org>; Mon,  9 May 2011 14:49:11 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 70CA145DE58
+	for <linux-mm@kvack.org>; Mon,  9 May 2011 14:49:11 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 4EF9745DE56
+	for <linux-mm@kvack.org>; Mon,  9 May 2011 14:49:11 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 3A935E08002
+	for <linux-mm@kvack.org>; Mon,  9 May 2011 14:49:11 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id ECBD11DB803F
+	for <linux-mm@kvack.org>; Mon,  9 May 2011 14:49:10 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH] Check end_pfn in pageblock_is_reserved
+In-Reply-To: <1304434549-2837-1-git-send-email-minchan.kim@gmail.com>
+References: <1304434549-2837-1-git-send-email-minchan.kim@gmail.com>
+Message-Id: <20110509145053.1644.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <20110509092112.7d8ae017.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20110429133313.GB306@tiehlicka.suse.cz>
-	<20110501150410.75D2.A69D9226@jp.fujitsu.com>
-	<20110503064945.GA18927@tiehlicka.suse.cz>
-	<BANLkTimmpHcSJuO_8+P=GjYf+wB=Nyq=4w@mail.gmail.com>
-	<20110503082550.GD18927@tiehlicka.suse.cz>
-	<BANLkTikZtOdzsnjH=43AegLCpYc6ecfKsg@mail.gmail.com>
-	<20110504085851.GC1375@tiehlicka.suse.cz>
-	<BANLkTinxuSaCEvN4_vB=uA1rdGUwCpovog@mail.gmail.com>
-	<20110505065901.GC11529@tiehlicka.suse.cz>
-	<20110506142834.90e0b363.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110506142257.GI10278@cmpxchg.org>
-	<20110509092112.7d8ae017.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Sun, 8 May 2011 22:47:03 -0700
-Message-ID: <BANLkTikmOY=WodDjytantOQ6fwfUAXaQ-Q@mail.gmail.com>
-Subject: Re: [PATCH 1/7] memcg: add high/low watermark to res_counter
-From: Ying Han <yinghan@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
+Date: Mon,  9 May 2011 14:49:10 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Johannes Weiner <jweiner@redhat.com>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, John Stultz <john.stultz@linaro.org>, Arve =?UTF-8?B?SGrDuG5uZXbDpWc=?= <arve@android.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>
 
-On Sun, May 8, 2011 at 5:21 PM, KAMEZAWA Hiroyuki
-<kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> On Fri, 6 May 2011 16:22:57 +0200
-> Johannes Weiner <hannes@cmpxchg.org> wrote:
->
->> On Fri, May 06, 2011 at 02:28:34PM +0900, KAMEZAWA Hiroyuki wrote:
->> > Hmm, so, the interface should be
->> >
->> > =A0 memory.watermark =A0--- the total usage which kernel's memory shri=
-nker starts.
->> >
->> > ?
->> >
->> > I'm okay with this. And I think this parameter should be fully indepen=
-dent from
->> > the limit.
->> >
->> > Memcg can work without watermark reclaim. I think my patch just adds a=
- new
->> > _limit_ which a user can shrink usage of memory on deamand with kernel=
-'s help.
->> > Memory reclaim works in background but this is not a kswapd, at all.
->> >
->> > I guess performance benefit of using watermark under a cgroup which ha=
-s limit
->> > is very small and I think this is not for a performance tuning paramet=
-er.
->> > This is just a new limit.
->> >
->> > Comparing 2 cases,
->> >
->> > =A0cgroup A)
->> > =A0 =A0- has limit of 300M, no watermaks.
->> > =A0cgroup B)
->> > =A0 =A0- has limit of UNLIMITED, watermarks=3D300M
->> >
->> > A) has hard limit and memory reclaim cost is paid by user threads, and=
- have
->> > risks of OOM under memcg.
->> > B) has no hard limit and memory reclaim cost is paid by kernel threads=
-, and
->> > will not have risk of OOM under memcg, but can be CPU burning.
->> >
->> > I think this should be called as soft-limit ;) But we have another sof=
-t-limit now.
->> > Then, I call this as watermark. This will be useful to resize usage of=
- memory
->> > in online because application will not hit limit and get big latency e=
-ven while
->> > an admin makes watermark smaller.
->>
->> I have two thoughts to this:
->>
->> 1. Even though the memcg will not hit the limit and the application
->> will not be forced to do memcg target reclaim, the watermark reclaim
->> will steal pages from the memcg and the application will suffer the
->> page faults, so it's not an unconditional win.
->>
->
-> Considering the whole system, I never think this watermark can be a perfo=
-rmance
-> help. This consumes the same amount of cpu as a memory freeing thread use=
-s.
-> In realistic situaion, in busy memcy, several threads hits limit at the s=
-ame
-> time and a help by a thread will not be much help.
->
->> 2. I understand how the feature is supposed to work, but I don't
->> understand or see a use case for the watermark being configurable.
->> Don't get me wrong, I completely agree with watermark reclaim, it's a
->> good latency optimization. =A0But I don't see why you would want to
->> manually push back a memcg by changing the watermark.
->>
->
-> For keeping free memory, when the system is not busy.
->
->> Ying wrote in another email that she wants to do this to make room fro,
->> another job that is about to get launched. =A0My reply to that was that
->> you should just launch the job and let global memory pressure push
->> back that memcg instead. =A0So instead of lowering the watermark, you
->> could lower the soft limit and don't do any reclaim at all until real
->> pressure arises. =A0You said yourself that the new feature should be
->> called soft limit. =A0And I think it is because it is a reimplementation
->> of the soft limit!
->>
->
-> Soft limit works only when the system is in memory shortage. It means the
-> system need to use cpu for memory reclaim when the system is very busy.
-> This works always an admin wants. This difference will affects page alloc=
-ation
-> latency and execution time of application. In some customer, when he want=
-s to
-> start up an application in 1 sec, it must be in 1 sec. As you know, kswap=
-d's
-> memory reclaim itself is too slow against rapid big allocation or burst o=
-f
-> network packet allocation and direct reclaim runs always. Then, it's not
-> avoidable to reclaim/scan memory when the system is busy. =A0This feature=
- allows
-> admins to schedule memory reclaim when the systen is calm. It's like cont=
-rol of
-> scheduling GC.
+> [mm-check-if-any-page-in-a-pageblock-is-reserved-before-marking-it-migrate_reserve]
+> added new function "pageblock_is_reserved". But it doesn't check end_pfn of system
+> so it meets following BUG in my system. This patch fixes it.
+> 
+> [    1.859574] type=2000 audit(1304330017.656:1): initialized
+> [    1.884130] BUG: unable to handle kernel paging request at f77fe000
+> [    1.890557] IP: [<c01dfe3f>] setup_per_zone_wmarks+0x17f/0x280
+> [    1.896493] *pde = 013fb067 *pte = 00000000
+> [    1.900921] Oops: 0000 [#1] SMP
+> [    1.904309] last sysfs file:
+> [    1.907324] Modules linked in:
+> [    1.910482]
+> [    1.912024] Pid: 1, comm: swapper Not tainted 2.6.39-rc5-mm1+ #49 SAMSUNG ELECTRONICS CO.,LTD Samsung DeskT
+> [    1.924756] EIP: 0060:[<c01dfe3f>] EFLAGS: 00010006 CPU: 0
+> [    1.930282] EIP is at setup_per_zone_wmarks+0x17f/0x280
+> [    1.935554] EAX: 00040080 EBX: 000403fe ECX: 00000000 EDX: f77fe000
+> [    1.941859] ESI: 00110000 EDI: f77fcfc0 EBP: f5077f88 ESP: f5077f50
+> [    1.948170]  DS: 007b ES: 007b FS: 00d8 GS: 00e0 SS: 0068
+> [    1.953613] Process swapper (pid: 1, ti=f5076000 task=f5078000 task.ti=f5076000)
+> [    1.961056] Stack:
+> [    1.963116]  00000091 00000000 000003b5 00000286 c0803c80 c0803ca4 0003709b 00000000
+> [    1.971377]  006effe0 006effc0 00040000 00000000 f50783d8 00000001 f5077f94 c0846e40
+> [    1.979633]  00000000 f5077fc4 c0101125 00000000 000002c8 f50783d8 f5077fb0 c01a8b44
+> [    1.987890] Call Trace:
+> [    1.990386]  [<c0846e40>] init_per_zone_wmark_min+0x39/0x7c
+> [    1.996001]  [<c0101125>] do_one_initcall+0x35/0x170
+> [    2.001014]  [<c01a8b44>] ? irq_to_desc+0x14/0x20
+> [    2.005758]  [<c0846e07>] ? memmap_init_zone+0xca/0xca
+> [    2.010941]  [<c080c2bc>] kernel_init+0xbd/0x153
+> [    2.015606]  [<c080c1ff>] ? parse_early_options+0x25/0x25
+> [    2.021047]  [<c05e7542>] kernel_thread_helper+0x6/0x10
+> [    2.026318] Code: 76 33 8b 4d ec 39 c3 8b 15 80 62 e0 c0 8d 3c 0e 8d 3c 3a 76 67 8b 0f 80 e5 04 75 19 8b 4d
+> [    2.049095] EIP: [<c01dfe3f>] setup_per_zone_wmarks+0x17f/0x280 SS:ESP 0068:f5077f50
+> [    2.056996] CR2: 00000000f77fe000
+> [    2.060362] ---[ end trace 82bc55f036371117 ]---
+> 
+> Cc: John Stultz <john.stultz@linaro.org>
+> Cc: Arve HjA,nnevAJPYg <arve@android.com>
+> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Cc: Mel Gorman <mel@csn.ul.ie>
+> Cc: Dave Hansen <dave@linux.vnet.ibm.com>
+> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
 
-Agree on this. For the configurable per-memcg wmarks, one of the
-difference from adjusting
-soft_limit since we would like to trigger the per-memcg bg reclaim
-before the whole system
-under memory pressure. The concept of soft_limit is quite different
-from the wmarks, where
-the first one can be used to over-committing the system efficiently
-which has nothing to do
-with per-memcg background reclaim.
-
---Ying
+Good catch.
+	Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
 
---Ying
 
->
-> IIRC, there was a trial to free memory when idle() runs....but it doesn't=
- meet
-> current system requirement as idle() should be idle. What I think is a fe=
-ature
-> like a that with a help of memcg.
->
-> Thanks,
-> -Kame
->
->
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
