@@ -1,64 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id A1EEC6B0024
-	for <linux-mm@kvack.org>; Mon,  9 May 2011 19:16:56 -0400 (EDT)
-Date: Mon, 9 May 2011 16:16:22 -0700
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 90A456B0022
+	for <linux-mm@kvack.org>; Mon,  9 May 2011 19:38:40 -0400 (EDT)
+Date: Mon, 9 May 2011 16:38:35 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/4] VM/RMAP: Add infrastructure for batching the rmap
- chain locking
-Message-Id: <20110509161622.57093622.akpm@linux-foundation.org>
-In-Reply-To: <20110509230255.GA6008@one.firstfloor.org>
-References: <1304623972-9159-1-git-send-email-andi@firstfloor.org>
-	<1304623972-9159-2-git-send-email-andi@firstfloor.org>
-	<20110509144324.8e79654a.akpm@linux-foundation.org>
-	<4DC86947.30607@linux.intel.com>
-	<20110509152841.ec957d23.akpm@linux-foundation.org>
-	<20110509230255.GA6008@one.firstfloor.org>
+Subject: Re: [PATCH 1/2] Add alloc_pages_exact_nid()
+Message-Id: <20110509163835.a7d4bf7b.akpm@linux-foundation.org>
+In-Reply-To: <20110509230446.GB6008@one.firstfloor.org>
+References: <1304716637-19556-1-git-send-email-andi@firstfloor.org>
+	<20110509151745.476767e4.akpm@linux-foundation.org>
+	<20110509230446.GB6008@one.firstfloor.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andi Kleen <andi@firstfloor.org>
-Cc: Andi Kleen <ak@linux.intel.com>, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, tim.c.chen@linux.intel.com, torvalds@linux-foundation.org, lwoodman@redhat.com, mel@csn.ul.ie
+Cc: linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave@linux.vnet.ibm.com>
 
-On Tue, 10 May 2011 01:02:55 +0200
+On Tue, 10 May 2011 01:04:46 +0200
 Andi Kleen <andi@firstfloor.org> wrote:
 
-> On Mon, May 09, 2011 at 03:28:41PM -0700, Andrew Morton wrote:
-> > On Mon, 09 May 2011 15:23:03 -0700
-> > Andi Kleen <ak@linux.intel.com> wrote:
+> On Mon, May 09, 2011 at 03:17:45PM -0700, Andrew Morton wrote:
+> > On Fri,  6 May 2011 14:17:16 -0700
+> > Andi Kleen <andi@firstfloor.org> wrote:
 > > 
-> > > > After fixing that and doing an allnoconfig x86_64 build, the patchset
-> > > > takes rmap.o's .text from 6167 bytes to 6551.  This is likely to be a
-> > > > regression for uniprocessor machines.  What can we do about this?
-> > > >
-> > > 
-> > > Regression in what way?
+> > > Add a alloc_pages_exact_nid() that allocates on a specific node.
 > > 
-> > It makes the code larger and probably slower, for no gain?
+> > This conflicts in, I suspect, a more-than-textual manner with Dave's
+> > http://userweb.kernel.org/~akpm/mmotm/broken-out/mm-make-new-alloc_pages_exact.patch
+> > 
+> > Can you please take a look at that and work out what we should do?
+> > 
+> > As your [patch 2/2] fixes a regression, the answer might be "drop
+> > Dave's patch".
 > 
-> It should be actually faster because there are much less atomic ops.
-> Atomic ops are quite expensive -- especially on some older CPUs, even when
-> not contended.
-
-hm, which atomic ops are those?  We shouldn't need buslocked operations
-on UP.
-
-> > 
-> > > I guess I can move some of the functions out of 
-> > > line.
-> > 
-> > I don't know how much that will help.  Perhaps a wholesale refactoring
-> > and making it all SMP-only will be justified.  
+> It should be relatively simple to rebase Dave's patch on top of mine.
 > 
-> Yes I don't think there were a lot of callers.
+> I think that's the right order: first regression fix, then cleanup.
+> Sorry Dave for the additional work.
+> (I agree the cleanup is very valuable in itself)
 > 
-> I can take out the lockbreak. I was a bit dubious on its utility
-> anyways.
 
-I guess that running something like latencytop with a suitably nasty
-workload would permit detection of any problems.
+I started repairing Dave's stuff but then things got complex.  Probably
+we should rename your new alloc_pages_exact_nid() to
+get_free_pages_exact_nid().
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
