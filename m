@@ -1,33 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 9DFBC6B0023
-	for <linux-mm@kvack.org>; Mon,  9 May 2011 18:18:17 -0400 (EDT)
-Date: Mon, 9 May 2011 15:17:45 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/2] Add alloc_pages_exact_nid()
-Message-Id: <20110509151745.476767e4.akpm@linux-foundation.org>
-In-Reply-To: <1304716637-19556-1-git-send-email-andi@firstfloor.org>
-References: <1304716637-19556-1-git-send-email-andi@firstfloor.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id AC0596B0023
+	for <linux-mm@kvack.org>; Mon,  9 May 2011 18:23:06 -0400 (EDT)
+Message-ID: <4DC86947.30607@linux.intel.com>
+Date: Mon, 09 May 2011 15:23:03 -0700
+From: Andi Kleen <ak@linux.intel.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 1/4] VM/RMAP: Add infrastructure for batching the rmap
+ chain locking
+References: <1304623972-9159-1-git-send-email-andi@firstfloor.org>	<1304623972-9159-2-git-send-email-andi@firstfloor.org> <20110509144324.8e79654a.akpm@linux-foundation.org>
+In-Reply-To: <20110509144324.8e79654a.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave@linux.vnet.ibm.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, tim.c.chen@linux.intel.com, torvalds@linux-foundation.org, lwoodman@redhat.com, mel@csn.ul.ie
 
-On Fri,  6 May 2011 14:17:16 -0700
-Andi Kleen <andi@firstfloor.org> wrote:
 
-> Add a alloc_pages_exact_nid() that allocates on a specific node.
+>> +static inline void anon_vma_unlock_batch(struct anon_vma_lock_state *avs)
+>> +{
+>> +	if (avs->root_anon_vma)
+>> +		spin_unlock(&avs->root_anon_vma->lock);
+>> +}
+>> +
+>>   /*
+>>    * anon_vma helper functions.
+>>    */
+> The code doesn't build - the patchset forgot to add `spinlock_t lock'
+> to the anon_vma.
 
-This conflicts in, I suspect, a more-than-textual manner with Dave's
-http://userweb.kernel.org/~akpm/mmotm/broken-out/mm-make-new-alloc_pages_exact.patch
+Hmm, maybe I made a mistake in refactoring.
 
-Can you please take a look at that and work out what we should do?
+> After fixing that and doing an allnoconfig x86_64 build, the patchset
+> takes rmap.o's .text from 6167 bytes to 6551.  This is likely to be a
+> regression for uniprocessor machines.  What can we do about this?
+>
 
-As your [patch 2/2] fixes a regression, the answer might be "drop
-Dave's patch".
+Regression in what way? I guess I can move some of the functions out of 
+line.
+
+-Andi
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
