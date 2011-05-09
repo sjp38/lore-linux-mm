@@ -1,23 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 57F256B0012
-	for <linux-mm@kvack.org>; Mon,  9 May 2011 04:25:07 -0400 (EDT)
-Date: Mon, 9 May 2011 10:24:54 +0200
-From: Michal Hocko <mhocko@suse.cz>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F7C76B0012
+	for <linux-mm@kvack.org>; Mon,  9 May 2011 04:28:23 -0400 (EDT)
+Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [202.81.31.246])
+	by e23smtp05.au.ibm.com (8.14.4/8.13.1) with ESMTP id p498MMrE032321
+	for <linux-mm@kvack.org>; Mon, 9 May 2011 18:22:22 +1000
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p498SIxa1143016
+	for <linux-mm@kvack.org>; Mon, 9 May 2011 18:28:18 +1000
+Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
+	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p498SJ73032060
+	for <linux-mm@kvack.org>; Mon, 9 May 2011 18:28:20 +1000
+Date: Mon, 9 May 2011 13:58:01 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
 Subject: Re: [PATCH 2/2] Allocate memory cgroup structures in local nodes v4
-Message-ID: <20110509082454.GC4273@tiehlicka.suse.cz>
+Message-ID: <20110509082801.GD2970@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
 References: <1304716637-19556-1-git-send-email-andi@firstfloor.org>
  <1304716637-19556-2-git-send-email-andi@firstfloor.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
 In-Reply-To: <1304716637-19556-2-git-send-email-andi@firstfloor.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andi Kleen <andi@firstfloor.org>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, rientjes@google.com, Dave Hansen <dave@linux.vnet.ibm.com>, Balbir Singh <balbir@in.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, rientjes@google.com, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Fri 06-05-11 14:17:17, Andi Kleen wrote:
+* Andi Kleen <andi@firstfloor.org> [2011-05-06 14:17:17]:
+
 > From: Andi Kleen <ak@linux.intel.com>
 > 
 > dde79e005a769 added a regression that the memory cgroup data structures
@@ -27,6 +38,7 @@ On Fri 06-05-11 14:17:17, Andi Kleen wrote:
 > where node 0 would lose a lot of memory.
 > 
 > Change the alloc_pages_exact to alloc_pages_exact_node. This will
+                                                       ^ should be nid
 > still fall back to other nodes if not enough memory is available.
 > 
 > [RED-PEN: right now it would fall back first before trying
@@ -43,39 +55,13 @@ On Fri 06-05-11 14:17:17, Andi Kleen wrote:
 > Cc: Johannes Weiner <hannes@cmpxchg.org>
 > Signed-off-by: Andi Kleen <ak@linux.intel.com>
 
-Looks good
-Reviewed-by: Michal Hocko <mhocko@suse.cz>
 
-Thanks
-
-> ---
->  mm/page_cgroup.c |    2 +-
->  1 files changed, 1 insertions(+), 1 deletions(-)
-> 
-> diff --git a/mm/page_cgroup.c b/mm/page_cgroup.c
-> index 9905501..2daadc3 100644
-> --- a/mm/page_cgroup.c
-> +++ b/mm/page_cgroup.c
-> @@ -134,7 +134,7 @@ static void *__init_refok alloc_page_cgroup(size_t size, int nid)
->  {
->  	void *addr = NULL;
->  
-> -	addr = alloc_pages_exact(size, GFP_KERNEL | __GFP_NOWARN);
-> +	addr = alloc_pages_exact_nid(nid, size, GFP_KERNEL | __GFP_NOWARN);
->  	if (addr)
->  		return addr;
->  
-> -- 
-> 1.7.4.4
-> 
+Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+ 
 
 -- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+	Three Cheers,
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
