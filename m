@@ -1,26 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C01690010C
-	for <linux-mm@kvack.org>; Tue, 10 May 2011 06:15:01 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 2D0893EE0C2
-	for <linux-mm@kvack.org>; Tue, 10 May 2011 19:14:59 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 118FA45DE54
-	for <linux-mm@kvack.org>; Tue, 10 May 2011 19:14:59 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id ECC9845DE4E
-	for <linux-mm@kvack.org>; Tue, 10 May 2011 19:14:58 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id DE396E78002
-	for <linux-mm@kvack.org>; Tue, 10 May 2011 19:14:58 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id A481E1DB8037
-	for <linux-mm@kvack.org>; Tue, 10 May 2011 19:14:58 +0900 (JST)
-Date: Tue, 10 May 2011 19:08:20 +0900
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 2EDA090010E
+	for <linux-mm@kvack.org>; Tue, 10 May 2011 06:16:26 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id AD5703EE081
+	for <linux-mm@kvack.org>; Tue, 10 May 2011 19:16:22 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 92BF745DF49
+	for <linux-mm@kvack.org>; Tue, 10 May 2011 19:16:22 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 70E0245DF43
+	for <linux-mm@kvack.org>; Tue, 10 May 2011 19:16:22 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 649FCE08001
+	for <linux-mm@kvack.org>; Tue, 10 May 2011 19:16:22 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 30BB11DB8038
+	for <linux-mm@kvack.org>; Tue, 10 May 2011 19:16:22 +0900 (JST)
+Date: Tue, 10 May 2011 19:09:42 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [RFC][PATCH 4/7] memcg : test a memcg is reclaimable
-Message-Id: <20110510190820.c62aca76.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC][PATCH 5/7] memcg : export select victim memcg
+Message-Id: <20110510190942.4213fe24.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20110510190216.f4eefef7.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20110510190216.f4eefef7.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
@@ -31,63 +31,80 @@ List-ID: <linux-mm.kvack.org>
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Ying Han <yinghan@google.com>, Johannes Weiner <jweiner@redhat.com>, Michal Hocko <mhocko@suse.cz>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
 
-
-A function for checking that a memcg has reclaimable pages. This makes
-use of mem->scan_nodes when CONFIG_NUMA=y.
+Later change will call mem_cgroup_select_victim() from vmscan.c
+to do hierarchical reclaim. Need to export an interface and add
+release_victim().
 
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 ---
- include/linux/memcontrol.h |    1 +
- mm/memcontrol.c            |   19 +++++++++++++++++++
- 2 files changed, 20 insertions(+)
+ include/linux/memcontrol.h |    2 ++
+ mm/memcontrol.c            |   13 +++++++++----
+ 2 files changed, 11 insertions(+), 4 deletions(-)
 
 Index: mmotm-May6/mm/memcontrol.c
 ===================================================================
 --- mmotm-May6.orig/mm/memcontrol.c
 +++ mmotm-May6/mm/memcontrol.c
-@@ -1623,11 +1623,30 @@ int mem_cgroup_select_victim_node(struct
- 	return node;
+@@ -1555,6 +1555,11 @@ mem_cgroup_select_victim(struct mem_cgro
+ 	return ret;
  }
  
-+bool mem_cgroup_test_reclaimable(struct mem_cgroup *memcg)
++void mem_cgroup_release_victim(struct mem_cgroup *mem)
 +{
-+	mem_cgroup_may_update_nodemask(memcg);
-+	return !nodes_empty(memcg->scan_nodes);
++	css_put(&mem->css);
 +}
 +
- #else
- int mem_cgroup_select_victim_node(struct mem_cgroup *mem)
- {
- 	return 0;
- }
-+
-+bool mem_cgroup_test_reclaimable(struct mem_cgroup *memcg)
-+{
-+	unsigned long nr;
-+	int zid;
-+
-+	for (zid = NODE_DATA(0)->nr_zones - 1; zid >= 0; zid--)
-+		if (mem_cgroup_zone_reclaimable_pages(memcg, 0, zid))
-+			break;
-+	if (zid < 0)
-+		return false;
-+	return true;
-+}
- #endif
+ #if MAX_NUMNODES > 1
  
  /*
+@@ -1699,7 +1704,7 @@ static int mem_cgroup_hierarchical_recla
+ 				 * no reclaimable pages under this hierarchy
+ 				 */
+ 				if (!check_soft || !total) {
+-					css_put(&victim->css);
++					mem_cgroup_release_victim(victim);
+ 					break;
+ 				}
+ 				/*
+@@ -1710,14 +1715,14 @@ static int mem_cgroup_hierarchical_recla
+ 				 */
+ 				if (total >= (excess >> 2) ||
+ 					(loop > MEM_CGROUP_MAX_RECLAIM_LOOPS)) {
+-					css_put(&victim->css);
++					mem_cgroup_release_victim(victim);
+ 					break;
+ 				}
+ 			}
+ 		}
+ 		if (!mem_cgroup_local_usage(victim)) {
+ 			/* this cgroup's local usage == 0 */
+-			css_put(&victim->css);
++			mem_cgroup_release_victim(victim);
+ 			continue;
+ 		}
+ 		/* we use swappiness of local cgroup */
+@@ -1730,7 +1735,7 @@ static int mem_cgroup_hierarchical_recla
+ 		} else
+ 			ret = try_to_free_mem_cgroup_pages(victim, gfp_mask,
+ 					noswap);
+-		css_put(&victim->css);
++		mem_cgroup_release_victim(victim);
+ 		/*
+ 		 * At shrinking usage, we can't check we should stop here or
+ 		 * reclaim more. It's depends on callers. last_scanned_child
 Index: mmotm-May6/include/linux/memcontrol.h
 ===================================================================
 --- mmotm-May6.orig/include/linux/memcontrol.h
 +++ mmotm-May6/include/linux/memcontrol.h
-@@ -110,6 +110,7 @@ int mem_cgroup_inactive_anon_is_low(stru
- int mem_cgroup_inactive_file_is_low(struct mem_cgroup *memcg);
- unsigned long
- mem_cgroup_zone_reclaimable_pages(struct mem_cgroup *memcg, int nid, int zid);
-+bool mem_cgroup_test_reclaimable(struct mem_cgroup *memcg);
- int mem_cgroup_select_victim_node(struct mem_cgroup *memcg);
- unsigned int mem_cgroup_swappiness(struct mem_cgroup *memcg);
- unsigned long mem_cgroup_zone_nr_pages(struct mem_cgroup *memcg,
+@@ -122,6 +122,8 @@ struct zone_reclaim_stat*
+ mem_cgroup_get_reclaim_stat_from_page(struct page *page);
+ extern void mem_cgroup_print_oom_info(struct mem_cgroup *memcg,
+ 					struct task_struct *p);
++struct mem_cgroup *mem_cgroup_select_victim(struct mem_cgroup *mem);
++void mem_cgroup_release_victim(struct mem_cgroup *mem);
+ #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
+ extern int do_swap_account;
+ #endif
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
