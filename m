@@ -1,44 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 94C7C90010C
-	for <linux-mm@kvack.org>; Tue, 10 May 2011 09:52:15 -0400 (EDT)
-From: OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>
-Subject: Re: [PATCHSET v3.1 0/7] data integrity: Stabilize pages during writeback for various fses
-References: <20110509230318.19566.66202.stgit@elm3c44.beaverton.ibm.com>
-	<87tyd31fkc.fsf@devron.myhome.or.jp>
-	<20110510133603.GA5823@infradead.org>
-Date: Tue, 10 May 2011 22:52:10 +0900
-In-Reply-To: <20110510133603.GA5823@infradead.org> (Christoph Hellwig's
-	message of "Tue, 10 May 2011 09:36:03 -0400")
-Message-ID: <874o524q9h.fsf@devron.myhome.or.jp>
-MIME-Version: 1.0
-Content-Type: text/plain
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 6416290010C
+	for <linux-mm@kvack.org>; Tue, 10 May 2011 10:01:09 -0400 (EDT)
+Subject: Re: [BUG] fatal hang untarring 90GB file, possibly writeback
+ related.
+From: James Bottomley <James.Bottomley@HansenPartnership.com>
+In-Reply-To: <20110510102141.GA4149@novell.com>
+References: <20110428192104.GA4658@suse.de>
+	 <1304020767.2598.21.camel@mulgrave.site>
+	 <1304025145.2598.24.camel@mulgrave.site>
+	 <1304030629.2598.42.camel@mulgrave.site> <20110503091320.GA4542@novell.com>
+	 <1304431982.2576.5.camel@mulgrave.site>
+	 <1304432553.2576.10.camel@mulgrave.site> <20110506074224.GB6591@suse.de>
+	 <20110506080728.GC6591@suse.de> <1304964980.4865.53.camel@mulgrave.site>
+	 <20110510102141.GA4149@novell.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Tue, 10 May 2011 09:01:04 -0500
+Message-ID: <1305036064.6737.8.camel@mulgrave.site>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: "Darrick J. Wong" <djwong@us.ibm.com>, Theodore Tso <tytso@mit.edu>, Jan Kara <jack@suse.cz>, Alexander Viro <viro@zeniv.linux.org.uk>, Jens Axboe <axboe@kernel.dk>, "Martin K. Petersen" <martin.petersen@oracle.com>, Jeff Layton <jlayton@redhat.com>, Dave Chinner <david@fromorbit.com>, linux-kernel <linux-kernel@vger.kernel.org>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, Chris Mason <chris.mason@oracle.com>, Joel Becker <jlbec@evilplan.org>, linux-scsi <linux-scsi@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-ext4@vger.kernel.org, Mingming Cao <mcao@us.ibm.com>
+To: Mel Gorman <mgorman@novell.com>
+Cc: Mel Gorman <mgorman@suse.de>, Jan Kara <jack@suse.cz>, colin.king@canonical.com, Chris Mason <chris.mason@oracle.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-ext4 <linux-ext4@vger.kernel.org>
 
-Christoph Hellwig <hch@infradead.org> writes:
+On Tue, 2011-05-10 at 11:21 +0100, Mel Gorman wrote:
+> I really would like to hear if the fix makes a big difference or
+> if we need to consider forcing SLUB high-order allocations bailing
+> at the first sign of trouble (e.g. by masking out __GFP_WAIT in
+> allocate_slab). Even with the fix applied, kswapd might be waking up
+> less but processes will still be getting stalled in direct compaction
+> and direct reclaim so it would still be jittery.
 
-> On Tue, May 10, 2011 at 10:59:15AM +0900, OGAWA Hirofumi wrote:
->> I'd like to know those patches are on what state. Waiting in writeback
->> page makes slower, like you mentioned it (I guess it would more
->> noticeable if device was slower that like FAT uses). And I think
->> currently it doesn't help anything others for blk-integrity stuff
->> (without other technic, it doesn't help FS consistency)?
->
-> It only makes things slower if we rewrite a region in a file that is
-> currently undergoing writeback. I'd be interested to know about real
-> life applications doing that, and if they really are badly affect we
-> should help them to work around that in userspace, e.g. by adding a
-> fadvice will rewrite call that might be used to never write back that
-> regions without an explicit fsync call.
+"the fix" being this
 
-Isn't it reallocated blocks too, and metadata too?
+https://lkml.org/lkml/2011/3/5/121
 
-Thanks.
--- 
-OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>
+In addition to your GFP_KSWAPD one?
+
+OK, will retry with that.
+
+James
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
