@@ -1,47 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 6416290010C
-	for <linux-mm@kvack.org>; Tue, 10 May 2011 10:01:09 -0400 (EDT)
-Subject: Re: [BUG] fatal hang untarring 90GB file, possibly writeback
- related.
-From: James Bottomley <James.Bottomley@HansenPartnership.com>
-In-Reply-To: <20110510102141.GA4149@novell.com>
-References: <20110428192104.GA4658@suse.de>
-	 <1304020767.2598.21.camel@mulgrave.site>
-	 <1304025145.2598.24.camel@mulgrave.site>
-	 <1304030629.2598.42.camel@mulgrave.site> <20110503091320.GA4542@novell.com>
-	 <1304431982.2576.5.camel@mulgrave.site>
-	 <1304432553.2576.10.camel@mulgrave.site> <20110506074224.GB6591@suse.de>
-	 <20110506080728.GC6591@suse.de> <1304964980.4865.53.camel@mulgrave.site>
-	 <20110510102141.GA4149@novell.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 10 May 2011 09:01:04 -0500
-Message-ID: <1305036064.6737.8.camel@mulgrave.site>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 4741890010C
+	for <linux-mm@kvack.org>; Tue, 10 May 2011 10:05:48 -0400 (EDT)
+From: OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>
+Subject: Re: [PATCHSET v3.1 0/7] data integrity: Stabilize pages during writeback for various fses
+References: <20110509230318.19566.66202.stgit@elm3c44.beaverton.ibm.com>
+	<87tyd31fkc.fsf@devron.myhome.or.jp>
+	<20110510123819.GB4402@quack.suse.cz>
+	<87hb924s2x.fsf@devron.myhome.or.jp>
+	<20110510132953.GE4402@quack.suse.cz>
+	<878vue4qjb.fsf@devron.myhome.or.jp>
+Date: Tue, 10 May 2011 23:05:41 +0900
+In-Reply-To: <878vue4qjb.fsf@devron.myhome.or.jp> (OGAWA Hirofumi's message of
+	"Tue, 10 May 2011 22:46:16 +0900")
+Message-ID: <87zkmu3b2i.fsf@devron.myhome.or.jp>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@novell.com>
-Cc: Mel Gorman <mgorman@suse.de>, Jan Kara <jack@suse.cz>, colin.king@canonical.com, Chris Mason <chris.mason@oracle.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-ext4 <linux-ext4@vger.kernel.org>
+To: Jan Kara <jack@suse.cz>
+Cc: "Darrick J. Wong" <djwong@us.ibm.com>, Theodore Tso <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Jens Axboe <axboe@kernel.dk>, "Martin K. Petersen" <martin.petersen@oracle.com>, Jeff Layton <jlayton@redhat.com>, Dave Chinner <david@fromorbit.com>, linux-kernel <linux-kernel@vger.kernel.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, Chris Mason <chris.mason@oracle.com>, Joel Becker <jlbec@evilplan.org>, linux-scsi <linux-scsi@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-ext4@vger.kernel.org, Mingming Cao <mcao@us.ibm.com>
 
-On Tue, 2011-05-10 at 11:21 +0100, Mel Gorman wrote:
-> I really would like to hear if the fix makes a big difference or
-> if we need to consider forcing SLUB high-order allocations bailing
-> at the first sign of trouble (e.g. by masking out __GFP_WAIT in
-> allocate_slab). Even with the fix applied, kswapd might be waking up
-> less but processes will still be getting stalled in direct compaction
-> and direct reclaim so it would still be jittery.
+OGAWA Hirofumi <hirofumi@mail.parknet.co.jp> writes:
 
-"the fix" being this
+> Jan Kara <jack@suse.cz> writes:
+>
+>>> I see. So many block layer stuff sounds like broken on corner case? If
+>>> so, I more feel this approach should be temporary workaround, and should
+>>> use another less-blocking approach.
+>>   Not many but some... The alternative to less blocking approach is to do
+>> copy-out before a page is submitted for IO (or various middle ground
+>> alternatives of doing sometimes copyout, sometimes blocking...). That costs
+>> some performance as well. We talked about it at LSF and the approach
+>> Darrick is implementing was considered the least intrusive. There's really
+>> no way to fix these corner cases and keep performance.
+>
+> You already considered, to copy only if page was writeback (like
+> copy-on-write). I.e. if page is on I/O, copy, then switch the page for
+> writing new data.
 
-https://lkml.org/lkml/2011/3/5/121
+missed question mark in here.
 
-In addition to your GFP_KSWAPD one?
+Did you already consider, to copy only if page was writeback (like
+copy-on-write)? I.e. if page is on I/O, copy, then switch the page for
+writing new data.
 
-OK, will retry with that.
-
-James
-
+> Yes, it is complex. But I think blocking and overhead is minimum, and
+> this can be used as infrastructure for copy-on-write FS.
+-- 
+OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
