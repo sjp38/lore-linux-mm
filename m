@@ -1,24 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 49ED66B0012
-	for <linux-mm@kvack.org>; Tue, 10 May 2011 19:22:41 -0400 (EDT)
-Received: from kpbe16.cbf.corp.google.com (kpbe16.cbf.corp.google.com [172.25.105.80])
-	by smtp-out.google.com with ESMTP id p4ANMZxg019534
-	for <linux-mm@kvack.org>; Tue, 10 May 2011 16:22:39 -0700
-Received: from pzk1 (pzk1.prod.google.com [10.243.19.129])
-	by kpbe16.cbf.corp.google.com with ESMTP id p4ANMXtg032031
-	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 10 May 2011 16:22:34 -0700
-Received: by pzk1 with SMTP id 1so3281800pzk.30
-        for <linux-mm@kvack.org>; Tue, 10 May 2011 16:22:32 -0700 (PDT)
-Date: Tue, 10 May 2011 16:22:31 -0700 (PDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 652B26B0012
+	for <linux-mm@kvack.org>; Tue, 10 May 2011 19:29:09 -0400 (EDT)
+Received: from hpaq7.eem.corp.google.com (hpaq7.eem.corp.google.com [172.25.149.7])
+	by smtp-out.google.com with ESMTP id p4ANT7ks030062
+	for <linux-mm@kvack.org>; Tue, 10 May 2011 16:29:07 -0700
+Received: from pwi10 (pwi10.prod.google.com [10.241.219.10])
+	by hpaq7.eem.corp.google.com with ESMTP id p4ANT4T2013387
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 10 May 2011 16:29:05 -0700
+Received: by pwi10 with SMTP id 10so4551353pwi.0
+        for <linux-mm@kvack.org>; Tue, 10 May 2011 16:29:03 -0700 (PDT)
+Date: Tue, 10 May 2011 16:29:02 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: OOM Killer don't works at all if the system have >gigabytes
- memory (was Re: [PATCH] mm: check zone->all_unreclaimable in
- all_unreclaimable())
-In-Reply-To: <20110510171335.16A7.A69D9226@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1105101607200.12477@chino.kir.corp.google.com>
-References: <1491537913.283996.1304930866703.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com> <20110509182110.167F.A69D9226@jp.fujitsu.com> <20110510171335.16A7.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCH 1/4] oom: improve dump_tasks() show items
+In-Reply-To: <20110510171600.16AB.A69D9226@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1105101623220.12477@chino.kir.corp.google.com>
+References: <20110509182110.167F.A69D9226@jp.fujitsu.com> <20110510171335.16A7.A69D9226@jp.fujitsu.com> <20110510171600.16AB.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -28,56 +26,82 @@ Cc: CAI Qian <caiqian@redhat.com>, avagin@gmail.com, Andrey Vagin <avagin@openvz
 
 On Tue, 10 May 2011, KOSAKI Motohiro wrote:
 
-> OK. That's known issue. Current OOM logic doesn't works if you have
-> gigabytes RAM. because _all_ process have the exactly same score (=1).
-> then oom killer just fallback to random process killer. It was made
-> commit a63d83f427 (oom: badness heuristic rewrite). I pointed out
-> it at least three times. You have to blame Google folks. :-/
+> Recently, oom internal logic was dramatically changed. Thus
+> dump_tasks() is no longer useful. it has some meaningless
+> items and don't have some oom socre related items.
 > 
 
-If all threads have the same badness score, which by definition must be 1 
-since that is the lowest badness score possible for an eligible thread, 
-then each thread is using < 0.2% of RAM.
+This changelog is inaccurate.
 
-The granularity of the badness score doesn't differentiate between threads  
-using 0.1% of RAM in terms of priority for kill (in this case, 16MB).  The 
-largest consumers of memory from CAI's log have an rss of 336MB, which is 
-~2% of system RAM.  The problem is that these are forked by root and 
-therefore get a 3% bonus, making their badness score 1 instead of 2.
+dump_tasks() is actually useful as it currently stands; there are things 
+that you may add or remove but saying that it is "no longer useful" is an 
+exaggeration.
 
- [ You also don't have to blame "Google folks," I rewrote the oom
-   killer. ]
+> This patch adapt displaying fields to new oom logic.
+> 
+> details
+> ==========
+> removed: pid (we always kill process. don't need thread id),
+>          mm->total_vm (we no longer uses virtual memory size)
+
+Showing mm->total_vm is still interesting to know what the old heuristic 
+would have used rather than the new heuristic, I'd prefer if we kept it.
+
+>          signal->oom_adj (we no longer uses it internally)
+> added: ppid (we often kill sacrifice child process)
+> modify: RSS (account mm->nr_ptes too)
+
+I'd prefer if ptes were shown independently from rss instead of adding it 
+to the thread's true rss usage and representing it as such.
+
+I think the cpu should also be removed.
+
+For the next version, could you show the old output and comparsion to new 
+output in the changelog?
 
 > 
-> The problems are three.
+> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> ---
 > 
-> 1) if two processes have the same oom score, we should kill younger process.
->    but current logic kill older. Oldest processes are typicall system daemons.
-
-Agreed, that seems advantageous to prefer killing threads that have done 
-the least amount of work (defined as those with the least runtime compared 
-to others in the tasklist order) over others.
-
-> 2) Current logic use 'unsigned int' for internal score calculation. (exactly says,
->    it only use 0-1000 value). its very low precision calculation makes a lot of
->    same oom score and kill an ineligible process.
-
-The range of 0-1000 allows us to differentiate tasks up to 0.1% of system 
-RAM from each other when making oom kill decisions.  If we really want to 
-increase this granularity, we could increase the value to 10000 and then 
-multiple oom_score_adj values by 10.
-
-> 3) Current logic give 3% of SystemRAM to root processes. It obviously too big
->    if you have plenty memory. Now, your fork-bomb processes have 500MB OOM immune
->    bonus. then your fork-bomb never ever be killed.
+> Strictly speaking. this is NOT a part of oom fixing patches. but it's
+> necessary when I parse QAI's test result.
 > 
-
-I agree that a constant proportion for root processes is probably not 
-ideal, especially in situations where there are many small threads that 
-only use about 1% of system RAM, such as in CAI's case.  I don't agree 
-that we need to guard against forkbombs created by root, however.  The 
-worst case scenario is that the continuous killing of non-root threads 
-will allow the admin to fix his or her error.
+> 
+>  mm/oom_kill.c |   14 ++++++++------
+>  1 files changed, 8 insertions(+), 6 deletions(-)
+> 
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> index f52e85c..118d958 100644
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -355,7 +355,7 @@ static void dump_tasks(const struct mem_cgroup *mem, const nodemask_t *nodemask)
+>  	struct task_struct *p;
+>  	struct task_struct *task;
+>  
+> -	pr_info("[ pid ]   uid  tgid total_vm      rss cpu oom_adj oom_score_adj name\n");
+> +	pr_info("[   pid]   ppid   uid      rss  cpu score_adj name\n");
+>  	for_each_process(p) {
+>  		if (oom_unkillable_task(p, mem, nodemask))
+>  			continue;
+> @@ -370,11 +370,13 @@ static void dump_tasks(const struct mem_cgroup *mem, const nodemask_t *nodemask)
+>  			continue;
+>  		}
+>  
+> -		pr_info("[%5d] %5d %5d %8lu %8lu %3u     %3d         %5d %s\n",
+> -			task->pid, task_uid(task), task->tgid,
+> -			task->mm->total_vm, get_mm_rss(task->mm),
+> -			task_cpu(task), task->signal->oom_adj,
+> -			task->signal->oom_score_adj, task->comm);
+> +		pr_info("[%6d] %6d %5d %8lu %4u %9d %s\n",
+> +			task_tgid_nr(task), task_tgid_nr(task->real_parent),
+> +			task_uid(task),
+> +			get_mm_rss(task->mm) + p->mm->nr_ptes,
+> +			task_cpu(task),
+> +			task->signal->oom_score_adj,
+> +			task->comm);
+>  		task_unlock(task);
+>  	}
+>  }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
