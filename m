@@ -1,61 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 89D25900118
-	for <linux-mm@kvack.org>; Tue, 10 May 2011 13:13:23 -0400 (EDT)
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e39.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p4AGxWkG009028
-	for <linux-mm@kvack.org>; Tue, 10 May 2011 10:59:32 -0600
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id p4AHCxNr111146
-	for <linux-mm@kvack.org>; Tue, 10 May 2011 11:13:02 -0600
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p4ABCpuV019789
-	for <linux-mm@kvack.org>; Tue, 10 May 2011 05:12:57 -0600
-Date: Tue, 10 May 2011 10:12:45 -0700
-From: "Darrick J. Wong" <djwong@us.ibm.com>
-Subject: Re: [PATCH 2/7] fs: block_page_mkwrite should wait for writeback
-	to finish
-Message-ID: <20110510171245.GF18929@tux1.beaverton.ibm.com>
-Reply-To: djwong@us.ibm.com
-References: <20110509230318.19566.66202.stgit@elm3c44.beaverton.ibm.com> <20110509230334.19566.17603.stgit@elm3c44.beaverton.ibm.com> <20110510124103.GC4402@quack.suse.cz>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 70438900118
+	for <linux-mm@kvack.org>; Tue, 10 May 2011 13:17:32 -0400 (EDT)
+Date: Tue, 10 May 2011 18:17:26 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [BUG] fatal hang untarring 90GB file, possibly writeback related.
+Message-ID: <20110510171726.GE4146@suse.de>
+References: <1304432553.2576.10.camel@mulgrave.site>
+ <20110506074224.GB6591@suse.de>
+ <20110506080728.GC6591@suse.de>
+ <1304964980.4865.53.camel@mulgrave.site>
+ <20110510102141.GA4149@novell.com>
+ <1305036064.6737.8.camel@mulgrave.site>
+ <20110510143509.GD4146@suse.de>
+ <1305041397.6737.12.camel@mulgrave.site>
+ <1305043052.6737.17.camel@mulgrave.site>
+ <1305047154.6737.22.camel@mulgrave.site>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20110510124103.GC4402@quack.suse.cz>
+In-Reply-To: <1305047154.6737.22.camel@mulgrave.site>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Theodore Tso <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>, Jens Axboe <axboe@kernel.dk>, "Martin K. Petersen" <martin.petersen@oracle.com>, Jeff Layton <jlayton@redhat.com>, Dave Chinner <david@fromorbit.com>, linux-kernel <linux-kernel@vger.kernel.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, Chris Mason <chris.mason@oracle.com>, Joel Becker <jlbec@evilplan.org>, linux-scsi <linux-scsi@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-ext4@vger.kernel.org, Mingming Cao <mcao@us.ibm.com>
+To: James Bottomley <James.Bottomley@HansenPartnership.com>
+Cc: Mel Gorman <mgorman@novell.com>, Jan Kara <jack@suse.cz>, colin.king@canonical.com, Chris Mason <chris.mason@oracle.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-ext4 <linux-ext4@vger.kernel.org>
 
-For filesystems such as nilfs2 and xfs that use block_page_mkwrite, modify that
-function to wait for pending writeback before allowing the page to become
-writable.  This is needed to stabilize pages during writeback for those two
-filesystems.
+On Tue, May 10, 2011 at 12:05:54PM -0500, James Bottomley wrote:
+> On Tue, 2011-05-10 at 15:57 +0000, James Bottomley wrote:
+> > On Tue, 2011-05-10 at 10:29 -0500, James Bottomley wrote:
+> > > On Tue, 2011-05-10 at 15:35 +0100, Mel Gorman wrote:
+> > > > On Tue, May 10, 2011 at 09:01:04AM -0500, James Bottomley wrote:
+> > > > > On Tue, 2011-05-10 at 11:21 +0100, Mel Gorman wrote:
+> > > > > > I really would like to hear if the fix makes a big difference or
+> > > > > > if we need to consider forcing SLUB high-order allocations bailing
+> > > > > > at the first sign of trouble (e.g. by masking out __GFP_WAIT in
+> > > > > > allocate_slab). Even with the fix applied, kswapd might be waking up
+> > > > > > less but processes will still be getting stalled in direct compaction
+> > > > > > and direct reclaim so it would still be jittery.
+> > > > > 
+> > > > > "the fix" being this
+> > > > > 
+> > > > > https://lkml.org/lkml/2011/3/5/121
+> > > > > 
+> > > > 
+> > > > Drop this for the moment. It was a long shot at best and there is little
+> > > > evidence the problem is in this area.
+> > > > 
+> > > > I'm attaching two patches. The first is the NO_KSWAPD one to stop
+> > > > kswapd being woken up by SLUB using speculative high-orders. The second
+> > > > one is more drastic and prevents slub entering direct reclaim or
+> > > > compaction. It applies on top of patch 1. These are both untested and
+> > > > afraid are a bit rushed as well :(
+> > > 
+> > > Preliminary results with both patches applied still show kswapd
+> > > periodically going up to 99% but it doesn't stay there, it comes back
+> > > down again (and, obviously, the system doesn't hang).
+> > 
+> > This is a second run with the watch highorders.
+> > 
+> > At the end of the run, the system hung temporarily and now comes back
+> > with CPU3 spinning in all system time at kswapd shrink_slab
+> 
+> Here's a trace in the same situation with the ftrace stack entries
+> bumped to 16 as requested on IRC.  There was no hang for this one.
+> 
 
-Slight rework based on Jan Kara's suggestion.
+Ok, so the bulk of the high-order allocs are coming from
 
-Signed-off-by: Darrick J. Wong <djwong@us.ibm.com>
----
+> 140162 instances order=1 normal gfp_flags=GFP_NOWARN|GFP_NORETRY|GFP_COMP|GFP_NOMEMALLOC|
+>  => __alloc_pages_nodemask+0x754/0x792 <ffffffff810dc0de>
+>  => alloc_pages_current+0xbe/0xd8 <ffffffff81105459>
+>  => alloc_slab_page+0x1c/0x4d <ffffffff8110c5fe>
+>  => new_slab+0x50/0x199 <ffffffff8110dc48>
+>  => __slab_alloc+0x24a/0x328 <ffffffff8146ab86>
+>  => kmem_cache_alloc+0x77/0x105 <ffffffff8110e450>
+>  => mempool_alloc_slab+0x15/0x17 <ffffffff810d6e85>
+>  => mempool_alloc+0x68/0x116 <ffffffff810d70fa>
+>  => bio_alloc_bioset+0x35/0xc3 <ffffffff81144dd8>
+>  => bio_alloc+0x15/0x24 <ffffffff81144ef5>
+>  => submit_bh+0x6d/0x105 <ffffffff811409f6>
+>  => __block_write_full_page+0x1e7/0x2d7 <ffffffff81141fac>
+>  => block_write_full_page_endio+0x8a/0x97 <ffffffff81143671>
+>  => block_write_full_page+0x15/0x17 <ffffffff81143693>
+>  => mpage_da_submit_io+0x31a/0x395 <ffffffff811935d8>
+>  => mpage_da_map_and_submit+0x2ca/0x2e0 <ffffffff81196e88>
+> 
 
- fs/buffer.c |    4 +++-
- 1 files changed, 3 insertions(+), 1 deletions(-)
+That at least is in line with the large untar and absolves i915
+from being the main cause of trouble. The lack of the hang implies
+that SLUB doing high order allocations is stressing the system too
+much and needs to be more willing to fall back to order-0 although
+it does not adequately explain why it hung as opposed to just being
+incredible slow.
 
-diff --git a/fs/buffer.c b/fs/buffer.c
-index a08bb8e..0e7fa16 100644
---- a/fs/buffer.c
-+++ b/fs/buffer.c
-@@ -2367,8 +2367,10 @@ block_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf,
- 			ret = VM_FAULT_OOM;
- 		else /* -ENOSPC, -EIO, etc */
- 			ret = VM_FAULT_SIGBUS;
--	} else
-+	} else {
-+		wait_on_page_writeback(page);
- 		ret = VM_FAULT_LOCKED;
-+	}
- 
- out:
- 	return ret;
+I'm also still concerned with the reports of getting stuck in a heavy
+loop on the i915 shrinker so will try again reproducing this locally
+with a greater focus on something X related happening at the same time.
+
+One thing at a time though, SLUB needs to be less aggressive so I'll
+prepare a series in the morning, have another go at generating data
+and see what shakes out.
+
+Thanks.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
