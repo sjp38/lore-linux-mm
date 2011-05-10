@@ -1,62 +1,155 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 2A8316B0011
-	for <linux-mm@kvack.org>; Tue, 10 May 2011 01:37:51 -0400 (EDT)
-Subject: Re: [BUG] fatal hang untarring 90GB file, possibly writeback
- related.
-From: Colin Ian King <colin.king@ubuntu.com>
-In-Reply-To: <20110506154444.GG6591@suse.de>
-References: <20110428171826.GZ4658@suse.de>
-	 <1304015436.2598.19.camel@mulgrave.site> <20110428192104.GA4658@suse.de>
-	 <1304020767.2598.21.camel@mulgrave.site>
-	 <1304025145.2598.24.camel@mulgrave.site>
-	 <1304030629.2598.42.camel@mulgrave.site> <20110503091320.GA4542@novell.com>
-	 <1304431982.2576.5.camel@mulgrave.site>
-	 <1304432553.2576.10.camel@mulgrave.site> <20110506074224.GB6591@suse.de>
-	 <20110506154444.GG6591@suse.de>
-Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 10 May 2011 07:37:42 +0200
-Message-ID: <1305005862.1937.2.camel@hpmini>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id D194E6B0022
+	for <linux-mm@kvack.org>; Tue, 10 May 2011 02:27:42 -0400 (EDT)
+Date: Tue, 10 May 2011 08:27:31 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 1/7] memcg: add high/low watermark to res_counter
+Message-ID: <20110510062731.GE16531@cmpxchg.org>
+References: <20110503082550.GD18927@tiehlicka.suse.cz>
+ <BANLkTikZtOdzsnjH=43AegLCpYc6ecfKsg@mail.gmail.com>
+ <20110504085851.GC1375@tiehlicka.suse.cz>
+ <BANLkTinxuSaCEvN4_vB=uA1rdGUwCpovog@mail.gmail.com>
+ <20110505065901.GC11529@tiehlicka.suse.cz>
+ <20110506142834.90e0b363.kamezawa.hiroyu@jp.fujitsu.com>
+ <BANLkTinEEzkpBeTdK9nP2DAxRZbH8Ve=xw@mail.gmail.com>
+ <20110509161047.eb674346.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110509101817.GB16531@cmpxchg.org>
+ <BANLkTikeHA9fd89jerV7VB2kg3kh=aeHMA@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <BANLkTikeHA9fd89jerV7VB2kg3kh=aeHMA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: James Bottomley <James.Bottomley@suse.de>, Mel Gorman <mgorman@novell.com>, Jan Kara <jack@suse.cz>, Chris Mason <chris.mason@oracle.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-ext4 <linux-ext4@vger.kernel.org>
+To: Ying Han <yinghan@google.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Johannes Weiner <jweiner@redhat.com>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>
 
-On Fri, 2011-05-06 at 16:44 +0100, Mel Gorman wrote:
-> On Fri, May 06, 2011 at 08:42:24AM +0100, Mel Gorman wrote:
-> > 
-> > 1. High-order allocations? You machine is using i915 and RPC, something
-> >    neither of my test machine uses. i915 is potentially a source for
-> >    high-order allocations. I'm attaching a perl script. Please run it as
-> >    ./watch-highorder.pl --output /tmp/highorders.txt
-> >    while you are running tar. When kswapd is running for about 30
-> >    seconds, interrupt it with ctrl+c twice in quick succession and
-> >    post /tmp/highorders.txt
-> > 
+On Mon, May 09, 2011 at 09:51:43PM -0700, Ying Han wrote:
+> On Mon, May 9, 2011 at 3:18 AM, Johannes Weiner <hannes@cmpxchg.org> wrote:
+> > On Mon, May 09, 2011 at 04:10:47PM +0900, KAMEZAWA Hiroyuki wrote:
+> >> On Sun, 8 May 2011 22:40:47 -0700
+> >> Ying Han <yinghan@google.com> wrote:
+> >> > Using the
+> >> > limit to calculate the wmarks is straight-forward since doing
+> >> > background reclaim reduces the latency spikes under direct reclaim.
+> >> > The direct reclaim is triggered while the usage is hitting the limit.
+> >> >
+> >> > This is different from the "soft_limit" which is based on the usage
+> >> > and we don't want to reinvent the soft_limit implementation.
+> >> >
+> >> Yes, this is a different feature.
+> >>
+> >>
+> >> The discussion here is how to make APIs for "shrink_to" and "shrink_over", ok ?
+> >>
+> >> I think there are 3 candidates.
+> >>
+> >>   1. using distance to limit.
+> >>      memory.shrink_to_distance
+> >>            - memory will be freed to 'limit - shrink_to_distance'.
+> >>      memory.shrink_over_distance
+> >>            - memory will be freed when usage > 'limit - shrink_over_distance'
+> >>
+> >>      Pros.
+> >>       - Both of shrink_over and shirnk_to can be determined by users.
+> >>       - Can keep stable distance to limit even when limit is changed.
+> >>      Cons.
+> >>       - complicated and seems not natural.
+> >>       - hierarchy support will be very difficult.
+> >>
+> >>   2. using bare value
+> >>      memory.shrink_to
+> >>            - memory will be freed to this 'shirnk_to'
+> >>      memory.shrink_from
+> >>            - memory will be freed when usage over this value.
+> >>      Pros.
+> >>       - Both of shrink_over and shrink)to can be determined by users.
+> >>       - easy to understand, straightforward.
+> >>       - hierarchy support will be easy.
+> >>      Cons.
+> >>       - The user may need to change this value when he changes the limit.
+> >>
+> >>
+> >>   3. using only 'shrink_to'
+> >>      memory.shrink_to
+> >>            - memory will be freed to this value when the usage goes over this vaue
+> >>              to some extent (determined by the system.)
+> >>
+> >>      Pros.
+> >>       - easy interface.
+> >>       - hierarchy support will be easy.
+> >>       - bad configuration check is very easy.
+> >>      Cons.
+> >>       - The user may beed to change this value when he changes the limit.
+> >>
+> >>
+> >> Then, I now vote for 3 because hierarchy support is easiest and enough handy for
+> >> real use.
+> >
+> > 3. looks best to me as well.
+> >
+> > What I am wondering, though: we already have a limit to push back
+> > memcgs when we need memory, the soft limit.  The 'need for memory' is
+> > currently defined as global memory pressure, which we know may be too
+> > late.  The problem is not having no limit, the problem is that we want
+> > to control the time of when this limit is enforced.  So instead of
+> > adding another limit, could we instead add a knob like
+> >
+> >        memory.force_async_soft_reclaim
+> >
+> > that asynchroneously pushes back to the soft limit instead of having
+> > another, separate limit to configure?
+> >
+> > Pros:
+> > - easy interface
+> > - limit already existing
+> > - hierarchy support already existing
+> > - bad configuration check already existing
+> > Cons:
+> > - ?
 > 
-> Colin send me this information for his test case at least and I see
-> 
-> 11932 instances order=1 normal gfp_flags=GFP_NOWARN|GFP_NORETRY|GFP_COMP|GFP_NOMEMALLOC
->  => alloc_pages_current+0xa5/0x110 <ffffffff81149ef5>
->  => new_slab+0x1f5/0x290 <ffffffff81153645>
->  => __slab_alloc+0x262/0x390 <ffffffff81155192>
->  => kmem_cache_alloc+0x115/0x120 <ffffffff81155ab5>
->  => mempool_alloc_slab+0x15/0x20 <ffffffff8110e705>
->  => mempool_alloc+0x59/0x140 <ffffffff8110ea49>
->  => bio_alloc_bioset+0x3e/0xf0 <ffffffff811976ae>
->  => bio_alloc+0x15/0x30 <ffffffff81197805>
-> 
-> Colin and James: Did you happen to switch from SLAB to SLUB between
-> 2.6.37 and 2.6.38? My own tests were against SLAB which might be why I
-> didn't see the problem. Am restarting the tests with SLUB.
+> Are we proposing to set the target of per-memcg background reclaim to
+> be the soft_limit?
 
-So I tested with SLAB instead of SLUB and I reliably ran my copy test
-for 4+ hours with several hundred iterations of the test.  (Apologies
-for taking time to respond, but I was travelling).
-> 
+Yes, if memory.force_async_soft_reclaim is set.
 
+> If so, i would highly doubt for that. The
+> logic of background reclaim is to start reclaiming memory before
+> reaching the hard_limit, and stops whence
+> it makes enough progress. The motivation is to reduce the times for
+> memcg hitting direct reclaim and that is quite different from
+> the design of soft_limit. The soft_limit is designed to serve the
+> over-commit environment where memory can be shared across memcgs
+> until the global memory pressure. There is no correlation between that
+> to the watermark based background reclaim.
+
+Your whole argument for the knob so far has been that you want to use
+it to proactively reduce memory usage, and I argued that it has
+nothing to do with watermark reclaim.  This is exactly why I have been
+fighting making the watermark configurable and abuse it for that.
+
+> Making the soft_limit as target for background reclaim will make extra
+> memory pressure when not necessary. So I don't have issue to have
+> the tunable later and set the watermark equal to the soft_limit, but
+> using it as alternative to the watermarks is not straight-forward to
+> me at
+> this point.
+
+Please read my above proposal again, noone suggested to replace the
+watermark with the soft limit.
+
+1. The watermark is always in place, computed by the kernel alone, and
+triggers background targetted reclaim when breached.
+
+2. The soft limit is enforced as usual upon memory pressure.
+
+3. In addition, the soft limit is enforced by background reclaim if
+memory.force_async_soft_reclaim is set.
+
+Thus, you can use 3. if you foresee memory pressure and want to
+proactively push back a memcg to the soft limit.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
