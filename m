@@ -1,68 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id DD5FE6B0011
-	for <linux-mm@kvack.org>; Tue, 10 May 2011 05:04:44 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 59B433EE0AE
-	for <linux-mm@kvack.org>; Tue, 10 May 2011 18:04:41 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 443F845DF47
-	for <linux-mm@kvack.org>; Tue, 10 May 2011 18:04:41 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2E92345DF43
-	for <linux-mm@kvack.org>; Tue, 10 May 2011 18:04:41 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 1D0F6E18001
-	for <linux-mm@kvack.org>; Tue, 10 May 2011 18:04:41 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id DD8701DB8037
-	for <linux-mm@kvack.org>; Tue, 10 May 2011 18:04:40 +0900 (JST)
-Date: Tue, 10 May 2011 17:57:46 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: mmotm 2011-05-06-16-39 uploaded
-Message-Id: <20110510175746.0a1fbe40.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <201105070015.p470FlAR013200@imap1.linux-foundation.org>
-References: <201105070015.p470FlAR013200@imap1.linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A1386B0022
+	for <linux-mm@kvack.org>; Tue, 10 May 2011 05:52:44 -0400 (EDT)
+Message-ID: <4DC90AE8.101@parallels.com>
+Date: Tue, 10 May 2011 13:52:40 +0400
+From: Konstantin Khlebnikov <khlebnikov@parallels.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v2] tmpfs: fix race between umount and writepage
+References: <4DAFD0B1.9090603@parallels.com> <20110421064150.6431.84511.stgit@localhost6> <20110421124424.0a10ed0c.akpm@linux-foundation.org> <4DB0FE8F.9070407@parallels.com> <alpine.LSU.2.00.1105031223120.9845@sister.anvils> <4DC4D9A6.9070103@parallels.com> <alpine.LSU.2.00.1105071621330.3668@sister.anvils> <4DC691D0.6050104@parallels.com> <alpine.LSU.2.00.1105081234240.15963@sister.anvils>
+In-Reply-To: <alpine.LSU.2.00.1105081234240.15963@sister.anvils>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Fri, 06 May 2011 16:39:31 -0700
-akpm@linux-foundation.org wrote:
+Hugh Dickins wrote:
+> On Sun, 8 May 2011, Konstantin Khlebnikov wrote:
+>>
+>> Ok, I can test final patch-set on the next week.
+>> Also I can try to add some swapoff test-cases.
+>
+> That would be helpful if you have the time: thank you.
 
+I Confirm, patch 1/3 really fixes race between writepage and umount, as expected.
 
-> memcg-reclaim-memory-from-nodes-in-round-robin-order.patch
-> memcg-reclaim-memory-from-nodes-in-round-robin-fix.patch
+In patch 2/3: race-window between unlock_page and iput extremely small.
+My test works fine in parallel with thirty random swapon-swapoff,
+but it works without this patch too, thus I cannot catch this race.
 
-I'm very sorry that this fix is required for this logic.
-==
-
-next_scan_node_update is the time when scan_nodes nodemask should be updated.
-Then, time_after() is correct. Otherwise, next-scan_node_update is intialized
-to be 0 and time_before() returns always true, scan_nodes never be updated.
-
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
----
- mm/memcontrol.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-Index: mmotm-May6/mm/memcontrol.c
-===================================================================
---- mmotm-May6.orig/mm/memcontrol.c
-+++ mmotm-May6/mm/memcontrol.c
-@@ -1517,7 +1517,7 @@ static void mem_cgroup_may_update_nodema
- {
- 	int nid;
- 
--	if (time_before(mem->next_scan_node_update, jiffies))
-+	if (time_after(mem->next_scan_node_update, jiffies))
- 		return;
- 
- 	mem->next_scan_node_update = jiffies + 10*HZ;
+I apply patch 3/3 too, but have not tested this case.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
