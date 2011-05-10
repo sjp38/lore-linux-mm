@@ -1,63 +1,204 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B6C96B0023
-	for <linux-mm@kvack.org>; Mon,  9 May 2011 20:44:49 -0400 (EDT)
-Received: from wpaz13.hot.corp.google.com (wpaz13.hot.corp.google.com [172.24.198.77])
-	by smtp-out.google.com with ESMTP id p4A0ik8b000724
-	for <linux-mm@kvack.org>; Mon, 9 May 2011 17:44:46 -0700
-Received: from pzk37 (pzk37.prod.google.com [10.243.19.165])
-	by wpaz13.hot.corp.google.com with ESMTP id p4A0ieD0016290
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 9 May 2011 17:44:45 -0700
-Received: by pzk37 with SMTP id 37so2964674pzk.29
-        for <linux-mm@kvack.org>; Mon, 09 May 2011 17:44:40 -0700 (PDT)
-Date: Mon, 9 May 2011 17:44:42 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH] vm: fix vm_pgoff wrap in upward expansion
-Message-ID: <alpine.LSU.2.00.1105091739140.7047@sister.anvils>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+	by kanga.kvack.org (Postfix) with ESMTP id 861116B0011
+	for <linux-mm@kvack.org>; Mon,  9 May 2011 21:05:25 -0400 (EDT)
+Subject: 2.6.39-rc6-mmotm0506 - lockdep splat in RCU code on page fault
+From: Valdis.Kletnieks@vt.edu
+Mime-Version: 1.0
+Content-Type: multipart/signed; boundary="==_Exmh_1304989476_5294P";
+	 micalg=pgp-sha1; protocol="application/pgp-signature"
+Content-Transfer-Encoding: 7bit
+Date: Mon, 09 May 2011 21:04:36 -0400
+Message-ID: <6921.1304989476@localhost>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Robert Swiecki <robert@swiecki.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-parisc@vger.kernel.org, linux-ia64@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <peterz@infradead.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Commit a626ca6a6564 ("vm: fix vm_pgoff wrap in stack expansion") fixed
-the case of an expanding mapping causing vm_pgoff wrapping when you had
-downward stack expansion.  But there was another case where IA64 and
-PA-RISC expand mappings: upward expansion.
+--==_Exmh_1304989476_5294P
+Content-Type: text/plain; charset=us-ascii
 
-This fixes that case too.
+Seen at boot earlier today. Interrupt, page fault, RCU, scheduler, and MM code
+in the tracebacks. Yee-hah.
 
-Signed-off-by: Hugh Dickins <hughd@google.com.>
-Cc: stable@kernel.org
----
-On April 12th you asked "Guys, can you think of any other thing
-that might expand a mapping?": this is the only one I thought of.
+[   12.872150] usb 1-4: new high speed USB device number 3 using ehci_hcd
+[   12.986667] usb 1-4: New USB device found, idVendor=413c, idProduct=2513
+[   12.986679] usb 1-4: New USB device strings: Mfr=0, Product=0, SerialNumber=0
+[   12.987691] hub 1-4:1.0: USB hub found
+[   12.987877] hub 1-4:1.0: 3 ports detected
+[   12.996372] input: PS/2 Generic Mouse as /devices/platform/i8042/serio1/input/input10
+[   13.071471] udevadm used greatest stack depth: 3984 bytes left
+[   13.172129] 
+[   13.172130] =======================================================
+[   13.172425] [ INFO: possible circular locking dependency detected ]
+[   13.172650] 2.6.39-rc6-mmotm0506 #1
+[   13.172773] -------------------------------------------------------
+[   13.172997] blkid/267 is trying to acquire lock:
+[   13.173009]  (&p->pi_lock){-.-.-.}, at: [<ffffffff81032d8f>] try_to_wake_up+0x29/0x1aa
+[   13.173009] 
+[   13.173009] but task is already holding lock:
+[   13.173009]  (rcu_node_level_0){..-...}, at: [<ffffffff810901cc>] rcu_cpu_kthread_timer+0x27/0x58
+[   13.173009] 
+[   13.173009] which lock already depends on the new lock.
+[   13.173009] 
+[   13.173009] 
+[   13.173009] the existing dependency chain (in reverse order) is:
+[   13.173009] 
+[   13.173009] -> #2 (rcu_node_level_0){..-...}:
+[   13.173009]        [<ffffffff810679b9>] check_prevs_add+0x8b/0x104
+[   13.173009]        [<ffffffff81067da1>] validate_chain+0x36f/0x3ab
+[   13.173009]        [<ffffffff8106846b>] __lock_acquire+0x369/0x3e2
+[   13.173009]        [<ffffffff81068a0f>] lock_acquire+0xfc/0x14c
+[   13.173009]        [<ffffffff815697f1>] _raw_spin_lock+0x36/0x45
+[   13.173009]        [<ffffffff81090794>] rcu_read_unlock_special+0x8c/0x1d5
+[   13.173009]        [<ffffffff8109092c>] __rcu_read_unlock+0x4f/0xd7
+[   13.173009]        [<ffffffff81027bd3>] rcu_read_unlock+0x21/0x23
+[   13.173009]        [<ffffffff8102cc34>] cpuacct_charge+0x6c/0x75
+[   13.173009]        [<ffffffff81030cc6>] update_curr+0x101/0x12e
+[   13.173009]        [<ffffffff810311d0>] check_preempt_wakeup+0xf7/0x23b
+[   13.173009]        [<ffffffff8102acb3>] check_preempt_curr+0x2b/0x68
+[   13.173009]        [<ffffffff81031d40>] ttwu_do_wakeup+0x76/0x128
+[   13.173009]        [<ffffffff81031e49>] ttwu_do_activate.constprop.63+0x57/0x5c
+[   13.173009]        [<ffffffff81031e96>] scheduler_ipi+0x48/0x5d
+[   13.173009]        [<ffffffff810177d5>] smp_reschedule_interrupt+0x16/0x18
+[   13.173009]        [<ffffffff815710f3>] reschedule_interrupt+0x13/0x20
+[   13.173009]        [<ffffffff810b66d1>] rcu_read_unlock+0x21/0x23
+[   13.173009]        [<ffffffff810b739c>] find_get_page+0xa9/0xb9
+[   13.173009]        [<ffffffff810b8b48>] filemap_fault+0x6a/0x34d
+[   13.173009]        [<ffffffff810d1a25>] __do_fault+0x54/0x3e6
+[   13.173009]        [<ffffffff810d447a>] handle_pte_fault+0x12c/0x1ed
+[   13.173009]        [<ffffffff810d48f7>] handle_mm_fault+0x1cd/0x1e0
+[   13.173009]        [<ffffffff8156cfee>] do_page_fault+0x42d/0x5de
+[   13.173009]        [<ffffffff8156a75f>] page_fault+0x1f/0x30
+[   13.173009] 
+[   13.173009] -> #1 (&rq->lock){-.-.-.}:
+[   13.173009]        [<ffffffff810679b9>] check_prevs_add+0x8b/0x104
+[   13.173009]        [<ffffffff81067da1>] validate_chain+0x36f/0x3ab
+[   13.173009]        [<ffffffff8106846b>] __lock_acquire+0x369/0x3e2
+[   13.173009]        [<ffffffff81068a0f>] lock_acquire+0xfc/0x14c
+[   13.173009]        [<ffffffff815697f1>] _raw_spin_lock+0x36/0x45
+[   13.173009]        [<ffffffff81027e19>] __task_rq_lock+0x8b/0xd3
+[   13.173009]        [<ffffffff81032f7f>] wake_up_new_task+0x41/0x108
+[   13.173009]        [<ffffffff810376c3>] do_fork+0x265/0x33f
+[   13.173009]        [<ffffffff81007d02>] kernel_thread+0x6b/0x6d
+[   13.173009]        [<ffffffff8153a9dd>] rest_init+0x21/0xd2
+[   13.173009]        [<ffffffff81b1db4f>] start_kernel+0x3bb/0x3c6
+[   13.173009]        [<ffffffff81b1d29f>] x86_64_start_reservations+0xaf/0xb3
+[   13.173009]        [<ffffffff81b1d393>] x86_64_start_kernel+0xf0/0xf7
+[   13.173009] 
+[   13.173009] -> #0 (&p->pi_lock){-.-.-.}:
+[   13.173009]        [<ffffffff81067788>] check_prev_add+0x68/0x20e
+[   13.173009]        [<ffffffff810679b9>] check_prevs_add+0x8b/0x104
+[   13.173009]        [<ffffffff81067da1>] validate_chain+0x36f/0x3ab
+[   13.173009]        [<ffffffff8106846b>] __lock_acquire+0x369/0x3e2
+[   13.173009]        [<ffffffff81068a0f>] lock_acquire+0xfc/0x14c
+[   13.173009]        [<ffffffff815698ea>] _raw_spin_lock_irqsave+0x44/0x57
+[   13.173009]        [<ffffffff81032d8f>] try_to_wake_up+0x29/0x1aa
+[   13.173009]        [<ffffffff81032f3c>] wake_up_process+0x10/0x12
+[   13.173009]        [<ffffffff810901e9>] rcu_cpu_kthread_timer+0x44/0x58
+[   13.173009]        [<ffffffff81045286>] call_timer_fn+0xac/0x1e9
+[   13.173009]        [<ffffffff8104556d>] run_timer_softirq+0x1aa/0x1f2
+[   13.173009]        [<ffffffff8103e487>] __do_softirq+0x109/0x26a
+[   13.173009]        [<ffffffff8157144c>] call_softirq+0x1c/0x30
+[   13.173009]        [<ffffffff81003207>] do_softirq+0x44/0xf1
+[   13.173009]        [<ffffffff8103e8b9>] irq_exit+0x58/0xc8
+[   13.173009]        [<ffffffff81017f5a>] smp_apic_timer_interrupt+0x79/0x87
+[   13.173009]        [<ffffffff81570fd3>] apic_timer_interrupt+0x13/0x20
+[   13.173009]        [<ffffffff810bd51a>] get_page_from_freelist+0x2aa/0x310
+[   13.173009]        [<ffffffff810bdf03>] __alloc_pages_nodemask+0x178/0x243
+[   13.173009]        [<ffffffff8101fe2f>] pte_alloc_one+0x1e/0x3a
+[   13.173009]        [<ffffffff810d27fe>] __pte_alloc+0x22/0x14b
+[   13.173009]        [<ffffffff810d48a8>] handle_mm_fault+0x17e/0x1e0
+[   13.173009]        [<ffffffff8156cfee>] do_page_fault+0x42d/0x5de
+[   13.173009]        [<ffffffff8156a75f>] page_fault+0x1f/0x30
+[   13.173009] 
+[   13.173009] other info that might help us debug this:
+[   13.173009] 
+[   13.173009] Chain exists of:
+[   13.173009]   &p->pi_lock --> &rq->lock --> rcu_node_level_0
+[   13.173009] 
+[   13.173009]  Possible unsafe locking scenario:
+[   13.173009] 
+[   13.173009]        CPU0                    CPU1
+[   13.173009]        ----                    ----
+[   13.173009]   lock(rcu_node_level_0);
+[   13.173009]                                lock(&rq->lock);
+[   13.173009]                                lock(rcu_node_level_0);
+[   13.173009]   lock(&p->pi_lock);
+[   13.173009] 
+[   13.173009]  *** DEADLOCK ***
+[   13.173009] 
+[   13.173009] 3 locks held by blkid/267:
+[   13.173009]  #0:  (&mm->mmap_sem){++++++}, at: [<ffffffff8156cdb4>] do_page_fault+0x1f3/0x5de
+[   13.173009]  #1:  (&yield_timer){+.-...}, at: [<ffffffff810451da>] call_timer_fn+0x0/0x1e9
+[   13.173009]  #2:  (rcu_node_level_0){..-...}, at: [<ffffffff810901cc>] rcu_cpu_kthread_timer+0x27/0x58
+[   13.173009] 
+[   13.173009] stack backtrace:
+[   13.173009] Pid: 267, comm: blkid Not tainted 2.6.39-rc6-mmotm0506 #1
+[   13.173009] Call Trace:
+[   13.173009]  <IRQ>  [<ffffffff8154a529>] print_circular_bug+0xc8/0xd9
+[   13.173009]  [<ffffffff81067788>] check_prev_add+0x68/0x20e
+[   13.173009]  [<ffffffff8100c861>] ? save_stack_trace+0x28/0x46
+[   13.173009]  [<ffffffff810679b9>] check_prevs_add+0x8b/0x104
+[   13.173009]  [<ffffffff81067da1>] validate_chain+0x36f/0x3ab
+[   13.173009]  [<ffffffff8106846b>] __lock_acquire+0x369/0x3e2
+[   13.173009]  [<ffffffff81032d8f>] ? try_to_wake_up+0x29/0x1aa
+[   13.173009]  [<ffffffff81068a0f>] lock_acquire+0xfc/0x14c
+[   13.173009]  [<ffffffff81032d8f>] ? try_to_wake_up+0x29/0x1aa
+[   13.173009]  [<ffffffff810901a5>] ? rcu_check_quiescent_state+0x82/0x82
+[   13.173009]  [<ffffffff815698ea>] _raw_spin_lock_irqsave+0x44/0x57
+[   13.173009]  [<ffffffff81032d8f>] ? try_to_wake_up+0x29/0x1aa
+[   13.173009]  [<ffffffff81032d8f>] try_to_wake_up+0x29/0x1aa
+[   13.173009]  [<ffffffff810901a5>] ? rcu_check_quiescent_state+0x82/0x82
+[   13.173009]  [<ffffffff81032f3c>] wake_up_process+0x10/0x12
+[   13.173009]  [<ffffffff810901e9>] rcu_cpu_kthread_timer+0x44/0x58
+[   13.173009]  [<ffffffff810901a5>] ? rcu_check_quiescent_state+0x82/0x82
+[   13.173009]  [<ffffffff81045286>] call_timer_fn+0xac/0x1e9
+[   13.173009]  [<ffffffff810451da>] ? del_timer+0x75/0x75
+[   13.173009]  [<ffffffff810901a5>] ? rcu_check_quiescent_state+0x82/0x82
+[   13.173009]  [<ffffffff8104556d>] run_timer_softirq+0x1aa/0x1f2
+[   13.173009]  [<ffffffff8103e487>] __do_softirq+0x109/0x26a
+[   13.173009]  [<ffffffff8106365f>] ? tick_dev_program_event+0x37/0xf6
+[   13.173009]  [<ffffffff810a0e4a>] ? time_hardirqs_off+0x1b/0x2f
+[   13.173009]  [<ffffffff8157144c>] call_softirq+0x1c/0x30
+[   13.173009]  [<ffffffff81003207>] do_softirq+0x44/0xf1
+[   13.173009]  [<ffffffff8103e8b9>] irq_exit+0x58/0xc8
+[   13.173009]  [<ffffffff81017f5a>] smp_apic_timer_interrupt+0x79/0x87
+[   13.173009]  [<ffffffff81570fd3>] apic_timer_interrupt+0x13/0x20
+[   13.173009]  <EOI>  [<ffffffff810bd384>] ? get_page_from_freelist+0x114/0x310
+[   13.173009]  [<ffffffff810bd51a>] ? get_page_from_freelist+0x2aa/0x310
+[   13.173009]  [<ffffffff812220e7>] ? clear_page_c+0x7/0x10
+[   13.173009]  [<ffffffff810bd1ef>] ? prep_new_page+0x14c/0x1cd
+[   13.173009]  [<ffffffff810bd51a>] get_page_from_freelist+0x2aa/0x310
+[   13.173009]  [<ffffffff810bdf03>] __alloc_pages_nodemask+0x178/0x243
+[   13.173009]  [<ffffffff810d46b9>] ? __pmd_alloc+0x87/0x99
+[   13.173009]  [<ffffffff8101fe2f>] pte_alloc_one+0x1e/0x3a
+[   13.173009]  [<ffffffff810d46b9>] ? __pmd_alloc+0x87/0x99
+[   13.173009]  [<ffffffff810d27fe>] __pte_alloc+0x22/0x14b
+[   13.173009]  [<ffffffff810d48a8>] handle_mm_fault+0x17e/0x1e0
+[   13.173009]  [<ffffffff8156cfee>] do_page_fault+0x42d/0x5de
+[   13.173009]  [<ffffffff810d915f>] ? sys_brk+0x32/0x10c
+[   13.173009]  [<ffffffff810a0e4a>] ? time_hardirqs_off+0x1b/0x2f
+[   13.173009]  [<ffffffff81065c4f>] ? trace_hardirqs_off_caller+0x3f/0x9c
+[   13.173009]  [<ffffffff812235dd>] ? trace_hardirqs_off_thunk+0x3a/0x3c
+[   13.173009]  [<ffffffff8156a75f>] page_fault+0x1f/0x30
+[   14.010075] usb 5-1: new full speed USB device number 2 using uhci_hcd
 
- mm/mmap.c |   11 +++++++----
- 1 file changed, 7 insertions(+), 4 deletions(-)
 
---- 2.6.39-rc6/mm/mmap.c	2011-05-04 12:10:31.477543104 -0700
-+++ linux/mm/mmap.c	2011-05-09 17:16:34.251725877 -0700
-@@ -1767,10 +1767,13 @@ int expand_upwards(struct vm_area_struct
- 		size = address - vma->vm_start;
- 		grow = (address - vma->vm_end) >> PAGE_SHIFT;
- 
--		error = acct_stack_growth(vma, size, grow);
--		if (!error) {
--			vma->vm_end = address;
--			perf_event_mmap(vma);
-+		error = -ENOMEM;
-+		if (vma->vm_pgoff + (size >> PAGE_SHIFT) >= vma->vm_pgoff) {
-+			error = acct_stack_growth(vma, size, grow);
-+			if (!error) {
-+				vma->vm_end = address;
-+				perf_event_mmap(vma);
-+			}
- 		}
- 	}
- 	vma_unlock_anon_vma(vma);
+
+--==_Exmh_1304989476_5294P
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.11 (GNU/Linux)
+Comment: Exmh version 2.5 07/13/2001
+
+iD8DBQFNyI8kcC3lWbTT17ARAivMAKCNgfkyh7qlP5u9AF8ZaojX0WfmDQCgoUc5
+NIpIvMs2pX2Pwwk4IVn5WtI=
+=fIEL
+-----END PGP SIGNATURE-----
+
+--==_Exmh_1304989476_5294P--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
