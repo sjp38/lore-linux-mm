@@ -1,86 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B3136B0022
-	for <linux-mm@kvack.org>; Tue, 10 May 2011 06:09:01 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 3D8173EE0BC
-	for <linux-mm@kvack.org>; Tue, 10 May 2011 19:08:58 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0DD5A45DE51
-	for <linux-mm@kvack.org>; Tue, 10 May 2011 19:08:58 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id CC4AE45DE4E
-	for <linux-mm@kvack.org>; Tue, 10 May 2011 19:08:57 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id A68E3E78008
-	for <linux-mm@kvack.org>; Tue, 10 May 2011 19:08:57 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 6CCA41DB8042
-	for <linux-mm@kvack.org>; Tue, 10 May 2011 19:08:57 +0900 (JST)
-Date: Tue, 10 May 2011 19:02:16 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [RFC][PATCH 0/7] memcg async reclaim
-Message-Id: <20110510190216.f4eefef7.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with ESMTP id 323486B0023
+	for <linux-mm@kvack.org>; Tue, 10 May 2011 06:10:00 -0400 (EDT)
+Date: Tue, 10 May 2011 11:09:54 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: [PATCH] mm: tracing: Add missing GFP flags to tracing
+Message-ID: <20110510100954.GC4146@suse.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Ying Han <yinghan@google.com>, Johannes Weiner <jweiner@redhat.com>, Michal Hocko <mhocko@suse.cz>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Hi, thank you for all comments on previous patches for watermarks for memcg.
+include/linux/gfp.h and include/trace/events/gfpflags.h is out of
+sync. When tracing is enabled, certain flags are not recognised and
+the text output is less useful as a result.  Add the missing flags.
 
-This is a new series as 'async reclaim', no watermark.
-This version is a RFC again and I don't ask anyone to test this...but
-comments/review are appreciated. 
+Signed-off-by: Mel Gorman <mgorman@suse.de>
+---
+ include/trace/events/gfpflags.h |    6 +++++-
+ 1 files changed, 5 insertions(+), 1 deletions(-)
 
-Major changes are
-  - no configurable watermark
-  - hierarchy support
-  - more fix for static scan rate round robin scanning of memcg.
-
-(assume x86-64 in following.)
-
-'async reclaim' works when
-   - usage > limit - 4MB.
-until
-   - usage < limit - 8MB.
-
-when the limit is larger than 128MB. This value of margin to limit
-has some purpose for helping to reduce page fault latency at using
-Transparent hugepage.
-
-Considering THP, we need to reclaim HPAGE_SIZE(2MB) of pages when we hit
-limit and consume HPAGE_SIZE(2MB) immediately. Then, the application need to
-scan 2MB per each page fault and get big latency. So, some margin > HPAGE_SIZE
-is required. I set it as 2*HPAGE_SIZE/4*HPAGE_SIZE, here. The kernel
-will do async reclaim and reduce usage to limit - 8MB in background.
-
-BTW, when an application gets a page, it tend to do some action to fill the
-gotton page. For example, reading data from file/network and fill buffer.
-This implies the application will have a wait or consumes cpu other than
-reclaiming memory. So, if the kernel can help memory freeing in background
-while application does another jobs, application latency can be reduced.
-Then, this kind of asyncronous reclaim of memory will be a help for reduce
-memory reclaim latency by memcg. But the total amount of cpu time consumed
-will not have any difference.
-
-This patch series implements
-  - a logic for trigger async reclaim
-  - help functions for async reclaim
-  - core logic for async reclaim, considering memcg's hierarchy.
-  - static scan rate memcg reclaim.
-  - workqueue for async reclaim.
-
-Some concern is that I didn't implement a code for handle the case
-most of pages are mlocked or anon memory in swapless system. I need some
-detection logic to avoid hopless async reclaim.
-
-Any comments are welcome.
-
-Thanks,
--Kame
+diff --git a/include/trace/events/gfpflags.h b/include/trace/events/gfpflags.h
+index e3615c0..9fe3a366 100644
+--- a/include/trace/events/gfpflags.h
++++ b/include/trace/events/gfpflags.h
+@@ -10,6 +10,7 @@
+  */
+ #define show_gfp_flags(flags)						\
+ 	(flags) ? __print_flags(flags, "|",				\
++	{(unsigned long)GFP_TRANSHUGE,		"GFP_TRANSHUGE"},	\
+ 	{(unsigned long)GFP_HIGHUSER_MOVABLE,	"GFP_HIGHUSER_MOVABLE"}, \
+ 	{(unsigned long)GFP_HIGHUSER,		"GFP_HIGHUSER"},	\
+ 	{(unsigned long)GFP_USER,		"GFP_USER"},		\
+@@ -32,6 +33,9 @@
+ 	{(unsigned long)__GFP_HARDWALL,		"GFP_HARDWALL"},	\
+ 	{(unsigned long)__GFP_THISNODE,		"GFP_THISNODE"},	\
+ 	{(unsigned long)__GFP_RECLAIMABLE,	"GFP_RECLAIMABLE"},	\
+-	{(unsigned long)__GFP_MOVABLE,		"GFP_MOVABLE"}		\
++	{(unsigned long)__GFP_MOVABLE,		"GFP_MOVABLE"},		\
++	{(unsigned long)__GFP_NOTRACK,		"GFP_NOTRACK"},		\
++	{(unsigned long)__GFP_NO_KSWAPD,	"GFP_NO_KSWAPD"},	\
++	{(unsigned long)__GFP_OTHER_NODE,	"GFP_OTHER_NODE"}	\
+ 	) : "GFP_NOWAIT"
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
