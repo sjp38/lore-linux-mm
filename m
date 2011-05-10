@@ -1,65 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id B55506B0011
-	for <linux-mm@kvack.org>; Tue, 10 May 2011 08:38:30 -0400 (EDT)
-Date: Tue, 10 May 2011 14:38:19 +0200
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 1BEC76B0025
+	for <linux-mm@kvack.org>; Tue, 10 May 2011 08:41:23 -0400 (EDT)
+Date: Tue, 10 May 2011 14:41:03 +0200
 From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCHSET v3.1 0/7] data integrity: Stabilize pages during
- writeback for various fses
-Message-ID: <20110510123819.GB4402@quack.suse.cz>
+Subject: Re: [PATCH 2/7] fs: block_page_mkwrite should wait for writeback
+ to finish
+Message-ID: <20110510124103.GC4402@quack.suse.cz>
 References: <20110509230318.19566.66202.stgit@elm3c44.beaverton.ibm.com>
- <87tyd31fkc.fsf@devron.myhome.or.jp>
+ <20110509230334.19566.17603.stgit@elm3c44.beaverton.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <87tyd31fkc.fsf@devron.myhome.or.jp>
+In-Reply-To: <20110509230334.19566.17603.stgit@elm3c44.beaverton.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>
-Cc: "Darrick J. Wong" <djwong@us.ibm.com>, Theodore Tso <tytso@mit.edu>, Jan Kara <jack@suse.cz>, Alexander Viro <viro@zeniv.linux.org.uk>, Jens Axboe <axboe@kernel.dk>, "Martin K. Petersen" <martin.petersen@oracle.com>, Jeff Layton <jlayton@redhat.com>, Dave Chinner <david@fromorbit.com>, linux-kernel <linux-kernel@vger.kernel.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, Chris Mason <chris.mason@oracle.com>, Joel Becker <jlbec@evilplan.org>, linux-scsi <linux-scsi@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-ext4@vger.kernel.org, Mingming Cao <mcao@us.ibm.com>
+To: "Darrick J. Wong" <djwong@us.ibm.com>
+Cc: Theodore Tso <tytso@mit.edu>, Jan Kara <jack@suse.cz>, Alexander Viro <viro@zeniv.linux.org.uk>, OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>, Jens Axboe <axboe@kernel.dk>, "Martin K. Petersen" <martin.petersen@oracle.com>, Jeff Layton <jlayton@redhat.com>, Dave Chinner <david@fromorbit.com>, linux-kernel <linux-kernel@vger.kernel.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, Chris Mason <chris.mason@oracle.com>, Joel Becker <jlbec@evilplan.org>, linux-scsi <linux-scsi@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-ext4@vger.kernel.org, Mingming Cao <mcao@us.ibm.com>
 
-On Tue 10-05-11 10:59:15, OGAWA Hirofumi wrote:
-> "Darrick J. Wong" <djwong@us.ibm.com> writes:
+On Mon 09-05-11 16:03:34, Darrick J. Wong wrote:
+> For filesystems such as nilfs2 and xfs that use block_page_mkwrite, modify that
+> function to wait for pending writeback before allowing the page to become
+> writable.  This is needed to stabilize pages during writeback for those two
+> filesystems.
 > 
-> > To assess the performance impact of stable page writes, I moved to a disk that
-> > doesn't have DIF support so that I could measure just the impact of waiting for
-> > writeback.  I first ran wac with 64 threads madly scribbling on a 64k file and
-> > saw about a 12 percent performance decrease.  I then reran the wac program with
-> > 64 threads and a 64MB file and saw about the same performance numbers.  As I
-> > suspected, the patchset only seems to impact workloads that rewrite the same
-> > memory page frequently.
-> >
-> > I am still chasing down what exactly is broken in ext3.  data=writeback mode
-> > passes with no failures.  data=ordered, however, does not pass; my current
-> > suspicion is that jbd is calling submit_bh on data buffers but doesn't call
-> > page_mkclean to kick the userspace programs off the page before writing it.
-> >
-> > Per various comments regarding v3 of this patchset, I've integrated his
-> > suggestions, reworked the patch descriptions to make it clearer which ones
-> > touch all the filesystems and which ones are to fix remaining holes in specific
-> > filesystems, and expanded the scope of filesystems that got fixed.
-> >
-> > As always, questions and comments are welcome; and thank you to all the
-> > previous reviewers of this patchset.  I am also soliciting people's opinions on
-> > whether or not these patches could go upstream for .40.
+> Signed-off-by: Darrick J. Wong <djwong@us.ibm.com>
+> ---
+>  fs/buffer.c |    1 +
+>  1 files changed, 1 insertions(+), 0 deletions(-)
 > 
-> I'd like to know those patches are on what state. Waiting in writeback
-> page makes slower, like you mentioned it (I guess it would more
-> noticeable if device was slower that like FAT uses). And I think
-> currently it doesn't help anything others for blk-integrity stuff
-> (without other technic, it doesn't help FS consistency)?
 > 
-> So, why is this locking stuff enabled always? I think it would be better
-> to enable only if blk-integrity stuff was enabled.
-> 
-> If it was more sophisticate but more complex stuff (e.g. use
-> copy-on-write technic for it), I would agree always enable though.
-  Well, also software RAID generally needs this feature (so that parity
-information / mirror can be properly kept in sync). Not that I'd advocate
-that this feature must be always enabled, it's just that there are also
-other users besides blk-integrity.
+> diff --git a/fs/buffer.c b/fs/buffer.c
+> index a08bb8e..cf9a795 100644
+> --- a/fs/buffer.c
+> +++ b/fs/buffer.c
+> @@ -2361,6 +2361,7 @@ block_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf,
+>  	if (!ret)
+>  		ret = block_commit_write(page, 0, end);
+>  
+> +	wait_on_page_writeback(page);
+  Not that it matters much but it would seem more logical to me if we
+waited only in not-error case (i.e. after the error handling below).
 
 								Honza
+>  	if (unlikely(ret)) {
+>  		unlock_page(page);
+>  		if (ret == -ENOMEM)
+> 
 -- 
 Jan Kara <jack@suse.cz>
 SUSE Labs, CR
