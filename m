@@ -1,89 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 2A1276B0023
-	for <linux-mm@kvack.org>; Wed, 11 May 2011 17:39:25 -0400 (EDT)
-Subject: Re: [PATCH 0/3] Reduce impact to overall system of SLUB using
- high-order allocations
-From: James Bottomley <James.Bottomley@HansenPartnership.com>
-In-Reply-To: <1305127773-10570-1-git-send-email-mgorman@suse.de>
-References: <1305127773-10570-1-git-send-email-mgorman@suse.de>
-Content-Type: text/plain; charset="UTF-8"
-Date: Wed, 11 May 2011 16:39:20 -0500
-Message-ID: <1305149960.2606.53.camel@mulgrave.site>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id CD6E96B0024
+	for <linux-mm@kvack.org>; Wed, 11 May 2011 18:27:27 -0400 (EDT)
+Received: from hpaq13.eem.corp.google.com (hpaq13.eem.corp.google.com [172.25.149.13])
+	by smtp-out.google.com with ESMTP id p4BMRNML015168
+	for <linux-mm@kvack.org>; Wed, 11 May 2011 15:27:23 -0700
+Received: from pzk9 (pzk9.prod.google.com [10.243.19.137])
+	by hpaq13.eem.corp.google.com with ESMTP id p4BMQaTk032623
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 11 May 2011 15:27:21 -0700
+Received: by pzk9 with SMTP id 9so567828pzk.5
+        for <linux-mm@kvack.org>; Wed, 11 May 2011 15:27:13 -0700 (PDT)
+Date: Wed, 11 May 2011 15:27:11 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 3/3] mm: slub: Default slub_max_order to 0
+In-Reply-To: <20110511210907.GA17898@suse.de>
+Message-ID: <alpine.DEB.2.00.1105111456220.24003@chino.kir.corp.google.com>
+References: <1305127773-10570-1-git-send-email-mgorman@suse.de> <1305127773-10570-4-git-send-email-mgorman@suse.de> <alpine.DEB.2.00.1105111314310.9346@chino.kir.corp.google.com> <20110511210907.GA17898@suse.de>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Colin King <colin.king@canonical.com>, Raghavendra D Prabhu <raghu.prabhu13@gmail.com>, Jan Kara <jack@suse.cz>, Chris Mason <chris.mason@oracle.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-ext4 <linux-ext4@vger.kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, James Bottomley <James.Bottomley@hansenpartnership.com>, Colin King <colin.king@canonical.com>, Raghavendra D Prabhu <raghu.prabhu13@gmail.com>, Jan Kara <jack@suse.cz>, Chris Mason <chris.mason@oracle.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-ext4 <linux-ext4@vger.kernel.org>
 
-On Wed, 2011-05-11 at 16:29 +0100, Mel Gorman wrote:
-> Debian (and probably Ubuntu) have recently have changed to the default
-> option of SLUB. There are a few reports of people experiencing hangs
-> when copying large amounts of data with kswapd using a large amount of
-> CPU. It appears this is down to SLUB using high orders by default and
-> the page allocator and reclaim struggling to keep up. The following
-> three patches reduce the cost of using those high orders.
-> 
-> Patch 1 prevents kswapd waking up in response to SLUBs speculative
-> 	use of high orders. This eliminates the hangs and while the
-> 	system can still stall for long periods, it recovers.
-> 
-> Patch 2 further reduces the cost by prevent SLUB entering direct
-> 	compaction or reclaim paths on the grounds that falling
-> 	back to order-0 should be cheaper.
-> 
-> Patch 3 defaults SLUB to using order-0 on the grounds that the
-> 	systems that heavily benefit from using high-order are also
-> 	sized to fit in physical memory. On such systems, they should
-> 	manually tune slub_max_order=3.
-> 
-> My own data on this is not great. I haven't really been able to
-> reproduce the same problem locally but a significant failing is
-> that the tests weren't stressing X but I couldn't make meaningful
-> comparisons by just randomly clicking on things (working on fixing
-> this problem).
-> 
-> The test case is simple. "download tar" wgets a large tar file and
-> stores it locally. "unpack" is expanding it (15 times physical RAM
-> in this case) and "delete source dirs" is the tarfile being deleted
-> again. I also experimented with having the tar copied numerous times
-> and into deeper directories to increase the size but the results were
-> not particularly interesting so I left it as one tar.
-> 
-> Test server, 4 CPU threads (AMD Phenom), x86_64, 2G of RAM, no X running
->                              -       nowake    
->              largecopy-vanilla       kswapd-v1r1  noexstep-v1r1     default0-v1r1
-> download tar           94 ( 0.00%)   94 ( 0.00%)   94 ( 0.00%)   93 ( 1.08%)
-> unpack tar            521 ( 0.00%)  551 (-5.44%)  482 ( 8.09%)  488 ( 6.76%)
-> delete source dirs    208 ( 0.00%)  218 (-4.59%)  194 ( 7.22%)  194 ( 7.22%)
-> MMTests Statistics: duration
-> User/Sys Time Running Test (seconds)        740.82    777.73    739.98    747.47
-> Total Elapsed Time (seconds)               1046.66   1273.91    962.47    936.17
-> 
-> Disabling kswapd alone hurts performance slightly even though testers
-> report it fixes hangs. I would guess it's because SLUB callers are
-> calling direct reclaim more frequently (I belatedly noticed that
-> compaction was disabled so it's not a factor) but haven't confirmed
-> it. However, preventing kswapd waking or entering direct reclaim and
-> having SLUB falling back to order-0 performed noticeably faster. Just
-> using order-0 in the first place was fastest of all.
-> 
-> I tried running the same test on a test laptop but unfortunately
-> due to a misconfiguration the results were lost. It would take a few
-> hours to rerun so am posting without them.
-> 
-> If the testers verify this series help and we agree the patches are
-> appropriate, they should be considered a stable candidate for 2.6.38.
+On Wed, 11 May 2011, Mel Gorman wrote:
 
-OK, I confirm that I can't seem to break this one.  No hangs visible,
-even when loading up the system with firefox, evolution, the usual
-massive untar, X and even a distribution upgrade.
+> I agree with you that there are situations where plenty of memory
+> means that that it'll perform much better. However, indications are
+> that it breaks down with high CPU usage when memory is low.  Worse,
+> once fragmentation becomes a problem, large amounts of UNMOVABLE and
+> RECLAIMABLE will make it progressively more expensive to find the
+> necessary pages. Perhaps with patches 1 and 2, this is not as much
+> of a problem but figures in the leader indicated that for a simple
+> workload with large amounts of files and data exceeding physical
+> memory that it was better off not to use high orders at all which
+> is a situation I'd expect to be encountered by more users than
+> performance-sensitive applications.
+> 
+> In other words, we're taking one hit or the other.
+> 
 
-You can add my tested-by
+Seems like the ideal solution would then be to find how to best set the 
+default, and that can probably only be done with the size of the smallest 
+node since it has a higher liklihood of encountering a large amount of 
+unreclaimable slab when memory is low.
 
-James
+> > I can get numbers for a simple netperf TCP_RR benchmark with this change 
+> > applied to show the degradation on a server with >32GB of RAM with this 
+> > patch applied.
+> > 
+> 
+> Agreed, I'd expect netperf TCP_RR or TCP_STREAM to take a hit,
+> particularly on a local machine where the recycling of pages will
+> impact it heavily.
+> 
 
+Ignoring the local machine for a second, TCP_RR probably shouldn't be 
+taking any more of a hit with slub than it already is.  When I benchmarked 
+slab vs. slub a couple months ago with two machines, each four quad-core 
+Opterons with 64GB of memory, with this benchmark it showed slub was 
+already 10-15% slower.  That's why slub has always been unusable for us, 
+and I'm surprised that it's now becoming the favorite of distros 
+everywhere (and, yes, Ubuntu now defaults to it as well).
+
+> > It would be ideal if this default could be adjusted based on the amount of 
+> > memory available in the smallest node to determine whether we're concerned 
+> > about making higher order allocations. 
+> 
+> It's not a function of memory size, working set size is what
+> is important or at least how many new pages have been allocated
+> recently. Fit your workload in physical memory - high orders are
+> great. Go larger than that and you hit problems. James' testing
+> indicated that kswapd CPU usage dropped to far lower levels with this
+> patch applied his test of untarring a large file for example.
+> 
+
+My point is that it would probably be better to tune the default based on 
+how much memory is available at boot since it implies the probability of 
+having an abundance of memory while populating the caches' partial lists 
+up to min_partial rather than change it for everyone where it is known 
+that it will cause performance degradations if memory is never low.  We 
+probably don't want to be doing order-3 allocations for half the slab 
+caches when we have 1G of memory available, but that's acceptable with 
+64GB.
+
+> > (Using the smallest node as a 
+> > metric so that mempolicies and cpusets don't get unfairly biased against.)  
+> > With the previous changes in this patchset, specifically avoiding waking 
+> > kswapd and doing compaction for the higher order allocs before falling 
+> > back to the min order, it shouldn't be devastating to try an order-3 alloc 
+> > that will fail quickly.
+> > 
+> 
+> Which is more reasonable? That an ordinary user gets a default that
+> is fairly safe even if benchmarks that demand the highest performance
+> from SLUB take a hit or that administrators running such workloads
+> set slub_max_order=3?
+> 
+
+Not sure what is more reasonable since it depends on what the workload is, 
+but what probably is unreasonable is changing a slub default that is known 
+to directly impact performance by presenting a single benchmark under 
+consideration without some due diligence in testing others like netperf.
+
+We all know that slub has some disavantages compared to slab that are only 
+now being realized because it has become the debian default, but it does 
+excel at some workloads -- it was initially presented to beat slab in 
+kernbench, hackbench, sysbench, and aim9 when it was merged.  Those 
+advantages may never be fully realized on laptops or desktop machines, but 
+with machines with plenty of memory available, slub ofter does perform 
+better than slab.
+
+That's why I suggested tuning the min order default based on total memory, 
+it would probably be easier to justify than changing it for everyone and 
+demanding users who are completely happy with using slub, the kernel.org 
+default for years, now use command line options.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
