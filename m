@@ -1,42 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id A57016B0023
-	for <linux-mm@kvack.org>; Wed, 11 May 2011 18:48:16 -0400 (EDT)
-Received: from hpaq3.eem.corp.google.com (hpaq3.eem.corp.google.com [172.25.149.3])
-	by smtp-out.google.com with ESMTP id p4BMlxso007713
-	for <linux-mm@kvack.org>; Wed, 11 May 2011 15:47:59 -0700
-Received: from pvg13 (pvg13.prod.google.com [10.241.210.141])
-	by hpaq3.eem.corp.google.com with ESMTP id p4BMlpTA030369
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 11 May 2011 15:47:52 -0700
-Received: by pvg13 with SMTP id 13so591993pvg.12
-        for <linux-mm@kvack.org>; Wed, 11 May 2011 15:47:50 -0700 (PDT)
-Date: Wed, 11 May 2011 15:47:49 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 1/4] mm: Remove dependency on CONFIG_FLATMEM from
- online_page()
-In-Reply-To: <20110502211915.GB4623@router-fw-old.local.net-space.pl>
-Message-ID: <alpine.DEB.2.00.1105111547160.24003@chino.kir.corp.google.com>
-References: <20110502211915.GB4623@router-fw-old.local.net-space.pl>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E0E96B0024
+	for <linux-mm@kvack.org>; Wed, 11 May 2011 18:53:35 -0400 (EDT)
+Date: Wed, 11 May 2011 15:53:24 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: mmotm 2011-04-29 - wonky VmRSS and VmHWM values after swapping
+Message-Id: <20110511155324.5c366900.akpm@linux-foundation.org>
+In-Reply-To: <1305043485.2914.110.camel@laptop>
+References: <201104300002.p3U02Ma2026266@imap1.linux-foundation.org>
+	<49683.1304296014@localhost>
+	<8185.1304347042@localhost>
+	<20110502164430.eb7d451d.akpm@linux-foundation.org>
+	<1305043485.2914.110.camel@laptop>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Kiper <dkiper@net-space.pl>
-Cc: ian.campbell@citrix.com, akpm@linux-foundation.org, andi.kleen@intel.com, haicheng.li@linux.intel.com, fengguang.wu@intel.com, jeremy@goop.org, konrad.wilk@oracle.com, dan.magenheimer@oracle.com, v.tolstov@selfip.ru, pasik@iki.fi, dave@linux.vnet.ibm.com, wdauchy@gmail.com, xen-devel@lists.xensource.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Valdis.Kletnieks@vt.edu, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, 2 May 2011, Daniel Kiper wrote:
+On Tue, 10 May 2011 18:04:45 +0200
+Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
 
-> Memory hotplug code strictly depends on CONFIG_SPARSEMEM.
-> It means that code depending on CONFIG_FLATMEM in online_page()
-> is never compiled. Remove it because it is not needed anymore.
+> > hm, me too.  After boot, hald has a get_mm_counter(mm, MM_ANONPAGES) of
+> > 0xffffffffffff3c27.  Bisected to Pater's
+> > mm-extended-batches-for-generic-mmu_gather.patch, can't see how it did
+> > that.
+> > 
 > 
-> Signed-off-by: Daniel Kiper <dkiper@net-space.pl>
+> I haven't quite figured out how to reproduce, but does the below cure
+> things? If so, it should probably be folded into the first patch
+> (mm-mmu_gather-rework.patch?) since that is the one introducing this.
+> 
+> ---
+> Subject: mm: Fix RSS zap_pte_range() accounting
+> 
+> Since we update the RSS counters when breaking out of the loop and
+> release the PTE lock, we should start with fresh deltas when we
+> restart the gather loop.
+> 
+> Reported-by: Valdis.Kletnieks@vt.edu
+> Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+> ---
+> Index: linux-2.6/mm/memory.c
+> ===================================================================
+> --- linux-2.6.orig/mm/memory.c
+> +++ linux-2.6/mm/memory.c
+> @@ -1120,8 +1120,8 @@ static unsigned long zap_pte_range(struc
+>  	spinlock_t *ptl;
+>  	pte_t *pte;
+>  
+> -	init_rss_vec(rss);
+>  again:
+> +	init_rss_vec(rss);
+>  	pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
+>  	arch_enter_lazy_mmu_mode();
+>  	do {
 
-The code you're patching depends on CONFIG_MEMORY_HOTPLUG_SPARSE, so this 
-is valid.  The changelog should be updated to reflect that, however.
-
-Acked-by: David Rientjes <rientjes@google.com>
+That fixed the negative hald VmHWM output on my test box.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
