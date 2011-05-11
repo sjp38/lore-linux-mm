@@ -1,41 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id D80246B0024
-	for <linux-mm@kvack.org>; Wed, 11 May 2011 05:37:05 -0400 (EDT)
-From: OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>
-Subject: Re: [PATCHSET v3.1 0/7] data integrity: Stabilize pages during writeback for various fses
-References: <20110509230318.19566.66202.stgit@elm3c44.beaverton.ibm.com>
-	<87tyd31fkc.fsf@devron.myhome.or.jp>
-	<20110510133603.GA5823@infradead.org>
-	<874o524q9h.fsf@devron.myhome.or.jp>
-	<20110510144939.GI4402@quack.suse.cz>
-	<87aaeur31x.fsf@devron.myhome.or.jp>
-	<20110510170339.GA27538@infradead.org>
-	<87liyep9fk.fsf@devron.myhome.or.jp>
-	<20110511055509.GA4886@infradead.org>
-Date: Wed, 11 May 2011 18:36:53 +0900
-In-Reply-To: <20110511055509.GA4886@infradead.org> (Christoph Hellwig's
-	message of "Wed, 11 May 2011 01:55:09 -0400")
-Message-ID: <877h9xpoi2.fsf@devron.myhome.or.jp>
-MIME-Version: 1.0
-Content-Type: text/plain
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D1106B0011
+	for <linux-mm@kvack.org>; Wed, 11 May 2011 11:29:41 -0400 (EDT)
+From: Mel Gorman <mgorman@suse.de>
+Subject: [PATCH 1/3] mm: slub: Do not wake kswapd for SLUBs speculative high-order allocations
+Date: Wed, 11 May 2011 16:29:31 +0100
+Message-Id: <1305127773-10570-2-git-send-email-mgorman@suse.de>
+In-Reply-To: <1305127773-10570-1-git-send-email-mgorman@suse.de>
+References: <1305127773-10570-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Jan Kara <jack@suse.cz>, "Darrick J. Wong" <djwong@us.ibm.com>, Theodore Tso <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Jens Axboe <axboe@kernel.dk>, "Martin K. Petersen" <martin.petersen@oracle.com>, Jeff Layton <jlayton@redhat.com>, Dave Chinner <david@fromorbit.com>, linux-kernel <linux-kernel@vger.kernel.org>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, Chris Mason <chris.mason@oracle.com>, Joel Becker <jlbec@evilplan.org>, linux-scsi <linux-scsi@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-ext4@vger.kernel.org, Mingming Cao <mcao@us.ibm.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: James Bottomley <James.Bottomley@HansenPartnership.com>, Colin King <colin.king@canonical.com>, Raghavendra D Prabhu <raghu.prabhu13@gmail.com>, Jan Kara <jack@suse.cz>, Chris Mason <chris.mason@oracle.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-ext4 <linux-ext4@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-Christoph Hellwig <hch@infradead.org> writes:
+To avoid locking and per-cpu overhead, SLUB optimisically uses
+high-order allocations and falls back to lower allocations if they
+fail.  However, by simply trying to allocate, kswapd is woken up to
+start reclaiming at that order. On a desktop system, two users report
+that the system is getting locked up with kswapd using large amounts
+of CPU.  Using SLAB instead of SLUB made this problem go away.
 
-> On Wed, May 11, 2011 at 05:50:07AM +0900, OGAWA Hirofumi wrote:
->> Sounds good. So... Are you suggesting this series should use better
->> approach than just blocking?
->
-> No, block reuse is a problem independent of stable pages.
+This patch prevents kswapd being woken up for high-order allocations.
+Testing indicated that with this patch applied, the system was much
+harder to hang and even when it did, it eventually recovered.
 
-OK. So, sounds like we are talking different points. I was generic stuff
-(whole of patches). You were only some patches (guess it's only data page).
+Signed-off-by: Mel Gorman <mgorman@suse.de>
+---
+ mm/slub.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/mm/slub.c b/mm/slub.c
+index 9d2e5e4..98c358d 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -1170,7 +1170,7 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
+ 	 * Let the initial higher-order allocation fail under memory pressure
+ 	 * so we fall-back to the minimum order allocation.
+ 	 */
+-	alloc_gfp = (flags | __GFP_NOWARN | __GFP_NORETRY) & ~__GFP_NOFAIL;
++	alloc_gfp = (flags | __GFP_NOWARN | __GFP_NORETRY | __GFP_NO_KSWAPD) & ~__GFP_NOFAIL;
+ 
+ 	page = alloc_slab_page(alloc_gfp, node, oo);
+ 	if (unlikely(!page)) {
 -- 
-OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>
+1.7.3.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
