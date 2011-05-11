@@ -1,71 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 10FD26B0011
-	for <linux-mm@kvack.org>; Tue, 10 May 2011 20:02:47 -0400 (EDT)
-Received: from hpaq6.eem.corp.google.com (hpaq6.eem.corp.google.com [172.25.149.6])
-	by smtp-out.google.com with ESMTP id p4ANes6O017483
-	for <linux-mm@kvack.org>; Tue, 10 May 2011 16:40:54 -0700
-Received: from pzk35 (pzk35.prod.google.com [10.243.19.163])
-	by hpaq6.eem.corp.google.com with ESMTP id p4ANegud023845
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 10 May 2011 16:40:52 -0700
-Received: by pzk35 with SMTP id 35so4121190pzk.39
-        for <linux-mm@kvack.org>; Tue, 10 May 2011 16:40:52 -0700 (PDT)
-Date: Tue, 10 May 2011 16:40:50 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 3/4] oom: oom-killer don't use permillage of system-ram
- internally
-In-Reply-To: <20110510171724.16B3.A69D9226@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1105101632290.12477@chino.kir.corp.google.com>
-References: <20110509182110.167F.A69D9226@jp.fujitsu.com> <20110510171335.16A7.A69D9226@jp.fujitsu.com> <20110510171724.16B3.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 603D56B0011
+	for <linux-mm@kvack.org>; Tue, 10 May 2011 20:23:15 -0400 (EDT)
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e35.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p4B06KWV016890
+	for <linux-mm@kvack.org>; Tue, 10 May 2011 18:06:20 -0600
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id p4B0NArJ160062
+	for <linux-mm@kvack.org>; Tue, 10 May 2011 18:23:10 -0600
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p4B0N9Vj032579
+	for <linux-mm@kvack.org>; Tue, 10 May 2011 18:23:10 -0600
+From: John Stultz <john.stultz@linaro.org>
+Subject: [PATCH 2/3] printk: Add %ptc to safely print a task's comm
+Date: Tue, 10 May 2011 17:23:05 -0700
+Message-Id: <1305073386-4810-3-git-send-email-john.stultz@linaro.org>
+In-Reply-To: <1305073386-4810-1-git-send-email-john.stultz@linaro.org>
+References: <1305073386-4810-1-git-send-email-john.stultz@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: CAI Qian <caiqian@redhat.com>, avagin@gmail.com, Andrey Vagin <avagin@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan.kim@gmail.com>, Hugh Dickins <hughd@google.com>, Oleg Nesterov <oleg@redhat.com>
+To: LKML <linux-kernel@vger.kernel.org>
+Cc: John Stultz <john.stultz@linaro.org>, Ted Ts'o <tytso@mit.edu>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-On Tue, 10 May 2011, KOSAKI Motohiro wrote:
+Acessing task->comm requires proper locking. However in the past
+access to current->comm could be done without locking. This
+is no longer the case, so all comm access needs to be done
+while holding the comm_lock.
 
-> CAI Qian reported his kernel did hang-up if he ran fork intensive
-> workload and then invoke oom-killer.
-> 
-> The problem is, Current oom calculation uses 0-1000 normalized value
-> (The unit is a permillage of system-ram). Its low precision make
-> a lot of same oom score. IOW, in his case, all processes have <1
-> oom score and internal integral calculation round it to 1. Thus
-> oom-killer kill ineligible process. This regression is caused by
-> commit a63d83f427 (oom: badness heuristic rewrite).
-> 
-> The solution is, the internal calculation just use number of pages
-> instead of permillage of system-ram. And convert it to permillage
-> value at displaying time.
-> 
-> This patch doesn't change any ABI (included  /proc/<pid>/oom_score_adj)
-> even though current logic has a lot of my dislike thing.
-> 
+In my attempt to clean up unprotected comm access, I've noticed
+most comm access is done for printk output. To simpify correct
+locking in these cases, I've introduced a new %ptc format,
+which will safely print the corresponding task's comm.
 
-s/permillage/proportion/
+Example use:
+printk("%ptc: unaligned epc - sending SIGBUS.\n", current);
 
-This is unacceptable, it does not allow users to tune oom_score_adj 
-appropriately based on the scores exported by /proc/pid/oom_score to 
-discount an amount of RAM from a thread's memory usage in systemwide, 
-memory controller, cpuset, or mempolicy contexts.  This is only possible 
-because the oom score is normalized.
+CC: Ted Ts'o <tytso@mit.edu>
+CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+CC: David Rientjes <rientjes@google.com>
+CC: Dave Hansen <dave@linux.vnet.ibm.com>
+CC: Andrew Morton <akpm@linux-foundation.org>
+CC: linux-mm@kvack.org
+Signed-off-by: John Stultz <john.stultz@linaro.org>
+---
+ lib/vsprintf.c |   27 +++++++++++++++++++++++++++
+ 1 files changed, 27 insertions(+), 0 deletions(-)
 
-What would be acceptable would be to increase the granularity of the score 
-to 10000 or 100000 to differentiate between threads using 0.01% or 0.001% 
-of RAM from each other, respectively.  The range of oom_score_adj would 
-remain the same, however, and be multiplied by 10 or 100, respectively, 
-when factored into the badness score baseline.  I don't believe userspace 
-cares to differentiate between more than 0.1% of available memory.
-
-The other issue that this patch addresses is the bonus given to root 
-processes.  I agree that if a root process is using 4% of RAM that it 
-should not be equal to all other threads using 1%.  I do believe that a 
-root process using 60% of RAM should be equal priority to a thread using 
-57%, however.  Perhaps a compromise would be to give root processes a 
-bonus of 1% for every 30% of RAM they consume?
+diff --git a/lib/vsprintf.c b/lib/vsprintf.c
+index bc0ac6b..b9c97b8 100644
+--- a/lib/vsprintf.c
++++ b/lib/vsprintf.c
+@@ -797,6 +797,26 @@ char *uuid_string(char *buf, char *end, const u8 *addr,
+ 	return string(buf, end, uuid, spec);
+ }
+ 
++static noinline_for_stack
++char *task_comm_string(char *buf, char *end, u8 *addr,
++			 struct printf_spec spec, const char *fmt)
++{
++	struct task_struct *tsk = (struct task_struct *) addr;
++	char *ret;
++	unsigned long seq;
++
++	do {
++		seq = read_seqbegin(&tsk->comm_lock);
++
++		ret = string(buf, end, tsk->comm, spec);
++
++	} while (read_seqretry(&tsk->comm_lock, seq));
++
++	return ret;
++}
++
++
++
+ int kptr_restrict = 1;
+ 
+ /*
+@@ -864,6 +884,12 @@ char *pointer(const char *fmt, char *buf, char *end, void *ptr,
+ 	}
+ 
+ 	switch (*fmt) {
++	case 't':
++		switch (fmt[1]) {
++		case 'c':
++			return task_comm_string(buf, end, ptr, spec, fmt);
++		}
++		break;
+ 	case 'F':
+ 	case 'f':
+ 		ptr = dereference_function_descriptor(ptr);
+@@ -1151,6 +1177,7 @@ qualifier:
+  *   http://tools.ietf.org/html/draft-ietf-6man-text-addr-representation-00
+  * %pU[bBlL] print a UUID/GUID in big or little endian using lower or upper
+  *   case.
++ * %ptc outputs the task's comm name
+  * %n is ignored
+  *
+  * The return value is the number of characters which would
+-- 
+1.7.3.2.146.gca209
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
