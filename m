@@ -1,119 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id D84E1900111
-	for <linux-mm@kvack.org>; Wed, 11 May 2011 13:17:43 -0400 (EDT)
-Received: by mail-px0-f169.google.com with SMTP id 9so599232pxi.14
-        for <linux-mm@kvack.org>; Wed, 11 May 2011 10:17:42 -0700 (PDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 661216B0023
+	for <linux-mm@kvack.org>; Wed, 11 May 2011 13:19:01 -0400 (EDT)
+Received: by qwa26 with SMTP id 26so559736qwa.14
+        for <linux-mm@kvack.org>; Wed, 11 May 2011 10:18:59 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <cover.1305132792.git.minchan.kim@gmail.com>
+References: <cover.1305132792.git.minchan.kim@gmail.com>
+Date: Thu, 12 May 2011 02:18:59 +0900
+Message-ID: <BANLkTi=DmTDgDNW0sEgQPeL7YtdT6SG-dg@mail.gmail.com>
+Subject: Re: [PATCH v1 00/10] Prevent LRU churning
 From: Minchan Kim <minchan.kim@gmail.com>
-Subject: [PATCH v1 10/10] add tracepoints
-Date: Thu, 12 May 2011 02:16:49 +0900
-Message-Id: <18652a0d98658a118d52d124b1d9f9c4a9702638.1305132792.git.minchan.kim@gmail.com>
-In-Reply-To: <cover.1305132792.git.minchan.kim@gmail.com>
-References: <cover.1305132792.git.minchan.kim@gmail.com>
-In-Reply-To: <cover.1305132792.git.minchan.kim@gmail.com>
-References: <cover.1305132792.git.minchan.kim@gmail.com>
+Content-Type: multipart/mixed; boundary=002354470c8cae6d8a04a303445e
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Johannes Weiner <jweiner@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan.kim@gmail.com>
 
-This patch adds some tracepints for see the effect this patch
-series.
-This tracepoints isn't for merge but just see the effect.
+--002354470c8cae6d8a04a303445e
+Content-Type: text/plain; charset=UTF-8
 
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
----
- mm/compaction.c |    2 ++
- mm/migrate.c    |    7 +++++++
- mm/vmscan.c     |    3 +--
- 3 files changed, 10 insertions(+), 2 deletions(-)
+I missed script used for testing.
+Attached.
 
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 00e710a..92c180d 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -16,6 +16,7 @@
- #include <linux/sysfs.h>
- #include "internal.h"
- 
-+#include <trace/events/inorder_putback.h>
- #define CREATE_TRACE_POINTS
- #include <trace/events/compaction.h>
- 
-@@ -333,6 +334,7 @@ static unsigned long isolate_migratepages(struct zone *zone,
- 		if (__isolate_inorder_lru_page(page, mode, 0, &prev_page) != 0)
- 			continue;
- 
-+		trace_mm_compact_isolate(prev_page, page);
- 		VM_BUG_ON(PageTransCompound(page));
- 
- 		/* Successfully isolated */
-diff --git a/mm/migrate.c b/mm/migrate.c
-index f94fe65..6a2eca9 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -39,6 +39,9 @@
- 
- #include "internal.h"
- 
-+#define CREATE_TRACE_POINTS
-+#include <trace/events/inorder_putback.h>
-+
- #define lru_to_page(_head) (list_entry((_head)->prev, struct page, lru))
- 
- /*
-@@ -96,10 +99,12 @@ void putback_inorder_lru_pages(struct inorder_lru *l)
- 		spin_lock_irq(&zone->lru_lock);
- 		prev = page->ilru.prev_page;
- 		if (keep_lru_order(page, prev)) {
-+			trace_mm_compaction_inorder(page, page);
- 			putback_page_to_lru(page, prev);
- 			spin_unlock_irq(&zone->lru_lock);
- 		}
- 		else {
-+			trace_mm_compaction_outoforder(page, page);
- 			spin_unlock_irq(&zone->lru_lock);
- 			putback_lru_page(page);
- 		}
-@@ -1052,6 +1057,7 @@ move_newpage:
- 	if (keep_lru_order(page, prev_page)) {
- 		putback_page_to_lru(newpage, prev_page);
- 		spin_unlock_irq(&zone->lru_lock);
-+		trace_mm_compaction_inorder(page, newpage);
- 		/*
- 		 * The newpage will replace LRU position of old page and
- 		 * old one would be freed. So let's adjust prev_page of pages
-@@ -1063,6 +1069,7 @@ move_newpage:
- 	else {
- 
- 		spin_unlock_irq(&zone->lru_lock);
-+		trace_mm_compaction_inorder(page, newpage);
- 		putback_lru_page(newpage);
- 	}
- 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 62d5186..2e7cbad 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -49,10 +49,9 @@
- #include <linux/swapops.h>
- 
- #include "internal.h"
--
-+#include <trace/events/inorder_putback.h>
- #define CREATE_TRACE_POINTS
- #include <trace/events/vmscan.h>
--
- /*
-  * reclaim_mode determines how the inactive list is shrunk
-  * RECLAIM_MODE_SINGLE: Reclaim only order-0 pages
+
+
 -- 
-1.7.1
+Kind regards,
+Minchan Kim
+
+--002354470c8cae6d8a04a303445e
+Content-Type: application/x-sh; name="run-many-x-apps.sh"
+Content-Disposition: attachment; filename="run-many-x-apps.sh"
+Content-Transfer-Encoding: base64
+X-Attachment-Id: f_gnkj9i2n0
+
+IyEvYmluL3pzaAoKcmVhZCBUMCBUMSA8IC9wcm9jL3VwdGltZQoKZnVuY3Rpb24gcHJvZ3Jlc3Mo
+KQp7CglyZWFkIHQwIHQxIDwgL3Byb2MvdXB0aW1lCgl0PSQoKHQwIC0gVDApKQoJcHJpbnRmICIl
+OC4yZiAgICAiICR0CgllY2hvICIkQCIKfQoKZnVuY3Rpb24gc3dpdGNoX3dpbmRvd3MoKQp7Cgl3
+bWN0cmwgLWwgfCB3aGlsZSByZWFkIGEgYiBjIHdpbgoJZG8KCQlwcm9ncmVzcyBBICIkd2luIgoJ
+CXdtY3RybCAtYSAiJHdpbiIKCWRvbmUKfQoKd2hpbGUgcmVhZCBhcHAgYXJncwpkbwoJcHJvZ3Jl
+c3MgTiAkYXBwICRhcmdzCgkkYXBwICRhcmdzICYKCXN3aXRjaF93aW5kb3dzCmRvbmUgPDwgRU9G
+CnhleWVzCmZpcmVmb3gKbmF1dGlsdXMKbmF1dGlsdXMgLS1icm93c2VyCmd0aHVtYgpnZWRpdAoK
+eHRlcm0KbWx0ZXJtCmdub21lLXRlcm1pbmFsCgpnbm9tZS1zeXN0ZW0tbW9uaXRvcgpnbm9tZS1o
+ZWxwCmdub21lLWRpY3Rpb25hcnkKCi91c3IvZ2FtZXMvc29sCi91c3IvZ2FtZXMvZ25vbWV0cmlz
+Ci91c3IvZ2FtZXMvZ25lY3QKL3Vzci9nYW1lcy9ndGFsaQovdXNyL2dhbWVzL2lhZ25vCi91c3Iv
+Z2FtZXMvZ25vdHJhdmV4Ci91c3IvZ2FtZXMvbWFoam9uZ2cKL3Vzci9nYW1lcy9nbm9tZS1zdWRv
+a3UKL3Vzci9nYW1lcy9nbGluZXMKL3Vzci9nYW1lcy9nbGNoZXNzCi91c3IvZ2FtZXMvZ25vbWlu
+ZQovdXNyL2dhbWVzL2dub3Rza2kKL3Vzci9nYW1lcy9nbmliYmxlcwovdXNyL2dhbWVzL2dub2Jv
+dHMyCi91c3IvZ2FtZXMvYmxhY2tqYWNrCi91c3IvZ2FtZXMvc2FtZS1nbm9tZQoKL3Vzci9iaW4v
+Z25vbWUtd2luZG93LXByb3BlcnRpZXMKL3Vzci9iaW4vZ25vbWUtZGVmYXVsdC1hcHBsaWNhdGlv
+bnMtcHJvcGVydGllcwovdXNyL2Jpbi9nbm9tZS1hdC1wcm9wZXJ0aWVzCi91c3IvYmluL2dub21l
+LXR5cGluZy1tb25pdG9yCi91c3IvYmluL2dub21lLWF0LXZpc3VhbAovdXNyL2Jpbi9nbm9tZS1z
+b3VuZC1wcm9wZXJ0aWVzCi91c3IvYmluL2dub21lLWF0LW1vYmlsaXR5Ci91c3IvYmluL2dub21l
+LWtleWJpbmRpbmctcHJvcGVydGllcwovdXNyL2Jpbi9nbm9tZS1hYm91dC1tZQovdXNyL2Jpbi9n
+bm9tZS1kaXNwbGF5LXByb3BlcnRpZXMKL3Vzci9iaW4vZ25vbWUtbmV0d29yay1wcmVmZXJlbmNl
+cwovdXNyL2Jpbi9nbm9tZS1tb3VzZS1wcm9wZXJ0aWVzCi91c3IvYmluL2dub21lLWFwcGVhcmFu
+Y2UtcHJvcGVydGllcwovdXNyL2Jpbi9nbm9tZS1jb250cm9sLWNlbnRlcgovdXNyL2Jpbi9nbm9t
+ZS1rZXlib2FyZC1wcm9wZXJ0aWVzCgpvb2NhbGMKb29kcmF3Cm9vaW1wcmVzcwpvb21hdGgKb293
+ZWIKb293cml0ZXIgICAgCgplY2xpcHNlCmdpbXAKRU9GCg==
+--002354470c8cae6d8a04a303445e--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
