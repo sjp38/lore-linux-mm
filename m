@@ -1,83 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 341876B0024
-	for <linux-mm@kvack.org>; Wed, 11 May 2011 13:17:06 -0400 (EDT)
-Received: by pzk4 with SMTP id 4so455226pzk.14
-        for <linux-mm@kvack.org>; Wed, 11 May 2011 10:17:01 -0700 (PDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 5E6466B0025
+	for <linux-mm@kvack.org>; Wed, 11 May 2011 13:17:07 -0400 (EDT)
+Received: by pvc12 with SMTP id 12so459030pvc.14
+        for <linux-mm@kvack.org>; Wed, 11 May 2011 10:17:05 -0700 (PDT)
 From: Minchan Kim <minchan.kim@gmail.com>
-Subject: [PATCH v1 00/10] Prevent LRU churning
-Date: Thu, 12 May 2011 02:16:39 +0900
-Message-Id: <cover.1305132792.git.minchan.kim@gmail.com>
+Subject: [PATCH v1 01/10] Make clear description of isolate/putback functions
+Date: Thu, 12 May 2011 02:16:40 +0900
+Message-Id: <f16e108699b5fca93ebed81d306c9db06a266e61.1305132792.git.minchan.kim@gmail.com>
+In-Reply-To: <cover.1305132792.git.minchan.kim@gmail.com>
+References: <cover.1305132792.git.minchan.kim@gmail.com>
+In-Reply-To: <cover.1305132792.git.minchan.kim@gmail.com>
+References: <cover.1305132792.git.minchan.kim@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Johannes Weiner <jweiner@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan.kim@gmail.com>
 
-There are some places to isolated and putback pages.
-For example, compaction does it for getting contiguous page.
-The problem is that if we isolate page in the middle of LRU and putback it, 
-we lose LRU history as putback_lru_page inserts the page into head of LRU list. 
-It means we can evict working set pages. This problem is discussed at LSF/MM.
+Commonly, putback_lru_page is used with isolated_lru_page.
+The isolated_lru_page picks the page in middle of LRU and
+putback_lru_page insert the lru in head of LRU.
+It means it could make LRU churning so we have to be very careful.
+Let's clear description of isolate/putback functions.
 
-This patch is for solving the problem as two methods.
+Cc: Mel Gorman <mgorman@suse.de>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+---
+ mm/migrate.c |    2 +-
+ mm/vmscan.c  |    8 ++++++--
+ 2 files changed, 7 insertions(+), 3 deletions(-)
 
- * Anti-churning
-   when we isolate page on LRU list, let's not isolate page we can't handle
- * De-churning
-   when we putback page on LRU list in migration, let's insert new page into old page's lru position.
-
-[1,2,3/10] is just clean up.
-[4,5,6/10] is related to Anti-churning. 
-[7,8,9/10] is related to De-churning. 
-[10/10] is adding to new tracepoints which is never for merge but just show the effect.
-
-[7/10] is core of in-order putback support but it has a problem on hugepage like
-physicall contiguos page stream in my previous RFC version. 
-It was already pointed out by Rik. I have another idea to solve it.
-Please see description of [7/10].
-
-I test this series in my machine.(1G DRAM, Intel Core 2 Duo)
-Test scenario is following as. 
-
-1) Boot up
-2) qemu ubuntu start up 
-3) Run many applications and switch attached script(which is made by Wu)
-
-I think this scenario is worst case since there are many contigous pages
-when mahchine boots up by not aging(ie, not-fragment).
-
-Test result is following as. 
-For compaction, it isolated about 20000 pages. Only 10 pages are put backed with
-out-of-order(ie, head of LRU)
-Others, about 19990 pages are put backed with in-order(ie, position of old page while
-migration happens)
-
-Thanks. 
-
-Minchan Kim (10):
-  [1/10] Make clear description of isolate/putback functions
-  [2/10] compaction: trivial clean up acct_isolated
-  [3/10] Change int mode for isolate mode with enum ISOLATE_PAGE_MODE
-  [4/10] Add additional isolation mode
-  [5/10] compaction: make isolate_lru_page with filter aware
-  [6/10] vmscan: make isolate_lru_page with filter aware
-  [7/10] In order putback lru core
-  [8/10] migration: make in-order-putback aware
-  [9/10] compaction: make compaction use in-order putback
-  [10/10] add tracepoints
-
- include/linux/memcontrol.h    |    5 +-
- include/linux/migrate.h       |   40 +++++
- include/linux/mm_types.h      |   16 ++-
- include/linux/swap.h          |   18 ++-
- include/trace/events/vmscan.h |    8 +-
- mm/compaction.c               |   47 +++---
- mm/internal.h                 |    2 +
- mm/memcontrol.c               |    3 +-
- mm/migrate.c                  |  389 ++++++++++++++++++++++++++++++++++++++++-
- mm/swap.c                     |    2 +-
- mm/vmscan.c                   |  115 ++++++++++--
- 11 files changed, 590 insertions(+), 55 deletions(-)
+diff --git a/mm/migrate.c b/mm/migrate.c
+index e4a5c91..a04f68a 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -68,7 +68,7 @@ int migrate_prep_local(void)
+ }
+ 
+ /*
+- * Add isolated pages on the list back to the LRU under page lock
++ * Add isolated pages on the list back to the LRU's head under page lock
+  * to avoid leaking evictable pages back onto unevictable list.
+  */
+ void putback_lru_pages(struct list_head *l)
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 292582c..a6a87c0 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -555,10 +555,10 @@ int remove_mapping(struct address_space *mapping, struct page *page)
+ }
+ 
+ /**
+- * putback_lru_page - put previously isolated page onto appropriate LRU list
++ * putback_lru_page - put previously isolated page onto appropriate LRU list's head
+  * @page: page to be put back to appropriate lru list
+  *
+- * Add previously isolated @page to appropriate LRU list.
++ * Add previously isolated @page to appropriate LRU list's head
+  * Page may still be unevictable for other reasons.
+  *
+  * lru_lock must not be held, interrupts must be enabled.
+@@ -1200,6 +1200,10 @@ static unsigned long clear_active_flags(struct list_head *page_list,
+  *     without a stable reference).
+  * (2) the lru_lock must not be held.
+  * (3) interrupts must be enabled.
++ *
++ * NOTE : This function removes the page from LRU list and putback_lru_page
++ * insert the page to LRU list's head. It means it makes LRU churing so you
++ * have to use the function carefully.
+  */
+ int isolate_lru_page(struct page *page)
+ {
+-- 
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
