@@ -1,64 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E0E96B0024
-	for <linux-mm@kvack.org>; Wed, 11 May 2011 18:53:35 -0400 (EDT)
-Date: Wed, 11 May 2011 15:53:24 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: mmotm 2011-04-29 - wonky VmRSS and VmHWM values after swapping
-Message-Id: <20110511155324.5c366900.akpm@linux-foundation.org>
-In-Reply-To: <1305043485.2914.110.camel@laptop>
-References: <201104300002.p3U02Ma2026266@imap1.linux-foundation.org>
-	<49683.1304296014@localhost>
-	<8185.1304347042@localhost>
-	<20110502164430.eb7d451d.akpm@linux-foundation.org>
-	<1305043485.2914.110.camel@laptop>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 850E96B0023
+	for <linux-mm@kvack.org>; Wed, 11 May 2011 19:10:28 -0400 (EDT)
+Received: from kpbe12.cbf.corp.google.com (kpbe12.cbf.corp.google.com [172.25.105.76])
+	by smtp-out.google.com with ESMTP id p4BNAPMp017115
+	for <linux-mm@kvack.org>; Wed, 11 May 2011 16:10:25 -0700
+Received: from pxi6 (pxi6.prod.google.com [10.243.27.6])
+	by kpbe12.cbf.corp.google.com with ESMTP id p4BN9ajg022650
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 11 May 2011 16:10:22 -0700
+Received: by pxi6 with SMTP id 6so633574pxi.31
+        for <linux-mm@kvack.org>; Wed, 11 May 2011 16:10:22 -0700 (PDT)
+Date: Wed, 11 May 2011 16:10:20 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 2/4] mm: Enable set_page_section() only if CONFIG_SPARSEMEM
+ and !CONFIG_SPARSEMEM_VMEMMAP
+In-Reply-To: <20110502212012.GC4623@router-fw-old.local.net-space.pl>
+Message-ID: <alpine.DEB.2.00.1105111605050.24003@chino.kir.corp.google.com>
+References: <20110502212012.GC4623@router-fw-old.local.net-space.pl>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Valdis.Kletnieks@vt.edu, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Daniel Kiper <dkiper@net-space.pl>
+Cc: ian.campbell@citrix.com, akpm@linux-foundation.org, andi.kleen@intel.com, haicheng.li@linux.intel.com, fengguang.wu@intel.com, jeremy@goop.org, konrad.wilk@oracle.com, dan.magenheimer@oracle.com, v.tolstov@selfip.ru, pasik@iki.fi, dave@linux.vnet.ibm.com, wdauchy@gmail.com, xen-devel@lists.xensource.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, 10 May 2011 18:04:45 +0200
-Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
+On Mon, 2 May 2011, Daniel Kiper wrote:
 
-> > hm, me too.  After boot, hald has a get_mm_counter(mm, MM_ANONPAGES) of
-> > 0xffffffffffff3c27.  Bisected to Pater's
-> > mm-extended-batches-for-generic-mmu_gather.patch, can't see how it did
-> > that.
-> > 
-> 
-> I haven't quite figured out how to reproduce, but does the below cure
-> things? If so, it should probably be folded into the first patch
-> (mm-mmu_gather-rework.patch?) since that is the one introducing this.
-> 
-> ---
-> Subject: mm: Fix RSS zap_pte_range() accounting
-> 
-> Since we update the RSS counters when breaking out of the loop and
-> release the PTE lock, we should start with fresh deltas when we
-> restart the gather loop.
-> 
-> Reported-by: Valdis.Kletnieks@vt.edu
-> Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-> ---
-> Index: linux-2.6/mm/memory.c
-> ===================================================================
-> --- linux-2.6.orig/mm/memory.c
-> +++ linux-2.6/mm/memory.c
-> @@ -1120,8 +1120,8 @@ static unsigned long zap_pte_range(struc
->  	spinlock_t *ptl;
->  	pte_t *pte;
->  
-> -	init_rss_vec(rss);
->  again:
-> +	init_rss_vec(rss);
->  	pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
->  	arch_enter_lazy_mmu_mode();
->  	do {
+> set_page_section() is valid only in CONFIG_SPARSEMEM and
+> !CONFIG_SPARSEMEM_VMEMMAP context.
 
-That fixed the negative hald VmHWM output on my test box.
+s/valid/needed/.  set_page_section() _is_ valid in all contexts since 
+SECTIONS_MASK and SECTIONS_PGSHIFT is defined in all contexts.  
+
+> Move it to proper place
+> and amend accordingly functions which are using it.
+> 
+> Signed-off-by: Daniel Kiper <dkiper@net-space.pl>
+
+After the changelog is fixed:
+
+	Acked-by: David Rientjes <rientjes@google.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
