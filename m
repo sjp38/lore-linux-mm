@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id DD8F7900111
-	for <linux-mm@kvack.org>; Wed, 11 May 2011 13:17:39 -0400 (EDT)
-Received: by mail-pz0-f41.google.com with SMTP id 4so455226pzk.14
-        for <linux-mm@kvack.org>; Wed, 11 May 2011 10:17:38 -0700 (PDT)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id D84E1900111
+	for <linux-mm@kvack.org>; Wed, 11 May 2011 13:17:43 -0400 (EDT)
+Received: by mail-px0-f169.google.com with SMTP id 9so599232pxi.14
+        for <linux-mm@kvack.org>; Wed, 11 May 2011 10:17:42 -0700 (PDT)
 From: Minchan Kim <minchan.kim@gmail.com>
-Subject: [PATCH v1 09/10] compaction: make compaction use in-order putback
-Date: Thu, 12 May 2011 02:16:48 +0900
-Message-Id: <f76363f22ef5a00eb5d9fd3e0f973e0e8ea061bd.1305132792.git.minchan.kim@gmail.com>
+Subject: [PATCH v1 10/10] add tracepoints
+Date: Thu, 12 May 2011 02:16:49 +0900
+Message-Id: <18652a0d98658a118d52d124b1d9f9c4a9702638.1305132792.git.minchan.kim@gmail.com>
 In-Reply-To: <cover.1305132792.git.minchan.kim@gmail.com>
 References: <cover.1305132792.git.minchan.kim@gmail.com>
 In-Reply-To: <cover.1305132792.git.minchan.kim@gmail.com>
@@ -17,10 +17,9 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Johannes Weiner <jweiner@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan.kim@gmail.com>
 
-Compaction is good solution to get contiguous page but it makes
-LRU churing which is not good.
-This patch makes that compaction code use in-order putback so
-after compaction completion, migrated pages are keeping LRU ordering.
+This patch adds some tracepints for see the effect this patch
+series.
+This tracepoints isn't for merge but just see the effect.
 
 Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
@@ -29,119 +28,90 @@ Cc: Rik van Riel <riel@redhat.com>
 Cc: Andrea Arcangeli <aarcange@redhat.com>
 Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
 ---
- mm/compaction.c |   26 ++++++++++++++------------
- 1 files changed, 14 insertions(+), 12 deletions(-)
+ mm/compaction.c |    2 ++
+ mm/migrate.c    |    7 +++++++
+ mm/vmscan.c     |    3 +--
+ 3 files changed, 10 insertions(+), 2 deletions(-)
 
 diff --git a/mm/compaction.c b/mm/compaction.c
-index e218562..00e710a 100644
+index 00e710a..92c180d 100644
 --- a/mm/compaction.c
 +++ b/mm/compaction.c
-@@ -28,7 +28,7 @@
-  */
- struct compact_control {
- 	struct list_head freepages;	/* List of free pages to migrate to */
--	struct list_head migratepages;	/* List of pages being migrated */
-+	struct inorder_lru migratepages;/* List of pages being migrated */
- 	unsigned long nr_freepages;	/* Number of isolated free pages */
- 	unsigned long nr_migratepages;	/* Number of pages to migrate */
- 	unsigned long free_pfn;		/* isolate_freepages search base */
-@@ -210,7 +210,7 @@ static void acct_isolated(struct zone *zone, struct compact_control *cc)
- 	struct page *page;
- 	unsigned int count[2] = { 0, };
+@@ -16,6 +16,7 @@
+ #include <linux/sysfs.h>
+ #include "internal.h"
  
--	list_for_each_entry(page, &cc->migratepages, lru)
-+	list_for_each_migrate_entry(page, &cc->migratepages, ilru)
- 		count[!!page_is_file_cache(page)]++;
++#include <trace/events/inorder_putback.h>
+ #define CREATE_TRACE_POINTS
+ #include <trace/events/compaction.h>
  
- 	__mod_zone_page_state(zone, NR_ISOLATED_ANON, count[0]);
-@@ -242,7 +242,7 @@ static unsigned long isolate_migratepages(struct zone *zone,
- 	unsigned long low_pfn, end_pfn;
- 	unsigned long last_pageblock_nr = 0, pageblock_nr;
- 	unsigned long nr_scanned = 0, nr_isolated = 0;
--	struct list_head *migratelist = &cc->migratepages;
-+	struct inorder_lru *migratelist = &cc->migratepages;
- 	enum ISOLATE_PAGE_MODE mode = ISOLATE_BOTH;
- 
- 	/* Do not scan outside zone boundaries */
-@@ -273,7 +273,7 @@ static unsigned long isolate_migratepages(struct zone *zone,
- 	cond_resched();
- 	spin_lock_irq(&zone->lru_lock);
- 	for (; low_pfn < end_pfn; low_pfn++) {
--		struct page *page;
-+		struct page *page, *prev_page;
- 		bool locked = true;
- 
- 		/* give a chance to irqs before checking need_resched() */
-@@ -330,14 +330,15 @@ static unsigned long isolate_migratepages(struct zone *zone,
- 		/* Try isolate the page */
- 		if (!cc->sync)
- 			mode |= ISOLATE_CLEAN;
--		if (__isolate_lru_page(page, mode, 0) != 0)
-+		if (__isolate_inorder_lru_page(page, mode, 0, &prev_page) != 0)
+@@ -333,6 +334,7 @@ static unsigned long isolate_migratepages(struct zone *zone,
+ 		if (__isolate_inorder_lru_page(page, mode, 0, &prev_page) != 0)
  			continue;
  
++		trace_mm_compact_isolate(prev_page, page);
  		VM_BUG_ON(PageTransCompound(page));
  
  		/* Successfully isolated */
- 		del_page_from_lru_list(zone, page, page_lru(page));
--		list_add(&page->lru, migratelist);
-+		migratelist_add(page, prev_page, migratelist);
+diff --git a/mm/migrate.c b/mm/migrate.c
+index f94fe65..6a2eca9 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -39,6 +39,9 @@
+ 
+ #include "internal.h"
+ 
++#define CREATE_TRACE_POINTS
++#include <trace/events/inorder_putback.h>
 +
- 		cc->nr_migratepages++;
- 		nr_isolated++;
+ #define lru_to_page(_head) (list_entry((_head)->prev, struct page, lru))
  
-@@ -393,7 +394,7 @@ static void update_nr_listpages(struct compact_control *cc)
- 	int nr_freepages = 0;
- 	struct page *page;
- 
--	list_for_each_entry(page, &cc->migratepages, lru)
-+	list_for_each_migrate_entry(page, &cc->migratepages, ilru)
- 		nr_migratepages++;
- 	list_for_each_entry(page, &cc->freepages, lru)
- 		nr_freepages++;
-@@ -521,7 +522,8 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
- 			continue;
- 
- 		nr_migrate = cc->nr_migratepages;
--		err = migrate_pages(&cc->migratepages, compaction_alloc,
-+		err = migrate_inorder_lru_pages(&cc->migratepages,
-+				compaction_alloc,
- 				(unsigned long)cc, false,
- 				cc->sync);
- 		update_nr_listpages(cc);
-@@ -536,7 +538,7 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
- 
- 		/* Release LRU pages not migrated */
- 		if (err) {
--			putback_lru_pages(&cc->migratepages);
-+			putback_inorder_lru_pages(&cc->migratepages);
- 			cc->nr_migratepages = 0;
+ /*
+@@ -96,10 +99,12 @@ void putback_inorder_lru_pages(struct inorder_lru *l)
+ 		spin_lock_irq(&zone->lru_lock);
+ 		prev = page->ilru.prev_page;
+ 		if (keep_lru_order(page, prev)) {
++			trace_mm_compaction_inorder(page, page);
+ 			putback_page_to_lru(page, prev);
+ 			spin_unlock_irq(&zone->lru_lock);
  		}
+ 		else {
++			trace_mm_compaction_outoforder(page, page);
+ 			spin_unlock_irq(&zone->lru_lock);
+ 			putback_lru_page(page);
+ 		}
+@@ -1052,6 +1057,7 @@ move_newpage:
+ 	if (keep_lru_order(page, prev_page)) {
+ 		putback_page_to_lru(newpage, prev_page);
+ 		spin_unlock_irq(&zone->lru_lock);
++		trace_mm_compaction_inorder(page, newpage);
+ 		/*
+ 		 * The newpage will replace LRU position of old page and
+ 		 * old one would be freed. So let's adjust prev_page of pages
+@@ -1063,6 +1069,7 @@ move_newpage:
+ 	else {
  
-@@ -562,7 +564,7 @@ unsigned long compact_zone_order(struct zone *zone,
- 		.sync = sync,
- 	};
- 	INIT_LIST_HEAD(&cc.freepages);
--	INIT_LIST_HEAD(&cc.migratepages);
-+	INIT_MIGRATE_LIST(&cc.migratepages);
- 
- 	return compact_zone(zone, &cc);
- }
-@@ -644,12 +646,12 @@ static int compact_node(int nid)
- 
- 		cc.zone = zone;
- 		INIT_LIST_HEAD(&cc.freepages);
--		INIT_LIST_HEAD(&cc.migratepages);
-+		INIT_MIGRATE_LIST(&cc.migratepages);
- 
- 		compact_zone(zone, &cc);
- 
- 		VM_BUG_ON(!list_empty(&cc.freepages));
--		VM_BUG_ON(!list_empty(&cc.migratepages));
-+		VM_BUG_ON(!migratelist_empty(&cc.migratepages));
+ 		spin_unlock_irq(&zone->lru_lock);
++		trace_mm_compaction_inorder(page, newpage);
+ 		putback_lru_page(newpage);
  	}
  
- 	return 0;
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 62d5186..2e7cbad 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -49,10 +49,9 @@
+ #include <linux/swapops.h>
+ 
+ #include "internal.h"
+-
++#include <trace/events/inorder_putback.h>
+ #define CREATE_TRACE_POINTS
+ #include <trace/events/vmscan.h>
+-
+ /*
+  * reclaim_mode determines how the inactive list is shrunk
+  * RECLAIM_MODE_SINGLE: Reclaim only order-0 pages
 -- 
 1.7.1
 
