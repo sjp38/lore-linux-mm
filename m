@@ -1,25 +1,25 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 604DB6B0011
-	for <linux-mm@kvack.org>; Tue, 10 May 2011 21:10:58 -0400 (EDT)
-Received: from d03relay01.boulder.ibm.com (d03relay01.boulder.ibm.com [9.17.195.226])
-	by e33.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p4B13nix006984
-	for <linux-mm@kvack.org>; Tue, 10 May 2011 19:03:49 -0600
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay01.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p4B1Apfi120804
-	for <linux-mm@kvack.org>; Tue, 10 May 2011 19:10:51 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p4AJAOGb005452
-	for <linux-mm@kvack.org>; Tue, 10 May 2011 13:10:24 -0600
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 70FE06B0011
+	for <linux-mm@kvack.org>; Tue, 10 May 2011 21:16:07 -0400 (EDT)
+Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
+	by e7.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p4B0rA9i014985
+	for <linux-mm@kvack.org>; Tue, 10 May 2011 20:53:10 -0400
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p4B1G5cW098498
+	for <linux-mm@kvack.org>; Tue, 10 May 2011 21:16:05 -0400
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p4ALFrmG015833
+	for <linux-mm@kvack.org>; Tue, 10 May 2011 18:15:54 -0300
 Subject: Re: [PATCH 2/3] printk: Add %ptc to safely print a task's comm
-From: John Stultz <john.stultz@linaro.org>
-In-Reply-To: <1305075090.19586.189.camel@Joe-Laptop>
+From: john stultz <johnstul@us.ibm.com>
+In-Reply-To: <1305076246.2939.67.camel@work-vm>
 References: <1305073386-4810-1-git-send-email-john.stultz@linaro.org>
 	 <1305073386-4810-3-git-send-email-john.stultz@linaro.org>
-	 <1305075090.19586.189.camel@Joe-Laptop>
+	 <1305075090.19586.189.camel@Joe-Laptop>  <1305076246.2939.67.camel@work-vm>
 Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 10 May 2011 18:10:46 -0700
-Message-ID: <1305076246.2939.67.camel@work-vm>
+Date: Tue, 10 May 2011 18:16:01 -0700
+Message-ID: <1305076561.2939.72.camel@work-vm>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -27,66 +27,29 @@ List-ID: <linux-mm.kvack.org>
 To: Joe Perches <joe@perches.com>
 Cc: LKML <linux-kernel@vger.kernel.org>, Ted Ts'o <tytso@mit.edu>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-On Tue, 2011-05-10 at 17:51 -0700, Joe Perches wrote:
-> On Tue, 2011-05-10 at 17:23 -0700, John Stultz wrote:
-> > Acessing task->comm requires proper locking. However in the past
-> > access to current->comm could be done without locking. This
-> > is no longer the case, so all comm access needs to be done
-> > while holding the comm_lock.
-> > 
-> > In my attempt to clean up unprotected comm access, I've noticed
-> > most comm access is done for printk output. To simpify correct
-> > locking in these cases, I've introduced a new %ptc format,
-> > which will safely print the corresponding task's comm.
+On Tue, 2011-05-10 at 18:10 -0700, John Stultz wrote:
+> On Tue, 2011-05-10 at 17:51 -0700, Joe Perches wrote:
+> > Could misuse of %ptc (not using current) cause system lockup?
 > 
-> Hi John.
-> 
-> Couple of tyops for Accessing and simplify in your commit message
-> and a few comments on the patch.
+> It very well could. Although I don't see other %p options tring to
+> handle invalid pointers. Any suggestions on how to best handle this?
 
-Ah. Yes. Thanks!
+And just to clarify on this point, I'm responding to if a invalid
+pointer was provided, causing the dereference to go awry.
 
-> Could misuse of %ptc (not using current) cause system lockup?
+If a valid non-current task was provided, the locking should be ok as we
+disable irqs while the write_seqlock is held in set_task_comm().
 
-It very well could. Although I don't see other %p options tring to
-handle invalid pointers. Any suggestions on how to best handle this?
+The only places this could cause a problem was if you tried to printk
+with a %ptc while holding the task->comm_lock. However, the lock is only
+shortly held in task_comm_string, and get_task_comm and set_task_comm.
+So it is fairly easy to audit for correctness.
 
+If there is some other situation you had in mind, please let me know.
 
-> > Example use:
-> > printk("%ptc: unaligned epc - sending SIGBUS.\n", current);
-> 
-> 
-> > diff --git a/lib/vsprintf.c b/lib/vsprintf.c
-> > index bc0ac6b..b9c97b8 100644
-> > --- a/lib/vsprintf.c
-> > +++ b/lib/vsprintf.c
-> > @@ -797,6 +797,26 @@ char *uuid_string(char *buf, char *end, const u8 *addr,
-> >  	return string(buf, end, uuid, spec);
-> >  }
-> >  
-> > +static noinline_for_stack
-> > +char *task_comm_string(char *buf, char *end, u8 *addr,
-> > +			 struct printf_spec spec, const char *fmt)
-> 
-> addr should be void * not u8 *
-> 
-> > +{
-> > +	struct task_struct *tsk = (struct task_struct *) addr;
-> 
-> no cast.
-> 
-> Maybe it'd be better to use current inside this routine and not
-> pass the pointer at all.
-
-That sounds reasonable. Most users are current, so forcing the more rare
-non-current users to copy it to a buffer first and use the normal %s
-would not be of much impact.
-
-Although I'm not sure if there's precedent for a %p value that didn't
-take a argument. Thoughts on that? Anyone else have an opinion here?
-
-Thanks so much for the review and feedback!
+thanks
 -john
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
