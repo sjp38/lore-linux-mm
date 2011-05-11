@@ -1,41 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id B5D846B0023
-	for <linux-mm@kvack.org>; Wed, 11 May 2011 00:49:24 -0400 (EDT)
-Received: by iwg8 with SMTP id 8so273668iwg.14
-        for <linux-mm@kvack.org>; Tue, 10 May 2011 21:49:23 -0700 (PDT)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 5E6816B0011
+	for <linux-mm@kvack.org>; Wed, 11 May 2011 01:55:50 -0400 (EDT)
+Date: Wed, 11 May 2011 01:55:09 -0400
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCHSET v3.1 0/7] data integrity: Stabilize pages during
+ writeback for various fses
+Message-ID: <20110511055509.GA4886@infradead.org>
+References: <20110509230318.19566.66202.stgit@elm3c44.beaverton.ibm.com>
+ <87tyd31fkc.fsf@devron.myhome.or.jp>
+ <20110510133603.GA5823@infradead.org>
+ <874o524q9h.fsf@devron.myhome.or.jp>
+ <20110510144939.GI4402@quack.suse.cz>
+ <87aaeur31x.fsf@devron.myhome.or.jp>
+ <20110510170339.GA27538@infradead.org>
+ <87liyep9fk.fsf@devron.myhome.or.jp>
 MIME-Version: 1.0
-From: Tharindu Rukshan Bamunuarachchi <btharindu@gmail.com>
-Date: Wed, 11 May 2011 10:18:53 +0530
-Message-ID: <BANLkTi=F2RrzBHDUrRpPvzYyT2Q7FDPWug@mail.gmail.com>
-Subject: CLONE_VM unsharing
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <87liyep9fk.fsf@devron.myhome.or.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>
+Cc: Christoph Hellwig <hch@infradead.org>, Jan Kara <jack@suse.cz>, "Darrick J. Wong" <djwong@us.ibm.com>, Theodore Tso <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Jens Axboe <axboe@kernel.dk>, "Martin K. Petersen" <martin.petersen@oracle.com>, Jeff Layton <jlayton@redhat.com>, Dave Chinner <david@fromorbit.com>, linux-kernel <linux-kernel@vger.kernel.org>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, Chris Mason <chris.mason@oracle.com>, Joel Becker <jlbec@evilplan.org>, linux-scsi <linux-scsi@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-ext4@vger.kernel.org, Mingming Cao <mcao@us.ibm.com>
 
-Hello,
+On Wed, May 11, 2011 at 05:50:07AM +0900, OGAWA Hirofumi wrote:
+> Sounds good. So... Are you suggesting this series should use better
+> approach than just blocking?
 
-According to ushare_vm function, unsharing mm_struct has not been
-implemented yet. Am I mistaken ?
-
-static int unshare_vm(unsigned long unshare_flags, struct mm_struct **new_m=
-mp)
-{
-=C2=A0 struct mm_struct *mm =3D current->mm;
-=C2=A0 if ((unshare_flags & CLONE_VM) &&
-=C2=A0 =C2=A0 =C2=A0 (mm && atomic_read(&mm->mm_users) > 1)) {
-=C2=A0 =C2=A0 return -EINVAL;
-=C2=A0 }
-=C2=A0 return 0;
-}
-
-Would it be enough to=C2=A0duplicate=C2=A0mm_struct here if i need usharing=
- of VM ?
-
-__
-Tharindu "R" Bamunuarachchi.
+No, block reuse is a problem independent of stable pages.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
