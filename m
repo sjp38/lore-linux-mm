@@ -1,72 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 2B7E26B0023
-	for <linux-mm@kvack.org>; Wed, 11 May 2011 17:10:49 -0400 (EDT)
-Date: Wed, 11 May 2011 22:10:43 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 2/3] mm: slub: Do not take expensive steps for SLUBs
- speculative high-order allocations
-Message-ID: <20110511211043.GB17898@suse.de>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 2A1276B0023
+	for <linux-mm@kvack.org>; Wed, 11 May 2011 17:39:25 -0400 (EDT)
+Subject: Re: [PATCH 0/3] Reduce impact to overall system of SLUB using
+ high-order allocations
+From: James Bottomley <James.Bottomley@HansenPartnership.com>
+In-Reply-To: <1305127773-10570-1-git-send-email-mgorman@suse.de>
 References: <1305127773-10570-1-git-send-email-mgorman@suse.de>
- <1305127773-10570-3-git-send-email-mgorman@suse.de>
- <alpine.DEB.2.00.1105111312020.9346@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1105111312020.9346@chino.kir.corp.google.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Wed, 11 May 2011 16:39:20 -0500
+Message-ID: <1305149960.2606.53.camel@mulgrave.site>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, James Bottomley <James.Bottomley@hansenpartnership.com>, Colin King <colin.king@canonical.com>, Raghavendra D Prabhu <raghu.prabhu13@gmail.com>, Jan Kara <jack@suse.cz>, Chris Mason <chris.mason@oracle.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-ext4 <linux-ext4@vger.kernel.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Colin King <colin.king@canonical.com>, Raghavendra D Prabhu <raghu.prabhu13@gmail.com>, Jan Kara <jack@suse.cz>, Chris Mason <chris.mason@oracle.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-ext4 <linux-ext4@vger.kernel.org>
 
-On Wed, May 11, 2011 at 01:38:44PM -0700, David Rientjes wrote:
-> On Wed, 11 May 2011, Mel Gorman wrote:
+On Wed, 2011-05-11 at 16:29 +0100, Mel Gorman wrote:
+> Debian (and probably Ubuntu) have recently have changed to the default
+> option of SLUB. There are a few reports of people experiencing hangs
+> when copying large amounts of data with kswapd using a large amount of
+> CPU. It appears this is down to SLUB using high orders by default and
+> the page allocator and reclaim struggling to keep up. The following
+> three patches reduce the cost of using those high orders.
 > 
-> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > index 9f8a97b..057f1e2 100644
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -1972,6 +1972,7 @@ gfp_to_alloc_flags(gfp_t gfp_mask)
-> >  {
-> >  	int alloc_flags = ALLOC_WMARK_MIN | ALLOC_CPUSET;
-> >  	const gfp_t wait = gfp_mask & __GFP_WAIT;
-> > +	const gfp_t can_wake_kswapd = !(gfp_mask & __GFP_NO_KSWAPD);
-> >  
-> >  	/* __GFP_HIGH is assumed to be the same as ALLOC_HIGH to save a branch. */
-> >  	BUILD_BUG_ON(__GFP_HIGH != (__force gfp_t) ALLOC_HIGH);
-> > @@ -1984,7 +1985,7 @@ gfp_to_alloc_flags(gfp_t gfp_mask)
-> >  	 */
-> >  	alloc_flags |= (__force int) (gfp_mask & __GFP_HIGH);
-> >  
-> > -	if (!wait) {
-> > +	if (!wait && can_wake_kswapd) {
-> >  		/*
-> >  		 * Not worth trying to allocate harder for
-> >  		 * __GFP_NOMEMALLOC even if it can't schedule.
-> > diff --git a/mm/slub.c b/mm/slub.c
-> > index 98c358d..1071723 100644
-> > --- a/mm/slub.c
-> > +++ b/mm/slub.c
-> > @@ -1170,7 +1170,8 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
-> >  	 * Let the initial higher-order allocation fail under memory pressure
-> >  	 * so we fall-back to the minimum order allocation.
-> >  	 */
-> > -	alloc_gfp = (flags | __GFP_NOWARN | __GFP_NORETRY | __GFP_NO_KSWAPD) & ~__GFP_NOFAIL;
-> > +	alloc_gfp = (flags | __GFP_NOWARN | __GFP_NORETRY | __GFP_NO_KSWAPD) &
-> > +			~(__GFP_NOFAIL | __GFP_WAIT);
+> Patch 1 prevents kswapd waking up in response to SLUBs speculative
+> 	use of high orders. This eliminates the hangs and while the
+> 	system can still stall for long periods, it recovers.
 > 
-> __GFP_NORETRY is a no-op without __GFP_WAIT.
+> Patch 2 further reduces the cost by prevent SLUB entering direct
+> 	compaction or reclaim paths on the grounds that falling
+> 	back to order-0 should be cheaper.
 > 
+> Patch 3 defaults SLUB to using order-0 on the grounds that the
+> 	systems that heavily benefit from using high-order are also
+> 	sized to fit in physical memory. On such systems, they should
+> 	manually tune slub_max_order=3.
+> 
+> My own data on this is not great. I haven't really been able to
+> reproduce the same problem locally but a significant failing is
+> that the tests weren't stressing X but I couldn't make meaningful
+> comparisons by just randomly clicking on things (working on fixing
+> this problem).
+> 
+> The test case is simple. "download tar" wgets a large tar file and
+> stores it locally. "unpack" is expanding it (15 times physical RAM
+> in this case) and "delete source dirs" is the tarfile being deleted
+> again. I also experimented with having the tar copied numerous times
+> and into deeper directories to increase the size but the results were
+> not particularly interesting so I left it as one tar.
+> 
+> Test server, 4 CPU threads (AMD Phenom), x86_64, 2G of RAM, no X running
+>                              -       nowake    
+>              largecopy-vanilla       kswapd-v1r1  noexstep-v1r1     default0-v1r1
+> download tar           94 ( 0.00%)   94 ( 0.00%)   94 ( 0.00%)   93 ( 1.08%)
+> unpack tar            521 ( 0.00%)  551 (-5.44%)  482 ( 8.09%)  488 ( 6.76%)
+> delete source dirs    208 ( 0.00%)  218 (-4.59%)  194 ( 7.22%)  194 ( 7.22%)
+> MMTests Statistics: duration
+> User/Sys Time Running Test (seconds)        740.82    777.73    739.98    747.47
+> Total Elapsed Time (seconds)               1046.66   1273.91    962.47    936.17
+> 
+> Disabling kswapd alone hurts performance slightly even though testers
+> report it fixes hangs. I would guess it's because SLUB callers are
+> calling direct reclaim more frequently (I belatedly noticed that
+> compaction was disabled so it's not a factor) but haven't confirmed
+> it. However, preventing kswapd waking or entering direct reclaim and
+> having SLUB falling back to order-0 performed noticeably faster. Just
+> using order-0 in the first place was fastest of all.
+> 
+> I tried running the same test on a test laptop but unfortunately
+> due to a misconfiguration the results were lost. It would take a few
+> hours to rerun so am posting without them.
+> 
+> If the testers verify this series help and we agree the patches are
+> appropriate, they should be considered a stable candidate for 2.6.38.
 
-True. I'll remove it in a V2 but I won't respin just yet.
+OK, I confirm that I can't seem to break this one.  No hangs visible,
+even when loading up the system with firefox, evolution, the usual
+massive untar, X and even a distribution upgrade.
 
-> >  
-> >  	page = alloc_slab_page(alloc_gfp, node, oo);
-> >  	if (unlikely(!page)) {
+You can add my tested-by
 
--- 
-Mel Gorman
-SUSE Labs
+James
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
