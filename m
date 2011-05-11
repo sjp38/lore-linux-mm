@@ -1,40 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 7BF0D6B0012
-	for <linux-mm@kvack.org>; Wed, 11 May 2011 05:33:37 -0400 (EDT)
-Received: by iyh42 with SMTP id 42so256664iyh.14
-        for <linux-mm@kvack.org>; Wed, 11 May 2011 02:33:34 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with SMTP id D80246B0024
+	for <linux-mm@kvack.org>; Wed, 11 May 2011 05:37:05 -0400 (EDT)
+From: OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>
+Subject: Re: [PATCHSET v3.1 0/7] data integrity: Stabilize pages during writeback for various fses
+References: <20110509230318.19566.66202.stgit@elm3c44.beaverton.ibm.com>
+	<87tyd31fkc.fsf@devron.myhome.or.jp>
+	<20110510133603.GA5823@infradead.org>
+	<874o524q9h.fsf@devron.myhome.or.jp>
+	<20110510144939.GI4402@quack.suse.cz>
+	<87aaeur31x.fsf@devron.myhome.or.jp>
+	<20110510170339.GA27538@infradead.org>
+	<87liyep9fk.fsf@devron.myhome.or.jp>
+	<20110511055509.GA4886@infradead.org>
+Date: Wed, 11 May 2011 18:36:53 +0900
+In-Reply-To: <20110511055509.GA4886@infradead.org> (Christoph Hellwig's
+	message of "Wed, 11 May 2011 01:55:09 -0400")
+Message-ID: <877h9xpoi2.fsf@devron.myhome.or.jp>
 MIME-Version: 1.0
-In-Reply-To: <1305073386-4810-3-git-send-email-john.stultz@linaro.org>
-References: <1305073386-4810-1-git-send-email-john.stultz@linaro.org>
-	<1305073386-4810-3-git-send-email-john.stultz@linaro.org>
-Date: Wed, 11 May 2011 17:33:34 +0800
-Message-ID: <BANLkTikXyqddLbQKyDYFrAwq9DamDj--AQ@mail.gmail.com>
-Subject: Re: [PATCH 2/3] printk: Add %ptc to safely print a task's comm
-From: =?UTF-8?Q?Am=C3=A9rico_Wang?= <xiyou.wangcong@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Stultz <john.stultz@linaro.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Ted Ts'o <tytso@mit.edu>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Jan Kara <jack@suse.cz>, "Darrick J. Wong" <djwong@us.ibm.com>, Theodore Tso <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Jens Axboe <axboe@kernel.dk>, "Martin K. Petersen" <martin.petersen@oracle.com>, Jeff Layton <jlayton@redhat.com>, Dave Chinner <david@fromorbit.com>, linux-kernel <linux-kernel@vger.kernel.org>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, Chris Mason <chris.mason@oracle.com>, Joel Becker <jlbec@evilplan.org>, linux-scsi <linux-scsi@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-ext4@vger.kernel.org, Mingming Cao <mcao@us.ibm.com>
 
-On Wed, May 11, 2011 at 8:23 AM, John Stultz <john.stultz@linaro.org> wrote:
-> Acessing task->comm requires proper locking. However in the past
-> access to current->comm could be done without locking. This
-> is no longer the case, so all comm access needs to be done
-> while holding the comm_lock.
->
-> In my attempt to clean up unprotected comm access, I've noticed
-> most comm access is done for printk output. To simpify correct
-> locking in these cases, I've introduced a new %ptc format,
-> which will safely print the corresponding task's comm.
->
-> Example use:
-> printk("%ptc: unaligned epc - sending SIGBUS.\n", current);
->
+Christoph Hellwig <hch@infradead.org> writes:
 
-Why do you hide current->comm behide printk?
-How is this better than printk("%s: ....", task_comm(current)) ?
+> On Wed, May 11, 2011 at 05:50:07AM +0900, OGAWA Hirofumi wrote:
+>> Sounds good. So... Are you suggesting this series should use better
+>> approach than just blocking?
+>
+> No, block reuse is a problem independent of stable pages.
+
+OK. So, sounds like we are talking different points. I was generic stuff
+(whole of patches). You were only some patches (guess it's only data page).
+-- 
+OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
