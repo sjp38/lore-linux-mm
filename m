@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 8EA1A6B0023
-	for <linux-mm@kvack.org>; Wed, 11 May 2011 13:37:16 -0400 (EDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 718EB6B0012
+	for <linux-mm@kvack.org>; Wed, 11 May 2011 13:39:23 -0400 (EDT)
 From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH 2/3] printk: Add %ptc to safely print a task's comm
+Subject: Re: [PATCH 1/3] comm: Introduce comm_lock seqlock to protect task->comm access
 References: <1305073386-4810-1-git-send-email-john.stultz@linaro.org>
-	<1305073386-4810-3-git-send-email-john.stultz@linaro.org>
-Date: Wed, 11 May 2011 10:36:54 -0700
-In-Reply-To: <1305073386-4810-3-git-send-email-john.stultz@linaro.org> (John
-	Stultz's message of "Tue, 10 May 2011 17:23:05 -0700")
-Message-ID: <m2sjsli1ft.fsf@firstfloor.org>
+	<1305073386-4810-2-git-send-email-john.stultz@linaro.org>
+Date: Wed, 11 May 2011 10:39:01 -0700
+In-Reply-To: <1305073386-4810-2-git-send-email-john.stultz@linaro.org> (John
+	Stultz's message of "Tue, 10 May 2011 17:23:04 -0700")
+Message-ID: <m2oc39i1ca.fsf@firstfloor.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
@@ -18,22 +18,14 @@ To: John Stultz <john.stultz@linaro.org>
 Cc: LKML <linux-kernel@vger.kernel.org>, Ted Ts'o <tytso@mit.edu>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
 John Stultz <john.stultz@linaro.org> writes:
-
-> Acessing task->comm requires proper locking. However in the past
-> access to current->comm could be done without locking. This
-> is no longer the case, so all comm access needs to be done
-> while holding the comm_lock.
 >
-> In my attempt to clean up unprotected comm access, I've noticed
-> most comm access is done for printk output. To simpify correct
-> locking in these cases, I've introduced a new %ptc format,
-> which will safely print the corresponding task's comm.
->
-> Example use:
-> printk("%ptc: unaligned epc - sending SIGBUS.\n", current);
+> The next step is to go through and convert all comm accesses to
+> use get_task_comm(). This is substantial, but can be done bit by
+> bit, reducing the race windows with each patch.
 
-Neat. But you probably want a checkpatch rule for this too
-to catch new offenders.
+... and after that rename the field.
+
+-Andi
 
 -Andi
 
