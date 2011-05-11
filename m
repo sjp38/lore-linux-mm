@@ -1,42 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id BC6926B0023
-	for <linux-mm@kvack.org>; Wed, 11 May 2011 18:34:31 -0400 (EDT)
-Subject: Re: [PATCH 0/3] Reduce impact to overall system of SLUB using
- high-order allocations
-From: James Bottomley <James.Bottomley@HansenPartnership.com>
-In-Reply-To: <alpine.DEB.2.00.1105111527490.24003@chino.kir.corp.google.com>
-References: <1305127773-10570-1-git-send-email-mgorman@suse.de>
-	 <1305149960.2606.53.camel@mulgrave.site>
-	 <alpine.DEB.2.00.1105111527490.24003@chino.kir.corp.google.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Wed, 11 May 2011 17:34:27 -0500
-Message-ID: <1305153267.2606.57.camel@mulgrave.site>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id A57016B0023
+	for <linux-mm@kvack.org>; Wed, 11 May 2011 18:48:16 -0400 (EDT)
+Received: from hpaq3.eem.corp.google.com (hpaq3.eem.corp.google.com [172.25.149.3])
+	by smtp-out.google.com with ESMTP id p4BMlxso007713
+	for <linux-mm@kvack.org>; Wed, 11 May 2011 15:47:59 -0700
+Received: from pvg13 (pvg13.prod.google.com [10.241.210.141])
+	by hpaq3.eem.corp.google.com with ESMTP id p4BMlpTA030369
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 11 May 2011 15:47:52 -0700
+Received: by pvg13 with SMTP id 13so591993pvg.12
+        for <linux-mm@kvack.org>; Wed, 11 May 2011 15:47:50 -0700 (PDT)
+Date: Wed, 11 May 2011 15:47:49 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 1/4] mm: Remove dependency on CONFIG_FLATMEM from
+ online_page()
+In-Reply-To: <20110502211915.GB4623@router-fw-old.local.net-space.pl>
+Message-ID: <alpine.DEB.2.00.1105111547160.24003@chino.kir.corp.google.com>
+References: <20110502211915.GB4623@router-fw-old.local.net-space.pl>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Colin King <colin.king@canonical.com>, Raghavendra D Prabhu <raghu.prabhu13@gmail.com>, Jan Kara <jack@suse.cz>, Chris Mason <chris.mason@oracle.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-ext4 <linux-ext4@vger.kernel.org>
+To: Daniel Kiper <dkiper@net-space.pl>
+Cc: ian.campbell@citrix.com, akpm@linux-foundation.org, andi.kleen@intel.com, haicheng.li@linux.intel.com, fengguang.wu@intel.com, jeremy@goop.org, konrad.wilk@oracle.com, dan.magenheimer@oracle.com, v.tolstov@selfip.ru, pasik@iki.fi, dave@linux.vnet.ibm.com, wdauchy@gmail.com, xen-devel@lists.xensource.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, 2011-05-11 at 15:28 -0700, David Rientjes wrote:
-> On Wed, 11 May 2011, James Bottomley wrote:
+On Mon, 2 May 2011, Daniel Kiper wrote:
+
+> Memory hotplug code strictly depends on CONFIG_SPARSEMEM.
+> It means that code depending on CONFIG_FLATMEM in online_page()
+> is never compiled. Remove it because it is not needed anymore.
 > 
-> > OK, I confirm that I can't seem to break this one.  No hangs visible,
-> > even when loading up the system with firefox, evolution, the usual
-> > massive untar, X and even a distribution upgrade.
-> > 
-> > You can add my tested-by
-> > 
-> 
-> Your system still hangs with patches 1 and 2 only?
+> Signed-off-by: Daniel Kiper <dkiper@net-space.pl>
 
-Yes, but only once in all the testing.  With patches 1 and 2 the hang is
-much harder to reproduce, but it still seems to be present if I hit it
-hard enough.
+The code you're patching depends on CONFIG_MEMORY_HOTPLUG_SPARSE, so this 
+is valid.  The changelog should be updated to reflect that, however.
 
-James
-
+Acked-by: David Rientjes <rientjes@google.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
