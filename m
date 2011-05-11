@@ -1,36 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 718EB6B0012
-	for <linux-mm@kvack.org>; Wed, 11 May 2011 13:39:23 -0400 (EDT)
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH 1/3] comm: Introduce comm_lock seqlock to protect task->comm access
-References: <1305073386-4810-1-git-send-email-john.stultz@linaro.org>
-	<1305073386-4810-2-git-send-email-john.stultz@linaro.org>
-Date: Wed, 11 May 2011 10:39:01 -0700
-In-Reply-To: <1305073386-4810-2-git-send-email-john.stultz@linaro.org> (John
-	Stultz's message of "Tue, 10 May 2011 17:23:04 -0700")
-Message-ID: <m2oc39i1ca.fsf@firstfloor.org>
+	by kanga.kvack.org (Postfix) with ESMTP id 8AEF26B0012
+	for <linux-mm@kvack.org>; Wed, 11 May 2011 14:19:19 -0400 (EDT)
+Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
+	by e8.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p4BHqmZs007552
+	for <linux-mm@kvack.org>; Wed, 11 May 2011 13:52:48 -0400
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p4BIJ2k9115076
+	for <linux-mm@kvack.org>; Wed, 11 May 2011 14:19:02 -0400
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p4BEIngl003936
+	for <linux-mm@kvack.org>; Wed, 11 May 2011 11:18:51 -0300
+Date: Wed, 11 May 2011 11:19:01 -0700
+From: "Darrick J. Wong" <djwong@us.ibm.com>
+Subject: Re: [PATCHSET v3.1 0/7] data integrity: Stabilize pages during
+	writeback for various fses
+Message-ID: <20110511181901.GK20579@tux1.beaverton.ibm.com>
+Reply-To: djwong@us.ibm.com
+References: <20110509230318.19566.66202.stgit@elm3c44.beaverton.ibm.com> <20110510125124.GD4402@quack.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110510125124.GD4402@quack.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Stultz <john.stultz@linaro.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Ted Ts'o <tytso@mit.edu>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Jan Kara <jack@suse.cz>
+Cc: Theodore Tso <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>, Jens Axboe <axboe@kernel.dk>, "Martin K. Petersen" <martin.petersen@oracle.com>, Jeff Layton <jlayton@redhat.com>, Dave Chinner <david@fromorbit.com>, linux-kernel <linux-kernel@vger.kernel.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, Chris Mason <chris.mason@oracle.com>, Joel Becker <jlbec@evilplan.org>, linux-scsi <linux-scsi@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-ext4@vger.kernel.org, Mingming Cao <mcao@us.ibm.com>
 
-John Stultz <john.stultz@linaro.org> writes:
->
-> The next step is to go through and convert all comm accesses to
-> use get_task_comm(). This is substantial, but can be done bit by
-> bit, reducing the race windows with each patch.
+On Tue, May 10, 2011 at 02:51:24PM +0200, Jan Kara wrote:
+> On Mon 09-05-11 16:03:18, Darrick J. Wong wrote:
+> > I am still chasing down what exactly is broken in ext3.  data=writeback mode
+> > passes with no failures.  data=ordered, however, does not pass; my current
+> > suspicion is that jbd is calling submit_bh on data buffers but doesn't call
+> > page_mkclean to kick the userspace programs off the page before writing it.
+>   Yes, ext3 in data=ordered mode writes pages from
+> journal_commit_transaction() via submit_bh() without clearing page dirty
+> bits thus page_mkclean() is not called for these pages. Frankly, do you
+> really want to bother with adding support for ext2 and ext3? People can use
+> ext4 as a fs driver when they want to start using blk-integrity support.
+> Especially ext2 patch looks really painful and just from a quick look I can
+> see code e.g. in fs/ext2/namei.c which isn't handled by your patch yet.
 
-... and after that rename the field.
+Yeah, I agree that ext2 is ugly and ext3/jbd might be more painful.  Are there
+any other code that wants stable pages that's already running with ext3?  In
+this months-long discussion I've heard that encryption and raid also like
+stable pages during writes.  Have those users been broken this whole time, or
+have they been stabilizing pages themselves?
 
--Andi
+I suppose we can cross the "ext3 fails horribly on DIF" bridge when someone
+complains about it.  Possibly we could try to steer them to btrfs.
 
--Andi
-
--- 
-ak@linux.intel.com -- Speaking for myself only
+--D
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
