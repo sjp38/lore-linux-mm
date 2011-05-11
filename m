@@ -1,34 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 3BEE96B0011
-	for <linux-mm@kvack.org>; Wed, 11 May 2011 15:36:21 -0400 (EDT)
-Date: Wed, 11 May 2011 20:36:02 +0100
-From: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Subject: Re: Fwd: [ARM]crash on 2.6.35.11
-Message-ID: <20110511193602.GK5315@n2100.arm.linux.org.uk>
-References: <BANLkTimLd-qY-OeKqnf2EoTfvAHWQZVchw@mail.gmail.com> <BANLkTi=oZ0Mr33rL=QNmzDuaKLNezoKBXg@mail.gmail.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id B79656B0023
+	for <linux-mm@kvack.org>; Wed, 11 May 2011 16:03:24 -0400 (EDT)
+Received: from wpaz5.hot.corp.google.com (wpaz5.hot.corp.google.com [172.24.198.69])
+	by smtp-out.google.com with ESMTP id p4BK3NYu028731
+	for <linux-mm@kvack.org>; Wed, 11 May 2011 13:03:23 -0700
+Received: from pwj5 (pwj5.prod.google.com [10.241.219.69])
+	by wpaz5.hot.corp.google.com with ESMTP id p4BK3HH8009240
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 11 May 2011 13:03:22 -0700
+Received: by pwj5 with SMTP id 5so524821pwj.12
+        for <linux-mm@kvack.org>; Wed, 11 May 2011 13:03:17 -0700 (PDT)
+Date: Wed, 11 May 2011 13:03:15 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [Slub cleanup6 1/5] slub: Use NUMA_NO_NODE in get_partial
+In-Reply-To: <20110415194830.256999587@linux.com>
+Message-ID: <alpine.DEB.2.00.1105111254001.9346@chino.kir.corp.google.com>
+References: <20110415194811.810587216@linux.com> <20110415194830.256999587@linux.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <BANLkTi=oZ0Mr33rL=QNmzDuaKLNezoKBXg@mail.gmail.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: naveen yadav <yad.naveen@gmail.com>
-Cc: linux-arm-kernel@lists.infradead.org, linux-mm <linux-mm@kvack.org>, linux newbie <linux.newbie79@gmail.com>, linux-kernel@vger.kernel.org
+To: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org
 
-On Wed, May 04, 2011 at 03:46:55PM +0530, naveen yadav wrote:
-> Attaching test case
-> 
-> Dear all,
-> 
-> We are running linux kernel 2.6.35.11 on Cortex a-8. when I run a
-> simple program expect to give oom.
->  But it crash with following crash log
+On Fri, 15 Apr 2011, Christoph Lameter wrote:
 
-You need to include the memory layout information - eg, the boot log,
-and /proc/iomem.  Also are you using sparsemem?  If so, how is it
-configured?
+> A -1 was leftover during the conversion.
+> 
+> Signed-off-by: Christoph Lameter <cl@linux.com>
+
+Acked-by: David Rientjes <rientjes@google.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
