@@ -1,124 +1,191 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 5BF6490010D
-	for <linux-mm@kvack.org>; Thu, 12 May 2011 14:47:53 -0400 (EDT)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 29AE190010F
+	for <linux-mm@kvack.org>; Thu, 12 May 2011 14:47:54 -0400 (EDT)
 From: Ying Han <yinghan@google.com>
-Subject: [RFC PATCH 0/4] memcg: revisit soft_limit reclaim on contention
-Date: Thu, 12 May 2011 11:47:08 -0700
-Message-Id: <1305226032-21448-1-git-send-email-yinghan@google.com>
+Subject: [RFC PATCH 4/4] Add some debugging stats
+Date: Thu, 12 May 2011 11:47:12 -0700
+Message-Id: <1305226032-21448-5-git-send-email-yinghan@google.com>
+In-Reply-To: <1305226032-21448-1-git-send-email-yinghan@google.com>
+References: <1305226032-21448-1-git-send-email-yinghan@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>
 Cc: linux-mm@kvack.org
 
-This is the patch I prepared after the LSF proposal. The patch itself is only
-the first step to improve the memcg soft_limit reclaim and I will list out the
-TODOs at the end.
+This patch is not intended to be included but only including debugging
+stats.
 
-Here is the proposal I sent out after lots of hallway discussions with Rik,
-Johannes, Michal and Kamezawa. Also, Johannes already posted a implementation
-and I will read his patchset after posting this. Sorry it took me a while for
-posting the implementation after the proposal..
+It includes counters memcg being inserted/deleted in the list. And also
+counters where zone_wmark_ok() fullfilled from soft_limit reclaim.
 
-This patchset is based on mmotm-2011-04-14-15-08.
-
-What is "soft_limit"?
-The "soft_limit was introduced in memcg to support over-committing the memory
-resource on the host. Each cgroup can be configured with "hard_limit", where it
-will be throttled or OOM killed by going over the limit. However, the allocation
-can go above the "soft_limit" as long as there is no memory contention. The
-"soft_limit" is the kernel mechanism for re-distributing spare memory resource
-among cgroups.
-
-What is the problem?
-Right now, the softlimit reclaim happens at global background reclaim, and acts
-as best-effort before the global LRU scanning. However the global LRU reclaim
-breaks the isolation badly and we need to eliminate the double LRU at the end.
-Moving towards that direction, the first step is to have efficient targeting
-reclaim.
-
-What we have now?
-The current implementation of softlimit is based on per-zone RB tree, where only
-the cgroup exceeds the soft_limit the most being selected for reclaim.
-1. It takes no consideration of how many pages actually allocated on the zone
-from this cgroup. The RB tree is indexed by the cgroup_(usage - soft_limit).
-2. It makes less sense to only reclaim from one cgroup rather than reclaiming
-all cgroups based on calculated propotion. This is required for fairness.
-3. The target of the soft limit reclaim is to bring one cgroup's usage under its
-soft_limit. However the target of global memory pressure is to reclaim pages
-above the zone's high_wmark.
-
-Proposed design:
-1. softlimit reclaim is triggered under global memory pressure, both at
-background and direct reclaim.
-2. the target of the softlimit reclaim is consistent with global reclaim where
-we check the zone's watermarks instead.
-3. round-robin across the cgroups where they have memory allocated on the zone
-and also exceed the softlimit configured.
-4. the change should be a noop where memcg is not configured.
-5. be able to have the ability of zone balance w/o the global LRU reclaim.
-
-More details:
-Build per-zone memcg list which links mem_cgroup_per_zone for all memcgs
-exceeded their soft_limit and have memory allocated on the zone.
-1. new cgroup is examed and inserted once per 1024 increments of
-mem_cgroup_commit_charge().
-2. under global memory pressure, we iterate the list and try to reclaim a target
-number of pages from each cgroup.
-3. the target number is per-cgroup and is calculated based on per-memcg lru
-fraction and soft_limit exceeds. We could borrow the existing get_scan_count()
-but adding the soft_limit factor on top of that.
-4. move the cgroup to the tail if the target number of pages being reclaimed.
-5. remove the cgroup from the list if the usage dropped below the soft_limit.
-6. after reclaiming from each cgroup, check the zone watermark. If the free pages
-goes above the high_wmark + balance_gap, break the reclaim loop.
-7. reclaim strategies should be consistent w/ global reclaim. for example, we want
-to scan each cgroup's file-lru first and then the anon-lru for the next iteration.
-
-
-Action Items:
-0. revert some of the changes in current soft_limit reclaim [DONE]
-note: covered in this patchset.
-
-1. implement the softlimit reclaim described above [DONE]
-note: covered in this patchset.
-
-TODO:
-a) there was a question on how to do zone balancing w/o global LRU. This could be
-solved by building another cgroup list per-zone, where we also link cgroups under
-their soft_limit. We won't scan the list unless the first list being exhausted and
-the free pages is still under the high_wmark.
-
-b). one of the tricky part is to calculate the target nr_to_scan for each cgroup,
-especially combining the current heuristics with soft_limit exceeds. it depends how
-much weight we need to put on the second. One way is to make the ratio to be user
-configurable.
-
-c). the soft limit does not support high order reclaim, which means it won't have
-lumpy reclaim. it is ok with memory compaction enabled.
-
-2. add the soft_limit reclaim into global direct reclaim [DONE and merged in mmotm]
-
-3. eliminate the global lru and remove the lru field in page_cgroup [TODO]
-note: Johannes's patchset might already cover that, i will read about it
-
-4. separate out the zone->lru lock and make a per-memcg-per-zone lock [TODO]
-note: We posted a patch before the LSF but decided to hold before the previous lists
-are done. I will also read Johannes's patchset in case that is also covered.
-
-Ying Han (4):
-  Disable "organizing cgroups over soft limit in a RB-Tree"
-  Organize memcgs over soft limit in round-robin.
-  Implementation of soft_limit reclaim in round-robin.
-  Add some debugging stats
-
- include/linux/memcontrol.h    |   17 ++-
+Signed-off-by: Ying Han <yinghan@google.com>
+---
+ include/linux/memcontrol.h    |   14 ++++++++++++++
  include/linux/vm_event_item.h |    1 +
- mm/memcontrol.c               |  379 ++++++++++++++++++++---------------------
- mm/vmscan.c                   |   28 ++--
- mm/vmstat.c                   |    2 +
- 5 files changed, 220 insertions(+), 207 deletions(-)
+ mm/memcontrol.c               |   23 +++++++++++++++++++++++
+ mm/vmscan.c                   |    3 ++-
+ mm/vmstat.c                   |    2 ++
+ 5 files changed, 42 insertions(+), 1 deletions(-)
 
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index c7fcb26..d97aa1c 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -121,6 +121,10 @@ extern void mem_cgroup_print_oom_info(struct mem_cgroup *memcg,
+ extern int do_swap_account;
+ #endif
+ 
++/* background reclaim stats */
++void mem_cgroup_list_insert(struct mem_cgroup *memcg, int val);
++void mem_cgroup_list_remove(struct mem_cgroup *memcg, int val);
++
+ static inline bool mem_cgroup_disabled(void)
+ {
+ 	if (mem_cgroup_subsys.disabled)
+@@ -363,6 +367,16 @@ static inline
+ void mem_cgroup_count_vm_event(struct mm_struct *mm, enum vm_event_item idx)
+ {
+ }
++
++static inline void mem_cgroup_list_insert(struct mem_cgroup *memcg,
++					  int val)
++{
++}
++
++static inline void mem_cgroup_list_remove(struct mem_cgroup *memcg,
++					  int val)
++{
++}
+ #endif /* CONFIG_CGROUP_MEM_CONT */
+ 
+ #if !defined(CONFIG_CGROUP_MEM_RES_CTLR) || !defined(CONFIG_DEBUG_VM)
+diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
+index 03b90cdc..f226bfd 100644
+--- a/include/linux/vm_event_item.h
++++ b/include/linux/vm_event_item.h
+@@ -35,6 +35,7 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
+ 		PGINODESTEAL, SLABS_SCANNED, KSWAPD_STEAL, KSWAPD_INODESTEAL,
+ 		KSWAPD_LOW_WMARK_HIT_QUICKLY, KSWAPD_HIGH_WMARK_HIT_QUICKLY,
+ 		KSWAPD_SKIP_CONGESTION_WAIT,
++		KSWAPD_ZONE_WMARK_OK, KSWAPD_SOFT_LIMIT_ZONE_WMARK_OK,
+ 		PAGEOUTRUN, ALLOCSTALL, PGROTATED,
+ #ifdef CONFIG_COMPACTION
+ 		COMPACTBLOCKS, COMPACTPAGES, COMPACTPAGEFAILED,
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index b87ccc8..bd7c481 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -103,6 +103,8 @@ enum mem_cgroup_events_index {
+ 					/* soft reclaim in direct reclaim */
+ 	MEM_CGROUP_EVENTS_SOFT_DIRECT_SCAN, /* # of pages scanned from */
+ 					/* soft reclaim in direct reclaim */
++	MEM_CGROUP_EVENTS_LIST_INSERT,
++	MEM_CGROUP_EVENTS_LIST_REMOVE,
+ 	MEM_CGROUP_EVENTS_NSTATS,
+ };
+ /*
+@@ -411,6 +413,7 @@ __mem_cgroup_insert_exceeded(struct mem_cgroup *mem,
+ 
+ 	list_add(&mz->soft_limit_list, &mclz->list);
+ 	mz->on_list = true;
++	mem_cgroup_list_insert(mem, 1);
+ }
+ 
+ static void
+@@ -437,6 +440,7 @@ __mem_cgroup_remove_exceeded(struct mem_cgroup *mem,
+ 
+ 	list_del(&mz->soft_limit_list);
+ 	mz->on_list = false;
++	mem_cgroup_list_remove(mem, 1);
+ }
+ 
+ static void
+@@ -550,6 +554,16 @@ void mem_cgroup_pgmajfault(struct mem_cgroup *mem, int val)
+ 	this_cpu_add(mem->stat->events[MEM_CGROUP_EVENTS_PGMAJFAULT], val);
+ }
+ 
++void mem_cgroup_list_insert(struct mem_cgroup *mem, int val)
++{
++	this_cpu_add(mem->stat->events[MEM_CGROUP_EVENTS_LIST_INSERT], val);
++}
++
++void mem_cgroup_list_remove(struct mem_cgroup *mem, int val)
++{
++	this_cpu_add(mem->stat->events[MEM_CGROUP_EVENTS_LIST_REMOVE], val);
++}
++
+ static unsigned long mem_cgroup_read_events(struct mem_cgroup *mem,
+ 					    enum mem_cgroup_events_index idx)
+ {
+@@ -3422,6 +3436,7 @@ unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
+ 		if (zone_watermark_ok_safe(zone, order,
+ 				high_wmark_pages(zone) + balance_gap,
+ 				end_zone, 0)) {
++			count_vm_events(KSWAPD_SOFT_LIMIT_ZONE_WMARK_OK, 1);
+ 			break;
+ 		}
+ 
+@@ -3838,6 +3853,8 @@ enum {
+ 	MCS_SOFT_KSWAPD_SCAN,
+ 	MCS_SOFT_DIRECT_STEAL,
+ 	MCS_SOFT_DIRECT_SCAN,
++	MCS_LIST_INSERT,
++	MCS_LIST_REMOVE,
+ 	MCS_INACTIVE_ANON,
+ 	MCS_ACTIVE_ANON,
+ 	MCS_INACTIVE_FILE,
+@@ -3866,6 +3883,8 @@ struct {
+ 	{"soft_kswapd_scan", "total_soft_kswapd_scan"},
+ 	{"soft_direct_steal", "total_soft_direct_steal"},
+ 	{"soft_direct_scan", "total_soft_direct_scan"},
++	{"list_insert", "total_list_insert"},
++	{"list_remove", "total_list_remove"},
+ 	{"inactive_anon", "total_inactive_anon"},
+ 	{"active_anon", "total_active_anon"},
+ 	{"inactive_file", "total_inactive_file"},
+@@ -3906,6 +3925,10 @@ mem_cgroup_get_local_stat(struct mem_cgroup *mem, struct mcs_total_stat *s)
+ 	s->stat[MCS_PGFAULT] += val;
+ 	val = mem_cgroup_read_events(mem, MEM_CGROUP_EVENTS_PGMAJFAULT);
+ 	s->stat[MCS_PGMAJFAULT] += val;
++	val = mem_cgroup_read_events(mem, MEM_CGROUP_EVENTS_LIST_INSERT);
++	s->stat[MCS_LIST_INSERT] += val;
++	val = mem_cgroup_read_events(mem, MEM_CGROUP_EVENTS_LIST_REMOVE);
++	s->stat[MCS_LIST_REMOVE] += val;
+ 
+ 	/* per zone stat */
+ 	val = mem_cgroup_get_local_zonestat(mem, LRU_INACTIVE_ANON);
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 9d79070..fc3da68 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2492,11 +2492,12 @@ loop_again:
+ 				zone_clear_flag(zone, ZONE_CONGESTED);
+ 				if (i <= *classzone_idx)
+ 					balanced += zone->present_pages;
++				count_vm_events(KSWAPD_ZONE_WMARK_OK, 1);
+ 			}
+-
+ 		}
+ 		if (all_zones_ok || (order && pgdat_balanced(pgdat, balanced, *classzone_idx)))
+ 			break;		/* kswapd: all done */
++
+ 		/*
+ 		 * OK, kswapd is getting into trouble.  Take a nap, then take
+ 		 * another pass across the zones.
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index a2b7344..2b3a7e5 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -922,6 +922,8 @@ const char * const vmstat_text[] = {
+ 	"kswapd_low_wmark_hit_quickly",
+ 	"kswapd_high_wmark_hit_quickly",
+ 	"kswapd_skip_congestion_wait",
++	"kswapd_zone_wmark_ok",
++	"kswapd_soft_limit_zone_wmark_ok",
+ 	"pageoutrun",
+ 	"allocstall",
+ 
 -- 
 1.7.3.1
 
