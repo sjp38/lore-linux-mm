@@ -1,65 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 9D94D900001
-	for <linux-mm@kvack.org>; Thu, 12 May 2011 16:01:47 -0400 (EDT)
-Received: from wpaz29.hot.corp.google.com (wpaz29.hot.corp.google.com [172.24.198.93])
-	by smtp-out.google.com with ESMTP id p4CK1kRY019461
-	for <linux-mm@kvack.org>; Thu, 12 May 2011 13:01:46 -0700
-Received: from pwi6 (pwi6.prod.google.com [10.241.219.6])
-	by wpaz29.hot.corp.google.com with ESMTP id p4CK0AI7014885
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 12 May 2011 13:01:44 -0700
-Received: by pwi6 with SMTP id 6so1152173pwi.18
-        for <linux-mm@kvack.org>; Thu, 12 May 2011 13:01:44 -0700 (PDT)
-Date: Thu, 12 May 2011 13:01:42 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [Slub cleanup6 2/5] slub: get_map() function to establish map
- of free objects in a slab
-In-Reply-To: <alpine.DEB.2.00.1105121140510.27324@router.home>
-Message-ID: <alpine.DEB.2.00.1105121301280.2407@chino.kir.corp.google.com>
-References: <20110415194811.810587216@linux.com> <20110415194830.839125394@linux.com> <alpine.DEB.2.00.1105111302020.9346@chino.kir.corp.google.com> <alpine.DEB.2.00.1105121140510.27324@router.home>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 4FCA0900001
+	for <linux-mm@kvack.org>; Thu, 12 May 2011 16:04:20 -0400 (EDT)
+Subject: Re: [PATCH 3/3] mm: slub: Default slub_max_order to 0
+From: James Bottomley <James.Bottomley@HansenPartnership.com>
+In-Reply-To: <1305229447.2575.71.camel@mulgrave.site>
+References: <1305127773-10570-1-git-send-email-mgorman@suse.de>
+	 <1305127773-10570-4-git-send-email-mgorman@suse.de>
+	 <alpine.DEB.2.00.1105120942050.24560@router.home>
+	 <1305213359.2575.46.camel@mulgrave.site>
+	 <alpine.DEB.2.00.1105121024350.26013@router.home>
+	 <1305214993.2575.50.camel@mulgrave.site> <1305215742.27848.40.camel@jaguar>
+	 <1305225467.2575.66.camel@mulgrave.site>
+	 <1305229447.2575.71.camel@mulgrave.site>
+Content-Type: text/plain; charset="UTF-8"
+Date: Thu, 12 May 2011 15:04:12 -0500
+Message-ID: <1305230652.2575.72.camel@mulgrave.site>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org
+To: Pekka Enberg <penberg@kernel.org>
+Cc: Christoph Lameter <cl@linux.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Colin King <colin.king@canonical.com>, Raghavendra D Prabhu <raghu.prabhu13@gmail.com>, Jan Kara <jack@suse.cz>, Chris Mason <chris.mason@oracle.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-ext4 <linux-ext4@vger.kernel.org>
 
-On Thu, 12 May 2011, Christoph Lameter wrote:
+On Thu, 2011-05-12 at 14:44 -0500, James Bottomley wrote:
+> On Thu, 2011-05-12 at 13:37 -0500, James Bottomley wrote:
+> > On Thu, 2011-05-12 at 18:55 +0300, Pekka Enberg wrote:
+> > > On Thu, 2011-05-12 at 10:43 -0500, James Bottomley wrote:
+> > > > However, since you admit even you see problems, let's concentrate on
+> > > > fixing them rather than recriminations?
+> > > 
+> > > Yes, please. So does dropping max_order to 1 help?
+> > > PAGE_ALLOC_COSTLY_ORDER is set to 3 in 2.6.39-rc7.
+> > 
+> > Just booting with max_slab_order=1 (and none of the other patches
+> > applied) I can still get the machine to go into kswapd at 99%, so it
+> > doesn't seem to make much of a difference.
+> > 
+> > Do you want me to try with the other two patches and max_slab_order=1?
+> 
+> OK, so patches 1 + 2 plus setting slub_max_order=1 still manages to
+> trigger the problem (kswapd spinning at 99%).  This is still with
+> PREEMPT; it's possible that non-PREEMPT might be better, so I'll try
+> patches 1+2+3 with PREEMPT just to see if the perturbation is caused by
+> it.
 
-> Subject: slub: Avoid warning for !CONFIG_SLUB_DEBUG
-> 
-> Move the #ifdef so that get_map is only defined if CONFIG_SLUB_DEBUG is defined.
-> 
-> Signed-off-by: Christoph Lameter <cl@linux.com>
+Confirmed, I'm afraid ... I can trigger the problem with all three
+patches under PREEMPT.  It's not a hang this time, it's just kswapd
+taking 100% system time on 1 CPU and it won't calm down after I unload
+the system.
 
-Acked-by: David Rientjes <rientjes@google.com>
+James
 
-> 
-> ---
->  mm/slub.c |    2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> Index: linux-2.6/mm/slub.c
-> ===================================================================
-> --- linux-2.6.orig/mm/slub.c	2011-05-12 11:38:42.000000000 -0500
-> +++ linux-2.6/mm/slub.c	2011-05-12 11:39:40.000000000 -0500
-> @@ -326,6 +326,7 @@ static inline int oo_objects(struct kmem
->  	return x.x & OO_MASK;
->  }
-> 
-> +#ifdef CONFIG_SLUB_DEBUG
->  /*
->   * Determine a map of object in use on a page.
->   *
-> @@ -341,7 +342,6 @@ static void get_map(struct kmem_cache *s
->  		set_bit(slab_index(p, s, addr), map);
->  }
-> 
-> -#ifdef CONFIG_SLUB_DEBUG
->  /*
->   * Debug settings:
->   */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
