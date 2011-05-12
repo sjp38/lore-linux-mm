@@ -1,47 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id BCDC96B0011
-	for <linux-mm@kvack.org>; Thu, 12 May 2011 06:49:27 -0400 (EDT)
-Received: from list by lo.gmane.org with local (Exim 4.69)
-	(envelope-from <glkm-linux-mm-2@m.gmane.org>)
-	id 1QKTSN-0004Nm-Oe
-	for linux-mm@kvack.org; Thu, 12 May 2011 12:49:24 +0200
-Received: from 123.124.21.93 ([123.124.21.93])
-        by main.gmane.org with esmtp (Gmexim 0.1 (Debian))
-        id 1AlnuQ-0007hv-00
-        for <linux-mm@kvack.org>; Thu, 12 May 2011 12:49:23 +0200
-Received: from xiyou.wangcong by 123.124.21.93 with local (Gmexim 0.1 (Debian))
-        id 1AlnuQ-0007hv-00
-        for <linux-mm@kvack.org>; Thu, 12 May 2011 12:49:23 +0200
-From: WANG Cong <xiyou.wangcong@gmail.com>
-Subject: Re: [PATCH v2 1/3] coredump: use get_task_comm for %e filename
- format
-Date: Thu, 12 May 2011 10:49:10 +0000 (UTC)
-Message-ID: <iqgdv5$ruq$2@dough.gmane.org>
-References: <1305181093-20871-1-git-send-email-jslaby@suse.cz>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 1E33B6B0012
+	for <linux-mm@kvack.org>; Thu, 12 May 2011 07:13:48 -0400 (EDT)
+Message-ID: <4DCBC0E8.5020609@cs.helsinki.fi>
+Date: Thu, 12 May 2011 14:13:44 +0300
+From: Pekka Enberg <penberg@cs.helsinki.fi>
+MIME-Version: 1.0
+Subject: Re: [PATCH 0/3] Reduce impact to overall system of SLUB using high-order
+ allocations
+References: <1305127773-10570-1-git-send-email-mgorman@suse.de>	 <1305149960.2606.53.camel@mulgrave.site>	 <alpine.DEB.2.00.1105111527490.24003@chino.kir.corp.google.com> <1305153267.2606.57.camel@mulgrave.site>
+In-Reply-To: <1305153267.2606.57.camel@mulgrave.site>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: James Bottomley <James.Bottomley@HansenPartnership.com>
+Cc: David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Colin King <colin.king@canonical.com>, Raghavendra D Prabhu <raghu.prabhu13@gmail.com>, Jan Kara <jack@suse.cz>, Chris Mason <chris.mason@oracle.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-ext4 <linux-ext4@vger.kernel.org>
 
-On Thu, 12 May 2011 08:18:11 +0200, Jiri Slaby wrote:
+On 5/12/11 1:34 AM, James Bottomley wrote:
+> On Wed, 2011-05-11 at 15:28 -0700, David Rientjes wrote:
+>> On Wed, 11 May 2011, James Bottomley wrote:
+>>
+>>> OK, I confirm that I can't seem to break this one.  No hangs visible,
+>>> even when loading up the system with firefox, evolution, the usual
+>>> massive untar, X and even a distribution upgrade.
+>>>
+>>> You can add my tested-by
+>>>
+>> Your system still hangs with patches 1 and 2 only?
+> Yes, but only once in all the testing.  With patches 1 and 2 the hang is
+> much harder to reproduce, but it still seems to be present if I hit it
+> hard enough.
 
-> We currently access current->comm directly. As we have
-> prctl(PR_SET_NAME), we need the access be protected by task_lock. This
-> is exactly what get_task_comm does, so use it.
-> 
-> I'm not 100% convinced prctl(PR_SET_NAME) may be called at the time of
-> core dump, but the locking won't hurt. Note that siglock is not held in
-> format_corename.
+Patches 1-2 look reasonable to me. I'm not completely convinced of patch 
+3, though. Why are we seeing these problems now? This has been in 
+mainline for a long time already. Shouldn't we fix kswapd?
 
-John Stultz is working on some patches to convert get_task_common()
-to printk %ptc, you will not need to worry about the locking issue.
-
-Thanks.
-
+                         Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
