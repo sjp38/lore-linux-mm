@@ -1,56 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id B80596B0011
-	for <linux-mm@kvack.org>; Thu, 12 May 2011 05:43:02 -0400 (EDT)
-Date: Thu, 12 May 2011 11:42:55 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCHSET v3.1 0/7] data integrity: Stabilize pages during
- writeback for various fses
-Message-ID: <20110512094255.GA4690@quack.suse.cz>
-References: <20110509230318.19566.66202.stgit@elm3c44.beaverton.ibm.com>
- <20110510125124.GD4402@quack.suse.cz>
- <20110511181901.GK20579@tux1.beaverton.ibm.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id A16C16B0011
+	for <linux-mm@kvack.org>; Thu, 12 May 2011 05:47:09 -0400 (EDT)
+Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
+	by e1.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p4C9a3op019689
+	for <linux-mm@kvack.org>; Thu, 12 May 2011 05:36:03 -0400
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p4C9l74K122226
+	for <linux-mm@kvack.org>; Thu, 12 May 2011 05:47:07 -0400
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p4C9l6fV022016
+	for <linux-mm@kvack.org>; Thu, 12 May 2011 05:47:07 -0400
+Date: Thu, 12 May 2011 02:47:05 -0700
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: 2.6.39-rc6-mmotm0506 - lockdep splat in RCU code on page fault
+Message-ID: <20110512094704.GL2258@linux.vnet.ibm.com>
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <6921.1304989476@localhost>
+ <20110510082029.GF2258@linux.vnet.ibm.com>
+ <34783.1305155494@localhost>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110511181901.GK20579@tux1.beaverton.ibm.com>
+In-Reply-To: <34783.1305155494@localhost>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Darrick J. Wong" <djwong@us.ibm.com>
-Cc: Jan Kara <jack@suse.cz>, Theodore Tso <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>, Jens Axboe <axboe@kernel.dk>, "Martin K. Petersen" <martin.petersen@oracle.com>, Jeff Layton <jlayton@redhat.com>, Dave Chinner <david@fromorbit.com>, linux-kernel <linux-kernel@vger.kernel.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, Chris Mason <chris.mason@oracle.com>, Joel Becker <jlbec@evilplan.org>, linux-scsi <linux-scsi@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-ext4@vger.kernel.org, Mingming Cao <mcao@us.ibm.com>
+To: Valdis.Kletnieks@vt.edu
+Cc: Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed 11-05-11 11:19:01, Darrick J. Wong wrote:
-> On Tue, May 10, 2011 at 02:51:24PM +0200, Jan Kara wrote:
-> > On Mon 09-05-11 16:03:18, Darrick J. Wong wrote:
-> > > I am still chasing down what exactly is broken in ext3.  data=writeback mode
-> > > passes with no failures.  data=ordered, however, does not pass; my current
-> > > suspicion is that jbd is calling submit_bh on data buffers but doesn't call
-> > > page_mkclean to kick the userspace programs off the page before writing it.
-> >   Yes, ext3 in data=ordered mode writes pages from
-> > journal_commit_transaction() via submit_bh() without clearing page dirty
-> > bits thus page_mkclean() is not called for these pages. Frankly, do you
-> > really want to bother with adding support for ext2 and ext3? People can use
-> > ext4 as a fs driver when they want to start using blk-integrity support.
-> > Especially ext2 patch looks really painful and just from a quick look I can
-> > see code e.g. in fs/ext2/namei.c which isn't handled by your patch yet.
+On Wed, May 11, 2011 at 07:11:34PM -0400, Valdis.Kletnieks@vt.edu wrote:
+> On Tue, 10 May 2011 01:20:29 PDT, "Paul E. McKenney" said:
 > 
-> Yeah, I agree that ext2 is ugly and ext3/jbd might be more painful.  Are there
-> any other code that wants stable pages that's already running with ext3?  In
-> this months-long discussion I've heard that encryption and raid also like
-> stable pages during writes.  Have those users been broken this whole time, or
-> have they been stabilizing pages themselves?
-  I believe part of them has been broken (e.g. raid) and part of them do
-copy-out so they were OK.
+> Would test, but it doesn't apply cleanly to my -mmotm0506 tree:
+> 
+> > diff --git a/kernel/rcutree.c b/kernel/rcutree.c
+> > index 5616b17..20c22c5 100644
+> > --- a/kernel/rcutree.c
+> > +++ b/kernel/rcutree.c
+> > @@ -1525,13 +1525,15 @@ static void rcu_cpu_kthread_setrt(int cpu, int to_rt)
+> >   */
+> >  static void rcu_cpu_kthread_timer(unsigned long arg)
+> >  {
+> > -	unsigned long flags;
+> > +	unsigned long old;
+> > +	unsigned long new;
+> >  	struct rcu_data *rdp = per_cpu_ptr(rcu_state->rda, arg);
+> >  	struct rcu_node *rnp = rdp->mynode;
+> >  
+> > -	raw_spin_lock_irqsave(&rnp->lock, flags);
+> > -	rnp->wakemask |= rdp->grpmask;
+> > -	raw_spin_unlock_irqrestore(&rnp->lock, flags);
+> > +	do {
+> > +		old = rnp->wakemask;
+> > +		new = old | rdp->grpmask;
+> > +	} while (cmpxchg(&rnp->wakemask, old, new) != old);
+> >  	invoke_rcu_node_kthread(rnp);
+> >  }
+> 
+> My source has this:
+> 
+>         raw_spin_lock_irqsave(&rnp->lock, flags);
+>         rnp->wakemask |= rdp->grpmask;
+>         invoke_rcu_node_kthread(rnp);
+>         raw_spin_unlock_irqrestore(&rnp->lock, flags);
+> 
+> the last 2 lines swapped from what you diffed against.  I can easily work around
+> that, except it's unclear what the implications of the invoke_rcu moving outside
+> of the irq save/restore pair (or if it being inside is the actual root cause)...
 
-> I suppose we can cross the "ext3 fails horribly on DIF" bridge when someone
-> complains about it.  Possibly we could try to steer them to btrfs.
-  Well, btrfs might be a bit too advantageous for production servers but
-ext4 would be definitely viable for them.
+Odd...
 
-									Honza
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+This looks to me like a recent -next -- I do not believe that straight
+mmotm has rcu_cpu_kthread_timer() in it.  The patch should apply to the
+last few days' -next kernels.
+
+							Thanx, Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
