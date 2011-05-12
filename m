@@ -1,77 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 668FC6B0023
-	for <linux-mm@kvack.org>; Thu, 12 May 2011 04:24:13 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 42A283EE0BC
-	for <linux-mm@kvack.org>; Thu, 12 May 2011 17:24:10 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 2A07B45DD6E
-	for <linux-mm@kvack.org>; Thu, 12 May 2011 17:24:10 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id ED45745DE4E
-	for <linux-mm@kvack.org>; Thu, 12 May 2011 17:24:09 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id D9E441DB8043
-	for <linux-mm@kvack.org>; Thu, 12 May 2011 17:24:09 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 9C4D01DB802C
-	for <linux-mm@kvack.org>; Thu, 12 May 2011 17:24:09 +0900 (JST)
-Date: Thu, 12 May 2011 17:17:25 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH 0/7] memcg async reclaim
-Message-Id: <20110512171725.d367980f.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20110512132237.813a7c7f.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20110510190216.f4eefef7.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110511182844.d128c995.akpm@linux-foundation.org>
-	<20110512103503.717f4a96.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110511205110.354fa05e.akpm@linux-foundation.org>
-	<20110512132237.813a7c7f.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id B80596B0011
+	for <linux-mm@kvack.org>; Thu, 12 May 2011 05:43:02 -0400 (EDT)
+Date: Thu, 12 May 2011 11:42:55 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCHSET v3.1 0/7] data integrity: Stabilize pages during
+ writeback for various fses
+Message-ID: <20110512094255.GA4690@quack.suse.cz>
+References: <20110509230318.19566.66202.stgit@elm3c44.beaverton.ibm.com>
+ <20110510125124.GD4402@quack.suse.cz>
+ <20110511181901.GK20579@tux1.beaverton.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110511181901.GK20579@tux1.beaverton.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Ying Han <yinghan@google.com>, Johannes Weiner <jweiner@redhat.com>, Michal Hocko <mhocko@suse.cz>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
+To: "Darrick J. Wong" <djwong@us.ibm.com>
+Cc: Jan Kara <jack@suse.cz>, Theodore Tso <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>, Jens Axboe <axboe@kernel.dk>, "Martin K. Petersen" <martin.petersen@oracle.com>, Jeff Layton <jlayton@redhat.com>, Dave Chinner <david@fromorbit.com>, linux-kernel <linux-kernel@vger.kernel.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, Chris Mason <chris.mason@oracle.com>, Joel Becker <jlbec@evilplan.org>, linux-scsi <linux-scsi@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-ext4@vger.kernel.org, Mingming Cao <mcao@us.ibm.com>
 
-On Thu, 12 May 2011 13:22:37 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-
-> On Wed, 11 May 2011 20:51:10 -0700
-> Andrew Morton <akpm@linux-foundation.org> wrote:
-
-> Ah, sorry. above was on KVM.  without container.
-> ==
-> [root@rhel6-test hilow]# time cp ./tmpfile xxx
+On Wed 11-05-11 11:19:01, Darrick J. Wong wrote:
+> On Tue, May 10, 2011 at 02:51:24PM +0200, Jan Kara wrote:
+> > On Mon 09-05-11 16:03:18, Darrick J. Wong wrote:
+> > > I am still chasing down what exactly is broken in ext3.  data=writeback mode
+> > > passes with no failures.  data=ordered, however, does not pass; my current
+> > > suspicion is that jbd is calling submit_bh on data buffers but doesn't call
+> > > page_mkclean to kick the userspace programs off the page before writing it.
+> >   Yes, ext3 in data=ordered mode writes pages from
+> > journal_commit_transaction() via submit_bh() without clearing page dirty
+> > bits thus page_mkclean() is not called for these pages. Frankly, do you
+> > really want to bother with adding support for ext2 and ext3? People can use
+> > ext4 as a fs driver when they want to start using blk-integrity support.
+> > Especially ext2 patch looks really painful and just from a quick look I can
+> > see code e.g. in fs/ext2/namei.c which isn't handled by your patch yet.
 > 
-> real    0m5.197s
-> user    0m0.006s
-> sys     0m2.599s
-> ==
-> Hmm, still slow. I'll use real hardware in the next post.
-> 
+> Yeah, I agree that ext2 is ugly and ext3/jbd might be more painful.  Are there
+> any other code that wants stable pages that's already running with ext3?  In
+> this months-long discussion I've heard that encryption and raid also like
+> stable pages during writes.  Have those users been broken this whole time, or
+> have they been stabilizing pages themselves?
+  I believe part of them has been broken (e.g. raid) and part of them do
+copy-out so they were OK.
 
-I'm now testing on a real machine with some fixes and see
+> I suppose we can cross the "ext3 fails horribly on DIF" bridge when someone
+> complains about it.  Possibly we could try to steer them to btrfs.
+  Well, btrfs might be a bit too advantageous for production servers but
+ext4 would be definitely viable for them.
 
-== without async reclaim ==
-real    0m6.569s
-user    0m0.006s
-sys     0m0.976s
-
-== with async reclaim ==
-real    0m6.305s
-user    0m0.007s
-sys     0m0.907s
-
-...in gneral sys time reduced always but 'real' is in error range ;)
-yes, no gain.
-
-I'll check what codes in vmscan.c or /mm affects memcg and post a
-required fix in step by step. I think I found some..
-
-Thanks,
--Kame
+									Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
