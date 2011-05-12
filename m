@@ -1,50 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id A010A6B0024
-	for <linux-mm@kvack.org>; Thu, 12 May 2011 13:11:06 -0400 (EDT)
-Received: by gyd8 with SMTP id 8so837952gyd.14
-        for <linux-mm@kvack.org>; Thu, 12 May 2011 10:11:05 -0700 (PDT)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id CA2406B0012
+	for <linux-mm@kvack.org>; Thu, 12 May 2011 13:22:53 -0400 (EDT)
+Received: from hpaq13.eem.corp.google.com (hpaq13.eem.corp.google.com [172.25.149.13])
+	by smtp-out.google.com with ESMTP id p4CHMnmd010999
+	for <linux-mm@kvack.org>; Thu, 12 May 2011 10:22:49 -0700
+Received: from qyk32 (qyk32.prod.google.com [10.241.83.160])
+	by hpaq13.eem.corp.google.com with ESMTP id p4CHKBMP015341
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 12 May 2011 10:22:48 -0700
+Received: by qyk32 with SMTP id 32so3404441qyk.8
+        for <linux-mm@kvack.org>; Thu, 12 May 2011 10:22:47 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <BANLkTi=MD+voG1i7uDyueV22_daGHPRdqw@mail.gmail.com>
-References: <1305127773-10570-1-git-send-email-mgorman@suse.de>
-	<1305127773-10570-4-git-send-email-mgorman@suse.de>
-	<alpine.DEB.2.00.1105120942050.24560@router.home>
-	<1305213359.2575.46.camel@mulgrave.site>
-	<alpine.DEB.2.00.1105121024350.26013@router.home>
-	<1305214993.2575.50.camel@mulgrave.site>
-	<20110512154649.GB4559@redhat.com>
-	<1305216023.2575.54.camel@mulgrave.site>
-	<alpine.DEB.2.00.1105121121120.26013@router.home>
-	<1305217843.2575.57.camel@mulgrave.site>
-	<BANLkTi=MD+voG1i7uDyueV22_daGHPRdqw@mail.gmail.com>
-Date: Thu, 12 May 2011 20:11:05 +0300
-Message-ID: <BANLkTimDsJDht76Vm7auNqT2gncjpEKZQw@mail.gmail.com>
-Subject: Re: [PATCH 3/3] mm: slub: Default slub_max_order to 0
-From: Pekka Enberg <penberg@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
+In-Reply-To: <4DCBF67A.3060700@redhat.com>
+References: <1305212038-15445-1-git-send-email-hannes@cmpxchg.org>
+	<1305212038-15445-2-git-send-email-hannes@cmpxchg.org>
+	<4DCBF67A.3060700@redhat.com>
+Date: Thu, 12 May 2011 10:22:47 -0700
+Message-ID: <BANLkTinJB0=bcVH9vvNz6_ONy17nBAJbQg@mail.gmail.com>
+Subject: Re: [rfc patch 1/6] memcg: remove unused retry signal from reclaim
+From: Ying Han <yinghan@google.com>
+Content-Type: multipart/alternative; boundary=000e0ce008bc1c6ee104a3177015
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Bottomley <James.Bottomley@hansenpartnership.com>
-Cc: Christoph Lameter <cl@linux.com>, Dave Jones <davej@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Colin King <colin.king@canonical.com>, Raghavendra D Prabhu <raghu.prabhu13@gmail.com>, Jan Kara <jack@suse.cz>, Chris Mason <chris.mason@oracle.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-ext4 <linux-ext4@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>
+To: Rik van Riel <riel@redhat.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, May 12, 2011 at 8:06 PM, Pekka Enberg <penberg@kernel.org> wrote:
-> On Thu, May 12, 2011 at 7:30 PM, James Bottomley
-> <James.Bottomley@hansenpartnership.com> wrote:
->> So suggest an alternative root cause and a test to expose it.
+--000e0ce008bc1c6ee104a3177015
+Content-Type: text/plain; charset=ISO-8859-1
+
+On Thu, May 12, 2011 at 8:02 AM, Rik van Riel <riel@redhat.com> wrote:
+
+> On 05/12/2011 10:53 AM, Johannes Weiner wrote:
 >
-> Is your .config available somewhere, btw?
+>> If the memcg reclaim code detects the target memcg below its limit it
+>> exits and returns a guaranteed non-zero value so that the charge is
+>> retried.
+>>
+>> Nowadays, the charge side checks the memcg limit itself and does not
+>> rely on this non-zero return value trick.
+>>
+>> This patch removes it.  The reclaim code will now always return the
+>> true number of pages it reclaimed on its own.
+>>
+>> Signed-off-by: Johannes Weiner<hannes@cmpxchg.org>
+>>
+>
+> Acked-by: Rik van Riel<riel@redhat.com>
+>
 
-If it's this:
+Acked-by: Ying Han<yinghan@google.com>
 
-http://pkgs.fedoraproject.org/gitweb/?p=kernel.git;a=blob_plain;f=config-x86_64-generic;hb=HEAD
+--000e0ce008bc1c6ee104a3177015
+Content-Type: text/html; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 
-I'd love to see what happens if you disable
+<br><br><div class=3D"gmail_quote">On Thu, May 12, 2011 at 8:02 AM, Rik van=
+ Riel <span dir=3D"ltr">&lt;<a href=3D"mailto:riel@redhat.com">riel@redhat.=
+com</a>&gt;</span> wrote:<br><blockquote class=3D"gmail_quote" style=3D"mar=
+gin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex;">
+<div class=3D"im">On 05/12/2011 10:53 AM, Johannes Weiner wrote:<br>
+<blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1p=
+x #ccc solid;padding-left:1ex">
+If the memcg reclaim code detects the target memcg below its limit it<br>
+exits and returns a guaranteed non-zero value so that the charge is<br>
+retried.<br>
+<br>
+Nowadays, the charge side checks the memcg limit itself and does not<br>
+rely on this non-zero return value trick.<br>
+<br>
+This patch removes it. =A0The reclaim code will now always return the<br>
+true number of pages it reclaimed on its own.<br>
+<br>
+Signed-off-by: Johannes Weiner&lt;<a href=3D"mailto:hannes@cmpxchg.org" tar=
+get=3D"_blank">hannes@cmpxchg.org</a>&gt;<br>
+</blockquote>
+<br></div>
+Acked-by: Rik van Riel&lt;<a href=3D"mailto:riel@redhat.com" target=3D"_bla=
+nk">riel@redhat.com</a>&gt;<br></blockquote><div><br></div><meta http-equiv=
+=3D"content-type" content=3D"text/html; charset=3Dutf-8"><div>Acked-by: Yin=
+g Han&lt;<a href=3D"mailto:yinghan@google.com">yinghan@google.com</a>&gt;=
+=A0</div>
+</div><br>
 
-CONFIG_TRANSPARENT_HUGEPAGE=y
-
-because that's going to reduce high order allocations as well, no?
-
-                        Pekka
+--000e0ce008bc1c6ee104a3177015--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
