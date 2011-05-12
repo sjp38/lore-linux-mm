@@ -1,155 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 4048A900001
-	for <linux-mm@kvack.org>; Thu, 12 May 2011 16:11:16 -0400 (EDT)
-Received: from kpbe12.cbf.corp.google.com (kpbe12.cbf.corp.google.com [172.25.105.76])
-	by smtp-out.google.com with ESMTP id p4CKB5Vh031208
-	for <linux-mm@kvack.org>; Thu, 12 May 2011 13:11:05 -0700
-Received: from pzk10 (pzk10.prod.google.com [10.243.19.138])
-	by kpbe12.cbf.corp.google.com with ESMTP id p4CKAwXI005306
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 12 May 2011 13:10:59 -0700
-Received: by pzk10 with SMTP id 10so1251468pzk.35
-        for <linux-mm@kvack.org>; Thu, 12 May 2011 13:10:50 -0700 (PDT)
-Date: Thu, 12 May 2011 13:10:49 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch] slub: avoid label inside conditional
-In-Reply-To: <alpine.DEB.2.00.1105121142370.27324@router.home>
-Message-ID: <alpine.DEB.2.00.1105121304090.2407@chino.kir.corp.google.com>
-References: <20110415194811.810587216@linux.com> <20110415194831.991653328@linux.com> <alpine.DEB.2.00.1105111255130.9346@chino.kir.corp.google.com> <alpine.DEB.2.00.1105121142370.27324@router.home>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id B1EB0900001
+	for <linux-mm@kvack.org>; Thu, 12 May 2011 16:30:06 -0400 (EDT)
+Date: Thu, 12 May 2011 22:29:17 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 3/3] mm: slub: Default slub_max_order to 0
+Message-ID: <20110512202917.GK16531@cmpxchg.org>
+References: <1305127773-10570-1-git-send-email-mgorman@suse.de>
+ <1305127773-10570-4-git-send-email-mgorman@suse.de>
+ <alpine.DEB.2.00.1105120942050.24560@router.home>
+ <1305213359.2575.46.camel@mulgrave.site>
+ <alpine.DEB.2.00.1105121024350.26013@router.home>
+ <1305214993.2575.50.camel@mulgrave.site>
+ <1305215742.27848.40.camel@jaguar>
+ <1305225467.2575.66.camel@mulgrave.site>
+ <1305229447.2575.71.camel@mulgrave.site>
+ <1305230652.2575.72.camel@mulgrave.site>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1305230652.2575.72.camel@mulgrave.site>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: linux-mm@kvack.org
+To: James Bottomley <James.Bottomley@HansenPartnership.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Colin King <colin.king@canonical.com>, Raghavendra D Prabhu <raghu.prabhu13@gmail.com>, Jan Kara <jack@suse.cz>, Chris Mason <chris.mason@oracle.com>, Rik van Riel <riel@redhat.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-ext4 <linux-ext4@vger.kernel.org>
 
-On Thu, 12 May 2011, Christoph Lameter wrote:
-
-> > I'd much prefer to just add a
-> >
-> > 	c->node = page_to_nid(page);
-> >
-> > rather than the new label and goto into a conditional.
-> >
-> > >  	}
-> > >  	if (!(gfpflags & __GFP_NOWARN) && printk_ratelimit())
-> > >  		slab_out_of_memory(s, gfpflags, node);
-> >
+On Thu, May 12, 2011 at 03:04:12PM -0500, James Bottomley wrote:
+> On Thu, 2011-05-12 at 14:44 -0500, James Bottomley wrote:
+> > On Thu, 2011-05-12 at 13:37 -0500, James Bottomley wrote:
+> > > On Thu, 2011-05-12 at 18:55 +0300, Pekka Enberg wrote:
+> > > > On Thu, 2011-05-12 at 10:43 -0500, James Bottomley wrote:
+> > > > > However, since you admit even you see problems, let's concentrate on
+> > > > > fixing them rather than recriminations?
+> > > > 
+> > > > Yes, please. So does dropping max_order to 1 help?
+> > > > PAGE_ALLOC_COSTLY_ORDER is set to 3 in 2.6.39-rc7.
+> > > 
+> > > Just booting with max_slab_order=1 (and none of the other patches
+> > > applied) I can still get the machine to go into kswapd at 99%, so it
+> > > doesn't seem to make much of a difference.
+> > > 
+> > > Do you want me to try with the other two patches and max_slab_order=1?
+> > 
+> > OK, so patches 1 + 2 plus setting slub_max_order=1 still manages to
+> > trigger the problem (kswapd spinning at 99%).  This is still with
+> > PREEMPT; it's possible that non-PREEMPT might be better, so I'll try
+> > patches 1+2+3 with PREEMPT just to see if the perturbation is caused by
+> > it.
 > 
-> Hmmm... Looks like we also missed to use the label.
-> 
+> Confirmed, I'm afraid ... I can trigger the problem with all three
+> patches under PREEMPT.  It's not a hang this time, it's just kswapd
+> taking 100% system time on 1 CPU and it won't calm down after I unload
+> the system.
 
-It was used in the same patch it was introduced:
+That is kind of expected, though.  If one CPU is busy with a streaming
+IO load generating new pages, kswapd is busy reclaiming the old ones
+so that the generator does not have to do the reclaim itself.
 
-@@ -1828,7 +1828,6 @@ load_freelist:
- 	c->freelist = get_freepointer(s, object);
- 	page->inuse = page->objects;
- 	page->freelist = NULL;
--	c->node = page_to_nid(page);
- 
- unlock_out:
- 	slab_unlock(page);
-@@ -1845,8 +1844,10 @@ another_slab:
- new_slab:
- 	page = get_partial(s, gfpflags, node);
- 	if (page) {
--		c->page = page;
- 		stat(s, ALLOC_FROM_PARTIAL);
-+load_from_page:
-+		c->node = page_to_nid(page);
-+		c->page = page;
- 		goto load_freelist;
- 	}
- 
-@@ -1867,8 +1868,8 @@ new_slab:
- 
- 		slab_lock(page);
- 		__SetPageSlubFrozen(page);
--		c->page = page;
--		goto load_freelist;
-+
-+		goto load_from_page;
- 	}
- 	if (!(gfpflags & __GFP_NOWARN) && printk_ratelimit())
- 		slab_out_of_memory(s, gfpflags, node);
-
-> 
-> Subject: slub: Fix control flow in slab_alloc
-> 
-> Signed-off-by: Christoph Lameter <cl@linux.com>
-> 
-> ---
->  mm/slub.c |    2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> Index: linux-2.6/mm/slub.c
-> ===================================================================
-> --- linux-2.6.orig/mm/slub.c	2011-05-12 11:41:44.000000000 -0500
-> +++ linux-2.6/mm/slub.c	2011-05-12 11:42:25.000000000 -0500
-> @@ -1833,7 +1833,6 @@ new_slab:
->  	page = get_partial(s, gfpflags, node);
->  	if (page) {
->  		stat(s, ALLOC_FROM_PARTIAL);
-> -load_from_page:
->  		c->node = page_to_nid(page);
->  		c->page = page;
->  		goto load_freelist;
-> @@ -1856,6 +1855,7 @@ load_from_page:
-> 
->  		slab_lock(page);
->  		__SetPageSlubFrozen(page);
-> +		c->node = page_to_nid(page);
->  		c->page = page;
->  		goto load_freelist;
->  	}
-> 
-
-So this doesn't apply on top of the stack.
-
-
-slub: avoid label inside conditional
-
-Jumping to a label inside a conditional is considered poor style, 
-especially considering the current organization of __slab_alloc().
-
-This removes the 'load_from_page' label and just duplicates the three 
-lines of code that it uses:
-
-	c->node = page_to_nid(page);
-	c->page = page;
-	goto load_freelist;
-
-since it's probably not worth making this a separate helper function.
-
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- mm/slub.c |    6 +++---
- 1 files changed, 3 insertions(+), 3 deletions(-)
-
-diff --git a/mm/slub.c b/mm/slub.c
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -1845,7 +1845,6 @@ new_slab:
- 	page = get_partial(s, gfpflags, node);
- 	if (page) {
- 		stat(s, ALLOC_FROM_PARTIAL);
--load_from_page:
- 		c->node = page_to_nid(page);
- 		c->page = page;
- 		goto load_freelist;
-@@ -1868,8 +1867,9 @@ load_from_page:
- 
- 		slab_lock(page);
- 		__SetPageSlubFrozen(page);
--
--		goto load_from_page;
-+		c->node = page_to_nid(page);
-+		c->page = page;
-+		goto load_freelist;
- 	}
- 	if (!(gfpflags & __GFP_NOWARN) && printk_ratelimit())
- 		slab_out_of_memory(s, gfpflags, node);
+By unload, do you mean stopping the generator?  And if so, how quickly
+after you stop the generator does kswapd go back to sleep?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
