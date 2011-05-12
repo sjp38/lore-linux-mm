@@ -1,58 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id A99886B0011
-	for <linux-mm@kvack.org>; Thu, 12 May 2011 11:27:05 -0400 (EDT)
-Date: Thu, 12 May 2011 10:27:00 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 3/3] mm: slub: Default slub_max_order to 0
-In-Reply-To: <1305213359.2575.46.camel@mulgrave.site>
-Message-ID: <alpine.DEB.2.00.1105121024350.26013@router.home>
-References: <1305127773-10570-1-git-send-email-mgorman@suse.de>  <1305127773-10570-4-git-send-email-mgorman@suse.de>  <alpine.DEB.2.00.1105120942050.24560@router.home> <1305213359.2575.46.camel@mulgrave.site>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 0297E6B0026
+	for <linux-mm@kvack.org>; Thu, 12 May 2011 11:33:25 -0400 (EDT)
+Message-ID: <4DCBFDB9.10209@redhat.com>
+Date: Thu, 12 May 2011 11:33:13 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [rfc patch 2/6] vmscan: make distinction between memcg reclaim
+ and LRU list selection
+References: <1305212038-15445-1-git-send-email-hannes@cmpxchg.org> <1305212038-15445-3-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <1305212038-15445-3-git-send-email-hannes@cmpxchg.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Bottomley <James.Bottomley@HansenPartnership.com>
-Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Colin King <colin.king@canonical.com>, Raghavendra D Prabhu <raghu.prabhu13@gmail.com>, Jan Kara <jack@suse.cz>, Chris Mason <chris.mason@oracle.com>, Pekka Enberg <penberg@kernel.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-ext4 <linux-ext4@vger.kernel.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Ying Han <yinghan@google.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, 12 May 2011, James Bottomley wrote:
-
-> > >   */
-> > >  static int slub_min_order;
-> > > -static int slub_max_order = PAGE_ALLOC_COSTLY_ORDER;
-> > > +static int slub_max_order;
-> >
-> > If we really need to do this then do not push this down to zero please.
-> > SLAB uses order 1 for the meax. Lets at least keep it theere.
+On 05/12/2011 10:53 AM, Johannes Weiner wrote:
+> The reclaim code has a single predicate for whether it currently
+> reclaims on behalf of a memory cgroup, as well as whether it is
+> reclaiming from the global LRU list or a memory cgroup LRU list.
 >
-> 1 is the current value.  Reducing it to zero seems to fix the kswapd
-> induced hangs.  The problem does look to be some shrinker/allocator
-> interference somewhere in vmscan.c, but the fact is that it's triggered
-> by SLUB and not SLAB.  I really think that what's happening is some type
-> of feedback loops where one of the shrinkers is issuing a
-> wakeup_kswapd() so kswapd never sleeps (and never relinquishes the CPU
-> on non-preempt).
-
-The current value is PAGE_ALLOC_COSTLY_ORDER which is 3.
-
-> > We have been using SLUB for a long time. Why is this issue arising now?
-> > Due to compaction etc making reclaim less efficient?
+> Up to now, both cases always coincide, but subsequent patches will
+> change things such that global reclaim will scan memory cgroup lists.
 >
-> This is the snark argument (I've said it thrice the bellman cried and
-> what I tell you three times is true).  The fact is that no enterprise
-> distribution at all uses SLUB.  It's only recently that the desktop
-> distributions started to ... the bugs are showing up under FC15 beta,
-> which is the first fedora distribution to enable it.  I'd say we're only
-> just beginning widespread SLUB testing.
+> This patch adds a new predicate that tells global reclaim from memory
+> cgroup reclaim, and then changes all callsites that are actually about
+> global reclaim heuristics rather than strict LRU list selection.
+>
+> Signed-off-by: Johannes Weiner<hannes@cmpxchg.org>
+> ---
+>   mm/vmscan.c |   96 ++++++++++++++++++++++++++++++++++------------------------
+>   1 files changed, 56 insertions(+), 40 deletions(-)
+>
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index f6b435c..ceeb2a5 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -104,8 +104,12 @@ struct scan_control {
+>   	 */
+>   	reclaim_mode_t reclaim_mode;
+>
+> -	/* Which cgroup do we reclaim from */
+> -	struct mem_cgroup *mem_cgroup;
+> +	/*
+> +	 * The memory cgroup we reclaim on behalf of, and the one we
+> +	 * are currently reclaiming from.
+> +	 */
+> +	struct mem_cgroup *memcg;
+> +	struct mem_cgroup *current_memcg;
 
-Debian and Ubuntu have been using SLUB for a long time (and AFAICT from my
-archives so has Fedora). I have been running those here for a couple of
-years and the issues that I see here seem to be only with the most
-recent kernels that now do compaction and other reclaim tricks.
+I can't say I'm fond of these names.  I had to read the
+rest of the patch to figure out that the old mem_cgroup
+got renamed to current_memcg.
 
+Would it be better to call them my_memcg and reclaim_memcg?
 
+Maybe somebody else has better suggestions...
 
-
+Other than the naming, no objection.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
