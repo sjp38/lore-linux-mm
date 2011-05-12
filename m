@@ -1,45 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 604AE6B0011
-	for <linux-mm@kvack.org>; Thu, 12 May 2011 06:26:00 -0400 (EDT)
-Received: (from localhost user: 'dkiper' uid#4000 fake: STDIN
-	(dkiper@router-fw.net-space.pl)) by router-fw-old.local.net-space.pl
-	id S1583532Ab1ELKZP (ORCPT <rfc822;linux-mm@kvack.org>);
-	Thu, 12 May 2011 12:25:15 +0200
-Date: Thu, 12 May 2011 12:25:15 +0200
-From: Daniel Kiper <dkiper@net-space.pl>
-Subject: Re: [PATCH 1/4] mm: Remove dependency on CONFIG_FLATMEM from online_page()
-Message-ID: <20110512102515.GA27851@router-fw-old.local.net-space.pl>
-References: <20110502211915.GB4623@router-fw-old.local.net-space.pl> <alpine.DEB.2.00.1105111547160.24003@chino.kir.corp.google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1105111547160.24003@chino.kir.corp.google.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D54B6B0011
+	for <linux-mm@kvack.org>; Thu, 12 May 2011 06:43:07 -0400 (EDT)
+Received: by vws4 with SMTP id 4so1515830vws.14
+        for <linux-mm@kvack.org>; Thu, 12 May 2011 03:43:05 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <1305147776.2883.1.camel@work-vm>
+References: <1305073386-4810-1-git-send-email-john.stultz@linaro.org>
+	<1305073386-4810-3-git-send-email-john.stultz@linaro.org>
+	<BANLkTikXyqddLbQKyDYFrAwq9DamDj--AQ@mail.gmail.com>
+	<1305147776.2883.1.camel@work-vm>
+Date: Thu, 12 May 2011 18:43:05 +0800
+Message-ID: <BANLkTikxcfGYAmKf5QEAwJjDLdo6_k6zaw@mail.gmail.com>
+Subject: Re: [PATCH 2/3] printk: Add %ptc to safely print a task's comm
+From: =?UTF-8?Q?Am=C3=A9rico_Wang?= <xiyou.wangcong@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Daniel Kiper <dkiper@net-space.pl>, ian.campbell@citrix.com, akpm@linux-foundation.org, andi.kleen@intel.com, haicheng.li@linux.intel.com, fengguang.wu@intel.com, jeremy@goop.org, konrad.wilk@oracle.com, dan.magenheimer@oracle.com, v.tolstov@selfip.ru, pasik@iki.fi, dave@linux.vnet.ibm.com, wdauchy@gmail.com, xen-devel@lists.xensource.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: John Stultz <john.stultz@linaro.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, Ted Ts'o <tytso@mit.edu>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-On Wed, May 11, 2011 at 03:47:49PM -0700, David Rientjes wrote:
-> On Mon, 2 May 2011, Daniel Kiper wrote:
+On Thu, May 12, 2011 at 5:02 AM, John Stultz <john.stultz@linaro.org> wrote=
+:
+> On Wed, 2011-05-11 at 17:33 +0800, Am=C3=A9rico Wang wrote:
+>> On Wed, May 11, 2011 at 8:23 AM, John Stultz <john.stultz@linaro.org> wr=
+ote:
+>> > Acessing task->comm requires proper locking. However in the past
+>> > access to current->comm could be done without locking. This
+>> > is no longer the case, so all comm access needs to be done
+>> > while holding the comm_lock.
+>> >
+>> > In my attempt to clean up unprotected comm access, I've noticed
+>> > most comm access is done for printk output. To simpify correct
+>> > locking in these cases, I've introduced a new %ptc format,
+>> > which will safely print the corresponding task's comm.
+>> >
+>> > Example use:
+>> > printk("%ptc: unaligned epc - sending SIGBUS.\n", current);
+>> >
+>>
+>> Why do you hide current->comm behide printk?
+>> How is this better than printk("%s: ....", task_comm(current)) ?
 >
-> > Memory hotplug code strictly depends on CONFIG_SPARSEMEM.
-> > It means that code depending on CONFIG_FLATMEM in online_page()
-> > is never compiled. Remove it because it is not needed anymore.
-> >
-> > Signed-off-by: Daniel Kiper <dkiper@net-space.pl>
+> So to properly access current->comm, you need to hold the task-lock (or
+> with my new patch set, the comm_lock). Rather then adding locking to all
+> the call sites that printk("%s ...", current->comm), I'm suggesting we
+> add a new %ptc method which will handle the locking for you.
 >
-> The code you're patching depends on CONFIG_MEMORY_HOTPLUG_SPARSE, so this
-> is valid.  The changelog should be updated to reflect that, however.
->
-> Acked-by: David Rientjes <rientjes@google.com>
 
-No problem, however, this bundle of patches was added to the -mm tree.
-In this situation should I repost whole bundle with relevant changes
-or post only those two patches requested by you ??? For which tree
-should I prepare new version of patches ???
+Sorry, I meant why not adding the locking into a wrapper function,
+probably get_task_comm() and let the users to call it directly?
 
-Daniel
+Why is %ptc better than
+
+char comm[...];
+get_task_comm(comm, current);
+printk("%s: ....", comm);
+
+?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
