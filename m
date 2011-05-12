@@ -1,117 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id E20AF6B002A
-	for <linux-mm@kvack.org>; Thu, 12 May 2011 00:17:15 -0400 (EDT)
-Received: by qwa26 with SMTP id 26so867836qwa.14
-        for <linux-mm@kvack.org>; Wed, 11 May 2011 21:17:13 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20110512123942.4b641e2d.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20110509182110.167F.A69D9226@jp.fujitsu.com>
-	<20110510171335.16A7.A69D9226@jp.fujitsu.com>
-	<20110510171641.16AF.A69D9226@jp.fujitsu.com>
-	<20110512095243.c57e3e83.kamezawa.hiroyu@jp.fujitsu.com>
-	<BANLkTi=ya1rAqC+nMPHkBaMsoXpsCeHH=w@mail.gmail.com>
-	<20110512105351.a57970d7.kamezawa.hiroyu@jp.fujitsu.com>
-	<BANLkTimWOtKKj+Jq1vqHfOfQ2UvP7Xxa3g@mail.gmail.com>
-	<20110512123942.4b641e2d.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Thu, 12 May 2011 13:17:13 +0900
-Message-ID: <BANLkTi=dvb5tXxzLwY+vgG8o4eYq5f_X8Q@mail.gmail.com>
-Subject: Re: [PATCH 2/4] oom: kill younger process first
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 0737B900001
+	for <linux-mm@kvack.org>; Thu, 12 May 2011 00:29:23 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id BDE453EE0C1
+	for <linux-mm@kvack.org>; Thu, 12 May 2011 13:29:20 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id A237545DE5A
+	for <linux-mm@kvack.org>; Thu, 12 May 2011 13:29:20 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 7CF8345DE55
+	for <linux-mm@kvack.org>; Thu, 12 May 2011 13:29:20 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6948B1DB8046
+	for <linux-mm@kvack.org>; Thu, 12 May 2011 13:29:20 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 226B9E08004
+	for <linux-mm@kvack.org>; Thu, 12 May 2011 13:29:20 +0900 (JST)
+Date: Thu, 12 May 2011 13:22:37 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH 0/7] memcg async reclaim
+Message-Id: <20110512132237.813a7c7f.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110511205110.354fa05e.akpm@linux-foundation.org>
+References: <20110510190216.f4eefef7.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110511182844.d128c995.akpm@linux-foundation.org>
+	<20110512103503.717f4a96.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110511205110.354fa05e.akpm@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, CAI Qian <caiqian@redhat.com>, avagin@gmail.com, Andrey Vagin <avagin@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Oleg Nesterov <oleg@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Ying Han <yinghan@google.com>, Johannes Weiner <jweiner@redhat.com>, Michal Hocko <mhocko@suse.cz>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
 
-On Thu, May 12, 2011 at 12:39 PM, KAMEZAWA Hiroyuki
-<kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> On Thu, 12 May 2011 11:23:38 +0900
-> Minchan Kim <minchan.kim@gmail.com> wrote:
->
->> On Thu, May 12, 2011 at 10:53 AM, KAMEZAWA Hiroyuki
->> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
->> > On Thu, 12 May 2011 10:30:45 +0900
->> > Minchan Kim <minchan.kim@gmail.com> wrote:
->
->> > As above implies, (B)->prev pointer is invalid pointer after list_del(=
-).
->> > So, there will be race with list modification and for_each_list_revers=
-e under
->> > rcu_read__lock()
->> >
->> > So, when you need to take atomic lock (as tasklist lock is) is...
->> >
->> > =C2=A01) You can't check 'entry' is valid or not...
->> > =C2=A0 =C2=A0In above for_each_list_rcu(), you may visit an object whi=
-ch is under removing.
->> > =C2=A0 =C2=A0You need some flag or check to see the object is valid or=
- not.
->> >
->> > =C2=A02) you want to use list_for_each_safe().
->> > =C2=A0 =C2=A0You can't do list_del() an object which is under removing=
-...
->> >
->> > =C2=A03) You want to walk the list in reverse.
->> >
->> > =C2=A03) Some other reasons. For example, you'll access an object poin=
-ted by the
->> > =C2=A0 =C2=A0'entry' and the object is not rcu safe.
->> >
->> > make sense ?
->>
->> Yes. Thanks, Kame.
->> It seems It is caused by prev poisoning of list_del_rcu.
->> If we remove it, isn't it possible to traverse reverse without atomic lo=
-ck?
->>
->
-> IIUC, it's possible (Fix me if I'm wrong) but I don't like that because o=
-f 2 reasons.
->
-> 1. LIST_POISON is very important information at debug.
+On Wed, 11 May 2011 20:51:10 -0700
+Andrew Morton <akpm@linux-foundation.org> wrote:
 
-Indeed.
-But if we can get a better something although we lost debug facility,
-I think it would be okay.
+> On Thu, 12 May 2011 10:35:03 +0900 KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> 
+> > > What (user-visible) problem is this patchset solving?
+> > > 
+> > > IOW, what is the current behaviour, what is wrong with that behaviour
+> > > and what effects does the patchset have upon that behaviour?
+> > > 
+> > > The sole answer from the above is "latency spikes".  Anything else?
+> > > 
+> > 
+> > I think this set has possibility to fix latency spike. 
+> > 
+> > For example, in previous set, (which has tuning knobs), do a file copy
+> > of 400M file under 400M limit.
+> > ==
+> > 1) == hard limit = 400M ==
+> > [root@rhel6-test hilow]# time cp ./tmpfile xxx                
+> > real    0m7.353s
+> > user    0m0.009s
+> > sys     0m3.280s
+> > 
+> > 2) == hard limit 500M/ hi_watermark = 400M ==
+> > [root@rhel6-test hilow]# time cp ./tmpfile xxx
+> > 
+> > real    0m6.421s
+> > user    0m0.059s
+> > sys     0m2.707s
+> > ==
+> > and in both case, memory usage after test was 400M.
+> 
+> I'm surprised that reclaim consumed so much CPU.  But I guess that's a
+> 200,000 page/sec reclaim rate which sounds high(?) but it's - what -
+> 15,000 CPU clocks per page?  I don't recall anyone spending much effort
+> on instrumenting and reducing CPU consumption in reclaim.
+> 
+Maybe I need to count the number of congestion_wait() in direct reclaim path.
+"prioriry" may goes very high too early.....
+(I don't like 'priority' in vmscan.c very much ;)
 
->
-> 2. If we don't clear prev pointer, ok, we'll allow 2 directional walk of =
-list
-> =C2=A0 under RCU.
-> =C2=A0 But, in following case
-> =C2=A0 1. you are now at (C). you'll visit (C)->next...(D)
-> =C2=A0 2. you are now at (D). you want to go back to (C) via (D)->prev.
-> =C2=A0 3. But (D)->prev points to (B)
->
-> =C2=A0It's not a 2 directional list, something other or broken one.
+> Presumably there will be no improvement in CPU consumption on
+> uniprocessor kernels or in single-CPU containers.  More likely a
+> deterioration.
+> 
+Yes, no improvements on CPU cunsumption. (As I've repeatedly written.)
+Just moving when the cpu is consumed.
+I wanted a switch to control that for scheduling freeing pages when the admin
+knows the system is free. But this version drops the knob for simplification
+and check the 'default' & 'automatic' way. I'll add a knob again and then,
+add a knob of turn-off this feature in natural way.
 
-Yes. but it shouldn't be a problem in RCU semantics.
-If you need such consistency, you should use lock.
 
-I recall old thread about it.
-In http://lwn.net/Articles/262464/, mmutz and Paul already discussed
-about it. :)
+This is a result in previous set, which had elapsed_time statistics.
+==
+ # cat /cgroup/memory/A/memory.stat
+ ....
+ direct_elapsed_ns 0
+ soft_elapsed_ns 0
+ wmark_elapsed_ns 103566424
+ direct_scanned 0
+ soft_scanned 0
+ wmark_scanned 29303
+ direct_freed 0
+ soft_freed 0
+ wmark_freed 29290
+==
 
-> =C2=A0Then, the rculist is 1 directional list in nature, I think.
+In this run (maybe not copy, just 'cat'), async reclaim scan 29000 pages and consumes 0.1ms
 
-Yes. But Why RCU become 1 directional list is we can't find a useful usecas=
-es.
 
->
-> So, without very very big reason, we should keep POISON.
+> 
+> ahem.
+> 
+> Copying a 400MB file in a non-containered kernel on this 8GB machine
+> with old, slow CPUs takes 0.64 seconds systime, 0.66 elapsed.  Five
+> times less than your machine.  Where the heck did all that CPU time go?
+> 
 
-Agree.
-I don't insist on it as it's not a useful usecase for persuading Paul.
-That's because it's not a hot path.
+Ah, sorry. above was on KVM.  without container.
+==
+[root@rhel6-test hilow]# time cp ./tmpfile xxx
 
-It's started from just out of curiosity.
-Thanks for very much clarifying that, Kame!
+real    0m5.197s
+user    0m0.006s
+sys     0m2.599s
+==
+Hmm, still slow. I'll use real hardware in the next post.
 
---=20
-Kind regards,
-Minchan Kim
+Maybe it's good to do a test with complex workload which use file cache.
+
+Thanks,
+-Kame
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
