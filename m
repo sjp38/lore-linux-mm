@@ -1,68 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 71AA56B0011
-	for <linux-mm@kvack.org>; Thu, 12 May 2011 18:15:29 -0400 (EDT)
-Date: Fri, 13 May 2011 00:15:06 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 3/3] mm: slub: Default slub_max_order to 0
-Message-ID: <20110512221506.GM16531@cmpxchg.org>
-References: <1305127773-10570-4-git-send-email-mgorman@suse.de>
- <alpine.DEB.2.00.1105120942050.24560@router.home>
- <1305213359.2575.46.camel@mulgrave.site>
- <alpine.DEB.2.00.1105121024350.26013@router.home>
- <1305214993.2575.50.camel@mulgrave.site>
- <1305215742.27848.40.camel@jaguar>
- <1305225467.2575.66.camel@mulgrave.site>
- <1305229447.2575.71.camel@mulgrave.site>
- <1305230652.2575.72.camel@mulgrave.site>
- <1305237882.2575.100.camel@mulgrave.site>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1305237882.2575.100.camel@mulgrave.site>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 3CABE6B0011
+	for <linux-mm@kvack.org>; Thu, 12 May 2011 18:29:06 -0400 (EDT)
+Subject: Re: [PATCH 2/3] printk: Add %ptc to safely print a task's comm
+From: Joe Perches <joe@perches.com>
+In-Reply-To: <alpine.DEB.2.00.1105121510330.9130@chino.kir.corp.google.com>
+References: <1305073386-4810-1-git-send-email-john.stultz@linaro.org>
+	 <1305073386-4810-3-git-send-email-john.stultz@linaro.org>
+	 <1305075090.19586.189.camel@Joe-Laptop>  <1305076246.2939.67.camel@work-vm>
+	 <1305076850.19586.196.camel@Joe-Laptop>
+	 <alpine.DEB.2.00.1105121510330.9130@chino.kir.corp.google.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Thu, 12 May 2011 15:29:02 -0700
+Message-ID: <1305239342.6124.77.camel@Joe-Laptop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Bottomley <James.Bottomley@HansenPartnership.com>
-Cc: Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Colin King <colin.king@canonical.com>, Raghavendra D Prabhu <raghu.prabhu13@gmail.com>, Jan Kara <jack@suse.cz>, Chris Mason <chris.mason@oracle.com>, Rik van Riel <riel@redhat.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-ext4 <linux-ext4@vger.kernel.org>
+To: David Rientjes <rientjes@google.com>, Andy Whitcroft <apw@canonical.com>
+Cc: John Stultz <john.stultz@linaro.org>, LKML <linux-kernel@vger.kernel.org>, Ted Ts'o <tytso@mit.edu>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-On Thu, May 12, 2011 at 05:04:41PM -0500, James Bottomley wrote:
-> On Thu, 2011-05-12 at 15:04 -0500, James Bottomley wrote:
-> > Confirmed, I'm afraid ... I can trigger the problem with all three
-> > patches under PREEMPT.  It's not a hang this time, it's just kswapd
-> > taking 100% system time on 1 CPU and it won't calm down after I unload
-> > the system.
-> 
-> Just on a "if you don't know what's wrong poke about and see" basis, I
-> sliced out all the complex logic in sleeping_prematurely() and, as far
-> as I can tell, it cures the problem behaviour.  I've loaded up the
-> system, and taken the tar load generator through three runs without
-> producing a spinning kswapd (this is PREEMPT).  I'll try with a
-> non-PREEMPT kernel shortly.
-> 
-> What this seems to say is that there's a problem with the complex logic
-> in sleeping_prematurely().  I'm pretty sure hacking up
-> sleeping_prematurely() just to dump all the calculations is the wrong
-> thing to do, but perhaps someone can see what the right thing is ...
+On Thu, 2011-05-12 at 15:12 -0700, David Rientjes wrote:
+> On Tue, 10 May 2011, Joe Perches wrote:
+> > > Although I'm not sure if there's precedent for a %p value that didn't
+> > > take a argument. Thoughts on that? Anyone else have an opinion here?
+> > The uses of %ptc must add an argument or else gcc will complain.
+> > I suggest you just ignore the argument value and use current.
+> That doesn't make any sense, why would you needlessly restrict this to 
+> current when accesses to other threads' ->comm needs to be protected in 
+> the same way?  I'd like to use this in the oom killer and try to get rid 
+> of taking task_lock() for every thread group leader in the tasklist dump.
 
-I think I see the problem: the boolean logic of sleeping_prematurely()
-is odd.  If it returns true, kswapd will keep running.  So if
-pgdat_balanced() returns true, kswapd should go to sleep.
+I suppose another view is coder stuffed up, let them suffer...
 
-This?
+At some point, gcc may let us extend printf argument type
+verification so it may not be a continuing problem.
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 2b701e0..092d773 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2261,7 +2261,7 @@ static bool sleeping_prematurely(pg_data_t *pgdat, int order, long remaining,
- 	 * must be balanced
- 	 */
- 	if (order)
--		return pgdat_balanced(pgdat, balanced, classzone_idx);
-+		return !pgdat_balanced(pgdat, balanced, classzone_idx);
- 	else
- 		return !all_zones_ok;
- }
+Adding a checkpatch rule for this is non-trivial as it can
+be written as:
+
+	printk("%ptc\n",
+	       current);
+
+and checkpatch is mostly line oriented.
+
+Andy, do you have a suggestion on how to verify
+vsprintf argument types for checkpatch?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
