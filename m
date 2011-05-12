@@ -1,307 +1,177 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F50F90010F
-	for <linux-mm@kvack.org>; Thu, 12 May 2011 14:47:55 -0400 (EDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B154900001
+	for <linux-mm@kvack.org>; Thu, 12 May 2011 14:53:44 -0400 (EDT)
+Received: from kpbe17.cbf.corp.google.com (kpbe17.cbf.corp.google.com [172.25.105.81])
+	by smtp-out.google.com with ESMTP id p4CIreYc015955
+	for <linux-mm@kvack.org>; Thu, 12 May 2011 11:53:40 -0700
+Received: from qyk10 (qyk10.prod.google.com [10.241.83.138])
+	by kpbe17.cbf.corp.google.com with ESMTP id p4CIrcZ6014783
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 12 May 2011 11:53:38 -0700
+Received: by qyk10 with SMTP id 10so1112689qyk.4
+        for <linux-mm@kvack.org>; Thu, 12 May 2011 11:53:38 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <1305212038-15445-1-git-send-email-hannes@cmpxchg.org>
+References: <1305212038-15445-1-git-send-email-hannes@cmpxchg.org>
+Date: Thu, 12 May 2011 11:53:37 -0700
+Message-ID: <BANLkTikHhK8S-fMpe=KOYCF0kmXotHKCOQ@mail.gmail.com>
+Subject: Re: [rfc patch 0/6] mm: memcg naturalization
 From: Ying Han <yinghan@google.com>
-Subject: [RFC PATCH 3/4] Implementation of soft_limit reclaim in round-robin.
-Date: Thu, 12 May 2011 11:47:11 -0700
-Message-Id: <1305226032-21448-4-git-send-email-yinghan@google.com>
-In-Reply-To: <1305226032-21448-1-git-send-email-yinghan@google.com>
-References: <1305226032-21448-1-git-send-email-yinghan@google.com>
+Content-Type: multipart/alternative; boundary=0016e64aefdafd6ae304a318b4e6
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>
-Cc: linux-mm@kvack.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-This patch re-implement the soft_limit reclaim function which it
-picks up next memcg to reclaim from in a round-robin fashion.
+--0016e64aefdafd6ae304a318b4e6
+Content-Type: text/plain; charset=ISO-8859-1
 
-For each memcg, we do hierarchical reclaim and checks the zone_wmark_ok()
-after each iteration. There is a rate limit per each memcg on how many
-pages to scan based on how much it exceeds the soft_limit.
+On Thu, May 12, 2011 at 7:53 AM, Johannes Weiner <hannes@cmpxchg.org> wrote:
 
-This patch is a first step approach to switch from RB-tree based reclaim
-to link-list based reclaim, and improvement on per-memcg soft_limit reclaim
-algorithm is needed next.
+> Hi!
+>
+> Here is a patch series that is a result of the memcg discussions on
+> LSF (memcg-aware global reclaim, global lru removal, struct
+> page_cgroup reduction, soft limit implementation) and the recent
+> feature discussions on linux-mm.
+>
+> The long-term idea is to have memcgs no longer bolted to the side of
+> the mm code, but integrate it as much as possible such that there is a
+> native understanding of containers, and that the traditional !memcg
+> setup is just a singular group.  This series is an approach in that
+> direction.
+>
+> It is a rather early snapshot, WIP, barely tested etc., but I wanted
+> to get your opinions before further pursuing it.  It is also part of
+> my counter-argument to the proposals of adding memcg-reclaim-related
+> user interfaces at this point in time, so I wanted to push this out
+> the door before things are merged into .40.
+>
 
-Some test result:
-Test 1:
-Here I have three memcgs each doing a read on 20g file on a 32g system(no swap).
-Meantime I have a program pinned a 18g anon pages under root. The hard_limit and
-soft_limit is listed as container(hard_limit, soft_limit)
-
-root: 18g anon pages w/o swap
-
-A (20g, 2g):
-soft_kswapd_steal 4265600
-soft_kswapd_scan 4265600
-
-B (20g, 2g):
-soft_kswapd_steal 4265600
-soft_kswapd_scan 4265600
-
-C: (20g, 2g)
-soft_kswapd_steal 4083904
-soft_kswapd_scan 4083904
-
-vmstat:
-kswapd_steal 12617255
-
-99.9% steal
-
-This two stats shows the zone_wmark_ok is fullfilled after soft_limit
-reclaim vs per-zone reclaim.
-
-kwapd_zone_wmark_ok 1974
-kswapd_soft_limit_zone_wmark_ok 1969
+The memcg-reclaim-related user interface I assume was the watermark
+configurable tunable
+we were talking about in the per-memcg background reclaim patch. I think we
+got some agreement
+to remove the watermark tunable at the first step. But the newly added
+memory.soft_limit_async_reclaim
+as you proposed seems to be a usable interface.
 
 
-Test2:
-Here the same memcgs but each is doing a 20g file write.
+>
+> The patches are quite big, I am still looking for things to factor and
+> split out, sorry for this.  Documentation is on its way as well ;)
+>
 
-root: 18g anon pages w/o swap
+This is a quite bit patchset includes different part. We might want to split
+it into steps. I will read them through
+now.
 
-A (20g, 2g):
-soft_kswapd_steal 4718336
-soft_kswapd_scan 4718336
+--Ying
 
-B (20g, 2g):
-soft_kswapd_steal 4710304
-soft_kswapd_scan 4710304
+>
+> #1 and #2 are boring preparational work.  #3 makes traditional reclaim
+> in vmscan.c memcg-aware, which is a prerequisite for both removal of
+> the global lru in #5 and the way I reimplemented soft limit reclaim in
+> #6.
+>
+> The diffstat so far looks like this:
+>
+>  include/linux/memcontrol.h  |   84 +++--
+>  include/linux/mm_inline.h   |   15 +-
+>  include/linux/mmzone.h      |   10 +-
+>  include/linux/page_cgroup.h |   35 --
+>  include/linux/swap.h        |    4 -
+>  mm/memcontrol.c             |  860
+> +++++++++++++------------------------------
+>  mm/page_alloc.c             |    2 +-
+>  mm/page_cgroup.c            |   39 +--
+>  mm/swap.c                   |   20 +-
+>  mm/vmscan.c                 |  273 +++++++--------
+>  10 files changed, 452 insertions(+), 890 deletions(-)
+>
+> It is based on .39-rc7 because of the memcg churn in -mm, but I'll
+> rebase it in the near future.
+>
+> Discuss!
+>
+>        Hannes
+>
 
-C (20g, 3g);
-soft_kswapd_steal 2933406
-soft_kswapd_scan 5797460
+--0016e64aefdafd6ae304a318b4e6
+Content-Type: text/html; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 
-kswapd_steal 15958486
-77%
+<br><br><div class=3D"gmail_quote">On Thu, May 12, 2011 at 7:53 AM, Johanne=
+s Weiner <span dir=3D"ltr">&lt;<a href=3D"mailto:hannes@cmpxchg.org">hannes=
+@cmpxchg.org</a>&gt;</span> wrote:<br><blockquote class=3D"gmail_quote" sty=
+le=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex;">
+Hi!<br>
+<br>
+Here is a patch series that is a result of the memcg discussions on<br>
+LSF (memcg-aware global reclaim, global lru removal, struct<br>
+page_cgroup reduction, soft limit implementation) and the recent<br>
+feature discussions on linux-mm.<br>
+<br>
+The long-term idea is to have memcgs no longer bolted to the side of<br>
+the mm code, but integrate it as much as possible such that there is a<br>
+native understanding of containers, and that the traditional !memcg<br>
+setup is just a singular group. =A0This series is an approach in that<br>
+direction.<br>
+<br>
+It is a rather early snapshot, WIP, barely tested etc., but I wanted<br>
+to get your opinions before further pursuing it. =A0It is also part of<br>
+my counter-argument to the proposals of adding memcg-reclaim-related<br>
+user interfaces at this point in time, so I wanted to push this out<br>
+the door before things are merged into .40.<br></blockquote><div><br></div>=
+<div>The memcg-reclaim-related user interface I assume was the watermark co=
+nfigurable tunable</div><div>we were talking about in the per-memcg backgro=
+und reclaim patch. I think we got some agreement</div>
+<div>to remove the watermark tunable at the first step. But the newly added=
+ memory.soft_limit_async_reclaim</div><div>as you proposed seems to be a us=
+able interface.</div><div>=A0</div><blockquote class=3D"gmail_quote" style=
+=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex;">
 
-kswapd_zone_wmark_ok 2517
-kswapd_soft_limit_zone_wmark_ok 2405
+<br>
+The patches are quite big, I am still looking for things to factor and<br>
+split out, sorry for this. =A0Documentation is on its way as well ;)<br></b=
+lockquote><div><br></div><div>This is a quite bit patchset includes differe=
+nt part. We might want to split it into steps. I will read them through</di=
+v>
+<div>now.</div><div><br></div><div>--Ying=A0</div><blockquote class=3D"gmai=
+l_quote" style=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left=
+:1ex;">
+<br>
+#1 and #2 are boring preparational work. =A0#3 makes traditional reclaim<br=
+>
+in vmscan.c memcg-aware, which is a prerequisite for both removal of<br>
+the global lru in #5 and the way I reimplemented soft limit reclaim in<br>
+#6.<br>
+<br>
+The diffstat so far looks like this:<br>
+<br>
+=A0include/linux/memcontrol.h =A0| =A0 84 +++--<br>
+=A0include/linux/mm_inline.h =A0 | =A0 15 +-<br>
+=A0include/linux/mmzone.h =A0 =A0 =A0| =A0 10 +-<br>
+=A0include/linux/page_cgroup.h | =A0 35 --<br>
+=A0include/linux/swap.h =A0 =A0 =A0 =A0| =A0 =A04 -<br>
+=A0mm/memcontrol.c =A0 =A0 =A0 =A0 =A0 =A0 | =A0860 +++++++++++++----------=
+--------------------<br>
+=A0mm/page_alloc.c =A0 =A0 =A0 =A0 =A0 =A0 | =A0 =A02 +-<br>
+=A0mm/page_cgroup.c =A0 =A0 =A0 =A0 =A0 =A0| =A0 39 +--<br>
+=A0mm/swap.c =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 | =A0 20 +-<br>
+=A0mm/vmscan.c =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 | =A0273 +++++++--------<br>
+=A010 files changed, 452 insertions(+), 890 deletions(-)<br>
+<br>
+It is based on .39-rc7 because of the memcg churn in -mm, but I&#39;ll<br>
+rebase it in the near future.<br>
+<br>
+Discuss!<br>
+<br>
+ =A0 =A0 =A0 =A0Hannes<br>
+</blockquote></div><br>
 
-TODO:
-1. We would like to do better on targeting reclaim by calculating the target
-nr_to_scan per-memcg, especially combining the current heuristics with
-soft_limit exceeds. How much weight we would like to put for the soft_limit
-exceed, or do we want to make it configurable?
-
-2. As decided in LSF, we need a second list of memcgs under their soft_limit
-per-zone as well. This is needed to do zone balancing w/o global LRU. We
-shouldn't scan the second list unless the first list exhausted.
-
-Signed-off-by: Ying Han <yinghan@google.com>
----
- include/linux/memcontrol.h |    3 +-
- mm/memcontrol.c            |  119 ++++++++++++++++++++++++++++++++++++++++++-
- mm/vmscan.c                |   25 +++++-----
- 3 files changed, 131 insertions(+), 16 deletions(-)
-
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 6a0cffd..c7fcb26 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -145,7 +145,8 @@ static inline void mem_cgroup_dec_page_stat(struct page *page,
- }
- 
- unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
--						gfp_t gfp_mask,
-+						gfp_t gfp_mask, int end_zone,
-+						unsigned long balance_gap,
- 						unsigned long *total_scanned);
- u64 mem_cgroup_get_limit(struct mem_cgroup *mem);
- 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 1360de6..b87ccc8 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1093,6 +1093,19 @@ unsigned long mem_cgroup_zone_nr_pages(struct mem_cgroup *memcg,
- 	return MEM_CGROUP_ZSTAT(mz, lru);
- }
- 
-+unsigned long mem_cgroup_zone_reclaimable_pages(struct mem_cgroup_per_zone *mz)
-+{
-+	unsigned long total = 0;
-+
-+	if (nr_swap_pages) {
-+		total += MEM_CGROUP_ZSTAT(mz, LRU_INACTIVE_ANON);
-+		total += MEM_CGROUP_ZSTAT(mz, LRU_ACTIVE_ANON);
-+	}
-+	total +=  MEM_CGROUP_ZSTAT(mz, LRU_INACTIVE_FILE);
-+	total +=  MEM_CGROUP_ZSTAT(mz, LRU_ACTIVE_FILE);
-+	return total;
-+}
-+
- struct zone_reclaim_stat *mem_cgroup_get_reclaim_stat(struct mem_cgroup *memcg,
- 						      struct zone *zone)
- {
-@@ -1528,7 +1541,14 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
- 			return ret;
- 		total += ret;
- 		if (check_soft) {
--			if (!res_counter_soft_limit_excess(&root_mem->res))
-+			/*
-+			 * We want to be fair for each memcg soft_limit reclaim
-+			 * based on the excess.excess >> 2 is not to excessive
-+			 * so as to reclaim too much, nor too less that we keep
-+			 * coming back to reclaim from tis cgroup.
-+			 */
-+			if (!res_counter_soft_limit_excess(&root_mem->res) ||
-+			    total >= (excess >> 2))
- 				return total;
- 		} else if (mem_cgroup_margin(root_mem))
- 			return 1 + total;
-@@ -3314,11 +3334,104 @@ static int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
- 	return ret;
- }
- 
-+static struct mem_cgroup_per_zone *
-+__mem_cgroup_next_soft_limit_node(struct mem_cgroup_list_per_zone *mclz)
-+{
-+	struct mem_cgroup_per_zone *mz;
-+
-+retry:
-+	mz = NULL;
-+	if (list_empty(&mclz->list))
-+		goto done;
-+
-+	mz = list_entry(mclz->list.prev, struct mem_cgroup_per_zone,
-+			soft_limit_list);
-+
-+	__mem_cgroup_remove_exceeded(mz->mem, mz, mclz);
-+	if (!res_counter_soft_limit_excess(&mz->mem->res) ||
-+		!mem_cgroup_zone_reclaimable_pages(mz) ||
-+		!css_tryget(&mz->mem->css))
-+		goto retry;
-+done:
-+	return mz;
-+}
-+
-+static struct mem_cgroup_per_zone *
-+mem_cgroup_next_soft_limit_node(struct mem_cgroup_list_per_zone *mclz)
-+{
-+	struct mem_cgroup_per_zone *mz;
-+
-+	spin_lock(&mclz->lock);
-+	mz = __mem_cgroup_next_soft_limit_node(mclz);
-+	spin_unlock(&mclz->lock);
-+	return mz;
-+}
-+
- unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
--					    gfp_t gfp_mask,
-+					    gfp_t gfp_mask, int end_zone,
-+					    unsigned long balance_gap,
- 					    unsigned long *total_scanned)
- {
--	return 0;
-+	unsigned long nr_reclaimed = 0;
-+	unsigned long reclaimed;
-+	struct mem_cgroup_per_zone *mz;
-+	struct mem_cgroup_list_per_zone *mclz;
-+	unsigned long long excess;
-+	unsigned long nr_scanned;
-+	int loop = 0;
-+
-+	/*
-+	 * memcg reclaim doesn't support lumpy.
-+	 */
-+	if (order > 0)
-+		return 0;
-+
-+	mclz = soft_limit_list_node_zone(zone_to_nid(zone), zone_idx(zone));
-+	/*
-+	 * Start from the head of list.
-+	 */
-+	while (!list_empty(&mclz->list)) {
-+		mz = mem_cgroup_next_soft_limit_node(mclz);
-+		if (!mz)
-+			break;
-+
-+		nr_scanned = 0;
-+		reclaimed = mem_cgroup_hierarchical_reclaim(mz->mem, zone,
-+							gfp_mask,
-+							MEM_CGROUP_RECLAIM_SOFT,
-+							&nr_scanned);
-+		nr_reclaimed += reclaimed;
-+		*total_scanned += nr_scanned;
-+
-+		spin_lock(&mclz->lock);
-+
-+		__mem_cgroup_remove_exceeded(mz->mem, mz, mclz);
-+		/*
-+		 * Add it back to the list even the reclaimed equals
-+		 * to zero as long as the memcg is still above its
-+		 * soft_limit. It could be possible lots of pages becomes
-+		 * reclaimable suddently.
-+		 */
-+		excess = res_counter_soft_limit_excess(&mz->mem->res);
-+		__mem_cgroup_insert_exceeded(mz->mem, mz, mclz, excess);
-+
-+		spin_unlock(&mclz->lock);
-+		css_put(&mz->mem->css);
-+		loop++;
-+
-+		if (zone_watermark_ok_safe(zone, order,
-+				high_wmark_pages(zone) + balance_gap,
-+				end_zone, 0)) {
-+			break;
-+		}
-+
-+		if (loop > MEM_CGROUP_MAX_SOFT_LIMIT_RECLAIM_LOOPS ||
-+			*total_scanned > nr_reclaimed + nr_reclaimed / 2)
-+			break;
-+
-+	}
-+
-+	return nr_reclaimed;
- }
- 
- /*
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 96789e0..9d79070 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2421,18 +2421,6 @@ loop_again:
- 			if (zone->all_unreclaimable && priority != DEF_PRIORITY)
- 				continue;
- 
--			sc.nr_scanned = 0;
--
--			nr_soft_scanned = 0;
--			/*
--			 * Call soft limit reclaim before calling shrink_zone.
--			 */
--			nr_soft_reclaimed = mem_cgroup_soft_limit_reclaim(zone,
--							order, sc.gfp_mask,
--							&nr_soft_scanned);
--			sc.nr_reclaimed += nr_soft_reclaimed;
--			total_scanned += nr_soft_scanned;
--
- 			/*
- 			 * We put equal pressure on every zone, unless
- 			 * one zone has way too many pages free
-@@ -2445,6 +2433,19 @@ loop_again:
- 				(zone->present_pages +
- 					KSWAPD_ZONE_BALANCE_GAP_RATIO-1) /
- 				KSWAPD_ZONE_BALANCE_GAP_RATIO);
-+			sc.nr_scanned = 0;
-+
-+			nr_soft_scanned = 0;
-+			/*
-+			 * Call soft limit reclaim before calling shrink_zone.
-+			 */
-+			nr_soft_reclaimed = mem_cgroup_soft_limit_reclaim(zone,
-+							order, sc.gfp_mask,
-+							end_zone, balance_gap,
-+							&nr_soft_scanned);
-+			sc.nr_reclaimed += nr_soft_reclaimed;
-+			total_scanned += nr_soft_scanned;
-+
- 			if (!zone_watermark_ok_safe(zone, order,
- 					high_wmark_pages(zone) + balance_gap,
- 					end_zone, 0))
--- 
-1.7.3.1
+--0016e64aefdafd6ae304a318b4e6--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
