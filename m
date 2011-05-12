@@ -1,103 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id B74846B0025
-	for <linux-mm@kvack.org>; Wed, 11 May 2011 23:50:28 -0400 (EDT)
-From: Satoru Moriya <satoru.moriya@hds.com>
-Date: Wed, 11 May 2011 23:46:37 -0400
-Subject: RE: [RFC PATCH -mm] add extra free kbytes tunable
-Message-ID: <65795E11DBF1E645A09CEC7EAEE94B9C3FBC06E5@USINDEVS02.corp.hds.com>
-References: <20110502212427.42b5a90f@annuminas.surriel.com>
-In-Reply-To: <20110502212427.42b5a90f@annuminas.surriel.com>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id E20AF6B002A
+	for <linux-mm@kvack.org>; Thu, 12 May 2011 00:17:15 -0400 (EDT)
+Received: by qwa26 with SMTP id 26so867836qwa.14
+        for <linux-mm@kvack.org>; Wed, 11 May 2011 21:17:13 -0700 (PDT)
 MIME-Version: 1.0
+In-Reply-To: <20110512123942.4b641e2d.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20110509182110.167F.A69D9226@jp.fujitsu.com>
+	<20110510171335.16A7.A69D9226@jp.fujitsu.com>
+	<20110510171641.16AF.A69D9226@jp.fujitsu.com>
+	<20110512095243.c57e3e83.kamezawa.hiroyu@jp.fujitsu.com>
+	<BANLkTi=ya1rAqC+nMPHkBaMsoXpsCeHH=w@mail.gmail.com>
+	<20110512105351.a57970d7.kamezawa.hiroyu@jp.fujitsu.com>
+	<BANLkTimWOtKKj+Jq1vqHfOfQ2UvP7Xxa3g@mail.gmail.com>
+	<20110512123942.4b641e2d.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Thu, 12 May 2011 13:17:13 +0900
+Message-ID: <BANLkTi=dvb5tXxzLwY+vgG8o4eYq5f_X8Q@mail.gmail.com>
+Subject: Re: [PATCH 2/4] oom: kill younger process first
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Ying Han <yinghan@google.com>, Mel Gorman <mel@suse.de>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, CAI Qian <caiqian@redhat.com>, avagin@gmail.com, Andrey Vagin <avagin@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Oleg Nesterov <oleg@redhat.com>
 
-Hi Rik,
-
-Sorry for slow response.
-
-On 05/02/2011 09:24 PM, Rik van Riel wrote:
+On Thu, May 12, 2011 at 12:39 PM, KAMEZAWA Hiroyuki
+<kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> On Thu, 12 May 2011 11:23:38 +0900
+> Minchan Kim <minchan.kim@gmail.com> wrote:
 >
-> This can be used to make the VM free up memory, for when an extra
-> workload is to be added to a system, or to temporarily reduce the
-> memory use of a virtual machine. In this application, extra_free_kbytes
-> would be raised temporarily and reduced again later.  The workload
-> management system could also monitor the current workloads with
-> reduced memory, to verify that there really is memory space for
-> an additional workload, before starting it.
->=20
-> It may also be useful for realtime applications that call system
-> calls and have a bound on the number of allocations that happen
-> in any short time period.  In this application, extra_free_kbytes
-> would be left at an amount equal to or larger than than the
-> maximum number of allocations that happen in any burst.
+>> On Thu, May 12, 2011 at 10:53 AM, KAMEZAWA Hiroyuki
+>> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+>> > On Thu, 12 May 2011 10:30:45 +0900
+>> > Minchan Kim <minchan.kim@gmail.com> wrote:
+>
+>> > As above implies, (B)->prev pointer is invalid pointer after list_del(=
+).
+>> > So, there will be race with list modification and for_each_list_revers=
+e under
+>> > rcu_read__lock()
+>> >
+>> > So, when you need to take atomic lock (as tasklist lock is) is...
+>> >
+>> > =C2=A01) You can't check 'entry' is valid or not...
+>> > =C2=A0 =C2=A0In above for_each_list_rcu(), you may visit an object whi=
+ch is under removing.
+>> > =C2=A0 =C2=A0You need some flag or check to see the object is valid or=
+ not.
+>> >
+>> > =C2=A02) you want to use list_for_each_safe().
+>> > =C2=A0 =C2=A0You can't do list_del() an object which is under removing=
+...
+>> >
+>> > =C2=A03) You want to walk the list in reverse.
+>> >
+>> > =C2=A03) Some other reasons. For example, you'll access an object poin=
+ted by the
+>> > =C2=A0 =C2=A0'entry' and the object is not rcu safe.
+>> >
+>> > make sense ?
+>>
+>> Yes. Thanks, Kame.
+>> It seems It is caused by prev poisoning of list_del_rcu.
+>> If we remove it, isn't it possible to traverse reverse without atomic lo=
+ck?
+>>
+>
+> IIUC, it's possible (Fix me if I'm wrong) but I don't like that because o=
+f 2 reasons.
+>
+> 1. LIST_POISON is very important information at debug.
 
-I tested it with my simple test case and it worked well.
+Indeed.
+But if we can get a better something although we lost debug facility,
+I think it would be okay.
 
-- System memory: 2GB
+>
+> 2. If we don't clear prev pointer, ok, we'll allow 2 directional walk of =
+list
+> =C2=A0 under RCU.
+> =C2=A0 But, in following case
+> =C2=A0 1. you are now at (C). you'll visit (C)->next...(D)
+> =C2=A0 2. you are now at (D). you want to go back to (C) via (D)->prev.
+> =C2=A0 3. But (D)->prev points to (B)
+>
+> =C2=A0It's not a 2 directional list, something other or broken one.
 
-- Background load:
-  $ dd if=3D/dev/zero of=3D/tmp/tmp_file1 &
-  $ dd if=3D/dev/zero of=3D/tmp/tmp_file2 &
+Yes. but it shouldn't be a problem in RCU semantics.
+If you need such consistency, you should use lock.
 
-- Main load:
-  $ mapped-file-stream 1 $((1024 * 1024 * 256))=20
+I recall old thread about it.
+In http://lwn.net/Articles/262464/, mmutz and Paul already discussed
+about it. :)
 
-The result is following:
+> =C2=A0Then, the rculist is 1 directional list in nature, I think.
 
-                   | default |  case 1  |  case 2  |  case 3  |=20
-----------------------------------------------------------------------
-min_free_kbytes    |  5752   |   5752   |   5752   |   5752   |
-extra_free_kbytes  |     0   |  64*1024 | 128*1024 | 256*1024 | (KB)
-----------------------------------------------------------------------
-avereage latency(*)|     4   |      4   |      4   |      4   |
-worst latency(*)   |   192   |     52   |     60   |     54   | (usec)
-----------------------------------------------------------------------
-page fault         | 65535   |  65535   |  65535   |  65535   |
-direct reclaim     |    21   |      0   |      0   |      0   | (times)
-----------------------------------------------------------------------
-vmstat result (**) |         |          |          |          |
- allocstall        |     69  |       0  |       0  |       0  |
- pgscan_steal_*    | 130573  |  128826  |  126258  |  133778  |
- kswapd_steal_*    | 127505  |  128826  |  126258  |  133778  | (times)
- (direct reclaim   |   3068  |       0  |       0  |       0  |
-  steal)     =20
+Yes. But Why RCU become 1 directional list is we can't find a useful usecas=
+es.
 
-(*) Latency per one page allocation(pagefault)
-(**)
- $ cat /proc/vmstat > vmstat_start
- $ mapped_file_stream....
- $ cat /proc/vmstat > vmstat_end
+>
+> So, without very very big reason, we should keep POISON.
 
-  -> "vmstat_end - vmstat_start" for each entry
+Agree.
+I don't insist on it as it's not a useful usecase for persuading Paul.
+That's because it's not a hot path.
 
-As you can see, in the default case there were 21 direct reclaims in
-the main load and its worst latency was 192 usecs. This may be bigger
-if a process would sleep in the direct reclaim path(congestion_wait etc.).
-In the other cases, there were no direct reclaim and its worst latencies
-were less or equal 60 usecs.
+It's started from just out of curiosity.
+Thanks for very much clarifying that, Kame!
 
-We can avoid direct reclaim and keep a latency low with this knob.
-
->=20
-> I realize nobody really likes this solution to their particular
-> issue, but it is hard to deny the simplicity - especially
-> considering that this one knob could solve three different issues
-> and is fairly simple to understand.
-
-Yeah, this is much simpler than I proposed several month ago.
-
-Thanks,
-Satoru
-
->=20
-> Signed-off-by: Rik van Riel<riel@redhat.com>
->=20
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
