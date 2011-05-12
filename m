@@ -1,40 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 0F6926B0027
-	for <linux-mm@kvack.org>; Thu, 12 May 2011 12:04:56 -0400 (EDT)
-Message-ID: <4DCC051E.4000206@redhat.com>
-Date: Thu, 12 May 2011 12:04:46 -0400
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [rfc patch 3/6] mm: memcg-aware global reclaim
-References: <1305212038-15445-1-git-send-email-hannes@cmpxchg.org> <1305212038-15445-4-git-send-email-hannes@cmpxchg.org>
-In-Reply-To: <1305212038-15445-4-git-send-email-hannes@cmpxchg.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 6EBDD6B0026
+	for <linux-mm@kvack.org>; Thu, 12 May 2011 12:06:13 -0400 (EDT)
+Subject: Re: 2.6.39-rc6-mmotm0506 - lockdep splat in RCU code on page fault
+In-Reply-To: Your message of "Thu, 12 May 2011 02:47:05 PDT."
+             <20110512094704.GL2258@linux.vnet.ibm.com>
+From: Valdis.Kletnieks@vt.edu
+References: <6921.1304989476@localhost> <20110510082029.GF2258@linux.vnet.ibm.com> <34783.1305155494@localhost>
+            <20110512094704.GL2258@linux.vnet.ibm.com>
+Mime-Version: 1.0
+Content-Type: multipart/signed; boundary="==_Exmh_1305216324_4101P";
+	 micalg=pgp-sha1; protocol="application/pgp-signature"
 Content-Transfer-Encoding: 7bit
+Date: Thu, 12 May 2011 12:05:24 -0400
+Message-ID: <5817.1305216324@localhost>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Ying Han <yinghan@google.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: paulmck@linux.vnet.ibm.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 05/12/2011 10:53 AM, Johannes Weiner wrote:
+--==_Exmh_1305216324_4101P
+Content-Type: text/plain; charset=us-ascii
 
-> I am open to solutions that trade fairness against CPU-time but don't
-> want to have an extreme in either direction.  Maybe break out early if
-> a number of memcgs has been successfully reclaimed from and remember
-> the last one scanned.
+On Thu, 12 May 2011 02:47:05 PDT, "Paul E. McKenney" said:
+> On Wed, May 11, 2011 at 07:11:34PM -0400, Valdis.Kletnieks@vt.edu wrote:
+> > My source has this:
+> >
+> >         raw_spin_lock_irqsave(&rnp->lock, flags);
+> >         rnp->wakemask |= rdp->grpmask;
+> >         invoke_rcu_node_kthread(rnp);
+> >         raw_spin_unlock_irqrestore(&rnp->lock, flags);
+> >
+> > the last 2 lines swapped from what you diffed against.  I can easily work around
+> > that, except it's unclear what the implications of the invoke_rcu moving outside
+> > of the irq save/restore pair (or if it being inside is the actual root cause)...
+>
+> Odd...
+>
+> This looks to me like a recent -next -- I do not believe that straight
+> mmotm has rcu_cpu_kthread_timer() in it.  The patch should apply to the
+> last few days' -next kernels.
 
-The way we used to deal with this when we did per-process
-virtual scanning (before rmap), was to scan the process at
-the head of the list.
+Ah. Found it. Your tree and current linux-next include this commit:
 
-After we were done with that process, it got moved to the
-back of the list.  If enough had been scanned, we bailed
-out of the scanning code alltogether; if more needed to
-be scanned, we moved on to the next process.
+commit	1217ed1ba5c67393293dfb0f03c353b118dadeb4
+tree	a765356c8418e134de85fd05d9fe6eda41de859c	tree | snapshot
+parent	29ce831000081dd757d3116bf774aafffc4b6b20	commit | diff
+rcu: permit rcu_read_unlock() to be called while holding runqueue locks
 
-Doing a list move after scanning a bunch of pages in the
-LRU lists of a cgroup isn't nearly as expensive as having
-to scan all the cgroups.
+which includes this chunk:
+
+@@ -1546,8 +1531,8 @@ static void rcu_cpu_kthread_timer(unsigned long arg)
+
+        raw_spin_lock_irqsave(&rnp->lock, flags);
+        rnp->wakemask |= rdp->grpmask;
+-       invoke_rcu_node_kthread(rnp);
+        raw_spin_unlock_irqrestore(&rnp->lock, flags);
++       invoke_rcu_node_kthread(rnp);
+ }
+
+
+but that was committed 4 days ago, and Andrew pulled linux-next for the -mmotm
+6 days ago, so it's not in there.  The *rest* of your recent commits appear to
+be in there though.  So that explains the patch failure to apply.
+
+
+--==_Exmh_1305216324_4101P
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.11 (GNU/Linux)
+Comment: Exmh version 2.5 07/13/2001
+
+iD8DBQFNzAVEcC3lWbTT17ARAq37AJ99BJDiC8la1nOfutkD43yaFULQKQCfUAbR
+cLdUqxD+99QEOdSi1qrgUBY=
+=p+Ll
+-----END PGP SIGNATURE-----
+
+--==_Exmh_1305216324_4101P--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
