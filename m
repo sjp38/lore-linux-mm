@@ -1,83 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id D8F8E6B0026
-	for <linux-mm@kvack.org>; Thu, 12 May 2011 12:04:28 -0400 (EDT)
-Date: Thu, 12 May 2011 18:03:49 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [rfc patch 2/6] vmscan: make distinction between memcg reclaim
- and LRU list selection
-Message-ID: <20110512160349.GJ16531@cmpxchg.org>
-References: <1305212038-15445-1-git-send-email-hannes@cmpxchg.org>
- <1305212038-15445-3-git-send-email-hannes@cmpxchg.org>
- <4DCBFDB9.10209@redhat.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 0F6926B0027
+	for <linux-mm@kvack.org>; Thu, 12 May 2011 12:04:56 -0400 (EDT)
+Message-ID: <4DCC051E.4000206@redhat.com>
+Date: Thu, 12 May 2011 12:04:46 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4DCBFDB9.10209@redhat.com>
+Subject: Re: [rfc patch 3/6] mm: memcg-aware global reclaim
+References: <1305212038-15445-1-git-send-email-hannes@cmpxchg.org> <1305212038-15445-4-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <1305212038-15445-4-git-send-email-hannes@cmpxchg.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
 Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Ying Han <yinghan@google.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, May 12, 2011 at 11:33:13AM -0400, Rik van Riel wrote:
-> On 05/12/2011 10:53 AM, Johannes Weiner wrote:
-> >The reclaim code has a single predicate for whether it currently
-> >reclaims on behalf of a memory cgroup, as well as whether it is
-> >reclaiming from the global LRU list or a memory cgroup LRU list.
-> >
-> >Up to now, both cases always coincide, but subsequent patches will
-> >change things such that global reclaim will scan memory cgroup lists.
-> >
-> >This patch adds a new predicate that tells global reclaim from memory
-> >cgroup reclaim, and then changes all callsites that are actually about
-> >global reclaim heuristics rather than strict LRU list selection.
-> >
-> >Signed-off-by: Johannes Weiner<hannes@cmpxchg.org>
-> >---
-> >  mm/vmscan.c |   96 ++++++++++++++++++++++++++++++++++------------------------
-> >  1 files changed, 56 insertions(+), 40 deletions(-)
-> >
-> >diff --git a/mm/vmscan.c b/mm/vmscan.c
-> >index f6b435c..ceeb2a5 100644
-> >--- a/mm/vmscan.c
-> >+++ b/mm/vmscan.c
-> >@@ -104,8 +104,12 @@ struct scan_control {
-> >  	 */
-> >  	reclaim_mode_t reclaim_mode;
-> >
-> >-	/* Which cgroup do we reclaim from */
-> >-	struct mem_cgroup *mem_cgroup;
-> >+	/*
-> >+	 * The memory cgroup we reclaim on behalf of, and the one we
-> >+	 * are currently reclaiming from.
-> >+	 */
-> >+	struct mem_cgroup *memcg;
-> >+	struct mem_cgroup *current_memcg;
-> 
-> I can't say I'm fond of these names.  I had to read the
-> rest of the patch to figure out that the old mem_cgroup
-> got renamed to current_memcg.
+On 05/12/2011 10:53 AM, Johannes Weiner wrote:
 
-To clarify: sc->memcg will be the memcg that hit the hard limit and is
-the main target of this reclaim invocation.  current_memcg is the
-iterator over the hierarchy below the target.
+> I am open to solutions that trade fairness against CPU-time but don't
+> want to have an extreme in either direction.  Maybe break out early if
+> a number of memcgs has been successfully reclaimed from and remember
+> the last one scanned.
 
-I realize this change in particular was placed a bit unfortunate in
-terms of understanding in the series, I just wanted to keep out the
-mem_cgroup to current_memcg renaming out of the next patch.  There is
-probably a better way, I'll fix it up and improve the comment.
+The way we used to deal with this when we did per-process
+virtual scanning (before rmap), was to scan the process at
+the head of the list.
 
-> Would it be better to call them my_memcg and reclaim_memcg?
-> 
-> Maybe somebody else has better suggestions...
+After we were done with that process, it got moved to the
+back of the list.  If enough had been scanned, we bailed
+out of the scanning code alltogether; if more needed to
+be scanned, we moved on to the next process.
 
-Yes, suggestions welcome.  I'm not too fond of the naming, either.
-
-> Other than the naming, no objection.
-
-Thanks, Rik.
-
-	Hannes
+Doing a list move after scanning a bunch of pages in the
+LRU lists of a cgroup isn't nearly as expensive as having
+to scan all the cgroups.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
