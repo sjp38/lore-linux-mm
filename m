@@ -1,29 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 6AB44900001
-	for <linux-mm@kvack.org>; Thu, 12 May 2011 14:03:11 -0400 (EDT)
-Date: Thu, 12 May 2011 13:03:05 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 3/3] mm: slub: Default slub_max_order to 0
-In-Reply-To: <20110512175104.GM11579@random.random>
-Message-ID: <alpine.DEB.2.00.1105121302240.28493@router.home>
-References: <alpine.DEB.2.00.1105120942050.24560@router.home> <1305213359.2575.46.camel@mulgrave.site> <alpine.DEB.2.00.1105121024350.26013@router.home> <1305214993.2575.50.camel@mulgrave.site> <20110512154649.GB4559@redhat.com> <1305216023.2575.54.camel@mulgrave.site>
- <alpine.DEB.2.00.1105121121120.26013@router.home> <1305217843.2575.57.camel@mulgrave.site> <BANLkTi=MD+voG1i7uDyueV22_daGHPRdqw@mail.gmail.com> <BANLkTimDsJDht76Vm7auNqT2gncjpEKZQw@mail.gmail.com> <20110512175104.GM11579@random.random>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 26A2990010D
+	for <linux-mm@kvack.org>; Thu, 12 May 2011 14:05:08 -0400 (EDT)
+Date: Thu, 12 May 2011 20:04:57 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 0/3] Reduce impact to overall system of SLUB using
+ high-order allocations
+Message-ID: <20110512180457.GO11579@random.random>
+References: <1305127773-10570-1-git-send-email-mgorman@suse.de>
+ <1305149960.2606.53.camel@mulgrave.site>
+ <alpine.DEB.2.00.1105111527490.24003@chino.kir.corp.google.com>
+ <1305153267.2606.57.camel@mulgrave.site>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1305153267.2606.57.camel@mulgrave.site>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Pekka Enberg <penberg@kernel.org>, James Bottomley <James.Bottomley@hansenpartnership.com>, Dave Jones <davej@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Colin King <colin.king@canonical.com>, Raghavendra D Prabhu <raghu.prabhu13@gmail.com>, Jan Kara <jack@suse.cz>, Chris Mason <chris.mason@oracle.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-ext4 <linux-ext4@vger.kernel.org>
+To: James Bottomley <James.Bottomley@HansenPartnership.com>
+Cc: David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Colin King <colin.king@canonical.com>, Raghavendra D Prabhu <raghu.prabhu13@gmail.com>, Jan Kara <jack@suse.cz>, Chris Mason <chris.mason@oracle.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-ext4 <linux-ext4@vger.kernel.org>
 
-On Thu, 12 May 2011, Andrea Arcangeli wrote:
+Hi James!
 
-> even order 3 is causing troubles (which doesn't immediately make lumpy
-> activated, it only activates when priority is < DEF_PRIORITY-2, so
-> after 2 loops failing to reclaim nr_to_reclaim pages), imagine what
+On Wed, May 11, 2011 at 05:34:27PM -0500, James Bottomley wrote:
+> Yes, but only once in all the testing.  With patches 1 and 2 the hang is
 
-That is a significant change for SLUB with the merge of the compaction
-code.
+Weird patch 2 makes the large order allocation without ~__GFP_WAIT, so
+even COMPACTION=y/n shouldn't matter anymore. Am I misreading
+something Mel?
+
+Removing ~__GFP_WAIT from patch 2 (and adding ~__GFP_REPEAT as a
+correctness improvement) and setting COMPACTION=y also should work ok.
+
+Removing ~__GFP_WAIT from patch 2 and setting COMPACTION=n is expected
+not to work well.
+
+But compaction should only make the difference if you remove
+~__GFP_WAIT from patch 2.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
