@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 29AE190010F
-	for <linux-mm@kvack.org>; Thu, 12 May 2011 14:47:54 -0400 (EDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 4F50F90010F
+	for <linux-mm@kvack.org>; Thu, 12 May 2011 14:47:55 -0400 (EDT)
 From: Ying Han <yinghan@google.com>
-Subject: [RFC PATCH 4/4] Add some debugging stats
-Date: Thu, 12 May 2011 11:47:12 -0700
-Message-Id: <1305226032-21448-5-git-send-email-yinghan@google.com>
+Subject: [RFC PATCH 3/4] Implementation of soft_limit reclaim in round-robin.
+Date: Thu, 12 May 2011 11:47:11 -0700
+Message-Id: <1305226032-21448-4-git-send-email-yinghan@google.com>
 In-Reply-To: <1305226032-21448-1-git-send-email-yinghan@google.com>
 References: <1305226032-21448-1-git-send-email-yinghan@google.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,179 +13,293 @@ List-ID: <linux-mm.kvack.org>
 To: Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>
 Cc: linux-mm@kvack.org
 
-This patch is not intended to be included but only including debugging
-stats.
+This patch re-implement the soft_limit reclaim function which it
+picks up next memcg to reclaim from in a round-robin fashion.
 
-It includes counters memcg being inserted/deleted in the list. And also
-counters where zone_wmark_ok() fullfilled from soft_limit reclaim.
+For each memcg, we do hierarchical reclaim and checks the zone_wmark_ok()
+after each iteration. There is a rate limit per each memcg on how many
+pages to scan based on how much it exceeds the soft_limit.
+
+This patch is a first step approach to switch from RB-tree based reclaim
+to link-list based reclaim, and improvement on per-memcg soft_limit reclaim
+algorithm is needed next.
+
+Some test result:
+Test 1:
+Here I have three memcgs each doing a read on 20g file on a 32g system(no swap).
+Meantime I have a program pinned a 18g anon pages under root. The hard_limit and
+soft_limit is listed as container(hard_limit, soft_limit)
+
+root: 18g anon pages w/o swap
+
+A (20g, 2g):
+soft_kswapd_steal 4265600
+soft_kswapd_scan 4265600
+
+B (20g, 2g):
+soft_kswapd_steal 4265600
+soft_kswapd_scan 4265600
+
+C: (20g, 2g)
+soft_kswapd_steal 4083904
+soft_kswapd_scan 4083904
+
+vmstat:
+kswapd_steal 12617255
+
+99.9% steal
+
+This two stats shows the zone_wmark_ok is fullfilled after soft_limit
+reclaim vs per-zone reclaim.
+
+kwapd_zone_wmark_ok 1974
+kswapd_soft_limit_zone_wmark_ok 1969
+
+
+Test2:
+Here the same memcgs but each is doing a 20g file write.
+
+root: 18g anon pages w/o swap
+
+A (20g, 2g):
+soft_kswapd_steal 4718336
+soft_kswapd_scan 4718336
+
+B (20g, 2g):
+soft_kswapd_steal 4710304
+soft_kswapd_scan 4710304
+
+C (20g, 3g);
+soft_kswapd_steal 2933406
+soft_kswapd_scan 5797460
+
+kswapd_steal 15958486
+77%
+
+kswapd_zone_wmark_ok 2517
+kswapd_soft_limit_zone_wmark_ok 2405
+
+TODO:
+1. We would like to do better on targeting reclaim by calculating the target
+nr_to_scan per-memcg, especially combining the current heuristics with
+soft_limit exceeds. How much weight we would like to put for the soft_limit
+exceed, or do we want to make it configurable?
+
+2. As decided in LSF, we need a second list of memcgs under their soft_limit
+per-zone as well. This is needed to do zone balancing w/o global LRU. We
+shouldn't scan the second list unless the first list exhausted.
 
 Signed-off-by: Ying Han <yinghan@google.com>
 ---
- include/linux/memcontrol.h    |   14 ++++++++++++++
- include/linux/vm_event_item.h |    1 +
- mm/memcontrol.c               |   23 +++++++++++++++++++++++
- mm/vmscan.c                   |    3 ++-
- mm/vmstat.c                   |    2 ++
- 5 files changed, 42 insertions(+), 1 deletions(-)
+ include/linux/memcontrol.h |    3 +-
+ mm/memcontrol.c            |  119 ++++++++++++++++++++++++++++++++++++++++++-
+ mm/vmscan.c                |   25 +++++-----
+ 3 files changed, 131 insertions(+), 16 deletions(-)
 
 diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index c7fcb26..d97aa1c 100644
+index 6a0cffd..c7fcb26 100644
 --- a/include/linux/memcontrol.h
 +++ b/include/linux/memcontrol.h
-@@ -121,6 +121,10 @@ extern void mem_cgroup_print_oom_info(struct mem_cgroup *memcg,
- extern int do_swap_account;
- #endif
- 
-+/* background reclaim stats */
-+void mem_cgroup_list_insert(struct mem_cgroup *memcg, int val);
-+void mem_cgroup_list_remove(struct mem_cgroup *memcg, int val);
-+
- static inline bool mem_cgroup_disabled(void)
- {
- 	if (mem_cgroup_subsys.disabled)
-@@ -363,6 +367,16 @@ static inline
- void mem_cgroup_count_vm_event(struct mm_struct *mm, enum vm_event_item idx)
- {
+@@ -145,7 +145,8 @@ static inline void mem_cgroup_dec_page_stat(struct page *page,
  }
-+
-+static inline void mem_cgroup_list_insert(struct mem_cgroup *memcg,
-+					  int val)
-+{
-+}
-+
-+static inline void mem_cgroup_list_remove(struct mem_cgroup *memcg,
-+					  int val)
-+{
-+}
- #endif /* CONFIG_CGROUP_MEM_CONT */
  
- #if !defined(CONFIG_CGROUP_MEM_RES_CTLR) || !defined(CONFIG_DEBUG_VM)
-diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
-index 03b90cdc..f226bfd 100644
---- a/include/linux/vm_event_item.h
-+++ b/include/linux/vm_event_item.h
-@@ -35,6 +35,7 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
- 		PGINODESTEAL, SLABS_SCANNED, KSWAPD_STEAL, KSWAPD_INODESTEAL,
- 		KSWAPD_LOW_WMARK_HIT_QUICKLY, KSWAPD_HIGH_WMARK_HIT_QUICKLY,
- 		KSWAPD_SKIP_CONGESTION_WAIT,
-+		KSWAPD_ZONE_WMARK_OK, KSWAPD_SOFT_LIMIT_ZONE_WMARK_OK,
- 		PAGEOUTRUN, ALLOCSTALL, PGROTATED,
- #ifdef CONFIG_COMPACTION
- 		COMPACTBLOCKS, COMPACTPAGES, COMPACTPAGEFAILED,
+ unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
+-						gfp_t gfp_mask,
++						gfp_t gfp_mask, int end_zone,
++						unsigned long balance_gap,
+ 						unsigned long *total_scanned);
+ u64 mem_cgroup_get_limit(struct mem_cgroup *mem);
+ 
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index b87ccc8..bd7c481 100644
+index 1360de6..b87ccc8 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -103,6 +103,8 @@ enum mem_cgroup_events_index {
- 					/* soft reclaim in direct reclaim */
- 	MEM_CGROUP_EVENTS_SOFT_DIRECT_SCAN, /* # of pages scanned from */
- 					/* soft reclaim in direct reclaim */
-+	MEM_CGROUP_EVENTS_LIST_INSERT,
-+	MEM_CGROUP_EVENTS_LIST_REMOVE,
- 	MEM_CGROUP_EVENTS_NSTATS,
- };
- /*
-@@ -411,6 +413,7 @@ __mem_cgroup_insert_exceeded(struct mem_cgroup *mem,
- 
- 	list_add(&mz->soft_limit_list, &mclz->list);
- 	mz->on_list = true;
-+	mem_cgroup_list_insert(mem, 1);
+@@ -1093,6 +1093,19 @@ unsigned long mem_cgroup_zone_nr_pages(struct mem_cgroup *memcg,
+ 	return MEM_CGROUP_ZSTAT(mz, lru);
  }
  
- static void
-@@ -437,6 +440,7 @@ __mem_cgroup_remove_exceeded(struct mem_cgroup *mem,
- 
- 	list_del(&mz->soft_limit_list);
- 	mz->on_list = false;
-+	mem_cgroup_list_remove(mem, 1);
- }
- 
- static void
-@@ -550,6 +554,16 @@ void mem_cgroup_pgmajfault(struct mem_cgroup *mem, int val)
- 	this_cpu_add(mem->stat->events[MEM_CGROUP_EVENTS_PGMAJFAULT], val);
- }
- 
-+void mem_cgroup_list_insert(struct mem_cgroup *mem, int val)
++unsigned long mem_cgroup_zone_reclaimable_pages(struct mem_cgroup_per_zone *mz)
 +{
-+	this_cpu_add(mem->stat->events[MEM_CGROUP_EVENTS_LIST_INSERT], val);
++	unsigned long total = 0;
++
++	if (nr_swap_pages) {
++		total += MEM_CGROUP_ZSTAT(mz, LRU_INACTIVE_ANON);
++		total += MEM_CGROUP_ZSTAT(mz, LRU_ACTIVE_ANON);
++	}
++	total +=  MEM_CGROUP_ZSTAT(mz, LRU_INACTIVE_FILE);
++	total +=  MEM_CGROUP_ZSTAT(mz, LRU_ACTIVE_FILE);
++	return total;
 +}
 +
-+void mem_cgroup_list_remove(struct mem_cgroup *mem, int val)
-+{
-+	this_cpu_add(mem->stat->events[MEM_CGROUP_EVENTS_LIST_REMOVE], val);
-+}
-+
- static unsigned long mem_cgroup_read_events(struct mem_cgroup *mem,
- 					    enum mem_cgroup_events_index idx)
+ struct zone_reclaim_stat *mem_cgroup_get_reclaim_stat(struct mem_cgroup *memcg,
+ 						      struct zone *zone)
  {
-@@ -3422,6 +3436,7 @@ unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
- 		if (zone_watermark_ok_safe(zone, order,
- 				high_wmark_pages(zone) + balance_gap,
- 				end_zone, 0)) {
-+			count_vm_events(KSWAPD_SOFT_LIMIT_ZONE_WMARK_OK, 1);
- 			break;
- 		}
+@@ -1528,7 +1541,14 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
+ 			return ret;
+ 		total += ret;
+ 		if (check_soft) {
+-			if (!res_counter_soft_limit_excess(&root_mem->res))
++			/*
++			 * We want to be fair for each memcg soft_limit reclaim
++			 * based on the excess.excess >> 2 is not to excessive
++			 * so as to reclaim too much, nor too less that we keep
++			 * coming back to reclaim from tis cgroup.
++			 */
++			if (!res_counter_soft_limit_excess(&root_mem->res) ||
++			    total >= (excess >> 2))
+ 				return total;
+ 		} else if (mem_cgroup_margin(root_mem))
+ 			return 1 + total;
+@@ -3314,11 +3334,104 @@ static int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
+ 	return ret;
+ }
  
-@@ -3838,6 +3853,8 @@ enum {
- 	MCS_SOFT_KSWAPD_SCAN,
- 	MCS_SOFT_DIRECT_STEAL,
- 	MCS_SOFT_DIRECT_SCAN,
-+	MCS_LIST_INSERT,
-+	MCS_LIST_REMOVE,
- 	MCS_INACTIVE_ANON,
- 	MCS_ACTIVE_ANON,
- 	MCS_INACTIVE_FILE,
-@@ -3866,6 +3883,8 @@ struct {
- 	{"soft_kswapd_scan", "total_soft_kswapd_scan"},
- 	{"soft_direct_steal", "total_soft_direct_steal"},
- 	{"soft_direct_scan", "total_soft_direct_scan"},
-+	{"list_insert", "total_list_insert"},
-+	{"list_remove", "total_list_remove"},
- 	{"inactive_anon", "total_inactive_anon"},
- 	{"active_anon", "total_active_anon"},
- 	{"inactive_file", "total_inactive_file"},
-@@ -3906,6 +3925,10 @@ mem_cgroup_get_local_stat(struct mem_cgroup *mem, struct mcs_total_stat *s)
- 	s->stat[MCS_PGFAULT] += val;
- 	val = mem_cgroup_read_events(mem, MEM_CGROUP_EVENTS_PGMAJFAULT);
- 	s->stat[MCS_PGMAJFAULT] += val;
-+	val = mem_cgroup_read_events(mem, MEM_CGROUP_EVENTS_LIST_INSERT);
-+	s->stat[MCS_LIST_INSERT] += val;
-+	val = mem_cgroup_read_events(mem, MEM_CGROUP_EVENTS_LIST_REMOVE);
-+	s->stat[MCS_LIST_REMOVE] += val;
++static struct mem_cgroup_per_zone *
++__mem_cgroup_next_soft_limit_node(struct mem_cgroup_list_per_zone *mclz)
++{
++	struct mem_cgroup_per_zone *mz;
++
++retry:
++	mz = NULL;
++	if (list_empty(&mclz->list))
++		goto done;
++
++	mz = list_entry(mclz->list.prev, struct mem_cgroup_per_zone,
++			soft_limit_list);
++
++	__mem_cgroup_remove_exceeded(mz->mem, mz, mclz);
++	if (!res_counter_soft_limit_excess(&mz->mem->res) ||
++		!mem_cgroup_zone_reclaimable_pages(mz) ||
++		!css_tryget(&mz->mem->css))
++		goto retry;
++done:
++	return mz;
++}
++
++static struct mem_cgroup_per_zone *
++mem_cgroup_next_soft_limit_node(struct mem_cgroup_list_per_zone *mclz)
++{
++	struct mem_cgroup_per_zone *mz;
++
++	spin_lock(&mclz->lock);
++	mz = __mem_cgroup_next_soft_limit_node(mclz);
++	spin_unlock(&mclz->lock);
++	return mz;
++}
++
+ unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
+-					    gfp_t gfp_mask,
++					    gfp_t gfp_mask, int end_zone,
++					    unsigned long balance_gap,
+ 					    unsigned long *total_scanned)
+ {
+-	return 0;
++	unsigned long nr_reclaimed = 0;
++	unsigned long reclaimed;
++	struct mem_cgroup_per_zone *mz;
++	struct mem_cgroup_list_per_zone *mclz;
++	unsigned long long excess;
++	unsigned long nr_scanned;
++	int loop = 0;
++
++	/*
++	 * memcg reclaim doesn't support lumpy.
++	 */
++	if (order > 0)
++		return 0;
++
++	mclz = soft_limit_list_node_zone(zone_to_nid(zone), zone_idx(zone));
++	/*
++	 * Start from the head of list.
++	 */
++	while (!list_empty(&mclz->list)) {
++		mz = mem_cgroup_next_soft_limit_node(mclz);
++		if (!mz)
++			break;
++
++		nr_scanned = 0;
++		reclaimed = mem_cgroup_hierarchical_reclaim(mz->mem, zone,
++							gfp_mask,
++							MEM_CGROUP_RECLAIM_SOFT,
++							&nr_scanned);
++		nr_reclaimed += reclaimed;
++		*total_scanned += nr_scanned;
++
++		spin_lock(&mclz->lock);
++
++		__mem_cgroup_remove_exceeded(mz->mem, mz, mclz);
++		/*
++		 * Add it back to the list even the reclaimed equals
++		 * to zero as long as the memcg is still above its
++		 * soft_limit. It could be possible lots of pages becomes
++		 * reclaimable suddently.
++		 */
++		excess = res_counter_soft_limit_excess(&mz->mem->res);
++		__mem_cgroup_insert_exceeded(mz->mem, mz, mclz, excess);
++
++		spin_unlock(&mclz->lock);
++		css_put(&mz->mem->css);
++		loop++;
++
++		if (zone_watermark_ok_safe(zone, order,
++				high_wmark_pages(zone) + balance_gap,
++				end_zone, 0)) {
++			break;
++		}
++
++		if (loop > MEM_CGROUP_MAX_SOFT_LIMIT_RECLAIM_LOOPS ||
++			*total_scanned > nr_reclaimed + nr_reclaimed / 2)
++			break;
++
++	}
++
++	return nr_reclaimed;
+ }
  
- 	/* per zone stat */
- 	val = mem_cgroup_get_local_zonestat(mem, LRU_INACTIVE_ANON);
+ /*
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 9d79070..fc3da68 100644
+index 96789e0..9d79070 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -2492,11 +2492,12 @@ loop_again:
- 				zone_clear_flag(zone, ZONE_CONGESTED);
- 				if (i <= *classzone_idx)
- 					balanced += zone->present_pages;
-+				count_vm_events(KSWAPD_ZONE_WMARK_OK, 1);
- 			}
--
- 		}
- 		if (all_zones_ok || (order && pgdat_balanced(pgdat, balanced, *classzone_idx)))
- 			break;		/* kswapd: all done */
-+
- 		/*
- 		 * OK, kswapd is getting into trouble.  Take a nap, then take
- 		 * another pass across the zones.
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index a2b7344..2b3a7e5 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -922,6 +922,8 @@ const char * const vmstat_text[] = {
- 	"kswapd_low_wmark_hit_quickly",
- 	"kswapd_high_wmark_hit_quickly",
- 	"kswapd_skip_congestion_wait",
-+	"kswapd_zone_wmark_ok",
-+	"kswapd_soft_limit_zone_wmark_ok",
- 	"pageoutrun",
- 	"allocstall",
+@@ -2421,18 +2421,6 @@ loop_again:
+ 			if (zone->all_unreclaimable && priority != DEF_PRIORITY)
+ 				continue;
  
+-			sc.nr_scanned = 0;
+-
+-			nr_soft_scanned = 0;
+-			/*
+-			 * Call soft limit reclaim before calling shrink_zone.
+-			 */
+-			nr_soft_reclaimed = mem_cgroup_soft_limit_reclaim(zone,
+-							order, sc.gfp_mask,
+-							&nr_soft_scanned);
+-			sc.nr_reclaimed += nr_soft_reclaimed;
+-			total_scanned += nr_soft_scanned;
+-
+ 			/*
+ 			 * We put equal pressure on every zone, unless
+ 			 * one zone has way too many pages free
+@@ -2445,6 +2433,19 @@ loop_again:
+ 				(zone->present_pages +
+ 					KSWAPD_ZONE_BALANCE_GAP_RATIO-1) /
+ 				KSWAPD_ZONE_BALANCE_GAP_RATIO);
++			sc.nr_scanned = 0;
++
++			nr_soft_scanned = 0;
++			/*
++			 * Call soft limit reclaim before calling shrink_zone.
++			 */
++			nr_soft_reclaimed = mem_cgroup_soft_limit_reclaim(zone,
++							order, sc.gfp_mask,
++							end_zone, balance_gap,
++							&nr_soft_scanned);
++			sc.nr_reclaimed += nr_soft_reclaimed;
++			total_scanned += nr_soft_scanned;
++
+ 			if (!zone_watermark_ok_safe(zone, order,
+ 					high_wmark_pages(zone) + balance_gap,
+ 					end_zone, 0))
 -- 
 1.7.3.1
 
