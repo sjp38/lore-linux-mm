@@ -1,96 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 444596B0012
-	for <linux-mm@kvack.org>; Thu, 12 May 2011 18:58:20 -0400 (EDT)
-Received: by qwa26 with SMTP id 26so1535427qwa.14
-        for <linux-mm@kvack.org>; Thu, 12 May 2011 15:58:18 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20110512221506.GM16531@cmpxchg.org>
-References: <1305127773-10570-4-git-send-email-mgorman@suse.de>
-	<alpine.DEB.2.00.1105120942050.24560@router.home>
-	<1305213359.2575.46.camel@mulgrave.site>
-	<alpine.DEB.2.00.1105121024350.26013@router.home>
-	<1305214993.2575.50.camel@mulgrave.site>
-	<1305215742.27848.40.camel@jaguar>
-	<1305225467.2575.66.camel@mulgrave.site>
-	<1305229447.2575.71.camel@mulgrave.site>
-	<1305230652.2575.72.camel@mulgrave.site>
-	<1305237882.2575.100.camel@mulgrave.site>
-	<20110512221506.GM16531@cmpxchg.org>
-Date: Fri, 13 May 2011 07:58:17 +0900
-Message-ID: <BANLkTikRFjGtBhnTBH_n=rDe+Y6kCjt30g@mail.gmail.com>
-Subject: Re: [PATCH 3/3] mm: slub: Default slub_max_order to 0
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+	by kanga.kvack.org (Postfix) with ESMTP id 9BF526B0023
+	for <linux-mm@kvack.org>; Thu, 12 May 2011 19:02:57 -0400 (EDT)
+Received: from d01relay06.pok.ibm.com (d01relay06.pok.ibm.com [9.56.227.116])
+	by e2.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p4CMh9M6012851
+	for <linux-mm@kvack.org>; Thu, 12 May 2011 18:43:09 -0400
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p4CN2tWw1441818
+	for <linux-mm@kvack.org>; Thu, 12 May 2011 19:02:55 -0400
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p4CN2tFZ008717
+	for <linux-mm@kvack.org>; Thu, 12 May 2011 19:02:55 -0400
+From: John Stultz <john.stultz@linaro.org>
+Subject: [PATCH 2/3] printk: Add %ptc to safely print a task's comm
+Date: Thu, 12 May 2011 16:02:50 -0700
+Message-Id: <1305241371-25276-3-git-send-email-john.stultz@linaro.org>
+In-Reply-To: <1305241371-25276-1-git-send-email-john.stultz@linaro.org>
+References: <1305241371-25276-1-git-send-email-john.stultz@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: James Bottomley <James.Bottomley@hansenpartnership.com>, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Colin King <colin.king@canonical.com>, Raghavendra D Prabhu <raghu.prabhu13@gmail.com>, Jan Kara <jack@suse.cz>, Chris Mason <chris.mason@oracle.com>, Rik van Riel <riel@redhat.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-ext4 <linux-ext4@vger.kernel.org>
+To: LKML <linux-kernel@vger.kernel.org>
+Cc: John Stultz <john.stultz@linaro.org>, Ted Ts'o <tytso@mit.edu>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-On Fri, May 13, 2011 at 7:15 AM, Johannes Weiner <hannes@cmpxchg.org> wrote=
-:
-> On Thu, May 12, 2011 at 05:04:41PM -0500, James Bottomley wrote:
->> On Thu, 2011-05-12 at 15:04 -0500, James Bottomley wrote:
->> > Confirmed, I'm afraid ... I can trigger the problem with all three
->> > patches under PREEMPT. =C2=A0It's not a hang this time, it's just kswa=
-pd
->> > taking 100% system time on 1 CPU and it won't calm down after I unload
->> > the system.
->>
->> Just on a "if you don't know what's wrong poke about and see" basis, I
->> sliced out all the complex logic in sleeping_prematurely() and, as far
->> as I can tell, it cures the problem behaviour. =C2=A0I've loaded up the
->> system, and taken the tar load generator through three runs without
->> producing a spinning kswapd (this is PREEMPT). =C2=A0I'll try with a
->> non-PREEMPT kernel shortly.
->>
->> What this seems to say is that there's a problem with the complex logic
->> in sleeping_prematurely(). =C2=A0I'm pretty sure hacking up
->> sleeping_prematurely() just to dump all the calculations is the wrong
->> thing to do, but perhaps someone can see what the right thing is ...
->
-> I think I see the problem: the boolean logic of sleeping_prematurely()
-> is odd. =C2=A0If it returns true, kswapd will keep running. =C2=A0So if
-> pgdat_balanced() returns true, kswapd should go to sleep.
->
-> This?
+Accessing task->comm requires proper locking. However in the past
+access to current->comm could be done without locking. This
+is no longer the case, so all comm access needs to be done
+while holding the comm_lock.
 
-Yes. Good catch.
+In my attempt to clean up unprotected comm access, I've noticed
+most comm access is done for printk output. To simplify correct
+locking in these cases, I've introduced a new %ptc format,
+which will print the corresponding task's comm.
 
->
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 2b701e0..092d773 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -2261,7 +2261,7 @@ static bool sleeping_prematurely(pg_data_t *pgdat, =
-int order, long remaining,
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 * must be balanced
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 */
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0if (order)
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return pgdat_balanced(=
-pgdat, balanced, classzone_idx);
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return !pgdat_balanced=
-(pgdat, balanced, classzone_idx);
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0else
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0return !all_zones_=
-ok;
-> =C2=A0}
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org. =C2=A0For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom internet charges in Canada: sign http://stopthemeter=
-.ca/
-> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
->
+Example use:
+printk("%ptc: unaligned epc - sending SIGBUS.\n", current);
 
+CC: Ted Ts'o <tytso@mit.edu>
+CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+CC: David Rientjes <rientjes@google.com>
+CC: Dave Hansen <dave@linux.vnet.ibm.com>
+CC: Andrew Morton <akpm@linux-foundation.org>
+CC: linux-mm@kvack.org
+Signed-off-by: John Stultz <john.stultz@linaro.org>
+---
+ lib/vsprintf.c |   27 +++++++++++++++++++++++++++
+ 1 files changed, 27 insertions(+), 0 deletions(-)
 
-
---=20
-Kind regards,
-Minchan Kim
+diff --git a/lib/vsprintf.c b/lib/vsprintf.c
+index bc0ac6b..5abbe94 100644
+--- a/lib/vsprintf.c
++++ b/lib/vsprintf.c
+@@ -797,6 +797,26 @@ char *uuid_string(char *buf, char *end, const u8 *addr,
+ 	return string(buf, end, uuid, spec);
+ }
+ 
++static noinline_for_stack
++char *task_comm_string(char *buf, char *end, void *addr,
++			 struct printf_spec spec, const char *fmt)
++{
++	struct task_struct *tsk = addr;
++	char *ret;
++	unsigned long seq;
++
++	do {
++		seq = read_seqbegin(&tsk->comm_lock);
++
++		ret = string(buf, end, tsk->comm, spec);
++
++	} while (read_seqretry(&tsk->comm_lock, seq));
++
++	return ret;
++}
++
++
++
+ int kptr_restrict = 1;
+ 
+ /*
+@@ -864,6 +884,12 @@ char *pointer(const char *fmt, char *buf, char *end, void *ptr,
+ 	}
+ 
+ 	switch (*fmt) {
++	case 't':
++		switch (fmt[1]) {
++		case 'c':
++			return task_comm_string(buf, end, ptr, spec, fmt);
++		}
++		break;
+ 	case 'F':
+ 	case 'f':
+ 		ptr = dereference_function_descriptor(ptr);
+@@ -1151,6 +1177,7 @@ qualifier:
+  *   http://tools.ietf.org/html/draft-ietf-6man-text-addr-representation-00
+  * %pU[bBlL] print a UUID/GUID in big or little endian using lower or upper
+  *   case.
++ * %ptc outputs the task's comm name
+  * %n is ignored
+  *
+  * The return value is the number of characters which would
+-- 
+1.7.3.2.146.gca209
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
