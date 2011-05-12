@@ -1,47 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 0C75390010B
-	for <linux-mm@kvack.org>; Thu, 12 May 2011 18:14:37 -0400 (EDT)
-Received: from wpaz9.hot.corp.google.com (wpaz9.hot.corp.google.com [172.24.198.73])
-	by smtp-out.google.com with ESMTP id p4CMEYJI003417
-	for <linux-mm@kvack.org>; Thu, 12 May 2011 15:14:35 -0700
-Received: from pxi6 (pxi6.prod.google.com [10.243.27.6])
-	by wpaz9.hot.corp.google.com with ESMTP id p4CMEW71018536
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 12 May 2011 15:14:33 -0700
-Received: by pxi6 with SMTP id 6so1521024pxi.3
-        for <linux-mm@kvack.org>; Thu, 12 May 2011 15:14:32 -0700 (PDT)
-Date: Thu, 12 May 2011 15:14:31 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 3/3] comm: ext4: Protect task->comm access by using
- %ptc
-In-Reply-To: <1305073386-4810-4-git-send-email-john.stultz@linaro.org>
-Message-ID: <alpine.DEB.2.00.1105121513070.9130@chino.kir.corp.google.com>
-References: <1305073386-4810-1-git-send-email-john.stultz@linaro.org> <1305073386-4810-4-git-send-email-john.stultz@linaro.org>
+	by kanga.kvack.org (Postfix) with ESMTP id 71AA56B0011
+	for <linux-mm@kvack.org>; Thu, 12 May 2011 18:15:29 -0400 (EDT)
+Date: Fri, 13 May 2011 00:15:06 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 3/3] mm: slub: Default slub_max_order to 0
+Message-ID: <20110512221506.GM16531@cmpxchg.org>
+References: <1305127773-10570-4-git-send-email-mgorman@suse.de>
+ <alpine.DEB.2.00.1105120942050.24560@router.home>
+ <1305213359.2575.46.camel@mulgrave.site>
+ <alpine.DEB.2.00.1105121024350.26013@router.home>
+ <1305214993.2575.50.camel@mulgrave.site>
+ <1305215742.27848.40.camel@jaguar>
+ <1305225467.2575.66.camel@mulgrave.site>
+ <1305229447.2575.71.camel@mulgrave.site>
+ <1305230652.2575.72.camel@mulgrave.site>
+ <1305237882.2575.100.camel@mulgrave.site>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1305237882.2575.100.camel@mulgrave.site>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Stultz <john.stultz@linaro.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Ted Ts'o <tytso@mit.edu>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: James Bottomley <James.Bottomley@HansenPartnership.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Colin King <colin.king@canonical.com>, Raghavendra D Prabhu <raghu.prabhu13@gmail.com>, Jan Kara <jack@suse.cz>, Chris Mason <chris.mason@oracle.com>, Rik van Riel <riel@redhat.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-ext4 <linux-ext4@vger.kernel.org>
 
-On Tue, 10 May 2011, John Stultz wrote:
-
-> Converts ext4 comm access to use the safe printk %ptc accessor.
+On Thu, May 12, 2011 at 05:04:41PM -0500, James Bottomley wrote:
+> On Thu, 2011-05-12 at 15:04 -0500, James Bottomley wrote:
+> > Confirmed, I'm afraid ... I can trigger the problem with all three
+> > patches under PREEMPT.  It's not a hang this time, it's just kswapd
+> > taking 100% system time on 1 CPU and it won't calm down after I unload
+> > the system.
 > 
-> CC: Ted Ts'o <tytso@mit.edu>
-> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> CC: David Rientjes <rientjes@google.com>
-> CC: Dave Hansen <dave@linux.vnet.ibm.com>
-> CC: Andrew Morton <akpm@linux-foundation.org>
-> CC: linux-mm@kvack.org
-> Signed-off-by: John Stultz <john.stultz@linaro.org>
+> Just on a "if you don't know what's wrong poke about and see" basis, I
+> sliced out all the complex logic in sleeping_prematurely() and, as far
+> as I can tell, it cures the problem behaviour.  I've loaded up the
+> system, and taken the tar load generator through three runs without
+> producing a spinning kswapd (this is PREEMPT).  I'll try with a
+> non-PREEMPT kernel shortly.
+> 
+> What this seems to say is that there's a problem with the complex logic
+> in sleeping_prematurely().  I'm pretty sure hacking up
+> sleeping_prematurely() just to dump all the calculations is the wrong
+> thing to do, but perhaps someone can see what the right thing is ...
 
-I like how this patch illustrates how easy it is to use the new method for 
-printing a task's command, but it would probably be easier to get the 
-first two patches in the series (those that add the seqlock and then %ptc) 
-merged in mainline and then break out a series of conversions such as this 
-that could go through the individual maintainer's trees.
+I think I see the problem: the boolean logic of sleeping_prematurely()
+is odd.  If it returns true, kswapd will keep running.  So if
+pgdat_balanced() returns true, kswapd should go to sleep.
+
+This?
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 2b701e0..092d773 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2261,7 +2261,7 @@ static bool sleeping_prematurely(pg_data_t *pgdat, int order, long remaining,
+ 	 * must be balanced
+ 	 */
+ 	if (order)
+-		return pgdat_balanced(pgdat, balanced, classzone_idx);
++		return !pgdat_balanced(pgdat, balanced, classzone_idx);
+ 	else
+ 		return !all_zones_ok;
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
