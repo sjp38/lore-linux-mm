@@ -1,94 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B8906B0027
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 77C416B0026
 	for <linux-mm@kvack.org>; Thu, 12 May 2011 02:18:28 -0400 (EDT)
 From: Jiri Slaby <jslaby@suse.cz>
-Subject: [PATCH v2 3/3] coredump: escape / in hostname and comm
-Date: Thu, 12 May 2011 08:18:13 +0200
-Message-Id: <1305181093-20871-3-git-send-email-jslaby@suse.cz>
-In-Reply-To: <1305181093-20871-1-git-send-email-jslaby@suse.cz>
-References: <1305181093-20871-1-git-send-email-jslaby@suse.cz>
+Subject: [PATCH v2 1/3] coredump: use get_task_comm for %e filename format
+Date: Thu, 12 May 2011 08:18:11 +0200
+Message-Id: <1305181093-20871-1-git-send-email-jslaby@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, jirislaby@gmail.com, Alan Cox <alan@lxorguk.ukuu.org.uk>, Al Viro <viro@zeniv.linux.org.uk>, Andi Kleen <andi@firstfloor.org>
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, jirislaby@gmail.com, Alan Cox <alan@lxorguk.ukuu.org.uk>, Al Viro <viro@zeniv.linux.org.uk>, Andi Kleen <andi@firstfloor.org>, Oleg Nesterov <oleg@redhat.com>
 
-Change every occurence of / in comm and hostname to !. If the process
-changes its name to contain /, the core is not dumped (if the
-directory tree doesn't exist like that). The same with hostname being
-something like myhost/3. Fix this behaviour by using the escape loop
-used in %E. (We extract it to a separate function.)
+We currently access current->comm directly. As we have
+prctl(PR_SET_NAME), we need the access be protected by task_lock. This
+is exactly what get_task_comm does, so use it.
 
-Now both with comm == myprocess/1 and hostname == myhost/1, the core
-is dumped like (kernel.core_pattern='core.%p.%e.%h):
-core.2349.myprocess!1.myhost!1
+I'm not 100% convinced prctl(PR_SET_NAME) may be called at the time of
+core dump, but the locking won't hurt. Note that siglock is not held
+in format_corename.
 
 Signed-off-by: Jiri Slaby <jslaby@suse.cz>
 Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>
 Cc: Al Viro <viro@zeniv.linux.org.uk>
 Cc: Andi Kleen <andi@firstfloor.org>
+Cc: Oleg Nesterov <oleg@redhat.com>
 ---
- fs/exec.c |   22 +++++++++++++++-------
- 1 files changed, 15 insertions(+), 7 deletions(-)
+ fs/exec.c |    7 +++++--
+ 1 files changed, 5 insertions(+), 2 deletions(-)
 
 diff --git a/fs/exec.c b/fs/exec.c
-index 8900f61..dafded4 100644
+index 5ee7562..155c6d4 100644
 --- a/fs/exec.c
 +++ b/fs/exec.c
-@@ -1547,10 +1547,17 @@ expand_fail:
- 	return ret;
- }
- 
-+static void cn_escape(char *str)
-+{
-+	for (; *str; str++)
-+		if (*str == '/')
-+			*str = '!';
-+}
-+
- static int cn_print_exe_file(struct core_name *cn)
- {
- 	struct file *exe_file;
--	char *pathbuf, *path, *p;
-+	char *pathbuf, *path;
- 	int ret;
- 
- 	exe_file = get_mm_exe_file(current->mm);
-@@ -1572,9 +1579,7 @@ static int cn_print_exe_file(struct core_name *cn)
- 		goto free_buf;
- 	}
- 
--	for (p = path; *p; p++)
--		if (*p == '/')
--			*p = '!';
-+	cn_escape(path);
- 
- 	ret = cn_printf(cn, "%s", path);
- 
-@@ -1652,17 +1657,20 @@ static int format_corename(struct core_name *cn, long signr)
- 				break;
- 			}
- 			/* hostname */
--			case 'h':
-+			case 'h': {
-+				char *namestart = cn->corename + cn->used;
- 				down_read(&uts_sem);
- 				err = cn_printf(cn, "%s",
- 					      utsname()->nodename);
+@@ -1656,9 +1656,12 @@ static int format_corename(struct core_name *cn, long signr)
  				up_read(&uts_sem);
-+				cn_escape(namestart);
+ 				break;
+ 			/* executable */
+-			case 'e':
+-				err = cn_printf(cn, "%s", current->comm);
++			case 'e': {
++				char comm[TASK_COMM_LEN];
++				err = cn_printf(cn, "%s",
++						get_task_comm(comm, current));
  				break;
 +			}
- 			/* executable */
- 			case 'e': {
- 				char comm[TASK_COMM_LEN];
--				err = cn_printf(cn, "%s",
--						get_task_comm(comm, current));
-+				cn_escape(get_task_comm(comm, current));
-+				err = cn_printf(cn, "%s", comm);
- 				break;
- 			}
  			case 'E':
+ 				err = cn_print_exe_file(cn);
+ 				break;
 -- 
 1.7.4.2
 
