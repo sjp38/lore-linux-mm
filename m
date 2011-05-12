@@ -1,89 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id CA2406B0012
-	for <linux-mm@kvack.org>; Thu, 12 May 2011 13:22:53 -0400 (EDT)
-Received: from hpaq13.eem.corp.google.com (hpaq13.eem.corp.google.com [172.25.149.13])
-	by smtp-out.google.com with ESMTP id p4CHMnmd010999
-	for <linux-mm@kvack.org>; Thu, 12 May 2011 10:22:49 -0700
-Received: from qyk32 (qyk32.prod.google.com [10.241.83.160])
-	by hpaq13.eem.corp.google.com with ESMTP id p4CHKBMP015341
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 12 May 2011 10:22:48 -0700
-Received: by qyk32 with SMTP id 32so3404441qyk.8
-        for <linux-mm@kvack.org>; Thu, 12 May 2011 10:22:47 -0700 (PDT)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 73F0B90010B
+	for <linux-mm@kvack.org>; Thu, 12 May 2011 13:25:56 -0400 (EDT)
+Date: Thu, 12 May 2011 19:25:14 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 2/3] mm: slub: Do not take expensive steps for SLUBs
+ speculative high-order allocations
+Message-ID: <20110512172514.GI11579@random.random>
+References: <1305127773-10570-1-git-send-email-mgorman@suse.de>
+ <1305127773-10570-3-git-send-email-mgorman@suse.de>
+ <alpine.DEB.2.00.1105111312020.9346@chino.kir.corp.google.com>
+ <20110511211043.GB17898@suse.de>
 MIME-Version: 1.0
-In-Reply-To: <4DCBF67A.3060700@redhat.com>
-References: <1305212038-15445-1-git-send-email-hannes@cmpxchg.org>
-	<1305212038-15445-2-git-send-email-hannes@cmpxchg.org>
-	<4DCBF67A.3060700@redhat.com>
-Date: Thu, 12 May 2011 10:22:47 -0700
-Message-ID: <BANLkTinJB0=bcVH9vvNz6_ONy17nBAJbQg@mail.gmail.com>
-Subject: Re: [rfc patch 1/6] memcg: remove unused retry signal from reclaim
-From: Ying Han <yinghan@google.com>
-Content-Type: multipart/alternative; boundary=000e0ce008bc1c6ee104a3177015
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110511211043.GB17898@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, James Bottomley <James.Bottomley@hansenpartnership.com>, Colin King <colin.king@canonical.com>, Raghavendra D Prabhu <raghu.prabhu13@gmail.com>, Jan Kara <jack@suse.cz>, Chris Mason <chris.mason@oracle.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-ext4 <linux-ext4@vger.kernel.org>
 
---000e0ce008bc1c6ee104a3177015
-Content-Type: text/plain; charset=ISO-8859-1
+Hi,
 
-On Thu, May 12, 2011 at 8:02 AM, Rik van Riel <riel@redhat.com> wrote:
+On Wed, May 11, 2011 at 10:10:43PM +0100, Mel Gorman wrote:
+> > > diff --git a/mm/slub.c b/mm/slub.c
+> > > index 98c358d..1071723 100644
+> > > --- a/mm/slub.c
+> > > +++ b/mm/slub.c
+> > > @@ -1170,7 +1170,8 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
+> > >  	 * Let the initial higher-order allocation fail under memory pressure
+> > >  	 * so we fall-back to the minimum order allocation.
+> > >  	 */
+> > > -	alloc_gfp = (flags | __GFP_NOWARN | __GFP_NORETRY | __GFP_NO_KSWAPD) & ~__GFP_NOFAIL;
+> > > +	alloc_gfp = (flags | __GFP_NOWARN | __GFP_NORETRY | __GFP_NO_KSWAPD) &
+> > > +			~(__GFP_NOFAIL | __GFP_WAIT);
+> > 
+> > __GFP_NORETRY is a no-op without __GFP_WAIT.
+> > 
+> 
+> True. I'll remove it in a V2 but I won't respin just yet.
 
-> On 05/12/2011 10:53 AM, Johannes Weiner wrote:
->
->> If the memcg reclaim code detects the target memcg below its limit it
->> exits and returns a guaranteed non-zero value so that the charge is
->> retried.
->>
->> Nowadays, the charge side checks the memcg limit itself and does not
->> rely on this non-zero return value trick.
->>
->> This patch removes it.  The reclaim code will now always return the
->> true number of pages it reclaimed on its own.
->>
->> Signed-off-by: Johannes Weiner<hannes@cmpxchg.org>
->>
->
-> Acked-by: Rik van Riel<riel@redhat.com>
->
+Nothing wrong and no performance difference with clearing
+__GFP_NORETRY too, if something it doesn't make sense for a caller to
+use __GFP_NOFAIL without __GFP_WAIT so the original version above
+looks cleaner. I like this change overall to only poll the buddy
+allocator without spinning kswapd and without invoking lumpy reclaim.
 
-Acked-by: Ying Han<yinghan@google.com>
+Like you noted in the first mail, compaction was disabled, and very
+bad behavior is expected without it unless GFP_ATOMIC|__GFP_NO_KSWAPD
+is set (that was the way I had to use before disabling lumpy
+compaction when first developing THP too for the same reasons).
 
---000e0ce008bc1c6ee104a3177015
-Content-Type: text/html; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
-
-<br><br><div class=3D"gmail_quote">On Thu, May 12, 2011 at 8:02 AM, Rik van=
- Riel <span dir=3D"ltr">&lt;<a href=3D"mailto:riel@redhat.com">riel@redhat.=
-com</a>&gt;</span> wrote:<br><blockquote class=3D"gmail_quote" style=3D"mar=
-gin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex;">
-<div class=3D"im">On 05/12/2011 10:53 AM, Johannes Weiner wrote:<br>
-<blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1p=
-x #ccc solid;padding-left:1ex">
-If the memcg reclaim code detects the target memcg below its limit it<br>
-exits and returns a guaranteed non-zero value so that the charge is<br>
-retried.<br>
-<br>
-Nowadays, the charge side checks the memcg limit itself and does not<br>
-rely on this non-zero return value trick.<br>
-<br>
-This patch removes it. =A0The reclaim code will now always return the<br>
-true number of pages it reclaimed on its own.<br>
-<br>
-Signed-off-by: Johannes Weiner&lt;<a href=3D"mailto:hannes@cmpxchg.org" tar=
-get=3D"_blank">hannes@cmpxchg.org</a>&gt;<br>
-</blockquote>
-<br></div>
-Acked-by: Rik van Riel&lt;<a href=3D"mailto:riel@redhat.com" target=3D"_bla=
-nk">riel@redhat.com</a>&gt;<br></blockquote><div><br></div><meta http-equiv=
-=3D"content-type" content=3D"text/html; charset=3Dutf-8"><div>Acked-by: Yin=
-g Han&lt;<a href=3D"mailto:yinghan@google.com">yinghan@google.com</a>&gt;=
-=A0</div>
-</div><br>
-
---000e0ce008bc1c6ee104a3177015--
+But when compaction enabled slub could try to only clear __GFP_NOFAIL
+and leave __GFP_WAIT and no bad behavior should happen... but it's
+probably slower so I prefer to clear __GFP_WAIT too (for THP
+compaction is worth it because the allocation is generally long lived,
+but for slub allocations like tiny skb the allocation can be extremely
+short lived so it's unlikely to be worth it). So this way compaction
+is then invoked only by the minimal order allocation later if needed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
