@@ -1,56 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 29F116B0012
-	for <linux-mm@kvack.org>; Wed, 11 May 2011 21:08:50 -0400 (EDT)
-Subject: Re: mmotm 2011-04-29 - wonky VmRSS and VmHWM values after swapping
-In-Reply-To: Your message of "Tue, 10 May 2011 18:04:45 +0200."
-             <1305043485.2914.110.camel@laptop>
-From: Valdis.Kletnieks@vt.edu
-References: <201104300002.p3U02Ma2026266@imap1.linux-foundation.org> <49683.1304296014@localhost> <8185.1304347042@localhost> <20110502164430.eb7d451d.akpm@linux-foundation.org>
-            <1305043485.2914.110.camel@laptop>
+	by kanga.kvack.org (Postfix) with ESMTP id 66C9E6B0024
+	for <linux-mm@kvack.org>; Wed, 11 May 2011 21:22:04 -0400 (EDT)
+Date: Wed, 11 May 2011 18:28:44 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFC][PATCH 0/7] memcg async reclaim
+Message-Id: <20110511182844.d128c995.akpm@linux-foundation.org>
+In-Reply-To: <20110510190216.f4eefef7.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20110510190216.f4eefef7.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
-Content-Type: multipart/signed; boundary="==_Exmh_1305162521_2485P";
-	 micalg=pgp-sha1; protocol="application/pgp-signature"
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Date: Wed, 11 May 2011 21:08:41 -0400
-Message-ID: <3313.1305162521@localhost>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Ying Han <yinghan@google.com>, Johannes Weiner <jweiner@redhat.com>, Michal Hocko <mhocko@suse.cz>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
 
---==_Exmh_1305162521_2485P
-Content-Type: text/plain; charset=us-ascii
+On Tue, 10 May 2011 19:02:16 +0900 KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-On Tue, 10 May 2011 18:04:45 +0200, Peter Zijlstra said:
-
-> I haven't quite figured out how to reproduce, but does the below cure
-> things? If so, it should probably be folded into the first patch
-> (mm-mmu_gather-rework.patch?) since that is the one introducing this.
+> Hi, thank you for all comments on previous patches for watermarks for memcg.
 > 
-> ---
-> Subject: mm: Fix RSS zap_pte_range() accounting
+> This is a new series as 'async reclaim', no watermark.
+> This version is a RFC again and I don't ask anyone to test this...but
+> comments/review are appreciated. 
 > 
-> Since we update the RSS counters when breaking out of the loop and
-> release the PTE lock, we should start with fresh deltas when we
-> restart the gather loop.
+> Major changes are
+>   - no configurable watermark
+>   - hierarchy support
+>   - more fix for static scan rate round robin scanning of memcg.
+> 
+> (assume x86-64 in following.)
+> 
+> 'async reclaim' works when
+>    - usage > limit - 4MB.
+> until
+>    - usage < limit - 8MB.
+> 
+> when the limit is larger than 128MB. This value of margin to limit
+> has some purpose for helping to reduce page fault latency at using
+> Transparent hugepage.
+> 
+> Considering THP, we need to reclaim HPAGE_SIZE(2MB) of pages when we hit
+> limit and consume HPAGE_SIZE(2MB) immediately. Then, the application need to
+> scan 2MB per each page fault and get big latency. So, some margin > HPAGE_SIZE
+> is required. I set it as 2*HPAGE_SIZE/4*HPAGE_SIZE, here. The kernel
+> will do async reclaim and reduce usage to limit - 8MB in background.
+> 
+> BTW, when an application gets a page, it tend to do some action to fill the
+> gotton page. For example, reading data from file/network and fill buffer.
+> This implies the application will have a wait or consumes cpu other than
+> reclaiming memory. So, if the kernel can help memory freeing in background
+> while application does another jobs, application latency can be reduced.
+> Then, this kind of asyncronous reclaim of memory will be a help for reduce
+> memory reclaim latency by memcg. But the total amount of cpu time consumed
+> will not have any difference.
+> 
+> This patch series implements
+>   - a logic for trigger async reclaim
+>   - help functions for async reclaim
+>   - core logic for async reclaim, considering memcg's hierarchy.
+>   - static scan rate memcg reclaim.
+>   - workqueue for async reclaim.
+> 
+> Some concern is that I didn't implement a code for handle the case
+> most of pages are mlocked or anon memory in swapless system. I need some
+> detection logic to avoid hopless async reclaim.
+> 
 
-Confirming this patch makes the numbers look sane and plausible again, so
-feel free to stick a Tested-By: to match the Reported-By:.
+What (user-visible) problem is this patchset solving?
 
---==_Exmh_1305162521_2485P
-Content-Type: application/pgp-signature
+IOW, what is the current behaviour, what is wrong with that behaviour
+and what effects does the patchset have upon that behaviour?
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.11 (GNU/Linux)
-Comment: Exmh version 2.5 07/13/2001
+The sole answer from the above is "latency spikes".  Anything else?
 
-iD8DBQFNyzMZcC3lWbTT17ARApyMAKCJfiHzhEgR8XwpgnhK12nzEBoNUgCgpXah
-1caMfu6xRn68C2XkrP7CCMI=
-=lTLb
------END PGP SIGNATURE-----
-
---==_Exmh_1305162521_2485P--
+Have these spikes been observed and measured?  We should have a
+testcase/worload with quantitative results to demonstrate and measure
+the problem(s), so the effectiveness of the proposed solution can be
+understood.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
