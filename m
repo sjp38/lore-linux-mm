@@ -1,83 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 6EBDD6B0026
-	for <linux-mm@kvack.org>; Thu, 12 May 2011 12:06:13 -0400 (EDT)
-Subject: Re: 2.6.39-rc6-mmotm0506 - lockdep splat in RCU code on page fault
-In-Reply-To: Your message of "Thu, 12 May 2011 02:47:05 PDT."
-             <20110512094704.GL2258@linux.vnet.ibm.com>
-From: Valdis.Kletnieks@vt.edu
-References: <6921.1304989476@localhost> <20110510082029.GF2258@linux.vnet.ibm.com> <34783.1305155494@localhost>
-            <20110512094704.GL2258@linux.vnet.ibm.com>
-Mime-Version: 1.0
-Content-Type: multipart/signed; boundary="==_Exmh_1305216324_4101P";
-	 micalg=pgp-sha1; protocol="application/pgp-signature"
-Content-Transfer-Encoding: 7bit
-Date: Thu, 12 May 2011 12:05:24 -0400
-Message-ID: <5817.1305216324@localhost>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 61CAE6B0026
+	for <linux-mm@kvack.org>; Thu, 12 May 2011 12:08:59 -0400 (EDT)
+Date: Thu, 12 May 2011 12:08:30 -0400
+From: Dave Jones <davej@redhat.com>
+Subject: Re: [PATCH 3/3] mm: slub: Default slub_max_order to 0
+Message-ID: <20110512160830.GA16345@redhat.com>
+References: <1305127773-10570-1-git-send-email-mgorman@suse.de>
+ <1305127773-10570-4-git-send-email-mgorman@suse.de>
+ <alpine.DEB.2.00.1105120942050.24560@router.home>
+ <1305213359.2575.46.camel@mulgrave.site>
+ <alpine.DEB.2.00.1105121024350.26013@router.home>
+ <1305214993.2575.50.camel@mulgrave.site>
+ <20110512154649.GB4559@redhat.com>
+ <1305216023.2575.54.camel@mulgrave.site>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1305216023.2575.54.camel@mulgrave.site>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: paulmck@linux.vnet.ibm.com
-Cc: Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: James Bottomley <James.Bottomley@HansenPartnership.com>
+Cc: Christoph Lameter <cl@linux.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Colin King <colin.king@canonical.com>, Raghavendra D Prabhu <raghu.prabhu13@gmail.com>, Jan Kara <jack@suse.cz>, Chris Mason <chris.mason@oracle.com>, Pekka Enberg <penberg@kernel.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-ext4 <linux-ext4@vger.kernel.org>
 
---==_Exmh_1305216324_4101P
-Content-Type: text/plain; charset=us-ascii
+On Thu, May 12, 2011 at 11:00:23AM -0500, James Bottomley wrote:
+ > On Thu, 2011-05-12 at 11:46 -0400, Dave Jones wrote:
+ > > On Thu, May 12, 2011 at 10:43:13AM -0500, James Bottomley wrote:
+ > > 
+ > >  > As I said above, no released fedora version uses SLUB.  It's only just
+ > >  > been enabled for the unreleased FC15; I'm testing a beta copy.
+ > > 
+ > > James, this isn't true.
+ > > 
+ > > $ grep SLUB /boot/config-2.6.35.12-88.fc14.x86_64 
+ > > CONFIG_SLUB_DEBUG=y
+ > > CONFIG_SLUB=y
+ > > 
+ > > (That's the oldest release I have right now, but it's been enabled even
+ > > before that release).
+ > 
+ > OK, I concede the point ... I haven't actually kept any of my FC
+ > machines current for a while.
 
-On Thu, 12 May 2011 02:47:05 PDT, "Paul E. McKenney" said:
-> On Wed, May 11, 2011 at 07:11:34PM -0400, Valdis.Kletnieks@vt.edu wrote:
-> > My source has this:
-> >
-> >         raw_spin_lock_irqsave(&rnp->lock, flags);
-> >         rnp->wakemask |= rdp->grpmask;
-> >         invoke_rcu_node_kthread(rnp);
-> >         raw_spin_unlock_irqrestore(&rnp->lock, flags);
-> >
-> > the last 2 lines swapped from what you diffed against.  I can easily work around
-> > that, except it's unclear what the implications of the invoke_rcu moving outside
-> > of the irq save/restore pair (or if it being inside is the actual root cause)...
->
-> Odd...
->
-> This looks to me like a recent -next -- I do not believe that straight
-> mmotm has rcu_cpu_kthread_timer() in it.  The patch should apply to the
-> last few days' -next kernels.
+'a while' is an understatement :)
+It was first enabled in Fedora 8 in 2007.
 
-Ah. Found it. Your tree and current linux-next include this commit:
-
-commit	1217ed1ba5c67393293dfb0f03c353b118dadeb4
-tree	a765356c8418e134de85fd05d9fe6eda41de859c	tree | snapshot
-parent	29ce831000081dd757d3116bf774aafffc4b6b20	commit | diff
-rcu: permit rcu_read_unlock() to be called while holding runqueue locks
-
-which includes this chunk:
-
-@@ -1546,8 +1531,8 @@ static void rcu_cpu_kthread_timer(unsigned long arg)
-
-        raw_spin_lock_irqsave(&rnp->lock, flags);
-        rnp->wakemask |= rdp->grpmask;
--       invoke_rcu_node_kthread(rnp);
-        raw_spin_unlock_irqrestore(&rnp->lock, flags);
-+       invoke_rcu_node_kthread(rnp);
- }
-
-
-but that was committed 4 days ago, and Andrew pulled linux-next for the -mmotm
-6 days ago, so it's not in there.  The *rest* of your recent commits appear to
-be in there though.  So that explains the patch failure to apply.
-
-
---==_Exmh_1305216324_4101P
-Content-Type: application/pgp-signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.11 (GNU/Linux)
-Comment: Exmh version 2.5 07/13/2001
-
-iD8DBQFNzAVEcC3lWbTT17ARAq37AJ99BJDiC8la1nOfutkD43yaFULQKQCfUAbR
-cLdUqxD+99QEOdSi1qrgUBY=
-=p+Ll
------END PGP SIGNATURE-----
-
---==_Exmh_1305216324_4101P--
+	Dave
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
