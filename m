@@ -1,42 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id E41E8900001
-	for <linux-mm@kvack.org>; Thu, 12 May 2011 13:36:40 -0400 (EDT)
-Date: Thu, 12 May 2011 19:36:28 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 8C9DB900001
+	for <linux-mm@kvack.org>; Thu, 12 May 2011 13:38:43 -0400 (EDT)
+Date: Thu, 12 May 2011 12:38:34 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
 Subject: Re: [PATCH 3/3] mm: slub: Default slub_max_order to 0
-Message-ID: <20110512173628.GJ11579@random.random>
-References: <1305127773-10570-1-git-send-email-mgorman@suse.de>
- <1305127773-10570-4-git-send-email-mgorman@suse.de>
- <alpine.DEB.2.00.1105111314310.9346@chino.kir.corp.google.com>
+In-Reply-To: <BANLkTimDsJDht76Vm7auNqT2gncjpEKZQw@mail.gmail.com>
+Message-ID: <alpine.DEB.2.00.1105121232110.28493@router.home>
+References: <1305127773-10570-1-git-send-email-mgorman@suse.de> <1305127773-10570-4-git-send-email-mgorman@suse.de> <alpine.DEB.2.00.1105120942050.24560@router.home> <1305213359.2575.46.camel@mulgrave.site> <alpine.DEB.2.00.1105121024350.26013@router.home>
+ <1305214993.2575.50.camel@mulgrave.site> <20110512154649.GB4559@redhat.com> <1305216023.2575.54.camel@mulgrave.site> <alpine.DEB.2.00.1105121121120.26013@router.home> <1305217843.2575.57.camel@mulgrave.site> <BANLkTi=MD+voG1i7uDyueV22_daGHPRdqw@mail.gmail.com>
+ <BANLkTimDsJDht76Vm7auNqT2gncjpEKZQw@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1105111314310.9346@chino.kir.corp.google.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, James Bottomley <James.Bottomley@hansenpartnership.com>, Colin King <colin.king@canonical.com>, Raghavendra D Prabhu <raghu.prabhu13@gmail.com>, Jan Kara <jack@suse.cz>, Chris Mason <chris.mason@oracle.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-ext4 <linux-ext4@vger.kernel.org>
+To: Pekka Enberg <penberg@kernel.org>
+Cc: James Bottomley <James.Bottomley@hansenpartnership.com>, Dave Jones <davej@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Colin King <colin.king@canonical.com>, Raghavendra D Prabhu <raghu.prabhu13@gmail.com>, Jan Kara <jack@suse.cz>, Chris Mason <chris.mason@oracle.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-ext4 <linux-ext4@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>
 
-On Wed, May 11, 2011 at 01:38:47PM -0700, David Rientjes wrote:
-> kswapd and doing compaction for the higher order allocs before falling 
+On Thu, 12 May 2011, Pekka Enberg wrote:
 
-Note that patch 2 disabled compaction by clearing __GFP_WAIT.
+> On Thu, May 12, 2011 at 8:06 PM, Pekka Enberg <penberg@kernel.org> wrote:
+> > On Thu, May 12, 2011 at 7:30 PM, James Bottomley
+> > <James.Bottomley@hansenpartnership.com> wrote:
+> >> So suggest an alternative root cause and a test to expose it.
+> >
+> > Is your .config available somewhere, btw?
+>
+> If it's this:
+>
+> http://pkgs.fedoraproject.org/gitweb/?p=kernel.git;a=blob_plain;f=config-x86_64-generic;hb=HEAD
+>
+> I'd love to see what happens if you disable
+>
+> CONFIG_TRANSPARENT_HUGEPAGE=y
+>
+> because that's going to reduce high order allocations as well, no?
 
-What you describe here would be patch 2 without the ~__GFP_WAIT
-addition (so keeping only ~GFP_NOFAIL).
-
-Not clearing __GFP_WAIT when compaction is enabled is possible and
-shouldn't result in bad behavior (if compaction is not enabled with
-current SLUB it's hard to imagine how it could perform decently if
-there's fragmentation). You should try to benchmark to see if it's
-worth it on the large NUMA systems with heavy network traffic (for
-normal systems I doubt compaction is worth it but I'm not against
-trying to keep it enabled just in case).
-
-On a side note, this reminds me to rebuild with slub_max_order in .bss
-on my cellphone (where I can't switch to SLAB because of some silly
-rfs vfat-on-steroids proprietary module).
+I dont think that will change much since huge pages are at MAX_ORDER size.
+Either you can get them or not. The challenge with the small order
+allocations is that they require contiguous memory. Compaction is likely
+not as effective as the prior mechanism that did opportunistic reclaim of
+neighboring pages.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
