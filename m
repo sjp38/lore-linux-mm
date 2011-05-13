@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 810386B0011
-	for <linux-mm@kvack.org>; Fri, 13 May 2011 04:49:43 -0400 (EDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 16A346B0022
+	for <linux-mm@kvack.org>; Fri, 13 May 2011 04:50:01 -0400 (EDT)
 From: Greg Thelen <gthelen@google.com>
-Subject: [RFC][PATCH v7 01/14] memcg: document cgroup dirty memory interfaces
-Date: Fri, 13 May 2011 01:47:40 -0700
-Message-Id: <1305276473-14780-2-git-send-email-gthelen@google.com>
+Subject: [RFC][PATCH v7 03/14] memcg: add mem_cgroup_mark_inode_dirty()
+Date: Fri, 13 May 2011 01:47:42 -0700
+Message-Id: <1305276473-14780-4-git-send-email-gthelen@google.com>
 In-Reply-To: <1305276473-14780-1-git-send-email-gthelen@google.com>
 References: <1305276473-14780-1-git-send-email-gthelen@google.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,133 +13,204 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, linux-fsdevel@vger.kernel.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Vivek Goyal <vgoyal@redhat.com>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>
 
-Document cgroup dirty memory interfaces and statistics.
+Create the mem_cgroup_mark_inode_dirty() routine, which is called when
+an inode is marked dirty.  In kernels without memcg, this is an inline
+no-op.
 
-The implementation for these new interfaces routines comes in a series
-of following patches.
+Add i_memcg field to struct address_space.  When an inode is marked
+dirty with mem_cgroup_mark_inode_dirty(), the css_id of current memcg is
+recorded in i_memcg.  Per-memcg writeback (introduced in a latter
+change) uses this field to isolate inodes associated with a particular
+memcg.
 
-Signed-off-by: Andrea Righi <arighi@develer.com>
+The type of i_memcg is an 'unsigned short' because it stores the css_id
+of the memcg.  Using a struct mem_cgroup pointer would be larger and
+also create a reference on the memcg which would hang memcg rmdir
+deletion.  Usage of a css_id is not a reference so cgroup deletion is
+not affected.  The memcg can be deleted without cleaning up the i_memcg
+field.  When a memcg is deleted its pages are recharged to the cgroup
+parent, and the related inode(s) are marked as shared thus
+disassociating the inodes from the deleted cgroup.
+
+A mem_cgroup_mark_inode_dirty() tracepoint is also included to allow for
+easier understanding of memcg writeback operation.
+
 Signed-off-by: Greg Thelen <gthelen@google.com>
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
 ---
-Changelog since v6:
-- Removed 'Inode writeback issue' now that memcg-writeback is implemented in 
-  the series.
-- Trivial reword of section 5.6 "dirty memory".
+ fs/fs-writeback.c                 |    2 ++
+ fs/inode.c                        |    3 +++
+ include/linux/fs.h                |    9 +++++++++
+ include/linux/memcontrol.h        |    6 ++++++
+ include/trace/events/memcontrol.h |   32 ++++++++++++++++++++++++++++++++
+ mm/memcontrol.c                   |   24 ++++++++++++++++++++++++
+ 6 files changed, 76 insertions(+), 0 deletions(-)
+ create mode 100644 include/trace/events/memcontrol.h
 
-Changelog since v4:
-- Minor rewording of '5.5 dirty memory' section.
-- Added '5.5.1 Inode writeback issue' section.
-
-Changelog since v3:
-- Described interactions with memory.use_hierarchy.
-- Added description of total_dirty, total_writeback, and total_nfs_unstable.
-
-Changelog since v1:
-- Renamed "nfs"/"total_nfs" to "nfs_unstable"/"total_nfs_unstable" in per cgroup
-  memory.stat to match /proc/meminfo.
-- Allow [kKmMgG] suffixes for newly created dirty limit value cgroupfs files.
-- Describe a situation where a cgroup can exceed its dirty limit.
-
- Documentation/cgroups/memory.txt |   70 ++++++++++++++++++++++++++++++++++++++
- 1 files changed, 70 insertions(+), 0 deletions(-)
-
-diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
-index 43b9e46..15019a3 100644
---- a/Documentation/cgroups/memory.txt
-+++ b/Documentation/cgroups/memory.txt
-@@ -395,6 +395,10 @@ soft_direct_steal- # of pages reclaimed in global hierarchical reclaim from
- 		direct reclaim
- soft_direct_scan- # of pages scanned in global hierarchical reclaim from
- 		direct reclaim
-+dirty		- # of bytes that are waiting to get written back to the disk.
-+writeback	- # of bytes that are actively being written back to the disk.
-+nfs_unstable	- # of bytes sent to the NFS server, but not yet committed to
-+		the actual storage.
- inactive_anon	- # of bytes of anonymous memory and swap cache memory on
- 		LRU list.
- active_anon	- # of bytes of anonymous and swap cache memory on active
-@@ -420,6 +424,9 @@ total_soft_kswapd_steal	- sum of all children's "soft_kswapd_steal"
- total_soft_kswapd_scan	- sum of all children's "soft_kswapd_scan"
- total_soft_direct_steal	- sum of all children's "soft_direct_steal"
- total_soft_direct_scan	- sum of all children's "soft_direct_scan"
-+total_dirty		- sum of all children's "dirty"
-+total_writeback		- sum of all children's "writeback"
-+total_nfs_unstable	- sum of all children's "nfs_unstable"
- total_inactive_anon	- sum of all children's "inactive_anon"
- total_active_anon	- sum of all children's "active_anon"
- total_inactive_file	- sum of all children's "inactive_file"
-@@ -476,6 +483,69 @@ value for efficient access. (Of course, when necessary, it's synchronized.)
- If you want to know more exact memory usage, you should use RSS+CACHE(+SWAP)
- value in memory.stat(see 5.2).
+diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
+index 3392c29..0174fcf 100644
+--- a/fs/fs-writeback.c
++++ b/fs/fs-writeback.c
+@@ -19,6 +19,7 @@
+ #include <linux/slab.h>
+ #include <linux/sched.h>
+ #include <linux/fs.h>
++#include <linux/memcontrol.h>
+ #include <linux/mm.h>
+ #include <linux/kthread.h>
+ #include <linux/freezer.h>
+@@ -1111,6 +1112,7 @@ void __mark_inode_dirty(struct inode *inode, int flags)
+ 			spin_lock(&bdi->wb.list_lock);
+ 			inode->dirtied_when = jiffies;
+ 			list_move(&inode->i_wb_list, &bdi->wb.b_dirty);
++			mem_cgroup_mark_inode_dirty(inode);
+ 			spin_unlock(&bdi->wb.list_lock);
  
-+5.6 dirty memory
-+
-+Control the maximum amount of dirty pages a cgroup can have at any given time.
-+
-+Limiting dirty memory is like fixing the max amount of dirty (hard to reclaim)
-+page cache used by a cgroup.  So, in case of multiple cgroup writers, they will
-+not be able to consume more than their designated share of dirty pages and will
-+be throttled if they cross that limit.  System-wide dirty limits are also
-+consulted.  Dirty memory consumption is checked against both system-wide and
-+per-cgroup dirty limits.
-+
-+The interface is similar to the procfs interface: /proc/sys/vm/dirty_*.  It is
-+possible to configure a limit to trigger throttling of a dirtier or queue
-+background writeback.  The root cgroup memory.dirty_* control files are
-+read-only and match the contents of the /proc/sys/vm/dirty_* files.
-+
-+Per-cgroup dirty limits can be set using the following files in the cgroupfs:
-+
-+- memory.dirty_ratio: the amount of dirty memory (expressed as a percentage of
-+  cgroup memory) at which a process generating dirty pages will be throttled.
-+  The default value is the system-wide dirty ratio, /proc/sys/vm/dirty_ratio.
-+
-+- memory.dirty_limit_in_bytes: the amount of dirty memory (expressed in bytes)
-+  in the cgroup at which a process generating dirty pages will be throttled.
-+  Suffix (k, K, m, M, g, or G) can be used to indicate that value is kilo, mega
-+  or gigabytes.  The default value is the system-wide dirty limit,
-+  /proc/sys/vm/dirty_bytes.
-+
-+  Note: memory.dirty_limit_in_bytes is the counterpart of memory.dirty_ratio.
-+  Only one may be specified at a time.  When one is written it is immediately
-+  taken into account to evaluate the dirty memory limits and the other appears
-+  as 0 when read.
-+
-+- memory.dirty_background_ratio: the amount of dirty memory of the cgroup
-+  (expressed as a percentage of cgroup memory) at which background writeback
-+  kernel threads will start writing out dirty data.  The default value is the
-+  system-wide background dirty ratio, /proc/sys/vm/dirty_background_ratio.
-+
-+- memory.dirty_background_limit_in_bytes: the amount of dirty memory (expressed
-+  in bytes) in the cgroup at which background writeback kernel threads will
-+  start writing out dirty data.  Suffix (k, K, m, M, g, or G) can be used to
-+  indicate that value is kilo, mega or gigabytes.  The default value is the
-+  system-wide dirty background limit, /proc/sys/vm/dirty_background_bytes.
-+
-+  Note: memory.dirty_background_limit_in_bytes is the counterpart of
-+  memory.dirty_background_ratio.  Only one may be specified at a time.  When one
-+  is written it is immediately taken into account to evaluate the dirty memory
-+  limits and the other appears as 0 when read.
-+
-+A cgroup may contain more dirty memory than its dirty limit.  This is possible
-+because of the principle that the first cgroup to touch a page is charged for
-+it.  Subsequent page counting events (dirty, writeback, nfs_unstable) are also
-+counted to the originally charged cgroup.  Example: If page is allocated by a
-+cgroup A task, then the page is charged to cgroup A.  If the page is later
-+dirtied by a task in cgroup B, then the cgroup A dirty count will be
-+incremented.  If cgroup A is over its dirty limit but cgroup B is not, then
-+dirtying a cgroup A page from a cgroup B task may push cgroup A over its dirty
-+limit without throttling the dirtying cgroup B task.
-+
-+When use_hierarchy=0, each cgroup has independent dirty memory usage and limits.
-+When use_hierarchy=1 the dirty limits of parent cgroups are also checked to
-+ensure that no dirty limit is exceeded.
-+
- 6. Hierarchy support
+ 			if (wakeup_bdi)
+diff --git a/fs/inode.c b/fs/inode.c
+index ce61a1b..9ecb0bb 100644
+--- a/fs/inode.c
++++ b/fs/inode.c
+@@ -228,6 +228,9 @@ int inode_init_always(struct super_block *sb, struct inode *inode)
+ 	mapping->assoc_mapping = NULL;
+ 	mapping->backing_dev_info = &default_backing_dev_info;
+ 	mapping->writeback_index = 0;
++#ifdef CONFIG_CGROUP_MEM_RES_CTLR
++	mapping->i_memcg = 0;
++#endif
  
- The memory controller supports a deep hierarchy and hierarchical accounting.
+ 	/*
+ 	 * If the block_device provides a backing_dev_info for client
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index 29c02f6..deabca3 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -645,6 +645,9 @@ struct address_space {
+ 	spinlock_t		private_lock;	/* for use by the address_space */
+ 	struct list_head	private_list;	/* ditto */
+ 	struct address_space	*assoc_mapping;	/* ditto */
++#ifdef CONFIG_CGROUP_MEM_RES_CTLR
++	unsigned short		i_memcg;	/* css_id of memcg dirtier */
++#endif
+ } __attribute__((aligned(sizeof(long))));
+ 	/*
+ 	 * On most architectures that alignment is already the case; but
+@@ -652,6 +655,12 @@ struct address_space {
+ 	 * of struct page's "mapping" pointer be used for PAGE_MAPPING_ANON.
+ 	 */
+ 
++/*
++ * When an address_space is shared by multiple memcg dirtieres, then i_memcg is
++ * set to this special, wildcard, css_id value (zero).
++ */
++#define I_MEMCG_SHARED 0
++
+ struct block_device {
+ 	dev_t			bd_dev;  /* not a kdev_t - it's a search key */
+ 	int			bd_openers;
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 77e47f5..14b6d67 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -103,6 +103,8 @@ mem_cgroup_prepare_migration(struct page *page,
+ extern void mem_cgroup_end_migration(struct mem_cgroup *mem,
+ 	struct page *oldpage, struct page *newpage, bool migration_ok);
+ 
++void mem_cgroup_mark_inode_dirty(struct inode *inode);
++
+ /*
+  * For memory reclaim.
+  */
+@@ -273,6 +275,10 @@ static inline void mem_cgroup_end_migration(struct mem_cgroup *mem,
+ {
+ }
+ 
++static inline void mem_cgroup_mark_inode_dirty(struct inode *inode)
++{
++}
++
+ static inline int mem_cgroup_get_reclaim_priority(struct mem_cgroup *mem)
+ {
+ 	return 0;
+diff --git a/include/trace/events/memcontrol.h b/include/trace/events/memcontrol.h
+new file mode 100644
+index 0000000..781ef9fc
+--- /dev/null
++++ b/include/trace/events/memcontrol.h
+@@ -0,0 +1,32 @@
++#undef TRACE_SYSTEM
++#define TRACE_SYSTEM memcontrol
++
++#if !defined(_TRACE_MEMCONTROL_H) || defined(TRACE_HEADER_MULTI_READ)
++#define _TRACE_MEMCONTROL_H
++
++#include <linux/types.h>
++#include <linux/tracepoint.h>
++
++TRACE_EVENT(mem_cgroup_mark_inode_dirty,
++	TP_PROTO(struct inode *inode),
++
++	TP_ARGS(inode),
++
++	TP_STRUCT__entry(
++		__field(unsigned long, ino)
++		__field(unsigned short, css_id)
++		),
++
++	TP_fast_assign(
++		__entry->ino = inode->i_ino;
++		__entry->css_id =
++			inode->i_mapping ? inode->i_mapping->i_memcg : 0;
++		),
++
++	TP_printk("ino=%ld css_id=%d", __entry->ino, __entry->css_id)
++)
++
++#endif /* _TRACE_MEMCONTROL_H */
++
++/* This part must be outside protection */
++#include <trace/define_trace.h>
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 95aecca..3a792b7 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -54,6 +54,9 @@
+ 
+ #include <trace/events/vmscan.h>
+ 
++#define CREATE_TRACE_POINTS
++#include <trace/events/memcontrol.h>
++
+ struct cgroup_subsys mem_cgroup_subsys __read_mostly;
+ #define MEM_CGROUP_RECLAIM_RETRIES	5
+ struct mem_cgroup *root_mem_cgroup __read_mostly;
+@@ -1122,6 +1125,27 @@ static int calc_inactive_ratio(struct mem_cgroup *memcg, unsigned long *present_
+ 	return inactive_ratio;
+ }
+ 
++/*
++ * Mark the current task's memcg as the memcg associated with inode.  Note: the
++ * recorded cgroup css_id is not guaranteed to remain correct.  The current task
++ * may be moved to another cgroup.  The memcg may also be deleted before the
++ * caller has time to use the i_memcg.
++ */
++void mem_cgroup_mark_inode_dirty(struct inode *inode)
++{
++	struct mem_cgroup *mem;
++	unsigned short id;
++
++	rcu_read_lock();
++	mem = mem_cgroup_from_task(current);
++	id = mem ? css_id(&mem->css) : 0;
++	rcu_read_unlock();
++
++	inode->i_mapping->i_memcg = id;
++
++	trace_mem_cgroup_mark_inode_dirty(inode);
++}
++
+ int mem_cgroup_inactive_anon_is_low(struct mem_cgroup *memcg)
+ {
+ 	unsigned long active;
 -- 
 1.7.3.1
 
