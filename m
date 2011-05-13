@@ -1,169 +1,158 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id BD1186B0025
-	for <linux-mm@kvack.org>; Fri, 13 May 2011 04:52:52 -0400 (EDT)
-From: Greg Thelen <gthelen@google.com>
-Subject: [RFC][PATCH v7 14/14] memcg: check memcg dirty limits in page writeback
-Date: Fri, 13 May 2011 01:47:53 -0700
-Message-Id: <1305276473-14780-15-git-send-email-gthelen@google.com>
-In-Reply-To: <1305276473-14780-1-git-send-email-gthelen@google.com>
-References: <1305276473-14780-1-git-send-email-gthelen@google.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id DFD9C6B0027
+	for <linux-mm@kvack.org>; Fri, 13 May 2011 05:10:58 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 6290E3EE0BC
+	for <linux-mm@kvack.org>; Fri, 13 May 2011 18:10:55 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 485F345DE5A
+	for <linux-mm@kvack.org>; Fri, 13 May 2011 18:10:55 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 2ED2945DE54
+	for <linux-mm@kvack.org>; Fri, 13 May 2011 18:10:55 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 1F89FEF8002
+	for <linux-mm@kvack.org>; Fri, 13 May 2011 18:10:55 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id D061EE08001
+	for <linux-mm@kvack.org>; Fri, 13 May 2011 18:10:54 +0900 (JST)
+Date: Fri, 13 May 2011 18:04:09 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH 0/7] memcg async reclaim
+Message-Id: <20110513180409.7feea2f9.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <BANLkTinFesh5cpdk16dWygoWJeH8QU0hTw@mail.gmail.com>
+References: <20110510190216.f4eefef7.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110511182844.d128c995.akpm@linux-foundation.org>
+	<20110512103503.717f4a96.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110511205110.354fa05e.akpm@linux-foundation.org>
+	<20110512132237.813a7c7f.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110512171725.d367980f.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110513120318.63ff7d0e.kamezawa.hiroyu@jp.fujitsu.com>
+	<BANLkTinFesh5cpdk16dWygoWJeH8QU0hTw@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, linux-fsdevel@vger.kernel.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Vivek Goyal <vgoyal@redhat.com>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>
+To: Ying Han <yinghan@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Johannes Weiner <jweiner@redhat.com>, Michal Hocko <mhocko@suse.cz>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, Greg Thelen <gthelen@google.com>
 
-If the current process is in a non-root memcg, then
-balance_dirty_pages() will consider the memcg dirty limits as well as
-the system-wide limits.  This allows different cgroups to have distinct
-dirty limits which trigger direct and background writeback at different
-levels.
+On Thu, 12 May 2011 22:10:30 -0700
+Ying Han <yinghan@google.com> wrote:
 
-If called with a mem_cgroup, then throttle_vm_writeout() queries the
-given cgroup for its dirty memory usage limits.
+> On Thu, May 12, 2011 at 8:03 PM, KAMEZAWA Hiroyuki <
+> kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> 
+> > On Thu, 12 May 2011 17:17:25 +0900
+> > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> >
+> > > On Thu, 12 May 2011 13:22:37 +0900
+> > > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> > > I'll check what codes in vmscan.c or /mm affects memcg and post a
+> > > required fix in step by step. I think I found some..
+> > >
+> >
+> > After some tests, I doubt that 'automatic' one is unnecessary until
+> > memcg's dirty_ratio is supported. And as Andrew pointed out,
+> > total cpu consumption is unchanged and I don't have workloads which
+> > shows me meaningful speed up.
+> >
+> 
+> The total cpu consumption is one way to measure the background reclaim,
+> another thing I would like to measure is a histogram of page fault latency
+> for a heavy page allocation application. I would expect with background
+> reclaim, we will get less variation on the page fault latency than w/o it.
+> 
+> Sorry i haven't got chance to run some tests to back it up. I will try to
+> get some data.
+> 
 
-Signed-off-by: Andrea Righi <arighi@develer.com>
-Signed-off-by: Greg Thelen <gthelen@google.com>
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Acked-by: Wu Fengguang <fengguang.wu@intel.com>
----
-Changelog since v6:
-- Adapt to new mem_cgroup_hierarchical_dirty_info() parameters: it no longer
-  takes a background/foreground parameter.
-- Trivial comment reword.
+My posted set needs some tweaks and fixes. I'll post re-tuned one in the
+next week. (But I'll be busy until Wednesday.)
 
-Changelog since v5:
-- Simplified this change by using mem_cgroup_balance_dirty_pages() rather than
-  cramming the somewhat different logic into balance_dirty_pages().  This means
-  the global (non-memcg) dirty limits are not passed around in the
-  struct dirty_info, so there's less change to existing code.
+> 
+> > But I guess...with dirty_ratio, amount of dirty pages in memcg is
+> > limited and background reclaim can work enough without noise of
+> > write_page() while applications are throttled by dirty_ratio.
+> >
+> 
+> Definitely. I have run into the issue while debugging the soft_limit
+> reclaim. The background reclaim became very inefficient if we have dirty
+> pages greater than the soft_limit. Talking w/ Greg about it regarding his
+> per-memcg dirty page limit effort, we should consider setting the dirty
+> ratio which not allowing the dirty pages greater the reclaim watermarks
+> (here is the soft_limit).
+> 
 
-Changelog since v4:
-- Added missing 'struct mem_cgroup' forward declaration in writeback.h.
-- Made throttle_vm_writeout() memcg aware.
-- Removed previously added dirty_writeback_pages() which is no longer needed.
-- Added logic to balance_dirty_pages() to throttle if over foreground memcg
-  limit.
+I think I got some positive result...in some situation.
 
-Changelog since v3:
-- Leave determine_dirtyable_memory() static.  v3 made is non-static.
-- balance_dirty_pages() now considers both system and memcg dirty limits and
-  usage data.  This data is retrieved with global_dirty_info() and
-  memcg_dirty_info().  
+On 8cpu, 24GB RAM system, under 300MB memcg, run 2 programs
+  Program 1)  while true; do cat ./test/1G > /dev/null;done
+              This fills memcg with clean file cache.
+  Program 2)  malloc(200MB) and page-fault, free it in 200 times.
 
- include/linux/writeback.h |    3 ++-
- mm/page-writeback.c       |   35 +++++++++++++++++++++++++++++------
- mm/vmscan.c               |    2 +-
- 3 files changed, 32 insertions(+), 8 deletions(-)
+And measure Program2's time.
 
-diff --git a/include/linux/writeback.h b/include/linux/writeback.h
-index 4f5c0d2..0b4b851 100644
---- a/include/linux/writeback.h
-+++ b/include/linux/writeback.h
-@@ -8,6 +8,7 @@
- #include <linux/fs.h>
- 
- struct backing_dev_info;
-+struct mem_cgroup;
- 
- /*
-  * fs/fs-writeback.c
-@@ -91,7 +92,7 @@ void laptop_mode_timer_fn(unsigned long data);
- #else
- static inline void laptop_sync_completion(void) { }
- #endif
--void throttle_vm_writeout(gfp_t gfp_mask);
-+void throttle_vm_writeout(gfp_t gfp_mask, struct mem_cgroup *mem_cgroup);
- 
- /* These are exported to sysctl. */
- extern int dirty_background_ratio;
-diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index 62fcf3d..30c265b 100644
---- a/mm/page-writeback.c
-+++ b/mm/page-writeback.c
-@@ -473,7 +473,8 @@ unsigned long bdi_dirty_limit(struct backing_dev_info *bdi, unsigned long dirty)
-  * data.  It looks at the number of dirty pages in the machine and will force
-  * the caller to perform writeback if the system is over `vm_dirty_ratio'.
-  * If we're over `background_thresh' then the writeback threads are woken to
-- * perform some writeout.
-+ * perform some writeout.  The current task may belong to a cgroup with
-+ * dirty limits, which are also checked.
-  */
- static void balance_dirty_pages(struct address_space *mapping,
- 				unsigned long write_chunk)
-@@ -488,6 +489,8 @@ static void balance_dirty_pages(struct address_space *mapping,
- 	bool dirty_exceeded = false;
- 	struct backing_dev_info *bdi = mapping->backing_dev_info;
- 
-+	mem_cgroup_balance_dirty_pages(mapping, write_chunk);
-+
- 	for (;;) {
- 		struct writeback_control wbc = {
- 			.sync_mode	= WB_SYNC_NONE,
-@@ -651,23 +654,43 @@ void balance_dirty_pages_ratelimited_nr(struct address_space *mapping,
- }
- EXPORT_SYMBOL(balance_dirty_pages_ratelimited_nr);
- 
--void throttle_vm_writeout(gfp_t gfp_mask)
-+/*
-+ * Throttle the current task if it is near dirty memory usage limits.  Both
-+ * global dirty memory limits and (if @mem_cgroup is given) per-cgroup dirty
-+ * memory limits are checked.
-+ *
-+ * If near limits, then wait for usage to drop.  Dirty usage should drop because
-+ * dirty producers should have used balance_dirty_pages(), which would have
-+ * scheduled writeback.
-+ */
-+void throttle_vm_writeout(gfp_t gfp_mask, struct mem_cgroup *mem_cgroup)
- {
- 	unsigned long background_thresh;
- 	unsigned long dirty_thresh;
-+	struct dirty_info memcg_info;
-+	bool do_memcg;
- 
-         for ( ; ; ) {
- 		global_dirty_limits(&background_thresh, &dirty_thresh);
-+		do_memcg = mem_cgroup &&
-+			mem_cgroup_hierarchical_dirty_info(
-+				determine_dirtyable_memory(), mem_cgroup,
-+				&memcg_info);
- 
-                 /*
-                  * Boost the allowable dirty threshold a bit for page
-                  * allocators so they don't get DoS'ed by heavy writers
-                  */
-                 dirty_thresh += dirty_thresh / 10;      /* wheeee... */
--
--                if (global_page_state(NR_UNSTABLE_NFS) +
--			global_page_state(NR_WRITEBACK) <= dirty_thresh)
--                        	break;
-+		if (do_memcg)
-+			memcg_info.dirty_thresh += memcg_info.dirty_thresh / 10;
-+
-+		if ((global_page_state(NR_UNSTABLE_NFS) +
-+		     global_page_state(NR_WRITEBACK) <= dirty_thresh) &&
-+		    (!do_memcg ||
-+		     (memcg_info.nr_unstable_nfs +
-+		      memcg_info.nr_writeback <= memcg_info.dirty_thresh)))
-+			break;
-                 congestion_wait(BLK_RW_ASYNC, HZ/10);
- 
- 		/*
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 292582c..66324a4 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1953,7 +1953,7 @@ restart:
- 					sc->nr_scanned - nr_scanned, sc))
- 		goto restart;
- 
--	throttle_vm_writeout(sc->gfp_mask);
-+	throttle_vm_writeout(sc->gfp_mask, sc->mem_cgroup);
- }
- 
- /*
--- 
-1.7.3.1
+Case 1) running only Program2
+
+real    0m17.086s
+user    0m0.057s
+sys     0m17.257s
+
+
+Case 2) running Program 1 and 2 without async reclaim.
+
+[kamezawa@bluextal test]$ time ./catch_and_release  > /dev/null
+
+real    0m26.182s
+user    0m0.115s
+sys     0m19.075s
+[kamezawa@bluextal test]$ time ./catch_and_release  > /dev/null
+
+real    0m23.155s
+user    0m0.096s
+sys     0m18.175s
+[kamezawa@bluextal test]$ time ./catch_and_release  > /dev/null
+
+real    0m24.667s
+user    0m0.108s
+sys     0m18.804s
+
+
+Case 3) running Program 1 and 2 with async reclaim of 8MB to limit.
+
+
+[kamezawa@bluextal test]$ time ./catch_and_release  > /dev/null
+
+real    0m21.438s
+user    0m0.083s
+sys     0m17.864s
+[kamezawa@bluextal test]$ time ./catch_and_release  > /dev/null
+
+real    0m23.010s
+user    0m0.079s
+sys     0m17.819s
+[kamezawa@bluextal test]$ time ./catch_and_release  > /dev/null
+
+real    0m19.596s
+user    0m0.108s
+sys     0m18.053s
+
+
+If my test is correct, there are some meaningful positive effect.
+But I doubt there may be case with negative result case. 
+
+I wonder to see posivie value, application shouldn't do 'write' ;)
+Anyway, I'll make a try in the next week, again.
+
+Thanks,
+-Kame
+
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
