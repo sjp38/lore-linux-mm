@@ -1,131 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 8EA366B0011
-	for <linux-mm@kvack.org>; Fri, 13 May 2011 01:25:16 -0400 (EDT)
-Received: from kpbe20.cbf.corp.google.com (kpbe20.cbf.corp.google.com [172.25.105.84])
-	by smtp-out.google.com with ESMTP id p4D5PCD6021545
-	for <linux-mm@kvack.org>; Thu, 12 May 2011 22:25:12 -0700
-Received: from qyk2 (qyk2.prod.google.com [10.241.83.130])
-	by kpbe20.cbf.corp.google.com with ESMTP id p4D5P3Cl028358
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 12 May 2011 22:25:11 -0700
-Received: by qyk2 with SMTP id 2so170406qyk.0
-        for <linux-mm@kvack.org>; Thu, 12 May 2011 22:25:10 -0700 (PDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C1CA6B0024
+	for <linux-mm@kvack.org>; Fri, 13 May 2011 01:39:05 -0400 (EDT)
+Received: by qyk30 with SMTP id 30so1618049qyk.14
+        for <linux-mm@kvack.org>; Thu, 12 May 2011 22:39:03 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20110513121030.08fcae08.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20110513121030.08fcae08.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Thu, 12 May 2011 22:25:10 -0700
-Message-ID: <BANLkTi=9oKwq-8f-kdinn0pUZ04g5Z7Gnw@mail.gmail.com>
-Subject: Re: [PATCH][BUGFIX] memcg fix zone congestion
-From: Ying Han <yinghan@google.com>
-Content-Type: multipart/alternative; boundary=002354470aa8949ec904a32187bb
+In-Reply-To: <BANLkTikRFjGtBhnTBH_n=rDe+Y6kCjt30g@mail.gmail.com>
+References: <1305127773-10570-4-git-send-email-mgorman@suse.de>
+	<alpine.DEB.2.00.1105120942050.24560@router.home>
+	<1305213359.2575.46.camel@mulgrave.site>
+	<alpine.DEB.2.00.1105121024350.26013@router.home>
+	<1305214993.2575.50.camel@mulgrave.site>
+	<1305215742.27848.40.camel@jaguar>
+	<1305225467.2575.66.camel@mulgrave.site>
+	<1305229447.2575.71.camel@mulgrave.site>
+	<1305230652.2575.72.camel@mulgrave.site>
+	<1305237882.2575.100.camel@mulgrave.site>
+	<20110512221506.GM16531@cmpxchg.org>
+	<BANLkTikRFjGtBhnTBH_n=rDe+Y6kCjt30g@mail.gmail.com>
+Date: Fri, 13 May 2011 14:39:03 +0900
+Message-ID: <BANLkTimmn_PyU0xtfnG-CKxDxd1CTKx=Aw@mail.gmail.com>
+Subject: Re: [PATCH 3/3] mm: slub: Default slub_max_order to 0
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, Johannes Weiner <jweiner@redhat.com>, Michal Hocko <mhocko@suse.cz>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: James Bottomley <James.Bottomley@hansenpartnership.com>, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Colin King <colin.king@canonical.com>, Raghavendra D Prabhu <raghu.prabhu13@gmail.com>, Jan Kara <jack@suse.cz>, Chris Mason <chris.mason@oracle.com>, Rik van Riel <riel@redhat.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-ext4 <linux-ext4@vger.kernel.org>
 
---002354470aa8949ec904a32187bb
-Content-Type: text/plain; charset=ISO-8859-1
-
-On Thu, May 12, 2011 at 8:10 PM, KAMEZAWA Hiroyuki <
-kamezawa.hiroyu@jp.fujitsu.com> wrote:
-
+On Fri, May 13, 2011 at 7:58 AM, Minchan Kim <minchan.kim@gmail.com> wrote:
+> On Fri, May 13, 2011 at 7:15 AM, Johannes Weiner <hannes@cmpxchg.org> wro=
+te:
+>> On Thu, May 12, 2011 at 05:04:41PM -0500, James Bottomley wrote:
+>>> On Thu, 2011-05-12 at 15:04 -0500, James Bottomley wrote:
+>>> > Confirmed, I'm afraid ... I can trigger the problem with all three
+>>> > patches under PREEMPT. =C2=A0It's not a hang this time, it's just ksw=
+apd
+>>> > taking 100% system time on 1 CPU and it won't calm down after I unloa=
+d
+>>> > the system.
+>>>
+>>> Just on a "if you don't know what's wrong poke about and see" basis, I
+>>> sliced out all the complex logic in sleeping_prematurely() and, as far
+>>> as I can tell, it cures the problem behaviour. =C2=A0I've loaded up the
+>>> system, and taken the tar load generator through three runs without
+>>> producing a spinning kswapd (this is PREEMPT). =C2=A0I'll try with a
+>>> non-PREEMPT kernel shortly.
+>>>
+>>> What this seems to say is that there's a problem with the complex logic
+>>> in sleeping_prematurely(). =C2=A0I'm pretty sure hacking up
+>>> sleeping_prematurely() just to dump all the calculations is the wrong
+>>> thing to do, but perhaps someone can see what the right thing is ...
+>>
+>> I think I see the problem: the boolean logic of sleeping_prematurely()
+>> is odd. =C2=A0If it returns true, kswapd will keep running. =C2=A0So if
+>> pgdat_balanced() returns true, kswapd should go to sleep.
+>>
+>> This?
 >
-> ZONE_CONGESTED should be a state of global memory reclaim.
-> If not, a busy memcg sets this and give unnecessary throttoling in
-> wait_iff_congested() against memory recalim in other contexts. This makes
-> system performance bad.
->
-> I'll think about "memcg is congested!" flag is required or not, later.
-> But this fix is required 1st.
->
+> Yes. Good catch.
 
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> ---
->  mm/vmscan.c |    3 ++-
->  1 file changed, 2 insertions(+), 1 deletion(-)
->
-> Index: mmotm-May11/mm/vmscan.c
-> ===================================================================
-> --- mmotm-May11.orig/mm/vmscan.c
-> +++ mmotm-May11/mm/vmscan.c
-> @@ -941,7 +941,8 @@ keep_lumpy:
->         * back off and wait for congestion to clear because further reclaim
->         * will encounter the same problem
->         */
-> -       if (nr_dirty == nr_congested && nr_dirty != 0)
-> +       if (scanning_global_lru(sc) &&
-> +           nr_dirty == nr_congested && nr_dirty != 0)
->                zone_set_flag(zone, ZONE_CONGESTED);
->
->        free_page_list(&free_pages);
->
-> For memcg, wonder if we should make it per-memcg-per-zone congested.
+In addition, I see some strange thing.
+The comment in pgdat_balanced says
+"Only zones that meet watermarks and are in a zone allowed by the
+callers classzone_idx are added to balanced_pages"
 
-Acked-by: Ying Han <yinghan@google.com>
+It's true in case of balance_pgdat but it's not true in sleeping_prematurel=
+y.
+This?
 
---Ying
+barrios@barrios-desktop:~/linux-mmotm$ git diff mm/vmscan.c
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 292582c..d9078cf 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2322,7 +2322,8 @@ static bool sleeping_prematurely(pg_data_t
+*pgdat, int order, long remaining,
+                                                        classzone_idx, 0))
+                        all_zones_ok =3D false;
+                else
+-                       balanced +=3D zone->present_pages;
++                       if (i <=3D classzone_idx)
++                               balanced +=3D zone->present_pages;
+        }
 
---002354470aa8949ec904a32187bb
-Content-Type: text/html; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+        /*
+@@ -2331,7 +2332,7 @@ static bool sleeping_prematurely(pg_data_t
+*pgdat, int order, long remaining,
+         * must be balanced
+         */
+        if (order)
+-               return pgdat_balanced(pgdat, balanced, classzone_idx);
++               return !pgdat_balanced(pgdat, balanced, classzone_idx);
+        else
+                return !all_zones_ok;
+ }
 
-<br><br><div class=3D"gmail_quote">On Thu, May 12, 2011 at 8:10 PM, KAMEZAW=
-A Hiroyuki <span dir=3D"ltr">&lt;<a href=3D"mailto:kamezawa.hiroyu@jp.fujit=
-su.com">kamezawa.hiroyu@jp.fujitsu.com</a>&gt;</span> wrote:<br><blockquote=
- class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1px #ccc soli=
-d;padding-left:1ex;">
-<br>
-ZONE_CONGESTED should be a state of global memory reclaim.<br>
-If not, a busy memcg sets this and give unnecessary throttoling in<br>
-wait_iff_congested() against memory recalim in other contexts. This makes<b=
-r>
-system performance bad.<br>
-<br>
-I&#39;ll think about &quot;memcg is congested!&quot; flag is required or no=
-t, later.<br>
-But this fix is required 1st.<br>=A0</blockquote><blockquote class=3D"gmail=
-_quote" style=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:=
-1ex;">
-Signed-off-by: KAMEZAWA Hiroyuki &lt;<a href=3D"mailto:kamezawa.hiroyu@jp.f=
-ujitsu.com">kamezawa.hiroyu@jp.fujitsu.com</a>&gt;<br>
----<br>
-=A0mm/vmscan.c | =A0 =A03 ++-<br>
-=A01 file changed, 2 insertions(+), 1 deletion(-)<br>
-<br>
-Index: mmotm-May11/mm/vmscan.c<br>
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D<br>
---- mmotm-May11.orig/mm/vmscan.c<br>
-+++ mmotm-May11/mm/vmscan.c<br>
-@@ -941,7 +941,8 @@ keep_lumpy:<br>
- =A0 =A0 =A0 =A0 * back off and wait for congestion to clear because furthe=
-r reclaim<br>
- =A0 =A0 =A0 =A0 * will encounter the same problem<br>
- =A0 =A0 =A0 =A0 */<br>
-- =A0 =A0 =A0 if (nr_dirty =3D=3D nr_congested &amp;&amp; nr_dirty !=3D 0)<=
-br>
-+ =A0 =A0 =A0 if (scanning_global_lru(sc) &amp;&amp;<br>
-+ =A0 =A0 =A0 =A0 =A0 nr_dirty =3D=3D nr_congested &amp;&amp; nr_dirty !=3D=
- 0)<br>
- =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0zone_set_flag(zone, ZONE_CONGESTED);<br>
-<br>
- =A0 =A0 =A0 =A0free_page_list(&amp;free_pages);<br>
-<br></blockquote><div>For memcg, wonder if we should make it per-memcg-per-=
-zone congested.</div><div>=A0</div></div><meta charset=3D"utf-8"><span clas=
-s=3D"Apple-style-span" style=3D"border-collapse: collapse; font-family: ari=
-al, sans-serif; font-size: 13px; "><font class=3D"Apple-style-span" color=
-=3D"#525151">Acked</font>-by:=A0<font class=3D"Apple-style-span" color=3D"#=
-525151">Ying Han</font>=A0&lt;<font class=3D"Apple-style-span" color=3D"#52=
-5151"><a href=3D"mailto:yinghan@google.com">yinghan@google.com</a></font>&g=
-t;</span><div>
-<span class=3D"Apple-style-span" style=3D"border-collapse: collapse; font-f=
-amily: arial, sans-serif; font-size: 13px; "><br></span></div><div><span cl=
-ass=3D"Apple-style-span" style=3D"border-collapse: collapse; font-family: a=
-rial, sans-serif; font-size: 13px; ">--Ying</span></div>
 
---002354470aa8949ec904a32187bb--
+
+
+
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
