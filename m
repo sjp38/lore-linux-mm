@@ -1,73 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 99F9D900001
-	for <linux-mm@kvack.org>; Fri, 13 May 2011 03:18:52 -0400 (EDT)
-Date: Fri, 13 May 2011 09:18:34 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [rfc patch 3/6] mm: memcg-aware global reclaim
-Message-ID: <20110513071834.GD18610@cmpxchg.org>
-References: <1305212038-15445-1-git-send-email-hannes@cmpxchg.org>
- <1305212038-15445-4-git-send-email-hannes@cmpxchg.org>
- <20110513090450.3c40d2ee.kamezawa.hiroyu@jp.fujitsu.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 45491900001
+	for <linux-mm@kvack.org>; Fri, 13 May 2011 03:18:56 -0400 (EDT)
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e2.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p4D6x6PM022794
+	for <linux-mm@kvack.org>; Fri, 13 May 2011 02:59:06 -0400
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p4D7IqZA084596
+	for <linux-mm@kvack.org>; Fri, 13 May 2011 03:18:52 -0400
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p4D7IpJs020336
+	for <linux-mm@kvack.org>; Fri, 13 May 2011 03:18:52 -0400
+Date: Fri, 13 May 2011 00:18:50 -0700
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: 2.6.39-rc6-mmotm0506 - lockdep splat in RCU code on page fault
+Message-ID: <20110513071850.GU2258@linux.vnet.ibm.com>
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <6921.1304989476@localhost>
+ <20110510082029.GF2258@linux.vnet.ibm.com>
+ <34783.1305155494@localhost>
+ <20110512094704.GL2258@linux.vnet.ibm.com>
+ <5817.1305216324@localhost>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110513090450.3c40d2ee.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <5817.1305216324@localhost>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Ying Han <yinghan@google.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Valdis.Kletnieks@vt.edu
+Cc: Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, May 13, 2011 at 09:04:50AM +0900, KAMEZAWA Hiroyuki wrote:
-> On Thu, 12 May 2011 16:53:55 +0200
-> Johannes Weiner <hannes@cmpxchg.org> wrote:
+On Thu, May 12, 2011 at 12:05:24PM -0400, Valdis.Kletnieks@vt.edu wrote:
+> On Thu, 12 May 2011 02:47:05 PDT, "Paul E. McKenney" said:
+> > On Wed, May 11, 2011 at 07:11:34PM -0400, Valdis.Kletnieks@vt.edu wrote:
+> > > My source has this:
+> > >
+> > >         raw_spin_lock_irqsave(&rnp->lock, flags);
+> > >         rnp->wakemask |= rdp->grpmask;
+> > >         invoke_rcu_node_kthread(rnp);
+> > >         raw_spin_unlock_irqrestore(&rnp->lock, flags);
+> > >
+> > > the last 2 lines swapped from what you diffed against.  I can easily work around
+> > > that, except it's unclear what the implications of the invoke_rcu moving outside
+> > > of the irq save/restore pair (or if it being inside is the actual root cause)...
+> >
+> > Odd...
+> >
+> > This looks to me like a recent -next -- I do not believe that straight
+> > mmotm has rcu_cpu_kthread_timer() in it.  The patch should apply to the
+> > last few days' -next kernels.
 > 
-> > A page charged to a memcg is linked to a lru list specific to that
-> > memcg.  At the same time, traditional global reclaim is obvlivious to
-> > memcgs, and all the pages are also linked to a global per-zone list.
-> > 
-> > This patch changes traditional global reclaim to iterate over all
-> > existing memcgs, so that it no longer relies on the global list being
-> > present.
-> > 
-> > This is one step forward in integrating memcg code better into the
-> > rest of memory management.  It is also a prerequisite to get rid of
-> > the global per-zone lru lists.
+> Ah. Found it. Your tree and current linux-next include this commit:
 > 
-> As I said, I don't want removing global reclaim until dirty_ratio support and
-> better softlimit algorithm, at least. Current my concern is dirty_ratio,
-> if you want to speed up, please help Greg and implement dirty_ratio first.
-
-As I said, I am not proposing this for integration now.  It was more
-like asking if people were okay with this direction before we put
-things in place that could be in the way of the long-term plan.
-
-Note that 6/6 is an attempt to improve the soft limit algorithm.
-
-> BTW, could you separete clean up code and your new logic ? 1st half of
-> codes seems to be just a clean up and seems nice. But , IIUC, someone
-> changed the arguments from chunk of params to be a flags....in some patch.
-
-Sorry again, I know that the series is pretty unorganized.
-
-> +	do {
-> +		mem_cgroup_hierarchy_walk(root, &mem);
-> +		sc->current_memcg = mem;
-> +		do_shrink_zone(priority, zone, sc);
-> +	} while (mem != root);
+> commit	1217ed1ba5c67393293dfb0f03c353b118dadeb4
+> tree	a765356c8418e134de85fd05d9fe6eda41de859c	tree | snapshot
+> parent	29ce831000081dd757d3116bf774aafffc4b6b20	commit | diff
+> rcu: permit rcu_read_unlock() to be called while holding runqueue locks
 > 
-> This move hierarchy walk from memcontrol.c to vmscan.c ?
+> which includes this chunk:
 > 
-> About moving hierarchy walk, I may say okay...because my patch does this, too.
+> @@ -1546,8 +1531,8 @@ static void rcu_cpu_kthread_timer(unsigned long arg)
 > 
-> But....doesn't this reclaim too much memory if hierarchy is very deep ?
-> Could you add some 'quit' path ?
+>         raw_spin_lock_irqsave(&rnp->lock, flags);
+>         rnp->wakemask |= rdp->grpmask;
+> -       invoke_rcu_node_kthread(rnp);
+>         raw_spin_unlock_irqrestore(&rnp->lock, flags);
+> +       invoke_rcu_node_kthread(rnp);
+>  }
+> 
+> 
+> but that was committed 4 days ago, and Andrew pulled linux-next for the -mmotm
+> 6 days ago, so it's not in there.  The *rest* of your recent commits appear to
+> be in there though.  So that explains the patch failure to apply.
 
-Yes, I think I'll just reinstate the logic from
-mem_cgroup_select_victim() to remember the last child, and add an exit
-condition based on the number of reclaimed pages.
+Whew!!!  ;-)
 
-This was also suggested by Rik in this thread already.
+							Thanx, Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
