@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id DFAD06B0023
-	for <linux-mm@kvack.org>; Fri, 13 May 2011 10:03:31 -0400 (EDT)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 343AE6B0024
+	for <linux-mm@kvack.org>; Fri, 13 May 2011 10:03:32 -0400 (EDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 1/4] mm: vmscan: Correct use of pgdat_balanced in sleeping_prematurely
-Date: Fri, 13 May 2011 15:03:21 +0100
-Message-Id: <1305295404-12129-2-git-send-email-mgorman@suse.de>
+Subject: [PATCH 2/4] mm: slub: Do not wake kswapd for SLUBs speculative high-order allocations
+Date: Fri, 13 May 2011 15:03:22 +0100
+Message-Id: <1305295404-12129-3-git-send-email-mgorman@suse.de>
 In-Reply-To: <1305295404-12129-1-git-send-email-mgorman@suse.de>
 References: <1305295404-12129-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -13,31 +13,35 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: James Bottomley <James.Bottomley@HansenPartnership.com>, Colin King <colin.king@canonical.com>, Raghavendra D Prabhu <raghu.prabhu13@gmail.com>, Jan Kara <jack@suse.cz>, Chris Mason <chris.mason@oracle.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-ext4 <linux-ext4@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-Johannes Weiner poined out that the logic in commit [1741c877: mm:
-kswapd: keep kswapd awake for high-order allocations until a percentage
-of the node is balanced] is backwards. Instead of allowing kswapd to go
-to sleep when balancing for high order allocations, it keeps it kswapd
-running uselessly.
+To avoid locking and per-cpu overhead, SLUB optimisically uses
+high-order allocations and falls back to lower allocations if they
+fail.  However, by simply trying to allocate, kswapd is woken up to
+start reclaiming at that order. On a desktop system, two users report
+that the system is getting locked up with kswapd using large amounts
+of CPU.  Using SLAB instead of SLUB made this problem go away.
 
-From-but-was-not-signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-Will-sign-off-after-Johannes: Mel Gorman <mgorman@suse.de>
+This patch prevents kswapd being woken up for high-order allocations.
+Testing indicated that with this patch applied, the system was much
+harder to hang and even when it did, it eventually recovered.
+
+Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- mm/vmscan.c |    2 +-
+ mm/slub.c |    2 +-
  1 files changed, 1 insertions(+), 1 deletions(-)
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index f6b435c..af24d1e 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2286,7 +2286,7 @@ static bool sleeping_prematurely(pg_data_t *pgdat, int order, long remaining,
- 	 * must be balanced
+diff --git a/mm/slub.c b/mm/slub.c
+index 9d2e5e4..98c358d 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -1170,7 +1170,7 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
+ 	 * Let the initial higher-order allocation fail under memory pressure
+ 	 * so we fall-back to the minimum order allocation.
  	 */
- 	if (order)
--		return pgdat_balanced(pgdat, balanced, classzone_idx);
-+		return !pgdat_balanced(pgdat, balanced, classzone_idx);
- 	else
- 		return !all_zones_ok;
- }
+-	alloc_gfp = (flags | __GFP_NOWARN | __GFP_NORETRY) & ~__GFP_NOFAIL;
++	alloc_gfp = (flags | __GFP_NOWARN | __GFP_NORETRY | __GFP_NO_KSWAPD) & ~__GFP_NOFAIL;
+ 
+ 	page = alloc_slab_page(alloc_gfp, node, oo);
+ 	if (unlikely(!page)) {
 -- 
 1.7.3.4
 
