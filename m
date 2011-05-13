@@ -1,94 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 3BFB46B0024
-	for <linux-mm@kvack.org>; Fri, 13 May 2011 02:59:12 -0400 (EDT)
-Date: Fri, 13 May 2011 08:58:54 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [rfc patch 2/6] vmscan: make distinction between memcg reclaim
- and LRU list selection
-Message-ID: <20110513065854.GB18610@cmpxchg.org>
-References: <1305212038-15445-1-git-send-email-hannes@cmpxchg.org>
- <1305212038-15445-3-git-send-email-hannes@cmpxchg.org>
- <20110513085027.25b25a47.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110513085027.25b25a47.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 7CC4C6B0025
+	for <linux-mm@kvack.org>; Fri, 13 May 2011 02:59:45 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id E0D3F3EE0C1
+	for <linux-mm@kvack.org>; Fri, 13 May 2011 15:59:41 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id C6BF445DE4D
+	for <linux-mm@kvack.org>; Fri, 13 May 2011 15:59:41 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 9214545DD74
+	for <linux-mm@kvack.org>; Fri, 13 May 2011 15:59:41 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8203E1DB8041
+	for <linux-mm@kvack.org>; Fri, 13 May 2011 15:59:41 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 440C81DB803A
+	for <linux-mm@kvack.org>; Fri, 13 May 2011 15:59:41 +0900 (JST)
+Date: Fri, 13 May 2011 15:52:56 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH][BUGFIX] memcg fix zone congestion
+Message-Id: <20110513155256.bc9295c5.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110512232500.2ce372da.akpm@linux-foundation.org>
+References: <20110513121030.08fcae08.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110512232500.2ce372da.akpm@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Ying Han <yinghan@google.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, Ying Han <yinghan@google.com>, Johannes Weiner <jweiner@redhat.com>, Michal Hocko <mhocko@suse.cz>
 
-On Fri, May 13, 2011 at 08:50:27AM +0900, KAMEZAWA Hiroyuki wrote:
-> On Thu, 12 May 2011 16:53:54 +0200
-> Johannes Weiner <hannes@cmpxchg.org> wrote:
-> 
-> > The reclaim code has a single predicate for whether it currently
-> > reclaims on behalf of a memory cgroup, as well as whether it is
-> > reclaiming from the global LRU list or a memory cgroup LRU list.
-> > 
-> > Up to now, both cases always coincide, but subsequent patches will
-> > change things such that global reclaim will scan memory cgroup lists.
-> > 
-> > This patch adds a new predicate that tells global reclaim from memory
-> > cgroup reclaim, and then changes all callsites that are actually about
-> > global reclaim heuristics rather than strict LRU list selection.
-> > 
-> > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> 
-> 
-> Hmm, isn't it better to merge this to patches where the meaning of
-> new variable gets clearer ?
+On Thu, 12 May 2011 23:25:00 -0700
+Andrew Morton <akpm@linux-foundation.org> wrote:
 
-I apologize for the confusing order.  I am going to merge them.
-
-> >  mm/vmscan.c |   96 ++++++++++++++++++++++++++++++++++------------------------
-> >  1 files changed, 56 insertions(+), 40 deletions(-)
+> On Fri, 13 May 2011 12:10:30 +0900 KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> 
 > > 
-> > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > index f6b435c..ceeb2a5 100644
-> > --- a/mm/vmscan.c
-> > +++ b/mm/vmscan.c
-> > @@ -104,8 +104,12 @@ struct scan_control {
+> > ZONE_CONGESTED should be a state of global memory reclaim.
+> > If not, a busy memcg sets this and give unnecessary throttoling in
+> > wait_iff_congested() against memory recalim in other contexts. This makes
+> > system performance bad.
+> > 
+> > I'll think about "memcg is congested!" flag is required or not, later.
+> > But this fix is required 1st.
+> > 
+> > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > ---
+> >  mm/vmscan.c |    3 ++-
+> >  1 file changed, 2 insertions(+), 1 deletion(-)
+> > 
+> > Index: mmotm-May11/mm/vmscan.c
+> > ===================================================================
+> > --- mmotm-May11.orig/mm/vmscan.c
+> > +++ mmotm-May11/mm/vmscan.c
+> > @@ -941,7 +941,8 @@ keep_lumpy:
+> >  	 * back off and wait for congestion to clear because further reclaim
+> >  	 * will encounter the same problem
 > >  	 */
-> >  	reclaim_mode_t reclaim_mode;
-> >  
-> > -	/* Which cgroup do we reclaim from */
-> > -	struct mem_cgroup *mem_cgroup;
-> > +	/*
-> > +	 * The memory cgroup we reclaim on behalf of, and the one we
-> > +	 * are currently reclaiming from.
-> > +	 */
-> > +	struct mem_cgroup *memcg;
-> > +	struct mem_cgroup *current_memcg;
+> > -	if (nr_dirty == nr_congested && nr_dirty != 0)
+> > +	if (scanning_global_lru(sc) &&
+> > +	    nr_dirty == nr_congested && nr_dirty != 0)
+> >  		zone_set_flag(zone, ZONE_CONGESTED);
 > >  
 > 
-> I wonder if you avoid renaming exisiting one, the patch will
-> be clearer...
+> nit: which is more probable?  nr_dirty==nr_congested or
+> scanning_global_lru(sc)?  
+> 
+> If the user is actually _using_ memcg then
+> 
 
-I renamed it mostly because I thought current_mem_cgroup too long.
-It's probably best if both get more descriptive names.
+If the user uses memcg, yes, nr_dirty == nr_congested is more probable.
+If user doesn't, scanning_global_lru() returns always true.
 
-> > @@ -154,16 +158,24 @@ static LIST_HEAD(shrinker_list);
-> >  static DECLARE_RWSEM(shrinker_rwsem);
-> >  
-> >  #ifdef CONFIG_CGROUP_MEM_RES_CTLR
-> > -#define scanning_global_lru(sc)	(!(sc)->mem_cgroup)
-> > +static bool global_reclaim(struct scan_control *sc)
-> > +{
-> > +	return !sc->memcg;
-> > +}
-> > +static bool scanning_global_lru(struct scan_control *sc)
-> > +{
-> > +	return !sc->current_memcg;
-> > +}
+> --- a/mm/vmscan.c~a
+> +++ a/mm/vmscan.c
+> @@ -937,7 +937,7 @@ keep_lumpy:
+>  	 * back off and wait for congestion to clear because further reclaim
+>  	 * will encounter the same problem
+>  	 */
+> -	if (nr_dirty == nr_congested && nr_dirty != 0)
+> +	if (nr_dirty == nr_congested && scanning_global_lru(sc) && nr_dirty)
+>  		zone_set_flag(zone, ZONE_CONGESTED);
+>  
+>  	free_page_list(&free_pages);
 > 
 > 
-> Could you add comments ?
+> is more efficient.  If the user isn't using memcg then your patch is faster?
+> 
 
-Yes, I will.
+Hmm, maybe your fix is always faster. But in many case, if nr_congested == nr_dirty,
+nr_dirty == 0 because vmscan just finds clean pages...fast path.
+So, nr_dirty should be 1st ?
 
-Thanks for your input!
+How about this ?
+==
+
+ZONE_CONGESTED should be a state of global memory reclaim.
+Changelog:v1->v2
+ - fixed the order of conditions.
+
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+---
+ mm/vmscan.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+Index: mmotm-May11/mm/vmscan.c
+===================================================================
+--- mmotm-May11.orig/mm/vmscan.c
++++ mmotm-May11/mm/vmscan.c
+@@ -941,7 +941,7 @@ keep_lumpy:
+ 	 * back off and wait for congestion to clear because further reclaim
+ 	 * will encounter the same problem
+ 	 */
+-	if (nr_dirty == nr_congested && nr_dirty != 0)
++	if (nr_dirty && nr_dirty == nr_congested &&  scanning_global_lru(sc))
+ 		zone_set_flag(zone, ZONE_CONGESTED);
+ 
+ 	free_page_list(&free_pages);
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
