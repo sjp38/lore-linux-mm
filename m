@@ -1,30 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id A2DFF6B0025
-	for <linux-mm@kvack.org>; Thu, 12 May 2011 19:57:12 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id A66453EE0B6
-	for <linux-mm@kvack.org>; Fri, 13 May 2011 08:57:09 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8DC1F45DE9A
-	for <linux-mm@kvack.org>; Fri, 13 May 2011 08:57:09 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6A97545DE92
-	for <linux-mm@kvack.org>; Fri, 13 May 2011 08:57:09 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5AE5DE08004
-	for <linux-mm@kvack.org>; Fri, 13 May 2011 08:57:09 +0900 (JST)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id EA9456B0022
+	for <linux-mm@kvack.org>; Thu, 12 May 2011 20:11:34 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 185053EE0BC
+	for <linux-mm@kvack.org>; Fri, 13 May 2011 09:11:32 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id F2E7F45DE59
+	for <linux-mm@kvack.org>; Fri, 13 May 2011 09:11:31 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id DD6CA45DE55
+	for <linux-mm@kvack.org>; Fri, 13 May 2011 09:11:31 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id D064DE08002
+	for <linux-mm@kvack.org>; Fri, 13 May 2011 09:11:31 +0900 (JST)
 Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2007E1DB8038
-	for <linux-mm@kvack.org>; Fri, 13 May 2011 08:57:09 +0900 (JST)
-Date: Fri, 13 May 2011 08:50:27 +0900
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 983CBEF8003
+	for <linux-mm@kvack.org>; Fri, 13 May 2011 09:11:31 +0900 (JST)
+Date: Fri, 13 May 2011 09:04:50 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [rfc patch 2/6] vmscan: make distinction between memcg reclaim
- and LRU list selection
-Message-Id: <20110513085027.25b25a47.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1305212038-15445-3-git-send-email-hannes@cmpxchg.org>
+Subject: Re: [rfc patch 3/6] mm: memcg-aware global reclaim
+Message-Id: <20110513090450.3c40d2ee.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1305212038-15445-4-git-send-email-hannes@cmpxchg.org>
 References: <1305212038-15445-1-git-send-email-hannes@cmpxchg.org>
-	<1305212038-15445-3-git-send-email-hannes@cmpxchg.org>
+	<1305212038-15445-4-git-send-email-hannes@cmpxchg.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -33,71 +32,63 @@ List-ID: <linux-mm.kvack.org>
 To: Johannes Weiner <hannes@cmpxchg.org>
 Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Ying Han <yinghan@google.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, 12 May 2011 16:53:54 +0200
+On Thu, 12 May 2011 16:53:55 +0200
 Johannes Weiner <hannes@cmpxchg.org> wrote:
 
-> The reclaim code has a single predicate for whether it currently
-> reclaims on behalf of a memory cgroup, as well as whether it is
-> reclaiming from the global LRU list or a memory cgroup LRU list.
+> A page charged to a memcg is linked to a lru list specific to that
+> memcg.  At the same time, traditional global reclaim is obvlivious to
+> memcgs, and all the pages are also linked to a global per-zone list.
 > 
-> Up to now, both cases always coincide, but subsequent patches will
-> change things such that global reclaim will scan memory cgroup lists.
+> This patch changes traditional global reclaim to iterate over all
+> existing memcgs, so that it no longer relies on the global list being
+> present.
 > 
-> This patch adds a new predicate that tells global reclaim from memory
-> cgroup reclaim, and then changes all callsites that are actually about
-> global reclaim heuristics rather than strict LRU list selection.
+> This is one step forward in integrating memcg code better into the
+> rest of memory management.  It is also a prerequisite to get rid of
+> the global per-zone lru lists.
 > 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
 
-Hmm, isn't it better to merge this to patches where the meaning of
-new variable gets clearer ?
+As I said, I don't want removing global reclaim until dirty_ratio support and
+better softlimit algorithm, at least. Current my concern is dirty_ratio,
+if you want to speed up, please help Greg and implement dirty_ratio first.
 
-> ---
->  mm/vmscan.c |   96 ++++++++++++++++++++++++++++++++++------------------------
->  1 files changed, 56 insertions(+), 40 deletions(-)
-> 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index f6b435c..ceeb2a5 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -104,8 +104,12 @@ struct scan_control {
->  	 */
->  	reclaim_mode_t reclaim_mode;
->  
-> -	/* Which cgroup do we reclaim from */
-> -	struct mem_cgroup *mem_cgroup;
-> +	/*
-> +	 * The memory cgroup we reclaim on behalf of, and the one we
-> +	 * are currently reclaiming from.
-> +	 */
-> +	struct mem_cgroup *memcg;
-> +	struct mem_cgroup *current_memcg;
->  
+BTW, could you separete clean up code and your new logic ? 1st half of
+codes seems to be just a clean up and seems nice. But , IIUC, someone
+changed the arguments from chunk of params to be a flags....in some patch.
+...
+commit 75822b4495b62e8721e9b88e3cf9e653a0c85b73
+Author: Balbir Singh <balbir@linux.vnet.ibm.com>
+Date:   Wed Sep 23 15:56:38 2009 -0700
 
-I wonder if you avoid renaming exisiting one, the patch will
-be clearer...
+    memory controller: soft limit refactor reclaim flags
+
+    Refactor mem_cgroup_hierarchical_reclaim()
+
+    Refactor the arguments passed to mem_cgroup_hierarchical_reclaim() into
+    flags, so that new parameters don't have to be passed as we make the
+    reclaim routine more flexible
+
+...
+
+Balbir ?  Both are ok to me, please ask him.
 
 
+And hmm...
 
->  	/*
->  	 * Nodemask of nodes allowed by the caller. If NULL, all nodes
-> @@ -154,16 +158,24 @@ static LIST_HEAD(shrinker_list);
->  static DECLARE_RWSEM(shrinker_rwsem);
->  
->  #ifdef CONFIG_CGROUP_MEM_RES_CTLR
-> -#define scanning_global_lru(sc)	(!(sc)->mem_cgroup)
-> +static bool global_reclaim(struct scan_control *sc)
-> +{
-> +	return !sc->memcg;
-> +}
-> +static bool scanning_global_lru(struct scan_control *sc)
-> +{
-> +	return !sc->current_memcg;
-> +}
++	do {
++		mem_cgroup_hierarchy_walk(root, &mem);
++		sc->current_memcg = mem;
++		do_shrink_zone(priority, zone, sc);
++	} while (mem != root);
 
+This move hierarchy walk from memcontrol.c to vmscan.c ?
 
-Could you add comments ?
+About moving hierarchy walk, I may say okay...because my patch does this, too.
+
+But....doesn't this reclaim too much memory if hierarchy is very deep ?
+Could you add some 'quit' path ?
+
 
 Thanks,
 -Kame
