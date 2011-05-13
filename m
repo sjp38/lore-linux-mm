@@ -1,58 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 57AEA90010B
-	for <linux-mm@kvack.org>; Fri, 13 May 2011 14:49:16 -0400 (EDT)
-Subject: Re: Possible sandybridge livelock issue
-From: James Bottomley <James.Bottomley@HansenPartnership.com>
-In-Reply-To: <m21v02zch9.fsf@firstfloor.org>
-References: <1305303156.2611.51.camel@mulgrave.site>
-	 <m262pezhfe.fsf@firstfloor.org>
-	 <alpine.DEB.2.00.1105131207020.24193@router.home>
-	 <m21v02zch9.fsf@firstfloor.org>
-Content-Type: text/plain; charset="UTF-8"
-Date: Fri, 13 May 2011 13:49:11 -0500
-Message-ID: <1305312552.2611.66.camel@mulgrave.site>
-Mime-Version: 1.0
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 58234900001
+	for <linux-mm@kvack.org>; Fri, 13 May 2011 17:32:08 -0400 (EDT)
+Message-ID: <4DCDA347.9080207@cray.com>
+Date: Fri, 13 May 2011 16:31:51 -0500
+From: Andrew Barry <abarry@cray.com>
+MIME-Version: 1.0
+Subject: Unending loop in __alloc_pages_slowpath following OOM-kill; rfc:
+ patch.
+Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Christoph Lameter <cl@linux.com>, x86@kernel.org, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
+To: linux-mm <linux-mm@kvack.org>
 
-On Fri, 2011-05-13 at 11:23 -0700, Andi Kleen wrote:
-> Christoph Lameter <cl@linux.com> writes:
-> 
-> > On Fri, 13 May 2011, Andi Kleen wrote:
-> >
-> >> Turbo mode just makes the CPU faster, but it should not change
-> >> the scheduler decisions.
-> >
-> > I also have similar issues with Sandybridge on Ubuntu 11.04 and kernels
-> > 2.6.38 as well as 2.6.39 (standard ubuntu kernel configs).
-> 
-> It still doesn't make a lot of sense to blame the CPU for this.
-> This is just not the level how CPU problems would likely appear.
-> 
-> Can you figure out better what the kswapd is doing?
+I believe I found a problem in __alloc_pages_slowpath, which allows a process to
+get stuck endlessly looping, even when lots of memory is available.
 
-We have ... it was the thread in the first email.  We don't need a fix
-for the kswapd issue, what we're warning about is a potential
-sandybridge problem.
+Running an I/O and memory intensive stress-test I see a 0-order page allocation
+with __GFP_IO and __GFP_WAIT, running on a system with very little free memory.
+Right about the same time that the stress-test gets killed by the OOM-killer,
+the utility trying to allocate memory gets stuck in __alloc_pages_slowpath even
+though most of the systems memory was freed by the oom-kill of the stress-test.
 
-The facts are that only sandybridge systems livelocked in the kswapd
-problem ... no other systems could reproduce it, although they did see
-heavy CPU time accumulate to kswapd.  And this is with a gang of mm
-people trying to reproduce the problem on non-sandybridge systems.
+The utility ends up looping from the rebalance label down through the
+wait_iff_congested continiously. Because order=0, __alloc_pages_direct_compact
+skips the call to get_page_from_freelist. Because all of the reclaimable memory
+on the system has already been reclaimed, __alloc_pages_direct_reclaim skips the
+call to get_page_from_freelist. Since there is no __GFP_FS flag, the block with
+__alloc_pages_may_oom is skipped. The loop hits the wait_iff_congested, then
+jumps back to rebalance without ever trying to get_page_from_freelist. This loop
+repeats infinitely.
 
-On the sandybridge systems that livelocked, it was sometimes possible to
-release the lock by pushing kswapd off the cpu it was hogging.
+Is there a reason that this loop is set up this way for 0 order allocations? I
+applied the below patch, and the problem corrects itself. Does anyone have any
+thoughts on the patch, or on a better way to address this situation?
 
-If you think the theory about why this happend to be wrong, fine ...
-come up with another one.  The facts are as above and only sandybridge
-systems seem to be affected.
+The test case is pretty pathological. Running a mix of I/O stress-tests that do
+a lot of fork() and consume all of the system memory, I can pretty reliably hit
+this on 600 nodes, in about 12 hours. 32GB/node.
 
-James
+Thanks
+Andrew Barry
 
+---
+ mm/page_alloc.c |    5 ++++-
+ 1 files changed, 4 insertions(+), 1 deletions(-)
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 9f8a97b..c719664 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2158,7 +2158,10 @@ rebalance:
+        if (should_alloc_retry(gfp_mask, order, pages_reclaimed)) {
+                /* Wait for some write requests to complete then retry */
+                wait_iff_congested(preferred_zone, BLK_RW_ASYNC, HZ/50);
+-               goto rebalance;
++               if (did_some_progress)
++                       goto rebalance;
++               else
++                       goto restart;
+        } else {
+                /*
+                 * High-order allocations do not necessarily loop after
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
