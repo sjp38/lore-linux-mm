@@ -1,49 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id CDA8290010D
-	for <linux-mm@kvack.org>; Fri, 13 May 2011 05:50:17 -0400 (EDT)
-Date: Fri, 13 May 2011 10:49:58 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 3/3] mm: slub: Default slub_max_order to 0
-Message-ID: <20110513094958.GA3569@suse.de>
-References: <alpine.DEB.2.00.1105121024350.26013@router.home>
- <1305214993.2575.50.camel@mulgrave.site>
- <20110512154649.GB4559@redhat.com>
- <1305216023.2575.54.camel@mulgrave.site>
- <alpine.DEB.2.00.1105121121120.26013@router.home>
- <1305217843.2575.57.camel@mulgrave.site>
- <BANLkTi=MD+voG1i7uDyueV22_daGHPRdqw@mail.gmail.com>
- <BANLkTimDsJDht76Vm7auNqT2gncjpEKZQw@mail.gmail.com>
- <alpine.DEB.2.00.1105121232110.28493@router.home>
- <20110512180018.GN11579@random.random>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 8BA9C90010B
+	for <linux-mm@kvack.org>; Fri, 13 May 2011 05:53:12 -0400 (EDT)
+Date: Fri, 13 May 2011 11:53:08 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [rfc patch 3/6] mm: memcg-aware global reclaim
+Message-ID: <20110513095308.GD25304@tiehlicka.suse.cz>
+References: <1305212038-15445-1-git-send-email-hannes@cmpxchg.org>
+ <1305212038-15445-4-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110512180018.GN11579@random.random>
+In-Reply-To: <1305212038-15445-4-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, James Bottomley <James.Bottomley@hansenpartnership.com>, Dave Jones <davej@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Colin King <colin.king@canonical.com>, Raghavendra D Prabhu <raghu.prabhu13@gmail.com>, Jan Kara <jack@suse.cz>, Chris Mason <chris.mason@oracle.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-ext4 <linux-ext4@vger.kernel.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Ying Han <yinghan@google.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, May 12, 2011 at 08:00:18PM +0200, Andrea Arcangeli wrote:
-> <SNIP>
->
-> BTW, it comes to mind in patch 2, SLUB should clear __GFP_REPEAT too
-> (not only __GFP_NOFAIL). Clearing __GFP_WAIT may be worth it or not
-> with COMPACTION=y, definitely good idea to clear __GFP_WAIT unless
-> lumpy is restricted to __GFP_REPEAT|__GFP_NOFAIL.
+On Thu 12-05-11 16:53:55, Johannes Weiner wrote:
+> A page charged to a memcg is linked to a lru list specific to that
+> memcg.  At the same time, traditional global reclaim is obvlivious to
+> memcgs, and all the pages are also linked to a global per-zone list.
+> 
+> This patch changes traditional global reclaim to iterate over all
+> existing memcgs, so that it no longer relies on the global list being
+> present.
 
-This is in V2 (unreleased, testing in progress and was running
-overnight). I noticed that clearing __GFP_REPEAT is required for
-reclaim/compaction if direct reclaimers from SLUB are to return false in
-should_continue_reclaim() and bail out from high-order allocation
-properly. As it is, there is a possibility for slub high-order direct
-reclaimers to loop in reclaim/compaction for a long time. This is
-only important when CONFIG_COMPACTION=y.
+At LSF we have discussed that we should keep a list of over-(soft)limit
+cgroups in a list which would be the first target for reclaiming (in
+round-robin fashion). If we are note able to reclaim enough from those
+(the list becomes empty) we should fallback to the all groups reclaim
+(what you did in this patchset).
 
 -- 
-Mel Gorman
+Michal Hocko
 SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
