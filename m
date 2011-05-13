@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 16A346B0022
-	for <linux-mm@kvack.org>; Fri, 13 May 2011 04:50:01 -0400 (EDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 7AC936B0011
+	for <linux-mm@kvack.org>; Fri, 13 May 2011 04:50:09 -0400 (EDT)
 From: Greg Thelen <gthelen@google.com>
-Subject: [RFC][PATCH v7 03/14] memcg: add mem_cgroup_mark_inode_dirty()
-Date: Fri, 13 May 2011 01:47:42 -0700
-Message-Id: <1305276473-14780-4-git-send-email-gthelen@google.com>
+Subject: [RFC][PATCH v7 04/14] memcg: add dirty page accounting infrastructure
+Date: Fri, 13 May 2011 01:47:43 -0700
+Message-Id: <1305276473-14780-5-git-send-email-gthelen@google.com>
 In-Reply-To: <1305276473-14780-1-git-send-email-gthelen@google.com>
 References: <1305276473-14780-1-git-send-email-gthelen@google.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,204 +13,214 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, linux-fsdevel@vger.kernel.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Vivek Goyal <vgoyal@redhat.com>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>
 
-Create the mem_cgroup_mark_inode_dirty() routine, which is called when
-an inode is marked dirty.  In kernels without memcg, this is an inline
-no-op.
+Add memcg routines to count dirty, writeback, and unstable_NFS pages.
+These routines are not yet used by the kernel to count such pages.  A
+later change adds kernel calls to these new routines.
 
-Add i_memcg field to struct address_space.  When an inode is marked
-dirty with mem_cgroup_mark_inode_dirty(), the css_id of current memcg is
-recorded in i_memcg.  Per-memcg writeback (introduced in a latter
-change) uses this field to isolate inodes associated with a particular
-memcg.
-
-The type of i_memcg is an 'unsigned short' because it stores the css_id
-of the memcg.  Using a struct mem_cgroup pointer would be larger and
-also create a reference on the memcg which would hang memcg rmdir
-deletion.  Usage of a css_id is not a reference so cgroup deletion is
-not affected.  The memcg can be deleted without cleaning up the i_memcg
-field.  When a memcg is deleted its pages are recharged to the cgroup
-parent, and the related inode(s) are marked as shared thus
-disassociating the inodes from the deleted cgroup.
-
-A mem_cgroup_mark_inode_dirty() tracepoint is also included to allow for
-easier understanding of memcg writeback operation.
+As inode pages are marked dirty, if the dirtied page's cgroup differs
+from the inode's cgroup, then mark the inode shared across several
+cgroup.
 
 Signed-off-by: Greg Thelen <gthelen@google.com>
+Signed-off-by: Andrea Righi <arighi@develer.com>
 ---
- fs/fs-writeback.c                 |    2 ++
- fs/inode.c                        |    3 +++
- include/linux/fs.h                |    9 +++++++++
- include/linux/memcontrol.h        |    6 ++++++
- include/trace/events/memcontrol.h |   32 ++++++++++++++++++++++++++++++++
- mm/memcontrol.c                   |   24 ++++++++++++++++++++++++
- 6 files changed, 76 insertions(+), 0 deletions(-)
- create mode 100644 include/trace/events/memcontrol.h
+Changelog since v6:
+- Mark inode as cgroup-shared if charging a page from a cgroup other than
+  the inode cgroup.
+- Mark inode as cgroup-shared if migrating a page to a different cgroup.
 
-diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
-index 3392c29..0174fcf 100644
---- a/fs/fs-writeback.c
-+++ b/fs/fs-writeback.c
-@@ -19,6 +19,7 @@
- #include <linux/slab.h>
- #include <linux/sched.h>
- #include <linux/fs.h>
-+#include <linux/memcontrol.h>
- #include <linux/mm.h>
- #include <linux/kthread.h>
- #include <linux/freezer.h>
-@@ -1111,6 +1112,7 @@ void __mark_inode_dirty(struct inode *inode, int flags)
- 			spin_lock(&bdi->wb.list_lock);
- 			inode->dirtied_when = jiffies;
- 			list_move(&inode->i_wb_list, &bdi->wb.b_dirty);
-+			mem_cgroup_mark_inode_dirty(inode);
- 			spin_unlock(&bdi->wb.list_lock);
- 
- 			if (wakeup_bdi)
-diff --git a/fs/inode.c b/fs/inode.c
-index ce61a1b..9ecb0bb 100644
---- a/fs/inode.c
-+++ b/fs/inode.c
-@@ -228,6 +228,9 @@ int inode_init_always(struct super_block *sb, struct inode *inode)
- 	mapping->assoc_mapping = NULL;
- 	mapping->backing_dev_info = &default_backing_dev_info;
- 	mapping->writeback_index = 0;
-+#ifdef CONFIG_CGROUP_MEM_RES_CTLR
-+	mapping->i_memcg = 0;
-+#endif
- 
- 	/*
- 	 * If the block_device provides a backing_dev_info for client
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index 29c02f6..deabca3 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -645,6 +645,9 @@ struct address_space {
- 	spinlock_t		private_lock;	/* for use by the address_space */
- 	struct list_head	private_list;	/* ditto */
- 	struct address_space	*assoc_mapping;	/* ditto */
-+#ifdef CONFIG_CGROUP_MEM_RES_CTLR
-+	unsigned short		i_memcg;	/* css_id of memcg dirtier */
-+#endif
- } __attribute__((aligned(sizeof(long))));
- 	/*
- 	 * On most architectures that alignment is already the case; but
-@@ -652,6 +655,12 @@ struct address_space {
- 	 * of struct page's "mapping" pointer be used for PAGE_MAPPING_ANON.
- 	 */
- 
-+/*
-+ * When an address_space is shared by multiple memcg dirtieres, then i_memcg is
-+ * set to this special, wildcard, css_id value (zero).
-+ */
-+#define I_MEMCG_SHARED 0
-+
- struct block_device {
- 	dev_t			bd_dev;  /* not a kdev_t - it's a search key */
- 	int			bd_openers;
+ include/linux/memcontrol.h |    8 +++-
+ mm/memcontrol.c            |  105 +++++++++++++++++++++++++++++++++++++++++---
+ 2 files changed, 105 insertions(+), 8 deletions(-)
+
 diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 77e47f5..14b6d67 100644
+index 14b6d67..f1261e5 100644
 --- a/include/linux/memcontrol.h
 +++ b/include/linux/memcontrol.h
-@@ -103,6 +103,8 @@ mem_cgroup_prepare_migration(struct page *page,
- extern void mem_cgroup_end_migration(struct mem_cgroup *mem,
- 	struct page *oldpage, struct page *newpage, bool migration_ok);
+@@ -27,9 +27,15 @@ struct page_cgroup;
+ struct page;
+ struct mm_struct;
  
-+void mem_cgroup_mark_inode_dirty(struct inode *inode);
-+
- /*
-  * For memory reclaim.
-  */
-@@ -273,6 +275,10 @@ static inline void mem_cgroup_end_migration(struct mem_cgroup *mem,
- {
- }
+-/* Stats that can be updated by kernel. */
++/*
++ * Per mem_cgroup page counts tracked by kernel.  As pages enter and leave these
++ * states, the kernel notifies memcg using mem_cgroup_{inc,dec}_page_stat().
++ */
+ enum mem_cgroup_page_stat_item {
+ 	MEMCG_NR_FILE_MAPPED, /* # of pages charged as file rss */
++	MEMCG_NR_FILE_DIRTY, /* # of dirty pages in page cache */
++	MEMCG_NR_FILE_WRITEBACK, /* # of pages under writeback */
++	MEMCG_NR_FILE_UNSTABLE_NFS, /* # of NFS unstable pages */
+ };
  
-+static inline void mem_cgroup_mark_inode_dirty(struct inode *inode)
-+{
-+}
-+
- static inline int mem_cgroup_get_reclaim_priority(struct mem_cgroup *mem)
- {
- 	return 0;
-diff --git a/include/trace/events/memcontrol.h b/include/trace/events/memcontrol.h
-new file mode 100644
-index 0000000..781ef9fc
---- /dev/null
-+++ b/include/trace/events/memcontrol.h
-@@ -0,0 +1,32 @@
-+#undef TRACE_SYSTEM
-+#define TRACE_SYSTEM memcontrol
-+
-+#if !defined(_TRACE_MEMCONTROL_H) || defined(TRACE_HEADER_MULTI_READ)
-+#define _TRACE_MEMCONTROL_H
-+
-+#include <linux/types.h>
-+#include <linux/tracepoint.h>
-+
-+TRACE_EVENT(mem_cgroup_mark_inode_dirty,
-+	TP_PROTO(struct inode *inode),
-+
-+	TP_ARGS(inode),
-+
-+	TP_STRUCT__entry(
-+		__field(unsigned long, ino)
-+		__field(unsigned short, css_id)
-+		),
-+
-+	TP_fast_assign(
-+		__entry->ino = inode->i_ino;
-+		__entry->css_id =
-+			inode->i_mapping ? inode->i_mapping->i_memcg : 0;
-+		),
-+
-+	TP_printk("ino=%ld css_id=%d", __entry->ino, __entry->css_id)
-+)
-+
-+#endif /* _TRACE_MEMCONTROL_H */
-+
-+/* This part must be outside protection */
-+#include <trace/define_trace.h>
+ extern unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 95aecca..3a792b7 100644
+index 3a792b7..a4cb991 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -54,6 +54,9 @@
+@@ -86,8 +86,11 @@ enum mem_cgroup_stat_index {
+ 	 */
+ 	MEM_CGROUP_STAT_CACHE, 	   /* # of pages charged as cache */
+ 	MEM_CGROUP_STAT_RSS,	   /* # of pages charged as anon rss */
+-	MEM_CGROUP_STAT_FILE_MAPPED,  /* # of pages charged as file rss */
+ 	MEM_CGROUP_STAT_SWAPOUT, /* # of pages, swapped out */
++	MEM_CGROUP_STAT_FILE_MAPPED,  /* # of pages charged as file rss */
++	MEM_CGROUP_STAT_FILE_DIRTY,	/* # of dirty pages in page cache */
++	MEM_CGROUP_STAT_FILE_WRITEBACK,		/* # of pages under writeback */
++	MEM_CGROUP_STAT_FILE_UNSTABLE_NFS,	/* # of NFS unstable pages */
+ 	MEM_CGROUP_STAT_DATA, /* end of data requires synchronization */
+ 	MEM_CGROUP_ON_MOVE,	/* someone is moving account between groups */
+ 	MEM_CGROUP_STAT_NSTATS,
+@@ -1860,6 +1863,7 @@ void mem_cgroup_update_page_stat(struct page *page,
+ {
+ 	struct mem_cgroup *mem;
+ 	struct page_cgroup *pc = lookup_page_cgroup(page);
++	struct address_space *mapping;
+ 	bool need_unlock = false;
+ 	unsigned long uninitialized_var(flags);
  
- #include <trace/events/vmscan.h>
- 
-+#define CREATE_TRACE_POINTS
-+#include <trace/events/memcontrol.h>
+@@ -1888,6 +1892,53 @@ void mem_cgroup_update_page_stat(struct page *page,
+ 			ClearPageCgroupFileMapped(pc);
+ 		idx = MEM_CGROUP_STAT_FILE_MAPPED;
+ 		break;
 +
- struct cgroup_subsys mem_cgroup_subsys __read_mostly;
- #define MEM_CGROUP_RECLAIM_RETRIES	5
- struct mem_cgroup *root_mem_cgroup __read_mostly;
-@@ -1122,6 +1125,27 @@ static int calc_inactive_ratio(struct mem_cgroup *memcg, unsigned long *present_
- 	return inactive_ratio;
++	case MEMCG_NR_FILE_DIRTY:
++		/* Use Test{Set,Clear} to only un/charge the memcg once. */
++		if (val > 0) {
++			mapping = page_mapping(page);
++			if (TestSetPageCgroupFileDirty(pc))
++				val = 0;
++			else if (mapping &&
++				 (mapping->i_memcg != css_id(&mem->css)))
++				/*
++				 * If the inode is being dirtied by a memcg
++				 * other than the one that marked it dirty, then
++				 * mark the inode shared by multiple memcg.
++				 */
++				mapping->i_memcg = I_MEMCG_SHARED;
++		} else {
++			if (!TestClearPageCgroupFileDirty(pc))
++				val = 0;
++		}
++		idx = MEM_CGROUP_STAT_FILE_DIRTY;
++		break;
++
++	case MEMCG_NR_FILE_WRITEBACK:
++		/*
++		 * This counter is adjusted while holding the mapping's
++		 * tree_lock.  Therefore there is no race between settings and
++		 * clearing of this flag.
++		 */
++		if (val > 0)
++			SetPageCgroupFileWriteback(pc);
++		else
++			ClearPageCgroupFileWriteback(pc);
++		idx = MEM_CGROUP_STAT_FILE_WRITEBACK;
++		break;
++
++	case MEMCG_NR_FILE_UNSTABLE_NFS:
++		/* Use Test{Set,Clear} to only un/charge the memcg once. */
++		if (val > 0) {
++			if (TestSetPageCgroupFileUnstableNFS(pc))
++				val = 0;
++		} else {
++			if (!TestClearPageCgroupFileUnstableNFS(pc))
++				val = 0;
++		}
++		idx = MEM_CGROUP_STAT_FILE_UNSTABLE_NFS;
++		break;
++
+ 	default:
+ 		BUG();
+ 	}
+@@ -2447,6 +2498,17 @@ void mem_cgroup_split_huge_fixup(struct page *head, struct page *tail)
  }
+ #endif
  
-+/*
-+ * Mark the current task's memcg as the memcg associated with inode.  Note: the
-+ * recorded cgroup css_id is not guaranteed to remain correct.  The current task
-+ * may be moved to another cgroup.  The memcg may also be deleted before the
-+ * caller has time to use the i_memcg.
-+ */
-+void mem_cgroup_mark_inode_dirty(struct inode *inode)
++static inline
++void mem_cgroup_move_account_page_stat(struct mem_cgroup *from,
++				       struct mem_cgroup *to,
++				       enum mem_cgroup_stat_index idx)
 +{
-+	struct mem_cgroup *mem;
-+	unsigned short id;
-+
-+	rcu_read_lock();
-+	mem = mem_cgroup_from_task(current);
-+	id = mem ? css_id(&mem->css) : 0;
-+	rcu_read_unlock();
-+
-+	inode->i_mapping->i_memcg = id;
-+
-+	trace_mem_cgroup_mark_inode_dirty(inode);
++	preempt_disable();
++	__this_cpu_dec(from->stat->count[idx]);
++	__this_cpu_inc(to->stat->count[idx]);
++	preempt_enable();
 +}
 +
- int mem_cgroup_inactive_anon_is_low(struct mem_cgroup *memcg)
- {
- 	unsigned long active;
+ /**
+  * mem_cgroup_move_account - move account of the page
+  * @page: the page
+@@ -2495,13 +2557,28 @@ static int mem_cgroup_move_account(struct page *page,
+ 
+ 	move_lock_page_cgroup(pc, &flags);
+ 
+-	if (PageCgroupFileMapped(pc)) {
+-		/* Update mapped_file data for mem_cgroup */
+-		preempt_disable();
+-		__this_cpu_dec(from->stat->count[MEM_CGROUP_STAT_FILE_MAPPED]);
+-		__this_cpu_inc(to->stat->count[MEM_CGROUP_STAT_FILE_MAPPED]);
+-		preempt_enable();
++	if (PageCgroupFileMapped(pc))
++		mem_cgroup_move_account_page_stat(from, to,
++					MEM_CGROUP_STAT_FILE_MAPPED);
++	if (PageCgroupFileDirty(pc)) {
++		mem_cgroup_move_account_page_stat(from, to,
++						  MEM_CGROUP_STAT_FILE_DIRTY);
++		/*
++		 * Moving a dirty file page between memcg makes the underlying
++		 * inode shared.  If the new (to) cgroup attempts writeback it
++		 * should consider this inode.  If the old (from) cgroup
++		 * attempts writeback it likely has other pages in the same
++		 * inode.  The inode is now shared by the to and from cgroups.
++		 * So mark the inode as shared.
++		 */
++		page_mapping(page)->i_memcg = I_MEMCG_SHARED;
+ 	}
++	if (PageCgroupFileWriteback(pc))
++		mem_cgroup_move_account_page_stat(from, to,
++					MEM_CGROUP_STAT_FILE_WRITEBACK);
++	if (PageCgroupFileUnstableNFS(pc))
++		mem_cgroup_move_account_page_stat(from, to,
++					MEM_CGROUP_STAT_FILE_UNSTABLE_NFS);
+ 	mem_cgroup_charge_statistics(from, PageCgroupCache(pc), -nr_pages);
+ 	if (uncharge)
+ 		/* This is not "cancel", but cancel_charge does all we need. */
+@@ -3981,6 +4058,9 @@ enum {
+ 	MCS_SOFT_KSWAPD_SCAN,
+ 	MCS_SOFT_DIRECT_STEAL,
+ 	MCS_SOFT_DIRECT_SCAN,
++	MCS_FILE_DIRTY,
++	MCS_WRITEBACK,
++	MCS_UNSTABLE_NFS,
+ 	MCS_INACTIVE_ANON,
+ 	MCS_ACTIVE_ANON,
+ 	MCS_INACTIVE_FILE,
+@@ -4009,6 +4089,9 @@ struct {
+ 	{"soft_kswapd_scan", "total_soft_scan"},
+ 	{"soft_direct_steal", "total_soft_direct_steal"},
+ 	{"soft_direct_scan", "total_soft_direct_scan"},
++	{"dirty", "total_dirty"},
++	{"writeback", "total_writeback"},
++	{"nfs_unstable", "total_nfs_unstable"},
+ 	{"inactive_anon", "total_inactive_anon"},
+ 	{"active_anon", "total_active_anon"},
+ 	{"inactive_file", "total_inactive_file"},
+@@ -4050,6 +4133,14 @@ mem_cgroup_get_local_stat(struct mem_cgroup *mem, struct mcs_total_stat *s)
+ 	val = mem_cgroup_read_events(mem, MEM_CGROUP_EVENTS_PGMAJFAULT);
+ 	s->stat[MCS_PGMAJFAULT] += val;
+ 
++	/* dirty stat */
++	val = mem_cgroup_read_stat(mem, MEM_CGROUP_STAT_FILE_DIRTY);
++	s->stat[MCS_FILE_DIRTY] += val * PAGE_SIZE;
++	val = mem_cgroup_read_stat(mem, MEM_CGROUP_STAT_FILE_WRITEBACK);
++	s->stat[MCS_WRITEBACK] += val * PAGE_SIZE;
++	val = mem_cgroup_read_stat(mem, MEM_CGROUP_STAT_FILE_UNSTABLE_NFS);
++	s->stat[MCS_UNSTABLE_NFS] += val * PAGE_SIZE;
++
+ 	/* per zone stat */
+ 	val = mem_cgroup_get_local_zonestat(mem, LRU_INACTIVE_ANON);
+ 	s->stat[MCS_INACTIVE_ANON] += val * PAGE_SIZE;
 -- 
 1.7.3.1
 
