@@ -1,69 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 36E356B0022
-	for <linux-mm@kvack.org>; Fri, 13 May 2011 02:32:40 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 3AF203EE0C2
-	for <linux-mm@kvack.org>; Fri, 13 May 2011 15:32:36 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 21F3D45DE97
-	for <linux-mm@kvack.org>; Fri, 13 May 2011 15:32:36 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0AF2245DE96
-	for <linux-mm@kvack.org>; Fri, 13 May 2011 15:32:36 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id F2E491DB8038
-	for <linux-mm@kvack.org>; Fri, 13 May 2011 15:32:35 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id B931EE08001
-	for <linux-mm@kvack.org>; Fri, 13 May 2011 15:32:35 +0900 (JST)
-Date: Fri, 13 May 2011 15:25:55 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH][BUGFIX] memcg fix zone congestion
-Message-Id: <20110513152555.53def058.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <BANLkTi=9oKwq-8f-kdinn0pUZ04g5Z7Gnw@mail.gmail.com>
-References: <20110513121030.08fcae08.kamezawa.hiroyu@jp.fujitsu.com>
-	<BANLkTi=9oKwq-8f-kdinn0pUZ04g5Z7Gnw@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id B88566B0022
+	for <linux-mm@kvack.org>; Fri, 13 May 2011 02:33:49 -0400 (EDT)
+Received: by bwz17 with SMTP id 17so2917974bwz.14
+        for <linux-mm@kvack.org>; Thu, 12 May 2011 23:33:44 -0700 (PDT)
+Message-ID: <4DCCD0C3.9090908@gmail.com>
+Date: Fri, 13 May 2011 08:33:39 +0200
+From: Jiri Slaby <jirislaby@gmail.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 3/3] checkpatch.pl: Add check for current->comm references
+References: <1305241371-25276-1-git-send-email-john.stultz@linaro.org> <1305241371-25276-4-git-send-email-john.stultz@linaro.org>
+In-Reply-To: <1305241371-25276-4-git-send-email-john.stultz@linaro.org>
+Content-Type: text/plain; charset=ISO-8859-2
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, Johannes Weiner <jweiner@redhat.com>, Michal Hocko <mhocko@suse.cz>
+To: John Stultz <john.stultz@linaro.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, Ted Ts'o <tytso@mit.edu>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-On Thu, 12 May 2011 22:25:10 -0700
-Ying Han <yinghan@google.com> wrote:
-
-> On Thu, May 12, 2011 at 8:10 PM, KAMEZAWA Hiroyuki <
-> kamezawa.hiroyu@jp.fujitsu.com> wrote:
-
-> >  mm/vmscan.c |    3 ++-
-> >  1 file changed, 2 insertions(+), 1 deletion(-)
-> >
-> > Index: mmotm-May11/mm/vmscan.c
-> > ===================================================================
-> > --- mmotm-May11.orig/mm/vmscan.c
-> > +++ mmotm-May11/mm/vmscan.c
-> > @@ -941,7 +941,8 @@ keep_lumpy:
-> >         * back off and wait for congestion to clear because further reclaim
-> >         * will encounter the same problem
-> >         */
-> > -       if (nr_dirty == nr_congested && nr_dirty != 0)
-> > +       if (scanning_global_lru(sc) &&
-> > +           nr_dirty == nr_congested && nr_dirty != 0)
-> >                zone_set_flag(zone, ZONE_CONGESTED);
-> >
-> >        free_page_list(&free_pages);
-> >
-> > For memcg, wonder if we should make it per-memcg-per-zone congested.
+On 05/13/2011 01:02 AM, John Stultz wrote:
+> Now that accessing current->comm needs to be protected,
+> avoid new current->comm usage by adding a warning to
+> checkpatch.pl.
 > 
+> Fair warning: I know zero perl, so this was written in the
+> style of "monkey see, monkey do". It does appear to work
+> in my testing though.
+> 
+> Close review and feedback would be appreciated.
+> 
+> CC: Ted Ts'o <tytso@mit.edu>
+> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> CC: David Rientjes <rientjes@google.com>
+> CC: Dave Hansen <dave@linux.vnet.ibm.com>
+> CC: Andrew Morton <akpm@linux-foundation.org>
+> CC: linux-mm@kvack.org
+> Signed-off-by: John Stultz <john.stultz@linaro.org>
+> ---
+>  scripts/checkpatch.pl |    4 ++++
+>  1 files changed, 4 insertions(+), 0 deletions(-)
+> 
+> diff --git a/scripts/checkpatch.pl b/scripts/checkpatch.pl
+> index d867081..9d2eab5 100755
+> --- a/scripts/checkpatch.pl
+> +++ b/scripts/checkpatch.pl
+> @@ -2868,6 +2868,10 @@ sub process {
+>  			WARN("usage of NR_CPUS is often wrong - consider using cpu_possible(), num_possible_cpus(), for_each_possible_cpu(), etc\n" . $herecurr);
+>  		}
+>  
+> +# check for current->comm usage
+> +		if ($line =~ /current->comm/) {
 
-I guess dirty ratio should come 1st. If we don't have it, I think
-nr_dirty==nr_congested very easily.
+This should be something like \b(current|task|tsk|t)->comm\b to catch
+also non-current comm accesses...
 
-Thanks,
--Kame
+> +			WARN("comm access needs to be protected. Use get_task_comm, or printk's \%ptc formatting.\n" . $herecurr);
+> +		}
+>  # check for %L{u,d,i} in strings
+>  		my $string;
+>  		while ($line =~ /(?:^|")([X\t]*)(?:"|$)/g) {
+
+
+-- 
+js
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
