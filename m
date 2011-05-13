@@ -1,67 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id E1DEF6B0023
-	for <linux-mm@kvack.org>; Fri, 13 May 2011 03:08:58 -0400 (EDT)
-Date: Fri, 13 May 2011 09:08:39 +0200
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 99F9D900001
+	for <linux-mm@kvack.org>; Fri, 13 May 2011 03:18:52 -0400 (EDT)
+Date: Fri, 13 May 2011 09:18:34 +0200
 From: Johannes Weiner <hannes@cmpxchg.org>
 Subject: Re: [rfc patch 3/6] mm: memcg-aware global reclaim
-Message-ID: <20110513070839.GC18610@cmpxchg.org>
+Message-ID: <20110513071834.GD18610@cmpxchg.org>
 References: <1305212038-15445-1-git-send-email-hannes@cmpxchg.org>
  <1305212038-15445-4-git-send-email-hannes@cmpxchg.org>
- <BANLkTimr1sCLTa2JuMUYUFQWGS2D8c9GEA@mail.gmail.com>
+ <20110513090450.3c40d2ee.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <BANLkTimr1sCLTa2JuMUYUFQWGS2D8c9GEA@mail.gmail.com>
+In-Reply-To: <20110513090450.3c40d2ee.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Ying Han <yinghan@google.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, May 12, 2011 at 12:19:45PM -0700, Ying Han wrote:
-> On Thu, May 12, 2011 at 7:53 AM, Johannes Weiner <hannes@cmpxchg.org> wrote:
+On Fri, May 13, 2011 at 09:04:50AM +0900, KAMEZAWA Hiroyuki wrote:
+> On Thu, 12 May 2011 16:53:55 +0200
+> Johannes Weiner <hannes@cmpxchg.org> wrote:
 > 
 > > A page charged to a memcg is linked to a lru list specific to that
 > > memcg.  At the same time, traditional global reclaim is obvlivious to
 > > memcgs, and all the pages are also linked to a global per-zone list.
-> >
+> > 
 > > This patch changes traditional global reclaim to iterate over all
 > > existing memcgs, so that it no longer relies on the global list being
 > > present.
-> >
-> 
+> > 
 > > This is one step forward in integrating memcg code better into the
-> > rest of memory management.  It is also a prerequisite to get rid
-> > of the global per-zone lru lists.
-> >
-> Sorry If i misunderstood something here. I assume this patch has not
-> much to do with the global soft_limit reclaim, but only allow the
-> system only scan per-memcg lru under global memory pressure.
-
-I see you found 6/6 in the meantime :) Did it answer your question?
-
-> > The algorithm implemented in this patch is very naive.  For each zone
-> > scanned at each priority level, it iterates over all existing memcgs
-> > and considers them for scanning.
-> >
-> > This is just a prototype and I did not optimize it yet because I am
-> > unsure about the maximum number of memcgs that still constitute a sane
-> > configuration in comparison to the machine size.
+> > rest of memory management.  It is also a prerequisite to get rid of
+> > the global per-zone lru lists.
 > 
-> So we also scan memcg which has no page allocated on this zone? I
-> will read the following patch in case i missed something here :)
+> As I said, I don't want removing global reclaim until dirty_ratio support and
+> better softlimit algorithm, at least. Current my concern is dirty_ratio,
+> if you want to speed up, please help Greg and implement dirty_ratio first.
 
-The old hierarchy walk skipped a memcg if it had no local pages at
-all.  I thought this was a rather unlikely situation and ripped it
-out.
+As I said, I am not proposing this for integration now.  It was more
+like asking if people were okay with this direction before we put
+things in place that could be in the way of the long-term plan.
 
-It will not loop persistently over a specific memcg and node
-combination, like soft limit reclaim does at the moment.
+Note that 6/6 is an attempt to improve the soft limit algorithm.
 
-Since this is much deeper integrated in memory reclaim now, it
-benefits from all the existing mechanisms and will calculate the scan
-target based on the number of lru pages on memcg->zone->lru, and do
-nothing if there are no pages there.
+> BTW, could you separete clean up code and your new logic ? 1st half of
+> codes seems to be just a clean up and seems nice. But , IIUC, someone
+> changed the arguments from chunk of params to be a flags....in some patch.
+
+Sorry again, I know that the series is pretty unorganized.
+
+> +	do {
+> +		mem_cgroup_hierarchy_walk(root, &mem);
+> +		sc->current_memcg = mem;
+> +		do_shrink_zone(priority, zone, sc);
+> +	} while (mem != root);
+> 
+> This move hierarchy walk from memcontrol.c to vmscan.c ?
+> 
+> About moving hierarchy walk, I may say okay...because my patch does this, too.
+> 
+> But....doesn't this reclaim too much memory if hierarchy is very deep ?
+> Could you add some 'quit' path ?
+
+Yes, I think I'll just reinstate the logic from
+mem_cgroup_select_victim() to remember the last child, and add an exit
+condition based on the number of reclaimed pages.
+
+This was also suggested by Rik in this thread already.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
