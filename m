@@ -1,128 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 7CC4C6B0025
-	for <linux-mm@kvack.org>; Fri, 13 May 2011 02:59:45 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id E0D3F3EE0C1
-	for <linux-mm@kvack.org>; Fri, 13 May 2011 15:59:41 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id C6BF445DE4D
-	for <linux-mm@kvack.org>; Fri, 13 May 2011 15:59:41 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 9214545DD74
-	for <linux-mm@kvack.org>; Fri, 13 May 2011 15:59:41 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8203E1DB8041
-	for <linux-mm@kvack.org>; Fri, 13 May 2011 15:59:41 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 440C81DB803A
-	for <linux-mm@kvack.org>; Fri, 13 May 2011 15:59:41 +0900 (JST)
-Date: Fri, 13 May 2011 15:52:56 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH][BUGFIX] memcg fix zone congestion
-Message-Id: <20110513155256.bc9295c5.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20110512232500.2ce372da.akpm@linux-foundation.org>
-References: <20110513121030.08fcae08.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110512232500.2ce372da.akpm@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id E1DEF6B0023
+	for <linux-mm@kvack.org>; Fri, 13 May 2011 03:08:58 -0400 (EDT)
+Date: Fri, 13 May 2011 09:08:39 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [rfc patch 3/6] mm: memcg-aware global reclaim
+Message-ID: <20110513070839.GC18610@cmpxchg.org>
+References: <1305212038-15445-1-git-send-email-hannes@cmpxchg.org>
+ <1305212038-15445-4-git-send-email-hannes@cmpxchg.org>
+ <BANLkTimr1sCLTa2JuMUYUFQWGS2D8c9GEA@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <BANLkTimr1sCLTa2JuMUYUFQWGS2D8c9GEA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, Ying Han <yinghan@google.com>, Johannes Weiner <jweiner@redhat.com>, Michal Hocko <mhocko@suse.cz>
+To: Ying Han <yinghan@google.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, 12 May 2011 23:25:00 -0700
-Andrew Morton <akpm@linux-foundation.org> wrote:
-
-> On Fri, 13 May 2011 12:10:30 +0900 KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+On Thu, May 12, 2011 at 12:19:45PM -0700, Ying Han wrote:
+> On Thu, May 12, 2011 at 7:53 AM, Johannes Weiner <hannes@cmpxchg.org> wrote:
 > 
-> > 
-> > ZONE_CONGESTED should be a state of global memory reclaim.
-> > If not, a busy memcg sets this and give unnecessary throttoling in
-> > wait_iff_congested() against memory recalim in other contexts. This makes
-> > system performance bad.
-> > 
-> > I'll think about "memcg is congested!" flag is required or not, later.
-> > But this fix is required 1st.
-> > 
-> > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > ---
-> >  mm/vmscan.c |    3 ++-
-> >  1 file changed, 2 insertions(+), 1 deletion(-)
-> > 
-> > Index: mmotm-May11/mm/vmscan.c
-> > ===================================================================
-> > --- mmotm-May11.orig/mm/vmscan.c
-> > +++ mmotm-May11/mm/vmscan.c
-> > @@ -941,7 +941,8 @@ keep_lumpy:
-> >  	 * back off and wait for congestion to clear because further reclaim
-> >  	 * will encounter the same problem
-> >  	 */
-> > -	if (nr_dirty == nr_congested && nr_dirty != 0)
-> > +	if (scanning_global_lru(sc) &&
-> > +	    nr_dirty == nr_congested && nr_dirty != 0)
-> >  		zone_set_flag(zone, ZONE_CONGESTED);
-> >  
+> > A page charged to a memcg is linked to a lru list specific to that
+> > memcg.  At the same time, traditional global reclaim is obvlivious to
+> > memcgs, and all the pages are also linked to a global per-zone list.
+> >
+> > This patch changes traditional global reclaim to iterate over all
+> > existing memcgs, so that it no longer relies on the global list being
+> > present.
+> >
 > 
-> nit: which is more probable?  nr_dirty==nr_congested or
-> scanning_global_lru(sc)?  
+> > This is one step forward in integrating memcg code better into the
+> > rest of memory management.  It is also a prerequisite to get rid
+> > of the global per-zone lru lists.
+> >
+> Sorry If i misunderstood something here. I assume this patch has not
+> much to do with the global soft_limit reclaim, but only allow the
+> system only scan per-memcg lru under global memory pressure.
+
+I see you found 6/6 in the meantime :) Did it answer your question?
+
+> > The algorithm implemented in this patch is very naive.  For each zone
+> > scanned at each priority level, it iterates over all existing memcgs
+> > and considers them for scanning.
+> >
+> > This is just a prototype and I did not optimize it yet because I am
+> > unsure about the maximum number of memcgs that still constitute a sane
+> > configuration in comparison to the machine size.
 > 
-> If the user is actually _using_ memcg then
-> 
+> So we also scan memcg which has no page allocated on this zone? I
+> will read the following patch in case i missed something here :)
 
-If the user uses memcg, yes, nr_dirty == nr_congested is more probable.
-If user doesn't, scanning_global_lru() returns always true.
+The old hierarchy walk skipped a memcg if it had no local pages at
+all.  I thought this was a rather unlikely situation and ripped it
+out.
 
-> --- a/mm/vmscan.c~a
-> +++ a/mm/vmscan.c
-> @@ -937,7 +937,7 @@ keep_lumpy:
->  	 * back off and wait for congestion to clear because further reclaim
->  	 * will encounter the same problem
->  	 */
-> -	if (nr_dirty == nr_congested && nr_dirty != 0)
-> +	if (nr_dirty == nr_congested && scanning_global_lru(sc) && nr_dirty)
->  		zone_set_flag(zone, ZONE_CONGESTED);
->  
->  	free_page_list(&free_pages);
-> 
-> 
-> is more efficient.  If the user isn't using memcg then your patch is faster?
-> 
+It will not loop persistently over a specific memcg and node
+combination, like soft limit reclaim does at the moment.
 
-Hmm, maybe your fix is always faster. But in many case, if nr_congested == nr_dirty,
-nr_dirty == 0 because vmscan just finds clean pages...fast path.
-So, nr_dirty should be 1st ?
-
-How about this ?
-==
-
-ZONE_CONGESTED should be a state of global memory reclaim.
-Changelog:v1->v2
- - fixed the order of conditions.
-
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
----
- mm/vmscan.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-Index: mmotm-May11/mm/vmscan.c
-===================================================================
---- mmotm-May11.orig/mm/vmscan.c
-+++ mmotm-May11/mm/vmscan.c
-@@ -941,7 +941,7 @@ keep_lumpy:
- 	 * back off and wait for congestion to clear because further reclaim
- 	 * will encounter the same problem
- 	 */
--	if (nr_dirty == nr_congested && nr_dirty != 0)
-+	if (nr_dirty && nr_dirty == nr_congested &&  scanning_global_lru(sc))
- 		zone_set_flag(zone, ZONE_CONGESTED);
- 
- 	free_page_list(&free_pages);
-
-
-
-
+Since this is much deeper integrated in memory reclaim now, it
+benefits from all the existing mechanisms and will calculate the scan
+target based on the number of lru pages on memcg->zone->lru, and do
+nothing if there are no pages there.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
