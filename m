@@ -1,57 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id E57E16B0012
-	for <linux-mm@kvack.org>; Fri, 13 May 2011 14:28:55 -0400 (EDT)
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e31.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p4DICW97001938
-	for <linux-mm@kvack.org>; Fri, 13 May 2011 12:12:32 -0600
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id p4DISjhX161760
-	for <linux-mm@kvack.org>; Fri, 13 May 2011 12:28:45 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p4DCSHcj028405
-	for <linux-mm@kvack.org>; Fri, 13 May 2011 06:28:18 -0600
-Subject: Re: [PATCH 3/3] checkpatch.pl: Add check for current->comm
- references
-From: John Stultz <john.stultz@linaro.org>
-In-Reply-To: <4DCD1271.3070808@jp.fujitsu.com>
-References: <1305241371-25276-1-git-send-email-john.stultz@linaro.org>
-	 <1305241371-25276-4-git-send-email-john.stultz@linaro.org>
-	 <4DCD1271.3070808@jp.fujitsu.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 57AEA90010B
+	for <linux-mm@kvack.org>; Fri, 13 May 2011 14:49:16 -0400 (EDT)
+Subject: Re: Possible sandybridge livelock issue
+From: James Bottomley <James.Bottomley@HansenPartnership.com>
+In-Reply-To: <m21v02zch9.fsf@firstfloor.org>
+References: <1305303156.2611.51.camel@mulgrave.site>
+	 <m262pezhfe.fsf@firstfloor.org>
+	 <alpine.DEB.2.00.1105131207020.24193@router.home>
+	 <m21v02zch9.fsf@firstfloor.org>
 Content-Type: text/plain; charset="UTF-8"
-Date: Fri, 13 May 2011 11:28:41 -0700
-Message-ID: <1305311321.2680.35.camel@work-vm>
+Date: Fri, 13 May 2011 13:49:11 -0500
+Message-ID: <1305312552.2611.66.camel@mulgrave.site>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, Ted Ts'o <tytso@mit.edu>, David Rientjes <rientjes@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Christoph Lameter <cl@linux.com>, x86@kernel.org, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-On Fri, 2011-05-13 at 20:13 +0900, KOSAKI Motohiro wrote:
-> >   scripts/checkpatch.pl |    4 ++++
-> >   1 files changed, 4 insertions(+), 0 deletions(-)
-> > 
-> > diff --git a/scripts/checkpatch.pl b/scripts/checkpatch.pl
-> > index d867081..9d2eab5 100755
-> > --- a/scripts/checkpatch.pl
-> > +++ b/scripts/checkpatch.pl
-> > @@ -2868,6 +2868,10 @@ sub process {
-> >   			WARN("usage of NR_CPUS is often wrong - consider using cpu_possible(), num_possible_cpus(), for_each_possible_cpu(), etc\n" . $herecurr);
-> >   		}
-> > 
-> > +# check for current->comm usage
-> > +		if ($line =~ /current->comm/) {
-> > +			WARN("comm access needs to be protected. Use get_task_comm, or printk's \%ptc formatting.\n" . $herecurr);
+On Fri, 2011-05-13 at 11:23 -0700, Andi Kleen wrote:
+> Christoph Lameter <cl@linux.com> writes:
 > 
-> I think we should convert all of task->comm usage. not only current. At least, you plan to remove task_lock() from
-> %ptc patch later.
+> > On Fri, 13 May 2011, Andi Kleen wrote:
+> >
+> >> Turbo mode just makes the CPU faster, but it should not change
+> >> the scheduler decisions.
+> >
+> > I also have similar issues with Sandybridge on Ubuntu 11.04 and kernels
+> > 2.6.38 as well as 2.6.39 (standard ubuntu kernel configs).
+> 
+> It still doesn't make a lot of sense to blame the CPU for this.
+> This is just not the level how CPU problems would likely appear.
+> 
+> Can you figure out better what the kswapd is doing?
 
-Yea, I'll be updating the patch to try to catch more then just
-current->comm.
+We have ... it was the thread in the first email.  We don't need a fix
+for the kswapd issue, what we're warning about is a potential
+sandybridge problem.
 
-thanks
--john
+The facts are that only sandybridge systems livelocked in the kswapd
+problem ... no other systems could reproduce it, although they did see
+heavy CPU time accumulate to kswapd.  And this is with a gang of mm
+people trying to reproduce the problem on non-sandybridge systems.
+
+On the sandybridge systems that livelocked, it was sometimes possible to
+release the lock by pushing kswapd off the cpu it was hogging.
+
+If you think the theory about why this happend to be wrong, fine ...
+come up with another one.  The facts are as above and only sandybridge
+systems seem to be affected.
+
+James
 
 
 --
