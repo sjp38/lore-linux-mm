@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 1EBFB90010D
-	for <linux-mm@kvack.org>; Fri, 13 May 2011 19:46:54 -0400 (EDT)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id CF54190010C
+	for <linux-mm@kvack.org>; Fri, 13 May 2011 19:46:53 -0400 (EDT)
 From: Andi Kleen <andi@firstfloor.org>
-Subject: [PATCH 2/4] VM/RMAP: Batch anon vma chain root locking in fork
-Date: Fri, 13 May 2011 16:46:22 -0700
-Message-Id: <1305330384-19540-3-git-send-email-andi@firstfloor.org>
+Subject: [PATCH 1/4] VM/RMAP: Add infrastructure for batching the rmap chain locking v2
+Date: Fri, 13 May 2011 16:46:21 -0700
+Message-Id: <1305330384-19540-2-git-send-email-andi@firstfloor.org>
 In-Reply-To: <1305330384-19540-1-git-send-email-andi@firstfloor.org>
 References: <1305330384-19540-1-git-send-email-andi@firstfloor.org>
 Sender: owner-linux-mm@kvack.org
@@ -15,167 +15,93 @@ Cc: linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Andrea Arcangeli <aarca
 
 From: Andi Kleen <ak@linux.intel.com>
 
-We found that the changes to take anon vma root chain lock lead
-to excessive lock contention on a fork intensive workload on a 4S
-system.
+In fork and exit it's quite common to take same rmap chain locks
+again and again when the whole address space is processed  for a
+address space that has a lot of sharing. Also since the locking
+has changed to always lock the root anon_vma this can be very
+contended.
 
-Use the new batch lock infrastructure to optimize the fork()
-path, where it is very common to acquire always the same lock.
+This patch adds a simple wrapper to batch these lock acquisitions
+and only reaquire the lock when another is needed. The main
+advantage is that when multiple processes are doing this in
+parallel they will avoid a lot of communication overhead
+on the lock cache line.
 
-This patch does not really lower the contention, but batches
-the lock taking/freeing to lower the bouncing overhead when
-multiple forks are working at the same time. Essentially each
-user will get more work done inside a locking region.
-
-Reported-by: Tim Chen <tim.c.chen@linux.intel.com>
+v2: Address review feedback. Drop lockbreak. Rename init function.
+Move out of line. Add CONFIG_SMP ifdefs.
 Cc: Andrea Arcangeli <aarcange@redhat.com>
 Reviewed-by: Rik van Riel<riel@redhat.com>
 Signed-off-by: Andi Kleen <ak@linux.intel.com>
 ---
- mm/rmap.c |   69 +++++++++++++++++++++++++++++++++++++++++++-----------------
- 1 files changed, 49 insertions(+), 20 deletions(-)
+ include/linux/rmap.h |   34 ++++++++++++++++++++++++++++++++++
+ mm/rmap.c            |   12 ++++++++++++
+ 2 files changed, 46 insertions(+), 0 deletions(-)
 
-diff --git a/mm/rmap.c b/mm/rmap.c
-index 5a2cd65..4e93770 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -177,44 +177,72 @@ int anon_vma_prepare(struct vm_area_struct *vma)
- 	return -ENOMEM;
+diff --git a/include/linux/rmap.h b/include/linux/rmap.h
+index 830e65d..44f5bb2 100644
+--- a/include/linux/rmap.h
++++ b/include/linux/rmap.h
+@@ -113,6 +113,40 @@ static inline void anon_vma_unlock(struct anon_vma *anon_vma)
+ 	spin_unlock(&anon_vma->root->lock);
  }
  
-+/* Caller must call anon_vma_unlock_batch. */
- static void anon_vma_chain_link(struct vm_area_struct *vma,
- 				struct anon_vma_chain *avc,
--				struct anon_vma *anon_vma)
-+				struct anon_vma *anon_vma,
-+				struct anon_vma_lock_state *avs)
- {
- 	avc->vma = vma;
- 	avc->anon_vma = anon_vma;
- 	list_add(&avc->same_vma, &vma->anon_vma_chain);
- 
--	anon_vma_lock(anon_vma);
-+	anon_vma_lock_batch(anon_vma, avs);
- 	/*
- 	 * It's critical to add new vmas to the tail of the anon_vma,
- 	 * see comment in huge_memory.c:__split_huge_page().
- 	 */
- 	list_add_tail(&avc->same_anon_vma, &anon_vma->head);
--	anon_vma_unlock(anon_vma);
-+	/* unlock in caller */
- }
- 
++/* 
++ * Batched locking for anon VMA chains to avoid too much cache line 
++ * bouncing.
++ */
 +
- /*
-  * Attach the anon_vmas from src to dst.
-  * Returns 0 on success, -ENOMEM on failure.
-+ * Caller must call anon_vma_unlock_batch.
-  */
--int anon_vma_clone(struct vm_area_struct *dst, struct vm_area_struct *src)
-+static int anon_vma_clone_batch(struct vm_area_struct *dst, 
-+				struct vm_area_struct *src,
-+				struct anon_vma_lock_state *avs)
- {
--	struct anon_vma_chain *avc, *pavc;
--
-+	struct anon_vma_chain *avc, *pavc, *avc_next;
-+	LIST_HEAD(head);
-+	
-+	/* First allocate with sleeping */
- 	list_for_each_entry_reverse(pavc, &src->anon_vma_chain, same_vma) {
- 		avc = anon_vma_chain_alloc();
- 		if (!avc)
- 			goto enomem_failure;
--		anon_vma_chain_link(dst, avc, pavc->anon_vma);
-+		list_add_tail(&avc->same_anon_vma, &head);
-+	}	
++struct anon_vma_lock_state {
++	struct anon_vma *root_anon_vma;
++};
 +
-+	/* Now take locks and link in */
-+	anon_vma_lock_batch_init(avs);
-+	avc = list_first_entry(&head, struct anon_vma_chain, same_anon_vma);
-+	list_for_each_entry_reverse(pavc, &src->anon_vma_chain, same_vma) {
-+		avc_next = list_entry(avc->same_anon_vma.next, 
-+				      struct anon_vma_chain,
-+				      same_anon_vma);
-+		anon_vma_chain_link(dst, avc, pavc->anon_vma, avs);
-+		avc = avc_next;
- 	}
- 	return 0;
- 
-  enomem_failure:
--	unlink_anon_vmas(dst);
-+	list_for_each_entry (avc, &head, same_anon_vma)
-+		anon_vma_chain_free(avc);
- 	return -ENOMEM;
- }
- 
-+int anon_vma_clone(struct vm_area_struct *dst, struct vm_area_struct *src)
++static inline void anon_vma_lock_batch_init(struct anon_vma_lock_state *avs)
 +{
-+	struct anon_vma_lock_state avs;
-+	int n = anon_vma_clone_batch(dst, src, &avs);
-+	anon_vma_unlock_batch(&avs);
-+	return n;
++	avs->root_anon_vma = NULL;
++}
++
++extern void __anon_vma_lock_batch(struct anon_vma *anon_vma,
++				  struct anon_vma_lock_state *state);
++
++static inline void anon_vma_lock_batch(struct anon_vma *anon_vma,
++				       struct anon_vma_lock_state *state)
++{
++#ifdef CONFIG_SMP
++	if (state->root_anon_vma != anon_vma->root)
++		__anon_vma_lock_batch(anon_vma, state);
++#endif
++}
++
++static inline void anon_vma_unlock_batch(struct anon_vma_lock_state *avs)
++{
++#ifdef CONFIG_SMP
++	if (avs->root_anon_vma)
++		spin_unlock(&avs->root_anon_vma->lock);
++#endif
 +}
 +
  /*
-  * Attach vma to its own anon_vma, as well as to the anon_vmas that
-  * the corresponding VMA in the parent process is attached to.
-@@ -224,27 +252,27 @@ int anon_vma_fork(struct vm_area_struct *vma, struct vm_area_struct *pvma)
- {
- 	struct anon_vma_chain *avc;
- 	struct anon_vma *anon_vma;
-+	struct anon_vma_lock_state avs;
- 
- 	/* Don't bother if the parent process has no anon_vma here. */
- 	if (!pvma->anon_vma)
- 		return 0;
- 
--	/*
--	 * First, attach the new VMA to the parent VMA's anon_vmas,
--	 * so rmap can find non-COWed pages in child processes.
--	 */
--	if (anon_vma_clone(vma, pvma))
--		return -ENOMEM;
--
--	/* Then add our own anon_vma. */
- 	anon_vma = anon_vma_alloc();
- 	if (!anon_vma)
--		goto out_error;
-+		return -ENOMEM;
- 	avc = anon_vma_chain_alloc();
- 	if (!avc)
- 		goto out_error_free_anon_vma;
- 
- 	/*
-+	 * First, attach the new VMA to the parent VMA's anon_vmas,
-+	 * so rmap can find non-COWed pages in child processes.
-+	 */
-+	if (anon_vma_clone_batch(vma, pvma, &avs))
-+		goto out_error_free_vma_chain;
-+
-+	/*
- 	 * The root anon_vma's spinlock is the lock actually used when we
- 	 * lock any of the anon_vmas in this anon_vma tree.
- 	 */
-@@ -257,14 +285,15 @@ int anon_vma_fork(struct vm_area_struct *vma, struct vm_area_struct *pvma)
- 	get_anon_vma(anon_vma->root);
- 	/* Mark this anon_vma as the one where our new (COWed) pages go. */
- 	vma->anon_vma = anon_vma;
--	anon_vma_chain_link(vma, avc, anon_vma);
-+	anon_vma_chain_link(vma, avc, anon_vma, &avs);
-+	anon_vma_unlock_batch(&avs);
- 
- 	return 0;
- 
-+ out_error_free_vma_chain:
-+	anon_vma_chain_free(avc);
-  out_error_free_anon_vma:
- 	put_anon_vma(anon_vma);
-- out_error:
--	unlink_anon_vmas(vma);
- 	return -ENOMEM;
+  * anon_vma helper functions.
+  */
+diff --git a/mm/rmap.c b/mm/rmap.c
+index 8da044a..5a2cd65 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -1624,3 +1624,15 @@ void hugepage_add_new_anon_rmap(struct page *page,
+ 	__hugepage_set_anon_rmap(page, vma, address, 1);
  }
- 
+ #endif /* CONFIG_HUGETLB_PAGE */
++
++/* 
++ * Batched rmap chain locking
++ */
++void __anon_vma_lock_batch(struct anon_vma *anon_vma,
++			   struct anon_vma_lock_state *state)
++{
++	if (state->root_anon_vma)
++		spin_unlock(&state->root_anon_vma->lock);
++	state->root_anon_vma = anon_vma->root;
++	spin_lock(&state->root_anon_vma->lock);
++}
 -- 
 1.7.4.4
 
