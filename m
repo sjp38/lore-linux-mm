@@ -1,42 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 0F6736B0011
-	for <linux-mm@kvack.org>; Fri, 13 May 2011 06:29:19 -0400 (EDT)
-Date: Fri, 13 May 2011 12:28:58 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [rfc patch 3/6] mm: memcg-aware global reclaim
-Message-ID: <20110513102858.GO16531@cmpxchg.org>
-References: <1305212038-15445-1-git-send-email-hannes@cmpxchg.org>
- <1305212038-15445-4-git-send-email-hannes@cmpxchg.org>
- <20110513095308.GD25304@tiehlicka.suse.cz>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id D10CA6B0011
+	for <linux-mm@kvack.org>; Fri, 13 May 2011 06:30:15 -0400 (EDT)
+Date: Fri, 13 May 2011 11:30:09 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 3/3] mm: slub: Default slub_max_order to 0
+Message-ID: <20110513103009.GD3569@suse.de>
+References: <alpine.DEB.2.00.1105120942050.24560@router.home>
+ <1305213359.2575.46.camel@mulgrave.site>
+ <alpine.DEB.2.00.1105121024350.26013@router.home>
+ <1305214993.2575.50.camel@mulgrave.site>
+ <1305215742.27848.40.camel@jaguar>
+ <1305225467.2575.66.camel@mulgrave.site>
+ <1305229447.2575.71.camel@mulgrave.site>
+ <1305230652.2575.72.camel@mulgrave.site>
+ <1305237882.2575.100.camel@mulgrave.site>
+ <20110512221506.GM16531@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20110513095308.GD25304@tiehlicka.suse.cz>
+In-Reply-To: <20110512221506.GM16531@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Ying Han <yinghan@google.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: James Bottomley <James.Bottomley@HansenPartnership.com>, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Colin King <colin.king@canonical.com>, Raghavendra D Prabhu <raghu.prabhu13@gmail.com>, Jan Kara <jack@suse.cz>, Chris Mason <chris.mason@oracle.com>, Rik van Riel <riel@redhat.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-ext4 <linux-ext4@vger.kernel.org>
 
-On Fri, May 13, 2011 at 11:53:08AM +0200, Michal Hocko wrote:
-> On Thu 12-05-11 16:53:55, Johannes Weiner wrote:
-> > A page charged to a memcg is linked to a lru list specific to that
-> > memcg.  At the same time, traditional global reclaim is obvlivious to
-> > memcgs, and all the pages are also linked to a global per-zone list.
+On Fri, May 13, 2011 at 12:15:06AM +0200, Johannes Weiner wrote:
+> On Thu, May 12, 2011 at 05:04:41PM -0500, James Bottomley wrote:
+> > On Thu, 2011-05-12 at 15:04 -0500, James Bottomley wrote:
+> > > Confirmed, I'm afraid ... I can trigger the problem with all three
+> > > patches under PREEMPT.  It's not a hang this time, it's just kswapd
+> > > taking 100% system time on 1 CPU and it won't calm down after I unload
+> > > the system.
 > > 
-> > This patch changes traditional global reclaim to iterate over all
-> > existing memcgs, so that it no longer relies on the global list being
-> > present.
+> > Just on a "if you don't know what's wrong poke about and see" basis, I
+> > sliced out all the complex logic in sleeping_prematurely() and, as far
+> > as I can tell, it cures the problem behaviour.  I've loaded up the
+> > system, and taken the tar load generator through three runs without
+> > producing a spinning kswapd (this is PREEMPT).  I'll try with a
+> > non-PREEMPT kernel shortly.
+> > 
+> > What this seems to say is that there's a problem with the complex logic
+> > in sleeping_prematurely().  I'm pretty sure hacking up
+> > sleeping_prematurely() just to dump all the calculations is the wrong
+> > thing to do, but perhaps someone can see what the right thing is ...
 > 
-> At LSF we have discussed that we should keep a list of over-(soft)limit
-> cgroups in a list which would be the first target for reclaiming (in
-> round-robin fashion). If we are note able to reclaim enough from those
-> (the list becomes empty) we should fallback to the all groups reclaim
-> (what you did in this patchset).
+> I think I see the problem: the boolean logic of sleeping_prematurely()
+> is odd.  If it returns true, kswapd will keep running.  So if
+> pgdat_balanced() returns true, kswapd should go to sleep.
+> 
+> This?
+> 
 
-This would be on top or instead of 6/6.  This, 3/6, is indepent of
-soft limit reclaim.  It is mainly in preparation to remove the global
-LRU.
+You're right.
+
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 2b701e0..092d773 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2261,7 +2261,7 @@ static bool sleeping_prematurely(pg_data_t *pgdat, int order, long remaining,
+>  	 * must be balanced
+>  	 */
+>  	if (order)
+> -		return pgdat_balanced(pgdat, balanced, classzone_idx);
+> +		return !pgdat_balanced(pgdat, balanced, classzone_idx);
+>  	else
+>  		return !all_zones_ok;
+>  }
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
