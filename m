@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 032046B0025
-	for <linux-mm@kvack.org>; Fri, 13 May 2011 10:03:33 -0400 (EDT)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id E7BCE6B0023
+	for <linux-mm@kvack.org>; Fri, 13 May 2011 10:04:35 -0400 (EDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 3/4] mm: slub: Do not take expensive steps for SLUBs speculative high-order allocations
-Date: Fri, 13 May 2011 15:03:23 +0100
-Message-Id: <1305295404-12129-4-git-send-email-mgorman@suse.de>
+Subject: [PATCH 4/4] mm: vmscan: If kswapd has been running too long, allow it to sleep
+Date: Fri, 13 May 2011 15:03:24 +0100
+Message-Id: <1305295404-12129-5-git-send-email-mgorman@suse.de>
 In-Reply-To: <1305295404-12129-1-git-send-email-mgorman@suse.de>
 References: <1305295404-12129-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -13,61 +13,30 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: James Bottomley <James.Bottomley@HansenPartnership.com>, Colin King <colin.king@canonical.com>, Raghavendra D Prabhu <raghu.prabhu13@gmail.com>, Jan Kara <jack@suse.cz>, Chris Mason <chris.mason@oracle.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-ext4 <linux-ext4@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-To avoid locking and per-cpu overhead, SLUB optimisically uses
-high-order allocations and falls back to lower allocations if they
-fail. However, by simply trying to allocate, the caller can enter
-compaction or reclaim - both of which are likely to cost more than the
-benefit of using high-order pages in SLUB. On a desktop system, two
-users report that the system is getting stalled with kswapd using large
-amounts of CPU.
-
-This patch prevents SLUB taking any expensive steps when trying to use
-high-order allocations. Instead, it is expected to fall back to smaller
-orders more aggressively. Testing was somewhat inconclusive on how much
-this helped but it makes sense that falling back to order-0 allocations
-is faster than entering compaction or direct reclaim.
+Under constant allocation pressure, kswapd can be in the situation where
+sleeping_prematurely() will always return true even if kswapd has been
+running a long time. Check if kswapd needs to be scheduled.
 
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- mm/page_alloc.c |    3 ++-
- mm/slub.c       |    3 ++-
- 2 files changed, 4 insertions(+), 2 deletions(-)
+ mm/vmscan.c |    4 ++++
+ 1 files changed, 4 insertions(+), 0 deletions(-)
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 9f8a97b..057f1e2 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1972,6 +1972,7 @@ gfp_to_alloc_flags(gfp_t gfp_mask)
- {
- 	int alloc_flags = ALLOC_WMARK_MIN | ALLOC_CPUSET;
- 	const gfp_t wait = gfp_mask & __GFP_WAIT;
-+	const gfp_t can_wake_kswapd = !(gfp_mask & __GFP_NO_KSWAPD);
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index af24d1e..4d24828 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2251,6 +2251,10 @@ static bool sleeping_prematurely(pg_data_t *pgdat, int order, long remaining,
+ 	unsigned long balanced = 0;
+ 	bool all_zones_ok = true;
  
- 	/* __GFP_HIGH is assumed to be the same as ALLOC_HIGH to save a branch. */
- 	BUILD_BUG_ON(__GFP_HIGH != (__force gfp_t) ALLOC_HIGH);
-@@ -1984,7 +1985,7 @@ gfp_to_alloc_flags(gfp_t gfp_mask)
- 	 */
- 	alloc_flags |= (__force int) (gfp_mask & __GFP_HIGH);
- 
--	if (!wait) {
-+	if (!wait && can_wake_kswapd) {
- 		/*
- 		 * Not worth trying to allocate harder for
- 		 * __GFP_NOMEMALLOC even if it can't schedule.
-diff --git a/mm/slub.c b/mm/slub.c
-index 98c358d..c5797ab 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -1170,7 +1170,8 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
- 	 * Let the initial higher-order allocation fail under memory pressure
- 	 * so we fall-back to the minimum order allocation.
- 	 */
--	alloc_gfp = (flags | __GFP_NOWARN | __GFP_NORETRY | __GFP_NO_KSWAPD) & ~__GFP_NOFAIL;
-+	alloc_gfp = (flags | __GFP_NOWARN | __GFP_NO_KSWAPD) &
-+			~(__GFP_NOFAIL | __GFP_WAIT | __GFP_REPEAT);
- 
- 	page = alloc_slab_page(alloc_gfp, node, oo);
- 	if (unlikely(!page)) {
++	/* If kswapd has been running too long, just sleep */
++	if (need_resched())
++		return false;
++
+ 	/* If a direct reclaimer woke kswapd within HZ/10, it's premature */
+ 	if (remaining)
+ 		return true;
 -- 
 1.7.3.4
 
