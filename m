@@ -1,44 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 653CB6B0022
-	for <linux-mm@kvack.org>; Fri, 13 May 2011 02:16:26 -0400 (EDT)
-Received: by yxt33 with SMTP id 33so1084317yxt.14
-        for <linux-mm@kvack.org>; Thu, 12 May 2011 23:16:24 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <1305230652.2575.72.camel@mulgrave.site>
-References: <1305127773-10570-1-git-send-email-mgorman@suse.de>
-	<1305127773-10570-4-git-send-email-mgorman@suse.de>
-	<alpine.DEB.2.00.1105120942050.24560@router.home>
-	<1305213359.2575.46.camel@mulgrave.site>
-	<alpine.DEB.2.00.1105121024350.26013@router.home>
-	<1305214993.2575.50.camel@mulgrave.site>
-	<1305215742.27848.40.camel@jaguar>
-	<1305225467.2575.66.camel@mulgrave.site>
-	<1305229447.2575.71.camel@mulgrave.site>
-	<1305230652.2575.72.camel@mulgrave.site>
-Date: Fri, 13 May 2011 09:16:24 +0300
-Message-ID: <BANLkTindTdL9a4VxZk_AXrWLQf6QWqjz5g@mail.gmail.com>
-Subject: Re: [PATCH 3/3] mm: slub: Default slub_max_order to 0
-From: Pekka Enberg <penberg@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id D41956B0022
+	for <linux-mm@kvack.org>; Fri, 13 May 2011 02:17:37 -0400 (EDT)
+Date: Thu, 12 May 2011 23:25:00 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH][BUGFIX] memcg fix zone congestion
+Message-Id: <20110512232500.2ce372da.akpm@linux-foundation.org>
+In-Reply-To: <20110513121030.08fcae08.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20110513121030.08fcae08.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Bottomley <James.Bottomley@hansenpartnership.com>
-Cc: Christoph Lameter <cl@linux.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Colin King <colin.king@canonical.com>, Raghavendra D Prabhu <raghu.prabhu13@gmail.com>, Jan Kara <jack@suse.cz>, Chris Mason <chris.mason@oracle.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-ext4 <linux-ext4@vger.kernel.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, Ying Han <yinghan@google.com>, Johannes Weiner <jweiner@redhat.com>, Michal Hocko <mhocko@suse.cz>
 
-Hi,
+On Fri, 13 May 2011 12:10:30 +0900 KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-On Thu, May 12, 2011 at 11:04 PM, James Bottomley
-<James.Bottomley@hansenpartnership.com> wrote:
-> Confirmed, I'm afraid ... I can trigger the problem with all three
-> patches under PREEMPT. =A0It's not a hang this time, it's just kswapd
-> taking 100% system time on 1 CPU and it won't calm down after I unload
-> the system.
+> 
+> ZONE_CONGESTED should be a state of global memory reclaim.
+> If not, a busy memcg sets this and give unnecessary throttoling in
+> wait_iff_congested() against memory recalim in other contexts. This makes
+> system performance bad.
+> 
+> I'll think about "memcg is congested!" flag is required or not, later.
+> But this fix is required 1st.
+> 
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> ---
+>  mm/vmscan.c |    3 ++-
+>  1 file changed, 2 insertions(+), 1 deletion(-)
+> 
+> Index: mmotm-May11/mm/vmscan.c
+> ===================================================================
+> --- mmotm-May11.orig/mm/vmscan.c
+> +++ mmotm-May11/mm/vmscan.c
+> @@ -941,7 +941,8 @@ keep_lumpy:
+>  	 * back off and wait for congestion to clear because further reclaim
+>  	 * will encounter the same problem
+>  	 */
+> -	if (nr_dirty == nr_congested && nr_dirty != 0)
+> +	if (scanning_global_lru(sc) &&
+> +	    nr_dirty == nr_congested && nr_dirty != 0)
+>  		zone_set_flag(zone, ZONE_CONGESTED);
+>  
 
-OK, that's good to know. I'd still like to take patches 1-2, though. Mel?
+nit: which is more probable?  nr_dirty==nr_congested or
+scanning_global_lru(sc)?  
 
-                        Pekka
+If the user is actually _using_ memcg then
+
+--- a/mm/vmscan.c~a
++++ a/mm/vmscan.c
+@@ -937,7 +937,7 @@ keep_lumpy:
+ 	 * back off and wait for congestion to clear because further reclaim
+ 	 * will encounter the same problem
+ 	 */
+-	if (nr_dirty == nr_congested && nr_dirty != 0)
++	if (nr_dirty == nr_congested && scanning_global_lru(sc) && nr_dirty)
+ 		zone_set_flag(zone, ZONE_CONGESTED);
+ 
+ 	free_page_list(&free_pages);
+
+
+is more efficient.  If the user isn't using memcg then your patch is faster?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
