@@ -1,41 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 242E66B0026
-	for <linux-mm@kvack.org>; Fri, 13 May 2011 14:23:41 -0400 (EDT)
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: Possible sandybridge livelock issue
-References: <1305303156.2611.51.camel@mulgrave.site>
-	<m262pezhfe.fsf@firstfloor.org>
-	<alpine.DEB.2.00.1105131207020.24193@router.home>
-Date: Fri, 13 May 2011 11:23:14 -0700
-In-Reply-To: <alpine.DEB.2.00.1105131207020.24193@router.home> (Christoph
-	Lameter's message of "Fri, 13 May 2011 12:08:06 -0500 (CDT)")
-Message-ID: <m21v02zch9.fsf@firstfloor.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 51A0B6B0012
+	for <linux-mm@kvack.org>; Fri, 13 May 2011 14:28:05 -0400 (EDT)
+Received: from d03relay03.boulder.ibm.com (d03relay03.boulder.ibm.com [9.17.195.228])
+	by e33.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p4DIKu2K021129
+	for <linux-mm@kvack.org>; Fri, 13 May 2011 12:20:56 -0600
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay03.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p4DIRxvZ159986
+	for <linux-mm@kvack.org>; Fri, 13 May 2011 12:27:59 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p4DCRWWP024914
+	for <linux-mm@kvack.org>; Fri, 13 May 2011 06:27:32 -0600
+Subject: Re: [PATCH 1/3] comm: Introduce comm_lock seqlock to protect
+ task->comm access
+From: John Stultz <john.stultz@linaro.org>
+In-Reply-To: <4DCD1256.4070808@jp.fujitsu.com>
+References: <1305241371-25276-1-git-send-email-john.stultz@linaro.org>
+	 <1305241371-25276-2-git-send-email-john.stultz@linaro.org>
+	 <4DCD1256.4070808@jp.fujitsu.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Fri, 13 May 2011 11:27:56 -0700
+Message-ID: <1305311276.2680.34.camel@work-vm>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: James Bottomley <James.Bottomley@HansenPartnership.com>, x86@kernel.org, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, Ted Ts'o <tytso@mit.edu>, David Rientjes <rientjes@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-Christoph Lameter <cl@linux.com> writes:
+On Fri, 2011-05-13 at 20:13 +0900, KOSAKI Motohiro wrote:
+> Hi
+> 
+> Sorry for the long delay.
+> 
+> >   char *get_task_comm(char *buf, struct task_struct *tsk)
+> >   {
+> > -	/* buf must be at least sizeof(tsk->comm) in size */
+> > -	task_lock(tsk);
+> > -	strncpy(buf, tsk->comm, sizeof(tsk->comm));
+> > -	task_unlock(tsk);
+> > +	unsigned long seq;
+> > +
+> > +	do {
+> > +		seq = read_seqbegin(&tsk->comm_lock);
+> > +
+> > +		strncpy(buf, tsk->comm, sizeof(tsk->comm));
+> > +
+> > +	} while (read_seqretry(&tsk->comm_lock, seq));
+> > +
+> >   	return buf;
+> >   }
+> 
+> Can you please explain why we should use seqlock? That said,
+> we didn't use seqlock for /proc items. because, plenty seqlock
+> write may makes readers busy wait. Then, if we don't have another
+> protection, we give the local DoS attack way to attackers.
 
-> On Fri, 13 May 2011, Andi Kleen wrote:
->
->> Turbo mode just makes the CPU faster, but it should not change
->> the scheduler decisions.
->
-> I also have similar issues with Sandybridge on Ubuntu 11.04 and kernels
-> 2.6.38 as well as 2.6.39 (standard ubuntu kernel configs).
+So you're saying that heavy write contention can cause reader
+starvation? 
 
-It still doesn't make a lot of sense to blame the CPU for this.
-This is just not the level how CPU problems would likely appear.
+> task->comm is used for very fundamentally. then, I doubt we can
+> assume write is enough rare. Why can't we use normal spinlock?
 
-Can you figure out better what the kswapd is doing?
+I think writes are likely to be fairly rare. Tasks can only name
+themselves or sibling threads, so I'm not sure I see the risk here.
 
--Andi
--- 
-ak@linux.intel.com -- Speaking for myself only
+Mind going into more detail?
+
+thanks
+-john
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
