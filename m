@@ -1,46 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id E4FA66B0025
-	for <linux-mm@kvack.org>; Sat, 14 May 2011 07:12:32 -0400 (EDT)
-Received: by wyf19 with SMTP id 19so3309295wyf.14
-        for <linux-mm@kvack.org>; Sat, 14 May 2011 04:12:30 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 349506B0023
+	for <linux-mm@kvack.org>; Sat, 14 May 2011 11:46:23 -0400 (EDT)
+Received: by pxi9 with SMTP id 9so2817158pxi.14
+        for <linux-mm@kvack.org>; Sat, 14 May 2011 08:46:20 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1305311276.2680.34.camel@work-vm>
-References: <1305241371-25276-1-git-send-email-john.stultz@linaro.org>
- <1305241371-25276-2-git-send-email-john.stultz@linaro.org>
- <4DCD1256.4070808@jp.fujitsu.com> <1305311276.2680.34.camel@work-vm>
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Date: Sat, 14 May 2011 20:12:10 +0900
-Message-ID: <BANLkTin_MitzRUkWToj055AuAPdMC9msXQ@mail.gmail.com>
-Subject: Re: [PATCH 1/3] comm: Introduce comm_lock seqlock to protect
- task->comm access
+In-Reply-To: <BANLkTi=fk3DUT9cYd2gAzC98c69F6HXX7g@mail.gmail.com>
+References: <BANLkTi=XqROAp2MOgwQXEQjdkLMenh_OTQ@mail.gmail.com>
+ <m2fwokj0oz.fsf@firstfloor.org> <BANLkTikhj1C7+HXP_4T-VnJzPefU2d7b3A@mail.gmail.com>
+ <20110512054631.GI6008@one.firstfloor.org> <BANLkTi=fk3DUT9cYd2gAzC98c69F6HXX7g@mail.gmail.com>
+From: Andrew Lutomirski <luto@mit.edu>
+Date: Sat, 14 May 2011 11:46:00 -0400
+Message-ID: <BANLkTikofp5rHRdW5dXfqJXb8VCAqPQ_7A@mail.gmail.com>
+Subject: Re: Kernel falls apart under light memory pressure (i.e. linking vmlinux)
 Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Stultz <john.stultz@linaro.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Ted Ts'o <tytso@mit.edu>, David Rientjes <rientjes@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Andi Kleen <andi@firstfloor.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
->> Can you please explain why we should use seqlock? That said,
->> we didn't use seqlock for /proc items. because, plenty seqlock
->> write may makes readers busy wait. Then, if we don't have another
->> protection, we give the local DoS attack way to attackers.
+[cc linux-mm]
+
+On Thu, May 12, 2011 at 7:54 AM, Andrew Lutomirski <luto@mit.edu> wrote:
+> On Thu, May 12, 2011 at 1:46 AM, Andi Kleen <andi@firstfloor.org> wrote:
+>>> Here's a nice picture of alt-sysrq-m with lots of memory free but the
+>>> system mostly hung. =A0I can still switch VTs.
+>>
+>> Would rather need backtraces. Try setting up netconsole or crashdump
+>> first.
 >
-> So you're saying that heavy write contention can cause reader
-> starvation?
-
-Yes.
-
->> task->comm is used for very fundamentally. then, I doubt we can
->> assume write is enough rare. Why can't we use normal spinlock?
+> Here are some logs for two different failure mores.
 >
-> I think writes are likely to be fairly rare. Tasks can only name
-> themselves or sibling threads, so I'm not sure I see the risk here.
-
-reader starvation may cause another task's starvation if reader have
-an another lock.
-And, "only sibling" don't make any security gurantee as I said past.
-
-Thanks.
+> incorrect_oom_kill.txt is an OOM kill when there was lots of available
+> swap to use. =A0AFAICT the kernel should not have OOM killed at all.
+>
+> stuck_xyz is when the system is wedged with plenty (~300MB) free
+> memory but no swap. =A0The sysrq files are self-explanatory.
+> stuck-sysrq-f.txt is after the others so that it won't have corrupted
+> the output. =A0After taking all that data, I waited awhile and started
+> getting soft lockup messges.
+>
+> I'm having trouble reproducing the "stuck" failure mode on my
+> lockdep-enabled kernel right now (the OOM kill is easy), so no lock
+> state trace. =A0But I got one yesterday and IIRC it showed a few tty
+> locks and either kworker or kcryptd holding (kqueue) and
+> ((&io->work)).
+>
+> I compressed the larger files.
+>
+> --Andy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
