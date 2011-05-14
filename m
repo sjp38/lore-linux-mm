@@ -1,187 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id CECBA90010D
-	for <linux-mm@kvack.org>; Fri, 13 May 2011 20:55:23 -0400 (EDT)
-Received: from hpaq14.eem.corp.google.com (hpaq14.eem.corp.google.com [172.25.149.14])
-	by smtp-out.google.com with ESMTP id p4E0tLme020466
-	for <linux-mm@kvack.org>; Fri, 13 May 2011 17:55:21 -0700
-Received: from qyk27 (qyk27.prod.google.com [10.241.83.155])
-	by hpaq14.eem.corp.google.com with ESMTP id p4E0tI2h027107
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 13 May 2011 17:55:19 -0700
-Received: by qyk27 with SMTP id 27so2084097qyk.13
-        for <linux-mm@kvack.org>; Fri, 13 May 2011 17:55:18 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20110513182534.bebd904e.kamezawa.hiroyu@jp.fujitsu.com>
-References: <1305276473-14780-1-git-send-email-gthelen@google.com> <20110513182534.bebd904e.kamezawa.hiroyu@jp.fujitsu.com>
-From: Greg Thelen <gthelen@google.com>
-Date: Fri, 13 May 2011 17:54:58 -0700
-Message-ID: <BANLkTi=VwDK2G1j3D6vFAf7DEfsknn9oqg@mail.gmail.com>
-Subject: Re: [RFC][PATCH v7 00/14] memcg: per cgroup dirty page accounting
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id EE93E6B0012
+	for <linux-mm@kvack.org>; Sat, 14 May 2011 04:34:53 -0400 (EDT)
+Subject: Re: [PATCH 0/4] Reduce impact to overall system of SLUB using
+ high-order allocations V2
+From: Colin Ian King <colin.king@ubuntu.com>
+In-Reply-To: <1305295404-12129-1-git-send-email-mgorman@suse.de>
+References: <1305295404-12129-1-git-send-email-mgorman@suse.de>
+Content-Type: text/plain; charset="UTF-8"
+Date: Sat, 14 May 2011 10:34:33 +0200
+Message-ID: <1305362073.1969.4.camel@hpmini>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, linux-fsdevel@vger.kernel.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Vivek Goyal <vgoyal@redhat.com>, Dave Chinner <david@fromorbit.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, James Bottomley <James.Bottomley@HansenPartnership.com>, Raghavendra D Prabhu <raghu.prabhu13@gmail.com>, Jan Kara <jack@suse.cz>, Chris Mason <chris.mason@oracle.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-ext4 <linux-ext4@vger.kernel.org>
 
-On Fri, May 13, 2011 at 2:25 AM, KAMEZAWA Hiroyuki
-<kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> On Fri, 13 May 2011 01:47:39 -0700
-> Greg Thelen <gthelen@google.com> wrote:
->
->> This patch series provides the ability for each cgroup to have independe=
-nt dirty
->> page usage limits. =A0Limiting dirty memory fixes the max amount of dirt=
-y (hard to
->> reclaim) page cache used by a cgroup. =A0This allows for better per cgro=
-up memory
->> isolation and fewer ooms within a single cgroup.
->>
->> Having per cgroup dirty memory limits is not very interesting unless wri=
-teback
->> is cgroup aware. =A0There is not much isolation if cgroups have to write=
-back data
->> from other cgroups to get below their dirty memory threshold.
->>
->> Per-memcg dirty limits are provided to support isolation and thus cross =
-cgroup
->> inode sharing is not a priority. =A0This allows the code be simpler.
->>
->> To add cgroup awareness to writeback, this series adds a memcg field to =
-the
->> inode to allow writeback to isolate inodes for a particular cgroup. =A0W=
-hen an
->> inode is marked dirty, i_memcg is set to the current cgroup. =A0When ino=
-de pages
->> are marked dirty the i_memcg field compared against the page's cgroup. =
-=A0If they
->> differ, then the inode is marked as shared by setting i_memcg to a speci=
-al
->> shared value (zero).
->>
->> Previous discussions suggested that a per-bdi per-memcg b_dirty list was=
- a good
->> way to assoicate inodes with a cgroup without having to add a field to s=
-truct
->> inode. =A0I prototyped this approach but found that it involved more com=
-plex
->> writeback changes and had at least one major shortcoming: detection of w=
-hen an
->> inode becomes shared by multiple cgroups. =A0While such sharing is not e=
-xpected to
->> be common, the system should gracefully handle it.
->>
->> balance_dirty_pages() calls mem_cgroup_balance_dirty_pages(), which chec=
-ks the
->> dirty usage vs dirty thresholds for the current cgroup and its parents. =
-=A0If any
->> over-limit cgroups are found, they are marked in a global over-limit bit=
-map
->> (indexed by cgroup id) and the bdi flusher is awoke.
->>
->> The bdi flusher uses wb_check_background_flush() to check for any memcg =
-over
->> their dirty limit. =A0When performing per-memcg background writeback,
->> move_expired_inodes() walks per bdi b_dirty list using each inode's i_me=
-mcg and
->> the global over-limit memcg bitmap to determine if the inode should be w=
-ritten.
->>
->> If mem_cgroup_balance_dirty_pages() is unable to get below the dirty pag=
-e
->> threshold writing per-memcg inodes, then downshifts to also writing shar=
-ed
->> inodes (i_memcg=3D0).
->>
->> I know that there is some significant writeback changes associated with =
-the
->> IO-less balance_dirty_pages() effort. =A0I am not trying to derail that,=
- so this
->> patch series is merely an RFC to get feedback on the design. =A0There ar=
-e probably
->> some subtle races in these patches. =A0I have done moderate functional t=
-esting of
->> the newly proposed features.
->>
->> Here is an example of the memcg-oom that is avoided with this patch seri=
-es:
->> =A0 =A0 =A0 # mkdir /dev/cgroup/memory/x
->> =A0 =A0 =A0 # echo 100M > /dev/cgroup/memory/x/memory.limit_in_bytes
->> =A0 =A0 =A0 # echo $$ > /dev/cgroup/memory/x/tasks
->> =A0 =A0 =A0 # dd if=3D/dev/zero of=3D/data/f1 bs=3D1k count=3D1M &
->> =A0 =A0 =A0 =A0 # dd if=3D/dev/zero of=3D/data/f2 bs=3D1k count=3D1M &
->> =A0 =A0 =A0 =A0 # wait
->> =A0 =A0 =A0 [1]- =A0Killed =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0dd if=3D/d=
-ev/zero of=3D/data/f1 bs=3D1M count=3D1k
->> =A0 =A0 =A0 [2]+ =A0Killed =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0dd if=3D/d=
-ev/zero of=3D/data/f1 bs=3D1M count=3D1k
->>
->> Known limitations:
->> =A0 =A0 =A0 If a dirty limit is lowered a cgroup may be over its limit.
->>
->
->
-> Thank you, I think this should be merged earlier than all other works. Wi=
-thout this,
-> I think all memory reclaim changes of memcg will do something wrong.
->
-> I'll do a brief review today but I'll be busy until Wednesday, sorry.
+On Fri, 2011-05-13 at 15:03 +0100, Mel Gorman wrote:
+> Changelog since V1
+>   o kswapd should sleep if need_resched
+>   o Remove __GFP_REPEAT from GFP flags when speculatively using high
+>     orders so direct/compaction exits earlier
+>   o Remove __GFP_NORETRY for correctness
+>   o Correct logic in sleeping_prematurely
+>   o Leave SLUB using the default slub_max_order
+> 
+> There are a few reports of people experiencing hangs when copying
+> large amounts of data with kswapd using a large amount of CPU which
+> appear to be due to recent reclaim changes.
+> 
+> SLUB using high orders is the trigger but not the root cause as SLUB
+> has been using high orders for a while. The following four patches
+> aim to fix the problems in reclaim while reducing the cost for SLUB
+> using those high orders.
+> 
+> Patch 1 corrects logic introduced by commit [1741c877: mm:
+> 	kswapd: keep kswapd awake for high-order allocations until
+> 	a percentage of the node is balanced] to allow kswapd to
+> 	go to sleep when balanced for high orders.
+> 
+> Patch 2 prevents kswapd waking up in response to SLUBs speculative
+> 	use of high orders.
+> 
+> Patch 3 further reduces the cost by prevent SLUB entering direct
+> 	compaction or reclaim paths on the grounds that falling
+> 	back to order-0 should be cheaper.
+> 
+> Patch 4 notes that even when kswapd is failing to keep up with
+> 	allocation requests, it should still go to sleep when its
+> 	quota has expired to prevent it spinning.
+> 
+> My own data on this is not great. I haven't really been able to
+> reproduce the same problem locally.
+> 
+> The test case is simple. "download tar" wgets a large tar file and
+> stores it locally. "unpack" is expanding it (15 times physical RAM
+> in this case) and "delete source dirs" is the tarfile being deleted
+> again. I also experimented with having the tar copied numerous times
+> and into deeper directories to increase the size but the results were
+> not particularly interesting so I left it as one tar.
+> 
+> In the background, applications are being launched to time to vaguely
+> simulate activity on the desktop and to measure how long it takes
+> applications to start.
+> 
+> Test server, 4 CPU threads, x86_64, 2G of RAM, no PREEMPT, no COMPACTION, X running
+> LARGE COPY AND UNTAR
+>                       vanilla       fixprematurely  kswapd-nowwake slub-noexstep  kswapdsleep
+> download tar           95 ( 0.00%)   94 ( 1.06%)   94 ( 1.06%)   94 ( 1.06%)   94 ( 1.06%)
+> unpack tar            654 ( 0.00%)  649 ( 0.77%)  655 (-0.15%)  589 (11.04%)  598 ( 9.36%)
+> copy source files       0 ( 0.00%)    0 ( 0.00%)    0 ( 0.00%)    0 ( 0.00%)    0 ( 0.00%)
+> delete source dirs    327 ( 0.00%)  334 (-2.10%)  318 ( 2.83%)  325 ( 0.62%)  320 ( 2.19%)
+> MMTests Statistics: duration
+> User/Sys Time Running Test (seconds)        1139.7   1142.55   1149.78   1109.32   1113.26
+> Total Elapsed Time (seconds)               1341.59   1342.45   1324.90   1271.02   1247.35
+> 
+> MMTests Statistics: application launch
+> evolution-wait30     mean     34.92   34.96   34.92   34.92   35.08
+> gnome-terminal-find  mean      7.96    7.96    8.76    7.80    7.96
+> iceweasel-table      mean      7.93    7.81    7.73    7.65    7.88
+> 
+> evolution-wait30     stddev    0.96    1.22    1.27    1.20    1.15
+> gnome-terminal-find  stddev    3.02    3.09    3.51    2.99    3.02
+> iceweasel-table      stddev    1.05    0.90    1.09    1.11    1.11
+> 
+> Having SLUB avoid expensive steps in reclaim improves performance
+> by quite a bit with the overall test completing 1.5 minutes
+> faster. Application launch times were not really affected but it's
+> not something my test machine was suffering from in the first place
+> so it's not really conclusive. The kswapd patches also did not appear
+> to help but again, the test machine wasn't suffering that problem.
+> 
+> These patches are against 2.6.39-rc7. Again, testing would be
+> appreciated.
 
-Thank you.
+These patches solve the problem for me.  I've been soak testing the file
+copy test
+for 3.5 hours with nearly 400 test cycles and observed no lockups at all
+- rock solid. From my observations from the output from vmstat the
+system is behaving sanely.
+Thanks for finding a solution - much appreciated!
 
-> In general, I agree with inode->i_mapping->i_memcg, simple 2bytes field a=
-nd
-> ignoring a special case of shared inode between memcg.
+> 
+>  Documentation/vm/slub.txt |    2 +-
+>  mm/page_alloc.c           |    3 ++-
+>  mm/slub.c                 |    5 +++--
+>  3 files changed, 6 insertions(+), 4 deletions(-)
+> 
+>  mm/page_alloc.c |    3 ++-
+>  mm/slub.c       |    3 ++-
+>  mm/vmscan.c     |    6 +++++-
+>  3 files changed, 9 insertions(+), 3 deletions(-)
+> 
 
-These proposed patches do not optimize for sharing, but the patches do
-attempt to handle sharing to ensure forward progress.  The sharing
-case I have in mind is where an inode is transferred between memcg
-(e.g. if cgroup_a appends to a log file and then cgroup_b appends to
-the same file).  While such cases are thought to be somewhat rare for
-isolated memcg workloads, they will happen sometimes.  In these
-situations I want to make sure that the memcg that is charged for
-dirty pages of a shared inode is able to make forward progress to
-write dirty pages to drop below the cgroup dirty memory threshold.
-
-The patches try to perform well for cgroups that operate on non-shared
-inodes.  If a cgroup has no shared inodes, then that cgroup should not
-be punished if other cgroups have shared inodes.
-
-Currently the patches perform the following:
-1) when exceeding background limit, wake bdi flusher to write any
-inodes of over-limit cgroups.
-2) when exceeding foreground limit, write dirty inodes of the
-over-limit cgroup.  This will change when integrated with IO-less
-balance_dirty_pages().  If unable to make forward progress, also write
-shared inodes.
-
-One could argue that step (2) should always consider writing shared
-inodes, but I wanted to avoid burdening cgroups that had no shared
-inodes with the responsibility of writing dirty shared inodes.
-
-> BTW, IIUC, i_memcg is resetted always when mark_inode_dirty() sets new I_=
-DIRTY to
-> the flags, right ?
-
-Yes.
-
-> Thanks,
-> -Kame
-
-One small bug in this patch series is that per memcg background
-writeback does not write shared inode pages.  In the (potentially
-common) case where the system dirty memory usage is below the system
-background dirty threshold but at least one cgroup is over its
-background dirty limit, then per memcg background writeback is queued
-for any over-background-threshold cgroups.  In this case background
-writeback should be allowed to writeback shared inodes.  The hope is
-that writing such inodes has good chance of cleaning the inodes so
-they can transition from shared to non-shared.  Such a transition is
-good because then the inode will remain unshared until it is written
-by multiple cgroup.  This is easy to fix if
-wb_check_background_flush() sets shared_inodes=3D1.  I will include this
-change in the next version of these patches.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
