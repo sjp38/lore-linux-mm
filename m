@@ -1,55 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 349506B0023
-	for <linux-mm@kvack.org>; Sat, 14 May 2011 11:46:23 -0400 (EDT)
-Received: by pxi9 with SMTP id 9so2817158pxi.14
-        for <linux-mm@kvack.org>; Sat, 14 May 2011 08:46:20 -0700 (PDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 162FC6B0023
+	for <linux-mm@kvack.org>; Sat, 14 May 2011 12:31:01 -0400 (EDT)
+Received: by qyk2 with SMTP id 2so981033qyk.14
+        for <linux-mm@kvack.org>; Sat, 14 May 2011 09:30:58 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <BANLkTi=fk3DUT9cYd2gAzC98c69F6HXX7g@mail.gmail.com>
-References: <BANLkTi=XqROAp2MOgwQXEQjdkLMenh_OTQ@mail.gmail.com>
- <m2fwokj0oz.fsf@firstfloor.org> <BANLkTikhj1C7+HXP_4T-VnJzPefU2d7b3A@mail.gmail.com>
- <20110512054631.GI6008@one.firstfloor.org> <BANLkTi=fk3DUT9cYd2gAzC98c69F6HXX7g@mail.gmail.com>
-From: Andrew Lutomirski <luto@mit.edu>
-Date: Sat, 14 May 2011 11:46:00 -0400
-Message-ID: <BANLkTikofp5rHRdW5dXfqJXb8VCAqPQ_7A@mail.gmail.com>
-Subject: Re: Kernel falls apart under light memory pressure (i.e. linking vmlinux)
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <1305295404-12129-2-git-send-email-mgorman@suse.de>
+References: <1305295404-12129-1-git-send-email-mgorman@suse.de>
+	<1305295404-12129-2-git-send-email-mgorman@suse.de>
+Date: Sun, 15 May 2011 01:30:57 +0900
+Message-ID: <BANLkTik7+9TcA0HMgKeMZy-L0R+1RN2_rQ@mail.gmail.com>
+Subject: Re: [PATCH 1/4] mm: vmscan: Correct use of pgdat_balanced in sleeping_prematurely
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, James Bottomley <James.Bottomley@hansenpartnership.com>, Colin King <colin.king@canonical.com>, Raghavendra D Prabhu <raghu.prabhu13@gmail.com>, Jan Kara <jack@suse.cz>, Chris Mason <chris.mason@oracle.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-ext4 <linux-ext4@vger.kernel.org>
 
-[cc linux-mm]
+On Fri, May 13, 2011 at 11:03 PM, Mel Gorman <mgorman@suse.de> wrote:
+> Johannes Weiner poined out that the logic in commit [1741c877: mm:
+> kswapd: keep kswapd awake for high-order allocations until a percentage
+> of the node is balanced] is backwards. Instead of allowing kswapd to go
+> to sleep when balancing for high order allocations, it keeps it kswapd
+> running uselessly.
+>
+> From-but-was-not-signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> Will-sign-off-after-Johannes: Mel Gorman <mgorman@suse.de>
+Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
 
-On Thu, May 12, 2011 at 7:54 AM, Andrew Lutomirski <luto@mit.edu> wrote:
-> On Thu, May 12, 2011 at 1:46 AM, Andi Kleen <andi@firstfloor.org> wrote:
->>> Here's a nice picture of alt-sysrq-m with lots of memory free but the
->>> system mostly hung. =A0I can still switch VTs.
->>
->> Would rather need backtraces. Try setting up netconsole or crashdump
->> first.
->
-> Here are some logs for two different failure mores.
->
-> incorrect_oom_kill.txt is an OOM kill when there was lots of available
-> swap to use. =A0AFAICT the kernel should not have OOM killed at all.
->
-> stuck_xyz is when the system is wedged with plenty (~300MB) free
-> memory but no swap. =A0The sysrq files are self-explanatory.
-> stuck-sysrq-f.txt is after the others so that it won't have corrupted
-> the output. =A0After taking all that data, I waited awhile and started
-> getting soft lockup messges.
->
-> I'm having trouble reproducing the "stuck" failure mode on my
-> lockdep-enabled kernel right now (the OOM kill is easy), so no lock
-> state trace. =A0But I got one yesterday and IIRC it showed a few tty
-> locks and either kworker or kcryptd holding (kqueue) and
-> ((&io->work)).
->
-> I compressed the larger files.
->
-> --Andy
+Nice catch! Hannes.
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
