@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 2EC4190010B
-	for <linux-mm@kvack.org>; Sun, 15 May 2011 18:21:44 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with SMTP id 9515490010B
+	for <linux-mm@kvack.org>; Sun, 15 May 2011 18:21:47 -0400 (EDT)
 From: Stephen Wilson <wilsons@start.ca>
-Subject: [PATCH v2 1/9] mm: export get_vma_policy()
-Date: Sun, 15 May 2011 18:20:21 -0400
-Message-Id: <1305498029-11677-2-git-send-email-wilsons@start.ca>
+Subject: [PATCH v2 4/9] mm: make gather_stats() type-safe and remove forward declaration
+Date: Sun, 15 May 2011 18:20:24 -0400
+Message-Id: <1305498029-11677-5-git-send-email-wilsons@start.ca>
 In-Reply-To: <1305498029-11677-1-git-send-email-wilsons@start.ca>
 References: <1305498029-11677-1-git-send-email-wilsons@start.ca>
 Sender: owner-linux-mm@kvack.org
@@ -13,53 +13,66 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Stephen Wilson <wilsons@start.ca>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Alexey Dobriyan <adobriyan@gmail.com>, Christoph Lameter <cl@linux-foundation.org>
 
-In commit 48fce3429df84a94766fbbc845fa8450d0715b48 get_vma_policy() was
-marked static as all clients were local to mempolicy.c.
+Improve the prototype of gather_stats() to take a struct numa_maps as
+argument instead of a generic void *.  Update all callers to make the
+required type explicit.
 
-However, the decision to generate /proc/pid/numa_maps in the numa memory
-policy code and outside the procfs subsystem introduces an artificial
-interdependency between the two systems.  Exporting get_vma_policy()
-once again is the first step to clean up this interdependency.
+Since gather_stats() is not needed before its definition and is
+scheduled to be moved out of mempolicy.c the declaration is removed as
+well.
 
 Signed-off-by: Stephen Wilson <wilsons@start.ca>
-Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Cc: Hugh Dickins <hughd@google.com>
 Cc: David Rientjes <rientjes@google.com>
 Cc: Lee Schermerhorn <lee.schermerhorn@hp.com>
 Cc: Alexey Dobriyan <adobriyan@gmail.com>
 Cc: Christoph Lameter <cl@linux-foundation.org>
 ---
- include/linux/mempolicy.h |    3 +++
- mm/mempolicy.c            |    2 +-
- 2 files changed, 4 insertions(+), 1 deletions(-)
+ mm/mempolicy.c |    8 ++++----
+ 1 files changed, 4 insertions(+), 4 deletions(-)
 
-diff --git a/include/linux/mempolicy.h b/include/linux/mempolicy.h
-index 31ac26c..c2f6032 100644
---- a/include/linux/mempolicy.h
-+++ b/include/linux/mempolicy.h
-@@ -199,6 +199,9 @@ void mpol_free_shared_policy(struct shared_policy *p);
- struct mempolicy *mpol_shared_policy_lookup(struct shared_policy *sp,
- 					    unsigned long idx);
- 
-+struct mempolicy *get_vma_policy(struct task_struct *tsk,
-+		struct vm_area_struct *vma, unsigned long addr);
-+
- extern void numa_default_policy(void);
- extern void numa_policy_init(void);
- extern void mpol_rebind_task(struct task_struct *tsk, const nodemask_t *new,
 diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index 8e57a72..6cc997d 100644
+index d43d05e..108f858 100644
 --- a/mm/mempolicy.c
 +++ b/mm/mempolicy.c
-@@ -1490,7 +1490,7 @@ asmlinkage long compat_sys_mbind(compat_ulong_t start, compat_ulong_t len,
-  * freeing by another task.  It is the caller's responsibility to free the
-  * extra reference for shared policies.
-  */
--static struct mempolicy *get_vma_policy(struct task_struct *task,
-+struct mempolicy *get_vma_policy(struct task_struct *task,
- 		struct vm_area_struct *vma, unsigned long addr)
+@@ -457,7 +457,6 @@ static const struct mempolicy_operations mpol_ops[MPOL_MAX] = {
+ 	},
+ };
+ 
+-static void gather_stats(struct page *, void *, int pte_dirty);
+ static void migrate_page_add(struct page *page, struct list_head *pagelist,
+ 				unsigned long flags);
+ 
+@@ -2555,9 +2554,8 @@ struct numa_maps {
+ 	unsigned long node[MAX_NUMNODES];
+ };
+ 
+-static void gather_stats(struct page *page, void *private, int pte_dirty)
++static void gather_stats(struct page *page, struct numa_maps *md, int pte_dirty)
  {
- 	struct mempolicy *pol = task->mempolicy;
+-	struct numa_maps *md = private;
+ 	int count = page_mapcount(page);
+ 
+ 	md->pages++;
+@@ -2650,6 +2648,7 @@ static void check_huge_range(struct vm_area_struct *vma,
+ static int gather_hugetbl_stats(pte_t *pte, unsigned long hmask,
+ 		unsigned long addr, unsigned long end, struct mm_walk *walk)
+ {
++	struct numa_maps *md;
+ 	struct page *page;
+ 
+ 	if (pte_none(*pte))
+@@ -2659,7 +2658,8 @@ static int gather_hugetbl_stats(pte_t *pte, unsigned long hmask,
+ 	if (!page)
+ 		return 0;
+ 
+-	gather_stats(page, walk->private, pte_dirty(*pte));
++	md = walk->private;
++	gather_stats(page, md, pte_dirty(*pte));
+ 	return 0;
+ }
+ 
 -- 
 1.7.4.4
 
