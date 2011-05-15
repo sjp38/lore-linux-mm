@@ -1,62 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id D20DC6B0011
-	for <linux-mm@kvack.org>; Sun, 15 May 2011 15:56:46 -0400 (EDT)
-Received: from wpaz5.hot.corp.google.com (wpaz5.hot.corp.google.com [172.24.198.69])
-	by smtp-out.google.com with ESMTP id p4FJujY1031632
-	for <linux-mm@kvack.org>; Sun, 15 May 2011 12:56:45 -0700
-Received: from qyj19 (qyj19.prod.google.com [10.241.83.83])
-	by wpaz5.hot.corp.google.com with ESMTP id p4FJuiG1008933
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Sun, 15 May 2011 12:56:44 -0700
-Received: by qyj19 with SMTP id 19so1131140qyj.9
-        for <linux-mm@kvack.org>; Sun, 15 May 2011 12:56:44 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20110513190458.ddc0fbe2.kamezawa.hiroyu@jp.fujitsu.com>
-References: <1305276473-14780-1-git-send-email-gthelen@google.com>
- <1305276473-14780-12-git-send-email-gthelen@google.com> <20110513190458.ddc0fbe2.kamezawa.hiroyu@jp.fujitsu.com>
-From: Greg Thelen <gthelen@google.com>
-Date: Sun, 15 May 2011 12:56:24 -0700
-Message-ID: <BANLkTim_Ur_9T2qW5UauuiPCLErMpp3cBQ@mail.gmail.com>
-Subject: Re: [RFC][PATCH v7 11/14] memcg: create support routines for writeback
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 82F2D6B0011
+	for <linux-mm@kvack.org>; Sun, 15 May 2011 18:21:20 -0400 (EDT)
+From: Stephen Wilson <wilsons@start.ca>
+Subject: [PATCH v2 0/9] avoid allocation in show_numa_map()
+Date: Sun, 15 May 2011 18:20:20 -0400
+Message-Id: <1305498029-11677-1-git-send-email-wilsons@start.ca>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, linux-fsdevel@vger.kernel.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Vivek Goyal <vgoyal@redhat.com>, Dave Chinner <david@fromorbit.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-On Fri, May 13, 2011 at 3:04 AM, KAMEZAWA Hiroyuki
-<kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> On Fri, 13 May 2011 01:47:50 -0700
-> Greg Thelen <gthelen@google.com> wrote:
->
->> Introduce memcg routines to assist in per-memcg writeback:
->>
->> - mem_cgroups_over_bground_dirty_thresh() determines if any cgroups need
->> =A0 writeback because they are over their dirty memory threshold.
->>
->> - should_writeback_mem_cgroup_inode() determines if an inode is
->> =A0 contributing pages to an over-limit memcg.
->>
->> - mem_cgroup_writeback_done() is used periodically during writeback to
->> =A0 update memcg writeback data.
->>
->> Signed-off-by: Greg Thelen <gthelen@google.com>
->
-> Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->
-> I'm okay with the bitmap..then, problem will be when set/clear wbc->for_c=
-group...
+Hi all,
 
-wbc->for_cgroup is only set in two conditions:
+This is version 2 of a patch series[1] aimed at removing repeated
+allocation/free cycles happening in show_numa_maps() while we hold a reference
+to an mm.  The concern is that performing an allocation while referencing an mm
+could lead to a stalemate in the oom killer as previously explained by Hugh
+Dickins[2].
 
-a) when mem_cgroup_balance_dirty_pages() is trying to get a cgroup
-below its dirty memory foreground threshold.  This is in patch 12/14.
+This series addresses all issues raised in the previous round and is organized
+as follows:
 
-b) when bdi-flusher is performing background writeback and determines
-that at any of the cgroup are over their respective background dirty
-memory threshold.  This is in patch 13/14.
+Patches 1-6 convert show_numa_maps() to use the generic walk_page_range()
+functionality instead of the mempolicy.c specific page table walking logic.
+Also, get_vma_policy() and mpol_to_str() are exported.  This makes the
+show_numa_maps() implementation independent of mempolicy.c.
+
+Patch 7 moves show_numa_maps() and supporting routines over to
+fs/proc/task_mmu.c.
+
+Finally, patches 8 and 9 provide minor cleanup and eliminate the troublesome
+allocation.
+
+
+These patches are based on mmotm-2011-05-12-15-52 and have been tested on a
+dual node NUMA machine.
+
+
+Thanks,
+
+--
+steve
+
+[1] http://lkml.org/lkml/2011/4/27/578
+[2] http://lkml.org/lkml/2011/4/25/496
+
+
+Changes since v1:
+	- Fix compilation error when CONFIG_TMPFS=n.
+
+	- Traverse pte's with proper locking and checks.
+
+
+Stephen Wilson (9):
+      mm: export get_vma_policy()
+      mm: use walk_page_range() instead of custom page table walking code
+      mm: remove MPOL_MF_STATS
+      mm: make gather_stats() type-safe and remove forward declaration
+      mm: remove check_huge_range()
+      mm: declare mpol_to_str() when CONFIG_TMPFS=n
+      mm: proc: move show_numa_map() to fs/proc/task_mmu.c
+      proc: make struct proc_maps_private truly private
+      proc: allocate storage for numa_maps statistics once
+
+
+ fs/proc/internal.h        |    7 ++
+ fs/proc/task_mmu.c        |  204 ++++++++++++++++++++++++++++++++++++++++++++-
+ include/linux/mempolicy.h |    7 +-
+ include/linux/proc_fs.h   |    8 --
+ mm/mempolicy.c            |  164 +-----------------------------------
+ 5 files changed, 215 insertions(+), 175 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
