@@ -1,74 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 723736B0012
-	for <linux-mm@kvack.org>; Sat, 14 May 2011 21:38:03 -0400 (EDT)
-Received: by qwa26 with SMTP id 26so2607963qwa.14
-        for <linux-mm@kvack.org>; Sat, 14 May 2011 18:38:00 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 23805900001
+	for <linux-mm@kvack.org>; Sun, 15 May 2011 06:26:06 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id A12AE3EE0AE
+	for <linux-mm@kvack.org>; Sun, 15 May 2011 19:26:01 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8787045DF5A
+	for <linux-mm@kvack.org>; Sun, 15 May 2011 19:26:01 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 67E0F45DF54
+	for <linux-mm@kvack.org>; Sun, 15 May 2011 19:26:01 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 58565E08005
+	for <linux-mm@kvack.org>; Sun, 15 May 2011 19:26:01 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 22B49E08002
+	for <linux-mm@kvack.org>; Sun, 15 May 2011 19:26:01 +0900 (JST)
+Message-ID: <4DCFAA80.7040109@jp.fujitsu.com>
+Date: Sun, 15 May 2011 19:27:12 +0900
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <20110514174333.GW6008@one.firstfloor.org>
-References: <BANLkTi=XqROAp2MOgwQXEQjdkLMenh_OTQ@mail.gmail.com>
-	<m2fwokj0oz.fsf@firstfloor.org>
-	<BANLkTikhj1C7+HXP_4T-VnJzPefU2d7b3A@mail.gmail.com>
-	<20110512054631.GI6008@one.firstfloor.org>
-	<BANLkTi=fk3DUT9cYd2gAzC98c69F6HXX7g@mail.gmail.com>
-	<BANLkTikofp5rHRdW5dXfqJXb8VCAqPQ_7A@mail.gmail.com>
-	<20110514165346.GV6008@one.firstfloor.org>
-	<BANLkTik6SS9NH7XVSRBoCR16_5veY0MKBw@mail.gmail.com>
-	<20110514174333.GW6008@one.firstfloor.org>
-Date: Sun, 15 May 2011 10:37:58 +0900
-Message-ID: <BANLkTinst+Ryox9VZ-s7gdXKa574XXqt5w@mail.gmail.com>
-Subject: Re: Kernel falls apart under light memory pressure (i.e. linking vmlinux)
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Subject: Re: [PATCH 4/4] mm: vmscan: If kswapd has been running too long,
+ allow it to sleep
+References: <1305295404-12129-1-git-send-email-mgorman@suse.de> <1305295404-12129-5-git-send-email-mgorman@suse.de>
+In-Reply-To: <1305295404-12129-5-git-send-email-mgorman@suse.de>
+Content-Type: text/plain; charset=ISO-2022-JP
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: linux-mm@kvack.org, Wu Fengguang <fengguang.wu@intel.com>
+To: mgorman@suse.de
+Cc: akpm@linux-foundation.org, James.Bottomley@HansenPartnership.com, colin.king@canonical.com, raghu.prabhu13@gmail.com, jack@suse.cz, chris.mason@oracle.com, cl@linux.com, penberg@kernel.org, riel@redhat.com, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-ext4@vger.kernel.org
 
-On Sun, May 15, 2011 at 2:43 AM, Andi Kleen <andi@firstfloor.org> wrote:
-> Copying back linux-mm.
->
->> Recently, we added following patch.
->> https://lkml.org/lkml/2011/4/26/129
->> If it's a culprit, the patch should solve the problem.
->
-> It would be probably better to not do the allocations at all under
-> memory pressure. =C2=A0Even if the RA allocation doesn't go into reclaim
+(2011/05/13 23:03), Mel Gorman wrote:
+> Under constant allocation pressure, kswapd can be in the situation where
+> sleeping_prematurely() will always return true even if kswapd has been
+> running a long time. Check if kswapd needs to be scheduled.
+> 
+> Signed-off-by: Mel Gorman<mgorman@suse.de>
+> ---
+>   mm/vmscan.c |    4 ++++
+>   1 files changed, 4 insertions(+), 0 deletions(-)
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index af24d1e..4d24828 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2251,6 +2251,10 @@ static bool sleeping_prematurely(pg_data_t *pgdat, int order, long remaining,
+>   	unsigned long balanced = 0;
+>   	bool all_zones_ok = true;
+> 
+> +	/* If kswapd has been running too long, just sleep */
+> +	if (need_resched())
+> +		return false;
+> +
 
-Fair enough.
-I think we can do it easily now.
-If page_cache_alloc_readahead(ie, GFP_NORETRY) is fail, we can adjust
-RA window size or turn off a while. The point is that we can use the
-fail of __do_page_cache_readahead as sign of memory pressure.
-Wu, What do you think?
+Hmm... I don't like this patch so much. because this code does
 
-> it may still "steal" allocations recently freed and needed by other
-> actors.
+- don't sleep if kswapd got context switch at shrink_inactive_list
+- sleep if kswapd didn't
 
-This problem is general thing as well as RA.
-But it would be not a big problem in order-0 pages.
-If it's a really problem, it might sign we have to increase SWAP_CLUSTER_MA=
-X.
-
-The concern I thought is order-0 allocation happens with other
-higher-order reclaims in parallel.
-order-0 allocation can steal other's high order pages.
-For it, I sent a patch but I didn't have enough time to dig in.
-https://lkml.org/lkml/2011/5/2/93
-I have a plan to do.
-
->
-> -Andi
-> --
-> ak@linux.intel.com -- Speaking for myself only.
->
+It seems to be semi random behavior.
 
 
-
---=20
-Kind regards,
-Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
