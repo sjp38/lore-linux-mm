@@ -1,90 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id DA05B6B0012
-	for <linux-mm@kvack.org>; Sun, 15 May 2011 12:12:57 -0400 (EDT)
-Received: by pvc12 with SMTP id 12so2512206pvc.14
-        for <linux-mm@kvack.org>; Sun, 15 May 2011 09:12:56 -0700 (PDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 42B686B0011
+	for <linux-mm@kvack.org>; Sun, 15 May 2011 12:39:19 -0400 (EDT)
+Date: Sun, 15 May 2011 18:39:06 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 3/3] mm: slub: Default slub_max_order to 0
+Message-ID: <20110515163906.GB25981@random.random>
+References: <1305214993.2575.50.camel@mulgrave.site>
+ <20110512154649.GB4559@redhat.com>
+ <1305216023.2575.54.camel@mulgrave.site>
+ <alpine.DEB.2.00.1105121121120.26013@router.home>
+ <1305217843.2575.57.camel@mulgrave.site>
+ <BANLkTi=MD+voG1i7uDyueV22_daGHPRdqw@mail.gmail.com>
+ <BANLkTimDsJDht76Vm7auNqT2gncjpEKZQw@mail.gmail.com>
+ <alpine.DEB.2.00.1105121232110.28493@router.home>
+ <20110512180018.GN11579@random.random>
+ <20110513094958.GA3569@suse.de>
 MIME-Version: 1.0
-In-Reply-To: <20110515152747.GA25905@localhost>
-References: <BANLkTi=XqROAp2MOgwQXEQjdkLMenh_OTQ@mail.gmail.com>
- <m2fwokj0oz.fsf@firstfloor.org> <BANLkTikhj1C7+HXP_4T-VnJzPefU2d7b3A@mail.gmail.com>
- <20110512054631.GI6008@one.firstfloor.org> <BANLkTi=fk3DUT9cYd2gAzC98c69F6HXX7g@mail.gmail.com>
- <BANLkTikofp5rHRdW5dXfqJXb8VCAqPQ_7A@mail.gmail.com> <20110514165346.GV6008@one.firstfloor.org>
- <BANLkTik6SS9NH7XVSRBoCR16_5veY0MKBw@mail.gmail.com> <20110514174333.GW6008@one.firstfloor.org>
- <BANLkTinst+Ryox9VZ-s7gdXKa574XXqt5w@mail.gmail.com> <20110515152747.GA25905@localhost>
-From: Andrew Lutomirski <luto@mit.edu>
-Date: Sun, 15 May 2011 12:12:36 -0400
-Message-ID: <BANLkTim-AnEeL=z1sYm=iN7sMnG0+m0SHw@mail.gmail.com>
-Subject: Re: Kernel falls apart under light memory pressure (i.e. linking vmlinux)
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110513094958.GA3569@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Minchan Kim <minchan.kim@gmail.com>, Andi Kleen <andi@firstfloor.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, James Bottomley <James.Bottomley@hansenpartnership.com>, Dave Jones <davej@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Colin King <colin.king@canonical.com>, Raghavendra D Prabhu <raghu.prabhu13@gmail.com>, Jan Kara <jack@suse.cz>, Chris Mason <chris.mason@oracle.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-ext4 <linux-ext4@vger.kernel.org>
 
-On Sun, May 15, 2011 at 11:27 AM, Wu Fengguang <fengguang.wu@intel.com> wro=
-te:
-> On Sun, May 15, 2011 at 09:37:58AM +0800, Minchan Kim wrote:
->> On Sun, May 15, 2011 at 2:43 AM, Andi Kleen <andi@firstfloor.org> wrote:
->> > Copying back linux-mm.
->> >
->> >> Recently, we added following patch.
->> >> https://lkml.org/lkml/2011/4/26/129
->> >> If it's a culprit, the patch should solve the problem.
->> >
->> > It would be probably better to not do the allocations at all under
->> > memory pressure. =A0Even if the RA allocation doesn't go into reclaim
->>
->> Fair enough.
->> I think we can do it easily now.
->> If page_cache_alloc_readahead(ie, GFP_NORETRY) is fail, we can adjust
->> RA window size or turn off a while. The point is that we can use the
->> fail of __do_page_cache_readahead as sign of memory pressure.
->> Wu, What do you think?
->
-> No, disabling readahead can hardly help.
->
-> The sequential readahead memory consumption can be estimated by
->
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A02 * (number of concurrent read streams) * =
-(readahead window size)
->
-> And you can double that when there are two level of readaheads.
->
-> Since there are hardly any concurrent read streams in Andy's case,
-> the readahead memory consumption will be ignorable.
->
-> Typically readahead thrashing will happen long before excessive
-> GFP_NORETRY failures, so the reasonable solutions are to
->
-> - shrink readahead window on readahead thrashing
-> =A0(current readahead heuristic can somehow do this, and I have patches
-> =A0to further improve it)
->
-> - prevent abnormal GFP_NORETRY failures
-> =A0(when there are many reclaimable pages)
->
->
-> Andy's OOM memory dump (incorrect_oom_kill.txt.xz) shows that there are
->
-> - 8MB =A0 active+inactive file pages
-> - 160MB active+inactive anon pages
-> - 1GB =A0 shmem pages
-> - 1.4GB unevictable pages
->
-> Hmm, why are there so many unevictable pages? =A0How come the shmem
-> pages become unevictable when there are plenty of swap space?
+On Fri, May 13, 2011 at 10:49:58AM +0100, Mel Gorman wrote:
+> On Thu, May 12, 2011 at 08:00:18PM +0200, Andrea Arcangeli wrote:
+> > <SNIP>
+> >
+> > BTW, it comes to mind in patch 2, SLUB should clear __GFP_REPEAT too
+> > (not only __GFP_NOFAIL). Clearing __GFP_WAIT may be worth it or not
+> > with COMPACTION=y, definitely good idea to clear __GFP_WAIT unless
+> > lumpy is restricted to __GFP_REPEAT|__GFP_NOFAIL.
+> 
+> This is in V2 (unreleased, testing in progress and was running
+> overnight). I noticed that clearing __GFP_REPEAT is required for
+> reclaim/compaction if direct reclaimers from SLUB are to return false in
+> should_continue_reclaim() and bail out from high-order allocation
+> properly. As it is, there is a possibility for slub high-order direct
+> reclaimers to loop in reclaim/compaction for a long time. This is
+> only important when CONFIG_COMPACTION=y.
 
-That was probably because one of my testcases creates a 1.4GB file on
-ramfs.  (I can provoke the problem without doing evil things like
-that, but the test script is rather reliable at killing my system and
-it works fine on my other machines.)
-
-If you want, I can try to generate a trace that isn't polluted with
-the evil ramfs file.
-
---Andy
+Agreed. However I don't expect anyone to allocate from slub(/slab)
+with __GFP_REPEAT so it's probably only theoretical but more correct
+indeed ;).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
