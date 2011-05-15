@@ -1,68 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 23805900001
-	for <linux-mm@kvack.org>; Sun, 15 May 2011 06:26:06 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id A12AE3EE0AE
-	for <linux-mm@kvack.org>; Sun, 15 May 2011 19:26:01 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8787045DF5A
-	for <linux-mm@kvack.org>; Sun, 15 May 2011 19:26:01 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 67E0F45DF54
-	for <linux-mm@kvack.org>; Sun, 15 May 2011 19:26:01 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 58565E08005
-	for <linux-mm@kvack.org>; Sun, 15 May 2011 19:26:01 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 22B49E08002
-	for <linux-mm@kvack.org>; Sun, 15 May 2011 19:26:01 +0900 (JST)
-Message-ID: <4DCFAA80.7040109@jp.fujitsu.com>
-Date: Sun, 15 May 2011 19:27:12 +0900
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id AA1BE6B0012
+	for <linux-mm@kvack.org>; Sun, 15 May 2011 11:27:51 -0400 (EDT)
+Date: Sun, 15 May 2011 23:27:47 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: Kernel falls apart under light memory pressure (i.e. linking
+ vmlinux)
+Message-ID: <20110515152747.GA25905@localhost>
+References: <BANLkTi=XqROAp2MOgwQXEQjdkLMenh_OTQ@mail.gmail.com>
+ <m2fwokj0oz.fsf@firstfloor.org>
+ <BANLkTikhj1C7+HXP_4T-VnJzPefU2d7b3A@mail.gmail.com>
+ <20110512054631.GI6008@one.firstfloor.org>
+ <BANLkTi=fk3DUT9cYd2gAzC98c69F6HXX7g@mail.gmail.com>
+ <BANLkTikofp5rHRdW5dXfqJXb8VCAqPQ_7A@mail.gmail.com>
+ <20110514165346.GV6008@one.firstfloor.org>
+ <BANLkTik6SS9NH7XVSRBoCR16_5veY0MKBw@mail.gmail.com>
+ <20110514174333.GW6008@one.firstfloor.org>
+ <BANLkTinst+Ryox9VZ-s7gdXKa574XXqt5w@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 4/4] mm: vmscan: If kswapd has been running too long,
- allow it to sleep
-References: <1305295404-12129-1-git-send-email-mgorman@suse.de> <1305295404-12129-5-git-send-email-mgorman@suse.de>
-In-Reply-To: <1305295404-12129-5-git-send-email-mgorman@suse.de>
-Content-Type: text/plain; charset=ISO-2022-JP
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <BANLkTinst+Ryox9VZ-s7gdXKa574XXqt5w@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mgorman@suse.de
-Cc: akpm@linux-foundation.org, James.Bottomley@HansenPartnership.com, colin.king@canonical.com, raghu.prabhu13@gmail.com, jack@suse.cz, chris.mason@oracle.com, cl@linux.com, penberg@kernel.org, riel@redhat.com, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-ext4@vger.kernel.org
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Andi Kleen <andi@firstfloor.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Lutomirski <luto@mit.edu>, LKML <linux-kernel@vger.kernel.org>
 
-(2011/05/13 23:03), Mel Gorman wrote:
-> Under constant allocation pressure, kswapd can be in the situation where
-> sleeping_prematurely() will always return true even if kswapd has been
-> running a long time. Check if kswapd needs to be scheduled.
+On Sun, May 15, 2011 at 09:37:58AM +0800, Minchan Kim wrote:
+> On Sun, May 15, 2011 at 2:43 AM, Andi Kleen <andi@firstfloor.org> wrote:
+> > Copying back linux-mm.
+> >
+> >> Recently, we added following patch.
+> >> https://lkml.org/lkml/2011/4/26/129
+> >> If it's a culprit, the patch should solve the problem.
+> >
+> > It would be probably better to not do the allocations at all under
+> > memory pressure. A Even if the RA allocation doesn't go into reclaim
 > 
-> Signed-off-by: Mel Gorman<mgorman@suse.de>
-> ---
->   mm/vmscan.c |    4 ++++
->   1 files changed, 4 insertions(+), 0 deletions(-)
-> 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index af24d1e..4d24828 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -2251,6 +2251,10 @@ static bool sleeping_prematurely(pg_data_t *pgdat, int order, long remaining,
->   	unsigned long balanced = 0;
->   	bool all_zones_ok = true;
-> 
-> +	/* If kswapd has been running too long, just sleep */
-> +	if (need_resched())
-> +		return false;
-> +
+> Fair enough.
+> I think we can do it easily now.
+> If page_cache_alloc_readahead(ie, GFP_NORETRY) is fail, we can adjust
+> RA window size or turn off a while. The point is that we can use the
+> fail of __do_page_cache_readahead as sign of memory pressure.
+> Wu, What do you think?
 
-Hmm... I don't like this patch so much. because this code does
+No, disabling readahead can hardly help.
 
-- don't sleep if kswapd got context switch at shrink_inactive_list
-- sleep if kswapd didn't
+The sequential readahead memory consumption can be estimated by
 
-It seems to be semi random behavior.
+                2 * (number of concurrent read streams) * (readahead window size)
+
+And you can double that when there are two level of readaheads.
+
+Since there are hardly any concurrent read streams in Andy's case,
+the readahead memory consumption will be ignorable.
+
+Typically readahead thrashing will happen long before excessive
+GFP_NORETRY failures, so the reasonable solutions are to
+
+- shrink readahead window on readahead thrashing
+  (current readahead heuristic can somehow do this, and I have patches
+  to further improve it)
+
+- prevent abnormal GFP_NORETRY failures
+  (when there are many reclaimable pages)
 
 
+Andy's OOM memory dump (incorrect_oom_kill.txt.xz) shows that there are
+
+- 8MB   active+inactive file pages
+- 160MB active+inactive anon pages
+- 1GB   shmem pages
+- 1.4GB unevictable pages
+
+Hmm, why are there so many unevictable pages?  How come the shmem
+pages become unevictable when there are plenty of swap space?
+
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
