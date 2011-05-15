@@ -1,9 +1,9 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id F2C4B6B0011
-	for <linux-mm@kvack.org>; Sun, 15 May 2011 11:59:35 -0400 (EDT)
-Received: by pwi12 with SMTP id 12so2532557pwi.14
-        for <linux-mm@kvack.org>; Sun, 15 May 2011 08:59:34 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id DA05B6B0012
+	for <linux-mm@kvack.org>; Sun, 15 May 2011 12:12:57 -0400 (EDT)
+Received: by pvc12 with SMTP id 12so2512206pvc.14
+        for <linux-mm@kvack.org>; Sun, 15 May 2011 09:12:56 -0700 (PDT)
 MIME-Version: 1.0
 In-Reply-To: <20110515152747.GA25905@localhost>
 References: <BANLkTi=XqROAp2MOgwQXEQjdkLMenh_OTQ@mail.gmail.com>
@@ -13,8 +13,8 @@ References: <BANLkTi=XqROAp2MOgwQXEQjdkLMenh_OTQ@mail.gmail.com>
  <BANLkTik6SS9NH7XVSRBoCR16_5veY0MKBw@mail.gmail.com> <20110514174333.GW6008@one.firstfloor.org>
  <BANLkTinst+Ryox9VZ-s7gdXKa574XXqt5w@mail.gmail.com> <20110515152747.GA25905@localhost>
 From: Andrew Lutomirski <luto@mit.edu>
-Date: Sun, 15 May 2011 11:59:14 -0400
-Message-ID: <BANLkTinYGwRa_7uGzbYq+pW3T7jL-nQ7sA@mail.gmail.com>
+Date: Sun, 15 May 2011 12:12:36 -0400
+Message-ID: <BANLkTim-AnEeL=z1sYm=iN7sMnG0+m0SHw@mail.gmail.com>
 Subject: Re: Kernel falls apart under light memory pressure (i.e. linking vmlinux)
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
@@ -76,43 +76,13 @@ te:
 > Hmm, why are there so many unevictable pages? =A0How come the shmem
 > pages become unevictable when there are plenty of swap space?
 
-I have no clue, but this patch (from Minchan, whitespace-damaged) seems to =
-help:
+That was probably because one of my testcases creates a 1.4GB file on
+ramfs.  (I can provoke the problem without doing evil things like
+that, but the test script is rather reliable at killing my system and
+it works fine on my other machines.)
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index f6b435c..4d24828 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2251,6 +2251,10 @@ static bool sleeping_prematurely(pg_data_t
-*pgdat, int order, long remaining,
-       unsigned long balanced =3D 0;
-       bool all_zones_ok =3D true;
-
-+       /* If kswapd has been running too long, just sleep */
-+       if (need_resched())
-+               return false;
-+
-       /* If a direct reclaimer woke kswapd within HZ/10, it's premature */
-       if (remaining)
-               return true;
-@@ -2286,7 +2290,7 @@ static bool sleeping_prematurely(pg_data_t
-*pgdat, int order, long remaining,
-        * must be balanced
-        */
-       if (order)
--               return pgdat_balanced(pgdat, balanced, classzone_idx);
-+               return !pgdat_balanced(pgdat, balanced, classzone_idx);
-       else
-               return !all_zones_ok;
- }
-
-I haven't tested it very thoroughly, but it's survived much longer
-than an unpatched kernel probably would have under moderate use.
-
-I have no idea what the patch does :)
-
-I'm happy to run any tests.  I'm also planning to upgrade from 2GB to
-8GB RAM soon, which might change something.
+If you want, I can try to generate a trace that isn't polluted with
+the evil ramfs file.
 
 --Andy
 
