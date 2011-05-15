@@ -1,66 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id A011690010D
-	for <linux-mm@kvack.org>; Sun, 15 May 2011 18:22:44 -0400 (EDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id CE06190010D
+	for <linux-mm@kvack.org>; Sun, 15 May 2011 18:22:53 -0400 (EDT)
 From: Stephen Wilson <wilsons@start.ca>
-Subject: [PATCH v2 8/9] proc: make struct proc_maps_private truly private
-Date: Sun, 15 May 2011 18:20:28 -0400
-Message-Id: <1305498029-11677-9-git-send-email-wilsons@start.ca>
+Subject: [PATCH v2 6/9] mm: declare mpol_to_str() when CONFIG_TMPFS=n
+Date: Sun, 15 May 2011 18:20:26 -0400
+Message-Id: <1305498029-11677-7-git-send-email-wilsons@start.ca>
 In-Reply-To: <1305498029-11677-1-git-send-email-wilsons@start.ca>
 References: <1305498029-11677-1-git-send-email-wilsons@start.ca>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Stephen Wilson <wilsons@start.ca>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Alexey Dobriyan <adobriyan@gmail.com>, Christoph Lameter <cl@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Stephen Wilson <wilsons@start.ca>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Alexey Dobriyan <adobriyan@gmail.com>, Christoph Lameter <cl@linux-foundation.org>, Randy Dunlap <rdunlap@xenotime.net>
 
-Now that mm/mempolicy.c is no longer implementing /proc/pid/numa_maps
-there is no need to export struct proc_maps_private to the world.  Move
-it to fs/proc/internal.h instead.
+When CONFIG_TMPFS=n mpol_to_str() is not declared in mempolicy.h.
+However, in the NUMA case, the definition is always compiled.
+
+Since it is not strictly true that tmpfs is the only client, and since
+the symbol was always lurking around anyways, export mpol_to_str()
+unconditionally.  Furthermore, this will allow us to move
+show_numa_map() out of mempolicy.c and into the procfs subsystem.
 
 Signed-off-by: Stephen Wilson <wilsons@start.ca>
-Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Cc: Hugh Dickins <hughd@google.com>
 Cc: David Rientjes <rientjes@google.com>
 Cc: Lee Schermerhorn <lee.schermerhorn@hp.com>
 Cc: Alexey Dobriyan <adobriyan@gmail.com>
 Cc: Christoph Lameter <cl@linux-foundation.org>
+Cc: Randy Dunlap <rdunlap@xenotime.net>
 ---
- fs/proc/internal.h      |    7 +++++++
- include/linux/proc_fs.h |    8 --------
- 2 files changed, 7 insertions(+), 8 deletions(-)
+ include/linux/mempolicy.h |    4 ++--
+ 1 files changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/fs/proc/internal.h b/fs/proc/internal.h
-index 96245a1..360223f 100644
---- a/fs/proc/internal.h
-+++ b/fs/proc/internal.h
-@@ -137,3 +137,10 @@ int proc_setattr(struct dentry *dentry, struct iattr *attr);
- extern const struct inode_operations proc_ns_dir_inode_operations;
- extern const struct file_operations proc_ns_dir_operations;
+diff --git a/include/linux/mempolicy.h b/include/linux/mempolicy.h
+index c2f6032..7978eec 100644
+--- a/include/linux/mempolicy.h
++++ b/include/linux/mempolicy.h
+@@ -231,10 +231,10 @@ int do_migrate_pages(struct mm_struct *mm,
  
-+struct proc_maps_private {
-+	struct pid *pid;
-+	struct task_struct *task;
-+#ifdef CONFIG_MMU
-+	struct vm_area_struct *tail_vma;
+ #ifdef CONFIG_TMPFS
+ extern int mpol_parse_str(char *str, struct mempolicy **mpol, int no_context);
 +#endif
-+};
-diff --git a/include/linux/proc_fs.h b/include/linux/proc_fs.h
-index 5bdfd39..6ba9e31 100644
---- a/include/linux/proc_fs.h
-+++ b/include/linux/proc_fs.h
-@@ -288,12 +288,4 @@ static inline struct net *PDE_NET(struct proc_dir_entry *pde)
- 	return pde->parent->data;
- }
  
--struct proc_maps_private {
--	struct pid *pid;
--	struct task_struct *task;
--#ifdef CONFIG_MMU
--	struct vm_area_struct *tail_vma;
+ extern int mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol,
+ 			int no_context);
 -#endif
--};
--
- #endif /* _LINUX_PROC_FS_H */
+ 
+ /* Check if a vma is migratable */
+ static inline int vma_migratable(struct vm_area_struct *vma)
+@@ -371,13 +371,13 @@ static inline int mpol_parse_str(char *str, struct mempolicy **mpol,
+ {
+ 	return 1;	/* error */
+ }
++#endif
+ 
+ static inline int mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol,
+ 				int no_context)
+ {
+ 	return 0;
+ }
+-#endif
+ 
+ #endif /* CONFIG_NUMA */
+ #endif /* __KERNEL__ */
 -- 
 1.7.4.4
 
