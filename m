@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id A963F90010D
-	for <linux-mm@kvack.org>; Sun, 15 May 2011 18:26:51 -0400 (EDT)
-Message-ID: <4DD05324.6050506@redhat.com>
-Date: Sun, 15 May 2011 18:26:44 -0400
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 18A7C6B0012
+	for <linux-mm@kvack.org>; Sun, 15 May 2011 18:34:30 -0400 (EDT)
+Message-ID: <4DD054EF.4020300@redhat.com>
+Date: Sun, 15 May 2011 18:34:23 -0400
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/3] vmscan: implement swap token trace
-References: <4DCD1824.1060801@jp.fujitsu.com> <4DCD18C4.1000902@jp.fujitsu.com>
-In-Reply-To: <4DCD18C4.1000902@jp.fujitsu.com>
+Subject: Re: [PATCH 3/3] vmscan: implement swap token priority decay
+References: <4DCD1824.1060801@jp.fujitsu.com> <4DCD1913.2090200@jp.fujitsu.com>
+In-Reply-To: <4DCD1913.2090200@jp.fujitsu.com>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -16,12 +16,28 @@ List-ID: <linux-mm.kvack.org>
 To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, kamezawa.hiroyu@jp.fujitsu.com, minchan.kim@gmail.com
 
-On 05/13/2011 07:40 AM, KOSAKI Motohiro wrote:
-> This is useful for observing swap token activity.
+On 05/13/2011 07:42 AM, KOSAKI Motohiro wrote:
+> While testing for memcg aware swap token, I observed a swap token
+> was often grabbed an intermittent running process (eg init, auditd)
+> and they never release a token.
 >
-> example output:
+> Why? Currently, swap toke priority is only decreased at page fault
+> path. Then, if the process sleep immediately after to grab swap
+> token, their swap token priority never be decreased. That makes
+> obviously undesired result.
+>
+> This patch implement very poor (and lightweight) priority decay
+> mechanism. It only be affect to the above corner case and doesn't
+> change swap tendency workload performance (eg multi process qsbench
+> load)
 
-Acked-by: Rik van Riel<riel@redhat.com>
+Ohhh, good catch.  The original swap token algorithm did
+not have this problem, and I never caught the fact that
+the replacement (which is better in many ways) does...
+
+> Signed-off-by: KOSAKI Motohiro<kosaki.motohiro@jp.fujitsu.com>
+
+Reviewed-by: Rik van Riel<riel@redhat.com>
 
 -- 
 All rights reversed
