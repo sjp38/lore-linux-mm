@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id C2A0A6B0022
-	for <linux-mm@kvack.org>; Sun, 15 May 2011 18:40:44 -0400 (EDT)
-Received: by qyk30 with SMTP id 30so2834967qyk.14
-        for <linux-mm@kvack.org>; Sun, 15 May 2011 15:40:43 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 6EA376B0024
+	for <linux-mm@kvack.org>; Sun, 15 May 2011 18:58:03 -0400 (EDT)
+Received: by qyk2 with SMTP id 2so1402606qyk.14
+        for <linux-mm@kvack.org>; Sun, 15 May 2011 15:58:01 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20110515152747.GA25905@localhost>
+In-Reply-To: <BANLkTinYGwRa_7uGzbYq+pW3T7jL-nQ7sA@mail.gmail.com>
 References: <BANLkTi=XqROAp2MOgwQXEQjdkLMenh_OTQ@mail.gmail.com>
 	<m2fwokj0oz.fsf@firstfloor.org>
 	<BANLkTikhj1C7+HXP_4T-VnJzPefU2d7b3A@mail.gmail.com>
@@ -17,70 +17,84 @@ References: <BANLkTi=XqROAp2MOgwQXEQjdkLMenh_OTQ@mail.gmail.com>
 	<20110514174333.GW6008@one.firstfloor.org>
 	<BANLkTinst+Ryox9VZ-s7gdXKa574XXqt5w@mail.gmail.com>
 	<20110515152747.GA25905@localhost>
-Date: Mon, 16 May 2011 07:40:42 +0900
-Message-ID: <BANLkTinv=_38E3Eyu88Ra4-x5vPEq7CDkw@mail.gmail.com>
+	<BANLkTinYGwRa_7uGzbYq+pW3T7jL-nQ7sA@mail.gmail.com>
+Date: Mon, 16 May 2011 07:58:01 +0900
+Message-ID: <BANLkTinEC1uhZRXjjn1PzENNs7KtGcoQow@mail.gmail.com>
 Subject: Re: Kernel falls apart under light memory pressure (i.e. linking vmlinux)
 From: Minchan Kim <minchan.kim@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andi Kleen <andi@firstfloor.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Lutomirski <luto@mit.edu>, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Lutomirski <luto@mit.edu>
+Cc: Wu Fengguang <fengguang.wu@intel.com>, Andi Kleen <andi@firstfloor.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, James Bottomley <James.Bottomley@hansenpartnership.com>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Mon, May 16, 2011 at 12:27 AM, Wu Fengguang <fengguang.wu@intel.com> wro=
-te:
-> On Sun, May 15, 2011 at 09:37:58AM +0800, Minchan Kim wrote:
->> On Sun, May 15, 2011 at 2:43 AM, Andi Kleen <andi@firstfloor.org> wrote:
->> > Copying back linux-mm.
->> >
->> >> Recently, we added following patch.
->> >> https://lkml.org/lkml/2011/4/26/129
->> >> If it's a culprit, the patch should solve the problem.
->> >
->> > It would be probably better to not do the allocations at all under
->> > memory pressure. =C2=A0Even if the RA allocation doesn't go into recla=
-im
->>
->> Fair enough.
->> I think we can do it easily now.
->> If page_cache_alloc_readahead(ie, GFP_NORETRY) is fail, we can adjust
->> RA window size or turn off a while. The point is that we can use the
->> fail of __do_page_cache_readahead as sign of memory pressure.
->> Wu, What do you think?
+On Mon, May 16, 2011 at 12:59 AM, Andrew Lutomirski <luto@mit.edu> wrote:
+> I have no clue, but this patch (from Minchan, whitespace-damaged) seems t=
+o help:
 >
-> No, disabling readahead can hardly help.
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index f6b435c..4d24828 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2251,6 +2251,10 @@ static bool sleeping_prematurely(pg_data_t
+> *pgdat, int order, long remaining,
+> =C2=A0 =C2=A0 =C2=A0 unsigned long balanced =3D 0;
+> =C2=A0 =C2=A0 =C2=A0 bool all_zones_ok =3D true;
+>
+> + =C2=A0 =C2=A0 =C2=A0 /* If kswapd has been running too long, just sleep=
+ */
+> + =C2=A0 =C2=A0 =C2=A0 if (need_resched())
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return false;
+> +
+> =C2=A0 =C2=A0 =C2=A0 /* If a direct reclaimer woke kswapd within HZ/10, i=
+t's premature */
+> =C2=A0 =C2=A0 =C2=A0 if (remaining)
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return true;
+> @@ -2286,7 +2290,7 @@ static bool sleeping_prematurely(pg_data_t
+> *pgdat, int order, long remaining,
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0* must be balanced
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0*/
+> =C2=A0 =C2=A0 =C2=A0 if (order)
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return pgdat_balanced(=
+pgdat, balanced, classzone_idx);
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return !pgdat_balanced=
+(pgdat, balanced, classzone_idx);
+> =C2=A0 =C2=A0 =C2=A0 else
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return !all_zones_ok;
+> =C2=A0}
+>
+> I haven't tested it very thoroughly, but it's survived much longer
+> than an unpatched kernel probably would have under moderate use.
+>
+> I have no idea what the patch does :)
 
-I don't mean we have to disable RA.
-As I said, the point is that we can use __GFP_NORETRY alloc fail as
-_sign_ of memory pressure.
+The reason I sent this is that I think your problem is similar to
+recent Jame's one.
+https://lkml.org/lkml/2011/4/27/361
+
+What the patch does is [1] fix of "wrong pgdat_balanced return value"
+bug and [2] fix of "infinite kswapd bug of non-preemption kernel" on
+high-order page.
+
+About [1], kswapd have to sleep if zone balancing is completed but in
+1741c877[mm: kswapd: keep kswapd awake for high-order allocations
+until a percentage of the node is balanced], we made a mistake that
+returns wrong return.
+Then, although we complete zone balancing, kswapd doesn't sleep and
+calls balance_pgdat. In this case, balance_pgdat rerurns without any
+work and kswapd could repeat this work infinitely.
+
 
 >
-> The sequential readahead memory consumption can be estimated by
+> I'm happy to run any tests. =C2=A0I'm also planning to upgrade from 2GB t=
+o
+> 8GB RAM soon, which might change something.
 >
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A02 * (number of con=
-current read streams) * (readahead window size)
+> --Andy
 >
-> And you can double that when there are two level of readaheads.
->
-> Since there are hardly any concurrent read streams in Andy's case,
-> the readahead memory consumption will be ignorable.
->
-> Typically readahead thrashing will happen long before excessive
-> GFP_NORETRY failures, so the reasonable solutions are to
 
-If it is, RA thrashing could be better sign than failure of __GFP_NORETRY.
-If we can do it easily, I don't object it. :)
 
->
-> - shrink readahead window on readahead thrashing
-> =C2=A0(current readahead heuristic can somehow do this, and I have patche=
-s
-> =C2=A0to further improve it)
-
-Good to hear. :)
-I don't want RA steals high order page in memory pressure.
-My patch and shrinking RA window helps this case.
 
 --=20
 Kind regards,
