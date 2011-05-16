@@ -1,87 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 0C562900113
-	for <linux-mm@kvack.org>; Mon, 16 May 2011 16:26:37 -0400 (EDT)
-Message-Id: <20110516202635.172662310@linux.com>
-Date: Mon, 16 May 2011 15:26:29 -0500
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id EB9346B002F
+	for <linux-mm@kvack.org>; Mon, 16 May 2011 16:26:36 -0400 (EDT)
+Message-Id: <20110516202634.023102369@linux.com>
+Date: Mon, 16 May 2011 15:26:27 -0500
 From: Christoph Lameter <cl@linux.com>
-Subject: [slubllv5 24/25] slub: Remove gotos from __slab_free()
+Subject: [slubllv5 22/25] slub: pass kmem_cache_cpu pointer to get_partial()
 References: <20110516202605.274023469@linux.com>
-Content-Disposition: inline; filename=degotofy_slab_free
+Content-Disposition: inline; filename=push_c_into_get_partial
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Pekka Enberg <penberg@cs.helsinki.fi>
 Cc: David Rientjes <rientjes@google.com>, Eric Dumazet <eric.dumazet@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>
 
+Pass the kmem_cache_cpu pointer to get_partial(). That way
+we can avoid the this_cpu_write() statements.
+
 Signed-off-by: Christoph Lameter <cl@linux.com>
 
 
 ---
- mm/slub.c |   46 +++++++++++++++++++++++-----------------------
- 1 file changed, 23 insertions(+), 23 deletions(-)
+ mm/slub.c |   30 +++++++++++++++---------------
+ 1 file changed, 15 insertions(+), 15 deletions(-)
 
 Index: linux-2.6/mm/slub.c
 ===================================================================
---- linux-2.6.orig/mm/slub.c	2011-05-16 14:27:50.551451801 -0500
-+++ linux-2.6/mm/slub.c	2011-05-16 14:31:53.401451518 -0500
-@@ -2259,34 +2259,34 @@ static void __slab_free(struct kmem_cach
- 	if (was_frozen)
- 		stat(s, FREE_FROZEN);
- 	else {
--		if (unlikely(!inuse && n->nr_partial > s->min_partial))
--                        goto slab_empty;
-+		if (unlikely(inuse || n->nr_partial <= s->min_partial)) {
-+			/*
-+			 * Objects left in the slab. If it was not on the partial list before
-+			 * then add it.
-+			 */
-+			if (unlikely(!prior)) {
-+				remove_full(s, page);
-+				add_partial(n, page, 0);
-+				stat(s, FREE_ADD_PARTIAL);
-+			}
-+		} else {
-+			/* Empty slab */
-+			if (prior) {
-+				/*
-+				 * Slab still on the partial list.
-+				 */
-+				remove_partial(n, page);
-+				stat(s, FREE_REMOVE_PARTIAL);
-+			}
+--- linux-2.6.orig/mm/slub.c	2011-05-16 12:52:41.421458455 -0500
++++ linux-2.6/mm/slub.c	2011-05-16 12:52:45.161458452 -0500
+@@ -1437,7 +1437,8 @@ static inline void remove_partial(struct
+  * Must hold list_lock.
+  */
+ static inline int acquire_slab(struct kmem_cache *s,
+-		struct kmem_cache_node *n, struct page *page)
++		struct kmem_cache_node *n, struct page *page,
++		struct kmem_cache_cpu *c)
+ {
+ 	void *freelist;
+ 	unsigned long counters;
+@@ -1466,9 +1467,9 @@ static inline int acquire_slab(struct km
  
--		/*
--		 * Objects left in the slab. If it was not on the partial list before
--		 * then add it.
--		 */
--		if (unlikely(!prior)) {
--			remove_full(s, page);
--			add_partial(n, page, 0);
--			stat(s, FREE_ADD_PARTIAL);
-+			spin_unlock_irqrestore(&n->list_lock, flags);
-+			stat(s, FREE_SLAB);
-+			discard_slab(s, page);
-+			return;
- 		}
- 	}
- 	spin_unlock_irqrestore(&n->list_lock, flags);
- 	return;
--
--slab_empty:
--	if (prior) {
--		/*
--		 * Slab still on the partial list.
--		 */
--		remove_partial(n, page);
--		stat(s, FREE_REMOVE_PARTIAL);
--	}
--
--	spin_unlock_irqrestore(&n->list_lock, flags);
--	stat(s, FREE_SLAB);
--	discard_slab(s, page);
+ 	if (freelist) {
+ 		/* Populate the per cpu freelist */
+-		this_cpu_write(s->cpu_slab->freelist, freelist);
+-		this_cpu_write(s->cpu_slab->page, page);
+-		this_cpu_write(s->cpu_slab->node, page_to_nid(page));
++		c->freelist = freelist;
++		c->page = page;
++		c->node = page_to_nid(page);
+ 		return 1;
+ 	} else {
+ 		/*
+@@ -1486,7 +1487,7 @@ static inline int acquire_slab(struct km
+  * Try to allocate a partial slab from a specific node.
+  */
+ static struct page *get_partial_node(struct kmem_cache *s,
+-					struct kmem_cache_node *n)
++		struct kmem_cache_node *n, struct kmem_cache_cpu *c)
+ {
+ 	struct page *page;
+ 
+@@ -1501,7 +1502,7 @@ static struct page *get_partial_node(str
+ 
+ 	spin_lock(&n->list_lock);
+ 	list_for_each_entry(page, &n->partial, lru)
+-		if (acquire_slab(s, n, page))
++		if (acquire_slab(s, n, page, c))
+ 			goto out;
+ 	page = NULL;
+ out:
+@@ -1512,7 +1513,8 @@ out:
+ /*
+  * Get a page from somewhere. Search in increasing NUMA distances.
+  */
+-static struct page *get_any_partial(struct kmem_cache *s, gfp_t flags)
++static struct page *get_any_partial(struct kmem_cache *s, gfp_t flags,
++		struct kmem_cache_cpu *c)
+ {
+ #ifdef CONFIG_NUMA
+ 	struct zonelist *zonelist;
+@@ -1552,7 +1554,7 @@ static struct page *get_any_partial(stru
+ 
+ 		if (n && cpuset_zone_allowed_hardwall(zone, flags) &&
+ 				n->nr_partial > s->min_partial) {
+-			page = get_partial_node(s, n);
++			page = get_partial_node(s, n, c);
+ 			if (page) {
+ 				put_mems_allowed();
+ 				return page;
+@@ -1567,16 +1569,17 @@ static struct page *get_any_partial(stru
+ /*
+  * Get a partial page, lock it and return it.
+  */
+-static struct page *get_partial(struct kmem_cache *s, gfp_t flags, int node)
++static struct page *get_partial(struct kmem_cache *s, gfp_t flags, int node,
++		struct kmem_cache_cpu *c)
+ {
+ 	struct page *page;
+ 	int searchnode = (node == NUMA_NO_NODE) ? numa_node_id() : node;
+ 
+-	page = get_partial_node(s, get_node(s, searchnode));
++	page = get_partial_node(s, get_node(s, searchnode), c);
+ 	if (page || node != NUMA_NO_NODE)
+ 		return page;
+ 
+-	return get_any_partial(s, flags);
++	return get_any_partial(s, flags, c);
  }
  
+ #ifdef CONFIG_PREEMPT
+@@ -1645,9 +1648,6 @@ void init_kmem_cache_cpus(struct kmem_ca
+ 	for_each_possible_cpu(cpu)
+ 		per_cpu_ptr(s->cpu_slab, cpu)->tid = init_tid(cpu);
+ }
+-/*
+- * Remove the cpu slab
+- */
+ 
  /*
+  * Remove the cpu slab
+@@ -1999,7 +1999,7 @@ load_freelist:
+ 	return object;
+ 
+ new_slab:
+-	page = get_partial(s, gfpflags, node);
++	page = get_partial(s, gfpflags, node, c);
+ 	if (page) {
+ 		stat(s, ALLOC_FROM_PARTIAL);
+ 		object = c->freelist;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
