@@ -1,73 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id D1284900116
-	for <linux-mm@kvack.org>; Mon, 16 May 2011 16:26:31 -0400 (EDT)
-Message-Id: <20110516202629.279893737@linux.com>
-Date: Mon, 16 May 2011 15:26:19 -0500
+	by kanga.kvack.org (Postfix) with SMTP id 32A44900113
+	for <linux-mm@kvack.org>; Mon, 16 May 2011 16:26:30 -0400 (EDT)
+Message-Id: <20110516202627.545322180@linux.com>
+Date: Mon, 16 May 2011 15:26:16 -0500
 From: Christoph Lameter <cl@linux.com>
-Subject: [slubllv5 14/25] slub: Disable interrupts in free_debug processing
+Subject: [slubllv5 11/25] slub: Pass kmem_cache struct to lock and freeze slab
 References: <20110516202605.274023469@linux.com>
-Content-Disposition: inline; filename=irqoff_in_free_debug_processing
+Content-Disposition: inline; filename=pass_kmem_cache_to_lock_and_freeze
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Pekka Enberg <penberg@cs.helsinki.fi>
 Cc: David Rientjes <rientjes@google.com>, Eric Dumazet <eric.dumazet@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>
 
-We will be calling free_debug_processing with interrupts disabled
-in some case when the later patches are applied. Some of the
-functions called by free_debug_processing expect interrupts to be
-off.
+We need more information about the slab for the cmpxchg implementation.
 
 Signed-off-by: Christoph Lameter <cl@linux.com>
 
-
 ---
- mm/slub.c |   14 ++++++++++----
- 1 file changed, 10 insertions(+), 4 deletions(-)
+ mm/slub.c |   13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)
 
 Index: linux-2.6/mm/slub.c
 ===================================================================
---- linux-2.6.orig/mm/slub.c	2011-05-12 16:19:44.000000000 -0500
-+++ linux-2.6/mm/slub.c	2011-05-12 16:19:56.000000000 -0500
-@@ -1035,6 +1035,10 @@ bad:
- static noinline int free_debug_processing(struct kmem_cache *s,
- 		 struct page *page, void *object, unsigned long addr)
+--- linux-2.6.orig/mm/slub.c	2011-05-16 11:46:58.311463052 -0500
++++ linux-2.6/mm/slub.c	2011-05-16 11:47:01.591463049 -0500
+@@ -1444,8 +1444,8 @@ static inline void remove_partial(struct
+  *
+  * Must hold list_lock.
+  */
+-static inline int lock_and_freeze_slab(struct kmem_cache_node *n,
+-							struct page *page)
++static inline int lock_and_freeze_slab(struct kmem_cache *s,
++		struct kmem_cache_node *n, struct page *page)
  {
-+	unsigned long flags;
-+	int rc = 0;
-+
-+	local_irq_save(flags);
- 	slab_lock(page);
+ 	if (slab_trylock(page)) {
+ 		remove_partial(n, page);
+@@ -1457,7 +1457,8 @@ static inline int lock_and_freeze_slab(s
+ /*
+  * Try to allocate a partial slab from a specific node.
+  */
+-static struct page *get_partial_node(struct kmem_cache_node *n)
++static struct page *get_partial_node(struct kmem_cache *s,
++					struct kmem_cache_node *n)
+ {
+ 	struct page *page;
  
- 	if (!check_slab(s, page))
-@@ -1051,7 +1055,7 @@ static noinline int free_debug_processin
- 	}
+@@ -1472,7 +1473,7 @@ static struct page *get_partial_node(str
  
- 	if (!check_object(s, page, object, SLUB_RED_ACTIVE))
--		return 0;
-+		goto out;
+ 	spin_lock(&n->list_lock);
+ 	list_for_each_entry(page, &n->partial, lru)
+-		if (lock_and_freeze_slab(n, page))
++		if (lock_and_freeze_slab(s, n, page))
+ 			goto out;
+ 	page = NULL;
+ out:
+@@ -1523,7 +1524,7 @@ static struct page *get_any_partial(stru
  
- 	if (unlikely(s != page->slab)) {
- 		if (!PageSlab(page)) {
-@@ -1072,13 +1076,15 @@ static noinline int free_debug_processin
- 		set_track(s, object, TRACK_FREE, addr);
- 	trace(s, page, object, 0);
- 	init_object(s, object, SLUB_RED_INACTIVE);
-+	rc = 1;
-+out:
- 	slab_unlock(page);
--	return 1;
-+	local_irq_restore(flags);
-+	return rc;
+ 		if (n && cpuset_zone_allowed_hardwall(zone, flags) &&
+ 				n->nr_partial > s->min_partial) {
+-			page = get_partial_node(n);
++			page = get_partial_node(s, n);
+ 			if (page) {
+ 				put_mems_allowed();
+ 				return page;
+@@ -1543,7 +1544,7 @@ static struct page *get_partial(struct k
+ 	struct page *page;
+ 	int searchnode = (node == NUMA_NO_NODE) ? numa_node_id() : node;
  
- fail:
- 	slab_fix(s, "Object at 0x%p not freed", object);
--	slab_unlock(page);
--	return 0;
-+	goto out;
- }
+-	page = get_partial_node(get_node(s, searchnode));
++	page = get_partial_node(s, get_node(s, searchnode));
+ 	if (page || node != NUMA_NO_NODE)
+ 		return page;
  
- static int __init setup_slub_debug(char *str)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
