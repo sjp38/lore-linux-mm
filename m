@@ -1,60 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 49CA86B0012
-	for <linux-mm@kvack.org>; Mon, 16 May 2011 02:29:52 -0400 (EDT)
-Date: Mon, 16 May 2011 08:29:30 +0200
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id EB7626B0023
+	for <linux-mm@kvack.org>; Mon, 16 May 2011 02:52:36 -0400 (EDT)
+Date: Mon, 16 May 2011 08:52:20 +0200
 From: Ingo Molnar <mingo@elte.hu>
 Subject: Re: Possible sandybridge livelock issue
-Message-ID: <20110516062930.GA24836@elte.hu>
+Message-ID: <20110516065220.GB24836@elte.hu>
 References: <1305303156.2611.51.camel@mulgrave.site>
+ <m262pezhfe.fsf@firstfloor.org>
+ <alpine.DEB.2.00.1105131207020.24193@router.home>
+ <m21v02zch9.fsf@firstfloor.org>
+ <1305312552.2611.66.camel@mulgrave.site>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1305303156.2611.51.camel@mulgrave.site>
+In-Reply-To: <1305312552.2611.66.camel@mulgrave.site>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: James Bottomley <James.Bottomley@HansenPartnership.com>
-Cc: x86@kernel.org, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Galbraith <efault@gmx.de>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>
+Cc: Andi Kleen <andi@firstfloor.org>, Christoph Lameter <cl@linux.com>, x86@kernel.org, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
 
 * James Bottomley <James.Bottomley@HansenPartnership.com> wrote:
 
-> We've just come off a large round of debugging a kswapd problem over on
-> linux-mm:
+> > Can you figure out better what the kswapd is doing?
 > 
-> http://marc.info/?t=130392066000001
+> We have ... it was the thread in the first email.  We don't need a fix for 
+> the kswapd issue, what we're warning about is a potential sandybridge 
+> problem.
 > 
-> The upshot was that kswapd wasn't being allowed to sleep (which we're
-> now fixing).  However, in spite of intensive efforts, the actual hang
-> was only reproducible on sandybridge laptops.
+> The facts are that only sandybridge systems livelocked in the kswapd problem 
+> ... no other systems could reproduce it, although they did see heavy CPU time 
+> accumulate to kswapd.  And this is with a gang of mm people trying to 
+> reproduce the problem on non-sandybridge systems.
 > 
-> When the hang occurred, kswapd basically pegged one core in 100% system
-> time.  This looks like there's something specific to sandybridge that
-> causes this type of bad interaction.  I was wondering if it could be
-> something to to with a scheduling problem in turbo mode?  Once kswapd
-> goes flat out, the core its on will kick into turbo mode, which causes
-> it to get preferentially scheduled there, leading to the live lock.
+> On the sandybridge systems that livelocked, it was sometimes possible to 
+> release the lock by pushing kswapd off the cpu it was hogging.
 
-There's no explicit 'schedule Sandybridge differently' logic in the scheduler.
+It's not uncommon at all to see certain races (or even livelocks) only with the 
+latest and greatest CPUs.
 
-Thus turbo mode can only affect scheduling by executing code faster. Executing 
-faster *does* mean more scheduling on that CPU: it's faster to do work so it's 
-faster back to idle again.
+I have a first-gen CPU system that when i got it a couple of years ago 
+triggered like a dozen Linux kernel races and bugs possible theoretically on 
+all other CPUs but not reported on any other Linux system up to that point, 
+*ever* - and some of those bugs were many years old.
 
-I.e. i can see Sandybridge being special only due to timing and performance 
-differences.
+> If you think the theory about why this happend to be wrong, fine ... come up 
+> with another one.  The facts are as above and only sandybridge systems seem 
+> to be affected.
 
-> The only evidence I have to support this theory is that when I reproduce the 
-> problem with PREEMPT, the core pegs at 100% system time and stays there even 
-> if I turn off the load.  However, if I can execute work that causes kswapd to 
-> be kicked off the core it's running on, it will calm back down and go to 
-> sleep.
+I can see at least four other plausible hypotheses, all matching the facts as 
+you laid them out:
 
-At first sight this looks like some sort of kswapd problem: if you put kswapd 
-into TASK_*INTERRUPTIBLE and schedule() it then the scheduler won't keep it 
-running, on Sandybridge or elsewhere. The scheduler can't magically make kswapd 
-runnable unless there's some big bug in it. So you first need to examine why 
-kswapd never schedules to idle.
+ - i could be a bug/race in the kswapd code.
+
+ - it could be that the race window needs a certain level of instruction 
+   parallelism - which occurs with a higher likelyhood on Sandybridge.
+
+ - it could be that Sandybridge CPUs keep dirty cachelines owned a bit longer 
+   than other CPUs, making an existing livelock bug in the kernel code easier 
+   to trigger.
+
+ - a hardware bug: if cacheline ownership is not arbitrated between 
+   nodes/cpus/cores fairly (enough) and a specific CPU can monopolize a 
+   cacheline for a very long time if only it keeps modifying it in an 
+   aggressive enough kswapd loop.
+
+Note, since each of these hypotheses has a specific non-zero chance of being 
+the objective truth, your hypothesis might in the end turn out to be the right 
+one and might turn into a proven scientific theory: CPU and scheduler bugs do 
+happen after all.
+
+The other hypotheses i outlined have non-zero chances as well: kswapd bugs do 
+happen as well and various CPU timing differences do tend to occur as well.
+
+But above you seem to be confused about how supporting facts and hypotheses 
+relate to each other: you seemed to imply that because your facts support your 
+hypothesis the ball is somehow on the other side. As things stand now we 
+clearly need more facts, to exclude more of the many possibilities.
+
+So i wanted to clear up these basics of science first, before any of us wastes 
+too much time on writing mails and such. Oh ... never mind ;-)
 
 Thanks,
 
