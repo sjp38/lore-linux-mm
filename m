@@ -1,75 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id BF6C96B0023
-	for <linux-mm@kvack.org>; Mon, 16 May 2011 15:31:54 -0400 (EDT)
-From: OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>
-Subject: Re: [PATCHSET v3.1 0/7] data integrity: Stabilize pages during writeback for various fses
-References: <87tyd31fkc.fsf@devron.myhome.or.jp>
-	<20110510123819.GB4402@quack.suse.cz>
-	<87hb924s2x.fsf@devron.myhome.or.jp>
-	<20110510132953.GE4402@quack.suse.cz>
-	<878vue4qjb.fsf@devron.myhome.or.jp>
-	<87zkmu3b2i.fsf@devron.myhome.or.jp>
-	<20110510145421.GJ4402@quack.suse.cz>
-	<87zkmupmaq.fsf@devron.myhome.or.jp>
-	<20110510162237.GM4402@quack.suse.cz>
-	<87vcxipljj.fsf@devron.myhome.or.jp>
-	<20110516184736.GL20579@tux1.beaverton.ibm.com>
-Date: Tue, 17 May 2011 04:31:37 +0900
-In-Reply-To: <20110516184736.GL20579@tux1.beaverton.ibm.com> (Darrick
-	J. Wong's message of "Mon, 16 May 2011 11:47:36 -0700")
-Message-ID: <87oc3230iu.fsf@devron.myhome.or.jp>
-MIME-Version: 1.0
-Content-Type: text/plain
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 3138E6B0024
+	for <linux-mm@kvack.org>; Mon, 16 May 2011 16:26:24 -0400 (EDT)
+Message-Id: <20110516202605.274023469@linux.com>
+Date: Mon, 16 May 2011 15:26:05 -0500
+From: Christoph Lameter <cl@linux.com>
+Subject: [slubllv5 00/25] SLUB: Lockless freelists for objects V5
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: djwong@us.ibm.com
-Cc: Jan Kara <jack@suse.cz>, Theodore Tso <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Jens Axboe <axboe@kernel.dk>, "Martin K. Petersen" <martin.petersen@oracle.com>, Jeff Layton <jlayton@redhat.com>, Dave Chinner <david@fromorbit.com>, linux-kernel <linux-kernel@vger.kernel.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, Chris Mason <chris.mason@oracle.com>, Joel Becker <jlbec@evilplan.org>, linux-scsi <linux-scsi@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-ext4@vger.kernel.org, Mingming Cao <mcao@us.ibm.com>
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: David Rientjes <rientjes@google.com>, Eric Dumazet <eric.dumazet@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>
 
-"Darrick J. Wong" <djwong@us.ibm.com> writes:
+V4->V5	- More cleanup. Remove gotos from __slab_alloc and __slab_free
+	- Some structural changes to alloc and free to clean up the code
+	- Statistics modifications folded in other patches.
+	- Fixes to patches already in Pekka's slabnext.
+	- Include missing upstream fixes
 
->> OK. E.g. usual workload on desktop, but FS like ext2/fat.
->
-> In the frequent rewrite case, here's what you get:
->
-> Regular disk: (possibly garbage) write, followed by a second write to make the
-> disk reflect memory contents.
->
-> RAID w/ shadow pages: two writes, both consistent.  Higher memory consumption.
->
-> T10 DIF disk: disk error any time the CPU modifies a page that the disk
-> controller is DMA'ing out of memory.  I suppose one could simply retry the
-> operation if the page is dirty, but supposing memory writes are happening fast
-> enough that the retries also produce disk errors, _nothing_ ever gets written.
->
-> With the new stable-page-writes patchset, the garbage write/disk error symptoms
-> go away since the processes block instead of creating this window where it's
-> not clear whether the disk's copy of the data is consistent.  I could turn the
-> wait_on_page_writeback calls into some sort of page migration if the
-> performance turns out to be terrible, though I'm still working on quantifying
-> the impact.  Some people pointed out that sqlite tends to write the same blocks
-> frequently, though I wonder if sqlite actually tries to write memory pages
-> while syncing them?
->
-> One use case where I could see a serious performance hit happening is the case
-> where some app writes a bunch of memory pages, calls sync to force the dirty
-> pages to disk, and /must/ resume writing those memory pages before the sync
-> completes.  The page migration would of course help there, provided a memory
-> page can be found in less time than an I/O operation.
->
-> Someone commented on the LWN article about this topic, claiming that he had a
-> program that couldn't afford to block on writes to mlock()'d memory.  I'm not
-> sure how to fix that program, because if memory writes never coordinate with
-> disk writes and the other threads are always writing memory, I wonder how the
-> copy on disk isn't always indeterminate.
+V3->V4	- Diffed against Pekka's slab/next tree.
+	- Numerous cleanups in particular as a result of the removal of the
+	  #ifdef CMPXCHG_LOCAL stuff.
+	- Smaller cleanups whereever I saw something.
 
-I'm not thinking data page is special operation for doing this (at least
-logically). In other word, if you are talking about only data page, you
-shouldn't send patches for metadata with it.
+V2->V3
+	- Provide statistics
+	- Fallback logic to page lock if cmpxchg16b is not available.
+	- Better counter support
+	- More cleanups and clarifications
 
-Thanks.
--- 
-OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>
+Well here is another result of my obsession with SLAB allocators. There must be
+some way to get an allocator done that is faster without queueing and I hope
+that we are now there (maybe only almost...). Any help with cleaning up the
+rough edges would be appreciated.
+
+This patchset implement wider lockless operations in slub affecting most of the
+slowpaths. In particular the patch decreases the overhead in the performance
+critical section of __slab_free.
+
+One test that I ran was "hackbench 200 process 200" on 2.6.29-rc3 under KVM
+
+Run	SLAB	SLUB	SLUB LL
+1st	35.2	35.9	31.9
+2nd	34.6	30.8	27.9
+3rd	33.8	29.9	28.8
+
+Note that the SLUB version in 2.6.29-rc1 already has an optimized allocation
+and free path using this_cpu_cmpxchg_double(). SLUB LL takes it to new heights
+by also using cmpxchg_double() in the slowpaths (especially in the kfree()
+case where we frequently cannot use the fastpath because there is no queue).
+
+The patch uses a cmpxchg_double (also introduced here) to do an atomic change
+on the state of a slab page that includes the following pieces of information:
+
+1. Freelist pointer
+2. Number of objects inuse
+3. Frozen state of a slab
+
+Disabling of interrupts (which is a significant latency in the
+allocator paths) is avoided in the __slab_free case.
+
+There are some concerns with this patch. The use of cmpxchg_double on
+fields of the page struct requires alignment of the fields to double
+word boundaries. That can only be accomplished by adding some padding
+to struct page which blows it up to 64 byte (on x86_64). Comments
+in the source describe these things in more detail.
+
+The cmpxchg_double() operation introduced here could also be used to
+update other doublewords in the page struct in a lockless fashion. One
+can envision page state changes that involved flags and mappings or
+maybe do list operations locklessly (but with the current scheme we
+would need to update two other words elsewhere at the same time too,
+so another scheme would be needed).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
