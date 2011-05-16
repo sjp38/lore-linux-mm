@@ -1,100 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id E9F796B0025
-	for <linux-mm@kvack.org>; Mon, 16 May 2011 04:46:03 -0400 (EDT)
-Date: Mon, 16 May 2011 09:45:58 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 4/4] mm: vmscan: If kswapd has been running too long,
- allow it to sleep
-Message-ID: <20110516084558.GE5279@suse.de>
-References: <1305295404-12129-1-git-send-email-mgorman@suse.de>
- <1305295404-12129-5-git-send-email-mgorman@suse.de>
- <4DCFAA80.7040109@jp.fujitsu.com>
- <1305519711.4806.7.camel@mulgrave.site>
- <BANLkTi=oe4Ties6awwhHFPf42EXCn2U4MQ@mail.gmail.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 718166B0026
+	for <linux-mm@kvack.org>; Mon, 16 May 2011 04:51:27 -0400 (EDT)
+Date: Mon, 16 May 2011 09:51:17 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: Kernel falls apart under light memory pressure (i.e. linking
+ vmlinux)
+Message-ID: <20110516085117.GA4743@csn.ul.ie>
+References: <20110512054631.GI6008@one.firstfloor.org>
+ <BANLkTi=fk3DUT9cYd2gAzC98c69F6HXX7g@mail.gmail.com>
+ <BANLkTikofp5rHRdW5dXfqJXb8VCAqPQ_7A@mail.gmail.com>
+ <20110514165346.GV6008@one.firstfloor.org>
+ <BANLkTik6SS9NH7XVSRBoCR16_5veY0MKBw@mail.gmail.com>
+ <20110514174333.GW6008@one.firstfloor.org>
+ <BANLkTinst+Ryox9VZ-s7gdXKa574XXqt5w@mail.gmail.com>
+ <20110515152747.GA25905@localhost>
+ <BANLkTinYGwRa_7uGzbYq+pW3T7jL-nQ7sA@mail.gmail.com>
+ <BANLkTinEC1uhZRXjjn1PzENNs7KtGcoQow@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <BANLkTi=oe4Ties6awwhHFPf42EXCn2U4MQ@mail.gmail.com>
+In-Reply-To: <BANLkTinEC1uhZRXjjn1PzENNs7KtGcoQow@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Minchan Kim <minchan.kim@gmail.com>
-Cc: James Bottomley <James.Bottomley@hansenpartnership.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, akpm@linux-foundation.org, colin.king@canonical.com, raghu.prabhu13@gmail.com, jack@suse.cz, chris.mason@oracle.com, cl@linux.com, penberg@kernel.org, riel@redhat.com, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-ext4@vger.kernel.org
+Cc: Andrew Lutomirski <luto@mit.edu>, Wu Fengguang <fengguang.wu@intel.com>, Andi Kleen <andi@firstfloor.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, James Bottomley <James.Bottomley@hansenpartnership.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Mon, May 16, 2011 at 02:04:00PM +0900, Minchan Kim wrote:
-> On Mon, May 16, 2011 at 1:21 PM, James Bottomley
-> <James.Bottomley@hansenpartnership.com> wrote:
-> > On Sun, 2011-05-15 at 19:27 +0900, KOSAKI Motohiro wrote:
-> >> (2011/05/13 23:03), Mel Gorman wrote:
-> >> > Under constant allocation pressure, kswapd can be in the situation where
-> >> > sleeping_prematurely() will always return true even if kswapd has been
-> >> > running a long time. Check if kswapd needs to be scheduled.
-> >> >
-> >> > Signed-off-by: Mel Gorman<mgorman@suse.de>
-> >> > ---
-> >> >   mm/vmscan.c |    4 ++++
-> >> >   1 files changed, 4 insertions(+), 0 deletions(-)
-> >> >
-> >> > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> >> > index af24d1e..4d24828 100644
-> >> > --- a/mm/vmscan.c
-> >> > +++ b/mm/vmscan.c
-> >> > @@ -2251,6 +2251,10 @@ static bool sleeping_prematurely(pg_data_t *pgdat, int order, long remaining,
-> >> >     unsigned long balanced = 0;
-> >> >     bool all_zones_ok = true;
-> >> >
-> >> > +   /* If kswapd has been running too long, just sleep */
-> >> > +   if (need_resched())
-> >> > +           return false;
-> >> > +
-> >>
-> >> Hmm... I don't like this patch so much. because this code does
-> >>
-> >> - don't sleep if kswapd got context switch at shrink_inactive_list
+On Mon, May 16, 2011 at 07:58:01AM +0900, Minchan Kim wrote:
+> On Mon, May 16, 2011 at 12:59 AM, Andrew Lutomirski <luto@mit.edu> wrote:
+> > I have no clue, but this patch (from Minchan, whitespace-damaged) seems to help:
 > >
-> > This isn't entirely true:  need_resched() will be false, so we'll follow
-> > the normal path for determining whether to sleep or not, in effect
-> > leaving the current behaviour unchanged.
+> > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > index f6b435c..4d24828 100644
+> > --- a/mm/vmscan.c
+> > +++ b/mm/vmscan.c
+> > @@ -2251,6 +2251,10 @@ static bool sleeping_prematurely(pg_data_t
+> > *pgdat, int order, long remaining,
+> >       unsigned long balanced = 0;
+> >       bool all_zones_ok = true;
 > >
-> >> - sleep if kswapd didn't
+> > +       /* If kswapd has been running too long, just sleep */
+> > +       if (need_resched())
+> > +               return false;
+> > +
+> >       /* If a direct reclaimer woke kswapd within HZ/10, it's premature */
+> >       if (remaining)
+> >               return true;
+> > @@ -2286,7 +2290,7 @@ static bool sleeping_prematurely(pg_data_t
+> > *pgdat, int order, long remaining,
+> >        * must be balanced
+> >        */
+> >       if (order)
+> > -               return pgdat_balanced(pgdat, balanced, classzone_idx);
+> > +               return !pgdat_balanced(pgdat, balanced, classzone_idx);
+> >       else
+> >               return !all_zones_ok;
+> >  }
 > >
-> > This also isn't entirely true: whether need_resched() is true at this
-> > point depends on a whole lot more that whether we did a context switch
-> > in shrink_inactive. It mostly depends on how long we've been running
-> > without giving up the CPU.  Generally that will mean we've been round
-> > the shrinker loop hundreds to thousands of times without sleeping.
+> > I haven't tested it very thoroughly, but it's survived much longer
+> > than an unpatched kernel probably would have under moderate use.
 > >
-> >> It seems to be semi random behavior.
-> >
-> > Well, we have to do something.  Chris Mason first suspected the hang was
-> > a kswapd rescheduling problem a while ago.  We tried putting
-> > cond_rescheds() in several places in the vmscan code, but to no avail.
+> > I have no idea what the patch does :)
 > 
-> Is it a result of  test with patch of Hannes(ie, !pgdat_balanced)?
+> The reason I sent this is that I think your problem is similar to
+> recent Jame's one.
+> https://lkml.org/lkml/2011/4/27/361
 > 
-> If it isn't, it would be nop regardless of putting cond_reshed at vmscan.c.
-> Because, although we complete zone balancing, kswapd doesn't sleep as
-> pgdat_balance returns wrong result. And at last VM calls
-> balance_pgdat. In this case, balance_pgdat returns without any work as
-> kswap couldn't find zones which have not enough free pages and goto
-> out. kswapd could repeat this work infinitely. So you don't have a
-> chance to call cond_resched.
-> 
-> But if your test was with Hanne's patch, I am very curious how come
-> kswapd consumes CPU a lot.
-> 
-> > The need_resched() in sleeping_prematurely() seems to be about the best
-> > option.  The other option might be just to put a cond_resched() in
-> > kswapd_try_to_sleep(), but that will really have about the same effect.
-> 
-> I don't oppose it but before that, I think we have to know why kswapd
-> consumes CPU a lot although we applied Hannes' patch.
+> What the patch does is [1] fix of "wrong pgdat_balanced return value"
+> bug and [2] fix of "infinite kswapd bug of non-preemption kernel" on
+> high-order page.
 > 
 
-Because it's still possible for processes to allocate pages at the same
-rate kswapd is freeing them leading to a situation where kswapd does not
-consider the zone balanced for prolonged periods of time.
+If it turns out the patch works (which is patches 1 and 4 from the
+series related to James) for more than one tester, I'll push it
+separately and drop the SLUB changes.
 
 -- 
 Mel Gorman
