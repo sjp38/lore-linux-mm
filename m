@@ -1,43 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id BDD91900118
-	for <linux-mm@kvack.org>; Mon, 16 May 2011 16:46:13 -0400 (EDT)
-Received: from wpaz24.hot.corp.google.com (wpaz24.hot.corp.google.com [172.24.198.88])
-	by smtp-out.google.com with ESMTP id p4GKk94Y027464
-	for <linux-mm@kvack.org>; Mon, 16 May 2011 13:46:10 -0700
-Received: from pwi6 (pwi6.prod.google.com [10.241.219.6])
-	by wpaz24.hot.corp.google.com with ESMTP id p4GKjlGE012049
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 16 May 2011 13:46:08 -0700
-Received: by pwi6 with SMTP id 6so2864351pwi.4
-        for <linux-mm@kvack.org>; Mon, 16 May 2011 13:46:08 -0700 (PDT)
-Date: Mon, 16 May 2011 13:46:06 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: OOM Killer don't works at all if the system have >gigabytes
- memory (was Re: [PATCH] mm: check zone->all_unreclaimable in
- all_unreclaimable())
-In-Reply-To: <958295827.17529.1305269596598.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
-Message-ID: <alpine.DEB.2.00.1105161343120.4353@chino.kir.corp.google.com>
-References: <958295827.17529.1305269596598.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id D76A1900118
+	for <linux-mm@kvack.org>; Mon, 16 May 2011 16:56:32 -0400 (EDT)
+Received: from d03relay05.boulder.ibm.com (d03relay05.boulder.ibm.com [9.17.195.107])
+	by e36.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p4GKohV4006662
+	for <linux-mm@kvack.org>; Mon, 16 May 2011 14:50:43 -0600
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d03relay05.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p4GKtbmh259502
+	for <linux-mm@kvack.org>; Mon, 16 May 2011 14:56:18 -0600
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p4GEtZeU022691
+	for <linux-mm@kvack.org>; Mon, 16 May 2011 08:55:37 -0600
+Date: Mon, 16 May 2011 13:55:35 -0700
+From: "Darrick J. Wong" <djwong@us.ibm.com>
+Subject: Re: [PATCHSET v3.1 0/7] data integrity: Stabilize pages during
+	writeback for various fses
+Message-ID: <20110516205535.GP20579@tux1.beaverton.ibm.com>
+Reply-To: djwong@us.ibm.com
+References: <20110509230318.19566.66202.stgit@elm3c44.beaverton.ibm.com> <20110516190427.GN20579@tux1.beaverton.ibm.com> <20110516202710.GA32630@infradead.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110516202710.GA32630@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: CAI Qian <caiqian@redhat.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, avagin@gmail.com, Andrey Vagin <avagin@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan.kim@gmail.com>, Hugh Dickins <hughd@google.com>, Oleg Nesterov <oleg@redhat.com>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Theodore Tso <tytso@mit.edu>, Jan Kara <jack@suse.cz>, Alexander Viro <viro@zeniv.linux.org.uk>, OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>, Jens Axboe <axboe@kernel.dk>, "Martin K. Petersen" <martin.petersen@oracle.com>, Jeff Layton <jlayton@redhat.com>, Dave Chinner <david@fromorbit.com>, linux-kernel <linux-kernel@vger.kernel.org>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, Chris Mason <chris.mason@oracle.com>, Joel Becker <jlbec@evilplan.org>, linux-scsi <linux-scsi@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-ext4@vger.kernel.org, Mingming Cao <mcao@us.ibm.com>
 
-On Fri, 13 May 2011, CAI Qian wrote:
+On Mon, May 16, 2011 at 04:27:10PM -0400, Christoph Hellwig wrote:
+> Whay about just sending the VFS patches to Al
 
-> I have had a chance to test this patch after applied this patch manually
-> (dd not apply cleanly) on the top of mainline kernel. The test is still
-> running because it is trying to kill tons of python processes instread
-> of the parent. Isn't there a way for oom to be smart enough to do
-> "killall python"?
+Al was in the To: list of all 7 patches.
 
-Not without userspace doing that explicitly, the oom killer attempts to 
-only kill the most memory-hogging task to free memory.  If you're test is 
-constantly forking new processes which allocate memory then the oom killer 
-will just keep killing those children anytime it is out of memory.
+> instead of talking about it on a totally irrelevant call that doesn't include
+> the important stakeholders?  FS-specific patches can go through the fs
+> maintainers independently.
+
+The maintainers (ext4/ext2/vfat) were also in the To: list.
+
+Trouble is, MAINTAINERS says this:
+
+MEMORY MANAGEMENT
+L:      linux-mm@kvack.org
+W:      http://www.linux-mm.org
+S:      Maintained
+F:      include/linux/mm.h
+F:      mm/
+
+There's a list, but no specific contact person.  That's why I had to start
+asking around about who actually pushes mm changes to Linus.
+
+As for Al Viro, he's still listed as the VFS maintainer; isn't he resting?
+I guess he did nominate you for the holding off of morons (like me). :)
+
+--D
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
