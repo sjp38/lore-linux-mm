@@ -1,49 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 784666B0026
-	for <linux-mm@kvack.org>; Mon, 16 May 2011 19:15:55 -0400 (EDT)
-Date: Tue, 17 May 2011 01:15:12 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] memcg: fix typo in the soft_limit stats.
-Message-ID: <20110516231512.GW16531@cmpxchg.org>
-References: <1305583230-2111-1-git-send-email-yinghan@google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1305583230-2111-1-git-send-email-yinghan@google.com>
+	by kanga.kvack.org (Postfix) with SMTP id 2DB946B0022
+	for <linux-mm@kvack.org>; Mon, 16 May 2011 19:22:44 -0400 (EDT)
+Subject: Re: [PATCH 3/3] checkpatch.pl: Add check for task comm references
+From: Joe Perches <joe@perches.com>
+In-Reply-To: <op.vvlj1vad3l0zgt@mnazarewicz-glaptop>
+References: <1305580757-13175-1-git-send-email-john.stultz@linaro.org>
+	 <1305580757-13175-4-git-send-email-john.stultz@linaro.org>
+	 <op.vvlfaobx3l0zgt@mnazarewicz-glaptop>
+	 <alpine.DEB.2.00.1105161431550.4353@chino.kir.corp.google.com>
+	 <1305587090.2503.42.camel@Joe-Laptop>
+	 <op.vvlj1vad3l0zgt@mnazarewicz-glaptop>
+Content-Type: text/plain; charset="UTF-8"
+Date: Mon, 16 May 2011 16:22:41 -0700
+Message-ID: <1305588161.2503.46.camel@Joe-Laptop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>, linux-mm@kvack.org
+To: Michal Nazarewicz <mina86@mina86.com>
+Cc: David Rientjes <rientjes@google.com>, Andy Whitcroft <apw@canonical.com>, LKML <linux-kernel@vger.kernel.org>, John Stultz <john.stultz@linaro.org>, Ted Ts'o <tytso@mit.edu>, Jiri Slaby <jirislaby@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-On Mon, May 16, 2011 at 03:00:30PM -0700, Ying Han wrote:
-> This fixes the typo in the memory.stat including the following two
-> stats:
-> 
-> $ cat /dev/cgroup/memory/A/memory.stat
-> total_soft_steal 0
-> total_soft_scan 0
-> 
-> And change it to:
-> 
-> $ cat /dev/cgroup/memory/A/memory.stat
-> total_soft_kswapd_steal 0
-> total_soft_kswapd_scan 0
-> 
-> Signed-off-by: Ying Han <yinghan@google.com>
+On Tue, 2011-05-17 at 01:11 +0200, Michal Nazarewicz wrote:
+> On Tue, 17 May 2011 01:04:50 +0200, Joe Perches <joe@perches.com> wrote:
+> > On Mon, 2011-05-16 at 14:34 -0700, David Rientjes wrote:
+> >> On Mon, 16 May 2011, Michal Nazarewicz wrote:
+> >> > > Now that accessing current->comm needs to be protected,
+> >> > > +# check for current->comm usage
+> >> > > +		if ($line =~ /\b(?:current|task|tsk|t)\s*->\s*comm\b/) {
+> >> > Not a checkpatch.pl expert but as far as I'm concerned, that looks  
+> >> reasonable.
+> > You don't need (?: just (
+> Yep, it's a micro-optimisation though.
 
-I am currently proposing and working on a scheme that makes the soft
-limit not only a factor for global memory pressure, but for
-hierarchical reclaim in general, to prefer child memcgs during reclaim
-that are in excess of their soft limit.
+True, but it's not the common style in checkpatch.
+You could submit patches to add non-capture markers to other () uses.
 
-Because this means prioritizing memcgs over one another, rather than
-having explicit soft limit reclaim runs, there is no natural counter
-for pages reclaimed due to the soft limit anymore.
-
-Thus, for the patch that introduces this counter:
-
-Nacked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
