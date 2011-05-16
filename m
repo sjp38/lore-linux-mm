@@ -1,70 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 4BF4C90011A
-	for <linux-mm@kvack.org>; Mon, 16 May 2011 17:19:31 -0400 (EDT)
-Received: from d01relay01.pok.ibm.com (d01relay01.pok.ibm.com [9.56.227.233])
-	by e9.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p4GKo7a6023801
-	for <linux-mm@kvack.org>; Mon, 16 May 2011 16:50:07 -0400
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p4GLJTIP128500
-	for <linux-mm@kvack.org>; Mon, 16 May 2011 17:19:29 -0400
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p4GHJ8vM030188
-	for <linux-mm@kvack.org>; Mon, 16 May 2011 14:19:09 -0300
-From: John Stultz <john.stultz@linaro.org>
-Subject: [PATCH 3/3] checkpatch.pl: Add check for task comm references
-Date: Mon, 16 May 2011 14:19:17 -0700
-Message-Id: <1305580757-13175-4-git-send-email-john.stultz@linaro.org>
-In-Reply-To: <1305580757-13175-1-git-send-email-john.stultz@linaro.org>
-References: <1305580757-13175-1-git-send-email-john.stultz@linaro.org>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id F2E8F90011E
+	for <linux-mm@kvack.org>; Mon, 16 May 2011 17:23:18 -0400 (EDT)
+Received: from hpaq1.eem.corp.google.com (hpaq1.eem.corp.google.com [172.25.149.1])
+	by smtp-out.google.com with ESMTP id p4GLNGNe025260
+	for <linux-mm@kvack.org>; Mon, 16 May 2011 14:23:16 -0700
+Received: from pzk27 (pzk27.prod.google.com [10.243.19.155])
+	by hpaq1.eem.corp.google.com with ESMTP id p4GLMB5X030524
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 16 May 2011 14:23:14 -0700
+Received: by pzk27 with SMTP id 27so3009944pzk.13
+        for <linux-mm@kvack.org>; Mon, 16 May 2011 14:23:14 -0700 (PDT)
+Date: Mon, 16 May 2011 14:23:12 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 3/3] checkpatch.pl: Add check for current->comm
+ references
+In-Reply-To: <op.vve2a6hp3l0zgt@mnazarewicz-glaptop>
+Message-ID: <alpine.DEB.2.00.1105161422490.4353@chino.kir.corp.google.com>
+References: <1305241371-25276-1-git-send-email-john.stultz@linaro.org> <1305241371-25276-4-git-send-email-john.stultz@linaro.org> <4DCCD0C3.9090908@gmail.com> <op.vve2a6hp3l0zgt@mnazarewicz-glaptop>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: LKML <linux-kernel@vger.kernel.org>
-Cc: John Stultz <john.stultz@linaro.org>, Ted Ts'o <tytso@mit.edu>, Michal Nazarewicz <mina86@mina86.com>, Jiri Slaby <jirislaby@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Michal Nazarewicz <mina86@mina86.com>
+Cc: John Stultz <john.stultz@linaro.org>, Jiri Slaby <jirislaby@gmail.com>, LKML <linux-kernel@vger.kernel.org>, Ted Ts'o <tytso@mit.edu>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-Now that accessing current->comm needs to be protected,
-avoid new current->comm or other task->comm usage by adding
-a warning to checkpatch.pl.
+On Fri, 13 May 2011, Michal Nazarewicz wrote:
 
-Fair warning: I know zero perl, so this was written in the
-style of "monkey see, monkey do". It does appear to work
-in my testing though.
+> On Fri, 13 May 2011 08:33:39 +0200, Jiri Slaby wrote:
+> > This should be something like \b(current|task|tsk|t)->comm\b to catch
+> > also non-current comm accesses...
+> 
+> Or \b(?:current|task|tsk|t)\s*->\s*comm\b.
+> 
 
-Thanks to Jiri Slaby and Michal Nazarewicz for help improving
-the regex!
+Add 'p' to the mix :)
 
-Close review and feedback would be appreciated.
-
-CC: Ted Ts'o <tytso@mit.edu>
-CC: Michal Nazarewicz <mina86@mina86.com>
-CC: Jiri Slaby <jirislaby@gmail.com>
-CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-CC: David Rientjes <rientjes@google.com>
-CC: Dave Hansen <dave@linux.vnet.ibm.com>
-CC: Andrew Morton <akpm@linux-foundation.org>
-CC: linux-mm@kvack.org
-Signed-off-by: John Stultz <john.stultz@linaro.org>
----
- scripts/checkpatch.pl |    4 ++++
- 1 files changed, 4 insertions(+), 0 deletions(-)
-
-diff --git a/scripts/checkpatch.pl b/scripts/checkpatch.pl
-index d867081..3a713c2 100755
---- a/scripts/checkpatch.pl
-+++ b/scripts/checkpatch.pl
-@@ -2868,6 +2868,10 @@ sub process {
- 			WARN("usage of NR_CPUS is often wrong - consider using cpu_possible(), num_possible_cpus(), for_each_possible_cpu(), etc\n" . $herecurr);
- 		}
- 
-+# check for current->comm usage
-+		if ($line =~ /\b(?:current|task|tsk|t)\s*->\s*comm\b/) {
-+			WARN("comm access needs to be protected. Use get_task_comm, or printk's \%ptc formatting.\n" . $herecurr);
-+		}
- # check for %L{u,d,i} in strings
- 		my $string;
- 		while ($line =~ /(?:^|")([X\t]*)(?:"|$)/g) {
--- 
-1.7.3.2.146.gca209
+$ grep -r "struct task_struct \*p[; ]" * | wc -l
+119
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
