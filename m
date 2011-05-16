@@ -1,173 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id DBEBB6B0028
-	for <linux-mm@kvack.org>; Mon, 16 May 2011 16:26:27 -0400 (EDT)
-Message-Id: <20110516202625.197639928@linux.com>
-Date: Mon, 16 May 2011 15:26:12 -0500
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id AEEEF6B002B
+	for <linux-mm@kvack.org>; Mon, 16 May 2011 16:26:26 -0400 (EDT)
+Message-Id: <20110516202624.013950205@linux.com>
+Date: Mon, 16 May 2011 15:26:10 -0500
 From: Christoph Lameter <cl@linux.com>
-Subject: [slubllv5 07/25] x86: Add support for cmpxchg_double
+Subject: [slubllv5 05/25] slub: Do not use frozen page flag but a bit in the page counters
 References: <20110516202605.274023469@linux.com>
-Content-Disposition: inline; filename=cmpxchg_double_x86
+Content-Disposition: inline; filename=frozen_field
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Pekka Enberg <penberg@cs.helsinki.fi>
 Cc: David Rientjes <rientjes@google.com>, Eric Dumazet <eric.dumazet@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>
 
-A simple implementation that only supports the word size and does not
-have a fallback mode (would require a spinlock).
+Do not use a page flag for the frozen bit. It needs to be part
+of the state that is handled with cmpxchg_double(). So use a bit
+in the counter struct in the page struct for that purpose.
 
-And 32 and 64 bit support for cmpxchg_double. cmpxchg double uses
-the cmpxchg8b or cmpxchg16b instruction on x86 processors to compare
-and swap 2 machine words. This allows lockless algorithms to move more
-context information through critical sections.
-
-Set a flag CONFIG_CMPXCHG_DOUBLE to signal the support of that feature
-during kernel builds.
+Also all page start out as frozen pages so set the bit
+when the page is allocated.
 
 Signed-off-by: Christoph Lameter <cl@linux.com>
 
----
- arch/x86/Kconfig.cpu              |    3 ++
- arch/x86/include/asm/cmpxchg_32.h |   46 ++++++++++++++++++++++++++++++++++++++
- arch/x86/include/asm/cmpxchg_64.h |   45 +++++++++++++++++++++++++++++++++++++
- arch/x86/include/asm/cpufeature.h |    1 
- 4 files changed, 95 insertions(+)
 
-Index: linux-2.6/arch/x86/include/asm/cmpxchg_64.h
+---
+ include/linux/mm_types.h   |    5 +++--
+ include/linux/page-flags.h |    2 --
+ mm/slub.c                  |   12 ++++++------
+ 3 files changed, 9 insertions(+), 10 deletions(-)
+
+Index: linux-2.6/include/linux/mm_types.h
 ===================================================================
---- linux-2.6.orig/arch/x86/include/asm/cmpxchg_64.h	2011-05-16 11:40:36.421463498 -0500
-+++ linux-2.6/arch/x86/include/asm/cmpxchg_64.h	2011-05-16 11:46:34.781463079 -0500
-@@ -151,4 +151,49 @@ extern void __cmpxchg_wrong_size(void);
- 	cmpxchg_local((ptr), (o), (n));					\
- })
- 
-+#define cmpxchg16b(ptr, o1, o2, n1, n2)				\
-+({								\
-+	char __ret;						\
-+	__typeof__(o2) __junk;					\
-+	__typeof__(*(ptr)) __old1 = (o1);			\
-+	__typeof__(o2) __old2 = (o2);				\
-+	__typeof__(*(ptr)) __new1 = (n1);			\
-+	__typeof__(o2) __new2 = (n2);				\
-+	asm volatile(LOCK_PREFIX_HERE "lock; cmpxchg16b (%%rsi);setz %1" \
-+		       : "=d"(__junk), "=a"(__ret)		\
-+		       : "S"(ptr), "b"(__new1),	"c"(__new2),	\
-+		         "a"(__old1), "d"(__old2));		\
-+	__ret; })
-+
-+
-+#define cmpxchg16b_local(ptr, o1, o2, n1, n2)			\
-+({								\
-+	char __ret;						\
-+	__typeof__(o2) __junk;					\
-+	__typeof__(*(ptr)) __old1 = (o1);			\
-+	__typeof__(o2) __old2 = (o2);				\
-+	__typeof__(*(ptr)) __new1 = (n1);			\
-+	__typeof__(o2) __new2 = (n2);				\
-+	asm volatile("cmpxchg16b (%%rsi)\n\t\tsetz %1\n\t"	\
-+		       : "=d"(__junk)_, "=a"(__ret)		\
-+		       : "S"((ptr)), "b"(__new1), "c"(__new2),	\
-+ 		         "a"(__old1), "d"(__old2));		\
-+	__ret; })
-+
-+#define cmpxchg_double(ptr, o1, o2, n1, n2)				\
-+({									\
-+	BUILD_BUG_ON(sizeof(*(ptr)) != 8);				\
-+	VM_BUG_ON((unsigned long)(ptr) % 16);				\
-+	cmpxchg16b((ptr), (o1), (o2), (n1), (n2));			\
-+})
-+
-+#define cmpxchg_double_local(ptr, o1, o2, n1, n2)			\
-+({									\
-+	BUILD_BUG_ON(sizeof(*(ptr)) != 8);				\
-+	VM_BUG_ON((unsigned long)(ptr) % 16);				\
-+	cmpxchg16b_local((ptr), (o1), (o2), (n1), (n2));		\
-+})
-+
-+#define system_has_cmpxchg_double() cpu_has_cx16
-+
- #endif /* _ASM_X86_CMPXCHG_64_H */
-Index: linux-2.6/arch/x86/include/asm/cmpxchg_32.h
+--- linux-2.6.orig/include/linux/mm_types.h	2011-05-12 11:11:00.000000000 -0500
++++ linux-2.6/include/linux/mm_types.h	2011-05-12 15:36:09.000000000 -0500
+@@ -41,8 +41,9 @@ struct page {
+ 					 * & limit reverse map searches.
+ 					 */
+ 		struct {		/* SLUB */
+-			u16 inuse;
+-			u16 objects;
++			unsigned inuse:16;
++			unsigned objects:15;
++			unsigned frozen:1;
+ 		};
+ 	};
+ 	union {
+Index: linux-2.6/include/linux/page-flags.h
 ===================================================================
---- linux-2.6.orig/arch/x86/include/asm/cmpxchg_32.h	2011-05-16 11:40:36.431463498 -0500
-+++ linux-2.6/arch/x86/include/asm/cmpxchg_32.h	2011-05-16 11:46:34.781463079 -0500
-@@ -280,4 +280,50 @@ static inline unsigned long cmpxchg_386(
+--- linux-2.6.orig/include/linux/page-flags.h	2011-05-12 11:11:00.000000000 -0500
++++ linux-2.6/include/linux/page-flags.h	2011-05-12 15:36:09.000000000 -0500
+@@ -212,8 +212,6 @@ PAGEFLAG(SwapBacked, swapbacked) __CLEAR
  
- #endif
+ __PAGEFLAG(SlobFree, slob_free)
  
-+#define cmpxchg8b(ptr, o1, o2, n1, n2)				\
-+({								\
-+	char __ret;						\
-+	__typeof__(o2) __dummy;					\
-+	__typeof__(*(ptr)) __old1 = (o1);			\
-+	__typeof__(o2) __old2 = (o2);				\
-+	__typeof__(*(ptr)) __new1 = (n1);			\
-+	__typeof__(o2) __new2 = (n2);				\
-+	asm volatile(LOCK_PREFIX_HERE "lock; cmpxchg8b (%%esi); setz %1"\
-+		       : "d="(__dummy), "=a" (__ret) 		\
-+		       : "S" ((ptr)), "a" (__old1), "d"(__old2),	\
-+		         "b" (__new1), "c" (__new2)		\
-+		       : "memory");				\
-+	__ret; })
-+
-+
-+#define cmpxchg8b_local(ptr, o1, o2, n1, n2)			\
-+({								\
-+	char __ret;						\
-+	__typeof__(o2) __dummy;					\
-+	__typeof__(*(ptr)) __old1 = (o1);			\
-+	__typeof__(o2) __old2 = (o2);				\
-+	__typeof__(*(ptr)) __new1 = (n1);			\
-+	__typeof__(o2) __new2 = (n2);				\
-+	asm volatile("cmpxchg8b (%%esi); tsetz %1"		\
-+		       : "d="(__dummy), "=a"(__ret)		\
-+		       : "S" ((ptr)), "a" (__old), "d"(__old2),	\
-+		         "b" (__new1), "c" (__new2),		\
-+		       : "memory");				\
-+	__ret; })
-+
-+
-+#define cmpxchg_double(ptr, o1, o2, n1, n2)				\
-+({									\
-+	BUILD_BUG_ON(sizeof(*(ptr)) != 4);				\
-+	VM_BUG_ON((unsigned long)(ptr) % 8);				\
-+	cmpxchg8b((ptr), (o1), (o2), (n1), (n2));			\
-+})
-+
-+#define cmpxchg_double_local(ptr, o1, o2, n1, n2)			\
-+({									\
-+       BUILD_BUG_ON(sizeof(*(ptr)) != 4);				\
-+       VM_BUG_ON((unsigned long)(ptr) % 8);				\
-+       cmpxchg16b_local((ptr), (o1), (o2), (n1), (n2));			\
-+})
-+
- #endif /* _ASM_X86_CMPXCHG_32_H */
-Index: linux-2.6/arch/x86/Kconfig.cpu
+-__PAGEFLAG(SlubFrozen, slub_frozen)
+-
+ /*
+  * Private page markings that may be used by the filesystem that owns the page
+  * for its own purposes.
+Index: linux-2.6/mm/slub.c
 ===================================================================
---- linux-2.6.orig/arch/x86/Kconfig.cpu	2011-05-16 11:40:36.401463498 -0500
-+++ linux-2.6/arch/x86/Kconfig.cpu	2011-05-16 11:46:34.781463079 -0500
-@@ -308,6 +308,9 @@ config X86_CMPXCHG
- config CMPXCHG_LOCAL
- 	def_bool X86_64 || (X86_32 && !M386)
+--- linux-2.6.orig/mm/slub.c	2011-05-12 15:35:58.000000000 -0500
++++ linux-2.6/mm/slub.c	2011-05-12 15:36:29.000000000 -0500
+@@ -166,7 +166,7 @@ static inline int kmem_cache_debug(struc
  
-+config CMPXCHG_DOUBLE
-+	def_bool X86_64 || (X86_32 && !M386)
-+
- config X86_L1_CACHE_SHIFT
- 	int
- 	default "7" if MPENTIUM4 || MPSC
-Index: linux-2.6/arch/x86/include/asm/cpufeature.h
-===================================================================
---- linux-2.6.orig/arch/x86/include/asm/cpufeature.h	2011-05-16 11:40:36.411463498 -0500
-+++ linux-2.6/arch/x86/include/asm/cpufeature.h	2011-05-16 11:46:34.801463079 -0500
-@@ -286,6 +286,7 @@ extern const char * const x86_power_flag
- #define cpu_has_hypervisor	boot_cpu_has(X86_FEATURE_HYPERVISOR)
- #define cpu_has_pclmulqdq	boot_cpu_has(X86_FEATURE_PCLMULQDQ)
- #define cpu_has_perfctr_core	boot_cpu_has(X86_FEATURE_PERFCTR_CORE)
-+#define cpu_has_cx16		boot_cpu_has(X86_FEATURE_CX16)
+ #define OO_SHIFT	16
+ #define OO_MASK		((1 << OO_SHIFT) - 1)
+-#define MAX_OBJS_PER_PAGE	65535 /* since page.objects is u16 */
++#define MAX_OBJS_PER_PAGE	32767 /* since page.objects is u15 */
  
- #if defined(CONFIG_X86_INVLPG) || defined(CONFIG_X86_64)
- # define cpu_has_invlpg		1
+ /* Internal SLUB flags */
+ #define __OBJECT_POISON		0x80000000UL /* Poison object */
+@@ -1025,7 +1025,7 @@ static noinline int free_debug_processin
+ 	}
+ 
+ 	/* Special debug activities for freeing objects */
+-	if (!PageSlubFrozen(page) && !page->freelist)
++	if (!page->frozen && !page->freelist)
+ 		remove_full(s, page);
+ 	if (s->flags & SLAB_STORE_USER)
+ 		set_track(s, object, TRACK_FREE, addr);
+@@ -1414,7 +1414,7 @@ static inline int lock_and_freeze_slab(s
+ {
+ 	if (slab_trylock(page)) {
+ 		__remove_partial(n, page);
+-		__SetPageSlubFrozen(page);
++		page->frozen = 1;
+ 		return 1;
+ 	}
+ 	return 0;
+@@ -1528,7 +1528,7 @@ static void unfreeze_slab(struct kmem_ca
+ {
+ 	struct kmem_cache_node *n = get_node(s, page_to_nid(page));
+ 
+-	__ClearPageSlubFrozen(page);
++	page->frozen = 0;
+ 	if (page->inuse) {
+ 
+ 		if (page->freelist) {
+@@ -1866,7 +1866,7 @@ new_slab:
+ 			flush_slab(s, c);
+ 
+ 		slab_lock(page);
+-		__SetPageSlubFrozen(page);
++		page->frozen = 1;
+ 		c->node = page_to_nid(page);
+ 		c->page = page;
+ 		goto load_freelist;
+@@ -2043,7 +2043,7 @@ static void __slab_free(struct kmem_cach
+ 	page->freelist = object;
+ 	page->inuse--;
+ 
+-	if (unlikely(PageSlubFrozen(page))) {
++	if (unlikely(page->frozen)) {
+ 		stat(s, FREE_FROZEN);
+ 		goto out_unlock;
+ 	}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
