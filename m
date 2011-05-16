@@ -1,118 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id B42676B0024
-	for <linux-mm@kvack.org>; Mon, 16 May 2011 01:04:01 -0400 (EDT)
-Received: by qwa26 with SMTP id 26so3008282qwa.14
-        for <linux-mm@kvack.org>; Sun, 15 May 2011 22:04:00 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <1305519711.4806.7.camel@mulgrave.site>
-References: <1305295404-12129-1-git-send-email-mgorman@suse.de>
-	<1305295404-12129-5-git-send-email-mgorman@suse.de>
-	<4DCFAA80.7040109@jp.fujitsu.com>
-	<1305519711.4806.7.camel@mulgrave.site>
-Date: Mon, 16 May 2011 14:04:00 +0900
-Message-ID: <BANLkTi=oe4Ties6awwhHFPf42EXCn2U4MQ@mail.gmail.com>
-Subject: Re: [PATCH 4/4] mm: vmscan: If kswapd has been running too long,
- allow it to sleep
-From: Minchan Kim <minchan.kim@gmail.com>
+	by kanga.kvack.org (Postfix) with ESMTP id C3AA86B0023
+	for <linux-mm@kvack.org>; Mon, 16 May 2011 02:05:25 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 64C643EE0C3
+	for <linux-mm@kvack.org>; Mon, 16 May 2011 15:05:22 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 4B67045DE9A
+	for <linux-mm@kvack.org>; Mon, 16 May 2011 15:05:22 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 27A4345DE95
+	for <linux-mm@kvack.org>; Mon, 16 May 2011 15:05:22 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 198841DB802F
+	for <linux-mm@kvack.org>; Mon, 16 May 2011 15:05:22 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id D8A271DB8040
+	for <linux-mm@kvack.org>; Mon, 16 May 2011 15:05:21 +0900 (JST)
+Date: Mon, 16 May 2011 14:58:11 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH v7 10/14] memcg: dirty page accounting support
+ routines
+Message-Id: <20110516145811.405a6790.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <BANLkTin6_CiP-Q8MyN=PKhpUhGhdmUQyEA@mail.gmail.com>
+References: <1305276473-14780-1-git-send-email-gthelen@google.com>
+	<1305276473-14780-11-git-send-email-gthelen@google.com>
+	<20110513185612.84b466ec.kamezawa.hiroyu@jp.fujitsu.com>
+	<BANLkTin6_CiP-Q8MyN=PKhpUhGhdmUQyEA@mail.gmail.com>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Bottomley <James.Bottomley@hansenpartnership.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, mgorman@suse.de, akpm@linux-foundation.org, colin.king@canonical.com, raghu.prabhu13@gmail.com, jack@suse.cz, chris.mason@oracle.com, cl@linux.com, penberg@kernel.org, riel@redhat.com, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-ext4@vger.kernel.org
+To: Greg Thelen <gthelen@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, linux-fsdevel@vger.kernel.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Vivek Goyal <vgoyal@redhat.com>, Dave Chinner <david@fromorbit.com>
 
-On Mon, May 16, 2011 at 1:21 PM, James Bottomley
-<James.Bottomley@hansenpartnership.com> wrote:
-> On Sun, 2011-05-15 at 19:27 +0900, KOSAKI Motohiro wrote:
->> (2011/05/13 23:03), Mel Gorman wrote:
->> > Under constant allocation pressure, kswapd can be in the situation whe=
-re
->> > sleeping_prematurely() will always return true even if kswapd has been
->> > running a long time. Check if kswapd needs to be scheduled.
->> >
->> > Signed-off-by: Mel Gorman<mgorman@suse.de>
->> > ---
->> > =C2=A0 mm/vmscan.c | =C2=A0 =C2=A04 ++++
->> > =C2=A0 1 files changed, 4 insertions(+), 0 deletions(-)
->> >
->> > diff --git a/mm/vmscan.c b/mm/vmscan.c
->> > index af24d1e..4d24828 100644
->> > --- a/mm/vmscan.c
->> > +++ b/mm/vmscan.c
->> > @@ -2251,6 +2251,10 @@ static bool sleeping_prematurely(pg_data_t *pgd=
-at, int order, long remaining,
->> > =C2=A0 =C2=A0 unsigned long balanced =3D 0;
->> > =C2=A0 =C2=A0 bool all_zones_ok =3D true;
->> >
->> > + =C2=A0 /* If kswapd has been running too long, just sleep */
->> > + =C2=A0 if (need_resched())
->> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return false;
->> > +
->>
->> Hmm... I don't like this patch so much. because this code does
->>
->> - don't sleep if kswapd got context switch at shrink_inactive_list
->
-> This isn't entirely true: =C2=A0need_resched() will be false, so we'll fo=
-llow
-> the normal path for determining whether to sleep or not, in effect
-> leaving the current behaviour unchanged.
->
->> - sleep if kswapd didn't
->
-> This also isn't entirely true: whether need_resched() is true at this
-> point depends on a whole lot more that whether we did a context switch
-> in shrink_inactive. It mostly depends on how long we've been running
-> without giving up the CPU. =C2=A0Generally that will mean we've been roun=
-d
-> the shrinker loop hundreds to thousands of times without sleeping.
->
->> It seems to be semi random behavior.
->
-> Well, we have to do something. =C2=A0Chris Mason first suspected the hang=
- was
-> a kswapd rescheduling problem a while ago. =C2=A0We tried putting
-> cond_rescheds() in several places in the vmscan code, but to no avail.
+On Sun, 15 May 2011 12:56:00 -0700
+Greg Thelen <gthelen@google.com> wrote:
 
-Is it a result of  test with patch of Hannes(ie, !pgdat_balanced)?
+> On Fri, May 13, 2011 at 2:56 AM, KAMEZAWA Hiroyuki
+> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> > On Fri, 13 May 2011 01:47:49 -0700
+> > Greg Thelen <gthelen@google.com> wrote:
 
-If it isn't, it would be nop regardless of putting cond_reshed at vmscan.c.
-Because, although we complete zone balancing, kswapd doesn't sleep as
-pgdat_balance returns wrong result. And at last VM calls
-balance_pgdat. In this case, balance_pgdat returns without any work as
-kswap couldn't find zones which have not enough free pages and goto
-out. kswapd could repeat this work infinitely. So you don't have a
-chance to call cond_resched.
+> >> +static unsigned long mem_cgroup_page_stat(struct mem_cgroup *mem,
+> >> + A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  enum mem_cgroup_page_stat_item item)
+> >
+> > How about mem_cgroup_file_cache_stat() ?
+> 
+> The suggested rename is possible.  But for consistency I assume we
+> would also want to rename:
+> * mem_cgroup_local_page_stat()
+> * enum mem_cgroup_page_stat_item
+> * mem_cgroup_update_page_stat()
+> * mem_cgroup_move_account_page_stat()
+> 
 
-But if your test was with Hanne's patch, I am very curious how come
-kswapd consumes CPU a lot.
+Yes, maybe clean up is necessary.
 
-> The need_resched() in sleeping_prematurely() seems to be about the best
-> option. =C2=A0The other option might be just to put a cond_resched() in
-> kswapd_try_to_sleep(), but that will really have about the same effect.
+> I have a slight preference for leaving it as is,
+> mem_cgroup_page_stat(), to allow for future coverage of pages other
+> that just file cache pages.  But I do not feel very strongly.
+> 
 
-I don't oppose it but before that, I think we have to know why kswapd
-consumes CPU a lot although we applied Hannes' patch.
+ok, I'm not have big concern on naming for now. please do as you like.
 
->
-> James
->
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org. =C2=A0For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom internet charges in Canada: sign http://stopthemeter=
-.ca/
-> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
->
+Thanks,
+-Kame
 
 
-
---=20
-Kind regards,
-Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
