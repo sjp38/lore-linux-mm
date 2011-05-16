@@ -1,59 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 0FCD56B002E
-	for <linux-mm@kvack.org>; Mon, 16 May 2011 18:36:23 -0400 (EDT)
-Date: Mon, 16 May 2011 15:36:07 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [rfc patch 2/6] vmscan: make distinction between memcg reclaim
- and LRU list selection
-Message-Id: <20110516153607.49d4dc41.akpm@linux-foundation.org>
-In-Reply-To: <20110513065854.GB18610@cmpxchg.org>
-References: <1305212038-15445-1-git-send-email-hannes@cmpxchg.org>
-	<1305212038-15445-3-git-send-email-hannes@cmpxchg.org>
-	<20110513085027.25b25a47.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110513065854.GB18610@cmpxchg.org>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id B8EDE6B0022
+	for <linux-mm@kvack.org>; Mon, 16 May 2011 19:04:53 -0400 (EDT)
+Subject: Re: [PATCH 3/3] checkpatch.pl: Add check for task comm references
+From: Joe Perches <joe@perches.com>
+In-Reply-To: <alpine.DEB.2.00.1105161431550.4353@chino.kir.corp.google.com>
+References: <1305580757-13175-1-git-send-email-john.stultz@linaro.org>
+	 <1305580757-13175-4-git-send-email-john.stultz@linaro.org>
+	 <op.vvlfaobx3l0zgt@mnazarewicz-glaptop>
+	 <alpine.DEB.2.00.1105161431550.4353@chino.kir.corp.google.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Mon, 16 May 2011 16:04:50 -0700
+Message-ID: <1305587090.2503.42.camel@Joe-Laptop>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Ying Han <yinghan@google.com>, Michal Hocko <mhocko@suse.cz>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: David Rientjes <rientjes@google.com>, Andy Whitcroft <apw@canonical.com>
+Cc: Michal Nazarewicz <mina86@mina86.com>, LKML <linux-kernel@vger.kernel.org>, John Stultz <john.stultz@linaro.org>, Ted Ts'o <tytso@mit.edu>, Jiri Slaby <jirislaby@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-On Fri, 13 May 2011 08:58:54 +0200
-Johannes Weiner <hannes@cmpxchg.org> wrote:
+On Mon, 2011-05-16 at 14:34 -0700, David Rientjes wrote:
+> On Mon, 16 May 2011, Michal Nazarewicz wrote:
+> > > Now that accessing current->comm needs to be protected,
+> > > +# check for current->comm usage
+> > > +		if ($line =~ /\b(?:current|task|tsk|t)\s*->\s*comm\b/) {
+> > Not a checkpatch.pl expert but as far as I'm concerned, that looks reasonable.
 
-> > > @@ -154,16 +158,24 @@ static LIST_HEAD(shrinker_list);
-> > >  static DECLARE_RWSEM(shrinker_rwsem);
-> > >  
-> > >  #ifdef CONFIG_CGROUP_MEM_RES_CTLR
-> > > -#define scanning_global_lru(sc)	(!(sc)->mem_cgroup)
-> > > +static bool global_reclaim(struct scan_control *sc)
-> > > +{
-> > > +	return !sc->memcg;
-> > > +}
-> > > +static bool scanning_global_lru(struct scan_control *sc)
-> > > +{
-> > > +	return !sc->current_memcg;
-> > > +}
-> > 
-> > 
-> > Could you add comments ?
+I think the only checkpatch expert is Andy Whitcroft.
 
-oy, that's my job.
+You don't need (?: just (
 
-> Yes, I will.
+curr, chip and object are pretty common (see below)
 
-> +static bool global_reclaim(struct scan_control *sc) { return 1; }
-> +static bool scanning_global_lru(struct scan_control *sc) { return 1; }
+An option may be to specify another variable
+common_comm_vars or something like it
 
-s/1/true/
+our $common_comm_vars = qr{(?x:
+	current|tsk|p|task|curr|chip|t|object|me
+)};
 
-And we may as well format the functions properly?
+and use that variable in your test
 
-And it would be nice for the names of the functions to identify what
-subsystem they belong to: memcg_global_reclaim() or such.  Although
-that's already been a bit messed up in memcg (and in the VM generally).
+Treewide:
+
+$ grep -rPoh --include=*.[ch] "\b\w+\s*\-\>\s*comm\b" * | \
+	sort | uniq -c | sort -rn
+    319 current->comm
+     59 tsk->comm
+     32 __entry->comm
+     24 p->comm
+     23 event->comm
+     19 task->comm
+     18 thread->comm
+     15 self->comm
+     14 c->comm
+     13 curr->comm
+     12 chip->comm
+      9 t->comm
+      8 object->comm
+      8 me->comm
+(others not shown)
+
+Perf:
+
+$ grep -rP --include=*.[ch] "\b\w+\s*\-\>\s*comm\b" tools/perf include/trace | \
+	sort | uniq -c | sort -rn
+     32 __entry->comm
+     23 event->comm
+     18 thread->comm
+     15 self->comm
+     14 c->comm
+     10 current->comm
+      3 tsk->comm
+      3 task->comm
+      3 p->comm
+(others not shown)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
