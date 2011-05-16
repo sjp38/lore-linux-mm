@@ -1,144 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 4FC916B002B
-	for <linux-mm@kvack.org>; Mon, 16 May 2011 18:01:31 -0400 (EDT)
-Received: by bwz17 with SMTP id 17so6410320bwz.14
-        for <linux-mm@kvack.org>; Mon, 16 May 2011 15:01:28 -0700 (PDT)
-Message-ID: <4DD19EB5.7060900@gmail.com>
-Date: Tue, 17 May 2011 00:01:25 +0200
-From: Jiri Slaby <jirislaby@gmail.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 1/3] comm: Introduce comm_lock seqlock to protect task->comm
- access
-References: <1305580757-13175-1-git-send-email-john.stultz@linaro.org> <1305580757-13175-2-git-send-email-john.stultz@linaro.org>
-In-Reply-To: <1305580757-13175-2-git-send-email-john.stultz@linaro.org>
-Content-Type: text/plain; charset=ISO-8859-2
-Content-Transfer-Encoding: 7bit
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 8814B6B002B
+	for <linux-mm@kvack.org>; Mon, 16 May 2011 18:02:08 -0400 (EDT)
+From: Ying Han <yinghan@google.com>
+Subject: [PATCH] memcg: fix typo in the soft_limit stats.
+Date: Mon, 16 May 2011 15:00:30 -0700
+Message-Id: <1305583230-2111-1-git-send-email-yinghan@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Stultz <john.stultz@linaro.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Ted Ts'o <tytso@mit.edu>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>
+Cc: linux-mm@kvack.org
 
-On 05/16/2011 11:19 PM, John Stultz wrote:
-> The implicit rules for current->comm access being safe without locking
-> are no longer true. Accessing current->comm without holding the task
-> lock may result in null or incomplete strings (however, access won't
-> run off the end of the string).
-> 
-> In order to properly fix this, I've introduced a comm_lock spinlock
-> which will protect comm access and modified get_task_comm() and
-> set_task_comm() to use it.
-> 
-> Since there are a number of cases where comm access is open-coded
-> safely grabbing the task_lock(), we preserve the task locking in
-> set_task_comm, so those users are also safe.
-> 
-> With this patch, users that access current->comm without a lock
-> are still prone to null/incomplete comm strings, but it should
-> be no worse then it is now.
-> 
-> The next step is to go through and convert all comm accesses to
-> use get_task_comm(). This is substantial, but can be done bit by
-> bit, reducing the race windows with each patch.
-> 
-> CC: Ted Ts'o <tytso@mit.edu>
-> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> CC: David Rientjes <rientjes@google.com>
-> CC: Dave Hansen <dave@linux.vnet.ibm.com>
-> CC: Andrew Morton <akpm@linux-foundation.org>
-> CC: linux-mm@kvack.org
-> Acked-by: David Rientjes <rientjes@google.com>
-> Signed-off-by: John Stultz <john.stultz@linaro.org>
-> ---
->  fs/exec.c                 |   19 ++++++++++++++++---
->  include/linux/init_task.h |    1 +
->  include/linux/sched.h     |    5 ++---
->  3 files changed, 19 insertions(+), 6 deletions(-)
-> 
-> diff --git a/fs/exec.c b/fs/exec.c
-> index 5e62d26..34fa611 100644
-> --- a/fs/exec.c
-> +++ b/fs/exec.c
-> @@ -998,17 +998,28 @@ static void flush_old_files(struct files_struct * files)
->  
->  char *get_task_comm(char *buf, struct task_struct *tsk)
->  {
-> -	/* buf must be at least sizeof(tsk->comm) in size */
-> -	task_lock(tsk);
-> +	unsigned long flags;
-> +
-> +	spin_lock_irqsave(&tsk->comm_lock, flags);
->  	strncpy(buf, tsk->comm, sizeof(tsk->comm));
-> -	task_unlock(tsk);
-> +	spin_unlock_irqrestore(&tsk->comm_lock, flags);
->  	return buf;
->  }
->  
->  void set_task_comm(struct task_struct *tsk, char *buf)
->  {
-> +	unsigned long flags;
-> +
-> +	/*
-> +	 * XXX - Even though comm is protected by comm_lock,
-> +	 * we take the task_lock here to serialize against
-> +	 * current users that directly access comm.
-> +	 * Once those users are removed, we can drop the
-> +	 * task locking & memsetting.
-> +	 */
->  	task_lock(tsk);
->  
-> +	spin_lock_irqsave(&tsk->comm_lock, flags);
->  	/*
->  	 * Threads may access current->comm without holding
->  	 * the task lock, so write the string carefully.
-> @@ -1018,6 +1029,8 @@ void set_task_comm(struct task_struct *tsk, char *buf)
->  	memset(tsk->comm, 0, TASK_COMM_LEN);
->  	wmb();
->  	strlcpy(tsk->comm, buf, sizeof(tsk->comm));
-> +	spin_unlock_irqrestore(&tsk->comm_lock, flags);
-> +
->  	task_unlock(tsk);
->  	perf_event_comm(tsk);
->  }
-> diff --git a/include/linux/init_task.h b/include/linux/init_task.h
-> index caa151f..b69d94b 100644
-> --- a/include/linux/init_task.h
-> +++ b/include/linux/init_task.h
-> @@ -161,6 +161,7 @@ extern struct cred init_cred;
->  	.group_leader	= &tsk,						\
->  	RCU_INIT_POINTER(.real_cred, &init_cred),			\
->  	RCU_INIT_POINTER(.cred, &init_cred),				\
-> +	.comm_lock	= __SPIN_LOCK_UNLOCKED(tsk.comm_lock),		\
+This fixes the typo in the memory.stat including the following two
+stats:
 
-Hmm, you should also init the spinlock somewhere in copy_process.
-Otherwise when a process is forked in the middle of [gs]et_task_comm
-called on it on another cpu, you have two locked locks and only the
-parent's will be unlocked, right?
+$ cat /dev/cgroup/memory/A/memory.stat
+total_soft_steal 0
+total_soft_scan 0
 
->  	.comm		= "swapper",					\
->  	.thread		= INIT_THREAD,					\
->  	.fs		= &init_fs,					\
-> diff --git a/include/linux/sched.h b/include/linux/sched.h
-> index 18d63ce..f8a7cdf 100644
-> --- a/include/linux/sched.h
-> +++ b/include/linux/sched.h
-> @@ -1333,10 +1333,9 @@ struct task_struct {
->  	const struct cred __rcu *cred;	/* effective (overridable) subjective task
->  					 * credentials (COW) */
->  	struct cred *replacement_session_keyring; /* for KEYCTL_SESSION_TO_PARENT */
-> -
-> +	spinlock_t comm_lock;		/* protect's comm */
->  	char comm[TASK_COMM_LEN]; /* executable name excluding path
-> -				     - access with [gs]et_task_comm (which lock
-> -				       it with task_lock())
-> +				     - access with [gs]et_task_comm
->  				     - initialized normally by setup_new_exec */
->  /* file system info */
->  	int link_count, total_link_count;
+And change it to:
 
-thanks,
+$ cat /dev/cgroup/memory/A/memory.stat
+total_soft_kswapd_steal 0
+total_soft_kswapd_scan 0
+
+Signed-off-by: Ying Han <yinghan@google.com>
+---
+ mm/memcontrol.c |    4 ++--
+ 1 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index a010c23..1ea787d 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -4023,8 +4023,8 @@ struct {
+ 	{"limit_direct_scan", "total_limit_direct_scan"},
+ 	{"hierarchy_direct_steal", "total_hierarchy_direct_steal"},
+ 	{"hierarchy_direct_scan", "total_hierarchy_direct_scan"},
+-	{"soft_kswapd_steal", "total_soft_steal"},
+-	{"soft_kswapd_scan", "total_soft_scan"},
++	{"soft_kswapd_steal", "total_soft_kswapd_steal"},
++	{"soft_kswapd_scan", "total_soft_kswapd_scan"},
+ 	{"soft_direct_steal", "total_soft_direct_steal"},
+ 	{"soft_direct_scan", "total_soft_direct_scan"},
+ 	{"inactive_anon", "total_inactive_anon"},
 -- 
-js
+1.7.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
