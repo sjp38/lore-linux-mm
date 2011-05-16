@@ -1,53 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 98A7E6B0027
-	for <linux-mm@kvack.org>; Mon, 16 May 2011 04:42:37 -0400 (EDT)
-Date: Mon, 16 May 2011 09:42:30 +0100
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 070506B0012
+	for <linux-mm@kvack.org>; Mon, 16 May 2011 04:45:19 -0400 (EDT)
+Date: Mon, 16 May 2011 09:45:14 +0100
 From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 3/3] mm: slub: Default slub_max_order to 0
-Message-ID: <20110516084230.GC5279@suse.de>
-References: <20110512154649.GB4559@redhat.com>
- <1305216023.2575.54.camel@mulgrave.site>
- <alpine.DEB.2.00.1105121121120.26013@router.home>
- <1305217843.2575.57.camel@mulgrave.site>
- <BANLkTi=MD+voG1i7uDyueV22_daGHPRdqw@mail.gmail.com>
- <BANLkTimDsJDht76Vm7auNqT2gncjpEKZQw@mail.gmail.com>
- <alpine.DEB.2.00.1105121232110.28493@router.home>
- <20110512180018.GN11579@random.random>
- <20110513094958.GA3569@suse.de>
- <20110515163906.GB25981@random.random>
+Subject: Re: [PATCH 4/4] mm: vmscan: If kswapd has been running too long,
+ allow it to sleep
+Message-ID: <20110516084514.GD5279@suse.de>
+References: <1305295404-12129-1-git-send-email-mgorman@suse.de>
+ <1305295404-12129-5-git-send-email-mgorman@suse.de>
+ <4DCFAA80.7040109@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20110515163906.GB25981@random.random>
+In-Reply-To: <4DCFAA80.7040109@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, James Bottomley <James.Bottomley@hansenpartnership.com>, Dave Jones <davej@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Colin King <colin.king@canonical.com>, Raghavendra D Prabhu <raghu.prabhu13@gmail.com>, Jan Kara <jack@suse.cz>, Chris Mason <chris.mason@oracle.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-ext4 <linux-ext4@vger.kernel.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: akpm@linux-foundation.org, James.Bottomley@HansenPartnership.com, colin.king@canonical.com, raghu.prabhu13@gmail.com, jack@suse.cz, chris.mason@oracle.com, cl@linux.com, penberg@kernel.org, riel@redhat.com, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-ext4@vger.kernel.org
 
-On Sun, May 15, 2011 at 06:39:06PM +0200, Andrea Arcangeli wrote:
-> On Fri, May 13, 2011 at 10:49:58AM +0100, Mel Gorman wrote:
-> > On Thu, May 12, 2011 at 08:00:18PM +0200, Andrea Arcangeli wrote:
-> > > <SNIP>
-> > >
-> > > BTW, it comes to mind in patch 2, SLUB should clear __GFP_REPEAT too
-> > > (not only __GFP_NOFAIL). Clearing __GFP_WAIT may be worth it or not
-> > > with COMPACTION=y, definitely good idea to clear __GFP_WAIT unless
-> > > lumpy is restricted to __GFP_REPEAT|__GFP_NOFAIL.
+On Sun, May 15, 2011 at 07:27:12PM +0900, KOSAKI Motohiro wrote:
+> (2011/05/13 23:03), Mel Gorman wrote:
+> > Under constant allocation pressure, kswapd can be in the situation where
+> > sleeping_prematurely() will always return true even if kswapd has been
+> > running a long time. Check if kswapd needs to be scheduled.
 > > 
-> > This is in V2 (unreleased, testing in progress and was running
-> > overnight). I noticed that clearing __GFP_REPEAT is required for
-> > reclaim/compaction if direct reclaimers from SLUB are to return false in
-> > should_continue_reclaim() and bail out from high-order allocation
-> > properly. As it is, there is a possibility for slub high-order direct
-> > reclaimers to loop in reclaim/compaction for a long time. This is
-> > only important when CONFIG_COMPACTION=y.
+> > Signed-off-by: Mel Gorman<mgorman@suse.de>
+> > ---
+> >   mm/vmscan.c |    4 ++++
+> >   1 files changed, 4 insertions(+), 0 deletions(-)
+> > 
+> > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > index af24d1e..4d24828 100644
+> > --- a/mm/vmscan.c
+> > +++ b/mm/vmscan.c
+> > @@ -2251,6 +2251,10 @@ static bool sleeping_prematurely(pg_data_t *pgdat, int order, long remaining,
+> >   	unsigned long balanced = 0;
+> >   	bool all_zones_ok = true;
+> > 
+> > +	/* If kswapd has been running too long, just sleep */
+> > +	if (need_resched())
+> > +		return false;
+> > +
 > 
-> Agreed. However I don't expect anyone to allocate from slub(/slab)
-> with __GFP_REPEAT so it's probably only theoretical but more correct
-> indeed ;).
+> Hmm... I don't like this patch so much. because this code does
+> 
+> - don't sleep if kswapd got context switch at shrink_inactive_list
+> - sleep if kswapd didn't
+> 
+> It seems to be semi random behavior.
+> 
 
-Networking layer does specify __GFP_REPEAT.
+It's possible to keep kswapd awake simply by allocating fast enough that
+the watermarks are never balanced making kswapd appear to consume 100%
+of CPU. This check causes kswapd to sleep in this case. The processes
+doing the allocations will enter direct reclaim and probably stall while
+processes that are not allocating will get some CPU time.
 
 -- 
 Mel Gorman
