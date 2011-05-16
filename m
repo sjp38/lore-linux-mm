@@ -1,52 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 226AF90010B
-	for <linux-mm@kvack.org>; Mon, 16 May 2011 16:32:27 -0400 (EDT)
-Received: from wpaz17.hot.corp.google.com (wpaz17.hot.corp.google.com [172.24.198.81])
-	by smtp-out.google.com with ESMTP id p4GKWNID026297
-	for <linux-mm@kvack.org>; Mon, 16 May 2011 13:32:23 -0700
-Received: from pzk5 (pzk5.prod.google.com [10.243.19.133])
-	by wpaz17.hot.corp.google.com with ESMTP id p4GKWLrv017414
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 16 May 2011 13:32:22 -0700
-Received: by pzk5 with SMTP id 5so3649076pzk.17
-        for <linux-mm@kvack.org>; Mon, 16 May 2011 13:32:21 -0700 (PDT)
-Date: Mon, 16 May 2011 13:32:19 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 1/4] mm: Remove dependency on CONFIG_FLATMEM from
- online_page()
-In-Reply-To: <20110516075849.GB6393@router-fw-old.local.net-space.pl>
-Message-ID: <alpine.DEB.2.00.1105161330570.4353@chino.kir.corp.google.com>
-References: <20110502211915.GB4623@router-fw-old.local.net-space.pl> <alpine.DEB.2.00.1105111547160.24003@chino.kir.corp.google.com> <20110512102515.GA27851@router-fw-old.local.net-space.pl> <alpine.DEB.2.00.1105121223500.2407@chino.kir.corp.google.com>
- <20110516075849.GB6393@router-fw-old.local.net-space.pl>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id E81F190010B
+	for <linux-mm@kvack.org>; Mon, 16 May 2011 16:35:37 -0400 (EDT)
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e34.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p4GKN04f015438
+	for <linux-mm@kvack.org>; Mon, 16 May 2011 14:23:00 -0600
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p4GKaIeS077294
+	for <linux-mm@kvack.org>; Mon, 16 May 2011 14:36:20 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p4GEYVT9020200
+	for <linux-mm@kvack.org>; Mon, 16 May 2011 08:34:33 -0600
+Subject: Re: [PATCH 1/3] comm: Introduce comm_lock seqlock to protect
+ task->comm access
+From: John Stultz <john.stultz@linaro.org>
+In-Reply-To: <BANLkTin_MitzRUkWToj055AuAPdMC9msXQ@mail.gmail.com>
+References: <1305241371-25276-1-git-send-email-john.stultz@linaro.org>
+	 <1305241371-25276-2-git-send-email-john.stultz@linaro.org>
+	 <4DCD1256.4070808@jp.fujitsu.com> <1305311276.2680.34.camel@work-vm>
+	 <BANLkTin_MitzRUkWToj055AuAPdMC9msXQ@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Mon, 16 May 2011 13:34:54 -0700
+Message-ID: <1305578094.2915.53.camel@work-vm>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Kiper <dkiper@net-space.pl>
-Cc: ian.campbell@citrix.com, akpm@linux-foundation.org, andi.kleen@intel.com, haicheng.li@linux.intel.com, fengguang.wu@intel.com, jeremy@goop.org, konrad.wilk@oracle.com, dan.magenheimer@oracle.com, v.tolstov@selfip.ru, pasik@iki.fi, dave@linux.vnet.ibm.com, wdauchy@gmail.com, xen-devel@lists.xensource.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, Ted Ts'o <tytso@mit.edu>, David Rientjes <rientjes@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-On Mon, 16 May 2011, Daniel Kiper wrote:
-
-> > No, I would just reply to the email notification you received when the
-> > patch went into -mm saying that the changelog should be adjusted to read
-> > something like
+On Sat, 2011-05-14 at 20:12 +0900, KOSAKI Motohiro wrote:
+> >> Can you please explain why we should use seqlock? That said,
+> >> we didn't use seqlock for /proc items. because, plenty seqlock
+> >> write may makes readers busy wait. Then, if we don't have another
+> >> protection, we give the local DoS attack way to attackers.
 > >
-> > 	online_pages() is only compiled for CONFIG_MEMORY_HOTPLUG_SPARSE,
-> > 	so there is no need to support CONFIG_FLATMEM code within it.
+> > So you're saying that heavy write contention can cause reader
+> > starvation?
+> 
+> Yes.
+> 
+> >> task->comm is used for very fundamentally. then, I doubt we can
+> >> assume write is enough rare. Why can't we use normal spinlock?
 > >
-> > 	This patch removes code that is never used.
+> > I think writes are likely to be fairly rare. Tasks can only name
+> > themselves or sibling threads, so I'm not sure I see the risk here.
 > 
-> Please look into attachments.
-> 
-> If you have any questions please drop me a line.
-> 
+> reader starvation may cause another task's starvation if reader have
+> an another lock.
 
-Not sure why you've attached the emails from the mm-commits mailing list.  
-I'll respond to the commits with with my suggestions for how the changelog 
-should be fixed.
+So the risk is a thread rewriting its own comm over and over could
+starve some other critical task trying to read the comm.
 
-Thanks.
+Ok. It makes it a little more costly, but fair enough.
+
+thanks
+-john
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
