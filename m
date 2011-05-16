@@ -1,133 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id B42016B0026
-	for <linux-mm@kvack.org>; Mon, 16 May 2011 04:29:44 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 2420F3EE081
-	for <linux-mm@kvack.org>; Mon, 16 May 2011 17:29:41 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id F1B9A45DE97
-	for <linux-mm@kvack.org>; Mon, 16 May 2011 17:29:40 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id CE78445DE91
-	for <linux-mm@kvack.org>; Mon, 16 May 2011 17:29:40 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id BFF401DB802F
-	for <linux-mm@kvack.org>; Mon, 16 May 2011 17:29:40 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 7B7941DB803E
-	for <linux-mm@kvack.org>; Mon, 16 May 2011 17:29:40 +0900 (JST)
-Date: Mon, 16 May 2011 17:22:58 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 3/3] vmscan: implement swap token priority decay
-Message-Id: <20110516172258.c7dcd982.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <4DCD1913.2090200@jp.fujitsu.com>
-References: <4DCD1824.1060801@jp.fujitsu.com>
-	<4DCD1913.2090200@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id A3CEB6B0026
+	for <linux-mm@kvack.org>; Mon, 16 May 2011 04:37:28 -0400 (EDT)
+Date: Mon, 16 May 2011 09:37:21 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 0/4] Reduce impact to overall system of SLUB using
+ high-order allocations V2
+Message-ID: <20110516083721.GB5279@suse.de>
+References: <1305295404-12129-1-git-send-email-mgorman@suse.de>
+ <1305362073.1969.4.camel@hpmini>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <1305362073.1969.4.camel@hpmini>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, minchan.kim@gmail.com, riel@redhat.com
+To: Colin Ian King <colin.king@ubuntu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, James Bottomley <James.Bottomley@HansenPartnership.com>, Raghavendra D Prabhu <raghu.prabhu13@gmail.com>, Jan Kara <jack@suse.cz>, Chris Mason <chris.mason@oracle.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-ext4 <linux-ext4@vger.kernel.org>
 
-On Fri, 13 May 2011 20:42:11 +0900
-KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+On Sat, May 14, 2011 at 10:34:33AM +0200, Colin Ian King wrote:
+> On Fri, 2011-05-13 at 15:03 +0100, Mel Gorman wrote:
+> > Changelog since V1
+> >   o kswapd should sleep if need_resched
+> >   o Remove __GFP_REPEAT from GFP flags when speculatively using high
+> >     orders so direct/compaction exits earlier
+> >   o Remove __GFP_NORETRY for correctness
+> >   o Correct logic in sleeping_prematurely
+> >   o Leave SLUB using the default slub_max_order
+> > 
+> > There are a few reports of people experiencing hangs when copying
+> > large amounts of data with kswapd using a large amount of CPU which
+> > appear to be due to recent reclaim changes.
+> > 
+> > SLUB using high orders is the trigger but not the root cause as SLUB
+> > has been using high orders for a while. The following four patches
+> > aim to fix the problems in reclaim while reducing the cost for SLUB
+> > using those high orders.
+> > 
+> > Patch 1 corrects logic introduced by commit [1741c877: mm:
+> > 	kswapd: keep kswapd awake for high-order allocations until
+> > 	a percentage of the node is balanced] to allow kswapd to
+> > 	go to sleep when balanced for high orders.
+> > 
+> > Patch 2 prevents kswapd waking up in response to SLUBs speculative
+> > 	use of high orders.
+> > 
+> > Patch 3 further reduces the cost by prevent SLUB entering direct
+> > 	compaction or reclaim paths on the grounds that falling
+> > 	back to order-0 should be cheaper.
+> > 
+> > Patch 4 notes that even when kswapd is failing to keep up with
+> > 	allocation requests, it should still go to sleep when its
+> > 	quota has expired to prevent it spinning.
+> > 
+> > My own data on this is not great. I haven't really been able to
+> > reproduce the same problem locally.
+> > 
+> > The test case is simple. "download tar" wgets a large tar file and
+> > stores it locally. "unpack" is expanding it (15 times physical RAM
+> > in this case) and "delete source dirs" is the tarfile being deleted
+> > again. I also experimented with having the tar copied numerous times
+> > and into deeper directories to increase the size but the results were
+> > not particularly interesting so I left it as one tar.
+> > 
+> > In the background, applications are being launched to time to vaguely
+> > simulate activity on the desktop and to measure how long it takes
+> > applications to start.
+> > 
+> > Test server, 4 CPU threads, x86_64, 2G of RAM, no PREEMPT, no COMPACTION, X running
+> > LARGE COPY AND UNTAR
+> >                       vanilla       fixprematurely  kswapd-nowwake slub-noexstep  kswapdsleep
+> > download tar           95 ( 0.00%)   94 ( 1.06%)   94 ( 1.06%)   94 ( 1.06%)   94 ( 1.06%)
+> > unpack tar            654 ( 0.00%)  649 ( 0.77%)  655 (-0.15%)  589 (11.04%)  598 ( 9.36%)
+> > copy source files       0 ( 0.00%)    0 ( 0.00%)    0 ( 0.00%)    0 ( 0.00%)    0 ( 0.00%)
+> > delete source dirs    327 ( 0.00%)  334 (-2.10%)  318 ( 2.83%)  325 ( 0.62%)  320 ( 2.19%)
+> > MMTests Statistics: duration
+> > User/Sys Time Running Test (seconds)        1139.7   1142.55   1149.78   1109.32   1113.26
+> > Total Elapsed Time (seconds)               1341.59   1342.45   1324.90   1271.02   1247.35
+> > 
+> > MMTests Statistics: application launch
+> > evolution-wait30     mean     34.92   34.96   34.92   34.92   35.08
+> > gnome-terminal-find  mean      7.96    7.96    8.76    7.80    7.96
+> > iceweasel-table      mean      7.93    7.81    7.73    7.65    7.88
+> > 
+> > evolution-wait30     stddev    0.96    1.22    1.27    1.20    1.15
+> > gnome-terminal-find  stddev    3.02    3.09    3.51    2.99    3.02
+> > iceweasel-table      stddev    1.05    0.90    1.09    1.11    1.11
+> > 
+> > Having SLUB avoid expensive steps in reclaim improves performance
+> > by quite a bit with the overall test completing 1.5 minutes
+> > faster. Application launch times were not really affected but it's
+> > not something my test machine was suffering from in the first place
+> > so it's not really conclusive. The kswapd patches also did not appear
+> > to help but again, the test machine wasn't suffering that problem.
+> > 
+> > These patches are against 2.6.39-rc7. Again, testing would be
+> > appreciated.
+> 
+> These patches solve the problem for me.  I've been soak testing the file
+> copy test
+> for 3.5 hours with nearly 400 test cycles and observed no lockups at all
+> - rock solid. From my observations from the output from vmstat the
+> system is behaving sanely.
+> Thanks for finding a solution - much appreciated!
+> 
 
-> While testing for memcg aware swap token, I observed a swap token
-> was often grabbed an intermittent running process (eg init, auditd)
-> and they never release a token.
-> 
-> Why? Currently, swap toke priority is only decreased at page fault
-> path. Then, if the process sleep immediately after to grab swap
-> token, their swap token priority never be decreased. That makes
-> obviously undesired result.
-> 
-> This patch implement very poor (and lightweight) priority decay
-> mechanism. It only be affect to the above corner case and doesn't
-> change swap tendency workload performance (eg multi process qsbench
-> load)
-> 
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Can you tell me if just patches 1 and 4 fix the problem please? It'd be good
+to know if this was only a reclaim-related problem. Thanks.
 
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-
-But...
-
-> ---
->  include/trace/events/vmscan.h |   12 ++++++++----
->  mm/thrash.c                   |    5 ++++-
->  2 files changed, 12 insertions(+), 5 deletions(-)
-> 
-> diff --git a/include/trace/events/vmscan.h b/include/trace/events/vmscan.h
-> index 1798e0c..ba18137 100644
-> --- a/include/trace/events/vmscan.h
-> +++ b/include/trace/events/vmscan.h
-> @@ -366,9 +366,10 @@ DEFINE_EVENT_CONDITION(put_swap_token_template, disable_swap_token,
-> 
->  TRACE_EVENT_CONDITION(update_swap_token_priority,
->  	TP_PROTO(struct mm_struct *mm,
-> -		 unsigned int old_prio),
-> +		 unsigned int old_prio,
-> +		 struct mm_struct *swap_token_mm),
-> 
-> -	TP_ARGS(mm, old_prio),
-> +	TP_ARGS(mm, old_prio, swap_token_mm),
-> 
->  	TP_CONDITION(mm->token_priority != old_prio),
-> 
-> @@ -376,16 +377,19 @@ TRACE_EVENT_CONDITION(update_swap_token_priority,
->  		__field(struct mm_struct*, mm)
->  		__field(unsigned int, old_prio)
->  		__field(unsigned int, new_prio)
-> +		__field(unsigned int, token_prio)
->  	),
-> 
->  	TP_fast_assign(
->  		__entry->mm = mm;
->  		__entry->old_prio = old_prio;
->  		__entry->new_prio = mm->token_priority;
-> +		__entry->token_prio = swap_token_mm ? swap_token_mm->token_priority : 0;
->  	),
-> 
-> -	TP_printk("mm=%p old_prio=%u new_prio=%u",
-> -		  __entry->mm, __entry->old_prio, __entry->new_prio)
-> +	TP_printk("mm=%p old_prio=%u new_prio=%u token_prio=%u",
-> +		  __entry->mm, __entry->old_prio, __entry->new_prio,
-> +		  __entry->token_prio)
->  );
-> 
->  #endif /* _TRACE_VMSCAN_H */
-> diff --git a/mm/thrash.c b/mm/thrash.c
-> index 14c6c9f..0c4f0a8 100644
-> --- a/mm/thrash.c
-> +++ b/mm/thrash.c
-> @@ -47,6 +47,9 @@ void grab_swap_token(struct mm_struct *mm)
->  	if (!swap_token_mm)
->  		goto replace_token;
-> 
-> +	if (!(global_faults & 0xff))
-> +		mm->token_priority /= 2;
-> +
-
-I personally don't like this kind of checking counter with mask.
-Hmm. How about this ?
-
-==
-	#define TOKEN_AGE_MASK	~(0xff)
-	/*
-	 * If current global_fault is in different age from previous global_fault,
-	 * Aging priority and starts new era.
-	 */
-	if ((mm->faultstamp & TOKEN_AGE_MASK) != (global_faults & MM_TOKEN_MASK))
-		mm->token_priority /= 2;
-==
-
-But I'm not sure 0xff is a proper value or not...
-
-Thanks,
--Kame
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
