@@ -1,27 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 37C8990010B
-	for <linux-mm@kvack.org>; Mon, 16 May 2011 16:27:44 -0400 (EDT)
-Date: Mon, 16 May 2011 16:27:10 -0400
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCHSET v3.1 0/7] data integrity: Stabilize pages during
- writeback for various fses
-Message-ID: <20110516202710.GA32630@infradead.org>
-References: <20110509230318.19566.66202.stgit@elm3c44.beaverton.ibm.com>
- <20110516190427.GN20579@tux1.beaverton.ibm.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 226AF90010B
+	for <linux-mm@kvack.org>; Mon, 16 May 2011 16:32:27 -0400 (EDT)
+Received: from wpaz17.hot.corp.google.com (wpaz17.hot.corp.google.com [172.24.198.81])
+	by smtp-out.google.com with ESMTP id p4GKWNID026297
+	for <linux-mm@kvack.org>; Mon, 16 May 2011 13:32:23 -0700
+Received: from pzk5 (pzk5.prod.google.com [10.243.19.133])
+	by wpaz17.hot.corp.google.com with ESMTP id p4GKWLrv017414
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 16 May 2011 13:32:22 -0700
+Received: by pzk5 with SMTP id 5so3649076pzk.17
+        for <linux-mm@kvack.org>; Mon, 16 May 2011 13:32:21 -0700 (PDT)
+Date: Mon, 16 May 2011 13:32:19 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 1/4] mm: Remove dependency on CONFIG_FLATMEM from
+ online_page()
+In-Reply-To: <20110516075849.GB6393@router-fw-old.local.net-space.pl>
+Message-ID: <alpine.DEB.2.00.1105161330570.4353@chino.kir.corp.google.com>
+References: <20110502211915.GB4623@router-fw-old.local.net-space.pl> <alpine.DEB.2.00.1105111547160.24003@chino.kir.corp.google.com> <20110512102515.GA27851@router-fw-old.local.net-space.pl> <alpine.DEB.2.00.1105121223500.2407@chino.kir.corp.google.com>
+ <20110516075849.GB6393@router-fw-old.local.net-space.pl>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110516190427.GN20579@tux1.beaverton.ibm.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Darrick J. Wong" <djwong@us.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Theodore Tso <tytso@mit.edu>, Jan Kara <jack@suse.cz>, Alexander Viro <viro@zeniv.linux.org.uk>, OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>, Jens Axboe <axboe@kernel.dk>, "Martin K. Petersen" <martin.petersen@oracle.com>, Jeff Layton <jlayton@redhat.com>, Dave Chinner <david@fromorbit.com>, linux-kernel <linux-kernel@vger.kernel.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, Chris Mason <chris.mason@oracle.com>, Joel Becker <jlbec@evilplan.org>, linux-scsi <linux-scsi@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-ext4@vger.kernel.org, Mingming Cao <mcao@us.ibm.com>
+To: Daniel Kiper <dkiper@net-space.pl>
+Cc: ian.campbell@citrix.com, akpm@linux-foundation.org, andi.kleen@intel.com, haicheng.li@linux.intel.com, fengguang.wu@intel.com, jeremy@goop.org, konrad.wilk@oracle.com, dan.magenheimer@oracle.com, v.tolstov@selfip.ru, pasik@iki.fi, dave@linux.vnet.ibm.com, wdauchy@gmail.com, xen-devel@lists.xensource.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Whay about just sending the VFS patches to Al instead of talking about
-it on a totally irrelevant call that doesn't include the important
-stakeholders?  FS-specific patches can go through the fs maintainers
-independently.
+On Mon, 16 May 2011, Daniel Kiper wrote:
+
+> > No, I would just reply to the email notification you received when the
+> > patch went into -mm saying that the changelog should be adjusted to read
+> > something like
+> >
+> > 	online_pages() is only compiled for CONFIG_MEMORY_HOTPLUG_SPARSE,
+> > 	so there is no need to support CONFIG_FLATMEM code within it.
+> >
+> > 	This patch removes code that is never used.
+> 
+> Please look into attachments.
+> 
+> If you have any questions please drop me a line.
+> 
+
+Not sure why you've attached the emails from the mm-commits mailing list.  
+I'll respond to the commits with with my suggestions for how the changelog 
+should be fixed.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
