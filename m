@@ -1,136 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id DB52A90011F
-	for <linux-mm@kvack.org>; Mon, 16 May 2011 17:19:30 -0400 (EDT)
-Received: from d03relay01.boulder.ibm.com (d03relay01.boulder.ibm.com [9.17.195.226])
-	by e39.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p4GL5Yb8028657
-	for <linux-mm@kvack.org>; Mon, 16 May 2011 15:05:34 -0600
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay01.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p4GLJLi7136974
-	for <linux-mm@kvack.org>; Mon, 16 May 2011 15:19:21 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p4GFIrGK004566
-	for <linux-mm@kvack.org>; Mon, 16 May 2011 09:18:54 -0600
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 4BF4C90011A
+	for <linux-mm@kvack.org>; Mon, 16 May 2011 17:19:31 -0400 (EDT)
+Received: from d01relay01.pok.ibm.com (d01relay01.pok.ibm.com [9.56.227.233])
+	by e9.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p4GKo7a6023801
+	for <linux-mm@kvack.org>; Mon, 16 May 2011 16:50:07 -0400
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p4GLJTIP128500
+	for <linux-mm@kvack.org>; Mon, 16 May 2011 17:19:29 -0400
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p4GHJ8vM030188
+	for <linux-mm@kvack.org>; Mon, 16 May 2011 14:19:09 -0300
 From: John Stultz <john.stultz@linaro.org>
-Subject: [PATCH 1/3] comm: Introduce comm_lock seqlock to protect task->comm access
-Date: Mon, 16 May 2011 14:19:15 -0700
-Message-Id: <1305580757-13175-2-git-send-email-john.stultz@linaro.org>
+Subject: [PATCH 3/3] checkpatch.pl: Add check for task comm references
+Date: Mon, 16 May 2011 14:19:17 -0700
+Message-Id: <1305580757-13175-4-git-send-email-john.stultz@linaro.org>
 In-Reply-To: <1305580757-13175-1-git-send-email-john.stultz@linaro.org>
 References: <1305580757-13175-1-git-send-email-john.stultz@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: LKML <linux-kernel@vger.kernel.org>
-Cc: John Stultz <john.stultz@linaro.org>, Ted Ts'o <tytso@mit.edu>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+Cc: John Stultz <john.stultz@linaro.org>, Ted Ts'o <tytso@mit.edu>, Michal Nazarewicz <mina86@mina86.com>, Jiri Slaby <jirislaby@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-The implicit rules for current->comm access being safe without locking
-are no longer true. Accessing current->comm without holding the task
-lock may result in null or incomplete strings (however, access won't
-run off the end of the string).
+Now that accessing current->comm needs to be protected,
+avoid new current->comm or other task->comm usage by adding
+a warning to checkpatch.pl.
 
-In order to properly fix this, I've introduced a comm_lock spinlock
-which will protect comm access and modified get_task_comm() and
-set_task_comm() to use it.
+Fair warning: I know zero perl, so this was written in the
+style of "monkey see, monkey do". It does appear to work
+in my testing though.
 
-Since there are a number of cases where comm access is open-coded
-safely grabbing the task_lock(), we preserve the task locking in
-set_task_comm, so those users are also safe.
+Thanks to Jiri Slaby and Michal Nazarewicz for help improving
+the regex!
 
-With this patch, users that access current->comm without a lock
-are still prone to null/incomplete comm strings, but it should
-be no worse then it is now.
-
-The next step is to go through and convert all comm accesses to
-use get_task_comm(). This is substantial, but can be done bit by
-bit, reducing the race windows with each patch.
+Close review and feedback would be appreciated.
 
 CC: Ted Ts'o <tytso@mit.edu>
+CC: Michal Nazarewicz <mina86@mina86.com>
+CC: Jiri Slaby <jirislaby@gmail.com>
 CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 CC: David Rientjes <rientjes@google.com>
 CC: Dave Hansen <dave@linux.vnet.ibm.com>
 CC: Andrew Morton <akpm@linux-foundation.org>
 CC: linux-mm@kvack.org
-Acked-by: David Rientjes <rientjes@google.com>
 Signed-off-by: John Stultz <john.stultz@linaro.org>
 ---
- fs/exec.c                 |   19 ++++++++++++++++---
- include/linux/init_task.h |    1 +
- include/linux/sched.h     |    5 ++---
- 3 files changed, 19 insertions(+), 6 deletions(-)
+ scripts/checkpatch.pl |    4 ++++
+ 1 files changed, 4 insertions(+), 0 deletions(-)
 
-diff --git a/fs/exec.c b/fs/exec.c
-index 5e62d26..34fa611 100644
---- a/fs/exec.c
-+++ b/fs/exec.c
-@@ -998,17 +998,28 @@ static void flush_old_files(struct files_struct * files)
+diff --git a/scripts/checkpatch.pl b/scripts/checkpatch.pl
+index d867081..3a713c2 100755
+--- a/scripts/checkpatch.pl
++++ b/scripts/checkpatch.pl
+@@ -2868,6 +2868,10 @@ sub process {
+ 			WARN("usage of NR_CPUS is often wrong - consider using cpu_possible(), num_possible_cpus(), for_each_possible_cpu(), etc\n" . $herecurr);
+ 		}
  
- char *get_task_comm(char *buf, struct task_struct *tsk)
- {
--	/* buf must be at least sizeof(tsk->comm) in size */
--	task_lock(tsk);
-+	unsigned long flags;
-+
-+	spin_lock_irqsave(&tsk->comm_lock, flags);
- 	strncpy(buf, tsk->comm, sizeof(tsk->comm));
--	task_unlock(tsk);
-+	spin_unlock_irqrestore(&tsk->comm_lock, flags);
- 	return buf;
- }
- 
- void set_task_comm(struct task_struct *tsk, char *buf)
- {
-+	unsigned long flags;
-+
-+	/*
-+	 * XXX - Even though comm is protected by comm_lock,
-+	 * we take the task_lock here to serialize against
-+	 * current users that directly access comm.
-+	 * Once those users are removed, we can drop the
-+	 * task locking & memsetting.
-+	 */
- 	task_lock(tsk);
- 
-+	spin_lock_irqsave(&tsk->comm_lock, flags);
- 	/*
- 	 * Threads may access current->comm without holding
- 	 * the task lock, so write the string carefully.
-@@ -1018,6 +1029,8 @@ void set_task_comm(struct task_struct *tsk, char *buf)
- 	memset(tsk->comm, 0, TASK_COMM_LEN);
- 	wmb();
- 	strlcpy(tsk->comm, buf, sizeof(tsk->comm));
-+	spin_unlock_irqrestore(&tsk->comm_lock, flags);
-+
- 	task_unlock(tsk);
- 	perf_event_comm(tsk);
- }
-diff --git a/include/linux/init_task.h b/include/linux/init_task.h
-index caa151f..b69d94b 100644
---- a/include/linux/init_task.h
-+++ b/include/linux/init_task.h
-@@ -161,6 +161,7 @@ extern struct cred init_cred;
- 	.group_leader	= &tsk,						\
- 	RCU_INIT_POINTER(.real_cred, &init_cred),			\
- 	RCU_INIT_POINTER(.cred, &init_cred),				\
-+	.comm_lock	= __SPIN_LOCK_UNLOCKED(tsk.comm_lock),		\
- 	.comm		= "swapper",					\
- 	.thread		= INIT_THREAD,					\
- 	.fs		= &init_fs,					\
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index 18d63ce..f8a7cdf 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -1333,10 +1333,9 @@ struct task_struct {
- 	const struct cred __rcu *cred;	/* effective (overridable) subjective task
- 					 * credentials (COW) */
- 	struct cred *replacement_session_keyring; /* for KEYCTL_SESSION_TO_PARENT */
--
-+	spinlock_t comm_lock;		/* protect's comm */
- 	char comm[TASK_COMM_LEN]; /* executable name excluding path
--				     - access with [gs]et_task_comm (which lock
--				       it with task_lock())
-+				     - access with [gs]et_task_comm
- 				     - initialized normally by setup_new_exec */
- /* file system info */
- 	int link_count, total_link_count;
++# check for current->comm usage
++		if ($line =~ /\b(?:current|task|tsk|t)\s*->\s*comm\b/) {
++			WARN("comm access needs to be protected. Use get_task_comm, or printk's \%ptc formatting.\n" . $herecurr);
++		}
+ # check for %L{u,d,i} in strings
+ 		my $string;
+ 		while ($line =~ /(?:^|")([X\t]*)(?:"|$)/g) {
 -- 
 1.7.3.2.146.gca209
 
