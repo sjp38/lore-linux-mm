@@ -1,51 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 8814B6B002B
-	for <linux-mm@kvack.org>; Mon, 16 May 2011 18:02:08 -0400 (EDT)
-From: Ying Han <yinghan@google.com>
-Subject: [PATCH] memcg: fix typo in the soft_limit stats.
-Date: Mon, 16 May 2011 15:00:30 -0700
-Message-Id: <1305583230-2111-1-git-send-email-yinghan@google.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 0FCD56B002E
+	for <linux-mm@kvack.org>; Mon, 16 May 2011 18:36:23 -0400 (EDT)
+Date: Mon, 16 May 2011 15:36:07 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [rfc patch 2/6] vmscan: make distinction between memcg reclaim
+ and LRU list selection
+Message-Id: <20110516153607.49d4dc41.akpm@linux-foundation.org>
+In-Reply-To: <20110513065854.GB18610@cmpxchg.org>
+References: <1305212038-15445-1-git-send-email-hannes@cmpxchg.org>
+	<1305212038-15445-3-git-send-email-hannes@cmpxchg.org>
+	<20110513085027.25b25a47.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110513065854.GB18610@cmpxchg.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>
-Cc: linux-mm@kvack.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Ying Han <yinghan@google.com>, Michal Hocko <mhocko@suse.cz>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-This fixes the typo in the memory.stat including the following two
-stats:
+On Fri, 13 May 2011 08:58:54 +0200
+Johannes Weiner <hannes@cmpxchg.org> wrote:
 
-$ cat /dev/cgroup/memory/A/memory.stat
-total_soft_steal 0
-total_soft_scan 0
+> > > @@ -154,16 +158,24 @@ static LIST_HEAD(shrinker_list);
+> > >  static DECLARE_RWSEM(shrinker_rwsem);
+> > >  
+> > >  #ifdef CONFIG_CGROUP_MEM_RES_CTLR
+> > > -#define scanning_global_lru(sc)	(!(sc)->mem_cgroup)
+> > > +static bool global_reclaim(struct scan_control *sc)
+> > > +{
+> > > +	return !sc->memcg;
+> > > +}
+> > > +static bool scanning_global_lru(struct scan_control *sc)
+> > > +{
+> > > +	return !sc->current_memcg;
+> > > +}
+> > 
+> > 
+> > Could you add comments ?
 
-And change it to:
+oy, that's my job.
 
-$ cat /dev/cgroup/memory/A/memory.stat
-total_soft_kswapd_steal 0
-total_soft_kswapd_scan 0
+> Yes, I will.
 
-Signed-off-by: Ying Han <yinghan@google.com>
----
- mm/memcontrol.c |    4 ++--
- 1 files changed, 2 insertions(+), 2 deletions(-)
+> +static bool global_reclaim(struct scan_control *sc) { return 1; }
+> +static bool scanning_global_lru(struct scan_control *sc) { return 1; }
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index a010c23..1ea787d 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -4023,8 +4023,8 @@ struct {
- 	{"limit_direct_scan", "total_limit_direct_scan"},
- 	{"hierarchy_direct_steal", "total_hierarchy_direct_steal"},
- 	{"hierarchy_direct_scan", "total_hierarchy_direct_scan"},
--	{"soft_kswapd_steal", "total_soft_steal"},
--	{"soft_kswapd_scan", "total_soft_scan"},
-+	{"soft_kswapd_steal", "total_soft_kswapd_steal"},
-+	{"soft_kswapd_scan", "total_soft_kswapd_scan"},
- 	{"soft_direct_steal", "total_soft_direct_steal"},
- 	{"soft_direct_scan", "total_soft_direct_scan"},
- 	{"inactive_anon", "total_inactive_anon"},
--- 
-1.7.3.1
+s/1/true/
+
+And we may as well format the functions properly?
+
+And it would be nice for the names of the functions to identify what
+subsystem they belong to: memcg_global_reclaim() or such.  Although
+that's already been a bit messed up in memcg (and in the VM generally).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
