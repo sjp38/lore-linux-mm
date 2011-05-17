@@ -1,96 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 74E406B0026
-	for <linux-mm@kvack.org>; Tue, 17 May 2011 02:37:14 -0400 (EDT)
-Subject: Re: [PATCH 2/2] mm: vmscan: If kswapd has been running too long,
- allow it to sleep
-From: James Bottomley <James.Bottomley@HansenPartnership.com>
-In-Reply-To: <20110516141654.2728f05a.akpm@linux-foundation.org>
-References: <1305558417-24354-1-git-send-email-mgorman@suse.de>
-	 <1305558417-24354-3-git-send-email-mgorman@suse.de>
-	 <20110516141654.2728f05a.akpm@linux-foundation.org>
-Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 17 May 2011 10:37:04 +0400
-Message-ID: <1305614225.6008.19.camel@mulgrave.site>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with ESMTP id BDD976B0026
+	for <linux-mm@kvack.org>; Tue, 17 May 2011 02:38:13 -0400 (EDT)
+Received: from wpaz1.hot.corp.google.com (wpaz1.hot.corp.google.com [172.24.198.65])
+	by smtp-out.google.com with ESMTP id p4H6c90A006226
+	for <linux-mm@kvack.org>; Mon, 16 May 2011 23:38:09 -0700
+Received: from qyj19 (qyj19.prod.google.com [10.241.83.83])
+	by wpaz1.hot.corp.google.com with ESMTP id p4H6bWoF022767
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 16 May 2011 23:38:08 -0700
+Received: by qyj19 with SMTP id 19so2270664qyj.2
+        for <linux-mm@kvack.org>; Mon, 16 May 2011 23:38:07 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20110512160349.GJ16531@cmpxchg.org>
+References: <1305212038-15445-1-git-send-email-hannes@cmpxchg.org>
+	<1305212038-15445-3-git-send-email-hannes@cmpxchg.org>
+	<4DCBFDB9.10209@redhat.com>
+	<20110512160349.GJ16531@cmpxchg.org>
+Date: Mon, 16 May 2011 23:38:07 -0700
+Message-ID: <BANLkTi=+hVKx6bkowgiiatPGwSy0m3=2uQ@mail.gmail.com>
+Subject: Re: [rfc patch 2/6] vmscan: make distinction between memcg reclaim
+ and LRU list selection
+From: Ying Han <yinghan@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, Colin King <colin.king@canonical.com>, Raghavendra D Prabhu <raghu.prabhu13@gmail.com>, Jan Kara <jack@suse.cz>, Chris Mason <chris.mason@oracle.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-ext4 <linux-ext4@vger.kernel.org>, stable <stable@kernel.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, 2011-05-16 at 14:16 -0700, Andrew Morton wrote:
-> On Mon, 16 May 2011 16:06:57 +0100
-> Mel Gorman <mgorman@suse.de> wrote:
-> 
-> > Under constant allocation pressure, kswapd can be in the situation where
-> > sleeping_prematurely() will always return true even if kswapd has been
-> > running a long time. Check if kswapd needs to be scheduled.
-> > 
-> > Signed-off-by: Mel Gorman <mgorman@suse.de>
-> > Acked-by: Rik van Riel <riel@redhat.com>
-> > ---
-> >  mm/vmscan.c |    4 ++++
-> >  1 files changed, 4 insertions(+), 0 deletions(-)
-> > 
-> > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > index af24d1e..4d24828 100644
-> > --- a/mm/vmscan.c
-> > +++ b/mm/vmscan.c
-> > @@ -2251,6 +2251,10 @@ static bool sleeping_prematurely(pg_data_t *pgdat, int order, long remaining,
-> >  	unsigned long balanced = 0;
-> >  	bool all_zones_ok = true;
-> >  
-> > +	/* If kswapd has been running too long, just sleep */
-> > +	if (need_resched())
-> > +		return false;
-> > +
-> >  	/* If a direct reclaimer woke kswapd within HZ/10, it's premature */
-> >  	if (remaining)
-> >  		return true;
-> 
-> I'm a bit worried by this one.
-> 
-> Do we really fully understand why kswapd is continuously running like
-> this?  The changelog makes me think "no" ;)
-> 
-> Given that the page-allocating process is madly reclaiming pages in
-> direct reclaim (yes?) and that kswapd is madly reclaiming pages on a
-> different CPU, we should pretty promptly get into a situation where
-> kswapd can suspend itself.  But that obviously isn't happening.  So
-> what *is* going on?
+On Thu, May 12, 2011 at 9:03 AM, Johannes Weiner <hannes@cmpxchg.org> wrote=
+:
+> On Thu, May 12, 2011 at 11:33:13AM -0400, Rik van Riel wrote:
+>> On 05/12/2011 10:53 AM, Johannes Weiner wrote:
+>> >The reclaim code has a single predicate for whether it currently
+>> >reclaims on behalf of a memory cgroup, as well as whether it is
+>> >reclaiming from the global LRU list or a memory cgroup LRU list.
+>> >
+>> >Up to now, both cases always coincide, but subsequent patches will
+>> >change things such that global reclaim will scan memory cgroup lists.
+>> >
+>> >This patch adds a new predicate that tells global reclaim from memory
+>> >cgroup reclaim, and then changes all callsites that are actually about
+>> >global reclaim heuristics rather than strict LRU list selection.
+>> >
+>> >Signed-off-by: Johannes Weiner<hannes@cmpxchg.org>
+>> >---
+>> > =A0mm/vmscan.c | =A0 96 ++++++++++++++++++++++++++++++++++------------=
+------------
+>> > =A01 files changed, 56 insertions(+), 40 deletions(-)
+>> >
+>> >diff --git a/mm/vmscan.c b/mm/vmscan.c
+>> >index f6b435c..ceeb2a5 100644
+>> >--- a/mm/vmscan.c
+>> >+++ b/mm/vmscan.c
+>> >@@ -104,8 +104,12 @@ struct scan_control {
+>> > =A0 =A0 =A0*/
+>> > =A0 =A0 reclaim_mode_t reclaim_mode;
+>> >
+>> >- =A0 =A0/* Which cgroup do we reclaim from */
+>> >- =A0 =A0struct mem_cgroup *mem_cgroup;
+>> >+ =A0 =A0/*
+>> >+ =A0 =A0 * The memory cgroup we reclaim on behalf of, and the one we
+>> >+ =A0 =A0 * are currently reclaiming from.
+>> >+ =A0 =A0 */
+>> >+ =A0 =A0struct mem_cgroup *memcg;
+>> >+ =A0 =A0struct mem_cgroup *current_memcg;
+>>
+>> I can't say I'm fond of these names. =A0I had to read the
+>> rest of the patch to figure out that the old mem_cgroup
+>> got renamed to current_memcg.
+>
+> To clarify: sc->memcg will be the memcg that hit the hard limit and is
+> the main target of this reclaim invocation. =A0current_memcg is the
+> iterator over the hierarchy below the target.
 
-The triggering workload is a massive untar using a file on the same
-filesystem, so that's a continuous stream of pages read into the cache
-for the input and a stream of dirty pages out for the writes.  We
-thought it might have been out of control shrinkers, so we already
-debugged that and found it wasn't.  It just seems to be an imbalance in
-the zones that the shrinkers can't fix which causes
-sleeping_prematurely() to return true almost indefinitely.
+I would assume the new variable memcg is a renaming of the
+"mem_cgroup" which indicating which cgroup we reclaim on behalf of.
+About the "current_memcg", i couldn't find where it is indicating to
+be the current cgroup under the hierarchy below the "memcg".
 
-> Secondly, taking an up-to-100ms sleep in response to a need_resched()
-> seems pretty savage and I suspect it risks undesirable side-effects.  A
-> plain old cond_resched() would be more cautious.  But presumably
-> kswapd() is already running cond_resched() pretty frequently, so why
-> didn't that work?
+Both mem_cgroup_shrink_node_zone() and try_to_free_mem_cgroup_pages()
+are called within mem_cgroup_hierarchical_reclaim(), and the sc->memcg
+is initialized w/ the victim passed down which is already the memcg
+under hierarchy.
 
-So the specific problem with cond_resched() is that kswapd is still
-runnable, so even if there's other work the system can be getting on
-with, it quickly comes back to looping madly in kswapd.  If we return
-false from sleeping_prematurely(), we stop kswapd until its woken up to
-do more work.  This manifests, even on non sandybridge systems that
-don't hang as a lot of time burned in kswapd.
+--Ying
 
-I think the sandybridge bug I see on the laptop is that cond_resched()
-is somehow ineffective:  kswapd is usually hogging one CPU and there are
-runnable processes but they seem to cluster on other CPUs, leaving
-kswapd to spin at close to 100% system time.
 
-When the problem was first described, we tried sprinkling more
-cond_rescheds() in the shrinker loop and it didn't work.
-
-James
-
+> I realize this change in particular was placed a bit unfortunate in
+> terms of understanding in the series, I just wanted to keep out the
+> mem_cgroup to current_memcg renaming out of the next patch. =A0There is
+> probably a better way, I'll fix it up and improve the comment.
+>
+>> Would it be better to call them my_memcg and reclaim_memcg?
+>>
+>> Maybe somebody else has better suggestions...
+>
+> Yes, suggestions welcome. =A0I'm not too fond of the naming, either.
+>
+>> Other than the naming, no objection.
+>
+> Thanks, Rik.
+>
+> =A0 =A0 =A0 =A0Hannes
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
