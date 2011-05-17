@@ -1,52 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id BFA556B0012
-	for <linux-mm@kvack.org>; Tue, 17 May 2011 04:47:56 -0400 (EDT)
-Received: (from localhost user: 'dkiper' uid#4000 fake: STDIN
-	(dkiper@router-fw.net-space.pl)) by router-fw-old.local.net-space.pl
-	id S1573791Ab1EQIqH (ORCPT <rfc822;linux-mm@kvack.org>);
-	Tue, 17 May 2011 10:46:07 +0200
-Date: Tue, 17 May 2011 10:46:06 +0200
-From: Daniel Kiper <dkiper@net-space.pl>
-Subject: Re: [PATCH 1/4] mm: Remove dependency on CONFIG_FLATMEM from online_page()
-Message-ID: <20110517084606.GA21622@router-fw-old.local.net-space.pl>
-References: <20110502211915.GB4623@router-fw-old.local.net-space.pl> <alpine.DEB.2.00.1105111547160.24003@chino.kir.corp.google.com> <20110512102515.GA27851@router-fw-old.local.net-space.pl> <alpine.DEB.2.00.1105121223500.2407@chino.kir.corp.google.com> <20110516075849.GB6393@router-fw-old.local.net-space.pl> <alpine.DEB.2.00.1105161330570.4353@chino.kir.corp.google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 4780B6B0022
+	for <linux-mm@kvack.org>; Tue, 17 May 2011 05:41:16 -0400 (EDT)
+Date: Tue, 17 May 2011 10:41:11 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: [PATCH] mm: tracing: Add missing GFP flags to tracing
+Message-ID: <20110517094111.GJ5279@suse.de>
+References: <20110510100954.GC4146@suse.de>
+ <20110510145446.1f8e77e3.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1105161330570.4353@chino.kir.corp.google.com>
+In-Reply-To: <20110510145446.1f8e77e3.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Daniel Kiper <dkiper@net-space.pl>, ian.campbell@citrix.com, akpm@linux-foundation.org, andi.kleen@intel.com, haicheng.li@linux.intel.com, fengguang.wu@intel.com, jeremy@goop.org, konrad.wilk@oracle.com, dan.magenheimer@oracle.com, v.tolstov@selfip.ru, pasik@iki.fi, dave@linux.vnet.ibm.com, wdauchy@gmail.com, xen-devel@lists.xensource.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, stable@kernel.org
 
-On Mon, May 16, 2011 at 01:32:19PM -0700, David Rientjes wrote:
-> On Mon, 16 May 2011, Daniel Kiper wrote:
->
-> > > No, I would just reply to the email notification you received when the
-> > > patch went into -mm saying that the changelog should be adjusted to read
-> > > something like
-> > >
-> > > 	online_pages() is only compiled for CONFIG_MEMORY_HOTPLUG_SPARSE,
-> > > 	so there is no need to support CONFIG_FLATMEM code within it.
-> > >
-> > > 	This patch removes code that is never used.
-> >
-> > Please look into attachments.
-> >
-> > If you have any questions please drop me a line.
->
-> Not sure why you've attached the emails from the mm-commits mailing list.
+(For 2.6.38-stable)
 
-I attached emails from the mm-commits mailing list because
-I understood that you need them to correct changelogs.
+include/linux/gfp.h and include/trace/events/gfpflags.h is out of
+sync. When tracing is enabled, certain flags are not recognised and
+the text output is less useful as a result.  Add the missing flags.
 
-> I'll respond to the commits with with my suggestions for how the changelog
-> should be fixed.
+Signed-off-by: Mel Gorman <mgorman@suse.de>
+---
+ include/trace/events/gfpflags.h |    5 ++++-
+ 1 files changed, 4 insertions(+), 1 deletions(-)
 
-I saw your replies. Thank you for your help.
-
-Daniel
+diff --git a/include/trace/events/gfpflags.h b/include/trace/events/gfpflags.h
+index e3615c0..5cb8c1b 100644
+--- a/include/trace/events/gfpflags.h
++++ b/include/trace/events/gfpflags.h
+@@ -10,6 +10,7 @@
+  */
+ #define show_gfp_flags(flags)						\
+ 	(flags) ? __print_flags(flags, "|",				\
++	{(unsigned long)GFP_TRANSHUGE,		"GFP_TRANSHUGE"},	\
+ 	{(unsigned long)GFP_HIGHUSER_MOVABLE,	"GFP_HIGHUSER_MOVABLE"}, \
+ 	{(unsigned long)GFP_HIGHUSER,		"GFP_HIGHUSER"},	\
+ 	{(unsigned long)GFP_USER,		"GFP_USER"},		\
+@@ -32,6 +33,8 @@
+ 	{(unsigned long)__GFP_HARDWALL,		"GFP_HARDWALL"},	\
+ 	{(unsigned long)__GFP_THISNODE,		"GFP_THISNODE"},	\
+ 	{(unsigned long)__GFP_RECLAIMABLE,	"GFP_RECLAIMABLE"},	\
+-	{(unsigned long)__GFP_MOVABLE,		"GFP_MOVABLE"}		\
++	{(unsigned long)__GFP_MOVABLE,		"GFP_MOVABLE"},		\
++	{(unsigned long)__GFP_NOTRACK,		"GFP_NOTRACK"},		\
++	{(unsigned long)__GFP_NO_KSWAPD,	"GFP_NO_KSWAPD"}	\
+ 	) : "GFP_NOWAIT"
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
