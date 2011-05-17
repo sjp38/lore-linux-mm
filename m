@@ -1,52 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 330D390010B
-	for <linux-mm@kvack.org>; Tue, 17 May 2011 00:53:03 -0400 (EDT)
-Received: by wwi36 with SMTP id 36so104968wwi.26
-        for <linux-mm@kvack.org>; Mon, 16 May 2011 21:52:59 -0700 (PDT)
-Subject: Re: [slubllv5 03/25] slub: Make CONFIG_PAGE_ALLOC work with new
- fastpath
-From: Eric Dumazet <eric.dumazet@gmail.com>
-In-Reply-To: <20110516202622.862544137@linux.com>
-References: <20110516202605.274023469@linux.com>
-	 <20110516202622.862544137@linux.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 17 May 2011 06:52:54 +0200
-Message-ID: <1305607974.9466.42.camel@edumazet-laptop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 48B126B0025
+	for <linux-mm@kvack.org>; Tue, 17 May 2011 01:26:27 -0400 (EDT)
+Date: Tue, 17 May 2011 13:26:21 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 1/2] mm: vmscan: Correct use of pgdat_balanced in
+ sleeping_prematurely
+Message-ID: <20110517052621.GA24069@localhost>
+References: <1305558417-24354-1-git-send-email-mgorman@suse.de>
+ <1305558417-24354-2-git-send-email-mgorman@suse.de>
+ <20110516152608.GT16531@cmpxchg.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110516152608.GT16531@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, David Rientjes <rientjes@google.com>, "H. Peter Anvin" <hpa@zytor.com>, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, James Bottomley <James.Bottomley@HansenPartnership.com>, Colin King <colin.king@canonical.com>, Raghavendra D Prabhu <raghu.prabhu13@gmail.com>, Jan Kara <jack@suse.cz>, Chris Mason <chris.mason@oracle.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-ext4 <linux-ext4@vger.kernel.org>, stable <stable@kernel.org>
 
-Le lundi 16 mai 2011 A  15:26 -0500, Christoph Lameter a A(C)crit :
-> piA?ce jointe document texte brut (fixup)
-> Fastpath can do a speculative access to a page that CONFIG_PAGE_ALLOC may have
-
-CONFIG_DEBUG_PAGE_ALLOC
-
-> marked as invalid to retrieve the pointer to the next free object.
+On Mon, May 16, 2011 at 05:26:08PM +0200, Johannes Weiner wrote:
+> On Mon, May 16, 2011 at 04:06:56PM +0100, Mel Gorman wrote:
+> > From: Johannes Weiner <hannes@cmpxchg.org>
+> > 
+> > Johannes Weiner poined out that the logic in commit [1741c877: mm:
+> > kswapd: keep kswapd awake for high-order allocations until a percentage
+> > of the node is balanced] is backwards. Instead of allowing kswapd to go
+> > to sleep when balancing for high order allocations, it keeps it kswapd
+> > running uselessly.
+> > 
+> > Signed-off-by: Mel Gorman <mgorman@suse.de>
+> > Reviewed-by: Rik van Riel <riel@redhat.com>
 > 
-> Use probe_kernel_read in that case in order not to cause a page fault.
-> 
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
-Some credits would be good, it would certainly help both of us.
-
-Reported-by: Eric Dumazet <eric.dumazet@gmail.com>
-
-> Signed-off-by: Christoph Lameter <cl@linux.com>
-
-Signed-off-by: Eric Dumazet <eric.dumazet@gmail.com>
-
-
-> ---
->  mm/slub.c |   14 +++++++++++++-
->  1 file changed, 13 insertions(+), 1 deletion(-)
-> 
-
-Thanks
-
+Reviewed-by: Wu Fengguang <fengguang.wu@intel.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
