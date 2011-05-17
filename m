@@ -1,128 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 88E226B002C
-	for <linux-mm@kvack.org>; Tue, 17 May 2011 18:26:45 -0400 (EDT)
-From: Ying Han <yinghan@google.com>
-Subject: [PATCH 2/2] memcg: add memory.numastat api for numa statistics
-Date: Tue, 17 May 2011 15:25:51 -0700
-Message-Id: <1305671151-21993-2-git-send-email-yinghan@google.com>
-In-Reply-To: <1305671151-21993-1-git-send-email-yinghan@google.com>
-References: <1305671151-21993-1-git-send-email-yinghan@google.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 0E72F6B0027
+	for <linux-mm@kvack.org>; Tue, 17 May 2011 18:27:19 -0400 (EDT)
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e37.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p4HMOLfd010137
+	for <linux-mm@kvack.org>; Tue, 17 May 2011 16:24:21 -0600
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id p4HMRC1e128618
+	for <linux-mm@kvack.org>; Tue, 17 May 2011 16:27:12 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p4HGQhva013335
+	for <linux-mm@kvack.org>; Tue, 17 May 2011 10:26:44 -0600
+Subject: Re: [PATCH 1/3] comm: Introduce comm_lock spinlock to protect
+ task->comm access
+From: John Stultz <john.stultz@linaro.org>
+In-Reply-To: <20110517212734.GB28054@elte.hu>
+References: <1305665263-20933-1-git-send-email-john.stultz@linaro.org>
+	 <1305665263-20933-2-git-send-email-john.stultz@linaro.org>
+	 <20110517212734.GB28054@elte.hu>
+Content-Type: text/plain; charset="UTF-8"
+Date: Tue, 17 May 2011 15:27:05 -0700
+Message-ID: <1305671225.2915.133.camel@work-vm>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>
-Cc: linux-mm@kvack.org
+To: Ingo Molnar <mingo@elte.hu>
+Cc: LKML <linux-kernel@vger.kernel.org>, Joe Perches <joe@perches.com>, Michal Nazarewicz <mina86@mina86.com>, Andy Whitcroft <apw@canonical.com>, Jiri Slaby <jirislaby@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-The new API exports numa_maps per-memcg basis. This is a piece of useful
-information where it exports per-memcg page distribution across real numa
-nodes.
+On Tue, 2011-05-17 at 23:27 +0200, Ingo Molnar wrote:
+> * John Stultz <john.stultz@linaro.org> wrote:
+> 
+> > The implicit rules for current->comm access being safe without locking are no 
+> > longer true. Accessing current->comm without holding the task lock may result 
+> > in null or incomplete strings (however, access won't run off the end of the 
+> > string).
+> 
+> This is rather unfortunate - task->comm is used in a number of performance 
+> critical codepaths such as tracing.
+> 
+> Why does this matter so much? A NULL string is not a big deal.
 
-One of the usecase is evaluating application performance by combining this
-information w/ the cpu allocation to the application.
+I'll defer to KOSAKI Motohiro and David on this bit. :)
 
-The output of the memory.numastat tries to follow w/ simiar format of numa_maps
-like:
+> Note, since task->comm is 16 bytes there's the CMPXCHG16B instruction on x86 
+> which could be used to update it atomically, should atomicity really be 
+> desired.
 
-<total pages> N0=<node 0 pages> N1=<node 1 pages> ...
+Could we use this where cmpxchg16b is available and fall back to locking
+if not? Or does that put too much of a penalty on arches that don't have
+cmpxchg16b support?
 
-$ cat /dev/cgroup/memory/memory.numa_stat
-292115 N0=36364 N1=166876 N2=39741 N3=49115
+Alternatively, we can have locked accessors that are safe in the
+majority of slow-path warning printks, and provide unlocked accessors
+for cases where the performance is critical and the code can properly
+handle possibly incomplete comms.
 
-Note: I noticed <total pages> is not equal to the sum of the rest of counters.
-I might need to change the way get that counter, comments are welcomed.
+thanks
+-john
 
-Signed-off-by: Ying Han <yinghan@google.com>
----
- mm/memcontrol.c |   53 +++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 files changed, 53 insertions(+), 0 deletions(-)
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index da183dc..0fe9c75 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1162,6 +1162,22 @@ unsigned long mem_cgroup_zone_nr_lru_pages(struct mem_cgroup *memcg,
- 	return MEM_CGROUP_ZSTAT(mz, lru);
- }
- 
-+unsigned long mem_cgroup_node_nr_pages(struct mem_cgroup *memcg, int nid)
-+{
-+	int zid;
-+	struct mem_cgroup_per_zone *mz;
-+	enum lru_list l;
-+	u64 total = 0;
-+
-+	for (zid = 0; zid < MAX_NR_ZONES; zid++) {
-+		mz = mem_cgroup_zoneinfo(memcg, nid, zid);
-+		for_each_lru(l)
-+			total += MEM_CGROUP_ZSTAT(mz, l);
-+	}
-+
-+	return total;
-+}
-+
- struct zone_reclaim_stat *mem_cgroup_get_reclaim_stat(struct mem_cgroup *memcg,
- 						      struct zone *zone)
- {
-@@ -4048,6 +4064,25 @@ mem_cgroup_get_total_stat(struct mem_cgroup *mem, struct mcs_total_stat *s)
- 		mem_cgroup_get_local_stat(iter, s);
- }
- 
-+static int mem_control_numa_stat_show(struct seq_file *m, void *arg)
-+{
-+	int nid;
-+	unsigned long total_nr, nid_nr;
-+	struct cgroup *cont = m->private;
-+	struct mem_cgroup *mem_cont = mem_cgroup_from_cont(cont);
-+
-+	total_nr = mem_cgroup_local_usage(mem_cont);
-+	seq_printf(m, "%lu", total_nr);
-+
-+	for_each_node_state(nid, N_HIGH_MEMORY) {
-+		nid_nr = mem_cgroup_node_nr_pages(mem_cont, nid);
-+		seq_printf(m, " N%d=%lu", nid, nid_nr);
-+	}
-+	seq_putc(m, '\n');
-+
-+	return 0;
-+}
-+
- static int mem_control_stat_show(struct cgroup *cont, struct cftype *cft,
- 				 struct cgroup_map_cb *cb)
- {
-@@ -4481,6 +4516,20 @@ static int mem_cgroup_oom_control_write(struct cgroup *cgrp,
- 	return 0;
- }
- 
-+static const struct file_operations mem_control_numa_stat_file_operations = {
-+	.read = seq_read,
-+	.llseek = seq_lseek,
-+	.release = single_release,
-+};
-+
-+static int mem_control_numa_stat_open(struct inode *unused, struct file *file)
-+{
-+	struct cgroup *cont = file->f_dentry->d_parent->d_fsdata;
-+
-+	file->f_op = &mem_control_numa_stat_file_operations;
-+	return single_open(file, mem_control_numa_stat_show, cont);
-+}
-+
- static struct cftype mem_cgroup_files[] = {
- 	{
- 		.name = "usage_in_bytes",
-@@ -4544,6 +4593,10 @@ static struct cftype mem_cgroup_files[] = {
- 		.unregister_event = mem_cgroup_oom_unregister_event,
- 		.private = MEMFILE_PRIVATE(_OOM_TYPE, OOM_CONTROL),
- 	},
-+	{
-+		.name = "numa_stat",
-+		.open = mem_control_numa_stat_open,
-+	},
- };
- 
- #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
--- 
-1.7.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
