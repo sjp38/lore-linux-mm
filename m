@@ -1,12 +1,12 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id DD2116B0028
-	for <linux-mm@kvack.org>; Tue, 17 May 2011 01:52:07 -0400 (EDT)
-Date: Tue, 17 May 2011 13:52:04 +0800
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 28ADD8D003B
+	for <linux-mm@kvack.org>; Tue, 17 May 2011 02:00:06 -0400 (EDT)
+Date: Tue, 17 May 2011 14:00:01 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
 Subject: Re: Kernel falls apart under light memory pressure (i.e. linking
  vmlinux)
-Message-ID: <20110517055204.GB24069@localhost>
+Message-ID: <20110517060001.GC24069@localhost>
 References: <BANLkTikhj1C7+HXP_4T-VnJzPefU2d7b3A@mail.gmail.com>
  <20110512054631.GI6008@one.firstfloor.org>
  <BANLkTi=fk3DUT9cYd2gAzC98c69F6HXX7g@mail.gmail.com>
@@ -16,19 +16,19 @@ References: <BANLkTikhj1C7+HXP_4T-VnJzPefU2d7b3A@mail.gmail.com>
  <20110514174333.GW6008@one.firstfloor.org>
  <BANLkTinst+Ryox9VZ-s7gdXKa574XXqt5w@mail.gmail.com>
  <20110515152747.GA25905@localhost>
- <BANLkTinv=_38E3Eyu88Ra4-x5vPEq7CDkw@mail.gmail.com>
+ <BANLkTim-AnEeL=z1sYm=iN7sMnG0+m0SHw@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <BANLkTinv=_38E3Eyu88Ra4-x5vPEq7CDkw@mail.gmail.com>
+In-Reply-To: <BANLkTim-AnEeL=z1sYm=iN7sMnG0+m0SHw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Andi Kleen <andi@firstfloor.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Lutomirski <luto@mit.edu>, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Lutomirski <luto@mit.edu>
+Cc: Minchan Kim <minchan.kim@gmail.com>, Andi Kleen <andi@firstfloor.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, May 16, 2011 at 07:40:42AM +0900, Minchan Kim wrote:
-> On Mon, May 16, 2011 at 12:27 AM, Wu Fengguang <fengguang.wu@intel.com> wrote:
+On Sun, May 15, 2011 at 12:12:36PM -0400, Andrew Lutomirski wrote:
+> On Sun, May 15, 2011 at 11:27 AM, Wu Fengguang <fengguang.wu@intel.com> wrote:
 > > On Sun, May 15, 2011 at 09:37:58AM +0800, Minchan Kim wrote:
 > >> On Sun, May 15, 2011 at 2:43 AM, Andi Kleen <andi@firstfloor.org> wrote:
 > >> > Copying back linux-mm.
@@ -48,13 +48,6 @@ On Mon, May 16, 2011 at 07:40:42AM +0900, Minchan Kim wrote:
 > >> Wu, What do you think?
 > >
 > > No, disabling readahead can hardly help.
-> 
-> I don't mean we have to disable RA.
-> As I said, the point is that we can use __GFP_NORETRY alloc fail as
-> _sign_ of memory pressure.
-
-I see.
-
 > >
 > > The sequential readahead memory consumption can be estimated by
 > >
@@ -67,28 +60,55 @@ I see.
 > >
 > > Typically readahead thrashing will happen long before excessive
 > > GFP_NORETRY failures, so the reasonable solutions are to
-> 
-> If it is, RA thrashing could be better sign than failure of __GFP_NORETRY.
-> If we can do it easily, I don't object it. :)
-
-Yeah, the RA thrashing is much better sign because it not only happens
-long before normal __GFP_NORETRY failures, but also offers hint on how
-tight memory pressure it is. We can then shrink the readahead window
-adaptively to the available page cache memory :)
-
 > >
 > > - shrink readahead window on readahead thrashing
 > > A (current readahead heuristic can somehow do this, and I have patches
 > > A to further improve it)
+> >
+> > - prevent abnormal GFP_NORETRY failures
+> > A (when there are many reclaimable pages)
+> >
+> >
+> > Andy's OOM memory dump (incorrect_oom_kill.txt.xz) shows that there are
+> >
+> > - 8MB A  active+inactive file pages
+> > - 160MB active+inactive anon pages
+> > - 1GB A  shmem pages
+> > - 1.4GB unevictable pages
+> >
+> > Hmm, why are there so many unevictable pages? A How come the shmem
+> > pages become unevictable when there are plenty of swap space?
 > 
-> Good to hear. :)
-> I don't want RA steals high order page in memory pressure.
+> That was probably because one of my testcases creates a 1.4GB file on
+> ramfs.  (I can provoke the problem without doing evil things like
+> that, but the test script is rather reliable at killing my system and
+> it works fine on my other machines.)
 
-More often than not it won't be RA's fault :)  When you see RA page
-allocations stealing high order pages, it may actually be reflecting
-some more general order-0 steal order-N problem..
+Ah I didn't read your first email.. I'm now running
 
-> My patch and shrinking RA window helps this case.
+./test_mempressure.sh 1500 1400 1
+
+with mem=2G and no swap, but cannot reproduce OOM.
+
+What's your kconfig?
+
+> If you want, I can try to generate a trace that isn't polluted with
+> the evil ramfs file.
+
+No, thanks. However it would be valuable if you can retry with this
+patch _alone_ (without the "if (need_resched()) return false;" change,
+as I don't see how it helps your case).
+
+@@ -2286,7 +2290,7 @@ static bool sleeping_prematurely(pg_data_t
+*pgdat, int order, long remaining,
+        * must be balanced
+        */
+       if (order)
+-               return pgdat_balanced(pgdat, balanced, classzone_idx);
++               return !pgdat_balanced(pgdat, balanced, classzone_idx);
+       else
+               return !all_zones_ok;
+ }
 
 Thanks,
 Fengguang
