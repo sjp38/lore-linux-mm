@@ -1,53 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id B3FA96B0022
-	for <linux-mm@kvack.org>; Tue, 17 May 2011 14:26:30 -0400 (EDT)
-Received: from wpaz9.hot.corp.google.com (wpaz9.hot.corp.google.com [172.24.198.73])
-	by smtp-out.google.com with ESMTP id p4HIQIqT018305
-	for <linux-mm@kvack.org>; Tue, 17 May 2011 11:26:23 -0700
-Received: from pvc30 (pvc30.prod.google.com [10.241.209.158])
-	by wpaz9.hot.corp.google.com with ESMTP id p4HIPeWX032474
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 17 May 2011 11:26:17 -0700
-Received: by pvc30 with SMTP id 30so383509pvc.20
-        for <linux-mm@kvack.org>; Tue, 17 May 2011 11:26:17 -0700 (PDT)
-Date: Tue, 17 May 2011 11:26:26 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH] mm: remove last trace of shmem_get_unmapped_area
-Message-ID: <alpine.LSU.2.00.1105171124560.29593@sister.anvils>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id EBB5B6B0025
+	for <linux-mm@kvack.org>; Tue, 17 May 2011 15:22:20 -0400 (EDT)
+Date: Tue, 17 May 2011 22:22:15 +0300 (EEST)
+From: Pekka Enberg <penberg@kernel.org>
+Subject: Re: [slubllv5 03/25] slub: Make CONFIG_PAGE_ALLOC work with new
+ fastpath
+In-Reply-To: <alpine.DEB.2.00.1105170845410.11187@router.home>
+Message-ID: <alpine.DEB.2.00.1105172222050.7203@tiger>
+References: <20110516202605.274023469@linux.com>   <20110516202622.862544137@linux.com>  <1305607974.9466.42.camel@edumazet-laptop> <alpine.DEB.2.00.1105170845410.11187@router.home>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org
+To: Christoph Lameter <cl@linux.com>
+Cc: Eric Dumazet <eric.dumazet@gmail.com>, Pekka Enberg <penberg@cs.helsinki.fi>, David Rientjes <rientjes@google.com>, "H. Peter Anvin" <hpa@zytor.com>, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>
 
-Remove noMMU declaration of shmem_get_unmapped_area() from mm.h:
-it fell out of use in 2.6.21 and ceased to exist in 2.6.29.
+On Tue, 17 May 2011, Christoph Lameter wrote:
 
-Signed-off-by: Hugh Dickins <hughd@google.com>
----
+> On Tue, 17 May 2011, Eric Dumazet wrote:
+>
+>> Some credits would be good, it would certainly help both of us.
+>
+> True. Sorry I just posted my queue without integrating tags.
+>
+>> Reported-by: Eric Dumazet <eric.dumazet@gmail.com>
+>>
+>>> Signed-off-by: Christoph Lameter <cl@linux.com>
+>>
+>> Signed-off-by: Eric Dumazet <eric.dumazet@gmail.com>
 
- include/linux/mm.h |    8 --------
- 1 file changed, 8 deletions(-)
-
---- mmotm/include/linux/mm.h	2011-05-13 14:57:45.023882876 -0700
-+++ linux/include/linux/mm.h	2011-05-17 11:11:49.999177144 -0700
-@@ -873,14 +873,6 @@ int shmem_lock(struct file *file, int lo
- struct file *shmem_file_setup(const char *name, loff_t size, unsigned long long vm_flags);
- int shmem_zero_setup(struct vm_area_struct *);
- 
--#ifndef CONFIG_MMU
--extern unsigned long shmem_get_unmapped_area(struct file *file,
--					     unsigned long addr,
--					     unsigned long len,
--					     unsigned long pgoff,
--					     unsigned long flags);
--#endif
--
- extern int can_do_mlock(void);
- extern int user_shm_lock(size_t, struct user_struct *);
- extern void user_shm_unlock(size_t, struct user_struct *);
+Applied, with fixed changelog. Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
