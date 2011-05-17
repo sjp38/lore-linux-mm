@@ -1,112 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id BBB5E6B0029
-	for <linux-mm@kvack.org>; Tue, 17 May 2011 04:25:47 -0400 (EDT)
-Date: Tue, 17 May 2011 10:25:12 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [rfc patch 2/6] vmscan: make distinction between memcg reclaim
- and LRU list selection
-Message-ID: <20110517082512.GA16531@cmpxchg.org>
-References: <1305212038-15445-1-git-send-email-hannes@cmpxchg.org>
- <1305212038-15445-3-git-send-email-hannes@cmpxchg.org>
- <4DCBFDB9.10209@redhat.com>
- <20110512160349.GJ16531@cmpxchg.org>
- <BANLkTi=+hVKx6bkowgiiatPGwSy0m3=2uQ@mail.gmail.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id A6A386B0012
+	for <linux-mm@kvack.org>; Tue, 17 May 2011 04:42:33 -0400 (EDT)
+Date: Tue, 17 May 2011 09:42:27 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 3/4] mm: slub: Do not take expensive steps for SLUBs
+ speculative high-order allocations
+Message-ID: <20110517084227.GI5279@suse.de>
+References: <1305295404-12129-1-git-send-email-mgorman@suse.de>
+ <1305295404-12129-4-git-send-email-mgorman@suse.de>
+ <alpine.DEB.2.00.1105161411440.4353@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <BANLkTi=+hVKx6bkowgiiatPGwSy0m3=2uQ@mail.gmail.com>
+In-Reply-To: <alpine.DEB.2.00.1105161411440.4353@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, James Bottomley <James.Bottomley@hansenpartnership.com>, Colin King <colin.king@canonical.com>, Raghavendra D Prabhu <raghu.prabhu13@gmail.com>, Jan Kara <jack@suse.cz>, Chris Mason <chris.mason@oracle.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-ext4 <linux-ext4@vger.kernel.org>
 
-On Mon, May 16, 2011 at 11:38:07PM -0700, Ying Han wrote:
-> On Thu, May 12, 2011 at 9:03 AM, Johannes Weiner <hannes@cmpxchg.org> wrote:
-> > On Thu, May 12, 2011 at 11:33:13AM -0400, Rik van Riel wrote:
-> >> On 05/12/2011 10:53 AM, Johannes Weiner wrote:
-> >> >The reclaim code has a single predicate for whether it currently
-> >> >reclaims on behalf of a memory cgroup, as well as whether it is
-> >> >reclaiming from the global LRU list or a memory cgroup LRU list.
-> >> >
-> >> >Up to now, both cases always coincide, but subsequent patches will
-> >> >change things such that global reclaim will scan memory cgroup lists.
-> >> >
-> >> >This patch adds a new predicate that tells global reclaim from memory
-> >> >cgroup reclaim, and then changes all callsites that are actually about
-> >> >global reclaim heuristics rather than strict LRU list selection.
-> >> >
-> >> >Signed-off-by: Johannes Weiner<hannes@cmpxchg.org>
-> >> >---
-> >> >  mm/vmscan.c |   96 ++++++++++++++++++++++++++++++++++------------------------
-> >> >  1 files changed, 56 insertions(+), 40 deletions(-)
-> >> >
-> >> >diff --git a/mm/vmscan.c b/mm/vmscan.c
-> >> >index f6b435c..ceeb2a5 100644
-> >> >--- a/mm/vmscan.c
-> >> >+++ b/mm/vmscan.c
-> >> >@@ -104,8 +104,12 @@ struct scan_control {
-> >> >      */
-> >> >     reclaim_mode_t reclaim_mode;
-> >> >
-> >> >-    /* Which cgroup do we reclaim from */
-> >> >-    struct mem_cgroup *mem_cgroup;
-> >> >+    /*
-> >> >+     * The memory cgroup we reclaim on behalf of, and the one we
-> >> >+     * are currently reclaiming from.
-> >> >+     */
-> >> >+    struct mem_cgroup *memcg;
-> >> >+    struct mem_cgroup *current_memcg;
-> >>
-> >> I can't say I'm fond of these names.  I had to read the
-> >> rest of the patch to figure out that the old mem_cgroup
-> >> got renamed to current_memcg.
-> >
-> > To clarify: sc->memcg will be the memcg that hit the hard limit and is
-> > the main target of this reclaim invocation.  current_memcg is the
-> > iterator over the hierarchy below the target.
+On Mon, May 16, 2011 at 02:16:46PM -0700, David Rientjes wrote:
+> On Fri, 13 May 2011, Mel Gorman wrote:
 > 
-> I would assume the new variable memcg is a renaming of the
-> "mem_cgroup" which indicating which cgroup we reclaim on behalf of.
+> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > index 9f8a97b..057f1e2 100644
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -1972,6 +1972,7 @@ gfp_to_alloc_flags(gfp_t gfp_mask)
+> >  {
+> >  	int alloc_flags = ALLOC_WMARK_MIN | ALLOC_CPUSET;
+> >  	const gfp_t wait = gfp_mask & __GFP_WAIT;
+> > +	const gfp_t can_wake_kswapd = !(gfp_mask & __GFP_NO_KSWAPD);
+> >  
+> >  	/* __GFP_HIGH is assumed to be the same as ALLOC_HIGH to save a branch. */
+> >  	BUILD_BUG_ON(__GFP_HIGH != (__force gfp_t) ALLOC_HIGH);
+> > @@ -1984,7 +1985,7 @@ gfp_to_alloc_flags(gfp_t gfp_mask)
+> >  	 */
+> >  	alloc_flags |= (__force int) (gfp_mask & __GFP_HIGH);
+> >  
+> > -	if (!wait) {
+> > +	if (!wait && can_wake_kswapd) {
+> >  		/*
+> >  		 * Not worth trying to allocate harder for
+> >  		 * __GFP_NOMEMALLOC even if it can't schedule.
+> > diff --git a/mm/slub.c b/mm/slub.c
+> > index 98c358d..c5797ab 100644
+> > --- a/mm/slub.c
+> > +++ b/mm/slub.c
+> > @@ -1170,7 +1170,8 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
+> >  	 * Let the initial higher-order allocation fail under memory pressure
+> >  	 * so we fall-back to the minimum order allocation.
+> >  	 */
+> > -	alloc_gfp = (flags | __GFP_NOWARN | __GFP_NORETRY | __GFP_NO_KSWAPD) & ~__GFP_NOFAIL;
+> > +	alloc_gfp = (flags | __GFP_NOWARN | __GFP_NO_KSWAPD) &
+> > +			~(__GFP_NOFAIL | __GFP_WAIT | __GFP_REPEAT);
+> >  
+> >  	page = alloc_slab_page(alloc_gfp, node, oo);
+> >  	if (unlikely(!page)) {
+> 
+> It's unnecessary to clear __GFP_REPEAT, these !__GFP_NOFAIL allocations 
+> will immediately fail.
+> 
 
-The thing is, mem_cgroup would mean both the group we are reclaiming
-on behalf of AND the group we are currently reclaiming from.  Because
-the hierarchy walk was implemented in memcontrol.c, vmscan.c only ever
-saw one cgroup at a time.
+We can enter enter direct compaction or direct reclaim
+at least once. If compaction is enabled and we enter
+reclaim/compaction, the presense of __GFP_REPEAT makes a difference
+in should_continue_reclaim().  With compaction disabled, the presense
+of the flag is relevant in should_alloc_retry() with it being possible
+to loop in the allocator instead of failing the SLUB allocation and
+dropping back.
 
-> About the "current_memcg", i couldn't find where it is indicating to
-> be the current cgroup under the hierarchy below the "memcg".
+Maybe you meant !__GFP_WAIT instead of !__GFP_NOFAIL which makes
+more sense. In that case, we clear both flags because
+__GFP_REPEAT && !_GFP_WAIT is a senseless combination of flags.
+If for whatever reason the __GFP_WAIT was re-added, the presense of
+__GFP_REPEAT could cause problems in reclaim that would be hard to
+spot again.
 
-It's codified in shrink_zone().
+> alloc_gfp would probably benefit from having a comment about why 
+> __GFP_WAIT should be masked off here: that we don't want to do compaction 
+> or direct reclaim or retry the allocation more than once (so both 
+> __GFP_NORETRY and __GFP_REPEAT are no-ops).
 
-	for each child of sc->memcg:
-	  sc->current_memcg = child
-	  reclaim(sc)
+That would have been helpful all right. I should have caught that
+and explained it properly. In the event there is a new version of
+the patch, I'll add one. For the moment, I'm dropping this patch
+entirely. Christoph wants to maintain historic behaviour of SLUB to
+maximise the number of high-order pages it uses and at the end of the
+day, which option performs better depends entirely on the workload
+and machine configuration.
 
-In the new version I named (and documented) them:
-
-	sc->target_mem_cgroup: the entry point into the hierarchy, set
-	by the functions that have the scan control structure on their
-	stack.  That's the one hitting its hard limit.
-
-	sc->mem_cgroup: the current position in the hierarchy below
-	sc->target_mem_cgroup.  That's the one that actively gets its
-	pages reclaimed.
-
-> Both mem_cgroup_shrink_node_zone() and try_to_free_mem_cgroup_pages()
-> are called within mem_cgroup_hierarchical_reclaim(), and the sc->memcg
-> is initialized w/ the victim passed down which is already the memcg
-> under hierarchy.
-
-I changed mem_cgroup_shrink_node_zone() to use do_shrink_zone(), and
-mem_cgroup_hierarchical_reclaim() no longer calls
-try_to_free_mem_cgroup_pages().
-
-So there is no hierarchy walk triggered from within a hierarchy walk.
-
-I just noticed that there is, however, a bug in that
-mem_cgroup_shrink_node_zone() does not initialize sc->current_memcg.
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
