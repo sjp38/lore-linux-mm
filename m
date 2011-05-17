@@ -1,38 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id A85606B0012
-	for <linux-mm@kvack.org>; Tue, 17 May 2011 09:51:53 -0400 (EDT)
-Date: Tue, 17 May 2011 08:51:47 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 3/4] mm: slub: Do not take expensive steps for SLUBs
- speculative high-order allocations
-In-Reply-To: <20110517084227.GI5279@suse.de>
-Message-ID: <alpine.DEB.2.00.1105170847550.11187@router.home>
-References: <1305295404-12129-1-git-send-email-mgorman@suse.de> <1305295404-12129-4-git-send-email-mgorman@suse.de> <alpine.DEB.2.00.1105161411440.4353@chino.kir.corp.google.com> <20110517084227.GI5279@suse.de>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 045356B0012
+	for <linux-mm@kvack.org>; Tue, 17 May 2011 09:55:58 -0400 (EDT)
+Message-ID: <4DD27E62.50806@redhat.com>
+Date: Tue, 17 May 2011 09:55:46 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [rfc patch 4/6] memcg: reclaim statistics
+References: <1305212038-15445-1-git-send-email-hannes@cmpxchg.org> <1305212038-15445-5-git-send-email-hannes@cmpxchg.org> <BANLkTi=yCyAsOc_uTQLp1kWp5w0i9gomxg@mail.gmail.com> <20110516231028.GV16531@cmpxchg.org> <BANLkTimLNZfc-jcA3yBG5D3k2u=0_JnrhQ@mail.gmail.com> <20110517074230.GY16531@cmpxchg.org>
+In-Reply-To: <20110517074230.GY16531@cmpxchg.org>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, James Bottomley <James.Bottomley@hansenpartnership.com>, Colin King <colin.king@canonical.com>, Raghavendra D Prabhu <raghu.prabhu13@gmail.com>, Jan Kara <jack@suse.cz>, Chris Mason <chris.mason@oracle.com>, Pekka Enberg <penberg@kernel.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-ext4 <linux-ext4@vger.kernel.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Ying Han <yinghan@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, 17 May 2011, Mel Gorman wrote:
+On 05/17/2011 03:42 AM, Johannes Weiner wrote:
 
-> entirely. Christoph wants to maintain historic behaviour of SLUB to
-> maximise the number of high-order pages it uses and at the end of the
-> day, which option performs better depends entirely on the workload
-> and machine configuration.
+> It does hierarchical soft limit reclaim once triggered, but I meant
+> that soft limits themselves have no hierarchical meaning.  Say you
+> have the following hierarchy:
+>
+>                  root_mem_cgroup
+>
+>               aaa               bbb
+>
+>             a1  a2             b1  b2
+>
+>          a1-1
+>
+> Consider aaa and a1 had a soft limit.  If global memory arose, aaa and
+> all its children would be pushed back with the current scheme, the one
+> you are proposing, and the one I am proposing.
+>
+> But now consider aaa hitting its hard limit.  Regular target reclaim
+> will be triggered, and a1, a2, and a1-1 will be scanned equally from
+> hierarchical reclaim.  That a1 is in excess of its soft limit is not
+> considered at all.
+>
+> With what I am proposing, a1 and a1-1 would be pushed back more
+> aggressively than a2, because a1 is in excess of its soft limit and
+> a1-1 is contributing to that.
 
-That is not what I meant. I would like more higher order allocations to
-succeed. That does not mean that slubs allocation methods and flags passed
-have to stay the same. You can change the slub behavior if it helps.
+Ying, I think Johannes has a good point.  I do not see
+a way to enforce the limits properly with the scheme we
+came up with at LSF, in the hierarchical scenario above.
 
-I am just suspicious of compaction. If these mods are needed to reduce the
-amount of higher order pages then compaction does not have the
-beneficial effect that it should have. It does not actually
-increase the available higher order pages. Fix that first.
+There may be a way, but until we think of it, I suspect
+it will be better to go with Johannes's scheme for now.
 
-
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
