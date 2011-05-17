@@ -1,213 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 97E186B0022
-	for <linux-mm@kvack.org>; Tue, 17 May 2011 10:45:28 -0400 (EDT)
-Received: from wpaz1.hot.corp.google.com (wpaz1.hot.corp.google.com [172.24.198.65])
-	by smtp-out.google.com with ESMTP id p4HEjKRJ021542
-	for <linux-mm@kvack.org>; Tue, 17 May 2011 07:45:20 -0700
-Received: from qwc9 (qwc9.prod.google.com [10.241.193.137])
-	by wpaz1.hot.corp.google.com with ESMTP id p4HEiMrT012696
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 17 May 2011 07:45:19 -0700
-Received: by qwc9 with SMTP id 9so500275qwc.27
-        for <linux-mm@kvack.org>; Tue, 17 May 2011 07:45:11 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id A0F8B6B0022
+	for <linux-mm@kvack.org>; Tue, 17 May 2011 11:50:01 -0400 (EDT)
+Message-ID: <4DD2991B.5040707@cray.com>
+Date: Tue, 17 May 2011 10:49:47 -0500
+From: Andrew Barry <abarry@cray.com>
 MIME-Version: 1.0
-In-Reply-To: <20110517081100.GZ16531@cmpxchg.org>
-References: <1305212038-15445-1-git-send-email-hannes@cmpxchg.org>
-	<BANLkTikHhK8S-fMpe=KOYCF0kmXotHKCOQ@mail.gmail.com>
-	<20110513072043.GE18610@cmpxchg.org>
-	<BANLkTiky6=xwqb_ML1wg=8Gg=BO0nmeUog@mail.gmail.com>
-	<20110517081100.GZ16531@cmpxchg.org>
-Date: Tue, 17 May 2011 07:45:11 -0700
-Message-ID: <BANLkTikdqKM-09YHOuf6MqdJBvi_ZJ5u2g@mail.gmail.com>
-Subject: Re: [rfc patch 0/6] mm: memcg naturalization
-From: Ying Han <yinghan@google.com>
-Content-Type: multipart/alternative; boundary=002354470aa8b2c50104a379d15a
+Subject: Re: Unending loop in __alloc_pages_slowpath following OOM-kill; rfc:
+ patch.
+References: <4DCDA347.9080207@cray.com> <BANLkTikiXUzbsUkzaKZsZg+5ugruA2JdMA@mail.gmail.com>
+In-Reply-To: <BANLkTikiXUzbsUkzaKZsZg+5ugruA2JdMA@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>
 
---002354470aa8b2c50104a379d15a
-Content-Type: text/plain; charset=ISO-8859-1
+On 05/17/2011 05:34 AM, Minchan Kim wrote:
+> On Sat, May 14, 2011 at 6:31 AM, Andrew Barry <abarry@cray.com> wrote:
+>> I believe I found a problem in __alloc_pages_slowpath, which allows a process to
+>> get stuck endlessly looping, even when lots of memory is available.
+>>
+>> Running an I/O and memory intensive stress-test I see a 0-order page allocation
+>> with __GFP_IO and __GFP_WAIT, running on a system with very little free memory.
+>> Right about the same time that the stress-test gets killed by the OOM-killer,
+>> the utility trying to allocate memory gets stuck in __alloc_pages_slowpath even
+>> though most of the systems memory was freed by the oom-kill of the stress-test.
+>>
+>> The utility ends up looping from the rebalance label down through the
+>> wait_iff_congested continiously. Because order=0, __alloc_pages_direct_compact
+>> skips the call to get_page_from_freelist. Because all of the reclaimable memory
+>> on the system has already been reclaimed, __alloc_pages_direct_reclaim skips the
+>> call to get_page_from_freelist. Since there is no __GFP_FS flag, the block with
+>> __alloc_pages_may_oom is skipped. The loop hits the wait_iff_congested, then
+>> jumps back to rebalance without ever trying to get_page_from_freelist. This loop
+>> repeats infinitely.
+>>
+>> Is there a reason that this loop is set up this way for 0 order allocations? I
+>> applied the below patch, and the problem corrects itself. Does anyone have any
+>> thoughts on the patch, or on a better way to address this situation?
+>>
+>> The test case is pretty pathological. Running a mix of I/O stress-tests that do
+>> a lot of fork() and consume all of the system memory, I can pretty reliably hit
+>> this on 600 nodes, in about 12 hours. 32GB/node.
+>>
+> 
+> It's amazing.
+> I think it's _very_ rare but it's possible if test program killed by
+> oom has only lots of anonymous pages and allocation tasks try to
+> allocate order-0 page with GFP_NOFS.
 
-On Tue, May 17, 2011 at 1:11 AM, Johannes Weiner <hannes@cmpxchg.org> wrote:
+Unfortunately very rare is a subjective thing. We have been hitting it a couple
+times a week in our test lab.
 
-> On Mon, May 16, 2011 at 05:53:04PM -0700, Ying Han wrote:
-> > On Fri, May 13, 2011 at 12:20 AM, Johannes Weiner <hannes@cmpxchg.org
-> >wrote:
-> >
-> > > On Thu, May 12, 2011 at 11:53:37AM -0700, Ying Han wrote:
-> > > > On Thu, May 12, 2011 at 7:53 AM, Johannes Weiner <hannes@cmpxchg.org
-> >
-> > > wrote:
-> > > >
-> > > > > Hi!
-> > > > >
-> > > > > Here is a patch series that is a result of the memcg discussions on
-> > > > > LSF (memcg-aware global reclaim, global lru removal, struct
-> > > > > page_cgroup reduction, soft limit implementation) and the recent
-> > > > > feature discussions on linux-mm.
-> > > > >
-> > > > > The long-term idea is to have memcgs no longer bolted to the side
-> of
-> > > > > the mm code, but integrate it as much as possible such that there
-> is a
-> > > > > native understanding of containers, and that the traditional !memcg
-> > > > > setup is just a singular group.  This series is an approach in that
-> > > > > direction.
-> > >
-> >
-> > This sounds like a good long term plan. Now I would wonder should we take
-> it
-> > step by step by doing:
-> >
-> > 1. improving the existing soft_limit reclaim from RB-tree based to
-> link-list
-> > based, also in a round_robin fashion.
-> > We can keep the existing APIs but only changing the underlying
-> > implementation of  mem_cgroup_soft_limit_reclaim()
-> >
-> > 2. remove the global lru list after the first one being proved to be
-> > efficient.
-> >
-> > 3. then have better integration of memcg reclaim to the mm code.
->
-> I chose to go the other because it did not seem more complex to me and
-> fixed many things we had planned anyway.  Deeper integration, better
-> soft limit implementation (including better pressure distribution,
-> enforcement also from direct reclaim, not just kswapd), global lru removal
-> etc.
+> When the [in]active lists are empty suddenly(But I am not sure how
+> come the situation happens.) and we are reclaiming order-0 page,
+> compaction and __alloc_pages_direct_reclaim doesn't work. compaction
+> doesn't work as it's order-0 page reclaiming.  In case of
+> __alloc_pages_direct_reclaim, it would work only if we have lru pages
+> in [in]active list. But unfortunately we don't have any pages in lru
+> list.
+> So, last resort is following codes in do_try_to_free_pages.
+> 
+>         /* top priority shrink_zones still had more to do? don't OOM, then */
+>         if (scanning_global_lru(sc) && !all_unreclaimable(zonelist, sc))
+>                 return 1;
+> 
+> But it has a problem, too. all_unreclaimable checks zone->all_unreclaimable.
+> zone->all_unreclaimable is set by below condition.
+> 
+> zone->pages_scanned < zone_reclaimable_pages(zone) * 6
+> 
+> If lru list is completely empty, shrink_zone doesn't work so
+> zone->pages_scanned would be zero. But as we know, zone_page_state
+> isn't exact by per_cpu_pageset. So it might be positive value. After
+> all, zone_reclaimable always return true. It means kswapd never set
+> zone->all_unreclaimable.  So last resort become nop.
+> 
+> In this case, current allocation doesn't have a chance to call
+> get_page_from_freelist as Andrew Barry said.
+> 
+> Does it make sense?
+> If it is, how about this?
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index ebc7faa..4f64355 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -2105,6 +2105,7 @@ restart:
+>                 first_zones_zonelist(zonelist, high_zoneidx, NULL,
+>                                         &preferred_zone);
+> 
+> +rebalance:
+>         /* This is the last chance, in general, before the goto nopage. */
+>         page = get_page_from_freelist(gfp_mask, nodemask, order, zonelist,
+>                         high_zoneidx, alloc_flags & ~ALLOC_NO_WATERMARKS,
+> @@ -2112,7 +2113,6 @@ restart:
+>         if (page)
+>                 goto got_pg;
+> 
+> -rebalance:
+>         /* Allocate without watermarks if the context allows */
+>         if (alloc_flags & ALLOC_NO_WATERMARKS) {
+>                 page = __alloc_pages_high_priority(gfp_mask, order,
 
-
-> That ground work was a bit unwieldy and I think quite some confusion
-> ensued, but I am currently reorganizing, cleaning up, and documenting.
-> I expect the next version to be much easier to understand.
->
-> The three steps are still this:
->
-> 1. make traditional reclaim memcg-aware.
->
-> 2. improve soft limit based on 1.
->
-
-I don't see the soft_limit round-robin implementation on the patch 6/6,
-maybe I missed it somewhere. I have my patch posted which does the
-linked-list
-round-robin across memcgs per-zone , do you have plan to merge them together
-?
-
->
-> 3. remove global lru based on 1.
->
+I think your solution is simpler than my patch.
+Thanks very much.
+-Andrew
 
 
->
-> But 1. already effectively disables the global LRU for memcg-enabled
-> kernels, so 3. can be deferred until we are comfortable with 1.
->
-> Thank you for the details and clarification, and looking forward to your
-next post.
 
---Ying
 
->        Hannes
->
-
---002354470aa8b2c50104a379d15a
-Content-Type: text/html; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
-
-<br><br><div class=3D"gmail_quote">On Tue, May 17, 2011 at 1:11 AM, Johanne=
-s Weiner <span dir=3D"ltr">&lt;<a href=3D"mailto:hannes@cmpxchg.org">hannes=
-@cmpxchg.org</a>&gt;</span> wrote:<br><blockquote class=3D"gmail_quote" sty=
-le=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex;">
-<div class=3D"im">On Mon, May 16, 2011 at 05:53:04PM -0700, Ying Han wrote:=
-<br>
-&gt; On Fri, May 13, 2011 at 12:20 AM, Johannes Weiner &lt;<a href=3D"mailt=
-o:hannes@cmpxchg.org">hannes@cmpxchg.org</a>&gt;wrote:<br>
-&gt;<br>
-&gt; &gt; On Thu, May 12, 2011 at 11:53:37AM -0700, Ying Han wrote:<br>
-&gt; &gt; &gt; On Thu, May 12, 2011 at 7:53 AM, Johannes Weiner &lt;<a href=
-=3D"mailto:hannes@cmpxchg.org">hannes@cmpxchg.org</a>&gt;<br>
-&gt; &gt; wrote:<br>
-&gt; &gt; &gt;<br>
-&gt; &gt; &gt; &gt; Hi!<br>
-&gt; &gt; &gt; &gt;<br>
-&gt; &gt; &gt; &gt; Here is a patch series that is a result of the memcg di=
-scussions on<br>
-&gt; &gt; &gt; &gt; LSF (memcg-aware global reclaim, global lru removal, st=
-ruct<br>
-&gt; &gt; &gt; &gt; page_cgroup reduction, soft limit implementation) and t=
-he recent<br>
-&gt; &gt; &gt; &gt; feature discussions on linux-mm.<br>
-&gt; &gt; &gt; &gt;<br>
-&gt; &gt; &gt; &gt; The long-term idea is to have memcgs no longer bolted t=
-o the side of<br>
-&gt; &gt; &gt; &gt; the mm code, but integrate it as much as possible such =
-that there is a<br>
-&gt; &gt; &gt; &gt; native understanding of containers, and that the tradit=
-ional !memcg<br>
-&gt; &gt; &gt; &gt; setup is just a singular group. =A0This series is an ap=
-proach in that<br>
-&gt; &gt; &gt; &gt; direction.<br>
-&gt; &gt;<br>
-&gt;<br>
-&gt; This sounds like a good long term plan. Now I would wonder should we t=
-ake it<br>
-&gt; step by step by doing:<br>
-&gt;<br>
-&gt; 1. improving the existing soft_limit reclaim from RB-tree based to lin=
-k-list<br>
-&gt; based, also in a round_robin fashion.<br>
-&gt; We can keep the existing APIs but only changing the underlying<br>
-&gt; implementation of =A0mem_cgroup_soft_limit_reclaim()<br>
-&gt;<br>
-&gt; 2. remove the global lru list after the first one being proved to be<b=
-r>
-&gt; efficient.<br>
-&gt;<br>
-&gt; 3. then have better integration of memcg reclaim to the mm code.<br>
-<br>
-</div>I chose to go the other because it did not seem more complex to me an=
-d<br>
-fixed many things we had planned anyway. =A0Deeper integration, better<br>
-soft limit implementation (including better pressure distribution,<br>
-enforcement also from direct reclaim, not just kswapd),=A0global lru=A0remo=
-val etc.</blockquote><blockquote class=3D"gmail_quote" style=3D"margin:0 0 =
-0 .8ex;border-left:1px #ccc solid;padding-left:1ex;">
-<br>
-That ground work was a bit unwieldy and I think quite some confusion<br>
-ensued, but I am currently reorganizing, cleaning up, and documenting.<br>
-I expect the next version to be much easier to understand.<br>
-<br>
-The three steps are still this:<br>
-<br>
-1. make traditional reclaim memcg-aware.<br>
-<br>
-2. improve soft limit based on 1.<br></blockquote><div><br></div><div>I don=
-&#39;t see the soft_limit round-robin implementation on the patch 6/6, mayb=
-e I missed it somewhere. I have my patch posted which does the linked-list<=
-/div>
-<div>round-robin across memcgs per-zone , do you have plan to merge them to=
-gether ?</div><blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;=
-border-left:1px #ccc solid;padding-left:1ex;">
-<br>
-3. remove global lru based on 1.<br></blockquote><div>=A0</div><blockquote =
-class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid=
-;padding-left:1ex;">
-<br>
-But 1. already effectively disables the global LRU for memcg-enabled<br>
-kernels, so 3. can be deferred until we are comfortable with 1.<br>
-<br></blockquote><div>Thank you for the details and=A0clarification, and lo=
-oking forward to your next post.=A0</div><div>=A0</div><div>--Ying</div><bl=
-ockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1px #=
-ccc solid;padding-left:1ex;">
-
- =A0 =A0 =A0 =A0Hannes<br>
-</blockquote></div><br>
-
---002354470aa8b2c50104a379d15a--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
