@@ -1,162 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id A72F96B0023
-	for <linux-mm@kvack.org>; Mon, 16 May 2011 20:53:10 -0400 (EDT)
-Received: from kpbe14.cbf.corp.google.com (kpbe14.cbf.corp.google.com [172.25.105.78])
-	by smtp-out.google.com with ESMTP id p4H0r83C001704
-	for <linux-mm@kvack.org>; Mon, 16 May 2011 17:53:08 -0700
-Received: from qwb8 (qwb8.prod.google.com [10.241.193.72])
-	by kpbe14.cbf.corp.google.com with ESMTP id p4H0r465017070
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 16 May 2011 17:53:07 -0700
-Received: by qwb8 with SMTP id 8so13461qwb.11
-        for <linux-mm@kvack.org>; Mon, 16 May 2011 17:53:04 -0700 (PDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id B75156B0026
+	for <linux-mm@kvack.org>; Mon, 16 May 2011 21:23:11 -0400 (EDT)
+Received: from d01relay07.pok.ibm.com (d01relay07.pok.ibm.com [9.56.227.147])
+	by e9.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p4H0rk9d014983
+	for <linux-mm@kvack.org>; Mon, 16 May 2011 20:53:46 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay07.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p4H1N94p1101892
+	for <linux-mm@kvack.org>; Mon, 16 May 2011 21:23:09 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p4H1N8H7023310
+	for <linux-mm@kvack.org>; Mon, 16 May 2011 22:23:09 -0300
+Date: Mon, 16 May 2011 18:23:07 -0700
+From: "Darrick J. Wong" <djwong@us.ibm.com>
+Subject: Re: [PATCHSET v3.1 0/7] data integrity: Stabilize pages during
+	writeback for various fses
+Message-ID: <20110517012307.GQ20579@tux1.beaverton.ibm.com>
+Reply-To: djwong@us.ibm.com
+References: <87hb924s2x.fsf@devron.myhome.or.jp> <20110510132953.GE4402@quack.suse.cz> <878vue4qjb.fsf@devron.myhome.or.jp> <87zkmu3b2i.fsf@devron.myhome.or.jp> <20110510145421.GJ4402@quack.suse.cz> <87zkmupmaq.fsf@devron.myhome.or.jp> <20110510162237.GM4402@quack.suse.cz> <87vcxipljj.fsf@devron.myhome.or.jp> <20110516184736.GL20579@tux1.beaverton.ibm.com> <87oc3230iu.fsf@devron.myhome.or.jp>
 MIME-Version: 1.0
-In-Reply-To: <20110513072043.GE18610@cmpxchg.org>
-References: <1305212038-15445-1-git-send-email-hannes@cmpxchg.org>
-	<BANLkTikHhK8S-fMpe=KOYCF0kmXotHKCOQ@mail.gmail.com>
-	<20110513072043.GE18610@cmpxchg.org>
-Date: Mon, 16 May 2011 17:53:04 -0700
-Message-ID: <BANLkTiky6=xwqb_ML1wg=8Gg=BO0nmeUog@mail.gmail.com>
-Subject: Re: [rfc patch 0/6] mm: memcg naturalization
-From: Ying Han <yinghan@google.com>
-Content-Type: multipart/alternative; boundary=000e0ce008bcd19c6a04a36e31d6
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <87oc3230iu.fsf@devron.myhome.or.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>
+Cc: Jan Kara <jack@suse.cz>, Theodore Tso <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Jens Axboe <axboe@kernel.dk>, "Martin K. Petersen" <martin.petersen@oracle.com>, Jeff Layton <jlayton@redhat.com>, Dave Chinner <david@fromorbit.com>, linux-kernel <linux-kernel@vger.kernel.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, Chris Mason <chris.mason@oracle.com>, Joel Becker <jlbec@evilplan.org>, linux-scsi <linux-scsi@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-ext4@vger.kernel.org, Mingming Cao <mcao@us.ibm.com>
 
---000e0ce008bcd19c6a04a36e31d6
-Content-Type: text/plain; charset=ISO-8859-1
-
-On Fri, May 13, 2011 at 12:20 AM, Johannes Weiner <hannes@cmpxchg.org>wrote:
-
-> On Thu, May 12, 2011 at 11:53:37AM -0700, Ying Han wrote:
-> > On Thu, May 12, 2011 at 7:53 AM, Johannes Weiner <hannes@cmpxchg.org>
-> wrote:
+On Tue, May 17, 2011 at 04:31:37AM +0900, OGAWA Hirofumi wrote:
+> "Darrick J. Wong" <djwong@us.ibm.com> writes:
+> 
+> >> OK. E.g. usual workload on desktop, but FS like ext2/fat.
 > >
-> > > Hi!
-> > >
-> > > Here is a patch series that is a result of the memcg discussions on
-> > > LSF (memcg-aware global reclaim, global lru removal, struct
-> > > page_cgroup reduction, soft limit implementation) and the recent
-> > > feature discussions on linux-mm.
-> > >
-> > > The long-term idea is to have memcgs no longer bolted to the side of
-> > > the mm code, but integrate it as much as possible such that there is a
-> > > native understanding of containers, and that the traditional !memcg
-> > > setup is just a singular group.  This series is an approach in that
-> > > direction.
->
-
-This sounds like a good long term plan. Now I would wonder should we take it
-step by step by doing:
-
-1. improving the existing soft_limit reclaim from RB-tree based to link-list
-based, also in a round_robin fashion.
-We can keep the existing APIs but only changing the underlying
-implementation of  mem_cgroup_soft_limit_reclaim()
-
-2. remove the global lru list after the first one being proved to be
-efficient.
-
-3. then have better integration of memcg reclaim to the mm code.
-
---Ying
-
-
-> > >
-> > > It is a rather early snapshot, WIP, barely tested etc., but I wanted
-> > > to get your opinions before further pursuing it.  It is also part of
-> > > my counter-argument to the proposals of adding memcg-reclaim-related
-> > > user interfaces at this point in time, so I wanted to push this out
-> > > the door before things are merged into .40.
-> > >
+> > In the frequent rewrite case, here's what you get:
 > >
-> > The memcg-reclaim-related user interface I assume was the watermark
-> > configurable tunable we were talking about in the per-memcg
-> > background reclaim patch. I think we got some agreement to remove
-> > the watermark tunable at the first step. But the newly added
-> > memory.soft_limit_async_reclaim as you proposed seems to be a usable
-> > interface.
->
-> Actually, I meant the soft limit reclaim statistics.  There is a
-> comment about that in the 6/6 changelog.
->
+> > Regular disk: (possibly garbage) write, followed by a second write to make the
+> > disk reflect memory contents.
+> >
+> > RAID w/ shadow pages: two writes, both consistent.  Higher memory consumption.
+> >
+> > T10 DIF disk: disk error any time the CPU modifies a page that the disk
+> > controller is DMA'ing out of memory.  I suppose one could simply retry the
+> > operation if the page is dirty, but supposing memory writes are happening fast
+> > enough that the retries also produce disk errors, _nothing_ ever gets written.
+> >
+> > With the new stable-page-writes patchset, the garbage write/disk error symptoms
+> > go away since the processes block instead of creating this window where it's
+> > not clear whether the disk's copy of the data is consistent.  I could turn the
+> > wait_on_page_writeback calls into some sort of page migration if the
+> > performance turns out to be terrible, though I'm still working on quantifying
+> > the impact.  Some people pointed out that sqlite tends to write the same blocks
+> > frequently, though I wonder if sqlite actually tries to write memory pages
+> > while syncing them?
+> >
+> > One use case where I could see a serious performance hit happening is the case
+> > where some app writes a bunch of memory pages, calls sync to force the dirty
+> > pages to disk, and /must/ resume writing those memory pages before the sync
+> > completes.  The page migration would of course help there, provided a memory
+> > page can be found in less time than an I/O operation.
+> >
+> > Someone commented on the LWN article about this topic, claiming that he had a
+> > program that couldn't afford to block on writes to mlock()'d memory.  I'm not
+> > sure how to fix that program, because if memory writes never coordinate with
+> > disk writes and the other threads are always writing memory, I wonder how the
+> > copy on disk isn't always indeterminate.
+> 
+> I'm not thinking data page is special operation for doing this (at least
+> logically). In other word, if you are talking about only data page, you
+> shouldn't send patches for metadata with it.
 
-Ok get it now. I will move the discussion to that thread.
+Patch 7, which is the only patch that touches code under fs/fat/, only fixes
+the case where the filesystem tries to modify its own metadata while writing
+out the same metadata.
 
---000e0ce008bcd19c6a04a36e31d6
-Content-Type: text/html; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Patches 2 and 3, which affect only files mm/ and fs/, prevent data pages from
+being modified while the same data pages are being written out.  It is not
+necessary to modify any fs/fat/ code to fix the data page case, fortunately.
 
-<br><br><div class=3D"gmail_quote">On Fri, May 13, 2011 at 12:20 AM, Johann=
-es Weiner <span dir=3D"ltr">&lt;<a href=3D"mailto:hannes@cmpxchg.org">hanne=
-s@cmpxchg.org</a>&gt;</span> wrote:<br><blockquote class=3D"gmail_quote" st=
-yle=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex;">
-<div class=3D"im">On Thu, May 12, 2011 at 11:53:37AM -0700, Ying Han wrote:=
-<br>
-&gt; On Thu, May 12, 2011 at 7:53 AM, Johannes Weiner &lt;<a href=3D"mailto=
-:hannes@cmpxchg.org">hannes@cmpxchg.org</a>&gt; wrote:<br>
-&gt;<br>
-&gt; &gt; Hi!<br>
-&gt; &gt;<br>
-&gt; &gt; Here is a patch series that is a result of the memcg discussions =
-on<br>
-&gt; &gt; LSF (memcg-aware global reclaim, global lru removal, struct<br>
-&gt; &gt; page_cgroup reduction, soft limit implementation) and the recent<=
-br>
-&gt; &gt; feature discussions on linux-mm.<br>
-&gt; &gt;<br>
-&gt; &gt; The long-term idea is to have memcgs no longer bolted to the side=
- of<br>
-&gt; &gt; the mm code, but integrate it as much as possible such that there=
- is a<br>
-&gt; &gt; native understanding of containers, and that the traditional !mem=
-cg<br>
-&gt; &gt; setup is just a singular group. =A0This series is an approach in =
-that<br>
-&gt; &gt; direction.<br></div></blockquote><div><br></div><div>This sounds =
-like a good long term plan. Now I would wonder should we take it step by st=
-ep by doing:</div><div><br></div><div>1. improving the existing soft_limit =
-reclaim from RB-tree based to link-list based, also in a round_robin fashio=
-n.</div>
-<div>We can keep the existing APIs but only changing the underlying impleme=
-ntation of =A0mem_cgroup_soft_limit_reclaim()</div><div><br></div><div>2. r=
-emove the global lru list after the first one being proved to be efficient.=
-</div>
-<div><br></div><div>3. then have better integration of memcg reclaim to the=
- mm code.</div><div><br></div><div>--Ying</div><div>=A0</div><blockquote cl=
-ass=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid;p=
-adding-left:1ex;">
-<div class=3D"im">&gt; &gt;<br>
-&gt; &gt; It is a rather early snapshot, WIP, barely tested etc., but I wan=
-ted<br>
-&gt; &gt; to get your opinions before further pursuing it. =A0It is also pa=
-rt of<br>
-&gt; &gt; my counter-argument to the proposals of adding memcg-reclaim-rela=
-ted<br>
-&gt; &gt; user interfaces at this point in time, so I wanted to push this o=
-ut<br>
-&gt; &gt; the door before things are merged into .40.<br>
-&gt; &gt;<br>
-&gt;<br>
-&gt; The memcg-reclaim-related user interface I assume was the watermark<br=
->
-&gt; configurable tunable we were talking about in the per-memcg<br>
-&gt; background reclaim patch. I think we got some agreement to remove<br>
-&gt; the watermark tunable at the first step. But the newly added<br>
-&gt; memory.soft_limit_async_reclaim as you proposed seems to be a usable<b=
-r>
-&gt; interface.<br>
-<br>
-</div>Actually, I meant the soft limit reclaim statistics. =A0There is a<br=
->
-comment about that in the 6/6 changelog.<br></blockquote><div><br></div><di=
-v>Ok get it now. I will move the discussion to that thread.</div><div>=A0</=
-div></div><br>
+That said, the intent of the patch set is to prevent writes to any memory page,
+regardless of type (data or metadata), while the same page is being written out.
 
---000e0ce008bcd19c6a04a36e31d6--
+--D
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
