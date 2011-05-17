@@ -1,43 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id E06666B0027
-	for <linux-mm@kvack.org>; Tue, 17 May 2011 17:27:50 -0400 (EDT)
-Date: Tue, 17 May 2011 23:27:34 +0200
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [PATCH 1/3] comm: Introduce comm_lock spinlock to protect
- task->comm access
-Message-ID: <20110517212734.GB28054@elte.hu>
-References: <1305665263-20933-1-git-send-email-john.stultz@linaro.org>
- <1305665263-20933-2-git-send-email-john.stultz@linaro.org>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 52BDB6B0026
+	for <linux-mm@kvack.org>; Tue, 17 May 2011 17:29:35 -0400 (EDT)
+Date: Tue, 17 May 2011 16:29:31 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: slub: Remove node check for NUMA_NO_NODE in slab_free
+In-Reply-To: <alpine.DEB.2.00.1105171615520.21780@router.home>
+Message-ID: <alpine.DEB.2.00.1105171627380.22271@router.home>
+References: <alpine.DEB.2.00.1105171615520.21780@router.home>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1305665263-20933-2-git-send-email-john.stultz@linaro.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Stultz <john.stultz@linaro.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Joe Perches <joe@perches.com>, Michal Nazarewicz <mina86@mina86.com>, Andy Whitcroft <apw@canonical.com>, Jiri Slaby <jirislaby@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>
+
+Argh not that simple without the ll patches. Need to deactivate slab
+before setting c->page to NULL.
+
+Subject: slub: Remove node check in slab_free
+
+We can set the page pointing in the percpu structure to
+NULL to have the same effect as setting c->node to NUMA_NO_NODE.
+
+Gets rid of one check in slab_free() that was only used for
+forcing the slab_free to the slowpath for debugging.
+
+We still need to set c->node to NUMA_NO_NODE to force the
+slab_alloc() fastpath to the slowpath in case of debugging.
+
+Signed-off-by: Christoph Lameter <cl@linux.com>
 
 
-* John Stultz <john.stultz@linaro.org> wrote:
+---
+ mm/slub.c |    4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
 
-> The implicit rules for current->comm access being safe without locking are no 
-> longer true. Accessing current->comm without holding the task lock may result 
-> in null or incomplete strings (however, access won't run off the end of the 
-> string).
+Index: linux-2.6/mm/slub.c
+===================================================================
+--- linux-2.6.orig/mm/slub.c	2011-05-17 16:04:28.341344328 -0500
++++ linux-2.6/mm/slub.c	2011-05-17 16:22:07.621343094 -0500
+@@ -1881,6 +1881,8 @@ debug:
 
-This is rather unfortunate - task->comm is used in a number of performance 
-critical codepaths such as tracing.
+ 	page->inuse++;
+ 	page->freelist = get_freepointer(s, object);
++	deactivate_slab(s, c);
++	c->page = NULL;
+ 	c->node = NUMA_NO_NODE;
+ 	goto unlock_out;
+ }
+@@ -2112,7 +2114,7 @@ redo:
+ 	tid = c->tid;
+ 	barrier();
 
-Why does this matter so much? A NULL string is not a big deal.
+-	if (likely(page == c->page && c->node != NUMA_NO_NODE)) {
++	if (likely(page == c->page)) {
+ 		set_freepointer(s, object, c->freelist);
 
-Note, since task->comm is 16 bytes there's the CMPXCHG16B instruction on x86 
-which could be used to update it atomically, should atomicity really be 
-desired.
-
-Thanks,
-
-	Ingo
+ 		if (unlikely(!irqsafe_cpu_cmpxchg_double(
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
