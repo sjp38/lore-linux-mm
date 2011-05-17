@@ -1,57 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 045356B0012
-	for <linux-mm@kvack.org>; Tue, 17 May 2011 09:55:58 -0400 (EDT)
-Message-ID: <4DD27E62.50806@redhat.com>
-Date: Tue, 17 May 2011 09:55:46 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id B712B6B0011
+	for <linux-mm@kvack.org>; Tue, 17 May 2011 10:02:29 -0400 (EDT)
+Date: Tue, 17 May 2011 10:01:50 -0400
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCHSET v3.1 0/7] data integrity: Stabilize pages during
+ writeback for various fses
+Message-ID: <20110517140150.GA7030@infradead.org>
+References: <20110509230318.19566.66202.stgit@elm3c44.beaverton.ibm.com>
+ <20110516190427.GN20579@tux1.beaverton.ibm.com>
+ <20110516202710.GA32630@infradead.org>
+ <20110516205535.GP20579@tux1.beaverton.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [rfc patch 4/6] memcg: reclaim statistics
-References: <1305212038-15445-1-git-send-email-hannes@cmpxchg.org> <1305212038-15445-5-git-send-email-hannes@cmpxchg.org> <BANLkTi=yCyAsOc_uTQLp1kWp5w0i9gomxg@mail.gmail.com> <20110516231028.GV16531@cmpxchg.org> <BANLkTimLNZfc-jcA3yBG5D3k2u=0_JnrhQ@mail.gmail.com> <20110517074230.GY16531@cmpxchg.org>
-In-Reply-To: <20110517074230.GY16531@cmpxchg.org>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110516205535.GP20579@tux1.beaverton.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Ying Han <yinghan@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Darrick J. Wong" <djwong@us.ibm.com>
+Cc: Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Theodore Tso <tytso@mit.edu>, Jan Kara <jack@suse.cz>, Alexander Viro <viro@zeniv.linux.org.uk>, OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>, Jens Axboe <axboe@kernel.dk>, "Martin K. Petersen" <martin.petersen@oracle.com>, Jeff Layton <jlayton@redhat.com>, Dave Chinner <david@fromorbit.com>, linux-kernel <linux-kernel@vger.kernel.org>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, Chris Mason <chris.mason@oracle.com>, Joel Becker <jlbec@evilplan.org>, linux-scsi <linux-scsi@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-ext4@vger.kernel.org, Mingming Cao <mcao@us.ibm.com>
 
-On 05/17/2011 03:42 AM, Johannes Weiner wrote:
+On Mon, May 16, 2011 at 01:55:35PM -0700, Darrick J. Wong wrote:
+> As for Al Viro, he's still listed as the VFS maintainer; isn't he resting?
+> I guess he did nominate you for the holding off of morons (like me). :)
 
-> It does hierarchical soft limit reclaim once triggered, but I meant
-> that soft limits themselves have no hierarchical meaning.  Say you
-> have the following hierarchy:
->
->                  root_mem_cgroup
->
->               aaa               bbb
->
->             a1  a2             b1  b2
->
->          a1-1
->
-> Consider aaa and a1 had a soft limit.  If global memory arose, aaa and
-> all its children would be pushed back with the current scheme, the one
-> you are proposing, and the one I am proposing.
->
-> But now consider aaa hitting its hard limit.  Regular target reclaim
-> will be triggered, and a1, a2, and a1-1 will be scanned equally from
-> hierarchical reclaim.  That a1 is in excess of its soft limit is not
-> considered at all.
->
-> With what I am proposing, a1 and a1-1 would be pushed back more
-> aggressively than a2, because a1 is in excess of its soft limit and
-> a1-1 is contributing to that.
-
-Ying, I think Johannes has a good point.  I do not see
-a way to enforce the limits properly with the scheme we
-came up with at LSF, in the hierarchical scenario above.
-
-There may be a way, but until we think of it, I suspect
-it will be better to go with Johannes's scheme for now.
-
--- 
-All rights reversed
+Al is back in action.  Anyway, the point stands, this is VFS material
+and you should formally submit the bits to the maintainer.  Note that
+there is very little fs specific material left, with Hirofumi beeing
+at least not overly exited by fat patches for now, and the only real
+ext4 patch going away with Jan's series to make it use the generic
+page_mkwrite code.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
