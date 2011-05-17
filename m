@@ -1,65 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 0E72F6B0027
-	for <linux-mm@kvack.org>; Tue, 17 May 2011 18:27:19 -0400 (EDT)
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e37.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p4HMOLfd010137
-	for <linux-mm@kvack.org>; Tue, 17 May 2011 16:24:21 -0600
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id p4HMRC1e128618
-	for <linux-mm@kvack.org>; Tue, 17 May 2011 16:27:12 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p4HGQhva013335
-	for <linux-mm@kvack.org>; Tue, 17 May 2011 10:26:44 -0600
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id D36126B0012
+	for <linux-mm@kvack.org>; Tue, 17 May 2011 18:56:34 -0400 (EDT)
+Received: from wpaz21.hot.corp.google.com (wpaz21.hot.corp.google.com [172.24.198.85])
+	by smtp-out.google.com with ESMTP id p4HMuWZU020144
+	for <linux-mm@kvack.org>; Tue, 17 May 2011 15:56:32 -0700
+Received: from pwi5 (pwi5.prod.google.com [10.241.219.5])
+	by wpaz21.hot.corp.google.com with ESMTP id p4HMuNgG022362
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 17 May 2011 15:56:31 -0700
+Received: by pwi5 with SMTP id 5so550594pwi.3
+        for <linux-mm@kvack.org>; Tue, 17 May 2011 15:56:26 -0700 (PDT)
+Date: Tue, 17 May 2011 15:56:24 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
 Subject: Re: [PATCH 1/3] comm: Introduce comm_lock spinlock to protect
  task->comm access
-From: John Stultz <john.stultz@linaro.org>
-In-Reply-To: <20110517212734.GB28054@elte.hu>
-References: <1305665263-20933-1-git-send-email-john.stultz@linaro.org>
-	 <1305665263-20933-2-git-send-email-john.stultz@linaro.org>
-	 <20110517212734.GB28054@elte.hu>
-Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 17 May 2011 15:27:05 -0700
-Message-ID: <1305671225.2915.133.camel@work-vm>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <1305669256.2466.6286.camel@twins>
+Message-ID: <alpine.DEB.2.00.1105171551450.10386@chino.kir.corp.google.com>
+References: <1305665263-20933-1-git-send-email-john.stultz@linaro.org> <1305665263-20933-2-git-send-email-john.stultz@linaro.org> <20110517212734.GB28054@elte.hu> <1305669256.2466.6286.camel@twins>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: LKML <linux-kernel@vger.kernel.org>, Joe Perches <joe@perches.com>, Michal Nazarewicz <mina86@mina86.com>, Andy Whitcroft <apw@canonical.com>, Jiri Slaby <jirislaby@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Ingo Molnar <mingo@elte.hu>, John Stultz <john.stultz@linaro.org>, LKML <linux-kernel@vger.kernel.org>, Joe Perches <joe@perches.com>, Michal Nazarewicz <mina86@mina86.com>, Andy Whitcroft <apw@canonical.com>, Jiri Slaby <jirislaby@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-On Tue, 2011-05-17 at 23:27 +0200, Ingo Molnar wrote:
-> * John Stultz <john.stultz@linaro.org> wrote:
+On Tue, 17 May 2011, Peter Zijlstra wrote:
+
+> The changelog also fails to mention _WHY_ this is no longer true. Nor
+> does it treat why making it true again isn't an option.
 > 
-> > The implicit rules for current->comm access being safe without locking are no 
-> > longer true. Accessing current->comm without holding the task lock may result 
-> > in null or incomplete strings (however, access won't run off the end of the 
-> > string).
+
+It's been true since:
+
+	4614a696bd1c3a9af3a08f0e5874830a85b889d4
+	Author: john stultz <johnstul@us.ibm.com>
+	Date:   Mon Dec 14 18:00:05 2009 -0800
+
+	    procfs: allow threads to rename siblings via /proc/pid/tasks/tid/comm
+
+Although at the time it appears that nobody was concerned about races so 
+proper syncronization was never implemented.  We always had the 
+prctl(PR_SET_NAME) so the majority of comm reads, those to current, 
+required no locking, but this commit changed that.  The remainder of comm 
+dereferences always required task_lock() and the helper get_task_comm() to 
+read the string into a (usually stack-allocated) buffer.
+
+> Who is changing another task's comm? That's just silly.
 > 
-> This is rather unfortunate - task->comm is used in a number of performance 
-> critical codepaths such as tracing.
-> 
-> Why does this matter so much? A NULL string is not a big deal.
 
-I'll defer to KOSAKI Motohiro and David on this bit. :)
-
-> Note, since task->comm is 16 bytes there's the CMPXCHG16B instruction on x86 
-> which could be used to update it atomically, should atomicity really be 
-> desired.
-
-Could we use this where cmpxchg16b is available and fall back to locking
-if not? Or does that put too much of a penalty on arches that don't have
-cmpxchg16b support?
-
-Alternatively, we can have locked accessors that are safe in the
-majority of slow-path warning printks, and provide unlocked accessors
-for cases where the performance is critical and the code can properly
-handle possibly incomplete comms.
-
-thanks
--john
-
-
+I agree, and I suggested taking write privileges away from /proc/pid/comm, 
+but others find that it is useful to be able to differentiate between 
+threads in the same thread group without using the prctl() for debugging?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
