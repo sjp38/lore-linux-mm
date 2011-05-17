@@ -1,117 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id A0F8B6B0022
-	for <linux-mm@kvack.org>; Tue, 17 May 2011 11:50:01 -0400 (EDT)
-Message-ID: <4DD2991B.5040707@cray.com>
-Date: Tue, 17 May 2011 10:49:47 -0500
-From: Andrew Barry <abarry@cray.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 6244F6B0023
+	for <linux-mm@kvack.org>; Tue, 17 May 2011 12:15:16 -0400 (EDT)
+Date: Tue, 17 May 2011 17:15:08 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: [PATCH] mm: vmscan: Correctly check if reclaimer should schedule
+ during shrink_slab
+Message-ID: <20110517161508.GN5279@suse.de>
+References: <1305295404-12129-5-git-send-email-mgorman@suse.de>
+ <4DCFAA80.7040109@jp.fujitsu.com>
+ <1305519711.4806.7.camel@mulgrave.site>
+ <BANLkTi=oe4Ties6awwhHFPf42EXCn2U4MQ@mail.gmail.com>
+ <20110516084558.GE5279@suse.de>
+ <BANLkTinW4s6aT2bZ79sHNgdh5j8VYyJz2w@mail.gmail.com>
+ <20110516102753.GF5279@suse.de>
+ <BANLkTi=5ON_ttuwFFhFObfoP8EBKPdFgAA@mail.gmail.com>
+ <20110517103840.GL5279@suse.de>
+ <1305640239.2046.27.camel@lenovo>
 MIME-Version: 1.0
-Subject: Re: Unending loop in __alloc_pages_slowpath following OOM-kill; rfc:
- patch.
-References: <4DCDA347.9080207@cray.com> <BANLkTikiXUzbsUkzaKZsZg+5ugruA2JdMA@mail.gmail.com>
-In-Reply-To: <BANLkTikiXUzbsUkzaKZsZg+5ugruA2JdMA@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <1305640239.2046.27.camel@lenovo>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>
+To: akpm@linux-foundation.org
+Cc: Minchan Kim <minchan.kim@gmail.com>, Colin Ian King <colin.king@canonical.com>, James Bottomley <James.Bottomley@hansenpartnership.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, raghu.prabhu13@gmail.com, jack@suse.cz, chris.mason@oracle.com, cl@linux.com, penberg@kernel.org, riel@redhat.com, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-ext4@vger.kernel.org
 
-On 05/17/2011 05:34 AM, Minchan Kim wrote:
-> On Sat, May 14, 2011 at 6:31 AM, Andrew Barry <abarry@cray.com> wrote:
->> I believe I found a problem in __alloc_pages_slowpath, which allows a process to
->> get stuck endlessly looping, even when lots of memory is available.
->>
->> Running an I/O and memory intensive stress-test I see a 0-order page allocation
->> with __GFP_IO and __GFP_WAIT, running on a system with very little free memory.
->> Right about the same time that the stress-test gets killed by the OOM-killer,
->> the utility trying to allocate memory gets stuck in __alloc_pages_slowpath even
->> though most of the systems memory was freed by the oom-kill of the stress-test.
->>
->> The utility ends up looping from the rebalance label down through the
->> wait_iff_congested continiously. Because order=0, __alloc_pages_direct_compact
->> skips the call to get_page_from_freelist. Because all of the reclaimable memory
->> on the system has already been reclaimed, __alloc_pages_direct_reclaim skips the
->> call to get_page_from_freelist. Since there is no __GFP_FS flag, the block with
->> __alloc_pages_may_oom is skipped. The loop hits the wait_iff_congested, then
->> jumps back to rebalance without ever trying to get_page_from_freelist. This loop
->> repeats infinitely.
->>
->> Is there a reason that this loop is set up this way for 0 order allocations? I
->> applied the below patch, and the problem corrects itself. Does anyone have any
->> thoughts on the patch, or on a better way to address this situation?
->>
->> The test case is pretty pathological. Running a mix of I/O stress-tests that do
->> a lot of fork() and consume all of the system memory, I can pretty reliably hit
->> this on 600 nodes, in about 12 hours. 32GB/node.
->>
-> 
-> It's amazing.
-> I think it's _very_ rare but it's possible if test program killed by
-> oom has only lots of anonymous pages and allocation tasks try to
-> allocate order-0 page with GFP_NOFS.
+It has been reported on some laptops that kswapd is consuming large
+amounts of CPU and not being scheduled when SLUB is enabled during
+large amounts of file copying. It is expected that this is due to
+kswapd missing every cond_resched() point because;
 
-Unfortunately very rare is a subjective thing. We have been hitting it a couple
-times a week in our test lab.
+shrink_page_list() calls cond_resched() if inactive pages were isolated
+        which in turn may not happen if all_unreclaimable is set in
+        shrink_zones(). If for whatver reason, all_unreclaimable is
+        set on all zones, we can miss calling cond_resched().
 
-> When the [in]active lists are empty suddenly(But I am not sure how
-> come the situation happens.) and we are reclaiming order-0 page,
-> compaction and __alloc_pages_direct_reclaim doesn't work. compaction
-> doesn't work as it's order-0 page reclaiming.  In case of
-> __alloc_pages_direct_reclaim, it would work only if we have lru pages
-> in [in]active list. But unfortunately we don't have any pages in lru
-> list.
-> So, last resort is following codes in do_try_to_free_pages.
-> 
->         /* top priority shrink_zones still had more to do? don't OOM, then */
->         if (scanning_global_lru(sc) && !all_unreclaimable(zonelist, sc))
->                 return 1;
-> 
-> But it has a problem, too. all_unreclaimable checks zone->all_unreclaimable.
-> zone->all_unreclaimable is set by below condition.
-> 
-> zone->pages_scanned < zone_reclaimable_pages(zone) * 6
-> 
-> If lru list is completely empty, shrink_zone doesn't work so
-> zone->pages_scanned would be zero. But as we know, zone_page_state
-> isn't exact by per_cpu_pageset. So it might be positive value. After
-> all, zone_reclaimable always return true. It means kswapd never set
-> zone->all_unreclaimable.  So last resort become nop.
-> 
-> In this case, current allocation doesn't have a chance to call
-> get_page_from_freelist as Andrew Barry said.
-> 
-> Does it make sense?
-> If it is, how about this?
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index ebc7faa..4f64355 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -2105,6 +2105,7 @@ restart:
->                 first_zones_zonelist(zonelist, high_zoneidx, NULL,
->                                         &preferred_zone);
-> 
-> +rebalance:
->         /* This is the last chance, in general, before the goto nopage. */
->         page = get_page_from_freelist(gfp_mask, nodemask, order, zonelist,
->                         high_zoneidx, alloc_flags & ~ALLOC_NO_WATERMARKS,
-> @@ -2112,7 +2113,6 @@ restart:
->         if (page)
->                 goto got_pg;
-> 
-> -rebalance:
->         /* Allocate without watermarks if the context allows */
->         if (alloc_flags & ALLOC_NO_WATERMARKS) {
->                 page = __alloc_pages_high_priority(gfp_mask, order,
+balance_pgdat() only calls cond_resched if the zones are not
+        balanced. For a high-order allocation that is balanced, it
+        checks order-0 again. During that window, order-0 might have
+        become unbalanced so it loops again for order-0 and returns
+        that it was reclaiming for order-0 to kswapd(). It can then
+        find that a caller has rewoken kswapd for a high-order and
+        re-enters balance_pgdat() without ever calling cond_resched().
 
-I think your solution is simpler than my patch.
-Thanks very much.
--Andrew
+shrink_slab only calls cond_resched() if we are reclaiming slab
+	pages. If there are a large number of direct reclaimers, the
+	shrinker_rwsem can be contended and prevent kswapd calling
+	cond_resched().
 
+This patch modifies the shrink_slab() case. If the semaphore is
+contended, the caller will still check cond_resched(). After each
+successful call into a shrinker, the check for cond_resched() is
+still necessary in case one shrinker call is particularly slow.
 
+This patch replaces
+mm-vmscan-if-kswapd-has-been-running-too-long-allow-it-to-sleep.patch
+in -mm.
 
+[mgorman@suse.de: Preserve call to cond_resched after each call into shrinker]
+From: Minchan Kim <minchan.kim@gmail.com>
+Signed-off-by: Mel Gorman <mgorman@suse.de>
+---
+ mm/vmscan.c |    9 +++++++--
+ 1 files changed, 7 insertions(+), 2 deletions(-)
 
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index af24d1e..0bed248 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -230,8 +230,11 @@ unsigned long shrink_slab(unsigned long scanned, gfp_t gfp_mask,
+ 	if (scanned == 0)
+ 		scanned = SWAP_CLUSTER_MAX;
+ 
+-	if (!down_read_trylock(&shrinker_rwsem))
+-		return 1;	/* Assume we'll be able to shrink next time */
++	if (!down_read_trylock(&shrinker_rwsem)) {
++		/* Assume we'll be able to shrink next time */
++		ret = 1;
++		goto out;
++	}
+ 
+ 	list_for_each_entry(shrinker, &shrinker_list, list) {
+ 		unsigned long long delta;
+@@ -282,6 +285,8 @@ unsigned long shrink_slab(unsigned long scanned, gfp_t gfp_mask,
+ 		shrinker->nr += total_scan;
+ 	}
+ 	up_read(&shrinker_rwsem);
++out:
++	cond_resched();
+ 	return ret;
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
