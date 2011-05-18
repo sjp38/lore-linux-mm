@@ -1,105 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E8A36B0012
-	for <linux-mm@kvack.org>; Wed, 18 May 2011 15:35:08 -0400 (EDT)
-Received: by pzk4 with SMTP id 4so1139645pzk.14
-        for <linux-mm@kvack.org>; Wed, 18 May 2011 12:35:06 -0700 (PDT)
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 02F1F6B0012
+	for <linux-mm@kvack.org>; Wed, 18 May 2011 15:48:24 -0400 (EDT)
+Date: Wed, 18 May 2011 21:48:11 +0200
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: [PATCH 0/4] v6 Improve task->comm locking situation
+Message-ID: <20110518194811.GD6225@elte.hu>
+References: <1305682865-27111-1-git-send-email-john.stultz@linaro.org>
+ <20110518062554.GB2945@elte.hu>
+ <1305745409.2915.178.camel@work-vm>
+ <20110518123335.62785884.akpm@linux-foundation.org>
 MIME-Version: 1.0
-In-Reply-To: <20110518154055.GA7037@dumpdata.com>
-References: <BANLkTimo=yXTrgjQHn9746oNdj97Fb-Y9Q@mail.gmail.com>
-	<20110518144129.GB4296@dumpdata.com>
-	<BANLkTikxzEb7UkUfxmdHhHMc04P4bmKGXQ@mail.gmail.com>
-	<20110518154055.GA7037@dumpdata.com>
-Date: Wed, 18 May 2011 21:35:06 +0200
-Message-ID: <BANLkTi=yXq_avxZPRrhfw55kadeZRH-aaw@mail.gmail.com>
-Subject: Re: driver mmap implementation for memory allocated with pci_alloc_consistent()?
-From: Leon Woestenberg <leon.woestenberg@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110518123335.62785884.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Cc: linux-pci@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: John Stultz <john.stultz@linaro.org>, LKML <linux-kernel@vger.kernel.org>, Joe Perches <joe@perches.com>, Michal Nazarewicz <mina86@mina86.com>, Andy Whitcroft <apw@canonical.com>, Jiri Slaby <jirislaby@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-Hello Konrad,
 
-On Wed, May 18, 2011 at 5:40 PM, Konrad Rzeszutek Wilk
-<konrad.wilk@oracle.com> wrote:
-> On Wed, May 18, 2011 at 05:03:41PM +0200, Leon Woestenberg wrote:
->> On Wed, May 18, 2011 at 4:41 PM, Konrad Rzeszutek Wilk
->> <konrad.wilk@oracle.com> wrote:
->> > On Wed, May 18, 2011 at 03:02:30PM +0200, Leon Woestenberg wrote:
->> >>
->> >> memory allocated with pci_alloc_consistent() returns the (kernel)
->> >> virtual address and the bus address (which may be different from the
->> >> physical memory address).
->> >>
->> >> What is the correct implementation of the driver mmap (file operation
->> >> method) for such memory?
->> >
->>
->> I could not find PCI driver examples calling vm_insert_page() and I am
->> know I can trip into the different memory type pointers easily.
+(Linus Cc:-ed)
+
+* Andrew Morton <akpm@linux-foundation.org> wrote:
+
+> On Wed, 18 May 2011 12:03:29 -0700
+> John Stultz <john.stultz@linaro.org> wrote:
+> 
+> > But, the net of this is that it seems everyone else is way more passionate 
+> > about this issue then I am, so I'm starting to wonder if it would be better 
+> > for someone who has more of a dog in the fight to be pushing these?
+> 
+> I like the %p thingy - it's neat and is an overall improvement.
+> [...]
 >
-> ttm_bo_vm.c ?
-> fb_defio.c ?
->
-None of which use pci/dma_alloc_consistent().
+> Providing an unlocked accessor for super-special applications which know what 
+> they're doing seems an adequate compromise.
 
-Obviously, I have no complete understanding of the Linux memory
-management subsystem, and the info on vm_insert_page() is rather
-shallow in the case of pci_alloc_consistent().
+Dunno, %ptc ties into lowlevel sprintf() and takes a spinlock! We are 
+unrobustizing an important lowlevel function that until today could always be 
+used lockless for debugging, in any context, under any circumstance.
 
-http://lxr.linux.no/#linux+v2.6.38/mm/memory.c#L1789
+We do that just to solve something that occurs rather rarely and has no 
+functional effect just some temporarily confusing looking string descriptor 
+output.
 
-1789        update_mmu_cache(vma, addr, pte); /* XXX: why not for
-insert_page? */
+The *last* place i'd put this into is vsprintf(), really. Make the procfs 
+output methods atomic against ->comm update, sure. But put a lock like that 
+into kernel debug output? No way!
 
+(Btw, i find %ptc OK if it comes with no lock. %pt would be nicer as a name?)
 
-I tried this:
+I'm uneasy about it if i think how many hairy places handle task->comm[].
 
-static int buffer_mmap(struct file *file, struct vm_area_struct *vma)
-{
-        ...
+Anyway, vsprintf() is Linus code, so i can take the easy road, chicken out and 
+punt this to Linus - instead of risking a needle from Andrew! :)
 
-	/* pages must not be cached as this would result in cache line sized
-	accesses to the end point */
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-	/* VM_RESERVED: prevent the pages from being swapped out */
-	vma->vm_flags |= VM_RESERVED;
-	vma->vm_private_data = file->private_data;
+If Linus likes this approach we should do it with a lock.
 
-	/* vaddr is the (virtual) address returned by pci_alloc_consistent();
-	 * vsize is the corresponding size */
+> [...]  If it dies I shall stick another pin in my Ingo doll.
 
-	start = vma->vm_start;
-	/* size is page-aligned */
-	while (vsize > 0) {
-		printk(KERN_DEBUG "vaddr = %p\n", lro_char->engine->ringbuffer_virt);
-		printk(KERN_DEBUG "start = %p\n", start);
-		struct page *page = virt_to_page(vaddr);
-		printk(KERN_DEBUG "page = %p\n", page);
-		printk(KERN_DEBUG "vm_insert_page(...0x%08lx)\n", (unsigned long)vaddr);
-		/* insert the given page into vma, mapped at the given start address */
-		err = vm_insert_page(vma, start, page);
-		if (err) {
-			printk(KERN_DEBUG "vm_insert_page()\n");
-			return err;
-		}
-		start += PAGE_SIZE;
-		vaddr += PAGE_SIZE;
-		vsize -= PAGE_SIZE;
-	}
-	return 0;
-}
+Oh, out of morbid curiosity, mind providing a log of bigger past incidents 
+where you had to stick pins into a doll of me? (In private mail, if the list is 
+too long ;-)
 
-which hard crashes my system.
-
-Any ideas on a generic function that mmap() pci_alloc_consistent()
-memory to user space?
+(Does every lockdep report that catches a real bug unpull a needle? ;-)
 
 Thanks,
--- 
-Leon
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
