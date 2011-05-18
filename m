@@ -1,190 +1,143 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id EC52D8D003B
-	for <linux-mm@kvack.org>; Tue, 17 May 2011 23:05:25 -0400 (EDT)
-Received: from hpaq1.eem.corp.google.com (hpaq1.eem.corp.google.com [172.25.149.1])
-	by smtp-out.google.com with ESMTP id p4I35FRJ006569
-	for <linux-mm@kvack.org>; Tue, 17 May 2011 20:05:15 -0700
-Received: from qwh5 (qwh5.prod.google.com [10.241.194.197])
-	by hpaq1.eem.corp.google.com with ESMTP id p4I358N6000992
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 17 May 2011 20:05:14 -0700
-Received: by qwh5 with SMTP id 5so660187qwh.20
-        for <linux-mm@kvack.org>; Tue, 17 May 2011 20:05:08 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20110518110821.20c29c11.kamezawa.hiroyu@jp.fujitsu.com>
-References: <1305671151-21993-1-git-send-email-yinghan@google.com>
-	<1305671151-21993-2-git-send-email-yinghan@google.com>
-	<20110518085258.98f07390.kamezawa.hiroyu@jp.fujitsu.com>
-	<BANLkTinA3osWTkngOoZQ22oXaFR82=17Zg@mail.gmail.com>
-	<20110518110821.20c29c11.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Tue, 17 May 2011 20:05:08 -0700
-Message-ID: <BANLkTi=PkC57r9s9B_1FTrPFv_QW37uuow@mail.gmail.com>
-Subject: Re: [PATCH 2/2] memcg: add memory.numastat api for numa statistics
-From: Ying Han <yinghan@google.com>
-Content-Type: multipart/alternative; boundary=0016360e3f5cf7abfa04a3842739
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 9C4326B0027
+	for <linux-mm@kvack.org>; Wed, 18 May 2011 00:09:49 -0400 (EDT)
+Subject: Re: [PATCH 4/4] mm: vmscan: If kswapd has been running too long,
+ allow it to sleep
+From: James Bottomley <James.Bottomley@HansenPartnership.com>
+In-Reply-To: <20110517103840.GL5279@suse.de>
+References: <1305295404-12129-1-git-send-email-mgorman@suse.de>
+	 <1305295404-12129-5-git-send-email-mgorman@suse.de>
+	 <4DCFAA80.7040109@jp.fujitsu.com> <1305519711.4806.7.camel@mulgrave.site>
+	 <BANLkTi=oe4Ties6awwhHFPf42EXCn2U4MQ@mail.gmail.com>
+	 <20110516084558.GE5279@suse.de>
+	 <BANLkTinW4s6aT2bZ79sHNgdh5j8VYyJz2w@mail.gmail.com>
+	 <20110516102753.GF5279@suse.de>
+	 <BANLkTi=5ON_ttuwFFhFObfoP8EBKPdFgAA@mail.gmail.com>
+	 <20110517103840.GL5279@suse.de>
+Content-Type: text/plain; charset="UTF-8"
+Date: Wed, 18 May 2011 08:09:33 +0400
+Message-ID: <1305691773.2580.1.camel@mulgrave.site>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>, linux-mm@kvack.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, akpm@linux-foundation.org, colin.king@canonical.com, raghu.prabhu13@gmail.com, jack@suse.cz, chris.mason@oracle.com, cl@linux.com, penberg@kernel.org, riel@redhat.com, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-ext4@vger.kernel.org
 
---0016360e3f5cf7abfa04a3842739
-Content-Type: text/plain; charset=ISO-8859-1
-
-On Tue, May 17, 2011 at 7:08 PM, KAMEZAWA Hiroyuki <
-kamezawa.hiroyu@jp.fujitsu.com> wrote:
-
-> On Tue, 17 May 2011 18:40:23 -0700
-> Ying Han <yinghan@google.com> wrote:
->
-> > On Tue, May 17, 2011 at 4:52 PM, KAMEZAWA Hiroyuki <
-> > kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> >
-> > > On Tue, 17 May 2011 15:25:51 -0700
-> > > Ying Han <yinghan@google.com> wrote:
+On Tue, 2011-05-17 at 11:38 +0100, Mel Gorman wrote:
+> On Tue, May 17, 2011 at 08:50:44AM +0900, Minchan Kim wrote:
+> > Don't we have to move cond_resched?
+> > 
+> > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > index 292582c..633e761 100644
+> > --- a/mm/vmscan.c
+> > +++ b/mm/vmscan.c
+> > @@ -231,8 +231,10 @@ unsigned long shrink_slab(struct shrink_control *shrink,
+> >         if (scanned == 0)
+> >                 scanned = SWAP_CLUSTER_MAX;
+> > 
+> > -       if (!down_read_trylock(&shrinker_rwsem))
+> > -               return 1;       /* Assume we'll be able to shrink next time */
+> > +       if (!down_read_trylock(&shrinker_rwsem)) {
+> > +               ret = 1;
+> > +               goto out; /* Assume we'll be able to shrink next time */
+> > +       }
+> > 
+> >         list_for_each_entry(shrinker, &shrinker_list, list) {
+> >                 unsigned long long delta;
+> > @@ -280,12 +282,14 @@ unsigned long shrink_slab(struct shrink_control *shrink,
+> >                         count_vm_events(SLABS_SCANNED, this_scan);
+> >                         total_scan -= this_scan;
+> > 
+> > -                       cond_resched();
+> >                 }
+> > 
+> >                 shrinker->nr += total_scan;
+> > +               cond_resched();
+> >         }
+> >         up_read(&shrinker_rwsem);
+> > +out:
+> > +       cond_resched();
+> >         return ret;
+> >  }
+> > 
+> 
+> This makes some sense for the exit path but if one or more of the
+> shrinkers takes a very long time without sleeping (extremely long
+> list searches for example) then kswapd will not call cond_resched()
+> between shrinkers and still consume a lot of CPU.
+> 
 > > >
-> > > > The new API exports numa_maps per-memcg basis. This is a piece of
-> useful
-> > > > information where it exports per-memcg page distribution across real
-> numa
-> > > > nodes.
-> > > >
-> > > > One of the usecase is evaluating application performance by combining
-> > > this
-> > > > information w/ the cpu allocation to the application.
-> > > >
-> > > > The output of the memory.numastat tries to follow w/ simiar format of
-> > > numa_maps
-> > > > like:
-> > > >
-> > > > <total pages> N0=<node 0 pages> N1=<node 1 pages> ...
-> > > >
-> > > > $ cat /dev/cgroup/memory/memory.numa_stat
-> > > > 292115 N0=36364 N1=166876 N2=39741 N3=49115
-> > > >
-> > > > Note: I noticed <total pages> is not equal to the sum of the rest of
-> > > counters.
-> > > > I might need to change the way get that counter, comments are
-> welcomed.
-> > > >
-> > > > Signed-off-by: Ying Han <yinghan@google.com>
+> > > balance_pgdat() only calls cond_resched if the zones are not
+> > >        balanced. For a high-order allocation that is balanced, it
+> > >        checks order-0 again. During that window, order-0 might have
+> > >        become unbalanced so it loops again for order-0 and returns
+> > >        that was reclaiming for order-0 to kswapd(). It can then find
+> > >        that a caller has rewoken kswapd for a high-order and re-enters
+> > >        balance_pgdat() without ever have called cond_resched().
+> > 
+> > If kswapd reclaims order-o followed by high order, it would have a
+> > chance to call cond_resched in shrink_page_list. But if all zones are
+> > all_unreclaimable is set, balance_pgdat could return any work. Okay.
+> > It does make sense.
+> > By your scenario, someone wakes up kswapd with higher order, again.
+> > So re-enters balance_pgdat without ever have called cond_resched.
+> > But if someone wakes up higher order again, we can't have a chance to
+> > call kswapd_try_to_sleep. So your patch effect would be nop, too.
+> > 
+> > It would be better to put cond_resched after balance_pgdat?
+> > 
+> 
+> Which will leave kswapd runnable instead of going to sleep but
+> guarantees a scheduling point. Lets see if the problem is that
+> cond_resched is being missed although if this was the case then patch
+> 4 would truly be a no-op but Colin has already reported that patch 1 on
+> its own didn't fix his problem. If the problem is sandybridge-specific
+> where kswapd remains runnable and consuming large amounts of CPU in
+> turbo mode then we know that there are other cond_resched() decisions
+> that will need to be revisited.
+> 
+> Colin or James, would you be willing to test with patch 1 from this
+> series and Minchan's patch below? Thanks.
+
+Yes, but unfortunately I'm on the road at the moment.  I won't get back
+to the laptop showing the problem until late on Tuesday (24th).  If it
+works for Colin, I'd assume it's OK.
+
+James
+
+
+> > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > index 292582c..61c45d0 100644
+> > --- a/mm/vmscan.c
+> > +++ b/mm/vmscan.c
+> > @@ -2753,6 +2753,7 @@ static int kswapd(void *p)
+> >                 if (!ret) {
+> >                         trace_mm_vmscan_kswapd_wake(pgdat->node_id, order);
+> >                         order = balance_pgdat(pgdat, order, &classzone_idx);
+> > +                       cond_resched();
+> >                 }
+> >         }
+> >         return 0;
+> > 
 > > >
-> > > Hmm, If I'm a user, I want to know file-cache is well balanced or where
-> > > Anon is
-> > > allocated from....Can't we have more precice one rather than
-> > > total(anon+file) ?
+> > > While it appears unlikely, there are bad conditions which can result
+> > > in cond_resched() being avoided.
+> > 
 > > >
-> > > So, I don't like this patch. Could you show total,anon,file at least ?
+> > > --
+> > > Mel Gorman
+> > > SUSE Labs
 > > >
-> >
-> > Ok, then this is really becoming per-memcg numa_maps. Before I go ahead
-> > posting the next version, this is something we are looking for:
-> >
-> > total=<total pages> N0=<node 0 pages> N1=<node 1 pages> ...
-> > anon=<total anon pages> N0=<node 0 pages> N1=<node 1 pages> ...
-> > file=<total file pages> N0=<node 0 pages> N1=<node 1 pages> ...
-> >
->
-> seems good.
->
+> > 
+> > 
+> > 
+> > -- 
+> > Kind regards,
+> > Minchan Kim
+> 
 
-Ok, thank you for clarifying that. I will look into the next post then.
-
---Ying
-
->
-> THanks,
-> -Kmae
->
->
-
---0016360e3f5cf7abfa04a3842739
-Content-Type: text/html; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
-
-<br><br><div class=3D"gmail_quote">On Tue, May 17, 2011 at 7:08 PM, KAMEZAW=
-A Hiroyuki <span dir=3D"ltr">&lt;<a href=3D"mailto:kamezawa.hiroyu@jp.fujit=
-su.com">kamezawa.hiroyu@jp.fujitsu.com</a>&gt;</span> wrote:<br><blockquote=
- class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1px #ccc soli=
-d;padding-left:1ex;">
-On Tue, 17 May 2011 18:40:23 -0700<br>
-<div><div></div><div class=3D"h5">Ying Han &lt;<a href=3D"mailto:yinghan@go=
-ogle.com">yinghan@google.com</a>&gt; wrote:<br>
-<br>
-&gt; On Tue, May 17, 2011 at 4:52 PM, KAMEZAWA Hiroyuki &lt;<br>
-&gt; <a href=3D"mailto:kamezawa.hiroyu@jp.fujitsu.com">kamezawa.hiroyu@jp.f=
-ujitsu.com</a>&gt; wrote:<br>
-&gt;<br>
-&gt; &gt; On Tue, 17 May 2011 15:25:51 -0700<br>
-&gt; &gt; Ying Han &lt;<a href=3D"mailto:yinghan@google.com">yinghan@google=
-.com</a>&gt; wrote:<br>
-&gt; &gt;<br>
-&gt; &gt; &gt; The new API exports numa_maps per-memcg basis. This is a pie=
-ce of useful<br>
-&gt; &gt; &gt; information where it exports per-memcg page distribution acr=
-oss real numa<br>
-&gt; &gt; &gt; nodes.<br>
-&gt; &gt; &gt;<br>
-&gt; &gt; &gt; One of the usecase is evaluating application performance by =
-combining<br>
-&gt; &gt; this<br>
-&gt; &gt; &gt; information w/ the cpu allocation to the application.<br>
-&gt; &gt; &gt;<br>
-&gt; &gt; &gt; The output of the memory.numastat tries to follow w/ simiar =
-format of<br>
-&gt; &gt; numa_maps<br>
-&gt; &gt; &gt; like:<br>
-&gt; &gt; &gt;<br>
-&gt; &gt; &gt; &lt;total pages&gt; N0=3D&lt;node 0 pages&gt; N1=3D&lt;node =
-1 pages&gt; ...<br>
-&gt; &gt; &gt;<br>
-&gt; &gt; &gt; $ cat /dev/cgroup/memory/memory.numa_stat<br>
-&gt; &gt; &gt; 292115 N0=3D36364 N1=3D166876 N2=3D39741 N3=3D49115<br>
-&gt; &gt; &gt;<br>
-&gt; &gt; &gt; Note: I noticed &lt;total pages&gt; is not equal to the sum =
-of the rest of<br>
-&gt; &gt; counters.<br>
-&gt; &gt; &gt; I might need to change the way get that counter, comments ar=
-e welcomed.<br>
-&gt; &gt; &gt;<br>
-&gt; &gt; &gt; Signed-off-by: Ying Han &lt;<a href=3D"mailto:yinghan@google=
-.com">yinghan@google.com</a>&gt;<br>
-&gt; &gt;<br>
-&gt; &gt; Hmm, If I&#39;m a user, I want to know file-cache is well balance=
-d or where<br>
-&gt; &gt; Anon is<br>
-&gt; &gt; allocated from....Can&#39;t we have more precice one rather than<=
-br>
-&gt; &gt; total(anon+file) ?<br>
-&gt; &gt;<br>
-&gt; &gt; So, I don&#39;t like this patch. Could you show total,anon,file a=
-t least ?<br>
-&gt; &gt;<br>
-&gt;<br>
-&gt; Ok, then this is really becoming per-memcg numa_maps. Before I go ahea=
-d<br>
-&gt; posting the next version, this is something we are looking for:<br>
-&gt;<br>
-&gt; total=3D&lt;total pages&gt; N0=3D&lt;node 0 pages&gt; N1=3D&lt;node 1 =
-pages&gt; ...<br>
-&gt; anon=3D&lt;total anon pages&gt; N0=3D&lt;node 0 pages&gt; N1=3D&lt;nod=
-e 1 pages&gt; ...<br>
-&gt; file=3D&lt;total file pages&gt; N0=3D&lt;node 0 pages&gt; N1=3D&lt;nod=
-e 1 pages&gt; ...<br>
-&gt;<br>
-<br>
-</div></div>seems good.<br></blockquote><div><br></div><div>Ok, thank you f=
-or clarifying that. I will look into the next post then.</div><div><br></di=
-v><div>--Ying=A0</div><blockquote class=3D"gmail_quote" style=3D"margin:0 0=
- 0 .8ex;border-left:1px #ccc solid;padding-left:1ex;">
-
-<br>
-THanks,<br>
--Kmae<br>
-<br>
-</blockquote></div><br>
-
---0016360e3f5cf7abfa04a3842739--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
