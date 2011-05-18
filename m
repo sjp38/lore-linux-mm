@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 098D88D004A
-	for <linux-mm@kvack.org>; Tue, 17 May 2011 21:41:31 -0400 (EDT)
-Received: from d03relay03.boulder.ibm.com (d03relay03.boulder.ibm.com [9.17.195.228])
-	by e39.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p4I1RPXw002297
-	for <linux-mm@kvack.org>; Tue, 17 May 2011 19:27:25 -0600
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay03.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p4I1fFTS139794
-	for <linux-mm@kvack.org>; Tue, 17 May 2011 19:41:15 -0600
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p4HJfEGB010192
-	for <linux-mm@kvack.org>; Tue, 17 May 2011 13:41:15 -0600
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id B39278D003B
+	for <linux-mm@kvack.org>; Tue, 17 May 2011 21:41:32 -0400 (EDT)
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e3.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p4I1JdI4002972
+	for <linux-mm@kvack.org>; Tue, 17 May 2011 21:19:39 -0400
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p4I1fFnw337292
+	for <linux-mm@kvack.org>; Tue, 17 May 2011 21:41:16 -0400
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p4HLf3GW029310
+	for <linux-mm@kvack.org>; Tue, 17 May 2011 18:41:03 -0300
 From: John Stultz <john.stultz@linaro.org>
-Subject: [PATCH 1/4] comm: Introduce comm_lock spinlock to protect task->comm access
-Date: Tue, 17 May 2011 18:41:02 -0700
-Message-Id: <1305682865-27111-2-git-send-email-john.stultz@linaro.org>
+Subject: [PATCH 2/4] comm: Add lock-free task->comm accessor
+Date: Tue, 17 May 2011 18:41:03 -0700
+Message-Id: <1305682865-27111-3-git-send-email-john.stultz@linaro.org>
 In-Reply-To: <1305682865-27111-1-git-send-email-john.stultz@linaro.org>
 References: <1305682865-27111-1-git-send-email-john.stultz@linaro.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,29 +22,10 @@ List-ID: <linux-mm.kvack.org>
 To: LKML <linux-kernel@vger.kernel.org>
 Cc: John Stultz <john.stultz@linaro.org>, Joe Perches <joe@perches.com>, Ingo Molnar <mingo@elte.hu>, Michal Nazarewicz <mina86@mina86.com>, Andy Whitcroft <apw@canonical.com>, Jiri Slaby <jirislaby@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-Since my commit 4614a696bd1c3a9af3a08f0e5874830a85b889d4, the
-task->comm value could be changed by other threads.
-
-Thus, the implicit rules for current->comm access being safe without
-locking are no longer true. Accessing current->comm without holding
-the task lock may result in null or incomplete strings (however,
-access won't run off the end of the string).
-
-In order to properly fix this, I've introduced a comm_lock spinlock
-which will protect comm access and modified get_task_comm() and
-set_task_comm() to use it.
-
-Since there are a number of cases where comm access is open-coded
-safely grabbing the task_lock(), we preserve the task locking in
-set_task_comm, so those users are also safe.
-
-With this patch, users that access current->comm without a lock
-are still prone to null/incomplete comm strings, but it should
-be no worse then it is now.
-
-The next step is to go through and convert all comm accesses to
-use get_task_comm(). This is substantial, but can be done bit by
-bit, reducing the race windows with each patch.
+This patch adds __get_task_comm() which returns the task->comm value
+without taking the comm_lock. This function may return null or
+incomplete comm values, and is only present for performance critical
+paths that can handle these pitfalls.
 
 CC: Joe Perches <joe@perches.com>
 CC: Ingo Molnar <mingo@elte.hu>
@@ -56,102 +37,48 @@ CC: David Rientjes <rientjes@google.com>
 CC: Dave Hansen <dave@linux.vnet.ibm.com>
 CC: Andrew Morton <akpm@linux-foundation.org>
 CC: linux-mm@kvack.org
-Acked-by: David Rientjes <rientjes@google.com>
-Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Signed-off-by: John Stultz <john.stultz@linaro.org>
 ---
- fs/exec.c                 |   19 ++++++++++++++++---
- include/linux/init_task.h |    1 +
- include/linux/sched.h     |    5 ++---
- kernel/fork.c             |    1 +
- 4 files changed, 20 insertions(+), 6 deletions(-)
+ fs/exec.c             |   13 +++++++++++++
+ include/linux/sched.h |    1 +
+ 2 files changed, 14 insertions(+), 0 deletions(-)
 
 diff --git a/fs/exec.c b/fs/exec.c
-index 5e62d26..34fa611 100644
+index 34fa611..7e79c97 100644
 --- a/fs/exec.c
 +++ b/fs/exec.c
-@@ -998,17 +998,28 @@ static void flush_old_files(struct files_struct * files)
+@@ -996,6 +996,19 @@ static void flush_old_files(struct files_struct * files)
+ 	spin_unlock(&files->file_lock);
+ }
  
++/**
++ * __get_task_comm - Unlocked accessor to task comm value
++ *
++ * This function returns the task->comm value without
++ * taking the comm_lock. This method is only for performance
++ * critical paths, and may return a null or incomplete comm
++ * value.
++ */
++char *__get_task_comm(struct task_struct *tsk)
++{
++	return tsk->comm;
++}
++
  char *get_task_comm(char *buf, struct task_struct *tsk)
  {
--	/* buf must be at least sizeof(tsk->comm) in size */
--	task_lock(tsk);
-+	unsigned long flags;
-+
-+	spin_lock_irqsave(&tsk->comm_lock, flags);
- 	strncpy(buf, tsk->comm, sizeof(tsk->comm));
--	task_unlock(tsk);
-+	spin_unlock_irqrestore(&tsk->comm_lock, flags);
- 	return buf;
- }
- 
- void set_task_comm(struct task_struct *tsk, char *buf)
- {
-+	unsigned long flags;
-+
-+	/*
-+	 * XXX - Even though comm is protected by comm_lock,
-+	 * we take the task_lock here to serialize against
-+	 * current users that directly access comm.
-+	 * Once those users are removed, we can drop the
-+	 * task locking & memsetting.
-+	 */
- 	task_lock(tsk);
- 
-+	spin_lock_irqsave(&tsk->comm_lock, flags);
- 	/*
- 	 * Threads may access current->comm without holding
- 	 * the task lock, so write the string carefully.
-@@ -1018,6 +1029,8 @@ void set_task_comm(struct task_struct *tsk, char *buf)
- 	memset(tsk->comm, 0, TASK_COMM_LEN);
- 	wmb();
- 	strlcpy(tsk->comm, buf, sizeof(tsk->comm));
-+	spin_unlock_irqrestore(&tsk->comm_lock, flags);
-+
- 	task_unlock(tsk);
- 	perf_event_comm(tsk);
- }
-diff --git a/include/linux/init_task.h b/include/linux/init_task.h
-index caa151f..b69d94b 100644
---- a/include/linux/init_task.h
-+++ b/include/linux/init_task.h
-@@ -161,6 +161,7 @@ extern struct cred init_cred;
- 	.group_leader	= &tsk,						\
- 	RCU_INIT_POINTER(.real_cred, &init_cred),			\
- 	RCU_INIT_POINTER(.cred, &init_cred),				\
-+	.comm_lock	= __SPIN_LOCK_UNLOCKED(tsk.comm_lock),		\
- 	.comm		= "swapper",					\
- 	.thread		= INIT_THREAD,					\
- 	.fs		= &init_fs,					\
+ 	unsigned long flags;
 diff --git a/include/linux/sched.h b/include/linux/sched.h
-index 18d63ce..f8a7cdf 100644
+index f8a7cdf..5e3c25a 100644
 --- a/include/linux/sched.h
 +++ b/include/linux/sched.h
-@@ -1333,10 +1333,9 @@ struct task_struct {
- 	const struct cred __rcu *cred;	/* effective (overridable) subjective task
- 					 * credentials (COW) */
- 	struct cred *replacement_session_keyring; /* for KEYCTL_SESSION_TO_PARENT */
--
-+	spinlock_t comm_lock;		/* protect's comm */
- 	char comm[TASK_COMM_LEN]; /* executable name excluding path
--				     - access with [gs]et_task_comm (which lock
--				       it with task_lock())
-+				     - access with [gs]et_task_comm
- 				     - initialized normally by setup_new_exec */
- /* file system info */
- 	int link_count, total_link_count;
-diff --git a/kernel/fork.c b/kernel/fork.c
-index e7548de..f53bf29 100644
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -1080,6 +1080,7 @@ static struct task_struct *copy_process(unsigned long clone_flags,
- 	rcu_copy_process(p);
- 	p->vfork_done = NULL;
- 	spin_lock_init(&p->alloc_lock);
-+	spin_lock_init(&p->comm_lock);
+@@ -2189,6 +2189,7 @@ struct task_struct *fork_idle(int);
  
- 	init_sigpending(&p->pending);
+ extern void set_task_comm(struct task_struct *tsk, char *from);
+ extern char *get_task_comm(char *to, struct task_struct *tsk);
++extern char *__get_task_comm(struct task_struct *tsk);
  
+ #ifdef CONFIG_SMP
+ extern unsigned long wait_task_inactive(struct task_struct *, long match_state);
 -- 
 1.7.3.2.146.gca209
 
