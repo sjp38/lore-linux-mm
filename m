@@ -1,76 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 2EA566B0012
-	for <linux-mm@kvack.org>; Wed, 18 May 2011 11:03:43 -0400 (EDT)
-Received: by pzk4 with SMTP id 4so992422pzk.14
-        for <linux-mm@kvack.org>; Wed, 18 May 2011 08:03:41 -0700 (PDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 1FE906B0012
+	for <linux-mm@kvack.org>; Wed, 18 May 2011 11:06:55 -0400 (EDT)
+Date: Wed, 18 May 2011 11:06:30 -0400
+From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Subject: Re: [Xen-devel] Re: [PATCH V3] xen/balloon: Memory hotplug support
+ for Xen balloon driver
+Message-ID: <20110518150630.GA4709@dumpdata.com>
+References: <20110517214421.GD30232@router-fw-old.local.net-space.pl>
+ <1305701868.28175.1.camel@vase>
+ <1305703309.7738.23.camel@dagon.hellion.org.uk>
+ <1305703494.28175.2.camel@vase>
+ <20110518103543.GA5066@router-fw-old.local.net-space.pl>
 MIME-Version: 1.0
-In-Reply-To: <20110518144129.GB4296@dumpdata.com>
-References: <BANLkTimo=yXTrgjQHn9746oNdj97Fb-Y9Q@mail.gmail.com>
-	<20110518144129.GB4296@dumpdata.com>
-Date: Wed, 18 May 2011 17:03:41 +0200
-Message-ID: <BANLkTikxzEb7UkUfxmdHhHMc04P4bmKGXQ@mail.gmail.com>
-Subject: Re: driver mmap implementation for memory allocated with pci_alloc_consistent()?
-From: Leon Woestenberg <leon.woestenberg@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110518103543.GA5066@router-fw-old.local.net-space.pl>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-pci@vger.kernel.org, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Cc: linux-mm@kvack.org
+To: Daniel Kiper <dkiper@net-space.pl>
+Cc: Vasiliy G Tolstov <v.tolstov@selfip.ru>, "jeremy@goop.org" <jeremy@goop.org>, "xen-devel@lists.xensource.com" <xen-devel@lists.xensource.com>, "haicheng.li@linux.intel.com" <haicheng.li@linux.intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, "dave@linux.vnet.ibm.com" <dave@linux.vnet.ibm.com>, Ian Campbell <Ian.Campbell@eu.citrix.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "wdauchy@gmail.com" <wdauchy@gmail.com>, "rientjes@google.com" <rientjes@google.com>, "andi.kleen@intel.com" <andi.kleen@intel.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "fengguang.wu@intel.com" <fengguang.wu@intel.com>
 
-Hello,
+> Here is proper udev rule:
+> 
+> SUBSYSTEM=="memory", ACTION=="add", RUN+="/bin/sh -c '[ -f /sys$devpath/state ] && echo online > /sys$devpath/state'"
+> 
+> Konrad, could you add it to git comment and Kconfig help ???
 
-On Wed, May 18, 2011 at 4:41 PM, Konrad Rzeszutek Wilk
-<konrad.wilk@oracle.com> wrote:
-> On Wed, May 18, 2011 at 03:02:30PM +0200, Leon Woestenberg wrote:
->>
->> memory allocated with pci_alloc_consistent() returns the (kernel)
->> virtual address and the bus address (which may be different from the
->> physical memory address).
->>
->> What is the correct implementation of the driver mmap (file operation
->> method) for such memory?
->
-> You are going to use the physical address from the CPU side. So not
-> the bus address. Instead use the virtual address and find the
-> physical address from that. page_to_pfn() does a good job.
->
-pci_alloc_consistent() returns a kernel virtual address. To find the
-page I think virt_to_page() suits me better, right?
-
-#define virt_to_page(kaddr)     pfn_to_page(__pa(kaddr) >> PAGE_SHIFT)
-
-> Then you can call 'vm_insert_page(vma...)'
->
-> Or 'vm_insert_mixed'
-
-Thanks, that opens a whole new learning curve experience.
-
-Can I call vmalloc_to_page() on memory allocated with
-pci_alloc_consistent()? If so, then remap_vmalloc_range() looks
-promising.
-
-I could not find PCI driver examples calling vm_insert_page() and I am
-know I can trip into the different memory type pointers easily.
-
-How does your suggestion relate to using the vma ops fault() (formerly
-known as nopage() to mmap memory allocated by pci_alloc_consistent()?
-i.e. Such as suggested in
-http://www.gossamer-threads.com/lists/linux/kernel/702127#702127
-
-> Use 'cscope' on the Linux kernel.
-
-Thanks for the suggestion. How would cscope help me find
-vm_insert_page() given my question?
-
-On hind-sight all questions seem to be easy once finding the correct
-Documentation / source-code in the first place. I usually use
-http://lxr.linux.no/ and friends.
-
-
-Regards,
--- 
-Leon
+I am going to be lazy and ask you to resend this patch with that udev rule mentioned in it :-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
