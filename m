@@ -1,34 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id B39278D003B
-	for <linux-mm@kvack.org>; Tue, 17 May 2011 21:41:32 -0400 (EDT)
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e3.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p4I1JdI4002972
-	for <linux-mm@kvack.org>; Tue, 17 May 2011 21:19:39 -0400
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p4I1fFnw337292
-	for <linux-mm@kvack.org>; Tue, 17 May 2011 21:41:16 -0400
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p4HLf3GW029310
-	for <linux-mm@kvack.org>; Tue, 17 May 2011 18:41:03 -0300
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 83A738D003B
+	for <linux-mm@kvack.org>; Tue, 17 May 2011 21:45:04 -0400 (EDT)
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e8.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p4I1Em3W020659
+	for <linux-mm@kvack.org>; Tue, 17 May 2011 21:14:52 -0400
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p4I1fFVO040026
+	for <linux-mm@kvack.org>; Tue, 17 May 2011 21:41:15 -0400
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p4I1fEvs011467
+	for <linux-mm@kvack.org>; Tue, 17 May 2011 21:41:15 -0400
 From: John Stultz <john.stultz@linaro.org>
-Subject: [PATCH 2/4] comm: Add lock-free task->comm accessor
-Date: Tue, 17 May 2011 18:41:03 -0700
-Message-Id: <1305682865-27111-3-git-send-email-john.stultz@linaro.org>
+Subject: [PATCH 4/4] checkpatch.pl: Add check for task comm references
+Date: Tue, 17 May 2011 18:41:05 -0700
+Message-Id: <1305682865-27111-5-git-send-email-john.stultz@linaro.org>
 In-Reply-To: <1305682865-27111-1-git-send-email-john.stultz@linaro.org>
 References: <1305682865-27111-1-git-send-email-john.stultz@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: LKML <linux-kernel@vger.kernel.org>
-Cc: John Stultz <john.stultz@linaro.org>, Joe Perches <joe@perches.com>, Ingo Molnar <mingo@elte.hu>, Michal Nazarewicz <mina86@mina86.com>, Andy Whitcroft <apw@canonical.com>, Jiri Slaby <jirislaby@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+Cc: John Stultz <john.stultz@linaro.org>, Joe Perches <joe@perches.com>, Michal Nazarewicz <mina86@mina86.com>, Andy Whitcroft <apw@canonical.com>, Jiri Slaby <jirislaby@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-This patch adds __get_task_comm() which returns the task->comm value
-without taking the comm_lock. This function may return null or
-incomplete comm values, and is only present for performance critical
-paths that can handle these pitfalls.
+Now that accessing current->comm needs to be protected,
+avoid new current->comm or other task->comm usage by adding
+a warning to checkpatch.pl.
+
+Fair warning: I know zero perl, so this was written in the
+style of "monkey see, monkey do". It does appear to work
+in my testing though.
+
+Thanks to Jiri Slaby, Michal Nazarewicz and Joe Perches
+for help improving the regex!
+
+Close review and feedback would be appreciated.
 
 CC: Joe Perches <joe@perches.com>
-CC: Ingo Molnar <mingo@elte.hu>
 CC: Michal Nazarewicz <mina86@mina86.com>
 CC: Andy Whitcroft <apw@canonical.com>
 CC: Jiri Slaby <jirislaby@gmail.com>
@@ -39,46 +46,26 @@ CC: Andrew Morton <akpm@linux-foundation.org>
 CC: linux-mm@kvack.org
 Signed-off-by: John Stultz <john.stultz@linaro.org>
 ---
- fs/exec.c             |   13 +++++++++++++
- include/linux/sched.h |    1 +
- 2 files changed, 14 insertions(+), 0 deletions(-)
+ scripts/checkpatch.pl |    6 ++++++
+ 1 files changed, 6 insertions(+), 0 deletions(-)
 
-diff --git a/fs/exec.c b/fs/exec.c
-index 34fa611..7e79c97 100644
---- a/fs/exec.c
-+++ b/fs/exec.c
-@@ -996,6 +996,19 @@ static void flush_old_files(struct files_struct * files)
- 	spin_unlock(&files->file_lock);
- }
+diff --git a/scripts/checkpatch.pl b/scripts/checkpatch.pl
+index d867081..a16ded7 100755
+--- a/scripts/checkpatch.pl
++++ b/scripts/checkpatch.pl
+@@ -2868,6 +2868,12 @@ sub process {
+ 			WARN("usage of NR_CPUS is often wrong - consider using cpu_possible(), num_possible_cpus(), for_each_possible_cpu(), etc\n" . $herecurr);
+ 		}
  
-+/**
-+ * __get_task_comm - Unlocked accessor to task comm value
-+ *
-+ * This function returns the task->comm value without
-+ * taking the comm_lock. This method is only for performance
-+ * critical paths, and may return a null or incomplete comm
-+ * value.
-+ */
-+char *__get_task_comm(struct task_struct *tsk)
-+{
-+	return tsk->comm;
-+}
++# check for current->comm usage
++		my $comm_vars = qr/current|tsk|p|task|curr|t|me/;
++		if ($line =~ /\b$comm_vars\s*->\s*comm\b/) {
++			WARN("task comm access needs to be protected. Use get_task_comm, or printk's \%ptc formatting.\n" . $herecurr);
++		}
 +
- char *get_task_comm(char *buf, struct task_struct *tsk)
- {
- 	unsigned long flags;
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index f8a7cdf..5e3c25a 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -2189,6 +2189,7 @@ struct task_struct *fork_idle(int);
- 
- extern void set_task_comm(struct task_struct *tsk, char *from);
- extern char *get_task_comm(char *to, struct task_struct *tsk);
-+extern char *__get_task_comm(struct task_struct *tsk);
- 
- #ifdef CONFIG_SMP
- extern unsigned long wait_task_inactive(struct task_struct *, long match_state);
+ # check for %L{u,d,i} in strings
+ 		my $string;
+ 		while ($line =~ /(?:^|")([X\t]*)(?:"|$)/g) {
 -- 
 1.7.3.2.146.gca209
 
