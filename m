@@ -1,84 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 238826B0023
-	for <linux-mm@kvack.org>; Wed, 18 May 2011 05:59:09 -0400 (EDT)
-Date: Wed, 18 May 2011 10:58:59 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 4/4] mm: vmscan: If kswapd has been running too long,
- allow it to sleep
-Message-ID: <20110518095859.GR5279@suse.de>
-References: <1305295404-12129-5-git-send-email-mgorman@suse.de>
- <4DCFAA80.7040109@jp.fujitsu.com>
- <1305519711.4806.7.camel@mulgrave.site>
- <BANLkTi=oe4Ties6awwhHFPf42EXCn2U4MQ@mail.gmail.com>
- <20110516084558.GE5279@suse.de>
- <BANLkTinW4s6aT2bZ79sHNgdh5j8VYyJz2w@mail.gmail.com>
- <20110516102753.GF5279@suse.de>
- <BANLkTi=5ON_ttuwFFhFObfoP8EBKPdFgAA@mail.gmail.com>
- <4DD31B6E.8040502@jp.fujitsu.com>
- <BANLkTikLuWPEt7MitUYdJtzqyBSOkz2zxg@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 8F7D66B0026
+	for <linux-mm@kvack.org>; Wed, 18 May 2011 06:36:16 -0400 (EDT)
+Received: (from localhost user: 'dkiper' uid#4000 fake: STDIN
+	(dkiper@router-fw.net-space.pl)) by router-fw-old.local.net-space.pl
+	id S1582386Ab1ERKfn (ORCPT <rfc822;linux-mm@kvack.org>);
+	Wed, 18 May 2011 12:35:43 +0200
+Date: Wed, 18 May 2011 12:35:43 +0200
+From: Daniel Kiper <dkiper@net-space.pl>
+Subject: Re: [PATCH V3] xen/balloon: Memory hotplug support for Xen balloon driver
+Message-ID: <20110518103543.GA5066@router-fw-old.local.net-space.pl>
+References: <20110517214421.GD30232@router-fw-old.local.net-space.pl> <1305701868.28175.1.camel@vase> <1305703309.7738.23.camel@dagon.hellion.org.uk> <1305703494.28175.2.camel@vase>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <BANLkTikLuWPEt7MitUYdJtzqyBSOkz2zxg@mail.gmail.com>
+In-Reply-To: <1305703494.28175.2.camel@vase>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, James.Bottomley@hansenpartnership.com, akpm@linux-foundation.org, colin.king@canonical.com, raghu.prabhu13@gmail.com, jack@suse.cz, chris.mason@oracle.com, cl@linux.com, penberg@kernel.org, riel@redhat.com, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-ext4@vger.kernel.org
+To: Vasiliy G Tolstov <v.tolstov@selfip.ru>
+Cc: Ian Campbell <Ian.Campbell@eu.citrix.com>, Daniel Kiper <dkiper@net-space.pl>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "andi.kleen@intel.com" <andi.kleen@intel.com>, "haicheng.li@linux.intel.com" <haicheng.li@linux.intel.com>, "fengguang.wu@intel.com" <fengguang.wu@intel.com>, "jeremy@goop.org" <jeremy@goop.org>, "konrad.wilk@oracle.com" <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, "pasik@iki.fi" <pasik@iki.fi>, "dave@linux.vnet.ibm.com" <dave@linux.vnet.ibm.com>, "wdauchy@gmail.com" <wdauchy@gmail.com>, "rientjes@google.com" <rientjes@google.com>, "xen-devel@lists.xensource.com" <xen-devel@lists.xensource.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Wed, May 18, 2011 at 02:44:48PM +0900, Minchan Kim wrote:
-> On Wed, May 18, 2011 at 10:05 AM, KOSAKI Motohiro
-> <kosaki.motohiro@jp.fujitsu.com> wrote:
-> >> It would be better to put cond_resched after balance_pgdat?
-> >>
-> >> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> >> index 292582c..61c45d0 100644
-> >> --- a/mm/vmscan.c
-> >> +++ b/mm/vmscan.c
-> >> @@ -2753,6 +2753,7 @@ static int kswapd(void *p)
-> >>                 if (!ret) {
-> >>                         trace_mm_vmscan_kswapd_wake(pgdat->node_id,
-> >> order);
-> >>                         order = balance_pgdat(pgdat,
-> >> order,&classzone_idx);
-> >> +                       cond_resched();
-> >>                 }
-> >>         }
-> >>         return 0;
-> >>
-> >>>>> While it appears unlikely, there are bad conditions which can result
-> >>>
-> >>> in cond_resched() being avoided.
+On Wed, May 18, 2011 at 11:24:54AM +0400, Vasiliy G Tolstov wrote:
+> On Wed, 2011-05-18 at 08:21 +0100, Ian Campbell wrote:
+> > On Wed, 2011-05-18 at 07:57 +0100, Vasiliy G Tolstov wrote:
+> > > On Tue, 2011-05-17 at 23:44 +0200, Daniel Kiper wrote:
+> > > > +	  Memory could be hotplugged in following steps:
+> > > > +
+> > > > +	    1) dom0: xl mem-max <domU> <maxmem>
+> > > > +	       where <maxmem> is >= requested memory size,
+> > > > +
+> > > > +	    2) dom0: xl mem-set <domU> <memory>
+> > > > +	       where <memory> is requested memory size; alternatively memory
+> > > > +	       could be added by writing proper value to
+> > > > +	       /sys/devices/system/xen_memory/xen_memory0/target or
+> > > > +	       /sys/devices/system/xen_memory/xen_memory0/target_kb on dumU,
+> > > > +
+> > > > +	    3) domU: for i in /sys/devices/system/memory/memory*/state; do \
+> > > > +	               [ "`cat "$i"`" = offline ] && echo online > "$i"; done
 > >
-> > Every reclaim priority decreasing or every shrink_zone() calling makes more
-> > fine grained preemption. I think.
-> 
-> It could be.
-> But in direct reclaim case, I have a concern about losing pages
-> reclaimed to other tasks by preemption.
-> 
-> Hmm,, anyway, we also needs test.
-> Hmm,, how long should we bother them(Colins and James)?
-> First of all, Let's fix one just between us and ask test to them and
-> send the last patch to akpm.
-> 
-> 1. shrink_slab
-> 2. right after balance_pgdat
-> 3. shrink_zone
-> 4. reclaim priority decreasing routine.
-> 
-> Now, I vote 1) and 2).
-> 
+> > > Very good. Is that possible to eliminate step 3 ? And do it automatic if
+> > > domU runs with specific xen balloon param?
+> >
+> > When we faced the same question WRT VCPU hotplug we ended up using a
+> > udev rule. Presumably the same could be done here. In the VCPU case the
+> > rule is:
+> >
+> > ACTION=="add", SUBSYSTEM=="cpu", RUN+="/bin/sh -c '[ ! -e /sys$devpath/online ] || echo 1 > /sys$devpath/online'"
+> >
+> > Presumably the memory one will be broadly similar.
 
-I've already submitted a pair of patches for option 1. I don't think
-option 2 gains us anything. I think it's more likely we should worry
-about all_unreclaimable being set when shrink_slab is returning 0 and we
-are encountering so many dirty pages that pages_scanned is high enough.
+Here is proper udev rule:
 
--- 
-Mel Gorman
-SUSE Labs
+SUBSYSTEM=="memory", ACTION=="add", RUN+="/bin/sh -c '[ -f /sys$devpath/state ] && echo online > /sys$devpath/state'"
+
+Konrad, could you add it to git comment and Kconfig help ???
+
+Daniel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
