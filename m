@@ -1,55 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id A7E256B0011
-	for <linux-mm@kvack.org>; Wed, 18 May 2011 15:59:11 -0400 (EDT)
-Received: from mail-ey0-f169.google.com (mail-ey0-f169.google.com [209.85.215.169])
-	(authenticated bits=0)
-	by smtp1.linux-foundation.org (8.14.2/8.13.5/Debian-3ubuntu1.1) with ESMTP id p4IJwdBK012688
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=FAIL)
-	for <linux-mm@kvack.org>; Wed, 18 May 2011 12:58:40 -0700
-Received: by eyd9 with SMTP id 9so846764eyd.14
-        for <linux-mm@kvack.org>; Wed, 18 May 2011 12:58:38 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <1305682865-27111-1-git-send-email-john.stultz@linaro.org>
-References: <1305682865-27111-1-git-send-email-john.stultz@linaro.org>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Wed, 18 May 2011 12:58:17 -0700
-Message-ID: <BANLkTikV5EUfpXF1PG3wXLXhou2crm_u2Q@mail.gmail.com>
-Subject: Re: [PATCH 0/4] v6 Improve task->comm locking situation
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id E6C846B0012
+	for <linux-mm@kvack.org>; Wed, 18 May 2011 16:25:54 -0400 (EDT)
+Date: Wed, 18 May 2011 13:25:47 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/4] VM/RMAP: Add infrastructure for batching the rmap
+ chain locking v2
+Message-Id: <20110518132547.24d665e1.akpm@linux-foundation.org>
+In-Reply-To: <1305330384-19540-2-git-send-email-andi@firstfloor.org>
+References: <1305330384-19540-1-git-send-email-andi@firstfloor.org>
+	<1305330384-19540-2-git-send-email-andi@firstfloor.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Stultz <john.stultz@linaro.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Joe Perches <joe@perches.com>, Ingo Molnar <mingo@elte.hu>, Michal Nazarewicz <mina86@mina86.com>, Andy Whitcroft <apw@canonical.com>, Jiri Slaby <jirislaby@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Andi Kleen <andi@firstfloor.org>
+Cc: linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>
 
-On Tue, May 17, 2011 at 6:41 PM, John Stultz <john.stultz@linaro.org> wrote:
->
-> While this was brought up at the time, it was not considered
-> problematic, as the comm writing was done in such a way that
-> only null or incomplete comms could be read. However, recently
-> folks have made it clear they want to see this issue resolved.
+On Fri, 13 May 2011 16:46:21 -0700
+Andi Kleen <andi@firstfloor.org> wrote:
 
-What folks?
+> In fork and exit it's quite common to take same rmap chain locks
+> again and again when the whole address space is processed  for a
+> address space that has a lot of sharing. Also since the locking
+> has changed to always lock the root anon_vma this can be very
+> contended.
+> 
+> This patch adds a simple wrapper to batch these lock acquisitions
+> and only reaquire the lock when another is needed. The main
+> advantage is that when multiple processes are doing this in
+> parallel they will avoid a lot of communication overhead
+> on the lock cache line.
+> 
+> v2: Address review feedback. Drop lockbreak. Rename init function.
 
-I don't think a new lock (or any lock) is at all appropriate.
+Doesn't compile:
 
-There's just no point. Just guarantee that the last byte is always
-zero, and you're done.
+include/linux/rmap.h: In function 'anon_vma_unlock_batch':
+include/linux/rmap.h:146: error: 'struct anon_vma' has no member named 'lock'
+mm/rmap.c: In function '__anon_vma_lock_batch':
+mm/rmap.c:1737: error: 'struct anon_vma' has no member named 'lock'
+mm/rmap.c:1739: error: 'struct anon_vma' has no member named 'lock'
 
-If you just guarantee that, THERE IS NO RACE. The last byte never
-changes. You may get odd half-way strings, but you've trivially
-guaranteed that they are C NUL-terminated, with no locking, no memory
-ordering, no nothing.
+I think I reported this against the v1 patches.
 
-Anybody who asks for any locking is just being a silly git. Tell them
-to man the f*ck up.
 
-So I'm not going to apply anything like this for 2.6.39, but I'm also
-not going to apply it for 40 or 41 or anything else.
-
-I refuse to accept just stupid unnecessary crap.
-
-                      Linus
+Please fix up the checkpatch errors?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
