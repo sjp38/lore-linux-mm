@@ -1,63 +1,156 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id CD6686B0026
-	for <linux-mm@kvack.org>; Tue, 17 May 2011 21:12:28 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 568FA3EE0C0
-	for <linux-mm@kvack.org>; Wed, 18 May 2011 10:08:57 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 3650C45DF83
-	for <linux-mm@kvack.org>; Wed, 18 May 2011 10:08:57 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 1A7ED45DF86
-	for <linux-mm@kvack.org>; Wed, 18 May 2011 10:08:57 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 031AE1DB803F
-	for <linux-mm@kvack.org>; Wed, 18 May 2011 10:08:57 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id BDE121DB8037
-	for <linux-mm@kvack.org>; Wed, 18 May 2011 10:08:56 +0900 (JST)
-Message-ID: <4DD31C20.8050608@jp.fujitsu.com>
-Date: Wed, 18 May 2011 10:08:48 +0900
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 7725F8D003B
+	for <linux-mm@kvack.org>; Tue, 17 May 2011 21:40:32 -0400 (EDT)
+Received: from kpbe18.cbf.corp.google.com (kpbe18.cbf.corp.google.com [172.25.105.82])
+	by smtp-out.google.com with ESMTP id p4I1eSab020067
+	for <linux-mm@kvack.org>; Tue, 17 May 2011 18:40:28 -0700
+Received: from qyl38 (qyl38.prod.google.com [10.241.83.230])
+	by kpbe18.cbf.corp.google.com with ESMTP id p4I1eOEn030238
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 17 May 2011 18:40:26 -0700
+Received: by qyl38 with SMTP id 38so707064qyl.15
+        for <linux-mm@kvack.org>; Tue, 17 May 2011 18:40:24 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH 3/3] vmscan: implement swap token priority decay
-References: <4DCD1824.1060801@jp.fujitsu.com>	<4DCD1913.2090200@jp.fujitsu.com> <20110516172258.c7dcd982.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20110516172258.c7dcd982.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20110518085258.98f07390.kamezawa.hiroyu@jp.fujitsu.com>
+References: <1305671151-21993-1-git-send-email-yinghan@google.com>
+	<1305671151-21993-2-git-send-email-yinghan@google.com>
+	<20110518085258.98f07390.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Tue, 17 May 2011 18:40:23 -0700
+Message-ID: <BANLkTinA3osWTkngOoZQ22oXaFR82=17Zg@mail.gmail.com>
+Subject: Re: [PATCH 2/2] memcg: add memory.numastat api for numa statistics
+From: Ying Han <yinghan@google.com>
+Content-Type: multipart/alternative; boundary=0016360e3f5ce938c004a382f829
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kamezawa.hiroyu@jp.fujitsu.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, minchan.kim@gmail.com, riel@redhat.com
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>, linux-mm@kvack.org
 
->> diff --git a/mm/thrash.c b/mm/thrash.c
->> index 14c6c9f..0c4f0a8 100644
->> --- a/mm/thrash.c
->> +++ b/mm/thrash.c
->> @@ -47,6 +47,9 @@ void grab_swap_token(struct mm_struct *mm)
->>   	if (!swap_token_mm)
->>   		goto replace_token;
->>
->> +	if (!(global_faults&  0xff))
->> +		mm->token_priority /= 2;
->> +
+--0016360e3f5ce938c004a382f829
+Content-Type: text/plain; charset=ISO-8859-1
+
+On Tue, May 17, 2011 at 4:52 PM, KAMEZAWA Hiroyuki <
+kamezawa.hiroyu@jp.fujitsu.com> wrote:
+
+> On Tue, 17 May 2011 15:25:51 -0700
+> Ying Han <yinghan@google.com> wrote:
 >
-> I personally don't like this kind of checking counter with mask.
-> Hmm. How about this ?
+> > The new API exports numa_maps per-memcg basis. This is a piece of useful
+> > information where it exports per-memcg page distribution across real numa
+> > nodes.
+> >
+> > One of the usecase is evaluating application performance by combining
+> this
+> > information w/ the cpu allocation to the application.
+> >
+> > The output of the memory.numastat tries to follow w/ simiar format of
+> numa_maps
+> > like:
+> >
+> > <total pages> N0=<node 0 pages> N1=<node 1 pages> ...
+> >
+> > $ cat /dev/cgroup/memory/memory.numa_stat
+> > 292115 N0=36364 N1=166876 N2=39741 N3=49115
+> >
+> > Note: I noticed <total pages> is not equal to the sum of the rest of
+> counters.
+> > I might need to change the way get that counter, comments are welcomed.
+> >
+> > Signed-off-by: Ying Han <yinghan@google.com>
 >
-> ==
-> 	#define TOKEN_AGE_MASK	~(0xff)
-> 	/*
-> 	 * If current global_fault is in different age from previous global_fault,
-> 	 * Aging priority and starts new era.
-> 	 */
-> 	if ((mm->faultstamp&  TOKEN_AGE_MASK) != (global_faults&  MM_TOKEN_MASK))
-> 		mm->token_priority /= 2;
-> ==
+> Hmm, If I'm a user, I want to know file-cache is well balanced or where
+> Anon is
+> allocated from....Can't we have more precice one rather than
+> total(anon+file) ?
+>
+> So, I don't like this patch. Could you show total,anon,file at least ?
+>
 
-OK. will do.
+Ok, then this is really becoming per-memcg numa_maps. Before I go ahead
+posting the next version, this is something we are looking for:
 
+total=<total pages> N0=<node 0 pages> N1=<node 1 pages> ...
+anon=<total anon pages> N0=<node 0 pages> N1=<node 1 pages> ...
+file=<total file pages> N0=<node 0 pages> N1=<node 1 pages> ...
+
+please confirm?
+
+thanks
+
+--Ying
+
+> Thanks,
+> -Kame
+>
+>
+
+--0016360e3f5ce938c004a382f829
+Content-Type: text/html; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
+
+<br><br><div class=3D"gmail_quote">On Tue, May 17, 2011 at 4:52 PM, KAMEZAW=
+A Hiroyuki <span dir=3D"ltr">&lt;<a href=3D"mailto:kamezawa.hiroyu@jp.fujit=
+su.com">kamezawa.hiroyu@jp.fujitsu.com</a>&gt;</span> wrote:<br><blockquote=
+ class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1px #ccc soli=
+d;padding-left:1ex;">
+<div class=3D"im">On Tue, 17 May 2011 15:25:51 -0700<br>
+Ying Han &lt;<a href=3D"mailto:yinghan@google.com">yinghan@google.com</a>&g=
+t; wrote:<br>
+<br>
+&gt; The new API exports numa_maps per-memcg basis. This is a piece of usef=
+ul<br>
+&gt; information where it exports per-memcg page distribution across real n=
+uma<br>
+&gt; nodes.<br>
+&gt;<br>
+&gt; One of the usecase is evaluating application performance by combining =
+this<br>
+&gt; information w/ the cpu allocation to the application.<br>
+&gt;<br>
+&gt; The output of the memory.numastat tries to follow w/ simiar format of =
+numa_maps<br>
+&gt; like:<br>
+&gt;<br>
+&gt; &lt;total pages&gt; N0=3D&lt;node 0 pages&gt; N1=3D&lt;node 1 pages&gt=
+; ...<br>
+&gt;<br>
+&gt; $ cat /dev/cgroup/memory/memory.numa_stat<br>
+&gt; 292115 N0=3D36364 N1=3D166876 N2=3D39741 N3=3D49115<br>
+&gt;<br>
+&gt; Note: I noticed &lt;total pages&gt; is not equal to the sum of the res=
+t of counters.<br>
+&gt; I might need to change the way get that counter, comments are welcomed=
+.<br>
+&gt;<br>
+&gt; Signed-off-by: Ying Han &lt;<a href=3D"mailto:yinghan@google.com">ying=
+han@google.com</a>&gt;<br>
+<br>
+</div>Hmm, If I&#39;m a user, I want to know file-cache is well balanced or=
+ where Anon is<br>
+allocated from....Can&#39;t we have more precice one rather than total(anon=
++file) ?<br>
+<br>
+So, I don&#39;t like this patch. Could you show total,anon,file at least ?<=
+br></blockquote><div><br></div><div>Ok, then this is really becoming per-me=
+mcg numa_maps. Before I go ahead posting the next version, this is somethin=
+g we are looking for:</div>
+<div><br></div><div>total=3D&lt;total pages&gt;=A0N0=3D&lt;node 0 pages&gt;=
+ N1=3D&lt;node 1 pages&gt; ...</div><meta http-equiv=3D"content-type" conte=
+nt=3D"text/html; charset=3Dutf-8"><div><meta http-equiv=3D"content-type" co=
+ntent=3D"text/html; charset=3Dutf-8">anon=3D&lt;total anon pages&gt; N0=3D&=
+lt;node 0 pages&gt; N1=3D&lt;node 1 pages&gt; ...</div>
+<div><meta http-equiv=3D"content-type" content=3D"text/html; charset=3Dutf-=
+8">file=3D&lt;total file pages&gt; N0=3D&lt;node 0 pages&gt; N1=3D&lt;node =
+1 pages&gt; ...</div><div><br></div><div>please confirm?</div><div><br></di=
+v><div>thanks</div>
+<div><br></div><div>--Ying</div><blockquote class=3D"gmail_quote" style=3D"=
+margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex;">
+Thanks,<br>
+-Kame<br>
+<br>
+</blockquote></div><br>
+
+--0016360e3f5ce938c004a382f829--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
