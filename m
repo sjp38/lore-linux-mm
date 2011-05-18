@@ -1,76 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 977C08D004A
-	for <linux-mm@kvack.org>; Tue, 17 May 2011 20:46:19 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id B435E3EE0CB
-	for <linux-mm@kvack.org>; Wed, 18 May 2011 09:46:16 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 88F8245DE97
-	for <linux-mm@kvack.org>; Wed, 18 May 2011 09:46:16 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 64FAE45DE91
-	for <linux-mm@kvack.org>; Wed, 18 May 2011 09:46:16 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 55F58E08005
-	for <linux-mm@kvack.org>; Wed, 18 May 2011 09:46:16 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 1DDE51DB803B
-	for <linux-mm@kvack.org>; Wed, 18 May 2011 09:46:16 +0900 (JST)
-Message-ID: <4DD316C7.60003@jp.fujitsu.com>
-Date: Wed, 18 May 2011 09:45:59 +0900
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 31D918D003B
+	for <linux-mm@kvack.org>; Tue, 17 May 2011 20:53:38 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 94A6B3EE0C2
+	for <linux-mm@kvack.org>; Wed, 18 May 2011 09:53:35 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 7D3D22AEB45
+	for <linux-mm@kvack.org>; Wed, 18 May 2011 09:53:35 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 1C0FC45DE54
+	for <linux-mm@kvack.org>; Wed, 18 May 2011 09:53:35 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 0EA5DEF8006
+	for <linux-mm@kvack.org>; Wed, 18 May 2011 09:53:35 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id C9014E08003
+	for <linux-mm@kvack.org>; Wed, 18 May 2011 09:53:34 +0900 (JST)
+Message-ID: <4DD3187C.3050408@jp.fujitsu.com>
+Date: Wed, 18 May 2011 09:53:16 +0900
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: vmscan: Correctly check if reclaimer should schedule
- during shrink_slab
-References: <1305295404-12129-5-git-send-email-mgorman@suse.de> <4DCFAA80.7040109@jp.fujitsu.com> <1305519711.4806.7.camel@mulgrave.site> <BANLkTi=oe4Ties6awwhHFPf42EXCn2U4MQ@mail.gmail.com> <20110516084558.GE5279@suse.de> <BANLkTinW4s6aT2bZ79sHNgdh5j8VYyJz2w@mail.gmail.com> <20110516102753.GF5279@suse.de> <BANLkTi=5ON_ttuwFFhFObfoP8EBKPdFgAA@mail.gmail.com> <20110517103840.GL5279@suse.de> <1305640239.2046.27.camel@lenovo> <20110517161508.GN5279@suse.de>
-In-Reply-To: <20110517161508.GN5279@suse.de>
-Content-Type: text/plain; charset=ISO-8859-15; format=flowed
+Subject: Re: [PATCH 1/3] comm: Introduce comm_lock spinlock to protect task->comm
+ access
+References: <1305665263-20933-1-git-send-email-john.stultz@linaro.org>	 <1305665263-20933-2-git-send-email-john.stultz@linaro.org>	 <20110517212734.GB28054@elte.hu> <1305669256.2466.6286.camel@twins>
+In-Reply-To: <1305669256.2466.6286.camel@twins>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mgorman@suse.de
-Cc: akpm@linux-foundation.org, minchan.kim@gmail.com, colin.king@canonical.com, James.Bottomley@hansenpartnership.com, raghu.prabhu13@gmail.com, jack@suse.cz, chris.mason@oracle.com, cl@linux.com, penberg@kernel.org, riel@redhat.com, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-ext4@vger.kernel.org
+To: a.p.zijlstra@chello.nl
+Cc: mingo@elte.hu, john.stultz@linaro.org, linux-kernel@vger.kernel.org, joe@perches.com, mina86@mina86.com, apw@canonical.com, jirislaby@gmail.com, rientjes@google.com, dave@linux.vnet.ibm.com, akpm@linux-foundation.org, linux-mm@kvack.org
 
-(2011/05/18 1:15), Mel Gorman wrote:
-> It has been reported on some laptops that kswapd is consuming large
-> amounts of CPU and not being scheduled when SLUB is enabled during
-> large amounts of file copying. It is expected that this is due to
-> kswapd missing every cond_resched() point because;
+(2011/05/18 6:54), Peter Zijlstra wrote:
+> On Tue, 2011-05-17 at 23:27 +0200, Ingo Molnar wrote:
+>> * John Stultz<john.stultz@linaro.org>  wrote:
+>>
+>>> The implicit rules for current->comm access being safe without locking are no
+>>> longer true. Accessing current->comm without holding the task lock may result
+>>> in null or incomplete strings (however, access won't run off the end of the
+>>> string).
+>>
+>> This is rather unfortunate - task->comm is used in a number of performance
+>> critical codepaths such as tracing.
+>>
+>> Why does this matter so much? A NULL string is not a big deal.
+>>
+>> Note, since task->comm is 16 bytes there's the CMPXCHG16B instruction on x86
+>> which could be used to update it atomically, should atomicity really be
+>> desired.
 >
-> shrink_page_list() calls cond_resched() if inactive pages were isolated
->          which in turn may not happen if all_unreclaimable is set in
->          shrink_zones(). If for whatver reason, all_unreclaimable is
->          set on all zones, we can miss calling cond_resched().
+> The changelog also fails to mention _WHY_ this is no longer true. Nor
+> does it treat why making it true again isn't an option.
 >
-> balance_pgdat() only calls cond_resched if the zones are not
->          balanced. For a high-order allocation that is balanced, it
->          checks order-0 again. During that window, order-0 might have
->          become unbalanced so it loops again for order-0 and returns
->          that it was reclaiming for order-0 to kswapd(). It can then
->          find that a caller has rewoken kswapd for a high-order and
->          re-enters balance_pgdat() without ever calling cond_resched().
->
-> shrink_slab only calls cond_resched() if we are reclaiming slab
-> 	pages. If there are a large number of direct reclaimers, the
-> 	shrinker_rwsem can be contended and prevent kswapd calling
-> 	cond_resched().
->
-> This patch modifies the shrink_slab() case. If the semaphore is
-> contended, the caller will still check cond_resched(). After each
-> successful call into a shrinker, the check for cond_resched() is
-> still necessary in case one shrinker call is particularly slow.
->
-> This patch replaces
-> mm-vmscan-if-kswapd-has-been-running-too-long-allow-it-to-sleep.patch
-> in -mm.
->
-> [mgorman@suse.de: Preserve call to cond_resched after each call into shrinker]
-> From: Minchan Kim<minchan.kim@gmail.com>
-> Signed-off-by: Mel Gorman<mgorman@suse.de>
+> Who is changing another task's comm? That's just silly.
 
-Looks good to me.
-	Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+I'm not sure it's silly or not. But the fact is, comm override was introduced
+following patch. Personally I'd like to mark it to "depend on EXPERT". but John
+seems to dislike the idea.
+
+
+
+commit 4614a696bd1c3a9af3a08f0e5874830a85b889d4
+Author: john stultz <johnstul@us.ibm.com>
+Date:   Mon Dec 14 18:00:05 2009 -0800
+
+     procfs: allow threads to rename siblings via /proc/pid/tasks/tid/comm
 
 
 --
