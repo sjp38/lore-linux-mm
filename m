@@ -1,95 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 108AE6B0023
-	for <linux-mm@kvack.org>; Wed, 18 May 2011 11:41:16 -0400 (EDT)
-Date: Wed, 18 May 2011 11:40:56 -0400
-From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Subject: Re: driver mmap implementation for memory allocated with
- pci_alloc_consistent()?
-Message-ID: <20110518154055.GA7037@dumpdata.com>
-References: <BANLkTimo=yXTrgjQHn9746oNdj97Fb-Y9Q@mail.gmail.com>
- <20110518144129.GB4296@dumpdata.com>
- <BANLkTikxzEb7UkUfxmdHhHMc04P4bmKGXQ@mail.gmail.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 82A416B0022
+	for <linux-mm@kvack.org>; Wed, 18 May 2011 13:21:14 -0400 (EDT)
+Date: Wed, 18 May 2011 12:21:08 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH 2/4] mm: slub: Do not wake kswapd for SLUBs speculative
+ high-order allocations
+In-Reply-To: <4DD36299.8000108@cs.helsinki.fi>
+Message-ID: <alpine.DEB.2.00.1105181218520.12423@router.home>
+References: <1305295404-12129-1-git-send-email-mgorman@suse.de> <1305295404-12129-3-git-send-email-mgorman@suse.de> <alpine.DEB.2.00.1105161410090.4353@chino.kir.corp.google.com> <4DD36299.8000108@cs.helsinki.fi>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <BANLkTikxzEb7UkUfxmdHhHMc04P4bmKGXQ@mail.gmail.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Leon Woestenberg <leon.woestenberg@gmail.com>
-Cc: linux-pci@vger.kernel.org, linux-mm@kvack.org
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, James Bottomley <James.Bottomley@hansenpartnership.com>, Colin King <colin.king@canonical.com>, Raghavendra D Prabhu <raghu.prabhu13@gmail.com>, Jan Kara <jack@suse.cz>, Chris Mason <chris.mason@oracle.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-ext4 <linux-ext4@vger.kernel.org>
 
-On Wed, May 18, 2011 at 05:03:41PM +0200, Leon Woestenberg wrote:
-> Hello,
-> 
-> On Wed, May 18, 2011 at 4:41 PM, Konrad Rzeszutek Wilk
-> <konrad.wilk@oracle.com> wrote:
-> > On Wed, May 18, 2011 at 03:02:30PM +0200, Leon Woestenberg wrote:
-> >>
-> >> memory allocated with pci_alloc_consistent() returns the (kernel)
-> >> virtual address and the bus address (which may be different from the
-> >> physical memory address).
-> >>
-> >> What is the correct implementation of the driver mmap (file operation
-> >> method) for such memory?
+On Wed, 18 May 2011, Pekka Enberg wrote:
+
+> On 5/17/11 12:10 AM, David Rientjes wrote:
+> > On Fri, 13 May 2011, Mel Gorman wrote:
 > >
-> > You are going to use the physical address from the CPU side. So not
-> > the bus address. Instead use the virtual address and find the
-> > physical address from that. page_to_pfn() does a good job.
-> >
-> pci_alloc_consistent() returns a kernel virtual address. To find the
-> page I think virt_to_page() suits me better, right?
-> 
-> #define virt_to_page(kaddr)     pfn_to_page(__pa(kaddr) >> PAGE_SHIFT)
-> 
-> > Then you can call 'vm_insert_page(vma...)'
-> >
-> > Or 'vm_insert_mixed'
-> 
-> Thanks, that opens a whole new learning curve experience.
-> 
-> Can I call vmalloc_to_page() on memory allocated with
-> pci_alloc_consistent()? If so, then remap_vmalloc_range() looks
-> promising.
+> > > To avoid locking and per-cpu overhead, SLUB optimisically uses
+> > > high-order allocations and falls back to lower allocations if they
+> > > fail.  However, by simply trying to allocate, kswapd is woken up to
+> > > start reclaiming at that order. On a desktop system, two users report
+> > > that the system is getting locked up with kswapd using large amounts
+> > > of CPU.  Using SLAB instead of SLUB made this problem go away.
+> > >
+> > > This patch prevents kswapd being woken up for high-order allocations.
+> > > Testing indicated that with this patch applied, the system was much
+> > > harder to hang and even when it did, it eventually recovered.
+> > >
+> > > Signed-off-by: Mel Gorman<mgorman@suse.de>
+> > Acked-by: David Rientjes<rientjes@google.com>
+>
+> Christoph? I think this patch is sane although the original rationale was to
+> workaround kswapd problems.
 
-No. That is b/c pci_alloc_consistent allocates pages from ..
-well, this is a bit complex and varies on the platform. But _mostly_
-if your device is 32-bit, it allocates it from ZONE_DMA32. Otherwise
-it is from other zones. The 'vmalloc' pages are quite different and
-are usually not exposed to the PCI devices, unless you do some extra
-jumps (you need to kmap them).
-> 
-> I could not find PCI driver examples calling vm_insert_page() and I am
-> know I can trip into the different memory type pointers easily.
+I am mostly fine with it. The concerns that I have is if there is a
+large series of high order allocs then at some point you would want
+kswapd to be triggered instead of high order allocs constantly failing.
 
-ttm_bo_vm.c ?
-fb_defio.c ?
-
-> 
-> How does your suggestion relate to using the vma ops fault() (formerly
-> known as nopage() to mmap memory allocated by pci_alloc_consistent()?
-
-You can use the pages that you had allocated via pci_alloc_consistent
-and stitch them in the userspace vma.
-
-> i.e. Such as suggested in
-> http://www.gossamer-threads.com/lists/linux/kernel/702127#702127
-> 
-> > Use 'cscope' on the Linux kernel.
-> 
-> Thanks for the suggestion. How would cscope help me find
-> vm_insert_page() given my question?
-
-You can find examples of who uses it.
-> 
-> On hind-sight all questions seem to be easy once finding the correct
-> Documentation / source-code in the first place. I usually use
-> http://lxr.linux.no/ and friends.
-> 
-> 
-> Regards,
-> -- 
-> Leon
+Can we have a "trigger once in a while" functionality?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
