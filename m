@@ -1,67 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 2182D8D004A
-	for <linux-mm@kvack.org>; Tue, 17 May 2011 19:59:48 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id E49763EE0CB
-	for <linux-mm@kvack.org>; Wed, 18 May 2011 08:59:44 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id BCEE945DEA0
-	for <linux-mm@kvack.org>; Wed, 18 May 2011 08:59:44 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 913AA45DE9B
-	for <linux-mm@kvack.org>; Wed, 18 May 2011 08:59:44 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7E1A6E18008
-	for <linux-mm@kvack.org>; Wed, 18 May 2011 08:59:44 +0900 (JST)
+	by kanga.kvack.org (Postfix) with ESMTP id C707C8D003B
+	for <linux-mm@kvack.org>; Tue, 17 May 2011 20:01:48 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 0D21E3EE081
+	for <linux-mm@kvack.org>; Wed, 18 May 2011 09:01:46 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id E734C45DE58
+	for <linux-mm@kvack.org>; Wed, 18 May 2011 09:01:45 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id D02E545DE56
+	for <linux-mm@kvack.org>; Wed, 18 May 2011 09:01:45 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id C08BEE08001
+	for <linux-mm@kvack.org>; Wed, 18 May 2011 09:01:45 +0900 (JST)
 Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 36346E18004
-	for <linux-mm@kvack.org>; Wed, 18 May 2011 08:59:44 +0900 (JST)
-Date: Wed, 18 May 2011 08:52:58 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 2/2] memcg: add memory.numastat api for numa statistics
-Message-Id: <20110518085258.98f07390.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1305671151-21993-2-git-send-email-yinghan@google.com>
-References: <1305671151-21993-1-git-send-email-yinghan@google.com>
-	<1305671151-21993-2-git-send-email-yinghan@google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 8D0DF1DB8047
+	for <linux-mm@kvack.org>; Wed, 18 May 2011 09:01:45 +0900 (JST)
+Message-ID: <4DD30C4B.5060104@jp.fujitsu.com>
+Date: Wed, 18 May 2011 09:01:15 +0900
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v2 4/9] mm: make gather_stats() type-safe and remove forward
+ declaration
+References: <1305498029-11677-1-git-send-email-wilsons@start.ca> <1305498029-11677-5-git-send-email-wilsons@start.ca>
+In-Reply-To: <1305498029-11677-5-git-send-email-wilsons@start.ca>
+Content-Type: text/plain; charset=ISO-2022-JP
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>, linux-mm@kvack.org
+To: wilsons@start.ca
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, hughd@google.com, rientjes@google.com, lee.schermerhorn@hp.com, adobriyan@gmail.com, cl@linux-foundation.org
 
-On Tue, 17 May 2011 15:25:51 -0700
-Ying Han <yinghan@google.com> wrote:
+(2011/05/16 7:20), Stephen Wilson wrote:
+> Improve the prototype of gather_stats() to take a struct numa_maps as
+> argument instead of a generic void *.  Update all callers to make the
+> required type explicit.
+> 
+> Since gather_stats() is not needed before its definition and is
+> scheduled to be moved out of mempolicy.c the declaration is removed as
+> well.
+> 
+> Signed-off-by: Stephen Wilson<wilsons@start.ca>
+> Cc: KOSAKI Motohiro<kosaki.motohiro@jp.fujitsu.com>
+> Cc: Hugh Dickins<hughd@google.com>
+> Cc: David Rientjes<rientjes@google.com>
+> Cc: Lee Schermerhorn<lee.schermerhorn@hp.com>
+> Cc: Alexey Dobriyan<adobriyan@gmail.com>
+> Cc: Christoph Lameter<cl@linux-foundation.org>
 
-> The new API exports numa_maps per-memcg basis. This is a piece of useful
-> information where it exports per-memcg page distribution across real numa
-> nodes.
-> 
-> One of the usecase is evaluating application performance by combining this
-> information w/ the cpu allocation to the application.
-> 
-> The output of the memory.numastat tries to follow w/ simiar format of numa_maps
-> like:
-> 
-> <total pages> N0=<node 0 pages> N1=<node 1 pages> ...
-> 
-> $ cat /dev/cgroup/memory/memory.numa_stat
-> 292115 N0=36364 N1=166876 N2=39741 N3=49115
-> 
-> Note: I noticed <total pages> is not equal to the sum of the rest of counters.
-> I might need to change the way get that counter, comments are welcomed.
-> 
-> Signed-off-by: Ying Han <yinghan@google.com>
+Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-Hmm, If I'm a user, I want to know file-cache is well balanced or where Anon is
-allocated from....Can't we have more precice one rather than total(anon+file) ?
-
-So, I don't like this patch. Could you show total,anon,file at least ?
-
-Thanks,
--Kame 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
