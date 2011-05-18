@@ -1,117 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 83C748D003B
-	for <linux-mm@kvack.org>; Tue, 17 May 2011 20:07:36 -0400 (EDT)
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id DB4238D003B
+	for <linux-mm@kvack.org>; Tue, 17 May 2011 20:26:32 -0400 (EDT)
 Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 669913EE0BD
-	for <linux-mm@kvack.org>; Wed, 18 May 2011 09:07:33 +0900 (JST)
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 2AA583EE0BC
+	for <linux-mm@kvack.org>; Wed, 18 May 2011 09:26:30 +0900 (JST)
 Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 48CDF45DE92
-	for <linux-mm@kvack.org>; Wed, 18 May 2011 09:07:33 +0900 (JST)
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id E7BD245DE97
+	for <linux-mm@kvack.org>; Wed, 18 May 2011 09:26:29 +0900 (JST)
 Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 13D6745DE93
-	for <linux-mm@kvack.org>; Wed, 18 May 2011 09:07:33 +0900 (JST)
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id CB1E845DE94
+	for <linux-mm@kvack.org>; Wed, 18 May 2011 09:26:29 +0900 (JST)
 Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 035961DB8040
-	for <linux-mm@kvack.org>; Wed, 18 May 2011 09:07:33 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id AD8F51DB8038
-	for <linux-mm@kvack.org>; Wed, 18 May 2011 09:07:32 +0900 (JST)
-Date: Wed, 18 May 2011 09:00:47 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH] memcg: fix typo in the soft_limit stats.
-Message-Id: <20110518090047.0b46a60d.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20110518084919.988d3d41.kamezawa.hiroyu@jp.fujitsu.com>
-References: <1305583230-2111-1-git-send-email-yinghan@google.com>
-	<20110516231512.GW16531@cmpxchg.org>
-	<BANLkTinohFTQRTViyU5NQ6EGi95xieXwOA@mail.gmail.com>
-	<20110516171820.124a8fbc.akpm@linux-foundation.org>
-	<20110518084919.988d3d41.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id BBAB8E08003
+	for <linux-mm@kvack.org>; Wed, 18 May 2011 09:26:29 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7C2CB1DB803B
+	for <linux-mm@kvack.org>; Wed, 18 May 2011 09:26:29 +0900 (JST)
+Message-ID: <4DD31221.3060205@jp.fujitsu.com>
+Date: Wed, 18 May 2011 09:26:09 +0900
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 4/4] mm: vmscan: If kswapd has been running too long,
+ allow it to sleep
+References: <1305295404-12129-1-git-send-email-mgorman@suse.de> <1305295404-12129-5-git-send-email-mgorman@suse.de> <4DCFAA80.7040109@jp.fujitsu.com> <1305519711.4806.7.camel@mulgrave.site> <BANLkTi=oe4Ties6awwhHFPf42EXCn2U4MQ@mail.gmail.com> <20110516084558.GE5279@suse.de> <BANLkTinW4s6aT2bZ79sHNgdh5j8VYyJz2w@mail.gmail.com> <20110516102753.GF5279@suse.de>
+In-Reply-To: <20110516102753.GF5279@suse.de>
+Content-Type: text/plain; charset=ISO-8859-15; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Ying Han <yinghan@google.com>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>, linux-mm@kvack.org
+To: mgorman@suse.de
+Cc: minchan.kim@gmail.com, James.Bottomley@hansenpartnership.com, akpm@linux-foundation.org, colin.king@canonical.com, raghu.prabhu13@gmail.com, jack@suse.cz, chris.mason@oracle.com, cl@linux.com, penberg@kernel.org, riel@redhat.com, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-ext4@vger.kernel.org
 
-On Wed, 18 May 2011 08:49:19 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> Lets see;
+>
+> shrink_page_list() only applies if inactive pages were isolated
+> 	which in turn may not happen if all_unreclaimable is set in
+> 	shrink_zones(). If for whatver reason, all_unreclaimable is
+> 	set on all zones, we can miss calling cond_resched().
+>
+> shrink_slab only applies if we are reclaiming slab pages. If the first
+> 	shrinker returns -1, we do not call cond_resched(). If that
+> 	first shrinker is dcache and __GFP_FS is not set, direct
+> 	reclaimers will not shrink at all. However, if there are
+> 	enough of them running or if one of the other shrinkers
+> 	is running for a very long time, kswapd could be starved
+> 	acquiring the shrinker_rwsem and never reaching the
+> 	cond_resched().
 
-> On Mon, 16 May 2011 17:18:20 -0700
-> Andrew Morton <akpm@linux-foundation.org> wrote:
-> 
-> > On Mon, 16 May 2011 17:05:02 -0700
-> > Ying Han <yinghan@google.com> wrote:
-> > 
-> > > On Mon, May 16, 2011 at 4:15 PM, Johannes Weiner <hannes@cmpxchg.org> wrote:
-> > > 
-> > > > On Mon, May 16, 2011 at 03:00:30PM -0700, Ying Han wrote:
-> > > > > This fixes the typo in the memory.stat including the following two
-> > > > > stats:
-> > > > >
-> > > > > $ cat /dev/cgroup/memory/A/memory.stat
-> > > > > total_soft_steal 0
-> > > > > total_soft_scan 0
-> > > > >
-> > > > > And change it to:
-> > > > >
-> > > > > $ cat /dev/cgroup/memory/A/memory.stat
-> > > > > total_soft_kswapd_steal 0
-> > > > > total_soft_kswapd_scan 0
-> > > > >
-> > > > > Signed-off-by: Ying Han <yinghan@google.com>
-> > > >
-> > > > I am currently proposing and working on a scheme that makes the soft
-> > > > limit not only a factor for global memory pressure, but for
-> > > > hierarchical reclaim in general, to prefer child memcgs during reclaim
-> > > > that are in excess of their soft limit.
-> > > >
-> > > > Because this means prioritizing memcgs over one another, rather than
-> > > > having explicit soft limit reclaim runs, there is no natural counter
-> > > > for pages reclaimed due to the soft limit anymore.
-> > > >
-> > > > Thus, for the patch that introduces this counter:
-> > > >
-> > > > Nacked-by: Johannes Weiner <hannes@cmpxchg.org>
-> > > >
-> > > 
-> > > This patch is fixing a typo of the stats being integrated into mmotm. Does
-> > > it make sense to fix the
-> > > existing stats first while we are discussing other approaches?
-> > > 
-> > 
-> > It would be quite bad to add new userspace-visible stats and to then
-> > take them away again.
-> > 
-> yes.
-> 
-> > But given that memcg-add-stats-to-monitor-soft_limit-reclaim.patch is
-> > queued for 2.6.39-rc1, we could proceed with that plan and then make
-> > sure that Johannes's changes are merged either prior to 2.6.40 or
-> > they are never merged at all.
-> > 
-> > Or we could just leave out the stats until we're sure.  Not having them
-> > for a while is not as bad as adding them and then removing them.
-> > 
-> 
-> I agree. I'm okay with removing them for a while. Johannes and Ying, could you
-> make a concensus ? IMHO, Johannes' work for making soft-limit co-operative with
-> hirerachical reclaim makes sense and agree to leave counter name as it is.
-> 
+OK.
 
-After reading threads, an another idea comes. Johannes' soft_limit just works
-when the hierarchy hit limit. I think pages are not reclaimed by soft_limit...
-it just reclaimed by the limit because of hierarchy. Right ?
 
-Hmm, I'm not sure using counter of softlimit or (new) counter of reclaimed-by-parent
-for that purpose.
+>
+> balance_pgdat() only calls cond_resched if the zones are not
+> 	balanced. For a high-order allocation that is balanced, it
+> 	checks order-0 again. During that window, order-0 might have
+> 	become unbalanced so it loops again for order-0 and returns
+> 	that was reclaiming for order-0 to kswapd(). It can then find
+> 	that a caller has rewoken kswapd for a high-order and re-enters
+> 	balance_pgdat() without ever have called cond_resched().
 
-But I think this change of stat name is not necessary, anyway.
+Then, Shouldn't balance_pgdat() call cond_resched() unconditionally?
+The problem is NOT 100% cpu consumption. if kswapd will sleep, other
+processes need to reclaim old pages. The problem is, kswapd doesn't
+invoke context switch and other tasks hang-up.
 
-Thanks,
--Kame
 
+
+
+> While it appears unlikely, there are bad conditions which can result
+> in cond_resched() being avoided.
+>
 
 
 --
