@@ -1,83 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id DAB776B0011
-	for <linux-mm@kvack.org>; Wed, 18 May 2011 01:44:49 -0400 (EDT)
-Received: by qwa26 with SMTP id 26so880754qwa.14
-        for <linux-mm@kvack.org>; Tue, 17 May 2011 22:44:48 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <4DD31B6E.8040502@jp.fujitsu.com>
-References: <1305295404-12129-1-git-send-email-mgorman@suse.de>
-	<1305295404-12129-5-git-send-email-mgorman@suse.de>
-	<4DCFAA80.7040109@jp.fujitsu.com>
-	<1305519711.4806.7.camel@mulgrave.site>
-	<BANLkTi=oe4Ties6awwhHFPf42EXCn2U4MQ@mail.gmail.com>
-	<20110516084558.GE5279@suse.de>
-	<BANLkTinW4s6aT2bZ79sHNgdh5j8VYyJz2w@mail.gmail.com>
-	<20110516102753.GF5279@suse.de>
-	<BANLkTi=5ON_ttuwFFhFObfoP8EBKPdFgAA@mail.gmail.com>
-	<4DD31B6E.8040502@jp.fujitsu.com>
-Date: Wed, 18 May 2011 14:44:48 +0900
-Message-ID: <BANLkTikLuWPEt7MitUYdJtzqyBSOkz2zxg@mail.gmail.com>
-Subject: Re: [PATCH 4/4] mm: vmscan: If kswapd has been running too long,
- allow it to sleep
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id D200C8D003B
+	for <linux-mm@kvack.org>; Wed, 18 May 2011 01:50:04 -0400 (EDT)
+Date: Wed, 18 May 2011 14:43:49 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [PATCH mmotm] add the pagefault count into memcg stats: shmem
+ fix
+Message-Id: <20110518144349.a44ae926.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <alpine.LSU.2.00.1105171120220.29593@sister.anvils>
+References: <alpine.LSU.2.00.1105171120220.29593@sister.anvils>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: mgorman@suse.de, James.Bottomley@hansenpartnership.com, akpm@linux-foundation.org, colin.king@canonical.com, raghu.prabhu13@gmail.com, jack@suse.cz, chris.mason@oracle.com, cl@linux.com, penberg@kernel.org, riel@redhat.com, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-ext4@vger.kernel.org
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Ying Han <yinghan@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 
-On Wed, May 18, 2011 at 10:05 AM, KOSAKI Motohiro
-<kosaki.motohiro@jp.fujitsu.com> wrote:
->> It would be better to put cond_resched after balance_pgdat?
->>
->> diff --git a/mm/vmscan.c b/mm/vmscan.c
->> index 292582c..61c45d0 100644
->> --- a/mm/vmscan.c
->> +++ b/mm/vmscan.c
->> @@ -2753,6 +2753,7 @@ static int kswapd(void *p)
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (!ret) {
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 trace_mm_vmscan_kswapd_wake(pgdat->node_id,
->> order);
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 order =3D balance_pgdat(pgdat,
->> order,&classzone_idx);
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 cond_resched();
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 }
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 }
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 return 0;
->>
->>>>> While it appears unlikely, there are bad conditions which can result
->>>
->>> in cond_resched() being avoided.
->
-> Every reclaim priority decreasing or every shrink_zone() calling makes mo=
-re
-> fine grained preemption. I think.
+On Tue, 17 May 2011 11:24:40 -0700 (PDT)
+Hugh Dickins <hughd@google.com> wrote:
 
-It could be.
-But in direct reclaim case, I have a concern about losing pages
-reclaimed to other tasks by preemption.
+> mem_cgroup_count_vm_event() should update the PGMAJFAULT count for the
+> target mm, not for current mm (but of course they're usually the same).
+> 
+hmm, why ?
+In shmem_getpage(), we charge the page to the memcg where current mm belongs to,
+so I think counting vm events of the memcg is right.
 
-Hmm,, anyway, we also needs test.
-Hmm,, how long should we bother them(Colins and James)?
-First of all, Let's fix one just between us and ask test to them and
-send the last patch to akpm.
+Thanks,
+Daisuke Nishimura.
 
-1. shrink_slab
-2. right after balance_pgdat
-3. shrink_zone
-4. reclaim priority decreasing routine.
-
-Now, I vote 1) and 2).
-
-Mel, KOSAKI?
---=20
-Kind regards,
-Minchan Kim
+> We don't know the target mm in shmem_getpage(), so do it at the outer
+> level in shmem_fault(); and it's easier to follow if we move the
+> count_vm_event(PGMAJFAULT) there too.
+> 
+> Hah, it was using __count_vm_event() before, sneaking that update into
+> the unpreemptible section under info->lock: well, it comes to the same
+> on x86 at least, and I still think it's best to keep these together.
+> 
+> Signed-off-by: Hugh Dickins <hughd@google.com>
+> ---
+> 
+>  mm/shmem.c |   13 ++++++-------
+>  1 file changed, 6 insertions(+), 7 deletions(-)
+> 
+> --- mmotm/mm/shmem.c	2011-05-13 14:57:45.367884578 -0700
+> +++ linux/mm/shmem.c	2011-05-17 10:27:19.901934756 -0700
+> @@ -1293,14 +1293,10 @@ repeat:
+>  		swappage = lookup_swap_cache(swap);
+>  		if (!swappage) {
+>  			shmem_swp_unmap(entry);
+> +			spin_unlock(&info->lock);
+>  			/* here we actually do the io */
+> -			if (type && !(*type & VM_FAULT_MAJOR)) {
+> -				__count_vm_event(PGMAJFAULT);
+> -				mem_cgroup_count_vm_event(current->mm,
+> -							  PGMAJFAULT);
+> +			if (type)
+>  				*type |= VM_FAULT_MAJOR;
+> -			}
+> -			spin_unlock(&info->lock);
+>  			swappage = shmem_swapin(swap, gfp, info, idx);
+>  			if (!swappage) {
+>  				spin_lock(&info->lock);
+> @@ -1539,7 +1535,10 @@ static int shmem_fault(struct vm_area_st
+>  	error = shmem_getpage(inode, vmf->pgoff, &vmf->page, SGP_CACHE, &ret);
+>  	if (error)
+>  		return ((error == -ENOMEM) ? VM_FAULT_OOM : VM_FAULT_SIGBUS);
+> -
+> +	if (ret & VM_FAULT_MAJOR) {
+> +		count_vm_event(PGMAJFAULT);
+> +		mem_cgroup_count_vm_event(vma->vm_mm, PGMAJFAULT);
+> +	}
+>  	return ret | VM_FAULT_LOCKED;
+>  }
+>  
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
