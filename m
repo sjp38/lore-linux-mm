@@ -1,82 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id E26388D003B
-	for <linux-mm@kvack.org>; Tue, 17 May 2011 22:01:48 -0400 (EDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 66B506B0026
+	for <linux-mm@kvack.org>; Tue, 17 May 2011 22:15:21 -0400 (EDT)
 Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 5D7DC3EE0D1
-	for <linux-mm@kvack.org>; Wed, 18 May 2011 11:01:45 +0900 (JST)
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 6161A3EE0BD
+	for <linux-mm@kvack.org>; Wed, 18 May 2011 11:15:17 +0900 (JST)
 Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3684245DE78
-	for <linux-mm@kvack.org>; Wed, 18 May 2011 11:01:45 +0900 (JST)
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 47AAD45DE95
+	for <linux-mm@kvack.org>; Wed, 18 May 2011 11:15:17 +0900 (JST)
 Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0E48C45DE92
-	for <linux-mm@kvack.org>; Wed, 18 May 2011 11:01:45 +0900 (JST)
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2580D45DE78
+	for <linux-mm@kvack.org>; Wed, 18 May 2011 11:15:17 +0900 (JST)
 Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id ED666E18004
-	for <linux-mm@kvack.org>; Wed, 18 May 2011 11:01:44 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id B50501DB8038
-	for <linux-mm@kvack.org>; Wed, 18 May 2011 11:01:44 +0900 (JST)
-Message-ID: <4DD3287A.2030808@jp.fujitsu.com>
-Date: Wed, 18 May 2011 11:01:30 +0900
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 1/4] comm: Introduce comm_lock spinlock to protect task->comm
- access
-References: <1305682865-27111-1-git-send-email-john.stultz@linaro.org> <1305682865-27111-2-git-send-email-john.stultz@linaro.org>
-In-Reply-To: <1305682865-27111-2-git-send-email-john.stultz@linaro.org>
-Content-Type: text/plain; charset=ISO-2022-JP
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 1759EE18002
+	for <linux-mm@kvack.org>; Wed, 18 May 2011 11:15:17 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id D2F951DB8038
+	for <linux-mm@kvack.org>; Wed, 18 May 2011 11:15:16 +0900 (JST)
+Date: Wed, 18 May 2011 11:08:21 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 2/2] memcg: add memory.numastat api for numa statistics
+Message-Id: <20110518110821.20c29c11.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <BANLkTinA3osWTkngOoZQ22oXaFR82=17Zg@mail.gmail.com>
+References: <1305671151-21993-1-git-send-email-yinghan@google.com>
+	<1305671151-21993-2-git-send-email-yinghan@google.com>
+	<20110518085258.98f07390.kamezawa.hiroyu@jp.fujitsu.com>
+	<BANLkTinA3osWTkngOoZQ22oXaFR82=17Zg@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: john.stultz@linaro.org
-Cc: linux-kernel@vger.kernel.org, joe@perches.com, mingo@elte.hu, mina86@mina86.com, apw@canonical.com, jirislaby@gmail.com, rientjes@google.com, dave@linux.vnet.ibm.com, akpm@linux-foundation.org, linux-mm@kvack.org
+To: Ying Han <yinghan@google.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>, linux-mm@kvack.org
 
-> diff --git a/fs/exec.c b/fs/exec.c
-> index 5e62d26..34fa611 100644
-> --- a/fs/exec.c
-> +++ b/fs/exec.c
-> @@ -998,17 +998,28 @@ static void flush_old_files(struct files_struct * files)
+On Tue, 17 May 2011 18:40:23 -0700
+Ying Han <yinghan@google.com> wrote:
+
+> On Tue, May 17, 2011 at 4:52 PM, KAMEZAWA Hiroyuki <
+> kamezawa.hiroyu@jp.fujitsu.com> wrote:
 > 
->   char *get_task_comm(char *buf, struct task_struct *tsk)
->   {
-> -	/* buf must be at least sizeof(tsk->comm) in size */
-> -	task_lock(tsk);
-> +	unsigned long flags;
-> +
-> +	spin_lock_irqsave(&tsk->comm_lock, flags);
->   	strncpy(buf, tsk->comm, sizeof(tsk->comm));
-> -	task_unlock(tsk);
-> +	spin_unlock_irqrestore(&tsk->comm_lock, flags);
->   	return buf;
->   }
+> > On Tue, 17 May 2011 15:25:51 -0700
+> > Ying Han <yinghan@google.com> wrote:
+> >
+> > > The new API exports numa_maps per-memcg basis. This is a piece of useful
+> > > information where it exports per-memcg page distribution across real numa
+> > > nodes.
+> > >
+> > > One of the usecase is evaluating application performance by combining
+> > this
+> > > information w/ the cpu allocation to the application.
+> > >
+> > > The output of the memory.numastat tries to follow w/ simiar format of
+> > numa_maps
+> > > like:
+> > >
+> > > <total pages> N0=<node 0 pages> N1=<node 1 pages> ...
+> > >
+> > > $ cat /dev/cgroup/memory/memory.numa_stat
+> > > 292115 N0=36364 N1=166876 N2=39741 N3=49115
+> > >
+> > > Note: I noticed <total pages> is not equal to the sum of the rest of
+> > counters.
+> > > I might need to change the way get that counter, comments are welcomed.
+> > >
+> > > Signed-off-by: Ying Han <yinghan@google.com>
+> >
+> > Hmm, If I'm a user, I want to know file-cache is well balanced or where
+> > Anon is
+> > allocated from....Can't we have more precice one rather than
+> > total(anon+file) ?
+> >
+> > So, I don't like this patch. Could you show total,anon,file at least ?
+> >
 > 
->   void set_task_comm(struct task_struct *tsk, char *buf)
->   {
-> +	unsigned long flags;
-> +
-> +	/*
-> +	 * XXX - Even though comm is protected by comm_lock,
-> +	 * we take the task_lock here to serialize against
-> +	 * current users that directly access comm.
-> +	 * Once those users are removed, we can drop the
-> +	 * task locking&  memsetting.
-> +	 */
+> Ok, then this is really becoming per-memcg numa_maps. Before I go ahead
+> posting the next version, this is something we are looking for:
+> 
+> total=<total pages> N0=<node 0 pages> N1=<node 1 pages> ...
+> anon=<total anon pages> N0=<node 0 pages> N1=<node 1 pages> ...
+> file=<total file pages> N0=<node 0 pages> N1=<node 1 pages> ...
+> 
 
-If we provide __get_task_comm(), we can't remove memset() forever.
+seems good.
 
-
->   	task_lock(tsk);
-> +	spin_lock_irqsave(&tsk->comm_lock, flags);
-
-This is strange order. task_lock() doesn't disable interrupt.
-And, can you please document why we need interrupt disabling?
-
-
->   	/*
->   	 * Threads may access current->comm without holding
->   	 * the task lock, so write the string carefully.
-
+THanks,
+-Kmae
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
