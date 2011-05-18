@@ -1,104 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id EC97C6B0022
-	for <linux-mm@kvack.org>; Wed, 18 May 2011 18:55:36 -0400 (EDT)
-Received: by qyk2 with SMTP id 2so3708993qyk.14
-        for <linux-mm@kvack.org>; Wed, 18 May 2011 15:55:35 -0700 (PDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 5535D6B0022
+	for <linux-mm@kvack.org>; Wed, 18 May 2011 19:05:25 -0400 (EDT)
+Received: by pzk4 with SMTP id 4so1232741pzk.14
+        for <linux-mm@kvack.org>; Wed, 18 May 2011 16:05:23 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20110518095859.GR5279@suse.de>
-References: <1305295404-12129-5-git-send-email-mgorman@suse.de>
-	<4DCFAA80.7040109@jp.fujitsu.com>
-	<1305519711.4806.7.camel@mulgrave.site>
-	<BANLkTi=oe4Ties6awwhHFPf42EXCn2U4MQ@mail.gmail.com>
-	<20110516084558.GE5279@suse.de>
-	<BANLkTinW4s6aT2bZ79sHNgdh5j8VYyJz2w@mail.gmail.com>
-	<20110516102753.GF5279@suse.de>
-	<BANLkTi=5ON_ttuwFFhFObfoP8EBKPdFgAA@mail.gmail.com>
-	<4DD31B6E.8040502@jp.fujitsu.com>
-	<BANLkTikLuWPEt7MitUYdJtzqyBSOkz2zxg@mail.gmail.com>
-	<20110518095859.GR5279@suse.de>
-Date: Thu, 19 May 2011 07:55:35 +0900
-Message-ID: <BANLkTin6HJSrxcJYB3Y6XYgs8xuDWaQ15Q@mail.gmail.com>
-Subject: Re: [PATCH 4/4] mm: vmscan: If kswapd has been running too long,
- allow it to sleep
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <BANLkTi=yXq_avxZPRrhfw55kadeZRH-aaw@mail.gmail.com>
+References: <BANLkTimo=yXTrgjQHn9746oNdj97Fb-Y9Q@mail.gmail.com>
+	<20110518144129.GB4296@dumpdata.com>
+	<BANLkTikxzEb7UkUfxmdHhHMc04P4bmKGXQ@mail.gmail.com>
+	<20110518154055.GA7037@dumpdata.com>
+	<BANLkTi=yXq_avxZPRrhfw55kadeZRH-aaw@mail.gmail.com>
+Date: Thu, 19 May 2011 00:59:18 +0200
+Message-ID: <BANLkTimago0y4VF3q_f=gUSRRkw1wxYbpA@mail.gmail.com>
+Subject: Re: driver mmap implementation for memory allocated with pci_alloc_consistent()?
+From: Leon Woestenberg <leon.woestenberg@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, James.Bottomley@hansenpartnership.com, akpm@linux-foundation.org, colin.king@canonical.com, raghu.prabhu13@gmail.com, jack@suse.cz, chris.mason@oracle.com, cl@linux.com, penberg@kernel.org, riel@redhat.com, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-ext4@vger.kernel.org
+To: linux-pci@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, May 18, 2011 at 6:58 PM, Mel Gorman <mgorman@suse.de> wrote:
-> On Wed, May 18, 2011 at 02:44:48PM +0900, Minchan Kim wrote:
->> On Wed, May 18, 2011 at 10:05 AM, KOSAKI Motohiro
->> <kosaki.motohiro@jp.fujitsu.com> wrote:
->> >> It would be better to put cond_resched after balance_pgdat?
->> >>
->> >> diff --git a/mm/vmscan.c b/mm/vmscan.c
->> >> index 292582c..61c45d0 100644
->> >> --- a/mm/vmscan.c
->> >> +++ b/mm/vmscan.c
->> >> @@ -2753,6 +2753,7 @@ static int kswapd(void *p)
->> >> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (!ret) {
->> >> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0=
- =C2=A0 =C2=A0 trace_mm_vmscan_kswapd_wake(pgdat->node_id,
->> >> order);
->> >> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0=
- =C2=A0 =C2=A0 order =3D balance_pgdat(pgdat,
->> >> order,&classzone_idx);
->> >> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 cond_resched();
->> >> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 }
->> >> =C2=A0 =C2=A0 =C2=A0 =C2=A0 }
->> >> =C2=A0 =C2=A0 =C2=A0 =C2=A0 return 0;
->> >>
->> >>>>> While it appears unlikely, there are bad conditions which can resu=
-lt
->> >>>
->> >>> in cond_resched() being avoided.
->> >
->> > Every reclaim priority decreasing or every shrink_zone() calling makes=
- more
->> > fine grained preemption. I think.
->>
->> It could be.
->> But in direct reclaim case, I have a concern about losing pages
->> reclaimed to other tasks by preemption.
->>
->> Hmm,, anyway, we also needs test.
->> Hmm,, how long should we bother them(Colins and James)?
->> First of all, Let's fix one just between us and ask test to them and
->> send the last patch to akpm.
->>
->> 1. shrink_slab
->> 2. right after balance_pgdat
->> 3. shrink_zone
->> 4. reclaim priority decreasing routine.
->>
->> Now, I vote 1) and 2).
->>
->
-> I've already submitted a pair of patches for option 1. I don't think
-> option 2 gains us anything. I think it's more likely we should worry
-> about all_unreclaimable being set when shrink_slab is returning 0 and we
-> are encountering so many dirty pages that pages_scanned is high enough.
+Hello,
 
-Okay.
+On Wed, May 18, 2011 at 9:35 PM, Leon Woestenberg
+<leon.woestenberg@gmail.com> wrote:
+> On Wed, May 18, 2011 at 5:40 PM, Konrad Rzeszutek Wilk
+>>> > On Wed, May 18, 2011 at 03:02:30PM +0200, Leon Woestenberg wrote:
+>>> >>
+>>> >> What is the correct implementation of the driver mmap (file operation
+>>> >> method) for such memory?
+>>> >
 
-Colin reported he had no problem with patch 1 in this series and
-mine(ie, just cond_resched right after balance_pgdat call without no
-patch of shrink_slab).
+I have written an implementation based on vm_insert_pfn() and friends,
+and posted the code in a new thread.
 
-If Colin's test is successful, I don't insist on mine.
-(I don't want to drag on for days :( )
-If KOSAKI agree, let's ask the test to Colin and confirm our last test.
+It doesn't work yet but I hope some of you kernel experts can look along.
 
-KOSAKI. Could you post a your opinion?
-
---=20
-Kind regards,
-Minchan Kim
+Regards,
+-- 
+Leon
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
