@@ -1,43 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id CC4D48D003B
-	for <linux-mm@kvack.org>; Wed, 18 May 2011 02:09:33 -0400 (EDT)
-Message-ID: <4DD36299.8000108@cs.helsinki.fi>
-Date: Wed, 18 May 2011 09:09:29 +0300
-From: Pekka Enberg <penberg@cs.helsinki.fi>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 92CCF6B0012
+	for <linux-mm@kvack.org>; Wed, 18 May 2011 02:26:10 -0400 (EDT)
+Date: Wed, 18 May 2011 08:25:54 +0200
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: [PATCH 0/4] v6 Improve task->comm locking situation
+Message-ID: <20110518062554.GB2945@elte.hu>
+References: <1305682865-27111-1-git-send-email-john.stultz@linaro.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/4] mm: slub: Do not wake kswapd for SLUBs speculative
- high-order allocations
-References: <1305295404-12129-1-git-send-email-mgorman@suse.de> <1305295404-12129-3-git-send-email-mgorman@suse.de> <alpine.DEB.2.00.1105161410090.4353@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1105161410090.4353@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1305682865-27111-1-git-send-email-john.stultz@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, James Bottomley <James.Bottomley@hansenpartnership.com>, Colin King <colin.king@canonical.com>, Raghavendra D Prabhu <raghu.prabhu13@gmail.com>, Jan Kara <jack@suse.cz>, Chris Mason <chris.mason@oracle.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-ext4 <linux-ext4@vger.kernel.org>
+To: John Stultz <john.stultz@linaro.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, Joe Perches <joe@perches.com>, Michal Nazarewicz <mina86@mina86.com>, Andy Whitcroft <apw@canonical.com>, Jiri Slaby <jirislaby@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>
 
-On 5/17/11 12:10 AM, David Rientjes wrote:
-> On Fri, 13 May 2011, Mel Gorman wrote:
->
->> To avoid locking and per-cpu overhead, SLUB optimisically uses
->> high-order allocations and falls back to lower allocations if they
->> fail.  However, by simply trying to allocate, kswapd is woken up to
->> start reclaiming at that order. On a desktop system, two users report
->> that the system is getting locked up with kswapd using large amounts
->> of CPU.  Using SLAB instead of SLUB made this problem go away.
->>
->> This patch prevents kswapd being woken up for high-order allocations.
->> Testing indicated that with this patch applied, the system was much
->> harder to hang and even when it did, it eventually recovered.
->>
->> Signed-off-by: Mel Gorman<mgorman@suse.de>
-> Acked-by: David Rientjes<rientjes@google.com>
 
-Christoph? I think this patch is sane although the original rationale 
-was to workaround kswapd problems.
+* John Stultz <john.stultz@linaro.org> wrote:
 
-                 Pekka
+> v6 tries to address the latest round of issues. Again, hopefully this is 
+> getting close to something that can be queued for 2.6.40.
+
+We are far away from thinking about upstreaming any of this ...
+
+> Since my commit 4614a696bd1c3a9af3a08f0e5874830a85b889d4, the current->comm 
+> value could be changed by other threads.
+> 
+> This changed the comm locking rules, which previously allowed for unlocked 
+> current->comm access, since only the thread itself could change its comm.
+> 
+> While this was brought up at the time, it was not considered problematic, as 
+> the comm writing was done in such a way that only null or incomplete comms 
+> could be read. However, recently folks have made it clear they want to see 
+> this issue resolved.
+
+The commit is from 2.5 years ago:
+
+        4614a696bd1c3a9af3a08f0e5874830a85b889d4
+        Author: john stultz <johnstul@us.ibm.com>
+        Date:   Mon Dec 14 18:00:05 2009 -0800
+
+            procfs: allow threads to rename siblings via /proc/pid/tasks/tid/comm
+
+So we are *way* beyond the time frame where this could be declared urgent.
+
+So is there any actual motivation beyond:
+
+  " Hey, this looks a bit racy and 'top' very rarely, on rare workloads that 
+    play with ->comm[], might display a weird reading task name for a second, 
+    amongst the many other temporarily nonsensical statistical things it 
+    already prints every now and then. "
+
+?
+
+> So fair enough, as I opened this can of worms, I should work
+> to resolve it and this patchset is my initial attempt.
+
+This patch set does not address the many places that deal with ->comm so it 
+does not even approximate the true scope of the change!
+
+I.e. you are doing *another* change without fully seeing/showing the 
+consequences ...
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
