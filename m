@@ -1,156 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 7725F8D003B
-	for <linux-mm@kvack.org>; Tue, 17 May 2011 21:40:32 -0400 (EDT)
-Received: from kpbe18.cbf.corp.google.com (kpbe18.cbf.corp.google.com [172.25.105.82])
-	by smtp-out.google.com with ESMTP id p4I1eSab020067
-	for <linux-mm@kvack.org>; Tue, 17 May 2011 18:40:28 -0700
-Received: from qyl38 (qyl38.prod.google.com [10.241.83.230])
-	by kpbe18.cbf.corp.google.com with ESMTP id p4I1eOEn030238
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 17 May 2011 18:40:26 -0700
-Received: by qyl38 with SMTP id 38so707064qyl.15
-        for <linux-mm@kvack.org>; Tue, 17 May 2011 18:40:24 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20110518085258.98f07390.kamezawa.hiroyu@jp.fujitsu.com>
-References: <1305671151-21993-1-git-send-email-yinghan@google.com>
-	<1305671151-21993-2-git-send-email-yinghan@google.com>
-	<20110518085258.98f07390.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Tue, 17 May 2011 18:40:23 -0700
-Message-ID: <BANLkTinA3osWTkngOoZQ22oXaFR82=17Zg@mail.gmail.com>
-Subject: Re: [PATCH 2/2] memcg: add memory.numastat api for numa statistics
-From: Ying Han <yinghan@google.com>
-Content-Type: multipart/alternative; boundary=0016360e3f5ce938c004a382f829
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B6298D003B
+	for <linux-mm@kvack.org>; Tue, 17 May 2011 21:41:17 -0400 (EDT)
+Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
+	by e2.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p4I1LNLj005198
+	for <linux-mm@kvack.org>; Tue, 17 May 2011 21:21:23 -0400
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p4I1fFbs116646
+	for <linux-mm@kvack.org>; Tue, 17 May 2011 21:41:15 -0400
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p4HLf3VB029307
+	for <linux-mm@kvack.org>; Tue, 17 May 2011 18:41:03 -0300
+From: John Stultz <john.stultz@linaro.org>
+Subject: [PATCH 0/4] v6 Improve task->comm locking situation
+Date: Tue, 17 May 2011 18:41:01 -0700
+Message-Id: <1305682865-27111-1-git-send-email-john.stultz@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>, linux-mm@kvack.org
+To: LKML <linux-kernel@vger.kernel.org>
+Cc: John Stultz <john.stultz@linaro.org>, Joe Perches <joe@perches.com>, Ingo Molnar <mingo@elte.hu>, Michal Nazarewicz <mina86@mina86.com>, Andy Whitcroft <apw@canonical.com>, Jiri Slaby <jirislaby@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
---0016360e3f5ce938c004a382f829
-Content-Type: text/plain; charset=ISO-8859-1
+v6 tries to address the latest round of issues. Again, hopefully
+this is getting close to something that can be queued for 2.6.40.
 
-On Tue, May 17, 2011 at 4:52 PM, KAMEZAWA Hiroyuki <
-kamezawa.hiroyu@jp.fujitsu.com> wrote:
+Since my commit 4614a696bd1c3a9af3a08f0e5874830a85b889d4, the
+current->comm value could be changed by other threads.
 
-> On Tue, 17 May 2011 15:25:51 -0700
-> Ying Han <yinghan@google.com> wrote:
->
-> > The new API exports numa_maps per-memcg basis. This is a piece of useful
-> > information where it exports per-memcg page distribution across real numa
-> > nodes.
-> >
-> > One of the usecase is evaluating application performance by combining
-> this
-> > information w/ the cpu allocation to the application.
-> >
-> > The output of the memory.numastat tries to follow w/ simiar format of
-> numa_maps
-> > like:
-> >
-> > <total pages> N0=<node 0 pages> N1=<node 1 pages> ...
-> >
-> > $ cat /dev/cgroup/memory/memory.numa_stat
-> > 292115 N0=36364 N1=166876 N2=39741 N3=49115
-> >
-> > Note: I noticed <total pages> is not equal to the sum of the rest of
-> counters.
-> > I might need to change the way get that counter, comments are welcomed.
-> >
-> > Signed-off-by: Ying Han <yinghan@google.com>
->
-> Hmm, If I'm a user, I want to know file-cache is well balanced or where
-> Anon is
-> allocated from....Can't we have more precice one rather than
-> total(anon+file) ?
->
-> So, I don't like this patch. Could you show total,anon,file at least ?
->
+This changed the comm locking rules, which previously allowed for
+unlocked current->comm access, since only the thread itself could
+change its comm.
 
-Ok, then this is really becoming per-memcg numa_maps. Before I go ahead
-posting the next version, this is something we are looking for:
+While this was brought up at the time, it was not considered
+problematic, as the comm writing was done in such a way that
+only null or incomplete comms could be read. However, recently
+folks have made it clear they want to see this issue resolved.
 
-total=<total pages> N0=<node 0 pages> N1=<node 1 pages> ...
-anon=<total anon pages> N0=<node 0 pages> N1=<node 1 pages> ...
-file=<total file pages> N0=<node 0 pages> N1=<node 1 pages> ...
+So fair enough, as I opened this can of worms, I should work
+to resolve it and this patchset is my initial attempt.
 
-please confirm?
+The proposed solution here is to introduce a new spinlock that
+exclusively protects the comm value. We use it to serialize
+access via get_task_comm() and set_task_comm(). Since some 
+comm access is open-coded using the task lock, we preserve
+the task locking in set_task_comm for now. Once all comm 
+access is converted to using get_task_comm, we can clean that
+up as well.
+
+I've also introduced a printk %ptc accessor, which makes the
+conversion to locked access simpler (as most uses are for printks)
+as well as a checkpatch rule to try to catch any new current->comm
+users from being introduced.
+
+New in this version: More tweaks to the checkpatch regex, and 
+added a unlocked task->comm accessor for performance critical
+code paths that can handle the potential null or incomplete comm.
+
+Hopefully this will allow for a smooth transition, where we can
+slowly fix up the unlocked current->comm access bit by bit,
+reducing the race window with each patch, while not making the
+situation any worse then it was yesterday.
+
+Thanks for the comments and feedback so far. 
+Any additional comments/feedback would still be appreciated.
 
 thanks
+-john
 
---Ying
+CC: Joe Perches <joe@perches.com>
+CC: Ingo Molnar <mingo@elte.hu>
+CC: Michal Nazarewicz <mina86@mina86.com>
+CC: Andy Whitcroft <apw@canonical.com>
+CC: Jiri Slaby <jirislaby@gmail.com>
+CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+CC: David Rientjes <rientjes@google.com>
+CC: Dave Hansen <dave@linux.vnet.ibm.com>
+CC: Andrew Morton <akpm@linux-foundation.org>
+CC: linux-mm@kvack.org
 
-> Thanks,
-> -Kame
->
->
+John Stultz (4):
+  comm: Introduce comm_lock spinlock to protect task->comm access
+  comm: Add lock-free task->comm accessor
+  printk: Add %ptc to safely print a task's comm
+  checkpatch.pl: Add check for task comm references
 
---0016360e3f5ce938c004a382f829
-Content-Type: text/html; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+ fs/exec.c                 |   32 +++++++++++++++++++++++++++++---
+ include/linux/init_task.h |    1 +
+ include/linux/sched.h     |    6 +++---
+ kernel/fork.c             |    1 +
+ lib/vsprintf.c            |   24 ++++++++++++++++++++++++
+ scripts/checkpatch.pl     |    6 ++++++
+ 6 files changed, 64 insertions(+), 6 deletions(-)
 
-<br><br><div class=3D"gmail_quote">On Tue, May 17, 2011 at 4:52 PM, KAMEZAW=
-A Hiroyuki <span dir=3D"ltr">&lt;<a href=3D"mailto:kamezawa.hiroyu@jp.fujit=
-su.com">kamezawa.hiroyu@jp.fujitsu.com</a>&gt;</span> wrote:<br><blockquote=
- class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1px #ccc soli=
-d;padding-left:1ex;">
-<div class=3D"im">On Tue, 17 May 2011 15:25:51 -0700<br>
-Ying Han &lt;<a href=3D"mailto:yinghan@google.com">yinghan@google.com</a>&g=
-t; wrote:<br>
-<br>
-&gt; The new API exports numa_maps per-memcg basis. This is a piece of usef=
-ul<br>
-&gt; information where it exports per-memcg page distribution across real n=
-uma<br>
-&gt; nodes.<br>
-&gt;<br>
-&gt; One of the usecase is evaluating application performance by combining =
-this<br>
-&gt; information w/ the cpu allocation to the application.<br>
-&gt;<br>
-&gt; The output of the memory.numastat tries to follow w/ simiar format of =
-numa_maps<br>
-&gt; like:<br>
-&gt;<br>
-&gt; &lt;total pages&gt; N0=3D&lt;node 0 pages&gt; N1=3D&lt;node 1 pages&gt=
-; ...<br>
-&gt;<br>
-&gt; $ cat /dev/cgroup/memory/memory.numa_stat<br>
-&gt; 292115 N0=3D36364 N1=3D166876 N2=3D39741 N3=3D49115<br>
-&gt;<br>
-&gt; Note: I noticed &lt;total pages&gt; is not equal to the sum of the res=
-t of counters.<br>
-&gt; I might need to change the way get that counter, comments are welcomed=
-.<br>
-&gt;<br>
-&gt; Signed-off-by: Ying Han &lt;<a href=3D"mailto:yinghan@google.com">ying=
-han@google.com</a>&gt;<br>
-<br>
-</div>Hmm, If I&#39;m a user, I want to know file-cache is well balanced or=
- where Anon is<br>
-allocated from....Can&#39;t we have more precice one rather than total(anon=
-+file) ?<br>
-<br>
-So, I don&#39;t like this patch. Could you show total,anon,file at least ?<=
-br></blockquote><div><br></div><div>Ok, then this is really becoming per-me=
-mcg numa_maps. Before I go ahead posting the next version, this is somethin=
-g we are looking for:</div>
-<div><br></div><div>total=3D&lt;total pages&gt;=A0N0=3D&lt;node 0 pages&gt;=
- N1=3D&lt;node 1 pages&gt; ...</div><meta http-equiv=3D"content-type" conte=
-nt=3D"text/html; charset=3Dutf-8"><div><meta http-equiv=3D"content-type" co=
-ntent=3D"text/html; charset=3Dutf-8">anon=3D&lt;total anon pages&gt; N0=3D&=
-lt;node 0 pages&gt; N1=3D&lt;node 1 pages&gt; ...</div>
-<div><meta http-equiv=3D"content-type" content=3D"text/html; charset=3Dutf-=
-8">file=3D&lt;total file pages&gt; N0=3D&lt;node 0 pages&gt; N1=3D&lt;node =
-1 pages&gt; ...</div><div><br></div><div>please confirm?</div><div><br></di=
-v><div>thanks</div>
-<div><br></div><div>--Ying</div><blockquote class=3D"gmail_quote" style=3D"=
-margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex;">
-Thanks,<br>
--Kame<br>
-<br>
-</blockquote></div><br>
-
---0016360e3f5ce938c004a382f829--
+-- 
+1.7.3.2.146.gca209
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
