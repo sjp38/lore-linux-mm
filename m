@@ -1,61 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 8F7D66B0026
-	for <linux-mm@kvack.org>; Wed, 18 May 2011 06:36:16 -0400 (EDT)
-Received: (from localhost user: 'dkiper' uid#4000 fake: STDIN
-	(dkiper@router-fw.net-space.pl)) by router-fw-old.local.net-space.pl
-	id S1582386Ab1ERKfn (ORCPT <rfc822;linux-mm@kvack.org>);
-	Wed, 18 May 2011 12:35:43 +0200
-Date: Wed, 18 May 2011 12:35:43 +0200
-From: Daniel Kiper <dkiper@net-space.pl>
-Subject: Re: [PATCH V3] xen/balloon: Memory hotplug support for Xen balloon driver
-Message-ID: <20110518103543.GA5066@router-fw-old.local.net-space.pl>
-References: <20110517214421.GD30232@router-fw-old.local.net-space.pl> <1305701868.28175.1.camel@vase> <1305703309.7738.23.camel@dagon.hellion.org.uk> <1305703494.28175.2.camel@vase>
-Mime-Version: 1.0
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 9C0966B0023
+	for <linux-mm@kvack.org>; Wed, 18 May 2011 09:01:22 -0400 (EDT)
+Date: Wed, 18 May 2011 15:00:04 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH v2 1/3] coredump: use get_task_comm for %e filename
+	format
+Message-ID: <20110518130004.GA10638@redhat.com>
+References: <1305181093-20871-1-git-send-email-jslaby@suse.cz>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1305703494.28175.2.camel@vase>
+In-Reply-To: <1305181093-20871-1-git-send-email-jslaby@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vasiliy G Tolstov <v.tolstov@selfip.ru>
-Cc: Ian Campbell <Ian.Campbell@eu.citrix.com>, Daniel Kiper <dkiper@net-space.pl>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "andi.kleen@intel.com" <andi.kleen@intel.com>, "haicheng.li@linux.intel.com" <haicheng.li@linux.intel.com>, "fengguang.wu@intel.com" <fengguang.wu@intel.com>, "jeremy@goop.org" <jeremy@goop.org>, "konrad.wilk@oracle.com" <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, "pasik@iki.fi" <pasik@iki.fi>, "dave@linux.vnet.ibm.com" <dave@linux.vnet.ibm.com>, "wdauchy@gmail.com" <wdauchy@gmail.com>, "rientjes@google.com" <rientjes@google.com>, "xen-devel@lists.xensource.com" <xen-devel@lists.xensource.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Jiri Slaby <jslaby@suse.cz>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, jirislaby@gmail.com, Alan Cox <alan@lxorguk.ukuu.org.uk>, Al Viro <viro@zeniv.linux.org.uk>, Andi Kleen <andi@firstfloor.org>
 
-On Wed, May 18, 2011 at 11:24:54AM +0400, Vasiliy G Tolstov wrote:
-> On Wed, 2011-05-18 at 08:21 +0100, Ian Campbell wrote:
-> > On Wed, 2011-05-18 at 07:57 +0100, Vasiliy G Tolstov wrote:
-> > > On Tue, 2011-05-17 at 23:44 +0200, Daniel Kiper wrote:
-> > > > +	  Memory could be hotplugged in following steps:
-> > > > +
-> > > > +	    1) dom0: xl mem-max <domU> <maxmem>
-> > > > +	       where <maxmem> is >= requested memory size,
-> > > > +
-> > > > +	    2) dom0: xl mem-set <domU> <memory>
-> > > > +	       where <memory> is requested memory size; alternatively memory
-> > > > +	       could be added by writing proper value to
-> > > > +	       /sys/devices/system/xen_memory/xen_memory0/target or
-> > > > +	       /sys/devices/system/xen_memory/xen_memory0/target_kb on dumU,
-> > > > +
-> > > > +	    3) domU: for i in /sys/devices/system/memory/memory*/state; do \
-> > > > +	               [ "`cat "$i"`" = offline ] && echo online > "$i"; done
-> >
-> > > Very good. Is that possible to eliminate step 3 ? And do it automatic if
-> > > domU runs with specific xen balloon param?
-> >
-> > When we faced the same question WRT VCPU hotplug we ended up using a
-> > udev rule. Presumably the same could be done here. In the VCPU case the
-> > rule is:
-> >
-> > ACTION=="add", SUBSYSTEM=="cpu", RUN+="/bin/sh -c '[ ! -e /sys$devpath/online ] || echo 1 > /sys$devpath/online'"
-> >
-> > Presumably the memory one will be broadly similar.
+Sorry for delay,
 
-Here is proper udev rule:
+On 05/12, Jiri Slaby wrote:
+>
+> We currently access current->comm directly. As we have
+> prctl(PR_SET_NAME), we need the access be protected by task_lock. This
+> is exactly what get_task_comm does, so use it.
+>
+> I'm not 100% convinced prctl(PR_SET_NAME) may be called at the time of
+> core dump,
 
-SUBSYSTEM=="memory", ACTION=="add", RUN+="/bin/sh -c '[ -f /sys$devpath/state ] && echo online > /sys$devpath/state'"
+It can't be called. Apart from current, a sub-thread can change ->comm[]
+via /proc/pid/comm, but we already killed all threads.
 
-Konrad, could you add it to git comment and Kconfig help ???
+> but the locking won't hurt.
 
-Daniel
+Agreed, the patch looks correct. but still unneeded.
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
