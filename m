@@ -1,71 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 92CCF6B0012
-	for <linux-mm@kvack.org>; Wed, 18 May 2011 02:26:10 -0400 (EDT)
-Date: Wed, 18 May 2011 08:25:54 +0200
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [PATCH 0/4] v6 Improve task->comm locking situation
-Message-ID: <20110518062554.GB2945@elte.hu>
-References: <1305682865-27111-1-git-send-email-john.stultz@linaro.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1305682865-27111-1-git-send-email-john.stultz@linaro.org>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C4106B0022
+	for <linux-mm@kvack.org>; Wed, 18 May 2011 02:58:11 -0400 (EDT)
+Subject: Re: [PATCH V3] xen/balloon: Memory hotplug support for Xen balloon
+ driver
+From: Vasiliy G Tolstov <v.tolstov@selfip.ru>
+Reply-To: v.tolstov@selfip.ru
+In-Reply-To: <20110517214421.GD30232@router-fw-old.local.net-space.pl>
+References: <20110517214421.GD30232@router-fw-old.local.net-space.pl>
+Content-Type: text/plain; charset="UTF-8"
+Date: Wed, 18 May 2011 10:57:48 +0400
+Message-ID: <1305701868.28175.1.camel@vase>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Stultz <john.stultz@linaro.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Joe Perches <joe@perches.com>, Michal Nazarewicz <mina86@mina86.com>, Andy Whitcroft <apw@canonical.com>, Jiri Slaby <jirislaby@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>
+To: Daniel Kiper <dkiper@net-space.pl>
+Cc: ian.campbell@citrix.com, akpm@linux-foundation.org, andi.kleen@intel.com, haicheng.li@linux.intel.com, fengguang.wu@intel.com, jeremy@goop.org, konrad.wilk@oracle.com, dan.magenheimer@oracle.com, pasik@iki.fi, dave@linux.vnet.ibm.com, wdauchy@gmail.com, rientjes@google.com, xen-devel@lists.xensource.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-
-* John Stultz <john.stultz@linaro.org> wrote:
-
-> v6 tries to address the latest round of issues. Again, hopefully this is 
-> getting close to something that can be queued for 2.6.40.
-
-We are far away from thinking about upstreaming any of this ...
-
-> Since my commit 4614a696bd1c3a9af3a08f0e5874830a85b889d4, the current->comm 
-> value could be changed by other threads.
+On Tue, 2011-05-17 at 23:44 +0200, Daniel Kiper wrote:
+> This patch applies to Linus' git tree, v2.6.39-rc7 tag with a few
+> prerequisite patches available at https://lkml.org/lkml/2011/5/17/407
+> and at https://lkml.org/lkml/2011/3/28/98.
 > 
-> This changed the comm locking rules, which previously allowed for unlocked 
-> current->comm access, since only the thread itself could change its comm.
+> Memory hotplug support for Xen balloon driver. It should be
+> mentioned that hotplugged memory is not onlined automatically.
+> It should be onlined by user through standard sysfs interface.
 > 
-> While this was brought up at the time, it was not considered problematic, as 
-> the comm writing was done in such a way that only null or incomplete comms 
-> could be read. However, recently folks have made it clear they want to see 
-> this issue resolved.
+> Memory could be hotplugged in following steps:
+> 
+>   1) dom0: xl mem-max <domU> <maxmem>
+>      where <maxmem> is >= requested memory size,
+> 
+>   2) dom0: xl mem-set <domU> <memory>
+>      where <memory> is requested memory size; alternatively memory
+>      could be added by writing proper value to
+>      /sys/devices/system/xen_memory/xen_memory0/target or
+>      /sys/devices/system/xen_memory/xen_memory0/target_kb on dumU,
+> 
+>   3) domU: for i in /sys/devices/system/memory/memory*/state; do \
+>              [ "`cat "$i"`" = offline ] && echo online > "$i"; done
+> 
+> Signed-off-by: Daniel Kiper <dkiper@net-space.pl>
+> Acked-by: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+> ---
+>  drivers/xen/Kconfig   |   24 +++++++++
+>  drivers/xen/balloon.c |  139 ++++++++++++++++++++++++++++++++++++++++++++++++-
+>  include/xen/balloon.h |    4 ++
+>  3 files changed, 165 insertions(+), 2 deletions(-)
+> 
+> diff --git a/drivers/xen/Kconfig b/drivers/xen/Kconfig
+> index a59638b..b74501e 100644
+> --- a/drivers/xen/Kconfig
+> +++ b/drivers/xen/Kconfig
+> @@ -9,6 +9,30 @@ config XEN_BALLOON
+>  	  the system to expand the domain's memory allocation, or alternatively
+>  	  return unneeded memory to the system.
+>  
+> +config XEN_BALLOON_MEMORY_HOTPLUG
+> +	bool "Memory hotplug support for Xen balloon driver"
+> +	default n
+> +	depends on XEN_BALLOON && MEMORY_HOTPLUG
+> +	help
+> +	  Memory hotplug support for Xen balloon driver allows expanding memory
+> +	  available for the system above limit declared at system startup.
+> +	  It is very useful on critical systems which require long
+> +	  run without rebooting.
+> +
+> +	  Memory could be hotplugged in following steps:
+> +
+> +	    1) dom0: xl mem-max <domU> <maxmem>
+> +	       where <maxmem> is >= requested memory size,
+> +
+> +	    2) dom0: xl mem-set <domU> <memory>
+> +	       where <memory> is requested memory size; alternatively memory
+> +	       could be added by writing proper value to
+> +	       /sys/devices/system/xen_memory/xen_memory0/target or
+> +	       /sys/devices/system/xen_memory/xen_memory0/target_kb on dumU,
+> +
+> +	    3) domU: for i in /sys/devices/system/memory/memory*/state; do \
+> +	               [ "`cat "$i"`" = offline ] && echo online > "$i"; done
+> +
+Very good. Is that possible to eliminate step 3 ? And do it automatic if
+domU runs with specific xen balloon param?
 
-The commit is from 2.5 years ago:
-
-        4614a696bd1c3a9af3a08f0e5874830a85b889d4
-        Author: john stultz <johnstul@us.ibm.com>
-        Date:   Mon Dec 14 18:00:05 2009 -0800
-
-            procfs: allow threads to rename siblings via /proc/pid/tasks/tid/comm
-
-So we are *way* beyond the time frame where this could be declared urgent.
-
-So is there any actual motivation beyond:
-
-  " Hey, this looks a bit racy and 'top' very rarely, on rare workloads that 
-    play with ->comm[], might display a weird reading task name for a second, 
-    amongst the many other temporarily nonsensical statistical things it 
-    already prints every now and then. "
-
-?
-
-> So fair enough, as I opened this can of worms, I should work
-> to resolve it and this patchset is my initial attempt.
-
-This patch set does not address the many places that deal with ->comm so it 
-does not even approximate the true scope of the change!
-
-I.e. you are doing *another* change without fully seeing/showing the 
-consequences ...
-
-Thanks,
-
-	Ingo
+-- 
+> 
+> Vasiliy G Tolstov <v.tolstov@selfip.ru>
+> Selfip.Ru
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
