@@ -1,41 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 9C0966B0023
-	for <linux-mm@kvack.org>; Wed, 18 May 2011 09:01:22 -0400 (EDT)
-Date: Wed, 18 May 2011 15:00:04 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH v2 1/3] coredump: use get_task_comm for %e filename
-	format
-Message-ID: <20110518130004.GA10638@redhat.com>
-References: <1305181093-20871-1-git-send-email-jslaby@suse.cz>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 2EA566B0012
+	for <linux-mm@kvack.org>; Wed, 18 May 2011 11:03:43 -0400 (EDT)
+Received: by pzk4 with SMTP id 4so992422pzk.14
+        for <linux-mm@kvack.org>; Wed, 18 May 2011 08:03:41 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1305181093-20871-1-git-send-email-jslaby@suse.cz>
+In-Reply-To: <20110518144129.GB4296@dumpdata.com>
+References: <BANLkTimo=yXTrgjQHn9746oNdj97Fb-Y9Q@mail.gmail.com>
+	<20110518144129.GB4296@dumpdata.com>
+Date: Wed, 18 May 2011 17:03:41 +0200
+Message-ID: <BANLkTikxzEb7UkUfxmdHhHMc04P4bmKGXQ@mail.gmail.com>
+Subject: Re: driver mmap implementation for memory allocated with pci_alloc_consistent()?
+From: Leon Woestenberg <leon.woestenberg@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jiri Slaby <jslaby@suse.cz>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, jirislaby@gmail.com, Alan Cox <alan@lxorguk.ukuu.org.uk>, Al Viro <viro@zeniv.linux.org.uk>, Andi Kleen <andi@firstfloor.org>
+To: linux-pci@vger.kernel.org, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Cc: linux-mm@kvack.org
 
-Sorry for delay,
+Hello,
 
-On 05/12, Jiri Slaby wrote:
+On Wed, May 18, 2011 at 4:41 PM, Konrad Rzeszutek Wilk
+<konrad.wilk@oracle.com> wrote:
+> On Wed, May 18, 2011 at 03:02:30PM +0200, Leon Woestenberg wrote:
+>>
+>> memory allocated with pci_alloc_consistent() returns the (kernel)
+>> virtual address and the bus address (which may be different from the
+>> physical memory address).
+>>
+>> What is the correct implementation of the driver mmap (file operation
+>> method) for such memory?
 >
-> We currently access current->comm directly. As we have
-> prctl(PR_SET_NAME), we need the access be protected by task_lock. This
-> is exactly what get_task_comm does, so use it.
+> You are going to use the physical address from the CPU side. So not
+> the bus address. Instead use the virtual address and find the
+> physical address from that. page_to_pfn() does a good job.
 >
-> I'm not 100% convinced prctl(PR_SET_NAME) may be called at the time of
-> core dump,
+pci_alloc_consistent() returns a kernel virtual address. To find the
+page I think virt_to_page() suits me better, right?
 
-It can't be called. Apart from current, a sub-thread can change ->comm[]
-via /proc/pid/comm, but we already killed all threads.
+#define virt_to_page(kaddr)     pfn_to_page(__pa(kaddr) >> PAGE_SHIFT)
 
-> but the locking won't hurt.
+> Then you can call 'vm_insert_page(vma...)'
+>
+> Or 'vm_insert_mixed'
 
-Agreed, the patch looks correct. but still unneeded.
+Thanks, that opens a whole new learning curve experience.
 
-Oleg.
+Can I call vmalloc_to_page() on memory allocated with
+pci_alloc_consistent()? If so, then remap_vmalloc_range() looks
+promising.
+
+I could not find PCI driver examples calling vm_insert_page() and I am
+know I can trip into the different memory type pointers easily.
+
+How does your suggestion relate to using the vma ops fault() (formerly
+known as nopage() to mmap memory allocated by pci_alloc_consistent()?
+i.e. Such as suggested in
+http://www.gossamer-threads.com/lists/linux/kernel/702127#702127
+
+> Use 'cscope' on the Linux kernel.
+
+Thanks for the suggestion. How would cscope help me find
+vm_insert_page() given my question?
+
+On hind-sight all questions seem to be easy once finding the correct
+Documentation / source-code in the first place. I usually use
+http://lxr.linux.no/ and friends.
+
+
+Regards,
+-- 
+Leon
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
