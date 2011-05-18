@@ -1,93 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C4106B0022
-	for <linux-mm@kvack.org>; Wed, 18 May 2011 02:58:11 -0400 (EDT)
-Subject: Re: [PATCH V3] xen/balloon: Memory hotplug support for Xen balloon
- driver
-From: Vasiliy G Tolstov <v.tolstov@selfip.ru>
-Reply-To: v.tolstov@selfip.ru
-In-Reply-To: <20110517214421.GD30232@router-fw-old.local.net-space.pl>
-References: <20110517214421.GD30232@router-fw-old.local.net-space.pl>
-Content-Type: text/plain; charset="UTF-8"
-Date: Wed, 18 May 2011 10:57:48 +0400
-Message-ID: <1305701868.28175.1.camel@vase>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id D79896B0029
+	for <linux-mm@kvack.org>; Wed, 18 May 2011 03:05:24 -0400 (EDT)
+Date: Wed, 18 May 2011 00:05:27 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 0/4] v6 Improve task->comm locking situation
+Message-Id: <20110518000527.bcced636.akpm@linux-foundation.org>
+In-Reply-To: <20110518062554.GB2945@elte.hu>
+References: <1305682865-27111-1-git-send-email-john.stultz@linaro.org>
+	<20110518062554.GB2945@elte.hu>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Kiper <dkiper@net-space.pl>
-Cc: ian.campbell@citrix.com, akpm@linux-foundation.org, andi.kleen@intel.com, haicheng.li@linux.intel.com, fengguang.wu@intel.com, jeremy@goop.org, konrad.wilk@oracle.com, dan.magenheimer@oracle.com, pasik@iki.fi, dave@linux.vnet.ibm.com, wdauchy@gmail.com, rientjes@google.com, xen-devel@lists.xensource.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Ingo Molnar <mingo@elte.hu>
+Cc: John Stultz <john.stultz@linaro.org>, LKML <linux-kernel@vger.kernel.org>, Joe Perches <joe@perches.com>, Michal Nazarewicz <mina86@mina86.com>, Andy Whitcroft <apw@canonical.com>, Jiri Slaby <jirislaby@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>
 
-On Tue, 2011-05-17 at 23:44 +0200, Daniel Kiper wrote:
-> This patch applies to Linus' git tree, v2.6.39-rc7 tag with a few
-> prerequisite patches available at https://lkml.org/lkml/2011/5/17/407
-> and at https://lkml.org/lkml/2011/3/28/98.
-> 
-> Memory hotplug support for Xen balloon driver. It should be
-> mentioned that hotplugged memory is not onlined automatically.
-> It should be onlined by user through standard sysfs interface.
-> 
-> Memory could be hotplugged in following steps:
-> 
->   1) dom0: xl mem-max <domU> <maxmem>
->      where <maxmem> is >= requested memory size,
-> 
->   2) dom0: xl mem-set <domU> <memory>
->      where <memory> is requested memory size; alternatively memory
->      could be added by writing proper value to
->      /sys/devices/system/xen_memory/xen_memory0/target or
->      /sys/devices/system/xen_memory/xen_memory0/target_kb on dumU,
-> 
->   3) domU: for i in /sys/devices/system/memory/memory*/state; do \
->              [ "`cat "$i"`" = offline ] && echo online > "$i"; done
-> 
-> Signed-off-by: Daniel Kiper <dkiper@net-space.pl>
-> Acked-by: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-> ---
->  drivers/xen/Kconfig   |   24 +++++++++
->  drivers/xen/balloon.c |  139 ++++++++++++++++++++++++++++++++++++++++++++++++-
->  include/xen/balloon.h |    4 ++
->  3 files changed, 165 insertions(+), 2 deletions(-)
-> 
-> diff --git a/drivers/xen/Kconfig b/drivers/xen/Kconfig
-> index a59638b..b74501e 100644
-> --- a/drivers/xen/Kconfig
-> +++ b/drivers/xen/Kconfig
-> @@ -9,6 +9,30 @@ config XEN_BALLOON
->  	  the system to expand the domain's memory allocation, or alternatively
->  	  return unneeded memory to the system.
->  
-> +config XEN_BALLOON_MEMORY_HOTPLUG
-> +	bool "Memory hotplug support for Xen balloon driver"
-> +	default n
-> +	depends on XEN_BALLOON && MEMORY_HOTPLUG
-> +	help
-> +	  Memory hotplug support for Xen balloon driver allows expanding memory
-> +	  available for the system above limit declared at system startup.
-> +	  It is very useful on critical systems which require long
-> +	  run without rebooting.
-> +
-> +	  Memory could be hotplugged in following steps:
-> +
-> +	    1) dom0: xl mem-max <domU> <maxmem>
-> +	       where <maxmem> is >= requested memory size,
-> +
-> +	    2) dom0: xl mem-set <domU> <memory>
-> +	       where <memory> is requested memory size; alternatively memory
-> +	       could be added by writing proper value to
-> +	       /sys/devices/system/xen_memory/xen_memory0/target or
-> +	       /sys/devices/system/xen_memory/xen_memory0/target_kb on dumU,
-> +
-> +	    3) domU: for i in /sys/devices/system/memory/memory*/state; do \
-> +	               [ "`cat "$i"`" = offline ] && echo online > "$i"; done
-> +
-Very good. Is that possible to eliminate step 3 ? And do it automatic if
-domU runs with specific xen balloon param?
+On Wed, 18 May 2011 08:25:54 +0200 Ingo Molnar <mingo@elte.hu> wrote:
 
--- 
-> 
-> Vasiliy G Tolstov <v.tolstov@selfip.ru>
-> Selfip.Ru
+>   " Hey, this looks a bit racy and 'top' very rarely, on rare workloads that 
+>     play with ->comm[], might display a weird reading task name for a second, 
+>     amongst the many other temporarily nonsensical statistical things it 
+>     already prints every now and then. "
+
+Well we should at least make sure that `top' won't run off the end of
+comm[] and go oops.  I think that's guaranteed by the fact(s) that
+init_tasks's comm[15] is zero and is always copied-by-value across
+fork and can never be overwritten in any task_struct.
+
+But I didn't check that.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
