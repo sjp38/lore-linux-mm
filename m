@@ -1,32 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 45F736B0011
-	for <linux-mm@kvack.org>; Thu, 19 May 2011 16:52:01 -0400 (EDT)
-Date: Thu, 19 May 2011 15:51:58 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id B19786B0022
+	for <linux-mm@kvack.org>; Thu, 19 May 2011 17:14:09 -0400 (EDT)
 Subject: Re: [PATCH] kernel buffer overflow kmalloc_slab() fix
-In-Reply-To: <1305834712-27805-2-git-send-email-james_p_freyensee@linux.intel.com>
-Message-ID: <alpine.DEB.2.00.1105191550001.12530@router.home>
-References: <james_p_freyensee@linux.intel.com> <1305834712-27805-2-git-send-email-james_p_freyensee@linux.intel.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+From: J Freyensee <james_p_freyensee@linux.intel.com>
+Reply-To: james_p_freyensee@linux.intel.com
+In-Reply-To: <alpine.DEB.2.00.1105191550001.12530@router.home>
+References: <james_p_freyensee@linux.intel.com>
+	 <1305834712-27805-2-git-send-email-james_p_freyensee@linux.intel.com>
+	 <alpine.DEB.2.00.1105191550001.12530@router.home>
+Content-Type: text/plain; charset="ISO-8859-1"
+Date: Thu, 19 May 2011 14:14:07 -0700
+Message-ID: <1305839647.2400.32.camel@localhost>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: james_p_freyensee@linux.intel.com
+To: Christoph Lameter <cl@linux.com>
 Cc: linux-mm@kvack.org, gregkh@suse.de, hari.k.kanigeri@intel.com
 
-On Thu, 19 May 2011, james_p_freyensee@linux.intel.com wrote:
+On Thu, 2011-05-19 at 15:51 -0500, Christoph Lameter wrote:
+> On Thu, 19 May 2011, james_p_freyensee@linux.intel.com wrote:
+> 
+> > From: J Freyensee <james_p_freyensee@linux.intel.com>
+> >
+> > Currently, kmalloc_index() can return -1, which can be
+> > passed right to the kmalloc_caches[] array, cause a
+> 
+> No kmalloc_index() cannot return -1 for the use case that you are
+> considering here. The value passed as a size to
+> kmalloc_slab is bounded by 2 * PAGE_SIZE and kmalloc_slab will only return
+> -1 for sizes > 4M. So we will have to get machines with page sizes > 2M
+> before this can be triggered.
+> 
+> 
 
-> From: J Freyensee <james_p_freyensee@linux.intel.com>
->
-> Currently, kmalloc_index() can return -1, which can be
-> passed right to the kmalloc_caches[] array, cause a
+Okay.  I thought it would still be good to check for -1 anyways, even if
+machines today cannot go above 2M page sizes.  I would think it would be
+better for software code to always make sure a case that this could
+never happen instead of relying on whatever physical hardware limits the
+linux kernel could be running on on today's machines or future machines,
+because technology has shown limits can change.  I would think
+regardless what this code runs on, this is still a software flaw that
+can be considered not a good thing to allow lying around in software
+code that can easily be fixed.
 
-No kmalloc_index() cannot return -1 for the use case that you are
-considering here. The value passed as a size to
-kmalloc_slab is bounded by 2 * PAGE_SIZE and kmalloc_slab will only return
--1 for sizes > 4M. So we will have to get machines with page sizes > 2M
-before this can be triggered.
+But again I'm fine with whatever is decided. 
 
 
 --
