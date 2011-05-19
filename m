@@ -1,83 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id DA8FB6B0011
-	for <linux-mm@kvack.org>; Wed, 18 May 2011 21:36:00 -0400 (EDT)
-Received: from hpaq1.eem.corp.google.com (hpaq1.eem.corp.google.com [172.25.149.1])
-	by smtp-out.google.com with ESMTP id p4J1ZvOK007275
-	for <linux-mm@kvack.org>; Wed, 18 May 2011 18:35:57 -0700
-Received: from pxi10 (pxi10.prod.google.com [10.243.27.10])
-	by hpaq1.eem.corp.google.com with ESMTP id p4J1Zseb011734
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 18 May 2011 18:35:55 -0700
-Received: by pxi10 with SMTP id 10so1593116pxi.22
-        for <linux-mm@kvack.org>; Wed, 18 May 2011 18:35:54 -0700 (PDT)
-Date: Wed, 18 May 2011 18:35:42 -0700 (PDT)
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 0BD6C6B0011
+	for <linux-mm@kvack.org>; Wed, 18 May 2011 21:54:41 -0400 (EDT)
+Received: from kpbe16.cbf.corp.google.com (kpbe16.cbf.corp.google.com [172.25.105.80])
+	by smtp-out.google.com with ESMTP id p4J1sdLx030206
+	for <linux-mm@kvack.org>; Wed, 18 May 2011 18:54:39 -0700
+Received: from pzk37 (pzk37.prod.google.com [10.243.19.165])
+	by kpbe16.cbf.corp.google.com with ESMTP id p4J1scog006869
+	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 18 May 2011 18:54:38 -0700
+Received: by pzk37 with SMTP id 37so1261533pzk.15
+        for <linux-mm@kvack.org>; Wed, 18 May 2011 18:54:37 -0700 (PDT)
+Date: Wed, 18 May 2011 18:54:41 -0700 (PDT)
 From: Hugh Dickins <hughd@google.com>
 Subject: Re: [PATCH mmotm] add the pagefault count into memcg stats: shmem
  fix
-In-Reply-To: <BANLkTi=bLOzrEPVx8ossZtaxe3OmH9ZXNw@mail.gmail.com>
-Message-ID: <alpine.LSU.2.00.1105181821500.1690@sister.anvils>
-References: <alpine.LSU.2.00.1105171120220.29593@sister.anvils> <BANLkTi=4YY6aJk+ZLiiF7UX73LZD=7+W2Q@mail.gmail.com> <alpine.LSU.2.00.1105181709540.1282@sister.anvils> <BANLkTi=bLOzrEPVx8ossZtaxe3OmH9ZXNw@mail.gmail.com>
+In-Reply-To: <20110519093839.38820e23.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <alpine.LSU.2.00.1105181836110.1690@sister.anvils>
+References: <alpine.LSU.2.00.1105171120220.29593@sister.anvils> <20110518144349.a44ae926.nishimura@mxp.nes.nec.co.jp> <alpine.LSU.2.00.1105181102050.4087@sister.anvils> <20110519093839.38820e23.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="8323584-1581008198-1305768964=:1690"
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Ying Han <yinghan@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Andrew Morton <akpm@linux-foundation.org>, Ying Han <yinghan@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org
 
-  This message is in MIME format.  The first part should be readable text,
-  while the remaining parts are likely unreadable without MIME-aware tools.
+On Thu, 19 May 2011, KAMEZAWA Hiroyuki wrote:
+> On Wed, 18 May 2011 11:25:48 -0700 (PDT)
+> Hugh Dickins <hughd@google.com> wrote:
+> 
+> > On Wed, 18 May 2011, Daisuke Nishimura wrote:
+> > > On Tue, 17 May 2011 11:24:40 -0700 (PDT)
+> > > Hugh Dickins <hughd@google.com> wrote:
+> > > 
+> > > > mem_cgroup_count_vm_event() should update the PGMAJFAULT count for the
+> > > > target mm, not for current mm (but of course they're usually the same).
+> > > > 
+> > > hmm, why ?
+> > > In shmem_getpage(), we charge the page to the memcg where current mm belongs to,
+> > 
+> > (In the case when it's this fault which is creating the page.
+> > Just as when filemap_fault() reads in the page, add_to_page_cache
+> > will charge it to the current->mm's memcg, yes.  Arguably correct.)
+> > 
+> > > so I think counting vm events of the memcg is right.
+> > 
+> > It should be consistent with which task gets the maj_flt++, and
+> > it should be consistent with filemap_fault(), and it should be a
+> > subset of what's counted by mem_cgroup_count_vm_event(mm, PGFAULT).
+> > 
+> > In each case, those work on target mm rather than current->mm.
+> > 
+> 
+> Hmm, I have no strong opinion on this but yes, it makes sense to account
+> PGMAJFLT to the process whose mm->maj_flt++.
 
---8323584-1581008198-1305768964=:1690
-Content-Type: TEXT/PLAIN; charset=UTF-8
-Content-Transfer-Encoding: QUOTED-PRINTABLE
+mm->maj_flt++ would be yet another story!  But it's tsk->maj_flt++.
 
-On Thu, 19 May 2011, Minchan Kim wrote:
-> On Thu, May 19, 2011 at 9:28 AM, Hugh Dickins <hughd@google.com> wrote:
-> > On Thu, 19 May 2011, Minchan Kim wrote:
-> >>
-> >> You are changing behavior a bit.
-> >> Old behavior is to account FAULT although the operation got failed.
-> >> But new one is to not account it.
-> >> I think we have to account it regardless of whether it is successful o=
-r not.
-> >> That's because it is fact fault happens.
-> >
-> > That's a good catch: something I didn't think of at all.
-> >
-> > However, it looks as if the patch remains correct, and is fixing
-> > a bug (or inconsistency) that we hadn't noticed before.
-> >
-> > If you look through filemap_fault() or do_swap_page() (or even
-> > ncp_file_mmap_fault(), though I don't take that one as canonical!),
-> > they clearly do not count the major fault on error (except in the
-> > case where VM_FAULT_MAJOR needs VM_FAULT_RETRY, then gets
-> > VM_FAULT_ERROR on the retry).
-> >
-> > So, shmem.c was the odd one out before. =C2=A0If you feel very strongly
-> > about it ("it is fact fault happens") you could submit a patch to
-> > change them all - but I think just leave them as is.
->=20
-> Okay. I don't feel it strongly now.
-> Then, could you repost your patch with corrected description about
-> this behavior change which is a bug or inconsistency whatever. :)
+> BTW,  do you think memcg should
+> account shmem into vma->vm_mm rather than current->mm ? When vma->vm_mm
+> is different from current ? At get_user_pages() + MAJFLT ?
 
-If I can think up a correct paragraph which makes it clear.
-Let me hold off on that, and see what other comments come in.
+If what we have at present works well enough, I don't think we should
+risk breaking it with a funny change like that.
 
-The situation is less clear-cut than I described above.  I was
-dismissing the VM_FAULT_MAJOR|VM_FAULT_RETRY then VM_FAULT_ERROR
-case as unlikely, whereas that would be the common case of I/O error
-on fault on x86 now - reading in takes page lock, so it will retry.
+Is there a reason to treat shmem differently from filemap there?
+You can argue that if it's shm then yes, but if it's tmpfs then no.
 
-Whereas other architectures (not using FAULT_FLAG_ALLOW_RETRY)
-behave as I described, as filemap_fault() used to behave.
+I suppose shmem.c does usually know the difference (by VM_NORESERVE),
+but does not export it; and I'd prefer to keep it that way.
 
-I don't think this a major fault in my patch ;)
-Just something we don't care very much about.
+Unless we've got a real bug to fix here, let's not mess with it.
 
 Hugh
---8323584-1581008198-1305768964=:1690--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
