@@ -1,58 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id F3FA16B0022
-	for <linux-mm@kvack.org>; Thu, 19 May 2011 17:24:18 -0400 (EDT)
-Date: Thu, 19 May 2011 16:24:15 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH] kernel buffer overflow kmalloc_slab() fix
-In-Reply-To: <1305839647.2400.32.camel@localhost>
-Message-ID: <alpine.DEB.2.00.1105191618460.12530@router.home>
-References: <james_p_freyensee@linux.intel.com>  <1305834712-27805-2-git-send-email-james_p_freyensee@linux.intel.com>  <alpine.DEB.2.00.1105191550001.12530@router.home> <1305839647.2400.32.camel@localhost>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id E933E6B0011
+	for <linux-mm@kvack.org>; Thu, 19 May 2011 18:11:00 -0400 (EDT)
+Received: by pzk4 with SMTP id 4so1841370pzk.14
+        for <linux-mm@kvack.org>; Thu, 19 May 2011 15:10:57 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <4DD53E2B.2090002@ladisch.de>
+References: <BANLkTi==cinS1bZc_ARRbnYT3YD+FQr8gA@mail.gmail.com>
+	<20110519145921.GE9854@dumpdata.com>
+	<4DD53E2B.2090002@ladisch.de>
+Date: Fri, 20 May 2011 00:10:57 +0200
+Message-ID: <BANLkTinO1xR4XTN2B325pKCpJ3AjC9YidA@mail.gmail.com>
+Subject: Re: mmap() implementation for pci_alloc_consistent() memory?
+From: Leon Woestenberg <leon.woestenberg@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: J Freyensee <james_p_freyensee@linux.intel.com>
-Cc: linux-mm@kvack.org, gregkh@suse.de, hari.k.kanigeri@intel.com
+To: Clemens Ladisch <clemens@ladisch.de>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, linux-pci@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, 19 May 2011, J Freyensee wrote:
+Hello Clemens, Konrad, others,
 
-> On Thu, 2011-05-19 at 15:51 -0500, Christoph Lameter wrote:
-> > On Thu, 19 May 2011, james_p_freyensee@linux.intel.com wrote:
-> >
-> > > From: J Freyensee <james_p_freyensee@linux.intel.com>
-> > >
-> > > Currently, kmalloc_index() can return -1, which can be
-> > > passed right to the kmalloc_caches[] array, cause a
-> >
-> > No kmalloc_index() cannot return -1 for the use case that you are
-> > considering here. The value passed as a size to
-> > kmalloc_slab is bounded by 2 * PAGE_SIZE and kmalloc_slab will only return
-> > -1 for sizes > 4M. So we will have to get machines with page sizes > 2M
-> > before this can be triggered.
-> >
-> >
+On Thu, May 19, 2011 at 5:58 PM, Clemens Ladisch <clemens@ladisch.de> wrote=
+:
+> Konrad Rzeszutek Wilk wrote:
+>> On Thu, May 19, 2011 at 12:14:40AM +0200, Leon Woestenberg wrote:
+>> > I cannot get my driver's mmap() to work. I allocate 64 KiB ringbuffer
+>> > using pci_alloc_consistent(), then implement mmap() to allow programs
+>> > to map that memory into their user space.
+>> > ...
+>> > int ringbuffer_vma_fault(struct vm_area_struct *vma, struct vm_fault *=
+vmf)
+>> > {
+>> > =A0 =A0 =A0 =A0 /* the buffer allocated with pci_alloc_consistent() */
+>> > =A0 =A0 void *vaddr =3D ringbuffer_virt;
+>> > =A0 =A0 int ret;
+>> >
+>> > =A0 =A0 /* find the struct page that describes vaddr, the buffer
+>> > =A0 =A0 =A0* allocated with pci_alloc_consistent() */
+>> > =A0 =A0 struct page *page =3D virt_to_page(lro_char->engine->ringbuffe=
+r_virt);
+>> > =A0 =A0 vmf->page =3D page;
+>> >
+>> > =A0 =A0 =A0 =A0 /*** I have verified that vaddr, page, and the pfn cor=
+respond with vaddr =3D pci_alloc_consistent() ***/
+>> > =A0 =A0 ret =3D vm_insert_pfn(vma, address, page_to_pfn(page));
+>>
+>> address is the vmf->virtual_address?
+>>
+yes, I missed that line when removing some noise:
+
+	unsigned long address =3D (unsigned long)vmf->virtual_address;
+
+>> And is the page_to_pfn(page) value correct? As in:
+>>
+>> =A0 int pfn =3D page_to_pfn(page);
+>>
+>> =A0 WARN(pfn << PAGE_SIZE !=3D vaddr,"Something fishy.");
+>>
+Yes, this holds true.
+
+I also verified that the pfn corresponds with the pfn of the virtual
+address returned by pci_alloc_consistent().
+
+>> Hm, I think I might have misled you now that I look at that WARN.
+>>
+>> The pfn to be supplied has to be physical page frame number. Which in
+>> this case should be your bus addr shifted by PAGE_SIZE. Duh! Try that
+>> value.
 >
-> Okay.  I thought it would still be good to check for -1 anyways, even if
-> machines today cannot go above 2M page sizes.  I would think it would be
-> better for software code to always make sure a case that this could
-> never happen instead of relying on whatever physical hardware limits the
-> linux kernel could be running on on today's machines or future machines,
-> because technology has shown limits can change.  I would think
-> regardless what this code runs on, this is still a software flaw that
-> can be considered not a good thing to allow lying around in software
-> code that can easily be fixed.
+The physical address? Why? (Just learning here, this is no objection
+to your suggestion.)
 
-This is basically macro style code that is mostly folded at compile time
-and we have to obey certain restrictions to convince the compiler to
-properly do that. Took us a long time to get that right.
+Also, the bus address is not the physical address, or not in general.
+For example on IOMMU systems this certainly doesn't hold true.
 
-Not sure what to do instead of returning -1 in kmalloc_slab. I'd be glad
-if you could get the compiler to simply fail in kmalloc_slab() if a value
-larger than 4M is passed to it. But please make sure that all versions of
-GCC do proper constant folding and that the function also works if
-constant folding is not possible for some reason. Consider esoteric arches
-and compiler version also.
+So how can I reliably find the out the physical memory address of
+pci_alloc_consistent() memory?
+
+> There are wildly different implementations of pci_alloc_consistent
+> (actually dma_alloc_coherent) that can return somewhat different
+> virtual and/or physical addresses.
+>
+>> I think a better example might be the 'hpet_mmap' code
+>
+> Which is x86 and ia64 only.
+>
+>> > static int ringbuffer_mmap(struct file *file, struct vm_area_struct *v=
+ma)
+>> > {
+>> > =A0 =A0 vma->vm_page_prot =3D pgprot_noncached(vma->vm_page_prot);
+>
+> So is this an architecture without coherent caches?
+>
+My aim is to have an architecture independent driver.
+
+My goal is to make sure the CPU can poll for data that the PCI(e) bus
+master writes into host memory.
+
+> Or would you want to use pgprot_dmacoherent, if available?
+>
+Hmm, let me check that.
+
+> I recently looked into this problem, and ended up with the code below.
+> I then decided that streaming DMA mappings might be a better idea.
+>
+I got streaming DMA mappings working already. I cannot use them in my
+case as streaming mappings are not cache-coherent in general.
+
+Thanks for the code snippet, it seems x86 only though?
+
+Regards,
+--=20
+Leon
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
