@@ -1,109 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 496C26B0011
-	for <linux-mm@kvack.org>; Thu, 19 May 2011 10:59:38 -0400 (EDT)
-Date: Thu, 19 May 2011 10:59:21 -0400
-From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Subject: Re: mmap() implementation for pci_alloc_consistent() memory?
-Message-ID: <20110519145921.GE9854@dumpdata.com>
-References: <BANLkTi==cinS1bZc_ARRbnYT3YD+FQr8gA@mail.gmail.com>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D4336B0011
+	for <linux-mm@kvack.org>; Thu, 19 May 2011 11:03:05 -0400 (EDT)
+Received: by pwi12 with SMTP id 12so1681768pwi.14
+        for <linux-mm@kvack.org>; Thu, 19 May 2011 08:00:44 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <BANLkTi==cinS1bZc_ARRbnYT3YD+FQr8gA@mail.gmail.com>
+In-Reply-To: <20110519145147.GA14658@localhost>
+References: <BANLkTikofp5rHRdW5dXfqJXb8VCAqPQ_7A@mail.gmail.com>
+ <20110514165346.GV6008@one.firstfloor.org> <BANLkTik6SS9NH7XVSRBoCR16_5veY0MKBw@mail.gmail.com>
+ <20110514174333.GW6008@one.firstfloor.org> <BANLkTinst+Ryox9VZ-s7gdXKa574XXqt5w@mail.gmail.com>
+ <20110515152747.GA25905@localhost> <BANLkTim-AnEeL=z1sYm=iN7sMnG0+m0SHw@mail.gmail.com>
+ <20110517060001.GC24069@localhost> <BANLkTi=TOm3aLQCD6j=4va6B+Jn2nSfwAg@mail.gmail.com>
+ <BANLkTi=9W6-JXi94rZfTtTpAt3VUiY5fNw@mail.gmail.com> <20110519145147.GA14658@localhost>
+From: Andrew Lutomirski <luto@mit.edu>
+Date: Thu, 19 May 2011 11:00:24 -0400
+Message-ID: <BANLkTim4caSU_uRY1GLMh9D=8gctp34jMA@mail.gmail.com>
+Subject: Re: Kernel falls apart under light memory pressure (i.e. linking vmlinux)
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Leon Woestenberg <leon.woestenberg@gmail.com>
-Cc: linux-pci@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Minchan Kim <minchan.kim@gmail.com>, Andi Kleen <andi@firstfloor.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>
 
-On Thu, May 19, 2011 at 12:14:40AM +0200, Leon Woestenberg wrote:
-> Hello,
-> 
-> I cannot get my driver's mmap() to work. I allocate 64 KiB ringbuffer
-> using pci_alloc_consistent(), then implement mmap() to allow programs
-> to map that memory into their user space.
-> 
-> My driver writes 0xDEADBEEF into the first 32-bit word of the memory
-> block. When I dump this word from my mmap.c program, it reads 0. It
-> seems a zero-page got mapped rather than the buffer.
-> 
-> This is the code, Ieft out all error checking but inserted comments to
-> show what I have verified.
-> 
-> int main(void)
-> {
->   int fd = open("/device_node", O_RDWR | O_SYNC);
->   uint32_t *addr = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
->   uint32_t data = *addr;
->   printf("address 0x%p reads data 0x%08x\n", addr32, (unsigned int)data);
->   munmap(addr, 4096);
->   close(fd);
-> }
-> 
-> 
-> void ringbuffer_vma_open(struct vm_area_struct *vma)
-> {
-> }
-> 
-> void ringbuffer_vma_close(struct vm_area_struct *vma)
-> {
-> }
-> 
-> int ringbuffer_vma_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
-> {
->         /* the buffer allocated with pci_alloc_consistent() */
-> 	void *vaddr = ringbuffer_virt;
-> 	int ret;
-> 
-> 	/* find the struct page that describes vaddr, the buffer
-> 	 * allocated with pci_alloc_consistent() */
-> 	struct page *page = virt_to_page(lro_char->engine->ringbuffer_virt);
-> 	vmf->page = page;
-> 
->         /*** I have verified that vaddr, page, and the pfn correspond
-> with vaddr = pci_alloc_consistent() ***/
-> 	ret = vm_insert_pfn(vma, address, page_to_pfn(page));
+On Thu, May 19, 2011 at 10:51 AM, Wu Fengguang <fengguang.wu@intel.com> wrote:
+>> > I had 6GB swap available, so there shouldn't have
+>> > been any OOM.
+>>
+>> Yes. It's strange but we have seen such case several times, AFAIR.
+>
+> I noticed that the test script mounted a "ramfs" not "tmpfs", hence
+> the 1.4G pages won't be swapped?
 
-address is the vmf->virtual_address?
+That's intentional.
 
-And is the page_to_pfn(page) value correct? As in:
+I run LVM over dm-crypt on an SSD, and I thought that might be part of
+the problem.  I wanted a script that would see if I could reproduce
+the problem without stressing that system too much, so I created a
+second backing store on dm-crypt over ramfs so that no real I/O will
+happen.  The script is quite effective at bringing down my system, so
+I haven't changed it.
 
-  int pfn = page_to_pfn(page);
+(I have 6GB of "real" swap on the LVM, so pinning 1500MB into RAM
+ought to cause some thrashing but not take the system down.  And this
+script with a larger ramfs does not take down my desktop, which is an
+8GB Sandy Bridge box.  But whatever the underlying bug is seems to
+mainly affect Sandy Bridge *laptops*, so maybe that's expected.)
 
-  WARN(pfn << PAGE_SIZE != vaddr,"Something fishy.");
+--Andy
 
-Hm, I think I might have misled you now that I look at that WARN.
-
-The pfn to be supplied has to be physical page frame number. Which in
-this case should be your bus addr shifted by PAGE_SIZE. Duh! Try that
-value.
-
-I think a better example might be the 'hpet_mmap' code as it is simpler
-and it also adds the VM_IO flag.
-
-> 	return ret;
-> }
-> 
-> static const struct vm_operations_struct ringbuffer_vm_ops = {
-> 	.fault          = ringbuffer_vma_fault,
-> };
-> 
-> static int ringbuffer_mmap(struct file *file, struct vm_area_struct *vma)
-> {
->         <...extract private data...>
-> 
-> 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-> 
-> 	vma->vm_flags |= VM_RESERVED | VM_MIXEDMAP;
-> 	vma->vm_private_data = file->private_data;
-> 	vma->vm_ops = &ringbuffer_vm_ops;
-> 	ringbuffer_vma_open(vma);
-> 	return 0;
-> }
-> 
-> What did I miss?
-
-I gave you the wrong data :-(
+>
+> Thanks,
+> Fengguang
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
