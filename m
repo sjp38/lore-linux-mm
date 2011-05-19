@@ -1,159 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id CEED26B0011
-	for <linux-mm@kvack.org>; Wed, 18 May 2011 22:34:25 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 0CFE53EE0BB
-	for <linux-mm@kvack.org>; Thu, 19 May 2011 11:34:23 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id DAFBE45DE5D
-	for <linux-mm@kvack.org>; Thu, 19 May 2011 11:34:22 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id C157045DE58
-	for <linux-mm@kvack.org>; Thu, 19 May 2011 11:34:22 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id AF2F0E08002
-	for <linux-mm@kvack.org>; Thu, 19 May 2011 11:34:22 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 74CE4E08001
-	for <linux-mm@kvack.org>; Thu, 19 May 2011 11:34:22 +0900 (JST)
-Message-ID: <4DD481A7.3050108@jp.fujitsu.com>
-Date: Thu, 19 May 2011 11:34:15 +0900
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-MIME-Version: 1.0
-Subject: [PATCH v2 3/3] vmscan: implement swap token priority aging
-References: <4DD480DD.2040307@jp.fujitsu.com>
-In-Reply-To: <4DD480DD.2040307@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-2022-JP
-Content-Transfer-Encoding: 7bit
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id C360C6B0011
+	for <linux-mm@kvack.org>; Wed, 18 May 2011 22:37:48 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id A59F13EE0B5
+	for <linux-mm@kvack.org>; Thu, 19 May 2011 11:37:45 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8D10A45DE93
+	for <linux-mm@kvack.org>; Thu, 19 May 2011 11:37:45 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6983145DE78
+	for <linux-mm@kvack.org>; Thu, 19 May 2011 11:37:45 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5DB65E08001
+	for <linux-mm@kvack.org>; Thu, 19 May 2011 11:37:45 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 121F51DB8037
+	for <linux-mm@kvack.org>; Thu, 19 May 2011 11:37:45 +0900 (JST)
+Date: Thu, 19 May 2011 11:30:59 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: Kernel falls apart under light memory pressure (i.e. linking
+ vmlinux)
+Message-Id: <20110519113059.06d0e0d2.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <BANLkTikHMUru=w4zzRmosrg2bDbsFWrkTQ@mail.gmail.com>
+References: <BANLkTikhj1C7+HXP_4T-VnJzPefU2d7b3A@mail.gmail.com>
+	<20110512054631.GI6008@one.firstfloor.org>
+	<BANLkTi=fk3DUT9cYd2gAzC98c69F6HXX7g@mail.gmail.com>
+	<BANLkTikofp5rHRdW5dXfqJXb8VCAqPQ_7A@mail.gmail.com>
+	<20110514165346.GV6008@one.firstfloor.org>
+	<BANLkTik6SS9NH7XVSRBoCR16_5veY0MKBw@mail.gmail.com>
+	<20110514174333.GW6008@one.firstfloor.org>
+	<BANLkTinst+Ryox9VZ-s7gdXKa574XXqt5w@mail.gmail.com>
+	<20110515152747.GA25905@localhost>
+	<BANLkTim-AnEeL=z1sYm=iN7sMnG0+m0SHw@mail.gmail.com>
+	<20110517060001.GC24069@localhost>
+	<BANLkTi=TOm3aLQCD6j=4va6B+Jn2nSfwAg@mail.gmail.com>
+	<BANLkTi=9W6-JXi94rZfTtTpAt3VUiY5fNw@mail.gmail.com>
+	<BANLkTikHMUru=w4zzRmosrg2bDbsFWrkTQ@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kosaki.motohiro@jp.fujitsu.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, kamezawa.hiroyu@jp.fujitsu.com, riel@redhat.com
+To: Andrew Lutomirski <luto@mit.edu>
+Cc: Minchan Kim <minchan.kim@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, Andi Kleen <andi@firstfloor.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>
 
-While testing for memcg aware swap token, I observed a swap token
-was often grabbed an intermittent running process (eg init, auditd)
-and they never release a token.
+On Wed, 18 May 2011 22:15:53 -0400
+Andrew Lutomirski <luto@mit.edu> wrote:
 
-Why?
+> On Wed, May 18, 2011 at 1:17 AM, Minchan Kim <minchan.kim@gmail.com> wrote:
+> > On Wed, May 18, 2011 at 4:22 AM, Andrew Lutomirski <luto@mit.edu> wrote:
 
-Some processes (eg init, auditd, audispd) wake up when a process
-exiting. And swap token can be get first page-in process when
-a process exiting makes no swap token owner. Thus such above
-intermittent running process often get a token.
+> > Andrew, Could you test this patch with !pgdat_balanced patch?
+> > I think we shouldn't see OOM message if we have lots of free swap space.
+> >
+> > == CUT_HERE ==
+> > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > index f73b865..cc23f04 100644
+> > --- a/mm/vmscan.c
+> > +++ b/mm/vmscan.c
+> > @@ -1341,10 +1341,6 @@ static inline bool
+> > should_reclaim_stall(unsigned long nr_taken,
+> > A  A  A  A if (current_is_kswapd())
+> > A  A  A  A  A  A  A  A return false;
+> >
+> > - A  A  A  /* Only stall on lumpy reclaim */
+> > - A  A  A  if (sc->reclaim_mode & RECLAIM_MODE_SINGLE)
+> > - A  A  A  A  A  A  A  return false;
+> > -
+> > A  A  A  A /* If we have relaimed everything on the isolated list, no stall */
+> > A  A  A  A if (nr_freed == nr_taken)
+> > A  A  A  A  A  A  A  A return false;
+> >
+> >
+> >
+> > Then, if you don't see any unnecessary OOM but still see the hangup,
+> > could you apply this patch based on previous?
+> 
+> With this patch, I started GNOME and Firefox, turned on swap, and ran
+> test_mempressure.sh 1500 1400 1.  Instant panic (or OOPS and hang or
+> something -- didn't get the top part).  Picture attached -- it looks
+> like memcg might be involved.  I'm running F15, so it might even be
+> doing something.
+> 
 
-And currently, swap token priority is only decreased at page fault
-path. Then, if the process sleep immediately after to grab swap
-token, the swap token priority never be decreased. That's obviously
-undesirable.
+Hmm, what kernel version do you use ?
+I think memcg is not guilty because RIP is shrink_page_list().
+But ok, I'll dig this. Could you give us your .config ?
 
-This patch implement very poor (and lightweight) priority aging.
-It only be affect to the above corner case and doesn't change swap
-tendency workload performance (eg multi process qsbench load)
-
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Reviewed-by: Rik van Riel <riel@redhat.com>
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
----
- include/trace/events/vmscan.h |   20 +++++++++++++-------
- mm/thrash.c                   |   11 ++++++++++-
- 2 files changed, 23 insertions(+), 8 deletions(-)
-
-diff --git a/include/trace/events/vmscan.h b/include/trace/events/vmscan.h
-index 1798e0c..b2c33bd 100644
---- a/include/trace/events/vmscan.h
-+++ b/include/trace/events/vmscan.h
-@@ -366,9 +366,10 @@ DEFINE_EVENT_CONDITION(put_swap_token_template, disable_swap_token,
-
- TRACE_EVENT_CONDITION(update_swap_token_priority,
- 	TP_PROTO(struct mm_struct *mm,
--		 unsigned int old_prio),
-+		 unsigned int old_prio,
-+		 struct mm_struct *swap_token_mm),
-
--	TP_ARGS(mm, old_prio),
-+	TP_ARGS(mm, old_prio, swap_token_mm),
-
- 	TP_CONDITION(mm->token_priority != old_prio),
-
-@@ -376,16 +377,21 @@ TRACE_EVENT_CONDITION(update_swap_token_priority,
- 		__field(struct mm_struct*, mm)
- 		__field(unsigned int, old_prio)
- 		__field(unsigned int, new_prio)
-+		__field(struct mm_struct*, swap_token_mm)
-+		__field(unsigned int, swap_token_prio)
- 	),
-
- 	TP_fast_assign(
--		__entry->mm = mm;
--		__entry->old_prio = old_prio;
--		__entry->new_prio = mm->token_priority;
-+		__entry->mm		= mm;
-+		__entry->old_prio	= old_prio;
-+		__entry->new_prio	= mm->token_priority;
-+		__entry->swap_token_mm	= swap_token_mm;
-+		__entry->swap_token_prio = swap_token_mm ? swap_token_mm->token_priority : 0;
- 	),
-
--	TP_printk("mm=%p old_prio=%u new_prio=%u",
--		  __entry->mm, __entry->old_prio, __entry->new_prio)
-+	TP_printk("mm=%p old_prio=%u new_prio=%u swap_token_mm=%p token_prio=%u",
-+		  __entry->mm, __entry->old_prio, __entry->new_prio,
-+		  __entry->swap_token_mm, __entry->swap_token_prio)
- );
-
- #endif /* _TRACE_VMSCAN_H */
-diff --git a/mm/thrash.c b/mm/thrash.c
-index 14c6c9f..af46d67 100644
---- a/mm/thrash.c
-+++ b/mm/thrash.c
-@@ -25,10 +25,13 @@
-
- #include <trace/events/vmscan.h>
-
-+#define TOKEN_AGING_INTERVAL	(0xFF)
-+
- static DEFINE_SPINLOCK(swap_token_lock);
- struct mm_struct *swap_token_mm;
- struct mem_cgroup *swap_token_memcg;
- static unsigned int global_faults;
-+static unsigned int last_aging;
-
- void grab_swap_token(struct mm_struct *mm)
- {
-@@ -47,6 +50,11 @@ void grab_swap_token(struct mm_struct *mm)
- 	if (!swap_token_mm)
- 		goto replace_token;
-
-+	if ((global_faults - last_aging) > TOKEN_AGING_INTERVAL) {
-+		swap_token_mm->token_priority /= 2;
-+		last_aging = global_faults;
-+	}
-+
- 	if (mm == swap_token_mm) {
- 		mm->token_priority += 2;
- 		goto update_priority;
-@@ -64,7 +72,7 @@ void grab_swap_token(struct mm_struct *mm)
- 		goto replace_token;
-
- update_priority:
--	trace_update_swap_token_priority(mm, old_prio);
-+	trace_update_swap_token_priority(mm, old_prio, swap_token_mm);
-
- out:
- 	mm->faultstamp = global_faults;
-@@ -80,6 +88,7 @@ replace_token:
- 	trace_replace_swap_token(swap_token_mm, mm);
- 	swap_token_mm = mm;
- 	swap_token_memcg = memcg;
-+	last_aging = global_faults;
- 	goto out;
- }
-
--- 
-1.7.3.1
+Thanks,
+-Kame
 
 
+> I won't be able to get netconsole dumps until next week because I'm
+> out of town and only have this one computer here.
+> 
+> I haven't tried the other patch.
+> 
+> Also, the !pgdat_balanced fix plus the if (need_resched()) return
+> false patch just hung once on 2.6.37-rc9.  I don't know what triggered
+> it.  Maybe yum.
+> 
+> --Andy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
