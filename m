@@ -1,74 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id C81E86B0023
-	for <linux-mm@kvack.org>; Thu, 19 May 2011 18:49:13 -0400 (EDT)
-Received: from d03relay03.boulder.ibm.com (d03relay03.boulder.ibm.com [9.17.195.228])
-	by e38.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p4JMf4bw031135
-	for <linux-mm@kvack.org>; Thu, 19 May 2011 16:41:04 -0600
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay03.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p4JMn7A7161504
-	for <linux-mm@kvack.org>; Thu, 19 May 2011 16:49:07 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p4JGmcMj026879
-	for <linux-mm@kvack.org>; Thu, 19 May 2011 10:48:40 -0600
-Subject: [PATCH 3/3] mm: Provide stub page_mkwrite functionality to stabilize
-	pages during writes
-From: "Darrick J. Wong" <djwong@us.ibm.com>
-Date: Thu, 19 May 2011 15:49:03 -0700
-Message-ID: <20110519224903.28755.2703.stgit@elm3c44.beaverton.ibm.com>
-In-Reply-To: <20110519224841.28755.80650.stgit@elm3c44.beaverton.ibm.com>
-References: <20110519224841.28755.80650.stgit@elm3c44.beaverton.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id F35E06B0011
+	for <linux-mm@kvack.org>; Thu, 19 May 2011 19:02:30 -0400 (EDT)
+Date: Thu, 19 May 2011 16:01:43 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH V3 2/2] mm: Extend memory hotplug API to allow memory
+ hotplug in virtual machines
+Message-Id: <20110519160143.02163f36.akpm@linux-foundation.org>
+In-Reply-To: <20110519204509.GD27202@router-fw-old.local.net-space.pl>
+References: <20110517213858.GC30232@router-fw-old.local.net-space.pl>
+	<alpine.DEB.2.00.1105182026390.20651@chino.kir.corp.google.com>
+	<20110519204509.GD27202@router-fw-old.local.net-space.pl>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Viro <viro@zeniv.linux.org.uk>, "Darrick J. Wong" <djwong@us.ibm.com>
-Cc: Jens Axboe <axboe@kernel.dk>, Theodore Tso <tytso@mit.edu>, "Martin K. Petersen" <martin.petersen@oracle.com>, Jeff Layton <jlayton@redhat.com>, Dave Chinner <david@fromorbit.com>, linux-kernel <linux-kernel@vger.kernel.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, Chris Mason <chris.mason@oracle.com>, Joel Becker <jlbec@evilplan.org>, linux-scsi <linux-scsi@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Jan Kara <jack@suse.cz>, linux-ext4@vger.kernel.org, Mingming Cao <mcao@us.ibm.com>
+To: Daniel Kiper <dkiper@net-space.pl>
+Cc: David Rientjes <rientjes@google.com>, ian.campbell@citrix.com, haicheng.li@linux.intel.com, fengguang.wu@intel.com, jeremy@goop.org, konrad.wilk@oracle.com, dan.magenheimer@oracle.com, v.tolstov@selfip.ru, pasik@iki.fi, dave@linux.vnet.ibm.com, wdauchy@gmail.com, xen-devel@lists.xensource.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-For filesystems that do not provide any page_mkwrite handler, provide a stub
-page_mkwrite function that locks the page and waits for pending writeback to
-complete.  This is needed to stabilize pages during writes for a large variety
-of filesystem drivers (ext2, ext3, vfat, hfs...).
+On Thu, 19 May 2011 22:45:09 +0200
+Daniel Kiper <dkiper@net-space.pl> wrote:
 
-Signed-off-by: Darrick J. Wong <djwong@us.ibm.com>
----
- mm/filemap.c |   19 +++++++++++++++++++
- 1 files changed, 19 insertions(+), 0 deletions(-)
+> On Wed, May 18, 2011 at 08:36:02PM -0700, David Rientjes wrote:
+> > On Tue, 17 May 2011, Daniel Kiper wrote:
+> >
+> > > This patch contains online_page_callback and apropriate functions for
+> > > setting/restoring online page callbacks. It allows to do some machine
+> > > specific tasks during online page stage which is required to implement
+> > > memory hotplug in virtual machines. Additionally, __online_page_set_limits(),
+> > > __online_page_increment_counters() and __online_page_free() function
+> > > was added to ease generic hotplug operation.
+> >
+> > There are several issues with this.
+> >
+> > First, this is completely racy and only allows one global callback to be
+> > in use at a time without looping, which is probably why you had to pass an
+> 
+> One callback is allowed by design. Currently I do not see
+> any real usage for more than one callback.
 
-
-diff --git a/mm/filemap.c b/mm/filemap.c
-index fd0e7f2..2a922b4 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -1713,8 +1713,27 @@ page_not_uptodate:
- }
- EXPORT_SYMBOL(filemap_fault);
- 
-+static int stub_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
-+{
-+	struct page *page = vmf->page;
-+	struct inode *inode = vma->vm_file->f_path.dentry->d_inode;
-+	loff_t size;
-+
-+	lock_page(page);
-+	size = i_size_read(inode);
-+	if ((page->mapping != inode->i_mapping) ||
-+	    (page_offset(page) > size)) {
-+		/* page got truncated out from underneath us */
-+		unlock_page(page);
-+		return VM_FAULT_NOPAGE;
-+	}
-+	wait_on_page_writeback(page);
-+	return VM_FAULT_LOCKED;
-+}
-+
- const struct vm_operations_struct generic_file_vm_ops = {
- 	.fault		= filemap_fault,
-+	.page_mkwrite	= stub_page_mkwrite,
- };
- 
- /* This is used for a general mmap of a disk file */
+I'd suggest that you try using the notifier.h tools here and remove the
+restriction.  Sure, we may never use the capability but I expect the
+code will look nice and simple and once it's done, it's done.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
