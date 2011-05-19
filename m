@@ -1,39 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 262926B0011
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id E32B86B0012
 	for <linux-mm@kvack.org>; Thu, 19 May 2011 13:33:26 -0400 (EDT)
 From: Ying Han <yinghan@google.com>
-Subject: [PATCH V3 2/3] memcg: fix a routine for counting pages in node
-Date: Thu, 19 May 2011 10:32:39 -0700
-Message-Id: <1305826360-2167-2-git-send-email-yinghan@google.com>
-In-Reply-To: <1305826360-2167-1-git-send-email-yinghan@google.com>
-References: <1305826360-2167-1-git-send-email-yinghan@google.com>
+Subject: [PATCH V3 1/3] memcg: rename mem_cgroup_zone_nr_pages() to mem_cgroup_zone_nr_lru_pages()
+Date: Thu, 19 May 2011 10:32:38 -0700
+Message-Id: <1305826360-2167-1-git-send-email-yinghan@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>
 Cc: linux-mm@kvack.org
 
-The value for counter base should be initialized. If not,
-this returns wrong value.
+The caller of the function has been renamed to zone_nr_lru_pages(), and this
+is just fixing up in the memcg code. The current name is easily to be mis-read
+as zone's total number of pages.
 
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+This patch is based on mmotm-2011-05-06-16-39
+
+no change since v1.
+
+Signed-off-by: Ying Han <yinghan@google.com>
+
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 ---
- mm/memcontrol.c |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
+ include/linux/memcontrol.h |   10 +++++-----
+ mm/memcontrol.c            |    6 +++---
+ mm/vmscan.c                |    2 +-
+ 3 files changed, 9 insertions(+), 9 deletions(-)
 
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 77e47f5..22b3190 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -109,9 +109,9 @@ extern void mem_cgroup_end_migration(struct mem_cgroup *mem,
+ int mem_cgroup_inactive_anon_is_low(struct mem_cgroup *memcg);
+ int mem_cgroup_inactive_file_is_low(struct mem_cgroup *memcg);
+ int mem_cgroup_select_victim_node(struct mem_cgroup *memcg);
+-unsigned long mem_cgroup_zone_nr_pages(struct mem_cgroup *memcg,
+-				       struct zone *zone,
+-				       enum lru_list lru);
++unsigned long mem_cgroup_zone_nr_lru_pages(struct mem_cgroup *memcg,
++						struct zone *zone,
++						enum lru_list lru);
+ struct zone_reclaim_stat *mem_cgroup_get_reclaim_stat(struct mem_cgroup *memcg,
+ 						      struct zone *zone);
+ struct zone_reclaim_stat*
+@@ -306,8 +306,8 @@ mem_cgroup_inactive_file_is_low(struct mem_cgroup *memcg)
+ }
+ 
+ static inline unsigned long
+-mem_cgroup_zone_nr_pages(struct mem_cgroup *memcg, struct zone *zone,
+-			 enum lru_list lru)
++mem_cgroup_zone_nr_lru_pages(struct mem_cgroup *memcg, struct zone *zone,
++			     enum lru_list lru)
+ {
+ 	return 0;
+ }
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index da183dc..e14677c 100644
+index 95aecca..da183dc 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -679,7 +679,7 @@ static unsigned long
- mem_cgroup_get_zonestat_node(struct mem_cgroup *mem, int nid, enum lru_list idx)
- {
- 	struct mem_cgroup_per_zone *mz;
--	u64 total;
-+	u64 total = 0;
- 	int zid;
+@@ -1151,9 +1151,9 @@ int mem_cgroup_inactive_file_is_low(struct mem_cgroup *memcg)
+ 	return (active > inactive);
+ }
  
- 	for (zid = 0; zid < MAX_NR_ZONES; zid++) {
+-unsigned long mem_cgroup_zone_nr_pages(struct mem_cgroup *memcg,
+-				       struct zone *zone,
+-				       enum lru_list lru)
++unsigned long mem_cgroup_zone_nr_lru_pages(struct mem_cgroup *memcg,
++						struct zone *zone,
++						enum lru_list lru)
+ {
+ 	int nid = zone_to_nid(zone);
+ 	int zid = zone_idx(zone);
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 292582c..fbbb958 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -172,7 +172,7 @@ static unsigned long zone_nr_lru_pages(struct zone *zone,
+ 				struct scan_control *sc, enum lru_list lru)
+ {
+ 	if (!scanning_global_lru(sc))
+-		return mem_cgroup_zone_nr_pages(sc->mem_cgroup, zone, lru);
++		return mem_cgroup_zone_nr_lru_pages(sc->mem_cgroup, zone, lru);
+ 
+ 	return zone_page_state(zone, NR_LRU_BASE + lru);
+ }
 -- 
 1.7.3.1
 
