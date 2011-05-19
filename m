@@ -1,47 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 9406C6B0011
-	for <linux-mm@kvack.org>; Wed, 18 May 2011 23:09:29 -0400 (EDT)
-Received: from kpbe15.cbf.corp.google.com (kpbe15.cbf.corp.google.com [172.25.105.79])
-	by smtp-out.google.com with ESMTP id p4J39MUY025257
-	for <linux-mm@kvack.org>; Wed, 18 May 2011 20:09:26 -0700
-Received: from pwi8 (pwi8.prod.google.com [10.241.219.8])
-	by kpbe15.cbf.corp.google.com with ESMTP id p4J39KNs024609
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 575056B0012
+	for <linux-mm@kvack.org>; Wed, 18 May 2011 23:21:40 -0400 (EDT)
+Received: from wpaz9.hot.corp.google.com (wpaz9.hot.corp.google.com [172.24.198.73])
+	by smtp-out.google.com with ESMTP id p4J3Lajc000887
+	for <linux-mm@kvack.org>; Wed, 18 May 2011 20:21:36 -0700
+Received: from pzk35 (pzk35.prod.google.com [10.243.19.163])
+	by wpaz9.hot.corp.google.com with ESMTP id p4J3LYMr015252
 	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 18 May 2011 20:09:21 -0700
-Received: by pwi8 with SMTP id 8so1221118pwi.36
-        for <linux-mm@kvack.org>; Wed, 18 May 2011 20:09:20 -0700 (PDT)
-Date: Wed, 18 May 2011 20:09:17 -0700 (PDT)
+	for <linux-mm@kvack.org>; Wed, 18 May 2011 20:21:34 -0700
+Received: by pzk35 with SMTP id 35so1392576pzk.39
+        for <linux-mm@kvack.org>; Wed, 18 May 2011 20:21:34 -0700 (PDT)
+Date: Wed, 18 May 2011 20:21:23 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH V3 0/2] mm: Memory hotplug interface changes
-In-Reply-To: <20110518151131.GB4709@dumpdata.com>
-Message-ID: <alpine.DEB.2.00.1105182008160.20651@chino.kir.corp.google.com>
-References: <20110517213604.GA30232@router-fw-old.local.net-space.pl> <20110518151131.GB4709@dumpdata.com>
+Subject: Re: [PATCH V3 1/2] mm: Add SECTION_ALIGN_UP() and SECTION_ALIGN_DOWN()
+ macro
+In-Reply-To: <20110517213750.GB30232@router-fw-old.local.net-space.pl>
+Message-ID: <alpine.DEB.2.00.1105182019170.20651@chino.kir.corp.google.com>
+References: <20110517213750.GB30232@router-fw-old.local.net-space.pl>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Cc: Daniel Kiper <dkiper@net-space.pl>, ian.campbell@citrix.com, akpm@linux-foundation.org, andi.kleen@intel.com, haicheng.li@linux.intel.com, fengguang.wu@intel.com, jeremy@goop.org, dan.magenheimer@oracle.com, v.tolstov@selfip.ru, pasik@iki.fi, dave@linux.vnet.ibm.com, wdauchy@gmail.com, xen-devel@lists.xensource.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Daniel Kiper <dkiper@net-space.pl>
+Cc: ian.campbell@citrix.com, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi.kleen@intel.com>, haicheng.li@linux.intel.com, fengguang.wu@intel.com, jeremy@goop.org, konrad.wilk@oracle.com, dan.magenheimer@oracle.com, v.tolstov@selfip.ru, pasik@iki.fi, Dave Hansen <dave@linux.vnet.ibm.com>, wdauchy@gmail.com, xen-devel@lists.xensource.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, 18 May 2011, Konrad Rzeszutek Wilk wrote:
+On Tue, 17 May 2011, Daniel Kiper wrote:
 
-> > Full list of futures:
-> >   - mm: Add SECTION_ALIGN_UP() and SECTION_ALIGN_DOWN() macro,
-> >   - mm: Extend memory hotplug API to allow memory hotplug in virtual
-> >     machines.
-> > 
-> > Those patches applies to Linus' git tree, v2.6.39-rc7 tag with a few
-> > prerequisite patches available at https://lkml.org/lkml/2011/5/2/296.
-> 
-> Are they in akpm tree?
-> 
-> Dave and David, you guys Acked them - are they suppose to go through your
-> tree(s) or Andrew's?
-> 
+> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> index d715200..217bcf6 100644
+> --- a/include/linux/mmzone.h
+> +++ b/include/linux/mmzone.h
+> @@ -956,6 +956,9 @@ static inline unsigned long early_pfn_to_nid(unsigned long pfn)
+>  #define pfn_to_section_nr(pfn) ((pfn) >> PFN_SECTION_SHIFT)
+>  #define section_nr_to_pfn(sec) ((sec) << PFN_SECTION_SHIFT)
+>  
+> +#define SECTION_ALIGN_UP(pfn)	(((pfn) + PAGES_PER_SECTION - 1) & PAGE_SECTION_MASK)
+> +#define SECTION_ALIGN_DOWN(pfn)	((pfn) & PAGE_SECTION_MASK)
+> +
+>  struct page;
+>  struct page_cgroup;
+>  struct mem_section {
 
-All of the prerequisite patches are in mmotm-2011-05-12-15-52 already.  
-See http://userweb.kernel.org/~akpm/mmotm/
+These seem useful.  Could you convert the code in drivers/base/node.c, 
+mm/page_cgroup.c, mm/page_alloc.c, and mm/sparse.c that already do this to 
+use the new macros?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
