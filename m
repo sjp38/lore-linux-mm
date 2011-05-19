@@ -1,57 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 6D4336B0011
-	for <linux-mm@kvack.org>; Thu, 19 May 2011 11:03:05 -0400 (EDT)
-Received: by pwi12 with SMTP id 12so1681768pwi.14
-        for <linux-mm@kvack.org>; Thu, 19 May 2011 08:00:44 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id D10676B0012
+	for <linux-mm@kvack.org>; Thu, 19 May 2011 11:16:54 -0400 (EDT)
+Message-ID: <4DD5345B.8010305@atmel.com>
+Date: Thu, 19 May 2011 17:16:43 +0200
+From: Ludovic Desroches <ludovic.desroches@atmel.com>
 MIME-Version: 1.0
-In-Reply-To: <20110519145147.GA14658@localhost>
-References: <BANLkTikofp5rHRdW5dXfqJXb8VCAqPQ_7A@mail.gmail.com>
- <20110514165346.GV6008@one.firstfloor.org> <BANLkTik6SS9NH7XVSRBoCR16_5veY0MKBw@mail.gmail.com>
- <20110514174333.GW6008@one.firstfloor.org> <BANLkTinst+Ryox9VZ-s7gdXKa574XXqt5w@mail.gmail.com>
- <20110515152747.GA25905@localhost> <BANLkTim-AnEeL=z1sYm=iN7sMnG0+m0SHw@mail.gmail.com>
- <20110517060001.GC24069@localhost> <BANLkTi=TOm3aLQCD6j=4va6B+Jn2nSfwAg@mail.gmail.com>
- <BANLkTi=9W6-JXi94rZfTtTpAt3VUiY5fNw@mail.gmail.com> <20110519145147.GA14658@localhost>
-From: Andrew Lutomirski <luto@mit.edu>
-Date: Thu, 19 May 2011 11:00:24 -0400
-Message-ID: <BANLkTim4caSU_uRY1GLMh9D=8gctp34jMA@mail.gmail.com>
-Subject: Re: Kernel falls apart under light memory pressure (i.e. linking vmlinux)
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: atmel-mci causes kernel panic when CONFIG_DEBUG_VM is set
+References: <4DD4CC68.80408@atmel.com>	<BANLkTinaPW5xcdrNewJC6OW9nqWHC_-TVw@mail.gmail.com> <4DD4E1DF.7030005@atmel.com> <4DD50A72.2050501@atmel.com>
+In-Reply-To: <4DD50A72.2050501@atmel.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Minchan Kim <minchan.kim@gmail.com>, Andi Kleen <andi@firstfloor.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>
+To: Ludovic Desroches <ludovic.desroches@atmel.com>, linux-mm@kvack.org, christoph@lameter.com
+Cc: linux-arm-kernel@lists.infradead.org
 
-On Thu, May 19, 2011 at 10:51 AM, Wu Fengguang <fengguang.wu@intel.com> wrote:
->> > I had 6GB swap available, so there shouldn't have
->> > been any OOM.
+As suggested I forward the question to Christoph Lameter and linux-mm.
+
+Thanks for your help.
+
+Regards
+
+Ludovic Desroches
+
+On 5/19/2011 2:17 PM, Ludovic Desroches wrote:
+> On 5/19/2011 11:24 AM, Ludovic Desroches wrote:
+>> On 5/19/2011 10:04 AM, Barry Song wrote:
+>>> 2011/5/19 Ludovic Desroches<ludovic.desroches@atmel.com>:
+>>>> Hello,
+>>>>
+>>>> There is a bug with the atmel-mci driver when the debug feature
+>>>> CONFIG_DEBUG_VM is set.
+>>>>
+>>>> Into the atmci_read_data_pio function we use flush_dcache_page (do 
+>>>> we really
+>>>> need it?) which call the page_mapping function where we can find
+>>>> VM_BUG_ON(PageSlab(Page)). Then a kernel panic happens.
+>>>>
+>>>> I don't understand the purpose of the VM_BUG_ON(PageSlab(Page)) 
+>>>> (the page
+>>>> comes from a scatter list). How could I correct this problem?
+>>> linux/include/linux/mmdebug.h:
+>>>
+>>> #ifdef CONFIG_DEBUG_VM
+>>> #define VM_BUG_ON(cond) BUG_ON(cond)
+>>> #else
+>>> #define VM_BUG_ON(cond) do { (void)(cond); } while (0)
+>>> #endif
+>>>
+>>> it is something like "assert" in kernel.
 >>
->> Yes. It's strange but we have seen such case several times, AFAIR.
+>> Thanks for your answer but I know that. My question is more focused 
+>> on why there is this check.
+> This the reason:
 >
-> I noticed that the test script mounted a "ramfs" not "tmpfs", hence
-> the 1.4G pages won't be swapped?
-
-That's intentional.
-
-I run LVM over dm-crypt on an SSD, and I thought that might be part of
-the problem.  I wanted a script that would see if I could reproduce
-the problem without stressing that system too much, so I created a
-second backing store on dm-crypt over ramfs so that no real I/O will
-happen.  The script is quite effective at bringing down my system, so
-I haven't changed it.
-
-(I have 6GB of "real" swap on the LVM, so pinning 1500MB into RAM
-ought to cause some thrashing but not take the system down.  And this
-script with a larger ramfs does not take down my desktop, which is an
-8GB Sandy Bridge box.  But whatever the underlying bug is seems to
-mainly affect Sandy Bridge *laptops*, so maybe that's expected.)
-
---Andy
-
+> commit b5fab14e5d87df4d94161ae5f5e0c8625f9ffda2
+> Author: Christoph Lameter <clameter@sgi.com>
+> Date:   Tue Jul 17 04:03:33 2007 -0700
 >
-> Thanks,
-> Fengguang
+>     Add VM_BUG_ON in case someone uses page_mapping on a slab page
 >
+>     Detect slab objects being passed to the page oriented functions of 
+> the VM.
+>
+>     It is not sufficient to simply return NULL because the functions 
+> calling
+>     page_mapping may depend on other items of the page_struct also to 
+> be setup
+>     properly.  Moreover slab object may not be properly aligned.  The 
+> page
+>     oriented functions of the VM expect to operate on page aligned, 
+> page sized
+>     objects.  Operations on object straddling page boundaries may only 
+> affect the
+>     objects partially which may lead to surprising results.
+>
+>     It is better to detect eventually remaining uses and eliminate them.
+>
+>
+>> Is flushing a page taken from a slab forbidden ? Is it risky ? Is it 
+>> no sense ?
+>>
+> Other drivers do a flush_dcache_page on a page coming from a scatter 
+> list. So I think they will also have an assert when CONFIG_DEBUG_VM is 
+> set.
+>
+> What is the proper way to do this flush (if needed) ?
+>
+>
+> Regards,
+>
+> Ludovic
+>
+>
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
