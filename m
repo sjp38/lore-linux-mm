@@ -1,60 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id A60916B0011
-	for <linux-mm@kvack.org>; Thu, 19 May 2011 14:25:19 -0400 (EDT)
-Date: Thu, 19 May 2011 20:25:15 +0200
-From: Uwe =?iso-8859-1?Q?Kleine-K=F6nig?= <u.kleine-koenig@pengutronix.de>
-Subject: Re: atmel-mci causes kernel panic when CONFIG_DEBUG_VM is set
-Message-ID: <20110519182515.GC21172@pengutronix.de>
-References: <4DD4CC68.80408@atmel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 741F26B0011
+	for <linux-mm@kvack.org>; Thu, 19 May 2011 15:20:28 -0400 (EDT)
+Received: (from localhost user: 'dkiper' uid#4000 fake: STDIN
+	(dkiper@router-fw.net-space.pl)) by router-fw-old.local.net-space.pl
+	id S1582868Ab1ESTTr (ORCPT <rfc822;linux-mm@kvack.org>);
+	Thu, 19 May 2011 21:19:47 +0200
+Date: Thu, 19 May 2011 21:19:47 +0200
+From: Daniel Kiper <dkiper@net-space.pl>
+Subject: Re: [Xen-devel] Re: [PATCH V3] xen/balloon: Memory hotplug support for Xen balloon driver
+Message-ID: <20110519191947.GA27202@router-fw-old.local.net-space.pl>
+References: <20110517214421.GD30232@router-fw-old.local.net-space.pl> <1305701868.28175.1.camel@vase> <1305703309.7738.23.camel@dagon.hellion.org.uk> <1305703494.28175.2.camel@vase> <20110518103543.GA5066@router-fw-old.local.net-space.pl> <20110518150630.GA4709@dumpdata.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <4DD4CC68.80408@atmel.com>
+In-Reply-To: <20110518150630.GA4709@dumpdata.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ludovic Desroches <ludovic.desroches@atmel.com>, linux-mm@kvack.org, linux-mmc@vger.kernel.org, linux-kernel@vger.kernel.org
-Cc: linux-arm-kernel@lists.infradead.org, "Ferre, Nicolas" <Nicolas.FERRE@atmel.com>, Steven Rostedt <rostedt@goodmis.org>, Peter Zijlstra <peterz@infradead.org>
+To: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Cc: Daniel Kiper <dkiper@net-space.pl>, Vasiliy G Tolstov <v.tolstov@selfip.ru>, "jeremy@goop.org" <jeremy@goop.org>, "xen-devel@lists.xensource.com" <xen-devel@lists.xensource.com>, "haicheng.li@linux.intel.com" <haicheng.li@linux.intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, "dave@linux.vnet.ibm.com" <dave@linux.vnet.ibm.com>, Ian Campbell <Ian.Campbell@eu.citrix.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "wdauchy@gmail.com" <wdauchy@gmail.com>, "rientjes@google.com" <rientjes@google.com>, "andi.kleen@intel.com" <andi.kleen@intel.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "fengguang.wu@intel.com" <fengguang.wu@intel.com>
 
-Hello,
+On Wed, May 18, 2011 at 11:06:30AM -0400, Konrad Rzeszutek Wilk wrote:
+> > Here is proper udev rule:
+> >
+> > SUBSYSTEM=="memory", ACTION=="add", RUN+="/bin/sh -c '[ -f /sys$devpath/state ] && echo online > /sys$devpath/state'"
+> >
+> > Konrad, could you add it to git comment and Kconfig help ???
+>
+> I am going to be lazy and ask you to resend this patch with that udev rule mentioned in it :-)
 
-On Thu, May 19, 2011 at 09:53:12AM +0200, Ludovic Desroches wrote:
-> There is a bug with the atmel-mci driver when the debug feature
-> CONFIG_DEBUG_VM is set.
-for the new audience: the driver does the following:
+OK. However, David Rientjes has some objections to "Extend memory
+hotplug API to allow memory hotplug in virtual machine" patch
+and I will do that after clarifying/solving some issues.
 
-	flush_dcache_page(sg_page(sg));
-
-with sg being a struct scatterlist * provided by the caller of the
-struct mmc_host_ops.request callback.
-
-> Into the atmci_read_data_pio function we use flush_dcache_page (do
-> we really need it?) which call the page_mapping function where we
-> can find VM_BUG_ON(PageSlab(Page)). Then a kernel panic happens.
-> 
-> I don't understand the purpose of the VM_BUG_ON(PageSlab(Page)) (the
-> page comes from a scatter list). How could I correct this problem?
-I discussed this problem with Steven and Peter on irc and Steven found
-two functions in the mmc code (mmc_send_cxd_data and mmc_send_bus_test)
-that use the following idiom:
-
-	struct scatterlist sg;
-	void *data_buf;
-
-	data_buf = kmalloc(len, GFP_KERNEL);
-
-	sg_init_one(&sg, data_buf, len);
-
-Is that allowed (i.e. pass  kmalloc'd memory to sg_init_one)? That might
-be the source of the slub page in the scatterlist, no?
-
-Best regards
-Uwe
-
--- 
-Pengutronix e.K.                           | Uwe Kleine-Konig            |
-Industrial Linux Solutions                 | http://www.pengutronix.de/  |
+Daniel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
