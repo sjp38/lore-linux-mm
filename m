@@ -1,91 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id CF1086B0027
-	for <linux-mm@kvack.org>; Wed, 18 May 2011 20:55:55 -0400 (EDT)
-From: Ying Han <yinghan@google.com>
-Subject: [PATCH V2 1/2] memcg: rename mem_cgroup_zone_nr_pages() to mem_cgroup_zone_nr_lru_pages()
-Date: Wed, 18 May 2011 17:55:10 -0700
-Message-Id: <1305766511-11469-1-git-send-email-yinghan@google.com>
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 36CF690010B
+	for <linux-mm@kvack.org>; Wed, 18 May 2011 21:04:40 -0400 (EDT)
+Received: by pwi12 with SMTP id 12so1334848pwi.14
+        for <linux-mm@kvack.org>; Wed, 18 May 2011 18:04:38 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <BANLkTi==cinS1bZc_ARRbnYT3YD+FQr8gA@mail.gmail.com>
+References: <BANLkTi==cinS1bZc_ARRbnYT3YD+FQr8gA@mail.gmail.com>
+Date: Thu, 19 May 2011 03:04:38 +0200
+Message-ID: <BANLkTinZJUWMc39TLP28M5=cRvqev+0QWg@mail.gmail.com>
+Subject: Re: mmap() implementation for pci_alloc_consistent() memory?
+From: Leon Woestenberg <leon.woestenberg@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>
-Cc: linux-mm@kvack.org
+To: linux-pci@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-The caller of the function has been renamed to zone_nr_lru_pages(), and this
-is just fixing up in the memcg code. The current name is easily to be mis-read
-as zone's total number of pages.
+Hello,
 
-This patch is based on mmotm-2011-05-06-16-39
+On Thu, May 19, 2011 at 12:14 AM, Leon Woestenberg
+<leon.woestenberg@gmail.com> wrote:
+>
+> int ringbuffer_vma_fault(struct vm_area_struct *vma, struct vm_fault *vmf=
+)
+> {
+> =A0 =A0 =A0 =A0/* the buffer allocated with pci_alloc_consistent() */
+> =A0 =A0 =A0 =A0void *vaddr =3D ringbuffer_virt;
+> =A0 =A0 =A0 =A0int ret;
+>
+> =A0 =A0 =A0 =A0/* find the struct page that describes vaddr, the buffer
+> =A0 =A0 =A0 =A0 * allocated with pci_alloc_consistent() */
+> =A0 =A0 =A0 =A0struct page *page =3D virt_to_page(lro_char->engine->ringb=
+uffer_virt);
+> =A0 =A0 =A0 =A0vmf->page =3D page;
+>
+> =A0 =A0 =A0 =A0/*** I have verified that vaddr, page, and the pfn corresp=
+ond
+> with vaddr =3D pci_alloc_consistent() ***/
+> =A0 =A0 =A0 =A0ret =3D vm_insert_pfn(vma, address, page_to_pfn(page));
+> =A0 =A0 =A0 =A0return ret;
+> }
+>
 
-no change on this patch from v1.
+Some further debugging insights:
 
-Signed-off-by: Ying Han <yinghan@google.com>
----
- include/linux/memcontrol.h |   10 +++++-----
- mm/memcontrol.c            |    6 +++---
- mm/vmscan.c                |    2 +-
- 3 files changed, 9 insertions(+), 9 deletions(-)
+I found that pfn_valid is 0 on page_to_pfn(page). Isn't
+pci_alloc_consistent() memory backed by a real struct page?
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 77e47f5..22b3190 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -109,9 +109,9 @@ extern void mem_cgroup_end_migration(struct mem_cgroup *mem,
- int mem_cgroup_inactive_anon_is_low(struct mem_cgroup *memcg);
- int mem_cgroup_inactive_file_is_low(struct mem_cgroup *memcg);
- int mem_cgroup_select_victim_node(struct mem_cgroup *memcg);
--unsigned long mem_cgroup_zone_nr_pages(struct mem_cgroup *memcg,
--				       struct zone *zone,
--				       enum lru_list lru);
-+unsigned long mem_cgroup_zone_nr_lru_pages(struct mem_cgroup *memcg,
-+						struct zone *zone,
-+						enum lru_list lru);
- struct zone_reclaim_stat *mem_cgroup_get_reclaim_stat(struct mem_cgroup *memcg,
- 						      struct zone *zone);
- struct zone_reclaim_stat*
-@@ -306,8 +306,8 @@ mem_cgroup_inactive_file_is_low(struct mem_cgroup *memcg)
- }
- 
- static inline unsigned long
--mem_cgroup_zone_nr_pages(struct mem_cgroup *memcg, struct zone *zone,
--			 enum lru_list lru)
-+mem_cgroup_zone_nr_lru_pages(struct mem_cgroup *memcg, struct zone *zone,
-+			     enum lru_list lru)
- {
- 	return 0;
- }
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 95aecca..da183dc 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1151,9 +1151,9 @@ int mem_cgroup_inactive_file_is_low(struct mem_cgroup *memcg)
- 	return (active > inactive);
- }
- 
--unsigned long mem_cgroup_zone_nr_pages(struct mem_cgroup *memcg,
--				       struct zone *zone,
--				       enum lru_list lru)
-+unsigned long mem_cgroup_zone_nr_lru_pages(struct mem_cgroup *memcg,
-+						struct zone *zone,
-+						enum lru_list lru)
- {
- 	int nid = zone_to_nid(zone);
- 	int zid = zone_idx(zone);
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 292582c..fbbb958 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -172,7 +172,7 @@ static unsigned long zone_nr_lru_pages(struct zone *zone,
- 				struct scan_control *sc, enum lru_list lru)
- {
- 	if (!scanning_global_lru(sc))
--		return mem_cgroup_zone_nr_pages(sc->mem_cgroup, zone, lru);
-+		return mem_cgroup_zone_nr_lru_pages(sc->mem_cgroup, zone, lru);
- 
- 	return zone_page_state(zone, NR_LRU_BASE + lru);
- }
--- 
-1.7.3.1
+I found that when I use the allocation/mapping below instead of
+pci_alloc_consistent(), the fault handler does the mapping correctly.
+
+	vaddr =3D __get_free_pages(GFP_KERNEL, 4);
+	busaddr =3D dma_map_single(lro->pci_dev, vaddr,
+		psize, dir_to_dev? DMA_TO_DEVICE: DMA_FROM_DEVICE);
+
+Still no clue why the mmap fails on pci_alloc_consistent() memory.
+
+Regards,
+--=20
+Leon
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
