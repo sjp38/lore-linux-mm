@@ -1,204 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id EDF566B0023
-	for <linux-mm@kvack.org>; Thu, 19 May 2011 13:33:26 -0400 (EDT)
-From: Ying Han <yinghan@google.com>
-Subject: [PATCH V3 3/3] memcg: add memory.numastat api for numa statistics
-Date: Thu, 19 May 2011 10:32:40 -0700
-Message-Id: <1305826360-2167-3-git-send-email-yinghan@google.com>
-In-Reply-To: <1305826360-2167-1-git-send-email-yinghan@google.com>
-References: <1305826360-2167-1-git-send-email-yinghan@google.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id A60916B0011
+	for <linux-mm@kvack.org>; Thu, 19 May 2011 14:25:19 -0400 (EDT)
+Date: Thu, 19 May 2011 20:25:15 +0200
+From: Uwe =?iso-8859-1?Q?Kleine-K=F6nig?= <u.kleine-koenig@pengutronix.de>
+Subject: Re: atmel-mci causes kernel panic when CONFIG_DEBUG_VM is set
+Message-ID: <20110519182515.GC21172@pengutronix.de>
+References: <4DD4CC68.80408@atmel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <4DD4CC68.80408@atmel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>
-Cc: linux-mm@kvack.org
+To: Ludovic Desroches <ludovic.desroches@atmel.com>, linux-mm@kvack.org, linux-mmc@vger.kernel.org, linux-kernel@vger.kernel.org
+Cc: linux-arm-kernel@lists.infradead.org, "Ferre, Nicolas" <Nicolas.FERRE@atmel.com>, Steven Rostedt <rostedt@goodmis.org>, Peter Zijlstra <peterz@infradead.org>
 
-The new API exports numa_maps per-memcg basis. This is a piece of useful
-information where it exports per-memcg page distribution across real numa
-nodes.
+Hello,
 
-One of the usecase is evaluating application performance by combining this
-information w/ the cpu allocation to the application.
+On Thu, May 19, 2011 at 09:53:12AM +0200, Ludovic Desroches wrote:
+> There is a bug with the atmel-mci driver when the debug feature
+> CONFIG_DEBUG_VM is set.
+for the new audience: the driver does the following:
 
-The output of the memory.numastat tries to follow w/ simiar format of numa_maps
-like:
+	flush_dcache_page(sg_page(sg));
 
-total=<total pages> N0=<node 0 pages> N1=<node 1 pages> ...
-file=<total file pages> N0=<node 0 pages> N1=<node 1 pages> ...
-anon=<total anon pages> N0=<node 0 pages> N1=<node 1 pages> ...
+with sg being a struct scatterlist * provided by the caller of the
+struct mmc_host_ops.request callback.
 
-$ cat /dev/cgroup/memory/memory.numa_stat
-total=246594 N0=18225 N1=72025 N2=26378 N3=129966
-file=221728 N0=15030 N1=60804 N2=23238 N3=122656
-anon=21120 N0=2937 N1=7733 N2=3140 N3=7310
+> Into the atmci_read_data_pio function we use flush_dcache_page (do
+> we really need it?) which call the page_mapping function where we
+> can find VM_BUG_ON(PageSlab(Page)). Then a kernel panic happens.
+> 
+> I don't understand the purpose of the VM_BUG_ON(PageSlab(Page)) (the
+> page comes from a scatter list). How could I correct this problem?
+I discussed this problem with Steven and Peter on irc and Steven found
+two functions in the mmc code (mmc_send_cxd_data and mmc_send_bus_test)
+that use the following idiom:
 
-change v3..v2:
-1. calculate the "total" based on the per-memcg lru size instead of rss+cache.
-this makes the "total" value to be consistant w/ the per-node values follows
-after.
+	struct scatterlist sg;
+	void *data_buf;
 
-change v2..v1:
-1. add also the file and anon pages on per-node distribution.
+	data_buf = kmalloc(len, GFP_KERNEL);
 
-Signed-off-by: Ying Han <yinghan@google.com>
----
- mm/memcontrol.c |  120 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 files changed, 120 insertions(+), 0 deletions(-)
+	sg_init_one(&sg, data_buf, len);
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index e14677c..268d806 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1162,6 +1162,73 @@ unsigned long mem_cgroup_zone_nr_lru_pages(struct mem_cgroup *memcg,
- 	return MEM_CGROUP_ZSTAT(mz, lru);
- }
- 
-+
-+unsigned long mem_cgroup_node_nr_file_lru_pages(struct mem_cgroup *memcg,
-+						int nid)
-+{
-+	unsigned long ret;
-+
-+	ret = mem_cgroup_get_zonestat_node(memcg, nid, LRU_INACTIVE_FILE) +
-+		mem_cgroup_get_zonestat_node(memcg, nid, LRU_ACTIVE_FILE);
-+
-+	return ret;
-+}
-+
-+unsigned long mem_cgroup_nr_file_lru_pages(struct mem_cgroup *memcg)
-+{
-+	u64 total = 0;
-+	int nid;
-+
-+	for_each_node_state(nid, N_HIGH_MEMORY)
-+		total += mem_cgroup_node_nr_file_lru_pages(memcg, nid);
-+
-+	return total;
-+}
-+
-+unsigned long mem_cgroup_node_nr_anon_lru_pages(struct mem_cgroup *memcg,
-+						int nid)
-+{
-+	unsigned long ret;
-+
-+	ret = mem_cgroup_get_zonestat_node(memcg, nid, LRU_INACTIVE_ANON) +
-+		mem_cgroup_get_zonestat_node(memcg, nid, LRU_ACTIVE_ANON);
-+
-+	return ret;
-+}
-+
-+unsigned long mem_cgroup_nr_anon_lru_pages(struct mem_cgroup *memcg)
-+{
-+	u64 total = 0;
-+	int nid;
-+
-+	for_each_node_state(nid, N_HIGH_MEMORY)
-+		total += mem_cgroup_node_nr_anon_lru_pages(memcg, nid);
-+
-+	return total;
-+}
-+
-+unsigned long mem_cgroup_node_nr_lru_pages(struct mem_cgroup *memcg, int nid)
-+{
-+	enum lru_list l;
-+	u64 total = 0;
-+
-+	for_each_lru(l)
-+		total += mem_cgroup_get_zonestat_node(memcg, nid, l);
-+
-+	return total;
-+}
-+
-+unsigned long mem_cgroup_nr_lru_pages(struct mem_cgroup *memcg)
-+{
-+	u64 total = 0;
-+	int nid;
-+
-+	for_each_node_state(nid, N_HIGH_MEMORY)
-+		total += mem_cgroup_node_nr_lru_pages(memcg, nid);
-+
-+	return total;
-+}
-+
- struct zone_reclaim_stat *mem_cgroup_get_reclaim_stat(struct mem_cgroup *memcg,
- 						      struct zone *zone)
- {
-@@ -4048,6 +4115,41 @@ mem_cgroup_get_total_stat(struct mem_cgroup *mem, struct mcs_total_stat *s)
- 		mem_cgroup_get_local_stat(iter, s);
- }
- 
-+static int mem_control_numa_stat_show(struct seq_file *m, void *arg)
-+{
-+	int nid;
-+	unsigned long total_nr, file_nr, anon_nr;
-+	unsigned long node_nr;
-+	struct cgroup *cont = m->private;
-+	struct mem_cgroup *mem_cont = mem_cgroup_from_cont(cont);
-+
-+	total_nr = mem_cgroup_nr_lru_pages(mem_cont);
-+	seq_printf(m, "total=%lu", total_nr);
-+	for_each_node_state(nid, N_HIGH_MEMORY) {
-+		node_nr = mem_cgroup_node_nr_lru_pages(mem_cont, nid);
-+		seq_printf(m, " N%d=%lu", nid, node_nr);
-+	}
-+	seq_putc(m, '\n');
-+
-+	file_nr = mem_cgroup_nr_file_lru_pages(mem_cont);
-+	seq_printf(m, "file=%lu", file_nr);
-+	for_each_node_state(nid, N_HIGH_MEMORY) {
-+		node_nr = mem_cgroup_node_nr_file_lru_pages(mem_cont, nid);
-+		seq_printf(m, " N%d=%lu", nid, node_nr);
-+	}
-+	seq_putc(m, '\n');
-+
-+	anon_nr = mem_cgroup_nr_anon_lru_pages(mem_cont);
-+	seq_printf(m, "anon=%lu", anon_nr);
-+	for_each_node_state(nid, N_HIGH_MEMORY) {
-+		node_nr = mem_cgroup_node_nr_anon_lru_pages(mem_cont, nid);
-+		seq_printf(m, " N%d=%lu", nid, node_nr);
-+	}
-+	seq_putc(m, '\n');
-+
-+	return 0;
-+}
-+
- static int mem_control_stat_show(struct cgroup *cont, struct cftype *cft,
- 				 struct cgroup_map_cb *cb)
- {
-@@ -4481,6 +4583,20 @@ static int mem_cgroup_oom_control_write(struct cgroup *cgrp,
- 	return 0;
- }
- 
-+static const struct file_operations mem_control_numa_stat_file_operations = {
-+	.read = seq_read,
-+	.llseek = seq_lseek,
-+	.release = single_release,
-+};
-+
-+static int mem_control_numa_stat_open(struct inode *unused, struct file *file)
-+{
-+	struct cgroup *cont = file->f_dentry->d_parent->d_fsdata;
-+
-+	file->f_op = &mem_control_numa_stat_file_operations;
-+	return single_open(file, mem_control_numa_stat_show, cont);
-+}
-+
- static struct cftype mem_cgroup_files[] = {
- 	{
- 		.name = "usage_in_bytes",
-@@ -4544,6 +4660,10 @@ static struct cftype mem_cgroup_files[] = {
- 		.unregister_event = mem_cgroup_oom_unregister_event,
- 		.private = MEMFILE_PRIVATE(_OOM_TYPE, OOM_CONTROL),
- 	},
-+	{
-+		.name = "numa_stat",
-+		.open = mem_control_numa_stat_open,
-+	},
- };
- 
- #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
+Is that allowed (i.e. pass  kmalloc'd memory to sg_init_one)? That might
+be the source of the slub page in the scatterlist, no?
+
+Best regards
+Uwe
+
 -- 
-1.7.3.1
+Pengutronix e.K.                           | Uwe Kleine-Konig            |
+Industrial Linux Solutions                 | http://www.pengutronix.de/  |
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
