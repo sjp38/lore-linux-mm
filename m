@@ -1,9 +1,9 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A3B56B0012
-	for <linux-mm@kvack.org>; Wed, 18 May 2011 20:03:46 -0400 (EDT)
-Received: by qwa26 with SMTP id 26so1559467qwa.14
-        for <linux-mm@kvack.org>; Wed, 18 May 2011 17:03:44 -0700 (PDT)
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 5714F90010B
+	for <linux-mm@kvack.org>; Wed, 18 May 2011 20:09:42 -0400 (EDT)
+Received: by qwa26 with SMTP id 26so1561618qwa.14
+        for <linux-mm@kvack.org>; Wed, 18 May 2011 17:09:38 -0700 (PDT)
 MIME-Version: 1.0
 In-Reply-To: <20110517161508.GN5279@suse.de>
 References: <1305295404-12129-5-git-send-email-mgorman@suse.de>
@@ -17,8 +17,8 @@ References: <1305295404-12129-5-git-send-email-mgorman@suse.de>
 	<20110517103840.GL5279@suse.de>
 	<1305640239.2046.27.camel@lenovo>
 	<20110517161508.GN5279@suse.de>
-Date: Thu, 19 May 2011 09:03:44 +0900
-Message-ID: <BANLkTimfKwJWgiDp7m8WqeUK00N5sV=mWQ@mail.gmail.com>
+Date: Thu, 19 May 2011 09:09:37 +0900
+Message-ID: <BANLkTimUJeTbWV_0BzgjrDjY=Wpc-PaG5Q@mail.gmail.com>
 Subject: Re: [PATCH] mm: vmscan: Correctly check if reclaimer should schedule
  during shrink_slab
 From: Minchan Kim <minchan.kim@gmail.com>
@@ -26,8 +26,21 @@ Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: akpm@linux-foundation.org, Colin Ian King <colin.king@canonical.com>, James Bottomley <James.Bottomley@hansenpartnership.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, raghu.prabhu13@gmail.com, jack@suse.cz, chris.mason@oracle.com, cl@linux.com, penberg@kernel.org, riel@redhat.com, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-ext4@vger.kernel.org
+To: Mel Gorman <mgorman@suse.de>, Colin Ian King <colin.king@canonical.com>
+Cc: akpm@linux-foundation.org, James Bottomley <James.Bottomley@hansenpartnership.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, raghu.prabhu13@gmail.com, jack@suse.cz, chris.mason@oracle.com, cl@linux.com, penberg@kernel.org, riel@redhat.com, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-ext4@vger.kernel.org
+
+Hi Colin.
+
+Sorry for bothering you. :(
+I hope this test is last.
+
+We(Mel, KOSAKI and me) finalized opinion.
+
+Could you test below patch with patch[1/4] of Mel's series(ie,
+!pgdat_balanced  of sleeping_prematurely)?
+If it is successful, we will try to merge this version instead of
+various cond_resched sprinkling version.
+
 
 On Wed, May 18, 2011 at 1:15 AM, Mel Gorman <mgorman@suse.de> wrote:
 > It has been reported on some laptops that kswapd is consuming large
@@ -76,8 +89,49 @@ wapd calling
 > [mgorman@suse.de: Preserve call to cond_resched after each call into shri=
 nker]
 > From: Minchan Kim <minchan.kim@gmail.com>
-Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
 > Signed-off-by: Mel Gorman <mgorman@suse.de>
+> ---
+> =C2=A0mm/vmscan.c | =C2=A0 =C2=A09 +++++++--
+> =C2=A01 files changed, 7 insertions(+), 2 deletions(-)
+>
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index af24d1e..0bed248 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -230,8 +230,11 @@ unsigned long shrink_slab(unsigned long scanned, gfp=
+_t gfp_mask,
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0if (scanned =3D=3D 0)
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0scanned =3D SWAP_C=
+LUSTER_MAX;
+>
+> - =C2=A0 =C2=A0 =C2=A0 if (!down_read_trylock(&shrinker_rwsem))
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return 1; =C2=A0 =C2=
+=A0 =C2=A0 /* Assume we'll be able to shrink next time */
+> + =C2=A0 =C2=A0 =C2=A0 if (!down_read_trylock(&shrinker_rwsem)) {
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 /* Assume we'll be abl=
+e to shrink next time */
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 ret =3D 1;
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 goto out;
+> + =C2=A0 =C2=A0 =C2=A0 }
+>
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0list_for_each_entry(shrinker, &shrinker_list, =
+list) {
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0unsigned long long=
+ delta;
+> @@ -282,6 +285,8 @@ unsigned long shrink_slab(unsigned long scanned, gfp_=
+t gfp_mask,
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0shrinker->nr +=3D =
+total_scan;
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0}
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0up_read(&shrinker_rwsem);
+> +out:
+> + =C2=A0 =C2=A0 =C2=A0 cond_resched();
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0return ret;
+> =C2=A0}
+>
+>
+
+
 
 --=20
 Kind regards,
