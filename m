@@ -1,29 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id D5F796B0027
-	for <linux-mm@kvack.org>; Fri, 20 May 2011 10:32:05 -0400 (EDT)
-Date: Fri, 20 May 2011 09:32:01 -0500 (CDT)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id E51748D003B
+	for <linux-mm@kvack.org>; Fri, 20 May 2011 10:33:47 -0400 (EDT)
+Date: Fri, 20 May 2011 09:33:44 -0500 (CDT)
 From: Christoph Lameter <cl@linux.com>
 Subject: Re: [PATCH] kernel buffer overflow kmalloc_slab() fix
-In-Reply-To: <1305843552.2400.36.camel@localhost>
-Message-ID: <alpine.DEB.2.00.1105200931400.5610@router.home>
-References: <james_p_freyensee@linux.intel.com>  <1305834712-27805-2-git-send-email-james_p_freyensee@linux.intel.com>  <alpine.DEB.2.00.1105191550001.12530@router.home>  <1305839647.2400.32.camel@localhost>  <alpine.DEB.2.00.1105191618460.12530@router.home>
- <1305843552.2400.36.camel@localhost>
+In-Reply-To: <1305892971.2571.16.camel@mulgrave.site>
+Message-ID: <alpine.DEB.2.00.1105200932340.5610@router.home>
+References: <james_p_freyensee@linux.intel.com>  <1305834712-27805-2-git-send-email-james_p_freyensee@linux.intel.com>  <alpine.DEB.2.00.1105191550001.12530@router.home> <1305892971.2571.16.camel@mulgrave.site>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: J Freyensee <james_p_freyensee@linux.intel.com>
-Cc: linux-mm@kvack.org, gregkh@suse.de, hari.k.kanigeri@intel.com
+To: James Bottomley <James.Bottomley@HansenPartnership.com>
+Cc: james_p_freyensee@linux.intel.com, linux-mm@kvack.org, gregkh@suse.de, hari.k.kanigeri@intel.com, linux-arch@vger.kernel.org
 
-On Thu, 19 May 2011, J Freyensee wrote:
+On Fri, 20 May 2011, James Bottomley wrote:
 
-> > Not sure what to do instead of returning -1 in kmalloc_slab.
+> On Thu, 2011-05-19 at 15:51 -0500, Christoph Lameter wrote:
+> > On Thu, 19 May 2011, james_p_freyensee@linux.intel.com wrote:
+> >
+> > > From: J Freyensee <james_p_freyensee@linux.intel.com>
+> > >
+> > > Currently, kmalloc_index() can return -1, which can be
+> > > passed right to the kmalloc_caches[] array, cause a
+> >
+> > No kmalloc_index() cannot return -1 for the use case that you are
+> > considering here. The value passed as a size to
+> > kmalloc_slab is bounded by 2 * PAGE_SIZE and kmalloc_slab will only return
+> > -1 for sizes > 4M. So we will have to get machines with page sizes > 2M
+> > before this can be triggered.
 >
-> I think returning -1 is fine; I just think code using the function
-> should be checking for it and protect itself for errors in kernel space.
+> Please don't make x86 centric assumptions like this.  I was vaguely
+> thinking about hugepages in parisc.  Like most risc machines, we have
+> (and have had for over a decade) a vast number of variable size pages
+> (actually from 4k to 64MB in power of 4 steps) and I think sparc is
+> similar, so I was wondering what to choose.  You'd have been deeply
+> annoyed if I'd chosen 4MB and had slub fall over (again).
+>
+> linux-arch cc'd just so everyone else is aware of these limitations when
+> they implement hugepages.
 
-The function never returns -1 as I explained before.
+Well the simple solution would to put a BUG() in kmalloc_slab()
+instead of returning -1 (whereupon the compiler will complain that we are
+not returning a value). We tried the BUILD_BUG before but some compilers
+are not playing ball there.
 
 
 --
