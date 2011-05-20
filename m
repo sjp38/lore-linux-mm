@@ -1,67 +1,176 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 254326B0012
-	for <linux-mm@kvack.org>; Thu, 19 May 2011 23:38:28 -0400 (EDT)
-Received: by pzk4 with SMTP id 4so1957951pzk.14
-        for <linux-mm@kvack.org>; Thu, 19 May 2011 20:38:26 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <4DD5DC06.6010204@jp.fujitsu.com>
-References: <BANLkTikhj1C7+HXP_4T-VnJzPefU2d7b3A@mail.gmail.com>
- <20110512054631.GI6008@one.firstfloor.org> <BANLkTi=fk3DUT9cYd2gAzC98c69F6HXX7g@mail.gmail.com>
- <BANLkTikofp5rHRdW5dXfqJXb8VCAqPQ_7A@mail.gmail.com> <20110514165346.GV6008@one.firstfloor.org>
- <BANLkTik6SS9NH7XVSRBoCR16_5veY0MKBw@mail.gmail.com> <20110514174333.GW6008@one.firstfloor.org>
- <BANLkTinst+Ryox9VZ-s7gdXKa574XXqt5w@mail.gmail.com> <20110515152747.GA25905@localhost>
- <BANLkTim-AnEeL=z1sYm=iN7sMnG0+m0SHw@mail.gmail.com> <20110517060001.GC24069@localhost>
- <BANLkTi=TOm3aLQCD6j=4va6B+Jn2nSfwAg@mail.gmail.com> <BANLkTi=9W6-JXi94rZfTtTpAt3VUiY5fNw@mail.gmail.com>
- <BANLkTikHMUru=w4zzRmosrg2bDbsFWrkTQ@mail.gmail.com> <BANLkTima0hPrPwe_x06afAh+zTi-bOcRMg@mail.gmail.com>
- <BANLkTi=NTLn4Lx7EkybuA8-diTVOvMDxBw@mail.gmail.com> <BANLkTinEDXHuRUYpYN0d95+fz4+F7ccL4w@mail.gmail.com>
- <4DD5DC06.6010204@jp.fujitsu.com>
-From: Andrew Lutomirski <luto@mit.edu>
-Date: Thu, 19 May 2011 23:38:06 -0400
-Message-ID: <BANLkTik=7C5qFZTsPQG4JYY-MEWDTHdc6A@mail.gmail.com>
-Subject: Re: Kernel falls apart under light memory pressure (i.e. linking vmlinux)
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 208586B0012
+	for <linux-mm@kvack.org>; Thu, 19 May 2011 23:44:43 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 346CD3EE0AE
+	for <linux-mm@kvack.org>; Fri, 20 May 2011 12:44:39 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 1ABAC45DE84
+	for <linux-mm@kvack.org>; Fri, 20 May 2011 12:44:39 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0592445DE80
+	for <linux-mm@kvack.org>; Fri, 20 May 2011 12:44:39 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id E8436E78003
+	for <linux-mm@kvack.org>; Fri, 20 May 2011 12:44:38 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id A735B1DB8037
+	for <linux-mm@kvack.org>; Fri, 20 May 2011 12:44:38 +0900 (JST)
+Date: Fri, 20 May 2011 12:37:49 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH 0/8] memcg async reclaim v2
+Message-Id: <20110520123749.d54b32fa.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: minchan.kim@gmail.com, kamezawa.hiroyu@jp.fujitsu.com, fengguang.wu@intel.com, andi@firstfloor.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mgorman@suse.de, hannes@cmpxchg.org, riel@redhat.com
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, Ying Han <yinghan@google.com>, hannes@cmpxchg.org, Michal Hocko <mhocko@suse.cz>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 
-On Thu, May 19, 2011 at 11:12 PM, KOSAKI Motohiro
-<kosaki.motohiro@jp.fujitsu.com> wrote:
->> Right after that happened, I hit ctrl-c to kill test_mempressure.sh.
->> The system was OK until I typed sync, and then everything hung.
->>
->> I'm really confused. =A0shrink_inactive_list in
->> RECLAIM_MODE_LUMPYRECLAIM will call one of the isolate_pages functions
->> with ISOLATE_BOTH. =A0The resulting list goes into shrink_page_list,
->> which does VM_BUG_ON(PageActive(page)).
->>
->> How is that supposed to work?
->
-> Usually clear_active_flags() clear PG_active before calling
-> shrink_page_list().
->
-> shrink_inactive_list()
-> =A0 =A0isolate_pages_global()
-> =A0 =A0update_isolated_counts()
-> =A0 =A0 =A0 =A0clear_active_flags()
-> =A0 =A0shrink_page_list()
->
->
 
-That makes sense.  And I have CONFIG_COMPACTION=3Dy, so the lumpy mode
-doesn't get set anyway.
+Since v1, I did some brush up and more tests.
 
-But the pages I'm seeing have flags=3D100000000008005D.  If I'm reading
-it right, that means locked,referenced,uptodate,dirty,active.  How
-does a page like that end up in shrink_page_list?  I don't see how a
-page that's !PageLRU can get marked Active.  Nonetheless, I'm hitting
-that VM_BUG_ON.
+main changes are
+  - disabled at default
+  - add a control file to enable it
+  - never allow enabled on UP machine.
+  - don't writepage at all (revisit this when dirty_ratio comes.)
+  - change handling of priorty and total scan, add more sleep chances.
 
-Is there a race somewhere?
+But yes, maybe some more changes/tests will be needed and I don't want to
+rush before next kernel version.
 
---Andy
+IIUC, what pointed out in previous post was "show numbers". Because this kind of
+asyncronous reclaim just increase cpu usage and no help to latency, just makes
+scores bad.
+
+I tested with apatch bench in following way.
+
+  1. create cgroup /cgroup/memory/httpd
+  2. move httpd under it
+  3. create 4096 files under /var/www/html/data
+     each file's size is 160kb.
+  4. prepare a cgi scipt to acess 4096 files in random as
+  ==
+  #!/usr/bin/python
+  # -*- coding: utf-8 -*-
+
+  import random
+
+  print "Content-Type: text/plain\n\n"
+
+  num = int(round(random.normalvariate(0.5, 0.1) * 4096))
+  filename = "/var/www/html/data/" + str(num)
+
+  with open(filename) as f:
+         buf = f.read(128*1024)
+  print "Hello world  " + str(num) + "\n"
+  ==
+  This reads random file and returns Hello World. I used "normalvariate()"
+  for getting normal distribution access to files.
+
+  By this, 160kb*4096 files of data is accessed in normal distribution.
+
+  5. access files by apatch bench
+     # ab -n 40960 -c 4 localhost:8080/cgi-bin/rand.py
+ 
+  This access files 40960 times with concurrency 4.
+  And see latency under memory cgroup.
+
+  I run apatch bench 3 times for each test and following scores are score of
+  3rd trial, we can think file cache is in good state....
+  (But number other than "max" seems to be stable.)
+
+  Note: httpd and apache bench runs on the same host.
+
+A) No limit.
+
+Connection Times (ms)
+              min  mean[+/-sd] median   max
+Connect:        0    0   0.0      0       2
+Processing:    30   32   1.5     32     123
+Waiting:       28   31   1.5     31     122
+Total:         30   32   1.5     32     123
+
+Percentage of the requests served within a certain time (ms)
+  50%     32
+  66%     32
+  75%     32
+  80%     33
+  90%     33
+  95%     33
+  98%     34
+  99%     35
+ 100%    123 (longest request)
+
+If no limit, most of access can be end around 32msecs. After this, I saw
+memory.max_usage_in_bytes as mostly 600MB.
+
+
+B) limit to 300MB and disable async reclaim.
+
+Connection Times (ms)
+              min  mean[+/-sd] median   max
+Connect:        0    0   0.0      0       1
+Processing:    29   35  35.6     31    3507
+Waiting:       28   34  33.4     30    3506
+Total:         30   35  35.6     31    3507
+
+Percentage of the requests served within a certain time (ms)
+  50%     31
+  66%     32
+  75%     32
+  80%     32
+  90%     34
+  95%     43
+  98%     89
+  99%    134
+ 100%   3507 (longest request)
+
+When set limit, "max" latency can take various big value but latency goes
+bad. 
+
+C) limit to 300MB and enable async reclaim.
+
+Connection Times (ms)
+              min  mean[+/-sd] median   max
+Connect:        0    0   0.0      0       2
+Processing:    29   33   6.9     32     279
+Waiting:       27   32   6.8     31     275
+Total:         29   33   6.9     32     279
+
+Percentage of the requests served within a certain time (ms)
+  50%     32
+  66%     32
+  75%     33
+  80%     33
+  90%     37
+  95%     42
+  98%     51
+  99%     59
+ 100%    279 (longest request)
+
+It seems latency goes better and stable rather than test B).
+
+
+If you want to see other numbers/tests, please let me know. set up is easy.
+
+I think automatic asynchronous reclaim works effectively for some class of
+applications and stabilize its work.
+
+Thanks,
+-Kame
+
+
+
+
+
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
