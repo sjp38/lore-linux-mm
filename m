@@ -1,92 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 22A686B0023
-	for <linux-mm@kvack.org>; Thu, 19 May 2011 23:25:34 -0400 (EDT)
-From: Ying Han <yinghan@google.com>
-Subject: [PATCH V4 1/3] memcg: rename mem_cgroup_zone_nr_pages() to mem_cgroup_zone_nr_lru_pages()
-Date: Thu, 19 May 2011 20:24:49 -0700
-Message-Id: <1305861891-26140-1-git-send-email-yinghan@google.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 254326B0012
+	for <linux-mm@kvack.org>; Thu, 19 May 2011 23:38:28 -0400 (EDT)
+Received: by pzk4 with SMTP id 4so1957951pzk.14
+        for <linux-mm@kvack.org>; Thu, 19 May 2011 20:38:26 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <4DD5DC06.6010204@jp.fujitsu.com>
+References: <BANLkTikhj1C7+HXP_4T-VnJzPefU2d7b3A@mail.gmail.com>
+ <20110512054631.GI6008@one.firstfloor.org> <BANLkTi=fk3DUT9cYd2gAzC98c69F6HXX7g@mail.gmail.com>
+ <BANLkTikofp5rHRdW5dXfqJXb8VCAqPQ_7A@mail.gmail.com> <20110514165346.GV6008@one.firstfloor.org>
+ <BANLkTik6SS9NH7XVSRBoCR16_5veY0MKBw@mail.gmail.com> <20110514174333.GW6008@one.firstfloor.org>
+ <BANLkTinst+Ryox9VZ-s7gdXKa574XXqt5w@mail.gmail.com> <20110515152747.GA25905@localhost>
+ <BANLkTim-AnEeL=z1sYm=iN7sMnG0+m0SHw@mail.gmail.com> <20110517060001.GC24069@localhost>
+ <BANLkTi=TOm3aLQCD6j=4va6B+Jn2nSfwAg@mail.gmail.com> <BANLkTi=9W6-JXi94rZfTtTpAt3VUiY5fNw@mail.gmail.com>
+ <BANLkTikHMUru=w4zzRmosrg2bDbsFWrkTQ@mail.gmail.com> <BANLkTima0hPrPwe_x06afAh+zTi-bOcRMg@mail.gmail.com>
+ <BANLkTi=NTLn4Lx7EkybuA8-diTVOvMDxBw@mail.gmail.com> <BANLkTinEDXHuRUYpYN0d95+fz4+F7ccL4w@mail.gmail.com>
+ <4DD5DC06.6010204@jp.fujitsu.com>
+From: Andrew Lutomirski <luto@mit.edu>
+Date: Thu, 19 May 2011 23:38:06 -0400
+Message-ID: <BANLkTik=7C5qFZTsPQG4JYY-MEWDTHdc6A@mail.gmail.com>
+Subject: Re: Kernel falls apart under light memory pressure (i.e. linking vmlinux)
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>
-Cc: linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: minchan.kim@gmail.com, kamezawa.hiroyu@jp.fujitsu.com, fengguang.wu@intel.com, andi@firstfloor.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mgorman@suse.de, hannes@cmpxchg.org, riel@redhat.com
 
-The caller of the function has been renamed to zone_nr_lru_pages(), and this
-is just fixing up in the memcg code. The current name is easily to be mis-read
-as zone's total number of pages.
+On Thu, May 19, 2011 at 11:12 PM, KOSAKI Motohiro
+<kosaki.motohiro@jp.fujitsu.com> wrote:
+>> Right after that happened, I hit ctrl-c to kill test_mempressure.sh.
+>> The system was OK until I typed sync, and then everything hung.
+>>
+>> I'm really confused. =A0shrink_inactive_list in
+>> RECLAIM_MODE_LUMPYRECLAIM will call one of the isolate_pages functions
+>> with ISOLATE_BOTH. =A0The resulting list goes into shrink_page_list,
+>> which does VM_BUG_ON(PageActive(page)).
+>>
+>> How is that supposed to work?
+>
+> Usually clear_active_flags() clear PG_active before calling
+> shrink_page_list().
+>
+> shrink_inactive_list()
+> =A0 =A0isolate_pages_global()
+> =A0 =A0update_isolated_counts()
+> =A0 =A0 =A0 =A0clear_active_flags()
+> =A0 =A0shrink_page_list()
+>
+>
 
-This patch is based on mmotm-2011-05-06-16-39
+That makes sense.  And I have CONFIG_COMPACTION=3Dy, so the lumpy mode
+doesn't get set anyway.
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
-Signed-off-by: Ying Han <yinghan@google.com>
----
- include/linux/memcontrol.h |   10 +++++-----
- mm/memcontrol.c            |    6 +++---
- mm/vmscan.c                |    2 +-
- 3 files changed, 9 insertions(+), 9 deletions(-)
+But the pages I'm seeing have flags=3D100000000008005D.  If I'm reading
+it right, that means locked,referenced,uptodate,dirty,active.  How
+does a page like that end up in shrink_page_list?  I don't see how a
+page that's !PageLRU can get marked Active.  Nonetheless, I'm hitting
+that VM_BUG_ON.
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 77e47f5..22b3190 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -109,9 +109,9 @@ extern void mem_cgroup_end_migration(struct mem_cgroup *mem,
- int mem_cgroup_inactive_anon_is_low(struct mem_cgroup *memcg);
- int mem_cgroup_inactive_file_is_low(struct mem_cgroup *memcg);
- int mem_cgroup_select_victim_node(struct mem_cgroup *memcg);
--unsigned long mem_cgroup_zone_nr_pages(struct mem_cgroup *memcg,
--				       struct zone *zone,
--				       enum lru_list lru);
-+unsigned long mem_cgroup_zone_nr_lru_pages(struct mem_cgroup *memcg,
-+						struct zone *zone,
-+						enum lru_list lru);
- struct zone_reclaim_stat *mem_cgroup_get_reclaim_stat(struct mem_cgroup *memcg,
- 						      struct zone *zone);
- struct zone_reclaim_stat*
-@@ -306,8 +306,8 @@ mem_cgroup_inactive_file_is_low(struct mem_cgroup *memcg)
- }
- 
- static inline unsigned long
--mem_cgroup_zone_nr_pages(struct mem_cgroup *memcg, struct zone *zone,
--			 enum lru_list lru)
-+mem_cgroup_zone_nr_lru_pages(struct mem_cgroup *memcg, struct zone *zone,
-+			     enum lru_list lru)
- {
- 	return 0;
- }
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 95aecca..da183dc 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1151,9 +1151,9 @@ int mem_cgroup_inactive_file_is_low(struct mem_cgroup *memcg)
- 	return (active > inactive);
- }
- 
--unsigned long mem_cgroup_zone_nr_pages(struct mem_cgroup *memcg,
--				       struct zone *zone,
--				       enum lru_list lru)
-+unsigned long mem_cgroup_zone_nr_lru_pages(struct mem_cgroup *memcg,
-+						struct zone *zone,
-+						enum lru_list lru)
- {
- 	int nid = zone_to_nid(zone);
- 	int zid = zone_idx(zone);
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 292582c..fbbb958 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -172,7 +172,7 @@ static unsigned long zone_nr_lru_pages(struct zone *zone,
- 				struct scan_control *sc, enum lru_list lru)
- {
- 	if (!scanning_global_lru(sc))
--		return mem_cgroup_zone_nr_pages(sc->mem_cgroup, zone, lru);
-+		return mem_cgroup_zone_nr_lru_pages(sc->mem_cgroup, zone, lru);
- 
- 	return zone_page_state(zone, NR_LRU_BASE + lru);
- }
--- 
-1.7.3.1
+Is there a race somewhere?
+
+--Andy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
