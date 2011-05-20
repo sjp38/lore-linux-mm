@@ -1,26 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id EE79E6B0023
-	for <linux-mm@kvack.org>; Thu, 19 May 2011 23:48:58 -0400 (EDT)
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F8066B0023
+	for <linux-mm@kvack.org>; Thu, 19 May 2011 23:50:02 -0400 (EDT)
 Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 589733EE0BB
-	for <linux-mm@kvack.org>; Fri, 20 May 2011 12:48:56 +0900 (JST)
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 570BE3EE0C0
+	for <linux-mm@kvack.org>; Fri, 20 May 2011 12:49:59 +0900 (JST)
 Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 4088845DE80
-	for <linux-mm@kvack.org>; Fri, 20 May 2011 12:48:56 +0900 (JST)
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 40BE145DE89
+	for <linux-mm@kvack.org>; Fri, 20 May 2011 12:49:59 +0900 (JST)
 Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 21DDE45DE88
-	for <linux-mm@kvack.org>; Fri, 20 May 2011 12:48:56 +0900 (JST)
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 291F845DE80
+	for <linux-mm@kvack.org>; Fri, 20 May 2011 12:49:59 +0900 (JST)
 Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0BB0E1DB8040
-	for <linux-mm@kvack.org>; Fri, 20 May 2011 12:48:56 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id C4B5D1DB8037
-	for <linux-mm@kvack.org>; Fri, 20 May 2011 12:48:55 +0900 (JST)
-Date: Fri, 20 May 2011 12:42:12 +0900
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 1C34A1DB802F
+	for <linux-mm@kvack.org>; Fri, 20 May 2011 12:49:59 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id C9C9EE78007
+	for <linux-mm@kvack.org>; Fri, 20 May 2011 12:49:58 +0900 (JST)
+Date: Fri, 20 May 2011 12:43:12 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH 2/8] memcg: easy check routine for reclaimable
-Message-Id: <20110520124212.facdc595.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 0/8] memcg: clean up, export swapiness
+Message-Id: <20110520124312.5928aa92.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20110520123749.d54b32fa.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20110520123749.d54b32fa.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
@@ -31,63 +31,169 @@ List-ID: <linux-mm.kvack.org>
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, Ying Han <yinghan@google.com>, hannes@cmpxchg.org, Michal Hocko <mhocko@suse.cz>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 
+From: Ying Han <yinghan@google.com>
+change mem_cgroup's swappiness interface.
 
-A function for checking that a memcg has reclaimable pages. This makes
-use of mem->scan_nodes when CONFIG_NUMA=y.
+Now, memcg's swappiness interface is defined as 'static' and
+the value is passed as an argument to try_to_free_xxxx...
 
+This patch adds an function mem_cgroup_swappiness() and export it,
+reduce arguments. This interface will be used in async reclaim, later.
+
+I think an function is better than passing arguments because it's
+clearer where the swappiness comes from to scan_control.
+
+Signed-off-by: Ying Han <yinghan@google.com>
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 ---
  include/linux/memcontrol.h |    1 +
- mm/memcontrol.c            |   19 +++++++++++++++++++
- 2 files changed, 20 insertions(+)
+ include/linux/swap.h       |    4 +---
+ mm/memcontrol.c            |   14 ++++++--------
+ mm/vmscan.c                |    9 ++++-----
+ 4 files changed, 12 insertions(+), 16 deletions(-)
 
-Index: mmotm-May11/mm/memcontrol.c
-===================================================================
---- mmotm-May11.orig/mm/memcontrol.c
-+++ mmotm-May11/mm/memcontrol.c
-@@ -1587,11 +1587,30 @@ int mem_cgroup_select_victim_node(struct
- 	return node;
- }
- 
-+bool mem_cgroup_test_reclaimable(struct mem_cgroup *memcg)
-+{
-+	mem_cgroup_may_update_nodemask(memcg);
-+	return !nodes_empty(memcg->scan_nodes);
-+}
-+
- #else
- int mem_cgroup_select_victim_node(struct mem_cgroup *mem)
- {
- 	return 0;
- }
-+
-+bool mem_cgroup_test_reclaimable(struct mem_cgroup *memcg)
-+{
-+	unsigned long nr;
-+	int zid;
-+
-+	for (zid = NODE_DATA(0)->nr_zones - 1; zid >= 0; zid--)
-+		if (mem_cgroup_zone_reclaimable_pages(memcg, 0, zid))
-+			break;
-+	if (zid < 0)
-+		return false;
-+	return true;
-+}
- #endif
- 
- /*
 Index: mmotm-May11/include/linux/memcontrol.h
 ===================================================================
 --- mmotm-May11.orig/include/linux/memcontrol.h
 +++ mmotm-May11/include/linux/memcontrol.h
-@@ -110,6 +110,7 @@ int mem_cgroup_inactive_anon_is_low(stru
- int mem_cgroup_inactive_file_is_low(struct mem_cgroup *memcg);
- unsigned long
+@@ -112,6 +112,7 @@ unsigned long
  mem_cgroup_zone_reclaimable_pages(struct mem_cgroup *memcg, int nid, int zid);
-+bool mem_cgroup_test_reclaimable(struct mem_cgroup *memcg);
+ bool mem_cgroup_test_reclaimable(struct mem_cgroup *memcg);
  int mem_cgroup_select_victim_node(struct mem_cgroup *memcg);
++unsigned int mem_cgroup_swappiness(struct mem_cgroup *memcg);
  unsigned long mem_cgroup_zone_nr_pages(struct mem_cgroup *memcg,
  				       struct zone *zone,
+ 				       enum lru_list lru);
+Index: mmotm-May11/mm/memcontrol.c
+===================================================================
+--- mmotm-May11.orig/mm/memcontrol.c
++++ mmotm-May11/mm/memcontrol.c
+@@ -1285,7 +1285,7 @@ static unsigned long mem_cgroup_margin(s
+ 	return margin >> PAGE_SHIFT;
+ }
+ 
+-static unsigned int get_swappiness(struct mem_cgroup *memcg)
++unsigned int mem_cgroup_swappiness(struct mem_cgroup *memcg)
+ {
+ 	struct cgroup *cgrp = memcg->css.cgroup;
+ 
+@@ -1687,14 +1687,13 @@ static int mem_cgroup_hierarchical_recla
+ 		/* we use swappiness of local cgroup */
+ 		if (check_soft) {
+ 			ret = mem_cgroup_shrink_node_zone(victim, gfp_mask,
+-				noswap, get_swappiness(victim), zone,
+-				&nr_scanned);
++				noswap, zone, &nr_scanned);
+ 			*total_scanned += nr_scanned;
+ 			mem_cgroup_soft_steal(victim, is_kswapd, ret);
+ 			mem_cgroup_soft_scan(victim, is_kswapd, nr_scanned);
+ 		} else
+ 			ret = try_to_free_mem_cgroup_pages(victim, gfp_mask,
+-						noswap, get_swappiness(victim));
++					noswap);
+ 		css_put(&victim->css);
+ 		/*
+ 		 * At shrinking usage, we can't check we should stop here or
+@@ -3717,8 +3716,7 @@ try_to_free:
+ 			ret = -EINTR;
+ 			goto out;
+ 		}
+-		progress = try_to_free_mem_cgroup_pages(mem, GFP_KERNEL,
+-						false, get_swappiness(mem));
++		progress = try_to_free_mem_cgroup_pages(mem, GFP_KERNEL, false);
+ 		if (!progress) {
+ 			nr_retries--;
+ 			/* maybe some writeback is necessary */
+@@ -4150,7 +4148,7 @@ static u64 mem_cgroup_swappiness_read(st
+ {
+ 	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
+ 
+-	return get_swappiness(memcg);
++	return mem_cgroup_swappiness(memcg);
+ }
+ 
+ static int mem_cgroup_swappiness_write(struct cgroup *cgrp, struct cftype *cft,
+@@ -4836,7 +4834,7 @@ mem_cgroup_create(struct cgroup_subsys *
+ 	INIT_LIST_HEAD(&mem->oom_notify);
+ 
+ 	if (parent)
+-		mem->swappiness = get_swappiness(parent);
++		mem->swappiness = mem_cgroup_swappiness(parent);
+ 	atomic_set(&mem->refcnt, 1);
+ 	mem->move_charge_at_immigrate = 0;
+ 	mutex_init(&mem->thresholds_lock);
+Index: mmotm-May11/include/linux/swap.h
+===================================================================
+--- mmotm-May11.orig/include/linux/swap.h
++++ mmotm-May11/include/linux/swap.h
+@@ -252,11 +252,9 @@ static inline void lru_cache_add_file(st
+ extern unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
+ 					gfp_t gfp_mask, nodemask_t *mask);
+ extern unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem,
+-						  gfp_t gfp_mask, bool noswap,
+-						  unsigned int swappiness);
++						  gfp_t gfp_mask, bool noswap);
+ extern unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *mem,
+ 						gfp_t gfp_mask, bool noswap,
+-						unsigned int swappiness,
+ 						struct zone *zone,
+ 						unsigned long *nr_scanned);
+ extern int __isolate_lru_page(struct page *page, int mode, int file);
+Index: mmotm-May11/mm/vmscan.c
+===================================================================
+--- mmotm-May11.orig/mm/vmscan.c
++++ mmotm-May11/mm/vmscan.c
+@@ -2178,7 +2178,6 @@ unsigned long try_to_free_pages(struct z
+ 
+ unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *mem,
+ 						gfp_t gfp_mask, bool noswap,
+-						unsigned int swappiness,
+ 						struct zone *zone,
+ 						unsigned long *nr_scanned)
+ {
+@@ -2188,7 +2187,6 @@ unsigned long mem_cgroup_shrink_node_zon
+ 		.may_writepage = !laptop_mode,
+ 		.may_unmap = 1,
+ 		.may_swap = !noswap,
+-		.swappiness = swappiness,
+ 		.order = 0,
+ 		.mem_cgroup = mem,
+ 	};
+@@ -2196,6 +2194,8 @@ unsigned long mem_cgroup_shrink_node_zon
+ 	sc.gfp_mask = (gfp_mask & GFP_RECLAIM_MASK) |
+ 			(GFP_HIGHUSER_MOVABLE & ~GFP_RECLAIM_MASK);
+ 
++	sc.swappiness = mem_cgroup_swappiness(mem);
++
+ 	trace_mm_vmscan_memcg_softlimit_reclaim_begin(0,
+ 						      sc.may_writepage,
+ 						      sc.gfp_mask);
+@@ -2217,8 +2217,7 @@ unsigned long mem_cgroup_shrink_node_zon
+ 
+ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem_cont,
+ 					   gfp_t gfp_mask,
+-					   bool noswap,
+-					   unsigned int swappiness)
++					   bool noswap)
+ {
+ 	struct zonelist *zonelist;
+ 	unsigned long nr_reclaimed;
+@@ -2228,7 +2227,6 @@ unsigned long try_to_free_mem_cgroup_pag
+ 		.may_unmap = 1,
+ 		.may_swap = !noswap,
+ 		.nr_to_reclaim = SWAP_CLUSTER_MAX,
+-		.swappiness = swappiness,
+ 		.order = 0,
+ 		.mem_cgroup = mem_cont,
+ 		.nodemask = NULL, /* we don't care the placement */
+@@ -2245,6 +2243,7 @@ unsigned long try_to_free_mem_cgroup_pag
+ 	 * scan does not need to be the current node.
+ 	 */
+ 	nid = mem_cgroup_select_victim_node(mem_cont);
++	sc.swappiness = mem_cgroup_swappiness(mem_cont);
+ 
+ 	zonelist = NODE_DATA(nid)->node_zonelists;
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
