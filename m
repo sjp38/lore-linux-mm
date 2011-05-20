@@ -1,74 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 631106B0038
-	for <linux-mm@kvack.org>; Fri, 20 May 2011 18:34:20 -0400 (EDT)
-Received: by gwaa12 with SMTP id a12so1957392gwa.14
-        for <linux-mm@kvack.org>; Fri, 20 May 2011 15:34:18 -0700 (PDT)
-Date: Fri, 20 May 2011 19:30:34 -0300
-From: Rafael Aquini <aquini@linux.com>
-Subject: Re: [PATCH] [BUGFIX] mm: hugepages can cause negative commitlimit
-Message-ID: <20110520223032.GA15192@x61.tchesoft.com>
-Reply-To: aquini@linux.com
-References: <20110518153445.GA18127@sgi.com>
- <BANLkTinbHnrf2isuLzUFZN8ypaT476G1zw@mail.gmail.com>
- <20110519045630.GA22533@sgi.com>
- <BANLkTinyYP-je9Nf8X-xWEdpgvn8a631Mw@mail.gmail.com>
- <20110519221101.GC19648@sgi.com>
- <20110520130411.d1e0baef.akpm@linux-foundation.org>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id D9A88900114
+	for <linux-mm@kvack.org>; Fri, 20 May 2011 18:47:46 -0400 (EDT)
+Received: from kpbe14.cbf.corp.google.com (kpbe14.cbf.corp.google.com [172.25.105.78])
+	by smtp-out.google.com with ESMTP id p4KMlaEM003481
+	for <linux-mm@kvack.org>; Fri, 20 May 2011 15:47:41 -0700
+Received: from pxi9 (pxi9.prod.google.com [10.243.27.9])
+	by kpbe14.cbf.corp.google.com with ESMTP id p4KMlYrB011948
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 20 May 2011 15:47:35 -0700
+Received: by pxi9 with SMTP id 9so4809789pxi.28
+        for <linux-mm@kvack.org>; Fri, 20 May 2011 15:47:34 -0700 (PDT)
+Date: Fri, 20 May 2011 15:47:33 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: [PATCH] tmpfs: fix highmem swapoff crash regression
+Message-ID: <alpine.LSU.2.00.1105201535530.1899@sister.anvils>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110520130411.d1e0baef.akpm@linux-foundation.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Russ Anderson <rja@sgi.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Witold Baryluk <baryluk@smp.if.uj.edu.pl>, Nitin Gupta <ngupta@vflare.org>, Konstantin Khlebnikov <khlebnikov@openvz.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, May 20, 2011 at 01:04:11PM -0700, Andrew Morton wrote:
-> On Thu, 19 May 2011 17:11:01 -0500
-> Russ Anderson <rja@sgi.com> wrote:
-> 
-> > OK, I see your point.  The root problem is hugepages allocated at boot are
-> > subtracted from totalram_pages but hugepages allocated at run time are not.
-> > Correct me if I've mistate it or are other conditions.
-> > 
-> > By "allocated at run time" I mean "echo 1 > /proc/sys/vm/nr_hugepages".
-> > That allocation will not change totalram_pages but will change
-> > hugetlb_total_pages().
-> > 
-> > How best to fix this inconsistency?  Should totalram_pages include or exclude
-> > hugepages?  What are the implications?
-> 
-> The problem is that hugetlb_total_pages() is trying to account for two
-> different things, while totalram_pages accounts for only one of those
-> things, yes?
-> 
-> One fix would be to stop accounting for huge pages in totalram_pages
-> altogether.  That might break other things so careful checking would be
-> needed.
-> 
-> Or we stop accounting for the boot-time allocated huge pages in
-> hugetlb_total_pages().  Split the two things apart altogether and
-> account for boot-time allocated and runtime-allocated pages separately.  This
-> souds saner to me - it reflects what's actually happening in the kernel.
+Commit 778dd893ae78 "tmpfs: fix race between umount and swapoff"
+forgot the new rules for strict atomic kmap nesting, causing
+WARNING: at arch/x86/mm/highmem_32.c:81 from __kunmap_atomic(), then
+BUG: unable to handle kernel paging request at fffb9000 from shmem_swp_set()
+when shmem_unuse_inode() is handling swapoff with highmem in use.
+My disgrace again.  See https://bugzilla.kernel.org/show_bug.cgi?id=35352
 
-Perhaps we can just reinstate the # of pages "stealed" at early boot allocation
-later, when hugetlb_init() calls gather_bootmem_prealloc()
+Reported-by: Witold Baryluk <baryluk@smp.if.uj.edu.pl>
+Signed-off-by: Hugh Dickins <hughd@google.com>
+Cc: stable@kernel.org
+---
 
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 8ee3bd8..d606c9c 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -1111,6 +1111,7 @@ static void __init gather_bootmem_prealloc(void)
-                WARN_ON(page_count(page) != 1);
-                prep_compound_huge_page(page, h->order);
-                prep_new_huge_page(h, page, page_to_nid(page));
-+               totalram_pages += 1 << h->order;
-        }
- }
+ mm/shmem.c |    3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
 
--- 
-Rafael Aquini <aquini@linux.com>
+--- 2.6.39/mm/shmem.c	2011-05-18 21:06:34.000000000 -0700
++++ linux/mm/shmem.c	2011-05-20 13:57:20.778870967 -0700
+@@ -916,11 +916,12 @@ static int shmem_unuse_inode(struct shme
+ 			if (size > ENTRIES_PER_PAGE)
+ 				size = ENTRIES_PER_PAGE;
+ 			offset = shmem_find_swp(entry, ptr, ptr+size);
++			shmem_swp_unmap(ptr);
+ 			if (offset >= 0) {
+ 				shmem_dir_unmap(dir);
++				ptr = shmem_swp_map(subdir);
+ 				goto found;
+ 			}
+-			shmem_swp_unmap(ptr);
+ 		}
+ 	}
+ lost1:
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
