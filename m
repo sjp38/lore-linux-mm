@@ -1,39 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 293EA6B0012
-	for <linux-mm@kvack.org>; Thu, 19 May 2011 19:58:45 -0400 (EDT)
-Received: by qyk30 with SMTP id 30so2333231qyk.14
-        for <linux-mm@kvack.org>; Thu, 19 May 2011 16:58:44 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <1305826360-2167-1-git-send-email-yinghan@google.com>
-References: <1305826360-2167-1-git-send-email-yinghan@google.com>
-Date: Fri, 20 May 2011 08:58:44 +0900
-Message-ID: <BANLkTik2uUwJmWuwhmX_L1wRsQ0hbBzvsg@mail.gmail.com>
-Subject: Re: [PATCH V3 1/3] memcg: rename mem_cgroup_zone_nr_pages() to mem_cgroup_zone_nr_lru_pages()
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D91B6B0011
+	for <linux-mm@kvack.org>; Thu, 19 May 2011 20:04:52 -0400 (EDT)
+Date: Thu, 19 May 2011 17:04:46 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH V3 2/2] mm: Extend memory hotplug API to allow memory
+ hotplug in virtual machines
+Message-Id: <20110519170446.477b39ba.akpm@linux-foundation.org>
+In-Reply-To: <20110519232520.GB28832@router-fw-old.local.net-space.pl>
+References: <20110517213858.GC30232@router-fw-old.local.net-space.pl>
+	<alpine.DEB.2.00.1105182026390.20651@chino.kir.corp.google.com>
+	<20110519204509.GD27202@router-fw-old.local.net-space.pl>
+	<20110519160143.02163f36.akpm@linux-foundation.org>
+	<20110519232520.GB28832@router-fw-old.local.net-space.pl>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>, linux-mm@kvack.org
+To: Daniel Kiper <dkiper@net-space.pl>
+Cc: David Rientjes <rientjes@google.com>, ian.campbell@citrix.com, haicheng.li@linux.intel.com, fengguang.wu@intel.com, jeremy@goop.org, konrad.wilk@oracle.com, dan.magenheimer@oracle.com, v.tolstov@selfip.ru, pasik@iki.fi, dave@linux.vnet.ibm.com, wdauchy@gmail.com, xen-devel@lists.xensource.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, May 20, 2011 at 2:32 AM, Ying Han <yinghan@google.com> wrote:
-> The caller of the function has been renamed to zone_nr_lru_pages(), and this
-> is just fixing up in the memcg code. The current name is easily to be mis-read
-> as zone's total number of pages.
->
-> This patch is based on mmotm-2011-05-06-16-39
->
-> no change since v1.
->
-> Signed-off-by: Ying Han <yinghan@google.com>
->
-> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
-Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+On Fri, 20 May 2011 01:25:20 +0200 Daniel Kiper <dkiper@net-space.pl> wrote:
 
--- 
-Kind regards,
-Minchan Kim
+> On Thu, May 19, 2011 at 04:01:43PM -0700, Andrew Morton wrote:
+> > On Thu, 19 May 2011 22:45:09 +0200
+> > Daniel Kiper <dkiper@net-space.pl> wrote:
+> >
+> > > On Wed, May 18, 2011 at 08:36:02PM -0700, David Rientjes wrote:
+> > > > On Tue, 17 May 2011, Daniel Kiper wrote:
+> > > >
+> > > > > This patch contains online_page_callback and apropriate functions for
+> > > > > setting/restoring online page callbacks. It allows to do some machine
+> > > > > specific tasks during online page stage which is required to implement
+> > > > > memory hotplug in virtual machines. Additionally, __online_page_set_limits(),
+> > > > > __online_page_increment_counters() and __online_page_free() function
+> > > > > was added to ease generic hotplug operation.
+> > > >
+> > > > There are several issues with this.
+> > > >
+> > > > First, this is completely racy and only allows one global callback to be
+> > > > in use at a time without looping, which is probably why you had to pass an
+> > >
+> > > One callback is allowed by design. Currently I do not see
+> > > any real usage for more than one callback.
+> >
+> > I'd suggest that you try using the notifier.h tools here and remove the
+> > restriction.  Sure, we may never use the capability but I expect the
+> > code will look nice and simple and once it's done, it's done.
+> 
+> Hmmm... I am a bit confused. Here https://lkml.org/lkml/2011/3/28/510 you
+> was against (ab)using notifiers. Here https://lkml.org/lkml/2011/3/29/313
+> you proposed currently implemented solution. Maybe I missed something...
+> What should I do now ??? I agree that the code should look nice and simple
+> and once it's done, it's done.
+
+Oh, OK, the callback's role is to free a page, so there's no sens in
+there ever being more than a single registered callback.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
