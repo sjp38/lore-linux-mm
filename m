@@ -1,69 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 858D16B0022
-	for <linux-mm@kvack.org>; Fri, 20 May 2011 02:23:52 -0400 (EDT)
-Date: Fri, 20 May 2011 16:23:47 +1000
-From: Stephen Rothwell <sfr@canb.auug.org.au>
-Subject: linux-next: build failure after merge of the final tree
-Message-Id: <20110520162347.6c780d3b.sfr@canb.auug.org.au>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id D373E6B0022
+	for <linux-mm@kvack.org>; Fri, 20 May 2011 02:48:43 -0400 (EDT)
+Message-ID: <4DD60F57.8030000@ladisch.de>
+Date: Fri, 20 May 2011 08:51:03 +0200
+From: Clemens Ladisch <clemens@ladisch.de>
+MIME-Version: 1.0
+Subject: Re: mmap() implementation for pci_alloc_consistent() memory?
+References: <BANLkTi==cinS1bZc_ARRbnYT3YD+FQr8gA@mail.gmail.com>	<20110519145921.GE9854@dumpdata.com>	<4DD53E2B.2090002@ladisch.de> <BANLkTinO1xR4XTN2B325pKCpJ3AjC9YidA@mail.gmail.com>
+In-Reply-To: <BANLkTinO1xR4XTN2B325pKCpJ3AjC9YidA@mail.gmail.com>
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus <torvalds@linux-foundation.org>
-Cc: linux-next@vger.kernel.org, linux-kernel@vger.kernel.org, "David S. Miller" <davem@davemloft.net>, linux-mm@kvack.org
+To: Leon Woestenberg <leon.woestenberg@gmail.com>
+Cc: Takashi Iwai <tiwai@suse.de>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, linux-pci@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi all,
+Leon Woestenberg wrote:
+> On Thu, May 19, 2011 at 5:58 PM, Clemens Ladisch <clemens@ladisch.de> wrote:
+>>> On Thu, May 19, 2011 at 12:14:40AM +0200, Leon Woestenberg wrote:
+>>> >     vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+>>
+>> So is this an architecture without coherent caches?
+> 
+> My aim is to have an architecture independent driver.
 
-After merging the final tree, today's linux-next build (sparc32 defconfig)
-failed like this:
+Please note that most MMU architectures forbid mapping the same memory
+with different attributes, so you must use pgprot_noncached if and only
+if dma_alloc_coherent actually uses it.  Something like the code below.
 
-mm/prio_tree.c: In function 'vma_prio_tree_next':
-mm/prio_tree.c:178: error: implicit declaration of function 'prefetch'
+And I'm not sure if you have to do some additional cache flushes when
+mapping on some architectures.
 
-Caused by commit e66eed651fd1 ("list: remove prefetching from regular list
-iterators").
+>> Or would you want to use pgprot_dmacoherent, if available?
+> 
+> Hmm, let me check that.
 
-I added this patch  for today:
+It's available only on ARM and Unicore32.
 
-From: Stephen Rothwell <sfr@canb.auug.org.au>
-Date: Fri, 20 May 2011 16:19:57 +1000
-Subject: [PATCH] mm: include prefetch.h
+There's also dma_mmap_coherent(), which does exactly what you want if
+your buffer is physically contiguous, but it's ARM only.
+Takashi tried to implement it for other architectures; I don't know
+what came of it.
 
-Commit e66eed651fd1 ("list: remove prefetching from regular list
-iterators") removed the include of prefetch.h from list.h, so include
-it explicitly.
 
-Fixes thids build error on sparc32:
+Regards,
+Clemens
 
-mm/prio_tree.c: In function 'vma_prio_tree_next':
-mm/prio_tree.c:178: error: implicit declaration of function 'prefetch'
 
-Signed-off-by: Stephen Rothwell <sfr@canb.auug.org.au>
----
- mm/prio_tree.c |    1 +
- 1 files changed, 1 insertions(+), 0 deletions(-)
+#ifndef pgprot_dmacoherent
+/* determine whether coherent mappings need to be uncached */
+#if defined(CONFIG_ALPHA) || \
+    defined(CONFIG_CRIS) || \
+    defined(CONFIG_IA64) || \
+    (defined(CONFIG_MIPS) && defined(CONFIG_DMA_COHERENT)) || \
+    (defined(CONFIG_PPC) && !defined(CONFIG_NOT_COHERENT_CACHE)) || \
+    defined(CONFIG_SPARC64) || \
+    defined(CONFIG_X86)
+#define ARCH_HAS_DMA_COHERENT_CACHE
+#endif
+#endif
 
-diff --git a/mm/prio_tree.c b/mm/prio_tree.c
-index 603ae98..799dcfd 100644
---- a/mm/prio_tree.c
-+++ b/mm/prio_tree.c
-@@ -13,6 +13,7 @@
- 
- #include <linux/mm.h>
- #include <linux/prio_tree.h>
-+#include <linux/prefetch.h>
- 
- /*
-  * See lib/prio_tree.c for details on the general radix priority search tree
--- 
-1.7.5.1
-
--- 
-Cheers,
-Stephen Rothwell                    sfr@canb.auug.org.au
-http://www.canb.auug.org.au/~sfr/
+	...
+#ifdef pgprot_dmacoherent
+	vma->vm_page_prot = pgprot_dmacoherent(vma->vm_page_prot);
+#elif !defined(ARCH_HAS_DMA_COHERENT_CACHE)
+#ifdef CONFIG_MIPS
+	if (!plat_device_is_coherent(device))
+#endif
+		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+#endif
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
