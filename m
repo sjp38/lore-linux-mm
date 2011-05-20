@@ -1,56 +1,198 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 987608D003B
-	for <linux-mm@kvack.org>; Thu, 19 May 2011 23:12:20 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id DE3EF3EE0C3
-	for <linux-mm@kvack.org>; Fri, 20 May 2011 12:12:17 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id C635345DE96
-	for <linux-mm@kvack.org>; Fri, 20 May 2011 12:12:17 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9838F45DE94
-	for <linux-mm@kvack.org>; Fri, 20 May 2011 12:12:17 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 884BB1DB8037
-	for <linux-mm@kvack.org>; Fri, 20 May 2011 12:12:17 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 518CEE08002
-	for <linux-mm@kvack.org>; Fri, 20 May 2011 12:12:17 +0900 (JST)
-Message-ID: <4DD5DC06.6010204@jp.fujitsu.com>
-Date: Fri, 20 May 2011 12:12:06 +0900
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 54E276B0012
+	for <linux-mm@kvack.org>; Thu, 19 May 2011 23:23:11 -0400 (EDT)
+Received: from wpaz21.hot.corp.google.com (wpaz21.hot.corp.google.com [172.24.198.85])
+	by smtp-out.google.com with ESMTP id p4K3N7Ap008207
+	for <linux-mm@kvack.org>; Thu, 19 May 2011 20:23:07 -0700
+Received: from qwk3 (qwk3.prod.google.com [10.241.195.131])
+	by wpaz21.hot.corp.google.com with ESMTP id p4K3N6P1001774
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 19 May 2011 20:23:06 -0700
+Received: by qwk3 with SMTP id 3so1670368qwk.19
+        for <linux-mm@kvack.org>; Thu, 19 May 2011 20:23:06 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: Kernel falls apart under light memory pressure (i.e. linking
- vmlinux)
-References: <BANLkTikhj1C7+HXP_4T-VnJzPefU2d7b3A@mail.gmail.com> <20110512054631.GI6008@one.firstfloor.org> <BANLkTi=fk3DUT9cYd2gAzC98c69F6HXX7g@mail.gmail.com> <BANLkTikofp5rHRdW5dXfqJXb8VCAqPQ_7A@mail.gmail.com> <20110514165346.GV6008@one.firstfloor.org> <BANLkTik6SS9NH7XVSRBoCR16_5veY0MKBw@mail.gmail.com> <20110514174333.GW6008@one.firstfloor.org> <BANLkTinst+Ryox9VZ-s7gdXKa574XXqt5w@mail.gmail.com> <20110515152747.GA25905@localhost> <BANLkTim-AnEeL=z1sYm=iN7sMnG0+m0SHw@mail.gmail.com> <20110517060001.GC24069@localhost> <BANLkTi=TOm3aLQCD6j=4va6B+Jn2nSfwAg@mail.gmail.com> <BANLkTi=9W6-JXi94rZfTtTpAt3VUiY5fNw@mail.gmail.com> <BANLkTikHMUru=w4zzRmosrg2bDbsFWrkTQ@mail.gmail.com> <BANLkTima0hPrPwe_x06afAh+zTi-bOcRMg@mail.gmail.com> <BANLkTi=NTLn4Lx7EkybuA8-diTVOvMDxBw@mail.gmail.com> <BANLkTinEDXHuRUYpYN0d95+fz4+F7ccL4w@mail.gmail.com>
-In-Reply-To: <BANLkTinEDXHuRUYpYN0d95+fz4+F7ccL4w@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <4DD5D92B.8030209@jp.fujitsu.com>
+References: <4DD5D92B.8030209@jp.fujitsu.com>
+Date: Thu, 19 May 2011 20:23:05 -0700
+Message-ID: <BANLkTik3cC9f5M6xB4zpVPpRg8Y_+MtTaw@mail.gmail.com>
+Subject: Re: [PATCH V2 2/2] change shrinker API by passing shrink_control struct
+From: Ying Han <yinghan@google.com>
+Content-Type: multipart/alternative; boundary=0016e64aefdadf8b6004a3aca3ae
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: luto@mit.edu
-Cc: minchan.kim@gmail.com, kamezawa.hiroyu@jp.fujitsu.com, fengguang.wu@intel.com, andi@firstfloor.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mgorman@suse.de, hannes@cmpxchg.org, riel@redhat.com
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-> Right after that happened, I hit ctrl-c to kill test_mempressure.sh.
-> The system was OK until I typed sync, and then everything hung.
+--0016e64aefdadf8b6004a3aca3ae
+Content-Type: text/plain; charset=ISO-8859-1
+
+On Thu, May 19, 2011 at 7:59 PM, KOSAKI Motohiro <
+kosaki.motohiro@jp.fujitsu.com> wrote:
+
+> > Hmm, got Nick's email wrong.
+> >
+> > --Ying
 >
-> I'm really confused.  shrink_inactive_list in
-> RECLAIM_MODE_LUMPYRECLAIM will call one of the isolate_pages functions
-> with ISOLATE_BOTH.  The resulting list goes into shrink_page_list,
-> which does VM_BUG_ON(PageActive(page)).
+> Ping.
+> Can you please explain current status? When I can see your answer?
 >
-> How is that supposed to work?
 
-Usually clear_active_flags() clear PG_active before calling shrink_page_list().
+The patch has been merged into mmotm-04-29-16-25. Sorry if there is a
+question that I missed ?
 
-shrink_inactive_list()
-     isolate_pages_global()
-     update_isolated_counts()
-         clear_active_flags()
-     shrink_page_list()
+--Ying
 
+>
+>
+> >
+> > On Tue, Apr 26, 2011 at 6:15 PM, Ying Han <yinghan@google.com> wrote:
+> >> On Tue, Apr 26, 2011 at 5:47 PM, KOSAKI Motohiro
+> >> <kosaki.motohiro@jp.fujitsu.com> wrote:
+> >>>> > >  {
+> >>>> > >       struct xfs_mount *mp;
+> >>>> > >       struct xfs_perag *pag;
+> >>>> > >       xfs_agnumber_t  ag;
+> >>>> > >       int             reclaimable;
+> >>>> > > +     int nr_to_scan = sc->nr_slab_to_reclaim;
+> >>>> > > +     gfp_t gfp_mask = sc->gfp_mask;
+> >>>> >
+> >>>> > And, this very near meaning field .nr_scanned and
+> .nr_slab_to_reclaim
+> >>>> > poped up new question.
+> >>>> > Why don't we pass more clever slab shrinker target? Why do we need
+> pass
+> >>>> > similar two argument?
+> >>>> >
+> >>>>
+> >>>> I renamed the nr_slab_to_reclaim and nr_scanned in shrink struct.
+> >>>
+> >>> Oh no. that's not naming issue. example, Nick's previous similar patch
+> pass
+> >>> zone-total-pages and how-much-scanned-pages. (ie shrink_slab don't
+> calculate
+> >>> current magical target scanning objects anymore)
+> >>>        ie,  "4 *  max_pass  * (scanned / nr- lru_pages-in-zones)"
+> >>>
+> >>> Instead, individual shrink_slab callback calculate this one.
+> >>> see git://
+> git.kernel.org/pub/scm/linux/kernel/git/npiggin/linux-npiggin.git
+> >>>
+> >>> I'm curious why you change the design from another guy's previous very
+> similar effort and
+> >>> We have to be convinced which is better.
+> >>
+> >> Thank you for the pointer. My patch is intended to consolidate all
+> >> existing parameters passed from reclaim code
+> >> to the shrinker.
+> >>
+> >> Talked w/ Nick and Andrew from last LSF,  we agree that this patch
+> >> will be useful for other extensions later which allows us easily
+> >> adding extensions to the shrinkers without shrinker files. Nick and I
+> >> talked about the effort later to pass the nodemask down to the
+> >> shrinker. He is cc-ed in the thread. Another thing I would like to
+> >> repost is to add the reclaim priority down to the shrinker, which we
+> >> won't throw tons of page caches pages by reclaiming one inode slab
+> >> object.
+> >>
+> >> --Ying
+>
+>
+>
 
+--0016e64aefdadf8b6004a3aca3ae
+Content-Type: text/html; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
+
+<br><br><div class=3D"gmail_quote">On Thu, May 19, 2011 at 7:59 PM, KOSAKI =
+Motohiro <span dir=3D"ltr">&lt;<a href=3D"mailto:kosaki.motohiro@jp.fujitsu=
+.com">kosaki.motohiro@jp.fujitsu.com</a>&gt;</span> wrote:<br><blockquote c=
+lass=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid;=
+padding-left:1ex;">
+&gt; Hmm, got Nick&#39;s email wrong.<br>
+&gt;<br>
+&gt; --Ying<br>
+<br>
+Ping.<br>
+Can you please explain current status? When I can see your answer?<br></blo=
+ckquote><div>=A0</div><div>The patch has been merged into mmotm-04-29-16-25=
+. Sorry if there is a question that I missed ?</div><div><br></div><div>
+--Ying</div><blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;bo=
+rder-left:1px #ccc solid;padding-left:1ex;">
+<br>
+<br>
+&gt;<br>
+&gt; On Tue, Apr 26, 2011 at 6:15 PM, Ying Han &lt;<a href=3D"mailto:yingha=
+n@google.com">yinghan@google.com</a>&gt; wrote:<br>
+&gt;&gt; On Tue, Apr 26, 2011 at 5:47 PM, KOSAKI Motohiro<br>
+&gt;&gt; &lt;<a href=3D"mailto:kosaki.motohiro@jp.fujitsu.com">kosaki.motoh=
+iro@jp.fujitsu.com</a>&gt; wrote:<br>
+&gt;&gt;&gt;&gt; &gt; &gt; =A0{<br>
+&gt;&gt;&gt;&gt; &gt; &gt; =A0 =A0 =A0 struct xfs_mount *mp;<br>
+&gt;&gt;&gt;&gt; &gt; &gt; =A0 =A0 =A0 struct xfs_perag *pag;<br>
+&gt;&gt;&gt;&gt; &gt; &gt; =A0 =A0 =A0 xfs_agnumber_t =A0ag;<br>
+&gt;&gt;&gt;&gt; &gt; &gt; =A0 =A0 =A0 int =A0 =A0 =A0 =A0 =A0 =A0 reclaima=
+ble;<br>
+&gt;&gt;&gt;&gt; &gt; &gt; + =A0 =A0 int nr_to_scan =3D sc-&gt;nr_slab_to_r=
+eclaim;<br>
+&gt;&gt;&gt;&gt; &gt; &gt; + =A0 =A0 gfp_t gfp_mask =3D sc-&gt;gfp_mask;<br=
+>
+&gt;&gt;&gt;&gt; &gt;<br>
+&gt;&gt;&gt;&gt; &gt; And, this very near meaning field .nr_scanned and .nr=
+_slab_to_reclaim<br>
+&gt;&gt;&gt;&gt; &gt; poped up new question.<br>
+&gt;&gt;&gt;&gt; &gt; Why don&#39;t we pass more clever slab shrinker targe=
+t? Why do we need pass<br>
+&gt;&gt;&gt;&gt; &gt; similar two argument?<br>
+&gt;&gt;&gt;&gt; &gt;<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; I renamed the nr_slab_to_reclaim and nr_scanned in shrink =
+struct.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; Oh no. that&#39;s not naming issue. example, Nick&#39;s previo=
+us similar patch pass<br>
+&gt;&gt;&gt; zone-total-pages and how-much-scanned-pages. (ie shrink_slab d=
+on&#39;t calculate<br>
+&gt;&gt;&gt; current magical target scanning objects anymore)<br>
+&gt;&gt;&gt; =A0 =A0 =A0 =A0ie, =A0&quot;4 * =A0max_pass =A0* (scanned / nr=
+- lru_pages-in-zones)&quot;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; Instead, individual shrink_slab callback calculate this one.<b=
+r>
+&gt;&gt;&gt; see git://<a href=3D"http://git.kernel.org/pub/scm/linux/kerne=
+l/git/npiggin/linux-npiggin.git" target=3D"_blank">git.kernel.org/pub/scm/l=
+inux/kernel/git/npiggin/linux-npiggin.git</a><br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; I&#39;m curious why you change the design from another guy&#39=
+;s previous very similar effort and<br>
+&gt;&gt;&gt; We have to be convinced which is better.<br>
+&gt;&gt;<br>
+&gt;&gt; Thank you for the pointer. My patch is intended to consolidate all=
+<br>
+&gt;&gt; existing parameters passed from reclaim code<br>
+&gt;&gt; to the shrinker.<br>
+&gt;&gt;<br>
+&gt;&gt; Talked w/ Nick and Andrew from last LSF, =A0we agree that this pat=
+ch<br>
+&gt;&gt; will be useful for other extensions later which allows us easily<b=
+r>
+&gt;&gt; adding extensions to the shrinkers without shrinker files. Nick an=
+d I<br>
+&gt;&gt; talked about the effort later to pass the nodemask down to the<br>
+&gt;&gt; shrinker. He is cc-ed in the thread. Another thing I would like to=
+<br>
+&gt;&gt; repost is to add the reclaim priority down to the shrinker, which =
+we<br>
+&gt;&gt; won&#39;t throw tons of page caches pages by reclaiming one inode =
+slab<br>
+&gt;&gt; object.<br>
+&gt;&gt;<br>
+&gt;&gt; --Ying<br>
+<br>
+<br>
+</blockquote></div><br>
+
+--0016e64aefdadf8b6004a3aca3ae--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
