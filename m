@@ -1,132 +1,260 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 0DC07900114
-	for <linux-mm@kvack.org>; Fri, 20 May 2011 17:51:25 -0400 (EDT)
-Date: Fri, 20 May 2011 14:51:15 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 8/8] memcg asyncrhouns reclaim workqueue
-Message-Id: <20110520145115.d52f3693.akpm@linux-foundation.org>
-In-Reply-To: <20110520124837.72978344.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20110520123749.d54b32fa.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110520124837.72978344.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 819EF6B0025
+	for <linux-mm@kvack.org>; Fri, 20 May 2011 18:02:41 -0400 (EDT)
+From: Ying Han <yinghan@google.com>
+Subject: [PATCH V5] memcg: add memory.numastat api for numa statistics
+Date: Fri, 20 May 2011 15:01:58 -0700
+Message-Id: <1305928918-15207-1-git-send-email-yinghan@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, Ying Han <yinghan@google.com>, hannes@cmpxchg.org, Michal Hocko <mhocko@suse.cz>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>
+Cc: linux-mm@kvack.org
 
-On Fri, 20 May 2011 12:48:37 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+The new API exports numa_maps per-memcg basis. This is a piece of useful
+information where it exports per-memcg page distribution across real numa
+nodes.
 
-> workqueue for memory cgroup asynchronous memory shrinker.
-> 
-> This patch implements the workqueue of async shrinker routine. each
-> memcg has a work and only one work can be scheduled at the same time.
-> 
-> If shrinking memory doesn't goes well, delay will be added to the work.
-> 
+One of the usecase is evaluating application performance by combining this
+information w/ the cpu allocation to the application.
 
-When this code explodes (as it surely will), users will see large
-amounts of CPU consumption in the work queue thread.  We want to make
-this as easy to debug as possible, so we should try to make the
-workqueue's names mappable back onto their memcg's.  And anything else
-we can think of to help?
+The output of the memory.numastat tries to follow w/ simiar format of numa_maps
+like:
 
->
-> ...
->
-> +static void mem_cgroup_async_shrink(struct work_struct *work)
-> +{
-> +	struct delayed_work *dw = to_delayed_work(work);
-> +	struct mem_cgroup *mem = container_of(dw,
-> +			struct mem_cgroup, async_work);
-> +	bool congested = false;
-> +	int delay = 0;
-> +	unsigned long long required, usage, limit, shrink_to;
+total=<total pages> N0=<node 0 pages> N1=<node 1 pages> ...
+file=<total file pages> N0=<node 0 pages> N1=<node 1 pages> ...
+anon=<total anon pages> N0=<node 0 pages> N1=<node 1 pages> ...
+unevictable=<total anon pages> N0=<node 0 pages> N1=<node 1 pages> ...
 
-There's a convention which is favored by some (and ignored by the
-clueless ;)) which says "one definition per line".
+And we have per-node:
+total = file + anon + unevictable
 
-The reason I like one-definition-per-line is that it leaves a little
-room on the right where the programmer can explain the role of the
-local.
+$ cat /dev/cgroup/memory/memory.numa_stat
+total=250020 N0=87620 N1=52367 N2=45298 N3=64735
+file=225232 N0=83402 N1=46160 N2=40522 N3=55148
+anon=21053 N0=3424 N1=6207 N2=4776 N3=6646
+unevictable=3735 N0=794 N1=0 N2=0 N3=2941
 
-Another advantage is that one can initialise it.  eg:
+This patch is based on mmotm-2011-05-06-16-39
 
-	unsigned long limit = res_counter_read_u64(&mem->res, RES_LIMIT);
+change v5..v4:
+1. disable the API non-NUMA kernel.
 
-That conveys useful information: the reader can see what it's
-initialised with and can infer its use.
+change v4..v3:
+1. add per-node "unevictable" value.
+2. change the functions to be static.
 
-A third advantage is that it can now be made const, which conveys very
-useful informtation and can prevent bugs.
+change v3..v2:
+1. calculate the "total" based on the per-memcg lru size instead of rss+cache.
+this makes the "total" value to be consistant w/ the per-node values follows
+after.
 
-A fourth advantage is that it makes later patches to this function more
-readable and easier to apply when there are conflicts.
+change v2..v1:
+1. add also the file and anon pages on per-node distribution.
 
+Signed-off-by: Ying Han <yinghan@google.com>
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Acked-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+---
+ mm/memcontrol.c |  155 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 files changed, 155 insertions(+), 0 deletions(-)
 
-> +	limit = res_counter_read_u64(&mem->res, RES_LIMIT);
-> +	shrink_to = limit - MEMCG_ASYNC_MARGIN - PAGE_SIZE;
-> +	usage = res_counter_read_u64(&mem->res, RES_USAGE);
-> +	if (shrink_to <= usage) {
-> +		required = usage - shrink_to;
-> +		required = (required >> PAGE_SHIFT) + 1;
-> +		/*
-> +		 * This scans some number of pages and returns that memory
-> +		 * reclaim was slow or now. If slow, we add a delay as
-> +		 * congestion_wait() in vmscan.c
-> +		 */
-> +		congested = mem_cgroup_shrink_static_scan(mem, (long)required);
-> +	}
-> +	if (test_bit(ASYNC_NORESCHED, &mem->async_flags)
-> +	    || mem_cgroup_async_should_stop(mem))
-> +		goto finish_scan;
-> +	/* If memory reclaim couldn't go well, add delay */
-> +	if (congested)
-> +		delay = HZ/10;
-
-Another magic number.
-
-If Moore's law holds, we need to reduce this number by 1.4 each year. 
-Is this good?
-
-> +	queue_delayed_work(memcg_async_shrinker, &mem->async_work, delay);
-> +	return;
-> +finish_scan:
-> +	cgroup_release_and_wakeup_rmdir(&mem->css);
-> +	clear_bit(ASYNC_RUNNING, &mem->async_flags);
-> +	return;
-> +}
-> +
-> +static void run_mem_cgroup_async_shrinker(struct mem_cgroup *mem)
-> +{
-> +	if (test_bit(ASYNC_NORESCHED, &mem->async_flags))
-> +		return;
-
-I can't work out what ASYNC_NORESCHED does.  Is its name well-chosen?
-
-> +	if (test_and_set_bit(ASYNC_RUNNING, &mem->async_flags))
-> +		return;
-> +	cgroup_exclude_rmdir(&mem->css);
-> +	/*
-> +	 * start reclaim with small delay. This delay will allow us to do job
-> +	 * in batch.
-
-Explain more?
-
-> +	 */
-> +	if (!queue_delayed_work(memcg_async_shrinker, &mem->async_work, 1)) {
-> +		cgroup_release_and_wakeup_rmdir(&mem->css);
-> +		clear_bit(ASYNC_RUNNING, &mem->async_flags);
-> +	}
-> +	return;
-> +}
-> +
->
-> ...
->
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index e14677c..ced414b 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1162,6 +1162,93 @@ unsigned long mem_cgroup_zone_nr_lru_pages(struct mem_cgroup *memcg,
+ 	return MEM_CGROUP_ZSTAT(mz, lru);
+ }
+ 
++#ifdef CONFIG_NUMA
++static unsigned long mem_cgroup_node_nr_file_lru_pages(struct mem_cgroup *memcg,
++							int nid)
++{
++	unsigned long ret;
++
++	ret = mem_cgroup_get_zonestat_node(memcg, nid, LRU_INACTIVE_FILE) +
++		mem_cgroup_get_zonestat_node(memcg, nid, LRU_ACTIVE_FILE);
++
++	return ret;
++}
++
++static unsigned long mem_cgroup_nr_file_lru_pages(struct mem_cgroup *memcg)
++{
++	u64 total = 0;
++	int nid;
++
++	for_each_node_state(nid, N_HIGH_MEMORY)
++		total += mem_cgroup_node_nr_file_lru_pages(memcg, nid);
++
++	return total;
++}
++
++static unsigned long mem_cgroup_node_nr_anon_lru_pages(struct mem_cgroup *memcg,
++							int nid)
++{
++	unsigned long ret;
++
++	ret = mem_cgroup_get_zonestat_node(memcg, nid, LRU_INACTIVE_ANON) +
++		mem_cgroup_get_zonestat_node(memcg, nid, LRU_ACTIVE_ANON);
++
++	return ret;
++}
++
++static unsigned long mem_cgroup_nr_anon_lru_pages(struct mem_cgroup *memcg)
++{
++	u64 total = 0;
++	int nid;
++
++	for_each_node_state(nid, N_HIGH_MEMORY)
++		total += mem_cgroup_node_nr_anon_lru_pages(memcg, nid);
++
++	return total;
++}
++
++static unsigned long
++mem_cgroup_node_nr_unevictable_lru_pages(struct mem_cgroup *memcg, int nid)
++{
++	return mem_cgroup_get_zonestat_node(memcg, nid, LRU_UNEVICTABLE);
++}
++
++static unsigned long
++mem_cgroup_nr_unevictable_lru_pages(struct mem_cgroup *memcg)
++{
++	u64 total = 0;
++	int nid;
++
++	for_each_node_state(nid, N_HIGH_MEMORY)
++		total += mem_cgroup_node_nr_unevictable_lru_pages(memcg, nid);
++
++	return total;
++}
++
++static unsigned long mem_cgroup_node_nr_lru_pages(struct mem_cgroup *memcg,
++							int nid)
++{
++	enum lru_list l;
++	u64 total = 0;
++
++	for_each_lru(l)
++		total += mem_cgroup_get_zonestat_node(memcg, nid, l);
++
++	return total;
++}
++
++static unsigned long mem_cgroup_nr_lru_pages(struct mem_cgroup *memcg)
++{
++	u64 total = 0;
++	int nid;
++
++	for_each_node_state(nid, N_HIGH_MEMORY)
++		total += mem_cgroup_node_nr_lru_pages(memcg, nid);
++
++	return total;
++}
++#endif /* CONFIG_NUMA */
++
+ struct zone_reclaim_stat *mem_cgroup_get_reclaim_stat(struct mem_cgroup *memcg,
+ 						      struct zone *zone)
+ {
+@@ -4048,6 +4135,51 @@ mem_cgroup_get_total_stat(struct mem_cgroup *mem, struct mcs_total_stat *s)
+ 		mem_cgroup_get_local_stat(iter, s);
+ }
+ 
++#ifdef CONFIG_NUMA
++static int mem_control_numa_stat_show(struct seq_file *m, void *arg)
++{
++	int nid;
++	unsigned long total_nr, file_nr, anon_nr, unevictable_nr;
++	unsigned long node_nr;
++	struct cgroup *cont = m->private;
++	struct mem_cgroup *mem_cont = mem_cgroup_from_cont(cont);
++
++	total_nr = mem_cgroup_nr_lru_pages(mem_cont);
++	seq_printf(m, "total=%lu", total_nr);
++	for_each_node_state(nid, N_HIGH_MEMORY) {
++		node_nr = mem_cgroup_node_nr_lru_pages(mem_cont, nid);
++		seq_printf(m, " N%d=%lu", nid, node_nr);
++	}
++	seq_putc(m, '\n');
++
++	file_nr = mem_cgroup_nr_file_lru_pages(mem_cont);
++	seq_printf(m, "file=%lu", file_nr);
++	for_each_node_state(nid, N_HIGH_MEMORY) {
++		node_nr = mem_cgroup_node_nr_file_lru_pages(mem_cont, nid);
++		seq_printf(m, " N%d=%lu", nid, node_nr);
++	}
++	seq_putc(m, '\n');
++
++	anon_nr = mem_cgroup_nr_anon_lru_pages(mem_cont);
++	seq_printf(m, "anon=%lu", anon_nr);
++	for_each_node_state(nid, N_HIGH_MEMORY) {
++		node_nr = mem_cgroup_node_nr_anon_lru_pages(mem_cont, nid);
++		seq_printf(m, " N%d=%lu", nid, node_nr);
++	}
++	seq_putc(m, '\n');
++
++	unevictable_nr = mem_cgroup_nr_unevictable_lru_pages(mem_cont);
++	seq_printf(m, "unevictable=%lu", unevictable_nr);
++	for_each_node_state(nid, N_HIGH_MEMORY) {
++		node_nr = mem_cgroup_node_nr_unevictable_lru_pages(mem_cont,
++									nid);
++		seq_printf(m, " N%d=%lu", nid, node_nr);
++	}
++	seq_putc(m, '\n');
++	return 0;
++}
++#endif /* CONFIG_NUMA */
++
+ static int mem_control_stat_show(struct cgroup *cont, struct cftype *cft,
+ 				 struct cgroup_map_cb *cb)
+ {
+@@ -4058,6 +4190,7 @@ static int mem_control_stat_show(struct cgroup *cont, struct cftype *cft,
+ 	memset(&mystat, 0, sizeof(mystat));
+ 	mem_cgroup_get_local_stat(mem_cont, &mystat);
+ 
++
+ 	for (i = 0; i < NR_MCS_STAT; i++) {
+ 		if (i == MCS_SWAP && !do_swap_account)
+ 			continue;
+@@ -4481,6 +4614,22 @@ static int mem_cgroup_oom_control_write(struct cgroup *cgrp,
+ 	return 0;
+ }
+ 
++#ifdef CONFIG_NUMA
++static const struct file_operations mem_control_numa_stat_file_operations = {
++	.read = seq_read,
++	.llseek = seq_lseek,
++	.release = single_release,
++};
++
++static int mem_control_numa_stat_open(struct inode *unused, struct file *file)
++{
++	struct cgroup *cont = file->f_dentry->d_parent->d_fsdata;
++
++	file->f_op = &mem_control_numa_stat_file_operations;
++	return single_open(file, mem_control_numa_stat_show, cont);
++}
++#endif /* CONFIG_NUMA */
++
+ static struct cftype mem_cgroup_files[] = {
+ 	{
+ 		.name = "usage_in_bytes",
+@@ -4544,6 +4693,12 @@ static struct cftype mem_cgroup_files[] = {
+ 		.unregister_event = mem_cgroup_oom_unregister_event,
+ 		.private = MEMFILE_PRIVATE(_OOM_TYPE, OOM_CONTROL),
+ 	},
++#ifdef CONFIG_NUMA
++	{
++		.name = "numa_stat",
++		.open = mem_control_numa_stat_open,
++	},
++#endif
+ };
+ 
+ #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
+-- 
+1.7.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
