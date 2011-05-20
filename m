@@ -1,28 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id EA83D6B0022
-	for <linux-mm@kvack.org>; Fri, 20 May 2011 01:15:48 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id E52733EE0BD
-	for <linux-mm@kvack.org>; Fri, 20 May 2011 14:15:43 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id BF6FA45DF5D
-	for <linux-mm@kvack.org>; Fri, 20 May 2011 14:15:43 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 9846A45DF57
-	for <linux-mm@kvack.org>; Fri, 20 May 2011 14:15:43 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 894871DB8047
-	for <linux-mm@kvack.org>; Fri, 20 May 2011 14:15:43 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 3B7731DB803F
-	for <linux-mm@kvack.org>; Fri, 20 May 2011 14:15:43 +0900 (JST)
-Date: Fri, 20 May 2011 14:08:56 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: Kernel falls apart under light memory pressure (i.e. linking
- vmlinux)
-Message-Id: <20110520140856.fdf4d1c8.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <BANLkTins7qxWVh0bEwtk1Vx+m98N=oYVtw@mail.gmail.com>
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 458256B0022
+	for <linux-mm@kvack.org>; Fri, 20 May 2011 01:36:16 -0400 (EDT)
+Received: by qyk30 with SMTP id 30so2443222qyk.14
+        for <linux-mm@kvack.org>; Thu, 19 May 2011 22:36:13 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20110520140856.fdf4d1c8.kamezawa.hiroyu@jp.fujitsu.com>
 References: <BANLkTikhj1C7+HXP_4T-VnJzPefU2d7b3A@mail.gmail.com>
 	<BANLkTi=fk3DUT9cYd2gAzC98c69F6HXX7g@mail.gmail.com>
 	<BANLkTikofp5rHRdW5dXfqJXb8VCAqPQ_7A@mail.gmail.com>
@@ -42,82 +25,109 @@ References: <BANLkTikhj1C7+HXP_4T-VnJzPefU2d7b3A@mail.gmail.com>
 	<4DD5DC06.6010204@jp.fujitsu.com>
 	<BANLkTik=7C5qFZTsPQG4JYY-MEWDTHdc6A@mail.gmail.com>
 	<BANLkTins7qxWVh0bEwtk1Vx+m98N=oYVtw@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+	<20110520140856.fdf4d1c8.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Fri, 20 May 2011 14:36:13 +0900
+Message-ID: <BANLkTinJbYrQoye7qjPzPxP8_deCSK0g7w@mail.gmail.com>
+Subject: Re: Kernel falls apart under light memory pressure (i.e. linking vmlinux)
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan.kim@gmail.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>
 Cc: Andrew Lutomirski <luto@mit.edu>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, fengguang.wu@intel.com, andi@firstfloor.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mgorman@suse.de, hannes@cmpxchg.org, riel@redhat.com
 
-On Fri, 20 May 2011 13:20:15 +0900
-Minchan Kim <minchan.kim@gmail.com> wrote:
+On Fri, May 20, 2011 at 2:08 PM, KAMEZAWA Hiroyuki
+<kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> On Fri, 20 May 2011 13:20:15 +0900
+> Minchan Kim <minchan.kim@gmail.com> wrote:
+>
+>> So I want to resolve your problem asap.
+>> We don't have see report about that. Could you do git-bisect?
+>> FYI, Recently, big change of mm is compaction,transparent huge pages.
+>> Kame, could you point out thing related to memcg if you have a mind?
+>>
+>
+> I don't doubt memcg at this stage because it never modify page->flags.
+> Consdering the case, PageActive() is set against off-LRU pages after
+> clear_active_flags() clears it.
+>
+> Hmm, I think I don't understand the lock system fully but...how do you
+> think this ?
+>
+> =3D=3D
+>
+> At splitting a hugepage, the routine marks all pmd as "splitting".
+>
+> But assume a racy case where 2 threads run into spit at the
+> same time, one thread wins compound_lock() and do split, another
+> thread should not touch splitted pages.
 
-> So I want to resolve your problem asap.
-> We don't have see report about that. Could you do git-bisect?
-> FYI, Recently, big change of mm is compaction,transparent huge pages.
-> Kame, could you point out thing related to memcg if you have a mind?
-> 
+Sorry. Now I don't have a time to review in detail.
+When I look it roughly,  page_lock_anon_vma have to prevent it.
+But Andrea needs current this problem and he will catch something we lost. =
+:)
 
-I don't doubt memcg at this stage because it never modify page->flags.
-Consdering the case, PageActive() is set against off-LRU pages after
-clear_active_flags() clears it.
 
-Hmm, I think I don't understand the lock system fully but...how do you
-think this ?
+>
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Index: mmotm-May11/mm/huge_memory.c
+> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+> --- mmotm-May11.orig/mm/huge_memory.c
+> +++ mmotm-May11/mm/huge_memory.c
+> @@ -1150,7 +1150,7 @@ static int __split_huge_page_splitting(s
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0return ret;
+> =C2=A0}
+>
+> -static void __split_huge_page_refcount(struct page *page)
+> +static bool __split_huge_page_refcount(struct page *page)
+> =C2=A0{
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0int i;
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0unsigned long head_index =3D page->index;
+> @@ -1161,6 +1161,11 @@ static void __split_huge_page_refcount(s
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0spin_lock_irq(&zone->lru_lock);
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0compound_lock(page);
+>
+> + =C2=A0 =C2=A0 =C2=A0 if (!PageCompound(page)) {
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 compound_unlock(page);
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 spin_unlock_irq(&zone-=
+>lru_lock);
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return false;
+> + =C2=A0 =C2=A0 =C2=A0 }
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0for (i =3D 1; i < HPAGE_PMD_NR; i++) {
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0struct page *page_=
+tail =3D page + i;
+>
+> @@ -1258,6 +1263,7 @@ static void __split_huge_page_refcount(s
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 * to be pinned by the caller.
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 */
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0BUG_ON(page_count(page) <=3D 0);
+> + =C2=A0 =C2=A0 =C2=A0 return true;
+> =C2=A0}
+>
+> =C2=A0static int __split_huge_page_map(struct page *page,
+> @@ -1367,7 +1373,8 @@ static void __split_huge_page(struct pag
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 mapcount, page_mapcount(page));
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0BUG_ON(mapcount !=3D page_mapcount(page));
+>
+> - =C2=A0 =C2=A0 =C2=A0 __split_huge_page_refcount(page);
+> + =C2=A0 =C2=A0 =C2=A0 if (!__split_huge_page_refcount(page))
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return;
+>
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0mapcount2 =3D 0;
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0list_for_each_entry(avc, &anon_vma->head, same=
+_anon_vma) {
+>
+>
 
-==
 
-At splitting a hugepage, the routine marks all pmd as "splitting".
 
-But assume a racy case where 2 threads run into spit at the
-same time, one thread wins compound_lock() and do split, another
-thread should not touch splitted pages.
-
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Index: mmotm-May11/mm/huge_memory.c
-===================================================================
---- mmotm-May11.orig/mm/huge_memory.c
-+++ mmotm-May11/mm/huge_memory.c
-@@ -1150,7 +1150,7 @@ static int __split_huge_page_splitting(s
- 	return ret;
- }
- 
--static void __split_huge_page_refcount(struct page *page)
-+static bool __split_huge_page_refcount(struct page *page)
- {
- 	int i;
- 	unsigned long head_index = page->index;
-@@ -1161,6 +1161,11 @@ static void __split_huge_page_refcount(s
- 	spin_lock_irq(&zone->lru_lock);
- 	compound_lock(page);
- 
-+	if (!PageCompound(page)) {
-+		compound_unlock(page);
-+		spin_unlock_irq(&zone->lru_lock);
-+		return false;
-+	}
- 	for (i = 1; i < HPAGE_PMD_NR; i++) {
- 		struct page *page_tail = page + i;
- 
-@@ -1258,6 +1263,7 @@ static void __split_huge_page_refcount(s
- 	 * to be pinned by the caller.
- 	 */
- 	BUG_ON(page_count(page) <= 0);
-+	return true;
- }
- 
- static int __split_huge_page_map(struct page *page,
-@@ -1367,7 +1373,8 @@ static void __split_huge_page(struct pag
- 		       mapcount, page_mapcount(page));
- 	BUG_ON(mapcount != page_mapcount(page));
- 
--	__split_huge_page_refcount(page);
-+	if (!__split_huge_page_refcount(page))
-+		return;
- 
- 	mapcount2 = 0;
- 	list_for_each_entry(avc, &anon_vma->head, same_anon_vma) {
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
