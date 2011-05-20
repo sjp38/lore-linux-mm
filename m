@@ -1,112 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 437216B0012
-	for <linux-mm@kvack.org>; Fri, 20 May 2011 00:20:18 -0400 (EDT)
-Received: by qyk2 with SMTP id 2so79961qyk.14
-        for <linux-mm@kvack.org>; Thu, 19 May 2011 21:20:15 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <BANLkTik=7C5qFZTsPQG4JYY-MEWDTHdc6A@mail.gmail.com>
-References: <BANLkTikhj1C7+HXP_4T-VnJzPefU2d7b3A@mail.gmail.com>
-	<20110512054631.GI6008@one.firstfloor.org>
-	<BANLkTi=fk3DUT9cYd2gAzC98c69F6HXX7g@mail.gmail.com>
-	<BANLkTikofp5rHRdW5dXfqJXb8VCAqPQ_7A@mail.gmail.com>
-	<20110514165346.GV6008@one.firstfloor.org>
-	<BANLkTik6SS9NH7XVSRBoCR16_5veY0MKBw@mail.gmail.com>
-	<20110514174333.GW6008@one.firstfloor.org>
-	<BANLkTinst+Ryox9VZ-s7gdXKa574XXqt5w@mail.gmail.com>
-	<20110515152747.GA25905@localhost>
-	<BANLkTim-AnEeL=z1sYm=iN7sMnG0+m0SHw@mail.gmail.com>
-	<20110517060001.GC24069@localhost>
-	<BANLkTi=TOm3aLQCD6j=4va6B+Jn2nSfwAg@mail.gmail.com>
-	<BANLkTi=9W6-JXi94rZfTtTpAt3VUiY5fNw@mail.gmail.com>
-	<BANLkTikHMUru=w4zzRmosrg2bDbsFWrkTQ@mail.gmail.com>
-	<BANLkTima0hPrPwe_x06afAh+zTi-bOcRMg@mail.gmail.com>
-	<BANLkTi=NTLn4Lx7EkybuA8-diTVOvMDxBw@mail.gmail.com>
-	<BANLkTinEDXHuRUYpYN0d95+fz4+F7ccL4w@mail.gmail.com>
-	<4DD5DC06.6010204@jp.fujitsu.com>
-	<BANLkTik=7C5qFZTsPQG4JYY-MEWDTHdc6A@mail.gmail.com>
-Date: Fri, 20 May 2011 13:20:15 +0900
-Message-ID: <BANLkTins7qxWVh0bEwtk1Vx+m98N=oYVtw@mail.gmail.com>
-Subject: Re: Kernel falls apart under light memory pressure (i.e. linking vmlinux)
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id C6F786B0012
+	for <linux-mm@kvack.org>; Fri, 20 May 2011 00:23:45 -0400 (EDT)
+Date: Fri, 20 May 2011 13:20:46 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [PATCH V4 3/3] memcg: add memory.numastat api for numa
+ statistics
+Message-Id: <20110520132046.bbfd9aa0.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <1305861891-26140-3-git-send-email-yinghan@google.com>
+References: <1305861891-26140-1-git-send-email-yinghan@google.com>
+	<1305861891-26140-3-git-send-email-yinghan@google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Lutomirski <luto@mit.edu>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, kamezawa.hiroyu@jp.fujitsu.com, fengguang.wu@intel.com, andi@firstfloor.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mgorman@suse.de, hannes@cmpxchg.org, riel@redhat.com
+To: Ying Han <yinghan@google.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>, linux-mm@kvack.org, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 
-On Fri, May 20, 2011 at 12:38 PM, Andrew Lutomirski <luto@mit.edu> wrote:
-> On Thu, May 19, 2011 at 11:12 PM, KOSAKI Motohiro
-> <kosaki.motohiro@jp.fujitsu.com> wrote:
->>> Right after that happened, I hit ctrl-c to kill test_mempressure.sh.
->>> The system was OK until I typed sync, and then everything hung.
->>>
->>> I'm really confused. =C2=A0shrink_inactive_list in
->>> RECLAIM_MODE_LUMPYRECLAIM will call one of the isolate_pages functions
->>> with ISOLATE_BOTH. =C2=A0The resulting list goes into shrink_page_list,
->>> which does VM_BUG_ON(PageActive(page)).
->>>
->>> How is that supposed to work?
->>
->> Usually clear_active_flags() clear PG_active before calling
->> shrink_page_list().
->>
->> shrink_inactive_list()
->> =C2=A0 =C2=A0isolate_pages_global()
->> =C2=A0 =C2=A0update_isolated_counts()
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0clear_active_flags()
->> =C2=A0 =C2=A0shrink_page_list()
->>
->>
->
-> That makes sense. =C2=A0And I have CONFIG_COMPACTION=3Dy, so the lumpy mo=
-de
-> doesn't get set anyway.
+On Thu, 19 May 2011 20:24:51 -0700
+Ying Han <yinghan@google.com> wrote:
 
-Could you see the problem with disabling CONFIG_COMPACTION?
+> The new API exports numa_maps per-memcg basis. This is a piece of useful
+> information where it exports per-memcg page distribution across real numa
+> nodes.
+> 
+> One of the usecase is evaluating application performance by combining this
+> information w/ the cpu allocation to the application.
+> 
+> The output of the memory.numastat tries to follow w/ simiar format of numa_maps
+> like:
+> 
+> total=<total pages> N0=<node 0 pages> N1=<node 1 pages> ...
+> file=<total file pages> N0=<node 0 pages> N1=<node 1 pages> ...
+> anon=<total anon pages> N0=<node 0 pages> N1=<node 1 pages> ...
+> unevictable=<total anon pages> N0=<node 0 pages> N1=<node 1 pages> ...
+> 
+> And we have per-node:
+> total = file + anon + unevictable
+> 
+> $ cat /dev/cgroup/memory/memory.numa_stat
+> total=250020 N0=87620 N1=52367 N2=45298 N3=64735
+> file=225232 N0=83402 N1=46160 N2=40522 N3=55148
+> anon=21053 N0=3424 N1=6207 N2=4776 N3=6646
+> unevictable=3735 N0=794 N1=0 N2=0 N3=2941
+> 
+> change v4..v3:
+> 1. add per-node "unevictable" value.
+> 2. change the functions to be static.
+> 
+> change v3..v2:
+> 1. calculate the "total" based on the per-memcg lru size instead of rss+cache.
+> this makes the "total" value to be consistant w/ the per-node values follows
+> after.
+> 
+> change v2..v1:
+> 1. add also the file and anon pages on per-node distribution.
+> 
+> Signed-off-by: Ying Han <yinghan@google.com>
 
->
-> But the pages I'm seeing have flags=3D100000000008005D. =C2=A0If I'm read=
-ing
-> it right, that means locked,referenced,uptodate,dirty,active. =C2=A0How
-> does a page like that end up in shrink_page_list? =C2=A0I don't see how a
-> page that's !PageLRU can get marked Active. =C2=A0Nonetheless, I'm hittin=
-g
-> that VM_BUG_ON.
-
-Thanks for proving that it's not a problem of latest my patch.
-
->
-> Is there a race somewhere?
-
-First of all, let's finish your first problem about hang. :)
-And let's make another thread to fix this problem.
-
-I think this is a severe problem because 2.6.39 includes my deactivate_page=
-s
-(http://git.kernel.org/?p=3Dlinux/kernel/git/torvalds/linux-2.6.git;a=3Dcom=
-mit;h=3D315601809d124d046abd6c3ffa346d0dbd7aa29d)
-
-It touches page states more and more. (2.6.38.6 doesn't include it so
-it's not a problem of my deactivate_pages problem)
-And now inorder-putback series which I will push for 2.6.40 touches it
-more and more.
-
-So I want to resolve your problem asap.
-We don't have see report about that. Could you do git-bisect?
-FYI, Recently, big change of mm is compaction,transparent huge pages.
-Kame, could you point out thing related to memcg if you have a mind?
-
->
-> --Andy
->
-
-
-
---=20
-Kind regards,
-Minchan Kim
+Acked-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
