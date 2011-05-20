@@ -1,67 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B1116B0033
-	for <linux-mm@kvack.org>; Fri, 20 May 2011 13:23:20 -0400 (EDT)
-Date: Fri, 20 May 2011 18:23:14 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: Unending loop in __alloc_pages_slowpath following OOM-kill; rfc:
- patch.
-Message-ID: <20110520172314.GW5279@suse.de>
-References: <4DCDA347.9080207@cray.com>
- <BANLkTikiXUzbsUkzaKZsZg+5ugruA2JdMA@mail.gmail.com>
- <4DD2991B.5040707@cray.com>
- <BANLkTimYEs315jjY9OZsL6--mRq3O_zbDA@mail.gmail.com>
- <20110520164924.GB2386@barrios-desktop>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20110520164924.GB2386@barrios-desktop>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id A7B9F8D003B
+	for <linux-mm@kvack.org>; Fri, 20 May 2011 14:02:41 -0400 (EDT)
+Subject: Re: [PATCH] kernel buffer overflow kmalloc_slab() fix
+From: J Freyensee <james_p_freyensee@linux.intel.com>
+Reply-To: james_p_freyensee@linux.intel.com
+In-Reply-To: <alpine.DEB.2.00.1105200941260.5610@router.home>
+References: <james_p_freyensee@linux.intel.com>
+	 <1305834712-27805-2-git-send-email-james_p_freyensee@linux.intel.com>
+	 <alpine.DEB.2.00.1105191550001.12530@router.home>
+	 <1305892971.2571.16.camel@mulgrave.site>
+	 <alpine.DEB.2.00.1105200932340.5610@router.home>
+	 <alpine.DEB.2.00.1105200941260.5610@router.home>
+Content-Type: text/plain; charset="ISO-8859-1"
+Date: Fri, 20 May 2011 11:02:28 -0700
+Message-ID: <1305914548.2400.39.camel@localhost>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Andrew Barry <abarry@cray.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, linux kernel mailing list <linux-kernel@vger.kernel.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: James Bottomley <James.Bottomley@HansenPartnership.com>, linux-mm@kvack.org, gregkh@suse.de, hari.k.kanigeri@intel.com, linux-arch@vger.kernel.org, Pekka Enberg <penberg@cs.helsinki.fi>
 
-On Sat, May 21, 2011 at 01:49:24AM +0900, Minchan Kim wrote:
-> <SNIP>
-> 
-> From 8bd3f16736548375238161d1bd85f7d7c381031f Mon Sep 17 00:00:00 2001
-> From: Minchan Kim <minchan.kim@gmail.com>
-> Date: Sat, 21 May 2011 01:37:41 +0900
-> Subject: [PATCH] Prevent unending loop in __alloc_pages_slowpath
-> 
-> From: Andrew Barry <abarry@cray.com>
-> 
-> I believe I found a problem in __alloc_pages_slowpath, which allows a process to
-> get stuck endlessly looping, even when lots of memory is available.
-> 
-> Running an I/O and memory intensive stress-test I see a 0-order page allocation
-> with __GFP_IO and __GFP_WAIT, running on a system with very little free memory.
-> Right about the same time that the stress-test gets killed by the OOM-killer,
-> the utility trying to allocate memory gets stuck in __alloc_pages_slowpath even
-> though most of the systems memory was freed by the oom-kill of the stress-test.
-> 
-> The utility ends up looping from the rebalance label down through the
-> wait_iff_congested continiously. Because order=0, __alloc_pages_direct_compact
-> skips the call to get_page_from_freelist. Because all of the reclaimable memory
-> on the system has already been reclaimed, __alloc_pages_direct_reclaim skips the
-> call to get_page_from_freelist. Since there is no __GFP_FS flag, the block with
-> __alloc_pages_may_oom is skipped. The loop hits the wait_iff_congested, then
-> jumps back to rebalance without ever trying to get_page_from_freelist. This loop
-> repeats infinitely.
-> 
-> The test case is pretty pathological. Running a mix of I/O stress-tests that do
-> a lot of fork() and consume all of the system memory, I can pretty reliably hit
-> this on 600 nodes, in about 12 hours. 32GB/node.
-> 
-> Signed-off-by: Andrew Barry <abarry@cray.com>
-> Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
-> Cc: Mel Gorman <mgorman@suse.de>
+Thank you for the collaboration work on the fix.  I like it.
 
-Acked-by: Mel Gorman <mgorman@suse.de>
+Jay
 
--- 
-Mel Gorman
-SUSE Labs
+On Fri, 2011-05-20 at 09:42 -0500, Christoph Lameter wrote:
+> Subject: slub: Deal with hyperthetical case of PAGE_SIZE > 2M
+> 
+> kmalloc_index() currently returns -1 if the PAGE_SIZE is larger than 2M
+> which seems to cause some concern since the callers do not check for -1.
+> 
+> Insert a BUG() and add a comment to the -1 explaining that the code
+> cannot be reached.
+> 
+> Signed-off-by: Christoph Lameter <cl@linux.com>
+> 
+> ---
+>  include/linux/slub_def.h |    6 ++++--
+>  1 file changed, 4 insertions(+), 2 deletions(-)
+> 
+> Index: linux-2.6/include/linux/slub_def.h
+> ===================================================================
+> --- linux-2.6.orig/include/linux/slub_def.h	2011-05-20 09:37:02.000000000 -0500
+> +++ linux-2.6/include/linux/slub_def.h	2011-05-20 09:39:07.000000000 -0500
+> @@ -179,7 +179,8 @@ static __always_inline int kmalloc_index
+>  	if (size <=   4 * 1024) return 12;
+>  /*
+>   * The following is only needed to support architectures with a larger page
+> - * size than 4k.
+> + * size than 4k. We need to support 2 * PAGE_SIZE here. So for a 64k page
+> + * size we would have to go up to 128k.
+>   */
+>  	if (size <=   8 * 1024) return 13;
+>  	if (size <=  16 * 1024) return 14;
+> @@ -190,7 +191,8 @@ static __always_inline int kmalloc_index
+>  	if (size <= 512 * 1024) return 19;
+>  	if (size <= 1024 * 1024) return 20;
+>  	if (size <=  2 * 1024 * 1024) return 21;
+> -	return -1;
+> +	BUG();
+> +	return -1; /* Will never be reached */
+> 
+>  /*
+>   * What we really wanted to do and cannot do because of compiler issues is:
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
