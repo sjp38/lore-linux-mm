@@ -1,51 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 976CD8D003B
-	for <linux-mm@kvack.org>; Fri, 20 May 2011 16:04:13 -0400 (EDT)
-Date: Fri, 20 May 2011 13:04:11 -0700
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 2A24B8D003B
+	for <linux-mm@kvack.org>; Fri, 20 May 2011 16:21:38 -0400 (EDT)
+Date: Fri, 20 May 2011 13:20:51 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] [BUGFIX] mm: hugepages can cause negative commitlimit
-Message-Id: <20110520130411.d1e0baef.akpm@linux-foundation.org>
-In-Reply-To: <20110519221101.GC19648@sgi.com>
-References: <20110518153445.GA18127@sgi.com>
-	<BANLkTinbHnrf2isuLzUFZN8ypaT476G1zw@mail.gmail.com>
-	<20110519045630.GA22533@sgi.com>
-	<BANLkTinyYP-je9Nf8X-xWEdpgvn8a631Mw@mail.gmail.com>
-	<20110519221101.GC19648@sgi.com>
+Subject: Re: [PATCH V4 3/3] memcg: add memory.numastat api for numa
+ statistics
+Message-Id: <20110520132051.28c1bc15.akpm@linux-foundation.org>
+In-Reply-To: <1305861891-26140-3-git-send-email-yinghan@google.com>
+References: <1305861891-26140-1-git-send-email-yinghan@google.com>
+	<1305861891-26140-3-git-send-email-yinghan@google.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Russ Anderson <rja@sgi.com>
-Cc: Rafael Aquini <aquini@linux.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux.com>
+To: Ying Han <yinghan@google.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>, linux-mm@kvack.org
 
-On Thu, 19 May 2011 17:11:01 -0500
-Russ Anderson <rja@sgi.com> wrote:
+On Thu, 19 May 2011 20:24:51 -0700
+Ying Han <yinghan@google.com> wrote:
 
-> OK, I see your point.  The root problem is hugepages allocated at boot are
-> subtracted from totalram_pages but hugepages allocated at run time are not.
-> Correct me if I've mistate it or are other conditions.
+> The new API exports numa_maps per-memcg basis. This is a piece of useful
+> information where it exports per-memcg page distribution across real numa
+> nodes.
 > 
-> By "allocated at run time" I mean "echo 1 > /proc/sys/vm/nr_hugepages".
-> That allocation will not change totalram_pages but will change
-> hugetlb_total_pages().
+> One of the usecase is evaluating application performance by combining this
+> information w/ the cpu allocation to the application.
 > 
-> How best to fix this inconsistency?  Should totalram_pages include or exclude
-> hugepages?  What are the implications?
+> The output of the memory.numastat tries to follow w/ simiar format of numa_maps
+> like:
+> 
+> total=<total pages> N0=<node 0 pages> N1=<node 1 pages> ...
+> file=<total file pages> N0=<node 0 pages> N1=<node 1 pages> ...
+> anon=<total anon pages> N0=<node 0 pages> N1=<node 1 pages> ...
+> unevictable=<total anon pages> N0=<node 0 pages> N1=<node 1 pages> ...
+> 
+> And we have per-node:
+> total = file + anon + unevictable
+> 
+> $ cat /dev/cgroup/memory/memory.numa_stat
+> total=250020 N0=87620 N1=52367 N2=45298 N3=64735
+> file=225232 N0=83402 N1=46160 N2=40522 N3=55148
+> anon=21053 N0=3424 N1=6207 N2=4776 N3=6646
+> unevictable=3735 N0=794 N1=0 N2=0 N3=2941
 
-The problem is that hugetlb_total_pages() is trying to account for two
-different things, while totalram_pages accounts for only one of those
-things, yes?
+Does it make sense to add all this code for non-NUMA kernels? 
 
-One fix would be to stop accounting for huge pages in totalram_pages
-altogether.  That might break other things so careful checking would be
-needed.
-
-Or we stop accounting for the boot-time allocated huge pages in
-hugetlb_total_pages().  Split the two things apart altogether and
-account for boot-time allocated and runtime-allocated pages separately.  This
-souds saner to me - it reflects what's actually happening in the kernel.
+The patch adds a kilobyte of pretty useless text to uniprocessor kernels.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
