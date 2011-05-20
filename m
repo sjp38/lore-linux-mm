@@ -1,62 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D91B6B0011
-	for <linux-mm@kvack.org>; Thu, 19 May 2011 20:04:52 -0400 (EDT)
-Date: Thu, 19 May 2011 17:04:46 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH V3 2/2] mm: Extend memory hotplug API to allow memory
- hotplug in virtual machines
-Message-Id: <20110519170446.477b39ba.akpm@linux-foundation.org>
-In-Reply-To: <20110519232520.GB28832@router-fw-old.local.net-space.pl>
-References: <20110517213858.GC30232@router-fw-old.local.net-space.pl>
-	<alpine.DEB.2.00.1105182026390.20651@chino.kir.corp.google.com>
-	<20110519204509.GD27202@router-fw-old.local.net-space.pl>
-	<20110519160143.02163f36.akpm@linux-foundation.org>
-	<20110519232520.GB28832@router-fw-old.local.net-space.pl>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id EA8126B0011
+	for <linux-mm@kvack.org>; Thu, 19 May 2011 20:06:57 -0400 (EDT)
+Received: by qyk2 with SMTP id 2so4509362qyk.14
+        for <linux-mm@kvack.org>; Thu, 19 May 2011 17:06:56 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <1305804982.2145.6.camel@lenovo>
+References: <1305295404-12129-5-git-send-email-mgorman@suse.de>
+	<4DCFAA80.7040109@jp.fujitsu.com>
+	<1305519711.4806.7.camel@mulgrave.site>
+	<BANLkTi=oe4Ties6awwhHFPf42EXCn2U4MQ@mail.gmail.com>
+	<20110516084558.GE5279@suse.de>
+	<BANLkTinW4s6aT2bZ79sHNgdh5j8VYyJz2w@mail.gmail.com>
+	<20110516102753.GF5279@suse.de>
+	<BANLkTi=5ON_ttuwFFhFObfoP8EBKPdFgAA@mail.gmail.com>
+	<20110517103840.GL5279@suse.de>
+	<1305640239.2046.27.camel@lenovo>
+	<20110517161508.GN5279@suse.de>
+	<BANLkTimUJeTbWV_0BzgjrDjY=Wpc-PaG5Q@mail.gmail.com>
+	<1305804982.2145.6.camel@lenovo>
+Date: Fri, 20 May 2011 09:06:55 +0900
+Message-ID: <BANLkTin0Qdp4S8RdkAGJD0L5zvHwftvZog@mail.gmail.com>
+Subject: Re: [PATCH] mm: vmscan: Correctly check if reclaimer should schedule
+ during shrink_slab
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Kiper <dkiper@net-space.pl>
-Cc: David Rientjes <rientjes@google.com>, ian.campbell@citrix.com, haicheng.li@linux.intel.com, fengguang.wu@intel.com, jeremy@goop.org, konrad.wilk@oracle.com, dan.magenheimer@oracle.com, v.tolstov@selfip.ru, pasik@iki.fi, dave@linux.vnet.ibm.com, wdauchy@gmail.com, xen-devel@lists.xensource.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Colin Ian King <colin.king@canonical.com>
+Cc: Mel Gorman <mgorman@suse.de>, akpm@linux-foundation.org, James Bottomley <James.Bottomley@hansenpartnership.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, raghu.prabhu13@gmail.com, jack@suse.cz, chris.mason@oracle.com, cl@linux.com, penberg@kernel.org, riel@redhat.com, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-ext4@vger.kernel.org
 
-On Fri, 20 May 2011 01:25:20 +0200 Daniel Kiper <dkiper@net-space.pl> wrote:
+On Thu, May 19, 2011 at 8:36 PM, Colin Ian King
+<colin.king@canonical.com> wrote:
+> On Thu, 2011-05-19 at 09:09 +0900, Minchan Kim wrote:
+>> Hi Colin.
+>>
+>> Sorry for bothering you. :(
+>
+> No problem at all, I've very happy to re-test.
+>
+>> I hope this test is last.
+>>
+>> We(Mel, KOSAKI and me) finalized opinion.
+>>
+>> Could you test below patch with patch[1/4] of Mel's series(ie,
+>> !pgdat_balanced =C2=A0of sleeping_prematurely)?
+>> If it is successful, we will try to merge this version instead of
+>> various cond_resched sprinkling version.
+>
+> tested with the patch below + patch[1/4] of Mel's series. =C2=A0300 cycle=
+s,
+> 2.5 hrs of soak testing: works OK.
+>
+> Colin
 
-> On Thu, May 19, 2011 at 04:01:43PM -0700, Andrew Morton wrote:
-> > On Thu, 19 May 2011 22:45:09 +0200
-> > Daniel Kiper <dkiper@net-space.pl> wrote:
-> >
-> > > On Wed, May 18, 2011 at 08:36:02PM -0700, David Rientjes wrote:
-> > > > On Tue, 17 May 2011, Daniel Kiper wrote:
-> > > >
-> > > > > This patch contains online_page_callback and apropriate functions for
-> > > > > setting/restoring online page callbacks. It allows to do some machine
-> > > > > specific tasks during online page stage which is required to implement
-> > > > > memory hotplug in virtual machines. Additionally, __online_page_set_limits(),
-> > > > > __online_page_increment_counters() and __online_page_free() function
-> > > > > was added to ease generic hotplug operation.
-> > > >
-> > > > There are several issues with this.
-> > > >
-> > > > First, this is completely racy and only allows one global callback to be
-> > > > in use at a time without looping, which is probably why you had to pass an
-> > >
-> > > One callback is allowed by design. Currently I do not see
-> > > any real usage for more than one callback.
-> >
-> > I'd suggest that you try using the notifier.h tools here and remove the
-> > restriction.  Sure, we may never use the capability but I expect the
-> > code will look nice and simple and once it's done, it's done.
-> 
-> Hmmm... I am a bit confused. Here https://lkml.org/lkml/2011/3/28/510 you
-> was against (ab)using notifiers. Here https://lkml.org/lkml/2011/3/29/313
-> you proposed currently implemented solution. Maybe I missed something...
-> What should I do now ??? I agree that the code should look nice and simple
-> and once it's done, it's done.
+Thanks, Colin.
+We are approaching the conclusion for  your help. :)
 
-Oh, OK, the callback's role is to free a page, so there's no sens in
-there ever being more than a single registered callback.
+Mel, KOSAKI.
+I will ask test to Andrew Lutomirski.
+If he doesn't have a problem, let's go, then.
+
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
