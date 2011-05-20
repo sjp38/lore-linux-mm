@@ -1,58 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id D9A88900114
-	for <linux-mm@kvack.org>; Fri, 20 May 2011 18:47:46 -0400 (EDT)
-Received: from kpbe14.cbf.corp.google.com (kpbe14.cbf.corp.google.com [172.25.105.78])
-	by smtp-out.google.com with ESMTP id p4KMlaEM003481
-	for <linux-mm@kvack.org>; Fri, 20 May 2011 15:47:41 -0700
-Received: from pxi9 (pxi9.prod.google.com [10.243.27.9])
-	by kpbe14.cbf.corp.google.com with ESMTP id p4KMlYrB011948
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 20 May 2011 15:47:35 -0700
-Received: by pxi9 with SMTP id 9so4809789pxi.28
-        for <linux-mm@kvack.org>; Fri, 20 May 2011 15:47:34 -0700 (PDT)
-Date: Fri, 20 May 2011 15:47:33 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH] tmpfs: fix highmem swapoff crash regression
-Message-ID: <alpine.LSU.2.00.1105201535530.1899@sister.anvils>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 56429900114
+	for <linux-mm@kvack.org>; Fri, 20 May 2011 19:21:44 -0400 (EDT)
+Message-ID: <4DD6F75E.5000605@redhat.com>
+Date: Fri, 20 May 2011 19:21:02 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH V5] memcg: add memory.numastat api for numa statistics
+References: <1305928918-15207-1-git-send-email-yinghan@google.com>
+In-Reply-To: <1305928918-15207-1-git-send-email-yinghan@google.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Witold Baryluk <baryluk@smp.if.uj.edu.pl>, Nitin Gupta <ngupta@vflare.org>, Konstantin Khlebnikov <khlebnikov@openvz.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Ying Han <yinghan@google.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>, linux-mm@kvack.org
 
-Commit 778dd893ae78 "tmpfs: fix race between umount and swapoff"
-forgot the new rules for strict atomic kmap nesting, causing
-WARNING: at arch/x86/mm/highmem_32.c:81 from __kunmap_atomic(), then
-BUG: unable to handle kernel paging request at fffb9000 from shmem_swp_set()
-when shmem_unuse_inode() is handling swapoff with highmem in use.
-My disgrace again.  See https://bugzilla.kernel.org/show_bug.cgi?id=35352
+On 05/20/2011 06:01 PM, Ying Han wrote:
+> The new API exports numa_maps per-memcg basis. This is a piece of useful
+> information where it exports per-memcg page distribution across real numa
+> nodes.
+>
+> One of the usecase is evaluating application performance by combining this
+> information w/ the cpu allocation to the application.
+>
+> The output of the memory.numastat tries to follow w/ simiar format of numa_maps
+> like:
 
-Reported-by: Witold Baryluk <baryluk@smp.if.uj.edu.pl>
-Signed-off-by: Hugh Dickins <hughd@google.com>
-Cc: stable@kernel.org
----
+> Signed-off-by: Ying Han<yinghan@google.com>
+> Acked-by: KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
+> Acked-by: Daisuke Nishimura<nishimura@mxp.nes.nec.co.jp>
 
- mm/shmem.c |    3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+Acked-by: Rik van Riel<riel@redhat.com>
 
---- 2.6.39/mm/shmem.c	2011-05-18 21:06:34.000000000 -0700
-+++ linux/mm/shmem.c	2011-05-20 13:57:20.778870967 -0700
-@@ -916,11 +916,12 @@ static int shmem_unuse_inode(struct shme
- 			if (size > ENTRIES_PER_PAGE)
- 				size = ENTRIES_PER_PAGE;
- 			offset = shmem_find_swp(entry, ptr, ptr+size);
-+			shmem_swp_unmap(ptr);
- 			if (offset >= 0) {
- 				shmem_dir_unmap(dir);
-+				ptr = shmem_swp_map(subdir);
- 				goto found;
- 			}
--			shmem_swp_unmap(ptr);
- 		}
- 	}
- lost1:
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
