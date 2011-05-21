@@ -1,117 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id CA9AA900114
-	for <linux-mm@kvack.org>; Fri, 20 May 2011 21:26:31 -0400 (EDT)
-Date: Fri, 20 May 2011 18:26:40 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 8/8] memcg asyncrhouns reclaim workqueue
-Message-Id: <20110520182640.7e71af33.akpm@linux-foundation.org>
-In-Reply-To: <BANLkTinwmtgh+p=aeZux3NuC2ftbR5OMgQ@mail.gmail.com>
-References: <20110520123749.d54b32fa.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110520124837.72978344.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110520145115.d52f3693.akpm@linux-foundation.org>
-	<BANLkTinwmtgh+p=aeZux3NuC2ftbR5OMgQ@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F8FC900114
+	for <linux-mm@kvack.org>; Sat, 21 May 2011 07:00:03 -0400 (EDT)
+Received: by pvc12 with SMTP id 12so2635227pvc.14
+        for <linux-mm@kvack.org>; Sat, 21 May 2011 03:59:59 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <s5htycp6b25.wl%tiwai@suse.de>
+References: <BANLkTi==cinS1bZc_ARRbnYT3YD+FQr8gA@mail.gmail.com>
+	<20110519145921.GE9854@dumpdata.com>
+	<4DD53E2B.2090002@ladisch.de>
+	<BANLkTinO1xR4XTN2B325pKCpJ3AjC9YidA@mail.gmail.com>
+	<4DD60F57.8030000@ladisch.de>
+	<s5htycp6b25.wl%tiwai@suse.de>
+Date: Sat, 21 May 2011 12:59:59 +0200
+Message-ID: <BANLkTi=P6WP-+BiqEwCRTxaNTqNHT988wA@mail.gmail.com>
+Subject: Re: mmap() implementation for pci_alloc_consistent() memory?
+From: Leon Woestenberg <leon.woestenberg@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, Ying Han <yinghan@google.com>, hannes@cmpxchg.org, Michal Hocko <mhocko@suse.cz>
+To: Takashi Iwai <tiwai@suse.de>, Clemens Ladisch <clemens@ladisch.de>
+Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, linux-pci@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Sat, 21 May 2011 09:41:50 +0900 Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com> wrote:
+Hello Clemens, Takashi,
 
-> 2011/5/21 Andrew Morton <akpm@linux-foundation.org>:
-> > On Fri, 20 May 2011 12:48:37 +0900
-> > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> >
-> >> workqueue for memory cgroup asynchronous memory shrinker.
-> >>
-> >> This patch implements the workqueue of async shrinker routine. each
-> >> memcg has a work and only one work can be scheduled at the same time.
-> >>
-> >> If shrinking memory doesn't goes well, delay will be added to the work.
-> >>
-> >
-> > When this code explodes (as it surely will), users will see large
-> > amounts of CPU consumption in the work queue thread. __We want to make
-> > this as easy to debug as possible, so we should try to make the
-> > workqueue's names mappable back onto their memcg's. __And anything else
-> > we can think of to help?
-> >
-> 
-> I had a patch for showing per-memcg reclaim latency stats. It will be help.
-> I'll add it again to this set. I just dropped it because there are many patches
-> onto memory.stat in flight..
+On Fri, May 20, 2011 at 10:17 AM, Takashi Iwai <tiwai@suse.de> wrote:
+> At Fri, 20 May 2011 08:51:03 +0200,
+> Clemens Ladisch wrote:
+>>
+>> Leon Woestenberg wrote:
+>> > On Thu, May 19, 2011 at 5:58 PM, Clemens Ladisch <clemens@ladisch.de> =
+wrote:
+>> >>> On Thu, May 19, 2011 at 12:14:40AM +0200, Leon Woestenberg wrote:
+>> >>> > =A0 =A0 vma->vm_page_prot =3D pgprot_noncached(vma->vm_page_prot);
+>> >>
+>> >> So is this an architecture without coherent caches?
+>> >
+>> > My aim is to have an architecture independent driver.
+>>
+>> Please note that most MMU architectures forbid mapping the same memory
+>> with different attributes, so you must use pgprot_noncached if and only
+>> if dma_alloc_coherent actually uses it. =A0Something like the code below=
+.
+>>
+>> And I'm not sure if you have to do some additional cache flushes when
+>> mapping on some architectures.
+>>
+>> >> Or would you want to use pgprot_dmacoherent, if available?
+>> >
+>> > Hmm, let me check that.
+>>
+>> It's available only on ARM and Unicore32.
+>>
+>> There's also dma_mmap_coherent(), which does exactly what you want if
+>> your buffer is physically contiguous, but it's ARM only.
+>> Takashi tried to implement it for other architectures; I don't know
+>> what came of it.
+>
+> PPC got this recently (thanks to Ben), but still missing in other
+> areas.
+>
+> There was little uncertain issue on MIPS, and it looks difficult to
+> achieve it on PA-RISC at all. =A0The development was stuck due to lack
+> of time since then.
+>
+Thanks for all the insights, I wasn't aware there were arch-specific
+calls that already solved the topic issue.
 
-Will that patch help us when users report the memcg equivalent of
-"kswapd uses 99% of CPU"?
+Having dma_mmap_coherent() there is good for one or two archs, but how
+can we built portable drivers if the others arch's are still missing?
 
-> >
-> >> + __ __ limit = res_counter_read_u64(&mem->res, RES_LIMIT);
-> >> + __ __ shrink_to = limit - MEMCG_ASYNC_MARGIN - PAGE_SIZE;
-> >> + __ __ usage = res_counter_read_u64(&mem->res, RES_USAGE);
-> >> + __ __ if (shrink_to <= usage) {
-> >> + __ __ __ __ __ __ required = usage - shrink_to;
-> >> + __ __ __ __ __ __ required = (required >> PAGE_SHIFT) + 1;
-> >> + __ __ __ __ __ __ /*
-> >> + __ __ __ __ __ __ __* This scans some number of pages and returns that memory
-> >> + __ __ __ __ __ __ __* reclaim was slow or now. If slow, we add a delay as
-> >> + __ __ __ __ __ __ __* congestion_wait() in vmscan.c
-> >> + __ __ __ __ __ __ __*/
-> >> + __ __ __ __ __ __ congested = mem_cgroup_shrink_static_scan(mem, (long)required);
-> >> + __ __ }
-> >> + __ __ if (test_bit(ASYNC_NORESCHED, &mem->async_flags)
-> >> + __ __ __ __ || mem_cgroup_async_should_stop(mem))
-> >> + __ __ __ __ __ __ goto finish_scan;
-> >> + __ __ /* If memory reclaim couldn't go well, add delay */
-> >> + __ __ if (congested)
-> >> + __ __ __ __ __ __ delay = HZ/10;
-> >
-> > Another magic number.
-> >
-> > If Moore's law holds, we need to reduce this number by 1.4 each year.
-> > Is this good?
-> >
-> 
-> not good.  I just used the same magic number now used with wait_iff_congested.
-> Other than timer, I can use pagein/pageout event counter. If we have
-> dirty_ratio,
-> I may able to link this to dirty_ratio and wait until dirty_ratio is enough low.
-> Or, wake up again hit limit.
-> 
-> Do you have suggestion ?
-> 
+I assume this call is thus not officially DMA-API (yet)?
 
-mm..  It would be pretty easy to generate an estimate of "pages scanned
-per second" from the contents of (and changes in) the scan_control. 
-Konwing that datum and knowing the number of pages in the memcg, we
-should be able to come up with a delay period which scales
-appropriately with CPU speed and with memory size?
+Clemens showed some pretty amazing preprocessor #if(def)s to cater for
+the all the different arch's and their mapping/cache-coherency
+behaviour, but that's not something I would like to put in a driver.
 
-Such a thing could be used to rationalise magic delays in other places,
-hopefully.
+How would dma_mmap_coherent() look like on x86?
 
-> 
-> >> + __ __ queue_delayed_work(memcg_async_shrinker, &mem->async_work, delay);
-> >> + __ __ return;
-> >> +finish_scan:
-> >> + __ __ cgroup_release_and_wakeup_rmdir(&mem->css);
-> >> + __ __ clear_bit(ASYNC_RUNNING, &mem->async_flags);
-> >> + __ __ return;
-> >> +}
-> >> +
-> >> +static void run_mem_cgroup_async_shrinker(struct mem_cgroup *mem)
-> >> +{
-> >> + __ __ if (test_bit(ASYNC_NORESCHED, &mem->async_flags))
-> >> + __ __ __ __ __ __ return;
-> >
-> > I can't work out what ASYNC_NORESCHED does. __Is its name well-chosen?
-> >
-> how about BLOCK/STOP_ASYNC_RECLAIM ?
 
-I can't say - I don't know what it does!  Or maybe I did, and immediately
-forgot ;)
+Regards,
+--=20
+Leon
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
