@@ -1,88 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 5F8FC900114
-	for <linux-mm@kvack.org>; Sat, 21 May 2011 07:00:03 -0400 (EDT)
-Received: by pvc12 with SMTP id 12so2635227pvc.14
-        for <linux-mm@kvack.org>; Sat, 21 May 2011 03:59:59 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 0E75A900114
+	for <linux-mm@kvack.org>; Sat, 21 May 2011 08:04:53 -0400 (EDT)
+Received: by wyf19 with SMTP id 19so4331174wyf.14
+        for <linux-mm@kvack.org>; Sat, 21 May 2011 05:04:51 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <s5htycp6b25.wl%tiwai@suse.de>
-References: <BANLkTi==cinS1bZc_ARRbnYT3YD+FQr8gA@mail.gmail.com>
-	<20110519145921.GE9854@dumpdata.com>
-	<4DD53E2B.2090002@ladisch.de>
-	<BANLkTinO1xR4XTN2B325pKCpJ3AjC9YidA@mail.gmail.com>
-	<4DD60F57.8030000@ladisch.de>
-	<s5htycp6b25.wl%tiwai@suse.de>
-Date: Sat, 21 May 2011 12:59:59 +0200
-Message-ID: <BANLkTi=P6WP-+BiqEwCRTxaNTqNHT988wA@mail.gmail.com>
-Subject: Re: mmap() implementation for pci_alloc_consistent() memory?
-From: Leon Woestenberg <leon.woestenberg@gmail.com>
+In-Reply-To: <BANLkTi=4C5YAxwAFWC6dsAPMR3xv6LP1hw@mail.gmail.com>
+References: <BANLkTi=NTLn4Lx7EkybuA8-diTVOvMDxBw@mail.gmail.com>
+ <BANLkTinEDXHuRUYpYN0d95+fz4+F7ccL4w@mail.gmail.com> <4DD5DC06.6010204@jp.fujitsu.com>
+ <BANLkTik=7C5qFZTsPQG4JYY-MEWDTHdc6A@mail.gmail.com> <BANLkTins7qxWVh0bEwtk1Vx+m98N=oYVtw@mail.gmail.com>
+ <20110520140856.fdf4d1c8.kamezawa.hiroyu@jp.fujitsu.com> <20110520101120.GC11729@random.random>
+ <BANLkTikAFMvpgHR2dopd+Nvjfyw_XT5=LA@mail.gmail.com> <20110520153346.GA1843@barrios-desktop>
+ <BANLkTi=X+=Wh1MLs7Fc-v-OMtxAHbcPmxA@mail.gmail.com> <20110520161934.GA2386@barrios-desktop>
+ <BANLkTi=4C5YAxwAFWC6dsAPMR3xv6LP1hw@mail.gmail.com>
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Date: Sat, 21 May 2011 21:04:31 +0900
+Message-ID: <BANLkTimThVw7-PN6ypBBarqXJa1xxYA_Ow@mail.gmail.com>
+Subject: Re: Kernel falls apart under light memory pressure (i.e. linking vmlinux)
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Takashi Iwai <tiwai@suse.de>, Clemens Ladisch <clemens@ladisch.de>
-Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, linux-pci@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Lutomirski <luto@mit.edu>
+Cc: Minchan Kim <minchan.kim@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, fengguang.wu@intel.com, andi@firstfloor.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mgorman@suse.de, hannes@cmpxchg.org, riel@redhat.com
 
-Hello Clemens, Takashi,
-
-On Fri, May 20, 2011 at 10:17 AM, Takashi Iwai <tiwai@suse.de> wrote:
-> At Fri, 20 May 2011 08:51:03 +0200,
-> Clemens Ladisch wrote:
->>
->> Leon Woestenberg wrote:
->> > On Thu, May 19, 2011 at 5:58 PM, Clemens Ladisch <clemens@ladisch.de> =
-wrote:
->> >>> On Thu, May 19, 2011 at 12:14:40AM +0200, Leon Woestenberg wrote:
->> >>> > =A0 =A0 vma->vm_page_prot =3D pgprot_noncached(vma->vm_page_prot);
->> >>
->> >> So is this an architecture without coherent caches?
->> >
->> > My aim is to have an architecture independent driver.
->>
->> Please note that most MMU architectures forbid mapping the same memory
->> with different attributes, so you must use pgprot_noncached if and only
->> if dma_alloc_coherent actually uses it. =A0Something like the code below=
-.
->>
->> And I'm not sure if you have to do some additional cache flushes when
->> mapping on some architectures.
->>
->> >> Or would you want to use pgprot_dmacoherent, if available?
->> >
->> > Hmm, let me check that.
->>
->> It's available only on ARM and Unicore32.
->>
->> There's also dma_mmap_coherent(), which does exactly what you want if
->> your buffer is physically contiguous, but it's ARM only.
->> Takashi tried to implement it for other architectures; I don't know
->> what came of it.
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 3f44b81..d1dabc9 100644
+> @@ -1426,8 +1437,13 @@ shrink_inactive_list(unsigned long nr_to_scan,
+> struct zone *zone,
 >
-> PPC got this recently (thanks to Ben), but still missing in other
-> areas.
+> =A0 =A0 =A0 =A0/* Check if we should syncronously wait for writeback */
+> =A0 =A0 =A0 =A0if (should_reclaim_stall(nr_taken, nr_reclaimed, priority,=
+ sc)) {
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 unsigned long nr_active, old_nr_scanned;
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0set_reclaim_mode(priority, sc, true);
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 nr_active =3D clear_active_flags(&page_list=
+, NULL);
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 count_vm_events(PGDEACTIVATE, nr_active);
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 old_nr_scanned =3D sc->nr_scanned;
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0nr_reclaimed +=3D shrink_page_list(&page_l=
+ist, zone, sc);
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 sc->nr_scanned =3D old_nr_scanned;
+> =A0 =A0 =A0 =A0}
 >
-> There was little uncertain issue on MIPS, and it looks difficult to
-> achieve it on PA-RISC at all. =A0The development was stuck due to lack
-> of time since then.
+> =A0 =A0 =A0 =A0local_irq_disable();
 >
-Thanks for all the insights, I wasn't aware there were arch-specific
-calls that already solved the topic issue.
+> I just tested 2.6.38.6 with the attached patch. =A0It survived dirty_ram
+> and test_mempressure without any problems other than slowness, but
+> when I hit ctrl-c to stop test_mempressure, I got the attached oom.
 
-Having dma_mmap_coherent() there is good for one or two archs, but how
-can we built portable drivers if the others arch's are still missing?
+Minchan,
 
-I assume this call is thus not officially DMA-API (yet)?
+I'm confused now.
+If pages got SetPageActive(), should_reclaim_stall() should never return tr=
+ue.
+Can you please explain which bad scenario was happen?
 
-Clemens showed some pretty amazing preprocessor #if(def)s to cater for
-the all the different arch's and their mapping/cache-coherency
-behaviour, but that's not something I would like to put in a driver.
+---------------------------------------------------------------------------=
+--------------------------
+static void reset_reclaim_mode(struct scan_control *sc)
+{
+        sc->reclaim_mode =3D RECLAIM_MODE_SINGLE | RECLAIM_MODE_ASYNC;
+}
 
-How would dma_mmap_coherent() look like on x86?
+shrink_page_list()
+{
+ (snip)
+ activate_locked:
+                SetPageActive(page);
+                pgactivate++;
+                unlock_page(page);
+                reset_reclaim_mode(sc);                  /// here
+                list_add(&page->lru, &ret_pages);
+        }
+---------------------------------------------------------------------------=
+--------------------------
 
 
-Regards,
---=20
-Leon
+---------------------------------------------------------------------------=
+--------------------------
+bool should_reclaim_stall()
+{
+ (snip)
+
+        /* Only stall on lumpy reclaim */
+        if (sc->reclaim_mode & RECLAIM_MODE_SINGLE)   /// and here
+                return false;
+---------------------------------------------------------------------------=
+--------------------------
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
