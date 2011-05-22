@@ -1,158 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id B274B6B0011
-	for <linux-mm@kvack.org>; Sun, 22 May 2011 08:22:46 -0400 (EDT)
-Received: by pzk4 with SMTP id 4so2966745pzk.14
-        for <linux-mm@kvack.org>; Sun, 22 May 2011 05:22:42 -0700 (PDT)
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id DF0A16B0011
+	for <linux-mm@kvack.org>; Sun, 22 May 2011 18:25:55 -0400 (EDT)
+Received: from wpaz13.hot.corp.google.com (wpaz13.hot.corp.google.com [172.24.198.77])
+	by smtp-out.google.com with ESMTP id p4MMPsha003380
+	for <linux-mm@kvack.org>; Sun, 22 May 2011 15:25:54 -0700
+Received: from pwi12 (pwi12.prod.google.com [10.241.219.12])
+	by wpaz13.hot.corp.google.com with ESMTP id p4MMPm8Y025598
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Sun, 22 May 2011 15:25:52 -0700
+Received: by pwi12 with SMTP id 12so3150798pwi.14
+        for <linux-mm@kvack.org>; Sun, 22 May 2011 15:25:48 -0700 (PDT)
+Date: Sun, 22 May 2011 15:25:31 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Adding an ugliness in __read_cache_page()?
+Message-ID: <alpine.LSU.2.00.1105221518180.17400@sister.anvils>
 MIME-Version: 1.0
-In-Reply-To: <BANLkTinx+oPJFQye7T+RMMGzg9E7m28A=Q@mail.gmail.com>
-References: <BANLkTi=NTLn4Lx7EkybuA8-diTVOvMDxBw@mail.gmail.com>
- <BANLkTinEDXHuRUYpYN0d95+fz4+F7ccL4w@mail.gmail.com> <4DD5DC06.6010204@jp.fujitsu.com>
- <BANLkTik=7C5qFZTsPQG4JYY-MEWDTHdc6A@mail.gmail.com> <BANLkTins7qxWVh0bEwtk1Vx+m98N=oYVtw@mail.gmail.com>
- <20110520140856.fdf4d1c8.kamezawa.hiroyu@jp.fujitsu.com> <20110520101120.GC11729@random.random>
- <BANLkTikAFMvpgHR2dopd+Nvjfyw_XT5=LA@mail.gmail.com> <20110520153346.GA1843@barrios-desktop>
- <BANLkTi=X+=Wh1MLs7Fc-v-OMtxAHbcPmxA@mail.gmail.com> <20110520161934.GA2386@barrios-desktop>
- <BANLkTi=4C5YAxwAFWC6dsAPMR3xv6LP1hw@mail.gmail.com> <BANLkTimThVw7-PN6ypBBarqXJa1xxYA_Ow@mail.gmail.com>
- <BANLkTint+Qs+cO+wKUJGytnVY3X1bp+8rQ@mail.gmail.com> <BANLkTinx+oPJFQye7T+RMMGzg9E7m28A=Q@mail.gmail.com>
-From: Andrew Lutomirski <luto@mit.edu>
-Date: Sun, 22 May 2011 08:22:22 -0400
-Message-ID: <BANLkTik29nkn-DN9ui6XV4sy5Wo2jmeS9w@mail.gmail.com>
-Subject: Re: Kernel falls apart under light memory pressure (i.e. linking vmlinux)
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, fengguang.wu@intel.com, andi@firstfloor.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mgorman@suse.de, hannes@cmpxchg.org, riel@redhat.com
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Sat, May 21, 2011 at 10:44 AM, Minchan Kim <minchan.kim@gmail.com> wrote=
-:
-> Hi Andrew.
->
-> On Sat, May 21, 2011 at 10:34 PM, Andrew Lutomirski <luto@mit.edu> wrote:
->> On Sat, May 21, 2011 at 8:04 AM, KOSAKI Motohiro
->> <kosaki.motohiro@jp.fujitsu.com> wrote:
->>>> diff --git a/mm/vmscan.c b/mm/vmscan.c
->>>> index 3f44b81..d1dabc9 100644
->>>> @@ -1426,8 +1437,13 @@ shrink_inactive_list(unsigned long nr_to_scan,
->>>> struct zone *zone,
->>>>
->>>> =A0 =A0 =A0 =A0/* Check if we should syncronously wait for writeback *=
-/
->>>> =A0 =A0 =A0 =A0if (should_reclaim_stall(nr_taken, nr_reclaimed, priori=
-ty, sc)) {
->>>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 unsigned long nr_active, old_nr_scanned;
->>>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0set_reclaim_mode(priority, sc, true);
->>>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 nr_active =3D clear_active_flags(&page_l=
-ist, NULL);
->>>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 count_vm_events(PGDEACTIVATE, nr_active)=
-;
->>>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 old_nr_scanned =3D sc->nr_scanned;
->>>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0nr_reclaimed +=3D shrink_page_list(&pag=
-e_list, zone, sc);
->>>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 sc->nr_scanned =3D old_nr_scanned;
->>>> =A0 =A0 =A0 =A0}
->>>>
->>>> =A0 =A0 =A0 =A0local_irq_disable();
->>>>
->>>> I just tested 2.6.38.6 with the attached patch. =A0It survived dirty_r=
-am
->>>> and test_mempressure without any problems other than slowness, but
->>>> when I hit ctrl-c to stop test_mempressure, I got the attached oom.
->>>
->>> Minchan,
->>>
->>> I'm confused now.
->>> If pages got SetPageActive(), should_reclaim_stall() should never retur=
-n true.
->>> Can you please explain which bad scenario was happen?
->>>
->>> -----------------------------------------------------------------------=
-------------------------------
->>> static void reset_reclaim_mode(struct scan_control *sc)
->>> {
->>> =A0 =A0 =A0 =A0sc->reclaim_mode =3D RECLAIM_MODE_SINGLE | RECLAIM_MODE_=
-ASYNC;
->>> }
->>>
->>> shrink_page_list()
->>> {
->>> =A0(snip)
->>> =A0activate_locked:
->>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0SetPageActive(page);
->>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0pgactivate++;
->>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0unlock_page(page);
->>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0reset_reclaim_mode(sc); =A0 =A0 =A0 =A0 =
-=A0 =A0 =A0 =A0 =A0/// here
->>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0list_add(&page->lru, &ret_pages);
->>> =A0 =A0 =A0 =A0}
->>> -----------------------------------------------------------------------=
-------------------------------
->>>
->>>
->>> -----------------------------------------------------------------------=
-------------------------------
->>> bool should_reclaim_stall()
->>> {
->>> =A0(snip)
->>>
->>> =A0 =A0 =A0 =A0/* Only stall on lumpy reclaim */
->>> =A0 =A0 =A0 =A0if (sc->reclaim_mode & RECLAIM_MODE_SINGLE) =A0 /// and =
-here
->>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return false;
->>> -----------------------------------------------------------------------=
-------------------------------
->>>
->>
->> I did some tracing and the oops happens from the second call to
->> shrink_page_list after should_reclaim_stall returns true and it hits
->> the same pages in the same order that the earlier call just finished
->> calling SetPageActive on. =A0I have *not* confirmed that the two calls
->> happened from the same call to shrink_inactive_list, but something's
->> certainly wrong in there.
->>
->> This is very easy to reproduce on my laptop.
->
-> I would like to confirm this problem.
-> Could you show the diff of 2.6.38.6 with current your 2.6.38.6 + alpha?
-> (ie, I would like to know that what patches you add up on vanilla
-> 2.6.38.6 to reproduce this problem)
-> I believe you added my crap below patch. Right?
->
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 292582c..69d317e 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -311,7 +311,8 @@ static void set_reclaim_mode(int priority, struct
-> scan_control *sc,
-> =A0 =A0 =A0 =A0*/
-> =A0 =A0 =A0 if (sc->order > PAGE_ALLOC_COSTLY_ORDER)
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 sc->reclaim_mode |=3D syncmode;
-> - =A0 =A0 =A0 else if (sc->order && priority < DEF_PRIORITY - 2)
-> + =A0 =A0 =A0 else if ((sc->order && priority < DEF_PRIORITY - 2) ||
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 prioiry <=
-=3D DEF_PRIORITY / 3)
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 sc->reclaim_mode |=3D syncmode;
-> =A0 =A0 =A0 else
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 sc->reclaim_mode =3D RECLAIM_MODE_SINGLE | RE=
-CLAIM_MODE_ASYNC;
-> @@ -1349,10 +1350,6 @@ static inline bool
-> should_reclaim_stall(unsigned long nr_taken,
-> =A0 =A0 =A0 if (current_is_kswapd())
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 return false;
->
-> - =A0 =A0 =A0 /* Only stall on lumpy reclaim */
-> - =A0 =A0 =A0 if (sc->reclaim_mode & RECLAIM_MODE_SINGLE)
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 return false;
-> -
+Linus, Christoph,
 
-Bah.  It's this last hunk.  Without this I can't reproduce the oops.
-With this hunk, the reset_reclaim_mode doesn't work and
-shrink_page_list is incorrectly called twice.
+Could you bear a patch something like the one below?
 
-So we're back to the original problem...
+I have a series aimed at 2.6.41 to remove mm/shmem.c's peculiar radix
+tree of swap entries, using slots in the file's standard radix_tree
+instead - prompted in part by https://lkml.org/lkml/2011/1/22/110
 
---Andy
+In isolating the occurrence of swap entries in radix_trees, it becomes
+convenient to remove shmem's ->readpage at last, giving it instead its
+own ->splice_read.
+
+But drivers/gpu/drm i915 and ttm are using read_cache_page_gfp() or
+read_mapping_page() on tmpfs: on objects created by shmem_file_setup().
+
+Nothing else uses read_cache_page_gfp().  I cannot find anything else
+using read_mapping_page() on tmpfs, but wonder if something might be
+out there.  Stacked filesystems appear not to go that way nowadays.
+
+Would it be better to make i915 and ttm call shmem_read_cache_page()
+directly?  Perhaps removing the then unused read_cache_page_gfp(), or
+perhaps not: may still be needed for i915 and ttm on tiny !SHMEM ramfs.
+
+I find both ways ugly, but no nice alternative: introducing a new method
+when the known callers are already tied to tmpfs/ramfs seems over the top.
+
+Thanks,
+Hugh
+
+---
+
+ include/linux/mm.h |    1 +
+ mm/filemap.c       |   13 +++++++++++++
+ mm/shmem.c         |   26 +++++++++++++++-----------
+ 3 files changed, 29 insertions(+), 11 deletions(-)
+
+--- 2.6.39/include/linux/mm.h	2011-05-18 21:06:34.000000000 -0700
++++ linux/include/linux/mm.h	2011-05-22 11:50:49.332431949 -0700
+@@ -873,6 +873,7 @@ extern void __show_free_areas(unsigned i
+ int shmem_lock(struct file *file, int lock, struct user_struct *user);
+ struct file *shmem_file_setup(const char *name, loff_t size, unsigned long flags);
+ int shmem_zero_setup(struct vm_area_struct *);
++struct page *shmem_read_cache_page(struct address_space *, pgoff_t, gfp_t);
+ 
+ #ifndef CONFIG_MMU
+ extern unsigned long shmem_get_unmapped_area(struct file *file,
+--- 2.6.39/mm/filemap.c	2011-05-18 21:06:34.000000000 -0700
++++ linux/mm/filemap.c	2011-05-22 11:50:49.332431949 -0700
+@@ -1762,6 +1762,19 @@ static struct page *__read_cache_page(st
+ {
+ 	struct page *page;
+ 	int err;
++
++#ifdef CONFIG_TMPFS
++	/*
++	 * The ->readpage() interface does not suit tmpfs at all, since it
++	 * may have pages in swapcache, and needs to find those for itself;
++	 * but gpu/drm/i915 and gpu/drm/ttm need it to support this function.
++	 */
++	if (!filler) {
++		BUG_ON(!mapping_cap_swap_backed(mapping));
++		return shmem_read_cache_page(mapping, index, gfp);
++	}
++#endif
++
+ repeat:
+ 	page = find_get_page(mapping, index);
+ 	if (!page) {
+--- 2.6.39/mm/shmem.c	2011-05-18 21:06:34.000000000 -0700
++++ linux/mm/shmem.c	2011-05-22 11:50:49.332431949 -0700
+@@ -1652,17 +1652,22 @@ static struct inode *shmem_get_inode(str
+ static const struct inode_operations shmem_symlink_inode_operations;
+ static const struct inode_operations shmem_symlink_inline_operations;
+ 
+-/*
+- * Normally tmpfs avoids the use of shmem_readpage and shmem_write_begin;
+- * but providing them allows a tmpfs file to be used for splice, sendfile, and
+- * below the loop driver, in the generic fashion that many filesystems support.
+- */
+-static int shmem_readpage(struct file *file, struct page *page)
++struct page *
++shmem_read_cache_page(struct address_space *mapping, pgoff_t index, gfp_t gfp)
+ {
+-	struct inode *inode = page->mapping->host;
+-	int error = shmem_getpage(inode, page->index, &page, SGP_CACHE, NULL);
+-	unlock_page(page);
+-	return error;
++	struct page *page;
++	int error;
++
++	/*
++	 * Not shown: addition of gfp arg to shmem_getpage(), passed down here.
++	 * Not shown: addition of shmem_file_splice_read() avoiding ->readpage.
++	 */
++	error = shmem_getpage(mapping->host, index, &page, SGP_CACHE, NULL);
++	if (error)
++		page = ERR_PTR(error);
++	else
++		unlock_page(page);
++	return page;
+ }
+ 
+ static int
+@@ -2475,7 +2480,6 @@ static const struct address_space_operat
+ 	.writepage	= shmem_writepage,
+ 	.set_page_dirty	= __set_page_dirty_no_writeback,
+ #ifdef CONFIG_TMPFS
+-	.readpage	= shmem_readpage,
+ 	.write_begin	= shmem_write_begin,
+ 	.write_end	= shmem_write_end,
+ #endif
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
