@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id EE91A6B0012
-	for <linux-mm@kvack.org>; Sun, 22 May 2011 23:59:37 -0400 (EDT)
-Received: by qyk30 with SMTP id 30so3803295qyk.14
-        for <linux-mm@kvack.org>; Sun, 22 May 2011 20:59:35 -0700 (PDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 7BFB06B0022
+	for <linux-mm@kvack.org>; Mon, 23 May 2011 00:02:33 -0400 (EDT)
+Received: by qyk2 with SMTP id 2so765949qyk.14
+        for <linux-mm@kvack.org>; Sun, 22 May 2011 21:02:31 -0700 (PDT)
 MIME-Version: 1.0
 In-Reply-To: <4DD6204D.5020109@jp.fujitsu.com>
 References: <4DD61F80.1020505@jp.fujitsu.com>
 	<4DD6204D.5020109@jp.fujitsu.com>
-Date: Mon, 23 May 2011 12:59:35 +0900
-Message-ID: <BANLkTim2-uncnzoHwdG+4+uCv+Ht4YH3Qw@mail.gmail.com>
+Date: Mon, 23 May 2011 13:02:31 +0900
+Message-ID: <BANLkTinpX59NnwsJVQZNTgt_6X3DVK9WLg@mail.gmail.com>
 Subject: Re: [PATCH 3/5] oom: oom-killer don't use proportion of system-ram internally
 From: Minchan Kim <minchan.kim@gmail.com>
 Content-Type: text/plain; charset=UTF-8
@@ -62,10 +62,6 @@ rations =3D {
 > + =C2=A0 =C2=A0 =C2=A0 unsigned long ratio =3D 0;
 > + =C2=A0 =C2=A0 =C2=A0 unsigned long totalpages =3D totalram_pages + tota=
 l_swap_pages + 1;
-
-Does we need +1?
-oom_badness does have the check.
-
 >
 > =C2=A0 =C2=A0 =C2=A0 =C2=A0read_lock(&tasklist_lock);
 > - =C2=A0 =C2=A0 =C2=A0 if (pid_alive(task))
@@ -170,21 +166,10 @@ __vm_enough_memory()
 > + =C2=A0 =C2=A0 =C2=A0 =C2=A0* XXX: Too large bonus, example, if the syst=
 em have tera-bytes memory..
 > =C2=A0 =C2=A0 =C2=A0 =C2=A0 */
-> - =C2=A0 =C2=A0 =C2=A0 if (has_capability_noaudit(p, CAP_SYS_ADMIN))
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 points -=3D 30;
-> + =C2=A0 =C2=A0 =C2=A0 if (has_capability_noaudit(p, CAP_SYS_ADMIN)) {
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (points >=3D totalp=
-ages / 32)
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 points -=3D totalpages / 32;
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 else
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 points =3D 0;
 
-Odd. Why do we initialize points with 0?
-
-I think the idea is good.
-
+Nitpick. I have no opposition about adding this comment.
+But strictly speaking, the comment isn't related to this patch.
+No biggie and it's up to you.  :)
 
 --=20
 Kind regards,
