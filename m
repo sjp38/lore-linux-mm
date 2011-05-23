@@ -1,76 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 34CC26B0012
-	for <linux-mm@kvack.org>; Mon, 23 May 2011 14:33:04 -0400 (EDT)
-Received: from mail.mediafire.com (unknown [10.9.180.5])
-	by mi11 (SG) with ESMTP id 4ddaa85d.498e.22800f
-	for <linux-mm@kvack.org>; Mon, 23 May 2011 13:33:01 -0500 (CST)
-Received: from [10.10.23.246]
-        by mail.mediafire.com (IceWarp 10.3.0) with ESMTP (SSL) id GXE51502
-        for <linux-mm@kvack.org>; Mon, 23 May 2011 13:33:02 -0500
-Subject: PROBLEM:  Kernel panics on do_raw_spin_lock()
-From: Bryan Christ <bryan@mediafire.com>
-Reply-To: bryan@mediafire.com
-Content-Type: text/plain; charset="UTF-8"
-Date: Mon, 23 May 2011 13:33:00 -0500
-Message-ID: <1306175580.2481.16.camel@tuxdev64>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id B844E6B0012
+	for <linux-mm@kvack.org>; Mon, 23 May 2011 15:13:56 -0400 (EDT)
+Received: from mail-ew0-f41.google.com (mail-ew0-f41.google.com [209.85.215.41])
+	(authenticated bits=0)
+	by smtp1.linux-foundation.org (8.14.2/8.13.5/Debian-3ubuntu1.1) with ESMTP id p4NJDq0w006025
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=FAIL)
+	for <linux-mm@kvack.org>; Mon, 23 May 2011 12:13:54 -0700
+Received: by ewy9 with SMTP id 9so2818045ewy.14
+        for <linux-mm@kvack.org>; Mon, 23 May 2011 12:13:49 -0700 (PDT)
+MIME-Version: 1.0
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Mon, 23 May 2011 12:13:29 -0700
+Message-ID: <BANLkTi=PLuZhx1=rCfOtg=aOTuC1UbuPYg@mail.gmail.com>
+Subject: (Short?) merge window reminder
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org, DRI <dri-devel@lists.freedesktop.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+Cc: Greg KH <gregkh@suse.de>, Andrew Morton <akpm@linux-foundation.org>
 
-Kernel seems to frequently panic with RIP at do_raw_spin_lock().  I
-assume this might be vma related since the trace often implicates
-vma_merge() and friends.
+So I've been busily merging stuff, and just wanted to send out a quick
+reminder that I warned people in the 39 announcement that this might
+be a slightly shorter merge window than usual, so that I can avoid
+having to make the -rc1 release from Japan using my slow laptop (doing
+"allyesconfig" builds on that thing really isn't in the cards, and I
+like to do those to verify things - even if we've already had a few
+cases where arch include differences made it less than effective in
+finding problems).
 
-Linux version 2.6.38.6-26.rc1.fc14.x86_64
+And judging by the merge window so far, that early close (probably
+Sunday - I'll be on airplanes next Monday) looks rather likely. I
+already seem to have a fairly sizable portion of linux-next in my
+tree, and there haven't been any huge upsets.
 
-Module                  Size  Used by
-xfs                   700603  5 
-exportfs                3440  1 xfs
-p4_clockmod             4486  0 
-freq_table              3963  1 p4_clockmod
-speedstep_lib           4847  1 p4_clockmod
-ipv6                  288342  26 
-iTCO_wdt               11592  0 
-shpchp                 24810  0 
-iTCO_vendor_support     2634  1 iTCO_wdt
-serio_raw               4442  0 
-i2c_i801                9293  0 
-i5000_edac              8340  0 
-edac_core              41090  3 i5000_edac
-i5k_amb                 4882  0 
-ioatdma                45294  9 
-e1000e                200202  0 
-ppdev                   7868  0 
-parport_pc             21303  0 
-parport                31338  2 ppdev,parport_pc
-microcode              18276  0 
-dca                     5854  1 ioatdma
-ext2                   59952  1 
-usb_storage            45607  1 
-uas                     7768  0 
-radeon                696138  1 
-ttm                    55897  1 radeon
-drm_kms_helper         27729  1 radeon
-drm                   189462  3 radeon,ttm,drm_kms_helper
-i2c_algo_bit            5062  1 radeon
-i2c_core               25745  5
-i2c_i801,radeon,drm_kms_helper,drm,i2c_algo_bit
+So anybody who was planning a last-minute "please pull" - this is a
+heads-up. Don't do it, you might miss the window entirely.
 
-Screenshots of panic:
+Did I miss any major development mailing lists with stuff pending?
 
-http://www.mediafire.com/imageview.php?quickkey=hnd1dedna9bed65
-http://www.mediafire.com/imageview.php?quickkey=n86366d44i7mlx4
-http://www.mediafire.com/imageview.php?quickkey=0sgzfd91dvl3jhl
-http://www.mediafire.com/imageview.php?quickkey=zwly9x5c4zg28dn
+                       Linus
 
-I will be glad to provide as much information as I can.  Just let me
-know what is needed.
-
-
-
+PS. The voices in my head also tell me that the numbers are getting
+too big. I may just call the thing 2.8.0. And I almost guarantee that
+this PS is going to result in more discussion than the rest, but when
+the voices tell me to do things, I listen.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
