@@ -1,40 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id B97266B0012
-	for <linux-mm@kvack.org>; Mon, 23 May 2011 11:46:46 -0400 (EDT)
-Received: by qyk30 with SMTP id 30so4176122qyk.14
-        for <linux-mm@kvack.org>; Mon, 23 May 2011 08:46:45 -0700 (PDT)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 039296B0012
+	for <linux-mm@kvack.org>; Mon, 23 May 2011 12:23:27 -0400 (EDT)
+Received: from hpaq1.eem.corp.google.com (hpaq1.eem.corp.google.com [172.25.149.1])
+	by smtp-out.google.com with ESMTP id p4NGNObd027348
+	for <linux-mm@kvack.org>; Mon, 23 May 2011 09:23:24 -0700
+Received: from pwj9 (pwj9.prod.google.com [10.241.219.73])
+	by hpaq1.eem.corp.google.com with ESMTP id p4NGNHSW008587
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 23 May 2011 09:23:23 -0700
+Received: by pwj9 with SMTP id 9so3521385pwj.34
+        for <linux-mm@kvack.org>; Mon, 23 May 2011 09:23:17 -0700 (PDT)
+Date: Mon, 23 May 2011 09:23:18 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: Adding an ugliness in __read_cache_page()?
+In-Reply-To: <20110523072705.GA3966@infradead.org>
+Message-ID: <alpine.LSU.2.00.1105230919480.4182@sister.anvils>
+References: <alpine.LSU.2.00.1105221518180.17400@sister.anvils> <20110523072705.GA3966@infradead.org>
 MIME-Version: 1.0
-In-Reply-To: <1306144435-2516-2-git-send-email-mgorman@suse.de>
-References: <1306144435-2516-1-git-send-email-mgorman@suse.de>
-	<1306144435-2516-2-git-send-email-mgorman@suse.de>
-Date: Tue, 24 May 2011 00:46:44 +0900
-Message-ID: <BANLkTi=T6R58_Z3UQTB6nUtRb9240dm0Sw@mail.gmail.com>
-Subject: Re: [PATCH 1/2] mm: vmscan: Correct use of pgdat_balanced in sleeping_prematurely
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, James Bottomley <James.Bottomley@hansenpartnership.com>, Colin King <colin.king@canonical.com>, Raghavendra D Prabhu <raghu.prabhu13@gmail.com>, Jan Kara <jack@suse.cz>, Chris Mason <chris.mason@oracle.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-ext4 <linux-ext4@vger.kernel.org>, stable <stable@kernel.org>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, May 23, 2011 at 6:53 PM, Mel Gorman <mgorman@suse.de> wrote:
-> From: Johannes Weiner <hannes@cmpxchg.org>
->
-> Johannes Weiner poined out that the logic in commit [1741c877: mm:
-> kswapd: keep kswapd awake for high-order allocations until a percentage
-> of the node is balanced] is backwards. Instead of allowing kswapd to go
-> to sleep when balancing for high order allocations, it keeps it kswapd
-> running uselessly.
->
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
-> Reviewed-by: Rik van Riel <riel@redhat.com>
-Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+On Mon, 23 May 2011, Christoph Hellwig wrote:
+> On Sun, May 22, 2011 at 03:25:31PM -0700, Hugh Dickins wrote:
+> > I find both ways ugly, but no nice alternative: introducing a new method
+> > when the known callers are already tied to tmpfs/ramfs seems over the top.
+> 
+> Calling into shmem directly is the less ugly variant.
 
+Okay, that's good, thanks.
 
--- 
-Kind regards,
-Minchan Kim
+> Long term killing
+> that tmpfs abuse would be even better, but I already lost that fight
+> when it was initially added.
+
+I'd better match your restraint and not fan the flames now -
+I believe we're on opposite sides, or at least orthogonal on that.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
