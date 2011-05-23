@@ -1,44 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id BF39D6B0012
-	for <linux-mm@kvack.org>; Mon, 23 May 2011 19:49:00 -0400 (EDT)
-Date: Mon, 23 May 2011 16:48:04 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [Bugme-new] [Bug 35662] New: softlockup with kernel 2.6.39
-Message-Id: <20110523164804.572cecfd.akpm@linux-foundation.org>
-In-Reply-To: <201105240241.52307.hussam@visp.net.lb>
-References: <bug-35662-10286@https.bugzilla.kernel.org/>
-	<20110523162225.6017b2df.akpm@linux-foundation.org>
-	<201105240241.52307.hussam@visp.net.lb>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 0A2F66B0012
+	for <linux-mm@kvack.org>; Mon, 23 May 2011 19:54:05 -0400 (EDT)
+Message-ID: <4DDAF394.7050405@turmel.org>
+Date: Mon, 23 May 2011 19:53:56 -0400
+From: Phil Turmel <philip@turmel.org>
+MIME-Version: 1.0
+Subject: Re: (Short?) merge window reminder
+References: <BANLkTi=PLuZhx1=rCfOtg=aOTuC1UbuPYg@mail.gmail.com> <20110523192056.GC23629@elte.hu> <BANLkTikdgM+kSvaEYuQkgCYJZELnvwfetg@mail.gmail.com>
+In-Reply-To: <BANLkTikdgM+kSvaEYuQkgCYJZELnvwfetg@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hussam Al-Tayeb <ht990332@gmail.com>
-Cc: linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Ingo Molnar <mingo@elte.hu>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org, DRI <dri-devel@lists.freedesktop.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@suse.de>
 
-On Tue, 24 May 2011 02:41:51 +0300
-Hussam Al-Tayeb <ht990332@gmail.com> wrote:
+Hi Linus,
 
-> YEs, 
-> lsmod | grep dm_crypt
-> dm_crypt               12887  2 
-> dm_mod                 55464  5 dm_crypt
+On 05/23/2011 04:33 PM, Linus Torvalds wrote:
+> On Mon, May 23, 2011 at 12:20 PM, Ingo Molnar <mingo@elte.hu> wrote:
+>>
+>> I really hope there's also a voice that tells you to wait until .42 before
+>> cutting 3.0.0! :-)
 > 
-> Still no lockups since downgrading to 2.6.38.6 which was a few hours before I 
-> filed the bug report.
-> I could reinstall 2.6.39 if there is anything you would like me to test.
+> So I'm toying with 3.0 (and in that case, it really would be "3.0",
+> not "3.0.0" - the stable team would get the third digit rather than
+> the fourth one.
 
-Thanks.
+A few months ago, I briefly considered suggesting that the demise of the BKL
+would be a suitable milestone for the numbering shakeup.
 
-CONFIG_PROVE_LOCKING=y would be useful, if you didn't already have it
-set.
+But I am a mere mortal lurker, and I remember past flame-fests this topic
+spawned.  So I chickened out.
 
-Also after the kernel has failed, kill everything off and do a `ps aux'
-and look for any other tasks which are stuck in "D" state.  Backtraces
-for any such processes can be obtained with "echo w >
-/proc/sysrq-trigger".
+As a small-scale linux evangelist, I would sure like to skip the explanation
+of the version numbers.
+
+Phil
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
