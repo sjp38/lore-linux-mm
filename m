@@ -1,300 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id DD4856B0022
-	for <linux-mm@kvack.org>; Mon, 23 May 2011 06:44:55 -0400 (EDT)
-Date: Mon, 23 May 2011 11:44:47 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [Bugme-new] [Bug 35512] New: firefox hang, congestion_wait
-Message-ID: <20110523104447.GK4743@csn.ul.ie>
-References: <bug-35512-10286@https.bugzilla.kernel.org/>
- <20110520125147.a8baa51a.akpm@linux-foundation.org>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 889ED6B0022
+	for <linux-mm@kvack.org>; Mon, 23 May 2011 07:08:12 -0400 (EDT)
+Received: by iyh42 with SMTP id 42so6432041iyh.14
+        for <linux-mm@kvack.org>; Mon, 23 May 2011 04:08:09 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20110520125147.a8baa51a.akpm@linux-foundation.org>
+Date: Mon, 23 May 2011 19:08:08 +0800
+Message-ID: <BANLkTinLvqa0DiayLOwvxE9zBmqb4Y7Rww@mail.gmail.com>
+Subject: [Patch] mm: remove noswapaccount kernel parameter
+From: =?UTF-8?Q?Am=C3=A9rico_Wang?= <xiyou.wangcong@gmail.com>
+Content-Type: multipart/mixed; boundary=20cf303639298c816304a3ef7c47
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org, linux-mm@kvack.org, urykhy@gmail.com
+To: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>
 
-On Fri, May 20, 2011 at 12:51:47PM -0700, Andrew Morton wrote:
-> 
-> (switched to email.  Please respond via emailed reply-to-all, not via the
-> bugzilla web interface).
-> 
-> On Fri, 20 May 2011 19:45:43 GMT
-> bugzilla-daemon@bugzilla.kernel.org wrote:
-> 
-> > https://bugzilla.kernel.org/show_bug.cgi?id=35512
-> > 
-> >            Summary: firefox hang, congestion_wait
-> >            Product: Memory Management
-> >            Version: 2.5
-> >     Kernel Version: 2.6.39
-> >           Platform: All
-> >         OS/Version: Linux
-> >               Tree: Mainline
-> >             Status: NEW
-> >           Severity: normal
-> >           Priority: P1
-> >          Component: Other
-> >         AssignedTo: akpm@linux-foundation.org
-> >         ReportedBy: urykhy@gmail.com
-> >         Regression: No
-> > 
-> > 
-> > Created an attachment (id=58822)
-> >  --> (https://bugzilla.kernel.org/attachment.cgi?id=58822)
-> > kernel config
-> > 
-> > some times FF is hang for a long time (10..20.. and more seconds)
-> > 
+--20cf303639298c816304a3ef7c47
+Content-Type: text/plain; charset=UTF-8
 
-Well.... that is unacceptable.
+noswapaccount is deprecated by swapaccount=0, and it is scheduled
+to be removed in 2.6.40.
 
-> > vmstat:
-> > $vmstat 1
-> > procs -----------memory---------- ---swap-- -----io---- -system-- ----cpu----
-> >  r  b   swpd   free   buff  cache   si   so    bi    bo   in   cs us sy id wa
-> >  0  2   1232  82508     40 503448    0    0    46    21  505 1148 15  9 66  9
-> >  1  2   1232  82384     40 503416    0    0     0     0  320 1424  9  5  0 86
-> >  0  2   1232  82384     40 503416    0    0     0     0  358  716  3  2  0 95
-> >  0  2   1232  82384     40 503416    0    0     0     8  705  692  3  6  0 91
-> >  1  2   1232  82260     40 503652    0    0   236     0  728  763  2  2  0 96
-> >  0  2   1232  82260     40 503652    0    0     0     0  459  620  3  1  0 96
-> >  0  2   1232  82260     40 503652    0    0     0     0  249  642  2  2  0 96
-> >  0  2   1232  82260     40 503652    0    0     0     0  250  662  2  3  0 95
-> >  0  2   1232  82260     40 503652    0    0     0     0  267  667  2  4  0 94
-> >  0  2   1232  82260     40 503652    0    0     0    16  285  707  3  1  0 96
-> >  0  2   1232  82260     40 503652    0    0     0     0  259  691  3  3  0 94
-> >  0  2   1232  82260     40 503652    0    0     0     0  254  623  2  4  0 94
-> >  0  2   1232  83128     40 502576    0    0     0     0  344 1473  4 10  0 86
-> > 
-> > $iostat -x 1
-> > avg-cpu:  %user   %nice %system %iowait  %steal   %idle
-> >            4,04    0,00    9,09   86,87    0,00    0,00
-> > 
-> > Device:         rrqm/s   wrqm/s     r/s     w/s   rsec/s   wsec/s avgrq-sz
-> > avgqu-sz   await  svctm  %util
-> > hda               0,00     0,00    0,00    0,00     0,00     0,00     0,00    
-> > 0,00    0,00   0,00   0,00
-> > dm-0              0,00     0,00    0,00    0,00     0,00     0,00     0,00    
-> > 0,00    0,00   0,00   0,00
-> > sda               0,00     0,00    0,00    0,00     0,00     0,00     0,00    
-> > 0,00    0,00   0,00   0,00
-> > dm-1              0,00     0,00    0,00    0,00     0,00     0,00     0,00    
-> > 0,00    0,00   0,00   0,00
-> > 
-> > stack:
-> > $cat /proc/4014/stack
-> > [<c108ad00>] congestion_wait+0x5a/0xae
-> > [<c109ba1b>] compact_zone+0xd6/0x583
-> > [<c109bfc3>] compact_zone_order+0x88/0x90
-> > [<c109c040>] try_to_compact_pages+0x75/0xc1
-> > [<c107ef34>] __alloc_pages_direct_compact+0x6d/0x101
-> > [<c107f2ee>] __alloc_pages_nodemask+0x326/0x5db
-> > [<c10a2ca1>] do_huge_pmd_anonymous_page+0xb4/0x293
-> > [<c108f6c6>] handle_mm_fault+0x72/0x129
-> > [<c10195e9>] do_page_fault+0x32e/0x346
-> > [<c12b1a09>] error_code+0x5d/0x64
-> > [<ffffffff>] 0xffffffff
-> > 
+Signed-off-by: WANG Cong <xiyou.wangcong@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Michal Hocko <mhocko@suse.cz>
 
-It's obviously not true congestion then with that output of iostat
-and vmstat.
+---
 
-> > meminfo:
-> > $cat /proc/meminfo 
-> > MemTotal:        1271456 kB
-> > MemFree:          117988 kB
-> > Buffers:              40 kB
-> > Cached:           472048 kB
-> > SwapCached:          480 kB
-> > Active:           514172 kB
-> > Inactive:         531052 kB
-> > Active(anon):     329116 kB
-> > Inactive(anon):   347324 kB
-> > Active(file):     185056 kB
-> > Inactive(file):   183728 kB
-> > Unevictable:           4 kB
-> > Mlocked:               4 kB
-> > HighTotal:        384968 kB
-> > HighFree:          14476 kB
-> > LowTotal:         886488 kB
-> > LowFree:          103512 kB
-> > SwapTotal:       1023996 kB
-> > SwapFree:        1019724 kB
-> > Dirty:                 4 kB
-> > Writeback:             0 kB
-> > AnonPages:        572684 kB
-> > Mapped:            82244 kB
-> > Shmem:            103304 kB
-> > Slab:              45156 kB
-> > SReclaimable:      27256 kB
-> > SUnreclaim:        17900 kB
-> > KernelStack:        2160 kB
-> > PageTables:         3956 kB
-> > NFS_Unstable:          0 kB
-> > Bounce:                0 kB
-> > WritebackTmp:          0 kB
-> > CommitLimit:     1659724 kB
-> > Committed_AS:    1343792 kB
-> > VmallocTotal:     122880 kB
-> > VmallocUsed:        8004 kB
-> > VmallocChunk:      89032 kB
-> > AnonHugePages:    110592 kB
-> > DirectMap4k:       24568 kB
-> > DirectMap4M:      884736 kB
-> > 
+--20cf303639298c816304a3ef7c47
+Content-Type: text/x-patch; charset=US-ASCII; name="mm-remove-noswapaccount.diff"
+Content-Disposition: attachment; filename="mm-remove-noswapaccount.diff"
+Content-Transfer-Encoding: base64
+X-Attachment-Id: f_go1bb68c0
 
-/proc/vmstat at the time of the hang if you can but it's not critical.
-
-I think what is happening here is that there are a number of allocations
-in direct compaction trying to promote pages to huge pages. When too
-many pages are isolated, processes stall waiting for others to complete.
-This is the wrong decision because it should simply fail the hugepage
-promotion.
-
-There are two things I'd like to see tested please.
-
-1. Can you try patch below please? It's untested unfortunately but is a
-   combination of three patches. Two related to reclaim which I do not
-   think are the problem but would like to see tested just in case.
-   The third patch to compaction is unreleased but causes compaction to
-   abort if too many pages are isolated and the caller is asynchronous
-   which it will be in your call trace above.
-
-2. Can a test be tried with booting with slub_maxorder=1 and retesting
-   *without* the patch? I am wondering if the problem is SLUB and
-   THP are both isolating too many pages and competing with each
-   other. This is to satisfy my own curiousity only as slub_maxorder=1
-   is not a long-term fix for anything. If this is difficult to
-   reproduce or time is constrained, do not bother.
-
-Here is the patch I'd like to see tested. Thanks.
-
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 021a296..331a2ee 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -240,11 +240,20 @@ static bool too_many_isolated(struct zone *zone)
- 	return isolated > (inactive + active) / 2;
- }
- 
-+/* possible outcome of isolate_migratepages */
-+typedef enum {
-+	ISOLATE_ABORT,		/* Abort compaction now */
-+	ISOLATE_NONE,		/* No pages isolated, continue scanning */
-+	ISOLATE_SUCCESS,	/* Pages isolated, migrate */
-+} isolate_migrate_t;
-+
- /*
-  * Isolate all pages that can be migrated from the block pointed to by
-  * the migrate scanner within compact_control.
-+ *
-+ * Returns false if compaction should abort at this point due to congestion.
-  */
--static unsigned long isolate_migratepages(struct zone *zone,
-+static isolate_migrate_t isolate_migratepages(struct zone *zone,
- 					struct compact_control *cc)
- {
- 	unsigned long low_pfn, end_pfn;
-@@ -261,7 +270,7 @@ static unsigned long isolate_migratepages(struct zone *zone,
- 	/* Do not cross the free scanner or scan within a memory hole */
- 	if (end_pfn > cc->free_pfn || !pfn_valid(low_pfn)) {
- 		cc->migrate_pfn = end_pfn;
--		return 0;
-+		return ISOLATE_NONE;
- 	}
- 
- 	/*
-@@ -270,10 +279,14 @@ static unsigned long isolate_migratepages(struct zone *zone,
- 	 * delay for some time until fewer pages are isolated
- 	 */
- 	while (unlikely(too_many_isolated(zone))) {
-+		/* async migration should just abort */
-+		if (!cc->sync)
-+			return ISOLATE_ABORT;
-+
- 		congestion_wait(BLK_RW_ASYNC, HZ/10);
- 
- 		if (fatal_signal_pending(current))
--			return 0;
-+			return ISOLATE_ABORT;
- 	}
- 
- 	/* Time to isolate some pages for migration */
-@@ -358,7 +371,7 @@ static unsigned long isolate_migratepages(struct zone *zone,
- 
- 	trace_mm_compaction_isolate_migratepages(nr_scanned, nr_isolated);
- 
--	return cc->nr_migratepages;
-+	return ISOLATE_SUCCESS;
- }
- 
- /*
-@@ -522,9 +535,15 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
- 		unsigned long nr_migrate, nr_remaining;
- 		int err;
- 
--		if (!isolate_migratepages(zone, cc))
-+		switch (isolate_migratepages(zone, cc)) {
-+		case ISOLATE_ABORT:
-+			goto out;
-+		case ISOLATE_NONE:
- 			continue;
--
-+		case ISOLATE_SUCCESS:
-+			;
-+		}
-+		
- 		nr_migrate = cc->nr_migratepages;
- 		err = migrate_pages(&cc->migratepages, compaction_alloc,
- 				(unsigned long)cc, false,
-@@ -547,6 +566,7 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
- 
- 	}
- 
-+out:
- 	/* Release free pages and check accounting */
- 	cc->nr_freepages -= release_freepages(&cc->freepages);
- 	VM_BUG_ON(cc->nr_freepages != 0);
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 8bfd450..cc1470b 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -230,8 +230,11 @@ unsigned long shrink_slab(unsigned long scanned, gfp_t gfp_mask,
- 	if (scanned == 0)
- 		scanned = SWAP_CLUSTER_MAX;
- 
--	if (!down_read_trylock(&shrinker_rwsem))
--		return 1;	/* Assume we'll be able to shrink next time */
-+	if (!down_read_trylock(&shrinker_rwsem)) {
-+		/* Assume we'll be able to shrink next time */
-+		ret = 1;
-+		goto out;
-+	}
- 
- 	list_for_each_entry(shrinker, &shrinker_list, list) {
- 		unsigned long long delta;
-@@ -282,6 +285,8 @@ unsigned long shrink_slab(unsigned long scanned, gfp_t gfp_mask,
- 		shrinker->nr += total_scan;
- 	}
- 	up_read(&shrinker_rwsem);
-+out:
-+	cond_resched();
- 	return ret;
- }
- 
-@@ -2286,7 +2291,7 @@ static bool sleeping_prematurely(pg_data_t *pgdat, int order, long remaining,
- 	 * must be balanced
- 	 */
- 	if (order)
--		return pgdat_balanced(pgdat, balanced, classzone_idx);
-+		return !pgdat_balanced(pgdat, balanced, classzone_idx);
- 	else
- 		return !all_zones_ok;
- }
+IERvY3VtZW50YXRpb24vZmVhdHVyZS1yZW1vdmFsLXNjaGVkdWxlLnR4dCB8ICAgMTYgLS0tLS0t
+LS0tLS0tLS0tLQogRG9jdW1lbnRhdGlvbi9rZXJuZWwtcGFyYW1ldGVycy50eHQgICAgICAgIHwg
+ICAgMyAtLS0KIGluaXQvS2NvbmZpZyAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICB8ICAg
+IDQgKystLQogbW0vbWVtY29udHJvbC5jICAgICAgICAgICAgICAgICAgICAgICAgICAgIHwgICAg
+OCAtLS0tLS0tLQogbW0vcGFnZV9jZ3JvdXAuYyAgICAgICAgICAgICAgICAgICAgICAgICAgIHwg
+ICAgMiArLQogNSBmaWxlcyBjaGFuZ2VkLCAzIGluc2VydGlvbnMoKyksIDMwIGRlbGV0aW9ucygt
+KQoKZGlmZiAtLWdpdCBhL0RvY3VtZW50YXRpb24vZmVhdHVyZS1yZW1vdmFsLXNjaGVkdWxlLnR4
+dCBiL0RvY3VtZW50YXRpb24vZmVhdHVyZS1yZW1vdmFsLXNjaGVkdWxlLnR4dAppbmRleCA0Y2Jh
+MjYwLi42ODgzMjhhIDEwMDY0NAotLS0gYS9Eb2N1bWVudGF0aW9uL2ZlYXR1cmUtcmVtb3ZhbC1z
+Y2hlZHVsZS50eHQKKysrIGIvRG9jdW1lbnRhdGlvbi9mZWF0dXJlLXJlbW92YWwtc2NoZWR1bGUu
+dHh0CkBAIC01MTksMjIgKzUxOSw2IEBAIEZpbGVzOgluZXQvbmV0ZmlsdGVyL3h0X2Nvbm5saW1p
+dC5jCiAKIC0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0KIAotV2hhdDoJbm9zd2FwYWNjb3Vu
+dCBrZXJuZWwgY29tbWFuZCBsaW5lIHBhcmFtZXRlcgotV2hlbjoJMi42LjQwCi1XaHk6CVRoZSBv
+cmlnaW5hbCBpbXBsZW1lbnRhdGlvbiBvZiBtZW1zdyBmZWF0dXJlIGVuYWJsZWQgYnkKLQlDT05G
+SUdfQ0dST1VQX01FTV9SRVNfQ1RMUl9TV0FQIGNvdWxkIGJlIGRpc2FibGVkIGJ5IHRoZSBub3N3
+YXBhY2NvdW50Ci0Ja2VybmVsIHBhcmFtZXRlciAoaW50cm9kdWNlZCBpbiAyLjYuMjktcmMxKS4g
+TGF0ZXIgb24sIHRoaXMgZGVjaXNpb24KLQl0dXJuZWQgb3V0IHRvIGJlIG5vdCBpZGVhbCBiZWNh
+dXNlIHdlIGNhbm5vdCBoYXZlIHRoZSBmZWF0dXJlIGNvbXBpbGVkCi0JaW4gYW5kIGRpc2FibGVk
+IGJ5IGRlZmF1bHQgYW5kIGxldCBvbmx5IGludGVyZXN0ZWQgdG8gZW5hYmxlIGl0Ci0JKGUuZy4g
+Z2VuZXJhbCBkaXN0cmlidXRpb24ga2VybmVscyBtaWdodCBuZWVkIGl0KS4gVGhlcmVmb3JlIHdl
+IGhhdmUKLQlhZGRlZCBzd2FwYWNjb3VudFs9MHwxXSBwYXJhbWV0ZXIgKGludHJvZHVjZWQgaW4g
+Mi42LjM3KSB3aGljaCBwcm92aWRlcwotCXRoZSBib3RoIHBvc3NpYmlsaXRpZXMuIElmIHdlIHJl
+bW92ZSBub3N3YXBhY2NvdW50IHdlIHdpbGwgaGF2ZQotCWxlc3MgY29tbWFuZCBsaW5lIHBhcmFt
+ZXRlcnMgd2l0aCB0aGUgc2FtZSBmdW5jdGlvbmFsaXR5IGFuZCB3ZQotCWNhbiBhbHNvIGNsZWFu
+dXAgdGhlIHBhcmFtZXRlciBoYW5kbGluZyBhIGJpdCAoKS4KLVdobzoJTWljaGFsIEhvY2tvIDxt
+aG9ja29Ac3VzZS5jej4KLQotLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLQotCiBXaGF0Oglp
+cHRfYWRkcnR5cGUgbWF0Y2ggaW5jbHVkZSBmaWxlCiBXaGVuOgkyMDEyCiBXaHk6CXN1cGVyc2Vk
+ZWQgYnkgeHRfYWRkcnR5cGUKZGlmZiAtLWdpdCBhL0RvY3VtZW50YXRpb24va2VybmVsLXBhcmFt
+ZXRlcnMudHh0IGIvRG9jdW1lbnRhdGlvbi9rZXJuZWwtcGFyYW1ldGVycy50eHQKaW5kZXggYzYw
+M2VmNy4uMTkzMTQ1MCAxMDA2NDQKLS0tIGEvRG9jdW1lbnRhdGlvbi9rZXJuZWwtcGFyYW1ldGVy
+cy50eHQKKysrIGIvRG9jdW1lbnRhdGlvbi9rZXJuZWwtcGFyYW1ldGVycy50eHQKQEAgLTE3Nzcs
+OSArMTc3Nyw2IEBAIGJ5dGVzIHJlc3BlY3RpdmVseS4gU3VjaCBsZXR0ZXIgc3VmZml4ZXMgY2Fu
+IGFsc28gYmUgZW50aXJlbHkgb21pdHRlZC4KIAogCW5vc29mdGxvY2t1cAlbS05MXSBEaXNhYmxl
+IHRoZSBzb2Z0LWxvY2t1cCBkZXRlY3Rvci4KIAotCW5vc3dhcGFjY291bnQJW0tOTF0gRGlzYWJs
+ZSBhY2NvdW50aW5nIG9mIHN3YXAgaW4gbWVtb3J5IHJlc291cmNlCi0JCQljb250cm9sbGVyLiAo
+U2VlIERvY3VtZW50YXRpb24vY2dyb3Vwcy9tZW1vcnkudHh0KQotCiAJbm9zeW5jCQlbSFcsTTY4
+S10gRGlzYWJsZXMgc3luYyBuZWdvdGlhdGlvbiBmb3IgYWxsIGRldmljZXMuCiAKIAlub3RzYwkJ
+W0JVR1M9WDg2LTMyXSBEaXNhYmxlIFRpbWUgU3RhbXAgQ291bnRlcgpkaWZmIC0tZ2l0IGEvaW5p
+dC9LY29uZmlnIGIvaW5pdC9LY29uZmlnCmluZGV4IGM4YjE3MmUuLmVmNDZjMGQgMTAwNjQ0Ci0t
+LSBhL2luaXQvS2NvbmZpZworKysgYi9pbml0L0tjb25maWcKQEAgLTY3Myw3ICs2NzMsNyBAQCBj
+b25maWcgQ0dST1VQX01FTV9SRVNfQ1RMUl9TV0FQCiAJICBiZSBjYXJlZnVsIGFib3V0IGVuYWJs
+aW5nIHRoaXMuIFdoZW4gbWVtb3J5IHJlc291cmNlIGNvbnRyb2xsZXIKIAkgIGlzIGRpc2FibGVk
+IGJ5IGJvb3Qgb3B0aW9uLCB0aGlzIHdpbGwgYmUgYXV0b21hdGljYWxseSBkaXNhYmxlZCBhbmQK
+IAkgIHRoZXJlIHdpbGwgYmUgbm8gb3ZlcmhlYWQgZnJvbSB0aGlzLiBFdmVuIHdoZW4geW91IHNl
+dCB0aGlzIGNvbmZpZz15LAotCSAgaWYgYm9vdCBvcHRpb24gIm5vc3dhcGFjY291bnQiIGlzIHNl
+dCwgc3dhcCB3aWxsIG5vdCBiZSBhY2NvdW50ZWQuCisJICBpZiBib290IG9wdGlvbiAic3dhcGFj
+Y291bnQ9MCIgaXMgc2V0LCBzd2FwIHdpbGwgbm90IGJlIGFjY291bnRlZC4KIAkgIE5vdywgbWVt
+b3J5IHVzYWdlIG9mIHN3YXBfY2dyb3VwIGlzIDIgYnl0ZXMgcGVyIGVudHJ5LiBJZiBzd2FwIHBh
+Z2UKIAkgIHNpemUgaXMgNDA5NmJ5dGVzLCA1MTJrIHBlciAxR2J5dGVzIG9mIHN3YXAuCiBjb25m
+aWcgQ0dST1VQX01FTV9SRVNfQ1RMUl9TV0FQX0VOQUJMRUQKQEAgLTY4OCw3ICs2ODgsNyBAQCBj
+b25maWcgQ0dST1VQX01FTV9SRVNfQ1RMUl9TV0FQX0VOQUJMRUQKIAkgIHBhcmFtZXRlciBzaG91
+bGQgaGF2ZSB0aGlzIG9wdGlvbiB1bnNlbGVjdGVkLgogCSAgRm9yIHRob3NlIHdobyB3YW50IHRv
+IGhhdmUgdGhlIGZlYXR1cmUgZW5hYmxlZCBieSBkZWZhdWx0IHNob3VsZAogCSAgc2VsZWN0IHRo
+aXMgb3B0aW9uIChpZiwgZm9yIHNvbWUgcmVhc29uLCB0aGV5IG5lZWQgdG8gZGlzYWJsZSBpdAot
+CSAgdGhlbiBub3N3YXBhY2NvdW50IGRvZXMgdGhlIHRyaWNrKS4KKwkgIHRoZW4gc3dhcGFjY291
+bnQ9MCBkb2VzIHRoZSB0cmljaykuCiAKIGNvbmZpZyBDR1JPVVBfUEVSRgogCWJvb2wgIkVuYWJs
+ZSBwZXJmX2V2ZW50IHBlci1jcHUgcGVyLWNvbnRhaW5lciBncm91cCAoY2dyb3VwKSBtb25pdG9y
+aW5nIgpkaWZmIC0tZ2l0IGEvbW0vbWVtY29udHJvbC5jIGIvbW0vbWVtY29udHJvbC5jCmluZGV4
+IDAxMGY5MTYuLmU5OTJmZGYgMTAwNjQ0Ci0tLSBhL21tL21lbWNvbnRyb2wuYworKysgYi9tbS9t
+ZW1jb250cm9sLmMKQEAgLTUxNzYsMTIgKzUxNzYsNCBAQCBzdGF0aWMgaW50IF9faW5pdCBlbmFi
+bGVfc3dhcF9hY2NvdW50KGNoYXIgKnMpCiAJcmV0dXJuIDE7CiB9CiBfX3NldHVwKCJzd2FwYWNj
+b3VudCIsIGVuYWJsZV9zd2FwX2FjY291bnQpOwotCi1zdGF0aWMgaW50IF9faW5pdCBkaXNhYmxl
+X3N3YXBfYWNjb3VudChjaGFyICpzKQotewotCXByaW50a19vbmNlKCJub3N3YXBhY2NvdW50IGlz
+IGRlcHJlY2F0ZWQgYW5kIHdpbGwgYmUgcmVtb3ZlZCBpbiAyLjYuNDAuIFVzZSBzd2FwYWNjb3Vu
+dD0wIGluc3RlYWRcbiIpOwotCWVuYWJsZV9zd2FwX2FjY291bnQoIj0wIik7Ci0JcmV0dXJuIDE7
+Ci19Ci1fX3NldHVwKCJub3N3YXBhY2NvdW50IiwgZGlzYWJsZV9zd2FwX2FjY291bnQpOwogI2Vu
+ZGlmCmRpZmYgLS1naXQgYS9tbS9wYWdlX2Nncm91cC5jIGIvbW0vcGFnZV9jZ3JvdXAuYwppbmRl
+eCAyZGFhZGMzLi5iN2JjOGMwIDEwMDY0NAotLS0gYS9tbS9wYWdlX2Nncm91cC5jCisrKyBiL21t
+L3BhZ2VfY2dyb3VwLmMKQEAgLTUwMiw3ICs1MDIsNyBAQCBpbnQgc3dhcF9jZ3JvdXBfc3dhcG9u
+KGludCB0eXBlLCB1bnNpZ25lZCBsb25nIG1heF9wYWdlcykKIG5vbWVtOgogCXByaW50ayhLRVJO
+X0lORk8gImNvdWxkbid0IGFsbG9jYXRlIGVub3VnaCBtZW1vcnkgZm9yIHN3YXBfY2dyb3VwLlxu
+Iik7CiAJcHJpbnRrKEtFUk5fSU5GTwotCQkic3dhcF9jZ3JvdXAgY2FuIGJlIGRpc2FibGVkIGJ5
+IG5vc3dhcGFjY291bnQgYm9vdCBvcHRpb25cbiIpOworCQkic3dhcF9jZ3JvdXAgY2FuIGJlIGRp
+c2FibGVkIGJ5IHN3YXBhY2NvdW50PTAgYm9vdCBvcHRpb25cbiIpOwogCXJldHVybiAtRU5PTUVN
+OwogfQogCg==
+--20cf303639298c816304a3ef7c47--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
