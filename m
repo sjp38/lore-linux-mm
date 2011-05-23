@@ -1,46 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 039296B0012
-	for <linux-mm@kvack.org>; Mon, 23 May 2011 12:23:27 -0400 (EDT)
-Received: from hpaq1.eem.corp.google.com (hpaq1.eem.corp.google.com [172.25.149.1])
-	by smtp-out.google.com with ESMTP id p4NGNObd027348
-	for <linux-mm@kvack.org>; Mon, 23 May 2011 09:23:24 -0700
-Received: from pwj9 (pwj9.prod.google.com [10.241.219.73])
-	by hpaq1.eem.corp.google.com with ESMTP id p4NGNHSW008587
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 23 May 2011 09:23:23 -0700
-Received: by pwj9 with SMTP id 9so3521385pwj.34
-        for <linux-mm@kvack.org>; Mon, 23 May 2011 09:23:17 -0700 (PDT)
-Date: Mon, 23 May 2011 09:23:18 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: Adding an ugliness in __read_cache_page()?
-In-Reply-To: <20110523072705.GA3966@infradead.org>
-Message-ID: <alpine.LSU.2.00.1105230919480.4182@sister.anvils>
-References: <alpine.LSU.2.00.1105221518180.17400@sister.anvils> <20110523072705.GA3966@infradead.org>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 92F2E6B0012
+	for <linux-mm@kvack.org>; Mon, 23 May 2011 12:42:41 -0400 (EDT)
+Date: Mon, 23 May 2011 18:42:25 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: Kernel falls apart under light memory pressure (i.e. linking
+ vmlinux)
+Message-ID: <20110523164225.GA14734@random.random>
+References: <BANLkTikAFMvpgHR2dopd+Nvjfyw_XT5=LA@mail.gmail.com>
+ <20110520153346.GA1843@barrios-desktop>
+ <BANLkTi=X+=Wh1MLs7Fc-v-OMtxAHbcPmxA@mail.gmail.com>
+ <20110520161934.GA2386@barrios-desktop>
+ <BANLkTi=4C5YAxwAFWC6dsAPMR3xv6LP1hw@mail.gmail.com>
+ <BANLkTimThVw7-PN6ypBBarqXJa1xxYA_Ow@mail.gmail.com>
+ <BANLkTint+Qs+cO+wKUJGytnVY3X1bp+8rQ@mail.gmail.com>
+ <BANLkTinx+oPJFQye7T+RMMGzg9E7m28A=Q@mail.gmail.com>
+ <BANLkTik29nkn-DN9ui6XV4sy5Wo2jmeS9w@mail.gmail.com>
+ <BANLkTikQd34QZnQVSn_9f_Mxc8wtJMHY0w@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <BANLkTikQd34QZnQVSn_9f_Mxc8wtJMHY0w@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Andrew Lutomirski <luto@mit.edu>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, fengguang.wu@intel.com, andi@firstfloor.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mgorman@suse.de, hannes@cmpxchg.org, riel@redhat.com
 
-On Mon, 23 May 2011, Christoph Hellwig wrote:
-> On Sun, May 22, 2011 at 03:25:31PM -0700, Hugh Dickins wrote:
-> > I find both ways ugly, but no nice alternative: introducing a new method
-> > when the known callers are already tied to tmpfs/ramfs seems over the top.
+On Mon, May 23, 2011 at 08:12:50AM +0900, Minchan Kim wrote:
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 292582c..1663d24 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -231,8 +231,11 @@ unsigned long shrink_slab(struct shrink_control *shrink,
+>        if (scanned == 0)
+>                scanned = SWAP_CLUSTER_MAX;
 > 
-> Calling into shmem directly is the less ugly variant.
+> -       if (!down_read_trylock(&shrinker_rwsem))
+> -               return 1;       /* Assume we'll be able to shrink next time */
+> +       if (!down_read_trylock(&shrinker_rwsem)) {
+> +               /* Assume we'll be able to shrink next time */
+> +               ret = 1;
+> +               goto out;
+> +       }
 
-Okay, that's good, thanks.
+It looks cleaner to return -1 here to differentiate the failure in
+taking the lock from when we take the lock and just 1 object is
+freed. Callers seems to be ok with -1 already and more intuitive for
+the while (nr > 10) loops too (those loops could be changed to "while
+(nr > 0)" if all shrinkers are accurate and not doing something
+inaccurate like the above code did, the shrinkers retvals I didn't
+check yet).
 
-> Long term killing
-> that tmpfs abuse would be even better, but I already lost that fight
-> when it was initially added.
+>        up_read(&shrinker_rwsem);
+> +out:
+> +       cond_resched();
+>        return ret;
+>  }
 
-I'd better match your restraint and not fan the flames now -
-I believe we're on opposite sides, or at least orthogonal on that.
+If we enter the loop some of the shrinkers will reschedule but it
+looks good for the last iteration that may have still run for some
+time before returning. The actual failure of shrinker_rwsem seems only
+theoretical though (but ok to cover it too with the cond_resched, but
+in practice this should be more for the case where shrinker_rwsem
+doesn't fail).
 
-Hugh
+> @@ -2331,7 +2336,7 @@ static bool sleeping_prematurely(pg_data_t
+> *pgdat, int order, long remaining,
+>         * must be balanced
+>         */
+>        if (order)
+> -               return pgdat_balanced(pgdat, balanced, classzone_idx);
+> +               return !pgdat_balanced(pgdat, balanced, classzone_idx);
+>        else
+>                return !all_zones_ok;
+>  }
+
+I now wonder if this is why compaction in kswapd didn't work out well
+and kswapd would spin at 100% load so much when compaction was added,
+plus with kswapd-compaction patch I think this code should be changed
+to:
+
+ if (!COMPACTION_BUILD && order)
+  return !pgdat_balanced();
+ else
+  return !all_zones_ok;
+
+(but only with kswapd-compaction)
+
+I should probably give kswapd-compaction another spin after fixing
+this, because with compaction kswapd should be super successful at
+satisfying zone_watermark_ok_safe(zone, _order_...) in the
+sleeping_prematurely high watermark check, leading to pgdat_balanced
+returning true most of the time (which would make kswapd go crazy spin
+instead of stopping as it was supposed to). Mel, do you also think
+it's worth another try with a fixed sleeping_prematurely like above?
+
+Another thing, I'm not excited of the schedule_timeout(HZ/10) in
+kswapd_try_to_sleep(), it seems all for the statistics.
+
+Thanks,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
