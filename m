@@ -1,105 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 92F2E6B0012
-	for <linux-mm@kvack.org>; Mon, 23 May 2011 12:42:41 -0400 (EDT)
-Date: Mon, 23 May 2011 18:42:25 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: Kernel falls apart under light memory pressure (i.e. linking
- vmlinux)
-Message-ID: <20110523164225.GA14734@random.random>
-References: <BANLkTikAFMvpgHR2dopd+Nvjfyw_XT5=LA@mail.gmail.com>
- <20110520153346.GA1843@barrios-desktop>
- <BANLkTi=X+=Wh1MLs7Fc-v-OMtxAHbcPmxA@mail.gmail.com>
- <20110520161934.GA2386@barrios-desktop>
- <BANLkTi=4C5YAxwAFWC6dsAPMR3xv6LP1hw@mail.gmail.com>
- <BANLkTimThVw7-PN6ypBBarqXJa1xxYA_Ow@mail.gmail.com>
- <BANLkTint+Qs+cO+wKUJGytnVY3X1bp+8rQ@mail.gmail.com>
- <BANLkTinx+oPJFQye7T+RMMGzg9E7m28A=Q@mail.gmail.com>
- <BANLkTik29nkn-DN9ui6XV4sy5Wo2jmeS9w@mail.gmail.com>
- <BANLkTikQd34QZnQVSn_9f_Mxc8wtJMHY0w@mail.gmail.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 133376B0012
+	for <linux-mm@kvack.org>; Mon, 23 May 2011 12:56:28 -0400 (EDT)
+Date: Mon, 23 May 2011 19:56:23 +0300 (EEST)
+From: Pekka Enberg <penberg@kernel.org>
+Subject: [GIT PULL] SLAB updates for v2.6.40-rc0
+Message-ID: <alpine.DEB.2.00.1105231955400.8359@tiger>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <BANLkTikQd34QZnQVSn_9f_Mxc8wtJMHY0w@mail.gmail.com>
+Content-Type: TEXT/PLAIN; format=flowed; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Andrew Lutomirski <luto@mit.edu>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, fengguang.wu@intel.com, andi@firstfloor.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mgorman@suse.de, hannes@cmpxchg.org, riel@redhat.com
+To: torvalds@linux-foundation.org
+Cc: cl@linux-foundation.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, rientjes@google.com
 
-On Mon, May 23, 2011 at 08:12:50AM +0900, Minchan Kim wrote:
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 292582c..1663d24 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -231,8 +231,11 @@ unsigned long shrink_slab(struct shrink_control *shrink,
->        if (scanned == 0)
->                scanned = SWAP_CLUSTER_MAX;
-> 
-> -       if (!down_read_trylock(&shrinker_rwsem))
-> -               return 1;       /* Assume we'll be able to shrink next time */
-> +       if (!down_read_trylock(&shrinker_rwsem)) {
-> +               /* Assume we'll be able to shrink next time */
-> +               ret = 1;
-> +               goto out;
-> +       }
+Hi Linus,
 
-It looks cleaner to return -1 here to differentiate the failure in
-taking the lock from when we take the lock and just 1 object is
-freed. Callers seems to be ok with -1 already and more intuitive for
-the while (nr > 10) loops too (those loops could be changed to "while
-(nr > 0)" if all shrinkers are accurate and not doing something
-inaccurate like the above code did, the shrinkers retvals I didn't
-check yet).
+Here's bunch of fixes and cleanups to the SLUB allocator. Bulk of them are
+related to the lockless fastpaths but there's also some preparational work on
+lockless slowpaths that will hopefully appear in v2.6.41.
 
->        up_read(&shrinker_rwsem);
-> +out:
-> +       cond_resched();
->        return ret;
->  }
+                         Pekka
 
-If we enter the loop some of the shrinkers will reschedule but it
-looks good for the last iteration that may have still run for some
-time before returning. The actual failure of shrinker_rwsem seems only
-theoretical though (but ok to cover it too with the cond_resched, but
-in practice this should be more for the case where shrinker_rwsem
-doesn't fail).
+The following changes since commit caebc160ce3f76761cc62ad96ef6d6f30f54e3dd:
+   Linus Torvalds (1):
+         Merge branch 'for-linus' of git://git.kernel.org/.../ryusuke/nilfs2
 
-> @@ -2331,7 +2336,7 @@ static bool sleeping_prematurely(pg_data_t
-> *pgdat, int order, long remaining,
->         * must be balanced
->         */
->        if (order)
-> -               return pgdat_balanced(pgdat, balanced, classzone_idx);
-> +               return !pgdat_balanced(pgdat, balanced, classzone_idx);
->        else
->                return !all_zones_ok;
->  }
+are available in the git repository at:
 
-I now wonder if this is why compaction in kswapd didn't work out well
-and kswapd would spin at 100% load so much when compaction was added,
-plus with kswapd-compaction patch I think this code should be changed
-to:
+   ssh://master.kernel.org/pub/scm/linux/kernel/git/penberg/slab-2.6.git for-linus
 
- if (!COMPACTION_BUILD && order)
-  return !pgdat_balanced();
- else
-  return !all_zones_ok;
+Christoph Lameter (10):
+       slub: Use NUMA_NO_NODE in get_partial
+       slub: get_map() function to establish map of free objects in a slab
+       slub: Eliminate repeated use of c->page through a new page variable
+       slub: Move node determination out of hotpath
+       slub: Move debug handlign in __slab_free
+       slub: Remove CONFIG_CMPXCHG_LOCAL ifdeffery
+       slub: Avoid warning for !CONFIG_SLUB_DEBUG
+       slub: Make CONFIG_DEBUG_PAGE_ALLOC work with new fastpath
+       slub: Remove node check in slab_free
+       slub: Deal with hyperthetical case of PAGE_SIZE > 2M
 
-(but only with kswapd-compaction)
+David Rientjes (1):
+       slub: avoid label inside conditional
 
-I should probably give kswapd-compaction another spin after fixing
-this, because with compaction kswapd should be super successful at
-satisfying zone_watermark_ok_safe(zone, _order_...) in the
-sleeping_prematurely high watermark check, leading to pgdat_balanced
-returning true most of the time (which would make kswapd go crazy spin
-instead of stopping as it was supposed to). Mel, do you also think
-it's worth another try with a fixed sleeping_prematurely like above?
+Li Zefan (1):
+       slub: Fix a typo in config name
 
-Another thing, I'm not excited of the schedule_timeout(HZ/10) in
-kswapd_try_to_sleep(), it seems all for the statistics.
+Pekka Enberg (1):
+       Merge branch 'slab/next' into for-linus
 
-Thanks,
-Andrea
+  include/linux/slub_def.h |    8 +-
+  mm/slub.c                |  165 ++++++++++++++++++----------------------------
+  2 files changed, 69 insertions(+), 104 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
