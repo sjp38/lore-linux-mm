@@ -1,47 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 368626B0012
-	for <linux-mm@kvack.org>; Mon, 23 May 2011 16:52:16 -0400 (EDT)
-Received: by qwa26 with SMTP id 26so4374574qwa.14
-        for <linux-mm@kvack.org>; Mon, 23 May 2011 13:52:14 -0700 (PDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 36D076B0012
+	for <linux-mm@kvack.org>; Mon, 23 May 2011 16:54:02 -0400 (EDT)
+Received: from kpbe15.cbf.corp.google.com (kpbe15.cbf.corp.google.com [172.25.105.79])
+	by smtp-out.google.com with ESMTP id p4NKrvgd005383
+	for <linux-mm@kvack.org>; Mon, 23 May 2011 13:53:57 -0700
+Received: from qwk3 (qwk3.prod.google.com [10.241.195.131])
+	by kpbe15.cbf.corp.google.com with ESMTP id p4NKrVUN013922
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 23 May 2011 13:53:55 -0700
+Received: by qwk3 with SMTP id 3so3035197qwk.19
+        for <linux-mm@kvack.org>; Mon, 23 May 2011 13:53:55 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <BANLkTikdgM+kSvaEYuQkgCYJZELnvwfetg@mail.gmail.com>
-References: <BANLkTi=PLuZhx1=rCfOtg=aOTuC1UbuPYg@mail.gmail.com>
-	<20110523192056.GC23629@elte.hu>
-	<BANLkTikdgM+kSvaEYuQkgCYJZELnvwfetg@mail.gmail.com>
-Date: Tue, 24 May 2011 00:52:14 +0400
-Message-ID: <BANLkTinbrtzY66p+1NALP8BDfjXLx=Qp-A@mail.gmail.com>
-Subject: Re: (Short?) merge window reminder
-From: Alexey Zaytsev <alexey.zaytsev@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <20110523090816.3ab157d4.kamezawa.hiroyu@jp.fujitsu.com>
+References: <1305928918-15207-1-git-send-email-yinghan@google.com>
+	<20110523090816.3ab157d4.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Mon, 23 May 2011 13:53:55 -0700
+Message-ID: <BANLkTikWT45NEQTArvwfb=DKYOmG3sL52Q@mail.gmail.com>
+Subject: Re: [PATCH V5] memcg: add memory.numastat api for numa statistics
+From: Ying Han <yinghan@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Ingo Molnar <mingo@elte.hu>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org, DRI <dri-devel@lists.freedesktop.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@suse.de>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>, linux-mm@kvack.org
 
-On Tue, May 24, 2011 at 00:33, Linus Torvalds
-<torvalds@linux-foundation.org> wrote:
-> On Mon, May 23, 2011 at 12:20 PM, Ingo Molnar <mingo@elte.hu> wrote:
+On Sun, May 22, 2011 at 5:08 PM, KAMEZAWA Hiroyuki
+<kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> On Fri, 20 May 2011 15:01:58 -0700
+> Ying Han <yinghan@google.com> wrote:
+>
+>> The new API exports numa_maps per-memcg basis. This is a piece of useful
+>> information where it exports per-memcg page distribution across real numa
+>> nodes.
 >>
->> I really hope there's also a voice that tells you to wait until .42 before
->> cutting 3.0.0! :-)
+>> One of the usecase is evaluating application performance by combining this
+>> information w/ the cpu allocation to the application.
+>>
+>> The output of the memory.numastat tries to follow w/ simiar format of numa_maps
+>> like:
+>>
+>> total=<total pages> N0=<node 0 pages> N1=<node 1 pages> ...
+>> file=<total file pages> N0=<node 0 pages> N1=<node 1 pages> ...
+>> anon=<total anon pages> N0=<node 0 pages> N1=<node 1 pages> ...
+>> unevictable=<total anon pages> N0=<node 0 pages> N1=<node 1 pages> ...
+>>
 >
-> So I'm toying with 3.0 (and in that case, it really would be "3.0",
-> not "3.0.0" - the stable team would get the third digit rather than
-> the fourth one.
->
-> But no, it wouldn't be for 42. Despite THHGTTG, I think "40" is a
-> fairly nice round number.
->
-> There's also the timing issue - since we no longer do version numbers
-> based on features, but based on time, just saying "we're about to
-> start the third decade" works as well as any other excuse.
->
-> But we'll see.
+> Ah, please update Documentaion please.
 
-Maybe, 2011.x, or 11.x, x increasing for every merge window started this year?
-This would better reflect the steady nature of the releases, but would
-certainly break a lot of scripts. ;)
+Sure, will send out patch for the Documentation.
+
+--Ying
+>
+> Thanks,
+> -Kame
+>
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
