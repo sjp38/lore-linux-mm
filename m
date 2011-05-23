@@ -1,62 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 36D076B0012
-	for <linux-mm@kvack.org>; Mon, 23 May 2011 16:54:02 -0400 (EDT)
-Received: from kpbe15.cbf.corp.google.com (kpbe15.cbf.corp.google.com [172.25.105.79])
-	by smtp-out.google.com with ESMTP id p4NKrvgd005383
-	for <linux-mm@kvack.org>; Mon, 23 May 2011 13:53:57 -0700
-Received: from qwk3 (qwk3.prod.google.com [10.241.195.131])
-	by kpbe15.cbf.corp.google.com with ESMTP id p4NKrVUN013922
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 23 May 2011 13:53:55 -0700
-Received: by qwk3 with SMTP id 3so3035197qwk.19
-        for <linux-mm@kvack.org>; Mon, 23 May 2011 13:53:55 -0700 (PDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 46ECF6B0012
+	for <linux-mm@kvack.org>; Mon, 23 May 2011 17:02:41 -0400 (EDT)
+Date: Mon, 23 May 2011 17:02:38 -0400
+From: Steven Rostedt <rostedt@goodmis.org>
+Subject: Re: (Short?) merge window reminder
+Message-ID: <20110523210238.GB10792@home.goodmis.org>
+References: <BANLkTi=PLuZhx1=rCfOtg=aOTuC1UbuPYg@mail.gmail.com>
+ <alpine.LFD.2.02.1105232121010.3078@ionos>
+ <20110523132126.3f6ead5f.rdunlap@xenotime.net>
 MIME-Version: 1.0
-In-Reply-To: <20110523090816.3ab157d4.kamezawa.hiroyu@jp.fujitsu.com>
-References: <1305928918-15207-1-git-send-email-yinghan@google.com>
-	<20110523090816.3ab157d4.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Mon, 23 May 2011 13:53:55 -0700
-Message-ID: <BANLkTikWT45NEQTArvwfb=DKYOmG3sL52Q@mail.gmail.com>
-Subject: Re: [PATCH V5] memcg: add memory.numastat api for numa statistics
-From: Ying Han <yinghan@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110523132126.3f6ead5f.rdunlap@xenotime.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>, linux-mm@kvack.org
+To: Randy Dunlap <rdunlap@xenotime.net>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org, DRI <dri-devel@lists.freedesktop.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Greg KH <gregkh@suse.de>, Andrew Morton <akpm@linux-foundation.org>
 
-On Sun, May 22, 2011 at 5:08 PM, KAMEZAWA Hiroyuki
-<kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> On Fri, 20 May 2011 15:01:58 -0700
-> Ying Han <yinghan@google.com> wrote:
->
->> The new API exports numa_maps per-memcg basis. This is a piece of useful
->> information where it exports per-memcg page distribution across real numa
->> nodes.
->>
->> One of the usecase is evaluating application performance by combining this
->> information w/ the cpu allocation to the application.
->>
->> The output of the memory.numastat tries to follow w/ simiar format of numa_maps
->> like:
->>
->> total=<total pages> N0=<node 0 pages> N1=<node 1 pages> ...
->> file=<total file pages> N0=<node 0 pages> N1=<node 1 pages> ...
->> anon=<total anon pages> N0=<node 0 pages> N1=<node 1 pages> ...
->> unevictable=<total anon pages> N0=<node 0 pages> N1=<node 1 pages> ...
->>
->
-> Ah, please update Documentaion please.
+On Mon, May 23, 2011 at 01:21:26PM -0700, Randy Dunlap wrote:
+> 
+> They tell him to avoid the question to which 42 is the answer.
 
-Sure, will send out patch for the Documentation.
+What 2.6 Linux kernel version was the last before 3.0?
 
---Ying
->
-> Thanks,
-> -Kame
->
->
->
+-- Steve
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
