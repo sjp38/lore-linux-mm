@@ -1,51 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 074A56B0011
-	for <linux-mm@kvack.org>; Sun, 22 May 2011 20:03:16 -0400 (EDT)
-Received: from wpaz1.hot.corp.google.com (wpaz1.hot.corp.google.com [172.24.198.65])
-	by smtp-out.google.com with ESMTP id p4N03Fe0026312
-	for <linux-mm@kvack.org>; Sun, 22 May 2011 17:03:15 -0700
-Received: from pxi16 (pxi16.prod.google.com [10.243.27.16])
-	by wpaz1.hot.corp.google.com with ESMTP id p4N039Zv020732
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Sun, 22 May 2011 17:03:14 -0700
-Received: by pxi16 with SMTP id 16so3408189pxi.32
-        for <linux-mm@kvack.org>; Sun, 22 May 2011 17:03:09 -0700 (PDT)
-Date: Sun, 22 May 2011 17:03:08 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: Adding an ugliness in __read_cache_page()?
-In-Reply-To: <BANLkTimpi2vhx3NzR71G640HXXn-keCoqQ@mail.gmail.com>
-Message-ID: <alpine.LSU.2.00.1105221702150.1427@sister.anvils>
-References: <alpine.LSU.2.00.1105221518180.17400@sister.anvils> <BANLkTimpi2vhx3NzR71G640HXXn-keCoqQ@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="8323584-143352963-1306108997=:1427"
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 70DE56B0011
+	for <linux-mm@kvack.org>; Sun, 22 May 2011 20:15:23 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 5F0D93EE0C2
+	for <linux-mm@kvack.org>; Mon, 23 May 2011 09:15:20 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3868545DE97
+	for <linux-mm@kvack.org>; Mon, 23 May 2011 09:15:20 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 202C445DE92
+	for <linux-mm@kvack.org>; Mon, 23 May 2011 09:15:20 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 106CB1DB8037
+	for <linux-mm@kvack.org>; Mon, 23 May 2011 09:15:20 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id CAA1EE08002
+	for <linux-mm@kvack.org>; Mon, 23 May 2011 09:15:19 +0900 (JST)
+Date: Mon, 23 May 2011 09:08:16 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH V5] memcg: add memory.numastat api for numa statistics
+Message-Id: <20110523090816.3ab157d4.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1305928918-15207-1-git-send-email-yinghan@google.com>
+References: <1305928918-15207-1-git-send-email-yinghan@google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Ying Han <yinghan@google.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>, linux-mm@kvack.org
 
-  This message is in MIME format.  The first part should be readable text,
-  while the remaining parts are likely unreadable without MIME-aware tools.
+On Fri, 20 May 2011 15:01:58 -0700
+Ying Han <yinghan@google.com> wrote:
 
---8323584-143352963-1306108997=:1427
-Content-Type: TEXT/PLAIN; charset=ISO-8859-1
-Content-Transfer-Encoding: QUOTED-PRINTABLE
+> The new API exports numa_maps per-memcg basis. This is a piece of useful
+> information where it exports per-memcg page distribution across real numa
+> nodes.
+> 
+> One of the usecase is evaluating application performance by combining this
+> information w/ the cpu allocation to the application.
+> 
+> The output of the memory.numastat tries to follow w/ simiar format of numa_maps
+> like:
+> 
+> total=<total pages> N0=<node 0 pages> N1=<node 1 pages> ...
+> file=<total file pages> N0=<node 0 pages> N1=<node 1 pages> ...
+> anon=<total anon pages> N0=<node 0 pages> N1=<node 1 pages> ...
+> unevictable=<total anon pages> N0=<node 0 pages> N1=<node 1 pages> ...
+> 
 
-On Sun, 22 May 2011, Linus Torvalds wrote:
-> On Sun, May 22, 2011 at 3:25 PM, Hugh Dickins <hughd@google.com> wrote:
-> >
-> > Would it be better to make i915 and ttm call shmem_read_cache_page()
-> > directly? =A0Perhaps removing the then unused read_cache_page_gfp(), or
-> > perhaps not: may still be needed for i915 and ttm on tiny !SHMEM ramfs.
->=20
-> I would certainly prefer the "make i915 and ttm call
-> shmem_read_cache_page directly" approach over putting some nasty hack
-> in __read_cache_page.
+Ah, please update Documentaion please.
 
-Thank you: I'll go that way.
+Thanks,
+-Kame
 
-Hugh
---8323584-143352963-1306108997=:1427--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
