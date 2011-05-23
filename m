@@ -1,115 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 889ED6B0022
-	for <linux-mm@kvack.org>; Mon, 23 May 2011 07:08:12 -0400 (EDT)
-Received: by iyh42 with SMTP id 42so6432041iyh.14
-        for <linux-mm@kvack.org>; Mon, 23 May 2011 04:08:09 -0700 (PDT)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 55FDA6B0012
+	for <linux-mm@kvack.org>; Mon, 23 May 2011 07:26:03 -0400 (EDT)
+Date: Mon, 23 May 2011 13:25:58 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [Patch] mm: remove noswapaccount kernel parameter
+Message-ID: <20110523112558.GC11439@tiehlicka.suse.cz>
+References: <BANLkTinLvqa0DiayLOwvxE9zBmqb4Y7Rww@mail.gmail.com>
 MIME-Version: 1.0
-Date: Mon, 23 May 2011 19:08:08 +0800
-Message-ID: <BANLkTinLvqa0DiayLOwvxE9zBmqb4Y7Rww@mail.gmail.com>
-Subject: [Patch] mm: remove noswapaccount kernel parameter
-From: =?UTF-8?Q?Am=C3=A9rico_Wang?= <xiyou.wangcong@gmail.com>
-Content-Type: multipart/mixed; boundary=20cf303639298c816304a3ef7c47
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <BANLkTinLvqa0DiayLOwvxE9zBmqb4Y7Rww@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>
+To: Am??rico Wang <xiyou.wangcong@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
---20cf303639298c816304a3ef7c47
-Content-Type: text/plain; charset=UTF-8
+On Mon 23-05-11 19:08:08, Am??rico Wang wrote:
+> noswapaccount is deprecated by swapaccount=0, and it is scheduled
+> to be removed in 2.6.40.
 
-noswapaccount is deprecated by swapaccount=0, and it is scheduled
-to be removed in 2.6.40.
+Similar patch is already in the Andrew's tree
+(memsw-remove-noswapaccount-kernel-parameter.patch). Andrew, are you
+going to push it?
+Btw. the patch is missing documentation part which is present here.
 
-Signed-off-by: WANG Cong <xiyou.wangcong@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Michal Hocko <mhocko@suse.cz>
+> 
+> Signed-off-by: WANG Cong <xiyou.wangcong@gmail.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Cc: Michal Hocko <mhocko@suse.cz>
+> 
+> ---
 
----
+>  Documentation/feature-removal-schedule.txt |   16 ----------------
+>  Documentation/kernel-parameters.txt        |    3 ---
+>  init/Kconfig                               |    4 ++--
+>  mm/memcontrol.c                            |    8 --------
+>  mm/page_cgroup.c                           |    2 +-
+>  5 files changed, 3 insertions(+), 30 deletions(-)
+> 
+> diff --git a/Documentation/feature-removal-schedule.txt b/Documentation/feature-removal-schedule.txt
+> index 4cba260..688328a 100644
+> --- a/Documentation/feature-removal-schedule.txt
+> +++ b/Documentation/feature-removal-schedule.txt
+> @@ -519,22 +519,6 @@ Files:	net/netfilter/xt_connlimit.c
+>  
+>  ----------------------------
+>  
+> -What:	noswapaccount kernel command line parameter
+> -When:	2.6.40
+> -Why:	The original implementation of memsw feature enabled by
+> -	CONFIG_CGROUP_MEM_RES_CTLR_SWAP could be disabled by the noswapaccount
+> -	kernel parameter (introduced in 2.6.29-rc1). Later on, this decision
+> -	turned out to be not ideal because we cannot have the feature compiled
+> -	in and disabled by default and let only interested to enable it
+> -	(e.g. general distribution kernels might need it). Therefore we have
+> -	added swapaccount[=0|1] parameter (introduced in 2.6.37) which provides
+> -	the both possibilities. If we remove noswapaccount we will have
+> -	less command line parameters with the same functionality and we
+> -	can also cleanup the parameter handling a bit ().
+> -Who:	Michal Hocko <mhocko@suse.cz>
+> -
+> -----------------------------
+> -
+>  What:	ipt_addrtype match include file
+>  When:	2012
+>  Why:	superseded by xt_addrtype
+> diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
+> index c603ef7..1931450 100644
+> --- a/Documentation/kernel-parameters.txt
+> +++ b/Documentation/kernel-parameters.txt
+> @@ -1777,9 +1777,6 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
+>  
+>  	nosoftlockup	[KNL] Disable the soft-lockup detector.
+>  
+> -	noswapaccount	[KNL] Disable accounting of swap in memory resource
+> -			controller. (See Documentation/cgroups/memory.txt)
+> -
+>  	nosync		[HW,M68K] Disables sync negotiation for all devices.
+>  
+>  	notsc		[BUGS=X86-32] Disable Time Stamp Counter
+> diff --git a/init/Kconfig b/init/Kconfig
+> index c8b172e..ef46c0d 100644
+> --- a/init/Kconfig
+> +++ b/init/Kconfig
+> @@ -673,7 +673,7 @@ config CGROUP_MEM_RES_CTLR_SWAP
+>  	  be careful about enabling this. When memory resource controller
+>  	  is disabled by boot option, this will be automatically disabled and
+>  	  there will be no overhead from this. Even when you set this config=y,
+> -	  if boot option "noswapaccount" is set, swap will not be accounted.
+> +	  if boot option "swapaccount=0" is set, swap will not be accounted.
+>  	  Now, memory usage of swap_cgroup is 2 bytes per entry. If swap page
+>  	  size is 4096bytes, 512k per 1Gbytes of swap.
+>  config CGROUP_MEM_RES_CTLR_SWAP_ENABLED
+> @@ -688,7 +688,7 @@ config CGROUP_MEM_RES_CTLR_SWAP_ENABLED
+>  	  parameter should have this option unselected.
+>  	  For those who want to have the feature enabled by default should
+>  	  select this option (if, for some reason, they need to disable it
+> -	  then noswapaccount does the trick).
+> +	  then swapaccount=0 does the trick).
+>  
+>  config CGROUP_PERF
+>  	bool "Enable perf_event per-cpu per-container group (cgroup) monitoring"
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 010f916..e992fdf 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -5176,12 +5176,4 @@ static int __init enable_swap_account(char *s)
+>  	return 1;
+>  }
+>  __setup("swapaccount", enable_swap_account);
+> -
+> -static int __init disable_swap_account(char *s)
+> -{
+> -	printk_once("noswapaccount is deprecated and will be removed in 2.6.40. Use swapaccount=0 instead\n");
+> -	enable_swap_account("=0");
+> -	return 1;
+> -}
+> -__setup("noswapaccount", disable_swap_account);
+>  #endif
+> diff --git a/mm/page_cgroup.c b/mm/page_cgroup.c
+> index 2daadc3..b7bc8c0 100644
+> --- a/mm/page_cgroup.c
+> +++ b/mm/page_cgroup.c
+> @@ -502,7 +502,7 @@ int swap_cgroup_swapon(int type, unsigned long max_pages)
+>  nomem:
+>  	printk(KERN_INFO "couldn't allocate enough memory for swap_cgroup.\n");
+>  	printk(KERN_INFO
+> -		"swap_cgroup can be disabled by noswapaccount boot option\n");
+> +		"swap_cgroup can be disabled by swapaccount=0 boot option\n");
+>  	return -ENOMEM;
+>  }
+>  
 
---20cf303639298c816304a3ef7c47
-Content-Type: text/x-patch; charset=US-ASCII; name="mm-remove-noswapaccount.diff"
-Content-Disposition: attachment; filename="mm-remove-noswapaccount.diff"
-Content-Transfer-Encoding: base64
-X-Attachment-Id: f_go1bb68c0
 
-IERvY3VtZW50YXRpb24vZmVhdHVyZS1yZW1vdmFsLXNjaGVkdWxlLnR4dCB8ICAgMTYgLS0tLS0t
-LS0tLS0tLS0tLQogRG9jdW1lbnRhdGlvbi9rZXJuZWwtcGFyYW1ldGVycy50eHQgICAgICAgIHwg
-ICAgMyAtLS0KIGluaXQvS2NvbmZpZyAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICB8ICAg
-IDQgKystLQogbW0vbWVtY29udHJvbC5jICAgICAgICAgICAgICAgICAgICAgICAgICAgIHwgICAg
-OCAtLS0tLS0tLQogbW0vcGFnZV9jZ3JvdXAuYyAgICAgICAgICAgICAgICAgICAgICAgICAgIHwg
-ICAgMiArLQogNSBmaWxlcyBjaGFuZ2VkLCAzIGluc2VydGlvbnMoKyksIDMwIGRlbGV0aW9ucygt
-KQoKZGlmZiAtLWdpdCBhL0RvY3VtZW50YXRpb24vZmVhdHVyZS1yZW1vdmFsLXNjaGVkdWxlLnR4
-dCBiL0RvY3VtZW50YXRpb24vZmVhdHVyZS1yZW1vdmFsLXNjaGVkdWxlLnR4dAppbmRleCA0Y2Jh
-MjYwLi42ODgzMjhhIDEwMDY0NAotLS0gYS9Eb2N1bWVudGF0aW9uL2ZlYXR1cmUtcmVtb3ZhbC1z
-Y2hlZHVsZS50eHQKKysrIGIvRG9jdW1lbnRhdGlvbi9mZWF0dXJlLXJlbW92YWwtc2NoZWR1bGUu
-dHh0CkBAIC01MTksMjIgKzUxOSw2IEBAIEZpbGVzOgluZXQvbmV0ZmlsdGVyL3h0X2Nvbm5saW1p
-dC5jCiAKIC0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0KIAotV2hhdDoJbm9zd2FwYWNjb3Vu
-dCBrZXJuZWwgY29tbWFuZCBsaW5lIHBhcmFtZXRlcgotV2hlbjoJMi42LjQwCi1XaHk6CVRoZSBv
-cmlnaW5hbCBpbXBsZW1lbnRhdGlvbiBvZiBtZW1zdyBmZWF0dXJlIGVuYWJsZWQgYnkKLQlDT05G
-SUdfQ0dST1VQX01FTV9SRVNfQ1RMUl9TV0FQIGNvdWxkIGJlIGRpc2FibGVkIGJ5IHRoZSBub3N3
-YXBhY2NvdW50Ci0Ja2VybmVsIHBhcmFtZXRlciAoaW50cm9kdWNlZCBpbiAyLjYuMjktcmMxKS4g
-TGF0ZXIgb24sIHRoaXMgZGVjaXNpb24KLQl0dXJuZWQgb3V0IHRvIGJlIG5vdCBpZGVhbCBiZWNh
-dXNlIHdlIGNhbm5vdCBoYXZlIHRoZSBmZWF0dXJlIGNvbXBpbGVkCi0JaW4gYW5kIGRpc2FibGVk
-IGJ5IGRlZmF1bHQgYW5kIGxldCBvbmx5IGludGVyZXN0ZWQgdG8gZW5hYmxlIGl0Ci0JKGUuZy4g
-Z2VuZXJhbCBkaXN0cmlidXRpb24ga2VybmVscyBtaWdodCBuZWVkIGl0KS4gVGhlcmVmb3JlIHdl
-IGhhdmUKLQlhZGRlZCBzd2FwYWNjb3VudFs9MHwxXSBwYXJhbWV0ZXIgKGludHJvZHVjZWQgaW4g
-Mi42LjM3KSB3aGljaCBwcm92aWRlcwotCXRoZSBib3RoIHBvc3NpYmlsaXRpZXMuIElmIHdlIHJl
-bW92ZSBub3N3YXBhY2NvdW50IHdlIHdpbGwgaGF2ZQotCWxlc3MgY29tbWFuZCBsaW5lIHBhcmFt
-ZXRlcnMgd2l0aCB0aGUgc2FtZSBmdW5jdGlvbmFsaXR5IGFuZCB3ZQotCWNhbiBhbHNvIGNsZWFu
-dXAgdGhlIHBhcmFtZXRlciBoYW5kbGluZyBhIGJpdCAoKS4KLVdobzoJTWljaGFsIEhvY2tvIDxt
-aG9ja29Ac3VzZS5jej4KLQotLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLQotCiBXaGF0Oglp
-cHRfYWRkcnR5cGUgbWF0Y2ggaW5jbHVkZSBmaWxlCiBXaGVuOgkyMDEyCiBXaHk6CXN1cGVyc2Vk
-ZWQgYnkgeHRfYWRkcnR5cGUKZGlmZiAtLWdpdCBhL0RvY3VtZW50YXRpb24va2VybmVsLXBhcmFt
-ZXRlcnMudHh0IGIvRG9jdW1lbnRhdGlvbi9rZXJuZWwtcGFyYW1ldGVycy50eHQKaW5kZXggYzYw
-M2VmNy4uMTkzMTQ1MCAxMDA2NDQKLS0tIGEvRG9jdW1lbnRhdGlvbi9rZXJuZWwtcGFyYW1ldGVy
-cy50eHQKKysrIGIvRG9jdW1lbnRhdGlvbi9rZXJuZWwtcGFyYW1ldGVycy50eHQKQEAgLTE3Nzcs
-OSArMTc3Nyw2IEBAIGJ5dGVzIHJlc3BlY3RpdmVseS4gU3VjaCBsZXR0ZXIgc3VmZml4ZXMgY2Fu
-IGFsc28gYmUgZW50aXJlbHkgb21pdHRlZC4KIAogCW5vc29mdGxvY2t1cAlbS05MXSBEaXNhYmxl
-IHRoZSBzb2Z0LWxvY2t1cCBkZXRlY3Rvci4KIAotCW5vc3dhcGFjY291bnQJW0tOTF0gRGlzYWJs
-ZSBhY2NvdW50aW5nIG9mIHN3YXAgaW4gbWVtb3J5IHJlc291cmNlCi0JCQljb250cm9sbGVyLiAo
-U2VlIERvY3VtZW50YXRpb24vY2dyb3Vwcy9tZW1vcnkudHh0KQotCiAJbm9zeW5jCQlbSFcsTTY4
-S10gRGlzYWJsZXMgc3luYyBuZWdvdGlhdGlvbiBmb3IgYWxsIGRldmljZXMuCiAKIAlub3RzYwkJ
-W0JVR1M9WDg2LTMyXSBEaXNhYmxlIFRpbWUgU3RhbXAgQ291bnRlcgpkaWZmIC0tZ2l0IGEvaW5p
-dC9LY29uZmlnIGIvaW5pdC9LY29uZmlnCmluZGV4IGM4YjE3MmUuLmVmNDZjMGQgMTAwNjQ0Ci0t
-LSBhL2luaXQvS2NvbmZpZworKysgYi9pbml0L0tjb25maWcKQEAgLTY3Myw3ICs2NzMsNyBAQCBj
-b25maWcgQ0dST1VQX01FTV9SRVNfQ1RMUl9TV0FQCiAJICBiZSBjYXJlZnVsIGFib3V0IGVuYWJs
-aW5nIHRoaXMuIFdoZW4gbWVtb3J5IHJlc291cmNlIGNvbnRyb2xsZXIKIAkgIGlzIGRpc2FibGVk
-IGJ5IGJvb3Qgb3B0aW9uLCB0aGlzIHdpbGwgYmUgYXV0b21hdGljYWxseSBkaXNhYmxlZCBhbmQK
-IAkgIHRoZXJlIHdpbGwgYmUgbm8gb3ZlcmhlYWQgZnJvbSB0aGlzLiBFdmVuIHdoZW4geW91IHNl
-dCB0aGlzIGNvbmZpZz15LAotCSAgaWYgYm9vdCBvcHRpb24gIm5vc3dhcGFjY291bnQiIGlzIHNl
-dCwgc3dhcCB3aWxsIG5vdCBiZSBhY2NvdW50ZWQuCisJICBpZiBib290IG9wdGlvbiAic3dhcGFj
-Y291bnQ9MCIgaXMgc2V0LCBzd2FwIHdpbGwgbm90IGJlIGFjY291bnRlZC4KIAkgIE5vdywgbWVt
-b3J5IHVzYWdlIG9mIHN3YXBfY2dyb3VwIGlzIDIgYnl0ZXMgcGVyIGVudHJ5LiBJZiBzd2FwIHBh
-Z2UKIAkgIHNpemUgaXMgNDA5NmJ5dGVzLCA1MTJrIHBlciAxR2J5dGVzIG9mIHN3YXAuCiBjb25m
-aWcgQ0dST1VQX01FTV9SRVNfQ1RMUl9TV0FQX0VOQUJMRUQKQEAgLTY4OCw3ICs2ODgsNyBAQCBj
-b25maWcgQ0dST1VQX01FTV9SRVNfQ1RMUl9TV0FQX0VOQUJMRUQKIAkgIHBhcmFtZXRlciBzaG91
-bGQgaGF2ZSB0aGlzIG9wdGlvbiB1bnNlbGVjdGVkLgogCSAgRm9yIHRob3NlIHdobyB3YW50IHRv
-IGhhdmUgdGhlIGZlYXR1cmUgZW5hYmxlZCBieSBkZWZhdWx0IHNob3VsZAogCSAgc2VsZWN0IHRo
-aXMgb3B0aW9uIChpZiwgZm9yIHNvbWUgcmVhc29uLCB0aGV5IG5lZWQgdG8gZGlzYWJsZSBpdAot
-CSAgdGhlbiBub3N3YXBhY2NvdW50IGRvZXMgdGhlIHRyaWNrKS4KKwkgIHRoZW4gc3dhcGFjY291
-bnQ9MCBkb2VzIHRoZSB0cmljaykuCiAKIGNvbmZpZyBDR1JPVVBfUEVSRgogCWJvb2wgIkVuYWJs
-ZSBwZXJmX2V2ZW50IHBlci1jcHUgcGVyLWNvbnRhaW5lciBncm91cCAoY2dyb3VwKSBtb25pdG9y
-aW5nIgpkaWZmIC0tZ2l0IGEvbW0vbWVtY29udHJvbC5jIGIvbW0vbWVtY29udHJvbC5jCmluZGV4
-IDAxMGY5MTYuLmU5OTJmZGYgMTAwNjQ0Ci0tLSBhL21tL21lbWNvbnRyb2wuYworKysgYi9tbS9t
-ZW1jb250cm9sLmMKQEAgLTUxNzYsMTIgKzUxNzYsNCBAQCBzdGF0aWMgaW50IF9faW5pdCBlbmFi
-bGVfc3dhcF9hY2NvdW50KGNoYXIgKnMpCiAJcmV0dXJuIDE7CiB9CiBfX3NldHVwKCJzd2FwYWNj
-b3VudCIsIGVuYWJsZV9zd2FwX2FjY291bnQpOwotCi1zdGF0aWMgaW50IF9faW5pdCBkaXNhYmxl
-X3N3YXBfYWNjb3VudChjaGFyICpzKQotewotCXByaW50a19vbmNlKCJub3N3YXBhY2NvdW50IGlz
-IGRlcHJlY2F0ZWQgYW5kIHdpbGwgYmUgcmVtb3ZlZCBpbiAyLjYuNDAuIFVzZSBzd2FwYWNjb3Vu
-dD0wIGluc3RlYWRcbiIpOwotCWVuYWJsZV9zd2FwX2FjY291bnQoIj0wIik7Ci0JcmV0dXJuIDE7
-Ci19Ci1fX3NldHVwKCJub3N3YXBhY2NvdW50IiwgZGlzYWJsZV9zd2FwX2FjY291bnQpOwogI2Vu
-ZGlmCmRpZmYgLS1naXQgYS9tbS9wYWdlX2Nncm91cC5jIGIvbW0vcGFnZV9jZ3JvdXAuYwppbmRl
-eCAyZGFhZGMzLi5iN2JjOGMwIDEwMDY0NAotLS0gYS9tbS9wYWdlX2Nncm91cC5jCisrKyBiL21t
-L3BhZ2VfY2dyb3VwLmMKQEAgLTUwMiw3ICs1MDIsNyBAQCBpbnQgc3dhcF9jZ3JvdXBfc3dhcG9u
-KGludCB0eXBlLCB1bnNpZ25lZCBsb25nIG1heF9wYWdlcykKIG5vbWVtOgogCXByaW50ayhLRVJO
-X0lORk8gImNvdWxkbid0IGFsbG9jYXRlIGVub3VnaCBtZW1vcnkgZm9yIHN3YXBfY2dyb3VwLlxu
-Iik7CiAJcHJpbnRrKEtFUk5fSU5GTwotCQkic3dhcF9jZ3JvdXAgY2FuIGJlIGRpc2FibGVkIGJ5
-IG5vc3dhcGFjY291bnQgYm9vdCBvcHRpb25cbiIpOworCQkic3dhcF9jZ3JvdXAgY2FuIGJlIGRp
-c2FibGVkIGJ5IHN3YXBhY2NvdW50PTAgYm9vdCBvcHRpb25cbiIpOwogCXJldHVybiAtRU5PTUVN
-OwogfQogCg==
---20cf303639298c816304a3ef7c47--
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
