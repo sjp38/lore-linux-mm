@@ -1,46 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 64BA66B0011
-	for <linux-mm@kvack.org>; Sun, 22 May 2011 19:46:58 -0400 (EDT)
-Received: from mail-ey0-f169.google.com (mail-ey0-f169.google.com [209.85.215.169])
-	(authenticated bits=0)
-	by smtp1.linux-foundation.org (8.14.2/8.13.5/Debian-3ubuntu1.1) with ESMTP id p4MNksaT021772
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=FAIL)
-	for <linux-mm@kvack.org>; Sun, 22 May 2011 16:46:55 -0700
-Received: by eyd9 with SMTP id 9so2475177eyd.14
-        for <linux-mm@kvack.org>; Sun, 22 May 2011 16:46:54 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <alpine.LSU.2.00.1105221518180.17400@sister.anvils>
-References: <alpine.LSU.2.00.1105221518180.17400@sister.anvils>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Sun, 22 May 2011 16:46:34 -0700
-Message-ID: <BANLkTimpi2vhx3NzR71G640HXXn-keCoqQ@mail.gmail.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 074A56B0011
+	for <linux-mm@kvack.org>; Sun, 22 May 2011 20:03:16 -0400 (EDT)
+Received: from wpaz1.hot.corp.google.com (wpaz1.hot.corp.google.com [172.24.198.65])
+	by smtp-out.google.com with ESMTP id p4N03Fe0026312
+	for <linux-mm@kvack.org>; Sun, 22 May 2011 17:03:15 -0700
+Received: from pxi16 (pxi16.prod.google.com [10.243.27.16])
+	by wpaz1.hot.corp.google.com with ESMTP id p4N039Zv020732
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Sun, 22 May 2011 17:03:14 -0700
+Received: by pxi16 with SMTP id 16so3408189pxi.32
+        for <linux-mm@kvack.org>; Sun, 22 May 2011 17:03:09 -0700 (PDT)
+Date: Sun, 22 May 2011 17:03:08 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
 Subject: Re: Adding an ugliness in __read_cache_page()?
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <BANLkTimpi2vhx3NzR71G640HXXn-keCoqQ@mail.gmail.com>
+Message-ID: <alpine.LSU.2.00.1105221702150.1427@sister.anvils>
+References: <alpine.LSU.2.00.1105221518180.17400@sister.anvils> <BANLkTimpi2vhx3NzR71G640HXXn-keCoqQ@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: MULTIPART/MIXED; BOUNDARY="8323584-143352963-1306108997=:1427"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Sun, May 22, 2011 at 3:25 PM, Hugh Dickins <hughd@google.com> wrote:
->
-> But drivers/gpu/drm i915 and ttm are using read_cache_page_gfp() or
-> read_mapping_page() on tmpfs: on objects created by shmem_file_setup().
->
-> Nothing else uses read_cache_page_gfp(). =A0I cannot find anything else
-> using read_mapping_page() on tmpfs, but wonder if something might be
-> out there. =A0Stacked filesystems appear not to go that way nowadays.
->
-> Would it be better to make i915 and ttm call shmem_read_cache_page()
-> directly? =A0Perhaps removing the then unused read_cache_page_gfp(), or
-> perhaps not: may still be needed for i915 and ttm on tiny !SHMEM ramfs.
+  This message is in MIME format.  The first part should be readable text,
+  while the remaining parts are likely unreadable without MIME-aware tools.
 
-I would certainly prefer the "make i915 and ttm call
-shmem_read_cache_page directly" approach over putting some nasty hack
-in __read_cache_page.
+--8323584-143352963-1306108997=:1427
+Content-Type: TEXT/PLAIN; charset=ISO-8859-1
+Content-Transfer-Encoding: QUOTED-PRINTABLE
 
-                         Linus
+On Sun, 22 May 2011, Linus Torvalds wrote:
+> On Sun, May 22, 2011 at 3:25 PM, Hugh Dickins <hughd@google.com> wrote:
+> >
+> > Would it be better to make i915 and ttm call shmem_read_cache_page()
+> > directly? =A0Perhaps removing the then unused read_cache_page_gfp(), or
+> > perhaps not: may still be needed for i915 and ttm on tiny !SHMEM ramfs.
+>=20
+> I would certainly prefer the "make i915 and ttm call
+> shmem_read_cache_page directly" approach over putting some nasty hack
+> in __read_cache_page.
+
+Thank you: I'll go that way.
+
+Hugh
+--8323584-143352963-1306108997=:1427--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
