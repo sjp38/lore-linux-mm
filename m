@@ -1,64 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 9662A6B0011
-	for <linux-mm@kvack.org>; Tue, 24 May 2011 14:55:43 -0400 (EDT)
-Date: Tue, 24 May 2011 11:55:27 -0700 (PDT)
-From: david@lang.hm
-Subject: Re: (Short?) merge window reminder
-In-Reply-To: <20110524183405.GA14493@citd.de>
-Message-ID: <alpine.DEB.2.02.1105241147150.23692@asgard.lang.hm>
-References: <BANLkTi=PLuZhx1=rCfOtg=aOTuC1UbuPYg@mail.gmail.com> <20110523192056.GC23629@elte.hu> <BANLkTikdgM+kSvaEYuQkgCYJZELnvwfetg@mail.gmail.com> <20110524183405.GA14493@citd.de>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id B22E06B0011
+	for <linux-mm@kvack.org>; Tue, 24 May 2011 16:07:07 -0400 (EDT)
+Date: Tue, 24 May 2011 13:07:00 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH resend^2] mm: increase RECLAIM_DISTANCE to 30
+Message-Id: <20110524130700.079b09e8.akpm@linux-foundation.org>
+In-Reply-To: <1302575241.7286.17853.camel@nimitz>
+References: <20110411172004.0361.A69D9226@jp.fujitsu.com>
+	<1302557371.7286.16607.camel@nimitz>
+	<20110412100129.43F1.A69D9226@jp.fujitsu.com>
+	<1302575241.7286.17853.camel@nimitz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthias Schniedermeyer <ms@citd.de>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org, DRI <dri-devel@lists.freedesktop.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@suse.de>
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Chris McDermott <lcm@linux.vnet.ibm.com>
 
-On Tue, 24 May 2011, Matthias Schniedermeyer wrote:
+On Mon, 11 Apr 2011 19:27:21 -0700
+Dave Hansen <dave@linux.vnet.ibm.com> wrote:
 
-> On 23.05.2011 13:33, Linus Torvalds wrote:
->> On Mon, May 23, 2011 at 12:20 PM, Ingo Molnar <mingo@elte.hu> wrote:
->>>
->>> I really hope there's also a voice that tells you to wait until .42 before
->>> cutting 3.0.0! :-)
->>
->> So I'm toying with 3.0 (and in that case, it really would be "3.0",
->> not "3.0.0" - the stable team would get the third digit rather than
->> the fourth one.
->
-> What about strictly 3 part versions? Just add a .0.
->
-> 3.0.0 - Release Kernel 3.0
-> 3.0.1 - Stable 1
-> 3.0.2 - Stable 2
-> 3.1.0 - Release Kernel 3.1
-> 3.1.1 - Stable 1
-> ...
->
-> Biggest problem is likely version phobics that get pimples when they see
-> trailing zeros. ;-)
+> On Tue, 2011-04-12 at 10:01 +0900, KOSAKI Motohiro wrote:
+> > > On Mon, 2011-04-11 at 17:19 +0900, KOSAKI Motohiro wrote:
+> > > > This patch raise zone_reclaim_mode threshold to 30. 30 don't have
+> > > > specific meaning. but 20 mean one-hop QPI/Hypertransport and such
+> > > > relatively cheap 2-4 socket machine are often used for tradiotional
+> > > > server as above. The intention is, their machine don't use
+> > > > zone_reclaim_mode.
+> > > 
+> > > I know specifically of pieces of x86 hardware that set the information
+> > > in the BIOS to '21' *specifically* so they'll get the zone_reclaim_mode
+> > > behavior which that implies.
+> > 
+> > Which hardware?
+> 
+> I'd have to go digging for the model numbers.  I just remember having
+> discussions with folks about it a couple of years ago.  My memory isn't
+> what it used to be. :)
+> 
+> > The reason why now we decided to change default is the original bug reporter was using
+> > mere commodity whitebox hardware and very common workload. 
+> > If it is enough commotidy, we have to concern it. but if it is special, we don't care it.
+> > Hardware vendor should fix a firmware.
+> 
+> Yeah, it's certainly a "simple" fix.  The distance tables can certainly
+> be adjusted easily, and worked around pretty trivially with boot
+> options.  If we decide to change the generic case, let's also make sure
+> that we put something else in place simultaneously that is nice for the
+> folks that don't want it changed.  Maybe something DMI-based that digs
+> for model numbers?
+> 
+> I'll go try and dig for some more specifics on the hardware so we at
+> least have something to test on.
+> 
 
-since there are always issues discovered with a new kernel is released 
-(which is why the -stable kernels exist), being wary of .0 kernels is not 
-neccessarily a bad thing.
+How's that digging coming along?
 
-I still think a date based approach would be the best.
-
-since people are worried about not knowing when a final release will 
-happen, base the date on when the merge window opened or closed (always 
-known at the time of the first -rc kernel)
-
-in the thread on lwn, people pointed out that the latest 2.6.32 kernel 
-would still be a 2009.12.X which doesn't reflect the fact that it was 
-released this month. My suggestion for that is to make the X be the number 
-of months (or years.months if you don't like large month values) between 
-the merge window and the release of the -stable release. This would lead 
-to a small problem when there are multiple -stable releases in a month, 
-but since that doesn't last very long I don't see a real problem with just 
-incramenting the month into the future in those cases.
-
-David Lang
+I'm pretty wobbly about this patch.  Perhaps we should set
+RECLAIM_DISTANCE to pi/2 or something, to force people to correctly set
+the dang thing in initscripts.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
