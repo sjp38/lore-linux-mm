@@ -1,117 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id AC8A56B0012
-	for <linux-mm@kvack.org>; Mon, 23 May 2011 21:34:23 -0400 (EDT)
-Received: by qyk2 with SMTP id 2so1471945qyk.14
-        for <linux-mm@kvack.org>; Mon, 23 May 2011 18:34:21 -0700 (PDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 2037D6B0012
+	for <linux-mm@kvack.org>; Mon, 23 May 2011 21:35:13 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 73BBB3EE0C2
+	for <linux-mm@kvack.org>; Tue, 24 May 2011 10:35:09 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 57FFA45DF31
+	for <linux-mm@kvack.org>; Tue, 24 May 2011 10:35:09 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 3310145DF30
+	for <linux-mm@kvack.org>; Tue, 24 May 2011 10:35:09 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 222A7E08001
+	for <linux-mm@kvack.org>; Tue, 24 May 2011 10:35:09 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id B7E8EE78002
+	for <linux-mm@kvack.org>; Tue, 24 May 2011 10:35:08 +0900 (JST)
+Message-ID: <4DDB0B45.2080507@jp.fujitsu.com>
+Date: Tue, 24 May 2011 10:35:01 +0900
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <BANLkTi=wVOPSv1BA_mZq9=r14Vu3kUh3_w@mail.gmail.com>
-References: <BANLkTi=NTLn4Lx7EkybuA8-diTVOvMDxBw@mail.gmail.com>
-	<BANLkTinEDXHuRUYpYN0d95+fz4+F7ccL4w@mail.gmail.com>
-	<4DD5DC06.6010204@jp.fujitsu.com>
-	<BANLkTik=7C5qFZTsPQG4JYY-MEWDTHdc6A@mail.gmail.com>
-	<BANLkTins7qxWVh0bEwtk1Vx+m98N=oYVtw@mail.gmail.com>
-	<20110520140856.fdf4d1c8.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110520101120.GC11729@random.random>
-	<BANLkTikAFMvpgHR2dopd+Nvjfyw_XT5=LA@mail.gmail.com>
-	<20110520153346.GA1843@barrios-desktop>
-	<BANLkTi=X+=Wh1MLs7Fc-v-OMtxAHbcPmxA@mail.gmail.com>
-	<20110520161934.GA2386@barrios-desktop>
-	<BANLkTi=4C5YAxwAFWC6dsAPMR3xv6LP1hw@mail.gmail.com>
-	<BANLkTimThVw7-PN6ypBBarqXJa1xxYA_Ow@mail.gmail.com>
-	<BANLkTint+Qs+cO+wKUJGytnVY3X1bp+8rQ@mail.gmail.com>
-	<BANLkTinx+oPJFQye7T+RMMGzg9E7m28A=Q@mail.gmail.com>
-	<BANLkTik29nkn-DN9ui6XV4sy5Wo2jmeS9w@mail.gmail.com>
-	<BANLkTikQd34QZnQVSn_9f_Mxc8wtJMHY0w@mail.gmail.com>
-	<BANLkTi=wVOPSv1BA_mZq9=r14Vu3kUh3_w@mail.gmail.com>
-Date: Tue, 24 May 2011 10:34:21 +0900
-Message-ID: <BANLkTimw23VP4yyuDed-KrLEcnfLMMA-fQ@mail.gmail.com>
-Subject: Re: Kernel falls apart under light memory pressure (i.e. linking vmlinux)
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Subject: Re: [PATCH 4/5] oom: don't kill random process
+References: <4DD61F80.1020505@jp.fujitsu.com> <4DD6207E.1070300@jp.fujitsu.com> <alpine.DEB.2.00.1105231529340.17840@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1105231529340.17840@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Lutomirski <luto@mit.edu>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, fengguang.wu@intel.com, andi@firstfloor.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mgorman@suse.de, hannes@cmpxchg.org, riel@redhat.com
+To: rientjes@google.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, caiqian@redhat.com, hughd@google.com, kamezawa.hiroyu@jp.fujitsu.com, minchan.kim@gmail.com, oleg@redhat.com
 
-On Tue, May 24, 2011 at 10:19 AM, Andrew Lutomirski <luto@mit.edu> wrote:
-> On Sun, May 22, 2011 at 7:12 PM, Minchan Kim <minchan.kim@gmail.com> wrot=
-e:
->> Could you test below patch based on vanilla 2.6.38.6?
->> The expect result is that system hang never should happen.
->> I hope this is last test about hang.
->>
->> Thanks.
->>
->> diff --git a/mm/vmscan.c b/mm/vmscan.c
->> index 292582c..1663d24 100644
->> --- a/mm/vmscan.c
->> +++ b/mm/vmscan.c
->> @@ -231,8 +231,11 @@ unsigned long shrink_slab(struct shrink_control *sh=
-rink,
->> =C2=A0 =C2=A0 =C2=A0 if (scanned =3D=3D 0)
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 scanned =3D SWAP_CLUSTE=
-R_MAX;
->>
->> - =C2=A0 =C2=A0 =C2=A0 if (!down_read_trylock(&shrinker_rwsem))
->> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return 1; =C2=A0 =C2=
-=A0 =C2=A0 /* Assume we'll be able to shrink next time */
->> + =C2=A0 =C2=A0 =C2=A0 if (!down_read_trylock(&shrinker_rwsem)) {
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 /* Assume we'll be ab=
-le to shrink next time */
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 ret =3D 1;
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 goto out;
->> + =C2=A0 =C2=A0 =C2=A0 }
->>
->> =C2=A0 =C2=A0 =C2=A0 list_for_each_entry(shrinker, &shrinker_list, list)=
- {
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 unsigned long long delt=
-a;
->> @@ -286,6 +289,8 @@ unsigned long shrink_slab(struct shrink_control *shr=
-ink,
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 shrinker->nr +=3D total=
-_scan;
->> =C2=A0 =C2=A0 =C2=A0 }
->> =C2=A0 =C2=A0 =C2=A0 up_read(&shrinker_rwsem);
->> +out:
->> + =C2=A0 =C2=A0 =C2=A0 cond_resched();
->> =C2=A0 =C2=A0 =C2=A0 return ret;
->> =C2=A0}
->>
->> @@ -2331,7 +2336,7 @@ static bool sleeping_prematurely(pg_data_t
->> *pgdat, int order, long remaining,
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0* must be balanced
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0*/
->> =C2=A0 =C2=A0 =C2=A0 if (order)
->> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return pgdat_balanced=
-(pgdat, balanced, classzone_idx);
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return !pgdat_balance=
-d(pgdat, balanced, classzone_idx);
->> =C2=A0 =C2=A0 =C2=A0 else
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return !all_zones_ok;
->> =C2=A0}
+(2011/05/24 7:32), David Rientjes wrote:
+> On Fri, 20 May 2011, KOSAKI Motohiro wrote:
 >
-> So far with this patch I can't reproduce the hang or the bogus OOM.
+>> CAI Qian reported oom-killer killed all system daemons in his
+>> system at first if he ran fork bomb as root. The problem is,
+>> current logic give them bonus of 3% of system ram. Example,
+>> he has 16GB machine, then root processes have ~500MB oom
+>> immune. It bring us crazy bad result. _all_ processes have
+>> oom-score=1 and then, oom killer ignore process memory usage
+>> and kill random process. This regression is caused by commit
+>> a63d83f427 (oom: badness heuristic rewrite).
+>>
+>> This patch changes select_bad_process() slightly. If oom points == 1,
+>> it's a sign that the system have only root privileged processes or
+>> similar. Thus, select_bad_process() calculate oom badness without
+>> root bonus and select eligible process.
+>>
 >
-> To be completely clear, I have COMPACTION, MIGRATION, and THP off, I'm
-> running 2.6.38.6, and I have exactly two patches applied. =C2=A0One is th=
-e
-> attached patch and the other is a the fpu.ko/aesni_intel.ko merger
-> which I need to get dracut to boot my box.
->
-> For fun, I also upgraded to 8GB of RAM and it still works.
->
+> You said earlier that you thought it was a good idea to do a proportional
+> based bonus for root processes.  Do you have a specific objection to
+> giving root processes a 1% bonus for every 10% of used memory instead?
 
-Hmm. Could you test it with enable thp and 2G RAM?
-Isn't it a original test environment?
-Please don't change test environment. :)
+Because it's completely another topic. You have to maek another patch.
 
-Thanks for your effort, Andrew.
 
---=20
-Kind regards,
-Minchan Kim
+
+>> Also, this patch move finding sacrifice child logic into
+>> select_bad_process(). It's necessary to implement adequate
+>> no root bonus recalculation. and it makes good side effect,
+>> current logic doesn't behave as the doc.
+>>
+>
+> This is unnecessary and just makes the oom killer egregiously long.  We
+> are already diagnosing problems here at Google where the oom killer holds
+> tasklist_lock on the readside for far too long, causing other cpus waiting
+> for a write_lock_irq(&tasklist_lock) to encounter issues when irqs are
+> disabled and it is spinning.  A second tasklist scan is simply a
+> non-starter.
+>
+>   [ This is also one of the reasons why we needed to introduce
+>     mm->oom_disable_count to prevent a second, expensive tasklist scan. ]
+
+You misunderstand the code. Both select_bad_process() and oom_kill_process()
+are under tasklist_lock(). IOW, no change lock holding time.
+
+
+>> Documentation/sysctl/vm.txt says
+>>
+>>      oom_kill_allocating_task
+>>
+>>      If this is set to non-zero, the OOM killer simply kills the task that
+>>      triggered the out-of-memory condition.  This avoids the expensive
+>>      tasklist scan.
+>>
+>> IOW, oom_kill_allocating_task shouldn't search sacrifice child.
+>> This patch also fixes this issue.
+>>
+>
+> oom_kill_allocating_task was introduced for SGI to prevent the expensive
+> tasklist scan, the task that is actually allocating the memory isn't
+> actually interesting and is usually random.  This should be turned into a
+> documentation fix rather than changing the implementation.
+
+No benefit. I don't take it.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
