@@ -1,43 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 937256B0022
-	for <linux-mm@kvack.org>; Tue, 24 May 2011 09:34:22 -0400 (EDT)
-Received: by wwi36 with SMTP id 36so6203517wwi.26
-        for <linux-mm@kvack.org>; Tue, 24 May 2011 06:34:19 -0700 (PDT)
-Date: Tue, 24 May 2011 15:34:14 +0200
-From: Luca Tettamanti <kronos.it@gmail.com>
-Subject: [PATCH] set_migratetype_isolate: remove unused variable.
-Message-ID: <20110524133414.GA11674@nb-core2.darkstar.lan>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id E38198D003B
+	for <linux-mm@kvack.org>; Tue, 24 May 2011 10:16:16 -0400 (EDT)
+Received: by vxk20 with SMTP id 20so7164126vxk.14
+        for <linux-mm@kvack.org>; Tue, 24 May 2011 07:16:13 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Date: Tue, 24 May 2011 16:16:13 +0200
+Message-ID: <BANLkTinKonvpASu_G=Gr8C56WKvFSH5QAA@mail.gmail.com>
+Subject: [RFC] [PATCH] drop_caches: add syslog entry
+From: Martin Tegtmeier <martin.tegtmeier@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
+To: linux-fsdevel@vger.kernel.org, viro@zeniv.linux.org.uk
 Cc: linux-mm@kvack.org
 
-Signed-off-by: Luca Tettamanti <kronos.it@gmail.com>
----
- mm/page_alloc.c |    2 --
- 1 files changed, 0 insertions(+), 2 deletions(-)
+Dear Maintainers,
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 9d5498e..bcbdaf1 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -5508,10 +5508,8 @@ int set_migratetype_isolate(struct page *page)
- 	struct memory_isolate_notify arg;
- 	int notifier_ret;
- 	int ret = -EBUSY;
--	int zone_idx;
- 
- 	zone = page_zone(page);
--	zone_idx = zone_idx(zone);
- 
- 	spin_lock_irqsave(&zone->lock, flags);
- 
--- 
-1.7.5.1
+currently dropping the file system cache ("echo 1 >
+/proc/sys/vm/drop_caches") doesn't leave any trace. However dropping
+the fs cache can severely impact system behaviour and application
+response times. Therefore I suggest to write a syslog entry if the
+entire inode page cache is scrapped.
+Since it is not an easy task to calculate the size of the droppable
+filesystem cache I also suggest to add the number of dropped pages to
+the syslog entry. This can be accomplished by saving the return value
+of invalidate_mapping_pages().
+
+The number of dropped pages is an important measure for capacity
+planning. For the deployment of new SAP application instances we
+would like to know the amount of memory that was freed from
+fs caches.
+
+Thanks,
+   -Martin
+
+
+ drop_caches.c |    9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)
+
+
+commit b2219e84647bdf64fd6e7f9c5260c1e6bed24d58
+Author: Martin Tegtmeier <martin.tegtmeier@gmail.com>
+Date:   Tue May 24 15:24:20 2011 +0200
+
+    drop_caches: add syslog entry
+
+    Dropping the entire file system cache (inode cache) can severely
+influence system behaviour
+    yet currently dropping the file system cache is NOT traceable.
+    This patch adds an entry to /var/log/messages with a time stamp
+and the number of dropped pages.
+
+
+    Signed-off-by: Martin Tegtmeier <martin.tegtmeier@gmail.com>
+
+diff --git a/fs/drop_caches.c b/fs/drop_caches.c
+index 98b77c8..f2e4dc4 100644
+--- a/fs/drop_caches.c
++++ b/fs/drop_caches.c
+@@ -12,6 +12,7 @@
+
+ /* A global variable is a bit ugly, but it keeps the code simple */
+ int sysctl_drop_caches;
++unsigned long pages_dropped;
+
+ static void drop_pagecache_sb(struct super_block *sb, void *unused)
+ {
+@@ -28,7 +29,7 @@ static void drop_pagecache_sb(struct super_block
+*sb, void *unused)
+ 		__iget(inode);
+ 		spin_unlock(&inode->i_lock);
+ 		spin_unlock(&inode_sb_list_lock);
+-		invalidate_mapping_pages(inode->i_mapping, 0, -1);
++		pages_dropped += invalidate_mapping_pages(inode->i_mapping, 0, -1);
+ 		iput(toput_inode);
+ 		toput_inode = inode;
+ 		spin_lock(&inode_sb_list_lock);
+@@ -55,8 +56,12 @@ int drop_caches_sysctl_handler(ctl_table *table, int write,
+ 	if (ret)
+ 		return ret;
+ 	if (write) {
+-		if (sysctl_drop_caches & 1)
++		if (sysctl_drop_caches & 1) {
++			pages_dropped = 0;
+ 			iterate_supers(drop_pagecache_sb, NULL);
++			printk(KERN_INFO "drop_caches: %lu pages dropped from inode cache\n",
++				pages_dropped);
++		}
+ 		if (sysctl_drop_caches & 2)
+ 			drop_slab();
+ 	}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
