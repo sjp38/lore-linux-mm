@@ -1,38 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B12C6B0012
-	for <linux-mm@kvack.org>; Mon, 23 May 2011 23:11:30 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id F15FE3EE0AE
-	for <linux-mm@kvack.org>; Tue, 24 May 2011 12:11:26 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id D4C3945DF31
-	for <linux-mm@kvack.org>; Tue, 24 May 2011 12:11:26 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id BFD7F45DF2F
-	for <linux-mm@kvack.org>; Tue, 24 May 2011 12:11:26 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id B1B6AE08001
-	for <linux-mm@kvack.org>; Tue, 24 May 2011 12:11:26 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 7EA9EEF8001
-	for <linux-mm@kvack.org>; Tue, 24 May 2011 12:11:26 +0900 (JST)
-Message-ID: <4DDB21D8.3090400@jp.fujitsu.com>
-Date: Tue, 24 May 2011 12:11:20 +0900
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 3/5] oom: oom-killer don't use proportion of system-ram
- internally
-References: <4DD61F80.1020505@jp.fujitsu.com>	<4DD6204D.5020109@jp.fujitsu.com> <BANLkTinpX59NnwsJVQZNTgt_6X3DVK9WLg@mail.gmail.com> <4DDB0D93.5070005@jp.fujitsu.com>
-In-Reply-To: <4DDB0D93.5070005@jp.fujitsu.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with ESMTP id 0BED76B0012
+	for <linux-mm@kvack.org>; Mon, 23 May 2011 23:59:43 -0400 (EDT)
+Date: Tue, 24 May 2011 13:59:30 +1000
+From: Stephen Rothwell <sfr@canb.auug.org.au>
+Subject: Re: linux-next: build failure after merge of the final tree
+Message-Id: <20110524135930.bb4c5506.sfr@canb.auug.org.au>
+In-Reply-To: <20110524025151.GA26939@kroah.com>
+References: <20110520161816.dda6f1fd.sfr@canb.auug.org.au>
+	<BANLkTimjzzqTS1fELmpb0UivqseLsYOfPw@mail.gmail.com>
+	<20110524025151.GA26939@kroah.com>
+Mime-Version: 1.0
+Content-Type: multipart/signed; protocol="application/pgp-signature";
+ micalg="PGP-SHA1";
+ boundary="Signature=_Tue__24_May_2011_13_59_30_+1000_1BVbB7zxwiOU+ANZ"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: minchan.kim@gmail.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, caiqian@redhat.com, rientjes@google.com, hughd@google.com, kamezawa.hiroyu@jp.fujitsu.com, oleg@redhat.com
+To: Greg KH <greg@kroah.com>
+Cc: Mike Frysinger <vapier.adi@gmail.com>, Linus <torvalds@linux-foundation.org>, linux-next@vger.kernel.org, linux-kernel@vger.kernel.org, "David S. Miller" <davem@davemloft.net>, netdev@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Dipankar Sarma <dipankar@in.ibm.com>
 
-> ok, removed.
+--Signature=_Tue__24_May_2011_13_59_30_+1000_1BVbB7zxwiOU+ANZ
+Content-Type: text/plain; charset=US-ASCII
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-I'm sorry. previous patch has white space damage.
-Let's retry send it.
+Hi Greg,
+
+On Mon, 23 May 2011 19:51:51 -0700 Greg KH <greg@kroah.com> wrote:
+>
+> On Mon, May 23, 2011 at 10:06:40PM -0400, Mike Frysinger wrote:
+> > On Fri, May 20, 2011 at 02:18, Stephen Rothwell wrote:
+> > > Caused by commit e66eed651fd1 ("list: remove prefetching from regular=
+ list
+> > > iterators").
+> > >
+> > > I added the following patch for today:
+> >=20
+> > probably should get added to whatever tree that commit is coming from
+> > so we dont have bisect hell ?
+> >=20
+> > more failures:
+> > drivers/usb/host/isp1362-hcd.c: In function 'isp1362_write_ptd':
+> > drivers/usb/host/isp1362-hcd.c:355: error: implicit declaration of
+> > function 'prefetch'
+> > drivers/usb/host/isp1362-hcd.c: In function 'isp1362_read_ptd':
+> > drivers/usb/host/isp1362-hcd.c:377: error: implicit declaration of
+> > function 'prefetchw'
+> > make[3]: *** [drivers/usb/host/isp1362-hcd.o] Error 1
+> >=20
+> > drivers/usb/musb/musb_core.c: In function 'musb_write_fifo':
+> > drivers/usb/musb/musb_core.c:219: error: implicit declaration of
+> > function 'prefetch'
+> > make[3]: *** [drivers/usb/musb/musb_core.o] Error 1
+> >=20
+> > although it seems like it should be fairly trivial to look at the
+> > funcs in linux/prefetch.h, grep the tree, and find a pretty good list
+> > of the files that are missing the include
+>=20
+> How did this not show up in linux-next?  Where did the patch that caused
+> this show up from?
+>=20
+> totally confused,
+
+:-)
+
+sfr said above:
+> Caused by commit e66eed651fd1 ("list: remove prefetching from regular
+> list iterators").
+
+The cause was a patch from Linus ...
+
+--=20
+Cheers,
+Stephen Rothwell                    sfr@canb.auug.org.au
+http://www.canb.auug.org.au/~sfr/
+
+--Signature=_Tue__24_May_2011_13_59_30_+1000_1BVbB7zxwiOU+ANZ
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.11 (GNU/Linux)
+
+iQEcBAEBAgAGBQJN2y0iAAoJEDMEi1NhKgbsjRAH/2ox4kXxSwC9b5AfrusaS+sv
+3ZC8b4SqS46BIU5v0oCfWYFwEO0orWI17yDdpr6flSjln+ZQ4nBh50BSDbYq7Zdl
+Eq6wC97bWEQL2hwjzOOcK9IbJJ/x2xJGG1TAnRvsq2IWiGxepoJvDMGPzaqerJg9
+AonDVQIh6fNqVMhX+d3llbdC8P3ZNffFAekb19VccBui3pSSTIGbwUt9SWQnOpou
+6xo/ltWwvkBEPJFkLaNPMLXvMdkSei9PeLg9Q6SiuUejGRgsPJZZi/VzY3BVc/7T
+8vi8u53SNudAfn0tWonqH9IqGS40QhX8Wt2yUQfQ+VUn6uOgLV7tsHzF+N5XKno=
+=48nt
+-----END PGP SIGNATURE-----
+
+--Signature=_Tue__24_May_2011_13_59_30_+1000_1BVbB7zxwiOU+ANZ--
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
