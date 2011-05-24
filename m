@@ -1,56 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 77E776B0026
-	for <linux-mm@kvack.org>; Tue, 24 May 2011 16:59:14 -0400 (EDT)
-Received: by qwa26 with SMTP id 26so5154990qwa.14
-        for <linux-mm@kvack.org>; Tue, 24 May 2011 13:59:12 -0700 (PDT)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id CF9A76B0028
+	for <linux-mm@kvack.org>; Tue, 24 May 2011 17:25:20 -0400 (EDT)
+Message-ID: <4DDC2236.6010608@mit.edu>
+Date: Tue, 24 May 2011 17:25:10 -0400
+From: Andy Lutomirski <luto@MIT.EDU>
 MIME-Version: 1.0
-In-Reply-To: <20110525040627.753980f8.lisa@ltmnet.com>
-References: <BANLkTi=PLuZhx1=rCfOtg=aOTuC1UbuPYg@mail.gmail.com>
-	<20110523192056.GC23629@elte.hu>
-	<BANLkTikdgM+kSvaEYuQkgCYJZELnvwfetg@mail.gmail.com>
-	<20110525040627.753980f8.lisa@ltmnet.com>
-Date: Tue, 24 May 2011 22:59:12 +0200
-Message-ID: <BANLkTimJ3PgPGRNcQGddmriub53w83BZjQ@mail.gmail.com>
 Subject: Re: (Short?) merge window reminder
-From: Zimny Lech <napohybelskurwysynom2010@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+References: <BANLkTi=PLuZhx1=rCfOtg=aOTuC1UbuPYg@mail.gmail.com> <20110523192056.GC23629@elte.hu> <BANLkTikdgM+kSvaEYuQkgCYJZELnvwfetg@mail.gmail.com>
+In-Reply-To: <BANLkTikdgM+kSvaEYuQkgCYJZELnvwfetg@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Lisa Milne <lisa@ltmnet.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org, DRI <dri-devel@lists.freedesktop.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@suse.de>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Ingo Molnar <mingo@elte.hu>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org, DRI <dri-devel@lists.freedesktop.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@suse.de>
 
-Hi,
-
-2011/5/24 Lisa Milne <lisa@ltmnet.com>:
->> So I'm toying with 3.0 (and in that case, it really would be "3.0",
->> not "3.0.0" - the stable team would get the third digit rather than
->> the fourth one.
+On 05/23/2011 04:33 PM, Linus Torvalds wrote:
+> On Mon, May 23, 2011 at 12:20 PM, Ingo Molnar<mingo@elte.hu>  wrote:
+>>
+>> I really hope there's also a voice that tells you to wait until .42 before
+>> cutting 3.0.0! :-)
 >
-> How about stardates?
-
-This is a wonderful idea! :)
-
-> That'd make a release made now 64860.8
+> So I'm toying with 3.0 (and in that case, it really would be "3.0",
+> not "3.0.0" - the stable team would get the third digit rather than
+> the fourth one.
 >
-> I really should sleep more...
+> But no, it wouldn't be for 42. Despite THHGTTG, I think "40" is a
+> fairly nice round number.
 >
-> --
-> Lisa Milne <lisa@ltmnet.com>
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" i=
-n
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at =A0http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at =A0http://www.tux.org/lkml/
+> There's also the timing issue - since we no longer do version numbers
+> based on features, but based on time, just saying "we're about to
+> start the third decade" works as well as any other excuse.
 >
 
+I don't think year-based versions (like 2011.0 for the first 2011 
+release, or maybe 2011.5 for May 2011) are pretty, but I'll make an 
+argument for them anyway: it makes it easier to figure out when hardware 
+ought to be supported.
+
+So if I buy a 2014-model laptop and the coffee-making button doesn't 
+work, and my favorite distro is running the 2013 kernel, then I know I 
+shouldn't expect to it to work.  (Graphics drivers are probably a more 
+realistic example.)
+
+Also, when someone in my lab installs <insert ancient enterprise distro 
+here> on a box that's running software I wrote that needs to support 
+modern high-speed peripherals, then I can say "What?  You seriously 
+expect this stuff to work on Linux 2007?  Let's install a slightly less 
+stable distro from at least 2010."  This sounds a lot less nerdy than 
+"What?  You seriously expect this stuff to work on Linux 2.6.27?  Let's 
+install a slightly less stable distro that uses at least 2.6.36."
 
 
---=20
-Slawa!
-Zimny Lech z Wawelu
+--Andy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
