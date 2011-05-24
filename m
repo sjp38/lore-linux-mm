@@ -1,60 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 7C44F6B0012
-	for <linux-mm@kvack.org>; Mon, 23 May 2011 22:52:21 -0400 (EDT)
-Date: Mon, 23 May 2011 19:51:51 -0700
-From: Greg KH <greg@kroah.com>
-Subject: Re: linux-next: build failure after merge of the final tree
-Message-ID: <20110524025151.GA26939@kroah.com>
-References: <20110520161816.dda6f1fd.sfr@canb.auug.org.au>
- <BANLkTimjzzqTS1fELmpb0UivqseLsYOfPw@mail.gmail.com>
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 8B12C6B0012
+	for <linux-mm@kvack.org>; Mon, 23 May 2011 23:11:30 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id F15FE3EE0AE
+	for <linux-mm@kvack.org>; Tue, 24 May 2011 12:11:26 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id D4C3945DF31
+	for <linux-mm@kvack.org>; Tue, 24 May 2011 12:11:26 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id BFD7F45DF2F
+	for <linux-mm@kvack.org>; Tue, 24 May 2011 12:11:26 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id B1B6AE08001
+	for <linux-mm@kvack.org>; Tue, 24 May 2011 12:11:26 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 7EA9EEF8001
+	for <linux-mm@kvack.org>; Tue, 24 May 2011 12:11:26 +0900 (JST)
+Message-ID: <4DDB21D8.3090400@jp.fujitsu.com>
+Date: Tue, 24 May 2011 12:11:20 +0900
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <BANLkTimjzzqTS1fELmpb0UivqseLsYOfPw@mail.gmail.com>
+Subject: Re: [PATCH 3/5] oom: oom-killer don't use proportion of system-ram
+ internally
+References: <4DD61F80.1020505@jp.fujitsu.com>	<4DD6204D.5020109@jp.fujitsu.com> <BANLkTinpX59NnwsJVQZNTgt_6X3DVK9WLg@mail.gmail.com> <4DDB0D93.5070005@jp.fujitsu.com>
+In-Reply-To: <4DDB0D93.5070005@jp.fujitsu.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Frysinger <vapier.adi@gmail.com>
-Cc: Stephen Rothwell <sfr@canb.auug.org.au>, Linus <torvalds@linux-foundation.org>, linux-next@vger.kernel.org, linux-kernel@vger.kernel.org, "David S. Miller" <davem@davemloft.net>, netdev@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Dipankar Sarma <dipankar@in.ibm.com>
+To: minchan.kim@gmail.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, caiqian@redhat.com, rientjes@google.com, hughd@google.com, kamezawa.hiroyu@jp.fujitsu.com, oleg@redhat.com
 
-On Mon, May 23, 2011 at 10:06:40PM -0400, Mike Frysinger wrote:
-> On Fri, May 20, 2011 at 02:18, Stephen Rothwell wrote:
-> > Caused by commit e66eed651fd1 ("list: remove prefetching from regular list
-> > iterators").
-> >
-> > I added the following patch for today:
-> 
-> probably should get added to whatever tree that commit is coming from
-> so we dont have bisect hell ?
-> 
-> more failures:
-> drivers/usb/host/isp1362-hcd.c: In function 'isp1362_write_ptd':
-> drivers/usb/host/isp1362-hcd.c:355: error: implicit declaration of
-> function 'prefetch'
-> drivers/usb/host/isp1362-hcd.c: In function 'isp1362_read_ptd':
-> drivers/usb/host/isp1362-hcd.c:377: error: implicit declaration of
-> function 'prefetchw'
-> make[3]: *** [drivers/usb/host/isp1362-hcd.o] Error 1
-> 
-> drivers/usb/musb/musb_core.c: In function 'musb_write_fifo':
-> drivers/usb/musb/musb_core.c:219: error: implicit declaration of
-> function 'prefetch'
-> make[3]: *** [drivers/usb/musb/musb_core.o] Error 1
-> 
-> although it seems like it should be fairly trivial to look at the
-> funcs in linux/prefetch.h, grep the tree, and find a pretty good list
-> of the files that are missing the include
+> ok, removed.
 
-How did this not show up in linux-next?  Where did the patch that caused
-this show up from?
-
-totally confused,
-
-greg k-h
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+I'm sorry. previous patch has white space damage.
+Let's retry send it.
