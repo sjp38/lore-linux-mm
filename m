@@ -1,78 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B8006B0012
-	for <linux-mm@kvack.org>; Mon, 23 May 2011 21:32:45 -0400 (EDT)
-Received: by qwa26 with SMTP id 26so4486946qwa.14
-        for <linux-mm@kvack.org>; Mon, 23 May 2011 18:32:43 -0700 (PDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id AC8A56B0012
+	for <linux-mm@kvack.org>; Mon, 23 May 2011 21:34:23 -0400 (EDT)
+Received: by qyk2 with SMTP id 2so1471945qyk.14
+        for <linux-mm@kvack.org>; Mon, 23 May 2011 18:34:21 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <4DDB0669.6040409@jp.fujitsu.com>
-References: <4DD61F80.1020505@jp.fujitsu.com>
-	<4DD6204D.5020109@jp.fujitsu.com>
-	<BANLkTim2-uncnzoHwdG+4+uCv+Ht4YH3Qw@mail.gmail.com>
-	<4DDB0669.6040409@jp.fujitsu.com>
-Date: Tue, 24 May 2011 10:32:43 +0900
-Message-ID: <BANLkTinb3Yuvrz5b-dyGYv0_HMB9+ax3yA@mail.gmail.com>
-Subject: Re: [PATCH 3/5] oom: oom-killer don't use proportion of system-ram internally
+In-Reply-To: <BANLkTi=wVOPSv1BA_mZq9=r14Vu3kUh3_w@mail.gmail.com>
+References: <BANLkTi=NTLn4Lx7EkybuA8-diTVOvMDxBw@mail.gmail.com>
+	<BANLkTinEDXHuRUYpYN0d95+fz4+F7ccL4w@mail.gmail.com>
+	<4DD5DC06.6010204@jp.fujitsu.com>
+	<BANLkTik=7C5qFZTsPQG4JYY-MEWDTHdc6A@mail.gmail.com>
+	<BANLkTins7qxWVh0bEwtk1Vx+m98N=oYVtw@mail.gmail.com>
+	<20110520140856.fdf4d1c8.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110520101120.GC11729@random.random>
+	<BANLkTikAFMvpgHR2dopd+Nvjfyw_XT5=LA@mail.gmail.com>
+	<20110520153346.GA1843@barrios-desktop>
+	<BANLkTi=X+=Wh1MLs7Fc-v-OMtxAHbcPmxA@mail.gmail.com>
+	<20110520161934.GA2386@barrios-desktop>
+	<BANLkTi=4C5YAxwAFWC6dsAPMR3xv6LP1hw@mail.gmail.com>
+	<BANLkTimThVw7-PN6ypBBarqXJa1xxYA_Ow@mail.gmail.com>
+	<BANLkTint+Qs+cO+wKUJGytnVY3X1bp+8rQ@mail.gmail.com>
+	<BANLkTinx+oPJFQye7T+RMMGzg9E7m28A=Q@mail.gmail.com>
+	<BANLkTik29nkn-DN9ui6XV4sy5Wo2jmeS9w@mail.gmail.com>
+	<BANLkTikQd34QZnQVSn_9f_Mxc8wtJMHY0w@mail.gmail.com>
+	<BANLkTi=wVOPSv1BA_mZq9=r14Vu3kUh3_w@mail.gmail.com>
+Date: Tue, 24 May 2011 10:34:21 +0900
+Message-ID: <BANLkTimw23VP4yyuDed-KrLEcnfLMMA-fQ@mail.gmail.com>
+Subject: Re: Kernel falls apart under light memory pressure (i.e. linking vmlinux)
 From: Minchan Kim <minchan.kim@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, caiqian@redhat.com, rientjes@google.com, hughd@google.com, kamezawa.hiroyu@jp.fujitsu.com, oleg@redhat.com
+To: Andrew Lutomirski <luto@mit.edu>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, fengguang.wu@intel.com, andi@firstfloor.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mgorman@suse.de, hannes@cmpxchg.org, riel@redhat.com
 
-On Tue, May 24, 2011 at 10:14 AM, KOSAKI Motohiro
-<kosaki.motohiro@jp.fujitsu.com> wrote:
-> Hi
->
->
->>> @@ -476,14 +476,17 @@ static const struct file_operations
->>> proc_lstats_operations =3D {
->>>
->>> =C2=A0static int proc_oom_score(struct task_struct *task, char *buffer)
->>> =C2=A0{
->>> - =C2=A0 =C2=A0 =C2=A0 unsigned long points =3D 0;
->>> + =C2=A0 =C2=A0 =C2=A0 unsigned long points;
->>> + =C2=A0 =C2=A0 =C2=A0 unsigned long ratio =3D 0;
->>> + =C2=A0 =C2=A0 =C2=A0 unsigned long totalpages =3D totalram_pages + to=
-tal_swap_pages + 1;
+On Tue, May 24, 2011 at 10:19 AM, Andrew Lutomirski <luto@mit.edu> wrote:
+> On Sun, May 22, 2011 at 7:12 PM, Minchan Kim <minchan.kim@gmail.com> wrot=
+e:
+>> Could you test below patch based on vanilla 2.6.38.6?
+>> The expect result is that system hang never should happen.
+>> I hope this is last test about hang.
 >>
->> Does we need +1?
->> oom_badness does have the check.
->
-> "ratio =3D points * 1000 / totalpages;" need to avoid zero divide.
->
->>> =C2=A0 =C2=A0 =C2=A0 =C2=A0/*
->>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 * Root processes get 3% bonus, just like th=
-e __vm_enough_memory()
->>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 * implementation used by LSMs.
->>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0*
->>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0* XXX: Too large bonus, example, if the sy=
-stem have tera-bytes
->>> memory..
->>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 */
->>> - =C2=A0 =C2=A0 =C2=A0 if (has_capability_noaudit(p, CAP_SYS_ADMIN))
->>> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 points -=3D 30;
->>> + =C2=A0 =C2=A0 =C2=A0 if (has_capability_noaudit(p, CAP_SYS_ADMIN)) {
->>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (points>=3D total=
-pages / 32)
->>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0=
- =C2=A0 points -=3D totalpages / 32;
->>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 else
->>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0=
- =C2=A0 points =3D 0;
+>> Thanks.
 >>
->> Odd. Why do we initialize points with 0?
+>> diff --git a/mm/vmscan.c b/mm/vmscan.c
+>> index 292582c..1663d24 100644
+>> --- a/mm/vmscan.c
+>> +++ b/mm/vmscan.c
+>> @@ -231,8 +231,11 @@ unsigned long shrink_slab(struct shrink_control *sh=
+rink,
+>> =C2=A0 =C2=A0 =C2=A0 if (scanned =3D=3D 0)
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 scanned =3D SWAP_CLUSTE=
+R_MAX;
 >>
->> I think the idea is good.
+>> - =C2=A0 =C2=A0 =C2=A0 if (!down_read_trylock(&shrinker_rwsem))
+>> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return 1; =C2=A0 =C2=
+=A0 =C2=A0 /* Assume we'll be able to shrink next time */
+>> + =C2=A0 =C2=A0 =C2=A0 if (!down_read_trylock(&shrinker_rwsem)) {
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 /* Assume we'll be ab=
+le to shrink next time */
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 ret =3D 1;
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 goto out;
+>> + =C2=A0 =C2=A0 =C2=A0 }
+>>
+>> =C2=A0 =C2=A0 =C2=A0 list_for_each_entry(shrinker, &shrinker_list, list)=
+ {
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 unsigned long long delt=
+a;
+>> @@ -286,6 +289,8 @@ unsigned long shrink_slab(struct shrink_control *shr=
+ink,
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 shrinker->nr +=3D total=
+_scan;
+>> =C2=A0 =C2=A0 =C2=A0 }
+>> =C2=A0 =C2=A0 =C2=A0 up_read(&shrinker_rwsem);
+>> +out:
+>> + =C2=A0 =C2=A0 =C2=A0 cond_resched();
+>> =C2=A0 =C2=A0 =C2=A0 return ret;
+>> =C2=A0}
+>>
+>> @@ -2331,7 +2336,7 @@ static bool sleeping_prematurely(pg_data_t
+>> *pgdat, int order, long remaining,
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0* must be balanced
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0*/
+>> =C2=A0 =C2=A0 =C2=A0 if (order)
+>> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return pgdat_balanced=
+(pgdat, balanced, classzone_idx);
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return !pgdat_balance=
+d(pgdat, balanced, classzone_idx);
+>> =C2=A0 =C2=A0 =C2=A0 else
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return !all_zones_ok;
+>> =C2=A0}
 >
-> The points is unsigned. It's common technique to avoid underflow.
+> So far with this patch I can't reproduce the hang or the bogus OOM.
+>
+> To be completely clear, I have COMPACTION, MIGRATION, and THP off, I'm
+> running 2.6.38.6, and I have exactly two patches applied. =C2=A0One is th=
+e
+> attached patch and the other is a the fpu.ko/aesni_intel.ko merger
+> which I need to get dracut to boot my box.
+>
+> For fun, I also upgraded to 8GB of RAM and it still works.
 >
 
-Thanks for explanation, KOSAKI.
-I need sleeping. :(
+Hmm. Could you test it with enable thp and 2G RAM?
+Isn't it a original test environment?
+Please don't change test environment. :)
 
-
+Thanks for your effort, Andrew.
 
 --=20
 Kind regards,
