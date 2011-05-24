@@ -1,99 +1,154 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 6663D6B0012
-	for <linux-mm@kvack.org>; Mon, 23 May 2011 22:08:07 -0400 (EDT)
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B69E8D003B
+	for <linux-mm@kvack.org>; Mon, 23 May 2011 22:10:23 -0400 (EDT)
 Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id A44BC3EE0C3
-	for <linux-mm@kvack.org>; Tue, 24 May 2011 11:08:04 +0900 (JST)
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 22DB53EE0B5
+	for <linux-mm@kvack.org>; Tue, 24 May 2011 11:10:20 +0900 (JST)
 Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 8A42645DF32
-	for <linux-mm@kvack.org>; Tue, 24 May 2011 11:08:04 +0900 (JST)
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 0965045DF33
+	for <linux-mm@kvack.org>; Tue, 24 May 2011 11:10:20 +0900 (JST)
 Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 064FE45DF39
-	for <linux-mm@kvack.org>; Tue, 24 May 2011 11:08:04 +0900 (JST)
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id E23EB45DF30
+	for <linux-mm@kvack.org>; Tue, 24 May 2011 11:10:19 +0900 (JST)
 Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id EE669E78003
-	for <linux-mm@kvack.org>; Tue, 24 May 2011 11:08:03 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id B57F1E08002
-	for <linux-mm@kvack.org>; Tue, 24 May 2011 11:08:03 +0900 (JST)
-Message-ID: <4DDB12FD.2000208@jp.fujitsu.com>
-Date: Tue, 24 May 2011 11:07:57 +0900
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id D4252E08003
+	for <linux-mm@kvack.org>; Tue, 24 May 2011 11:10:19 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 8D2BCE78002
+	for <linux-mm@kvack.org>; Tue, 24 May 2011 11:10:19 +0900 (JST)
+Message-ID: <4DDB1388.2080102@jp.fujitsu.com>
+Date: Tue, 24 May 2011 11:10:16 +0900
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 3/5] oom: oom-killer don't use proportion of system-ram
- internally
-References: <4DD61F80.1020505@jp.fujitsu.com> <4DD6204D.5020109@jp.fujitsu.com> <alpine.DEB.2.00.1105231522410.17840@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1105231522410.17840@chino.kir.corp.google.com>
+Subject: Re: [PATCH v2 3/3] vmscan: implement swap token priority aging
+References: <4DD480DD.2040307@jp.fujitsu.com>	<4DD481A7.3050108@jp.fujitsu.com> <20110520123004.e81c932e.akpm@linux-foundation.org>
+In-Reply-To: <20110520123004.e81c932e.akpm@linux-foundation.org>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: rientjes@google.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, caiqian@redhat.com, hughd@google.com, kamezawa.hiroyu@jp.fujitsu.com, minchan.kim@gmail.com, oleg@redhat.com
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, riel@redhat.com
 
-(2011/05/24 7:28), David Rientjes wrote:
-> On Fri, 20 May 2011, KOSAKI Motohiro wrote:
+Hi,
+
+(2011/05/21 4:30), Andrew Morton wrote:
+> On Thu, 19 May 2011 11:34:15 +0900
+> KOSAKI Motohiro<kosaki.motohiro@jp.fujitsu.com>  wrote:
 >
->> CAI Qian reported his kernel did hang-up if he ran fork intensive
->> workload and then invoke oom-killer.
+>> While testing for memcg aware swap token, I observed a swap token
+>> was often grabbed an intermittent running process (eg init, auditd)
+>> and they never release a token.
 >>
->> The problem is, current oom calculation uses 0-1000 normalized value
->> (The unit is a permillage of system-ram). Its low precision make
->> a lot of same oom score. IOW, in his case, all processes have smaller
->> oom score than 1 and internal calculation round it to 1.
+>> Why?
 >>
->> Thus oom-killer kill ineligible process. This regression is caused by
->> commit a63d83f427 (oom: badness heuristic rewrite).
+>> Some processes (eg init, auditd, audispd) wake up when a process
+>> exiting. And swap token can be get first page-in process when
+>> a process exiting makes no swap token owner. Thus such above
+>> intermittent running process often get a token.
 >>
->> The solution is, the internal calculation just use number of pages
->> instead of permillage of system-ram. And convert it to permillage
->> value at displaying time.
+>> And currently, swap token priority is only decreased at page fault
+>> path. Then, if the process sleep immediately after to grab swap
+>> token, the swap token priority never be decreased. That's obviously
+>> undesirable.
 >>
->> This patch doesn't change any ABI (included  /proc/<pid>/oom_score_adj)
->> even though current logic has a lot of my dislike thing.
+>> This patch implement very poor (and lightweight) priority aging.
+>> It only be affect to the above corner case and doesn't change swap
+>> tendency workload performance (eg multi process qsbench load)
 >>
+>> ...
+>>
+>> --- a/mm/thrash.c
+>> +++ b/mm/thrash.c
+>> @@ -25,10 +25,13 @@
+>>
+>>   #include<trace/events/vmscan.h>
+>>
+>> +#define TOKEN_AGING_INTERVAL	(0xFF)
 >
-> Same response as when you initially proposed this patch:
-> http://marc.info/?l=linux-kernel&m=130507086613317 -- you never replied to
-> that.
+> Needs a comment describing its units and what it does, please.
+> Sufficient for readers to understand why this value was chosen and what
+> effect they could expect to see from changing it.
 
-I did replay. Why don't you read?
-http://www.gossamer-threads.com/lists/linux/kernel/1378837#1378837
-
-If you haven't understand the issue, you can apply following patch and
-run it.
+Will do.
 
 
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index b01fa64..f35909b 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -718,6 +718,9 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
-  	 */
-  	constraint = constrained_alloc(zonelist, gfp_mask, nodemask,
-  						&totalpages);
-+
-+	totalpages *= 10;
-+
-  	mpol_mask = (constraint == CONSTRAINT_MEMORY_POLICY) ? nodemask : NULL;
-  	check_panic_on_oom(constraint, gfp_mask, order, mpol_mask);
-
-
-
-> The changelog doesn't accurately represent CAI Qian's problem; the issue
-> is that root processes are given too large of a bonus in comparison to
-> other threads that are using at most 1.9% of available memory.  That can
-> be fixed, as I suggested by giving 1% bonus per 10% of memory used so that
-> the process would have to be using 10% before it even receives a bonus.
+>>   static DEFINE_SPINLOCK(swap_token_lock);
+>>   struct mm_struct *swap_token_mm;
+>>   struct mem_cgroup *swap_token_memcg;
+>>   static unsigned int global_faults;
+>> +static unsigned int last_aging;
 >
-> I already suggested an alternative patch to CAI Qian to greatly increase
-> the granularity of the oom score from a range of 0-1000 to 0-10000 to
-> differentiate between tasks within 0.01% of available memory (16MB on CAI
-> Qian's 16GB system).  I'll propose this officially in a separate email.
+> Is this a good name?  Would something like prev_global_faults be better?
+
+Current code is "next-aging = last-aging + 256global-fault". so,
+prev_global_faults is slightly misleading to me.
+
+
+> `global_faults' and `last_aging' could be made static local in
+> grab_swap_token().
+
+OK. even though I don't like static in a function.
+
+
 >
-> This patch also includes undocumented changes such as changing the bonus
-> given to root processes.
+>>   void grab_swap_token(struct mm_struct *mm)
+>>   {
+>> @@ -47,6 +50,11 @@ void grab_swap_token(struct mm_struct *mm)
+>>   	if (!swap_token_mm)
+>>   		goto replace_token;
+>>
+>> +	if ((global_faults - last_aging)>  TOKEN_AGING_INTERVAL) {
+>> +		swap_token_mm->token_priority /= 2;
+>> +		last_aging = global_faults;
+>> +	}
+>
+> It's really hard to reverse-engineer the design decisions from the
+> implementation here, therefore...  ?
+>
+>>   	if (mm == swap_token_mm) {
+>>   		mm->token_priority += 2;
+>>   		goto update_priority;
+>> @@ -64,7 +72,7 @@ void grab_swap_token(struct mm_struct *mm)
+>>   		goto replace_token;
+>>
+>>   update_priority:
+>> -	trace_update_swap_token_priority(mm, old_prio);
+>> +	trace_update_swap_token_priority(mm, old_prio, swap_token_mm);
+>>
+>>   out:
+>>   	mm->faultstamp = global_faults;
+>> @@ -80,6 +88,7 @@ replace_token:
+>>   	trace_replace_swap_token(swap_token_mm, mm);
+>>   	swap_token_mm = mm;
+>>   	swap_token_memcg = memcg;
+>> +	last_aging = global_faults;
+>>   	goto out;
+>>   }
+>
+> In fact all of grab_swap_token() and the thrash-detection code in
+> general are pretty tricky and unobvious stuff.  So we left it
+> undocumented :(
+
+Well, original swap token (designed by Rik) is pretty straight forward
+implementation on the theory. Therefore we didn't need too verbose doc.
+The paper give us good well documentation.
+
+# Oh, now http://www.cs.wm.edu/~sjiang/token.pdf is dead link.
+# we should fix it to http://www.cse.ohio-state.edu/hpcs/WWW/HTML/publications/papers/TR-05-1.pdf,
+# maybe, or do anybody know better url?
+
+But following commit rewrite almost all code. and we lost good documentation.
+It's a bit sad.
+
+
+commit 7602bdf2fd14a40dd9b104e516fdc05e1bd17952
+Author: Ashwin Chaugule <ashwin.chaugule@celunite.com>
+Date:   Wed Dec 6 20:31:57 2006 -0800
+
+     [PATCH] new scheme to preempt swap token
+
 
 
 
