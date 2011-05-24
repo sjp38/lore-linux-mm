@@ -1,47 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id D0FF38D003B
-	for <linux-mm@kvack.org>; Mon, 23 May 2011 22:11:46 -0400 (EDT)
-Date: Tue, 24 May 2011 04:11:39 +0200
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: (Short?) merge window reminder
-Message-ID: <20110524021139.GB19249@elte.hu>
-References: <BANLkTi=PLuZhx1=rCfOtg=aOTuC1UbuPYg@mail.gmail.com>
- <20110523192056.GC23629@elte.hu>
- <BANLkTikdgM+kSvaEYuQkgCYJZELnvwfetg@mail.gmail.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C44F6B0012
+	for <linux-mm@kvack.org>; Mon, 23 May 2011 22:52:21 -0400 (EDT)
+Date: Mon, 23 May 2011 19:51:51 -0700
+From: Greg KH <greg@kroah.com>
+Subject: Re: linux-next: build failure after merge of the final tree
+Message-ID: <20110524025151.GA26939@kroah.com>
+References: <20110520161816.dda6f1fd.sfr@canb.auug.org.au>
+ <BANLkTimjzzqTS1fELmpb0UivqseLsYOfPw@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <BANLkTikdgM+kSvaEYuQkgCYJZELnvwfetg@mail.gmail.com>
+In-Reply-To: <BANLkTimjzzqTS1fELmpb0UivqseLsYOfPw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org, DRI <dri-devel@lists.freedesktop.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@suse.de>
+To: Mike Frysinger <vapier.adi@gmail.com>
+Cc: Stephen Rothwell <sfr@canb.auug.org.au>, Linus <torvalds@linux-foundation.org>, linux-next@vger.kernel.org, linux-kernel@vger.kernel.org, "David S. Miller" <davem@davemloft.net>, netdev@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Dipankar Sarma <dipankar@in.ibm.com>
 
-
-* Linus Torvalds <torvalds@linux-foundation.org> wrote:
-
-> On Mon, May 23, 2011 at 12:20 PM, Ingo Molnar <mingo@elte.hu> wrote:
+On Mon, May 23, 2011 at 10:06:40PM -0400, Mike Frysinger wrote:
+> On Fri, May 20, 2011 at 02:18, Stephen Rothwell wrote:
+> > Caused by commit e66eed651fd1 ("list: remove prefetching from regular list
+> > iterators").
 > >
-> > I really hope there's also a voice that tells you to wait until .42 before
-> > cutting 3.0.0! :-)
+> > I added the following patch for today:
 > 
-> So I'm toying with 3.0 (and in that case, it really would be "3.0",
-> not "3.0.0" - the stable team would get the third digit rather than
-> the fourth one.
+> probably should get added to whatever tree that commit is coming from
+> so we dont have bisect hell ?
 > 
-> But no, it wouldn't be for 42. Despite THHGTTG, I think "40" is a
-> fairly nice round number.
+> more failures:
+> drivers/usb/host/isp1362-hcd.c: In function 'isp1362_write_ptd':
+> drivers/usb/host/isp1362-hcd.c:355: error: implicit declaration of
+> function 'prefetch'
+> drivers/usb/host/isp1362-hcd.c: In function 'isp1362_read_ptd':
+> drivers/usb/host/isp1362-hcd.c:377: error: implicit declaration of
+> function 'prefetchw'
+> make[3]: *** [drivers/usb/host/isp1362-hcd.o] Error 1
+> 
+> drivers/usb/musb/musb_core.c: In function 'musb_write_fifo':
+> drivers/usb/musb/musb_core.c:219: error: implicit declaration of
+> function 'prefetch'
+> make[3]: *** [drivers/usb/musb/musb_core.o] Error 1
+> 
+> although it seems like it should be fairly trivial to look at the
+> funcs in linux/prefetch.h, grep the tree, and find a pretty good list
+> of the files that are missing the include
 
-Also, in all fairness, we should probably display a certain amount of humility: 
-while Linux has certainly reached milestones such as world domination (as far 
-as large and small computers are concerned), so calling it 3.0 is a fair deal, 
-we probably have to wait for version 42.0 before we can consider the Linux 
-kernel to be the ultimate answer to life, universe and everything.
+How did this not show up in linux-next?  Where did the patch that caused
+this show up from?
 
-Thanks,
+totally confused,
 
-	Ingo
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
