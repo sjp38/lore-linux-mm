@@ -1,76 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 971356B0011
-	for <linux-mm@kvack.org>; Tue, 24 May 2011 05:04:21 -0400 (EDT)
-Received: by qyk30 with SMTP id 30so4670475qyk.14
-        for <linux-mm@kvack.org>; Tue, 24 May 2011 02:04:19 -0700 (PDT)
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id EB3916B0011
+	for <linux-mm@kvack.org>; Tue, 24 May 2011 05:06:12 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 07F993EE0BB
+	for <linux-mm@kvack.org>; Tue, 24 May 2011 18:06:10 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id E2EAC45DEC3
+	for <linux-mm@kvack.org>; Tue, 24 May 2011 18:06:09 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id CB69445DEC2
+	for <linux-mm@kvack.org>; Tue, 24 May 2011 18:06:09 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id BE93B1DB803F
+	for <linux-mm@kvack.org>; Tue, 24 May 2011 18:06:09 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 8606B1DB802F
+	for <linux-mm@kvack.org>; Tue, 24 May 2011 18:06:09 +0900 (JST)
+Message-ID: <4DDB74F7.9020109@jp.fujitsu.com>
+Date: Tue, 24 May 2011 18:05:59 +0900
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <4DDB711B.8010408@jp.fujitsu.com>
-References: <4DD61F80.1020505@jp.fujitsu.com>
-	<4DD6207E.1070300@jp.fujitsu.com>
-	<BANLkTinaHki1oA4O3+FsoPDtFTLfqwRadA@mail.gmail.com>
-	<4DDB0FB2.9050300@jp.fujitsu.com>
-	<BANLkTinKm=m8zdPGN0Trpy4HtEFyxMYzPA@mail.gmail.com>
-	<4DDB711B.8010408@jp.fujitsu.com>
-Date: Tue, 24 May 2011 18:04:19 +0900
-Message-ID: <BANLkTik5tXv+k9tk2egXgmBRzcBD5Avjkw@mail.gmail.com>
-Subject: Re: [PATCH 4/5] oom: don't kill random process
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Subject: Re: Unending loop in __alloc_pages_slowpath following OOM-kill; rfc:
+ patch.
+References: <4DCDA347.9080207@cray.com> <BANLkTikiXUzbsUkzaKZsZg+5ugruA2JdMA@mail.gmail.com> <4DD2991B.5040707@cray.com> <BANLkTimYEs315jjY9OZsL6--mRq3O_zbDA@mail.gmail.com> <20110520164924.GB2386@barrios-desktop> <4DDB3A1E.6090206@jp.fujitsu.com> <20110524083008.GA5279@suse.de> <4DDB6DF6.2050700@jp.fujitsu.com> <20110524084915.GC5279@suse.de>
+In-Reply-To: <20110524084915.GC5279@suse.de>
+Content-Type: text/plain; charset=ISO-8859-15
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, caiqian@redhat.com, rientjes@google.com, hughd@google.com, kamezawa.hiroyu@jp.fujitsu.com, oleg@redhat.com
+To: mgorman@suse.de
+Cc: minchan.kim@gmail.com, abarry@cray.com, akpm@linux-foundation.org, linux-mm@kvack.org, riel@redhat.com, hannes@cmpxchg.org, linux-kernel@vger.kernel.org
 
-On Tue, May 24, 2011 at 5:49 PM, KOSAKI Motohiro
-<kosaki.motohiro@jp.fujitsu.com> wrote:
-> (2011/05/24 17:46), Minchan Kim wrote:
->> On Tue, May 24, 2011 at 10:53 AM, KOSAKI Motohiro
->> <kosaki.motohiro@jp.fujitsu.com> wrote:
->>>>> + =C2=A0 =C2=A0 =C2=A0 /*
->>>>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0* chosen_point=3D=3D1 may be a sign that=
- root privilege bonus is too
->>>>> large
->>>>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0* and we choose wrong task. Let's recalc=
-ulate oom score without
->>>>> the
->>>>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0* dubious bonus.
->>>>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0*/
->>>>> + =C2=A0 =C2=A0 =C2=A0 if (protect_root&& =C2=A0(chosen_points =3D=3D=
- 1)) {
->>>>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 protect_root =3D 0=
-;
->>>>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 goto retry;
->>>>> + =C2=A0 =C2=A0 =C2=A0 }
->>>>
->>>> The idea is good to me.
->>>> But once we meet it, should we give up protecting root privileged
->>>> processes?
->>>> How about decaying bonus point?
->>>
->>> After applying my patch, unprivileged process never get score-1. (note,
->>> mapping
->>> anon pages naturally makes to increase nr_ptes)
+>>> Why?
 >>
->> Hmm, If I understand your code correctly, unprivileged process can get
->> a score 1 by 3% bonus.
->
-> 3% bonus is for privileged process. :)
+>> Otherwise, we don't have good PCP dropping trigger. Big machine might have
+>> big pcp cache.
+>>
+> 
+> Big machines also have a large cost for sending IPIs.
 
-OMG. Typo.
-Anyway, my point is following as.
-If chose_point is 1, it means root bonus is rather big. Right?
-If is is, your patch does second loop with completely ignore of bonus
-for root privileged process.
-My point is that let's not ignore bonus completely. Instead of it,
-let's recalculate 1.5% for example.
+Yes. But it's only matter if IPIs are frequently happen.
+But, drain_all_pages() is NOT only IPI source. some vmscan function (e.g.
+try_to_umap) makes a lot of IPIs.
 
-But I don't insist on my idea.
-Thanks.
---=20
-Kind regards,
-Minchan Kim
+Then, it's _relatively_ not costly. I have a question. Do you compare which
+operation and drain_all_pages()? IOW, your "costly" mean which scenario suspect?
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
