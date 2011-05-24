@@ -1,148 +1,155 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id D55706B0012
-	for <linux-mm@kvack.org>; Mon, 23 May 2011 20:18:04 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 1B0053EE0C2
-	for <linux-mm@kvack.org>; Tue, 24 May 2011 09:18:01 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id F35C945DE96
-	for <linux-mm@kvack.org>; Tue, 24 May 2011 09:18:00 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id DA32C45DE92
-	for <linux-mm@kvack.org>; Tue, 24 May 2011 09:18:00 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id CB1321DB803F
-	for <linux-mm@kvack.org>; Tue, 24 May 2011 09:18:00 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 8839C1DB802F
-	for <linux-mm@kvack.org>; Tue, 24 May 2011 09:18:00 +0900 (JST)
-Date: Tue, 24 May 2011 09:11:14 +0900
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 2C8396B0012
+	for <linux-mm@kvack.org>; Mon, 23 May 2011 20:26:16 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 7C5C63EE0B6
+	for <linux-mm@kvack.org>; Tue, 24 May 2011 09:26:13 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 5B93345DF31
+	for <linux-mm@kvack.org>; Tue, 24 May 2011 09:26:13 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 3D23845DF15
+	for <linux-mm@kvack.org>; Tue, 24 May 2011 09:26:13 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 2DB81E78003
+	for <linux-mm@kvack.org>; Tue, 24 May 2011 09:26:13 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id DB36FE08001
+	for <linux-mm@kvack.org>; Tue, 24 May 2011 09:26:12 +0900 (JST)
+Date: Tue, 24 May 2011 09:19:28 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 6/8] memcg asynchronous memory reclaim interface
-Message-Id: <20110524091114.02fb183d.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <BANLkTinEcbQoV6n0+S9W4s4+AFJKKCiwsA@mail.gmail.com>
+Subject: Re: [PATCH 0/8] memcg async reclaim v2
+Message-Id: <20110524091928.3aee46da.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <BANLkTimd0CAqoAnuGz7WvKsbwphJxo0eZQ@mail.gmail.com>
 References: <20110520123749.d54b32fa.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110520124636.45c26cfa.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110520144935.3bfdb2e2.akpm@linux-foundation.org>
-	<BANLkTi=Ap=NdZ+05UjjEsC5f5wdjo9yvew@mail.gmail.com>
-	<BANLkTinEcbQoV6n0+S9W4s4+AFJKKCiwsA@mail.gmail.com>
+	<BANLkTimd0CAqoAnuGz7WvKsbwphJxo0eZQ@mail.gmail.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Ying Han <yinghan@google.com>
-Cc: Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, hannes@cmpxchg.org, Michal Hocko <mhocko@suse.cz>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, hannes@cmpxchg.org, Michal Hocko <mhocko@suse.cz>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 
-On Mon, 23 May 2011 16:36:20 -0700
+On Mon, 23 May 2011 15:38:31 -0700
 Ying Han <yinghan@google.com> wrote:
 
-> On Fri, May 20, 2011 at 4:56 PM, Hiroyuki Kamezawa
-> <kamezawa.hiroyuki@gmail.com> wrote:
-> > 2011/5/21 Andrew Morton <akpm@linux-foundation.org>:
-> >> On Fri, 20 May 2011 12:46:36 +0900
-> >> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> >>
-> >>> This patch adds a logic to keep usage margin to the limit in asynchronous way.
-> >>> When the usage over some threshould (determined automatically), asynchronous
-> >>> memory reclaim runs and shrink memory to limit - MEMCG_ASYNC_STOP_MARGIN.
-> >>>
-> >>> By this, there will be no difference in total amount of usage of cpu to
-> >>> scan the LRU
-> >>
-> >> This is not true if "don't writepage at all (revisit this when
-> >> dirty_ratio comes.)" is true. A Skipping over dirty pages can cause
-> >> larger amounts of CPU consumption.
-> >>
-> >>> but we'll have a chance to make use of wait time of applications
-> >>> for freeing memory. For example, when an application read a file or socket,
-> >>> to fill the newly alloated memory, it needs wait. Async reclaim can make use
-> >>> of that time and give a chance to reduce latency by background works.
-> >>>
-> >>> This patch only includes required hooks to trigger async reclaim and user interfaces.
-> >>> Core logics will be in the following patches.
-> >>>
-> >>>
-> >>> ...
-> >>>
-> >>> A /*
-> >>> + * For example, with transparent hugepages, memory reclaim scan at hitting
-> >>> + * limit can very long as to reclaim HPAGE_SIZE of memory. This increases
-> >>> + * latency of page fault and may cause fallback. At usual page allocation,
-> >>> + * we'll see some (shorter) latency, too. To reduce latency, it's appreciated
-> >>> + * to free memory in background to make margin to the limit. This consumes
-> >>> + * cpu but we'll have a chance to make use of wait time of applications
-> >>> + * (read disk etc..) by asynchronous reclaim.
-> >>> + *
-> >>> + * This async reclaim tries to reclaim HPAGE_SIZE * 2 of pages when margin
-> >>> + * to the limit is smaller than HPAGE_SIZE * 2. This will be enabled
-> >>> + * automatically when the limit is set and it's greater than the threshold.
-> >>> + */
-> >>> +#if HPAGE_SIZE != PAGE_SIZE
-> >>> +#define MEMCG_ASYNC_LIMIT_THRESH A  A  A (HPAGE_SIZE * 64)
-> >>> +#define MEMCG_ASYNC_MARGIN A  A  A  A  (HPAGE_SIZE * 4)
-> >>> +#else /* make the margin as 4M bytes */
-> >>> +#define MEMCG_ASYNC_LIMIT_THRESH A  A  A (128 * 1024 * 1024)
-> >>> +#define MEMCG_ASYNC_MARGIN A  A  A  A  A  A (8 * 1024 * 1024)
-> >>> +#endif
-> >>
-> >> Document them, please. A How are they used, what are their units.
-> >>
-> >
-> > will do.
-> >
-> >
-> >>> +static void mem_cgroup_may_async_reclaim(struct mem_cgroup *mem);
-> >>> +
-> >>> +/*
-> >>> A  * The memory controller data structure. The memory controller controls both
-> >>> A  * page cache and RSS per cgroup. We would eventually like to provide
-> >>> A  * statistics based on the statistics developed by Rik Van Riel for clock-pro,
-> >>> @@ -278,6 +303,12 @@ struct mem_cgroup {
-> >>> A  A  A  A */
-> >>> A  A  A  unsigned long A  move_charge_at_immigrate;
-> >>> A  A  A  /*
-> >>> + A  A  A * Checks for async reclaim.
-> >>> + A  A  A */
-> >>> + A  A  unsigned long A  async_flags;
-> >>> +#define AUTO_ASYNC_ENABLED A  (0)
-> >>> +#define USE_AUTO_ASYNC A  A  A  A  A  A  A  (1)
-> >>
-> >> These are really confusing. A I looked at the implementation and at the
-> >> documentation file and I'm still scratching my head. A I can't work out
-> >> why they exist. A With the amount of effort I put into it ;)
-> >>
-> >> Also, AUTO_ASYNC_ENABLED and USE_AUTO_ASYNC have practically the same
-> >> meaning, which doesn't help things.
-> >>
-> > Ah, yes it's confusing.
+> Hi Kame:
 > 
-> Sorry I was confused by the memory.async_control interface. I assume
-> that is the knob to turn on/off the bg reclaim on per-memcg basis. But
-> when I tried to turn it off, it seems not working well:
+> I applied and tested the patchset on top of mmotm-2011-05-12-15-52. I
+> admit that I didn't look the patch closely yet, which I plan to do
+> next. Now i have few quick questions based on the testing result:
 > 
-> $ cat /proc/7248/cgroup
-> 3:memory:/A
+> Test:
+> 1) create a 2g memcg and enable async_control
+> $ mkdir /dev/cgroup/memory/A
+> $ echo 2g >/dev/cgroup/memory/A/memory.limit_in_bytes
+> $ echo 1 >/dev/cgroup/memory/A/memory.async_control
 > 
-> $ cat /dev/cgroup/memory/A/memory.async_control
-> 0
+> 2) read a 20g file in the memcg
+> $ echo $$ >/dev/cgroup/memory/A/tasks
+> $ time cat /export/hdc3/dd_A/tf0 > /dev/zero
+> 
+> real	4m26.677s
+> user	0m0.222s
+> sys	0m28.481s
+> 
+> Here are the questions:
+> 
+> 1. I monitored the "top" while the test is running. The amount of
+> cputime the kworkers take worries me, and the following top output
+> stays pretty consistent while the "cat" is running/
 > 
 
-If enabled and kworker runs, this shows "3", for now.
-I'll make this simpler in the next post.
-
-> Then i can see the kworkers start running when the memcg A under
-> memory pressure. There was no other memcgs configured under root.
+memcg-async's kworker is kworker/u:x .....because of UNBOUND_WQ.
+Then, kworker you see is for other purpose....Hmm, from trace log,
+most of them are for "draining" per-cpu memcg cache. I'll prepare a patch.
 
 
-What kworkers ? For example, many kworkers runs on ext4? on my host.
-If kworker/u:x works, it may be for memcg (for my host)
 
-Ok, I'll add statistics in v3.
+
+> Tasks: 152 total,   2 running, 150 sleeping,   0 stopped,   0 zombie
+> Cpu(s):  0.1%us,  1.2%sy,  0.0%ni, 87.6%id, 10.6%wa,  0.0%hi,  0.5%si,  0.0%st
+> Mem:  32963480k total,  2694728k used, 30268752k free,     3888k buffers
+> Swap:        0k total,        0k used,        0k free,  2316500k cached
+> 
+>   PID USER      PR  NI  VIRT  RES  SHR S %CPU %MEM    TIME+  COMMAND
+>   389 root      20   0     0    0    0 R   45  0.0   1:36.24
+> kworker/3:1
+> 23127 root      20   0     0    0    0 S   44  0.0   0:13.44
+> kworker/4:2
+>   393 root      20   0     0    0    0 S   43  0.0   2:02.28
+> kworker/7:1
+>    32 root      20   0     0    0    0 S   42  0.0   1:54.02
+> kworker/6:0
+>  1230 root      20   0     0    0    0 S   42  0.0   1:22.01
+> kworker/2:2
+> 23130 root      20   0     0    0    0 S   31  0.0   0:04.04
+> kworker/0:2
+>   391 root      20   0     0    0    0 S   22  0.0   1:45.79
+> kworker/5:1
+> 23109 root      20   0  3104  228  180 D   10  0.0   0:08.56 cat
+> 
+> I attached the tracing output of the kworkers while they are running
+> by doing the following:
+> 
+>  $ mount -t debugfs nodev /sys/kernel/debug/
+>  $ echo workqueue:workqueue_queue_work > /sys/kernel/debug/tracing/set_event
+>  $ cat /sys/kernel/debug/tracing/trace_pipe > out.txt
+> 
+> 2. I can not justify the cputime on the kworkers. I am looking for the
+> patch which we exports the time before and after workitem on memcg
+> basis. I recall we have that in previous post, sorry I missed that
+> patch somehere.
+> 
+>  # cat /cgroup/memory/A/memory.stat
+>  ....
+>  direct_elapsed_ns 0
+>  wmark_elapsed_ns 103566424
+>  direct_scanned 0
+>  wmark_scanned 29303
+>  direct_freed 0
+>  wmark_freed 29290
+> 
+
+I didn't include this for this version because you and others working on
+memory.stat file. I wanted to avoid to add new mess ;)
+I'll include it again in v3.
+
+
+
+> 3. Here is the outout of memory.stat after the test, the last one is
+> the memory.failcnt. As far as I remember, the failcnt is far higher
+> than the result i got on previous testing (per-memcg-per-kswapd
+> patch). This is all clean file pages which shouldn't be hard to
+> reclaim.
+> 
+> cache 2147151872
+> rss 94208
+> mapped_file 0
+> pgpgin 5242945
+> pgpgout 4718715
+> pgfault 274
+> pgmajfault 0
+> 1050041
+> 
+> Please let me know if the current version isn't ready for testing, and
+> I will wait :)
+> 
+
+This version has tweaked to be less cpu hogging than previous one. So,
+hit_limit increases. I'll drop some tweakes I added in v2 for starting from
+a simple one.
+
+I'll post v3 in this week. But if dirty_ratio is ready, I think it should be
+merged 1st. But it's merge window....
 
 Thanks,
 -Kame
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
