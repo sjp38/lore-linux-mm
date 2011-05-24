@@ -1,84 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D8C56B0011
-	for <linux-mm@kvack.org>; Tue, 24 May 2011 03:34:06 -0400 (EDT)
-Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
-	by e28smtp06.in.ibm.com (8.14.4/8.13.1) with ESMTP id p4O7XJ94021149
-	for <linux-mm@kvack.org>; Tue, 24 May 2011 13:03:19 +0530
-Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
-	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p4O7X3QM3567734
-	for <linux-mm@kvack.org>; Tue, 24 May 2011 13:03:09 +0530
-Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
-	by d28av01.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p4O7X2Ya026826
-	for <linux-mm@kvack.org>; Tue, 24 May 2011 13:03:03 +0530
-Date: Tue, 24 May 2011 13:02:56 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [PATCH V2] memcg: add documentation for memory.numastat API.
-Message-ID: <20110524073256.GM3139@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <1306220513-7763-1-git-send-email-yinghan@google.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 659CA6B0011
+	for <linux-mm@kvack.org>; Tue, 24 May 2011 03:55:50 -0400 (EDT)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: Re: (Short?) merge window reminder
+Date: Tue, 24 May 2011 09:55:42 +0200
+References: <BANLkTi=PLuZhx1=rCfOtg=aOTuC1UbuPYg@mail.gmail.com> <4DDAEC68.30803@zytor.com> <BANLkTikGfVSAMY2a2yiXaNpvBVvF8YdMEA@mail.gmail.com>
+In-Reply-To: <BANLkTikGfVSAMY2a2yiXaNpvBVvF8YdMEA@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <1306220513-7763-1-git-send-email-yinghan@google.com>
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Message-Id: <201105240955.43229.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>, linux-mm@kvack.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: "H. Peter Anvin" <hpa@zytor.com>, Ted Ts'o <tytso@mit.edu>, Ingo Molnar <mingo@elte.hu>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org, DRI <dri-devel@lists.freedesktop.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@suse.de>
 
-* Ying Han <yinghan@google.com> [2011-05-24 00:01:53]:
-
-> change v2..v1:
-> 1. add sample output.
+On Tuesday 24 May 2011, Linus Torvalds wrote:
+> Another advantage of switching numbering models (ie 3.0 instead of
+> 2.8.x) would be that it would also make the "odd numbers are also
+> numbers" transition much more natural.
 > 
-> Signed-off-by: Ying Han <yinghan@google.com>
-> ---
->  Documentation/cgroups/memory.txt |   18 ++++++++++++++++++
->  1 files changed, 18 insertions(+), 0 deletions(-)
-> 
-> diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
-> index 2d7e527..0b1a1ce 100644
-> --- a/Documentation/cgroups/memory.txt
-> +++ b/Documentation/cgroups/memory.txt
-> @@ -71,6 +71,7 @@ Brief summary of control files.
->   memory.move_charge_at_immigrate # set/show controls of moving charges
->   memory.oom_control		 # set/show oom controls.
->   memory.async_control		 # set control for asynchronous memory reclaim
-> + memory.numa_stat		 # show the number of memory usage per numa node
-> 
->  1. History
-> 
-> @@ -477,6 +478,23 @@ value for efficient access. (Of course, when necessary, it's synchronized.)
->  If you want to know more exact memory usage, you should use RSS+CACHE(+SWAP)
->  value in memory.stat(see 5.2).
-> 
-> +5.6 numa_stat
-> +
-> +This is similar to numa_maps but per-memcg basis. This is useful to add visibility
-> +of numa locality information in memcg since the pages are allowed to be allocated
-> +at any physical node. One of the usecase is evaluating application performance by
-> +combining this information with the cpu allocation to the application.
-> +
-> +We export "total", "file", "anon" and "unevictable" pages per-node for each memcg.
-> +The format ouput of the memory.numa_stat:
-> +
-> +total=<total pages> N0=<node 0 pages> N1=<node 1 pages> ...
-> +file=<total file pages> N0=<node 0 pages> N1=<node 1 pages> ...
-> +anon=<total anon pages> N0=<node 0 pages> N1=<node 1 pages> ...
-> +unevictable=<total anon pages> N0=<node 0 pages> N1=<node 1 pages> ...
-> +
-> +And we have total = file + anon + unevictable.
-> +
+> Because of our historical even/odd model, I wouldn't do a 2.7.x -
+> there's just too much history of 2.1, 2.3, 2.5 being development
+> trees. But if I do 3.0, then I'd be chucking that whole thing out the
+> window, and the next release would be 3.1, 3.2, etc..
 
-Looks good
+I like that. While I don't really care if you call it 2.7, 2.8 or 3.0
+(or 4.0 even, if you want to keep continuity following .38 and .39),
+the current 2.5/2.6 numbering cycle is almost 10 years old and has
+obviously lost all significance.
 
+The only reason I can see that would make it worthwhile waiting for
+is if the enterprise and embedded people were to decide on a common
+longterm kernel and call that e.g. 2.7.x or 2.8.x while you continue with
+2.9.x or 3.0.x or 3.x. My impression is however that the next longterm
+release is still one or two years away, so probably not worth waiting
+for and hard to estimate in advance.
 
-Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
- 
+> Because all our releases are supposed to be stable releases these
+> days, and if we get rid of one level of numbering, I feel perfectly
+> fine with getting rid of the even/odd history too.
 
--- 
-	Three Cheers,
-	Balbir
+We still have stable and unstable releases, except that you call the
+unstable ones -rcX and they are all nice and short, unlike the infamous
+2.1.xxx series ;-)
+
+IMHO simply changing the names from 2.6.40-rcX to 2.7.X and from
+2.6.40.X to 2.6.8.X etc would be the most straightforward change
+if you want to save the 3.0 release for a special moment.
+
+Enough bike shedding from my side, please just make a decision.
+
+	Arnd
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
