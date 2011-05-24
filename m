@@ -1,59 +1,155 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 659CA6B0011
-	for <linux-mm@kvack.org>; Tue, 24 May 2011 03:55:50 -0400 (EDT)
-From: Arnd Bergmann <arnd@arndb.de>
-Subject: Re: (Short?) merge window reminder
-Date: Tue, 24 May 2011 09:55:42 +0200
-References: <BANLkTi=PLuZhx1=rCfOtg=aOTuC1UbuPYg@mail.gmail.com> <4DDAEC68.30803@zytor.com> <BANLkTikGfVSAMY2a2yiXaNpvBVvF8YdMEA@mail.gmail.com>
-In-Reply-To: <BANLkTikGfVSAMY2a2yiXaNpvBVvF8YdMEA@mail.gmail.com>
+	by kanga.kvack.org (Postfix) with SMTP id 0BFA76B0011
+	for <linux-mm@kvack.org>; Tue, 24 May 2011 04:30:18 -0400 (EDT)
+Date: Tue, 24 May 2011 09:30:08 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: Unending loop in __alloc_pages_slowpath following OOM-kill; rfc:
+ patch.
+Message-ID: <20110524083008.GA5279@suse.de>
+References: <4DCDA347.9080207@cray.com>
+ <BANLkTikiXUzbsUkzaKZsZg+5ugruA2JdMA@mail.gmail.com>
+ <4DD2991B.5040707@cray.com>
+ <BANLkTimYEs315jjY9OZsL6--mRq3O_zbDA@mail.gmail.com>
+ <20110520164924.GB2386@barrios-desktop>
+ <4DDB3A1E.6090206@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Message-Id: <201105240955.43229.arnd@arndb.de>
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <4DDB3A1E.6090206@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: "H. Peter Anvin" <hpa@zytor.com>, Ted Ts'o <tytso@mit.edu>, Ingo Molnar <mingo@elte.hu>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org, DRI <dri-devel@lists.freedesktop.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@suse.de>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: minchan.kim@gmail.com, abarry@cray.com, akpm@linux-foundation.org, linux-mm@kvack.org, riel@redhat.com, hannes@cmpxchg.org, linux-kernel@vger.kernel.org
 
-On Tuesday 24 May 2011, Linus Torvalds wrote:
-> Another advantage of switching numbering models (ie 3.0 instead of
-> 2.8.x) would be that it would also make the "odd numbers are also
-> numbers" transition much more natural.
+On Tue, May 24, 2011 at 01:54:54PM +0900, KOSAKI Motohiro wrote:
+> >>From 8bd3f16736548375238161d1bd85f7d7c381031f Mon Sep 17 00:00:00 2001
+> > From: Minchan Kim <minchan.kim@gmail.com>
+> > Date: Sat, 21 May 2011 01:37:41 +0900
+> > Subject: [PATCH] Prevent unending loop in __alloc_pages_slowpath
+> > 
+> > From: Andrew Barry <abarry@cray.com>
+> > 
+> > I believe I found a problem in __alloc_pages_slowpath, which allows a process to
+> > get stuck endlessly looping, even when lots of memory is available.
+> > 
+> > Running an I/O and memory intensive stress-test I see a 0-order page allocation
+> > with __GFP_IO and __GFP_WAIT, running on a system with very little free memory.
+> > Right about the same time that the stress-test gets killed by the OOM-killer,
+> > the utility trying to allocate memory gets stuck in __alloc_pages_slowpath even
+> > though most of the systems memory was freed by the oom-kill of the stress-test.
+> > 
+> > The utility ends up looping from the rebalance label down through the
+> > wait_iff_congested continiously. Because order=0, __alloc_pages_direct_compact
+> > skips the call to get_page_from_freelist. Because all of the reclaimable memory
+> > on the system has already been reclaimed, __alloc_pages_direct_reclaim skips the
+> > call to get_page_from_freelist. Since there is no __GFP_FS flag, the block with
+> > __alloc_pages_may_oom is skipped. The loop hits the wait_iff_congested, then
+> > jumps back to rebalance without ever trying to get_page_from_freelist. This loop
+> > repeats infinitely.
+> > 
+> > The test case is pretty pathological. Running a mix of I/O stress-tests that do
+> > a lot of fork() and consume all of the system memory, I can pretty reliably hit
+> > this on 600 nodes, in about 12 hours. 32GB/node.
+> > 
+> > Signed-off-by: Andrew Barry <abarry@cray.com>
+> > Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+> > Cc: Mel Gorman <mgorman@suse.de>
+> > ---
+> >  mm/page_alloc.c |    2 +-
+> >  1 files changed, 1 insertions(+), 1 deletions(-)
+> > 
+> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > index 3f8bce2..e78b324 100644
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -2064,6 +2064,7 @@ restart:
+> >  		first_zones_zonelist(zonelist, high_zoneidx, NULL,
+> >  					&preferred_zone);
+> >  
+> > +rebalance:
+> >  	/* This is the last chance, in general, before the goto nopage. */
+> >  	page = get_page_from_freelist(gfp_mask, nodemask, order, zonelist,
+> >  			high_zoneidx, alloc_flags & ~ALLOC_NO_WATERMARKS,
+> > @@ -2071,7 +2072,6 @@ restart:
+> >  	if (page)
+> >  		goto got_pg;
+> >  
+> > -rebalance:
+> >  	/* Allocate without watermarks if the context allows */
+> >  	if (alloc_flags & ALLOC_NO_WATERMARKS) {
+> >  		page = __alloc_pages_high_priority(gfp_mask, order,
 > 
-> Because of our historical even/odd model, I wouldn't do a 2.7.x -
-> there's just too much history of 2.1, 2.3, 2.5 being development
-> trees. But if I do 3.0, then I'd be chucking that whole thing out the
-> window, and the next release would be 3.1, 3.2, etc..
+> I'm sorry I missed this thread long time.
+> 
+> In this case, I think we should call drain_all_pages().
 
-I like that. While I don't really care if you call it 2.7, 2.8 or 3.0
-(or 4.0 even, if you want to keep continuity following .38 and .39),
-the current 2.5/2.6 numbering cycle is almost 10 years old and has
-obviously lost all significance.
+Why?
 
-The only reason I can see that would make it worthwhile waiting for
-is if the enterprise and embedded people were to decide on a common
-longterm kernel and call that e.g. 2.7.x or 2.8.x while you continue with
-2.9.x or 3.0.x or 3.x. My impression is however that the next longterm
-release is still one or two years away, so probably not worth waiting
-for and hard to estimate in advance.
+If the direct reclaimer failed to reclaim any pages on its own, the call
+to get_page_from_freelist() is going to be useless and there is
+no guarantee that any other CPU managed to reclaim pages either. All
+this ends up doing is sending in IPI which if it's very lucky will take
+a page from another CPUs free list.
 
-> Because all our releases are supposed to be stable releases these
-> days, and if we get rid of one level of numbering, I feel perfectly
-> fine with getting rid of the even/odd history too.
+> then following
+> patch is better.
+> However I also think your patch is valuable. because while the task is
+> sleeping in wait_iff_congested(), an another task may free some pages.
+> thus, rebalance path should try to get free pages. iow, you makes sense.
+> 
+> So, I'd like to propose to merge both your and my patch.
+> 
+> Thanks.
+> 
+> 
+> From 2e77784668f6ca53d88ecb46aa6b99d9d0f33ffa Mon Sep 17 00:00:00 2001
+> From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Date: Tue, 24 May 2011 13:41:57 +0900
+> Subject: [PATCH] vmscan: remove painful micro optimization
+> 
+> Currently, __alloc_pages_direct_reclaim() call get_page_from_freelist()
+> only if try_to_free_pages() return !0.
+> 
+> It's no necessary micro optimization becauase "return 0" mean vmscan reached
+> priority 0 and didn't get any pages, iow, it's really slow path. But also it
+> has bad side effect. If we don't call drain_all_pages(), we have a chance to
+> get infinite loop.
+> 
 
-We still have stable and unstable releases, except that you call the
-unstable ones -rcX and they are all nice and short, unlike the infamous
-2.1.xxx series ;-)
+With the "rebalance" patch, where is the infinite loop?
 
-IMHO simply changing the names from 2.6.40-rcX to 2.7.X and from
-2.6.40.X to 2.6.8.X etc would be the most straightforward change
-if you want to save the 3.0 release for a special moment.
+> This patch remove its bad and meaningless micro optimization.
+> 
+> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> ---
+>  mm/page_alloc.c |    3 ---
+>  1 files changed, 0 insertions(+), 3 deletions(-)
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 1572079..c41d488 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -1950,9 +1950,6 @@ __alloc_pages_direct_reclaim(gfp_t gfp_mask, unsigned int order,
+> 
+>  	cond_resched();
+> 
+> -	if (unlikely(!(*did_some_progress)))
+> -		return NULL;
+> -
+>  retry:
+>  	page = get_page_from_freelist(gfp_mask, nodemask, order,
+>  					zonelist, high_zoneidx,
+> -- 
+> 1.7.3.1
+> 
+> 
+> 
+> 
 
-Enough bike shedding from my side, please just make a decision.
-
-	Arnd
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
