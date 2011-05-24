@@ -1,79 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 752326B0011
-	for <linux-mm@kvack.org>; Tue, 24 May 2011 04:49:42 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 6B0DF3EE0C0
-	for <linux-mm@kvack.org>; Tue, 24 May 2011 17:49:39 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 54FC945DF68
-	for <linux-mm@kvack.org>; Tue, 24 May 2011 17:49:39 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 367A845DF69
-	for <linux-mm@kvack.org>; Tue, 24 May 2011 17:49:39 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 2AAB4EF8002
-	for <linux-mm@kvack.org>; Tue, 24 May 2011 17:49:39 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id E9CCFE08002
-	for <linux-mm@kvack.org>; Tue, 24 May 2011 17:49:38 +0900 (JST)
-Message-ID: <4DDB711B.8010408@jp.fujitsu.com>
-Date: Tue, 24 May 2011 17:49:31 +0900
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D04D6B0011
+	for <linux-mm@kvack.org>; Tue, 24 May 2011 04:57:09 -0400 (EDT)
+Received: by qyk2 with SMTP id 2so1626484qyk.14
+        for <linux-mm@kvack.org>; Tue, 24 May 2011 01:57:07 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH 4/5] oom: don't kill random process
-References: <4DD61F80.1020505@jp.fujitsu.com>	<4DD6207E.1070300@jp.fujitsu.com>	<BANLkTinaHki1oA4O3+FsoPDtFTLfqwRadA@mail.gmail.com>	<4DDB0FB2.9050300@jp.fujitsu.com> <BANLkTinKm=m8zdPGN0Trpy4HtEFyxMYzPA@mail.gmail.com>
-In-Reply-To: <BANLkTinKm=m8zdPGN0Trpy4HtEFyxMYzPA@mail.gmail.com>
+In-Reply-To: <4DDB6F48.1010809@jp.fujitsu.com>
+References: <4DCDA347.9080207@cray.com>
+	<BANLkTikiXUzbsUkzaKZsZg+5ugruA2JdMA@mail.gmail.com>
+	<4DD2991B.5040707@cray.com>
+	<BANLkTimYEs315jjY9OZsL6--mRq3O_zbDA@mail.gmail.com>
+	<20110520164924.GB2386@barrios-desktop>
+	<4DDB3A1E.6090206@jp.fujitsu.com>
+	<BANLkTinkcu5j1H8tHNT4aTmOL-GXfSwPQw@mail.gmail.com>
+	<4DDB6F48.1010809@jp.fujitsu.com>
+Date: Tue, 24 May 2011 17:57:07 +0900
+Message-ID: <BANLkTimbu0pDNb1cHGu0B6P-foRHQ2uiWw@mail.gmail.com>
+Subject: Re: Unending loop in __alloc_pages_slowpath following OOM-kill; rfc: patch.
+From: Minchan Kim <minchan.kim@gmail.com>
 Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: minchan.kim@gmail.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, caiqian@redhat.com, rientjes@google.com, hughd@google.com, kamezawa.hiroyu@jp.fujitsu.com, oleg@redhat.com
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: abarry@cray.com, akpm@linux-foundation.org, linux-mm@kvack.org, mgorman@suse.de, riel@redhat.com, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, fengguang.wu@intel.com
 
-(2011/05/24 17:46), Minchan Kim wrote:
-> On Tue, May 24, 2011 at 10:53 AM, KOSAKI Motohiro
-> <kosaki.motohiro@jp.fujitsu.com> wrote:
->>>> +       /*
->>>> +        * chosen_point==1 may be a sign that root privilege bonus is too
->>>> large
->>>> +        * and we choose wrong task. Let's recalculate oom score without
->>>> the
->>>> +        * dubious bonus.
->>>> +        */
->>>> +       if (protect_root&&  (chosen_points == 1)) {
->>>> +               protect_root = 0;
->>>> +               goto retry;
->>>> +       }
->>>
->>> The idea is good to me.
->>> But once we meet it, should we give up protecting root privileged
->>> processes?
->>> How about decaying bonus point?
+On Tue, May 24, 2011 at 5:41 PM, KOSAKI Motohiro
+<kosaki.motohiro@jp.fujitsu.com> wrote:
+>>> I'm sorry I missed this thread long time.
 >>
->> After applying my patch, unprivileged process never get score-1. (note,
->> mapping
->> anon pages naturally makes to increase nr_ptes)
-> 
-> Hmm, If I understand your code correctly, unprivileged process can get
-> a score 1 by 3% bonus.
-
-3% bonus is for privileged process. :)
-
-
-> So after all, we can get a chosen_point with 1.
-> Why I get a chosen_point with 1 is as bonus is rather big, I think.
-> So I would like to use small bonus than first iteration(ie, decay bonus).
-> 
+>> No problem. It would be better than not review.
+>
+> thx.
+>
+>
+>>> In this case, I think we should call drain_all_pages(). then following
+>>> patch is better.
 >>
->> Then, decaying don't make any accuracy. Am I missing something?
-> 
-> Maybe I miss something.  :(
-> 
-> 
-> 
-> 
+>> Strictly speaking, this problem isn't related to drain_all_pages.
+>> This problem caused by lru empty but I admit it could work well if
+>> your patch applied.
+>> So yours could help, too.
+>>
+>>> However I also think your patch is valuable. because while the task is
+>>> sleeping in wait_iff_congested(), an another task may free some pages.
+>>> thus, rebalance path should try to get free pages. iow, you makes sense=
+.
+>>
+>> Yes.
+>> Off-topic.
+>> I would like to move cond_resched below get_page_from_freelist in
+>> __alloc_pages_direct_reclaim. Otherwise, it is likely we can be stolen
+>> pages to other processes.
+>> One more benefit is that if it's apparently OOM path(ie,
+>> did_some_progress =3D 0), we can reduce OOM kill latency due to remove
+>> unnecessary cond_resched.
+>
+> I agree. Can you please mind to send a patch?
 
+I had but at that time, Andrew had a concern.
+I will resend it when I have a time. Let's discuss, again.
+
+>
+>
+>>> So, I'd like to propose to merge both your and my patch.
+>>
+>> Recently, there was discussion on drain_all_pages with Wu.
+>> He saw much overhead in 8-core system, AFAIR.
+>> I Cced Wu.
+>>
+>> How about checking per-cpu before calling drain_all_pages() than
+>> unconditional calling?
+>> if (per_cpu_ptr(zone->pageset, smp_processor_id())
+>> =C2=A0 =C2=A0 drain_all_pages();
+>>
+>> Of course, It can miss other CPU free pages. But above routine assume
+>> local cpu direct reclaim is successful but it failed by per-cpu. So I
+>> think it works.
+>
+> Can you please tell me previous discussion url or mail subject?
+> I mean, if it is costly and performance degression risk, we don't have to
+> take my idea.
+
+Yes. You could see it by https://lkml.org/lkml/2011/4/30/81.
+
+>
+> Thanks.
+>
+>
+>>
+>> Thanks for good suggestion and Reviewed-by, KOSAKI.
+>
+>
+>
+
+
+
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
