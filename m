@@ -1,28 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 4B2C36B0011
-	for <linux-mm@kvack.org>; Tue, 24 May 2011 03:01:53 -0400 (EDT)
-Received: by wwi36 with SMTP id 36so5896056wwi.26
-        for <linux-mm@kvack.org>; Tue, 24 May 2011 00:01:51 -0700 (PDT)
-From: Hussam Al-Tayeb <ht990332@gmail.com>
-Subject: Re: [Bugme-new] [Bug 35662] New: softlockup with kernel 2.6.39
-Date: Tue, 24 May 2011 10:01:46 +0300
-References: <bug-35662-10286@https.bugzilla.kernel.org/> <201105240241.52307.hussam@visp.net.lb> <20110523164804.572cecfd.akpm@linux-foundation.org>
-In-Reply-To: <20110523164804.572cecfd.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-Message-Id: <201105241001.47111.hussam@visp.net.lb>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 818E96B0011
+	for <linux-mm@kvack.org>; Tue, 24 May 2011 03:02:42 -0400 (EDT)
+From: Ying Han <yinghan@google.com>
+Subject: [PATCH V2] memcg: add documentation for memory.numastat API.
+Date: Tue, 24 May 2011 00:01:53 -0700
+Message-Id: <1306220513-7763-1-git-send-email-yinghan@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Hussam Al-Tayeb <ht990332@gmail.com>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>
+Cc: linux-mm@kvack.org
 
-Actually it was definitely more than a few hours before filing the bug report. I 
-did recompile libreoffice twice as a 'stress test' under kernel 2.6.38.6
+change v2..v1:
+1. add sample output.
 
-I'm using kernel 2.6.39 now and waiting for the lockup to happen again.
+Signed-off-by: Ying Han <yinghan@google.com>
+---
+ Documentation/cgroups/memory.txt |   18 ++++++++++++++++++
+ 1 files changed, 18 insertions(+), 0 deletions(-)
+
+diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
+index 2d7e527..0b1a1ce 100644
+--- a/Documentation/cgroups/memory.txt
++++ b/Documentation/cgroups/memory.txt
+@@ -71,6 +71,7 @@ Brief summary of control files.
+  memory.move_charge_at_immigrate # set/show controls of moving charges
+  memory.oom_control		 # set/show oom controls.
+  memory.async_control		 # set control for asynchronous memory reclaim
++ memory.numa_stat		 # show the number of memory usage per numa node
+ 
+ 1. History
+ 
+@@ -477,6 +478,23 @@ value for efficient access. (Of course, when necessary, it's synchronized.)
+ If you want to know more exact memory usage, you should use RSS+CACHE(+SWAP)
+ value in memory.stat(see 5.2).
+ 
++5.6 numa_stat
++
++This is similar to numa_maps but per-memcg basis. This is useful to add visibility
++of numa locality information in memcg since the pages are allowed to be allocated
++at any physical node. One of the usecase is evaluating application performance by
++combining this information with the cpu allocation to the application.
++
++We export "total", "file", "anon" and "unevictable" pages per-node for each memcg.
++The format ouput of the memory.numa_stat:
++
++total=<total pages> N0=<node 0 pages> N1=<node 1 pages> ...
++file=<total file pages> N0=<node 0 pages> N1=<node 1 pages> ...
++anon=<total anon pages> N0=<node 0 pages> N1=<node 1 pages> ...
++unevictable=<total anon pages> N0=<node 0 pages> N1=<node 1 pages> ...
++
++And we have total = file + anon + unevictable.
++
+ 6. Hierarchy support
+ 
+ The memory controller supports a deep hierarchy and hierarchical accounting.
+-- 
+1.7.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
