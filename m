@@ -1,55 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C3936B0011
-	for <linux-mm@kvack.org>; Tue, 24 May 2011 05:16:15 -0400 (EDT)
-Date: Tue, 24 May 2011 10:16:11 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: Unending loop in __alloc_pages_slowpath following OOM-kill; rfc:
- patch.
-Message-ID: <20110524091611.GD5279@suse.de>
-References: <4DCDA347.9080207@cray.com>
- <BANLkTikiXUzbsUkzaKZsZg+5ugruA2JdMA@mail.gmail.com>
- <4DD2991B.5040707@cray.com>
- <BANLkTimYEs315jjY9OZsL6--mRq3O_zbDA@mail.gmail.com>
- <20110520164924.GB2386@barrios-desktop>
- <4DDB3A1E.6090206@jp.fujitsu.com>
- <20110524083008.GA5279@suse.de>
- <4DDB6DF6.2050700@jp.fujitsu.com>
- <20110524084915.GC5279@suse.de>
- <4DDB74F7.9020109@jp.fujitsu.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 82E756B0011
+	for <linux-mm@kvack.org>; Tue, 24 May 2011 05:20:53 -0400 (EDT)
+Received: by qwa26 with SMTP id 26so4661023qwa.14
+        for <linux-mm@kvack.org>; Tue, 24 May 2011 02:20:51 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <4DDB74F7.9020109@jp.fujitsu.com>
+In-Reply-To: <4DDB75D8.1000804@jp.fujitsu.com>
+References: <4DD61F80.1020505@jp.fujitsu.com>
+	<4DD6207E.1070300@jp.fujitsu.com>
+	<BANLkTinaHki1oA4O3+FsoPDtFTLfqwRadA@mail.gmail.com>
+	<4DDB0FB2.9050300@jp.fujitsu.com>
+	<BANLkTinKm=m8zdPGN0Trpy4HtEFyxMYzPA@mail.gmail.com>
+	<4DDB711B.8010408@jp.fujitsu.com>
+	<BANLkTik5tXv+k9tk2egXgmBRzcBD5Avjkw@mail.gmail.com>
+	<4DDB75D8.1000804@jp.fujitsu.com>
+Date: Tue, 24 May 2011 18:20:51 +0900
+Message-ID: <BANLkTime4C8nk0TBOfd2NT4mEEtLN6ZYaQ@mail.gmail.com>
+Subject: Re: [PATCH 4/5] oom: don't kill random process
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: minchan.kim@gmail.com, abarry@cray.com, akpm@linux-foundation.org, linux-mm@kvack.org, riel@redhat.com, hannes@cmpxchg.org, linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, caiqian@redhat.com, rientjes@google.com, hughd@google.com, kamezawa.hiroyu@jp.fujitsu.com, oleg@redhat.com
 
-On Tue, May 24, 2011 at 06:05:59PM +0900, KOSAKI Motohiro wrote:
-> >>> Why?
-> >>
-> >> Otherwise, we don't have good PCP dropping trigger. Big machine might have
-> >> big pcp cache.
-> >>
-> > 
-> > Big machines also have a large cost for sending IPIs.
-> 
-> Yes. But it's only matter if IPIs are frequently happen.
-> But, drain_all_pages() is NOT only IPI source. some vmscan function (e.g.
-> try_to_umap) makes a lot of IPIs.
-> 
-> Then, it's _relatively_ not costly. I have a question. Do you compare which
-> operation and drain_all_pages()? IOW, your "costly" mean which scenario suspect?
-> 
+On Tue, May 24, 2011 at 6:09 PM, KOSAKI Motohiro
+<kosaki.motohiro@jp.fujitsu.com> wrote:
+>>>> Hmm, If I understand your code correctly, unprivileged process can get
+>>>> a score 1 by 3% bonus.
+>>>
+>>> 3% bonus is for privileged process. :)
+>>
+>> OMG. Typo.
+>> Anyway, my point is following as.
+>> If chose_point is 1, it means root bonus is rather big. Right?
+>> If is is, your patch does second loop with completely ignore of bonus
+>> for root privileged process.
+>> My point is that let's not ignore bonus completely. Instead of it,
+>> let's recalculate 1.5% for example.
+>
+> 1) unpriviledged process can't get score 1 (because at least a process ne=
+ed one
+> =C2=A0 anon, one file and two or more ptes).
+> 2) then, score=3D1 mean all processes in the system are privileged. thus =
+decay won't help.
+>
+> IOW, never happen privileged and unprivileged score in this case.
 
-I am concerned that if the machine gets into trouble and we are failing
-to reclaim that sending more IPIs is not going to help any. There is no
-evidence at the moment that sending extra IPIs here will help anything.
+I am blind. Thanks for open my eyes, KOSAKI.
 
--- 
-Mel Gorman
-SUSE Labs
+
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
