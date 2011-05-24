@@ -1,85 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 7F8836B0022
-	for <linux-mm@kvack.org>; Tue, 24 May 2011 04:45:16 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 3D5E23EE0BC
-	for <linux-mm@kvack.org>; Tue, 24 May 2011 17:45:13 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 2192C45DECA
-	for <linux-mm@kvack.org>; Tue, 24 May 2011 17:45:13 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id F2A9F45DEC3
-	for <linux-mm@kvack.org>; Tue, 24 May 2011 17:45:12 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id E50841DB8040
-	for <linux-mm@kvack.org>; Tue, 24 May 2011 17:45:12 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id AF5DD1DB803B
-	for <linux-mm@kvack.org>; Tue, 24 May 2011 17:45:12 +0900 (JST)
-Date: Tue, 24 May 2011 17:37:17 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH V2] memcg: add documentation for memory.numastat API.
-Message-Id: <20110524173717.8f2fb393.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1306220513-7763-1-git-send-email-yinghan@google.com>
-References: <1306220513-7763-1-git-send-email-yinghan@google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id D38426B0023
+	for <linux-mm@kvack.org>; Tue, 24 May 2011 04:46:55 -0400 (EDT)
+Received: by qyk30 with SMTP id 30so4661448qyk.14
+        for <linux-mm@kvack.org>; Tue, 24 May 2011 01:46:54 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <4DDB0FB2.9050300@jp.fujitsu.com>
+References: <4DD61F80.1020505@jp.fujitsu.com>
+	<4DD6207E.1070300@jp.fujitsu.com>
+	<BANLkTinaHki1oA4O3+FsoPDtFTLfqwRadA@mail.gmail.com>
+	<4DDB0FB2.9050300@jp.fujitsu.com>
+Date: Tue, 24 May 2011 17:46:54 +0900
+Message-ID: <BANLkTinKm=m8zdPGN0Trpy4HtEFyxMYzPA@mail.gmail.com>
+Subject: Re: [PATCH 4/5] oom: don't kill random process
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>, linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, caiqian@redhat.com, rientjes@google.com, hughd@google.com, kamezawa.hiroyu@jp.fujitsu.com, oleg@redhat.com
 
-On Tue, 24 May 2011 00:01:53 -0700
-Ying Han <yinghan@google.com> wrote:
+On Tue, May 24, 2011 at 10:53 AM, KOSAKI Motohiro
+<kosaki.motohiro@jp.fujitsu.com> wrote:
+>>> + =C2=A0 =C2=A0 =C2=A0 /*
+>>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0* chosen_point=3D=3D1 may be a sign that r=
+oot privilege bonus is too
+>>> large
+>>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0* and we choose wrong task. Let's recalcul=
+ate oom score without
+>>> the
+>>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0* dubious bonus.
+>>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0*/
+>>> + =C2=A0 =C2=A0 =C2=A0 if (protect_root&& =C2=A0(chosen_points =3D=3D 1=
+)) {
+>>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 protect_root =3D 0;
+>>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 goto retry;
+>>> + =C2=A0 =C2=A0 =C2=A0 }
+>>
+>> The idea is good to me.
+>> But once we meet it, should we give up protecting root privileged
+>> processes?
+>> How about decaying bonus point?
+>
+> After applying my patch, unprivileged process never get score-1. (note,
+> mapping
+> anon pages naturally makes to increase nr_ptes)
 
-> change v2..v1:
-> 1. add sample output.
-> 
-> Signed-off-by: Ying Han <yinghan@google.com>
-> ---
->  Documentation/cgroups/memory.txt |   18 ++++++++++++++++++
->  1 files changed, 18 insertions(+), 0 deletions(-)
-> 
-> diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
-> index 2d7e527..0b1a1ce 100644
-> --- a/Documentation/cgroups/memory.txt
-> +++ b/Documentation/cgroups/memory.txt
-> @@ -71,6 +71,7 @@ Brief summary of control files.
->   memory.move_charge_at_immigrate # set/show controls of moving charges
->   memory.oom_control		 # set/show oom controls.
->   memory.async_control		 # set control for asynchronous memory reclaim
-> + memory.numa_stat		 # show the number of memory usage per numa node
->  
->  1. History
->  
-> @@ -477,6 +478,23 @@ value for efficient access. (Of course, when necessary, it's synchronized.)
->  If you want to know more exact memory usage, you should use RSS+CACHE(+SWAP)
->  value in memory.stat(see 5.2).
->  
-> +5.6 numa_stat
-> +
-> +This is similar to numa_maps but per-memcg basis. This is useful to add visibility
-> +of numa locality information in memcg since the pages are allowed to be allocated
-> +at any physical node. One of the usecase is evaluating application performance by
-> +combining this information with the cpu allocation to the application.
-> +
-> +We export "total", "file", "anon" and "unevictable" pages per-node for each memcg.
-> +The format ouput of the memory.numa_stat:
-> +
-> +total=<total pages> N0=<node 0 pages> N1=<node 1 pages> ...
-> +file=<total file pages> N0=<node 0 pages> N1=<node 1 pages> ...
-> +anon=<total anon pages> N0=<node 0 pages> N1=<node 1 pages> ...
-> +unevictable=<total anon pages> N0=<node 0 pages> N1=<node 1 pages> ...
-> +
-> +And we have total = file + anon + unevictable.
-> +
->  6. Hierarchy support
->  
+Hmm, If I understand your code correctly, unprivileged process can get
+a score 1 by 3% bonus.
+So after all, we can get a chosen_point with 1.
+Why I get a chosen_point with 1 is as bonus is rather big, I think.
+So I would like to use small bonus than first iteration(ie, decay bonus).
 
-Thank you.
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>
+> Then, decaying don't make any accuracy. Am I missing something?
+
+Maybe I miss something.  :(
+
+
+
+
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
