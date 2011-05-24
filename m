@@ -1,86 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id D5D416B0023
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id E0EC06B0024
 	for <linux-mm@kvack.org>; Tue, 24 May 2011 07:21:06 -0400 (EDT)
 From: Stefan Assmann <sassmann@kpanic.de>
-Subject: [PATCH 1/3] Add string parsing function get_next_ulong
-Date: Tue, 24 May 2011 13:20:46 +0200
-Message-Id: <1306236048-18150-2-git-send-email-sassmann@kpanic.de>
-In-Reply-To: <1306236048-18150-1-git-send-email-sassmann@kpanic.de>
-References: <1306236048-18150-1-git-send-email-sassmann@kpanic.de>
+Subject: [PATCH 0/3] support for broken memory modules (BadRAM)
+Date: Tue, 24 May 2011 13:20:45 +0200
+Message-Id: <1306236048-18150-1-git-send-email-sassmann@kpanic.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: tony.luck@intel.com, andi@firstfloor.org, mingo@elte.hu, hpa@zytor.com, rick@vanrein.org, akpm@linux-foundation.org, sassmann@kpanic.de
 
-Adding this function to allow easy parsing of unsigned long values from the
-beginning of strings. Convenience function to parse pointers from the kernel
-command line.
+Following the RFC for the BadRAM feature here's the updated version with
+spelling fixes, thanks go to Randy Dunlap. Also the code is now less verbose,
+as requested by Andi Kleen.
+Patches are against vanilla 2.6.39.
 
-Signed-off-by: Stefan Assmann <sassmann@kpanic.de>
----
- include/linux/kernel.h |    1 +
- lib/cmdline.c          |   35 +++++++++++++++++++++++++++++++++++
- 2 files changed, 36 insertions(+), 0 deletions(-)
+The idea is to allow the user to specify RAM addresses that shouldn't be
+touched by the OS, because they are broken in some way. Not all machines have
+hardware support for hwpoison, ECC RAM, etc, so here's a solution that allows to
+use bitmasks to mask address patterns with the new "badram" kernel command line
+parameter.
+Memtest86 has an option to generate these patterns since v2.3 so the only thing
+for the user to do should be:
+- run Memtest86
+- note down the pattern
+- add badram=<pattern> to the kernel command line
 
-diff --git a/include/linux/kernel.h b/include/linux/kernel.h
-index 00cec4d..98c1916 100644
---- a/include/linux/kernel.h
-+++ b/include/linux/kernel.h
-@@ -280,6 +280,7 @@ extern int vsscanf(const char *, const char *, va_list)
- 
- extern int get_option(char **str, int *pint);
- extern char *get_options(const char *str, int nints, int *ints);
-+extern int get_next_ulong(char **str, unsigned long *val, char sep, int base);
- extern unsigned long long memparse(const char *ptr, char **retptr);
- 
- extern int core_kernel_text(unsigned long addr);
-diff --git a/lib/cmdline.c b/lib/cmdline.c
-index f5f3ad8..82a6616 100644
---- a/lib/cmdline.c
-+++ b/lib/cmdline.c
-@@ -114,6 +114,41 @@ char *get_options(const char *str, int nints, int *ints)
- }
- 
- /**
-+ *	get_next_ulong - Parse unsigned long at the beginning of a string
-+ *	@strp: (output) String to be parsed
-+ *	@val: (output) unsigned long carrying the result
-+ *	@sep: character specifying the separator
-+ *	@base: number system of the parsed value
-+ *
-+ *	This function parses an unsigned long value at the beginning of a
-+ *	string. The string may begin with a separator or an unsigned long
-+ *	value.
-+ *	After the function is run val will contain the parsed value and strp
-+ *	will point to the character *after* the parsed unsigned long.
-+ *
-+ *	In the error case 0 is returned, val and *strp stay unaltered.
-+ *	Otherwise return 1.
-+ */
-+int get_next_ulong(char **strp, unsigned long *val, char sep, int base)
-+{
-+	char *tmp;
-+
-+	if (!strp || !(*strp))
-+		return 0;
-+
-+	tmp = *strp;
-+	if (*tmp == sep)
-+		tmp++;
-+
-+	*val = simple_strtoul(tmp, strp, base);
-+
-+	if (tmp == *strp)
-+		return 0; /* no new value parsed */
-+	else
-+		return 1;
-+}
-+
-+/**
-  *	memparse - parse a string with mem suffixes into a number
-  *	@ptr: Where parse begins
-  *	@retptr: (output) Optional pointer to next char after parse completes
+The concerning pages are then marked with the hwpoison flag and thus won't be
+used by the memory managment system.
+
+Link to Ricks original patches and docs:
+http://rick.vanrein.org/linux/badram/
+
+  Stefan
+
+Stefan Assmann (3):
+  Add string parsing function get_next_ulong
+  support for broken memory modules (BadRAM)
+  Add documentation and credits for BadRAM
+
+ CREDITS                             |    9 +
+ Documentation/BadRAM.txt            |  370 +++++++++++++++++++++++++++++++++++
+ Documentation/kernel-parameters.txt |    6 +
+ include/linux/kernel.h              |    1 +
+ lib/cmdline.c                       |   35 ++++
+ mm/memory-failure.c                 |  100 ++++++++++
+ 6 files changed, 521 insertions(+), 0 deletions(-)
+ create mode 100644 Documentation/BadRAM.txt
+
 -- 
 1.7.4
 
