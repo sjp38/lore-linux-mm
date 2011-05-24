@@ -1,189 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id D74586B0011
-	for <linux-mm@kvack.org>; Tue, 24 May 2011 18:28:12 -0400 (EDT)
-Received: (from localhost user: 'dkiper' uid#4000 fake: STDIN
-	(dkiper@router-fw.net-space.pl)) by router-fw-old.local.net-space.pl
-	id S1584555Ab1EXW1d (ORCPT <rfc822;linux-mm@kvack.org>);
-	Wed, 25 May 2011 00:27:33 +0200
-Date: Wed, 25 May 2011 00:27:33 +0200
-From: Daniel Kiper <dkiper@net-space.pl>
-Subject: [PATCH V4] mm: Extend memory hotplug API to allow memory hotplug in virtual machines
-Message-ID: <20110524222733.GA29133@router-fw-old.local.net-space.pl>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+	by kanga.kvack.org (Postfix) with ESMTP id 9C36C6B0011
+	for <linux-mm@kvack.org>; Tue, 24 May 2011 18:29:21 -0400 (EDT)
+Received: by qyk30 with SMTP id 30so5222095qyk.14
+        for <linux-mm@kvack.org>; Tue, 24 May 2011 15:29:20 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20110524133414.GA11674@nb-core2.darkstar.lan>
+References: <20110524133414.GA11674@nb-core2.darkstar.lan>
+Date: Wed, 25 May 2011 07:29:19 +0900
+Message-ID: <BANLkTikEz0k8WTCAW9x7dYK2i3mm4c7tLA@mail.gmail.com>
+Subject: Re: [PATCH] set_migratetype_isolate: remove unused variable.
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: ian.campbell@citrix.com, akpm@linux-foundation.org, haicheng.li@linux.intel.com, fengguang.wu@intel.com, jeremy@goop.org, konrad.wilk@oracle.com, dan.magenheimer@oracle.com, v.tolstov@selfip.ru, pasik@iki.fi, dave@linux.vnet.ibm.com, wdauchy@gmail.com, rientjes@google.com, xen-devel@lists.xensource.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Luca Tettamanti <kronos.it@gmail.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 
-This patch applies to Linus' git tree, git commit 98b98d316349e9a028e632629fe813d07fa5afdd
-(Merge branch 'drm-core-next' of git://git.kernel.org/pub/scm/linux/kernel/git/airlied/drm-2.6)
-with a few prerequisite patches available at https://lkml.org/lkml/2011/5/2/296
-and https://lkml.org/lkml/2011/5/17/408 (all prerequisite patches were included in -mm tree).
+On Tue, May 24, 2011 at 10:34 PM, Luca Tettamanti <kronos.it@gmail.com> wrote:
+> Signed-off-by: Luca Tettamanti <kronos.it@gmail.com>
+Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
 
-This patch contains online_page_callback and apropriate functions for
-registering/unregistering online page callbacks. It allows to do some
-machine specific tasks during online page stage which is required
-to implement memory hotplug in virtual machines. Currently this patch
-is required by latest memory hotplug support for Xen balloon driver
-patch which will be posted soon.
+If it's trivial, please write log body down.
+Anyway, nice catch.
+Thanks.
 
-Additionally, originial online_page() function was splited into
-following functions doing "atomic" operations:
-  - __online_page_set_limits() - set new limits for memory management code,
-  - __online_page_increment_counters() - increment totalram_pages and totalhigh_pages,
-  - __online_page_free() - free page to allocator.
-
-It was done to:
-  - not duplicate existing code,
-  - ease hotplug code devolpment by usage of well defined interface,
-  - avoid stupid bugs which are unavoidable when the same code
-    (by design) is developed in many places.
-
-Signed-off-by: Daniel Kiper <dkiper@net-space.pl>
-Reviewed-by: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
----
- include/linux/memory_hotplug.h |   11 +++++-
- mm/memory_hotplug.c            |   68 ++++++++++++++++++++++++++++++++++++++--
- 2 files changed, 74 insertions(+), 5 deletions(-)
-
-diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-index 8122018..0b8e2a7 100644
---- a/include/linux/memory_hotplug.h
-+++ b/include/linux/memory_hotplug.h
-@@ -68,12 +68,19 @@ static inline void zone_seqlock_init(struct zone *zone)
- extern int zone_grow_free_lists(struct zone *zone, unsigned long new_nr_pages);
- extern int zone_grow_waitqueues(struct zone *zone, unsigned long nr_pages);
- extern int add_one_highpage(struct page *page, int pfn, int bad_ppro);
--/* need some defines for these for archs that don't support it */
--extern void online_page(struct page *page);
- /* VM interface that may be used by firmware interface */
- extern int online_pages(unsigned long, unsigned long);
- extern void __offline_isolated_pages(unsigned long, unsigned long);
- 
-+typedef void (*online_page_callback_t)(struct page *page);
-+
-+extern int set_online_page_callback(online_page_callback_t callback);
-+extern int restore_online_page_callback(online_page_callback_t callback);
-+
-+extern void __online_page_set_limits(struct page *page);
-+extern void __online_page_increment_counters(struct page *page);
-+extern void __online_page_free(struct page *page);
-+
- #ifdef CONFIG_MEMORY_HOTREMOVE
- extern bool is_pageblock_removable_nolock(struct page *page);
- #endif /* CONFIG_MEMORY_HOTREMOVE */
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index a807ccb..9d47c39 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -34,6 +34,17 @@
- 
- #include "internal.h"
- 
-+/*
-+ * online_page_callback contains pointer to current page onlining function.
-+ * Initially it is generic_online_page(). If it is required it could be
-+ * changed by calling set_online_page_callback() for callback registration
-+ * and restore_online_page_callback() for generic callback restore.
-+ */
-+
-+static void generic_online_page(struct page *page);
-+
-+static online_page_callback_t online_page_callback = generic_online_page;
-+
- DEFINE_MUTEX(mem_hotplug_mutex);
- 
- void lock_memory_hotplug(void)
-@@ -361,23 +372,74 @@ int __remove_pages(struct zone *zone, unsigned long phys_start_pfn,
- }
- EXPORT_SYMBOL_GPL(__remove_pages);
- 
--void online_page(struct page *page)
-+int set_online_page_callback(online_page_callback_t callback)
-+{
-+	int rc = -EINVAL;
-+
-+	lock_memory_hotplug();
-+
-+	if (online_page_callback == generic_online_page) {
-+		online_page_callback = callback;
-+		rc = 0;
-+	}
-+
-+	unlock_memory_hotplug();
-+
-+	return rc;
-+}
-+EXPORT_SYMBOL_GPL(set_online_page_callback);
-+
-+int restore_online_page_callback(online_page_callback_t callback)
-+{
-+	int rc = -EINVAL;
-+
-+	lock_memory_hotplug();
-+
-+	if (online_page_callback == callback) {
-+		online_page_callback = generic_online_page;
-+		rc = 0;
-+	}
-+
-+	unlock_memory_hotplug();
-+
-+	return rc;
-+}
-+EXPORT_SYMBOL_GPL(restore_online_page_callback);
-+
-+void __online_page_set_limits(struct page *page)
- {
- 	unsigned long pfn = page_to_pfn(page);
- 
--	totalram_pages++;
- 	if (pfn >= num_physpages)
- 		num_physpages = pfn + 1;
-+}
-+EXPORT_SYMBOL_GPL(__online_page_set_limits);
-+
-+void __online_page_increment_counters(struct page *page)
-+{
-+	totalram_pages++;
- 
- #ifdef CONFIG_HIGHMEM
- 	if (PageHighMem(page))
- 		totalhigh_pages++;
- #endif
-+}
-+EXPORT_SYMBOL_GPL(__online_page_increment_counters);
- 
-+void __online_page_free(struct page *page)
-+{
- 	ClearPageReserved(page);
- 	init_page_count(page);
- 	__free_page(page);
- }
-+EXPORT_SYMBOL_GPL(__online_page_free);
-+
-+static void generic_online_page(struct page *page)
-+{
-+	__online_page_set_limits(page);
-+	__online_page_increment_counters(page);
-+	__online_page_free(page);
-+}
- 
- static int online_pages_range(unsigned long start_pfn, unsigned long nr_pages,
- 			void *arg)
-@@ -388,7 +450,7 @@ static int online_pages_range(unsigned long start_pfn, unsigned long nr_pages,
- 	if (PageReserved(pfn_to_page(start_pfn)))
- 		for (i = 0; i < nr_pages; i++) {
- 			page = pfn_to_page(start_pfn + i);
--			online_page(page);
-+			online_page_callback(page);
- 			onlined_pages++;
- 		}
- 	*(unsigned long *)arg = onlined_pages;
 -- 
-1.5.6.5
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
