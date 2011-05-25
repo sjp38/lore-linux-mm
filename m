@@ -1,70 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 06CFD6B0011
-	for <linux-mm@kvack.org>; Wed, 25 May 2011 18:21:01 -0400 (EDT)
-Received: by iyh42 with SMTP id 42so183845iyh.14
-        for <linux-mm@kvack.org>; Wed, 25 May 2011 15:21:00 -0700 (PDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id D760B6B0012
+	for <linux-mm@kvack.org>; Wed, 25 May 2011 19:50:33 -0400 (EDT)
+Received: from wpaz24.hot.corp.google.com (wpaz24.hot.corp.google.com [172.24.198.88])
+	by smtp-out.google.com with ESMTP id p4PNoWqn009686
+	for <linux-mm@kvack.org>; Wed, 25 May 2011 16:50:32 -0700
+Received: from pwi6 (pwi6.prod.google.com [10.241.219.6])
+	by wpaz24.hot.corp.google.com with ESMTP id p4PNoHvv015346
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 25 May 2011 16:50:25 -0700
+Received: by pwi6 with SMTP id 6so112172pwi.4
+        for <linux-mm@kvack.org>; Wed, 25 May 2011 16:50:17 -0700 (PDT)
+Date: Wed, 25 May 2011 16:50:15 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 4/5] oom: don't kill random process
+In-Reply-To: <4DDB11F4.2070903@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1105251645270.29729@chino.kir.corp.google.com>
+References: <4DD61F80.1020505@jp.fujitsu.com> <4DD6207E.1070300@jp.fujitsu.com> <alpine.DEB.2.00.1105231529340.17840@chino.kir.corp.google.com> <4DDB0B45.2080507@jp.fujitsu.com> <alpine.DEB.2.00.1105231838420.17729@chino.kir.corp.google.com>
+ <4DDB1028.7000600@jp.fujitsu.com> <alpine.DEB.2.00.1105231856210.18353@chino.kir.corp.google.com> <4DDB11F4.2070903@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <4DDD0E5F.5080105@panasas.com>
-References: <BANLkTi=PLuZhx1=rCfOtg=aOTuC1UbuPYg@mail.gmail.com>
-	<20110523192056.GC23629@elte.hu>
-	<BANLkTikdgM+kSvaEYuQkgCYJZELnvwfetg@mail.gmail.com>
-	<BANLkTinbrtzY66p+1NALP8BDfjXLx=Qp-A@mail.gmail.com>
-	<4DDD0E5F.5080105@panasas.com>
-Date: Wed, 25 May 2011 15:21:00 -0700
-Message-ID: <BANLkTi=FAwzW+qR+Cbwmor90pgbgzfuw-g@mail.gmail.com>
-Subject: Re: (Short?) merge window reminder
-From: Tony Luck <tony.luck@intel.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Boaz Harrosh <bharrosh@panasas.com>
-Cc: Alexey Zaytsev <alexey.zaytsev@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org, DRI <dri-devel@lists.freedesktop.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@suse.de>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, caiqian@redhat.com, hughd@google.com, kamezawa.hiroyu@jp.fujitsu.com, minchan.kim@gmail.com, oleg@redhat.com
 
-On Wed, May 25, 2011 at 7:12 AM, Boaz Harrosh <bharrosh@panasas.com> wrote:
-> So if you combine all the above:
->
-> D. Y. N
-> D - Is the decade since birth (1991 not 1990)
-> Y - is the year in the decade so you have 3.1.x, 3.2.x, .. 3.10.x, 4.1.X =
-and so on
-> =A0 =A0Nice incremental number.
-> N - The Linus release of this Year. So this 3rd one goes up to 4 most pro=
-bably.
->
-> Linus always likes, and feels very poetic about the Christmas version rel=
-ease.
-> He hates it when once it slipped into the next year. So now he gets to in=
-crement
-> the second digit as a bonus.
->
-> The 2nd digit gets to start on a *one*, never zero and goes up to *10*, t=
-o symbolize
-> the 1991 birth. And we never have .zero quality, right?
->
-> The first Digit gets incremented on decade from 1991 so on 2011 and not 2=
-010
+On Tue, 24 May 2011, KOSAKI Motohiro wrote:
 
-This is clearly the best suggestion so far - small numbers, somewhat
-date related (but without stuffing a "2011." on the front).  No ".0"
-releases, ever.
+> > I don't care if it happens in the usual case or extremely rare case.  It
+> > significantly increases the amount of time that tasklist_lock is held
+> > which causes writelock starvation on other cpus and causes issues,
+> > especially if the cpu being starved is updating the timer because it has
+> > irqs disabled, i.e. write_lock_irq(&tasklist_lock) usually in the clone or
+> > exit path.  We can do better than that, and that's why I proposed my patch
+> > to CAI that increases the resolution of the scoring and makes the root
+> > process bonus proportional to the amount of used memory.
+> 
+> Do I need to say the same word? Please read the code at first.
+> 
 
-But best of all it defines now when we will switch to 4.x.y and 5.x.y
-so we don't have to keep having this discussion whenever someone thinks
-that the numbers are getting "too big" (well perhaps when we get to the
-tenth decade or so :-)
+I'm afraid that a second time through the tasklist in select_bad_process() 
+is simply a non-starter for _any_ case; it significantly increases the 
+amount of time that tasklist_lock is held and causes problems elsewhere on 
+large systems -- such as some of ours -- since irqs are disabled while 
+waiting for the writeside of the lock.  I think it would be better to use 
+a proportional privilege for root processes based on the amount of memory 
+they are using (discounting 1% of memory per 10% of memory used, as 
+proposed earlier, seems sane) so we can always protect root when necessary 
+and never iterate through the list again.
 
-So the only thing left to argue is whether the upcoming release should
-be numbered "3.1.1" as the first release in the first year of the 3rd
-decade ...  or whether we should count 2.6.37 .. 2.6.39 as the first
-three releases this year and thus we ought to start with "3.1.4" (so we
-start with "pi"!).
-
-Linus: If you go with this, you should let Boaz set the new "NAME"
-as a prize for such an inspired solution.
-
--Tony
+Please look into the earlier review comments on the other patches, refresh 
+the series, and post it again.  Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
