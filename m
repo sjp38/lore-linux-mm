@@ -1,67 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C7946B0012
-	for <linux-mm@kvack.org>; Wed, 25 May 2011 07:36:48 -0400 (EDT)
-Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
-	by e28smtp09.in.ibm.com (8.14.4/8.13.1) with ESMTP id p4PBSWJ0015696
-	for <linux-mm@kvack.org>; Wed, 25 May 2011 16:58:32 +0530
-Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
-	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p4PBagVE2998352
-	for <linux-mm@kvack.org>; Wed, 25 May 2011 17:06:42 +0530
-Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
-	by d28av05.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p4PBaeN2014659
-	for <linux-mm@kvack.org>; Wed, 25 May 2011 21:36:42 +1000
-Date: Wed, 25 May 2011 08:55:21 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [PATCH V5] memcg: add memory.numastat api for numa statistics
-Message-ID: <20110525032521.GD3440@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <1305928918-15207-1-git-send-email-yinghan@google.com>
- <20110524154644.GA3440@balbir.in.ibm.com>
- <BANLkTim+evwxEAYtQQ339N_tqV5jyWVH2w@mail.gmail.com>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 257766B0012
+	for <linux-mm@kvack.org>; Wed, 25 May 2011 08:13:42 -0400 (EDT)
+Received: by fxm18 with SMTP id 18so7408661fxm.14
+        for <linux-mm@kvack.org>; Wed, 25 May 2011 05:13:40 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <BANLkTim+evwxEAYtQQ339N_tqV5jyWVH2w@mail.gmail.com>
+In-Reply-To: <20110525092449.GJ14556@legolas.emea.dhcp.ti.com>
+References: <20110520161816.dda6f1fd.sfr@canb.auug.org.au> <BANLkTimjzzqTS1fELmpb0UivqseLsYOfPw@mail.gmail.com>
+ <BANLkTine2kobQA8TkmtiuXdKL=07NCo2vA@mail.gmail.com> <BANLkTim-zRShhy49d7yn5WTJYzR6A2DtZQ@mail.gmail.com>
+ <BANLkTi=U8ikZo65AoxGznCopGMTFOUXWhQ@mail.gmail.com> <20110525092449.GJ14556@legolas.emea.dhcp.ti.com>
+From: Mike Frysinger <vapier.adi@gmail.com>
+Date: Wed, 25 May 2011 08:13:20 -0400
+Message-ID: <BANLkTimd_CmVzJP1yDkuNSS+PSRk=0W_uA@mail.gmail.com>
+Subject: Re: linux-next: build failure after merge of the final tree
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>, linux-mm@kvack.org
+To: balbi@ti.com
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Stephen Rothwell <sfr@canb.auug.org.au>, linux-next@vger.kernel.org, linux-kernel@vger.kernel.org, "David S. Miller" <davem@davemloft.net>, netdev@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Dipankar Sarma <dipankar@in.ibm.com>
 
-* Ying Han <yinghan@google.com> [2011-05-24 09:54:43]:
-
-> > >  static struct cftype mem_cgroup_files[] = {
-> > >       {
-> > >               .name = "usage_in_bytes",
-> > > @@ -4544,6 +4693,12 @@ static struct cftype mem_cgroup_files[] = {
-> > >               .unregister_event = mem_cgroup_oom_unregister_event,
-> > >               .private = MEMFILE_PRIVATE(_OOM_TYPE, OOM_CONTROL),
-> > >       },
-> > > +#ifdef CONFIG_NUMA
-> > > +     {
-> > > +             .name = "numa_stat",
-> > > +             .open = mem_control_numa_stat_open,
-> > > +     },
-> > > +#endif
-> >
-> > Can't we do this the way we do the stats file? Please see
-> > mem_control_stat_show().
-> >
-> 
-> I looked that earlier but can not get the formating working as well as the
-> seq_*. Is there a particular reason we prefer one than the other?
+On Wed, May 25, 2011 at 05:24, Felipe Balbi wrote:
+> On Tue, May 24, 2011 at 01:10:42PM -0400, Mike Frysinger wrote:
+>> latest tree seems to only fail for me now on the musb driver. =C2=A0i ca=
+n
+>> send out a patch later today if no one else has gotten to it yet.
 >
+> please do send out, but what was the compile breakage with musb ?
 
-Fair enough, I wanted to avoid repeating what kernel/cgroup.c already
-does in terms of formatting output.
+i logged it earlier in the thread:
+drivers/usb/musb/musb_core.c: In function 'musb_write_fifo':
+drivers/usb/musb/musb_core.c:219: error: implicit declaration of
+function 'prefetch'
+make[3]: *** [drivers/usb/musb/musb_core.o] Error 1
 
- 
-Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
- 
-
--- 
-	Three Cheers,
-	Balbir
+patch sent out now
+-mike
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
