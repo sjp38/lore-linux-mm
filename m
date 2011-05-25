@@ -1,115 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 47D706B0012
-	for <linux-mm@kvack.org>; Wed, 25 May 2011 15:54:02 -0400 (EDT)
-Subject: Re: [RFC] [PATCH] drop_caches: add syslog entry
-Mime-Version: 1.0 (Apple Message framework v1082)
-Content-Type: text/plain; charset=us-ascii
-From: Andreas Dilger <adilger@dilger.ca>
-In-Reply-To: <BANLkTinKonvpASu_G=Gr8C56WKvFSH5QAA@mail.gmail.com>
-Date: Wed, 25 May 2011 13:54:00 -0600
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <B3BAB9C6-076A-43BE-9143-AE182DADB478@dilger.ca>
-References: <BANLkTinKonvpASu_G=Gr8C56WKvFSH5QAA@mail.gmail.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id CD7026B0012
+	for <linux-mm@kvack.org>; Wed, 25 May 2011 16:18:15 -0400 (EDT)
+Received: by pwi12 with SMTP id 12so52219pwi.14
+        for <linux-mm@kvack.org>; Wed, 25 May 2011 13:18:14 -0700 (PDT)
+MIME-Version: 1.0
+From: Andrew Lutomirski <luto@mit.edu>
+Date: Wed, 25 May 2011 16:17:54 -0400
+Message-ID: <BANLkTinptn4-+u+jgOr2vf2iuiVS3mmYXA@mail.gmail.com>
+Subject: Easy portable testcase! (Re: Kernel falls apart under light memory
+ pressure (i.e. linking vmlinux))
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Martin Tegtmeier <martin.tegtmeier@gmail.com>
-Cc: linux-fsdevel@vger.kernel.org, viro@zeniv.linux.org.uk, linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: minchan.kim@gmail.com, aarcange@redhat.com, kamezawa.hiroyu@jp.fujitsu.com, fengguang.wu@intel.com, andi@firstfloor.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mgorman@suse.de, hannes@cmpxchg.org, riel@redhat.com
 
-On May 24, 2011, at 08:16, Martin Tegtmeier wrote:
-> currently dropping the file system cache ("echo 1 >
-> /proc/sys/vm/drop_caches") doesn't leave any trace. However dropping
-> the fs cache can severely impact system behaviour and application
-> response times. Therefore I suggest to write a syslog entry if the
-> entire inode page cache is scrapped.
-> Since it is not an easy task to calculate the size of the droppable
-> filesystem cache I also suggest to add the number of dropped pages to
-> the syslog entry. This can be accomplished by saving the return value
-> of invalidate_mapping_pages().
->=20
-> The number of dropped pages is an important measure for capacity
-> planning. For the deployment of new SAP application instances we
-> would like to know the amount of memory that was freed from
-> fs caches.
+On Tue, May 24, 2011 at 8:43 PM, KOSAKI Motohiro
+<kosaki.motohiro@jp.fujitsu.com> wrote:
+>
+> Unfortnately, this log don't tell us why DM don't issue any swap io. ;-)
+> I doubt it's DM issue. Can you please try to make swap on out of DM?
+>
+>
 
-I'm hugely in favour of this, because we don't need syslog to be an
-auditing mechanism for userspace.
+I can do one better: I can tell you how to reproduce the OOM in the
+comfort of your own VM without using dm_crypt or a Sandy Bridge
+laptop.  This is on Fedora 15, but it really ought to work on any
+x86_64 distribution that has kvm.  You'll probably want at least 6GB
+on your host machine because the VM wants 4GB ram.
 
-However, if something like this goes into the kernel it would probably
-make a lot more sense to print out the values on a per-filesystem
-basis, if any pages are dropped from a particular filesystem, so one
-can see which filesystem was using the most cache.
+Here's how:
 
-> drop_caches.c |    9 +++++++--
-> 1 file changed, 7 insertions(+), 2 deletions(-)
->=20
->=20
-> commit b2219e84647bdf64fd6e7f9c5260c1e6bed24d58
-> Author: Martin Tegtmeier <martin.tegtmeier@gmail.com>
-> Date:   Tue May 24 15:24:20 2011 +0200
->=20
->    drop_caches: add syslog entry
->=20
->    Dropping the entire file system cache (inode cache) can severely
-> influence system behaviour
->    yet currently dropping the file system cache is NOT traceable.
->    This patch adds an entry to /var/log/messages with a time stamp
-> and the number of dropped pages.
->=20
->=20
->    Signed-off-by: Martin Tegtmeier <martin.tegtmeier@gmail.com>
->=20
-> diff --git a/fs/drop_caches.c b/fs/drop_caches.c
-> index 98b77c8..f2e4dc4 100644
-> --- a/fs/drop_caches.c
-> +++ b/fs/drop_caches.c
-> @@ -12,6 +12,7 @@
->=20
-> /* A global variable is a bit ugly, but it keeps the code simple */
-> int sysctl_drop_caches;
-> +unsigned long pages_dropped;
->=20
-> static void drop_pagecache_sb(struct super_block *sb, void *unused)
-> {
-> @@ -28,7 +29,7 @@ static void drop_pagecache_sb(struct super_block
-> *sb, void *unused)
-> 		__iget(inode);
-> 		spin_unlock(&inode->i_lock);
-> 		spin_unlock(&inode_sb_list_lock);
-> -		invalidate_mapping_pages(inode->i_mapping, 0, -1);
-> +		pages_dropped +=3D =
-invalidate_mapping_pages(inode->i_mapping, 0, -1);
-> 		iput(toput_inode);
-> 		toput_inode =3D inode;
-> 		spin_lock(&inode_sb_list_lock);
-> @@ -55,8 +56,12 @@ int drop_caches_sysctl_handler(ctl_table *table, =
-int write,
-> 	if (ret)
-> 		return ret;
-> 	if (write) {
-> -		if (sysctl_drop_caches & 1)
-> +		if (sysctl_drop_caches & 1) {
-> +			pages_dropped =3D 0;
-> 			iterate_supers(drop_pagecache_sb, NULL);
-> +			printk(KERN_INFO "drop_caches: %lu pages dropped =
-from inode cache\n",
-> +				pages_dropped);
-> +		}
-> 		if (sysctl_drop_caches & 2)
-> 			drop_slab();
-> 	}
-> --
-> To unsubscribe from this list: send the line "unsubscribe =
-linux-fsdevel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Step 1: Clone git://gitorious.org/linux-test-utils/reproduce-annoying-mm-bug.git
 
+(You can browse here:)
+https://gitorious.org/linux-test-utils/reproduce-annoying-mm-bug
 
-Cheers, Andreas
+Instructions to reproduce the mm bug:
 
+Step 2: Build Linux v2.6.38.6 with config-2.6.38.6 and the patch
+0001-Minchan-patch-for-testing-23-05-2011.patch (both files are in the
+git repo)
 
+Step 3: cd back to reproduce-annoying-mm-bug
 
+Step 4: Type this.
 
+$ make
+$ qemu-kvm -m 4G -smp 2 -kernel <linux_dir>/arch/x86/boot/bzImage
+-initrd initramfs.gz
+
+Step 5: Wait for the VM to boot (it's really fast) and then run ./repro_bug.sh.
+
+Step 6: Wait a bit and watch the fireworks.  Note that it can take a
+couple minutes to reproduce the bug.
+
+Tested on my Sandy Bridge laptop and on a Xeon W3520.
+
+For whatever reason, on my laptop without the VM I can hit the bug
+almost instantaneously.  Maybe it's because I'm using dm-crypt on my
+laptop.
+
+--Andy
+
+P.S.  I think that the mk_trivial_initramfs.sh script is cute, and
+maybe I'll try to flesh it out and turn it into a real project some
+day.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
