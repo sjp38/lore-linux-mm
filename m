@@ -1,30 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 361006B0012
-	for <linux-mm@kvack.org>; Wed, 25 May 2011 08:28:29 -0400 (EDT)
-Message-ID: <4DDCF5E8.5090704@redhat.com>
-Date: Wed, 25 May 2011 08:28:24 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id EE2F56B0012
+	for <linux-mm@kvack.org>; Wed, 25 May 2011 08:52:52 -0400 (EDT)
+Date: Wed, 25 May 2011 14:52:05 +0200 (CEST)
+From: Jiri Kosina <jkosina@suse.cz>
+Subject: Re: (Short?) merge window reminder
+In-Reply-To: <4DDC2236.6010608@mit.edu>
+Message-ID: <alpine.LRH.2.00.1105251447000.1874@twin.jikos.cz>
+References: <BANLkTi=PLuZhx1=rCfOtg=aOTuC1UbuPYg@mail.gmail.com> <20110523192056.GC23629@elte.hu> <BANLkTikdgM+kSvaEYuQkgCYJZELnvwfetg@mail.gmail.com> <4DDC2236.6010608@mit.edu>
 MIME-Version: 1.0
-Subject: Re: [PATCH 3/3] swap-token: add a comment for priority aging
-References: <4DD480DD.2040307@jp.fujitsu.com>	<4DD481A7.3050108@jp.fujitsu.com> <20110520123004.e81c932e.akpm@linux-foundation.org> <4DDB1388.2080102@jp.fujitsu.com> <4DDC73D8.5050900@jp.fujitsu.com>
-In-Reply-To: <4DDC73D8.5050900@jp.fujitsu.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com
+To: Andy Lutomirski <luto@MIT.EDU>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org, DRI <dri-devel@lists.freedesktop.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@suse.de>
 
-On 05/24/2011 11:13 PM, KOSAKI Motohiro wrote:
-> Add to a few comment of design decision of swap token aging.
->
-> Signed-off-by: KOSAKI Motohiro<kosaki.motohiro@jp.fujitsu.com>
+On Tue, 24 May 2011, Andy Lutomirski wrote:
 
-Acked-by: Rik van Riel <riel@redhat.com>
+> Also, when someone in my lab installs <insert ancient enterprise distro 
+> here> on a box that's running software I wrote that needs to support 
+> modern high-speed peripherals, then I can say "What?  You seriously 
+> expect this stuff to work on Linux 2007?  Let's install a slightly less 
+> stable distro from at least 2010."  This sounds a lot less nerdy than 
+> "What?  You seriously expect this stuff to work on Linux 2.6.27?  Let's 
+> install a slightly less stable distro that uses at least 2.6.36."
+
+I hate to jump into this excellent example of bike-shedding discussion, 
+but anyway ...
+
+Your example doesn't really reflect reality.
+
+It's common for older enterprise distributions to gradually incorporate a 
+lot of backported code (and most importantly new hardware support 
+code/drivers) while not upgrading the kernel major version. So yes, you 
+will in reality get 2.6.16 kernel (at least according to uname) with 
+libata with newer service packs of SLES 10, for example (and you could 
+find many of those across distributions).
 
 -- 
-All rights reversed
+Jiri Kosina
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
