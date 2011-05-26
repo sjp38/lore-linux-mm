@@ -1,73 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id CA8B26B0012
-	for <linux-mm@kvack.org>; Thu, 26 May 2011 07:44:13 -0400 (EDT)
-Received: by bwz17 with SMTP id 17so511214bwz.14
-        for <linux-mm@kvack.org>; Thu, 26 May 2011 04:44:11 -0700 (PDT)
-Date: Thu, 26 May 2011 13:44:06 +0200
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [RFC][PATCH v3 7/10] workqueue: add WQ_IDLEPRI
-Message-ID: <20110526114406.GG9715@htj.dyndns.org>
-References: <20110526141047.dc828124.kamezawa.hiroyu@jp.fujitsu.com>
- <20110526143024.7f66e797.kamezawa.hiroyu@jp.fujitsu.com>
- <20110526093808.GE9715@htj.dyndns.org>
- <20110526193018.12b3ddea.kamezawa.hiroyu@jp.fujitsu.com>
- <20110526195019.8af6d882.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 3A5A26B0011
+	for <linux-mm@kvack.org>; Thu, 26 May 2011 12:34:00 -0400 (EDT)
+Received: by wyf19 with SMTP id 19so852820wyf.14
+        for <linux-mm@kvack.org>; Thu, 26 May 2011 09:33:57 -0700 (PDT)
+From: Hussam Al-Tayeb <ht990332@gmail.com>
+Subject: Re: [Bugme-new] [Bug 35662] New: softlockup with kernel 2.6.39
+Date: Thu, 26 May 2011 19:33:48 +0300
+References: <bug-35662-10286@https.bugzilla.kernel.org/> <20110523164804.572cecfd.akpm@linux-foundation.org> <201105241001.47111.hussam@visp.net.lb>
+In-Reply-To: <201105241001.47111.hussam@visp.net.lb>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110526195019.8af6d882.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: Text/Plain;
+  charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Message-Id: <201105261933.48895.hussam@visp.net.lb>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Ying Han <yinghan@google.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>
+To: Hussam Al-Tayeb <ht990332@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org
 
-Hello,
+Another time.
 
-On Thu, May 26, 2011 at 07:50:19PM +0900, KAMEZAWA Hiroyuki wrote:
-> On Thu, 26 May 2011 19:30:18 +0900
-> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > In the next version, I'll try some like..
-> > ==
-> > 	process_one_work(...) {
-> > 		.....
-> > 		spin_unlock_irq(&gcwq->lock);
-> > 		.....
-> > 		if (cwq->wq->flags & WQ_IDLEPRI) {
-> > 			set_scheduler(...SCHED_IDLE...)
-> > 			cond_resched();
-> > 			scheduler_switched = true;
-> > 		}
-> > 		f(work) 
-> > 		if (scheduler_switched)
-> > 			set_scheduler(...SCHED_OTHER...)
-> > 		spin_lock_irq(&gcwq->lock);
-> > 	}
-> > ==
-> > Patch size will be much smaller. (Should I do this in memcg's code ??)
-> > 
-> 
-> BTW, my concern is that if f(work) is enough short,effect of SCHED_IDLE will never
-> be found because SCHED_OTHER -> SCHED_IDLE -> SCHED_OTHER switch is very fast.
-> Changed "weight" of CFQ never affects the next calculation of vruntime..of the
-> thread and the work will show the same behavior with SCHED_OTHER.
-> 
-> I'm sorry if I misunderstand CFQ and setscheduler().
-
-Hmm... I'm not too familiar there either but,
-
-* If prio is lowered (you're gonna lower it too, right?),
-  prio_changed_fair() is called which in turn does resched_task() as
-  necessary.
-
-* More importantly, for short work items, it's likely to not matter at
-  all.  If you can determine beforehand that it's not gonna take very
-  long time, queueing on system_wq would be more efficient.
-
-Thanks.
-
--- 
-tejun
+[ 8520.275830] INFO: task khugepaged:26 blocked for more than 120 seconds.
+[ 8520.275834] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables 
+this message.
+[ 8520.275837] khugepaged      D c1455200     0    26      2 0x00000000
+[ 8520.275843]  f3f9fedc 00000046 f59af000 c1455200 00000400 c1455200 c1455580 
+f3c451f0
+[ 8520.275850]  0000000a f3f9fe88 c10c5078 c1455c80 00000003 f5506380 c14c4380 
+f3c451f0
+[ 8520.275857]  f3c453b4 33c86581 0000069a c14c4380 f5506380 f3c451f0 c4525640 
+f3f9fee8
+[ 8520.275864] Call Trace:
+[ 8520.275874]  [<c10c5078>] ? __alloc_pages_direct_compact+0xe8/0x160
+[ 8520.275880]  [<c10ff3f8>] ? __mem_cgroup_try_charge+0x2d8/0x4e0
+[ 8520.275885]  [<c10fd138>] ? memcg_check_events+0x28/0x160
+[ 8520.275891]  [<c131b885>] rwsem_down_failed_common+0x95/0xe0
+[ 8520.275895]  [<c131b8e2>] rwsem_down_write_failed+0x12/0x20
+[ 8520.275900]  [<c131b94a>] call_rwsem_down_write_failed+0x6/0x8
+[ 8520.275904]  [<c131b0f5>] ? down_write+0x15/0x17
+[ 8520.275908]  [<c10f8c72>] khugepaged+0x552/0xdf0
+[ 8520.275913]  [<c10613a0>] ? autoremove_wake_function+0x0/0x40
+[ 8520.275922]  [<c10f8720>] ? khugepaged+0x0/0xdf0
+[ 8520.275924]  [<c1060d08>] kthread+0x68/0x70
+[ 8520.275926]  [<c1060ca0>] ? kthread+0x0/0x70
+[ 8520.275929]  [<c1003d7e>] kernel_thread_helper+0x6/0x18
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
