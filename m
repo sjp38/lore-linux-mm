@@ -1,26 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E0656B0025
-	for <linux-mm@kvack.org>; Thu, 26 May 2011 01:37:22 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id DC2673EE0C2
-	for <linux-mm@kvack.org>; Thu, 26 May 2011 14:37:18 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id B2CCB45DE9C
-	for <linux-mm@kvack.org>; Thu, 26 May 2011 14:37:18 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 9944845DEC3
-	for <linux-mm@kvack.org>; Thu, 26 May 2011 14:37:18 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 8A0F31DB803E
-	for <linux-mm@kvack.org>; Thu, 26 May 2011 14:37:18 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 42FC01DB803F
-	for <linux-mm@kvack.org>; Thu, 26 May 2011 14:37:18 +0900 (JST)
-Date: Thu, 26 May 2011 14:30:24 +0900
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 1E15C6B0026
+	for <linux-mm@kvack.org>; Thu, 26 May 2011 01:39:49 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 6A9ED3EE0B6
+	for <linux-mm@kvack.org>; Thu, 26 May 2011 14:39:46 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 4A7AE45DF26
+	for <linux-mm@kvack.org>; Thu, 26 May 2011 14:39:46 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 1BE5145DF20
+	for <linux-mm@kvack.org>; Thu, 26 May 2011 14:39:46 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 0AABEE08008
+	for <linux-mm@kvack.org>; Thu, 26 May 2011 14:39:46 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id BB6DBE08002
+	for <linux-mm@kvack.org>; Thu, 26 May 2011 14:39:45 +0900 (JST)
+Date: Thu, 26 May 2011 14:32:56 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [RFC][PATCH v3 7/10] workqueue: add WQ_IDLEPRI
-Message-Id: <20110526143024.7f66e797.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC][PATCH v3 8/10] memcg: scan ratio calculation
+Message-Id: <20110526143256.442603eb.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20110526141047.dc828124.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20110526141047.dc828124.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
@@ -29,362 +29,298 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Ying Han <yinghan@google.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Ying Han <yinghan@google.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>
 
 
-When this idea came to me, I wonder which is better to maintain memcg's thread
-pool or add support in workqueue for generic use. In genral, I feel enhancing
-genric one is better...so, wrote this one.
 ==
-This patch adds a new workqueue class as WQ_IDLEPRI.
-
-The worker thread for this workqueue will have SCHED_IDLE scheduling
-policy and don't use (too much) CPU if there are other active threads.
-IOW, unless the system is idle, work will not progress.
-
-Considering to schedule an asynchronous work which can be a help
-for reduce latency of applications, it's good to use idle time
-of the system. The CPU time which was used by application's context
-will be moved to fill idle time of the system.
-
-Applications can hide its latency by shifting cpu time for a work
-to be done in idle time. This will be used by memory cgroup to hide
-memory reclaim latency.
-
-I may miss something...any comments are welcomed.
-
-NOTE 1: SCHED_IDLE is just a lowest priority of SCHED_OTHER.
-NOTE 2: It may be better to add cond_resched() in worker thread somewhere..
-        but I couldn't find where is the best.
+This patch adds a function to calculate reclam/scan ratio.
+By the recent scan. 
+This wil be shown by memory.reclaim_stat interface in later patch.
 
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 ---
- Documentation/workqueue.txt |   10 ++++
- include/linux/workqueue.h   |    8 ++-
- kernel/workqueue.c          |  101 +++++++++++++++++++++++++++++++++-----------
- mm/memcontrol.c             |    3 -
- 4 files changed, 93 insertions(+), 29 deletions(-)
+ include/linux/swap.h |    8 +-
+ mm/memcontrol.c      |  137 +++++++++++++++++++++++++++++++++++++++++++++++----
+ mm/vmscan.c          |    9 ++-
+ 3 files changed, 138 insertions(+), 16 deletions(-)
 
-Index: memcg_async/include/linux/workqueue.h
-===================================================================
---- memcg_async.orig/include/linux/workqueue.h
-+++ memcg_async/include/linux/workqueue.h
-@@ -56,7 +56,8 @@ enum {
- 
- 	/* special cpu IDs */
- 	WORK_CPU_UNBOUND	= NR_CPUS,
--	WORK_CPU_NONE		= NR_CPUS + 1,
-+	WORK_CPU_IDLEPRI	= NR_CPUS + 1,
-+	WORK_CPU_NONE		= NR_CPUS + 2,
- 	WORK_CPU_LAST		= WORK_CPU_NONE,
- 
- 	/*
-@@ -254,9 +255,10 @@ enum {
- 	WQ_MEM_RECLAIM		= 1 << 3, /* may be used for memory reclaim */
- 	WQ_HIGHPRI		= 1 << 4, /* high priority */
- 	WQ_CPU_INTENSIVE	= 1 << 5, /* cpu instensive workqueue */
-+	WQ_IDLEPRI		= 1 << 6, /* the lowest priority in scheduler*/
- 
--	WQ_DYING		= 1 << 6, /* internal: workqueue is dying */
--	WQ_RESCUER		= 1 << 7, /* internal: workqueue has rescuer */
-+	WQ_DYING		= 1 << 7, /* internal: workqueue is dying */
-+	WQ_RESCUER		= 1 << 8, /* internal: workqueue has rescuer */
- 
- 	WQ_MAX_ACTIVE		= 512,	  /* I like 512, better ideas? */
- 	WQ_MAX_UNBOUND_PER_CPU	= 4,	  /* 4 * #cpus for unbound wq */
-Index: memcg_async/kernel/workqueue.c
-===================================================================
---- memcg_async.orig/kernel/workqueue.c
-+++ memcg_async/kernel/workqueue.c
-@@ -61,9 +61,11 @@ enum {
- 	WORKER_REBIND		= 1 << 5,	/* mom is home, come back */
- 	WORKER_CPU_INTENSIVE	= 1 << 6,	/* cpu intensive */
- 	WORKER_UNBOUND		= 1 << 7,	/* worker is unbound */
-+	WORKER_IDLEPRI		= 1 << 8,
- 
- 	WORKER_NOT_RUNNING	= WORKER_PREP | WORKER_ROGUE | WORKER_REBIND |
--				  WORKER_CPU_INTENSIVE | WORKER_UNBOUND,
-+				  WORKER_CPU_INTENSIVE | WORKER_UNBOUND |
-+				  WORKER_IDLEPRI,
- 
- 	/* gcwq->trustee_state */
- 	TRUSTEE_START		= 0,		/* start */
-@@ -276,14 +278,25 @@ static inline int __next_gcwq_cpu(int cp
- 		}
- 		if (sw & 2)
- 			return WORK_CPU_UNBOUND;
--	}
-+		if (sw & 4)
-+			return WORK_CPU_IDLEPRI;
-+	} else if (cpu == WORK_CPU_UNBOUND && (sw & 4))
-+		return WORK_CPU_IDLEPRI;
- 	return WORK_CPU_NONE;
- }
- 
- static inline int __next_wq_cpu(int cpu, const struct cpumask *mask,
- 				struct workqueue_struct *wq)
- {
--	return __next_gcwq_cpu(cpu, mask, !(wq->flags & WQ_UNBOUND) ? 1 : 2);
-+	int sw = 1;
-+
-+	if (wq->flags & WQ_UNBOUND) {
-+		if (!(wq->flags & WQ_IDLEPRI))
-+			sw = 2;
-+		else
-+			sw = 4;
-+	}
-+	return __next_gcwq_cpu(cpu, mask, sw);
- }
- 
- /*
-@@ -294,20 +307,21 @@ static inline int __next_wq_cpu(int cpu,
-  * specific CPU.  The following iterators are similar to
-  * for_each_*_cpu() iterators but also considers the unbound gcwq.
-  *
-- * for_each_gcwq_cpu()		: possible CPUs + WORK_CPU_UNBOUND
-- * for_each_online_gcwq_cpu()	: online CPUs + WORK_CPU_UNBOUND
-- * for_each_cwq_cpu()		: possible CPUs for bound workqueues,
-- *				  WORK_CPU_UNBOUND for unbound workqueues
-+ * for_each_gcwq_cpu()	      : possible CPUs + WORK_CPU_UNBOUND + IDLEPRI
-+ * for_each_online_gcwq_cpu() : online CPUs + WORK_CPU_UNBOUND + IDLEPRI
-+ * for_each_cwq_cpu()	      : possible CPUs for bound workqueues,
-+ *				WORK_CPU_UNBOUND for unbound workqueues
-+ *				IDLEPRI for idle workqueues.
-  */
- #define for_each_gcwq_cpu(cpu)						\
--	for ((cpu) = __next_gcwq_cpu(-1, cpu_possible_mask, 3);		\
-+	for ((cpu) = __next_gcwq_cpu(-1, cpu_possible_mask, 7);		\
- 	     (cpu) < WORK_CPU_NONE;					\
--	     (cpu) = __next_gcwq_cpu((cpu), cpu_possible_mask, 3))
-+	     (cpu) = __next_gcwq_cpu((cpu), cpu_possible_mask, 7))
- 
- #define for_each_online_gcwq_cpu(cpu)					\
--	for ((cpu) = __next_gcwq_cpu(-1, cpu_online_mask, 3);		\
-+	for ((cpu) = __next_gcwq_cpu(-1, cpu_online_mask, 7);		\
- 	     (cpu) < WORK_CPU_NONE;					\
--	     (cpu) = __next_gcwq_cpu((cpu), cpu_online_mask, 3))
-+	     (cpu) = __next_gcwq_cpu((cpu), cpu_online_mask, 7))
- 
- #define for_each_cwq_cpu(cpu, wq)					\
- 	for ((cpu) = __next_wq_cpu(-1, cpu_possible_mask, (wq));	\
-@@ -451,22 +465,34 @@ static DEFINE_PER_CPU_SHARED_ALIGNED(ato
- static struct global_cwq unbound_global_cwq;
- static atomic_t unbound_gcwq_nr_running = ATOMIC_INIT(0);	/* always 0 */
- 
-+/*
-+ * Global cpu workqueue and nr_running for idle gcwq. The idle gcwq is
-+ * always online has GCWQ_DISASSOCIATED set. and all its worker have
-+ * WORKER_UNBOUND and WORKER_IDLEPRI set.
-+ */
-+static struct global_cwq unbound_idle_global_cwq;
-+static atomic_t unbound_idle_gcwq_nr_running = ATOMIC_INIT(0);	/* always 0 */
-+
- static int worker_thread(void *__worker);
- 
- static struct global_cwq *get_gcwq(unsigned int cpu)
- {
--	if (cpu != WORK_CPU_UNBOUND)
-+	if (cpu < WORK_CPU_UNBOUND)
- 		return &per_cpu(global_cwq, cpu);
--	else
-+	else if (cpu == WORK_CPU_UNBOUND)
- 		return &unbound_global_cwq;
-+	else
-+		return &unbound_idle_global_cwq;
- }
- 
- static atomic_t *get_gcwq_nr_running(unsigned int cpu)
- {
--	if (cpu != WORK_CPU_UNBOUND)
-+	if (cpu < WORK_CPU_UNBOUND)
- 		return &per_cpu(gcwq_nr_running, cpu);
--	else
-+	else if (cpu == WORK_CPU_UNBOUND)
- 		return &unbound_gcwq_nr_running;
-+	else
-+		return &unbound_idle_gcwq_nr_running;
- }
- 
- static struct cpu_workqueue_struct *get_cwq(unsigned int cpu,
-@@ -480,7 +506,8 @@ static struct cpu_workqueue_struct *get_
- 			return wq->cpu_wq.single;
- #endif
- 		}
--	} else if (likely(cpu == WORK_CPU_UNBOUND))
-+	} else if (likely(cpu == WORK_CPU_UNBOUND ||
-+			  cpu == WORK_CPU_IDLEPRI))
- 		return wq->cpu_wq.single;
- 	return NULL;
- }
-@@ -563,7 +590,9 @@ static struct global_cwq *get_work_gcwq(
- 	if (cpu == WORK_CPU_NONE)
- 		return NULL;
- 
--	BUG_ON(cpu >= nr_cpu_ids && cpu != WORK_CPU_UNBOUND);
-+	BUG_ON(cpu >= nr_cpu_ids
-+		&& cpu != WORK_CPU_UNBOUND
-+		&& cpu != WORK_CPU_IDLEPRI);
- 	return get_gcwq(cpu);
- }
- 
-@@ -599,6 +628,10 @@ static bool keep_working(struct global_c
- {
- 	atomic_t *nr_running = get_gcwq_nr_running(gcwq->cpu);
- 
-+	if (unlikely((gcwq->cpu == WORK_CPU_IDLEPRI)) &&
-+		need_resched())
-+		return false;
-+
- 	return !list_empty(&gcwq->worklist) &&
- 		(atomic_read(nr_running) <= 1 ||
- 		 gcwq->flags & GCWQ_HIGHPRI_PENDING);
-@@ -1025,9 +1058,12 @@ static void __queue_work(unsigned int cp
- 			}
- 		} else
- 			spin_lock_irqsave(&gcwq->lock, flags);
--	} else {
-+	} else if (!(wq->flags & WQ_IDLEPRI)) {
- 		gcwq = get_gcwq(WORK_CPU_UNBOUND);
- 		spin_lock_irqsave(&gcwq->lock, flags);
-+	} else {
-+		gcwq = get_gcwq(WORK_CPU_IDLEPRI);
-+		spin_lock_irqsave(&gcwq->lock, flags);
- 	}
- 
- 	/* gcwq determined, get cwq and queue */
-@@ -1160,8 +1196,10 @@ int queue_delayed_work_on(int cpu, struc
- 				lcpu = gcwq->cpu;
- 			else
- 				lcpu = raw_smp_processor_id();
--		} else
-+		} else if (!(wq->flags & WQ_IDLEPRI))
- 			lcpu = WORK_CPU_UNBOUND;
-+		else
-+			lcpu = WORK_CPU_IDLEPRI;
- 
- 		set_work_cwq(work, get_cwq(lcpu, wq), 0);
- 
-@@ -1352,6 +1390,7 @@ static struct worker *alloc_worker(void)
- static struct worker *create_worker(struct global_cwq *gcwq, bool bind)
- {
- 	bool on_unbound_cpu = gcwq->cpu == WORK_CPU_UNBOUND;
-+	bool on_idle_cpu = gcwq->cpu == WORK_CPU_IDLEPRI;
- 	struct worker *worker = NULL;
- 	int id = -1;
- 
-@@ -1371,14 +1410,17 @@ static struct worker *create_worker(stru
- 	worker->gcwq = gcwq;
- 	worker->id = id;
- 
--	if (!on_unbound_cpu)
-+	if (!on_unbound_cpu && !on_idle_cpu)
- 		worker->task = kthread_create_on_node(worker_thread,
- 						      worker,
- 						      cpu_to_node(gcwq->cpu),
- 						      "kworker/%u:%d", gcwq->cpu, id);
--	else
-+	else if (!on_idle_cpu)
- 		worker->task = kthread_create(worker_thread, worker,
- 					      "kworker/u:%d", id);
-+	else
-+		worker->task = kthread_create(worker_thread, worker,
-+						"kworker/i:%d", id);
- 	if (IS_ERR(worker->task))
- 		goto fail;
- 
-@@ -1387,12 +1429,14 @@ static struct worker *create_worker(stru
- 	 * online later on.  Make sure every worker has
- 	 * PF_THREAD_BOUND set.
- 	 */
--	if (bind && !on_unbound_cpu)
-+	if (bind && !on_unbound_cpu && !on_idle_cpu)
- 		kthread_bind(worker->task, gcwq->cpu);
- 	else {
- 		worker->task->flags |= PF_THREAD_BOUND;
- 		if (on_unbound_cpu)
- 			worker->flags |= WORKER_UNBOUND;
-+		if (on_idle_cpu)
-+			worker->flags |= WORKER_IDLEPRI;
- 	}
- 
- 	return worker;
-@@ -1496,7 +1540,7 @@ static bool send_mayday(struct work_stru
- 	/* mayday mayday mayday */
- 	cpu = cwq->gcwq->cpu;
- 	/* WORK_CPU_UNBOUND can't be set in cpumask, use cpu 0 instead */
--	if (cpu == WORK_CPU_UNBOUND)
-+	if ((cpu == WORK_CPU_UNBOUND) || (cpu == WORK_CPU_IDLEPRI))
- 		cpu = 0;
- 	if (!mayday_test_and_set_cpu(cpu, wq->mayday_mask))
- 		wake_up_process(wq->rescuer->task);
-@@ -1935,6 +1979,11 @@ static int worker_thread(void *__worker)
- 
- 	/* tell the scheduler that this is a workqueue worker */
- 	worker->task->flags |= PF_WQ_WORKER;
-+	/* if worker is for IDLEPRI, set scheduler */
-+	if (worker->flags & WORKER_IDLEPRI) {
-+		struct sched_param param;
-+		sched_setscheduler(current, SCHED_IDLE, &param);
-+	}
- woke_up:
- 	spin_lock_irq(&gcwq->lock);
- 
-@@ -2912,8 +2961,9 @@ struct workqueue_struct *__alloc_workque
- 	/*
- 	 * Workqueues which may be used during memory reclaim should
- 	 * have a rescuer to guarantee forward progress.
-+	 * But IDLE workqueue will not have any rescuer.
- 	 */
--	if (flags & WQ_MEM_RECLAIM)
-+	if ((flags & WQ_MEM_RECLAIM) && !(flags & WQ_IDLEPRI))
- 		flags |= WQ_RESCUER;
- 
- 	/*
-@@ -3775,7 +3825,8 @@ static int __init init_workqueues(void)
- 		struct global_cwq *gcwq = get_gcwq(cpu);
- 		struct worker *worker;
- 
--		if (cpu != WORK_CPU_UNBOUND)
-+		if ((cpu != WORK_CPU_UNBOUND) &&
-+		    (cpu != WORK_CPU_IDLEPRI))
- 			gcwq->flags &= ~GCWQ_DISASSOCIATED;
- 		worker = create_worker(gcwq, true);
- 		BUG_ON(!worker);
-Index: memcg_async/Documentation/workqueue.txt
-===================================================================
---- memcg_async.orig/Documentation/workqueue.txt
-+++ memcg_async/Documentation/workqueue.txt
-@@ -247,6 +247,16 @@ resources, scheduled and executed.
- 	highpri CPU-intensive wq start execution as soon as resources
- 	are available and don't affect execution of other work items.
- 
-+  WQ_UNBOUND | WQ_IDLEPRI
-+	An special case of unbound wq, the worker thread for this workqueue
-+	will run in the lowest priority of SCHED_IDLE. Most of characteristics
-+	are same to UNBOUND workqueue but the thread's priority is SCHED_IDLE.
-+	This is useful when you want to run a work for hiding application's
-+	latency by making use of idle time of the system. Because scheduling
-+	priority of this class workqueue is minimum, you must assume that
-+	the work will not run for a long time when the system is cpu hogging.
-+	Then, unlike UNBOUND WQ, this will not have rescuer threads.
-+
- @max_active:
- 
- @max_active determines the maximum number of execution contexts per
 Index: memcg_async/mm/memcontrol.c
 ===================================================================
 --- memcg_async.orig/mm/memcontrol.c
 +++ memcg_async/mm/memcontrol.c
-@@ -3872,7 +3872,8 @@ struct workqueue_struct *memcg_async_shr
- static int memcg_async_shrinker_init(void)
- {
- 	memcg_async_shrinker = alloc_workqueue("memcg_async",
--			WQ_MEM_RECLAIM | WQ_UNBOUND | WQ_FREEZABLE, 0);
-+		WQ_MEM_RECLAIM | WQ_UNBOUND | WQ_IDLEPRI | WQ_FREEZABLE,
-+		0);
- 	return 0;
+@@ -73,7 +73,6 @@ static int really_do_swap_account __init
+ #define do_swap_account		(0)
+ #endif
+ 
+-
+ /*
+  * Statistics for memory cgroup.
+  */
+@@ -215,6 +214,7 @@ static void mem_cgroup_oom_notify(struct
+ static void mem_cgroup_reset_margin_to_limit(struct mem_cgroup *mem);
+ static void mem_cgroup_update_margin_to_limit(struct mem_cgroup *mem);
+ static void mem_cgroup_may_async_reclaim(struct mem_cgroup *mem);
++static void mem_cgroup_reflesh_scan_ratio(struct mem_cgroup *mem);
+ 
+ /*
+  * The memory controller data structure. The memory controller controls both
+@@ -294,6 +294,12 @@ struct mem_cgroup {
+ #define FAILED_TO_KEEP_MARGIN		(1) /* someone hit limit */
+ #define ASYNC_WORKER_RUNNING		(2) /* a worker runs */
+ #define ASYNC_WORKER_SHOULD_STOP	(3) /* worker thread should stop */
++
++	/* For calculating scan success ratio */
++	spinlock_t	scan_stat_lock;
++	unsigned long	scanned;
++	unsigned long	reclaimed;
++	unsigned long	next_scanratio_update;
+ 	/*
+ 	 * percpu counter.
+ 	 */
+@@ -758,6 +764,7 @@ static void memcg_check_events(struct me
+ 		}
+ 		/* update margin-to-limit and run async reclaim if necessary */
+ 		if (__memcg_event_check(mem, MEM_CGROUP_TARGET_KEEP_MARGIN)) {
++			mem_cgroup_reflesh_scan_ratio(mem);
+ 			mem_cgroup_may_async_reclaim(mem);
+ 			__mem_cgroup_target_update(mem,
+ 				MEM_CGROUP_TARGET_KEEP_MARGIN);
+@@ -1417,6 +1424,96 @@ unsigned int mem_cgroup_swappiness(struc
+ 	return memcg->swappiness;
  }
- module_init(memcg_async_shrinker_init);
+ 
++static void __mem_cgroup_update_scan_ratio(struct mem_cgroup *mem,
++				unsigned long scanned,
++				unsigned long reclaimed)
++{
++	unsigned long limit;
++
++	limit = res_counter_read_u64(&mem->res, RES_LIMIT) >> PAGE_SHIFT;
++	spin_lock(&mem->scan_stat_lock);
++	mem->scanned += scanned;
++	mem->reclaimed += reclaimed;
++	/* avoid overflow */
++	if (mem->scanned > limit) {
++		mem->scanned /= 2;
++		mem->reclaimed /= 2;
++	}
++	spin_unlock(&mem->scan_stat_lock);
++}
++
++/**
++ * mem_cgroup_update_scan_ratio
++ * @memcg: the memcg
++ * @root : root memcg of hierarchy walk.
++ * @scanned : scanned pages
++ * @reclaimed: reclaimed pages.
++ *
++ * record scan/reclaim ratio to the memcg both to a child and it's root
++ * mem cgroup, which is a reclaim target. This value is used for
++ * detect congestion and for determining sleep time at memory reclaim.
++ */
++
++static void mem_cgroup_update_scan_ratio(struct mem_cgroup *mem,
++				  struct mem_cgroup *root,
++				unsigned long scanned,
++				unsigned long reclaimed)
++{
++	__mem_cgroup_update_scan_ratio(mem, scanned, reclaimed);
++	if (mem != root)
++		__mem_cgroup_update_scan_ratio(root, scanned, reclaimed);
++
++}
++
++/*
++ * Workload can be changed over time. This routine is for forgetting old
++ * information to some extent. This is triggered by event counter i.e.
++ * some amounts of pagein/pageout events and rate limited once per 1 min.
++ *
++ * By this, recent 1min information will be twice informative than old
++ * information.
++ */
++static void mem_cgroup_reflesh_scan_ratio(struct mem_cgroup *mem)
++{
++	struct cgroup *parent;
++	/* Update all parent's information if they are old */
++	while (1) {
++		if (time_after(mem->next_scanratio_update, jiffies))
++			break;
++		mem->next_scanratio_update = jiffies + HZ*60;
++		spin_lock(&mem->scan_stat_lock);
++		mem->scanned /= 2;
++		mem->reclaimed /= 2;
++		spin_unlock(&mem->scan_stat_lock);
++		if (!mem->use_hierarchy)
++			break;
++		parent = mem->css.cgroup->parent;
++		if (!parent)
++			break;
++		mem = mem_cgroup_from_cont(parent);
++	}
++}
++
++/**
++ * mem_cgroup_scan_ratio:
++ * @mem: the mem cgroup
++ *
++ * Returns recent reclaim/scan ratio. If this is low, memory is filled by
++ * active pages(or dirty pages). If high, memory includes inactive, unneccesary
++ * files. This can be a hint for admins to show the limit is correct or not.
++ */
++static int mem_cgroup_scan_ratio(struct mem_cgroup *mem)
++{
++	int scan_success_ratio;
++
++	spin_lock(&mem->scan_stat_lock);
++	scan_success_ratio = mem->reclaimed * 100 / (mem->scanned + 1);
++	spin_unlock(&mem->scan_stat_lock);
++
++	return scan_success_ratio;
++}
++
++
+ static void mem_cgroup_start_move(struct mem_cgroup *mem)
+ {
+ 	int cpu;
+@@ -1855,9 +1952,14 @@ static int mem_cgroup_hierarchical_recla
+ 			*total_scanned += nr_scanned;
+ 			mem_cgroup_soft_steal(victim, is_kswapd, ret);
+ 			mem_cgroup_soft_scan(victim, is_kswapd, nr_scanned);
+-		} else
++			mem_cgroup_update_scan_ratio(victim,
++					root_mem, nr_scanned, ret);
++		} else {
+ 			ret = try_to_free_mem_cgroup_pages(victim, gfp_mask,
+-					noswap);
++					noswap, &nr_scanned);
++			mem_cgroup_update_scan_ratio(victim,
++					root_mem, nr_scanned, ret);
++		}
+ 		css_put(&victim->css);
+ 		/*
+ 		 * At shrinking usage, we can't check we should stop here or
+@@ -3895,12 +3997,14 @@ static void mem_cgroup_stop_async_worker
+  * someone tries to delete cgroup, stop reclaim.
+  * If margin is big even after shrink memory, reschedule itself again.
+  */
++
+ static void mem_cgroup_async_shrink_worker(struct work_struct *work)
+ {
+ 	struct delayed_work *dw = to_delayed_work(work);
+-	struct mem_cgroup *mem;
+-	int delay = 0;
++	struct mem_cgroup *mem, *victim;
+ 	long nr_to_reclaim;
++	unsigned long nr_scanned, nr_reclaimed;
++	int delay = 0;
+ 
+ 	mem = container_of(dw, struct mem_cgroup, async_work);
+ 
+@@ -3910,12 +4014,22 @@ static void mem_cgroup_async_shrink_work
+ 
+ 	nr_to_reclaim = mem->margin_to_limit_pages - mem_cgroup_margin(mem);
+ 
+-	if (nr_to_reclaim > 0)
+-		mem_cgroup_shrink_rate_limited(mem, nr_to_reclaim);
+-	else
++	if (nr_to_reclaim <= 0)
++		goto finish_scan;
++
++	/* select a memcg under hierarchy */
++	victim = mem_cgroup_select_get_victim(mem);
++	if (!victim)
+ 		goto finish_scan;
++
++	nr_reclaimed = mem_cgroup_shrink_rate_limited(victim, nr_to_reclaim,
++					&nr_scanned);
++	mem_cgroup_update_scan_ratio(victim, mem, nr_scanned, nr_reclaimed);
++	css_put(&victim->css);
++
+ 	/* If margin is enough big, stop */
+-	if (mem_cgroup_margin(mem) >= mem->margin_to_limit_pages)
++	nr_to_reclaim = mem->margin_to_limit_pages - mem_cgroup_margin(mem);
++	if (nr_to_reclaim <= 0)
+ 		goto finish_scan;
+ 	/* If someone tries to rmdir(), we should stop */
+ 	if (test_bit(ASYNC_WORKER_SHOULD_STOP, &mem->async_flags))
+@@ -4083,12 +4197,14 @@ try_to_free:
+ 	shrink = 1;
+ 	while (nr_retries && mem->res.usage > 0) {
+ 		int progress;
++		unsigned long nr_scanned;
+ 
+ 		if (signal_pending(current)) {
+ 			ret = -EINTR;
+ 			goto out;
+ 		}
+-		progress = try_to_free_mem_cgroup_pages(mem, GFP_KERNEL, false);
++		progress = try_to_free_mem_cgroup_pages(mem, GFP_KERNEL,
++						false, &nr_scanned);
+ 		if (!progress) {
+ 			nr_retries--;
+ 			/* maybe some writeback is necessary */
+@@ -5315,6 +5431,7 @@ mem_cgroup_create(struct cgroup_subsys *
+ 	atomic_set(&mem->refcnt, 1);
+ 	mem->move_charge_at_immigrate = 0;
+ 	spin_lock_init(&mem->update_margin_lock);
++	spin_lock_init(&mem->scan_stat_lock);
+ 	INIT_DELAYED_WORK(&mem->async_work, mem_cgroup_async_shrink_worker);
+ 	mutex_init(&mem->thresholds_lock);
+ 	return &mem->css;
+Index: memcg_async/include/linux/swap.h
+===================================================================
+--- memcg_async.orig/include/linux/swap.h
++++ memcg_async/include/linux/swap.h
+@@ -252,13 +252,15 @@ static inline void lru_cache_add_file(st
+ extern unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
+ 					gfp_t gfp_mask, nodemask_t *mask);
+ extern unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem,
+-						  gfp_t gfp_mask, bool noswap);
++			  		gfp_t gfp_mask, bool noswap,
++					unsigned long *nr_scanned);
+ extern unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *mem,
+ 						gfp_t gfp_mask, bool noswap,
+ 						struct zone *zone,
+ 						unsigned long *nr_scanned);
+-extern void mem_cgroup_shrink_rate_limited(struct mem_cgroup *mem,
+-				           unsigned long nr_to_reclaim);
++extern unsigned long mem_cgroup_shrink_rate_limited(struct mem_cgroup *mem,
++				           unsigned long nr_to_reclaim,
++					unsigned long *nr_scanned);
+ 
+ extern int __isolate_lru_page(struct page *page, int mode, int file);
+ extern unsigned long shrink_all_memory(unsigned long nr_pages);
+Index: memcg_async/mm/vmscan.c
+===================================================================
+--- memcg_async.orig/mm/vmscan.c
++++ memcg_async/mm/vmscan.c
+@@ -2221,7 +2221,8 @@ unsigned long mem_cgroup_shrink_node_zon
+ 
+ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem_cont,
+ 					   gfp_t gfp_mask,
+-					   bool noswap)
++					   bool noswap,
++					   unsigned long *nr_scanned)
+ {
+ 	struct zonelist *zonelist;
+ 	unsigned long nr_reclaimed;
+@@ -2258,12 +2259,14 @@ unsigned long try_to_free_mem_cgroup_pag
+ 	nr_reclaimed = do_try_to_free_pages(zonelist, &sc, &shrink);
+ 
+ 	trace_mm_vmscan_memcg_reclaim_end(nr_reclaimed);
++	*nr_scanned = sc.nr_scanned;
+ 
+ 	return nr_reclaimed;
+ }
+ 
+-void mem_cgroup_shrink_rate_limited(struct mem_cgroup *mem,
+-				unsigned long nr_to_reclaim)
++unsigned long mem_cgroup_shrink_rate_limited(struct mem_cgroup *mem,
++					unsigned long nr_to_reclaim,
++					unsigned long *nr_scanned)
+ {
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
