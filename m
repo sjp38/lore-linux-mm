@@ -1,26 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 4DE5E6B0012
-	for <linux-mm@kvack.org>; Thu, 26 May 2011 01:41:54 -0400 (EDT)
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C7AA6B0028
+	for <linux-mm@kvack.org>; Thu, 26 May 2011 01:43:25 -0400 (EDT)
 Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 550633EE0B5
-	for <linux-mm@kvack.org>; Thu, 26 May 2011 14:41:51 +0900 (JST)
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 61E373EE0AE
+	for <linux-mm@kvack.org>; Thu, 26 May 2011 14:43:22 +0900 (JST)
 Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 3764045DF20
-	for <linux-mm@kvack.org>; Thu, 26 May 2011 14:41:51 +0900 (JST)
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 4854345DF21
+	for <linux-mm@kvack.org>; Thu, 26 May 2011 14:43:22 +0900 (JST)
 Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 1430545DF1F
-	for <linux-mm@kvack.org>; Thu, 26 May 2011 14:41:51 +0900 (JST)
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 32B2F45DF27
+	for <linux-mm@kvack.org>; Thu, 26 May 2011 14:43:22 +0900 (JST)
 Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 05A89E08004
-	for <linux-mm@kvack.org>; Thu, 26 May 2011 14:41:51 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id B9913E08001
-	for <linux-mm@kvack.org>; Thu, 26 May 2011 14:41:50 +0900 (JST)
-Date: Thu, 26 May 2011 14:35:04 +0900
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 260EEEF8001
+	for <linux-mm@kvack.org>; Thu, 26 May 2011 14:43:22 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id DCB69E08002
+	for <linux-mm@kvack.org>; Thu, 26 May 2011 14:43:21 +0900 (JST)
+Date: Thu, 26 May 2011 14:36:31 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [RFC][PATCH v3 9/10] memcg: scan limited memory reclaim
-Message-Id: <20110526143504.08b2c2c7.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC][PATCH v3 10/10] memcg : reclaim statistics
+Message-Id: <20110526143631.adc2c911.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20110526141047.dc828124.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20110526141047.dc828124.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
@@ -32,321 +32,225 @@ To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Ying Han <yinghan@google.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>
 
 
-Better name is welcomed ;(
+This patch adds a file memory.reclaim_stat.
 
+This file shows following.
 ==
-rate limited memory LRU scanning for memcg.
+recent_scan_success_ratio  12 # recent reclaim/scan ratio.
+limit_scan_pages 671	      # scan caused by hitting limit.
+limit_freed_pages 538	      # freed pages by limit_scan
+limit_elapsed_ns 518555076    # elapsed time in LRU scanning by limit.
+soft_scan_pages 0	      # scan caused by softlimit.
+soft_freed_pages 0	      # freed pages by soft_scan.
+soft_elapsed_ns 0	      # elapsed time in LRU scanning by softlimit.
+margin_scan_pages 16744221    # scan caused by auto-keep-margin
+margin_freed_pages 565943     # freed pages by auto-keep-margin.
+margin_elapsed_ns 5545388791  # elapsed time in LRU scanning by auto-keep-margin
 
-This patch implements a routine for asynchronous memory reclaim for memory
-cgroup, which will be triggered when the usage is near to the limit.
-This patch includes only code codes for memory freeing.
+This patch adds a new file rather than adding more stats to memory.stat. By it,
+this support "reset" accounting by
 
-Asynchronous memory reclaim can be a help for reduce latency because
-memory reclaim goes while an application need to wait or compute something.
+  # echo 0 > .../memory.reclaim_stat
 
-To do memory reclaim in async, we need some thread or worker.
-Unlike node or zones, memcg can be created on demand and there may be
-a system with thousands of memcgs. So, the number of jobs for memcg
-asynchronous memory reclaim can be big number in theory. So, node kswapd
-codes doesn't fit well. And some scheduling on memcg layer will be
-appreciated.
+This is good for debug and tuning.
 
-This patch implements a LRU scanning which the number of scan is limited.
-
-When shrink_mem_cgroup_shrink_rate_limited() is called, it scans pages at most
-MEMCG_STATIC_SCAN_LIMIT(2Mbytes) pages. By this, round-robin can be
-implemented.
-
-Changelog:
-  - dropped most of un-explained heuristic codes.
-  - added more comments.
+TODO:
+ - add Documentaion.
 
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 ---
- include/linux/memcontrol.h |    2 
- mm/memcontrol.c            |    4 -
- mm/vmscan.c                |  153 +++++++++++++++++++++++++++++++++++++++++++--
- 3 files changed, 153 insertions(+), 6 deletions(-)
+ mm/memcontrol.c |   87 ++++++++++++++++++++++++++++++++++++++++++++++++++------
+ 1 file changed, 79 insertions(+), 8 deletions(-)
 
-Index: memcg_async/mm/vmscan.c
-===================================================================
---- memcg_async.orig/mm/vmscan.c
-+++ memcg_async/mm/vmscan.c
-@@ -106,6 +106,7 @@ struct scan_control {
- 
- 	/* Which cgroup do we reclaim from */
- 	struct mem_cgroup *mem_cgroup;
-+	unsigned long scan_limit; /* async reclaim uses static scan rate */
- 
- 	/*
- 	 * Nodemask of nodes allowed by the caller. If NULL, all nodes
-@@ -1722,7 +1723,7 @@ static unsigned long shrink_list(enum lr
- static void get_scan_count(struct zone *zone, struct scan_control *sc,
- 					unsigned long *nr, int priority)
- {
--	unsigned long anon, file, free;
-+	unsigned long anon, file, free, total_scan;
- 	unsigned long anon_prio, file_prio;
- 	unsigned long ap, fp;
- 	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(zone, sc);
-@@ -1812,6 +1813,8 @@ static void get_scan_count(struct zone *
- 	fraction[1] = fp;
- 	denominator = ap + fp + 1;
- out:
-+	total_scan = 0;
-+
- 	for_each_evictable_lru(l) {
- 		int file = is_file_lru(l);
- 		unsigned long scan;
-@@ -1838,6 +1841,20 @@ out:
- 				scan = SWAP_CLUSTER_MAX;
- 		}
- 		nr[l] = scan;
-+		total_scan += nr[l];
-+	}
-+	/*
-+	 * Asynchronous reclaim for memcg uses static scan rate for avoiding
-+	 * too much cpu consumption in a memcg. Adjust the scan count to fit
-+	 * into scan_limit.
-+	 */
-+	if (!scanning_global_lru(sc) && (total_scan > sc->scan_limit)) {
-+		for_each_evictable_lru(l) {
-+			if (nr[l] < SWAP_CLUSTER_MAX)
-+				continue;
-+			nr[l] = div64_u64(nr[l] * sc->scan_limit, total_scan);
-+			nr[l] = max((unsigned long)SWAP_CLUSTER_MAX, nr[l]);
-+		}
- 	}
- }
- 
-@@ -1943,6 +1960,11 @@ restart:
- 		 */
- 		if (nr_reclaimed >= nr_to_reclaim && priority < DEF_PRIORITY)
- 			break;
-+		/*
-+		 * static scan rate memory reclaim ?
-+		 */
-+		if (sc->nr_scanned > sc->scan_limit)
-+			break;
- 	}
- 	sc->nr_reclaimed += nr_reclaimed;
- 
-@@ -2162,6 +2184,7 @@ unsigned long try_to_free_pages(struct z
- 		.order = order,
- 		.mem_cgroup = NULL,
- 		.nodemask = nodemask,
-+		.scan_limit = ULONG_MAX,
- 	};
- 	struct shrink_control shrink = {
- 		.gfp_mask = sc.gfp_mask,
-@@ -2193,6 +2216,7 @@ unsigned long mem_cgroup_shrink_node_zon
- 		.may_swap = !noswap,
- 		.order = 0,
- 		.mem_cgroup = mem,
-+		.scan_limit = ULONG_MAX,
- 	};
- 
- 	sc.gfp_mask = (gfp_mask & GFP_RECLAIM_MASK) |
-@@ -2237,6 +2261,7 @@ unsigned long try_to_free_mem_cgroup_pag
- 		.nodemask = NULL, /* we don't care the placement */
- 		.gfp_mask = (gfp_mask & GFP_RECLAIM_MASK) |
- 				(GFP_HIGHUSER_MOVABLE & ~GFP_RECLAIM_MASK),
-+		.scan_limit = ULONG_MAX,
- 	};
- 	struct shrink_control shrink = {
- 		.gfp_mask = sc.gfp_mask,
-@@ -2264,12 +2289,129 @@ unsigned long try_to_free_mem_cgroup_pag
- 	return nr_reclaimed;
- }
- 
--unsigned long mem_cgroup_shrink_rate_limited(struct mem_cgroup *mem,
--					unsigned long nr_to_reclaim,
--					unsigned long *nr_scanned)
-+/*
-+ * Routines for static scan rate memory reclaim for memory cgroup.
-+ *
-+ * Because asyncronous memory reclaim is served by the kernel as background
-+ * service for reduce latency, we don't want to scan too much as priority=0
-+ * scan of kswapd. We just scan MEMCG_ASYNCSCAN_LIMIT per iteration at most
-+ * and frees MEMCG_ASYNCSCAN_LIMIT/2 of pages. Then, check our success rate
-+ * and returns the information to the caller.
-+ */
-+
-+static void shrink_mem_cgroup_node(int nid,
-+		int priority, struct scan_control *sc)
- {
-+	unsigned long this_scanned = 0;
-+	unsigned long this_reclaimed = 0;
-+	int i;
-+
-+	for (i = 0; i < NODE_DATA(nid)->nr_zones; i++) {
-+		struct zone *zone = NODE_DATA(nid)->node_zones + i;
-+
-+		if (!populated_zone(zone))
-+			continue;
-+		if (!mem_cgroup_zone_reclaimable_pages(sc->mem_cgroup, nid, i))
-+			continue;
-+		/* If recent scan didn't go good, do writepate */
-+		sc->nr_scanned = 0;
-+		sc->nr_reclaimed = 0;
-+		shrink_zone(priority, zone, sc);
-+		this_scanned += sc->nr_scanned;
-+		this_reclaimed += sc->nr_reclaimed;
-+		if ((sc->nr_to_reclaim < this_reclaimed) ||
-+		    (sc->scan_limit < this_scanned))
-+			break;
-+		if (need_resched())
-+			break;
-+	}
-+	sc->nr_scanned = this_scanned;
-+	sc->nr_reclaimed = this_reclaimed;
-+	return;
- }
- 
-+/**
-+ * mem_cgroup_shrink_rate_limited
-+ * @mem : the mem cgroup to be scanned.
-+ * @required: number of required pages to be freed
-+ * @nr_scanned: total number of scanned pages will be returned by this.
-+ *
-+ * This is a memory reclaim routine designed for background memory shrinking
-+ * for memcg. Main idea is to do limited scan for implementing round-robin
-+ * work per memcg. This routine scans MEMCG_SCAN_LIMIT of pages per iteration
-+ * and reclaim MEMCG_SCAN_LIMIT/2 of pages per scan.
-+ * The number of MEMCG_SCAN_LIMIT can be...arbitrary if it's enough small.
-+ * Here, we scan 2M bytes of memory per iteration. If scan is not enough
-+ * for the caller, it will call this again.
-+ * This routine's memory scan success rate is reported to the caller and
-+ * the caller will adjust the next call.
-+ */
-+#define MEMCG_SCAN_LIMIT	(2*1024*1024/PAGE_SIZE)
-+
-+unsigned long mem_cgroup_shrink_rate_limited(struct mem_cgroup *mem,
-+					     unsigned long required,
-+					     unsigned long *nr_scanned)
-+{
-+	int nid, priority;
-+	unsigned long total_scanned, total_reclaimed, reclaim_target;
-+	struct scan_control sc = {
-+		.gfp_mask      = GFP_HIGHUSER_MOVABLE,
-+		.may_unmap     = 1,
-+		.may_swap      = 1,
-+		.order         = 0,
-+		/* we don't writepage in our scan. but kick flusher threads */
-+		.may_writepage = 0,
-+	};
-+
-+	total_scanned = 0;
-+	total_reclaimed = 0;
-+	reclaim_target = min(required, MEMCG_SCAN_LIMIT/2L);
-+	sc.swappiness = mem_cgroup_swappiness(mem);
-+
-+	current->flags |= PF_SWAPWRITE;
-+	/*
-+	 * We can use arbitrary priority for our run because we just scan
-+	 * up to MEMCG_ASYNCSCAN_LIMIT and reclaim only the half of it.
-+	 * But, we need to have early-give-up chance for avoid cpu hogging.
-+	 * So, start from a small priority and increase it.
-+	 */
-+	priority = DEF_PRIORITY;
-+
-+	/* select a node to scan */
-+	nid = mem_cgroup_select_victim_node(mem);
-+	/* We do scan until scanning up to scan_limit. */
-+	while ((total_scanned < MEMCG_SCAN_LIMIT) &&
-+		(total_reclaimed < reclaim_target)) {
-+
-+		if (!mem_cgroup_has_reclaimable(mem))
-+			break;
-+		sc.mem_cgroup = mem;
-+		sc.nr_scanned = 0;
-+		sc.nr_reclaimed = 0;
-+		sc.scan_limit = MEMCG_SCAN_LIMIT - total_scanned;
-+		sc.nr_to_reclaim = reclaim_target - total_reclaimed;
-+		shrink_mem_cgroup_node(nid, priority, &sc);
-+		total_scanned += sc.nr_scanned;
-+		total_reclaimed += sc.nr_reclaimed;
-+		if (sc.nr_scanned < SWAP_CLUSTER_MAX) { /* no page ? */
-+			nid = mem_cgroup_select_victim_node(mem);
-+			priority = DEF_PRIORITY;
-+		}
-+		/*
-+		 * If priority == 0, swappiness will be ignored.
-+		 * we should avoid it.
-+		 */
-+		if (priority > 1)
-+			priority--;
-+	}
-+	/* if scan rate was not good, wake flusher thread */
-+	if (total_scanned > total_reclaimed * 2)
-+		wakeup_flusher_threads(total_scanned - total_reclaimed);
-+
-+	current->flags &= ~PF_SWAPWRITE;
-+	*nr_scanned = total_scanned;
-+	return total_reclaimed;
-+}
- #endif
- 
- /*
-@@ -2393,6 +2535,7 @@ static unsigned long balance_pgdat(pg_da
- 		.swappiness = vm_swappiness,
- 		.order = order,
- 		.mem_cgroup = NULL,
-+		.scan_limit = ULONG_MAX,
- 	};
- 	struct shrink_control shrink = {
- 		.gfp_mask = sc.gfp_mask,
-@@ -2851,6 +2994,7 @@ unsigned long shrink_all_memory(unsigned
- 		.hibernation_mode = 1,
- 		.swappiness = vm_swappiness,
- 		.order = 0,
-+		.scan_limit = ULONG_MAX,
- 	};
- 	struct shrink_control shrink = {
- 		.gfp_mask = sc.gfp_mask,
-@@ -3038,6 +3182,7 @@ static int __zone_reclaim(struct zone *z
- 		.gfp_mask = gfp_mask,
- 		.swappiness = vm_swappiness,
- 		.order = order,
-+		.scan_limit = ULONG_MAX,
- 	};
- 	struct shrink_control shrink = {
- 		.gfp_mask = sc.gfp_mask,
-Index: memcg_async/include/linux/memcontrol.h
-===================================================================
---- memcg_async.orig/include/linux/memcontrol.h
-+++ memcg_async/include/linux/memcontrol.h
-@@ -123,6 +123,8 @@ mem_cgroup_get_reclaim_stat_from_page(st
- extern void mem_cgroup_print_oom_info(struct mem_cgroup *memcg,
- 					struct task_struct *p);
- 
-+extern bool mem_cgroup_has_reclaimable(struct mem_cgroup *memcg);
-+
- #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
- extern int do_swap_account;
- #endif
 Index: memcg_async/mm/memcontrol.c
 ===================================================================
 --- memcg_async.orig/mm/memcontrol.c
 +++ memcg_async/mm/memcontrol.c
-@@ -1783,7 +1783,7 @@ int mem_cgroup_select_victim_node(struct
-  * For non-NUMA, this cheks reclaimable pages on zones because we don't
-  * update scan_nodes.(see below)
-  */
--static bool mem_cgroup_has_reclaimable(struct mem_cgroup *memcg)
-+bool mem_cgroup_has_reclaimable(struct mem_cgroup *memcg)
+@@ -216,6 +216,13 @@ static void mem_cgroup_update_margin_to_
+ static void mem_cgroup_may_async_reclaim(struct mem_cgroup *mem);
+ static void mem_cgroup_reflesh_scan_ratio(struct mem_cgroup *mem);
+ 
++enum scan_type {
++	LIMIT_SCAN,	/* scan memory because memcg hits limit */
++	SOFT_SCAN,	/* scan memory because of soft limit */
++	MARGIN_SCAN,	/* scan memory for making margin to limit */
++	NR_SCAN_TYPES,
++};
++
+ /*
+  * The memory controller data structure. The memory controller controls both
+  * page cache and RSS per cgroup. We would eventually like to provide
+@@ -300,6 +307,13 @@ struct mem_cgroup {
+ 	unsigned long	scanned;
+ 	unsigned long	reclaimed;
+ 	unsigned long	next_scanratio_update;
++	/* For statistics */
++	struct {
++		unsigned long nr_scanned_pages;
++		unsigned long nr_reclaimed_pages;
++		unsigned long elapsed_ns;
++	} scan_stat[NR_SCAN_TYPES];
++
+ 	/*
+ 	 * percpu counter.
+ 	 */
+@@ -1426,7 +1440,9 @@ unsigned int mem_cgroup_swappiness(struc
+ 
+ static void __mem_cgroup_update_scan_ratio(struct mem_cgroup *mem,
+ 				unsigned long scanned,
+-				unsigned long reclaimed)
++				unsigned long reclaimed,
++				unsigned long elapsed,
++				enum scan_type type)
  {
- 	return !nodes_empty(memcg->scan_nodes);
+ 	unsigned long limit;
+ 
+@@ -1439,6 +1455,9 @@ static void __mem_cgroup_update_scan_rat
+ 		mem->scanned /= 2;
+ 		mem->reclaimed /= 2;
+ 	}
++	mem->scan_stat[type].nr_scanned_pages += scanned;
++	mem->scan_stat[type].nr_reclaimed_pages += reclaimed;
++	mem->scan_stat[type].elapsed_ns += elapsed;
+ 	spin_unlock(&mem->scan_stat_lock);
  }
-@@ -1799,7 +1799,7 @@ int mem_cgroup_select_victim_node(struct
+ 
+@@ -1448,6 +1467,8 @@ static void __mem_cgroup_update_scan_rat
+  * @root : root memcg of hierarchy walk.
+  * @scanned : scanned pages
+  * @reclaimed: reclaimed pages.
++ * @elapsed: used time for memory reclaim
++ * @type : scan type as LIMIT_SCAN, SOFT_SCAN, MARGIN_SCAN.
+  *
+  * record scan/reclaim ratio to the memcg both to a child and it's root
+  * mem cgroup, which is a reclaim target. This value is used for
+@@ -1457,11 +1478,14 @@ static void __mem_cgroup_update_scan_rat
+ static void mem_cgroup_update_scan_ratio(struct mem_cgroup *mem,
+ 				  struct mem_cgroup *root,
+ 				unsigned long scanned,
+-				unsigned long reclaimed)
++				unsigned long reclaimed,
++				unsigned long elapsed,
++				int type)
+ {
+-	__mem_cgroup_update_scan_ratio(mem, scanned, reclaimed);
++	__mem_cgroup_update_scan_ratio(mem, scanned, reclaimed, elapsed, type);
+ 	if (mem != root)
+-		__mem_cgroup_update_scan_ratio(root, scanned, reclaimed);
++		__mem_cgroup_update_scan_ratio(root, scanned, reclaimed,
++					elapsed, type);
+ 
+ }
+ 
+@@ -1906,6 +1930,7 @@ static int mem_cgroup_hierarchical_recla
+ 	bool is_kswapd = false;
+ 	unsigned long excess;
+ 	unsigned long nr_scanned;
++	unsigned long start, end, elapsed;
+ 
+ 	excess = res_counter_soft_limit_excess(&root_mem->res) >> PAGE_SHIFT;
+ 
+@@ -1947,18 +1972,24 @@ static int mem_cgroup_hierarchical_recla
+ 		}
+ 		/* we use swappiness of local cgroup */
+ 		if (check_soft) {
++			start = sched_clock();
+ 			ret = mem_cgroup_shrink_node_zone(victim, gfp_mask,
+ 				noswap, zone, &nr_scanned);
++			end = sched_clock();
++			elapsed = end - start;
+ 			*total_scanned += nr_scanned;
+ 			mem_cgroup_soft_steal(victim, is_kswapd, ret);
+ 			mem_cgroup_soft_scan(victim, is_kswapd, nr_scanned);
+ 			mem_cgroup_update_scan_ratio(victim,
+-					root_mem, nr_scanned, ret);
++				root_mem, nr_scanned, ret, elapsed, SOFT_SCAN);
+ 		} else {
++			start = sched_clock();
+ 			ret = try_to_free_mem_cgroup_pages(victim, gfp_mask,
+ 					noswap, &nr_scanned);
++			end = sched_clock();
++			elapsed = end - start;
+ 			mem_cgroup_update_scan_ratio(victim,
+-					root_mem, nr_scanned, ret);
++				root_mem, nr_scanned, ret, elapsed, LIMIT_SCAN);
+ 		}
+ 		css_put(&victim->css);
+ 		/*
+@@ -4003,7 +4034,7 @@ static void mem_cgroup_async_shrink_work
+ 	struct delayed_work *dw = to_delayed_work(work);
+ 	struct mem_cgroup *mem, *victim;
+ 	long nr_to_reclaim;
+-	unsigned long nr_scanned, nr_reclaimed;
++	unsigned long nr_scanned, nr_reclaimed, start, end;
+ 	int delay = 0;
+ 
+ 	mem = container_of(dw, struct mem_cgroup, async_work);
+@@ -4022,9 +4053,12 @@ static void mem_cgroup_async_shrink_work
+ 	if (!victim)
+ 		goto finish_scan;
+ 
++	start = sched_clock();
+ 	nr_reclaimed = mem_cgroup_shrink_rate_limited(victim, nr_to_reclaim,
+ 					&nr_scanned);
+-	mem_cgroup_update_scan_ratio(victim, mem, nr_scanned, nr_reclaimed);
++	end = sched_clock();
++	mem_cgroup_update_scan_ratio(victim, mem, nr_scanned, nr_reclaimed,
++			end - start, MARGIN_SCAN);
+ 	css_put(&victim->css);
+ 
+ 	/* If margin is enough big, stop */
+@@ -4680,6 +4714,38 @@ static int mem_control_stat_show(struct 
  	return 0;
  }
  
--static bool mem_cgroup_has_reclaimable(struct mem_cgroup *memcg)
-+bool mem_cgroup_has_reclaimable(struct mem_cgroup *memcg)
- {
- 	unsigned long nr;
- 	int zid;
++static int mem_cgroup_reclaim_stat_read(struct cgroup *cont, struct cftype *cft,
++				 struct cgroup_map_cb *cb)
++{
++	struct mem_cgroup *mem = mem_cgroup_from_cont(cont);
++	u64 val;
++	int i; /* for indexing scan_stat[] */
++
++	val = mem->reclaimed * 100 / mem->scanned;
++	cb->fill(cb, "recent_scan_success_ratio", val);
++	i  = LIMIT_SCAN;
++	cb->fill(cb, "limit_scan_pages", mem->scan_stat[i].nr_scanned_pages);
++	cb->fill(cb, "limit_freed_pages", mem->scan_stat[i].nr_reclaimed_pages);
++	cb->fill(cb, "limit_elapsed_ns", mem->scan_stat[i].elapsed_ns);
++	i = SOFT_SCAN;
++	cb->fill(cb, "soft_scan_pages", mem->scan_stat[i].nr_scanned_pages);
++	cb->fill(cb, "soft_freed_pages", mem->scan_stat[i].nr_reclaimed_pages);
++	cb->fill(cb, "soft_elapsed_ns", mem->scan_stat[i].elapsed_ns);
++	i = MARGIN_SCAN;
++	cb->fill(cb, "margin_scan_pages", mem->scan_stat[i].nr_scanned_pages);
++	cb->fill(cb, "margin_freed_pages", mem->scan_stat[i].nr_reclaimed_pages);
++	cb->fill(cb, "margin_elapsed_ns", mem->scan_stat[i].elapsed_ns);
++	return 0;
++}
++
++static int mem_cgroup_reclaim_stat_reset(struct cgroup *cgrp, unsigned int event)
++{
++	struct mem_cgroup *mem = mem_cgroup_from_cont(cgrp);
++	memset(mem->scan_stat, 0, sizeof(mem->scan_stat));
++	return 0;
++}
++
++
+ /*
+  * User flags for async_control is a subset of mem->async_flags. But
+  * this needs to be defined independently to hide implemation details.
+@@ -5163,6 +5229,11 @@ static struct cftype mem_cgroup_files[] 
+ 		.open = mem_control_numa_stat_open,
+ 	},
+ #endif
++	{
++		.name = "reclaim_stat",
++		.read_map = mem_cgroup_reclaim_stat_read,
++		.trigger = mem_cgroup_reclaim_stat_reset,
++	}
+ };
+ 
+ #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
