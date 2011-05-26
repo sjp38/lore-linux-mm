@@ -1,53 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id A241F90010B
-	for <linux-mm@kvack.org>; Thu, 26 May 2011 14:50:06 -0400 (EDT)
-Received: by vxk20 with SMTP id 20so1123313vxk.14
-        for <linux-mm@kvack.org>; Thu, 26 May 2011 11:50:04 -0700 (PDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 2D00E90010B
+	for <linux-mm@kvack.org>; Thu, 26 May 2011 14:50:56 -0400 (EDT)
+Received: from mail-ey0-f169.google.com (mail-ey0-f169.google.com [209.85.215.169])
+	(authenticated bits=0)
+	by smtp1.linux-foundation.org (8.14.2/8.13.5/Debian-3ubuntu1.1) with ESMTP id p4QIoNeY008789
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=FAIL)
+	for <linux-mm@kvack.org>; Thu, 26 May 2011 11:50:25 -0700
+Received: by eyd9 with SMTP id 9so563677eyd.14
+        for <linux-mm@kvack.org>; Thu, 26 May 2011 11:50:22 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <BANLkTi=znC18PAbpDfeVO+=Pat_EeXddjw@mail.gmail.com>
-References: <4DDE2873.7060409@jp.fujitsu.com>
-	<BANLkTi=znC18PAbpDfeVO+=Pat_EeXddjw@mail.gmail.com>
-Date: Thu, 26 May 2011 20:50:02 +0200
-Message-ID: <BANLkTikgXhmgzQYfSWKDoxVyNuCzSM7Qxw@mail.gmail.com>
+In-Reply-To: <20110526184402.GA2453@p183.telecom.by>
+References: <4DDE2873.7060409@jp.fujitsu.com> <BANLkTi=znC18PAbpDfeVO+=Pat_EeXddjw@mail.gmail.com>
+ <20110526184402.GA2453@p183.telecom.by>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Thu, 26 May 2011 11:49:59 -0700
+Message-ID: <BANLkTi=Z=AoEH_AyN370jiUq7Qm1RhM0gQ@mail.gmail.com>
 Subject: Re: [PATCH] mm: don't access vm_flags as 'int'
-From: richard -rw- weinberger <richard.weinberger@gmail.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
+To: Alexey Dobriyan <adobriyan@gmail.com>
 Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, benh@kernel.crashing.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, hughd@google.com, akpm@linux-foundation.org, dave@linux.vnet.ibm.com, kamezawa.hiroyu@jp.fujitsu.com
 
-On Thu, May 26, 2011 at 7:53 PM, Linus Torvalds
-<torvalds@linux-foundation.org> wrote:
-> 2011/5/26 KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>:
->> The type of vma->vm_flags is 'unsigned long'. Neither 'int' nor
->> 'unsigned int'. This patch fixes such misuse.
+On Thu, May 26, 2011 at 11:44 AM, Alexey Dobriyan <adobriyan@gmail.com> wrote:
 >
-> I applied this, except I also just made the executive decision to
-> replace things with "vm_flags_t" after all.
+> Woo-hoo!
 >
-> Which leaves a lot of "unsigned long" users that aren't converted, but
-> right now it doesn't matter, and it can be converted piecemeal as
-> people notice users..
->
+> Why it is marked __nocast and not __bitwise__ like gfp_t?
 
-This breaks kernel builds with CONFIG_HUGETLBFS=3Dn. :-(
+Because that's what one of the other patches in Andrew's series had,
+so I just emulated that.
 
-In file included from fs/proc/meminfo.c:2:0:
-include/linux/hugetlb.h:195:3: error: expected declaration specifiers
-or =91...=92 before =91vm_flags_t=92
-  CC      drivers/ata/libata-pmp.o
-make[2]: *** [fs/proc/meminfo.o] Fehler 1
-make[1]: *** [fs/proc] Fehler 2
-make: *** [fs] Fehler 2
-make: *** Warte auf noch nicht beendete Prozesse...
+Also, I don't think we can currently mark it __bitwise without causing
+a sh*tload of sparse warnings. __nocast is much weaker than bitwise
+(it only warns about implicit casts to different sizes). __bitwise
+implies a lot more type-checking, and actually makes the result a very
+specific type.
 
+I'm not sure it is worth the __bitwise pain. If we go down the
+__bitwise path, we'd need to mark all the VM_XYZZY constants with the
+type, and we'd need to do *all* the conversions in one go. I am
+definitely not ready to do that at this stage, but I was willing to
+take the much weaker __nocast.
 
---=20
-Thanks,
-//richard
+                    Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
