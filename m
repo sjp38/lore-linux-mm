@@ -1,26 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 5278B6B0012
-	for <linux-mm@kvack.org>; Thu, 26 May 2011 01:22:24 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id A65133EE0BC
-	for <linux-mm@kvack.org>; Thu, 26 May 2011 14:22:19 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 8520345DF24
-	for <linux-mm@kvack.org>; Thu, 26 May 2011 14:22:19 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6B68F45DF1F
-	for <linux-mm@kvack.org>; Thu, 26 May 2011 14:22:19 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 5E13FE08002
-	for <linux-mm@kvack.org>; Thu, 26 May 2011 14:22:19 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 1C3EEEF8002
-	for <linux-mm@kvack.org>; Thu, 26 May 2011 14:22:19 +0900 (JST)
-Date: Thu, 26 May 2011 14:15:29 +0900
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id CC3996B0023
+	for <linux-mm@kvack.org>; Thu, 26 May 2011 01:24:55 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id CB2F03EE0B6
+	for <linux-mm@kvack.org>; Thu, 26 May 2011 14:24:52 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id B28F745DF57
+	for <linux-mm@kvack.org>; Thu, 26 May 2011 14:24:52 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 9776145DF54
+	for <linux-mm@kvack.org>; Thu, 26 May 2011 14:24:52 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8B430E38003
+	for <linux-mm@kvack.org>; Thu, 26 May 2011 14:24:52 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 4B147E08002
+	for <linux-mm@kvack.org>; Thu, 26 May 2011 14:24:52 +0900 (JST)
+Date: Thu, 26 May 2011 14:18:05 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [RFC][PATCH v3 1/10] check reclaimable in hierarchy walk
-Message-Id: <20110526141529.53b70097.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC][PATCH v3 2/10] memcg: fix cached charge drain ratio
+Message-Id: <20110526141805.e55da40c.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20110526141047.dc828124.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20110526141047.dc828124.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
@@ -32,267 +32,133 @@ To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Ying Han <yinghan@google.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>
 
 
-I may post this patch as stand alone, later.
-==
-Check memcg has reclaimable pages at select_victim().
+IIUC, this is a bugfix.
+=
+Memory cgroup cachess charge per cpu for avoinding heavy access
+on res_counter. At memory reclaim, caches are drained in asynchronous
+way.
 
-Now, with help of bitmap as memcg->scan_node, we can check whether memcg has
-reclaimable pages with easy test of node_empty(&mem->scan_nodes).
+On SMP system, if memcg hits limit heavily, this draining is
+called too frequently and you'll see tons of kworker... 
+Reduce it.
 
-mem->scan_nodes is a bitmap to show whether memcg contains reclaimable
-memory or not, which is updated periodically.
-
-This patch makes use of scan_nodes and modify hierarchy walk at memory
-shrinking in following way.
-
-  - check scan_nodes in mem_cgroup_select_victim()
-  - mem_cgroup_select_victim() returns NULL if no memcg is reclaimable.
-  - force update of scan_nodes.
-  - rename mem_cgroup_select_victim() to be mem_cgroup_select_get_victim()
-    to show refcnt is +1.
-
-This will make hierarchy walk better.
-
-And this allows to remove mem_cgroup_local_pages() check which was used for
-the same purpose. But this function was wrong because it cannot handle
-information of unevictable pages and tmpfs v.s. swapless information.
-
-Changelog:
- - added since v3.
+By this patch,
+  - drain_all_stock_async is called only after 1st trial of reclaim fails.
+  - drain_all_stock_async checks "cached" information is related to
+    memory reclaim target.
+  - drain_all_stock_async checks a flag per cpu to do draining.
 
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 ---
- mm/memcontrol.c |  165 +++++++++++++++++++++++++++++++++++++-------------------
- 1 file changed, 110 insertions(+), 55 deletions(-)
+ mm/memcontrol.c |   42 +++++++++++++++++++++++-------------------
+ 1 file changed, 23 insertions(+), 19 deletions(-)
 
 Index: memcg_async/mm/memcontrol.c
 ===================================================================
 --- memcg_async.orig/mm/memcontrol.c
 +++ memcg_async/mm/memcontrol.c
-@@ -584,15 +584,6 @@ static long mem_cgroup_read_stat(struct 
- 	return val;
- }
+@@ -367,7 +367,7 @@ enum charge_type {
+ static void mem_cgroup_get(struct mem_cgroup *mem);
+ static void mem_cgroup_put(struct mem_cgroup *mem);
+ static struct mem_cgroup *parent_mem_cgroup(struct mem_cgroup *mem);
+-static void drain_all_stock_async(void);
++static void drain_all_stock_async(struct mem_cgroup *mem);
  
--static long mem_cgroup_local_usage(struct mem_cgroup *mem)
--{
--	long ret;
--
--	ret = mem_cgroup_read_stat(mem, MEM_CGROUP_STAT_RSS);
--	ret += mem_cgroup_read_stat(mem, MEM_CGROUP_STAT_CACHE);
--	return ret;
--}
--
- static void mem_cgroup_swap_statistics(struct mem_cgroup *mem,
- 					 bool charge)
- {
-@@ -1555,43 +1546,6 @@ u64 mem_cgroup_get_limit(struct mem_cgro
- 	return min(limit, memsw);
- }
- 
--/*
-- * Visit the first child (need not be the first child as per the ordering
-- * of the cgroup list, since we track last_scanned_child) of @mem and use
-- * that to reclaim free pages from.
-- */
--static struct mem_cgroup *
--mem_cgroup_select_victim(struct mem_cgroup *root_mem)
--{
--	struct mem_cgroup *ret = NULL;
--	struct cgroup_subsys_state *css;
--	int nextid, found;
--
--	if (!root_mem->use_hierarchy) {
--		css_get(&root_mem->css);
--		ret = root_mem;
--	}
--
--	while (!ret) {
--		rcu_read_lock();
--		nextid = root_mem->last_scanned_child + 1;
--		css = css_get_next(&mem_cgroup_subsys, nextid, &root_mem->css,
--				   &found);
--		if (css && css_tryget(css))
--			ret = container_of(css, struct mem_cgroup, css);
--
--		rcu_read_unlock();
--		/* Updates scanning parameter */
--		if (!css) {
--			/* this means start scan from ID:1 */
--			root_mem->last_scanned_child = 0;
--		} else
--			root_mem->last_scanned_child = found;
--	}
--
--	return ret;
--}
--
- #if MAX_NUMNODES > 1
- 
- /*
-@@ -1600,11 +1554,11 @@ mem_cgroup_select_victim(struct mem_cgro
-  * nodes based on the zonelist. So update the list loosely once per 10 secs.
-  *
-  */
--static void mem_cgroup_may_update_nodemask(struct mem_cgroup *mem)
-+static void mem_cgroup_may_update_nodemask(struct mem_cgroup *mem, bool force)
- {
- 	int nid;
- 
--	if (time_after(mem->next_scan_node_update, jiffies))
-+	if (!force && time_after(mem->next_scan_node_update, jiffies))
- 		return;
- 
- 	mem->next_scan_node_update = jiffies + 10*HZ;
-@@ -1641,7 +1595,7 @@ int mem_cgroup_select_victim_node(struct
- {
- 	int node;
- 
--	mem_cgroup_may_update_nodemask(mem);
-+	mem_cgroup_may_update_nodemask(mem, false);
- 	node = mem->last_scanned_node;
- 
- 	node = next_node(node, mem->scan_nodes);
-@@ -1660,13 +1614,117 @@ int mem_cgroup_select_victim_node(struct
- 	return node;
- }
- 
-+/**
-+ * mem_cgroup_has_reclaimable
-+ * @mem_cgroup : the mem_cgroup
-+ *
-+ * The caller can test whether the memcg has reclaimable pages.
-+ *
-+ * This function checks memcg has reclaimable pages or not with bitmap of
-+ * memcg->scan_nodes. This bitmap is updated periodically and indicates
-+ * which node has reclaimable memcg memory or not.
-+ * Although this is a rough test and result is not very precise but we don't
-+ * have to scan all nodes and don't have to use locks.
-+ *
-+ * For non-NUMA, this cheks reclaimable pages on zones because we don't
-+ * update scan_nodes.(see below)
-+ */
-+static bool mem_cgroup_has_reclaimable(struct mem_cgroup *memcg)
-+{
-+	return !nodes_empty(memcg->scan_nodes);
-+}
-+
- #else
-+
-+static void mem_cgroup_may_update_nodemask(struct mem_cgroup *mem, bool force)
-+{
-+}
-+
- int mem_cgroup_select_victim_node(struct mem_cgroup *mem)
- {
- 	return 0;
- }
-+
-+static bool mem_cgroup_has_reclaimable(struct mem_cgroup *memcg)
-+{
-+	unsigned long nr;
-+	int zid;
-+
-+	for (zid = NODE_DATA(0)->nr_zones - 1; zid >= 0; zid--)
-+		if (mem_cgroup_zone_reclaimable_pages(memcg, 0, zid))
-+			break;
-+	if (zid < 0)
-+		return false;
-+	return true;
-+}
- #endif
- 
-+/**
-+ * mem_cgroup_select_get_victim
-+ * @root_mem: the root memcg of hierarchy which should be shrinked.
-+ *
-+ * Visit children of root_mem ony by one. If the routine finds a memcg
-+ * which contains reclaimable pages, returns it with refcnt +1. The
-+ * scan is done in round-robin and 'the next start point' is saved into
-+ * mem->last_scanned_child. If no reclaimable memcg are found, returns NULL.
-+ */
-+static struct mem_cgroup *
-+mem_cgroup_select_get_victim(struct mem_cgroup *root_mem)
-+{
-+	struct mem_cgroup *ret = NULL;
-+	struct cgroup_subsys_state *css;
-+	int nextid, found;
-+	bool second_visit = false;
-+
-+	if (!root_mem->use_hierarchy)
-+		goto return_root;
-+
-+	while (!ret) {
-+		rcu_read_lock();
-+		nextid = root_mem->last_scanned_child + 1;
-+		css = css_get_next(&mem_cgroup_subsys, nextid, &root_mem->css,
-+				   &found);
-+		if (css && css_tryget(css))
-+			ret = container_of(css, struct mem_cgroup, css);
-+
-+		rcu_read_unlock();
-+		/* Updates scanning parameter */
-+		if (!css) { /* Indicates we scanned the last node of tree */
-+			/*
-+			 * If all memcg has no reclaimable pages, we may enter
-+			 * an infinite loop. Exit here if we reached the end
-+			 * of hierarchy tree twice.
-+			 */
-+			if (second_visit)
-+				return NULL;
-+			/* this means start scan from ID:1 */
-+			root_mem->last_scanned_child = 0;
-+			second_visit = true;
-+		} else
-+			root_mem->last_scanned_child = found;
-+		if (css && ret) {
-+			/*
-+ 			 * check memcg has reclaimable memory or not. Update
-+ 			 * information carefully if we might fail with cached
-+ 			 * bitmask information.
-+ 			 */
-+			if (second_visit)
-+				mem_cgroup_may_update_nodemask(ret, true);
-+
-+			if (!mem_cgroup_has_reclaimable(ret)) {
-+				css_put(css);
-+				ret = NULL;
-+			}
-+		}
-+	}
-+
-+	return ret;
-+return_root:
-+	css_get(&root_mem->css);
-+	return root_mem;
-+}
-+
-+
- /*
-  * Scan the hierarchy if needed to reclaim memory. We remember the last child
-  * we reclaimed from, so that we don't end up penalizing one child extensively
-@@ -1705,7 +1763,9 @@ static int mem_cgroup_hierarchical_recla
- 		is_kswapd = true;
- 
- 	while (1) {
--		victim = mem_cgroup_select_victim(root_mem);
-+		victim = mem_cgroup_select_get_victim(root_mem);
-+		if (!victim)
-+			return total;
+ static struct mem_cgroup_per_zone *
+ mem_cgroup_zoneinfo(struct mem_cgroup *mem, int nid, int zid)
+@@ -1768,8 +1768,6 @@ static int mem_cgroup_hierarchical_recla
+ 			return total;
  		if (victim == root_mem) {
  			loop++;
- 			if (loop >= 1)
-@@ -1733,11 +1793,6 @@ static int mem_cgroup_hierarchical_recla
- 				}
- 			}
- 		}
--		if (!mem_cgroup_local_usage(victim)) {
--			/* this cgroup's local usage == 0 */
--			css_put(&victim->css);
--			continue;
--		}
- 		/* we use swappiness of local cgroup */
- 		if (check_soft) {
- 			ret = mem_cgroup_shrink_node_zone(victim, gfp_mask,
+-			if (loop >= 1)
+-				drain_all_stock_async();
+ 			if (loop >= 2) {
+ 				/*
+ 				 * If we have not been able to reclaim
+@@ -1818,6 +1816,8 @@ static int mem_cgroup_hierarchical_recla
+ 				return total;
+ 		} else if (mem_cgroup_margin(root_mem))
+ 			return total;
++		/* we failed with the first memcg, drain cached ones. */
++		drain_all_stock_async(root_mem);
+ 	}
+ 	return total;
+ }
+@@ -2029,9 +2029,10 @@ struct memcg_stock_pcp {
+ 	struct mem_cgroup *cached; /* this never be root cgroup */
+ 	unsigned int nr_pages;
+ 	struct work_struct work;
++	unsigned long flags;
++#define STOCK_FLUSHING		(0)
+ };
+ static DEFINE_PER_CPU(struct memcg_stock_pcp, memcg_stock);
+-static atomic_t memcg_drain_count;
+ 
+ /*
+  * Try to consume stocked charge on this cpu. If success, one page is consumed
+@@ -2078,7 +2079,9 @@ static void drain_stock(struct memcg_sto
+ static void drain_local_stock(struct work_struct *dummy)
+ {
+ 	struct memcg_stock_pcp *stock = &__get_cpu_var(memcg_stock);
++
+ 	drain_stock(stock);
++	clear_bit(STOCK_FLUSHING, &stock->flags);
+ }
+ 
+ /*
+@@ -2103,36 +2106,37 @@ static void refill_stock(struct mem_cgro
+  * expects some charges will be back to res_counter later but cannot wait for
+  * it.
+  */
+-static void drain_all_stock_async(void)
++static void drain_all_stock_async(struct mem_cgroup *root_mem)
+ {
+ 	int cpu;
+-	/* This function is for scheduling "drain" in asynchronous way.
+-	 * The result of "drain" is not directly handled by callers. Then,
+-	 * if someone is calling drain, we don't have to call drain more.
+-	 * Anyway, WORK_STRUCT_PENDING check in queue_work_on() will catch if
+-	 * there is a race. We just do loose check here.
+-	 */
+-	if (atomic_read(&memcg_drain_count))
+-		return;
+ 	/* Notify other cpus that system-wide "drain" is running */
+-	atomic_inc(&memcg_drain_count);
+ 	get_online_cpus();
+ 	for_each_online_cpu(cpu) {
+ 		struct memcg_stock_pcp *stock = &per_cpu(memcg_stock, cpu);
+-		schedule_work_on(cpu, &stock->work);
++		struct mem_cgroup *mem;
++
++		rcu_read_lock();
++		mem = stock->cached;
++		if (!mem) {
++			rcu_read_unlock();
++			continue;
++		}
++		if ((mem == root_mem ||
++		     css_is_ancestor(&mem->css, &root_mem->css))) {
++			rcu_read_unlock();
++			if (!test_and_set_bit(STOCK_FLUSHING, &stock->flags))
++				schedule_work_on(cpu, &stock->work);
++		} else
++			rcu_read_unlock();
+ 	}
+  	put_online_cpus();
+-	atomic_dec(&memcg_drain_count);
+-	/* We don't wait for flush_work */
+ }
+ 
+ /* This is a synchronous drain interface. */
+ static void drain_all_stock_sync(void)
+ {
+ 	/* called when force_empty is called */
+-	atomic_inc(&memcg_drain_count);
+ 	schedule_on_each_cpu(drain_local_stock);
+-	atomic_dec(&memcg_drain_count);
+ }
+ 
+ /*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
