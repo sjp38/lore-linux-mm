@@ -1,89 +1,307 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 2F0336B0012
-	for <linux-mm@kvack.org>; Thu, 26 May 2011 05:06:23 -0400 (EDT)
-Date: Thu, 26 May 2011 11:05:38 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] memcg: fix typo in the soft_limit stats.
-Message-ID: <20110526090538.GA19082@cmpxchg.org>
-References: <1305583230-2111-1-git-send-email-yinghan@google.com>
- <20110516231512.GW16531@cmpxchg.org>
- <BANLkTinohFTQRTViyU5NQ6EGi95xieXwOA@mail.gmail.com>
- <20110516171820.124a8fbc.akpm@linux-foundation.org>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 7849F6B0012
+	for <linux-mm@kvack.org>; Thu, 26 May 2011 05:34:46 -0400 (EDT)
+Date: Thu, 26 May 2011 05:34:40 -0400 (EDT)
+From: CAI Qian <caiqian@redhat.com>
+Message-ID: <1912242417.242053.1306402480853.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
+In-Reply-To: <4DD6204D.5020109@jp.fujitsu.com>
+Subject: Re: [PATCH 3/5] oom: oom-killer don't use proportion of system-ram
+ internally
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110516171820.124a8fbc.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Ying Han <yinghan@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>, linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, rientjes@google.com, hughd@google.com, kamezawa hiroyu <kamezawa.hiroyu@jp.fujitsu.com>, minchan kim <minchan.kim@gmail.com>, oleg@redhat.com
 
-On Mon, May 16, 2011 at 05:18:20PM -0700, Andrew Morton wrote:
-> On Mon, 16 May 2011 17:05:02 -0700
-> Ying Han <yinghan@google.com> wrote:
+Hello KOSAKI,
+
+----- Original Message -----
+> CAI Qian reported his kernel did hang-up if he ran fork intensive
+> workload and then invoke oom-killer.
 > 
-> > On Mon, May 16, 2011 at 4:15 PM, Johannes Weiner <hannes@cmpxchg.org> wrote:
-> > 
-> > > On Mon, May 16, 2011 at 03:00:30PM -0700, Ying Han wrote:
-> > > > This fixes the typo in the memory.stat including the following two
-> > > > stats:
-> > > >
-> > > > $ cat /dev/cgroup/memory/A/memory.stat
-> > > > total_soft_steal 0
-> > > > total_soft_scan 0
-> > > >
-> > > > And change it to:
-> > > >
-> > > > $ cat /dev/cgroup/memory/A/memory.stat
-> > > > total_soft_kswapd_steal 0
-> > > > total_soft_kswapd_scan 0
-> > > >
-> > > > Signed-off-by: Ying Han <yinghan@google.com>
-> > >
-> > > I am currently proposing and working on a scheme that makes the soft
-> > > limit not only a factor for global memory pressure, but for
-> > > hierarchical reclaim in general, to prefer child memcgs during reclaim
-> > > that are in excess of their soft limit.
-> > >
-> > > Because this means prioritizing memcgs over one another, rather than
-> > > having explicit soft limit reclaim runs, there is no natural counter
-> > > for pages reclaimed due to the soft limit anymore.
-> > >
-> > > Thus, for the patch that introduces this counter:
-> > >
-> > > Nacked-by: Johannes Weiner <hannes@cmpxchg.org>
-> > >
-> > 
-> > This patch is fixing a typo of the stats being integrated into mmotm. Does
-> > it make sense to fix the
-> > existing stats first while we are discussing other approaches?
-> > 
+> The problem is, current oom calculation uses 0-1000 normalized value
+> (The unit is a permillage of system-ram). Its low precision make
+> a lot of same oom score. IOW, in his case, all processes have smaller
+> oom score than 1 and internal calculation round it to 1.
 > 
-> It would be quite bad to add new userspace-visible stats and to then
-> take them away again.
+> Thus oom-killer kill ineligible process. This regression is caused by
+> commit a63d83f427 (oom: badness heuristic rewrite).
 > 
-> But given that memcg-add-stats-to-monitor-soft_limit-reclaim.patch is
-> queued for 2.6.39-rc1, we could proceed with that plan and then make
-> sure that Johannes's changes are merged either prior to 2.6.40 or
-> they are never merged at all.
+> The solution is, the internal calculation just use number of pages
+> instead of permillage of system-ram. And convert it to permillage
+> value at displaying time.
+> 
+> This patch doesn't change any ABI (included /proc/<pid>/oom_score_adj)
+> even though current logic has a lot of my dislike thing.
+> 
+> Reported-by: CAI Qian <caiqian@redhat.com>
+> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> ---
+> fs/proc/base.c | 13 ++++++----
+> include/linux/oom.h | 7 +----
+> mm/oom_kill.c | 60 +++++++++++++++++++++++++++++++++-----------------
+> 3 files changed, 49 insertions(+), 31 deletions(-)
+> 
+> diff --git a/fs/proc/base.c b/fs/proc/base.c
+> index dfa5327..d6b0424 100644
+> --- a/fs/proc/base.c
+> +++ b/fs/proc/base.c
+> @@ -476,14 +476,17 @@ static const struct file_operations
+> proc_lstats_operations = {
+> 
+> static int proc_oom_score(struct task_struct *task, char *buffer)
+> {
+> - unsigned long points = 0;
+> + unsigned long points;
+> + unsigned long ratio = 0;
+> + unsigned long totalpages = totalram_pages + total_swap_pages + 1;
+> 
+> read_lock(&tasklist_lock);
+> - if (pid_alive(task))
+> - points = oom_badness(task, NULL, NULL,
+> - totalram_pages + total_swap_pages);
+> + if (pid_alive(task)) {
+> + points = oom_badness(task, NULL, NULL, totalpages);
+> + ratio = points * 1000 / totalpages;
+> + }
+> read_unlock(&tasklist_lock);
+> - return sprintf(buffer, "%lu\n", points);
+> + return sprintf(buffer, "%lu\n", ratio);
+> }
+> 
+> struct limit_names {
+> diff --git a/include/linux/oom.h b/include/linux/oom.h
+> index 5e3aa83..0f5b588 100644
+> --- a/include/linux/oom.h
+> +++ b/include/linux/oom.h
+> @@ -40,7 +40,8 @@ enum oom_constraint {
+> CONSTRAINT_MEMCG,
+> };
+> 
+> -extern unsigned int oom_badness(struct task_struct *p, struct
+> mem_cgroup *mem,
+> +/* The badness from the OOM killer */
+> +extern unsigned long oom_badness(struct task_struct *p, struct
+> mem_cgroup *mem,
+> const nodemask_t *nodemask, unsigned long totalpages);
+> extern int try_set_zonelist_oom(struct zonelist *zonelist, gfp_t
+> gfp_flags);
+> extern void clear_zonelist_oom(struct zonelist *zonelist, gfp_t
+> gfp_flags);
+> @@ -62,10 +63,6 @@ static inline void oom_killer_enable(void)
+> oom_killer_disabled = false;
+> }
+> 
+> -/* The badness from the OOM killer */
+> -extern unsigned long badness(struct task_struct *p, struct mem_cgroup
+> *mem,
+> - const nodemask_t *nodemask, unsigned long uptime);
+> -
+> extern struct task_struct *find_lock_task_mm(struct task_struct *p);
+> 
+> /* sysctls */
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> index e6a6c6f..8bbc3df 100644
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -132,10 +132,12 @@ static bool oom_unkillable_task(struct
+> task_struct *p,
+> * predictable as possible. The goal is to return the highest value for
+> the
+> * task consuming the most memory to avoid subsequent oom failures.
+> */
+> -unsigned int oom_badness(struct task_struct *p, struct mem_cgroup
+> *mem,
+> +unsigned long oom_badness(struct task_struct *p, struct mem_cgroup
+> *mem,
+> const nodemask_t *nodemask, unsigned long totalpages)
+> {
+> - int points;
+> + unsigned long points;
+> + unsigned long score_adj = 0;
+> +
+> 
+> if (oom_unkillable_task(p, mem, nodemask))
+> return 0;
+> @@ -160,7 +162,7 @@ unsigned int oom_badness(struct task_struct *p,
+> struct mem_cgroup *mem,
+> */
+> if (p->flags & PF_OOM_ORIGIN) {
+> task_unlock(p);
+> - return 1000;
+> + return ULONG_MAX;
+> }
+This part failed to apply to the latest git tree so unable to test those
+patches this time. Can you fix that?
 
-I am on it, but I don't think I can get them into shape and
-rudimentally benchmarked until the merge window is closed.
-
-So far I found nothing that would invalidate the design or have
-measurable impact on non-memcg systems.  Then again, I suck at
-constructing tests, and have only limited machinery available.
-
-If people are interested and would like to help out verifying the
-changes, I can send an updated and documented version of the series
-that should be easier to understand.
-
-> Or we could just leave out the stats until we're sure.  Not having them
-> for a while is not as bad as adding them and then removing them.
-
-I am a bit unsure as to why there is a sudden rush with those
-statistics now.
+Thanks,
+CAI Qian
+> /*
+> @@ -176,33 +178,49 @@ unsigned int oom_badness(struct task_struct *p,
+> struct mem_cgroup *mem,
+> */
+> points = get_mm_rss(p->mm) + p->mm->nr_ptes;
+> points += get_mm_counter(p->mm, MM_SWAPENTS);
+> -
+> - points *= 1000;
+> - points /= totalpages;
+> task_unlock(p);
+> 
+> /*
+> * Root processes get 3% bonus, just like the __vm_enough_memory()
+> * implementation used by LSMs.
+> + *
+> + * XXX: Too large bonus, example, if the system have tera-bytes
+> memory..
+> */
+> - if (has_capability_noaudit(p, CAP_SYS_ADMIN))
+> - points -= 30;
+> + if (has_capability_noaudit(p, CAP_SYS_ADMIN)) {
+> + if (points >= totalpages / 32)
+> + points -= totalpages / 32;
+> + else
+> + points = 0;
+> + }
+> 
+> /*
+> * /proc/pid/oom_score_adj ranges from -1000 to +1000 such that it may
+> * either completely disable oom killing or always prefer a certain
+> * task.
+> */
+> - points += p->signal->oom_score_adj;
+> + if (p->signal->oom_score_adj >= 0) {
+> + score_adj = p->signal->oom_score_adj * (totalpages / 1000);
+> + if (ULONG_MAX - points >= score_adj)
+> + points += score_adj;
+> + else
+> + points = ULONG_MAX;
+> + } else {
+> + score_adj = -p->signal->oom_score_adj * (totalpages / 1000);
+> + if (points >= score_adj)
+> + points -= score_adj;
+> + else
+> + points = 0;
+> + }
+> 
+> /*
+> * Never return 0 for an eligible task that may be killed since it's
+> * possible that no single user task uses more than 0.1% of memory and
+> * no single admin tasks uses more than 3.0%.
+> */
+> - if (points <= 0)
+> - return 1;
+> - return (points < 1000) ? points : 1000;
+> + if (!points)
+> + points = 1;
+> +
+> + return points;
+> }
+> 
+> /*
+> @@ -274,7 +292,7 @@ static enum oom_constraint
+> constrained_alloc(struct zonelist *zonelist,
+> *
+> * (not docbooked, we don't want this one cluttering up the manual)
+> */
+> -static struct task_struct *select_bad_process(unsigned int *ppoints,
+> +static struct task_struct *select_bad_process(unsigned long *ppoints,
+> unsigned long totalpages, struct mem_cgroup *mem,
+> const nodemask_t *nodemask)
+> {
+> @@ -283,7 +301,7 @@ static struct task_struct
+> *select_bad_process(unsigned int *ppoints,
+> *ppoints = 0;
+> 
+> do_each_thread_reverse(g, p) {
+> - unsigned int points;
+> + unsigned long points;
+> 
+> if (!p->mm)
+> continue;
+> @@ -314,7 +332,7 @@ static struct task_struct
+> *select_bad_process(unsigned int *ppoints,
+> */
+> if (p == current) {
+> chosen = p;
+> - *ppoints = 1000;
+> + *ppoints = ULONG_MAX;
+> } else {
+> /*
+> * If this task is not being ptraced on exit,
+> @@ -445,14 +463,14 @@ static int oom_kill_task(struct task_struct *p,
+> struct mem_cgroup *mem)
+> #undef K
+> 
+> static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int
+> order,
+> - unsigned int points, unsigned long totalpages,
+> + unsigned long points, unsigned long totalpages,
+> struct mem_cgroup *mem, nodemask_t *nodemask,
+> const char *message)
+> {
+> struct task_struct *victim = p;
+> struct task_struct *child;
+> struct task_struct *t = p;
+> - unsigned int victim_points = 0;
+> + unsigned long victim_points = 0;
+> 
+> if (printk_ratelimit())
+> dump_header(p, gfp_mask, order, mem, nodemask);
+> @@ -467,7 +485,7 @@ static int oom_kill_process(struct task_struct *p,
+> gfp_t gfp_mask, int order,
+> }
+> 
+> task_lock(p);
+> - pr_err("%s: Kill process %d (%s) score %d or sacrifice child\n",
+> + pr_err("%s: Kill process %d (%s) points %lu or sacrifice child\n",
+> message, task_pid_nr(p), p->comm, points);
+> task_unlock(p);
+> 
+> @@ -479,7 +497,7 @@ static int oom_kill_process(struct task_struct *p,
+> gfp_t gfp_mask, int order,
+> */
+> do {
+> list_for_each_entry(child, &t->children, sibling) {
+> - unsigned int child_points;
+> + unsigned long child_points;
+> 
+> if (child->mm == p->mm)
+> continue;
+> @@ -526,7 +544,7 @@ static void check_panic_on_oom(enum oom_constraint
+> constraint, gfp_t gfp_mask,
+> void mem_cgroup_out_of_memory(struct mem_cgroup *mem, gfp_t gfp_mask)
+> {
+> unsigned long limit;
+> - unsigned int points = 0;
+> + unsigned long points = 0;
+> struct task_struct *p;
+> 
+> /*
+> @@ -675,7 +693,7 @@ void out_of_memory(struct zonelist *zonelist,
+> gfp_t gfp_mask,
+> struct task_struct *p;
+> unsigned long totalpages;
+> unsigned long freed = 0;
+> - unsigned int points;
+> + unsigned long points;
+> enum oom_constraint constraint = CONSTRAINT_NONE;
+> int killed = 0;
+> 
+> --
+> 1.7.3.1
+> 
+> 
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org. For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Fight unfair telecom internet charges in Canada: sign
+> http://stopthemeter.ca/
+> Don't email: href=mailto:"dont@kvack.org"> email@kvack.org 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
