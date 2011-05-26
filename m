@@ -1,38 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 3DDB76B0011
-	for <linux-mm@kvack.org>; Thu, 26 May 2011 19:30:52 -0400 (EDT)
-Message-ID: <4DDEE2A5.1050508@redhat.com>
-Date: Thu, 26 May 2011 19:30:45 -0400
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: mm: remove khugepaged double thp vmstat update with CONFIG_NUMA=n
-References: <20110526222218.GS19505@random.random>
-In-Reply-To: <20110526222218.GS19505@random.random>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 05FC96B0011
+	for <linux-mm@kvack.org>; Thu, 26 May 2011 19:48:35 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 2CB1C3EE0AE
+	for <linux-mm@kvack.org>; Fri, 27 May 2011 08:48:32 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 127E745DE50
+	for <linux-mm@kvack.org>; Fri, 27 May 2011 08:48:32 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id ECF1F45DE4D
+	for <linux-mm@kvack.org>; Fri, 27 May 2011 08:48:31 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id DFA441DB803B
+	for <linux-mm@kvack.org>; Fri, 27 May 2011 08:48:31 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id ACFC01DB802F
+	for <linux-mm@kvack.org>; Fri, 27 May 2011 08:48:31 +0900 (JST)
+Date: Fri, 27 May 2011 08:41:39 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH v3 7/10] workqueue: add WQ_IDLEPRI
+Message-Id: <20110527084139.d334819f.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110526114406.GG9715@htj.dyndns.org>
+References: <20110526141047.dc828124.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110526143024.7f66e797.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110526093808.GE9715@htj.dyndns.org>
+	<20110526193018.12b3ddea.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110526195019.8af6d882.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110526114406.GG9715@htj.dyndns.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Johannes Weiner <jweiner@redhat.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>
+To: Tejun Heo <tj@kernel.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Ying Han <yinghan@google.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>
 
-On 05/26/2011 06:22 PM, Andrea Arcangeli wrote:
-> Subject: mm: remove khugepaged double thp vmstat update with CONFIG_NUMA=n
->
-> From: Andrea Arcangeli<aarcange@redhat.com>
->
-> Johannes noticed the vmstat update is already taken care of by
-> khugepaged_alloc_hugepage() internally. The only places that are
-> required to update the vmstat are the callers of alloc_hugepage
-> (callers of khugepaged_alloc_hugepage aren't).
->
-> Signed-off-by: Andrea Arcangeli<aarcange@redhat.com>
-> Reported-by: Johannes Weiner<jweiner@redhat.com>
+On Thu, 26 May 2011 13:44:06 +0200
+Tejun Heo <tj@kernel.org> wrote:
 
-Acked-by: Rik van Riel <riel@redhat.com>
+> Hello,
+> 
+> On Thu, May 26, 2011 at 07:50:19PM +0900, KAMEZAWA Hiroyuki wrote:
+> > On Thu, 26 May 2011 19:30:18 +0900
+> > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> > > In the next version, I'll try some like..
+> > > ==
+> > > 	process_one_work(...) {
+> > > 		.....
+> > > 		spin_unlock_irq(&gcwq->lock);
+> > > 		.....
+> > > 		if (cwq->wq->flags & WQ_IDLEPRI) {
+> > > 			set_scheduler(...SCHED_IDLE...)
+> > > 			cond_resched();
+> > > 			scheduler_switched = true;
+> > > 		}
+> > > 		f(work) 
+> > > 		if (scheduler_switched)
+> > > 			set_scheduler(...SCHED_OTHER...)
+> > > 		spin_lock_irq(&gcwq->lock);
+> > > 	}
+> > > ==
+> > > Patch size will be much smaller. (Should I do this in memcg's code ??)
+> > > 
+> > 
+> > BTW, my concern is that if f(work) is enough short,effect of SCHED_IDLE will never
+> > be found because SCHED_OTHER -> SCHED_IDLE -> SCHED_OTHER switch is very fast.
+> > Changed "weight" of CFQ never affects the next calculation of vruntime..of the
+> > thread and the work will show the same behavior with SCHED_OTHER.
+> > 
+> > I'm sorry if I misunderstand CFQ and setscheduler().
+> 
+> Hmm... I'm not too familiar there either but,
+> 
+> * If prio is lowered (you're gonna lower it too, right?),
+>   prio_changed_fair() is called which in turn does resched_task() as
+>   necessary.
+> 
+> * More importantly, for short work items, it's likely to not matter at
+>   all.  If you can determine beforehand that it's not gonna take very
+>   long time, queueing on system_wq would be more efficient.
+> 
+> Thanks.
+> 
 
--- 
-All rights reversed
+Ok, Now, I use following style.
+
+	(short work)->requeue->(short work)->requeue
+I'll change this as
+	(set SCHED_IDLE)->long work (until the end)->(set SCHED_OTHER)
+
+Then, I'll see what I want.
+
+Thanks.
+-Kame
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
