@@ -1,63 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 01A446B0011
-	for <linux-mm@kvack.org>; Thu, 26 May 2011 12:38:10 -0400 (EDT)
-Message-ID: <4DDE81F4.8060800@panasas.com>
-Date: Thu, 26 May 2011 19:38:12 +0300
-From: Boaz Harrosh <bharrosh@panasas.com>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id B332B6B0011
+	for <linux-mm@kvack.org>; Thu, 26 May 2011 12:56:12 -0400 (EDT)
+Received: from wpaz24.hot.corp.google.com (wpaz24.hot.corp.google.com [172.24.198.88])
+	by smtp-out.google.com with ESMTP id p4QGuAYu005931
+	for <linux-mm@kvack.org>; Thu, 26 May 2011 09:56:10 -0700
+Received: from qwh5 (qwh5.prod.google.com [10.241.194.197])
+	by wpaz24.hot.corp.google.com with ESMTP id p4QGtZXF021596
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 26 May 2011 09:56:09 -0700
+Received: by qwh5 with SMTP id 5so633896qwh.34
+        for <linux-mm@kvack.org>; Thu, 26 May 2011 09:56:09 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: (Short?) merge window reminder
-References: <BANLkTi=PLuZhx1=rCfOtg=aOTuC1UbuPYg@mail.gmail.com>	<20110523192056.GC23629@elte.hu>	<BANLkTikdgM+kSvaEYuQkgCYJZELnvwfetg@mail.gmail.com>	<BANLkTinbrtzY66p+1NALP8BDfjXLx=Qp-A@mail.gmail.com>	<4DDD0E5F.5080105@panasas.com> <BANLkTi=FAwzW+qR+Cbwmor90pgbgzfuw-g@mail.gmail.com>
-In-Reply-To: <BANLkTi=FAwzW+qR+Cbwmor90pgbgzfuw-g@mail.gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20110526090538.GA19082@cmpxchg.org>
+References: <1305583230-2111-1-git-send-email-yinghan@google.com>
+	<20110516231512.GW16531@cmpxchg.org>
+	<BANLkTinohFTQRTViyU5NQ6EGi95xieXwOA@mail.gmail.com>
+	<20110516171820.124a8fbc.akpm@linux-foundation.org>
+	<20110526090538.GA19082@cmpxchg.org>
+Date: Thu, 26 May 2011 09:56:06 -0700
+Message-ID: <BANLkTin=nYuGiGzgNB0ZdLVPA_wotxvAEg@mail.gmail.com>
+Subject: Re: [PATCH] memcg: fix typo in the soft_limit stats.
+From: Ying Han <yinghan@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tony Luck <tony.luck@intel.com>
-Cc: Alexey Zaytsev <alexey.zaytsev@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org, DRI <dri-devel@lists.freedesktop.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@suse.de>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>, linux-mm@kvack.org
 
-On 05/26/2011 01:21 AM, Tony Luck wrote:
-> On Wed, May 25, 2011 at 7:12 AM, Boaz Harrosh <bharrosh@panasas.com> wrote:
->> So if you combine all the above:
+On Thu, May 26, 2011 at 2:05 AM, Johannes Weiner <hannes@cmpxchg.org> wrote=
+:
+> On Mon, May 16, 2011 at 05:18:20PM -0700, Andrew Morton wrote:
+>> On Mon, 16 May 2011 17:05:02 -0700
+>> Ying Han <yinghan@google.com> wrote:
 >>
->> D. Y. N
->> D - Is the decade since birth (1991 not 1990)
->> Y - is the year in the decade so you have 3.1.x, 3.2.x, .. 3.10.x, 4.1.X and so on
->>    Nice incremental number.
->> N - The Linus release of this Year. So this 3rd one goes up to 4 most probably.
+>> > On Mon, May 16, 2011 at 4:15 PM, Johannes Weiner <hannes@cmpxchg.org> =
+wrote:
+>> >
+>> > > On Mon, May 16, 2011 at 03:00:30PM -0700, Ying Han wrote:
+>> > > > This fixes the typo in the memory.stat including the following two
+>> > > > stats:
+>> > > >
+>> > > > $ cat /dev/cgroup/memory/A/memory.stat
+>> > > > total_soft_steal 0
+>> > > > total_soft_scan 0
+>> > > >
+>> > > > And change it to:
+>> > > >
+>> > > > $ cat /dev/cgroup/memory/A/memory.stat
+>> > > > total_soft_kswapd_steal 0
+>> > > > total_soft_kswapd_scan 0
+>> > > >
+>> > > > Signed-off-by: Ying Han <yinghan@google.com>
+>> > >
+>> > > I am currently proposing and working on a scheme that makes the soft
+>> > > limit not only a factor for global memory pressure, but for
+>> > > hierarchical reclaim in general, to prefer child memcgs during recla=
+im
+>> > > that are in excess of their soft limit.
+>> > >
+>> > > Because this means prioritizing memcgs over one another, rather than
+>> > > having explicit soft limit reclaim runs, there is no natural counter
+>> > > for pages reclaimed due to the soft limit anymore.
+>> > >
+>> > > Thus, for the patch that introduces this counter:
+>> > >
+>> > > Nacked-by: Johannes Weiner <hannes@cmpxchg.org>
+>> > >
+>> >
+>> > This patch is fixing a typo of the stats being integrated into mmotm. =
+Does
+>> > it make sense to fix the
+>> > existing stats first while we are discussing other approaches?
+>> >
 >>
->> Linus always likes, and feels very poetic about the Christmas version release.
->> He hates it when once it slipped into the next year. So now he gets to increment
->> the second digit as a bonus.
+>> It would be quite bad to add new userspace-visible stats and to then
+>> take them away again.
 >>
->> The 2nd digit gets to start on a *one*, never zero and goes up to *10*, to symbolize
->> the 1991 birth. And we never have .zero quality, right?
->>
->> The first Digit gets incremented on decade from 1991 so on 2011 and not 2010
-> 
-> This is clearly the best suggestion so far - small numbers, somewhat
-> date related (but without stuffing a "2011." on the front).  No ".0"
-> releases, ever.
-> 
-> But best of all it defines now when we will switch to 4.x.y and 5.x.y
-> so we don't have to keep having this discussion whenever someone thinks
-> that the numbers are getting "too big" (well perhaps when we get to the
-> tenth decade or so :-)
-> 
-> So the only thing left to argue is whether the upcoming release should
-> be numbered "3.1.1" as the first release in the first year of the 3rd
-> decade ...  or whether we should count 2.6.37 .. 2.6.39 as the first
-> three releases this year and thus we ought to start with "3.1.4" (so we
-> start with "pi"!).
-> 
+>> But given that memcg-add-stats-to-monitor-soft_limit-reclaim.patch is
+>> queued for 2.6.39-rc1, we could proceed with that plan and then make
+>> sure that Johannes's changes are merged either prior to 2.6.40 or
+>> they are never merged at all.
+>
+> I am on it, but I don't think I can get them into shape and
+> rudimentally benchmarked until the merge window is closed.
+>
+> So far I found nothing that would invalidate the design or have
+> measurable impact on non-memcg systems. =A0Then again, I suck at
+> constructing tests, and have only limited machinery available.
+>
+> If people are interested and would like to help out verifying the
+> changes, I can send an updated and documented version of the series
+> that should be easier to understand.
 
-Yes, Yes I like this a lot. I love pi, thanks.
+Please do. I can help test it out.
 
-Boaz
-> Linus: If you go with this, you should let Boaz set the new "NAME"
-> as a prize for such an inspired solution.
-> 
-> -Tony
+--Ying
+
+>
+>> Or we could just leave out the stats until we're sure. =A0Not having the=
+m
+>> for a while is not as bad as adding them and then removing them.
+>
+> I am a bit unsure as to why there is a sudden rush with those
+> statistics now.
+
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
