@@ -1,57 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id A7FD16B0012
-	for <linux-mm@kvack.org>; Thu, 26 May 2011 04:18:56 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id BC6F13EE0CD
-	for <linux-mm@kvack.org>; Thu, 26 May 2011 17:18:53 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id A2C8045DF5C
-	for <linux-mm@kvack.org>; Thu, 26 May 2011 17:18:53 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 88C9145DF57
-	for <linux-mm@kvack.org>; Thu, 26 May 2011 17:18:53 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 78D5B1DB802C
-	for <linux-mm@kvack.org>; Thu, 26 May 2011 17:18:53 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 31FAB1DB803E
-	for <linux-mm@kvack.org>; Thu, 26 May 2011 17:18:53 +0900 (JST)
-Message-ID: <4DDE0CDD.5050000@jp.fujitsu.com>
-Date: Thu, 26 May 2011 17:18:37 +0900
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 2F0336B0012
+	for <linux-mm@kvack.org>; Thu, 26 May 2011 05:06:23 -0400 (EDT)
+Date: Thu, 26 May 2011 11:05:38 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] memcg: fix typo in the soft_limit stats.
+Message-ID: <20110526090538.GA19082@cmpxchg.org>
+References: <1305583230-2111-1-git-send-email-yinghan@google.com>
+ <20110516231512.GW16531@cmpxchg.org>
+ <BANLkTinohFTQRTViyU5NQ6EGi95xieXwOA@mail.gmail.com>
+ <20110516171820.124a8fbc.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: Easy portable testcase! (Re: Kernel falls apart under light memory
- pressure (i.e. linking vmlinux))
-References: <BANLkTinptn4-+u+jgOr2vf2iuiVS3mmYXA@mail.gmail.com>
-In-Reply-To: <BANLkTinptn4-+u+jgOr2vf2iuiVS3mmYXA@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110516171820.124a8fbc.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: luto@mit.edu
-Cc: minchan.kim@gmail.com, aarcange@redhat.com, kamezawa.hiroyu@jp.fujitsu.com, fengguang.wu@intel.com, andi@firstfloor.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mgorman@suse.de, hannes@cmpxchg.org, riel@redhat.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Ying Han <yinghan@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>, linux-mm@kvack.org
 
-(2011/05/26 5:17), Andrew Lutomirski wrote:
-> On Tue, May 24, 2011 at 8:43 PM, KOSAKI Motohiro
-> <kosaki.motohiro@jp.fujitsu.com> wrote:
->>
->> Unfortnately, this log don't tell us why DM don't issue any swap io. ;-)
->> I doubt it's DM issue. Can you please try to make swap on out of DM?
->>
->>
+On Mon, May 16, 2011 at 05:18:20PM -0700, Andrew Morton wrote:
+> On Mon, 16 May 2011 17:05:02 -0700
+> Ying Han <yinghan@google.com> wrote:
 > 
-> I can do one better: I can tell you how to reproduce the OOM in the
-> comfort of your own VM without using dm_crypt or a Sandy Bridge
-> laptop.  This is on Fedora 15, but it really ought to work on any
-> x86_64 distribution that has kvm.  You'll probably want at least 6GB
-> on your host machine because the VM wants 4GB ram.
+> > On Mon, May 16, 2011 at 4:15 PM, Johannes Weiner <hannes@cmpxchg.org> wrote:
+> > 
+> > > On Mon, May 16, 2011 at 03:00:30PM -0700, Ying Han wrote:
+> > > > This fixes the typo in the memory.stat including the following two
+> > > > stats:
+> > > >
+> > > > $ cat /dev/cgroup/memory/A/memory.stat
+> > > > total_soft_steal 0
+> > > > total_soft_scan 0
+> > > >
+> > > > And change it to:
+> > > >
+> > > > $ cat /dev/cgroup/memory/A/memory.stat
+> > > > total_soft_kswapd_steal 0
+> > > > total_soft_kswapd_scan 0
+> > > >
+> > > > Signed-off-by: Ying Han <yinghan@google.com>
+> > >
+> > > I am currently proposing and working on a scheme that makes the soft
+> > > limit not only a factor for global memory pressure, but for
+> > > hierarchical reclaim in general, to prefer child memcgs during reclaim
+> > > that are in excess of their soft limit.
+> > >
+> > > Because this means prioritizing memcgs over one another, rather than
+> > > having explicit soft limit reclaim runs, there is no natural counter
+> > > for pages reclaimed due to the soft limit anymore.
+> > >
+> > > Thus, for the patch that introduces this counter:
+> > >
+> > > Nacked-by: Johannes Weiner <hannes@cmpxchg.org>
+> > >
+> > 
+> > This patch is fixing a typo of the stats being integrated into mmotm. Does
+> > it make sense to fix the
+> > existing stats first while we are discussing other approaches?
+> > 
+> 
+> It would be quite bad to add new userspace-visible stats and to then
+> take them away again.
+> 
+> But given that memcg-add-stats-to-monitor-soft_limit-reclaim.patch is
+> queued for 2.6.39-rc1, we could proceed with that plan and then make
+> sure that Johannes's changes are merged either prior to 2.6.40 or
+> they are never merged at all.
 
-Hmmm....
+I am on it, but I don't think I can get them into shape and
+rudimentally benchmarked until the merge window is closed.
 
-I don't have 6GB memory. :-)
-I'll try to borrow it from anywhere, but I'd expect my response is delayed
-some time.
+So far I found nothing that would invalidate the design or have
+measurable impact on non-memcg systems.  Then again, I suck at
+constructing tests, and have only limited machinery available.
+
+If people are interested and would like to help out verifying the
+changes, I can send an updated and documented version of the series
+that should be easier to understand.
+
+> Or we could just leave out the stats until we're sure.  Not having them
+> for a while is not as bad as adding them and then removing them.
+
+I am a bit unsure as to why there is a sudden rush with those
+statistics now.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
