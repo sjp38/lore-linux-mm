@@ -1,50 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A5A26B0011
-	for <linux-mm@kvack.org>; Thu, 26 May 2011 12:34:00 -0400 (EDT)
-Received: by wyf19 with SMTP id 19so852820wyf.14
-        for <linux-mm@kvack.org>; Thu, 26 May 2011 09:33:57 -0700 (PDT)
-From: Hussam Al-Tayeb <ht990332@gmail.com>
-Subject: Re: [Bugme-new] [Bug 35662] New: softlockup with kernel 2.6.39
-Date: Thu, 26 May 2011 19:33:48 +0300
-References: <bug-35662-10286@https.bugzilla.kernel.org/> <20110523164804.572cecfd.akpm@linux-foundation.org> <201105241001.47111.hussam@visp.net.lb>
-In-Reply-To: <201105241001.47111.hussam@visp.net.lb>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 01A446B0011
+	for <linux-mm@kvack.org>; Thu, 26 May 2011 12:38:10 -0400 (EDT)
+Message-ID: <4DDE81F4.8060800@panasas.com>
+Date: Thu, 26 May 2011 19:38:12 +0300
+From: Boaz Harrosh <bharrosh@panasas.com>
 MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="us-ascii"
+Subject: Re: (Short?) merge window reminder
+References: <BANLkTi=PLuZhx1=rCfOtg=aOTuC1UbuPYg@mail.gmail.com>	<20110523192056.GC23629@elte.hu>	<BANLkTikdgM+kSvaEYuQkgCYJZELnvwfetg@mail.gmail.com>	<BANLkTinbrtzY66p+1NALP8BDfjXLx=Qp-A@mail.gmail.com>	<4DDD0E5F.5080105@panasas.com> <BANLkTi=FAwzW+qR+Cbwmor90pgbgzfuw-g@mail.gmail.com>
+In-Reply-To: <BANLkTi=FAwzW+qR+Cbwmor90pgbgzfuw-g@mail.gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
-Message-Id: <201105261933.48895.hussam@visp.net.lb>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hussam Al-Tayeb <ht990332@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org
+To: Tony Luck <tony.luck@intel.com>
+Cc: Alexey Zaytsev <alexey.zaytsev@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org, DRI <dri-devel@lists.freedesktop.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@suse.de>
 
-Another time.
+On 05/26/2011 01:21 AM, Tony Luck wrote:
+> On Wed, May 25, 2011 at 7:12 AM, Boaz Harrosh <bharrosh@panasas.com> wrote:
+>> So if you combine all the above:
+>>
+>> D. Y. N
+>> D - Is the decade since birth (1991 not 1990)
+>> Y - is the year in the decade so you have 3.1.x, 3.2.x, .. 3.10.x, 4.1.X and so on
+>>    Nice incremental number.
+>> N - The Linus release of this Year. So this 3rd one goes up to 4 most probably.
+>>
+>> Linus always likes, and feels very poetic about the Christmas version release.
+>> He hates it when once it slipped into the next year. So now he gets to increment
+>> the second digit as a bonus.
+>>
+>> The 2nd digit gets to start on a *one*, never zero and goes up to *10*, to symbolize
+>> the 1991 birth. And we never have .zero quality, right?
+>>
+>> The first Digit gets incremented on decade from 1991 so on 2011 and not 2010
+> 
+> This is clearly the best suggestion so far - small numbers, somewhat
+> date related (but without stuffing a "2011." on the front).  No ".0"
+> releases, ever.
+> 
+> But best of all it defines now when we will switch to 4.x.y and 5.x.y
+> so we don't have to keep having this discussion whenever someone thinks
+> that the numbers are getting "too big" (well perhaps when we get to the
+> tenth decade or so :-)
+> 
+> So the only thing left to argue is whether the upcoming release should
+> be numbered "3.1.1" as the first release in the first year of the 3rd
+> decade ...  or whether we should count 2.6.37 .. 2.6.39 as the first
+> three releases this year and thus we ought to start with "3.1.4" (so we
+> start with "pi"!).
+> 
 
-[ 8520.275830] INFO: task khugepaged:26 blocked for more than 120 seconds.
-[ 8520.275834] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables 
-this message.
-[ 8520.275837] khugepaged      D c1455200     0    26      2 0x00000000
-[ 8520.275843]  f3f9fedc 00000046 f59af000 c1455200 00000400 c1455200 c1455580 
-f3c451f0
-[ 8520.275850]  0000000a f3f9fe88 c10c5078 c1455c80 00000003 f5506380 c14c4380 
-f3c451f0
-[ 8520.275857]  f3c453b4 33c86581 0000069a c14c4380 f5506380 f3c451f0 c4525640 
-f3f9fee8
-[ 8520.275864] Call Trace:
-[ 8520.275874]  [<c10c5078>] ? __alloc_pages_direct_compact+0xe8/0x160
-[ 8520.275880]  [<c10ff3f8>] ? __mem_cgroup_try_charge+0x2d8/0x4e0
-[ 8520.275885]  [<c10fd138>] ? memcg_check_events+0x28/0x160
-[ 8520.275891]  [<c131b885>] rwsem_down_failed_common+0x95/0xe0
-[ 8520.275895]  [<c131b8e2>] rwsem_down_write_failed+0x12/0x20
-[ 8520.275900]  [<c131b94a>] call_rwsem_down_write_failed+0x6/0x8
-[ 8520.275904]  [<c131b0f5>] ? down_write+0x15/0x17
-[ 8520.275908]  [<c10f8c72>] khugepaged+0x552/0xdf0
-[ 8520.275913]  [<c10613a0>] ? autoremove_wake_function+0x0/0x40
-[ 8520.275922]  [<c10f8720>] ? khugepaged+0x0/0xdf0
-[ 8520.275924]  [<c1060d08>] kthread+0x68/0x70
-[ 8520.275926]  [<c1060ca0>] ? kthread+0x0/0x70
-[ 8520.275929]  [<c1003d7e>] kernel_thread_helper+0x6/0x18
+Yes, Yes I like this a lot. I love pi, thanks.
+
+Boaz
+> Linus: If you go with this, you should let Boaz set the new "NAME"
+> as a prize for such an inspired solution.
+> 
+> -Tony
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
