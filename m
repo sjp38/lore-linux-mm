@@ -1,79 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 552776B0011
-	for <linux-mm@kvack.org>; Thu, 26 May 2011 18:34:14 -0400 (EDT)
-Date: Thu, 26 May 2011 15:33:19 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2] cpusets: randomize node rotor used in
- cpuset_mem_spread_node()
-Message-Id: <20110526153319.b7e8c0b6.akpm@linux-foundation.org>
-In-Reply-To: <20110415082051.GB8828@tiehlicka.suse.cz>
-References: <20110414065146.GA19685@tiehlicka.suse.cz>
-	<20110414160145.0830.A69D9226@jp.fujitsu.com>
-	<20110415161831.12F8.A69D9226@jp.fujitsu.com>
-	<20110415082051.GB8828@tiehlicka.suse.cz>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+	by kanga.kvack.org (Postfix) with SMTP id 3DDB76B0011
+	for <linux-mm@kvack.org>; Thu, 26 May 2011 19:30:52 -0400 (EDT)
+Message-ID: <4DDEE2A5.1050508@redhat.com>
+Date: Thu, 26 May 2011 19:30:45 -0400
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: mm: remove khugepaged double thp vmstat update with CONFIG_NUMA=n
+References: <20110526222218.GS19505@random.random>
+In-Reply-To: <20110526222218.GS19505@random.random>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, Jack Steiner <steiner@sgi.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Paul Menage <menage@google.com>, Robin Holt <holt@sgi.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Johannes Weiner <jweiner@redhat.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>
 
-On Fri, 15 Apr 2011 10:20:51 +0200
-Michal Hocko <mhocko@suse.cz> wrote:
-
-> Some workloads that create a large number of small files tend to assign
-> too many pages to node 0 (multi-node systems).  Part of the reason is that
-> the rotor (in cpuset_mem_spread_node()) used to assign nodes starts at
-> node 0 for newly created tasks.
-> 
-> This patch changes the rotor to be initialized to a random node number of
-> the cpuset. We are initializating it lazily in cpuset_mem_spread_node
-> resp. cpuset_slab_spread_node.
-> 
+On 05/26/2011 06:22 PM, Andrea Arcangeli wrote:
+> Subject: mm: remove khugepaged double thp vmstat update with CONFIG_NUMA=n
 >
-> ...
+> From: Andrea Arcangeli<aarcange@redhat.com>
 >
-> --- a/kernel/cpuset.c
-> +++ b/kernel/cpuset.c
-> @@ -2465,11 +2465,19 @@ static int cpuset_spread_node(int *rotor)
->  
->  int cpuset_mem_spread_node(void)
->  {
-> +	if (current->cpuset_mem_spread_rotor == -1)
-> +		current->cpuset_mem_spread_rotor =
-> +			node_random(&current->mems_allowed);
-> +
->  	return cpuset_spread_node(&current->cpuset_mem_spread_rotor);
->  }
->  
->  int cpuset_slab_spread_node(void)
->  {
-> +	if (current->cpuset_slab_spread_rotor == -1)
-> +		current->cpuset_slab_spread_rotor
-> +			= node_random(&current->mems_allowed);
-> +
->  	return cpuset_spread_node(&current->cpuset_slab_spread_rotor);
->  }
->  
+> Johannes noticed the vmstat update is already taken care of by
+> khugepaged_alloc_hugepage() internally. The only places that are
+> required to update the vmstat are the callers of alloc_hugepage
+> (callers of khugepaged_alloc_hugepage aren't).
+>
+> Signed-off-by: Andrea Arcangeli<aarcange@redhat.com>
+> Reported-by: Johannes Weiner<jweiner@redhat.com>
 
-alpha allmodconfig:
+Acked-by: Rik van Riel <riel@redhat.com>
 
-kernel/built-in.o: In function `cpuset_slab_spread_node':
-(.text+0x67360): undefined reference to `node_random'
-kernel/built-in.o: In function `cpuset_slab_spread_node':
-(.text+0x67368): undefined reference to `node_random'
-kernel/built-in.o: In function `cpuset_mem_spread_node':
-(.text+0x673b8): undefined reference to `node_random'
-kernel/built-in.o: In function `cpuset_mem_spread_node':
-(.text+0x673c0): undefined reference to `node_random'
-
-because it has CONFIG_NUMA=n, CONFIG_NODES_SHIFT=7.
-
-We use "#if MAX_NUMNODES > 1" in nodemask.h, but we use CONFIG_NUMA
-when deciding to build mempolicy.o.  That's a bit odd - why didn't
-nodemask.h use CONFIG_NUMA?
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
