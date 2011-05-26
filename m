@@ -1,48 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id CBDC46B0011
-	for <linux-mm@kvack.org>; Thu, 26 May 2011 14:42:42 -0400 (EDT)
-Date: Thu, 26 May 2011 13:42:39 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [slubllv5 07/25] x86: Add support for cmpxchg_double
-In-Reply-To: <4DDE9C01.2090104@zytor.com>
-Message-ID: <alpine.DEB.2.00.1105261340570.26578@router.home>
-References: <20110516202605.274023469@linux.com> <20110516202625.197639928@linux.com> <4DDE9670.3060709@zytor.com> <alpine.DEB.2.00.1105261315350.26578@router.home> <4DDE9C01.2090104@zytor.com>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 9A8666B0022
+	for <linux-mm@kvack.org>; Thu, 26 May 2011 14:44:03 -0400 (EDT)
+Received: by ewy9 with SMTP id 9so518417ewy.14
+        for <linux-mm@kvack.org>; Thu, 26 May 2011 11:43:59 -0700 (PDT)
+Date: Thu, 26 May 2011 21:44:02 +0300
+From: Alexey Dobriyan <adobriyan@gmail.com>
+Subject: Re: [PATCH] mm: don't access vm_flags as 'int'
+Message-ID: <20110526184402.GA2453@p183.telecom.by>
+References: <4DDE2873.7060409@jp.fujitsu.com>
+ <BANLkTi=znC18PAbpDfeVO+=Pat_EeXddjw@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <BANLkTi=znC18PAbpDfeVO+=Pat_EeXddjw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "H. Peter Anvin" <hpa@zytor.com>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, David Rientjes <rientjes@google.com>, Eric Dumazet <eric.dumazet@gmail.com>, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, benh@kernel.crashing.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, hughd@google.com, akpm@linux-foundation.org, dave@linux.vnet.ibm.com, kamezawa.hiroyu@jp.fujitsu.com
 
-On Thu, 26 May 2011, H. Peter Anvin wrote:
+On Thu, May 26, 2011 at 10:53:34AM -0700, Linus Torvalds wrote:
+> 2011/5/26 KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>:
+> > The type of vma->vm_flags is 'unsigned long'. Neither 'int' nor
+> > 'unsigned int'. This patch fixes such misuse.
+> 
+> I applied this, except I also just made the executive decision to
+> replace things with "vm_flags_t" after all.
 
-> On 05/26/2011 11:17 AM, Christoph Lameter wrote:
-> > On Thu, 26 May 2011, H. Peter Anvin wrote:
-> >
-> >>> +config CMPXCHG_DOUBLE
-> >>> +	def_bool X86_64 || (X86_32 && !M386)
-> >>> +
-> >>
-> >> CMPXCHG16B is not a baseline feature for the Linux x86-64 build, and
-> >> CMPXCHG8G is a Pentium, not a 486, feature.
-> >>
-> >> Nacked-by: H. Peter Anvin <hpa@zytor.com>
-> >
-> > Hmmm... We may have to call it CONFIG_CMPXCHG_DOUBLE_POSSIBLE then?
-> >
-> > Because the slub code tests the flag in the processor and will not use the
-> > cmpxchg16b from the allocator if its not there. It will then fallback to
-> > using a bit lock in page struct.
-> >
->
-> Well, if it is just about being "possible" then it should simply be true
-> for all of x86.  There is no reason to exclude i386 (which is all your
-> above predicate does, it is exactly equivalent to !M386).
+Woo-hoo!
 
-Ok. Possible means that the code for cmpxchg16b/8b will be compiled in.
-Then how do I exclude the code if someone compiles a kernel for a
-processor that certainly does not support these instructions?
+Why it is marked __nocast and not __bitwise__ like gfp_t?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
