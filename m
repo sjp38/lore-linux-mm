@@ -1,71 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id C355B6B0023
-	for <linux-mm@kvack.org>; Thu, 26 May 2011 17:45:09 -0400 (EDT)
-Received: by wwi18 with SMTP id 18so4807238wwi.2
-        for <linux-mm@kvack.org>; Thu, 26 May 2011 14:45:07 -0700 (PDT)
-Subject: Re: [slubllv5 07/25] x86: Add support for cmpxchg_double
-From: Eric Dumazet <eric.dumazet@gmail.com>
-In-Reply-To: <4DDEC6B4.4050509@zytor.com>
-References: <20110516202605.274023469@linux.com>
-	 <20110516202625.197639928@linux.com> <4DDE9670.3060709@zytor.com>
-	 <alpine.DEB.2.00.1105261315350.26578@router.home>
-	 <4DDE9C01.2090104@zytor.com>
-	 <alpine.DEB.2.00.1105261615130.591@router.home>
-	 <1306445159.2543.25.camel@edumazet-laptop>  <4DDEC6B4.4050509@zytor.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Thu, 26 May 2011 23:45:03 +0200
-Message-ID: <1306446303.2543.27.camel@edumazet-laptop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id D421E6B0011
+	for <linux-mm@kvack.org>; Thu, 26 May 2011 18:22:24 -0400 (EDT)
+Date: Fri, 27 May 2011 00:22:18 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: mm: remove khugepaged double thp vmstat update with CONFIG_NUMA=n
+Message-ID: <20110526222218.GS19505@random.random>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "H. Peter Anvin" <hpa@zytor.com>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>
+To: Johannes Weiner <jweiner@redhat.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Rik van Riel <riel@redhat.com>
 
-Le jeudi 26 mai 2011 A  14:31 -0700, H. Peter Anvin a A(C)crit :
-> On 05/26/2011 02:25 PM, Eric Dumazet wrote:
-> >>
-> >> +#define cmpxchg16b(ptr, o1, o2, n1, n2)				\
-> >> +({								\
-> >> +	char __ret;						\
-> >> +	__typeof__(o2) __junk;					\
-> >> +	__typeof__(*(ptr)) __old1 = (o1);			\
-> >> +	__typeof__(o2) __old2 = (o2);				\
-> >> +	__typeof__(*(ptr)) __new1 = (n1);			\
-> >> +	__typeof__(o2) __new2 = (n2);				\
-> >> +	asm volatile(LOCK_PREFIX_HERE "lock; cmpxchg16b (%%rsi);setz %1" \
-> > 
-> > If there is no emulation, why do you force rsi here ?
-> > 
-> > It could be something else, like "=m" (*ptr) ?
-> > 
-> > (same remark for other functions)
-> > 
-> 
-> "+m" (*ptr) please...
-> 
-> 	-hpa
+Subject: mm: remove khugepaged double thp vmstat update with CONFIG_NUMA=n
 
-Oh well, I guess I was fooled by :
+From: Andrea Arcangeli <aarcange@redhat.com>
 
- (arch/x86/include/asm/cmpxchg_32.h)
+Johannes noticed the vmstat update is already taken care of by
+khugepaged_alloc_hugepage() internally. The only places that are
+required to update the vmstat are the callers of alloc_hugepage
+(callers of khugepaged_alloc_hugepage aren't).
 
-static inline void set_64bit(volatile u64 *ptr, u64 value)
-{
-        u32 low  = value;
-        u32 high = value >> 32;
-        u64 prev = *ptr;
+Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+Reported-by: Johannes Weiner <jweiner@redhat.com>
+---
+ mm/huge_memory.c |    5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)
 
-        asm volatile("\n1:\t"
-                     LOCK_PREFIX "cmpxchg8b %0\n\t"
-                     "jnz 1b"
-                     : "=m" (*ptr), "+A" (prev)
-                     : "b" (low), "c" (high)
-                     : "memory");
-}
-
-
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -2233,11 +2233,8 @@ static void khugepaged_loop(void)
+ 	while (likely(khugepaged_enabled())) {
+ #ifndef CONFIG_NUMA
+ 		hpage = khugepaged_alloc_hugepage();
+-		if (unlikely(!hpage)) {
+-			count_vm_event(THP_COLLAPSE_ALLOC_FAILED);
++		if (unlikely(!hpage))
+ 			break;
+-		}
+-		count_vm_event(THP_COLLAPSE_ALLOC);
+ #else
+ 		if (IS_ERR(hpage)) {
+ 			khugepaged_alloc_sleep();
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
