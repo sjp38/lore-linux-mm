@@ -1,85 +1,192 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id F2FCE6B0011
-	for <linux-mm@kvack.org>; Thu, 26 May 2011 17:09:34 -0400 (EDT)
-Received: by qyk30 with SMTP id 30so794664qyk.14
-        for <linux-mm@kvack.org>; Thu, 26 May 2011 14:09:33 -0700 (PDT)
-Date: Thu, 26 May 2011 18:07:53 -0300
-From: Rafael Aquini <aquini@linux.com>
-Subject: Re: [PATCH] [BUGFIX] mm: hugepages can cause negative commitlimit
-Message-ID: <20110526210751.GA14819@optiplex.tchesoft.com>
-Reply-To: aquini@linux.com
-References: <20110518153445.GA18127@sgi.com>
- <BANLkTinbHnrf2isuLzUFZN8ypaT476G1zw@mail.gmail.com>
- <20110519045630.GA22533@sgi.com>
- <BANLkTinyYP-je9Nf8X-xWEdpgvn8a631Mw@mail.gmail.com>
- <20110519221101.GC19648@sgi.com>
- <20110520130411.d1e0baef.akpm@linux-foundation.org>
- <20110520223032.GA15192@x61.tchesoft.com>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 35A6B6B0011
+	for <linux-mm@kvack.org>; Thu, 26 May 2011 17:16:33 -0400 (EDT)
+Date: Thu, 26 May 2011 16:16:28 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [slubllv5 07/25] x86: Add support for cmpxchg_double
+In-Reply-To: <4DDE9C01.2090104@zytor.com>
+Message-ID: <alpine.DEB.2.00.1105261615130.591@router.home>
+References: <20110516202605.274023469@linux.com> <20110516202625.197639928@linux.com> <4DDE9670.3060709@zytor.com> <alpine.DEB.2.00.1105261315350.26578@router.home> <4DDE9C01.2090104@zytor.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110520223032.GA15192@x61.tchesoft.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Russ Anderson <rja@sgi.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux.com>
+To: "H. Peter Anvin" <hpa@zytor.com>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, David Rientjes <rientjes@google.com>, Eric Dumazet <eric.dumazet@gmail.com>, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>
 
-On Fri, May 20, 2011 at 07:30:32PM -0300, Rafael Aquini wrote:
-> On Fri, May 20, 2011 at 01:04:11PM -0700, Andrew Morton wrote:
-> > On Thu, 19 May 2011 17:11:01 -0500
-> > Russ Anderson <rja@sgi.com> wrote:
-> > 
-> > > OK, I see your point.  The root problem is hugepages allocated at boot are
-> > > subtracted from totalram_pages but hugepages allocated at run time are not.
-> > > Correct me if I've mistate it or are other conditions.
-> > > 
-> > > By "allocated at run time" I mean "echo 1 > /proc/sys/vm/nr_hugepages".
-> > > That allocation will not change totalram_pages but will change
-> > > hugetlb_total_pages().
-> > > 
-> > > How best to fix this inconsistency?  Should totalram_pages include or exclude
-> > > hugepages?  What are the implications?
-> > 
-> > The problem is that hugetlb_total_pages() is trying to account for two
-> > different things, while totalram_pages accounts for only one of those
-> > things, yes?
-> > 
-> > One fix would be to stop accounting for huge pages in totalram_pages
-> > altogether.  That might break other things so careful checking would be
-> > needed.
-> > 
-> > Or we stop accounting for the boot-time allocated huge pages in
-> > hugetlb_total_pages().  Split the two things apart altogether and
-> > account for boot-time allocated and runtime-allocated pages separately.  This
-> > souds saner to me - it reflects what's actually happening in the kernel.
-> 
-> Perhaps we can just reinstate the # of pages "stealed" at early boot allocation
-> later, when hugetlb_init() calls gather_bootmem_prealloc()
-> 
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index 8ee3bd8..d606c9c 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -1111,6 +1111,7 @@ static void __init gather_bootmem_prealloc(void)
->                 WARN_ON(page_count(page) != 1);
->                 prep_compound_huge_page(page, h->order);
->                 prep_new_huge_page(h, page, page_to_nid(page));
-> +               totalram_pages += 1 << h->order;
->         }
->  }
+Here is a new patch that may address the concerns. The list of cpus that
+support CMPXCHG_DOUBLE is not complete.Could someone help me complete it?
 
-Howdy Russ,
 
-Were you able to confirm if that proposed change fix the issue you've reported?
 
-Although I've tested it with usual size hugepages and it did not messed things up,
-I'm not able to test it with GB hugepages, as I do not have any proc with "pdpe1gb" flag available.
+Subject: x86: Add support for cmpxchg_double
 
-Thanks in advance!
-Cheers!
--- 
-Rafael Aquini <aquini@linux.com>
+A simple implementation that only supports the word size and does not
+have a fallback mode (would require a spinlock).
+
+And 32 and 64 bit support for cmpxchg_double. cmpxchg double uses
+the cmpxchg8b or cmpxchg16b instruction on x86 processors to compare
+and swap 2 machine words. This allows lockless algorithms to move more
+context information through critical sections.
+
+Set a flag CONFIG_CMPXCHG_DOUBLE to signal the support of that feature
+during kernel builds.
+
+Cc: tj@kernel.org
+Signed-off-by: Christoph Lameter <cl@linux.com>
+
+---
+ arch/x86/Kconfig.cpu              |   10 +++++++
+ arch/x86/include/asm/cmpxchg_32.h |   48 ++++++++++++++++++++++++++++++++++++++
+ arch/x86/include/asm/cmpxchg_64.h |   45 +++++++++++++++++++++++++++++++++++
+ arch/x86/include/asm/cpufeature.h |    1
+ 4 files changed, 104 insertions(+)
+
+Index: linux-2.6/arch/x86/include/asm/cmpxchg_64.h
+===================================================================
+--- linux-2.6.orig/arch/x86/include/asm/cmpxchg_64.h	2011-05-26 16:03:33.595608967 -0500
++++ linux-2.6/arch/x86/include/asm/cmpxchg_64.h	2011-05-26 16:06:25.815607865 -0500
+@@ -151,4 +151,49 @@ extern void __cmpxchg_wrong_size(void);
+ 	cmpxchg_local((ptr), (o), (n));					\
+ })
+
++#define cmpxchg16b(ptr, o1, o2, n1, n2)				\
++({								\
++	char __ret;						\
++	__typeof__(o2) __junk;					\
++	__typeof__(*(ptr)) __old1 = (o1);			\
++	__typeof__(o2) __old2 = (o2);				\
++	__typeof__(*(ptr)) __new1 = (n1);			\
++	__typeof__(o2) __new2 = (n2);				\
++	asm volatile(LOCK_PREFIX_HERE "lock; cmpxchg16b (%%rsi);setz %1" \
++		       : "=d"(__junk), "=a"(__ret)		\
++		       : "S"(ptr), "b"(__new1),	"c"(__new2),	\
++		         "a"(__old1), "d"(__old2));		\
++	__ret; })
++
++
++#define cmpxchg16b_local(ptr, o1, o2, n1, n2)			\
++({								\
++	char __ret;						\
++	__typeof__(o2) __junk;					\
++	__typeof__(*(ptr)) __old1 = (o1);			\
++	__typeof__(o2) __old2 = (o2);				\
++	__typeof__(*(ptr)) __new1 = (n1);			\
++	__typeof__(o2) __new2 = (n2);				\
++	asm volatile("cmpxchg16b (%%rsi)\n\t\tsetz %1\n\t"	\
++		       : "=d"(__junk)_, "=a"(__ret)		\
++		       : "S"((ptr)), "b"(__new1), "c"(__new2),	\
++ 		         "a"(__old1), "d"(__old2));		\
++	__ret; })
++
++#define cmpxchg_double(ptr, o1, o2, n1, n2)				\
++({									\
++	BUILD_BUG_ON(sizeof(*(ptr)) != 8);				\
++	VM_BUG_ON((unsigned long)(ptr) % 16);				\
++	cmpxchg16b((ptr), (o1), (o2), (n1), (n2));			\
++})
++
++#define cmpxchg_double_local(ptr, o1, o2, n1, n2)			\
++({									\
++	BUILD_BUG_ON(sizeof(*(ptr)) != 8);				\
++	VM_BUG_ON((unsigned long)(ptr) % 16);				\
++	cmpxchg16b_local((ptr), (o1), (o2), (n1), (n2));		\
++})
++
++#define system_has_cmpxchg_double() cpu_has_cx16
++
+ #endif /* _ASM_X86_CMPXCHG_64_H */
+Index: linux-2.6/arch/x86/include/asm/cmpxchg_32.h
+===================================================================
+--- linux-2.6.orig/arch/x86/include/asm/cmpxchg_32.h	2011-05-26 16:03:33.615608967 -0500
++++ linux-2.6/arch/x86/include/asm/cmpxchg_32.h	2011-05-26 16:07:27.895607465 -0500
+@@ -280,4 +280,52 @@ static inline unsigned long cmpxchg_386(
+
+ #endif
+
++#define cmpxchg8b(ptr, o1, o2, n1, n2)				\
++({								\
++	char __ret;						\
++	__typeof__(o2) __dummy;					\
++	__typeof__(*(ptr)) __old1 = (o1);			\
++	__typeof__(o2) __old2 = (o2);				\
++	__typeof__(*(ptr)) __new1 = (n1);			\
++	__typeof__(o2) __new2 = (n2);				\
++	asm volatile(LOCK_PREFIX_HERE "lock; cmpxchg8b (%%esi); setz %1"\
++		       : "d="(__dummy), "=a" (__ret) 		\
++		       : "S" ((ptr)), "a" (__old1), "d"(__old2),	\
++		         "b" (__new1), "c" (__new2)		\
++		       : "memory");				\
++	__ret; })
++
++
++#define cmpxchg8b_local(ptr, o1, o2, n1, n2)			\
++({								\
++	char __ret;						\
++	__typeof__(o2) __dummy;					\
++	__typeof__(*(ptr)) __old1 = (o1);			\
++	__typeof__(o2) __old2 = (o2);				\
++	__typeof__(*(ptr)) __new1 = (n1);			\
++	__typeof__(o2) __new2 = (n2);				\
++	asm volatile("cmpxchg8b (%%esi); tsetz %1"		\
++		       : "d="(__dummy), "=a"(__ret)		\
++		       : "S" ((ptr)), "a" (__old), "d"(__old2),	\
++		         "b" (__new1), "c" (__new2),		\
++		       : "memory");				\
++	__ret; })
++
++
++#define cmpxchg_double(ptr, o1, o2, n1, n2)				\
++({									\
++	BUILD_BUG_ON(sizeof(*(ptr)) != 4);				\
++	VM_BUG_ON((unsigned long)(ptr) % 8);				\
++	cmpxchg8b((ptr), (o1), (o2), (n1), (n2));			\
++})
++
++#define cmpxchg_double_local(ptr, o1, o2, n1, n2)			\
++({									\
++       BUILD_BUG_ON(sizeof(*(ptr)) != 4);				\
++       VM_BUG_ON((unsigned long)(ptr) % 8);				\
++       cmpxchg16b_local((ptr), (o1), (o2), (n1), (n2));			\
++})
++
++#define system_has_cmpxchg_double() cpu_has_cx8
++
+ #endif /* _ASM_X86_CMPXCHG_32_H */
+Index: linux-2.6/arch/x86/Kconfig.cpu
+===================================================================
+--- linux-2.6.orig/arch/x86/Kconfig.cpu	2011-05-26 16:03:33.625608967 -0500
++++ linux-2.6/arch/x86/Kconfig.cpu	2011-05-26 16:13:22.795605197 -0500
+@@ -312,6 +312,16 @@ config X86_CMPXCHG
+ config CMPXCHG_LOCAL
+ 	def_bool X86_64 || (X86_32 && !M386)
+
++#
++# CMPXCHG_DOUBLE needs to be set to enable the kernel to use cmpxchg16/8b
++# for cmpxchg_double if it find processor flags that indicate that the
++# capabilities are available. CMPXCHG_DOUBLE only compiles in
++# detection support. It needs to be set if there is a chance that processor
++# supports these instructions.
++#
++config CMPXCHG_DOUBLE
++	def_bool GENERIC_CPU || X86_GENERIC || M486 || MPENTIUM4 || MATOM || MCORE2
++
+ config X86_L1_CACHE_SHIFT
+ 	int
+ 	default "7" if MPENTIUM4 || MPSC
+Index: linux-2.6/arch/x86/include/asm/cpufeature.h
+===================================================================
+--- linux-2.6.orig/arch/x86/include/asm/cpufeature.h	2011-05-26 16:03:33.605608967 -0500
++++ linux-2.6/arch/x86/include/asm/cpufeature.h	2011-05-26 16:06:25.815607865 -0500
+@@ -288,6 +288,7 @@ extern const char * const x86_power_flag
+ #define cpu_has_hypervisor	boot_cpu_has(X86_FEATURE_HYPERVISOR)
+ #define cpu_has_pclmulqdq	boot_cpu_has(X86_FEATURE_PCLMULQDQ)
+ #define cpu_has_perfctr_core	boot_cpu_has(X86_FEATURE_PERFCTR_CORE)
++#define cpu_has_cx16		boot_cpu_has(X86_FEATURE_CX16)
+
+ #if defined(CONFIG_X86_INVLPG) || defined(CONFIG_X86_64)
+ # define cpu_has_invlpg		1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
