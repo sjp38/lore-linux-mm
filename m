@@ -1,67 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 49A5E6B0022
-	for <linux-mm@kvack.org>; Thu, 26 May 2011 15:52:15 -0400 (EDT)
-Date: Thu, 26 May 2011 12:52:07 -0700
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 8DBC26B0022
+	for <linux-mm@kvack.org>; Thu, 26 May 2011 16:36:12 -0400 (EDT)
+Date: Thu, 26 May 2011 13:35:51 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCHv4] memcg: reclaim memory from node in round-robin
-Message-Id: <20110526125207.e02e5775.akpm@linux-foundation.org>
-In-Reply-To: <20110506151302.a7256987.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20110427165120.a60c6609.kamezawa.hiroyu@jp.fujitsu.com>
-	<BANLkTinx+4zXaO3rhHRUzr3m-K-2_NMTQw@mail.gmail.com>
-	<20110428093513.5a6970c0.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110428103705.a284df87.nishimura@mxp.nes.nec.co.jp>
-	<20110428104912.6f86b2ee.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110504142623.8aa3bddb.akpm@linux-foundation.org>
-	<20110506151302.a7256987.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH v2 1/3] vmscan,memcg: memcg aware swap token
+Message-Id: <20110526133551.8c158f1c.akpm@linux-foundation.org>
+In-Reply-To: <4DD480DD.2040307@jp.fujitsu.com>
+References: <4DD480DD.2040307@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Ying Han <yinghan@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, riel@redhat.com
 
-On Fri, 6 May 2011 15:13:02 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+On Thu, 19 May 2011 11:30:53 +0900
+KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
 
-> > It would be much better to work out the optimum time at which to rotate
-> > the index via some deterministic means.
-> > 
-> > If we can't think of a way of doing that then we should at least pace
-> > the rotation frequency via something saner than wall-time.  Such as
-> > number-of-pages-scanned.
-> > 
+> Currently, memcg reclaim can disable swap token even if the swap token
+> mm doesn't belong in its memory cgroup. It's slightly risky. If an
+> admin creates very small mem-cgroup and silly guy runs contentious heavy
+> memory pressure workload, every tasks are going to lose swap token and
+> then system may become unresponsive. That's bad.
 > 
+> This patch adds 'memcg' parameter into disable_swap_token(). and if
+> the parameter doesn't match swap token, VM doesn't disable it.
 > 
-> What I think now is using reclaim_stat or usigng some fairness based on
-> the ratio of inactive file caches. We can calculate the total sum of
-> recalaim_stat which gives us a scan_ratio for a whole memcg. And we can
-> calculate LRU rotate/scan ratio per node. If rotate/scan ratio is small,
-> it will be a good candidate of reclaim target. Hmm,
+>
+> ...
+>
+> --- a/mm/thrash.c
+> +++ b/mm/thrash.c
+> @@ -21,14 +21,17 @@
+>  #include <linux/mm.h>
+>  #include <linux/sched.h>
+>  #include <linux/swap.h>
+> +#include <linux/memcontrol.h>
 > 
->   - check which memory(anon or file) should be scanned.
->     (If file is too small, rotate/scan ratio of file is meaningless.)
->   - check rotate/scan ratio of each nodes.
->   - calculate weights for each nodes (by some logic ?)
->   - give a fair scan w.r.t node's weight.
+>  static DEFINE_SPINLOCK(swap_token_lock);
+>  struct mm_struct *swap_token_mm;
+> +struct mem_cgroup *swap_token_memcg;
+>  static unsigned int global_faults;
 > 
-> Hmm, I'll have a study on this.
+>  void grab_swap_token(struct mm_struct *mm)
+>  {
+>  	int current_interval;
+> +	struct mem_cgroup *memcg;
+> 
+>  	global_faults++;
+> 
+> @@ -38,40 +41,72 @@ void grab_swap_token(struct mm_struct *mm)
+>  		return;
+> 
+>  	/* First come first served */
+> -	if (swap_token_mm == NULL) {
+> -		mm->token_priority = mm->token_priority + 2;
+> -		swap_token_mm = mm;
+> +	if (!swap_token_mm)
+> +		goto replace_token;
+> +
+> +	if (mm == swap_token_mm) {
+> +		mm->token_priority += 2;
+>  		goto out;
+>  	}
+> 
+> -	if (mm != swap_token_mm) {
+> -		if (current_interval < mm->last_interval)
+> -			mm->token_priority++;
+> -		else {
+> -			if (likely(mm->token_priority > 0))
+> -				mm->token_priority--;
+> -		}
+> -		/* Check if we deserve the token */
+> -		if (mm->token_priority > swap_token_mm->token_priority) {
+> -			mm->token_priority += 2;
+> -			swap_token_mm = mm;
+> -		}
+> -	} else {
+> -		/* Token holder came in again! */
+> -		mm->token_priority += 2;
+> +	if (current_interval < mm->last_interval)
+> +		mm->token_priority++;
+> +	else {
+> +		if (likely(mm->token_priority > 0))
+> +			mm->token_priority--;
+>  	}
+> 
+> +	/* Check if we deserve the token */
+> +	if (mm->token_priority > swap_token_mm->token_priority)
+> +		goto replace_token;
+> +
+>  out:
+>  	mm->faultstamp = global_faults;
+>  	mm->last_interval = current_interval;
+>  	spin_unlock(&swap_token_lock);
+> +	return;
+> +
+> +replace_token:
+> +	mm->token_priority += 2;
+> +	memcg = try_get_mem_cgroup_from_mm(mm);
+> +	if (memcg)
+> +		css_put(mem_cgroup_css(memcg));
+> +	swap_token_mm = mm;
+> +	swap_token_memcg = memcg;
+> +	goto out;
+>  }
 
-How's the study coming along ;)
+CONFIG_CGROUPS=n:
 
-I'll send this in to Linus today, but I'll feel grumpy while doing so. 
-We really should do something smarter here - the magic constant will
-basically always be suboptimal for everyone and we end up tweaking its
-value (if we don't, then the feature just wasn't valuable in the first
-place) and then we add a tunable and then people try to tweak the
-default setting of the tunable and then I deride them for not setting
-the tunable in initscripts and then we have to maintain the stupid
-tunable after we've changed the internal implementation and it's all
-basically screwed up.
+mm/thrash.c: In function 'grab_swap_token':
+mm/thrash.c:73: error: implicit declaration of function 'css_put'
 
-How to we automatically determine the optimum time at which to rotate,
-at runtime?
+I don't think that adding a null stub for css_put() is the right fix
+here...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
