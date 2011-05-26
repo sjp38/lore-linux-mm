@@ -1,203 +1,144 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 03CC16B0012
-	for <linux-mm@kvack.org>; Thu, 26 May 2011 01:03:28 -0400 (EDT)
-Received: by wwi18 with SMTP id 18so4014315wwi.2
-        for <linux-mm@kvack.org>; Wed, 25 May 2011 22:03:25 -0700 (PDT)
-From: Hussam Al-Tayeb <ht990332@gmail.com>
-Subject: Re: [Bugme-new] [Bug 35662] New: softlockup with kernel 2.6.39
-Date: Thu, 26 May 2011 08:03:17 +0300
-References: <bug-35662-10286@https.bugzilla.kernel.org/> <20110523164804.572cecfd.akpm@linux-foundation.org> <201105241001.47111.hussam@visp.net.lb>
-In-Reply-To: <201105241001.47111.hussam@visp.net.lb>
-MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="us-ascii"
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 117D16B0012
+	for <linux-mm@kvack.org>; Thu, 26 May 2011 01:18:12 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 8895F3EE0AE
+	for <linux-mm@kvack.org>; Thu, 26 May 2011 14:18:10 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 69A3445DF1D
+	for <linux-mm@kvack.org>; Thu, 26 May 2011 14:18:10 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 48DFC45DF1F
+	for <linux-mm@kvack.org>; Thu, 26 May 2011 14:18:10 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 28573E08001
+	for <linux-mm@kvack.org>; Thu, 26 May 2011 14:18:10 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id D2E32EF8002
+	for <linux-mm@kvack.org>; Thu, 26 May 2011 14:18:09 +0900 (JST)
+Date: Thu, 26 May 2011 14:10:47 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC][PATCH v3 0/10] memcg async reclaim
+Message-Id: <20110526141047.dc828124.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Message-Id: <201105260803.17827.hussam@visp.net.lb>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Ying Han <yinghan@google.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>
 
-It happened again. also while doing a test build of libreoffice (very disk 
-intensive stuff). 
-The build process seems frozen. I did cat /var/log/kernel.log and run 
-/bin/dmesg but didn't find any error.
 
-so I typed init s then 
-echo w > /proc/sysrq-trigger
+It's now merge window...I just dump my patch queue to hear other's idea.
+I wonder I should wait until dirty_ratio for memcg is queued to mmotm...
+I'll be busy with LinuxCon Japan etc...in the next week.
 
-and then I typed ps aux | grep D
+This patch is onto mmotm-May-11 + some patches queued in mmotm, as numa_stat.
 
-root        23  0.0  0.0      0     0 ?        DN   May25   0:06 [khugepaged]
-root      8673  0.0  0.0   4412   832 pts/2    S+   08:02   0:00 grep D
+This is a patch for memcg to keep margin to the limit in background.
+By keeping some margin to the limit in background, application can
+avoid foreground memory reclaim at charge() and this will help latency.
 
-then I typed exit and I found the following in my kernel.log
+Main changes from v2 is.
+  - use SCHED_IDLE.
+  - removed most of heuristic codes. Now, code is very simple.
 
-11/05/26 07:54:00	udevd[7360]	starting version 170
-11/05/26 07:54:01	leds_ss4200	no LED devices found
-11/05/26 07:54:01	intel_rng	Firmware space is locked read-only. If you can't 
-or
-11/05/26 07:54:01	intel_rng	don't want to disable this in firmware setup, and 
-if
-11/05/26 07:54:01	intel_rng	you are certain that your system has a 
-functional
-11/05/26 07:54:01	intel_rng	RNG, try using the 'no_fwh_detect' option.
-11/05/26 07:54:32	SysRq 	Show Blocked State
-11/05/26 07:54:32		task PC stack pid father
-11/05/26 07:54:32		khugepaged D f4393ca4 0 23 2 0x00000000
-11/05/26 07:54:32		f4393cb4 00000046 00000002 f4393ca4 f4044dcc 00000000 
-c0a8204e 000033ba
-11/05/26 07:54:32		00000000 e20eba00 f4393c5c c10026ce 00000000 0098c500 
-00000001 c14e1440
-11/05/26 07:54:32		f4393c64 c14e1440 f5506440 f4044da0 f4042f70 e20eba00 
-f4393d0c 00000286
-11/05/26 07:54:32	Call Trace	
-11/05/26 07:54:32		[<c10026ce>] ? __switch_to+0xce/0x180
-11/05/26 07:54:32		[<c1052076>] ? lock_timer_base.isra.31+0x26/0x50
-11/05/26 07:54:32		[<c1052106>] ? try_to_del_timer_sync+0x66/0x100
-11/05/26 07:54:32		[<c1052076>] ? lock_timer_base.isra.31+0x26/0x50
-11/05/26 07:54:32		[<c132e3ca>] schedule_timeout+0x12a/0x2e0
-11/05/26 07:54:32		[<c1051630>] ? init_timer_deferrable_key+0x20/0x20
-11/05/26 07:54:32		[<c132e231>] io_schedule_timeout+0x81/0xd0
-11/05/26 07:54:32		[<c10d7ea2>] congestion_wait+0x52/0xe0
-11/05/26 07:54:32		[<c1061750>] ? abort_exclusive_wait+0x80/0x80
-11/05/26 07:54:32		[<c10f2501>] compact_zone+0x721/0x750
-11/05/26 07:54:32		[<c10f25a9>] compact_zone_order+0x79/0xa0
-11/05/26 07:54:32		[<c10f266d>] try_to_compact_pages+0x9d/0xd0
-11/05/26 07:54:32		[<c10c6eee>] __alloc_pages_direct_compact+0x7e/0x160
-11/05/26 07:54:32		[<c10c73ad>] __alloc_pages_nodemask+0x3dd/0x7b0
-11/05/26 07:54:32		[<c10e5f7c>] ? page_add_new_anon_rmap+0x8c/0xa0
-11/05/26 07:54:32		[<c10faea8>] khugepaged+0x418/0xe10
-11/05/26 07:54:32		[<c1061750>] ? abort_exclusive_wait+0x80/0x80
-11/05/26 07:54:32		[<c10faa90>] ? khugepaged_defrag_store+0x50/0x50
-11/05/26 07:54:32		[<c1061098>] kthread+0x68/0x70
-11/05/26 07:54:32		[<c1061030>] ? kthread_worker_fn+0x150/0x150
-11/05/26 07:54:32		[<c133147e>] kernel_thread_helper+0x6/0xd
-11/05/26 07:54:32	Sched Debug Version	v0.10, 2.6.39-ARCH #1
-11/05/26 07:54:32		ktime : 56907897.973146
-11/05/26 07:54:32		sched_clk : 56892856.276187
-11/05/26 07:54:32		cpu_clk : 56907897.973092
-11/05/26 07:54:32		jiffies : 16982371
-11/05/26 07:54:32		sched_clock_stable : 0
-11/05/26 07:54:32		
-11/05/26 07:54:32		sysctl_sched
-11/05/26 07:54:32		.sysctl_sched_latency : 12.000000
-11/05/26 07:54:32		.sysctl_sched_min_granularity : 1.500000
-11/05/26 07:54:32		.sysctl_sched_wakeup_granularity : 2.000000
-11/05/26 07:54:32		.sysctl_sched_child_runs_first : 0
-11/05/26 07:54:32		.sysctl_sched_features : 7279
-11/05/26 07:54:32		.sysctl_sched_tunable_scaling : 1 (logaritmic)
-11/05/26 07:54:32		
-11/05/26 07:54:32		cpu#0, 2933.889 MHz
-11/05/26 07:54:32		.nr_running : 1
-11/05/26 07:54:32		.load : 1024
-11/05/26 07:54:32		.nr_switches : 66131673
-11/05/26 07:54:32		.nr_load_updates : 4725405
-11/05/26 07:54:32		.nr_uninterruptible : 0
-11/05/26 07:54:32		.next_balance : 16.982350
-11/05/26 07:54:32		.curr->pid : 7949
-11/05/26 07:54:32		.clock : 56907897.673964
-11/05/26 07:54:32		.cpu_load[0] : 0
-11/05/26 07:54:32		.cpu_load[1] : 0
-11/05/26 07:54:32		.cpu_load[2] : 0
-11/05/26 07:54:32		.cpu_load[3] : 0
-11/05/26 07:54:32		.cpu_load[4] : 0
-11/05/26 07:54:32		
-11/05/26 07:54:32	cfs_rq[0]	autogroup-105
-11/05/26 07:54:32		.exec_clock : 0.000000
-11/05/26 07:54:32		.MIN_vruntime : 0.000001
-11/05/26 07:54:32		.min_vruntime : 19.599979
-11/05/26 07:54:32		.max_vruntime : 0.000001
-11/05/26 07:54:32		.spread : 0.000000
-11/05/26 07:54:32		.spread0 : -13633115.574964
-11/05/26 07:54:32		.nr_spread_over : 0
-11/05/26 07:54:32		.nr_running : 1
-11/05/26 07:54:32		.load : 1024
-11/05/26 07:54:32		.load_avg : 0.000000
-11/05/26 07:54:32		.load_period : 9.999999
-11/05/26 07:54:32		.load_contrib : 0
-11/05/26 07:54:32		.load_tg : 0
-11/05/26 07:54:32		.se->exec_start : 56907897.673964
-11/05/26 07:54:32		.se->vruntime : 13633135.174943
-11/05/26 07:54:32		.se->sum_exec_runtime : 19.279330
-11/05/26 07:54:32		.se->load.weight : 1024
-11/05/26 07:54:32		
-11/05/26 07:54:32	cfs_rq[0]	
-11/05/26 07:54:32		.exec_clock : 0.000000
-11/05/26 07:54:32		.MIN_vruntime : 0.000001
-11/05/26 07:54:32		.min_vruntime : 13633135.174943
-11/05/26 07:54:32		.max_vruntime : 0.000001
-11/05/26 07:54:32		.spread : 0.000000
-11/05/26 07:54:32		.spread0 : 0.000000
-11/05/26 07:54:32		.nr_spread_over : 0
-11/05/26 07:54:32		.nr_running : 1
-11/05/26 07:54:32		.load : 1024
-11/05/26 07:54:32		.load_avg : 0.000000
-11/05/26 07:54:32		.load_period : 0.000000
-11/05/26 07:54:32		.load_contrib : 0
-11/05/26 07:54:32		.load_tg : 0
-11/05/26 07:54:32		
-11/05/26 07:54:32	runnable tasks	
-11/05/26 07:54:32		task PID tree-key switches prio exec-runtime sum-exec 
-sum-sleep
-11/05/26 07:54:32		
-----------------------------------------------------------------------------------------------------------
-11/05/26 07:54:32		R bash 7949 19.599979 63 120 0 0 0.000000 0.000000 
-0.000000 /autogroup-105
-11/05/26 07:54:32		
-11/05/26 07:54:32		cpu#1, 2933.889 MHz
-11/05/26 07:54:32		.nr_running : 0
-11/05/26 07:54:32		.load : 0
-11/05/26 07:54:32		.nr_switches : 66462726
-11/05/26 07:54:32		.nr_load_updates : 4571341
-11/05/26 07:54:32		.nr_uninterruptible : 1
-11/05/26 07:54:32		.next_balance : 16.982370
-11/05/26 07:54:32		.curr->pid : 0
-11/05/26 07:54:32		.clock : 56907897.675594
-11/05/26 07:54:32		.cpu_load[0] : 0
-11/05/26 07:54:32		.cpu_load[1] : 0
-11/05/26 07:54:32		.cpu_load[2] : 0
-11/05/26 07:54:32		.cpu_load[3] : 0
-11/05/26 07:54:32		.cpu_load[4] : 5
-11/05/26 07:54:32		
-11/05/26 07:54:32	cfs_rq[1]	
-11/05/26 07:54:32		.exec_clock : 0.000000
-11/05/26 07:54:32		.MIN_vruntime : 0.000001
-11/05/26 07:54:32		.min_vruntime : 13650531.404239
-11/05/26 07:54:32		.max_vruntime : 0.000001
-11/05/26 07:54:32		.spread : 0.000000
-11/05/26 07:54:32		.spread0 : 17396.229296
-11/05/26 07:54:32		.nr_spread_over : 0
-11/05/26 07:54:32		.nr_running : 0
-11/05/26 07:54:32		.load : 0
-11/05/26 07:54:32		.load_avg : 0.000000
-11/05/26 07:54:32		.load_period : 0.000000
-11/05/26 07:54:32		.load_contrib : 0
-11/05/26 07:54:32		.load_tg : 0
-11/05/26 07:54:32		
-11/05/26 07:54:32	runnable tasks	
-11/05/26 07:54:32		task PID tree-key switches prio exec-runtime sum-exec 
-sum-sleep
-11/05/26 07:54:32		
-----------------------------------------------------------------------------------------------------------
-11/05/26 07:54:32		
-11/05/26 07:55:01	usb 3-2	USB disconnect, device number 2
-11/05/26 07:55:02	ppp0	Features changed: 0x00006800 -> 0x00006000
-11/05/26 07:55:02	usb 3-2	new low speed USB device number 3 using uhci_hcd
-11/05/26 07:55:03	input	PIXART USB OPTICAL MOUSE as 
-/devices/pci0000:00/0000:00:1d.1/usb3/3-2/3-2:1.0/input/input9
-11/05/26 07:55:03	generic-usb 0003	93A:2510.0002: input,hidraw0: USB HID 
-v1.11 Mouse [PIXART USB OPTICAL MOUSE] on usb-0000:00:1d.1-2/input0
-11/05/26 07:55:05	0000	2:05.0: tulip_stop_rxtx() failed (CSR5 0xfc664010 
-CSR6 0xff972113)
-11/05/26 07:55:05	net eth0	Setting full-duplex based on MII#1 link partner 
-capability of 45e1
-11/05/26 07:55:05	w83627ehf	Found W83627DHG chip at 0x290
-11/05/26 07:55:12	eth0	no IPv6 routers present
-11/05/26 07:55:19	EXT4-fs (dm-0)	re-mounted. Opts: user_xattr,commit=0
-11/05/26 07:55:19	EXT4-fs (sda1)	re-mounted. Opts: user_xattr,commit=0
-11/05/26 07:55:20	EXT4-fs (dm-1)	re-mounted. Opts: user_xattr,commit=0
+By using SCHED_IDLE, async memory reclaim can only consume 0.3%? of cpu
+if the system is truely busy but can use much CPU if the cpu is idle.
+Because my purpose is for reducing latency without affecting other running
+applications, SCHED_IDLE fits this work.
+
+If application need to stop by some I/O or event, background memory reclaim
+will cull memory while the system is idle.
+
+Perforemce:
+ Running an httpd (apache) under 300M limit. And access 600MB working set
+ with normalized distribution access by apatch-bench.
+ apatch bench's concurrency was 4 and did 40960 accesses.
+
+Without async reclaim:
+Connection Times (ms)
+              min  mean[+/-sd] median   max
+Connect:        0    0   0.0      0       2
+Processing:    30   37  28.3     32    1793
+Waiting:       28   35  25.5     31    1792
+Total:         30   37  28.4     32    1793
+
+Percentage of the requests served within a certain time (ms)
+  50%     32
+  66%     32
+  75%     33
+  80%     34
+  90%     39
+  95%     60
+  98%    100
+  99%    133
+ 100%   1793 (longest request)
+
+With async reclaim:
+Connection Times (ms)
+              min  mean[+/-sd] median   max
+Connect:        0    0   0.0      0       2
+Processing:    30   35  12.3     32     678
+Waiting:       28   34  12.0     31     658
+Total:         30   35  12.3     32     678
+
+Percentage of the requests served within a certain time (ms)
+  50%     32
+  66%     32
+  75%     33
+  80%     34
+  90%     39
+  95%     49
+  98%     71
+  99%     86
+ 100%    678 (longest request)
+
+
+It seems latency is stabilized by hiding memory reclaim.
+
+The score for memory reclaim was following.
+See patch 10 for meaning of each member.
+
+== without async reclaim ==
+recent_scan_success_ratio 44
+limit_scan_pages 388463
+limit_freed_pages 162238
+limit_elapsed_ns 13852159231
+soft_scan_pages 0
+soft_freed_pages 0
+soft_elapsed_ns 0
+margin_scan_pages 0
+margin_freed_pages 0
+margin_elapsed_ns 0
+
+== with async reclaim ==
+recent_scan_success_ratio 6
+limit_scan_pages 0
+limit_freed_pages 0
+limit_elapsed_ns 0
+soft_scan_pages 0
+soft_freed_pages 0
+soft_elapsed_ns 0
+margin_scan_pages 1295556
+margin_freed_pages 122450
+margin_elapsed_ns 644881521
+
+
+For this case, SCHED_IDLE workqueue can reclaim enough memory to the httpd.
+
+I may need to dig why scan_success_ratio is far different in the both case.
+I guess the difference of epalsed_ns is because several threads enter
+memory reclaim when async reclaim doesn't run. But may not...
+
+
+
+Thanks,
+-Kame
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
