@@ -1,46 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 695026B0011
-	for <linux-mm@kvack.org>; Thu, 26 May 2011 14:12:11 -0400 (EDT)
-Message-ID: <4DDE9670.3060709@zytor.com>
-Date: Thu, 26 May 2011 11:05:36 -0700
-From: "H. Peter Anvin" <hpa@zytor.com>
-MIME-Version: 1.0
+	by kanga.kvack.org (Postfix) with SMTP id B0BB66B0011
+	for <linux-mm@kvack.org>; Thu, 26 May 2011 14:17:24 -0400 (EDT)
+Date: Thu, 26 May 2011 13:17:11 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
 Subject: Re: [slubllv5 07/25] x86: Add support for cmpxchg_double
-References: <20110516202605.274023469@linux.com> <20110516202625.197639928@linux.com>
-In-Reply-To: <20110516202625.197639928@linux.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <4DDE9670.3060709@zytor.com>
+Message-ID: <alpine.DEB.2.00.1105261315350.26578@router.home>
+References: <20110516202605.274023469@linux.com> <20110516202625.197639928@linux.com> <4DDE9670.3060709@zytor.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
+To: "H. Peter Anvin" <hpa@zytor.com>
 Cc: Pekka Enberg <penberg@cs.helsinki.fi>, David Rientjes <rientjes@google.com>, Eric Dumazet <eric.dumazet@gmail.com>, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>
 
-On 05/16/2011 01:26 PM, Christoph Lameter wrote:
-> A simple implementation that only supports the word size and does not
-> have a fallback mode (would require a spinlock).
-> 
-> And 32 and 64 bit support for cmpxchg_double. cmpxchg double uses
-> the cmpxchg8b or cmpxchg16b instruction on x86 processors to compare
-> and swap 2 machine words. This allows lockless algorithms to move more
-> context information through critical sections.
-> 
-> Set a flag CONFIG_CMPXCHG_DOUBLE to signal the support of that feature
-> during kernel builds.
-> 
-> Signed-off-by: Christoph Lameter <cl@linux.com>
-> 
->  
-> +config CMPXCHG_DOUBLE
-> +	def_bool X86_64 || (X86_32 && !M386)
-> +
+On Thu, 26 May 2011, H. Peter Anvin wrote:
 
-CMPXCHG16B is not a baseline feature for the Linux x86-64 build, and
-CMPXCHG8G is a Pentium, not a 486, feature.
+> > +config CMPXCHG_DOUBLE
+> > +	def_bool X86_64 || (X86_32 && !M386)
+> > +
+>
+> CMPXCHG16B is not a baseline feature for the Linux x86-64 build, and
+> CMPXCHG8G is a Pentium, not a 486, feature.
+>
+> Nacked-by: H. Peter Anvin <hpa@zytor.com>
 
-Nacked-by: H. Peter Anvin <hpa@zytor.com>
+Hmmm... We may have to call it CONFIG_CMPXCHG_DOUBLE_POSSIBLE then?
 
-	-hpa
+Because the slub code tests the flag in the processor and will not use the
+cmpxchg16b from the allocator if its not there. It will then fallback to
+using a bit lock in page struct.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
