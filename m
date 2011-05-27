@@ -1,384 +1,255 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 520D66B0022
-	for <linux-mm@kvack.org>; Thu, 26 May 2011 21:22:24 -0400 (EDT)
-Received: from kpbe11.cbf.corp.google.com (kpbe11.cbf.corp.google.com [172.25.105.75])
-	by smtp-out.google.com with ESMTP id p4R1MJZU000473
-	for <linux-mm@kvack.org>; Thu, 26 May 2011 18:22:19 -0700
-Received: from qyk2 (qyk2.prod.google.com [10.241.83.130])
-	by kpbe11.cbf.corp.google.com with ESMTP id p4R1LxaP013349
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id E50BA6B0011
+	for <linux-mm@kvack.org>; Thu, 26 May 2011 21:40:53 -0400 (EDT)
+Received: from wpaz5.hot.corp.google.com (wpaz5.hot.corp.google.com [172.24.198.69])
+	by smtp-out.google.com with ESMTP id p4R1eksj018197
+	for <linux-mm@kvack.org>; Thu, 26 May 2011 18:40:48 -0700
+Received: from qwb8 (qwb8.prod.google.com [10.241.193.72])
+	by wpaz5.hot.corp.google.com with ESMTP id p4R1eiXG010622
 	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 26 May 2011 18:22:18 -0700
-Received: by qyk2 with SMTP id 2so932537qyk.2
-        for <linux-mm@kvack.org>; Thu, 26 May 2011 18:22:18 -0700 (PDT)
+	for <linux-mm@kvack.org>; Thu, 26 May 2011 18:40:45 -0700
+Received: by qwb8 with SMTP id 8so979323qwb.11
+        for <linux-mm@kvack.org>; Thu, 26 May 2011 18:40:44 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20110527101446.73f2499a.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20110526141047.dc828124.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110526143631.adc2c911.kamezawa.hiroyu@jp.fujitsu.com>
-	<BANLkTim+hj4Y5wUhB+BHoSOsXdaMYeKqbA@mail.gmail.com>
-	<20110527101446.73f2499a.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Thu, 26 May 2011 18:22:17 -0700
-Message-ID: <BANLkTintv-B1GRkUdXiA4jDYGNVG3rvx7A@mail.gmail.com>
-Subject: Re: [RFC][PATCH v3 10/10] memcg : reclaim statistics
+In-Reply-To: <20110527093142.d3733053.kamezawa.hiroyu@jp.fujitsu.com>
+References: <1306444069-5094-1-git-send-email-yinghan@google.com>
+	<20110527090506.357698e3.kamezawa.hiroyu@jp.fujitsu.com>
+	<BANLkTiknNVZNC=CfYyr8W3EaD1=kTe940w@mail.gmail.com>
+	<20110527093142.d3733053.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Thu, 26 May 2011 18:40:44 -0700
+Message-ID: <BANLkTimSXrqPudRZ=af9N7k+Z=p5V+nxHQ@mail.gmail.com>
+Subject: Re: [PATCH] memcg: add pgfault latency histograms
 From: Ying Han <yinghan@google.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Thu, May 26, 2011 at 6:14 PM, KAMEZAWA Hiroyuki
+On Thu, May 26, 2011 at 5:31 PM, KAMEZAWA Hiroyuki
 <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> On Thu, 26 May 2011 18:17:04 -0700
+> On Thu, 26 May 2011 17:23:20 -0700
 > Ying Han <yinghan@google.com> wrote:
 >
->> Hi Kame:
+>> On Thu, May 26, 2011 at 5:05 PM, KAMEZAWA Hiroyuki <
+>> kamezawa.hiroyu@jp.fujitsu.com> wrote:
 >>
->> I applied the patch on top of mmotm-2011-05-12-15-52. After boot up, i
->> keep getting the following crash by reading the
->> /dev/cgroup/memory/memory.reclaim_stat
+>> > On Thu, 26 May 2011 14:07:49 -0700
+>> > Ying Han <yinghan@google.com> wrote:
+>> >
+>> > > This adds histogram to capture pagefault latencies on per-memcg basi=
+s. I
+>> > used
+>> > > this patch on the memcg background reclaim test, and figured there c=
+ould
+>> > be more
+>> > > usecases to monitor/debug application performance.
+>> > >
+>> > > The histogram is composed 8 bucket in ns unit. The last one is infin=
+ite
+>> > (inf)
+>> > > which is everything beyond the last one. To be more flexible, the bu=
+ckets
+>> > can
+>> > > be reset and also each bucket is configurable at runtime.
+>> > >
+>> > > memory.pgfault_histogram: exports the histogram on per-memcg basis a=
+nd
+>> > also can
+>> > > be reset by echoing "reset". Meantime, all the buckets are writable =
+by
+>> > echoing
+>> > > the range into the API. see the example below.
+>> > >
+>> > > /proc/sys/vm/pgfault_histogram: the global sysfs tunablecan be used =
+to
+>> > turn
+>> > > on/off recording the histogram.
+>> > >
+>> > > Functional Test:
+>> > > Create a memcg with 10g hard_limit, running dd & allocate 8g anon pa=
+ge.
+>> > > Measure the anon page allocation latency.
+>> > >
+>> > > $ mkdir /dev/cgroup/memory/B
+>> > > $ echo 10g >/dev/cgroup/memory/B/memory.limit_in_bytes
+>> > > $ echo $$ >/dev/cgroup/memory/B/tasks
+>> > > $ dd if=3D/dev/zero of=3D/export/hdc3/dd/tf0 bs=3D1024 count=3D20971=
+520 &
+>> > > $ allocate 8g anon pages
+>> > >
+>> > > $ echo 1 >/proc/sys/vm/pgfault_histogram
+>> > >
+>> > > $ cat /dev/cgroup/memory/B/memory.pgfault_histogram
+>> > > pgfault latency histogram (ns):
+>> > > < 600 =A0 =A0 =A0 =A0 =A0 =A02051273
+>> > > < 1200 =A0 =A0 =A0 =A0 =A0 40859
+>> > > < 2400 =A0 =A0 =A0 =A0 =A0 4004
+>> > > < 4800 =A0 =A0 =A0 =A0 =A0 1605
+>> > > < 9600 =A0 =A0 =A0 =A0 =A0 170
+>> > > < 19200 =A0 =A0 =A0 =A0 =A082
+>> > > < 38400 =A0 =A0 =A0 =A0 =A06
+>> > > < inf =A0 =A0 =A0 =A0 =A0 =A00
+>> > >
+>> > > $ echo reset >/dev/cgroup/memory/B/memory.pgfault_histogram
+>> > > $ cat /dev/cgroup/memory/B/memory.pgfault_histogram
+>> > > pgfault latency histogram (ns):
+>> > > < 600 =A0 =A0 =A0 =A0 =A0 =A00
+>> > > < 1200 =A0 =A0 =A0 =A0 =A0 0
+>> > > < 2400 =A0 =A0 =A0 =A0 =A0 0
+>> > > < 4800 =A0 =A0 =A0 =A0 =A0 0
+>> > > < 9600 =A0 =A0 =A0 =A0 =A0 0
+>> > > < 19200 =A0 =A0 =A0 =A0 =A00
+>> > > < 38400 =A0 =A0 =A0 =A0 =A00
+>> > > < inf =A0 =A0 =A0 =A0 =A0 =A00
+>> > >
+>> > > $ echo 500 520 540 580 600 1000 5000
+>> > >/dev/cgroup/memory/B/memory.pgfault_histogram
+>> > > $ cat /dev/cgroup/memory/B/memory.pgfault_histogram
+>> > > pgfault latency histogram (ns):
+>> > > < 500 =A0 =A0 =A0 =A0 =A0 =A050
+>> > > < 520 =A0 =A0 =A0 =A0 =A0 =A0151
+>> > > < 540 =A0 =A0 =A0 =A0 =A0 =A03715
+>> > > < 580 =A0 =A0 =A0 =A0 =A0 =A01859812
+>> > > < 600 =A0 =A0 =A0 =A0 =A0 =A0202241
+>> > > < 1000 =A0 =A0 =A0 =A0 =A0 25394
+>> > > < 5000 =A0 =A0 =A0 =A0 =A0 5875
+>> > > < inf =A0 =A0 =A0 =A0 =A0 =A0186
+>> > >
+>> > > Performance Test:
+>> > > I ran through the PageFaultTest (pft) benchmark to measure the overh=
+ead
+>> > of
+>> > > recording the histogram. There is no overhead observed on both
+>> > "flt/cpu/s"
+>> > > and "fault/wsec".
+>> > >
+>> > > $ mkdir /dev/cgroup/memory/A
+>> > > $ echo 16g >/dev/cgroup/memory/A/memory.limit_in_bytes
+>> > > $ echo $$ >/dev/cgroup/memory/A/tasks
+>> > > $ ./pft -m 15g -t 8 -T a
+>> > >
+>> > > Result:
+>> > > "fault/wsec"
+>> > >
+>> > > $ ./ministat no_histogram histogram
+>> > > x no_histogram
+>> > > + histogram
+>> > >
+>> > +---------------------------------------------------------------------=
+-----+
+>> > > =A0 =A0N =A0 =A0 =A0 =A0 =A0 Min =A0 =A0 =A0 =A0 =A0 Max =A0 =A0 =A0=
+ =A0Median =A0 =A0 =A0 =A0 =A0 Avg
+>> > =A0Stddev
+>> > > x =A0 5 =A0 =A0 813404.51 =A0 =A0 824574.98 =A0 =A0 =A0821661.3 =A0 =
+=A0 820470.83
+>> > 4202.0758
+>> > > + =A0 5 =A0 =A0 821228.91 =A0 =A0 825894.66 =A0 =A0 822874.65 =A0 =
+=A0 823374.15
+>> > 1787.9355
+>> > >
+>> > > "flt/cpu/s"
+>> > >
+>> > > $ ./ministat no_histogram histogram
+>> > > x no_histogram
+>> > > + histogram
+>> > >
+>> > +---------------------------------------------------------------------=
+-----+
+>> > > =A0 =A0N =A0 =A0 =A0 =A0 =A0 Min =A0 =A0 =A0 =A0 =A0 Max =A0 =A0 =A0=
+ =A0Median =A0 =A0 =A0 =A0 =A0 Avg
+>> > =A0Stddev
+>> > > x =A0 5 =A0 =A0 104951.93 =A0 =A0 106173.13 =A0 =A0 105142.73 =A0 =
+=A0 =A0105349.2
+>> > 513.78158
+>> > > + =A0 5 =A0 =A0 104697.67 =A0 =A0 =A0105416.1 =A0 =A0 104943.52 =A0 =
+=A0 104973.77
+>> > 269.24781
+>> > > No difference proven at 95.0% confidence
+>> > >
+>> > > Signed-off-by: Ying Han <yinghan@google.com>
+>> >
+>> > Hmm, interesting....but isn't it very very very complicated interface =
+?
+>> > Could you make this for 'perf' ? Then, everyone (including someone who
+>> > don't use memcg)
+>> > will be happy.
+>> >
 >>
->> [ =A0200.776366] Kernel panic - not syncing: Fatal exception
->> [ =A0200.781591] Pid: 7535, comm: cat Tainted: G =A0 =A0 =A0D W =A0 2.6.=
-39-mcg-DEV #130
->> [ =A0200.788463] Call Trace:
->> [ =A0200.790916] =A0[<ffffffff81405a75>] panic+0x91/0x194
->> [ =A0200.797096] =A0[<ffffffff81408ac8>] oops_end+0xae/0xbe
->> [ =A0200.803450] =A0[<ffffffff810398d3>] die+0x5a/0x63
->> [ =A0200.809366] =A0[<ffffffff81408561>] do_trap+0x121/0x130
->> [ =A0200.814427] =A0[<ffffffff81037fe6>] do_divide_error+0x90/0x99
->> [#1] SMP
->> [ =A0200.821395] =A0[<ffffffff81112bcb>] ? mem_cgroup_reclaim_stat_read+=
-0x28/0xf0
->> [ =A0200.829624] =A0[<ffffffff81104509>] ? page_add_new_anon_rmap+0x7e/0=
-x90
->> [ =A0200.837372] =A0[<ffffffff810fb7f8>] ? handle_pte_fault+0x28a/0x775
->> [ =A0200.844773] =A0[<ffffffff8140f0f5>] divide_error+0x15/0x20
->> [ =A0200.851471] =A0[<ffffffff81112bcb>] ? mem_cgroup_reclaim_stat_read+=
-0x28/0xf0
->> [ =A0200.859729] =A0[<ffffffff810a4a01>] cgroup_seqfile_show+0x38/0x46
->> [ =A0200.867036] =A0[<ffffffff810a4d72>] ? cgroup_lock+0x17/0x17
->> [ =A0200.872444] =A0[<ffffffff81133f2c>] seq_read+0x182/0x361
->> [ =A0200.878984] =A0[<ffffffff8111a0c4>] vfs_read+0xab/0x107
->> [ =A0200.885403] =A0[<ffffffff8111a1e0>] sys_read+0x4a/0x6e
->> [ =A0200.891764] =A0[<ffffffff8140f469>] sysenter_dispatch+0x7/0x27
+>> Thank you for looking at it.
 >>
->> I will debug it, but like to post here in case i missed some patches in =
-between.
+>> There is only one per-memcg API added which is basically exporting the
+>> histogram. The "reset" and reconfiguring the bucket is not "must" but ma=
+ke
+>> it more flexible. Also, the sysfs API can be reduced if necessary since
+>> there is no over-head observed by always turning it on anyway.
+>>
+>> I am not familiar w/ perf, any suggestions how it is supposed to be look
+>> like?
+>>
+>> Thanks
 >>
 >
-> It must be mem->scanned is 0 and
-> =A0 =A0 mem->reclaimed * 100 /mem->scanned cause error.
+> IIUC, you can record "all" latency information by perf record. Then, late=
+ncy
+> information can be dumped out to some file.
 >
-> It must be mem->reclaimed * 100 / (mem->scanned +1).
+> You can add a python? script for perf as
 >
-> I'll fix. thank you for reporting.
+> =A0# perf report memory-reclaim-latency-histgram -f perf.data
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0-o 500,1000,1500,2000.....
+> =A0 ...show histgram in text.. or report the histgram in graphic.
+>
+> Good point is
+> =A0- you can reuse perf.data and show histgram from another point of view=
+.
+>
+> =A0- you can show another cut of view, for example, I think you can write=
+ a
+> =A0 =A0parser to show "changes in hisgram by time", easily.
+> =A0 =A0You may able to generate a movie ;)
+>
+> =A0- Now, perf cgroup is supported. Then,
+> =A0 =A0- you can see per task histgram
+> =A0 =A0- you can see per cgroup histgram
+> =A0 =A0- you can see per system-wide histgram
+> =A0 =A0 =A0(If you record latency of usual kswapd/alloc_pages)
+>
+> =A0- If you record latency within shrink_zone(), you can show per-zone
+> =A0 =A0reclaim latency histgram. record parsers can gather them and
+> =A0 =A0show histgram. This will be benefical to cpuset users.
+>
+>
+> I'm sorry if I miss something.
 
-That is what I thought :) I will apply the change for now
+After study a bit on perf, it is not feasible in this casecase. The
+cpu & memory overhead of perf is overwhelming.... Each page fault will
+generate a record in the buffer and how many data we can record in the
+buffer, and how many data will be processed later.. Most of the data
+that is recorded by the general perf framework is not needed here.
+
+On the other hand, the memory consumption is very little in this
+patch. We only need to keep a counter of each bucket and the recording
+can go on as long as the machine is up. As also measured, there is no
+overhead of the data collection :)
+
+So, the perf is not an option for this purpose.
 
 --Ying
+
 >
 > Thanks,
 > -Kame
 >
 >
->> --Ying
->>
->> On Wed, May 25, 2011 at 10:36 PM, KAMEZAWA Hiroyuki
->> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
->> >
->> > This patch adds a file memory.reclaim_stat.
->> >
->> > This file shows following.
->> > =3D=3D
->> > recent_scan_success_ratio =A012 # recent reclaim/scan ratio.
->> > limit_scan_pages 671 =A0 =A0 =A0 =A0 =A0# scan caused by hitting limit=
-.
->> > limit_freed_pages 538 =A0 =A0 =A0 =A0 # freed pages by limit_scan
->> > limit_elapsed_ns 518555076 =A0 =A0# elapsed time in LRU scanning by li=
-mit.
->> > soft_scan_pages 0 =A0 =A0 =A0 =A0 =A0 =A0 # scan caused by softlimit.
->> > soft_freed_pages 0 =A0 =A0 =A0 =A0 =A0 =A0# freed pages by soft_scan.
->> > soft_elapsed_ns 0 =A0 =A0 =A0 =A0 =A0 =A0 # elapsed time in LRU scanni=
-ng by softlimit.
->> > margin_scan_pages 16744221 =A0 =A0# scan caused by auto-keep-margin
->> > margin_freed_pages 565943 =A0 =A0 # freed pages by auto-keep-margin.
->> > margin_elapsed_ns 5545388791 =A0# elapsed time in LRU scanning by auto=
--keep-margin
->> >
->> > This patch adds a new file rather than adding more stats to memory.sta=
-t. By it,
->> > this support "reset" accounting by
->> >
->> > =A0# echo 0 > .../memory.reclaim_stat
->> >
->> > This is good for debug and tuning.
->> >
->> > TODO:
->> > =A0- add Documentaion.
->> >
->> > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->> > ---
->> > =A0mm/memcontrol.c | =A0 87 ++++++++++++++++++++++++++++++++++++++++++=
-++++++++------
->> > =A01 file changed, 79 insertions(+), 8 deletions(-)
->> >
->> > Index: memcg_async/mm/memcontrol.c
->> > =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
->> > --- memcg_async.orig/mm/memcontrol.c
->> > +++ memcg_async/mm/memcontrol.c
->> > @@ -216,6 +216,13 @@ static void mem_cgroup_update_margin_to_
->> > =A0static void mem_cgroup_may_async_reclaim(struct mem_cgroup *mem);
->> > =A0static void mem_cgroup_reflesh_scan_ratio(struct mem_cgroup *mem);
->> >
->> > +enum scan_type {
->> > + =A0 =A0 =A0 LIMIT_SCAN, =A0 =A0 /* scan memory because memcg hits li=
-mit */
->> > + =A0 =A0 =A0 SOFT_SCAN, =A0 =A0 =A0/* scan memory because of soft lim=
-it */
->> > + =A0 =A0 =A0 MARGIN_SCAN, =A0 =A0/* scan memory for making margin to =
-limit */
->> > + =A0 =A0 =A0 NR_SCAN_TYPES,
->> > +};
->> > +
->> > =A0/*
->> > =A0* The memory controller data structure. The memory controller contr=
-ols both
->> > =A0* page cache and RSS per cgroup. We would eventually like to provid=
-e
->> > @@ -300,6 +307,13 @@ struct mem_cgroup {
->> > =A0 =A0 =A0 =A0unsigned long =A0 scanned;
->> > =A0 =A0 =A0 =A0unsigned long =A0 reclaimed;
->> > =A0 =A0 =A0 =A0unsigned long =A0 next_scanratio_update;
->> > + =A0 =A0 =A0 /* For statistics */
->> > + =A0 =A0 =A0 struct {
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 unsigned long nr_scanned_pages;
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 unsigned long nr_reclaimed_pages;
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 unsigned long elapsed_ns;
->> > + =A0 =A0 =A0 } scan_stat[NR_SCAN_TYPES];
->> > +
->> > =A0 =A0 =A0 =A0/*
->> > =A0 =A0 =A0 =A0 * percpu counter.
->> > =A0 =A0 =A0 =A0 */
->> > @@ -1426,7 +1440,9 @@ unsigned int mem_cgroup_swappiness(struc
->> >
->> > =A0static void __mem_cgroup_update_scan_ratio(struct mem_cgroup *mem,
->> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0unsigne=
-d long scanned,
->> > - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 unsigned=
- long reclaimed)
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 unsigned=
- long reclaimed,
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 unsigned=
- long elapsed,
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 enum sca=
-n_type type)
->> > =A0{
->> > =A0 =A0 =A0 =A0unsigned long limit;
->> >
->> > @@ -1439,6 +1455,9 @@ static void __mem_cgroup_update_scan_rat
->> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0mem->scanned /=3D 2;
->> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0mem->reclaimed /=3D 2;
->> > =A0 =A0 =A0 =A0}
->> > + =A0 =A0 =A0 mem->scan_stat[type].nr_scanned_pages +=3D scanned;
->> > + =A0 =A0 =A0 mem->scan_stat[type].nr_reclaimed_pages +=3D reclaimed;
->> > + =A0 =A0 =A0 mem->scan_stat[type].elapsed_ns +=3D elapsed;
->> > =A0 =A0 =A0 =A0spin_unlock(&mem->scan_stat_lock);
->> > =A0}
->> >
->> > @@ -1448,6 +1467,8 @@ static void __mem_cgroup_update_scan_rat
->> > =A0* @root : root memcg of hierarchy walk.
->> > =A0* @scanned : scanned pages
->> > =A0* @reclaimed: reclaimed pages.
->> > + * @elapsed: used time for memory reclaim
->> > + * @type : scan type as LIMIT_SCAN, SOFT_SCAN, MARGIN_SCAN.
->> > =A0*
->> > =A0* record scan/reclaim ratio to the memcg both to a child and it's r=
-oot
->> > =A0* mem cgroup, which is a reclaim target. This value is used for
->> > @@ -1457,11 +1478,14 @@ static void __mem_cgroup_update_scan_rat
->> > =A0static void mem_cgroup_update_scan_ratio(struct mem_cgroup *mem,
->> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0str=
-uct mem_cgroup *root,
->> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0unsigne=
-d long scanned,
->> > - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 unsigned=
- long reclaimed)
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 unsigned=
- long reclaimed,
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 unsigned=
- long elapsed,
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 int type=
-)
->> > =A0{
->> > - =A0 =A0 =A0 __mem_cgroup_update_scan_ratio(mem, scanned, reclaimed);
->> > + =A0 =A0 =A0 __mem_cgroup_update_scan_ratio(mem, scanned, reclaimed, =
-elapsed, type);
->> > =A0 =A0 =A0 =A0if (mem !=3D root)
->> > - =A0 =A0 =A0 =A0 =A0 =A0 =A0 __mem_cgroup_update_scan_ratio(root, sca=
-nned, reclaimed);
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __mem_cgroup_update_scan_ratio(root, sca=
-nned, reclaimed,
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0 elapsed, type);
->> >
->> > =A0}
->> >
->> > @@ -1906,6 +1930,7 @@ static int mem_cgroup_hierarchical_recla
->> > =A0 =A0 =A0 =A0bool is_kswapd =3D false;
->> > =A0 =A0 =A0 =A0unsigned long excess;
->> > =A0 =A0 =A0 =A0unsigned long nr_scanned;
->> > + =A0 =A0 =A0 unsigned long start, end, elapsed;
->> >
->> > =A0 =A0 =A0 =A0excess =3D res_counter_soft_limit_excess(&root_mem->res=
-) >> PAGE_SHIFT;
->> >
->> > @@ -1947,18 +1972,24 @@ static int mem_cgroup_hierarchical_recla
->> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0}
->> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0/* we use swappiness of local cgroup */
->> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0if (check_soft) {
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 start =3D sched_clock();
->> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0ret =3D mem_cgroup_shri=
-nk_node_zone(victim, gfp_mask,
->> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0noswap,=
- zone, &nr_scanned);
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 end =3D sched_clock();
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 elapsed =3D end - start;
->> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0*total_scanned +=3D nr_=
-scanned;
->> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0mem_cgroup_soft_steal(v=
-ictim, is_kswapd, ret);
->> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0mem_cgroup_soft_scan(vi=
-ctim, is_kswapd, nr_scanned);
->> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0mem_cgroup_update_scan_=
-ratio(victim,
->> > - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0 root_mem, nr_scanned, ret);
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 root_mem=
-, nr_scanned, ret, elapsed, SOFT_SCAN);
->> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0} else {
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 start =3D sched_clock();
->> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0ret =3D try_to_free_mem=
-_cgroup_pages(victim, gfp_mask,
->> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0 =A0noswap, &nr_scanned);
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 end =3D sched_clock();
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 elapsed =3D end - start;
->> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0mem_cgroup_update_scan_=
-ratio(victim,
->> > - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0 root_mem, nr_scanned, ret);
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 root_mem=
-, nr_scanned, ret, elapsed, LIMIT_SCAN);
->> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0}
->> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0css_put(&victim->css);
->> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0/*
->> > @@ -4003,7 +4034,7 @@ static void mem_cgroup_async_shrink_work
->> > =A0 =A0 =A0 =A0struct delayed_work *dw =3D to_delayed_work(work);
->> > =A0 =A0 =A0 =A0struct mem_cgroup *mem, *victim;
->> > =A0 =A0 =A0 =A0long nr_to_reclaim;
->> > - =A0 =A0 =A0 unsigned long nr_scanned, nr_reclaimed;
->> > + =A0 =A0 =A0 unsigned long nr_scanned, nr_reclaimed, start, end;
->> > =A0 =A0 =A0 =A0int delay =3D 0;
->> >
->> > =A0 =A0 =A0 =A0mem =3D container_of(dw, struct mem_cgroup, async_work)=
-;
->> > @@ -4022,9 +4053,12 @@ static void mem_cgroup_async_shrink_work
->> > =A0 =A0 =A0 =A0if (!victim)
->> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0goto finish_scan;
->> >
->> > + =A0 =A0 =A0 start =3D sched_clock();
->> > =A0 =A0 =A0 =A0nr_reclaimed =3D mem_cgroup_shrink_rate_limited(victim,=
- nr_to_reclaim,
->> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0 =A0&nr_scanned);
->> > - =A0 =A0 =A0 mem_cgroup_update_scan_ratio(victim, mem, nr_scanned, nr=
-_reclaimed);
->> > + =A0 =A0 =A0 end =3D sched_clock();
->> > + =A0 =A0 =A0 mem_cgroup_update_scan_ratio(victim, mem, nr_scanned, nr=
-_reclaimed,
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 end - start, MARGIN_SCAN=
-);
->> > =A0 =A0 =A0 =A0css_put(&victim->css);
->> >
->> > =A0 =A0 =A0 =A0/* If margin is enough big, stop */
->> > @@ -4680,6 +4714,38 @@ static int mem_control_stat_show(struct
->> > =A0 =A0 =A0 =A0return 0;
->> > =A0}
->> >
->> > +static int mem_cgroup_reclaim_stat_read(struct cgroup *cont, struct c=
-ftype *cft,
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0struc=
-t cgroup_map_cb *cb)
->> > +{
->> > + =A0 =A0 =A0 struct mem_cgroup *mem =3D mem_cgroup_from_cont(cont);
->> > + =A0 =A0 =A0 u64 val;
->> > + =A0 =A0 =A0 int i; /* for indexing scan_stat[] */
->> > +
->> > + =A0 =A0 =A0 val =3D mem->reclaimed * 100 / mem->scanned;
->> > + =A0 =A0 =A0 cb->fill(cb, "recent_scan_success_ratio", val);
->> > + =A0 =A0 =A0 i =A0=3D LIMIT_SCAN;
->> > + =A0 =A0 =A0 cb->fill(cb, "limit_scan_pages", mem->scan_stat[i].nr_sc=
-anned_pages);
->> > + =A0 =A0 =A0 cb->fill(cb, "limit_freed_pages", mem->scan_stat[i].nr_r=
-eclaimed_pages);
->> > + =A0 =A0 =A0 cb->fill(cb, "limit_elapsed_ns", mem->scan_stat[i].elaps=
-ed_ns);
->> > + =A0 =A0 =A0 i =3D SOFT_SCAN;
->> > + =A0 =A0 =A0 cb->fill(cb, "soft_scan_pages", mem->scan_stat[i].nr_sca=
-nned_pages);
->> > + =A0 =A0 =A0 cb->fill(cb, "soft_freed_pages", mem->scan_stat[i].nr_re=
-claimed_pages);
->> > + =A0 =A0 =A0 cb->fill(cb, "soft_elapsed_ns", mem->scan_stat[i].elapse=
-d_ns);
->> > + =A0 =A0 =A0 i =3D MARGIN_SCAN;
->> > + =A0 =A0 =A0 cb->fill(cb, "margin_scan_pages", mem->scan_stat[i].nr_s=
-canned_pages);
->> > + =A0 =A0 =A0 cb->fill(cb, "margin_freed_pages", mem->scan_stat[i].nr_=
-reclaimed_pages);
->> > + =A0 =A0 =A0 cb->fill(cb, "margin_elapsed_ns", mem->scan_stat[i].elap=
-sed_ns);
->> > + =A0 =A0 =A0 return 0;
->> > +}
->> > +
->> > +static int mem_cgroup_reclaim_stat_reset(struct cgroup *cgrp, unsigne=
-d int event)
->> > +{
->> > + =A0 =A0 =A0 struct mem_cgroup *mem =3D mem_cgroup_from_cont(cgrp);
->> > + =A0 =A0 =A0 memset(mem->scan_stat, 0, sizeof(mem->scan_stat));
->> > + =A0 =A0 =A0 return 0;
->> > +}
->> > +
->> > +
->> > =A0/*
->> > =A0* User flags for async_control is a subset of mem->async_flags. But
->> > =A0* this needs to be defined independently to hide implemation detail=
-s.
->> > @@ -5163,6 +5229,11 @@ static struct cftype mem_cgroup_files[]
->> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0.open =3D mem_control_numa_stat_open,
->> > =A0 =A0 =A0 =A0},
->> > =A0#endif
->> > + =A0 =A0 =A0 {
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 .name =3D "reclaim_stat",
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 .read_map =3D mem_cgroup_reclaim_stat_re=
-ad,
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 .trigger =3D mem_cgroup_reclaim_stat_res=
-et,
->> > + =A0 =A0 =A0 }
->> > =A0};
->> >
->> > =A0#ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
->> >
->> --
->> To unsubscribe from this list: send the line "unsubscribe linux-kernel" =
-in
->> the body of a message to majordomo@vger.kernel.org
->> More majordomo info at =A0http://vger.kernel.org/majordomo-info.html
->> Please read the FAQ at =A0http://www.tux.org/lkml/
->>
+>
+>
+>
+>
+>
+>
 >
 >
 
