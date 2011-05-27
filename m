@@ -1,279 +1,348 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 363586B0011
-	for <linux-mm@kvack.org>; Fri, 27 May 2011 01:41:15 -0400 (EDT)
-Received: from kpbe15.cbf.corp.google.com (kpbe15.cbf.corp.google.com [172.25.105.79])
-	by smtp-out.google.com with ESMTP id p4R5fBQq000698
-	for <linux-mm@kvack.org>; Thu, 26 May 2011 22:41:13 -0700
-Received: from qyj19 (qyj19.prod.google.com [10.241.83.83])
-	by kpbe15.cbf.corp.google.com with ESMTP id p4R5eWht006149
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 7CAFB6B0011
+	for <linux-mm@kvack.org>; Fri, 27 May 2011 01:48:01 -0400 (EDT)
+Received: from wpaz37.hot.corp.google.com (wpaz37.hot.corp.google.com [172.24.198.101])
+	by smtp-out.google.com with ESMTP id p4R5lvwJ016297
+	for <linux-mm@kvack.org>; Thu, 26 May 2011 22:47:57 -0700
+Received: from qyk29 (qyk29.prod.google.com [10.241.83.157])
+	by wpaz37.hot.corp.google.com with ESMTP id p4R5ltdW003575
 	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 26 May 2011 22:41:09 -0700
-Received: by qyj19 with SMTP id 19so3118689qyj.9
-        for <linux-mm@kvack.org>; Thu, 26 May 2011 22:41:07 -0700 (PDT)
+	for <linux-mm@kvack.org>; Thu, 26 May 2011 22:47:56 -0700
+Received: by qyk29 with SMTP id 29so3645780qyk.17
+        for <linux-mm@kvack.org>; Thu, 26 May 2011 22:47:55 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <BANLkTik_zV38MGittCrWfwnkLVuVCvdjBg@mail.gmail.com>
-References: <1306444069-5094-1-git-send-email-yinghan@google.com>
-	<20110527090506.357698e3.kamezawa.hiroyu@jp.fujitsu.com>
-	<BANLkTiknNVZNC=CfYyr8W3EaD1=kTe940w@mail.gmail.com>
-	<20110527093142.d3733053.kamezawa.hiroyu@jp.fujitsu.com>
-	<BANLkTimSXrqPudRZ=af9N7k+Z=p5V+nxHQ@mail.gmail.com>
-	<20110527111102.f5bd5ff1.kamezawa.hiroyu@jp.fujitsu.com>
-	<BANLkTik_zV38MGittCrWfwnkLVuVCvdjBg@mail.gmail.com>
-Date: Thu, 26 May 2011 22:41:07 -0700
-Message-ID: <BANLkTi=Fo1UxO8-=Ue5x2V4i6yk35Wmu_g@mail.gmail.com>
-Subject: Re: [PATCH] memcg: add pgfault latency histograms
+In-Reply-To: <20110526141529.53b70097.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20110526141047.dc828124.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110526141529.53b70097.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Thu, 26 May 2011 22:47:55 -0700
+Message-ID: <BANLkTimq7Bd_OQDOPmkM3n38g1pUbT9uYw@mail.gmail.com>
+Subject: Re: [RFC][PATCH v3 1/10] check reclaimable in hierarchy walk
 From: Ying Han <yinghan@google.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>
 
-On Thu, May 26, 2011 at 9:45 PM, Ying Han <yinghan@google.com> wrote:
-> On Thu, May 26, 2011 at 7:11 PM, KAMEZAWA Hiroyuki
-> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
->> On Thu, 26 May 2011 18:40:44 -0700
->> Ying Han <yinghan@google.com> wrote:
->>
->>> On Thu, May 26, 2011 at 5:31 PM, KAMEZAWA Hiroyuki
->>> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
->>> > On Thu, 26 May 2011 17:23:20 -0700
->>> > Ying Han <yinghan@google.com> wrote:
->>> >
->>> >> On Thu, May 26, 2011 at 5:05 PM, KAMEZAWA Hiroyuki <
->>> >> kamezawa.hiroyu@jp.fujitsu.com> wrote:
->>> >>
->>> >> > On Thu, 26 May 2011 14:07:49 -0700
->>> >> > Ying Han <yinghan@google.com> wrote:
->>> >> >
->>> >> > > This adds histogram to capture pagefault latencies on per-memcg =
-basis. I
->>> >> > used
->>> >> > > this patch on the memcg background reclaim test, and figured the=
-re could
->>> >> > be more
->>> >> > > usecases to monitor/debug application performance.
->>> >> > >
->>> >> > > The histogram is composed 8 bucket in ns unit. The last one is i=
-nfinite
->>> >> > (inf)
->>> >> > > which is everything beyond the last one. To be more flexible, th=
-e buckets
->>> >> > can
->>> >> > > be reset and also each bucket is configurable at runtime.
->>> >> > >
->>> >> > > memory.pgfault_histogram: exports the histogram on per-memcg bas=
-is and
->>> >> > also can
->>> >> > > be reset by echoing "reset". Meantime, all the buckets are writa=
-ble by
->>> >> > echoing
->>> >> > > the range into the API. see the example below.
->>> >> > >
->>> >> > > /proc/sys/vm/pgfault_histogram: the global sysfs tunablecan be u=
-sed to
->>> >> > turn
->>> >> > > on/off recording the histogram.
->>> >> > >
->>> >> > > Functional Test:
->>> >> > > Create a memcg with 10g hard_limit, running dd & allocate 8g ano=
-n page.
->>> >> > > Measure the anon page allocation latency.
->>> >> > >
->>> >> > > $ mkdir /dev/cgroup/memory/B
->>> >> > > $ echo 10g >/dev/cgroup/memory/B/memory.limit_in_bytes
->>> >> > > $ echo $$ >/dev/cgroup/memory/B/tasks
->>> >> > > $ dd if=3D/dev/zero of=3D/export/hdc3/dd/tf0 bs=3D1024 count=3D2=
-0971520 &
->>> >> > > $ allocate 8g anon pages
->>> >> > >
->>> >> > > $ echo 1 >/proc/sys/vm/pgfault_histogram
->>> >> > >
->>> >> > > $ cat /dev/cgroup/memory/B/memory.pgfault_histogram
->>> >> > > pgfault latency histogram (ns):
->>> >> > > < 600 =A0 =A0 =A0 =A0 =A0 =A02051273
->>> >> > > < 1200 =A0 =A0 =A0 =A0 =A0 40859
->>> >> > > < 2400 =A0 =A0 =A0 =A0 =A0 4004
->>> >> > > < 4800 =A0 =A0 =A0 =A0 =A0 1605
->>> >> > > < 9600 =A0 =A0 =A0 =A0 =A0 170
->>> >> > > < 19200 =A0 =A0 =A0 =A0 =A082
->>> >> > > < 38400 =A0 =A0 =A0 =A0 =A06
->>> >> > > < inf =A0 =A0 =A0 =A0 =A0 =A00
->>> >> > >
->>> >> > > $ echo reset >/dev/cgroup/memory/B/memory.pgfault_histogram
->>> >> > > $ cat /dev/cgroup/memory/B/memory.pgfault_histogram
->>> >> > > pgfault latency histogram (ns):
->>> >> > > < 600 =A0 =A0 =A0 =A0 =A0 =A00
->>> >> > > < 1200 =A0 =A0 =A0 =A0 =A0 0
->>> >> > > < 2400 =A0 =A0 =A0 =A0 =A0 0
->>> >> > > < 4800 =A0 =A0 =A0 =A0 =A0 0
->>> >> > > < 9600 =A0 =A0 =A0 =A0 =A0 0
->>> >> > > < 19200 =A0 =A0 =A0 =A0 =A00
->>> >> > > < 38400 =A0 =A0 =A0 =A0 =A00
->>> >> > > < inf =A0 =A0 =A0 =A0 =A0 =A00
->>> >> > >
->>> >> > > $ echo 500 520 540 580 600 1000 5000
->>> >> > >/dev/cgroup/memory/B/memory.pgfault_histogram
->>> >> > > $ cat /dev/cgroup/memory/B/memory.pgfault_histogram
->>> >> > > pgfault latency histogram (ns):
->>> >> > > < 500 =A0 =A0 =A0 =A0 =A0 =A050
->>> >> > > < 520 =A0 =A0 =A0 =A0 =A0 =A0151
->>> >> > > < 540 =A0 =A0 =A0 =A0 =A0 =A03715
->>> >> > > < 580 =A0 =A0 =A0 =A0 =A0 =A01859812
->>> >> > > < 600 =A0 =A0 =A0 =A0 =A0 =A0202241
->>> >> > > < 1000 =A0 =A0 =A0 =A0 =A0 25394
->>> >> > > < 5000 =A0 =A0 =A0 =A0 =A0 5875
->>> >> > > < inf =A0 =A0 =A0 =A0 =A0 =A0186
->>> >> > >
->>> >> > > Performance Test:
->>> >> > > I ran through the PageFaultTest (pft) benchmark to measure the o=
-verhead
->>> >> > of
->>> >> > > recording the histogram. There is no overhead observed on both
->>> >> > "flt/cpu/s"
->>> >> > > and "fault/wsec".
->>> >> > >
->>> >> > > $ mkdir /dev/cgroup/memory/A
->>> >> > > $ echo 16g >/dev/cgroup/memory/A/memory.limit_in_bytes
->>> >> > > $ echo $$ >/dev/cgroup/memory/A/tasks
->>> >> > > $ ./pft -m 15g -t 8 -T a
->>> >> > >
->>> >> > > Result:
->>> >> > > "fault/wsec"
->>> >> > >
->>> >> > > $ ./ministat no_histogram histogram
->>> >> > > x no_histogram
->>> >> > > + histogram
->>> >> > >
->>> >> > +-----------------------------------------------------------------=
----------+
->>> >> > > =A0 =A0N =A0 =A0 =A0 =A0 =A0 Min =A0 =A0 =A0 =A0 =A0 Max =A0 =A0=
- =A0 =A0Median =A0 =A0 =A0 =A0 =A0 Avg
->>> >> > =A0Stddev
->>> >> > > x =A0 5 =A0 =A0 813404.51 =A0 =A0 824574.98 =A0 =A0 =A0821661.3 =
-=A0 =A0 820470.83
->>> >> > 4202.0758
->>> >> > > + =A0 5 =A0 =A0 821228.91 =A0 =A0 825894.66 =A0 =A0 822874.65 =
-=A0 =A0 823374.15
->>> >> > 1787.9355
->>> >> > >
->>> >> > > "flt/cpu/s"
->>> >> > >
->>> >> > > $ ./ministat no_histogram histogram
->>> >> > > x no_histogram
->>> >> > > + histogram
->>> >> > >
->>> >> > +-----------------------------------------------------------------=
----------+
->>> >> > > =A0 =A0N =A0 =A0 =A0 =A0 =A0 Min =A0 =A0 =A0 =A0 =A0 Max =A0 =A0=
- =A0 =A0Median =A0 =A0 =A0 =A0 =A0 Avg
->>> >> > =A0Stddev
->>> >> > > x =A0 5 =A0 =A0 104951.93 =A0 =A0 106173.13 =A0 =A0 105142.73 =
-=A0 =A0 =A0105349.2
->>> >> > 513.78158
->>> >> > > + =A0 5 =A0 =A0 104697.67 =A0 =A0 =A0105416.1 =A0 =A0 104943.52 =
-=A0 =A0 104973.77
->>> >> > 269.24781
->>> >> > > No difference proven at 95.0% confidence
->>> >> > >
->>> >> > > Signed-off-by: Ying Han <yinghan@google.com>
->>> >> >
->>> >> > Hmm, interesting....but isn't it very very very complicated interf=
-ace ?
->>> >> > Could you make this for 'perf' ? Then, everyone (including someone=
- who
->>> >> > don't use memcg)
->>> >> > will be happy.
->>> >> >
->>> >>
->>> >> Thank you for looking at it.
->>> >>
->>> >> There is only one per-memcg API added which is basically exporting t=
-he
->>> >> histogram. The "reset" and reconfiguring the bucket is not "must" bu=
-t make
->>> >> it more flexible. Also, the sysfs API can be reduced if necessary si=
-nce
->>> >> there is no over-head observed by always turning it on anyway.
->>> >>
->>> >> I am not familiar w/ perf, any suggestions how it is supposed to be =
-look
->>> >> like?
->>> >>
->>> >> Thanks
->>> >>
->>> >
->>> > IIUC, you can record "all" latency information by perf record. Then, =
-latency
->>> > information can be dumped out to some file.
->>> >
->>> > You can add a python? script for perf as
->>> >
->>> > =A0# perf report memory-reclaim-latency-histgram -f perf.data
->>> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0-o 500,1000,1500,2000.....
->>> > =A0 ...show histgram in text.. or report the histgram in graphic.
->>> >
->>> > Good point is
->>> > =A0- you can reuse perf.data and show histgram from another point of =
-view.
->>> >
->>> > =A0- you can show another cut of view, for example, I think you can w=
-rite a
->>> > =A0 =A0parser to show "changes in hisgram by time", easily.
->>> > =A0 =A0You may able to generate a movie ;)
->>> >
->>> > =A0- Now, perf cgroup is supported. Then,
->>> > =A0 =A0- you can see per task histgram
->>> > =A0 =A0- you can see per cgroup histgram
->>> > =A0 =A0- you can see per system-wide histgram
->>> > =A0 =A0 =A0(If you record latency of usual kswapd/alloc_pages)
->>> >
->>> > =A0- If you record latency within shrink_zone(), you can show per-zon=
+On Wed, May 25, 2011 at 10:15 PM, KAMEZAWA Hiroyuki
+<kamezawa.hiroyu@jp.fujitsu.com> wrote:
+>
+> I may post this patch as stand alone, later.
+> =3D=3D
+> Check memcg has reclaimable pages at select_victim().
+>
+> Now, with help of bitmap as memcg->scan_node, we can check whether memcg =
+has
+> reclaimable pages with easy test of node_empty(&mem->scan_nodes).
+>
+> mem->scan_nodes is a bitmap to show whether memcg contains reclaimable
+> memory or not, which is updated periodically.
+>
+> This patch makes use of scan_nodes and modify hierarchy walk at memory
+> shrinking in following way.
+>
+> =A0- check scan_nodes in mem_cgroup_select_victim()
+> =A0- mem_cgroup_select_victim() returns NULL if no memcg is reclaimable.
+> =A0- force update of scan_nodes.
+> =A0- rename mem_cgroup_select_victim() to be mem_cgroup_select_get_victim=
+()
+> =A0 =A0to show refcnt is +1.
+>
+> This will make hierarchy walk better.
+>
+> And this allows to remove mem_cgroup_local_pages() check which was used f=
+or
+> the same purpose. But this function was wrong because it cannot handle
+> information of unevictable pages and tmpfs v.s. swapless information.
+>
+> Changelog:
+> =A0- added since v3.
+>
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> ---
+> =A0mm/memcontrol.c | =A0165 +++++++++++++++++++++++++++++++++++++--------=
+-----------
+> =A01 file changed, 110 insertions(+), 55 deletions(-)
+>
+> Index: memcg_async/mm/memcontrol.c
+> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+> --- memcg_async.orig/mm/memcontrol.c
+> +++ memcg_async/mm/memcontrol.c
+> @@ -584,15 +584,6 @@ static long mem_cgroup_read_stat(struct
+> =A0 =A0 =A0 =A0return val;
+> =A0}
+>
+> -static long mem_cgroup_local_usage(struct mem_cgroup *mem)
+> -{
+> - =A0 =A0 =A0 long ret;
+> -
+> - =A0 =A0 =A0 ret =3D mem_cgroup_read_stat(mem, MEM_CGROUP_STAT_RSS);
+> - =A0 =A0 =A0 ret +=3D mem_cgroup_read_stat(mem, MEM_CGROUP_STAT_CACHE);
+> - =A0 =A0 =A0 return ret;
+> -}
+> -
+> =A0static void mem_cgroup_swap_statistics(struct mem_cgroup *mem,
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 =A0 bool charge)
+> =A0{
+> @@ -1555,43 +1546,6 @@ u64 mem_cgroup_get_limit(struct mem_cgro
+> =A0 =A0 =A0 =A0return min(limit, memsw);
+> =A0}
+>
+> -/*
+> - * Visit the first child (need not be the first child as per the orderin=
+g
+> - * of the cgroup list, since we track last_scanned_child) of @mem and us=
 e
->>> > =A0 =A0reclaim latency histgram. record parsers can gather them and
->>> > =A0 =A0show histgram. This will be benefical to cpuset users.
->>> >
->>> >
->>> > I'm sorry if I miss something.
->>>
->>> After study a bit on perf, it is not feasible in this casecase. The
->>> cpu & memory overhead of perf is overwhelming.... Each page fault will
->>> generate a record in the buffer and how many data we can record in the
->>> buffer, and how many data will be processed later.. Most of the data
->>> that is recorded by the general perf framework is not needed here.
->>>
->>
->> I disagree. "each page fault" is not correct. "every lru scan" is correc=
-t.
->> Then, record to buffer will be at most memory.failcnt times.
+> - * that to reclaim free pages from.
+> - */
+> -static struct mem_cgroup *
+> -mem_cgroup_select_victim(struct mem_cgroup *root_mem)
+> -{
+> - =A0 =A0 =A0 struct mem_cgroup *ret =3D NULL;
+> - =A0 =A0 =A0 struct cgroup_subsys_state *css;
+> - =A0 =A0 =A0 int nextid, found;
+> -
+> - =A0 =A0 =A0 if (!root_mem->use_hierarchy) {
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 css_get(&root_mem->css);
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 ret =3D root_mem;
+> - =A0 =A0 =A0 }
+> -
+> - =A0 =A0 =A0 while (!ret) {
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 rcu_read_lock();
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 nextid =3D root_mem->last_scanned_child + 1=
+;
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 css =3D css_get_next(&mem_cgroup_subsys, ne=
+xtid, &root_mem->css,
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0&fou=
+nd);
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (css && css_tryget(css))
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 ret =3D container_of(css, s=
+truct mem_cgroup, css);
+> -
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 rcu_read_unlock();
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 /* Updates scanning parameter */
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!css) {
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 /* this means start scan fr=
+om ID:1 */
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 root_mem->last_scanned_chil=
+d =3D 0;
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 } else
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 root_mem->last_scanned_chil=
+d =3D found;
+> - =A0 =A0 =A0 }
+> -
+> - =A0 =A0 =A0 return ret;
+> -}
+> -
+> =A0#if MAX_NUMNODES > 1
 >
-> Hmm. Sorry I might miss something here... :(
+> =A0/*
+> @@ -1600,11 +1554,11 @@ mem_cgroup_select_victim(struct mem_cgro
+> =A0* nodes based on the zonelist. So update the list loosely once per 10 =
+secs.
+> =A0*
+> =A0*/
+> -static void mem_cgroup_may_update_nodemask(struct mem_cgroup *mem)
+> +static void mem_cgroup_may_update_nodemask(struct mem_cgroup *mem, bool =
+force)
+> =A0{
+> =A0 =A0 =A0 =A0int nid;
 >
-> The page fault histogram recorded is per page-fault, only the ones
-> trigger reclaim.
+> - =A0 =A0 =A0 if (time_after(mem->next_scan_node_update, jiffies))
+> + =A0 =A0 =A0 if (!force && time_after(mem->next_scan_node_update, jiffie=
+s))
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return;
+>
+> =A0 =A0 =A0 =A0mem->next_scan_node_update =3D jiffies + 10*HZ;
+> @@ -1641,7 +1595,7 @@ int mem_cgroup_select_victim_node(struct
+> =A0{
+> =A0 =A0 =A0 =A0int node;
+>
+> - =A0 =A0 =A0 mem_cgroup_may_update_nodemask(mem);
+> + =A0 =A0 =A0 mem_cgroup_may_update_nodemask(mem, false);
+> =A0 =A0 =A0 =A0node =3D mem->last_scanned_node;
+>
+> =A0 =A0 =A0 =A0node =3D next_node(node, mem->scan_nodes);
+> @@ -1660,13 +1614,117 @@ int mem_cgroup_select_victim_node(struct
+> =A0 =A0 =A0 =A0return node;
+> =A0}
+>
+> +/**
+> + * mem_cgroup_has_reclaimable
+> + * @mem_cgroup : the mem_cgroup
+> + *
+> + * The caller can test whether the memcg has reclaimable pages.
+> + *
+> + * This function checks memcg has reclaimable pages or not with bitmap o=
+f
+> + * memcg->scan_nodes. This bitmap is updated periodically and indicates
+> + * which node has reclaimable memcg memory or not.
+> + * Although this is a rough test and result is not very precise but we d=
+on't
+> + * have to scan all nodes and don't have to use locks.
+> + *
+> + * For non-NUMA, this cheks reclaimable pages on zones because we don't
+> + * update scan_nodes.(see below)
+> + */
+> +static bool mem_cgroup_has_reclaimable(struct mem_cgroup *memcg)
+> +{
+> + =A0 =A0 =A0 return !nodes_empty(memcg->scan_nodes);
+> +}
+> +
+> =A0#else
+> +
+> +static void mem_cgroup_may_update_nodemask(struct mem_cgroup *mem, bool =
+force)
+> +{
+> +}
+> +
+> =A0int mem_cgroup_select_victim_node(struct mem_cgroup *mem)
+> =A0{
+> =A0 =A0 =A0 =A0return 0;
+> =A0}
+> +
+> +static bool mem_cgroup_has_reclaimable(struct mem_cgroup *memcg)
+> +{
+> + =A0 =A0 =A0 unsigned long nr;
+> + =A0 =A0 =A0 int zid;
+> +
+> + =A0 =A0 =A0 for (zid =3D NODE_DATA(0)->nr_zones - 1; zid >=3D 0; zid--)
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (mem_cgroup_zone_reclaimable_pages(memcg=
+, 0, zid))
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 break;
+> + =A0 =A0 =A0 if (zid < 0)
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 return false;
+> + =A0 =A0 =A0 return true;
+> +}
+> =A0#endif
 
-typo. I meant it is recording per page-fault, not only the one
-triggering the reclaim.
+unused variable "nr".
 
 --Ying
-
-The background reclaim testing is just one usecase of
-> it, and we need this information for more
-> general usage to monitor application performance. So i recorded the
-> latency for each single page fault.
 >
-> --Ying
+> +/**
+> + * mem_cgroup_select_get_victim
+> + * @root_mem: the root memcg of hierarchy which should be shrinked.
+> + *
+> + * Visit children of root_mem ony by one. If the routine finds a memcg
+> + * which contains reclaimable pages, returns it with refcnt +1. The
+> + * scan is done in round-robin and 'the next start point' is saved into
+> + * mem->last_scanned_child. If no reclaimable memcg are found, returns N=
+ULL.
+> + */
+> +static struct mem_cgroup *
+> +mem_cgroup_select_get_victim(struct mem_cgroup *root_mem)
+> +{
+> + =A0 =A0 =A0 struct mem_cgroup *ret =3D NULL;
+> + =A0 =A0 =A0 struct cgroup_subsys_state *css;
+> + =A0 =A0 =A0 int nextid, found;
+> + =A0 =A0 =A0 bool second_visit =3D false;
+> +
+> + =A0 =A0 =A0 if (!root_mem->use_hierarchy)
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 goto return_root;
+> +
+> + =A0 =A0 =A0 while (!ret) {
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 rcu_read_lock();
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 nextid =3D root_mem->last_scanned_child + 1=
+;
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 css =3D css_get_next(&mem_cgroup_subsys, ne=
+xtid, &root_mem->css,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0&fou=
+nd);
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (css && css_tryget(css))
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 ret =3D container_of(css, s=
+truct mem_cgroup, css);
+> +
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 rcu_read_unlock();
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 /* Updates scanning parameter */
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!css) { /* Indicates we scanned the las=
+t node of tree */
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 /*
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* If all memcg has no re=
+claimable pages, we may enter
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* an infinite loop. Exit=
+ here if we reached the end
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* of hierarchy tree twic=
+e.
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0*/
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (second_visit)
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 return NULL=
+;
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 /* this means start scan fr=
+om ID:1 */
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 root_mem->last_scanned_chil=
+d =3D 0;
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 second_visit =3D true;
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 } else
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 root_mem->last_scanned_chil=
+d =3D found;
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (css && ret) {
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 /*
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* check memcg has reclai=
+mable memory or not. Update
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* information carefully =
+if we might fail with cached
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* bitmask information.
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0*/
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (second_visit)
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 mem_cgroup_=
+may_update_nodemask(ret, true);
+> +
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!mem_cgroup_has_reclaim=
+able(ret)) {
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 css_put(css=
+);
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 ret =3D NUL=
+L;
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 }
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 }
+> + =A0 =A0 =A0 }
+> +
+> + =A0 =A0 =A0 return ret;
+> +return_root:
+> + =A0 =A0 =A0 css_get(&root_mem->css);
+> + =A0 =A0 =A0 return root_mem;
+> +}
+> +
+> +
+> =A0/*
+> =A0* Scan the hierarchy if needed to reclaim memory. We remember the last=
+ child
+> =A0* we reclaimed from, so that we don't end up penalizing one child exte=
+nsively
+> @@ -1705,7 +1763,9 @@ static int mem_cgroup_hierarchical_recla
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0is_kswapd =3D true;
 >
->>
->> please consider more.
->>
->>
->> Thanks,
->> -Kame
->>
->>
+> =A0 =A0 =A0 =A0while (1) {
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 victim =3D mem_cgroup_select_victim(root_me=
+m);
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 victim =3D mem_cgroup_select_get_victim(roo=
+t_mem);
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!victim)
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 return total;
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0if (victim =3D=3D root_mem) {
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0loop++;
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0if (loop >=3D 1)
+> @@ -1733,11 +1793,6 @@ static int mem_cgroup_hierarchical_recla
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0}
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0}
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0}
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!mem_cgroup_local_usage(victim)) {
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 /* this cgroup's local usag=
+e =3D=3D 0 */
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 css_put(&victim->css);
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 continue;
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 }
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0/* we use swappiness of local cgroup */
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0if (check_soft) {
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0ret =3D mem_cgroup_shrink_=
+node_zone(victim, gfp_mask,
+>
 >
 
 --
