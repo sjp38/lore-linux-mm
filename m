@@ -1,154 +1,163 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 85F5390010C
-	for <linux-mm@kvack.org>; Fri, 27 May 2011 08:32:07 -0400 (EDT)
-Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
-	by e28smtp02.in.ibm.com (8.14.4/8.13.1) with ESMTP id p4RCW0Xe010712
-	for <linux-mm@kvack.org>; Fri, 27 May 2011 18:02:00 +0530
-Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
-	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p4RCVrZX2826404
-	for <linux-mm@kvack.org>; Fri, 27 May 2011 18:02:00 +0530
-Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
-	by d28av05.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p4RCVq0i003624
-	for <linux-mm@kvack.org>; Fri, 27 May 2011 22:31:52 +1000
-From: Ankita Garg <ankita@in.ibm.com>
-Subject: [PATCH 05/10] mm: Create zonelists
-Date: Fri, 27 May 2011 18:01:33 +0530
-Message-Id: <1306499498-14263-6-git-send-email-ankita@in.ibm.com>
-In-Reply-To: <1306499498-14263-1-git-send-email-ankita@in.ibm.com>
-References: <1306499498-14263-1-git-send-email-ankita@in.ibm.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id BCBA16B0027
+	for <linux-mm@kvack.org>; Fri, 27 May 2011 08:47:09 -0400 (EDT)
+Date: Fri, 27 May 2011 14:47:05 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH v2] cpusets: randomize node rotor used in
+ cpuset_mem_spread_node()
+Message-ID: <20110527124705.GB4067@tiehlicka.suse.cz>
+References: <20110414065146.GA19685@tiehlicka.suse.cz>
+ <20110414160145.0830.A69D9226@jp.fujitsu.com>
+ <20110415161831.12F8.A69D9226@jp.fujitsu.com>
+ <20110415082051.GB8828@tiehlicka.suse.cz>
+ <20110526153319.b7e8c0b6.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110526153319.b7e8c0b6.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-pm@lists.linux-foundation.org
-Cc: ankita@in.ibm.com, svaidy@linux.vnet.ibm.com, thomas.abraham@linaro.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, Jack Steiner <steiner@sgi.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Paul Menage <menage@google.com>, Robin Holt <holt@sgi.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org
 
-The default zonelist that is node ordered contains all zones from within a
-node and then all zones from the next node and so on. By introducing memory
-regions, the primary aim is to group memory allocations to a given area of
-memory together. The modified zonelists thus contain all zones from one
-region, followed by all zones from the next region and so on. This ensures
-that all the memory in one region is allocated before going over to the next
-region, unless targetted memory allocations are performed.
+On Thu 26-05-11 15:33:19, Andrew Morton wrote:
+> On Fri, 15 Apr 2011 10:20:51 +0200
+> Michal Hocko <mhocko@suse.cz> wrote:
+> 
+> > Some workloads that create a large number of small files tend to assign
+> > too many pages to node 0 (multi-node systems).  Part of the reason is that
+> > the rotor (in cpuset_mem_spread_node()) used to assign nodes starts at
+> > node 0 for newly created tasks.
+> > 
+> > This patch changes the rotor to be initialized to a random node number of
+> > the cpuset. We are initializating it lazily in cpuset_mem_spread_node
+> > resp. cpuset_slab_spread_node.
+> > 
+> >
+> > ...
+> >
+> > --- a/kernel/cpuset.c
+> > +++ b/kernel/cpuset.c
+> > @@ -2465,11 +2465,19 @@ static int cpuset_spread_node(int *rotor)
+> >  
+> >  int cpuset_mem_spread_node(void)
+> >  {
+> > +	if (current->cpuset_mem_spread_rotor == -1)
+> > +		current->cpuset_mem_spread_rotor =
+> > +			node_random(&current->mems_allowed);
+> > +
+> >  	return cpuset_spread_node(&current->cpuset_mem_spread_rotor);
+> >  }
+> >  
+> >  int cpuset_slab_spread_node(void)
+> >  {
+> > +	if (current->cpuset_slab_spread_rotor == -1)
+> > +		current->cpuset_slab_spread_rotor
+> > +			= node_random(&current->mems_allowed);
+> > +
+> >  	return cpuset_spread_node(&current->cpuset_slab_spread_rotor);
+> >  }
+> >  
+> 
+> alpha allmodconfig:
+> 
+> kernel/built-in.o: In function `cpuset_slab_spread_node':
+> (.text+0x67360): undefined reference to `node_random'
+> kernel/built-in.o: In function `cpuset_slab_spread_node':
+> (.text+0x67368): undefined reference to `node_random'
+> kernel/built-in.o: In function `cpuset_mem_spread_node':
+> (.text+0x673b8): undefined reference to `node_random'
+> kernel/built-in.o: In function `cpuset_mem_spread_node':
+> (.text+0x673c0): undefined reference to `node_random'
+> 
+> because it has CONFIG_NUMA=n, CONFIG_NODES_SHIFT=7.
 
-Signed-off-by: Ankita Garg <ankita@in.ibm.com>
+non-NUMA with MAX_NUMA_NODES? Hmm, really weird and looks like a numa
+misuse.
+
+> We use "#if MAX_NUMNODES > 1" in nodemask.h, but we use CONFIG_NUMA
+> when deciding to build mempolicy.o.  That's a bit odd - why didn't
+> nodemask.h use CONFIG_NUMA?
+
+We have this since the kernel git age. I guess this is just for
+optimizations where some functions can be NOOP when there is only one
+node.
+
+I know that this is ugly but what if we just define node_random in the
+header?
 ---
- mm/page_alloc.c |   62 +++++++++++++++++++++++++++++++++---------------------
- 1 files changed, 38 insertions(+), 24 deletions(-)
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 3c48635..da8b045 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2668,20 +2668,26 @@ static int build_zonelists_node(pg_data_t *pgdat, struct zonelist *zonelist,
- 				int nr_zones, enum zone_type zone_type)
- {
- 	struct zone *zone;
-+	int nid = pgdat->node_id;
-+	int i;
-+	enum zone_type z_type = zone_type;
- 
- 	BUG_ON(zone_type >= MAX_NR_ZONES);
- 	zone_type++;
- 
--	do {
--		zone_type--;
--		zone = pgdat->node_zones + zone_type;
--		if (populated_zone(zone)) {
--			zoneref_set_zone(zone,
--				&zonelist->_zonerefs[nr_zones++]);
--			check_highest_zone(zone_type);
--		}
--
--	} while (zone_type);
-+	for_each_mem_region_in_nid(i, nid) {
-+		mem_region_t *mem_region = &pgdat->mem_regions[i];
-+		do {
-+			zone_type--;
-+			zone = mem_region->zones + zone_type;
-+			if (populated_zone(zone)) {
-+				zoneref_set_zone(zone,
-+					&zonelist->_zonerefs[nr_zones++]);
-+				check_highest_zone(zone_type);
-+			}
-+		} while (zone_type);
-+		zone_type = z_type + 1;
-+	}
- 	return nr_zones;
+Define node_random directly in the mempolicy header
+
+Alpha allows a strange configuration CONFIG_NUMA=n and CONFIG_NODES_SHIFT=7
+which means that mempolicy.c is not compiled and linked while we still have
+MAX_NUMNODES>1 which means that node_random is not defined.
+
+Let's move node_random definition into the header. We will be consistent with
+other node_* functions.
+
+Signed-off-by: Michal Hocko <mhocko@suse.cz>
+Index: linus_tree/include/linux/nodemask.h
+===================================================================
+--- linus_tree.orig/include/linux/nodemask.h	2011-05-27 14:15:52.000000000 +0200
++++ linus_tree/include/linux/nodemask.h	2011-05-27 14:36:30.000000000 +0200
+@@ -433,7 +433,21 @@ static inline void node_set_offline(int
+ 	nr_online_nodes = num_node_state(N_ONLINE);
  }
  
-@@ -2898,7 +2904,7 @@ static int node_order[MAX_NUMNODES];
- 
- static void build_zonelists_in_zone_order(pg_data_t *pgdat, int nr_nodes)
- {
--	int pos, j, node;
-+	int pos, j, node, p;
- 	int zone_type;		/* needs to be signed */
- 	struct zone *z;
- 	struct zonelist *zonelist;
-@@ -2922,7 +2928,7 @@ static void build_zonelists_in_zone_order(pg_data_t *pgdat, int nr_nodes)
- 
- static int default_zonelist_order(void)
- {
--	int nid, zone_type;
-+	int nid, zone_type, i;
- 	unsigned long low_kmem_size,total_size;
- 	struct zone *z;
- 	int average_size;
-@@ -2937,12 +2943,16 @@ static int default_zonelist_order(void)
- 	total_size = 0;
- 	for_each_online_node(nid) {
- 		for (zone_type = 0; zone_type < MAX_NR_ZONES; zone_type++) {
--			z = &NODE_DATA(nid)->node_zones[zone_type];
--			if (populated_zone(z)) {
--				if (zone_type < ZONE_NORMAL)
--					low_kmem_size += z->present_pages;
--				total_size += z->present_pages;
--			} else if (zone_type == ZONE_NORMAL) {
-+			for_each_mem_region_in_nid(i, nid) {
-+				mem_region_t *mem_region = &(NODE_DATA(nid)->mem_regions[i]);
-+				z = &mem_region->zones[zone_type];
-+				if (populated_zone(z)) {
-+					if (zone_type < ZONE_NORMAL)
-+						low_kmem_size +=
-+							z->present_pages;
+-extern int node_random(const nodemask_t *maskp);
++unsigned int get_random_int(void );
++/*
++ * Return the bit number of a random bit set in the nodemask.
++ * (returns -1 if nodemask is empty)
++ */
++static inline int node_random(const nodemask_t *maskp)
++{
++	int w, bit = -1;
 +
-+					total_size += z->present_pages;
-+				} else if (zone_type == ZONE_NORMAL) {
- 				/*
- 				 * If any node has only lowmem, then node order
- 				 * is preferred to allow kernel allocations
-@@ -2950,7 +2960,8 @@ static int default_zonelist_order(void)
- 				 * on other nodes when there is an abundance of
- 				 * lowmem available to allocate from.
- 				 */
--				return ZONELIST_ORDER_NODE;
-+					return ZONELIST_ORDER_NODE;
-+				}
- 			}
- 		}
- 	}
-@@ -2968,11 +2979,14 @@ static int default_zonelist_order(void)
- 		low_kmem_size = 0;
- 		total_size = 0;
- 		for (zone_type = 0; zone_type < MAX_NR_ZONES; zone_type++) {
--			z = &NODE_DATA(nid)->node_zones[zone_type];
--			if (populated_zone(z)) {
--				if (zone_type < ZONE_NORMAL)
--					low_kmem_size += z->present_pages;
--				total_size += z->present_pages;
-+			for_each_mem_region_in_nid(i, nid) {
-+				mem_region_t *mem_region = &(NODE_DATA(nid)->mem_regions[i]);
-+				z = &mem_region->zones[zone_type];
-+				if (populated_zone(z)) {
-+					if (zone_type < ZONE_NORMAL)
-+						low_kmem_size += z->present_pages;
-+					total_size += z->present_pages;
-+				}
- 			}
- 		}
- 		if (low_kmem_size &&
++	w = nodes_weight(*maskp);
++	if (w)
++		bit = bitmap_ord_to_pos(maskp->bits,
++			get_random_int() % w, MAX_NUMNODES);
++	return bit;
++}
+ 
+ #else
+ 
+Index: linus_tree/mm/mempolicy.c
+===================================================================
+--- linus_tree.orig/mm/mempolicy.c	2011-05-27 14:16:05.000000000 +0200
++++ linus_tree/mm/mempolicy.c	2011-05-27 14:16:34.000000000 +0200
+@@ -1650,21 +1650,6 @@ static inline unsigned interleave_nid(st
+ 		return interleave_nodes(pol);
+ }
+ 
+-/*
+- * Return the bit number of a random bit set in the nodemask.
+- * (returns -1 if nodemask is empty)
+- */
+-int node_random(const nodemask_t *maskp)
+-{
+-	int w, bit = -1;
+-
+-	w = nodes_weight(*maskp);
+-	if (w)
+-		bit = bitmap_ord_to_pos(maskp->bits,
+-			get_random_int() % w, MAX_NUMNODES);
+-	return bit;
+-}
+-
+ #ifdef CONFIG_HUGETLBFS
+ /*
+  * huge_zonelist(@vma, @addr, @gfp_flags, @mpol)
 -- 
-1.7.4
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
