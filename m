@@ -1,26 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id E69906B0011
-	for <linux-mm@kvack.org>; Thu, 26 May 2011 21:19:28 -0400 (EDT)
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 612A26B0011
+	for <linux-mm@kvack.org>; Thu, 26 May 2011 21:21:46 -0400 (EDT)
 Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id E28783EE0C0
-	for <linux-mm@kvack.org>; Fri, 27 May 2011 10:19:24 +0900 (JST)
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 14D263EE0AE
+	for <linux-mm@kvack.org>; Fri, 27 May 2011 10:21:43 +0900 (JST)
 Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 7EB7045DEBD
-	for <linux-mm@kvack.org>; Fri, 27 May 2011 10:19:24 +0900 (JST)
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id E966A45DEC4
+	for <linux-mm@kvack.org>; Fri, 27 May 2011 10:21:42 +0900 (JST)
 Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 662B745DEBA
-	for <linux-mm@kvack.org>; Fri, 27 May 2011 10:19:24 +0900 (JST)
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id D1C1E45DEC3
+	for <linux-mm@kvack.org>; Fri, 27 May 2011 10:21:42 +0900 (JST)
 Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 5813B1DB8041
-	for <linux-mm@kvack.org>; Fri, 27 May 2011 10:19:24 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0DB941DB803E
-	for <linux-mm@kvack.org>; Fri, 27 May 2011 10:19:24 +0900 (JST)
-Date: Fri, 27 May 2011 10:12:37 +0900
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id C4086E78002
+	for <linux-mm@kvack.org>; Fri, 27 May 2011 10:21:42 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 7D6821DB802F
+	for <linux-mm@kvack.org>; Fri, 27 May 2011 10:21:42 +0900 (JST)
+Date: Fri, 27 May 2011 10:14:46 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Subject: Re: [RFC][PATCH v3 10/10] memcg : reclaim statistics
-Message-Id: <20110527101237.30157c4a.kamezawa.hiroyu@jp.fujitsu.com>
+Message-Id: <20110527101446.73f2499a.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <BANLkTim+hj4Y5wUhB+BHoSOsXdaMYeKqbA@mail.gmail.com>
 References: <20110526141047.dc828124.kamezawa.hiroyu@jp.fujitsu.com>
 	<20110526143631.adc2c911.kamezawa.hiroyu@jp.fujitsu.com>
@@ -66,10 +66,16 @@ Ying Han <yinghan@google.com> wrote:
 > I will debug it, but like to post here in case i missed some patches in between.
 > 
 
-maybe mem->scanned is 0. It must be mem->scanned +1. thank you for report.
+It must be mem->scanned is 0 and
+     mem->reclaimed * 100 /mem->scanned cause error.
+
+It must be mem->reclaimed * 100 / (mem->scanned +1).
+
+I'll fix. thank you for reporting.
 
 Thanks,
--kame
+-Kame
+
 
 > --Ying
 > 
