@@ -1,47 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 08B2E6B0012
-	for <linux-mm@kvack.org>; Fri, 27 May 2011 15:13:04 -0400 (EDT)
-Received: from kpbe16.cbf.corp.google.com (kpbe16.cbf.corp.google.com [172.25.105.80])
-	by smtp-out.google.com with ESMTP id p4RJD1qw013021
-	for <linux-mm@kvack.org>; Fri, 27 May 2011 12:13:01 -0700
-Received: from pxi19 (pxi19.prod.google.com [10.243.27.19])
-	by kpbe16.cbf.corp.google.com with ESMTP id p4RJCxvs021419
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 27 May 2011 12:13:00 -0700
-Received: by pxi19 with SMTP id 19so1504643pxi.1
-        for <linux-mm@kvack.org>; Fri, 27 May 2011 12:12:59 -0700 (PDT)
-Date: Fri, 27 May 2011 12:12:58 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 3/5] oom: oom-killer don't use proportion of system-ram
- internally
-In-Reply-To: <241133039.238335.1306393713338.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
-Message-ID: <alpine.DEB.2.00.1105271211050.2533@chino.kir.corp.google.com>
-References: <241133039.238335.1306393713338.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id ED4ED6B0012
+	for <linux-mm@kvack.org>; Fri, 27 May 2011 15:23:43 -0400 (EDT)
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e35.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p4RJ6Ih0031529
+	for <linux-mm@kvack.org>; Fri, 27 May 2011 13:06:19 -0600
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id p4RJNbDg111326
+	for <linux-mm@kvack.org>; Fri, 27 May 2011 13:23:37 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p4RDN9NJ003094
+	for <linux-mm@kvack.org>; Fri, 27 May 2011 07:23:10 -0600
+Subject: [PATCH 1/2] mm: Wait for writeback when grabbing pages to begin a
+	write
+From: "Darrick J. Wong" <djwong@us.ibm.com>
+Date: Fri, 27 May 2011 12:23:34 -0700
+Message-ID: <20110527192334.32105.99904.stgit@elm3c44.beaverton.ibm.com>
+In-Reply-To: <20110527192326.32105.34164.stgit@elm3c44.beaverton.ibm.com>
+References: <20110527192326.32105.34164.stgit@elm3c44.beaverton.ibm.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: CAI Qian <caiqian@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, hughd@google.com, kamezawa hiroyu <kamezawa.hiroyu@jp.fujitsu.com>, minchan kim <minchan.kim@gmail.com>, oleg@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Christoph Hellwig <hch@infradead.org>, Alexander Viro <viro@zeniv.linux.org.uk>, "Darrick J. Wong" <djwong@us.ibm.com>
+Cc: Jens Axboe <axboe@kernel.dk>, Theodore Tso <tytso@mit.edu>, "Martin K. Petersen" <martin.petersen@oracle.com>, Jeff Layton <jlayton@redhat.com>, Dave Chinner <david@fromorbit.com>, linux-kernel <linux-kernel@vger.kernel.org>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, Chris Mason <chris.mason@oracle.com>, Joel Becker <jlbec@evilplan.org>, linux-scsi <linux-scsi@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Jan Kara <jack@suse.cz>, linux-ext4@vger.kernel.org, Mingming Cao <mcao@us.ibm.com>
 
-On Thu, 26 May 2011, CAI Qian wrote:
+When grabbing a page for a buffered IO write, the mm should wait for writeback
+on the page to complete so that the page does not become writable during the IO
+operation.  This change is needed to provide page stability during writes for
+all filesystems.
 
-> Here is the results for the testing. Running the reproducer as non-root
-> user, the results look good as OOM killer just killed each python process
-> in-turn that the reproducer forked. However, when running it as root
-> user, sshd and other random processes had been killed.
-> 
+Signed-off-by: Darrick J. Wong <djwong@us.ibm.com>
+---
+ mm/filemap.c |    4 +++-
+ 1 files changed, 3 insertions(+), 1 deletions(-)
 
-Thanks for testing!  The patch that I proposed for you was a little more 
-conservative in terms of providing a bonus to root processes that aren't 
-using a certain threshold of memory.  My latest proposal was to give root 
-processes only a 1% bonus for every 10% of memory they consume, so it 
-would be impossible for them to have an oom score of 1 as reported in your 
-logs.
 
-I believe that KOSAKI-san is refreshing his series of patches, so let's 
-look at how your workload behaves on the next iteration.  Thanks CAI!
+diff --git a/mm/filemap.c b/mm/filemap.c
+index bcdc393..dac95a2 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -2327,7 +2327,7 @@ struct page *grab_cache_page_write_begin(struct address_space *mapping,
+ repeat:
+ 	page = find_lock_page(mapping, index);
+ 	if (page)
+-		return page;
++		goto found;
+ 
+ 	page = __page_cache_alloc(mapping_gfp_mask(mapping) & ~gfp_notmask);
+ 	if (!page)
+@@ -2340,6 +2340,8 @@ repeat:
+ 			goto repeat;
+ 		return NULL;
+ 	}
++found:
++	wait_on_page_writeback(page);
+ 	return page;
+ }
+ EXPORT_SYMBOL(grab_cache_page_write_begin);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
