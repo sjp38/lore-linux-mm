@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 5791A6B0012
-	for <linux-mm@kvack.org>; Fri, 27 May 2011 18:10:29 -0400 (EDT)
-Date: Fri, 27 May 2011 15:09:56 -0700
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id A64D76B0012
+	for <linux-mm@kvack.org>; Fri, 27 May 2011 18:12:38 -0400 (EDT)
+Date: Fri, 27 May 2011 15:12:04 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
 Subject: Re: [PATCH] mm: nommu: fix remap_pfn_range()
-Message-Id: <20110527150956.e55577c5.akpm@linux-foundation.org>
+Message-Id: <20110527151204.4e60426e.akpm@linux-foundation.org>
 In-Reply-To: <1306468203-8683-1-git-send-email-lliubbo@gmail.com>
 References: <1306468203-8683-1-git-send-email-lliubbo@gmail.com>
 Mime-Version: 1.0
@@ -28,35 +28,9 @@ Bob Liu <lliubbo@gmail.com> wrote:
 > updated. Then munmap(start, len) can't find the vma to free, because it need to
 > compare (start + len) with vma->end.
 > 
-> Signed-off-by: Bob Liu <lliubbo@gmail.com>
-> ---
->  mm/nommu.c |    1 +
->  1 files changed, 1 insertions(+), 0 deletions(-)
-> 
-> diff --git a/mm/nommu.c b/mm/nommu.c
-> index 1fd0c51..829848a 100644
-> --- a/mm/nommu.c
-> +++ b/mm/nommu.c
-> @@ -1817,6 +1817,7 @@ int remap_pfn_range(struct vm_area_struct *vma, unsigned long from,
->  		unsigned long to, unsigned long size, pgprot_t prot)
->  {
->  	vma->vm_start = vma->vm_pgoff << PAGE_SHIFT;
-> +	vma->vm_end = vma->vm_start + size;
->  	return 0;
->  }
->  EXPORT_SYMBOL(remap_pfn_range);
 
-hm.
-
-The MMU version of remap_pfn_range() doesn't do this.  Seems that it
-just leaves the omitted parts of the vma unmapped.  Obviously nommu
-can't do that, but the divergence is always a concern.
-
-Thsi implementation could lead to overlapping vmas.  Should we be
-checking that it fits?
-
-
-
+Also, I tagged the patch (or its successor) for -stable backporting as
+the problem appears to be present in 2.6.38 (at least).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
