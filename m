@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 392286B0012
-	for <linux-mm@kvack.org>; Fri, 27 May 2011 17:34:46 -0400 (EDT)
-Date: Fri, 27 May 2011 14:34:08 -0700
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id B18B26B0012
+	for <linux-mm@kvack.org>; Fri, 27 May 2011 17:35:48 -0400 (EDT)
+Date: Fri, 27 May 2011 14:34:12 -0700
 From: Randy Dunlap <randy.dunlap@oracle.com>
-Subject: [PATCH] mm: fix memory.c kernel-doc notation
-Message-Id: <20110527143408.891022e0.randy.dunlap@oracle.com>
+Subject: [PATCH] lib: fix bitmap.c kernel-doc notation
+Message-Id: <20110527143412.397da46e.randy.dunlap@oracle.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -16,27 +16,27 @@ Cc: akpm <akpm@linux-foundation.org>, linux-mm@kvack.org
 
 From: Randy Dunlap <randy.dunlap@oracle.com>
 
-Fix new kernel-doc warnings in mm/memory.c:
+Fix new kernel-doc warnings in lib/bitmap.c:
 
-Warning(mm/memory.c:1327): No description found for parameter 'tlb'
-Warning(mm/memory.c:1327): Excess function parameter 'tlbp' description in 'unmap_vmas'
+Warning(lib/bitmap.c:596): No description found for parameter 'buf'
+Warning(lib/bitmap.c:596): Excess function parameter 'bp' description in '__bitmap_parselist'
 
 Signed-off-by: Randy Dunlap <randy.dunlap@oracle.com>
 ---
- mm/memory.c |    2 +-
+ lib/bitmap.c |    2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
---- linux-2.6.39-git14.orig/mm/memory.c
-+++ linux-2.6.39-git14/mm/memory.c
-@@ -1296,7 +1296,7 @@ static unsigned long unmap_page_range(st
+--- linux-2.6.39-git14.orig/lib/bitmap.c
++++ linux-2.6.39-git14/lib/bitmap.c
+@@ -572,7 +572,7 @@ EXPORT_SYMBOL(bitmap_scnlistprintf);
  
  /**
-  * unmap_vmas - unmap a range of memory covered by a list of vma's
-- * @tlbp: address of the caller's struct mmu_gather
-+ * @tlb: address of the caller's struct mmu_gather
-  * @vma: the starting vma
-  * @start_addr: virtual address at which to start unmapping
-  * @end_addr: virtual address at which to end unmapping
+  * __bitmap_parselist - convert list format ASCII string to bitmap
+- * @bp: read nul-terminated user string from this buffer
++ * @buf: read nul-terminated user string from this buffer
+  * @buflen: buffer size in bytes.  If string is smaller than this
+  *    then it must be terminated with a \0.
+  * @is_user: location of buffer, 0 indicates kernel space
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
