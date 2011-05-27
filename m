@@ -1,84 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 18A886B0012
-	for <linux-mm@kvack.org>; Fri, 27 May 2011 18:22:29 -0400 (EDT)
-Date: Fri, 27 May 2011 17:22:25 -0500
-From: Russ Anderson <rja@sgi.com>
-Subject: Re: [PATCH] [BUGFIX] mm: hugepages can cause negative commitlimit
-Message-ID: <20110527222225.GA8561@sgi.com>
-Reply-To: Russ Anderson <rja@sgi.com>
-References: <20110518153445.GA18127@sgi.com> <BANLkTinbHnrf2isuLzUFZN8ypaT476G1zw@mail.gmail.com> <20110519045630.GA22533@sgi.com> <BANLkTinyYP-je9Nf8X-xWEdpgvn8a631Mw@mail.gmail.com> <20110519221101.GC19648@sgi.com> <20110520130411.d1e0baef.akpm@linux-foundation.org> <20110520223032.GA15192@x61.tchesoft.com> <20110526210751.GA14819@optiplex.tchesoft.com>
-Mime-Version: 1.0
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 2BE9D6B0012
+	for <linux-mm@kvack.org>; Fri, 27 May 2011 19:17:05 -0400 (EDT)
+Date: Sat, 28 May 2011 01:17:00 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH v2] cpusets: randomize node rotor used in
+ cpuset_mem_spread_node()
+Message-ID: <20110527231700.GA3214@tiehlicka.suse.cz>
+References: <20110414065146.GA19685@tiehlicka.suse.cz>
+ <20110414160145.0830.A69D9226@jp.fujitsu.com>
+ <20110415161831.12F8.A69D9226@jp.fujitsu.com>
+ <20110415082051.GB8828@tiehlicka.suse.cz>
+ <20110526153319.b7e8c0b6.akpm@linux-foundation.org>
+ <20110527124705.GB4067@tiehlicka.suse.cz>
+ <20110527142051.d7ec3784.akpm@linux-foundation.org>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110526210751.GA14819@optiplex.tchesoft.com>
+In-Reply-To: <20110527142051.d7ec3784.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rafael Aquini <aquini@linux.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux.com>, rja@americas.sgi.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, Jack Steiner <steiner@sgi.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Paul Menage <menage@google.com>, Robin Holt <holt@sgi.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org
 
-On Thu, May 26, 2011 at 06:07:53PM -0300, Rafael Aquini wrote:
-> On Fri, May 20, 2011 at 07:30:32PM -0300, Rafael Aquini wrote:
-> > On Fri, May 20, 2011 at 01:04:11PM -0700, Andrew Morton wrote:
-> > > On Thu, 19 May 2011 17:11:01 -0500
-> > > Russ Anderson <rja@sgi.com> wrote:
-> > > 
-> > > > OK, I see your point.  The root problem is hugepages allocated at boot are
-> > > > subtracted from totalram_pages but hugepages allocated at run time are not.
-> > > > Correct me if I've mistate it or are other conditions.
-> > > > 
-> > > > By "allocated at run time" I mean "echo 1 > /proc/sys/vm/nr_hugepages".
-> > > > That allocation will not change totalram_pages but will change
-> > > > hugetlb_total_pages().
-> > > > 
-> > > > How best to fix this inconsistency?  Should totalram_pages include or exclude
-> > > > hugepages?  What are the implications?
-> > > 
-> > > The problem is that hugetlb_total_pages() is trying to account for two
-> > > different things, while totalram_pages accounts for only one of those
-> > > things, yes?
-> > > 
-> > > One fix would be to stop accounting for huge pages in totalram_pages
-> > > altogether.  That might break other things so careful checking would be
-> > > needed.
-> > > 
-> > > Or we stop accounting for the boot-time allocated huge pages in
-> > > hugetlb_total_pages().  Split the two things apart altogether and
-> > > account for boot-time allocated and runtime-allocated pages separately.  This
-> > > souds saner to me - it reflects what's actually happening in the kernel.
+On Fri 27-05-11 14:20:51, Andrew Morton wrote:
+> On Fri, 27 May 2011 14:47:05 +0200
+> Michal Hocko <mhocko@suse.cz> wrote:
+> 
+> > > We use "#if MAX_NUMNODES > 1" in nodemask.h, but we use CONFIG_NUMA
+> > > when deciding to build mempolicy.o.  That's a bit odd - why didn't
+> > > nodemask.h use CONFIG_NUMA?
 > > 
-> > Perhaps we can just reinstate the # of pages "stealed" at early boot allocation
-> > later, when hugetlb_init() calls gather_bootmem_prealloc()
+> > We have this since the kernel git age. I guess this is just for
+> > optimizations where some functions can be NOOP when there is only one
+> > node.
 > > 
-> > diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> > index 8ee3bd8..d606c9c 100644
-> > --- a/mm/hugetlb.c
-> > +++ b/mm/hugetlb.c
-> > @@ -1111,6 +1111,7 @@ static void __init gather_bootmem_prealloc(void)
-> >                 WARN_ON(page_count(page) != 1);
-> >                 prep_compound_huge_page(page, h->order);
-> >                 prep_new_huge_page(h, page, page_to_nid(page));
-> > +               totalram_pages += 1 << h->order;
-> >         }
-> >  }
+> > I know that this is ugly but what if we just define node_random in the
+> > header?
 > 
-> Howdy Russ,
+> I think I prefer this:
 > 
-> Were you able to confirm if that proposed change fix the issue you've reported?
+> --- a/include/linux/nodemask.h~cpusets-randomize-node-rotor-used-in-cpuset_mem_spread_node-fix-2
+> +++ a/include/linux/nodemask.h
+> @@ -433,8 +433,6 @@ static inline void node_set_offline(int 
+>  	nr_online_nodes = num_node_state(N_ONLINE);
+>  }
+>  
+> -extern int node_random(const nodemask_t *maskp);
+> -
+>  #else
+>  
+>  static inline int node_state(int node, enum node_states state)
+> @@ -466,7 +464,15 @@ static inline int num_node_state(enum no
+>  #define node_set_online(node)	   node_set_state((node), N_ONLINE)
+>  #define node_set_offline(node)	   node_clear_state((node), N_ONLINE)
+>  
+> -static inline int node_random(const nodemask_t *mask) { return 0; }
+> +#endif
+> +
+> +#if defined(CONFIG_NUMA) && (MAX_NUMNODES > 1)
+> +extern int node_random(const nodemask_t *maskp);
+> +#else
+> +static inline int node_random(const nodemask_t *mask)
+> +{
+> +	return 0;
+> +}
+>  #endif
 
-Sorry, I have been distracted.  I will get to it shortly.
-
-> Although I've tested it with usual size hugepages and it did not messed things up,
-> I'm not able to test it with GB hugepages, as I do not have any proc with "pdpe1gb" flag available.
-> 
-> Thanks in advance!
-> Cheers!
-> -- 
-> Rafael Aquini <aquini@linux.com>
+I have to admit that I quite don't understand concept of several nodes
+with UMA archs but do we really want to provide the sane node all the
+time?
 
 -- 
-Russ Anderson, OS RAS/Partitioning Project Lead  
-SGI - Silicon Graphics Inc          rja@sgi.com
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
