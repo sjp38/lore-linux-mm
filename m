@@ -1,42 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 069F76B0022
-	for <linux-mm@kvack.org>; Sat, 28 May 2011 13:37:24 -0400 (EDT)
-From: Joe Perches <joe@perches.com>
-Subject: [TRIVIAL PATCH next 14/15] mm: Convert vmalloc/memset to vzalloc
-Date: Sat, 28 May 2011 10:36:34 -0700
-Message-Id: <f3d616b526e00bd8f01a250b7ce8c5a6e2412768.1306603968.git.joe@perches.com>
-In-Reply-To: <cover.1306603968.git.joe@perches.com>
-References: <cover.1306603968.git.joe@perches.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id F3B5F6B0012
+	for <linux-mm@kvack.org>; Sat, 28 May 2011 16:14:21 -0400 (EDT)
+Received: from wpaz9.hot.corp.google.com (wpaz9.hot.corp.google.com [172.24.198.73])
+	by smtp-out.google.com with ESMTP id p4SKEKKR030117
+	for <linux-mm@kvack.org>; Sat, 28 May 2011 13:14:20 -0700
+Received: from pzk2 (pzk2.prod.google.com [10.243.19.130])
+	by wpaz9.hot.corp.google.com with ESMTP id p4SKEGWa017360
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Sat, 28 May 2011 13:14:19 -0700
+Received: by pzk2 with SMTP id 2so1212850pzk.9
+        for <linux-mm@kvack.org>; Sat, 28 May 2011 13:14:16 -0700 (PDT)
+Date: Sat, 28 May 2011 13:14:09 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: [PATCH] tmpfs: fix race between truncate and writepage
+Message-ID: <alpine.LSU.2.00.1105281311150.13319@sister.anvils>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, Jiri Kosina <trivial@kernel.org>
-Cc: linux-mm@kvack.org, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Signed-off-by: Joe Perches <joe@perches.com>
+While running fsx on tmpfs with a memhog then swapoff, swapoff was hanging
+(interruptibly), repeatedly failing to locate the owner of a 0xff entry in
+the swap_map.
+
+Although shmem_writepage() does abandon when it sees incoming page index
+is beyond eof, there was still a window in which shmem_truncate_range()
+could come in between writepage's dropping lock and updating swap_map,
+find the half-completed swap_map entry, and in trying to free it,
+leave it in a state that swap_shmem_alloc() could not correct.
+
+Arguably a bug in __swap_duplicate()'s and swap_entry_free()'s handling
+of the different cases, but easiest to fix by moving swap_shmem_alloc()
+under cover of the lock.
+
+More interesting than the bug: it's been there since 2.6.33, why could
+I not see it with earlier kernels?  The mmotm of two weeks ago seems to
+have some magic for generating races, this is just one of three I found.
+
+With yesterday's git I first saw this in mainline, bisected in search of
+that magic, but the easy reproducibility evaporated.  Oh well, fix the bug.
+
+Signed-off-by: Hugh Dickins <hughd@google.com>
+Cc: stable@kernel.org
 ---
- mm/page_cgroup.c |    3 +--
- 1 files changed, 1 insertions(+), 2 deletions(-)
+ mm/shmem.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/mm/page_cgroup.c b/mm/page_cgroup.c
-index 74ccff6..dbb28fd 100644
---- a/mm/page_cgroup.c
-+++ b/mm/page_cgroup.c
-@@ -478,11 +478,10 @@ int swap_cgroup_swapon(int type, unsigned long max_pages)
- 	length = DIV_ROUND_UP(max_pages, SC_PER_PAGE);
- 	array_size = length * sizeof(void *);
- 
--	array = vmalloc(array_size);
-+	array = vzalloc(array_size);
- 	if (!array)
- 		goto nomem;
- 
--	memset(array, 0, array_size);
- 	ctrl = &swap_cgroup_ctrl[type];
- 	mutex_lock(&swap_cgroup_mutex);
- 	ctrl->length = length;
--- 
-1.7.5.rc3.dirty
+--- linux.orig/mm/shmem.c	2011-05-27 19:05:27.000000000 -0700
++++ linux/mm/shmem.c	2011-05-27 19:45:44.194813695 -0700
+@@ -1114,8 +1114,8 @@ static int shmem_writepage(struct page *
+ 		delete_from_page_cache(page);
+ 		shmem_swp_set(info, entry, swap.val);
+ 		shmem_swp_unmap(entry);
+-		spin_unlock(&info->lock);
+ 		swap_shmem_alloc(swap);
++		spin_unlock(&info->lock);
+ 		BUG_ON(page_mapped(page));
+ 		swap_writepage(page, wbc);
+ 		return 0;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
