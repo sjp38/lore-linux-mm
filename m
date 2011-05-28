@@ -1,162 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 236DD6B0012
-	for <linux-mm@kvack.org>; Sat, 28 May 2011 06:18:21 -0400 (EDT)
-Date: Sat, 28 May 2011 12:17:45 +0200
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [PATCH] memcg: add pgfault latency histograms
-Message-ID: <20110528101745.GA15692@elte.hu>
-References: <1306444069-5094-1-git-send-email-yinghan@google.com>
- <20110527090506.357698e3.kamezawa.hiroyu@jp.fujitsu.com>
- <BANLkTiknNVZNC=CfYyr8W3EaD1=kTe940w@mail.gmail.com>
- <20110527093142.d3733053.kamezawa.hiroyu@jp.fujitsu.com>
- <BANLkTimSXrqPudRZ=af9N7k+Z=p5V+nxHQ@mail.gmail.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id B14366B0012
+	for <linux-mm@kvack.org>; Sat, 28 May 2011 09:16:25 -0400 (EDT)
+Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [202.81.31.246])
+	by e23smtp05.au.ibm.com (8.14.4/8.13.1) with ESMTP id p4SDA9Ge005714
+	for <linux-mm@kvack.org>; Sat, 28 May 2011 23:10:09 +1000
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p4SDFkF1213130
+	for <linux-mm@kvack.org>; Sat, 28 May 2011 23:15:46 +1000
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p4SDGDvf001892
+	for <linux-mm@kvack.org>; Sat, 28 May 2011 23:16:13 +1000
+Date: Sat, 28 May 2011 18:46:06 +0530
+From: Ankita Garg <ankita@in.ibm.com>
+Subject: Re: [PATCH 00/10] mm: Linux VM Infrastructure to support Memory
+ Power Management
+Message-ID: <20110528131606.GA3416@in.ibm.com>
+Reply-To: Ankita Garg <ankita@in.ibm.com>
+References: <1306499498-14263-1-git-send-email-ankita@in.ibm.com>
+ <20110528005640.9076c0b1.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <BANLkTimSXrqPudRZ=af9N7k+Z=p5V+nxHQ@mail.gmail.com>
+In-Reply-To: <20110528005640.9076c0b1.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, =?iso-8859-1?Q?Fr=E9d=E9ric?= Weisbecker <fweisbec@gmail.com>, Arnaldo Carvalho de Melo <acme@redhat.com>, Tom Zanussi <tzanussi@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-pm@lists.linux-foundation.org, svaidy@linux.vnet.ibm.com, thomas.abraham@linaro.org
 
+Hi Andrew,
 
-* Ying Han <yinghan@google.com> wrote:
-
-> After study a bit on perf, it is not feasible in this casecase. The 
-> cpu & memory overhead of perf is overwhelming.... Each page fault 
-> will generate a record in the buffer and how many data we can 
-> record in the buffer, and how many data will be processed later.. 
-> Most of the data that is recorded by the general perf framework is 
-> not needed here.
+On Sat, May 28, 2011 at 12:56:40AM -0700, Andrew Morton wrote:
+> On Fri, 27 May 2011 18:01:28 +0530 Ankita Garg <ankita@in.ibm.com> wrote:
+> 
+> > This patchset proposes a generic memory regions infrastructure that can be
+> > used to tag boundaries of memory blocks which belongs to a specific memory
+> > power management domain and further enable exploitation of platform memory
+> > power management capabilities.
+> 
+> A couple of quick thoughts...
+> 
+> I'm seeing no estimate of how much energy we might save when this work
+> is completed.  But saving energy is the entire point of the entire
+> patchset!  So please spend some time thinking about that and update and
+> maintain the [patch 0/n] description so others can get some idea of the
+> benefit we might get from all of this.  That estimate should include an
+> estimate of what proportion of machines are likely to have hardware
+> which can use this feature and in what timeframe.
 >
+
+This patchset is definitely not for inclusion. The intention of this RFC
+series is to convey the idea and demonstrate the intricacies of the VM
+design. Partial Array Self-Refresh (PASR) is an upcoming technology that
+is supported on some platforms today, but will be an important feature
+in future platforms to conserve idle power consumed by memory subsystem.
+Mobile devices that are predominantly in the standby state can exploit
+PASR feature to partially turn off areas of memory that are free.
+
+Unfortunately, at this point we are unable to provide an estimate of the
+power savings, as the hardware platforms do not yet export information
+about the underlying memory hardware topology. We are working on this
+and hope to have some estimations in a month or two. However, will
+evaluate the performance impact of the changes and share the same.
+
+> IOW, if it saves one microwatt on 0.001% of machines, not interested ;)
 > 
-> On the other hand, the memory consumption is very little in this 
-> patch. We only need to keep a counter of each bucket and the 
-> recording can go on as long as the machine is up. As also measured, 
-> there is no overhead of the data collection :)
 > 
-> So, the perf is not an option for this purpose.
+> Also, all this code appears to be enabled on all machines?  So machines
+> which don't have the requisite hardware still carry any additional
+> overhead which is added here.  I can see that ifdeffing a feature like
+> this would be ghastly but please also have a think about the
+> implications of this and add that discussion also.  
+> 
+> If possible, it would be good to think up some microbenchmarks which
+> probe the worst-case performance impact and describe those and present
+> the results.  So others can gain an understanding of the runtime costs.
+> 
 
-It's not a fundamental limitation in perf though.
-
-The way i always thought perf could be extended to support heavy-duty 
-profiling such as your patch does would be along the following lines:
-
-Right now perf supports three output methods:
-
-           'full detail': per sample records, recorded in the ring-buffer
-  'filtered full detail': per sample records filtered, recorded in the ring-buffer
-          'full summary': the count of all samples (simple counter), no recording
-
-What i think would make sense is to introduce a fourth variant, which 
-is a natural intermediate of the above output methods:
-
-       'partial summary': partially summarized samples, record in an 
-                          array in the ring-buffer - an extended 
-                          multi-dimensional 'count'.
-
-A histogram like yours would be one (small) sub-case of this new 
-model.
-
-Now, to keep things maximally flexible we really do not want to hard 
-code histogram summary functions: i.e. we do not want to hardcode 
-ourselves to 'latency histograms' or 'frequency histograms'.
-
-To achieve that flexibility we could define the histogram function as 
-a simple extension to filters: filters that evaluate to an integer 
-value.
-
-For example, if we defined the following tracepoint in 
-arch/x86/mm/fault.c:
-
-TRACE_EVENT(mm_pagefault,
-
-       TP_PROTO(u64 time_start, u64 time_end, unsigned long address, int error_code, unsigned long ip),
-
-       TP_ARGS(time_start, time_end, address, error_code, ip),
-
-       TP_STRUCT__entry(
-               __field(u64,           time_start)
-               __field(u64,           time_end)
-               __field(unsigned long, address)
-               __field(unsigned long, error_code)
-               __field(unsigned long, ip)
-       ),
-
-       TP_fast_assign(
-               __entry->time_start     = time_start;
-               __entry->time_end       = time_end;
-               __entry->address        = address;
-               __entry->error_code     = error_code;
-               __entry->ip             = ip;
-       ),
-
-       TP_printk("time_start=%uL time_end=%uL address=%lx, error code=%lx, ip=%lx",
-               __entry->time_start, __entry->time_end,
-               __entry->address, __entry->error_code, __entry->ip)
-
-
-Then the following filter expressions could be used to calculate the 
-histogram index and value:
-
-	   index: "(time_end - time_start)/1000"
-	iterator: "curr + 1"
-
-The /1000 index filter expression means that there is one separate 
-bucket per microsecond of delay.
-
-The "curr + 1" iterator filter expression would represent that for 
-every bucket an event means we add +1 to the current bucket value.
-
-Today our filter expressions evaluate to a small subset of integer 
-numbers: 0 or 1 :-)
-
-Extending them to integer calculations is possible and would be 
-desirable for other purposes as well, not just histograms. Adding 
-integer operators in addition to the logical and bitwise operators 
-the filter engine supports today would be useful as well. (See 
-kernel/trace/trace_events_filter.c for the current filter engine.)
-
-This way we would have the equivalent functionality and performance 
-of your histogram patch - and it would also open up many, *many* 
-other nice possibilities as well:
-
- - this could be used with any event, anywhere - could even be used
-   with hardware events. We could sample with an NMI every 100 usecs 
-   and profile with relatively small profiling overhead.
-
- - arbitrarily large histograms could be created: need a 10 GB
-   histogram on a really large system? No problem, create such
-   a big ring-buffer.
-
- - many different types of summaries are possible as well:
-
-    - we could create a histogram over *which* code pagefaults, via
-      using the "ip" (faulting instruction) address and a 
-      sufficiently large ring-buffer.
-
-    - histogram over the address space (which vmas are the hottest ones),
-      by changing the first filter to "address/1000000" to have per
-      megabyte buckets.
-
-    - weighted histograms: for example if the histogram iteration 
-      function is "curr + (time_end-time_start)/1000" and the
-      histogram index is "address/1000000", then we get an 
-      address-indexed histogram weighted by length of latency: the 
-      higher latencies a given area of memory causes, the hotter the
-      bucket.
-
- - the existing event filter code can be used to filter the incoming
-   events to begin with: for example an "error_code = 1" filter would
-   limit the histogram to write faults (page dirtying).
-
-So instead of adding just one hardcoded histogram type, it would be 
-really nice to work on a more generic solution!
-
-Thanks,
-
-	Ingo
+-- 
+Regards,
+Ankita Garg (ankita@in.ibm.com)
+Linux Technology Center
+IBM India Systems & Technology Labs,
+Bangalore, India
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
