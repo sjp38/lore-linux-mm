@@ -1,66 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id F3B5F6B0012
-	for <linux-mm@kvack.org>; Sat, 28 May 2011 16:14:21 -0400 (EDT)
-Received: from wpaz9.hot.corp.google.com (wpaz9.hot.corp.google.com [172.24.198.73])
-	by smtp-out.google.com with ESMTP id p4SKEKKR030117
-	for <linux-mm@kvack.org>; Sat, 28 May 2011 13:14:20 -0700
-Received: from pzk2 (pzk2.prod.google.com [10.243.19.130])
-	by wpaz9.hot.corp.google.com with ESMTP id p4SKEGWa017360
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 8C9046B0012
+	for <linux-mm@kvack.org>; Sat, 28 May 2011 16:17:08 -0400 (EDT)
+Received: from hpaq3.eem.corp.google.com (hpaq3.eem.corp.google.com [172.25.149.3])
+	by smtp-out.google.com with ESMTP id p4SKH68Q026661
+	for <linux-mm@kvack.org>; Sat, 28 May 2011 13:17:06 -0700
+Received: from pzk4 (pzk4.prod.google.com [10.243.19.132])
+	by hpaq3.eem.corp.google.com with ESMTP id p4SKH3DO004666
 	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Sat, 28 May 2011 13:14:19 -0700
-Received: by pzk2 with SMTP id 2so1212850pzk.9
-        for <linux-mm@kvack.org>; Sat, 28 May 2011 13:14:16 -0700 (PDT)
-Date: Sat, 28 May 2011 13:14:09 -0700 (PDT)
+	for <linux-mm@kvack.org>; Sat, 28 May 2011 13:17:05 -0700
+Received: by pzk4 with SMTP id 4so1242242pzk.28
+        for <linux-mm@kvack.org>; Sat, 28 May 2011 13:17:03 -0700 (PDT)
+Date: Sat, 28 May 2011 13:17:04 -0700 (PDT)
 From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH] tmpfs: fix race between truncate and writepage
-Message-ID: <alpine.LSU.2.00.1105281311150.13319@sister.anvils>
+Subject: [PATCH] mm: fix kernel BUG at mm/rmap.c:1017!
+Message-ID: <alpine.LSU.2.00.1105281314220.13319@sister.anvils>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Shaohua Li <shaohua.li@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-While running fsx on tmpfs with a memhog then swapoff, swapoff was hanging
-(interruptibly), repeatedly failing to locate the owner of a 0xff entry in
-the swap_map.
+I've hit the "address >= vma->vm_end" check in do_page_add_anon_rmap()
+just once.  The stack showed khugepaged allocation trying to compact
+pages: the call to page_add_anon_rmap() coming from remove_migration_pte().
 
-Although shmem_writepage() does abandon when it sees incoming page index
-is beyond eof, there was still a window in which shmem_truncate_range()
-could come in between writepage's dropping lock and updating swap_map,
-find the half-completed swap_map entry, and in trying to free it,
-leave it in a state that swap_shmem_alloc() could not correct.
+That path holds anon_vma lock, but does not hold mmap_sem: it can
+therefore race with a split_vma(), and in commit 5f70b962ccc2 "mmap:
+avoid unnecessary anon_vma lock" we just took away the anon_vma lock
+protection when adjusting vma->vm_end.
 
-Arguably a bug in __swap_duplicate()'s and swap_entry_free()'s handling
-of the different cases, but easiest to fix by moving swap_shmem_alloc()
-under cover of the lock.
-
-More interesting than the bug: it's been there since 2.6.33, why could
-I not see it with earlier kernels?  The mmotm of two weeks ago seems to
-have some magic for generating races, this is just one of three I found.
-
-With yesterday's git I first saw this in mainline, bisected in search of
-that magic, but the easy reproducibility evaporated.  Oh well, fix the bug.
+I don't think that particular BUG_ON ever caught anything interesting,
+so better replace it by a comment, than reinstate the anon_vma locking.
 
 Signed-off-by: Hugh Dickins <hughd@google.com>
-Cc: stable@kernel.org
 ---
- mm/shmem.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ mm/rmap.c |    4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
---- linux.orig/mm/shmem.c	2011-05-27 19:05:27.000000000 -0700
-+++ linux/mm/shmem.c	2011-05-27 19:45:44.194813695 -0700
-@@ -1114,8 +1114,8 @@ static int shmem_writepage(struct page *
- 		delete_from_page_cache(page);
- 		shmem_swp_set(info, entry, swap.val);
- 		shmem_swp_unmap(entry);
--		spin_unlock(&info->lock);
- 		swap_shmem_alloc(swap);
-+		spin_unlock(&info->lock);
- 		BUG_ON(page_mapped(page));
- 		swap_writepage(page, wbc);
- 		return 0;
+--- linux.orig/mm/rmap.c	2011-05-27 19:05:27.000000000 -0700
++++ linux/mm/rmap.c	2011-05-27 20:07:44.601361236 -0700
+@@ -1014,7 +1014,7 @@ void do_page_add_anon_rmap(struct page *
+ 		return;
+ 
+ 	VM_BUG_ON(!PageLocked(page));
+-	VM_BUG_ON(address < vma->vm_start || address >= vma->vm_end);
++	/* address might be in next vma when migration races vma_adjust */
+ 	if (first)
+ 		__page_set_anon_rmap(page, vma, address, exclusive);
+ 	else
+@@ -1709,7 +1709,7 @@ void hugepage_add_anon_rmap(struct page
+ 
+ 	BUG_ON(!PageLocked(page));
+ 	BUG_ON(!anon_vma);
+-	BUG_ON(address < vma->vm_start || address >= vma->vm_end);
++	/* address might be in next vma when migration races vma_adjust */
+ 	first = atomic_inc_and_test(&page->_mapcount);
+ 	if (first)
+ 		__hugepage_set_anon_rmap(page, vma, address, 0);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
