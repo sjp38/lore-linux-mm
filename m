@@ -1,88 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id B14366B0012
-	for <linux-mm@kvack.org>; Sat, 28 May 2011 09:16:25 -0400 (EDT)
-Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [202.81.31.246])
-	by e23smtp05.au.ibm.com (8.14.4/8.13.1) with ESMTP id p4SDA9Ge005714
-	for <linux-mm@kvack.org>; Sat, 28 May 2011 23:10:09 +1000
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p4SDFkF1213130
-	for <linux-mm@kvack.org>; Sat, 28 May 2011 23:15:46 +1000
-Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p4SDGDvf001892
-	for <linux-mm@kvack.org>; Sat, 28 May 2011 23:16:13 +1000
-Date: Sat, 28 May 2011 18:46:06 +0530
-From: Ankita Garg <ankita@in.ibm.com>
-Subject: Re: [PATCH 00/10] mm: Linux VM Infrastructure to support Memory
- Power Management
-Message-ID: <20110528131606.GA3416@in.ibm.com>
-Reply-To: Ankita Garg <ankita@in.ibm.com>
+	by kanga.kvack.org (Postfix) with SMTP id A7E326B0012
+	for <linux-mm@kvack.org>; Sat, 28 May 2011 10:51:48 -0400 (EDT)
+Date: Sat, 28 May 2011 16:39:31 +0200
+From: Jean-Christophe PLAGNIOL-VILLARD <plagnioj@jcrosoft.com>
+Subject: Re: [PATCH 10/10] mm: Create memory regions at boot-up
+Message-ID: <20110528143931.GB3603@game.jcrosoft.org>
 References: <1306499498-14263-1-git-send-email-ankita@in.ibm.com>
- <20110528005640.9076c0b1.akpm@linux-foundation.org>
+ <1306499498-14263-11-git-send-email-ankita@in.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110528005640.9076c0b1.akpm@linux-foundation.org>
+In-Reply-To: <1306499498-14263-11-git-send-email-ankita@in.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
+To: Ankita Garg <ankita@in.ibm.com>
 Cc: linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-pm@lists.linux-foundation.org, svaidy@linux.vnet.ibm.com, thomas.abraham@linaro.org
 
-Hi Andrew,
-
-On Sat, May 28, 2011 at 12:56:40AM -0700, Andrew Morton wrote:
-> On Fri, 27 May 2011 18:01:28 +0530 Ankita Garg <ankita@in.ibm.com> wrote:
+On 18:01 Fri 27 May     , Ankita Garg wrote:
+> Memory regions are created at boot up time, from the information obtained
+> from the firmware. This patchset was developed on ARM platform, on which at
+> present u-boot bootloader does not export information about memory units that
+> can be independently power managed. For the purpose of demonstration, 2 hard
+> coded memory regions are created, of 256MB each on the Panda board with 512MB
+> RAM.
 > 
-> > This patchset proposes a generic memory regions infrastructure that can be
-> > used to tag boundaries of memory blocks which belongs to a specific memory
-> > power management domain and further enable exploitation of platform memory
-> > power management capabilities.
+> Signed-off-by: Ankita Garg <ankita@in.ibm.com>
+> ---
+>  include/linux/mmzone.h |    8 +++-----
+>  mm/page_alloc.c        |   29 +++++++++++++++++++++++++++++
+>  2 files changed, 32 insertions(+), 5 deletions(-)
 > 
-> A couple of quick thoughts...
-> 
-> I'm seeing no estimate of how much energy we might save when this work
-> is completed.  But saving energy is the entire point of the entire
-> patchset!  So please spend some time thinking about that and update and
-> maintain the [patch 0/n] description so others can get some idea of the
-> benefit we might get from all of this.  That estimate should include an
-> estimate of what proportion of machines are likely to have hardware
-> which can use this feature and in what timeframe.
->
-
-This patchset is definitely not for inclusion. The intention of this RFC
-series is to convey the idea and demonstrate the intricacies of the VM
-design. Partial Array Self-Refresh (PASR) is an upcoming technology that
-is supported on some platforms today, but will be an important feature
-in future platforms to conserve idle power consumed by memory subsystem.
-Mobile devices that are predominantly in the standby state can exploit
-PASR feature to partially turn off areas of memory that are free.
-
-Unfortunately, at this point we are unable to provide an estimate of the
-power savings, as the hardware platforms do not yet export information
-about the underlying memory hardware topology. We are working on this
-and hope to have some estimations in a month or two. However, will
-evaluate the performance impact of the changes and share the same.
-
-> IOW, if it saves one microwatt on 0.001% of machines, not interested ;)
-> 
-> 
-> Also, all this code appears to be enabled on all machines?  So machines
-> which don't have the requisite hardware still carry any additional
-> overhead which is added here.  I can see that ifdeffing a feature like
-> this would be ghastly but please also have a think about the
-> implications of this and add that discussion also.  
-> 
-> If possible, it would be good to think up some microbenchmarks which
-> probe the worst-case performance impact and describe those and present
-> the results.  So others can gain an understanding of the runtime costs.
-> 
-
--- 
-Regards,
-Ankita Garg (ankita@in.ibm.com)
-Linux Technology Center
-IBM India Systems & Technology Labs,
-Bangalore, India
+> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> index bc3e3fd..5dbe1e1 100644
+> --- a/include/linux/mmzone.h
+> +++ b/include/linux/mmzone.h
+> @@ -627,14 +627,12 @@ typedef struct mem_region_list_data {
+>   */
+>  struct bootmem_data;
+>  typedef struct pglist_data {
+> -/*	The linkage to node_zones is now removed. The new hierarchy introduced
+> - *	is pg_data_t -> mem_region -> zones
+> - * 	struct zone node_zones[MAX_NR_ZONES];
+> - */
+>  	struct zonelist node_zonelists[MAX_ZONELISTS];
+>  	int nr_zones;
+>  #ifdef CONFIG_FLAT_NODE_MEM_MAP	/* means !SPARSEMEM */
+> -	struct page *node_mem_map;
+> +	strs pg_data_t -> mem_region -> zones
+> + *      struct zone node_zones[MAX_NR_ZONES];
+> + */uct page *node_mem_map;
+what is time?
+>  #ifdef CONFIG_CGROUP_MEM_RES_CTLR
+>  	struct page_cgroup *node_page_cgroup;
+>  #endif
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index da8b045..3d994e8 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -4285,6 +4285,34 @@ static inline int pageblock_default_order(unsigned int order)
+>  
+>  #endif /* CONFIG_HUGETLB_PAGE_SIZE_VARIABLE */
+>  
+> +#define REGIONS_SIZE   (512 << 20) >> PAGE_SHIFT
+fix a region size why?
+> +
+> +static void init_node_memory_regions(struct pglist_data *pgdat)
+> +{
+Best Regards,
+J.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
