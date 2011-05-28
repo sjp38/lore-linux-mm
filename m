@@ -1,59 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 760496B0012
-	for <linux-mm@kvack.org>; Fri, 27 May 2011 19:40:10 -0400 (EDT)
-Date: Sat, 28 May 2011 01:40:07 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v2] cpusets: randomize node rotor used in
- cpuset_mem_spread_node()
-Message-ID: <20110527234007.GB4276@tiehlicka.suse.cz>
-References: <20110414065146.GA19685@tiehlicka.suse.cz>
- <20110414160145.0830.A69D9226@jp.fujitsu.com>
- <20110415161831.12F8.A69D9226@jp.fujitsu.com>
- <20110415082051.GB8828@tiehlicka.suse.cz>
- <20110526153319.b7e8c0b6.akpm@linux-foundation.org>
- <20110527124705.GB4067@tiehlicka.suse.cz>
- <alpine.DEB.2.00.1105271157350.2533@chino.kir.corp.google.com>
- <20110527231708.GB3214@tiehlicka.suse.cz>
- <alpine.DEB.2.00.1105271623410.9445@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1105271623410.9445@chino.kir.corp.google.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id E0AC26B0012
+	for <linux-mm@kvack.org>; Sat, 28 May 2011 03:54:48 -0400 (EDT)
+Date: Sat, 28 May 2011 00:56:40 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 00/10] mm: Linux VM Infrastructure to support Memory
+ Power Management
+Message-Id: <20110528005640.9076c0b1.akpm@linux-foundation.org>
+In-Reply-To: <1306499498-14263-1-git-send-email-ankita@in.ibm.com>
+References: <1306499498-14263-1-git-send-email-ankita@in.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, Jack Steiner <steiner@sgi.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Paul Menage <menage@google.com>, Robin Holt <holt@sgi.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org
+To: Ankita Garg <ankita@in.ibm.com>
+Cc: linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-pm@lists.linux-foundation.org, svaidy@linux.vnet.ibm.com, thomas.abraham@linaro.org
 
-On Fri 27-05-11 16:27:34, David Rientjes wrote:
-> On Sat, 28 May 2011, Michal Hocko wrote:
-> 
-> > > CONFIG_NODES_SHIFT is used for UMA machines that are using DISCONTIGMEM 
-> > > usually because they have very large holes; such machines don't need 
-> > > things like mempolicies but do need the data structures that abstract 
-> > > ranges of memory in the physical address space.  This build breakage 
-> > > probably isn't restricted to only alpha, you could probably see it with at 
-> > > least ia64 and mips as well.
-> > 
-> > Hmmm. I just find strange that some UMA arch uses functions like
-> > {first,next}_online_node.
-> > 
-> 
-> They shouldn't, but they do use NUMA data structures like pg_data_t for 
-> DISCONTIGMEM.  The MAX_NUMNODES > 1 optimization in nodemask.h is to 
-> prevent doing things like node_weight() on a nodemask when we know that 
-> only one bit will ever be set, otherwise we could make it conditional on 
-> CONFIG_NEED_MULTIPLE_NODES.
+On Fri, 27 May 2011 18:01:28 +0530 Ankita Garg <ankita@in.ibm.com> wrote:
 
-Thanks for the explanation.
+> This patchset proposes a generic memory regions infrastructure that can be
+> used to tag boundaries of memory blocks which belongs to a specific memory
+> power management domain and further enable exploitation of platform memory
+> power management capabilities.
 
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+A couple of quick thoughts...
+
+I'm seeing no estimate of how much energy we might save when this work
+is completed.  But saving energy is the entire point of the entire
+patchset!  So please spend some time thinking about that and update and
+maintain the [patch 0/n] description so others can get some idea of the
+benefit we might get from all of this.  That estimate should include an
+estimate of what proportion of machines are likely to have hardware
+which can use this feature and in what timeframe.
+
+IOW, if it saves one microwatt on 0.001% of machines, not interested ;)
+
+
+Also, all this code appears to be enabled on all machines?  So machines
+which don't have the requisite hardware still carry any additional
+overhead which is added here.  I can see that ifdeffing a feature like
+this would be ghastly but please also have a think about the
+implications of this and add that discussion also.  
+
+If possible, it would be good to think up some microbenchmarks which
+probe the worst-case performance impact and describe those and present
+the results.  So others can gain an understanding of the runtime costs.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
