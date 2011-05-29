@@ -1,85 +1,164 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 11D486B0012
-	for <linux-mm@kvack.org>; Sun, 29 May 2011 08:16:56 -0400 (EDT)
-Received: by pwi12 with SMTP id 12so1651402pwi.14
-        for <linux-mm@kvack.org>; Sun, 29 May 2011 05:16:53 -0700 (PDT)
-From: Nai Xia <nai.xia@gmail.com>
-Reply-To: nai.xia@gmail.com
-Subject: Re: [PATCH] mm: fix kernel BUG at mm/rmap.c:1017!
-Date: Sun, 29 May 2011 20:16:30 +0800
-References: <alpine.LSU.2.00.1105281314220.13319@sister.anvils> <201105291823.47082.nai.xia@gmail.com>
-In-Reply-To: <201105291823.47082.nai.xia@gmail.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 4EFAD6B0012
+	for <linux-mm@kvack.org>; Sun, 29 May 2011 12:23:18 -0400 (EDT)
+Received: from mail-ww0-f45.google.com (mail-ww0-f45.google.com [74.125.82.45])
+	(authenticated bits=0)
+	by smtp1.linux-foundation.org (8.14.2/8.13.5/Debian-3ubuntu1.1) with ESMTP id p4TGNBRO023967
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=FAIL)
+	for <linux-mm@kvack.org>; Sun, 29 May 2011 09:23:14 -0700
+Received: by wwi36 with SMTP id 36so2720961wwi.26
+        for <linux-mm@kvack.org>; Sun, 29 May 2011 09:23:10 -0700 (PDT)
 MIME-Version: 1.0
-Message-Id: <201105292016.30748.nai.xia@gmail.com>
-Content-Type: Text/Plain;
-  charset="us-ascii"
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20110529072256.GA20983@elte.hu>
+References: <20110529072256.GA20983@elte.hu>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Sun, 29 May 2011 09:22:49 -0700
+Message-ID: <BANLkTikHejgEyz9LfJ962Bu89vn1cBP+WQ@mail.gmail.com>
+Subject: Re: [PATCH] mm: Fix boot crash in mm_alloc()
+Content-Type: multipart/mixed; boundary=001517503e1a31508704a46c961c
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Shaohua Li <shaohua.li@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org
 
-On Sunday 29 May 2011 18:23:46 Nai Xia wrote:
-> On Sunday 29 May 2011 04:17:04 Hugh Dickins wrote:
-> > I've hit the "address >= vma->vm_end" check in do_page_add_anon_rmap()
-> > just once.  The stack showed khugepaged allocation trying to compact
-> > pages: the call to page_add_anon_rmap() coming from remove_migration_pte().
-> > 
-> > That path holds anon_vma lock, but does not hold mmap_sem: it can
-> > therefore race with a split_vma(), and in commit 5f70b962ccc2 "mmap:
-> > avoid unnecessary anon_vma lock" we just took away the anon_vma lock
-> > protection when adjusting vma->vm_end.
-> > 
-> > I don't think that particular BUG_ON ever caught anything interesting,
-> > so better replace it by a comment, than reinstate the anon_vma locking.
-> 
-> Is there another racing between "vma->vm_pgoff = pgoff;" in 
-> vma_adjust() and linear_page_index() in __page_set_anon_rmap() ?
+--001517503e1a31508704a46c961c
+Content-Type: text/plain; charset=ISO-8859-1
 
-Oh, sorry, please ignore this, this _is_ protected by anon_vma lock.
+On Sun, May 29, 2011 at 12:22 AM, Ingo Molnar <mingo@elte.hu> wrote:
+>
+> Would be nice to get the fix below into -rc1 as well, it triggers
+> rather easily on bootup when CONFIG_CPUMASK_OFFSTACK is turned on.
 
-Nai Xia
+Looking at that commit de03c72cfce5, it looks odd in other ways too.
 
-> 
-> 
-> Nai Xia
-> 
-> > 
-> > Signed-off-by: Hugh Dickins <hughd@google.com>
-> > ---
-> >  mm/rmap.c |    4 ++--
-> >  1 file changed, 2 insertions(+), 2 deletions(-)
-> > 
-> > --- linux.orig/mm/rmap.c	2011-05-27 19:05:27.000000000 -0700
-> > +++ linux/mm/rmap.c	2011-05-27 20:07:44.601361236 -0700
-> > @@ -1014,7 +1014,7 @@ void do_page_add_anon_rmap(struct page *
-> >  		return;
-> >  
-> >  	VM_BUG_ON(!PageLocked(page));
-> > -	VM_BUG_ON(address < vma->vm_start || address >= vma->vm_end);
-> > +	/* address might be in next vma when migration races vma_adjust */
-> >  	if (first)
-> >  		__page_set_anon_rmap(page, vma, address, exclusive);
-> >  	else
-> > @@ -1709,7 +1709,7 @@ void hugepage_add_anon_rmap(struct page
-> >  
-> >  	BUG_ON(!PageLocked(page));
-> >  	BUG_ON(!anon_vma);
-> > -	BUG_ON(address < vma->vm_start || address >= vma->vm_end);
-> > +	/* address might be in next vma when migration races vma_adjust */
-> >  	first = atomic_inc_and_test(&page->_mapcount);
-> >  	if (first)
-> >  		__hugepage_set_anon_rmap(page, vma, address, 0);
-> > 
-> > --
-> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> > the body to majordomo@kvack.org.  For more info on Linux MM,
-> > see: http://www.linux-mm.org/ .
-> > Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> > 
-> 
+For example, it looks like mm_cpumask is always initialized to zero.
+That's a bit odd, isn't it, since it *used* to be initialized
+statically with this:
+
+-       .cpu_vm_mask    = CPU_MASK_ALL,
+
+which is rather different from zero.
+
+Now, I'm sure the init mm_cpumask doesn't really matter, but I'd have
+expected a commentary about it.
+
+I also wonder if that whole conversion to cpumask_var_t was worth it,
+since clearly it wasn't very well tested. It results in an extra
+allocation at fork() time for the many-cpu case, and I do get the
+feeling that we would have been better off keeping the cpumask inside
+the mm_struct. Moving it to the end of mm_struct makes sense for the
+many-cpu case, but at the same time I end up wondering what it does to
+the switch_mm() cache behavior. (And perhaps the TLB flush IPI cache
+activity).
+
+Ho humm. I have this suspicion that that whole patch wasn't fully
+thought out, and that I should revert it rather than fix the oops.
+
+Or, in fact, we could just do something like the attached (UNTESTED!)
+which does the whole "move big allocation to end, but keep the
+cpumask_var_t at the beginning, and don't do any extra allocations"
+thing.
+
+NOTE NOTE NOTE! Not only is the attached patch untested, but please
+see the added FIXME comment about the whole mm_struct
+kmem_cache_create(). Right now we always allocate the whole
+maximum-sized bitmap.
+
+Comments?
+
+                          Linus
+
+--001517503e1a31508704a46c961c
+Content-Type: text/x-patch; charset=US-ASCII; name="patch.diff"
+Content-Disposition: attachment; filename="patch.diff"
+Content-Transfer-Encoding: base64
+X-Attachment-Id: f_goa76u7y0
+
+IGluY2x1ZGUvbGludXgvbW1fdHlwZXMuaCB8ICAgMTQgKysrKysrKysrKystLS0KIGluY2x1ZGUv
+bGludXgvc2NoZWQuaCAgICB8ICAgIDEgLQogaW5pdC9tYWluLmMgICAgICAgICAgICAgIHwgICAg
+MiArLQoga2VybmVsL2ZvcmsuYyAgICAgICAgICAgIHwgICAzOSArKysrKysrKysrLS0tLS0tLS0t
+LS0tLS0tLS0tLS0tLS0tLS0tLS0KIDQgZmlsZXMgY2hhbmdlZCwgMjIgaW5zZXJ0aW9ucygrKSwg
+MzQgZGVsZXRpb25zKC0pCgpkaWZmIC0tZ2l0IGEvaW5jbHVkZS9saW51eC9tbV90eXBlcy5oIGIv
+aW5jbHVkZS9saW51eC9tbV90eXBlcy5oCmluZGV4IDJhNzhhYWU3OGM2OS4uZjRlOWJiMTdiZGYy
+IDEwMDY0NAotLS0gYS9pbmNsdWRlL2xpbnV4L21tX3R5cGVzLmgKKysrIGIvaW5jbHVkZS9saW51
+eC9tbV90eXBlcy5oCkBAIC0yNDMsNyArMjQzLDcgQEAgc3RydWN0IG1tX3N0cnVjdCB7CiAJCQkJ
+CQkgKiB0b2dldGhlciBvZmYgaW5pdF9tbS5tbWxpc3QsIGFuZCBhcmUgcHJvdGVjdGVkCiAJCQkJ
+CQkgKiBieSBtbWxpc3RfbG9jawogCQkJCQkJICovCi0KKwljcHVtYXNrX3Zhcl90IGNwdV92bV9t
+YXNrX3ZhcjsKIAogCXVuc2lnbmVkIGxvbmcgaGl3YXRlcl9yc3M7CS8qIEhpZ2gtd2F0ZXJtYXJr
+IG9mIFJTUyB1c2FnZSAqLwogCXVuc2lnbmVkIGxvbmcgaGl3YXRlcl92bTsJLyogSGlnaC13YXRl
+ciB2aXJ0dWFsIG1lbW9yeSB1c2FnZSAqLwpAQCAtMzExLDEwICszMTEsMTggQEAgc3RydWN0IG1t
+X3N0cnVjdCB7CiAjaWZkZWYgQ09ORklHX1RSQU5TUEFSRU5UX0hVR0VQQUdFCiAJcGd0YWJsZV90
+IHBtZF9odWdlX3B0ZTsgLyogcHJvdGVjdGVkIGJ5IHBhZ2VfdGFibGVfbG9jayAqLwogI2VuZGlm
+Ci0KLQljcHVtYXNrX3Zhcl90IGNwdV92bV9tYXNrX3ZhcjsKKyNpZmRlZiBDT05GSUdfQ1BVTUFT
+S19PRkZTVEFDSworCXN0cnVjdCBjcHVtYXNrIGNwdW1hc2tfYWxsb2NhdGlvbjsKKyNlbmRpZgog
+fTsKIAorc3RhdGljIGlubGluZSB2b2lkIG1tX2luaXRfY3B1bWFzayhzdHJ1Y3QgbW1fc3RydWN0
+ICptbSkKK3sKKyNpZmRlZiBDT05GSUdfQ1BVTUFTS19PRkZTVEFDSworCW1tLT5jcHVfdm1fbWFz
+a192YXIgPSAmbW0tPmNwdW1hc2tfYWxsb2NhdGlvbjsKKyNlbmRpZgorfQorCiAvKiBGdXR1cmUt
+c2FmZSBhY2Nlc3NvciBmb3Igc3RydWN0IG1tX3N0cnVjdCdzIGNwdV92bV9tYXNrLiAqLwogc3Rh
+dGljIGlubGluZSBjcHVtYXNrX3QgKm1tX2NwdW1hc2soc3RydWN0IG1tX3N0cnVjdCAqbW0pCiB7
+CmRpZmYgLS1naXQgYS9pbmNsdWRlL2xpbnV4L3NjaGVkLmggYi9pbmNsdWRlL2xpbnV4L3NjaGVk
+LmgKaW5kZXggYmNkZGQwMTM4MTA1Li4yYTg2MjFjNGJlMWUgMTAwNjQ0Ci0tLSBhL2luY2x1ZGUv
+bGludXgvc2NoZWQuaAorKysgYi9pbmNsdWRlL2xpbnV4L3NjaGVkLmgKQEAgLTIxOTQsNyArMjE5
+NCw2IEBAIHN0YXRpYyBpbmxpbmUgdm9pZCBtbWRyb3Aoc3RydWN0IG1tX3N0cnVjdCAqIG1tKQog
+CWlmICh1bmxpa2VseShhdG9taWNfZGVjX2FuZF90ZXN0KCZtbS0+bW1fY291bnQpKSkKIAkJX19t
+bWRyb3AobW0pOwogfQotZXh0ZXJuIGludCBtbV9pbml0X2NwdW1hc2soc3RydWN0IG1tX3N0cnVj
+dCAqbW0sIHN0cnVjdCBtbV9zdHJ1Y3QgKm9sZG1tKTsKIAogLyogbW1wdXQgZ2V0cyByaWQgb2Yg
+dGhlIG1hcHBpbmdzIGFuZCBhbGwgdXNlci1zcGFjZSAqLwogZXh0ZXJuIHZvaWQgbW1wdXQoc3Ry
+dWN0IG1tX3N0cnVjdCAqKTsKZGlmZiAtLWdpdCBhL2luaXQvbWFpbi5jIGIvaW5pdC9tYWluLmMK
+aW5kZXggZDJmMWUwODZiZjMzLi5jYWZiYTY3YzEzYmYgMTAwNjQ0Ci0tLSBhL2luaXQvbWFpbi5j
+CisrKyBiL2luaXQvbWFpbi5jCkBAIC00ODcsNiArNDg3LDcgQEAgYXNtbGlua2FnZSB2b2lkIF9f
+aW5pdCBzdGFydF9rZXJuZWwodm9pZCkKIAlwcmludGsoS0VSTl9OT1RJQ0UgIiVzIiwgbGludXhf
+YmFubmVyKTsKIAlzZXR1cF9hcmNoKCZjb21tYW5kX2xpbmUpOwogCW1tX2luaXRfb3duZXIoJmlu
+aXRfbW0sICZpbml0X3Rhc2spOworCW1tX2luaXRfY3B1bWFzaygmaW5pdF9tbSk7CiAJc2V0dXBf
+Y29tbWFuZF9saW5lKGNvbW1hbmRfbGluZSk7CiAJc2V0dXBfbnJfY3B1X2lkcygpOwogCXNldHVw
+X3Blcl9jcHVfYXJlYXMoKTsKQEAgLTUxMCw3ICs1MTEsNiBAQCBhc21saW5rYWdlIHZvaWQgX19p
+bml0IHN0YXJ0X2tlcm5lbCh2b2lkKQogCXNvcnRfbWFpbl9leHRhYmxlKCk7CiAJdHJhcF9pbml0
+KCk7CiAJbW1faW5pdCgpOwotCUJVR19PTihtbV9pbml0X2NwdW1hc2soJmluaXRfbW0sIDApKTsK
+IAogCS8qCiAJICogU2V0IHVwIHRoZSBzY2hlZHVsZXIgcHJpb3Igc3RhcnRpbmcgYW55IGludGVy
+cnVwdHMgKHN1Y2ggYXMgdGhlCmRpZmYgLS1naXQgYS9rZXJuZWwvZm9yay5jIGIva2VybmVsL2Zv
+cmsuYwppbmRleCBjYTQwNmQ5MTY3MTMuLmQzMGM3OTJhODNhMiAxMDA2NDQKLS0tIGEva2VybmVs
+L2ZvcmsuYworKysgYi9rZXJuZWwvZm9yay5jCkBAIC00ODQsMjAgKzQ4NCw2IEBAIHN0YXRpYyB2
+b2lkIG1tX2luaXRfYWlvKHN0cnVjdCBtbV9zdHJ1Y3QgKm1tKQogI2VuZGlmCiB9CiAKLWludCBt
+bV9pbml0X2NwdW1hc2soc3RydWN0IG1tX3N0cnVjdCAqbW0sIHN0cnVjdCBtbV9zdHJ1Y3QgKm9s
+ZG1tKQotewotI2lmZGVmIENPTkZJR19DUFVNQVNLX09GRlNUQUNLCi0JaWYgKCFhbGxvY19jcHVt
+YXNrX3ZhcigmbW0tPmNwdV92bV9tYXNrX3ZhciwgR0ZQX0tFUk5FTCkpCi0JCXJldHVybiAtRU5P
+TUVNOwotCi0JaWYgKG9sZG1tKQotCQljcHVtYXNrX2NvcHkobW1fY3B1bWFzayhtbSksIG1tX2Nw
+dW1hc2sob2xkbW0pKTsKLQllbHNlCi0JCW1lbXNldChtbV9jcHVtYXNrKG1tKSwgMCwgY3B1bWFz
+a19zaXplKCkpOwotI2VuZGlmCi0JcmV0dXJuIDA7Ci19Ci0KIHN0YXRpYyBzdHJ1Y3QgbW1fc3Ry
+dWN0ICogbW1faW5pdChzdHJ1Y3QgbW1fc3RydWN0ICogbW0sIHN0cnVjdCB0YXNrX3N0cnVjdCAq
+cCkKIHsKIAlhdG9taWNfc2V0KCZtbS0+bW1fdXNlcnMsIDEpOwpAQCAtNTM4LDE3ICs1MjQsOCBA
+QCBzdHJ1Y3QgbW1fc3RydWN0ICogbW1fYWxsb2Modm9pZCkKIAkJcmV0dXJuIE5VTEw7CiAKIAlt
+ZW1zZXQobW0sIDAsIHNpemVvZigqbW0pKTsKLQltbSA9IG1tX2luaXQobW0sIGN1cnJlbnQpOwot
+CWlmICghbW0pCi0JCXJldHVybiBOVUxMOwotCi0JaWYgKG1tX2luaXRfY3B1bWFzayhtbSwgTlVM
+TCkpIHsKLQkJbW1fZnJlZV9wZ2QobW0pOwotCQlmcmVlX21tKG1tKTsKLQkJcmV0dXJuIE5VTEw7
+Ci0JfQotCi0JcmV0dXJuIG1tOworCW1tX2luaXRfY3B1bWFzayhtbSk7CisJcmV0dXJuIG1tX2lu
+aXQobW0sIGN1cnJlbnQpOwogfQogCiAvKgpAQCAtNzUzLDYgKzczMCw3IEBAIHN0cnVjdCBtbV9z
+dHJ1Y3QgKmR1cF9tbShzdHJ1Y3QgdGFza19zdHJ1Y3QgKnRzaykKIAkJZ290byBmYWlsX25vbWVt
+OwogCiAJbWVtY3B5KG1tLCBvbGRtbSwgc2l6ZW9mKCptbSkpOworCW1tX2luaXRfY3B1bWFzayht
+bSk7CiAKIAkvKiBJbml0aWFsaXppbmcgZm9yIFN3YXAgdG9rZW4gc3R1ZmYgKi8KIAltbS0+dG9r
+ZW5fcHJpb3JpdHkgPSAwOwpAQCAtNzY1LDkgKzc0Myw2IEBAIHN0cnVjdCBtbV9zdHJ1Y3QgKmR1
+cF9tbShzdHJ1Y3QgdGFza19zdHJ1Y3QgKnRzaykKIAlpZiAoIW1tX2luaXQobW0sIHRzaykpCiAJ
+CWdvdG8gZmFpbF9ub21lbTsKIAotCWlmIChtbV9pbml0X2NwdW1hc2sobW0sIG9sZG1tKSkKLQkJ
+Z290byBmYWlsX25vY3B1bWFzazsKLQogCWlmIChpbml0X25ld19jb250ZXh0KHRzaywgbW0pKQog
+CQlnb3RvIGZhaWxfbm9jb250ZXh0OwogCkBAIC03OTYsNyArNzcxLDYgQEAgZmFpbF9ub21lbToK
+IGZhaWxfbm9jb250ZXh0OgogCWZyZWVfY3B1bWFza192YXIobW0tPmNwdV92bV9tYXNrX3Zhcik7
+CiAKLWZhaWxfbm9jcHVtYXNrOgogCS8qCiAJICogSWYgaW5pdF9uZXdfY29udGV4dCgpIGZhaWxl
+ZCwgd2UgY2Fubm90IHVzZSBtbXB1dCgpIHRvIGZyZWUgdGhlIG1tCiAJICogYmVjYXVzZSBpdCBj
+YWxscyBkZXN0cm95X2NvbnRleHQoKQpAQCAtMTU5MSw2ICsxNTY1LDEzIEBAIHZvaWQgX19pbml0
+IHByb2NfY2FjaGVzX2luaXQodm9pZCkKIAlmc19jYWNoZXAgPSBrbWVtX2NhY2hlX2NyZWF0ZSgi
+ZnNfY2FjaGUiLAogCQkJc2l6ZW9mKHN0cnVjdCBmc19zdHJ1Y3QpLCAwLAogCQkJU0xBQl9IV0NB
+Q0hFX0FMSUdOfFNMQUJfUEFOSUN8U0xBQl9OT1RSQUNLLCBOVUxMKTsKKwkvKgorCSAqIEZJWE1F
+ISBUaGUgInNpemVvZihzdHJ1Y3QgbW1fc3RydWN0KSIgY3VycmVudGx5IGluY2x1ZGVzIHRoZQor
+CSAqIHdob2xlIHN0cnVjdCBjcHVtYXNrIGZvciB0aGUgT0ZGU1RBQ0sgY2FzZS4gV2UgY291bGQg
+Y2hhbmdlCisJICogdGhpcyB0byAqb25seSogYWxsb2NhdGUgYXMgbXVjaCBvZiBpdCBhcyByZXF1
+aXJlZCBieSB0aGUKKwkgKiBtYXhpbXVtIG51bWJlciBvZiBDUFUncyB3ZSBjYW4gZXZlciBoYXZl
+LiAgVGhlIGNwdW1hc2tfYWxsb2NhdGlvbgorCSAqIGlzIGF0IHRoZSBlbmQgb2YgdGhlIHN0cnVj
+dHVyZSwgZXhhY3RseSBmb3IgdGhhdCByZWFzb24uCisJICovCiAJbW1fY2FjaGVwID0ga21lbV9j
+YWNoZV9jcmVhdGUoIm1tX3N0cnVjdCIsCiAJCQlzaXplb2Yoc3RydWN0IG1tX3N0cnVjdCksIEFS
+Q0hfTUlOX01NU1RSVUNUX0FMSUdOLAogCQkJU0xBQl9IV0NBQ0hFX0FMSUdOfFNMQUJfUEFOSUN8
+U0xBQl9OT1RSQUNLLCBOVUxMKTsK
+--001517503e1a31508704a46c961c--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
