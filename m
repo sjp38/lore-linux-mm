@@ -1,147 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B5326B0012
-	for <linux-mm@kvack.org>; Sun, 29 May 2011 13:20:40 -0400 (EDT)
-Received: from mail-wy0-f169.google.com (mail-wy0-f169.google.com [74.125.82.169])
-	(authenticated bits=0)
-	by smtp1.linux-foundation.org (8.14.2/8.13.5/Debian-3ubuntu1.1) with ESMTP id p4THK5x0027134
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=FAIL)
-	for <linux-mm@kvack.org>; Sun, 29 May 2011 10:20:06 -0700
-Received: by wyf19 with SMTP id 19so2904895wyf.14
-        for <linux-mm@kvack.org>; Sun, 29 May 2011 10:20:04 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <BANLkTikHejgEyz9LfJ962Bu89vn1cBP+WQ@mail.gmail.com>
-References: <20110529072256.GA20983@elte.hu> <BANLkTikHejgEyz9LfJ962Bu89vn1cBP+WQ@mail.gmail.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Sun, 29 May 2011 10:19:44 -0700
-Message-ID: <BANLkTimqhkiBSArm7n0_9FD+LW6hWBWxFA@mail.gmail.com>
-Subject: Re: [PATCH] mm: Fix boot crash in mm_alloc()
-Content-Type: multipart/mixed; boundary=001517503e1ab00d6f04a46d61ea
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A3596B0012
+	for <linux-mm@kvack.org>; Sun, 29 May 2011 14:14:04 -0400 (EDT)
+Received: by pzk4 with SMTP id 4so1674818pzk.14
+        for <linux-mm@kvack.org>; Sun, 29 May 2011 11:14:02 -0700 (PDT)
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: [PATCH v2 00/10] Prevent LRU churning
+Date: Mon, 30 May 2011 03:13:39 +0900
+Message-Id: <cover.1306689214.git.minchan.kim@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>
 
---001517503e1ab00d6f04a46d61ea
-Content-Type: text/plain; charset=ISO-8859-1
+Changelog since V1
+ o Rebase on 2.6.39
+ o change description slightly
 
-On Sun, May 29, 2011 at 9:22 AM, Linus Torvalds
-<torvalds@linux-foundation.org> wrote:
->
-> Or, in fact, we could just do something like the attached (UNTESTED!)
+There are some places to isolate and putback pages.
+For example, compaction does it for getting contiguous page.
+The problem is that if we isolate page in the middle of LRU and putback it
+we lose LRU history as putback_lru_page inserts the page into head of LRU list. 
 
-So I did warn you that it was untested.
+LRU history is important parameter to select victim page in curre page reclaim
+when memory pressure is heavy. Unfortunately, if someone want to allocate high-order page
+and memory pressure is heavy, it would trigger compaction and we end up lost LRU history.
+It means we can evict working set pages and system latency would be high.
 
-It still is, but I walked through it a bit more, and I realized that
-while I had gotten rid of the extra allocations of the
-cpu_vm_mask_var, I hadn't gotten rid of the freeing.
+This patch is for solving the problem with two methods.
 
-So that patch would definitely not have worked very well with
-CONFIG_CPUMASK_OFFSTACK.
+ * Anti-churning
+   when we isolate page on LRU list, let's not isolate page we can't handle
+ * De-churning
+   when we putback page on LRU list in migration, let's insert new page into old page's lru position.
 
-And I noticed that I moved the cpu_vm_mask back in the wrong space, it
-should likely be as close as possible to the mm_context_t, since the
-main user is likely the task switching code that touches that anyway.
+[1,2,3/10] is just clean up.
+[4,5,6/10] is related to Anti-churning. 
+[7,8,9/10] is related to De-churning. 
+[10/10] is adding to new tracepoints which is never for merge but just show the effect.
 
-So here's a slightly updated patch.
+I test and pass this series all[yes|no|mod|def]config.
+And in my machine(1G DRAM, Intel Core 2 Duo), test scenario is following as. 
 
-STILL TOTALLY UNTESTED! The fixes were just from eyeballing it a bit
-more, not from any actual testing.
+1) Boot up
+2) qemu ubuntu start up (1G mem)
+3) Run many applications and switch attached script(which is made by Wu)
 
-                      Linus
+I think this is worst-case scenario since there are many contiguous pages when machine boots up.
+It means system memory isn't aging so that many pages are contiguous-LRU order. It could make 
+bad effect on inorder-lru but I solved the problem. Please see description of [7/10].
 
---001517503e1ab00d6f04a46d61ea
-Content-Type: text/x-patch; charset=US-ASCII; name="patch.diff"
-Content-Disposition: attachment; filename="patch.diff"
-Content-Transfer-Encoding: base64
-X-Attachment-Id: f_goa98iqf1
+Test result is following as. 
+For compaction, it isolated about 20000 pages. Only 10 pages are put backed with
+out-of-order(ie, head of LRU) Others, about 19990 pages are put-backed with in-order
+(ie, position of old page while migration happens). It is eactly what I want.
 
-IGluY2x1ZGUvbGludXgvbW1fdHlwZXMuaCB8ICAgMTQgKysrKysrKysrKysrLS0KIGluY2x1ZGUv
-bGludXgvc2NoZWQuaCAgICB8ICAgIDEgLQogaW5pdC9tYWluLmMgICAgICAgICAgICAgIHwgICAg
-MiArLQoga2VybmVsL2ZvcmsuYyAgICAgICAgICAgIHwgICA0MiArKysrKysrKysrLS0tLS0tLS0t
-LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0KIDQgZmlsZXMgY2hhbmdlZCwgMjMgaW5zZXJ0aW9ucygr
-KSwgMzYgZGVsZXRpb25zKC0pCgpkaWZmIC0tZ2l0IGEvaW5jbHVkZS9saW51eC9tbV90eXBlcy5o
-IGIvaW5jbHVkZS9saW51eC9tbV90eXBlcy5oCmluZGV4IDJhNzhhYWU3OGM2OS4uMDI3OTM1Yzg2
-YzY4IDEwMDY0NAotLS0gYS9pbmNsdWRlL2xpbnV4L21tX3R5cGVzLmgKKysrIGIvaW5jbHVkZS9s
-aW51eC9tbV90eXBlcy5oCkBAIC0yNjQsNiArMjY0LDggQEAgc3RydWN0IG1tX3N0cnVjdCB7CiAK
-IAlzdHJ1Y3QgbGludXhfYmluZm10ICpiaW5mbXQ7CiAKKwljcHVtYXNrX3Zhcl90IGNwdV92bV9t
-YXNrX3ZhcjsKKwogCS8qIEFyY2hpdGVjdHVyZS1zcGVjaWZpYyBNTSBjb250ZXh0ICovCiAJbW1f
-Y29udGV4dF90IGNvbnRleHQ7CiAKQEAgLTMxMSwxMCArMzEzLDE4IEBAIHN0cnVjdCBtbV9zdHJ1
-Y3QgewogI2lmZGVmIENPTkZJR19UUkFOU1BBUkVOVF9IVUdFUEFHRQogCXBndGFibGVfdCBwbWRf
-aHVnZV9wdGU7IC8qIHByb3RlY3RlZCBieSBwYWdlX3RhYmxlX2xvY2sgKi8KICNlbmRpZgotCi0J
-Y3B1bWFza192YXJfdCBjcHVfdm1fbWFza192YXI7CisjaWZkZWYgQ09ORklHX0NQVU1BU0tfT0ZG
-U1RBQ0sKKwlzdHJ1Y3QgY3B1bWFzayBjcHVtYXNrX2FsbG9jYXRpb247CisjZW5kaWYKIH07CiAK
-K3N0YXRpYyBpbmxpbmUgdm9pZCBtbV9pbml0X2NwdW1hc2soc3RydWN0IG1tX3N0cnVjdCAqbW0p
-Cit7CisjaWZkZWYgQ09ORklHX0NQVU1BU0tfT0ZGU1RBQ0sKKwltbS0+Y3B1X3ZtX21hc2tfdmFy
-ID0gJm1tLT5jcHVtYXNrX2FsbG9jYXRpb247CisjZW5kaWYKK30KKwogLyogRnV0dXJlLXNhZmUg
-YWNjZXNzb3IgZm9yIHN0cnVjdCBtbV9zdHJ1Y3QncyBjcHVfdm1fbWFzay4gKi8KIHN0YXRpYyBp
-bmxpbmUgY3B1bWFza190ICptbV9jcHVtYXNrKHN0cnVjdCBtbV9zdHJ1Y3QgKm1tKQogewpkaWZm
-IC0tZ2l0IGEvaW5jbHVkZS9saW51eC9zY2hlZC5oIGIvaW5jbHVkZS9saW51eC9zY2hlZC5oCmlu
-ZGV4IGJjZGRkMDEzODEwNS4uMmE4NjIxYzRiZTFlIDEwMDY0NAotLS0gYS9pbmNsdWRlL2xpbnV4
-L3NjaGVkLmgKKysrIGIvaW5jbHVkZS9saW51eC9zY2hlZC5oCkBAIC0yMTk0LDcgKzIxOTQsNiBA
-QCBzdGF0aWMgaW5saW5lIHZvaWQgbW1kcm9wKHN0cnVjdCBtbV9zdHJ1Y3QgKiBtbSkKIAlpZiAo
-dW5saWtlbHkoYXRvbWljX2RlY19hbmRfdGVzdCgmbW0tPm1tX2NvdW50KSkpCiAJCV9fbW1kcm9w
-KG1tKTsKIH0KLWV4dGVybiBpbnQgbW1faW5pdF9jcHVtYXNrKHN0cnVjdCBtbV9zdHJ1Y3QgKm1t
-LCBzdHJ1Y3QgbW1fc3RydWN0ICpvbGRtbSk7CiAKIC8qIG1tcHV0IGdldHMgcmlkIG9mIHRoZSBt
-YXBwaW5ncyBhbmQgYWxsIHVzZXItc3BhY2UgKi8KIGV4dGVybiB2b2lkIG1tcHV0KHN0cnVjdCBt
-bV9zdHJ1Y3QgKik7CmRpZmYgLS1naXQgYS9pbml0L21haW4uYyBiL2luaXQvbWFpbi5jCmluZGV4
-IGQyZjFlMDg2YmYzMy4uY2FmYmE2N2MxM2JmIDEwMDY0NAotLS0gYS9pbml0L21haW4uYworKysg
-Yi9pbml0L21haW4uYwpAQCAtNDg3LDYgKzQ4Nyw3IEBAIGFzbWxpbmthZ2Ugdm9pZCBfX2luaXQg
-c3RhcnRfa2VybmVsKHZvaWQpCiAJcHJpbnRrKEtFUk5fTk9USUNFICIlcyIsIGxpbnV4X2Jhbm5l
-cik7CiAJc2V0dXBfYXJjaCgmY29tbWFuZF9saW5lKTsKIAltbV9pbml0X293bmVyKCZpbml0X21t
-LCAmaW5pdF90YXNrKTsKKwltbV9pbml0X2NwdW1hc2soJmluaXRfbW0pOwogCXNldHVwX2NvbW1h
-bmRfbGluZShjb21tYW5kX2xpbmUpOwogCXNldHVwX25yX2NwdV9pZHMoKTsKIAlzZXR1cF9wZXJf
-Y3B1X2FyZWFzKCk7CkBAIC01MTAsNyArNTExLDYgQEAgYXNtbGlua2FnZSB2b2lkIF9faW5pdCBz
-dGFydF9rZXJuZWwodm9pZCkKIAlzb3J0X21haW5fZXh0YWJsZSgpOwogCXRyYXBfaW5pdCgpOwog
-CW1tX2luaXQoKTsKLQlCVUdfT04obW1faW5pdF9jcHVtYXNrKCZpbml0X21tLCAwKSk7CiAKIAkv
-KgogCSAqIFNldCB1cCB0aGUgc2NoZWR1bGVyIHByaW9yIHN0YXJ0aW5nIGFueSBpbnRlcnJ1cHRz
-IChzdWNoIGFzIHRoZQpkaWZmIC0tZ2l0IGEva2VybmVsL2ZvcmsuYyBiL2tlcm5lbC9mb3JrLmMK
-aW5kZXggY2E0MDZkOTE2NzEzLi4wMjc2YzMwNDAxYTAgMTAwNjQ0Ci0tLSBhL2tlcm5lbC9mb3Jr
-LmMKKysrIGIva2VybmVsL2ZvcmsuYwpAQCAtNDg0LDIwICs0ODQsNiBAQCBzdGF0aWMgdm9pZCBt
-bV9pbml0X2FpbyhzdHJ1Y3QgbW1fc3RydWN0ICptbSkKICNlbmRpZgogfQogCi1pbnQgbW1faW5p
-dF9jcHVtYXNrKHN0cnVjdCBtbV9zdHJ1Y3QgKm1tLCBzdHJ1Y3QgbW1fc3RydWN0ICpvbGRtbSkK
-LXsKLSNpZmRlZiBDT05GSUdfQ1BVTUFTS19PRkZTVEFDSwotCWlmICghYWxsb2NfY3B1bWFza192
-YXIoJm1tLT5jcHVfdm1fbWFza192YXIsIEdGUF9LRVJORUwpKQotCQlyZXR1cm4gLUVOT01FTTsK
-LQotCWlmIChvbGRtbSkKLQkJY3B1bWFza19jb3B5KG1tX2NwdW1hc2sobW0pLCBtbV9jcHVtYXNr
-KG9sZG1tKSk7Ci0JZWxzZQotCQltZW1zZXQobW1fY3B1bWFzayhtbSksIDAsIGNwdW1hc2tfc2l6
-ZSgpKTsKLSNlbmRpZgotCXJldHVybiAwOwotfQotCiBzdGF0aWMgc3RydWN0IG1tX3N0cnVjdCAq
-IG1tX2luaXQoc3RydWN0IG1tX3N0cnVjdCAqIG1tLCBzdHJ1Y3QgdGFza19zdHJ1Y3QgKnApCiB7
-CiAJYXRvbWljX3NldCgmbW0tPm1tX3VzZXJzLCAxKTsKQEAgLTUzOCwxNyArNTI0LDggQEAgc3Ry
-dWN0IG1tX3N0cnVjdCAqIG1tX2FsbG9jKHZvaWQpCiAJCXJldHVybiBOVUxMOwogCiAJbWVtc2V0
-KG1tLCAwLCBzaXplb2YoKm1tKSk7Ci0JbW0gPSBtbV9pbml0KG1tLCBjdXJyZW50KTsKLQlpZiAo
-IW1tKQotCQlyZXR1cm4gTlVMTDsKLQotCWlmIChtbV9pbml0X2NwdW1hc2sobW0sIE5VTEwpKSB7
-Ci0JCW1tX2ZyZWVfcGdkKG1tKTsKLQkJZnJlZV9tbShtbSk7Ci0JCXJldHVybiBOVUxMOwotCX0K
-LQotCXJldHVybiBtbTsKKwltbV9pbml0X2NwdW1hc2sobW0pOworCXJldHVybiBtbV9pbml0KG1t
-LCBjdXJyZW50KTsKIH0KIAogLyoKQEAgLTU1OSw3ICs1MzYsNiBAQCBzdHJ1Y3QgbW1fc3RydWN0
-ICogbW1fYWxsb2Modm9pZCkKIHZvaWQgX19tbWRyb3Aoc3RydWN0IG1tX3N0cnVjdCAqbW0pCiB7
-CiAJQlVHX09OKG1tID09ICZpbml0X21tKTsKLQlmcmVlX2NwdW1hc2tfdmFyKG1tLT5jcHVfdm1f
-bWFza192YXIpOwogCW1tX2ZyZWVfcGdkKG1tKTsKIAlkZXN0cm95X2NvbnRleHQobW0pOwogCW1t
-dV9ub3RpZmllcl9tbV9kZXN0cm95KG1tKTsKQEAgLTc1Myw2ICs3MjksNyBAQCBzdHJ1Y3QgbW1f
-c3RydWN0ICpkdXBfbW0oc3RydWN0IHRhc2tfc3RydWN0ICp0c2spCiAJCWdvdG8gZmFpbF9ub21l
-bTsKIAogCW1lbWNweShtbSwgb2xkbW0sIHNpemVvZigqbW0pKTsKKwltbV9pbml0X2NwdW1hc2so
-bW0pOwogCiAJLyogSW5pdGlhbGl6aW5nIGZvciBTd2FwIHRva2VuIHN0dWZmICovCiAJbW0tPnRv
-a2VuX3ByaW9yaXR5ID0gMDsKQEAgLTc2NSw5ICs3NDIsNiBAQCBzdHJ1Y3QgbW1fc3RydWN0ICpk
-dXBfbW0oc3RydWN0IHRhc2tfc3RydWN0ICp0c2spCiAJaWYgKCFtbV9pbml0KG1tLCB0c2spKQog
-CQlnb3RvIGZhaWxfbm9tZW07CiAKLQlpZiAobW1faW5pdF9jcHVtYXNrKG1tLCBvbGRtbSkpCi0J
-CWdvdG8gZmFpbF9ub2NwdW1hc2s7Ci0KIAlpZiAoaW5pdF9uZXdfY29udGV4dCh0c2ssIG1tKSkK
-IAkJZ290byBmYWlsX25vY29udGV4dDsKIApAQCAtNzk0LDkgKzc2OCw2IEBAIGZhaWxfbm9tZW06
-CiAJcmV0dXJuIE5VTEw7CiAKIGZhaWxfbm9jb250ZXh0OgotCWZyZWVfY3B1bWFza192YXIobW0t
-PmNwdV92bV9tYXNrX3Zhcik7Ci0KLWZhaWxfbm9jcHVtYXNrOgogCS8qCiAJICogSWYgaW5pdF9u
-ZXdfY29udGV4dCgpIGZhaWxlZCwgd2UgY2Fubm90IHVzZSBtbXB1dCgpIHRvIGZyZWUgdGhlIG1t
-CiAJICogYmVjYXVzZSBpdCBjYWxscyBkZXN0cm95X2NvbnRleHQoKQpAQCAtMTU5MSw2ICsxNTYy
-LDEzIEBAIHZvaWQgX19pbml0IHByb2NfY2FjaGVzX2luaXQodm9pZCkKIAlmc19jYWNoZXAgPSBr
-bWVtX2NhY2hlX2NyZWF0ZSgiZnNfY2FjaGUiLAogCQkJc2l6ZW9mKHN0cnVjdCBmc19zdHJ1Y3Qp
-LCAwLAogCQkJU0xBQl9IV0NBQ0hFX0FMSUdOfFNMQUJfUEFOSUN8U0xBQl9OT1RSQUNLLCBOVUxM
-KTsKKwkvKgorCSAqIEZJWE1FISBUaGUgInNpemVvZihzdHJ1Y3QgbW1fc3RydWN0KSIgY3VycmVu
-dGx5IGluY2x1ZGVzIHRoZQorCSAqIHdob2xlIHN0cnVjdCBjcHVtYXNrIGZvciB0aGUgT0ZGU1RB
-Q0sgY2FzZS4gV2UgY291bGQgY2hhbmdlCisJICogdGhpcyB0byAqb25seSogYWxsb2NhdGUgYXMg
-bXVjaCBvZiBpdCBhcyByZXF1aXJlZCBieSB0aGUKKwkgKiBtYXhpbXVtIG51bWJlciBvZiBDUFUn
-cyB3ZSBjYW4gZXZlciBoYXZlLiAgVGhlIGNwdW1hc2tfYWxsb2NhdGlvbgorCSAqIGlzIGF0IHRo
-ZSBlbmQgb2YgdGhlIHN0cnVjdHVyZSwgZXhhY3RseSBmb3IgdGhhdCByZWFzb24uCisJICovCiAJ
-bW1fY2FjaGVwID0ga21lbV9jYWNoZV9jcmVhdGUoIm1tX3N0cnVjdCIsCiAJCQlzaXplb2Yoc3Ry
-dWN0IG1tX3N0cnVjdCksIEFSQ0hfTUlOX01NU1RSVUNUX0FMSUdOLAogCQkJU0xBQl9IV0NBQ0hF
-X0FMSUdOfFNMQUJfUEFOSUN8U0xBQl9OT1RSQUNLLCBOVUxMKTsK
---001517503e1ab00d6f04a46d61ea--
+Welcome to any comment.
+
+Minchan Kim (10):
+  [1/10] Make clear description of isolate/putback functions
+  [2/10] compaction: trivial clean up acct_isolated
+  [3/10] Change int mode for isolate mode with enum ISOLATE_PAGE_MODE
+  [4/10] Add additional isolation mode
+  [5/10] compaction: make isolate_lru_page with filter aware
+  [6/10] vmscan: make isolate_lru_page with filter aware
+  [7/10] In order putback lru core
+  [8/10] migration: make in-order-putback aware
+  [9/10] compaction: make compaction use in-order putback
+  [10/10] add tracepoints
+
+ include/linux/memcontrol.h             |    5 +-
+ include/linux/migrate.h                |   40 ++++
+ include/linux/mm_types.h               |   16 ++-
+ include/linux/swap.h                   |   18 ++-
+ include/trace/events/inorder_putback.h |   79 +++++++
+ include/trace/events/vmscan.h          |    8 +-
+ mm/compaction.c                        |   47 ++--
+ mm/internal.h                          |    2 +
+ mm/memcontrol.c                        |    3 +-
+ mm/migrate.c                           |  393 +++++++++++++++++++++++++++++++-
+ mm/swap.c                              |    2 +-
+ mm/vmscan.c                            |  115 ++++++++--
+ 12 files changed, 673 insertions(+), 55 deletions(-)
+ create mode 100644 include/trace/events/inorder_putback.h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
