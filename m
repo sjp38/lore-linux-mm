@@ -1,71 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 8157F6B0012
-	for <linux-mm@kvack.org>; Mon, 30 May 2011 04:58:58 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id D61FE3EE0AE
-	for <linux-mm@kvack.org>; Mon, 30 May 2011 17:58:54 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id C078B45DE92
-	for <linux-mm@kvack.org>; Mon, 30 May 2011 17:58:54 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9D68E45DE78
-	for <linux-mm@kvack.org>; Mon, 30 May 2011 17:58:54 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8CAF2E08001
-	for <linux-mm@kvack.org>; Mon, 30 May 2011 17:58:54 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4AA2C1DB8037
-	for <linux-mm@kvack.org>; Mon, 30 May 2011 17:58:54 +0900 (JST)
-Date: Mon, 30 May 2011 17:51:40 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [Bugme-new] [Bug 36192] New: Kernel panic when boot the 2.6.39+
- kernel based off of 2.6.32 kernel
-Message-Id: <20110530175140.3644b3bf.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20110530165453.845bba09.kamezawa.hiroyu@jp.fujitsu.com>
-References: <bug-36192-10286@https.bugzilla.kernel.org/>
-	<20110529231948.e1439ce5.akpm@linux-foundation.org>
-	<20110530160114.5a82e590.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110530162904.b78bf354.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110530165453.845bba09.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 72BFA6B0012
+	for <linux-mm@kvack.org>; Mon, 30 May 2011 05:37:51 -0400 (EDT)
+From: Jan Kara <jack@suse.cz>
+Subject: [PATCH] mm: Fix assertion mapping->nrpages == 0 in end_writeback()
+Date: Mon, 30 May 2011 11:37:38 +0200
+Message-Id: <1306748258-4732-1-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org, qcui@redhat.com, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Li Zefan <lizf@cn.fujitsu.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, Al Viro <viro@ZenIV.linux.org.uk>, mszeredi@suse.cz, Jan Kara <jack@suse.cz>, Jay <jinshan.xiong@whamcloud.com>, stable@kernel.org
 
-On Mon, 30 May 2011 16:54:53 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+Under heavy memory and filesystem load, users observe the assertion
+mapping->nrpages == 0 in end_writeback() trigger. This can be caused
+by page reclaim reclaiming the last page from a mapping in the following
+race:
+	CPU0				CPU1
+  ...
+  shrink_page_list()
+    __remove_mapping()
+      __delete_from_page_cache()
+        radix_tree_delete()
+					evict_inode()
+					  truncate_inode_pages()
+					    truncate_inode_pages_range()
+					      pagevec_lookup() - finds nothing
+					  end_writeback()
+					    mapping->nrpages != 0 -> BUG
+        page->mapping = NULL
+        mapping->nrpages--
 
-> On Mon, 30 May 2011 16:29:04 +0900
-> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+Fix the problem by cycling the mapping->tree_lock at the end of
+truncate_inode_pages_range() to synchronize with page reclaim.
 
-> SRAT: Node 1 PXM 1 0-a0000
-> SRAT: Node 1 PXM 1 100000-c8000000
-> SRAT: Node 1 PXM 1 100000000-438000000
-> SRAT: Node 3 PXM 3 438000000-838000000
-> SRAT: Node 5 PXM 5 838000000-c38000000
-> SRAT: Node 7 PXM 7 c38000000-1038000000
-> 
-> Initmem setup node 1 0000000000000000-0000000438000000
->   NODE_DATA [0000000437fd9000 - 0000000437ffffff]
-> Initmem setup node 3 0000000438000000-0000000838000000
->   NODE_DATA [0000000837fd9000 - 0000000837ffffff]
-> Initmem setup node 5 0000000838000000-0000000c38000000
->   NODE_DATA [0000000c37fd9000 - 0000000c37ffffff]
-> Initmem setup node 7 0000000c38000000-0000001038000000
->   NODE_DATA [0000001037fd7000 - 0000001037ffdfff]
-> [ffffea000ec40000-ffffea000edfffff] potential offnode page_structs
-> [ffffea001cc40000-ffffea001cdfffff] potential offnode page_structs
-> [ffffea002ac40000-ffffea002adfffff] potential offnode page_structs
-> ==
-> 
-> Hmm..there are four nodes 1,3,5,7 but....no memory on node 0 hmm ?
-> 
+Analyzed by Jay <jinshan.xiong@whamcloud.com>, lost in LKML, and dug
+out by Miklos Szeredi <mszeredi@suse.de>.
 
-I think I found a reason and this is a possible fix. But need to be tested.
-And suggestion for better fix rather than this band-aid is appreciated.
+CC: Jay <jinshan.xiong@whamcloud.com>
+CC: stable@kernel.org
+Acked-by: Miklos Szeredi <mszeredi@suse.de>
+Signed-off-by: Jan Kara <jack@suse.cz>
+---
+ mm/truncate.c |    7 +++++++
+ 1 files changed, 7 insertions(+), 0 deletions(-)
 
-==
+ Andrew, would you merge this patch please? Thanks.
+
+diff --git a/mm/truncate.c b/mm/truncate.c
+index a956675..ec3d292 100644
+--- a/mm/truncate.c
++++ b/mm/truncate.c
+@@ -291,6 +291,13 @@ void truncate_inode_pages_range(struct address_space *mapping,
+ 		pagevec_release(&pvec);
+ 		mem_cgroup_uncharge_end();
+ 	}
++	/*
++	 * Cycle the tree_lock to make sure all __delete_from_page_cache()
++	 * calls run from page reclaim have finished as well (this handles the
++	 * case when page reclaim took the last page from our range).
++	 */
++	spin_lock_irq(&mapping->tree_lock);
++	spin_unlock_irq(&mapping->tree_lock);
+ }
+ EXPORT_SYMBOL(truncate_inode_pages_range);
+ 
+-- 
+1.7.1
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
