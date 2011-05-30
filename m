@@ -1,51 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 2F06D6B0012
-	for <linux-mm@kvack.org>; Sun, 29 May 2011 20:29:08 -0400 (EDT)
-Received: by pxi10 with SMTP id 10so2117938pxi.8
-        for <linux-mm@kvack.org>; Sun, 29 May 2011 17:29:06 -0700 (PDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 1164A6B0012
+	for <linux-mm@kvack.org>; Sun, 29 May 2011 20:35:30 -0400 (EDT)
+Received: by qwa26 with SMTP id 26so2096319qwa.14
+        for <linux-mm@kvack.org>; Sun, 29 May 2011 17:35:29 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <BANLkTim8ngH8ASTk9js-G9DxySWVb7VL3A@mail.gmail.com>
-References: <BANLkTinptn4-+u+jgOr2vf2iuiVS3mmYXA@mail.gmail.com>
- <BANLkTimDtpVeLYisfon7g_=H80D0XXgkGQ@mail.gmail.com> <BANLkTim8ngH8ASTk9js-G9DxySWVb7VL3A@mail.gmail.com>
-From: Andrew Lutomirski <luto@mit.edu>
-Date: Sun, 29 May 2011 20:28:46 -0400
-Message-ID: <BANLkTim67zDojKPezhyAM=rzt-Mop1SFeg@mail.gmail.com>
-Subject: Re: Easy portable testcase! (Re: Kernel falls apart under light
- memory pressure (i.e. linking vmlinux))
-Content-Type: text/plain; charset=ISO-8859-1
+In-Reply-To: <1306701498-10846-1-git-send-email-cesarb@cesarb.net>
+References: <1306701498-10846-1-git-send-email-cesarb@cesarb.net>
+Date: Mon, 30 May 2011 09:35:29 +0900
+Message-ID: <BANLkTikX+dKsdwGOxG10Q2LVd_rCxEBRHw@mail.gmail.com>
+Subject: Re: [PATCH] cleancache: use __read_mostly for cleancache_enabled
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: mgorman@suse.de, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, aarcange@redhat.com, kamezawa.hiroyu@jp.fujitsu.com, fengguang.wu@intel.com, andi@firstfloor.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, hannes@cmpxchg.org, riel@redhat.com
+To: Cesar Eduardo Barros <cesarb@cesarb.net>
+Cc: linux-mm@kvack.org, Jan Beulich <JBeulich@novell.com>, Andrew Morton <akpm@linux-foundation.org>, Andreas Dilger <adilger@sun.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Jeremy Fitzhardinge <jeremy@goop.org>, linux-kernel@vger.kernel.org
 
-On Sun, May 29, 2011 at 2:28 PM, Minchan Kim <minchan.kim@gmail.com> wrote:
->>
->> It works only if the zone meets high watermark. If allocation is
->> faster than reclaim(ie, it's true for slow swap device), the zone
->> would remain congested.
->> It means swapout would block.
->> As we see the OOM log, we can know that DMA32 zone can't meet high watermark.
->>
->> Does my guessing make sense?
+On Mon, May 30, 2011 at 5:38 AM, Cesar Eduardo Barros <cesarb@cesarb.net> wrote:
+> The global variable cleancache_enabled is read often but written to
+> rarely. Use __read_mostly to prevent it being on the same cacheline as
+> another variable which is written to often, which would cause cacheline
+> bouncing.
 >
-> Hi Andrew.
-> I got failed your scenario in my machine so could you be willing to
-> test this patch for proving my above scenario?
-> The patch is just revert patch of 0e093d99[do not sleep on the
-> congestion queue...] for 2.6.38.6.
-> I would like to test it for proving my above zone congestion scenario.
->
-> I did it based on 2.6.38.6 for your easy apply so you must apply it
-> cleanly on vanilla v2.6.38.6.
-> And you have to add !pgdat_balanced and shrink_slab patch.
+> Signed-off-by: Cesar Eduardo Barros <cesarb@cesarb.net>
+Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
 
-No, because my laptop just decided that it doesn't like to turn on. :(
 
-I'll test it on my VM on Tuesday and (fingers crossed) on my repaired
-laptop next weekend.
-
---Andy
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
