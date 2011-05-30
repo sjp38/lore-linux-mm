@@ -1,74 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id ABB366B0012
-	for <linux-mm@kvack.org>; Sun, 29 May 2011 21:12:38 -0400 (EDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id E364D6B0012
+	for <linux-mm@kvack.org>; Sun, 29 May 2011 21:21:03 -0400 (EDT)
 Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 9945D3EE081
-	for <linux-mm@kvack.org>; Mon, 30 May 2011 10:12:35 +0900 (JST)
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 615DD3EE0C1
+	for <linux-mm@kvack.org>; Mon, 30 May 2011 10:17:36 +0900 (JST)
 Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 7F3B345DE69
-	for <linux-mm@kvack.org>; Mon, 30 May 2011 10:12:35 +0900 (JST)
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 4AAAC45DE55
+	for <linux-mm@kvack.org>; Mon, 30 May 2011 10:17:36 +0900 (JST)
 Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 6443D45DE61
-	for <linux-mm@kvack.org>; Mon, 30 May 2011 10:12:35 +0900 (JST)
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 33A8E45DD74
+	for <linux-mm@kvack.org>; Mon, 30 May 2011 10:17:36 +0900 (JST)
 Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 504661DB8038
-	for <linux-mm@kvack.org>; Mon, 30 May 2011 10:12:35 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 169C81DB803C
-	for <linux-mm@kvack.org>; Mon, 30 May 2011 10:12:35 +0900 (JST)
-Message-ID: <4DE2EEFB.1080803@jp.fujitsu.com>
-Date: Mon, 30 May 2011 10:12:27 +0900
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 28619E08001
+	for <linux-mm@kvack.org>; Mon, 30 May 2011 10:17:36 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id EAD8D1DB8038
+	for <linux-mm@kvack.org>; Mon, 30 May 2011 10:17:35 +0900 (JST)
+Message-ID: <4DE2F028.6020608@jp.fujitsu.com>
+Date: Mon, 30 May 2011 10:17:28 +0900
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: Fix boot crash in mm_alloc()
-References: <20110529072256.GA20983@elte.hu> <BANLkTikHejgEyz9LfJ962Bu89vn1cBP+WQ@mail.gmail.com> <BANLkTimqhkiBSArm7n0_9FD+LW6hWBWxFA@mail.gmail.com> <BANLkTin8yxh=Bjwf7AEyzPCoghnYO2brLQ@mail.gmail.com>
-In-Reply-To: <BANLkTin8yxh=Bjwf7AEyzPCoghnYO2brLQ@mail.gmail.com>
+Subject: Re: [PATCH 4/5] oom: don't kill random process
+References: <4DD61F80.1020505@jp.fujitsu.com> <4DD6207E.1070300@jp.fujitsu.com> <alpine.DEB.2.00.1105231529340.17840@chino.kir.corp.google.com> <4DDB0B45.2080507@jp.fujitsu.com> <alpine.DEB.2.00.1105231838420.17729@chino.kir.corp.google.com> <4DDB1028.7000600@jp.fujitsu.com> <alpine.DEB.2.00.1105231856210.18353@chino.kir.corp.google.com> <4DDB11F4.2070903@jp.fujitsu.com> <alpine.DEB.2.00.1105251645270.29729@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1105251645270.29729@chino.kir.corp.google.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: torvalds@linux-foundation.org
-Cc: mingo@elte.hu, akpm@linux-foundation.org, tglx@linutronix.de, linux-kernel@vger.kernel.org, a.p.zijlstra@chello.nl, linux-mm@kvack.org
+To: rientjes@google.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, caiqian@redhat.com, hughd@google.com, kamezawa.hiroyu@jp.fujitsu.com, minchan.kim@gmail.com, oleg@redhat.com
 
-(2011/05/30 3:43), Linus Torvalds wrote:
-> On Sun, May 29, 2011 at 10:19 AM, Linus Torvalds
-> <torvalds@linux-foundation.org> wrote:
->>
->> STILL TOTALLY UNTESTED! The fixes were just from eyeballing it a bit
->> more, not from any actual testing.
+> I'm afraid that a second time through the tasklist in select_bad_process() 
+> is simply a non-starter for _any_ case; it significantly increases the 
+> amount of time that tasklist_lock is held and causes problems elsewhere on 
+> large systems -- such as some of ours -- since irqs are disabled while 
+> waiting for the writeside of the lock.  I think it would be better to use 
+> a proportional privilege for root processes based on the amount of memory 
+> they are using (discounting 1% of memory per 10% of memory used, as 
+> proposed earlier, seems sane) so we can always protect root when necessary 
+> and never iterate through the list again.
 > 
-> Ok, I eyeballed it some more, and tested both the OFFSTACK and ONSTACK
-> case, and decided that I had better commit it now rather than wait any
-> later since I'll do the -rc1 later today, and will be on an airplane
-> most of tomorrow.
-> 
-> The exact placement of the cpu_vm_mask_var is up for grabs. For
-> example, I started thinking that it might be better to put it *after*
-> the mm_context_t, since for the non-OFFSTACK case it's generally
-> touched at the beginning rather than the end.
-> 
-> And the actual change to make the mm_cachep kmem_cache_create() use a
-> variable-sized allocation for the OFFSTACK case is similarly left as
-> an exercise for the the reader. So effectively, this reverts a lot of
-> de03c72cfce5, but does so in a way that should make very it easy to
-> get back to where KOSAKI was aiming for.
-> 
-> Whatever. I was hoping to get comments on it, but I think I need to
-> rather push it out to get tested and public than wait any longer. The
-> patch *looks* fine, tests ok on my machine, and removes more lines
-> than it adds despite the new big comment.
+> Please look into the earlier review comments on the other patches, refresh 
+> the series, and post it again.  Thanks!
 
-Hi
+Never mind.
 
-Thank you Linus and I'm sorry for bother you and guys. So, if I understand
-this thread correctly, rest my homework is 1) make cpumask_allocation variable
-size 2) remove NR_CPUS bit fill/copy from fork/exec path. Right?
-
-I think (2) is big matter than (1). NR_CPUS(=4096) bits copy easily screw up
-cache behavior. Anyway, will do. Thank you!
-
-
+You never see to increase tasklist_lock. You never seen all processes
+have root privilege case.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
