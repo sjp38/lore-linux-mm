@@ -1,25 +1,25 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id B1A7B6B0012
-	for <linux-mm@kvack.org>; Mon, 30 May 2011 11:12:27 -0400 (EDT)
-Received: by pwi12 with SMTP id 12so2091365pwi.14
-        for <linux-mm@kvack.org>; Mon, 30 May 2011 08:12:24 -0700 (PDT)
-Date: Tue, 31 May 2011 00:12:14 +0900
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id BD5216B0012
+	for <linux-mm@kvack.org>; Mon, 30 May 2011 11:16:41 -0400 (EDT)
+Received: by pzk4 with SMTP id 4so2047614pzk.14
+        for <linux-mm@kvack.org>; Mon, 30 May 2011 08:16:40 -0700 (PDT)
+Date: Tue, 31 May 2011 00:16:33 +0900
 From: Minchan Kim <minchan.kim@gmail.com>
-Message-ID: <20110530151213.GA1505@barrios-laptop>
+Subject: Re: [PATCH] mm: fix special case -1 order check in compact_finished
+Message-ID: <20110530151633.GB1505@barrios-laptop>
+References: <20110530123831.GG20166@tiehlicka.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20110530123831.GG20166@tiehlicka.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@suse.cz>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-Su bject: Re: [PATCH] mm: fix special case -1 order check in compact_finished
-Reply-To: 
-In-Reply-To: <20110530123831.GG20166@tiehlicka.suse.cz>
-
-Hi Michal,
+Sorry for breaking thread.
+I resend.
 
 On Mon, May 30, 2011 at 02:38:31PM +0200, Michal Hocko wrote:
 > 56de7263 (mm: compaction: direct compact when a high-order allocation
@@ -62,7 +62,7 @@ On Mon, May 30, 2011 at 02:38:31PM +0200, Michal Hocko wrote:
 >  
 > +	/* Compaction run is not finished if the watermark is not met */
 > +	watermark = low_wmark_pages(zone);
-> 	watermark += (1 << cc->order);
+> +	watermark += (1 << cc->order);
 > +
 > +	if (!zone_watermark_ok(zone, cc->order, watermark, 0, 0))
 > +		return COMPACT_CONTINUE;
@@ -80,6 +80,7 @@ my mind. It's a totally user request and we can get free pages in migration
 progress(ex, other big memory hogger might free his big rss). 
 So my conclusion is that we should do *best effort* than early give up.
 If you agree with me, how about resending patch with compaction_suitable fix?
+
 
 > -- 
 > Michal Hocko
