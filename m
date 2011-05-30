@@ -1,104 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 226426B0012
-	for <linux-mm@kvack.org>; Mon, 30 May 2011 03:35:57 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 6EE913EE0B5
-	for <linux-mm@kvack.org>; Mon, 30 May 2011 16:35:53 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 4EF0445DE67
-	for <linux-mm@kvack.org>; Mon, 30 May 2011 16:35:53 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 2ACCC45DE4D
-	for <linux-mm@kvack.org>; Mon, 30 May 2011 16:35:53 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 1B011E18005
-	for <linux-mm@kvack.org>; Mon, 30 May 2011 16:35:53 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id D6E371DB802C
-	for <linux-mm@kvack.org>; Mon, 30 May 2011 16:35:52 +0900 (JST)
-Date: Mon, 30 May 2011 16:29:04 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [Bugme-new] [Bug 36192] New: Kernel panic when boot the 2.6.39+
- kernel based off of 2.6.32 kernel
-Message-Id: <20110530162904.b78bf354.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20110530160114.5a82e590.kamezawa.hiroyu@jp.fujitsu.com>
-References: <bug-36192-10286@https.bugzilla.kernel.org/>
-	<20110529231948.e1439ce5.akpm@linux-foundation.org>
-	<20110530160114.5a82e590.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 52A2F6B0012
+	for <linux-mm@kvack.org>; Mon, 30 May 2011 03:44:24 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id C1D593EE0B5
+	for <linux-mm@kvack.org>; Mon, 30 May 2011 16:44:21 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id ABCA745DEC7
+	for <linux-mm@kvack.org>; Mon, 30 May 2011 16:44:21 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 94DB045DEC5
+	for <linux-mm@kvack.org>; Mon, 30 May 2011 16:44:21 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 885F01DB803B
+	for <linux-mm@kvack.org>; Mon, 30 May 2011 16:44:21 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 549331DB802F
+	for <linux-mm@kvack.org>; Mon, 30 May 2011 16:44:21 +0900 (JST)
+Message-ID: <4DE34AD0.1060905@jp.fujitsu.com>
+Date: Mon, 30 May 2011 16:44:16 +0900
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v2 1/3] vmscan,memcg: memcg aware swap token
+References: <4DD480DD.2040307@jp.fujitsu.com> <20110526133551.8c158f1c.akpm@linux-foundation.org>
+In-Reply-To: <20110526133551.8c158f1c.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org, qcui@redhat.com, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Li Zefan <lizf@cn.fujitsu.com>
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, riel@redhat.com
 
-On Mon, 30 May 2011 16:01:14 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-
-> On Sun, 29 May 2011 23:19:48 -0700
-> Andrew Morton <akpm@linux-foundation.org> wrote:
+> CONFIG_CGROUPS=n:
 > 
-> > 
-> > (switched to email.  Please respond via emailed reply-to-all, not via the
-> > bugzilla web interface).
-> > 
-> > On Mon, 30 May 2011 02:38:33 GMT bugzilla-daemon@bugzilla.kernel.org wrote:
-> > 
-> > > https://bugzilla.kernel.org/show_bug.cgi?id=36192
-> > > 
-> > >            Summary: Kernel panic when boot the 2.6.39+ kernel based off of
-> > >                     2.6.32 kernel
-> > >            Product: Memory Management
-> > >            Version: 2.5
-> > >     Kernel Version: 2.6.39+
-> > >           Platform: All
-> > >         OS/Version: Linux
-> > >               Tree: Mainline
-> > >             Status: NEW
-> > >           Severity: normal
-> > >           Priority: P1
-> > >          Component: Page Allocator
-> > >         AssignedTo: akpm@linux-foundation.org
-> > >         ReportedBy: qcui@redhat.com
-> > >         Regression: Yes
-> > > 
-> > > 
-> > > Created an attachment (id=60012)
-> > >  --> (https://bugzilla.kernel.org/attachment.cgi?id=60012)
-> > > kernel panic console output
-> > > 
-> > > When I updated the kernel from 2.6.32 to 2.6.39+ on a server with AMD
-> > > Magny-Cours CPU, the server can not boot the 2.6.39+ kernel successfully. The
-> > > console ouput showed 'Kernel panic - not syncing: Attempted to kill the idle
-> > > task!' I have tried to set the kernel parameter idle=poll in the grub file. It
-> > > still failed to reboot due to the same error. But it can reboot successfully on
-> > > the server with Intel CPU. The full console output is attached.
-> > > 
-> > > Steps to reproduce:
-> > > 1. install the 2.6.32 kernel
-> > > 2. compile and install the kernel 2.6.39+
-> > > 3. reboot
-> > > 
-> > 
-> > hm, this is not good.  Might be memcg-related?
-> > 
+> mm/thrash.c: In function 'grab_swap_token':
+> mm/thrash.c:73: error: implicit declaration of function 'css_put'
 > 
-> yes, and the system may be able to boot with a boot option of cgroup_disable=memory.
-> but the problem happens in __alloc_pages_nodemask with NULL pointer access.
-> Hmm, doesn't this imply some error in building zone/pgdat ?
-> 
+> I don't think that adding a null stub for css_put() is the right fix
+> here...
 
-I want to see .config and 2.6.32's boot log (dmesg) and 2.6.39+'s boot log
-if possible.
+My bad. Following patch fixes this issue.
 
-Thanks,
--Kame
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Thanks.
