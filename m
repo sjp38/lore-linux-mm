@@ -1,71 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 72BFA6B0012
-	for <linux-mm@kvack.org>; Mon, 30 May 2011 05:37:51 -0400 (EDT)
-From: Jan Kara <jack@suse.cz>
-Subject: [PATCH] mm: Fix assertion mapping->nrpages == 0 in end_writeback()
-Date: Mon, 30 May 2011 11:37:38 +0200
-Message-Id: <1306748258-4732-1-git-send-email-jack@suse.cz>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id E67206B0012
+	for <linux-mm@kvack.org>; Mon, 30 May 2011 05:43:48 -0400 (EDT)
+Date: Mon, 30 May 2011 11:43:37 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [Patch] mm: remove noswapaccount kernel parameter
+Message-ID: <20110530094337.GF20166@tiehlicka.suse.cz>
+References: <BANLkTinLvqa0DiayLOwvxE9zBmqb4Y7Rww@mail.gmail.com>
+ <20110523112558.GC11439@tiehlicka.suse.cz>
+ <BANLkTi=2SwKFfwBxrQr3xLYSUzoGOy6oKA@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <BANLkTi=2SwKFfwBxrQr3xLYSUzoGOy6oKA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, Al Viro <viro@ZenIV.linux.org.uk>, mszeredi@suse.cz, Jan Kara <jack@suse.cz>, Jay <jinshan.xiong@whamcloud.com>, stable@kernel.org
+To: Am??rico Wang <xiyou.wangcong@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Under heavy memory and filesystem load, users observe the assertion
-mapping->nrpages == 0 in end_writeback() trigger. This can be caused
-by page reclaim reclaiming the last page from a mapping in the following
-race:
-	CPU0				CPU1
-  ...
-  shrink_page_list()
-    __remove_mapping()
-      __delete_from_page_cache()
-        radix_tree_delete()
-					evict_inode()
-					  truncate_inode_pages()
-					    truncate_inode_pages_range()
-					      pagevec_lookup() - finds nothing
-					  end_writeback()
-					    mapping->nrpages != 0 -> BUG
-        page->mapping = NULL
-        mapping->nrpages--
+On Mon 23-05-11 19:50:21, Am??rico Wang wrote:
+> On Mon, May 23, 2011 at 7:25 PM, Michal Hocko <mhocko@suse.cz> wrote:
+> > On Mon 23-05-11 19:08:08, Am??rico Wang wrote:
+> >> noswapaccount is deprecated by swapaccount=0, and it is scheduled
+> >> to be removed in 2.6.40.
+> >
+> > Similar patch is already in the Andrew's tree
+> 
+> Ah, my google search failed to find it. :-/
+> 
+> > (memsw-remove-noswapaccount-kernel-parameter.patch). Andrew, are you
+> > going to push it?
+> > Btw. the patch is missing documentation part which is present here.
+> >
+> 
+> Hmm, maybe I should send a delta patch... Andrew?
 
-Fix the problem by cycling the mapping->tree_lock at the end of
-truncate_inode_pages_range() to synchronize with page reclaim.
+Have you reposted that patch? The primary patch which removes the
+paramter already hit the Linus tree (a2c8990a).
 
-Analyzed by Jay <jinshan.xiong@whamcloud.com>, lost in LKML, and dug
-out by Miklos Szeredi <mszeredi@suse.de>.
-
-CC: Jay <jinshan.xiong@whamcloud.com>
-CC: stable@kernel.org
-Acked-by: Miklos Szeredi <mszeredi@suse.de>
-Signed-off-by: Jan Kara <jack@suse.cz>
----
- mm/truncate.c |    7 +++++++
- 1 files changed, 7 insertions(+), 0 deletions(-)
-
- Andrew, would you merge this patch please? Thanks.
-
-diff --git a/mm/truncate.c b/mm/truncate.c
-index a956675..ec3d292 100644
---- a/mm/truncate.c
-+++ b/mm/truncate.c
-@@ -291,6 +291,13 @@ void truncate_inode_pages_range(struct address_space *mapping,
- 		pagevec_release(&pvec);
- 		mem_cgroup_uncharge_end();
- 	}
-+	/*
-+	 * Cycle the tree_lock to make sure all __delete_from_page_cache()
-+	 * calls run from page reclaim have finished as well (this handles the
-+	 * case when page reclaim took the last page from our range).
-+	 */
-+	spin_lock_irq(&mapping->tree_lock);
-+	spin_unlock_irq(&mapping->tree_lock);
- }
- EXPORT_SYMBOL(truncate_inode_pages_range);
- 
 -- 
-1.7.1
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
