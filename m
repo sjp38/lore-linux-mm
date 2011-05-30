@@ -1,79 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id CCBFD6B0012
-	for <linux-mm@kvack.org>; Mon, 30 May 2011 04:01:46 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id EFF943EE081
-	for <linux-mm@kvack.org>; Mon, 30 May 2011 17:01:43 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id D9AB445DE94
-	for <linux-mm@kvack.org>; Mon, 30 May 2011 17:01:43 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id C05F945DE78
-	for <linux-mm@kvack.org>; Mon, 30 May 2011 17:01:43 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id B474EE08003
-	for <linux-mm@kvack.org>; Mon, 30 May 2011 17:01:43 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 814A91DB8038
-	for <linux-mm@kvack.org>; Mon, 30 May 2011 17:01:43 +0900 (JST)
-Date: Mon, 30 May 2011 16:54:53 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [Bugme-new] [Bug 36192] New: Kernel panic when boot the 2.6.39+
- kernel based off of 2.6.32 kernel
-Message-Id: <20110530165453.845bba09.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20110530162904.b78bf354.kamezawa.hiroyu@jp.fujitsu.com>
-References: <bug-36192-10286@https.bugzilla.kernel.org/>
-	<20110529231948.e1439ce5.akpm@linux-foundation.org>
-	<20110530160114.5a82e590.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110530162904.b78bf354.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D5F66B0012
+	for <linux-mm@kvack.org>; Mon, 30 May 2011 04:14:07 -0400 (EDT)
+Date: Mon, 30 May 2011 10:14:00 +0200
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: [PATCH] mm: Fix boot crash in mm_alloc()
+Message-ID: <20110530081400.GK27557@elte.hu>
+References: <20110529072256.GA20983@elte.hu>
+ <BANLkTikHejgEyz9LfJ962Bu89vn1cBP+WQ@mail.gmail.com>
+ <BANLkTimqhkiBSArm7n0_9FD+LW6hWBWxFA@mail.gmail.com>
+ <BANLkTin8yxh=Bjwf7AEyzPCoghnYO2brLQ@mail.gmail.com>
+ <4DE2EEFB.1080803@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4DE2EEFB.1080803@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org, qcui@redhat.com, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Li Zefan <lizf@cn.fujitsu.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: torvalds@linux-foundation.org, akpm@linux-foundation.org, tglx@linutronix.de, linux-kernel@vger.kernel.org, a.p.zijlstra@chello.nl, linux-mm@kvack.org
 
-On Mon, 30 May 2011 16:29:04 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-> On Mon, 30 May 2011 16:01:14 +0900
-> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+* KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+
+> (2011/05/30 3:43), Linus Torvalds wrote:
+> > On Sun, May 29, 2011 at 10:19 AM, Linus Torvalds
+> > <torvalds@linux-foundation.org> wrote:
+> >>
+> >> STILL TOTALLY UNTESTED! The fixes were just from eyeballing it a bit
+> >> more, not from any actual testing.
+> > 
+> > Ok, I eyeballed it some more, and tested both the OFFSTACK and ONSTACK
+> > case, and decided that I had better commit it now rather than wait any
+> > later since I'll do the -rc1 later today, and will be on an airplane
+> > most of tomorrow.
+> > 
+> > The exact placement of the cpu_vm_mask_var is up for grabs. For
+> > example, I started thinking that it might be better to put it *after*
+> > the mm_context_t, since for the non-OFFSTACK case it's generally
+> > touched at the beginning rather than the end.
+> > 
+> > And the actual change to make the mm_cachep kmem_cache_create() use a
+> > variable-sized allocation for the OFFSTACK case is similarly left as
+> > an exercise for the the reader. So effectively, this reverts a lot of
+> > de03c72cfce5, but does so in a way that should make very it easy to
+> > get back to where KOSAKI was aiming for.
+> > 
+> > Whatever. I was hoping to get comments on it, but I think I need to
+> > rather push it out to get tested and public than wait any longer. The
+> > patch *looks* fine, tests ok on my machine, and removes more lines
+> > than it adds despite the new big comment.
 > 
+> Hi
 > 
+> Thank you Linus and I'm sorry for bother you and guys. So, if I 
+> understand this thread correctly, rest my homework is 1) make 
+> cpumask_allocation variable size 2) remove NR_CPUS bit fill/copy 
+> from fork/exec path. Right?
 > 
-> I want to see .config and 2.6.32's boot log (dmesg) and 2.6.39+'s boot log
-> if possible.
-> 
-Ah, sorry. The log was in bugzilla.
-==
-SRAT: Node 1 PXM 1 0-a0000
-SRAT: Node 1 PXM 1 100000-c8000000
-SRAT: Node 1 PXM 1 100000000-438000000
-SRAT: Node 3 PXM 3 438000000-838000000
-SRAT: Node 5 PXM 5 838000000-c38000000
-SRAT: Node 7 PXM 7 c38000000-1038000000
+> I think (2) is big matter than (1). NR_CPUS(=4096) bits copy easily 
+> screw up cache behavior. Anyway, will do. Thank you!
 
-Initmem setup node 1 0000000000000000-0000000438000000
-  NODE_DATA [0000000437fd9000 - 0000000437ffffff]
-Initmem setup node 3 0000000438000000-0000000838000000
-  NODE_DATA [0000000837fd9000 - 0000000837ffffff]
-Initmem setup node 5 0000000838000000-0000000c38000000
-  NODE_DATA [0000000c37fd9000 - 0000000c37ffffff]
-Initmem setup node 7 0000000c38000000-0000001038000000
-  NODE_DATA [0000001037fd7000 - 0000001037ffdfff]
-[ffffea000ec40000-ffffea000edfffff] potential offnode page_structs
-[ffffea001cc40000-ffffea001cdfffff] potential offnode page_structs
-[ffffea002ac40000-ffffea002adfffff] potential offnode page_structs
-==
-
-Hmm..there are four nodes 1,3,5,7 but....no memory on node 0 hmm ?
-
-Could you show 2.6.32's log ?
+I think the first task would be to double check that the code in 
+3.0-rc1 is indeed correct! :-)
 
 Thanks,
--Kame
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
