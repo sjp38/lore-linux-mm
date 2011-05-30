@@ -1,63 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 950596B0012
-	for <linux-mm@kvack.org>; Mon, 30 May 2011 12:55:52 -0400 (EDT)
-Date: Mon, 30 May 2011 17:55:46 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH] mm: compaction: Abort compaction if too many pages are
- isolated and caller is asynchronous
-Message-ID: <20110530165546.GC5118@suse.de>
-References: <20110530131300.GQ5044@csn.ul.ie>
- <20110530143109.GH19505@random.random>
- <20110530153748.GS5044@csn.ul.ie>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20110530153748.GS5044@csn.ul.ie>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 66ACC6B0012
+	for <linux-mm@kvack.org>; Mon, 30 May 2011 13:06:22 -0400 (EDT)
+Received: by iyh42 with SMTP id 42so4247854iyh.14
+        for <linux-mm@kvack.org>; Mon, 30 May 2011 10:06:19 -0700 (PDT)
+Subject: [PATCH] mm, vmstat: Use cond_resched only when !CONFIG_PREEMPT
+From: Rakib Mullick <rakib.mullick@gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Mon, 30 May 2011 22:59:04 +0600
+Message-ID: <1306774744.4061.5.camel@localhost.localdomain>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, akpm@linux-foundation.org, Ury Stankevich <urykhy@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, stable@kernel.org
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: akpm@linux-foundation.org, Christoph Lameter <cl@linux.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-On Mon, May 30, 2011 at 04:37:49PM +0100, Mel Gorman wrote:
-> > Or how do you explain this -1 value out of nr_isolated_file? Clearly
-> > when that value goes to -1, compaction.c:too_many_isolated will hang,
-> > I think we should fix the -1 value before worrying about the rest...
-> > 
-> > grep nr_isolated_file zoneinfo-khugepaged 
-> >     nr_isolated_file 1
-> >     nr_isolated_file 4294967295
-> 
-> Can you point me at the thread that this file appears on and what the
-> conditions were? If vmstat is going to -1, it is indeed a problem
-> because it implies an imbalance in increments and decrements to the
-> isolated counters.
+commit 468fd62ed9 (vmstats: add cond_resched() to refresh_cpu_vm_stats()) added cond_resched() in refresh_cpu_vm_stats. Purpose of that patch was to allow other threads to run in non-preemptive case. This patch, makes sure that cond_resched() gets called when !CONFIG_PREEMPT is set. In a preemptiable kernel we don't need to call cond_resched().
 
-Even with drift issues, -1 there should be "impossible". Assuming this
-is a zoneinfo file, that figure is based on global_page_state() which
-looks like
+Signed-off-by: Rakib Mullick <rakib.mullick@gmail.com>
+---
 
-static inline unsigned long global_page_state(enum zone_stat_item item)
-{
-        long x = atomic_long_read(&vm_stat[item]);
-#ifdef CONFIG_SMP
-        if (x < 0)
-                x = 0;
-#endif
-        return x;
-}
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 20c18b7..72cf857 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -461,7 +461,11 @@ void refresh_cpu_vm_stats(int cpu)
+ 				p->expire = 3;
+ #endif
+ 			}
++
++#ifndef CONFIG_PREEMPT
+ 		cond_resched();
++#endif
++
+ #ifdef CONFIG_NUMA
+ 		/*
+ 		 * Deal with draining the remote pageset of this
 
-So even if isolated counts were going negative for short periods of
-time, the returned value should be 0. As this is an inline returning
-unsigned long, and callers are using unsigned long, is there any
-possibility the "if (x < 0)" is being optimised out? If you aware
-of users reporting this problem (like the users in thread "iotop:
-khugepaged at 99.99% (2.6.38.3)"), do you know if they had a particular
-compiler in common?
-
--- 
-Mel Gorman
-SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
