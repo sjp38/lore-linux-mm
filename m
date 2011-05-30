@@ -1,50 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 05EFA6B0012
-	for <linux-mm@kvack.org>; Mon, 30 May 2011 10:50:59 -0400 (EDT)
-Date: Mon, 30 May 2011 22:45:02 +0800
-From: Greg KH <greg@kroah.com>
-Subject: Re: [stable] [PATCH] mm: compaction: Abort compaction if too many
- pages are isolated and caller is asynchronous
-Message-ID: <20110530144502.GA2689@kroah.com>
-References: <20110530131300.GQ5044@csn.ul.ie>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id B1A7B6B0012
+	for <linux-mm@kvack.org>; Mon, 30 May 2011 11:12:27 -0400 (EDT)
+Received: by pwi12 with SMTP id 12so2091365pwi.14
+        for <linux-mm@kvack.org>; Mon, 30 May 2011 08:12:24 -0700 (PDT)
+Date: Tue, 31 May 2011 00:12:14 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
+Message-ID: <20110530151213.GA1505@barrios-laptop>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110530131300.GQ5044@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: akpm@linux-foundation.org, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Ury Stankevich <urykhy@gmail.com>, stable@kernel.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, May 30, 2011 at 02:13:00PM +0100, Mel Gorman wrote:
-> Asynchronous compaction is used when promoting to huge pages. This is
-> all very nice but if there are a number of processes in compacting
-> memory, a large number of pages can be isolated. An "asynchronous"
-> process can stall for long periods of time as a result with a user
-> reporting that firefox can stall for 10s of seconds. This patch aborts
-> asynchronous compaction if too many pages are isolated as it's better to
-> fail a hugepage promotion than stall a process.
+Su bject: Re: [PATCH] mm: fix special case -1 order check in compact_finished
+Reply-To: 
+In-Reply-To: <20110530123831.GG20166@tiehlicka.suse.cz>
+
+Hi Michal,
+
+On Mon, May 30, 2011 at 02:38:31PM +0200, Michal Hocko wrote:
+> 56de7263 (mm: compaction: direct compact when a high-order allocation
+> fails) introduced a check for cc->order == -1 in compact_finished. We
+> should continue compacting in that case because the request came from
+> userspace and there is no particular order to compact for.
 > 
-> If accepted, this should also be considered for 2.6.39-stable. It should
-> also be considered for 2.6.38-stable but ideally [11bc82d6: mm:
-> compaction: Use async migration for __GFP_NO_KSWAPD and enforce no
-> writeback] would be applied to 2.6.38 before consideration.
+> The check is, however, done after zone_watermark_ok which uses order as
+> a right hand argument for shifts. Not only watermark check is pointless
+> if we can break out without it but it also uses 1 << -1 which is not
+> well defined (at least from C standard). Let's move the -1 check above
+> zone_watermark_ok.
 > 
-> Reported-and-Tested-by: Ury Stankevich <urykhy@gmail.com>
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
+> Signed-off-by: Michal Hocko <mhocko@suse.cz>
+> Cc: Mel Gorman <mgorman@suse.de>
 > ---
->  mm/compaction.c |   32 ++++++++++++++++++++++++++------
->  1 files changed, 26 insertions(+), 6 deletions(-)
+>  compaction.c |   14 +++++++-------
+>  1 file changed, 7 insertions(+), 7 deletions(-)
+> Index: linus_tree/mm/compaction.c
+> ===================================================================
+> --- linus_tree.orig/mm/compaction.c	2011-05-30 14:19:58.000000000 +0200
+> +++ linus_tree/mm/compaction.c	2011-05-30 14:20:40.000000000 +0200
+> @@ -420,13 +420,6 @@ static int compact_finished(struct zone
+>  	if (cc->free_pfn <= cc->migrate_pfn)
+>  		return COMPACT_COMPLETE;
+>  
+> -	/* Compaction run is not finished if the watermark is not met */
+> -	watermark = low_wmark_pages(zone);
+> -	watermark += (1 << cc->order);
+> -
+> -	if (!zone_watermark_ok(zone, cc->order, watermark, 0, 0))
+> -		return COMPACT_CONTINUE;
+> -
+>  	/*
+>  	 * order == -1 is expected when compacting via
+>  	 * /proc/sys/vm/compact_memory
+> @@ -434,6 +427,13 @@ static int compact_finished(struct zone
+>  	if (cc->order == -1)
+>  		return COMPACT_CONTINUE;
+>  
+> +	/* Compaction run is not finished if the watermark is not met */
+> +	watermark = low_wmark_pages(zone);
+> 	watermark += (1 << cc->order);
+> +
+> +	if (!zone_watermark_ok(zone, cc->order, watermark, 0, 0))
+> +		return COMPACT_CONTINUE;
+> +
+>  	/* Direct compactor: Is a suitable page free? */
+>  	for (order = cc->order; order < MAX_ORDER; order++) {
+>  		/* Job done if page is free of the right migratetype */
 
+It looks good to me.
+Let's think about another place, compaction_suitable.
+It has same problem so we can move the check right before zone_watermark_ok.
+As I look it more, I thought we need free pages for compaction so we would 
+be better to give up early if we can't get enough free pages. But I changed
+my mind. It's a totally user request and we can get free pages in migration
+progress(ex, other big memory hogger might free his big rss). 
+So my conclusion is that we should do *best effort* than early give up.
+If you agree with me, how about resending patch with compaction_suitable fix?
 
-<formletter>
-
-This is not the correct way to submit patches for inclusion in the
-stable kernel tree.  Please read Documentation/stable_kernel_rules.txt
-for how to do this properly.
-
-</formletter>
+> -- 
+> Michal Hocko
+> SUSE Labs
+> SUSE LINUX s.r.o.
+> Lihovarska 1060/12
+> 190 00 Praha 9    
+> Czech Republic
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
