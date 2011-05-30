@@ -1,75 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 5204A6B0012
-	for <linux-mm@kvack.org>; Mon, 30 May 2011 12:14:25 -0400 (EDT)
-Received: by pvc12 with SMTP id 12so2071307pvc.14
-        for <linux-mm@kvack.org>; Mon, 30 May 2011 09:14:23 -0700 (PDT)
-Date: Tue, 31 May 2011 01:14:15 +0900
-From: Minchan Kim <minchan.kim@gmail.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 950596B0012
+	for <linux-mm@kvack.org>; Mon, 30 May 2011 12:55:52 -0400 (EDT)
+Date: Mon, 30 May 2011 17:55:46 +0100
+From: Mel Gorman <mgorman@suse.de>
 Subject: Re: [PATCH] mm: compaction: Abort compaction if too many pages are
  isolated and caller is asynchronous
-Message-ID: <20110530161415.GB2200@barrios-laptop>
+Message-ID: <20110530165546.GC5118@suse.de>
 References: <20110530131300.GQ5044@csn.ul.ie>
+ <20110530143109.GH19505@random.random>
+ <20110530153748.GS5044@csn.ul.ie>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20110530131300.GQ5044@csn.ul.ie>
+In-Reply-To: <20110530153748.GS5044@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Mel Gorman <mel@csn.ul.ie>
-Cc: akpm@linux-foundation.org, Ury Stankevich <urykhy@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, stable@kernel.org
+Cc: Andrea Arcangeli <aarcange@redhat.com>, akpm@linux-foundation.org, Ury Stankevich <urykhy@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, stable@kernel.org
 
-On Mon, May 30, 2011 at 02:13:00PM +0100, Mel Gorman wrote:
-> Asynchronous compaction is used when promoting to huge pages. This is
-> all very nice but if there are a number of processes in compacting
-> memory, a large number of pages can be isolated. An "asynchronous"
-> process can stall for long periods of time as a result with a user
-> reporting that firefox can stall for 10s of seconds. This patch aborts
-> asynchronous compaction if too many pages are isolated as it's better to
-> fail a hugepage promotion than stall a process.
+On Mon, May 30, 2011 at 04:37:49PM +0100, Mel Gorman wrote:
+> > Or how do you explain this -1 value out of nr_isolated_file? Clearly
+> > when that value goes to -1, compaction.c:too_many_isolated will hang,
+> > I think we should fix the -1 value before worrying about the rest...
+> > 
+> > grep nr_isolated_file zoneinfo-khugepaged 
+> >     nr_isolated_file 1
+> >     nr_isolated_file 4294967295
 > 
-> If accepted, this should also be considered for 2.6.39-stable. It should
-> also be considered for 2.6.38-stable but ideally [11bc82d6: mm:
-> compaction: Use async migration for __GFP_NO_KSWAPD and enforce no
-> writeback] would be applied to 2.6.38 before consideration.
-> 
-> Reported-and-Tested-by: Ury Stankevich <urykhy@gmail.com>
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
-Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+> Can you point me at the thread that this file appears on and what the
+> conditions were? If vmstat is going to -1, it is indeed a problem
+> because it implies an imbalance in increments and decrements to the
+> isolated counters.
 
-I have a nitpick below.
-Otherwise, looks good to me.
+Even with drift issues, -1 there should be "impossible". Assuming this
+is a zoneinfo file, that figure is based on global_page_state() which
+looks like
 
-> ---
->  mm/compaction.c |   32 ++++++++++++++++++++++++++------
->  1 files changed, 26 insertions(+), 6 deletions(-)
-> 
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> index 021a296..331a2ee 100644
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -240,11 +240,20 @@ static bool too_many_isolated(struct zone *zone)
->  	return isolated > (inactive + active) / 2;
->  }
->  
-> +/* possible outcome of isolate_migratepages */
-> +typedef enum {
-> +	ISOLATE_ABORT,		/* Abort compaction now */
-> +	ISOLATE_NONE,		/* No pages isolated, continue scanning */
-> +	ISOLATE_SUCCESS,	/* Pages isolated, migrate */
-> +} isolate_migrate_t;
-> +
->  /*
->   * Isolate all pages that can be migrated from the block pointed to by
->   * the migrate scanner within compact_control.
-> + *
-> + * Returns false if compaction should abort at this point due to congestion.
+static inline unsigned long global_page_state(enum zone_stat_item item)
+{
+        long x = atomic_long_read(&vm_stat[item]);
+#ifdef CONFIG_SMP
+        if (x < 0)
+                x = 0;
+#endif
+        return x;
+}
 
-false? I think it would be better to use explicit word, ISOLATE_ABORT.
+So even if isolated counts were going negative for short periods of
+time, the returned value should be 0. As this is an inline returning
+unsigned long, and callers are using unsigned long, is there any
+possibility the "if (x < 0)" is being optimised out? If you aware
+of users reporting this problem (like the users in thread "iotop:
+khugepaged at 99.99% (2.6.38.3)"), do you know if they had a particular
+compiler in common?
 
 -- 
-Kind regards
-Minchan Kim
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
