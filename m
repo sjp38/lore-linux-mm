@@ -1,47 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 1A9926B0011
-	for <linux-mm@kvack.org>; Tue, 31 May 2011 10:14:32 -0400 (EDT)
-Date: Tue, 31 May 2011 16:14:02 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH] mm: compaction: Abort compaction if too many pages are
- isolated and caller is asynchronous
-Message-ID: <20110531141402.GK19505@random.random>
-References: <20110530131300.GQ5044@csn.ul.ie>
- <20110530143109.GH19505@random.random>
- <20110530153748.GS5044@csn.ul.ie>
- <20110530165546.GC5118@suse.de>
- <20110530175334.GI19505@random.random>
- <20110531121620.GA3490@barrios-laptop>
- <20110531122437.GJ19505@random.random>
- <20110531133340.GB3490@barrios-laptop>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id C07EF6B0011
+	for <linux-mm@kvack.org>; Tue, 31 May 2011 10:24:51 -0400 (EDT)
+Message-ID: <4DE4FA2B.2050504@fnarfbargle.com>
+Date: Tue, 31 May 2011 22:24:43 +0800
+From: Brad Campbell <lists2009@fnarfbargle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110531133340.GB3490@barrios-laptop>
+Subject: Re: KVM induced panic on 2.6.38[2367] & 2.6.39
+References: <4DE44333.9000903@fnarfbargle.com> <20110531054729.GA16852@liondog.tnic> <4DE4B432.1090203@fnarfbargle.com> <20110531103808.GA6915@eferding.osrc.amd.com>
+In-Reply-To: <20110531103808.GA6915@eferding.osrc.amd.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Mel Gorman <mgorman@suse.de>, Mel Gorman <mel@csn.ul.ie>, akpm@linux-foundation.org, Ury Stankevich <urykhy@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, stable@kernel.org
+To: Borislav Petkov <bp@alien8.de>, linux-kernel@vger.kernel.org, kvm@vger.kernel.org, linux-mm <linux-mm@kvack.org>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Izik Eidus <ieidus@redhat.com>
 
-On Tue, May 31, 2011 at 10:33:40PM +0900, Minchan Kim wrote:
-> I checked them before sending patch but I got failed to find strange things. :(
+On 31/05/11 18:38, Borislav Petkov wrote:
+> On Tue, May 31, 2011 at 05:26:10PM +0800, Brad Campbell wrote:
+>> On 31/05/11 13:47, Borislav Petkov wrote:
+>>> Looks like a KSM issue. Disabling CONFIG_KSM should at least stop your
+>>> machine from oopsing.
+>>>
+>>> Adding linux-mm.
+>>>
+>>
+>> I initially thought that, so the second panic was produced with KSM
+>> disabled from boot.
+>>
+>> echo 0>  /sys/kernel/mm/ksm/run
+>>
+>> If you still think that compiling ksm out of the kernel will prevent
+>> it then I'm willing to give it a go.
+>
+> Ok, from looking at the code, when KSM inits, it starts the ksm kernel
+> thread and it looks like your oops comes from the function that is run
+> in the kernel thread - ksm_scan_thread.
+>
+> So even if you disable it from sysfs, it runs at least once.
+>
 
-My review also doesn't show other bugs in migrate_pages callers like
-that one.
+Just to confirm, I recompiled 2.6.38.7 without KSM enabled and I've been 
+unable to reproduce the bug, so it looks like you were on the money.
 
-> Now I am checking the page's SwapBacked flag can be changed
-> between before and after of migrate_pages so accounting of NR_ISOLATED_XX can
-> make mistake. I am approaching the failure, too. Hmm.
+I've moved back to 2.6.38.7 as 2.6.39 has a painful SCSI bug that panics 
+about 75% of boots, and the reboot cycle required to get luck my way 
+into a working kernel is just too much hassle.
 
-When I checked that, I noticed the ClearPageSwapBacked in swapcache if
-radix insertion fails, but that happens before adding the page in the
-LRU so it shouldn't have a chance to be isolated.
+It would appear that XP zero's its memory space on bootup, so there 
+would be lots of pages to merge with a couple of relatively freshly 
+booted XP machines running.
 
-So far I only noticed an unsafe page_count in
-vmscan.c:isolate_lru_pages but that should at worst result in a
-invalid pointer dereference as random result from that page_count is
-not going to hurt and I think it's only a theoretical issue.
+Regards,
+Brad.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
