@@ -1,88 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 07CCB6B0012
-	for <linux-mm@kvack.org>; Tue, 31 May 2011 18:32:01 -0400 (EDT)
-Received: from wpaz37.hot.corp.google.com (wpaz37.hot.corp.google.com [172.24.198.101])
-	by smtp-out.google.com with ESMTP id p4VMVwTM000835
-	for <linux-mm@kvack.org>; Tue, 31 May 2011 15:31:58 -0700
-Received: from pvc12 (pvc12.prod.google.com [10.241.209.140])
-	by wpaz37.hot.corp.google.com with ESMTP id p4VMV9ek026991
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 31 May 2011 15:31:57 -0700
-Received: by pvc12 with SMTP id 12so2796812pvc.14
-        for <linux-mm@kvack.org>; Tue, 31 May 2011 15:31:53 -0700 (PDT)
-Date: Tue, 31 May 2011 15:31:41 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: KVM induced panic on 2.6.38[2367] & 2.6.39
-In-Reply-To: <4DE4FA2B.2050504@fnarfbargle.com>
-Message-ID: <alpine.LSU.2.00.1105311517480.21107@sister.anvils>
-References: <4DE44333.9000903@fnarfbargle.com> <20110531054729.GA16852@liondog.tnic> <4DE4B432.1090203@fnarfbargle.com> <20110531103808.GA6915@eferding.osrc.amd.com> <4DE4FA2B.2050504@fnarfbargle.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 983C66B0011
+	for <linux-mm@kvack.org>; Tue, 31 May 2011 19:23:30 -0400 (EDT)
+Message-ID: <4DE576EA.6070906@zytor.com>
+Date: Tue, 31 May 2011 16:16:58 -0700
+From: "H. Peter Anvin" <hpa@zytor.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [slubllv5 07/25] x86: Add support for cmpxchg_double
+References: <20110516202605.274023469@linux.com>  <20110516202625.197639928@linux.com> <4DDE9670.3060709@zytor.com>  <alpine.DEB.2.00.1105261315350.26578@router.home>  <4DDE9C01.2090104@zytor.com>  <alpine.DEB.2.00.1105261615130.591@router.home> <1306445159.2543.25.camel@edumazet-laptop> <alpine.DEB.2.00.1105311012420.18755@router.home> <4DE50632.90906@zytor.com> <alpine.DEB.2.00.1105311058030.19928@router.home>
+In-Reply-To: <alpine.DEB.2.00.1105311058030.19928@router.home>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Brad Campbell <lists2009@fnarfbargle.com>
-Cc: Borislav Petkov <bp@alien8.de>, linux-kernel@vger.kernel.org, kvm@vger.kernel.org, linux-mm <linux-mm@kvack.org>, Andrea Arcangeli <aarcange@redhat.com>, Izik Eidus <ieidus@redhat.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: Eric Dumazet <eric.dumazet@gmail.com>, Pekka Enberg <penberg@cs.helsinki.fi>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>
 
-On Tue, 31 May 2011, Brad Campbell wrote:
-> On 31/05/11 18:38, Borislav Petkov wrote:
-> > On Tue, May 31, 2011 at 05:26:10PM +0800, Brad Campbell wrote:
-> > > On 31/05/11 13:47, Borislav Petkov wrote:
-> > > > Looks like a KSM issue. Disabling CONFIG_KSM should at least stop your
-> > > > machine from oopsing.
-> > > > 
-> > > > Adding linux-mm.
-> > > > 
-> > > 
-> > > I initially thought that, so the second panic was produced with KSM
-> > > disabled from boot.
-> > > 
-> > > echo 0>  /sys/kernel/mm/ksm/run
-> > > 
-> > > If you still think that compiling ksm out of the kernel will prevent
-> > > it then I'm willing to give it a go.
-> > 
-> > Ok, from looking at the code, when KSM inits, it starts the ksm kernel
-> > thread and it looks like your oops comes from the function that is run
-> > in the kernel thread - ksm_scan_thread.
-> > 
-> > So even if you disable it from sysfs, it runs at least once.
-> > 
+On 05/31/2011 09:53 AM, Christoph Lameter wrote:
+> Index: linux-2.6/arch/x86/Kconfig.cpu
+> ===================================================================
+> --- linux-2.6.orig/arch/x86/Kconfig.cpu	2011-05-31 11:28:24.202948792 -0500
+> +++ linux-2.6/arch/x86/Kconfig.cpu	2011-05-31 11:29:36.742948327 -0500
+> @@ -312,6 +312,16 @@ config X86_CMPXCHG
+>  config CMPXCHG_LOCAL
+>  	def_bool X86_64 || (X86_32 && !M386)
 > 
-> Just to confirm, I recompiled 2.6.38.7 without KSM enabled and I've been
-> unable to reproduce the bug, so it looks like you were on the money.
-> 
-> I've moved back to 2.6.38.7 as 2.6.39 has a painful SCSI bug that panics
-> about 75% of boots, and the reboot cycle required to get luck my way into a
-> working kernel is just too much hassle.
-> 
-> It would appear that XP zero's its memory space on bootup, so there would be
-> lots of pages to merge with a couple of relatively freshly booted XP
-> machines running.
+> +#
+> +# CMPXCHG_DOUBLE needs to be set to enable the kernel to use cmpxchg16/8b
+> +# for cmpxchg_double if it find processor flags that indicate that the
+> +# capabilities are available. CMPXCHG_DOUBLE only compiles in
+> +# detection support. It needs to be set if there is a chance that processor
+> +# supports these instructions.
+> +#
+> +config CMPXCHG_DOUBLE
+> +	def_bool GENERIC_CPU || X86_GENERIC || !M386
+> +
+>  config X86_L1_CACHE_SHIFT
+>  	int
+>  	default "7" if MPENTIUM4 || MPSC
 
-Thanks for the Cc, Borislav.
+Per previous discussion:
 
-Brad, my suspicion is that in each case the top 16 bits of RDX have been
-mysteriously corrupted from ffff to 0000, causing the general protection
-faults.  I don't understand what that has to do with KSM.
+- Drop this Kconfig option (it is irrelevant.)  CONFIG_CMPXCHG_LOCAL is
+different: it indicates that CMPXCHG is *guaranteed* to exist.
 
-But it's only a suspicion, because I can't make sense of the "Code:"
-lines in your traces, they have more than the expected 64 bytes, and
-only one of them has a ">" (with no "<") to mark faulting instruction.
+> +	asm volatile(LOCK_PREFIX_HERE "cmpxchg8b (%%esi); setz %1"\
+> +		       : "d="(__dummy), "=a" (__ret) 		\
+> +		       : "S" ((ptr)), "a" (__old1), "d"(__old2),	\
+> +		         "b" (__new1), "c" (__new2)		\
+> +		       : "memory");				\
+> +	__ret; })
 
-I did try compiling the 2.6.39 kernel from your config, but of course
-we have different compilers, so although I got close, it wasn't exact.
+> +	asm volatile("cmpxchg8b (%%esi); tsetz %1"		\
+> +		       : "d="(__dummy), "=a"(__ret)		\
+> +		       : "S" ((ptr)), "a" (__old), "d"(__old2),	\
+> +		         "b" (__new1), "c" (__new2),		\
+> +		       : "memory");				\
+> +	__ret; })
 
-Would you mind mailing me privately (it's about 73MB) the "objdump -trd"
-output for your original vmlinux (with KSM on)?  (Those -trd options are
-the ones I'm used to typing, I bet not they're not all relevant.)
+d= is broken (won't even compile), and there is a typo in the opcode
+(setz, not tsetz).
 
-Of course, it's only a tiny fraction of that output that I need,
-might be better to cut it down to remove_rmap_item_from_tree and
-dup_fd and ksm_scan_thread, if you have the time to do so.
+Use LOCK_PREFIX and +m here too.
 
-Thanks,
-Hugh
+	-hpa
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
