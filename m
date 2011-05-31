@@ -1,71 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B9F16B0011
-	for <linux-mm@kvack.org>; Tue, 31 May 2011 09:44:14 -0400 (EDT)
-Received: by pzk4 with SMTP id 4so2519932pzk.14
-        for <linux-mm@kvack.org>; Tue, 31 May 2011 06:44:12 -0700 (PDT)
-Date: Tue, 31 May 2011 22:44:05 +0900
-From: Minchan Kim <minchan.kim@gmail.com>
-Subject: Re: [PATCH v2 03/10] Change isolate mode from int type to enum type
-Message-ID: <20110531134405.GC3490@barrios-laptop>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id EF8C76B0011
+	for <linux-mm@kvack.org>; Tue, 31 May 2011 09:46:14 -0400 (EDT)
+Date: Tue, 31 May 2011 15:46:09 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH v2 06/10] vmscan: make isolate_lru_page with filter aware
+Message-ID: <20110531134609.GB4594@cmpxchg.org>
 References: <cover.1306689214.git.minchan.kim@gmail.com>
- <6e08f148630ffe1e7fe6a4d31d4340a9a47f4473.1306689214.git.minchan.kim@gmail.com>
- <20110531133611.GC3190@cmpxchg.org>
+ <48bcb7597cd5695f30381715630dc66a5d32c638.1306689214.git.minchan.kim@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110531133611.GC3190@cmpxchg.org>
+In-Reply-To: <48bcb7597cd5695f30381715630dc66a5d32c638.1306689214.git.minchan.kim@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
+To: Minchan Kim <minchan.kim@gmail.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>
 
-On Tue, May 31, 2011 at 03:36:11PM +0200, Johannes Weiner wrote:
-> On Mon, May 30, 2011 at 03:13:42AM +0900, Minchan Kim wrote:
-> > --- a/mm/vmscan.c
-> > +++ b/mm/vmscan.c
-> > @@ -957,23 +957,29 @@ keep_lumpy:
-> >   *
-> >   * returns 0 on success, -ve errno on failure.
-> >   */
-> > -int __isolate_lru_page(struct page *page, int mode, int file)
-> > +int __isolate_lru_page(struct page *page, enum ISOLATE_PAGE_MODE mode,
-> > +							int file)
-> >  {
-> > +	int active;
-> >  	int ret = -EINVAL;
-> > +	BUG_ON(mode & ISOLATE_BOTH &&
-> > +		(mode & ISOLATE_INACTIVE || mode & ISOLATE_ACTIVE));
-> >  
-> >  	/* Only take pages on the LRU. */
-> >  	if (!PageLRU(page))
-> >  		return ret;
-> >  
-> > +	active = PageActive(page);
-> > +
-> >  	/*
-> >  	 * When checking the active state, we need to be sure we are
-> >  	 * dealing with comparible boolean values.  Take the logical not
-> >  	 * of each.
-> >  	 */
-> > -	if (mode != ISOLATE_BOTH && (!PageActive(page) != !mode))
-> > +	if (mode & ISOLATE_ACTIVE && !active)
-> >  		return ret;
-> >  
-> > -	if (mode != ISOLATE_BOTH && page_is_file_cache(page) != file)
-> > +	if (mode & ISOLATE_INACTIVE && active)
-> >  		return ret;
+On Mon, May 30, 2011 at 03:13:45AM +0900, Minchan Kim wrote:
+> In __zone_reclaim case, we don't want to shrink mapped page.
+> Nonetheless, we have isolated mapped page and re-add it into
+> LRU's head. It's unnecessary CPU overhead and makes LRU churning.
 > 
-> What happened to the check for file pages?
+> Of course, when we isolate the page, the page might be mapped but
+> when we try to migrate the page, the page would be not mapped.
+> So it could be migrated. But race is rare and although it happens,
+> it's no big deal.
+> 
+> Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Mel Gorman <mgorman@suse.de>
+> Cc: Rik van Riel <riel@redhat.com>
+> Cc: Andrea Arcangeli <aarcange@redhat.com>
+> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+> ---
+>  mm/vmscan.c |   29 +++++++++++++++++++++--------
+>  1 files changed, 21 insertions(+), 8 deletions(-)
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 9972356..39941c7 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -1395,6 +1395,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct zone *zone,
+>  	unsigned long nr_taken;
+>  	unsigned long nr_anon;
+>  	unsigned long nr_file;
+> +	enum ISOLATE_PAGE_MODE mode = ISOLATE_NONE;
+>  
+>  	while (unlikely(too_many_isolated(zone, file, sc))) {
+>  		congestion_wait(BLK_RW_ASYNC, HZ/10);
+> @@ -1406,13 +1407,20 @@ shrink_inactive_list(unsigned long nr_to_scan, struct zone *zone,
+>  
+>  	set_reclaim_mode(priority, sc, false);
+>  	lru_add_drain();
+> +
+> +	if (!sc->may_unmap)
+> +		mode |= ISOLATE_UNMAPPED;
+> +	if (!sc->may_writepage)
+> +		mode |= ISOLATE_CLEAN;
+> +	mode |= sc->reclaim_mode & RECLAIM_MODE_LUMPYRECLAIM ?
+> +				ISOLATE_BOTH : ISOLATE_INACTIVE;
 
-Shame on me. I should not change old behavior.
-Will fix on v3.
+Hmm, it would probably be cleaner to fully convert the isolation mode
+into independent flags.  INACTIVE, ACTIVE, BOTH is currently a
+tri-state among flags, which is a bit ugly.
 
-Thanks, Hannes.
+	mode = ISOLATE_INACTIVE;
+	if (!sc->may_unmap)
+		mode |= ISOLATE_UNMAPPED;
+	if (!sc->may_writepage)
+		mode |= ISOLATE_CLEAN;
+	if (sc->reclaim_mode & RECLAIM_MODE_LUMPYRECLAIM)
+		mode |= ISOLATE_ACTIVE;
 
--- 
-Kind regards
-Minchan Kim
+What do you think?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
