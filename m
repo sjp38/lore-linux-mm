@@ -1,58 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 947146B0012
-	for <linux-mm@kvack.org>; Mon, 30 May 2011 23:13:50 -0400 (EDT)
-Received: by gxk23 with SMTP id 23so2028461gxk.14
-        for <linux-mm@kvack.org>; Mon, 30 May 2011 20:13:47 -0700 (PDT)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 14A436B0012
+	for <linux-mm@kvack.org>; Mon, 30 May 2011 23:19:04 -0400 (EDT)
+Received: by yib18 with SMTP id 18so2032566yib.14
+        for <linux-mm@kvack.org>; Mon, 30 May 2011 20:19:03 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20110531083859.98e4ff43.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <4DE45119.9040108@jp.fujitsu.com>
 References: <1306774744.4061.5.camel@localhost.localdomain>
-	<20110531083859.98e4ff43.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Tue, 31 May 2011 09:13:47 +0600
-Message-ID: <BANLkTinTqijGxCpZ_nRwWZHYsR-u2zojZA@mail.gmail.com>
+	<4DE45119.9040108@jp.fujitsu.com>
+Date: Tue, 31 May 2011 09:19:03 +0600
+Message-ID: <BANLkTinX0+i=QS_0uL8R-b=-TgzAYEtcEA@mail.gmail.com>
 Subject: Re: [PATCH] mm, vmstat: Use cond_resched only when !CONFIG_PREEMPT
 From: Rakib Mullick <rakib.mullick@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Christoph Lameter <cl@linux.com>, Mel Gorman <mel@csn.ul.ie>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, cl@linux.com, kamezawa.hiroyu@jp.fujitsu.com, mel@csn.ul.ie
 
-On Tue, May 31, 2011 at 5:38 AM, KAMEZAWA Hiroyuki
-<kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> On Mon, 30 May 2011 22:59:04 +0600
-> Rakib Mullick <rakib.mullick@gmail.com> wrote:
->
->> commit 468fd62ed9 (vmstats: add cond_resched() to refresh_cpu_vm_stats()=
-) added cond_resched() in refresh_cpu_vm_stats. Purpose of that patch was t=
-o allow other threads to run in non-preemptive case. This patch, makes sure=
- that cond_resched() gets called when !CONFIG_PREEMPT is set. In a preempti=
-able kernel we don't need to call cond_resched().
->>
->> Signed-off-by: Rakib Mullick <rakib.mullick@gmail.com>
->
-> Hmm, what benefit do we get by adding this extra #ifdef in the code direc=
-tly ?
-> Other cond_resched() callers are not guilty in !CONFIG_PREEMPT ?
->
-Well, in preemptible kernel this context will get preempted if
-requires, so we don't need cond_resched(). If you checkout the git log
-of the mentioned commit, you'll find the explanation. It says:
-        "Adding a cond_resched() to allow other threads to run in the
-non-preemptive
-    case."
-
-So, let cond_resched() be in non-preemptive case.
-
-Thanks,
-Rakib
-
-> Thanks,
-> -Kame
->
->> ---
->>
+On Tue, May 31, 2011 at 8:23 AM, KOSAKI Motohiro
+<kosaki.motohiro@jp.fujitsu.com> wrote:
 >> diff --git a/mm/vmstat.c b/mm/vmstat.c
 >> index 20c18b7..72cf857 100644
 >> --- a/mm/vmstat.c
@@ -67,12 +35,18 @@ Rakib
 >> =A0 =A0 =A0 =A0 =A0 =A0 =A0 cond_resched();
 >> +#endif
 >> +
->> =A0#ifdef CONFIG_NUMA
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 /*
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* Deal with draining the remote pageset o=
-f this
->>
->>
+>
+> In general, we should avoid #ifdef CONFIG_PREEMPT for maintainancebility =
+as far as possible.
+> Is there any observable benefit? Can you please demonstrate it?
+>
+On my system I'm not sure whether it shows demonstratable benefit or
+not. Although, I try. It will be helpful if you give me a hint about
+how to measure its benefit.
+
+Thanks,
+Rakib
+>
 >
 >
 
