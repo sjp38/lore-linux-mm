@@ -1,112 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 7E44E6B0012
-	for <linux-mm@kvack.org>; Mon, 30 May 2011 20:55:49 -0400 (EDT)
-Received: from hpaq7.eem.corp.google.com (hpaq7.eem.corp.google.com [172.25.149.7])
-	by smtp-out.google.com with ESMTP id p4V0tknd003113
-	for <linux-mm@kvack.org>; Mon, 30 May 2011 17:55:46 -0700
-Received: from pvc30 (pvc30.prod.google.com [10.241.209.158])
-	by hpaq7.eem.corp.google.com with ESMTP id p4V0tMFA007672
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 30 May 2011 17:55:45 -0700
-Received: by pvc30 with SMTP id 30so1899079pvc.6
-        for <linux-mm@kvack.org>; Mon, 30 May 2011 17:55:44 -0700 (PDT)
-Date: Mon, 30 May 2011 17:55:44 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH 14/14] tmpfs: no need to use i_lock
-In-Reply-To: <alpine.LSU.2.00.1105301726180.5482@sister.anvils>
-Message-ID: <alpine.LSU.2.00.1105301754050.5482@sister.anvils>
-References: <alpine.LSU.2.00.1105301726180.5482@sister.anvils>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 3EBAF6B0012
+	for <linux-mm@kvack.org>; Mon, 30 May 2011 21:33:11 -0400 (EDT)
+Date: Mon, 30 May 2011 21:33:02 -0400 (EDT)
+From: CAI Qian <caiqian@redhat.com>
+Message-ID: <2135926037.315785.1306805582148.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
+In-Reply-To: <4DD61F80.1020505@jp.fujitsu.com>
+Subject: Re: [PATCH v2 0/5] Fix oom killer doesn't work at all if system
+ have > gigabytes memory  (aka CAI founded issue)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Tim Chen <tim.c.chen@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, rientjes@google.com, hughd@google.com, kamezawa hiroyu <kamezawa.hiroyu@jp.fujitsu.com>, minchan kim <minchan.kim@gmail.com>, oleg@redhat.com
 
-2.6.36's 7e496299d4d2 to make tmpfs scalable with percpu_counter used
-inode->i_lock in place of sbinfo->stat_lock around i_blocks updates;
-but that was adverse to scalability, and unnecessary, since info->lock
-is already held there in the fast paths.
+Hello,
 
-Remove those uses of i_lock, and add info->lock in the three error
-paths where it's then needed across shmem_free_blocks().  It's not
-actually needed across shmem_unacct_blocks(), but they're so often
-paired that it looks wrong to split them apart.
+Have tested those patches rebased from KOSAKI for the latest mainline.
+It still killed random processes and recevied a panic at the end by
+using root user. The full oom output can be found here.
+http://people.redhat.com/qcai/oom
 
-Signed-off-by: Hugh Dickins <hughd@google.com>
-Cc: Tim Chen <tim.c.chen@linux.intel.com>
----
- mm/shmem.c |   14 ++++++--------
- 1 file changed, 6 insertions(+), 8 deletions(-)
+Cheers,
+CAI Qian
 
---- linux.orig/mm/shmem.c	2011-05-30 14:25:32.665536626 -0700
-+++ linux/mm/shmem.c	2011-05-30 15:03:41.680887254 -0700
-@@ -241,9 +241,7 @@ static void shmem_free_blocks(struct ino
- 	struct shmem_sb_info *sbinfo = SHMEM_SB(inode->i_sb);
- 	if (sbinfo->max_blocks) {
- 		percpu_counter_add(&sbinfo->used_blocks, -pages);
--		spin_lock(&inode->i_lock);
- 		inode->i_blocks -= pages*BLOCKS_PER_PAGE;
--		spin_unlock(&inode->i_lock);
- 	}
- }
- 
-@@ -432,9 +430,7 @@ static swp_entry_t *shmem_swp_alloc(stru
- 						sbinfo->max_blocks - 1) >= 0)
- 				return ERR_PTR(-ENOSPC);
- 			percpu_counter_inc(&sbinfo->used_blocks);
--			spin_lock(&inode->i_lock);
- 			inode->i_blocks += BLOCKS_PER_PAGE;
--			spin_unlock(&inode->i_lock);
- 		}
- 
- 		spin_unlock(&info->lock);
-@@ -1420,9 +1416,7 @@ repeat:
- 			    shmem_acct_block(info->flags))
- 				goto nospace;
- 			percpu_counter_inc(&sbinfo->used_blocks);
--			spin_lock(&inode->i_lock);
- 			inode->i_blocks += BLOCKS_PER_PAGE;
--			spin_unlock(&inode->i_lock);
- 		} else if (shmem_acct_block(info->flags))
- 			goto nospace;
- 
-@@ -1433,8 +1427,10 @@ repeat:
- 				spin_unlock(&info->lock);
- 				filepage = shmem_alloc_page(gfp, info, idx);
- 				if (!filepage) {
-+					spin_lock(&info->lock);
- 					shmem_unacct_blocks(info->flags, 1);
- 					shmem_free_blocks(inode, 1);
-+					spin_unlock(&info->lock);
- 					error = -ENOMEM;
- 					goto failed;
- 				}
-@@ -1448,8 +1444,10 @@ repeat:
- 					current->mm, GFP_KERNEL);
- 				if (error) {
- 					page_cache_release(filepage);
-+					spin_lock(&info->lock);
- 					shmem_unacct_blocks(info->flags, 1);
- 					shmem_free_blocks(inode, 1);
-+					spin_unlock(&info->lock);
- 					filepage = NULL;
- 					goto failed;
- 				}
-@@ -1479,10 +1477,10 @@ repeat:
- 			 * be done automatically.
- 			 */
- 			if (ret) {
--				spin_unlock(&info->lock);
--				page_cache_release(filepage);
- 				shmem_unacct_blocks(info->flags, 1);
- 				shmem_free_blocks(inode, 1);
-+				spin_unlock(&info->lock);
-+				page_cache_release(filepage);
- 				filepage = NULL;
- 				if (error)
- 					goto failed;
+----- Original Message -----
+> CAI Qian reported current oom logic doesn't work at all on his 16GB
+> RAM
+> machine. oom killer killed all system daemon at first and his system
+> stopped responding.
+> 
+> The brief log is below.
+> 
+> > Out of memory: Kill process 1175 (dhclient) score 1 or sacrifice
+> > child
+> > Out of memory: Kill process 1247 (rsyslogd) score 1 or sacrifice
+> > child
+> > Out of memory: Kill process 1284 (irqbalance) score 1 or sacrifice
+> > child
+> > Out of memory: Kill process 1303 (rpcbind) score 1 or sacrifice
+> > child
+> > Out of memory: Kill process 1321 (rpc.statd) score 1 or sacrifice
+> > child
+> > Out of memory: Kill process 1333 (mdadm) score 1 or sacrifice child
+> > Out of memory: Kill process 1365 (rpc.idmapd) score 1 or sacrifice
+> > child
+> > Out of memory: Kill process 1403 (dbus-daemon) score 1 or sacrifice
+> > child
+> > Out of memory: Kill process 1438 (acpid) score 1 or sacrifice child
+> > Out of memory: Kill process 1447 (hald) score 1 or sacrifice child
+> > Out of memory: Kill process 1447 (hald) score 1 or sacrifice child
+> > Out of memory: Kill process 1487 (hald-addon-inpu) score 1 or
+> > sacrifice child
+> > Out of memory: Kill process 1488 (hald-addon-acpi) score 1 or
+> > sacrifice child
+> > Out of memory: Kill process 1507 (automount) score 1 or sacrifice
+> > child
+> 
+> 
+> The problems are three.
+> 
+> 1) if two processes have the same oom score, we should kill younger
+> process.
+> but current logic kill older. Typically oldest processes are system
+> daemons.
+> 2) Current logic use 'unsigned int' for internal score calculation.
+> (exactly says,
+> it only use 0-1000 value). its very low precision calculation makes a
+> lot of
+> same oom score and kill an ineligible process.
+> 3) Current logic give 3% of SystemRAM to root processes. It obviously
+> too big
+> if you have plenty memory. Now, your fork-bomb processes have 500MB
+> OOM immune
+> bonus. then your fork-bomb never ever be killed.
+> 
+> 
+> KOSAKI Motohiro (5):
+> oom: improve dump_tasks() show items
+> oom: kill younger process first
+> oom: oom-killer don't use proportion of system-ram internally
+> oom: don't kill random process
+> oom: merge oom_kill_process() with oom_kill_task()
+> 
+> fs/proc/base.c | 13 ++-
+> include/linux/oom.h | 10 +--
+> include/linux/sched.h | 11 +++
+> mm/oom_kill.c | 201 +++++++++++++++++++++++++++----------------------
+> 4 files changed, 135 insertions(+), 100 deletions(-)
+> 
+> --
+> 1.7.3.1
+> 
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org. For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Fight unfair telecom internet charges in Canada: sign
+> http://stopthemeter.ca/
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
