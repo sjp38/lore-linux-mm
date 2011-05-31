@@ -1,39 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id DAEB96B0012
-	for <linux-mm@kvack.org>; Tue, 31 May 2011 00:48:36 -0400 (EDT)
-Received: from hpaq14.eem.corp.google.com (hpaq14.eem.corp.google.com [172.25.149.14])
-	by smtp-out.google.com with ESMTP id p4V4mYAE027911
-	for <linux-mm@kvack.org>; Mon, 30 May 2011 21:48:34 -0700
-Received: from pvh21 (pvh21.prod.google.com [10.241.210.213])
-	by hpaq14.eem.corp.google.com with ESMTP id p4V4lUS1002972
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 30 May 2011 21:48:33 -0700
-Received: by pvh21 with SMTP id 21so3666128pvh.1
-        for <linux-mm@kvack.org>; Mon, 30 May 2011 21:48:32 -0700 (PDT)
-Date: Mon, 30 May 2011 21:48:30 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 4/5] oom: don't kill random process
-In-Reply-To: <4DE2F028.6020608@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1105302147250.18793@chino.kir.corp.google.com>
-References: <4DD61F80.1020505@jp.fujitsu.com> <4DD6207E.1070300@jp.fujitsu.com> <alpine.DEB.2.00.1105231529340.17840@chino.kir.corp.google.com> <4DDB0B45.2080507@jp.fujitsu.com> <alpine.DEB.2.00.1105231838420.17729@chino.kir.corp.google.com>
- <4DDB1028.7000600@jp.fujitsu.com> <alpine.DEB.2.00.1105231856210.18353@chino.kir.corp.google.com> <4DDB11F4.2070903@jp.fujitsu.com> <alpine.DEB.2.00.1105251645270.29729@chino.kir.corp.google.com> <4DE2F028.6020608@jp.fujitsu.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 457236B0012
+	for <linux-mm@kvack.org>; Tue, 31 May 2011 00:49:14 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id C340B3EE0C0
+	for <linux-mm@kvack.org>; Tue, 31 May 2011 13:49:11 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9E39D45DE9D
+	for <linux-mm@kvack.org>; Tue, 31 May 2011 13:49:11 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8025445DE97
+	for <linux-mm@kvack.org>; Tue, 31 May 2011 13:49:11 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 63BD1E18003
+	for <linux-mm@kvack.org>; Tue, 31 May 2011 13:49:11 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 1396EE08003
+	for <linux-mm@kvack.org>; Tue, 31 May 2011 13:49:11 +0900 (JST)
+Message-ID: <4DE4733F.3030207@jp.fujitsu.com>
+Date: Tue, 31 May 2011 13:49:03 +0900
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH v2 0/5] Fix oom killer doesn't work at all if system have
+ > gigabytes memory  (aka CAI founded issue)
+References: <1582158305.317043.1306815272554.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
+In-Reply-To: <1582158305.317043.1306815272554.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, caiqian@redhat.com, hughd@google.com, kamezawa.hiroyu@jp.fujitsu.com, minchan.kim@gmail.com, oleg@redhat.com
+To: caiqian@redhat.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, rientjes@google.com, hughd@google.com, kamezawa.hiroyu@jp.fujitsu.com, minchan.kim@gmail.com, oleg@redhat.com
 
-On Mon, 30 May 2011, KOSAKI Motohiro wrote:
-
-> Never mind.
+> OK, there was also a panic at the end. Is that expected?
 > 
-> You never see to increase tasklist_lock. You never seen all processes
-> have root privilege case.
-> 
+> BUG: unable to handle kernel NULL pointer dereference at 00000000000002a8
+> IP: [<ffffffff811227d4>] get_mm_counter+0x14/0x30
+> PGD 0 
+> Oops: 0000 [#1] SMP 
+> CPU 7 
+> Modules linked in: autofs4 sunrpc cpufreq_ondemand acpi_cpufreq freq_table mperf ipv6 dm_mirror dm_region_hash dm_log microcode serio_raw pcspkr cdc_ether usbnet mii i2c_i801 i2c_core iTCO_wdt iTCO_vendor_support sg shpchp ioatdma dca i7core_edac edac_core bnx2 ext4 mbcache jbd2 sd_mod crc_t10dif pata_acpi ata_generic ata_piix mptsas mptscsih mptbase scsi_transport_sas dm_mod [last unloaded: scsi_wait_scan]
 
-I don't really understand what you're trying to say, sorry.
+My fault. my [1/5] has a bug. please apply following incremental patch.
+
+
+index 9c7f149..f0e34d4 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -448,8 +448,8 @@ static void dump_tasks(const struct mem_cgroup *mem, const nodemask_t *no
+                        task_tgid_nr(task), task_tgid_nr(task->real_parent),
+                        task_uid(task),
+                        task->mm->total_vm,
+-                       get_mm_rss(task->mm) + p->mm->nr_ptes,
+-                       get_mm_counter(p->mm, MM_SWAPENTS),
++                       get_mm_rss(task->mm) + task->mm->nr_ptes,
++                       get_mm_counter(task->mm, MM_SWAPENTS),
+                        task->signal->oom_score_adj,
+                        task->comm);
+                task_unlock(task);
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
