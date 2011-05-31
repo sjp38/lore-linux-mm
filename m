@@ -1,460 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id CFB696B0012
-	for <linux-mm@kvack.org>; Tue, 31 May 2011 13:04:09 -0400 (EDT)
-Received: from kpbe16.cbf.corp.google.com (kpbe16.cbf.corp.google.com [172.25.105.80])
-	by smtp-out.google.com with ESMTP id p4VH47SY015710
-	for <linux-mm@kvack.org>; Tue, 31 May 2011 10:04:07 -0700
-Received: from qwa26 (qwa26.prod.google.com [10.241.193.26])
-	by kpbe16.cbf.corp.google.com with ESMTP id p4VH3LXW007357
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 739AE6B0012
+	for <linux-mm@kvack.org>; Tue, 31 May 2011 13:05:47 -0400 (EDT)
+Received: from kpbe14.cbf.corp.google.com (kpbe14.cbf.corp.google.com [172.25.105.78])
+	by smtp-out.google.com with ESMTP id p4VH5j1N017865
+	for <linux-mm@kvack.org>; Tue, 31 May 2011 10:05:45 -0700
+Received: from pwi8 (pwi8.prod.google.com [10.241.219.8])
+	by kpbe14.cbf.corp.google.com with ESMTP id p4VH5Zh4009999
 	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 31 May 2011 10:04:06 -0700
-Received: by qwa26 with SMTP id 26so3097683qwa.14
-        for <linux-mm@kvack.org>; Tue, 31 May 2011 10:04:05 -0700 (PDT)
+	for <linux-mm@kvack.org>; Tue, 31 May 2011 10:05:35 -0700
+Received: by pwi8 with SMTP id 8so2572468pwi.8
+        for <linux-mm@kvack.org>; Tue, 31 May 2011 10:05:35 -0700 (PDT)
+Date: Tue, 31 May 2011 10:05:27 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: RE: [PATCH 1/14] mm: invalidate_mapping_pages flush cleancache
+In-Reply-To: <ba74b4e5-500e-4662-ade0-c0b714b8f570@default>
+Message-ID: <alpine.LSU.2.00.1105310951160.1719@sister.anvils>
+References: <alpine.LSU.2.00.1105301726180.5482@sister.anvils alpine.LSU.2.00.1105301733500.5482@sister.anvils> <ba74b4e5-500e-4662-ade0-c0b714b8f570@default>
 MIME-Version: 1.0
-In-Reply-To: <BANLkTimenj2+m6HxS3SP1v+8U86--yxRmw@mail.gmail.com>
-References: <20110526141047.dc828124.kamezawa.hiroyu@jp.fujitsu.com>
-	<BANLkTikcdOGkJWxS0Sey8C1ereVk8ucvQQ@mail.gmail.com>
-	<20110527111639.22e3e257.kamezawa.hiroyu@jp.fujitsu.com>
-	<BANLkTi=Cw8HSTUjNfJzH8GhfwQhUua-h7w@mail.gmail.com>
-	<20110527133431.471eefc2.kamezawa.hiroyu@jp.fujitsu.com>
-	<BANLkTi=+XoxHca6accmpj9B-HFrmMTtxFA@mail.gmail.com>
-	<BANLkTimenj2+m6HxS3SP1v+8U86--yxRmw@mail.gmail.com>
-Date: Tue, 31 May 2011 10:04:05 -0700
-Message-ID: <BANLkTikLuodgN0KJe_M7U_i_BL=0oygZaCTZeSx7-MDUJYCvZA@mail.gmail.com>
-Subject: Re: [RFC][PATCH v3 0/10] memcg async reclaim
-From: Ying Han <yinghan@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, chris.mason@oracle.com
 
-Some testing result on the patchset based on mmotm-2011-05-12-15-52.
+On Tue, 31 May 2011, Dan Magenheimer wrote:
+> > 
+> > truncate_inode_pages_range() and invalidate_inode_pages2_range()
+> > call cleancache_flush_inode(mapping) before and after: shouldn't
+> > invalidate_mapping_pages() be doing the same?
+> 
+> I don't claim to be an expert on VFS, and so I have cc'ed
+> Chris Mason who originally placed the cleancache hooks
+> in VFS, but I think this patch is unnecessary.  Instead
+> of flushing ALL of the cleancache pages belonging to
+> the inode with cleancache_flush_inode, the existing code
+> eventually calls __delete_from_page_cache on EACH page
+> that is being invalidated.
 
-Test: create a 4g memcg on 32g host, and change the default dirty
-ratio to "10% dirty_raio. 5% dirty_background_ratio" due to the lack
-for per-memcg dirty limit.
+On each one that's in pagecache (and satisfies the other "can we
+do it easily?" conditions peculiar to invalidate_mapping_pages()).
+But there may be other slots in the range that don't reach
+__delete_from_page_cache() e.g. because not currently in pagecache,
+but whose cleancache ought to be flushed.  I think that's what a
+caller of invalidate_mapping_pages(), e.g. drop caches, expects.
 
-I did a simple streaming IO test ( read/write 20g file) and used the
-pagefault histogram to capture the page fault latency under reclaim.
-On both tests, there is no pgfault latency introduced from the reclaim
-path by enabling the per-memcg async reclaim . I will post the V2 of
-the patch right after.
+> And since __delete_from_page_cache
+> calls cleancache_flush_page, only that subset of pages
+> in the mapping that invalidate_mapping_pages() would
+> invalidate (which, from the comment above the routine
+> indicates, is only *unlocked* pages) is removed from
+> cleancache.
 
-$ cat /export/hdc3/dd_A/tf0 > /dev/zero
+It's nice to target the particular range asked for, rather than
+throwing away all the cleancache for the whole mapping, I can
+see that (though that's a defect in the cleancache_flush_inode()
+interface).  But then why do truncate_inode_pages_range() and
+invalidate_inode_pages2_range() throw it all away, despite
+going down to __delete_from_page_cache on individual pages found?
 
-w/o the async reclaim:
-page reclaim latency histogram (us):
-< 150            542
-< 200            15402
-< 250            481
-< 300            23
-< 350            1
-< 400            0
-< 450            0
-< rest           0
-real>---4m26.604s
-user>---0m0.294s
-sys>----0m26.632s
+Maybe the right patch is to remove cleancache_flush_inode() from
+the two instead of adding it to the one?  But I think not.
 
-with async reclaim:
-page reclaim latency histogram (us):
-< 150            0
-< 200            0
-< 250            0
-< 300            0
-< 350            1
-< 400            1
-< 450            0
-< rest           1
-real>---4m26.605s
-user>---0m0.246s
-sys>----0m24.341s
-
-$ dd if=3D/dev/zero of=3D/export/hdc3/dd/tf0 bs=3D1024 count=3D20971520
-
-w/o async reclaim:
-page reclaim latency histogram (us):
-< 150            4
-< 200            17382
-< 250            3238
-< 300            276
-< 350            18
-< 400            1
-< 450            1
-< rest           103
-real>---4m26.984s
-user>---0m4.964s
-sys>----1m8.718s
-
-with async reclaim:
-page reclaim latency histogram (us):
-< 150            0
-< 200            0
-< 250            0
-< 300            0
-< 350            0
-< 400            0
-< 450            0
-< rest           0
-real>---4m16.355s
-user>---0m4.593s
-sys>----1m5.896s
-
-Thanks
-
---Ying
-
-On Fri, May 27, 2011 at 12:20 AM, Ying Han <yinghan@google.com> wrote:
-> On Thu, May 26, 2011 at 9:49 PM, Ying Han <yinghan@google.com> wrote:
->> On Thu, May 26, 2011 at 9:34 PM, KAMEZAWA Hiroyuki
->> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
->>> On Thu, 26 May 2011 21:33:32 -0700
->>> Ying Han <yinghan@google.com> wrote:
->>>
->>>> On Thu, May 26, 2011 at 7:16 PM, KAMEZAWA Hiroyuki
->>>> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
->>>> > On Thu, 26 May 2011 18:49:26 -0700
->>>> > Ying Han <yinghan@google.com> wrote:
->>>> >
->>>> >> On Wed, May 25, 2011 at 10:10 PM, KAMEZAWA Hiroyuki
->>>> >> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
->>>> >> >
->>>> >> > It's now merge window...I just dump my patch queue to hear other'=
-s idea.
->>>> >> > I wonder I should wait until dirty_ratio for memcg is queued to m=
-motm...
->>>> >> > I'll be busy with LinuxCon Japan etc...in the next week.
->>>> >> >
->>>> >> > This patch is onto mmotm-May-11 + some patches queued in mmotm, a=
-s numa_stat.
->>>> >> >
->>>> >> > This is a patch for memcg to keep margin to the limit in backgrou=
-nd.
->>>> >> > By keeping some margin to the limit in background, application ca=
-n
->>>> >> > avoid foreground memory reclaim at charge() and this will help la=
-tency.
->>>> >> >
->>>> >> > Main changes from v2 is.
->>>> >> > =A0- use SCHED_IDLE.
->>>> >> > =A0- removed most of heuristic codes. Now, code is very simple.
->>>> >> >
->>>> >> > By using SCHED_IDLE, async memory reclaim can only consume 0.3%? =
-of cpu
->>>> >> > if the system is truely busy but can use much CPU if the cpu is i=
-dle.
->>>> >> > Because my purpose is for reducing latency without affecting othe=
-r running
->>>> >> > applications, SCHED_IDLE fits this work.
->>>> >> >
->>>> >> > If application need to stop by some I/O or event, background memo=
-ry reclaim
->>>> >> > will cull memory while the system is idle.
->>>> >> >
->>>> >> > Perforemce:
->>>> >> > =A0Running an httpd (apache) under 300M limit. And access 600MB w=
-orking set
->>>> >> > =A0with normalized distribution access by apatch-bench.
->>>> >> > =A0apatch bench's concurrency was 4 and did 40960 accesses.
->>>> >> >
->>>> >> > Without async reclaim:
->>>> >> > Connection Times (ms)
->>>> >> > =A0 =A0 =A0 =A0 =A0 =A0 =A0min =A0mean[+/-sd] median =A0 max
->>>> >> > Connect: =A0 =A0 =A0 =A00 =A0 =A00 =A0 0.0 =A0 =A0 =A00 =A0 =A0 =
-=A0 2
->>>> >> > Processing: =A0 =A030 =A0 37 =A028.3 =A0 =A0 32 =A0 =A01793
->>>> >> > Waiting: =A0 =A0 =A0 28 =A0 35 =A025.5 =A0 =A0 31 =A0 =A01792
->>>> >> > Total: =A0 =A0 =A0 =A0 30 =A0 37 =A028.4 =A0 =A0 32 =A0 =A01793
->>>> >> >
->>>> >> > Percentage of the requests served within a certain time (ms)
->>>> >> > =A050% =A0 =A0 32
->>>> >> > =A066% =A0 =A0 32
->>>> >> > =A075% =A0 =A0 33
->>>> >> > =A080% =A0 =A0 34
->>>> >> > =A090% =A0 =A0 39
->>>> >> > =A095% =A0 =A0 60
->>>> >> > =A098% =A0 =A0100
->>>> >> > =A099% =A0 =A0133
->>>> >> > =A0100% =A0 1793 (longest request)
->>>> >> >
->>>> >> > With async reclaim:
->>>> >> > Connection Times (ms)
->>>> >> > =A0 =A0 =A0 =A0 =A0 =A0 =A0min =A0mean[+/-sd] median =A0 max
->>>> >> > Connect: =A0 =A0 =A0 =A00 =A0 =A00 =A0 0.0 =A0 =A0 =A00 =A0 =A0 =
-=A0 2
->>>> >> > Processing: =A0 =A030 =A0 35 =A012.3 =A0 =A0 32 =A0 =A0 678
->>>> >> > Waiting: =A0 =A0 =A0 28 =A0 34 =A012.0 =A0 =A0 31 =A0 =A0 658
->>>> >> > Total: =A0 =A0 =A0 =A0 30 =A0 35 =A012.3 =A0 =A0 32 =A0 =A0 678
->>>> >> >
->>>> >> > Percentage of the requests served within a certain time (ms)
->>>> >> > =A050% =A0 =A0 32
->>>> >> > =A066% =A0 =A0 32
->>>> >> > =A075% =A0 =A0 33
->>>> >> > =A080% =A0 =A0 34
->>>> >> > =A090% =A0 =A0 39
->>>> >> > =A095% =A0 =A0 49
->>>> >> > =A098% =A0 =A0 71
->>>> >> > =A099% =A0 =A0 86
->>>> >> > =A0100% =A0 =A0678 (longest request)
->>>> >> >
->>>> >> >
->>>> >> > It seems latency is stabilized by hiding memory reclaim.
->>>> >> >
->>>> >> > The score for memory reclaim was following.
->>>> >> > See patch 10 for meaning of each member.
->>>> >> >
->>>> >> > =3D=3D without async reclaim =3D=3D
->>>> >> > recent_scan_success_ratio 44
->>>> >> > limit_scan_pages 388463
->>>> >> > limit_freed_pages 162238
->>>> >> > limit_elapsed_ns 13852159231
->>>> >> > soft_scan_pages 0
->>>> >> > soft_freed_pages 0
->>>> >> > soft_elapsed_ns 0
->>>> >> > margin_scan_pages 0
->>>> >> > margin_freed_pages 0
->>>> >> > margin_elapsed_ns 0
->>>> >> >
->>>> >> > =3D=3D with async reclaim =3D=3D
->>>> >> > recent_scan_success_ratio 6
->>>> >> > limit_scan_pages 0
->>>> >> > limit_freed_pages 0
->>>> >> > limit_elapsed_ns 0
->>>> >> > soft_scan_pages 0
->>>> >> > soft_freed_pages 0
->>>> >> > soft_elapsed_ns 0
->>>> >> > margin_scan_pages 1295556
->>>> >> > margin_freed_pages 122450
->>>> >> > margin_elapsed_ns 644881521
->>>> >> >
->>>> >> >
->>>> >> > For this case, SCHED_IDLE workqueue can reclaim enough memory to =
-the httpd.
->>>> >> >
->>>> >> > I may need to dig why scan_success_ratio is far different in the =
-both case.
->>>> >> > I guess the difference of epalsed_ns is because several threads e=
-nter
->>>> >> > memory reclaim when async reclaim doesn't run. But may not...
->>>> >> >
->>>> >>
->>>> >>
->>>> >> Hmm.. I noticed a very strange behavior on a simple test w/ the pat=
-ch set.
->>>> >>
->>>> >> Test:
->>>> >> I created a 4g memcg and start doing cat. Then the memcg being OOM
->>>> >> killed as soon as it reaches its hard_limit. We shouldn't hit OOM e=
-ven
->>>> >> w/o async-reclaim.
->>>> >>
->>>> >> Again, I will read through the patch. But like to post the test res=
-ult first.
->>>> >>
->>>> >> $ echo $$ >/dev/cgroup/memory/A/tasks
->>>> >> $ cat /dev/cgroup/memory/A/memory.limit_in_bytes
->>>> >> 4294967296
->>>> >>
->>>> >> $ time cat /export/hdc3/dd_A/tf0 > /dev/zero
->>>> >> Killed
->>>> >>
->>>> >
->>>> > I did the same kind of test without any problem...but ok, I'll do mo=
-re test
->>>> > later.
->>>> >
->>>> >
->>>> >
->>>> >> real =A00m53.565s
->>>> >> user =A00m0.061s
->>>> >> sys =A0 0m4.814s
->>>> >>
->>>> >> Here is the OOM log:
->>>> >>
->>>> >> May 26 18:43:00 =A0kernel: [ =A0963.489112] cat invoked oom-killer:
->>>> >> gfp_mask=3D0xd0, order=3D0, oom_adj=3D0, oom_score_adj=3D0
->>>> >> May 26 18:43:00 =A0kernel: [ =A0963.489121] Pid: 9425, comm: cat Ta=
-inted:
->>>> >> G =A0 =A0 =A0 =A0W =A0 2.6.39-mcg-DEV #131
->>>> >> May 26 18:43:00 =A0kernel: [ =A0963.489123] Call Trace:
->>>> >> May 26 18:43:00 =A0kernel: [ =A0963.489134] =A0[<ffffffff810e3512>]
->>>> >> dump_header+0x82/0x1af
->>>> >> May 26 18:43:00 =A0kernel: [ =A0963.489137] =A0[<ffffffff810e33ca>]=
- ?
->>>> >> spin_lock+0xe/0x10
->>>> >> May 26 18:43:00 =A0kernel: [ =A0963.489140] =A0[<ffffffff810e33f9>]=
- ?
->>>> >> find_lock_task_mm+0x2d/0x67
->>>> >> May 26 18:43:00 =A0kernel: [ =A0963.489143] =A0[<ffffffff810e38dd>]
->>>> >> oom_kill_process+0x50/0x27b
->>>> >> May 26 18:43:00 =A0kernel: [ =A0963.489155] =A0[<ffffffff810e3dc6>]
->>>> >> mem_cgroup_out_of_memory+0x9a/0xe4
->>>> >> May 26 18:43:00 =A0kernel: [ =A0963.489160] =A0[<ffffffff811153aa>]
->>>> >> mem_cgroup_handle_oom+0x134/0x1fe
->>>> >> May 26 18:43:00 =A0kernel: [ =A0963.489163] =A0[<ffffffff81114a72>]=
- ?
->>>> >> __mem_cgroup_insert_exceeded+0x83/0x83
->>>> >> May 26 18:43:00 =A0kernel: [ =A0963.489176] =A0[<ffffffff811166e9>]
->>>> >> __mem_cgroup_try_charge.clone.3+0x368/0x43a
->>>> >> May 26 18:43:00 =A0kernel: [ =A0963.489179] =A0[<ffffffff81117586>]
->>>> >> mem_cgroup_cache_charge+0x95/0x123
->>>> >> May 26 18:43:00 =A0kernel: [ =A0963.489183] =A0[<ffffffff810e16d8>]
->>>> >> add_to_page_cache_locked+0x42/0x114
->>>> >> May 26 18:43:00 =A0kernel: [ =A0963.489185] =A0[<ffffffff810e17db>]
->>>> >> add_to_page_cache_lru+0x31/0x5f
->>>> >> May 26 18:43:00 =A0kernel: [ =A0963.489189] =A0[<ffffffff81145636>]
->>>> >> mpage_readpages+0xb6/0x132
->>>> >> May 26 18:43:00 =A0kernel: [ =A0963.489194] =A0[<ffffffff8119992f>]=
- ?
->>>> >> noalloc_get_block_write+0x24/0x24
->>>> >> May 26 18:43:00 =A0kernel: [ =A0963.489197] =A0[<ffffffff8119992f>]=
- ?
->>>> >> noalloc_get_block_write+0x24/0x24
->>>> >> May 26 18:43:00 =A0kernel: [ =A0963.489201] =A0[<ffffffff81036742>]=
- ?
->>>> >> __switch_to+0x160/0x212
->>>> >> May 26 18:43:00 =A0kernel: [ =A0963.489205] =A0[<ffffffff811978b2>]
->>>> >> ext4_readpages+0x1d/0x1f
->>>> >> May 26 18:43:00 =A0kernel: [ =A0963.489209] =A0[<ffffffff810e8d4b>]
->>>> >> __do_page_cache_readahead+0x144/0x1e3
->>>> >> May 26 18:43:00 =A0kernel: [ =A0963.489212] =A0[<ffffffff810e8e0b>]
->>>> >> ra_submit+0x21/0x25
->>>> >> May 26 18:43:00 =A0kernel: [ =A0963.489215] =A0[<ffffffff810e9075>]
->>>> >> ondemand_readahead+0x18c/0x19f
->>>> >> May 26 18:43:00 =A0kernel: [ =A0963.489218] =A0[<ffffffff810e9105>]
->>>> >> page_cache_async_readahead+0x7d/0x86
->>>> >> May 26 18:43:00 =A0kernel: [ =A0963.489221] =A0[<ffffffff810e2b7e>]
->>>> >> generic_file_aio_read+0x2d8/0x5fe
->>>> >> May 26 18:43:00 =A0kernel: [ =A0963.489225] =A0[<ffffffff81119626>]
->>>> >> do_sync_read+0xcb/0x108
->>>> >> May 26 18:43:00 =A0kernel: [ =A0963.489230] =A0[<ffffffff811f168a>]=
- ?
->>>> >> fsnotify_perm+0x66/0x72
->>>> >> May 26 18:43:00 =A0kernel: [ =A0963.489233] =A0[<ffffffff811f16f7>]=
- ?
->>>> >> security_file_permission+0x2e/0x33
->>>> >> May 26 18:43:00 =A0kernel: [ =A0963.489236] =A0[<ffffffff8111a0c8>]
->>>> >> vfs_read+0xab/0x107
->>>> >> May 26 18:43:00 =A0kernel: [ =A0963.489239] =A0[<ffffffff8111a1e4>]=
- sys_read+0x4a/0x6e
->>>> >> May 26 18:43:00 =A0kernel: [ =A0963.489244] =A0[<ffffffff8140f469>]
->>>> >> sysenter_dispatch+0x7/0x27
->>>> >> May 26 18:43:00 =A0kernel: [ =A0963.489248] Task in /A killed as a =
-result
->>>> >> of limit of /A
->>>> >> May 26 18:43:00 =A0kernel: [ =A0963.489251] memory: usage 4194304kB=
-, limit
->>>> >> 4194304kB, failcnt 26
->>>> >> May 26 18:43:00 =A0kernel: [ =A0963.489253] memory+swap: usage 0kB,=
- limit
->>>> >> 9007199254740991kB, failcnt 0
->>>> >>
->>>> >
->>>> > Hmm, why memory+swap usage 0kb here...
->>>> >
->>>> > In this set, I used mem_cgroup_margin() rather than res_counter_marg=
-in().
->>>> > Hmm, do you disable swap accounting ? If so, I may miss some.
->>>>
->>>> Yes, I disabled the swap accounting in .config:
->>>> # CONFIG_CGROUP_MEM_RES_CTLR_SWAP is not set
->>>>
->>>>
->>>> Here is how i reproduce it:
->>>>
->>>> $ mkdir /dev/cgroup/memory/D
->>>> $ echo 4g >/dev/cgroup/memory/D/memory.limit_in_bytes
->>>>
->>>> $ cat /dev/cgroup/memory/D/memory.limit_in_bytes
->>>> 4294967296
->>>>
->>>> $ cat /dev/cgroup/memory/D/memory.
->>>> memory.async_control =A0 =A0 =A0 =A0 =A0 =A0 memory.max_usage_in_bytes
->>>> memory.soft_limit_in_bytes =A0 =A0 =A0 memory.use_hierarchy
->>>> memory.failcnt =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 memory.move_charge_=
-at_immigrate
->>>> memory.stat
->>>> memory.force_empty =A0 =A0 =A0 =A0 =A0 =A0 =A0 memory.oom_control
->>>> memory.swappiness
->>>> memory.limit_in_bytes =A0 =A0 =A0 =A0 =A0 =A0memory.reclaim_stat
->>>> memory.usage_in_bytes
->>>>
->>>> $ cat /dev/cgroup/memory/D/memory.async_control
->>>> 0
->>>> $ echo 1 >/dev/cgroup/memory/D/memory.async_control
->>>> $ cat /dev/cgroup/memory/D/memory.async_control
->>>> 1
->>>>
->>>> $ echo $$ >/dev/cgroup/memory/D/tasks
->>>> $ cat /proc/4358/cgroup
->>>> 3:memory:/D
->>>>
->>>> $ time cat /export/hdc3/dd_A/tf0 > /dev/zero
->>>> Killed
->>>>
->>>
->>> If you applied my patches collectly, async_control can be seen if
->>> swap controller is configured because of BUG in patch.
->>
->> I noticed the BUG at the very beginning, so all my tests are having the =
-fix.
->>
->>>
->>> I could cat 20G file under 4G limit without any problem with boot optio=
-n
->>> swapaccount=3D0. no problem if async_control =3D=3D 0 ?
->>
->> $ cat /dev/cgroup/memory/D/memory.async_control
->> 1
->>
->> I have the .config
->> # CONFIG_CGROUP_MEM_RES_CTLR_SWAP is not set
->>
->> Not sure if that makes difference. I will test next to turn that on.
->
-> I know what's the problem and also verified. Our configuration might
-> differs on the "#if MAX_NUMNODES > 1"
->
-> Please apply the following patch:
->
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 6a52699..0b88d71 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -1217,7 +1217,7 @@ unsigned long
-> mem_cgroup_zone_reclaimable_pages(struct mem_cgroup *memcg,
-> =A0 =A0 =A0 =A0struct mem_cgroup_per_zone *mz =3D mem_cgroup_zoneinfo(mem=
-cg, nid, zid);
->
-> =A0 =A0 =A0 =A0nr =3D MEM_CGROUP_ZSTAT(mz, NR_ACTIVE_FILE) +
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 MEM_CGROUP_ZSTAT(mz, NR_ACTIVE_FILE);
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 MEM_CGROUP_ZSTAT(mz, NR_INACTIVE_FILE);
-> =A0 =A0 =A0 =A0if (nr_swap_pages > 0)
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0nr +=3D MEM_CGROUP_ZSTAT(mz, NR_ACTIVE_ANO=
-N) +
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0MEM_CGROUP_ZSTAT(mz, NR_IN=
-ACTIVE_ANON);
->
-> --Ying
->
->>
->> --Ying
->>
->>
->>>
->>>
->>>
->>> Thanks,
->>> -Kame
->>>
->>>
->>>
->>>
->>
->
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
