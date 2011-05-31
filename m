@@ -1,64 +1,144 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 60D746B0012
-	for <linux-mm@kvack.org>; Mon, 30 May 2011 20:42:20 -0400 (EDT)
-Received: from kpbe13.cbf.corp.google.com (kpbe13.cbf.corp.google.com [172.25.105.77])
-	by smtp-out.google.com with ESMTP id p4V0gItk024828
-	for <linux-mm@kvack.org>; Mon, 30 May 2011 17:42:18 -0700
-Received: from pvf33 (pvf33.prod.google.com [10.241.210.97])
-	by kpbe13.cbf.corp.google.com with ESMTP id p4V0gG9o006267
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 105246B0012
+	for <linux-mm@kvack.org>; Mon, 30 May 2011 20:43:54 -0400 (EDT)
+Received: from kpbe19.cbf.corp.google.com (kpbe19.cbf.corp.google.com [172.25.105.83])
+	by smtp-out.google.com with ESMTP id p4V0hks8009920
+	for <linux-mm@kvack.org>; Mon, 30 May 2011 17:43:46 -0700
+Received: from pvh18 (pvh18.prod.google.com [10.241.210.210])
+	by kpbe19.cbf.corp.google.com with ESMTP id p4V0hiL7031517
 	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 30 May 2011 17:42:17 -0700
-Received: by pvf33 with SMTP id 33so1845352pvf.10
-        for <linux-mm@kvack.org>; Mon, 30 May 2011 17:42:16 -0700 (PDT)
-Date: Mon, 30 May 2011 17:42:17 -0700 (PDT)
+	for <linux-mm@kvack.org>; Mon, 30 May 2011 17:43:44 -0700
+Received: by pvh18 with SMTP id 18so1808995pvh.3
+        for <linux-mm@kvack.org>; Mon, 30 May 2011 17:43:44 -0700 (PDT)
+Date: Mon, 30 May 2011 17:43:44 -0700 (PDT)
 From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH 5/14] drm/ttm: use shmem_read_mapping_page
+Subject: [PATCH 6/14] drm/i915: use shmem_read_mapping_page
 In-Reply-To: <alpine.LSU.2.00.1105301726180.5482@sister.anvils>
-Message-ID: <alpine.LSU.2.00.1105301741020.5482@sister.anvils>
+Message-ID: <alpine.LSU.2.00.1105301742220.5482@sister.anvils>
 References: <alpine.LSU.2.00.1105301726180.5482@sister.anvils>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Thomas Hellstrom <thellstrom@vmware.com>, Dave Airlie <airlied@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Chris Wilson <chris@chris-wilson.co.uk>, Keith Packard <keithp@keithp.com>, Dave Airlie <airlied@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Soon tmpfs will stop supporting ->readpage and read_mapping_page():
+Soon tmpfs will stop supporting ->readpage and read_cache_page_gfp():
 once "tmpfs: add shmem_read_mapping_page_gfp" has been applied,
 this patch can be applied to ease the transition.
 
-ttm_tt_swapin() and ttm_tt_swapout() use shmem_read_mapping_page()
-in place of read_mapping_page(), since their swap_space has been
-created with shmem_file_setup().
+i915_gem_object_get_pages_gtt() use shmem_read_mapping_page_gfp() in
+the one place it's needed; elsewhere use shmem_read_mapping_page(),
+with the mapping's gfp_mask properly initialized.
+
+Forget about __GFP_COLD: since tmpfs initializes its pages with memset,
+asking for a cold page is counter-productive.
 
 Signed-off-by: Hugh Dickins <hughd@google.com>
-Cc: Thomas Hellstrom <thellstrom@vmware.com>
+Cc: Chris Wilson <chris@chris-wilson.co.uk>
+Cc: Keith Packard <keithp@keithp.com>
 Cc: Dave Airlie <airlied@redhat.com>
 ---
- drivers/gpu/drm/ttm/ttm_tt.c |    4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ drivers/gpu/drm/i915/i915_gem.c |   30 +++++++++++++-----------------
+ 1 file changed, 13 insertions(+), 17 deletions(-)
 
---- linux.orig/drivers/gpu/drm/ttm/ttm_tt.c	2011-05-30 13:56:10.112796608 -0700
-+++ linux/drivers/gpu/drm/ttm/ttm_tt.c	2011-05-30 14:25:59.641670407 -0700
-@@ -484,7 +484,7 @@ static int ttm_tt_swapin(struct ttm_tt *
- 	swap_space = swap_storage->f_path.dentry->d_inode->i_mapping;
+--- linux.orig/drivers/gpu/drm/i915/i915_gem.c	2011-05-30 13:56:10.068796399 -0700
++++ linux/drivers/gpu/drm/i915/i915_gem.c	2011-05-30 14:26:13.121737248 -0700
+@@ -359,8 +359,7 @@ i915_gem_shmem_pread_fast(struct drm_dev
+ 		if ((page_offset + remain) > PAGE_SIZE)
+ 			page_length = PAGE_SIZE - page_offset;
  
- 	for (i = 0; i < ttm->num_pages; ++i) {
--		from_page = read_mapping_page(swap_space, i, NULL);
-+		from_page = shmem_read_mapping_page(swap_space, i);
- 		if (IS_ERR(from_page)) {
- 			ret = PTR_ERR(from_page);
- 			goto out_err;
-@@ -557,7 +557,7 @@ int ttm_tt_swapout(struct ttm_tt *ttm, s
- 		from_page = ttm->pages[i];
- 		if (unlikely(from_page == NULL))
- 			continue;
--		to_page = read_mapping_page(swap_space, i, NULL);
-+		to_page = shmem_read_mapping_page(swap_space, i);
- 		if (unlikely(IS_ERR(to_page))) {
- 			ret = PTR_ERR(to_page);
- 			goto out_err;
+-		page = read_cache_page_gfp(mapping, offset >> PAGE_SHIFT,
+-					   GFP_HIGHUSER | __GFP_RECLAIMABLE);
++		page = shmem_read_mapping_page(mapping, offset >> PAGE_SHIFT);
+ 		if (IS_ERR(page))
+ 			return PTR_ERR(page);
+ 
+@@ -463,8 +462,7 @@ i915_gem_shmem_pread_slow(struct drm_dev
+ 		if ((data_page_offset + page_length) > PAGE_SIZE)
+ 			page_length = PAGE_SIZE - data_page_offset;
+ 
+-		page = read_cache_page_gfp(mapping, offset >> PAGE_SHIFT,
+-					   GFP_HIGHUSER | __GFP_RECLAIMABLE);
++		page = shmem_read_mapping_page(mapping, offset >> PAGE_SHIFT);
+ 		if (IS_ERR(page))
+ 			return PTR_ERR(page);
+ 
+@@ -796,8 +794,7 @@ i915_gem_shmem_pwrite_fast(struct drm_de
+ 		if ((page_offset + remain) > PAGE_SIZE)
+ 			page_length = PAGE_SIZE - page_offset;
+ 
+-		page = read_cache_page_gfp(mapping, offset >> PAGE_SHIFT,
+-					   GFP_HIGHUSER | __GFP_RECLAIMABLE);
++		page = shmem_read_mapping_page(mapping, offset >> PAGE_SHIFT);
+ 		if (IS_ERR(page))
+ 			return PTR_ERR(page);
+ 
+@@ -906,8 +903,7 @@ i915_gem_shmem_pwrite_slow(struct drm_de
+ 		if ((data_page_offset + page_length) > PAGE_SIZE)
+ 			page_length = PAGE_SIZE - data_page_offset;
+ 
+-		page = read_cache_page_gfp(mapping, offset >> PAGE_SHIFT,
+-					   GFP_HIGHUSER | __GFP_RECLAIMABLE);
++		page = shmem_read_mapping_page(mapping, offset >> PAGE_SHIFT);
+ 		if (IS_ERR(page)) {
+ 			ret = PTR_ERR(page);
+ 			goto out;
+@@ -1556,12 +1552,10 @@ i915_gem_object_get_pages_gtt(struct drm
+ 
+ 	inode = obj->base.filp->f_path.dentry->d_inode;
+ 	mapping = inode->i_mapping;
++	gfpmask |= mapping_gfp_mask(mapping);
++
+ 	for (i = 0; i < page_count; i++) {
+-		page = read_cache_page_gfp(mapping, i,
+-					   GFP_HIGHUSER |
+-					   __GFP_COLD |
+-					   __GFP_RECLAIMABLE |
+-					   gfpmask);
++		page = shmem_read_mapping_page_gfp(mapping, i, gfpmask);
+ 		if (IS_ERR(page))
+ 			goto err_pages;
+ 
+@@ -3565,6 +3559,7 @@ struct drm_i915_gem_object *i915_gem_all
+ {
+ 	struct drm_i915_private *dev_priv = dev->dev_private;
+ 	struct drm_i915_gem_object *obj;
++	struct address_space *mapping;
+ 
+ 	obj = kzalloc(sizeof(*obj), GFP_KERNEL);
+ 	if (obj == NULL)
+@@ -3575,6 +3570,9 @@ struct drm_i915_gem_object *i915_gem_all
+ 		return NULL;
+ 	}
+ 
++	mapping = obj->base.filp->f_path.dentry->d_inode->i_mapping;
++	mapping_set_gfp_mask(mapping, GFP_HIGHUSER | __GFP_RECLAIMABLE);
++
+ 	i915_gem_info_add_obj(dev_priv, size);
+ 
+ 	obj->base.write_domain = I915_GEM_DOMAIN_CPU;
+@@ -3950,8 +3948,7 @@ void i915_gem_detach_phys_object(struct
+ 
+ 	page_count = obj->base.size / PAGE_SIZE;
+ 	for (i = 0; i < page_count; i++) {
+-		struct page *page = read_cache_page_gfp(mapping, i,
+-							GFP_HIGHUSER | __GFP_RECLAIMABLE);
++		struct page *page = shmem_read_mapping_page(mapping, i);
+ 		if (!IS_ERR(page)) {
+ 			char *dst = kmap_atomic(page);
+ 			memcpy(dst, vaddr + i*PAGE_SIZE, PAGE_SIZE);
+@@ -4012,8 +4009,7 @@ i915_gem_attach_phys_object(struct drm_d
+ 		struct page *page;
+ 		char *dst, *src;
+ 
+-		page = read_cache_page_gfp(mapping, i,
+-					   GFP_HIGHUSER | __GFP_RECLAIMABLE);
++		page = shmem_read_mapping_page(mapping, i);
+ 		if (IS_ERR(page))
+ 			return PTR_ERR(page);
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
