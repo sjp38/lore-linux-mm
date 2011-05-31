@@ -1,40 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 3865D6B0012
-	for <linux-mm@kvack.org>; Tue, 31 May 2011 06:01:22 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 4EBAB3EE0C1
-	for <linux-mm@kvack.org>; Tue, 31 May 2011 19:01:18 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 34AF245DF56
-	for <linux-mm@kvack.org>; Tue, 31 May 2011 19:01:18 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 1174C45DF4F
-	for <linux-mm@kvack.org>; Tue, 31 May 2011 19:01:18 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0547E1DB803A
-	for <linux-mm@kvack.org>; Tue, 31 May 2011 19:01:18 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id B736C1DB802C
-	for <linux-mm@kvack.org>; Tue, 31 May 2011 19:01:17 +0900 (JST)
-Message-ID: <4DE4BC64.3040807@jp.fujitsu.com>
-Date: Tue, 31 May 2011 19:01:08 +0900
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 2A3BD6B0012
+	for <linux-mm@kvack.org>; Tue, 31 May 2011 06:37:53 -0400 (EDT)
+Date: Tue, 31 May 2011 12:38:08 +0200
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: KVM induced panic on 2.6.38[2367] & 2.6.39
+Message-ID: <20110531103808.GA6915@eferding.osrc.amd.com>
+References: <4DE44333.9000903@fnarfbargle.com>
+ <20110531054729.GA16852@liondog.tnic>
+ <4DE4B432.1090203@fnarfbargle.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 0/5] Fix oom killer doesn't work at all if system have
- > gigabytes memory  (aka CAI founded issue)
-References: <348391538.318712.1306828778575.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com> <4DE4A2A0.6090704@jp.fujitsu.com>
-In-Reply-To: <4DE4A2A0.6090704@jp.fujitsu.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <4DE4B432.1090203@fnarfbargle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: caiqian@redhat.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, rientjes@google.com, hughd@google.com, kamezawa.hiroyu@jp.fujitsu.com, minchan.kim@gmail.com, oleg@redhat.com
+To: Brad Campbell <lists2009@fnarfbargle.com>
+Cc: linux-kernel@vger.kernel.org, kvm@vger.kernel.org, linux-mm <linux-mm@kvack.org>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Izik Eidus <ieidus@redhat.com>
 
-(2011/05/31 17:11), KOSAKI Motohiro wrote:
->>> Then, I believe your distro applying distro specific patch to ssh.
->>> Which distro are you using now?
->> It is a Fedora-like distro.
+On Tue, May 31, 2011 at 05:26:10PM +0800, Brad Campbell wrote:
+> On 31/05/11 13:47, Borislav Petkov wrote:
+> >Looks like a KSM issue. Disabling CONFIG_KSM should at least stop your
+> >machine from oopsing.
+> >
+> >Adding linux-mm.
+> >
+> 
+> I initially thought that, so the second panic was produced with KSM
+> disabled from boot.
+> 
+> echo 0 > /sys/kernel/mm/ksm/run
+> 
+> If you still think that compiling ksm out of the kernel will prevent
+> it then I'm willing to give it a go.
 
-So, Does this makes sense?
+Ok, from looking at the code, when KSM inits, it starts the ksm kernel
+thread and it looks like your oops comes from the function that is run
+in the kernel thread - ksm_scan_thread.
+
+So even if you disable it from sysfs, it runs at least once.
+
+Let's add some more people to Cc and see what happens :).
+
+-- 
+Regards/Gruss,
+Boris.
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
