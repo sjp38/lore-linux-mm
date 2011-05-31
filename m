@@ -1,30 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id B46796B0012
-	for <linux-mm@kvack.org>; Tue, 31 May 2011 00:33:01 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id EA34F3EE0C3
-	for <linux-mm@kvack.org>; Tue, 31 May 2011 13:32:53 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id D143E45DF5E
-	for <linux-mm@kvack.org>; Tue, 31 May 2011 13:32:53 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id B60AA45DF5B
-	for <linux-mm@kvack.org>; Tue, 31 May 2011 13:32:53 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id A0D58E08008
-	for <linux-mm@kvack.org>; Tue, 31 May 2011 13:32:53 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 649CF1DB803C
-	for <linux-mm@kvack.org>; Tue, 31 May 2011 13:32:53 +0900 (JST)
-Message-ID: <4DE46F69.4000205@jp.fujitsu.com>
-Date: Tue, 31 May 2011 13:32:41 +0900
+	by kanga.kvack.org (Postfix) with ESMTP id 3D7D86B0012
+	for <linux-mm@kvack.org>; Tue, 31 May 2011 00:34:21 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id C101A3EE0C1
+	for <linux-mm@kvack.org>; Tue, 31 May 2011 13:34:16 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id A767745DECB
+	for <linux-mm@kvack.org>; Tue, 31 May 2011 13:34:16 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 8BEB345DEC3
+	for <linux-mm@kvack.org>; Tue, 31 May 2011 13:34:16 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 7EBCC1DB8048
+	for <linux-mm@kvack.org>; Tue, 31 May 2011 13:34:16 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 4A4341DB8047
+	for <linux-mm@kvack.org>; Tue, 31 May 2011 13:34:16 +0900 (JST)
+Message-ID: <4DE46FBF.90503@jp.fujitsu.com>
+Date: Tue, 31 May 2011 13:34:07 +0900
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 MIME-Version: 1.0
 Subject: Re: [PATCH v2 0/5] Fix oom killer doesn't work at all if system have
  > gigabytes memory  (aka CAI founded issue)
-References: <2135926037.315785.1306805582148.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com> <4DE46A4B.40401@jp.fujitsu.com>
-In-Reply-To: <4DE46A4B.40401@jp.fujitsu.com>
+References: <1582158305.317043.1306815272554.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
+In-Reply-To: <1582158305.317043.1306815272554.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -32,27 +32,19 @@ List-ID: <linux-mm.kvack.org>
 To: caiqian@redhat.com
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, rientjes@google.com, hughd@google.com, kamezawa.hiroyu@jp.fujitsu.com, minchan.kim@gmail.com, oleg@redhat.com
 
-(2011/05/31 13:10), KOSAKI Motohiro wrote:
-> (2011/05/31 10:33), CAI Qian wrote:
->> Hello,
->>
->> Have tested those patches rebased from KOSAKI for the latest mainline.
->> It still killed random processes and recevied a panic at the end by
->> using root user. The full oom output can be found here.
->> http://people.redhat.com/qcai/oom
+> OK, there was also a panic at the end. Is that expected?
+
+Definitely, no.
+At least, I can't reproduce it. Can you reproduce it?
+
+
 > 
-> You ran fork-bomb as root. Therefore unprivileged process was killed at first.
-> It's no random. It's intentional and desirable. I mean
-> 
-> - If you run the same progream as non-root, python will be killed at first.
->   Because it consume a lot of memory than daemons.
-> - If you run the same program as root, non root process and privilege explicit
->   dropping processes (e.g. irqbalance) will be killed at first.
-
-I mean, oom-killer start to kill python after killing all unprivilege process
-in this case. Please wait & see ahile after sequence.
-
-
+> BUG: unable to handle kernel NULL pointer dereference at 00000000000002a8
+> IP: [<ffffffff811227d4>] get_mm_counter+0x14/0x30
+> PGD 0 
+> Oops: 0000 [#1] SMP 
+> CPU 7 
+> Modules linked in: autofs4 sunrpc cpufreq_ondemand acpi_cpufreq freq_table mperf ipv6 dm_mirror dm_region_hash dm_log microcode serio_raw pcspkr cdc_ether usbnet mii i2c_i801 i2c_core iTCO_wdt iTCO_vendor_support sg shpchp ioatdma dca i7core_edac edac_core bnx2 ext4 mbcache jbd2 sd_mod crc_t10dif pata_acpi ata_generic ata_piix mptsas mptscsih mptbase scsi_transport_sas dm_mod [last unloaded: scsi_wait_scan]
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
