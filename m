@@ -1,196 +1,197 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id A06096B0011
-	for <linux-mm@kvack.org>; Tue, 31 May 2011 12:51:24 -0400 (EDT)
-Received: from kpbe20.cbf.corp.google.com (kpbe20.cbf.corp.google.com [172.25.105.84])
-	by smtp-out.google.com with ESMTP id p4VGpKbC002277
-	for <linux-mm@kvack.org>; Tue, 31 May 2011 09:51:20 -0700
-Received: from qyk7 (qyk7.prod.google.com [10.241.83.135])
-	by kpbe20.cbf.corp.google.com with ESMTP id p4VGpIk9029129
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 31 May 2011 09:51:18 -0700
-Received: by qyk7 with SMTP id 7so2841871qyk.17
-        for <linux-mm@kvack.org>; Tue, 31 May 2011 09:51:18 -0700 (PDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id BDA596B0023
+	for <linux-mm@kvack.org>; Tue, 31 May 2011 12:53:32 -0400 (EDT)
+Date: Tue, 31 May 2011 11:53:28 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [slubllv5 07/25] x86: Add support for cmpxchg_double
+In-Reply-To: <4DE50632.90906@zytor.com>
+Message-ID: <alpine.DEB.2.00.1105311058030.19928@router.home>
+References: <20110516202605.274023469@linux.com>  <20110516202625.197639928@linux.com> <4DDE9670.3060709@zytor.com>  <alpine.DEB.2.00.1105261315350.26578@router.home>  <4DDE9C01.2090104@zytor.com>  <alpine.DEB.2.00.1105261615130.591@router.home>
+ <1306445159.2543.25.camel@edumazet-laptop> <alpine.DEB.2.00.1105311012420.18755@router.home> <4DE50632.90906@zytor.com>
 MIME-Version: 1.0
-In-Reply-To: <20110528101745.GA15692@elte.hu>
-References: <1306444069-5094-1-git-send-email-yinghan@google.com>
-	<20110527090506.357698e3.kamezawa.hiroyu@jp.fujitsu.com>
-	<BANLkTiknNVZNC=CfYyr8W3EaD1=kTe940w@mail.gmail.com>
-	<20110527093142.d3733053.kamezawa.hiroyu@jp.fujitsu.com>
-	<BANLkTimSXrqPudRZ=af9N7k+Z=p5V+nxHQ@mail.gmail.com>
-	<20110528101745.GA15692@elte.hu>
-Date: Tue, 31 May 2011 09:51:15 -0700
-Message-ID: <BANLkTin3v=ib+Zc7HVqLj_ROCDLFndGAZokcseSxzzWej26xoA@mail.gmail.com>
-Subject: Re: [PATCH] memcg: add pgfault latency histograms
-From: Ying Han <yinghan@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, =?ISO-8859-1?Q?Fr=E9d=E9ric_Weisbecker?= <fweisbec@gmail.com>, Arnaldo Carvalho de Melo <acme@redhat.com>, Tom Zanussi <tzanussi@gmail.com>
+To: "H. Peter Anvin" <hpa@zytor.com>
+Cc: Eric Dumazet <eric.dumazet@gmail.com>, Pekka Enberg <penberg@cs.helsinki.fi>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>
 
-On Sat, May 28, 2011 at 3:17 AM, Ingo Molnar <mingo@elte.hu> wrote:
->
-> * Ying Han <yinghan@google.com> wrote:
->
->> After study a bit on perf, it is not feasible in this casecase. The
->> cpu & memory overhead of perf is overwhelming.... Each page fault
->> will generate a record in the buffer and how many data we can
->> record in the buffer, and how many data will be processed later..
->> Most of the data that is recorded by the general perf framework is
->> not needed here.
->>
->>
->> On the other hand, the memory consumption is very little in this
->> patch. We only need to keep a counter of each bucket and the
->> recording can go on as long as the machine is up. As also measured,
->> there is no overhead of the data collection :)
->>
->> So, the perf is not an option for this purpose.
->
-> It's not a fundamental limitation in perf though.
->
-> The way i always thought perf could be extended to support heavy-duty
-> profiling such as your patch does would be along the following lines:
->
-> Right now perf supports three output methods:
->
-> =A0 =A0 =A0 =A0 =A0 'full detail': per sample records, recorded in the ri=
-ng-buffer
-> =A0'filtered full detail': per sample records filtered, recorded in the r=
-ing-buffer
-> =A0 =A0 =A0 =A0 =A0'full summary': the count of all samples (simple count=
-er), no recording
->
-> What i think would make sense is to introduce a fourth variant, which
-> is a natural intermediate of the above output methods:
->
-> =A0 =A0 =A0 'partial summary': partially summarized samples, record in an
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0array in the ring-buff=
-er - an extended
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0multi-dimensional 'cou=
-nt'.
->
-> A histogram like yours would be one (small) sub-case of this new
-> model.
->
-> Now, to keep things maximally flexible we really do not want to hard
-> code histogram summary functions: i.e. we do not want to hardcode
-> ourselves to 'latency histograms' or 'frequency histograms'.
->
-> To achieve that flexibility we could define the histogram function as
-> a simple extension to filters: filters that evaluate to an integer
-> value.
->
-> For example, if we defined the following tracepoint in
-> arch/x86/mm/fault.c:
->
-> TRACE_EVENT(mm_pagefault,
->
-> =A0 =A0 =A0 TP_PROTO(u64 time_start, u64 time_end, unsigned long address,=
- int error_code, unsigned long ip),
->
-> =A0 =A0 =A0 TP_ARGS(time_start, time_end, address, error_code, ip),
->
-> =A0 =A0 =A0 TP_STRUCT__entry(
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 __field(u64, =A0 =A0 =A0 =A0 =A0 time_start)
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 __field(u64, =A0 =A0 =A0 =A0 =A0 time_end)
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 __field(unsigned long, address)
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 __field(unsigned long, error_code)
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 __field(unsigned long, ip)
-> =A0 =A0 =A0 ),
->
-> =A0 =A0 =A0 TP_fast_assign(
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 __entry->time_start =A0 =A0 =3D time_start;
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 __entry->time_end =A0 =A0 =A0 =3D time_end;
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 __entry->address =A0 =A0 =A0 =A0=3D address;
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 __entry->error_code =A0 =A0 =3D error_code;
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 __entry->ip =A0 =A0 =A0 =A0 =A0 =A0 =3D ip;
-> =A0 =A0 =A0 ),
->
-> =A0 =A0 =A0 TP_printk("time_start=3D%uL time_end=3D%uL address=3D%lx, err=
-or code=3D%lx, ip=3D%lx",
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 __entry->time_start, __entry->time_end,
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 __entry->address, __entry->error_code, __entr=
-y->ip)
->
->
-> Then the following filter expressions could be used to calculate the
-> histogram index and value:
->
-> =A0 =A0 =A0 =A0 =A0 index: "(time_end - time_start)/1000"
-> =A0 =A0 =A0 =A0iterator: "curr + 1"
->
-> The /1000 index filter expression means that there is one separate
-> bucket per microsecond of delay.
->
-> The "curr + 1" iterator filter expression would represent that for
-> every bucket an event means we add +1 to the current bucket value.
->
-> Today our filter expressions evaluate to a small subset of integer
-> numbers: 0 or 1 :-)
->
-> Extending them to integer calculations is possible and would be
-> desirable for other purposes as well, not just histograms. Adding
-> integer operators in addition to the logical and bitwise operators
-> the filter engine supports today would be useful as well. (See
-> kernel/trace/trace_events_filter.c for the current filter engine.)
->
-> This way we would have the equivalent functionality and performance
-> of your histogram patch - and it would also open up many, *many*
-> other nice possibilities as well:
->
-> =A0- this could be used with any event, anywhere - could even be used
-> =A0 with hardware events. We could sample with an NMI every 100 usecs
-> =A0 and profile with relatively small profiling overhead.
->
-> =A0- arbitrarily large histograms could be created: need a 10 GB
-> =A0 histogram on a really large system? No problem, create such
-> =A0 a big ring-buffer.
->
-> =A0- many different types of summaries are possible as well:
->
-> =A0 =A0- we could create a histogram over *which* code pagefaults, via
-> =A0 =A0 =A0using the "ip" (faulting instruction) address and a
-> =A0 =A0 =A0sufficiently large ring-buffer.
->
-> =A0 =A0- histogram over the address space (which vmas are the hottest one=
-s),
-> =A0 =A0 =A0by changing the first filter to "address/1000000" to have per
-> =A0 =A0 =A0megabyte buckets.
->
-> =A0 =A0- weighted histograms: for example if the histogram iteration
-> =A0 =A0 =A0function is "curr + (time_end-time_start)/1000" and the
-> =A0 =A0 =A0histogram index is "address/1000000", then we get an
-> =A0 =A0 =A0address-indexed histogram weighted by length of latency: the
-> =A0 =A0 =A0higher latencies a given area of memory causes, the hotter the
-> =A0 =A0 =A0bucket.
->
-> =A0- the existing event filter code can be used to filter the incoming
-> =A0 events to begin with: for example an "error_code =3D 1" filter would
-> =A0 limit the histogram to write faults (page dirtying).
->
-> So instead of adding just one hardcoded histogram type, it would be
-> really nice to work on a more generic solution!
->
-> Thanks,
->
-> =A0 =A0 =A0 =A0Ingo
+On Tue, 31 May 2011, H. Peter Anvin wrote:
 
-Hi Ingo,
-
-Thank you for the detailed information.
-
-This patch is used to evaluating the memcg reclaim patch and I have
-got some interesting results.  I will post the next version of the
-patch which made couple of improvement based on the comments from the
-thread. Meantime, I will need to study more on your suggestion :)
-
-Thanks
-
---Ying
+> > Well I ran into trouble with =m. Maybe +m will do. Will try again.
+> >
 >
+> Yes, =m would be very wrong indeed.
+
+Subject: x86: Add support for cmpxchg_double
+
+A simple implementation that only supports the word size and does not
+have a fallback mode (would require a spinlock).
+
+Add 32 and 64 bit support for cmpxchg_double. cmpxchg double uses
+the cmpxchg8b or cmpxchg16b instruction on x86 processors to compare
+and swap 2 machine words. This allows lockless algorithms to move more
+context information through critical sections.
+
+Set a flag CONFIG_CMPXCHG_DOUBLE to signal that support for double word
+cmpxchg detection has been build into the kernel. Note that each subsystem
+using cmpxchg_double has to implement a fall back mechanism as long as
+we offer support for processors that do not implement cmpxchg_double.
+
+Cc: tj@kernel.org
+Signed-off-by: Christoph Lameter <cl@linux.com>
+
+---
+ arch/x86/Kconfig.cpu              |   10 +++++++
+ arch/x86/include/asm/cmpxchg_32.h |   48 ++++++++++++++++++++++++++++++++++++++
+ arch/x86/include/asm/cmpxchg_64.h |   45 +++++++++++++++++++++++++++++++++++
+ arch/x86/include/asm/cpufeature.h |    1
+ 4 files changed, 104 insertions(+)
+
+Index: linux-2.6/arch/x86/include/asm/cmpxchg_64.h
+===================================================================
+--- linux-2.6.orig/arch/x86/include/asm/cmpxchg_64.h	2011-05-31 11:28:24.172948792 -0500
++++ linux-2.6/arch/x86/include/asm/cmpxchg_64.h	2011-05-31 11:35:51.892945925 -0500
+@@ -151,4 +151,49 @@ extern void __cmpxchg_wrong_size(void);
+ 	cmpxchg_local((ptr), (o), (n));					\
+ })
+
++#define cmpxchg16b(ptr, o1, o2, n1, n2)				\
++({								\
++	char __ret;						\
++	__typeof__(o2) __junk;					\
++	__typeof__(*(ptr)) __old1 = (o1);			\
++	__typeof__(o2) __old2 = (o2);				\
++	__typeof__(*(ptr)) __new1 = (n1);			\
++	__typeof__(o2) __new2 = (n2);				\
++	asm volatile(LOCK_PREFIX "cmpxchg16b %2;setz %1"	\
++		       : "=d"(__junk), "=a"(__ret), "+m" (*ptr)	\
++		       : "b"(__new1), "c"(__new2),		\
++		         "a"(__old1), "d"(__old2));		\
++	__ret; })
++
++
++#define cmpxchg16b_local(ptr, o1, o2, n1, n2)			\
++({								\
++	char __ret;						\
++	__typeof__(o2) __junk;					\
++	__typeof__(*(ptr)) __old1 = (o1);			\
++	__typeof__(o2) __old2 = (o2);				\
++	__typeof__(*(ptr)) __new1 = (n1);			\
++	__typeof__(o2) __new2 = (n2);				\
++	asm volatile("cmpxchg16b %2;setz %1"			\
++		       : "=d"(__junk), "=a"(__ret), "+m" (*ptr)	\
++		       : "b"(__new1), "c"(__new2),		\
++ 		         "a"(__old1), "d"(__old2));		\
++	__ret; })
++
++#define cmpxchg_double(ptr, o1, o2, n1, n2)				\
++({									\
++	BUILD_BUG_ON(sizeof(*(ptr)) != 8);				\
++	VM_BUG_ON((unsigned long)(ptr) % 16);				\
++	cmpxchg16b((ptr), (o1), (o2), (n1), (n2));			\
++})
++
++#define cmpxchg_double_local(ptr, o1, o2, n1, n2)			\
++({									\
++	BUILD_BUG_ON(sizeof(*(ptr)) != 8);				\
++	VM_BUG_ON((unsigned long)(ptr) % 16);				\
++	cmpxchg16b_local((ptr), (o1), (o2), (n1), (n2));		\
++})
++
++#define system_has_cmpxchg_double() cpu_has_cx16
++
+ #endif /* _ASM_X86_CMPXCHG_64_H */
+Index: linux-2.6/arch/x86/include/asm/cmpxchg_32.h
+===================================================================
+--- linux-2.6.orig/arch/x86/include/asm/cmpxchg_32.h	2011-05-31 11:28:24.192948792 -0500
++++ linux-2.6/arch/x86/include/asm/cmpxchg_32.h	2011-05-31 11:29:36.742948327 -0500
+@@ -280,4 +280,52 @@ static inline unsigned long cmpxchg_386(
+
+ #endif
+
++#define cmpxchg8b(ptr, o1, o2, n1, n2)				\
++({								\
++	char __ret;						\
++	__typeof__(o2) __dummy;					\
++	__typeof__(*(ptr)) __old1 = (o1);			\
++	__typeof__(o2) __old2 = (o2);				\
++	__typeof__(*(ptr)) __new1 = (n1);			\
++	__typeof__(o2) __new2 = (n2);				\
++	asm volatile(LOCK_PREFIX_HERE "cmpxchg8b (%%esi); setz %1"\
++		       : "d="(__dummy), "=a" (__ret) 		\
++		       : "S" ((ptr)), "a" (__old1), "d"(__old2),	\
++		         "b" (__new1), "c" (__new2)		\
++		       : "memory");				\
++	__ret; })
++
++
++#define cmpxchg8b_local(ptr, o1, o2, n1, n2)			\
++({								\
++	char __ret;						\
++	__typeof__(o2) __dummy;					\
++	__typeof__(*(ptr)) __old1 = (o1);			\
++	__typeof__(o2) __old2 = (o2);				\
++	__typeof__(*(ptr)) __new1 = (n1);			\
++	__typeof__(o2) __new2 = (n2);				\
++	asm volatile("cmpxchg8b (%%esi); tsetz %1"		\
++		       : "d="(__dummy), "=a"(__ret)		\
++		       : "S" ((ptr)), "a" (__old), "d"(__old2),	\
++		         "b" (__new1), "c" (__new2),		\
++		       : "memory");				\
++	__ret; })
++
++
++#define cmpxchg_double(ptr, o1, o2, n1, n2)				\
++({									\
++	BUILD_BUG_ON(sizeof(*(ptr)) != 4);				\
++	VM_BUG_ON((unsigned long)(ptr) % 8);				\
++	cmpxchg8b((ptr), (o1), (o2), (n1), (n2));			\
++})
++
++#define cmpxchg_double_local(ptr, o1, o2, n1, n2)			\
++({									\
++       BUILD_BUG_ON(sizeof(*(ptr)) != 4);				\
++       VM_BUG_ON((unsigned long)(ptr) % 8);				\
++       cmpxchg16b_local((ptr), (o1), (o2), (n1), (n2));			\
++})
++
++#define system_has_cmpxchg_double() cpu_has_cx8
++
+ #endif /* _ASM_X86_CMPXCHG_32_H */
+Index: linux-2.6/arch/x86/Kconfig.cpu
+===================================================================
+--- linux-2.6.orig/arch/x86/Kconfig.cpu	2011-05-31 11:28:24.202948792 -0500
++++ linux-2.6/arch/x86/Kconfig.cpu	2011-05-31 11:29:36.742948327 -0500
+@@ -312,6 +312,16 @@ config X86_CMPXCHG
+ config CMPXCHG_LOCAL
+ 	def_bool X86_64 || (X86_32 && !M386)
+
++#
++# CMPXCHG_DOUBLE needs to be set to enable the kernel to use cmpxchg16/8b
++# for cmpxchg_double if it find processor flags that indicate that the
++# capabilities are available. CMPXCHG_DOUBLE only compiles in
++# detection support. It needs to be set if there is a chance that processor
++# supports these instructions.
++#
++config CMPXCHG_DOUBLE
++	def_bool GENERIC_CPU || X86_GENERIC || !M386
++
+ config X86_L1_CACHE_SHIFT
+ 	int
+ 	default "7" if MPENTIUM4 || MPSC
+Index: linux-2.6/arch/x86/include/asm/cpufeature.h
+===================================================================
+--- linux-2.6.orig/arch/x86/include/asm/cpufeature.h	2011-05-31 11:28:24.182948792 -0500
++++ linux-2.6/arch/x86/include/asm/cpufeature.h	2011-05-31 11:29:36.742948327 -0500
+@@ -288,6 +288,7 @@ extern const char * const x86_power_flag
+ #define cpu_has_hypervisor	boot_cpu_has(X86_FEATURE_HYPERVISOR)
+ #define cpu_has_pclmulqdq	boot_cpu_has(X86_FEATURE_PCLMULQDQ)
+ #define cpu_has_perfctr_core	boot_cpu_has(X86_FEATURE_PERFCTR_CORE)
++#define cpu_has_cx16		boot_cpu_has(X86_FEATURE_CX16)
+
+ #if defined(CONFIG_X86_INVLPG) || defined(CONFIG_X86_64)
+ # define cpu_has_invlpg		1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
