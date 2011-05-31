@@ -1,73 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id AF79F6B0012
-	for <linux-mm@kvack.org>; Tue, 31 May 2011 04:27:58 -0400 (EDT)
-Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
-	by e28smtp05.in.ibm.com (8.14.4/8.13.1) with ESMTP id p4V8RlDe019463
-	for <linux-mm@kvack.org>; Tue, 31 May 2011 13:57:47 +0530
-Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
-	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p4V8RltZ3354776
-	for <linux-mm@kvack.org>; Tue, 31 May 2011 13:57:47 +0530
-Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
-	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p4V8Rl3b028807
-	for <linux-mm@kvack.org>; Tue, 31 May 2011 18:27:47 +1000
-Date: Tue, 31 May 2011 13:57:46 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: [RESEND] MAINTAINERS update (update my email address)
-Message-ID: <20110531082746.GB3614@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 2EA976B0012
+	for <linux-mm@kvack.org>; Tue, 31 May 2011 04:32:21 -0400 (EDT)
+Date: Tue, 31 May 2011 09:32:15 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH] mm: compaction: Abort compaction if too many pages are
+ isolated and caller is asynchronous
+Message-ID: <20110531083215.GT5044@csn.ul.ie>
+References: <20110530131300.GQ5044@csn.ul.ie>
+ <20110530161415.GB2200@barrios-laptop>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
+In-Reply-To: <20110530161415.GB2200@barrios-laptop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Containers@lists.linux-foundation.org" <Containers@lists.linux-foundation.org>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: akpm@linux-foundation.org, Ury Stankevich <urykhy@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, stable@kernel.org
 
-Updating my email address. Email will start to the old address bouncing soon
+On Tue, May 31, 2011 at 01:14:15AM +0900, Minchan Kim wrote:
+> On Mon, May 30, 2011 at 02:13:00PM +0100, Mel Gorman wrote:
+> > Asynchronous compaction is used when promoting to huge pages. This is
+> > all very nice but if there are a number of processes in compacting
+> > memory, a large number of pages can be isolated. An "asynchronous"
+> > process can stall for long periods of time as a result with a user
+> > reporting that firefox can stall for 10s of seconds. This patch aborts
+> > asynchronous compaction if too many pages are isolated as it's better to
+> > fail a hugepage promotion than stall a process.
+> > 
+> > If accepted, this should also be considered for 2.6.39-stable. It should
+> > also be considered for 2.6.38-stable but ideally [11bc82d6: mm:
+> > compaction: Use async migration for __GFP_NO_KSWAPD and enforce no
+> > writeback] would be applied to 2.6.38 before consideration.
+> > 
+> > Reported-and-Tested-by: Ury Stankevich <urykhy@gmail.com>
+> > Signed-off-by: Mel Gorman <mgorman@suse.de>
+> Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+> 
 
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Thanks
 
+> I have a nitpick below.
+> Otherwise, looks good to me.
+> 
+> > ---
+> >  mm/compaction.c |   32 ++++++++++++++++++++++++++------
+> >  1 files changed, 26 insertions(+), 6 deletions(-)
+> > 
+> > diff --git a/mm/compaction.c b/mm/compaction.c
+> > index 021a296..331a2ee 100644
+> > --- a/mm/compaction.c
+> > +++ b/mm/compaction.c
+> > @@ -240,11 +240,20 @@ static bool too_many_isolated(struct zone *zone)
+> >  	return isolated > (inactive + active) / 2;
+> >  }
+> >  
+> > +/* possible outcome of isolate_migratepages */
+> > +typedef enum {
+> > +	ISOLATE_ABORT,		/* Abort compaction now */
+> > +	ISOLATE_NONE,		/* No pages isolated, continue scanning */
+> > +	ISOLATE_SUCCESS,	/* Pages isolated, migrate */
+> > +} isolate_migrate_t;
+> > +
+> >  /*
+> >   * Isolate all pages that can be migrated from the block pointed to by
+> >   * the migrate scanner within compact_control.
+> > + *
+> > + * Returns false if compaction should abort at this point due to congestion.
+> 
+> false? I think it would be better to use explicit word, ISOLATE_ABORT.
+> 
 
----
- MAINTAINERS |    6 +++---
- 1 files changed, 3 insertions(+), 3 deletions(-)
-
-diff --git a/MAINTAINERS b/MAINTAINERS
-index 61720d7..62910d9 100644
---- a/MAINTAINERS
-+++ b/MAINTAINERS
-@@ -4135,7 +4135,7 @@ F:	include/linux/mm.h
- F:	mm/
- 
- MEMORY RESOURCE CONTROLLER
--M:	Balbir Singh <balbir@linux.vnet.ibm.com>
-+M:	Balbir Singh <bsingharora@gmail.com>
- M:	Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
- M:	KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
- L:	linux-mm@kvack.org
-@@ -4874,7 +4874,7 @@ F:	mm/percpu*.c
- F:	arch/*/include/asm/percpu.h
- 
- PER-TASK DELAY ACCOUNTING
--M:	Balbir Singh <balbir@linux.vnet.ibm.com>
-+M:	Balbir Singh <bsingharora@gmail.com>
- S:	Maintained
- F:	include/linux/delayacct.h
- F:	kernel/delayacct.c
-@@ -6070,7 +6070,7 @@ F:	fs/sysv/
- F:	include/linux/sysv_fs.h
- 
- TASKSTATS STATISTICS INTERFACE
--M:	Balbir Singh <balbir@linux.vnet.ibm.com>
-+M:	Balbir Singh <bsingharora@gmail.com>
- S:	Maintained
- F:	Documentation/accounting/taskstats*
- F:	include/linux/taskstats*
+Oops, thanks for pointing that out. I'll post a V2 once it has been
+figured out why NR_ISOLATE_* is getting screwed up on !CONFIG_SMP.
 
 -- 
-	Three Cheers,
-	Balbir
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
