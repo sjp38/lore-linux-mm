@@ -1,145 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 1CD856B0027
-	for <linux-mm@kvack.org>; Wed,  1 Jun 2011 02:25:54 -0400 (EDT)
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch 7/8] vmscan: memcg-aware unevictable page rescue scanner
-Date: Wed,  1 Jun 2011 08:25:18 +0200
-Message-Id: <1306909519-7286-8-git-send-email-hannes@cmpxchg.org>
-In-Reply-To: <1306909519-7286-1-git-send-email-hannes@cmpxchg.org>
-References: <1306909519-7286-1-git-send-email-hannes@cmpxchg.org>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 102796B0024
+	for <linux-mm@kvack.org>; Wed,  1 Jun 2011 02:31:18 -0400 (EDT)
+Message-ID: <4DE5DCA8.7070704@fnarfbargle.com>
+Date: Wed, 01 Jun 2011 14:31:04 +0800
+From: Brad Campbell <lists2009@fnarfbargle.com>
+MIME-Version: 1.0
+Subject: Re: KVM induced panic on 2.6.38[2367] & 2.6.39
+References: <4DE44333.9000903@fnarfbargle.com> <20110531054729.GA16852@liondog.tnic> <4DE4B432.1090203@fnarfbargle.com> <20110531103808.GA6915@eferding.osrc.amd.com> <4DE4FA2B.2050504@fnarfbargle.com> <alpine.LSU.2.00.1105311517480.21107@sister.anvils> <4DE589C5.8030600@fnarfbargle.com> <20110601011527.GN19505@random.random> <alpine.LSU.2.00.1105312120530.22808@sister.anvils>
+In-Reply-To: <alpine.LSU.2.00.1105312120530.22808@sister.anvils>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Ying Han <yinghan@google.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Borislav Petkov <bp@alien8.de>, linux-kernel@vger.kernel.org, kvm@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 
-Once the per-memcg lru lists are exclusive, the unevictable page
-rescue scanner can no longer work on the global zone lru lists.
+On 01/06/11 12:52, Hugh Dickins wrote:
 
-This converts it to go through all memcgs and scan their respective
-unevictable lists instead.
+>
+> I guess Brad could try SLUB debugging, boot with slub_debug=P
+> for poisoning perhaps; though it might upset alignments and
+> drive the problem underground.  Or see if the same happens
+> with SLAB instead of SLUB.
 
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
----
- include/linux/memcontrol.h |    2 +
- mm/memcontrol.c            |   11 +++++++++
- mm/vmscan.c                |   53 +++++++++++++++++++++++++++----------------
- 3 files changed, 46 insertions(+), 20 deletions(-)
+Not much use I'm afraid.
+This is all I get in the log
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index cb02c00..56c1def 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -60,6 +60,8 @@ extern void mem_cgroup_cancel_charge_swapin(struct mem_cgroup *ptr);
- 
- extern int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
- 					gfp_t gfp_mask);
-+struct page *mem_cgroup_lru_to_page(struct zone *, struct mem_cgroup *,
-+				    enum lru_list);
- extern void mem_cgroup_add_lru_list(struct page *page, enum lru_list lru);
- extern void mem_cgroup_del_lru_list(struct page *page, enum lru_list lru);
- extern void mem_cgroup_rotate_reclaimable_page(struct page *page);
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 78ae4dd..d9d1a7e 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -656,6 +656,17 @@ static inline bool mem_cgroup_is_root(struct mem_cgroup *mem)
-  * When moving account, the page is not on LRU. It's isolated.
-  */
- 
-+struct page *mem_cgroup_lru_to_page(struct zone *zone, struct mem_cgroup *mem,
-+				    enum lru_list lru)
-+{
-+	struct mem_cgroup_per_zone *mz;
-+	struct page_cgroup *pc;
-+
-+	mz = mem_cgroup_zoneinfo(mem, zone_to_nid(zone), zone_idx(zone));
-+	pc = list_entry(mz->lists[lru].prev, struct page_cgroup, lru);
-+	return lookup_cgroup_page(pc);
-+}
-+
- void mem_cgroup_del_lru_list(struct page *page, enum lru_list lru)
- {
- 	struct page_cgroup *pc;
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 9c51ec8..23fd2b1 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -3233,6 +3233,14 @@ void scan_mapping_unevictable_pages(struct address_space *mapping)
- 
- }
- 
-+static struct page *lru_tailpage(struct zone *zone, struct mem_cgroup *mem,
-+				 enum lru_list lru)
-+{
-+	if (mem)
-+		return mem_cgroup_lru_to_page(zone, mem, lru);
-+	return lru_to_page(&zone->lru[lru].list);
-+}
-+
- /**
-  * scan_zone_unevictable_pages - check unevictable list for evictable pages
-  * @zone - zone of which to scan the unevictable list
-@@ -3246,32 +3254,37 @@ void scan_mapping_unevictable_pages(struct address_space *mapping)
- #define SCAN_UNEVICTABLE_BATCH_SIZE 16UL /* arbitrary lock hold batch size */
- static void scan_zone_unevictable_pages(struct zone *zone)
- {
--	struct list_head *l_unevictable = &zone->lru[LRU_UNEVICTABLE].list;
--	unsigned long scan;
--	unsigned long nr_to_scan = zone_page_state(zone, NR_UNEVICTABLE);
-+	struct mem_cgroup *first, *mem = NULL;
- 
--	while (nr_to_scan > 0) {
--		unsigned long batch_size = min(nr_to_scan,
--						SCAN_UNEVICTABLE_BATCH_SIZE);
-+	first = mem = mem_cgroup_hierarchy_walk(NULL, mem);
-+	do {
-+		unsigned long nr_to_scan;
- 
--		spin_lock_irq(&zone->lru_lock);
--		for (scan = 0;  scan < batch_size; scan++) {
--			struct page *page = lru_to_page(l_unevictable);
-+		nr_to_scan = zone_nr_lru_pages(zone, mem, LRU_UNEVICTABLE);
-+		while (nr_to_scan > 0) {
-+			unsigned long batch_size;
-+			unsigned long scan;
- 
--			if (!trylock_page(page))
--				continue;
-+			batch_size = min(nr_to_scan,
-+					 SCAN_UNEVICTABLE_BATCH_SIZE);
- 
--			prefetchw_prev_lru_page(page, l_unevictable, flags);
--
--			if (likely(PageLRU(page) && PageUnevictable(page)))
--				check_move_unevictable_page(page, zone);
-+			spin_lock_irq(&zone->lru_lock);
-+			for (scan = 0; scan < batch_size; scan++) {
-+				struct page *page;
- 
--			unlock_page(page);
-+				page = lru_tailpage(zone, mem, LRU_UNEVICTABLE);
-+				if (!trylock_page(page))
-+					continue;
-+				if (likely(PageLRU(page) &&
-+					   PageUnevictable(page)))
-+					check_move_unevictable_page(page, zone);
-+				unlock_page(page);
-+			}
-+			spin_unlock_irq(&zone->lru_lock);
-+			nr_to_scan -= batch_size;
- 		}
--		spin_unlock_irq(&zone->lru_lock);
--
--		nr_to_scan -= batch_size;
--	}
-+		mem = mem_cgroup_hierarchy_walk(NULL, mem);
-+	} while (mem != first);
- }
- 
- 
--- 
-1.7.5.2
+[ 3161.300073] 
+=============================================================================
+[ 3161.300147] BUG kmalloc-512: Freechain corrupt
+
+The qemu process is then frozen, unkillable but reported in state "R"
+
+13881 ?        R      3:27 /usr/bin/qemu -S -M pc-0.13 -enable-kvm -m 
+1024 -smp 2,sockets=2,cores=1,threads=1 -nam
+
+The machine then progressively dies until it's frozen solid with no 
+further error messages.
+
+I stupidly forgot to do an alt-sysrq-t prior to doing an alt-sysrq-b, 
+but at least it responded to that.
+
+On the bright side I can reproduce it at will.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
