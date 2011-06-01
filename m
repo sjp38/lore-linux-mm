@@ -1,67 +1,197 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 054206B0011
-	for <linux-mm@kvack.org>; Wed,  1 Jun 2011 10:39:23 -0400 (EDT)
-Message-ID: <4DE64F0C.3050203@redhat.com>
-Date: Wed, 01 Jun 2011 16:39:08 +0200
-From: Igor Mammedov <imammedo@redhat.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 364926B0011
+	for <linux-mm@kvack.org>; Wed,  1 Jun 2011 10:46:31 -0400 (EDT)
+Date: Wed, 1 Jun 2011 09:46:26 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [slubllv5 07/25] x86: Add support for cmpxchg_double
+In-Reply-To: <alpine.DEB.2.00.1106010910430.22901@router.home>
+Message-ID: <alpine.DEB.2.00.1106010945010.22901@router.home>
+References: <20110516202605.274023469@linux.com>  <20110516202625.197639928@linux.com> <4DDE9670.3060709@zytor.com>  <alpine.DEB.2.00.1105261315350.26578@router.home>  <4DDE9C01.2090104@zytor.com>  <alpine.DEB.2.00.1105261615130.591@router.home>
+ <1306445159.2543.25.camel@edumazet-laptop> <alpine.DEB.2.00.1105311012420.18755@router.home> <4DE50632.90906@zytor.com> <alpine.DEB.2.00.1105311058030.19928@router.home> <4DE576EA.6070906@zytor.com> <alpine.DEB.2.00.1105311846230.31190@router.home>
+ <4DE57FBB.8040408@zytor.com> <alpine.DEB.2.00.1106010910430.22901@router.home>
 MIME-Version: 1.0
-Subject: Re: [PATCH] memcg: do not expose uninitialized mem_cgroup_per_node
- to world
-References: <1306925044-2828-1-git-send-email-imammedo@redhat.com> <20110601123913.GC4266@tiehlicka.suse.cz> <4DE6399C.8070802@redhat.com> <20110601134149.GD4266@tiehlicka.suse.cz>
-In-Reply-To: <20110601134149.GD4266@tiehlicka.suse.cz>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, balbir@linux.vnet.ibm.com, akpm@linux-foundation.org, linux-mm@kvack.org, Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, containers@lists.linux-foundation.org
+To: "H. Peter Anvin" <hpa@zytor.com>
+Cc: Eric Dumazet <eric.dumazet@gmail.com>, Pekka Enberg <penberg@cs.helsinki.fi>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Thomas Gleixner <tglx@linutronix.de>
 
-On 06/01/2011 03:41 PM, Michal Hocko wrote:
-> [Let's CC some cgroup people]
->
-> On Wed 01-06-11 15:07:40, Igor Mammedov wrote:
->> Yes I've seen it (RHBZ#700565).
-> I am not subscribed so I will not get there.
->
-Sorry, I've not realized that BZ wasn't public, just fixed it.
-It is public now.
+Ok newest rev. Fixed the 32 bit issues.
 
-OOPS backtrace looks like this:
 
-Stopping cgconfig service: BUG: unable to handle kernel paging request at fffffffc
-IP: [<c05235b3>] mem_cgroup_force_empty+0x123/0x4a0
-*pdpt = 00000000016a0001 *pde = 000000000000a067 *pte = 0000000000000000
-Oops: 0000 [#1] SMP
-last sysfs file: /sys/module/nf_conntrack/refcnt
-Modules linked in: xt_CHECKSUM tun bridge stp llc autofs4 sunrpc ipt_REJECT ip6t_REJECT ipv6 dm_mirror dm_region_hash dm_log uinput microcode xen_netfront sg i2c_piix4 i2c_core ext4 mbcache jbd2 sr_mod cdrom xen_blkfront ata_generic pata_acpi ata_piix dm_mod [last unloaded: nf_conntrack]
+Subject: x86: Add support for cmpxchg_double
 
-Pid: 2300, comm: cgclear Not tainted (2.6.32-131.0.10.el6.i686 #1) HVM domU
-EIP: 0060:[<c05235b3>] EFLAGS: 00010206 CPU: 0
-EIP is at mem_cgroup_force_empty+0x123/0x4a0
-EAX: 00000206 EBX: fffffff4 ECX: c0a3f1e0 EDX: 00000206
-ESI: 00000206 EDI: 00000000 EBP: f343ca00 ESP: f34e7e84
-  DS: 007b ES: 007b FS: 00d8 GS: 00e0 SS: 0068
-Process cgclear (pid: 2300, ti=f34e6000 task=f35baab0 task.ti=f34e6000)
-Stack:
-  ffffffff 00000001 00000000 f34e7eb8 00000100 00000000 c0a3f1e0 c05a5af5
-<0>  f343ca00 f343cc00 00000000 00000000 00000000 00000000 00000000 00000000
-<0>  c0a3e7c0 f35172c0 00000005 00000000 f35172d0 f35baab0 00000000 f35172c0
-Call Trace:
-  [<c05a5af5>] ? may_link+0xc5/0x130
-  [<c049b246>] ? cgroup_rmdir+0x96/0x3f0
-  [<c0473f20>] ? autoremove_wake_function+0x0/0x40
-  [<c05339ce>] ? vfs_rmdir+0x9e/0xd0
-  [<c0536806>] ? do_rmdir+0xc6/0xe0
-  [<c0506702>] ? do_munmap+0x1f2/0x2c0
-  [<c04adecc>] ? audit_syscall_entry+0x21c/0x240
-  [<c04adbe6>] ? audit_syscall_exit+0x216/0x240
-  [<c0409adf>] ? sysenter_do_call+0x12/0x28
-Code: 89 7c 24 20 8b 54 95 08 31 ff 89 44 24 14 81 c2 00 01 00 00 89 54 24 10 e9 83 00 00 00 8d 76 00 8b 44 24 18 89 f2 e8 7d 12 30 00<8b>  73 08 8b 7c 24 24 8b 07 8b 40 18 85 c0 89 44 24 08 0f 84 c5
-EIP: [<c05235b3>] mem_cgroup_force_empty+0x123/0x4a0 SS:ESP 0068:f34e7e84
-CR2: 00000000fffffffc
----[ end trace 5700dda23f74f94a ]---
+A simple implementation that only supports the word size and does not
+have a fallback mode (would require a spinlock).
 
+Add 32 and 64 bit support for cmpxchg_double. cmpxchg double uses
+the cmpxchg8b or cmpxchg16b instruction on x86 processors to compare
+and swap 2 machine words. This allows lockless algorithms to move more
+context information through critical sections.
+
+Set a flag CONFIG_CMPXCHG_DOUBLE to signal that support for double word
+cmpxchg detection has been build into the kernel. Note that each subsystem
+using cmpxchg_double has to implement a fall back mechanism as long as
+we offer support for processors that do not implement cmpxchg_double.
+Also various non x86 architectures do not support double cmpxchg and will
+require the fallback code.
+
+Cc: tj@kernel.org
+Signed-off-by: Christoph Lameter <cl@linux.com>
+
+---
+ arch/x86/Kconfig.cpu              |   10 +++++++
+ arch/x86/include/asm/cmpxchg_32.h |   48 ++++++++++++++++++++++++++++++++++++++
+ arch/x86/include/asm/cmpxchg_64.h |   45 +++++++++++++++++++++++++++++++++++
+ arch/x86/include/asm/cpufeature.h |    2 +
+ 4 files changed, 105 insertions(+)
+
+Index: linux-2.6/arch/x86/include/asm/cmpxchg_64.h
+===================================================================
+--- linux-2.6.orig/arch/x86/include/asm/cmpxchg_64.h	2011-06-01 09:23:08.822443732 -0500
++++ linux-2.6/arch/x86/include/asm/cmpxchg_64.h	2011-06-01 09:25:40.832442760 -0500
+@@ -151,4 +151,49 @@ extern void __cmpxchg_wrong_size(void);
+ 	cmpxchg_local((ptr), (o), (n));					\
+ })
+
++#define cmpxchg16b(ptr, o1, o2, n1, n2)				\
++({								\
++	char __ret;						\
++	__typeof__(o2) __junk;					\
++	__typeof__(*(ptr)) __old1 = (o1);			\
++	__typeof__(o2) __old2 = (o2);				\
++	__typeof__(*(ptr)) __new1 = (n1);			\
++	__typeof__(o2) __new2 = (n2);				\
++	asm volatile(LOCK_PREFIX "cmpxchg16b %2;setz %1"	\
++		       : "=d"(__junk), "=a"(__ret), "+m" (*ptr)	\
++		       : "b"(__new1), "c"(__new2),		\
++		         "a"(__old1), "d"(__old2));		\
++	__ret; })
++
++
++#define cmpxchg16b_local(ptr, o1, o2, n1, n2)			\
++({								\
++	char __ret;						\
++	__typeof__(o2) __junk;					\
++	__typeof__(*(ptr)) __old1 = (o1);			\
++	__typeof__(o2) __old2 = (o2);				\
++	__typeof__(*(ptr)) __new1 = (n1);			\
++	__typeof__(o2) __new2 = (n2);				\
++	asm volatile("cmpxchg16b %2;setz %1"			\
++		       : "=d"(__junk), "=a"(__ret), "+m" (*ptr)	\
++		       : "b"(__new1), "c"(__new2),		\
++ 		         "a"(__old1), "d"(__old2));		\
++	__ret; })
++
++#define cmpxchg_double(ptr, o1, o2, n1, n2)				\
++({									\
++	BUILD_BUG_ON(sizeof(*(ptr)) != 8);				\
++	VM_BUG_ON((unsigned long)(ptr) % 16);				\
++	cmpxchg16b((ptr), (o1), (o2), (n1), (n2));			\
++})
++
++#define cmpxchg_double_local(ptr, o1, o2, n1, n2)			\
++({									\
++	BUILD_BUG_ON(sizeof(*(ptr)) != 8);				\
++	VM_BUG_ON((unsigned long)(ptr) % 16);				\
++	cmpxchg16b_local((ptr), (o1), (o2), (n1), (n2));		\
++})
++
++#define system_has_cmpxchg_double() cpu_has_cx16
++
+ #endif /* _ASM_X86_CMPXCHG_64_H */
+Index: linux-2.6/arch/x86/include/asm/cmpxchg_32.h
+===================================================================
+--- linux-2.6.orig/arch/x86/include/asm/cmpxchg_32.h	2011-06-01 09:23:08.842443735 -0500
++++ linux-2.6/arch/x86/include/asm/cmpxchg_32.h	2011-06-01 09:32:53.072439992 -0500
+@@ -280,4 +280,52 @@ static inline unsigned long cmpxchg_386(
+
+ #endif
+
++#define cmpxchg8b(ptr, o1, o2, n1, n2)				\
++({								\
++	char __ret;						\
++	__typeof__(o2) __dummy;					\
++	__typeof__(*(ptr)) __old1 = (o1);			\
++	__typeof__(o2) __old2 = (o2);				\
++	__typeof__(*(ptr)) __new1 = (n1);			\
++	__typeof__(o2) __new2 = (n2);				\
++	asm volatile(LOCK_PREFIX "cmpxchg8b %2; setz %1"	\
++		       : "=d"(__dummy), "=a" (__ret), "+m" (*ptr)\
++		       : "a" (__old1), "d"(__old2),		\
++		         "b" (__new1), "c" (__new2)		\
++		       : "memory");				\
++	__ret; })
++
++
++#define cmpxchg8b_local(ptr, o1, o2, n1, n2)			\
++({								\
++	char __ret;						\
++	__typeof__(o2) __dummy;					\
++	__typeof__(*(ptr)) __old1 = (o1);			\
++	__typeof__(o2) __old2 = (o2);				\
++	__typeof__(*(ptr)) __new1 = (n1);			\
++	__typeof__(o2) __new2 = (n2);				\
++	asm volatile("cmpxchg8b %2; setz %1"			\
++		       : "=d"(__dummy), "=a"(__ret), "m+" (*ptr)\
++		       : "a" (__old), "d"(__old2),		\
++		         "b" (__new1), "c" (__new2),		\
++		       : "memory");				\
++	__ret; })
++
++
++#define cmpxchg_double(ptr, o1, o2, n1, n2)				\
++({									\
++	BUILD_BUG_ON(sizeof(*(ptr)) != 4);				\
++	VM_BUG_ON((unsigned long)(ptr) % 8);				\
++	cmpxchg8b((ptr), (o1), (o2), (n1), (n2));			\
++})
++
++#define cmpxchg_double_local(ptr, o1, o2, n1, n2)			\
++({									\
++       BUILD_BUG_ON(sizeof(*(ptr)) != 4);				\
++       VM_BUG_ON((unsigned long)(ptr) % 8);				\
++       cmpxchg16b_local((ptr), (o1), (o2), (n1), (n2));			\
++})
++
++#define system_has_cmpxchg_double() cpu_has_cx8
++
+ #endif /* _ASM_X86_CMPXCHG_32_H */
+Index: linux-2.6/arch/x86/Kconfig.cpu
+===================================================================
+--- linux-2.6.orig/arch/x86/Kconfig.cpu	2011-06-01 09:23:08.862443735 -0500
++++ linux-2.6/arch/x86/Kconfig.cpu	2011-06-01 09:25:40.842442760 -0500
+@@ -312,6 +312,16 @@ config X86_CMPXCHG
+ config CMPXCHG_LOCAL
+ 	def_bool X86_64 || (X86_32 && !M386)
+
++#
++# CMPXCHG_DOUBLE needs to be set to enable the kernel to use cmpxchg16/8b
++# for cmpxchg_double if it find processor flags that indicate that the
++# capabilities are available. CMPXCHG_DOUBLE only compiles in
++# detection support. It needs to be set if there is a chance that processor
++# supports these instructions.
++#
++config CMPXCHG_DOUBLE
++	def_bool GENERIC_CPU || X86_GENERIC || !M386
++
+ config X86_L1_CACHE_SHIFT
+ 	int
+ 	default "7" if MPENTIUM4 || MPSC
+Index: linux-2.6/arch/x86/include/asm/cpufeature.h
+===================================================================
+--- linux-2.6.orig/arch/x86/include/asm/cpufeature.h	2011-06-01 09:23:08.832443731 -0500
++++ linux-2.6/arch/x86/include/asm/cpufeature.h	2011-06-01 09:38:25.012437868 -0500
+@@ -288,6 +288,8 @@ extern const char * const x86_power_flag
+ #define cpu_has_hypervisor	boot_cpu_has(X86_FEATURE_HYPERVISOR)
+ #define cpu_has_pclmulqdq	boot_cpu_has(X86_FEATURE_PCLMULQDQ)
+ #define cpu_has_perfctr_core	boot_cpu_has(X86_FEATURE_PERFCTR_CORE)
++#define cpu_has_cx8		boot_cpu_has(X86_FEATURE_CX8)
++#define cpu_has_cx16		boot_cpu_has(X86_FEATURE_CX16)
+
+ #if defined(CONFIG_X86_INVLPG) || defined(CONFIG_X86_64)
+ # define cpu_has_invlpg		1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
