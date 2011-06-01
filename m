@@ -1,63 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 214D86B0011
-	for <linux-mm@kvack.org>; Wed,  1 Jun 2011 10:13:19 -0400 (EDT)
-Date: Wed, 1 Jun 2011 09:13:15 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [slubllv5 07/25] x86: Add support for cmpxchg_double
-In-Reply-To: <4DE57FBB.8040408@zytor.com>
-Message-ID: <alpine.DEB.2.00.1106010910430.22901@router.home>
-References: <20110516202605.274023469@linux.com>  <20110516202625.197639928@linux.com> <4DDE9670.3060709@zytor.com>  <alpine.DEB.2.00.1105261315350.26578@router.home>  <4DDE9C01.2090104@zytor.com>  <alpine.DEB.2.00.1105261615130.591@router.home>
- <1306445159.2543.25.camel@edumazet-laptop> <alpine.DEB.2.00.1105311012420.18755@router.home> <4DE50632.90906@zytor.com> <alpine.DEB.2.00.1105311058030.19928@router.home> <4DE576EA.6070906@zytor.com> <alpine.DEB.2.00.1105311846230.31190@router.home>
- <4DE57FBB.8040408@zytor.com>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 054206B0011
+	for <linux-mm@kvack.org>; Wed,  1 Jun 2011 10:39:23 -0400 (EDT)
+Message-ID: <4DE64F0C.3050203@redhat.com>
+Date: Wed, 01 Jun 2011 16:39:08 +0200
+From: Igor Mammedov <imammedo@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH] memcg: do not expose uninitialized mem_cgroup_per_node
+ to world
+References: <1306925044-2828-1-git-send-email-imammedo@redhat.com> <20110601123913.GC4266@tiehlicka.suse.cz> <4DE6399C.8070802@redhat.com> <20110601134149.GD4266@tiehlicka.suse.cz>
+In-Reply-To: <20110601134149.GD4266@tiehlicka.suse.cz>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "H. Peter Anvin" <hpa@zytor.com>
-Cc: Eric Dumazet <eric.dumazet@gmail.com>, Pekka Enberg <penberg@cs.helsinki.fi>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, balbir@linux.vnet.ibm.com, akpm@linux-foundation.org, linux-mm@kvack.org, Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, containers@lists.linux-foundation.org
 
-On Tue, 31 May 2011, H. Peter Anvin wrote:
-
-> On 05/31/2011 04:49 PM, Christoph Lameter wrote:
-> >>>
-> >>> +#
-> >>> +# CMPXCHG_DOUBLE needs to be set to enable the kernel to use cmpxchg16/8b
-> >>> +# for cmpxchg_double if it find processor flags that indicate that the
-> >>> +# capabilities are available. CMPXCHG_DOUBLE only compiles in
-> >>> +# detection support. It needs to be set if there is a chance that processor
-> >>> +# supports these instructions.
-> >>> +#
-> >>> +config CMPXCHG_DOUBLE
-> >>> +	def_bool GENERIC_CPU || X86_GENERIC || !M386
-> >>> +
-> >>>  config X86_L1_CACHE_SHIFT
-> >>>  	int
-> >>>  	default "7" if MPENTIUM4 || MPSC
-> >>
-> >> Per previous discussion:
-> >>
-> >> - Drop this Kconfig option (it is irrelevant.)  CONFIG_CMPXCHG_LOCAL is
-> >> different: it indicates that CMPXCHG is *guaranteed* to exist.
-> >
-> > Right but this is for cmpxchg16b which means that we need to check a
-> > bit in the processor flags. Isnt this what you suggested?
-> >
+On 06/01/2011 03:41 PM, Michal Hocko wrote:
+> [Let's CC some cgroup people]
 >
-> Per your own description:
+> On Wed 01-06-11 15:07:40, Igor Mammedov wrote:
+>> Yes I've seen it (RHBZ#700565).
+> I am not subscribed so I will not get there.
 >
-> "CMPXCHG_DOUBLE only compiles in detection support. It needs to be set
-> if there is a chance that processor supports these instructions."
->
-> That condition is always TRUE, so no Kconfig is needed.
+Sorry, I've not realized that BZ wasn't public, just fixed it.
+It is public now.
 
-There are several early processors (especially from AMD it seems) that do
-not support cmpxchg16b. If one builds a kernel specifically for the early
-cpus then the support does not need to be enabled.
+OOPS backtrace looks like this:
 
-This is also an issue going beyond x86. Other platforms mostly do not
-support double word cmpxchg so the code for this feature also does not
-need to be included for those builds.
+Stopping cgconfig service: BUG: unable to handle kernel paging request at fffffffc
+IP: [<c05235b3>] mem_cgroup_force_empty+0x123/0x4a0
+*pdpt = 00000000016a0001 *pde = 000000000000a067 *pte = 0000000000000000
+Oops: 0000 [#1] SMP
+last sysfs file: /sys/module/nf_conntrack/refcnt
+Modules linked in: xt_CHECKSUM tun bridge stp llc autofs4 sunrpc ipt_REJECT ip6t_REJECT ipv6 dm_mirror dm_region_hash dm_log uinput microcode xen_netfront sg i2c_piix4 i2c_core ext4 mbcache jbd2 sr_mod cdrom xen_blkfront ata_generic pata_acpi ata_piix dm_mod [last unloaded: nf_conntrack]
+
+Pid: 2300, comm: cgclear Not tainted (2.6.32-131.0.10.el6.i686 #1) HVM domU
+EIP: 0060:[<c05235b3>] EFLAGS: 00010206 CPU: 0
+EIP is at mem_cgroup_force_empty+0x123/0x4a0
+EAX: 00000206 EBX: fffffff4 ECX: c0a3f1e0 EDX: 00000206
+ESI: 00000206 EDI: 00000000 EBP: f343ca00 ESP: f34e7e84
+  DS: 007b ES: 007b FS: 00d8 GS: 00e0 SS: 0068
+Process cgclear (pid: 2300, ti=f34e6000 task=f35baab0 task.ti=f34e6000)
+Stack:
+  ffffffff 00000001 00000000 f34e7eb8 00000100 00000000 c0a3f1e0 c05a5af5
+<0>  f343ca00 f343cc00 00000000 00000000 00000000 00000000 00000000 00000000
+<0>  c0a3e7c0 f35172c0 00000005 00000000 f35172d0 f35baab0 00000000 f35172c0
+Call Trace:
+  [<c05a5af5>] ? may_link+0xc5/0x130
+  [<c049b246>] ? cgroup_rmdir+0x96/0x3f0
+  [<c0473f20>] ? autoremove_wake_function+0x0/0x40
+  [<c05339ce>] ? vfs_rmdir+0x9e/0xd0
+  [<c0536806>] ? do_rmdir+0xc6/0xe0
+  [<c0506702>] ? do_munmap+0x1f2/0x2c0
+  [<c04adecc>] ? audit_syscall_entry+0x21c/0x240
+  [<c04adbe6>] ? audit_syscall_exit+0x216/0x240
+  [<c0409adf>] ? sysenter_do_call+0x12/0x28
+Code: 89 7c 24 20 8b 54 95 08 31 ff 89 44 24 14 81 c2 00 01 00 00 89 54 24 10 e9 83 00 00 00 8d 76 00 8b 44 24 18 89 f2 e8 7d 12 30 00<8b>  73 08 8b 7c 24 24 8b 07 8b 40 18 85 c0 89 44 24 08 0f 84 c5
+EIP: [<c05235b3>] mem_cgroup_force_empty+0x123/0x4a0 SS:ESP 0068:f34e7e84
+CR2: 00000000fffffffc
+---[ end trace 5700dda23f74f94a ]---
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
