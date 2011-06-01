@@ -1,125 +1,153 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id B5CBF6B004A
-	for <linux-mm@kvack.org>; Wed,  1 Jun 2011 18:20:37 -0400 (EDT)
-Date: Thu, 2 Jun 2011 00:20:32 +0200
-From: Andrea Righi <andrea@betterlinux.com>
-Subject: [BUG 3.0.0-rc1] ksm: NULL pointer dereference in ksm_do_scan()
-Message-ID: <20110601222032.GA2858@thinkpad>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 740AC6B004A
+	for <linux-mm@kvack.org>; Wed,  1 Jun 2011 19:04:01 -0400 (EDT)
+Date: Thu, 2 Jun 2011 09:03:42 +1000
+From: CaT <cat@zip.com.au>
+Subject: Re: KVM induced panic on 2.6.38[2367] & 2.6.39
+Message-ID: <20110601230342.GC3956@zip.com.au>
+References: <20110601011527.GN19505@random.random>
+ <alpine.LSU.2.00.1105312120530.22808@sister.anvils>
+ <4DE5DCA8.7070704@fnarfbargle.com>
+ <4DE5E29E.7080009@redhat.com>
+ <4DE60669.9050606@fnarfbargle.com>
+ <4DE60918.3010008@redhat.com>
+ <4DE60940.1070107@redhat.com>
+ <4DE61A2B.7000008@fnarfbargle.com>
+ <20110601111841.GB3956@zip.com.au>
+ <4DE62801.9080804@fnarfbargle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <4DE62801.9080804@fnarfbargle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Chris Wright <chrisw@sous-sol.org>, Mel Gorman <mel@csn.ul.ie>, Izik Eidus <ieidus@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Brad Campbell <lists2009@fnarfbargle.com>
+Cc: Avi Kivity <avi@redhat.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Borislav Petkov <bp@alien8.de>, linux-kernel@vger.kernel.org, kvm@vger.kernel.org, linux-mm <linux-mm@kvack.org>, netdev <netdev@vger.kernel.org>
 
-I've just experienced this bug with ksmd:
+On Wed, Jun 01, 2011 at 07:52:33PM +0800, Brad Campbell wrote:
+> Unfortunately the only interface that is mentioned by name anywhere
+> in my firewall is $DMZ (which is ppp0 and not part of any bridge).
+> 
+> All of the nat/dnat and other horrible hacks are based on IP addresses.
 
-[   55.837551] BUG: unable to handle kernel NULL pointer dereference at 00000000000000e8
-[   55.837598] IP: [<ffffffff810bb9b2>] __lock_acquire+0x62/0x1d70
-[   55.837630] PGD 0 
-[   55.837643] Oops: 0000 [#1] SMP 
-[   55.837663] CPU 2 
-[   55.837674] Modules linked in: snd_hda_codec_hdmi snd_hda_codec_conexant rtl8192ce rtl8192c_common rtlwifi mac80211 usbhid hid cfg80211 snd_hda_intel snd_hda_codec psmouse snd_pcm e1000e thinkpad_acpi snd_timer snd_page_alloc snd soundcore nvram
-[   55.837816] 
-[   55.837824] Pid: 33, comm: ksmd Not tainted 3.0.0-rc1+ #289 LENOVO 4286CTO/4286CTO
-[   55.837850] RIP: 0010:[<ffffffff810bb9b2>]  [<ffffffff810bb9b2>] __lock_acquire+0x62/0x1d70
-[   55.837878] RSP: 0018:ffff88023d3abc50  EFLAGS: 00010046
-[   55.837894] RAX: 0000000000000046 RBX: 00000000000000e8 RCX: 0000000000000001
-[   55.837915] RDX: 0000000000000000 RSI: 0000000000000000 RDI: 00000000000000e8
-[   55.837936] RBP: ffff88023d3abd40 R08: 0000000000000002 R09: 0000000000000000
-[   55.837957] R10: 0000000000000001 R11: 0000000000000000 R12: ffff88023d3a3e00
-[   55.837978] R13: 0000000000000000 R14: 0000000000000002 R15: 0000000000000000
-[   55.837999] FS:  0000000000000000(0000) GS:ffff88023e280000(0000) knlGS:0000000000000000
-[   55.838022] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
-[   55.838039] CR2: 00000000000000e8 CR3: 00000000016f5000 CR4: 00000000000406e0
-[   55.838060] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-[   55.838081] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
-[   55.838102] Process ksmd (pid: 33, threadinfo ffff88023d3aa000, task ffff88023d3a3e00)
-[   55.838131] Stack:
-[   55.838140]  ffff88023d3abce0 0000000000000000 ffffffff81d46810 00000000000012c7
-[   55.838168]  000000000000037c ffff88023d3a3e00 0000000000000001 0000000000000000
-[   55.838338]  0000000000000000 0000000000000000 00000000001ba37c ffffffff81a22000
-[   55.838365] Call Trace:
-[   55.838375]  [<ffffffff810be55f>] ? mark_held_locks+0x6f/0xa0
-[   55.838394]  [<ffffffff814e3360>] ? _raw_spin_unlock_irqrestore+0x40/0x70
-[   55.838416]  [<ffffffff810bdc90>] lock_acquire+0x90/0x110
-[   55.838434]  [<ffffffff8114c652>] ? ksm_scan_thread+0x132/0xe20
-[   55.838453]  [<ffffffff8112df6c>] ? free_percpu+0x9c/0x130
-[   55.838470]  [<ffffffff814e1cbc>] down_read+0x4c/0x70
-[   55.838486]  [<ffffffff8114c652>] ? ksm_scan_thread+0x132/0xe20
-[   55.838505]  [<ffffffff814e33bb>] ? _raw_spin_unlock+0x2b/0x40
-[   55.838523]  [<ffffffff8114c652>] ksm_scan_thread+0x132/0xe20
-[   55.838541]  [<ffffffff814df822>] ? schedule+0x3b2/0x960
-[   55.838559]  [<ffffffff810a5690>] ? wake_up_bit+0x40/0x40
-[   55.838576]  [<ffffffff8114c520>] ? run_store+0x310/0x310
-[   55.838593]  [<ffffffff810a5186>] kthread+0x96/0xa0
-[   55.838609]  [<ffffffff814e5014>] kernel_thread_helper+0x4/0x10
-[   55.838628]  [<ffffffff814e3700>] ? retint_restore_args+0xe/0xe
-[   55.838647]  [<ffffffff810a50f0>] ? __init_kthread_worker+0x70/0x70
-[   55.838666]  [<ffffffff814e5010>] ? gs_change+0xb/0xb
-[   55.838681] Code: b7 00 00 48 89 fb 85 c0 41 89 f5 45 0f 45 f0 8b 05 84 de 68 00 85 c0 0f 84 7b 09 00 00 8b 05 7a 49 7a 00 85 c0 0f 84 c6 01 00 00 
-[   55.838780]  8b 03 ba 01 00 00 00 48 3d e0 3c 8c 81 44 0f 44 f2 41 83 fd 
-[   55.838830] RIP  [<ffffffff810bb9b2>] __lock_acquire+0x62/0x1d70
-[   55.838850]  RSP <ffff88023d3abc50>
-[   55.839567] CR2: 00000000000000e8
-[   55.895721] ---[ end trace eea0fa5dfa6846f1 ]---
+Damn. Not referencing the bridge interfaces at all stopped our host from
+going down in flames when we passed it a few packets. These are two
+of the oopses we got from it. Whilst the kernel here is .35 we got the
+same issue from a range of kernels. Seems related.
 
-The bug can be easily reproduced using the following testcase:
+The oopses may be a bit weird. Copy and paste from an ipmi terminal.
 
-========================
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <sys/mman.h>
 
-#define BUFSIZE getpagesize()
+slab error in cache_alloc_debugcheck_after(): cache `size-64': double 
+free, or n
+Pid: 2431, comm: kvm Tainted: G      D     
+2.6.35.9-local.20110314-141930 #1
+Call Trace:
+<IRQ>  [<ffffffff810fb8bf>] ? __slab_error+0x1f/0x30
+  [<ffffffff810fc22b>] ? cache_alloc_debugcheck_after+0x6b/0x1f0
+  [<ffffffff81530a00>] ? br_nf_pre_routing_finish+0x0/0x370
+  [<ffffffff8153106b>] ? br_nf_pre_routing+0x2fb/0x980
+  [<ffffffff810fdd3d>] ? kmem_cache_alloc_notrace+0x7d/0xf0
 
-int main(int argc, char **argv)
-{
-	void *ptr;
+  [<ffffffff8153106b>] ? br_nf_pre_routing+0x2fb/0x980
+  [<ffffffff81466e66>] ? nf_iterate+0x66/0xb0
+  [<ffffffff8152b9f0>] ? br_handle_frame_finish+0x0/0x1c0
+  [<ffffffff81466f14>] ? nf_hook_slow+0x64/0xf0
+  [<ffffffff8152b9f0>] ? br_handle_frame_finish+0x0/0x1c0
+  [<ffffffff8152bd3c>] ? br_handle_frame+0x18c/0x250
+  [<ffffffff81445459>] ? __netif_receive_skb+0x169/0x2a0
+  [<ffffffff81445673>] ? process_backlog+0xe3/0x1d0
+  [<ffffffff81446347>] ? net_rx_action+0x87/0x1c0
+  [<ffffffff810793f7>] ? __do_softirq+0xa7/0x1d0
+  [<ffffffff81035b8c>] ? call_softirq+0x1c/0x30
+<EOI>  [<ffffffff81037c6d>] ? do_softirq+0x4d/0x80
+  [<ffffffff81446b4e>] ? netif_rx_ni+0x1e/0x30
+  [<ffffffff8139541a>] ? tun_chr_aio_write+0x36a/0x510
+  [<ffffffff813950b0>] ? tun_chr_aio_write+0x0/0x510
+  [<ffffffff81102859>] ? do_sync_readv_writev+0xa9/0xf0
+  [<ffffffff810973fb>] ? ktime_get+0x5b/0xe0
+  [<ffffffff8104f958>] ? lapic_next_event+0x18/0x20
+  [<ffffffff8109be18>] ? tick_dev_program_event+0x38/0x100
+  [<ffffffff81102697>] ? rw_copy_check_uvector+0x77/0x130
+  [<ffffffff81102f0c>] ? do_readv_writev+0xdc/0x200
+  [<ffffffff8108dfec>] ? sys_timer_settime+0x13c/0x2e0
+  [<ffffffff8110317e>] ? sys_writev+0x4e/0x90
+  [<ffffffff81034d6b>] ? system_call_fastpath+0x16/0x1b
+ffff8801e7621500: redzone 1:0xbf05bd0100000006, redzone 2:0x9f911029d74e35b
 
-	if (posix_memalign(&ptr, getpagesize(), BUFSIZE) < 0) {
-		perror("posix_memalign");
-		exit(1);
-	}
-	if (madvise(ptr, BUFSIZE, MADV_MERGEABLE) < 0) {
-		perror("madvise");
-		exit(1);
-	}
-	*(char *)NULL = 0;
+----------
 
-	return 0;
-}
-========================
+Code: 40 01 00 00 4c 8b a4 24 48 01 00 00 4c 8b ac 24 50 01 00 00 4c 8b 
+b4 24 5
+RIP  [<ffffffff81652c67>] icmp_send+0x297/0x650
+  RSP <ffff880001c036b8>
+---[ end trace 9d3f7be7684ac91e ]---
+Kernel panic - not syncing: Fatal exception in interrupt
+Pid: 0, comm: swapper Tainted: G      D     
+2.6.35.9-local.20110314-144920 #2
+Call Trace:
+<IRQ>  [<ffffffff8170eada>] ? panic+0x94/0x116
+  [<ffffffff81711326>] ? _raw_spin_lock_irqsave+0x26/0x40
+  [<ffffffff8103a05f>] ? oops_end+0xef/0xf0
+  [<ffffffff81711a15>] ? general_protection+0x25/0x30
+  [<ffffffff81652c2f>] ? icmp_send+0x25f/0x650
+  [<ffffffff81652c67>] ? icmp_send+0x297/0x650
+  [<ffffffff815fd8e6>] ? nf_iterate+0x66/0xb0
+  [<ffffffff816dbfa0>] ? br_nf_forward_finish+0x0/0x170
+  [<ffffffff815fd994>] ? nf_hook_slow+0x64/0xf0
+  [<ffffffff816dbfa0>] ? br_nf_forward_finish+0x0/0x170
+  [<ffffffff816dc461>] ? br_nf_forward_ip+0x201/0x3e0
+  [<ffffffff815fd8e6>] ? nf_iterate+0x66/0xb0
+  [<ffffffff816d6620>] ? br_forward_finish+0x0/0x60
+  [<ffffffff815fd994>] ? nf_hook_slow+0x64/0xf0
+  [<ffffffff816d6620>] ? br_forward_finish+0x0/0x60
+  [<ffffffff816d66e9>] ? __br_forward+0x69/0xb0
+  [<ffffffff816d741a>] ? br_handle_frame_finish+0x12a/0x280
+  [<ffffffff816dcac8>] ? br_nf_pre_routing_finish+0x208/0x370
+  [<ffffffff815fd994>] ? nf_hook_slow+0x64/0xf0
+  [<ffffffff816dc8c0>] ? br_nf_pre_routing_finish+0x0/0x370
+  [<ffffffff816dc538>] ? br_nf_forward_ip+0x2d8/0x3e0
+  [<ffffffff816dd3b5>] ? br_nf_pre_routing+0x785/0x980
+  [<ffffffff815fd8e6>] ? nf_iterate+0x66/0xb0
+  [<ffffffff815fd994>] ? nf_hook_slow+0x64/0xf0
+  [<ffffffff816d72f0>] ? br_handle_frame_finish+0x0/0x280
+  [<ffffffff815fd994>] ? nf_hook_slow+0x64/0xf0
+  [<ffffffff816d72f0>] ? br_handle_frame_finish+0x0/0x280
+  [<ffffffff816d76fc>] ? br_handle_frame+0x18c/0x250
+  [<ffffffff815dec5b>] ? __netif_receive_skb+0x1cb/0x350
+  [<ffffffff8103d115>] ? read_tsc+0x5/0x20
+  [<ffffffff815dfa18>] ? netif_receive_skb+0x78/0x80
+  [<ffffffff815e0217>] ? napi_gro_receive+0x27/0x40
+  [<ffffffff815e01d8>] ? napi_skb_finish+0x38/0x50
+  [<ffffffff8152586d>] ? bnx2_poll_work+0xd0d/0x13d0
+  [<ffffffff8160c950>] ? ctnetlink_conntrack_event+0x210/0x7d0
+  [<ffffffff81092029>] ? autoremove_wake_function+0x9/0x30
+  [<ffffffff8109a71b>] ? ktime_get+0x5b/0xe0
+  [<ffffffff81526051>] ? bnx2_poll+0x61/0x230
+  [<ffffffff81051db8>] ? lapic_next_event+0x18/0x20
+  [<ffffffff815dfbef>] ? net_rx_action+0x9f/0x200
+  [<ffffffff8109636f>] ? __hrtimer_start_range_ns+0x22f/0x410
+  [<ffffffff8107c35f>] ? __do_softirq+0xaf/0x1e0
+  [<ffffffff810ab547>] ? handle_IRQ_event+0x47/0x160
+  [<ffffffff81036d5c>] ? call_softirq+0x1c/0x30
+  [<ffffffff81038c85>] ? do_softirq+0x65/0xa0
+  [<ffffffff8107c235>] ? irq_exit+0x85/0x90
+  [<ffffffff8103820b>] ? do_IRQ+0x6b/0xe0
+  [<ffffffff817117d3>] ? ret_from_intr+0x0/0x11
+<EOI>  [<ffffffff81269340>] ? intel_idle+0xf0/0x180
+  [<ffffffff81269320>] ? intel_idle+0xd0/0x180
+  [<ffffffff815b0b0f>] ? cpuidle_idle_call+0x9f/0x140
+  [<ffffffff81035032>] ? cpu_idle+0x62/0xb0
+  [<ffffffff81a40c77>] ? start_kernel+0x2ef/0x2fa
+  [<ffffffff81a403e3>] ? x86_64_start_kernel+0xfb/0x10a
 
-It seems that when a task segfaults mm_slot->mm becomes NULL, but it's
-still wrongly considered by the ksm scan. Is there a race with
-__ksm_exit()?
 
-Probably the following is not the right way to fix it, but if I apply
-this the problem disappears. Anyway, I'm posting this information, it
-can help you to debug the problem better.
 
-Signed-off-by: Andrea Righi <andrea@betterlinux.com>
----
- mm/ksm.c |    2 ++
- 1 files changed, 2 insertions(+), 0 deletions(-)
-
-diff --git a/mm/ksm.c b/mm/ksm.c
-index d708b3e..f457feb 100644
---- a/mm/ksm.c
-+++ b/mm/ksm.c
-@@ -1308,6 +1308,8 @@ next_mm:
- 	}
- 
- 	mm = slot->mm;
-+	if (unlikely(!mm))
-+		return NULL;
- 	down_read(&mm->mmap_sem);
- 	if (ksm_test_exit(mm))
- 		vma = NULL;
+-- 
+  "A search of his car uncovered pornography, a homemade sex aid, women's 
+  stockings and a Jack Russell terrier."
+    - http://www.dailytelegraph.com.au/news/wacky/indeed/story-e6frev20-1111118083480
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
