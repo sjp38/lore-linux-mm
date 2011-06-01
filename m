@@ -1,52 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 1C3B06B004A
-	for <linux-mm@kvack.org>; Wed,  1 Jun 2011 15:09:20 -0400 (EDT)
-Received: from kpbe19.cbf.corp.google.com (kpbe19.cbf.corp.google.com [172.25.105.83])
-	by smtp-out.google.com with ESMTP id p51J9Flg011235
-	for <linux-mm@kvack.org>; Wed, 1 Jun 2011 12:09:16 -0700
-Received: from pwi16 (pwi16.prod.google.com [10.241.219.16])
-	by kpbe19.cbf.corp.google.com with ESMTP id p51J9DKi005887
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 1 Jun 2011 12:09:14 -0700
-Received: by pwi16 with SMTP id 16so174994pwi.7
-        for <linux-mm@kvack.org>; Wed, 01 Jun 2011 12:09:13 -0700 (PDT)
-Date: Wed, 1 Jun 2011 12:09:12 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] Make GFP_DMA allocations w/o ZONE_DMA emit a warning
- instead of failing
-In-Reply-To: <alpine.LFD.2.02.1106012043080.3078@ionos>
-Message-ID: <alpine.DEB.2.00.1106011205410.17065@chino.kir.corp.google.com>
-References: <1306922672-9012-1-git-send-email-dbaryshkov@gmail.com> <BANLkTinBkdVd90g3-uiQP41z1S1sXUdRmQ@mail.gmail.com> <BANLkTikrRRzGLbMD47_xJz+xpgftCm1C2A@mail.gmail.com> <alpine.DEB.2.00.1106011017260.13089@chino.kir.corp.google.com>
- <20110601181918.GO3660@n2100.arm.linux.org.uk> <alpine.LFD.2.02.1106012043080.3078@ionos>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id EB44D6B004A
+	for <linux-mm@kvack.org>; Wed,  1 Jun 2011 15:15:41 -0400 (EDT)
+Date: Wed, 1 Jun 2011 21:15:29 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH] mm: compaction: Abort compaction if too many pages are
+ isolated and caller is asynchronous
+Message-ID: <20110601191529.GY19505@random.random>
+References: <20110530143109.GH19505@random.random>
+ <20110530153748.GS5044@csn.ul.ie>
+ <20110530165546.GC5118@suse.de>
+ <20110530175334.GI19505@random.random>
+ <20110531121620.GA3490@barrios-laptop>
+ <20110531122437.GJ19505@random.random>
+ <20110531133340.GB3490@barrios-laptop>
+ <20110531141402.GK19505@random.random>
+ <20110601005747.GC7019@csn.ul.ie>
+ <20110601175809.GB7306@suse.de>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110601175809.GB7306@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: Russell King - ARM Linux <linux@arm.linux.org.uk>, Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Minchan Kim <minchan.kim@gmail.com>, akpm@linux-foundation.org, Ury Stankevich <urykhy@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, stable@kernel.org
 
-On Wed, 1 Jun 2011, Thomas Gleixner wrote:
+On Wed, Jun 01, 2011 at 06:58:09PM +0100, Mel Gorman wrote:
+> Umm, HIGHMEM4G implies a two-level pagetable layout so where are
+> things like _PAGE_BIT_SPLITTING being set when THP is enabled?
 
-> > That is NOT an unreasonable request, but it seems that its far too much
-> > to ask of you.
-> 
-> Full ack.
-> 
-> David,
-> 
-> stop that nonsense already. You changed the behaviour and broke stuff
-> which was working fine before for whatever reason. That behaviour was
-> in the kernel for ages and we tolerated the abuse.
-> 
-
-Did I nack this patch and not realize it?
-
-Does my patch fix the warning for pxaficp_ir that would still be emitted 
-with this patch?  If the driver uses GFP_DMA and nobody from the arm side 
-is prepared to remove it yet, then I'd suggest merging my patch until that 
-can be determined.  Otherwise, you have no guarantees about where the 
-memory is actually coming from.
+They should be set on the pgd, pud_offset/pgd_offset will just bypass.
+The splitting bit shouldn't be special about it, the present bit
+should work the same.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
