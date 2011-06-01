@@ -1,58 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E7186B0011
-	for <linux-mm@kvack.org>; Wed,  1 Jun 2011 11:49:31 -0400 (EDT)
-Message-ID: <4DE65E02.8080303@zytor.com>
-Date: Wed, 01 Jun 2011 08:42:58 -0700
-From: "H. Peter Anvin" <hpa@zytor.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id C4CD96B0011
+	for <linux-mm@kvack.org>; Wed,  1 Jun 2011 11:55:59 -0400 (EDT)
+Message-ID: <4DE66107.10908@redhat.com>
+Date: Wed, 01 Jun 2011 11:55:51 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [slubllv5 07/25] x86: Add support for cmpxchg_double
-References: <20110516202605.274023469@linux.com>  <20110516202625.197639928@linux.com> <4DDE9670.3060709@zytor.com>  <alpine.DEB.2.00.1105261315350.26578@router.home>  <4DDE9C01.2090104@zytor.com>  <alpine.DEB.2.00.1105261615130.591@router.home> <1306445159.2543.25.camel@edumazet-laptop> <alpine.DEB.2.00.1105311012420.18755@router.home> <4DE50632.90906@zytor.com> <alpine.DEB.2.00.1105311058030.19928@router.home> <4DE576EA.6070906@zytor.com> <alpine.DEB.2.00.1105311846230.31190@router.home> <4DE57FBB.8040408@zytor.com> <alpine.DEB.2.00.1106010910430.22901@router.home> <alpine.DEB.2.00.1106010945010.22901@router.home>
-In-Reply-To: <alpine.DEB.2.00.1106010945010.22901@router.home>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH v2 04/10] Add additional isolation mode
+References: <cover.1306689214.git.minchan.kim@gmail.com> <5b0f0be7ee441ea27ffcad81d2637ac09407acf3.1306689214.git.minchan.kim@gmail.com>
+In-Reply-To: <5b0f0be7ee441ea27ffcad81d2637ac09407acf3.1306689214.git.minchan.kim@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Eric Dumazet <eric.dumazet@gmail.com>, Pekka Enberg <penberg@cs.helsinki.fi>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Thomas Gleixner <tglx@linutronix.de>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-On 06/01/2011 07:46 AM, Christoph Lameter wrote:
-> +#define cmpxchg8b_local(ptr, o1, o2, n1, n2)			\
-> +({								\
-> +	char __ret;						\
-> +	__typeof__(o2) __dummy;					\
-> +	__typeof__(*(ptr)) __old1 = (o1);			\
-> +	__typeof__(o2) __old2 = (o2);				\
-> +	__typeof__(*(ptr)) __new1 = (n1);			\
-> +	__typeof__(o2) __new2 = (n2);				\
-> +	asm volatile("cmpxchg8b %2; setz %1"			\
-> +		       : "=d"(__dummy), "=a"(__ret), "m+" (*ptr)\
-> +		       : "a" (__old), "d"(__old2),		\
-> +		         "b" (__new1), "c" (__new2),		\
-> +		       : "memory");				\
-> +	__ret; })
+On 05/29/2011 02:13 PM, Minchan Kim wrote:
+> There are some places to isolate lru page and I believe
+> users of isolate_lru_page will be growing.
+> The purpose of them is each different so part of isolated pages
+> should put back to LRU, again.
+>
+> The problem is when we put back the page into LRU,
+> we lose LRU ordering and the page is inserted at head of LRU list.
+> It makes unnecessary LRU churning so that vm can evict working set pages
+> rather than idle pages.
+>
+> This patch adds new modes when we isolate page in LRU so we don't isolate pages
+> if we can't handle it. It could reduce LRU churning.
+>
+> This patch doesn't change old behavior. It's just used by next patches.
+>
+> Cc: KOSAKI Motohiro<kosaki.motohiro@jp.fujitsu.com>
+> Cc: Mel Gorman<mgorman@suse.de>
+> Cc: Rik van Riel<riel@redhat.com>
+> Cc: Andrea Arcangeli<aarcange@redhat.com>
+> Cc: Johannes Weiner<hannes@cmpxchg.org>
+> Cc: KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
+> Signed-off-by: Minchan Kim<minchan.kim@gmail.com>
 
-Another syntax error... did you even compile-test any of your patches on
-32 bits?
-
-> +#
-> +# CMPXCHG_DOUBLE needs to be set to enable the kernel to use cmpxchg16/8b
-> +# for cmpxchg_double if it find processor flags that indicate that the
-> +# capabilities are available. CMPXCHG_DOUBLE only compiles in
-> +# detection support. It needs to be set if there is a chance that processor
-> +# supports these instructions.
-> +#
-> +config CMPXCHG_DOUBLE
-> +	def_bool GENERIC_CPU || X86_GENERIC || !M386
-> +
-
-Still wrong.
-
-	-hpa
-
--- 
-H. Peter Anvin, Intel Open Source Technology Center
-I work for Intel.  I don't speak on their behalf.
+Acked-by: Rik van Riel <riel@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
