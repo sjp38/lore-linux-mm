@@ -1,49 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B7E16B0011
-	for <linux-mm@kvack.org>; Wed,  1 Jun 2011 07:52:46 -0400 (EDT)
-Message-ID: <4DE62801.9080804@fnarfbargle.com>
-Date: Wed, 01 Jun 2011 19:52:33 +0800
-From: Brad Campbell <lists2009@fnarfbargle.com>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 43F596B0011
+	for <linux-mm@kvack.org>; Wed,  1 Jun 2011 08:39:21 -0400 (EDT)
+Date: Wed, 1 Jun 2011 14:39:13 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] memcg: do not expose uninitialized mem_cgroup_per_node
+ to world
+Message-ID: <20110601123913.GC4266@tiehlicka.suse.cz>
+References: <1306925044-2828-1-git-send-email-imammedo@redhat.com>
 MIME-Version: 1.0
-Subject: Re: KVM induced panic on 2.6.38[2367] & 2.6.39
-References: <alpine.LSU.2.00.1105311517480.21107@sister.anvils> <4DE589C5.8030600@fnarfbargle.com> <20110601011527.GN19505@random.random> <alpine.LSU.2.00.1105312120530.22808@sister.anvils> <4DE5DCA8.7070704@fnarfbargle.com> <4DE5E29E.7080009@redhat.com> <4DE60669.9050606@fnarfbargle.com> <4DE60918.3010008@redhat.com> <4DE60940.1070107@redhat.com> <4DE61A2B.7000008@fnarfbargle.com> <20110601111841.GB3956@zip.com.au>
-In-Reply-To: <20110601111841.GB3956@zip.com.au>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1306925044-2828-1-git-send-email-imammedo@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: CaT <cat@zip.com.au>
-Cc: Avi Kivity <avi@redhat.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Borislav Petkov <bp@alien8.de>, linux-kernel@vger.kernel.org, kvm@vger.kernel.org, linux-mm <linux-mm@kvack.org>, netdev <netdev@vger.kernel.org>
+To: Igor Mammedov <imammedo@redhat.com>
+Cc: linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, balbir@linux.vnet.ibm.com, akpm@linux-foundation.org, linux-mm@kvack.org
 
-On 01/06/11 19:18, CaT wrote:
-> On Wed, Jun 01, 2011 at 06:53:31PM +0800, Brad Campbell wrote:
->> I rebooted into a netfilter kernel, and did all the steps I'd used
->> on the no-netfilter kernel and it ticked along happily.
->>
->> So the result of the experiment is inconclusive. Having said that,
->> the backtraces certainly smell networky.
->>
->> To get it to crash, I have to start IE in the VM and https to the
->> public address of the machine, which is then redirected by netfilter
->> back into another of the VM's.
->>
->> I can https directly to the other VM's address, but that does not
->> cause it to crash, however without netfilter loaded I can't bounce
->> off the public IP. It's all rather confusing really.
->>
->> What next Sherlock?
->
-> I think you're hitting something I've seen. Can you try rewriting
-> your firewall rules so that it does not reference any bridge
-> interfaces at all. Instead, reference the real interface names
-> in their place. I'm betting it wont crash.
->
+On Wed 01-06-11 12:44:04, Igor Mammedov wrote:
+> Freshly allocated 'mem_cgroup_per_node' list entries must be
+> initialized before the rest of the kernel can see them. Otherwise
+> zero initialized list fields can lead to race condition at
+> mem_cgroup_force_empty_list:
+>   pc = list_entry(list->prev, struct page_cgroup, lru);
+> where 'pc' will be something like 0xfffffffc if list->prev is 0
+> and cause page fault later when 'pc' is dereferenced.
 
-Unfortunately the only interface that is mentioned by name anywhere in 
-my firewall is $DMZ (which is ppp0 and not part of any bridge).
+Have you ever seen such a race? I do not see how this could happen.
+mem_cgroup_force_empty_list is called only from
+mem_cgroup_force_empty_write (aka echo whatever > group/force_empty)
+or mem_cgroup_pre_destroy when the group is destroyed. 
 
-All of the nat/dnat and other horrible hacks are based on IP addresses.
+The initialization code is, however, called before a group is
+given for use AFICS.
+
+I am not saying tha the change is bad, I like it, but I do not think it
+is a fix for potential race condition.
+
+> 
+> Signed-off-by: Igor Mammedov <imammedo@redhat.com>
+> ---
+>  mm/memcontrol.c |    2 +-
+>  1 files changed, 1 insertions(+), 1 deletions(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index bd9052a..ee7cb4c 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -4707,7 +4707,6 @@ static int alloc_mem_cgroup_per_zone_info(struct mem_cgroup *mem, int node)
+>  	if (!pn)
+>  		return 1;
+>  
+> -	mem->info.nodeinfo[node] = pn;
+>  	for (zone = 0; zone < MAX_NR_ZONES; zone++) {
+>  		mz = &pn->zoneinfo[zone];
+>  		for_each_lru(l)
+> @@ -4716,6 +4715,7 @@ static int alloc_mem_cgroup_per_zone_info(struct mem_cgroup *mem, int node)
+>  		mz->on_tree = false;
+>  		mz->mem = mem;
+>  	}
+> +	mem->info.nodeinfo[node] = pn;
+>  	return 0;
+>  }
+>  
+> -- 
+> 1.7.1
+> 
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
+
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
