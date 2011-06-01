@@ -1,35 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id D6FEA6B0022
-	for <linux-mm@kvack.org>; Wed,  1 Jun 2011 05:41:46 -0400 (EDT)
-Message-ID: <4DE60940.1070107@redhat.com>
-Date: Wed, 01 Jun 2011 12:41:20 +0300
-From: Avi Kivity <avi@redhat.com>
-MIME-Version: 1.0
-Subject: Re: KVM induced panic on 2.6.38[2367] & 2.6.39
-References: <4DE44333.9000903@fnarfbargle.com> <20110531054729.GA16852@liondog.tnic> <4DE4B432.1090203@fnarfbargle.com> <20110531103808.GA6915@eferding.osrc.amd.com> <4DE4FA2B.2050504@fnarfbargle.com> <alpine.LSU.2.00.1105311517480.21107@sister.anvils> <4DE589C5.8030600@fnarfbargle.com> <20110601011527.GN19505@random.random> <alpine.LSU.2.00.1105312120530.22808@sister.anvils> <4DE5DCA8.7070704@fnarfbargle.com> <4DE5E29E.7080009@redhat.com> <4DE60669.9050606@fnarfbargle.com> <4DE60918.3010008@redhat.com>
-In-Reply-To: <4DE60918.3010008@redhat.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 533DA6B0011
+	for <linux-mm@kvack.org>; Wed,  1 Jun 2011 06:04:34 -0400 (EDT)
+Received: by wyf19 with SMTP id 19so5196464wyf.14
+        for <linux-mm@kvack.org>; Wed, 01 Jun 2011 03:04:30 -0700 (PDT)
+From: Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>
+Subject: [PATCH] Make GFP_DMA allocations w/o ZONE_DMA emit a warning instead of failing
+Date: Wed,  1 Jun 2011 14:04:32 +0400
+Message-Id: <1306922672-9012-1-git-send-email-dbaryshkov@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Brad Campbell <lists2009@fnarfbargle.com>
-Cc: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Borislav Petkov <bp@alien8.de>, linux-kernel@vger.kernel.org, kvm@vger.kernel.org, linux-mm <linux-mm@kvack.org>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, David Rientjes <rientjes@google.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Mel Gorman <mel@csn.ul.ie>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On 06/01/2011 12:40 PM, Avi Kivity wrote:
->
-> bridge and netfilter, IIRC this was also the problem last time.
->
-> Do you have any ebtables loaded?
->
-> Can you try building a kernel without ebtables?  Without netfilter at 
-> all?
->
-> Please run all tests with slub_debug=FZPU.
->
+Please be more polite to other people. After a197b59ae6 all allocations
+with GFP_DMA set on nodes without ZONE_DMA fail nearly silently (only
+one warning during bootup is emited, no matter how many things fail).
+This is a very crude change on behaviour. To be more civil, instead of
+failing emit noisy warnings each time smbd. tries to allocate a GFP_DMA
+memory on non-ZONE_DMA node.
 
+This change should be reverted after one or two major releases, but
+we should be more accurate rather than hoping for the best.
+
+Signed-off-by: Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Cc: Mel Gorman <mel@csn.ul.ie>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+---
+ mm/page_alloc.c |    5 +++--
+ 1 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index a4e1db3..e22dd4e 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2248,8 +2248,9 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
+ 	if (should_fail_alloc_page(gfp_mask, order))
+ 		return NULL;
+ #ifndef CONFIG_ZONE_DMA
+-	if (WARN_ON_ONCE(gfp_mask & __GFP_DMA))
+-		return NULL;
++	/* Change this back to hard failure after 3.0 or 3.1. For now give
++	 * drivers people a chance to fix their drivers w/o causing breakage. */
++	WARN_ON(gfp_mask & __GFP_DMA);
+ #endif
+ 
+ 	/*
 -- 
-error compiling committee.c: too many arguments to function
+1.7.4.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
