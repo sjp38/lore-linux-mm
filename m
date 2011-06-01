@@ -1,47 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 532AF6B004A
-	for <linux-mm@kvack.org>; Wed,  1 Jun 2011 19:10:07 -0400 (EDT)
-Received: by bwz17 with SMTP id 17so769267bwz.14
-        for <linux-mm@kvack.org>; Wed, 01 Jun 2011 16:10:04 -0700 (PDT)
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 932876B004A
+	for <linux-mm@kvack.org>; Wed,  1 Jun 2011 19:30:44 -0400 (EDT)
+Date: Thu, 2 Jun 2011 01:30:36 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH] mm: compaction: Abort compaction if too many pages are
+ isolated and caller is asynchronous
+Message-ID: <20110601233036.GZ19505@random.random>
+References: <20110530165546.GC5118@suse.de>
+ <20110530175334.GI19505@random.random>
+ <20110531121620.GA3490@barrios-laptop>
+ <20110531122437.GJ19505@random.random>
+ <20110531133340.GB3490@barrios-laptop>
+ <20110531141402.GK19505@random.random>
+ <20110601005747.GC7019@csn.ul.ie>
+ <20110601175809.GB7306@suse.de>
+ <20110601191529.GY19505@random.random>
+ <20110601214018.GC7306@suse.de>
 MIME-Version: 1.0
-In-Reply-To: <4DE66BEB.7040502@redhat.com>
-References: <1306925044-2828-1-git-send-email-imammedo@redhat.com>
-	<20110601123913.GC4266@tiehlicka.suse.cz>
-	<4DE6399C.8070802@redhat.com>
-	<20110601134149.GD4266@tiehlicka.suse.cz>
-	<4DE64F0C.3050203@redhat.com>
-	<20110601152039.GG4266@tiehlicka.suse.cz>
-	<4DE66BEB.7040502@redhat.com>
-Date: Thu, 2 Jun 2011 08:10:04 +0900
-Message-ID: <BANLkTimbqHPeUdue=_Z31KVdPwcXtbLpeg@mail.gmail.com>
-Subject: Re: [PATCH] memcg: do not expose uninitialized mem_cgroup_per_node to world
-From: Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110601214018.GC7306@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Igor Mammedov <imammedo@redhat.com>
-Cc: Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, balbir@linux.vnet.ibm.com, akpm@linux-foundation.org, linux-mm@kvack.org, Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, containers@lists.linux-foundation.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Minchan Kim <minchan.kim@gmail.com>, akpm@linux-foundation.org, Ury Stankevich <urykhy@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, stable@kernel.org
 
->pc = list_entry(list->prev, struct page_cgroup, lru);
+Hi Mel,
 
-Hmm, I disagree your patch is a fix for mainline. At least, a cgroup
-before completion of
-create() is not populated to userland and you never be able to rmdir()
-it because you can't
-find it.
+On Wed, Jun 01, 2011 at 10:40:18PM +0100, Mel Gorman wrote:
+> On Wed, Jun 01, 2011 at 09:15:29PM +0200, Andrea Arcangeli wrote:
+> > On Wed, Jun 01, 2011 at 06:58:09PM +0100, Mel Gorman wrote:
+> > > Umm, HIGHMEM4G implies a two-level pagetable layout so where are
+> > > things like _PAGE_BIT_SPLITTING being set when THP is enabled?
+> > 
+> > They should be set on the pgd, pud_offset/pgd_offset will just bypass.
+> > The splitting bit shouldn't be special about it, the present bit
+> > should work the same.
+> 
+> This comment is misleading at best then.
+> 
+> #define _PAGE_BIT_SPLITTING     _PAGE_BIT_UNUSED1 /* only valid on a PSE pmd */
 
+>From common code point of view it's set in the pmd, the comment can be
+extended to specify it's actually the pgd in case of 32bit noPAE but I
+didn't think it was too misleading as we think in common code terms
+all over the code, the fact it's a bypass is pretty clear across the
+whole archs.
 
- >26:   e8 7d 12 30 00          call   0x3012a8
- >2b:*  8b 73 08                mov    0x8(%ebx),%esi     <-- trapping
-instruction
- >2e:   8b 7c 24 24             mov    0x24(%esp),%edi
- >32:   8b 07                   mov    (%edi),%eax
+> At the PGD level, it can have PSE set obviously but it's not a
+> PMD. I confess I haven't checked the manual to see if it's safe to
+> use _PAGE_BIT_UNUSED1 like this so am taking your word for it. I
 
-Hm, what is the call 0x3012a8 ?
+To be sure I re-checked on 253668.pdf page 113/114 noPAE and page 122
+PAE, on x86 32bit/64 all ptes/pmd/pgd (32bit/64bit PAE/noPAE) have bit
+9-11 "Avail" to software. So I think we should be safe here.
 
-Thanks,
--Kame
+> found that the bug is far harder to reproduce with 3 pagetable levels
+> than with 2 but that is just timing. So far it has proven impossible
+> on x86-64 at least within 27 hours so that has me looking at how
+> pagetable management between x86 and x86-64 differ.
+
+Weird.
+
+However I could see it screwing the nr_inactive/active_* stats, but
+the nr_isolated should never go below zero, and especially not anon
+even if split_huge_page does the accounting wrong (and
+migrate/compaction won't mess with THP), or at least I'd expect things
+to fall apart in other ways and not with just a fairly innocuous and
+not-memory corrupting nr_isolated_ counter going off just by one.
+
+The khugepaged nr_isolated_anon increment couldn't affect the file one
+and we hold mmap_sem write mode there to prevent the pte to change
+from under us, in addition to the PT and anon_vma lock. Anon_vma lock
+being wrong sounds unlikely too, and even if it was it should screw
+the nr_isolated_anon counter, impossible to screw the nr_isolated_file
+with khugepaged.
+
+Where did you put your bugcheck? It looked like you put it in the < 0
+reader, can you add it to all _inc/dec/mod (even _inc just in case) so
+we may get a stack trace including the culprit? (not guaranteed but
+better chance)
+
+> Barriers are a big different between how 32-bit !SMP and X86-64 but
+> don't know yet which one is relevant or if this is even the right
+> direction.
+
+The difference is we need xchg on SMP to avoid losing the dirty
+bit. Otherwise if we do pmd_t pmd = *pmdp; *pmdp = 0; the dirty bit
+may have been set in between the two by another thread running in
+userland in a different CPU, while the pmd was still "present". As
+long as interrupts don't write to read-write userland memory with the
+pte dirty bit clear, we shouldn't need xchg on !SMP.
+
+On PAE we also need to write 0 into pmd_low before worrying about
+pmd_high so the present bit is cleared before clearing the high part
+of the 32bit PAE pte, and we relay on xchg implicit lock to avoid a
+smp_wmb() in between the two writes.
+
+I'm unsure if any of this could be relevant to our problem, also there
+can't be more than one writer at once in the pmd, as nobody can modify
+it without the page_table_lock held. xchg there is just to be safe for
+the dirty bit (or we'd corrupt memory with threads running in userland
+and writing to memory on other cpus while we ptep_clear_flush).
+
+I've been wondering about the lack of "lock" on the bus in atomic.h
+too, but I can't see how it can possibly matter on !SMP, vmstat
+modifications should execute only 1 asm insn so preempt or irq can't
+interrupt it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
