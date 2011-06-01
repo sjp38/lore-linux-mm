@@ -1,39 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 55CEE8D003B
-	for <linux-mm@kvack.org>; Tue, 31 May 2011 20:39:45 -0400 (EDT)
-Date: Tue, 31 May 2011 20:39:42 -0400
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 4AC706B0027
+	for <linux-mm@kvack.org>; Tue, 31 May 2011 20:42:30 -0400 (EDT)
+Date: Tue, 31 May 2011 20:42:25 -0400
 From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH 3/14] tmpfs: take control of its truncate_range
-Message-ID: <20110601003942.GB4433@infradead.org>
+Subject: Re: [PATCH 4/14] tmpfs: add shmem_read_mapping_page_gfp
+Message-ID: <20110601004225.GC4433@infradead.org>
 References: <alpine.LSU.2.00.1105301726180.5482@sister.anvils>
- <alpine.LSU.2.00.1105301737040.5482@sister.anvils>
+ <alpine.LSU.2.00.1105301739080.5482@sister.anvils>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.00.1105301737040.5482@sister.anvils>
+In-Reply-To: <alpine.LSU.2.00.1105301739080.5482@sister.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-> Note that drivers/gpu/drm/i915/i915_gem.c i915_gem_object_truncate()
-> calls the tmpfs ->truncate_range directly: update that in a separate
-> patch later, for now just let it duplicate the truncate_inode_pages().
-> Because i915 handles unmap_mapping_range() itself at a different stage,
-> we have chosen not to bundle that into ->truncate_range.
+> (shmem_read_mapping_page_gfp or shmem_read_cache_page_gfp?  Generally
+> the read_mapping_page functions use the mapping's ->readpage, and the
+> read_cache_page functions use the supplied filler, so I think
+> read_cache_page_gfp was slightly misnamed.)
 
-In your next series that makes it call the readpae replacement directly
-it might be nice to also call directly into shmem for hole punching.
+What about just shmem_read_page?  It's not using the pagecache, so
+no need for the mapping or cache, and the _gfp really is just a hack
+because the old pagecache APIs didn't allow to pass the gfp flags.
+For a new API there's no need for that.
 
-> I notice that ext4 is now joining ocfs2 and xfs in supporting fallocate
-> FALLOC_FL_PUNCH_HOLE: perhaps they should support truncate_range, and
-> tmpfs should support fallocate?  But worry about that another time...
+> +static inline struct page *shmem_read_mapping_page(
+> +				struct address_space *mapping, pgoff_t index)
+> +{
+> +	return shmem_read_mapping_page_gfp(mapping, index,
+> +				mapping_gfp_mask(mapping));
+> +}
 
-No, truncate_range and the madvice interface are pretty sad hacks that
-should never have been added in the first place.  Adding
-FALLOC_FL_PUNCH_HOLE support for shmem on the other hand might make
-some sense.
+This really shouldn't be in pagemap.h.  For now probably in shmem_fs.h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
