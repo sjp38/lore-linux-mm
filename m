@@ -1,38 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id AD19F6B0011
-	for <linux-mm@kvack.org>; Wed,  1 Jun 2011 11:31:16 -0400 (EDT)
-Message-ID: <4DE65B3A.9070706@redhat.com>
-Date: Wed, 01 Jun 2011 11:31:06 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 34D306B0011
+	for <linux-mm@kvack.org>; Wed,  1 Jun 2011 11:48:21 -0400 (EDT)
+Message-ID: <4DE65DB6.4050801@zytor.com>
+Date: Wed, 01 Jun 2011 08:41:42 -0700
+From: "H. Peter Anvin" <hpa@zytor.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 02/10] compaction: trivial clean up acct_isolated
-References: <cover.1306689214.git.minchan.kim@gmail.com> <d2a446699fd72bf439b0e538f798e3d600314d92.1306689214.git.minchan.kim@gmail.com>
-In-Reply-To: <d2a446699fd72bf439b0e538f798e3d600314d92.1306689214.git.minchan.kim@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [slubllv5 07/25] x86: Add support for cmpxchg_double
+References: <20110516202605.274023469@linux.com>  <20110516202625.197639928@linux.com> <4DDE9670.3060709@zytor.com>  <alpine.DEB.2.00.1105261315350.26578@router.home>  <4DDE9C01.2090104@zytor.com>  <alpine.DEB.2.00.1105261615130.591@router.home> <1306445159.2543.25.camel@edumazet-laptop> <alpine.DEB.2.00.1105311012420.18755@router.home> <4DE50632.90906@zytor.com> <alpine.DEB.2.00.1105311058030.19928@router.home> <4DE576EA.6070906@zytor.com> <alpine.DEB.2.00.1105311846230.31190@router.home> <4DE57FBB.8040408@zytor.com> <alpine.DEB.2.00.1106010910430.22901@router.home>
+In-Reply-To: <alpine.DEB.2.00.1106010910430.22901@router.home>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: Eric Dumazet <eric.dumazet@gmail.com>, Pekka Enberg <penberg@cs.helsinki.fi>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>
 
-On 05/29/2011 02:13 PM, Minchan Kim wrote:
-> acct_isolated of compaction uses page_lru_base_type which returns only
-> base type of LRU list so it never returns LRU_ACTIVE_ANON or LRU_ACTIVE_FILE.
-> In addtion, cc->nr_[anon|file] is used in only acct_isolated so it doesn't have
-> fields in conpact_control.
-> This patch removes fields from compact_control and makes clear function of
-> acct_issolated which counts the number of anon|file pages isolated.
->
-> Cc: KOSAKI Motohiro<kosaki.motohiro@jp.fujitsu.com>
-> Cc: Mel Gorman<mgorman@suse.de>
-> Cc: Rik van Riel<riel@redhat.com>
-> Cc: Andrea Arcangeli<aarcange@redhat.com>
-> Cc: Johannes Weiner<hannes@cmpxchg.org>
-> Reviewed-by: KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
-> Signed-off-by: Minchan Kim<minchan.kim@gmail.com>
+On 06/01/2011 07:13 AM, Christoph Lameter wrote:
+>>
+>> Per your own description:
+>>
+>> "CMPXCHG_DOUBLE only compiles in detection support. It needs to be set
+>> if there is a chance that processor supports these instructions."
+>>
+>> That condition is always TRUE, so no Kconfig is needed.
+> 
+> There are several early processors (especially from AMD it seems) that do
+> not support cmpxchg16b. If one builds a kernel specifically for the early
+> cpus then the support does not need to be enabled.
+> 
 
-Acked-by: Rik van Riel <riel@redhat.com>
+We don't support building kernels specifically for those early CPUs as
+far as I know.  Besides, it is a very small set.  Even if we did, the
+conditional as you have specified it is wrong, and I mean "not even in
+the general ballpark of correct".
+
+> This is also an issue going beyond x86. Other platforms mostly do not
+> support double word cmpxchg so the code for this feature also does not
+> need to be included for those builds.
+
+That's fine; just set it unconditionally for x86.
+
+	-hpa
+
+-- 
+H. Peter Anvin, Intel Open Source Technology Center
+I work for Intel.  I don't speak on their behalf.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
