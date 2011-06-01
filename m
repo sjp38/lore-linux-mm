@@ -1,111 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id A457B6B002B
-	for <linux-mm@kvack.org>; Tue, 31 May 2011 20:57:53 -0400 (EDT)
-Date: Wed, 1 Jun 2011 01:57:47 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH] mm: compaction: Abort compaction if too many pages are
- isolated and caller is asynchronous
-Message-ID: <20110601005747.GC7019@csn.ul.ie>
-References: <20110530131300.GQ5044@csn.ul.ie>
- <20110530143109.GH19505@random.random>
- <20110530153748.GS5044@csn.ul.ie>
- <20110530165546.GC5118@suse.de>
- <20110530175334.GI19505@random.random>
- <20110531121620.GA3490@barrios-laptop>
- <20110531122437.GJ19505@random.random>
- <20110531133340.GB3490@barrios-laptop>
- <20110531141402.GK19505@random.random>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 320FD6B0011
+	for <linux-mm@kvack.org>; Tue, 31 May 2011 21:15:52 -0400 (EDT)
+Date: Wed, 1 Jun 2011 03:15:27 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: KVM induced panic on 2.6.38[2367] & 2.6.39
+Message-ID: <20110601011527.GN19505@random.random>
+References: <4DE44333.9000903@fnarfbargle.com>
+ <20110531054729.GA16852@liondog.tnic>
+ <4DE4B432.1090203@fnarfbargle.com>
+ <20110531103808.GA6915@eferding.osrc.amd.com>
+ <4DE4FA2B.2050504@fnarfbargle.com>
+ <alpine.LSU.2.00.1105311517480.21107@sister.anvils>
+ <4DE589C5.8030600@fnarfbargle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110531141402.GK19505@random.random>
+In-Reply-To: <4DE589C5.8030600@fnarfbargle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Minchan Kim <minchan.kim@gmail.com>, Mel Gorman <mgorman@suse.de>, akpm@linux-foundation.org, Ury Stankevich <urykhy@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, stable@kernel.org
+To: Brad Campbell <lists2009@fnarfbargle.com>
+Cc: Hugh Dickins <hughd@google.com>, Borislav Petkov <bp@alien8.de>, linux-kernel@vger.kernel.org, kvm@vger.kernel.org, linux-mm <linux-mm@kvack.org>, Izik Eidus <ieidus@redhat.com>
 
-On Tue, May 31, 2011 at 04:14:02PM +0200, Andrea Arcangeli wrote:
-> On Tue, May 31, 2011 at 10:33:40PM +0900, Minchan Kim wrote:
-> > I checked them before sending patch but I got failed to find strange things. :(
+Hello,
+
+On Wed, Jun 01, 2011 at 08:37:25AM +0800, Brad Campbell wrote:
+> On 01/06/11 06:31, Hugh Dickins wrote:
+> > Brad, my suspicion is that in each case the top 16 bits of RDX have been
+> > mysteriously corrupted from ffff to 0000, causing the general protection
+> > faults.  I don't understand what that has to do with KSM.
+> >
+> > But it's only a suspicion, because I can't make sense of the "Code:"
+> > lines in your traces, they have more than the expected 64 bytes, and
+> > only one of them has a ">" (with no"<") to mark faulting instruction.
+> >
+> > I did try compiling the 2.6.39 kernel from your config, but of course
+> > we have different compilers, so although I got close, it wasn't exact.
+> >
+> > Would you mind mailing me privately (it's about 73MB) the "objdump -trd"
+> > output for your original vmlinux (with KSM on)?  (Those -trd options are
+> > the ones I'm used to typing, I bet not they're not all relevant.)
+> >
+> > Of course, it's only a tiny fraction of that output that I need,
+> > might be better to cut it down to remove_rmap_item_from_tree and
+> > dup_fd and ksm_scan_thread, if you have the time to do so.
 > 
-> My review also doesn't show other bugs in migrate_pages callers like
-> that one.
+> Would you believe about 20 seconds after I pressed send the kernel oopsed.
 > 
-> > Now I am checking the page's SwapBacked flag can be changed
-> > between before and after of migrate_pages so accounting of NR_ISOLATED_XX can
-> > make mistake. I am approaching the failure, too. Hmm.
+> http://www.fnarfbargle.com/private/003_kernel_oops/
 > 
-> When I checked that, I noticed the ClearPageSwapBacked in swapcache if
-> radix insertion fails, but that happens before adding the page in the
-> LRU so it shouldn't have a chance to be isolated.
+> oops reproduced here, but an un-munged version is in that directory 
+> alongside the kernel.
 > 
+> [36542.880228] general protection fault: 0000 [#1] SMP
 
-After hammering three machines for several hours, I managed to trigger
-this once on x86 !CONFIG_SMP CONFIG_PREEMPT HIGHMEM4G (so no PAE)
-and caught the following trace.
+Reminds me of another oops that was reported on the kvm list for
+2.6.38.1 with message id 4D8C6110.6090204. There the top 16 bits of
+rsi were flipped and it was a general protection too because of
+hitting on the not mappable virtual range.
 
-May 31 23:45:37 arnold kernel: WARNING: at include/linux/vmstat.h:167 compact_zone+0xf8/0x53c()
-May 31 23:45:37 arnold kernel: Hardware name:  
-May 31 23:45:37 arnold kernel: Modules linked in: 3c59x mii sr_mod forcedeth cdrom ext4 mbcache jbd2 crc16 sd_mod ata_generic pata_amd sata_nv libata scsi_mod
-May 31 23:45:37 arnold kernel: Pid: 16172, comm: usemem Not tainted 2.6.38.4-autobuild #17
-May 31 23:45:37 arnold kernel: Call Trace:
-May 31 23:45:37 arnold kernel: [<c10277f5>] ? warn_slowpath_common+0x65/0x7a
-May 31 23:45:37 arnold kernel: [<c1098b12>] ? compact_zone+0xf8/0x53c
-May 31 23:45:37 arnold kernel: [<c1027819>] ? warn_slowpath_null+0xf/0x13
-May 31 23:45:37 arnold kernel: [<c1098b12>] ? compact_zone+0xf8/0x53c
-May 31 23:45:37 arnold kernel: [<c1098fe3>] ? compact_zone_order+0x8d/0x95
-May 31 23:45:37 arnold kernel: [<c1099068>] ? try_to_compact_pages+0x7d/0xc8
-May 31 23:45:37 arnold kernel: [<c107ba56>] ? __alloc_pages_direct_compact+0x71/0x102
-May 31 23:45:37 arnold kernel: [<c107be15>] ? __alloc_pages_nodemask+0x32e/0x57d
-May 31 23:45:37 arnold kernel: [<c10914a6>] ? anon_vma_prepare+0x13/0x109
-May 31 23:45:37 arnold kernel: [<c109fb01>] ? do_huge_pmd_anonymous_page+0xc9/0x285
-May 31 23:45:37 arnold kernel: [<c1018f6a>] ? do_page_fault+0x0/0x346
-May 31 23:45:37 arnold kernel: [<c108cb5e>] ? handle_mm_fault+0x7b/0x13a
-May 31 23:45:37 arnold kernel: [<c1018f6a>] ? do_page_fault+0x0/0x346
-May 31 23:45:37 arnold kernel: [<c1019298>] ? do_page_fault+0x32e/0x346
-May 31 23:45:37 arnold kernel: [<c104a234>] ? trace_hardirqs_off+0xb/0xd
-May 31 23:45:37 arnold kernel: [<c100482c>] ? do_softirq+0x9f/0xb5
-May 31 23:45:37 arnold kernel: [<c12a5dee>] ?  restore_all_notrace+0x0/0x18
-May 31 23:45:37 arnold kernel: [<c1018f6a>] ? do_page_fault+0x0/0x346
-May 31 23:45:37 arnold kernel: [<c104e91e>] ?  trace_hardirqs_on_caller+0xfd/0x11e
-May 31 23:45:37 arnold kernel: [<c1018f6a>] ? do_page_fault+0x0/0x346
-May 31 23:45:37 arnold kernel: [<c12a61d9>] ? error_code+0x5d/0x64
-May 31 23:45:37 arnold kernel: [<c1018f6a>] ? do_page_fault+0x0/0x346
+http://www.virtall.com/files/temp/kvm.txt
+http://www.virtall.com/files/temp/config-2.6.38.1
+http://virtall.com/files/temp/mmu-objdump.txt
 
-This is triggering in compactions too_many_isolated() where the
-NR_ISOLATED_FILE counter has gone negative so the damage was already
-done. Most likely, the damage was caused when compaction called
-putback_lru_pages() on pages that failed the migration that were
-accounted as isolated anon during isolation and putback as isolated
-file magically.
+That oops happened in kvm_unmap_rmapp though, but it looked memory
+corruption (Avi suggested use after free) but it was a production
+system so we couldn't debug it further.
 
-It's almost 2am so I'm wiped but the first thing in the morning
-I want to check is if http://lkml.org/lkml/2010/8/26/32 is
-relevant. Specifically, if during transparent hugepage collapsing
-or splitting we are not protected by the anon_vma lock allowing an
-imbalance to occur while calling release_pte_pages(). This seems a
-bit far-reached though as I'd think at least the anon counter would
-be corrupted by that.
+I recommend next thing to reproduce again with 2.6.39 or
+3.0.0-rc1. Let's fix your scsi trouble if needed but it's better you
+test with 2.6.39.
 
-A related possibility is that if the wrong anon_vma is being locked
-then there is a race between collapse_huge_page and when migration
-drops to 0 allowing release_pte_pages() to miss the page entirely.
-Again, wrong counter being corrupted you'd think.
+We'd need chmod +r vmlinux on private/003_kernel_oops/
 
-Another possibility is that because this is !PAE that the !SMP version
-of native_pmdp_get_and_clear is somehow insufficient although I can't
-think how it might be - unless the lack of a barrier with preemption
-enabled is somehow a factor. Again, it's reaching because one would
-expect the anon counter to get messed up, not the file one.
-
-I can't formulate a theory as to how PageSwapBacked gets cleared during
-migration that would cause compaction's putback_lru_pages to decrement
-the wrong counter. Maybe sleep will figure it out :(
-
--- 
-Mel Gorman
-SUSE Labs
+Thanks,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
