@@ -1,64 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 0FBA26B004A
-	for <linux-mm@kvack.org>; Wed,  1 Jun 2011 14:56:08 -0400 (EDT)
-Date: Wed, 1 Jun 2011 20:55:58 +0200 (CEST)
-From: Thomas Gleixner <tglx@linutronix.de>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 1C3B06B004A
+	for <linux-mm@kvack.org>; Wed,  1 Jun 2011 15:09:20 -0400 (EDT)
+Received: from kpbe19.cbf.corp.google.com (kpbe19.cbf.corp.google.com [172.25.105.83])
+	by smtp-out.google.com with ESMTP id p51J9Flg011235
+	for <linux-mm@kvack.org>; Wed, 1 Jun 2011 12:09:16 -0700
+Received: from pwi16 (pwi16.prod.google.com [10.241.219.16])
+	by kpbe19.cbf.corp.google.com with ESMTP id p51J9DKi005887
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 1 Jun 2011 12:09:14 -0700
+Received: by pwi16 with SMTP id 16so174994pwi.7
+        for <linux-mm@kvack.org>; Wed, 01 Jun 2011 12:09:13 -0700 (PDT)
+Date: Wed, 1 Jun 2011 12:09:12 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
 Subject: Re: [PATCH] Make GFP_DMA allocations w/o ZONE_DMA emit a warning
  instead of failing
-In-Reply-To: <20110601181918.GO3660@n2100.arm.linux.org.uk>
-Message-ID: <alpine.LFD.2.02.1106012043080.3078@ionos>
+In-Reply-To: <alpine.LFD.2.02.1106012043080.3078@ionos>
+Message-ID: <alpine.DEB.2.00.1106011205410.17065@chino.kir.corp.google.com>
 References: <1306922672-9012-1-git-send-email-dbaryshkov@gmail.com> <BANLkTinBkdVd90g3-uiQP41z1S1sXUdRmQ@mail.gmail.com> <BANLkTikrRRzGLbMD47_xJz+xpgftCm1C2A@mail.gmail.com> <alpine.DEB.2.00.1106011017260.13089@chino.kir.corp.google.com>
- <20110601181918.GO3660@n2100.arm.linux.org.uk>
+ <20110601181918.GO3660@n2100.arm.linux.org.uk> <alpine.LFD.2.02.1106012043080.3078@ionos>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Cc: David Rientjes <rientjes@google.com>, Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: Russell King - ARM Linux <linux@arm.linux.org.uk>, Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Wed, 1 Jun 2011, Russell King - ARM Linux wrote:
+On Wed, 1 Jun 2011, Thomas Gleixner wrote:
 
-> On Wed, Jun 01, 2011 at 10:23:15AM -0700, David Rientjes wrote:
-> > On Wed, 1 Jun 2011, Dmitry Eremin-Solenikov wrote:
-> > 
-> > > I've hit this with IrDA driver on PXA. Also I've seen the report regarding
-> > > other ARM platform (ep-something). Thus I've included Russell in the cc.
-> > > 
-> > 
-> > So you want to continue to allow the page allocator to return pages from 
-> > anywhere, even when GFP_DMA is specified, just as though it was lowmem?
+> > That is NOT an unreasonable request, but it seems that its far too much
+> > to ask of you.
 > 
-> No.  What *everyone* is asking for is to allow the situation which has
-> persisted thus far to continue for ONE MORE RELEASE but with a WARNING
-> so that these problems can be found without causing REGRESSIONS.
+> Full ack.
 > 
-> That is NOT an unreasonable request, but it seems that its far too much
-> to ask of you.
+> David,
+> 
+> stop that nonsense already. You changed the behaviour and broke stuff
+> which was working fine before for whatever reason. That behaviour was
+> in the kernel for ages and we tolerated the abuse.
+> 
 
-Full ack.
+Did I nack this patch and not realize it?
 
-David,
-
-stop that nonsense already. You changed the behaviour and broke stuff
-which was working fine before for whatever reason. That behaviour was
-in the kernel for ages and we tolerated the abuse.
-
-So making it a warning for this release and then break stuff which has
-not been fixed is a sensible request and the only sensible approach.
-
-If you think that you need to force that behaviour change now, then
-you better go and audit _ALL_ GFP_DMA users yourself for correctness
-and fix them case by case either by replacing the GFP_DMA flag or by
-selecting ZONE_DMA with a proper changelog for every instance.
-
-It's not up to your total ignorance of reality to break stuff at will
-and then paper over the problems you caused by selecting ZONE_DMA
-which will keep the abusers around forever.
-
-Thanks,
-
-	tglx
+Does my patch fix the warning for pxaficp_ir that would still be emitted 
+with this patch?  If the driver uses GFP_DMA and nobody from the arm side 
+is prepared to remove it yet, then I'd suggest merging my patch until that 
+can be determined.  Otherwise, you have no guarantees about where the 
+memory is actually coming from.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
