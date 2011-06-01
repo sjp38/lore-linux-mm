@@ -1,59 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 01F4C6B004A
-	for <linux-mm@kvack.org>; Wed,  1 Jun 2011 17:40:25 -0400 (EDT)
-Date: Wed, 1 Jun 2011 22:40:18 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH] mm: compaction: Abort compaction if too many pages are
- isolated and caller is asynchronous
-Message-ID: <20110601214018.GC7306@suse.de>
-References: <20110530153748.GS5044@csn.ul.ie>
- <20110530165546.GC5118@suse.de>
- <20110530175334.GI19505@random.random>
- <20110531121620.GA3490@barrios-laptop>
- <20110531122437.GJ19505@random.random>
- <20110531133340.GB3490@barrios-laptop>
- <20110531141402.GK19505@random.random>
- <20110601005747.GC7019@csn.ul.ie>
- <20110601175809.GB7306@suse.de>
- <20110601191529.GY19505@random.random>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 3344E6B004A
+	for <linux-mm@kvack.org>; Wed,  1 Jun 2011 17:43:22 -0400 (EDT)
+Received: by ewy9 with SMTP id 9so112857ewy.14
+        for <linux-mm@kvack.org>; Wed, 01 Jun 2011 14:43:19 -0700 (PDT)
+Date: Thu, 2 Jun 2011 00:43:13 +0300
+From: Maxin B John <maxin.john@gmail.com>
+Subject: [PATCH] mm: dmapool: fix possible use after free in
+ dmam_pool_destroy()
+Message-ID: <20110601214313.GA3724@maxin>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110601191529.GY19505@random.random>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Minchan Kim <minchan.kim@gmail.com>, akpm@linux-foundation.org, Ury Stankevich <urykhy@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, stable@kernel.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, dima@android.com, eike-kernel@sf-tec.de, willy@linux.intel.com
 
-On Wed, Jun 01, 2011 at 09:15:29PM +0200, Andrea Arcangeli wrote:
-> On Wed, Jun 01, 2011 at 06:58:09PM +0100, Mel Gorman wrote:
-> > Umm, HIGHMEM4G implies a two-level pagetable layout so where are
-> > things like _PAGE_BIT_SPLITTING being set when THP is enabled?
-> 
-> They should be set on the pgd, pud_offset/pgd_offset will just bypass.
-> The splitting bit shouldn't be special about it, the present bit
-> should work the same.
+"dma_pool_destroy(pool)" calls "kfree(pool)". The freed pointer "pool"
+is again passed as an argument to the function "devres_destroy()".
+This patch fixes the possible use after free.
 
-This comment is misleading at best then.
+Please let me know your comments.
 
-#define _PAGE_BIT_SPLITTING     _PAGE_BIT_UNUSED1 /* only valid on a PSE pmd */
-
-At the PGD level, it can have PSE set obviously but it's not a
-PMD. I confess I haven't checked the manual to see if it's safe to
-use _PAGE_BIT_UNUSED1 like this so am taking your word for it. I
-found that the bug is far harder to reproduce with 3 pagetable levels
-than with 2 but that is just timing. So far it has proven impossible
-on x86-64 at least within 27 hours so that has me looking at how
-pagetable management between x86 and x86-64 differ.
-
-Barriers are a big different between how 32-bit !SMP and X86-64 but
-don't know yet which one is relevant or if this is even the right
-direction.
-
--- 
-Mel Gorman
-SUSE Labs
+Signed-off-by: Maxin B. John <maxin.john@gmail.com>
+---
+diff --git a/mm/dmapool.c b/mm/dmapool.c
+index 03bf3bb..fbb58e3 100644
+--- a/mm/dmapool.c
++++ b/mm/dmapool.c
+@@ -500,7 +500,7 @@ void dmam_pool_destroy(struct dma_pool *pool)
+ {
+ 	struct device *dev = pool->dev;
+ 
+-	dma_pool_destroy(pool);
+ 	WARN_ON(devres_destroy(dev, dmam_pool_release, dmam_pool_match, pool));
++	dma_pool_destroy(pool);
+ }
+ EXPORT_SYMBOL(dmam_pool_destroy);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
