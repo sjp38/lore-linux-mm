@@ -1,38 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id EB44D6B004A
-	for <linux-mm@kvack.org>; Wed,  1 Jun 2011 15:15:41 -0400 (EDT)
-Date: Wed, 1 Jun 2011 21:15:29 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH] mm: compaction: Abort compaction if too many pages are
- isolated and caller is asynchronous
-Message-ID: <20110601191529.GY19505@random.random>
-References: <20110530143109.GH19505@random.random>
- <20110530153748.GS5044@csn.ul.ie>
- <20110530165546.GC5118@suse.de>
- <20110530175334.GI19505@random.random>
- <20110531121620.GA3490@barrios-laptop>
- <20110531122437.GJ19505@random.random>
- <20110531133340.GB3490@barrios-laptop>
- <20110531141402.GK19505@random.random>
- <20110601005747.GC7019@csn.ul.ie>
- <20110601175809.GB7306@suse.de>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id C49176B004A
+	for <linux-mm@kvack.org>; Wed,  1 Jun 2011 15:46:46 -0400 (EDT)
+Date: Wed, 1 Jun 2011 21:46:37 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCH] Make GFP_DMA allocations w/o ZONE_DMA emit a warning
+ instead of failing
+In-Reply-To: <alpine.DEB.2.00.1106011205410.17065@chino.kir.corp.google.com>
+Message-ID: <alpine.LFD.2.02.1106012134120.3078@ionos>
+References: <1306922672-9012-1-git-send-email-dbaryshkov@gmail.com> <BANLkTinBkdVd90g3-uiQP41z1S1sXUdRmQ@mail.gmail.com> <BANLkTikrRRzGLbMD47_xJz+xpgftCm1C2A@mail.gmail.com> <alpine.DEB.2.00.1106011017260.13089@chino.kir.corp.google.com>
+ <20110601181918.GO3660@n2100.arm.linux.org.uk> <alpine.LFD.2.02.1106012043080.3078@ionos> <alpine.DEB.2.00.1106011205410.17065@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110601175809.GB7306@suse.de>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Minchan Kim <minchan.kim@gmail.com>, akpm@linux-foundation.org, Ury Stankevich <urykhy@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, stable@kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: Russell King - ARM Linux <linux@arm.linux.org.uk>, Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Wed, Jun 01, 2011 at 06:58:09PM +0100, Mel Gorman wrote:
-> Umm, HIGHMEM4G implies a two-level pagetable layout so where are
-> things like _PAGE_BIT_SPLITTING being set when THP is enabled?
+On Wed, 1 Jun 2011, David Rientjes wrote:
+> On Wed, 1 Jun 2011, Thomas Gleixner wrote:
+> 
+> > > That is NOT an unreasonable request, but it seems that its far too much
+> > > to ask of you.
+> > 
+> > Full ack.
+> > 
+> > David,
+> > 
+> > stop that nonsense already. You changed the behaviour and broke stuff
+> > which was working fine before for whatever reason. That behaviour was
+> > in the kernel for ages and we tolerated the abuse.
+> > 
+> 
+> Did I nack this patch and not realize it?
 
-They should be set on the pgd, pud_offset/pgd_offset will just bypass.
-The splitting bit shouldn't be special about it, the present bit
-should work the same.
+No, you did not realize anything.
+ 
+> Does my patch fix the warning for pxaficp_ir that would still be emitted 
+> with this patch?  If the driver uses GFP_DMA and nobody from the arm side 
+
+Your patch does not fix anything. It papers over the problem and
+that's the f@&^%%@^#ing wrong approach.
+
+And just to be clear. You CANNOT fix a warning. You can fix the code
+which causes the warning, but that's not what your patch is
+doing. Your patch HIDES the problem.
+
+> is prepared to remove it yet, then I'd suggest merging my patch until that 
+> can be determined.  Otherwise, you have no guarantees about where the 
+> memory is actually coming from.
+
+Did you actually try to understand what I wrote? 
+
+You decided that it's a BUG just because it should not be allowed. So
+you changed the behaviour, which was perfectly fine before.
+
+Now you try to paper over the problem by selecting ZONE_DMA and refuse
+to give a grace period of _ONE_ kernel release.
+
+IOW, you are preventing that the abusers of GFP_DMA are fixed
+properly.
+
+I can see that you neither have the bandwidth nor the knowledge to
+analyse each user of GFP_DMA. And that should tell you something.
+
+If you cannot fix it yourself, then f*(&!@$#ng not break it.
+
+Thanks,
+
+	tglx
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
