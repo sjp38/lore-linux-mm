@@ -1,45 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 634666B004A
-	for <linux-mm@kvack.org>; Wed,  1 Jun 2011 14:42:16 -0400 (EDT)
-Received: from kpbe15.cbf.corp.google.com (kpbe15.cbf.corp.google.com [172.25.105.79])
-	by smtp-out.google.com with ESMTP id p51IgCrC006061
-	for <linux-mm@kvack.org>; Wed, 1 Jun 2011 11:42:13 -0700
-Received: from pxi19 (pxi19.prod.google.com [10.243.27.19])
-	by kpbe15.cbf.corp.google.com with ESMTP id p51IfrBH013322
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 1 Jun 2011 11:42:11 -0700
-Received: by pxi19 with SMTP id 19so59433pxi.1
-        for <linux-mm@kvack.org>; Wed, 01 Jun 2011 11:42:11 -0700 (PDT)
-Date: Wed, 1 Jun 2011 11:42:09 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 0FBA26B004A
+	for <linux-mm@kvack.org>; Wed,  1 Jun 2011 14:56:08 -0400 (EDT)
+Date: Wed, 1 Jun 2011 20:55:58 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
 Subject: Re: [PATCH] Make GFP_DMA allocations w/o ZONE_DMA emit a warning
  instead of failing
-In-Reply-To: <BANLkTinrviHh40fTfqyeB=SrcNS0yqZM0w@mail.gmail.com>
-Message-ID: <alpine.DEB.2.00.1106011140050.16198@chino.kir.corp.google.com>
+In-Reply-To: <20110601181918.GO3660@n2100.arm.linux.org.uk>
+Message-ID: <alpine.LFD.2.02.1106012043080.3078@ionos>
 References: <1306922672-9012-1-git-send-email-dbaryshkov@gmail.com> <BANLkTinBkdVd90g3-uiQP41z1S1sXUdRmQ@mail.gmail.com> <BANLkTikrRRzGLbMD47_xJz+xpgftCm1C2A@mail.gmail.com> <alpine.DEB.2.00.1106011017260.13089@chino.kir.corp.google.com>
- <BANLkTinrviHh40fTfqyeB=SrcNS0yqZM0w@mail.gmail.com>
+ <20110601181918.GO3660@n2100.arm.linux.org.uk>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Russell King - ARM Linux <linux@arm.linux.org.uk>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Cc: David Rientjes <rientjes@google.com>, Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Wed, 1 Jun 2011, Dmitry Eremin-Solenikov wrote:
+On Wed, 1 Jun 2011, Russell King - ARM Linux wrote:
 
-> > So you want to continue to allow the page allocator to return pages from
+> On Wed, Jun 01, 2011 at 10:23:15AM -0700, David Rientjes wrote:
+> > On Wed, 1 Jun 2011, Dmitry Eremin-Solenikov wrote:
+> > 
+> > > I've hit this with IrDA driver on PXA. Also I've seen the report regarding
+> > > other ARM platform (ep-something). Thus I've included Russell in the cc.
+> > > 
+> > 
+> > So you want to continue to allow the page allocator to return pages from 
 > > anywhere, even when GFP_DMA is specified, just as though it was lowmem?
 > 
-> Yes and no. I'm asking for the grace period for the drivers authors to be able
-> to fix their code. After a grace period of one or two majors this permission
-> should be removed and your original patch should be effective.
+> No.  What *everyone* is asking for is to allow the situation which has
+> persisted thus far to continue for ONE MORE RELEASE but with a WARNING
+> so that these problems can be found without causing REGRESSIONS.
 > 
+> That is NOT an unreasonable request, but it seems that its far too much
+> to ask of you.
 
-You don't need to wait for the code to be fixed, you just need to enable 
-CONFIG_ZONE_DMA.  This is a configuration issue.  If that GFP_DMA can be 
-removed later, that's great, but right now it requires it.  Why can't you 
-enable the config option?
+Full ack.
+
+David,
+
+stop that nonsense already. You changed the behaviour and broke stuff
+which was working fine before for whatever reason. That behaviour was
+in the kernel for ages and we tolerated the abuse.
+
+So making it a warning for this release and then break stuff which has
+not been fixed is a sensible request and the only sensible approach.
+
+If you think that you need to force that behaviour change now, then
+you better go and audit _ALL_ GFP_DMA users yourself for correctness
+and fix them case by case either by replacing the GFP_DMA flag or by
+selecting ZONE_DMA with a proper changelog for every instance.
+
+It's not up to your total ignorance of reality to break stuff at will
+and then paper over the problems you caused by selecting ZONE_DMA
+which will keep the abusers around forever.
+
+Thanks,
+
+	tglx
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
