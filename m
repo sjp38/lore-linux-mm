@@ -1,14 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id C4CD96B0011
-	for <linux-mm@kvack.org>; Wed,  1 Jun 2011 11:55:59 -0400 (EDT)
-Message-ID: <4DE66107.10908@redhat.com>
-Date: Wed, 01 Jun 2011 11:55:51 -0400
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id CF6BB6B0011
+	for <linux-mm@kvack.org>; Wed,  1 Jun 2011 12:03:18 -0400 (EDT)
+Message-ID: <4DE662BF.3000309@redhat.com>
+Date: Wed, 01 Jun 2011 12:03:11 -0400
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 04/10] Add additional isolation mode
-References: <cover.1306689214.git.minchan.kim@gmail.com> <5b0f0be7ee441ea27ffcad81d2637ac09407acf3.1306689214.git.minchan.kim@gmail.com>
-In-Reply-To: <5b0f0be7ee441ea27ffcad81d2637ac09407acf3.1306689214.git.minchan.kim@gmail.com>
+Subject: Re: [PATCH v2 05/10] compaction: make isolate_lru_page with filter
+ aware
+References: <cover.1306689214.git.minchan.kim@gmail.com> <4feb21bdac4c00a30f3c0d9361bd3565e6afa72f.1306689214.git.minchan.kim@gmail.com>
+In-Reply-To: <4feb21bdac4c00a30f3c0d9361bd3565e6afa72f.1306689214.git.minchan.kim@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -17,30 +18,26 @@ To: Minchan Kim <minchan.kim@gmail.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>
 
 On 05/29/2011 02:13 PM, Minchan Kim wrote:
-> There are some places to isolate lru page and I believe
-> users of isolate_lru_page will be growing.
-> The purpose of them is each different so part of isolated pages
-> should put back to LRU, again.
+> In async mode, compaction doesn't migrate dirty or writeback pages.
+> So, it's meaningless to pick the page and re-add it to lru list.
 >
-> The problem is when we put back the page into LRU,
-> we lose LRU ordering and the page is inserted at head of LRU list.
-> It makes unnecessary LRU churning so that vm can evict working set pages
-> rather than idle pages.
+> Of course, when we isolate the page in compaction, the page might
+> be dirty or writeback but when we try to migrate the page, the page
+> would be not dirty, writeback. So it could be migrated. But it's
+> very unlikely as isolate and migration cycle is much faster than
+> writeout.
 >
-> This patch adds new modes when we isolate page in LRU so we don't isolate pages
-> if we can't handle it. It could reduce LRU churning.
+> So, this patch helps cpu and prevent unnecessary LRU churning.
 >
-> This patch doesn't change old behavior. It's just used by next patches.
->
-> Cc: KOSAKI Motohiro<kosaki.motohiro@jp.fujitsu.com>
-> Cc: Mel Gorman<mgorman@suse.de>
+> Reviewed-by: KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
+> Reviewed-by: KOSAKI Motohiro<kosaki.motohiro@jp.fujitsu.com>
+> Acked-by: Johannes Weiner<hannes@cmpxchg.org>
+> Acked-by: Mel Gorman<mgorman@suse.de>
 > Cc: Rik van Riel<riel@redhat.com>
 > Cc: Andrea Arcangeli<aarcange@redhat.com>
-> Cc: Johannes Weiner<hannes@cmpxchg.org>
-> Cc: KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
 > Signed-off-by: Minchan Kim<minchan.kim@gmail.com>
 
-Acked-by: Rik van Riel <riel@redhat.com>
+ACked-by: Rik van Riel <riel@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
