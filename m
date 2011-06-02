@@ -1,51 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 9EA416B0078
-	for <linux-mm@kvack.org>; Thu,  2 Jun 2011 18:04:24 -0400 (EDT)
-Date: Fri, 3 Jun 2011 00:03:56 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH] mm: compaction: Abort compaction if too many pages are
- isolated and caller is asynchronous
-Message-ID: <20110602220356.GG2802@random.random>
-References: <20110530175334.GI19505@random.random>
- <20110531121620.GA3490@barrios-laptop>
- <20110531122437.GJ19505@random.random>
- <20110531133340.GB3490@barrios-laptop>
- <20110531141402.GK19505@random.random>
- <20110531143734.GB13418@barrios-laptop>
- <20110531143830.GC13418@barrios-laptop>
- <20110602182302.GA2802@random.random>
- <20110602202156.GA23486@barrios-laptop>
- <20110602205912.GA24579@barrios-laptop>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 5B2976B004A
+	for <linux-mm@kvack.org>; Thu,  2 Jun 2011 18:19:32 -0400 (EDT)
+Date: Fri, 3 Jun 2011 00:19:06 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 7/8] vmscan: memcg-aware unevictable page rescue scanner
+Message-ID: <20110602221906.GA4554@cmpxchg.org>
+References: <1306909519-7286-1-git-send-email-hannes@cmpxchg.org>
+ <1306909519-7286-8-git-send-email-hannes@cmpxchg.org>
+ <BANLkTi=cHVZP+fZwHNM3cXVyw53kJ2HQmw@mail.gmail.com>
+ <BANLkTimvuwLYwzRT-6k_oVwKBzBEo500s-rXETerTskYHfontQ@mail.gmail.com>
+ <BANLkTik1X72Re_QKM4iCaPbxCx2kcnfH_w@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110602205912.GA24579@barrios-laptop>
+In-Reply-To: <BANLkTik1X72Re_QKM4iCaPbxCx2kcnfH_w@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Mel Gorman <mgorman@suse.de>, Mel Gorman <mel@csn.ul.ie>, akpm@linux-foundation.org, Ury Stankevich <urykhy@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>
+Cc: Ying Han <yinghan@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 
-On Fri, Jun 03, 2011 at 05:59:13AM +0900, Minchan Kim wrote:
-> Now that I look code more, it would meet VM_BUG_ON of get_page if the page is really
-> freed. I think if we hold zone->lock to prevent prep_new_page racing, it would be okay.
+On Fri, Jun 03, 2011 at 07:01:34AM +0900, Hiroyuki Kamezawa wrote:
+> 2011/6/3 Ying Han <yinghan@google.com>:
+> > On Thu, Jun 2, 2011 at 6:27 AM, Hiroyuki Kamezawa
+> > <kamezawa.hiroyuki@gmail.com> wrote:
+> >> 2011/6/1 Johannes Weiner <hannes@cmpxchg.org>:
+> >>> Once the per-memcg lru lists are exclusive, the unevictable page
+> >>> rescue scanner can no longer work on the global zone lru lists.
+> >>>
+> >>> This converts it to go through all memcgs and scan their respective
+> >>> unevictable lists instead.
+> >>>
+> >>> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> >>
+> >> Hm, isn't it better to have only one GLOBAL LRU for unevictable pages ?
+> >> memcg only needs counter for unevictable pages and LRU is not necessary
+> >> to be per memcg because we don't reclaim it...
+> >
+> > Hmm. Are we suggesting to keep one un-evictable LRU list for all
+> > memcgs? So we will have
+> > exclusive lru only for file and anon. If so, we are not done to make
+> > all the lru list being exclusive
+> > which is critical later to improve the zone->lru_lock contention
+> > across the memcgs
+> >
+> considering lrulock, yes, maybe you're right.
 
-There would be problems with split_huge_page too, we can't even use
-get_page_unless_zero unless it's a lru page and we hold the lru_lock
-and that's an hot lock too.
+That's one of the complications.
 
-> But it's rather overkill so I will add my sign to your patch if we don't have better idea
-> until tomorrow. :)
+> > Sorry If i misinterpret the suggestion here
+> >
+> 
+> My concern is I don't know for what purpose this function is used ..
 
-Things like compound_trans_head are made to protect against
-split_huge_page like in ksm, not exactly to get to the head page when
-the page is being freed, so it's a little tricky. If we could get to
-the head page safe starting from a tail page it'd solve some issues
-for memory-failure too, which is currently using compound_head unsafe
-too, but at least that's running after a catastrophic hardware failure
-so the safer the better but the little race is unlikely to ever be an
-issue for memory-failure (and it's same issue for hugetlbfs and slub
-order 3).
+I am not sure how it's supposed to be used, either.  But it's
+documented to be a 'really big hammer' and it's kicked off from
+userspace.  So I suppose having the thing go through all memcgs bears
+a low risk of being a problem.  My suggestion is we go that way until
+someone complains.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
