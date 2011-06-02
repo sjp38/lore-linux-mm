@@ -1,16 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id D656E900001
-	for <linux-mm@kvack.org>; Thu,  2 Jun 2011 03:01:48 -0400 (EDT)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 850746B00EA
+	for <linux-mm@kvack.org>; Thu,  2 Jun 2011 03:01:51 -0400 (EDT)
 From: Dave Chinner <david@fromorbit.com>
-Subject: =?UTF-8?q?=5BPATCH=2010/12=5D=20superblock=3A=20add=20filesystem=20shrinker=20operations?=
-Date: Thu,  2 Jun 2011 17:01:05 +1000
-Message-Id: <1306998067-27659-11-git-send-email-david@fromorbit.com>
+Subject: [PATCH 12/12] xfs: make use of new shrinker callout for the inode cache
+Date: Thu,  2 Jun 2011 17:01:07 +1000
+Message-Id: <1306998067-27659-13-git-send-email-david@fromorbit.com>
 In-Reply-To: <1306998067-27659-1-git-send-email-david@fromorbit.com>
 References: <1306998067-27659-1-git-send-email-david@fromorbit.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-fsdevel@vger.kernel.org
@@ -18,138 +15,230 @@ Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, xfs@oss.sgi.com
 
 From: Dave Chinner <dchinner@redhat.com>
 
-Now we have a per-superblock shrinker implementation, we can add a
-filesystem specific callout to it to allow filesystem internal
-caches to be shrunk by the superblock shrinker.
-
-Rather than perpetuate the multipurpose shrinker callback API (i.e.
-nr_to_scan == 0 meaning "tell me how many objects freeable in the
-cache), two operations will be added. The first will return the
-number of objects that are freeable, the second is the actual
-shrinker call.
+Convert the inode reclaim shrinker to use the new per-sb shrinker
+operations. This allows much bigger reclaim batches to be used, and
+allows the XFS inode cache to be shrunk in proportion with the VFS
+dentry and inode caches. This avoids the problem of the VFS caches
+being shrunk significantly before the XFS inode cache is shrunk
+resulting in imbalances in the caches during reclaim.
 
 Signed-off-by: Dave Chinner <dchinner@redhat.com>
 ---
- Documentation/filesystems/vfs.txt |   16 +++++++++++++
- fs/super.c                        |   43 +++++++++++++++++++++++++++---------
- include/linux/fs.h                |    2 +
- 3 files changed, 50 insertions(+), 11 deletions(-)
+ fs/xfs/linux-2.6/xfs_super.c |   26 ++++++++++-----
+ fs/xfs/linux-2.6/xfs_sync.c  |   71 ++++++++++++++++--------------------------
+ fs/xfs/linux-2.6/xfs_sync.h  |    5 +--
+ 3 files changed, 46 insertions(+), 56 deletions(-)
 
-diff --git a/Documentation/filesystems/vfs.txt b/Documentation/filesystems/vfs.txt
-index 88b9f55..dc732d2 100644
---- a/Documentation/filesystems/vfs.txt
-+++ b/Documentation/filesystems/vfs.txt
-@@ -229,6 +229,8 @@ struct super_operations {
- 
-         ssize_t (*quota_read)(struct super_block *, int, char *, size_t, loff_t);
-         ssize_t (*quota_write)(struct super_block *, int, const char *, size_t, loff_t);
-+	int (*nr_cached_objects)(struct super_block *);
-+	void (*free_cached_objects)(struct super_block *, int);
- };
- 
- All methods are called without any locks being held, unless otherwise
-@@ -301,6 +303,20 @@ or bottom half).
- 
-   quota_write: called by the VFS to write to filesystem quota file.
- 
-+  nr_cached_objects: called by the sb cache shrinking function for the
-+	filesystem to return the number of freeable cached objects it contains.
-+	Optional.
-+
-+  free_cache_objects: called by the sb cache shrinking function for the
-+	filesystem to scan the number of objects indicated to try to free them.
-+	Optional, but any filesystem implementing this method needs to also
-+	implement ->nr_cached_objects for it to be called correctly.
-+
-+	We can't do anything with any errors that the filesystem might
-+	encountered, hence the void return type. This will never be called if
-+	the VM is trying to reclaim under GFP_NOFS conditions, hence this
-+	method does not need to handle that situation itself.
-+
- Whoever sets up the inode is responsible for filling in the "i_op" field. This
- is a pointer to a "struct inode_operations" which describes the methods that
- can be performed on individual inodes.
-diff --git a/fs/super.c b/fs/super.c
-index f4630d9..b55f968 100644
---- a/fs/super.c
-+++ b/fs/super.c
-@@ -41,7 +41,8 @@ DEFINE_SPINLOCK(sb_lock);
- static int prune_super(struct shrinker *shrink, struct shrink_control *sc)
+diff --git a/fs/xfs/linux-2.6/xfs_super.c b/fs/xfs/linux-2.6/xfs_super.c
+index 1e3a7ce..b133b69 100644
+--- a/fs/xfs/linux-2.6/xfs_super.c
++++ b/fs/xfs/linux-2.6/xfs_super.c
+@@ -1087,11 +1087,6 @@ xfs_fs_put_super(
  {
- 	struct super_block *sb;
--	int count;
-+	int	fs_objects = 0;
-+	int	total_objects;
+ 	struct xfs_mount	*mp = XFS_M(sb);
  
- 	sb = container_of(shrink, struct super_block, s_shrink);
+-	/*
+-	 * Unregister the memory shrinker before we tear down the mount
+-	 * structure so we don't have memory reclaim racing with us here.
+-	 */
+-	xfs_inode_shrinker_unregister(mp);
+ 	xfs_syncd_stop(mp);
  
-@@ -64,22 +65,42 @@ static int prune_super(struct shrinker *shrink, struct shrink_control *sc)
- 		return -1;
+ 	/*
+@@ -1491,8 +1486,6 @@ xfs_fs_fill_super(
+ 	if (error)
+ 		goto out_filestream_unmount;
+ 
+-	xfs_inode_shrinker_register(mp);
+-
+ 	error = xfs_mountfs(mp);
+ 	if (error)
+ 		goto out_syncd_stop;
+@@ -1515,7 +1508,6 @@ xfs_fs_fill_super(
+ 	return 0;
+ 
+  out_syncd_stop:
+-	xfs_inode_shrinker_unregister(mp);
+ 	xfs_syncd_stop(mp);
+  out_filestream_unmount:
+ 	xfs_filestream_unmount(mp);
+@@ -1540,7 +1532,6 @@ xfs_fs_fill_super(
  	}
  
--	if (sc->nr_to_scan) {
--		/* proportion the scan between the two cacheN? */
--		int total;
-+	if (sb->s_op && sb->s_op->nr_cached_objects)
-+		fs_objects = sb->s_op->nr_cached_objects(sb);
-+
-+	total_objects = sb->s_nr_dentry_unused +
-+			sb->s_nr_inodes_unused + fs_objects + 1;
+  fail_unmount:
+-	xfs_inode_shrinker_unregister(mp);
+ 	xfs_syncd_stop(mp);
  
--		total = sb->s_nr_dentry_unused + sb->s_nr_inodes_unused + 1;
--		count = (sc->nr_to_scan * sb->s_nr_dentry_unused) / total;
-+	if (sc->nr_to_scan) {
-+		int	dentries;
-+		int	inodes;
-+
-+		/* proportion the scan between the cacheN? */
-+		dentries = (sc->nr_to_scan * sb->s_nr_dentry_unused) /
-+							total_objects;
-+		inodes = (sc->nr_to_scan * sb->s_nr_inodes_unused) /
-+							total_objects;
-+		if (fs_objects)
-+			fs_objects = (sc->nr_to_scan * fs_objects) /
-+							total_objects;
-+		/*
-+		 * prune the dcache first as the icache is pinned by it, then
-+		 * prune the icache, followed by the filesystem specific caches
-+		 */
-+		prune_dcache_sb(sb, dentries);
-+		prune_icache_sb(sb, inodes);
- 
--		/* prune dcache first as icache is pinned by it */
--		prune_dcache_sb(sb, count);
--		prune_icache_sb(sb, sc->nr_to_scan - count);
-+		if (fs_objects && sb->s_op->free_cached_objects) {
-+			sb->s_op->free_cached_objects(sb, fs_objects);
-+			fs_objects = sb->s_op->nr_cached_objects(sb);
-+		}
-+		total_objects = sb->s_nr_dentry_unused +
-+				sb->s_nr_inodes_unused + fs_objects;
- 	}
- 
--	count = ((sb->s_nr_dentry_unused + sb->s_nr_inodes_unused) / 100)
--						* sysctl_vfs_cache_pressure;
-+	total_objects = (total_objects / 100) * sysctl_vfs_cache_pressure;
- 	up_read(&sb->s_umount);
--	return count;
-+	return total_objects;
+ 	/*
+@@ -1566,6 +1557,21 @@ xfs_fs_mount(
+ 	return mount_bdev(fs_type, flags, dev_name, data, xfs_fs_fill_super);
  }
  
- /**
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index c3b3462..4f0ed0a 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -1654,6 +1654,8 @@ struct super_operations {
- 	ssize_t (*quota_write)(struct super_block *, int, const char *, size_t, loff_t);
- #endif
- 	int (*bdev_try_to_free_page)(struct super_block*, struct page*, gfp_t);
-+	int (*nr_cached_objects)(struct super_block *);
-+	void (*free_cached_objects)(struct super_block *, int);
++static int
++xfs_fs_nr_cached_objects(
++	struct super_block	*sb)
++{
++	return xfs_reclaim_inodes_count(XFS_M(sb));
++}
++
++static void
++xfs_fs_free_cached_objects(
++	struct super_block	*sb,
++	int			nr_to_scan)
++{
++	xfs_reclaim_inodes_nr(XFS_M(sb), nr_to_scan);
++}
++
+ static const struct super_operations xfs_super_operations = {
+ 	.alloc_inode		= xfs_fs_alloc_inode,
+ 	.destroy_inode		= xfs_fs_destroy_inode,
+@@ -1579,6 +1585,8 @@ static const struct super_operations xfs_super_operations = {
+ 	.statfs			= xfs_fs_statfs,
+ 	.remount_fs		= xfs_fs_remount,
+ 	.show_options		= xfs_fs_show_options,
++	.nr_cached_objects	= xfs_fs_nr_cached_objects,
++	.free_cached_objects	= xfs_fs_free_cached_objects,
  };
  
+ static struct file_system_type xfs_fs_type = {
+diff --git a/fs/xfs/linux-2.6/xfs_sync.c b/fs/xfs/linux-2.6/xfs_sync.c
+index 8ecad5f..9bd7e89 100644
+--- a/fs/xfs/linux-2.6/xfs_sync.c
++++ b/fs/xfs/linux-2.6/xfs_sync.c
+@@ -179,6 +179,8 @@ restart:
+ 		if (error == EFSCORRUPTED)
+ 			break;
+ 
++		cond_resched();
++
+ 	} while (nr_found && !done);
+ 
+ 	if (skipped) {
+@@ -986,6 +988,8 @@ restart:
+ 
+ 			*nr_to_scan -= XFS_LOOKUP_BATCH;
+ 
++			cond_resched();
++
+ 		} while (nr_found && !done && *nr_to_scan > 0);
+ 
+ 		if (trylock && !done)
+@@ -1003,7 +1007,7 @@ restart:
+ 	 * ensure that when we get more reclaimers than AGs we block rather
+ 	 * than spin trying to execute reclaim.
+ 	 */
+-	if (trylock && skipped && *nr_to_scan > 0) {
++	if (skipped && (flags & SYNC_WAIT) && *nr_to_scan > 0) {
+ 		trylock = 0;
+ 		goto restart;
+ 	}
+@@ -1021,44 +1025,38 @@ xfs_reclaim_inodes(
+ }
+ 
  /*
+- * Inode cache shrinker.
++ * Scan a certain number of inodes for reclaim.
+  *
+  * When called we make sure that there is a background (fast) inode reclaim in
+- * progress, while we will throttle the speed of reclaim via doiing synchronous
++ * progress, while we will throttle the speed of reclaim via doing synchronous
+  * reclaim of inodes. That means if we come across dirty inodes, we wait for
+  * them to be cleaned, which we hope will not be very long due to the
+  * background walker having already kicked the IO off on those dirty inodes.
+  */
+-static int
+-xfs_reclaim_inode_shrink(
+-	struct shrinker	*shrink,
+-	struct shrink_control *sc)
++void
++xfs_reclaim_inodes_nr(
++	struct xfs_mount	*mp,
++	int			nr_to_scan)
+ {
+-	struct xfs_mount *mp;
+-	struct xfs_perag *pag;
+-	xfs_agnumber_t	ag;
+-	int		reclaimable;
+-	int nr_to_scan = sc->nr_to_scan;
+-	gfp_t gfp_mask = sc->gfp_mask;
+-
+-	mp = container_of(shrink, struct xfs_mount, m_inode_shrink);
+-	if (nr_to_scan) {
+-		/* kick background reclaimer and push the AIL */
+-		xfs_syncd_queue_reclaim(mp);
+-		xfs_ail_push_all(mp->m_ail);
++	/* kick background reclaimer and push the AIL */
++	xfs_syncd_queue_reclaim(mp);
++	xfs_ail_push_all(mp->m_ail);
+ 
+-		if (!(gfp_mask & __GFP_FS))
+-			return -1;
++	xfs_reclaim_inodes_ag(mp, SYNC_TRYLOCK | SYNC_WAIT, &nr_to_scan);
++}
+ 
+-		xfs_reclaim_inodes_ag(mp, SYNC_TRYLOCK | SYNC_WAIT,
+-					&nr_to_scan);
+-		/* terminate if we don't exhaust the scan */
+-		if (nr_to_scan > 0)
+-			return -1;
+-       }
++/*
++ * Return the number of reclaimable inodes in the filesystem for
++ * the shrinker to determine how much to reclaim.
++ */
++int
++xfs_reclaim_inodes_count(
++	struct xfs_mount	*mp)
++{
++	struct xfs_perag	*pag;
++	xfs_agnumber_t		ag = 0;
++	int			reclaimable = 0;
+ 
+-	reclaimable = 0;
+-	ag = 0;
+ 	while ((pag = xfs_perag_get_tag(mp, ag, XFS_ICI_RECLAIM_TAG))) {
+ 		ag = pag->pag_agno + 1;
+ 		reclaimable += pag->pag_ici_reclaimable;
+@@ -1067,18 +1065,3 @@ xfs_reclaim_inode_shrink(
+ 	return reclaimable;
+ }
+ 
+-void
+-xfs_inode_shrinker_register(
+-	struct xfs_mount	*mp)
+-{
+-	mp->m_inode_shrink.shrink = xfs_reclaim_inode_shrink;
+-	mp->m_inode_shrink.seeks = DEFAULT_SEEKS;
+-	register_shrinker(&mp->m_inode_shrink);
+-}
+-
+-void
+-xfs_inode_shrinker_unregister(
+-	struct xfs_mount	*mp)
+-{
+-	unregister_shrinker(&mp->m_inode_shrink);
+-}
+diff --git a/fs/xfs/linux-2.6/xfs_sync.h b/fs/xfs/linux-2.6/xfs_sync.h
+index e3a6ad2..2e15685 100644
+--- a/fs/xfs/linux-2.6/xfs_sync.h
++++ b/fs/xfs/linux-2.6/xfs_sync.h
+@@ -43,6 +43,8 @@ void xfs_quiesce_attr(struct xfs_mount *mp);
+ void xfs_flush_inodes(struct xfs_inode *ip);
+ 
+ int xfs_reclaim_inodes(struct xfs_mount *mp, int mode);
++int xfs_reclaim_inodes_count(struct xfs_mount *mp);
++void xfs_reclaim_inodes_nr(struct xfs_mount *mp, int nr_to_scan);
+ 
+ void xfs_inode_set_reclaim_tag(struct xfs_inode *ip);
+ void __xfs_inode_set_reclaim_tag(struct xfs_perag *pag, struct xfs_inode *ip);
+@@ -54,7 +56,4 @@ int xfs_inode_ag_iterator(struct xfs_mount *mp,
+ 	int (*execute)(struct xfs_inode *ip, struct xfs_perag *pag, int flags),
+ 	int flags);
+ 
+-void xfs_inode_shrinker_register(struct xfs_mount *mp);
+-void xfs_inode_shrinker_unregister(struct xfs_mount *mp);
+-
+ #endif
 -- 
 1.7.5.1
 
