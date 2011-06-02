@@ -1,126 +1,161 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id D17CA6B004A
-	for <linux-mm@kvack.org>; Thu,  2 Jun 2011 11:38:04 -0400 (EDT)
-Date: Thu, 2 Jun 2011 17:37:54 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH] mm: compaction: Abort compaction if too many pages are
- isolated and caller is asynchronous
-Message-ID: <20110602153754.GF19505@random.random>
-References: <20110531133340.GB3490@barrios-laptop>
- <20110531141402.GK19505@random.random>
- <20110601005747.GC7019@csn.ul.ie>
- <20110601175809.GB7306@suse.de>
- <20110601191529.GY19505@random.random>
- <20110601214018.GC7306@suse.de>
- <20110601233036.GZ19505@random.random>
- <20110602010352.GD7306@suse.de>
- <20110602132954.GC19505@random.random>
- <20110602145019.GG7306@suse.de>
+	by kanga.kvack.org (Postfix) with ESMTP id C7F586B004A
+	for <linux-mm@kvack.org>; Thu,  2 Jun 2011 11:51:51 -0400 (EDT)
+Received: from kpbe17.cbf.corp.google.com (kpbe17.cbf.corp.google.com [172.25.105.81])
+	by smtp-out.google.com with ESMTP id p52FpfAu012816
+	for <linux-mm@kvack.org>; Thu, 2 Jun 2011 08:51:42 -0700
+Received: from qwb8 (qwb8.prod.google.com [10.241.193.72])
+	by kpbe17.cbf.corp.google.com with ESMTP id p52FpdXq010113
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 2 Jun 2011 08:51:40 -0700
+Received: by qwb8 with SMTP id 8so483815qwb.25
+        for <linux-mm@kvack.org>; Thu, 02 Jun 2011 08:51:39 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110602145019.GG7306@suse.de>
+In-Reply-To: <20110602075028.GB20630@cmpxchg.org>
+References: <1306909519-7286-1-git-send-email-hannes@cmpxchg.org>
+	<BANLkTikgqSsg5+49295h7kdZ=sQpZLs4kw@mail.gmail.com>
+	<BANLkTi=sYtLGk2_VQLejEU2rQ0JBgg_ZmQ@mail.gmail.com>
+	<20110602075028.GB20630@cmpxchg.org>
+Date: Thu, 2 Jun 2011 08:51:39 -0700
+Message-ID: <BANLkTi=AZG4LKUdeODB0uP=_CVBRnGs_Nw@mail.gmail.com>
+Subject: Re: [patch 0/8] mm: memcg naturalization -rc2
+From: Ying Han <yinghan@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Minchan Kim <minchan.kim@gmail.com>, akpm@linux-foundation.org, Ury Stankevich <urykhy@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, stable@kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 
-On Thu, Jun 02, 2011 at 03:50:19PM +0100, Mel Gorman wrote:
-> I thought spin lock acquisition was one-way where loads/stores
-> preceeding the lock are allowed to leak into the protected region
-> but not the other way around?
+On Thu, Jun 2, 2011 at 12:50 AM, Johannes Weiner <hannes@cmpxchg.org> wrote=
+:
+> On Wed, Jun 01, 2011 at 09:05:18PM -0700, Ying Han wrote:
+>> On Wed, Jun 1, 2011 at 4:52 PM, Hiroyuki Kamezawa
+>> <kamezawa.hiroyuki@gmail.com> wrote:
+>> > 2011/6/1 Johannes Weiner <hannes@cmpxchg.org>:
+>> >> Hi,
+>> >>
+>> >> this is the second version of the memcg naturalization series. =A0The
+>> >> notable changes since the first submission are:
+>> >>
+>> >> =A0 =A0o the hierarchy walk is now intermittent and will abort and
+>> >> =A0 =A0 =A0remember the last scanned child after sc->nr_to_reclaim pa=
+ges
+>> >> =A0 =A0 =A0have been reclaimed during the walk in one zone (Rik)
+>> >>
+>> >> =A0 =A0o the global lru lists are never scanned when memcg is enabled
+>> >> =A0 =A0 =A0after #2 'memcg-aware global reclaim', which makes this pa=
+tch
+>> >> =A0 =A0 =A0self-sufficient and complete without requiring the per-mem=
+cg lru
+>> >> =A0 =A0 =A0lists to be exclusive (Michal)
+>> >>
+>> >> =A0 =A0o renamed sc->memcg and sc->current_memcg to sc->target_mem_cg=
+roup
+>> >> =A0 =A0 =A0and sc->mem_cgroup and fixed their documentation, I hope t=
+his is
+>> >> =A0 =A0 =A0better understandable now (Rik)
+>> >>
+>> >> =A0 =A0o the reclaim statistic counters have been renamed. =A0there i=
+s no
+>> >> =A0 =A0 =A0more distinction between 'pgfree' and 'pgsteal', it is now
+>> >> =A0 =A0 =A0'pgreclaim' in both cases; 'kswapd' has been replaced by
+>> >> =A0 =A0 =A0'background'
+>> >>
+>> >> =A0 =A0o fixed a nasty crash in the hierarchical soft limit check tha=
+t
+>> >> =A0 =A0 =A0happened during global reclaim in memcgs that are hierarch=
+ical
+>> >> =A0 =A0 =A0but have no hierarchical parents themselves
+>> >>
+>> >> =A0 =A0o properly implemented the memcg-aware unevictable page rescue
+>> >> =A0 =A0 =A0scanner, there were several blatant bugs in there
+>> >>
+>> >> =A0 =A0o documentation on new public interfaces
+>> >>
+>> >> Thanks for your input on the first version.
+>> >>
+>> >> I ran microbenchmarks (sparse file catting, essentially) to stress
+>> >> reclaim and LRU operations. =A0There is no measurable overhead for
+>> >> !CONFIG_MEMCG, memcg disabled during boot, memcg enabled but no
+>> >> configured groups, and hard limit reclaim.
+>> >>
+>> >> I also ran single-threaded kernbenchs in four unlimited memcgs in
+>> >> parallel, contained in a hard-limited hierarchical parent that put
+>> >> constant pressure on the workload. =A0There is no measurable differen=
+ce
+>> >> in runtime, the pgpgin/pgpgout counters, and fairness among memcgs in
+>> >> this test compared to an unpatched kernel. =A0Needs more evaluation,
+>> >> especially with a higher number of memcgs.
+>> >>
+>> >> The soft limit changes are also proven to work in so far that it is
+>> >> possible to prioritize between children in a hierarchy under pressure
+>> >> and that runtime differences corresponded directly to the soft limit
+>> >> settings in the previously described kernbench setup with staggered
+>> >> soft limits on the groups, but this needs quantification.
+>> >>
+>> >> Based on v2.6.39.
+>> >>
+>> >
+>> > Hmm, I welcome and will review this patches but.....some points I want=
+ to say.
+>> >
+>> > 1. No more conflict with Ying's work ?
+>> > =A0 =A0Could you explain what she has and what you don't in this v2 ?
+>> > =A0 =A0If Ying's one has something good to be merged to your set, plea=
+se
+>> > include it.
+>>
+>> My patch I sent out last time was doing rework of soft_limit reclaim.
+>> It convert the RB-tree based to
+>> a linked list round-robin fashion of all memcgs across their soft
+>> limit per-zone.
+>>
+>> I will apply this patch and try to test it. After that i will get
+>> better idea whether or not it is being covered here.
+>
+> Thanks!!
+>
+>> > 4. This work can be splitted into some small works.
+>> > =A0 =A0 a) fix for current code and clean ups
+>>
+>> > =A0 =A0 a') statistics
+>>
+>> > =A0 =A0 b) soft limit rework
+>>
+>> > =A0 =A0 c) change global reclaim
+>>
+>> My last patchset starts with a patch reverting the RB-tree
+>> implementation of the soft_limit
+>> reclaim, and then the new round-robin implementation comes on the
+>> following patches.
+>>
+>> I like the ordering here, and that is consistent w/ the plan we
+>> discussed earlier in LSF. Changing
+>> the global reclaim would be the last step when the changes before that
+>> have been well understood
+>> and tested.
+>>
+>> Sorry If that is how it is done here. I will read through the patchset.
+>
+> It's not. =A0The way I implemented soft limits depends on global reclaim
+> performing hierarchical reclaim. =A0I don't see how I can reverse the
+> order with this dependency.
 
-That's true for ia64, x86 not AFIK.
+That is something I don't quite get yet, and maybe need a closer look
+into the patchset. The current design of
+soft_limit doesn't do reclaim hierarchically but instead links the
+memcgs together on per-zone basis.
 
-> So we have
-> 
-> clear_huge_page()
-> __SetPageUptodate(page);
-> spin_lock(&mm->page_table_lock);
-> ...
-> set_pmd_at(mm, haddr, pmd, entry);
-> 
-> This spinlock itself does not guarantee that writes from
-> clear_huge_page are complete before that set_pmd_at().
+However on this patchset, we changed that design and doing
+hierarchy_walk of the memcg tree. Can we clarify more on why we made
+the design change? I can see the current design provides a efficient
+way to pick the one memcg over-their-soft-limit under shrink_zone().
 
-It does on x86.
+--Ying
 
-> Whether this is right or wrong, why is the same not true in
-> collapse_huge_page()? There we are
-> 
->        __collapse_huge_page_copy(pte, new_page, vma, address, ptl);
-> 	....
->         smp_wmb();
->         spin_lock(&mm->page_table_lock);
-> 	...
->         set_pmd_at(mm, address, pmd, _pmd);
-> 
-> with the comment stressing that this is necessary.
-
-So your first part of the patch is right, but it should be only a
-theoretical improvement.
-
-> > But smp_wmb() is optimized away at build time by cpp so this can't
-> > possibly help if you're reproducing !SMP.
-> > 
-> 
-> On X86 !SMP, this is still a barrier() which on gcc is
-> 
-> #define barrier() __asm__ __volatile__("": : :"memory")
-> 
-> so it's a compiler barrier. I'm not working on this at this at the
-> moment but when I get to it, I'll compare the object files and see
-> if there are relevant differences. Could be tomorrow before I get
-> the chance again.
-
-clear_huge_page called by do_huge_pmd_anonymous_page is an external
-function (not static so gcc can't make assumption) and that is a full
-equivalent to a barrier() after the function returns, so the only
-relevancy of a smp_wmb on x86 SMP or !SMP would be zero (unless
-X86_OOSTORE is set which I think is not, and that would only apply to
-SMP).
-
-> > >  		page_add_new_anon_rmap(page, vma, haddr);
-> > >  		set_pmd_at(mm, haddr, pmd, entry);
-> > >  		prepare_pmd_huge_pte(pgtable, mm);
-> > > @@ -753,6 +755,13 @@ int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
-> > >  
-> > >  	pmdp_set_wrprotect(src_mm, addr, src_pmd);
-> > >  	pmd = pmd_mkold(pmd_wrprotect(pmd));
-> > > +
-> > > +	/*
-> > > +	 * Write barrier to make sure the setup for the PMD is fully visible
-> > > +	 * before the set_pmd_at
-> > > +	 */
-> > > +	smp_wmb();
-> > > +
-> > >  	set_pmd_at(dst_mm, addr, dst_pmd, pmd);
-> > >  	prepare_pmd_huge_pte(pgtable, dst_mm);
-> > 
-> > This part seems superfluous to me, it's also noop for !SMP.
-> 
-> Other than being a compiler barrier.
-
-Yes but my point is this is ok to be cached in registers, the pmd
-setup doesn't need to hit on main memory to be safe, it's local.
-
-pmdp_set_wrprotect is done with a clear_bit and the dependency of the
-code will require reading that after the clear_bit on !SMP. Not sure
-how can possibly a barrier() above can matter.
-
-> > Only wmb()
-> > would stay. the pmd is perfectly fine to stay in a register, not even
-> > a compiler barrier is needed, even less a smp serialization.
-> 
-> There is an explanation in here somewhere because as I write this,
-> the test machine has survived 14 hours under continual stress without
-> the isolated counters going negative with over 128 million pages
-> successfully migrated and a million pages failed to migrate due to
-> direct compaction being called 80,000 times. It's possible it's a
-> co-incidence but it's some co-incidence!
-
-No idea...
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
