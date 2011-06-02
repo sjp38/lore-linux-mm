@@ -1,177 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id AA04E6B004A
-	for <linux-mm@kvack.org>; Thu,  2 Jun 2011 11:01:51 -0400 (EDT)
-Date: Thu, 2 Jun 2011 17:01:23 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 2/8] mm: memcg-aware global reclaim
-Message-ID: <20110602150123.GE28684@cmpxchg.org>
-References: <1306909519-7286-1-git-send-email-hannes@cmpxchg.org>
- <1306909519-7286-3-git-send-email-hannes@cmpxchg.org>
- <BANLkTikKHq=NBAPOXJVDM7ZEc9CkW+HdmQ@mail.gmail.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id A06836B004A
+	for <linux-mm@kvack.org>; Thu,  2 Jun 2011 11:37:21 -0400 (EDT)
+Date: Thu, 2 Jun 2011 08:36:41 -0700
+From: Chris Wright <chrisw@sous-sol.org>
+Subject: Re: [BUG 3.0.0-rc1] ksm: NULL pointer dereference in ksm_do_scan()
+Message-ID: <20110602153641.GJ23047@sequoia.sous-sol.org>
+References: <20110601222032.GA2858@thinkpad>
+ <2144269697.363041.1306998593180.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
+ <20110602143143.GI23047@sequoia.sous-sol.org>
+ <20110602143622.GE19505@random.random>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <BANLkTikKHq=NBAPOXJVDM7ZEc9CkW+HdmQ@mail.gmail.com>
+In-Reply-To: <20110602143622.GE19505@random.random>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Ying Han <yinghan@google.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Chris Wright <chrisw@sous-sol.org>, CAI Qian <caiqian@redhat.com>, Andrea Righi <andrea@betterlinux.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Izik Eidus <ieidus@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
 
-On Thu, Jun 02, 2011 at 10:59:01PM +0900, Hiroyuki Kamezawa wrote:
-> 2011/6/1 Johannes Weiner <hannes@cmpxchg.org>:
-> > @@ -1381,6 +1373,97 @@ u64 mem_cgroup_get_limit(struct mem_cgroup *memcg)
-> >        return min(limit, memsw);
-> >  }
-> >
-> > +/**
-> > + * mem_cgroup_hierarchy_walk - iterate over a memcg hierarchy
-> > + * @root: starting point of the hierarchy
-> > + * @prev: previous position or NULL
-> > + *
-> > + * Caller must hold a reference to @root.  While this function will
-> > + * return @root as part of the walk, it will never increase its
-> > + * reference count.
-> > + *
-> > + * Caller must clean up with mem_cgroup_stop_hierarchy_walk() when it
-> > + * stops the walk potentially before the full round trip.
-> > + */
-> > +struct mem_cgroup *mem_cgroup_hierarchy_walk(struct mem_cgroup *root,
-> > +                                            struct mem_cgroup *prev)
-> > +{
-> > +       struct mem_cgroup *mem;
-> > +
-> > +       if (mem_cgroup_disabled())
-> > +               return NULL;
-> > +
-> > +       if (!root)
-> > +               root = root_mem_cgroup;
-> > +       /*
-> > +        * Even without hierarchy explicitely enabled in the root
-> > +        * memcg, it is the ultimate parent of all memcgs.
-> > +        */
-> > +       if (!(root == root_mem_cgroup || root->use_hierarchy))
-> > +               return root;
+* Andrea Arcangeli (aarcange@redhat.com) wrote:
+> On Thu, Jun 02, 2011 at 07:31:43AM -0700, Chris Wright wrote:
+> > * CAI Qian (caiqian@redhat.com) wrote:
+> > > madvise(0x2210000, 4096, 0xc /* MADV_??? */) = 0
+> > > --- SIGSEGV (Segmentation fault) @ 0 (0) ---
+> > 
+> > Right, that's just what the program is trying to do, segfault.
+> > 
+> > > +++ killed by SIGSEGV (core dumped) +++
+> > > Segmentation fault (core dumped)
+> > > 
+> > > Did I miss anything?
+> > 
+> > I found it works but not 100% of the time.
+> > 
+> > So I just run the bug in a loop.
 > 
-> Hmm, because ROOT cgroup has no limit and control, if root=root_mem_cgroup,
-> we do full hierarchy scan always. Right ?
+> echo 0 >scan_millisecs helps.
 
-What it essentially means is that all existing memcgs in the system
-contribute to the usage of root_mem_cgroup.
+BTW, here's my stack trace (I dropped back to 2.6.39 just to see if it
+happened to be recent regression).  It looks like mm_slot is off the list:
 
-If there is global memory pressure, we need to consider reclaiming
-from every single memcg in the system.
+R10: dead000000200200 R11: dead000000100100
 
-> > +static unsigned long mem_cgroup_reclaim(struct mem_cgroup *mem,
-> > +                                       gfp_t gfp_mask,
-> > +                                       unsigned long flags)
-> > +{
-> > +       unsigned long total = 0;
-> > +       bool noswap = false;
-> > +       int loop;
-> > +
-> > +       if ((flags & MEM_CGROUP_RECLAIM_NOSWAP) || mem->memsw_is_minimum)
-> > +               noswap = true;
-> > +       for (loop = 0; loop < MEM_CGROUP_MAX_RECLAIM_LOOPS; loop++) {
-> > +               drain_all_stock_async();
-> 
-> In recent patch, I removed this call here because this wakes up
-> kworker too much.
-> I will post that patch as a bugfix. So, please adjust this call
-> somewhere which is
-> not called frequently.
+w/ ->mm == NULL.  Smells like use after free, but doesn't quite all add up.
 
-Okay, please CC me when you send out the bugfix.
+BUG: unable to handle kernel 
+ksmd-bug[14824]: segfault at 0 ip 0000000000400677 sp 00007fff987cb8b0 error 6 in ksmd-bug[400000+1000]
+NULL pointer dereference at 0000000000000060
+IP: [<ffffffff815be345>] down_read+0x19/0x28
+PGD 0 
+Oops: 0002 [#1] SMP 
+last sysfs file: /sys/devices/system/cpu/cpu15/cache/index2/shared_cpu_map
+CPU 6 
+Modules linked in: bridge stp vhost_net macvtap macvlan tun kvm_intel kvm ixgbe mdio igb [last unloaded: scsi_wait_scan]
 
-> > @@ -1927,8 +1980,7 @@ static int mem_cgroup_do_charge(struct mem_cgroup *mem, gfp_t gfp_mask,
-> >        if (!(gfp_mask & __GFP_WAIT))
-> >                return CHARGE_WOULDBLOCK;
-> >
-> > -       ret = mem_cgroup_hierarchical_reclaim(mem_over_limit, NULL,
-> > -                                             gfp_mask, flags);
-> > +       ret = mem_cgroup_reclaim(mem_over_limit, gfp_mask, flags);
-> >        if (mem_cgroup_margin(mem_over_limit) >= nr_pages)
-> >                return CHARGE_RETRY;
-> >        /*
-> 
-> It seems this clean-up around hierarchy and softlimit can be in an
-> independent patch, no ?
-
-Hm, why do you think it's a cleanup?  The hierarchical target reclaim
-code is moved to vmscan.c and as a result the entry points for hard
-limit and soft limit reclaim differ.  This is why the original
-function, mem_cgroup_hierarchical_reclaim() has to be split into two
-parts.
-
-> > @@ -1943,6 +1976,31 @@ restart:
-> >        throttle_vm_writeout(sc->gfp_mask);
-> >  }
-> >
-> > +static void shrink_zone(int priority, struct zone *zone,
-> > +                       struct scan_control *sc)
-> > +{
-> > +       unsigned long nr_reclaimed_before = sc->nr_reclaimed;
-> > +       struct mem_cgroup *root = sc->target_mem_cgroup;
-> > +       struct mem_cgroup *first, *mem = NULL;
-> > +
-> > +       first = mem = mem_cgroup_hierarchy_walk(root, mem);
-> 
-> Hmm, I think we should add some scheduling here, later.
-> (as select a group over softlimit or select a group which has
->  easily reclaimable pages on this zone.)
-> 
-> This name as hierarchy_walk() sounds like "full scan in round-robin, always".
-> Could you find better name ?
-
-Okay, I'll try.
-
-> > +       for (;;) {
-> > +               unsigned long nr_reclaimed;
-> > +
-> > +               sc->mem_cgroup = mem;
-> > +               do_shrink_zone(priority, zone, sc);
-> > +
-> > +               nr_reclaimed = sc->nr_reclaimed - nr_reclaimed_before;
-> > +               if (nr_reclaimed >= sc->nr_to_reclaim)
-> > +                       break;
-> 
-> what this calculation means ?  Shouldn't we do this quit based on the
-> number of "scan"
-> rather than "reclaimed" ?
-
-It aborts the loop once sc->nr_to_reclaim pages have been reclaimed
-from that zone during that hierarchy walk, to prevent overreclaim.
-
-If you have unbalanced sizes of memcgs in the system, it is not
-desirable to have every reclaimer scan all memcgs, but let those quit
-early that have made some progress on the bigger memcgs.
-
-It's essentially a forward progagation of the same check in
-do_shrink_zone().  It trades absolute fairness for average reclaim
-latency.
-
-Note that kswapd sets the reclaim target to infinity, so this
-optimization applies only to direct reclaimers.
-
-> > +               mem = mem_cgroup_hierarchy_walk(root, mem);
-> > +               if (mem == first)
-> > +                       break;
-> 
-> Why we quit loop  ?
-
-get_scan_count() for traditional global reclaim returns the scan
-target for the zone.
-
-With this per-memcg reclaimer, get_scan_count() will return scan
-targets for the respective per-memcg zone subsizes.
-
-So once we have gone through all memcgs, we should have scanned the
-amount of pages that global reclaim would have deemed sensible for
-that zone at that priority level.
-
-As such, this is the exit condition based on scan count you referred
-to above.
+Pid: 825, comm: ksmd Not tainted 2.6.39+ #23 Supermicro X8DTN/X8DTN
+RIP: 0010:[<ffffffff815be345>]  [<ffffffff815be345>] down_read+0x19/0x28
+RSP: 0018:ffff8801b5325e10  EFLAGS: 00010246
+RAX: 0000000000000060 RBX: 0000000000000060 RCX: 00000000ffffffff
+RDX: 0000000000000000 RSI: 0000000000000286 RDI: 0000000000000060
+RBP: ffff8801b5325e20 R08: ffffffffffffffff R09: ffff8801b5325db0
+R10: dead000000200200 R11: dead000000100100 R12: 0000000000000000
+R13: ffffffff81a20e60 R14: 0000000000000000 R15: 0000000000000000
+FS:  0000000000000000(0000) GS:ffff88033fc80000(0000) knlGS:0000000000000000
+CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+CR2: 0000000000000060 CR3: 0000000001a03000 CR4: 00000000000006e0
+DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
+Process ksmd (pid: 825, threadinfo ffff8801b5324000, task ffff8801b55196b0)
+Stack:
+ ffff8801b5325e20 0000000000000060 ffff8801b5325ee0 ffffffff810eec3a
+ ffff88033fd51cc0 ffff8801b5325e80 ffff8801b5325ee0 ffffffff00000000
+ ffff8801b55196b0 ffff8801b5325e98 ffff8801b5324000 00000064b5324010
+Call Trace:
+ [<ffffffff810eec3a>] ksm_scan_thread+0x12d/0xc47
+ [<ffffffff8105a6e7>] ? wake_up_bit+0x2a/0x2a
+ [<ffffffff810eeb0d>] ? try_to_merge_with_ksm_page+0x498/0x498
+ [<ffffffff8105a25e>] kthread+0x82/0x8a
+ [<ffffffff815c6354>] kernel_thread_helper+0x4/0x10
+ [<ffffffff8105a1dc>] ? kthread_worker_fn+0x13f/0x13f
+ [<ffffffff815c6350>] ? gs_change+0xb/0xb
+Code: 48 0f c1 10 48 85 d2 74 05 e8 98 84 c8 ff 58 5b c9 c3 55 48 89 e5 53 48 83 ec 08 0f 1f 44 00 00 48 89 fb e8 85 f4 ff ff 48 89 d8 <f0> 48 ff 00 79 05 e8 40 84 c8 ff 5a 5b c9 c3 55 48 89 e5 0f 1f 
+RIP  [<ffffffff815be345>] down_read+0x19/0x28
+ RSP <ffff8801b5325e10>
+CR2: 0000000000000060
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
