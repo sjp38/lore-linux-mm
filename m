@@ -1,61 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id C12BF6B007B
-	for <linux-mm@kvack.org>; Thu,  2 Jun 2011 17:02:39 -0400 (EDT)
-Received: from hpaq12.eem.corp.google.com (hpaq12.eem.corp.google.com [172.25.149.12])
-	by smtp-out.google.com with ESMTP id p52L2bPP021420
-	for <linux-mm@kvack.org>; Thu, 2 Jun 2011 14:02:37 -0700
-Received: from qyk10 (qyk10.prod.google.com [10.241.83.138])
-	by hpaq12.eem.corp.google.com with ESMTP id p52L1INs017242
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 2 Jun 2011 14:02:36 -0700
-Received: by qyk10 with SMTP id 10so768979qyk.11
-        for <linux-mm@kvack.org>; Thu, 02 Jun 2011 14:02:31 -0700 (PDT)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A0366B007B
+	for <linux-mm@kvack.org>; Thu,  2 Jun 2011 17:24:25 -0400 (EDT)
+Date: Thu, 2 Jun 2011 14:23:48 -0700
+From: Chris Wright <chrisw@sous-sol.org>
+Subject: Re: [PATCH] ksm: fix race between ksmd and exiting task
+Message-ID: <20110602212348.GM23047@sequoia.sous-sol.org>
+References: <20110601222032.GA2858@thinkpad>
+ <2144269697.363041.1306998593180.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
+ <20110602141927.GA2011@thinkpad>
+ <20110602164841.GK23047@sequoia.sous-sol.org>
+ <20110602173549.GL23047@sequoia.sous-sol.org>
+ <20110602201236.GB4114@thinkpad>
 MIME-Version: 1.0
-In-Reply-To: <BANLkTi=cHVZP+fZwHNM3cXVyw53kJ2HQmw@mail.gmail.com>
-References: <1306909519-7286-1-git-send-email-hannes@cmpxchg.org>
-	<1306909519-7286-8-git-send-email-hannes@cmpxchg.org>
-	<BANLkTi=cHVZP+fZwHNM3cXVyw53kJ2HQmw@mail.gmail.com>
-Date: Thu, 2 Jun 2011 14:02:31 -0700
-Message-ID: <BANLkTimvuwLYwzRT-6k_oVwKBzBEo500s-rXETerTskYHfontQ@mail.gmail.com>
-Subject: Re: [patch 7/8] vmscan: memcg-aware unevictable page rescue scanner
-From: Ying Han <yinghan@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110602201236.GB4114@thinkpad>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Andrea Righi <andrea@betterlinux.com>
+Cc: Chris Wright <chrisw@sous-sol.org>, CAI Qian <caiqian@redhat.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Izik Eidus <ieidus@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
 
-On Thu, Jun 2, 2011 at 6:27 AM, Hiroyuki Kamezawa
-<kamezawa.hiroyuki@gmail.com> wrote:
-> 2011/6/1 Johannes Weiner <hannes@cmpxchg.org>:
->> Once the per-memcg lru lists are exclusive, the unevictable page
->> rescue scanner can no longer work on the global zone lru lists.
->>
->> This converts it to go through all memcgs and scan their respective
->> unevictable lists instead.
->>
->> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
->
-> Hm, isn't it better to have only one GLOBAL LRU for unevictable pages ?
-> memcg only needs counter for unevictable pages and LRU is not necessary
-> to be per memcg because we don't reclaim it...
+* Andrea Righi (andrea@betterlinux.com) wrote:
+> On Thu, Jun 02, 2011 at 10:35:49AM -0700, Chris Wright wrote:
+> > Andrea Righi reported a case where an exiting task can race against
+> > ksmd.
+> > 
+> > ksm_scan.mm_slot == the only registered mm
+> > CPU 1 (bug program)		CPU 2 (ksmd)
+> >  				list_empty() is false
+> > lock
+> > ksm_scan.mm_slot
+> > list_del
+> > unlock
+> >  				slot == &ksm_mm_head (but list is now empty_)
+> > 
+> > Close this race by revalidating that the new slot is not simply the list
+> > head again.
+> 
+> I confirm this fixes the problem on my side.
+> 
+> Tested-by: Andrea Righi <andrea@betterlinux.com>
 
-Hmm. Are we suggesting to keep one un-evictable LRU list for all
-memcgs? So we will have
-exclusive lru only for file and anon. If so, we are not done to make
-all the lru list being exclusive
-which is critical later to improve the zone->lru_lock contention
-across the memcgs
+Great, thanks for verifying.
 
-Sorry If i misinterpret the suggestion here
-
---Ying
-
-
-> Thanks,
-> -Kame
->
+thanks,
+-chris
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
