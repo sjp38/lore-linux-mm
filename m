@@ -1,56 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B9D36B004A
-	for <linux-mm@kvack.org>; Thu,  2 Jun 2011 08:14:27 -0400 (EDT)
-From: Rolf Eike Beer <eike-kernel@sf-tec.de>
-Subject: Re: [PATCH] mm: dmapool: fix possible use after free in dmam_pool_destroy()
-Date: Thu, 02 Jun 2011 11:47:36 +0200
-Message-ID: <3647102.7SB09c9jIV@donald.sf-tec.de>
-In-Reply-To: <20110601214313.GA3724@maxin>
-References: <20110601214313.GA3724@maxin>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id C5BE56B004A
+	for <linux-mm@kvack.org>; Thu,  2 Jun 2011 08:27:40 -0400 (EDT)
+Received: by iwg8 with SMTP id 8so864806iwg.14
+        for <linux-mm@kvack.org>; Thu, 02 Jun 2011 05:27:39 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: multipart/signed; boundary="nextPart4796684.krExRduWp2"; micalg="pgp-sha1"; protocol="application/pgp-signature"
-Content-Transfer-Encoding: 7Bit
+In-Reply-To: <20110530094337.GF20166@tiehlicka.suse.cz>
+References: <BANLkTinLvqa0DiayLOwvxE9zBmqb4Y7Rww@mail.gmail.com>
+	<20110523112558.GC11439@tiehlicka.suse.cz>
+	<BANLkTi=2SwKFfwBxrQr3xLYSUzoGOy6oKA@mail.gmail.com>
+	<20110530094337.GF20166@tiehlicka.suse.cz>
+Date: Thu, 2 Jun 2011 20:27:39 +0800
+Message-ID: <BANLkTimaHMHv44CP0RH-Mur-Mb6qyR341Q@mail.gmail.com>
+Subject: Re: [Patch] mm: remove noswapaccount kernel parameter
+From: =?UTF-8?Q?Am=C3=A9rico_Wang?= <xiyou.wangcong@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Maxin B John <maxin.john@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, dima@android.com, willy@linux.intel.com
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
+On Mon, May 30, 2011 at 5:43 PM, Michal Hocko <mhocko@suse.cz> wrote:
+> On Mon 23-05-11 19:50:21, Am??rico Wang wrote:
+>> On Mon, May 23, 2011 at 7:25 PM, Michal Hocko <mhocko@suse.cz> wrote:
+>> > On Mon 23-05-11 19:08:08, Am??rico Wang wrote:
+>> >> noswapaccount is deprecated by swapaccount=0, and it is scheduled
+>> >> to be removed in 2.6.40.
+>> >
+>> > Similar patch is already in the Andrew's tree
+>>
+>> Ah, my google search failed to find it. :-/
+>>
+>> > (memsw-remove-noswapaccount-kernel-parameter.patch). Andrew, are you
+>> > going to push it?
+>> > Btw. the patch is missing documentation part which is present here.
+>> >
+>>
+>> Hmm, maybe I should send a delta patch... Andrew?
+>
+> Have you reposted that patch? The primary patch which removes the
+> paramter already hit the Linus tree (a2c8990a).
+>
 
---nextPart4796684.krExRduWp2
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="us-ascii"
-
-Maxin B John wrote:
-> "dma_pool_destroy(pool)" calls "kfree(pool)". The freed pointer "pool"
-> is again passed as an argument to the function "devres_destroy()".
-> This patch fixes the possible use after free.
-> 
-> Please let me know your comments.
-
-The pool itself is not used there, only the address where the pool has been. 
-This will only lead to any trouble if something else is allocated to the same 
-place and inserted into the devres list of the same device between the 
-dma_pool_destroy() and devres_destroy().
-
-But I agree that this is bad style. But if you are going to change this please 
-also have a look at devm_iounmap() in lib/devres.c. Maybe also the devm_*irq* 
-functions need the same changes.
-
-Eike
---nextPart4796684.krExRduWp2
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: This is a digitally signed message part.
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2.0.15 (GNU/Linux)
-
-iEYEABECAAYFAk3nXDgACgkQXKSJPmm5/E6PkQCgnoldftmAq8/gLjBVzhSZHyAo
-t/UAoIqHRNZWNvy/tYTarR9622AJPD59
-=0ACZ
------END PGP SIGNATURE-----
-
---nextPart4796684.krExRduWp2--
+Cool, will resend it!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
