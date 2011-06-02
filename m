@@ -1,76 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B3776B004A
-	for <linux-mm@kvack.org>; Thu,  2 Jun 2011 06:00:36 -0400 (EDT)
-Date: Thu, 2 Jun 2011 12:00:07 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 0/8] mm: memcg naturalization -rc2
-Message-ID: <20110602100007.GB20725@cmpxchg.org>
-References: <1306909519-7286-1-git-send-email-hannes@cmpxchg.org>
- <BANLkTikgqSsg5+49295h7kdZ=sQpZLs4kw@mail.gmail.com>
- <20110602073335.GA20630@cmpxchg.org>
- <BANLkTikztP6RoyBgMqUHgrzJFLZrHMCs=Q@mail.gmail.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 96AAB6B004A
+	for <linux-mm@kvack.org>; Thu,  2 Jun 2011 06:38:25 -0400 (EDT)
+Date: Thu, 2 Jun 2011 11:38:20 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH v2] mm: compaction: fix special case -1 order checks
+Message-ID: <20110602103820.GE7306@suse.de>
+References: <20110530123831.GG20166@tiehlicka.suse.cz>
+ <20110530151633.GB1505@barrios-laptop>
+ <20110530152450.GH20166@tiehlicka.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <BANLkTikztP6RoyBgMqUHgrzJFLZrHMCs=Q@mail.gmail.com>
+In-Reply-To: <20110530152450.GH20166@tiehlicka.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Ying Han <yinghan@google.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, Jun 02, 2011 at 06:06:51PM +0900, Hiroyuki Kamezawa wrote:
-> 2011/6/2 Johannes Weiner <hannes@cmpxchg.org>:
-> > On Thu, Jun 02, 2011 at 08:52:47AM +0900, Hiroyuki Kamezawa wrote:
-> >> 2011/6/1 Johannes Weiner <hannes@cmpxchg.org>:
-> >
-> > The patch series is not a performance optimization.  But I can include
-> > it to prove there are no regressions.
-> >
-> yes, it's helpful.
-
-Okay.
-
-> >>   Hmm, how about splitting patch 2/8 into small patches and see what happens in
-> >>   3.2 or 3.3 ? While that, we can make softlimit works better.
-> >>   (and once we do 2/8, our direction will be fixed to the direction to
-> >> remove global LRU.)
-> >
-> > Do you have specific parts in mind that could go stand-alone?
-> >
-> > One thing I can think of is splitting up those parts:
-> >
-> >  1. move /target/ reclaim to generic code
-> >
-> >  2. convert /global/ reclaim from global lru to hierarchy reclaim
-> >     including root_mem_cgroup
+On Mon, May 30, 2011 at 05:24:50PM +0200, Michal Hocko wrote:
+> <SNIP>
+> mm: compaction: fix special case -1 order checks
 > 
-> Hmm, at brief look
-> patch 2/8
->  - hierarchy walk rewrite code should be stand alone and can be merged
-> 1st, as clean-up
+> 56de7263 (mm: compaction: direct compact when a high-order allocation
+> fails) introduced a check for cc->order == -1 in compact_finished. We
+> should continue compacting in that case because the request came from
+> userspace and there is no particular order to compact for.
+> Similar check has been added by 82478fb7 (mm: compaction:
+> prevent division-by-zero during user-requested compaction) for
+> compaction_suitable.
+> 
+> The check is, however, done after zone_watermark_ok which uses order as
+> a right hand argument for shifts. Not only watermark check is pointless
+> if we can break out without it but it also uses 1 << -1 which is not
+> well defined (at least from C standard). Let's move the -1 check above
+> zone_watermark_ok.
+> 
+> [Minchan Kim <minchan.kim@gmail.com> - caught compaction_suitable]
+> Signed-off-by: Michal Hocko <mhocko@suse.cz>
+> Cc: Mel Gorman <mgorman@suse.de>
 
-You mean introducing mem_cgroup_hierarchy_walk() and make use of it in
-mem_cgroup_hierarchical_reclaim() as a first step?
+Acked-by: Mel Gorman <mgorman@suse.de>
 
->  - root cgroup LRU handling was required for performance. I think we
-> removed tons of
->   atomic ops and can remove that special handling personally. But this change of
->   root cgroup handling should be in separate patch. with performance report.
-
-I disagree.
-
-With view on the whole patch series, linking ungrouped process pages
-to the root_mem_cgroup is traded against
-
-   1. linking ungrouped process pages to the global LRU
-
-   2. linking grouped process pages to both the global LRU and the
-      memcg LRU
-
-The comparison you propose is neither fair nor relevant because it
-would never make sense to merge that patch without the others.
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
