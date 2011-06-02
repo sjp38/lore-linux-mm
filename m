@@ -1,13 +1,16 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id A8CB56B007D
-	for <linux-mm@kvack.org>; Thu,  2 Jun 2011 03:01:43 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with SMTP id 295DA6B007E
+	for <linux-mm@kvack.org>; Thu,  2 Jun 2011 03:01:44 -0400 (EDT)
 From: Dave Chinner <david@fromorbit.com>
-Subject: [PATCH 05/12] inode: convert inode_stat.nr_unused to per-cpu counters
-Date: Thu,  2 Jun 2011 17:01:00 +1000
-Message-Id: <1306998067-27659-6-git-send-email-david@fromorbit.com>
+Subject: [PATCH 03/12] vmscan: reduce wind up shrinker->nr when shrinker can't do work
+Date: Thu,  2 Jun 2011 17:00:58 +1000
+Message-Id: <1306998067-27659-4-git-send-email-david@fromorbit.com>
 In-Reply-To: <1306998067-27659-1-git-send-email-david@fromorbit.com>
 References: <1306998067-27659-1-git-send-email-david@fromorbit.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-fsdevel@vger.kernel.org
@@ -15,84 +18,79 @@ Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, xfs@oss.sgi.com
 
 From: Dave Chinner <dchinner@redhat.com>
 
-Before we split up the inode_lru_lock, the unused inode counter
-needs to be made independent of the global inode_lru_lock. Convert
-it to per-cpu counters to do this.
+When a shrinker returns -1 to shrink_slab() to indicate it cannot do
+any work given the current memory reclaim requirements, it adds the
+entire total_scan count to shrinker->nr. The idea ehind this is that
+whenteh shrinker is next called and can do work, it will do the work
+of the previously aborted shrinker call as well.
+
+However, if a filesystem is doing lots of allocation with GFP_NOFS
+set, then we get many, many more aborts from the shrinkers than we
+do successful calls. The result is that shrinker->nr winds up to
+it's maximum permissible value (twice the current cache size) and
+then when the next shrinker call that can do work is issued, it
+has enough scan count built up to free the entire cache twice over.
+
+This manifests itself in the cache going from full to empty in a
+matter of seconds, even when only a small part of the cache is
+needed to be emptied to free sufficient memory.
+
+Under metadata intensive workloads on ext4 and XFS, I'm seeing the
+VFS caches increase memory consumption up to 75% of memory (no page
+cache pressure) over a period of 30-60s, and then the shrinker
+empties them down to zero in the space of 2-3s. This cycle repeats
+over and over again, with the shrinker completely trashing the N?node
+and dentry caches every minute or so the workload continues.
+
+This behaviour was made obvious by the shrink_slab tracepoints added
+earlier in the series, and made worse by the patch that corrected
+the concurrent accounting of shrinker->nr.
+
+To avoid this problem, stop repeated small increments of the total
+scan value from winding shrinker->nr up to a value that can cause
+the entire cache to be freed. We still need to allow it to wind up,
+so use the delta as the "large scan" threshold check - if the delta
+is more than a quarter of the entire cache size, then it is a large
+scan and allowed to cause lots of windup because we are clearly
+needing to free lots of memory.
+
+If it isn't a large scan then limit the total scan to half the size
+of the cache so that windup never increases to consume the whole
+cache. Reducing the total scan limit further does not allow enough
+wind-up to maintain the current levels of performance, whilst a
+higher threshold does not prevent the windup from freeing the entire
+cache under sustained workloads.
 
 Signed-off-by: Dave Chinner <dchinner@redhat.com>
 ---
- fs/inode.c |   16 +++++++++++-----
- 1 files changed, 11 insertions(+), 5 deletions(-)
+ mm/vmscan.c |   14 ++++++++++++++
+ 1 files changed, 14 insertions(+), 0 deletions(-)
 
-diff --git a/fs/inode.c b/fs/inode.c
-index 0f7e88a..17fea5b 100644
---- a/fs/inode.c
-+++ b/fs/inode.c
-@@ -95,6 +95,7 @@ EXPORT_SYMBOL(empty_aops);
- struct inodes_stat_t inodes_stat;
- 
- static DEFINE_PER_CPU(unsigned int, nr_inodes);
-+static DEFINE_PER_CPU(unsigned int, nr_unused);
- 
- static struct kmem_cache *inode_cachep __read_mostly;
- 
-@@ -109,7 +110,11 @@ static int get_nr_inodes(void)
- 
- static inline int get_nr_inodes_unused(void)
- {
--	return inodes_stat.nr_unused;
-+	int i;
-+	int sum = 0;
-+	for_each_possible_cpu(i)
-+		sum += per_cpu(nr_unused, i);
-+	return sum < 0 ? 0 : sum;
- }
- 
- int get_nr_dirty_inodes(void)
-@@ -127,6 +132,7 @@ int proc_nr_inodes(ctl_table *table, int write,
- 		   void __user *buffer, size_t *lenp, loff_t *ppos)
- {
- 	inodes_stat.nr_inodes = get_nr_inodes();
-+	inodes_stat.nr_unused = get_nr_inodes_unused();
- 	return proc_dointvec(table, write, buffer, lenp, ppos);
- }
- #endif
-@@ -340,7 +346,7 @@ static void inode_lru_list_add(struct inode *inode)
- 	spin_lock(&inode_lru_lock);
- 	if (list_empty(&inode->i_lru)) {
- 		list_add(&inode->i_lru, &inode_lru);
--		inodes_stat.nr_unused++;
-+		this_cpu_inc(nr_unused);
- 	}
- 	spin_unlock(&inode_lru_lock);
- }
-@@ -350,7 +356,7 @@ static void inode_lru_list_del(struct inode *inode)
- 	spin_lock(&inode_lru_lock);
- 	if (!list_empty(&inode->i_lru)) {
- 		list_del_init(&inode->i_lru);
--		inodes_stat.nr_unused--;
-+		this_cpu_dec(nr_unused);
- 	}
- 	spin_unlock(&inode_lru_lock);
- }
-@@ -649,7 +655,7 @@ static void prune_icache(int nr_to_scan)
- 		    (inode->i_state & ~I_REFERENCED)) {
- 			list_del_init(&inode->i_lru);
- 			spin_unlock(&inode->i_lock);
--			inodes_stat.nr_unused--;
-+			this_cpu_dec(nr_unused);
- 			continue;
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index dce2767..3688f47 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -277,6 +277,20 @@ unsigned long shrink_slab(struct shrink_control *shrink,
  		}
  
-@@ -686,7 +692,7 @@ static void prune_icache(int nr_to_scan)
- 		spin_unlock(&inode->i_lock);
- 
- 		list_move(&inode->i_lru, &freeable);
--		inodes_stat.nr_unused--;
-+		this_cpu_dec(nr_unused);
- 	}
- 	if (current_is_kswapd())
- 		__count_vm_events(KSWAPD_INODESTEAL, reap);
+ 		/*
++		 * Avoid excessive windup on fielsystem shrinkers due to large
++		 * numbers of GFP_NOFS allocations causing the shrinkers to
++		 * return -1 all the time. This results in a large nr being
++		 * built up so when a shrink that can do some work comes along
++		 * it empties the entire cache due to nr >>> max_pass.  This is
++		 * bad for sustaining a working set in memory.
++		 *
++		 * Hence only allow nr to go large when a large delta is
++		 * calculated.
++		 */
++		if (delta < max_pass / 4)
++			total_scan = min(total_scan, max_pass / 2);
++
++		/*
+ 		 * Avoid risking looping forever due to too large nr value:
+ 		 * never try to free more than twice the estimate number of
+ 		 * freeable entries.
 -- 
 1.7.5.1
 
