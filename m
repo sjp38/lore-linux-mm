@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 7BD6D6B007E
-	for <linux-mm@kvack.org>; Thu,  2 Jun 2011 03:01:45 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with SMTP id 1514E6B007E
+	for <linux-mm@kvack.org>; Thu,  2 Jun 2011 03:01:47 -0400 (EDT)
 From: Dave Chinner <david@fromorbit.com>
-Subject: [PATCH 04/12] vmscan: add customisable shrinker batch size
-Date: Thu,  2 Jun 2011 17:00:59 +1000
-Message-Id: <1306998067-27659-5-git-send-email-david@fromorbit.com>
+Subject: [PATCH 11/12] vfs: increase shrinker batch size
+Date: Thu,  2 Jun 2011 17:01:06 +1000
+Message-Id: <1306998067-27659-12-git-send-email-david@fromorbit.com>
 In-Reply-To: <1306998067-27659-1-git-send-email-david@fromorbit.com>
 References: <1306998067-27659-1-git-send-email-david@fromorbit.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,70 +15,56 @@ Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, xfs@oss.sgi.com
 
 From: Dave Chinner <dchinner@redhat.com>
 
-For shrinkers that have their own cond_resched* calls, having
-shrink_slab break the work down into small batches is not
-paticularly efficient. Add a custom batchsize field to the struct
-shrinker so that shrinkers can use a larger batch size if they
-desire.
+Now that the per-sb shrinker is responsible for shrinking 2 or more
+caches, increase the batch size to keep econmies of scale for
+shrinking each cache.  Increase the shrinker batch size to 1024
+objects.
 
-A value of zero (uninitialised) means "use the default", so
-behaviour is unchanged by this patch.
+To allow for a large increase in batch size, add a conditional
+reschedule to prune_icache_sb() so that we don't hold the LRU spin
+lock for too long. This mirrors the behaviour of the
+__shrink_dcache_sb(), and allows us to increase the batch size
+without needing to worry about problems caused by long lock hold
+times.
+
+To ensure that filesystems using the per-sb shrinker callouts don't
+cause problems, document that the object freeing method must
+reschedule appropriately inside loops.
 
 Signed-off-by: Dave Chinner <dchinner@redhat.com>
 ---
- include/linux/mm.h |    1 +
- mm/vmscan.c        |   11 ++++++-----
- 2 files changed, 7 insertions(+), 5 deletions(-)
+ Documentation/filesystems/vfs.txt |    5 +++++
+ fs/super.c                        |    1 +
+ 2 files changed, 6 insertions(+), 0 deletions(-)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 9670f71..9b9777a 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1150,6 +1150,7 @@ struct shrink_control {
- struct shrinker {
- 	int (*shrink)(struct shrinker *, struct shrink_control *sc);
- 	int seeks;	/* seeks to recreate an obj */
-+	long batch;	/* reclaim batch size, 0 = default */
+diff --git a/Documentation/filesystems/vfs.txt b/Documentation/filesystems/vfs.txt
+index dc732d2..2e26973 100644
+--- a/Documentation/filesystems/vfs.txt
++++ b/Documentation/filesystems/vfs.txt
+@@ -317,6 +317,11 @@ or bottom half).
+ 	the VM is trying to reclaim under GFP_NOFS conditions, hence this
+ 	method does not need to handle that situation itself.
  
- 	/* These are for internal use */
- 	struct list_head list;
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 3688f47..a17909f 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -253,6 +253,8 @@ unsigned long shrink_slab(struct shrink_control *shrink,
- 		int shrink_ret = 0;
- 		long nr;
- 		long new_nr;
-+		long batch_size = shrinker->batch ? shrinker->batch
-+						  : SHRINK_BATCH;
++	Implementations must include conditional reschedule calls inside any
++	scanning loop that is done. This allows the VFS to determine
++	appropriate scan batch sizes without having to worry about whether
++	implementations will cause holdoff problems due ot large batch sizes.
++
+ Whoever sets up the inode is responsible for filling in the "i_op" field. This
+ is a pointer to a "struct inode_operations" which describes the methods that
+ can be performed on individual inodes.
+diff --git a/fs/super.c b/fs/super.c
+index b55f968..323a63e 100644
+--- a/fs/super.c
++++ b/fs/super.c
+@@ -184,6 +184,7 @@ static struct super_block *alloc_super(struct file_system_type *type)
  
- 		/*
- 		 * copy the current shrinker scan count into a local variable
-@@ -302,19 +304,18 @@ unsigned long shrink_slab(struct shrink_control *shrink,
- 		trace_mm_shrink_slab_start(shrinker, shrink, nr, nr_pages_scanned,
- 					lru_pages, max_pass, delta, total_scan);
- 
--		while (total_scan >= SHRINK_BATCH) {
--			long this_scan = SHRINK_BATCH;
-+		while (total_scan >= batch_size) {
- 			int nr_before;
- 
- 			nr_before = do_shrinker_shrink(shrinker, shrink, 0);
- 			shrink_ret = do_shrinker_shrink(shrinker, shrink,
--							this_scan);
-+							batch_size);
- 			if (shrink_ret == -1)
- 				break;
- 			if (shrink_ret < nr_before)
- 				ret += nr_before - shrink_ret;
--			count_vm_events(SLABS_SCANNED, this_scan);
--			total_scan -= this_scan;
-+			count_vm_events(SLABS_SCANNED, batch_size);
-+			total_scan -= batch_size;
- 
- 			cond_resched();
- 		}
+ 		s->s_shrink.seeks = DEFAULT_SEEKS;
+ 		s->s_shrink.shrink = prune_super;
++		s->s_shrink.batch = 1024;
+ 	}
+ out:
+ 	return s;
 -- 
 1.7.5.1
 
