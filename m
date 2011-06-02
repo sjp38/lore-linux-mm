@@ -1,75 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 82CE16B004A
-	for <linux-mm@kvack.org>; Thu,  2 Jun 2011 10:24:13 -0400 (EDT)
-Message-Id: <201106021424.p52EO91O006974@lab-17.internal.tilera.com>
-From: Chris Metcalf <cmetcalf@tilera.com>
-Date: Thu, 2 Jun 2011 10:19:41 -0400
-Subject: [PATCH] slub: always align cpu_slab to honor cmpxchg_double requirement
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id F37E56B0078
+	for <linux-mm@kvack.org>; Thu,  2 Jun 2011 10:24:29 -0400 (EDT)
+Date: Thu, 2 Jun 2011 16:24:08 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 8/8] mm: make per-memcg lru lists exclusive
+Message-ID: <20110602142408.GB28684@cmpxchg.org>
+References: <1306909519-7286-1-git-send-email-hannes@cmpxchg.org>
+ <1306909519-7286-9-git-send-email-hannes@cmpxchg.org>
+ <BANLkTinHs7OCkpRf8=dYO0ObH5sndZ4__g@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <BANLkTinHs7OCkpRf8=dYO0ObH5sndZ4__g@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Ying Han <yinghan@google.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On an architecture without CMPXCHG_LOCAL but with DEBUG_VM enabled,
-the VM_BUG_ON() in __pcpu_double_call_return_bool() will cause an early
-panic during boot unless we always align cpu_slab properly.
+On Thu, Jun 02, 2011 at 10:16:59PM +0900, Hiroyuki Kamezawa wrote:
+> 2011/6/1 Johannes Weiner <hannes@cmpxchg.org>:
+> > All lru list walkers have been converted to operate on per-memcg
+> > lists, the global per-zone lists are no longer required.
+> >
+> > This patch makes the per-memcg lists exclusive and removes the global
+> > lists from memcg-enabled kernels.
+> >
+> > The per-memcg lists now string up page descriptors directly, which
+> > unifies/simplifies the list isolation code of page reclaim as well as
+> > it saves a full double-linked list head for each page in the system.
+> >
+> > At the core of this change is the introduction of the lruvec
+> > structure, an array of all lru list heads.  It exists for each zone
+> > globally, and for each zone per memcg.  All lru list operations are
+> > now done in generic code against lruvecs, with the memcg lru list
+> > primitives only doing accounting and returning the proper lruvec for
+> > the currently scanned memcg on isolation, or for the respective page
+> > on putback.
+> >
+> > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> 
+> 
+> could you divide this into
+>   - introduce lruvec
+>   - don't record section? information into pc->flags because we see
+> "page" on memcg LRU
+>     and there is no requirement to get page from "pc".
+>   - remove pc->lru completely
 
-In principle we could remove the alignment-testing VM_BUG_ON() for
-architectures that don't have CMPXCHG_LOCAL, but leaving it in means
-that new code will tend not to break x86 even if it is introduced
-on another platform, and it's low cost to require alignment.
-
-Signed-off-by: Chris Metcalf <cmetcalf@tilera.com>
----
-This needs to be pushed for 3.0 to allow arch/tile to boot.
-I'm happy to push it but I assume it would be better coming
-from an mm or percpu tree.  Thanks!
-
- include/linux/percpu.h |    3 +++
- mm/slub.c              |   12 ++++--------
- 2 files changed, 7 insertions(+), 8 deletions(-)
-
-diff --git a/include/linux/percpu.h b/include/linux/percpu.h
-index 8b97308..9ca008f 100644
---- a/include/linux/percpu.h
-+++ b/include/linux/percpu.h
-@@ -259,6 +259,9 @@ extern void __bad_size_call_parameter(void);
-  * Special handling for cmpxchg_double.  cmpxchg_double is passed two
-  * percpu variables.  The first has to be aligned to a double word
-  * boundary and the second has to follow directly thereafter.
-+ * We enforce this on all architectures even if they don't support
-+ * a double cmpxchg instruction, since it's a cheap requirement, and it
-+ * avoids breaking the requirement for architectures with the instruction.
-  */
- #define __pcpu_double_call_return_bool(stem, pcp1, pcp2, ...)		\
- ({									\
-diff --git a/mm/slub.c b/mm/slub.c
-index 7be0223..35f351f 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -2320,16 +2320,12 @@ static inline int alloc_kmem_cache_cpus(struct kmem_cache *s)
- 	BUILD_BUG_ON(PERCPU_DYNAMIC_EARLY_SIZE <
- 			SLUB_PAGE_SHIFT * sizeof(struct kmem_cache_cpu));
- 
--#ifdef CONFIG_CMPXCHG_LOCAL
- 	/*
--	 * Must align to double word boundary for the double cmpxchg instructions
--	 * to work.
-+	 * Must align to double word boundary for the double cmpxchg
-+	 * instructions to work; see __pcpu_double_call_return_bool().
- 	 */
--	s->cpu_slab = __alloc_percpu(sizeof(struct kmem_cache_cpu), 2 * sizeof(void *));
--#else
--	/* Regular alignment is sufficient */
--	s->cpu_slab = alloc_percpu(struct kmem_cache_cpu);
--#endif
-+	s->cpu_slab = __alloc_percpu(sizeof(struct kmem_cache_cpu),
-+				     2 * sizeof(void *));
- 
- 	if (!s->cpu_slab)
- 		return 0;
--- 
-1.6.5.2
+Yes, that makes sense.  It shall be fixed in the next version.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
