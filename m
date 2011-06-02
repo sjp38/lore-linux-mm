@@ -1,13 +1,16 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 6F5D56B007B
-	for <linux-mm@kvack.org>; Thu,  2 Jun 2011 03:01:23 -0400 (EDT)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id D4FA86B007B
+	for <linux-mm@kvack.org>; Thu,  2 Jun 2011 03:01:42 -0400 (EDT)
 From: Dave Chinner <david@fromorbit.com>
-Subject: [PATCH 06/12] inode: Make unused inode LRU per superblock
-Date: Thu,  2 Jun 2011 17:01:01 +1000
-Message-Id: <1306998067-27659-7-git-send-email-david@fromorbit.com>
+Subject: [PATCH 01/12] vmscan: add shrink_slab tracepoints
+Date: Thu,  2 Jun 2011 17:00:56 +1000
+Message-Id: <1306998067-27659-2-git-send-email-david@fromorbit.com>
 In-Reply-To: <1306998067-27659-1-git-send-email-david@fromorbit.com>
 References: <1306998067-27659-1-git-send-email-david@fromorbit.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-fsdevel@vger.kernel.org
@@ -15,237 +18,127 @@ Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, xfs@oss.sgi.com
 
 From: Dave Chinner <dchinner@redhat.com>
 
-The inode unused list is currently a global LRU. This does not match
-the other global filesystem cache - the dentry cache - which uses
-per-superblock LRU lists. Hence we have related filesystem object
-types using different LRU reclaimation schemes.
-
-To enable a per-superblock filesystem cache shrinker, both of these
-caches need to have per-sb unused object LRU lists. Hence this patch
-converts the global inode LRU to per-sb LRUs.
-
-The patch only does rudimentary per-sb propotioning in the shrinker
-infrastructure, as this gets removed when the per-sb shrinker
-callouts are introduced later on.
+D?t is impossible to understand what the shrinkers are actually doing
+without instrumenting the code, so add a some tracepoints to allow
+insight to be gained.
 
 Signed-off-by: Dave Chinner <dchinner@redhat.com>
 ---
- fs/inode.c         |   91 +++++++++++++++++++++++++++++++++++++++++++++------
- fs/super.c         |    1 +
- include/linux/fs.h |    4 ++
- 3 files changed, 85 insertions(+), 11 deletions(-)
+ include/trace/events/vmscan.h |   67 +++++++++++++++++++++++++++++++++++++++++
+ mm/vmscan.c                   |    6 +++-
+ 2 files changed, 72 insertions(+), 1 deletions(-)
 
-diff --git a/fs/inode.c b/fs/inode.c
-index 17fea5b..e039115 100644
---- a/fs/inode.c
-+++ b/fs/inode.c
-@@ -34,7 +34,7 @@
-  * inode->i_lock protects:
-  *   inode->i_state, inode->i_hash, __iget()
-  * inode_lru_lock protects:
-- *   inode_lru, inode->i_lru
-+ *   inode->i_sb->s_inode_lru, inode->i_lru
-  * inode_sb_list_lock protects:
-  *   sb->s_inodes, inode->i_sb_list
-  * inode_wb_list_lock protects:
-@@ -64,7 +64,6 @@ static unsigned int i_hash_shift __read_mostly;
- static struct hlist_head *inode_hashtable __read_mostly;
- static __cacheline_aligned_in_smp DEFINE_SPINLOCK(inode_hash_lock);
+diff --git a/include/trace/events/vmscan.h b/include/trace/events/vmscan.h
+index ea422aa..c798cd7 100644
+--- a/include/trace/events/vmscan.h
++++ b/include/trace/events/vmscan.h
+@@ -310,6 +310,73 @@ TRACE_EVENT(mm_vmscan_lru_shrink_inactive,
+ 		show_reclaim_flags(__entry->reclaim_flags))
+ );
  
--static LIST_HEAD(inode_lru);
- static DEFINE_SPINLOCK(inode_lru_lock);
++TRACE_EVENT(mm_shrink_slab_start,
++	TP_PROTO(struct shrinker *shr, struct shrink_control *sc,
++		unsigned long pgs_scanned, unsigned long lru_pgs,
++		unsigned long cache_items, unsigned long long delta,
++		unsigned long total_scan),
++
++	TP_ARGS(shr, sc, pgs_scanned, lru_pgs, cache_items, delta, total_scan),
++
++	TP_STRUCT__entry(
++		__field(struct shrinker *, shr)
++		__field(long, shr_nr)
++		__field(gfp_t, gfp_flags)
++		__field(unsigned long, pgs_scanned)
++		__field(unsigned long, lru_pgs)
++		__field(unsigned long, cache_items)
++		__field(unsigned long long, delta)
++		__field(unsigned long, total_scan)
++	),
++
++	TP_fast_assign(
++		__entry->shr = shr;
++		__entry->shr_nr = shr->nr;
++		__entry->gfp_flags = sc->gfp_mask;
++		__entry->pgs_scanned = pgs_scanned;
++		__entry->lru_pgs = lru_pgs;
++		__entry->cache_items = cache_items;
++		__entry->delta = delta;
++		__entry->total_scan = total_scan;
++	),
++
++	TP_printk("shrinker %p: nr %ld gfp_flags %s pgs_scanned %ld lru_pgs %ld cache items %ld delta %lld total_scan %ld",
++		__entry->shr,
++		__entry->shr_nr,
++		show_gfp_flags(__entry->gfp_flags),
++		__entry->pgs_scanned,
++		__entry->lru_pgs,
++		__entry->cache_items,
++		__entry->delta,
++		__entry->total_scan)
++);
++
++TRACE_EVENT(mm_shrink_slab_end,
++	TP_PROTO(struct shrinker *shr, int shrinker_ret,
++		unsigned long total_scan),
++
++	TP_ARGS(shr, shrinker_ret, total_scan),
++
++	TP_STRUCT__entry(
++		__field(struct shrinker *, shr)
++		__field(long, shr_nr)
++		__field(int, shrinker_ret)
++		__field(unsigned long, total_scan)
++	),
++
++	TP_fast_assign(
++		__entry->shr = shr;
++		__entry->shr_nr = shr->nr;
++		__entry->shrinker_ret = shrinker_ret;
++		__entry->total_scan = total_scan;
++	),
++
++	TP_printk("shrinker %p: nr %ld total_scan %ld return val %d",
++		__entry->shr,
++		__entry->shr_nr,
++		__entry->total_scan,
++		__entry->shrinker_ret)
++);
  
- __cacheline_aligned_in_smp DEFINE_SPINLOCK(inode_sb_list_lock);
-@@ -345,7 +344,8 @@ static void inode_lru_list_add(struct inode *inode)
- {
- 	spin_lock(&inode_lru_lock);
- 	if (list_empty(&inode->i_lru)) {
--		list_add(&inode->i_lru, &inode_lru);
-+		list_add(&inode->i_lru, &inode->i_sb->s_inode_lru);
-+		inode->i_sb->s_nr_inodes_unused++;
- 		this_cpu_inc(nr_unused);
- 	}
- 	spin_unlock(&inode_lru_lock);
-@@ -356,6 +356,7 @@ static void inode_lru_list_del(struct inode *inode)
- 	spin_lock(&inode_lru_lock);
- 	if (!list_empty(&inode->i_lru)) {
- 		list_del_init(&inode->i_lru);
-+		inode->i_sb->s_nr_inodes_unused--;
- 		this_cpu_dec(nr_unused);
- 	}
- 	spin_unlock(&inode_lru_lock);
-@@ -621,21 +622,20 @@ static int can_unuse(struct inode *inode)
-  * LRU does not have strict ordering. Hence we don't want to reclaim inodes
-  * with this flag set because they are the inodes that are out of order.
-  */
--static void prune_icache(int nr_to_scan)
-+static void shrink_icache_sb(struct super_block *sb, int *nr_to_scan)
- {
- 	LIST_HEAD(freeable);
- 	int nr_scanned;
- 	unsigned long reap = 0;
+ #endif /* _TRACE_VMSCAN_H */
  
--	down_read(&iprune_sem);
- 	spin_lock(&inode_lru_lock);
--	for (nr_scanned = 0; nr_scanned < nr_to_scan; nr_scanned++) {
-+	for (nr_scanned = *nr_to_scan; nr_scanned >= 0; nr_scanned--) {
- 		struct inode *inode;
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index faa0a08..48e3fbd 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -250,6 +250,7 @@ unsigned long shrink_slab(struct shrink_control *shrink,
+ 		unsigned long long delta;
+ 		unsigned long total_scan;
+ 		unsigned long max_pass;
++		int shrink_ret = 0;
  
--		if (list_empty(&inode_lru))
-+		if (list_empty(&sb->s_inode_lru))
- 			break;
+ 		max_pass = do_shrinker_shrink(shrinker, shrink, 0);
+ 		delta = (4 * nr_pages_scanned) / shrinker->seeks;
+@@ -274,9 +275,11 @@ unsigned long shrink_slab(struct shrink_control *shrink,
+ 		total_scan = shrinker->nr;
+ 		shrinker->nr = 0;
  
--		inode = list_entry(inode_lru.prev, struct inode, i_lru);
-+		inode = list_entry(sb->s_inode_lru.prev, struct inode, i_lru);
++		trace_mm_shrink_slab_start(shrinker, shrink, nr_pages_scanned,
++					lru_pages, max_pass, delta, total_scan);
++
+ 		while (total_scan >= SHRINK_BATCH) {
+ 			long this_scan = SHRINK_BATCH;
+-			int shrink_ret;
+ 			int nr_before;
  
- 		/*
- 		 * we are inverting the inode_lru_lock/inode->i_lock here,
-@@ -643,7 +643,7 @@ static void prune_icache(int nr_to_scan)
- 		 * inode to the back of the list so we don't spin on it.
- 		 */
- 		if (!spin_trylock(&inode->i_lock)) {
--			list_move(&inode->i_lru, &inode_lru);
-+			list_move(&inode->i_lru, &sb->s_inode_lru);
- 			continue;
+ 			nr_before = do_shrinker_shrink(shrinker, shrink, 0);
+@@ -293,6 +296,7 @@ unsigned long shrink_slab(struct shrink_control *shrink,
  		}
  
-@@ -655,6 +655,7 @@ static void prune_icache(int nr_to_scan)
- 		    (inode->i_state & ~I_REFERENCED)) {
- 			list_del_init(&inode->i_lru);
- 			spin_unlock(&inode->i_lock);
-+			sb->s_nr_inodes_unused--;
- 			this_cpu_dec(nr_unused);
- 			continue;
- 		}
-@@ -662,7 +663,7 @@ static void prune_icache(int nr_to_scan)
- 		/* recently referenced inodes get one more pass */
- 		if (inode->i_state & I_REFERENCED) {
- 			inode->i_state &= ~I_REFERENCED;
--			list_move(&inode->i_lru, &inode_lru);
-+			list_move(&inode->i_lru, &sb->s_inode_lru);
- 			spin_unlock(&inode->i_lock);
- 			continue;
- 		}
-@@ -676,7 +677,7 @@ static void prune_icache(int nr_to_scan)
- 			iput(inode);
- 			spin_lock(&inode_lru_lock);
- 
--			if (inode != list_entry(inode_lru.next,
-+			if (inode != list_entry(sb->s_inode_lru.next,
- 						struct inode, i_lru))
- 				continue;	/* wrong inode or list_empty */
- 			/* avoid lock inversions with trylock */
-@@ -692,6 +693,7 @@ static void prune_icache(int nr_to_scan)
- 		spin_unlock(&inode->i_lock);
- 
- 		list_move(&inode->i_lru, &freeable);
-+		sb->s_nr_inodes_unused--;
- 		this_cpu_dec(nr_unused);
+ 		shrinker->nr += total_scan;
++		trace_mm_shrink_slab_end(shrinker, shrink_ret, total_scan);
  	}
- 	if (current_is_kswapd())
-@@ -699,8 +701,75 @@ static void prune_icache(int nr_to_scan)
- 	else
- 		__count_vm_events(PGINODESTEAL, reap);
- 	spin_unlock(&inode_lru_lock);
-+	*nr_to_scan = nr_scanned;
- 
- 	dispose_list(&freeable);
-+}
-+
-+static void prune_icache(int count)
-+{
-+	struct super_block *sb, *p = NULL;
-+	int w_count;
-+	int unused = inodes_stat.nr_unused;
-+	int prune_ratio;
-+	int pruned;
-+
-+	if (unused == 0 || count == 0)
-+		return;
-+	down_read(&iprune_sem);
-+	if (count >= unused)
-+		prune_ratio = 1;
-+	else
-+		prune_ratio = unused / count;
-+	spin_lock(&sb_lock);
-+	list_for_each_entry(sb, &super_blocks, s_list) {
-+		if (list_empty(&sb->s_instances))
-+			continue;
-+		if (sb->s_nr_inodes_unused == 0)
-+			continue;
-+		sb->s_count++;
-+		/* Now, we reclaim unused dentrins with fairness.
-+		 * We reclaim them same percentage from each superblock.
-+		 * We calculate number of dentries to scan on this sb
-+		 * as follows, but the implementation is arranged to avoid
-+		 * overflows:
-+		 * number of dentries to scan on this sb =
-+		 * count * (number of dentries on this sb /
-+		 * number of dentries in the machine)
-+		 */
-+		spin_unlock(&sb_lock);
-+		if (prune_ratio != 1)
-+			w_count = (sb->s_nr_inodes_unused / prune_ratio) + 1;
-+		else
-+			w_count = sb->s_nr_inodes_unused;
-+		pruned = w_count;
-+		/*
-+		 * We need to be sure this filesystem isn't being unmounted,
-+		 * otherwise we could race with generic_shutdown_super(), and
-+		 * end up holding a reference to an inode while the filesystem
-+		 * is unmounted.  So we try to get s_umount, and make sure
-+		 * s_root isn't NULL.
-+		 */
-+		if (down_read_trylock(&sb->s_umount)) {
-+			if ((sb->s_root != NULL) &&
-+			    (!list_empty(&sb->s_dentry_lru))) {
-+				shrink_icache_sb(sb, &w_count);
-+				pruned -= w_count;
-+			}
-+			up_read(&sb->s_umount);
-+		}
-+		spin_lock(&sb_lock);
-+		if (p)
-+			__put_super(p);
-+		count -= pruned;
-+		p = sb;
-+		/* more work left to do? */
-+		if (count <= 0)
-+			break;
-+	}
-+	if (p)
-+		__put_super(p);
-+	spin_unlock(&sb_lock);
- 	up_read(&iprune_sem);
- }
- 
-diff --git a/fs/super.c b/fs/super.c
-index c755939..ef7caf7 100644
---- a/fs/super.c
-+++ b/fs/super.c
-@@ -77,6 +77,7 @@ static struct super_block *alloc_super(struct file_system_type *type)
- 		INIT_HLIST_BL_HEAD(&s->s_anon);
- 		INIT_LIST_HEAD(&s->s_inodes);
- 		INIT_LIST_HEAD(&s->s_dentry_lru);
-+		INIT_LIST_HEAD(&s->s_inode_lru);
- 		init_rwsem(&s->s_umount);
- 		mutex_init(&s->s_lock);
- 		lockdep_set_class(&s->s_umount, &type->s_umount_key);
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index c55d6b7..a96071d 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -1393,6 +1393,10 @@ struct super_block {
- 	struct list_head	s_dentry_lru;	/* unused dentry lru */
- 	int			s_nr_dentry_unused;	/* # of dentry on lru */
- 
-+	/* inode_lru_lock protects s_inode_lru and s_nr_inodes_unused */
-+	struct list_head	s_inode_lru;		/* unused inode lru */
-+	int			s_nr_inodes_unused;	/* # of inodes on lru */
-+
- 	struct block_device	*s_bdev;
- 	struct backing_dev_info *s_bdi;
- 	struct mtd_info		*s_mtd;
+ 	up_read(&shrinker_rwsem);
+ out:
 -- 
 1.7.5.1
 
