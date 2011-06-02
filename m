@@ -1,59 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 758606B004A
-	for <linux-mm@kvack.org>; Thu,  2 Jun 2011 17:41:09 -0400 (EDT)
-Date: Thu, 2 Jun 2011 23:40:41 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH] mm: compaction: Abort compaction if too many pages are
- isolated and caller is asynchronous
-Message-ID: <20110602214041.GF2802@random.random>
-References: <20110530165546.GC5118@suse.de>
- <20110530175334.GI19505@random.random>
- <20110531121620.GA3490@barrios-laptop>
- <20110531122437.GJ19505@random.random>
- <20110531133340.GB3490@barrios-laptop>
- <20110531141402.GK19505@random.random>
- <20110531143734.GB13418@barrios-laptop>
- <20110531143830.GC13418@barrios-laptop>
- <20110602182302.GA2802@random.random>
- <20110602202156.GA23486@barrios-laptop>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 160196B004A
+	for <linux-mm@kvack.org>; Thu,  2 Jun 2011 17:47:15 -0400 (EDT)
+Date: Thu, 2 Jun 2011 21:46:56 +0000
+From: Pavel Machek <pavel@ucw.cz>
+Subject: Re: [PATCH] Make GFP_DMA allocations w/o ZONE_DMA emit a warning
+	instead of failing
+Message-ID: <20110602214655.GA2916@localhost.ucw.cz>
+References: <1306922672-9012-1-git-send-email-dbaryshkov@gmail.com> <BANLkTinBkdVd90g3-uiQP41z1S1sXUdRmQ@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110602202156.GA23486@barrios-laptop>
+In-Reply-To: <BANLkTinBkdVd90g3-uiQP41z1S1sXUdRmQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Mel Gorman <mgorman@suse.de>, Mel Gorman <mel@csn.ul.ie>, akpm@linux-foundation.org, Ury Stankevich <urykhy@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, metan@ucw.cz
+Cc: Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, David Rientjes <rientjes@google.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Rafael J. Wysocki" <rjw@sisk.pl>
 
-Hello Minchan,
+On Wed 2011-06-01 21:38:59, KOSAKI Motohiro wrote:
+> 2011/6/1 Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>:
+> > Please be more polite to other people. After a197b59ae6 all allocations
+> > with GFP_DMA set on nodes without ZONE_DMA fail nearly silently (only
+> > one warning during bootup is emited, no matter how many things fail).
+> > This is a very crude change on behaviour. To be more civil, instead of
+> > failing emit noisy warnings each time smbd. tries to allocate a GFP_DMA
+> > memory on non-ZONE_DMA node.
+> >
+> > This change should be reverted after one or two major releases, but
+> > we should be more accurate rather than hoping for the best.
+> 
+> Instaed of, shouldn't we revert a197b59ae6? Some arch don't have
+> DMA_ZONE at all.
+> and a197b59ae6 only care x86 embedded case. If we accept your patch, I
+> can imagine
+> other people will claim warn foold is a bug. ;)
 
-On Fri, Jun 03, 2011 at 05:21:56AM +0900, Minchan Kim wrote:
-> Isn't it rather aggressive?
-> I think cursor page is likely to be PageTail rather than PageHead.
-> Could we handle it simply with below code?
-
-It's not so likely, there is small percentage of compound pages that
-aren't THP compared to the rest that is either regular pagecache or
-anon regular or anon THP or regular shm. If it's THP chances are we
-isolated the head and it's useless to insist on more tail pages (at
-least for large page size like on x86). Plus we've compaction so
-insisting and screwing lru ordering isn't worth it, better to be
-permissive and abort... in fact I wouldn't dislike to remove the
-entire lumpy logic when COMPACTION_BUILD is true, but that alters the
-trace too...
-
-> get_page(cursor_page)
-> /* The page is freed already */
-> if (1 == page_count(cursor_page)) {
-> 	put_page(cursor_page)
-> 	continue;
-> }
-> put_page(cursor_page);
-
-We can't call get_page on an tail page or we break split_huge_page,
-only an isolated lru can be boosted, if we take the lru_lock and we
-check the page is in lru, then we can isolate and pin it safely.
+I believe we should revert. It broke zaurus boot for metan...
+-- 
+(english) http://www.livejournal.com/~pavelmachek
+(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
