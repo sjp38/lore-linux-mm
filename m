@@ -1,93 +1,216 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 413146B007B
-	for <linux-mm@kvack.org>; Thu,  2 Jun 2011 00:08:37 -0400 (EDT)
-Date: Wed, 1 Jun 2011 23:08:31 -0500
-From: Russ Anderson <rja@sgi.com>
-Subject: Re: [PATCH] [BUGFIX] mm: hugepages can cause negative commitlimit
-Message-ID: <20110602040821.GA7934@sgi.com>
-Reply-To: Russ Anderson <rja@sgi.com>
-References: <20110518153445.GA18127@sgi.com> <BANLkTinbHnrf2isuLzUFZN8ypaT476G1zw@mail.gmail.com> <20110519045630.GA22533@sgi.com> <BANLkTinyYP-je9Nf8X-xWEdpgvn8a631Mw@mail.gmail.com> <20110519221101.GC19648@sgi.com> <20110520130411.d1e0baef.akpm@linux-foundation.org> <20110520223032.GA15192@x61.tchesoft.com> <20110526210751.GA14819@optiplex.tchesoft.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110526210751.GA14819@optiplex.tchesoft.com>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D5C86B007E
+	for <linux-mm@kvack.org>; Thu,  2 Jun 2011 01:37:38 -0400 (EDT)
+Received: from hpaq7.eem.corp.google.com (hpaq7.eem.corp.google.com [172.25.149.7])
+	by smtp-out.google.com with ESMTP id p525bZ1h019447
+	for <linux-mm@kvack.org>; Wed, 1 Jun 2011 22:37:36 -0700
+Received: from qyg14 (qyg14.prod.google.com [10.241.82.142])
+	by hpaq7.eem.corp.google.com with ESMTP id p525aC3K013601
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 1 Jun 2011 22:37:34 -0700
+Received: by qyg14 with SMTP id 14so293830qyg.12
+        for <linux-mm@kvack.org>; Wed, 01 Jun 2011 22:37:29 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <1306909519-7286-5-git-send-email-hannes@cmpxchg.org>
+References: <1306909519-7286-1-git-send-email-hannes@cmpxchg.org>
+	<1306909519-7286-5-git-send-email-hannes@cmpxchg.org>
+Date: Wed, 1 Jun 2011 22:37:29 -0700
+Message-ID: <BANLkTi=+oDjSeXZDOyoKXAWG3=5AonTYSQ@mail.gmail.com>
+Subject: Re: [patch 4/8] memcg: rework soft limit reclaim
+From: Ying Han <yinghan@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rafael Aquini <aquini@linux.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux.com>, rja@americas.sgi.com
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 
-On Thu, May 26, 2011 at 06:07:53PM -0300, Rafael Aquini wrote:
-> On Fri, May 20, 2011 at 07:30:32PM -0300, Rafael Aquini wrote:
-> > On Fri, May 20, 2011 at 01:04:11PM -0700, Andrew Morton wrote:
-> > > On Thu, 19 May 2011 17:11:01 -0500
-> > > Russ Anderson <rja@sgi.com> wrote:
-> > > 
-> > > > OK, I see your point.  The root problem is hugepages allocated at boot are
-> > > > subtracted from totalram_pages but hugepages allocated at run time are not.
-> > > > Correct me if I've mistate it or are other conditions.
-> > > > 
-> > > > By "allocated at run time" I mean "echo 1 > /proc/sys/vm/nr_hugepages".
-> > > > That allocation will not change totalram_pages but will change
-> > > > hugetlb_total_pages().
-> > > > 
-> > > > How best to fix this inconsistency?  Should totalram_pages include or exclude
-> > > > hugepages?  What are the implications?
-> > > 
-> > > The problem is that hugetlb_total_pages() is trying to account for two
-> > > different things, while totalram_pages accounts for only one of those
-> > > things, yes?
-> > > 
-> > > One fix would be to stop accounting for huge pages in totalram_pages
-> > > altogether.  That might break other things so careful checking would be
-> > > needed.
-> > > 
-> > > Or we stop accounting for the boot-time allocated huge pages in
-> > > hugetlb_total_pages().  Split the two things apart altogether and
-> > > account for boot-time allocated and runtime-allocated pages separately.  This
-> > > souds saner to me - it reflects what's actually happening in the kernel.
-> > 
-> > Perhaps we can just reinstate the # of pages "stealed" at early boot allocation
-> > later, when hugetlb_init() calls gather_bootmem_prealloc()
-> > 
-> > diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> > index 8ee3bd8..d606c9c 100644
-> > --- a/mm/hugetlb.c
-> > +++ b/mm/hugetlb.c
-> > @@ -1111,6 +1111,7 @@ static void __init gather_bootmem_prealloc(void)
-> >                 WARN_ON(page_count(page) != 1);
-> >                 prep_compound_huge_page(page, h->order);
-> >                 prep_new_huge_page(h, page, page_to_nid(page));
-> > +               totalram_pages += 1 << h->order;
-> >         }
-> >  }
-> 
-> Howdy Russ,
-> 
-> Were you able to confirm if that proposed change fix the issue you've reported?
+On Tue, May 31, 2011 at 11:25 PM, Johannes Weiner <hannes@cmpxchg.org> wrot=
+e:
+> Currently, soft limit reclaim is entered from kswapd, where it selects
+> the memcg with the biggest soft limit excess in absolute bytes, and
+> reclaims pages from it with maximum aggressiveness (priority 0).
+>
+> This has the following disadvantages:
+>
+> =A0 =A01. because of the aggressiveness, kswapd can be stalled on a memcg
+> =A0 =A0that is hard to reclaim from for a long time, sending the rest of
+> =A0 =A0the allocators into direct reclaim in the meantime.
+>
+> =A0 =A02. it only considers the biggest offender (in absolute bytes, no
+> =A0 =A0less, so very unhandy for setups with different-sized memcgs) and
+> =A0 =A0does not apply any pressure at all on other memcgs in excess.
+>
+> =A0 =A03. because it is only invoked from kswapd, the soft limit is
+> =A0 =A0meaningful during global memory pressure, but it is not taken into
+> =A0 =A0account during hierarchical target reclaim where it could allow
+> =A0 =A0prioritizing memcgs as well. =A0So while it does hierarchical
+> =A0 =A0reclaim once triggered, it is not a truly hierarchical mechanism.
+>
+> Here is a different approach. =A0Instead of having a soft limit reclaim
+> cycle separate from the rest of reclaim, this patch ensures that each
+> time a group of memcgs is reclaimed - be it because of global memory
+> pressure or because of a hard limit - memcgs that exceed their soft
+> limit, or contribute to the soft limit excess of one their parents,
+> are reclaimed from at a higher priority than their siblings.
+>
+> This results in the following:
+>
+> =A0 =A01. all relevant memcgs are scanned with increasing priority during
+> =A0 =A0memory pressure. =A0The primary goal is to free pages, not to puni=
+sh
+> =A0 =A0soft limit offenders.
+>
+> =A0 =A02. increased pressure is applied to all memcgs in excess of their
+> =A0 =A0soft limit, not only the biggest offender.
+>
+> =A0 =A03. the soft limit becomes meaningful for target reclaim as well,
+> =A0 =A0where it allows prioritizing children of a hierarchy when the
+> =A0 =A0parent hits its limit.
+>
+> =A0 =A04. direct reclaim now also applies increased soft limit pressure,
+> =A0 =A0not just kswapd anymore.
 
-Yes, it fixes the inconsistency in reporting totalram_pages.
+So I see now that we removed the logic of doing per-zone soft_limit
+reclaim totally (including the next patch). Instead we are iterating
+the whole memcg hierarchy under global memory pressure.
 
-> Although I've tested it with usual size hugepages and it did not messed things up,
-> I'm not able to test it with GB hugepages, as I do not have any proc with "pdpe1gb" flag available.
+Is there a reason we didn't keep the per-zone memcg list which allows
+us only scanning memgs w/ pages landed on the zone?
 
-There seems to be another issue.  1G hugepages can be allocated at boot time, but
-cannot be allocated at run time.  "default_hugepagesz=1G hugepagesz=1G hugepages=1" on 
-the boot line works.  With "default_hugepagesz=1G hugepagesz=1G" the command
-"echo 1 > /proc/sys/vm/nr_hugepages" fails.
-
-uv4-sys:~ # echo 1 > /proc/sys/vm/nr_hugepages
--bash: echo: write error: Invalid argument
+--Ying
 
 
-> Thanks in advance!
-> Cheers!
-> -- 
-> Rafael Aquini <aquini@linux.com>
 
--- 
-Russ Anderson, OS RAS/Partitioning Project Lead  
-SGI - Silicon Graphics Inc          rja@sgi.com
+>
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> ---
+> =A0include/linux/memcontrol.h | =A0 =A07 +++++++
+> =A0mm/memcontrol.c =A0 =A0 =A0 =A0 =A0 =A0| =A0 26 ++++++++++++++++++++++=
+++++
+> =A0mm/vmscan.c =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0| =A0 =A08 ++++++--
+> =A03 files changed, 39 insertions(+), 2 deletions(-)
+>
+> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> index 8f402b9..7d99e87 100644
+> --- a/include/linux/memcontrol.h
+> +++ b/include/linux/memcontrol.h
+> @@ -104,6 +104,7 @@ extern void mem_cgroup_end_migration(struct mem_cgrou=
+p *mem,
+> =A0struct mem_cgroup *mem_cgroup_hierarchy_walk(struct mem_cgroup *,
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 =A0 =A0 =A0 struct mem_cgroup *);
+> =A0void mem_cgroup_stop_hierarchy_walk(struct mem_cgroup *, struct mem_cg=
+roup *);
+> +bool mem_cgroup_soft_limit_exceeded(struct mem_cgroup *, struct mem_cgro=
+up *);
+>
+> =A0/*
+> =A0* For memory reclaim.
+> @@ -345,6 +346,12 @@ static inline void mem_cgroup_stop_hierarchy_walk(st=
+ruct mem_cgroup *r,
+> =A0{
+> =A0}
+>
+> +static inline bool mem_cgroup_soft_limit_exceeded(struct mem_cgroup *roo=
+t,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
+ =A0 =A0 =A0 =A0 =A0 =A0 struct mem_cgroup *mem)
+> +{
+> + =A0 =A0 =A0 return false;
+> +}
+> +
+> =A0static inline void
+> =A0mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct=
+ *p)
+> =A0{
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 983efe4..94f77cc3 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -1460,6 +1460,32 @@ void mem_cgroup_stop_hierarchy_walk(struct mem_cgr=
+oup *root,
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0css_put(&mem->css);
+> =A0}
+>
+> +/**
+> + * mem_cgroup_soft_limit_exceeded - check if a memcg (hierarchically)
+> + * =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0ex=
+ceeds a soft limit
+> + * @root: highest ancestor of @mem to consider
+> + * @mem: memcg to check for excess
+> + *
+> + * The function indicates whether @mem has exceeded its own soft
+> + * limit, or contributes to the soft limit excess of one of its
+> + * parents in the hierarchy below @root.
+> + */
+> +bool mem_cgroup_soft_limit_exceeded(struct mem_cgroup *root,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 str=
+uct mem_cgroup *mem)
+> +{
+> + =A0 =A0 =A0 for (;;) {
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (mem =3D=3D root_mem_cgroup)
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 return false;
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (res_counter_soft_limit_excess(&mem->res=
+))
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 return true;
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (mem =3D=3D root)
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 return false;
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 mem =3D parent_mem_cgroup(mem);
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!mem)
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 return false;
+> + =A0 =A0 =A0 }
+> +}
+> +
+> =A0static unsigned long mem_cgroup_reclaim(struct mem_cgroup *mem,
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 =A0gfp_t gfp_mask,
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 =A0unsigned long flags)
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index c7d4b44..0163840 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -1988,9 +1988,13 @@ static void shrink_zone(int priority, struct zone =
+*zone,
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0unsigned long reclaimed =3D sc->nr_reclaim=
+ed;
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0unsigned long scanned =3D sc->nr_scanned;
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0unsigned long nr_reclaimed;
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 int epriority =3D priority;
+> +
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (mem_cgroup_soft_limit_exceeded(root, me=
+m))
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 epriority -=3D 1;
+>
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0sc->mem_cgroup =3D mem;
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 do_shrink_zone(priority, zone, sc);
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 do_shrink_zone(epriority, zone, sc);
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0mem_cgroup_count_reclaim(mem, current_is_k=
+swapd(),
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 =A0 mem !=3D root, /* limit or hierarchy? */
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 =A0 sc->nr_scanned - scanned,
+> @@ -2480,7 +2484,7 @@ loop_again:
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 * Call soft limit reclaim=
+ before calling shrink_zone.
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 * For now we ignore the r=
+eturn value
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 */
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 mem_cgroup_soft_limit_recla=
+im(zone, order, sc.gfp_mask);
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 //mem_cgroup_soft_limit_rec=
+laim(zone, order, sc.gfp_mask);
+>
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0/*
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 * We put equal pressure o=
+n every zone, unless
+> --
+> 1.7.5.2
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
