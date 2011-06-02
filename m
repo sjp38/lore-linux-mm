@@ -1,84 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C4E3900001
-	for <linux-mm@kvack.org>; Thu,  2 Jun 2011 13:57:21 -0400 (EDT)
-Date: Thu, 2 Jun 2011 19:57:02 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 8/8] mm: make per-memcg lru lists exclusive
-Message-ID: <20110602175702.GI28684@cmpxchg.org>
-References: <1306909519-7286-1-git-send-email-hannes@cmpxchg.org>
- <1306909519-7286-9-git-send-email-hannes@cmpxchg.org>
- <BANLkTinHs7OCkpRf8=dYO0ObH5sndZ4__g@mail.gmail.com>
- <20110602142408.GB28684@cmpxchg.org>
- <BANLkTikjjH3vCiwpKrs=+vbaaACC67H7Og@mail.gmail.com>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 62AED900001
+	for <linux-mm@kvack.org>; Thu,  2 Jun 2011 14:13:04 -0400 (EDT)
+Message-ID: <4DE7D2AC.1070503@tilera.com>
+Date: Thu, 2 Jun 2011 14:13:00 -0400
+From: Chris Metcalf <cmetcalf@tilera.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <BANLkTikjjH3vCiwpKrs=+vbaaACC67H7Og@mail.gmail.com>
+Subject: Re: [PATCH] slub: always align cpu_slab to honor cmpxchg_double requirement
+References: <201106021424.p52EO91O006974@lab-17.internal.tilera.com> <alpine.DEB.2.00.1106021015220.18350@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1106021015220.18350@chino.kir.corp.google.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Ying Han <yinghan@google.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, Jun 03, 2011 at 12:54:39AM +0900, Hiroyuki Kamezawa wrote:
-> 2011/6/2 Johannes Weiner <hannes@cmpxchg.org>:
-> > On Thu, Jun 02, 2011 at 10:16:59PM +0900, Hiroyuki Kamezawa wrote:
-> >> 2011/6/1 Johannes Weiner <hannes@cmpxchg.org>:
-> >> > All lru list walkers have been converted to operate on per-memcg
-> >> > lists, the global per-zone lists are no longer required.
-> >> >
-> >> > This patch makes the per-memcg lists exclusive and removes the global
-> >> > lists from memcg-enabled kernels.
-> >> >
-> >> > The per-memcg lists now string up page descriptors directly, which
-> >> > unifies/simplifies the list isolation code of page reclaim as well as
-> >> > it saves a full double-linked list head for each page in the system.
-> >> >
-> >> > At the core of this change is the introduction of the lruvec
-> >> > structure, an array of all lru list heads.  It exists for each zone
-> >> > globally, and for each zone per memcg.  All lru list operations are
-> >> > now done in generic code against lruvecs, with the memcg lru list
-> >> > primitives only doing accounting and returning the proper lruvec for
-> >> > the currently scanned memcg on isolation, or for the respective page
-> >> > on putback.
-> >> >
-> >> > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> >>
-> >>
-> >> could you divide this into
-> >>   - introduce lruvec
-> >>   - don't record section? information into pc->flags because we see
-> >> "page" on memcg LRU
-> >>     and there is no requirement to get page from "pc".
-> >>   - remove pc->lru completely
-> >
-> > Yes, that makes sense.  It shall be fixed in the next version.
-> >
-> 
-> BTW, IIUC, Transparent hugepage has a code to link a page to the
-> page->lru directly.
+On 6/2/2011 1:16 PM, David Rientjes wrote:
+> On Thu, 2 Jun 2011, Chris Metcalf wrote:
+>> On an architecture without CMPXCHG_LOCAL but with DEBUG_VM enabled,
+>> the VM_BUG_ON() in __pcpu_double_call_return_bool() will cause an early
+>> panic during boot unless we always align cpu_slab properly.
+>>
+>> In principle we could remove the alignment-testing VM_BUG_ON() for
+>> architectures that don't have CMPXCHG_LOCAL, but leaving it in means
+>> that new code will tend not to break x86 even if it is introduced
+>> on another platform, and it's low cost to require alignment.
+>>
+>> Signed-off-by: Chris Metcalf <cmetcalf@tilera.com>
+> Acked-by: David Rientjes <rientjes@google.com>
+>
+>> ---
+>> This needs to be pushed for 3.0 to allow arch/tile to boot.
+>> I'm happy to push it but I assume it would be better coming
+>> from an mm or percpu tree.  Thanks!
+>>
+> Should also be marked for stable for 2.6.39.x, right?
 
-[...]
+No, in 2.6.39 the irqsafe_cpu_cmpxchg_double() was guarded under "#ifdef
+CONFIG_CMPXCHG_LOCAL".  Now it's not.  I suppose we could take the comment
+change in percpu.h for 2.6.39, but it probably doesn't merit churning the
+stable tree.
 
-> But it may put a page onto wrong memcgs if we do link a page to
-> another page's page->lru
-> because 2 pages may be in different cgroup each other.
+-- 
+Chris Metcalf, Tilera Corp.
+http://www.tilera.com
 
-Yes, I noticed that.  If it splits a huge page, it does not just add
-the tailpages to the lru head, but it links them next to the head
-page.
-
-But I don't see how those pages could ever be in different memcgs?
-pages with page->mapping pointing to the same anon_vma are always in
-the same memcg, AFAIU.  Only since broken COWs get their own, though.
-
-> 
-> Could you check there are more codes which does link page->lru to nearby page's
-> page->lru ? Now, I'm not sure there are other codes....but we need care.
-
-I double check again.  It's a tricky area, but I thought I covered all
-cases.  Never hurts to reassure, though.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
