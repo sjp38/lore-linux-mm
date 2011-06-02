@@ -1,82 +1,189 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 74A3E6B004A
-	for <linux-mm@kvack.org>; Thu,  2 Jun 2011 02:19:04 -0400 (EDT)
-Received: by qwa26 with SMTP id 26so319916qwa.14
-        for <linux-mm@kvack.org>; Wed, 01 Jun 2011 23:19:03 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20110527150956.e55577c5.akpm@linux-foundation.org>
-References: <1306468203-8683-1-git-send-email-lliubbo@gmail.com>
-	<20110527150956.e55577c5.akpm@linux-foundation.org>
-Date: Thu, 2 Jun 2011 14:19:02 +0800
-Message-ID: <BANLkTikcS9VqKHqUofJKJ9GJ4cgd1tgQBQ@mail.gmail.com>
-Subject: Re: [PATCH] mm: nommu: fix remap_pfn_range()
-From: Bob Liu <lliubbo@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 176E26B004A
+	for <linux-mm@kvack.org>; Thu,  2 Jun 2011 03:01:21 -0400 (EDT)
+From: Dave Chinner <david@fromorbit.com>
+Subject: [PATCH 02/12] vmscan: shrinker->nr updates race and go wrong
+Date: Thu,  2 Jun 2011 17:00:57 +1000
+Message-Id: <1306998067-27659-3-git-send-email-david@fromorbit.com>
+In-Reply-To: <1306998067-27659-1-git-send-email-david@fromorbit.com>
+References: <1306998067-27659-1-git-send-email-david@fromorbit.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: gerg@snapgear.com, dhowells@redhat.com, lethal@linux-sh.org, geert@linux-m68k.org, vapier@gentoo.org, linux-mm@kvack.org
+To: linux-fsdevel@vger.kernel.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, xfs@oss.sgi.com
 
-On Sat, May 28, 2011 at 6:09 AM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
-> On Fri, 27 May 2011 11:50:03 +0800
-> Bob Liu <lliubbo@gmail.com> wrote:
->
->> remap_pfn_range() does not update vma->end on no mmu arch which will
->> cause munmap() fail because it can't match the vma.
->>
->> eg. fb_mmap() in fbmem.c will call io_remap_pfn_range() which is
->> remap_pfn_range() on nommu arch, if an address is not page aligned vma->=
-start
->> will be changed in remap_pfn_range(), but neither size nor vma->end will=
- be
->> updated. Then munmap(start, len) can't find the vma to free, because it =
-need to
->> compare (start + len) with vma->end.
->>
->> Signed-off-by: Bob Liu <lliubbo@gmail.com>
->> ---
->> =C2=A0mm/nommu.c | =C2=A0 =C2=A01 +
->> =C2=A01 files changed, 1 insertions(+), 0 deletions(-)
->>
->> diff --git a/mm/nommu.c b/mm/nommu.c
->> index 1fd0c51..829848a 100644
->> --- a/mm/nommu.c
->> +++ b/mm/nommu.c
->> @@ -1817,6 +1817,7 @@ int remap_pfn_range(struct vm_area_struct *vma, un=
-signed long from,
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 unsigned long to, unsig=
-ned long size, pgprot_t prot)
->> =C2=A0{
->> =C2=A0 =C2=A0 =C2=A0 vma->vm_start =3D vma->vm_pgoff << PAGE_SHIFT;
->> + =C2=A0 =C2=A0 vma->vm_end =3D vma->vm_start + size;
->> =C2=A0 =C2=A0 =C2=A0 return 0;
->> =C2=A0}
->> =C2=A0EXPORT_SYMBOL(remap_pfn_range);
->
-> hm.
->
-> The MMU version of remap_pfn_range() doesn't do this. =C2=A0Seems that it
-> just leaves the omitted parts of the vma unmapped. =C2=A0Obviously nommu
-> can't do that, but the divergence is always a concern.
->
-> Thsi implementation could lead to overlapping vmas. =C2=A0Should we be
-> checking that it fits?
->
+From: Dave Chinner <dchinner@redhat.com>
 
-Hi, Andrew
+shrink_slab() allows shrinkers to be called in parallel so the
+struct shrinker can be updated concurrently. It does not provide any
+exclusio for such updates, so we can get the shrinker->nr value
+increasing or decreasing incorrectly.
 
-Sorry for the late response and thanks for your review.
-I think the overlapping vmas could exist whether this patch or not.
-Maybe extra check is needed but since nobody run into that cases,
-could we check it in future patches?
+As a result, when a shrinker repeatedly returns a value of -1 (e.g.
+a VFS shrinker called w/ GFP_NOFS), the shrinker->nr goes haywire,
+sometimes updating with the scan count that wasn't used, sometimes
+losing it altogether. Worse is when a shrinker does work and that
+update is lost due to racy updates, which means the shrinker will do
+the work again!
 
-Thanks
---=20
-Regards,
---Bob
+Fix this by making the total_scan calculations independent of
+shrinker->nr, and making the shrinker->nr updates atomic w.r.t. to
+other updates via cmpxchg loops.
+
+Signed-off-by: Dave Chinner <dchinner@redhat.com>
+---
+ include/trace/events/vmscan.h |   26 ++++++++++++++----------
+ mm/vmscan.c                   |   43 ++++++++++++++++++++++++++++++----------
+ 2 files changed, 47 insertions(+), 22 deletions(-)
+
+diff --git a/include/trace/events/vmscan.h b/include/trace/events/vmscan.h
+index c798cd7..6147b4e 100644
+--- a/include/trace/events/vmscan.h
++++ b/include/trace/events/vmscan.h
+@@ -311,12 +311,13 @@ TRACE_EVENT(mm_vmscan_lru_shrink_inactive,
+ );
+ 
+ TRACE_EVENT(mm_shrink_slab_start,
+-	TP_PROTO(struct shrinker *shr, struct shrink_control *sc,
++	TP_PROTO(struct shrinker *shr, struct shrink_control *sc, long shr_nr,
+ 		unsigned long pgs_scanned, unsigned long lru_pgs,
+ 		unsigned long cache_items, unsigned long long delta,
+ 		unsigned long total_scan),
+ 
+-	TP_ARGS(shr, sc, pgs_scanned, lru_pgs, cache_items, delta, total_scan),
++	TP_ARGS(shr, sc, shr_nr, pgs_scanned, lru_pgs,
++		cache_items, delta, total_scan),
+ 
+ 	TP_STRUCT__entry(
+ 		__field(struct shrinker *, shr)
+@@ -331,7 +332,7 @@ TRACE_EVENT(mm_shrink_slab_start,
+ 
+ 	TP_fast_assign(
+ 		__entry->shr = shr;
+-		__entry->shr_nr = shr->nr;
++		__entry->shr_nr = shr_nr;
+ 		__entry->gfp_flags = sc->gfp_mask;
+ 		__entry->pgs_scanned = pgs_scanned;
+ 		__entry->lru_pgs = lru_pgs;
+@@ -353,27 +354,30 @@ TRACE_EVENT(mm_shrink_slab_start,
+ 
+ TRACE_EVENT(mm_shrink_slab_end,
+ 	TP_PROTO(struct shrinker *shr, int shrinker_ret,
+-		unsigned long total_scan),
++		long old_nr, long new_nr),
+ 
+-	TP_ARGS(shr, shrinker_ret, total_scan),
++	TP_ARGS(shr, shrinker_ret, old_nr, new_nr),
+ 
+ 	TP_STRUCT__entry(
+ 		__field(struct shrinker *, shr)
+-		__field(long, shr_nr)
++		__field(long, old_nr)
++		__field(long, new_nr)
+ 		__field(int, shrinker_ret)
+-		__field(unsigned long, total_scan)
++		__field(long, total_scan)
+ 	),
+ 
+ 	TP_fast_assign(
+ 		__entry->shr = shr;
+-		__entry->shr_nr = shr->nr;
++		__entry->old_nr = old_nr;
++		__entry->new_nr = new_nr;
+ 		__entry->shrinker_ret = shrinker_ret;
+-		__entry->total_scan = total_scan;
++		__entry->total_scan = new_nr - old_nr;
+ 	),
+ 
+-	TP_printk("shrinker %p: nr %ld total_scan %ld return val %d",
++	TP_printk("shrinker %p: old_nr %ld new_nr %ld total_scan %ld return val %d",
+ 		__entry->shr,
+-		__entry->shr_nr,
++		__entry->old_nr,
++		__entry->new_nr,
+ 		__entry->total_scan,
+ 		__entry->shrinker_ret)
+ );
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 48e3fbd..dce2767 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -251,17 +251,29 @@ unsigned long shrink_slab(struct shrink_control *shrink,
+ 		unsigned long total_scan;
+ 		unsigned long max_pass;
+ 		int shrink_ret = 0;
++		long nr;
++		long new_nr;
+ 
++		/*
++		 * copy the current shrinker scan count into a local variable
++		 * and zero it so that other concurrent shrinker invocations
++		 * don't also do this scanning work.
++		 */
++		do {
++			nr = shrinker->nr;
++		} while (cmpxchg(&shrinker->nr, nr, 0) != nr);
++
++		total_scan = nr;
+ 		max_pass = do_shrinker_shrink(shrinker, shrink, 0);
+ 		delta = (4 * nr_pages_scanned) / shrinker->seeks;
+ 		delta *= max_pass;
+ 		do_div(delta, lru_pages + 1);
+-		shrinker->nr += delta;
+-		if (shrinker->nr < 0) {
++		total_scan += delta;
++		if (total_scan < 0) {
+ 			printk(KERN_ERR "shrink_slab: %pF negative objects to "
+ 			       "delete nr=%ld\n",
+-			       shrinker->shrink, shrinker->nr);
+-			shrinker->nr = max_pass;
++			       shrinker->shrink, total_scan);
++			total_scan = max_pass;
+ 		}
+ 
+ 		/*
+@@ -269,13 +281,11 @@ unsigned long shrink_slab(struct shrink_control *shrink,
+ 		 * never try to free more than twice the estimate number of
+ 		 * freeable entries.
+ 		 */
+-		if (shrinker->nr > max_pass * 2)
+-			shrinker->nr = max_pass * 2;
++		if (total_scan > max_pass * 2)
++			total_scan = max_pass * 2;
+ 
+-		total_scan = shrinker->nr;
+-		shrinker->nr = 0;
+ 
+-		trace_mm_shrink_slab_start(shrinker, shrink, nr_pages_scanned,
++		trace_mm_shrink_slab_start(shrinker, shrink, nr, nr_pages_scanned,
+ 					lru_pages, max_pass, delta, total_scan);
+ 
+ 		while (total_scan >= SHRINK_BATCH) {
+@@ -295,8 +305,19 @@ unsigned long shrink_slab(struct shrink_control *shrink,
+ 			cond_resched();
+ 		}
+ 
+-		shrinker->nr += total_scan;
+-		trace_mm_shrink_slab_end(shrinker, shrink_ret, total_scan);
++		/*
++		 * move the unused scan count back into the shrinker in a
++		 * manner that handles concurrent updates. If we exhausted the
++		 * scan, there is no need to do an update.
++		 */
++		do {
++			nr = shrinker->nr;
++			new_nr = total_scan + nr;
++			if (total_scan <= 0)
++				break;
++		} while (cmpxchg(&shrinker->nr, nr, new_nr) != nr);
++
++		trace_mm_shrink_slab_end(shrinker, shrink_ret, nr, new_nr);
+ 	}
+ 	up_read(&shrinker_rwsem);
+ out:
+-- 
+1.7.5.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
