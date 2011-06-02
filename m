@@ -1,92 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 5AE1B6B004A
-	for <linux-mm@kvack.org>; Thu,  2 Jun 2011 16:59:23 -0400 (EDT)
-Received: by pwi12 with SMTP id 12so867487pwi.14
-        for <linux-mm@kvack.org>; Thu, 02 Jun 2011 13:59:21 -0700 (PDT)
-Date: Fri, 3 Jun 2011 05:59:13 +0900
-From: Minchan Kim <minchan.kim@gmail.com>
-Subject: Re: [PATCH] mm: compaction: Abort compaction if too many pages are
- isolated and caller is asynchronous
-Message-ID: <20110602205912.GA24579@barrios-laptop>
-References: <20110530165546.GC5118@suse.de>
- <20110530175334.GI19505@random.random>
- <20110531121620.GA3490@barrios-laptop>
- <20110531122437.GJ19505@random.random>
- <20110531133340.GB3490@barrios-laptop>
- <20110531141402.GK19505@random.random>
- <20110531143734.GB13418@barrios-laptop>
- <20110531143830.GC13418@barrios-laptop>
- <20110602182302.GA2802@random.random>
- <20110602202156.GA23486@barrios-laptop>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id C12BF6B007B
+	for <linux-mm@kvack.org>; Thu,  2 Jun 2011 17:02:39 -0400 (EDT)
+Received: from hpaq12.eem.corp.google.com (hpaq12.eem.corp.google.com [172.25.149.12])
+	by smtp-out.google.com with ESMTP id p52L2bPP021420
+	for <linux-mm@kvack.org>; Thu, 2 Jun 2011 14:02:37 -0700
+Received: from qyk10 (qyk10.prod.google.com [10.241.83.138])
+	by hpaq12.eem.corp.google.com with ESMTP id p52L1INs017242
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 2 Jun 2011 14:02:36 -0700
+Received: by qyk10 with SMTP id 10so768979qyk.11
+        for <linux-mm@kvack.org>; Thu, 02 Jun 2011 14:02:31 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110602202156.GA23486@barrios-laptop>
+In-Reply-To: <BANLkTi=cHVZP+fZwHNM3cXVyw53kJ2HQmw@mail.gmail.com>
+References: <1306909519-7286-1-git-send-email-hannes@cmpxchg.org>
+	<1306909519-7286-8-git-send-email-hannes@cmpxchg.org>
+	<BANLkTi=cHVZP+fZwHNM3cXVyw53kJ2HQmw@mail.gmail.com>
+Date: Thu, 2 Jun 2011 14:02:31 -0700
+Message-ID: <BANLkTimvuwLYwzRT-6k_oVwKBzBEo500s-rXETerTskYHfontQ@mail.gmail.com>
+Subject: Re: [patch 7/8] vmscan: memcg-aware unevictable page rescue scanner
+From: Ying Han <yinghan@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Mel Gorman <mgorman@suse.de>, Mel Gorman <mel@csn.ul.ie>, akpm@linux-foundation.org, Ury Stankevich <urykhy@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 
-On Fri, Jun 03, 2011 at 05:21:56AM +0900, Minchan Kim wrote:
-> On Thu, Jun 02, 2011 at 08:23:02PM +0200, Andrea Arcangeli wrote:
-> > On Tue, May 31, 2011 at 11:38:30PM +0900, Minchan Kim wrote:
-> > > > Yes. You find a new BUG.
-> > > > It seems to be related to this problem but it should be solved although
-> > > 
-> > >  typo : It doesn't seem to be.
-> > 
-> > This should fix it, but I doubt it matters for this problem.
-> > 
-> > ===
-> > Subject: mm: no page_count without a page pin
-> > 
-> > From: Andrea Arcangeli <aarcange@redhat.com>
-> > 
-> > It's unsafe to run page_count during the physical pfn scan.
-> > 
-> > Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-> > ---
-> > 
-> > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > index faa0a08..e41e78a 100644
-> > --- a/mm/vmscan.c
-> > +++ b/mm/vmscan.c
-> > @@ -1124,8 +1124,18 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
-> >  					nr_lumpy_dirty++;
-> >  				scan++;
-> >  			} else {
-> > -				/* the page is freed already. */
-> > -				if (!page_count(cursor_page))
-> > +				/*
-> > +				 * We can't use page_count() as that
-> > +				 * requires compound_head and we don't
-> > +				 * have a pin on the page here. If a
-> > +				 * page is tail, we may or may not
-> > +				 * have isolated the head, so assume
-> > +				 * it's not free, it'd be tricky to
-> 
-> Isn't it rather aggressive?
-> I think cursor page is likely to be PageTail rather than PageHead.
-> Could we handle it simply with below code?
-> 
-> get_page(cursor_page)
-> /* The page is freed already */
-> if (1 == page_count(cursor_page)) {
-> 	put_page(cursor_page)
-> 	continue;
-> }
-> put_page(cursor_page);
-> 
+On Thu, Jun 2, 2011 at 6:27 AM, Hiroyuki Kamezawa
+<kamezawa.hiroyuki@gmail.com> wrote:
+> 2011/6/1 Johannes Weiner <hannes@cmpxchg.org>:
+>> Once the per-memcg lru lists are exclusive, the unevictable page
+>> rescue scanner can no longer work on the global zone lru lists.
+>>
+>> This converts it to go through all memcgs and scan their respective
+>> unevictable lists instead.
+>>
+>> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+>
+> Hm, isn't it better to have only one GLOBAL LRU for unevictable pages ?
+> memcg only needs counter for unevictable pages and LRU is not necessary
+> to be per memcg because we don't reclaim it...
 
-Now that I look code more, it would meet VM_BUG_ON of get_page if the page is really
-freed. I think if we hold zone->lock to prevent prep_new_page racing, it would be okay.
-But it's rather overkill so I will add my sign to your patch if we don't have better idea
-until tomorrow. :)
+Hmm. Are we suggesting to keep one un-evictable LRU list for all
+memcgs? So we will have
+exclusive lru only for file and anon. If so, we are not done to make
+all the lru list being exclusive
+which is critical later to improve the zone->lru_lock contention
+across the memcgs
 
--- 
-Kind regards
-Minchan Kim
+Sorry If i misinterpret the suggestion here
+
+--Ying
+
+
+> Thanks,
+> -Kame
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
