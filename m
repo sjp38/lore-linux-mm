@@ -1,216 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 4D5C86B007E
-	for <linux-mm@kvack.org>; Thu,  2 Jun 2011 01:37:38 -0400 (EDT)
-Received: from hpaq7.eem.corp.google.com (hpaq7.eem.corp.google.com [172.25.149.7])
-	by smtp-out.google.com with ESMTP id p525bZ1h019447
-	for <linux-mm@kvack.org>; Wed, 1 Jun 2011 22:37:36 -0700
-Received: from qyg14 (qyg14.prod.google.com [10.241.82.142])
-	by hpaq7.eem.corp.google.com with ESMTP id p525aC3K013601
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 1 Jun 2011 22:37:34 -0700
-Received: by qyg14 with SMTP id 14so293830qyg.12
-        for <linux-mm@kvack.org>; Wed, 01 Jun 2011 22:37:29 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 74A3E6B004A
+	for <linux-mm@kvack.org>; Thu,  2 Jun 2011 02:19:04 -0400 (EDT)
+Received: by qwa26 with SMTP id 26so319916qwa.14
+        for <linux-mm@kvack.org>; Wed, 01 Jun 2011 23:19:03 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1306909519-7286-5-git-send-email-hannes@cmpxchg.org>
-References: <1306909519-7286-1-git-send-email-hannes@cmpxchg.org>
-	<1306909519-7286-5-git-send-email-hannes@cmpxchg.org>
-Date: Wed, 1 Jun 2011 22:37:29 -0700
-Message-ID: <BANLkTi=+oDjSeXZDOyoKXAWG3=5AonTYSQ@mail.gmail.com>
-Subject: Re: [patch 4/8] memcg: rework soft limit reclaim
-From: Ying Han <yinghan@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+In-Reply-To: <20110527150956.e55577c5.akpm@linux-foundation.org>
+References: <1306468203-8683-1-git-send-email-lliubbo@gmail.com>
+	<20110527150956.e55577c5.akpm@linux-foundation.org>
+Date: Thu, 2 Jun 2011 14:19:02 +0800
+Message-ID: <BANLkTikcS9VqKHqUofJKJ9GJ4cgd1tgQBQ@mail.gmail.com>
+Subject: Re: [PATCH] mm: nommu: fix remap_pfn_range()
+From: Bob Liu <lliubbo@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: gerg@snapgear.com, dhowells@redhat.com, lethal@linux-sh.org, geert@linux-m68k.org, vapier@gentoo.org, linux-mm@kvack.org
 
-On Tue, May 31, 2011 at 11:25 PM, Johannes Weiner <hannes@cmpxchg.org> wrot=
-e:
-> Currently, soft limit reclaim is entered from kswapd, where it selects
-> the memcg with the biggest soft limit excess in absolute bytes, and
-> reclaims pages from it with maximum aggressiveness (priority 0).
+On Sat, May 28, 2011 at 6:09 AM, Andrew Morton
+<akpm@linux-foundation.org> wrote:
+> On Fri, 27 May 2011 11:50:03 +0800
+> Bob Liu <lliubbo@gmail.com> wrote:
 >
-> This has the following disadvantages:
+>> remap_pfn_range() does not update vma->end on no mmu arch which will
+>> cause munmap() fail because it can't match the vma.
+>>
+>> eg. fb_mmap() in fbmem.c will call io_remap_pfn_range() which is
+>> remap_pfn_range() on nommu arch, if an address is not page aligned vma->=
+start
+>> will be changed in remap_pfn_range(), but neither size nor vma->end will=
+ be
+>> updated. Then munmap(start, len) can't find the vma to free, because it =
+need to
+>> compare (start + len) with vma->end.
+>>
+>> Signed-off-by: Bob Liu <lliubbo@gmail.com>
+>> ---
+>> =C2=A0mm/nommu.c | =C2=A0 =C2=A01 +
+>> =C2=A01 files changed, 1 insertions(+), 0 deletions(-)
+>>
+>> diff --git a/mm/nommu.c b/mm/nommu.c
+>> index 1fd0c51..829848a 100644
+>> --- a/mm/nommu.c
+>> +++ b/mm/nommu.c
+>> @@ -1817,6 +1817,7 @@ int remap_pfn_range(struct vm_area_struct *vma, un=
+signed long from,
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 unsigned long to, unsig=
+ned long size, pgprot_t prot)
+>> =C2=A0{
+>> =C2=A0 =C2=A0 =C2=A0 vma->vm_start =3D vma->vm_pgoff << PAGE_SHIFT;
+>> + =C2=A0 =C2=A0 vma->vm_end =3D vma->vm_start + size;
+>> =C2=A0 =C2=A0 =C2=A0 return 0;
+>> =C2=A0}
+>> =C2=A0EXPORT_SYMBOL(remap_pfn_range);
 >
-> =A0 =A01. because of the aggressiveness, kswapd can be stalled on a memcg
-> =A0 =A0that is hard to reclaim from for a long time, sending the rest of
-> =A0 =A0the allocators into direct reclaim in the meantime.
+> hm.
 >
-> =A0 =A02. it only considers the biggest offender (in absolute bytes, no
-> =A0 =A0less, so very unhandy for setups with different-sized memcgs) and
-> =A0 =A0does not apply any pressure at all on other memcgs in excess.
+> The MMU version of remap_pfn_range() doesn't do this. =C2=A0Seems that it
+> just leaves the omitted parts of the vma unmapped. =C2=A0Obviously nommu
+> can't do that, but the divergence is always a concern.
 >
-> =A0 =A03. because it is only invoked from kswapd, the soft limit is
-> =A0 =A0meaningful during global memory pressure, but it is not taken into
-> =A0 =A0account during hierarchical target reclaim where it could allow
-> =A0 =A0prioritizing memcgs as well. =A0So while it does hierarchical
-> =A0 =A0reclaim once triggered, it is not a truly hierarchical mechanism.
+> Thsi implementation could lead to overlapping vmas. =C2=A0Should we be
+> checking that it fits?
 >
-> Here is a different approach. =A0Instead of having a soft limit reclaim
-> cycle separate from the rest of reclaim, this patch ensures that each
-> time a group of memcgs is reclaimed - be it because of global memory
-> pressure or because of a hard limit - memcgs that exceed their soft
-> limit, or contribute to the soft limit excess of one their parents,
-> are reclaimed from at a higher priority than their siblings.
->
-> This results in the following:
->
-> =A0 =A01. all relevant memcgs are scanned with increasing priority during
-> =A0 =A0memory pressure. =A0The primary goal is to free pages, not to puni=
-sh
-> =A0 =A0soft limit offenders.
->
-> =A0 =A02. increased pressure is applied to all memcgs in excess of their
-> =A0 =A0soft limit, not only the biggest offender.
->
-> =A0 =A03. the soft limit becomes meaningful for target reclaim as well,
-> =A0 =A0where it allows prioritizing children of a hierarchy when the
-> =A0 =A0parent hits its limit.
->
-> =A0 =A04. direct reclaim now also applies increased soft limit pressure,
-> =A0 =A0not just kswapd anymore.
 
-So I see now that we removed the logic of doing per-zone soft_limit
-reclaim totally (including the next patch). Instead we are iterating
-the whole memcg hierarchy under global memory pressure.
+Hi, Andrew
 
-Is there a reason we didn't keep the per-zone memcg list which allows
-us only scanning memgs w/ pages landed on the zone?
+Sorry for the late response and thanks for your review.
+I think the overlapping vmas could exist whether this patch or not.
+Maybe extra check is needed but since nobody run into that cases,
+could we check it in future patches?
 
---Ying
-
-
-
->
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> ---
-> =A0include/linux/memcontrol.h | =A0 =A07 +++++++
-> =A0mm/memcontrol.c =A0 =A0 =A0 =A0 =A0 =A0| =A0 26 ++++++++++++++++++++++=
-++++
-> =A0mm/vmscan.c =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0| =A0 =A08 ++++++--
-> =A03 files changed, 39 insertions(+), 2 deletions(-)
->
-> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-> index 8f402b9..7d99e87 100644
-> --- a/include/linux/memcontrol.h
-> +++ b/include/linux/memcontrol.h
-> @@ -104,6 +104,7 @@ extern void mem_cgroup_end_migration(struct mem_cgrou=
-p *mem,
-> =A0struct mem_cgroup *mem_cgroup_hierarchy_walk(struct mem_cgroup *,
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0 =A0 =A0 struct mem_cgroup *);
-> =A0void mem_cgroup_stop_hierarchy_walk(struct mem_cgroup *, struct mem_cg=
-roup *);
-> +bool mem_cgroup_soft_limit_exceeded(struct mem_cgroup *, struct mem_cgro=
-up *);
->
-> =A0/*
-> =A0* For memory reclaim.
-> @@ -345,6 +346,12 @@ static inline void mem_cgroup_stop_hierarchy_walk(st=
-ruct mem_cgroup *r,
-> =A0{
-> =A0}
->
-> +static inline bool mem_cgroup_soft_limit_exceeded(struct mem_cgroup *roo=
-t,
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
- =A0 =A0 =A0 =A0 =A0 =A0 struct mem_cgroup *mem)
-> +{
-> + =A0 =A0 =A0 return false;
-> +}
-> +
-> =A0static inline void
-> =A0mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct=
- *p)
-> =A0{
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 983efe4..94f77cc3 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -1460,6 +1460,32 @@ void mem_cgroup_stop_hierarchy_walk(struct mem_cgr=
-oup *root,
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0css_put(&mem->css);
-> =A0}
->
-> +/**
-> + * mem_cgroup_soft_limit_exceeded - check if a memcg (hierarchically)
-> + * =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0ex=
-ceeds a soft limit
-> + * @root: highest ancestor of @mem to consider
-> + * @mem: memcg to check for excess
-> + *
-> + * The function indicates whether @mem has exceeded its own soft
-> + * limit, or contributes to the soft limit excess of one of its
-> + * parents in the hierarchy below @root.
-> + */
-> +bool mem_cgroup_soft_limit_exceeded(struct mem_cgroup *root,
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 str=
-uct mem_cgroup *mem)
-> +{
-> + =A0 =A0 =A0 for (;;) {
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (mem =3D=3D root_mem_cgroup)
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 return false;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (res_counter_soft_limit_excess(&mem->res=
-))
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 return true;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (mem =3D=3D root)
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 return false;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 mem =3D parent_mem_cgroup(mem);
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!mem)
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 return false;
-> + =A0 =A0 =A0 }
-> +}
-> +
-> =A0static unsigned long mem_cgroup_reclaim(struct mem_cgroup *mem,
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0gfp_t gfp_mask,
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0unsigned long flags)
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index c7d4b44..0163840 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -1988,9 +1988,13 @@ static void shrink_zone(int priority, struct zone =
-*zone,
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0unsigned long reclaimed =3D sc->nr_reclaim=
-ed;
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0unsigned long scanned =3D sc->nr_scanned;
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0unsigned long nr_reclaimed;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 int epriority =3D priority;
-> +
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (mem_cgroup_soft_limit_exceeded(root, me=
-m))
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 epriority -=3D 1;
->
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0sc->mem_cgroup =3D mem;
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 do_shrink_zone(priority, zone, sc);
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 do_shrink_zone(epriority, zone, sc);
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0mem_cgroup_count_reclaim(mem, current_is_k=
-swapd(),
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0 mem !=3D root, /* limit or hierarchy? */
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0 sc->nr_scanned - scanned,
-> @@ -2480,7 +2484,7 @@ loop_again:
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 * Call soft limit reclaim=
- before calling shrink_zone.
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 * For now we ignore the r=
-eturn value
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 */
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 mem_cgroup_soft_limit_recla=
-im(zone, order, sc.gfp_mask);
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 //mem_cgroup_soft_limit_rec=
-laim(zone, order, sc.gfp_mask);
->
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0/*
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 * We put equal pressure o=
-n every zone, unless
-> --
-> 1.7.5.2
->
->
+Thanks
+--=20
+Regards,
+--Bob
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
