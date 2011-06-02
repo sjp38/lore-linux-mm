@@ -1,197 +1,253 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id C404F6B0078
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 6F5D56B007B
 	for <linux-mm@kvack.org>; Thu,  2 Jun 2011 03:01:23 -0400 (EDT)
 From: Dave Chinner <david@fromorbit.com>
-Subject: [PATCH 0/12] Per superblock cache reclaim
-Date: Thu,  2 Jun 2011 17:00:55 +1000
-Message-Id: <1306998067-27659-1-git-send-email-david@fromorbit.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Subject: [PATCH 06/12] inode: Make unused inode LRU per superblock
+Date: Thu,  2 Jun 2011 17:01:01 +1000
+Message-Id: <1306998067-27659-7-git-send-email-david@fromorbit.com>
+In-Reply-To: <1306998067-27659-1-git-send-email-david@fromorbit.com>
+References: <1306998067-27659-1-git-send-email-david@fromorbit.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-fsdevel@vger.kernel.org
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, xfs@oss.sgi.com
 
-This series converts the VFS cache shrinkers to a per-superblock
-shrinker, and provides a callout from the superblock shrinker to
-allow the filesystem to shrink internal caches proportionally to the
-amount of reclaim done to the VFS caches.
+From: Dave Chinner <dchinner@redhat.com>
 
-The motivation for this work is that the VFS caches are dependent
-caches - dentries pin inodes, and inodes often pin other filesystem
-specific structures.  The caches can grow quite large and it is easy
-for them to get unbalanced when they are shrunk independently.
+The inode unused list is currently a global LRU. This does not match
+the other global filesystem cache - the dentry cache - which uses
+per-superblock LRU lists. Hence we have related filesystem object
+types using different LRU reclaimation schemes.
 
-Reclaim is also focussed on sharing reclaim batches across all
-superblocks rather than within a superblock, so often reclaim calls
-only remove a few objects from each superblock at a time. This means
-that we touch lots of superblocks and LRUs one every shrinker call,
-and we have to traverse the superblock list all the time.
+To enable a per-superblock filesystem cache shrinker, both of these
+caches need to have per-sb unused object LRU lists. Hence this patch
+converts the global inode LRU to per-sb LRUs.
 
-This leads to life-cycle issues - we have to ensure that the
-superblock we are trying to work on is active and won't go away, and
-also ensure that the unmount process synchronises correctly with
-active shrinkers. This is complex and the locks involved cause
-issues with lockdep refularly reporting false positive lock
-inversions.
+The patch only does rudimentary per-sb propotioning in the shrinker
+infrastructure, as this gets removed when the per-sb shrinker
+callouts are introduced later on.
 
-Firstly, however, there are several longstanding bugs in the
-VM shrinker infrastructure that need to be fixed. Firstly, we need
-to add tracepoints so we can observe the behaviour of the shrinker
-calculations. Secondly, the shrinker scan calculations are not SMP
-safe and that is causing shrinkers to either miss work they should
-be doing, or doing a lot more work than they should.
-
-With these fixes in place, I found the reason that I was not able to
-balance system behaviour on my first attempt at per-sb shrinkers.
-When a shrinker repeatedly returns "-1" to avoid deadlocks, like
-will happen when a filesystem is doing GFP_NOFS memory allocations
-during transactions (and that happens *a lot* during filesystem
-intensive workloads), then the work is delayed by adding it to
-shrinker->nr for the next shrinker call to do.
-
-This causes the shrinker->nr to increase until it is 2x the number
-of objects in the cache, and so when the shrinker is finally able to
-do work, it is effectively told to shrink the entire cache to zero.
-Twice over. You'll never guess how I found it - the tracepoints I
-added, perhaps? This problem is fixed by only allowing the
-shrinker->nr to wind up to half the size of the cache when there are
-lots of little additions caused by deadlock avoidance. This is
-sufficient to maintain current levels of performance whilst avoiding
-the cache trashing problem.
-
-So, back to the VFS cache shrinkers.  To avoid all the above
-problems, we can use the per-shrinker context infrastructure that
-was introduced recently for XFS. By adding a shrinker context to
-each superblock and registering the shrinker after the superblock is
-created and unregistering it early in the unmount process we avoid
-the need for specific unmount synchronisation between the shrinker
-and the unmount process.  Goodbye iprune_sem.
-
-Further, by having per-superblock shrinker callouts, we no longer
-need to walk the superblock list on every shrinker call for both the
-dentry and inode caches, nor do we need to proportion reclaim
-between superblocks. That simplifies the cache shrinking
-implementation significantly.
-
-However, to take advantage of this, the first thing we need to do is
-convert the inode cache LRU to a per-superblock LRU. This is trivial
-to do - it's just a copy of the dentry cache infrastructure. The
-inode cache LRU can also be trivially converted to a lock per
-superblock as well, so that is done at the same time.
-
-[ Note that it looks like the same change can be made to the dentry
-cache LRU, but the simple conversion from the global dcache_lru_lock
-to per-sb locks results in occasional, strange ENOENT errors during
-path lookups. So that patch is on hold. ]
-
-With a single shrinker - prune_super() - that can address both  the
-per-sb dentry and inode LRUs, it is a simple matter of proportioning
-the reclaim batch between them. This is done simply by the ratio of
-objects in the two caches, and the dentry cache is pruned first so
-that it unpins inodes before the inode cache is pruned.
-
-Now that we have prune_super(), reclaiming hundreds of
-thousands or millions of dentries and inodes in batches of 128
-objects does not make much sense. The VM shrinker infrastructure
-uses a batch size of 128 so that it can regularly reschedule if
-necessary. The dentry cache pruner already has reschedule checks,
-and it is trivial to add them to the VFS and XFS inode cache
-pruners. With that done, there is no reason why we can't use a much
-larger reclaim batch size and remove more objects from each cache on
-each visit to them.
-
-To do this, add a per-shrinker batch size configuration field, and
-configure prune_super() to use a larger batch size of 1024
-objects. This reduces the number of times we need to make
-calculations, traffic locks and structures, and means we spend more
-time in cache specific loops than we would with a smaller batch
-size. This reduces the overhead of cache shrinking.
-
-Overall, the changes result in steady state cache ratios on XFS,
-ext4 and btrfs of 1 dentry : 3 inodes. The state ratio is 1 inused
-inode : 2 free inodes (the in-use inode is pinned by the dentry).
-The following chart demonstrateN? ext4 (left) and btrfs (right) cache
-ratios under steady state 8-way file creation conditions.
-
-http://userweb.kernel.org/~dgc/shrinker/ext4-btrfs-cache-ratio.png
-
-For XFS, however, the situation is slightly more complex. XFS
-maintains it's own inode cache (the VFS inode cache is a subset of
-the XFS cache), and so needs to be able to keep that synchronised
-with the VFS caches. Hence a filesystem specific callout is added
-to the superblock pruning method that is proportioned with the
-VFS dentry and inode caches. Implementing these methods is optional,
-and this is done for XFS in the last patch in the series.
-
-XFS behaviour at different stages of the patch series can be seen in
-the following chart:
-
-http://userweb.kernel.org/~dgc/shrinker/per-sb-shrinker-comparison.png
-
-The left-most traces are from a kernel with just the VM
-shrink_slab() fixes. The middle trace is the same 8-way create
-workload, but with the inode cache LRU changes and the per-sb
-superblock shrinker addressing just the VFS dentry and inode
-caches. The right-most (partial) workload trace is the full series
-with the XFS inode cache shrinker being called from prune_super().
-
-You can see from the top chart that the cache behaviour has much
-less variance in the middle trace with the per-sb shrinkers compared
-to the left-most trace. Also, you can see that the XFS inode cache
-size follows the VFS inode cache residency much more closely in the
-right-most trace as a result of using the prune_super() filesystem
-callout.
-
-Yes, these XFS traces are much more variable that the ext4 and btrfs
-charts, but XFS is putting significantly more pressure on the caches
-and most allocations are GFP_NOFS, hence triggering the wind-up
-problems described above. It is, however, much better behaved than
-the existing shrinker behaviour (worse than the left-most trace with
-the VM fixes) and much better than the previous (aborted) per-sb
-shrinker attempts:
-
-http://userweb.kernel.org/~dgc/shrinker-2.6.36/fs_mark-2.6.35-rc4-per-sb-basic-16x500-xfs.png
-http://userweb.kernel.org/~dgc/shrinker-2.6.36/fs_mark-2.6.35-rc4-per-sb-balance-16x500-xfs.png
-http://userweb.kernel.org/~dgc/shrinker-2.6.36/fs_mark-2.6.35-rc4-per-sb-proportional-16x500-xfs.png
-
+Signed-off-by: Dave Chinner <dchinner@redhat.com>
 ---
+ fs/inode.c         |   91 +++++++++++++++++++++++++++++++++++++++++++++------
+ fs/super.c         |    1 +
+ include/linux/fs.h |    4 ++
+ 3 files changed, 85 insertions(+), 11 deletions(-)
 
-The following changes since commit c7427d23f7ed695ac226dbe3a84d7f19091d34ce:
-
-  autofs4: bogus dentry_unhash() added in ->unlink() (2011-05-30 01:50:53 -0400)
-
-are available in the git repository at:
-  git://git.kernel.org/pub/scm/linux/people/dgc/xfsdev.git per-sb-shrinker
-
-Dave Chinner (12):
-      vmscan: add shrink_slab tracepoints
-      vmscan: shrinker->nr updates race and go wrong
-      vmscan: reduce wind up shrinker->nr when shrinker can't do work
-      vmscan: add customisable shrinker batch size
-      inode: convert inode_stat.nr_unused to per-cpu counters
-      inode: Make unused inode LRU per superblock
-      inode: move to per-sb LRU locks
-      superblock: introduce per-sb cache shrinker infrastructure
-      inode: remove iprune_sem
-      superblock: add filesystem shrinker operations
-      vfs: increase shrinker batch size
-      xfs: make use of new shrinker callout for the inode cache
-
- Documentation/filesystems/vfs.txt |   21 ++++++
- fs/dcache.c                       |  121 ++++--------------------------------
- fs/inode.c                        |  124 ++++++++++++-------------------------
- fs/super.c                        |   79 +++++++++++++++++++++++-
- fs/xfs/linux-2.6/xfs_super.c      |   26 +++++---
- fs/xfs/linux-2.6/xfs_sync.c       |   71 ++++++++-------------
- fs/xfs/linux-2.6/xfs_sync.h       |    5 +-
- include/linux/fs.h                |   14 ++++
- include/linux/mm.h                |    1 +
- include/trace/events/vmscan.h     |   71 +++++++++++++++++++++
- mm/vmscan.c                       |   70 ++++++++++++++++-----
- 11 files changed, 337 insertions(+), 266 deletions(-)
+diff --git a/fs/inode.c b/fs/inode.c
+index 17fea5b..e039115 100644
+--- a/fs/inode.c
++++ b/fs/inode.c
+@@ -34,7 +34,7 @@
+  * inode->i_lock protects:
+  *   inode->i_state, inode->i_hash, __iget()
+  * inode_lru_lock protects:
+- *   inode_lru, inode->i_lru
++ *   inode->i_sb->s_inode_lru, inode->i_lru
+  * inode_sb_list_lock protects:
+  *   sb->s_inodes, inode->i_sb_list
+  * inode_wb_list_lock protects:
+@@ -64,7 +64,6 @@ static unsigned int i_hash_shift __read_mostly;
+ static struct hlist_head *inode_hashtable __read_mostly;
+ static __cacheline_aligned_in_smp DEFINE_SPINLOCK(inode_hash_lock);
+ 
+-static LIST_HEAD(inode_lru);
+ static DEFINE_SPINLOCK(inode_lru_lock);
+ 
+ __cacheline_aligned_in_smp DEFINE_SPINLOCK(inode_sb_list_lock);
+@@ -345,7 +344,8 @@ static void inode_lru_list_add(struct inode *inode)
+ {
+ 	spin_lock(&inode_lru_lock);
+ 	if (list_empty(&inode->i_lru)) {
+-		list_add(&inode->i_lru, &inode_lru);
++		list_add(&inode->i_lru, &inode->i_sb->s_inode_lru);
++		inode->i_sb->s_nr_inodes_unused++;
+ 		this_cpu_inc(nr_unused);
+ 	}
+ 	spin_unlock(&inode_lru_lock);
+@@ -356,6 +356,7 @@ static void inode_lru_list_del(struct inode *inode)
+ 	spin_lock(&inode_lru_lock);
+ 	if (!list_empty(&inode->i_lru)) {
+ 		list_del_init(&inode->i_lru);
++		inode->i_sb->s_nr_inodes_unused--;
+ 		this_cpu_dec(nr_unused);
+ 	}
+ 	spin_unlock(&inode_lru_lock);
+@@ -621,21 +622,20 @@ static int can_unuse(struct inode *inode)
+  * LRU does not have strict ordering. Hence we don't want to reclaim inodes
+  * with this flag set because they are the inodes that are out of order.
+  */
+-static void prune_icache(int nr_to_scan)
++static void shrink_icache_sb(struct super_block *sb, int *nr_to_scan)
+ {
+ 	LIST_HEAD(freeable);
+ 	int nr_scanned;
+ 	unsigned long reap = 0;
+ 
+-	down_read(&iprune_sem);
+ 	spin_lock(&inode_lru_lock);
+-	for (nr_scanned = 0; nr_scanned < nr_to_scan; nr_scanned++) {
++	for (nr_scanned = *nr_to_scan; nr_scanned >= 0; nr_scanned--) {
+ 		struct inode *inode;
+ 
+-		if (list_empty(&inode_lru))
++		if (list_empty(&sb->s_inode_lru))
+ 			break;
+ 
+-		inode = list_entry(inode_lru.prev, struct inode, i_lru);
++		inode = list_entry(sb->s_inode_lru.prev, struct inode, i_lru);
+ 
+ 		/*
+ 		 * we are inverting the inode_lru_lock/inode->i_lock here,
+@@ -643,7 +643,7 @@ static void prune_icache(int nr_to_scan)
+ 		 * inode to the back of the list so we don't spin on it.
+ 		 */
+ 		if (!spin_trylock(&inode->i_lock)) {
+-			list_move(&inode->i_lru, &inode_lru);
++			list_move(&inode->i_lru, &sb->s_inode_lru);
+ 			continue;
+ 		}
+ 
+@@ -655,6 +655,7 @@ static void prune_icache(int nr_to_scan)
+ 		    (inode->i_state & ~I_REFERENCED)) {
+ 			list_del_init(&inode->i_lru);
+ 			spin_unlock(&inode->i_lock);
++			sb->s_nr_inodes_unused--;
+ 			this_cpu_dec(nr_unused);
+ 			continue;
+ 		}
+@@ -662,7 +663,7 @@ static void prune_icache(int nr_to_scan)
+ 		/* recently referenced inodes get one more pass */
+ 		if (inode->i_state & I_REFERENCED) {
+ 			inode->i_state &= ~I_REFERENCED;
+-			list_move(&inode->i_lru, &inode_lru);
++			list_move(&inode->i_lru, &sb->s_inode_lru);
+ 			spin_unlock(&inode->i_lock);
+ 			continue;
+ 		}
+@@ -676,7 +677,7 @@ static void prune_icache(int nr_to_scan)
+ 			iput(inode);
+ 			spin_lock(&inode_lru_lock);
+ 
+-			if (inode != list_entry(inode_lru.next,
++			if (inode != list_entry(sb->s_inode_lru.next,
+ 						struct inode, i_lru))
+ 				continue;	/* wrong inode or list_empty */
+ 			/* avoid lock inversions with trylock */
+@@ -692,6 +693,7 @@ static void prune_icache(int nr_to_scan)
+ 		spin_unlock(&inode->i_lock);
+ 
+ 		list_move(&inode->i_lru, &freeable);
++		sb->s_nr_inodes_unused--;
+ 		this_cpu_dec(nr_unused);
+ 	}
+ 	if (current_is_kswapd())
+@@ -699,8 +701,75 @@ static void prune_icache(int nr_to_scan)
+ 	else
+ 		__count_vm_events(PGINODESTEAL, reap);
+ 	spin_unlock(&inode_lru_lock);
++	*nr_to_scan = nr_scanned;
+ 
+ 	dispose_list(&freeable);
++}
++
++static void prune_icache(int count)
++{
++	struct super_block *sb, *p = NULL;
++	int w_count;
++	int unused = inodes_stat.nr_unused;
++	int prune_ratio;
++	int pruned;
++
++	if (unused == 0 || count == 0)
++		return;
++	down_read(&iprune_sem);
++	if (count >= unused)
++		prune_ratio = 1;
++	else
++		prune_ratio = unused / count;
++	spin_lock(&sb_lock);
++	list_for_each_entry(sb, &super_blocks, s_list) {
++		if (list_empty(&sb->s_instances))
++			continue;
++		if (sb->s_nr_inodes_unused == 0)
++			continue;
++		sb->s_count++;
++		/* Now, we reclaim unused dentrins with fairness.
++		 * We reclaim them same percentage from each superblock.
++		 * We calculate number of dentries to scan on this sb
++		 * as follows, but the implementation is arranged to avoid
++		 * overflows:
++		 * number of dentries to scan on this sb =
++		 * count * (number of dentries on this sb /
++		 * number of dentries in the machine)
++		 */
++		spin_unlock(&sb_lock);
++		if (prune_ratio != 1)
++			w_count = (sb->s_nr_inodes_unused / prune_ratio) + 1;
++		else
++			w_count = sb->s_nr_inodes_unused;
++		pruned = w_count;
++		/*
++		 * We need to be sure this filesystem isn't being unmounted,
++		 * otherwise we could race with generic_shutdown_super(), and
++		 * end up holding a reference to an inode while the filesystem
++		 * is unmounted.  So we try to get s_umount, and make sure
++		 * s_root isn't NULL.
++		 */
++		if (down_read_trylock(&sb->s_umount)) {
++			if ((sb->s_root != NULL) &&
++			    (!list_empty(&sb->s_dentry_lru))) {
++				shrink_icache_sb(sb, &w_count);
++				pruned -= w_count;
++			}
++			up_read(&sb->s_umount);
++		}
++		spin_lock(&sb_lock);
++		if (p)
++			__put_super(p);
++		count -= pruned;
++		p = sb;
++		/* more work left to do? */
++		if (count <= 0)
++			break;
++	}
++	if (p)
++		__put_super(p);
++	spin_unlock(&sb_lock);
+ 	up_read(&iprune_sem);
+ }
+ 
+diff --git a/fs/super.c b/fs/super.c
+index c755939..ef7caf7 100644
+--- a/fs/super.c
++++ b/fs/super.c
+@@ -77,6 +77,7 @@ static struct super_block *alloc_super(struct file_system_type *type)
+ 		INIT_HLIST_BL_HEAD(&s->s_anon);
+ 		INIT_LIST_HEAD(&s->s_inodes);
+ 		INIT_LIST_HEAD(&s->s_dentry_lru);
++		INIT_LIST_HEAD(&s->s_inode_lru);
+ 		init_rwsem(&s->s_umount);
+ 		mutex_init(&s->s_lock);
+ 		lockdep_set_class(&s->s_umount, &type->s_umount_key);
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index c55d6b7..a96071d 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -1393,6 +1393,10 @@ struct super_block {
+ 	struct list_head	s_dentry_lru;	/* unused dentry lru */
+ 	int			s_nr_dentry_unused;	/* # of dentry on lru */
+ 
++	/* inode_lru_lock protects s_inode_lru and s_nr_inodes_unused */
++	struct list_head	s_inode_lru;		/* unused inode lru */
++	int			s_nr_inodes_unused;	/* # of inodes on lru */
++
+ 	struct block_device	*s_bdev;
+ 	struct backing_dev_info *s_bdi;
+ 	struct mtd_info		*s_mtd;
+-- 
+1.7.5.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
