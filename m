@@ -1,55 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id B12416B004A
-	for <linux-mm@kvack.org>; Thu,  2 Jun 2011 05:31:09 -0400 (EDT)
-Date: Thu, 2 Jun 2011 11:30:26 +0200
-From: Nicolas Kaiser <nikai@nikai.net>
-Subject: Re: [PATCH 11/12] vfs: increase shrinker batch size
-Message-ID: <20110602113026.7291b1a7@absol.kitzblitz>
-In-Reply-To: <1306998067-27659-12-git-send-email-david@fromorbit.com>
-References: <1306998067-27659-1-git-send-email-david@fromorbit.com>
- <1306998067-27659-12-git-send-email-david@fromorbit.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B3776B004A
+	for <linux-mm@kvack.org>; Thu,  2 Jun 2011 06:00:36 -0400 (EDT)
+Date: Thu, 2 Jun 2011 12:00:07 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 0/8] mm: memcg naturalization -rc2
+Message-ID: <20110602100007.GB20725@cmpxchg.org>
+References: <1306909519-7286-1-git-send-email-hannes@cmpxchg.org>
+ <BANLkTikgqSsg5+49295h7kdZ=sQpZLs4kw@mail.gmail.com>
+ <20110602073335.GA20630@cmpxchg.org>
+ <BANLkTikztP6RoyBgMqUHgrzJFLZrHMCs=Q@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <BANLkTikztP6RoyBgMqUHgrzJFLZrHMCs=Q@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, xfs@oss.sgi.com
+To: Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Ying Han <yinghan@google.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Just noticed below two typos.
+On Thu, Jun 02, 2011 at 06:06:51PM +0900, Hiroyuki Kamezawa wrote:
+> 2011/6/2 Johannes Weiner <hannes@cmpxchg.org>:
+> > On Thu, Jun 02, 2011 at 08:52:47AM +0900, Hiroyuki Kamezawa wrote:
+> >> 2011/6/1 Johannes Weiner <hannes@cmpxchg.org>:
+> >
+> > The patch series is not a performance optimization.  But I can include
+> > it to prove there are no regressions.
+> >
+> yes, it's helpful.
 
-* Dave Chinner <david@fromorbit.com>:
-> From: Dave Chinner <dchinner@redhat.com>
+Okay.
+
+> >>   Hmm, how about splitting patch 2/8 into small patches and see what happens in
+> >>   3.2 or 3.3 ? While that, we can make softlimit works better.
+> >>   (and once we do 2/8, our direction will be fixed to the direction to
+> >> remove global LRU.)
+> >
+> > Do you have specific parts in mind that could go stand-alone?
+> >
+> > One thing I can think of is splitting up those parts:
+> >
+> >  1. move /target/ reclaim to generic code
+> >
+> >  2. convert /global/ reclaim from global lru to hierarchy reclaim
+> >     including root_mem_cgroup
 > 
-> Now that the per-sb shrinker is responsible for shrinking 2 or more
-> caches, increase the batch size to keep econmies of scale for
+> Hmm, at brief look
+> patch 2/8
+>  - hierarchy walk rewrite code should be stand alone and can be merged
+> 1st, as clean-up
 
-economies
+You mean introducing mem_cgroup_hierarchy_walk() and make use of it in
+mem_cgroup_hierarchical_reclaim() as a first step?
 
-(..)
+>  - root cgroup LRU handling was required for performance. I think we
+> removed tons of
+>   atomic ops and can remove that special handling personally. But this change of
+>   root cgroup handling should be in separate patch. with performance report.
 
->  Documentation/filesystems/vfs.txt |    5 +++++
->  fs/super.c                        |    1 +
->  2 files changed, 6 insertions(+), 0 deletions(-)
-> 
-> diff --git a/Documentation/filesystems/vfs.txt b/Documentation/filesystems/vfs.txt
-> index dc732d2..2e26973 100644
-> --- a/Documentation/filesystems/vfs.txt
-> +++ b/Documentation/filesystems/vfs.txt
-> @@ -317,6 +317,11 @@ or bottom half).
->  	the VM is trying to reclaim under GFP_NOFS conditions, hence this
->  	method does not need to handle that situation itself.
->  
-> +	Implementations must include conditional reschedule calls inside any
-> +	scanning loop that is done. This allows the VFS to determine
-> +	appropriate scan batch sizes without having to worry about whether
-> +	implementations will cause holdoff problems due ot large batch sizes.
+I disagree.
 
-due to
+With view on the whole patch series, linking ungrouped process pages
+to the root_mem_cgroup is traded against
 
-Best regards,
-Nicolas Kaiser
+   1. linking ungrouped process pages to the global LRU
+
+   2. linking grouped process pages to both the global LRU and the
+      memcg LRU
+
+The comparison you propose is neither fair nor relevant because it
+would never make sense to merge that patch without the others.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
