@@ -1,16 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 295DA6B007E
-	for <linux-mm@kvack.org>; Thu,  2 Jun 2011 03:01:44 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with SMTP id 7BD6D6B007E
+	for <linux-mm@kvack.org>; Thu,  2 Jun 2011 03:01:45 -0400 (EDT)
 From: Dave Chinner <david@fromorbit.com>
-Subject: [PATCH 03/12] vmscan: reduce wind up shrinker->nr when shrinker can't do work
-Date: Thu,  2 Jun 2011 17:00:58 +1000
-Message-Id: <1306998067-27659-4-git-send-email-david@fromorbit.com>
+Subject: [PATCH 04/12] vmscan: add customisable shrinker batch size
+Date: Thu,  2 Jun 2011 17:00:59 +1000
+Message-Id: <1306998067-27659-5-git-send-email-david@fromorbit.com>
 In-Reply-To: <1306998067-27659-1-git-send-email-david@fromorbit.com>
 References: <1306998067-27659-1-git-send-email-david@fromorbit.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-fsdevel@vger.kernel.org
@@ -18,79 +15,70 @@ Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, xfs@oss.sgi.com
 
 From: Dave Chinner <dchinner@redhat.com>
 
-When a shrinker returns -1 to shrink_slab() to indicate it cannot do
-any work given the current memory reclaim requirements, it adds the
-entire total_scan count to shrinker->nr. The idea ehind this is that
-whenteh shrinker is next called and can do work, it will do the work
-of the previously aborted shrinker call as well.
+For shrinkers that have their own cond_resched* calls, having
+shrink_slab break the work down into small batches is not
+paticularly efficient. Add a custom batchsize field to the struct
+shrinker so that shrinkers can use a larger batch size if they
+desire.
 
-However, if a filesystem is doing lots of allocation with GFP_NOFS
-set, then we get many, many more aborts from the shrinkers than we
-do successful calls. The result is that shrinker->nr winds up to
-it's maximum permissible value (twice the current cache size) and
-then when the next shrinker call that can do work is issued, it
-has enough scan count built up to free the entire cache twice over.
-
-This manifests itself in the cache going from full to empty in a
-matter of seconds, even when only a small part of the cache is
-needed to be emptied to free sufficient memory.
-
-Under metadata intensive workloads on ext4 and XFS, I'm seeing the
-VFS caches increase memory consumption up to 75% of memory (no page
-cache pressure) over a period of 30-60s, and then the shrinker
-empties them down to zero in the space of 2-3s. This cycle repeats
-over and over again, with the shrinker completely trashing the N?node
-and dentry caches every minute or so the workload continues.
-
-This behaviour was made obvious by the shrink_slab tracepoints added
-earlier in the series, and made worse by the patch that corrected
-the concurrent accounting of shrinker->nr.
-
-To avoid this problem, stop repeated small increments of the total
-scan value from winding shrinker->nr up to a value that can cause
-the entire cache to be freed. We still need to allow it to wind up,
-so use the delta as the "large scan" threshold check - if the delta
-is more than a quarter of the entire cache size, then it is a large
-scan and allowed to cause lots of windup because we are clearly
-needing to free lots of memory.
-
-If it isn't a large scan then limit the total scan to half the size
-of the cache so that windup never increases to consume the whole
-cache. Reducing the total scan limit further does not allow enough
-wind-up to maintain the current levels of performance, whilst a
-higher threshold does not prevent the windup from freeing the entire
-cache under sustained workloads.
+A value of zero (uninitialised) means "use the default", so
+behaviour is unchanged by this patch.
 
 Signed-off-by: Dave Chinner <dchinner@redhat.com>
 ---
- mm/vmscan.c |   14 ++++++++++++++
- 1 files changed, 14 insertions(+), 0 deletions(-)
+ include/linux/mm.h |    1 +
+ mm/vmscan.c        |   11 ++++++-----
+ 2 files changed, 7 insertions(+), 5 deletions(-)
 
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 9670f71..9b9777a 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1150,6 +1150,7 @@ struct shrink_control {
+ struct shrinker {
+ 	int (*shrink)(struct shrinker *, struct shrink_control *sc);
+ 	int seeks;	/* seeks to recreate an obj */
++	long batch;	/* reclaim batch size, 0 = default */
+ 
+ 	/* These are for internal use */
+ 	struct list_head list;
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index dce2767..3688f47 100644
+index 3688f47..a17909f 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -277,6 +277,20 @@ unsigned long shrink_slab(struct shrink_control *shrink,
- 		}
+@@ -253,6 +253,8 @@ unsigned long shrink_slab(struct shrink_control *shrink,
+ 		int shrink_ret = 0;
+ 		long nr;
+ 		long new_nr;
++		long batch_size = shrinker->batch ? shrinker->batch
++						  : SHRINK_BATCH;
  
  		/*
-+		 * Avoid excessive windup on fielsystem shrinkers due to large
-+		 * numbers of GFP_NOFS allocations causing the shrinkers to
-+		 * return -1 all the time. This results in a large nr being
-+		 * built up so when a shrink that can do some work comes along
-+		 * it empties the entire cache due to nr >>> max_pass.  This is
-+		 * bad for sustaining a working set in memory.
-+		 *
-+		 * Hence only allow nr to go large when a large delta is
-+		 * calculated.
-+		 */
-+		if (delta < max_pass / 4)
-+			total_scan = min(total_scan, max_pass / 2);
-+
-+		/*
- 		 * Avoid risking looping forever due to too large nr value:
- 		 * never try to free more than twice the estimate number of
- 		 * freeable entries.
+ 		 * copy the current shrinker scan count into a local variable
+@@ -302,19 +304,18 @@ unsigned long shrink_slab(struct shrink_control *shrink,
+ 		trace_mm_shrink_slab_start(shrinker, shrink, nr, nr_pages_scanned,
+ 					lru_pages, max_pass, delta, total_scan);
+ 
+-		while (total_scan >= SHRINK_BATCH) {
+-			long this_scan = SHRINK_BATCH;
++		while (total_scan >= batch_size) {
+ 			int nr_before;
+ 
+ 			nr_before = do_shrinker_shrink(shrinker, shrink, 0);
+ 			shrink_ret = do_shrinker_shrink(shrinker, shrink,
+-							this_scan);
++							batch_size);
+ 			if (shrink_ret == -1)
+ 				break;
+ 			if (shrink_ret < nr_before)
+ 				ret += nr_before - shrink_ret;
+-			count_vm_events(SLABS_SCANNED, this_scan);
+-			total_scan -= this_scan;
++			count_vm_events(SLABS_SCANNED, batch_size);
++			total_scan -= batch_size;
+ 
+ 			cond_resched();
+ 		}
 -- 
 1.7.5.1
 
