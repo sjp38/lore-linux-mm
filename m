@@ -1,48 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id C5BE56B004A
-	for <linux-mm@kvack.org>; Thu,  2 Jun 2011 08:27:40 -0400 (EDT)
-Received: by iwg8 with SMTP id 8so864806iwg.14
-        for <linux-mm@kvack.org>; Thu, 02 Jun 2011 05:27:39 -0700 (PDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id F152E6B004A
+	for <linux-mm@kvack.org>; Thu,  2 Jun 2011 08:59:43 -0400 (EDT)
+Received: by bwz17 with SMTP id 17so1429214bwz.14
+        for <linux-mm@kvack.org>; Thu, 02 Jun 2011 05:59:40 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20110530094337.GF20166@tiehlicka.suse.cz>
-References: <BANLkTinLvqa0DiayLOwvxE9zBmqb4Y7Rww@mail.gmail.com>
-	<20110523112558.GC11439@tiehlicka.suse.cz>
-	<BANLkTi=2SwKFfwBxrQr3xLYSUzoGOy6oKA@mail.gmail.com>
-	<20110530094337.GF20166@tiehlicka.suse.cz>
-Date: Thu, 2 Jun 2011 20:27:39 +0800
-Message-ID: <BANLkTimaHMHv44CP0RH-Mur-Mb6qyR341Q@mail.gmail.com>
-Subject: Re: [Patch] mm: remove noswapaccount kernel parameter
-From: =?UTF-8?Q?Am=C3=A9rico_Wang?= <xiyou.wangcong@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <20110602100007.GB20725@cmpxchg.org>
+References: <1306909519-7286-1-git-send-email-hannes@cmpxchg.org>
+	<BANLkTikgqSsg5+49295h7kdZ=sQpZLs4kw@mail.gmail.com>
+	<20110602073335.GA20630@cmpxchg.org>
+	<BANLkTikztP6RoyBgMqUHgrzJFLZrHMCs=Q@mail.gmail.com>
+	<20110602100007.GB20725@cmpxchg.org>
+Date: Thu, 2 Jun 2011 21:59:40 +0900
+Message-ID: <BANLkTi=xvunhqpXFJ=wJFkCuu+7Czh4nZw@mail.gmail.com>
+Subject: Re: [patch 0/8] mm: memcg naturalization -rc2
+From: Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Ying Han <yinghan@google.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, May 30, 2011 at 5:43 PM, Michal Hocko <mhocko@suse.cz> wrote:
-> On Mon 23-05-11 19:50:21, Am??rico Wang wrote:
->> On Mon, May 23, 2011 at 7:25 PM, Michal Hocko <mhocko@suse.cz> wrote:
->> > On Mon 23-05-11 19:08:08, Am??rico Wang wrote:
->> >> noswapaccount is deprecated by swapaccount=0, and it is scheduled
->> >> to be removed in 2.6.40.
+2011/6/2 Johannes Weiner <hannes@cmpxchg.org>:
+> On Thu, Jun 02, 2011 at 06:06:51PM +0900, Hiroyuki Kamezawa wrote:
+>> 2011/6/2 Johannes Weiner <hannes@cmpxchg.org>:
+>> > On Thu, Jun 02, 2011 at 08:52:47AM +0900, Hiroyuki Kamezawa wrote:
+>> >> =A0 Hmm, how about splitting patch 2/8 into small patches and see wha=
+t happens in
+>> >> =A0 3.2 or 3.3 ? While that, we can make softlimit works better.
+>> >> =A0 (and once we do 2/8, our direction will be fixed to the direction=
+ to
+>> >> remove global LRU.)
 >> >
->> > Similar patch is already in the Andrew's tree
->>
->> Ah, my google search failed to find it. :-/
->>
->> > (memsw-remove-noswapaccount-kernel-parameter.patch). Andrew, are you
->> > going to push it?
->> > Btw. the patch is missing documentation part which is present here.
+>> > Do you have specific parts in mind that could go stand-alone?
 >> >
+>> > One thing I can think of is splitting up those parts:
+>> >
+>> > =A01. move /target/ reclaim to generic code
+>> >
+>> > =A02. convert /global/ reclaim from global lru to hierarchy reclaim
+>> > =A0 =A0 including root_mem_cgroup
 >>
->> Hmm, maybe I should send a delta patch... Andrew?
+>> Hmm, at brief look
+>> patch 2/8
+>> =A0- hierarchy walk rewrite code should be stand alone and can be merged
+>> 1st, as clean-up
 >
-> Have you reposted that patch? The primary patch which removes the
-> paramter already hit the Linus tree (a2c8990a).
+> You mean introducing mem_cgroup_hierarchy_walk() and make use of it in
+> mem_cgroup_hierarchical_reclaim() as a first step?
 >
 
-Cool, will resend it!
+yes. I like to cut out a patch from a series and forward it to mainline,
+and make the series smaller. in some way...
+
+
+>> =A0- root cgroup LRU handling was required for performance. I think we
+>> removed tons of
+>> =A0 atomic ops and can remove that special handling personally. But this=
+ change of
+>> =A0 root cgroup handling should be in separate patch. with performance r=
+eport.
+>
+> I disagree.
+>
+> With view on the whole patch series, linking ungrouped process pages
+> to the root_mem_cgroup is traded against
+>
+> =A0 1. linking ungrouped process pages to the global LRU
+>
+> =A0 2. linking grouped process pages to both the global LRU and the
+> =A0 =A0 =A0memcg LRU
+>
+> The comparison you propose is neither fair nor relevant because it
+> would never make sense to merge that patch without the others.
+
+If you show there is no performance regression when
+ - memory cgroup is configured.
+ - it's not disabled by boot option
+ - there are only ROOT cgroup.
+(Then, I'd like to see score.)
+
+
+It seems your current series is a mixture of 2 works as
+"re-desgin of softlimit" and "removal of global LRU".
+I don't understand why you need 2 works at once.
+
+Above test is for the latter. You need another justification for the former=
+.
+So, I'd like to ask you to divide the series into 2 series.
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
