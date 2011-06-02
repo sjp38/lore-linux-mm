@@ -1,161 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 66A2B6B00E7
-	for <linux-mm@kvack.org>; Thu,  2 Jun 2011 13:29:34 -0400 (EDT)
-Date: Thu, 2 Jun 2011 19:29:05 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 2/8] mm: memcg-aware global reclaim
-Message-ID: <20110602172905.GF28684@cmpxchg.org>
-References: <1306909519-7286-1-git-send-email-hannes@cmpxchg.org>
- <1306909519-7286-3-git-send-email-hannes@cmpxchg.org>
- <BANLkTikKHq=NBAPOXJVDM7ZEc9CkW+HdmQ@mail.gmail.com>
- <20110602150123.GE28684@cmpxchg.org>
- <BANLkTinWGEJHf1MhzDS4JB0-V9iynoFoHA@mail.gmail.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id D4F306B00E8
+	for <linux-mm@kvack.org>; Thu,  2 Jun 2011 13:29:57 -0400 (EDT)
+Received: from wpaz24.hot.corp.google.com (wpaz24.hot.corp.google.com [172.24.198.88])
+	by smtp-out.google.com with ESMTP id p52HTpx0022811
+	for <linux-mm@kvack.org>; Thu, 2 Jun 2011 10:29:52 -0700
+Received: from pxi13 (pxi13.prod.google.com [10.243.27.13])
+	by wpaz24.hot.corp.google.com with ESMTP id p52HTKP2027454
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 2 Jun 2011 10:29:50 -0700
+Received: by pxi13 with SMTP id 13so562434pxi.11
+        for <linux-mm@kvack.org>; Thu, 02 Jun 2011 10:29:50 -0700 (PDT)
+Date: Thu, 2 Jun 2011 10:29:39 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [BUG 3.0.0-rc1] ksm: NULL pointer dereference in ksm_do_scan()
+In-Reply-To: <20110602164841.GK23047@sequoia.sous-sol.org>
+Message-ID: <alpine.LSU.2.00.1106021011300.1277@sister.anvils>
+References: <20110601222032.GA2858@thinkpad> <2144269697.363041.1306998593180.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com> <20110602141927.GA2011@thinkpad> <20110602164841.GK23047@sequoia.sous-sol.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <BANLkTinWGEJHf1MhzDS4JB0-V9iynoFoHA@mail.gmail.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Ying Han <yinghan@google.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Chris Wright <chrisw@sous-sol.org>
+Cc: Andrea Righi <andrea@betterlinux.com>, CAI Qian <caiqian@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
 
-On Fri, Jun 03, 2011 at 01:14:12AM +0900, Hiroyuki Kamezawa wrote:
-> 2011/6/3 Johannes Weiner <hannes@cmpxchg.org>:
-> > On Thu, Jun 02, 2011 at 10:59:01PM +0900, Hiroyuki Kamezawa wrote:
-> >> 2011/6/1 Johannes Weiner <hannes@cmpxchg.org>:
+On Thu, 2 Jun 2011, Chris Wright wrote:
+> * Andrea Righi (andrea@betterlinux.com) wrote:
+> > mmh.. I can reproduce the bug also with the standard ubuntu (11.04)
+> > kernel. Could you post your .config?
 > 
-> >> > @@ -1927,8 +1980,7 @@ static int mem_cgroup_do_charge(struct mem_cgroup *mem, gfp_t gfp_mask,
-> >> >        if (!(gfp_mask & __GFP_WAIT))
-> >> >                return CHARGE_WOULDBLOCK;
-> >> >
-> >> > -       ret = mem_cgroup_hierarchical_reclaim(mem_over_limit, NULL,
-> >> > -                                             gfp_mask, flags);
-> >> > +       ret = mem_cgroup_reclaim(mem_over_limit, gfp_mask, flags);
-> >> >        if (mem_cgroup_margin(mem_over_limit) >= nr_pages)
-> >> >                return CHARGE_RETRY;
-> >> >        /*
-> >>
-> >> It seems this clean-up around hierarchy and softlimit can be in an
-> >> independent patch, no ?
-> >
-> > Hm, why do you think it's a cleanup?  The hierarchical target reclaim
-> > code is moved to vmscan.c and as a result the entry points for hard
-> > limit and soft limit reclaim differ.  This is why the original
-> > function, mem_cgroup_hierarchical_reclaim() has to be split into two
-> > parts.
-> >
-> If functionality is unchanged, I think it's clean up.
-> I agree to move hierarchy walk to vmscan.c. but it can be done as
-> a clean up patch for current code.
-> (Make current try_to_free_mem_cgroup_pages() to use this code.)
->  and then, you can write a patch which only includes a core
-> logic/purpose of this patch
-> "use root cgroup's LRU for global and make global reclaim as full-scan
-> of memcgroup."
+> Andrea (Righi), can you tell me if this WARN fires?  This looks
+> like a pure race between removing from list and checking list, i.e.
+> insufficient locking.
 > 
-> In short, I felt this patch is long....and maybe watchers of -mm are
-> not interested in rewritie of hierarchy walk but are intetested in the
-> chages in shrink_zone() itself very much.
-
-But the split up is, unfortunately, a change in functionality.  The
-current code selects one memcg and reclaims all zones on all priority
-levels on behalf of that memcg.  My code changes that such that it
-reclaims a bunch of memcgs from the hierarchy for each zone and
-priority level instead.  From memcgs -> priorities -> zones to
-priorities -> zones -> memcgs.
-
-I don't want to pass that off as a cleanup.
-
-But it is long, I agree with you.  I'll split up the 'move
-hierarchical target reclaim to generic code' from 'make global reclaim
-hierarchical' and see if this makes the changes more straight-forward.
-
-Because I suspect the perceived unwieldiness does not stem from the
-amount of lines changed, but from the number of different logical
-changes.
-
-> >> > +       for (;;) {
-> >> > +               unsigned long nr_reclaimed;
-> >> > +
-> >> > +               sc->mem_cgroup = mem;
-> >> > +               do_shrink_zone(priority, zone, sc);
-> >> > +
-> >> > +               nr_reclaimed = sc->nr_reclaimed - nr_reclaimed_before;
-> >> > +               if (nr_reclaimed >= sc->nr_to_reclaim)
-> >> > +                       break;
-> >>
-> >> what this calculation means ?  Shouldn't we do this quit based on the
-> >> number of "scan"
-> >> rather than "reclaimed" ?
-> >
-> > It aborts the loop once sc->nr_to_reclaim pages have been reclaimed
-> > from that zone during that hierarchy walk, to prevent overreclaim.
-> >
-> > If you have unbalanced sizes of memcgs in the system, it is not
-> > desirable to have every reclaimer scan all memcgs, but let those quit
-> > early that have made some progress on the bigger memcgs.
-> >
-> Hmm, why not if (sc->nr_reclaimed >= sc->nr_to_reclaim) ?
+> ksm_scan.mm_slot == the only registered mm
 > 
-> I'm sorry if I miss something..
+> CPU 1 (bug program)		CPU 2 (ksmd)
+> 				list_empty() is false
+> lock
+> ksm_scan.mm_slot
+> list_del
+> unlock
+> 				slot == &ksm_mm_head (but list is now empty_)
+> 
+> 
+> diff --git a/mm/ksm.c b/mm/ksm.c
+> index 942dfc7..ab79a92 100644
+> --- a/mm/ksm.c
+> +++ b/mm/ksm.c
+> @@ -1301,6 +1301,7 @@ static struct rmap_item *scan_get_next_rmap_item(struct page **page)
+>  		slot = list_entry(slot->mm_list.next, struct mm_slot, mm_list);
+>  		ksm_scan.mm_slot = slot;
+>  		spin_unlock(&ksm_mmlist_lock);
+> +		WARN_ON(slot == &ksm_mm_head);
+>  next_mm:
+>  		ksm_scan.address = 0;
+>  		ksm_scan.rmap_list = &slot->rmap_list;
 
-It's a bit awkward and undocumented, I'm afraid.  The loop is like
-this:
+AndreaR, good find, many thanks for discovering and reporting it.
+I couldn't look at it until last night, and even then, it was not
+obvious to me exactly where my assumptions were going wrong.
 
-	for each zone:
-	  for each memcg:
-	    shrink
-	    if sc->nr_reclaimed >= sc->nr_to_reclaim:
-	      break
+Even now it's unclear what role the SIGSEGV plays, as opposed to an
+normal exit: I guess it just happens to change the timing enough to
+make the race dangerous.
 
-sc->nr_reclaimed is never reset, so once you reclaimed enough pages
-from one zone, you will only try the first memcg in all the other
-zones, which might well be empty, so no pressure at all on subsequent
-zones.
+Your patch was not wrong, but I do prefer a patch that plugs the
+exact hole; and I needed to understand what was going on - without
+understanding it, there was a danger we might leak memory instead.
 
-That's why I use the per-zone delta like this:
+AndreaA, I didn't study the patch you posted half an hour ago,
+since by that time I'd worked it out and was preparing patch below.
+I think your patch would be for a different bug, hopefully one we
+don't have, it looks more complicated than we should need for this.
 
-       for each zone:
-         before = sc->nr_reclaimed
-	 for each memcg:
-	   shrink
-	   if sc->nr_reclaimed - before >= sc->nr_to_reclaim
+ChrisW, yes, your WARN_ON is spot on, matches what I saw exactly.
 
-which still ensures on one hand that we don't keep hammering a zone if
-we reclaimed the overall reclaim target already, but on the other hand
-that we apply some pressure to the other zones as well.
+I'll fill in the patch description later, must dash now, probably
+offline until late tonight.  Or if you're satisfied and don't want to
+wait, you guys fill that in and send off to Linus & Andrew - thanks.
 
-It's the same concept as in do_shrink_zone().  It breaks the loop when
+[PATCH] ksm: fix easily reproduced NULL pointer dereference
 
-	nr_reclaimed >= sc->nr_to_reclaim
+Reported-by: Andrea Righi <andrea@betterlinux.com>
+Signed-off-by: Hugh Dickins <hughd@google.com>
+Cc: stable@kernel.org
+---
 
-where nr_reclaimed refers to the number of pages reclaimed from the
-current zone, not the accumulated total of the whole reclaim cycle.
+ mm/ksm.c |    7 +++++++
+ 1 file changed, 7 insertions(+)
 
-> >> > +               mem = mem_cgroup_hierarchy_walk(root, mem);
-> >> > +               if (mem == first)
-> >> > +                       break;
-> >>
-> >> Why we quit loop  ?
-> >
-> > get_scan_count() for traditional global reclaim returns the scan
-> > target for the zone.
-> >
-> > With this per-memcg reclaimer, get_scan_count() will return scan
-> > targets for the respective per-memcg zone subsizes.
-> >
-> > So once we have gone through all memcgs, we should have scanned the
-> > amount of pages that global reclaim would have deemed sensible for
-> > that zone at that priority level.
-> >
-> > As such, this is the exit condition based on scan count you referred
-> > to above.
-> >
-> That's what I want as a comment in codes.
-
-Will do, for both exit conditions ;-)
+--- 3.0-rc1/mm/ksm.c	2011-05-29 18:42:37.429882601 -0700
++++ linux/mm/ksm.c	2011-06-02 09:55:31.729702490 -0700
+@@ -1302,6 +1302,13 @@ static struct rmap_item *scan_get_next_r
+ 		slot = list_entry(slot->mm_list.next, struct mm_slot, mm_list);
+ 		ksm_scan.mm_slot = slot;
+ 		spin_unlock(&ksm_mmlist_lock);
++
++		/*
++		 * Although we tested list_empty() above, a racing __ksm_exit
++		 * of the last mm on the list may have removed it since then.
++		 */
++		if (slot == &ksm_mm_head)
++			return NULL;
+ next_mm:
+ 		ksm_scan.address = 0;
+ 		ksm_scan.rmap_list = &slot->rmap_list;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
