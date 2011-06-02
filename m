@@ -1,80 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 96B236B0078
-	for <linux-mm@kvack.org>; Thu,  2 Jun 2011 15:26:38 -0400 (EDT)
-Date: Thu, 2 Jun 2011 12:26:07 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH V4] mm: Extend memory hotplug API to allow memory
- hotplug in virtual machines
-Message-Id: <20110602122607.3122e23b.akpm@linux-foundation.org>
-In-Reply-To: <20110524222733.GA29133@router-fw-old.local.net-space.pl>
-References: <20110524222733.GA29133@router-fw-old.local.net-space.pl>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with ESMTP id BDED96B004A
+	for <linux-mm@kvack.org>; Thu,  2 Jun 2011 16:10:56 -0400 (EDT)
+Date: Thu, 2 Jun 2011 22:10:48 +0200
+From: Andrea Righi <andrea@betterlinux.com>
+Subject: Re: [BUG 3.0.0-rc1] ksm: NULL pointer dereference in ksm_do_scan()
+Message-ID: <20110602201048.GA4114@thinkpad>
+References: <20110601222032.GA2858@thinkpad>
+ <2144269697.363041.1306998593180.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
+ <20110602141927.GA2011@thinkpad>
+ <20110602164841.GK23047@sequoia.sous-sol.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110602164841.GK23047@sequoia.sous-sol.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Kiper <dkiper@net-space.pl>
-Cc: ian.campbell@citrix.com, haicheng.li@linux.intel.com, fengguang.wu@intel.com, jeremy@goop.org, konrad.wilk@oracle.com, dan.magenheimer@oracle.com, v.tolstov@selfip.ru, pasik@iki.fi, dave@linux.vnet.ibm.com, wdauchy@gmail.com, rientjes@google.com, xen-devel@lists.xensource.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Chris Wright <chrisw@sous-sol.org>
+Cc: CAI Qian <caiqian@redhat.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Izik Eidus <ieidus@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
 
-On Wed, 25 May 2011 00:27:33 +0200
-Daniel Kiper <dkiper@net-space.pl> wrote:
-
-> This patch applies to Linus' git tree, git commit 98b98d316349e9a028e632629fe813d07fa5afdd
-> (Merge branch 'drm-core-next' of git://git.kernel.org/pub/scm/linux/kernel/git/airlied/drm-2.6)
-> with a few prerequisite patches available at https://lkml.org/lkml/2011/5/2/296
-> and https://lkml.org/lkml/2011/5/17/408 (all prerequisite patches were included in -mm tree).
+On Thu, Jun 02, 2011 at 09:48:41AM -0700, Chris Wright wrote:
+> * Andrea Righi (andrea@betterlinux.com) wrote:
+> > mmh.. I can reproduce the bug also with the standard ubuntu (11.04)
+> > kernel. Could you post your .config?
 > 
-> This patch contains online_page_callback and apropriate functions for
-> registering/unregistering online page callbacks. It allows to do some
-> machine specific tasks during online page stage which is required
-> to implement memory hotplug in virtual machines. Currently this patch
-> is required by latest memory hotplug support for Xen balloon driver
-> patch which will be posted soon.
+> Andrea (Righi), can you tell me if this WARN fires?  This looks
+> like a pure race between removing from list and checking list, i.e.
+> insufficient locking.
+
+Yes, it does. With this patch:
+
+[   50.968896] WARNING: at mm/ksm.c:1305 ksm_scan_thread+0x9e3/0xe50()
+
 > 
-> Additionally, originial online_page() function was splited into
-> following functions doing "atomic" operations:
->   - __online_page_set_limits() - set new limits for memory management code,
->   - __online_page_increment_counters() - increment totalram_pages and totalhigh_pages,
->   - __online_page_free() - free page to allocator.
+> ksm_scan.mm_slot == the only registered mm
 > 
-> It was done to:
->   - not duplicate existing code,
->   - ease hotplug code devolpment by usage of well defined interface,
->   - avoid stupid bugs which are unavoidable when the same code
->     (by design) is developed in many places.
+> CPU 1 (bug program)		CPU 2 (ksmd)
+> 				list_empty() is false
+> lock
+> ksm_scan.mm_slot
+> list_del
+> unlock
+> 				slot == &ksm_mm_head (but list is now empty_)
 
-I grabbed this and the xen patch.  I assume that all prerequisites
-are now in mainline?
+It seems to be the exact problem.
 
-Please give some thought to making this extra code Kconfigurable, and
-selected by Xen?  See if we can avoid a bit of bloat for other kernel
-users.
+-Andrea
 
-What is missing from the patchset is an explanation of why we should
-merge it ;) Why is this feature desirable?  What value does it provide
-to our users?  Why should we bother?  Answering these questions in a
-form which can be pasted into the changelog would be convenient,
-thanks.
-
-Is there any propsect that the other virtualisation schemes will use
-this facility?  If not, why not?
-
->
-> ...
->
-> @@ -388,7 +450,7 @@ static int online_pages_range(unsigned long start_pfn, unsigned long nr_pages,
->  	if (PageReserved(pfn_to_page(start_pfn)))
->  		for (i = 0; i < nr_pages; i++) {
->  			page = pfn_to_page(start_pfn + i);
-> -			online_page(page);
-> +			online_page_callback(page);
-
-nit.  I'll change this to
-
-			(*online_page_callback)(page);
-
-because that syntax communicates some useful information to the reader.
+> 
+> 
+> diff --git a/mm/ksm.c b/mm/ksm.c
+> index 942dfc7..ab79a92 100644
+> --- a/mm/ksm.c
+> +++ b/mm/ksm.c
+> @@ -1301,6 +1301,7 @@ static struct rmap_item *scan_get_next_rmap_item(struct page **page)
+>  		slot = list_entry(slot->mm_list.next, struct mm_slot, mm_list);
+>  		ksm_scan.mm_slot = slot;
+>  		spin_unlock(&ksm_mmlist_lock);
+> +		WARN_ON(slot == &ksm_mm_head);
+>  next_mm:
+>  		ksm_scan.address = 0;
+>  		ksm_scan.rmap_list = &slot->rmap_list;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
