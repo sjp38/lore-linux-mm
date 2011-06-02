@@ -1,150 +1,170 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id B3D436B004A
-	for <linux-mm@kvack.org>; Thu,  2 Jun 2011 12:14:15 -0400 (EDT)
-Received: by bwz17 with SMTP id 17so1683789bwz.14
-        for <linux-mm@kvack.org>; Thu, 02 Jun 2011 09:14:12 -0700 (PDT)
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id ACC376B004A
+	for <linux-mm@kvack.org>; Thu,  2 Jun 2011 12:45:30 -0400 (EDT)
+Date: Thu, 2 Jun 2011 18:44:58 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [BUG 3.0.0-rc1] ksm: NULL pointer dereference in ksm_do_scan()
+Message-ID: <20110602164458.GG19505@random.random>
+References: <20110601222032.GA2858@thinkpad>
+ <2144269697.363041.1306998593180.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
+ <20110602143143.GI23047@sequoia.sous-sol.org>
+ <20110602143622.GE19505@random.random>
+ <20110602153641.GJ23047@sequoia.sous-sol.org>
 MIME-Version: 1.0
-In-Reply-To: <20110602150123.GE28684@cmpxchg.org>
-References: <1306909519-7286-1-git-send-email-hannes@cmpxchg.org>
-	<1306909519-7286-3-git-send-email-hannes@cmpxchg.org>
-	<BANLkTikKHq=NBAPOXJVDM7ZEc9CkW+HdmQ@mail.gmail.com>
-	<20110602150123.GE28684@cmpxchg.org>
-Date: Fri, 3 Jun 2011 01:14:12 +0900
-Message-ID: <BANLkTinWGEJHf1MhzDS4JB0-V9iynoFoHA@mail.gmail.com>
-Subject: Re: [patch 2/8] mm: memcg-aware global reclaim
-From: Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110602153641.GJ23047@sequoia.sous-sol.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Ying Han <yinghan@google.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Chris Wright <chrisw@sous-sol.org>
+Cc: CAI Qian <caiqian@redhat.com>, Andrea Righi <andrea@betterlinux.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Izik Eidus <ieidus@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
 
-2011/6/3 Johannes Weiner <hannes@cmpxchg.org>:
-> On Thu, Jun 02, 2011 at 10:59:01PM +0900, Hiroyuki Kamezawa wrote:
->> 2011/6/1 Johannes Weiner <hannes@cmpxchg.org>:
+On Thu, Jun 02, 2011 at 08:36:41AM -0700, Chris Wright wrote:
+> * Andrea Arcangeli (aarcange@redhat.com) wrote:
+> > On Thu, Jun 02, 2011 at 07:31:43AM -0700, Chris Wright wrote:
+> > > * CAI Qian (caiqian@redhat.com) wrote:
+> > > > madvise(0x2210000, 4096, 0xc /* MADV_??? */) = 0
+> > > > --- SIGSEGV (Segmentation fault) @ 0 (0) ---
+> > > 
+> > > Right, that's just what the program is trying to do, segfault.
+> > > 
+> > > > +++ killed by SIGSEGV (core dumped) +++
+> > > > Segmentation fault (core dumped)
+> > > > 
+> > > > Did I miss anything?
+> > > 
+> > > I found it works but not 100% of the time.
+> > > 
+> > > So I just run the bug in a loop.
+> > 
+> > echo 0 >scan_millisecs helps.
+> 
+> BTW, here's my stack trace (I dropped back to 2.6.39 just to see if it
+> happened to be recent regression).  It looks like mm_slot is off the list:
+> 
+> R10: dead000000200200 R11: dead000000100100
 
->> > @@ -1927,8 +1980,7 @@ static int mem_cgroup_do_charge(struct mem_cgrou=
-p *mem, gfp_t gfp_mask,
->> > =A0 =A0 =A0 =A0if (!(gfp_mask & __GFP_WAIT))
->> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return CHARGE_WOULDBLOCK;
->> >
->> > - =A0 =A0 =A0 ret =3D mem_cgroup_hierarchical_reclaim(mem_over_limit, =
-NULL,
->> > - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0 =A0 =A0 =A0 gfp_mask, flags);
->> > + =A0 =A0 =A0 ret =3D mem_cgroup_reclaim(mem_over_limit, gfp_mask, fla=
-gs);
->> > =A0 =A0 =A0 =A0if (mem_cgroup_margin(mem_over_limit) >=3D nr_pages)
->> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return CHARGE_RETRY;
->> > =A0 =A0 =A0 =A0/*
->>
->> It seems this clean-up around hierarchy and softlimit can be in an
->> independent patch, no ?
->
-> Hm, why do you think it's a cleanup? =A0The hierarchical target reclaim
-> code is moved to vmscan.c and as a result the entry points for hard
-> limit and soft limit reclaim differ. =A0This is why the original
-> function, mem_cgroup_hierarchical_reclaim() has to be split into two
-> parts.
->
-If functionality is unchanged, I think it's clean up.
-I agree to move hierarchy walk to vmscan.c. but it can be done as
-a clean up patch for current code.
-(Make current try_to_free_mem_cgroup_pages() to use this code.)
- and then, you can write a patch which only includes a core
-logic/purpose of this patch
-"use root cgroup's LRU for global and make global reclaim as full-scan
-of memcgroup."
+Yes it had to be use after free.
 
-In short, I felt this patch is long....and maybe watchers of -mm are
-not interested in rewritie of hierarchy walk but are intetested in the
-chages in shrink_zone() itself very much.
+I cooked this patch, still untested but it builds. Will test it soon.
 
+===
+Subject: ksm: fix __ksm_exit vs ksm scan SMP race
 
+From: Andrea Arcangeli <aarcange@redhat.com>
 
->> > @@ -1943,6 +1976,31 @@ restart:
->> > =A0 =A0 =A0 =A0throttle_vm_writeout(sc->gfp_mask);
->> > =A0}
->> >
->> > +static void shrink_zone(int priority, struct zone *zone,
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 struct scan_control *sc)
->> > +{
->> > + =A0 =A0 =A0 unsigned long nr_reclaimed_before =3D sc->nr_reclaimed;
->> > + =A0 =A0 =A0 struct mem_cgroup *root =3D sc->target_mem_cgroup;
->> > + =A0 =A0 =A0 struct mem_cgroup *first, *mem =3D NULL;
->> > +
->> > + =A0 =A0 =A0 first =3D mem =3D mem_cgroup_hierarchy_walk(root, mem);
->>
->> Hmm, I think we should add some scheduling here, later.
->> (as select a group over softlimit or select a group which has
->> =A0easily reclaimable pages on this zone.)
->>
->> This name as hierarchy_walk() sounds like "full scan in round-robin, alw=
-ays".
->> Could you find better name ?
->
-> Okay, I'll try.
->
->> > + =A0 =A0 =A0 for (;;) {
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 unsigned long nr_reclaimed;
->> > +
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 sc->mem_cgroup =3D mem;
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 do_shrink_zone(priority, zone, sc);
->> > +
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 nr_reclaimed =3D sc->nr_reclaimed - nr_r=
-eclaimed_before;
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (nr_reclaimed >=3D sc->nr_to_reclaim)
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 break;
->>
->> what this calculation means ? =A0Shouldn't we do this quit based on the
->> number of "scan"
->> rather than "reclaimed" ?
->
-> It aborts the loop once sc->nr_to_reclaim pages have been reclaimed
-> from that zone during that hierarchy walk, to prevent overreclaim.
->
-> If you have unbalanced sizes of memcgs in the system, it is not
-> desirable to have every reclaimer scan all memcgs, but let those quit
-> early that have made some progress on the bigger memcgs.
->
-Hmm, why not if (sc->nr_reclaimed >=3D sc->nr_to_reclaim) ?
+If the KSM scan releases the ksm_mmlist_lock after the mm_users already dropped
+to zero but before __ksm_exit had a chance runs, both the KSM scan and
+__ksm_exit will free the slot. This fixes the SMP race condition by using
+test_and_bit_set in __ksm_exit to see if __ksm_exit arrived before the KSM
+scan or not.
 
-I'm sorry if I miss something..
+Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+---
 
-
-> It's essentially a forward progagation of the same check in
-> do_shrink_zone(). =A0It trades absolute fairness for average reclaim
-> latency.
->
-> Note that kswapd sets the reclaim target to infinity, so this
-> optimization applies only to direct reclaimers.
->
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 mem =3D mem_cgroup_hierarchy_walk(root, =
-mem);
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (mem =3D=3D first)
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 break;
->>
->> Why we quit loop =A0?
->
-> get_scan_count() for traditional global reclaim returns the scan
-> target for the zone.
->
-> With this per-memcg reclaimer, get_scan_count() will return scan
-> targets for the respective per-memcg zone subsizes.
->
-> So once we have gone through all memcgs, we should have scanned the
-> amount of pages that global reclaim would have deemed sensible for
-> that zone at that priority level.
->
-> As such, this is the exit condition based on scan count you referred
-> to above.
->
-That's what I want as a comment in codes.
-
-Thanks,
--Kame
+diff --git a/mm/ksm.c b/mm/ksm.c
+index d708b3e..47ef4c1 100644
+--- a/mm/ksm.c
++++ b/mm/ksm.c
+@@ -645,10 +645,16 @@ static int unmerge_and_remove_all_rmap_items(void)
+ 		if (ksm_test_exit(mm)) {
+ 			hlist_del(&mm_slot->link);
+ 			list_del(&mm_slot->mm_list);
++			/*
++			 * After releasing ksm_mmlist_lock __ksm_exit
++			 * can run and we already changed mm_slot, so
++			 * notify it with MMF_VM_MERGEABLE not to free
++			 * this again.
++			 */
++			clear_bit(MMF_VM_MERGEABLE, &mm->flags);
+ 			spin_unlock(&ksm_mmlist_lock);
+ 
+ 			free_mm_slot(mm_slot);
+-			clear_bit(MMF_VM_MERGEABLE, &mm->flags);
+ 			up_read(&mm->mmap_sem);
+ 			mmdrop(mm);
+ 		} else {
+@@ -1377,10 +1383,15 @@ next_mm:
+ 		 */
+ 		hlist_del(&slot->link);
+ 		list_del(&slot->mm_list);
++		/*
++		 * After releasing ksm_mmlist_lock __ksm_exit can run
++		 * and we already changed mm_slot, so notify it with
++		 * MMF_VM_MERGEABLE not to free this again.
++		 */
++		clear_bit(MMF_VM_MERGEABLE, &mm->flags);
+ 		spin_unlock(&ksm_mmlist_lock);
+ 
+ 		free_mm_slot(slot);
+-		clear_bit(MMF_VM_MERGEABLE, &mm->flags);
+ 		up_read(&mm->mmap_sem);
+ 		mmdrop(mm);
+ 	} else {
+@@ -1463,6 +1474,11 @@ int ksm_madvise(struct vm_area_struct *vma, unsigned long start,
+ 				 VM_NONLINEAR | VM_MIXEDMAP | VM_SAO))
+ 			return 0;		/* just ignore the advice */
+ 
++		/*
++		 * It should be safe to test_bit instead of
++		 * test_and_bit_set because the madvise generic caller
++		 * holds the mmap_sem write mode.
++		 */
+ 		if (!test_bit(MMF_VM_MERGEABLE, &mm->flags)) {
+ 			err = __ksm_enter(mm);
+ 			if (err)
+@@ -1511,6 +1527,10 @@ int __ksm_enter(struct mm_struct *mm)
+ 	list_add_tail(&mm_slot->mm_list, &ksm_scan.mm_slot->mm_list);
+ 	spin_unlock(&ksm_mmlist_lock);
+ 
++	/*
++	 * It should be safe to set it outside ksm_mmlist_lock because
++	 * we hold a mm_user pin on the mm so __ksm_exit can't run.
++	 */
+ 	set_bit(MMF_VM_MERGEABLE, &mm->flags);
+ 	atomic_inc(&mm->mm_count);
+ 
+@@ -1538,9 +1558,28 @@ void __ksm_exit(struct mm_struct *mm)
+ 	mm_slot = get_mm_slot(mm);
+ 	if (mm_slot && ksm_scan.mm_slot != mm_slot) {
+ 		if (!mm_slot->rmap_list) {
+-			hlist_del(&mm_slot->link);
+-			list_del(&mm_slot->mm_list);
+-			easy_to_free = 1;
++			/*
++			 * If MMF_VM_MERGEABLE isn't set it was freed
++			 * by the scan immediately after mm_count
++			 * reached zero (visible by the scan) but
++			 * before __ksm_exit() run, so we don't need
++			 * to do anything here. We don't even need to
++			 * wait for the KSM scan to release the
++			 * mmap_sem as it's not working on the mm
++			 * anymore but it's just releasing it, and it
++			 * probably already did and dropped its
++			 * mm_count too (it would however be safe to
++			 * take mmap_sem here even if MMF_VM_MERGEABLE
++			 * is already clear, as the actual mm can't be
++			 * freed until we return and we run mmdrop
++			 * too, but it's unnecessary).
++			 */
++			if (test_and_clear_bit(MMF_VM_MERGEABLE, &mm->flags)) {
++				hlist_del(&mm_slot->link);
++				list_del(&mm_slot->mm_list);
++				easy_to_free = 1;
++			} else
++				mm_slot = NULL;
+ 		} else {
+ 			list_move(&mm_slot->mm_list,
+ 				  &ksm_scan.mm_slot->mm_list);
+@@ -1550,7 +1589,6 @@ void __ksm_exit(struct mm_struct *mm)
+ 
+ 	if (easy_to_free) {
+ 		free_mm_slot(mm_slot);
+-		clear_bit(MMF_VM_MERGEABLE, &mm->flags);
+ 		mmdrop(mm);
+ 	} else if (mm_slot) {
+ 		down_write(&mm->mmap_sem);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
