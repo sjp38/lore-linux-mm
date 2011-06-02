@@ -1,193 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 39BD66B004A
-	for <linux-mm@kvack.org>; Thu,  2 Jun 2011 04:34:07 -0400 (EDT)
-Received: by qwa26 with SMTP id 26so370895qwa.14
-        for <linux-mm@kvack.org>; Thu, 02 Jun 2011 01:34:04 -0700 (PDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 12E9D6B004A
+	for <linux-mm@kvack.org>; Thu,  2 Jun 2011 04:54:18 -0400 (EDT)
+Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [202.81.31.247])
+	by e23smtp09.au.ibm.com (8.14.4/8.13.1) with ESMTP id p528sEoa022230
+	for <linux-mm@kvack.org>; Thu, 2 Jun 2011 18:54:14 +1000
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p528rV0f1220726
+	for <linux-mm@kvack.org>; Thu, 2 Jun 2011 18:53:31 +1000
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p528sDL0005006
+	for <linux-mm@kvack.org>; Thu, 2 Jun 2011 18:54:13 +1000
+Date: Thu, 2 Jun 2011 14:24:09 +0530
+From: Ankita Garg <ankita@in.ibm.com>
+Subject: Re: [PATCH 01/10] mm: Introduce the memory regions data structure
+Message-ID: <20110602085409.GA28096@in.ibm.com>
+Reply-To: Ankita Garg <ankita@in.ibm.com>
+References: <1306499498-14263-1-git-send-email-ankita@in.ibm.com>
+ <1306499498-14263-2-git-send-email-ankita@in.ibm.com>
+ <1306510203.22505.69.camel@nimitz>
+ <20110527182041.GM5654@dirshya.in.ibm.com>
+ <1306531912.22505.84.camel@nimitz>
+ <20110529081618.GC8333@in.ibm.com>
+ <1306863260.15490.35.camel@nimitz>
 MIME-Version: 1.0
-In-Reply-To: <20110602010352.GD7306@suse.de>
-References: <20110530175334.GI19505@random.random>
-	<20110531121620.GA3490@barrios-laptop>
-	<20110531122437.GJ19505@random.random>
-	<20110531133340.GB3490@barrios-laptop>
-	<20110531141402.GK19505@random.random>
-	<20110601005747.GC7019@csn.ul.ie>
-	<20110601175809.GB7306@suse.de>
-	<20110601191529.GY19505@random.random>
-	<20110601214018.GC7306@suse.de>
-	<20110601233036.GZ19505@random.random>
-	<20110602010352.GD7306@suse.de>
-Date: Thu, 2 Jun 2011 17:34:03 +0900
-Message-ID: <BANLkTikQ=PhYV9fgRUPrw-Kk+g1E4oMu9Q@mail.gmail.com>
-Subject: Re: [PATCH] mm: compaction: Abort compaction if too many pages are
- isolated and caller is asynchronous
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1306863260.15490.35.camel@nimitz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, akpm@linux-foundation.org, Ury Stankevich <urykhy@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, stable@kernel.org
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: svaidy@linux.vnet.ibm.com, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-pm@lists.linux-foundation.org, thomas.abraham@linaro.org
 
-On Thu, Jun 2, 2011 at 10:03 AM, Mel Gorman <mgorman@suse.de> wrote:
-> On Thu, Jun 02, 2011 at 01:30:36AM +0200, Andrea Arcangeli wrote:
->> Hi Mel,
->>
->> On Wed, Jun 01, 2011 at 10:40:18PM +0100, Mel Gorman wrote:
->> > On Wed, Jun 01, 2011 at 09:15:29PM +0200, Andrea Arcangeli wrote:
->> > > On Wed, Jun 01, 2011 at 06:58:09PM +0100, Mel Gorman wrote:
->> > > > Umm, HIGHMEM4G implies a two-level pagetable layout so where are
->> > > > things like _PAGE_BIT_SPLITTING being set when THP is enabled?
->> > >
->> > > They should be set on the pgd, pud_offset/pgd_offset will just bypas=
-s.
->> > > The splitting bit shouldn't be special about it, the present bit
->> > > should work the same.
->> >
->> > This comment is misleading at best then.
->> >
->> > #define _PAGE_BIT_SPLITTING =C2=A0 =C2=A0 _PAGE_BIT_UNUSED1 /* only va=
-lid on a PSE pmd */
->>
->> From common code point of view it's set in the pmd, the comment can be
->> extended to specify it's actually the pgd in case of 32bit noPAE but I
->> didn't think it was too misleading as we think in common code terms
->> all over the code, the fact it's a bypass is pretty clear across the
->> whole archs.
->>
->
-> Fair point.
->
->> > At the PGD level, it can have PSE set obviously but it's not a
->> > PMD. I confess I haven't checked the manual to see if it's safe to
->> > use _PAGE_BIT_UNUSED1 like this so am taking your word for it. I
->>
->> To be sure I re-checked on 253668.pdf page 113/114 noPAE and page 122
->> PAE, on x86 32bit/64 all ptes/pmd/pgd (32bit/64bit PAE/noPAE) have bit
->> 9-11 "Avail" to software. So I think we should be safe here.
->>
->
-> Good stuff. I was reasonably sure this was the case but as this was
-> already "impossible", it needed to be ruled out.
->
->> > found that the bug is far harder to reproduce with 3 pagetable levels
->> > than with 2 but that is just timing. So far it has proven impossible
->> > on x86-64 at least within 27 hours so that has me looking at how
->> > pagetable management between x86 and x86-64 differ.
->>
->> Weird.
->>
->> However I could see it screwing the nr_inactive/active_* stats, but
->> the nr_isolated should never go below zero, and especially not anon
->> even if split_huge_page does the accounting wrong (and
->> migrate/compaction won't mess with THP), or at least I'd expect things
->> to fall apart in other ways and not with just a fairly innocuous and
->> not-memory corrupting nr_isolated_ counter going off just by one.
->>
->
-> Again, agreed. I found it hard to come up with a reason why file would
-> get messed up particularly as PageSwapBacked does not get cleared in the
-> ordinary case until the page is freed. If we were using pages after
-> being freed due to bad refcounting, it would show up in all sorts of bad
-> ways.
->
->> The khugepaged nr_isolated_anon increment couldn't affect the file one
->> and we hold mmap_sem write mode there to prevent the pte to change
->> from under us, in addition to the PT and anon_vma lock. Anon_vma lock
->> being wrong sounds unlikely too, and even if it was it should screw
->> the nr_isolated_anon counter, impossible to screw the nr_isolated_file
->> with khugepaged.
->>
->
-> After reviewing, I still could not find a problem with the locking that
-> might explain this. I thought last night anon_vma might be bust in some
-> way but today I couldn't find a problem.
->
->> Where did you put your bugcheck? It looked like you put it in the < 0
->> reader, can you add it to all _inc/dec/mod (even _inc just in case) so
->> we may get a stack trace including the culprit? (not guaranteed but
->> better chance)
->>
->
-> Did that, didn't really help other than showing the corruption happens
-> early in the process lifetime while huge PMDs are being faulted. This
-> made me think the problem might be on or near fork.
->
->> > Barriers are a big different between how 32-bit !SMP and X86-64 but
->> > don't know yet which one is relevant or if this is even the right
->> > direction.
->>
->> The difference is we need xchg on SMP to avoid losing the dirty
->> bit. Otherwise if we do pmd_t pmd =3D *pmdp; *pmdp =3D 0; the dirty bit
->> may have been set in between the two by another thread running in
->> userland in a different CPU, while the pmd was still "present". As
->> long as interrupts don't write to read-write userland memory with the
->> pte dirty bit clear, we shouldn't need xchg on !SMP.
->>
->
-> Yep.
->
->> On PAE we also need to write 0 into pmd_low before worrying about
->> pmd_high so the present bit is cleared before clearing the high part
->> of the 32bit PAE pte, and we relay on xchg implicit lock to avoid a
->> smp_wmb() in between the two writes.
->>
->
-> Yep.
->
->> I'm unsure if any of this could be relevant to our problem, also there
->
-> I concluded after a while that it wasn't. Partially from reasoning about
-> it and part by testing forcing the use of the SMP versions and finding
-> the bug was still reproducible.
->
->> can't be more than one writer at once in the pmd, as nobody can modify
->> it without the page_table_lock held. xchg there is just to be safe for
->> the dirty bit (or we'd corrupt memory with threads running in userland
->> and writing to memory on other cpus while we ptep_clear_flush).
->>
->> I've been wondering about the lack of "lock" on the bus in atomic.h
->> too, but I can't see how it can possibly matter on !SMP, vmstat
->> modifications should execute only 1 asm insn so preempt or irq can't
->> interrupt it.
->
-> To be honest, I haven't fully figured out yet why it makes such
-> a difference on !SMP. I have a vague notion that it's because
-> the page table page and the data is visible before the bit set by
-> SetPageSwapBacked on the struct page is visible but haven't reasoned
-> it out yet. If this was the case, it might allow an "anon" page to
-> be treated as a file by compaction for accounting purposes and push
-> the counter negative but you'd think then the anon isolation would
-> be positive so it's something else.
->
-> As I thought fork() be an issue, I looked closer at what we do
-> there. We are calling pmd_alloc at copy_pmd_range which is a no-op
-> when PMD is folded and copy_huge_pmd() is calling pte_alloc_one()
-> which also has no barrier. I haven't checked this fully (it's very
-> late again as I wasn't able to work on this during most of the day)
-> but I wonder if it's then possible the PMD setup is not visible before
-> insertion into the page table leading to weirdness? Why it matters to
-> SMP is unclear unless this is a preemption thing I'm not thinking of.
->
-> On a similar vein, during collapse_huge_page(), we use a barrier
-> to ensure the data copy is visible before the PMD insertion but in
-> __do_huge_pmd_anonymous_page(), we assume the "spinlocking to take the
-> lru_lock inside page_add_new_anon_rmap() acts as a full memory". Thing
-> is, it's calling lru_cache_add_lru() adding the page to a pagevec
-> which is not necessarily taking the LRU lock and !SMP is leaving a
-> big enough race before the pagevec gets drained to cause a problem.
-> Of course, maybe it *is* happening on SMP but the negative counters
-> are being reported as zero :)
+Hi Dave,
 
-Yes. although we have atomic_inc of in get_page, it doesn't imply full
-memory barrier.
-So we need explicit memory barrier. I think you're right.
-But I can't think of that it's related to this problem(UP, preemption).
+On Tue, May 31, 2011 at 10:34:20AM -0700, Dave Hansen wrote:
+> On Sun, 2011-05-29 at 13:46 +0530, Ankita Garg wrote:
+> > > It's worth noting that we already do targeted reclaim on boundaries
+> > > other than zones.  The lumpy reclaim and memory compaction logically do
+> > > the same thing.  So, it's at least possible to do this without having
+> > > the global LRU designed around the way you want to reclaim.
+> > >
+> > My understanding maybe incorrect, but doesn't both lumpy reclaim and
+> > memory compaction still work under zone boundary ? While trying to free
+> > up higher order pages, lumpy reclaim checks to ensure that pages that
+> > are selected do not cross zone boundary. Further, compaction walks
+> > through the pages in a zone and tries to re-arrange them.
+> 
+> I'm asserting that we don't need memory regions in the
+> 
+> 	pgdat->regions[]->zones[]
+> 
+> layout to do what you're asking for.
+> 
+> Lumpy reclaim is limited to a zone because it's trying to satisfy and
+> allocation request that came in for *THAT* *ZONE*.  It's useless to go
+> clear out other zones.  In your case, you don't care about zone
+> boundaries: you want to reclaim things regardless.
+>
 
+Ok true. So I guess lumpy reclaim could be extended to just free up
+pages spanning the entire region and not just a particular zone.
+ 
+> There was a "cma: Contiguous Memory Allocator added" patch posted a bit
+> ago to linux-mm@.  You might want to take a look at it for some
+> inspiration.
+> 
 
---=20
-Kind regards,
-Minchan Kim
+We did take a look at CMA, but the use case seems to be slightly
+different. Inorder to allocate large contiguous pages, CMA creates a new
+miratetype called MIGRATE_CMA, which effectively isolates pages from the
+buddy allocator.
+
+> I think you also need to clearly establish here why any memory that
+> you're going to want to power off can't use (or shouldn't use)
+> ZONE_MOVABLE.  It seems a bit silly to have it there, and ignore it for
+> such a similar use case.  Memory hot-remove and power-down are not
+> horrifically different beasts.
+> 
+
+Memory hot add and remove are definite usecases for conserving memory
+power. In this first version of the RFC patch, I have not yet added the
+support for ZONE_MOVABLE. I am currently testing the patch that creates
+movable zones under regions, thus ensuring that it can be easily
+evacuated using page migration.
+
+> BTW, that's probably something else to add to your list: make sure
+> mem_map[]s for memory in a region get allocated *in* that region. 
+> 
+
+There are a few reasons why we decided that we must have all the kernel
+non-movable data structures co-located in a single region as much as
+possible:
+
+- Having a region devoid of non-movable memory will enable the complete
+  memory region to be even hot-removed
+- If the memory is evacuated and later turned off (loss of content),
+  then the mem_map[]s will be lost. So when the memory comes back on,
+  the mem_map[]s will need to be reinitialized. While the hotplug
+  approach will work for exploiting PASR, it may not be the most
+  efficient one
+- When the memory is put into a lower power state, having the
+  mem_maps[]s in a single region would ensure that any references to
+  just the struct pages will not lead to references to the actual memory
+
+However, it might be worth taking a look at it again.
+
+-- 
+Regards,
+Ankita Garg (ankita@in.ibm.com)
+Linux Technology Center
+IBM India Systems & Technology Labs,
+Bangalore, India
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
