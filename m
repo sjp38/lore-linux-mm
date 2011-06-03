@@ -1,52 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 019186B0012
-	for <linux-mm@kvack.org>; Fri,  3 Jun 2011 14:07:01 -0400 (EDT)
-Received: by vws4 with SMTP id 4so2195535vws.14
-        for <linux-mm@kvack.org>; Fri, 03 Jun 2011 11:07:00 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 29CC86B004A
+	for <linux-mm@kvack.org>; Fri,  3 Jun 2011 14:07:21 -0400 (EDT)
+Received: by mail-vw0-f41.google.com with SMTP id 4so2195535vws.14
+        for <linux-mm@kvack.org>; Fri, 03 Jun 2011 11:07:18 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.00.1106030941100.27151@router.home>
-References: <201106021424.p52EO91O006974@lab-17.internal.tilera.com>
-	<alpine.DEB.2.00.1106021015220.18350@chino.kir.corp.google.com>
-	<4DE7D2AC.1070503@tilera.com>
-	<BANLkTinjCbhiwRfQ_aN5wtbYipQB6gv5AA@mail.gmail.com>
-	<alpine.DEB.2.00.1106030905590.27151@router.home>
-	<4DE8F0D4.2090008@tilera.com>
-	<alpine.DEB.2.00.1106030941100.27151@router.home>
-Date: Fri, 3 Jun 2011 21:06:59 +0300
-Message-ID: <BANLkTi=10tZjXW7WNxJiPmQit+wW1AZEuQ@mail.gmail.com>
-Subject: Re: [PATCH] slub: always align cpu_slab to honor cmpxchg_double requirement
+In-Reply-To: <alpine.DEB.2.00.1106030904320.27151@router.home>
+References: <1306999002-29738-1-git-send-email-ssouhlal@FreeBSD.org>
+	<alpine.DEB.2.00.1106021011510.18350@chino.kir.corp.google.com>
+	<alpine.DEB.2.00.1106030904320.27151@router.home>
+Date: Fri, 3 Jun 2011 21:07:18 +0300
+Message-ID: <BANLkTimy2gLR-fuAgakwi91L=uuV9_4-rw@mail.gmail.com>
+Subject: Re: [PATCH] SLAB: Record actual last user of freed objects.
 From: Pekka Enberg <penberg@kernel.org>
 Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Christoph Lameter <cl@linux.com>
-Cc: Chris Metcalf <cmetcalf@tilera.com>, David Rientjes <rientjes@google.com>, Tejun Heo <tj@kernel.org>, Matt Mackall <mpm@selenic.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: David Rientjes <rientjes@google.com>, Suleiman Souhlal <ssouhlal@freebsd.org>, suleiman@google.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mpm@selenic.com
 
-On Fri, Jun 3, 2011 at 5:41 PM, Christoph Lameter <cl@linux.com> wrote:
-> On Fri, 3 Jun 2011, Chris Metcalf wrote:
+On Fri, Jun 3, 2011 at 5:05 PM, Christoph Lameter <cl@linux.com> wrote:
+> On Thu, 2 Jun 2011, David Rientjes wrote:
 >
->> On 6/3/2011 10:06 AM, Christoph Lameter wrote:
->> > On Fri, 3 Jun 2011, Pekka Enberg wrote:
->> >
->> >> On Thu, Jun 2, 2011 at 9:13 PM, Chris Metcalf <cmetcalf@tilera.com> w=
-rote:
->> >> > On 6/2/2011 1:16 PM, David Rientjes wrote:
->> >> >> Acked-by: David Rientjes <rientjes@google.com>
->> >> Yup. Looks good. Christoph?
->> > Ok if we do not mind the packing density to be not that tight anymore.
->> >
->> > Acked-by: Christoph Lameter <cl@linux.com>
+>> On Thu, 2 Jun 2011, Suleiman Souhlal wrote:
 >>
->> I'm assuming from the acks that I should ask Linus to pull this for 3.0
->> along with a couple of other minor tile-specific changes. =A0However, pl=
-ease
->> let me know if someone else would rather take it into their tree instead=
- --
->> I don't want to step on any toes. =A0Thanks!
+>> > Currently, when using CONFIG_DEBUG_SLAB, we put in kfree() or
+>> > kmem_cache_free() as the last user of free objects, which is not
+>> > very useful, so change it to the caller of those functions instead.
+>> >
+>> > Signed-off-by: Suleiman Souhlal <suleiman@google.com>
+>>
+>> Acked-by: David Rientjes <rientjes@google.com>
 >
-> I would expect the patch to go through Pekka's tree to Linus.
+> Well note that this increases the overhead of a hot code path. But slub
+> does the same
+>
+> Acked-by: Christoph Lameter <cl@linux.com>
 
 Applied, thanks!
 
