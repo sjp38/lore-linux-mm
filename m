@@ -1,78 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 02EAB6B004A
-	for <linux-mm@kvack.org>; Fri,  3 Jun 2011 08:07:55 -0400 (EDT)
-Date: Fri, 3 Jun 2011 07:07:52 -0500
-From: Russ Anderson <rja@sgi.com>
-Subject: Re: [PATCH] mm: fix negative commitlimit when gigantic hugepages are allocated
-Message-ID: <20110603120751.GA24840@sgi.com>
-Reply-To: Russ Anderson <rja@sgi.com>
-References: <20110518153445.GA18127@sgi.com> <BANLkTinbHnrf2isuLzUFZN8ypaT476G1zw@mail.gmail.com> <20110519045630.GA22533@sgi.com> <BANLkTinyYP-je9Nf8X-xWEdpgvn8a631Mw@mail.gmail.com> <20110519221101.GC19648@sgi.com> <20110520130411.d1e0baef.akpm@linux-foundation.org> <20110520223032.GA15192@x61.tchesoft.com> <20110526210751.GA14819@optiplex.tchesoft.com> <20110602040821.GA7934@sgi.com> <20110603025555.GA10530@optiplex.tchesoft.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110603025555.GA10530@optiplex.tchesoft.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 9D1EE6B004A
+	for <linux-mm@kvack.org>; Fri,  3 Jun 2011 08:35:50 -0400 (EDT)
+Message-ID: <4DE8D50F.1090406@redhat.com>
+Date: Fri, 03 Jun 2011 14:35:27 +0200
+From: Igor Mammedov <imammedo@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] memcg: do not expose uninitialized mem_cgroup_per_node
+ to world
+References: <1306925044-2828-1-git-send-email-imammedo@redhat.com>	<20110601123913.GC4266@tiehlicka.suse.cz>	<4DE6399C.8070802@redhat.com>	<20110601134149.GD4266@tiehlicka.suse.cz>	<4DE64F0C.3050203@redhat.com>	<20110601152039.GG4266@tiehlicka.suse.cz>	<4DE66BEB.7040502@redhat.com> <BANLkTimbqHPeUdue=_Z31KVdPwcXtbLpeg@mail.gmail.com>
+In-Reply-To: <BANLkTimbqHPeUdue=_Z31KVdPwcXtbLpeg@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rafael Aquini <aquini@linux.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux.com>, rja@americas.sgi.com
+To: Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>
+Cc: Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, balbir@linux.vnet.ibm.com, akpm@linux-foundation.org, linux-mm@kvack.org, Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, containers@lists.linux-foundation.org
 
-Acked-by: Russ Anderson <rja@sgi.com>
+On 06/02/2011 01:10 AM, Hiroyuki Kamezawa wrote:
+>> pc = list_entry(list->prev, struct page_cgroup, lru);
+> Hmm, I disagree your patch is a fix for mainline. At least, a cgroup
+> before completion of
+> create() is not populated to userland and you never be able to rmdir()
+> it because you can't
+> find it.
+>
+>
+>   >26:   e8 7d 12 30 00          call   0x3012a8
+>   >2b:*  8b 73 08                mov    0x8(%ebx),%esi<-- trapping
+> instruction
+>   >2e:   8b 7c 24 24             mov    0x24(%esp),%edi
+>   >32:   8b 07                   mov    (%edi),%eax
+>
+> Hm, what is the call 0x3012a8 ?
+>
+                 pc = list_entry(list->prev, struct page_cgroup, lru);
+                 if (busy == pc) {
+                         list_move(&pc->lru, list);
+                         busy = 0;
+                         spin_unlock_irqrestore(&zone->lru_lock, flags);
+                         continue;
+                 }
+                 spin_unlock_irqrestore(&zone->lru_lock, flags); <---- 
+is  call 0x3012a8
+                 ret = mem_cgroup_move_parent(pc, mem, GFP_KERNEL);
 
-On Thu, Jun 02, 2011 at 11:55:57PM -0300, Rafael Aquini wrote:
-> When 1GB hugepages are allocated on a system, free(1) reports
-> less available memory than what really is installed in the box.
-> Also, if the total size of hugepages allocated on a system is
-> over half of the total memory size, CommitLimit becomes
-> a negative number.
-> 
-> The problem is that gigantic hugepages (order > MAX_ORDER)
-> can only be allocated at boot with bootmem, thus its frames
-> are not accounted to 'totalram_pages'. However,  they are
-> accounted to hugetlb_total_pages()
-> 
-> What happens to turn CommitLimit into a negative number
-> is this calculation, in fs/proc/meminfo.c:
-> 
->         allowed = ((totalram_pages - hugetlb_total_pages())
->                 * sysctl_overcommit_ratio / 100) + total_swap_pages;
-> 
-> A similar calculation occurs in __vm_enough_memory() in mm/mmap.c.
-> 
-> Also, every vm statistic which depends on 'totalram_pages' will render
-> confusing values, as if system were 'missing' some part of its memory.
-> 
-> Reported-by: Russ Anderson <rja@sgi.com>
-> Signed-off-by: Rafael Aquini <aquini@linux.com>
-> ---
->  mm/hugetlb.c |    8 ++++++++
->  1 files changed, 8 insertions(+), 0 deletions(-)
-> 
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index f33bb31..c67dd0f 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -1111,6 +1111,14 @@ static void __init gather_bootmem_prealloc(void)
->  		WARN_ON(page_count(page) != 1);
->  		prep_compound_huge_page(page, h->order);
->  		prep_new_huge_page(h, page, page_to_nid(page));
-> +
-> +		/* if we had gigantic hugepages allocated at boot time,
-> +		 * we need to reinstate the 'stolen' pages to totalram_pages,
-> +		 * in order to fix confusing memory reports from free(1)
-> +		 * and another side-effects, like CommitLimit going negative.
-> +		 */
-> +		if (h->order > (MAX_ORDER - 1))
-> +			totalram_pages += 1 << h->order;
->  	}
->  }
->  
-> -- 
-> 1.7.4.4
+and  mov 0x8(%ebx),%esi
+is dereferencing of 'pc' in inlined mem_cgroup_move_parent
 
--- 
-Russ Anderson, OS RAS/Partitioning Project Lead  
-SGI - Silicon Graphics Inc          rja@sgi.com
+I've looked at vmcore once more and indeed there isn't any parallel task
+that touches cgroups code path.
+Will investigate if it is xen to blame for incorrect data in place.
+
+Thanks very much for your opinion.
+> Thanks,
+> -Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
