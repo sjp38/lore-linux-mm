@@ -1,79 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 698866B0083
-	for <linux-mm@kvack.org>; Fri,  3 Jun 2011 12:37:28 -0400 (EDT)
-Received: from kpbe11.cbf.corp.google.com (kpbe11.cbf.corp.google.com [172.25.105.75])
-	by smtp-out.google.com with ESMTP id p53GbO76004769
-	for <linux-mm@kvack.org>; Fri, 3 Jun 2011 09:37:24 -0700
-Received: from pxi7 (pxi7.prod.google.com [10.243.27.7])
-	by kpbe11.cbf.corp.google.com with ESMTP id p53Gav2O021263
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 3 Jun 2011 09:37:22 -0700
-Received: by pxi7 with SMTP id 7so1195805pxi.16
-        for <linux-mm@kvack.org>; Fri, 03 Jun 2011 09:37:18 -0700 (PDT)
-Date: Fri, 3 Jun 2011 09:37:13 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH] ksm: fix race between ksmd and exiting task
-In-Reply-To: <20110602173549.GL23047@sequoia.sous-sol.org>
-Message-ID: <alpine.LSU.2.00.1106030934130.1810@sister.anvils>
-References: <20110601222032.GA2858@thinkpad> <2144269697.363041.1306998593180.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com> <20110602141927.GA2011@thinkpad> <20110602164841.GK23047@sequoia.sous-sol.org>
- <20110602173549.GL23047@sequoia.sous-sol.org>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 00CF16B004A
+	for <linux-mm@kvack.org>; Fri,  3 Jun 2011 12:07:37 -0400 (EDT)
+Message-ID: <4DE906C0.6060901@fnarfbargle.com>
+Date: Sat, 04 Jun 2011 00:07:28 +0800
+From: Brad Campbell <brad@fnarfbargle.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: KVM induced panic on 2.6.38[2367] & 2.6.39
+References: <20110601011527.GN19505@random.random> <alpine.LSU.2.00.1105312120530.22808@sister.anvils> <4DE5DCA8.7070704@fnarfbargle.com> <4DE5E29E.7080009@redhat.com> <4DE60669.9050606@fnarfbargle.com> <4DE60918.3010008@redhat.com> <4DE60940.1070107@redhat.com> <4DE61A2B.7000008@fnarfbargle.com> <20110601111841.GB3956@zip.com.au> <4DE62801.9080804@fnarfbargle.com> <20110601230342.GC3956@zip.com.au> <4DE8E3ED.7080004@fnarfbargle.com> <isavsg$3or$1@dough.gmane.org>
+In-Reply-To: <isavsg$3or$1@dough.gmane.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chris Wright <chrisw@sous-sol.org>
-Cc: Andrea Righi <andrea@betterlinux.com>, CAI Qian <caiqian@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
+To: kvm@vger.kernel.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, netfilter-devel@vger.kernel.org
 
-On Thu, 2 Jun 2011, Chris Wright wrote:
+On 03/06/11 23:50, Bernhard Held wrote:
+>Am 03.06.2011 15:38, schrieb Brad Campbell:
+>>On 02/06/11 07:03, CaT wrote:
+>>>On Wed, Jun 01, 2011 at 07:52:33PM +0800, Brad Campbell wrote:
+>>>>Unfortunately the only interface that is mentioned by name anywhere
+>>>>in my firewall is $DMZ (which is ppp0 and not part of any bridge).
+>>>>
+>>>>All of the nat/dnat and other horrible hacks are based on IP addresses.
+>>>
+>>>Damn. Not referencing the bridge interfaces at all stopped our host from
+>>>going down in flames when we passed it a few packets. These are two
+>>>of the oopses we got from it. Whilst the kernel here is .35 we got the
+>>>same issue from a range of kernels. Seems related.
+>>
+>>Well, I tried sending an explanatory message to netdev, netfilter &
+>>cc'd to kvm,
+>>but it appears not to have made it to kvm or netfilter, and the cc to
+>>netdev has
+>>not elicited a response. My resend to netfilter seems to have dropped
+>>into the
+>>bit bucket also.
+>Just another reference 3.5 months ago:
+>http://www.spinics.net/lists/netfilter-devel/msg17239.html
 
-> Andrea Righi reported a case where an exiting task can race against
-> ksmd.
-> 
-> ksm_scan.mm_slot == the only registered mm
-> CPU 1 (bug program)		CPU 2 (ksmd)
->  				list_empty() is false
-> lock
-> ksm_scan.mm_slot
-> list_del
-> unlock
->  				slot == &ksm_mm_head (but list is now empty_)
-> 
-> Close this race by revalidating that the new slot is not simply the list
-> head again.
+<waves hands around shouting "I have a reproducible test case for this 
+and don't mind patching and crashing the machine to get it fixed">
 
-Remarkably similar to my patch: it must be good!
-But yours appears to be more popular - thanks, Chris.
-
-> 
-> Reported-by: Andrea Righi <andrea@betterlinux.com>
-> Cc: Hugh Dickins <hughd@google.com>
-
-Acked-by: Hugh Dickins <hughd@google.com>
-
-> Cc: Andrea Arcangeli <aarcange@redhat.com>
-> Signed-off-by: Chris Wright <chrisw@sous-sol.org>
-
-Cc: stable@kernel.org
-
-> ---
->  mm/ksm.c |    3 +++
->  1 files changed, 3 insertions(+), 0 deletions(-)
-> 
-> diff --git a/mm/ksm.c b/mm/ksm.c
-> index 942dfc7..0373ce4 100644
-> --- a/mm/ksm.c
-> +++ b/mm/ksm.c
-> @@ -1301,6 +1301,9 @@ static struct rmap_item *scan_get_next_rmap_item(struct page **page)
->  		slot = list_entry(slot->mm_list.next, struct mm_slot, mm_list);
->  		ksm_scan.mm_slot = slot;
->  		spin_unlock(&ksm_mmlist_lock);
-> +		/* We raced against exit of last slot on the list */
-> +		if (slot == &ksm_mm_head)
-> +			return NULL;
->  next_mm:
->  		ksm_scan.address = 0;
->  		ksm_scan.rmap_list = &slot->rmap_list;
+Attempted to add netfilter-devel to the cc this time.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
