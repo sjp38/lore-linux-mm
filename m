@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 831466B004A
-	for <linux-mm@kvack.org>; Fri,  3 Jun 2011 12:14:46 -0400 (EDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F4246B007B
+	for <linux-mm@kvack.org>; Fri,  3 Jun 2011 12:14:58 -0400 (EDT)
 From: Greg Thelen <gthelen@google.com>
-Subject: [PATCH v8 08/12] memcg: dirty page accounting support routines
-Date: Fri,  3 Jun 2011 09:12:14 -0700
-Message-Id: <1307117538-14317-9-git-send-email-gthelen@google.com>
+Subject: [PATCH v8 09/12] memcg: create support routines for writeback
+Date: Fri,  3 Jun 2011 09:12:15 -0700
+Message-Id: <1307117538-14317-10-git-send-email-gthelen@google.com>
 In-Reply-To: <1307117538-14317-1-git-send-email-gthelen@google.com>
 References: <1307117538-14317-1-git-send-email-gthelen@google.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,241 +13,334 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, linux-fsdevel@vger.kernel.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Vivek Goyal <vgoyal@redhat.com>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>
 
-Added memcg dirty page accounting support routines.  These routines are
-used by later changes to provide memcg aware writeback and dirty page
-limiting.  A mem_cgroup_dirty_info() tracepoint is is also included to
-allow for easier understanding of memcg writeback operation.
+Introduce memcg routines to assist in per-memcg writeback:
+
+- mem_cgroups_over_bground_dirty_thresh() determines if any cgroups need
+  writeback because they are over their dirty memory threshold.
+
+- should_writeback_mem_cgroup_inode() determines if an inode is
+  contributing pages to an over-limit memcg.  A new writeback_control
+  field determines if shared inodes should be written back.
+
+- mem_cgroup_writeback_done() is used periodically during writeback to
+  update memcg writeback data.
+
+These routines make use of a new over_bground_dirty_thresh bitmap that
+indicates which mem_cgroup are over their respective dirty background
+threshold.  As this bitmap is indexed by css_id, the largest possible
+css_id value is needed to create the bitmap.  So move the definition of
+CSS_ID_MAX from cgroup.c to cgroup.h.  This allows users of css_id() to
+know the largest possible css_id value.  This knowledge can be used to
+build such per-cgroup bitmaps.
 
 Signed-off-by: Greg Thelen <gthelen@google.com>
 ---
- include/linux/memcontrol.h        |    9 +++
- include/trace/events/memcontrol.h |   34 +++++++++
- mm/memcontrol.c                   |  145 +++++++++++++++++++++++++++++++++++++
- 3 files changed, 188 insertions(+), 0 deletions(-)
+Changelog since v7:
+- Combined creation of and first use of new struct writeback_control
+  shared_inodes field into this patch.  In -v7 these were in separate patches.
 
+- Promote CSS_ID_MAX from cgroup.c to cgroup.h for general usage.  In -v7 this
+  change was in a separate patch.  CSS_ID_MAX is needed by this patch, so the
+  promotion is included with this patch.
+
+- mem_cgroup_writeback_done() now clears corresponding bit for cgroup that
+  cannot be referenced.  Such a bit would represent a cgroup previously over
+  dirty limit, but that has been deleted before writeback cleaned all pages.  By
+  clearing bit, writeback will not continually try to writeback the deleted
+  cgroup.
+
+- Previously mem_cgroup_writeback_done() would only finish writeback when the
+  cgroup's dirty memory usage dropped below the dirty limit.  This was the wrong
+  limit to check.  This now correctly checks usage against the background dirty
+  limit.
+
+ include/linux/cgroup.h            |    1 +
+ include/linux/memcontrol.h        |   22 +++++++
+ include/linux/writeback.h         |    1 +
+ include/trace/events/memcontrol.h |   49 +++++++++++++++
+ kernel/cgroup.c                   |    1 -
+ mm/memcontrol.c                   |  119 +++++++++++++++++++++++++++++++++++++
+ 6 files changed, 192 insertions(+), 1 deletions(-)
+
+diff --git a/include/linux/cgroup.h b/include/linux/cgroup.h
+index ab4ac0c..5eb6543 100644
+--- a/include/linux/cgroup.h
++++ b/include/linux/cgroup.h
+@@ -624,6 +624,7 @@ bool css_is_ancestor(struct cgroup_subsys_state *cg,
+ 		     const struct cgroup_subsys_state *root);
+ 
+ /* Get id and depth of css */
++#define CSS_ID_MAX	(65535)
+ unsigned short css_id(struct cgroup_subsys_state *css);
+ unsigned short css_depth(struct cgroup_subsys_state *css);
+ struct cgroup_subsys_state *cgroup_css_from_dir(struct file *f, int id);
 diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index f1261e5..f06c2de 100644
+index f06c2de..3d72e09 100644
 --- a/include/linux/memcontrol.h
 +++ b/include/linux/memcontrol.h
-@@ -36,6 +36,15 @@ enum mem_cgroup_page_stat_item {
- 	MEMCG_NR_FILE_DIRTY, /* # of dirty pages in page cache */
- 	MEMCG_NR_FILE_WRITEBACK, /* # of pages under writeback */
- 	MEMCG_NR_FILE_UNSTABLE_NFS, /* # of NFS unstable pages */
-+	MEMCG_NR_DIRTYABLE_PAGES, /* # of pages that could be dirty */
-+};
+@@ -26,6 +26,7 @@ struct mem_cgroup;
+ struct page_cgroup;
+ struct page;
+ struct mm_struct;
++struct writeback_control;
+ 
+ /*
+  * Per mem_cgroup page counts tracked by kernel.  As pages enter and leave these
+@@ -162,6 +163,11 @@ static inline void mem_cgroup_dec_page_stat(struct page *page,
+ 	mem_cgroup_update_page_stat(page, idx, -1);
+ }
+ 
++bool should_writeback_mem_cgroup_inode(struct inode *inode,
++				       struct writeback_control *wbc);
++bool mem_cgroups_over_bground_dirty_thresh(void);
++void mem_cgroup_writeback_done(void);
 +
-+struct dirty_info {
-+	unsigned long dirty_thresh;
-+	unsigned long background_thresh;
-+	unsigned long nr_file_dirty;
-+	unsigned long nr_writeback;
-+	unsigned long nr_unstable_nfs;
+ unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
+ 						gfp_t gfp_mask,
+ 						unsigned long *total_scanned);
+@@ -361,6 +367,22 @@ static inline void mem_cgroup_dec_page_stat(struct page *page,
+ {
+ }
+ 
++static inline bool
++should_writeback_mem_cgroup_inode(struct inode *inode,
++				  struct writeback_control *wbc)
++{
++	return true;
++}
++
++static inline bool mem_cgroups_over_bground_dirty_thresh(void)
++{
++	return true;
++}
++
++static inline void mem_cgroup_writeback_done(void)
++{
++}
++
+ static inline
+ unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
+ 					    gfp_t gfp_mask,
+diff --git a/include/linux/writeback.h b/include/linux/writeback.h
+index d10d133..66ec339 100644
+--- a/include/linux/writeback.h
++++ b/include/linux/writeback.h
+@@ -47,6 +47,7 @@ struct writeback_control {
+ 	unsigned for_reclaim:1;		/* Invoked from the page allocator */
+ 	unsigned range_cyclic:1;	/* range_start is cyclic */
+ 	unsigned more_io:1;		/* more io to be dispatched */
++	unsigned shared_inodes:1;	/* write inodes spanning cgroups */
  };
  
- extern unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
+ /*
 diff --git a/include/trace/events/memcontrol.h b/include/trace/events/memcontrol.h
-index 781ef9fc..abf1306 100644
+index abf1306..326a66b 100644
 --- a/include/trace/events/memcontrol.h
 +++ b/include/trace/events/memcontrol.h
-@@ -26,6 +26,40 @@ TRACE_EVENT(mem_cgroup_mark_inode_dirty,
- 	TP_printk("ino=%ld css_id=%d", __entry->ino, __entry->css_id)
+@@ -60,6 +60,55 @@ TRACE_EVENT(mem_cgroup_dirty_info,
+ 		  __entry->nr_unstable_nfs)
  )
  
-+TRACE_EVENT(mem_cgroup_dirty_info,
-+	TP_PROTO(unsigned short css_id,
-+		 struct dirty_info *dirty_info),
++TRACE_EVENT(should_writeback_mem_cgroup_inode,
++	TP_PROTO(struct inode *inode,
++		 struct writeback_control *wbc,
++		 bool over_limit),
 +
-+	TP_ARGS(css_id, dirty_info),
++	TP_ARGS(inode, wbc, over_limit),
 +
 +	TP_STRUCT__entry(
++		__field(unsigned long, ino)
 +		__field(unsigned short, css_id)
-+		__field(unsigned long, dirty_thresh)
-+		__field(unsigned long, background_thresh)
-+		__field(unsigned long, nr_file_dirty)
-+		__field(unsigned long, nr_writeback)
-+		__field(unsigned long, nr_unstable_nfs)
-+		),
++		__field(bool, shared_inodes)
++		__field(bool, over_limit)
++	),
 +
 +	TP_fast_assign(
-+		__entry->css_id = css_id;
-+		__entry->dirty_thresh = dirty_info->dirty_thresh;
-+		__entry->background_thresh = dirty_info->background_thresh;
-+		__entry->nr_file_dirty = dirty_info->nr_file_dirty;
-+		__entry->nr_writeback = dirty_info->nr_writeback;
-+		__entry->nr_unstable_nfs = dirty_info->nr_unstable_nfs;
-+		),
++		__entry->ino = inode->i_ino;
++		__entry->css_id =
++			inode->i_mapping ? inode->i_mapping->i_memcg : 0;
++		__entry->shared_inodes = wbc->shared_inodes;
++		__entry->over_limit = over_limit;
++	),
 +
-+	TP_printk("css_id=%d thresh=%ld bg_thresh=%ld dirty=%ld wb=%ld "
-+		  "unstable_nfs=%ld",
++	TP_printk("ino=%ld css_id=%d shared_inodes=%d over_limit=%d",
++		  __entry->ino,
 +		  __entry->css_id,
-+		  __entry->dirty_thresh,
-+		  __entry->background_thresh,
-+		  __entry->nr_file_dirty,
-+		  __entry->nr_writeback,
-+		  __entry->nr_unstable_nfs)
++		  __entry->shared_inodes,
++		  __entry->over_limit)
++)
++
++TRACE_EVENT(mem_cgroups_over_bground_dirty_thresh,
++	TP_PROTO(bool over_limit,
++		 unsigned short first_id),
++
++	TP_ARGS(over_limit, first_id),
++
++	TP_STRUCT__entry(
++		__field(bool, over_limit)
++		__field(unsigned short, first_id)
++	),
++
++	TP_fast_assign(
++		__entry->over_limit = over_limit;
++		__entry->first_id = first_id;
++	),
++
++	TP_printk("over_limit=%d first_css_id=%d", __entry->over_limit,
++		  __entry->first_id)
 +)
 +
  #endif /* _TRACE_MEMCONTROL_H */
  
  /* This part must be outside protection */
+diff --git a/kernel/cgroup.c b/kernel/cgroup.c
+index 2731d11..ab7e7a7 100644
+--- a/kernel/cgroup.c
++++ b/kernel/cgroup.c
+@@ -129,7 +129,6 @@ static struct cgroupfs_root rootnode;
+  * CSS ID -- ID per subsys's Cgroup Subsys State(CSS). used only when
+  * cgroup_subsys->use_id != 0.
+  */
+-#define CSS_ID_MAX	(65535)
+ struct css_id {
+ 	/*
+ 	 * The css to which this ID points. This pointer is set to valid value
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 72fed89..4306a61 100644
+index 4306a61..a5b1794 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -1328,6 +1328,11 @@ static unsigned int get_swappiness(struct mem_cgroup *memcg)
- 	return memcg->swappiness;
+@@ -389,10 +389,18 @@ enum charge_type {
+ #define MEM_CGROUP_RECLAIM_SOFT_BIT	0x2
+ #define MEM_CGROUP_RECLAIM_SOFT		(1 << MEM_CGROUP_RECLAIM_SOFT_BIT)
+ 
++/*
++ * A bitmap representing all possible memcg, indexed by css_id.  Each bit
++ * indicates if the respective memcg is over its background dirty memory
++ * limit.
++ */
++static DECLARE_BITMAP(over_bground_dirty_thresh, CSS_ID_MAX + 1);
++
+ static void mem_cgroup_get(struct mem_cgroup *mem);
+ static void mem_cgroup_put(struct mem_cgroup *mem);
+ static struct mem_cgroup *parent_mem_cgroup(struct mem_cgroup *mem);
+ static void drain_all_stock_async(void);
++static struct mem_cgroup *mem_cgroup_lookup(unsigned short id);
+ 
+ static struct mem_cgroup_per_zone *
+ mem_cgroup_zoneinfo(struct mem_cgroup *mem, int nid, int zid)
+@@ -1503,6 +1511,117 @@ static void mem_cgroup_dirty_info(unsigned long sys_available_mem,
+ 	trace_mem_cgroup_dirty_info(css_id(&mem->css), info);
  }
  
-+static unsigned long dirty_info_reclaimable(struct dirty_info *info)
++/* Are any memcg over their background dirty memory limit? */
++bool mem_cgroups_over_bground_dirty_thresh(void)
 +{
-+	return info->nr_file_dirty + info->nr_unstable_nfs;
-+}
++	bool over_thresh;
 +
- /*
-  * Return true if the current memory cgroup has local dirty memory settings.
-  * There is an allowed race between the current task migrating in-to/out-of the
-@@ -1358,6 +1363,146 @@ static void mem_cgroup_dirty_param(struct vm_dirty_param *param,
- 	}
- }
- 
-+static inline bool mem_cgroup_can_swap(struct mem_cgroup *mem)
-+{
-+	if (!do_swap_account)
-+		return nr_swap_pages > 0;
-+	return !mem->memsw_is_minimum &&
-+		(res_counter_read_u64(&mem->memsw, RES_LIMIT) > 0);
-+}
++	over_thresh = !bitmap_empty(over_bground_dirty_thresh, CSS_ID_MAX + 1);
 +
-+static s64 mem_cgroup_local_page_stat(struct mem_cgroup *mem,
-+				      enum mem_cgroup_page_stat_item item)
-+{
-+	s64 ret;
++	trace_mem_cgroups_over_bground_dirty_thresh(
++		over_thresh,
++		over_thresh ? find_next_bit(over_bground_dirty_thresh,
++					    CSS_ID_MAX + 1, 0) : 0);
 +
-+	switch (item) {
-+	case MEMCG_NR_FILE_DIRTY:
-+		ret = mem_cgroup_read_stat(mem,	MEM_CGROUP_STAT_FILE_DIRTY);
-+		break;
-+	case MEMCG_NR_FILE_WRITEBACK:
-+		ret = mem_cgroup_read_stat(mem, MEM_CGROUP_STAT_FILE_WRITEBACK);
-+		break;
-+	case MEMCG_NR_FILE_UNSTABLE_NFS:
-+		ret = mem_cgroup_read_stat(mem,
-+					   MEM_CGROUP_STAT_FILE_UNSTABLE_NFS);
-+		break;
-+	case MEMCG_NR_DIRTYABLE_PAGES:
-+		ret = mem_cgroup_read_stat(mem, LRU_ACTIVE_FILE) +
-+			mem_cgroup_read_stat(mem, LRU_INACTIVE_FILE);
-+		if (mem_cgroup_can_swap(mem))
-+			ret += mem_cgroup_read_stat(mem, LRU_ACTIVE_ANON) +
-+				mem_cgroup_read_stat(mem, LRU_INACTIVE_ANON);
-+		break;
-+	default:
-+		BUG();
-+		break;
-+	}
-+	return ret;
++	return over_thresh;
 +}
 +
 +/*
-+ * Return the number of additional pages that the @mem cgroup could allocate.
-+ * If use_hierarchy is set, then this involves checking parent mem cgroups to
-+ * find the cgroup with the smallest free space.
++ * Should inode be written back?  wbc indicates if this is foreground or
++ * background writeback and the set of inodes worth considering.
 + */
-+static unsigned long
-+mem_cgroup_hierarchical_free_pages(struct mem_cgroup *mem)
++bool should_writeback_mem_cgroup_inode(struct inode *inode,
++				       struct writeback_control *wbc)
 +{
-+	u64 free;
-+	unsigned long min_free;
++	unsigned short id;
++	bool over;
 +
-+	min_free = global_page_state(NR_FREE_PAGES);
++	id = inode->i_mapping->i_memcg;
++	VM_BUG_ON(id >= CSS_ID_MAX + 1);
 +
-+	while (mem) {
-+		free = (res_counter_read_u64(&mem->res, RES_LIMIT) -
-+			res_counter_read_u64(&mem->res, RES_USAGE)) >>
-+			PAGE_SHIFT;
-+		min_free = min((u64)min_free, free);
-+		mem = parent_mem_cgroup(mem);
-+	}
++	if (wbc->shared_inodes && id == I_MEMCG_SHARED)
++		over = true;
++	else
++		over = test_bit(id, over_bground_dirty_thresh);
 +
-+	return min_free;
++	trace_should_writeback_mem_cgroup_inode(inode, wbc, over);
++	return over;
 +}
 +
 +/*
-+ * mem_cgroup_page_stat() - get memory cgroup file cache statistics
-+ * @mem:       memory cgroup to query
-+ * @item:      memory statistic item exported to the kernel
-+ *
-+ * Return the accounted statistic value.
++ * Mark all child cgroup as eligible for writeback because @mem is over its bg
++ * threshold.
 + */
-+static unsigned long mem_cgroup_page_stat(struct mem_cgroup *mem,
-+					  enum mem_cgroup_page_stat_item item)
++static void mem_cgroup_mark_over_bg_thresh(struct mem_cgroup *mem)
 +{
 +	struct mem_cgroup *iter;
-+	s64 value;
 +
-+	/*
-+	 * If we're looking for dirtyable pages we need to evaluate free pages
-+	 * depending on the limit and usage of the parents first of all.
-+	 */
-+	if (item == MEMCG_NR_DIRTYABLE_PAGES)
-+		value = mem_cgroup_hierarchical_free_pages(mem);
-+	else
-+		value = 0;
-+
-+	/*
-+	 * Recursively evaluate page statistics against all cgroup under
-+	 * hierarchy tree
-+	 */
++	/* mark this and all child cgroup as candidates for writeback */
 +	for_each_mem_cgroup_tree(iter, mem)
-+		value += mem_cgroup_local_page_stat(iter, item);
-+
-+	/*
-+	 * Summing of unlocked per-cpu counters is racy and may yield a slightly
-+	 * negative value.  Zero is the only sensible value in such cases.
-+	 */
-+	if (unlikely(value < 0))
-+		value = 0;
-+
-+	return value;
++		set_bit(css_id(&iter->css), over_bground_dirty_thresh);
 +}
 +
-+/* Return dirty thresholds and usage for @mem. */
-+static void mem_cgroup_dirty_info(unsigned long sys_available_mem,
-+				  struct mem_cgroup *mem,
-+				  struct dirty_info *info)
++static void mem_cgroup_queue_bg_writeback(struct mem_cgroup *mem,
++					  struct backing_dev_info *bdi)
 +{
-+	unsigned long uninitialized_var(available_mem);
-+	struct vm_dirty_param dirty_param;
++	mem_cgroup_mark_over_bg_thresh(mem);
++	bdi_start_background_writeback(bdi);
++}
 +
-+	mem_cgroup_dirty_param(&dirty_param, mem);
++/*
++ * This routine is called when per-memcg writeback completes.  It scans any
++ * previously over-bground-thresh memcg to determine if the memcg are still over
++ * their background dirty memory limit.
++ */
++void mem_cgroup_writeback_done(void)
++{
++	struct mem_cgroup *mem;
++	struct mem_cgroup *ref_mem;
++	struct dirty_info info;
++	unsigned long sys_available_mem;
++	int id;
 +
-+	if (!dirty_param.dirty_bytes || !dirty_param.dirty_background_bytes)
-+		available_mem = min(
-+			sys_available_mem,
-+			mem_cgroup_page_stat(mem, MEMCG_NR_DIRTYABLE_PAGES));
++	sys_available_mem = 0;
 +
-+	if (dirty_param.dirty_bytes)
-+		info->dirty_thresh =
-+			DIV_ROUND_UP(dirty_param.dirty_bytes, PAGE_SIZE);
-+	else
-+		info->dirty_thresh =
-+			(dirty_param.dirty_ratio * available_mem) / 100;
++	/* for each previously over-bg-limit memcg... */
++	for (id = 0; (id = find_next_bit(over_bground_dirty_thresh,
++					 CSS_ID_MAX + 1, id)) < CSS_ID_MAX + 1;
++	     id++) {
 +
-+	if (dirty_param.dirty_background_bytes)
-+		info->background_thresh =
-+			DIV_ROUND_UP(dirty_param.dirty_background_bytes,
-+				     PAGE_SIZE);
-+	else
-+		info->background_thresh =
-+			(dirty_param.dirty_background_ratio *
-+			       available_mem) / 100;
++		/* reference the memcg */
++		rcu_read_lock();
++		mem = mem_cgroup_lookup(id);
++		if (mem && !css_tryget(&mem->css))
++			mem = NULL;
++		rcu_read_unlock();
++		if (!mem) {
++			clear_bit(id, over_bground_dirty_thresh);
++			continue;
++		}
++		ref_mem = mem;
 +
-+	info->nr_file_dirty = mem_cgroup_page_stat(mem, MEMCG_NR_FILE_DIRTY);
-+	info->nr_writeback = mem_cgroup_page_stat(mem, MEMCG_NR_FILE_WRITEBACK);
-+	info->nr_unstable_nfs =
-+		mem_cgroup_page_stat(mem, MEMCG_NR_FILE_UNSTABLE_NFS);
++		if (!sys_available_mem)
++			sys_available_mem = determine_dirtyable_memory();
 +
-+	trace_mem_cgroup_dirty_info(css_id(&mem->css), info);
++		/*
++		 * Walk the ancestry of inode's mem clearing the over-limit bits
++		 * for for any memcg under its dirty memory background
++		 * threshold.
++		 */
++		for (; mem_cgroup_has_dirty_limit(mem);
++		     mem = parent_mem_cgroup(mem)) {
++			mem_cgroup_dirty_info(sys_available_mem, mem, &info);
++			if (dirty_info_reclaimable(&info) >=
++			    info.background_thresh)
++				break;
++
++			clear_bit(css_id(&mem->css), over_bground_dirty_thresh);
++		}
++
++		css_put(&ref_mem->css);
++	}
 +}
 +
  static void mem_cgroup_start_move(struct mem_cgroup *mem)
