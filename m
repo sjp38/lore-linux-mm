@@ -1,14 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 16F316B004A
-	for <linux-mm@kvack.org>; Thu,  2 Jun 2011 22:57:18 -0400 (EDT)
-Received: by yxn22 with SMTP id 22so211946yxn.14
-        for <linux-mm@kvack.org>; Thu, 02 Jun 2011 19:57:15 -0700 (PDT)
-Date: Thu, 2 Jun 2011 23:55:57 -0300
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 09D776B004A
+	for <linux-mm@kvack.org>; Thu,  2 Jun 2011 23:09:56 -0400 (EDT)
+Received: by yib18 with SMTP id 18so760595yib.14
+        for <linux-mm@kvack.org>; Thu, 02 Jun 2011 20:09:55 -0700 (PDT)
+Date: Fri, 3 Jun 2011 00:08:43 -0300
 From: Rafael Aquini <aquini@linux.com>
-Subject: [PATCH] mm: fix negative commitlimit when gigantic hugepages are
- allocated
-Message-ID: <20110603025555.GA10530@optiplex.tchesoft.com>
+Subject: Re: [PATCH] [BUGFIX] mm: hugepages can cause negative commitlimit
+Message-ID: <20110603030841.GB10530@optiplex.tchesoft.com>
 Reply-To: aquini@linux.com
 References: <20110518153445.GA18127@sgi.com>
  <BANLkTinbHnrf2isuLzUFZN8ypaT476G1zw@mail.gmail.com>
@@ -28,55 +27,28 @@ List-ID: <linux-mm.kvack.org>
 To: Russ Anderson <rja@sgi.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux.com>, rja@americas.sgi.com
 
-When 1GB hugepages are allocated on a system, free(1) reports
-less available memory than what really is installed in the box.
-Also, if the total size of hugepages allocated on a system is
-over half of the total memory size, CommitLimit becomes
-a negative number.
+Howdy Russ,
 
-The problem is that gigantic hugepages (order > MAX_ORDER)
-can only be allocated at boot with bootmem, thus its frames
-are not accounted to 'totalram_pages'. However,  they are
-accounted to hugetlb_total_pages()
+On Wed, Jun 01, 2011 at 11:08:31PM -0500, Russ Anderson wrote:
+> 
+> Yes, it fixes the inconsistency in reporting totalram_pages.
+Thanks alot for the feedback.
 
-What happens to turn CommitLimit into a negative number
-is this calculation, in fs/proc/meminfo.c:
+> There seems to be another issue.  1G hugepages can be allocated at boot time, but
+> cannot be allocated at run time.  "default_hugepagesz=1G hugepagesz=1G hugepages=1" on 
+> the boot line works.  With "default_hugepagesz=1G hugepagesz=1G" the command
+> "echo 1 > /proc/sys/vm/nr_hugepages" fails.
+> 
+> uv4-sys:~ # echo 1 > /proc/sys/vm/nr_hugepages
+> -bash: echo: write error: Invalid argument
 
-        allowed = ((totalram_pages - hugetlb_total_pages())
-                * sysctl_overcommit_ratio / 100) + total_swap_pages;
+That's not an issue, actually. It seems to be , unfortunately, 
+an implementation characteristic, due to an imposed arch constraint.
+Further reference: http://lwn.net/Articles/273661/
 
-A similar calculation occurs in __vm_enough_memory() in mm/mmap.c.
-
-Also, every vm statistic which depends on 'totalram_pages' will render
-confusing values, as if system were 'missing' some part of its memory.
-
-Reported-by: Russ Anderson <rja@sgi.com>
-Signed-off-by: Rafael Aquini <aquini@linux.com>
----
- mm/hugetlb.c |    8 ++++++++
- 1 files changed, 8 insertions(+), 0 deletions(-)
-
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index f33bb31..c67dd0f 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -1111,6 +1111,14 @@ static void __init gather_bootmem_prealloc(void)
- 		WARN_ON(page_count(page) != 1);
- 		prep_compound_huge_page(page, h->order);
- 		prep_new_huge_page(h, page, page_to_nid(page));
-+
-+		/* if we had gigantic hugepages allocated at boot time,
-+		 * we need to reinstate the 'stolen' pages to totalram_pages,
-+		 * in order to fix confusing memory reports from free(1)
-+		 * and another side-effects, like CommitLimit going negative.
-+		 */
-+		if (h->order > (MAX_ORDER - 1))
-+			totalram_pages += 1 << h->order;
- 	}
- }
- 
+Cheers!
 -- 
-1.7.4.4
+Rafael Aquini <aquini@linux.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
