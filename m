@@ -1,86 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D8F56B007B
-	for <linux-mm@kvack.org>; Fri,  3 Jun 2011 01:08:31 -0400 (EDT)
-Received: from kpbe12.cbf.corp.google.com (kpbe12.cbf.corp.google.com [172.25.105.76])
-	by smtp-out.google.com with ESMTP id p5358NSc011660
-	for <linux-mm@kvack.org>; Thu, 2 Jun 2011 22:08:28 -0700
-Received: from qyk7 (qyk7.prod.google.com [10.241.83.135])
-	by kpbe12.cbf.corp.google.com with ESMTP id p5358LaV001233
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 2 Jun 2011 22:08:22 -0700
-Received: by qyk7 with SMTP id 7so3009287qyk.12
-        for <linux-mm@kvack.org>; Thu, 02 Jun 2011 22:08:21 -0700 (PDT)
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 662806B004A
+	for <linux-mm@kvack.org>; Fri,  3 Jun 2011 01:16:14 -0400 (EDT)
+Date: Fri, 3 Jun 2011 01:16:09 -0400
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH 3/14] tmpfs: take control of its truncate_range
+Message-ID: <20110603051609.GC16721@infradead.org>
+References: <alpine.LSU.2.00.1105301726180.5482@sister.anvils>
+ <alpine.LSU.2.00.1105301737040.5482@sister.anvils>
+ <20110601003942.GB4433@infradead.org>
+ <alpine.LSU.2.00.1106010940590.23468@sister.anvils>
 MIME-Version: 1.0
-In-Reply-To: <20110602221906.GA4554@cmpxchg.org>
-References: <1306909519-7286-1-git-send-email-hannes@cmpxchg.org>
-	<1306909519-7286-8-git-send-email-hannes@cmpxchg.org>
-	<BANLkTi=cHVZP+fZwHNM3cXVyw53kJ2HQmw@mail.gmail.com>
-	<BANLkTimvuwLYwzRT-6k_oVwKBzBEo500s-rXETerTskYHfontQ@mail.gmail.com>
-	<BANLkTik1X72Re_QKM4iCaPbxCx2kcnfH_w@mail.gmail.com>
-	<20110602221906.GA4554@cmpxchg.org>
-Date: Thu, 2 Jun 2011 22:08:21 -0700
-Message-ID: <BANLkTinSx6M1y9MsN6TJ_340X4kXt6HM1w@mail.gmail.com>
-Subject: Re: [patch 7/8] vmscan: memcg-aware unevictable page rescue scanner
-From: Ying Han <yinghan@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.00.1106010940590.23468@sister.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Hugh Dickins <hughd@google.com>
+Cc: Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, Jun 2, 2011 at 3:19 PM, Johannes Weiner <hannes@cmpxchg.org> wrote:
-> On Fri, Jun 03, 2011 at 07:01:34AM +0900, Hiroyuki Kamezawa wrote:
->> 2011/6/3 Ying Han <yinghan@google.com>:
->> > On Thu, Jun 2, 2011 at 6:27 AM, Hiroyuki Kamezawa
->> > <kamezawa.hiroyuki@gmail.com> wrote:
->> >> 2011/6/1 Johannes Weiner <hannes@cmpxchg.org>:
->> >>> Once the per-memcg lru lists are exclusive, the unevictable page
->> >>> rescue scanner can no longer work on the global zone lru lists.
->> >>>
->> >>> This converts it to go through all memcgs and scan their respective
->> >>> unevictable lists instead.
->> >>>
->> >>> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
->> >>
->> >> Hm, isn't it better to have only one GLOBAL LRU for unevictable pages=
- ?
->> >> memcg only needs counter for unevictable pages and LRU is not necessa=
-ry
->> >> to be per memcg because we don't reclaim it...
->> >
->> > Hmm. Are we suggesting to keep one un-evictable LRU list for all
->> > memcgs? So we will have
->> > exclusive lru only for file and anon. If so, we are not done to make
->> > all the lru list being exclusive
->> > which is critical later to improve the zone->lru_lock contention
->> > across the memcgs
->> >
->> considering lrulock, yes, maybe you're right.
->
-> That's one of the complications.
+On Wed, Jun 01, 2011 at 09:58:18AM -0700, Hugh Dickins wrote:
+> (i915 isn't really doing hole-punching there, I think it just found it
+> a useful interface to remove the page-and-swapcache without touching
+> i_size.  Parentheses because it makes no difference to your point.)
 
-That should be achievable if we make all the per-memcg lru being
-exclusive. So we can switch the global zone->lru_lock
-to per-memcg-per-zone lru_lock. We have a prototype of the patch doing
-something like that, but we will wait for this effort
-being discussed and reviewed.
+Keeping i_size while removing pages on tmpfs fits the defintion of hole
+punching for me.  Not that it matters anyway.
 
---Ying
+> When I say "shmem", I am including the !SHMEM-was-TINY_SHMEM case too,
+> which goes to ramfs.  Currently i915 has been configured to disable that
+> possibility, though we insisted on it originally: there may or may not be
+> good reason for disabling it - may just be a side-effect of the rather
+> twisted unintuitive SHMEM/TMPFS dependencies.
 
->
->> > Sorry If i misinterpret the suggestion here
->> >
->>
->> My concern is I don't know for what purpose this function is used ..
->
-> I am not sure how it's supposed to be used, either. =A0But it's
-> documented to be a 'really big hammer' and it's kicked off from
-> userspace. =A0So I suppose having the thing go through all memcgs bears
-> a low risk of being a problem. =A0My suggestion is we go that way until
-> someone complains.
->
+Hmm, the two different implementations make everything harder.  Also
+because we don't even implement the hole punching in !SHMEM tmpfs.
+
+> Fine, I'll add tmpfs PUNCH_HOLE later on.  And wire up madvise MADV_REMOVE
+> to fallocate PUNCH_HOLE, yes?
+
+Yeah.  One thing I've noticed is that the hole punching doesn't seem
+to do the unmap_mapping_range.  It might be worth to audit that from the
+VM point of view.
+
+> Would you like me to remove the ->truncate_range method from
+> inode_operations completely?
+
+Doing that would be nice.  Do we always have the required file struct
+for ->fallocate in the callers?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
