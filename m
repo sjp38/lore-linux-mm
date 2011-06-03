@@ -1,174 +1,150 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 24AB86B004A
-	for <linux-mm@kvack.org>; Fri,  3 Jun 2011 02:40:38 -0400 (EDT)
-Message-ID: <4DE88112.3090908@snapgear.com>
-Date: Fri, 3 Jun 2011 16:37:06 +1000
-From: Greg Ungerer <gerg@snapgear.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 6FB8F6B004A
+	for <linux-mm@kvack.org>; Fri,  3 Jun 2011 07:55:22 -0400 (EDT)
+Date: Fri, 3 Jun 2011 07:55:19 -0400
+From: Matthew Wilcox <willy@linux.intel.com>
+Subject: Setting of the PageReadahed bit
+Message-ID: <20110603115519.GI4061@linux.intel.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2] nommu: add page_align to mmap
-References: <1304661784-11654-1-git-send-email-lliubbo@gmail.com>
-In-Reply-To: <1304661784-11654-1-git-send-email-lliubbo@gmail.com>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bob Liu <lliubbo@gmail.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, dhowells@redhat.com, lethal@linux-sh.org, gerg@uclinux.org, walken@google.com, daniel-gl@gmx.net, vapier@gentoo.org, geert@linux-m68k.org, uclinux-dist-devel@blackfin.uclinux.org
+To: linux-mm@kvack.org
 
-Hi Bob,
+The exact definition of PageReadahead doesn't seem to be documented
+anywhere.  I'm assuming it means "This page was not directly requested;
+it is being read for prefetching purposes", exactly like the READA
+semantics.
 
-On 06/05/11 16:03, Bob Liu wrote:
-> Currently on nommu arch mmap(),mremap() and munmap() doesn't do page_align()
-> which isn't consist with mmu arch and cause some issues.
->
-> First, some drivers' mmap() function depends on vma->vm_end - vma->start is
-> page aligned which is true on mmu arch but not on nommu. eg: uvc camera driver.
->
-> Second munmap() may return -EINVAL[split file] error in cases when end is not
-> page aligned(passed into from userspace) but vma->vm_end is aligned dure to
-> split or driver's mmap() ops.
->
-> This patch add page align to fix those issues.
+If my interpretation is correct, then the implementation in 
+__do_page_cache_readahead is wrong:
 
-This is actually causing me problems on head at the moment.
-git bisected to this patch as the cause.
+		if (page_idx == nr_to_read - lookahead_size)
+			SetPageReadahead(page);
 
-When booting on a ColdFire (m68knommu) target the init process (or
-there abouts at least) fails. Last console messages are:
+It'll only set the PageReadahead bit on one page.  The patch below fixes
+this ... if my understanding is correct.
 
-   ...
-   VFS: Mounted root (romfs filesystem) readonly on device 31:0.
-   Freeing unused kernel memory: 52k freed (0x401aa000 - 0x401b6000)
-   Unable to mmap process text, errno 22
+If my understanding is wrong, then how are readpage/readpages
+implementations supposed to know that the VM is only prefetching these
+pages, and they're not as important as metadata (dependent) reads?
 
-I haven't really debugged it any further yet. But that error message
-comes from fs/binfmt_flat.c, it is reporting a failed do_mmap() call.
+commit 7b1a00ae0ecc327bab9ce467dcd7bd7fe2a31fab
+Author: Matthew Wilcox <matthew.r.wilcox@intel.com>
+Date:   Fri Jun 3 03:49:45 2011 -0400
 
-Reverting that this patch and no more problem.
+    mm: Fix PageReadahead flag setting in readahead code
+    
+    The current code sets the PageReadahead bit on at most one page in each
+    batch.  Worse, it can set the PageReadahead bit on the exact page that
+    was requested.  What it should be doing is setting the PageReadahead
+    bit on every page except the one which is really demanded.
+    
+    Passing the page offset to the __do_page_cache_readahead() function
+    lets it know which page to not set the Readahead bit on.  That implies
+    passing the offset into ra_submit as well.
 
-Regards
-Greg
-
-
-
-> Changelog v1->v2:
-> - added more commit message
->
-> Signed-off-by: Bob Liu<lliubbo@gmail.com>
-> ---
->   mm/nommu.c |   24 ++++++++++++++----------
->   1 files changed, 14 insertions(+), 10 deletions(-)
->
-> diff --git a/mm/nommu.c b/mm/nommu.c
-> index c4c542c..3febfd9 100644
-> --- a/mm/nommu.c
-> +++ b/mm/nommu.c
-> @@ -1133,7 +1133,7 @@ static int do_mmap_private(struct vm_area_struct *vma,
->   			   unsigned long capabilities)
->   {
->   	struct page *pages;
-> -	unsigned long total, point, n, rlen;
-> +	unsigned long total, point, n;
->   	void *base;
->   	int ret, order;
->
-> @@ -1157,13 +1157,12 @@ static int do_mmap_private(struct vm_area_struct *vma,
->   		 * make a private copy of the data and map that instead */
->   	}
->
-> -	rlen = PAGE_ALIGN(len);
->
->   	/* allocate some memory to hold the mapping
->   	 * - note that this may not return a page-aligned address if the object
->   	 *   we're allocating is smaller than a page
->   	 */
-> -	order = get_order(rlen);
-> +	order = get_order(len);
->   	kdebug("alloc order %d for %lx", order, len);
->
->   	pages = alloc_pages(GFP_KERNEL, order);
-> @@ -1173,7 +1172,7 @@ static int do_mmap_private(struct vm_area_struct *vma,
->   	total = 1<<  order;
->   	atomic_long_add(total,&mmap_pages_allocated);
->
-> -	point = rlen>>  PAGE_SHIFT;
-> +	point = len>>  PAGE_SHIFT;
->
->   	/* we allocated a power-of-2 sized page set, so we may want to trim off
->   	 * the excess */
-> @@ -1195,7 +1194,7 @@ static int do_mmap_private(struct vm_area_struct *vma,
->   	base = page_address(pages);
->   	region->vm_flags = vma->vm_flags |= VM_MAPPED_COPY;
->   	region->vm_start = (unsigned long) base;
-> -	region->vm_end   = region->vm_start + rlen;
-> +	region->vm_end   = region->vm_start + len;
->   	region->vm_top   = region->vm_start + (total<<  PAGE_SHIFT);
->
->   	vma->vm_start = region->vm_start;
-> @@ -1211,15 +1210,15 @@ static int do_mmap_private(struct vm_area_struct *vma,
->
->   		old_fs = get_fs();
->   		set_fs(KERNEL_DS);
-> -		ret = vma->vm_file->f_op->read(vma->vm_file, base, rlen,&fpos);
-> +		ret = vma->vm_file->f_op->read(vma->vm_file, base, len,&fpos);
->   		set_fs(old_fs);
->
->   		if (ret<  0)
->   			goto error_free;
->
->   		/* clear the last little bit */
-> -		if (ret<  rlen)
-> -			memset(base + ret, 0, rlen - ret);
-> +		if (ret<  len)
-> +			memset(base + ret, 0, len - ret);
->
->   	}
->
-> @@ -1268,6 +1267,7 @@ unsigned long do_mmap_pgoff(struct file *file,
->
->   	/* we ignore the address hint */
->   	addr = 0;
-> +	len = PAGE_ALIGN(len);
->
->   	/* we've determined that we can make the mapping, now translate what we
->   	 * now know into VMA flags */
-> @@ -1645,14 +1645,16 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len)
->   {
->   	struct vm_area_struct *vma;
->   	struct rb_node *rb;
-> -	unsigned long end = start + len;
-> +	unsigned long end;
->   	int ret;
->
->   	kenter(",%lx,%zx", start, len);
->
-> -	if (len == 0)
-> +	if ((len = PAGE_ALIGN(len)) == 0)
->   		return -EINVAL;
->
-> +	end = start + len;
-> +
->   	/* find the first potentially overlapping VMA */
->   	vma = find_vma(mm, start);
->   	if (!vma) {
-> @@ -1773,6 +1775,8 @@ unsigned long do_mremap(unsigned long addr,
->   	struct vm_area_struct *vma;
->
->   	/* insanity checks first */
-> +	old_len = PAGE_ALIGN(old_len);
-> +	new_len = PAGE_ALIGN(new_len);
->   	if (old_len == 0 || new_len == 0)
->   		return (unsigned long) -EINVAL;
->
-
-
--- 
-------------------------------------------------------------------------
-Greg Ungerer  --  Principal Engineer        EMAIL:     gerg@snapgear.com
-SnapGear Group, McAfee                      PHONE:       +61 7 3435 2888
-8 Gardner Close                             FAX:         +61 7 3217 5323
-Milton, QLD, 4064, Australia                WEB: http://www.SnapGear.com
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 9670f71..3e32a17 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1480,6 +1480,7 @@ void page_cache_async_readahead(struct address_space *mapping,
+ 
+ unsigned long max_sane_readahead(unsigned long nr);
+ unsigned long ra_submit(struct file_ra_state *ra,
++			pgoff_t offset,
+ 			struct address_space *mapping,
+ 			struct file *filp);
+ 
+diff --git a/mm/filemap.c b/mm/filemap.c
+index d7b1057..1a1ab1b 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -1594,7 +1594,7 @@ static void do_sync_mmap_readahead(struct vm_area_struct *vma,
+ 	ra->start = max_t(long, 0, offset - ra_pages / 2);
+ 	ra->size = ra_pages;
+ 	ra->async_size = ra_pages / 4;
+-	ra_submit(ra, mapping, file);
++	ra_submit(ra, offset, mapping, file);
+ }
+ 
+ /*
+diff --git a/mm/readahead.c b/mm/readahead.c
+index 867f9dd..9202533 100644
+--- a/mm/readahead.c
++++ b/mm/readahead.c
+@@ -150,7 +150,7 @@ out:
+ static int
+ __do_page_cache_readahead(struct address_space *mapping, struct file *filp,
+ 			pgoff_t offset, unsigned long nr_to_read,
+-			unsigned long lookahead_size)
++			pgoff_t wanted)
+ {
+ 	struct inode *inode = mapping->host;
+ 	struct page *page;
+@@ -185,7 +185,7 @@ __do_page_cache_readahead(struct address_space *mapping, struct file *filp,
+ 			break;
+ 		page->index = page_offset;
+ 		list_add(&page->lru, &page_pool);
+-		if (page_idx == nr_to_read - lookahead_size)
++		if (page_offset != wanted)
+ 			SetPageReadahead(page);
+ 		ret++;
+ 	}
+@@ -210,6 +210,7 @@ int force_page_cache_readahead(struct address_space *mapping, struct file *filp,
+ 		pgoff_t offset, unsigned long nr_to_read)
+ {
+ 	int ret = 0;
++	pgoff_t wanted = offset;
+ 
+ 	if (unlikely(!mapping->a_ops->readpage && !mapping->a_ops->readpages))
+ 		return -EINVAL;
+@@ -223,7 +224,7 @@ int force_page_cache_readahead(struct address_space *mapping, struct file *filp,
+ 		if (this_chunk > nr_to_read)
+ 			this_chunk = nr_to_read;
+ 		err = __do_page_cache_readahead(mapping, filp,
+-						offset, this_chunk, 0);
++						offset, this_chunk, wanted);
+ 		if (err < 0) {
+ 			ret = err;
+ 			break;
+@@ -248,13 +249,13 @@ unsigned long max_sane_readahead(unsigned long nr)
+ /*
+  * Submit IO for the read-ahead request in file_ra_state.
+  */
+-unsigned long ra_submit(struct file_ra_state *ra,
++unsigned long ra_submit(struct file_ra_state *ra, pgoff_t offset,
+ 		       struct address_space *mapping, struct file *filp)
+ {
+ 	int actual;
+ 
+ 	actual = __do_page_cache_readahead(mapping, filp,
+-					ra->start, ra->size, ra->async_size);
++					ra->start, ra->size, offset);
+ 
+ 	return actual;
+ }
+@@ -465,7 +466,8 @@ ondemand_readahead(struct address_space *mapping,
+ 	 * standalone, small random read
+ 	 * Read as is, and do not pollute the readahead state.
+ 	 */
+-	return __do_page_cache_readahead(mapping, filp, offset, req_size, 0);
++	return __do_page_cache_readahead(mapping, filp, offset, req_size,
++								offset);
+ 
+ initial_readahead:
+ 	ra->start = offset;
+@@ -483,7 +485,7 @@ readit:
+ 		ra->size += ra->async_size;
+ 	}
+ 
+-	return ra_submit(ra, mapping, filp);
++	return ra_submit(ra, offset, mapping, filp);
+ }
+ 
+ /**
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
