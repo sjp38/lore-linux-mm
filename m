@@ -1,353 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F4246B007B
-	for <linux-mm@kvack.org>; Fri,  3 Jun 2011 12:14:58 -0400 (EDT)
-From: Greg Thelen <gthelen@google.com>
-Subject: [PATCH v8 09/12] memcg: create support routines for writeback
-Date: Fri,  3 Jun 2011 09:12:15 -0700
-Message-Id: <1307117538-14317-10-git-send-email-gthelen@google.com>
-In-Reply-To: <1307117538-14317-1-git-send-email-gthelen@google.com>
-References: <1307117538-14317-1-git-send-email-gthelen@google.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 15C4D8D003B
+	for <linux-mm@kvack.org>; Fri,  3 Jun 2011 12:15:10 -0400 (EDT)
+Received: from list by lo.gmane.org with local (Exim 4.69)
+	(envelope-from <glkm-linux-mm-2@m.gmane.org>)
+	id 1QSX1d-0004nN-Po
+	for linux-mm@kvack.org; Fri, 03 Jun 2011 18:15:05 +0200
+Received: from smtp.mgpi.de ([212.202.249.42])
+        by main.gmane.org with esmtp (Gmexim 0.1 (Debian))
+        id 1AlnuQ-0007hv-00
+        for <linux-mm@kvack.org>; Fri, 03 Jun 2011 18:15:05 +0200
+Received: from bheld by smtp.mgpi.de with local (Gmexim 0.1 (Debian))
+        id 1AlnuQ-0007hv-00
+        for <linux-mm@kvack.org>; Fri, 03 Jun 2011 18:15:05 +0200
+From: Bernhard Held <bheld@mgpi.de>
+Subject: Re: KVM induced panic on 2.6.38[2367] & 2.6.39
+Date: Fri, 03 Jun 2011 17:50:40 +0200
+Message-ID: <isavsg$3or$1@dough.gmane.org>
+References: <20110601011527.GN19505@random.random> <alpine.LSU.2.00.1105312120530.22808@sister.anvils> <4DE5DCA8.7070704@fnarfbargle.com> <4DE5E29E.7080009@redhat.com> <4DE60669.9050606@fnarfbargle.com> <4DE60918.3010008@redhat.com> <4DE60940.1070107@redhat.com> <4DE61A2B.7000008@fnarfbargle.com> <20110601111841.GB3956@zip.com.au> <4DE62801.9080804@fnarfbargle.com> <20110601230342.GC3956@zip.com.au> <4DE8E3ED.7080004@fnarfbargle.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
+In-Reply-To: <4DE8E3ED.7080004@fnarfbargle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, linux-fsdevel@vger.kernel.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Vivek Goyal <vgoyal@redhat.com>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, kvm@vger.kernel.org, netdev@vger.kernel.org
 
-Introduce memcg routines to assist in per-memcg writeback:
+Am 03.06.2011 15:38, schrieb Brad Campbell:
+> On 02/06/11 07:03, CaT wrote:
+>> On Wed, Jun 01, 2011 at 07:52:33PM +0800, Brad Campbell wrote:
+>>> Unfortunately the only interface that is mentioned by name anywhere
+>>> in my firewall is $DMZ (which is ppp0 and not part of any bridge).
+>>>
+>>> All of the nat/dnat and other horrible hacks are based on IP addresses.
+>>
+>> Damn. Not referencing the bridge interfaces at all stopped our host from
+>> going down in flames when we passed it a few packets. These are two
+>> of the oopses we got from it. Whilst the kernel here is .35 we got the
+>> same issue from a range of kernels. Seems related.
+>
+> Well, I tried sending an explanatory message to netdev, netfilter & cc'd to kvm,
+> but it appears not to have made it to kvm or netfilter, and the cc to netdev has
+> not elicited a response. My resend to netfilter seems to have dropped into the
+> bit bucket also.
+Just another reference 3.5 months ago:
+http://www.spinics.net/lists/netfilter-devel/msg17239.html
 
-- mem_cgroups_over_bground_dirty_thresh() determines if any cgroups need
-  writeback because they are over their dirty memory threshold.
-
-- should_writeback_mem_cgroup_inode() determines if an inode is
-  contributing pages to an over-limit memcg.  A new writeback_control
-  field determines if shared inodes should be written back.
-
-- mem_cgroup_writeback_done() is used periodically during writeback to
-  update memcg writeback data.
-
-These routines make use of a new over_bground_dirty_thresh bitmap that
-indicates which mem_cgroup are over their respective dirty background
-threshold.  As this bitmap is indexed by css_id, the largest possible
-css_id value is needed to create the bitmap.  So move the definition of
-CSS_ID_MAX from cgroup.c to cgroup.h.  This allows users of css_id() to
-know the largest possible css_id value.  This knowledge can be used to
-build such per-cgroup bitmaps.
-
-Signed-off-by: Greg Thelen <gthelen@google.com>
----
-Changelog since v7:
-- Combined creation of and first use of new struct writeback_control
-  shared_inodes field into this patch.  In -v7 these were in separate patches.
-
-- Promote CSS_ID_MAX from cgroup.c to cgroup.h for general usage.  In -v7 this
-  change was in a separate patch.  CSS_ID_MAX is needed by this patch, so the
-  promotion is included with this patch.
-
-- mem_cgroup_writeback_done() now clears corresponding bit for cgroup that
-  cannot be referenced.  Such a bit would represent a cgroup previously over
-  dirty limit, but that has been deleted before writeback cleaned all pages.  By
-  clearing bit, writeback will not continually try to writeback the deleted
-  cgroup.
-
-- Previously mem_cgroup_writeback_done() would only finish writeback when the
-  cgroup's dirty memory usage dropped below the dirty limit.  This was the wrong
-  limit to check.  This now correctly checks usage against the background dirty
-  limit.
-
- include/linux/cgroup.h            |    1 +
- include/linux/memcontrol.h        |   22 +++++++
- include/linux/writeback.h         |    1 +
- include/trace/events/memcontrol.h |   49 +++++++++++++++
- kernel/cgroup.c                   |    1 -
- mm/memcontrol.c                   |  119 +++++++++++++++++++++++++++++++++++++
- 6 files changed, 192 insertions(+), 1 deletions(-)
-
-diff --git a/include/linux/cgroup.h b/include/linux/cgroup.h
-index ab4ac0c..5eb6543 100644
---- a/include/linux/cgroup.h
-+++ b/include/linux/cgroup.h
-@@ -624,6 +624,7 @@ bool css_is_ancestor(struct cgroup_subsys_state *cg,
- 		     const struct cgroup_subsys_state *root);
- 
- /* Get id and depth of css */
-+#define CSS_ID_MAX	(65535)
- unsigned short css_id(struct cgroup_subsys_state *css);
- unsigned short css_depth(struct cgroup_subsys_state *css);
- struct cgroup_subsys_state *cgroup_css_from_dir(struct file *f, int id);
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index f06c2de..3d72e09 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -26,6 +26,7 @@ struct mem_cgroup;
- struct page_cgroup;
- struct page;
- struct mm_struct;
-+struct writeback_control;
- 
- /*
-  * Per mem_cgroup page counts tracked by kernel.  As pages enter and leave these
-@@ -162,6 +163,11 @@ static inline void mem_cgroup_dec_page_stat(struct page *page,
- 	mem_cgroup_update_page_stat(page, idx, -1);
- }
- 
-+bool should_writeback_mem_cgroup_inode(struct inode *inode,
-+				       struct writeback_control *wbc);
-+bool mem_cgroups_over_bground_dirty_thresh(void);
-+void mem_cgroup_writeback_done(void);
-+
- unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
- 						gfp_t gfp_mask,
- 						unsigned long *total_scanned);
-@@ -361,6 +367,22 @@ static inline void mem_cgroup_dec_page_stat(struct page *page,
- {
- }
- 
-+static inline bool
-+should_writeback_mem_cgroup_inode(struct inode *inode,
-+				  struct writeback_control *wbc)
-+{
-+	return true;
-+}
-+
-+static inline bool mem_cgroups_over_bground_dirty_thresh(void)
-+{
-+	return true;
-+}
-+
-+static inline void mem_cgroup_writeback_done(void)
-+{
-+}
-+
- static inline
- unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
- 					    gfp_t gfp_mask,
-diff --git a/include/linux/writeback.h b/include/linux/writeback.h
-index d10d133..66ec339 100644
---- a/include/linux/writeback.h
-+++ b/include/linux/writeback.h
-@@ -47,6 +47,7 @@ struct writeback_control {
- 	unsigned for_reclaim:1;		/* Invoked from the page allocator */
- 	unsigned range_cyclic:1;	/* range_start is cyclic */
- 	unsigned more_io:1;		/* more io to be dispatched */
-+	unsigned shared_inodes:1;	/* write inodes spanning cgroups */
- };
- 
- /*
-diff --git a/include/trace/events/memcontrol.h b/include/trace/events/memcontrol.h
-index abf1306..326a66b 100644
---- a/include/trace/events/memcontrol.h
-+++ b/include/trace/events/memcontrol.h
-@@ -60,6 +60,55 @@ TRACE_EVENT(mem_cgroup_dirty_info,
- 		  __entry->nr_unstable_nfs)
- )
- 
-+TRACE_EVENT(should_writeback_mem_cgroup_inode,
-+	TP_PROTO(struct inode *inode,
-+		 struct writeback_control *wbc,
-+		 bool over_limit),
-+
-+	TP_ARGS(inode, wbc, over_limit),
-+
-+	TP_STRUCT__entry(
-+		__field(unsigned long, ino)
-+		__field(unsigned short, css_id)
-+		__field(bool, shared_inodes)
-+		__field(bool, over_limit)
-+	),
-+
-+	TP_fast_assign(
-+		__entry->ino = inode->i_ino;
-+		__entry->css_id =
-+			inode->i_mapping ? inode->i_mapping->i_memcg : 0;
-+		__entry->shared_inodes = wbc->shared_inodes;
-+		__entry->over_limit = over_limit;
-+	),
-+
-+	TP_printk("ino=%ld css_id=%d shared_inodes=%d over_limit=%d",
-+		  __entry->ino,
-+		  __entry->css_id,
-+		  __entry->shared_inodes,
-+		  __entry->over_limit)
-+)
-+
-+TRACE_EVENT(mem_cgroups_over_bground_dirty_thresh,
-+	TP_PROTO(bool over_limit,
-+		 unsigned short first_id),
-+
-+	TP_ARGS(over_limit, first_id),
-+
-+	TP_STRUCT__entry(
-+		__field(bool, over_limit)
-+		__field(unsigned short, first_id)
-+	),
-+
-+	TP_fast_assign(
-+		__entry->over_limit = over_limit;
-+		__entry->first_id = first_id;
-+	),
-+
-+	TP_printk("over_limit=%d first_css_id=%d", __entry->over_limit,
-+		  __entry->first_id)
-+)
-+
- #endif /* _TRACE_MEMCONTROL_H */
- 
- /* This part must be outside protection */
-diff --git a/kernel/cgroup.c b/kernel/cgroup.c
-index 2731d11..ab7e7a7 100644
---- a/kernel/cgroup.c
-+++ b/kernel/cgroup.c
-@@ -129,7 +129,6 @@ static struct cgroupfs_root rootnode;
-  * CSS ID -- ID per subsys's Cgroup Subsys State(CSS). used only when
-  * cgroup_subsys->use_id != 0.
-  */
--#define CSS_ID_MAX	(65535)
- struct css_id {
- 	/*
- 	 * The css to which this ID points. This pointer is set to valid value
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 4306a61..a5b1794 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -389,10 +389,18 @@ enum charge_type {
- #define MEM_CGROUP_RECLAIM_SOFT_BIT	0x2
- #define MEM_CGROUP_RECLAIM_SOFT		(1 << MEM_CGROUP_RECLAIM_SOFT_BIT)
- 
-+/*
-+ * A bitmap representing all possible memcg, indexed by css_id.  Each bit
-+ * indicates if the respective memcg is over its background dirty memory
-+ * limit.
-+ */
-+static DECLARE_BITMAP(over_bground_dirty_thresh, CSS_ID_MAX + 1);
-+
- static void mem_cgroup_get(struct mem_cgroup *mem);
- static void mem_cgroup_put(struct mem_cgroup *mem);
- static struct mem_cgroup *parent_mem_cgroup(struct mem_cgroup *mem);
- static void drain_all_stock_async(void);
-+static struct mem_cgroup *mem_cgroup_lookup(unsigned short id);
- 
- static struct mem_cgroup_per_zone *
- mem_cgroup_zoneinfo(struct mem_cgroup *mem, int nid, int zid)
-@@ -1503,6 +1511,117 @@ static void mem_cgroup_dirty_info(unsigned long sys_available_mem,
- 	trace_mem_cgroup_dirty_info(css_id(&mem->css), info);
- }
- 
-+/* Are any memcg over their background dirty memory limit? */
-+bool mem_cgroups_over_bground_dirty_thresh(void)
-+{
-+	bool over_thresh;
-+
-+	over_thresh = !bitmap_empty(over_bground_dirty_thresh, CSS_ID_MAX + 1);
-+
-+	trace_mem_cgroups_over_bground_dirty_thresh(
-+		over_thresh,
-+		over_thresh ? find_next_bit(over_bground_dirty_thresh,
-+					    CSS_ID_MAX + 1, 0) : 0);
-+
-+	return over_thresh;
-+}
-+
-+/*
-+ * Should inode be written back?  wbc indicates if this is foreground or
-+ * background writeback and the set of inodes worth considering.
-+ */
-+bool should_writeback_mem_cgroup_inode(struct inode *inode,
-+				       struct writeback_control *wbc)
-+{
-+	unsigned short id;
-+	bool over;
-+
-+	id = inode->i_mapping->i_memcg;
-+	VM_BUG_ON(id >= CSS_ID_MAX + 1);
-+
-+	if (wbc->shared_inodes && id == I_MEMCG_SHARED)
-+		over = true;
-+	else
-+		over = test_bit(id, over_bground_dirty_thresh);
-+
-+	trace_should_writeback_mem_cgroup_inode(inode, wbc, over);
-+	return over;
-+}
-+
-+/*
-+ * Mark all child cgroup as eligible for writeback because @mem is over its bg
-+ * threshold.
-+ */
-+static void mem_cgroup_mark_over_bg_thresh(struct mem_cgroup *mem)
-+{
-+	struct mem_cgroup *iter;
-+
-+	/* mark this and all child cgroup as candidates for writeback */
-+	for_each_mem_cgroup_tree(iter, mem)
-+		set_bit(css_id(&iter->css), over_bground_dirty_thresh);
-+}
-+
-+static void mem_cgroup_queue_bg_writeback(struct mem_cgroup *mem,
-+					  struct backing_dev_info *bdi)
-+{
-+	mem_cgroup_mark_over_bg_thresh(mem);
-+	bdi_start_background_writeback(bdi);
-+}
-+
-+/*
-+ * This routine is called when per-memcg writeback completes.  It scans any
-+ * previously over-bground-thresh memcg to determine if the memcg are still over
-+ * their background dirty memory limit.
-+ */
-+void mem_cgroup_writeback_done(void)
-+{
-+	struct mem_cgroup *mem;
-+	struct mem_cgroup *ref_mem;
-+	struct dirty_info info;
-+	unsigned long sys_available_mem;
-+	int id;
-+
-+	sys_available_mem = 0;
-+
-+	/* for each previously over-bg-limit memcg... */
-+	for (id = 0; (id = find_next_bit(over_bground_dirty_thresh,
-+					 CSS_ID_MAX + 1, id)) < CSS_ID_MAX + 1;
-+	     id++) {
-+
-+		/* reference the memcg */
-+		rcu_read_lock();
-+		mem = mem_cgroup_lookup(id);
-+		if (mem && !css_tryget(&mem->css))
-+			mem = NULL;
-+		rcu_read_unlock();
-+		if (!mem) {
-+			clear_bit(id, over_bground_dirty_thresh);
-+			continue;
-+		}
-+		ref_mem = mem;
-+
-+		if (!sys_available_mem)
-+			sys_available_mem = determine_dirtyable_memory();
-+
-+		/*
-+		 * Walk the ancestry of inode's mem clearing the over-limit bits
-+		 * for for any memcg under its dirty memory background
-+		 * threshold.
-+		 */
-+		for (; mem_cgroup_has_dirty_limit(mem);
-+		     mem = parent_mem_cgroup(mem)) {
-+			mem_cgroup_dirty_info(sys_available_mem, mem, &info);
-+			if (dirty_info_reclaimable(&info) >=
-+			    info.background_thresh)
-+				break;
-+
-+			clear_bit(css_id(&mem->css), over_bground_dirty_thresh);
-+		}
-+
-+		css_put(&ref_mem->css);
-+	}
-+}
-+
- static void mem_cgroup_start_move(struct mem_cgroup *mem)
- {
- 	int cpu;
--- 
-1.7.3.1
+Bernhard
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
