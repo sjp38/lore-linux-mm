@@ -1,61 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id A8EA96B004A
-	for <linux-mm@kvack.org>; Thu,  2 Jun 2011 22:09:26 -0400 (EDT)
-Date: Fri, 3 Jun 2011 03:09:20 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH] mm: compaction: Abort compaction if too many pages are
- isolated and caller is asynchronous
-Message-ID: <20110603020920.GA26753@suse.de>
-References: <20110531141402.GK19505@random.random>
- <20110601005747.GC7019@csn.ul.ie>
- <20110601175809.GB7306@suse.de>
- <20110601191529.GY19505@random.random>
- <20110601214018.GC7306@suse.de>
- <20110601233036.GZ19505@random.random>
- <20110602010352.GD7306@suse.de>
- <20110602132954.GC19505@random.random>
- <20110602145019.GG7306@suse.de>
- <20110602153754.GF19505@random.random>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 16F316B004A
+	for <linux-mm@kvack.org>; Thu,  2 Jun 2011 22:57:18 -0400 (EDT)
+Received: by yxn22 with SMTP id 22so211946yxn.14
+        for <linux-mm@kvack.org>; Thu, 02 Jun 2011 19:57:15 -0700 (PDT)
+Date: Thu, 2 Jun 2011 23:55:57 -0300
+From: Rafael Aquini <aquini@linux.com>
+Subject: [PATCH] mm: fix negative commitlimit when gigantic hugepages are
+ allocated
+Message-ID: <20110603025555.GA10530@optiplex.tchesoft.com>
+Reply-To: aquini@linux.com
+References: <20110518153445.GA18127@sgi.com>
+ <BANLkTinbHnrf2isuLzUFZN8ypaT476G1zw@mail.gmail.com>
+ <20110519045630.GA22533@sgi.com>
+ <BANLkTinyYP-je9Nf8X-xWEdpgvn8a631Mw@mail.gmail.com>
+ <20110519221101.GC19648@sgi.com>
+ <20110520130411.d1e0baef.akpm@linux-foundation.org>
+ <20110520223032.GA15192@x61.tchesoft.com>
+ <20110526210751.GA14819@optiplex.tchesoft.com>
+ <20110602040821.GA7934@sgi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110602153754.GF19505@random.random>
+In-Reply-To: <20110602040821.GA7934@sgi.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Minchan Kim <minchan.kim@gmail.com>, akpm@linux-foundation.org, Ury Stankevich <urykhy@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, stable@kernel.org
+To: Russ Anderson <rja@sgi.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux.com>, rja@americas.sgi.com
 
-On Thu, Jun 02, 2011 at 05:37:54PM +0200, Andrea Arcangeli wrote:
-> > There is an explanation in here somewhere because as I write this,
-> > the test machine has survived 14 hours under continual stress without
-> > the isolated counters going negative with over 128 million pages
-> > successfully migrated and a million pages failed to migrate due to
-> > direct compaction being called 80,000 times. It's possible it's a
-> > co-incidence but it's some co-incidence!
-> 
-> No idea...
+When 1GB hugepages are allocated on a system, free(1) reports
+less available memory than what really is installed in the box.
+Also, if the total size of hugepages allocated on a system is
+over half of the total memory size, CommitLimit becomes
+a negative number.
 
-I wasn't able to work on this most of the day but was looking at this
-closer this evening again and I think I might have thought of another
-theory that could cause this problem.
+The problem is that gigantic hugepages (order > MAX_ORDER)
+can only be allocated at boot with bootmem, thus its frames
+are not accounted to 'totalram_pages'. However,  they are
+accounted to hugetlb_total_pages()
 
-When THP is isolating pages, it accounts for the pages isolated against
-the zone of course. If it backs out, it finds the pages from the PTEs.
-On !SMP but PREEMPT, we may not have adequate protection against a new
-page from a different zone being inserted into the PTE causing us to
-decrement against the wrong zone. While the global counter is fine,
-the per-zone counters look corrupted. You'd still think it was the
-anon counter tht got screwed rather than the file one if it really was
-THP unfortunately so it's not the full picture. I'm going to start
-a test monitoring both zoneinfo and vmstat to see if vmstat looks
-fine while the per-zone counters that are negative are offset by a
-positive count on the other zones that when added together become 0.
-Hopefully it'll actually trigger overnight :/
+What happens to turn CommitLimit into a negative number
+is this calculation, in fs/proc/meminfo.c:
 
+        allowed = ((totalram_pages - hugetlb_total_pages())
+                * sysctl_overcommit_ratio / 100) + total_swap_pages;
+
+A similar calculation occurs in __vm_enough_memory() in mm/mmap.c.
+
+Also, every vm statistic which depends on 'totalram_pages' will render
+confusing values, as if system were 'missing' some part of its memory.
+
+Reported-by: Russ Anderson <rja@sgi.com>
+Signed-off-by: Rafael Aquini <aquini@linux.com>
+---
+ mm/hugetlb.c |    8 ++++++++
+ 1 files changed, 8 insertions(+), 0 deletions(-)
+
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index f33bb31..c67dd0f 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -1111,6 +1111,14 @@ static void __init gather_bootmem_prealloc(void)
+ 		WARN_ON(page_count(page) != 1);
+ 		prep_compound_huge_page(page, h->order);
+ 		prep_new_huge_page(h, page, page_to_nid(page));
++
++		/* if we had gigantic hugepages allocated at boot time,
++		 * we need to reinstate the 'stolen' pages to totalram_pages,
++		 * in order to fix confusing memory reports from free(1)
++		 * and another side-effects, like CommitLimit going negative.
++		 */
++		if (h->order > (MAX_ORDER - 1))
++			totalram_pages += 1 << h->order;
+ 	}
+ }
+ 
 -- 
-Mel Gorman
-SUSE Labs
+1.7.4.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
