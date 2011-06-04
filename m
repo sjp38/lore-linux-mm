@@ -1,73 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 521326B007B
-	for <linux-mm@kvack.org>; Fri,  3 Jun 2011 21:52:21 -0400 (EDT)
-Date: Sat, 4 Jun 2011 11:52:12 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH 08/12] superblock: introduce per-sb cache shrinker
- infrastructure
-Message-ID: <20110604015212.GD561@dastard>
-References: <1306998067-27659-1-git-send-email-david@fromorbit.com>
- <1306998067-27659-9-git-send-email-david@fromorbit.com>
- <20110604004231.GV11521@ZenIV.linux.org.uk>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 013156B007E
+	for <linux-mm@kvack.org>; Fri,  3 Jun 2011 23:15:47 -0400 (EDT)
+Received: from wpaz21.hot.corp.google.com (wpaz21.hot.corp.google.com [172.24.198.85])
+	by smtp-out.google.com with ESMTP id p543FhRk029767
+	for <linux-mm@kvack.org>; Fri, 3 Jun 2011 20:15:44 -0700
+Received: from gxk22 (gxk22.prod.google.com [10.202.11.22])
+	by wpaz21.hot.corp.google.com with ESMTP id p543FcP1007477
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 3 Jun 2011 20:15:42 -0700
+Received: by gxk22 with SMTP id 22so1329091gxk.16
+        for <linux-mm@kvack.org>; Fri, 03 Jun 2011 20:15:38 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110604004231.GV11521@ZenIV.linux.org.uk>
+In-Reply-To: <20110603115519.GI4061@linux.intel.com>
+References: <20110603115519.GI4061@linux.intel.com>
+Date: Fri, 3 Jun 2011 20:15:38 -0700
+Message-ID: <BANLkTimc7wTyn0sVn+4OCL45_MOqhyV=QhJqV-GgXt_p290KwA@mail.gmail.com>
+Subject: Re: Setting of the PageReadahed bit
+From: Hugh Dickins <hughd@google.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Al Viro <viro@ZenIV.linux.org.uk>
-Cc: linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, xfs@oss.sgi.com
+To: Matthew Wilcox <willy@linux.intel.com>
+Cc: linux-mm <linux-mm@kvack.org>, Wu Fengguang <fengguang.wu@intel.com>
 
-On Sat, Jun 04, 2011 at 01:42:31AM +0100, Al Viro wrote:
-> > @@ -278,7 +325,12 @@ void generic_shutdown_super(struct super_block *sb)
-> >  {
-> >  	const struct super_operations *sop = sb->s_op;
-> >  
-> > -
-> > +	/*
-> > +	 * shut down the shrinker first so we know that there are no possible
-> > +	 * races when shrinking the dcache or icache. Removes the need for
-> > +	 * external locking to prevent such races.
-> > +	 */
-> > +	unregister_shrinker(&sb->s_shrink);
-> >  	if (sb->s_root) {
-> >  		shrink_dcache_for_umount(sb);
-> >  		sync_filesystem(sb);
-> 
-> What it means is that shrinker_rwsem now nests inside ->s_umount...  IOW,
-> if any ->shrink() gets stuck, so does every generic_shutdown_super().
-> I'm still not convinced it's a good idea - especially since _this_
-> superblock will be skipped anyway.
+On Fri, Jun 3, 2011 at 4:55 AM, Matthew Wilcox <willy@linux.intel.com> wrot=
+e:
+> The exact definition of PageReadahead doesn't seem to be documented
+> anywhere. =C2=A0I'm assuming it means "This page was not directly request=
+ed;
+> it is being read for prefetching purposes", exactly like the READA
+> semantics.
+>
+> If my interpretation is correct, then the implementation in
+> __do_page_cache_readahead is wrong:
+>
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0if (page_idx =3D=
+=3D nr_to_read - lookahead_size)
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0SetPageReadahead(page);
+>
+> It'll only set the PageReadahead bit on one page. =C2=A0The patch below f=
+ixes
+> this ... if my understanding is correct.
 
-True, that's not nice.
+Incorrect I believe: it's a trigger to say, when you get this far,
+it's time to think about kicking off the next read.
 
-> Is there any good reason to evict
-> shrinker that early?
+>
+> If my understanding is wrong, then how are readpage/readpages
+> implementations supposed to know that the VM is only prefetching these
+> pages, and they're not as important as metadata (dependent) reads?
 
-I wanted to put it early on in the unmount path so that the shrinker
-was guaranteed to be gone before evict_inodes() was called. That
-would mean that it is obviously safe to remove the iprune_sem
-serialisation in that function.
+I don't think they do know at present; but I can well imagine there
+may be advantage in them knowing.
 
-The code in the umount path is quite different between 2.6.35 (the
-original version of the patchset) and 3.0-rc1, so I'm not surprised
-that I haven't put the unregister call in the right place.
-
-> Note that doing that after ->s_umount is dropped
-> should be reasonably safe - your shrinker will see that superblock is
-> doomed if it's called anywhere in that window...
-
-Agreed. In trying to find the best "early" place to unregister the
-shrinker, I've completely missed the obvious "late is safe"
-solution. I'll respin it with these changes.
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
