@@ -1,62 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 013156B007E
-	for <linux-mm@kvack.org>; Fri,  3 Jun 2011 23:15:47 -0400 (EDT)
-Received: from wpaz21.hot.corp.google.com (wpaz21.hot.corp.google.com [172.24.198.85])
-	by smtp-out.google.com with ESMTP id p543FhRk029767
-	for <linux-mm@kvack.org>; Fri, 3 Jun 2011 20:15:44 -0700
-Received: from gxk22 (gxk22.prod.google.com [10.202.11.22])
-	by wpaz21.hot.corp.google.com with ESMTP id p543FcP1007477
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 3 Jun 2011 20:15:42 -0700
-Received: by gxk22 with SMTP id 22so1329091gxk.16
-        for <linux-mm@kvack.org>; Fri, 03 Jun 2011 20:15:38 -0700 (PDT)
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id B185E6B0083
+	for <linux-mm@kvack.org>; Sat,  4 Jun 2011 02:59:03 -0400 (EDT)
+Received: by pwi12 with SMTP id 12so1649396pwi.14
+        for <linux-mm@kvack.org>; Fri, 03 Jun 2011 23:59:02 -0700 (PDT)
+Date: Sat, 4 Jun 2011 15:58:53 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: Re: [PATCH] mm: compaction: Abort compaction if too many pages are
+ isolated and caller is asynchronous
+Message-ID: <20110604065853.GA4114@barrios-laptop>
+References: <20110601175809.GB7306@suse.de>
+ <20110601191529.GY19505@random.random>
+ <20110601214018.GC7306@suse.de>
+ <20110601233036.GZ19505@random.random>
+ <20110602010352.GD7306@suse.de>
+ <20110602132954.GC19505@random.random>
+ <20110602145019.GG7306@suse.de>
+ <20110602153754.GF19505@random.random>
+ <20110603020920.GA26753@suse.de>
+ <20110603144941.GI7306@suse.de>
 MIME-Version: 1.0
-In-Reply-To: <20110603115519.GI4061@linux.intel.com>
-References: <20110603115519.GI4061@linux.intel.com>
-Date: Fri, 3 Jun 2011 20:15:38 -0700
-Message-ID: <BANLkTimc7wTyn0sVn+4OCL45_MOqhyV=QhJqV-GgXt_p290KwA@mail.gmail.com>
-Subject: Re: Setting of the PageReadahed bit
-From: Hugh Dickins <hughd@google.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110603144941.GI7306@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@linux.intel.com>
-Cc: linux-mm <linux-mm@kvack.org>, Wu Fengguang <fengguang.wu@intel.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, akpm@linux-foundation.org, Ury Stankevich <urykhy@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, stable@kernel.org
 
-On Fri, Jun 3, 2011 at 4:55 AM, Matthew Wilcox <willy@linux.intel.com> wrot=
-e:
-> The exact definition of PageReadahead doesn't seem to be documented
-> anywhere. =C2=A0I'm assuming it means "This page was not directly request=
-ed;
-> it is being read for prefetching purposes", exactly like the READA
-> semantics.
->
-> If my interpretation is correct, then the implementation in
-> __do_page_cache_readahead is wrong:
->
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0if (page_idx =3D=
-=3D nr_to_read - lookahead_size)
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0SetPageReadahead(page);
->
-> It'll only set the PageReadahead bit on one page. =C2=A0The patch below f=
-ixes
-> this ... if my understanding is correct.
+On Fri, Jun 03, 2011 at 03:49:41PM +0100, Mel Gorman wrote:
+> On Fri, Jun 03, 2011 at 03:09:20AM +0100, Mel Gorman wrote:
+> > On Thu, Jun 02, 2011 at 05:37:54PM +0200, Andrea Arcangeli wrote:
+> > > > There is an explanation in here somewhere because as I write this,
+> > > > the test machine has survived 14 hours under continual stress without
+> > > > the isolated counters going negative with over 128 million pages
+> > > > successfully migrated and a million pages failed to migrate due to
+> > > > direct compaction being called 80,000 times. It's possible it's a
+> > > > co-incidence but it's some co-incidence!
+> > > 
+> > > No idea...
+> > 
+> > I wasn't able to work on this most of the day but was looking at this
+> > closer this evening again and I think I might have thought of another
+> > theory that could cause this problem.
+> > 
+> > When THP is isolating pages, it accounts for the pages isolated against
+> > the zone of course. If it backs out, it finds the pages from the PTEs.
+> > On !SMP but PREEMPT, we may not have adequate protection against a new
+> > page from a different zone being inserted into the PTE causing us to
+> > decrement against the wrong zone. While the global counter is fine,
+> > the per-zone counters look corrupted. You'd still think it was the
+> > anon counter tht got screwed rather than the file one if it really was
+> > THP unfortunately so it's not the full picture. I'm going to start
+> > a test monitoring both zoneinfo and vmstat to see if vmstat looks
+> > fine while the per-zone counters that are negative are offset by a
+> > positive count on the other zones that when added together become 0.
+> > Hopefully it'll actually trigger overnight :/
+> > 
+> 
+> Right idea of the wrong zone being accounted for but wrong place. I
+> think the following patch should fix the problem;
+> 
+> ==== CUT HERE ===
+> mm: compaction: Ensure that the compaction free scanner does not move to the next zone
+> 
+> Compaction works with two scanners, a migration and a free
+> scanner. When the scanners crossover, migration within the zone is
+> complete. The location of the scanner is recorded on each cycle to
+> avoid excesive scanning.
+> 
+> When a zone is small and mostly reserved, it's very easy for the
+> migration scanner to be close to the end of the zone. Then the following
+> situation can occurs
+> 
+>   o migration scanner isolates some pages near the end of the zone
+>   o free scanner starts at the end of the zone but finds that the
+>     migration scanner is already there
+>   o free scanner gets reinitialised for the next cycle as
+>     cc->migrate_pfn + pageblock_nr_pages
+>     moving the free scanner into the next zone
+>   o migration scanner moves into the next zone but continues accounting
+>     against the old zone
+> 
+> When this happens, NR_ISOLATED accounting goes haywire because some
+> of the accounting happens against the wrong zone. One zones counter
+> remains positive while the other goes negative even though the overall
+> global count is accurate. This was reported on X86-32 with !SMP because
+> !SMP allows the negative counters to be visible. The fact that it is
+> difficult to reproduce on X86-64 is probably just a co-incidence as
 
-Incorrect I believe: it's a trigger to say, when you get this far,
-it's time to think about kicking off the next read.
+I guess it's related to zone sizes.
+X86-64 has small DMA and large DMA32 zones for fallback of NORMAL while
+x86 has just a small DMA(16M) zone.
 
->
-> If my understanding is wrong, then how are readpage/readpages
-> implementations supposed to know that the VM is only prefetching these
-> pages, and they're not as important as metadata (dependent) reads?
+I think DMA zone in x86 is easily full of non-LRU or non-movable pages.
+So isolate_migratepagse continues to scan for finding pages which are migratable
+and then it reaches near end of zone.
 
-I don't think they do know at present; but I can well imagine there
-may be advantage in them knowing.
 
-Hugh
+> the bug should theoritically be possible there.
+> Finally, you found it. Congratulations on!
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
+Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+
+When we are debugging this problem, we found a few of bugs and enhance points
+and submitted patches. It was a very good chance to fix Linux VM.
+
+Thanks, Mel.
+
+-- 
+Kind regards
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
