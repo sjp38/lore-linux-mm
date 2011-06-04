@@ -1,43 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 154226B00F3
-	for <linux-mm@kvack.org>; Sat,  4 Jun 2011 10:24:53 -0400 (EDT)
-Date: Sat, 4 Jun 2011 15:24:48 +0100
-From: Al Viro <viro@ZenIV.linux.org.uk>
-Subject: Re: [PATCH 08/12] superblock: introduce per-sb cache shrinker
- infrastructure
-Message-ID: <20110604142448.GX11521@ZenIV.linux.org.uk>
-References: <1306998067-27659-1-git-send-email-david@fromorbit.com>
- <1306998067-27659-9-git-send-email-david@fromorbit.com>
- <20110604004231.GV11521@ZenIV.linux.org.uk>
- <20110604015212.GD561@dastard>
- <20110604140848.GA20404@infradead.org>
- <20110604141940.GW11521@ZenIV.linux.org.uk>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 85AEF6B00F5
+	for <linux-mm@kvack.org>; Sat,  4 Jun 2011 11:42:28 -0400 (EDT)
+Received: by pzk4 with SMTP id 4so1520146pzk.14
+        for <linux-mm@kvack.org>; Sat, 04 Jun 2011 08:42:25 -0700 (PDT)
+Date: Sun, 5 Jun 2011 00:42:17 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: Re: [PATCH v8 05/12] memcg: add kernel calls for memcg dirty page
+ stats
+Message-ID: <20110604154217.GA1445@barrios-laptop>
+References: <1307117538-14317-1-git-send-email-gthelen@google.com>
+ <1307117538-14317-6-git-send-email-gthelen@google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110604141940.GW11521@ZenIV.linux.org.uk>
+In-Reply-To: <1307117538-14317-6-git-send-email-gthelen@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Dave Chinner <david@fromorbit.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, xfs@oss.sgi.com
+To: Greg Thelen <gthelen@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, linux-fsdevel@vger.kernel.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Johannes Weiner <hannes@cmpxchg.org>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Vivek Goyal <vgoyal@redhat.com>, Dave Chinner <david@fromorbit.com>
 
-On Sat, Jun 04, 2011 at 03:19:40PM +0100, Al Viro wrote:
-> > The iprune_sem removal is fine as soon as you have a per-sb shrinker
-> > for the inodes which keeps an active reference on the superblock until
-> > all the inodes are evicted.
+On Fri, Jun 03, 2011 at 09:12:11AM -0700, Greg Thelen wrote:
+> Add calls into memcg dirty page accounting.  Notify memcg when pages
+> transition between clean, file dirty, writeback, and unstable nfs.  This
+> allows the memory controller to maintain an accurate view of the amount
+> of its memory that is dirty.
 > 
-> I really don't like that.  Stuff keeping active refs, worse yet doing that
-> asynchronously...  Shrinkers should *not* do that.  Just grab a passive
-> ref (i.e. bump s_count), try grab s_umount (shared) and if that thing still
-> has ->s_root while we hold s_umount, go ahead.  Unregister either at the
-> end of generic_shutdown_super() or from deactivate_locked_super(), between
-> the calls of ->kill_sb() and put_filesystem().
+> Signed-off-by: Greg Thelen <gthelen@google.com>
+> Signed-off-by: Andrea Righi <arighi@develer.com>
+> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Reviewed-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
 
-PS: shrinkers should not acquire active refs; more specifically, they should
-not _drop_ active refs, lest they end up dropping the last active one and
-trigger unregistering a shrinker for superblock in question.  From inside of
-->shrink(), with shrinker_rwsem held by caller.  Deadlock...
+-- 
+Kind regards
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
