@@ -1,16 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id B185E6B0083
-	for <linux-mm@kvack.org>; Sat,  4 Jun 2011 02:59:03 -0400 (EDT)
-Received: by pwi12 with SMTP id 12so1649396pwi.14
-        for <linux-mm@kvack.org>; Fri, 03 Jun 2011 23:59:02 -0700 (PDT)
-Date: Sat, 4 Jun 2011 15:58:53 +0900
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E03B6B0092
+	for <linux-mm@kvack.org>; Sat,  4 Jun 2011 03:25:22 -0400 (EDT)
+Received: by pzk4 with SMTP id 4so1383535pzk.14
+        for <linux-mm@kvack.org>; Sat, 04 Jun 2011 00:25:21 -0700 (PDT)
+Date: Sat, 4 Jun 2011 16:25:12 +0900
 From: Minchan Kim <minchan.kim@gmail.com>
 Subject: Re: [PATCH] mm: compaction: Abort compaction if too many pages are
  isolated and caller is asynchronous
-Message-ID: <20110604065853.GA4114@barrios-laptop>
-References: <20110601175809.GB7306@suse.de>
- <20110601191529.GY19505@random.random>
+Message-ID: <20110604072512.GB4114@barrios-laptop>
+References: <20110601191529.GY19505@random.random>
  <20110601214018.GC7306@suse.de>
  <20110601233036.GZ19505@random.random>
  <20110602010352.GD7306@suse.de>
@@ -19,95 +18,38 @@ References: <20110601175809.GB7306@suse.de>
  <20110602153754.GF19505@random.random>
  <20110603020920.GA26753@suse.de>
  <20110603144941.GI7306@suse.de>
+ <20110603154554.GK2802@random.random>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110603144941.GI7306@suse.de>
+In-Reply-To: <20110603154554.GK2802@random.random>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, akpm@linux-foundation.org, Ury Stankevich <urykhy@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, stable@kernel.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Mel Gorman <mgorman@suse.de>, akpm@linux-foundation.org, Ury Stankevich <urykhy@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, stable@kernel.org
 
-On Fri, Jun 03, 2011 at 03:49:41PM +0100, Mel Gorman wrote:
-> On Fri, Jun 03, 2011 at 03:09:20AM +0100, Mel Gorman wrote:
-> > On Thu, Jun 02, 2011 at 05:37:54PM +0200, Andrea Arcangeli wrote:
-> > > > There is an explanation in here somewhere because as I write this,
-> > > > the test machine has survived 14 hours under continual stress without
-> > > > the isolated counters going negative with over 128 million pages
-> > > > successfully migrated and a million pages failed to migrate due to
-> > > > direct compaction being called 80,000 times. It's possible it's a
-> > > > co-incidence but it's some co-incidence!
-> > > 
-> > > No idea...
-> > 
-> > I wasn't able to work on this most of the day but was looking at this
-> > closer this evening again and I think I might have thought of another
-> > theory that could cause this problem.
-> > 
-> > When THP is isolating pages, it accounts for the pages isolated against
-> > the zone of course. If it backs out, it finds the pages from the PTEs.
-> > On !SMP but PREEMPT, we may not have adequate protection against a new
-> > page from a different zone being inserted into the PTE causing us to
-> > decrement against the wrong zone. While the global counter is fine,
-> > the per-zone counters look corrupted. You'd still think it was the
-> > anon counter tht got screwed rather than the file one if it really was
-> > THP unfortunately so it's not the full picture. I'm going to start
-> > a test monitoring both zoneinfo and vmstat to see if vmstat looks
-> > fine while the per-zone counters that are negative are offset by a
-> > positive count on the other zones that when added together become 0.
-> > Hopefully it'll actually trigger overnight :/
-> > 
+On Fri, Jun 03, 2011 at 05:45:54PM +0200, Andrea Arcangeli wrote:
+> On Fri, Jun 03, 2011 at 03:49:41PM +0100, Mel Gorman wrote:
+> > Right idea of the wrong zone being accounted for but wrong place. I
+> > think the following patch should fix the problem;
 > 
-> Right idea of the wrong zone being accounted for but wrong place. I
-> think the following patch should fix the problem;
+> Looks good thanks.
 > 
-> ==== CUT HERE ===
-> mm: compaction: Ensure that the compaction free scanner does not move to the next zone
+> I also found this bug during my debugging that made NR_SHMEM underflow.
 > 
-> Compaction works with two scanners, a migration and a free
-> scanner. When the scanners crossover, migration within the zone is
-> complete. The location of the scanner is recorded on each cycle to
-> avoid excesive scanning.
+> ===
+> Subject: migrate: don't account swapcache as shmem
 > 
-> When a zone is small and mostly reserved, it's very easy for the
-> migration scanner to be close to the end of the zone. Then the following
-> situation can occurs
+> From: Andrea Arcangeli <aarcange@redhat.com>
 > 
->   o migration scanner isolates some pages near the end of the zone
->   o free scanner starts at the end of the zone but finds that the
->     migration scanner is already there
->   o free scanner gets reinitialised for the next cycle as
->     cc->migrate_pfn + pageblock_nr_pages
->     moving the free scanner into the next zone
->   o migration scanner moves into the next zone but continues accounting
->     against the old zone
+> swapcache will reach the below code path in migrate_page_move_mapping,
+> and swapcache is accounted as NR_FILE_PAGES but it's not accounted as
+> NR_SHMEM.
 > 
-> When this happens, NR_ISOLATED accounting goes haywire because some
-> of the accounting happens against the wrong zone. One zones counter
-> remains positive while the other goes negative even though the overall
-> global count is accurate. This was reported on X86-32 with !SMP because
-> !SMP allows the negative counters to be visible. The fact that it is
-> difficult to reproduce on X86-64 is probably just a co-incidence as
-
-I guess it's related to zone sizes.
-X86-64 has small DMA and large DMA32 zones for fallback of NORMAL while
-x86 has just a small DMA(16M) zone.
-
-I think DMA zone in x86 is easily full of non-LRU or non-movable pages.
-So isolate_migratepagse continues to scan for finding pages which are migratable
-and then it reaches near end of zone.
-
-
-> the bug should theoritically be possible there.
-> Finally, you found it. Congratulations on!
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
+> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
 
-When we are debugging this problem, we found a few of bugs and enhance points
-and submitted patches. It was a very good chance to fix Linux VM.
-
-Thanks, Mel.
-
+Nice catch!
 -- 
 Kind regards
 Minchan Kim
