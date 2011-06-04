@@ -1,42 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 4C3626B00EC
-	for <linux-mm@kvack.org>; Sat,  4 Jun 2011 06:11:16 -0400 (EDT)
-Received: by pzk4 with SMTP id 4so1427393pzk.14
-        for <linux-mm@kvack.org>; Sat, 04 Jun 2011 03:11:13 -0700 (PDT)
-Date: Sat, 4 Jun 2011 19:11:01 +0900
-From: Minchan Kim <minchan.kim@gmail.com>
-Subject: Re: [PATCH v8 04/12] memcg: add dirty page accounting
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 07F506B00EF
+	for <linux-mm@kvack.org>; Sat,  4 Jun 2011 10:08:57 -0400 (EDT)
+Date: Sat, 4 Jun 2011 10:08:48 -0400
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH 08/12] superblock: introduce per-sb cache shrinker
  infrastructure
-Message-ID: <20110604101100.GC4731@barrios-laptop>
-References: <1307117538-14317-1-git-send-email-gthelen@google.com>
- <1307117538-14317-5-git-send-email-gthelen@google.com>
+Message-ID: <20110604140848.GA20404@infradead.org>
+References: <1306998067-27659-1-git-send-email-david@fromorbit.com>
+ <1306998067-27659-9-git-send-email-david@fromorbit.com>
+ <20110604004231.GV11521@ZenIV.linux.org.uk>
+ <20110604015212.GD561@dastard>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1307117538-14317-5-git-send-email-gthelen@google.com>
+In-Reply-To: <20110604015212.GD561@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Thelen <gthelen@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, linux-fsdevel@vger.kernel.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Johannes Weiner <hannes@cmpxchg.org>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Vivek Goyal <vgoyal@redhat.com>, Dave Chinner <david@fromorbit.com>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Al Viro <viro@ZenIV.linux.org.uk>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, xfs@oss.sgi.com
 
-On Fri, Jun 03, 2011 at 09:12:10AM -0700, Greg Thelen wrote:
-> Add memcg routines to count dirty, writeback, and unstable_NFS pages.
-> These routines are not yet used by the kernel to count such pages.  A
-> later change adds kernel calls to these new routines.
-> 
-> As inode pages are marked dirty, if the dirtied page's cgroup differs
-> from the inode's cgroup, then mark the inode shared across several
-> cgroup.
-> 
-> Signed-off-by: Greg Thelen <gthelen@google.com>
-> Signed-off-by: Andrea Righi <arighi@develer.com>
-> Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+On Sat, Jun 04, 2011 at 11:52:12AM +1000, Dave Chinner wrote:
+> I wanted to put it early on in the unmount path so that the shrinker
+> was guaranteed to be gone before evict_inodes() was called. That
+> would mean that it is obviously safe to remove the iprune_sem
+> serialisation in that function.
 
--- 
-Kind regards
-Minchan Kim
+The iprune_sem removal is fine as soon as you have a per-sb shrinker
+for the inodes which keeps an active reference on the superblock until
+all the inodes are evicted.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
