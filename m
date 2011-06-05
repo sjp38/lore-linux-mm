@@ -1,61 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 6D7356B0104
-	for <linux-mm@kvack.org>; Sun,  5 Jun 2011 03:54:07 -0400 (EDT)
-Date: Sun, 5 Jun 2011 15:54:03 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: Setting of the PageReadahed bit
-Message-ID: <20110605075403.GA18000@localhost>
-References: <20110603115519.GI4061@linux.intel.com>
- <BANLkTimc7wTyn0sVn+4OCL45_MOqhyV=QhJqV-GgXt_p290KwA@mail.gmail.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id DFEAC6B0107
+	for <linux-mm@kvack.org>; Sun,  5 Jun 2011 04:15:00 -0400 (EDT)
+Message-ID: <4DEB3AE4.8040700@redhat.com>
+Date: Sun, 05 Jun 2011 11:14:28 +0300
+From: Avi Kivity <avi@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <BANLkTimc7wTyn0sVn+4OCL45_MOqhyV=QhJqV-GgXt_p290KwA@mail.gmail.com>
+Subject: Re: KVM induced panic on 2.6.38[2367] & 2.6.39
+References: <20110601011527.GN19505@random.random> <alpine.LSU.2.00.1105312120530.22808@sister.anvils> <4DE5DCA8.7070704@fnarfbargle.com> <4DE5E29E.7080009@redhat.com> <4DE60669.9050606@fnarfbargle.com> <4DE60918.3010008@redhat.com> <4DE60940.1070107@redhat.com> <4DE61A2B.7000008@fnarfbargle.com> <20110601111841.GB3956@zip.com.au> <4DE62801.9080804@fnarfbargle.com> <20110601230342.GC3956@zip.com.au> <4DE8E3ED.7080004@fnarfbargle.com>
+In-Reply-To: <4DE8E3ED.7080004@fnarfbargle.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Matthew Wilcox <willy@linux.intel.com>, linux-mm <linux-mm@kvack.org>
+To: Brad Campbell <lists2009@fnarfbargle.com>
+Cc: CaT <cat@zip.com.au>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Borislav Petkov <bp@alien8.de>, linux-kernel@vger.kernel.org, kvm@vger.kernel.org, linux-mm <linux-mm@kvack.org>, netdev <netdev@vger.kernel.org>
 
-On Sat, Jun 04, 2011 at 11:15:38AM +0800, Hugh Dickins wrote:
-> On Fri, Jun 3, 2011 at 4:55 AM, Matthew Wilcox <willy@linux.intel.com> wrote:
-> > The exact definition of PageReadahead doesn't seem to be documented
-> > anywhere. A I'm assuming it means "This page was not directly requested;
-> > it is being read for prefetching purposes", exactly like the READA
-> > semantics.
-> >
-> > If my interpretation is correct, then the implementation in
-> > __do_page_cache_readahead is wrong:
-> >
-> > A  A  A  A  A  A  A  A if (page_idx == nr_to_read - lookahead_size)
-> > A  A  A  A  A  A  A  A  A  A  A  A SetPageReadahead(page);
-> >
-> > It'll only set the PageReadahead bit on one page. A The patch below fixes
-> > this ... if my understanding is correct.
-> 
-> Incorrect I believe: it's a trigger to say, when you get this far,
-> it's time to think about kicking off the next read.
+On 06/03/2011 04:38 PM, Brad Campbell wrote:
+>
+> Is there anyone who can point me at the appropriate cage to rattle? I 
+> know it appears to be a netfilter issue, but I don't seem to be able 
+> to get a message to the list (and I am subscribed to it and have been 
+> getting mail for months) and I'm not sure who to pester. The other 
+> alternative is I just stop doing "that" and wait for it to bite 
+> someone else.
 
-That's right. PG_readahead is set to trigger the _next_ ASYNC readahead.
+The mailing list might be set not to send your own mails back to you.  
+Check the list archive.
 
-> >
-> > If my understanding is wrong, then how are readpage/readpages
-> > implementations supposed to know that the VM is only prefetching these
-> > pages, and they're not as important as metadata (dependent) reads?
-> 
-> I don't think they do know at present; but I can well imagine there
-> may be advantage in them knowing.
-
-__do_page_cache_readahead() don't know whether the _current_ readahead
-IO is an ASYNC one.
-
-page_cache_async_readahead() calls ondemand_readahead() with
-hit_readahead_marker=true. It's possible to further pass this
-information into __do_page_cache_readahead() and ->readpage/readpages.
-
-Thanks,
-Fengguang
+-- 
+error compiling committee.c: too many arguments to function
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
