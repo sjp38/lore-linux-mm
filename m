@@ -1,118 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 63F556B010F
-	for <linux-mm@kvack.org>; Sun,  5 Jun 2011 12:38:55 -0400 (EDT)
-Received: (from localhost user: 'dkiper' uid#4000 fake: STDIN
-	(dkiper@router-fw.net-space.pl)) by router-fw-old.local.net-space.pl
-	id S1176397Ab1FEQiG (ORCPT <rfc822;linux-mm@kvack.org>);
-	Sun, 5 Jun 2011 18:38:06 +0200
-Date: Sun, 5 Jun 2011 18:38:06 +0200
-From: Daniel Kiper <dkiper@net-space.pl>
-Subject: Re: [PATCH V4] mm: Extend memory hotplug API to allow memory hotplug in virtual machines
-Message-ID: <20110605163806.GA12527@router-fw-old.local.net-space.pl>
-References: <20110524222733.GA29133@router-fw-old.local.net-space.pl> <20110602122607.3122e23b.akpm@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110602122607.3122e23b.akpm@linux-foundation.org>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E1936B0111
+	for <linux-mm@kvack.org>; Sun,  5 Jun 2011 15:16:21 -0400 (EDT)
+Received: from wpaz1.hot.corp.google.com (wpaz1.hot.corp.google.com [172.24.198.65])
+	by smtp-out.google.com with ESMTP id p55JGF0i029425
+	for <linux-mm@kvack.org>; Sun, 5 Jun 2011 12:16:19 -0700
+Received: from pwi8 (pwi8.prod.google.com [10.241.219.8])
+	by wpaz1.hot.corp.google.com with ESMTP id p55JGDiA004641
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Sun, 5 Jun 2011 12:16:14 -0700
+Received: by pwi8 with SMTP id 8so2070273pwi.8
+        for <linux-mm@kvack.org>; Sun, 05 Jun 2011 12:16:13 -0700 (PDT)
+Date: Sun, 5 Jun 2011 12:16:08 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: ENOSPC returned by handle_mm_fault()
+In-Reply-To: <20110605134317.GF11521@ZenIV.linux.org.uk>
+Message-ID: <alpine.LSU.2.00.1106051141570.5792@sister.anvils>
+References: <20110605134317.GF11521@ZenIV.linux.org.uk>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Daniel Kiper <dkiper@net-space.pl>, ian.campbell@citrix.com, haicheng.li@linux.intel.com, fengguang.wu@intel.com, jeremy@goop.org, konrad.wilk@oracle.com, dan.magenheimer@oracle.com, v.tolstov@selfip.ru, pasik@iki.fi, dave@linux.vnet.ibm.com, wdauchy@gmail.com, rientjes@google.com, xen-devel@lists.xensource.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Al Viro <viro@zeniv.linux.org.uk>
+Cc: linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org
 
-On Thu, Jun 02, 2011 at 12:26:07PM -0700, Andrew Morton wrote:
-> On Wed, 25 May 2011 00:27:33 +0200
-> Daniel Kiper <dkiper@net-space.pl> wrote:
->
-> > This patch applies to Linus' git tree, git commit 98b98d316349e9a028e632629fe813d07fa5afdd
-> > (Merge branch 'drm-core-next' of git://git.kernel.org/pub/scm/linux/kernel/git/airlied/drm-2.6)
-> > with a few prerequisite patches available at https://lkml.org/lkml/2011/5/2/296
-> > and https://lkml.org/lkml/2011/5/17/408 (all prerequisite patches were included in -mm tree).
-> >
-> > This patch contains online_page_callback and apropriate functions for
-> > registering/unregistering online page callbacks. It allows to do some
-> > machine specific tasks during online page stage which is required
-> > to implement memory hotplug in virtual machines. Currently this patch
-> > is required by latest memory hotplug support for Xen balloon driver
-> > patch which will be posted soon.
-> >
-> > Additionally, originial online_page() function was splited into
-> > following functions doing "atomic" operations:
-> >   - __online_page_set_limits() - set new limits for memory management code,
-> >   - __online_page_increment_counters() - increment totalram_pages and totalhigh_pages,
-> >   - __online_page_free() - free page to allocator.
-> >
-> > It was done to:
-> >   - not duplicate existing code,
-> >   - ease hotplug code devolpment by usage of well defined interface,
-> >   - avoid stupid bugs which are unavoidable when the same code
-> >     (by design) is developed in many places.
->
-> I grabbed this and the xen patch.  I assume that all prerequisites
-> are now in mainline?
+On Sun, 5 Jun 2011, Al Viro wrote:
+> 	When alloc_huge_page() runs afoul of quota, it returns ERR_PTR(-ENOSPC).
+> Callers do not expect that - hugetlb_cow() returns ENOSPC if it gets that
+> and so does hugetlb_no_page().  Eventually the thing propagates back to
+> hugetlb_fault() and is returned by it.
+> 
+> 	Callers of hugetlb_fault() clearly expect a bitmap of VM_... and
+> not something from errno.h: one place is 
+>                         ret = hugetlb_fault(mm, vma, vaddr,
+>                                 (flags & FOLL_WRITE) ? FAULT_FLAG_WRITE : 0);
+>                         spin_lock(&mm->page_table_lock);
+>                         if (!(ret & VM_FAULT_ERROR))
+>                                 continue;
+> and another is handle_mm_fault(), which ends up returning ENOSPC and *its*
+> callers are definitely not ready to deal with that.
+> 
+> ENOSPC is 28, i.e. VM_FAULT_MAJOR | VM_FAULT_WRITE | VM_FAULT_HWPOISON;
+> it's also theoretically possible to get ENOMEM if region_chg() ends up
+> hitting
+>                 nrg = kmalloc(sizeof(*nrg), GFP_KERNEL);
+>                 if (!nrg)
+>                         return -ENOMEM;
+> region_chg() <- vma_needs_reservation() <- alloc_huge_page() and from that
+> point as with ENOSPC.  ENOMEM is 12, i.e. VM_FAULT_MAJOR | VM_FAULT_WRITE...
 
-Thank you. Yes, they are.
+Good find, news to me.  Interesting uses of -PTR_ERR()!
+Looks like we'd better not have more than 12 VM_FAULT_ flags.
 
-> Please give some thought to making this extra code Kconfigurable, and
-> selected by Xen?  See if we can avoid a bit of bloat for other kernel
-> users.
+> 
+> Am I right assuming that we want VM_FAULT_OOM in both cases?
 
-If you think about Xen part it is Kconfigurable.
+No, where hugetlb_get_quota() fails it should be VM_FAULT_SIGBUS:
+there's no excuse to go on an OOM-killing spree just because hugetlb
+quota is exhausted.
 
-> What is missing from the patchset is an explanation of why we should
-> merge it ;) Why is this feature desirable?  What value does it provide
-> to our users?  Why should we bother?  Answering these questions in a
-> form which can be pasted into the changelog would be convenient,
-> thanks.
+VM_FAULT_OOM is appropriate where vma_needs_reservation() fails,
+because region_chg() couldn't kmalloc a structure, as you point out.
 
-Balloon driver for virtualized guest systems allows easy memory
-allocation/deallocation from a hypervisor. It is utilized to improve
-memory usage by memory deallocation from guests which have a lot of it
-unused and allocation to systems under memory pressure. However, it is
-not possible by design to allocate more memory for given guest machine
-than it was allocated for it at startup. To obey that limitation memory
-hotplug shuld be used. This patch contains memory hotplug implementation
-for Xen balloon driver. It utilizes current memory hotplug infrastructure
-with small modifications. This solution allows increasing guest machine
-memory size without restart regardless of memory size set at startup.
-It is very useful on critical systems which require long run
-without rebooting.
+(Though that doesn't matter much, since the only way the kmalloc can
+fail is when this task is already selected for OOM-kill - I think.)
 
-Additionally, could you add
-
-Tested-by: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-
-to both patches. Here https://lkml.org/lkml/2011/5/31/416
-is original e-mail asking for it.
-
-> Is there any propsect that the other virtualisation schemes will use
-> this facility?  If not, why not?
-
-I think about that. Even I put a project proposal for GSoC 2011 (you
-could find more details here
-http://www.google-melange.com/gsoc/proposal/review/google/gsoc2011/dkiper/1),
-however, it was not accepted. Currently, I am working on kexec/kdump for
-Xen (it was my second project proposal for GSoC 2011) and my PhD thesis.
-That is why I could not devote my time to that project. However, I am going
-to return to work on generic balloon implementation and memory hotplug
-for other virtualisation schemes ASAP.
-
-> > @@ -388,7 +450,7 @@ static int online_pages_range(unsigned long start_pfn, unsigned long nr_pages,
-> >  	if (PageReserved(pfn_to_page(start_pfn)))
-> >  		for (i = 0; i < nr_pages; i++) {
-> >  			page = pfn_to_page(start_pfn + i);
-> > -			online_page(page);
-> > +			online_page_callback(page);
->
-> nit.  I'll change this to
->
-> 			(*online_page_callback)(page);
->
-> because that syntax communicates some useful information to the reader.
-
-OK.
-
-Daniel
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
