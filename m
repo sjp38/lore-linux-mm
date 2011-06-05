@@ -1,35 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id DFEAC6B0107
-	for <linux-mm@kvack.org>; Sun,  5 Jun 2011 04:15:00 -0400 (EDT)
-Message-ID: <4DEB3AE4.8040700@redhat.com>
-Date: Sun, 05 Jun 2011 11:14:28 +0300
-From: Avi Kivity <avi@redhat.com>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 38E756B0109
+	for <linux-mm@kvack.org>; Sun,  5 Jun 2011 09:43:20 -0400 (EDT)
+Date: Sun, 5 Jun 2011 14:43:17 +0100
+From: Al Viro <viro@ZenIV.linux.org.uk>
+Subject: ENOSPC returned by handle_mm_fault()
+Message-ID: <20110605134317.GF11521@ZenIV.linux.org.uk>
 MIME-Version: 1.0
-Subject: Re: KVM induced panic on 2.6.38[2367] & 2.6.39
-References: <20110601011527.GN19505@random.random> <alpine.LSU.2.00.1105312120530.22808@sister.anvils> <4DE5DCA8.7070704@fnarfbargle.com> <4DE5E29E.7080009@redhat.com> <4DE60669.9050606@fnarfbargle.com> <4DE60918.3010008@redhat.com> <4DE60940.1070107@redhat.com> <4DE61A2B.7000008@fnarfbargle.com> <20110601111841.GB3956@zip.com.au> <4DE62801.9080804@fnarfbargle.com> <20110601230342.GC3956@zip.com.au> <4DE8E3ED.7080004@fnarfbargle.com>
-In-Reply-To: <4DE8E3ED.7080004@fnarfbargle.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Brad Campbell <lists2009@fnarfbargle.com>
-Cc: CaT <cat@zip.com.au>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Borislav Petkov <bp@alien8.de>, linux-kernel@vger.kernel.org, kvm@vger.kernel.org, linux-mm <linux-mm@kvack.org>, netdev <netdev@vger.kernel.org>
+To: linux-mm@kvack.org
+Cc: Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org
 
-On 06/03/2011 04:38 PM, Brad Campbell wrote:
->
-> Is there anyone who can point me at the appropriate cage to rattle? I 
-> know it appears to be a netfilter issue, but I don't seem to be able 
-> to get a message to the list (and I am subscribed to it and have been 
-> getting mail for months) and I'm not sure who to pester. The other 
-> alternative is I just stop doing "that" and wait for it to bite 
-> someone else.
+	When alloc_huge_page() runs afoul of quota, it returns ERR_PTR(-ENOSPC).
+Callers do not expect that - hugetlb_cow() returns ENOSPC if it gets that
+and so does hugetlb_no_page().  Eventually the thing propagates back to
+hugetlb_fault() and is returned by it.
 
-The mailing list might be set not to send your own mails back to you.  
-Check the list archive.
+	Callers of hugetlb_fault() clearly expect a bitmap of VM_... and
+not something from errno.h: one place is 
+                        ret = hugetlb_fault(mm, vma, vaddr,
+                                (flags & FOLL_WRITE) ? FAULT_FLAG_WRITE : 0);
+                        spin_lock(&mm->page_table_lock);
+                        if (!(ret & VM_FAULT_ERROR))
+                                continue;
+and another is handle_mm_fault(), which ends up returning ENOSPC and *its*
+callers are definitely not ready to deal with that.
 
--- 
-error compiling committee.c: too many arguments to function
+ENOSPC is 28, i.e. VM_FAULT_MAJOR | VM_FAULT_WRITE | VM_FAULT_HWPOISON;
+it's also theoretically possible to get ENOMEM if region_chg() ends up
+hitting
+                nrg = kmalloc(sizeof(*nrg), GFP_KERNEL);
+                if (!nrg)
+                        return -ENOMEM;
+region_chg() <- vma_needs_reservation() <- alloc_huge_page() and from that
+point as with ENOSPC.  ENOMEM is 12, i.e. VM_FAULT_MAJOR | VM_FAULT_WRITE...
+
+Am I right assuming that we want VM_FAULT_OOM in both cases?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
