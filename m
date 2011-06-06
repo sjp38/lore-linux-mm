@@ -1,80 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id C68936B00F2
-	for <linux-mm@kvack.org>; Mon,  6 Jun 2011 01:37:20 -0400 (EDT)
-Received: from kpbe11.cbf.corp.google.com (kpbe11.cbf.corp.google.com [172.25.105.75])
-	by smtp-out.google.com with ESMTP id p565bGQw005191
-	for <linux-mm@kvack.org>; Sun, 5 Jun 2011 22:37:18 -0700
-Received: from pzk26 (pzk26.prod.google.com [10.243.19.154])
-	by kpbe11.cbf.corp.google.com with ESMTP id p565bCBA029811
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Sun, 5 Jun 2011 22:37:15 -0700
-Received: by pzk26 with SMTP id 26so1700466pzk.10
-        for <linux-mm@kvack.org>; Sun, 05 Jun 2011 22:37:12 -0700 (PDT)
-Date: Sun, 5 Jun 2011 22:37:08 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 3/14] tmpfs: take control of its truncate_range
-In-Reply-To: <20110603051609.GC16721@infradead.org>
-Message-ID: <alpine.LSU.2.00.1106052206260.17330@sister.anvils>
-References: <alpine.LSU.2.00.1105301726180.5482@sister.anvils> <alpine.LSU.2.00.1105301737040.5482@sister.anvils> <20110601003942.GB4433@infradead.org> <alpine.LSU.2.00.1106010940590.23468@sister.anvils> <20110603051609.GC16721@infradead.org>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id DF5DB6B004A
+	for <linux-mm@kvack.org>; Mon,  6 Jun 2011 04:37:49 -0400 (EDT)
+Received: by gwaa12 with SMTP id a12so1724768gwa.14
+        for <linux-mm@kvack.org>; Mon, 06 Jun 2011 01:37:46 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <20110602142242.GA4115@maxin>
+References: <20110602142242.GA4115@maxin>
+Date: Mon, 6 Jun 2011 09:37:46 +0100
+Message-ID: <BANLkTimYw-WAK3Hd21XQWrjBn_1+wRMzUQ@mail.gmail.com>
+Subject: Re: [PATCH] mm: dmapool: fix possible use after free in dmam_pool_destroy()
+From: Maxin B John <maxin.john@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: eike-kernel@sf-tec.de
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, dima@android.com, willy@linux.intel.com, segooon@gmail.com, tj@kernel.org, jkosina@suse.cz, tglx@linutronix.de
 
-On Fri, 3 Jun 2011, Christoph Hellwig wrote:
-> On Wed, Jun 01, 2011 at 09:58:18AM -0700, Hugh Dickins wrote:
-> 
-> > Fine, I'll add tmpfs PUNCH_HOLE later on.  And wire up madvise MADV_REMOVE
-> > to fallocate PUNCH_HOLE, yes?
-> 
-> Yeah.  One thing I've noticed is that the hole punching doesn't seem
-> to do the unmap_mapping_range.  It might be worth to audit that from the
-> VM point of view.
+Hi,
 
-I'd noticed that recently too.
+On Thu, Jun 2, 2011 at 3:22 PM, Maxin B John <maxin.john@gmail.com> wrote:
+> On Thu, Jun 2, 2011 at 12:47 PM, Rolf Eike Beer <eike-kernel@sf-tec.de> w=
+rote:
+>> Maxin B John wrote:
+>>> "dma_pool_destroy(pool)" calls "kfree(pool)". The freed pointer
+>>> "pool" is again passed as an argument to the function "devres_destroy()=
+".
+>>> This patch fixes the possible use after free.
+>>
+>> The pool itself is not used there, only the address where the pool
+>> has been.This will only lead to any trouble if something else is allocat=
+ed to
+>> the same place and inserted into the devres list of the same device betw=
+een
+>> the dma_pool_destroy() and devres_destroy().
+>
+> Thank you very much for explaining it in detail.
+>
+>> But I agree that this is bad style. But if you are going to change
+>> this please also have a look at devm_iounmap() in lib/devres.c. Maybe al=
+so the
+>> devm_*irq* functions need the same changes.
+>
+> As per your suggestion, I have made similar modifications for lib/devres.=
+c and
+> kernel/irq/devres.c
+>
+> CCed the maintainers of the respective files.
+>
+> Signed-off-by: Maxin B. John <maxin.john@gmail.com>
+> ---
+> diff --git a/kernel/irq/devres.c b/kernel/irq/devres.c
+> index 1ef4ffc..bd8e788 100644
+> --- a/kernel/irq/devres.c
+> +++ b/kernel/irq/devres.c
+> @@ -87,8 +87,8 @@ void devm_free_irq(struct device *dev, unsigned int irq=
+, void *dev_id)
+> =A0{
+> =A0 =A0 =A0 =A0struct irq_devres match_data =3D { irq, dev_id };
+>
+> - =A0 =A0 =A0 free_irq(irq, dev_id);
+> =A0 =A0 =A0 =A0WARN_ON(devres_destroy(dev, devm_irq_release, devm_irq_mat=
+ch,
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 &match_data))=
+;
+> + =A0 =A0 =A0 free_irq(irq, dev_id);
+> =A0}
+> =A0EXPORT_SYMBOL(devm_free_irq);
+> diff --git a/lib/devres.c b/lib/devres.c
+> index 6efddf5..7c0e953 100644
+> --- a/lib/devres.c
+> +++ b/lib/devres.c
+> @@ -79,9 +79,9 @@ EXPORT_SYMBOL(devm_ioremap_nocache);
+> =A0*/
+> =A0void devm_iounmap(struct device *dev, void __iomem *addr)
+> =A0{
+> - =A0 =A0 =A0 iounmap(addr);
+> =A0 =A0 =A0 =A0WARN_ON(devres_destroy(dev, devm_ioremap_release, devm_ior=
+emap_match,
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 (void *)addr)=
+);
+> + =A0 =A0 =A0 iounmap(addr);
+> =A0}
+> =A0EXPORT_SYMBOL(devm_iounmap);
+>
 
-At first I was alarmed, but it's actually an inefficiency rather than
-a danger: because at some stage a safety unmap_mapping_range() call has
-been added into truncate_inode_page().  I don't know what case that was
-originally for, but it will cover fallocate() for now.
+Could you please let me know your thoughts on this patch ?
 
-This is a call to unmap_mapping_range() with 0 for the even_cows arg
-i.e. it will not remove COWed copies of the file page from private
-mappings.  I think that's good semantics for hole punching (and it's
-difficult to enforce the alternative, because we've neither i_size nor
-page lock to prevent races); but it does differ from the (odd) POSIX
-truncation behaviour, to unmap even the private COWs.
-
-What do you think?  If you think we should unmap COWs, then it ought
-to be corrrected sooner.  Otherwise I was inclined not to rush (I'm
-also wondering about cleancache in truncation: that should be another
-mail thread, but might call for passing down a flag useful here too).
-
-You might notice that the alternate hole-punching's vmtruncate_range()
-is passing even_cows 1: doesn't matter in practice, since that one has
-been restricted to operating on shared writable mappings.  Oh, I
-suppose there could also be a parallel private writable mapping,
-whose COWs would get unmapped.  Hmm, worth worrying about if we
-choose the opposite with fallocate hole punching?
-
-> 
-> > Would you like me to remove the ->truncate_range method from
-> > inode_operations completely?
-> 
-> Doing that would be nice.  Do we always have the required file struct
-> for ->fallocate in the callers?
-
-Good point, but yes, no problem.
-
-I'm carrying on using ->truncate_range for the moment, partly because
-I don't want to get diverted by testing the ->fallocate alternative yet,
-but also because removing ->truncate_range now would force an immediate
-change on drm/i915: better use shmem_truncate_range() for the transition.
-
-Hugh
+Best Regards,
+Maxin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
