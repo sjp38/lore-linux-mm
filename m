@@ -1,56 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E69A6B0139
-	for <linux-mm@kvack.org>; Mon,  6 Jun 2011 01:03:30 -0400 (EDT)
-Received: from kpbe19.cbf.corp.google.com (kpbe19.cbf.corp.google.com [172.25.105.83])
-	by smtp-out.google.com with ESMTP id p5653SAZ007625
-	for <linux-mm@kvack.org>; Sun, 5 Jun 2011 22:03:28 -0700
-Received: from iwl42 (iwl42.prod.google.com [10.241.67.234])
-	by kpbe19.cbf.corp.google.com with ESMTP id p5653O9T025011
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id C68936B00F2
+	for <linux-mm@kvack.org>; Mon,  6 Jun 2011 01:37:20 -0400 (EDT)
+Received: from kpbe11.cbf.corp.google.com (kpbe11.cbf.corp.google.com [172.25.105.75])
+	by smtp-out.google.com with ESMTP id p565bGQw005191
+	for <linux-mm@kvack.org>; Sun, 5 Jun 2011 22:37:18 -0700
+Received: from pzk26 (pzk26.prod.google.com [10.243.19.154])
+	by kpbe11.cbf.corp.google.com with ESMTP id p565bCBA029811
 	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Sun, 5 Jun 2011 22:03:26 -0700
-Received: by iwl42 with SMTP id 42so3904347iwl.4
-        for <linux-mm@kvack.org>; Sun, 05 Jun 2011 22:03:24 -0700 (PDT)
-Date: Sun, 5 Jun 2011 22:03:13 -0700 (PDT)
+	for <linux-mm@kvack.org>; Sun, 5 Jun 2011 22:37:15 -0700
+Received: by pzk26 with SMTP id 26so1700466pzk.10
+        for <linux-mm@kvack.org>; Sun, 05 Jun 2011 22:37:12 -0700 (PDT)
+Date: Sun, 5 Jun 2011 22:37:08 -0700 (PDT)
 From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH] mm: fix ENOSPC returned by handle_mm_fault()
-In-Reply-To: <20110605221344.GJ11521@ZenIV.linux.org.uk>
-Message-ID: <alpine.LSU.2.00.1106052145370.17285@sister.anvils>
-References: <20110605134317.GF11521@ZenIV.linux.org.uk> <alpine.LSU.2.00.1106051141570.5792@sister.anvils> <20110605195025.GH11521@ZenIV.linux.org.uk> <alpine.LSU.2.00.1106051339001.8317@sister.anvils> <20110605221344.GJ11521@ZenIV.linux.org.uk>
+Subject: Re: [PATCH 3/14] tmpfs: take control of its truncate_range
+In-Reply-To: <20110603051609.GC16721@infradead.org>
+Message-ID: <alpine.LSU.2.00.1106052206260.17330@sister.anvils>
+References: <alpine.LSU.2.00.1105301726180.5482@sister.anvils> <alpine.LSU.2.00.1105301737040.5482@sister.anvils> <20110601003942.GB4433@infradead.org> <alpine.LSU.2.00.1106010940590.23468@sister.anvils> <20110603051609.GC16721@infradead.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Al Viro observes that in the hugetlb case, handle_mm_fault() may return
-a value of the kind ENOSPC when its caller is expecting a value of the
-kind VM_FAULT_SIGBUS: fix alloc_huge_page()'s failure returns.
+On Fri, 3 Jun 2011, Christoph Hellwig wrote:
+> On Wed, Jun 01, 2011 at 09:58:18AM -0700, Hugh Dickins wrote:
+> 
+> > Fine, I'll add tmpfs PUNCH_HOLE later on.  And wire up madvise MADV_REMOVE
+> > to fallocate PUNCH_HOLE, yes?
+> 
+> Yeah.  One thing I've noticed is that the hole punching doesn't seem
+> to do the unmap_mapping_range.  It might be worth to audit that from the
+> VM point of view.
 
-Signed-off-by: Hugh Dickins <hughd@google.com>
-Acked-by: Al Viro <viro@zeniv.linux.org.uk>
-Cc: stable@kernel.org
----
+I'd noticed that recently too.
 
- mm/hugetlb.c |    4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+At first I was alarmed, but it's actually an inefficiency rather than
+a danger: because at some stage a safety unmap_mapping_range() call has
+been added into truncate_inode_page().  I don't know what case that was
+originally for, but it will cover fallocate() for now.
 
---- 3.0-rc1/mm/hugetlb.c	2011-05-29 18:42:37.425882575 -0700
-+++ linux/mm/hugetlb.c	2011-06-05 13:33:22.795341004 -0700
-@@ -1033,10 +1033,10 @@ static struct page *alloc_huge_page(stru
- 	 */
- 	chg = vma_needs_reservation(h, vma, addr);
- 	if (chg < 0)
--		return ERR_PTR(chg);
-+		return ERR_PTR(-VM_FAULT_OOM);
- 	if (chg)
- 		if (hugetlb_get_quota(inode->i_mapping, chg))
--			return ERR_PTR(-ENOSPC);
-+			return ERR_PTR(-VM_FAULT_SIGBUS);
- 
- 	spin_lock(&hugetlb_lock);
- 	page = dequeue_huge_page_vma(h, vma, addr, avoid_reserve);
+This is a call to unmap_mapping_range() with 0 for the even_cows arg
+i.e. it will not remove COWed copies of the file page from private
+mappings.  I think that's good semantics for hole punching (and it's
+difficult to enforce the alternative, because we've neither i_size nor
+page lock to prevent races); but it does differ from the (odd) POSIX
+truncation behaviour, to unmap even the private COWs.
+
+What do you think?  If you think we should unmap COWs, then it ought
+to be corrrected sooner.  Otherwise I was inclined not to rush (I'm
+also wondering about cleancache in truncation: that should be another
+mail thread, but might call for passing down a flag useful here too).
+
+You might notice that the alternate hole-punching's vmtruncate_range()
+is passing even_cows 1: doesn't matter in practice, since that one has
+been restricted to operating on shared writable mappings.  Oh, I
+suppose there could also be a parallel private writable mapping,
+whose COWs would get unmapped.  Hmm, worth worrying about if we
+choose the opposite with fallocate hole punching?
+
+> 
+> > Would you like me to remove the ->truncate_range method from
+> > inode_operations completely?
+> 
+> Doing that would be nice.  Do we always have the required file struct
+> for ->fallocate in the callers?
+
+Good point, but yes, no problem.
+
+I'm carrying on using ->truncate_range for the moment, partly because
+I don't want to get diverted by testing the ->fallocate alternative yet,
+but also because removing ->truncate_range now would force an immediate
+change on drm/i915: better use shmem_truncate_range() for the transition.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
