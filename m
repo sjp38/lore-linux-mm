@@ -1,109 +1,160 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 2354C6B004A
-	for <linux-mm@kvack.org>; Mon,  6 Jun 2011 08:50:23 -0400 (EDT)
-Date: Mon, 6 Jun 2011 14:49:54 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH] mm: compaction: Abort compaction if too many pages are
- isolated and caller is asynchronous
-Message-ID: <20110606124954.GC12887@random.random>
-References: <20110531143830.GC13418@barrios-laptop>
- <20110602182302.GA2802@random.random>
- <20110602202156.GA23486@barrios-laptop>
- <20110602214041.GF2802@random.random>
- <BANLkTim1WjdHWOQp7bMg5pFFKp1SSFoLKw@mail.gmail.com>
- <20110602223201.GH2802@random.random>
- <BANLkTikA+ugFNS95Zs_o6QqG2u4r2g93=Q@mail.gmail.com>
- <20110603173707.GL2802@random.random>
- <20110603180730.GM2802@random.random>
- <20110606103216.GC5247@suse.de>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id F1F726B004A
+	for <linux-mm@kvack.org>; Mon,  6 Jun 2011 08:54:34 -0400 (EDT)
+Date: Mon, 6 Jun 2011 14:54:21 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [Bugme-new] [Bug 36192] New: Kernel panic when boot the 2.6.39+
+ kernel based off of 2.6.32 kernel
+Message-ID: <20110606125421.GB30184@cmpxchg.org>
+References: <bug-36192-10286@https.bugzilla.kernel.org/>
+ <20110529231948.e1439ce5.akpm@linux-foundation.org>
+ <20110530160114.5a82e590.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110530162904.b78bf354.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110530165453.845bba09.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110530175140.3644b3bf.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110606103216.GC5247@suse.de>
+In-Reply-To: <20110530175140.3644b3bf.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Minchan Kim <minchan.kim@gmail.com>, Mel Gorman <mel@csn.ul.ie>, akpm@linux-foundation.org, Ury Stankevich <urykhy@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org, qcui@redhat.com, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>
 
-On Mon, Jun 06, 2011 at 11:32:16AM +0100, Mel Gorman wrote:
-> This patch is pulling in stuff from Minchan. Minimally his patch should
-> be kept separate to preserve history or his Signed-off should be
-> included on this patch.
+Cc Mel for memory model
 
-Well I didn't apply Minchan's patch, just improved it as he suggested
-from pseudocode, but I can add his signed-off-by no prob.
-
-> I still think this optimisation is rare and only applies if we are
-> encountering huge pages during the linear scan. How often are we doing
-> that really?
-
-Well it's so fast to do it, that it looks worthwhile. You probably
-noticed initially I suggested only the fix for page_count
-(theoretical) oops, and I argued we could improve some more bits, but
-then it was kind of obvious to improve the upper side of the loop too
-according to pseudocode.
-
+On Mon, May 30, 2011 at 05:51:40PM +0900, KAMEZAWA Hiroyuki wrote:
+> On Mon, 30 May 2011 16:54:53 +0900
+> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 > 
-> > +				VM_BUG_ON(!isolated_pages);
+> > On Mon, 30 May 2011 16:29:04 +0900
+> > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 > 
-> This BUG_ON is overkill. hpage_nr_pages would have to return 0.
+> > SRAT: Node 1 PXM 1 0-a0000
+> > SRAT: Node 1 PXM 1 100000-c8000000
+> > SRAT: Node 1 PXM 1 100000000-438000000
+> > SRAT: Node 3 PXM 3 438000000-838000000
+> > SRAT: Node 5 PXM 5 838000000-c38000000
+> > SRAT: Node 7 PXM 7 c38000000-1038000000
+> > 
+> > Initmem setup node 1 0000000000000000-0000000438000000
+> >   NODE_DATA [0000000437fd9000 - 0000000437ffffff]
+> > Initmem setup node 3 0000000438000000-0000000838000000
+> >   NODE_DATA [0000000837fd9000 - 0000000837ffffff]
+> > Initmem setup node 5 0000000838000000-0000000c38000000
+> >   NODE_DATA [0000000c37fd9000 - 0000000c37ffffff]
+> > Initmem setup node 7 0000000c38000000-0000001038000000
+> >   NODE_DATA [0000001037fd7000 - 0000001037ffdfff]
+> > [ffffea000ec40000-ffffea000edfffff] potential offnode page_structs
+> > [ffffea001cc40000-ffffea001cdfffff] potential offnode page_structs
+> > [ffffea002ac40000-ffffea002adfffff] potential offnode page_structs
+> > ==
+> > 
+> > Hmm..there are four nodes 1,3,5,7 but....no memory on node 0 hmm ?
+> > 
 > 
-> > +				VM_BUG_ON(isolated_pages > MAX_ORDER_NR_PAGES);
+> I think I found a reason and this is a possible fix. But need to be tested.
+> And suggestion for better fix rather than this band-aid is appreciated.
 > 
-> This would require order > MAX_ORDER_NR_PAGES to be passed into
-> isolate_lru_pages or for a huge page to be unaligned to a power of
-> two. The former is very unlikely and the latter is not supported by
-> any CPU.
-
-Minchan also disliked the VM_BUG_ON, it's clearly way overkill, but
-frankly the pfn physical scans are tricky enough things and if there's
-a race and the order is wrong for whatever reason (no compound page or
-overwritten by driver messing with subpages) we'll just trip into some
-weird pointer next iteration (or maybe not and it'll go ahead
-unnoticed if it's not beyond the range) and in that case I'd like to
-notice immediately.
-
-But probably it's too paranoid even of a VM_BUG_ON so I surely can
-remove it...
-
+> ==
+> >From b95edcf43619312f72895476c3e6ef46079bb05f Mon Sep 17 00:00:00 2001
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Date: Mon, 30 May 2011 16:49:59 +0900
+> Subject: [PATCH][BUGFIX] fallbacks at page_cgroup allocation.
 > 
-> >  			} else {
-> > -				/* the page is freed already. */
-> > -				if (!page_count(cursor_page))
-> > +				/*
-> > +				 * Check if the page is freed already.
-> > +				 *
-> > +				 * We can't use page_count() as that
-> > +				 * requires compound_head and we don't
-> > +				 * have a pin on the page here. If a
-> > +				 * page is tail, we may or may not
-> > +				 * have isolated the head, so assume
-> > +				 * it's not free, it'd be tricky to
-> > +				 * track the head status without a
-> > +				 * page pin.
-> > +				 */
-> > +				if (!PageTail(cursor_page) &&
-> > +				    !__page_count(cursor_page))
-> >  					continue;
-> >  				break;
+> Under SPARSEMEM, the page_struct is allocated per section.
+> Then, pfn_valid() for the whole section is "true" and there are page
+> structs. But, it's not related to valid range of [start_pfn, end_pfn)
+> and some page structs may not be initialized collectly because
+> it's not a valid pages.
+> (memmap_init_zone() skips a page which is not correct in
+>  early_node_map[] and page->flags is initialized to be 0.)
 > 
-> Ack to this part.
+> In this case, a page->flags can be '0'. Assume a case where
+> node 0 has no memory....
+> 
+> page_cgroup is allocated onto the node
+> 
+>    - page_to_nid(head of section pfn)
+> 
+> Head's pfn will be valid (struct page exists) but page->flags is 0 and contains
+> node_id:0. This causes allocation onto NODE_DATA(0) and cause panic.
+> 
+> This patch makes page_cgroup to use alloc_pages_exact() only
+> when NID is N_NORMAL_MEMORY.
 
-This is also the only important part that fixes the potential oops.
+I don't like this much as it essentially will allocate the array from
+a (semantically) random node, as long as it has memory.
 
-> I'm not keen on __page_count() as __ normally means the "unlocked"
-> version of a function although I realise that rule isn't universal
-> either. I can't think of a better name though.
+IMO, the problem is either 1) looking at PFNs outside known node
+ranges, or 2) having present/valid sections partially outside of node
+ranges.  I am leaning towards 2), so I am wondering about the
+following fix:
 
-If better suggestions comes to mind I can change it... Or I can also
-use atomic_read like in the first patch... it's up to you. I figured
-it wasn't so nice to call atomic_read and there are other places in
-huge_memory.c that used that for bugchecks and it can be cleaned up
-with __page_count. The _count having _ prefix is the thing that makes
-it look like a more private field not to use in generic VM code so the
-raw value can be altered without changing all callers of __page_count
-similar to _mapcount.
+---
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: [patch] sparse: only mark sections present when fully covered by memory
+
+When valid memory ranges are to be registered with sparsemem, make
+sure that only fully covered sections are marked as present.
+
+Otherwise we end up with PFN ranges that are reported present and
+valid but are actually backed by uninitialized mem map.
+
+The page_cgroup allocator relies on pfn_present() being reliable for
+all PFNs between 0 and max_pfn, then retrieve the node id stored in
+the corresponding page->flags to allocate the per-section page_cgroup
+arrays on the local node.
+
+This lead to at least one crash in the page allocator on a system
+where the uninitialized page struct returned the id for node 0, which
+had no memory itself.
+
+Reported-by: qcui@redhat.com
+Debugged-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Not-Yet-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+---
+
+diff --git a/mm/sparse.c b/mm/sparse.c
+index aa64b12..a4fbeb8 100644
+--- a/mm/sparse.c
++++ b/mm/sparse.c
+@@ -182,7 +182,9 @@ void __init memory_present(int nid, unsigned long start, unsigned long end)
+ {
+ 	unsigned long pfn;
+ 
+-	start &= PAGE_SECTION_MASK;
++	start = ALIGN(start, PAGES_PER_SECTION);
++	end &= PAGE_SECTION_MASK;
++
+ 	mminit_validate_memmodel_limits(&start, &end);
+ 	for (pfn = start; pfn < end; pfn += PAGES_PER_SECTION) {
+ 		unsigned long section = pfn_to_section_nr(pfn);
+
+---
+
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> ---
+>  mm/page_cgroup.c |    5 ++++-
+>  1 files changed, 4 insertions(+), 1 deletions(-)
+> 
+> diff --git a/mm/page_cgroup.c b/mm/page_cgroup.c
+> index 74ccff6..3b0c8f2 100644
+> --- a/mm/page_cgroup.c
+> +++ b/mm/page_cgroup.c
+> @@ -134,7 +134,10 @@ static void *__meminit alloc_page_cgroup(size_t size, int nid)
+>  {
+>  	void *addr = NULL;
+>  
+> -	addr = alloc_pages_exact_nid(nid, size, GFP_KERNEL | __GFP_NOWARN);
+> +	if (node_state(nid, N_NORMAL_MEMORY))
+> +		addr = alloc_pages_exact_nid(nid, size, GFP_KERNEL | __GFP_NOWARN);
+> +	if (!addr)
+> +		addr = alloc_pages_exact(size, GFP_KERNEL | __GFP_NOWARN);
+>  	if (addr)
+>  		return addr;
+>  
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
