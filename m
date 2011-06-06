@@ -1,104 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 440C16B004A
-	for <linux-mm@kvack.org>; Mon,  6 Jun 2011 18:16:53 -0400 (EDT)
-Date: Mon, 6 Jun 2011 15:16:14 -0700
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 676086B004A
+	for <linux-mm@kvack.org>; Mon,  6 Jun 2011 18:32:57 -0400 (EDT)
+Date: Mon, 6 Jun 2011 15:32:22 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: Fix assertion mapping->nrpages == 0 in
- end_writeback()
-Message-Id: <20110606151614.0037e236.akpm@linux-foundation.org>
-In-Reply-To: <1306748258-4732-1-git-send-email-jack@suse.cz>
-References: <1306748258-4732-1-git-send-email-jack@suse.cz>
+Subject: Re: [PATCH] mm: compaction: Abort compaction if too many pages are
+ isolated and caller is asynchronous
+Message-Id: <20110606153222.68dc2636.akpm@linux-foundation.org>
+In-Reply-To: <20110603154554.GK2802@random.random>
+References: <20110601175809.GB7306@suse.de>
+	<20110601191529.GY19505@random.random>
+	<20110601214018.GC7306@suse.de>
+	<20110601233036.GZ19505@random.random>
+	<20110602010352.GD7306@suse.de>
+	<20110602132954.GC19505@random.random>
+	<20110602145019.GG7306@suse.de>
+	<20110602153754.GF19505@random.random>
+	<20110603020920.GA26753@suse.de>
+	<20110603144941.GI7306@suse.de>
+	<20110603154554.GK2802@random.random>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: linux-mm@kvack.org, Al Viro <viro@ZenIV.linux.org.uk>, mszeredi@suse.cz, Jay <jinshan.xiong@whamcloud.com>, stable@kernel.org, Nick Piggin <npiggin@kernel.dk>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Ury Stankevich <urykhy@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, stable@kernel.org
 
-On Mon, 30 May 2011 11:37:38 +0200
-Jan Kara <jack@suse.cz> wrote:
+On Fri, 3 Jun 2011 17:45:54 +0200
+Andrea Arcangeli <aarcange@redhat.com> wrote:
 
-> Under heavy memory and filesystem load, users observe the assertion
-> mapping->nrpages == 0 in end_writeback() trigger. This can be caused
-> by page reclaim reclaiming the last page from a mapping in the following
-> race:
-> 	CPU0				CPU1
->   ...
->   shrink_page_list()
->     __remove_mapping()
->       __delete_from_page_cache()
->         radix_tree_delete()
-> 					evict_inode()
-> 					  truncate_inode_pages()
-> 					    truncate_inode_pages_range()
-> 					      pagevec_lookup() - finds nothing
-> 					  end_writeback()
-> 					    mapping->nrpages != 0 -> BUG
->         page->mapping = NULL
->         mapping->nrpages--
+> On Fri, Jun 03, 2011 at 03:49:41PM +0100, Mel Gorman wrote:
+> > Right idea of the wrong zone being accounted for but wrong place. I
+> > think the following patch should fix the problem;
 > 
-> Fix the problem by cycling the mapping->tree_lock at the end of
-> truncate_inode_pages_range() to synchronize with page reclaim.
+> Looks good thanks.
 > 
-> Analyzed by Jay <jinshan.xiong@whamcloud.com>, lost in LKML, and dug
-> out by Miklos Szeredi <mszeredi@suse.de>.
+> I also found this bug during my debugging that made NR_SHMEM underflow.
 > 
-> CC: Jay <jinshan.xiong@whamcloud.com>
-> CC: stable@kernel.org
-> Acked-by: Miklos Szeredi <mszeredi@suse.de>
-> Signed-off-by: Jan Kara <jack@suse.cz>
+> ===
+> Subject: migrate: don't account swapcache as shmem
+> 
+> From: Andrea Arcangeli <aarcange@redhat.com>
+> 
+> swapcache will reach the below code path in migrate_page_move_mapping,
+> and swapcache is accounted as NR_FILE_PAGES but it's not accounted as
+> NR_SHMEM.
+> 
+> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 > ---
->  mm/truncate.c |    7 +++++++
->  1 files changed, 7 insertions(+), 0 deletions(-)
 > 
->  Andrew, would you merge this patch please? Thanks.
-> 
-> diff --git a/mm/truncate.c b/mm/truncate.c
-> index a956675..ec3d292 100644
-> --- a/mm/truncate.c
-> +++ b/mm/truncate.c
-> @@ -291,6 +291,13 @@ void truncate_inode_pages_range(struct address_space *mapping,
->  		pagevec_release(&pvec);
->  		mem_cgroup_uncharge_end();
+> diff --git a/mm/migrate.c b/mm/migrate.c
+> index e4a5c91..2597a27 100644
+> --- a/mm/migrate.c
+> +++ b/mm/migrate.c
+> @@ -288,7 +288,7 @@ static int migrate_page_move_mapping(struct address_space *mapping,
+>  	 */
+>  	__dec_zone_page_state(page, NR_FILE_PAGES);
+>  	__inc_zone_page_state(newpage, NR_FILE_PAGES);
+> -	if (PageSwapBacked(page)) {
+> +	if (mapping != &swapper_space && PageSwapBacked(page)) {
+>  		__dec_zone_page_state(page, NR_SHMEM);
+>  		__inc_zone_page_state(newpage, NR_SHMEM);
 >  	}
-> +	/*
-> +	 * Cycle the tree_lock to make sure all __delete_from_page_cache()
-> +	 * calls run from page reclaim have finished as well (this handles the
-> +	 * case when page reclaim took the last page from our range).
-> +	 */
-> +	spin_lock_irq(&mapping->tree_lock);
-> +	spin_unlock_irq(&mapping->tree_lock);
->  }
->  EXPORT_SYMBOL(truncate_inode_pages_range);
 
-That's one ugly patch.
+fyi, this was the only patch I applied from this whole thread.  Once the
+dust has settled, could people please resend whatever they have,
+including any acked-by's and reviewed-by's?
 
-
-Perhaps this regression was added by Nick's RCUification of pagecache. 
-
-Before that patch, mapping->nrpages and the radix-tree state were
-coherent for holders of tree_lock.  So pagevec_lookup() would never
-return "no pages" while ->nrpages is non-zero.
-
-After that patch, find_get_pages() uses RCU to protect the radix-tree
-but I don't think it correctly protects the aggregate (radix-tree +
-nrpages).
-
-
-If it's not that then I see another possibility. 
-truncate_inode_pages_range() does
-
-        if (mapping->nrpages == 0)
-                return;
-
-Is there anything to prevent a page getting added to the inode _after_
-this test?  i_mutex?  If not, that would trigger the BUG.
-
-
-Either way, I don't think that the uglypatch expresses a full
-understanding of te bug ;)
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
