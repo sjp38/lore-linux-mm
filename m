@@ -1,160 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id F1F726B004A
-	for <linux-mm@kvack.org>; Mon,  6 Jun 2011 08:54:34 -0400 (EDT)
-Date: Mon, 6 Jun 2011 14:54:21 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [Bugme-new] [Bug 36192] New: Kernel panic when boot the 2.6.39+
- kernel based off of 2.6.32 kernel
-Message-ID: <20110606125421.GB30184@cmpxchg.org>
-References: <bug-36192-10286@https.bugzilla.kernel.org/>
- <20110529231948.e1439ce5.akpm@linux-foundation.org>
- <20110530160114.5a82e590.kamezawa.hiroyu@jp.fujitsu.com>
- <20110530162904.b78bf354.kamezawa.hiroyu@jp.fujitsu.com>
- <20110530165453.845bba09.kamezawa.hiroyu@jp.fujitsu.com>
- <20110530175140.3644b3bf.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id CB2926B004A
+	for <linux-mm@kvack.org>; Mon,  6 Jun 2011 09:23:33 -0400 (EDT)
+Received: by pxi10 with SMTP id 10so2818888pxi.8
+        for <linux-mm@kvack.org>; Mon, 06 Jun 2011 06:23:32 -0700 (PDT)
+Date: Mon, 6 Jun 2011 22:23:21 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: Re: [PATCH] mm: compaction: Abort compaction if too many pages are
+ isolated and caller is asynchronous
+Message-ID: <20110606132321.GA1686@barrios-laptop>
+References: <20110601214018.GC7306@suse.de>
+ <20110601233036.GZ19505@random.random>
+ <20110602010352.GD7306@suse.de>
+ <20110602132954.GC19505@random.random>
+ <20110602145019.GG7306@suse.de>
+ <20110602153754.GF19505@random.random>
+ <20110603020920.GA26753@suse.de>
+ <20110603144941.GI7306@suse.de>
+ <20110604065853.GA4114@barrios-laptop>
+ <20110606104345.GE5247@suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110530175140.3644b3bf.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110606104345.GE5247@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org, qcui@redhat.com, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, akpm@linux-foundation.org, Ury Stankevich <urykhy@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, stable@kernel.org
 
-Cc Mel for memory model
-
-On Mon, May 30, 2011 at 05:51:40PM +0900, KAMEZAWA Hiroyuki wrote:
-> On Mon, 30 May 2011 16:54:53 +0900
-> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> 
-> > On Mon, 30 May 2011 16:29:04 +0900
-> > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> 
-> > SRAT: Node 1 PXM 1 0-a0000
-> > SRAT: Node 1 PXM 1 100000-c8000000
-> > SRAT: Node 1 PXM 1 100000000-438000000
-> > SRAT: Node 3 PXM 3 438000000-838000000
-> > SRAT: Node 5 PXM 5 838000000-c38000000
-> > SRAT: Node 7 PXM 7 c38000000-1038000000
+On Mon, Jun 06, 2011 at 11:43:45AM +0100, Mel Gorman wrote:
+> On Sat, Jun 04, 2011 at 03:58:53PM +0900, Minchan Kim wrote:
+> > On Fri, Jun 03, 2011 at 03:49:41PM +0100, Mel Gorman wrote:
+> > > On Fri, Jun 03, 2011 at 03:09:20AM +0100, Mel Gorman wrote:
+> > > > On Thu, Jun 02, 2011 at 05:37:54PM +0200, Andrea Arcangeli wrote:
+> > > > > > There is an explanation in here somewhere because as I write this,
+> > > > > > the test machine has survived 14 hours under continual stress without
+> > > > > > the isolated counters going negative with over 128 million pages
+> > > > > > successfully migrated and a million pages failed to migrate due to
+> > > > > > direct compaction being called 80,000 times. It's possible it's a
+> > > > > > co-incidence but it's some co-incidence!
+> > > > > 
+> > > > > No idea...
+> > > > 
+> > > > I wasn't able to work on this most of the day but was looking at this
+> > > > closer this evening again and I think I might have thought of another
+> > > > theory that could cause this problem.
+> > > > 
+> > > > When THP is isolating pages, it accounts for the pages isolated against
+> > > > the zone of course. If it backs out, it finds the pages from the PTEs.
+> > > > On !SMP but PREEMPT, we may not have adequate protection against a new
+> > > > page from a different zone being inserted into the PTE causing us to
+> > > > decrement against the wrong zone. While the global counter is fine,
+> > > > the per-zone counters look corrupted. You'd still think it was the
+> > > > anon counter tht got screwed rather than the file one if it really was
+> > > > THP unfortunately so it's not the full picture. I'm going to start
+> > > > a test monitoring both zoneinfo and vmstat to see if vmstat looks
+> > > > fine while the per-zone counters that are negative are offset by a
+> > > > positive count on the other zones that when added together become 0.
+> > > > Hopefully it'll actually trigger overnight :/
+> > > > 
+> > > 
+> > > Right idea of the wrong zone being accounted for but wrong place. I
+> > > think the following patch should fix the problem;
+> > > 
+> > > ==== CUT HERE ===
+> > > mm: compaction: Ensure that the compaction free scanner does not move to the next zone
+> > > 
+> > > Compaction works with two scanners, a migration and a free
+> > > scanner. When the scanners crossover, migration within the zone is
+> > > complete. The location of the scanner is recorded on each cycle to
+> > > avoid excesive scanning.
+> > > 
+> > > When a zone is small and mostly reserved, it's very easy for the
+> > > migration scanner to be close to the end of the zone. Then the following
+> > > situation can occurs
+> > > 
+> > >   o migration scanner isolates some pages near the end of the zone
+> > >   o free scanner starts at the end of the zone but finds that the
+> > >     migration scanner is already there
+> > >   o free scanner gets reinitialised for the next cycle as
+> > >     cc->migrate_pfn + pageblock_nr_pages
+> > >     moving the free scanner into the next zone
+> > >   o migration scanner moves into the next zone but continues accounting
+> > >     against the old zone
+> > > 
+> > > When this happens, NR_ISOLATED accounting goes haywire because some
+> > > of the accounting happens against the wrong zone. One zones counter
+> > > remains positive while the other goes negative even though the overall
+> > > global count is accurate. This was reported on X86-32 with !SMP because
+> > > !SMP allows the negative counters to be visible. The fact that it is
+> > > difficult to reproduce on X86-64 is probably just a co-incidence as
 > > 
-> > Initmem setup node 1 0000000000000000-0000000438000000
-> >   NODE_DATA [0000000437fd9000 - 0000000437ffffff]
-> > Initmem setup node 3 0000000438000000-0000000838000000
-> >   NODE_DATA [0000000837fd9000 - 0000000837ffffff]
-> > Initmem setup node 5 0000000838000000-0000000c38000000
-> >   NODE_DATA [0000000c37fd9000 - 0000000c37ffffff]
-> > Initmem setup node 7 0000000c38000000-0000001038000000
-> >   NODE_DATA [0000001037fd7000 - 0000001037ffdfff]
-> > [ffffea000ec40000-ffffea000edfffff] potential offnode page_structs
-> > [ffffea001cc40000-ffffea001cdfffff] potential offnode page_structs
-> > [ffffea002ac40000-ffffea002adfffff] potential offnode page_structs
-> > ==
-> > 
-> > Hmm..there are four nodes 1,3,5,7 but....no memory on node 0 hmm ?
+> > I guess it's related to zone sizes.
+> > X86-64 has small DMA and large DMA32 zones for fallback of NORMAL while
+> > x86 has just a small DMA(16M) zone.
 > > 
 > 
-> I think I found a reason and this is a possible fix. But need to be tested.
-> And suggestion for better fix rather than this band-aid is appreciated.
+> Yep, this is a possibility as well as the use of lowmem reserves.
 > 
-> ==
-> >From b95edcf43619312f72895476c3e6ef46079bb05f Mon Sep 17 00:00:00 2001
-> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Date: Mon, 30 May 2011 16:49:59 +0900
-> Subject: [PATCH][BUGFIX] fallbacks at page_cgroup allocation.
+> > I think DMA zone in x86 is easily full of non-LRU or non-movable pages.
 > 
-> Under SPARSEMEM, the page_struct is allocated per section.
-> Then, pfn_valid() for the whole section is "true" and there are page
-> structs. But, it's not related to valid range of [start_pfn, end_pfn)
-> and some page structs may not be initialized collectly because
-> it's not a valid pages.
-> (memmap_init_zone() skips a page which is not correct in
->  early_node_map[] and page->flags is initialized to be 0.)
-> 
-> In this case, a page->flags can be '0'. Assume a case where
-> node 0 has no memory....
-> 
-> page_cgroup is allocated onto the node
-> 
->    - page_to_nid(head of section pfn)
-> 
-> Head's pfn will be valid (struct page exists) but page->flags is 0 and contains
-> node_id:0. This causes allocation onto NODE_DATA(0) and cause panic.
-> 
-> This patch makes page_cgroup to use alloc_pages_exact() only
-> when NID is N_NORMAL_MEMORY.
+> Maybe not full, but it has more PageReserved pages than anywhere else
 
-I don't like this much as it essentially will allocate the array from
-a (semantically) random node, as long as it has memory.
+Yeb. It's very possible. 
 
-IMO, the problem is either 1) looking at PFNs outside known node
-ranges, or 2) having present/valid sections partially outside of node
-ranges.  I am leaning towards 2), so I am wondering about the
-following fix:
+> and few MIGRATE_MOVABLE blocks. MIGRATE_MOVABLE gets skipped during
+				  non-MIGRATE_MOVABLE gets skipped during
+To be clear for someone in future, let's fix typo.
 
----
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch] sparse: only mark sections present when fully covered by memory
+> async compaction we could easily reach the end of the DMA zone quickly.
 
-When valid memory ranges are to be registered with sparsemem, make
-sure that only fully covered sections are marked as present.
-
-Otherwise we end up with PFN ranges that are reported present and
-valid but are actually backed by uninitialized mem map.
-
-The page_cgroup allocator relies on pfn_present() being reliable for
-all PFNs between 0 and max_pfn, then retrieve the node id stored in
-the corresponding page->flags to allocate the per-section page_cgroup
-arrays on the local node.
-
-This lead to at least one crash in the page allocator on a system
-where the uninitialized page struct returned the id for node 0, which
-had no memory itself.
-
-Reported-by: qcui@redhat.com
-Debugged-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Not-Yet-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
----
-
-diff --git a/mm/sparse.c b/mm/sparse.c
-index aa64b12..a4fbeb8 100644
---- a/mm/sparse.c
-+++ b/mm/sparse.c
-@@ -182,7 +182,9 @@ void __init memory_present(int nid, unsigned long start, unsigned long end)
- {
- 	unsigned long pfn;
- 
--	start &= PAGE_SECTION_MASK;
-+	start = ALIGN(start, PAGES_PER_SECTION);
-+	end &= PAGE_SECTION_MASK;
-+
- 	mminit_validate_memmodel_limits(&start, &end);
- 	for (pfn = start; pfn < end; pfn += PAGES_PER_SECTION) {
- 		unsigned long section = pfn_to_section_nr(pfn);
-
----
-
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> ---
->  mm/page_cgroup.c |    5 ++++-
->  1 files changed, 4 insertions(+), 1 deletions(-)
-> 
-> diff --git a/mm/page_cgroup.c b/mm/page_cgroup.c
-> index 74ccff6..3b0c8f2 100644
-> --- a/mm/page_cgroup.c
-> +++ b/mm/page_cgroup.c
-> @@ -134,7 +134,10 @@ static void *__meminit alloc_page_cgroup(size_t size, int nid)
->  {
->  	void *addr = NULL;
->  
-> -	addr = alloc_pages_exact_nid(nid, size, GFP_KERNEL | __GFP_NOWARN);
-> +	if (node_state(nid, N_NORMAL_MEMORY))
-> +		addr = alloc_pages_exact_nid(nid, size, GFP_KERNEL | __GFP_NOWARN);
-> +	if (!addr)
-> +		addr = alloc_pages_exact(size, GFP_KERNEL | __GFP_NOWARN);
->  	if (addr)
->  		return addr;
->  
+-- 
+Kind regards
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
