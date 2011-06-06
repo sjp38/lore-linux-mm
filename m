@@ -1,65 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 433A16B004A
-	for <linux-mm@kvack.org>; Mon,  6 Jun 2011 10:26:34 -0400 (EDT)
-Received: by pzk4 with SMTP id 4so2352871pzk.14
-        for <linux-mm@kvack.org>; Mon, 06 Jun 2011 07:26:32 -0700 (PDT)
-Date: Mon, 6 Jun 2011 23:26:23 +0900
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 3F29D6B004A
+	for <linux-mm@kvack.org>; Mon,  6 Jun 2011 10:45:22 -0400 (EDT)
+Received: by pwi12 with SMTP id 12so2639590pwi.14
+        for <linux-mm@kvack.org>; Mon, 06 Jun 2011 07:45:09 -0700 (PDT)
+Date: Mon, 6 Jun 2011 23:44:59 +0900
 From: Minchan Kim <minchan.kim@gmail.com>
-Subject: Re: [PATCH] mm: compaction: Abort compaction if too many pages are
- isolated and caller is asynchronous
-Message-ID: <20110606142623.GF1686@barrios-laptop>
-References: <20110531141402.GK19505@random.random>
- <20110531143734.GB13418@barrios-laptop>
- <20110531143830.GC13418@barrios-laptop>
- <20110602182302.GA2802@random.random>
- <20110602202156.GA23486@barrios-laptop>
- <20110602214041.GF2802@random.random>
- <BANLkTim1WjdHWOQp7bMg5pFFKp1SSFoLKw@mail.gmail.com>
- <20110602223201.GH2802@random.random>
- <BANLkTikA+ugFNS95Zs_o6QqG2u4r2g93=Q@mail.gmail.com>
- <20110606101557.GA5247@suse.de>
+Subject: Re: [PATCH v2 0/5] Fix oom killer doesn't work at all if system
+ have > gigabytes memory  (aka CAI founded issue)
+Message-ID: <20110606144458.GG1686@barrios-laptop>
+References: <348391538.318712.1306828778575.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
+ <4DE4A2A0.6090704@jp.fujitsu.com>
+ <4DE4BC64.3040807@jp.fujitsu.com>
+ <20110601033258.GA12653@barrios-laptop>
+ <4DEC4463.1060206@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110606101557.GA5247@suse.de>
+In-Reply-To: <4DEC4463.1060206@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mel@csn.ul.ie>, akpm@linux-foundation.org, Ury Stankevich <urykhy@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: caiqian@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, rientjes@google.com, hughd@google.com, kamezawa.hiroyu@jp.fujitsu.com, oleg@redhat.com
 
-On Mon, Jun 06, 2011 at 11:15:57AM +0100, Mel Gorman wrote:
-> On Fri, Jun 03, 2011 at 08:01:44AM +0900, Minchan Kim wrote:
-> > On Fri, Jun 3, 2011 at 7:32 AM, Andrea Arcangeli <aarcange@redhat.com> wrote:
-> > > On Fri, Jun 03, 2011 at 07:23:48AM +0900, Minchan Kim wrote:
-
-<snip>
-
-> > >> AFAIK, it's final destination to go as compaction will not break lru
-> > >> ordering if my patch(inorder-putback) is merged.
-> > >
-> > > Agreed. I like your patchset, sorry for not having reviewed it in
-> > > detail yet but there were other issues popping up in the last few
-> > > days.
+On Mon, Jun 06, 2011 at 12:07:15PM +0900, KOSAKI Motohiro wrote:
+> >> Of course, we recommend to drop privileges as far as possible
+> >> instead of keeping them. Thus, oom killer don't have to check
+> >> any capability. It implicitly suggest wrong programming style.
+> >>
+> >> This patch change root process check way from CAP_SYS_ADMIN to
+> >> just euid==0.
 > > 
-> > No problem. it's urgent than mine. :)
-> > 
+> > I like this but I have some comments.
+> > Firstly, it's not dependent with your series so I think this could
+> > be merged firstly.
 > 
-> I'm going to take the opportunity to apologise for not reviewing that
-> series yet. I've been kept too busy with other bugs to set side the
-> few hours I need to review the series. I'm hoping to get to it this
-> week if everything goes well.
-
-I am refactoring the code about migration.
-Maybe, I will resend it on tomorrow.
-I hope you guys reviews that. :)
-
-Thanks, Mel.
-
+> I agree.
 > 
-> -- 
-> Mel Gorman
-> SUSE Labs
+> > Before that, I would like to make clear my concern.
+> > As I look below comment, 3% bonus is dependent with __vm_enough_memory's logic?
+> 
+> No. completely independent.
+> 
+> vm_enough_memory() check the task _can_ allocate more memory. IOW, the task
+> is subjective. And oom-killer check the task should be protected from oom-killer.
+> IOW, the task is objective.
+> 
+
+Hmm, maybe I can't understand your point.
+My though was below.
+
+Assumption)
+1. root allocation bonus point -> 10% 
+2. OOM have no bonus about root process
+
+Scenario)
+1.
+System has 101 free pages and 10 normal tasks.
+Ideally, 10 tasks allocates free memory fairly so each task will have 10 pages.
+So OOM killer can select victim fairly when new task which requires 10 pages forks.
+
+2.
+System has 101 free pages and 10 tasks. (9 normal task , 1 root task)
+10 * 9 + 11 will be consumed. So each normal task will have 10 pages
+but a root task have 11 pages.
+So OOM killer can always selectd root process as vicim.(We assumed
+OOM doesn't have a bonus on root process)
+
+Conclusion)
+For solving above problem, we have to give bonus which was given
+in allocation to OOM, too. It's fair.
+So I think it has a dependency.
 
 -- 
 Kind regards
