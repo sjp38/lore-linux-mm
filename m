@@ -1,68 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 08AAA6B0119
-	for <linux-mm@kvack.org>; Sun,  5 Jun 2011 23:07:21 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 18F033EE0AE
-	for <linux-mm@kvack.org>; Mon,  6 Jun 2011 12:07:18 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id EFEC945DED3
-	for <linux-mm@kvack.org>; Mon,  6 Jun 2011 12:07:17 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id D2D5245DECD
-	for <linux-mm@kvack.org>; Mon,  6 Jun 2011 12:07:17 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id C0BEB1DB8040
-	for <linux-mm@kvack.org>; Mon,  6 Jun 2011 12:07:17 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 8C2EF1DB803E
-	for <linux-mm@kvack.org>; Mon,  6 Jun 2011 12:07:17 +0900 (JST)
-Message-ID: <4DEC4463.1060206@jp.fujitsu.com>
-Date: Mon, 06 Jun 2011 12:07:15 +0900
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 06F476B0114
+	for <linux-mm@kvack.org>; Mon,  6 Jun 2011 00:21:48 -0400 (EDT)
+Received: from kpbe17.cbf.corp.google.com (kpbe17.cbf.corp.google.com [172.25.105.81])
+	by smtp-out.google.com with ESMTP id p564Ldw0015909
+	for <linux-mm@kvack.org>; Sun, 5 Jun 2011 21:21:40 -0700
+Received: from pxi20 (pxi20.prod.google.com [10.243.27.20])
+	by kpbe17.cbf.corp.google.com with ESMTP id p564LcsN010886
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Sun, 5 Jun 2011 21:21:38 -0700
+Received: by pxi20 with SMTP id 20so2740363pxi.27
+        for <linux-mm@kvack.org>; Sun, 05 Jun 2011 21:21:38 -0700 (PDT)
+Date: Sun, 5 Jun 2011 21:21:28 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: [PATCH 0/14] mm: tmpfs and trunc changes, affecting drm
+Message-ID: <alpine.LSU.2.00.1106052116350.17116@sister.anvils>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 0/5] Fix oom killer doesn't work at all if system have
- > gigabytes memory  (aka CAI founded issue)
-References: <348391538.318712.1306828778575.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com> <4DE4A2A0.6090704@jp.fujitsu.com> <4DE4BC64.3040807@jp.fujitsu.com> <20110601033258.GA12653@barrios-laptop>
-In-Reply-To: <20110601033258.GA12653@barrios-laptop>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: minchan.kim@gmail.com
-Cc: caiqian@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, rientjes@google.com, hughd@google.com, kamezawa.hiroyu@jp.fujitsu.com, oleg@redhat.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Hellwig <hch@infradead.org>, Chris Wilson <chris@chris-wilson.co.uk>, Keith Packard <keithp@keithp.com>, Thomas Hellstrom <thellstrom@vmware.com>, Dave Airlie <airlied@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
->> Of course, we recommend to drop privileges as far as possible
->> instead of keeping them. Thus, oom killer don't have to check
->> any capability. It implicitly suggest wrong programming style.
->>
->> This patch change root process check way from CAP_SYS_ADMIN to
->> just euid==0.
-> 
-> I like this but I have some comments.
-> Firstly, it's not dependent with your series so I think this could
-> be merged firstly.
+Here's v2 patchset for mmotm, based on 30-rc1.  Nothing exciting,
+mostly cleanup, preparation for what will probably be two more
+patchsets coming over the next few weeks, first simplifying tmpfs
+by getting rid of its ->readpage (give it a splice instead), then
+getting rid of its peculiar swap index (use radix_tree instead).
 
-I agree.
+The ordering here is somewhat illogical, arranged in the hope that
+at least the first four can get into 30-rc, which would simplify
+the dependencies between linux-next and mmotm.
 
-> Before that, I would like to make clear my concern.
-> As I look below comment, 3% bonus is dependent with __vm_enough_memory's logic?
+Changes since last week's v1:
+- removed the original 1/14, which was adding cleancache_flush_inode()
+  into invalidate_mapping_pages(): I stand by that patch, but feedback
+  from Dan Magenheimer and Chris Mason implies that cleancache has a
+  bigger problem in this area (flushing too much or too little, unable
+  to distinguish truncate from evict, potential issue with O_DIRECT)
+  which we shall discuss and deal with separately.
+- incorporated feedback from Christoph Hellwig, mainly electing for
+  an explicit call to shmem_truncate_range() from drm/i915, which
+  will also help if we replace ->truncate_range by ->fallocate later;
+  so a new 2/14 which moves shmem function prototypes into shmem_fs.h.
 
-No. completely independent.
+1,2,3,4 affect the interface between tmpfs and drm very slightly.
+Once they're in 30-rc, drm maintainers could take 5,6,7,8 out of
+mmotm and into linux-next (or even 30-rc).
 
-vm_enough_memory() check the task _can_ allocate more memory. IOW, the task
-is subjective. And oom-killer check the task should be protected from oom-killer.
-IOW, the task is objective.
+ 1/14 mm: move vmtruncate_range to truncate.c
+ 2/14 mm: move shmem prototypes to shmem_fs.h
+ 3/14 tmpfs: take control of its truncate_range
+ 4/14 tmpfs: add shmem_read_mapping_page_gfp
+ 5/14 drm/ttm: use shmem_read_mapping_page
+ 6/14 drm/i915: use shmem_read_mapping_page
+ 7/14 drm/i915: use shmem_truncate_range
+ 8/14 drm/i915: more struct_mutex locking
+ 9/14 mm: cleanup descriptions of filler arg
+10/14 mm: truncate functions are in truncate.c
+11/14 mm: tidy vmtruncate_range and related functions
+12/14 mm: consistent truncate and invalidate loops
+13/14 mm: pincer in truncate_inode_pages_range
+14/14 tmpfs: no need to use i_lock
 
+ drivers/gpu/drm/drm_gem.c            |    1 
+ drivers/gpu/drm/i915/i915_dma.c      |    3 
+ drivers/gpu/drm/i915/i915_gem.c      |   38 ++---
+ drivers/gpu/drm/i915/intel_overlay.c |    5 
+ drivers/gpu/drm/ttm/ttm_tt.c         |    5 
+ include/linux/mm.h                   |    3 
+ include/linux/pagemap.h              |   12 -
+ include/linux/shmem_fs.h             |   21 +++
+ include/linux/swap.h                 |   10 -
+ mm/filemap.c                         |   14 +-
+ mm/memcontrol.c                      |    1 
+ mm/memory.c                          |   24 ---
+ mm/shmem.c                           |   88 +++++++++----
+ mm/swapfile.c                        |    2 
+ mm/truncate.c                        |  159 +++++++++++++------------
+ 15 files changed, 206 insertions(+), 180 deletions(-)
 
-> If it isn't, we can remove the comment. It would be another patch.
-> If is is, could we change __vm_enough_memory for euid instead of cap?
-> 
->         * Root processes get 3% bonus, just like the __vm_enough_memory()
-> 	* implementation used by LSMs.
-
-vm_enough_memory() is completely correct. I don't see any reason to change it.
-
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
