@@ -1,93 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 169606B004A
-	for <linux-mm@kvack.org>; Mon,  6 Jun 2011 10:20:05 -0400 (EDT)
-Received: by pxi10 with SMTP id 10so2866352pxi.8
-        for <linux-mm@kvack.org>; Mon, 06 Jun 2011 07:20:02 -0700 (PDT)
-Date: Mon, 6 Jun 2011 23:19:52 +0900
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 433A16B004A
+	for <linux-mm@kvack.org>; Mon,  6 Jun 2011 10:26:34 -0400 (EDT)
+Received: by pzk4 with SMTP id 4so2352871pzk.14
+        for <linux-mm@kvack.org>; Mon, 06 Jun 2011 07:26:32 -0700 (PDT)
+Date: Mon, 6 Jun 2011 23:26:23 +0900
 From: Minchan Kim <minchan.kim@gmail.com>
 Subject: Re: [PATCH] mm: compaction: Abort compaction if too many pages are
  isolated and caller is asynchronous
-Message-ID: <20110606141952.GE1686@barrios-laptop>
-References: <20110601214018.GC7306@suse.de>
- <20110601233036.GZ19505@random.random>
- <20110602010352.GD7306@suse.de>
- <20110602132954.GC19505@random.random>
- <20110602145019.GG7306@suse.de>
- <20110602153754.GF19505@random.random>
- <20110603020920.GA26753@suse.de>
- <20110603144941.GI7306@suse.de>
- <20110603154554.GK2802@random.random>
- <20110606103924.GD5247@suse.de>
+Message-ID: <20110606142623.GF1686@barrios-laptop>
+References: <20110531141402.GK19505@random.random>
+ <20110531143734.GB13418@barrios-laptop>
+ <20110531143830.GC13418@barrios-laptop>
+ <20110602182302.GA2802@random.random>
+ <20110602202156.GA23486@barrios-laptop>
+ <20110602214041.GF2802@random.random>
+ <BANLkTim1WjdHWOQp7bMg5pFFKp1SSFoLKw@mail.gmail.com>
+ <20110602223201.GH2802@random.random>
+ <BANLkTikA+ugFNS95Zs_o6QqG2u4r2g93=Q@mail.gmail.com>
+ <20110606101557.GA5247@suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110606103924.GD5247@suse.de>
+In-Reply-To: <20110606101557.GA5247@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Mel Gorman <mgorman@suse.de>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, akpm@linux-foundation.org, Ury Stankevich <urykhy@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, stable@kernel.org
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mel@csn.ul.ie>, akpm@linux-foundation.org, Ury Stankevich <urykhy@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, Jun 06, 2011 at 11:39:24AM +0100, Mel Gorman wrote:
-> On Fri, Jun 03, 2011 at 05:45:54PM +0200, Andrea Arcangeli wrote:
-> > On Fri, Jun 03, 2011 at 03:49:41PM +0100, Mel Gorman wrote:
-> > > Right idea of the wrong zone being accounted for but wrong place. I
-> > > think the following patch should fix the problem;
-> > 
-> > Looks good thanks.
-> > 
-> > I also found this bug during my debugging that made NR_SHMEM underflow.
-> > 
-> > ===
-> > Subject: migrate: don't account swapcache as shmem
-> > 
-> > From: Andrea Arcangeli <aarcange@redhat.com>
-> > 
-> > swapcache will reach the below code path in migrate_page_move_mapping,
-> > and swapcache is accounted as NR_FILE_PAGES but it's not accounted as
-> > NR_SHMEM.
-> > 
-> > Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-> 
-> Well spotted.
-> 
-> Acked-by: Mel Gorman <mgorman@suse.de>
-> 
-> Minor nit. swapper_space is rarely referred to outside of the swap
-> code. Might it be more readable to use
-> 
-> 	/*
-> 	 * swapcache is accounted as NR_FILE_PAGES but it is not
-> 	 * accounted as NR_SHMEM
-> 	 *
-> 	if (PageSwapBacked(page) && !PageSwapCache(page))
+On Mon, Jun 06, 2011 at 11:15:57AM +0100, Mel Gorman wrote:
+> On Fri, Jun 03, 2011 at 08:01:44AM +0900, Minchan Kim wrote:
+> > On Fri, Jun 3, 2011 at 7:32 AM, Andrea Arcangeli <aarcange@redhat.com> wrote:
+> > > On Fri, Jun 03, 2011 at 07:23:48AM +0900, Minchan Kim wrote:
 
-I like this. but as it's "and" operation, CPU have to execute two condition comparison.
-but how about below?
-	if (!PageSwapCache(page) && PageSwapBacked(page))
+<snip>
 
-PageSwapCache implys PageSwapBacked so we can handle non-swapbacked pages as just 1 comparison.
+> > >> AFAIK, it's final destination to go as compaction will not break lru
+> > >> ordering if my patch(inorder-putback) is merged.
+> > >
+> > > Agreed. I like your patchset, sorry for not having reviewed it in
+> > > detail yet but there were other issues popping up in the last few
+> > > days.
+> > 
+> > No problem. it's urgent than mine. :)
+> > 
+> 
+> I'm going to take the opportunity to apologise for not reviewing that
+> series yet. I've been kept too busy with other bugs to set side the
+> few hours I need to review the series. I'm hoping to get to it this
+> week if everything goes well.
 
-> 
-> ?
-> 
-> > ---
-> > 
-> > diff --git a/mm/migrate.c b/mm/migrate.c
-> > index e4a5c91..2597a27 100644
-> > --- a/mm/migrate.c
-> > +++ b/mm/migrate.c
-> > @@ -288,7 +288,7 @@ static int migrate_page_move_mapping(struct address_space *mapping,
-> >  	 */
-> >  	__dec_zone_page_state(page, NR_FILE_PAGES);
-> >  	__inc_zone_page_state(newpage, NR_FILE_PAGES);
-> > -	if (PageSwapBacked(page)) {
-> > +	if (mapping != &swapper_space && PageSwapBacked(page)) {
-> >  		__dec_zone_page_state(page, NR_SHMEM);
-> >  		__inc_zone_page_state(newpage, NR_SHMEM);
-> >  	}
-> > 
-> > 
+I am refactoring the code about migration.
+Maybe, I will resend it on tomorrow.
+I hope you guys reviews that. :)
+
+Thanks, Mel.
+
 > 
 > -- 
 > Mel Gorman
