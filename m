@@ -1,53 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 771006B004A
-	for <linux-mm@kvack.org>; Tue,  7 Jun 2011 19:44:09 -0400 (EDT)
-Message-ID: <4DEEB7BF.9000801@fnarfbargle.com>
-Date: Wed, 08 Jun 2011 07:43:59 +0800
-From: Brad Campbell <brad@fnarfbargle.com>
-MIME-Version: 1.0
-Subject: Re: KVM induced panic on 2.6.38[2367] & 2.6.39
-References: <20110601011527.GN19505@random.random> <alpine.LSU.2.00.1105312120530.22808@sister.anvils> <4DE5DCA8.7070704@fnarfbargle.com> <4DE5E29E.7080009@redhat.com> <4DE60669.9050606@fnarfbargle.com> <4DE60918.3010008@redhat.com> <4DE60940.1070107@redhat.com> <4DE61A2B.7000008@fnarfbargle.com> <20110601111841.GB3956@zip.com.au> <4DE62801.9080804@fnarfbargle.com> <20110601230342.GC3956@zip.com.au> <4DE8E3ED.7080004@fnarfbargle.com> <isavsg$3or$1@dough.gmane.org> <4DE906C0.6060901@fnarfbargle.com> <4DED344D.7000005@pandora.be> <4DED9C23.2030408@fnarfbargle.com> <4DEE27DE.7060004@trash.net> <4DEE3859.6070808@fnarfbargle.com> <4DEE4538.1020404@trash.net>
-In-Reply-To: <4DEE4538.1020404@trash.net>
-Content-Type: text/plain; charset=ISO-8859-15; format=flowed
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 4E0626B004A
+	for <linux-mm@kvack.org>; Tue,  7 Jun 2011 19:47:42 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 6E7D03EE081
+	for <linux-mm@kvack.org>; Wed,  8 Jun 2011 08:47:39 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 538D745DE4E
+	for <linux-mm@kvack.org>; Wed,  8 Jun 2011 08:47:39 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 3491045DE4D
+	for <linux-mm@kvack.org>; Wed,  8 Jun 2011 08:47:39 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 290051DB803E
+	for <linux-mm@kvack.org>; Wed,  8 Jun 2011 08:47:39 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id DB2671DB802F
+	for <linux-mm@kvack.org>; Wed,  8 Jun 2011 08:47:38 +0900 (JST)
+Date: Wed, 8 Jun 2011 08:40:34 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [Bugme-new] [Bug 36192] New: Kernel panic when boot the 2.6.39+
+ kernel based off of 2.6.32 kernel
+Message-Id: <20110608084034.29f25764.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110607101857.GM5247@suse.de>
+References: <20110530162904.b78bf354.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110530165453.845bba09.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110530175140.3644b3bf.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110606125421.GB30184@cmpxchg.org>
+	<20110606144519.1e2e7d86.akpm@linux-foundation.org>
+	<20110607084530.8ee571aa.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110607084530.GI5247@suse.de>
+	<20110607174355.fde99297.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110607090900.GK5247@suse.de>
+	<20110607183302.666115f1.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110607101857.GM5247@suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Patrick McHardy <kaber@trash.net>
-Cc: Bart De Schuymer <bdschuym@pandora.be>, kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, netfilter-devel@vger.kernel.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org, qcui@redhat.com, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Li Zefan <lizf@cn.fujitsu.com>
 
-On 07/06/11 23:35, Patrick McHardy wrote:
+On Tue, 7 Jun 2011 11:18:57 +0100
+Mel Gorman <mgorman@suse.de> wrote:
 
-> The main suspects would be NAT and TCPMSS. Did you also try whether
-> the crash occurs with only one of these these rules?
+> On Tue, Jun 07, 2011 at 06:33:02PM +0900, KAMEZAWA Hiroyuki wrote:
+> > On Tue, 7 Jun 2011 10:09:00 +0100
+> > Mel Gorman <mgorman@suse.de> wrote:
+> >  
+> > > I should have said "nodes" even though the end result is the same. The
+> > > problem at the moment is cgroup initialisation is checking PFNs outside
+> > > node boundaries. It should be ensuring that the start and end PFNs it
+> > > uses are within boundaries.
+> > > 
+> > Maybe you like this kind of fix. Yes, this can fix the problem on bugzilla.
+> > My concern is this will not work for ARM. 
+> > 
+> > This patch (and all other patch) works on my test host.
+> > ==
+> > make sparsemem's page_cgroup_init to be node aware.
+> > 
+> > With sparsemem, page_cgroup_init scans pfn from 0 to max_pfn.
+> > But this may scan a pfn which is not on any node and can access
+> > memmap which is not initialized.
+> > 
+> > This makes page_cgroup_init() for SPARSEMEM node aware.
+> > 
+> > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > ---
+> >  mm/page_cgroup.c |   26 ++++++++++++++++++++++----
+> >  1 file changed, 22 insertions(+), 4 deletions(-)
+> > 
+> > Index: linux-3.0-rc1/mm/page_cgroup.c
+> > ===================================================================
+> > --- linux-3.0-rc1.orig/mm/page_cgroup.c
+> > +++ linux-3.0-rc1/mm/page_cgroup.c
+> > @@ -285,14 +285,32 @@ void __init page_cgroup_init(void)
+> >  {
+> >  	unsigned long pfn;
+> >  	int fail = 0;
+> > +	int node;
+> >  
+> >  	if (mem_cgroup_disabled())
+> >  		return;
+> >  
+> > -	for (pfn = 0; !fail && pfn < max_pfn; pfn += PAGES_PER_SECTION) {
+> > -		if (!pfn_present(pfn))
+> > -			continue;
+> > -		fail = init_section_page_cgroup(pfn);
+> > +	for_each_node_state(node, N_HIGH_MEMORY) {
+> > +		unsigned long start_pfn, end_pfn;
+> > +
+> > +		start_pfn = NODE_DATA(node)->node_start_pfn;
+> > +		end_pfn = start_pfn + NODE_DATA(node)->node_spanned_pages;
+> > +		/*
+> > +		 * This calculation makes sure that this nid detection for
+> > +		 * section can work even if node->start_pfn is not aligned to
+> > +		 * section. For sections on not-node-boundary, we see head
+> > +		 * page of sections.
+> > +		 */
+> > +		for (pfn = start_pfn;
+> > +		     !fail & (pfn < end_pfn);
+> 
+> && instead of & there?
+> 
+> > +		     pfn = ALIGN(pfn + PAGES_PER_SECTION, PAGES_PER_SECTION)) {
+> > +			if (!pfn_present(pfn))
+> > +				continue;
+> > +			/* Nodes can be overlapped */
+> > +			if (pfn_to_nid(pfn) != node)
+> > +				continue;
+> > +			fail = init_section_page_cgroup(pfn);
+> > +		}
+> 
+> So this is finding the first valid PFN in a node. Even the
+> overlapping problem should not be an issue here as unless node memory
+> initialisation is overwriting flags belonging to other nodes. The
+> paranoia does not hurt.
+> 
+> I also don't think the ARM punching holes in the memmap is a problem
+> because we'd at least expect the start of the node to be valid.
+> 
 
-To be honest I'm actually having trouble finding where TCPMSS is 
-actually set in that ruleset. This is a production machine so I can only 
-take it down after about 9PM at night. I'll have another crack at it 
-tonight.
+Ok, I'll post a fixed and cleaned one. (above patch has bug ;(
 
->> I've just compiled out CONFIG_BRIDGE_NETFILTER and can no longer access
->> the address the way I was doing it, so that's a no-go for me.
->
-> That's really weird since you're apparently not using any bridge
-> netfilter features. It shouldn't have any effect besides changing
-> at which point ip_tables is invoked. How are your network devices
-> configured (specifically any bridges)?
->
+Thanks,
+-Kame
 
-I have one bridge with all my virtual machines on it.
-
-In this particular instance the packets leave VM A destined for the IP 
-address of ppp0 (the external interface). This is intercepted by the 
-DNAT PREROUTING rule above and shunted back to VM B.
-
-The VM's are on br1 and the external address is ppp0. Without 
-CONFIG_BRIDGE_NETFILTER compiled in I can see the traffic entering and 
-leaving VM B with tcpdump, but the packets never seem to get back to VM A.
-
-VM A is XP 32 bit, VM B is Linux. I have some other Linux VM's, so I'll 
-do some more testing tonight between those to see where the packets are 
-going without CONFIG_BRIDGE_NETFILTER set.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
