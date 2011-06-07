@@ -1,113 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id AE3C96B0082
-	for <linux-mm@kvack.org>; Tue,  7 Jun 2011 10:40:35 -0400 (EDT)
-Message-ID: <4DEE3859.6070808@fnarfbargle.com>
-Date: Tue, 07 Jun 2011 22:40:25 +0800
-From: Brad Campbell <brad@fnarfbargle.com>
-MIME-Version: 1.0
-Subject: Re: KVM induced panic on 2.6.38[2367] & 2.6.39
-References: <20110601011527.GN19505@random.random> <alpine.LSU.2.00.1105312120530.22808@sister.anvils> <4DE5DCA8.7070704@fnarfbargle.com> <4DE5E29E.7080009@redhat.com> <4DE60669.9050606@fnarfbargle.com> <4DE60918.3010008@redhat.com> <4DE60940.1070107@redhat.com> <4DE61A2B.7000008@fnarfbargle.com> <20110601111841.GB3956@zip.com.au> <4DE62801.9080804@fnarfbargle.com> <20110601230342.GC3956@zip.com.au> <4DE8E3ED.7080004@fnarfbargle.com> <isavsg$3or$1@dough.gmane.org> <4DE906C0.6060901@fnarfbargle.com> <4DED344D.7000005@pandora.be> <4DED9C23.2030408@fnarfbargle.com> <4DEE27DE.7060004@trash.net>
-In-Reply-To: <4DEE27DE.7060004@trash.net>
-Content-Type: text/plain; charset=ISO-8859-15; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 0D8646B004A
+	for <linux-mm@kvack.org>; Tue,  7 Jun 2011 11:07:11 -0400 (EDT)
+From: Mel Gorman <mgorman@suse.de>
+Subject: [PATCH 1/4] mm: compaction: Ensure that the compaction free scanner does not move to the next zone
+Date: Tue,  7 Jun 2011 16:07:02 +0100
+Message-Id: <1307459225-4481-2-git-send-email-mgorman@suse.de>
+In-Reply-To: <1307459225-4481-1-git-send-email-mgorman@suse.de>
+References: <1307459225-4481-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Patrick McHardy <kaber@trash.net>
-Cc: Bart De Schuymer <bdschuym@pandora.be>, kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, netfilter-devel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Thomas Sattler <tsattler@gmx.de>, Ury Stankevich <urykhy@gmail.com>, Andi Kleen <andi@firstfloor.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 
-On 07/06/11 21:30, Patrick McHardy wrote:
-> On 07.06.2011 05:33, Brad Campbell wrote:
->> On 07/06/11 04:10, Bart De Schuymer wrote:
->>> Hi Brad,
->>>
->>> This has probably nothing to do with ebtables, so please rmmod in case
->>> it's loaded.
->>> A few questions I didn't directly see an answer to in the threads I
->>> scanned...
->>> I'm assuming you actually use the bridging firewall functionality. So,
->>> what iptables modules do you use? Can you reduce your iptables rules to
->>> a core that triggers the bug?
->>> Or does it get triggered even with an empty set of firewall rules?
->>> Are you using a stock .35 kernel or is it patched?
->>> Is this something I can trigger on a poor guy's laptop or does it
->>> require specialized hardware (I'm catching up on qemu/kvm...)?
->>
->> Not specialised hardware as such, I've just not been able to reproduce
->> it outside of this specific operating scenario.
->
-> The last similar problem we've had was related to the 32/64 bit compat
-> code. Are you running 32 bit userspace on a 64 bit kernel?
+Compaction works with two scanners, a migration and a free
+scanner. When the scanners crossover, migration within the zone is
+complete. The location of the scanner is recorded on each cycle to
+avoid excesive scanning.
 
-No, 32 bit Guest OS, but a completely 64 bit userspace on a 64 bit kernel.
+When a zone is small and mostly reserved, it's very easy for the
+migration scanner to be close to the end of the zone. Then the following
+situation can occurs
 
-Userspace is current Debian Stable. Kernel is Vanilla and qemu-kvm is 
-current git
+  o migration scanner isolates some pages near the end of the zone
+  o free scanner starts at the end of the zone but finds that the
+    migration scanner is already there
+  o free scanner gets reinitialised for the next cycle as
+    cc->migrate_pfn + pageblock_nr_pages
+    moving the free scanner into the next zone
+  o migration scanner moves into the next zone
 
+When this happens, NR_ISOLATED accounting goes haywire because some
+of the accounting happens against the wrong zone. One zones counter
+remains positive while the other goes negative even though the overall
+global count is accurate. This was reported on X86-32 with !SMP because
+!SMP allows the negative counters to be visible. The fact that it is
+difficult to reproduce on X86-64 is probably just a co-incidence as
+the bug should theoritically be possible there.
 
->> I can't trigger it with empty firewall rules as it relies on a DNAT to
->> occur. If I try it directly to the internal IP address (as I have to
->> without netfilter loaded) then of course nothing fails.
->>
->> It's a pain in the bum as a fault, but it's one I can easily reproduce
->> as long as I use the same set of circumstances.
->>
->> I'll try using 3.0-rc2 (current git) tonight, and if I can reproduce it
->> on that then I'll attempt to pare down the IPTABLES rules to a bare
->> minimum.
->>
->> It is nothing to do with ebtables as I don't compile it. I'm not really
->> sure about "bridging firewall" functionality. I just use a couple of
->> hand coded bash scripts to set the tables up.
->
->  From one of your previous mails:
->
->> # CONFIG_BRIDGE_NF_EBTABLES is not set
->
-> How about CONFIG_BRIDGE_NETFILTER?
->
+Signed-off-by: Mel Gorman <mgorman@suse.de>
+Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+---
+ mm/compaction.c |   13 ++++++++++++-
+ 1 files changed, 12 insertions(+), 1 deletions(-)
 
-It was compiled in.
-
-With the following table set I was able to reproduce the problem on 
-3.0-rc2. Replaced my IP with xxx.xxx.xxx.xxx, but otherwise unmodified
-
-root@srv:~# iptables-save
-# Generated by iptables-save v1.4.10 on Tue Jun  7 22:11:30 2011
-*filter
-:INPUT ACCEPT [978:107619]
-:FORWARD ACCEPT [142:7068]
-:OUTPUT ACCEPT [1659:291870]
--A INPUT -i ppp0 -m state --state RELATED,ESTABLISHED -j ACCEPT
--A INPUT ! -i ppp0 -m state --state NEW -j ACCEPT
--A INPUT -i ppp0 -j DROP
-COMMIT
-# Completed on Tue Jun  7 22:11:30 2011
-# Generated by iptables-save v1.4.10 on Tue Jun  7 22:11:30 2011
-*nat
-:PREROUTING ACCEPT [813:49170]
-:INPUT ACCEPT [91:7090]
-:OUTPUT ACCEPT [267:20731]
-:POSTROUTING ACCEPT [296:22281]
--A PREROUTING -d xxx.xxx.xxx.xxx/32 ! -i ppp0 -p tcp -m tcp --dport 443 
--j DNAT --to-destination 192.168.253.198
-COMMIT
-# Completed on Tue Jun  7 22:11:30 2011
-# Generated by iptables-save v1.4.10 on Tue Jun  7 22:11:30 2011
-*mangle
-:PREROUTING ACCEPT [2729:274392]
-:INPUT ACCEPT [2508:262976]
-:FORWARD ACCEPT [142:7068]
-:OUTPUT ACCEPT [1674:293701]
-:POSTROUTING ACCEPT [2131:346411]
--A FORWARD -o ppp0 -p tcp -m tcp --tcp-flags SYN,RST SYN -m tcpmss --mss 
-1400:1536 -j TCPMSS --clamp-mss-to-pmtu
-COMMIT
-# Completed on Tue Jun  7 22:11:30 2011
-
-I've just compiled out CONFIG_BRIDGE_NETFILTER and can no longer access 
-the address the way I was doing it, so that's a no-go for me.
-
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 021a296..5c744ab 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -144,9 +144,20 @@ static void isolate_freepages(struct zone *zone,
+ 	int nr_freepages = cc->nr_freepages;
+ 	struct list_head *freelist = &cc->freepages;
+ 
++	/*
++	 * Initialise the free scanner. The starting point is where we last
++	 * scanned from (or the end of the zone if starting). The low point
++	 * is the end of the pageblock the migration scanner is using.
++	 */
+ 	pfn = cc->free_pfn;
+ 	low_pfn = cc->migrate_pfn + pageblock_nr_pages;
+-	high_pfn = low_pfn;
++
++	/*
++	 * Take care that if the migration scanner is at the end of the zone
++	 * that the free scanner does not accidentally move to the next zone
++	 * in the next isolation cycle.
++	 */
++	high_pfn = min(low_pfn, pfn);
+ 
+ 	/*
+ 	 * Isolate free pages until enough are available to migrate the
+-- 
+1.7.3.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
