@@ -1,67 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id B8CA56B007B
-	for <linux-mm@kvack.org>; Tue,  7 Jun 2011 15:42:57 -0400 (EDT)
-Date: Tue, 7 Jun 2011 15:42:44 -0400
-From: Vivek Goyal <vgoyal@redhat.com>
-Subject: Re: [PATCH v8 11/12] writeback: make background writeback cgroup
- aware
-Message-ID: <20110607194244.GA30919@redhat.com>
-References: <1307117538-14317-1-git-send-email-gthelen@google.com>
- <1307117538-14317-12-git-send-email-gthelen@google.com>
- <20110607193835.GD26965@redhat.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id B8D706B007E
+	for <linux-mm@kvack.org>; Tue,  7 Jun 2011 16:00:20 -0400 (EDT)
+Message-ID: <4DEE832D.3010901@redhat.com>
+Date: Tue, 07 Jun 2011 12:59:41 -0700
+From: Josh Stone <jistone@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110607193835.GD26965@redhat.com>
+Subject: Re: [PATCH v4 3.0-rc2-tip 20/22] 20: perf: perf interface for uprobes
+References: <20110607125804.28590.92092.sendpatchset@localhost6.localdomain6> <20110607130216.28590.5724.sendpatchset@localhost6.localdomain6>
+In-Reply-To: <20110607130216.28590.5724.sendpatchset@localhost6.localdomain6>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Thelen <gthelen@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, linux-fsdevel@vger.kernel.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Dave Chinner <david@fromorbit.com>
+To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Andi Kleen <andi@firstfloor.org>, Thomas Gleixner <tglx@linutronix.de>, Jonathan Corbet <corbet@lwn.net>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, Jun 07, 2011 at 03:38:35PM -0400, Vivek Goyal wrote:
-> On Fri, Jun 03, 2011 at 09:12:17AM -0700, Greg Thelen wrote:
-> > When the system is under background dirty memory threshold but a cgroup
-> > is over its background dirty memory threshold, then only writeback
-> > inodes associated with the over-limit cgroup(s).
-> > 
-> 
-> [..]
-> > -static inline bool over_bground_thresh(void)
-> > +static inline bool over_bground_thresh(struct bdi_writeback *wb,
-> > +				       struct writeback_control *wbc)
-> >  {
-> >  	unsigned long background_thresh, dirty_thresh;
-> >  
-> >  	global_dirty_limits(&background_thresh, &dirty_thresh);
-> >  
-> > -	return (global_page_state(NR_FILE_DIRTY) +
-> > -		global_page_state(NR_UNSTABLE_NFS) > background_thresh);
-> > +	if (global_page_state(NR_FILE_DIRTY) +
-> > +	    global_page_state(NR_UNSTABLE_NFS) > background_thresh) {
-> > +		wbc->for_cgroup = 0;
-> > +		return true;
-> > +	}
-> > +
-> > +	wbc->for_cgroup = 1;
-> > +	wbc->shared_inodes = 1;
-> > +	return mem_cgroups_over_bground_dirty_thresh();
-> >  }
-> 
-> Hi Greg,
-> 
-> So all the logic of writeout from mem cgroup works only if system is
-> below background limit. The moment we cross background limit, looks
-> like we will fall back to existing way of writting inodes?
+On 06/07/2011 06:02 AM, Srikar Dronamraju wrote:
+> Enhances perf probe to user space executables and libraries.
+> Provides very basic support for uprobes.
 
-If yes, then from design point of view it is little odd that as long
-as we are below background limit, we share the bdi between different
-cgroups. The moment we are above background limit, we fall back to
-algorithm of sharing the disk among individual inodes and forget
-about memory cgroups. Kind of awkward.
+Hi Srikar,
 
-Thanks
-Vivek
+This seems to have an issue with multiple active uprobes, whereas the v3
+patchset handled this fine.  I haven't tracked down the exact code
+difference yet, but here's an example transcript of what I'm seeing:
+
+# perf probe -l
+  probe_zsh:main       (on /bin/zsh:0x000000000000e3f0)
+  probe_zsh:zalloc     (on /bin/zsh:0x0000000000051120)
+  probe_zsh:zfree      (on /bin/zsh:0x0000000000051c70)
+# perf stat -e probe_zsh:main zsh -c true
+
+ Performance counter stats for 'zsh -c true':
+
+                 1 probe_zsh:main
+
+       0.029387785 seconds time elapsed
+
+# perf stat -e probe_zsh:zalloc zsh -c true
+
+ Performance counter stats for 'zsh -c true':
+
+               605 probe_zsh:zalloc
+
+       0.043836002 seconds time elapsed
+
+# perf stat -e probe_zsh:zfree zsh -c true
+
+ Performance counter stats for 'zsh -c true':
+
+                36 probe_zsh:zfree
+
+       0.029445890 seconds time elapsed
+
+# perf stat -e probe_zsh:* zsh -c true
+
+ Performance counter stats for 'zsh -c true':
+
+                 0 probe_zsh:zalloc
+                 1 probe_zsh:main
+                 0 probe_zsh:zfree
+
+       0.030912587 seconds time elapsed
+
+# perf stat -e probe_zsh:z* zsh -c true
+
+ Performance counter stats for 'zsh -c true':
+
+               605 probe_zsh:zalloc
+                 0 probe_zsh:zfree
+
+       0.043774671 seconds time elapsed
+
+
+It seems like among the selected probes, only one with the lowest offset
+ever gets hit.  Any ideas?
+
+Thanks,
+Josh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
