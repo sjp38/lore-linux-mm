@@ -1,198 +1,404 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id B58036B0012
-	for <linux-mm@kvack.org>; Tue,  7 Jun 2011 04:50:53 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 405506B0012
+	for <linux-mm@kvack.org>; Tue,  7 Jun 2011 04:58:02 -0400 (EDT)
 Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 0BE143EE0C1
-	for <linux-mm@kvack.org>; Tue,  7 Jun 2011 17:50:50 +0900 (JST)
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id C83453EE0BC
+	for <linux-mm@kvack.org>; Tue,  7 Jun 2011 17:57:57 +0900 (JST)
 Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id E174745DE5C
-	for <linux-mm@kvack.org>; Tue,  7 Jun 2011 17:50:49 +0900 (JST)
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 9997F45DE58
+	for <linux-mm@kvack.org>; Tue,  7 Jun 2011 17:57:57 +0900 (JST)
 Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id B7F2A45DE58
-	for <linux-mm@kvack.org>; Tue,  7 Jun 2011 17:50:49 +0900 (JST)
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 7FD4145DE5C
+	for <linux-mm@kvack.org>; Tue,  7 Jun 2011 17:57:57 +0900 (JST)
 Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id A73FDE08002
-	for <linux-mm@kvack.org>; Tue,  7 Jun 2011 17:50:49 +0900 (JST)
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 66B22EF8006
+	for <linux-mm@kvack.org>; Tue,  7 Jun 2011 17:57:57 +0900 (JST)
 Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 640BDEF8001
-	for <linux-mm@kvack.org>; Tue,  7 Jun 2011 17:50:49 +0900 (JST)
-Date: Tue, 7 Jun 2011 17:43:55 +0900
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 03AA21DB804B
+	for <linux-mm@kvack.org>; Tue,  7 Jun 2011 17:57:57 +0900 (JST)
+Date: Tue, 7 Jun 2011 17:50:56 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [Bugme-new] [Bug 36192] New: Kernel panic when boot the 2.6.39+
- kernel based off of 2.6.32 kernel
-Message-Id: <20110607174355.fde99297.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20110607084530.GI5247@suse.de>
-References: <bug-36192-10286@https.bugzilla.kernel.org/>
-	<20110529231948.e1439ce5.akpm@linux-foundation.org>
-	<20110530160114.5a82e590.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110530162904.b78bf354.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110530165453.845bba09.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110530175140.3644b3bf.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110606125421.GB30184@cmpxchg.org>
-	<20110606144519.1e2e7d86.akpm@linux-foundation.org>
-	<20110607084530.8ee571aa.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110607084530.GI5247@suse.de>
+Subject: Re: [PATCH v8 10/12] memcg: create support routines for
+ page-writeback
+Message-Id: <20110607175056.83619c5f.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1307117538-14317-11-git-send-email-gthelen@google.com>
+References: <1307117538-14317-1-git-send-email-gthelen@google.com>
+	<1307117538-14317-11-git-send-email-gthelen@google.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org, qcui@redhat.com, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Li Zefan <lizf@cn.fujitsu.com>
+To: Greg Thelen <gthelen@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, linux-fsdevel@vger.kernel.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Vivek Goyal <vgoyal@redhat.com>, Dave Chinner <david@fromorbit.com>
 
-On Tue, 7 Jun 2011 09:45:30 +0100
-Mel Gorman <mgorman@suse.de> wrote:
+On Fri,  3 Jun 2011 09:12:16 -0700
+Greg Thelen <gthelen@google.com> wrote:
 
-> On Tue, Jun 07, 2011 at 08:45:30AM +0900, KAMEZAWA Hiroyuki wrote:
-> > On Mon, 6 Jun 2011 14:45:19 -0700
-> > Andrew Morton <akpm@linux-foundation.org> wrote:
-> > 
-> > > On Mon, 6 Jun 2011 14:54:21 +0200
-> > > Johannes Weiner <hannes@cmpxchg.org> wrote:
-> > > 
-> > > > Cc Mel for memory model
-> > > > 
-> > > > On Mon, May 30, 2011 at 05:51:40PM +0900, KAMEZAWA Hiroyuki wrote:
-> > > > > On Mon, 30 May 2011 16:54:53 +0900
-> > > > > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > > > > 
-> > > > > > On Mon, 30 May 2011 16:29:04 +0900
-> > > > > > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > > > > 
-> > > > > > SRAT: Node 1 PXM 1 0-a0000
-> > > > > > SRAT: Node 1 PXM 1 100000-c8000000
-> > > > > > SRAT: Node 1 PXM 1 100000000-438000000
-> > > > > > SRAT: Node 3 PXM 3 438000000-838000000
-> > > > > > SRAT: Node 5 PXM 5 838000000-c38000000
-> > > > > > SRAT: Node 7 PXM 7 c38000000-1038000000
-> > > > > > 
-> > > > > > Initmem setup node 1 0000000000000000-0000000438000000
-> > > > > >   NODE_DATA [0000000437fd9000 - 0000000437ffffff]
-> > > > > > Initmem setup node 3 0000000438000000-0000000838000000
-> > > > > >   NODE_DATA [0000000837fd9000 - 0000000837ffffff]
-> > > > > > Initmem setup node 5 0000000838000000-0000000c38000000
-> > > > > >   NODE_DATA [0000000c37fd9000 - 0000000c37ffffff]
-> > > > > > Initmem setup node 7 0000000c38000000-0000001038000000
-> > > > > >   NODE_DATA [0000001037fd7000 - 0000001037ffdfff]
-> > > > > > [ffffea000ec40000-ffffea000edfffff] potential offnode page_structs
-> > > > > > [ffffea001cc40000-ffffea001cdfffff] potential offnode page_structs
-> > > > > > [ffffea002ac40000-ffffea002adfffff] potential offnode page_structs
-> > > > > > ==
-> > > > > > 
-> > > > > > Hmm..there are four nodes 1,3,5,7 but....no memory on node 0 hmm ?
-> > > > > > 
-> > > > > 
-> > > > > I think I found a reason and this is a possible fix. But need to be tested.
-> > > > > And suggestion for better fix rather than this band-aid is appreciated.
-> > > > > 
-> > > > > ==
-> > > > > >From b95edcf43619312f72895476c3e6ef46079bb05f Mon Sep 17 00:00:00 2001
-> > > > > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > > > > Date: Mon, 30 May 2011 16:49:59 +0900
-> > > > > Subject: [PATCH][BUGFIX] fallbacks at page_cgroup allocation.
-> > > > > 
-> > > > > Under SPARSEMEM, the page_struct is allocated per section.
-> > > > > Then, pfn_valid() for the whole section is "true" and there are page
-> > > > > structs. But, it's not related to valid range of [start_pfn, end_pfn)
-> > > > > and some page structs may not be initialized collectly because
-> > > > > it's not a valid pages.
-> > > > > (memmap_init_zone() skips a page which is not correct in
-> > > > >  early_node_map[] and page->flags is initialized to be 0.)
-> > > > > 
-> > > > > In this case, a page->flags can be '0'. Assume a case where
-> > > > > node 0 has no memory....
-> > > > > 
-> > > > > page_cgroup is allocated onto the node
-> > > > > 
-> > > > >    - page_to_nid(head of section pfn)
-> > > > > 
-> > > > > Head's pfn will be valid (struct page exists) but page->flags is 0 and contains
-> > > > > node_id:0. This causes allocation onto NODE_DATA(0) and cause panic.
-> > > > > 
-> > > > > This patch makes page_cgroup to use alloc_pages_exact() only
-> > > > > when NID is N_NORMAL_MEMORY.
-> > > 
-> > > fyi, the reporter has gone in via the bugzilla UI and says he has
-> > > tested the patch and it worked well.
-> > > 
-> > > Please don't do that!  See this?
-> > > 
-> > > : (switched to email.  Please respond via emailed reply-to-all, not via the
-> > > : bugzilla web interface).
-> > > 
-> > > So we have a tested-by if we use this patch.
-> > > 
-> > > > I don't like this much as it essentially will allocate the array from
-> > > > a (semantically) random node, as long as it has memory.
-> > > > 
-> > > > IMO, the problem is either 1) looking at PFNs outside known node
-> > > > ranges, or 2) having present/valid sections partially outside of node
-> > > > ranges.  I am leaning towards 2), so I am wondering about the
-> > > > following fix:
-> > > > 
-> > > > ---
-> > > > From: Johannes Weiner <hannes@cmpxchg.org>
-> > > > Subject: [patch] sparse: only mark sections present when fully covered by memory
-> > > > 
-> > > > When valid memory ranges are to be registered with sparsemem, make
-> > > > sure that only fully covered sections are marked as present.
-> > > > 
-> > > > Otherwise we end up with PFN ranges that are reported present and
-> > > > valid but are actually backed by uninitialized mem map.
-> > > > 
-> > > > The page_cgroup allocator relies on pfn_present() being reliable for
-> > > > all PFNs between 0 and max_pfn, then retrieve the node id stored in
-> > > > the corresponding page->flags to allocate the per-section page_cgroup
-> > > > arrays on the local node.
-> > > > 
-> > > > This lead to at least one crash in the page allocator on a system
-> > > > where the uninitialized page struct returned the id for node 0, which
-> > > > had no memory itself.
-> > > > 
-> > > > Reported-by: qcui@redhat.com
-> > > > Debugged-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > > > Not-Yet-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> > > > ---
-> > > > 
-> > > > diff --git a/mm/sparse.c b/mm/sparse.c
-> > > > index aa64b12..a4fbeb8 100644
-> > > > --- a/mm/sparse.c
-> > > > +++ b/mm/sparse.c
-> > > > @@ -182,7 +182,9 @@ void __init memory_present(int nid, unsigned long start, unsigned long end)
-> > > >  {
-> > > >  	unsigned long pfn;
-> > > >  
-> > > > -	start &= PAGE_SECTION_MASK;
-> > > > +	start = ALIGN(start, PAGES_PER_SECTION);
-> > > > +	end &= PAGE_SECTION_MASK;
-> > > > +
-> > > >  	mminit_validate_memmodel_limits(&start, &end);
-> > > >  	for (pfn = start; pfn < end; pfn += PAGES_PER_SECTION) {
-> > > >  		unsigned long section = pfn_to_section_nr(pfn);
-> > > > 
-> > > 
-> > > Hopefully he can test this one for us as well, thanks.
-> > > 
-> > 
-> > 
-> > My concern is ARM. I know ARM unmaps 'struct page' even if pages are in
-> > existing section.
+> Introduce memcg routines to assist in per-memcg dirty page management:
 > 
-> Yes, but not outside zone boundaries. The problem for ARM is having
-> zones unaligned to sections. The struct pages for the non-resident
-> memory gets unmapped. This is a problem for linear PFN walkers that
-> align to boundaries unrelated to the zone such as to MAX_ORDER_NR_PAGES
-> or pageblock_nr_pages.
+> - mem_cgroup_balance_dirty_pages() walks a memcg hierarchy comparing
+>   dirty memory usage against memcg foreground and background thresholds.
+>   If an over-background-threshold memcg is found, then per-memcg
+>   background writeback is queued.  Per-memcg writeback differs from
+>   classic, non-memcg, per bdi writeback by setting the new
+>   writeback_control.for_cgroup bit.
 > 
+>   If an over-foreground-threshold memcg is found, then foreground
+>   writeout occurs.  When performing foreground writeout, first consider
+>   inodes exclusive to the memcg.  If unable to make enough progress,
+>   then consider inodes shared between memcg.  Such cross-memcg inode
+>   sharing likely to be rare in situations that use per-cgroup memory
+>   isolation.  The approach tries to handle the common (non-shared)
+>   case well without punishing well behaved (non-sharing) cgroups.
+>   As a last resort writeback shared inodes.
+> 
+>   This routine is used by balance_dirty_pages() in a later change.
+> 
+> - mem_cgroup_hierarchical_dirty_info() returns the dirty memory usage
+>   and limits of the memcg closest to (or over) its dirty limit.  This
+>   will be used by throttle_vm_writeout() in a latter change.
+> 
+> Signed-off-by: Greg Thelen <gthelen@google.com>
+> ---
+> Changelog since v7:
+> - Add more detail to commit description.
+> 
+> - Declare the new writeback_control for_cgroup bit in this change, the
+>   first patch that uses the new field is first used.  In -v7 the field
+>   was declared in a separate patch.
+> 
+>  include/linux/memcontrol.h        |   18 +++++
+>  include/linux/writeback.h         |    1 +
+>  include/trace/events/memcontrol.h |   83 ++++++++++++++++++++
+>  mm/memcontrol.c                   |  150 +++++++++++++++++++++++++++++++++++++
+>  4 files changed, 252 insertions(+), 0 deletions(-)
+> 
+> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> index 3d72e09..0d0363e 100644
+> --- a/include/linux/memcontrol.h
+> +++ b/include/linux/memcontrol.h
+> @@ -167,6 +167,11 @@ bool should_writeback_mem_cgroup_inode(struct inode *inode,
+>  				       struct writeback_control *wbc);
+>  bool mem_cgroups_over_bground_dirty_thresh(void);
+>  void mem_cgroup_writeback_done(void);
+> +bool mem_cgroup_hierarchical_dirty_info(unsigned long sys_available_mem,
+> +					struct mem_cgroup *mem,
+> +					struct dirty_info *info);
+> +void mem_cgroup_balance_dirty_pages(struct address_space *mapping,
+> +				    unsigned long write_chunk);
+>  
+>  unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
+>  						gfp_t gfp_mask,
+> @@ -383,6 +388,19 @@ static inline void mem_cgroup_writeback_done(void)
+>  {
+>  }
+>  
+> +static inline void mem_cgroup_balance_dirty_pages(struct address_space *mapping,
+> +						  unsigned long write_chunk)
+> +{
+> +}
+> +
+> +static inline bool
+> +mem_cgroup_hierarchical_dirty_info(unsigned long sys_available_mem,
+> +				   struct mem_cgroup *mem,
+> +				   struct dirty_info *info)
+> +{
+> +	return false;
+> +}
+> +
+>  static inline
+>  unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
+>  					    gfp_t gfp_mask,
+> diff --git a/include/linux/writeback.h b/include/linux/writeback.h
+> index 66ec339..4f5c0d2 100644
+> --- a/include/linux/writeback.h
+> +++ b/include/linux/writeback.h
+> @@ -47,6 +47,7 @@ struct writeback_control {
+>  	unsigned for_reclaim:1;		/* Invoked from the page allocator */
+>  	unsigned range_cyclic:1;	/* range_start is cyclic */
+>  	unsigned more_io:1;		/* more io to be dispatched */
+> +	unsigned for_cgroup:1;		/* enable cgroup writeback */
+>  	unsigned shared_inodes:1;	/* write inodes spanning cgroups */
+>  };
+>  
+> diff --git a/include/trace/events/memcontrol.h b/include/trace/events/memcontrol.h
+> index 326a66b..b42dae1 100644
+> --- a/include/trace/events/memcontrol.h
+> +++ b/include/trace/events/memcontrol.h
+> @@ -109,6 +109,89 @@ TRACE_EVENT(mem_cgroups_over_bground_dirty_thresh,
+>  		  __entry->first_id)
+>  )
+>  
+> +DECLARE_EVENT_CLASS(mem_cgroup_consider_writeback,
+> +	TP_PROTO(unsigned short css_id,
+> +		 struct backing_dev_info *bdi,
+> +		 unsigned long nr_reclaimable,
+> +		 unsigned long thresh,
+> +		 bool over_limit),
+> +
+> +	TP_ARGS(css_id, bdi, nr_reclaimable, thresh, over_limit),
+> +
+> +	TP_STRUCT__entry(
+> +		__field(unsigned short, css_id)
+> +		__field(struct backing_dev_info *, bdi)
+> +		__field(unsigned long, nr_reclaimable)
+> +		__field(unsigned long, thresh)
+> +		__field(bool, over_limit)
+> +	),
+> +
+> +	TP_fast_assign(
+> +		__entry->css_id = css_id;
+> +		__entry->bdi = bdi;
+> +		__entry->nr_reclaimable = nr_reclaimable;
+> +		__entry->thresh = thresh;
+> +		__entry->over_limit = over_limit;
+> +	),
+> +
+> +	TP_printk("css_id=%d bdi=%p nr_reclaimable=%ld thresh=%ld "
+> +		  "over_limit=%d", __entry->css_id, __entry->bdi,
+> +		  __entry->nr_reclaimable, __entry->thresh, __entry->over_limit)
+> +)
+> +
+> +#define DEFINE_MEM_CGROUP_CONSIDER_WRITEBACK_EVENT(name) \
+> +DEFINE_EVENT(mem_cgroup_consider_writeback, name, \
+> +	TP_PROTO(unsigned short id, \
+> +		 struct backing_dev_info *bdi, \
+> +		 unsigned long nr_reclaimable, \
+> +		 unsigned long thresh, \
+> +		 bool over_limit), \
+> +	TP_ARGS(id, bdi, nr_reclaimable, thresh, over_limit) \
+> +)
+> +
+> +DEFINE_MEM_CGROUP_CONSIDER_WRITEBACK_EVENT(mem_cgroup_consider_bg_writeback);
+> +DEFINE_MEM_CGROUP_CONSIDER_WRITEBACK_EVENT(mem_cgroup_consider_fg_writeback);
+> +
+> +TRACE_EVENT(mem_cgroup_fg_writeback,
+> +	TP_PROTO(unsigned long write_chunk,
+> +		 struct writeback_control *wbc),
+> +
+> +	TP_ARGS(write_chunk, wbc),
+> +
+> +	TP_STRUCT__entry(
+> +		__field(unsigned long, write_chunk)
+> +		__field(long, wbc_to_write)
+> +		__field(bool, shared_inodes)
+> +	),
+> +
+> +	TP_fast_assign(
+> +		__entry->write_chunk = write_chunk;
+> +		__entry->wbc_to_write = wbc->nr_to_write;
+> +		__entry->shared_inodes = wbc->shared_inodes;
+> +	),
+> +
+> +	TP_printk("write_chunk=%ld nr_to_write=%ld shared_inodes=%d",
+> +		  __entry->write_chunk,
+> +		  __entry->wbc_to_write,
+> +		  __entry->shared_inodes)
+> +)
+> +
+> +TRACE_EVENT(mem_cgroup_enable_shared_writeback,
+> +	TP_PROTO(unsigned short css_id),
+> +
+> +	TP_ARGS(css_id),
+> +
+> +	TP_STRUCT__entry(
+> +		__field(unsigned short, css_id)
+> +		),
+> +
+> +	TP_fast_assign(
+> +		__entry->css_id = css_id;
+> +		),
+> +
+> +	TP_printk("enabling shared writeback for memcg %d", __entry->css_id)
+> +)
+> +
+>  #endif /* _TRACE_MEMCONTROL_H */
+>  
+>  /* This part must be outside protection */
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index a5b1794..17cb888 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -1622,6 +1622,156 @@ void mem_cgroup_writeback_done(void)
+>  	}
+>  }
+>  
+> +/*
+> + * This routine must be called by processes which are generating dirty pages.
+> + * It considers the dirty pages usage and thresholds of the current cgroup and
+> + * (depending if hierarchical accounting is enabled) ancestral memcg.  If any of
+> + * the considered memcg are over their background dirty limit, then background
+> + * writeback is queued.  If any are over the foreground dirty limit then
+> + * throttle the dirtying task while writing dirty data.  The per-memcg dirty
+> + * limits check by this routine are distinct from either the per-system,
+> + * per-bdi, or per-task limits considered by balance_dirty_pages().
+> + */
+> +void mem_cgroup_balance_dirty_pages(struct address_space *mapping,
+> +				    unsigned long write_chunk)
+> +{
+> +	struct backing_dev_info *bdi = mapping->backing_dev_info;
+> +	struct mem_cgroup *mem;
+> +	struct mem_cgroup *ref_mem;
+> +	struct dirty_info info;
+> +	unsigned long nr_reclaimable;
+> +	unsigned long sys_available_mem;
+> +	unsigned long pause = 1;
+> +	unsigned short id;
+> +	bool over;
+> +	bool shared_inodes;
+> +
+> +	if (mem_cgroup_disabled())
+> +		return;
+> +
+> +	sys_available_mem = determine_dirtyable_memory();
+> +
+> +	/* reference the memcg so it is not deleted during this routine */
+> +	rcu_read_lock();
+> +	mem = mem_cgroup_from_task(current);
+> +	if (mem && mem_cgroup_is_root(mem))
+> +		mem = NULL;
+> +	if (mem)
+> +		css_get(&mem->css);
+> +	rcu_read_unlock();
+> +	ref_mem = mem;
+> +
+> +	/* balance entire ancestry of current's mem. */
+> +	for (; mem_cgroup_has_dirty_limit(mem); mem = parent_mem_cgroup(mem)) {
+> +		id = css_id(&mem->css);
+> +
 
-zone boundary is not problem. If memmap for head of section is unmapped and
-reused, we'll see wrong node because page->flags is broken.
+Hmm, this sounds natural...but...don't we need to restart checking from ref_mem's
+dirty_ratio once we find an ancestor is over dirty_ratio and we slept ?
+
+Even if parent's dirty ratio comes to be clean state, children's may not.
+So, I think some "restart loop" jump after io_schedule_timeout().
+
 
 Thanks,
 -Kame
 
 
+> +		/*
+> +		 * keep throttling and writing inode data so long as mem is over
+> +		 * its dirty limit.
+> +		 */
+> +		for (shared_inodes = false; ; ) {
+> +			struct writeback_control wbc = {
+> +				.sync_mode	= WB_SYNC_NONE,
+> +				.older_than_this = NULL,
+> +				.range_cyclic	= 1,
+> +				.for_cgroup	= 1,
+> +				.nr_to_write	= write_chunk,
+> +				.shared_inodes	= shared_inodes,
+> +			};
+> +
+> +			/*
+> +			 * if mem is under dirty limit, then break from
+> +			 * throttling loop.
+> +			 */
+> +			mem_cgroup_dirty_info(sys_available_mem, mem, &info);
+> +			nr_reclaimable = dirty_info_reclaimable(&info);
+> +			over = nr_reclaimable > info.dirty_thresh;
+> +			trace_mem_cgroup_consider_fg_writeback(
+> +				id, bdi, nr_reclaimable, info.dirty_thresh,
+> +				over);
+> +			if (!over)
+> +				break;
+> +
+> +			mem_cgroup_mark_over_bg_thresh(mem);
+> +			writeback_inodes_wb(&bdi->wb, &wbc);
+> +			trace_mem_cgroup_fg_writeback(write_chunk, &wbc);
+> +			/* if no progress, then consider shared inodes */
+> +			if ((wbc.nr_to_write == write_chunk) &&
+> +			    !shared_inodes) {
+> +				trace_mem_cgroup_enable_shared_writeback(id);
+> +				shared_inodes = true;
+> +			}
+> +
+> +			/*
+> +			 * Sleep up to 100ms to throttle writer and wait for
+> +			 * queued background I/O to complete.
+> +			 */
+> +			__set_current_state(TASK_UNINTERRUPTIBLE);
+> +			io_schedule_timeout(pause);
+> +			pause <<= 1;
+> +			if (pause > HZ / 10)
+> +				pause = HZ / 10;
+
+Hmm, is this exponential back off "pause" is from mm/page-writeback.c ?
+I'm happy if we can have a shared code. (But ok if it adds some messy.)
+
+
+
+> +		}
+> +
+> +		/* if mem is over background limit, then queue bg writeback */
+> +		over = nr_reclaimable >= info.background_thresh;
+> +		trace_mem_cgroup_consider_bg_writeback(
+> +			id, bdi, nr_reclaimable, info.background_thresh,
+> +			over);
+> +		if (over)
+> +			mem_cgroup_queue_bg_writeback(mem, bdi);
+> +	}
+> +
+> +	if (ref_mem)
+> +		css_put(&ref_mem->css);
+> +}
+> +
+> +/*
+> + * Return the dirty thresholds and usage for the mem (within the ancestral chain
+> + * of @mem) closest to its dirty limit or the first memcg over its limit.
+> + *
+> + * The check is not stable because the usage and limits can change asynchronous
+> + * to this routine.
+> + */
+> +bool mem_cgroup_hierarchical_dirty_info(unsigned long sys_available_mem,
+> +					struct mem_cgroup *mem,
+> +					struct dirty_info *info)
+> +{
+> +	unsigned long usage;
+> +	struct dirty_info uninitialized_var(cur_info);
+> +
+> +	if (mem_cgroup_disabled())
+> +		return false;
+> +
+> +	info->nr_writeback = ULONG_MAX;  /* invalid initial value */
+> +
+> +	/* walk up hierarchy enabled parents */
+> +	for (; mem_cgroup_has_dirty_limit(mem); mem = parent_mem_cgroup(mem)) {
+> +		mem_cgroup_dirty_info(sys_available_mem, mem, &cur_info);
+> +		usage = dirty_info_reclaimable(&cur_info) +
+> +			cur_info.nr_writeback;
+> +
+> +		/* if over limit, stop searching */
+> +		if (usage >= cur_info.dirty_thresh) {
+> +			*info = cur_info;
+> +			break;
+> +		}
+> +
+> +		/*
+> +		 * Save dirty usage of mem closest to its limit if either:
+> +		 *     - mem is the first mem considered
+> +		 *     - mem dirty margin is smaller than last recorded one
+> +		 */
+> +		if ((info->nr_writeback == ULONG_MAX) ||
+> +		    (cur_info.dirty_thresh - usage) <
+> +		    (info->dirty_thresh -
+> +		     (dirty_info_reclaimable(info) + info->nr_writeback)))
+> +			*info = cur_info;
+> +	}
+> +
+> +	return info->nr_writeback != ULONG_MAX;
+> +}
+> +
+>  static void mem_cgroup_start_move(struct mem_cgroup *mem)
+>  {
+>  	int cpu;
+> -- 
+> 1.7.3.1
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
