@@ -1,134 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id B5B19900001
-	for <linux-mm@kvack.org>; Tue,  7 Jun 2011 09:08:41 -0400 (EDT)
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.31.245])
-	by e23smtp04.au.ibm.com (8.14.4/8.13.1) with ESMTP id p57D2ZYs012908
-	for <linux-mm@kvack.org>; Tue, 7 Jun 2011 23:02:35 +1000
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p57D8cI11069074
-	for <linux-mm@kvack.org>; Tue, 7 Jun 2011 23:08:38 +1000
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p57D8aOf029650
-	for <linux-mm@kvack.org>; Tue, 7 Jun 2011 23:08:37 +1000
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 13AC1900001
+	for <linux-mm@kvack.org>; Tue,  7 Jun 2011 09:08:55 -0400 (EDT)
+Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [202.81.31.247])
+	by e23smtp03.au.ibm.com (8.14.4/8.13.1) with ESMTP id p57D3qSg016771
+	for <linux-mm@kvack.org>; Tue, 7 Jun 2011 23:03:52 +1000
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p57D82sZ1302702
+	for <linux-mm@kvack.org>; Tue, 7 Jun 2011 23:08:02 +1000
+Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
+	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p57D8pwn003485
+	for <linux-mm@kvack.org>; Tue, 7 Jun 2011 23:08:52 +1000
 From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Date: Tue, 07 Jun 2011 18:31:46 +0530
-Message-Id: <20110607130146.28590.71921.sendpatchset@localhost6.localdomain6>
+Date: Tue, 07 Jun 2011 18:32:01 +0530
+Message-Id: <20110607130201.28590.89367.sendpatchset@localhost6.localdomain6>
 In-Reply-To: <20110607125804.28590.92092.sendpatchset@localhost6.localdomain6>
 References: <20110607125804.28590.92092.sendpatchset@localhost6.localdomain6>
-Subject: [PATCH v4 3.0-rc2-tip 18/22] 18: tracing: Uprobe tracer documentation
+Subject: [PATCH v4 3.0-rc2-tip 19/22] 19: perf: rename target_module to target
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>
-Cc: Steven Rostedt <rostedt@goodmis.org>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>
+Cc: Steven Rostedt <rostedt@goodmis.org>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Jonathan Corbet <corbet@lwn.net>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
 
+
+This is a precursor patch that modifies names that refer to kernel/module
+to also refer to user space names.
 
 Signed-off-by: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
 ---
- Documentation/trace/uprobetrace.txt |   94 +++++++++++++++++++++++++++++++++++
- 1 files changed, 94 insertions(+), 0 deletions(-)
- create mode 100644 Documentation/trace/uprobetrace.txt
+ tools/perf/builtin-probe.c    |   12 ++++++------
+ tools/perf/util/probe-event.c |    6 +++---
+ 2 files changed, 9 insertions(+), 9 deletions(-)
 
-diff --git a/Documentation/trace/uprobetrace.txt b/Documentation/trace/uprobetrace.txt
-new file mode 100644
-index 0000000..6c18ffe
---- /dev/null
-+++ b/Documentation/trace/uprobetrace.txt
-@@ -0,0 +1,94 @@
-+		Uprobe-tracer: Uprobe-based Event Tracing
-+		=========================================
-+                 Documentation is written by Srikar Dronamraju
-+
-+Overview
-+--------
-+These events are similar to kprobe based events.
-+To enable this feature, build your kernel with CONFIG_UPROBE_EVENTS=y.
-+
-+Similar to the kprobe-event tracer, this doesn't need to be activated via
-+current_tracer. Instead of that, add probe points via
-+/sys/kernel/debug/tracing/uprobe_events, and enable it via
-+/sys/kernel/debug/tracing/events/uprobes/<EVENT>/enabled.
-+
-+
-+Synopsis of uprobe_tracer
-+-------------------------
-+  p[:[GRP/]EVENT] PATH:SYMBOL[+offs] [FETCHARGS]	: Set a probe
-+
-+ GRP		: Group name. If omitted, use "uprobes" for it.
-+ EVENT		: Event name. If omitted, the event name is generated
-+		  based on SYMBOL+offs.
-+ PATH		: path to an executable or a library.
-+ SYMBOL[+offs]	: Symbol+offset where the probe is inserted.
-+
-+ FETCHARGS	: Arguments. Each probe can have up to 128 args.
-+  %REG		: Fetch register REG
-+
-+Event Profiling
-+---------------
-+ You can check the total number of probe hits and probe miss-hits via
-+/sys/kernel/debug/tracing/uprobe_profile.
-+ The first column is event name, the second is the number of probe hits,
-+the third is the number of probe miss-hits.
-+
-+Usage examples
-+--------------
-+To add a probe as a new event, write a new definition to uprobe_events
-+as below.
-+
-+  echo 'p: /bin/bash:0x4245c0' > /sys/kernel/debug/tracing/uprobe_events
-+
-+ This sets a uprobe at an offset of 0x4245c0 in the executable /bin/bash
-+
-+
-+  echo > /sys/kernel/debug/tracing/uprobe_events
-+
-+ This clears all probe points.
-+
-+The following example shows how to dump the instruction pointer and %ax
-+a register at the probed text address.  Here we are trying to probe
-+function zfree in /bin/zsh
-+
-+    # cd /sys/kernel/debug/tracing/
-+    # cat /proc/`pgrep  zsh`/maps | grep /bin/zsh | grep r-xp
-+    00400000-0048a000 r-xp 00000000 08:03 130904 /bin/zsh
-+    # objdump -T /bin/zsh | grep -w zfree
-+    0000000000446420 g    DF .text  0000000000000012  Base        zfree
-+
-+0x46420 is the offset of zfree in object /bin/zsh that is loaded at
-+0x00400000. Hence the command to probe would be :
-+
-+    # echo 'p /bin/zsh:0x46420 %ip %ax' > uprobe_events
-+
-+We can see the events that are registered by looking at the uprobe_events
-+file.
-+
-+    # cat uprobe_events
-+    p:uprobes/p_zsh_0x46420 /bin/zsh:0x0000000000046420
-+
-+Right after definition, each event is disabled by default. For tracing these
-+events, you need to enable it by:
-+
-+    # echo 1 > events/uprobes/enable
-+
-+Lets disable the event after sleeping for some time.
-+    # sleep 20
-+    # echo 0 > events/uprobes/enable
-+
-+And you can see the traced information via /sys/kernel/debug/tracing/trace.
-+
-+    # cat trace
-+    # tracer: nop
-+    #
-+    #           TASK-PID    CPU#    TIMESTAMP  FUNCTION
-+    #              | |       |          |         |
-+                 zsh-24842 [006] 258544.995456: p_zsh_0x46420: (0x446420) arg1=446421 arg2=79
-+                 zsh-24842 [007] 258545.000270: p_zsh_0x46420: (0x446420) arg1=446421 arg2=79
-+                 zsh-24842 [002] 258545.043929: p_zsh_0x46420: (0x446420) arg1=446421 arg2=79
-+                 zsh-24842 [004] 258547.046129: p_zsh_0x46420: (0x446420) arg1=446421 arg2=79
-+
-+Each line shows us probes were triggered for a pid 24842 with ip being
-+0x446421 and contents of ax register being 79.
-+
+diff --git a/tools/perf/builtin-probe.c b/tools/perf/builtin-probe.c
+index 2c0e64d..98db08f 100644
+--- a/tools/perf/builtin-probe.c
++++ b/tools/perf/builtin-probe.c
+@@ -61,7 +61,7 @@ static struct {
+ 	struct perf_probe_event events[MAX_PROBES];
+ 	struct strlist *dellist;
+ 	struct line_range line_range;
+-	const char *target_module;
++	const char *target;
+ 	int max_probe_points;
+ 	struct strfilter *filter;
+ } params;
+@@ -241,7 +241,7 @@ static const struct option options[] = {
+ 		   "file", "vmlinux pathname"),
+ 	OPT_STRING('s', "source", &symbol_conf.source_prefix,
+ 		   "directory", "path to kernel source"),
+-	OPT_STRING('m', "module", &params.target_module,
++	OPT_STRING('m', "module", &params.target,
+ 		   "modname", "target module name"),
+ #endif
+ 	OPT__DRY_RUN(&probe_event_dry_run),
+@@ -327,7 +327,7 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
+ 		if (!params.filter)
+ 			params.filter = strfilter__new(DEFAULT_FUNC_FILTER,
+ 						       NULL);
+-		ret = show_available_funcs(params.target_module,
++		ret = show_available_funcs(params.target,
+ 					   params.filter);
+ 		strfilter__delete(params.filter);
+ 		if (ret < 0)
+@@ -348,7 +348,7 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
+ 			usage_with_options(probe_usage, options);
+ 		}
+ 
+-		ret = show_line_range(&params.line_range, params.target_module);
++		ret = show_line_range(&params.line_range, params.target);
+ 		if (ret < 0)
+ 			pr_err("  Error: Failed to show lines. (%d)\n", ret);
+ 		return ret;
+@@ -365,7 +365,7 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
+ 
+ 		ret = show_available_vars(params.events, params.nevents,
+ 					  params.max_probe_points,
+-					  params.target_module,
++					  params.target,
+ 					  params.filter,
+ 					  params.show_ext_vars);
+ 		strfilter__delete(params.filter);
+@@ -387,7 +387,7 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
+ 	if (params.nevents) {
+ 		ret = add_perf_probe_events(params.events, params.nevents,
+ 					    params.max_probe_points,
+-					    params.target_module,
++					    params.target,
+ 					    params.force_add);
+ 		if (ret < 0) {
+ 			pr_err("  Error: Failed to add events. (%d)\n", ret);
+diff --git a/tools/perf/util/probe-event.c b/tools/perf/util/probe-event.c
+index f022316..153e860 100644
+--- a/tools/perf/util/probe-event.c
++++ b/tools/perf/util/probe-event.c
+@@ -1976,7 +1976,7 @@ static int filter_available_functions(struct map *map __unused,
+ 	return 1;
+ }
+ 
+-int show_available_funcs(const char *module, struct strfilter *_filter)
++int show_available_funcs(const char *elfobject, struct strfilter *_filter)
+ {
+ 	struct map *map;
+ 	int ret;
+@@ -1987,9 +1987,9 @@ int show_available_funcs(const char *module, struct strfilter *_filter)
+ 	if (ret < 0)
+ 		return ret;
+ 
+-	map = kernel_get_module_map(module);
++	map = kernel_get_module_map(elfobject);
+ 	if (!map) {
+-		pr_err("Failed to find %s map.\n", (module) ? : "kernel");
++		pr_err("Failed to find %s map.\n", (elfobject) ? : "kernel");
+ 		return -EINVAL;
+ 	}
+ 	available_func_filter = _filter;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
