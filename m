@@ -1,146 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id DDE396B0012
-	for <linux-mm@kvack.org>; Tue,  7 Jun 2011 05:03:20 -0400 (EDT)
-Date: Tue, 7 Jun 2011 10:03:13 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [Bugme-new] [Bug 36192] New: Kernel panic when boot the 2.6.39+
- kernel based off of 2.6.32 kernel
-Message-ID: <20110607090313.GJ5247@suse.de>
-References: <bug-36192-10286@https.bugzilla.kernel.org/>
- <20110529231948.e1439ce5.akpm@linux-foundation.org>
- <20110530160114.5a82e590.kamezawa.hiroyu@jp.fujitsu.com>
- <20110530162904.b78bf354.kamezawa.hiroyu@jp.fujitsu.com>
- <20110530165453.845bba09.kamezawa.hiroyu@jp.fujitsu.com>
- <20110530175140.3644b3bf.kamezawa.hiroyu@jp.fujitsu.com>
- <20110606125421.GB30184@cmpxchg.org>
- <20110606144519.1e2e7d86.akpm@linux-foundation.org>
- <20110607095708.6097689a.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20110607095708.6097689a.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id CF22A6B0078
+	for <linux-mm@kvack.org>; Tue,  7 Jun 2011 05:03:39 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 61A873EE0BD
+	for <linux-mm@kvack.org>; Tue,  7 Jun 2011 18:03:35 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 4707345DED4
+	for <linux-mm@kvack.org>; Tue,  7 Jun 2011 18:03:35 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 2142545DED1
+	for <linux-mm@kvack.org>; Tue,  7 Jun 2011 18:03:35 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0DE5DE78004
+	for <linux-mm@kvack.org>; Tue,  7 Jun 2011 18:03:35 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id CDBD8E78005
+	for <linux-mm@kvack.org>; Tue,  7 Jun 2011 18:03:34 +0900 (JST)
+Date: Tue, 7 Jun 2011 17:56:34 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH v8 11/12] writeback: make background writeback cgroup
+ aware
+Message-Id: <20110607175634.b07f2e57.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1307117538-14317-12-git-send-email-gthelen@google.com>
+References: <1307117538-14317-1-git-send-email-gthelen@google.com>
+	<1307117538-14317-12-git-send-email-gthelen@google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org, qcui@redhat.com, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Li Zefan <lizf@cn.fujitsu.com>
+To: Greg Thelen <gthelen@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, linux-fsdevel@vger.kernel.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Vivek Goyal <vgoyal@redhat.com>, Dave Chinner <david@fromorbit.com>
 
-On Tue, Jun 07, 2011 at 09:57:08AM +0900, KAMEZAWA Hiroyuki wrote:
-> On Mon, 6 Jun 2011 14:45:19 -0700
-> Andrew Morton <akpm@linux-foundation.org> wrote:
-> 
-> > Hopefully he can test this one for us as well, thanks.
-> > 
-> 
-> A  patch with better description (of mine) is here.
-> Anyway, I felt I needed a fix for ARM special case.
-> 
-> ==
-> fix-init-page_cgroup-for-sparsemem-taking-care-of-broken-page-flags.patch
-> Even with SPARSEMEM, there are some magical memmap.
-> 
+On Fri,  3 Jun 2011 09:12:17 -0700
+Greg Thelen <gthelen@google.com> wrote:
 
-Who wants to introduce SPARSEMEM_MAGICAL?
-
-> If a Node is not aligned to SECTION, memmap of pfn which is out of
-> Node's range is not initialized. And page->flags contains 0.
+> When the system is under background dirty memory threshold but a cgroup
+> is over its background dirty memory threshold, then only writeback
+> inodes associated with the over-limit cgroup(s).
 > 
-
-This is tangential but it might be worth introducing
-CONFIG_DEBUG_MEMORY_MODEL that WARN_ONs page->flag == 0 in
-pfn_to_page() to catch some accesses outside node boundaries. Not for
-this bug though.
-
-> If Node(0) doesn't exist, NODE_DATA(pfn_to_nid(pfn)) causes error.
+> In addition to checking if the system dirty memory usage is over the
+> system background threshold, over_bground_thresh() also checks if any
+> cgroups are over their respective background dirty memory thresholds.
+> The writeback_control.for_cgroup field is set to distinguish between a
+> system and memcg overage.
 > 
-
-Well, not in itself. It causes a bug when we try allocate memory
-from node 0 but there is a subtle performance bug here as well. For
-unaligned nodes, the cgroup information can be allocated from node
-0 instead of node-local.
-
-> In another case, for example, ARM frees memmap which is never be used
-> even under SPARSEMEM. In that case, page->flags will contain broken
-> value.
+> If performing cgroup writeback, move_expired_inodes() skips inodes that
+> do not contribute dirty pages to the cgroup being written back.
 > 
-
-Again, not as such. In that case, struct page is not valid memory
-at all.
-
-> This patch does a strict check on nid which is obtained by
-> pfn_to_page() and use proper NID for page_cgroup allocation.
+> After writing some pages, wb_writeback() will call
+> mem_cgroup_writeback_done() to update the set of over-bg-limits memcg.
 > 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> 
+> Signed-off-by: Greg Thelen <gthelen@google.com>
+
+
+
 > ---
->  mm/page_cgroup.c |   36 +++++++++++++++++++++++++++++++++++-
->  1 file changed, 35 insertions(+), 1 deletion(-)
-> 
-> Index: linux-3.0-rc1/mm/page_cgroup.c
-> ===================================================================
-> --- linux-3.0-rc1.orig/mm/page_cgroup.c
-> +++ linux-3.0-rc1/mm/page_cgroup.c
-> @@ -168,6 +168,7 @@ static int __meminit init_section_page_c
->  	struct mem_section *section;
->  	unsigned long table_size;
->  	unsigned long nr;
-> +	unsigned long tmp;
->  	int nid, index;
->  
->  	nr = pfn_to_section_nr(pfn);
-> @@ -175,8 +176,41 @@ static int __meminit init_section_page_c
->  
->  	if (section->page_cgroup)
->  		return 0;
-> +	/*
-> +	 * check Node-ID. Because we get 'pfn' which is obtained by calculation,
-> +	 * the pfn may "not exist" or "alreay freed". Even if pfn_valid() returns
-> +	 * true, page->flags may contain broken value and pfn_to_nid() returns
-> +	 * bad value.
-> +	 * (See CONFIG_ARCH_HAS_HOLES_MEMORYMODEL and ARM's free_memmap())
-> +	 * So, we need to do careful check, here.
-> +	 */
+> Changelog since v7:
+> - over_bground_thresh() now sets shared_inodes=1.  In -v7 per memcg
+>   background writeback did not, so it did not write pages of shared
+>   inodes in background writeback.  In the (potentially common) case
+>   where the system dirty memory usage is below the system background
+>   dirty threshold but at least one cgroup is over its background dirty
+>   limit, then per memcg background writeback is queued for any
+>   over-background-threshold cgroups.  Background writeback should be
+>   allowed to writeback shared inodes.  The hope is that writing such
+>   inodes has good chance of cleaning the inodes so they can transition
+>   from shared to non-shared.  Such a transition is good because then the
+>   inode will remain unshared until it is written by multiple cgroup.
+>   Non-shared inodes offer better isolation.
 
-You don't really need to worry about ARM here as long as you stay
-within node boundaries and you only care about the first valid page
-in the node. Why not lookup NODE_DATA(nid) and make sure start and
-end are within the node boundaries?
+If you post v9,  please adds above explanation as the comments in the code.
 
-> +	for (tmp = pfn;
-> +	     tmp < pfn + PAGES_PER_SECTION;
-> +	     tmp += MAX_ORDER_NR_PAGES, nid = -1) {
-> +		struct page *page;
-> +
-> +		if (!pfn_valid(tmp))
-> +			continue;
-> +
-> +		page = pfn_to_page(tmp);
-> +		nid = page_to_nid(page);
->  
-> -	nid = page_to_nid(pfn_to_page(pfn));
-> +		/*
-> +		 * If 'page' isn't initialized or freed, it may contains broken
-> +		 * information.
-> +		 */
-> +		if (!node_state(nid, N_NORMAL_MEMORY))
-> +			continue;
-> +		if (page_to_pfn(pfn_to_page(tmp)) != tmp)
-> +			continue;
-> +		/*
-> +		 * The page seems valid and this 'nid' is safe to access,
-> + 		 * at least.
-> + 		 */
-> +		break;
-> +	}
-> +	if (nid == -1)
-> +		return 0;
->  	table_size = sizeof(struct page_cgroup) * PAGES_PER_SECTION;
->  	base = alloc_page_cgroup(table_size, nid);
->  
-
--- 
-Mel Gorman
-SUSE Labs
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
