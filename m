@@ -1,53 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D8896B004A
-	for <linux-mm@kvack.org>; Tue,  7 Jun 2011 17:33:36 -0400 (EDT)
-Date: Tue, 7 Jun 2011 14:33:01 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: Fix assertion mapping->nrpages == 0 in
- end_writeback()
-Message-Id: <20110607143301.7dbaf146.akpm@linux-foundation.org>
-In-Reply-To: <1307425597.3649.61.camel@tucsk.pomaz.szeredi.hu>
-References: <1306748258-4732-1-git-send-email-jack@suse.cz>
-	<20110606151614.0037e236.akpm@linux-foundation.org>
-	<1307425597.3649.61.camel@tucsk.pomaz.szeredi.hu>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 943466B004A
+	for <linux-mm@kvack.org>; Tue,  7 Jun 2011 18:57:16 -0400 (EDT)
+Message-ID: <4DEEACC3.3030509@trash.net>
+Date: Wed, 08 Jun 2011 00:57:07 +0200
+From: Patrick McHardy <kaber@trash.net>
+MIME-Version: 1.0
+Subject: Re: KVM induced panic on 2.6.38[2367] & 2.6.39
+References: <20110601011527.GN19505@random.random>	 <alpine.LSU.2.00.1105312120530.22808@sister.anvils>	 <4DE5DCA8.7070704@fnarfbargle.com> <4DE5E29E.7080009@redhat.com>	 <4DE60669.9050606@fnarfbargle.com> <4DE60918.3010008@redhat.com>	 <4DE60940.1070107@redhat.com> <4DE61A2B.7000008@fnarfbargle.com>	 <20110601111841.GB3956@zip.com.au> <4DE62801.9080804@fnarfbargle.com>	 <20110601230342.GC3956@zip.com.au> <4DE8E3ED.7080004@fnarfbargle.com>	 <isavsg$3or$1@dough.gmane.org> <4DE906C0.6060901@fnarfbargle.com>	 <4DED344D.7000005@pandora.be> <4DED9C23.2030408@fnarfbargle.com>	 <4DEE27DE.7060004@trash.net> <4DEE3859.6070808@fnarfbargle.com>	 <4DEE4538.1020404@trash.net> <1307471484.3091.43.camel@edumazet-laptop>
+In-Reply-To: <1307471484.3091.43.camel@edumazet-laptop>
+Content-Type: text/plain; charset=ISO-8859-15
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Miklos Szeredi <mszeredi@suse.cz>
-Cc: Jan Kara <jack@suse.cz>, linux-mm@kvack.org, Al Viro <viro@ZenIV.linux.org.uk>, Jay <jinshan.xiong@whamcloud.com>, stable@kernel.org, Nick Piggin <npiggin@kernel.dk>
+To: Eric Dumazet <eric.dumazet@gmail.com>
+Cc: Brad Campbell <brad@fnarfbargle.com>, Bart De Schuymer <bdschuym@pandora.be>, kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, netfilter-devel@vger.kernel.org
 
-On Tue, 07 Jun 2011 07:46:37 +0200
-Miklos Szeredi <mszeredi@suse.cz> wrote:
-
-> > Either way, I don't think that the uglypatch expresses a full
-> > understanding of te bug ;)
+On 07.06.2011 20:31, Eric Dumazet wrote:
+> Le mardi 07 juin 2011 a 17:35 +0200, Patrick McHardy a ecrit :
 > 
-> I don't see a better way, how would we make nrpages update atomically
-> wrt the radix-tree while using only RCU?
+>> The main suspects would be NAT and TCPMSS. Did you also try whether
+>> the crash occurs with only one of these these rules?
+>>
+>>> I've just compiled out CONFIG_BRIDGE_NETFILTER and can no longer access
+>>> the address the way I was doing it, so that's a no-go for me.
+>>
+>> That's really weird since you're apparently not using any bridge
+>> netfilter features. It shouldn't have any effect besides changing
+>> at which point ip_tables is invoked. How are your network devices
+>> configured (specifically any bridges)?
 > 
-> The question is, does it matter that those two can get temporarily out
-> of sync?
+> Something in the kernel does 
 > 
-> In case of inode eviction it does, not only because of that BUG_ON, but
-> because page reclaim must be somehow synchronised with eviction.
-> Otherwise it may access tree_lock on the mapping of an already freed
-> inode.
+> u16 *ptr = addr (given by kmalloc())
 > 
-> In other cases?  AFAICS it doesn't matter.  Most ->nrpages accesses
-> weren't under tree_lock before Nick's RCUification, so their use were
-> just optimization.   
+> ptr[-1] = 0;
+> 
+> Could be an off-one error in a memmove()/memcopy() or loop...
+> 
+> I cant see a network issue here.
 
-Gee, we've made a bit of a mess here.
+So far me neither, but netfilter appears to trigger the bug.
 
-Rather than bodging around particualr codesites where that mess exposes
-itself, how about we step back and work out what our design is here,
-then implement it and check that all sites comply with it?
+> I checked arch/x86/lib/memmove_64.S and it seems fine.
 
-What is the relationship between the radix-tree and nrpages?  What are
-the locking rules?  Can anyone come up with a one-sentence proposal?
+I was thinking it might be a missing skb_make_writable() combined
+with vhost_net specifics in the netfilter code (TCPMSS and NAT are
+both suspect), but was unable to find something. I also went
+through the dst_metrics() conversion to see whether anything could
+cause problems with the bridge fake_rttable, but also nothing
+so far.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
