@@ -1,128 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id B90596B0092
-	for <linux-mm@kvack.org>; Tue,  7 Jun 2011 09:07:52 -0400 (EDT)
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id DD5DA6B00ED
+	for <linux-mm@kvack.org>; Tue,  7 Jun 2011 09:08:01 -0400 (EDT)
 Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
-	by e28smtp07.in.ibm.com (8.14.4/8.13.1) with ESMTP id p57D7m3L011208
-	for <linux-mm@kvack.org>; Tue, 7 Jun 2011 18:37:48 +0530
-Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
-	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p57D7lNn4112622
-	for <linux-mm@kvack.org>; Tue, 7 Jun 2011 18:37:47 +0530
-Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
-	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p57D7khG018817
-	for <linux-mm@kvack.org>; Tue, 7 Jun 2011 23:07:47 +1000
+	by e28smtp08.in.ibm.com (8.14.4/8.13.1) with ESMTP id p57Cw9u0030115
+	for <linux-mm@kvack.org>; Tue, 7 Jun 2011 18:28:09 +0530
+Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
+	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p57D7vOR3981452
+	for <linux-mm@kvack.org>; Tue, 7 Jun 2011 18:37:57 +0530
+Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
+	by d28av04.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p57D7unf010063
+	for <linux-mm@kvack.org>; Tue, 7 Jun 2011 23:07:57 +1000
 From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Date: Tue, 07 Jun 2011 18:31:01 +0530
-Message-Id: <20110607130101.28590.99984.sendpatchset@localhost6.localdomain6>
+Date: Tue, 07 Jun 2011 18:31:11 +0530
+Message-Id: <20110607130111.28590.12029.sendpatchset@localhost6.localdomain6>
 In-Reply-To: <20110607125804.28590.92092.sendpatchset@localhost6.localdomain6>
 References: <20110607125804.28590.92092.sendpatchset@localhost6.localdomain6>
-Subject: [PATCH v4 3.0-rc2-tip 14/22] 14: x86: uprobes exception notifier for x86.
+Subject: [PATCH v4 3.0-rc2-tip 15/22] 15: uprobes: register a notifier for uprobes.
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>
-Cc: Steven Rostedt <rostedt@goodmis.org>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Andi Kleen <andi@firstfloor.org>, Thomas Gleixner <tglx@linutronix.de>, Jonathan Corbet <corbet@lwn.net>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, LKML <linux-kernel@vger.kernel.org>
+Cc: Steven Rostedt <rostedt@goodmis.org>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>, Andi Kleen <andi@firstfloor.org>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
 
 
-Provides a uprobes exception notifier for x86.  This uprobe_exception
-notifier gets called in interrupt context and routes int3 and singlestep
-exception when a uprobed process encounters a INT3 or a singlestep exception.
+Uprobe needs to be intimated on int3 and singlestep exceptions.
+Hence uprobes registers a die notifier so that its notified of the events.
 
 Signed-off-by: Ananth N Mavinakayanahalli <ananth@in.ibm.com>
 Signed-off-by: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
 ---
- arch/x86/include/asm/uprobes.h |    3 +++
- arch/x86/kernel/signal.c       |   14 ++++++++++++++
- arch/x86/kernel/uprobes.c      |   29 +++++++++++++++++++++++++++++
- 3 files changed, 46 insertions(+), 0 deletions(-)
+ kernel/uprobes.c |   18 ++++++++++++++++++
+ 1 files changed, 18 insertions(+), 0 deletions(-)
 
-diff --git a/arch/x86/include/asm/uprobes.h b/arch/x86/include/asm/uprobes.h
-index 3a7833c..a5d9480 100644
---- a/arch/x86/include/asm/uprobes.h
-+++ b/arch/x86/include/asm/uprobes.h
-@@ -22,6 +22,7 @@
-  *	Srikar Dronamraju
-  *	Jim Keniston
-  */
-+#include <linux/notifier.h>
+diff --git a/kernel/uprobes.c b/kernel/uprobes.c
+index 1e88d64..95c16dd 100644
+--- a/kernel/uprobes.c
++++ b/kernel/uprobes.c
+@@ -36,6 +36,7 @@
+ #include <linux/mman.h>	/* needed for PROT_EXEC, MAP_PRIVATE */
+ #include <linux/file.h> /* needed for fput() */
+ #include <linux/init_task.h> /* init_cred */
++#include <linux/kdebug.h> /* for notifier mechanism */
  
- typedef u8 uprobe_opcode_t;
- #define MAX_UINSN_BYTES 16
-@@ -47,4 +48,6 @@ extern int analyze_insn(struct task_struct *tsk, struct uprobe *uprobe);
- extern void set_instruction_pointer(struct pt_regs *regs, unsigned long vaddr);
- extern int pre_xol(struct uprobe *uprobe, struct pt_regs *regs);
- extern int post_xol(struct uprobe *uprobe, struct pt_regs *regs);
-+extern int uprobe_exception_notify(struct notifier_block *self,
-+				       unsigned long val, void *data);
- #endif	/* _ASM_UPROBES_H */
-diff --git a/arch/x86/kernel/signal.c b/arch/x86/kernel/signal.c
-index 40a2493..55db9f5 100644
---- a/arch/x86/kernel/signal.c
-+++ b/arch/x86/kernel/signal.c
-@@ -20,6 +20,7 @@
- #include <linux/personality.h>
- #include <linux/uaccess.h>
- #include <linux/user-return-notifier.h>
-+#include <linux/uprobes.h>
- 
- #include <asm/processor.h>
- #include <asm/ucontext.h>
-@@ -844,6 +845,19 @@ do_notify_resume(struct pt_regs *regs, void *unused, __u32 thread_info_flags)
- 	if (thread_info_flags & _TIF_SIGPENDING)
- 		do_signal(regs);
- 
-+	if (thread_info_flags & _TIF_UPROBE) {
-+		clear_thread_flag(TIF_UPROBE);
-+#ifdef CONFIG_X86_32
-+		/*
-+		 * On x86_32, do_notify_resume() gets called with
-+		 * interrupts disabled. Hence enable interrupts if they
-+		 * are still disabled.
-+		 */
-+		local_irq_enable();
-+#endif
-+		uprobe_notify_resume(regs);
-+	}
-+
- 	if (thread_info_flags & _TIF_NOTIFY_RESUME) {
- 		clear_thread_flag(TIF_NOTIFY_RESUME);
- 		tracehook_notify_resume(regs);
-diff --git a/arch/x86/kernel/uprobes.c b/arch/x86/kernel/uprobes.c
-index 8d90ff3..a323631 100644
---- a/arch/x86/kernel/uprobes.c
-+++ b/arch/x86/kernel/uprobes.c
-@@ -560,3 +560,32 @@ int post_xol(struct uprobe *uprobe, struct pt_regs *regs)
- 		result = adjust_ret_addr(regs->sp, correction);
- 	return result;
+ #define UINSNS_PER_PAGE	(PAGE_SIZE/UPROBES_XOL_SLOT_BYTES)
+ #define MAX_UPROBES_XOL_SLOTS UINSNS_PER_PAGE
+@@ -1456,3 +1457,20 @@ int uprobe_post_notifier(struct pt_regs *regs)
+ 	set_thread_flag(TIF_UPROBE);
+ 	return 1;
  }
 +
-+/*
-+ * Wrapper routine for handling exceptions.
-+ */
-+int uprobe_exception_notify(struct notifier_block *self,
-+				       unsigned long val, void *data)
++struct notifier_block uprobe_exception_nb = {
++	.notifier_call = uprobe_exception_notify,
++	.priority = INT_MAX - 1,	/* notified after kprobes, kgdb */
++};
++
++static int __init init_uprobes(void)
 +{
-+	struct die_args *args = data;
-+	struct pt_regs *regs = args->regs;
-+	int ret = NOTIFY_DONE;
-+
-+	/* We are only interested in userspace traps */
-+	if (regs && !user_mode_vm(regs))
-+		return NOTIFY_DONE;
-+
-+	switch (val) {
-+	case DIE_INT3:
-+		/* Run your handler here */
-+		if (uprobe_bkpt_notifier(regs))
-+			ret = NOTIFY_STOP;
-+		break;
-+	case DIE_DEBUG:
-+		if (uprobe_post_notifier(regs))
-+			ret = NOTIFY_STOP;
-+	default:
-+		break;
-+	}
-+	return ret;
++	return register_die_notifier(&uprobe_exception_nb);
 +}
++
++static void __exit exit_uprobes(void)
++{
++}
++
++module_init(init_uprobes);
++module_exit(exit_uprobes);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
