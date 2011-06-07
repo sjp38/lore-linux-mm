@@ -1,114 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 43BB76B0012
-	for <linux-mm@kvack.org>; Tue,  7 Jun 2011 05:40:01 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 6DCA63EE0BC
-	for <linux-mm@kvack.org>; Tue,  7 Jun 2011 18:39:57 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 5500145DED0
-	for <linux-mm@kvack.org>; Tue,  7 Jun 2011 18:39:57 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 3240145DECD
-	for <linux-mm@kvack.org>; Tue,  7 Jun 2011 18:39:57 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 254CAE78005
-	for <linux-mm@kvack.org>; Tue,  7 Jun 2011 18:39:57 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id D422AE78008
-	for <linux-mm@kvack.org>; Tue,  7 Jun 2011 18:39:56 +0900 (JST)
-Date: Tue, 7 Jun 2011 18:33:02 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [Bugme-new] [Bug 36192] New: Kernel panic when boot the 2.6.39+
- kernel based off of 2.6.32 kernel
-Message-Id: <20110607183302.666115f1.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20110607090900.GK5247@suse.de>
-References: <20110529231948.e1439ce5.akpm@linux-foundation.org>
-	<20110530160114.5a82e590.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110530162904.b78bf354.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110530165453.845bba09.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110530175140.3644b3bf.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110606125421.GB30184@cmpxchg.org>
-	<20110606144519.1e2e7d86.akpm@linux-foundation.org>
-	<20110607084530.8ee571aa.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110607084530.GI5247@suse.de>
-	<20110607174355.fde99297.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110607090900.GK5247@suse.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 607EE6B0012
+	for <linux-mm@kvack.org>; Tue,  7 Jun 2011 05:51:06 -0400 (EDT)
+Date: Tue, 7 Jun 2011 10:51:02 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH] Fix page isolated count mismatch
+Message-ID: <20110607095102.GC4372@csn.ul.ie>
+References: <1307250516-10756-1-git-send-email-minchan.kim@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <1307250516-10756-1-git-send-email-minchan.kim@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org, qcui@redhat.com, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Li Zefan <lizf@cn.fujitsu.com>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andi Kleen <andi@firstfloor.org>
 
-On Tue, 7 Jun 2011 10:09:00 +0100
-Mel Gorman <mgorman@suse.de> wrote:
- 
-> I should have said "nodes" even though the end result is the same. The
-> problem at the moment is cgroup initialisation is checking PFNs outside
-> node boundaries. It should be ensuring that the start and end PFNs it
-> uses are within boundaries.
+On Sun, Jun 05, 2011 at 02:08:36PM +0900, Minchan Kim wrote:
+> If migration is failed, normally we call putback_lru_pages which
+> decreases NR_ISOLATE_[ANON|FILE].
+> It means we should increase NR_ISOLATE_[ANON|FILE] before calling
+> putback_lru_pages. But soft_offline_page dosn't it.
 > 
-Maybe you like this kind of fix. Yes, this can fix the problem on bugzilla.
-My concern is this will not work for ARM. 
+> It can make NR_ISOLATE_[ANON|FILE] with negative value and in UP build
+> , zone_page_state will say huge isolated pages so too_many_isolated
+> functions be deceived completely. At last, some process stuck in D state
+> as it expect while loop ending with congestion_wait.
+> But it's never ending story.
+> 
+> If it is right, it would be -stable stuff.
+> 
 
-This patch (and all other patch) works on my test host.
-==
-make sparsemem's page_cgroup_init to be node aware.
+The patch is fine but the changelog is tricky to read. How about this?
 
-With sparsemem, page_cgroup_init scans pfn from 0 to max_pfn.
-But this may scan a pfn which is not on any node and can access
-memmap which is not initialized.
+[PATCH] Fix isolated page count during memory failure
 
-This makes page_cgroup_init() for SPARSEMEM node aware.
+Pages isolated for migration are accounted with the vmstat counters
+NR_ISOLATE_[ANON|FILE]. Callers of migrate_pages() are expected to
+increment these counters when pages are isolated from the LRU. Once
+the pages have been migrated, they are put back on the LRU or freed
+and the isolated count is decremented.
 
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
----
- mm/page_cgroup.c |   26 ++++++++++++++++++++++----
- 1 file changed, 22 insertions(+), 4 deletions(-)
+Memory failure is not properly accounting for pages it isolates
+causing the NR_ISOLATED counters to be negative. On SMP builds,
+this goes unnoticed as negative counters are treated as 0 due to
+expected per-cpu drift. On UP builds, the counter is treated by
+too_many_isolated() as a large value causing processes to enter D
+state during page reclaim or compaction. This patch accounts for
+pages isolated by memory failure correctly.
 
-Index: linux-3.0-rc1/mm/page_cgroup.c
-===================================================================
---- linux-3.0-rc1.orig/mm/page_cgroup.c
-+++ linux-3.0-rc1/mm/page_cgroup.c
-@@ -285,14 +285,32 @@ void __init page_cgroup_init(void)
- {
- 	unsigned long pfn;
- 	int fail = 0;
-+	int node;
- 
- 	if (mem_cgroup_disabled())
- 		return;
- 
--	for (pfn = 0; !fail && pfn < max_pfn; pfn += PAGES_PER_SECTION) {
--		if (!pfn_present(pfn))
--			continue;
--		fail = init_section_page_cgroup(pfn);
-+	for_each_node_state(node, N_HIGH_MEMORY) {
-+		unsigned long start_pfn, end_pfn;
-+
-+		start_pfn = NODE_DATA(node)->node_start_pfn;
-+		end_pfn = start_pfn + NODE_DATA(node)->node_spanned_pages;
-+		/*
-+		 * This calculation makes sure that this nid detection for
-+		 * section can work even if node->start_pfn is not aligned to
-+		 * section. For sections on not-node-boundary, we see head
-+		 * page of sections.
-+		 */
-+		for (pfn = start_pfn;
-+		     !fail & (pfn < end_pfn);
-+		     pfn = ALIGN(pfn + PAGES_PER_SECTION, PAGES_PER_SECTION)) {
-+			if (!pfn_present(pfn))
-+				continue;
-+			/* Nodes can be overlapped */
-+			if (pfn_to_nid(pfn) != node)
-+				continue;
-+			fail = init_section_page_cgroup(pfn);
-+		}
- 	}
- 	if (fail) {
- 		printk(KERN_CRIT "try 'cgroup_disable=memory' boot option\n");
+Whether you add the changelog or not;
+
+Acked-by: Mel Gorman <mel@csn.ul.ie>
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
