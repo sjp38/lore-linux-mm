@@ -1,54 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id C4EA06B004A
-	for <linux-mm@kvack.org>; Tue,  7 Jun 2011 17:32:16 -0400 (EDT)
-Content-class: urn:content-classes:message
-MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="UTF-8"
-Content-Transfer-Encoding: base64
-Subject: RE: [PATCH] REPOST: Dirty page tracking for physical system migration
-Date: Tue, 7 Jun 2011 17:32:11 -0400
-Message-ID: <AC1B83CE65082B4DBDDB681ED2F6B2EF1ACDA2@EXHQ.corp.stratus.com>
-In-Reply-To: <1307482184.3048.111.camel@nimitz>
-References: <AC1B83CE65082B4DBDDB681ED2F6B2EF1ACDA0@EXHQ.corp.stratus.com> <1307482184.3048.111.camel@nimitz>
-From: "Paradis, James" <James.Paradis@stratus.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D8896B004A
+	for <linux-mm@kvack.org>; Tue,  7 Jun 2011 17:33:36 -0400 (EDT)
+Date: Tue, 7 Jun 2011 14:33:01 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: Fix assertion mapping->nrpages == 0 in
+ end_writeback()
+Message-Id: <20110607143301.7dbaf146.akpm@linux-foundation.org>
+In-Reply-To: <1307425597.3649.61.camel@tucsk.pomaz.szeredi.hu>
+References: <1306748258-4732-1-git-send-email-jack@suse.cz>
+	<20110606151614.0037e236.akpm@linux-foundation.org>
+	<1307425597.3649.61.camel@tucsk.pomaz.szeredi.hu>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org
+To: Miklos Szeredi <mszeredi@suse.cz>
+Cc: Jan Kara <jack@suse.cz>, linux-mm@kvack.org, Al Viro <viro@ZenIV.linux.org.uk>, Jay <jinshan.xiong@whamcloud.com>, stable@kernel.org, Nick Piggin <npiggin@kernel.dk>
 
-R3JycnJyLi4uIHByb2JsZW0gaXMsIHRvZGF5IEknbSBhdCBhIHNpdGUgdGhhdCBvbmx5IGhhcyAN
-Ck1TIE91dGxvb2suICBJJ2xsIHJlcG9zdCB0b21vcnJvdyBmcm9tIG15IG90aGVyIG9mZmljZQ0K
-DQotLS0tLU9yaWdpbmFsIE1lc3NhZ2UtLS0tLQ0KRnJvbTogb3duZXItbGludXgtbW1Aa3ZhY2su
-b3JnIFttYWlsdG86b3duZXItbGludXgtbW1Aa3ZhY2sub3JnXSBPbiBCZWhhbGYgT2YgRGF2ZSBI
-YW5zZW4NClNlbnQ6IFR1ZXNkYXksIEp1bmUgMDcsIDIwMTEgNTozMCBQTQ0KVG86IFBhcmFkaXMs
-IEphbWVzDQpDYzogbGludXgtbW1Aa3ZhY2sub3JnDQpTdWJqZWN0OiBSZTogW1BBVENIXSBSRVBP
-U1Q6IERpcnR5IHBhZ2UgdHJhY2tpbmcgZm9yIHBoeXNpY2FsIHN5c3RlbSBtaWdyYXRpb24NCg0K
-T24gVHVlLCAyMDExLTA2LTA3IGF0IDE2OjU0IC0wNDAwLCBQYXJhZGlzLCBKYW1lcyB3cm90ZToN
-Cj4gIC8qIFNldCBvZiBiaXRzIG5vdCBjaGFuZ2VkIGluIHB0ZV9tb2RpZnkgKi8NCj4gICNkZWZp
-bmUgX1BBR0VfQ0hHX01BU0sgKFBURV9QRk5fTUFTSyB8IF9QQUdFX1BDRCB8IF9QQUdFX1BXVCB8
-DQo+IFwNCj4gLSAgICAgICAgICAgICAgICAgICAgICAgIF9QQUdFX1NQRUNJQUwgfCBfUEFHRV9B
-Q0NFU1NFRCB8IF9QQUdFX0RJUlRZKQ0KPiArICAgICAgICAgICAgICAgICAgICAgICAgX1BBR0Vf
-U1BFQ0lBTCB8IF9QQUdFX0FDQ0VTU0VEIHwgX1BBR0VfRElSVFkNCj4gfA0KPiBcDQo+ICsgICAg
-ICAgICAgICAgICAgICAgICAgICBfUEFHRV9TT0ZURElSVFkpDQo+ICAjZGVmaW5lIF9IUEFHRV9D
-SEdfTUFTSyAoX1BBR0VfQ0hHX01BU0sgfCBfUEFHRV9QU0UpDQo+ICANCj4gICNkZWZpbmUgX1BB
-R0VfQ0FDSEVfTUFTSyAgICAgICAoX1BBR0VfUENEIHwgX1BBR0VfUFdUKQ0KDQpUaGlzIGlzIHN0
-aWxsIGxpbmUtd3JhcHBlZCwgY29ycnVwdCwgYW5kIHVuYXBwbHlhYmxlLiA6KA0KDQpZb3UgbWln
-aHQgd2FudCB0byBjaGVjayBvdXQgRG9jdW1lbnRhdGlvbi9lbWFpbC1jbGllbnRzLnR4dA0KDQo+
-IC0tLSBhL2FyY2gveDg2L21tL01ha2VmaWxlDQo+ICsrKyBiL2FyY2gveDg2L21tL01ha2VmaWxl
-DQo+IEBAIC0zMCwzICszMCw1IEBAIG9iai0kKENPTkZJR19OVU1BX0VNVSkgICAgICAgICAgICAg
-ICAgKz0NCj4gbnVtYV9lbXVsYXRpb24ubw0KPiAgb2JqLSQoQ09ORklHX0hBVkVfTUVNQkxPQ0sp
-ICAgICAgICAgICAgKz0gbWVtYmxvY2subw0KPiAgDQo+ICBvYmotJChDT05GSUdfTUVNVEVTVCkg
-ICAgICAgICAgKz0gbWVtdGVzdC5vDQo+ICsNCj4gK29iai0kKENPTkZJR19UUkFDS19ESVJUWV9Q
-QUdFUykgICAgICAgICs9IHRyYWNrLm8gDQoNCkkgdGhpbmsgeW91IG1pc3NlZCB0cmFjay5jIGlu
-IHRoaXMgcGF0Y2guICBNYXliZSB5b3UgZm9yZ290IHRvIGFkZCAtTiB0bw0KeW91ciBkaWZmLg0K
-DQotLSBEYXZlDQoNCi0tDQpUbyB1bnN1YnNjcmliZSwgc2VuZCBhIG1lc3NhZ2Ugd2l0aCAndW5z
-dWJzY3JpYmUgbGludXgtbW0nIGluDQp0aGUgYm9keSB0byBtYWpvcmRvbW9Aa3ZhY2sub3JnLiAg
-Rm9yIG1vcmUgaW5mbyBvbiBMaW51eCBNTSwNCnNlZTogaHR0cDovL3d3dy5saW51eC1tbS5vcmcv
-IC4NCkZpZ2h0IHVuZmFpciB0ZWxlY29tIGludGVybmV0IGNoYXJnZXMgaW4gQ2FuYWRhOiBzaWdu
-IGh0dHA6Ly9zdG9wdGhlbWV0ZXIuY2EvDQpEb24ndCBlbWFpbDogPGEgaHJlZj1tYWlsdG86ImRv
-bnRAa3ZhY2sub3JnIj4gZW1haWxAa3ZhY2sub3JnIDwvYT4NCg==
+On Tue, 07 Jun 2011 07:46:37 +0200
+Miklos Szeredi <mszeredi@suse.cz> wrote:
+
+> > Either way, I don't think that the uglypatch expresses a full
+> > understanding of te bug ;)
+> 
+> I don't see a better way, how would we make nrpages update atomically
+> wrt the radix-tree while using only RCU?
+> 
+> The question is, does it matter that those two can get temporarily out
+> of sync?
+> 
+> In case of inode eviction it does, not only because of that BUG_ON, but
+> because page reclaim must be somehow synchronised with eviction.
+> Otherwise it may access tree_lock on the mapping of an already freed
+> inode.
+> 
+> In other cases?  AFAICS it doesn't matter.  Most ->nrpages accesses
+> weren't under tree_lock before Nick's RCUification, so their use were
+> just optimization.   
+
+Gee, we've made a bit of a mess here.
+
+Rather than bodging around particualr codesites where that mess exposes
+itself, how about we step back and work out what our design is here,
+then implement it and check that all sites comply with it?
+
+What is the relationship between the radix-tree and nrpages?  What are
+the locking rules?  Can anyone come up with a one-sentence proposal?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
