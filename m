@@ -1,62 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 22CCD6B004A
-	for <linux-mm@kvack.org>; Tue,  7 Jun 2011 17:29:53 -0400 (EDT)
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e32.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p57LIFRH007520
-	for <linux-mm@kvack.org>; Tue, 7 Jun 2011 15:18:15 -0600
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id p57LTnNN083742
-	for <linux-mm@kvack.org>; Tue, 7 Jun 2011 15:29:50 -0600
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p57FTn0K029474
-	for <linux-mm@kvack.org>; Tue, 7 Jun 2011 09:29:49 -0600
-Subject: Re: [PATCH] REPOST: Dirty page tracking for physical system
- migration
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <AC1B83CE65082B4DBDDB681ED2F6B2EF1ACDA0@EXHQ.corp.stratus.com>
-References: <AC1B83CE65082B4DBDDB681ED2F6B2EF1ACDA0@EXHQ.corp.stratus.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 07 Jun 2011 14:29:44 -0700
-Message-ID: <1307482184.3048.111.camel@nimitz>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id C4EA06B004A
+	for <linux-mm@kvack.org>; Tue,  7 Jun 2011 17:32:16 -0400 (EDT)
+Content-class: urn:content-classes:message
+MIME-Version: 1.0
+Content-Type: text/plain;
+	charset="UTF-8"
+Content-Transfer-Encoding: base64
+Subject: RE: [PATCH] REPOST: Dirty page tracking for physical system migration
+Date: Tue, 7 Jun 2011 17:32:11 -0400
+Message-ID: <AC1B83CE65082B4DBDDB681ED2F6B2EF1ACDA2@EXHQ.corp.stratus.com>
+In-Reply-To: <1307482184.3048.111.camel@nimitz>
+References: <AC1B83CE65082B4DBDDB681ED2F6B2EF1ACDA0@EXHQ.corp.stratus.com> <1307482184.3048.111.camel@nimitz>
+From: "Paradis, James" <James.Paradis@stratus.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Paradis, James" <James.Paradis@stratus.com>
+To: Dave Hansen <dave@linux.vnet.ibm.com>
 Cc: linux-mm@kvack.org
 
-On Tue, 2011-06-07 at 16:54 -0400, Paradis, James wrote:
->  /* Set of bits not changed in pte_modify */
->  #define _PAGE_CHG_MASK (PTE_PFN_MASK | _PAGE_PCD | _PAGE_PWT |
-> \
-> -                        _PAGE_SPECIAL | _PAGE_ACCESSED | _PAGE_DIRTY)
-> +                        _PAGE_SPECIAL | _PAGE_ACCESSED | _PAGE_DIRTY
-> |
-> \
-> +                        _PAGE_SOFTDIRTY)
->  #define _HPAGE_CHG_MASK (_PAGE_CHG_MASK | _PAGE_PSE)
->  
->  #define _PAGE_CACHE_MASK       (_PAGE_PCD | _PAGE_PWT)
-
-This is still line-wrapped, corrupt, and unapplyable. :(
-
-You might want to check out Documentation/email-clients.txt
-
-> --- a/arch/x86/mm/Makefile
-> +++ b/arch/x86/mm/Makefile
-> @@ -30,3 +30,5 @@ obj-$(CONFIG_NUMA_EMU)                +=
-> numa_emulation.o
->  obj-$(CONFIG_HAVE_MEMBLOCK)            += memblock.o
->  
->  obj-$(CONFIG_MEMTEST)          += memtest.o
-> +
-> +obj-$(CONFIG_TRACK_DIRTY_PAGES)        += track.o 
-
-I think you missed track.c in this patch.  Maybe you forgot to add -N to
-your diff.
-
--- Dave
+R3JycnJyLi4uIHByb2JsZW0gaXMsIHRvZGF5IEknbSBhdCBhIHNpdGUgdGhhdCBvbmx5IGhhcyAN
+Ck1TIE91dGxvb2suICBJJ2xsIHJlcG9zdCB0b21vcnJvdyBmcm9tIG15IG90aGVyIG9mZmljZQ0K
+DQotLS0tLU9yaWdpbmFsIE1lc3NhZ2UtLS0tLQ0KRnJvbTogb3duZXItbGludXgtbW1Aa3ZhY2su
+b3JnIFttYWlsdG86b3duZXItbGludXgtbW1Aa3ZhY2sub3JnXSBPbiBCZWhhbGYgT2YgRGF2ZSBI
+YW5zZW4NClNlbnQ6IFR1ZXNkYXksIEp1bmUgMDcsIDIwMTEgNTozMCBQTQ0KVG86IFBhcmFkaXMs
+IEphbWVzDQpDYzogbGludXgtbW1Aa3ZhY2sub3JnDQpTdWJqZWN0OiBSZTogW1BBVENIXSBSRVBP
+U1Q6IERpcnR5IHBhZ2UgdHJhY2tpbmcgZm9yIHBoeXNpY2FsIHN5c3RlbSBtaWdyYXRpb24NCg0K
+T24gVHVlLCAyMDExLTA2LTA3IGF0IDE2OjU0IC0wNDAwLCBQYXJhZGlzLCBKYW1lcyB3cm90ZToN
+Cj4gIC8qIFNldCBvZiBiaXRzIG5vdCBjaGFuZ2VkIGluIHB0ZV9tb2RpZnkgKi8NCj4gICNkZWZp
+bmUgX1BBR0VfQ0hHX01BU0sgKFBURV9QRk5fTUFTSyB8IF9QQUdFX1BDRCB8IF9QQUdFX1BXVCB8
+DQo+IFwNCj4gLSAgICAgICAgICAgICAgICAgICAgICAgIF9QQUdFX1NQRUNJQUwgfCBfUEFHRV9B
+Q0NFU1NFRCB8IF9QQUdFX0RJUlRZKQ0KPiArICAgICAgICAgICAgICAgICAgICAgICAgX1BBR0Vf
+U1BFQ0lBTCB8IF9QQUdFX0FDQ0VTU0VEIHwgX1BBR0VfRElSVFkNCj4gfA0KPiBcDQo+ICsgICAg
+ICAgICAgICAgICAgICAgICAgICBfUEFHRV9TT0ZURElSVFkpDQo+ICAjZGVmaW5lIF9IUEFHRV9D
+SEdfTUFTSyAoX1BBR0VfQ0hHX01BU0sgfCBfUEFHRV9QU0UpDQo+ICANCj4gICNkZWZpbmUgX1BB
+R0VfQ0FDSEVfTUFTSyAgICAgICAoX1BBR0VfUENEIHwgX1BBR0VfUFdUKQ0KDQpUaGlzIGlzIHN0
+aWxsIGxpbmUtd3JhcHBlZCwgY29ycnVwdCwgYW5kIHVuYXBwbHlhYmxlLiA6KA0KDQpZb3UgbWln
+aHQgd2FudCB0byBjaGVjayBvdXQgRG9jdW1lbnRhdGlvbi9lbWFpbC1jbGllbnRzLnR4dA0KDQo+
+IC0tLSBhL2FyY2gveDg2L21tL01ha2VmaWxlDQo+ICsrKyBiL2FyY2gveDg2L21tL01ha2VmaWxl
+DQo+IEBAIC0zMCwzICszMCw1IEBAIG9iai0kKENPTkZJR19OVU1BX0VNVSkgICAgICAgICAgICAg
+ICAgKz0NCj4gbnVtYV9lbXVsYXRpb24ubw0KPiAgb2JqLSQoQ09ORklHX0hBVkVfTUVNQkxPQ0sp
+ICAgICAgICAgICAgKz0gbWVtYmxvY2subw0KPiAgDQo+ICBvYmotJChDT05GSUdfTUVNVEVTVCkg
+ICAgICAgICAgKz0gbWVtdGVzdC5vDQo+ICsNCj4gK29iai0kKENPTkZJR19UUkFDS19ESVJUWV9Q
+QUdFUykgICAgICAgICs9IHRyYWNrLm8gDQoNCkkgdGhpbmsgeW91IG1pc3NlZCB0cmFjay5jIGlu
+IHRoaXMgcGF0Y2guICBNYXliZSB5b3UgZm9yZ290IHRvIGFkZCAtTiB0bw0KeW91ciBkaWZmLg0K
+DQotLSBEYXZlDQoNCi0tDQpUbyB1bnN1YnNjcmliZSwgc2VuZCBhIG1lc3NhZ2Ugd2l0aCAndW5z
+dWJzY3JpYmUgbGludXgtbW0nIGluDQp0aGUgYm9keSB0byBtYWpvcmRvbW9Aa3ZhY2sub3JnLiAg
+Rm9yIG1vcmUgaW5mbyBvbiBMaW51eCBNTSwNCnNlZTogaHR0cDovL3d3dy5saW51eC1tbS5vcmcv
+IC4NCkZpZ2h0IHVuZmFpciB0ZWxlY29tIGludGVybmV0IGNoYXJnZXMgaW4gQ2FuYWRhOiBzaWdu
+IGh0dHA6Ly9zdG9wdGhlbWV0ZXIuY2EvDQpEb24ndCBlbWFpbDogPGEgaHJlZj1tYWlsdG86ImRv
+bnRAa3ZhY2sub3JnIj4gZW1haWxAa3ZhY2sub3JnIDwvYT4NCg==
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
