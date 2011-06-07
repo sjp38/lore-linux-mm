@@ -1,123 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 493E96B0082
-	for <linux-mm@kvack.org>; Tue,  7 Jun 2011 11:35:31 -0400 (EDT)
-Message-ID: <4DEE4538.1020404@trash.net>
-Date: Tue, 07 Jun 2011 17:35:20 +0200
-From: Patrick McHardy <kaber@trash.net>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 4CE6E6B004A
+	for <linux-mm@kvack.org>; Tue,  7 Jun 2011 11:50:40 -0400 (EDT)
+Received: by pwi12 with SMTP id 12so3486878pwi.14
+        for <linux-mm@kvack.org>; Tue, 07 Jun 2011 08:50:36 -0700 (PDT)
+Date: Wed, 8 Jun 2011 00:50:29 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: Re: [PATCH 4/4] mm: compaction: Abort compaction if too many pages
+ are isolated and caller is asynchronous
+Message-ID: <20110607155029.GL1686@barrios-laptop>
+References: <1307459225-4481-1-git-send-email-mgorman@suse.de>
+ <1307459225-4481-5-git-send-email-mgorman@suse.de>
 MIME-Version: 1.0
-Subject: Re: KVM induced panic on 2.6.38[2367] & 2.6.39
-References: <20110601011527.GN19505@random.random> <alpine.LSU.2.00.1105312120530.22808@sister.anvils> <4DE5DCA8.7070704@fnarfbargle.com> <4DE5E29E.7080009@redhat.com> <4DE60669.9050606@fnarfbargle.com> <4DE60918.3010008@redhat.com> <4DE60940.1070107@redhat.com> <4DE61A2B.7000008@fnarfbargle.com> <20110601111841.GB3956@zip.com.au> <4DE62801.9080804@fnarfbargle.com> <20110601230342.GC3956@zip.com.au> <4DE8E3ED.7080004@fnarfbargle.com> <isavsg$3or$1@dough.gmane.org> <4DE906C0.6060901@fnarfbargle.com> <4DED344D.7000005@pandora.be> <4DED9C23.2030408@fnarfbargle.com> <4DEE27DE.7060004@trash.net> <4DEE3859.6070808@fnarfbargle.com>
-In-Reply-To: <4DEE3859.6070808@fnarfbargle.com>
-Content-Type: text/plain; charset=ISO-8859-15
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1307459225-4481-5-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Brad Campbell <brad@fnarfbargle.com>
-Cc: Bart De Schuymer <bdschuym@pandora.be>, kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, netfilter-devel@vger.kernel.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Thomas Sattler <tsattler@gmx.de>, Ury Stankevich <urykhy@gmail.com>, Andi Kleen <andi@firstfloor.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 
-On 07.06.2011 16:40, Brad Campbell wrote:
-> On 07/06/11 21:30, Patrick McHardy wrote:
->> On 07.06.2011 05:33, Brad Campbell wrote:
->>> On 07/06/11 04:10, Bart De Schuymer wrote:
->>>> Hi Brad,
->>>>
->>>> This has probably nothing to do with ebtables, so please rmmod in case
->>>> it's loaded.
->>>> A few questions I didn't directly see an answer to in the threads I
->>>> scanned...
->>>> I'm assuming you actually use the bridging firewall functionality. So,
->>>> what iptables modules do you use? Can you reduce your iptables rules to
->>>> a core that triggers the bug?
->>>> Or does it get triggered even with an empty set of firewall rules?
->>>> Are you using a stock .35 kernel or is it patched?
->>>> Is this something I can trigger on a poor guy's laptop or does it
->>>> require specialized hardware (I'm catching up on qemu/kvm...)?
->>>
->>> Not specialised hardware as such, I've just not been able to reproduce
->>> it outside of this specific operating scenario.
->>
->> The last similar problem we've had was related to the 32/64 bit compat
->> code. Are you running 32 bit userspace on a 64 bit kernel?
+On Tue, Jun 07, 2011 at 04:07:05PM +0100, Mel Gorman wrote:
+> Asynchronous compaction is used when promoting to huge pages. This is
+> all very nice but if there are a number of processes in compacting
+> memory, a large number of pages can be isolated. An "asynchronous"
+> process can stall for long periods of time as a result with a user
+> reporting that firefox can stall for 10s of seconds. This patch aborts
+> asynchronous compaction if too many pages are isolated as it's better to
+> fail a hugepage promotion than stall a process.
 > 
-> No, 32 bit Guest OS, but a completely 64 bit userspace on a 64 bit kernel.
+> Reported-and-tested-by: Ury Stankevich <urykhy@gmail.com>
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
+> ---
+>  mm/compaction.c |   28 +++++++++++++++++++++++-----
+>  1 files changed, 23 insertions(+), 5 deletions(-)
 > 
-> Userspace is current Debian Stable. Kernel is Vanilla and qemu-kvm is
-> current git
-> 
-> 
->>> I can't trigger it with empty firewall rules as it relies on a DNAT to
->>> occur. If I try it directly to the internal IP address (as I have to
->>> without netfilter loaded) then of course nothing fails.
->>>
->>> It's a pain in the bum as a fault, but it's one I can easily reproduce
->>> as long as I use the same set of circumstances.
->>>
->>> I'll try using 3.0-rc2 (current git) tonight, and if I can reproduce it
->>> on that then I'll attempt to pare down the IPTABLES rules to a bare
->>> minimum.
->>>
->>> It is nothing to do with ebtables as I don't compile it. I'm not really
->>> sure about "bridging firewall" functionality. I just use a couple of
->>> hand coded bash scripts to set the tables up.
->>
->>  From one of your previous mails:
->>
->>> # CONFIG_BRIDGE_NF_EBTABLES is not set
->>
->> How about CONFIG_BRIDGE_NETFILTER?
->>
-> 
-> It was compiled in.
-> 
-> With the following table set I was able to reproduce the problem on
-> 3.0-rc2. Replaced my IP with xxx.xxx.xxx.xxx, but otherwise unmodified
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> index 5c744ab..cb28580 100644
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -251,11 +251,18 @@ static bool too_many_isolated(struct zone *zone)
+>  	return isolated > (inactive + active) / 2;
+>  }
+>  
+> +/* possible outcome of isolate_migratepages */
+> +typedef enum {
+> +	ISOLATE_ABORT,		/* Abort compaction now */
+> +	ISOLATE_NONE,		/* No pages isolated, continue scanning */
+> +	ISOLATE_SUCCESS,	/* Pages isolated, migrate */
+> +} isolate_migrate_t;
+> +
+>  /*
+>   * Isolate all pages that can be migrated from the block pointed to by
+>   * the migrate scanner within compact_control.
+>   */
+> -static unsigned long isolate_migratepages(struct zone *zone,
+> +static isolate_migrate_t isolate_migratepages(struct zone *zone,
+>  					struct compact_control *cc)
+>  {
+>  	unsigned long low_pfn, end_pfn;
+> @@ -272,7 +279,7 @@ static unsigned long isolate_migratepages(struct zone *zone,
+>  	/* Do not cross the free scanner or scan within a memory hole */
+>  	if (end_pfn > cc->free_pfn || !pfn_valid(low_pfn)) {
+>  		cc->migrate_pfn = end_pfn;
+> -		return 0;
+> +		return ISOLATE_NONE;
+>  	}
+>  
+>  	/*
+> @@ -281,10 +288,14 @@ static unsigned long isolate_migratepages(struct zone *zone,
+>  	 * delay for some time until fewer pages are isolated
+>  	 */
+>  	while (unlikely(too_many_isolated(zone))) {
+> +		/* async migration should just abort */
+> +		if (!cc->sync)
+> +			return ISOLATE_ABORT;
+> +
+>  		congestion_wait(BLK_RW_ASYNC, HZ/10);
+>  
+>  		if (fatal_signal_pending(current))
+> -			return 0;
+> +			return ISOLATE_ABORT;
+>  	}
+>  
+>  	/* Time to isolate some pages for migration */
+> @@ -369,7 +380,7 @@ static unsigned long isolate_migratepages(struct zone *zone,
+>  
+>  	trace_mm_compaction_isolate_migratepages(nr_scanned, nr_isolated);
+>  
+> -	return cc->nr_migratepages;
+> +	return ISOLATE_SUCCESS;
+>  }
+>  
+>  /*
+> @@ -533,8 +544,14 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
+>  		unsigned long nr_migrate, nr_remaining;
+>  		int err;
+>  
+> -		if (!isolate_migratepages(zone, cc))
+> +		switch (isolate_migratepages(zone, cc)) {
+> +		case ISOLATE_ABORT:
 
-Which kernel was the last version without this problem?
+In this case, you change old behavior slightly.
+In old case, we return COMPACT_PARTIAL to cancel migration.
+But this patch makes to return COMPACT_SUCCESS.
+At present, return value of compact_zone is only used by __alloc_pages_direct_compact
+and it only consider COMPACT_SKIPPED so it would be not a problem.
+But I think it would be better to return COMPACT_PARTIAL instead of COMPACT_CONTINUE
+for consistency with compact_finished and right semantic for the future user of compact_zone.
 
-> root@srv:~# iptables-save
-> # Generated by iptables-save v1.4.10 on Tue Jun  7 22:11:30 2011
-> *filter
-> :INPUT ACCEPT [978:107619]
-> :FORWARD ACCEPT [142:7068]
-> :OUTPUT ACCEPT [1659:291870]
-> -A INPUT -i ppp0 -m state --state RELATED,ESTABLISHED -j ACCEPT
-> -A INPUT ! -i ppp0 -m state --state NEW -j ACCEPT
-> -A INPUT -i ppp0 -j DROP
-> COMMIT
-> # Completed on Tue Jun  7 22:11:30 2011
-> # Generated by iptables-save v1.4.10 on Tue Jun  7 22:11:30 2011
-> *nat
-> :PREROUTING ACCEPT [813:49170]
-> :INPUT ACCEPT [91:7090]
-> :OUTPUT ACCEPT [267:20731]
-> :POSTROUTING ACCEPT [296:22281]
-> -A PREROUTING -d xxx.xxx.xxx.xxx/32 ! -i ppp0 -p tcp -m tcp --dport 443
-> -j DNAT --to-destination 192.168.253.198
-> COMMIT
-> # Completed on Tue Jun  7 22:11:30 2011
-> # Generated by iptables-save v1.4.10 on Tue Jun  7 22:11:30 2011
-> *mangle
-> :PREROUTING ACCEPT [2729:274392]
-> :INPUT ACCEPT [2508:262976]
-> :FORWARD ACCEPT [142:7068]
-> :OUTPUT ACCEPT [1674:293701]
-> :POSTROUTING ACCEPT [2131:346411]
-> -A FORWARD -o ppp0 -p tcp -m tcp --tcp-flags SYN,RST SYN -m tcpmss --mss
-> 1400:1536 -j TCPMSS --clamp-mss-to-pmtu
-> COMMIT
-> # Completed on Tue Jun  7 22:11:30 2011
-
-The main suspects would be NAT and TCPMSS. Did you also try whether
-the crash occurs with only one of these these rules?
-
-> I've just compiled out CONFIG_BRIDGE_NETFILTER and can no longer access
-> the address the way I was doing it, so that's a no-go for me.
-
-That's really weird since you're apparently not using any bridge
-netfilter features. It shouldn't have any effect besides changing
-at which point ip_tables is invoked. How are your network devices
-configured (specifically any bridges)?
+-- 
+Kind regards
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
