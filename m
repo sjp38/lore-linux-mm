@@ -1,116 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id E483C6B0078
-	for <linux-mm@kvack.org>; Tue,  7 Jun 2011 09:26:11 -0400 (EDT)
-Message-ID: <4DEE26E7.2060201@redhat.com>
-Date: Tue, 07 Jun 2011 15:25:59 +0200
-From: Igor Mammedov <imammedo@redhat.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id CDB146B00E7
+	for <linux-mm@kvack.org>; Tue,  7 Jun 2011 09:30:16 -0400 (EDT)
+Message-ID: <4DEE27DE.7060004@trash.net>
+Date: Tue, 07 Jun 2011 15:30:06 +0200
+From: Patrick McHardy <kaber@trash.net>
 MIME-Version: 1.0
-Subject: Re: [PATCH] memcg: do not expose uninitialized mem_cgroup_per_node
- to world
-References: <1306925044-2828-1-git-send-email-imammedo@redhat.com>	<20110601123913.GC4266@tiehlicka.suse.cz>	<4DE6399C.8070802@redhat.com>	<20110601134149.GD4266@tiehlicka.suse.cz>	<4DE64F0C.3050203@redhat.com>	<20110601152039.GG4266@tiehlicka.suse.cz>	<4DE66BEB.7040502@redhat.com>	<BANLkTimbqHPeUdue=_Z31KVdPwcXtbLpeg@mail.gmail.com>	<4DE8D50F.1090406@redhat.com> <BANLkTinMamg_qesEffGxKu3QkT=zyQ2MRQ@mail.gmail.com>
-In-Reply-To: <BANLkTinMamg_qesEffGxKu3QkT=zyQ2MRQ@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: KVM induced panic on 2.6.38[2367] & 2.6.39
+References: <20110601011527.GN19505@random.random> <alpine.LSU.2.00.1105312120530.22808@sister.anvils> <4DE5DCA8.7070704@fnarfbargle.com> <4DE5E29E.7080009@redhat.com> <4DE60669.9050606@fnarfbargle.com> <4DE60918.3010008@redhat.com> <4DE60940.1070107@redhat.com> <4DE61A2B.7000008@fnarfbargle.com> <20110601111841.GB3956@zip.com.au> <4DE62801.9080804@fnarfbargle.com> <20110601230342.GC3956@zip.com.au> <4DE8E3ED.7080004@fnarfbargle.com> <isavsg$3or$1@dough.gmane.org> <4DE906C0.6060901@fnarfbargle.com> <4DED344D.7000005@pandora.be> <4DED9C23.2030408@fnarfbargle.com>
+In-Reply-To: <4DED9C23.2030408@fnarfbargle.com>
+Content-Type: text/plain; charset=ISO-8859-15
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>
-Cc: Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, balbir@linux.vnet.ibm.com, akpm@linux-foundation.org, linux-mm@kvack.org, Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, containers@lists.linux-foundation.org
+To: Brad Campbell <brad@fnarfbargle.com>
+Cc: Bart De Schuymer <bdschuym@pandora.be>, kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, netfilter-devel@vger.kernel.org
 
-Sorry for late reply,
-
-On 06/03/2011 03:00 PM, Hiroyuki Kamezawa wrote:
-> 2011/6/3 Igor Mammedov<imammedo@redhat.com>:
->> On 06/02/2011 01:10 AM, Hiroyuki Kamezawa wrote:
->>>> pc = list_entry(list->prev, struct page_cgroup, lru);
->>> Hmm, I disagree your patch is a fix for mainline. At least, a cgroup
->>> before completion of
->>> create() is not populated to userland and you never be able to rmdir()
->>> it because you can't
->>> find it.
->>>
->>>
->>>   >26:   e8 7d 12 30 00          call   0x3012a8
->>>   >2b:*  8b 73 08                mov    0x8(%ebx),%esi<-- trapping
->>> instruction
->>>   >2e:   8b 7c 24 24             mov    0x24(%esp),%edi
->>>   >32:   8b 07                   mov    (%edi),%eax
->>>
->>> Hm, what is the call 0x3012a8 ?
->>>
->>                 pc = list_entry(list->prev, struct page_cgroup, lru);
->>                 if (busy == pc) {
->>                         list_move(&pc->lru, list);
->>                         busy = 0;
->>                         spin_unlock_irqrestore(&zone->lru_lock, flags);
->>                         continue;
->>                 }
->>                 spin_unlock_irqrestore(&zone->lru_lock, flags);<---- is
->>   call 0x3012a8
->>                 ret = mem_cgroup_move_parent(pc, mem, GFP_KERNEL);
+On 07.06.2011 05:33, Brad Campbell wrote:
+> On 07/06/11 04:10, Bart De Schuymer wrote:
+>> Hi Brad,
 >>
->> and  mov 0x8(%ebx),%esi
->> is dereferencing of 'pc' in inlined mem_cgroup_move_parent
->>
-> Ah, thank you for input..then panicd at accessing pc->page and "pc"
-> was 0xfffffff4.
-> it means list->prev was NULL.
->
-yes, that's the case.
->> I've looked at vmcore once more and indeed there isn't any parallel task
->> that touches cgroups code path.
->> Will investigate if it is xen to blame for incorrect data in place.
->>
->> Thanks very much for your opinion.
-> What curious to me is that the fact "list->prev" is NULL.
-> I can see why you doubt the initialization code ....the list pointer never
-> contains NULL once it's used....
-> it smells like memory corruption or some to me. If you have vmcore,
-> what the problematic mem_cgroup_per_zone(node) contains ?
+>> This has probably nothing to do with ebtables, so please rmmod in case
+>> it's loaded.
+>> A few questions I didn't directly see an answer to in the threads I
+>> scanned...
+>> I'm assuming you actually use the bridging firewall functionality. So,
+>> what iptables modules do you use? Can you reduce your iptables rules to
+>> a core that triggers the bug?
+>> Or does it get triggered even with an empty set of firewall rules?
+>> Are you using a stock .35 kernel or is it patched?
+>> Is this something I can trigger on a poor guy's laptop or does it
+>> require specialized hardware (I'm catching up on qemu/kvm...)?
+> 
+> Not specialised hardware as such, I've just not been able to reproduce
+> it outside of this specific operating scenario.
 
-it has all zeros except for last field:
+The last similar problem we've had was related to the 32/64 bit compat
+code. Are you running 32 bit userspace on a 64 bit kernel?
 
-crash> rd f3446a00 62
-f3446a00:  00000000 00000000 00000000 00000000   ................
-f3446a10:  00000000 00000000 00000000 00000000   ................
-f3446a20:  00000000 00000000 00000000 00000000   ................
-f3446a30:  00000000 00000000 00000000 00000000   ................
-f3446a40:  00000000 00000000 00000000 00000000   ................
-f3446a50:  00000000 00000000 00000000 00000000   ................
-f3446a60:  00000000 00000000 00000000 00000000   ................
-f3446a70:  00000000 00000000 f36ef800 f3446a7c   ..........n.|jD.
-f3446a80:  f3446a7c f3446a84 f3446a84 f3446a8c   |jD..jD..jD..jD.
-f3446a90:  f3446a8c f3446a94 f3446a94 f3446a9c   .jD..jD..jD..jD.
-f3446aa0:  f3446a9c 00000000 00000000 00000000   .jD.............
-f3446ab0:  00000000 00000000 00000000 00000000   ................
-f3446ac0:  00000000 00000000 00000000 00000000   ................
-f3446ad0:  00000000 00000000 00000000 00000000   ................
-f3446ae0:  00000000 00000000 00000000 00000000   ................
-f3446af0:  00000000 f36ef800
+> I can't trigger it with empty firewall rules as it relies on a DNAT to
+> occur. If I try it directly to the internal IP address (as I have to
+> without netfilter loaded) then of course nothing fails.
+> 
+> It's a pain in the bum as a fault, but it's one I can easily reproduce
+> as long as I use the same set of circumstances.
+> 
+> I'll try using 3.0-rc2 (current git) tonight, and if I can reproduce it
+> on that then I'll attempt to pare down the IPTABLES rules to a bare
+> minimum.
+> 
+> It is nothing to do with ebtables as I don't compile it. I'm not really
+> sure about "bridging firewall" functionality. I just use a couple of
+> hand coded bash scripts to set the tables up.
 
-crash> struct mem_cgroup f36ef800
-struct mem_cgroup {
-...
-info = {
-     nodeinfo = {0xf3446a00}
-   },
-...
+>From one of your previous mails:
 
-It looks like a very targeted corruption of the first zone except of
-the last field, while the second zone and the rest are perfectly
-normal (i.e. have empty initialized lists).
+> # CONFIG_BRIDGE_NF_EBTABLES is not set
 
-
-PS:
-It most easily reproduced only on xen hvm 32bit guest under heavy
-vcpus contention for real cpus resources (i.e. I had to overcommit
-cpus and run several cpu hog tasks on host to make guest crash on
-reboot cycle).
-And from last experiments, crash happens only on on hosts that
-doesn't have hap feature or if hap is disabled in hypervisor.
-
-> Thanks,
-> -Kame
+How about CONFIG_BRIDGE_NETFILTER?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
