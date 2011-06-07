@@ -1,27 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id AEA046B004A
-	for <linux-mm@kvack.org>; Mon,  6 Jun 2011 19:52:41 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id F2A303EE0BC
-	for <linux-mm@kvack.org>; Tue,  7 Jun 2011 08:52:37 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id D44B645DE5A
-	for <linux-mm@kvack.org>; Tue,  7 Jun 2011 08:52:37 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id BC47945DE59
-	for <linux-mm@kvack.org>; Tue,  7 Jun 2011 08:52:37 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id A3BC51DB804F
-	for <linux-mm@kvack.org>; Tue,  7 Jun 2011 08:52:37 +0900 (JST)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id F36446B004A
+	for <linux-mm@kvack.org>; Mon,  6 Jun 2011 21:04:14 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 90E483EE0C1
+	for <linux-mm@kvack.org>; Tue,  7 Jun 2011 10:04:07 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 7045745DED5
+	for <linux-mm@kvack.org>; Tue,  7 Jun 2011 10:04:07 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 467D145DED2
+	for <linux-mm@kvack.org>; Tue,  7 Jun 2011 10:04:07 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 3A2D8E78008
+	for <linux-mm@kvack.org>; Tue,  7 Jun 2011 10:04:07 +0900 (JST)
 Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 274BF1DB804D
-	for <linux-mm@kvack.org>; Tue,  7 Jun 2011 08:52:37 +0900 (JST)
-Date: Tue, 7 Jun 2011 08:45:30 +0900
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id F0589E78005
+	for <linux-mm@kvack.org>; Tue,  7 Jun 2011 10:04:06 +0900 (JST)
+Date: Tue, 7 Jun 2011 09:57:08 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Subject: Re: [Bugme-new] [Bug 36192] New: Kernel panic when boot the 2.6.39+
  kernel based off of 2.6.32 kernel
-Message-Id: <20110607084530.8ee571aa.kamezawa.hiroyu@jp.fujitsu.com>
+Message-Id: <20110607095708.6097689a.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20110606144519.1e2e7d86.akpm@linux-foundation.org>
 References: <bug-36192-10286@https.bugzilla.kernel.org/>
 	<20110529231948.e1439ce5.akpm@linux-foundation.org>
@@ -42,147 +42,89 @@ Cc: Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, bugzilla-daemon@bu
 On Mon, 6 Jun 2011 14:45:19 -0700
 Andrew Morton <akpm@linux-foundation.org> wrote:
 
-> On Mon, 6 Jun 2011 14:54:21 +0200
-> Johannes Weiner <hannes@cmpxchg.org> wrote:
-> 
-> > Cc Mel for memory model
-> > 
-> > On Mon, May 30, 2011 at 05:51:40PM +0900, KAMEZAWA Hiroyuki wrote:
-> > > On Mon, 30 May 2011 16:54:53 +0900
-> > > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > > 
-> > > > On Mon, 30 May 2011 16:29:04 +0900
-> > > > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > > 
-> > > > SRAT: Node 1 PXM 1 0-a0000
-> > > > SRAT: Node 1 PXM 1 100000-c8000000
-> > > > SRAT: Node 1 PXM 1 100000000-438000000
-> > > > SRAT: Node 3 PXM 3 438000000-838000000
-> > > > SRAT: Node 5 PXM 5 838000000-c38000000
-> > > > SRAT: Node 7 PXM 7 c38000000-1038000000
-> > > > 
-> > > > Initmem setup node 1 0000000000000000-0000000438000000
-> > > >   NODE_DATA [0000000437fd9000 - 0000000437ffffff]
-> > > > Initmem setup node 3 0000000438000000-0000000838000000
-> > > >   NODE_DATA [0000000837fd9000 - 0000000837ffffff]
-> > > > Initmem setup node 5 0000000838000000-0000000c38000000
-> > > >   NODE_DATA [0000000c37fd9000 - 0000000c37ffffff]
-> > > > Initmem setup node 7 0000000c38000000-0000001038000000
-> > > >   NODE_DATA [0000001037fd7000 - 0000001037ffdfff]
-> > > > [ffffea000ec40000-ffffea000edfffff] potential offnode page_structs
-> > > > [ffffea001cc40000-ffffea001cdfffff] potential offnode page_structs
-> > > > [ffffea002ac40000-ffffea002adfffff] potential offnode page_structs
-> > > > ==
-> > > > 
-> > > > Hmm..there are four nodes 1,3,5,7 but....no memory on node 0 hmm ?
-> > > > 
-> > > 
-> > > I think I found a reason and this is a possible fix. But need to be tested.
-> > > And suggestion for better fix rather than this band-aid is appreciated.
-> > > 
-> > > ==
-> > > >From b95edcf43619312f72895476c3e6ef46079bb05f Mon Sep 17 00:00:00 2001
-> > > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > > Date: Mon, 30 May 2011 16:49:59 +0900
-> > > Subject: [PATCH][BUGFIX] fallbacks at page_cgroup allocation.
-> > > 
-> > > Under SPARSEMEM, the page_struct is allocated per section.
-> > > Then, pfn_valid() for the whole section is "true" and there are page
-> > > structs. But, it's not related to valid range of [start_pfn, end_pfn)
-> > > and some page structs may not be initialized collectly because
-> > > it's not a valid pages.
-> > > (memmap_init_zone() skips a page which is not correct in
-> > >  early_node_map[] and page->flags is initialized to be 0.)
-> > > 
-> > > In this case, a page->flags can be '0'. Assume a case where
-> > > node 0 has no memory....
-> > > 
-> > > page_cgroup is allocated onto the node
-> > > 
-> > >    - page_to_nid(head of section pfn)
-> > > 
-> > > Head's pfn will be valid (struct page exists) but page->flags is 0 and contains
-> > > node_id:0. This causes allocation onto NODE_DATA(0) and cause panic.
-> > > 
-> > > This patch makes page_cgroup to use alloc_pages_exact() only
-> > > when NID is N_NORMAL_MEMORY.
-> 
-> fyi, the reporter has gone in via the bugzilla UI and says he has
-> tested the patch and it worked well.
-> 
-> Please don't do that!  See this?
-> 
-> : (switched to email.  Please respond via emailed reply-to-all, not via the
-> : bugzilla web interface).
-> 
-> So we have a tested-by if we use this patch.
-> 
-> > I don't like this much as it essentially will allocate the array from
-> > a (semantically) random node, as long as it has memory.
-> > 
-> > IMO, the problem is either 1) looking at PFNs outside known node
-> > ranges, or 2) having present/valid sections partially outside of node
-> > ranges.  I am leaning towards 2), so I am wondering about the
-> > following fix:
-> > 
-> > ---
-> > From: Johannes Weiner <hannes@cmpxchg.org>
-> > Subject: [patch] sparse: only mark sections present when fully covered by memory
-> > 
-> > When valid memory ranges are to be registered with sparsemem, make
-> > sure that only fully covered sections are marked as present.
-> > 
-> > Otherwise we end up with PFN ranges that are reported present and
-> > valid but are actually backed by uninitialized mem map.
-> > 
-> > The page_cgroup allocator relies on pfn_present() being reliable for
-> > all PFNs between 0 and max_pfn, then retrieve the node id stored in
-> > the corresponding page->flags to allocate the per-section page_cgroup
-> > arrays on the local node.
-> > 
-> > This lead to at least one crash in the page allocator on a system
-> > where the uninitialized page struct returned the id for node 0, which
-> > had no memory itself.
-> > 
-> > Reported-by: qcui@redhat.com
-> > Debugged-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > Not-Yet-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> > ---
-> > 
-> > diff --git a/mm/sparse.c b/mm/sparse.c
-> > index aa64b12..a4fbeb8 100644
-> > --- a/mm/sparse.c
-> > +++ b/mm/sparse.c
-> > @@ -182,7 +182,9 @@ void __init memory_present(int nid, unsigned long start, unsigned long end)
-> >  {
-> >  	unsigned long pfn;
-> >  
-> > -	start &= PAGE_SECTION_MASK;
-> > +	start = ALIGN(start, PAGES_PER_SECTION);
-> > +	end &= PAGE_SECTION_MASK;
-> > +
-> >  	mminit_validate_memmodel_limits(&start, &end);
-> >  	for (pfn = start; pfn < end; pfn += PAGES_PER_SECTION) {
-> >  		unsigned long section = pfn_to_section_nr(pfn);
-> > 
-> 
 > Hopefully he can test this one for us as well, thanks.
 > 
 
+A  patch with better description (of mine) is here.
+Anyway, I felt I needed a fix for ARM special case.
 
-My concern is ARM. I know ARM unmaps 'struct page' even if pages are in
-existing section.
-So, I wonder above fix may cause a new panic at boot with ARM.
-Then, I used a dirty hack ;)
+==
+fix-init-page_cgroup-for-sparsemem-taking-care-of-broken-page-flags.patch
+Even with SPARSEMEM, there are some magical memmap.
 
-But I'm not sure. ARM is too special at memmap handling.
+If a Node is not aligned to SECTION, memmap of pfn which is out of
+Node's range is not initialized. And page->flags contains 0.
 
-I think this Johannes's patch should be tested by ARM (and possiblye all arch)
-before merge.
+If Node(0) doesn't exist, NODE_DATA(pfn_to_nid(pfn)) causes error.
 
-Thanks,
--Kame
+In another case, for example, ARM frees memmap which is never be used
+even under SPARSEMEM. In that case, page->flags will contain broken
+value.
 
+This patch does a strict check on nid which is obtained by
+pfn_to_page() and use proper NID for page_cgroup allocation.
+
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+
+---
+ mm/page_cgroup.c |   36 +++++++++++++++++++++++++++++++++++-
+ 1 file changed, 35 insertions(+), 1 deletion(-)
+
+Index: linux-3.0-rc1/mm/page_cgroup.c
+===================================================================
+--- linux-3.0-rc1.orig/mm/page_cgroup.c
++++ linux-3.0-rc1/mm/page_cgroup.c
+@@ -168,6 +168,7 @@ static int __meminit init_section_page_c
+ 	struct mem_section *section;
+ 	unsigned long table_size;
+ 	unsigned long nr;
++	unsigned long tmp;
+ 	int nid, index;
+ 
+ 	nr = pfn_to_section_nr(pfn);
+@@ -175,8 +176,41 @@ static int __meminit init_section_page_c
+ 
+ 	if (section->page_cgroup)
+ 		return 0;
++	/*
++	 * check Node-ID. Because we get 'pfn' which is obtained by calculation,
++	 * the pfn may "not exist" or "alreay freed". Even if pfn_valid() returns
++	 * true, page->flags may contain broken value and pfn_to_nid() returns
++	 * bad value.
++	 * (See CONFIG_ARCH_HAS_HOLES_MEMORYMODEL and ARM's free_memmap())
++	 * So, we need to do careful check, here.
++	 */
++	for (tmp = pfn;
++	     tmp < pfn + PAGES_PER_SECTION;
++	     tmp += MAX_ORDER_NR_PAGES, nid = -1) {
++		struct page *page;
++
++		if (!pfn_valid(tmp))
++			continue;
++
++		page = pfn_to_page(tmp);
++		nid = page_to_nid(page);
+ 
+-	nid = page_to_nid(pfn_to_page(pfn));
++		/*
++		 * If 'page' isn't initialized or freed, it may contains broken
++		 * information.
++		 */
++		if (!node_state(nid, N_NORMAL_MEMORY))
++			continue;
++		if (page_to_pfn(pfn_to_page(tmp)) != tmp)
++			continue;
++		/*
++		 * The page seems valid and this 'nid' is safe to access,
++ 		 * at least.
++ 		 */
++		break;
++	}
++	if (nid == -1)
++		return 0;
+ 	table_size = sizeof(struct page_cgroup) * PAGES_PER_SECTION;
+ 	base = alloc_page_cgroup(table_size, nid);
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
