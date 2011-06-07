@@ -1,97 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id EC5E56B004A
-	for <linux-mm@kvack.org>; Tue,  7 Jun 2011 10:38:54 -0400 (EDT)
-Received: by pzk4 with SMTP id 4so3156114pzk.14
-        for <linux-mm@kvack.org>; Tue, 07 Jun 2011 07:38:52 -0700 (PDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 0D9126B0078
+	for <linux-mm@kvack.org>; Tue,  7 Jun 2011 10:38:58 -0400 (EDT)
+Received: by pxi10 with SMTP id 10so3802021pxi.8
+        for <linux-mm@kvack.org>; Tue, 07 Jun 2011 07:38:56 -0700 (PDT)
 From: Minchan Kim <minchan.kim@gmail.com>
-Subject: [PATCH v3 00/10] Prevent LRU churning
-Date: Tue,  7 Jun 2011 23:38:13 +0900
-Message-Id: <cover.1307455422.git.minchan.kim@gmail.com>
+Subject: [PATCH v3 01/10] compaction: trivial clean up acct_isolated
+Date: Tue,  7 Jun 2011 23:38:14 +0900
+Message-Id: <71a79768ff8ef356db09493dbb5d6c390e176e0d.1307455422.git.minchan.kim@gmail.com>
+In-Reply-To: <cover.1307455422.git.minchan.kim@gmail.com>
+References: <cover.1307455422.git.minchan.kim@gmail.com>
+In-Reply-To: <cover.1307455422.git.minchan.kim@gmail.com>
+References: <cover.1307455422.git.minchan.kim@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>
 
-Changelog since V2
- o Remove ISOLATE_BOTH - suggested by Johannes Weiner
- o change description slightly
- o Clean up unman_and_move
- o Add Reviewed-by and Acked-by
+acct_isolated of compaction uses page_lru_base_type which returns only
+base type of LRU list so it never returns LRU_ACTIVE_ANON or LRU_ACTIVE_FILE.
+In addtion, cc->nr_[anon|file] is used in only acct_isolated so it doesn't have
+fields in conpact_control.
+This patch removes fields from compact_control and makes clear function of
+acct_issolated which counts the number of anon|file pages isolated.
 
-Changelog since V1
- o Rebase on 2.6.39
- o change description slightly
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Mel Gorman <mgorman@suse.de>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Acked-by: Rik van Riel <riel@redhat.com>
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+---
+ mm/compaction.c |   18 +++++-------------
+ 1 files changed, 5 insertions(+), 13 deletions(-)
 
-There are some places to isolate and putback pages.
-For example, compaction does it for getting contiguous page.
-The problem is that if we isolate page in the middle of LRU and putback it
-we lose LRU history as putback_lru_page inserts the page into head of LRU list.
-
-LRU history is important parameter to select victim page in curre page reclaim
-when memory pressure is heavy. Unfortunately, if someone want to allocate high-order page
-and memory pressure is heavy, it would trigger compaction and we end up lost LRU history.
-It means we can evict working set pages and system latency would be high.
-
-This patch is for solving the problem with two methods.
-
- * Anti-churning
-   when we isolate page on LRU list, let's not isolate page we can't handle
- * De-churning
-   when we putback page on LRU list in migration, let's insert new page into old page's lru position.
-
-[1,2,3/10] is just clean up.
-[4,5,6/10] is related to Anti-churning.
-[7,8,9/10] is related to De-churning.
-[10/10] is adding to new tracepoints which is never for merge but just show the effect.
-
-I test and pass this series all[yes|no|mod|def]config.
-And in my machine(1G DRAM, Intel Core 2 Duo), test scenario is following as.
-
-1) Boot up
-2) qemu ubuntu start up (1G mem)
-3) Run many applications and switch attached script(which is made by Wu)
-
-I think this is worst-case scenario since there are many contiguous pages when machine boots up.
-It means system memory isn't aging so that many pages are contiguous-LRU order. It could make
-bad effect on inorder-lru but I solved the problem. Please see description of [7/10].
-
-Test result is following as.
-For compaction, it isolated about 20000 pages. Only 10 pages are put backed with
-out-of-order(ie, head of LRU) Others, about 19990 pages are put-backed with in-order
-(ie, position of old page while migration happens). It is eactly what I want.
-
-Welcome to any comment.
-
-You can see test script and all-at-once patch in following URL.
-http://www.kernel.org/pub/linux/kernel/people/minchan/inorder_putback/v3/
-
-Minchan Kim (10):
-  [1/10] compaction: trivial clean up acct_isolated
-  [2/10 Change isolate mode from int type to enum type
-  [3/10] Add additional isolation mode
-  [4/10] compaction: make isolate_lru_page with filter aware
-  [5/10] vmscan: make isolate_lru_page with filter aware
-  [6/10] In order putback lru core
-  [7/10] migration: clean up unmap_and_move
-  [8/10] migration: make in-order-putback aware
-  [9/10] compaction: make compaction use in-order putback
-  [10/10] add inorder-lru tracepoints for just measurement
-
- include/linux/memcontrol.h             |    5 +-
- include/linux/migrate.h                |   40 +++++
- include/linux/mm_types.h               |   16 ++-
- include/linux/swap.h                   |   15 ++-
- include/trace/events/inorder_putback.h |   79 ++++++++++
- include/trace/events/vmscan.h          |    8 +-
- mm/compaction.c                        |   47 +++---
- mm/internal.h                          |    2 +
- mm/memcontrol.c                        |    5 +-
- mm/migrate.c                           |  255 ++++++++++++++++++++++++++++----
- mm/swap.c                              |    2 +-
- mm/vmscan.c                            |  133 ++++++++++++++---
- 12 files changed, 517 insertions(+), 90 deletions(-)
- create mode 100644 include/trace/events/inorder_putback.h
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 021a296..61eab88 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -35,10 +35,6 @@ struct compact_control {
+ 	unsigned long migrate_pfn;	/* isolate_migratepages search base */
+ 	bool sync;			/* Synchronous migration */
+ 
+-	/* Account for isolated anon and file pages */
+-	unsigned long nr_anon;
+-	unsigned long nr_file;
+-
+ 	unsigned int order;		/* order a direct compactor needs */
+ 	int migratetype;		/* MOVABLE, RECLAIMABLE etc */
+ 	struct zone *zone;
+@@ -212,17 +208,13 @@ static void isolate_freepages(struct zone *zone,
+ static void acct_isolated(struct zone *zone, struct compact_control *cc)
+ {
+ 	struct page *page;
+-	unsigned int count[NR_LRU_LISTS] = { 0, };
++	unsigned int count[2] = { 0, };
+ 
+-	list_for_each_entry(page, &cc->migratepages, lru) {
+-		int lru = page_lru_base_type(page);
+-		count[lru]++;
+-	}
++	list_for_each_entry(page, &cc->migratepages, lru)
++		count[!!page_is_file_cache(page)]++;
+ 
+-	cc->nr_anon = count[LRU_ACTIVE_ANON] + count[LRU_INACTIVE_ANON];
+-	cc->nr_file = count[LRU_ACTIVE_FILE] + count[LRU_INACTIVE_FILE];
+-	__mod_zone_page_state(zone, NR_ISOLATED_ANON, cc->nr_anon);
+-	__mod_zone_page_state(zone, NR_ISOLATED_FILE, cc->nr_file);
++	__mod_zone_page_state(zone, NR_ISOLATED_ANON, count[0]);
++	__mod_zone_page_state(zone, NR_ISOLATED_FILE, count[1]);
+ }
+ 
+ /* Similar to reclaim, but different enough that they don't share logic */
+-- 
+1.7.0.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
