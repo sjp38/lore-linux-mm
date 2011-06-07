@@ -1,206 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 038EC6B0078
-	for <linux-mm@kvack.org>; Tue,  7 Jun 2011 10:39:34 -0400 (EDT)
-Received: by mail-pw0-f41.google.com with SMTP id 12so3429632pwi.14
-        for <linux-mm@kvack.org>; Tue, 07 Jun 2011 07:39:33 -0700 (PDT)
-From: Minchan Kim <minchan.kim@gmail.com>
-Subject: [PATCH v3 10/10] add inorder-lru tracepoints for just measurement
-Date: Tue,  7 Jun 2011 23:38:23 +0900
-Message-Id: <9a544a20fd54636003cc5ad9deec63e17530b3c2.1307455422.git.minchan.kim@gmail.com>
-In-Reply-To: <cover.1307455422.git.minchan.kim@gmail.com>
-References: <cover.1307455422.git.minchan.kim@gmail.com>
-In-Reply-To: <cover.1307455422.git.minchan.kim@gmail.com>
-References: <cover.1307455422.git.minchan.kim@gmail.com>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id AE3C96B0082
+	for <linux-mm@kvack.org>; Tue,  7 Jun 2011 10:40:35 -0400 (EDT)
+Message-ID: <4DEE3859.6070808@fnarfbargle.com>
+Date: Tue, 07 Jun 2011 22:40:25 +0800
+From: Brad Campbell <brad@fnarfbargle.com>
+MIME-Version: 1.0
+Subject: Re: KVM induced panic on 2.6.38[2367] & 2.6.39
+References: <20110601011527.GN19505@random.random> <alpine.LSU.2.00.1105312120530.22808@sister.anvils> <4DE5DCA8.7070704@fnarfbargle.com> <4DE5E29E.7080009@redhat.com> <4DE60669.9050606@fnarfbargle.com> <4DE60918.3010008@redhat.com> <4DE60940.1070107@redhat.com> <4DE61A2B.7000008@fnarfbargle.com> <20110601111841.GB3956@zip.com.au> <4DE62801.9080804@fnarfbargle.com> <20110601230342.GC3956@zip.com.au> <4DE8E3ED.7080004@fnarfbargle.com> <isavsg$3or$1@dough.gmane.org> <4DE906C0.6060901@fnarfbargle.com> <4DED344D.7000005@pandora.be> <4DED9C23.2030408@fnarfbargle.com> <4DEE27DE.7060004@trash.net>
+In-Reply-To: <4DEE27DE.7060004@trash.net>
+Content-Type: text/plain; charset=ISO-8859-15; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>
+To: Patrick McHardy <kaber@trash.net>
+Cc: Bart De Schuymer <bdschuym@pandora.be>, kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, netfilter-devel@vger.kernel.org
 
-This patch adds some tracepints for see the effect this patch
-series. This tracepoints isn't for merge but just see the effect.
+On 07/06/11 21:30, Patrick McHardy wrote:
+> On 07.06.2011 05:33, Brad Campbell wrote:
+>> On 07/06/11 04:10, Bart De Schuymer wrote:
+>>> Hi Brad,
+>>>
+>>> This has probably nothing to do with ebtables, so please rmmod in case
+>>> it's loaded.
+>>> A few questions I didn't directly see an answer to in the threads I
+>>> scanned...
+>>> I'm assuming you actually use the bridging firewall functionality. So,
+>>> what iptables modules do you use? Can you reduce your iptables rules to
+>>> a core that triggers the bug?
+>>> Or does it get triggered even with an empty set of firewall rules?
+>>> Are you using a stock .35 kernel or is it patched?
+>>> Is this something I can trigger on a poor guy's laptop or does it
+>>> require specialized hardware (I'm catching up on qemu/kvm...)?
+>>
+>> Not specialised hardware as such, I've just not been able to reproduce
+>> it outside of this specific operating scenario.
+>
+> The last similar problem we've had was related to the 32/64 bit compat
+> code. Are you running 32 bit userspace on a 64 bit kernel?
 
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
----
- include/trace/events/inorder_putback.h |   79 ++++++++++++++++++++++++++++++++
- mm/compaction.c                        |    2 +
- mm/migrate.c                           |    7 +++
- mm/vmscan.c                            |    3 +-
- 4 files changed, 89 insertions(+), 2 deletions(-)
- create mode 100644 include/trace/events/inorder_putback.h
+No, 32 bit Guest OS, but a completely 64 bit userspace on a 64 bit kernel.
 
-diff --git a/include/trace/events/inorder_putback.h b/include/trace/events/inorder_putback.h
-new file mode 100644
-index 0000000..c615ed8
---- /dev/null
-+++ b/include/trace/events/inorder_putback.h
-@@ -0,0 +1,79 @@
-+#undef TRACE_SYSTEM
-+#define TRACE_SYSTEM inorder_putback
-+
-+#if !defined(_TRACE_INP_H) || defined(TRACE_HEADER_MULTI_READ)
-+#define _TRACE_INP_H
-+
-+#include <linux/types.h>
-+#include <linux/tracepoint.h>
-+
-+TRACE_EVENT(mm_compaction_inorder,
-+
-+	TP_PROTO(struct page *page,
-+		 struct page *newpage),
-+
-+	TP_ARGS(page, newpage),
-+
-+	TP_STRUCT__entry(
-+		__field(struct page *, page)
-+		__field(struct page *, newpage)
-+	),
-+
-+	TP_fast_assign(
-+		__entry->page = page;
-+		__entry->newpage = newpage;
-+	),
-+
-+	TP_printk("pfn=%lu new pfn=%lu",
-+		page_to_pfn(__entry->page),
-+		page_to_pfn(__entry->newpage))
-+);
-+
-+TRACE_EVENT(mm_compaction_outoforder,
-+
-+	TP_PROTO(struct page *page,
-+		 struct page *newpage),
-+
-+	TP_ARGS(page, newpage),
-+
-+	TP_STRUCT__entry(
-+		__field(struct page *, page)
-+		__field(struct page *, newpage)
-+	),
-+
-+	TP_fast_assign(
-+		__entry->page = page;
-+		__entry->newpage = newpage;
-+	),
-+
-+	TP_printk("pfn=%lu new pfn=%lu",
-+		page_to_pfn(__entry->page),
-+		page_to_pfn(__entry->newpage))
-+);
-+
-+TRACE_EVENT(mm_compact_isolate,
-+
-+	TP_PROTO(struct page *prev_page,
-+		struct page *page),
-+
-+	TP_ARGS(prev_page, page),
-+
-+	TP_STRUCT__entry(
-+		__field(struct page *, prev_page)
-+		__field(struct page *, page)
-+	),
-+
-+	TP_fast_assign(
-+		__entry->prev_page = prev_page;
-+		__entry->page = page;
-+	),
-+
-+	TP_printk("pfn=%lu prev_pfn=%lu",
-+		page_to_pfn(__entry->page),
-+		page_to_pfn(__entry->prev_page))
-+);
-+
-+#endif /* _TRACE_INP_H */
-+
-+/* This part must be outside protection */
-+#include <trace/define_trace.h>
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 29e6aa9..1041251 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -16,6 +16,7 @@
- #include <linux/sysfs.h>
- #include "internal.h"
- 
-+#include <trace/events/inorder_putback.h>
- #define CREATE_TRACE_POINTS
- #include <trace/events/compaction.h>
- 
-@@ -334,6 +335,7 @@ static unsigned long isolate_migratepages(struct zone *zone,
- 		if (__isolate_lru_page(page, mode, 0, &prev_page) != 0)
- 			continue;
- 
-+		trace_mm_compact_isolate(prev_page, page);
- 		VM_BUG_ON(PageTransCompound(page));
- 
- 		/* Successfully isolated */
-diff --git a/mm/migrate.c b/mm/migrate.c
-index a57f60b..2a8f713 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -39,6 +39,9 @@
- 
- #include "internal.h"
- 
-+#define CREATE_TRACE_POINTS
-+#include <trace/events/inorder_putback.h>
-+
- #define lru_to_page(_head) (list_entry((_head)->prev, struct page, lru))
- 
- /*
-@@ -96,10 +99,12 @@ void putback_ilru_pages(struct inorder_lru *l)
- 		spin_lock_irq(&zone->lru_lock);
- 		prev = page->ilru.prev_page;
- 		if (same_lru(page, prev)) {
-+			trace_mm_compaction_inorder(page, page);
- 			putback_page_to_lru(page, prev);
- 			spin_unlock_irq(&zone->lru_lock);
- 		}
- 		else {
-+			trace_mm_compaction_outoforder(page, page);
- 			spin_unlock_irq(&zone->lru_lock);
- 			putback_lru_page(page);
- 		}
-@@ -899,6 +904,7 @@ void __put_ilru_pages(struct page *page, struct page *newpage,
- 	if (page && same_lru(page, prev_page)) {
- 		putback_page_to_lru(newpage, prev_page);
- 		spin_unlock_irq(&zone->lru_lock);
-+		trace_mm_compaction_inorder(page, newpage);
- 		/*
- 		 * The newpage will replace LRU position of old page and
- 		 * old one would be freed. So let's adjust prev_page of pages
-@@ -909,6 +915,7 @@ void __put_ilru_pages(struct page *page, struct page *newpage,
- 	}
- 	else {
- 		spin_unlock_irq(&zone->lru_lock);
-+		trace_mm_compaction_inorder(page, newpage);
- 		putback_lru_page(newpage);
- 	}
- 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 7668e8d..5af1ba0 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -49,10 +49,9 @@
- #include <linux/swapops.h>
- 
- #include "internal.h"
--
-+#include <trace/events/inorder_putback.h>
- #define CREATE_TRACE_POINTS
- #include <trace/events/vmscan.h>
--
- /*
-  * reclaim_mode determines how the inactive list is shrunk
-  * RECLAIM_MODE_SINGLE: Reclaim only order-0 pages
--- 
-1.7.0.4
+Userspace is current Debian Stable. Kernel is Vanilla and qemu-kvm is 
+current git
+
+
+>> I can't trigger it with empty firewall rules as it relies on a DNAT to
+>> occur. If I try it directly to the internal IP address (as I have to
+>> without netfilter loaded) then of course nothing fails.
+>>
+>> It's a pain in the bum as a fault, but it's one I can easily reproduce
+>> as long as I use the same set of circumstances.
+>>
+>> I'll try using 3.0-rc2 (current git) tonight, and if I can reproduce it
+>> on that then I'll attempt to pare down the IPTABLES rules to a bare
+>> minimum.
+>>
+>> It is nothing to do with ebtables as I don't compile it. I'm not really
+>> sure about "bridging firewall" functionality. I just use a couple of
+>> hand coded bash scripts to set the tables up.
+>
+>  From one of your previous mails:
+>
+>> # CONFIG_BRIDGE_NF_EBTABLES is not set
+>
+> How about CONFIG_BRIDGE_NETFILTER?
+>
+
+It was compiled in.
+
+With the following table set I was able to reproduce the problem on 
+3.0-rc2. Replaced my IP with xxx.xxx.xxx.xxx, but otherwise unmodified
+
+root@srv:~# iptables-save
+# Generated by iptables-save v1.4.10 on Tue Jun  7 22:11:30 2011
+*filter
+:INPUT ACCEPT [978:107619]
+:FORWARD ACCEPT [142:7068]
+:OUTPUT ACCEPT [1659:291870]
+-A INPUT -i ppp0 -m state --state RELATED,ESTABLISHED -j ACCEPT
+-A INPUT ! -i ppp0 -m state --state NEW -j ACCEPT
+-A INPUT -i ppp0 -j DROP
+COMMIT
+# Completed on Tue Jun  7 22:11:30 2011
+# Generated by iptables-save v1.4.10 on Tue Jun  7 22:11:30 2011
+*nat
+:PREROUTING ACCEPT [813:49170]
+:INPUT ACCEPT [91:7090]
+:OUTPUT ACCEPT [267:20731]
+:POSTROUTING ACCEPT [296:22281]
+-A PREROUTING -d xxx.xxx.xxx.xxx/32 ! -i ppp0 -p tcp -m tcp --dport 443 
+-j DNAT --to-destination 192.168.253.198
+COMMIT
+# Completed on Tue Jun  7 22:11:30 2011
+# Generated by iptables-save v1.4.10 on Tue Jun  7 22:11:30 2011
+*mangle
+:PREROUTING ACCEPT [2729:274392]
+:INPUT ACCEPT [2508:262976]
+:FORWARD ACCEPT [142:7068]
+:OUTPUT ACCEPT [1674:293701]
+:POSTROUTING ACCEPT [2131:346411]
+-A FORWARD -o ppp0 -p tcp -m tcp --tcp-flags SYN,RST SYN -m tcpmss --mss 
+1400:1536 -j TCPMSS --clamp-mss-to-pmtu
+COMMIT
+# Completed on Tue Jun  7 22:11:30 2011
+
+I've just compiled out CONFIG_BRIDGE_NETFILTER and can no longer access 
+the address the way I was doing it, so that's a no-go for me.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
