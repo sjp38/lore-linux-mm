@@ -1,140 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id BA6D76B004A
-	for <linux-mm@kvack.org>; Tue,  7 Jun 2011 16:33:30 -0400 (EDT)
-Date: Tue, 7 Jun 2011 13:33:27 -0700
-From: Randy Dunlap <rdunlap@xenotime.net>
-Subject: Re: [PATCH] Dirty page tracking for physical system migration
-Message-Id: <20110607133327.a0591930.rdunlap@xenotime.net>
-In-Reply-To: <AC1B83CE65082B4DBDDB681ED2F6B2EF1ACD9D@EXHQ.corp.stratus.com>
-References: <AC1B83CE65082B4DBDDB681ED2F6B2EF1ACD9D@EXHQ.corp.stratus.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 447A36B004A
+	for <linux-mm@kvack.org>; Tue,  7 Jun 2011 16:43:40 -0400 (EDT)
+From: Greg Thelen <gthelen@google.com>
+Subject: Re: [PATCH v8 11/12] writeback: make background writeback cgroup aware
+References: <1307117538-14317-1-git-send-email-gthelen@google.com>
+	<1307117538-14317-12-git-send-email-gthelen@google.com>
+	<20110607193835.GD26965@redhat.com>
+Date: Tue, 07 Jun 2011 13:43:08 -0700
+In-Reply-To: <20110607193835.GD26965@redhat.com> (Vivek Goyal's message of
+	"Tue, 7 Jun 2011 15:38:35 -0400")
+Message-ID: <xr93lixdv0df.fsf@gthelen.mtv.corp.google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Paradis, James" <James.Paradis@stratus.com>
-Cc: linux-mm@kvack.org
+To: Vivek Goyal <vgoyal@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, linux-fsdevel@vger.kernel.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Dave Chinner <david@fromorbit.com>
 
-On Tue, 7 Jun 2011 16:28:27 -0400 Paradis, James wrote:
+Vivek Goyal <vgoyal@redhat.com> writes:
 
->  
-> 
-> This patch implements a system to track re-dirtied pages and modified
-> 
-> PTEs.  It is used by Stratus Technologies for both our ftLinux product
-> and
-> 
-> our new GPL Live Kernel Self Migration project (lksm.sourceforge.net).
-> 
-> In both cases, we bring a backup server online by copying the primary
-> 
-> server's state while it is running.  We start by copying all of memory
-> 
-> top to bottom.  We then go back and re-copy any pages that were changed
-> 
-> during the first copy pass.  After several such passes we momentarily
-> 
-> suspend processing so we can copy the last few pages over and bring up
-> 
-> the secondary system.  This patch keeps track of which pages need to be
-> 
-> copied during these passes.
-> 
->  
-> 
->  arch/x86/Kconfig                      |   11 +++++++++++
-> 
->  arch/x86/include/asm/hugetlb.h        |    3 +++
-> 
->  arch/x86/include/asm/pgtable-2level.h |    4 ++++
-> 
->  arch/x86/include/asm/pgtable-3level.h |   11 +++++++++++
-> 
->  arch/x86/include/asm/pgtable.h        |    4 ++--
-> 
->  arch/x86/include/asm/pgtable_32.h     |    1 +
-> 
->  arch/x86/include/asm/pgtable_64.h     |    7 +++++++
-> 
->  arch/x86/include/asm/pgtable_types.h  |    5 ++++-
-> 
->  arch/x86/mm/Makefile                  |    2 ++
-> 
->  mm/huge_memory.c                      |    4 ++--
-> 
->  11 files changed, 48 insertions(+), 6 deletions(-)
-> 
->  
-> 
-> Signed-off-by: "James Paradis" <james.paradis@stratus.com>
-> 
->  
-> 
-> diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-> 
-> index cc6c53a..cc778a4 100644
-> 
-> --- a/arch/x86/Kconfig
-> 
-> +++ b/arch/x86/Kconfig
-> 
-> @@ -1146,6 +1146,17 @@ config DIRECT_GBPAGES
-> 
->                   support it. This can improve the kernel's performance
-> a tiny bit by
-> 
->                   reducing TLB pressure. If in doubt, say "Y".
-> 
->  
-> 
-> +config TRACK_DIRTY_PAGES
-> 
-> +              bool "Enable dirty page tracking"
-> 
-> +              default n
-> 
-> +              depends on !KMEMCHECK
-> 
-> +              ---help---
-> 
-> +                Turning this on enables tracking of re-dirtied and
-> 
-> +                changed pages.  This is needed by the Live Kernel
-> 
-> +                Self Migration project (lksm.sourceforge.net) to
-> perform
-> 
-> +                live copying of memory and system state to another
-> system.
-> 
-> +                Most users will say n here.
-> 
-> +
-> 
->  # Common NUMA Features
-> 
->  config NUMA
-> 
->                 bool "Numa Memory Allocation and Scheduler Support"
-> 
+> On Fri, Jun 03, 2011 at 09:12:17AM -0700, Greg Thelen wrote:
+>> When the system is under background dirty memory threshold but a cgroup
+>> is over its background dirty memory threshold, then only writeback
+>> inodes associated with the over-limit cgroup(s).
+>> 
+>
+> [..]
+>> -static inline bool over_bground_thresh(void)
+>> +static inline bool over_bground_thresh(struct bdi_writeback *wb,
+>> +				       struct writeback_control *wbc)
+>>  {
+>>  	unsigned long background_thresh, dirty_thresh;
+>>  
+>>  	global_dirty_limits(&background_thresh, &dirty_thresh);
+>>  
+>> -	return (global_page_state(NR_FILE_DIRTY) +
+>> -		global_page_state(NR_UNSTABLE_NFS) > background_thresh);
+>> +	if (global_page_state(NR_FILE_DIRTY) +
+>> +	    global_page_state(NR_UNSTABLE_NFS) > background_thresh) {
+>> +		wbc->for_cgroup = 0;
+>> +		return true;
+>> +	}
+>> +
+>> +	wbc->for_cgroup = 1;
+>> +	wbc->shared_inodes = 1;
+>> +	return mem_cgroups_over_bground_dirty_thresh();
+>>  }
+>
+> Hi Greg,
+>
+> So all the logic of writeout from mem cgroup works only if system is
+> below background limit. The moment we cross background limit, looks
+> like we will fall back to existing way of writting inodes?
 
-[rest is snipped]
+Correct.  If the system is over its background limit then the previous
+cgroup-unaware background writeback occurs.  I think of the system
+limits as those of the root cgroup.  If the system is over the global
+limit than all cgroups are eligible for writeback.  In this situation
+the current code does not distinguish between cgroups over or under
+their dirty background limit.
 
+Vivek Goyal <vgoyal@redhat.com> writes:
+> If yes, then from design point of view it is little odd that as long
+> as we are below background limit, we share the bdi between different
+> cgroups. The moment we are above background limit, we fall back to
+> algorithm of sharing the disk among individual inodes and forget
+> about memory cgroups. Kind of awkward.
+>
+> This kind of cgroup writeback I think will atleast not solve the problem
+> for CFQ IO controller, as we fall back to old ways of writting back inodes
+> the moment we cross dirty ratio.
 
-a.  Please don't send html.
+It might make more sense to reverse the order of the checks in the
+proposed over_bground_thresh(): the new version would first check if any
+memcg are over limit; assuming none are over limit, then check global
+limits.  Assuming that the system is over its background limit and some
+cgroups are also over their limits, then the over limit cgroups would
+first be written possibly getting the system below its limit.  Does this
+address your concern?
 
-b.  What caused the double-spaced lines?  maybe CR/LF?
-I haven't tested it, but I doubt that this patch will apply cleanly as is.
+Note: mem_cgroup_balance_dirty_pages() (patch 10/12) will perform
+foreground writeback when a memcg is above its dirty limit.  This would
+offer CFQ multiple tasks issuing IO.
 
-c.  There's lots of whitespace damage, i.e., spaces instead of tabs at the
-beginning of many lines.
+> Also have you done any benchmarking regarding what's the overhead of
+> going through say thousands of inodes to find the inode which is eligible
+> for writeback from a cgroup? I think Dave Chinner had raised this concern
+> in the past.
+>
+> Thanks
+> Vivek
 
-You probably need to try again.
-
----
-~Randy
-*** Remember to use Documentation/SubmitChecklist when testing your code ***
+I will collect some performance data measuring the cost of scanning.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
