@@ -1,83 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 92FD56B0092
-	for <linux-mm@kvack.org>; Wed,  8 Jun 2011 04:54:41 -0400 (EDT)
-Date: Wed, 8 Jun 2011 10:54:00 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 8/8] mm: make per-memcg lru lists exclusive
-Message-ID: <20110608085400.GA17886@cmpxchg.org>
-References: <1306909519-7286-1-git-send-email-hannes@cmpxchg.org>
- <1306909519-7286-9-git-send-email-hannes@cmpxchg.org>
- <20110607124213.GB18571@infradead.org>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 0709A6B00E9
+	for <linux-mm@kvack.org>; Wed,  8 Jun 2011 05:03:56 -0400 (EDT)
+Date: Wed, 8 Jun 2011 10:03:49 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [Bugme-new] [Bug 36192] New: Kernel panic when boot the 2.6.39+
+ kernel based off of 2.6.32 kernel
+Message-ID: <20110608090349.GQ5247@suse.de>
+References: <20110607084530.8ee571aa.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110607084530.GI5247@suse.de>
+ <20110607174355.fde99297.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110607090900.GK5247@suse.de>
+ <20110607183302.666115f1.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110607101857.GM5247@suse.de>
+ <20110608084034.29f25764.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110608094219.823c24f7.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110608074350.GP5247@suse.de>
+ <20110608174505.e4be46d6.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20110607124213.GB18571@infradead.org>
+In-Reply-To: <20110608174505.e4be46d6.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Ying Han <yinghan@google.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org, qcui@redhat.com, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Li Zefan <lizf@cn.fujitsu.com>
 
-On Tue, Jun 07, 2011 at 08:42:13AM -0400, Christoph Hellwig wrote:
-> On Wed, Jun 01, 2011 at 08:25:19AM +0200, Johannes Weiner wrote:
-> > All lru list walkers have been converted to operate on per-memcg
-> > lists, the global per-zone lists are no longer required.
+On Wed, Jun 08, 2011 at 05:45:05PM +0900, KAMEZAWA Hiroyuki wrote:
+> > > <SNIP>
+> > > +			/*
+> > > +			 * Nodes can be overlapped
+> > > +			 * We know some arch can have nodes layout as
+> > > +			 * -------------pfn-------------->
+> > > +			 * N0 | N1 | N2 | N0 | N1 | N2 |.....
+> > > +			 */
+> > > +			if (pfn_to_nid(pfn) != node)
+> > > +				continue;
+> > > +			fail = init_section_page_cgroup(pfn, node);
+> > > +		}
+> > >  	}
+> > >  	if (fail) {
+> > >  		printk(KERN_CRIT "try 'cgroup_disable=memory' boot option\n");
+> > > 
 > > 
-> > This patch makes the per-memcg lists exclusive and removes the global
-> > lists from memcg-enabled kernels.
+> > FWIW, overall I think this is heading in the right direction.
 > > 
-> > The per-memcg lists now string up page descriptors directly, which
-> > unifies/simplifies the list isolation code of page reclaim as well as
-> > it saves a full double-linked list head for each page in the system.
-> > 
-> > At the core of this change is the introduction of the lruvec
-> > structure, an array of all lru list heads.  It exists for each zone
-> > globally, and for each zone per memcg.  All lru list operations are
-> > now done in generic code against lruvecs, with the memcg lru list
-> > primitives only doing accounting and returning the proper lruvec for
-> > the currently scanned memcg on isolation, or for the respective page
-> > on putback.
+> Thank you. and I noticed I misunderstood what ALIGN() does.
 > 
-> Wouldn't it be simpler if we always have a stub mem_cgroup_per_zone
-> structure even for non-memcg kernels, and always operate on a
-> single instance per node of those for non-memcg kernels?  In effect the
-> lruvec almost is something like that, just adding another layer of
-> abstraction.
 
-I assume you meant 'single instance per zone'; the lruvec is this.  It
-exists per zone and per mem_cgroup_per_zone so there is no difference
-between memcg kernels and non-memcg ones in generic code.  But maybe
-you really meant 'node' and I just don't get it?  Care to elaborate a
-bit more?
+And I missed it :/
 
-> >  static inline struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page)
-> > diff --git a/include/linux/mm_inline.h b/include/linux/mm_inline.h
-> > index 8f7d247..43d5d9f 100644
-> > --- a/include/linux/mm_inline.h
-> > +++ b/include/linux/mm_inline.h
-> > @@ -25,23 +25,27 @@ static inline void
-> >  __add_page_to_lru_list(struct zone *zone, struct page *page, enum lru_list l,
-> >  		       struct list_head *head)
-> >  {
-> > +	/* NOTE: Caller must ensure @head is on the right lruvec! */
-> > +	mem_cgroup_lru_add_list(zone, page, l);
-> >  	list_add(&page->lru, head);
-> >
-> >  	__mod_zone_page_state(zone, NR_LRU_BASE + l, hpage_nr_pages(page));
-> > -	mem_cgroup_add_lru_list(page, l);
-> >  }
+> This patch is made agaisnt the latest mainline git tree.
+> Tested on my host, at least.
+> ==
+> From 0485201fec6a9bbfabc4c2674756360c05080155 Mon Sep 17 00:00:00 2001
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Date: Wed, 8 Jun 2011 17:13:37 +0900
+> Subject: [PATCH] [BUGFIX] Avoid getting nid from invalid struct page at page_cgroup allocation.
 > 
-> This already has been a borderline-useful function before, but with the
-> new changes it's not a useful helper.  Either add the code surrounding
-> it includeing the PageLRU check and the normal add_page_to_lru_list
-> into a new page_update_lru_pos or similar helper, or just opencode these
-> bits in the only caller with a comment documenting why we are doing it.
+> With sparsemem, page_cgroup_init scans pfn from 0 to max_pfn.
+> But this may scan a pfn which is not on any node and can access
+> memmap which is not initialized.
 > 
-> I would tend towards the opencoding variant.
+> This makes page_cgroup_init() for SPARSEMEM node aware and remove
+> a code to get nid from page->flags. (Then, we'll use valid NID
+> always.)
+> 
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> 
 
-It's only one user, I'll opencode it.  That also makes for a nice
-opportunity to document at the current callsite why the lruvec is
-guaranteed to be the right one.
+I do not see any problems now. Thanks!
+
+Acked-by: Mel Gorman <mgorman@suse.de>
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
