@@ -1,61 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 3F3746B00EF
-	for <linux-mm@kvack.org>; Wed,  8 Jun 2011 05:33:15 -0400 (EDT)
-Date: Wed, 8 Jun 2011 11:33:10 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 1/4] mm: compaction: Ensure that the compaction free
- scanner does not move to the next zone
-Message-ID: <20110608093310.GC6742@tiehlicka.suse.cz>
-References: <1307459225-4481-1-git-send-email-mgorman@suse.de>
- <1307459225-4481-2-git-send-email-mgorman@suse.de>
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 604276B00F1
+	for <linux-mm@kvack.org>; Wed,  8 Jun 2011 05:33:40 -0400 (EDT)
+Date: Wed, 8 Jun 2011 11:33:29 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [Bugme-new] [Bug 36192] New: Kernel panic when boot the 2.6.39+
+ kernel based off of 2.6.32 kernel
+Message-ID: <20110608093329.GC17886@cmpxchg.org>
+References: <20110530162904.b78bf354.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110530165453.845bba09.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110530175140.3644b3bf.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110606125421.GB30184@cmpxchg.org>
+ <20110606144519.1e2e7d86.akpm@linux-foundation.org>
+ <20110607095708.6097689a.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110607075131.GB22234@cmpxchg.org>
+ <20110607165537.dc9e8888.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110607102611.GA26954@cmpxchg.org>
+ <20110608084538.99e395fe.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1307459225-4481-2-git-send-email-mgorman@suse.de>
+In-Reply-To: <20110608084538.99e395fe.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Thomas Sattler <tsattler@gmx.de>, Ury Stankevich <urykhy@gmail.com>, Andi Kleen <andi@firstfloor.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org, qcui@redhat.com, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>
 
-On Tue 07-06-11 16:07:02, Mel Gorman wrote:
-> Compaction works with two scanners, a migration and a free
-> scanner. When the scanners crossover, migration within the zone is
-> complete. The location of the scanner is recorded on each cycle to
-> avoid excesive scanning.
+On Wed, Jun 08, 2011 at 08:45:38AM +0900, KAMEZAWA Hiroyuki wrote:
+> On Tue, 7 Jun 2011 12:26:11 +0200
+> Johannes Weiner <hannes@cmpxchg.org> wrote:
 > 
-> When a zone is small and mostly reserved, it's very easy for the
-> migration scanner to be close to the end of the zone. Then the following
-> situation can occurs
+> > On Tue, Jun 07, 2011 at 04:55:37PM +0900, KAMEZAWA Hiroyuki wrote:
+> > > On Tue, 7 Jun 2011 09:51:31 +0200
+> > > Johannes Weiner <hannes@cmpxchg.org> wrote:
+> > > > @@ -283,23 +285,30 @@ static int __meminit page_cgroup_callback(struct notifier_block *self,
+> > > >  
+> > > >  void __init page_cgroup_init(void)
+> > > >  {
+> > > > -	unsigned long pfn;
+> > > > -	int fail = 0;
+> > > > +	pg_data_t *pgdat;
+> > > >  
+> > > >  	if (mem_cgroup_disabled())
+> > > >  		return;
+> > > >  
+> > > > -	for (pfn = 0; !fail && pfn < max_pfn; pfn += PAGES_PER_SECTION) {
+> > > > -		if (!pfn_present(pfn))
+> > > > -			continue;
+> > > > -		fail = init_section_page_cgroup(pfn);
+> > > > -	}
+> > > > -	if (fail) {
+> > > > -		printk(KERN_CRIT "try 'cgroup_disable=memory' boot option\n");
+> > > > -		panic("Out of memory");
+> > > > -	} else {
+> > > > -		hotplug_memory_notifier(page_cgroup_callback, 0);
+> > > > +	for_each_online_pgdat(pgdat) {
+> > > > +		unsigned long start;
+> > > > +		unsigned long end;
+> > > > +		unsigned long pfn;
+> > > > +
+> > > > +		start = pgdat->node_start_pfn & ~(PAGES_PER_SECTION - 1);
+> > > > +		end = ALIGN(pgdat->node_start_pfn + pgdat->node_spanned_pages,
+> > > > +			    PAGES_PER_SECTION);
+> > > > +		for (pfn = start; pfn < end; pfn += PAGES_PER_SECTION) {
+> > > > +			if (!pfn_present(pfn))
+> > > > +				continue;
+> > > > +			if (!init_section_page_cgroup(pgdat->node_id, pfn))
+> > > > +				continue;
+> > > 
+> > > AFAIK, nodes can overlap. So, this [start, end) scan doesn't work. sections
+> > > may be initizalised mulitple times ...in wrong way. At here, what we can trust
+> > > is nid in page->flags or early_node_map[]?.
+> > 
+> > Sections are not be initialized multiple times.  Once their
+> > page_cgroup array is allocated they are skipped if considered again
+> > later.
+> > 
+> > Second, even if there are two nodes backing the memory of a single
+> > section, there is still just a single page_cgroup array per section,
+> > we have to take the memory from one node or the other.
+> > 
+> > So if both node N1 and N2 fall into section SN, SN->page_cgroup will
+> > be an array of page_cgroup structures, allocated on N1, to represent
+> > the pages of SN.
+> > 
+> > The first section considered when walking the PFNs of N2 will be SN,
+> > which will be skipped because of !!SN->page_cgroup.
+> > 
+> > I do not see the problem.
+> > 
 > 
->   o migration scanner isolates some pages near the end of the zone
->   o free scanner starts at the end of the zone but finds that the
->     migration scanner is already there
->   o free scanner gets reinitialised for the next cycle as
->     cc->migrate_pfn + pageblock_nr_pages
->     moving the free scanner into the next zone
->   o migration scanner moves into the next zone
+> Assume a host with node layout
 > 
-> When this happens, NR_ISOLATED accounting goes haywire because some
-> of the accounting happens against the wrong zone. One zones counter
-> remains positive while the other goes negative even though the overall
-> global count is accurate. This was reported on X86-32 with !SMP because
-> !SMP allows the negative counters to be visible. The fact that it is
-> difficult to reproduce on X86-64 is probably just a co-incidence as
-> the bug should theoritically be possible there.
+> N0 | N1 | N2 | N3 | N4 | N0
 > 
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
-> Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+> 
+> pages for all node will be allocated onto node-0.
 
-Reviewed-by: Michal Hocko <mhocko@suse.cz>
-
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+That makes sense, thanks for the explanation!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
