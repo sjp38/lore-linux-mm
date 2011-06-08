@@ -1,85 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 1920D6B0078
-	for <linux-mm@kvack.org>; Wed,  8 Jun 2011 19:51:22 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id CDED63EE0AE
-	for <linux-mm@kvack.org>; Thu,  9 Jun 2011 08:51:18 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id B4DF945DEA1
-	for <linux-mm@kvack.org>; Thu,  9 Jun 2011 08:51:18 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 9AA6445DE83
-	for <linux-mm@kvack.org>; Thu,  9 Jun 2011 08:51:18 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8F5BD1DB803C
-	for <linux-mm@kvack.org>; Thu,  9 Jun 2011 08:51:18 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5B8C91DB802C
-	for <linux-mm@kvack.org>; Thu,  9 Jun 2011 08:51:18 +0900 (JST)
-Date: Thu, 9 Jun 2011 08:44:22 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH] memcg: do not expose uninitialized mem_cgroup_per_node
- to world
-Message-Id: <20110609084422.1b285cf3.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20110608140951.115ab1dd.akpm@linux-foundation.org>
-References: <1306925044-2828-1-git-send-email-imammedo@redhat.com>
-	<20110601123913.GC4266@tiehlicka.suse.cz>
-	<4DE6399C.8070802@redhat.com>
-	<20110601134149.GD4266@tiehlicka.suse.cz>
-	<4DE64F0C.3050203@redhat.com>
-	<20110601152039.GG4266@tiehlicka.suse.cz>
-	<4DE66BEB.7040502@redhat.com>
-	<BANLkTimbqHPeUdue=_Z31KVdPwcXtbLpeg@mail.gmail.com>
-	<4DE8D50F.1090406@redhat.com>
-	<BANLkTinMamg_qesEffGxKu3QkT=zyQ2MRQ@mail.gmail.com>
-	<4DEE26E7.2060201@redhat.com>
-	<20110608123527.479e6991.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110608140951.115ab1dd.akpm@linux-foundation.org>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id DAC1A6B007E
+	for <linux-mm@kvack.org>; Wed,  8 Jun 2011 19:53:00 -0400 (EDT)
+Received: from d03relay05.boulder.ibm.com (d03relay05.boulder.ibm.com [9.17.195.107])
+	by e34.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p58NeBNF021818
+	for <linux-mm@kvack.org>; Wed, 8 Jun 2011 17:40:11 -0600
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay05.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p58NqrT5240154
+	for <linux-mm@kvack.org>; Wed, 8 Jun 2011 17:52:54 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p58HqPxl028598
+	for <linux-mm@kvack.org>; Wed, 8 Jun 2011 11:52:26 -0600
+Subject: Re: [PATCH] Add debugging boundary check to pfn_to_page
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <1307560734-3915-1-git-send-email-emunson@mgebm.net>
+References: <1307560734-3915-1-git-send-email-emunson@mgebm.net>
+Content-Type: text/plain; charset="UTF-8"
+Date: Wed, 08 Jun 2011 13:49:28 -0700
+Message-ID: <1307566168.3048.137.camel@nimitz>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Igor Mammedov <imammedo@redhat.com>, Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>, Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, balbir@linux.vnet.ibm.com, linux-mm@kvack.org, Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, containers@lists.linux-foundation.org
+To: Eric B Munson <emunson@mgebm.net>
+Cc: arnd@arndb.de, akpm@linux-foundation.org, paulmck@linux.vnet.ibm.com, mingo@elte.hu, randy.dunlap@oracle.com, josh@joshtriplett.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, mgorman@suse.de, linux-mm@kvack.org
 
-On Wed, 8 Jun 2011 14:09:51 -0700
-Andrew Morton <akpm@linux-foundation.org> wrote:
+On Wed, 2011-06-08 at 15:18 -0400, Eric B Munson wrote:
+> -#define __pfn_to_page(pfn)                             \
+> -({     unsigned long __pfn = (pfn);                    \
+> -       struct mem_section *__sec = __pfn_to_section(__pfn);    \
+> -       __section_mem_map_addr(__sec) + __pfn;          \
+> +#ifdef CONFIG_DEBUG_MEMORY_MODEL
+> +#define __pfn_to_page(pfn)                                             \
+> +({     unsigned long __pfn = (pfn);                                    \
+> +       struct mem_section *__sec = __pfn_to_section(__pfn);            \
+> +       struct page *__page = __section_mem_map_addr(__sec) + __pfn;    \
+> +       WARN_ON(__page->flags == 0);                                    \
+> +       __page;                                                         \
 
-> 
-> The original patch:
-> 
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -4707,7 +4707,6 @@ static int alloc_mem_cgroup_per_zone_info(struct mem_cgroup *mem, int node)
->  	if (!pn)
->  		return 1;
->  
-> -	mem->info.nodeinfo[node] = pn;
->  	for (zone = 0; zone < MAX_NR_ZONES; zone++) {
->  		mz = &pn->zoneinfo[zone];
->  		for_each_lru(l)
-> @@ -4716,6 +4715,7 @@ static int alloc_mem_cgroup_per_zone_info(struct mem_cgroup *mem, int node)
->  		mz->on_tree = false;
->  		mz->mem = mem;
->  	}
-> +	mem->info.nodeinfo[node] = pn;
->  	return 0;
->  }
-> 
-> looks like a really good idea.  But it needs a new changelog and I'd be
-> a bit reluctant to merge it as it appears that the aptch removes our
-> only known way of reproducing a bug.
-> 
-> So for now I think I'll queue the patch up unchangelogged so the issue
-> doesn't get forgotten about.
-> 
+What was the scenario you're trying to catch here?  If you give a really
+crummy __pfn, you'll probably go off the end of one of the mem_section[]
+arrays, and get garbage back for __sec.  You might also get a NULL back
+from __section_mem_map_addr() if the section is possibly valid, but just
+not present on this particular system.
 
-Hmm, queued as clean up ? If so, I'll Ack.
+I _think_ the only kind of bug this will catch is if you have a valid
+section, with a valid section_mem_map[] but still manage to find
+yourself with an 'struct page' unclaimed by any zone and thus
+uninitialized.
 
-Thanks,
--Kame
+You could catch a lot more cases by being a bit more paranoid:
+
+void check_pfn(unsigned long pfn)
+{
+	int nid;
+	
+	// hacked in from pfn_to_nid:
+	// Don't actually do this, add a new helper near pfn_to_nid()
+	// Can this even fit in the physnode_map?
+	if (pfn / PAGES_PER_ELEMENT > ARRAY_SIZE(physnode_map))
+		WARN();
+
+	// Is there a valid nid there?
+	nid = pfn_to_nid(pfn);
+	if (nid == -1)
+		WARN();
+	
+	// check against NODE_DATA(nid)->node_start_pfn;
+	// check against NODE_DATA(nid)->node_spanned_pages;
+}
+>  })
+> +#else
+> +#define __pfn_to_page(pfn)                                             \
+> +({     unsigned long __pfn = (pfn);                                    \
+> +       struct mem_section *__sec = __pfn_to_section(__pfn);            \
+> +       __section_mem_map_addr(__sec) + __pfn;  \
+> +})
+> +#endif /* CONFIG_DEBUG_MEMORY_MODEL */ 
+
+Instead of making a completely new __pfn_to_page() in the debugging
+case, I'd probably do something like this:
+
+#ifdef CONFIG_DEBUG_MEMORY_MODEL
+#define check_foo(foo) {\
+	some_check_here(foo);\
+	WARN_ON(foo->flags);\
+}
+#else
+#define check_foo(foo) do{}while(0)
+#endif;
+
+#define __pfn_to_page(pfn)                                             \
+({     unsigned long __pfn = (pfn);                                    \
+       struct mem_section *__sec = __pfn_to_section(__pfn);            \
+       struct page *__page = __section_mem_map_addr(__sec) + __pfn;    \
+       check_foo(page)							\
+       __page;                                                         \
+ })
+
+That'll make sure that the two copies of __pfn_to_page() don't
+accidentally diverge.  It also makes it a lot easier to read, I think.
+
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
