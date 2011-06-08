@@ -1,120 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 105646B00E7
-	for <linux-mm@kvack.org>; Wed,  8 Jun 2011 05:27:02 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id E95D43EE0BD
-	for <linux-mm@kvack.org>; Wed,  8 Jun 2011 18:26:58 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 70AB345DED5
-	for <linux-mm@kvack.org>; Wed,  8 Jun 2011 18:26:58 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 6D33E45DED0
-	for <linux-mm@kvack.org>; Wed,  8 Jun 2011 18:26:57 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 5DA5A1DB8041
-	for <linux-mm@kvack.org>; Wed,  8 Jun 2011 18:26:57 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0FC7D1DB802F
-	for <linux-mm@kvack.org>; Wed,  8 Jun 2011 18:26:57 +0900 (JST)
-Date: Wed, 8 Jun 2011 18:20:03 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [BUGFIX][PATCH] memcg: fix behavior of per cpu charge cache
- draining.
-Message-Id: <20110608182003.1ca11db0.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20110608091510.GB6742@tiehlicka.suse.cz>
-References: <20110608140518.0cd9f791.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110608144934.b5944a64.nishimura@mxp.nes.nec.co.jp>
-	<20110608152901.f16b3e59.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110608091510.GB6742@tiehlicka.suse.cz>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 66BE06B00ED
+	for <linux-mm@kvack.org>; Wed,  8 Jun 2011 05:31:11 -0400 (EDT)
+Date: Wed, 8 Jun 2011 11:30:46 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 2/8] mm: memcg-aware global reclaim
+Message-ID: <20110608093046.GB17886@cmpxchg.org>
+References: <1306909519-7286-1-git-send-email-hannes@cmpxchg.org>
+ <1306909519-7286-3-git-send-email-hannes@cmpxchg.org>
+ <20110607122519.GA18571@infradead.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110607122519.GA18571@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Ying Han <yinghan@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, Balbir Singh <bsingharora@gmail.com>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Ying Han <yinghan@google.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, 8 Jun 2011 11:15:11 +0200
-Michal Hocko <mhocko@suse.cz> wrote:
-
-> On Wed 08-06-11 15:29:01, KAMEZAWA Hiroyuki wrote:
-> > On Wed, 8 Jun 2011 14:49:34 +0900
-> > Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
-> > 
-> > > I have a few minor comments.
-> > > 
-> > > On Wed, 8 Jun 2011 14:05:18 +0900
-> > > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > > 
-> > > > This patch is made against mainline git tree.
-> > > > ==
-> > > > From d1372da4d3c6f8051b5b1cf7b5e8b45a8094b388 Mon Sep 17 00:00:00 2001
-> > > > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > > > Date: Wed, 8 Jun 2011 13:51:11 +0900
-> > > > Subject: [BUGFIX][PATCH] memcg: fix behavior of per cpu charge cache draining.
-> > > > 
-> > > > For performance, memory cgroup caches some "charge" from res_counter
-> > > > into per cpu cache. This works well but because it's cache,
-> > > > it needs to be flushed in some cases. Typical cases are
-> > > > 	1. when someone hit limit.
-> > > > 	2. when rmdir() is called and need to charges to be 0.
-> > > > 
-> > > > But "1" has problem.
-> > > > 
-> > > > Recently, with large SMP machines, we see many kworker/%d:%d when
-> > > > memcg hit limit. It is because of flushing memcg's percpu cache. 
-> > > > Bad things in implementation are
-> > > > 
-> > > > a) it's called before calling try_to_free_mem_cgroup_pages()
-> > > >    so, it's called immidiately when a task hit limit.
-> > > >    (I thought it was better to avoid to run into memory reclaim.
-> > > >     But it was wrong decision.)
-> > > > 
-> > > > b) Even if a cpu contains a cache for memcg not related to
-> > > >    a memcg which hits limit, drain code is called.
-> > > > 
-> > > > This patch fixes a) and b) by
-> > > > 
-> > > > A) delay calling of flushing until one run of try_to_free...
-> > > >    Then, the number of calling is much decreased.
-> > > > B) check percpu cache contains a useful data or not.
-> > > > plus
-> > > > C) check asynchronous percpu draining doesn't run on the cpu.
-> > > > 
-> > > > Reported-by: Ying Han <yinghan@google.com>
-> > > > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+On Tue, Jun 07, 2011 at 08:25:19AM -0400, Christoph Hellwig wrote:
+> A few small nitpicks:
 > 
-> Looks good to me.
-> Reviewed-by: Michal Hocko <mhocko@suse.cz>
+> > +struct mem_cgroup *mem_cgroup_hierarchy_walk(struct mem_cgroup *root,
+> > +					     struct mem_cgroup *prev)
+> > +{
+> > +	struct mem_cgroup *mem;
+> > +
+> > +	if (mem_cgroup_disabled())
+> > +		return NULL;
+> > +
+> > +	if (!root)
+> > +		root = root_mem_cgroup;
+> > +	/*
+> > +	 * Even without hierarchy explicitely enabled in the root
+> > +	 * memcg, it is the ultimate parent of all memcgs.
+> > +	 */
+> > +	if (!(root == root_mem_cgroup || root->use_hierarchy))
+> > +		return root;
 > 
-> One minor note though. 
-> AFAICS we can end up having CHARGE_BATCH * (NR_ONLINE_CPU) pages pre-charged
-> for a group which would be freed by drain_all_stock_async so we could get
-> under the limit and so we could omit direct reclaim, or?
+> The logic here reads a bit weird, why not simply:
+> 
+> 	 /*
+> 	  * Even without hierarchy explicitely enabled in the root
+> 	  * memcg, it is the ultimate parent of all memcgs.
+> 	  */
+> 	if (!root || root == root_mem_cgroup)
+> 		return root_mem_cgroup;
+> 	if (root->use_hierarchy)
+> 		return root;
 
-If drain_all_stock_async flushes charges, we go under limit and skip
-direct reclaim. yes. It was my initial thought. But in recent test while
-we do for keep-margin or some other, we saw too much kworkers/%d:%d.
+What you are proposing is not equivalent, so... case in point!  It's
+meant to do the hierarchy walk for when foo->use_hierarchy, obviously,
+but ALSO for root_mem_cgroup, which is parent to everyone else even
+without use_hierarchy set.  I changed it to read like this:
 
-Then, What I think now is....
+	if (!root)
+		root = root_mem_cgroup;
+	if (!root->use_hierarchy && root != root_mem_cgroup)
+		return root;
+	/* actually iterate hierarchy */
 
- 1. if memory can be reclaimed easily, the cost of calling kworker is very bad.
- 2. if memory reclaim cost is too high, the benefit of flushing per-cpu
-    cache is very low.
+Does that make more sense?
 
-In future, situation will be much better.
+Another alternative would be
 
- a. Our test shows async shrinker for keep-margin will reduce memory
-    effectively and process will not dive into direct reclaim because of limit
-    in not-very-havy workload.
- b. dirty-ratio will stop very-heavy-workload before reclaim is troublesome.
+	if (root->use_hierarchy || root == root_mem_cgroup) {
+		/* most of the function body */
+	}
 
-Hmm,
--Kame
+but that quickly ends up with ugly linewraps...
 
+> >  /*
+> >   * This is a basic per-zone page freer.  Used by both kswapd and direct reclaim.
+> >   */
+> > -static void shrink_zone(int priority, struct zone *zone,
+> > -				struct scan_control *sc)
+> > +static void do_shrink_zone(int priority, struct zone *zone,
+> > +			   struct scan_control *sc)
+> 
+> It actually is the per-memcg shrinker now, and thus should be called
+> shrink_memcg.
 
+Per-zone per-memcg, actually.  shrink_zone_memcg?
 
+> > +		sc->mem_cgroup = mem;
+> > +		do_shrink_zone(priority, zone, sc);
+> 
+> Any passing the mem_cgroup explicitly instead of hiding it in the
+> scan_control would make that much more obvious.  If there's a good
+> reason to pass it in the structure the same probably applies to the
+> zone and priority, too.
+
+Stack frame size, I guess.  But unreadable code can't be the answer to
+this problem.  I'll try to pass it explicitely and see what the damage
+is.
+
+> Shouldn't we also have a non-cgroups stub of shrink_zone to directly
+> call do_shrink_zone/shrink_memcg with a NULL memcg and thus optimize
+> the whole loop away for it?
+
+On !CONFIG_MEMCG, the code in shrink_zone() looks effectively like
+this:
+
+	first = mem = NULL;
+	for (;;) {
+		sc->mem_cgroup = mem;
+		do_shrink_zone()
+		if (reclaimed enough)
+			break;
+		mem = NULL;
+		if (first == mem)
+			break;
+	}
+
+I have gcc version 4.6.0 20110530 (Red Hat 4.6.0-9) (GCC) on this
+machine, and it manages to optimize the loop away completely.
+
+The only increase in code size I could see was from all callers having
+to do the extra sc->mem_cgroup = NULL.  But I guess there is no way
+around this.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
