@@ -1,81 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 0709A6B00E9
-	for <linux-mm@kvack.org>; Wed,  8 Jun 2011 05:03:56 -0400 (EDT)
-Date: Wed, 8 Jun 2011 10:03:49 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [Bugme-new] [Bug 36192] New: Kernel panic when boot the 2.6.39+
- kernel based off of 2.6.32 kernel
-Message-ID: <20110608090349.GQ5247@suse.de>
-References: <20110607084530.8ee571aa.kamezawa.hiroyu@jp.fujitsu.com>
- <20110607084530.GI5247@suse.de>
- <20110607174355.fde99297.kamezawa.hiroyu@jp.fujitsu.com>
- <20110607090900.GK5247@suse.de>
- <20110607183302.666115f1.kamezawa.hiroyu@jp.fujitsu.com>
- <20110607101857.GM5247@suse.de>
- <20110608084034.29f25764.kamezawa.hiroyu@jp.fujitsu.com>
- <20110608094219.823c24f7.kamezawa.hiroyu@jp.fujitsu.com>
- <20110608074350.GP5247@suse.de>
- <20110608174505.e4be46d6.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D6206B00EB
+	for <linux-mm@kvack.org>; Wed,  8 Jun 2011 05:15:15 -0400 (EDT)
+Date: Wed, 8 Jun 2011 11:15:11 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [BUGFIX][PATCH] memcg: fix behavior of per cpu charge cache
+ draining.
+Message-ID: <20110608091510.GB6742@tiehlicka.suse.cz>
+References: <20110608140518.0cd9f791.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110608144934.b5944a64.nishimura@mxp.nes.nec.co.jp>
+ <20110608152901.f16b3e59.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110608174505.e4be46d6.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110608152901.f16b3e59.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org, qcui@redhat.com, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Li Zefan <lizf@cn.fujitsu.com>
+Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Ying Han <yinghan@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, Balbir Singh <bsingharora@gmail.com>
 
-On Wed, Jun 08, 2011 at 05:45:05PM +0900, KAMEZAWA Hiroyuki wrote:
-> > > <SNIP>
-> > > +			/*
-> > > +			 * Nodes can be overlapped
-> > > +			 * We know some arch can have nodes layout as
-> > > +			 * -------------pfn-------------->
-> > > +			 * N0 | N1 | N2 | N0 | N1 | N2 |.....
-> > > +			 */
-> > > +			if (pfn_to_nid(pfn) != node)
-> > > +				continue;
-> > > +			fail = init_section_page_cgroup(pfn, node);
-> > > +		}
-> > >  	}
-> > >  	if (fail) {
-> > >  		printk(KERN_CRIT "try 'cgroup_disable=memory' boot option\n");
+On Wed 08-06-11 15:29:01, KAMEZAWA Hiroyuki wrote:
+> On Wed, 8 Jun 2011 14:49:34 +0900
+> Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+> 
+> > I have a few minor comments.
+> > 
+> > On Wed, 8 Jun 2011 14:05:18 +0900
+> > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> > 
+> > > This patch is made against mainline git tree.
+> > > ==
+> > > From d1372da4d3c6f8051b5b1cf7b5e8b45a8094b388 Mon Sep 17 00:00:00 2001
+> > > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > > Date: Wed, 8 Jun 2011 13:51:11 +0900
+> > > Subject: [BUGFIX][PATCH] memcg: fix behavior of per cpu charge cache draining.
 > > > 
-> > 
-> > FWIW, overall I think this is heading in the right direction.
-> > 
-> Thank you. and I noticed I misunderstood what ALIGN() does.
-> 
+> > > For performance, memory cgroup caches some "charge" from res_counter
+> > > into per cpu cache. This works well but because it's cache,
+> > > it needs to be flushed in some cases. Typical cases are
+> > > 	1. when someone hit limit.
+> > > 	2. when rmdir() is called and need to charges to be 0.
+> > > 
+> > > But "1" has problem.
+> > > 
+> > > Recently, with large SMP machines, we see many kworker/%d:%d when
+> > > memcg hit limit. It is because of flushing memcg's percpu cache. 
+> > > Bad things in implementation are
+> > > 
+> > > a) it's called before calling try_to_free_mem_cgroup_pages()
+> > >    so, it's called immidiately when a task hit limit.
+> > >    (I thought it was better to avoid to run into memory reclaim.
+> > >     But it was wrong decision.)
+> > > 
+> > > b) Even if a cpu contains a cache for memcg not related to
+> > >    a memcg which hits limit, drain code is called.
+> > > 
+> > > This patch fixes a) and b) by
+> > > 
+> > > A) delay calling of flushing until one run of try_to_free...
+> > >    Then, the number of calling is much decreased.
+> > > B) check percpu cache contains a useful data or not.
+> > > plus
+> > > C) check asynchronous percpu draining doesn't run on the cpu.
+> > > 
+> > > Reported-by: Ying Han <yinghan@google.com>
+> > > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-And I missed it :/
+Looks good to me.
+Reviewed-by: Michal Hocko <mhocko@suse.cz>
 
-> This patch is made agaisnt the latest mainline git tree.
-> Tested on my host, at least.
-> ==
-> From 0485201fec6a9bbfabc4c2674756360c05080155 Mon Sep 17 00:00:00 2001
-> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Date: Wed, 8 Jun 2011 17:13:37 +0900
-> Subject: [PATCH] [BUGFIX] Avoid getting nid from invalid struct page at page_cgroup allocation.
-> 
-> With sparsemem, page_cgroup_init scans pfn from 0 to max_pfn.
-> But this may scan a pfn which is not on any node and can access
-> memmap which is not initialized.
-> 
-> This makes page_cgroup_init() for SPARSEMEM node aware and remove
-> a code to get nid from page->flags. (Then, we'll use valid NID
-> always.)
-> 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> 
-
-I do not see any problems now. Thanks!
-
-Acked-by: Mel Gorman <mgorman@suse.de>
+One minor note though. 
+AFAICS we can end up having CHARGE_BATCH * (NR_ONLINE_CPU) pages pre-charged
+for a group which would be freed by drain_all_stock_async so we could get
+under the limit and so we could omit direct reclaim, or?
 
 -- 
-Mel Gorman
+Michal Hocko
 SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
