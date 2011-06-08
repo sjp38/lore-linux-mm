@@ -1,143 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 7392A6B0083
-	for <linux-mm@kvack.org>; Wed,  8 Jun 2011 06:20:07 -0400 (EDT)
-Message-ID: <4DEF4CC5.7040403@snapgear.com>
-Date: Wed, 8 Jun 2011 20:19:49 +1000
-From: Greg Ungerer <gerg@snapgear.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 78D0E6B007E
+	for <linux-mm@kvack.org>; Wed,  8 Jun 2011 06:37:07 -0400 (EDT)
+Received: from d03relay03.boulder.ibm.com (d03relay03.boulder.ibm.com [9.17.195.228])
+	by e34.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p58AOHq0027144
+	for <linux-mm@kvack.org>; Wed, 8 Jun 2011 04:24:17 -0600
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay03.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p58Ab19U158052
+	for <linux-mm@kvack.org>; Wed, 8 Jun 2011 04:37:01 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p584aWZa006699
+	for <linux-mm@kvack.org>; Tue, 7 Jun 2011 22:36:33 -0600
+Date: Wed, 8 Jun 2011 15:59:57 +0530
+From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Subject: Re: [PATCH v4 3.0-rc2-tip 3/22]  3: uprobes: Adding and remove a
+ uprobe in a rb tree.
+Message-ID: <20110608102957.GA10529@linux.vnet.ibm.com>
+Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+References: <20110607125804.28590.92092.sendpatchset@localhost6.localdomain6>
+ <20110607125850.28590.10861.sendpatchset@localhost6.localdomain6>
+ <20110608041217.GA4879@wicker.gateway.2wire.net>
+ <4DEF1F07.4000400@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2] nommu: add page_align to mmap
-References: <1304661784-11654-1-git-send-email-lliubbo@gmail.com>	<4DE88112.3090908@snapgear.com>	<BANLkTikv5cuRRW+7LPX-=kSdSy=n+O3=Jg@mail.gmail.com>	<4DEEFEEB.3090103@snapgear.com> <BANLkTi=8G6Z5RpvK6wDuzdF-0t7wDwnTOA@mail.gmail.com>
-In-Reply-To: <BANLkTi=8G6Z5RpvK6wDuzdF-0t7wDwnTOA@mail.gmail.com>
-Content-Type: text/plain; charset="windows-1252"; format=flowed
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <4DEF1F07.4000400@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bob Liu <lliubbo@gmail.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, dhowells@redhat.com, lethal@linux-sh.org, gerg@uclinux.org, walken@google.com, daniel-gl@gmx.net, vapier@gentoo.org, geert@linux-m68k.org, uclinux-dist-devel@blackfin.uclinux.org
+To: Josh Stone <jistone@redhat.com>
+Cc: Stephen Wilson <wilsons@start.ca>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Thomas Gleixner <tglx@linutronix.de>, LKML <linux-kernel@vger.kernel.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
 
+* Josh Stone <jistone@redhat.com> [2011-06-08 00:04:39]:
 
-Hi Bob,
+> On 06/07/2011 09:12 PM, Stephen Wilson wrote:
+> > Also, changing the argument order seems to solve the issue reported by
+> > Josh Stone where only the uprobe with the lowest address was responding
+> > (thou I did not test with perf, just lightly with the trace_event
+> > interface).
+> 
+> Makes sense, and indeed after swapping the arguments to both calls, the
+> perf test I gave now works as expected.  Thanks!
+> 
+> Josh
 
-On 08/06/11 17:18, Bob Liu wrote:
-> Hi, Greg
->
-> On Wed, Jun 8, 2011 at 12:47 PM, Greg Ungerer<gerg@snapgear.com>  wrote:
->> Hi Bob,
->>
->> On 07/06/11 16:19, Bob Liu wrote:
->>>
->>> On Fri, Jun 3, 2011 at 2:37 PM, Greg Ungerer<gerg@snapgear.com>  =C3=A1=
-wrote:
->>>>
->>>> Hi Bob,
->>>>
->>>> On 06/05/11 16:03, Bob Liu wrote:
->>>>>
->>>>> Currently on nommu arch mmap(),mremap() and munmap() doesn't do
->>>>> page_align()
->>>>> which isn't consist with mmu arch and cause some issues.
->>>>>
->>>>> First, some drivers' mmap() function depends on vma->vm_end - vma->st=
-art
->>>>> is
->>>>> page aligned which is true on mmu arch but not on nommu. eg: uvc came=
-ra
->>>>> driver.
->>>>>
->>>>> Second munmap() may return -EINVAL[split file] error in cases when en=
-d
->>>>> is
->>>>> not
->>>>> page aligned(passed into from userspace) but vma->vm_end is aligned d=
-ure
->>>>> to
->>>>> split or driver's mmap() ops.
->>>>>
->>>>> This patch add page align to fix those issues.
->>>>
->>>> This is actually causing me problems on head at the moment.
->>>> git bisected to this patch as the cause.
->>>>
->>>> When booting on a ColdFire (m68knommu) target the init process (or
->>>> there abouts at least) fails. Last console messages are:
->>>>
->>>> =E2=94=9C=C3=AD...
->>>> =E2=94=9C=C3=ADVFS: Mounted root (romfs filesystem) readonly on device=
- 31:0.
->>>> =E2=94=9C=C3=ADFreeing unused kernel memory: 52k freed (0x401aa000 - 0=
-x401b6000)
->>>> =E2=94=9C=C3=ADUnable to mmap process text, errno 22
->>>>
->>>
->>> Oh, bad news. I will try to reproduce it on my board.
->>> If you are free please enable debug in nommu.c and then we can see what
->>> caused the problem.
->>
->> Yep, with debug on:
->>
->> =C3=A1...
->> =C3=A1VFS: Mounted root (romfs filesystem) readonly on device 31:0.
->> =C3=A1Freeing unused kernel memory: 52k freed (0x4018c000 - 0x40198000)
->> =C3=A1=3D=3D>  do_mmap_pgoff(,0,6780,5,1002,0)
->> =C3=A1<=3D=3D do_mmap_pgoff() =3D -22
->> =C3=A1Unable to mmap process text, errno 22
->>
->
-> Since I can't reproduce this problem, could you please attach the
-> whole dmesg log with nommu debug on or
-> you can step into to see why errno 22 is returned, is it returned by
-> do_mmap_private()?
+Thanks Stephen for the fix and Josh for both reporting and confirming
+that the fix works. 
 
-There was no other debug messages with debug turned on in nommu.c.
-(I can give you the boot msgs before this if you want, but there
-was no nommu.c debug in it).
+Stephen, Along with the parameter interchange, I also modified the
+parameter name so that they dont confuse with the argument names in
+match_uprobe.  Otherwise 'r' in __find_uprobe would correspond to 'l' in 
+match_uprobe. The result is something like below.
 
-But I did trace it into do_mmap_pgoff() to see what was failing.
-It fails based on the return value from:
+I am resending the faulty patch with the fix and also checked in the fix
+into my git tree.
 
-           addr =3D file->f_op->get_unmapped_area(file, addr, len,
-                                                       pgoff, flags);
+-- 
+Thanks and Regards
+Srikar
 
-
-Theres only one call of this inside do_mmap_pgoff() so you its
-easy to find.
-
-Regards
-Greg
-
-
-
->> I can confirm that the PAGE_ALIGN(len) change in do_mmap_pgoff()
->> is enough to cause this too.
->>
->> Regards
->> Greg
->>
->>
->>
->>
->>>> I haven't really debugged it any further yet. But that error message
->>>> comes from fs/binfmt_flat.c, it is reporting a failed do_mmap() call.
->>>>
->>>> Reverting that this patch and no more problem.
->>>>
->>>> Regards
->>>> Greg
->>>>
->>
->> ------------------------------------------------------------------------
->> Greg Ungerer =C3=A1-- =C3=A1Principal Engineer =C3=A1 =C3=A1 =C3=A1 =C3=
-=A1EMAIL: =C3=A1 =C3=A1 gerg@snapgear.com
->> SnapGear Group, McAfee =C3=A1 =C3=A1 =C3=A1 =C3=A1 =C3=A1 =C3=A1 =C3=A1 =
-=C3=A1 =C3=A1 =C3=A1 =C3=A1PHONE: =C3=A1 =C3=A1 =C3=A1 +61 7 3435 2888
->> 8 Gardner Close =C3=A1 =C3=A1 =C3=A1 =C3=A1 =C3=A1 =C3=A1 =C3=A1 =C3=A1 =
-=C3=A1 =C3=A1 =C3=A1 =C3=A1 =C3=A1 =C3=A1 FAX: =C3=A1 =C3=A1 =C3=A1 =C3=A1 =
-+61 7 3217 5323
->> Milton, QLD, 4064, Australia =C3=A1 =C3=A1 =C3=A1 =C3=A1 =C3=A1 =C3=A1 =
-=C3=A1 =C3=A1WEB: http://www.SnapGear.com
->>
->
+diff --git a/kernel/uprobes.c b/kernel/uprobes.c
+index 95c16dd..72f21db 100644
+--- a/kernel/uprobes.c
++++ b/kernel/uprobes.c
+@@ -363,14 +363,14 @@ static int match_uprobe(struct uprobe *l, struct uprobe *r, int *match_inode)
+ static struct uprobe *__find_uprobe(struct inode * inode,
+ 			 loff_t offset, struct rb_node **close_match)
+ {
+-	struct uprobe r = { .inode = inode, .offset = offset };
++	struct uprobe u = { .inode = inode, .offset = offset };
+ 	struct rb_node *n = uprobes_tree.rb_node;
+ 	struct uprobe *uprobe;
+ 	int match, match_inode;
+ 
+ 	while (n) {
+ 		uprobe = rb_entry(n, struct uprobe, rb_node);
+-		match = match_uprobe(uprobe, &r, &match_inode);
++		match = match_uprobe(&u, uprobe, &match_inode);
+ 		if (close_match && match_inode)
+ 			*close_match = n;
+ 
+@@ -412,7 +412,7 @@ static struct uprobe *__insert_uprobe(struct uprobe *uprobe)
+ 	while (*p) {
+ 		parent = *p;
+ 		u = rb_entry(parent, struct uprobe, rb_node);
+-		match = match_uprobe(u, uprobe, NULL);
++		match = match_uprobe(uprobe, u, NULL);
+ 		if (!match) {
+ 			atomic_inc(&u->ref);
+ 			return u;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
