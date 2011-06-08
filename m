@@ -1,144 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 12EF16B0078
-	for <linux-mm@kvack.org>; Wed,  8 Jun 2011 18:14:03 -0400 (EDT)
-Date: Wed, 8 Jun 2011 18:12:55 -0400
-From: Stephen Wilson <wilsons@start.ca>
-Subject: Re: [PATCH v4 3.0-rc2-tip 7/22]  7: uprobes: mmap and fork hooks.
-Message-ID: <20110608221255.GC9965@wicker.gateway.2wire.net>
-References: <20110607125804.28590.92092.sendpatchset@localhost6.localdomain6>
- <20110607125931.28590.12362.sendpatchset@localhost6.localdomain6>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110607125931.28590.12362.sendpatchset@localhost6.localdomain6>
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 1920D6B0078
+	for <linux-mm@kvack.org>; Wed,  8 Jun 2011 19:51:22 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id CDED63EE0AE
+	for <linux-mm@kvack.org>; Thu,  9 Jun 2011 08:51:18 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id B4DF945DEA1
+	for <linux-mm@kvack.org>; Thu,  9 Jun 2011 08:51:18 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 9AA6445DE83
+	for <linux-mm@kvack.org>; Thu,  9 Jun 2011 08:51:18 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8F5BD1DB803C
+	for <linux-mm@kvack.org>; Thu,  9 Jun 2011 08:51:18 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5B8C91DB802C
+	for <linux-mm@kvack.org>; Thu,  9 Jun 2011 08:51:18 +0900 (JST)
+Date: Thu, 9 Jun 2011 08:44:22 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH] memcg: do not expose uninitialized mem_cgroup_per_node
+ to world
+Message-Id: <20110609084422.1b285cf3.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110608140951.115ab1dd.akpm@linux-foundation.org>
+References: <1306925044-2828-1-git-send-email-imammedo@redhat.com>
+	<20110601123913.GC4266@tiehlicka.suse.cz>
+	<4DE6399C.8070802@redhat.com>
+	<20110601134149.GD4266@tiehlicka.suse.cz>
+	<4DE64F0C.3050203@redhat.com>
+	<20110601152039.GG4266@tiehlicka.suse.cz>
+	<4DE66BEB.7040502@redhat.com>
+	<BANLkTimbqHPeUdue=_Z31KVdPwcXtbLpeg@mail.gmail.com>
+	<4DE8D50F.1090406@redhat.com>
+	<BANLkTinMamg_qesEffGxKu3QkT=zyQ2MRQ@mail.gmail.com>
+	<4DEE26E7.2060201@redhat.com>
+	<20110608123527.479e6991.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110608140951.115ab1dd.akpm@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Jonathan Corbet <corbet@lwn.net>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Igor Mammedov <imammedo@redhat.com>, Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>, Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, balbir@linux.vnet.ibm.com, linux-mm@kvack.org, Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, containers@lists.linux-foundation.org
 
+On Wed, 8 Jun 2011 14:09:51 -0700
+Andrew Morton <akpm@linux-foundation.org> wrote:
 
+> 
+> The original patch:
+> 
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -4707,7 +4707,6 @@ static int alloc_mem_cgroup_per_zone_info(struct mem_cgroup *mem, int node)
+>  	if (!pn)
+>  		return 1;
+>  
+> -	mem->info.nodeinfo[node] = pn;
+>  	for (zone = 0; zone < MAX_NR_ZONES; zone++) {
+>  		mz = &pn->zoneinfo[zone];
+>  		for_each_lru(l)
+> @@ -4716,6 +4715,7 @@ static int alloc_mem_cgroup_per_zone_info(struct mem_cgroup *mem, int node)
+>  		mz->on_tree = false;
+>  		mz->mem = mem;
+>  	}
+> +	mem->info.nodeinfo[node] = pn;
+>  	return 0;
+>  }
+> 
+> looks like a really good idea.  But it needs a new changelog and I'd be
+> a bit reluctant to merge it as it appears that the aptch removes our
+> only known way of reproducing a bug.
+> 
+> So for now I think I'll queue the patch up unchangelogged so the issue
+> doesn't get forgotten about.
+> 
 
-
-On Tue, Jun 07, 2011 at 06:29:31PM +0530, Srikar Dronamraju wrote:
-> +static void add_to_temp_list(struct vm_area_struct *vma, struct inode *inode,
-> +		struct list_head *tmp_list)
-> +{
-> +	struct uprobe *uprobe;
-> +	struct rb_node *n;
-> +	unsigned long flags;
-> +
-> +	n = uprobes_tree.rb_node;
-> +	spin_lock_irqsave(&uprobes_treelock, flags);
-> +	uprobe = __find_uprobe(inode, 0, &n);
-
-It is valid for a uprobe offset to be zero I guess, so perhaps we need
-to do a put_uprobe() here when the result of __find_uprobe() is
-non-null.
-
-> +	for (; n; n = rb_next(n)) {
-> +		uprobe = rb_entry(n, struct uprobe, rb_node);
-> +		if (uprobe->inode != inode)
-> +			break;
-> +		list_add(&uprobe->pending_list, tmp_list);
-> +		continue;
-> +	}
-> +	spin_unlock_irqrestore(&uprobes_treelock, flags);
-> +}
-> +
-> +/*
-> + * Called from dup_mmap.
-> + * called with mm->mmap_sem and old_mm->mmap_sem acquired.
-> + */
-> +void dup_mmap_uprobe(struct mm_struct *old_mm, struct mm_struct *mm)
-> +{
-> +	atomic_set(&old_mm->uprobes_count,
-> +			atomic_read(&mm->uprobes_count));
-> +}
-> +
-> +/*
-> + * Called from mmap_region.
-> + * called with mm->mmap_sem acquired.
-> + *
-> + * Return -ve no if we fail to insert probes and we cannot
-> + * bail-out.
-> + * Return 0 otherwise. i.e :
-> + *	- successful insertion of probes
-> + *	- no possible probes to be inserted.
-> + *	- insertion of probes failed but we can bail-out.
-> + */
-> +int mmap_uprobe(struct vm_area_struct *vma)
-> +{
-> +	struct list_head tmp_list;
-> +	struct uprobe *uprobe, *u;
-> +	struct mm_struct *mm;
-> +	struct inode *inode;
-> +	unsigned long start, pgoff;
-> +	int ret = 0;
-> +
-> +	if (!valid_vma(vma))
-> +		return ret;	/* Bail-out */
-> +
-> +	INIT_LIST_HEAD(&tmp_list);
-> +
-> +	mm = vma->vm_mm;
-> +	inode = vma->vm_file->f_mapping->host;
-> +	start = vma->vm_start;
-> +	pgoff = vma->vm_pgoff;
-> +	__iget(inode);
-> +
-> +	up_write(&mm->mmap_sem);
-> +	mutex_lock(&uprobes_mutex);
-> +	down_read(&mm->mmap_sem);
-> +
-> +	vma = find_vma(mm, start);
-> +	/* Not the same vma */
-> +	if (!vma || vma->vm_start != start ||
-> +			vma->vm_pgoff != pgoff || !valid_vma(vma) ||
-> +			inode->i_mapping != vma->vm_file->f_mapping)
-> +		goto mmap_out;
-> +
-> +	add_to_temp_list(vma, inode, &tmp_list);
-> +	list_for_each_entry_safe(uprobe, u, &tmp_list, pending_list) {
-> +		loff_t vaddr;
-> +
-> +		list_del(&uprobe->pending_list);
-> +		if (ret)
-> +			continue;
-> +
-> +		vaddr = vma->vm_start + uprobe->offset;
-> +		vaddr -= vma->vm_pgoff << PAGE_SHIFT;
-> +		if (vaddr < vma->vm_start || vaddr > vma->vm_end)
-
-Another place where the check should be "vaddr >= vma->vm_end" I think? 
-
+Hmm, queued as clean up ? If so, I'll Ack.
 
 Thanks,
-
-> +			/* Not in this vma */
-> +			continue;
-> +		if (vaddr > TASK_SIZE)
-> +			/*
-> +			 * We cannot have a virtual address that is
-> +			 * greater than TASK_SIZE
-> +			 */
-> +			continue;
-> +		mm->uprobes_vaddr = (unsigned long)vaddr;
-> +		ret = install_breakpoint(mm, uprobe);
-> +		if (ret && (ret == -ESRCH || ret == -EEXIST))
-> +			ret = 0;
-> +	}
-> +
-> +mmap_out:
-> +	mutex_unlock(&uprobes_mutex);
-> +	iput(inode);
-> +	up_read(&mm->mmap_sem);
-> +	down_write(&mm->mmap_sem);
-> +	return ret;
-> +}
-
--- 
-steve
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
