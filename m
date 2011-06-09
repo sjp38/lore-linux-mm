@@ -1,45 +1,175 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 4CB2690011D
-	for <linux-mm@kvack.org>; Thu,  9 Jun 2011 19:00:04 -0400 (EDT)
-Received: from j77219.upc-j.chello.nl ([24.132.77.219] helo=dyad.programming.kicks-ass.net)
-	by casper.infradead.org with esmtpsa (Exim 4.76 #1 (Red Hat Linux))
-	id 1QUoCn-0006CC-PC
-	for linux-mm@kvack.org; Thu, 09 Jun 2011 23:00:01 +0000
-Subject: Re: [PATCH v4 3.0-rc2-tip 2/22]  2: uprobes: Breakground page
- replacement.
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <20110607125835.28590.25476.sendpatchset@localhost6.localdomain6>
-References: 
-	 <20110607125804.28590.92092.sendpatchset@localhost6.localdomain6>
-	 <20110607125835.28590.25476.sendpatchset@localhost6.localdomain6>
-Content-Type: text/plain; charset="UTF-8"
-Date: Fri, 10 Jun 2011 01:03:32 +0200
-Message-ID: <1307660612.2497.1774.camel@laptop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with ESMTP id 6F50D6B004A
+	for <linux-mm@kvack.org>; Thu,  9 Jun 2011 19:32:23 -0400 (EDT)
+Date: Fri, 10 Jun 2011 01:31:54 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 0/8] mm: memcg naturalization -rc2
+Message-ID: <20110609233154.GA26745@cmpxchg.org>
+References: <20110602075028.GB20630@cmpxchg.org>
+ <BANLkTi=AZG4LKUdeODB0uP=_CVBRnGs_Nw@mail.gmail.com>
+ <20110602175142.GH28684@cmpxchg.org>
+ <BANLkTi=9083abfiKdZ5_oXyA+dZqaXJfZg@mail.gmail.com>
+ <20110608153211.GB27827@cmpxchg.org>
+ <BANLkTincHpoay1JtpjG0RY9CCvfepRohTXUH6KKULYJ9jbdo+A@mail.gmail.com>
+ <20110609083503.GC11603@cmpxchg.org>
+ <BANLkTiknpTjj3saw+zS5ABeD+4ESz68xvRot7TTvKs7A_RtrdA@mail.gmail.com>
+ <20110609183637.GC20333@cmpxchg.org>
+ <BANLkTin3ZZYXdZgSFfi=8QMnN5we8RcoMyZ_vM3kdbRXCaoWnw@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <BANLkTin3ZZYXdZgSFfi=8QMnN5we8RcoMyZ_vM3kdbRXCaoWnw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Andi Kleen <andi@firstfloor.org>, Thomas Gleixner <tglx@linutronix.de>, Jonathan Corbet <corbet@lwn.net>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, LKML <linux-kernel@vger.kernel.org>
+To: Ying Han <yinghan@google.com>
+Cc: Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 
-On Tue, 2011-06-07 at 18:28 +0530, Srikar Dronamraju wrote:
-> +/**
-> + * __replace_page - replace page in vma by new page.
-> + * based on replace_page in mm/ksm.c
-> + *
-> + * @vma:      vma that holds the pte pointing to page
-> + * @page:     the cowed page we are replacing by kpage
-> + * @kpage:    the modified page we replace page by
-> + *
-> + * Returns 0 on success, -EFAULT on failure.
-> + */
-> +static int __replace_page(struct vm_area_struct *vma, struct page *page,
-> +                                       struct page *kpage)
+On Thu, Jun 09, 2011 at 03:30:27PM -0700, Ying Han wrote:
+> On Thu, Jun 9, 2011 at 11:36 AM, Johannes Weiner <hannes@cmpxchg.org> wrote:
+> > On Thu, Jun 09, 2011 at 10:36:47AM -0700, Ying Han wrote:
+> >> On Thu, Jun 9, 2011 at 1:35 AM, Johannes Weiner <hannes@cmpxchg.org> wrote:
+> >> > On Wed, Jun 08, 2011 at 08:52:03PM -0700, Ying Han wrote:
+> >> >> On Wed, Jun 8, 2011 at 8:32 AM, Johannes Weiner <hannes@cmpxchg.org> wrote:
+> >> >> > I guess it would make much more sense to evaluate if reclaiming from
+> >> >> > memcgs while there are others exceeding their soft limit is even a
+> >> >> > problem.  Otherwise this discussion is pretty pointless.
+> >> >>
+> >> >> AFAIK it is a problem since it changes the spec of kernel API
+> >> >> memory.soft_limit_in_bytes. That value is set per-memcg which all the
+> >> >> pages allocated above that are best effort and targeted to reclaim
+> >> >> prior to others.
+> >> >
+> >> > That's not really true.  Quoting the documentation:
+> >> >
+> >> >    When the system detects memory contention or low memory, control groups
+> >> >    are pushed back to their soft limits. If the soft limit of each control
+> >> >    group is very high, they are pushed back as much as possible to make
+> >> >    sure that one control group does not starve the others of memory.
+> >> >
+> >> > I am language lawyering here, but I don't think it says it won't touch
+> >> > other memcgs at all while there are memcgs exceeding their soft limit.
+> >>
+> >> Well... :) I would say that the documentation of soft_limit needs lots
+> >> of work especially after lots of discussions we have after the LSF.
+> >>
+> >> The RFC i sent after our discussion has the following documentation,
+> >> and I only cut & paste the content relevant to our conversation here:
+> >>
+> >> What is "soft_limit"?
+> >> The "soft_limit was introduced in memcg to support over-committing the
+> >> memory resource on the host. Each cgroup can be configured with
+> >> "hard_limit", where it will be throttled or OOM killed by going over
+> >> the limit. However, the allocation can go above the "soft_limit" as
+> >> long as there is no memory contention. The "soft_limit" is the kernel
+> >> mechanism for re-distributing spare memory resource among cgroups.
+> >>
+> >> What we have now?
+> >> The current implementation of softlimit is based on per-zone RB tree,
+> >> where only the cgroup exceeds the soft_limit the most being selected
+> >> for reclaim.
+> >>
+> >> It makes less sense to only reclaim from one cgroup rather than
+> >> reclaiming all cgroups based on calculated propotion. This is required
+> >> for fairness.
+> >>
+> >> Proposed design:
+> >> round-robin across the cgroups where they have memory allocated on the
+> >> zone and also exceed the softlimit configured.
+> >>
+> >> there was a question on how to do zone balancing w/o global LRU. This
+> >> could be solved by building another cgroup list per-zone, where we
+> >> also link cgroups under their soft_limit. We won't scan the list
+> >> unless the first list being exhausted and
+> >> the free pages is still under the high_wmark.
+> >>
+> >> Since the per-zone memcg list design is being replaced by your
+> >> patchset, some of the details doesn't apply. But the concept still
+> >> remains where we would like to scan some memcgs first (above
+> >> soft_limit) .
+> >
+> > I think the most important thing we wanted was to round-robin scan all
+> > soft limit excessors instead of just the biggest one.  I understood
+> > this is the biggest fault with soft limits right now.
+> >
+> > We came up with maintaining a list of excessors, rather than a tree,
+> > and from this particular implementation followed naturally that this
+> > list is scanned BEFORE we look at other memcgs at all.
+> >
+> > This is a nice to have, but it was never the primary problem with the
+> > soft limit implementation, as far as I understood.
+> >
+> >> > It would be a lie about the current code in the first place, which
+> >> > does soft limit reclaim and then regular reclaim, no matter the
+> >> > outcome of the soft limit reclaim cycle.  It will go for the soft
+> >> > limit first, but after an allocation under pressure the VM is likely
+> >> > to have reclaimed from other memcgs as well.
+> >> >
+> >> > I saw your patch to fix that and break out of reclaim if soft limit
+> >> > reclaim did enough.  But this fix is not much newer than my changes.
+> >>
+> >> My soft_limit patch was developed in parallel with your patchset, and
+> >> most of that wouldn't apply here.
+> >> Is that what you are referring to?
+> >
+> > No, I meant that the current behaviour is old and we are only changing
+> > it only now, so we are not really breaking backward compatibility.
+> >
+> >> > The second part of this is:
+> >> >
+> >> >    Please note that soft limits is a best effort feature, it comes with
+> >> >    no guarantees, but it does its best to make sure that when memory is
+> >> >    heavily contended for, memory is allocated based on the soft limit
+> >> >    hints/setup. Currently soft limit based reclaim is setup such that
+> >> >    it gets invoked from balance_pgdat (kswapd).
+> >>
+> >> We had patch merged which add the soft_limit reclaim also in the global ttfp.
+> >>
+> >> memcg-add-the-soft_limit-reclaim-in-global-direct-reclaim.patch
+> >>
+> >> > It's not the pages-over-soft-limit that are best effort.  It says that
+> >> > it tries its best to take soft limits into account while reclaiming.
+> >> Hmm. Both cases are true. The best effort pages I referring to means
+> >> "the page above the soft_limit are targeted to reclaim first under
+> >> memory contention"
+> >
+> > I really don't know where you are taking this from.  That is neither
+> > documented anywhere, nor is it the current behaviour.
+> 
+> I got the email from andrew on may 27 and you were on the cc-ed :)
+> Anyway, i just forwarded you that one.
 
-This is a verbatim copy of mm/ksm.c:replace_page(), I think I can
-remember why you did this, but the changelog utterly fails to mention
-why we need a second copy of this logic (or anything much at all).
+I wasn't asking about this patch at all...  This is the conversation:
+
+Me:
+
+> >> > It's not the pages-over-soft-limit that are best effort.  It says that
+> >> > it tries its best to take soft limits into account while reclaiming.
+
+You:
+
+> >> Hmm. Both cases are true. The best effort pages I referring to means
+> >> "the page above the soft_limit are targeted to reclaim first under
+> >> memory contention"
+
+Me:
+
+> > I really don't know where you are taking this from.  That is neither
+> > documented anywhere, nor is it the current behaviour.
+
+And this is still my question.
+
+Current: scan up to all pages of the biggest soft limit offender, then
+reclaim from random memcgs (because of the global LRU).
+
+After my patch: scan all memcgs according to their size, with double
+the pressure on those over their soft limit.
+
+Please tell me exactly how my patch regresses existing behaviour, a
+user interface, a documented feature, etc.
+
+If you have an even better idea, please propose it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
