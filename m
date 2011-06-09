@@ -1,147 +1,224 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 79B0F6B004A
-	for <linux-mm@kvack.org>; Thu,  9 Jun 2011 18:21:47 -0400 (EDT)
-Received: from wpaz21.hot.corp.google.com (wpaz21.hot.corp.google.com [172.24.198.85])
-	by smtp-out.google.com with ESMTP id p59MLdZr030992
-	for <linux-mm@kvack.org>; Thu, 9 Jun 2011 15:21:39 -0700
-Received: from qwi4 (qwi4.prod.google.com [10.241.195.4])
-	by wpaz21.hot.corp.google.com with ESMTP id p59MDnPE018510
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id B97436B004A
+	for <linux-mm@kvack.org>; Thu,  9 Jun 2011 18:30:35 -0400 (EDT)
+Received: from wpaz29.hot.corp.google.com (wpaz29.hot.corp.google.com [172.24.198.93])
+	by smtp-out.google.com with ESMTP id p59MUSPe013635
+	for <linux-mm@kvack.org>; Thu, 9 Jun 2011 15:30:28 -0700
+Received: from qwc9 (qwc9.prod.google.com [10.241.193.137])
+	by wpaz29.hot.corp.google.com with ESMTP id p59MTV3J007976
 	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 9 Jun 2011 15:21:38 -0700
-Received: by qwi4 with SMTP id 4so1089449qwi.29
-        for <linux-mm@kvack.org>; Thu, 09 Jun 2011 15:21:38 -0700 (PDT)
+	for <linux-mm@kvack.org>; Thu, 9 Jun 2011 15:30:27 -0700
+Received: by qwc9 with SMTP id 9so1367223qwc.13
+        for <linux-mm@kvack.org>; Thu, 09 Jun 2011 15:30:27 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20110609212644.GL29913@redhat.com>
-References: <1307117538-14317-1-git-send-email-gthelen@google.com>
- <1307117538-14317-12-git-send-email-gthelen@google.com> <20110607193835.GD26965@redhat.com>
- <xr93lixdv0df.fsf@gthelen.mtv.corp.google.com> <20110607210540.GB30919@redhat.com>
- <20110608091815.fdef924d.kamezawa.hiroyu@jp.fujitsu.com> <BANLkTim-sYkuekCcOA+HXhCtED4xKfT=0Q@mail.gmail.com>
- <20110608203945.GF1150@redhat.com> <BANLkTikg=Gnh7UnLQUTfO7yA3kD3f7MK9YK4EUrbaPBsQBxKuQ@mail.gmail.com>
- <20110609212644.GL29913@redhat.com>
-From: Greg Thelen <gthelen@google.com>
-Date: Thu, 9 Jun 2011 15:21:17 -0700
-Message-ID: <BANLkTi=WaXELkPYt_m=zXenMjAxJXC0hyMxDew43Z+jvv2VTxw@mail.gmail.com>
-Subject: Re: [PATCH v8 11/12] writeback: make background writeback cgroup aware
+In-Reply-To: <20110609183637.GC20333@cmpxchg.org>
+References: <BANLkTikgqSsg5+49295h7kdZ=sQpZLs4kw@mail.gmail.com>
+	<BANLkTi=sYtLGk2_VQLejEU2rQ0JBgg_ZmQ@mail.gmail.com>
+	<20110602075028.GB20630@cmpxchg.org>
+	<BANLkTi=AZG4LKUdeODB0uP=_CVBRnGs_Nw@mail.gmail.com>
+	<20110602175142.GH28684@cmpxchg.org>
+	<BANLkTi=9083abfiKdZ5_oXyA+dZqaXJfZg@mail.gmail.com>
+	<20110608153211.GB27827@cmpxchg.org>
+	<BANLkTincHpoay1JtpjG0RY9CCvfepRohTXUH6KKULYJ9jbdo+A@mail.gmail.com>
+	<20110609083503.GC11603@cmpxchg.org>
+	<BANLkTiknpTjj3saw+zS5ABeD+4ESz68xvRot7TTvKs7A_RtrdA@mail.gmail.com>
+	<20110609183637.GC20333@cmpxchg.org>
+Date: Thu, 9 Jun 2011 15:30:27 -0700
+Message-ID: <BANLkTin3ZZYXdZgSFfi=8QMnN5we8RcoMyZ_vM3kdbRXCaoWnw@mail.gmail.com>
+Subject: Re: [patch 0/8] mm: memcg naturalization -rc2
+From: Ying Han <yinghan@google.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vivek Goyal <vgoyal@redhat.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, containers@lists.osdl.org, linux-fsdevel@vger.kernel.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Dave Chinner <david@fromorbit.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 
-On Thu, Jun 9, 2011 at 2:26 PM, Vivek Goyal <vgoyal@redhat.com> wrote:
-> On Thu, Jun 09, 2011 at 10:55:40AM -0700, Greg Thelen wrote:
->> On Wed, Jun 8, 2011 at 1:39 PM, Vivek Goyal <vgoyal@redhat.com> wrote:
->> > On Tue, Jun 07, 2011 at 09:02:21PM -0700, Greg Thelen wrote:
->> >
->> > [..]
->> >> > As far as I can say, you should not place programs onto ROOT cgroup=
-s if you need
->> >> > performance isolation.
+On Thu, Jun 9, 2011 at 11:36 AM, Johannes Weiner <hannes@cmpxchg.org> wrote=
+:
+> On Thu, Jun 09, 2011 at 10:36:47AM -0700, Ying Han wrote:
+>> On Thu, Jun 9, 2011 at 1:35 AM, Johannes Weiner <hannes@cmpxchg.org> wro=
+te:
+>> > On Wed, Jun 08, 2011 at 08:52:03PM -0700, Ying Han wrote:
+>> >> On Wed, Jun 8, 2011 at 8:32 AM, Johannes Weiner <hannes@cmpxchg.org> =
+wrote:
+>> >> > I guess it would make much more sense to evaluate if reclaiming fro=
+m
+>> >> > memcgs while there are others exceeding their soft limit is even a
+>> >> > problem. =A0Otherwise this discussion is pretty pointless.
 >> >>
->> >> Agreed.
->> >>
->> >> > From the code, I think if the system hits dirty_ratio, "1" bit of b=
-itmap should be
->> >> > set and background writeback can work for ROOT cgroup seamlessly.
->> >> >
->> >> > Thanks,
->> >> > -Kame
->> >>
->> >> Not quite. =A0The proposed patches do not set the "1" bit (css_id of
->> >> root is 1). =A0mem_cgroup_balance_dirty_pages() (from patch 10/12)
->> >> introduces the following balancing loop:
->> >> + =A0 =A0 =A0 /* balance entire ancestry of current's mem. */
->> >> + =A0 =A0 =A0 for (; mem_cgroup_has_dirty_limit(mem); mem =3D
->> >> parent_mem_cgroup(mem)) {
->> >>
->> >> The loop terminates when mem_cgroup_has_dirty_limit() is called for
->> >> the root cgroup. =A0The bitmap is set in the body of the loop. =A0So =
-the
->> >> root cgroup's bit (bit 1) will never be set in the bitmap. =A0However=
-, I
->> >> think the effect is the same. =A0The proposed changes in this patch
->> >> (11/12) have background writeback first checking if the system is ove=
-r
->> >> limit and if yes, then b_dirty inodes from any cgroup written. =A0Thi=
-s
->> >> means that a small system background limit with an over-{fg or
->> >> bg}-limit cgroup could cause other cgroups that are not over their
->> >> limit to have their inodes written back. =A0In an system-over-limit
->> >> situation normal system-wide bdi writeback is used (writing inodes in
->> >> b_dirty order). =A0For those who want isolation, a simple rule to avo=
-id
->> >> this is to ensure that that sum of all cgroup background_limits is
->> >> less than the system background limit.
+>> >> AFAIK it is a problem since it changes the spec of kernel API
+>> >> memory.soft_limit_in_bytes. That value is set per-memcg which all the
+>> >> pages allocated above that are best effort and targeted to reclaim
+>> >> prior to others.
 >> >
->> > Ok, we seem to be mixing multiple things.
+>> > That's not really true. =A0Quoting the documentation:
 >> >
->> > - First of all, i thought running apps in root group is very valid
->> > =A0use case. Generally by default we run everything in root group and
->> > =A0once somebody notices that an application or group of application
->> > =A0is memory hog, that can be moved out in a cgroup of its own with
->> > =A0upper limits.
+>> > =A0 =A0When the system detects memory contention or low memory, contro=
+l groups
+>> > =A0 =A0are pushed back to their soft limits. If the soft limit of each=
+ control
+>> > =A0 =A0group is very high, they are pushed back as much as possible to=
+ make
+>> > =A0 =A0sure that one control group does not starve the others of memor=
+y.
 >> >
->> > - Secondly, root starvation issue is not present as long as we fall
->> > =A0back to normal way of writting inodes once we have crossed dirty
->> > =A0limit. But you had suggested that we move cgroup based writeout
->> > =A0above so that we always use same scheme for writeout and that
->> > =A0potentially will have root starvation issue.
+>> > I am language lawyering here, but I don't think it says it won't touch
+>> > other memcgs at all while there are memcgs exceeding their soft limit.
 >>
->> To reduce the risk of breaking system writeback (by potentially
->> starting root inodes), my preference is to to retain this patch's
->> original ordering (first check and write towards system limits, only
->> if under system limits write per-cgroup).
+>> Well... :) I would say that the documentation of soft_limit needs lots
+>> of work especially after lots of discussions we have after the LSF.
 >>
->> > - If we don't move it up, then atleast it will not work for CFQ IO
->> > =A0controller.
+>> The RFC i sent after our discussion has the following documentation,
+>> and I only cut & paste the content relevant to our conversation here:
 >>
->> As originally proposed, over_bground_thresh() would check system
->> background limit, and if over limit then write b_dirty, until under
->> system limit. =A0Then over_bground_thresh() checks cgroup background
->> limits, and if over limit(s) write over-limit-cgroup inodes until
->> cgroups are under their background limits.
+>> What is "soft_limit"?
+>> The "soft_limit was introduced in memcg to support over-committing the
+>> memory resource on the host. Each cgroup can be configured with
+>> "hard_limit", where it will be throttled or OOM killed by going over
+>> the limit. However, the allocation can go above the "soft_limit" as
+>> long as there is no memory contention. The "soft_limit" is the kernel
+>> mechanism for re-distributing spare memory resource among cgroups.
 >>
->> How does the order of the checks in over_bground_thresh() affect CFQ
->> IO?
+>> What we have now?
+>> The current implementation of softlimit is based on per-zone RB tree,
+>> where only the cgroup exceeds the soft_limit the most being selected
+>> for reclaim.
+>>
+>> It makes less sense to only reclaim from one cgroup rather than
+>> reclaiming all cgroups based on calculated propotion. This is required
+>> for fairness.
+>>
+>> Proposed design:
+>> round-robin across the cgroups where they have memory allocated on the
+>> zone and also exceed the softlimit configured.
+>>
+>> there was a question on how to do zone balancing w/o global LRU. This
+>> could be solved by building another cgroup list per-zone, where we
+>> also link cgroups under their soft_limit. We won't scan the list
+>> unless the first list being exhausted and
+>> the free pages is still under the high_wmark.
+>>
+>> Since the per-zone memcg list design is being replaced by your
+>> patchset, some of the details doesn't apply. But the concept still
+>> remains where we would like to scan some memcgs first (above
+>> soft_limit) .
 >
-> If you are over background limit, you will select inodes independent of
-> cgroup they belong to. So it might happen that for a long time you
-> select inode only from low prio IO cgroup and that will result in
-> pages being written from low prio cgroup (as against to high prio
-> cgroup) and low prio group gets to finish its writes earlier. This
-> is just reverse of what we wanted from IO controller.
+> I think the most important thing we wanted was to round-robin scan all
+> soft limit excessors instead of just the biggest one. =A0I understood
+> this is the biggest fault with soft limits right now.
 >
-> So CFQ IO controller really can't do anything here till inode writeback
-> logic is cgroup aware in a way that we are doing round robin among
-> dirty cgroups so that most of the time these groups have some IO to
-> do at device level.
+> We came up with maintaining a list of excessors, rather than a tree,
+> and from this particular implementation followed naturally that this
+> list is scanned BEFORE we look at other memcgs at all.
+>
+> This is a nice to have, but it was never the primary problem with the
+> soft limit implementation, as far as I understood.
+>
+>> > It would be a lie about the current code in the first place, which
+>> > does soft limit reclaim and then regular reclaim, no matter the
+>> > outcome of the soft limit reclaim cycle. =A0It will go for the soft
+>> > limit first, but after an allocation under pressure the VM is likely
+>> > to have reclaimed from other memcgs as well.
+>> >
+>> > I saw your patch to fix that and break out of reclaim if soft limit
+>> > reclaim did enough. =A0But this fix is not much newer than my changes.
+>>
+>> My soft_limit patch was developed in parallel with your patchset, and
+>> most of that wouldn't apply here.
+>> Is that what you are referring to?
+>
+> No, I meant that the current behaviour is old and we are only changing
+> it only now, so we are not really breaking backward compatibility.
+>
+>> > The second part of this is:
+>> >
+>> > =A0 =A0Please note that soft limits is a best effort feature, it comes=
+ with
+>> > =A0 =A0no guarantees, but it does its best to make sure that when memo=
+ry is
+>> > =A0 =A0heavily contended for, memory is allocated based on the soft li=
+mit
+>> > =A0 =A0hints/setup. Currently soft limit based reclaim is setup such t=
+hat
+>> > =A0 =A0it gets invoked from balance_pgdat (kswapd).
+>>
+>> We had patch merged which add the soft_limit reclaim also in the global =
+ttfp.
+>>
+>> memcg-add-the-soft_limit-reclaim-in-global-direct-reclaim.patch
+>>
+>> > It's not the pages-over-soft-limit that are best effort. =A0It says th=
+at
+>> > it tries its best to take soft limits into account while reclaiming.
+>> Hmm. Both cases are true. The best effort pages I referring to means
+>> "the page above the soft_limit are targeted to reclaim first under
+>> memory contention"
+>
+> I really don't know where you are taking this from. =A0That is neither
+> documented anywhere, nor is it the current behaviour.
 
-Thanks for the explanation.
+I got the email from andrew on may 27 and you were on the cc-ed :)
+Anyway, i just forwarded you that one.
 
-My thinking is that this patch's original proposal (first checking
-system limits before cgroup limits is better for CFQ than the reversal
-discussed earlier in this thread.  By walking the system's inode list
-CFQ would be getting inodes in dirtied_when order from a mix of
-cgroups rather than just inodes from a particular cgroup.  This patch
-series introduces a bitmap of cgroups needing writeback but the inodes
-for multiple cgroups are still kept in a single bdi b_dirty list.
-move_expired_inodes() could be changed to examine the over-limit
-cgroup bitmap (over_bground_dirty_thresh) and the CFQ priorities of
-found cgroups to develop an inode sort strategy which provides CFQ
-with the right set of inodes.  Though I would prefer to defer that to
-a later patch series.
+--Ying
 
->> Are you referring to recently proposed block throttle patches,
->> which (AFAIK) throttle the rate at which a cgroup can produce dirty
->> pages as a way to approximate the rate that async dirty pages will be
->> written to disk?
 >
-> No this is not related to throttling of async writes.
+> Yeah, currently the soft limit reclaim cycle preceeds the generic
+> reclaim cycle. =A0But the end result is that other memcgs are reclaimed
+> from as well in both cases. =A0The exact timing is irrelevant.
 >
-> Thanks
-> Vivek
+> And this has been the case for a long time, so I don't think my rework
+> breaks existing users in that regard.
+>
+>> > My code does that, so I don't think we are breaking any promises
+>> > currently made in the documentation.
+>> >
+>> > But much more important than keeping documentation promises is not to
+>> > break actual users. =A0So if you are yourself a user of soft limits,
+>> > test the new code pretty please and complain if it breaks your setup!
+>>
+>> Yes, I've been running tests on your patchset, but not getting into
+>> specific configurations yet. But I don't think it is hard to generate
+>> the following scenario:
+>>
+>> on 32G machine, under root I have three cgroups with 20G hard_limit and
+>> cgroup-A: soft_limit 1g, usage 20g with clean file pages
+>> cgroup-B: soft_limit 10g, usage 5g with clean file pages
+>> cgroup-C: soft_limit 10g, usage 5g with clean file pages
+>>
+>> I would assume reclaiming from cgroup-A should be sufficient under
+>> global memory pressure, and no pages needs to be reclaimed from B or
+>> C, especially both of them have memory usage under their soft_limit.
+>
+> Keep in mind that memcgs are scanned proportionally to their size,
+> that we start out with relatively low scan counts, and that the
+> priority levels are a logarithmic scale.
+>
+> The formula is essentially this:
+>
+> =A0 =A0 =A0 =A0(usage / PAGE_SIZE) >> priority
+>
+> which means that we would scan as follows, with decreased soft limit
+> priority for A:
+>
+> =A0 =A0 =A0 =A0A: ((20 << 30) >> 12) >> 11 =3D 2560 pages
+> =A0 =A0 =A0 =A0B: (( 5 << 30) >> 12) >> 12 =3D =A0320 pages
+> =A0 =A0 =A0 =A0C: =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=3D =
+=A0320 pages.
+>
+> So even if B and C are scanned, they are only shrunk by a bit over a
+> megabyte tops. =A0For decreasing levels (if they are reached at all if
+> there is clean cache around):
+>
+> =A0 =A0 =A0 =A0A: 20M 40M 80M 160M ...
+> =A0 =A0 =A0 =A0B: =A02M =A04M =A08M =A016M ...
+>
+> While it would be sufficient to reclaim only from A, actually
+> reclaiming from B and C is not a big deal in practice, I would
+> suspect.
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
