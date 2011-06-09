@@ -1,73 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id E54666B0078
-	for <linux-mm@kvack.org>; Thu,  9 Jun 2011 00:38:09 -0400 (EDT)
-Date: Thu, 9 Jun 2011 13:34:23 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [BUGFIX][PATCH] memcg: fix wrong decision of noswap with
- softlimit.
-Message-Id: <20110609133423.3223aaff.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20110609095445.5f98b752.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20110609095445.5f98b752.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id E51BC6B0078
+	for <linux-mm@kvack.org>; Thu,  9 Jun 2011 01:50:26 -0400 (EDT)
+Received: from d01relay07.pok.ibm.com (d01relay07.pok.ibm.com [9.56.227.147])
+	by e6.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p595Q75p030130
+	for <linux-mm@kvack.org>; Thu, 9 Jun 2011 01:26:07 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay07.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p595oBSP1314998
+	for <linux-mm@kvack.org>; Thu, 9 Jun 2011 01:50:15 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p595o9As016507
+	for <linux-mm@kvack.org>; Thu, 9 Jun 2011 02:50:11 -0300
+Date: Thu, 9 Jun 2011 11:13:04 +0530
+From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Subject: Re: [PATCH v4 3.0-rc2-tip 4/22]  4: Uprobes: register/unregister
+ probes.
+Message-ID: <20110609054304.GC6123@linux.vnet.ibm.com>
+Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+References: <20110607125804.28590.92092.sendpatchset@localhost6.localdomain6>
+ <20110607125900.28590.16071.sendpatchset@localhost6.localdomain6>
+ <20110608221032.GA9965@wicker.gateway.2wire.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20110608221032.GA9965@wicker.gateway.2wire.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "bsingharora@gmail.com" <bsingharora@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: Stephen Wilson <wilsons@start.ca>
+Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Jonathan Corbet <corbet@lwn.net>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, 9 Jun 2011 09:54:45 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-
-> I wonder this should go stable...
-hmm, IMHO, it's not necessary just because there have been no bug reports
-about this bug.
-
-> ==
-> From e2565de1c764057b75b4d9a1674d163b6c873cdd Mon Sep 17 00:00:00 2001
-> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Date: Thu, 9 Jun 2011 09:54:32 +0900
-> Subject: [PATCH 2/2] Fix softlimit wrong check of noswap
+> > +
+> > +		mm = vma->vm_mm;
+> > +		if (!valid_vma(vma)) {
+> > +			mmput(mm);
+> > +			continue;
+> > +		}
+> > +
+> > +		vaddr = vma->vm_start + offset;
+> > +		vaddr -= vma->vm_pgoff << PAGE_SHIFT;
+> > +		if (vaddr < vma->vm_start || vaddr > vma->vm_end) {
 > 
-> Now, hierarchical reclaim doesn't make swap if memory's limit is
-> equal to mem+swap limit. Because if reclaim does swap-out,
-> it still hits mem+swap limit and there will be no progress.
-> WHEN HITTING HARD LIMIT.
-> 
-> When it comes to softlimit, it works for kswapd. noswap is nonsense.
-> 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> This check looks like it is off by one?  vma->vm_end is already one byte
+> past the last valid address in the vma, so we should compare using ">="
+> here I think.
 
-If we implement "softlimit for memsw" in future, we might change the check again,
-but it's another story.
+Right, we are off-by one.
+Will correct in the next patchset. 
+Will also correct the other places where we check for vm_end.
 
-Acked-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+> > +
+> > +	if (!del_consumer(uprobe, consumer)) {
+> > +		pr_debug("No uprobe found with consumer %p\n",
+> > +				consumer);
+> > +		return;
+> > +	}
+> 
+> When del_consumer() fails dont we still need to do a put_uprobe(uprobe)
+> to drop the extra access ref?
+> 
 
-Thanks,
-Daisuke Nishimura.
+Yes, we need to check and drop the reference.
+Will correct in the next patchset. 
 
-> ---
->  mm/memcontrol.c |    2 +-
->  1 files changed, 1 insertions(+), 1 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 3baddcb..06825be 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -1663,7 +1663,7 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
->  	excess = res_counter_soft_limit_excess(&root_mem->res) >> PAGE_SHIFT;
->  
->  	/* If memsw_is_minimum==1, swap-out is of-no-use. */
-> -	if (root_mem->memsw_is_minimum)
-> +	if (!check_soft && root_mem->memsw_is_minimum)
->  		noswap = true;
->  
->  	while (1) {
-> -- 
-> 1.7.4.1
-> 
-> 
+> > +
+> > +	INIT_LIST_HEAD(&tmp_list);
+> > +
+> > +	mapping = inode->i_mapping;
+
+-- 
+Thanks and Regards
+Srikar
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
