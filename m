@@ -1,134 +1,179 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id F27D16B004A
-	for <linux-mm@kvack.org>; Thu,  9 Jun 2011 19:47:56 -0400 (EDT)
-Received: by qwa26 with SMTP id 26so1381214qwa.14
-        for <linux-mm@kvack.org>; Thu, 09 Jun 2011 16:47:56 -0700 (PDT)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 81DD86B004A
+	for <linux-mm@kvack.org>; Thu,  9 Jun 2011 19:58:09 -0400 (EDT)
+Date: Fri, 10 Jun 2011 01:58:00 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 4/4] writeback: reduce per-bdi dirty threshold ramp up
+ time
+Message-ID: <20110609235800.GI4926@quack.suse.cz>
+References: <20110413235211.GN31057@dastard>
+ <20110414002301.GA9826@localhost>
+ <20110414151424.GA367@localhost>
+ <20110414181609.GH5054@quack.suse.cz>
+ <20110415034300.GA23430@localhost>
+ <20110415143711.GA17181@localhost>
+ <20110415221314.GE5432@quack.suse.cz>
+ <1302942809.2388.254.camel@twins>
+ <20110418145929.GH5557@quack.suse.cz>
+ <1306239869.2497.50.camel@laptop>
 MIME-Version: 1.0
-In-Reply-To: <BANLkTimD-pecv82qAZkyxA9nLQWbcDry-w@mail.gmail.com>
-References: <1306909519-7286-1-git-send-email-hannes@cmpxchg.org>
-	<1306909519-7286-3-git-send-email-hannes@cmpxchg.org>
-	<20110609154839.GF4878@barrios-laptop>
-	<20110609172347.GB20333@cmpxchg.org>
-	<BANLkTimD-pecv82qAZkyxA9nLQWbcDry-w@mail.gmail.com>
-Date: Fri, 10 Jun 2011 08:47:55 +0900
-Message-ID: <BANLkTin7uRdUg_mer3ve5nz3WjX9qjP4SQ@mail.gmail.com>
-Subject: Re: [patch 2/8] mm: memcg-aware global reclaim
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1306239869.2497.50.camel@laptop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Ying Han <yinghan@google.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Jan Kara <jack@suse.cz>, Wu Fengguang <fengguang.wu@intel.com>, Dave Chinner <david@fromorbit.com>, Andrew Morton <akpm@linux-foundation.org>, Richard Kennedy <richard@rsk.demon.co.uk>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>
 
-On Fri, Jun 10, 2011 at 8:41 AM, Minchan Kim <minchan.kim@gmail.com> wrote:
-> On Fri, Jun 10, 2011 at 2:23 AM, Johannes Weiner <hannes@cmpxchg.org> wro=
-te:
->> On Fri, Jun 10, 2011 at 12:48:39AM +0900, Minchan Kim wrote:
->>> On Wed, Jun 01, 2011 at 08:25:13AM +0200, Johannes Weiner wrote:
->>> > When a memcg hits its hard limit, hierarchical target reclaim is
->>> > invoked, which goes through all contributing memcgs in the hierarchy
->>> > below the offending memcg and reclaims from the respective per-memcg
->>> > lru lists. =C2=A0This distributes pressure fairly among all involved
->>> > memcgs, and pages are aged with respect to their list buddies.
->>> >
->>> > When global memory pressure arises, however, all this is dropped
->>> > overboard. =C2=A0Pages are reclaimed based on global lru lists that h=
-ave
->>> > nothing to do with container-internal age, and some memcgs may be
->>> > reclaimed from much more than others.
->>> >
->>> > This patch makes traditional global reclaim consider container
->>> > boundaries and no longer scan the global lru lists. =C2=A0For each zo=
-ne
->>> > scanned, the memcg hierarchy is walked and pages are reclaimed from
->>> > the per-memcg lru lists of the respective zone. =C2=A0For now, the
->>> > hierarchy walk is bounded to one full round-trip through the
->>> > hierarchy, or if the number of reclaimed pages reach the overall
->>> > reclaim target, whichever comes first.
->>> >
->>> > Conceptually, global memory pressure is then treated as if the root
->>> > memcg had hit its limit. =C2=A0Since all existing memcgs contribute t=
-o the
->>> > usage of the root memcg, global reclaim is nothing more than target
->>> > reclaim starting from the root memcg. =C2=A0The code is mostly the sa=
-me for
->>> > both cases, except for a few heuristics and statistics that do not
->>> > always apply. =C2=A0They are distinguished by a newly introduced
->>> > global_reclaim() primitive.
->>> >
->>> > One implication of this change is that pages have to be linked to the
->>> > lru lists of the root memcg again, which could be optimized away with
->>> > the old scheme. =C2=A0The costs are not measurable, though, even with
->>> > worst-case microbenchmarks.
->>> >
->>> > As global reclaim no longer relies on global lru lists, this change i=
-s
->>> > also in preparation to remove those completely.
->>
->> [cut diff]
->>
->>> I didn't look at all, still. You might change the logic later patches.
->>> If I understand this patch right, it does round-robin reclaim in all me=
-mcgs
->>> when global memory pressure happens.
->>>
->>> Let's consider this memcg size unbalance case.
->>>
->>> If A-memcg has lots of LRU pages, scanning count for reclaim would be b=
-igger
->>> so the chance to reclaim the pages would be higher.
->>> If we reclaim A-memcg, we can reclaim the number of pages we want easil=
-y and break.
->>> Next reclaim will happen at some time and reclaim will start the B-memc=
-g of A-memcg
->>> we reclaimed successfully before. But unfortunately B-memcg has small l=
-ru so
->>> scanning count would be small and small memcg's LRU aging is higher tha=
-n bigger memcg.
->>> It means small memcg's working set can be evicted easily than big memcg=
-.
->>> my point is that we should not set next memcg easily.
->>> We have to consider memcg LRU size.
->>
->> I may be missing something, but you said yourself that B had a smaller
->> scan count compared to A, so the aging speed should be proportional to
->> respective size.
->>
->> The number of pages scanned per iteration is essentially
->>
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0number of lru pages in memcg-zone >> priority
->>
->> so we scan relatively more pages from B than from A each round.
->>
->> It's the exact same logic we have been applying traditionally to
->> distribute pressure fairly among zones to equalize their aging speed.
->>
->> Is that what you meant or are we talking past each other?
->
-> True if we can reclaim pages easily(ie, default priority) in all memcgs.
-> But let's think about it.
-> Normally direct reclaim path reclaims only SWAP_CLUSTER_MAX size.
-> If we have small memcg, scan window size would be smaller and it is
-> likely to be hard reclaim in the priority compared to bigger memcg. It
-> means it can raise priority easily in small memcg and even it might
-> call lumpy or compaction in case of global memory pressure. It can
-> churn all LRU order. :(
-> Of course, we have bailout routine so we might make such unfair aging
-> effect small but it's not same with old behavior(ie, single LRU list,
-> fair aging POV global according to priority raise)
+On Tue 24-05-11 14:24:29, Peter Zijlstra wrote:
+> Sorry for the delay, life got interesting and then it slipped my mind.
+  And I missed you reply so sorry for my delay as well :).
 
-To make fair, how about considering turn over different memcg before
-raise up priority?
-It can make aging speed fairly while it can make high contention of
-lru_lock. :(
+> On Mon, 2011-04-18 at 16:59 +0200, Jan Kara wrote:
+> >   Your formula is:
+> > p(j)=\sum_i x_i(j)/(t_i*2^{i+1})
+> >   where $i$ sums from 0 to \infty, x_i(j) is the number of events of type
+> > $j$ in period $i$, $t_i$ is the total number of events in period $i$.
+> 
+> Actually:
+> 
+>  p_j = \Sum_{i=0} (d/dt_i) * x_j / 2^(i+1)
+> 
+> [ discrete differential ]
+> 
+> Where x_j is the total number of events for the j-th element of the set
+> and t_i is the i-th last period.
+> 
+> Also, the 1/2^(i+1) factor ensures recent history counts heavier while
+> still maintaining a normalized distribution.
+> 
+> Furthermore, by measuring time in the same measure as the events we get:
+> 
+>  t = \Sum_i x_i
+> 
+> which yields that:
+> 
+>  p_j = x_j * {\Sum_i (d/dt_i)} * {\Sum 2^(-i-1)}
+>      = x_j * (1/t) * 1
+> 
+> Thus
+> 
+>  \Sum_j p_j = \Sum_j x_j / (\Sum_i x_i) = 1
+  Yup, I understand this.
 
+> >   I want to compute
+> > l(j)=\sum_i x_i(j)/2^{i+1}
+> > g=\sum_i t_i/2^{i+1}
+> >   and
+> > p(j)=l(j)/g
+> 
+> Which gives me:
+> 
+>  p_j = x_j * \Sum_i 1/t_i
+>      = x_j / t
+  It cannot really be simplified like this - 2^{i+1} parts do not cancel
+out in p(j). Let's write the formula in an iterative manner so that it
+becomes clearer. The first step almost looks like the 2^{i+1} members can
+cancel out (note that I use x_1 and t_1 instead of x_0 and t_0 so that I don't
+have to renumber when going for the next step):
+l'(j) = x_1/2 + l(j)/2
+g' = t_1/2 + g/2
+thus
+p'(j) = l'(j) / g'
+      = (x_1 + l(j))/2 / ((t_1 + g)/2)
+      = (x_1 + l(j)) / (t_1+g)
 
+But if you properly expand to the next step you'll get:
+l''(j) = x_0/2 + l'(j)/2
+       = x_0/2 + x_1/4 + l(j)/4
+g'' = t_0/2 + g'/2
+    = t_0/2 + t_1/4 + g/4
+thus we only get:
+p''(j) = l''(j)/g''
+       = (x_0/2 + x_1/4 + l(j)/4) / (t_0/2 + t_1/4 + g/4)
+       = (x_0 + x_1/2 + l(j)/2) / (t_0 + t_1/2 + g/2)
 
---=20
-Kind regards,
-Minchan Kim
+Hmm, I guess I should have written the formulas as
+
+l(j) = \sum_i x_i(j)/2^i
+g = \sum_i t_i/2^i
+
+It is equivalent and less confusing for the iterative expression where
+we get directly:
+
+l'(j)=x_0+l(j)/2
+g'=t_0+g/2
+
+which directly shows what's going on.
+
+> Again, if we then measure t in the same events as x, such that:
+> 
+>  t = \Sum_i x_i
+> 
+> we again get:
+> 
+>  \Sum_j p_j = \Sum_j x_j / \Sum_i x_i = 1
+> 
+> However, if you start measuring t differently that breaks, and the
+> result is no longer normalized and thus not suitable as a proportion.
+  The normalization works with my formula as you noted in your next email
+(I just expand it here for other readers):
+\Sum_j p_j = \Sum_j l(j)/g
+           = 1/g * \Sum_j \Sum_i x_i(j)/2^(i+1)
+	   = 1/g * \Sum_i (1/2^(i+1) * \Sum_j x_i(j))
+(*)        = 1/g * \Sum_i t_i/2^(i+1)
+           = 1
+
+(*) Here we use that t_i = \Sum_j x_i(j) because that's the definition of
+t_i.
+
+Note that exactly same equality holds when 2^(i+1) is replaced with 2^i in
+g and l(j).
+
+> Furthermore, while x_j/t is an average, it does not have decaying
+> history, resulting in past behaviour always affecting current results.
+> The decaying history thing will ensure that past behaviour will slowly
+> be 'forgotten' so that when the media is used differently (seeky to
+> non-seeky workload transition) the slow writeout speed will be forgotten
+> and we'll end up at the high writeout speed corresponding to less seeks.
+> Your average will end up hovering in the middle of the slow and fast
+> modes.
+  So this the most disputable point of my formulas I believe :). You are
+right that if, for example, nothing happens during a time slice (i.e. t_0 =
+0, x_0(j)=0), the proportions don't change (well, after some time rounding
+starts to have effect but let's ignore that for now). Generally, if
+previously t_i was big and then became small (system bandwidth lowered;
+e.g. t_5=10000, t_4=10, t_3=20,...,), it will take roughly log_2(maximum
+t_i/current t_i) time slices for the contribution of terms with t_i big 
+to become comparable with the contribution of later terms with t_i small.
+After this number of time slices, proportions will catch up with the change.
+
+On the other hand when t_i was small for some time and then becomes big,
+proportions will effectively reflect current state. So when someone starts
+writing to a device on otherwise quiet system, the device immediately gets
+fraction close to 1.
+
+I'm not sure how big problem the above behavior is or what would actually
+be a desirable one...
+
+> >   Clearly, all these values can be computed in O(1).
+> 
+> True, but you get to keep x and t counts over all history, which could
+> lead to overflow scenarios (although switching to u64 should mitigate
+> that problem in our lifetime).
+  I think even 32-bit numbers might be fine. The numbers we need to keep are
+of an order of total maximum bandwidth of the system. If you plug maxbw
+instead of all x_i(j) and t_i, you'll get that l(j)=maxbw (or 2*maxbw if we
+use 2^i in the formula) and similarly for g. So the math will work in
+32-bits for a bandwidth of an order of TB per slice (which I expect to be
+something between 0.1 and 10 s). Reasonable given today's HW although
+probably we'll have to go to 64-bits soon, you are right.
+
+								Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
