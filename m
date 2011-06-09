@@ -1,58 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id D1E646B0078
-	for <linux-mm@kvack.org>; Thu,  9 Jun 2011 06:20:47 -0400 (EDT)
-Received: by fxm18 with SMTP id 18so1237544fxm.14
-        for <linux-mm@kvack.org>; Thu, 09 Jun 2011 03:20:42 -0700 (PDT)
-Date: Thu, 9 Jun 2011 12:20:38 +0200
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH] mm: dmapool: fix possible use after free in
- dmam_pool_destroy()
-Message-ID: <20110609102038.GE11773@htj.dyndns.org>
-References: <20110602142242.GA4115@maxin>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 75A576B0078
+	for <linux-mm@kvack.org>; Thu,  9 Jun 2011 06:21:55 -0400 (EDT)
+Received: by qwa26 with SMTP id 26so902065qwa.14
+        for <linux-mm@kvack.org>; Thu, 09 Jun 2011 03:21:51 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110602142242.GA4115@maxin>
+In-Reply-To: <1307606573-24704-11-git-send-email-mgorman@suse.de>
+References: <1307606573-24704-1-git-send-email-mgorman@suse.de> <1307606573-24704-11-git-send-email-mgorman@suse.de>
+From: =?ISO-8859-2?Q?Micha=B3_Miros=B3aw?= <mirqus@gmail.com>
+Date: Thu, 9 Jun 2011 12:21:31 +0200
+Message-ID: <BANLkTimUE9yb-DegdUk0BbbOGWoUhEBrqw@mail.gmail.com>
+Subject: Re: [PATCH 10/14] netvm: Set PF_MEMALLOC as appropriate during SKB processing
+Content-Type: text/plain; charset=ISO-8859-2
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Maxin B John <maxin.john@gmail.com>
-Cc: eike-kernel@sf-tec.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, dima@android.com, willy@linux.intel.com, segooon@gmail.com, jkosina@suse.cz, tglx@linutronix.de
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Neil Brown <neilb@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-Hello,
+2011/6/9 Mel Gorman <mgorman@suse.de>:
+[...]
+> +/*
+> + * Limit which protocols can use the PFMEMALLOC reserves to those that a=
+re
+> + * expected to be used for communication with swap.
+> + */
+> +static bool skb_pfmemalloc_protocol(struct sk_buff *skb)
+> +{
+> + =A0 =A0 =A0 switch (skb->protocol) {
+> + =A0 =A0 =A0 case __constant_htons(ETH_P_ARP):
+> + =A0 =A0 =A0 case __constant_htons(ETH_P_IP):
+> + =A0 =A0 =A0 case __constant_htons(ETH_P_IPV6):
+> + =A0 =A0 =A0 case __constant_htons(ETH_P_8021Q):
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 return true;
+> + =A0 =A0 =A0 default:
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 return false;
+> + =A0 =A0 =A0 }
+> +}
 
-On Thu, Jun 02, 2011 at 05:22:42PM +0300, Maxin B John wrote:
-> > The pool itself is not used there, only the address where the pool
-> > has been.This will only lead to any trouble if something else is allocated to
-> > the same place and inserted into the devres list of the same device between
-> > the dma_pool_destroy() and devres_destroy().
+This is not needed and wrong. Whatever list there will be, it's going
+to always miss some obscure setup (or not that obscure, like
+ATAoverEthernet).
 
-Which can't happen.  devres release is bound to device driver model
-and a device can't be re-attached before release is complete.
-ie. those operations are serialized, so the failure mode is only
-theoretical.
-
-> Thank you very much for explaining it in detail. 
-> 
-> > But I agree that this is bad style. But if you are going to change
-> > this please also have a look at devm_iounmap() in lib/devres.c. Maybe also the
-> > devm_*irq* functions need the same changes.
-> 
-> As per your suggestion, I have made similar modifications for lib/devres.c and
-> kernel/irq/devres.c
-> 
-> CCed the maintainers of the respective files.
->  
-> Signed-off-by: Maxin B. John <maxin.john@gmail.com>
-
-But it shouldn't hurt and if it helps memleak.
-
-Acked-by: Tejun Heo <tj@kernel.org>
-
-Thanks.
-
--- 
-tejun
+Best Regards,
+Micha=B3 Miros=B3aw
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
