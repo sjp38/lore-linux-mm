@@ -1,75 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 52A3C6B0012
-	for <linux-mm@kvack.org>; Thu,  9 Jun 2011 14:53:04 -0400 (EDT)
-Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
-	by e1.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p59IfOIb029010
-	for <linux-mm@kvack.org>; Thu, 9 Jun 2011 14:41:24 -0400
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p59Ir2v5084924
-	for <linux-mm@kvack.org>; Thu, 9 Jun 2011 14:53:02 -0400
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p59Ir0AT022979
-	for <linux-mm@kvack.org>; Thu, 9 Jun 2011 14:53:01 -0400
-Date: Thu, 9 Jun 2011 11:52:59 -0700
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: [PATCH 00/10] mm: Linux VM Infrastructure to support Memory
- Power Management
-Message-ID: <20110609185259.GA29287@linux.vnet.ibm.com>
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <1306499498-14263-1-git-send-email-ankita@in.ibm.com>
- <20110528005640.9076c0b1.akpm@linux-foundation.org>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id C58766B0012
+	for <linux-mm@kvack.org>; Thu,  9 Jun 2011 15:54:11 -0400 (EDT)
+Received: from kpbe14.cbf.corp.google.com (kpbe14.cbf.corp.google.com [172.25.105.78])
+	by smtp-out.google.com with ESMTP id p59Js76b016318
+	for <linux-mm@kvack.org>; Thu, 9 Jun 2011 12:54:09 -0700
+Received: from pvh10 (pvh10.prod.google.com [10.241.210.202])
+	by kpbe14.cbf.corp.google.com with ESMTP id p59Jr6M4015960
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 9 Jun 2011 12:54:06 -0700
+Received: by pvh10 with SMTP id 10so962503pvh.29
+        for <linux-mm@kvack.org>; Thu, 09 Jun 2011 12:54:03 -0700 (PDT)
+Date: Thu, 9 Jun 2011 12:54:01 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] mm: Simplify code by SECTION_ALIGN_UP() and SECTION_ALIGN_DOWN()
+ macro usage
+In-Reply-To: <20110609182035.GC23592@router-fw-old.local.net-space.pl>
+Message-ID: <alpine.DEB.2.00.1106091251010.11607@chino.kir.corp.google.com>
+References: <20110609182035.GC23592@router-fw-old.local.net-space.pl>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110528005640.9076c0b1.akpm@linux-foundation.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Ankita Garg <ankita@in.ibm.com>, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-pm@lists.linux-foundation.org, svaidy@linux.vnet.ibm.com, thomas.abraham@linaro.org
+To: Daniel Kiper <dkiper@net-space.pl>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Sat, May 28, 2011 at 12:56:40AM -0700, Andrew Morton wrote:
-> On Fri, 27 May 2011 18:01:28 +0530 Ankita Garg <ankita@in.ibm.com> wrote:
-> 
-> > This patchset proposes a generic memory regions infrastructure that can be
-> > used to tag boundaries of memory blocks which belongs to a specific memory
-> > power management domain and further enable exploitation of platform memory
-> > power management capabilities.
-> 
-> A couple of quick thoughts...
-> 
-> I'm seeing no estimate of how much energy we might save when this work
-> is completed.  But saving energy is the entire point of the entire
-> patchset!  So please spend some time thinking about that and update and
-> maintain the [patch 0/n] description so others can get some idea of the
-> benefit we might get from all of this.  That estimate should include an
-> estimate of what proportion of machines are likely to have hardware
-> which can use this feature and in what timeframe.
-> 
-> IOW, if it saves one microwatt on 0.001% of machines, not interested ;)
+On Thu, 9 Jun 2011, Daniel Kiper wrote:
 
-FWIW, I have seen estimates on the order of a 5% reduction in power
-consumption for some common types of embedded devices.
+> git commit a539f3533b78e39a22723d6d3e1e11b6c14454d9 (mm: add SECTION_ALIGN_UP()
+> and SECTION_ALIGN_DOWN() macro) introduced SECTION_ALIGN_UP() and SECTION_ALIGN_DOWN()
+> macro. Use those macros to increase code readability.
+> 
+> This patch applies to Linus' git tree, v3.0-rc2 tag.
+> 
 
-							Thanx, Paul
+ [ This patch would go through the -mm tree so it should always be based 
+   on the latest git tree, no need to mention it.  Alternatively, if it 
+   was based on something in -mm that isn't in the latest git yet, then
+   you only need to append the "-mm" tag to the subject line:
+   "[patch -mm]". ]
 
-> Also, all this code appears to be enabled on all machines?  So machines
-> which don't have the requisite hardware still carry any additional
-> overhead which is added here.  I can see that ifdeffing a feature like
-> this would be ghastly but please also have a think about the
-> implications of this and add that discussion also.  
-> 
-> If possible, it would be good to think up some microbenchmarks which
-> probe the worst-case performance impact and describe those and present
-> the results.  So others can gain an understanding of the runtime costs.
-> 
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
-> 
+> Signed-off-by: Daniel Kiper <dkiper@net-space.pl>
+
+Acked-by: David Rientjes <rientjes@google.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
