@@ -1,64 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 2EF116B0078
-	for <linux-mm@kvack.org>; Thu,  9 Jun 2011 12:47:26 -0400 (EDT)
-Message-ID: <4DF0F90D.4010900@redhat.com>
-Date: Thu, 09 Jun 2011 18:47:09 +0200
-From: Igor Mammedov <imammedo@redhat.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id BF3BF6B0078
+	for <linux-mm@kvack.org>; Thu,  9 Jun 2011 12:58:19 -0400 (EDT)
+Date: Thu, 9 Jun 2011 18:57:48 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 2/8] mm: memcg-aware global reclaim
+Message-ID: <20110609165748.GA20333@cmpxchg.org>
+References: <1306909519-7286-1-git-send-email-hannes@cmpxchg.org>
+ <1306909519-7286-3-git-send-email-hannes@cmpxchg.org>
+ <20110607122519.GA18571@infradead.org>
+ <20110608093046.GB17886@cmpxchg.org>
+ <20110609092617.GB10741@infradead.org>
 MIME-Version: 1.0
-Subject: Re: [Xen-devel] Possible shadow bug
-References: <4DE64F0C.3050203@redhat.com> <20110601152039.GG4266@tiehlicka.suse.cz> <4DE66BEB.7040502@redhat.com> <BANLkTimbqHPeUdue=_Z31KVdPwcXtbLpeg@mail.gmail.com> <4DE8D50F.1090406@redhat.com> <BANLkTinMamg_qesEffGxKu3QkT=zyQ2MRQ@mail.gmail.com> <4DEE26E7.2060201@redhat.com> <20110608123527.479e6991.kamezawa.hiroyu@jp.fujitsu.com> <4DF0801F.9050908@redhat.com> <alpine.DEB.2.00.1106091311530.12963@kaball-desktop> <20110609150133.GF5098@whitby.uk.xensource.com>
-In-Reply-To: <20110609150133.GF5098@whitby.uk.xensource.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110609092617.GB10741@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tim Deegan <Tim.Deegan@citrix.com>
-Cc: Stefano Stabellini <stefano.stabellini@eu.citrix.com>, xen-devel@lists.xensource.com, Keir Fraser <keir@xen.org>, "containers@lists.linux-foundation.org" <containers@lists.linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Keir Fraser <keir.xen@gmail.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>, Paul Menage <menage@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Ying Han <yinghan@google.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 06/09/2011 05:01 PM, Tim Deegan wrote:
-> At 13:40 +0100 on 09 Jun (1307626812), Stefano Stabellini wrote:
->> CC'ing xen-devel and Tim.
->>
->> This is a comment from a previous email in the thread:
->>
->>> It most easily reproduced only on xen hvm 32bit guest under heavy vcpus
->>> contention for real cpus resources (i.e. I had to overcommit cpus and
->>> run several cpu hog tasks on host to make guest crash on reboot cycle).
->>> And from last experiments, crash happens only on on hosts that doesn't
->>> have hap feature or if hap is disabled in hypervisor.
->> it makes me think that it is a shadow pagetables bug; see details below.
->> You can find more details on it following this thread on the lkml.
-> Oh dear.  I'm having a look at the linux code now to try and understand
-> the behaviour.  In the meantime, what version of Xen was this on?  If
-It's rhel5.6 xen. I've tried to test on SLES 11 that has 4.0.1 xen, however
-wasn't able to reproduce problem. (I'm not sure if hap was turned off in 
-this
-case). More detailed info can be found at RHBZ#700565
+On Thu, Jun 09, 2011 at 05:26:17AM -0400, Christoph Hellwig wrote:
+> On Wed, Jun 08, 2011 at 11:30:46AM +0200, Johannes Weiner wrote:
+> > On Tue, Jun 07, 2011 at 08:25:19AM -0400, Christoph Hellwig wrote:
+> > > A few small nitpicks:
+> > > 
+> > > > +struct mem_cgroup *mem_cgroup_hierarchy_walk(struct mem_cgroup *root,
+> > > > +					     struct mem_cgroup *prev)
+> > > > +{
+> > > > +	struct mem_cgroup *mem;
+> > > > +
+> > > > +	if (mem_cgroup_disabled())
+> > > > +		return NULL;
+> > > > +
+> > > > +	if (!root)
+> > > > +		root = root_mem_cgroup;
+> > > > +	/*
+> > > > +	 * Even without hierarchy explicitely enabled in the root
+> > > > +	 * memcg, it is the ultimate parent of all memcgs.
+> > > > +	 */
+> > > > +	if (!(root == root_mem_cgroup || root->use_hierarchy))
+> > > > +		return root;
+> > > 
+> > > The logic here reads a bit weird, why not simply:
+> > > 
+> > > 	 /*
+> > > 	  * Even without hierarchy explicitely enabled in the root
+> > > 	  * memcg, it is the ultimate parent of all memcgs.
+> > > 	  */
+> > > 	if (!root || root == root_mem_cgroup)
+> > > 		return root_mem_cgroup;
+> > > 	if (root->use_hierarchy)
+> > > 		return root;
+> > 
+> > What you are proposing is not equivalent, so... case in point!  It's
+> > meant to do the hierarchy walk for when foo->use_hierarchy, obviously,
+> > but ALSO for root_mem_cgroup, which is parent to everyone else even
+> > without use_hierarchy set.  I changed it to read like this:
+> > 
+> > 	if (!root)
+> > 		root = root_mem_cgroup;
+> > 	if (!root->use_hierarchy && root != root_mem_cgroup)
+> > 		return root;
+> > 	/* actually iterate hierarchy */
+> > 
+> > Does that make more sense?
+> 
+> It does, sorry for misparsing it.  The thing that I really hated was
+> the conditional assignment of root.  Can we clean this up somehow
+> by making the caller pass root_mem_cgroup in the case where it
+> passes root right now, or at least always pass NULL when it means
+> root_mem_cgroup.
+> 
+> Note really that important in the end, it just irked me when I looked
+> over it, especially the conditional assigned of root to root_mem_cgroup,
+> and then a little later checking for the equality of the two.
 
-> you're willing to try recompiling Xen with some small patches that
-> disable the "cleverer" parts of the shadow pagetable code that might
-> indicate something.  (Of course, it might just change the timing to
-> obscure a real linux bug too.)
->
-Haven't got to this part yet. But looks like it's the only option left.
+Yeah, the assignment is an ugly interface fixup because
+root_mem_cgroup is local to memcontrol.c, as is struct mem_cgroup as a
+whole.
 
-> The only time I've seen a corruption like this, with a mapping
-> transiently going to the wrong frame, it turned out to be caused by
-> 32-bit pagetable-handling code writing a PAE PTE with a single 64-bit
-> write (which is not atomic on x86-32), and the TLB happening to see the
-> intermediate, half-written entry.  I doubt that there's any bug like
-> that in linux, though, or we'd surely have seen it before now.
->
-> Cheers,
->
-> Tim.
->
+I'll look into your suggestion from the other mail of making struct
+mem_cgroup and struct mem_cgroup_per_zone always available, and have
+everyone operate against root_mem_cgroup per default.
 
+> Thinking about it it's probably better left as-is for now to not
+> complicate the series, and maybe revisit it later once things have
+> settled a bit.
 
--- 
-Thanks,
-  Igor
+I may take you up on that if this approach turns out to require more
+change than is sensible to add to this series.
+
+I'll at least add an
+
+     /* XXX: until vmscan.c knows about root_mem_cgroup */
+
+or so, if this is the case, to explain the temporary nastiness.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
