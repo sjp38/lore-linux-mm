@@ -1,58 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 7E0946B004A
-	for <linux-mm@kvack.org>; Thu,  9 Jun 2011 19:44:15 -0400 (EDT)
-Date: Thu, 9 Jun 2011 16:44:08 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: fix negative commitlimit when gigantic hugepages
- are allocated
-Message-Id: <20110609164408.8370746e.akpm@linux-foundation.org>
-In-Reply-To: <20110603025555.GA10530@optiplex.tchesoft.com>
-References: <20110518153445.GA18127@sgi.com>
-	<BANLkTinbHnrf2isuLzUFZN8ypaT476G1zw@mail.gmail.com>
-	<20110519045630.GA22533@sgi.com>
-	<BANLkTinyYP-je9Nf8X-xWEdpgvn8a631Mw@mail.gmail.com>
-	<20110519221101.GC19648@sgi.com>
-	<20110520130411.d1e0baef.akpm@linux-foundation.org>
-	<20110520223032.GA15192@x61.tchesoft.com>
-	<20110526210751.GA14819@optiplex.tchesoft.com>
-	<20110602040821.GA7934@sgi.com>
-	<20110603025555.GA10530@optiplex.tchesoft.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id F27D16B004A
+	for <linux-mm@kvack.org>; Thu,  9 Jun 2011 19:47:56 -0400 (EDT)
+Received: by qwa26 with SMTP id 26so1381214qwa.14
+        for <linux-mm@kvack.org>; Thu, 09 Jun 2011 16:47:56 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <BANLkTimD-pecv82qAZkyxA9nLQWbcDry-w@mail.gmail.com>
+References: <1306909519-7286-1-git-send-email-hannes@cmpxchg.org>
+	<1306909519-7286-3-git-send-email-hannes@cmpxchg.org>
+	<20110609154839.GF4878@barrios-laptop>
+	<20110609172347.GB20333@cmpxchg.org>
+	<BANLkTimD-pecv82qAZkyxA9nLQWbcDry-w@mail.gmail.com>
+Date: Fri, 10 Jun 2011 08:47:55 +0900
+Message-ID: <BANLkTin7uRdUg_mer3ve5nz3WjX9qjP4SQ@mail.gmail.com>
+Subject: Re: [patch 2/8] mm: memcg-aware global reclaim
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: aquini@linux.com
-Cc: Russ Anderson <rja@sgi.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux.com>, rja@americas.sgi.com
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Ying Han <yinghan@google.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, 2 Jun 2011 23:55:57 -0300
-Rafael Aquini <aquini@linux.com> wrote:
+On Fri, Jun 10, 2011 at 8:41 AM, Minchan Kim <minchan.kim@gmail.com> wrote:
+> On Fri, Jun 10, 2011 at 2:23 AM, Johannes Weiner <hannes@cmpxchg.org> wro=
+te:
+>> On Fri, Jun 10, 2011 at 12:48:39AM +0900, Minchan Kim wrote:
+>>> On Wed, Jun 01, 2011 at 08:25:13AM +0200, Johannes Weiner wrote:
+>>> > When a memcg hits its hard limit, hierarchical target reclaim is
+>>> > invoked, which goes through all contributing memcgs in the hierarchy
+>>> > below the offending memcg and reclaims from the respective per-memcg
+>>> > lru lists. =C2=A0This distributes pressure fairly among all involved
+>>> > memcgs, and pages are aged with respect to their list buddies.
+>>> >
+>>> > When global memory pressure arises, however, all this is dropped
+>>> > overboard. =C2=A0Pages are reclaimed based on global lru lists that h=
+ave
+>>> > nothing to do with container-internal age, and some memcgs may be
+>>> > reclaimed from much more than others.
+>>> >
+>>> > This patch makes traditional global reclaim consider container
+>>> > boundaries and no longer scan the global lru lists. =C2=A0For each zo=
+ne
+>>> > scanned, the memcg hierarchy is walked and pages are reclaimed from
+>>> > the per-memcg lru lists of the respective zone. =C2=A0For now, the
+>>> > hierarchy walk is bounded to one full round-trip through the
+>>> > hierarchy, or if the number of reclaimed pages reach the overall
+>>> > reclaim target, whichever comes first.
+>>> >
+>>> > Conceptually, global memory pressure is then treated as if the root
+>>> > memcg had hit its limit. =C2=A0Since all existing memcgs contribute t=
+o the
+>>> > usage of the root memcg, global reclaim is nothing more than target
+>>> > reclaim starting from the root memcg. =C2=A0The code is mostly the sa=
+me for
+>>> > both cases, except for a few heuristics and statistics that do not
+>>> > always apply. =C2=A0They are distinguished by a newly introduced
+>>> > global_reclaim() primitive.
+>>> >
+>>> > One implication of this change is that pages have to be linked to the
+>>> > lru lists of the root memcg again, which could be optimized away with
+>>> > the old scheme. =C2=A0The costs are not measurable, though, even with
+>>> > worst-case microbenchmarks.
+>>> >
+>>> > As global reclaim no longer relies on global lru lists, this change i=
+s
+>>> > also in preparation to remove those completely.
+>>
+>> [cut diff]
+>>
+>>> I didn't look at all, still. You might change the logic later patches.
+>>> If I understand this patch right, it does round-robin reclaim in all me=
+mcgs
+>>> when global memory pressure happens.
+>>>
+>>> Let's consider this memcg size unbalance case.
+>>>
+>>> If A-memcg has lots of LRU pages, scanning count for reclaim would be b=
+igger
+>>> so the chance to reclaim the pages would be higher.
+>>> If we reclaim A-memcg, we can reclaim the number of pages we want easil=
+y and break.
+>>> Next reclaim will happen at some time and reclaim will start the B-memc=
+g of A-memcg
+>>> we reclaimed successfully before. But unfortunately B-memcg has small l=
+ru so
+>>> scanning count would be small and small memcg's LRU aging is higher tha=
+n bigger memcg.
+>>> It means small memcg's working set can be evicted easily than big memcg=
+.
+>>> my point is that we should not set next memcg easily.
+>>> We have to consider memcg LRU size.
+>>
+>> I may be missing something, but you said yourself that B had a smaller
+>> scan count compared to A, so the aging speed should be proportional to
+>> respective size.
+>>
+>> The number of pages scanned per iteration is essentially
+>>
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0number of lru pages in memcg-zone >> priority
+>>
+>> so we scan relatively more pages from B than from A each round.
+>>
+>> It's the exact same logic we have been applying traditionally to
+>> distribute pressure fairly among zones to equalize their aging speed.
+>>
+>> Is that what you meant or are we talking past each other?
+>
+> True if we can reclaim pages easily(ie, default priority) in all memcgs.
+> But let's think about it.
+> Normally direct reclaim path reclaims only SWAP_CLUSTER_MAX size.
+> If we have small memcg, scan window size would be smaller and it is
+> likely to be hard reclaim in the priority compared to bigger memcg. It
+> means it can raise priority easily in small memcg and even it might
+> call lumpy or compaction in case of global memory pressure. It can
+> churn all LRU order. :(
+> Of course, we have bailout routine so we might make such unfair aging
+> effect small but it's not same with old behavior(ie, single LRU list,
+> fair aging POV global according to priority raise)
 
-> When 1GB hugepages are allocated on a system, free(1) reports
-> less available memory than what really is installed in the box.
-> Also, if the total size of hugepages allocated on a system is
-> over half of the total memory size, CommitLimit becomes
-> a negative number.
-> 
-> The problem is that gigantic hugepages (order > MAX_ORDER)
-> can only be allocated at boot with bootmem, thus its frames
-> are not accounted to 'totalram_pages'. However,  they are
-> accounted to hugetlb_total_pages()
-> 
-> What happens to turn CommitLimit into a negative number
-> is this calculation, in fs/proc/meminfo.c:
-> 
->         allowed = ((totalram_pages - hugetlb_total_pages())
->                 * sysctl_overcommit_ratio / 100) + total_swap_pages;
-> 
-> A similar calculation occurs in __vm_enough_memory() in mm/mmap.c.
-> 
-> Also, every vm statistic which depends on 'totalram_pages' will render
-> confusing values, as if system were 'missing' some part of its memory.
+To make fair, how about considering turn over different memcg before
+raise up priority?
+It can make aging speed fairly while it can make high contention of
+lru_lock. :(
 
-Is this bug serious enough to justify backporting the fix into -stable
-kernels?
+
+
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
