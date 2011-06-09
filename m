@@ -1,179 +1,452 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 81DD86B004A
-	for <linux-mm@kvack.org>; Thu,  9 Jun 2011 19:58:09 -0400 (EDT)
-Date: Fri, 10 Jun 2011 01:58:00 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 4/4] writeback: reduce per-bdi dirty threshold ramp up
- time
-Message-ID: <20110609235800.GI4926@quack.suse.cz>
-References: <20110413235211.GN31057@dastard>
- <20110414002301.GA9826@localhost>
- <20110414151424.GA367@localhost>
- <20110414181609.GH5054@quack.suse.cz>
- <20110415034300.GA23430@localhost>
- <20110415143711.GA17181@localhost>
- <20110415221314.GE5432@quack.suse.cz>
- <1302942809.2388.254.camel@twins>
- <20110418145929.GH5557@quack.suse.cz>
- <1306239869.2497.50.camel@laptop>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1306239869.2497.50.camel@laptop>
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 0B56F6B004A
+	for <linux-mm@kvack.org>; Thu,  9 Jun 2011 20:05:52 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 3FE3D3EE0BB
+	for <linux-mm@kvack.org>; Fri, 10 Jun 2011 09:05:49 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 1FA2745DE61
+	for <linux-mm@kvack.org>; Fri, 10 Jun 2011 09:05:49 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0817445DE68
+	for <linux-mm@kvack.org>; Fri, 10 Jun 2011 09:05:49 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id E71B81DB803C
+	for <linux-mm@kvack.org>; Fri, 10 Jun 2011 09:05:48 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9A0431DB803B
+	for <linux-mm@kvack.org>; Fri, 10 Jun 2011 09:05:48 +0900 (JST)
+Date: Fri, 10 Jun 2011 08:58:56 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH] A scan node selection logic for memcg rather than
+ round-robin.
+Message-Id: <20110610085856.310d5484.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110609191031.483daba5.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20110609191031.483daba5.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Jan Kara <jack@suse.cz>, Wu Fengguang <fengguang.wu@intel.com>, Dave Chinner <david@fromorbit.com>, Andrew Morton <akpm@linux-foundation.org>, Richard Kennedy <richard@rsk.demon.co.uk>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Ying Han <yinghan@google.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "bsingharora@gmail.com" <bsingharora@gmail.com>
 
-On Tue 24-05-11 14:24:29, Peter Zijlstra wrote:
-> Sorry for the delay, life got interesting and then it slipped my mind.
-  And I missed you reply so sorry for my delay as well :).
+On Thu, 9 Jun 2011 19:10:31 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-> On Mon, 2011-04-18 at 16:59 +0200, Jan Kara wrote:
-> >   Your formula is:
-> > p(j)=\sum_i x_i(j)/(t_i*2^{i+1})
-> >   where $i$ sums from 0 to \infty, x_i(j) is the number of events of type
-> > $j$ in period $i$, $t_i$ is the total number of events in period $i$.
 > 
-> Actually:
+> A scan node selection logic for memcg rather than round-robin.
 > 
->  p_j = \Sum_{i=0} (d/dt_i) * x_j / 2^(i+1)
+> This patch is what I'm testing now but I don't have big NUMA.
+> please review if you have time. This is against linux-3.0-rc2.
 > 
-> [ discrete differential ]
-> 
-> Where x_j is the total number of events for the j-th element of the set
-> and t_i is the i-th last period.
-> 
-> Also, the 1/2^(i+1) factor ensures recent history counts heavier while
-> still maintaining a normalized distribution.
-> 
-> Furthermore, by measuring time in the same measure as the events we get:
-> 
->  t = \Sum_i x_i
-> 
-> which yields that:
-> 
->  p_j = x_j * {\Sum_i (d/dt_i)} * {\Sum 2^(-i-1)}
->      = x_j * (1/t) * 1
-> 
-> Thus
-> 
->  \Sum_j p_j = \Sum_j x_j / (\Sum_i x_i) = 1
-  Yup, I understand this.
+I'm sorry that I noticed I can remove all "noswap" code then...
+the size of patch will be half. I'll post more tested version in the next week.
 
-> >   I want to compute
-> > l(j)=\sum_i x_i(j)/2^{i+1}
-> > g=\sum_i t_i/2^{i+1}
-> >   and
-> > p(j)=l(j)/g
+Thanks,
+-Kame
+
+
+> ==
+> From fedf64c8b7e42a8d03974456f01fa3774df94afe Mon Sep 17 00:00:00 2001
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Date: Thu, 9 Jun 2011 18:53:14 +0900
+> Subject: [PATCH] weighted node scanning for memory cgroup.
 > 
-> Which gives me:
+> When I pushed 889976dbcb1218119fdd950fb7819084e37d7d37
+>  " memcg: reclaim memory from nodes in round-robin order "
 > 
->  p_j = x_j * \Sum_i 1/t_i
->      = x_j / t
-  It cannot really be simplified like this - 2^{i+1} parts do not cancel
-out in p(j). Let's write the formula in an iterative manner so that it
-becomes clearer. The first step almost looks like the 2^{i+1} members can
-cancel out (note that I use x_1 and t_1 instead of x_0 and t_0 so that I don't
-have to renumber when going for the next step):
-l'(j) = x_1/2 + l(j)/2
-g' = t_1/2 + g/2
-thus
-p'(j) = l'(j) / g'
-      = (x_1 + l(j))/2 / ((t_1 + g)/2)
-      = (x_1 + l(j)) / (t_1+g)
-
-But if you properly expand to the next step you'll get:
-l''(j) = x_0/2 + l'(j)/2
-       = x_0/2 + x_1/4 + l(j)/4
-g'' = t_0/2 + g'/2
-    = t_0/2 + t_1/4 + g/4
-thus we only get:
-p''(j) = l''(j)/g''
-       = (x_0/2 + x_1/4 + l(j)/4) / (t_0/2 + t_1/4 + g/4)
-       = (x_0 + x_1/2 + l(j)/2) / (t_0 + t_1/2 + g/2)
-
-Hmm, I guess I should have written the formulas as
-
-l(j) = \sum_i x_i(j)/2^i
-g = \sum_i t_i/2^i
-
-It is equivalent and less confusing for the iterative expression where
-we get directly:
-
-l'(j)=x_0+l(j)/2
-g'=t_0+g/2
-
-which directly shows what's going on.
-
-> Again, if we then measure t in the same events as x, such that:
+> I mentioned " a better algorithm is needed."
 > 
->  t = \Sum_i x_i
+> This patch is a better algorithm. This implements..
 > 
-> we again get:
+>    1. per node reclaim target possibilty (called as weight.)
+>    2. select a node from nodes by proportional fair way with the weight
 > 
->  \Sum_j p_j = \Sum_j x_j / \Sum_i x_i = 1
+> For 1, this patch simply check the number of pages on LRU with
+> some bias of active/inactive ratio and swappiness. A weight for
+> node is calculated as
 > 
-> However, if you start measuring t differently that breaks, and the
-> result is no longer normalized and thus not suitable as a proportion.
-  The normalization works with my formula as you noted in your next email
-(I just expand it here for other readers):
-\Sum_j p_j = \Sum_j l(j)/g
-           = 1/g * \Sum_j \Sum_i x_i(j)/2^(i+1)
-	   = 1/g * \Sum_i (1/2^(i+1) * \Sum_j x_i(j))
-(*)        = 1/g * \Sum_i t_i/2^(i+1)
-           = 1
-
-(*) Here we use that t_i = \Sum_j x_i(j) because that's the definition of
-t_i.
-
-Note that exactly same equality holds when 2^(i+1) is replaced with 2^i in
-g and l(j).
-
-> Furthermore, while x_j/t is an average, it does not have decaying
-> history, resulting in past behaviour always affecting current results.
-> The decaying history thing will ensure that past behaviour will slowly
-> be 'forgotten' so that when the media is used differently (seeky to
-> non-seeky workload transition) the slow writeout speed will be forgotten
-> and we'll end up at the high writeout speed corresponding to less seeks.
-> Your average will end up hovering in the middle of the slow and fast
-> modes.
-  So this the most disputable point of my formulas I believe :). You are
-right that if, for example, nothing happens during a time slice (i.e. t_0 =
-0, x_0(j)=0), the proportions don't change (well, after some time rounding
-starts to have effect but let's ignore that for now). Generally, if
-previously t_i was big and then became small (system bandwidth lowered;
-e.g. t_5=10000, t_4=10, t_3=20,...,), it will take roughly log_2(maximum
-t_i/current t_i) time slices for the contribution of terms with t_i big 
-to become comparable with the contribution of later terms with t_i small.
-After this number of time slices, proportions will catch up with the change.
-
-On the other hand when t_i was small for some time and then becomes big,
-proportions will effectively reflect current state. So when someone starts
-writing to a device on otherwise quiet system, the device immediately gets
-fraction close to 1.
-
-I'm not sure how big problem the above behavior is or what would actually
-be a desirable one...
-
-> >   Clearly, all these values can be computed in O(1).
+>    weight = (inactive_files + active_files * active_ratio) * (200-swappines)
+>             (inactive_anon + active_files * active_ratio) * swappiness
 > 
-> True, but you get to keep x and t counts over all history, which could
-> lead to overflow scenarios (although switching to u64 should mitigate
-> that problem in our lifetime).
-  I think even 32-bit numbers might be fine. The numbers we need to keep are
-of an order of total maximum bandwidth of the system. If you plug maxbw
-instead of all x_i(j) and t_i, you'll get that l(j)=maxbw (or 2*maxbw if we
-use 2^i in the formula) and similarly for g. So the math will work in
-32-bits for a bandwidth of an order of TB per slice (which I expect to be
-something between 0.1 and 10 s). Reasonable given today's HW although
-probably we'll have to go to 64-bits soon, you are right.
-
-								Honza
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+> In general, if node contains more inactive files, the weight goes high.
+> This weight can be seen by numa_stat.
+> 
+> [root@bluextal linux-2.6]# cat /cgroup/memory/A/memory.numa_stat
+> total=31863 N0=14235 N1=17628
+> file=27912 N0=12814 N1=15098
+> anon=3951 N0=1421 N1=2530
+> unevictable=0 N0=0 N1=0
+> lru_scan_weight=35798 N0=19886 N1=15912
+> 
+> For 2. this patch uses lottery scheduling using node's weight.
+> This is porportionally fair logic.
+> 
+> For example, assume Node 0,1,2,3 and their weights are 1000,2000,1000,6000.
+> The node selection possibility is 1:2:1:6. So, even if a node contains
+> small amount of memory, it has possiblity to be reclaimed. In long run,
+> there will prevent starvation....where the system ignores small umount of
+> file caches in a node.....
+> 
+> I used bsearch() for finding a victim node..so, you may think the code is
+> complicated.
+> 
+> TO-BE-CHECKED:
+>   - of course, calculation of "weight" is the heart of the logic.
+>   - what part is hard to read ?
+>   - cleverer implemenation ?
+>   - need more tests.
+>   - choose better variable names and add more comments ;)
+> 
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> ---
+>  include/linux/memcontrol.h |    2 +-
+>  mm/memcontrol.c            |  226 +++++++++++++++++++++++++++++++++++++------
+>  mm/vmscan.c                |    2 +-
+>  3 files changed, 196 insertions(+), 34 deletions(-)
+> 
+> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> index 9724a38..95d18b6 100644
+> --- a/include/linux/memcontrol.h
+> +++ b/include/linux/memcontrol.h
+> @@ -108,7 +108,7 @@ extern void mem_cgroup_end_migration(struct mem_cgroup *mem,
+>   */
+>  int mem_cgroup_inactive_anon_is_low(struct mem_cgroup *memcg);
+>  int mem_cgroup_inactive_file_is_low(struct mem_cgroup *memcg);
+> -int mem_cgroup_select_victim_node(struct mem_cgroup *memcg);
+> +int mem_cgroup_select_victim_node(struct mem_cgroup *memcg, bool noswap);
+>  unsigned long mem_cgroup_zone_nr_lru_pages(struct mem_cgroup *memcg,
+>  						struct zone *zone,
+>  						enum lru_list lru);
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 06825be..2ed3749 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -48,6 +48,8 @@
+>  #include <linux/page_cgroup.h>
+>  #include <linux/cpu.h>
+>  #include <linux/oom.h>
+> +#include <linux/random.h>
+> +#include <linux/bsearch.h>
+>  #include "internal.h"
+>  
+>  #include <asm/uaccess.h>
+> @@ -141,10 +143,22 @@ struct mem_cgroup_per_zone {
+>  
+>  struct mem_cgroup_per_node {
+>  	struct mem_cgroup_per_zone zoneinfo[MAX_NR_ZONES];
+> +	unsigned long weight;
+> +};
+> +
+> +struct node_schedinfo {
+> +	unsigned long weight_start, weight_end;
+> +	unsigned long weight_noswap_start, weight_noswap_end;
+> +	int nid;
+>  };
+>  
+>  struct mem_cgroup_lru_info {
+>  	struct mem_cgroup_per_node *nodeinfo[MAX_NUMNODES];
+> +	struct node_schedinfo *schedinfo;
+> +	struct rw_semaphore	updating;
+> +	int nr_nodes;
+> +	unsigned long total_weight;
+> +	unsigned long total_weight_noswap;
+>  };
+>  
+>  /*
+> @@ -1559,36 +1573,157 @@ mem_cgroup_select_victim(struct mem_cgroup *root_mem)
+>  }
+>  
+>  #if MAX_NUMNODES > 1
+> +/*
+> + * Weight for node scanning calculation.
+> + * Basically, node includes inactive pages are guilty. But if we never scan
+> + * nodes only with active pages, LRU rotation on the node never occurs.
+> + * So, we need to take into account active pages to some extent.
+> + */
+> +static void mem_cgroup_node_sched_weight(struct mem_cgroup *mem,
+> +		int nid, unsigned long usage,
+> +		int file_active_ratio, int anon_active_ratio,
+> +		unsigned long *weight, unsigned long *weight_noswap)
+> +{
+> +	unsigned long file, anon;
+> +
+> +
+> +	file = mem_cgroup_get_zonestat_node(mem, nid, LRU_ACTIVE_FILE);
+> +	/* reduce weight of node active pages with regard to the total ratio */
+> +	file = file * file_active_ratio / 100;
+> +	file += mem_cgroup_get_zonestat_node(mem, nid, LRU_INACTIVE_FILE);
+> +
+> +
+> +	anon = mem_cgroup_get_zonestat_node(mem, nid, LRU_ACTIVE_ANON);
+> +	/* reduce weight of node active pages with regard to the total ratio */
+> +	anon = anon * anon_active_ratio / 100;
+> +	anon += mem_cgroup_get_zonestat_node(mem, nid, LRU_INACTIVE_ANON);
+> +
+> +	*weight_noswap = file;
+> +	*weight = file * (200 - mem->swappiness) + anon * (mem->swappiness + 1);
+> +	*weight /= 200;
+> +
+> +	return;
+> +}
+> +
+> +/*
+> + * calculate a ratio for active/inactive ratio with regard to curret
+> + * total inactive/active ratio.
+> + */
+> +static unsigned int
+> +mem_cgroup_active_ratio(struct mem_cgroup *mem, enum lru_list l)
+> +{
+> +	unsigned long active, inactive;
+> +
+> +	inactive = mem_cgroup_get_local_zonestat(mem, l);
+> +	active = mem_cgroup_get_local_zonestat(mem, l + LRU_ACTIVE);
+> +
+> +	return (active * 100)/(active + inactive);
+> +}
+>  
+>  /*
+>   * Always updating the nodemask is not very good - even if we have an empty
+>   * list or the wrong list here, we can start from some node and traverse all
+>   * nodes based on the zonelist. So update the list loosely once per 10 secs.
+> - *
+>   */
+> -static void mem_cgroup_may_update_nodemask(struct mem_cgroup *mem)
+> +static void mem_cgroup_may_update_nodeweight(struct mem_cgroup *mem)
+>  {
+>  	int nid;
+> +	int file_active_ratio, anon_active_ratio;
+> +	unsigned long total_weight, total_weight_noswap;
+> +	struct node_schedinfo *ns;
+> +	unsigned long usage;
+>  
+>  	if (time_after(mem->next_scan_node_update, jiffies))
+>  		return;
+> -
+> +	down_write(&mem->info.updating);
+> +	/* double check for race. */
+> +	if (time_after(mem->next_scan_node_update, jiffies)) {
+> +		up_write(&mem->info.updating);
+> +		return;
+> +	}
+>  	mem->next_scan_node_update = jiffies + 10*HZ;
+> +
+>  	/* make a nodemask where this memcg uses memory from */
+> -	mem->scan_nodes = node_states[N_HIGH_MEMORY];
+> +	total_weight = 0;
+> +	total_weight_noswap = 0;
+>  
+> -	for_each_node_mask(nid, node_states[N_HIGH_MEMORY]) {
+>  
+> -		if (mem_cgroup_get_zonestat_node(mem, nid, LRU_INACTIVE_FILE) ||
+> -		    mem_cgroup_get_zonestat_node(mem, nid, LRU_ACTIVE_FILE))
+> -			continue;
+> +	file_active_ratio = mem_cgroup_active_ratio(mem, LRU_INACTIVE_FILE);
+> +	anon_active_ratio = mem_cgroup_active_ratio(mem, LRU_INACTIVE_ANON);
+> +	usage = res_counter_read_u64(&mem->res, RES_USAGE) >> PAGE_SHIFT;
+> +
+> +	/*
+> +	 * Calculate each node's weight and put the score into array of
+> +	 * node_scheinfo. Eech node schedinfo contains nid and
+> +	 * [start_weight, end_weight). Later, a thread will get a ticket
+> +	 * with a number < total_weight and find a node_schedinfo which
+> +	 * has start_weight <= ticket number < end_weight.
+> +	 *
+> +	 * If ticket number is enough random, we can do proportional fair
+> +	 * victim selection with regard to "weight" of each nodes.
+> +	 *
+> +	 * Why do we need to use "schedinfo" rather than adding member to
+> +	 * per-node structure ? There are 2 reasons. 1) node array
+> +	 * can have holes and not good for bsearch() 2) We can skip nodes
+> +	 * which has no memory. Using other structure like prio-tree is a
+> +	 * possible idea, of course.
+> +	 */
+> +	ns = &mem->info.schedinfo[0];
+> +
+> +	for_each_node_mask (nid, node_states[N_HIGH_MEMORY]) {
+> +		unsigned long weight, weight_noswap;
+>  
+> -		if (total_swap_pages &&
+> -		    (mem_cgroup_get_zonestat_node(mem, nid, LRU_INACTIVE_ANON) ||
+> -		     mem_cgroup_get_zonestat_node(mem, nid, LRU_ACTIVE_ANON)))
+> +		mem_cgroup_node_sched_weight(mem, nid, usage,
+> +				file_active_ratio,
+> +				anon_active_ratio,
+> +				&weight, &weight_noswap);
+> +
+> +		if (weight == 0)
+>  			continue;
+> -		node_clear(nid, mem->scan_nodes);
+> +		ns->nid = nid;
+> +		/* For noswap scan, we take care of file caches */
+> +		ns->weight_noswap_start = total_weight_noswap;
+> +		ns->weight_noswap_end = ns->weight_noswap_start + weight_noswap;
+> +		total_weight_noswap += weight_noswap;
+> +
+> +		ns->weight_start = total_weight;
+> +		ns->weight_end = ns->weight_start + weight;
+> +		total_weight += weight;
+> +		ns++;
+> +		/* for numa stat */
+> +		mem->info.nodeinfo[nid]->weight = weight;
+>  	}
+> +
+> +	mem->info.total_weight = total_weight;
+> +	mem->info.total_weight_noswap = total_weight_noswap;
+> +	mem->info.nr_nodes = ns - mem->info.schedinfo;
+> +
+> +	up_write(&mem->info.updating);
+> +}
+> +
+> +/* routine for finding lottery winner by bsearch. */
+> +static int cmp_node_lottery_weight(const void *key, const void *elt)
+> +{
+> +	struct node_schedinfo *ns = (struct node_schedinfo *)elt;
+> +	unsigned long lottery = (unsigned long)key;
+> +
+> +	if (lottery < ns->weight_start)
+> +		return -1;
+> +	if (lottery >= ns->weight_end)
+> +		return 1;
+> +	return 0;
+> +}
+> +
+> +static int cmp_node_lottery_weight_noswap(const void *key, const void *elt)
+> +{
+> +	struct node_schedinfo *ns = (struct node_schedinfo *)elt;
+> +	unsigned long lottery = (unsigned long)key;
+> +
+> +	if (lottery < ns->weight_noswap_start)
+> +		return -1;
+> +	if (lottery >= ns->weight_noswap_end)
+> +		return 1;
+> +	return 0;
+>  }
+>  
+>  /*
+> @@ -1601,29 +1736,42 @@ static void mem_cgroup_may_update_nodemask(struct mem_cgroup *mem)
+>   * hit limits, it will see a contention on a node. But freeing from remote
+>   * node means more costs for memory reclaim because of memory latency.
+>   *
+> - * Now, we use round-robin. Better algorithm is welcomed.
+> + * This selects a node by an lottery scheduling algorithm with regard to
+> + * each node's weight under the whole memcg usage. By this we'll scan
+> + * nodes in a way proportional fair to the number of reclaim candidate
+> + * pages per node.
+>   */
+> -int mem_cgroup_select_victim_node(struct mem_cgroup *mem)
+> +int mem_cgroup_select_victim_node(struct mem_cgroup *mem, bool noswap)
+>  {
+> -	int node;
+> -
+> -	mem_cgroup_may_update_nodemask(mem);
+> -	node = mem->last_scanned_node;
+> -
+> -	node = next_node(node, mem->scan_nodes);
+> -	if (node == MAX_NUMNODES)
+> -		node = first_node(mem->scan_nodes);
+> -	/*
+> -	 * We call this when we hit limit, not when pages are added to LRU.
+> -	 * No LRU may hold pages because all pages are UNEVICTABLE or
+> -	 * memcg is too small and all pages are not on LRU. In that case,
+> -	 * we use curret node.
+> -	 */
+> -	if (unlikely(node == MAX_NUMNODES))
+> -		node = numa_node_id();
+> +	struct node_schedinfo *ns;
+> +	unsigned long lottery;
+> +	int nid;
+>  
+> -	mem->last_scanned_node = node;
+> -	return node;
+> +	mem_cgroup_may_update_nodeweight(mem);
+> +	/* use pseudo nid while updating schedule information. */
+> +	if (!down_read_trylock(&mem->info.updating))
+> +		return numa_node_id();
+> +
+> +	if (!mem->info.nr_nodes) {
+> +		/* if all nodes has very small memory for each... */
+> +		ns = NULL;
+> +	} else if (noswap) {
+> +		lottery = random32() % mem->info.total_weight_noswap;
+> +		ns = bsearch((void*)lottery, mem->info.schedinfo,
+> +			mem->info.nr_nodes,
+> +			sizeof(*ns), cmp_node_lottery_weight_noswap);
+> +	} else {
+> +		lottery = random32() % mem->info.total_weight;
+> +		ns = bsearch((void*)lottery, mem->info.schedinfo,
+> +			mem->info.nr_nodes,
+> +			sizeof(*ns), cmp_node_lottery_weight);
+> +	}
+> +	if (ns)
+> +		nid = ns->nid;
+> +	else
+> +		nid = numa_node_id();
+> +	up_read(&mem->info.updating);
+> +	return nid;
+>  }
+>  
+>  #else
+> @@ -4135,6 +4283,11 @@ static int mem_control_numa_stat_show(struct seq_file *m, void *arg)
+>  		seq_printf(m, " N%d=%lu", nid, node_nr);
+>  	}
+>  	seq_putc(m, '\n');
+> +	seq_printf(m, "lru_scan_weight=%lu", mem_cont->info.total_weight);
+> +	for_each_node_state(nid, N_HIGH_MEMORY)
+> +		seq_printf(m, " N%d=%lu", nid,
+> +				mem_cont->info.nodeinfo[nid]->weight);
+> +	seq_putc(m, '\n');
+>  	return 0;
+>  }
+>  #endif /* CONFIG_NUMA */
+> @@ -4789,6 +4942,8 @@ static void __mem_cgroup_free(struct mem_cgroup *mem)
+>  	for_each_node_state(node, N_POSSIBLE)
+>  		free_mem_cgroup_per_zone_info(mem, node);
+>  
+> +	kfree(mem->info.schedinfo);
+> +
+>  	free_percpu(mem->stat);
+>  	if (sizeof(struct mem_cgroup) < PAGE_SIZE)
+>  		kfree(mem);
+> @@ -4878,6 +5033,13 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
+>  		if (alloc_mem_cgroup_per_zone_info(mem, node))
+>  			goto free_out;
+>  
+> +	node = nodes_weight(node_states[N_POSSIBLE]);
+> +	mem->info.schedinfo =
+> +		kzalloc(sizeof(struct node_schedinfo) * node, GFP_KERNEL);
+> +	if (!mem->info.schedinfo)
+> +		goto free_out;
+> +	init_rwsem(&mem->info.updating);
+> +
+>  	/* root ? */
+>  	if (cont->parent == NULL) {
+>  		int cpu;
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index faa0a08..dd1823b 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2254,7 +2254,7 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem_cont,
+>  	 * take care of from where we get pages. So the node where we start the
+>  	 * scan does not need to be the current node.
+>  	 */
+> -	nid = mem_cgroup_select_victim_node(mem_cont);
+> +	nid = mem_cgroup_select_victim_node(mem_cont, noswap);
+>  
+>  	zonelist = NODE_DATA(nid)->node_zonelists;
+>  
+> -- 
+> 1.7.4.1
+> 
+> 
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
