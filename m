@@ -1,111 +1,155 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E5776B0083
-	for <linux-mm@kvack.org>; Thu,  9 Jun 2011 09:59:09 -0400 (EDT)
-Date: Thu, 9 Jun 2011 14:59:02 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH v3 03/10] Add additional isolation mode
-Message-ID: <20110609135902.GV5247@suse.de>
-References: <cover.1307455422.git.minchan.kim@gmail.com>
- <b72a86ed33c693aeccac0dba3fba8c13145106ab.1307455422.git.minchan.kim@gmail.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id F01A36B00E7
+	for <linux-mm@kvack.org>; Thu,  9 Jun 2011 10:01:44 -0400 (EDT)
+Date: Thu, 9 Jun 2011 16:01:40 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch 2/8] mm: memcg-aware global reclaim
+Message-ID: <20110609140140.GC3994@tiehlicka.suse.cz>
+References: <1306909519-7286-1-git-send-email-hannes@cmpxchg.org>
+ <1306909519-7286-3-git-send-email-hannes@cmpxchg.org>
+ <BANLkTikKHq=NBAPOXJVDM7ZEc9CkW+HdmQ@mail.gmail.com>
+ <20110602150123.GE28684@cmpxchg.org>
+ <BANLkTinWGEJHf1MhzDS4JB0-V9iynoFoHA@mail.gmail.com>
+ <20110602172905.GF28684@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <b72a86ed33c693aeccac0dba3fba8c13145106ab.1307455422.git.minchan.kim@gmail.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20110602172905.GF28684@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Ying Han <yinghan@google.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Jun 07, 2011 at 11:38:16PM +0900, Minchan Kim wrote:
-> There are some places to isolate lru page and I believe
-> users of isolate_lru_page will be growing.
-> The purpose of them is each different so part of isolated pages
-> should put back to LRU, again.
+On Thu 02-06-11 19:29:05, Johannes Weiner wrote:
+> On Fri, Jun 03, 2011 at 01:14:12AM +0900, Hiroyuki Kamezawa wrote:
+> > 2011/6/3 Johannes Weiner <hannes@cmpxchg.org>:
+> > > On Thu, Jun 02, 2011 at 10:59:01PM +0900, Hiroyuki Kamezawa wrote:
+> > >> 2011/6/1 Johannes Weiner <hannes@cmpxchg.org>:
+> > 
+> > >> > @@ -1927,8 +1980,7 @@ static int mem_cgroup_do_charge(struct mem_cgroup *mem, gfp_t gfp_mask,
+> > >> >        if (!(gfp_mask & __GFP_WAIT))
+> > >> >                return CHARGE_WOULDBLOCK;
+> > >> >
+> > >> > -       ret = mem_cgroup_hierarchical_reclaim(mem_over_limit, NULL,
+> > >> > -                                             gfp_mask, flags);
+> > >> > +       ret = mem_cgroup_reclaim(mem_over_limit, gfp_mask, flags);
+> > >> >        if (mem_cgroup_margin(mem_over_limit) >= nr_pages)
+> > >> >                return CHARGE_RETRY;
+> > >> >        /*
+> > >>
+> > >> It seems this clean-up around hierarchy and softlimit can be in an
+> > >> independent patch, no ?
+> > >
+> > > Hm, why do you think it's a cleanup?  The hierarchical target reclaim
+> > > code is moved to vmscan.c and as a result the entry points for hard
+> > > limit and soft limit reclaim differ.  This is why the original
+> > > function, mem_cgroup_hierarchical_reclaim() has to be split into two
+> > > parts.
+> > >
+> > If functionality is unchanged, I think it's clean up.
+> > I agree to move hierarchy walk to vmscan.c. but it can be done as
+> > a clean up patch for current code.
+> > (Make current try_to_free_mem_cgroup_pages() to use this code.)
+> >  and then, you can write a patch which only includes a core
+> > logic/purpose of this patch
+> > "use root cgroup's LRU for global and make global reclaim as full-scan
+> > of memcgroup."
+> > 
+> > In short, I felt this patch is long....and maybe watchers of -mm are
+> > not interested in rewritie of hierarchy walk but are intetested in the
+> > chages in shrink_zone() itself very much.
 > 
-> The problem is when we put back the page into LRU,
-> we lose LRU ordering and the page is inserted at head of LRU list.
-> It makes unnecessary LRU churning so that vm can evict working set pages
-> rather than idle pages.
+> But the split up is, unfortunately, a change in functionality.  The
+> current code selects one memcg and reclaims all zones on all priority
+> levels on behalf of that memcg.  My code changes that such that it
+> reclaims a bunch of memcgs from the hierarchy for each zone and
+> priority level instead.  From memcgs -> priorities -> zones to
+> priorities -> zones -> memcgs.
+
+I think you should mention this in the change log it nicely describes
+the core of the change.
+
 > 
-> This patch adds new modes when we isolate page in LRU so we don't isolate pages
-> if we can't handle it. It could reduce LRU churning.
+> I don't want to pass that off as a cleanup.
 > 
-> This patch doesn't change old behavior. It's just used by next patches.
+> But it is long, I agree with you.  I'll split up the 'move
+> hierarchical target reclaim to generic code' from 'make global reclaim
+> hierarchical' and see if this makes the changes more straight-forward.
 > 
-> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Cc: Mel Gorman <mgorman@suse.de>
-> Cc: Andrea Arcangeli <aarcange@redhat.com>
-> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Acked-by: Rik van Riel <riel@redhat.com>
-> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
-> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
-> ---
->  include/linux/swap.h |    2 ++
->  mm/vmscan.c          |    6 ++++++
->  2 files changed, 8 insertions(+), 0 deletions(-)
+> Because I suspect the perceived unwieldiness does not stem from the
+> amount of lines changed, but from the number of different logical
+> changes.
+
+Agreed.
+
 > 
-> diff --git a/include/linux/swap.h b/include/linux/swap.h
-> index 48d50e6..731f5dd 100644
-> --- a/include/linux/swap.h
-> +++ b/include/linux/swap.h
-> @@ -248,6 +248,8 @@ enum ISOLATE_MODE {
->  	ISOLATE_NONE,
->  	ISOLATE_INACTIVE = 1,	/* Isolate inactive pages */
->  	ISOLATE_ACTIVE = 2,	/* Isolate active pages */
-> +	ISOLATE_CLEAN = 8,      /* Isolate clean file */
-> +	ISOLATE_UNMAPPED = 16,  /* Isolate unmapped file */
->  };
+> > >> > +       for (;;) {
+> > >> > +               unsigned long nr_reclaimed;
+> > >> > +
+> > >> > +               sc->mem_cgroup = mem;
+> > >> > +               do_shrink_zone(priority, zone, sc);
+> > >> > +
+> > >> > +               nr_reclaimed = sc->nr_reclaimed - nr_reclaimed_before;
+> > >> > +               if (nr_reclaimed >= sc->nr_to_reclaim)
+> > >> > +                       break;
+> > >>
+> > >> what this calculation means ?  Shouldn't we do this quit based on the
+> > >> number of "scan"
+> > >> rather than "reclaimed" ?
+> > >
+> > > It aborts the loop once sc->nr_to_reclaim pages have been reclaimed
+> > > from that zone during that hierarchy walk, to prevent overreclaim.
+> > >
+> > > If you have unbalanced sizes of memcgs in the system, it is not
+> > > desirable to have every reclaimer scan all memcgs, but let those quit
+> > > early that have made some progress on the bigger memcgs.
+> > >
+> > Hmm, why not if (sc->nr_reclaimed >= sc->nr_to_reclaim) ?
+> > 
+> > I'm sorry if I miss something..
+> 
+> It's a bit awkward and undocumented, I'm afraid.  The loop is like
+> this:
+> 
+> 	for each zone:
+> 	  for each memcg:
+> 	    shrink
+> 	    if sc->nr_reclaimed >= sc->nr_to_reclaim:
+> 	      break
+> 
+> sc->nr_reclaimed is never reset, so once you reclaimed enough pages
+> from one zone, you will only try the first memcg in all the other
+> zones, which might well be empty, so no pressure at all on subsequent
+> zones.
+> 
+> That's why I use the per-zone delta like this:
+> 
+>        for each zone:
+>          before = sc->nr_reclaimed
+> 	 for each memcg:
+> 	   shrink
+> 	   if sc->nr_reclaimed - before >= sc->nr_to_reclaim
+> 
+> which still ensures on one hand that we don't keep hammering a zone if
+> we reclaimed the overall reclaim target already, but on the other hand
+> that we apply some pressure to the other zones as well.
+> 
+> It's the same concept as in do_shrink_zone().  It breaks the loop when
+> 
+> 	nr_reclaimed >= sc->nr_to_reclaim
 
-This really should be a bitwise type like gfp_t.
-
->  
->  /* linux/mm/vmscan.c */
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 4cbe114..26aa627 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -990,6 +990,12 @@ int __isolate_lru_page(struct page *page, enum ISOLATE_MODE mode, int file)
->  
->  	ret = -EBUSY;
->  
-> +	if (mode & ISOLATE_CLEAN && (PageDirty(page) || PageWriteback(page)))
-> +		return ret;
-> +
-> +	if (mode & ISOLATE_UNMAPPED && page_mapped(page))
-> +		return ret;
-> +
->  	if (likely(get_page_unless_zero(page))) {
->  		/*
->  		 * Be careful not to clear PageLRU until after we're
-
-This patch does notuse ISOLATE_CLEAN or ISOLATE_UMAPPED anywhere. While
-I can guess how they will be used, it would be easier to review if one
-patch introduced ISOLATE_CLEAN and updated the call sites where it was
-relevant. Same with ISOLATE_UNMAPPED.
-
-Also when using & like this, I thought the compiler warned if it wasn't
-in parenthesis but maybe that's wrong. The problem is the operator
-precedence for bitwise AND and logical AND is easy to forget as it's
-so rarely an issue.
-
-i.e. it's easy to forget if
-
-mode & ISOLATE_UNMAPPED && page_mapped(page)
-
-means
-
-mode & (ISOLATE_UNMAPPED && page_mapped(page))
-
-or
-
-(mode & ISOLATE_UNMAPPED) && page_mapped(page)
-
-Be nice and specific for this one.
-
+Maybe you could make do_shrink_zone return the number of reclaimed
+pages. It's true that it would require yet another nr_reclaimed variable
+in the that function but it would be more straightforward IMO.
 -- 
-Mel Gorman
+Michal Hocko
 SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
