@@ -1,54 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id EBEAB6B0078
-	for <linux-mm@kvack.org>; Thu,  9 Jun 2011 01:57:21 -0400 (EDT)
-Received: from d01relay06.pok.ibm.com (d01relay06.pok.ibm.com [9.56.227.116])
-	by e2.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p595b0u0024552
-	for <linux-mm@kvack.org>; Thu, 9 Jun 2011 01:37:00 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p595vJqe1499304
-	for <linux-mm@kvack.org>; Thu, 9 Jun 2011 01:57:19 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p595vIl0006839
-	for <linux-mm@kvack.org>; Thu, 9 Jun 2011 02:57:19 -0300
-Date: Thu, 9 Jun 2011 11:20:15 +0530
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: Re: [PATCH v4 3.0-rc2-tip 7/22]  7: uprobes: mmap and fork hooks.
-Message-ID: <20110609055015.GE6123@linux.vnet.ibm.com>
-Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-References: <20110607125804.28590.92092.sendpatchset@localhost6.localdomain6>
- <20110607125931.28590.12362.sendpatchset@localhost6.localdomain6>
- <20110608221255.GC9965@wicker.gateway.2wire.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20110608221255.GC9965@wicker.gateway.2wire.net>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 6A8406B007D
+	for <linux-mm@kvack.org>; Thu,  9 Jun 2011 04:03:01 -0400 (EDT)
+From: Mel Gorman <mgorman@suse.de>
+Subject: [PATCH 01/14] mm: Serialize access to min_free_kbytes
+Date: Thu,  9 Jun 2011 09:02:40 +0100
+Message-Id: <1307606573-24704-2-git-send-email-mgorman@suse.de>
+In-Reply-To: <1307606573-24704-1-git-send-email-mgorman@suse.de>
+References: <1307606573-24704-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Stephen Wilson <wilsons@start.ca>
-Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Jonathan Corbet <corbet@lwn.net>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Neil Brown <neilb@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mgorman@suse.de>
 
-> > +static void add_to_temp_list(struct vm_area_struct *vma, struct inode *inode,
-> > +		struct list_head *tmp_list)
-> > +{
-> > +	struct uprobe *uprobe;
-> > +	struct rb_node *n;
-> > +	unsigned long flags;
-> > +
-> > +	n = uprobes_tree.rb_node;
-> > +	spin_lock_irqsave(&uprobes_treelock, flags);
-> > +	uprobe = __find_uprobe(inode, 0, &n);
-> 
-> It is valid for a uprobe offset to be zero I guess, so perhaps we need
-> to do a put_uprobe() here when the result of __find_uprobe() is
-> non-null.
+There is a race between the min_free_kbytes sysctl, memory hotplug
+and transparent hugepage support enablement.  Memory hotplug uses a
+zonelists_mutex to avoid a race when building zonelists. Reuse it to
+serialise watermark updates.
 
-Right, will check for the result of __find_uprobe and do a put_uprobe().
-Will correct this in the next patchset.
+[a.p.zijlstra@chello.nl: Older patch fixed the race with spinlock]
+Signed-off-by: Mel Gorman <mgorman@suse.de>
+---
+ mm/page_alloc.c |   23 +++++++++++++++--------
+ 1 files changed, 15 insertions(+), 8 deletions(-)
 
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 4e8985a..a327a72 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -5045,14 +5045,7 @@ static void setup_per_zone_lowmem_reserve(void)
+ 	calculate_totalreserve_pages();
+ }
+ 
+-/**
+- * setup_per_zone_wmarks - called when min_free_kbytes changes
+- * or when memory is hot-{added|removed}
+- *
+- * Ensures that the watermark[min,low,high] values for each zone are set
+- * correctly with respect to min_free_kbytes.
+- */
+-void setup_per_zone_wmarks(void)
++static void __setup_per_zone_wmarks(void)
+ {
+ 	unsigned long pages_min = min_free_kbytes >> (PAGE_SHIFT - 10);
+ 	unsigned long lowmem_pages = 0;
+@@ -5107,6 +5100,20 @@ void setup_per_zone_wmarks(void)
+ 	calculate_totalreserve_pages();
+ }
+ 
++/**
++ * setup_per_zone_wmarks - called when min_free_kbytes changes
++ * or when memory is hot-{added|removed}
++ *
++ * Ensures that the watermark[min,low,high] values for each zone are set
++ * correctly with respect to min_free_kbytes.
++ */
++void setup_per_zone_wmarks(void)
++{
++	mutex_lock(&zonelists_mutex);
++	__setup_per_zone_wmarks();
++	mutex_unlock(&zonelists_mutex);
++}
++
+ /*
+  * The inactive anon list should be small enough that the VM never has to
+  * do too much work, but large enough that each inactive page has a chance
 -- 
-Thanks and Regards
-Srikar
+1.7.3.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
