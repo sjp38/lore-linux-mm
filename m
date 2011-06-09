@@ -1,75 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 6BAE26B0078
-	for <linux-mm@kvack.org>; Thu,  9 Jun 2011 08:56:50 -0400 (EDT)
-Date: Thu, 9 Jun 2011 13:56:42 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 10/14] netvm: Set PF_MEMALLOC as appropriate during SKB
- processing
-Message-ID: <20110609125642.GS5247@suse.de>
-References: <1307606573-24704-1-git-send-email-mgorman@suse.de>
- <1307606573-24704-11-git-send-email-mgorman@suse.de>
- <BANLkTimUE9yb-DegdUk0BbbOGWoUhEBrqw@mail.gmail.com>
- <20110609113505.GR5247@suse.de>
- <BANLkTi=8jx8B8fR_+Z76UoTe_jhG9G-Tyw@mail.gmail.com>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 105F86B0078
+	for <linux-mm@kvack.org>; Thu,  9 Jun 2011 09:12:09 -0400 (EDT)
+Date: Thu, 9 Jun 2011 15:12:03 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch 2/8] mm: memcg-aware global reclaim
+Message-ID: <20110609131203.GB3994@tiehlicka.suse.cz>
+References: <1306909519-7286-1-git-send-email-hannes@cmpxchg.org>
+ <1306909519-7286-3-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <BANLkTi=8jx8B8fR_+Z76UoTe_jhG9G-Tyw@mail.gmail.com>
+In-Reply-To: <1306909519-7286-3-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Micha? Miros?aw <mirqus@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Neil Brown <neilb@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Ying Han <yinghan@google.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Jun 09, 2011 at 02:28:24PM +0200, Micha? Miros?aw wrote:
-> 2011/6/9 Mel Gorman <mgorman@suse.de>:
-> > On Thu, Jun 09, 2011 at 12:21:31PM +0200, Micha? Miros?aw wrote:
-> >> 2011/6/9 Mel Gorman <mgorman@suse.de>:
-> >> [...]
-> >> > +/*
-> >> > + * Limit which protocols can use the PFMEMALLOC reserves to those that are
-> >> > + * expected to be used for communication with swap.
-> >> > + */
-> >> > +static bool skb_pfmemalloc_protocol(struct sk_buff *skb)
-> >> > +{
-> >> > +       switch (skb->protocol) {
-> >> > +       case __constant_htons(ETH_P_ARP):
-> >> > +       case __constant_htons(ETH_P_IP):
-> >> > +       case __constant_htons(ETH_P_IPV6):
-> >> > +       case __constant_htons(ETH_P_8021Q):
-> >> > +               return true;
-> >> > +       default:
-> >> > +               return false;
-> >> > +       }
-> >> > +}
-> >>
-> >> This is not needed and wrong. Whatever list there will be, it's going
-> >> to always miss some obscure setup (or not that obscure, like
-> >> ATAoverEthernet).
-> >>
-> >
-> > NBD is updated in the series to set the socket information
-> > appropriately but the same cannot be said of AoE. The necessary
-> > changes have been made IPv4 and IPv6 to handle pfmemalloc sockets
-> > but the same cannot be necessarily said for the other protocols. Yes,
-> > the check could be removed but leaving it there makes a clear statement
-> > on what scenario can be reasonably expected to work.
-> 
-> Ok. Then the comment before skb_pfmemalloc_protocol() is misleading.
-> It should say that this is a list of protocols which implement the
-> required special handling of PFMEMALLOC skbs.
-> 
+On Wed 01-06-11 08:25:13, Johannes Weiner wrote:
+[...]
 
-That's a very reasonable suggestion. My thinking behind that comment
-was a backwards because I only "expected" protocols that implemented
-the special handling to be used for swap :/
+Just a minor thing. I am really slow at reviewing these days due to
+other work that has to be done...
 
-Thanks.
+> +struct mem_cgroup *mem_cgroup_hierarchy_walk(struct mem_cgroup *root,
+> +					     struct mem_cgroup *prev)
+> +{
+> +	struct mem_cgroup *mem;
+
+You want mem = NULL here because you might end up using it unitialized
+AFAICS (css_get_next returns with NULL).
+
+> +
+> +	if (mem_cgroup_disabled())
+> +		return NULL;
+> +
+> +	if (!root)
+> +		root = root_mem_cgroup;
+> +	/*
+> +	 * Even without hierarchy explicitely enabled in the root
+> +	 * memcg, it is the ultimate parent of all memcgs.
+> +	 */
+> +	if (!(root == root_mem_cgroup || root->use_hierarchy))
+> +		return root;
+> +	if (prev && prev != root)
+> +		css_put(&prev->css);
+> +	do {
+> +		int id = root->last_scanned_child;
+> +		struct cgroup_subsys_state *css;
+> +
+> +		rcu_read_lock();
+> +		css = css_get_next(&mem_cgroup_subsys, id + 1, &root->css, &id);
+> +		if (css && (css == &root->css || css_tryget(css)))
+> +			mem = container_of(css, struct mem_cgroup, css);
+> +		rcu_read_unlock();
+> +		if (!css)
+> +			id = 0;
+> +		root->last_scanned_child = id;
+> +	} while (!mem);
+> +	return mem;
 
 -- 
-Mel Gorman
+Michal Hocko
 SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
