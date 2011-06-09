@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id C0C796B00EF
+	by kanga.kvack.org (Postfix) with ESMTP id C1A486B00F0
 	for <linux-mm@kvack.org>; Thu,  9 Jun 2011 04:03:11 -0400 (EDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 05/14] mm: Ignore mempolicies when using ALLOC_NO_WATERMARK
-Date: Thu,  9 Jun 2011 09:02:44 +0100
-Message-Id: <1307606573-24704-6-git-send-email-mgorman@suse.de>
+Subject: [PATCH 11/14] mm: Micro-optimise slab to avoid a function call
+Date: Thu,  9 Jun 2011 09:02:50 +0100
+Message-Id: <1307606573-24704-12-git-send-email-mgorman@suse.de>
 In-Reply-To: <1307606573-24704-1-git-send-email-mgorman@suse.de>
 References: <1307606573-24704-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -13,42 +13,76 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Neil Brown <neilb@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mgorman@suse.de>
 
-The reserve is proportionally distributed over all !highmem zones in the
-system. So we need to allow an emergency allocation access to all zones.
-In order to do that we need to break out of any mempolicy boundaries we
-might have.
+Getting and putting objects in SLAB currently requires a function call
+but the bulk of the work is related to PFMEMALLOC reserves which are
+only consumed when network-backed storage is critical. Use an inline
+function to determine if the function call is required.
 
-In my opinion that does not break mempolicies as those are user oriented
-and not system oriented. That is, system allocations are not guaranteed to
-be within mempolicy boundaries. For instance IRQs don't even have a mempolicy.
-
-So breaking out of mempolicy boundaries for 'rare' emergency allocations,
-which are always system allocations (as opposed to user) is ok.
-
-Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- mm/page_alloc.c |    7 +++++++
- 1 files changed, 7 insertions(+), 0 deletions(-)
+ mm/slab.c |   28 ++++++++++++++++++++++++++--
+ 1 files changed, 26 insertions(+), 2 deletions(-)
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 4e19606..ac779f5 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2126,6 +2126,13 @@ rebalance:
+diff --git a/mm/slab.c b/mm/slab.c
+index 708da2f..3f49768 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -117,6 +117,8 @@
+ #include	<linux/memory.h>
+ #include	<linux/prefetch.h>
  
- 	/* Allocate without watermarks if the context allows */
- 	if (alloc_flags & ALLOC_NO_WATERMARKS) {
-+		/*
-+		 * Ignore mempolicies if ALLOC_NO_WATERMARKS on the grounds
-+		 * the allocation is high priority and these type of
-+		 * allocations are system rather than user orientated
-+		 */
-+		zonelist = node_zonelist(numa_node_id(), gfp_mask);
++#include	<net/sock.h>
 +
- 		page = __alloc_pages_high_priority(gfp_mask, order,
- 				zonelist, high_zoneidx, nodemask,
- 				preferred_zone, migratetype);
+ #include	<asm/cacheflush.h>
+ #include	<asm/tlbflush.h>
+ #include	<asm/page.h>
+@@ -945,7 +947,7 @@ static void check_ac_pfmemalloc(struct kmem_cache *cachep,
+ 	ac->pfmemalloc = false;
+ }
+ 
+-static void *ac_get_obj(struct kmem_cache *cachep, struct array_cache *ac,
++static void *__ac_get_obj(struct kmem_cache *cachep, struct array_cache *ac,
+ 						gfp_t flags, bool force_refill)
+ {
+ 	int i;
+@@ -992,7 +994,20 @@ static void *ac_get_obj(struct kmem_cache *cachep, struct array_cache *ac,
+ 	return objp;
+ }
+ 
+-static void ac_put_obj(struct kmem_cache *cachep, struct array_cache *ac,
++static inline void *ac_get_obj(struct kmem_cache *cachep,
++			struct array_cache *ac, gfp_t flags, bool force_refill)
++{
++	void *objp;
++
++	if (unlikely(sk_memalloc_socks()))
++		objp = __ac_get_obj(cachep, ac, flags, force_refill);
++	else
++		objp = ac->entry[--ac->avail];
++
++	return objp;
++}
++
++static void *__ac_put_obj(struct kmem_cache *cachep, struct array_cache *ac,
+ 								void *objp)
+ {
+ 	struct slab *slabp;
+@@ -1005,6 +1020,15 @@ static void ac_put_obj(struct kmem_cache *cachep, struct array_cache *ac,
+ 			set_obj_pfmemalloc(&objp);
+ 	}
+ 
++	return objp;
++}
++
++static inline void ac_put_obj(struct kmem_cache *cachep, struct array_cache *ac,
++								void *objp)
++{
++	if (unlikely(sk_memalloc_socks()))
++		objp = __ac_put_obj(cachep, ac, objp);
++
+ 	ac->entry[ac->avail++] = objp;
+ }
+ 
 -- 
 1.7.3.4
 
