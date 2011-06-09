@@ -1,70 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id F2E9D6B0078
-	for <linux-mm@kvack.org>; Wed,  8 Jun 2011 21:38:34 -0400 (EDT)
-Date: Thu, 9 Jun 2011 10:30:23 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [BUGFIX][PATCH v3] memcg: fix behavior of per cpu charge cache
- draining.
-Message-Id: <20110609103023.4c4deaf2.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20110609093045.1f969d30.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20110609093045.1f969d30.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 055286B0078
+	for <linux-mm@kvack.org>; Wed,  8 Jun 2011 21:49:16 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 4B0373EE0AE
+	for <linux-mm@kvack.org>; Thu,  9 Jun 2011 10:49:13 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3550B45DE68
+	for <linux-mm@kvack.org>; Thu,  9 Jun 2011 10:49:13 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 1E51F45DE61
+	for <linux-mm@kvack.org>; Thu,  9 Jun 2011 10:49:13 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 12C9EE08002
+	for <linux-mm@kvack.org>; Thu,  9 Jun 2011 10:49:13 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id C685FE08001
+	for <linux-mm@kvack.org>; Thu,  9 Jun 2011 10:49:12 +0900 (JST)
+Date: Thu, 9 Jun 2011 10:42:13 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH] [BUGFIX] Avoid getting nid from invalid struct page at
+ page_cgroup allocation (as Re: [Bugme-new] [Bug 36192] New: Kernel panic
+ when boot the 2.6.39+ kernel based off of 2.6.32 kernel
+Message-Id: <20110609104213.ac276d04.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110609100434.64898575.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20110607084530.8ee571aa.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110607084530.GI5247@suse.de>
+	<20110607174355.fde99297.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110607090900.GK5247@suse.de>
+	<20110607183302.666115f1.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110607101857.GM5247@suse.de>
+	<20110608084034.29f25764.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110608094219.823c24f7.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110608074350.GP5247@suse.de>
+	<20110608174505.e4be46d6.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110608101511.GD17886@cmpxchg.org>
+	<20110609100434.64898575.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, "bsingharora@gmail.com" <bsingharora@gmail.com>, Ying Han <yinghan@google.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org, qcui@redhat.com, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Li Zefan <lizf@cn.fujitsu.com>
 
-On Thu, 9 Jun 2011 09:30:45 +0900
+On Thu, 9 Jun 2011 10:04:34 +0900
 KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-> From 0ebd8a90a91d50c512e7c63e5529a22e44e84c42 Mon Sep 17 00:00:00 2001
-> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Date: Wed, 8 Jun 2011 13:51:11 +0900
-> Subject: [PATCH] Fix behavior of per-cpu charge cache draining in memcg.
-> 
-> For performance, memory cgroup caches some "charge" from res_counter
-> into per cpu cache. This works well but because it's cache,
-> it needs to be flushed in some cases. Typical cases are
-> 	1. when someone hit limit.
-> 	2. when rmdir() is called and need to charges to be 0.
-> 
-> But "1" has problem.
-> 
-> Recently, with large SMP machines, we many kworker runs because
-> of flushing memcg's cache. Bad things in implementation are
-> 
-> a) it's called before calling try_to_free_mem_cgroup_pages()
->    so, it's called immidiately when a task hit limit.
->    (I though it was better to avoid to run into memory reclaim.
->     But it was wrong decision.)
-> 
-> b) Even if a cpu contains a cache for memcg not related to
->    a memcg which hits limit, drain code is called.
-> 
-> This patch fixes a) and b) by
-> 
-> A) delay calling of flushing until one run of try_to_free...
->    Then, the number of calling is decreased.
-> B) check percpu cache contains a useful data or not.
-> plus
-> C) check asynchronous percpu draining doesn't run.
-> 
-> BTW, why this patch relpaces atomic_t counter with mutex is
-> to guarantee a memcg which is pointed by stock->cacne is
-> not destroyed while we check css_id.
-> 
-> Reported-by: Ying Han <yinghan@google.com>
-> Reviewed-by: Michal Hocko <mhocko@suse.cz>
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> 
-Acked-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+> On Wed, 8 Jun 2011 12:15:11 +0200
+> Johannes Weiner <hannes@cmpxchg.org> wrote:
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> Thank you for review.
+
+updated.
+==
