@@ -1,101 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id BF3BF6B0078
-	for <linux-mm@kvack.org>; Thu,  9 Jun 2011 12:58:19 -0400 (EDT)
-Date: Thu, 9 Jun 2011 18:57:48 +0200
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id DBEA56B007E
+	for <linux-mm@kvack.org>; Thu,  9 Jun 2011 13:24:21 -0400 (EDT)
+Date: Thu, 9 Jun 2011 19:23:47 +0200
 From: Johannes Weiner <hannes@cmpxchg.org>
 Subject: Re: [patch 2/8] mm: memcg-aware global reclaim
-Message-ID: <20110609165748.GA20333@cmpxchg.org>
+Message-ID: <20110609172347.GB20333@cmpxchg.org>
 References: <1306909519-7286-1-git-send-email-hannes@cmpxchg.org>
  <1306909519-7286-3-git-send-email-hannes@cmpxchg.org>
- <20110607122519.GA18571@infradead.org>
- <20110608093046.GB17886@cmpxchg.org>
- <20110609092617.GB10741@infradead.org>
+ <20110609154839.GF4878@barrios-laptop>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110609092617.GB10741@infradead.org>
+In-Reply-To: <20110609154839.GF4878@barrios-laptop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Ying Han <yinghan@google.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Ying Han <yinghan@google.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Jun 09, 2011 at 05:26:17AM -0400, Christoph Hellwig wrote:
-> On Wed, Jun 08, 2011 at 11:30:46AM +0200, Johannes Weiner wrote:
-> > On Tue, Jun 07, 2011 at 08:25:19AM -0400, Christoph Hellwig wrote:
-> > > A few small nitpicks:
-> > > 
-> > > > +struct mem_cgroup *mem_cgroup_hierarchy_walk(struct mem_cgroup *root,
-> > > > +					     struct mem_cgroup *prev)
-> > > > +{
-> > > > +	struct mem_cgroup *mem;
-> > > > +
-> > > > +	if (mem_cgroup_disabled())
-> > > > +		return NULL;
-> > > > +
-> > > > +	if (!root)
-> > > > +		root = root_mem_cgroup;
-> > > > +	/*
-> > > > +	 * Even without hierarchy explicitely enabled in the root
-> > > > +	 * memcg, it is the ultimate parent of all memcgs.
-> > > > +	 */
-> > > > +	if (!(root == root_mem_cgroup || root->use_hierarchy))
-> > > > +		return root;
-> > > 
-> > > The logic here reads a bit weird, why not simply:
-> > > 
-> > > 	 /*
-> > > 	  * Even without hierarchy explicitely enabled in the root
-> > > 	  * memcg, it is the ultimate parent of all memcgs.
-> > > 	  */
-> > > 	if (!root || root == root_mem_cgroup)
-> > > 		return root_mem_cgroup;
-> > > 	if (root->use_hierarchy)
-> > > 		return root;
+On Fri, Jun 10, 2011 at 12:48:39AM +0900, Minchan Kim wrote:
+> On Wed, Jun 01, 2011 at 08:25:13AM +0200, Johannes Weiner wrote:
+> > When a memcg hits its hard limit, hierarchical target reclaim is
+> > invoked, which goes through all contributing memcgs in the hierarchy
+> > below the offending memcg and reclaims from the respective per-memcg
+> > lru lists.  This distributes pressure fairly among all involved
+> > memcgs, and pages are aged with respect to their list buddies.
 > > 
-> > What you are proposing is not equivalent, so... case in point!  It's
-> > meant to do the hierarchy walk for when foo->use_hierarchy, obviously,
-> > but ALSO for root_mem_cgroup, which is parent to everyone else even
-> > without use_hierarchy set.  I changed it to read like this:
+> > When global memory pressure arises, however, all this is dropped
+> > overboard.  Pages are reclaimed based on global lru lists that have
+> > nothing to do with container-internal age, and some memcgs may be
+> > reclaimed from much more than others.
 > > 
-> > 	if (!root)
-> > 		root = root_mem_cgroup;
-> > 	if (!root->use_hierarchy && root != root_mem_cgroup)
-> > 		return root;
-> > 	/* actually iterate hierarchy */
+> > This patch makes traditional global reclaim consider container
+> > boundaries and no longer scan the global lru lists.  For each zone
+> > scanned, the memcg hierarchy is walked and pages are reclaimed from
+> > the per-memcg lru lists of the respective zone.  For now, the
+> > hierarchy walk is bounded to one full round-trip through the
+> > hierarchy, or if the number of reclaimed pages reach the overall
+> > reclaim target, whichever comes first.
 > > 
-> > Does that make more sense?
+> > Conceptually, global memory pressure is then treated as if the root
+> > memcg had hit its limit.  Since all existing memcgs contribute to the
+> > usage of the root memcg, global reclaim is nothing more than target
+> > reclaim starting from the root memcg.  The code is mostly the same for
+> > both cases, except for a few heuristics and statistics that do not
+> > always apply.  They are distinguished by a newly introduced
+> > global_reclaim() primitive.
+> > 
+> > One implication of this change is that pages have to be linked to the
+> > lru lists of the root memcg again, which could be optimized away with
+> > the old scheme.  The costs are not measurable, though, even with
+> > worst-case microbenchmarks.
+> > 
+> > As global reclaim no longer relies on global lru lists, this change is
+> > also in preparation to remove those completely.
+
+[cut diff]
+
+> I didn't look at all, still. You might change the logic later patches.
+> If I understand this patch right, it does round-robin reclaim in all memcgs
+> when global memory pressure happens.
 > 
-> It does, sorry for misparsing it.  The thing that I really hated was
-> the conditional assignment of root.  Can we clean this up somehow
-> by making the caller pass root_mem_cgroup in the case where it
-> passes root right now, or at least always pass NULL when it means
-> root_mem_cgroup.
+> Let's consider this memcg size unbalance case.
 > 
-> Note really that important in the end, it just irked me when I looked
-> over it, especially the conditional assigned of root to root_mem_cgroup,
-> and then a little later checking for the equality of the two.
+> If A-memcg has lots of LRU pages, scanning count for reclaim would be bigger
+> so the chance to reclaim the pages would be higher.
+> If we reclaim A-memcg, we can reclaim the number of pages we want easily and break.
+> Next reclaim will happen at some time and reclaim will start the B-memcg of A-memcg
+> we reclaimed successfully before. But unfortunately B-memcg has small lru so
+> scanning count would be small and small memcg's LRU aging is higher than bigger memcg.
+> It means small memcg's working set can be evicted easily than big memcg.
+> my point is that we should not set next memcg easily.
+> We have to consider memcg LRU size.
 
-Yeah, the assignment is an ugly interface fixup because
-root_mem_cgroup is local to memcontrol.c, as is struct mem_cgroup as a
-whole.
+I may be missing something, but you said yourself that B had a smaller
+scan count compared to A, so the aging speed should be proportional to
+respective size.
 
-I'll look into your suggestion from the other mail of making struct
-mem_cgroup and struct mem_cgroup_per_zone always available, and have
-everyone operate against root_mem_cgroup per default.
+The number of pages scanned per iteration is essentially
 
-> Thinking about it it's probably better left as-is for now to not
-> complicate the series, and maybe revisit it later once things have
-> settled a bit.
+	number of lru pages in memcg-zone >> priority
 
-I may take you up on that if this approach turns out to require more
-change than is sensible to add to this series.
+so we scan relatively more pages from B than from A each round.
 
-I'll at least add an
+It's the exact same logic we have been applying traditionally to
+distribute pressure fairly among zones to equalize their aging speed.
 
-     /* XXX: until vmscan.c knows about root_mem_cgroup */
-
-or so, if this is the case, to explain the temporary nastiness.
+Is that what you meant or are we talking past each other?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
