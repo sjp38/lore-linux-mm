@@ -1,166 +1,154 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id E21F56B004A
-	for <linux-mm@kvack.org>; Thu,  9 Jun 2011 18:35:48 -0400 (EDT)
-Received: from hpaq5.eem.corp.google.com (hpaq5.eem.corp.google.com [172.25.149.5])
-	by smtp-out.google.com with ESMTP id p59MZjuE011116
-	for <linux-mm@kvack.org>; Thu, 9 Jun 2011 15:35:45 -0700
-Received: from pxi15 (pxi15.prod.google.com [10.243.27.15])
-	by hpaq5.eem.corp.google.com with ESMTP id p59MZCGL015461
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 9 Jun 2011 15:35:44 -0700
-Received: by pxi15 with SMTP id 15so1403052pxi.5
-        for <linux-mm@kvack.org>; Thu, 09 Jun 2011 15:35:43 -0700 (PDT)
-Date: Thu, 9 Jun 2011 15:35:42 -0700 (PDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 8745D6B004A
+	for <linux-mm@kvack.org>; Thu,  9 Jun 2011 18:39:17 -0400 (EDT)
+Received: from hpaq7.eem.corp.google.com (hpaq7.eem.corp.google.com [172.25.149.7])
+	by smtp-out.google.com with ESMTP id p59MdCoj027003
+	for <linux-mm@kvack.org>; Thu, 9 Jun 2011 15:39:12 -0700
+Received: from pwi4 (pwi4.prod.google.com [10.241.219.4])
+	by hpaq7.eem.corp.google.com with ESMTP id p59Md8xG013976
+	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 9 Jun 2011 15:39:10 -0700
+Received: by pwi4 with SMTP id 4so1267536pwi.11
+        for <linux-mm@kvack.org>; Thu, 09 Jun 2011 15:39:08 -0700 (PDT)
+Date: Thu, 9 Jun 2011 15:39:07 -0700 (PDT)
 From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH 4/7] tmpfs: remove_shmem_readpage
+Subject: [PATCH 5/7] tmpfs: simplify prealloc_page
 In-Reply-To: <alpine.LSU.2.00.1106091529060.2200@sister.anvils>
-Message-ID: <alpine.LSU.2.00.1106091534470.2200@sister.anvils>
+Message-ID: <alpine.LSU.2.00.1106091535510.2200@sister.anvils>
 References: <alpine.LSU.2.00.1106091529060.2200@sister.anvils>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Shaohua Li <shaohua.li@intel.com>, "Zhang, Yanmin" <yanmin.zhang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Remove that pernicious shmem_readpage() at last: the things we needed
-it for (splice, loop, sendfile, i915 GEM) are now fully taken care of
-by shmem_file_splice_read() and shmem_read_mapping_page_gfp().
+The prealloc_page handling in shmem_getpage_gfp() is unnecessarily
+complicated: first simplify that before going on to filepage/swappage.
 
-This removal clears the way for a simpler shmem_getpage_gfp(), since
-page is never passed in; but leave most of that cleanup until after.
+That's right, don't report ENOMEM when the preallocation fails: we may
+or may not need the page.  But simply report ENOMEM once we find we do
+need it, instead of dropping lock, repeating allocation, unwinding on
+failure etc.  And leave the out label on the fast path, don't goto.
 
-sys_readahead() and sys_fadvise(POSIX_FADV_WILLNEED) will now EINVAL,
-instead of unexpectedly trying to read ahead on tmpfs: if that proves
-to be an issue for someone, then we can either arrange for them to
-return success instead, or try to implement async readahead on tmpfs.
+Fix something that looks like a bug but turns out not to be: set
+PageSwapBacked on prealloc_page before its mem_cgroup_cache_charge(),
+as the removed case was doing.  That's important before adding to LRU
+(determines which LRU the page goes on), and does affect which path it
+takes through memcontrol.c, but in the end MEM_CGROUP_CHANGE_TYPE_
+SHMEM is handled no differently from CACHE.
 
 Signed-off-by: Hugh Dickins <hughd@google.com>
+Cc: Shaohua Li <shaohua.li@intel.com>
+Cc: "Zhang, Yanmin" <yanmin.zhang@intel.com>
+Cc: Tim Chen <tim.c.chen@linux.intel.com>
 ---
- mm/shmem.c |   40 ++++++----------------------------------
- 1 file changed, 6 insertions(+), 34 deletions(-)
+ mm/shmem.c |   59 ++++++++++++---------------------------------------
+ 1 file changed, 15 insertions(+), 44 deletions(-)
 
---- linux.orig/mm/shmem.c	2011-06-09 11:38:22.912896122 -0700
-+++ linux/mm/shmem.c	2011-06-09 11:39:32.361240481 -0700
-@@ -1246,7 +1246,7 @@ static int shmem_getpage_gfp(struct inod
- 	struct address_space *mapping = inode->i_mapping;
- 	struct shmem_inode_info *info = SHMEM_I(inode);
- 	struct shmem_sb_info *sbinfo;
--	struct page *filepage = *pagep;
-+	struct page *filepage;
- 	struct page *swappage;
- 	struct page *prealloc_page = NULL;
- 	swp_entry_t *entry;
-@@ -1255,18 +1255,8 @@ static int shmem_getpage_gfp(struct inod
+--- linux.orig/mm/shmem.c	2011-06-09 11:39:32.361240481 -0700
++++ linux/mm/shmem.c	2011-06-09 11:39:42.845292474 -0700
+@@ -1269,9 +1269,9 @@ repeat:
+ 			goto failed;
+ 		radix_tree_preload_end();
+ 		if (sgp != SGP_READ && !prealloc_page) {
+-			/* We don't care if this fails */
+ 			prealloc_page = shmem_alloc_page(gfp, info, idx);
+ 			if (prealloc_page) {
++				SetPageSwapBacked(prealloc_page);
+ 				if (mem_cgroup_cache_charge(prealloc_page,
+ 						current->mm, GFP_KERNEL)) {
+ 					page_cache_release(prealloc_page);
+@@ -1403,7 +1403,8 @@ repeat:
+ 			goto repeat;
+ 		}
+ 		spin_unlock(&info->lock);
+-	} else {
++
++	} else if (prealloc_page) {
+ 		shmem_swp_unmap(entry);
+ 		sbinfo = SHMEM_SB(inode->i_sb);
+ 		if (sbinfo->max_blocks) {
+@@ -1419,41 +1420,8 @@ repeat:
+ 		if (!filepage) {
+ 			int ret;
  
- 	if (idx >= SHMEM_MAX_INDEX)
- 		return -EFBIG;
+-			if (!prealloc_page) {
+-				spin_unlock(&info->lock);
+-				filepage = shmem_alloc_page(gfp, info, idx);
+-				if (!filepage) {
+-					spin_lock(&info->lock);
+-					shmem_unacct_blocks(info->flags, 1);
+-					shmem_free_blocks(inode, 1);
+-					spin_unlock(&info->lock);
+-					error = -ENOMEM;
+-					goto failed;
+-				}
+-				SetPageSwapBacked(filepage);
 -
--	/*
--	 * Normally, filepage is NULL on entry, and either found
--	 * uptodate immediately, or allocated and zeroed, or read
--	 * in under swappage, which is then assigned to filepage.
--	 * But shmem_readpage (required for splice) passes in a locked
--	 * filepage, which may be found not uptodate by other callers
--	 * too, and may need to be copied from the swappage read in.
--	 */
- repeat:
--	if (!filepage)
--		filepage = find_lock_page(mapping, idx);
-+	filepage = find_lock_page(mapping, idx);
- 	if (filepage && PageUptodate(filepage))
- 		goto done;
- 	if (!filepage) {
-@@ -1513,8 +1503,7 @@ nospace:
- 	 * Perhaps the page was brought in from swap between find_lock_page
- 	 * and taking info->lock?  We allow for that at add_to_page_cache_lru,
- 	 * but must also avoid reporting a spurious ENOSPC while working on a
--	 * full tmpfs.  (When filepage has been passed in to shmem_getpage, it
--	 * is already in page cache, which prevents this race from occurring.)
-+	 * full tmpfs.
- 	 */
- 	if (!filepage) {
- 		struct page *page = find_get_page(mapping, idx);
-@@ -1527,7 +1516,7 @@ nospace:
- 	spin_unlock(&info->lock);
- 	error = -ENOSPC;
- failed:
--	if (*pagep != filepage) {
-+	if (filepage) {
+-				/*
+-				 * Precharge page while we can wait, compensate
+-				 * after
+-				 */
+-				error = mem_cgroup_cache_charge(filepage,
+-					current->mm, GFP_KERNEL);
+-				if (error) {
+-					page_cache_release(filepage);
+-					spin_lock(&info->lock);
+-					shmem_unacct_blocks(info->flags, 1);
+-					shmem_free_blocks(inode, 1);
+-					spin_unlock(&info->lock);
+-					filepage = NULL;
+-					goto failed;
+-				}
+-
+-				spin_lock(&info->lock);
+-			} else {
+-				filepage = prealloc_page;
+-				prealloc_page = NULL;
+-				SetPageSwapBacked(filepage);
+-			}
++			filepage = prealloc_page;
++			prealloc_page = NULL;
+ 
+ 			entry = shmem_swp_alloc(info, idx, sgp, gfp);
+ 			if (IS_ERR(entry))
+@@ -1492,11 +1460,19 @@ repeat:
+ 		SetPageUptodate(filepage);
+ 		if (sgp == SGP_DIRTY)
+ 			set_page_dirty(filepage);
++	} else {
++		error = -ENOMEM;
++		goto out;
+ 	}
+ done:
+ 	*pagep = filepage;
+ 	error = 0;
+-	goto out;
++out:
++	if (prealloc_page) {
++		mem_cgroup_uncharge_cache_page(prealloc_page);
++		page_cache_release(prealloc_page);
++	}
++	return error;
+ 
+ nospace:
+ 	/*
+@@ -1520,12 +1496,7 @@ failed:
  		unlock_page(filepage);
  		page_cache_release(filepage);
  	}
-@@ -1673,19 +1662,6 @@ static struct inode *shmem_get_inode(str
- static const struct inode_operations shmem_symlink_inode_operations;
- static const struct inode_operations shmem_symlink_inline_operations;
- 
--/*
-- * Normally tmpfs avoids the use of shmem_readpage and shmem_write_begin;
-- * but providing them allows a tmpfs file to be used for splice, sendfile, and
-- * below the loop driver, in the generic fashion that many filesystems support.
-- */
--static int shmem_readpage(struct file *file, struct page *page)
--{
--	struct inode *inode = page->mapping->host;
--	int error = shmem_getpage(inode, page->index, &page, SGP_CACHE, NULL);
--	unlock_page(page);
+-out:
+-	if (prealloc_page) {
+-		mem_cgroup_uncharge_cache_page(prealloc_page);
+-		page_cache_release(prealloc_page);
+-	}
 -	return error;
--}
--
- static int
- shmem_write_begin(struct file *file, struct address_space *mapping,
- 			loff_t pos, unsigned len, unsigned flags,
-@@ -1693,7 +1669,6 @@ shmem_write_begin(struct file *file, str
- {
- 	struct inode *inode = mapping->host;
- 	pgoff_t index = pos >> PAGE_CACHE_SHIFT;
--	*pagep = NULL;
- 	return shmem_getpage(inode, index, pagep, SGP_WRITE, NULL);
++	goto out;
  }
  
-@@ -1893,7 +1868,6 @@ static ssize_t shmem_file_splice_read(st
- 	error = 0;
- 
- 	while (spd.nr_pages < nr_pages) {
--		page = NULL;
- 		error = shmem_getpage(inode, index, &page, SGP_CACHE, NULL);
- 		if (error)
- 			break;
-@@ -1916,7 +1890,6 @@ static ssize_t shmem_file_splice_read(st
- 		page = spd.pages[page_nr];
- 
- 		if (!PageUptodate(page) || page->mapping != mapping) {
--			page = NULL;
- 			error = shmem_getpage(inode, index, &page,
- 							SGP_CACHE, NULL);
- 			if (error)
-@@ -2125,7 +2098,7 @@ static int shmem_symlink(struct inode *d
- 	int error;
- 	int len;
- 	struct inode *inode;
--	struct page *page = NULL;
-+	struct page *page;
- 	char *kaddr;
- 	struct shmem_inode_info *info;
- 
-@@ -2803,7 +2776,6 @@ static const struct address_space_operat
- 	.writepage	= shmem_writepage,
- 	.set_page_dirty	= __set_page_dirty_no_writeback,
- #ifdef CONFIG_TMPFS
--	.readpage	= shmem_readpage,
- 	.write_begin	= shmem_write_begin,
- 	.write_end	= shmem_write_end,
- #endif
-@@ -3175,7 +3147,7 @@ struct page *shmem_read_mapping_page_gfp
- {
- #ifdef CONFIG_SHMEM
- 	struct inode *inode = mapping->host;
--	struct page *page = NULL;
-+	struct page *page;
- 	int error;
- 
- 	BUG_ON(mapping->a_ops != &shmem_aops);
+ static int shmem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
