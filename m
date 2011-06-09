@@ -1,135 +1,466 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 2218F6B004A
-	for <linux-mm@kvack.org>; Thu,  9 Jun 2011 19:41:16 -0400 (EDT)
-Received: by qwa26 with SMTP id 26so1379101qwa.14
-        for <linux-mm@kvack.org>; Thu, 09 Jun 2011 16:41:12 -0700 (PDT)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 221E16B004A
+	for <linux-mm@kvack.org>; Thu,  9 Jun 2011 19:42:17 -0400 (EDT)
+Received: from kpbe11.cbf.corp.google.com (kpbe11.cbf.corp.google.com [172.25.105.75])
+	by smtp-out.google.com with ESMTP id p59NgBnT003123
+	for <linux-mm@kvack.org>; Thu, 9 Jun 2011 16:42:12 -0700
+Received: from qwi2 (qwi2.prod.google.com [10.241.195.2])
+	by kpbe11.cbf.corp.google.com with ESMTP id p59NfIiR015558
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 9 Jun 2011 16:42:10 -0700
+Received: by qwi2 with SMTP id 2so1487239qwi.22
+        for <linux-mm@kvack.org>; Thu, 09 Jun 2011 16:42:10 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20110609172347.GB20333@cmpxchg.org>
-References: <1306909519-7286-1-git-send-email-hannes@cmpxchg.org>
-	<1306909519-7286-3-git-send-email-hannes@cmpxchg.org>
-	<20110609154839.GF4878@barrios-laptop>
-	<20110609172347.GB20333@cmpxchg.org>
-Date: Fri, 10 Jun 2011 08:41:10 +0900
-Message-ID: <BANLkTimD-pecv82qAZkyxA9nLQWbcDry-w@mail.gmail.com>
-Subject: Re: [patch 2/8] mm: memcg-aware global reclaim
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <BANLkTikCfWhoLNK__ringzy7KjKY5ZEtNb3QTuX1jJ53wNNysA@mail.gmail.com>
+References: <20110609212956.GA2319@redhat.com>
+	<BANLkTikCfWhoLNK__ringzy7KjKY5ZEtNb3QTuX1jJ53wNNysA@mail.gmail.com>
+Date: Thu, 9 Jun 2011 16:42:09 -0700
+Message-ID: <BANLkTikF7=qfXAmrNzyMSmWm7Neh6yMAB8EbBp7oLcfQmrbDjA@mail.gmail.com>
+Subject: Re: 3.0rc2 oops in mem_cgroup_from_task
+From: Ying Han <yinghan@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Ying Han <yinghan@google.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dave Jones <davej@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Ying Han <yinghan@google.com>, Hugh Dickins <hughd@google.com>
 
-On Fri, Jun 10, 2011 at 2:23 AM, Johannes Weiner <hannes@cmpxchg.org> wrote=
-:
-> On Fri, Jun 10, 2011 at 12:48:39AM +0900, Minchan Kim wrote:
->> On Wed, Jun 01, 2011 at 08:25:13AM +0200, Johannes Weiner wrote:
->> > When a memcg hits its hard limit, hierarchical target reclaim is
->> > invoked, which goes through all contributing memcgs in the hierarchy
->> > below the offending memcg and reclaims from the respective per-memcg
->> > lru lists. =C2=A0This distributes pressure fairly among all involved
->> > memcgs, and pages are aged with respect to their list buddies.
->> >
->> > When global memory pressure arises, however, all this is dropped
->> > overboard. =C2=A0Pages are reclaimed based on global lru lists that ha=
-ve
->> > nothing to do with container-internal age, and some memcgs may be
->> > reclaimed from much more than others.
->> >
->> > This patch makes traditional global reclaim consider container
->> > boundaries and no longer scan the global lru lists. =C2=A0For each zon=
-e
->> > scanned, the memcg hierarchy is walked and pages are reclaimed from
->> > the per-memcg lru lists of the respective zone. =C2=A0For now, the
->> > hierarchy walk is bounded to one full round-trip through the
->> > hierarchy, or if the number of reclaimed pages reach the overall
->> > reclaim target, whichever comes first.
->> >
->> > Conceptually, global memory pressure is then treated as if the root
->> > memcg had hit its limit. =C2=A0Since all existing memcgs contribute to=
- the
->> > usage of the root memcg, global reclaim is nothing more than target
->> > reclaim starting from the root memcg. =C2=A0The code is mostly the sam=
-e for
->> > both cases, except for a few heuristics and statistics that do not
->> > always apply. =C2=A0They are distinguished by a newly introduced
->> > global_reclaim() primitive.
->> >
->> > One implication of this change is that pages have to be linked to the
->> > lru lists of the root memcg again, which could be optimized away with
->> > the old scheme. =C2=A0The costs are not measurable, though, even with
->> > worst-case microbenchmarks.
->> >
->> > As global reclaim no longer relies on global lru lists, this change is
->> > also in preparation to remove those completely.
+++cc Hugh who might have seen similar crashes on his machine.
+
+--Ying
+
+On Thu, Jun 9, 2011 at 3:47 PM, Ying Han <yinghan@google.com> wrote:
+> ++cc to more mm folks.
 >
-> [cut diff]
+> --Ying
 >
->> I didn't look at all, still. You might change the logic later patches.
->> If I understand this patch right, it does round-robin reclaim in all mem=
-cgs
->> when global memory pressure happens.
+> On Thu, Jun 9, 2011 at 2:29 PM, Dave Jones <davej@redhat.com> wrote:
 >>
->> Let's consider this memcg size unbalance case.
+>> I just got the oops below while building a kernel.
+>> When it oopsed, the kernel modesetting oops-on-framebuffer thing
+>> happened, and the box wedged solid for about a minute.
+>> Then it woke up, and I was able to ctrl-f1 back to my X session
+>> to capture the dmesg. =A0 The stuff that follows the oops looks
+>> quite disturbing, but I think it's from hanging with interrupts off
+>> for a minute.
 >>
->> If A-memcg has lots of LRU pages, scanning count for reclaim would be bi=
-gger
->> so the chance to reclaim the pages would be higher.
->> If we reclaim A-memcg, we can reclaim the number of pages we want easily=
- and break.
->> Next reclaim will happen at some time and reclaim will start the B-memcg=
- of A-memcg
->> we reclaimed successfully before. But unfortunately B-memcg has small lr=
-u so
->> scanning count would be small and small memcg's LRU aging is higher than=
- bigger memcg.
->> It means small memcg's working set can be evicted easily than big memcg.
->> my point is that we should not set next memcg easily.
->> We have to consider memcg LRU size.
+>> =A0 =A0 =A0 =A0Dave
+>>
+>> general protection fault: 0000 [#1] PREEMPT SMP
+>> CPU 1
+>> Modules linked in: nfs fscache fuse nfsd lockd nfs_acl auth_rpcgss sunrp=
+c cpufreq_ondemand acpi_cpufreq freq_table mperf ip6t_REJECT nf_conntrack_i=
+pv6 nf_defrag_ipv6 ip6table_filter ip6_tables btusb bluetooth arc4 zaurus d=
+ell_wmi sparse_keymap snd_usb_audio cdc_ether usbnet cdc_wdm mii snd_usbmid=
+i_lib snd_rawmidi snd_hda_codec_hdmi snd_hda_codec_idt cdc_acm dell_laptop =
+uvcvideo snd_hda_intel snd_hda_codec dcdbas snd_hwdep videodev microcode v4=
+l2_compat_ioctl32 snd_seq snd_seq_device snd_pcm joydev iTCO_wdt i2c_i801 i=
+TCO_vendor_support iwlagn pcspkr snd_timer mac80211 snd soundcore snd_page_=
+alloc cfg80211 tg3 rfkill wmi virtio_net kvm_intel kvm ipv6 xts gf128mul dm=
+_crypt i915 drm_kms_helper drm i2c_algo_bit i2c_core video [last unloaded: =
+scsi_wait_scan]
+>>
+>> Pid: 34, comm: khugepaged Not tainted 3.0.0-rc2+ #72 Dell Inc. Adamo 13 =
+=A0 /0N70T0
+>> RIP: 0010:[<ffffffff81138590>] =A0[<ffffffff81138590>] task_subsys_state=
+.constprop.30+0x16/0x78
+>> RSP: 0018:ffff880135c97bd0 =A0EFLAGS: 00010286
+>> RAX: 6b6b6b6b6b6b6b6b RBX: ffff880013c48000 RCX: 0000000000000000
+>> RDX: 0000000000000246 RSI: ffffffff81a26610 RDI: ffff880013c48000
+>> RBP: ffff880135c97be0 R08: 0000000000000001 R09: 0000000000000000
+>> R10: ffff880135c97cf0 R11: 0000000005491edb R12: ffff880013c48000
+>> R13: 0000000000000200 R14: ffff880135c97ce8 R15: 0000000000000200
+>> FS: =A00000000000000000(0000) GS:ffff88013fc00000(0000) knlGS:0000000000=
+000000
+>> CS: =A00010 DS: 0000 ES: 0000 CR0: 000000008005003b
+>> CR2: 000000338f21400a CR3: 000000004f64c000 CR4: 00000000000406e0
+>> DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+>> DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
+>> Process khugepaged (pid: 34, threadinfo ffff880135c96000, task ffff88013=
+5c98000)
+>> Stack:
+>> =A0ffff880013c48000 0000000000000200 ffff880135c97bf0 ffffffff81139792
+>> =A0ffff880135c97cc0 ffffffff8113a75a ffff880135c96000 ffff88013fc00000
+>> =A0ffff880135c98000 ffff880135c97c78 ffff880135c98000 00000000001d2c40
+>> Call Trace:
+>> =A0[<ffffffff81139792>] mem_cgroup_from_task+0x15/0x17
+>> =A0[<ffffffff8113a75a>] __mem_cgroup_try_charge+0x148/0x4b4
+>> =A0[<ffffffff810493f3>] ? need_resched+0x23/0x2d
+>> =A0[<ffffffff814cbf43>] ? preempt_schedule+0x46/0x4f
+>> =A0[<ffffffff8113afe8>] mem_cgroup_charge_common+0x9a/0xce
+>> =A0[<ffffffff8113b6d1>] mem_cgroup_newpage_charge+0x5d/0x5f
+>> =A0[<ffffffff81134024>] khugepaged+0x5da/0xfaf
+>> =A0[<ffffffff81078ea0>] ? __init_waitqueue_head+0x4b/0x4b
+>> =A0[<ffffffff81133a4a>] ? add_mm_counter.constprop.5+0x13/0x13
+>> =A0[<ffffffff81078625>] kthread+0xa8/0xb0
+>> =A0[<ffffffff814d13e8>] ? sub_preempt_count+0xa1/0xb4
+>> =A0[<ffffffff814d5664>] kernel_thread_helper+0x4/0x10
+>> =A0[<ffffffff814ce858>] ? retint_restore_args+0x13/0x13
+>> =A0[<ffffffff8107857d>] ? __init_kthread_worker+0x5a/0x5a
+>> =A0[<ffffffff814d5660>] ? gs_change+0x13/0x13
+>> Code: ff 84 c0 74 b5 eb 03 45 31 e4 5a 5b 4c 89 e0 41 5c 41 5d 5d c3 55 =
+48 89 e5 41 54 53 66 66 66 66 90 48 8b 87 90 12 00 00 49 89 fc
+>> =A08b 58 50 e8 b4 d8 f3 ff 85 c0 74 4d 80 3d 8c e5 6a 01 00 75
+>> RIP =A0[<ffffffff81138590>] task_subsys_state.constprop.30+0x16/0x78
+>> =A0RSP <ffff880135c97bd0>
+>> psmouse.c: TouchPad at isa0060/serio1/input0 lost synchronization, throw=
+ing 1 bytes away.
+>> iwlagn 0000:04:00.0: Queue 4 stuck for 10000 ms.
+>> iwlagn 0000:04:00.0: On demand firmware reload
+>> sd 0:0:0:0: [sda] Unhandled error code
+>> sd 0:0:0:0: [sda] =A0Result: hostbyte=3DDID_OK driverbyte=3DDRIVER_TIMEO=
+UT
+>> sd 0:0:0:0: [sda] CDB: Write(10): 2a 00 15 db c6 48 00 00 18 00
+>> end_request: I/O error, dev sda, sector 366724680
+>> Buffer I/O error on device dm-3, logical block 44179657
+>> Buffer I/O error on device dm-3, logical block 44179658
+>> Buffer I/O error on device dm-3, logical block 44179659
+>> EXT4-fs warning (device dm-3): ext4_end_bio:242: I/O error writing to in=
+ode 11031834 (offset 0 size 12288 starting block 44179657)
+>> ieee80211 phy0: Hardware restart was requested
+>> sd 0:0:0:0: [sda] Unhandled error code
+>> sd 0:0:0:0: [sda] =A0Result: hostbyte=3DDID_OK driverbyte=3DDRIVER_TIMEO=
+UT
+>> sd 0:0:0:0: [sda] CDB: Write(10): 2a 00 15 db c7 80 00 00 18 00
+>> end_request: I/O error, dev sda, sector 366724992
+>> Buffer I/O error on device dm-3, logical block 44179696
+>> Buffer I/O error on device dm-3, logical block 44179697
+>> Buffer I/O error on device dm-3, logical block 44179698
+>> EXT4-fs warning (device dm-3): ext4_end_bio:242: I/O error writing to in=
+ode 11031834 (offset 12288 size 12288 starting block 44179696)
+>> sd 0:0:0:0: [sda] Unhandled error code
+>> sd 0:0:0:0: [sda] =A0Result: hostbyte=3DDID_OK driverbyte=3DDRIVER_TIMEO=
+UT
+>> sd 0:0:0:0: [sda] CDB: Write(10): 2a 00 15 db c7 b8 00 00 18 00
+>> end_request: I/O error, dev sda, sector 366725048
+>> Buffer I/O error on device dm-3, logical block 44179703
+>> Buffer I/O error on device dm-3, logical block 44179704
+>> Buffer I/O error on device dm-3, logical block 44179705
+>> EXT4-fs warning (device dm-3): ext4_end_bio:242: I/O error writing to in=
+ode 11031834 (offset 24576 size 12288 starting block 44179703)
+>> ---[ end trace 95e652595eaf01aa ]---
+>> psmouse.c: resync failed, issuing reconnect request
+>> BUG: sleeping function called from invalid context at kernel/mutex.c:271
+>> in_atomic(): 0, irqs_disabled(): 0, pid: 34, name: khugepaged
+>> sd 0:0:0:0: [sda] Unhandled error code
+>> sd 0:0:0:0: [sda] =A0Result: hostbyte=3DDID_OK driverbyte=3DDRIVER_TIMEO=
+UT
+>> sd 0:0:0:0: [sda] CDB: Write(10): 2a 00 15 17 ee a0 00 00 50 00
+>> end_request: I/O error, dev sda, sector 353889952
+>> Buffer I/O error on device dm-3, logical block 42575316
+>> Buffer I/O error on device dm-3, logical block 42575317
+>> Buffer I/O error on device dm-3, logical block 42575318
+>> Buffer I/O error on device dm-3, logical block 42575319
+>> Buffer I/O error on device dm-3, logical block 42575320
+>> Buffer I/O error on device dm-3, logical block 42575321
+>> Buffer I/O error on device dm-3, logical block 42575322
+>> Buffer I/O error on device dm-3, logical block 42575323
+>> Buffer I/O error on device dm-3, logical block 42575324
+>> Buffer I/O error on device dm-3, logical block 42575325
+>> EXT4-fs warning (device dm-3): ext4_end_bio:242: I/O error writing to in=
+ode 10629148 (offset 0 size 40960 starting block 42575316)
+>> sd 0:0:0:0: [sda] Unhandled error code
+>> sd 0:0:0:0: [sda] =A0Result: hostbyte=3DDID_OK driverbyte=3DDRIVER_TIMEO=
+UT
+>> sd 0:0:0:0: [sda] CDB: Write(10): 2a 00 15 d3 f8 40 00 00 20 00
+>> end_request: I/O error, dev sda, sector 366213184
+>> Buffer I/O error on device dm-3, logical block 44115720
+>> Buffer I/O error on device dm-3, logical block 44115721
+>> Buffer I/O error on device dm-3, logical block 44115722
+>> Buffer I/O error on device dm-3, logical block 44115723
+>> EXT4-fs warning (device dm-3): ext4_end_bio:242: I/O error writing to in=
+ode 11031693 (offset 0 size 16384 starting block 44115720)
+>> sd 0:0:0:0: [sda] Unhandled error code
+>> sd 0:0:0:0: [sda] =A0Result: hostbyte=3DDID_OK driverbyte=3DDRIVER_TIMEO=
+UT
+>> sd 0:0:0:0: [sda] CDB: Write(10): 2a 00 15 cf 69 80 00 00 10 00
+>> end_request: I/O error, dev sda, sector 365914496
+>> Buffer I/O error on device dm-3, logical block 44078384
+>> Buffer I/O error on device dm-3, logical block 44078385
+>> EXT4-fs warning (device dm-3): ext4_end_bio:242: I/O error writing to in=
+ode 11031978 (offset 0 size 8192 starting block 44078384)
+>> sd 0:0:0:0: [sda] Unhandled error code
+>> sd 0:0:0:0: [sda] =A0Result: hostbyte=3DDID_OK driverbyte=3DDRIVER_TIMEO=
+UT
+>> sd 0:0:0:0: [sda] CDB: Write(10): 2a 00 15 12 d5 00 00 00 18 00
+>> end_request: I/O error, dev sda, sector 353555712
+>> Buffer I/O error on device dm-3, logical block 42533536
+>> Buffer I/O error on device dm-3, logical block 42533537
+>> Buffer I/O error on device dm-3, logical block 42533538
+>> EXT4-fs warning (device dm-3): ext4_end_bio:242: I/O error writing to in=
+ode 10628547 (offset 0 size 12288 starting block 42533536)
+>> sd 0:0:0:0: [sda] Unhandled error code
+>> sd 0:0:0:0: [sda] =A0Result: hostbyte=3DDID_OK driverbyte=3DDRIVER_TIMEO=
+UT
+>> sd 0:0:0:0: [sda] CDB: Write(10): 2a 00 15 d3 fb a0 00 00 20 00
+>> end_request: I/O error, dev sda, sector 366214048
+>> Buffer I/O error on device dm-3, logical block 44115828
+>> Buffer I/O error on device dm-3, logical block 44115829
+>> Buffer I/O error on device dm-3, logical block 44115830
+>> Buffer I/O error on device dm-3, logical block 44115831
+>> EXT4-fs warning (device dm-3): ext4_end_bio:242: I/O error writing to in=
+ode 11031956 (offset 0 size 16384 starting block 44115828)
+>> sd 0:0:0:0: [sda] Unhandled error code
+>> sd 0:0:0:0: [sda] =A0Result: hostbyte=3DDID_OK driverbyte=3DDRIVER_TIMEO=
+UT
+>> sd 0:0:0:0: [sda] CDB: Write(10): 2a 00 15 dd dd 80 00 00 28 00
+>> end_request: I/O error, dev sda, sector 366861696
+>> Buffer I/O error on device dm-3, logical block 44196784
+>> Buffer I/O error on device dm-3, logical block 44196785
+>> Buffer I/O error on device dm-3, logical block 44196786
+>> Buffer I/O error on device dm-3, logical block 44196787
+>> Buffer I/O error on device dm-3, logical block 44196788
+>> EXT4-fs warning (device dm-3): ext4_end_bio:242: I/O error writing to in=
+ode 11031940 (offset 0 size 20480 starting block 44196784)
+>> sd 0:0:0:0: [sda] Unhandled error code
+>> sd 0:0:0:0: [sda] =A0Result: hostbyte=3DDID_OK driverbyte=3DDRIVER_TIMEO=
+UT
+>> sd 0:0:0:0: [sda] CDB: Write(10): 2a 00 15 93 f1 78 00 00 18 00
+>> end_request: I/O error, dev sda, sector 362017144
+>> Buffer I/O error on device dm-3, logical block 43591215
+>> Buffer I/O error on device dm-3, logical block 43591216
+>> Buffer I/O error on device dm-3, logical block 43591217
+>> EXT4-fs warning (device dm-3): ext4_end_bio:242: I/O error writing to in=
+ode 10887935 (offset 0 size 12288 starting block 43591215)
+>> sd 0:0:0:0: [sda] Unhandled error code
+>> sd 0:0:0:0: [sda] =A0Result: hostbyte=3DDID_OK driverbyte=3DDRIVER_TIMEO=
+UT
+>> sd 0:0:0:0: [sda] CDB: Write(10): 2a 00 15 92 dc 60 00 00 10 00
+>> end_request: I/O error, dev sda, sector 361946208
+>> Buffer I/O error on device dm-3, logical block 43582348
+>> Buffer I/O error on device dm-3, logical block 43582349
+>> EXT4-fs warning (device dm-3): ext4_end_bio:242: I/O error writing to in=
+ode 10887935 (offset 12288 size 8192 starting block 43582348)
+>> sd 0:0:0:0: [sda] Unhandled error code
+>> sd 0:0:0:0: [sda] =A0Result: hostbyte=3DDID_OK driverbyte=3DDRIVER_TIMEO=
+UT
+>> sd 0:0:0:0: [sda] CDB: Write(10): 2a 00 15 dd dd a8 00 00 28 00
+>> end_request: I/O error, dev sda, sector 366861736
+>> Buffer I/O error on device dm-3, logical block 44196789
+>> Buffer I/O error on device dm-3, logical block 44196790
+>> Buffer I/O error on device dm-3, logical block 44196791
+>> Buffer I/O error on device dm-3, logical block 44196792
+>> Buffer I/O error on device dm-3, logical block 44196793
+>> EXT4-fs warning (device dm-3): ext4_end_bio:242: I/O error writing to in=
+ode 11031841 (offset 0 size 20480 starting block 44196789)
+>> sd 0:0:0:0: [sda] Unhandled error code
+>> sd 0:0:0:0: [sda] =A0Result: hostbyte=3DDID_OK driverbyte=3DDRIVER_TIMEO=
+UT
+>> sd 0:0:0:0: [sda] CDB: Write(10): 2a 00 15 dd dd d0 00 00 48 00
+>> end_request: I/O error, dev sda, sector 366861776
+>> Buffer I/O error on device dm-3, logical block 44196794
+>> Buffer I/O error on device dm-3, logical block 44196795
+>> Buffer I/O error on device dm-3, logical block 44196796
+>> Buffer I/O error on device dm-3, logical block 44196797
+>> Buffer I/O error on device dm-3, logical block 44196798
+>> Buffer I/O error on device dm-3, logical block 44196799
+>> Buffer I/O error on device dm-3, logical block 44196800
+>> Buffer I/O error on device dm-3, logical block 44196801
+>> Buffer I/O error on device dm-3, logical block 44196802
+>> EXT4-fs warning (device dm-3): ext4_end_bio:242: I/O error writing to in=
+ode 11031992 (offset 0 size 36864 starting block 44196794)
+>> sd 0:0:0:0: [sda] Unhandled error code
+>> sd 0:0:0:0: [sda] =A0Result: hostbyte=3DDID_OK driverbyte=3DDRIVER_TIMEO=
+UT
+>> sd 0:0:0:0: [sda] CDB: Write(10): 2a 00 15 17 ee f0 00 00 48 00
+>> end_request: I/O error, dev sda, sector 353890032
+>> Buffer I/O error on device dm-3, logical block 42575326
+>> Buffer I/O error on device dm-3, logical block 42575327
+>> Buffer I/O error on device dm-3, logical block 42575328
+>> Buffer I/O error on device dm-3, logical block 42575329
+>> Buffer I/O error on device dm-3, logical block 42575330
+>> Buffer I/O error on device dm-3, logical block 42575331
+>> Buffer I/O error on device dm-3, logical block 42575332
+>> Buffer I/O error on device dm-3, logical block 42575333
+>> Buffer I/O error on device dm-3, logical block 42575334
+>> EXT4-fs warning (device dm-3): ext4_end_bio:242: I/O error writing to in=
+ode 10629931 (offset 0 size 36864 starting block 42575326)
+>> sd 0:0:0:0: [sda] Unhandled error code
+>> sd 0:0:0:0: [sda] =A0Result: hostbyte=3DDID_OK driverbyte=3DDRIVER_TIMEO=
+UT
+>> sd 0:0:0:0: [sda] CDB: Write(10): 2a 00 15 d3 fd c0 00 00 20 00
+>> end_request: I/O error, dev sda, sector 366214592
+>> Buffer I/O error on device dm-3, logical block 44115896
+>> Buffer I/O error on device dm-3, logical block 44115897
+>> Buffer I/O error on device dm-3, logical block 44115898
+>> Buffer I/O error on device dm-3, logical block 44115899
+>> EXT4-fs warning (device dm-3): ext4_end_bio:242: I/O error writing to in=
+ode 11011057 (offset 0 size 16384 starting block 44115896)
+>> sd 0:0:0:0: [sda] Unhandled error code
+>> sd 0:0:0:0: [sda] =A0Result: hostbyte=3DDID_OK driverbyte=3DDRIVER_TIMEO=
+UT
+>> sd 0:0:0:0: [sda] CDB: Write(10): 2a 00 15 cf 24 50 00 00 08 00
+>> end_request: I/O error, dev sda, sector 365896784
+>> Buffer I/O error on device dm-3, logical block 44076170
+>> EXT4-fs warning (device dm-3): ext4_end_bio:242: I/O error writing to in=
+ode 11032013 (offset 0 size 4096 starting block 44076170)
+>> sd 0:0:0:0: [sda] Unhandled error code
+>> sd 0:0:0:0: [sda] =A0Result: hostbyte=3DDID_OK driverbyte=3DDRIVER_TIMEO=
+UT
+>> sd 0:0:0:0: [sda] CDB: Write(10): 2a 00 16 cf dc 20 00 00 08 00
+>> end_request: I/O error, dev sda, sector 382721056
+>> Buffer I/O error on device dm-3, logical block 46179204
+>> EXT4-fs warning (device dm-3): ext4_end_bio:242: I/O error writing to in=
+ode 11535009 (offset 16384 size 4096 starting block 46179204)
+>> sd 0:0:0:0: [sda] Unhandled error code
+>> sd 0:0:0:0: [sda] =A0Result: hostbyte=3DDID_OK driverbyte=3DDRIVER_TIMEO=
+UT
+>> sd 0:0:0:0: [sda] CDB: Write(10): 2a 00 16 cf dc 40 00 00 08 00
+>> end_request: I/O error, dev sda, sector 382721088
+>> Buffer I/O error on device dm-3, logical block 46179208
+>> EXT4-fs warning (device dm-3): ext4_end_bio:242: I/O error writing to in=
+ode 11535009 (offset 32768 size 4096 starting block 46179208)
+>> sd 0:0:0:0: [sda] Unhandled error code
+>> sd 0:0:0:0: [sda] =A0Result: hostbyte=3DDID_OK driverbyte=3DDRIVER_TIMEO=
+UT
+>> sd 0:0:0:0: [sda] CDB: Write(10): 2a 00 16 cf dc 60 00 00 08 00
+>> end_request: I/O error, dev sda, sector 382721120
+>> Buffer I/O error on device dm-3, logical block 46179212
+>> EXT4-fs warning (device dm-3): ext4_end_bio:242: I/O error writing to in=
+ode 11535009 (offset 49152 size 4096 starting block 46179212)
+>> sd 0:0:0:0: [sda] Unhandled error code
+>> sd 0:0:0:0: [sda] =A0Result: hostbyte=3DDID_OK driverbyte=3DDRIVER_TIMEO=
+UT
+>> sd 0:0:0:0: [sda] CDB: Write(10): 2a 00 16 cf dc 78 00 00 08 00
+>> end_request: I/O error, dev sda, sector 382721144
+>> Buffer I/O error on device dm-3, logical block 46179215
+>> EXT4-fs warning (device dm-3): ext4_end_bio:242: I/O error writing to in=
+ode 11535009 (offset 61440 size 4096 starting block 46179215)
+>> sd 0:0:0:0: [sda] Unhandled error code
+>> sd 0:0:0:0: [sda] =A0Result: hostbyte=3DDID_OK driverbyte=3DDRIVER_TIMEO=
+UT
+>> sd 0:0:0:0: [sda] CDB: Write(10): 2a 00 16 cf dc 90 00 00 10 00
+>> end_request: I/O error, dev sda, sector 382721168
+>> Buffer I/O error on device dm-3, logical block 46179218
+>> Buffer I/O error on device dm-3, logical block 46179219
+>> EXT4-fs warning (device dm-3): ext4_end_bio:242: I/O error writing to in=
+ode 11535009 (offset 73728 size 8192 starting block 46179218)
+>> sd 0:0:0:0: [sda] Unhandled error code
+>> sd 0:0:0:0: [sda] =A0Result: hostbyte=3DDID_OK driverbyte=3DDRIVER_TIMEO=
+UT
+>> sd 0:0:0:0: [sda] CDB: Write(10): 2a 00 16 cf dc c8 00 00 08 00
+>> end_request: I/O error, dev sda, sector 382721224
+>> Buffer I/O error on device dm-3, logical block 46179225
+>> EXT4-fs warning (device dm-3): ext4_end_bio:242: I/O error writing to in=
+ode 11535009 (offset 102400 size 4096 starting block 46179225)
+>> sd 0:0:0:0: [sda] Unhandled error code
+>> sd 0:0:0:0: [sda] =A0Result: hostbyte=3DDID_OK driverbyte=3DDRIVER_TIMEO=
+UT
+>> sd 0:0:0:0: [sda] CDB: Write(10): 2a 00 16 cf dc f8 00 00 08 00
+>> end_request: I/O error, dev sda, sector 382721272
+>> Buffer I/O error on device dm-3, logical block 46179231
+>> EXT4-fs warning (device dm-3): ext4_end_bio:242: I/O error writing to in=
+ode 11535009 (offset 126976 size 4096 starting block 46179231)
+>> sd 0:0:0:0: [sda] Unhandled error code
+>> sd 0:0:0:0: [sda] =A0Result: hostbyte=3DDID_OK driverbyte=3DDRIVER_TIMEO=
+UT
+>> sd 0:0:0:0: [sda] CDB: Write(10): 2a 00 15 10 af 80 00 00 10 00
+>> end_request: I/O error, dev sda, sector 353415040
+>> Buffer I/O error on device dm-3, logical block 42515952
+>> Buffer I/O error on device dm-3, logical block 42515953
+>> EXT4-fs warning (device dm-3): ext4_end_bio:242: I/O error writing to in=
+ode 10628554 (offset 0 size 8192 starting block 42515952)
+>> sd 0:0:0:0: [sda] Unhandled error code
+>> sd 0:0:0:0: [sda] =A0Result: hostbyte=3DDID_OK driverbyte=3DDRIVER_TIMEO=
+UT
+>> sd 0:0:0:0: [sda] CDB: Write(10): 2a 00 15 d3 fe e0 00 00 20 00
+>> end_request: I/O error, dev sda, sector 366214880
+>> Buffer I/O error on device dm-3, logical block 44115932
+>> Buffer I/O error on device dm-3, logical block 44115933
+>> Buffer I/O error on device dm-3, logical block 44115934
+>> Buffer I/O error on device dm-3, logical block 44115935
+>> EXT4-fs warning (device dm-3): ext4_end_bio:242: I/O error writing to in=
+ode 11031999 (offset 0 size 16384 starting block 44115932)
+>> sd 0:0:0:0: [sda] Unhandled error code
+>> sd 0:0:0:0: [sda] =A0Result: hostbyte=3DDID_OK driverbyte=3DDRIVER_TIMEO=
+UT
+>> sd 0:0:0:0: [sda] CDB: Write(10): 2a 00 15 91 6e f0 00 00 10 00
+>> end_request: I/O error, dev sda, sector 361852656
+>> Buffer I/O error on device dm-3, logical block 43570654
+>> Buffer I/O error on device dm-3, logical block 43570655
+>> EXT4-fs warning (device dm-3): ext4_end_bio:242: I/O error writing to in=
+ode 10896269 (offset 0 size 8192 starting block 43570654)
+>> sd 0:0:0:0: [sda] Unhandled error code
+>> sd 0:0:0:0: [sda] =A0Result: hostbyte=3DDID_OK driverbyte=3DDRIVER_TIMEO=
+UT
+>> sd 0:0:0:0: [sda] CDB: Write(10): 2a 00 15 10 b2 20 00 00 10 00
+>> end_request: I/O error, dev sda, sector 353415712
+>> Buffer I/O error on device dm-3, logical block 42516036
+>> Buffer I/O error on device dm-3, logical block 42516037
+>> EXT4-fs warning (device dm-3): ext4_end_bio:242: I/O error writing to in=
+ode 10629161 (offset 0 size 8192 starting block 42516036)
+>> sd 0:0:0:0: [sda] Unhandled error code
+>> sd 0:0:0:0: [sda] =A0Result: hostbyte=3DDID_OK driverbyte=3DDRIVER_TIMEO=
+UT
+>> sd 0:0:0:0: [sda] CDB: Write(10): 2a 00 15 92 00 60 00 00 20 00
+>> end_request: I/O error, dev sda, sector 361889888
+>> Buffer I/O error on device dm-3, logical block 43575308
+>> Buffer I/O error on device dm-3, logical block 43575309
+>> Buffer I/O error on device dm-3, logical block 43575310
+>> Buffer I/O error on device dm-3, logical block 43575311
+>> EXT4-fs warning (device dm-3): ext4_end_bio:242: I/O error writing to in=
+ode 10896254 (offset 0 size 16384 starting block 43575308)
+>> sd 0:0:0:0: [sda] Unhandled error code
+>> sd 0:0:0:0: [sda] =A0INFO: lockdep is turned off.
+>> Pid: 34, comm: khugepaged Tainted: G =A0 =A0 =A0D =A0 =A0 3.0.0-rc2+ #72
+>> Call Trace:
+>> =A0[<ffffffff8104d276>] __might_sleep+0x112/0x117
+>> =A0[<ffffffff814cca48>] mutex_lock_nested+0x25/0x40
+>> =A0[<ffffffff810ee9b7>] perf_event_exit_task+0x2d/0x1cd
+>> =A0[<ffffffff8105ea1f>] do_exit+0x353/0x7fa
+>> =A0[<ffffffff8105c569>] ? kmsg_dump+0x89/0x13c
+>> =A0[<ffffffff814cf78d>] oops_end+0xbc/0xc5
+>> =A0[<ffffffff8100d087>] die+0x5a/0x63
+>> =A0[<ffffffff814cf18f>] do_general_protection+0x128/0x131
+>> =A0[<ffffffff814cead5>] general_protection+0x25/0x30
+>> =A0[<ffffffff81138590>] ? task_subsys_state.constprop.30+0x16/0x78
+>> =A0[<ffffffff81139792>] mem_cgroup_from_task+0x15/0x17
+>> =A0[<ffffffff8113a75a>] __mem_cgroup_try_charge+0x148/0x4b4
+>> =A0[<ffffffff810493f3>] ? need_resched+0x23/0x2d
+>> =A0[<ffffffff814cbf43>] ? preempt_schedule+0x46/0x4f
+>> =A0[<ffffffff8113afe8>] mem_cgroup_charge_common+0x9a/0xce
+>> =A0[<ffffffff8113b6d1>] mem_cgroup_newpage_charge+0x5d/0x5f
+>> =A0[<ffffffff81134024>] khugepaged+0x5da/0xfaf
+>> =A0[<ffffffff81078ea0>] ? __init_waitqueue_head+0x4b/0x4b
+>> =A0[<ffffffff81133a4a>] ? add_mm_counter.constprop.5+0x13/0x13
+>> =A0[<ffffffff81078625>] kthread+0xa8/0xb0
+>> =A0[<ffffffff814d13e8>] ? sub_preempt_count+0xa1/0xb4
+>> =A0[<ffffffff814d5664>] kernel_thread_helper+0x4/0x10
+>> =A0[<ffffffff814ce858>] ? retint_restore_args+0x13/0x13
+>> =A0[<ffffffff8107857d>] ? __init_kthread_worker+0x5a/0x5a
+>> =A0[<ffffffff814d5660>] ? gs_change+0x13/0x13
+>> Result: hostbyte=3DDID_OK driverbyte=3DDRIVER_TIMEOUT
+>> sd 0:0:0:0: [sda] CDB: Write(10): 2a 00 15 94 1b 40 00 00 18 00
+>> end_request: I/O error, dev sda, sector 362027840
+>> Buffer I/O error on device dm-3, logical block 43592552
+>> Buffer I/O error on device dm-3, logical block 43592553
+>> Buffer I/O error on device dm-3, logical block 43592554
+>> EXT4-fs warning (device dm-3): ext4_end_bio:242: I/O error writing to in=
+ode 10896287 (offset 0 size 12288 starting block 43592552)
+>> sd 0:0:0:0: [sda] Unhandled error code
+>> sd 0:0:0:0: [sda] =A0Result: hostbyte=3DDID_OK driverbyte=3DDRIVER_TIMEO=
+UT
+>> sd 0:0:0:0: [sda] CDB: Write(10): 2a 00 15 93 06 b0 00 00 10 00
+>> end_request: I/O error, dev sda, sector 361957040
+>> Buffer I/O error on device dm-3, logical block 43583702
+>> Buffer I/O error on device dm-3, logical block 43583703
+>> EXT4-fs warning (device dm-3): ext4_end_bio:242: I/O error writing to in=
+ode 10896287 (offset 12288 size 8192 starting block 43583702)
+>> sd 0:0:0:0: [sda] Unhandled error code
+>> sd 0:0:0:0: [sda] =A0Result: hostbyte=3DDID_OK driverbyte=3DDRIVER_TIMEO=
+UT
+>> sd 0:0:0:0: [sda] CDB: Write(10): 2a 00 15 d3 ff 40 00 00 20 00
+>> end_request: I/O error, dev sda, sector 366214976
+>> Buffer I/O error on device dm-3, logical block 44115944
+>> Buffer I/O error on device dm-3, logical block 44115945
+>> Buffer I/O error on device dm-3, logical block 44115946
+>> Buffer I/O error on device dm-3, logical block 44115947
+>> EXT4-fs warning (device dm-3): ext4_end_bio:242: I/O error writing to in=
+ode 11032040 (offset 0 size 16384 starting block 44115944)
+>> JBD2: Detected IO errors while flushing file data on dm-3-8
+>>
 >
-> I may be missing something, but you said yourself that B had a smaller
-> scan count compared to A, so the aging speed should be proportional to
-> respective size.
->
-> The number of pages scanned per iteration is essentially
->
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0number of lru pages in memcg-zone >> priority
->
-> so we scan relatively more pages from B than from A each round.
->
-> It's the exact same logic we have been applying traditionally to
-> distribute pressure fairly among zones to equalize their aging speed.
->
-> Is that what you meant or are we talking past each other?
-
-True if we can reclaim pages easily(ie, default priority) in all memcgs.
-But let's think about it.
-Normally direct reclaim path reclaims only SWAP_CLUSTER_MAX size.
-If we have small memcg, scan window size would be smaller and it is
-likely to be hard reclaim in the priority compared to bigger memcg. It
-means it can raise priority easily in small memcg and even it might
-call lumpy or compaction in case of global memory pressure. It can
-churn all LRU order. :(
-Of course, we have bailout routine so we might make such unfair aging
-effect small but it's not same with old behavior(ie, single LRU list,
-fair aging POV global according to priority raise)
-
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org. =C2=A0For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom internet charges in Canada: sign http://stopthemeter=
-.ca/
-> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
->
-
-
-
---=20
-Kind regards,
-Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
