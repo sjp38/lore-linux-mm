@@ -1,55 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 8EFF86B004A
-	for <linux-mm@kvack.org>; Fri, 10 Jun 2011 13:16:50 -0400 (EDT)
-Received: by fxm18 with SMTP id 18so2481897fxm.14
-        for <linux-mm@kvack.org>; Fri, 10 Jun 2011 10:16:47 -0700 (PDT)
-Content-Type: text/plain; charset=utf-8; format=flowed; delsp=yes
-Subject: Re: [PATCH 02/10] lib: genalloc: Generic allocator improvements
-References: <1307699698-29369-1-git-send-email-m.szyprowski@samsung.com>
- <1307699698-29369-3-git-send-email-m.szyprowski@samsung.com>
- <20110610122451.15af86d1@lxorguk.ukuu.org.uk>
- <000c01cc2769$02669b70$0733d250$%szyprowski@samsung.com>
- <20110610135217.701a2fd2@lxorguk.ukuu.org.uk>
-Date: Fri, 10 Jun 2011 19:16:45 +0200
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id CFE8E6B004A
+	for <linux-mm@kvack.org>; Fri, 10 Jun 2011 13:19:42 -0400 (EDT)
+Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
+	by e3.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p5AGvEFq008494
+	for <linux-mm@kvack.org>; Fri, 10 Jun 2011 12:57:14 -0400
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p5AHJfoN048984
+	for <linux-mm@kvack.org>; Fri, 10 Jun 2011 13:19:41 -0400
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p5AHJe17030452
+	for <linux-mm@kvack.org>; Fri, 10 Jun 2011 13:19:41 -0400
+Date: Fri, 10 Jun 2011 10:19:39 -0700
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: [PATCH 00/10] mm: Linux VM Infrastructure to support Memory
+ Power Management
+Message-ID: <20110610171939.GE2230@linux.vnet.ibm.com>
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <1306499498-14263-1-git-send-email-ankita@in.ibm.com>
+ <20110528005640.9076c0b1.akpm@linux-foundation.org>
+ <20110609185259.GA29287@linux.vnet.ibm.com>
+ <BANLkTinxeeSby_+tta8EhzCg3VbD6+=g+g@mail.gmail.com>
+ <20110610151121.GA2230@linux.vnet.ibm.com>
+ <20110610155954.GA25774@srcf.ucam.org>
+ <20110610165529.GC2230@linux.vnet.ibm.com>
+ <20110610170535.GC25774@srcf.ucam.org>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7bit
-From: "Michal Nazarewicz" <mina86@mina86.com>
-Message-ID: <op.vwvd972b3l0zgt@mnazarewicz-glaptop>
-In-Reply-To: <20110610135217.701a2fd2@lxorguk.ukuu.org.uk>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110610170535.GC25774@srcf.ucam.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Andrew Morton' <akpm@linux-foundation.org>, 'KAMEZAWA Hiroyuki' <kamezawa.hiroyu@jp.fujitsu.com>, 'Ankita Garg' <ankita@in.ibm.com>, 'Daniel Walker' <dwalker@codeaurora.org>, 'Johan MOSSBERG' <johan.xx.mossberg@stericsson.com>, 'Mel Gorman' <mel@csn.ul.ie>, 'Arnd
- Bergmann' <arnd@arndb.de>, 'Jesse Barker' <jesse.barker@linaro.org>
+To: Matthew Garrett <mjg59@srcf.ucam.org>
+Cc: Kyungmin Park <kmpark@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Ankita Garg <ankita@in.ibm.com>, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-pm@lists.linux-foundation.org, svaidy@linux.vnet.ibm.com, thomas.abraham@linaro.org
 
-On Fri, 10 Jun 2011 14:52:17 +0200, Alan Cox <alan@lxorguk.ukuu.org.uk>  
-wrote:
+On Fri, Jun 10, 2011 at 06:05:35PM +0100, Matthew Garrett wrote:
+> On Fri, Jun 10, 2011 at 09:55:29AM -0700, Paul E. McKenney wrote:
+> > On Fri, Jun 10, 2011 at 04:59:54PM +0100, Matthew Garrett wrote:
+> > > For the server case, the low hanging fruit would seem to be 
+> > > finer-grained self-refresh. At best we seem to be able to do that on a 
+> > > per-CPU socket basis right now. The difference between active and 
+> > > self-refresh would seem to be much larger than the difference between 
+> > > self-refresh and powered down.
+> > 
+> > By "finer-grained self-refresh" you mean turning off refresh for banks
+> > of memory that are not being used, right?  If so, this is supported by
+> > the memory-regions support provided, at least assuming that the regions
+> > can be aligned with the self-refresh boundaries.
+> 
+> I mean at the hardware level. As far as I know, the best we can do at 
+> the moment is to put an entire node into self refresh when the CPU hits 
+> package C6.
 
->> I plan to replace it with lib/bitmap.c bitmap_* based allocator  
->> (similar like
->> it it is used by dma_declare_coherent_memory() and friends in
->> drivers/base/dma-coherent.c). We need something really simple for CMA  
->> area
->> management.
->>
->> IMHO allocate_resource and friends a bit too heavy here, but good to  
->> know
->> that such allocator also exists.
->
-> Not sure I'd class allocate_resource as heavyweight but providing it's
-> using something that already exists rather than inventing yet another
-> allocator.
+But this depends on the type of system and CPU family, right?  If you
+can say, which hardware are you thinking of?  (I am thinking of ARM.)
 
-genalloc is already in the kernel and is used in a few places, so we
-either let everyone use it as they see fit or we deprecate the library.
-If we don't deprecate it I see no reason why CMA should not use it.
-
--- 
-Best regards,                                         _     _
-.o. | Liege of Serenely Enlightened Majesty of      o' \,=./ `o
-..o | Computer Science,  Michal "mina86" Nazarewicz    (o o)
-ooo +-----<email/xmpp: mnazarewicz@google.com>-----ooO--(_)--Ooo--
+							Thanx, Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
