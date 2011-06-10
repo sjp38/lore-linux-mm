@@ -1,41 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 0F95C6B004A
-	for <linux-mm@kvack.org>; Fri, 10 Jun 2011 07:48:29 -0400 (EDT)
-Date: Fri, 10 Jun 2011 14:48:21 +0300
-From: Pasi =?iso-8859-1?Q?K=E4rkk=E4inen?= <pasik@iki.fi>
-Subject: Re: [Xen-devel] Possible shadow bug
-Message-ID: <20110610114821.GB32595@reaktio.net>
-References: <4DE8D50F.1090406@redhat.com> <BANLkTinMamg_qesEffGxKu3QkT=zyQ2MRQ@mail.gmail.com> <4DEE26E7.2060201@redhat.com> <20110608123527.479e6991.kamezawa.hiroyu@jp.fujitsu.com> <4DF0801F.9050908@redhat.com> <alpine.DEB.2.00.1106091311530.12963@kaball-desktop> <20110609150133.GF5098@whitby.uk.xensource.com> <4DF0F90D.4010900@redhat.com> <20110610100139.GG5098@whitby.uk.xensource.com> <20110610101011.GH5098@whitby.uk.xensource.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 2E37A6B004A
+	for <linux-mm@kvack.org>; Fri, 10 Jun 2011 07:50:48 -0400 (EDT)
+Message-ID: <4DF20511.8000206@hitachi.com>
+Date: Fri, 10 Jun 2011 20:50:41 +0900
+From: Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110610101011.GH5098@whitby.uk.xensource.com>
+Subject: Re: [PATCH v4 3.0-rc2-tip 20/22] 20: perf: perf interface for uprobes
+References: <20110607125804.28590.92092.sendpatchset@localhost6.localdomain6> <20110607130216.28590.5724.sendpatchset@localhost6.localdomain6>
+In-Reply-To: <20110607130216.28590.5724.sendpatchset@localhost6.localdomain6>
+Content-Type: text/plain; charset=ISO-2022-JP
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tim Deegan <Tim.Deegan@citrix.com>
-Cc: Igor Mammedov <imammedo@redhat.com>, Stefano@phlegethon.org, Paul Menage <menage@google.com>, xen-devel@lists.xensource.com, Keir Fraser <keir@xen.org>, Stabellini <stefano.stabellini@eu.citrix.com>, "containers@lists.linux-foundation.org" <containers@lists.linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Keir Fraser <keir.xen@gmail.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, KAMEZAWA@phlegethon.org, Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>
+To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Andi Kleen <andi@firstfloor.org>, Thomas Gleixner <tglx@linutronix.de>, Jonathan Corbet <corbet@lwn.net>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, LKML <linux-kernel@vger.kernel.org>, yrl.pp-manager.tt@hitachi.com
 
-On Fri, Jun 10, 2011 at 11:10:11AM +0100, Tim Deegan wrote:
-> At 11:01 +0100 on 10 Jun (1307703699), Tim Deegan wrote:
-> > Actually, looking at the disassembly you posted, it looks more like it
-> > might be an emulator bug in Xen; if Xen finds itself emulating the IMUL
-> > instruction and either gets the logic wrong or does the memory access
-> > wrong, it could cause that failure.  And one reason that Xen emulates
-> > instructions is if the memory operand is on a pagetable that's shadowed
-> > (which might be a page that was recently a pagetable). 
-> > 
-> > ISTR that even though the RHEL xen reports a 3.0.x version it has quite
-> > a lot of backports in it.  Does it have this patch?
-> > http://hg.uk.xensource.com/xen-3.1-testing.hg/rev/e8fca4c42d05
+(2011/06/07 22:02), Srikar Dronamraju wrote:
+> Enhances perf probe to user space executables and libraries.
+> Provides very basic support for uprobes.
 > 
-> Oops, that URL doesn't work; I meant this:
-> http://xenbits.xen.org/xen-3.1-testing.hg/rev/e8fca4c42d05
-> 
+> [ Probing a function in the executable using function name  ]
+> -------------------------------------------------------------
+> [root@localhost ~]# perf probe -u zfree@/bin/zsh
 
-RHEL5 Xen (hypervisor) reports version as 3.1.2-xyz..
+Hmm, here, I have concern about the interface inconsistency
+of the probe point syntax.
 
--- Pasi
+Since perf probe already supports debuginfo analysis,
+it accepts following syntax;
+
+[EVENT=]FUNC[@SRC][:RLN|+OFFS|%return|;PTN] [ARG ...]
+
+Thus, The "@" should take a source file path, not binary path.
+
+I think -u option should have a path of the target binary, as below
+
+# perf probe -u /bin/zsh -a zfree
+
+This will allow perf-probe to support user-space debuginfo
+analysis. With it, we can do as below;
+
+# perf probe -u /bin/zsh -a zfree@foo/bar.c:10
+
+Please try to update tools/perf/Documentation/perf-probe.txt too,
+then you'll see how the new syntax is different from current one :)
+
+Thanks,
+
+
+
+-- 
+Masami HIRAMATSU
+Software Platform Research Dept. Linux Technology Center
+Hitachi, Ltd., Yokohama Research Laboratory
+E-mail: masami.hiramatsu.pt@hitachi.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
