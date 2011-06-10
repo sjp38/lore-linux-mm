@@ -1,58 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 60BEC6B004A
-	for <linux-mm@kvack.org>; Fri, 10 Jun 2011 08:40:54 -0400 (EDT)
-Date: Fri, 10 Jun 2011 13:40:34 +0100
-From: Tim Deegan <Tim.Deegan@citrix.com>
-Subject: Re: [Xen-devel] Possible shadow bug
-Message-ID: <20110610124034.GI5098@whitby.uk.xensource.com>
-References: <BANLkTinMamg_qesEffGxKu3QkT=zyQ2MRQ@mail.gmail.com>
- <4DEE26E7.2060201@redhat.com>
- <20110608123527.479e6991.kamezawa.hiroyu@jp.fujitsu.com>
- <4DF0801F.9050908@redhat.com>
- <alpine.DEB.2.00.1106091311530.12963@kaball-desktop>
- <20110609150133.GF5098@whitby.uk.xensource.com>
- <4DF0F90D.4010900@redhat.com>
- <20110610100139.GG5098@whitby.uk.xensource.com>
- <20110610101011.GH5098@whitby.uk.xensource.com>
- <20110610114821.GB32595@reaktio.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="iso-8859-1"
-Content-Disposition: inline
-In-Reply-To: <20110610114821.GB32595@reaktio.net>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id B89D66B004A
+	for <linux-mm@kvack.org>; Fri, 10 Jun 2011 08:50:58 -0400 (EDT)
+Date: Fri, 10 Jun 2011 13:52:17 +0100
+From: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Subject: Re: [PATCH 02/10] lib: genalloc: Generic allocator improvements
+Message-ID: <20110610135217.701a2fd2@lxorguk.ukuu.org.uk>
+In-Reply-To: <000c01cc2769$02669b70$0733d250$%szyprowski@samsung.com>
+References: <1307699698-29369-1-git-send-email-m.szyprowski@samsung.com>
+	<1307699698-29369-3-git-send-email-m.szyprowski@samsung.com>
+	<20110610122451.15af86d1@lxorguk.ukuu.org.uk>
+	<000c01cc2769$02669b70$0733d250$%szyprowski@samsung.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pasi K?rkk?inen <pasik@iki.fi>
-Cc: xen-devel@lists.xensource.com, Keir Fraser <keir@xen.org>, Stabellini <stefano.stabellini@eu.citrix.com>, "containers@lists.linux-foundation.org" <containers@lists.linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Keir Fraser <keir.xen@gmail.com>, Igor Mammedov <imammedo@redhat.com>, Paul Menage <menage@google.com>, Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>
+To: Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, 'Michal Nazarewicz' <mina86@mina86.com>, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Andrew Morton' <akpm@linux-foundation.org>, 'KAMEZAWA Hiroyuki' <kamezawa.hiroyu@jp.fujitsu.com>, 'Ankita Garg' <ankita@in.ibm.com>, 'Daniel Walker' <dwalker@codeaurora.org>, 'Johan MOSSBERG' <johan.xx.mossberg@stericsson.com>, 'Mel Gorman' <mel@csn.ul.ie>, 'Arnd
+ Bergmann' <arnd@arndb.de>, 'Jesse Barker' <jesse.barker@linaro.org>
 
-At 14:48 +0300 on 10 Jun (1307717301), Pasi K?rkk?inen wrote:
-> On Fri, Jun 10, 2011 at 11:10:11AM +0100, Tim Deegan wrote:
-> > At 11:01 +0100 on 10 Jun (1307703699), Tim Deegan wrote:
-> > > ISTR that even though the RHEL xen reports a 3.0.x version it has quite
-> > > a lot of backports in it.  Does it have this patch?
-> > > http://hg.uk.xensource.com/xen-3.1-testing.hg/rev/e8fca4c42d05
-> > 
-> > Oops, that URL doesn't work; I meant this:
-> > http://xenbits.xen.org/xen-3.1-testing.hg/rev/e8fca4c42d05
-> > 
+> I plan to replace it with lib/bitmap.c bitmap_* based allocator (similar like
+> it it is used by dma_declare_coherent_memory() and friends in
+> drivers/base/dma-coherent.c). We need something really simple for CMA area
+> management. 
 > 
-> RHEL5 Xen (hypervisor) reports version as 3.1.2-xyz..
+> IMHO allocate_resource and friends a bit too heavy here, but good to know 
+> that such allocator also exists.
 
-Based on a quick scrobble through the CentOS 5.6 SRPMs it looks like a
-3.1.0 hypervisor with a bunch of extra patches, but not this one.  This
-is very likely the cause of the crash in mem_cgroup_create(), and
-probably the corruptions too.  That would explain why they didn't happen
-on a 4.0.x SLES11 Xen, but not really why the original patch in this
-thread made it go away.
+Not sure I'd class allocate_resource as heavyweight but providing it's
+using something that already exists rather than inventing yet another
+allocator.
 
-Cheers,
+This wants dealing with before it goes upstream though so the chaneges in
+lib/*c etc never have to reach mainline and then get changed back.
 
-Tim.
-
--- 
-Tim Deegan <Tim.Deegan@citrix.com>
-Principal Software Engineer, Xen Platform Team
-Citrix Systems UK Ltd.  (Company #02937203, SL9 0BG)
+Alan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
