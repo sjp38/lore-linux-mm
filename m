@@ -1,7 +1,7 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id DF9FB900117
-	for <linux-mm@kvack.org>; Fri, 10 Jun 2011 05:55:04 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 2E7A26B0083
+	for <linux-mm@kvack.org>; Fri, 10 Jun 2011 05:55:05 -0400 (EDT)
 Received: from spt2.w1.samsung.com (mailout1.w1.samsung.com [210.118.77.11])
  by mailout1.w1.samsung.com
  (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
@@ -9,14 +9,14 @@ Received: from spt2.w1.samsung.com (mailout1.w1.samsung.com [210.118.77.11])
  Fri, 10 Jun 2011 10:55:00 +0100 (BST)
 Received: from linux.samsung.com ([106.116.38.10])
  by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0LMK00E5IJJM9K@spt2.w1.samsung.com> for
+ 2004)) with ESMTPA id <0LMK002N4JJNBS@spt2.w1.samsung.com> for
  linux-mm@kvack.org; Fri, 10 Jun 2011 10:54:59 +0100 (BST)
-Date: Fri, 10 Jun 2011 11:54:49 +0200
+Date: Fri, 10 Jun 2011 11:54:51 +0200
 From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: [PATCH 01/10] lib: bitmap: Added alignment offset for
- bitmap_find_next_zero_area()
+Subject: [PATCH 03/10] mm: move some functions from memory_hotplug.c to
+ page_isolation.c
 In-reply-to: <1307699698-29369-1-git-send-email-m.szyprowski@samsung.com>
-Message-id: <1307699698-29369-2-git-send-email-m.szyprowski@samsung.com>
+Message-id: <1307699698-29369-4-git-send-email-m.szyprowski@samsung.com>
 MIME-version: 1.0
 Content-type: TEXT/PLAIN
 Content-transfer-encoding: 7BIT
@@ -26,120 +26,298 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org
 Cc: Michal Nazarewicz <mina86@mina86.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ankita Garg <ankita@in.ibm.com>, Daniel Walker <dwalker@codeaurora.org>, Johan MOSSBERG <johan.xx.mossberg@stericsson.com>, Mel Gorman <mel@csn.ul.ie>, Arnd Bergmann <arnd@arndb.de>, Jesse Barker <jesse.barker@linaro.org>
 
-From: Michal Nazarewicz <m.nazarewicz@samsung.com>
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-This commit adds a bitmap_find_next_zero_area_off() function which
-works like bitmap_find_next_zero_area() function expect it allows an
-offset to be specified when alignment is checked.  This lets caller
-request a bit such that its number plus the offset is aligned
-according to the mask.
+Memory hotplug is a logic for making pages unused in the specified
+range of pfn. So, some of core logics can be used for other purpose
+as allocating a very large contigous memory block.
 
+This patch moves some functions from mm/memory_hotplug.c to
+mm/page_isolation.c. This helps adding a function for large-alloc in
+page_isolation.c with memory-unplug technique.
+
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+[m.nazarewicz: reworded commit message]
 Signed-off-by: Michal Nazarewicz <m.nazarewicz@samsung.com>
 Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
+[m.szyprowski: rebased and updated to Linux v3.0-rc1]
 Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
 CC: Michal Nazarewicz <mina86@mina86.com>
 ---
- include/linux/bitmap.h |   24 +++++++++++++++++++-----
- lib/bitmap.c           |   22 ++++++++++++----------
- 2 files changed, 31 insertions(+), 15 deletions(-)
+ include/linux/page-isolation.h |    7 +++
+ mm/memory_hotplug.c            |  111 --------------------------------------
+ mm/page_isolation.c            |  115 ++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 122 insertions(+), 111 deletions(-)
 
-diff --git a/include/linux/bitmap.h b/include/linux/bitmap.h
-index dcafe0b..50e2c16 100644
---- a/include/linux/bitmap.h
-+++ b/include/linux/bitmap.h
-@@ -45,6 +45,7 @@
-  * bitmap_set(dst, pos, nbits)			Set specified bit area
-  * bitmap_clear(dst, pos, nbits)		Clear specified bit area
-  * bitmap_find_next_zero_area(buf, len, pos, n, mask)	Find bit free area
-+ * bitmap_find_next_zero_area_off(buf, len, pos, n, mask)	as above
-  * bitmap_shift_right(dst, src, n, nbits)	*dst = *src >> n
-  * bitmap_shift_left(dst, src, n, nbits)	*dst = *src << n
-  * bitmap_remap(dst, src, old, new, nbits)	*dst = map(old, new)(src)
-@@ -114,11 +115,24 @@ extern int __bitmap_weight(const unsigned long *bitmap, int bits);
+diff --git a/include/linux/page-isolation.h b/include/linux/page-isolation.h
+index 051c1b1..58cdbac 100644
+--- a/include/linux/page-isolation.h
++++ b/include/linux/page-isolation.h
+@@ -33,5 +33,12 @@ test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn);
+ extern int set_migratetype_isolate(struct page *page);
+ extern void unset_migratetype_isolate(struct page *page);
  
- extern void bitmap_set(unsigned long *map, int i, int len);
- extern void bitmap_clear(unsigned long *map, int start, int nr);
--extern unsigned long bitmap_find_next_zero_area(unsigned long *map,
--					 unsigned long size,
--					 unsigned long start,
--					 unsigned int nr,
--					 unsigned long align_mask);
++/*
++ * For migration.
++ */
 +
-+extern unsigned long bitmap_find_next_zero_area_off(unsigned long *map,
-+						    unsigned long size,
-+						    unsigned long start,
-+						    unsigned int nr,
-+						    unsigned long align_mask,
-+						    unsigned long align_offset);
-+
-+static inline unsigned long
-+bitmap_find_next_zero_area(unsigned long *map,
-+			   unsigned long size,
-+			   unsigned long start,
-+			   unsigned int nr,
-+			   unsigned long align_mask)
-+{
-+	return bitmap_find_next_zero_area_off(map, size, start, nr,
-+					      align_mask, 0);
-+}
++int test_pages_in_a_zone(unsigned long start_pfn, unsigned long end_pfn);
++unsigned long scan_lru_pages(unsigned long start, unsigned long end);
++int do_migrate_range(unsigned long start_pfn, unsigned long end_pfn);
  
- extern int bitmap_scnprintf(char *buf, unsigned int len,
- 			const unsigned long *src, int nbits);
-diff --git a/lib/bitmap.c b/lib/bitmap.c
-index 41baf02..bad4f20 100644
---- a/lib/bitmap.c
-+++ b/lib/bitmap.c
-@@ -315,30 +315,32 @@ void bitmap_clear(unsigned long *map, int start, int nr)
+ #endif
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 9f64637..aee6dc0 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -637,117 +637,6 @@ int is_mem_section_removable(unsigned long start_pfn, unsigned long nr_pages)
  }
- EXPORT_SYMBOL(bitmap_clear);
- 
--/*
-+/**
-  * bitmap_find_next_zero_area - find a contiguous aligned zero area
-  * @map: The address to base the search on
-  * @size: The bitmap size in bits
-  * @start: The bitnumber to start searching at
-  * @nr: The number of zeroed bits we're looking for
-  * @align_mask: Alignment mask for zero area
-+ * @align_offset: Alignment offset for zero area.
-  *
-  * The @align_mask should be one less than a power of 2; the effect is that
-- * the bit offset of all zero areas this function finds is multiples of that
-- * power of 2. A @align_mask of 0 means no alignment is required.
-+ * the bit offset of all zero areas this function finds plus @align_offset
-+ * is multiple of that power of 2.
-  */
--unsigned long bitmap_find_next_zero_area(unsigned long *map,
--					 unsigned long size,
--					 unsigned long start,
--					 unsigned int nr,
--					 unsigned long align_mask)
-+unsigned long bitmap_find_next_zero_area_off(unsigned long *map,
-+					     unsigned long size,
-+					     unsigned long start,
-+					     unsigned int nr,
-+					     unsigned long align_mask,
-+					     unsigned long align_offset)
- {
- 	unsigned long index, end, i;
- again:
- 	index = find_next_zero_bit(map, size, start);
- 
- 	/* Align allocation */
--	index = __ALIGN_MASK(index, align_mask);
-+	index = __ALIGN_MASK(index + align_offset, align_mask) - align_offset;
- 
- 	end = index + nr;
- 	if (end > size)
-@@ -350,7 +352,7 @@ again:
- 	}
- 	return index;
- }
--EXPORT_SYMBOL(bitmap_find_next_zero_area);
-+EXPORT_SYMBOL(bitmap_find_next_zero_area_off);
  
  /*
-  * Bitmap printing & parsing functions: first version by Bill Irwin,
+- * Confirm all pages in a range [start, end) is belongs to the same zone.
+- */
+-static int test_pages_in_a_zone(unsigned long start_pfn, unsigned long end_pfn)
+-{
+-	unsigned long pfn;
+-	struct zone *zone = NULL;
+-	struct page *page;
+-	int i;
+-	for (pfn = start_pfn;
+-	     pfn < end_pfn;
+-	     pfn += MAX_ORDER_NR_PAGES) {
+-		i = 0;
+-		/* This is just a CONFIG_HOLES_IN_ZONE check.*/
+-		while ((i < MAX_ORDER_NR_PAGES) && !pfn_valid_within(pfn + i))
+-			i++;
+-		if (i == MAX_ORDER_NR_PAGES)
+-			continue;
+-		page = pfn_to_page(pfn + i);
+-		if (zone && page_zone(page) != zone)
+-			return 0;
+-		zone = page_zone(page);
+-	}
+-	return 1;
+-}
+-
+-/*
+- * Scanning pfn is much easier than scanning lru list.
+- * Scan pfn from start to end and Find LRU page.
+- */
+-static unsigned long scan_lru_pages(unsigned long start, unsigned long end)
+-{
+-	unsigned long pfn;
+-	struct page *page;
+-	for (pfn = start; pfn < end; pfn++) {
+-		if (pfn_valid(pfn)) {
+-			page = pfn_to_page(pfn);
+-			if (PageLRU(page))
+-				return pfn;
+-		}
+-	}
+-	return 0;
+-}
+-
+-static struct page *
+-hotremove_migrate_alloc(struct page *page, unsigned long private, int **x)
+-{
+-	/* This should be improooooved!! */
+-	return alloc_page(GFP_HIGHUSER_MOVABLE);
+-}
+-
+-#define NR_OFFLINE_AT_ONCE_PAGES	(256)
+-static int
+-do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
+-{
+-	unsigned long pfn;
+-	struct page *page;
+-	int move_pages = NR_OFFLINE_AT_ONCE_PAGES;
+-	int not_managed = 0;
+-	int ret = 0;
+-	LIST_HEAD(source);
+-
+-	for (pfn = start_pfn; pfn < end_pfn && move_pages > 0; pfn++) {
+-		if (!pfn_valid(pfn))
+-			continue;
+-		page = pfn_to_page(pfn);
+-		if (!get_page_unless_zero(page))
+-			continue;
+-		/*
+-		 * We can skip free pages. And we can only deal with pages on
+-		 * LRU.
+-		 */
+-		ret = isolate_lru_page(page);
+-		if (!ret) { /* Success */
+-			put_page(page);
+-			list_add_tail(&page->lru, &source);
+-			move_pages--;
+-			inc_zone_page_state(page, NR_ISOLATED_ANON +
+-					    page_is_file_cache(page));
+-
+-		} else {
+-#ifdef CONFIG_DEBUG_VM
+-			printk(KERN_ALERT "removing pfn %lx from LRU failed\n",
+-			       pfn);
+-			dump_page(page);
+-#endif
+-			put_page(page);
+-			/* Because we don't have big zone->lock. we should
+-			   check this again here. */
+-			if (page_count(page)) {
+-				not_managed++;
+-				ret = -EBUSY;
+-				break;
+-			}
+-		}
+-	}
+-	if (!list_empty(&source)) {
+-		if (not_managed) {
+-			putback_lru_pages(&source);
+-			goto out;
+-		}
+-		/* this function returns # of failed pages */
+-		ret = migrate_pages(&source, hotremove_migrate_alloc, 0,
+-								true, true);
+-		if (ret)
+-			putback_lru_pages(&source);
+-	}
+-out:
+-	return ret;
+-}
+-
+-/*
+  * remove from free_area[] and mark all as Reserved.
+  */
+ static int
+diff --git a/mm/page_isolation.c b/mm/page_isolation.c
+index 4ae42bb..15b41ec 100644
+--- a/mm/page_isolation.c
++++ b/mm/page_isolation.c
+@@ -5,6 +5,9 @@
+ #include <linux/mm.h>
+ #include <linux/page-isolation.h>
+ #include <linux/pageblock-flags.h>
++#include <linux/memcontrol.h>
++#include <linux/migrate.h>
++#include <linux/mm_inline.h>
+ #include "internal.h"
+ 
+ static inline struct page *
+@@ -139,3 +142,115 @@ int test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn)
+ 	spin_unlock_irqrestore(&zone->lock, flags);
+ 	return ret ? 0 : -EBUSY;
+ }
++
++
++/*
++ * Confirm all pages in a range [start, end) is belongs to the same zone.
++ */
++int test_pages_in_a_zone(unsigned long start_pfn, unsigned long end_pfn)
++{
++	unsigned long pfn;
++	struct zone *zone = NULL;
++	struct page *page;
++	int i;
++	for (pfn = start_pfn;
++	     pfn < end_pfn;
++	     pfn += MAX_ORDER_NR_PAGES) {
++		i = 0;
++		/* This is just a CONFIG_HOLES_IN_ZONE check.*/
++		while ((i < MAX_ORDER_NR_PAGES) && !pfn_valid_within(pfn + i))
++			i++;
++		if (i == MAX_ORDER_NR_PAGES)
++			continue;
++		page = pfn_to_page(pfn + i);
++		if (zone && page_zone(page) != zone)
++			return 0;
++		zone = page_zone(page);
++	}
++	return 1;
++}
++
++/*
++ * Scanning pfn is much easier than scanning lru list.
++ * Scan pfn from start to end and Find LRU page.
++ */
++unsigned long scan_lru_pages(unsigned long start, unsigned long end)
++{
++	unsigned long pfn;
++	struct page *page;
++	for (pfn = start; pfn < end; pfn++) {
++		if (pfn_valid(pfn)) {
++			page = pfn_to_page(pfn);
++			if (PageLRU(page))
++				return pfn;
++		}
++	}
++	return 0;
++}
++
++struct page *
++hotremove_migrate_alloc(struct page *page, unsigned long private, int **x)
++{
++	/* This should be improooooved!! */
++	return alloc_page(GFP_HIGHUSER_MOVABLE);
++}
++
++#define NR_OFFLINE_AT_ONCE_PAGES	(256)
++int do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
++{
++	unsigned long pfn;
++	struct page *page;
++	int move_pages = NR_OFFLINE_AT_ONCE_PAGES;
++	int not_managed = 0;
++	int ret = 0;
++	LIST_HEAD(source);
++
++	for (pfn = start_pfn; pfn < end_pfn && move_pages > 0; pfn++) {
++		if (!pfn_valid(pfn))
++			continue;
++		page = pfn_to_page(pfn);
++		if (!get_page_unless_zero(page))
++			continue;
++		/*
++		 * We can skip free pages. And we can only deal with pages on
++		 * LRU.
++		 */
++		ret = isolate_lru_page(page);
++		if (!ret) { /* Success */
++			put_page(page);
++			list_add_tail(&page->lru, &source);
++			move_pages--;
++			inc_zone_page_state(page, NR_ISOLATED_ANON +
++					    page_is_file_cache(page));
++
++		} else {
++#ifdef CONFIG_DEBUG_VM
++			printk(KERN_ALERT "removing pfn %lx from LRU failed\n",
++			       pfn);
++			dump_page(page);
++#endif
++			put_page(page);
++			/* Because we don't have big zone->lock. we should
++			   check this again here. */
++			if (page_count(page)) {
++				not_managed++;
++				ret = -EBUSY;
++				break;
++			}
++		}
++	}
++	if (!list_empty(&source)) {
++		if (not_managed) {
++			putback_lru_pages(&source);
++			goto out;
++		}
++		/* this function returns # of failed pages */
++		ret = migrate_pages(&source, hotremove_migrate_alloc, 0,
++								true, true);
++		if (ret)
++			putback_lru_pages(&source);
++	}
++out:
++	return ret;
++}
++
 -- 
 1.7.1.569.g6f426
 
