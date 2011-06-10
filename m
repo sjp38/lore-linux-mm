@@ -1,101 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 1982C6B004A
-	for <linux-mm@kvack.org>; Thu,  9 Jun 2011 20:51:56 -0400 (EDT)
-Received: by vxk20 with SMTP id 20so2382806vxk.14
-        for <linux-mm@kvack.org>; Thu, 09 Jun 2011 17:51:54 -0700 (PDT)
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id ECF836B004A
+	for <linux-mm@kvack.org>; Thu,  9 Jun 2011 21:31:05 -0400 (EDT)
+Received: from kpbe19.cbf.corp.google.com (kpbe19.cbf.corp.google.com [172.25.105.83])
+	by smtp-out.google.com with ESMTP id p5A1V16X020145
+	for <linux-mm@kvack.org>; Thu, 9 Jun 2011 18:31:03 -0700
+Received: from pxi20 (pxi20.prod.google.com [10.243.27.20])
+	by kpbe19.cbf.corp.google.com with ESMTP id p5A1UxcT024396
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 9 Jun 2011 18:31:00 -0700
+Received: by pxi20 with SMTP id 20so1611856pxi.27
+        for <linux-mm@kvack.org>; Thu, 09 Jun 2011 18:30:59 -0700 (PDT)
+Date: Thu, 9 Jun 2011 18:30:49 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: 3.0rc2 oops in mem_cgroup_from_task
+In-Reply-To: <20110610091355.2ce38798.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <alpine.LSU.2.00.1106091812030.4904@sister.anvils>
+References: <20110609212956.GA2319@redhat.com> <BANLkTikCfWhoLNK__ringzy7KjKY5ZEtNb3QTuX1jJ53wNNysA@mail.gmail.com> <BANLkTikF7=qfXAmrNzyMSmWm7Neh6yMAB8EbBp7oLcfQmrbDjA@mail.gmail.com> <20110610091355.2ce38798.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <20110609185259.GA29287@linux.vnet.ibm.com>
-References: <1306499498-14263-1-git-send-email-ankita@in.ibm.com>
-	<20110528005640.9076c0b1.akpm@linux-foundation.org>
-	<20110609185259.GA29287@linux.vnet.ibm.com>
-Date: Fri, 10 Jun 2011 09:51:53 +0900
-Message-ID: <BANLkTinxeeSby_+tta8EhzCg3VbD6+=g+g@mail.gmail.com>
-Subject: Re: [PATCH 00/10] mm: Linux VM Infrastructure to support Memory Power Management
-From: Kyungmin Park <kmpark@infradead.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: paulmck@linux.vnet.ibm.com
-Cc: Andrew Morton <akpm@linux-foundation.org>, Ankita Garg <ankita@in.ibm.com>, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-pm@lists.linux-foundation.org, svaidy@linux.vnet.ibm.com, thomas.abraham@linaro.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Ying Han <yinghan@google.com>, Dave Jones <davej@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Fri, Jun 10, 2011 at 3:52 AM, Paul E. McKenney
-<paulmck@linux.vnet.ibm.com> wrote:
-> On Sat, May 28, 2011 at 12:56:40AM -0700, Andrew Morton wrote:
->> On Fri, 27 May 2011 18:01:28 +0530 Ankita Garg <ankita@in.ibm.com> wrote=
-:
->>
->> > This patchset proposes a generic memory regions infrastructure that ca=
-n be
->> > used to tag boundaries of memory blocks which belongs to a specific me=
-mory
->> > power management domain and further enable exploitation of platform me=
-mory
->> > power management capabilities.
->>
->> A couple of quick thoughts...
->>
->> I'm seeing no estimate of how much energy we might save when this work
->> is completed. =A0But saving energy is the entire point of the entire
->> patchset! =A0So please spend some time thinking about that and update an=
-d
->> maintain the [patch 0/n] description so others can get some idea of the
->> benefit we might get from all of this. =A0That estimate should include a=
-n
->> estimate of what proportion of machines are likely to have hardware
->> which can use this feature and in what timeframe.
->>
->> IOW, if it saves one microwatt on 0.001% of machines, not interested ;)
->
-> FWIW, I have seen estimates on the order of a 5% reduction in power
-> consumption for some common types of embedded devices.
+On Fri, 10 Jun 2011, KAMEZAWA Hiroyuki wrote:
+> On Thu, 9 Jun 2011 16:42:09 -0700
+> Ying Han <yinghan@google.com> wrote:
+> 
+> > ++cc Hugh who might have seen similar crashes on his machine.
 
-Wow interesting. I can't expect it can reduce 5% power reduction.
-If it uses the 1GiBytes LPDDR2 memory. each memory port has 4Gib,
-another has 4Gib. so one bank size is 64MiB (512MiB / 8).
-So I don't expect it's difficult to contain the free or inactive
-memory more than 64MiB during runtime.
+Yes, I was testing my tmpfs changes, and saw it on i386 yesterday
+morning.  Same trace as Dave's (including khugepaged, which may or
+may not be relevant), aside from the i386/x86_64 differences.
 
-Anyway can you describe the exact test environment? esp., memory type?
-As you know there are too much embedded devices which use the various
-environment.
+BUG: unable to handle kernel paging request at 6b6b6b87
 
-Thank you,
-Kyungmin Park
->
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0Thanx, Paul
->
->> Also, all this code appears to be enabled on all machines? =A0So machine=
-s
->> which don't have the requisite hardware still carry any additional
->> overhead which is added here. =A0I can see that ifdeffing a feature like
->> this would be ghastly but please also have a think about the
->> implications of this and add that discussion also.
->>
->> If possible, it would be good to think up some microbenchmarks which
->> probe the worst-case performance impact and describe those and present
->> the results. =A0So others can gain an understanding of the runtime costs=
-.
->>
->>
->> --
->> To unsubscribe from this list: send the line "unsubscribe linux-kernel" =
-in
->> the body of a message to majordomo@vger.kernel.org
->> More majordomo info at =A0http://vger.kernel.org/majordomo-info.html
->> Please read the FAQ at =A0http://www.tux.org/lkml/
->>
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org. =A0For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom internet charges in Canada: sign http://stopthemeter=
-.ca/
-> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
->
+I needed to move forward with other work on that laptop, so just
+jotted down the details to come back to later.  It came after one
+hour of building swapping load in memcg, I've not tried again since.
+
+> 
+> Thank you for forwarding. Hmm. It seems the panic happens at khugepaged's 
+> page collapse_huge_page().
+
+Yes, the inlining in my kernel was different,
+so collapse_huge_page() showed up in my backtrace.
+
+> 
+> ==
+>         count_vm_event(THP_COLLAPSE_ALLOC);
+>         if (unlikely(mem_cgroup_newpage_charge(new_page, mm, GFP_KERNEL))) {
+> ==
+> It passes target mm to memcg and memcg gets a cgroup by
+> ==
+>  mem = mem_cgroup_from_task(rcu_dereference(mm->owner));
+> ==
+> Panic here means....mm->owner's task_subsys_state contains bad pointer ?
+
+781cc621 <mem_cgroup_from_task>:
+781cc621:	55                   	push   %ebp
+781cc622:	31 c0                	xor    %eax,%eax
+781cc624:	89 e5                	mov    %esp,%ebp
+781cc626:	8b 55 08             	mov    0x8(%ebp),%edx
+781cc629:	85 d2                	test   %edx,%edx
+781cc62b:	74 09                	je     781cc636 <mem_cgroup_from_task+0x15>
+781cc62d:	8b 82 fc 08 00 00    	mov    0x8fc(%edx),%eax
+781cc633:	8b 40 1c             	mov    0x1c(%eax),%eax   <==========
+781cc636:	c9                   	leave  
+781cc637:	c3                   	ret    
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
