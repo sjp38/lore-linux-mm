@@ -1,43 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id A20836B004A
-	for <linux-mm@kvack.org>; Fri, 10 Jun 2011 08:37:27 -0400 (EDT)
-Message-ID: <4DF21002.3040708@teksavvy.com>
-Date: Fri, 10 Jun 2011 08:37:22 -0400
-From: Mark Lord <kernel@teksavvy.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 60BEC6B004A
+	for <linux-mm@kvack.org>; Fri, 10 Jun 2011 08:40:54 -0400 (EDT)
+Date: Fri, 10 Jun 2011 13:40:34 +0100
+From: Tim Deegan <Tim.Deegan@citrix.com>
+Subject: Re: [Xen-devel] Possible shadow bug
+Message-ID: <20110610124034.GI5098@whitby.uk.xensource.com>
+References: <BANLkTinMamg_qesEffGxKu3QkT=zyQ2MRQ@mail.gmail.com>
+ <4DEE26E7.2060201@redhat.com>
+ <20110608123527.479e6991.kamezawa.hiroyu@jp.fujitsu.com>
+ <4DF0801F.9050908@redhat.com>
+ <alpine.DEB.2.00.1106091311530.12963@kaball-desktop>
+ <20110609150133.GF5098@whitby.uk.xensource.com>
+ <4DF0F90D.4010900@redhat.com>
+ <20110610100139.GG5098@whitby.uk.xensource.com>
+ <20110610101011.GH5098@whitby.uk.xensource.com>
+ <20110610114821.GB32595@reaktio.net>
 MIME-Version: 1.0
-Subject: Re: KVM induced panic on 2.6.38[2367] & 2.6.39
-References: <4DED344D.7000005@pandora.be> <4DED9C23.2030408@fnarfbargle.com> <4DEE27DE.7060004@trash.net> <4DEE3859.6070808@fnarfbargle.com> <4DEE4538.1020404@trash.net> <1307471484.3091.43.camel@edumazet-laptop> <4DEEACC3.3030509@trash.net> <4DEEBFC2.4060102@fnarfbargle.com> <1307505541.3102.12.camel@edumazet-laptop> <4DEFAB15.2060905@fnarfbargle.com> <20110610025249.GD643@verge.net.au>
-In-Reply-To: <20110610025249.GD643@verge.net.au>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="iso-8859-1"
+Content-Disposition: inline
+In-Reply-To: <20110610114821.GB32595@reaktio.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Simon Horman <horms@verge.net.au>
-Cc: Brad Campbell <brad@fnarfbargle.com>, Eric Dumazet <eric.dumazet@gmail.com>, Patrick McHardy <kaber@trash.net>, Bart De Schuymer <bdschuym@pandora.be>, kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, netfilter-devel@vger.kernel.org
+To: Pasi K?rkk?inen <pasik@iki.fi>
+Cc: xen-devel@lists.xensource.com, Keir Fraser <keir@xen.org>, Stabellini <stefano.stabellini@eu.citrix.com>, "containers@lists.linux-foundation.org" <containers@lists.linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Keir Fraser <keir.xen@gmail.com>, Igor Mammedov <imammedo@redhat.com>, Paul Menage <menage@google.com>, Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>
 
-On 11-06-09 10:52 PM, Simon Horman wrote:
-> On Thu, Jun 09, 2011 at 01:02:13AM +0800, Brad Campbell wrote:
->> On 08/06/11 11:59, Eric Dumazet wrote:
->>
->>> Well, a bisection definitely should help, but needs a lot of time in
->>> your case.
->>
->> Yes. compile, test, crash, walk out to the other building to press
->> reset, lather, rinse, repeat.
->>
->> I need a reset button on the end of a 50M wire, or a hardware watchdog!
+At 14:48 +0300 on 10 Jun (1307717301), Pasi K?rkk?inen wrote:
+> On Fri, Jun 10, 2011 at 11:10:11AM +0100, Tim Deegan wrote:
+> > At 11:01 +0100 on 10 Jun (1307703699), Tim Deegan wrote:
+> > > ISTR that even though the RHEL xen reports a 3.0.x version it has quite
+> > > a lot of backports in it.  Does it have this patch?
+> > > http://hg.uk.xensource.com/xen-3.1-testing.hg/rev/e8fca4c42d05
+> > 
+> > Oops, that URL doesn't work; I meant this:
+> > http://xenbits.xen.org/xen-3.1-testing.hg/rev/e8fca4c42d05
+> > 
+> 
+> RHEL5 Xen (hypervisor) reports version as 3.1.2-xyz..
 
+Based on a quick scrobble through the CentOS 5.6 SRPMs it looks like a
+3.1.0 hypervisor with a bunch of extra patches, but not this one.  This
+is very likely the cause of the crash in mem_cgroup_create(), and
+probably the corruptions too.  That would explain why they didn't happen
+on a 4.0.x SLES11 Xen, but not really why the original patch in this
+thread made it go away.
 
-Something many of us don't realize is that nearly all Intel chipsets
-have a built-in hardware watchdog timer.  This includes chipset for
-consumer desktop boards as well as the big iron server stuff.
+Cheers,
 
-It's the "i8xx_tco" driver in the kernel enables use of them:
+Tim.
 
-    modprobe i8xx_tco
-
-Cheers
+-- 
+Tim Deegan <Tim.Deegan@citrix.com>
+Principal Software Engineer, Xen Platform Team
+Citrix Systems UK Ltd.  (Company #02937203, SL9 0BG)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
