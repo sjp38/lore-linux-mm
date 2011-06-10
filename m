@@ -1,162 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 36F0A6B004A
-	for <linux-mm@kvack.org>; Fri, 10 Jun 2011 08:24:22 -0400 (EDT)
-Message-ID: <4DF20CF1.1050501@snapgear.com>
-Date: Fri, 10 Jun 2011 22:24:17 +1000
-From: Greg Ungerer <gerg@snapgear.com>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id D18E66B007E
+	for <linux-mm@kvack.org>; Fri, 10 Jun 2011 08:24:53 -0400 (EDT)
+Received: by bwz17 with SMTP id 17so3255984bwz.14
+        for <linux-mm@kvack.org>; Fri, 10 Jun 2011 05:24:51 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH v2] nommu: add page_align to mmap
-References: <1304661784-11654-1-git-send-email-lliubbo@gmail.com>	<4DE88112.3090908@snapgear.com>	<BANLkTikv5cuRRW+7LPX-=kSdSy=n+O3=Jg@mail.gmail.com>	<4DEEFEEB.3090103@snapgear.com>	<BANLkTi=8G6Z5RpvK6wDuzdF-0t7wDwnTOA@mail.gmail.com>	<4DEF4CC5.7040403@snapgear.com>	<BANLkTi=AJ=0pFx2OXENZF4p4gh7V2RXmXw@mail.gmail.com>	<4DF194A6.3020606@snapgear.com> <BANLkTim2p+UBOUtgP-b7u89PK1h=eGjYRQ@mail.gmail.com>
-In-Reply-To: <BANLkTim2p+UBOUtgP-b7u89PK1h=eGjYRQ@mail.gmail.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <20110610110412.GE4110@tiehlicka.suse.cz>
+References: <20110609093045.1f969d30.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110610081218.GC4832@tiehlicka.suse.cz>
+	<20110610173958.d9ab901c.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110610090802.GB4110@tiehlicka.suse.cz>
+	<20110610185952.a07b968f.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110610110412.GE4110@tiehlicka.suse.cz>
+Date: Fri, 10 Jun 2011 21:24:51 +0900
+Message-ID: <BANLkTingsPiS81KEkOb6+eKdz=2UMUHmQg@mail.gmail.com>
+Subject: Re: [BUGFIX][PATCH v3] memcg: fix behavior of per cpu charge cache draining.
+From: Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bob Liu <lliubbo@gmail.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, dhowells@redhat.com, lethal@linux-sh.org, gerg@uclinux.org, walken@google.com, daniel-gl@gmx.net, vapier@gentoo.org, geert@linux-m68k.org, uclinux-dist-devel@blackfin.uclinux.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "bsingharora@gmail.com" <bsingharora@gmail.com>, Ying Han <yinghan@google.com>
 
-
-Hi Bob,
-
-On 06/10/2011 03:39 PM, Bob Liu wrote:
-> Hi, Greg
->
-> On Fri, Jun 10, 2011 at 11:51 AM, Greg Ungerer<gerg@snapgear.com>  wrote:
->> Hi Bob,
+2011/6/10 Michal Hocko <mhocko@suse.cz>:
+> On Fri 10-06-11 18:59:52, KAMEZAWA Hiroyuki wrote:
+>> On Fri, 10 Jun 2011 11:08:02 +0200
+>> Michal Hocko <mhocko@suse.cz> wrote:
 >>
->> On 09/06/11 20:30, Bob Liu wrote:
->>>
->>> On Wed, Jun 8, 2011 at 6:19 PM, Greg Ungerer<gerg@snapgear.com>  A!wrote:
->>>>>>>>
->>>>>>>> When booting on a ColdFire (m68knommu) target the init process (or
->>>>>>>> there abouts at least) fails. Last console messages are:
->>>>>>>>
->>>>>>>> ...
->>>>>>>> VFS: Mounted root (romfs filesystem) readonly on device 31:0.
->>>>>>>> Freeing unused kernel memory: 52k freed (0x401aa000 - 0x401b6000)
->>>>>>>> Unable to mmap process text, errno 22
->>>>>>>>
->>>>>>>
->>>>>>> Oh, bad news. I will try to reproduce it on my board.
->>>>>>> If you are free please enable debug in nommu.c and then we can see
->>>>>>> what
->>>>>>> caused the problem.
->>>>>>
->>>>>> Yep, with debug on:
->>>>>>
->>>>>> A!...
->>>>>> VFS: Mounted root (romfs filesystem) readonly on device 31:0.
->>>>>> Freeing unused kernel memory: 52k freed (0x4018c000 - 0x40198000)
->>>>>> ==>  A!a??A-do_mmap_pgoff(,0,6780,5,1002,0)
->>>>>> <== do_mmap_pgoff() = -22
->>>>>> Unable to mmap process text, errno 22
->>>>>>
->>>>>
->>>>> Since I can't reproduce this problem, could you please attach the
->>>>> whole dmesg log with nommu debug on or
->>>>> you can step into to see why errno 22 is returned, is it returned by
->>>>> do_mmap_private()?
->>>>
->>>> There was no other debug messages with debug turned on in nommu.c.
->>>> (I can give you the boot msgs before this if you want, but there
->>>> was no nommu.c debug in it).
->>>>
->>>> But I did trace it into do_mmap_pgoff() to see what was failing.
->>>> It fails based on the return value from:
->>>>
->>>> addr = file->f_op->get_unmapped_area(file, addr, len,
->>>>                                               pgoff, flags);
->>>>
->>>
->>> Thanks for this information.
->>> But it's a callback function. I still can't know what's the problem maybe.
->>> Would you do me a favor to do more trace to see where it callback to,
->>> fs or some driver etc..?
+>> > On Fri 10-06-11 17:39:58, KAMEZAWA Hiroyuki wrote:
+>> > > On Fri, 10 Jun 2011 10:12:19 +0200
+>> > > Michal Hocko <mhocko@suse.cz> wrote:
+>> > >
+>> > > > On Thu 09-06-11 09:30:45, KAMEZAWA Hiroyuki wrote:
+>> > [...]
+>> > > > > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+>> > > > > index bd9052a..3baddcb 100644
+>> > > > > --- a/mm/memcontrol.c
+>> > > > > +++ b/mm/memcontrol.c
+>> > > > [...]
+>> > > > > =A0static struct mem_cgroup_per_zone *
+>> > > > > =A0mem_cgroup_zoneinfo(struct mem_cgroup *mem, int nid, int zid)
+>> > > > > @@ -1670,8 +1670,6 @@ static int mem_cgroup_hierarchical_reclaim=
+(struct mem_cgroup *root_mem,
+>> > > > > =A0 =A0 =A0 =A0 =A0 =A0 =A0 victim =3D mem_cgroup_select_victim(=
+root_mem);
+>> > > > > =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (victim =3D=3D root_mem) {
+>> > > > > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 loop++;
+>> > > > > - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (loop >=3D 1)
+>> > > > > - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 drain_=
+all_stock_async();
+>> > > > > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (loop >=3D 2) {
+>> > > > > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 /*
+>> > > > > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0*=
+ If we have not been able to reclaim
+>> > > > > @@ -1723,6 +1721,7 @@ static int mem_cgroup_hierarchical_reclaim=
+(struct mem_cgroup *root_mem,
+>> > > > > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 retu=
+rn total;
+>> > > > > =A0 =A0 =A0 =A0 =A0 =A0 =A0 } else if (mem_cgroup_margin(root_me=
+m))
+>> > > > > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 return total;
+>> > > > > + =A0 =A0 =A0 =A0 =A0 =A0 drain_all_stock_async(root_mem);
+>> > > > > =A0 =A0 =A0 }
+>> > > > > =A0 =A0 =A0 return total;
+>> > > > > =A0}
+>> > > >
+>> > > > I still think that we pointlessly reclaim even though we could hav=
+e a
+>> > > > lot of pages pre-charged in the cache (the more CPUs we have the m=
+ore
+>> > > > significant this might be).
+>> > >
+>> > > The more CPUs, the more scan cost for each per-cpu memory, which mak=
+es
+>> > > cache-miss.
+>> > >
+>> > > I know placement of drain_all_stock_async() is not big problem on my=
+ host,
+>> > > which has 2socket/8core cpus. But, assuming 1000+ cpu host,
+>> >
+>> > Hmm, it really depends what you want to optimize for. Reclaim path is
+>> > already slow path and cache misses, while not good, are not the most
+>> > significant issue, I guess.
+>> > What I would see as a much bigger problem is that there might be a lot
+>> > of memory pre-charged at those per-cpu caches. Falling into a reclaim
+>> > costs us much more IMO and we can evict something that could be useful
+>> > for no good reason.
+>> >
 >>
->> Its calling to romfs_get_unmapped_area() [fs/romfs/mmap-nommu.c]. It is
->> being called with:
+>> It's waste of time to talk this kind of things without the numbers.
 >>
->> A!romfs_get_unmapped_area(addr=0,len=7000,pgoff=0,flags=1002)
+>> ok, I don't change the caller's logic. Discuss this when someone gets
+>> number of LARGE smp box.
+>
+> Sounds reasonable.
+>
+> [..,]
+>> please test/ack if ok.
+>
+> see comment bellow.
+> Reviewed-by: Michal Hocko <mhocko@suse.cz>
+>
+> [...]
+>> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+>> index bd9052a..75713cb 100644
+>> --- a/mm/memcontrol.c
+>> +++ b/mm/memcontrol.c
+>> @@ -359,7 +359,7 @@ enum charge_type {
+>> =A0static void mem_cgroup_get(struct mem_cgroup *mem);
+>> =A0static void mem_cgroup_put(struct mem_cgroup *mem);
+>> =A0static struct mem_cgroup *parent_mem_cgroup(struct mem_cgroup *mem);
+>> -static void drain_all_stock_async(void);
+>> +static void drain_all_stock_async(struct mem_cgroup *mem);
 >>
->> This is failing the first size check because isize comes back
->> as 0x6ca8, and this is smaller then len (0x7000). Thus returning
->> -EINVAL.
->>
+>> =A0static struct mem_cgroup_per_zone *
+>> =A0mem_cgroup_zoneinfo(struct mem_cgroup *mem, int nid, int zid)
+>> @@ -1670,8 +1670,7 @@ static int mem_cgroup_hierarchical_reclaim(struct =
+mem_cgroup *root_mem,
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 victim =3D mem_cgroup_select_victim(root_mem=
+);
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (victim =3D=3D root_mem) {
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 loop++;
+>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (loop >=3D 1)
+>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 drain_all_stoc=
+k_async();
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 drain_all_stock_async(root_mem=
+);
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (loop >=3D 2) {
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 /*
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* If we h=
+ave not been able to reclaim
 >
-> I look into file fs/romfs/mmap-nommu.c based on your trace.
-> In my opinion, romfs_get_unmapped_area() in mmap-nommu.c is buggy.
-> Would you please try below commit.
-
-Sure thing. I am away for the next couple of days, so I am
-not going to be able to try it until Tuesday. I'll let you
-know how it goes then.
-
-Regards
-Greg
-
-
-
-> Thanks a lot.
->
-> from 786add5286ffb476807cb198d7b2c5455e9fb533 Mon Sep 17 00:00:00 2001
-> From: Bob Liu<lliubbo@gmail.com>
-> Date: Fri, 10 Jun 2011 13:34:48 +0800
-> Subject: [PATCH] romfs: fix romfs_get_unmapped_area() param check
->
-> romfs_get_unmapped_area() check len param without considering PAGE_ALIGN which
-> will cause do_mmap_pgoff() return -EINVAL error after commit f67d9b1576c.
->
-> This patch fix the param check by changing it to the same way as function
-> ramfs_nommu_get_unmapped_area() did in ramfs/file-nommu.c.
->
-> Signed-off-by: Bob Liu<lliubbo@gmail.com>
-> ---
->   fs/romfs/mmap-nommu.c |    8 ++++++--
->   1 files changed, 6 insertions(+), 2 deletions(-)
->
-> diff --git a/fs/romfs/mmap-nommu.c b/fs/romfs/mmap-nommu.c
-> index f0511e8..eed9942 100644
-> --- a/fs/romfs/mmap-nommu.c
-> +++ b/fs/romfs/mmap-nommu.c
-> @@ -27,14 +27,18 @@ static unsigned long
-> romfs_get_unmapped_area(struct file *file,
->   {
->          struct inode *inode = file->f_mapping->host;
->          struct mtd_info *mtd = inode->i_sb->s_mtd;
-> -       unsigned long isize, offset;
-> +       unsigned long isize, offset, maxpages, lpages;
->
->          if (!mtd)
->                  goto cant_map_directly;
->
-> +       /* the mapping mustn't extend beyond the EOF */
-> +       lpages = (len + PAGE_SIZE - 1)>>  PAGE_SHIFT;
->          isize = i_size_read(inode);
->          offset = pgoff<<  PAGE_SHIFT;
-> -       if (offset>  isize || len>  isize || offset>  isize - len)
-> +
-> +       maxpages = (isize + PAGE_SIZE - 1)>>  PAGE_SHIFT;
-> +       if ((pgoff>= maxpages) || (maxpages - pgoff<  lpages))
->                  return (unsigned long) -EINVAL;
->
->          /* we need to call down to the MTD layer to do the actual mapping */
-> --
-> 1.6.3.3
->
->> That code is trying to map the contents of the file /bin/init
->> directly from the romfs filesystem (which is in RAM). The init
->> binary is 0x6ca8 bytes in size (that is the isize above).
->>
+> This still doesn't prevent from direct reclaim even though we have freed
+> enough pages from pcp caches. Should I post it as a separate patch?
 >
 
+yes. please in different thread. Maybe moving this out of loop will
+make sense. (And I have a cleanup patch for this loop. I'll do that
+when I post it later, anyway)
 
--- 
-------------------------------------------------------------------------
-Greg Ungerer  --  Principal Engineer        EMAIL:     gerg@snapgear.com
-SnapGear Group, McAfee                      PHONE:       +61 7 3435 2888
-8 Gardner Close,                            FAX:         +61 7 3891 3630
-Milton, QLD, 4064, Australia                WEB: http://www.SnapGear.com
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
