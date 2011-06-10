@@ -1,7 +1,7 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id B33426B00E7
-	for <linux-mm@kvack.org>; Fri, 10 Jun 2011 05:55:05 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 34E316B004A
+	for <linux-mm@kvack.org>; Fri, 10 Jun 2011 05:55:06 -0400 (EDT)
 MIME-version: 1.0
 Content-transfer-encoding: 7BIT
 Content-type: TEXT/PLAIN
@@ -11,364 +11,415 @@ Received: from eu_spt1 ([210.118.77.14]) by mailout4.w1.samsung.com
  linux-mm@kvack.org; Fri, 10 Jun 2011 10:55:01 +0100 (BST)
 Received: from linux.samsung.com ([106.116.38.10])
  by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0LMK00MOAJJNCV@spt1.w1.samsung.com> for
+ 2004)) with ESMTPA id <0LMK00DFEJJNMY@spt1.w1.samsung.com> for
  linux-mm@kvack.org; Fri, 10 Jun 2011 10:55:00 +0100 (BST)
-Date: Fri, 10 Jun 2011 11:54:48 +0200
+Date: Fri, 10 Jun 2011 11:54:50 +0200
 From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: [PATCHv10 0/10] Contiguous Memory Allocator
-Message-id: <1307699698-29369-1-git-send-email-m.szyprowski@samsung.com>
+Subject: [PATCH 02/10] lib: genalloc: Generic allocator improvements
+In-reply-to: <1307699698-29369-1-git-send-email-m.szyprowski@samsung.com>
+Message-id: <1307699698-29369-3-git-send-email-m.szyprowski@samsung.com>
+References: <1307699698-29369-1-git-send-email-m.szyprowski@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org
 Cc: Michal Nazarewicz <mina86@mina86.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ankita Garg <ankita@in.ibm.com>, Daniel Walker <dwalker@codeaurora.org>, Johan MOSSBERG <johan.xx.mossberg@stericsson.com>, Mel Gorman <mel@csn.ul.ie>, Arnd Bergmann <arnd@arndb.de>, Jesse Barker <jesse.barker@linaro.org>
 
-Hello everyone,
-
-Like I've promised during the Memory Management summit at Linaro Meeting
-in Budapest I continued the development of the CMA. The goal is to
-integrate it as tight as possible with other kernel subsystems (like
-memory management and dma-mapping) and finally merge to mainline.
-
-This version introduces integration with DMA-mapping subsystem for ARM
-architecture, but I believe that similar integration can be done for
-other archs too. I've also rebased all the code onto latest v3.0-rc2
-kernel.
-
-A few words for these who see CMA for the first time:
-
-   The Contiguous Memory Allocator (CMA) makes it possible for device
-   drivers to allocate big contiguous chunks of memory after the system
-   has booted. 
-
-   The main difference from the similar frameworks is the fact that CMA
-   allows to transparently reuse memory region reserved for the big
-   chunk allocation as a system memory, so no memory is wasted when no
-   big chunk is allocated. Once the alloc request is issued, the
-   framework will migrate system pages to create a required big chunk of
-   physically contiguous memory.
-
-   For more information see the changelog and links to previous versions
-   of CMA framework.
-
-The current version of CMA is just an allocator that handles allocation
-of contiguous memory blocks. The difference between this patchset and
-Kamezawa's alloc_contig_pages() are:
-
-1. alloc_contig_pages() requires MAX_ORDER alignment of allocations
-   which may be unsuitable for embeded systems where a few MiBs are
-   required.
-
-   Lack of the requirement on the alignment means that several threads
-   might try to access the same pageblock/page.  To prevent this from
-   happening CMA uses a mutex so that only one cm_alloc()/cm_free()
-   function may run at one point.
-
-2. CMA may use its own migratetype (MIGRATE_CMA) which behaves
-   similarly to ZONE_MOVABLE but can be put in arbitrary places.
-
-   This is required for us since we need to define two disjoint memory
-   ranges inside system RAM.  (ie. in two memory banks (do not confuse
-   with nodes)).
-
-3. alloc_contig_pages() scans memory in search for range that could be
-   migrated.  CMA on the other hand maintains its own allocator to
-   decide where to allocate memory for device drivers and then tries
-   to migrate pages from that part if needed.  This is not strictly
-   required but I somehow feel it might be faster.
-
-The integration with ARM DMA-mapping subsystem is quite straightforward.
-Once cma context is available alloc_pages() can be replaced by
-cm_alloc() call.
-
-Current version have been tested on Samsung S5PC110 based Aquila machine
-and s5p-fimc V4L2 driver. The driver itself uses videobuf2 dma-contig
-memory allocator, which in turn relies on dma_alloc_coherent() from
-DMA-mapping subsystem. By integrating CMA with DMA-mapping we manage to
-get this driver working with CMA without any single change required in
-the driver or videobuf2-dma-contig allocator.
-
-TODO:
-1. use struct page * or pfn internally instead of physicall address
-2. use some simple bitmap based allocator instead of genaloc
-3. provide a function similar to dma_declare_coherent_memory(), which
-   will created and register cma area for particular device
-4. code cleanup and simplification
-5. discussion
-6. double-mapping issues with ARMv6+ and coherent memory
-
-Best regards
--- 
-Marek Szyprowski
-Samsung Poland R&D Center
-
-
-Links to previous versions of the patchset:
-v9: <http://article.gmane.org/gmane.linux.kernel.mm/60787>
-v8: <http://article.gmane.org/gmane.linux.kernel.mm/56855>
-v7: <http://article.gmane.org/gmane.linux.kernel.mm/55626>
-v6: <http://article.gmane.org/gmane.linux.kernel.mm/55626>
-v5: (intentionally left out as CMA v5 was identical to CMA v4)
-lv4: <http://article.gmane.org/gmane.linux.kernel.mm/52010>
-v3: <http://article.gmane.org/gmane.linux.kernel.mm/51573>
-v2: <http://article.gmane.org/gmane.linux.kernel.mm/50986>
-v1: <http://article.gmane.org/gmane.linux.kernel.mm/50669>
-
-
-Changelog:
-
-v10:
-    1. Rebased onto 3.0-rc2 and resolved all conflicts
-
-    2. Simplified CMA to be just a pure memory allocator, for use
-       with platfrom/bus specific subsystems, like dma-mapping.
-       Removed all device specific functions are calls.
-
-    3. Integrated with ARM DMA-mapping subsystem.
-
-    4. Code cleanup here and there.
-
-    5. Removed private context support.
-
-v9: 1. Rebased onto 2.6.39-rc1 and resolved all conflicts
-
-    2. Fixed a bunch of nasty bugs that happened when the allocation
-       failed (mainly kernel oops due to NULL ptr dereference).
-
-    3. Introduced testing code: cma-regions compatibility layer and
-       videobuf2-cma memory allocator module.
-
-v8: 1. The alloc_contig_range() function has now been separated from
-       CMA and put in page_allocator.c.  This function tries to
-       migrate all LRU pages in specified range and then allocate the
-       range using alloc_contig_freed_pages().
-
-    2. Support for MIGRATE_CMA has been separated from the CMA code.
-       I have not tested if CMA works with ZONE_MOVABLE but I see no
-       reasons why it shouldn't.
-
-    3. I have added a @private argument when creating CMA contexts so
-       that one can reserve memory and not share it with the rest of
-       the system.  This way, CMA acts only as allocation algorithm.
-
-v7: 1. A lot of functionality that handled driver->allocator_context
-       mapping has been removed from the patchset.  This is not to say
-       that this code is not needed, it's just not worth posting
-       everything in one patchset.
-
-       Currently, CMA is "just" an allocator.  It uses it's own
-       migratetype (MIGRATE_CMA) for defining ranges of pageblokcs
-       which behave just like ZONE_MOVABLE but dispite the latter can
-       be put in arbitrary places.
-
-    2. The migration code that was introduced in the previous version
-       actually started working.
-
-
-v6: 1. Most importantly, v6 introduces support for memory migration.
-       The implementation is not yet complete though.
-
-       Migration support means that when CMA is not using memory
-       reserved for it, page allocator can allocate pages from it.
-       When CMA wants to use the memory, the pages have to be moved
-       and/or evicted as to make room for CMA.
-
-       To make it possible it must be guaranteed that only movable and
-       reclaimable pages are allocated in CMA controlled regions.
-       This is done by introducing a MIGRATE_CMA migrate type that
-       guarantees exactly that.
-
-       Some of the migration code is "borrowed" from Kamezawa
-       Hiroyuki's alloc_contig_pages() implementation.  The main
-       difference is that thanks to MIGRATE_CMA migrate type CMA
-       assumes that memory controlled by CMA are is always movable or
-       reclaimable so that it makes allocation decisions regardless of
-       the whether some pages are actually allocated and migrates them
-       if needed.
-
-       The most interesting patches from the patchset that implement
-       the functionality are:
-
-         09/13: mm: alloc_contig_free_pages() added
-         10/13: mm: MIGRATE_CMA migration type added
-         11/13: mm: MIGRATE_CMA isolation functions added
-         12/13: mm: cma: Migration support added [wip]
-
-       Currently, kernel panics in some situations which I am trying
-       to investigate.
-
-    2. cma_pin() and cma_unpin() functions has been added (after
-       a conversation with Johan Mossberg).  The idea is that whenever
-       hardware does not use the memory (no transaction is on) the
-       chunk can be moved around.  This would allow defragmentation to
-       be implemented if desired.  No defragmentation algorithm is
-       provided at this time.
-
-    3. Sysfs support has been replaced with debugfs.  I always felt
-       unsure about the sysfs interface and when Greg KH pointed it
-       out I finally got to rewrite it to debugfs.
-
-
-v5: (intentionally left out as CMA v5 was identical to CMA v4)
-
-
-v4: 1. The "asterisk" flag has been removed in favour of requiring
-       that platform will provide a "*=<regions>" rule in the map
-       attribute.
-
-    2. The terminology has been changed slightly renaming "kind" to
-       "type" of memory.  In the previous revisions, the documentation
-       indicated that device drivers define memory kinds and now,
-
-v3: 1. The command line parameters have been removed (and moved to
-       a separate patch, the fourth one).  As a consequence, the
-       cma_set_defaults() function has been changed -- it no longer
-       accepts a string with list of regions but an array of regions.
-
-    2. The "asterisk" attribute has been removed.  Now, each region
-       has an "asterisk" flag which lets one specify whether this
-       region should by considered "asterisk" region.
-
-    3. SysFS support has been moved to a separate patch (the third one
-       in the series) and now also includes list of regions.
-
-v2: 1. The "cma_map" command line have been removed.  In exchange,
-       a SysFS entry has been created under kernel/mm/contiguous.
-
-       The intended way of specifying the attributes is
-       a cma_set_defaults() function called by platform initialisation
-       code.  "regions" attribute (the string specified by "cma"
-       command line parameter) can be overwritten with command line
-       parameter; the other attributes can be changed during run-time
-       using the SysFS entries.
-
-    2. The behaviour of the "map" attribute has been modified
-       slightly.  Currently, if no rule matches given device it is
-       assigned regions specified by the "asterisk" attribute.  It is
-       by default built from the region names given in "regions"
-       attribute.
-
-    3. Devices can register private regions as well as regions that
-       can be shared but are not reserved using standard CMA
-       mechanisms.  A private region has no name and can be accessed
-       only by devices that have the pointer to it.
-
-    4. The way allocators are registered has changed.  Currently,
-       a cma_allocator_register() function is used for that purpose.
-       Moreover, allocators are attached to regions the first time
-       memory is registered from the region or when allocator is
-       registered which means that allocators can be dynamic modules
-       that are loaded after the kernel booted (of course, it won't be
-       possible to allocate a chunk of memory from a region if
-       allocator is not loaded).
-
-    5. Index of new functions:
-
-    +static inline dma_addr_t __must_check
-    +cma_alloc_from(const char *regions, size_t size,
-    +               dma_addr_t alignment)
-
-    +static inline int
-    +cma_info_about(struct cma_info *info, const const char *regions)
-
-    +int __must_check cma_region_register(struct cma_region *reg);
-
-    +dma_addr_t __must_check
-    +cma_alloc_from_region(struct cma_region *reg,
-    +                      size_t size, dma_addr_t alignment);
-
-    +static inline dma_addr_t __must_check
-    +cma_alloc_from(const char *regions,
-    +               size_t size, dma_addr_t alignment);
-
-    +int cma_allocator_register(struct cma_allocator *alloc);
-
-
-Patches in this patchset:
-
-  lib: bitmap: Added alignment offset for bitmap_find_next_zero_area()
-  lib: genalloc: Generic allocator improvements
-
-    Some improvements to genalloc API (most importantly possibility to
-    allocate memory with alignment requirement).
-
-  mm: move some functions from memory_hotplug.c to page_isolation.c
-  mm: alloc_contig_freed_pages() added
-
-    Code "stolen" from Kamezawa.  The first patch just moves code
-    around and the second provide function for "allocates" already
-    freed memory.
-
-  mm: alloc_contig_range() added
-
-    This is what Kamezawa asked: a function that tries to migrate all
-    pages from given range and then use alloc_contig_freed_pages()
-    (defined by the previous commit) to allocate those pages. 
-
-  mm: MIGRATE_CMA migration type added
-  mm: MIGRATE_CMA isolation functions added
-
-    Introduction of the new migratetype and support for it in CMA.
-    MIGRATE_CMA works similar to ZONE_MOVABLE expect almost any
-    memory range can be marked as one.
-
-  mm: cma: Contiguous Memory Allocator added
-
-    The code CMA code. Manages CMA contexts and performs memory
-    allocations.
-
-  ARM: integrate CMA with dma-mapping subsystem
-
-    Main client of CMA frame work. CMA serves as a alloc_pages()
-    replacement if device has the cma context assigned.
-
-  ARM: S5PV210: add CMA support for FIMC devices on Aquila board
-
-    Example of platform/board specific code that creates cma
-    context and assigns it to particular devices.
-
-
-Patch summary:
-
-KAMEZAWA Hiroyuki (2):
-  mm: move some functions from memory_hotplug.c to page_isolation.c
-  mm: alloc_contig_freed_pages() added
-
-Marek Szyprowski (3):
-  mm: cma: Contiguous Memory Allocator added
-  ARM: integrate CMA with dma-mapping subsystem
-  ARM: S5PV210: add CMA support for FIMC devices on Aquila board
-
-Michal Nazarewicz (5):
-  lib: bitmap: Added alignment offset for bitmap_find_next_zero_area()
-  lib: genalloc: Generic allocator improvements
-  mm: alloc_contig_range() added
-  mm: MIGRATE_CMA migration type added
-  mm: MIGRATE_CMA isolation functions added
-
- arch/arm/include/asm/device.h       |    3 +
- arch/arm/include/asm/dma-mapping.h  |   19 ++
- arch/arm/mach-s5pv210/Kconfig       |    1 +
- arch/arm/mach-s5pv210/mach-aquila.c |   26 +++
- arch/arm/mm/dma-mapping.c           |   60 +++++--
- include/linux/bitmap.h              |   24 ++-
- include/linux/cma.h                 |  189 ++++++++++++++++++
- include/linux/genalloc.h            |   50 +++---
- include/linux/mmzone.h              |   43 ++++-
- include/linux/page-isolation.h      |   50 ++++--
- lib/bitmap.c                        |   22 ++-
- lib/genalloc.c                      |  190 +++++++++++--------
- mm/Kconfig                          |   29 +++-
- mm/Makefile                         |    1 +
- mm/cma.c                            |  358 +++++++++++++++++++++++++++++++++++
- mm/compaction.c                     |   10 +
- mm/internal.h                       |    3 +
- mm/memory_hotplug.c                 |  111 -----------
- mm/page_alloc.c                     |  292 ++++++++++++++++++++++++++---
- mm/page_isolation.c                 |  130 ++++++++++++-
- 20 files changed, 1319 insertions(+), 292 deletions(-)
- create mode 100644 include/linux/cma.h
- create mode 100644 mm/cma.c
-
+From: Michal Nazarewicz <m.nazarewicz@samsung.com>
+
+This commit adds a gen_pool_alloc_aligned() function to the
+generic allocator API.  It allows specifying alignment for the
+allocated block.  This feature uses
+the bitmap_find_next_zero_area_off() function.
+
+It also fixes possible issue with bitmap's last element being
+not fully allocated (ie. space allocated for chunk->bits is
+not a multiple of sizeof(long)).
+
+It also makes some other smaller changes:
+- moves structure definitions out of the header file,
+- adds __must_check to functions returning value,
+- makes gen_pool_add() return -ENOMEM rater than -1 on error,
+- changes list_for_each to list_for_each_entry, and
+- makes use of bitmap_clear().
+
+Signed-off-by: Michal Nazarewicz <m.nazarewicz@samsung.com>
+Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
+[m.szyprowski: rebased and updated to Linux v3.0-rc1]
+Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
+CC: Michal Nazarewicz <mina86@mina86.com>
+---
+ include/linux/genalloc.h |   50 ++++++------
+ lib/genalloc.c           |  190 +++++++++++++++++++++++++++-------------------
+ 2 files changed, 138 insertions(+), 102 deletions(-)
+
+diff --git a/include/linux/genalloc.h b/include/linux/genalloc.h
+index 5bbebda..af44e88 100644
+--- a/include/linux/genalloc.h
++++ b/include/linux/genalloc.h
+@@ -11,28 +11,11 @@
+ 
+ #ifndef __GENALLOC_H__
+ #define __GENALLOC_H__
+-/*
+- *  General purpose special memory pool descriptor.
+- */
+-struct gen_pool {
+-	rwlock_t lock;
+-	struct list_head chunks;	/* list of chunks in this pool */
+-	int min_alloc_order;		/* minimum allocation order */
+-};
+ 
+-/*
+- *  General purpose special memory pool chunk descriptor.
+- */
+-struct gen_pool_chunk {
+-	spinlock_t lock;
+-	struct list_head next_chunk;	/* next chunk in pool */
+-	phys_addr_t phys_addr;		/* physical starting address of memory chunk */
+-	unsigned long start_addr;	/* starting address of memory chunk */
+-	unsigned long end_addr;		/* ending address of memory chunk */
+-	unsigned long bits[0];		/* bitmap for allocating memory chunk */
+-};
+-
+-extern struct gen_pool *gen_pool_create(int, int);
++struct gen_pool;
++
++struct gen_pool *__must_check gen_pool_create(unsigned order, int nid);
++
+ extern phys_addr_t gen_pool_virt_to_phys(struct gen_pool *pool, unsigned long);
+ extern int gen_pool_add_virt(struct gen_pool *, unsigned long, phys_addr_t,
+ 			     size_t, int);
+@@ -53,7 +36,26 @@ static inline int gen_pool_add(struct gen_pool *pool, unsigned long addr,
+ {
+ 	return gen_pool_add_virt(pool, addr, -1, size, nid);
+ }
+-extern void gen_pool_destroy(struct gen_pool *);
+-extern unsigned long gen_pool_alloc(struct gen_pool *, size_t);
+-extern void gen_pool_free(struct gen_pool *, unsigned long, size_t);
++
++void gen_pool_destroy(struct gen_pool *pool);
++
++unsigned long __must_check
++gen_pool_alloc_aligned(struct gen_pool *pool, size_t size,
++		       unsigned alignment_order);
++
++/**
++ * gen_pool_alloc() - allocate special memory from the pool
++ * @pool:	Pool to allocate from.
++ * @size:	Number of bytes to allocate from the pool.
++ *
++ * Allocate the requested number of bytes from the specified pool.
++ * Uses a first-fit algorithm.
++ */
++static inline unsigned long __must_check
++gen_pool_alloc(struct gen_pool *pool, size_t size)
++{
++	return gen_pool_alloc_aligned(pool, size, 0);
++}
++
++void gen_pool_free(struct gen_pool *pool, unsigned long addr, size_t size);
+ #endif /* __GENALLOC_H__ */
+diff --git a/lib/genalloc.c b/lib/genalloc.c
+index 577ddf8..b41dd90 100644
+--- a/lib/genalloc.c
++++ b/lib/genalloc.c
+@@ -16,23 +16,46 @@
+ #include <linux/genalloc.h>
+ 
+ 
++/* General purpose special memory pool descriptor. */
++struct gen_pool {
++	rwlock_t lock;			/* protects chunks list */
++	struct list_head chunks;	/* list of chunks in this pool */
++	unsigned order;			/* minimum allocation order */
++};
++
++/* General purpose special memory pool chunk descriptor. */
++struct gen_pool_chunk {
++	spinlock_t lock;		/* protects bits */
++	struct list_head next_chunk;	/* next chunk in pool */
++	phys_addr_t phys_addr;		/* physical starting address of memory chunk */
++	unsigned long start;		/* start of memory chunk */
++	unsigned long size;		/* number of bits */
++	unsigned long bits[0];		/* bitmap for allocating memory chunk */
++};
++
++
+ /**
+- * gen_pool_create - create a new special memory pool
+- * @min_alloc_order: log base 2 of number of bytes each bitmap bit represents
+- * @nid: node id of the node the pool structure should be allocated on, or -1
++ * gen_pool_create() - create a new special memory pool
++ * @order:	Log base 2 of number of bytes each bitmap bit
++ *		represents.
++ * @nid:	Node id of the node the pool structure should be allocated
++ *		on, or -1.  This will be also used for other allocations.
+  *
+  * Create a new special memory pool that can be used to manage special purpose
+  * memory not managed by the regular kmalloc/kfree interface.
+  */
+-struct gen_pool *gen_pool_create(int min_alloc_order, int nid)
++struct gen_pool *__must_check gen_pool_create(unsigned order, int nid)
+ {
+ 	struct gen_pool *pool;
+ 
+-	pool = kmalloc_node(sizeof(struct gen_pool), GFP_KERNEL, nid);
+-	if (pool != NULL) {
++	if (WARN_ON(order >= BITS_PER_LONG))
++		return NULL;
++
++	pool = kmalloc_node(sizeof *pool, GFP_KERNEL, nid);
++	if (pool) {
+ 		rwlock_init(&pool->lock);
+ 		INIT_LIST_HEAD(&pool->chunks);
+-		pool->min_alloc_order = min_alloc_order;
++		pool->order = order;
+ 	}
+ 	return pool;
+ }
+@@ -40,33 +63,41 @@ EXPORT_SYMBOL(gen_pool_create);
+ 
+ /**
+  * gen_pool_add_virt - add a new chunk of special memory to the pool
+- * @pool: pool to add new memory chunk to
+- * @virt: virtual starting address of memory chunk to add to pool
+- * @phys: physical starting address of memory chunk to add to pool
+- * @size: size in bytes of the memory chunk to add to pool
+- * @nid: node id of the node the chunk structure and bitmap should be
+- *       allocated on, or -1
++ * @pool:	Pool to add new memory chunk to
++ * @virt:	Virtual starting address of memory chunk to add to pool
++ * @phys:	Physical starting address of memory chunk to add to pool
++ * @size:	Size in bytes of the memory chunk to add to pool
++ * @nid:	Node id of the node the chunk structure and bitmap should be
++ *       	allocated on, or -1
+  *
+  * Add a new chunk of special memory to the specified pool.
+  *
+  * Returns 0 on success or a -ve errno on failure.
+  */
+-int gen_pool_add_virt(struct gen_pool *pool, unsigned long virt, phys_addr_t phys,
+-		 size_t size, int nid)
++int __must_check
++gen_pool_add_virt(struct gen_pool *pool, unsigned long virt, phys_addr_t phys,
++		  size_t size, int nid)
+ {
+ 	struct gen_pool_chunk *chunk;
+-	int nbits = size >> pool->min_alloc_order;
+-	int nbytes = sizeof(struct gen_pool_chunk) +
+-				(nbits + BITS_PER_BYTE - 1) / BITS_PER_BYTE;
++	size_t nbytes;
+ 
+-	chunk = kmalloc_node(nbytes, GFP_KERNEL | __GFP_ZERO, nid);
+-	if (unlikely(chunk == NULL))
++	if (WARN_ON(!virt || virt + size < virt ||
++		    (virt & ((1 << pool->order) - 1))))
++		return -EINVAL;
++
++	size = size >> pool->order;
++	if (WARN_ON(!size))
++		return -EINVAL;
++
++	nbytes = sizeof *chunk + BITS_TO_LONGS(size) * sizeof *chunk->bits;
++	chunk = kzalloc_node(nbytes, GFP_KERNEL, nid);
++	if (!chunk)
+ 		return -ENOMEM;
+ 
+ 	spin_lock_init(&chunk->lock);
++	chunk->start = virt >> pool->order;
++	chunk->size  = size;
+ 	chunk->phys_addr = phys;
+-	chunk->start_addr = virt;
+-	chunk->end_addr = virt + size;
+ 
+ 	write_lock(&pool->lock);
+ 	list_add(&chunk->next_chunk, &pool->chunks);
+@@ -90,10 +121,12 @@ phys_addr_t gen_pool_virt_to_phys(struct gen_pool *pool, unsigned long addr)
+ 
+ 	read_lock(&pool->lock);
+ 	list_for_each(_chunk, &pool->chunks) {
++		unsigned long start_addr;
+ 		chunk = list_entry(_chunk, struct gen_pool_chunk, next_chunk);
+ 
+-		if (addr >= chunk->start_addr && addr < chunk->end_addr)
+-			return chunk->phys_addr + addr - chunk->start_addr;
++		start_addr = chunk->start << pool->order;
++		if (addr >= start_addr && addr < start_addr + chunk->size)
++			return chunk->phys_addr + addr - start_addr;
+ 	}
+ 	read_unlock(&pool->lock);
+ 
+@@ -102,115 +135,116 @@ phys_addr_t gen_pool_virt_to_phys(struct gen_pool *pool, unsigned long addr)
+ EXPORT_SYMBOL(gen_pool_virt_to_phys);
+ 
+ /**
+- * gen_pool_destroy - destroy a special memory pool
+- * @pool: pool to destroy
++ * gen_pool_destroy() - destroy a special memory pool
++ * @pool:	Pool to destroy.
+  *
+  * Destroy the specified special memory pool. Verifies that there are no
+  * outstanding allocations.
+  */
+ void gen_pool_destroy(struct gen_pool *pool)
+ {
+-	struct list_head *_chunk, *_next_chunk;
+ 	struct gen_pool_chunk *chunk;
+-	int order = pool->min_alloc_order;
+-	int bit, end_bit;
+-
++	int bit;
+ 
+-	list_for_each_safe(_chunk, _next_chunk, &pool->chunks) {
+-		chunk = list_entry(_chunk, struct gen_pool_chunk, next_chunk);
++	while (!list_empty(&pool->chunks)) {
++		chunk = list_entry(pool->chunks.next, struct gen_pool_chunk,
++				   next_chunk);
+ 		list_del(&chunk->next_chunk);
+ 
+-		end_bit = (chunk->end_addr - chunk->start_addr) >> order;
+-		bit = find_next_bit(chunk->bits, end_bit, 0);
+-		BUG_ON(bit < end_bit);
++		bit = find_next_bit(chunk->bits, chunk->size, 0);
++		BUG_ON(bit < chunk->size);
+ 
+ 		kfree(chunk);
+ 	}
+ 	kfree(pool);
+-	return;
+ }
+ EXPORT_SYMBOL(gen_pool_destroy);
+ 
+ /**
+- * gen_pool_alloc - allocate special memory from the pool
+- * @pool: pool to allocate from
+- * @size: number of bytes to allocate from the pool
++ * gen_pool_alloc_aligned() - allocate special memory from the pool
++ * @pool:	Pool to allocate from.
++ * @size:	Number of bytes to allocate from the pool.
++ * @alignment_order:	Order the allocated space should be
++ *			aligned to (eg. 20 means allocated space
++ *			must be aligned to 1MiB).
+  *
+  * Allocate the requested number of bytes from the specified pool.
+  * Uses a first-fit algorithm.
+  */
+-unsigned long gen_pool_alloc(struct gen_pool *pool, size_t size)
++unsigned long __must_check
++gen_pool_alloc_aligned(struct gen_pool *pool, size_t size,
++		       unsigned alignment_order)
+ {
+-	struct list_head *_chunk;
++	unsigned long addr, align_mask = 0, flags, start;
+ 	struct gen_pool_chunk *chunk;
+-	unsigned long addr, flags;
+-	int order = pool->min_alloc_order;
+-	int nbits, start_bit, end_bit;
+ 
+ 	if (size == 0)
+ 		return 0;
+ 
+-	nbits = (size + (1UL << order) - 1) >> order;
++	if (alignment_order > pool->order)
++		align_mask = (1 << (alignment_order - pool->order)) - 1;
+ 
+-	read_lock(&pool->lock);
+-	list_for_each(_chunk, &pool->chunks) {
+-		chunk = list_entry(_chunk, struct gen_pool_chunk, next_chunk);
++	size = (size + (1UL << pool->order) - 1) >> pool->order;
+ 
+-		end_bit = (chunk->end_addr - chunk->start_addr) >> order;
++	read_lock(&pool->lock);
++	list_for_each_entry(chunk, &pool->chunks, next_chunk) {
++		if (chunk->size < size)
++			continue;
+ 
+ 		spin_lock_irqsave(&chunk->lock, flags);
+-		start_bit = bitmap_find_next_zero_area(chunk->bits, end_bit, 0,
+-						nbits, 0);
+-		if (start_bit >= end_bit) {
++		start = bitmap_find_next_zero_area_off(chunk->bits, chunk->size,
++						       0, size, align_mask,
++						       chunk->start);
++		if (start >= chunk->size) {
+ 			spin_unlock_irqrestore(&chunk->lock, flags);
+ 			continue;
+ 		}
+ 
+-		addr = chunk->start_addr + ((unsigned long)start_bit << order);
+-
+-		bitmap_set(chunk->bits, start_bit, nbits);
++		bitmap_set(chunk->bits, start, size);
+ 		spin_unlock_irqrestore(&chunk->lock, flags);
+-		read_unlock(&pool->lock);
+-		return addr;
++		addr = (chunk->start + start) << pool->order;
++		goto done;
+ 	}
++
++	addr = 0;
++done:
+ 	read_unlock(&pool->lock);
+-	return 0;
++	return addr;
+ }
+-EXPORT_SYMBOL(gen_pool_alloc);
++EXPORT_SYMBOL(gen_pool_alloc_aligned);
+ 
+ /**
+- * gen_pool_free - free allocated special memory back to the pool
+- * @pool: pool to free to
+- * @addr: starting address of memory to free back to pool
+- * @size: size in bytes of memory to free
++ * gen_pool_free() - free allocated special memory back to the pool
++ * @pool:	Pool to free to.
++ * @addr:	Starting address of memory to free back to pool.
++ * @size:	Size in bytes of memory to free.
+  *
+  * Free previously allocated special memory back to the specified pool.
+  */
+ void gen_pool_free(struct gen_pool *pool, unsigned long addr, size_t size)
+ {
+-	struct list_head *_chunk;
+ 	struct gen_pool_chunk *chunk;
+ 	unsigned long flags;
+-	int order = pool->min_alloc_order;
+-	int bit, nbits;
+ 
+-	nbits = (size + (1UL << order) - 1) >> order;
++	if (!size)
++		return;
+ 
+-	read_lock(&pool->lock);
+-	list_for_each(_chunk, &pool->chunks) {
+-		chunk = list_entry(_chunk, struct gen_pool_chunk, next_chunk);
++	addr = addr >> pool->order;
++	size = (size + (1UL << pool->order) - 1) >> pool->order;
+ 
+-		if (addr >= chunk->start_addr && addr < chunk->end_addr) {
+-			BUG_ON(addr + size > chunk->end_addr);
++	BUG_ON(addr + size < addr);
++
++	read_lock(&pool->lock);
++	list_for_each_entry(chunk, &pool->chunks, next_chunk)
++		if (addr >= chunk->start &&
++		    addr + size <= chunk->start + chunk->size) {
+ 			spin_lock_irqsave(&chunk->lock, flags);
+-			bit = (addr - chunk->start_addr) >> order;
+-			while (nbits--)
+-				__clear_bit(bit++, chunk->bits);
++			bitmap_clear(chunk->bits, addr - chunk->start, size);
+ 			spin_unlock_irqrestore(&chunk->lock, flags);
+-			break;
++			goto done;
+ 		}
+-	}
+-	BUG_ON(nbits > 0);
++	BUG_ON(1);
++done:
+ 	read_unlock(&pool->lock);
+ }
+ EXPORT_SYMBOL(gen_pool_free);
 -- 
 1.7.1.569.g6f426
 
