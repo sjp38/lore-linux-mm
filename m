@@ -1,78 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id D5B246B004A
-	for <linux-mm@kvack.org>; Fri, 10 Jun 2011 12:47:06 -0400 (EDT)
-Received: from hpaq2.eem.corp.google.com (hpaq2.eem.corp.google.com [172.25.149.2])
-	by smtp-out.google.com with ESMTP id p5AGl28l019028
-	for <linux-mm@kvack.org>; Fri, 10 Jun 2011 09:47:04 -0700
-Received: from qyk7 (qyk7.prod.google.com [10.241.83.135])
-	by hpaq2.eem.corp.google.com with ESMTP id p5AGj4Nf002064
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 10 Jun 2011 09:47:00 -0700
-Received: by qyk7 with SMTP id 7so1866259qyk.17
-        for <linux-mm@kvack.org>; Fri, 10 Jun 2011 09:47:00 -0700 (PDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 654426B004A
+	for <linux-mm@kvack.org>; Fri, 10 Jun 2011 12:55:36 -0400 (EDT)
+Received: from d01relay07.pok.ibm.com (d01relay07.pok.ibm.com [9.56.227.147])
+	by e3.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p5AGX3Ka014277
+	for <linux-mm@kvack.org>; Fri, 10 Jun 2011 12:33:03 -0400
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay07.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p5AGtUlK1265828
+	for <linux-mm@kvack.org>; Fri, 10 Jun 2011 12:55:30 -0400
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p5AGtTR5019079
+	for <linux-mm@kvack.org>; Fri, 10 Jun 2011 12:55:30 -0400
+Date: Fri, 10 Jun 2011 09:55:29 -0700
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: [PATCH 00/10] mm: Linux VM Infrastructure to support Memory
+ Power Management
+Message-ID: <20110610165529.GC2230@linux.vnet.ibm.com>
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <1306499498-14263-1-git-send-email-ankita@in.ibm.com>
+ <20110528005640.9076c0b1.akpm@linux-foundation.org>
+ <20110609185259.GA29287@linux.vnet.ibm.com>
+ <BANLkTinxeeSby_+tta8EhzCg3VbD6+=g+g@mail.gmail.com>
+ <20110610151121.GA2230@linux.vnet.ibm.com>
+ <20110610155954.GA25774@srcf.ucam.org>
 MIME-Version: 1.0
-In-Reply-To: <20110610164456.cfcdbd0c.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20110610164456.cfcdbd0c.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Fri, 10 Jun 2011 09:47:00 -0700
-Message-ID: <BANLkTi=rJVKdhAeAjzfSJ0cMn3GiZpdXusxRL3cPYdJT+Ucneg@mail.gmail.com>
-Subject: Re: [BUGFIX][PATCH] fix memory.numa_stat file permission
-From: Ying Han <yinghan@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110610155954.GA25774@srcf.ucam.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "bsingharora@gmail.com" <bsingharora@gmail.com>
+To: Matthew Garrett <mjg59@srcf.ucam.org>
+Cc: Kyungmin Park <kmpark@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Ankita Garg <ankita@in.ibm.com>, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-pm@lists.linux-foundation.org, svaidy@linux.vnet.ibm.com, thomas.abraham@linaro.org
 
-On Fri, Jun 10, 2011 at 12:44 AM, KAMEZAWA Hiroyuki
-<kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> I'm sorry I missed this bug because I tested as 'root' ...
->
-> =3D
-> From 9fe15b548430635d4bbdc2b39e778dbb08e369c9 Mon Sep 17 00:00:00 2001
-> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Date: Fri, 10 Jun 2011 16:50:39 +0900
-> Subject: [PATCH][BUGFIX] memcg: fix memory.numa_stat file permission
->
->
-> =A0commit 406eb0c9ba765eb066406fd5ce9d5e2b169a4d5a adds memory.numa_stat
-> =A0file for memory cgroup. But it's file permission is wrong.
->
-> [kamezawa@bluextal linux-2.6]$ ls -l /cgroup/memory/A/memory.numa_stat
-> ---------- 1 root root 0 Jun =A09 18:36 /cgroup/memory/A/memory.numa_stat
->
-> This patch fixes the permission as
->
-> [root@bluextal kamezawa]# ls -l /cgroup/memory/A/memory.numa_stat
-> -r--r--r-- 1 root root 0 Jun 10 16:49 /cgroup/memory/A/memory.numa_stat
->
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> ---
-> =A0mm/memcontrol.c | =A0 =A01 +
-> =A01 files changed, 1 insertions(+), 0 deletions(-)
->
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index bd9052a..ce05835 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -4640,6 +4640,7 @@ static struct cftype mem_cgroup_files[] =3D {
-> =A0 =A0 =A0 =A0{
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0.name =3D "numa_stat",
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0.open =3D mem_control_numa_stat_open,
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 .mode =3D S_IRUGO,
-> =A0 =A0 =A0 =A0},
-> =A0#endif
-> =A0};
-> --
-> 1.7.4.1
->
->
->
+On Fri, Jun 10, 2011 at 04:59:54PM +0100, Matthew Garrett wrote:
+> On Fri, Jun 10, 2011 at 08:11:21AM -0700, Paul E. McKenney wrote:
+> 
+> > Of course, on a server, you could get similar results by having a very
+> > large amount of memory (say 256GB) and a workload that needed all the
+> > memory only occasionally for short periods, but could get by with much
+> > less (say 8GB) the rest of the time.  I have no idea whether or not
+> > anyone actually has such a system.
+> 
+> For the server case, the low hanging fruit would seem to be 
+> finer-grained self-refresh. At best we seem to be able to do that on a 
+> per-CPU socket basis right now. The difference between active and 
+> self-refresh would seem to be much larger than the difference between 
+> self-refresh and powered down.
 
-Acked-by: Ying Han <yinghan@google.com>
+By "finer-grained self-refresh" you mean turning off refresh for banks
+of memory that are not being used, right?  If so, this is supported by
+the memory-regions support provided, at least assuming that the regions
+can be aligned with the self-refresh boundaries.
 
---Ying
+Or am I missing your point?
+
+							Thanx, Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
