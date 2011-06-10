@@ -1,46 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id CC7D86B004A
-	for <linux-mm@kvack.org>; Fri, 10 Jun 2011 05:13:11 -0400 (EDT)
-Date: Fri, 10 Jun 2011 10:12:33 +0100
-From: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Subject: Re: [PATCH] Make GFP_DMA allocations w/o ZONE_DMA emit a warning
-	instead of failing
-Message-ID: <20110610091233.GJ24424@n2100.arm.linux.org.uk>
-References: <BANLkTinBkdVd90g3-uiQP41z1S1sXUdRmQ@mail.gmail.com> <BANLkTikrRRzGLbMD47_xJz+xpgftCm1C2A@mail.gmail.com> <alpine.DEB.2.00.1106011017260.13089@chino.kir.corp.google.com> <20110601181918.GO3660@n2100.arm.linux.org.uk> <alpine.LFD.2.02.1106012043080.3078@ionos> <alpine.DEB.2.00.1106011205410.17065@chino.kir.corp.google.com> <alpine.LFD.2.02.1106012134120.3078@ionos> <4DF1C9DE.4070605@jp.fujitsu.com> <20110610004331.13672278.akpm@linux-foundation.org> <BANLkTimC8K2_H7ZEu2XYoWdA09-3XxpV7Q@mail.gmail.com>
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 0026D6B004A
+	for <linux-mm@kvack.org>; Fri, 10 Jun 2011 05:19:43 -0400 (EDT)
+Message-ID: <4DF1E1B0.2090907@fusionio.com>
+Date: Fri, 10 Jun 2011 11:19:44 +0200
+From: Jens Axboe <jaxboe@fusionio.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <BANLkTimC8K2_H7ZEu2XYoWdA09-3XxpV7Q@mail.gmail.com>
+Subject: Re: [PATCH 1/7] tmpfs: clone shmem_file_splice_read
+References: <alpine.LSU.2.00.1106091529060.2200@sister.anvils> <alpine.LSU.2.00.1106091531120.2200@sister.anvils>
+In-Reply-To: <alpine.LSU.2.00.1106091531120.2200@sister.anvils>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, tglx@linutronix.de, rientjes@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mel@csn.ul.ie, kamezawa.hiroyu@jp.fujitsu.com, riel@redhat.com, pavel@ucw.cz
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Fri, Jun 10, 2011 at 12:11:42PM +0400, Dmitry Eremin-Solenikov wrote:
-> On 6/10/11, Andrew Morton <akpm@linux-foundation.org> wrote:
-> > On Fri, 10 Jun 2011 16:38:06 +0900 KOSAKI Motohiro
-> > <kosaki.motohiro@jp.fujitsu.com> wrote:
-> >
-> >> Subject: [PATCH] Revert "mm: fail GFP_DMA allocations when ZONE_DMA is not
-> >> configured"
-> >
-> > Confused.  We reverted this over a week ago.
-> 
-> Should one submit a patch adding a warning to GFP_DMA allocations
-> w/o ZONE_DMA, or the idea of the original patch is wrong?
+On 2011-06-10 00:32, Hugh Dickins wrote:
+> Copy __generic_file_splice_read() and generic_file_splice_read()
+> from fs/splice.c to shmem_file_splice_read() in mm/shmem.c.  Make
+> page_cache_pipe_buf_ops and spd_release_page() accessible to it.
 
-Linus was far from impressed by the original commit, saying:
-| Using GFP_DMA is reasonable in a driver - on platforms where that
-| matters, it should allocate from the DMA zone, on platforms where it
-| doesn't matter it should be a no-op.
+That's a lot of fairly complicated and convoluted code to have
+duplicated. Yes, I know I know, it's already largely duplicated from the
+normal file read, but still... Really no easy way to share this?
 
-So no, not even a warning.
-
-What is a useful exercise though is to remove GFP_DMA from those
-allocations which should never have had GFP_DMA added - such as those
-used for data structures which have nothing to do with DMA at all.
-Also dma_alloc_coherent() should not be given GFP_DMA in any case.
+-- 
+Jens Axboe
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
