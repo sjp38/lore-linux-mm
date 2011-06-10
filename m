@@ -1,30 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 90BD36B0082
-	for <linux-mm@kvack.org>; Fri, 10 Jun 2011 07:23:34 -0400 (EDT)
-Date: Fri, 10 Jun 2011 12:24:51 +0100
-From: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Subject: Re: [PATCH 02/10] lib: genalloc: Generic allocator improvements
-Message-ID: <20110610122451.15af86d1@lxorguk.ukuu.org.uk>
-In-Reply-To: <1307699698-29369-3-git-send-email-m.szyprowski@samsung.com>
-References: <1307699698-29369-1-git-send-email-m.szyprowski@samsung.com>
-	<1307699698-29369-3-git-send-email-m.szyprowski@samsung.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with ESMTP id 0F95C6B004A
+	for <linux-mm@kvack.org>; Fri, 10 Jun 2011 07:48:29 -0400 (EDT)
+Date: Fri, 10 Jun 2011 14:48:21 +0300
+From: Pasi =?iso-8859-1?Q?K=E4rkk=E4inen?= <pasik@iki.fi>
+Subject: Re: [Xen-devel] Possible shadow bug
+Message-ID: <20110610114821.GB32595@reaktio.net>
+References: <4DE8D50F.1090406@redhat.com> <BANLkTinMamg_qesEffGxKu3QkT=zyQ2MRQ@mail.gmail.com> <4DEE26E7.2060201@redhat.com> <20110608123527.479e6991.kamezawa.hiroyu@jp.fujitsu.com> <4DF0801F.9050908@redhat.com> <alpine.DEB.2.00.1106091311530.12963@kaball-desktop> <20110609150133.GF5098@whitby.uk.xensource.com> <4DF0F90D.4010900@redhat.com> <20110610100139.GG5098@whitby.uk.xensource.com> <20110610101011.GH5098@whitby.uk.xensource.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110610101011.GH5098@whitby.uk.xensource.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Michal Nazarewicz <mina86@mina86.com>, Kyungmin Park <kyungmin.park@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ankita Garg <ankita@in.ibm.com>, Daniel Walker <dwalker@codeaurora.org>, Johan MOSSBERG <johan.xx.mossberg@stericsson.com>, Mel Gorman <mel@csn.ul.ie>, Arnd Bergmann <arnd@arndb.de>, Jesse Barker <jesse.barker@linaro.org>
+To: Tim Deegan <Tim.Deegan@citrix.com>
+Cc: Igor Mammedov <imammedo@redhat.com>, Stefano@phlegethon.org, Paul Menage <menage@google.com>, xen-devel@lists.xensource.com, Keir Fraser <keir@xen.org>, Stabellini <stefano.stabellini@eu.citrix.com>, "containers@lists.linux-foundation.org" <containers@lists.linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Keir Fraser <keir.xen@gmail.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, KAMEZAWA@phlegethon.org, Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>
 
-I am curious about one thing
+On Fri, Jun 10, 2011 at 11:10:11AM +0100, Tim Deegan wrote:
+> At 11:01 +0100 on 10 Jun (1307703699), Tim Deegan wrote:
+> > Actually, looking at the disassembly you posted, it looks more like it
+> > might be an emulator bug in Xen; if Xen finds itself emulating the IMUL
+> > instruction and either gets the logic wrong or does the memory access
+> > wrong, it could cause that failure.  And one reason that Xen emulates
+> > instructions is if the memory operand is on a pagetable that's shadowed
+> > (which might be a page that was recently a pagetable). 
+> > 
+> > ISTR that even though the RHEL xen reports a 3.0.x version it has quite
+> > a lot of backports in it.  Does it have this patch?
+> > http://hg.uk.xensource.com/xen-3.1-testing.hg/rev/e8fca4c42d05
+> 
+> Oops, that URL doesn't work; I meant this:
+> http://xenbits.xen.org/xen-3.1-testing.hg/rev/e8fca4c42d05
+> 
 
-Why do we need this allocator. Why not use allocate_resource and friends.
-The kernel generic resource handler already handles object alignment and
-subranges. It just seems to be a surplus allocator that could perhaps be
-mostly removed by using the kernel resource allocator we already have ?
+RHEL5 Xen (hypervisor) reports version as 3.1.2-xyz..
 
-Alan
+-- Pasi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
