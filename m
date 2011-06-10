@@ -1,44 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id ABCCF6B004A
-	for <linux-mm@kvack.org>; Fri, 10 Jun 2011 09:55:37 -0400 (EDT)
-Message-ID: <4DF22245.20008@redhat.com>
-Date: Fri, 10 Jun 2011 15:55:17 +0200
-From: Igor Mammedov <imammedo@redhat.com>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id D76FF6B004A
+	for <linux-mm@kvack.org>; Fri, 10 Jun 2011 10:48:17 -0400 (EDT)
+Date: Fri, 10 Jun 2011 22:48:05 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: [PATCH] writeback: trace global_dirty_state
+Message-ID: <20110610144805.GA9986@localhost>
 MIME-Version: 1.0
-Subject: Re: [Xen-devel] Possible shadow bug
-References: <BANLkTimbqHPeUdue=_Z31KVdPwcXtbLpeg@mail.gmail.com>	<4DE8D50F.1090406@redhat.com>	<BANLkTinMamg_qesEffGxKu3QkT=zyQ2MRQ@mail.gmail.com>	<4DEE26E7.2060201@redhat.com>	<20110608123527.479e6991.kamezawa.hiroyu@jp.fujitsu.com>	<4DF0801F.9050908@redhat.com>	<alpine.DEB.2.00.1106091311530.12963@kaball-desktop>	<20110609150133.GF5098@whitby.uk.xensource.com>	<4DF0F90D.4010900@redhat.com>	<20110610100139.GG5098@whitby.uk.xensource.com> <20110610101011.GH5098@whitby.uk.xensource.com>
-In-Reply-To: <20110610101011.GH5098@whitby.uk.xensource.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tim Deegan <Tim.Deegan@citrix.com>
-Cc: Stefano@phlegethon.org, Paul Menage <menage@google.com>, xen-devel@lists.xensource.com, Keir Fraser <keir@xen.org>, Stabellini <stefano.stabellini@eu.citrix.com>, "containers@lists.linux-foundation.org" <containers@lists.linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Keir Fraser <keir.xen@gmail.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, KAMEZAWA@phlegethon.org, Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 
-On 06/10/2011 12:10 PM, Tim Deegan wrote:
-> At 11:01 +0100 on 10 Jun (1307703699), Tim Deegan wrote:
->> Actually, looking at the disassembly you posted, it looks more like it
->> might be an emulator bug in Xen; if Xen finds itself emulating the IMUL
->> instruction and either gets the logic wrong or does the memory access
->> wrong, it could cause that failure.  And one reason that Xen emulates
->> instructions is if the memory operand is on a pagetable that's shadowed
->> (which might be a page that was recently a pagetable).
->>
->> ISTR that even though the RHEL xen reports a 3.0.x version it has quite
->> a lot of backports in it.  Does it have this patch?
->> http://hg.uk.xensource.com/xen-3.1-testing.hg/rev/e8fca4c42d05
-> Oops, that URL doesn't work; I meant this:
-> http://xenbits.xen.org/xen-3.1-testing.hg/rev/e8fca4c42d05
->
-> Tim.
->
-Tim, Thank you very much!
-We were missing that cs and it solved problem.
+[It seems beneficial to queue this simple trace event for
+ next/upstream after the review?]
 
--- 
-Thanks,
-  Igor
+Add trace event balance_dirty_state for showing the global dirty page
+counts and thresholds at each global_dirty_limits() invocation.  This
+will cover the callers throttle_vm_writeout(), over_bground_thresh()
+and each balance_dirty_pages() loop.
+
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+---
+ include/trace/events/writeback.h |   36 +++++++++++++++++++++++++++++
+ mm/page-writeback.c              |    1 
+ 2 files changed, 37 insertions(+)
+
+--- linux-next.orig/mm/page-writeback.c	2011-06-10 21:52:34.000000000 +0800
++++ linux-next/mm/page-writeback.c	2011-06-10 22:08:26.000000000 +0800
+@@ -430,6 +430,7 @@ void global_dirty_limits(unsigned long *
+ 	}
+ 	*pbackground = background;
+ 	*pdirty = dirty;
++	trace_global_dirty_state(background, dirty);
+ }
+ 
+ /**
+--- linux-next.orig/include/trace/events/writeback.h	2011-06-10 21:52:34.000000000 +0800
++++ linux-next/include/trace/events/writeback.h	2011-06-10 22:25:33.000000000 +0800
+@@ -187,6 +187,42 @@ TRACE_EVENT(writeback_queue_io,
+ 		__entry->moved)
+ );
+ 
++TRACE_EVENT(global_dirty_state,
++
++	TP_PROTO(unsigned long background_thresh,
++		 unsigned long dirty_thresh
++	),
++
++	TP_ARGS(background_thresh,
++		dirty_thresh
++	),
++
++	TP_STRUCT__entry(
++		__field(unsigned long,	nr_dirty)
++		__field(unsigned long,	nr_writeback)
++		__field(unsigned long,	nr_unstable)
++		__field(unsigned long,	background_thresh)
++		__field(unsigned long,	dirty_thresh)
++	),
++
++	TP_fast_assign(
++		__entry->nr_dirty	= global_page_state(NR_FILE_DIRTY);
++		__entry->nr_writeback	= global_page_state(NR_WRITEBACK);
++		__entry->nr_unstable	= global_page_state(NR_UNSTABLE_NFS);
++		__entry->background_thresh = background_thresh;
++		__entry->dirty_thresh	= dirty_thresh;
++	),
++
++	TP_printk("dirty=%lu writeback=%lu unstable=%lu "
++		  "bg_thresh=%lu thresh=%lu",
++		  __entry->nr_dirty,
++		  __entry->nr_writeback,
++		  __entry->nr_unstable,
++		  __entry->background_thresh,
++		  __entry->dirty_thresh
++	)
++);
++
+ DECLARE_EVENT_CLASS(writeback_congest_waited_template,
+ 
+ 	TP_PROTO(unsigned int usec_timeout, unsigned int usec_delayed),
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
