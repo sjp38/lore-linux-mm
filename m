@@ -1,21 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 5F32F6B007E
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id DF9FB900117
 	for <linux-mm@kvack.org>; Fri, 10 Jun 2011 05:55:04 -0400 (EDT)
-Received: from spt2.w1.samsung.com (mailout2.w1.samsung.com [210.118.77.12])
- by mailout2.w1.samsung.com
+Received: from spt2.w1.samsung.com (mailout1.w1.samsung.com [210.118.77.11])
+ by mailout1.w1.samsung.com
  (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
- with ESMTP id <0LMK00F1DJJP45@mailout2.w1.samsung.com> for linux-mm@kvack.org;
- Fri, 10 Jun 2011 10:55:01 +0100 (BST)
+ with ESMTP id <0LMK0037FJJOCA@mailout1.w1.samsung.com> for linux-mm@kvack.org;
+ Fri, 10 Jun 2011 10:55:00 +0100 (BST)
 Received: from linux.samsung.com ([106.116.38.10])
  by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0LMK00E60JJO9K@spt2.w1.samsung.com> for
- linux-mm@kvack.org; Fri, 10 Jun 2011 10:55:00 +0100 (BST)
-Date: Fri, 10 Jun 2011 11:54:53 +0200
+ 2004)) with ESMTPA id <0LMK00E5IJJM9K@spt2.w1.samsung.com> for
+ linux-mm@kvack.org; Fri, 10 Jun 2011 10:54:59 +0100 (BST)
+Date: Fri, 10 Jun 2011 11:54:49 +0200
 From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: [PATCH 05/10] mm: alloc_contig_range() added
+Subject: [PATCH 01/10] lib: bitmap: Added alignment offset for
+ bitmap_find_next_zero_area()
 In-reply-to: <1307699698-29369-1-git-send-email-m.szyprowski@samsung.com>
-Message-id: <1307699698-29369-6-git-send-email-m.szyprowski@samsung.com>
+Message-id: <1307699698-29369-2-git-send-email-m.szyprowski@samsung.com>
 MIME-version: 1.0
 Content-type: TEXT/PLAIN
 Content-transfer-encoding: 7BIT
@@ -27,190 +28,118 @@ Cc: Michal Nazarewicz <mina86@mina86.com>, Marek Szyprowski <m.szyprowski@samsun
 
 From: Michal Nazarewicz <m.nazarewicz@samsung.com>
 
-This commit adds the alloc_contig_range() function which tries
-to allecate given range of pages.  It tries to migrate all
-already allocated pages that fall in the range thus freeing them.
-Once all pages in the range are freed they are removed from the
-buddy system thus allocated for the caller to use.
+This commit adds a bitmap_find_next_zero_area_off() function which
+works like bitmap_find_next_zero_area() function expect it allows an
+offset to be specified when alignment is checked.  This lets caller
+request a bit such that its number plus the offset is aligned
+according to the mask.
 
 Signed-off-by: Michal Nazarewicz <m.nazarewicz@samsung.com>
 Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
-[m.szyprowski: renamed some variables for easier code reading]
 Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
 CC: Michal Nazarewicz <mina86@mina86.com>
 ---
- include/linux/page-isolation.h |    2 +
- mm/page_alloc.c                |  144 ++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 146 insertions(+), 0 deletions(-)
+ include/linux/bitmap.h |   24 +++++++++++++++++++-----
+ lib/bitmap.c           |   22 ++++++++++++----------
+ 2 files changed, 31 insertions(+), 15 deletions(-)
 
-diff --git a/include/linux/page-isolation.h b/include/linux/page-isolation.h
-index f1417ed..c5d1a7c 100644
---- a/include/linux/page-isolation.h
-+++ b/include/linux/page-isolation.h
-@@ -34,6 +34,8 @@ extern int set_migratetype_isolate(struct page *page);
- extern void unset_migratetype_isolate(struct page *page);
- extern unsigned long alloc_contig_freed_pages(unsigned long start,
- 					      unsigned long end, gfp_t flag);
-+extern int alloc_contig_range(unsigned long start, unsigned long end,
-+			      gfp_t flags);
- extern void free_contig_pages(struct page *page, int nr_pages);
+diff --git a/include/linux/bitmap.h b/include/linux/bitmap.h
+index dcafe0b..50e2c16 100644
+--- a/include/linux/bitmap.h
++++ b/include/linux/bitmap.h
+@@ -45,6 +45,7 @@
+  * bitmap_set(dst, pos, nbits)			Set specified bit area
+  * bitmap_clear(dst, pos, nbits)		Clear specified bit area
+  * bitmap_find_next_zero_area(buf, len, pos, n, mask)	Find bit free area
++ * bitmap_find_next_zero_area_off(buf, len, pos, n, mask)	as above
+  * bitmap_shift_right(dst, src, n, nbits)	*dst = *src >> n
+  * bitmap_shift_left(dst, src, n, nbits)	*dst = *src << n
+  * bitmap_remap(dst, src, old, new, nbits)	*dst = map(old, new)(src)
+@@ -114,11 +115,24 @@ extern int __bitmap_weight(const unsigned long *bitmap, int bits);
+ 
+ extern void bitmap_set(unsigned long *map, int i, int len);
+ extern void bitmap_clear(unsigned long *map, int start, int nr);
+-extern unsigned long bitmap_find_next_zero_area(unsigned long *map,
+-					 unsigned long size,
+-					 unsigned long start,
+-					 unsigned int nr,
+-					 unsigned long align_mask);
++
++extern unsigned long bitmap_find_next_zero_area_off(unsigned long *map,
++						    unsigned long size,
++						    unsigned long start,
++						    unsigned int nr,
++						    unsigned long align_mask,
++						    unsigned long align_offset);
++
++static inline unsigned long
++bitmap_find_next_zero_area(unsigned long *map,
++			   unsigned long size,
++			   unsigned long start,
++			   unsigned int nr,
++			   unsigned long align_mask)
++{
++	return bitmap_find_next_zero_area_off(map, size, start, nr,
++					      align_mask, 0);
++}
+ 
+ extern int bitmap_scnprintf(char *buf, unsigned int len,
+ 			const unsigned long *src, int nbits);
+diff --git a/lib/bitmap.c b/lib/bitmap.c
+index 41baf02..bad4f20 100644
+--- a/lib/bitmap.c
++++ b/lib/bitmap.c
+@@ -315,30 +315,32 @@ void bitmap_clear(unsigned long *map, int start, int nr)
+ }
+ EXPORT_SYMBOL(bitmap_clear);
+ 
+-/*
++/**
+  * bitmap_find_next_zero_area - find a contiguous aligned zero area
+  * @map: The address to base the search on
+  * @size: The bitmap size in bits
+  * @start: The bitnumber to start searching at
+  * @nr: The number of zeroed bits we're looking for
+  * @align_mask: Alignment mask for zero area
++ * @align_offset: Alignment offset for zero area.
+  *
+  * The @align_mask should be one less than a power of 2; the effect is that
+- * the bit offset of all zero areas this function finds is multiples of that
+- * power of 2. A @align_mask of 0 means no alignment is required.
++ * the bit offset of all zero areas this function finds plus @align_offset
++ * is multiple of that power of 2.
+  */
+-unsigned long bitmap_find_next_zero_area(unsigned long *map,
+-					 unsigned long size,
+-					 unsigned long start,
+-					 unsigned int nr,
+-					 unsigned long align_mask)
++unsigned long bitmap_find_next_zero_area_off(unsigned long *map,
++					     unsigned long size,
++					     unsigned long start,
++					     unsigned int nr,
++					     unsigned long align_mask,
++					     unsigned long align_offset)
+ {
+ 	unsigned long index, end, i;
+ again:
+ 	index = find_next_zero_bit(map, size, start);
+ 
+ 	/* Align allocation */
+-	index = __ALIGN_MASK(index, align_mask);
++	index = __ALIGN_MASK(index + align_offset, align_mask) - align_offset;
+ 
+ 	end = index + nr;
+ 	if (end > size)
+@@ -350,7 +352,7 @@ again:
+ 	}
+ 	return index;
+ }
+-EXPORT_SYMBOL(bitmap_find_next_zero_area);
++EXPORT_SYMBOL(bitmap_find_next_zero_area_off);
  
  /*
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 00e9b24..2cea044 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -5638,6 +5638,150 @@ unsigned long alloc_contig_freed_pages(unsigned long start, unsigned long end,
- 	return pfn;
- }
- 
-+static unsigned long pfn_to_maxpage(unsigned long pfn)
-+{
-+	return pfn & ~(MAX_ORDER_NR_PAGES - 1);
-+}
-+
-+static unsigned long pfn_to_maxpage_up(unsigned long pfn)
-+{
-+	return ALIGN(pfn, MAX_ORDER_NR_PAGES);
-+}
-+
-+#define MIGRATION_RETRY	5
-+static int __alloc_contig_migrate_range(unsigned long start, unsigned long end)
-+{
-+	int migration_failed = 0, ret;
-+	unsigned long pfn = start;
-+
-+	/*
-+	 * Some code "borrowed" from KAMEZAWA Hiroyuki's
-+	 * __alloc_contig_pages().
-+	 */
-+
-+	for (;;) {
-+		pfn = scan_lru_pages(pfn, end);
-+		if (!pfn || pfn >= end)
-+			break;
-+
-+		ret = do_migrate_range(pfn, end);
-+		if (!ret) {
-+			migration_failed = 0;
-+		} else if (ret != -EBUSY
-+			|| ++migration_failed >= MIGRATION_RETRY) {
-+			return ret;
-+		} else {
-+			/* There are unstable pages.on pagevec. */
-+			lru_add_drain_all();
-+			/*
-+			 * there may be pages on pcplist before
-+			 * we mark the range as ISOLATED.
-+			 */
-+			drain_all_pages();
-+		}
-+		cond_resched();
-+	}
-+
-+	if (!migration_failed) {
-+		/* drop all pages in pagevec and pcp list */
-+		lru_add_drain_all();
-+		drain_all_pages();
-+	}
-+
-+	/* Make sure all pages are isolated */
-+	if (WARN_ON(test_pages_isolated(start, end)))
-+		return -EBUSY;
-+
-+	return 0;
-+}
-+
-+/**
-+ * alloc_contig_range() -- tries to allocate given range of pages
-+ * @start:	start PFN to allocate
-+ * @end:	one-past-the-last PFN to allocate
-+ * @flags:	flags passed to alloc_contig_freed_pages().
-+ *
-+ * The PFN range does not have to be pageblock or MAX_ORDER_NR_PAGES
-+ * aligned, hovewer it's callers responsibility to guarantee that we
-+ * are the only thread that changes migrate type of pageblocks the
-+ * pages fall in.
-+ *
-+ * Returns zero on success or negative error code.  On success all
-+ * pages which PFN is in (start, end) are allocated for the caller and
-+ * need to be freed with free_contig_pages().
-+ */
-+int alloc_contig_range(unsigned long start, unsigned long end,
-+		       gfp_t flags)
-+{
-+	unsigned long outer_start, outer_end;
-+	int ret;
-+
-+	/*
-+	 * What we do here is we mark all pageblocks in range as
-+	 * MIGRATE_ISOLATE.  Because of the way page allocator work, we
-+	 * align the range to MAX_ORDER pages so that page allocator
-+	 * won't try to merge buddies from different pageblocks and
-+	 * change MIGRATE_ISOLATE to some other migration type.
-+	 *
-+	 * Once the pageblocks are marked as MIGRATE_ISOLATE, we
-+	 * migrate the pages from an unaligned range (ie. pages that
-+	 * we are interested in).  This will put all the pages in
-+	 * range back to page allocator as MIGRATE_ISOLATE.
-+	 *
-+	 * When this is done, we take the pages in range from page
-+	 * allocator removing them from the buddy system.  This way
-+	 * page allocator will never consider using them.
-+	 *
-+	 * This lets us mark the pageblocks back as
-+	 * MIGRATE_CMA/MIGRATE_MOVABLE so that free pages in the
-+	 * MAX_ORDER aligned range but not in the unaligned, original
-+	 * range are put back to page allocator so that buddy can use
-+	 * them.
-+	 */
-+
-+	ret = start_isolate_page_range(pfn_to_maxpage(start),
-+				       pfn_to_maxpage_up(end));
-+	if (ret)
-+		goto done;
-+
-+	ret = __alloc_contig_migrate_range(start, end);
-+	if (ret)
-+		goto done;
-+
-+	/*
-+	 * Pages from [start, end) are within a MAX_ORDER_NR_PAGES
-+	 * aligned blocks that are marked as MIGRATE_ISOLATE.  What's
-+	 * more, all pages in [start, end) are free in page allocator.
-+	 * What we are going to do is to allocate all pages from
-+	 * [start, end) (that is remove them from page allocater).
-+	 *
-+	 * The only problem is that pages at the beginning and at the
-+	 * end of interesting range may be not aligned with pages that
-+	 * page allocator holds, ie. they can be part of higher order
-+	 * pages.  Because of this, we reserve the bigger range and
-+	 * once this is done free the pages we are not interested in.
-+	 */
-+
-+	ret = 0;
-+	while (!PageBuddy(pfn_to_page(start & (~0UL << ret))))
-+		if (WARN_ON(++ret >= MAX_ORDER))
-+			return -EINVAL;
-+
-+	outer_start = start & (~0UL << ret);
-+	outer_end   = alloc_contig_freed_pages(outer_start, end, flags);
-+
-+	/* Free head and tail (if any) */
-+	if (start != outer_start)
-+		free_contig_pages(pfn_to_page(outer_start), start - outer_start);
-+	if (end != outer_end)
-+		free_contig_pages(pfn_to_page(end), outer_end - end);
-+
-+	ret = 0;
-+done:
-+	undo_isolate_page_range(pfn_to_maxpage(start), pfn_to_maxpage_up(end));
-+	return ret;
-+}
-+
- void free_contig_pages(struct page *page, int nr_pages)
- {
- 	for (; nr_pages; --nr_pages, ++page)
+  * Bitmap printing & parsing functions: first version by Bill Irwin,
 -- 
 1.7.1.569.g6f426
 
