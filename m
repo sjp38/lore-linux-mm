@@ -1,60 +1,162 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 162AC6B004A
-	for <linux-mm@kvack.org>; Fri, 10 Jun 2011 08:22:12 -0400 (EDT)
-Received: from eu_spt1 (mailout1.w1.samsung.com [210.118.77.11])
- by mailout1.w1.samsung.com
- (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
- with ESMTP id <0LMK008R4QCXZC@mailout1.w1.samsung.com> for linux-mm@kvack.org;
- Fri, 10 Jun 2011 13:22:09 +0100 (BST)
-Received: from linux.samsung.com ([106.116.38.10])
- by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0LMK007GOQCWZU@spt1.w1.samsung.com> for
- linux-mm@kvack.org; Fri, 10 Jun 2011 13:22:08 +0100 (BST)
-Date: Fri, 10 Jun 2011 14:22:05 +0200
-From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: RE: [PATCH 02/10] lib: genalloc: Generic allocator improvements
-In-reply-to: <20110610122451.15af86d1@lxorguk.ukuu.org.uk>
-Message-id: <000c01cc2769$02669b70$0733d250$%szyprowski@samsung.com>
-MIME-version: 1.0
-Content-type: text/plain; charset=us-ascii
-Content-language: pl
-Content-transfer-encoding: 7BIT
-References: <1307699698-29369-1-git-send-email-m.szyprowski@samsung.com>
- <1307699698-29369-3-git-send-email-m.szyprowski@samsung.com>
- <20110610122451.15af86d1@lxorguk.ukuu.org.uk>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 36F0A6B004A
+	for <linux-mm@kvack.org>; Fri, 10 Jun 2011 08:24:22 -0400 (EDT)
+Message-ID: <4DF20CF1.1050501@snapgear.com>
+Date: Fri, 10 Jun 2011 22:24:17 +1000
+From: Greg Ungerer <gerg@snapgear.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v2] nommu: add page_align to mmap
+References: <1304661784-11654-1-git-send-email-lliubbo@gmail.com>	<4DE88112.3090908@snapgear.com>	<BANLkTikv5cuRRW+7LPX-=kSdSy=n+O3=Jg@mail.gmail.com>	<4DEEFEEB.3090103@snapgear.com>	<BANLkTi=8G6Z5RpvK6wDuzdF-0t7wDwnTOA@mail.gmail.com>	<4DEF4CC5.7040403@snapgear.com>	<BANLkTi=AJ=0pFx2OXENZF4p4gh7V2RXmXw@mail.gmail.com>	<4DF194A6.3020606@snapgear.com> <BANLkTim2p+UBOUtgP-b7u89PK1h=eGjYRQ@mail.gmail.com>
+In-Reply-To: <BANLkTim2p+UBOUtgP-b7u89PK1h=eGjYRQ@mail.gmail.com>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Alan Cox' <alan@lxorguk.ukuu.org.uk>
-Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, 'Michal Nazarewicz' <mina86@mina86.com>, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Andrew Morton' <akpm@linux-foundation.org>, 'KAMEZAWA Hiroyuki' <kamezawa.hiroyu@jp.fujitsu.com>, 'Ankita Garg' <ankita@in.ibm.com>, 'Daniel Walker' <dwalker@codeaurora.org>, 'Johan MOSSBERG' <johan.xx.mossberg@stericsson.com>, 'Mel Gorman' <mel@csn.ul.ie>, 'Arnd Bergmann' <arnd@arndb.de>, 'Jesse Barker' <jesse.barker@linaro.org>
+To: Bob Liu <lliubbo@gmail.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, dhowells@redhat.com, lethal@linux-sh.org, gerg@uclinux.org, walken@google.com, daniel-gl@gmx.net, vapier@gentoo.org, geert@linux-m68k.org, uclinux-dist-devel@blackfin.uclinux.org
 
-Hello,
 
-On Friday, June 10, 2011 1:25 PM Alan Cox wrote:
+Hi Bob,
 
-> I am curious about one thing
-> 
-> Why do we need this allocator. Why not use allocate_resource and friends.
-> The kernel generic resource handler already handles object alignment and
-> subranges. It just seems to be a surplus allocator that could perhaps be
-> mostly removed by using the kernel resource allocator we already have ?
+On 06/10/2011 03:39 PM, Bob Liu wrote:
+> Hi, Greg
+>
+> On Fri, Jun 10, 2011 at 11:51 AM, Greg Ungerer<gerg@snapgear.com>  wrote:
+>> Hi Bob,
+>>
+>> On 09/06/11 20:30, Bob Liu wrote:
+>>>
+>>> On Wed, Jun 8, 2011 at 6:19 PM, Greg Ungerer<gerg@snapgear.com>  A!wrote:
+>>>>>>>>
+>>>>>>>> When booting on a ColdFire (m68knommu) target the init process (or
+>>>>>>>> there abouts at least) fails. Last console messages are:
+>>>>>>>>
+>>>>>>>> ...
+>>>>>>>> VFS: Mounted root (romfs filesystem) readonly on device 31:0.
+>>>>>>>> Freeing unused kernel memory: 52k freed (0x401aa000 - 0x401b6000)
+>>>>>>>> Unable to mmap process text, errno 22
+>>>>>>>>
+>>>>>>>
+>>>>>>> Oh, bad news. I will try to reproduce it on my board.
+>>>>>>> If you are free please enable debug in nommu.c and then we can see
+>>>>>>> what
+>>>>>>> caused the problem.
+>>>>>>
+>>>>>> Yep, with debug on:
+>>>>>>
+>>>>>> A!...
+>>>>>> VFS: Mounted root (romfs filesystem) readonly on device 31:0.
+>>>>>> Freeing unused kernel memory: 52k freed (0x4018c000 - 0x40198000)
+>>>>>> ==>  A!a??A-do_mmap_pgoff(,0,6780,5,1002,0)
+>>>>>> <== do_mmap_pgoff() = -22
+>>>>>> Unable to mmap process text, errno 22
+>>>>>>
+>>>>>
+>>>>> Since I can't reproduce this problem, could you please attach the
+>>>>> whole dmesg log with nommu debug on or
+>>>>> you can step into to see why errno 22 is returned, is it returned by
+>>>>> do_mmap_private()?
+>>>>
+>>>> There was no other debug messages with debug turned on in nommu.c.
+>>>> (I can give you the boot msgs before this if you want, but there
+>>>> was no nommu.c debug in it).
+>>>>
+>>>> But I did trace it into do_mmap_pgoff() to see what was failing.
+>>>> It fails based on the return value from:
+>>>>
+>>>> addr = file->f_op->get_unmapped_area(file, addr, len,
+>>>>                                               pgoff, flags);
+>>>>
+>>>
+>>> Thanks for this information.
+>>> But it's a callback function. I still can't know what's the problem maybe.
+>>> Would you do me a favor to do more trace to see where it callback to,
+>>> fs or some driver etc..?
+>>
+>> Its calling to romfs_get_unmapped_area() [fs/romfs/mmap-nommu.c]. It is
+>> being called with:
+>>
+>> A!romfs_get_unmapped_area(addr=0,len=7000,pgoff=0,flags=1002)
+>>
+>> This is failing the first size check because isize comes back
+>> as 0x6ca8, and this is smaller then len (0x7000). Thus returning
+>> -EINVAL.
+>>
+>
+> I look into file fs/romfs/mmap-nommu.c based on your trace.
+> In my opinion, romfs_get_unmapped_area() in mmap-nommu.c is buggy.
+> Would you please try below commit.
 
-genalloc was used mainly for historical reasons (in the earlier version we
-were looking for direct replacement for first fit allocator).
+Sure thing. I am away for the next couple of days, so I am
+not going to be able to try it until Tuesday. I'll let you
+know how it goes then.
 
-I plan to replace it with lib/bitmap.c bitmap_* based allocator (similar like
-it it is used by dma_declare_coherent_memory() and friends in
-drivers/base/dma-coherent.c). We need something really simple for CMA area
-management. 
+Regards
+Greg
 
-IMHO allocate_resource and friends a bit too heavy here, but good to know 
-that such allocator also exists.
 
-Best regards
+
+> Thanks a lot.
+>
+> from 786add5286ffb476807cb198d7b2c5455e9fb533 Mon Sep 17 00:00:00 2001
+> From: Bob Liu<lliubbo@gmail.com>
+> Date: Fri, 10 Jun 2011 13:34:48 +0800
+> Subject: [PATCH] romfs: fix romfs_get_unmapped_area() param check
+>
+> romfs_get_unmapped_area() check len param without considering PAGE_ALIGN which
+> will cause do_mmap_pgoff() return -EINVAL error after commit f67d9b1576c.
+>
+> This patch fix the param check by changing it to the same way as function
+> ramfs_nommu_get_unmapped_area() did in ramfs/file-nommu.c.
+>
+> Signed-off-by: Bob Liu<lliubbo@gmail.com>
+> ---
+>   fs/romfs/mmap-nommu.c |    8 ++++++--
+>   1 files changed, 6 insertions(+), 2 deletions(-)
+>
+> diff --git a/fs/romfs/mmap-nommu.c b/fs/romfs/mmap-nommu.c
+> index f0511e8..eed9942 100644
+> --- a/fs/romfs/mmap-nommu.c
+> +++ b/fs/romfs/mmap-nommu.c
+> @@ -27,14 +27,18 @@ static unsigned long
+> romfs_get_unmapped_area(struct file *file,
+>   {
+>          struct inode *inode = file->f_mapping->host;
+>          struct mtd_info *mtd = inode->i_sb->s_mtd;
+> -       unsigned long isize, offset;
+> +       unsigned long isize, offset, maxpages, lpages;
+>
+>          if (!mtd)
+>                  goto cant_map_directly;
+>
+> +       /* the mapping mustn't extend beyond the EOF */
+> +       lpages = (len + PAGE_SIZE - 1)>>  PAGE_SHIFT;
+>          isize = i_size_read(inode);
+>          offset = pgoff<<  PAGE_SHIFT;
+> -       if (offset>  isize || len>  isize || offset>  isize - len)
+> +
+> +       maxpages = (isize + PAGE_SIZE - 1)>>  PAGE_SHIFT;
+> +       if ((pgoff>= maxpages) || (maxpages - pgoff<  lpages))
+>                  return (unsigned long) -EINVAL;
+>
+>          /* we need to call down to the MTD layer to do the actual mapping */
+> --
+> 1.6.3.3
+>
+>> That code is trying to map the contents of the file /bin/init
+>> directly from the romfs filesystem (which is in RAM). The init
+>> binary is 0x6ca8 bytes in size (that is the isize above).
+>>
+>
+
+
 -- 
-Marek Szyprowski
-Samsung Poland R&D Center
-
+------------------------------------------------------------------------
+Greg Ungerer  --  Principal Engineer        EMAIL:     gerg@snapgear.com
+SnapGear Group, McAfee                      PHONE:       +61 7 3435 2888
+8 Gardner Close,                            FAX:         +61 7 3891 3630
+Milton, QLD, 4064, Australia                WEB: http://www.SnapGear.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
