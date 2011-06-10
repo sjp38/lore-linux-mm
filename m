@@ -1,59 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 278BF6B004A
-	for <linux-mm@kvack.org>; Thu,  9 Jun 2011 20:20:56 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 01F803EE0BD
-	for <linux-mm@kvack.org>; Fri, 10 Jun 2011 09:20:53 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id DE48045DE67
-	for <linux-mm@kvack.org>; Fri, 10 Jun 2011 09:20:52 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id C74F445DE61
-	for <linux-mm@kvack.org>; Fri, 10 Jun 2011 09:20:52 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id B8CCD1DB8038
-	for <linux-mm@kvack.org>; Fri, 10 Jun 2011 09:20:52 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 874E81DB8037
-	for <linux-mm@kvack.org>; Fri, 10 Jun 2011 09:20:52 +0900 (JST)
-Date: Fri, 10 Jun 2011 09:13:55 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: 3.0rc2 oops in mem_cgroup_from_task
-Message-Id: <20110610091355.2ce38798.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <BANLkTikF7=qfXAmrNzyMSmWm7Neh6yMAB8EbBp7oLcfQmrbDjA@mail.gmail.com>
-References: <20110609212956.GA2319@redhat.com>
-	<BANLkTikCfWhoLNK__ringzy7KjKY5ZEtNb3QTuX1jJ53wNNysA@mail.gmail.com>
-	<BANLkTikF7=qfXAmrNzyMSmWm7Neh6yMAB8EbBp7oLcfQmrbDjA@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 63BA06B004A
+	for <linux-mm@kvack.org>; Thu,  9 Jun 2011 20:34:50 -0400 (EDT)
+Date: Fri, 10 Jun 2011 02:34:07 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 2/8] mm: memcg-aware global reclaim
+Message-ID: <20110610003407.GA27964@cmpxchg.org>
+References: <1306909519-7286-1-git-send-email-hannes@cmpxchg.org>
+ <1306909519-7286-3-git-send-email-hannes@cmpxchg.org>
+ <20110609154839.GF4878@barrios-laptop>
+ <20110609172347.GB20333@cmpxchg.org>
+ <BANLkTimD-pecv82qAZkyxA9nLQWbcDry-w@mail.gmail.com>
+ <BANLkTin7uRdUg_mer3ve5nz3WjX9qjP4SQ@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <BANLkTin7uRdUg_mer3ve5nz3WjX9qjP4SQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: Dave Jones <davej@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Hugh Dickins <hughd@google.com>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Ying Han <yinghan@google.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, 9 Jun 2011 16:42:09 -0700
-Ying Han <yinghan@google.com> wrote:
-
-> ++cc Hugh who might have seen similar crashes on his machine.
+On Fri, Jun 10, 2011 at 08:47:55AM +0900, Minchan Kim wrote:
+> On Fri, Jun 10, 2011 at 8:41 AM, Minchan Kim <minchan.kim@gmail.com> wrote:
+> > On Fri, Jun 10, 2011 at 2:23 AM, Johannes Weiner <hannes@cmpxchg.org> wrote:
+> >> On Fri, Jun 10, 2011 at 12:48:39AM +0900, Minchan Kim wrote:
+> >>> On Wed, Jun 01, 2011 at 08:25:13AM +0200, Johannes Weiner wrote:
+> >>> > When a memcg hits its hard limit, hierarchical target reclaim is
+> >>> > invoked, which goes through all contributing memcgs in the hierarchy
+> >>> > below the offending memcg and reclaims from the respective per-memcg
+> >>> > lru lists.  This distributes pressure fairly among all involved
+> >>> > memcgs, and pages are aged with respect to their list buddies.
+> >>> >
+> >>> > When global memory pressure arises, however, all this is dropped
+> >>> > overboard.  Pages are reclaimed based on global lru lists that have
+> >>> > nothing to do with container-internal age, and some memcgs may be
+> >>> > reclaimed from much more than others.
+> >>> >
+> >>> > This patch makes traditional global reclaim consider container
+> >>> > boundaries and no longer scan the global lru lists.  For each zone
+> >>> > scanned, the memcg hierarchy is walked and pages are reclaimed from
+> >>> > the per-memcg lru lists of the respective zone.  For now, the
+> >>> > hierarchy walk is bounded to one full round-trip through the
+> >>> > hierarchy, or if the number of reclaimed pages reach the overall
+> >>> > reclaim target, whichever comes first.
+> >>> >
+> >>> > Conceptually, global memory pressure is then treated as if the root
+> >>> > memcg had hit its limit.  Since all existing memcgs contribute to the
+> >>> > usage of the root memcg, global reclaim is nothing more than target
+> >>> > reclaim starting from the root memcg.  The code is mostly the same for
+> >>> > both cases, except for a few heuristics and statistics that do not
+> >>> > always apply.  They are distinguished by a newly introduced
+> >>> > global_reclaim() primitive.
+> >>> >
+> >>> > One implication of this change is that pages have to be linked to the
+> >>> > lru lists of the root memcg again, which could be optimized away with
+> >>> > the old scheme.  The costs are not measurable, though, even with
+> >>> > worst-case microbenchmarks.
+> >>> >
+> >>> > As global reclaim no longer relies on global lru lists, this change is
+> >>> > also in preparation to remove those completely.
+> >>
+> >> [cut diff]
+> >>
+> >>> I didn't look at all, still. You might change the logic later patches.
+> >>> If I understand this patch right, it does round-robin reclaim in all memcgs
+> >>> when global memory pressure happens.
+> >>>
+> >>> Let's consider this memcg size unbalance case.
+> >>>
+> >>> If A-memcg has lots of LRU pages, scanning count for reclaim would be bigger
+> >>> so the chance to reclaim the pages would be higher.
+> >>> If we reclaim A-memcg, we can reclaim the number of pages we want easily and break.
+> >>> Next reclaim will happen at some time and reclaim will start the B-memcg of A-memcg
+> >>> we reclaimed successfully before. But unfortunately B-memcg has small lru so
+> >>> scanning count would be small and small memcg's LRU aging is higher than bigger memcg.
+> >>> It means small memcg's working set can be evicted easily than big memcg.
+> >>> my point is that we should not set next memcg easily.
+> >>> We have to consider memcg LRU size.
+> >>
+> >> I may be missing something, but you said yourself that B had a smaller
+> >> scan count compared to A, so the aging speed should be proportional to
+> >> respective size.
+> >>
+> >> The number of pages scanned per iteration is essentially
+> >>
+> >>        number of lru pages in memcg-zone >> priority
+> >>
+> >> so we scan relatively more pages from B than from A each round.
+> >>
+> >> It's the exact same logic we have been applying traditionally to
+> >> distribute pressure fairly among zones to equalize their aging speed.
+> >>
+> >> Is that what you meant or are we talking past each other?
+> >
+> > True if we can reclaim pages easily(ie, default priority) in all memcgs.
+> > But let's think about it.
+> > Normally direct reclaim path reclaims only SWAP_CLUSTER_MAX size.
+> > If we have small memcg, scan window size would be smaller and it is
+> > likely to be hard reclaim in the priority compared to bigger memcg. It
+> > means it can raise priority easily in small memcg and even it might
+> > call lumpy or compaction in case of global memory pressure. It can
+> > churn all LRU order. :(
+> > Of course, we have bailout routine so we might make such unfair aging
+> > effect small but it's not same with old behavior(ie, single LRU list,
+> > fair aging POV global according to priority raise)
 > 
+> To make fair, how about considering turn over different memcg before
+> raise up priority?
+> It can make aging speed fairly while it can make high contention of
+> lru_lock. :(
 
-Thank you for forwarding. Hmm. It seems the panic happens at khugepaged's 
-page collapse_huge_page().
+Actually, the way you describe it is how it used to work for limit
+reclaim before my patches.  It would select one memcg, then reclaim
+with increasing priority until SWAP_CLUSTER_MAX were reclaimed.
 
-==
-        count_vm_event(THP_COLLAPSE_ALLOC);
-        if (unlikely(mem_cgroup_newpage_charge(new_page, mm, GFP_KERNEL))) {
-==
-It passes target mm to memcg and memcg gets a cgroup by
-==
- mem = mem_cgroup_from_task(rcu_dereference(mm->owner));
-==
-Panic here means....mm->owner's task_subsys_state contains bad pointer ?
+	memcg = select_victim()
+	for each prio:
+	  for each zone:
+	    shrink_zone(prio, zone, sc = { .mem_cgroup = memcg })
 
-I'll dig. Thanks.
--Kame
+What it's supposed to do with my patches is scan all memcgs in the
+hierarchy at the same priority.  If it hasn't made progress, it will
+increase the priority and iterate again over the hierarchy.
+
+	for each prio:
+	  for each zone:
+	    for each memcg:
+	      do_shrink_zone(prio, zone, sc = { .mem_cgroup = memcg })
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
