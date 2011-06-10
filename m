@@ -1,68 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id B3DE46B0012
-	for <linux-mm@kvack.org>; Fri, 10 Jun 2011 14:47:44 -0400 (EDT)
-Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
-	by e2.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p5AIRJSp019331
-	for <linux-mm@kvack.org>; Fri, 10 Jun 2011 14:27:19 -0400
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p5AIleqc103754
-	for <linux-mm@kvack.org>; Fri, 10 Jun 2011 14:47:40 -0400
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p5AIldR8006750
-	for <linux-mm@kvack.org>; Fri, 10 Jun 2011 14:47:40 -0400
-Date: Fri, 10 Jun 2011 11:47:38 -0700
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: [PATCH 00/10] mm: Linux VM Infrastructure to support Memory
- Power Management
-Message-ID: <20110610184738.GG2230@linux.vnet.ibm.com>
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <20110609185259.GA29287@linux.vnet.ibm.com>
- <BANLkTinxeeSby_+tta8EhzCg3VbD6+=g+g@mail.gmail.com>
- <20110610151121.GA2230@linux.vnet.ibm.com>
- <20110610155954.GA25774@srcf.ucam.org>
- <20110610165529.GC2230@linux.vnet.ibm.com>
- <20110610170535.GC25774@srcf.ucam.org>
- <20110610171939.GE2230@linux.vnet.ibm.com>
- <20110610172307.GA27630@srcf.ucam.org>
- <20110610175248.GF2230@linux.vnet.ibm.com>
- <20110610180807.GB28500@srcf.ucam.org>
+	by kanga.kvack.org (Postfix) with ESMTP id 6EBBE6B0012
+	for <linux-mm@kvack.org>; Fri, 10 Jun 2011 14:54:27 -0400 (EDT)
+Received: from wpaz37.hot.corp.google.com (wpaz37.hot.corp.google.com [172.24.198.101])
+	by smtp-out.google.com with ESMTP id p5AIsMxT027223
+	for <linux-mm@kvack.org>; Fri, 10 Jun 2011 11:54:22 -0700
+Received: from pve37 (pve37.prod.google.com [10.241.210.37])
+	by wpaz37.hot.corp.google.com with ESMTP id p5AIrsMS018409
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 10 Jun 2011 11:54:21 -0700
+Received: by pve37 with SMTP id 37so1410049pve.7
+        for <linux-mm@kvack.org>; Fri, 10 Jun 2011 11:54:18 -0700 (PDT)
+Date: Fri, 10 Jun 2011 11:54:16 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] Make GFP_DMA allocations w/o ZONE_DMA emit a warning
+ instead of failing
+In-Reply-To: <20110610091233.GJ24424@n2100.arm.linux.org.uk>
+Message-ID: <alpine.DEB.2.00.1106101150280.17197@chino.kir.corp.google.com>
+References: <BANLkTinBkdVd90g3-uiQP41z1S1sXUdRmQ@mail.gmail.com> <BANLkTikrRRzGLbMD47_xJz+xpgftCm1C2A@mail.gmail.com> <alpine.DEB.2.00.1106011017260.13089@chino.kir.corp.google.com> <20110601181918.GO3660@n2100.arm.linux.org.uk> <alpine.LFD.2.02.1106012043080.3078@ionos>
+ <alpine.DEB.2.00.1106011205410.17065@chino.kir.corp.google.com> <alpine.LFD.2.02.1106012134120.3078@ionos> <4DF1C9DE.4070605@jp.fujitsu.com> <20110610004331.13672278.akpm@linux-foundation.org> <BANLkTimC8K2_H7ZEu2XYoWdA09-3XxpV7Q@mail.gmail.com>
+ <20110610091233.GJ24424@n2100.arm.linux.org.uk>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110610180807.GB28500@srcf.ucam.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Garrett <mjg59@srcf.ucam.org>
-Cc: Kyungmin Park <kmpark@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Ankita Garg <ankita@in.ibm.com>, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-pm@lists.linux-foundation.org, svaidy@linux.vnet.ibm.com, thomas.abraham@linaro.org
+To: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Cc: Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, tglx@linutronix.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mel@csn.ul.ie, kamezawa.hiroyu@jp.fujitsu.com, riel@redhat.com, pavel@ucw.cz
 
-On Fri, Jun 10, 2011 at 07:08:07PM +0100, Matthew Garrett wrote:
-> On Fri, Jun 10, 2011 at 10:52:48AM -0700, Paul E. McKenney wrote:
-> > On Fri, Jun 10, 2011 at 06:23:07PM +0100, Matthew Garrett wrote:
-> > > I haven't seen too many ARM servers with 256GB of RAM :) I'm mostly 
-> > > looking at this from an x86 perspective.
-> > 
-> > But I have seen ARM embedded systems with CPU power consumption in
-> > the milliwatt range, which greatly reduces the amount of RAM required
-> > to get significant power savings from this approach.  Three orders
-> > of magnitude less CPU power consumption translates (roughly) to three
-> > orders of magnitude less memory required -- and embedded devices with
-> > more than 256MB of memory are quite common.
+On Fri, 10 Jun 2011, Russell King - ARM Linux wrote:
+
+> > Should one submit a patch adding a warning to GFP_DMA allocations
+> > w/o ZONE_DMA, or the idea of the original patch is wrong?
 > 
-> I'm not saying that powering down memory isn't a win, just that in the 
-> server market we're not even getting unused memory into self refresh at 
-> the moment. If we can gain that hardware capability then sub-node zoning 
-> means that we can look at allocating (and migrating?) RAM in such a way 
-> as to get a lot of the win that we'd gain from actually cutting the 
-> power, without the added overhead of actually shrinking our working set.
+> Linus was far from impressed by the original commit, saying:
+> | Using GFP_DMA is reasonable in a driver - on platforms where that
+> | matters, it should allocate from the DMA zone, on platforms where it
+> | doesn't matter it should be a no-op.
+> 
+> So no, not even a warning.
+> 
 
-Agreed.
-
-And if I understand you correctly, then the patches that Ankita posted
-should help your self-refresh case, along with the originally intended
-the power-down case and special-purpose use of memory case.
-
-							Thanx, Paul
+Any words of wisdom for users with CONFIG_ZONE_DMA=n that actually use 
+drivers where they need GFP_DMA?  The page allocator should just silently 
+return memory from anywhere?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
