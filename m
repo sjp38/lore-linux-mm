@@ -1,44 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id BA8EB6B0012
-	for <linux-mm@kvack.org>; Fri, 10 Jun 2011 14:59:38 -0400 (EDT)
-Date: Fri, 10 Jun 2011 19:58:58 +0100
-From: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Subject: Re: [PATCH] Make GFP_DMA allocations w/o ZONE_DMA emit a warning
-	instead of failing
-Message-ID: <20110610185858.GN24424@n2100.arm.linux.org.uk>
-References: <alpine.DEB.2.00.1106011017260.13089@chino.kir.corp.google.com> <20110601181918.GO3660@n2100.arm.linux.org.uk> <alpine.LFD.2.02.1106012043080.3078@ionos> <alpine.DEB.2.00.1106011205410.17065@chino.kir.corp.google.com> <alpine.LFD.2.02.1106012134120.3078@ionos> <4DF1C9DE.4070605@jp.fujitsu.com> <20110610004331.13672278.akpm@linux-foundation.org> <BANLkTimC8K2_H7ZEu2XYoWdA09-3XxpV7Q@mail.gmail.com> <20110610091233.GJ24424@n2100.arm.linux.org.uk> <alpine.DEB.2.00.1106101150280.17197@chino.kir.corp.google.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 788756B0012
+	for <linux-mm@kvack.org>; Fri, 10 Jun 2011 15:24:02 -0400 (EDT)
+Date: Fri, 10 Jun 2011 20:23:29 +0100
+From: Matthew Garrett <mjg59@srcf.ucam.org>
+Subject: Re: [PATCH 00/10] mm: Linux VM Infrastructure to support Memory
+ Power Management
+Message-ID: <20110610192329.GA30496@srcf.ucam.org>
+References: <BANLkTinxeeSby_+tta8EhzCg3VbD6+=g+g@mail.gmail.com>
+ <20110610151121.GA2230@linux.vnet.ibm.com>
+ <20110610155954.GA25774@srcf.ucam.org>
+ <20110610165529.GC2230@linux.vnet.ibm.com>
+ <20110610170535.GC25774@srcf.ucam.org>
+ <20110610171939.GE2230@linux.vnet.ibm.com>
+ <20110610172307.GA27630@srcf.ucam.org>
+ <20110610175248.GF2230@linux.vnet.ibm.com>
+ <20110610180807.GB28500@srcf.ucam.org>
+ <20110610184738.GG2230@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1106101150280.17197@chino.kir.corp.google.com>
+In-Reply-To: <20110610184738.GG2230@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, tglx@linutronix.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mel@csn.ul.ie, kamezawa.hiroyu@jp.fujitsu.com, riel@redhat.com, pavel@ucw.cz
+To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Cc: Kyungmin Park <kmpark@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Ankita Garg <ankita@in.ibm.com>, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-pm@lists.linux-foundation.org, svaidy@linux.vnet.ibm.com, thomas.abraham@linaro.org
 
-On Fri, Jun 10, 2011 at 11:54:16AM -0700, David Rientjes wrote:
-> On Fri, 10 Jun 2011, Russell King - ARM Linux wrote:
-> 
-> > > Should one submit a patch adding a warning to GFP_DMA allocations
-> > > w/o ZONE_DMA, or the idea of the original patch is wrong?
-> > 
-> > Linus was far from impressed by the original commit, saying:
-> > | Using GFP_DMA is reasonable in a driver - on platforms where that
-> > | matters, it should allocate from the DMA zone, on platforms where it
-> > | doesn't matter it should be a no-op.
-> > 
-> > So no, not even a warning.
-> > 
-> 
-> Any words of wisdom for users with CONFIG_ZONE_DMA=n that actually use 
-> drivers where they need GFP_DMA?  The page allocator should just silently 
-> return memory from anywhere?
+On Fri, Jun 10, 2011 at 11:47:38AM -0700, Paul E. McKenney wrote:
 
-See Linus' reply.  I quote again "on platforms where it doesn't matter it
-should be a no-op".  If _you_ have a problem with that _you_ need to
-discuss it with _Linus_, not me.  I'm not going to be a middle-man sitting
-between two people with different opinions.
+> And if I understand you correctly, then the patches that Ankita posted
+> should help your self-refresh case, along with the originally intended
+> the power-down case and special-purpose use of memory case.
+
+Yeah, I'd hope so once we actually have capable hardware.
+
+-- 
+Matthew Garrett | mjg59@srcf.ucam.org
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
