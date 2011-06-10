@@ -1,142 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 972A36B004A
-	for <linux-mm@kvack.org>; Fri, 10 Jun 2011 09:27:55 -0400 (EDT)
-Received: by qwa26 with SMTP id 26so1749043qwa.14
-        for <linux-mm@kvack.org>; Fri, 10 Jun 2011 06:27:53 -0700 (PDT)
-Date: Fri, 10 Jun 2011 09:27:48 -0400
-From: Eric B Munson <emunson@mgebm.net>
-Subject: Re: [PATCH] Add debugging boundary check to pfn_to_page
-Message-ID: <20110610132748.GA5759@mgebm.net>
-References: <1307560734-3915-1-git-send-email-emunson@mgebm.net>
- <1307566168.3048.137.camel@nimitz>
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 8B7086B004A
+	for <linux-mm@kvack.org>; Fri, 10 Jun 2011 09:31:51 -0400 (EDT)
+Date: Fri, 10 Jun 2011 15:31:33 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [BUGFIX][PATCH v3] memcg: fix behavior of per cpu charge cache
+ draining.
+Message-ID: <20110610133133.GB3818@tiehlicka.suse.cz>
+References: <20110609093045.1f969d30.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110610081218.GC4832@tiehlicka.suse.cz>
+ <20110610173958.d9ab901c.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110610090802.GB4110@tiehlicka.suse.cz>
+ <20110610185952.a07b968f.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110610110412.GE4110@tiehlicka.suse.cz>
+ <BANLkTingsPiS81KEkOb6+eKdz=2UMUHmQg@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="W/nzBZO5zC0uMSeA"
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <1307566168.3048.137.camel@nimitz>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <BANLkTingsPiS81KEkOb6+eKdz=2UMUHmQg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: arnd@arndb.de, akpm@linux-foundation.org, paulmck@linux.vnet.ibm.com, mingo@elte.hu, randy.dunlap@oracle.com, josh@joshtriplett.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, mgorman@suse.de, linux-mm@kvack.org
+To: Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "bsingharora@gmail.com" <bsingharora@gmail.com>, Ying Han <yinghan@google.com>
 
+On Fri 10-06-11 21:24:51, Hiroyuki Kamezawa wrote:
+> 2011/6/10 Michal Hocko <mhocko@suse.cz>:
+> > On Fri 10-06-11 18:59:52, KAMEZAWA Hiroyuki wrote:
+[...]
+> >> @@ -1670,8 +1670,7 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
+> >>               victim = mem_cgroup_select_victim(root_mem);
+> >>               if (victim == root_mem) {
+> >>                       loop++;
+> >> -                     if (loop >= 1)
+> >> -                             drain_all_stock_async();
+> >> +                     drain_all_stock_async(root_mem);
+> >>                       if (loop >= 2) {
+> >>                               /*
+> >>                                * If we have not been able to reclaim
+> >
+> > This still doesn't prevent from direct reclaim even though we have freed
+> > enough pages from pcp caches. Should I post it as a separate patch?
+> >
+> 
+> yes. please in different thread. Maybe moving this out of loop will
+> make sense. (And I have a cleanup patch for this loop. I'll do that
+> when I post it later, anyway)
 
---W/nzBZO5zC0uMSeA
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
-
-On Wed, 08 Jun 2011, Dave Hansen wrote:
-
-> On Wed, 2011-06-08 at 15:18 -0400, Eric B Munson wrote:
-> > -#define __pfn_to_page(pfn)                             \
-> > -({     unsigned long __pfn =3D (pfn);                    \
-> > -       struct mem_section *__sec =3D __pfn_to_section(__pfn);    \
-> > -       __section_mem_map_addr(__sec) + __pfn;          \
-> > +#ifdef CONFIG_DEBUG_MEMORY_MODEL
-> > +#define __pfn_to_page(pfn)                                            =
- \
-> > +({     unsigned long __pfn =3D (pfn);                                 =
-   \
-> > +       struct mem_section *__sec =3D __pfn_to_section(__pfn);         =
-   \
-> > +       struct page *__page =3D __section_mem_map_addr(__sec) + __pfn; =
-   \
-> > +       WARN_ON(__page->flags =3D=3D 0);                               =
-     \
-> > +       __page;                                                        =
- \
->=20
-> What was the scenario you're trying to catch here?  If you give a really
-> crummy __pfn, you'll probably go off the end of one of the mem_section[]
-> arrays, and get garbage back for __sec.  You might also get a NULL back
-> from __section_mem_map_addr() if the section is possibly valid, but just
-> not present on this particular system.
->=20
-> I _think_ the only kind of bug this will catch is if you have a valid
-> section, with a valid section_mem_map[] but still manage to find
-> yourself with an 'struct page' unclaimed by any zone and thus
-> uninitialized.
-
-This is the case I was going after.  I will rework for a V2 based on the
-feedback here.
-
->=20
-> You could catch a lot more cases by being a bit more paranoid:
->=20
-> void check_pfn(unsigned long pfn)
-> {
-> 	int nid;
-> =09
-> 	// hacked in from pfn_to_nid:
-> 	// Don't actually do this, add a new helper near pfn_to_nid()
-> 	// Can this even fit in the physnode_map?
-> 	if (pfn / PAGES_PER_ELEMENT > ARRAY_SIZE(physnode_map))
-> 		WARN();
->=20
-> 	// Is there a valid nid there?
-> 	nid =3D pfn_to_nid(pfn);
-> 	if (nid =3D=3D -1)
-> 		WARN();
-> =09
-> 	// check against NODE_DATA(nid)->node_start_pfn;
-> 	// check against NODE_DATA(nid)->node_spanned_pages;
-> }
-> >  })
-> > +#else
-> > +#define __pfn_to_page(pfn)                                            =
- \
-> > +({     unsigned long __pfn =3D (pfn);                                 =
-   \
-> > +       struct mem_section *__sec =3D __pfn_to_section(__pfn);         =
-   \
-> > +       __section_mem_map_addr(__sec) + __pfn;  \
-> > +})
-> > +#endif /* CONFIG_DEBUG_MEMORY_MODEL */=20
->=20
-> Instead of making a completely new __pfn_to_page() in the debugging
-> case, I'd probably do something like this:
->=20
-> #ifdef CONFIG_DEBUG_MEMORY_MODEL
-> #define check_foo(foo) {\
-> 	some_check_here(foo);\
-> 	WARN_ON(foo->flags);\
-> }
-> #else
-> #define check_foo(foo) do{}while(0)
-> #endif;
->=20
-> #define __pfn_to_page(pfn)                                             \
-> ({     unsigned long __pfn =3D (pfn);                                    \
->        struct mem_section *__sec =3D __pfn_to_section(__pfn);            \
->        struct page *__page =3D __section_mem_map_addr(__sec) + __pfn;    \
->        check_foo(page)							\
->        __page;                                                         \
->  })
->=20
-> That'll make sure that the two copies of __pfn_to_page() don't
-> accidentally diverge.  It also makes it a lot easier to read, I think.
->=20
-> -- Dave
->=20
-
---W/nzBZO5zC0uMSeA
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.11 (GNU/Linux)
-
-iQEcBAEBAgAGBQJN8hvUAAoJEH65iIruGRnNj0YH/juWjOLtEst08mRTW+su+Ogf
-qfFlQ/XBzc6QbKhTzZlUrldobjDD/rbFFIXj2PBytbSSw/ZGGHuZRKPuQoyaPj39
-k5L41VkB1Fx+uwHiFh0gAHGe0eQ9iQwdJIWvLrBZrW4Ud5VDs09sg0QWbRRSEDoR
-FExqZw4RXSRhWOZF630X7OJA00/dcAkU5VBiQtF+ZOiYpfwS7DQMGA4TCEzbmyM3
-XJVgXbFFpm8u/Nuzi+UCG5MPNuhctJW7R0LHmU94xr9mEmen2XaZvwlwWNI/K+D6
-lwWm/b13Q+GUyod4iUHrVqFqk8n15da79aLeTmCNaCIvqaMtAhQdwSokm53RaX0=
-=2zMr
------END PGP SIGNATURE-----
-
---W/nzBZO5zC0uMSeA--
+OK, I will wait for your cleanup then.
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
