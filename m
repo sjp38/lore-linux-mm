@@ -1,58 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F3A36B0012
-	for <linux-mm@kvack.org>; Fri, 10 Jun 2011 19:34:02 -0400 (EDT)
-Date: Fri, 10 Jun 2011 16:33:55 -0700
-From: Chris Wright <chrisw@sous-sol.org>
-Subject: [PATCH] mm: thp: minor lock simplification in __khugepaged_exit
-Message-ID: <20110610233355.GO23047@sequoia.sous-sol.org>
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 072276B0012
+	for <linux-mm@kvack.org>; Fri, 10 Jun 2011 19:54:58 -0400 (EDT)
+Date: Sat, 11 Jun 2011 01:54:42 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] [BUGFIX] update mm->owner even if no next owner.
+Message-ID: <20110610235442.GA21413@cmpxchg.org>
+References: <20110609212956.GA2319@redhat.com>
+ <BANLkTikCfWhoLNK__ringzy7KjKY5ZEtNb3QTuX1jJ53wNNysA@mail.gmail.com>
+ <BANLkTikF7=qfXAmrNzyMSmWm7Neh6yMAB8EbBp7oLcfQmrbDjA@mail.gmail.com>
+ <20110610091355.2ce38798.kamezawa.hiroyu@jp.fujitsu.com>
+ <alpine.LSU.2.00.1106091812030.4904@sister.anvils>
+ <20110610113311.409bb423.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110610121949.622e4629.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110610125551.385ea7ed.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110610133021.2eaaf0da.kamezawa.hiroyu@jp.fujitsu.com>
+ <alpine.LSU.2.00.1106101425400.28334@sister.anvils>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.00.1106101425400.28334@sister.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, chrisw@sous-sol.org
+To: Hugh Dickins <hughd@google.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, Ying Han <yinghan@google.com>, Dave Jones <davej@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Oleg Nesterov <oleg@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 
-The lock is released first thing in all three branches.  Simplify this
-by unconditionally releasing lock and remove else clause which was only
-there to be sure lock was released.
+On Fri, Jun 10, 2011 at 02:49:35PM -0700, Hugh Dickins wrote:
+> On Fri, 10 Jun 2011, KAMEZAWA Hiroyuki wrote:
+> > 
+> > I think this can be a fix. 
+> 
+> Sorry, I think not: I've not digested your rationale,
+> but three things stand out:
+> 
+> 1. Why has this only just started happening?  I may not have run that
+>    test on 3.0-rc1, but surely I ran it for hours with 2.6.39;
+>    maybe not with khugepaged, but certainly with ksmd.
+> 
+> 2. Your hunk below:
+> > -	if (!mm_need_new_owner(mm, p))
+> > +	if (!mm_need_new_owner(mm, p)) {
+> > +		rcu_assign_pointer(mm->owner, NULL);
+>    is now setting mm->owner to NULL at times when we were sure it did not
+>    need updating before (task is not the owner): you're damaging mm->owner.
+> 
+> 3. There's a patch from Andrea in 3.0-rc1 which looks very likely to be
+>    relevant, 692e0b35427a "mm: thp: optimize memcg charge in khugepaged".
+>    I'll try reproducing without that tonight (I crashed in 20 minutes
+>    this morning, so it's not too hard).
 
-Signed-off-by: Chris Wright <chrisw@sous-sol.org>
----
- mm/huge_memory.c |    6 ++----
- 1 files changed, 2 insertions(+), 4 deletions(-)
+It looks likely.  This change moved the memcg charge out of the
+mmap_sem read section, which kept the last task of the mm from
+exiting:
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 615d974..a032ddd 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1596,14 +1596,13 @@ void __khugepaged_exit(struct mm_struct *mm)
- 		list_del(&mm_slot->mm_node);
- 		free = 1;
- 	}
-+	spin_unlock(&khugepaged_mm_lock);
- 
- 	if (free) {
--		spin_unlock(&khugepaged_mm_lock);
- 		clear_bit(MMF_VM_HUGEPAGE, &mm->flags);
- 		free_mm_slot(mm_slot);
- 		mmdrop(mm);
- 	} else if (mm_slot) {
--		spin_unlock(&khugepaged_mm_lock);
- 		/*
- 		 * This is required to serialize against
- 		 * khugepaged_test_exit() (which is guaranteed to run
-@@ -1614,8 +1613,7 @@ void __khugepaged_exit(struct mm_struct *mm)
- 		 */
- 		down_write(&mm->mmap_sem);
- 		up_write(&mm->mmap_sem);
--	} else
--		spin_unlock(&khugepaged_mm_lock);
-+	}
- }
- 
- static void release_pte_page(struct page *page)
+	do_exit
+	  exit_mm
+	    mmput
+	      khugepaged_exit
+	        down_write(&mm->mmap_sem);
+		up_write(&mm->mmap_sem);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
