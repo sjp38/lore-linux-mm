@@ -1,80 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id D6CF66B0012
-	for <linux-mm@kvack.org>; Sat, 11 Jun 2011 13:08:32 -0400 (EDT)
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e3.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p5BGk23i018604
-	for <linux-mm@kvack.org>; Sat, 11 Jun 2011 12:46:02 -0400
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p5BH8Vdl114312
-	for <linux-mm@kvack.org>; Sat, 11 Jun 2011 13:08:31 -0400
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p5BH8U9r027932
-	for <linux-mm@kvack.org>; Sat, 11 Jun 2011 13:08:31 -0400
-Date: Sat, 11 Jun 2011 10:08:29 -0700
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: [PATCH 00/10] mm: Linux VM Infrastructure to support Memory
-	Power Management
-Message-ID: <20110611170829.GB2212@linux.vnet.ibm.com>
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <1306499498-14263-1-git-send-email-ankita@in.ibm.com>
- <20110528005640.9076c0b1.akpm@linux-foundation.org>
- <20110609185259.GA29287@linux.vnet.ibm.com>
- <BANLkTinxeeSby_+tta8EhzCg3VbD6+=g+g@mail.gmail.com>
- <20110610151121.GA2230@linux.vnet.ibm.com>
- <20110610155954.GA25774@srcf.ucam.org>
- <20110610165529.GC2230@linux.vnet.ibm.com>
- <20110610170535.GC25774@srcf.ucam.org>
- <20110610171939.GE2230@linux.vnet.ibm.com>
- <20110610173345.GA8434@in.ibm.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 450D16B0012
+	for <linux-mm@kvack.org>; Sat, 11 Jun 2011 13:18:51 -0400 (EDT)
+Received: by iwg8 with SMTP id 8so3986470iwg.14
+        for <linux-mm@kvack.org>; Sat, 11 Jun 2011 10:18:49 -0700 (PDT)
+Message-ID: <4DF3A376.1000601@gmail.com>
+Date: Sat, 11 Jun 2011 11:18:46 -0600
+From: Robert Hancock <hancockrwd@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110610173345.GA8434@in.ibm.com>
+Subject: Re: [PATCH] Make GFP_DMA allocations w/o ZONE_DMA emit a warning
+ instead of failing
+References: <20110610004331.13672278.akpm@linux-foundation.org> <BANLkTimC8K2_H7ZEu2XYoWdA09-3XxpV7Q@mail.gmail.com> <20110610091233.GJ24424@n2100.arm.linux.org.uk> <alpine.DEB.2.00.1106101150280.17197@chino.kir.corp.google.com> <20110610185858.GN24424@n2100.arm.linux.org.uk> <alpine.DEB.2.00.1106101456080.23076@chino.kir.corp.google.com> <20110610220748.GO24424@n2100.arm.linux.org.uk> <alpine.DEB.2.00.1106101510000.23076@chino.kir.corp.google.com> <20110610222020.GP24424@n2100.arm.linux.org.uk> <alpine.DEB.2.00.1106101526390.24646@chino.kir.corp.google.com> <20110611094500.GA2356@debian.cable.virginmedia.net>
+In-Reply-To: <20110611094500.GA2356@debian.cable.virginmedia.net>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ankita Garg <ankita@in.ibm.com>
-Cc: Matthew Garrett <mjg59@srcf.ucam.org>, Kyungmin Park <kmpark@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, thomas.abraham@linaro.org, Andrew Morton <akpm@linux-foundation.org>, svaidy@linux.vnet.ibm.com, linux-pm@lists.linux-foundation.org, linux-arm-kernel@lists.infradead.org
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: David Rientjes <rientjes@google.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Linus Torvalds <torvalds@linux-foundation.org>, Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, tglx@linutronix.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mel@csn.ul.ie, kamezawa.hiroyu@jp.fujitsu.com, riel@redhat.com, pavel@ucw.cz
 
-On Fri, Jun 10, 2011 at 11:03:45PM +0530, Ankita Garg wrote:
-> On Fri, Jun 10, 2011 at 10:19:39AM -0700, Paul E. McKenney wrote:
-> > On Fri, Jun 10, 2011 at 06:05:35PM +0100, Matthew Garrett wrote:
-> > > On Fri, Jun 10, 2011 at 09:55:29AM -0700, Paul E. McKenney wrote:
-> > > > On Fri, Jun 10, 2011 at 04:59:54PM +0100, Matthew Garrett wrote:
-> > > > > For the server case, the low hanging fruit would seem to be 
-> > > > > finer-grained self-refresh. At best we seem to be able to do that on a 
-> > > > > per-CPU socket basis right now. The difference between active and 
-> > > > > self-refresh would seem to be much larger than the difference between 
-> > > > > self-refresh and powered down.
-> > > > 
-> > > > By "finer-grained self-refresh" you mean turning off refresh for banks
-> > > > of memory that are not being used, right?  If so, this is supported by
-> > > > the memory-regions support provided, at least assuming that the regions
-> > > > can be aligned with the self-refresh boundaries.
-> > > 
-> > > I mean at the hardware level. As far as I know, the best we can do at 
-> > > the moment is to put an entire node into self refresh when the CPU hits 
-> > > package C6.
-> > 
-> > But this depends on the type of system and CPU family, right?  If you
-> > can say, which hardware are you thinking of?  (I am thinking of ARM.)
-> > 
-> 
-> And also whether the memory controller is on-chip or off-chip ? As
-> package could be in C6, but other packages could be refering memory
-> connected to this socket right ? And as Paul mentioned, at this point
-> the ARM SoCs that have support for memory power management, have only a
-> single node.
+On 06/11/2011 03:45 AM, Catalin Marinas wrote:
+> On Fri, Jun 10, 2011 at 03:30:35PM -0700, David Rientjes wrote:
+>> On Fri, 10 Jun 2011, Russell King - ARM Linux wrote:
+>>> So those platforms which don't have a DMA zone, don't have any problems
+>>> with DMA, yet want to use the very same driver which does have a problem
+>>> on ISA hardware have to also put up with a useless notification that
+>>> their kernel might be broken?
+>>>
+>>> Are you offering to participate on other architectures mailing lists to
+>>> answer all the resulting queries?
+>>
+>> It all depends on the wording of the "warning", it should make it clear
+>> that this is not always an error condition and only affects certain types
+>> of hardware which the user may or may not have.
+>
+> I think people will still be worried when they get a warning. And there
+> are lots of platforms that don't need ZONE_DMA just because devices can
+> access the full RAM. As Russell said, same drivers may be used on
+> platforms that can actually do DMA only to certain areas of memory and
+> require ZONE_DMA (there are several examples on ARM).
+>
+> If you want, you can add something like CONFIG_ARCH_HAS_ZONE_DMA across
+> all the platforms that support ZONE_DMA and only get the warning if
+> ZONE_DMA is available but not enabled.
 
-I suspect that this will be changing shortly, and that finer-grained
-control might be available.
-
-However, there are also use cases where contiguous memory is required from
-time to time by media codecs, and being able to use that memory for other
-purposes when the media codec is not in use reduced the total amount of
-memory required, which reduces power consumption all the time, right?  ;-)
-
-							Thanx, Paul
+It sounds to me like these drivers using GFP_DMA should really be fixed 
+to use the proper DMA API. That's what it's there for. The problem is 
+that GFP_DMA doesn't really mean anything generically other than "memory 
+suitable for DMA according to some criteria". On x86 it means low 16MB, 
+on some other platforms it presumably means other things, on others it 
+means nothing at all. It's quite likely that a driver that requests 
+GFP_DMA isn't likely to get exactly what it wants on all platforms (for 
+example on x86 the allocation will be constrained to the low 16MB which 
+is unnecessarily restrictive for most devices).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
