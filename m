@@ -1,100 +1,158 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 0E1086B0012
-	for <linux-mm@kvack.org>; Sat, 11 Jun 2011 13:23:00 -0400 (EDT)
-Date: Sat, 11 Jun 2011 10:26:54 -0700
-From: Arjan van de Ven <arjan@infradead.org>
-Subject: Re: [PATCH 00/10] mm: Linux VM Infrastructure to support Memory
- Power Management
-Message-ID: <20110611102654.01e5cea9@infradead.org>
-In-Reply-To: <20110611170610.GA2212@linux.vnet.ibm.com>
-References: <20110610165529.GC2230@linux.vnet.ibm.com>
-	<20110610170535.GC25774@srcf.ucam.org>
-	<20110610171939.GE2230@linux.vnet.ibm.com>
-	<20110610172307.GA27630@srcf.ucam.org>
-	<20110610175248.GF2230@linux.vnet.ibm.com>
-	<20110610180807.GB28500@srcf.ucam.org>
-	<20110610184738.GG2230@linux.vnet.ibm.com>
-	<20110610192329.GA30496@srcf.ucam.org>
-	<20110610193713.GJ2230@linux.vnet.ibm.com>
-	<20110610200233.5ddd5a31@infradead.org>
-	<20110611170610.GA2212@linux.vnet.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 1DB396B0012
+	for <linux-mm@kvack.org>; Sat, 11 Jun 2011 13:51:53 -0400 (EDT)
+Date: Sat, 11 Jun 2011 19:51:36 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] [BUGFIX] update mm->owner even if no next owner.
+Message-ID: <20110611175136.GA31154@cmpxchg.org>
+References: <BANLkTikCfWhoLNK__ringzy7KjKY5ZEtNb3QTuX1jJ53wNNysA@mail.gmail.com>
+ <BANLkTikF7=qfXAmrNzyMSmWm7Neh6yMAB8EbBp7oLcfQmrbDjA@mail.gmail.com>
+ <20110610091355.2ce38798.kamezawa.hiroyu@jp.fujitsu.com>
+ <alpine.LSU.2.00.1106091812030.4904@sister.anvils>
+ <20110610113311.409bb423.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110610121949.622e4629.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110610125551.385ea7ed.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110610133021.2eaaf0da.kamezawa.hiroyu@jp.fujitsu.com>
+ <alpine.LSU.2.00.1106101425400.28334@sister.anvils>
+ <20110610235442.GA21413@cmpxchg.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20110610235442.GA21413@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: paulmck@linux.vnet.ibm.com
-Cc: Matthew Garrett <mjg59@srcf.ucam.org>, Kyungmin Park <kmpark@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Ankita Garg <ankita@in.ibm.com>, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-pm@lists.linux-foundation.org, svaidy@linux.vnet.ibm.com, thomas.abraham@linaro.org
+To: Hugh Dickins <hughd@google.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, Ying Han <yinghan@google.com>, Dave Jones <davej@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Oleg Nesterov <oleg@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 
-On Sat, 11 Jun 2011 10:06:10 -0700
-"Paul E. McKenney" <paulmck@linux.vnet.ibm.com> wrote:
-
-> On Fri, Jun 10, 2011 at 08:02:33PM -0700, Arjan van de Ven wrote:
-> > On Fri, 10 Jun 2011 12:37:13 -0700
-> > "Paul E. McKenney" <paulmck@linux.vnet.ibm.com> wrote:
-> > 
-> > > On Fri, Jun 10, 2011 at 08:23:29PM +0100, Matthew Garrett wrote:
-> > > > On Fri, Jun 10, 2011 at 11:47:38AM -0700, Paul E. McKenney
-> > > > wrote:
-> > > > 
-> > > > > And if I understand you correctly, then the patches that
-> > > > > Ankita posted should help your self-refresh case, along with
-> > > > > the originally intended the power-down case and
-> > > > > special-purpose use of memory case.
-> > > > 
-> > > > Yeah, I'd hope so once we actually have capable hardware.
+On Sat, Jun 11, 2011 at 01:54:42AM +0200, Johannes Weiner wrote:
+> On Fri, Jun 10, 2011 at 02:49:35PM -0700, Hugh Dickins wrote:
+> > On Fri, 10 Jun 2011, KAMEZAWA Hiroyuki wrote:
 > > > 
-> > > Cool!!!
-> > > 
-> > > So Ankita's patchset might be useful to you at some point, then.
-> > > 
-> > > Does it look like a reasonable implementation?
+> > > I think this can be a fix. 
 > > 
-> > as someone who is working on hardware that is PASR capable right
-> > now, I have to admit that our plan was to just hook into the buddy
-> > allocator, and use PASR on the top level of buddy (eg PASR off
-> > blocks that are free there, and PASR them back on once an
-> > allocation required the block to be broken up)..... that looked the
-> > very most simple to me.
+> > Sorry, I think not: I've not digested your rationale,
+> > but three things stand out:
 > > 
-> > Maybe something much more elaborate is needed, but I didn't see why
-> > so far.
-> 
-> If I understand correctly, you face the same issue that affects
-> transparent huge pages, but on a much larger scale.  If you have even
-> one non-moveable allocation in a given top-level buddy block, you
-> won't be able to PASR that block.
+> > 1. Why has this only just started happening?  I may not have run that
+> >    test on 3.0-rc1, but surely I ran it for hours with 2.6.39;
+> >    maybe not with khugepaged, but certainly with ksmd.
+> > 
+> > 2. Your hunk below:
+> > > -	if (!mm_need_new_owner(mm, p))
+> > > +	if (!mm_need_new_owner(mm, p)) {
+> > > +		rcu_assign_pointer(mm->owner, NULL);
+> >    is now setting mm->owner to NULL at times when we were sure it did not
+> >    need updating before (task is not the owner): you're damaging mm->owner.
 
-yep we'd use a non-kernel zone for that; not too big a deal.
-(the much larger scale you can debate, if your memory controller is
-configured correctly the PASR regions are not all that much bigger than
-hugepages)
-> 
-> In addition, one of the things that Ankita's patchset is looking to do
-> is to control allocations in a given region, so that the region can be
-> easily evacuated.  One use for this is to power off regions of memory,
-> another is to PASR off regions of memory, and a third is to ensure
-> that large regions of memory are available for when needed by media
-> codecs (e.g., cameras), but can be used for other purposes when the
-> media codecs don't need them (e.g., when viewing photos rather than
-> taking them).
+This is a problem with the patch, but I think Kame's analysis and
+approach to fix it are still correct.
 
-the codec issue seems to be solved in time; a previous generation
-silicon on our (Intel) side had ARM ecosystem blocks that did not do
-scatter gather, however the current generation ARM ecosystem blocks all
-seem to have added S/G to them....
-(in part this is coming from the strong desire to get camera/etc blocks
-to all use "GPU texture" class memory, so that the camera can directly
-deposit its information into a gpu texture, and similar for media
-encode/decode blocks... this avoids copies as well as duplicate memory).
+mm_update_next_owner() does not set mm->owner to NULL when the last
+possible owner goes away, but leaves it pointing to a possibly stale
+task struct.
 
+Noone cared before khugepaged, and up to Andrea's patch khugepaged
+prevented the last possible owner from exiting until the call into the
+memory controller had finished.
 
+Here is a revised version of Kame's fix.
 
--- 
-Arjan van de Ven 	Intel Open Source Technology Centre
-For development, discussion and tips for power savings, 
-visit http://www.lesswatts.org
+---
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH] [BUGFIX] mm: clear mm->owner when last possible owner leaves
+
+The following crash was reported:
+
+> Call Trace:
+>  [<ffffffff81139792>] mem_cgroup_from_task+0x15/0x17
+>  [<ffffffff8113a75a>] __mem_cgroup_try_charge+0x148/0x4b4
+>  [<ffffffff810493f3>] ? need_resched+0x23/0x2d
+>  [<ffffffff814cbf43>] ? preempt_schedule+0x46/0x4f
+>  [<ffffffff8113afe8>] mem_cgroup_charge_common+0x9a/0xce
+>  [<ffffffff8113b6d1>] mem_cgroup_newpage_charge+0x5d/0x5f
+>  [<ffffffff81134024>] khugepaged+0x5da/0xfaf
+>  [<ffffffff81078ea0>] ? __init_waitqueue_head+0x4b/0x4b
+>  [<ffffffff81133a4a>] ? add_mm_counter.constprop.5+0x13/0x13
+>  [<ffffffff81078625>] kthread+0xa8/0xb0
+>  [<ffffffff814d13e8>] ? sub_preempt_count+0xa1/0xb4
+>  [<ffffffff814d5664>] kernel_thread_helper+0x4/0x10
+>  [<ffffffff814ce858>] ? retint_restore_args+0x13/0x13
+>  [<ffffffff8107857d>] ? __init_kthread_worker+0x5a/0x5a
+
+What happens is that khugepaged tries to charge a huge page against an
+mm whose last possible owner has already exited, and the memory
+controller crashes when the stale mm->owner is used to look up the
+cgroup to charge.
+
+mm->owner has never been set to NULL with the last owner going away,
+but nobody cared until khugepaged came along.
+
+Even then it wasn't a problem because the final mmput() on an mm was
+forced to acquire and release mmap_sem in write-mode, preventing an
+exiting owner to go away while the mmap_sem was held, and until
+"692e0b3 mm: thp: optimize memcg charge in khugepaged", the memory
+cgroup charge was protected by mmap_sem in read-mode.
+
+Instead of going back to relying on the mmap_sem to enforce lifetime
+of a task, this patch ensures that mm->owner is properly set to NULL
+when the last possible owner is exiting, which the memory controller
+can handle just fine.
+
+Reported-by: Hugh Dickins <hughd@google.com>
+Reported-by: Dave Jones <davej@redhat.com>
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+---
+
+diff --git a/kernel/exit.c b/kernel/exit.c
+index 20a4064..ef8ff79 100644
+--- a/kernel/exit.c
++++ b/kernel/exit.c
+@@ -563,27 +563,27 @@ void exit_files(struct task_struct *tsk)
+ /*
+  * Task p is exiting and it owned mm, lets find a new owner for it
+  */
+-static inline int
+-mm_need_new_owner(struct mm_struct *mm, struct task_struct *p)
+-{
+-	/*
+-	 * If there are other users of the mm and the owner (us) is exiting
+-	 * we need to find a new owner to take on the responsibility.
+-	 */
+-	if (atomic_read(&mm->mm_users) <= 1)
+-		return 0;
+-	if (mm->owner != p)
+-		return 0;
+-	return 1;
+-}
+-
+ void mm_update_next_owner(struct mm_struct *mm)
+ {
+ 	struct task_struct *c, *g, *p = current;
+ 
+ retry:
+-	if (!mm_need_new_owner(mm, p))
++	/*
++	 * If the exiting or execing task is not the owner, it's
++	 * someone else's problem.
++	 */
++	if (mm->owner != p)
++		return;
++
++	/*
++	 * The current owner is exiting/execing and there are no other
++	 * candidates.  Do not leave the mm pointing to a possibly
++	 * freed task structure.
++	 */
++	if (atomic_read(&mm->mm_users <= 1)) {
++		mm->owner = NULL;
+ 		return;
++	}
+ 
+ 	read_lock(&tasklist_lock);
+ 	/*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
