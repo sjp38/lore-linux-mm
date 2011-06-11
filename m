@@ -1,86 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 1A58F6B0012
-	for <linux-mm@kvack.org>; Sat, 11 Jun 2011 13:06:16 -0400 (EDT)
-Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
-	by e4.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p5BGiktP018548
-	for <linux-mm@kvack.org>; Sat, 11 Jun 2011 12:44:46 -0400
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p5BH6BmR120712
-	for <linux-mm@kvack.org>; Sat, 11 Jun 2011 13:06:11 -0400
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p5BH6BCI022807
-	for <linux-mm@kvack.org>; Sat, 11 Jun 2011 13:06:11 -0400
-Date: Sat, 11 Jun 2011 10:06:10 -0700
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: [PATCH 00/10] mm: Linux VM Infrastructure to support Memory
- Power Management
-Message-ID: <20110611170610.GA2212@linux.vnet.ibm.com>
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <20110610165529.GC2230@linux.vnet.ibm.com>
- <20110610170535.GC25774@srcf.ucam.org>
- <20110610171939.GE2230@linux.vnet.ibm.com>
- <20110610172307.GA27630@srcf.ucam.org>
- <20110610175248.GF2230@linux.vnet.ibm.com>
- <20110610180807.GB28500@srcf.ucam.org>
- <20110610184738.GG2230@linux.vnet.ibm.com>
- <20110610192329.GA30496@srcf.ucam.org>
- <20110610193713.GJ2230@linux.vnet.ibm.com>
- <20110610200233.5ddd5a31@infradead.org>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 593F36B0012
+	for <linux-mm@kvack.org>; Sat, 11 Jun 2011 13:06:41 -0400 (EDT)
+Date: Sat, 11 Jun 2011 18:39:43 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH] [BUGFIX] update mm->owner even if no next owner.
+Message-ID: <20110611163943.GA3238@redhat.com>
+References: <BANLkTikF7=qfXAmrNzyMSmWm7Neh6yMAB8EbBp7oLcfQmrbDjA@mail.gmail.com>
+ <20110610091355.2ce38798.kamezawa.hiroyu@jp.fujitsu.com>
+ <alpine.LSU.2.00.1106091812030.4904@sister.anvils>
+ <20110610113311.409bb423.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110610121949.622e4629.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110610125551.385ea7ed.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110610133021.2eaaf0da.kamezawa.hiroyu@jp.fujitsu.com>
+ <alpine.LSU.2.00.1106101425400.28334@sister.anvils>
+ <BANLkTi=bBSeMFtUDyz+px1Kt34HDU=DEcw@mail.gmail.com>
+ <alpine.LSU.2.00.1106110847190.29336@sister.anvils>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110610200233.5ddd5a31@infradead.org>
+In-Reply-To: <alpine.LSU.2.00.1106110847190.29336@sister.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arjan van de Ven <arjan@infradead.org>
-Cc: Matthew Garrett <mjg59@srcf.ucam.org>, Kyungmin Park <kmpark@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Ankita Garg <ankita@in.ibm.com>, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-pm@lists.linux-foundation.org, svaidy@linux.vnet.ibm.com, thomas.abraham@linaro.org
+To: Hugh Dickins <hughd@google.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>, Ying Han <yinghan@google.com>, Dave Jones <davej@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Fri, Jun 10, 2011 at 08:02:33PM -0700, Arjan van de Ven wrote:
-> On Fri, 10 Jun 2011 12:37:13 -0700
-> "Paul E. McKenney" <paulmck@linux.vnet.ibm.com> wrote:
+On Sat, Jun 11, 2011 at 09:04:14AM -0700, Hugh Dickins wrote:
+> I had another go at reproducing it, 2 hours that time, then a try with
+> 692e0b35427a reverted: it ran overnight for 9 hours when I stopped it.
 > 
-> > On Fri, Jun 10, 2011 at 08:23:29PM +0100, Matthew Garrett wrote:
-> > > On Fri, Jun 10, 2011 at 11:47:38AM -0700, Paul E. McKenney wrote:
-> > > 
-> > > > And if I understand you correctly, then the patches that Ankita
-> > > > posted should help your self-refresh case, along with the
-> > > > originally intended the power-down case and special-purpose use
-> > > > of memory case.
-> > > 
-> > > Yeah, I'd hope so once we actually have capable hardware.
-> > 
-> > Cool!!!
-> > 
-> > So Ankita's patchset might be useful to you at some point, then.
-> > 
-> > Does it look like a reasonable implementation?
-> 
-> as someone who is working on hardware that is PASR capable right now,
-> I have to admit that our plan was to just hook into the buddy allocator,
-> and use PASR on the top level of buddy (eg PASR off blocks that are
-> free there, and PASR them back on once an allocation required the block
-> to be broken up)..... that looked the very most simple to me.
-> 
-> Maybe something much more elaborate is needed, but I didn't see why so
-> far.
+> Andrea, please would you ask Linus to revert that commit before -rc3?
+> Or is there something else you'd like us to try instead?  I admit that
+> I've not actually taken the time to think through exactly how it goes
+> wrong, but it does look dangerous.
 
-If I understand correctly, you face the same issue that affects
-transparent huge pages, but on a much larger scale.  If you have even
-one non-moveable allocation in a given top-level buddy block, you won't
-be able to PASR that block.
+Here I was asked if the mem_cgroup_newpage_charge need the mmap_sem at
+all. And if not why not to release the mmap_sem early.
 
-In addition, one of the things that Ankita's patchset is looking to do
-is to control allocations in a given region, so that the region can be
-easily evacuated.  One use for this is to power off regions of memory,
-another is to PASR off regions of memory, and a third is to ensure that
-large regions of memory are available for when needed by media codecs
-(e.g., cameras), but can be used for other purposes when the media codecs
-don't need them (e.g., when viewing photos rather than taking them).
+https://lkml.org/lkml/2011/3/14/276
 
->From what I can see, the same mechanism covers all three use cases.
+So I didn't see why mmap_sem was needed, I also asked confirmation and
+who answered agreed it was safe without mmap_sem even if it's the only
+place doing that. Maybe that assumption was wrong and we need
+mmap_sem after all if this commit is causing problems.
 
-							Thanx, Paul
+Or did you find something wrong in the actual patch?
+
+Do I understand right that the bug just that we must run
+alloc_hugepage_vma+mem_cgroup_newpage_charge within the same critical
+section protected by the mmap_sem read mode? Do we know why?
+
+> The way I reproduce it is with my tmpfs kbuilds swapping load,
+> in this case restricting mem by memcg, and (perhaps the important
+> detail, not certain) doing concurrent swapoff/swapon repeatedly -
+> swapoff takes another mm_users reference to the mm it's working on,
+> which can cause surprises.
+
+Ok.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
