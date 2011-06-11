@@ -1,62 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 593F36B0012
-	for <linux-mm@kvack.org>; Sat, 11 Jun 2011 13:06:41 -0400 (EDT)
-Date: Sat, 11 Jun 2011 18:39:43 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH] [BUGFIX] update mm->owner even if no next owner.
-Message-ID: <20110611163943.GA3238@redhat.com>
-References: <BANLkTikF7=qfXAmrNzyMSmWm7Neh6yMAB8EbBp7oLcfQmrbDjA@mail.gmail.com>
- <20110610091355.2ce38798.kamezawa.hiroyu@jp.fujitsu.com>
- <alpine.LSU.2.00.1106091812030.4904@sister.anvils>
- <20110610113311.409bb423.kamezawa.hiroyu@jp.fujitsu.com>
- <20110610121949.622e4629.kamezawa.hiroyu@jp.fujitsu.com>
- <20110610125551.385ea7ed.kamezawa.hiroyu@jp.fujitsu.com>
- <20110610133021.2eaaf0da.kamezawa.hiroyu@jp.fujitsu.com>
- <alpine.LSU.2.00.1106101425400.28334@sister.anvils>
- <BANLkTi=bBSeMFtUDyz+px1Kt34HDU=DEcw@mail.gmail.com>
- <alpine.LSU.2.00.1106110847190.29336@sister.anvils>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id D6CF66B0012
+	for <linux-mm@kvack.org>; Sat, 11 Jun 2011 13:08:32 -0400 (EDT)
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e3.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p5BGk23i018604
+	for <linux-mm@kvack.org>; Sat, 11 Jun 2011 12:46:02 -0400
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p5BH8Vdl114312
+	for <linux-mm@kvack.org>; Sat, 11 Jun 2011 13:08:31 -0400
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p5BH8U9r027932
+	for <linux-mm@kvack.org>; Sat, 11 Jun 2011 13:08:31 -0400
+Date: Sat, 11 Jun 2011 10:08:29 -0700
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: [PATCH 00/10] mm: Linux VM Infrastructure to support Memory
+	Power Management
+Message-ID: <20110611170829.GB2212@linux.vnet.ibm.com>
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <1306499498-14263-1-git-send-email-ankita@in.ibm.com>
+ <20110528005640.9076c0b1.akpm@linux-foundation.org>
+ <20110609185259.GA29287@linux.vnet.ibm.com>
+ <BANLkTinxeeSby_+tta8EhzCg3VbD6+=g+g@mail.gmail.com>
+ <20110610151121.GA2230@linux.vnet.ibm.com>
+ <20110610155954.GA25774@srcf.ucam.org>
+ <20110610165529.GC2230@linux.vnet.ibm.com>
+ <20110610170535.GC25774@srcf.ucam.org>
+ <20110610171939.GE2230@linux.vnet.ibm.com>
+ <20110610173345.GA8434@in.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.00.1106110847190.29336@sister.anvils>
+In-Reply-To: <20110610173345.GA8434@in.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>, Ying Han <yinghan@google.com>, Dave Jones <davej@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Ankita Garg <ankita@in.ibm.com>
+Cc: Matthew Garrett <mjg59@srcf.ucam.org>, Kyungmin Park <kmpark@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, thomas.abraham@linaro.org, Andrew Morton <akpm@linux-foundation.org>, svaidy@linux.vnet.ibm.com, linux-pm@lists.linux-foundation.org, linux-arm-kernel@lists.infradead.org
 
-On Sat, Jun 11, 2011 at 09:04:14AM -0700, Hugh Dickins wrote:
-> I had another go at reproducing it, 2 hours that time, then a try with
-> 692e0b35427a reverted: it ran overnight for 9 hours when I stopped it.
+On Fri, Jun 10, 2011 at 11:03:45PM +0530, Ankita Garg wrote:
+> On Fri, Jun 10, 2011 at 10:19:39AM -0700, Paul E. McKenney wrote:
+> > On Fri, Jun 10, 2011 at 06:05:35PM +0100, Matthew Garrett wrote:
+> > > On Fri, Jun 10, 2011 at 09:55:29AM -0700, Paul E. McKenney wrote:
+> > > > On Fri, Jun 10, 2011 at 04:59:54PM +0100, Matthew Garrett wrote:
+> > > > > For the server case, the low hanging fruit would seem to be 
+> > > > > finer-grained self-refresh. At best we seem to be able to do that on a 
+> > > > > per-CPU socket basis right now. The difference between active and 
+> > > > > self-refresh would seem to be much larger than the difference between 
+> > > > > self-refresh and powered down.
+> > > > 
+> > > > By "finer-grained self-refresh" you mean turning off refresh for banks
+> > > > of memory that are not being used, right?  If so, this is supported by
+> > > > the memory-regions support provided, at least assuming that the regions
+> > > > can be aligned with the self-refresh boundaries.
+> > > 
+> > > I mean at the hardware level. As far as I know, the best we can do at 
+> > > the moment is to put an entire node into self refresh when the CPU hits 
+> > > package C6.
+> > 
+> > But this depends on the type of system and CPU family, right?  If you
+> > can say, which hardware are you thinking of?  (I am thinking of ARM.)
+> > 
 > 
-> Andrea, please would you ask Linus to revert that commit before -rc3?
-> Or is there something else you'd like us to try instead?  I admit that
-> I've not actually taken the time to think through exactly how it goes
-> wrong, but it does look dangerous.
+> And also whether the memory controller is on-chip or off-chip ? As
+> package could be in C6, but other packages could be refering memory
+> connected to this socket right ? And as Paul mentioned, at this point
+> the ARM SoCs that have support for memory power management, have only a
+> single node.
 
-Here I was asked if the mem_cgroup_newpage_charge need the mmap_sem at
-all. And if not why not to release the mmap_sem early.
+I suspect that this will be changing shortly, and that finer-grained
+control might be available.
 
-https://lkml.org/lkml/2011/3/14/276
+However, there are also use cases where contiguous memory is required from
+time to time by media codecs, and being able to use that memory for other
+purposes when the media codec is not in use reduced the total amount of
+memory required, which reduces power consumption all the time, right?  ;-)
 
-So I didn't see why mmap_sem was needed, I also asked confirmation and
-who answered agreed it was safe without mmap_sem even if it's the only
-place doing that. Maybe that assumption was wrong and we need
-mmap_sem after all if this commit is causing problems.
-
-Or did you find something wrong in the actual patch?
-
-Do I understand right that the bug just that we must run
-alloc_hugepage_vma+mem_cgroup_newpage_charge within the same critical
-section protected by the mmap_sem read mode? Do we know why?
-
-> The way I reproduce it is with my tmpfs kbuilds swapping load,
-> in this case restricting mem by memcg, and (perhaps the important
-> detail, not certain) doing concurrent swapoff/swapon repeatedly -
-> swapoff takes another mm_users reference to the mm it's working on,
-> which can cause surprises.
-
-Ok.
+							Thanx, Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
