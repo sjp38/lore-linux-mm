@@ -1,55 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 476586B0012
-	for <linux-mm@kvack.org>; Sun, 12 Jun 2011 09:49:11 -0400 (EDT)
-Date: Sun, 12 Jun 2011 14:48:09 +0100
-From: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Subject: Re: [PATCH] Make GFP_DMA allocations w/o ZONE_DMA emit a warning
-	instead of failing
-Message-ID: <20110612134809.GG10283@n2100.arm.linux.org.uk>
-References: <20110610091233.GJ24424@n2100.arm.linux.org.uk> <alpine.DEB.2.00.1106101150280.17197@chino.kir.corp.google.com> <20110610185858.GN24424@n2100.arm.linux.org.uk> <alpine.DEB.2.00.1106101456080.23076@chino.kir.corp.google.com> <20110610220748.GO24424@n2100.arm.linux.org.uk> <alpine.DEB.2.00.1106101510000.23076@chino.kir.corp.google.com> <20110610222020.GP24424@n2100.arm.linux.org.uk> <alpine.DEB.2.00.1106101526390.24646@chino.kir.corp.google.com> <20110611094500.GA2356@debian.cable.virginmedia.net> <4DF3A376.1000601@gmail.com>
+	by kanga.kvack.org (Postfix) with SMTP id 5D3CD6B0012
+	for <linux-mm@kvack.org>; Sun, 12 Jun 2011 10:24:10 -0400 (EDT)
+Date: Sun, 12 Jun 2011 16:24:05 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH v3 01/10] compaction: trivial clean up acct_isolated
+Message-ID: <20110612142257.GA24323@tiehlicka.suse.cz>
+References: <cover.1307455422.git.minchan.kim@gmail.com>
+ <71a79768ff8ef356db09493dbb5d6c390e176e0d.1307455422.git.minchan.kim@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <4DF3A376.1000601@gmail.com>
+In-Reply-To: <71a79768ff8ef356db09493dbb5d6c390e176e0d.1307455422.git.minchan.kim@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Robert Hancock <hancockrwd@gmail.com>
-Cc: Catalin Marinas <catalin.marinas@arm.com>, David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, tglx@linutronix.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mel@csn.ul.ie, kamezawa.hiroyu@jp.fujitsu.com, riel@redhat.com, pavel@ucw.cz
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Sat, Jun 11, 2011 at 11:18:46AM -0600, Robert Hancock wrote:
-> It sounds to me like these drivers using GFP_DMA should really be fixed  
-> to use the proper DMA API. That's what it's there for. The problem is  
-> that GFP_DMA doesn't really mean anything generically other than "memory  
-> suitable for DMA according to some criteria".
+On Tue 07-06-11 23:38:14, Minchan Kim wrote:
+> acct_isolated of compaction uses page_lru_base_type which returns only
+> base type of LRU list so it never returns LRU_ACTIVE_ANON or LRU_ACTIVE_FILE.
+> In addtion, cc->nr_[anon|file] is used in only acct_isolated so it doesn't have
+> fields in conpact_control.
+> This patch removes fields from compact_control and makes clear function of
+> acct_issolated which counts the number of anon|file pages isolated.
+> 
+> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Cc: Mel Gorman <mgorman@suse.de>
+> Cc: Andrea Arcangeli <aarcange@redhat.com>
+> Acked-by: Rik van Riel <riel@redhat.com>
+> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+> Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
 
-It would be really nice to have an allocation interface which takes a
-DMA mask and returns memory which satisfies that DMA mask, but that's
-a pipedream I've had for the last 12 years or so.
+Sorry for the late reply. I have looked at the previous posting but
+didn't have time to comment on it.
 
-GFP_DMA is not about the DMA API - the DMA API does _not_ deal with
-memory allocation for streaming transfers at all.  It only deals with
-coherent DMA memory allocation which is something completely different.
+Yes, stack usage reduction makes sense and the function also looks more
+compact.
 
-So it really isn't about "these drivers should be fixed to use the
-proper DMA API" because there isn't one.
+Reviewed-by: Michal Hocko <mhocko@suse.cz>
 
-If the concensus is to remove GFP_DMA, there would need to be some ground
-work done first:
+> ---
+>  mm/compaction.c |   18 +++++-------------
+>  1 files changed, 5 insertions(+), 13 deletions(-)
+> 
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> index 021a296..61eab88 100644
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -35,10 +35,6 @@ struct compact_control {
+>  	unsigned long migrate_pfn;	/* isolate_migratepages search base */
+>  	bool sync;			/* Synchronous migration */
+>  
+> -	/* Account for isolated anon and file pages */
+> -	unsigned long nr_anon;
+> -	unsigned long nr_file;
+> -
+>  	unsigned int order;		/* order a direct compactor needs */
+>  	int migratetype;		/* MOVABLE, RECLAIMABLE etc */
+>  	struct zone *zone;
+> @@ -212,17 +208,13 @@ static void isolate_freepages(struct zone *zone,
+>  static void acct_isolated(struct zone *zone, struct compact_control *cc)
+>  {
+>  	struct page *page;
+> -	unsigned int count[NR_LRU_LISTS] = { 0, };
+> +	unsigned int count[2] = { 0, };
+>  
+> -	list_for_each_entry(page, &cc->migratepages, lru) {
+> -		int lru = page_lru_base_type(page);
+> -		count[lru]++;
+> -	}
+> +	list_for_each_entry(page, &cc->migratepages, lru)
+> +		count[!!page_is_file_cache(page)]++;
+>  
+> -	cc->nr_anon = count[LRU_ACTIVE_ANON] + count[LRU_INACTIVE_ANON];
+> -	cc->nr_file = count[LRU_ACTIVE_FILE] + count[LRU_INACTIVE_FILE];
+> -	__mod_zone_page_state(zone, NR_ISOLATED_ANON, cc->nr_anon);
+> -	__mod_zone_page_state(zone, NR_ISOLATED_FILE, cc->nr_file);
+> +	__mod_zone_page_state(zone, NR_ISOLATED_ANON, count[0]);
+> +	__mod_zone_page_state(zone, NR_ISOLATED_FILE, count[1]);
+>  }
+>  
+>  /* Similar to reclaim, but different enough that they don't share logic */
+> -- 
+> 1.7.0.4
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-(a) audit whether GFP_DMA is really needed (iow, is the allocated
-structure actually DMA'd from/to, or did the driver writer just slap
-GFP_DMA on it without thinking?)
-
-(b) audit whether we have a DMA mask available at the GFP_DMA allocator
-call site
-
-That should reveal whether it is even possible to move to a different
-solution.
-
-Depending on (b), provide a new allocation API which takes the DMA mask
-and internally calls the standard allocator with GFP_DMA if the DMA mask
-is anything less than "all memory".
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
