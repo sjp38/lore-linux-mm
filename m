@@ -1,88 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 5D3CD6B0012
-	for <linux-mm@kvack.org>; Sun, 12 Jun 2011 10:24:10 -0400 (EDT)
-Date: Sun, 12 Jun 2011 16:24:05 +0200
+	by kanga.kvack.org (Postfix) with SMTP id A744C6B0012
+	for <linux-mm@kvack.org>; Sun, 12 Jun 2011 10:45:24 -0400 (EDT)
+Date: Sun, 12 Jun 2011 16:45:21 +0200
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v3 01/10] compaction: trivial clean up acct_isolated
-Message-ID: <20110612142257.GA24323@tiehlicka.suse.cz>
+Subject: Re: [PATCH v3 03/10] Add additional isolation mode
+Message-ID: <20110612144521.GB24323@tiehlicka.suse.cz>
 References: <cover.1307455422.git.minchan.kim@gmail.com>
- <71a79768ff8ef356db09493dbb5d6c390e176e0d.1307455422.git.minchan.kim@gmail.com>
+ <b72a86ed33c693aeccac0dba3fba8c13145106ab.1307455422.git.minchan.kim@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <71a79768ff8ef356db09493dbb5d6c390e176e0d.1307455422.git.minchan.kim@gmail.com>
+In-Reply-To: <b72a86ed33c693aeccac0dba3fba8c13145106ab.1307455422.git.minchan.kim@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Minchan Kim <minchan.kim@gmail.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Tue 07-06-11 23:38:14, Minchan Kim wrote:
-> acct_isolated of compaction uses page_lru_base_type which returns only
-> base type of LRU list so it never returns LRU_ACTIVE_ANON or LRU_ACTIVE_FILE.
-> In addtion, cc->nr_[anon|file] is used in only acct_isolated so it doesn't have
-> fields in conpact_control.
-> This patch removes fields from compact_control and makes clear function of
-> acct_issolated which counts the number of anon|file pages isolated.
+On Tue 07-06-11 23:38:16, Minchan Kim wrote:
+> There are some places to isolate lru page and I believe
+> users of isolate_lru_page will be growing.
+> The purpose of them is each different so part of isolated pages
+> should put back to LRU, again.
+> 
+> The problem is when we put back the page into LRU,
+> we lose LRU ordering and the page is inserted at head of LRU list.
+> It makes unnecessary LRU churning so that vm can evict working set pages
+> rather than idle pages.
+
+I guess that, although this is true, it doesn't fit in with this patch
+very much because this patch doesn't fix this problem. It is a
+preparation for for further work. I would expect this description with
+the core patch that actlually handles this issue.
+
+> 
+> This patch adds new modes when we isolate page in LRU so we don't isolate pages
+> if we can't handle it. It could reduce LRU churning.
+> 
+> This patch doesn't change old behavior. It's just used by next patches.
+
+It doesn't because there is not user of those flags but maybe it would
+be better to have those to see why it actually can reduce LRU
+isolations.
+
 > 
 > Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 > Cc: Mel Gorman <mgorman@suse.de>
 > Cc: Andrea Arcangeli <aarcange@redhat.com>
+> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > Acked-by: Rik van Riel <riel@redhat.com>
 > Acked-by: Johannes Weiner <hannes@cmpxchg.org>
-> Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
-
-Sorry for the late reply. I have looked at the previous posting but
-didn't have time to comment on it.
-
-Yes, stack usage reduction makes sense and the function also looks more
-compact.
-
-Reviewed-by: Michal Hocko <mhocko@suse.cz>
-
 > ---
->  mm/compaction.c |   18 +++++-------------
->  1 files changed, 5 insertions(+), 13 deletions(-)
+>  include/linux/swap.h |    2 ++
+>  mm/vmscan.c          |    6 ++++++
+>  2 files changed, 8 insertions(+), 0 deletions(-)
 > 
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> index 021a296..61eab88 100644
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -35,10 +35,6 @@ struct compact_control {
->  	unsigned long migrate_pfn;	/* isolate_migratepages search base */
->  	bool sync;			/* Synchronous migration */
+> diff --git a/include/linux/swap.h b/include/linux/swap.h
+> index 48d50e6..731f5dd 100644
+> --- a/include/linux/swap.h
+> +++ b/include/linux/swap.h
+> @@ -248,6 +248,8 @@ enum ISOLATE_MODE {
+>  	ISOLATE_NONE,
+>  	ISOLATE_INACTIVE = 1,	/* Isolate inactive pages */
+>  	ISOLATE_ACTIVE = 2,	/* Isolate active pages */
+> +	ISOLATE_CLEAN = 8,      /* Isolate clean file */
+> +	ISOLATE_UNMAPPED = 16,  /* Isolate unmapped file */
+>  };
 >  
-> -	/* Account for isolated anon and file pages */
-> -	unsigned long nr_anon;
-> -	unsigned long nr_file;
-> -
->  	unsigned int order;		/* order a direct compactor needs */
->  	int migratetype;		/* MOVABLE, RECLAIMABLE etc */
->  	struct zone *zone;
-> @@ -212,17 +208,13 @@ static void isolate_freepages(struct zone *zone,
->  static void acct_isolated(struct zone *zone, struct compact_control *cc)
->  {
->  	struct page *page;
-> -	unsigned int count[NR_LRU_LISTS] = { 0, };
-> +	unsigned int count[2] = { 0, };
+>  /* linux/mm/vmscan.c */
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 4cbe114..26aa627 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -990,6 +990,12 @@ int __isolate_lru_page(struct page *page, enum ISOLATE_MODE mode, int file)
 >  
-> -	list_for_each_entry(page, &cc->migratepages, lru) {
-> -		int lru = page_lru_base_type(page);
-> -		count[lru]++;
-> -	}
-> +	list_for_each_entry(page, &cc->migratepages, lru)
-> +		count[!!page_is_file_cache(page)]++;
+>  	ret = -EBUSY;
 >  
-> -	cc->nr_anon = count[LRU_ACTIVE_ANON] + count[LRU_INACTIVE_ANON];
-> -	cc->nr_file = count[LRU_ACTIVE_FILE] + count[LRU_INACTIVE_FILE];
-> -	__mod_zone_page_state(zone, NR_ISOLATED_ANON, cc->nr_anon);
-> -	__mod_zone_page_state(zone, NR_ISOLATED_FILE, cc->nr_file);
-> +	__mod_zone_page_state(zone, NR_ISOLATED_ANON, count[0]);
-> +	__mod_zone_page_state(zone, NR_ISOLATED_FILE, count[1]);
->  }
->  
->  /* Similar to reclaim, but different enough that they don't share logic */
+> +	if (mode & ISOLATE_CLEAN && (PageDirty(page) || PageWriteback(page)))
+> +		return ret;
+> +
+> +	if (mode & ISOLATE_UNMAPPED && page_mapped(page))
+> +		return ret;
+> +
+>  	if (likely(get_page_unless_zero(page))) {
+>  		/*
+>  		 * Be careful not to clear PageLRU until after we're
 > -- 
 > 1.7.0.4
 > 
