@@ -1,62 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 4AEB26B004A
-	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 05:31:15 -0400 (EDT)
-Received: from d01relay01.pok.ibm.com (d01relay01.pok.ibm.com [9.56.227.233])
-	by e4.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p5D99jBB002638
-	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 05:09:45 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p5D9VD7C085988
-	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 05:31:13 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p5D9VAgL010849
-	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 06:31:13 -0300
-Date: Mon, 13 Jun 2011 14:53:39 +0530
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: Re: [PATCH v4 3.0-rc2-tip 0/22]  0: Uprobes patchset with perf
- probe support
-Message-ID: <20110613092339.GF27130@linux.vnet.ibm.com>
-Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-References: <20110607125804.28590.92092.sendpatchset@localhost6.localdomain6>
- <1307644944.2497.1023.camel@laptop>
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 389416B004A
+	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 05:42:09 -0400 (EDT)
+Date: Mon, 13 Jun 2011 11:42:03 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch 7/8] vmscan: memcg-aware unevictable page rescue scanner
+Message-ID: <20110613094203.GC10563@tiehlicka.suse.cz>
+References: <1306909519-7286-1-git-send-email-hannes@cmpxchg.org>
+ <1306909519-7286-8-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1307644944.2497.1023.camel@laptop>
+In-Reply-To: <1306909519-7286-8-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, Andi Kleen <andi@firstfloor.org>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, LKML <linux-kernel@vger.kernel.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Ying Han <yinghan@google.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-* Peter Zijlstra <peterz@infradead.org> [2011-06-09 20:42:24]:
-
-> On Tue, 2011-06-07 at 18:28 +0530, Srikar Dronamraju wrote:
-> > - Breakpoint handling should co-exist with singlestep/blockstep from
-> >   another tracer/debugger.
-
-We can remove this now.
-Previous to this patchset the post notifier would run in interrupt
-context hence we couldnt call user_disable_single_step
-
-However from this patchset, (due to changes to do away with per task
-slot), we run the post notifier in task context. Hence we can now call
-user_enable_single_step/user_disable_single_step which does the right
-thing. 
-
-Please correct me if I am missing.
-
-> > - Queue and dequeue signals delivered from the singlestep till
-> >   completion of postprocessing. 
+On Wed 01-06-11 08:25:18, Johannes Weiner wrote:
+> Once the per-memcg lru lists are exclusive, the unevictable page
+> rescue scanner can no longer work on the global zone lru lists.
 > 
-
-I am working towards this.  
-> These two are important to sort before we can think of merging this
-> right?
+> This converts it to go through all memcgs and scan their respective
+> unevictable lists instead.
 > 
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
+Just a minor naming thing.
+
+Other than that looks good to me.
+Reviewed-by: Michal Hocko <mhocko@suse.cz>
+
+> --- a/include/linux/memcontrol.h
+> +++ b/include/linux/memcontrol.h
+[...]
+> +struct page *mem_cgroup_lru_to_page(struct zone *zone, struct mem_cgroup *mem,
+> +				    enum lru_list lru)
+> +{
+> +	struct mem_cgroup_per_zone *mz;
+> +	struct page_cgroup *pc;
+> +
+> +	mz = mem_cgroup_zoneinfo(mem, zone_to_nid(zone), zone_idx(zone));
+> +	pc = list_entry(mz->lists[lru].prev, struct page_cgroup, lru);
+> +	return lookup_cgroup_page(pc);
+> +}
+> +
+[...]
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -3233,6 +3233,14 @@ void scan_mapping_unevictable_pages(struct address_space *mapping)
+>  
+>  }
+>  
+> +static struct page *lru_tailpage(struct zone *zone, struct mem_cgroup *mem,
+> +				 enum lru_list lru)
+> +{
+> +	if (mem)
+> +		return mem_cgroup_lru_to_page(zone, mem, lru);
+> +	return lru_to_page(&zone->lru[lru].list);
+> +}
+
+Wouldn't it better to have those names consistent?
+mem_cgroup_lru_tailpage vs lru_tailpage?
+
+[...]
 -- 
-Thanks and Regards
-Srikar
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
