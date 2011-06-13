@@ -1,268 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 10AFC6B004A
-	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 00:54:21 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id B4E2A3EE0BC
-	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 13:54:18 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8F62E45DF2B
-	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 13:54:18 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 6F67E45DEF8
-	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 13:54:18 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 634FC1DB802C
-	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 13:54:18 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 24EAA1DB8038
-	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 13:54:18 +0900 (JST)
-Date: Mon, 13 Jun 2011 13:47:01 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 00/10] mm: Linux VM Infrastructure to support Memory
- Power Management
-Message-Id: <20110613134701.2b23b8d8.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1306499498-14263-1-git-send-email-ankita@in.ibm.com>
-References: <1306499498-14263-1-git-send-email-ankita@in.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 35CF96B004A
+	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 04:55:51 -0400 (EDT)
+Received: from d01relay06.pok.ibm.com (d01relay06.pok.ibm.com [9.56.227.116])
+	by e4.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p5D8YGVp009838
+	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 04:34:16 -0400
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p5D8tiXP1224940
+	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 04:55:44 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p5D8tg8T005017
+	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 04:55:44 -0400
+Date: Mon, 13 Jun 2011 14:18:11 +0530
+From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Subject: Re: [PATCH v4 3.0-rc2-tip 2/22]  2: uprobes: Breakground page
+ replacement.
+Message-ID: <20110613084811.GB27130@linux.vnet.ibm.com>
+Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+References: <20110607125804.28590.92092.sendpatchset@localhost6.localdomain6>
+ <20110607125835.28590.25476.sendpatchset@localhost6.localdomain6>
+ <1307660601.2497.1762.camel@laptop>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <1307660601.2497.1762.camel@laptop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ankita Garg <ankita@in.ibm.com>
-Cc: linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-pm@lists.linux-foundation.org, svaidy@linux.vnet.ibm.com, thomas.abraham@linaro.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Andi Kleen <andi@firstfloor.org>, Thomas Gleixner <tglx@linutronix.de>, Jonathan Corbet <corbet@lwn.net>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, 27 May 2011 18:01:28 +0530
-Ankita Garg <ankita@in.ibm.com> wrote:
+* Peter Zijlstra <peterz@infradead.org> [2011-06-10 01:03:21]:
 
-> Hi,
+> On Tue, 2011-06-07 at 18:28 +0530, Srikar Dronamraju wrote:
+> > +       vaddr_old = kmap_atomic(old_page, KM_USER0);
+> > +       vaddr_new = kmap_atomic(new_page, KM_USER1);
 > 
+> > +       vaddr_new = kmap_atomic(page, KM_USER0);
+> 
+> again, drop the KM_foo bits, those are obsolete.
 
-I'm sorry if you've answered already.
+oh okay, I had only dropped the KM_foo from kunmap_atomic. 
+Will do the same for kmap_atomic.
 
-Is memory hotplug is too bad and cannot be enhanced for this purpose ?
-
-I wonder
-  - make section-size smaller (IIUC, IBM's system has 16MB section size)
-
-  - add per section statistics
-
-  - add a kind of balloon driver which does software memory offline
-    (which means making a contiguous chunk of free pages of section_size
-     by page migration) in background with regard to memory usage statistics.
-    If system says "need more memory!", balloon driver can online pages.
-
-can work for your purpose. It can allow you page isolatation and
-controls in 16MB unit.  If you need whole rework of memory hotplug, I think
-it's better to rewrite memory hotplug, too.
-
-Thanks,
--Kame
-
-
-
-
-
-> Modern systems offer higher CPU performance and large amount of memory in
-> each generation in order to support application demands.  Memory subsystem has
-> began to offer wide range of capabilities for managing power consumption,
-> which is driving the need to relook at the way memory is managed by the
-> operating system. Linux VM subsystem has sophisticated algorithms to
-> optimally  manage the scarce resources for best overall system performance.
-> Apart from the capacity and location of memory areas, the VM subsystem tracks
-> special addressability restrictions in zones and relative distance from CPU as
-> NUMA nodes if necessary. Power management capabilities in the memory subsystem
-> and inclusion of different class of main memory like PCM, or non-volatile RAM,
-> brings in new boundaries and attributes that needs to be tagged within the
-> Linux VM subsystem for exploitation by the kernel and applications.
-> 
-> This patchset proposes a generic memory regions infrastructure that can be
-> used to tag boundaries of memory blocks which belongs to a specific memory
-> power management domain and further enable exploitation of platform memory
-> power management capabilities.
-> 
-> How can Linux VM help memory power savings?
-> 
-> o Consolidate memory allocations and/or references such that they are
-> not spread across the entire memory address space.  Basically area of memory
-> that is not being referenced, can reside in low power state.
-> 
-> o Support targeted memory reclaim, where certain areas of memory that can be
-> easily freed can be offlined, allowing those areas of memory to be put into
-> lower power states.
-> 
-> What is a Memory Region ?
-> -------------------------
-> 
-> Memory regions is a generic memory management framework that enables the
-> virtual memory manager to consider memory characteristics when making memory
-> allocation and deallocation decisions. It is a layer of abstraction under the
-> real NUMA nodes, that encapsulate knowledge of the underlying memory hardware.
-> This layer is created at boot time, with information from firmware regarding
-> the granularity at which memory power can be managed on the platform. For
-> example, on platforms with support for Partial Array Self-Refresh (PASR) [1],
-> regions could be aligned to memory unit that can be independently put into
-> self-refresh or turned off (content destructive power off). On the other hand,
-> platforms with support for multiple memory controllers that control the power
-> states of memory, one memory region could be created for all the memory under
-> a single memory controller.
-> 
-> The aim of the alignment is to ensure that memory allocations, deallocations
-> and reclaim are performed within a defined hardware boundary. By creating
-> zones under regions, the buddy allocator would operate at the level of
-> regions. The proposed data structure is as shown in the Figure below:
-> 
-> 
->              -----------------------------
->              |N0 |N1 |N2 |N3 |.. |.. |Nn |   
->              -----------------------------   
->              / \ \
->             /   \  \
->            /     \   \
->  ------------    |  ------------
->  | Mem Rgn0 |    |  | Mem Rgn3 |             
->  ------------    |  ------------             
->     |            |         |
->     |      ------------    | ---------
->     |      | Mem Rgn1 |    ->| zones |
->     |      ------------      ---------
->     |          |     ---------
->     |          ----->| zones |
->     | ---------      ---------
->     ->| zones |
->       ---------
-> 
-> Memory regions enable the following :
-> 
-> o Sequential allocation of memory in the order of memory regions, thus
->   ensuring that greater number of memory regions are devoid of allocations to
->   begin with
-> o With time however, the memory allocations will tend to be spread across
->   different regions. But the notion of a region boundary and region level
->   memory statistics will enable specific regions to be evacuated using
->   targetted allocation and reclaim. 
-> 
-> Lumpy reclaim and other memory compaction work by Mel Gorman, would further
-> aid in consolidation of memory [4].
-> 
-> Memory regions is just a base infrastructure that would enable the Linux VM to
-> be aware of the physical memory hardware characterisitics, a pre-requisite to
-> implementing other sophisticated algorithms and techniques to actually
-> conserve power.
-> 
-> Advantages
-> -----------
-> 
-> Memory regions framework works with existing memory management data
-> structures and only adds one more layer of abstraction that is required to
-> capture special boundaries and properties.  Most VM code paths work similar
-> to current implementation with additional traversal of zone data structures
-> in pre-defined order.
-> 
-> Alternative Approach:
-> 
-> There are other ways in which memory belonging to the same power domain could
-> be grouped together. Fake NUMA nodes under a real NUMA node could encapsulate
-> information about the memory hardware units that can be independently power
-> managed. With minimal code changes, the same functionality as memory regions
-> can be achieved. However, the fake NUMA nodes is a non-intuitive solution, 
-> that breaks the NUMA semantics and is not generic in nature. It would present
-> an incorrect view of the system to the administrator, by showing that it has a
-> greater number of NUMA nodes than actually present.
-> 
-> Challenges
-> ----------
-> 
-> o Memory interleaving is typically used on all platforms to increase the
->   memory bandwidth and hence memory performance. However, in the presence of
->   interleaving, the amount of idle memory within the hardware domain reduces,
->   impacting power savings. For a given platform, it is important to select an
->   interleaving scheme that gives good performance with optimum power savings.
-> 
-> This is a RFC patchset with minimal functionality to demonstrate the
-> requirement and proposed implementation options. It has been tested on TI
-> OMAP4 Panda board with 1Gb RAM and the Samsung Exynos 4210 board. The patch
-> applies on kernel version 2.6.39-rc5, compiled with the default config files
-> for the two platforms. I have turned off cgroup, memory hotplug and kexec to
-> begin. Support to these framework can be easily extended. The u-boot
-> bootloader does not yet export information regarding the physical memory bank
-> boundaries and hence the regions are not correctly aligned to hardware and
-> hence hard coded for test/demo purposes. Also, the code assumes that atleast
-> one region is present in the node. Compile time exclusion of memory regions is
-> a todo.
-> 
-> Results
-> -------
-> Ran pagetest, a simple C program that allocates and touches a required number
-> of pages, on a Samsung Exynos 4210 board with ~2GB RAM, booted with 4 memory
-> regions, each with ~512MB. The allocation size used was 512MB. Below is the
-> free page statistics while running the benchmark:
-> 
-> 		---------------------------------------
-> 	 	|	   | start  | ~480MB |  512MB |	
-> 		---------------------------------------
-> 		| Region 0 | 124013 | 1129   | 484    |
-> 		| Region 1 | 131072 | 131072 | 130824 |
-> 		| Region 2 | 131072 | 131072 | 131072 |
-> 		| Region 3 | 57332  | 57332  | 57332  |
-> 		---------------------------------------
-> 
-> (The total number of pages in Region 3 is 57332, as it contains all the
-> remaining pages and hence the region size is not 512MB).
-> 
-> Column 1 indicates the number of free pages in each region at the start of the
-> benchmark, column 2 at about 480MB allocation and column 3 at 512MB
-> allocation. The memory in regions 1,2 & 3 is free and only region0 is
-> utilized. So if the regions are aligned to the hardware memory units, free
-> regions could potentially be put either into low power state or turned off. It
-> may be possible to allocate from lower address without regions, but once the
-> page reclaim comes into play, the page allocations will tend to get spread
-> around.
-> 
-> References
-> ----------
-> 
-> [1] Partial Array Self Refresh
-> http://focus.ti.com/general/docs/wtbu/wtbudocumentcenter.tsp?templateId=6123&navigationId=12037
-> [2] TI OMAP$ Panda board
-> http://pandaboard.org/node/224/#manual
-> [3] Memory Regions discussion at Ubuntu Development Summit, May 2011
-> https://wiki.linaro.org/Specs/KernelGeneralPerformanceO?action=AttachFile&do=view&target=k81-memregions.odp
-> [4] Memory compaction
-> http://lwn.net/Articles/368869/
-> 
-> Ankita Garg (10):
->   mm: Introduce the memory regions data structure
->   mm: Helper routines
->   mm: Init zones inside memory regions
->   mm: Refer to zones from memory regions
->   mm: Create zonelists
->   mm: Verify zonelists
->   mm: Modify vmstat
->   mm: Modify vmscan
->   mm: Reflect memory region changes in zoneinfo
->   mm: Create memory regions at boot-up
-> 
->  include/linux/mm.h     |   25 +++-
->  include/linux/mmzone.h |   58 +++++++--
->  include/linux/vmstat.h |   22 ++-
->  mm/mm_init.c           |   51 ++++---
->  mm/mmzone.c            |   36 ++++-
->  mm/page_alloc.c        |  368 +++++++++++++++++++++++++++++++-----------------
->  mm/vmscan.c            |  284 ++++++++++++++++++++-----------------
->  mm/vmstat.c            |   77 ++++++----
->  8 files changed, 581 insertions(+), 340 deletions(-)
-> 
-> -- 
-> 1.7.4
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+-- 
+Thanks and Regards
+Srikar
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
