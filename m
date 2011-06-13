@@ -1,54 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 4BF8D6B0012
-	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 17:00:39 -0400 (EDT)
-Received: from hpaq7.eem.corp.google.com (hpaq7.eem.corp.google.com [172.25.149.7])
-	by smtp-out.google.com with ESMTP id p5DL0ZAY029107
-	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 14:00:35 -0700
-Received: from yxl31 (yxl31.prod.google.com [10.190.3.223])
-	by hpaq7.eem.corp.google.com with ESMTP id p5DKxOk8004476
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 14:00:34 -0700
-Received: by yxl31 with SMTP id 31so240038yxl.27
-        for <linux-mm@kvack.org>; Mon, 13 Jun 2011 14:00:31 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <BANLkTi=RYq0Dd210VC+NeTXWWuFbz7cxeg@mail.gmail.com>
-References: <alpine.LSU.2.00.1106121842250.31463@sister.anvils>
-	<alpine.DEB.2.00.1106131258300.3108@router.home>
-	<1307990048.11288.3.camel@jaguar>
-	<alpine.DEB.2.00.1106131428560.5601@router.home>
-	<BANLkTi=RYq0Dd210VC+NeTXWWuFbz7cxeg@mail.gmail.com>
-Date: Mon, 13 Jun 2011 14:00:31 -0700
-Message-ID: <BANLkTik-KGtuoVFKvy_rk7voBRAxSsR9FRg0fhb0k3NCSg-fWQ@mail.gmail.com>
-Subject: Re: [PATCH] slub: fix kernel BUG at mm/slub.c:1950!
-From: Hugh Dickins <hughd@google.com>
-Content-Type: text/plain; charset=UTF-8
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id D57936B0082
+	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 17:02:36 -0400 (EDT)
+Date: Mon, 13 Jun 2011 14:02:10 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH V2] Add debugging boundary check to pfn_to_page
+Message-Id: <20110613140210.e5863730.akpm@linux-foundation.org>
+In-Reply-To: <1307973399-7784-1-git-send-email-emunson@mgebm.net>
+References: <1307973399-7784-1-git-send-email-emunson@mgebm.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Christoph Lameter <cl@linux.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>
+To: Eric B Munson <emunson@mgebm.net>
+Cc: arnd@arndb.de, paulmck@linux.vnet.ibm.com, mingo@elte.hu, randy.dunlap@oracle.com, josh@joshtriplett.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, mgorman@suse.de, linux-mm@kvack.org, dave@linux.vnet.ibm.com
 
-On Mon, Jun 13, 2011 at 1:34 PM, Pekka Enberg <penberg@kernel.org> wrote:
-> On Mon, Jun 13, 2011 at 10:29 PM, Christoph Lameter <cl@linux.com> wrote:
->> On Mon, 13 Jun 2011, Pekka Enberg wrote:
->>
->>> > Hmmm.. The allocpercpu in alloc_kmem_cache_cpus should take care of the
->>> > alignment. Uhh.. I see that a patch that removes the #ifdef CMPXCHG_LOCAL
->>> > was not applied? Pekka?
->>>
->>> This patch?
->>>
->>> http://git.kernel.org/?p=linux/kernel/git/penberg/slab-2.6.git;a=commitdiff;h=d4d84fef6d0366b585b7de13527a0faeca84d9ce
->>>
->>> It's queued and will be sent to Linus soon.
->>
->> Ok it will also fix Hugh's problem then.
->
-> It's in Linus' tree now. Hugh, can you please confirm it fixes your machine too?
+On Mon, 13 Jun 2011 09:56:39 -0400
+Eric B Munson <emunson@mgebm.net> wrote:
 
-I expect it to, thanks: I'll confirm tonight.
+> Bugzilla 36192 showed a problem where pages were being accessed outside of
+> a node boundary.  It would be helpful in diagnosing this kind of problem to
+> have pfn_to_page complain when a page is accessed outside of the node boundary.
+> This patch adds a new debug config option which adds a WARN_ON in pfn_to_page
+> that will complain when pages are accessed outside of the node boundary.
+> 
+> Signed-of-by: Eric B Munson <emunson@mgebm.net>
+> ---
+> Changes from V1:
+>  minimize code duplication with a macro that will do the checking when
+> configured
+> 
+>  include/asm-generic/memory_model.h |   25 ++++++++++++++++++++-----
+>  lib/Kconfig.debug                  |    9 +++++++++
+>  2 files changed, 29 insertions(+), 5 deletions(-)
+> 
+> diff --git a/include/asm-generic/memory_model.h b/include/asm-generic/memory_model.h
+> index fb2d63f..7aa83ce 100644
+> --- a/include/asm-generic/memory_model.h
+> +++ b/include/asm-generic/memory_model.h
+> @@ -22,6 +22,16 @@
+>  
+>  #endif /* CONFIG_DISCONTIGMEM */
+>  
+> +#ifdef CONFIG_MEMORY_MODEL
 
-Hugh
+This should have been CONFIG_DEBUG_MEMORY_MODEL.  Better testing, please!
+
+> +/*
+> + * The flags for a page will only be zero if this page is being accessed
+> + * outside of node boundaries.
+
+mm..  Can this comment be improved?  If some poor sucker gets this
+warning then he will end up looking at this comment wondering what he
+needs to do to fix the bug.  Does this comment provide him with as much
+help as we possibly can?
+
+> + */
+> +#define check_page(__page) WARN_ON(__page->flags == 0)
+
+__page should be parenthesized.  Or, better, check_page() should be
+implemented in C if possible.
+
+"check_page" is a rather vague-sounding name.  Something more specific
+would be better.  Check *what*?
+
+> +#else
+> +#define check_page(__page) do{}while(0)
+
+Please use checkpatch.  Always.
+
+> --- a/lib/Kconfig.debug
+> +++ b/lib/Kconfig.debug
+> @@ -777,6 +777,15 @@ config DEBUG_MEMORY_INIT
+>  
+>  	  If unsure, say Y
+>  
+> +config DEBUG_MEMORY_MODEL
+> +	bool "Debug memory model" if SPARSEMEM || DISCONTIGMEM
+> +	help
+> +	  Enable this to check that page accesses are done within node
+> +	  boundaries.  The check will warn each time a page is requested
+> +	  outside node boundaries.
+> +
+> +	  If unsure, say N
+> +
+
+Spose, so, if you think it's useful.  Mabybe this should depend on
+CONFIG_DEBUG_VM, dunno.
+
+Please consider updating Documentation/SubmitChecklist, section 12.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
