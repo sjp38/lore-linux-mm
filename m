@@ -1,65 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 83BF56B0012
-	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 15:59:04 -0400 (EDT)
-Date: Mon, 13 Jun 2011 21:57:01 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH v4 3.0-rc2-tip 4/22]  4: Uprobes: register/unregister
-	probes.
-Message-ID: <20110613195701.GA14656@redhat.com>
-References: <20110607125804.28590.92092.sendpatchset@localhost6.localdomain6> <20110607125900.28590.16071.sendpatchset@localhost6.localdomain6>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 6430B6B0012
+	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 16:34:24 -0400 (EDT)
+Received: by vws4 with SMTP id 4so5515389vws.14
+        for <linux-mm@kvack.org>; Mon, 13 Jun 2011 13:34:22 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110607125900.28590.16071.sendpatchset@localhost6.localdomain6>
+In-Reply-To: <alpine.DEB.2.00.1106131428560.5601@router.home>
+References: <alpine.LSU.2.00.1106121842250.31463@sister.anvils>
+	<alpine.DEB.2.00.1106131258300.3108@router.home>
+	<1307990048.11288.3.camel@jaguar>
+	<alpine.DEB.2.00.1106131428560.5601@router.home>
+Date: Mon, 13 Jun 2011 23:34:22 +0300
+Message-ID: <BANLkTi=RYq0Dd210VC+NeTXWWuFbz7cxeg@mail.gmail.com>
+Subject: Re: [PATCH] slub: fix kernel BUG at mm/slub.c:1950!
+From: Pekka Enberg <penberg@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Jonathan Corbet <corbet@lwn.net>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org
 
-On 06/07, Srikar Dronamraju wrote:
+On Mon, Jun 13, 2011 at 10:29 PM, Christoph Lameter <cl@linux.com> wrote:
+> On Mon, 13 Jun 2011, Pekka Enberg wrote:
 >
-> +int register_uprobe(struct inode *inode, loff_t offset,
-> +				struct uprobe_consumer *consumer)
-> +{
-> +	struct prio_tree_iter iter;
-> +	struct list_head try_list, success_list;
-> +	struct address_space *mapping;
-> +	struct mm_struct *mm, *tmpmm;
-> +	struct vm_area_struct *vma;
-> +	struct uprobe *uprobe;
-> +	int ret = -1;
-> +
-> +	if (!inode || !consumer || consumer->next)
-> +		return -EINVAL;
-> +
-> +	if (offset > inode->i_size)
-> +		return -EINVAL;
-> +
-> +	uprobe = alloc_uprobe(inode, offset);
-> +	if (!uprobe)
-> +		return -ENOMEM;
-> +
-> +	INIT_LIST_HEAD(&try_list);
-> +	INIT_LIST_HEAD(&success_list);
-> +	mapping = inode->i_mapping;
-> +
-> +	mutex_lock(&uprobes_mutex);
-> +	if (uprobe->consumers) {
-> +		ret = 0;
-> +		goto consumers_add;
-> +	}
-> +
-> +	mutex_lock(&mapping->i_mmap_mutex);
-> +	vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, 0, 0) {
+>> > Hmmm.. The allocpercpu in alloc_kmem_cache_cpus should take care of the
+>> > alignment. Uhh.. I see that a patch that removes the #ifdef CMPXCHG_LOCAL
+>> > was not applied? Pekka?
+>>
+>> This patch?
+>>
+>> http://git.kernel.org/?p=linux/kernel/git/penberg/slab-2.6.git;a=commitdiff;h=d4d84fef6d0366b585b7de13527a0faeca84d9ce
+>>
+>> It's queued and will be sent to Linus soon.
+>
+> Ok it will also fix Hugh's problem then.
 
-I didn't actually read this patch yet, but this looks suspicious.
-Why begin == end == 0? Doesn't this mean we are ignoring the mappings
-with vm_pgoff != 0 ?
-
-Perhaps this should be offset >> PAGE_SIZE?
-
-Oleg.
+It's in Linus' tree now. Hugh, can you please confirm it fixes your machine too?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
