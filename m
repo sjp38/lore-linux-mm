@@ -1,57 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id C0FE46B0012
-	for <linux-mm@kvack.org>; Sun, 12 Jun 2011 21:04:34 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 9176A3EE081
-	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 10:04:30 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 0FCCA45DF4E
-	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 10:04:24 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id A361445DF4D
-	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 10:04:23 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 91AE31DB804F
-	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 10:04:23 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 5DBDD1DB804E
-	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 10:04:23 +0900 (JST)
-Message-ID: <4DF5620B.1080706@jp.fujitsu.com>
-Date: Mon, 13 Jun 2011 10:04:11 +0900
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v3 05/10] vmscan: make isolate_lru_page with filter aware
-References: <cover.1307455422.git.minchan.kim@gmail.com> <f101a50f11ffac79eff441c58eafbb5eceac0b47.1307455422.git.minchan.kim@gmail.com>
-In-Reply-To: <f101a50f11ffac79eff441c58eafbb5eceac0b47.1307455422.git.minchan.kim@gmail.com>
-Content-Type: text/plain; charset=ISO-2022-JP
+	by kanga.kvack.org (Postfix) with ESMTP id 3C0F16B004A
+	for <linux-mm@kvack.org>; Sun, 12 Jun 2011 21:31:07 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 612663EE0B6
+	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 10:31:03 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 493B245DF2C
+	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 10:31:03 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 2D79745DF28
+	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 10:31:03 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 1FE1F1DB8038
+	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 10:31:03 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id E047F1DB803C
+	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 10:31:02 +0900 (JST)
+Date: Mon, 13 Jun 2011 10:23:58 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [BUGFIX][PATCH] memcg: fix wrong decision of noswap with
+ softlimit.
+Message-Id: <20110613102358.95637755.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110612112228.GC19493@tiehlicka.suse.cz>
+References: <20110609095445.5f98b752.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110612112228.GC19493@tiehlicka.suse.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: minchan.kim@gmail.com
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mgorman@suse.de, aarcange@redhat.com, riel@redhat.com, hannes@cmpxchg.org, kamezawa.hiroyu@jp.fujitsu.com
+To: Michal Hocko <mhocko@suse.cz>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "bsingharora@gmail.com" <bsingharora@gmail.com>
 
-(2011/06/07 23:38), Minchan Kim wrote:
-> In __zone_reclaim case, we don't want to shrink mapped page.
-> Nonetheless, we have isolated mapped page and re-add it into
-> LRU's head. It's unnecessary CPU overhead and makes LRU churning.
-> 
-> Of course, when we isolate the page, the page might be mapped but
-> when we try to migrate the page, the page would be not mapped.
-> So it could be migrated. But race is rare and although it happens,
-> it's no big deal.
-> 
-> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Cc: Mel Gorman <mgorman@suse.de>
-> Cc: Rik van Riel <riel@redhat.com>
-> Cc: Andrea Arcangeli <aarcange@redhat.com>
-> Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
-> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+On Sun, 12 Jun 2011 13:22:28 +0200
+Michal Hocko <mhocko@suse.cz> wrote:
 
-Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Hierarchical reclaim doesn't swap out if memsw and resource limits are
+> same (memsw_is_minimum == true) because we would hit mem+swap limit
+> anyway (during hard limit reclaim).
+> If it comes to the solft limit we shouldn't consider memsw_is_minimum at
+> all because it doesn't make much sense. Either the soft limit is bellow
+> the hard limit and then we cannot hit mem+swap limit or the direct
+> reclaim takes a precedence.
 
+Thank you. I'd like to use your description.
 
+I'll post last week bug fixes series, today.
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
