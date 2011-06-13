@@ -1,57 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 81CCB900117
-	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 17:25:40 -0400 (EDT)
-Date: Mon, 13 Jun 2011 14:25:01 -0700
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 97A52900117
+	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 17:32:18 -0400 (EDT)
+Date: Mon, 13 Jun 2011 14:31:44 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [BUGFIX][PATCH 5/5] memcg: fix percpu cached charge draining
- frequency
-Message-Id: <20110613142501.15e14b2f.akpm@linux-foundation.org>
-In-Reply-To: <20110613121648.3d28afcd.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20110613120054.3336e997.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110613121648.3d28afcd.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH] mm: fix negative commitlimit when gigantic hugepages
+ are allocated
+Message-Id: <20110613143144.c457ff42.akpm@linux-foundation.org>
+In-Reply-To: <20110613211153.GA23597@optiplex.tchesoft.com>
+References: <BANLkTinbHnrf2isuLzUFZN8ypaT476G1zw@mail.gmail.com>
+	<20110519045630.GA22533@sgi.com>
+	<BANLkTinyYP-je9Nf8X-xWEdpgvn8a631Mw@mail.gmail.com>
+	<20110519221101.GC19648@sgi.com>
+	<20110520130411.d1e0baef.akpm@linux-foundation.org>
+	<20110520223032.GA15192@x61.tchesoft.com>
+	<20110526210751.GA14819@optiplex.tchesoft.com>
+	<20110602040821.GA7934@sgi.com>
+	<20110603025555.GA10530@optiplex.tchesoft.com>
+	<20110609164408.8370746e.akpm@linux-foundation.org>
+	<20110613211153.GA23597@optiplex.tchesoft.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "bsingharora@gmail.com" <bsingharora@gmail.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Ying Han <yinghan@google.com>
+To: aquini@linux.com
+Cc: Russ Anderson <rja@sgi.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux.com>, rja@americas.sgi.com
 
-On Mon, 13 Jun 2011 12:16:48 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+On Mon, 13 Jun 2011 18:11:55 -0300
+Rafael Aquini <aquini@linux.com> wrote:
 
-> >From 18b12e53f1cdf6d7feed1f9226c189c34866338c Mon Sep 17 00:00:00 2001
-> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Date: Mon, 13 Jun 2011 11:25:43 +0900
-> Subject: [PATCH 5/5] memcg: fix percpu cached charge draining frequency
+> Howdy Andrew,
 > 
->  For performance, memory cgroup caches some "charge" from res_counter
->  into per cpu cache. This works well but because it's cache,
->  it needs to be flushed in some cases. Typical cases are
->          1. when someone hit limit.
->          2. when rmdir() is called and need to charges to be 0.
+> Sorry, for this late reply.
 > 
-> But "1" has problem.
+> On Thu, Jun 09, 2011 at 04:44:08PM -0700, Andrew Morton wrote:
+> > On Thu, 2 Jun 2011 23:55:57 -0300
+> > Rafael Aquini <aquini@linux.com> wrote:
+> > 
+> > > When 1GB hugepages are allocated on a system, free(1) reports
+> > > less available memory than what really is installed in the box.
+> > > Also, if the total size of hugepages allocated on a system is
+> > > over half of the total memory size, CommitLimit becomes
+> > > a negative number.
+> > > 
+> > > The problem is that gigantic hugepages (order > MAX_ORDER)
+> > > can only be allocated at boot with bootmem, thus its frames
+> > > are not accounted to 'totalram_pages'. However,  they are
+> > > accounted to hugetlb_total_pages()
+> > > 
+> > > What happens to turn CommitLimit into a negative number
+> > > is this calculation, in fs/proc/meminfo.c:
+> > > 
+> > >         allowed = ((totalram_pages - hugetlb_total_pages())
+> > >                 * sysctl_overcommit_ratio / 100) + total_swap_pages;
+> > > 
+> > > A similar calculation occurs in __vm_enough_memory() in mm/mmap.c.
+> > > 
+> > > Also, every vm statistic which depends on 'totalram_pages' will render
+> > > confusing values, as if system were 'missing' some part of its memory.
+> > 
+> > Is this bug serious enough to justify backporting the fix into -stable
+> > kernels?
 > 
-> Recently, with large SMP machines, we see many kworker runs because
-> of flushing memcg's cache. Bad things in implementation are
-> that even if a cpu contains a cache for memcg not related to
-> a memcg which hits limit, drain code is called.
+> Despite not having testing it, I can think the following scenario as
+> troublesome:
+> When gigantic hugepages are allocated and sysctl_overcommit_memory == OVERCOMMIT_NEVER.
+> In a such situation, __vm_enough_memory() goes through the mentioned 'allowed'
+> calculation and might end up mistakenly returning -ENOMEM, thus forcing
+> the system to start reclaiming pages earlier than it would be ususal, and this could
+> cause detrimental impact to overall system's performance, depending on the
+> workload.
 > 
-> This patch does
-> 	A) check percpu cache contains a useful data or not.
-> 	B) check other asynchronous percpu draining doesn't run.
-> 	C) don't call local cpu callback.
-> 	D) don't call at softlimit reclaim.
+> Besides the aforementioned scenario, I can only think of this causing annoyances
+> with memory reports from /proc/meminfo and free(1).
 > 
->
-> ...
->
-> +DEFINE_MUTEX(percpu_charge_mutex);
 
-I made this static.  If we later wish to give it kernel-wide scope then
-"percpu_charge_mutex" will not be a good choice of name.
+hm, OK, thanks.  That sounds a bit thin, but the patch is really simple
+so I stuck the cc:stable onto its changelog.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
