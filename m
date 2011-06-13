@@ -1,60 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 228226B004A
-	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 06:16:21 -0400 (EDT)
-Received: from d03relay01.boulder.ibm.com (d03relay01.boulder.ibm.com [9.17.195.226])
-	by e33.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p5DA8sZm021404
-	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 04:08:54 -0600
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay01.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p5DAGDja209474
-	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 04:16:13 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p5D4Fhui019044
-	for <linux-mm@kvack.org>; Sun, 12 Jun 2011 22:15:46 -0600
-Date: Mon, 13 Jun 2011 15:38:35 +0530
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: Re: [PATCH v4 3.0-rc2-tip 0/22]  0: Uprobes patchset with perf
- probe support
-Message-ID: <20110613100835.GG27130@linux.vnet.ibm.com>
-Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-References: <20110607125804.28590.92092.sendpatchset@localhost6.localdomain6>
- <1307660596.2497.1760.camel@laptop>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 406656B004A
+	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 06:31:07 -0400 (EDT)
+Date: Mon, 13 Jun 2011 12:30:32 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 7/8] vmscan: memcg-aware unevictable page rescue scanner
+Message-ID: <20110613103032.GA12143@cmpxchg.org>
+References: <1306909519-7286-1-git-send-email-hannes@cmpxchg.org>
+ <1306909519-7286-8-git-send-email-hannes@cmpxchg.org>
+ <20110613094203.GC10563@tiehlicka.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1307660596.2497.1760.camel@laptop>
+In-Reply-To: <20110613094203.GC10563@tiehlicka.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, Andi Kleen <andi@firstfloor.org>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, LKML <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Ying Han <yinghan@google.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-* Peter Zijlstra <peterz@infradead.org> [2011-06-10 01:03:16]:
-
-> On Tue, 2011-06-07 at 18:28 +0530, Srikar Dronamraju wrote:
-> > Please do provide your valuable comments.
+On Mon, Jun 13, 2011 at 11:42:03AM +0200, Michal Hocko wrote:
+> On Wed 01-06-11 08:25:18, Johannes Weiner wrote:
+> > Once the per-memcg lru lists are exclusive, the unevictable page
+> > rescue scanner can no longer work on the global zone lru lists.
+> > 
+> > This converts it to go through all memcgs and scan their respective
+> > unevictable lists instead.
+> > 
+> > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 > 
-> Your patch split-up is complete crap. I'm about to simply fold all of
-> them just to be able to read anything.
+> Just a minor naming thing.
 > 
-> The split-up appears to do its best to make it absolutely impossible to
-> get a sane overview of things, tons of things are out of order, either
-> it relies on future patches filling out things or modifies stuff in
-> previous patches.
+> Other than that looks good to me.
+> Reviewed-by: Michal Hocko <mhocko@suse.cz>
 > 
-> Its a complete pain to read..
+> > --- a/include/linux/memcontrol.h
+> > +++ b/include/linux/memcontrol.h
+> [...]
+> > +struct page *mem_cgroup_lru_to_page(struct zone *zone, struct mem_cgroup *mem,
+> > +				    enum lru_list lru)
+> > +{
+> > +	struct mem_cgroup_per_zone *mz;
+> > +	struct page_cgroup *pc;
+> > +
+> > +	mz = mem_cgroup_zoneinfo(mem, zone_to_nid(zone), zone_idx(zone));
+> > +	pc = list_entry(mz->lists[lru].prev, struct page_cgroup, lru);
+> > +	return lookup_cgroup_page(pc);
+> > +}
+> > +
+> [...]
+> > --- a/mm/vmscan.c
+> > +++ b/mm/vmscan.c
+> > @@ -3233,6 +3233,14 @@ void scan_mapping_unevictable_pages(struct address_space *mapping)
+> >  
+> >  }
+> >  
+> > +static struct page *lru_tailpage(struct zone *zone, struct mem_cgroup *mem,
+> > +				 enum lru_list lru)
+> > +{
+> > +	if (mem)
+> > +		return mem_cgroup_lru_to_page(zone, mem, lru);
+> > +	return lru_to_page(&zone->lru[lru].list);
+> > +}
 > 
+> Wouldn't it better to have those names consistent?
+> mem_cgroup_lru_tailpage vs lru_tailpage?
 
-We have two options, 
+It's bad naming alright, but what is the wrapper for both of them
+supposed to be called then?
 
-Combine patches 2,3,4 and patches 6-7 and patches 9-10-11
-or
-Combine patches from  1 to 15 into one patch.
+Note that this function is only temporary, though, that's why I did
+not spent much time on looking for a better name.
 
-Please let me know your preference.
+When the per-memcg lru lists finally become exclusive, this is removed
+and the function converted to work on lruvecs.
 
--- 
-Thanks and Regards
-Srikar
+Would you be okay with just adding an /* XXX */ to the function in
+this patch that mentions that it's only temporary?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
