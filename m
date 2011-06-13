@@ -1,83 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 97A52900117
-	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 17:32:18 -0400 (EDT)
-Date: Mon, 13 Jun 2011 14:31:44 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: fix negative commitlimit when gigantic hugepages
- are allocated
-Message-Id: <20110613143144.c457ff42.akpm@linux-foundation.org>
-In-Reply-To: <20110613211153.GA23597@optiplex.tchesoft.com>
-References: <BANLkTinbHnrf2isuLzUFZN8ypaT476G1zw@mail.gmail.com>
-	<20110519045630.GA22533@sgi.com>
-	<BANLkTinyYP-je9Nf8X-xWEdpgvn8a631Mw@mail.gmail.com>
-	<20110519221101.GC19648@sgi.com>
-	<20110520130411.d1e0baef.akpm@linux-foundation.org>
-	<20110520223032.GA15192@x61.tchesoft.com>
-	<20110526210751.GA14819@optiplex.tchesoft.com>
-	<20110602040821.GA7934@sgi.com>
-	<20110603025555.GA10530@optiplex.tchesoft.com>
-	<20110609164408.8370746e.akpm@linux-foundation.org>
-	<20110613211153.GA23597@optiplex.tchesoft.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 22405900117
+	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 18:01:49 -0400 (EDT)
+Date: Tue, 14 Jun 2011 00:01:44 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH] mm: Fix assertion mapping->nrpages == 0 in
+ end_writeback()
+Message-ID: <20110613220144.GL4907@quack.suse.cz>
+References: <1306748258-4732-1-git-send-email-jack@suse.cz>
+ <20110606151614.0037e236.akpm@linux-foundation.org>
+ <1307425597.3649.61.camel@tucsk.pomaz.szeredi.hu>
+ <20110607143301.7dbaf146.akpm@linux-foundation.org>
+ <20110608163643.GE5361@quack.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110608163643.GE5361@quack.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: aquini@linux.com
-Cc: Russ Anderson <rja@sgi.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux.com>, rja@americas.sgi.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Miklos Szeredi <mszeredi@suse.cz>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org, Al Viro <viro@ZenIV.linux.org.uk>, Jay <jinshan.xiong@whamcloud.com>, stable@kernel.org, Nick Piggin <npiggin@kernel.dk>
 
-On Mon, 13 Jun 2011 18:11:55 -0300
-Rafael Aquini <aquini@linux.com> wrote:
-
-> Howdy Andrew,
-> 
-> Sorry, for this late reply.
-> 
-> On Thu, Jun 09, 2011 at 04:44:08PM -0700, Andrew Morton wrote:
-> > On Thu, 2 Jun 2011 23:55:57 -0300
-> > Rafael Aquini <aquini@linux.com> wrote:
+On Wed 08-06-11 18:36:43, Jan Kara wrote:
+> On Tue 07-06-11 14:33:01, Andrew Morton wrote:
+> > On Tue, 07 Jun 2011 07:46:37 +0200
+> > Miklos Szeredi <mszeredi@suse.cz> wrote:
 > > 
-> > > When 1GB hugepages are allocated on a system, free(1) reports
-> > > less available memory than what really is installed in the box.
-> > > Also, if the total size of hugepages allocated on a system is
-> > > over half of the total memory size, CommitLimit becomes
-> > > a negative number.
+> > > > Either way, I don't think that the uglypatch expresses a full
+> > > > understanding of te bug ;)
 > > > 
-> > > The problem is that gigantic hugepages (order > MAX_ORDER)
-> > > can only be allocated at boot with bootmem, thus its frames
-> > > are not accounted to 'totalram_pages'. However,  they are
-> > > accounted to hugetlb_total_pages()
+> > > I don't see a better way, how would we make nrpages update atomically
+> > > wrt the radix-tree while using only RCU?
 > > > 
-> > > What happens to turn CommitLimit into a negative number
-> > > is this calculation, in fs/proc/meminfo.c:
+> > > The question is, does it matter that those two can get temporarily out
+> > > of sync?
 > > > 
-> > >         allowed = ((totalram_pages - hugetlb_total_pages())
-> > >                 * sysctl_overcommit_ratio / 100) + total_swap_pages;
+> > > In case of inode eviction it does, not only because of that BUG_ON, but
+> > > because page reclaim must be somehow synchronised with eviction.
+> > > Otherwise it may access tree_lock on the mapping of an already freed
+> > > inode.
 > > > 
-> > > A similar calculation occurs in __vm_enough_memory() in mm/mmap.c.
-> > > 
-> > > Also, every vm statistic which depends on 'totalram_pages' will render
-> > > confusing values, as if system were 'missing' some part of its memory.
+> > > In other cases?  AFAICS it doesn't matter.  Most ->nrpages accesses
+> > > weren't under tree_lock before Nick's RCUification, so their use were
+> > > just optimization.   
 > > 
-> > Is this bug serious enough to justify backporting the fix into -stable
-> > kernels?
+> > Gee, we've made a bit of a mess here.
+> > 
+> > Rather than bodging around particualr codesites where that mess exposes
+> > itself, how about we step back and work out what our design is here,
+> > then implement it and check that all sites comply with it?
+> > 
+> > What is the relationship between the radix-tree and nrpages?  What are
+> > the locking rules?  Can anyone come up with a one-sentence proposal?
+> AFAIU, nrpages and radix-tree are consistent under tree_lock.
 > 
-> Despite not having testing it, I can think the following scenario as
-> troublesome:
-> When gigantic hugepages are allocated and sysctl_overcommit_memory == OVERCOMMIT_NEVER.
-> In a such situation, __vm_enough_memory() goes through the mentioned 'allowed'
-> calculation and might end up mistakenly returning -ENOMEM, thus forcing
-> the system to start reclaiming pages earlier than it would be ususal, and this could
-> cause detrimental impact to overall system's performance, depending on the
-> workload.
+> nrpages is only used (well, apart from shmfs and other filesystems which
+> use the value as a guess how much should they expect to write or similar
+> heuristics) to test mapping->nrpages == 0 and the test is performed without
+> any synchronization which looks natural because we later do only
+> rcu-protected lookups anyway. So it seems it's expected the test is
+> unreliable and we just use it to make things faster. The same race as with
+> nrpages test can happen during the radix tree lookup anyway...
 > 
-> Besides the aforementioned scenario, I can only think of this causing annoyances
-> with memory reports from /proc/meminfo and free(1).
-> 
+> I went through the tests and the only place which seems to really care
+> about the races with __add_to_page_cache() or __delete_from_page_cache()
+> is when the inode should be removed from memory. There we have to be
+> careful. Races with __add_to_page_cache() cannot happen because there is
+> noone who could trigger addition of new page to the inode being evicted.
+> Races with __delete_from_page_cache() are possible though...
+  Andrew, any opinion on this? I'd like to get the bug fixed... I'll
+happily move the nrpages check in end_writeback() under the spinlock if
+people find that nicer. That place really looks like the only one which
+depends on nrpages being consistent and uptodate.
 
-hm, OK, thanks.  That sounds a bit thin, but the patch is really simple
-so I stuck the cc:stable onto its changelog.
+								Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
