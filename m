@@ -1,113 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 389E26B004A
-	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 09:56:51 -0400 (EDT)
-Received: by iyl8 with SMTP id 8so5226669iyl.14
-        for <linux-mm@kvack.org>; Mon, 13 Jun 2011 06:56:47 -0700 (PDT)
-From: Eric B Munson <emunson@mgebm.net>
-Subject: [PATCH V2] Add debugging boundary check to pfn_to_page
-Date: Mon, 13 Jun 2011 09:56:39 -0400
-Message-Id: <1307973399-7784-1-git-send-email-emunson@mgebm.net>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id EB20A6B004A
+	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 10:03:30 -0400 (EDT)
+Received: from hpaq3.eem.corp.google.com (hpaq3.eem.corp.google.com [172.25.149.3])
+	by smtp-out.google.com with ESMTP id p5DE3RFl018889
+	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 07:03:27 -0700
+Received: from pzk2 (pzk2.prod.google.com [10.243.19.130])
+	by hpaq3.eem.corp.google.com with ESMTP id p5DE3MeS004888
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 07:03:26 -0700
+Received: by pzk2 with SMTP id 2so2574407pzk.23
+        for <linux-mm@kvack.org>; Mon, 13 Jun 2011 07:03:22 -0700 (PDT)
+Date: Mon, 13 Jun 2011 07:03:03 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH] [BUGFIX] update mm->owner even if no next owner.
+In-Reply-To: <20110613105410.e06720f1.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <alpine.LSU.2.00.1106130655530.28913@sister.anvils>
+References: <BANLkTikCfWhoLNK__ringzy7KjKY5ZEtNb3QTuX1jJ53wNNysA@mail.gmail.com> <BANLkTikF7=qfXAmrNzyMSmWm7Neh6yMAB8EbBp7oLcfQmrbDjA@mail.gmail.com> <20110610091355.2ce38798.kamezawa.hiroyu@jp.fujitsu.com> <alpine.LSU.2.00.1106091812030.4904@sister.anvils>
+ <20110610113311.409bb423.kamezawa.hiroyu@jp.fujitsu.com> <20110610121949.622e4629.kamezawa.hiroyu@jp.fujitsu.com> <20110610125551.385ea7ed.kamezawa.hiroyu@jp.fujitsu.com> <20110610133021.2eaaf0da.kamezawa.hiroyu@jp.fujitsu.com> <alpine.LSU.2.00.1106101425400.28334@sister.anvils>
+ <20110610235442.GA21413@cmpxchg.org> <20110611175136.GA31154@cmpxchg.org> <alpine.LSU.2.00.1106121828220.31463@sister.anvils> <20110613105410.e06720f1.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: arnd@arndb.de
-Cc: akpm@linux-foundation.org, paulmck@linux.vnet.ibm.com, mingo@elte.hu, randy.dunlap@oracle.com, josh@joshtriplett.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, mgorman@suse.de, linux-mm@kvack.org, dave@linux.vnet.ibm.com, Eric B Munson <emunson@mgebm.net>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrea Arcangeli <aarcange@redhat.com>, Ying Han <yinghan@google.com>, Dave Jones <davej@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 
-Bugzilla 36192 showed a problem where pages were being accessed outside of
-a node boundary.  It would be helpful in diagnosing this kind of problem to
-have pfn_to_page complain when a page is accessed outside of the node boundary.
-This patch adds a new debug config option which adds a WARN_ON in pfn_to_page
-that will complain when pages are accessed outside of the node boundary.
+On Mon, 13 Jun 2011, KAMEZAWA Hiroyuki wrote:
+> On Sun, 12 Jun 2011 18:41:58 -0700 (PDT)
+> Hugh Dickins <hughd@google.com> wrote:
+> > 
+> > The version I've signed off and am actually testing is below;
+> > but I've not had enough time to spare on the machine which reproduced
+> > it before, and another I thought I'd delegate it to last night,
+> > failed to reproduce without the patch.  Try again tonight.
+> > 
+> > Thought I'd better respond despite inadequate testing, given the flaw
+> > in the posted patch.  Hope the one below is flawless.
+> > 
+> 
+> Thank you, I'll do test, too.
 
-Signed-of-by: Eric B Munson <emunson@mgebm.net>
----
-Changes from V1:
- minimize code duplication with a macro that will do the checking when
-configured
+I confirm it fixes the bug: ran ten hours last night, when a couple
+of tries just before without the patch each failed in ten minutes.
 
- include/asm-generic/memory_model.h |   25 ++++++++++++++++++++-----
- lib/Kconfig.debug                  |    9 +++++++++
- 2 files changed, 29 insertions(+), 5 deletions(-)
+(But the load was not testing whether it keeps ownership when it should,
+I hope you know a quick check on that: our earlier fixes should fail that.)
 
-diff --git a/include/asm-generic/memory_model.h b/include/asm-generic/memory_model.h
-index fb2d63f..7aa83ce 100644
---- a/include/asm-generic/memory_model.h
-+++ b/include/asm-generic/memory_model.h
-@@ -22,6 +22,16 @@
- 
- #endif /* CONFIG_DISCONTIGMEM */
- 
-+#ifdef CONFIG_MEMORY_MODEL
-+/*
-+ * The flags for a page will only be zero if this page is being accessed
-+ * outside of node boundaries.
-+ */
-+#define check_page(__page) WARN_ON(__page->flags == 0)
-+#else
-+#define check_page(__page) do{}while(0)
-+#endif /* CONFIG_MEMORY_MODEL */
-+
- /*
-  * supports 3 memory models.
-  */
-@@ -35,7 +45,9 @@
- #define __pfn_to_page(pfn)			\
- ({	unsigned long __pfn = (pfn);		\
- 	unsigned long __nid = arch_pfn_to_nid(__pfn);  \
--	NODE_DATA(__nid)->node_mem_map + arch_local_page_offset(__pfn, __nid);\
-+	struct page * __pg = NODE_DATA(__nid)->node_mem_map + arch_local_page_offset(__pfn, __nid);\
-+	check_page(__pg);			\
-+	__pg;					\
- })
- 
- #define __page_to_pfn(pg)						\
-@@ -52,6 +64,7 @@
- #define __page_to_pfn(page)	(unsigned long)((page) - vmemmap)
- 
- #elif defined(CONFIG_SPARSEMEM)
-+
- /*
-  * Note: section's mem_map is encorded to reflect its start_pfn.
-  * section[i].section_mem_map == mem_map's address - start_pfn;
-@@ -62,10 +75,12 @@
- 	(unsigned long)(__pg - __section_mem_map_addr(__nr_to_section(__sec)));	\
- })
- 
--#define __pfn_to_page(pfn)				\
--({	unsigned long __pfn = (pfn);			\
--	struct mem_section *__sec = __pfn_to_section(__pfn);	\
--	__section_mem_map_addr(__sec) + __pfn;		\
-+#define __pfn_to_page(pfn)						\
-+({	unsigned long __pfn = (pfn);					\
-+	struct mem_section *__sec = __pfn_to_section(__pfn);		\
-+	struct page *__pg = __section_mem_map_addr(__sec) + __pfn;	\
-+	check_page(__pg);						\
-+	__pg;								\
- })
- #endif /* CONFIG_FLATMEM/DISCONTIGMEM/SPARSEMEM */
- 
-diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
-index dd373c8..7870907 100644
---- a/lib/Kconfig.debug
-+++ b/lib/Kconfig.debug
-@@ -777,6 +777,15 @@ config DEBUG_MEMORY_INIT
- 
- 	  If unsure, say Y
- 
-+config DEBUG_MEMORY_MODEL
-+	bool "Debug memory model" if SPARSEMEM || DISCONTIGMEM
-+	help
-+	  Enable this to check that page accesses are done within node
-+	  boundaries.  The check will warn each time a page is requested
-+	  outside node boundaries.
-+
-+	  If unsure, say N
-+
- config DEBUG_LIST
- 	bool "Debug linked list manipulation"
- 	depends on DEBUG_KERNEL
--- 
-1.7.4.1
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
