@@ -1,33 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 3F6586B0012
-	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 15:29:23 -0400 (EDT)
-Date: Mon, 13 Jun 2011 14:29:20 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH] slub: fix kernel BUG at mm/slub.c:1950!
-In-Reply-To: <1307990048.11288.3.camel@jaguar>
-Message-ID: <alpine.DEB.2.00.1106131428560.5601@router.home>
-References: <alpine.LSU.2.00.1106121842250.31463@sister.anvils>  <alpine.DEB.2.00.1106131258300.3108@router.home> <1307990048.11288.3.camel@jaguar>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 595AA6B0012
+	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 15:37:35 -0400 (EDT)
+Date: Mon, 13 Jun 2011 22:37:30 +0300 (EEST)
+From: Pekka Enberg <penberg@kernel.org>
+Subject: Subject: [GIT PULL] SLAB fixes
+Message-ID: <alpine.DEB.2.00.1106132237110.5454@tiger>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: TEXT/PLAIN; format=flowed; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org
+To: torvalds@linux-foundation.org
+Cc: cl@linux-foundation.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, 13 Jun 2011, Pekka Enberg wrote:
+Hi Linus,
 
-> > Hmmm.. The allocpercpu in alloc_kmem_cache_cpus should take care of the
-> > alignment. Uhh.. I see that a patch that removes the #ifdef CMPXCHG_LOCAL
-> > was not applied? Pekka?
->
-> This patch?
->
-> http://git.kernel.org/?p=linux/kernel/git/penberg/slab-2.6.git;a=commitdiff;h=d4d84fef6d0366b585b7de13527a0faeca84d9ce
->
-> It's queued and will be sent to Linus soon.
+Here's fixes to both SLUB and SLAB. The first fix is needed to fix boot
+problems on some non-x86 architectures and the latter fixes caller tracking in
+SLAB debugging code.
 
-Ok it will also fix Hugh's problem then.
+                         Pekka
+
+The following changes since commit cb0a02ecf95e5f47d92e7d4c513cc1f7aeb40cda:
+   Linus Torvalds (1):
+         Merge branch 'irq-urgent-for-linus' of git://git.kernel.org/.../tip/linux-2.6-tip
+
+are available in the git repository at:
+
+   ssh://master.kernel.org/pub/scm/linux/kernel/git/penberg/slab-2.6.git for-linus
+
+Chris Metcalf (1):
+       slub: always align cpu_slab to honor cmpxchg_double requirement
+
+Suleiman Souhlal (1):
+       SLAB: Record actual last user of freed objects.
+
+  include/linux/percpu.h |    3 +++
+  mm/slab.c              |    9 +++++----
+  mm/slub.c              |   12 ++++--------
+  3 files changed, 12 insertions(+), 12 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
