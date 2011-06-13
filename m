@@ -1,42 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id D6E326B004A
-	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 12:50:23 -0400 (EDT)
-Subject: Re: [PATCH v4 3.0-rc2-tip 4/22]  4: Uprobes: register/unregister
- probes.
-From: Steven Rostedt <rostedt@goodmis.org>
-In-Reply-To: <1307660606.2497.1770.camel@laptop>
-References: 
-	 <20110607125804.28590.92092.sendpatchset@localhost6.localdomain6>
-	 <20110607125900.28590.16071.sendpatchset@localhost6.localdomain6>
-	 <1307660606.2497.1770.camel@laptop>
-Content-Type: text/plain; charset="ISO-8859-15"
-Date: Mon, 13 Jun 2011 12:50:19 -0400
-Message-ID: <1307983819.9218.78.camel@gandalf.stny.rr.com>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 0C55C6B004A
+	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 13:02:24 -0400 (EDT)
+Date: Mon, 13 Jun 2011 19:00:20 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH v4 3.0-rc2-tip 2/22]  2: uprobes: Breakground page
+	replacement.
+Message-ID: <20110613170020.GA27137@redhat.com>
+References: <20110607125804.28590.92092.sendpatchset@localhost6.localdomain6> <20110607125835.28590.25476.sendpatchset@localhost6.localdomain6>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110607125835.28590.25476.sendpatchset@localhost6.localdomain6>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Jonathan Corbet <corbet@lwn.net>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>
+To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Andi Kleen <andi@firstfloor.org>, Thomas Gleixner <tglx@linutronix.de>, Jonathan Corbet <corbet@lwn.net>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, 2011-06-10 at 01:03 +0200, Peter Zijlstra wrote:
+On 06/07, Srikar Dronamraju wrote:
+>
+> +static int write_opcode(struct task_struct *tsk, struct uprobe * uprobe,
+> +			unsigned long vaddr, uprobe_opcode_t opcode)
+> +{
+> +	struct page *old_page, *new_page;
+> +	void *vaddr_old, *vaddr_new;
+> +	struct vm_area_struct *vma;
+> +	unsigned long addr;
+> +	int ret;
+> +
+> +	/* Read the page with vaddr into memory */
+> +	ret = get_user_pages(tsk, tsk->mm, vaddr, 1, 1, 1, &old_page, &vma);
 
-> The comment in del_consumer() that says: 'drop creation ref' worries me
-> and makes me thing that is the last reference around and the uprobe will
-> be freed right there, which clearly cannot happen since its not yet
-> removed from the RB-tree.
+Sorry if this was already discussed... But why we are using FOLL_WRITE here?
+We are not going to write into this page, and this provokes the unnecessary
+cow, no?
 
-I agree about that comment. It scared me too, not only about the RB
-tree, but the uprobe is used later in that function to drop the
-write_rwsem.
+Also. This is called under down_read(mmap_sem), can't we race with
+access_process_vm() modifying the same memory?
 
-I think that comment needs to be changed to something like:
-
-/* Have caller drop the creation ref */
-
--- Steve
-
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
