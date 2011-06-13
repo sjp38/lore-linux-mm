@@ -1,52 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 1250F6B004A
-	for <linux-mm@kvack.org>; Sun, 12 Jun 2011 22:03:16 -0400 (EDT)
-Received: from hpaq13.eem.corp.google.com (hpaq13.eem.corp.google.com [172.25.149.13])
-	by smtp-out.google.com with ESMTP id p5D23D1A026886
-	for <linux-mm@kvack.org>; Sun, 12 Jun 2011 19:03:13 -0700
-Received: from pzk2 (pzk2.prod.google.com [10.243.19.130])
-	by hpaq13.eem.corp.google.com with ESMTP id p5D23BwN030723
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Sun, 12 Jun 2011 19:03:12 -0700
-Received: by pzk2 with SMTP id 2so2190608pzk.37
-        for <linux-mm@kvack.org>; Sun, 12 Jun 2011 19:03:11 -0700 (PDT)
-Date: Sun, 12 Jun 2011 19:03:02 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH] slub: fix kernel BUG at mm/slub.c:1950!
-Message-ID: <alpine.LSU.2.00.1106121842250.31463@sister.anvils>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id C04336B004A
+	for <linux-mm@kvack.org>; Sun, 12 Jun 2011 23:08:20 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 40E5F3EE0AE
+	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 12:08:16 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 19E3E45DE87
+	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 12:08:16 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id EFCD545DE67
+	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 12:08:15 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id DD4151DB803B
+	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 12:08:15 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7F1611DB803F
+	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 12:08:15 +0900 (JST)
+Date: Mon, 13 Jun 2011 12:00:54 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [BUGFIX][PATCH 0/5] memcg bugfixes in the last week.
+Message-Id: <20110613120054.3336e997.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org
+To: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "bsingharora@gmail.com" <bsingharora@gmail.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Ying Han <yinghan@google.com>
 
-3.0-rc won't boot with SLUB on my PowerPC G5: kernel BUG at mm/slub.c:1950!
-Bisected to 1759415e630e "slub: Remove CONFIG_CMPXCHG_LOCAL ifdeffery".
 
-After giving myself a medal for finding the BUG on line 1950 of mm/slub.c
-(it's actually the
-	VM_BUG_ON((unsigned long)(&pcp1) % (2 * sizeof(pcp1)));
-on line 268 of the morass that is include/linux/percpu.h)
-I tried the following alignment patch and found it to work.
+In the last week, I(and memcg people) posted 5 bug fixes.
+I was slightly confued. 
 
-Signed-off-by: Hugh Dickins <hughd@google.com>
----
- include/linux/slub_def.h |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+For making things clearer, I post all 5 patches again,
+which are I'm now testing. 
 
---- 3.0-rc2/include/linux/slub_def.h	2011-05-29 18:42:37.077880848 -0700
-+++ linux/include/linux/slub_def.h	2011-06-12 17:17:51.000000000 -0700
-@@ -43,7 +43,7 @@ struct kmem_cache_cpu {
- #ifdef CONFIG_SLUB_STATS
- 	unsigned stat[NR_SLUB_STAT_ITEMS];
- #endif
--};
-+} __attribute__((aligned(2 * sizeof(long))));
- 
- struct kmem_cache_node {
- 	spinlock_t list_lock;	/* Protect partial list and nr_partial */
+If I miss some patches/fixes/bugs, please notify me. 
+
+[1/5] - fix memory.numa_stat permission (this is in mmotm)
+[2/5] - fix init_page_cgroup() nid with sparsemem
+[3/5] - fix mm->owner update
+[4/5] - fix wrong check of noswap with softlimit
+[5/5] - fix percpu cached charge draining.
+
+
+Thank you for all your helps. 
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
