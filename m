@@ -1,44 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 487046B0012
-	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 14:54:42 -0400 (EDT)
-Date: Mon, 13 Jun 2011 11:54:37 -0700
-From: Jesse Barnes <jbarnes@virtuousgeek.org>
-Subject: Re: [Linaro-mm-sig] [RFC 0/2] ARM: DMA-mapping & IOMMU integration
-Message-ID: <20110613115437.62824f2f@jbarnes-desktop>
-In-Reply-To: <BANLkTi=C6NKT94Fk6Rq6wmhndVixOqC6mg@mail.gmail.com>
-References: <1306308920-8602-1-git-send-email-m.szyprowski@samsung.com>
-	<BANLkTi=HtrFETnjk1Zu0v9wqa==r0OALvA@mail.gmail.com>
-	<201106131707.49217.arnd@arndb.de>
-	<BANLkTikR5AE=-wTWzrSJ0TUaks0_rA3mcg@mail.gmail.com>
-	<20110613154033.GA29185@1n450.cable.virginmedia.net>
-	<BANLkTikkCV=rWM_Pq6t6EyVRHcWeoMPUqw@mail.gmail.com>
-	<BANLkTi=C6NKT94Fk6Rq6wmhndVixOqC6mg@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 3F6586B0012
+	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 15:29:23 -0400 (EDT)
+Date: Mon, 13 Jun 2011 14:29:20 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH] slub: fix kernel BUG at mm/slub.c:1950!
+In-Reply-To: <1307990048.11288.3.camel@jaguar>
+Message-ID: <alpine.DEB.2.00.1106131428560.5601@router.home>
+References: <alpine.LSU.2.00.1106121842250.31463@sister.anvils>  <alpine.DEB.2.00.1106131258300.3108@router.home> <1307990048.11288.3.camel@jaguar>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: M.K.Edwards@gmail.com
-Cc: KyongHo Cho <pullip.cho@samsung.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Arnd Bergmann <arnd@arndb.de>, Catalin Marinas <catalin.marinas@arm.com>, Joerg Roedel <joro@8bytes.org>, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, Kyungmin Park <kyungmin.park@samsung.com>, linux-arm-kernel@lists.infradead.org
+To: Pekka Enberg <penberg@kernel.org>
+Cc: Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org
 
-On Mon, 13 Jun 2011 10:55:59 -0700
-"Michael K. Edwards" <m.k.edwards@gmail.com> wrote:
+On Mon, 13 Jun 2011, Pekka Enberg wrote:
 
-> As far as I can tell, there is not yet any way to get real
-> cache-bypassing write-combining from userland in a mainline kernel,
-> for x86/x86_64 or ARM. 
+> > Hmmm.. The allocpercpu in alloc_kmem_cache_cpus should take care of the
+> > alignment. Uhh.. I see that a patch that removes the #ifdef CMPXCHG_LOCAL
+> > was not applied? Pekka?
+>
+> This patch?
+>
+> http://git.kernel.org/?p=linux/kernel/git/penberg/slab-2.6.git;a=commitdiff;h=d4d84fef6d0366b585b7de13527a0faeca84d9ce
+>
+> It's queued and will be sent to Linus soon.
 
-Well only if things are really broken.  sysfs exposes _wc resource
-files to allow userland drivers to map a given PCI BAR using write
-combining, if the underlying platform supports it.
-
-Similarly, userland mapping of GEM objects through the GTT are supposed
-to be write combined, though I need to verify this (we've had trouble
-with it in the past).
-
--- 
-Jesse Barnes, Intel Open Source Technology Center
+Ok it will also fix Hugh's problem then.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
