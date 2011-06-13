@@ -1,53 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C3BF6B004A
-	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 10:49:15 -0400 (EDT)
-Received: by pvc12 with SMTP id 12so2678539pvc.14
-        for <linux-mm@kvack.org>; Mon, 13 Jun 2011 07:49:10 -0700 (PDT)
-Date: Mon, 13 Jun 2011 23:48:53 +0900
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 1ABC76B004A
+	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 10:55:01 -0400 (EDT)
+Received: by pvc12 with SMTP id 12so2681966pvc.14
+        for <linux-mm@kvack.org>; Mon, 13 Jun 2011 07:54:59 -0700 (PDT)
+Date: Mon, 13 Jun 2011 23:54:43 +0900
 From: Minchan Kim <minchan.kim@gmail.com>
-Subject: Re: [PATCH v3 01/10] compaction: trivial clean up acct_isolated
-Message-ID: <20110613144853.GA1414@barrios-desktop>
+Subject: Re: [PATCH v3 03/10] Add additional isolation mode
+Message-ID: <20110613145443.GB1414@barrios-desktop>
 References: <cover.1307455422.git.minchan.kim@gmail.com>
- <71a79768ff8ef356db09493dbb5d6c390e176e0d.1307455422.git.minchan.kim@gmail.com>
- <20110612142257.GA24323@tiehlicka.suse.cz>
+ <b72a86ed33c693aeccac0dba3fba8c13145106ab.1307455422.git.minchan.kim@gmail.com>
+ <20110612144521.GB24323@tiehlicka.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110612142257.GA24323@tiehlicka.suse.cz>
+In-Reply-To: <20110612144521.GB24323@tiehlicka.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@suse.cz>
 Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Sun, Jun 12, 2011 at 04:24:05PM +0200, Michal Hocko wrote:
-> On Tue 07-06-11 23:38:14, Minchan Kim wrote:
-> > acct_isolated of compaction uses page_lru_base_type which returns only
-> > base type of LRU list so it never returns LRU_ACTIVE_ANON or LRU_ACTIVE_FILE.
-> > In addtion, cc->nr_[anon|file] is used in only acct_isolated so it doesn't have
-> > fields in conpact_control.
-> > This patch removes fields from compact_control and makes clear function of
-> > acct_issolated which counts the number of anon|file pages isolated.
+On Sun, Jun 12, 2011 at 04:45:21PM +0200, Michal Hocko wrote:
+> On Tue 07-06-11 23:38:16, Minchan Kim wrote:
+> > There are some places to isolate lru page and I believe
+> > users of isolate_lru_page will be growing.
+> > The purpose of them is each different so part of isolated pages
+> > should put back to LRU, again.
 > > 
-> > Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> > Cc: Mel Gorman <mgorman@suse.de>
-> > Cc: Andrea Arcangeli <aarcange@redhat.com>
-> > Acked-by: Rik van Riel <riel@redhat.com>
-> > Acked-by: Johannes Weiner <hannes@cmpxchg.org>
-> > Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+> > The problem is when we put back the page into LRU,
+> > we lose LRU ordering and the page is inserted at head of LRU list.
+> > It makes unnecessary LRU churning so that vm can evict working set pages
+> > rather than idle pages.
 > 
-> Sorry for the late reply. I have looked at the previous posting but
+> I guess that, although this is true, it doesn't fit in with this patch
+> very much because this patch doesn't fix this problem. It is a
+> preparation for for further work. I would expect this description with
+> the core patch that actlually handles this issue.
 
-No problem. Thanks for the review, Michal.
+Okay.
 
-> didn't have time to comment on it.
 > 
-> Yes, stack usage reduction makes sense and the function also looks more
-> compact.
+> > 
+> > This patch adds new modes when we isolate page in LRU so we don't isolate pages
+> > if we can't handle it. It could reduce LRU churning.
+> > 
+> > This patch doesn't change old behavior. It's just used by next patches.
 > 
-> Reviewed-by: Michal Hocko <mhocko@suse.cz>
-> 
+> It doesn't because there is not user of those flags but maybe it would
+> be better to have those to see why it actually can reduce LRU
+> isolations.
+
+Yes. Mel already pointed it out.
+I will merge patches in next version.
+And I have a idea to reduce lru_lock Mel mentiond
+So maybe I will include it in next version, too.
+But, now I have no time to revise it :(
 
 -- 
 Kind regards,
