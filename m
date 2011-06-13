@@ -1,95 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 029246B004A
-	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 07:19:05 -0400 (EDT)
-Date: Mon, 13 Jun 2011 13:18:57 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 7/8] vmscan: memcg-aware unevictable page rescue scanner
-Message-ID: <20110613111857.GE10563@tiehlicka.suse.cz>
-References: <1306909519-7286-1-git-send-email-hannes@cmpxchg.org>
- <1306909519-7286-8-git-send-email-hannes@cmpxchg.org>
- <20110613094203.GC10563@tiehlicka.suse.cz>
- <20110613103032.GA12143@cmpxchg.org>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 0BDFE6B004A
+	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 09:48:45 -0400 (EDT)
+Date: Mon, 13 Jun 2011 15:46:36 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH v4 3.0-rc2-tip 2/22]  2: uprobes: Breakground page
+	replacement.
+Message-ID: <20110613134636.GA21979@redhat.com>
+References: <20110607125804.28590.92092.sendpatchset@localhost6.localdomain6> <20110607125835.28590.25476.sendpatchset@localhost6.localdomain6>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110613103032.GA12143@cmpxchg.org>
+In-Reply-To: <20110607125835.28590.25476.sendpatchset@localhost6.localdomain6>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Ying Han <yinghan@google.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Andi Kleen <andi@firstfloor.org>, Thomas Gleixner <tglx@linutronix.de>, Jonathan Corbet <corbet@lwn.net>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon 13-06-11 12:30:32, Johannes Weiner wrote:
-> On Mon, Jun 13, 2011 at 11:42:03AM +0200, Michal Hocko wrote:
-> > On Wed 01-06-11 08:25:18, Johannes Weiner wrote:
-> > > Once the per-memcg lru lists are exclusive, the unevictable page
-> > > rescue scanner can no longer work on the global zone lru lists.
-> > > 
-> > > This converts it to go through all memcgs and scan their respective
-> > > unevictable lists instead.
-> > > 
-> > > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> > 
-> > Just a minor naming thing.
-> > 
-> > Other than that looks good to me.
-> > Reviewed-by: Michal Hocko <mhocko@suse.cz>
-> > 
-> > > --- a/include/linux/memcontrol.h
-> > > +++ b/include/linux/memcontrol.h
-> > [...]
-> > > +struct page *mem_cgroup_lru_to_page(struct zone *zone, struct mem_cgroup *mem,
-> > > +				    enum lru_list lru)
-> > > +{
-> > > +	struct mem_cgroup_per_zone *mz;
-> > > +	struct page_cgroup *pc;
-> > > +
-> > > +	mz = mem_cgroup_zoneinfo(mem, zone_to_nid(zone), zone_idx(zone));
-> > > +	pc = list_entry(mz->lists[lru].prev, struct page_cgroup, lru);
-> > > +	return lookup_cgroup_page(pc);
-> > > +}
-> > > +
-> > [...]
-> > > --- a/mm/vmscan.c
-> > > +++ b/mm/vmscan.c
-> > > @@ -3233,6 +3233,14 @@ void scan_mapping_unevictable_pages(struct address_space *mapping)
-> > >  
-> > >  }
-> > >  
-> > > +static struct page *lru_tailpage(struct zone *zone, struct mem_cgroup *mem,
-> > > +				 enum lru_list lru)
-> > > +{
-> > > +	if (mem)
-> > > +		return mem_cgroup_lru_to_page(zone, mem, lru);
-> > > +	return lru_to_page(&zone->lru[lru].list);
-> > > +}
-> > 
-> > Wouldn't it better to have those names consistent?
-> > mem_cgroup_lru_tailpage vs lru_tailpage?
-> 
-> It's bad naming alright, but what is the wrapper for both of them
-> supposed to be called then?
-> 
-> Note that this function is only temporary, though, that's why I did
-> not spent much time on looking for a better name.
-> 
-> When the per-memcg lru lists finally become exclusive, this is removed
-> and the function converted to work on lruvecs.
-> 
-> Would you be okay with just adding an /* XXX */ to the function in
-> this patch that mentions that it's only temporary?
+On 06/07, Srikar Dronamraju wrote:
+>
+> +static int __replace_page(struct vm_area_struct *vma, struct page *page,
+> +					struct page *kpage)
+> +{
+> +	struct mm_struct *mm = vma->vm_mm;
+> +	pgd_t *pgd;
+> +	pud_t *pud;
+> +	pmd_t *pmd;
+> +	pte_t *ptep;
+> +	spinlock_t *ptl;
+> +	unsigned long addr;
+> +	int err = -EFAULT;
+> +
+> +	addr = page_address_in_vma(page, vma);
+> +	if (addr == -EFAULT)
+> +		goto out;
+> +
+> +	pgd = pgd_offset(mm, addr);
+> +	if (!pgd_present(*pgd))
+> +		goto out;
+> +
+> +	pud = pud_offset(pgd, addr);
+> +	if (!pud_present(*pud))
+> +		goto out;
+> +
+> +	pmd = pmd_offset(pud, addr);
+> +	if (pmd_trans_huge(*pmd) || (!pmd_present(*pmd)))
+> +		goto out;
 
-Sure. No biggie about the naming. It just hit my eyes during reading the
-patch because while lru_tailpage is clear about which end of the list is
-returned the memcg counterpart is not that clear.
+Hmm. So it doesn't work with transhuge pages? May be the caller should
+use __gup(FOLL_SPLIT), otherwise set_bkpt/etc can fail "mysteriously", no?
+OTOH, I don't really understand how pmd_trans_huge() is possible, valid_vma()
+checks ->vm_file != NULL and I iiuc transparent hugepages can only work
+with anonymous mappings. Confused...
 
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+But the real problem (afaics) is VM_HUGETLB mappings. I can't understand
+how __replace_page() can work in this case. Probably valid_vma() should
+fail if is_vm_hugetlb_page()?
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
