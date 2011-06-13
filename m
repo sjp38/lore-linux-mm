@@ -1,55 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C0F16B004A
-	for <linux-mm@kvack.org>; Sun, 12 Jun 2011 21:31:07 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 612663EE0B6
-	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 10:31:03 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 493B245DF2C
-	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 10:31:03 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 2D79745DF28
-	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 10:31:03 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 1FE1F1DB8038
-	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 10:31:03 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id E047F1DB803C
-	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 10:31:02 +0900 (JST)
-Date: Mon, 13 Jun 2011 10:23:58 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [BUGFIX][PATCH] memcg: fix wrong decision of noswap with
- softlimit.
-Message-Id: <20110613102358.95637755.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20110612112228.GC19493@tiehlicka.suse.cz>
-References: <20110609095445.5f98b752.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110612112228.GC19493@tiehlicka.suse.cz>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 666706B004A
+	for <linux-mm@kvack.org>; Sun, 12 Jun 2011 21:34:18 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id D0BA13EE0BC
+	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 10:34:14 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id B3C4945DE55
+	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 10:34:14 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 8B1C845DD75
+	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 10:34:14 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 7BEBF1DB802F
+	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 10:34:14 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 480421DB803B
+	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 10:34:14 +0900 (JST)
+Message-ID: <4DF5690C.4090000@jp.fujitsu.com>
+Date: Mon, 13 Jun 2011 10:34:04 +0900
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v3 07/10] migration: clean up unmap_and_move
+References: <cover.1307455422.git.minchan.kim@gmail.com> <cf5cd5055db22ae301e01294f191bd94b17e7775.1307455422.git.minchan.kim@gmail.com>
+In-Reply-To: <cf5cd5055db22ae301e01294f191bd94b17e7775.1307455422.git.minchan.kim@gmail.com>
+Content-Type: text/plain; charset=ISO-2022-JP
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "bsingharora@gmail.com" <bsingharora@gmail.com>
+To: minchan.kim@gmail.com
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mgorman@suse.de, aarcange@redhat.com, riel@redhat.com, hannes@cmpxchg.org, kamezawa.hiroyu@jp.fujitsu.com
 
-On Sun, 12 Jun 2011 13:22:28 +0200
-Michal Hocko <mhocko@suse.cz> wrote:
+(2011/06/07 23:38), Minchan Kim wrote:
+> The unmap_and_move is one of big messy functions.
+> This patch try to clean up.
+> 
+> It can help readability and make unmap_and_move_ilru simple.
+> unmap_and_move_ilru will be introduced by next patch.
+> 
+> Cc: Mel Gorman <mgorman@suse.de>
+> Cc: Andrea Arcangeli <aarcange@redhat.com>
+> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Cc: Rik van Riel <riel@redhat.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
 
-> Hierarchical reclaim doesn't swap out if memsw and resource limits are
-> same (memsw_is_minimum == true) because we would hit mem+swap limit
-> anyway (during hard limit reclaim).
-> If it comes to the solft limit we shouldn't consider memsw_is_minimum at
-> all because it doesn't make much sense. Either the soft limit is bellow
-> the hard limit and then we cannot hit mem+swap limit or the direct
-> reclaim takes a precedence.
+Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-Thank you. I'd like to use your description.
-
-I'll post last week bug fixes series, today.
-
-Thanks,
--Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
