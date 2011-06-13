@@ -1,64 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 1ABC76B004A
-	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 10:55:01 -0400 (EDT)
-Received: by pvc12 with SMTP id 12so2681966pvc.14
-        for <linux-mm@kvack.org>; Mon, 13 Jun 2011 07:54:59 -0700 (PDT)
-Date: Mon, 13 Jun 2011 23:54:43 +0900
-From: Minchan Kim <minchan.kim@gmail.com>
-Subject: Re: [PATCH v3 03/10] Add additional isolation mode
-Message-ID: <20110613145443.GB1414@barrios-desktop>
-References: <cover.1307455422.git.minchan.kim@gmail.com>
- <b72a86ed33c693aeccac0dba3fba8c13145106ab.1307455422.git.minchan.kim@gmail.com>
- <20110612144521.GB24323@tiehlicka.suse.cz>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 0007E6B004A
+	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 11:08:07 -0400 (EDT)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: Re: [RFC 0/2] ARM: DMA-mapping & IOMMU integration
+Date: Mon, 13 Jun 2011 17:07:49 +0200
+References: <1306308920-8602-1-git-send-email-m.szyprowski@samsung.com> <BANLkTi=HtrFETnjk1Zu0v9wqa==r0OALvA@mail.gmail.com>
+In-Reply-To: <BANLkTi=HtrFETnjk1Zu0v9wqa==r0OALvA@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110612144521.GB24323@tiehlicka.suse.cz>
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Message-Id: <201106131707.49217.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: linaro-mm-sig@lists.linaro.org
+Cc: KyongHo Cho <pullip.cho@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Joerg Roedel <joro@8bytes.org>, linux-mm@kvack.org, Kyungmin Park <kyungmin.park@samsung.com>, linux-arm-kernel@lists.infradead.org
 
-On Sun, Jun 12, 2011 at 04:45:21PM +0200, Michal Hocko wrote:
-> On Tue 07-06-11 23:38:16, Minchan Kim wrote:
-> > There are some places to isolate lru page and I believe
-> > users of isolate_lru_page will be growing.
-> > The purpose of them is each different so part of isolated pages
-> > should put back to LRU, again.
-> > 
-> > The problem is when we put back the page into LRU,
-> > we lose LRU ordering and the page is inserted at head of LRU list.
-> > It makes unnecessary LRU churning so that vm can evict working set pages
-> > rather than idle pages.
+On Monday 13 June 2011 16:12:05 KyongHo Cho wrote:
+> Of course, the mapping created by by dma_alloc_writecombine()
+> may be more efficient for CPU to update the DMA buffer.
+> But I think mapping with dma_alloc_coherent() is not such a
+> performance bottleneck.
 > 
-> I guess that, although this is true, it doesn't fit in with this patch
-> very much because this patch doesn't fix this problem. It is a
-> preparation for for further work. I would expect this description with
-> the core patch that actlually handles this issue.
+> I think it is better to remove dma_alloc_writecombine() and replace
+> all of it with dma_alloc_coherent().
 
-Okay.
+I'm sure that the graphics people will disagree with you on that.
+Having the frame buffer mapped in write-combine mode is rather
+important when you want to efficiently output videos from your
+CPU.
 
+> In addition, IMHO, mapping to user's address is not a duty of dma_map_ops.
+> dma_mmap_*() is not suitable for a system that has IOMMU
+> because a DMA address does not equal to its correspondent physical
+> address semantically.
 > 
-> > 
-> > This patch adds new modes when we isolate page in LRU so we don't isolate pages
-> > if we can't handle it. It could reduce LRU churning.
-> > 
-> > This patch doesn't change old behavior. It's just used by next patches.
-> 
-> It doesn't because there is not user of those flags but maybe it would
-> be better to have those to see why it actually can reduce LRU
-> isolations.
+> I think DMA APIs of ARM must be changed drastically to support IOMMU
+> because IOMMU API does not manage virtual address space.
 
-Yes. Mel already pointed it out.
-I will merge patches in next version.
-And I have a idea to reduce lru_lock Mel mentiond
-So maybe I will include it in next version, too.
-But, now I have no time to revise it :(
+I can understand that there are arguments why mapping a DMA buffer into
+user space doesn't belong into dma_map_ops, but I don't see how the
+presence of an IOMMU is one of them.
 
--- 
-Kind regards,
-Minchan Kim
+The entire purpose of dma_map_ops is to hide from the user whether
+you have an IOMMU or not, so that would be the main argument for
+putting it in there, not against doing so.
+
+	Arnd
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
