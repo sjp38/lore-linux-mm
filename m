@@ -1,98 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id D79FB6B004A
-	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 10:34:00 -0400 (EDT)
-Date: Mon, 13 Jun 2011 16:33:56 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH] writeback: trace global_dirty_state
-Message-ID: <20110613143356.GG4907@quack.suse.cz>
-References: <20110610144805.GA9986@localhost>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 3C3BF6B004A
+	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 10:49:15 -0400 (EDT)
+Received: by pvc12 with SMTP id 12so2678539pvc.14
+        for <linux-mm@kvack.org>; Mon, 13 Jun 2011 07:49:10 -0700 (PDT)
+Date: Mon, 13 Jun 2011 23:48:53 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: Re: [PATCH v3 01/10] compaction: trivial clean up acct_isolated
+Message-ID: <20110613144853.GA1414@barrios-desktop>
+References: <cover.1307455422.git.minchan.kim@gmail.com>
+ <71a79768ff8ef356db09493dbb5d6c390e176e0d.1307455422.git.minchan.kim@gmail.com>
+ <20110612142257.GA24323@tiehlicka.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110610144805.GA9986@localhost>
+In-Reply-To: <20110612142257.GA24323@tiehlicka.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Fri 10-06-11 22:48:05, Wu Fengguang wrote:
-> [It seems beneficial to queue this simple trace event for
->  next/upstream after the review?]
+On Sun, Jun 12, 2011 at 04:24:05PM +0200, Michal Hocko wrote:
+> On Tue 07-06-11 23:38:14, Minchan Kim wrote:
+> > acct_isolated of compaction uses page_lru_base_type which returns only
+> > base type of LRU list so it never returns LRU_ACTIVE_ANON or LRU_ACTIVE_FILE.
+> > In addtion, cc->nr_[anon|file] is used in only acct_isolated so it doesn't have
+> > fields in conpact_control.
+> > This patch removes fields from compact_control and makes clear function of
+> > acct_issolated which counts the number of anon|file pages isolated.
+> > 
+> > Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> > Cc: Mel Gorman <mgorman@suse.de>
+> > Cc: Andrea Arcangeli <aarcange@redhat.com>
+> > Acked-by: Rik van Riel <riel@redhat.com>
+> > Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+> > Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
 > 
-> Add trace event balance_dirty_state for showing the global dirty page
-> counts and thresholds at each global_dirty_limits() invocation.  This
-> will cover the callers throttle_vm_writeout(), over_bground_thresh()
-> and each balance_dirty_pages() loop.
-  OK, this might be useful. But shouldn't we also add similar trace point
-for bdi limits? Otherwise the information is of limited use...
+> Sorry for the late reply. I have looked at the previous posting but
 
-								Honza
+No problem. Thanks for the review, Michal.
+
+> didn't have time to comment on it.
 > 
-> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> ---
->  include/trace/events/writeback.h |   36 +++++++++++++++++++++++++++++
->  mm/page-writeback.c              |    1 
->  2 files changed, 37 insertions(+)
+> Yes, stack usage reduction makes sense and the function also looks more
+> compact.
 > 
-> --- linux-next.orig/mm/page-writeback.c	2011-06-10 21:52:34.000000000 +0800
-> +++ linux-next/mm/page-writeback.c	2011-06-10 22:08:26.000000000 +0800
-> @@ -430,6 +430,7 @@ void global_dirty_limits(unsigned long *
->  	}
->  	*pbackground = background;
->  	*pdirty = dirty;
-> +	trace_global_dirty_state(background, dirty);
->  }
->  
->  /**
-> --- linux-next.orig/include/trace/events/writeback.h	2011-06-10 21:52:34.000000000 +0800
-> +++ linux-next/include/trace/events/writeback.h	2011-06-10 22:25:33.000000000 +0800
-> @@ -187,6 +187,42 @@ TRACE_EVENT(writeback_queue_io,
->  		__entry->moved)
->  );
->  
-> +TRACE_EVENT(global_dirty_state,
-> +
-> +	TP_PROTO(unsigned long background_thresh,
-> +		 unsigned long dirty_thresh
-> +	),
-> +
-> +	TP_ARGS(background_thresh,
-> +		dirty_thresh
-> +	),
-> +
-> +	TP_STRUCT__entry(
-> +		__field(unsigned long,	nr_dirty)
-> +		__field(unsigned long,	nr_writeback)
-> +		__field(unsigned long,	nr_unstable)
-> +		__field(unsigned long,	background_thresh)
-> +		__field(unsigned long,	dirty_thresh)
-> +	),
-> +
-> +	TP_fast_assign(
-> +		__entry->nr_dirty	= global_page_state(NR_FILE_DIRTY);
-> +		__entry->nr_writeback	= global_page_state(NR_WRITEBACK);
-> +		__entry->nr_unstable	= global_page_state(NR_UNSTABLE_NFS);
-> +		__entry->background_thresh = background_thresh;
-> +		__entry->dirty_thresh	= dirty_thresh;
-> +	),
-> +
-> +	TP_printk("dirty=%lu writeback=%lu unstable=%lu "
-> +		  "bg_thresh=%lu thresh=%lu",
-> +		  __entry->nr_dirty,
-> +		  __entry->nr_writeback,
-> +		  __entry->nr_unstable,
-> +		  __entry->background_thresh,
-> +		  __entry->dirty_thresh
-> +	)
-> +);
-> +
->  DECLARE_EVENT_CLASS(writeback_congest_waited_template,
->  
->  	TP_PROTO(unsigned int usec_timeout, unsigned int usec_delayed),
+> Reviewed-by: Michal Hocko <mhocko@suse.cz>
+> 
+
 -- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
