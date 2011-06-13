@@ -1,36 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B0D46B007E
-	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 12:00:18 -0400 (EDT)
-Received: by gxk23 with SMTP id 23so3955145gxk.14
-        for <linux-mm@kvack.org>; Mon, 13 Jun 2011 09:00:16 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20110613154033.GA29185@1n450.cable.virginmedia.net>
-References: <1306308920-8602-1-git-send-email-m.szyprowski@samsung.com>
-	<BANLkTi=HtrFETnjk1Zu0v9wqa==r0OALvA@mail.gmail.com>
-	<201106131707.49217.arnd@arndb.de>
-	<BANLkTikR5AE=-wTWzrSJ0TUaks0_rA3mcg@mail.gmail.com>
-	<20110613154033.GA29185@1n450.cable.virginmedia.net>
-Date: Tue, 14 Jun 2011 01:00:16 +0900
-Message-ID: <BANLkTikkCV=rWM_Pq6t6EyVRHcWeoMPUqw@mail.gmail.com>
-Subject: Re: [Linaro-mm-sig] [RFC 0/2] ARM: DMA-mapping & IOMMU integration
-From: KyongHo Cho <pullip.cho@samsung.com>
-Content-Type: text/plain; charset=ISO-8859-1
+	by kanga.kvack.org (Postfix) with SMTP id D6E326B004A
+	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 12:50:23 -0400 (EDT)
+Subject: Re: [PATCH v4 3.0-rc2-tip 4/22]  4: Uprobes: register/unregister
+ probes.
+From: Steven Rostedt <rostedt@goodmis.org>
+In-Reply-To: <1307660606.2497.1770.camel@laptop>
+References: 
+	 <20110607125804.28590.92092.sendpatchset@localhost6.localdomain6>
+	 <20110607125900.28590.16071.sendpatchset@localhost6.localdomain6>
+	 <1307660606.2497.1770.camel@laptop>
+Content-Type: text/plain; charset="ISO-8859-15"
+Date: Mon, 13 Jun 2011 12:50:19 -0400
+Message-ID: <1307983819.9218.78.camel@gandalf.stny.rr.com>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Russell King - ARM Linux <linux@arm.linux.org.uk>, Arnd Bergmann <arnd@arndb.de>, Joerg Roedel <joro@8bytes.org>, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, Kyungmin Park <kyungmin.park@samsung.com>, linux-arm-kernel@lists.infradead.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Jonathan Corbet <corbet@lwn.net>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>
 
-> FWIW, on ARMv6 and later hardware, the dma_alloc_coherent() provides
-> writecombine memory (i.e. Normal Noncacheable), so no need for
-> dma_alloc_writecombine(). On earlier architectures it is creating
-> Strongly Ordered mappings (no writecombine).
->
-Thanks.
+On Fri, 2011-06-10 at 01:03 +0200, Peter Zijlstra wrote:
 
-Do you mean that dma_alloc_coherent() and dma_alloc_writecombine() are
-not different
-except some additional features of dma_alloc_coherent() in ARM?
+> The comment in del_consumer() that says: 'drop creation ref' worries me
+> and makes me thing that is the last reference around and the uprobe will
+> be freed right there, which clearly cannot happen since its not yet
+> removed from the RB-tree.
+
+I agree about that comment. It scared me too, not only about the RB
+tree, but the uprobe is used later in that function to drop the
+write_rwsem.
+
+I think that comment needs to be changed to something like:
+
+/* Have caller drop the creation ref */
+
+-- Steve
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
