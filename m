@@ -1,38 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id AD3A66B004A
-	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 05:29:19 -0400 (EDT)
-Date: Mon, 13 Jun 2011 11:29:15 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 6/8] vmscan: change zone_nr_lru_pages to take memcg
- instead of scan control
-Message-ID: <20110613092915.GB10563@tiehlicka.suse.cz>
-References: <1306909519-7286-1-git-send-email-hannes@cmpxchg.org>
- <1306909519-7286-7-git-send-email-hannes@cmpxchg.org>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 4AEB26B004A
+	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 05:31:15 -0400 (EDT)
+Received: from d01relay01.pok.ibm.com (d01relay01.pok.ibm.com [9.56.227.233])
+	by e4.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p5D99jBB002638
+	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 05:09:45 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p5D9VD7C085988
+	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 05:31:13 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p5D9VAgL010849
+	for <linux-mm@kvack.org>; Mon, 13 Jun 2011 06:31:13 -0300
+Date: Mon, 13 Jun 2011 14:53:39 +0530
+From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Subject: Re: [PATCH v4 3.0-rc2-tip 0/22]  0: Uprobes patchset with perf
+ probe support
+Message-ID: <20110613092339.GF27130@linux.vnet.ibm.com>
+Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+References: <20110607125804.28590.92092.sendpatchset@localhost6.localdomain6>
+ <1307644944.2497.1023.camel@laptop>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <1306909519-7286-7-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <1307644944.2497.1023.camel@laptop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Ying Han <yinghan@google.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, Andi Kleen <andi@firstfloor.org>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed 01-06-11 08:25:17, Johannes Weiner wrote:
-> This function only uses sc->mem_cgroup from the scan control.  Change
-> it to take a memcg argument directly, so callsites without an actual
-> reclaim context can use it as well.
+* Peter Zijlstra <peterz@infradead.org> [2011-06-09 20:42:24]:
+
+> On Tue, 2011-06-07 at 18:28 +0530, Srikar Dronamraju wrote:
+> > - Breakpoint handling should co-exist with singlestep/blockstep from
+> >   another tracer/debugger.
+
+We can remove this now.
+Previous to this patchset the post notifier would run in interrupt
+context hence we couldnt call user_disable_single_step
+
+However from this patchset, (due to changes to do away with per task
+slot), we run the post notifier in task context. Hence we can now call
+user_enable_single_step/user_disable_single_step which does the right
+thing. 
+
+Please correct me if I am missing.
+
+> > - Queue and dequeue signals delivered from the singlestep till
+> >   completion of postprocessing. 
 > 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
-Reviewed-by: Michal Hocko <mhocko@suse.cz>
+I am working towards this.  
+> These two are important to sort before we can think of merging this
+> right?
+> 
+
 -- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+Thanks and Regards
+Srikar
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
