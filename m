@@ -1,60 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id AF73F6B0082
-	for <linux-mm@kvack.org>; Tue, 14 Jun 2011 12:03:47 -0400 (EDT)
-From: Arnd Bergmann <arnd@arndb.de>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D87A6B0012
+	for <linux-mm@kvack.org>; Tue, 14 Jun 2011 12:58:42 -0400 (EDT)
+Received: by fxm18 with SMTP id 18so5551346fxm.14
+        for <linux-mm@kvack.org>; Tue, 14 Jun 2011 09:58:37 -0700 (PDT)
+Content-Type: text/plain; charset=utf-8; format=flowed; delsp=yes
 Subject: Re: [PATCH 08/10] mm: cma: Contiguous Memory Allocator added
-Date: Tue, 14 Jun 2011 18:03:00 +0200
-References: <1307699698-29369-1-git-send-email-m.szyprowski@samsung.com> <201106141549.29315.arnd@arndb.de> <op.vw2jmhir3l0zgt@mnazarewicz-glaptop>
-In-Reply-To: <op.vw2jmhir3l0zgt@mnazarewicz-glaptop>
+References: <1307699698-29369-1-git-send-email-m.szyprowski@samsung.com>
+ <201106141549.29315.arnd@arndb.de> <op.vw2jmhir3l0zgt@mnazarewicz-glaptop>
+ <201106141803.00876.arnd@arndb.de>
+Date: Tue, 14 Jun 2011 18:58:35 +0200
 MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="utf-8"
 Content-Transfer-Encoding: 7bit
-Message-Id: <201106141803.00876.arnd@arndb.de>
+From: "Michal Nazarewicz" <mina86@mina86.com>
+Message-ID: <op.vw2r3xrj3l0zgt@mnazarewicz-glaptop>
+In-Reply-To: <201106141803.00876.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Nazarewicz <mina86@mina86.com>
+To: Arnd Bergmann <arnd@arndb.de>
 Cc: Marek Szyprowski <m.szyprowski@samsung.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Andrew Morton' <akpm@linux-foundation.org>, 'KAMEZAWA Hiroyuki' <kamezawa.hiroyu@jp.fujitsu.com>, 'Ankita Garg' <ankita@in.ibm.com>, 'Daniel Walker' <dwalker@codeaurora.org>, 'Mel Gorman' <mel@csn.ul.ie>, 'Jesse Barker' <jesse.barker@linaro.org>
 
-On Tuesday 14 June 2011, Michal Nazarewicz wrote:
-> On Tue, 14 Jun 2011 15:49:29 +0200, Arnd Bergmann <arnd@arndb.de> wrote:
-> > Please explain the exact requirements that lead you to defining multiple
-> > contexts.
-> 
-> Some devices may have access only to some banks of memory.  Some devices
-> may use different banks of memory for different purposes.
+>> On Tue, 14 Jun 2011 15:49:29 +0200, Arnd Bergmann <arnd@arndb.de> wrote:
+>>> Please explain the exact requirements that lead you to defining  
+>>> multiple contexts.
 
-For all I know, that is something that is only true for a few very special
-Samsung devices, and is completely unrelated of the need for contiguous
-allocations, so this approach becomes pointless as soon as the next
-generation of that chip grows an IOMMU, where we don't handle the special
-bank attributes. Also, the way I understood the situation for the Samsung
-SoC during the Budapest discussion, it's only a performance hack, not a
-functional requirement, unless you count '1080p playback' as a functional
-requirement.
+> On Tuesday 14 June 2011, Michal Nazarewicz wrote:
+>> Some devices may have access only to some banks of memory.  Some devices
+>> may use different banks of memory for different purposes.
 
-Supporting contiguous allocation is a very useful goal and many people want
-this, but supporting a crazy one-off hardware design with lots of generic
-infrastructure is going a bit too far. If you can't be more specific than
-'some devices may need this', I would suggest going forward without having
-multiple regions:
+On Tue, 14 Jun 2011 18:03:00 +0200, Arnd Bergmann wrote:
+> For all I know, that is something that is only true for a few very  
+> special Samsung devices,
 
-* Remove the registration of specific addresses from the initial patch
-  set (but keep the patch).
-* Add a heuristic plus command-line override to automatically come up
-  with a reasonable location+size for *one* CMA area in the system.
-* Ship the patch to add support for multiple CMA areas with the BSP
-  for the boards that need it (if any).
-* Wait for someone on a non-Samsung SoC to run into the same problem,
-  then have /them/ get the final patch in.
+Maybe.  I'm just answering your question. :)
 
-Even if you think you can convince enough people that having support
-for distinct predefined regions is a good idea, I would recommend
-splitting that out of the initial merge so we can have that discussion
-separately from the other issues.
+Ah yes, I forgot that separate regions for different purposes could
+decrease fragmentation.
 
-	Arnd
+> I would suggest going forward without having multiple regions:
+
+Is having support for multiple regions a bad thing?  Frankly,
+removing this support will change code from reading context passed
+as argument to code reading context from global variable.  Nothing
+is gained; functionality is lost.
+
+> * Remove the registration of specific addresses from the initial patch
+>   set (but keep the patch).
+> * Add a heuristic plus command-line override to automatically come up
+>   with a reasonable location+size for *one* CMA area in the system.
+
+I'm not arguing those.
+
+-- 
+Best regards,                                         _     _
+.o. | Liege of Serenely Enlightened Majesty of      o' \,=./ `o
+..o | Computer Science,  Michal "mina86" Nazarewicz    (o o)
+ooo +-----<email/xmpp: mnazarewicz@google.com>-----ooO--(_)--Ooo--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
