@@ -1,49 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 8AD226B0012
-	for <linux-mm@kvack.org>; Tue, 14 Jun 2011 14:30:40 -0400 (EDT)
-From: Arnd Bergmann <arnd@arndb.de>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 74A4C6B0012
+	for <linux-mm@kvack.org>; Tue, 14 Jun 2011 14:40:57 -0400 (EDT)
+Received: by fxm18 with SMTP id 18so5633336fxm.14
+        for <linux-mm@kvack.org>; Tue, 14 Jun 2011 11:40:48 -0700 (PDT)
+Content-Type: text/plain; charset=utf-8; format=flowed; delsp=yes
 Subject: Re: [PATCH 08/10] mm: cma: Contiguous Memory Allocator added
-Date: Tue, 14 Jun 2011 20:30:07 +0200
-References: <1307699698-29369-1-git-send-email-m.szyprowski@samsung.com> <201106141803.00876.arnd@arndb.de> <op.vw2r3xrj3l0zgt@mnazarewicz-glaptop>
-In-Reply-To: <op.vw2r3xrj3l0zgt@mnazarewicz-glaptop>
+References: <1307699698-29369-1-git-send-email-m.szyprowski@samsung.com>
+ <201106141803.00876.arnd@arndb.de> <op.vw2r3xrj3l0zgt@mnazarewicz-glaptop>
+ <201106142030.07549.arnd@arndb.de>
+Date: Tue, 14 Jun 2011 20:40:46 +0200
 MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="utf-8"
-Content-Transfer-Encoding: 7bit
-Message-Id: <201106142030.07549.arnd@arndb.de>
+Content-Transfer-Encoding: Quoted-Printable
+From: "Michal Nazarewicz" <mina86@mina86.com>
+Message-ID: <op.vw2wt8cs3l0zgt@mnazarewicz-glaptop>
+In-Reply-To: <201106142030.07549.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Nazarewicz <mina86@mina86.com>
+To: Arnd Bergmann <arnd@arndb.de>
 Cc: Marek Szyprowski <m.szyprowski@samsung.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Andrew Morton' <akpm@linux-foundation.org>, 'KAMEZAWA Hiroyuki' <kamezawa.hiroyu@jp.fujitsu.com>, 'Ankita Garg' <ankita@in.ibm.com>, 'Daniel Walker' <dwalker@codeaurora.org>, 'Mel Gorman' <mel@csn.ul.ie>, 'Jesse Barker' <jesse.barker@linaro.org>
 
-On Tuesday 14 June 2011 18:58:35 Michal Nazarewicz wrote:
-> On Tue, 14 Jun 2011 18:03:00 +0200, Arnd Bergmann wrote:
-> > For all I know, that is something that is only true for a few very  
-> > special Samsung devices,
-> 
-> Maybe.  I'm just answering your question. :)
-> 
-> Ah yes, I forgot that separate regions for different purposes could
-> decrease fragmentation.
+> On Tuesday 14 June 2011 18:58:35 Michal Nazarewicz wrote:
+>> Is having support for multiple regions a bad thing?  Frankly,
+>> removing this support will change code from reading context passed
+>> as argument to code reading context from global variable.  Nothing
+>> is gained; functionality is lost.
 
-That is indeed a good point, but having a good allocator algorithm
-could also solve this. I don't know too much about these allocation
-algorithms, but there are probably multiple working approaches to this.
+On Tue, 14 Jun 2011 20:30:07 +0200, Arnd Bergmann wrote:
+> What is bad IMHO is making them the default, which forces the board
+> code to care about memory management details. I would much prefer
+> to have contiguous allocation parameters tuned automatically to just
+> work on most boards before we add ways to do board-specific hacks.
 
-> > I would suggest going forward without having multiple regions:
-> 
-> Is having support for multiple regions a bad thing?  Frankly,
-> removing this support will change code from reading context passed
-> as argument to code reading context from global variable.  Nothing
-> is gained; functionality is lost.
+I see those as orthogonal problems.  The code can have support for
+multiple contexts but by default use a single global context exported
+as cma_global variable (or some such).
 
-What is bad IMHO is making them the default, which forces the board
-code to care about memory management details. I would much prefer
-to have contiguous allocation parameters tuned automatically to just
-work on most boards before we add ways to do board-specific hacks.
+And I'm not arguing against having =E2=80=9Ccontiguous allocation parame=
+ters
+tuned automatically to just work on most boards=E2=80=9D.  I just don't =
+see
+the reason to delete functionality that is already there, does not
+add much code and can be useful.
 
-	Arnd
+-- =
+
+Best regards,                                         _     _
+.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
+..o | Computer Science,  Michal "mina86" Nazarewicz    (o o)
+ooo +-----<email/xmpp: mnazarewicz@google.com>-----ooO--(_)--Ooo--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
