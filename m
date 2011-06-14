@@ -1,43 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 2F4946B0012
-	for <linux-mm@kvack.org>; Tue, 14 Jun 2011 05:42:42 -0400 (EDT)
-Date: Tue, 14 Jun 2011 11:42:30 +0200
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 0F2766B0012
+	for <linux-mm@kvack.org>; Tue, 14 Jun 2011 05:44:48 -0400 (EDT)
+Date: Tue, 14 Jun 2011 11:44:39 +0200
 From: Johannes Weiner <jweiner@redhat.com>
-Subject: Re: [BUGFIX][PATCH 1/5] memcg fix numa_stat permission
-Message-ID: <20110614094230.GA6371@redhat.com>
+Subject: Re: [BUGFIX][PATCH 2/5] memcg: fix init_page_cgroup nid with
+ sparsemem
+Message-ID: <20110614094439.GB6371@redhat.com>
 References: <20110613120054.3336e997.kamezawa.hiroyu@jp.fujitsu.com>
- <20110613120301.09daa339.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110613120608.d5243bc9.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110613120301.09daa339.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110613120608.d5243bc9.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "bsingharora@gmail.com" <bsingharora@gmail.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Ying Han <yinghan@google.com>
 
-On Mon, Jun 13, 2011 at 12:03:01PM +0900, KAMEZAWA Hiroyuki wrote:
-> This is already queued in mmotm.
+On Mon, Jun 13, 2011 at 12:06:08PM +0900, KAMEZAWA Hiroyuki wrote:
+> added some clean ups.
 > ==
-> >From 3b1bec1d07ba21339697f069acab47dae6b81097 Mon Sep 17 00:00:00 2001
+> >From 45b8881201f73015c4e0352eb7e434f6e9c53fdd Mon Sep 17 00:00:00 2001
 > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Date: Mon, 13 Jun 2011 09:32:28 +0900
-> Subject: [PATCH 1/5] memcg fix numa_stat permission
+> Date: Mon, 13 Jun 2011 10:09:17 +0900
+> Subject: [PATCH 2/5] [BUGFIX] memcg: fix init_page_cgroup nid with sparsemem
 > 
-> commit 406eb0c9b ("memcg: add memory.numastat api for numa statistics")
->  adds memory.numa_stat file for memory cgroup.  But the file permissions
->  are wrong.
 > 
-> [kamezawa@bluextal linux-2.6]$ ls -l /cgroup/memory/A/memory.numa_stat
-> ---------- 1 root root 0 Jun  9 18:36 /cgroup/memory/A/memory.numa_stat
+> commit 21a3c96 makes page_cgroup allocation as NUMA aware. But that caused
+> a problem https://bugzilla.kernel.org/show_bug.cgi?id=36192.
 > 
-> This patch fixes the permission as
+> The problem was getting a NID from invalid struct pages, which was not
+> initialized because it was out-of-node, out of [node_start_pfn, node_end_pfn)
 > 
-> [root@bluextal kamezawa]# ls -l /cgroup/memory/A/memory.numa_stat
-> -r--r--r-- 1 root root 0 Jun 10 16:49 /cgroup/memory/A/memory.numa_stat
+> Now, with sparsemem, page_cgroup_init scans pfn from 0 to max_pfn.
+> But this may scan a pfn which is not on any node and can access
+> memmap which is not initialized.
 > 
-> Acked-by: Ying Han <yinghan@google.com>
+> This makes page_cgroup_init() for SPARSEMEM node aware and remove
+> a code to get nid from page->flags. (Then, we'll use valid NID
+> always.)
+> 
 > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 Acked-by: Johannes Weiner <jweiner@redhat.com>
