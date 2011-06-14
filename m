@@ -1,61 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D87A6B0012
-	for <linux-mm@kvack.org>; Tue, 14 Jun 2011 12:58:42 -0400 (EDT)
-Received: by fxm18 with SMTP id 18so5551346fxm.14
-        for <linux-mm@kvack.org>; Tue, 14 Jun 2011 09:58:37 -0700 (PDT)
-Content-Type: text/plain; charset=utf-8; format=flowed; delsp=yes
-Subject: Re: [PATCH 08/10] mm: cma: Contiguous Memory Allocator added
+	by kanga.kvack.org (Postfix) with ESMTP id 702E46B0012
+	for <linux-mm@kvack.org>; Tue, 14 Jun 2011 13:02:04 -0400 (EDT)
+Date: Tue, 14 Jun 2011 18:01:58 +0100
+From: Daniel Stone <daniels@collabora.com>
+Subject: Re: [Linaro-mm-sig] [PATCH 08/10] mm: cma: Contiguous Memory
+ Allocator added
+Message-ID: <20110614170158.GU2419@fooishbar.org>
 References: <1307699698-29369-1-git-send-email-m.szyprowski@samsung.com>
- <201106141549.29315.arnd@arndb.de> <op.vw2jmhir3l0zgt@mnazarewicz-glaptop>
+ <201106141549.29315.arnd@arndb.de>
+ <op.vw2jmhir3l0zgt@mnazarewicz-glaptop>
  <201106141803.00876.arnd@arndb.de>
-Date: Tue, 14 Jun 2011 18:58:35 +0200
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7bit
-From: "Michal Nazarewicz" <mina86@mina86.com>
-Message-ID: <op.vw2r3xrj3l0zgt@mnazarewicz-glaptop>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 In-Reply-To: <201106141803.00876.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Arnd Bergmann <arnd@arndb.de>
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Andrew Morton' <akpm@linux-foundation.org>, 'KAMEZAWA Hiroyuki' <kamezawa.hiroyu@jp.fujitsu.com>, 'Ankita Garg' <ankita@in.ibm.com>, 'Daniel Walker' <dwalker@codeaurora.org>, 'Mel Gorman' <mel@csn.ul.ie>, 'Jesse Barker' <jesse.barker@linaro.org>
+Cc: Michal Nazarewicz <mina86@mina86.com>, 'Ankita Garg' <ankita@in.ibm.com>, 'Daniel Walker' <dwalker@codeaurora.org>, 'Jesse Barker' <jesse.barker@linaro.org>, 'Mel Gorman' <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'KAMEZAWA Hiroyuki' <kamezawa.hiroyu@jp.fujitsu.com>, 'Andrew Morton' <akpm@linux-foundation.org>, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org
 
->> On Tue, 14 Jun 2011 15:49:29 +0200, Arnd Bergmann <arnd@arndb.de> wrote:
->>> Please explain the exact requirements that lead you to defining  
->>> multiple contexts.
+Hi,
 
+On Tue, Jun 14, 2011 at 06:03:00PM +0200, Arnd Bergmann wrote:
 > On Tuesday 14 June 2011, Michal Nazarewicz wrote:
->> Some devices may have access only to some banks of memory.  Some devices
->> may use different banks of memory for different purposes.
+> > On Tue, 14 Jun 2011 15:49:29 +0200, Arnd Bergmann <arnd@arndb.de> wrote:
+> > > Please explain the exact requirements that lead you to defining multiple
+> > > contexts.
+> > 
+> > Some devices may have access only to some banks of memory.  Some devices
+> > may use different banks of memory for different purposes.
+> 
+> For all I know, that is something that is only true for a few very special
+> Samsung devices, and is completely unrelated of the need for contiguous
+> allocations, so this approach becomes pointless as soon as the next
+> generation of that chip grows an IOMMU, where we don't handle the special
+> bank attributes. Also, the way I understood the situation for the Samsung
+> SoC during the Budapest discussion, it's only a performance hack, not a
+> functional requirement, unless you count '1080p playback' as a functional
+> requirement.
 
-On Tue, 14 Jun 2011 18:03:00 +0200, Arnd Bergmann wrote:
-> For all I know, that is something that is only true for a few very  
-> special Samsung devices,
+Hm, I think that was something similar but not quite the same: talking
+about having allocations split to lie between two banks of RAM to
+maximise the read/write speed for performance reasons.  That's something
+that can be handled in the allocator, rather than an API constraint, as
+this is.
 
-Maybe.  I'm just answering your question. :)
+Not that I know of any hardware which is limited as such, but eh.
 
-Ah yes, I forgot that separate regions for different purposes could
-decrease fragmentation.
-
-> I would suggest going forward without having multiple regions:
-
-Is having support for multiple regions a bad thing?  Frankly,
-removing this support will change code from reading context passed
-as argument to code reading context from global variable.  Nothing
-is gained; functionality is lost.
-
-> * Remove the registration of specific addresses from the initial patch
->   set (but keep the patch).
-> * Add a heuristic plus command-line override to automatically come up
->   with a reasonable location+size for *one* CMA area in the system.
-
-I'm not arguing those.
-
--- 
-Best regards,                                         _     _
-.o. | Liege of Serenely Enlightened Majesty of      o' \,=./ `o
-..o | Computer Science,  Michal "mina86" Nazarewicz    (o o)
-ooo +-----<email/xmpp: mnazarewicz@google.com>-----ooO--(_)--Ooo--
+Cheers,
+Daniel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
