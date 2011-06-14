@@ -1,60 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 736FD6B00EC
-	for <linux-mm@kvack.org>; Tue, 14 Jun 2011 11:04:56 -0400 (EDT)
-Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
-	by e3.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p5EEgLv4013325
-	for <linux-mm@kvack.org>; Tue, 14 Jun 2011 10:42:21 -0400
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p5EF4sMG122492
-	for <linux-mm@kvack.org>; Tue, 14 Jun 2011 11:04:54 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p5EF4nWO018002
-	for <linux-mm@kvack.org>; Tue, 14 Jun 2011 11:04:54 -0400
-Date: Tue, 14 Jun 2011 20:27:06 +0530
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D0666B00ED
+	for <linux-mm@kvack.org>; Tue, 14 Jun 2011 11:08:16 -0400 (EDT)
 Subject: Re: [PATCH v4 3.0-rc2-tip 2/22]  2: uprobes: Breakground page
  replacement.
-Message-ID: <20110614145706.GD4952@linux.vnet.ibm.com>
-Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-References: <20110607125804.28590.92092.sendpatchset@localhost6.localdomain6>
- <20110607125835.28590.25476.sendpatchset@localhost6.localdomain6>
- <1307660609.2497.1773.camel@laptop>
- <20110613085955.GD27130@linux.vnet.ibm.com>
- <1308056249.19856.34.camel@twins>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <1308056249.19856.34.camel@twins>
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <20110614142710.GB5139@redhat.com>
+References: 
+	 <20110607125804.28590.92092.sendpatchset@localhost6.localdomain6>
+	 <20110607125835.28590.25476.sendpatchset@localhost6.localdomain6>
+	 <20110613170020.GA27137@redhat.com> <1308056477.19856.35.camel@twins>
+	 <20110614142710.GB5139@redhat.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+Date: Tue, 14 Jun 2011 17:07:33 +0200
+Message-ID: <1308064053.19856.75.camel@twins>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Andi Kleen <andi@firstfloor.org>, Thomas Gleixner <tglx@linutronix.de>, Jonathan Corbet <corbet@lwn.net>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, LKML <linux-kernel@vger.kernel.org>
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Andi Kleen <andi@firstfloor.org>, Thomas Gleixner <tglx@linutronix.de>, Jonathan Corbet <corbet@lwn.net>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, LKML <linux-kernel@vger.kernel.org>
 
-> > 
-> > /*
-> >  * NOTE:
-> >  * Expect the breakpoint instruction to be the smallest size instruction for
-> >  * the architecture. If an arch has variable length instruction and the
-> >  * breakpoint instruction is not of the smallest length instruction
-> >  * supported by that architecture then we need to modify read_opcode /
-> >  * write_opcode accordingly. This would never be a problem for archs that
-> >  * have fixed length instructions.
-> >  */
-> 
-> Whoever reads comments anyway? :-)
-> 
-> > Do we have archs which have a breakpoint instruction which isnt of the
-> > smallest instruction size for that arch. If we do have can we change the
-> > write_opcode/read_opcode while we support that architecture?
-> 
-> Why not put a simple WARN_ON_ONCE() in there that checks the assumption?
+On Tue, 2011-06-14 at 16:27 +0200, Oleg Nesterov wrote:
+> On 06/14, Peter Zijlstra wrote:
+> >
+> > On Mon, 2011-06-13 at 19:00 +0200, Oleg Nesterov wrote:
+> > >
+> > > Also. This is called under down_read(mmap_sem), can't we race with
+> > > access_process_vm() modifying the same memory?
+> >
+> > Shouldn't matter COW and similar things are serialized using the pte
+> > lock.
+>=20
+> Yes, but afaics this doesn't matter. Suppose that write_opcode() is
+> called when access_process_vm() does copy_to_user_page(). We can cow
+> the page before memcpy() completes.
 
-Okay, will do.
+access_process_vm() will end up doing a FOLL_WRITE itself when
+copy_to_user_page() is called since write=3D1 in that case.
 
--- 
-Thanks and Regards
-Srikar
+At that point we have a COW-race, someone wins, but the other will then
+return the same page.
+
+At this point further PTRACE pokes can indeed race with the memcpy in
+write_opcode(). A possible fix would be to lock_page() around
+copy_to_user_page() (its already done in set_page_dirty_lock(), so
+pulling it out shouldn't matter much).
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
