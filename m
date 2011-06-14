@@ -1,53 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 264286B0012
-	for <linux-mm@kvack.org>; Tue, 14 Jun 2011 01:00:08 -0400 (EDT)
-Subject: Re: [PATCH] slub: fix kernel BUG at mm/slub.c:1950!
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <BANLkTik-KGtuoVFKvy_rk7voBRAxSsR9FRg0fhb0k3NCSg-fWQ@mail.gmail.com>
-References: <alpine.LSU.2.00.1106121842250.31463@sister.anvils>
-	 <alpine.DEB.2.00.1106131258300.3108@router.home>
-	 <1307990048.11288.3.camel@jaguar>
-	 <alpine.DEB.2.00.1106131428560.5601@router.home>
-	 <BANLkTi=RYq0Dd210VC+NeTXWWuFbz7cxeg@mail.gmail.com>
-	 <BANLkTik-KGtuoVFKvy_rk7voBRAxSsR9FRg0fhb0k3NCSg-fWQ@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 14 Jun 2011 14:51:18 +1000
-Message-ID: <1308027078.2874.1005.camel@pasglop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 7C61B6B0012
+	for <linux-mm@kvack.org>; Tue, 14 Jun 2011 03:36:56 -0400 (EDT)
+Date: Tue, 14 Jun 2011 09:36:51 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [BUGFIX][PATCH 5/5] memcg: fix percpu cached charge draining
+ frequency
+Message-ID: <20110614073651.GA21197@tiehlicka.suse.cz>
+References: <20110613120054.3336e997.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110613121648.3d28afcd.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110613121648.3d28afcd.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Pekka Enberg <penberg@kernel.org>, linux-mm <linux-mm@kvack.org>, Christoph Lameter <cl@linux.com>, "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "bsingharora@gmail.com" <bsingharora@gmail.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, Ying Han <yinghan@google.com>
 
-On Mon, 2011-06-13 at 14:00 -0700, Hugh Dickins wrote:
-> On Mon, Jun 13, 2011 at 1:34 PM, Pekka Enberg <penberg@kernel.org> wrote:
-> > On Mon, Jun 13, 2011 at 10:29 PM, Christoph Lameter <cl@linux.com> wrote:
-> >> On Mon, 13 Jun 2011, Pekka Enberg wrote:
-> >>
-> >>> > Hmmm.. The allocpercpu in alloc_kmem_cache_cpus should take care of the
-> >>> > alignment. Uhh.. I see that a patch that removes the #ifdef CMPXCHG_LOCAL
-> >>> > was not applied? Pekka?
-> >>>
-> >>> This patch?
-> >>>
-> >>> http://git.kernel.org/?p=linux/kernel/git/penberg/slab-2.6.git;a=commitdiff;h=d4d84fef6d0366b585b7de13527a0faeca84d9ce
-> >>>
-> >>> It's queued and will be sent to Linus soon.
-> >>
-> >> Ok it will also fix Hugh's problem then.
-> >
-> > It's in Linus' tree now. Hugh, can you please confirm it fixes your machine too?
+On Mon 13-06-11 12:16:48, KAMEZAWA Hiroyuki wrote:
+> From 18b12e53f1cdf6d7feed1f9226c189c34866338c Mon Sep 17 00:00:00 2001
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Date: Mon, 13 Jun 2011 11:25:43 +0900
+> Subject: [PATCH 5/5] memcg: fix percpu cached charge draining frequency
 > 
-> I expect it to, thanks: I'll confirm tonight.
+>  For performance, memory cgroup caches some "charge" from res_counter
+>  into per cpu cache. This works well but because it's cache,
+>  it needs to be flushed in some cases. Typical cases are
+>          1. when someone hit limit.
+>          2. when rmdir() is called and need to charges to be 0.
+> 
+> But "1" has problem.
+> 
+> Recently, with large SMP machines, we see many kworker runs because
+> of flushing memcg's cache. Bad things in implementation are
+> that even if a cpu contains a cache for memcg not related to
+> a memcg which hits limit, drain code is called.
+> 
+> This patch does
+> 	D) don't call at softlimit reclaim.
 
->From report to resolution before I got to read the thread, that's how I
-like them ! Thanks guys :-)
+I think this needs some justification. The decision is not that
+obvious IMO. I would say that this is a good decision because cached
+charges will not help to free any memory (at least not directly) during
+background reclaim. What about something like:
+"
+We are not draining per cpu cached charges during soft limit reclaim 
+because background reclaim doesn't care about charges. It tries to free
+some memory and charges will not give any.
+Cached charges might influence only selection of the biggest soft limit
+offender but as the call is done only after the selection has been
+already done it makes no change.
+"
 
-Cheers,
-Ben.
-
+Anyway, wouldn't it be better to have this change separate from the
+async draining logic change?
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
