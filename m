@@ -1,31 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id C100E6B004A
-	for <linux-mm@kvack.org>; Tue, 14 Jun 2011 14:22:58 -0400 (EDT)
-Subject: Re: [PATCH v4 3.0-rc2-tip 2/22]  2: uprobes: Breakground page
- replacement.
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <20110614154052.GA22082@redhat.com>
-References: 
-	 <20110607125804.28590.92092.sendpatchset@localhost6.localdomain6>
-	 <20110607125835.28590.25476.sendpatchset@localhost6.localdomain6>
-	 <20110613170020.GA27137@redhat.com> <1308056477.19856.35.camel@twins>
-	 <20110614142710.GB5139@redhat.com> <1308064053.19856.75.camel@twins>
-	 <20110614154052.GA22082@redhat.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-Date: Tue, 14 Jun 2011 20:22:22 +0200
-Message-ID: <1308075742.19856.77.camel@twins>
-Mime-Version: 1.0
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 8AD226B0012
+	for <linux-mm@kvack.org>; Tue, 14 Jun 2011 14:30:40 -0400 (EDT)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: Re: [PATCH 08/10] mm: cma: Contiguous Memory Allocator added
+Date: Tue, 14 Jun 2011 20:30:07 +0200
+References: <1307699698-29369-1-git-send-email-m.szyprowski@samsung.com> <201106141803.00876.arnd@arndb.de> <op.vw2r3xrj3l0zgt@mnazarewicz-glaptop>
+In-Reply-To: <op.vw2r3xrj3l0zgt@mnazarewicz-glaptop>
+MIME-Version: 1.0
+Content-Type: Text/Plain;
+  charset="utf-8"
+Content-Transfer-Encoding: 7bit
+Message-Id: <201106142030.07549.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Andi Kleen <andi@firstfloor.org>, Thomas Gleixner <tglx@linutronix.de>, Jonathan Corbet <corbet@lwn.net>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, LKML <linux-kernel@vger.kernel.org>
+To: Michal Nazarewicz <mina86@mina86.com>
+Cc: Marek Szyprowski <m.szyprowski@samsung.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Andrew Morton' <akpm@linux-foundation.org>, 'KAMEZAWA Hiroyuki' <kamezawa.hiroyu@jp.fujitsu.com>, 'Ankita Garg' <ankita@in.ibm.com>, 'Daniel Walker' <dwalker@codeaurora.org>, 'Mel Gorman' <mel@csn.ul.ie>, 'Jesse Barker' <jesse.barker@linaro.org>
 
-On Tue, 2011-06-14 at 17:40 +0200, Oleg Nesterov wrote:
-> But do we really care?
+On Tuesday 14 June 2011 18:58:35 Michal Nazarewicz wrote:
+> On Tue, 14 Jun 2011 18:03:00 +0200, Arnd Bergmann wrote:
+> > For all I know, that is something that is only true for a few very  
+> > special Samsung devices,
+> 
+> Maybe.  I'm just answering your question. :)
+> 
+> Ah yes, I forgot that separate regions for different purposes could
+> decrease fragmentation.
 
-probably not :-)
+That is indeed a good point, but having a good allocator algorithm
+could also solve this. I don't know too much about these allocation
+algorithms, but there are probably multiple working approaches to this.
+
+> > I would suggest going forward without having multiple regions:
+> 
+> Is having support for multiple regions a bad thing?  Frankly,
+> removing this support will change code from reading context passed
+> as argument to code reading context from global variable.  Nothing
+> is gained; functionality is lost.
+
+What is bad IMHO is making them the default, which forces the board
+code to care about memory management details. I would much prefer
+to have contiguous allocation parameters tuned automatically to just
+work on most boards before we add ways to do board-specific hacks.
+
+	Arnd
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
