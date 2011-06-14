@@ -1,69 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 6E4AA6B0012
-	for <linux-mm@kvack.org>; Tue, 14 Jun 2011 14:21:14 -0400 (EDT)
-Date: Tue, 14 Jun 2011 11:21:08 -0700
-From: Jesse Barnes <jbarnes@virtuousgeek.org>
-Subject: Re: [Linaro-mm-sig] [RFC 0/2] ARM: DMA-mapping & IOMMU integration
-Message-ID: <20110614112108.0186c562@jbarnes-desktop>
-In-Reply-To: <BANLkTimV5ZXVTDDFqHxMpOkrgokdCp1YXA@mail.gmail.com>
-References: <1306308920-8602-1-git-send-email-m.szyprowski@samsung.com>
-	<BANLkTi=HtrFETnjk1Zu0v9wqa==r0OALvA@mail.gmail.com>
-	<201106131707.49217.arnd@arndb.de>
-	<BANLkTikR5AE=-wTWzrSJ0TUaks0_rA3mcg@mail.gmail.com>
-	<20110613154033.GA29185@1n450.cable.virginmedia.net>
-	<BANLkTikkCV=rWM_Pq6t6EyVRHcWeoMPUqw@mail.gmail.com>
-	<BANLkTi=C6NKT94Fk6Rq6wmhndVixOqC6mg@mail.gmail.com>
-	<20110613115437.62824f2f@jbarnes-desktop>
-	<BANLkTimV5ZXVTDDFqHxMpOkrgokdCp1YXA@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 14F4A6B0012
+	for <linux-mm@kvack.org>; Tue, 14 Jun 2011 14:22:43 -0400 (EDT)
+Content-class: urn:content-classes:message
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+	boundary="----_=_NextPart_001_01CC2ABF.FE7E792D"
+Subject: RE: [PATCH] REPOST: Memory tracking for physical machine migration
+Date: Tue, 14 Jun 2011 14:17:49 -0400
+Message-ID: <AC1B83CE65082B4DBDDB681ED2F6B2EF12E044@EXHQ.corp.stratus.com>
+References: <20110610231850.6327.24452.sendpatchset@localhost.localdomain> <20110611075516.GA7745@infradead.org>
+From: "Paradis, James" <James.Paradis@stratus.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: M.K.Edwards@gmail.com
-Cc: KyongHo Cho <pullip.cho@samsung.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Arnd Bergmann <arnd@arndb.de>, Catalin Marinas <catalin.marinas@arm.com>, Joerg Roedel <joro@8bytes.org>, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, Kyungmin Park <kyungmin.park@samsung.com>, linux-arm-kernel@lists.infradead.org
+To: Christoph Hellwig <hch@infradead.org>
+Cc: linux-mm@kvack.org
 
-On Tue, 14 Jun 2011 11:15:38 -0700
-"Michael K. Edwards" <m.k.edwards@gmail.com> wrote:
-> What doesn't seem to be straightforward to do from userland is to
-> allocate pages that are locked to physical memory and mapped for
-> write-combining.  The device driver shouldn't have to mediate their
-> allocation, just map to a physical address (or set up an IOMMU entry,
-> I suppose) and pass that to the hardware that needs it.  Typical
-> userland code that could use such a mechanism would be the Qt/OpenGL
-> back end (which needs to store decompressed images and other
-> pre-rendered assets in GPU-ready buffers) and media pipelines.
+This is a multi-part message in MIME format.
 
-We try to avoid allowing userspace to pin arbitrary buffers though.  So
-on the gfx side, userspace can allocate buffers, but they're only
-actually pinned when some operation is performed on them (e.g. they're
-referenced in a command buffer or used for a mode set operation).
+------_=_NextPart_001_01CC2ABF.FE7E792D
+Content-Type: text/plain;
+	charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
 
-Something like ION or GEM can provide the basic alloc & map API, but
-the platform code still has to deal with grabbing hunks of memory,
-making them uncached or write combine, and mapping them to app space
-without conflicts.
 
-> Also a nice source of sample code; though, again, I don't want this to
-> be driver-specific.  I might want a stage in my media pipeline that
-> uses the GPU to perform, say, lens distortion correction.  I shouldn't
-> have to go through contortions to use the same buffers from the GPU
-> and the video capture device.  The two devices are likely to have
-> their own variants on scatter-gather DMA, with a circularly linked
-> list of block descriptors with ownership bits and all that jazz; but
-> the actual data buffers should be generic, and the userland pipeline
-> setup code should just allocate them (presumably as contiguous regions
-> in a write-combining hugepage) and feed them to the plumbing.
 
-Totally agree.  That's one reason I don't think enhancing the DMA
-mapping API in the kernel is a complete solution.  Sure, the platform
-code needs to be able to map buffers to devices and use any available
-IOMMUs, but we still need a userspace API for all of that, with its
-associated changes to the CPU MMU handling.
 
--- 
-Jesse Barnes, Intel Open Source Technology Center
+-----Original Message-----
+> From: Christoph Hellwig [mailto:hch@infradead.org]
+> =20
+> On Fri, Jun 10, 2011 at 07:19:06PM -0400, Jim Paradis wrote:
+>> [tried posting this a couple days ago... kept having formatting =
+problems
+>> with the exchange server.  Let's see how this works...]
+>=20
+> Much more important is the problem that the patch is utterly useless
+> as-is.  It just adds adds exports, but no real functionality.  It's =
+not
+> like I have told you exactly that a million times before, but given =
+that
+> you don't want to listen it might just be easier to ignore your =
+patches.
+
+Okay, then, help me out here.  What would it take for this to be =
+accepted?
+Would you like us to incorporate the memory-harvesting code from LKSM as =
+well?
+
+--jim
+
+
+
+------_=_NextPart_001_01CC2ABF.FE7E792D
+Content-Type: text/html;
+	charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+<HEAD>
+<META HTTP-EQUIV=3D"Content-Type" CONTENT=3D"text/html; =
+charset=3Diso-8859-1">
+<META NAME=3D"Generator" CONTENT=3D"MS Exchange Server version =
+6.5.7654.12">
+<TITLE>RE: [PATCH] REPOST: Memory tracking for physical machine =
+migration</TITLE>
+</HEAD>
+<BODY>
+<!-- Converted from text/plain format -->
+<BR>
+<BR>
+<BR>
+
+<P><FONT SIZE=3D2>-----Original Message-----<BR>
+&gt; From: Christoph Hellwig [<A =
+HREF=3D"mailto:hch@infradead.org">mailto:hch@infradead.org</A>]<BR>
+&gt;&nbsp;<BR>
+&gt; On Fri, Jun 10, 2011 at 07:19:06PM -0400, Jim Paradis wrote:<BR>
+&gt;&gt; [tried posting this a couple days ago... kept having formatting =
+problems<BR>
+&gt;&gt; with the exchange server.&nbsp; Let's see how this =
+works...]<BR>
+&gt;<BR>
+&gt; Much more important is the problem that the patch is utterly =
+useless<BR>
+&gt; as-is.&nbsp; It just adds adds exports, but no real =
+functionality.&nbsp; It's not<BR>
+&gt; like I have told you exactly that a million times before, but given =
+that<BR>
+&gt; you don't want to listen it might just be easier to ignore your =
+patches.<BR>
+<BR>
+Okay, then, help me out here.&nbsp; What would it take for this to be =
+accepted?<BR>
+Would you like us to incorporate the memory-harvesting code from LKSM as =
+well?<BR>
+<BR>
+--jim<BR>
+<BR>
+<BR>
+</FONT>
+</P>
+
+</BODY>
+</HTML>
+------_=_NextPart_001_01CC2ABF.FE7E792D--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
