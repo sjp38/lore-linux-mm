@@ -1,55 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 454B46B0012
-	for <linux-mm@kvack.org>; Tue, 14 Jun 2011 16:43:44 -0400 (EDT)
-From: Arnd Bergmann <arnd@arndb.de>
-Subject: Re: [Linaro-mm-sig] [PATCH 08/10] mm: cma: Contiguous Memory Allocator added
-Date: Tue, 14 Jun 2011 22:42:24 +0200
-References: <1307699698-29369-1-git-send-email-m.szyprowski@samsung.com> <20110614170158.GU2419@fooishbar.org> <BANLkTi=cJisuP8=_YSg4h-nsjGj3zsM7sg@mail.gmail.com>
-In-Reply-To: <BANLkTi=cJisuP8=_YSg4h-nsjGj3zsM7sg@mail.gmail.com>
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 5824A6B0012
+	for <linux-mm@kvack.org>; Tue, 14 Jun 2011 16:59:16 -0400 (EDT)
+Received: by ywb26 with SMTP id 26so3691287ywb.14
+        for <linux-mm@kvack.org>; Tue, 14 Jun 2011 13:59:14 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Message-Id: <201106142242.25157.arnd@arndb.de>
+Reply-To: M.K.Edwards@gmail.com
+In-Reply-To: <20110614112108.0186c562@jbarnes-desktop>
+References: <1306308920-8602-1-git-send-email-m.szyprowski@samsung.com>
+	<BANLkTi=HtrFETnjk1Zu0v9wqa==r0OALvA@mail.gmail.com>
+	<201106131707.49217.arnd@arndb.de>
+	<BANLkTikR5AE=-wTWzrSJ0TUaks0_rA3mcg@mail.gmail.com>
+	<20110613154033.GA29185@1n450.cable.virginmedia.net>
+	<BANLkTikkCV=rWM_Pq6t6EyVRHcWeoMPUqw@mail.gmail.com>
+	<BANLkTi=C6NKT94Fk6Rq6wmhndVixOqC6mg@mail.gmail.com>
+	<20110613115437.62824f2f@jbarnes-desktop>
+	<BANLkTimV5ZXVTDDFqHxMpOkrgokdCp1YXA@mail.gmail.com>
+	<20110614112108.0186c562@jbarnes-desktop>
+Date: Tue, 14 Jun 2011 13:59:14 -0700
+Message-ID: <BANLkTi=n+sig+JE5cCEdBqw1WwBn+2VZBA@mail.gmail.com>
+Subject: Re: [Linaro-mm-sig] [RFC 0/2] ARM: DMA-mapping & IOMMU integration
+From: "Michael K. Edwards" <m.k.edwards@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zach Pfeffer <zach.pfeffer@linaro.org>
-Cc: Daniel Stone <daniels@collabora.com>, Michal Nazarewicz <mina86@mina86.com>, Ankita Garg <ankita@in.ibm.com>, Daniel Walker <dwalker@codeaurora.org>, Jesse Barker <jesse.barker@linaro.org>, Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, Kyungmin Park <kyungmin.park@samsung.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org
+To: Jesse Barnes <jbarnes@virtuousgeek.org>
+Cc: KyongHo Cho <pullip.cho@samsung.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Arnd Bergmann <arnd@arndb.de>, Catalin Marinas <catalin.marinas@arm.com>, Joerg Roedel <joro@8bytes.org>, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, Kyungmin Park <kyungmin.park@samsung.com>, linux-arm-kernel@lists.infradead.org
 
-On Tuesday 14 June 2011 20:58:25 Zach Pfeffer wrote:
-> I've seen this split bank allocation in Qualcomm and TI SoCs, with
-> Samsung, that makes 3 major SoC vendors (I would be surprised if
-> Nvidia didn't also need to do this) - so I think some configurable
-> method to control allocations is necessarily. The chips can't do
-> decode without it (and by can't do I mean 1080P and higher decode is
-> not functionally useful). Far from special, this would appear to be
-> the default.
+On Tue, Jun 14, 2011 at 11:21 AM, Jesse Barnes <jbarnes@virtuousgeek.org> w=
+rote:
+> We try to avoid allowing userspace to pin arbitrary buffers though. =A0So
+> on the gfx side, userspace can allocate buffers, but they're only
+> actually pinned when some operation is performed on them (e.g. they're
+> referenced in a command buffer or used for a mode set operation).
 
-Thanks for the insight, that's a much better argument than 'something
-may need it'. Are those all chips without an IOMMU or do we also
-need to solve the IOMMU case with split bank allocation?
+The issue isn't so much pinning; I don't really care if the physical
+memory moves out from under me as long as the mappings are properly
+updated in all the process page tables that share it and all the
+hardware units that care.  But the mapping has to have the right cache
+policy from the beginning, so that I get the important part of write
+combining (the fill buffer allocation -- without bothering to load
+contents from DRAM that are likely to be completely clobbered -- and
+the cache-line-sized flush once it's filled).  In any case, supposedly
+there are weird aliasing issues if you try to take a page that is
+already mapped cacheable and remap it write-combine; and in the case
+of shared pages, you'd need to look up all processes that have the
+page mapped and alter their page tables, even if they're currently
+running on other SMP cores.  Nasty.
 
-I think I'd still prefer to see the support for multiple regions split
-out into one of the later patches, especially since that would defer
-the question of how to do the initialization for this case and make
-sure we first get a generic way.
+Besides, I don't want little 4K pages; I want a hugepage with the
+right cache policy, in which I can build a malloc pool (tcmalloc,
+jemalloc, something like that) and allocate buffers for a variety of
+purposes.  (I also want to use this to pass whole data structures,
+like priority search trees built using offset pointers, among cores
+that don't share a cache hierarchy or a cache coherency protocol.)
 
-You've convinced me that we need to solve the problem of allocating
-memory from a specific bank eventually, but separating it from the
-one at hand (contiguous allocation) should help getting the important
-groundwork in at first.
+Presumably the privilege of write-combine buffer allocation would be
+limited to processes that have been granted the appropriate
+capability; but then that process should be able to share it with
+others.  I would think the natural thing would be for the special-page
+allocation API to return a file descriptor, which can then be passed
+over local domain sockets and mmap()ed by as many processes as
+necessary.  For many usage patterns, there will be no need for a
+kernel virtual mapping; hardware wants physical addresses (or IOMMU
+mappings) anyway.
 
-The possible conflict that I still see with per-bank CMA regions are:
+> Something like ION or GEM can provide the basic alloc & map API, but
+> the platform code still has to deal with grabbing hunks of memory,
+> making them uncached or write combine, and mapping them to app space
+> without conflicts.
 
-* It completely destroys memory power management in cases where that
-  is based on powering down entire memory banks.
+Absolutely.  Much like any other hugepage allocation, right?  Not
+really something ION or GEM or any other device driver needs to be
+involved in.  Except for alignment issues, I suppose; I haven't given
+that much thought.
 
-* We still need to solve the same problem in case of IOMMU mappings
-  at some point, even if today's hardware doesn't have this combination.
-  It would be good to use the same solution for both.
+The part about setting up corresponding mappings to the same physical
+addresses in the device's DMA mechanics is not buffer *allocation*,
+it's buffer *registration*.  That's sort of like V4L2's "user pointer
+I/O" mode, in which the userspace app allocates the buffers and uses
+the QBUF ioctl to register them.  I see no reason why the enforcement
+of minimum alignment and cache policy couldn't be done at buffer
+registration time rather than region allocation time.
 
-	Arnd
+Cheers,
+- Michael
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
