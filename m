@@ -1,313 +1,267 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 24F886B0012
-	for <linux-mm@kvack.org>; Wed, 15 Jun 2011 01:25:53 -0400 (EDT)
-Received: from kpbe14.cbf.corp.google.com (kpbe14.cbf.corp.google.com [172.25.105.78])
-	by smtp-out.google.com with ESMTP id p5F5PmNV014882
-	for <linux-mm@kvack.org>; Tue, 14 Jun 2011 22:25:49 -0700
-Received: from qwi2 (qwi2.prod.google.com [10.241.195.2])
-	by kpbe14.cbf.corp.google.com with ESMTP id p5F5PWX1020455
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id D33326B0012
+	for <linux-mm@kvack.org>; Wed, 15 Jun 2011 01:30:20 -0400 (EDT)
+Received: from hpaq2.eem.corp.google.com (hpaq2.eem.corp.google.com [172.25.149.2])
+	by smtp-out.google.com with ESMTP id p5F5UH6d030645
+	for <linux-mm@kvack.org>; Tue, 14 Jun 2011 22:30:18 -0700
+Received: from qyk29 (qyk29.prod.google.com [10.241.83.157])
+	by hpaq2.eem.corp.google.com with ESMTP id p5F5UFZt008470
 	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 14 Jun 2011 22:25:47 -0700
-Received: by qwi2 with SMTP id 2so48255qwi.22
-        for <linux-mm@kvack.org>; Tue, 14 Jun 2011 22:25:40 -0700 (PDT)
+	for <linux-mm@kvack.org>; Tue, 14 Jun 2011 22:30:16 -0700
+Received: by qyk29 with SMTP id 29so1863053qyk.3
+        for <linux-mm@kvack.org>; Tue, 14 Jun 2011 22:30:15 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20110614142347.8f9634a9.akpm@linux-foundation.org>
-References: <1307079129-31328-1-git-send-email-yinghan@google.com>
-	<20110614142347.8f9634a9.akpm@linux-foundation.org>
-Date: Tue, 14 Jun 2011 22:25:39 -0700
-Message-ID: <BANLkTi=c6YUHVJtdPZs3prXMqQtrsjsCvg@mail.gmail.com>
-Subject: Re: [PATCH resend V2] Eliminate task stack trace duplication.
+In-Reply-To: <20110615104935.ccefc6b5.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20110613120054.3336e997.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110613121648.3d28afcd.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110615104935.ccefc6b5.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Tue, 14 Jun 2011 22:30:15 -0700
+Message-ID: <BANLkTi=FBROyRiM1tZbJGMY2Esmtc=-BSQ@mail.gmail.com>
+Subject: Re: [BUGFIX][PATCH v6] memcg: fix percpu cached charge draining frequency
 From: Ying Han <yinghan@google.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "bsingharora@gmail.com" <bsingharora@gmail.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>
 
-On Tue, Jun 14, 2011 at 2:23 PM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
-> On Thu, =A02 Jun 2011 22:32:09 -0700 Ying Han <yinghan@google.com> wrote:
+On Tue, Jun 14, 2011 at 6:49 PM, KAMEZAWA Hiroyuki
+<kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> This is a repleacement for
+> memcg-fix-percpu-cached-charge-draining-frequency.patch
+> +
+> memcg-fix-percpu-cached-charge-draining-frequency-fix.patch
 >
->> The problem with small dmesg ring buffer like 512k is that only limited =
-number
->> of task traces will be logged. Sometimes we lose important information o=
-nly
->> because of too many duplicated stack traces.
-
-Thank you Andrew reviewing the patch !
-
-> The description would be improved if it were to point out that this
-> problem occurs when dumping lots of stacks in a single operation, such
-> as sysrq-T.
-
-I will add the description on the next post.
-
 >
->> This patch tries to reduce the duplication of task stack trace in the du=
-mp
->> message by hashing the task stack. The hashtable is a 32k pre-allocated =
-buffer
->> during bootup. Then we hash the task stack with stack_depth 32 for each =
-stack
->> entry. Each time if we find the identical task trace in the task stack, =
-we dump
->> only the pid of the task which has the task trace dumped. So it is easy =
-to back
->> track to the full stack with the pid.
->>
->> [ =A0 58.469730] kworker/0:0 =A0 =A0 S 0000000000000000 =A0 =A0 0 =A0 =
-=A0 4 =A0 =A0 =A02 0x00000000
->> [ =A0 58.469735] =A0ffff88082fcfde80 0000000000000046 ffff88082e9d8000 f=
-fff88082fcfc010
->> [ =A0 58.469739] =A0ffff88082fce9860 0000000000011440 ffff88082fcfdfd8 f=
-fff88082fcfdfd8
->> [ =A0 58.469743] =A00000000000011440 0000000000000000 ffff88082fcee180 f=
-fff88082fce9860
->> [ =A0 58.469747] Call Trace:
->> [ =A0 58.469751] =A0[<ffffffff8108525a>] worker_thread+0x24b/0x250
->> [ =A0 58.469754] =A0[<ffffffff8108500f>] ? manage_workers+0x192/0x192
->> [ =A0 58.469757] =A0[<ffffffff810885bd>] kthread+0x82/0x8a
->> [ =A0 58.469760] =A0[<ffffffff8141aed4>] kernel_thread_helper+0x4/0x10
->> [ =A0 58.469763] =A0[<ffffffff8108853b>] ? kthread_worker_fn+0x112/0x112
->> [ =A0 58.469765] =A0[<ffffffff8141aed0>] ? gs_change+0xb/0xb
->> [ =A0 58.469768] kworker/u:0 =A0 =A0 S 0000000000000004 =A0 =A0 0 =A0 =
-=A0 5 =A0 =A0 =A02 0x00000000
->> [ =A0 58.469773] =A0ffff88082fcffe80 0000000000000046 ffff880800000000 f=
-fff88082fcfe010
->> [ =A0 58.469777] =A0ffff88082fcea080 0000000000011440 ffff88082fcfffd8 f=
-fff88082fcfffd8
->> [ =A0 58.469781] =A00000000000011440 0000000000000000 ffff88082fd4e9a0 f=
-fff88082fcea080
->> [ =A0 58.469785] Call Trace:
->> [ =A0 58.469786] <Same stack as pid 4>
->> [ =A0 58.470235] kworker/0:1 =A0 =A0 S 0000000000000000 =A0 =A0 0 =A0 =
-=A013 =A0 =A0 =A02 0x00000000
->> [ =A0 58.470255] =A0ffff88082fd3fe80 0000000000000046 ffff880800000000 f=
-fff88082fd3e010
->> [ =A0 58.470279] =A0ffff88082fcee180 0000000000011440 ffff88082fd3ffd8 f=
-fff88082fd3ffd8
->> [ =A0 58.470301] =A00000000000011440 0000000000000000 ffffffff8180b020 f=
-fff88082fcee180
->> [ =A0 58.470325] Call Trace:
->> [ =A0 58.470332] <Same stack as pid 4>
+> Changelog:
+> =A0- removed unnecessary rcu_read_lock()
+> =A0- removed a fix for softlimit case (move to another independent patch)
+> =A0- make mutex static.
+> =A0- applied comment updates from Andrew Morton.
 >
-> That looks good to me. =A0Not only does it save space, it also makes the
-> human processing of these traces more efficient.
+> A patch for softlimit will follow this.
 >
-> Are these pids unique? =A0What happens if I have a pid 4 in two pid
-> namespaces?
-
-I know that we might have different process sharing the same PID
-within different namespace. How that is handled on the original stack
-trace w/o the dedup? Hmm, I need to look closely into the pid
-namespace.
-
-If that's a problem then we could use the task_struct* as
-> a key or something. =A0Perhaps add a new "stack trace number" field to
-> each trace and increment/display that as the dump proceeds.
-
-
->>
->> ...
->>
->> =A0void
->> =A0show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
->> - =A0 =A0 =A0 =A0 =A0 =A0 unsigned long *stack, unsigned long bp, char *=
-log_lvl)
->> + =A0 =A0 =A0 =A0 =A0 =A0 unsigned long *stack, unsigned long bp, char *=
-log_lvl,
->> + =A0 =A0 =A0 =A0 =A0 =A0 int index)
->
-> The `index' arg is a bit mysterious, especially as it has such a bland na=
-me.
-
->
-
- Please document it somewhere (perhaps here). =A0Include a description of
-> the magical value 0.
-
-ok, will make better documentation.
-
->
->> =A0{
->> - =A0 =A0 printk("%sCall Trace:\n", log_lvl);
->> - =A0 =A0 dump_trace(task, regs, stack, bp, &print_trace_ops, log_lvl);
->> + =A0 =A0 if (index) {
->> + =A0 =A0 =A0 =A0 =A0 =A0 printk("%sCall Trace:\n", log_lvl);
->> + =A0 =A0 =A0 =A0 =A0 =A0 printk("<Same stack as pid %d>\n\n", index);
->
-> So it's a pid. =A0Perhaps it should have type pid_t and have "pid" in its
-> name.
-
-will include the change.
->
->> + =A0 =A0 } else {
->> + =A0 =A0 =A0 =A0 =A0 =A0 printk("%sCall Trace:\n", log_lvl);
->> + =A0 =A0 =A0 =A0 =A0 =A0 dump_trace(task, regs, stack, bp, &print_trace=
-_ops, log_lvl);
->> + =A0 =A0 }
->> =A0}
->>
->>
->> ...
->>
->> @@ -94,6 +95,117 @@ void save_stack_trace_tsk(struct task_struct *tsk, s=
-truct stack_trace *trace)
->> =A0}
->> =A0EXPORT_SYMBOL_GPL(save_stack_trace_tsk);
->
-> Some nice comments describing what we're doing in this file would be good=
+> =3D=3D
+> From f3f41b827d70142858ba8b370510a82d608870d0 Mon Sep 17 00:00:00 2001
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Date: Wed, 15 Jun 2011 10:39:57 +0900
+> Subject: [PATCH 5/6] memcg: fix behavior of per cpu charge cache draining=
 .
+>
+> =A0For performance, memory cgroup caches some "charge" from res_counter
+> =A0into per cpu cache. This works well but because it's cache,
+> =A0it needs to be flushed in some cases. Typical cases are
+> =A0 =A0 =A0 =A0 1. when someone hit limit.
+> =A0 =A0 =A0 =A0 2. when rmdir() is called and need to charges to be 0.
+>
+> But "1" has problem.
+>
+> Recently, with large SMP machines, we see many kworker runs because
+> of flushing memcg's cache. Bad things in implementation are
+> that even if a cpu contains a cache for memcg not related to
+> a memcg which hits limit, drain code is called.
+>
+> This patch does
+> =A0 =A0 =A0 =A0A) check percpu cache contains a useful data or not.
+> =A0 =A0 =A0 =A0B) check other asynchronous percpu draining doesn't run.
+> =A0 =A0 =A0 =A0C) don't call local cpu callback.
+>
+> (*)This patch avoid changing the calling condition with hard-limit.
+>
+> When I run "cat 1Gfile > /dev/null" under 300M limit memcg,
+>
+> [Before]
+> 13767 kamezawa =A020 =A0 0 98.6m =A0424 =A0416 D 10.0 =A00.0 =A0 0:00.61 =
+cat
+> =A0 58 root =A0 =A0 =A020 =A0 0 =A0 =A0 0 =A0 =A00 =A0 =A00 S =A00.6 =A00=
+.0 =A0 0:00.09 kworker/2:1
+> =A0 60 root =A0 =A0 =A020 =A0 0 =A0 =A0 0 =A0 =A00 =A0 =A00 S =A00.6 =A00=
+.0 =A0 0:00.08 kworker/4:1
+> =A0 =A04 root =A0 =A0 =A020 =A0 0 =A0 =A0 0 =A0 =A00 =A0 =A00 S =A00.3 =
+=A00.0 =A0 0:00.02 kworker/0:0
+> =A0 57 root =A0 =A0 =A020 =A0 0 =A0 =A0 0 =A0 =A00 =A0 =A00 S =A00.3 =A00=
+.0 =A0 0:00.05 kworker/1:1
+> =A0 61 root =A0 =A0 =A020 =A0 0 =A0 =A0 0 =A0 =A00 =A0 =A00 S =A00.3 =A00=
+.0 =A0 0:00.05 kworker/5:1
+> =A0 62 root =A0 =A0 =A020 =A0 0 =A0 =A0 0 =A0 =A00 =A0 =A00 S =A00.3 =A00=
+.0 =A0 0:00.05 kworker/6:1
+> =A0 63 root =A0 =A0 =A020 =A0 0 =A0 =A0 0 =A0 =A00 =A0 =A00 S =A00.3 =A00=
+.0 =A0 0:00.05 kworker/7:1
+>
+> [After]
+> =A02676 root =A0 =A0 =A020 =A0 0 98.6m =A0416 =A0416 D =A09.3 =A00.0 =A0 =
+0:00.87 cat
+> =A02626 kamezawa =A020 =A0 0 15192 1312 =A0920 R =A00.3 =A00.0 =A0 0:00.2=
+8 top
+> =A0 =A01 root =A0 =A0 =A020 =A0 0 19384 1496 1204 S =A00.0 =A00.0 =A0 0:0=
+0.66 init
+> =A0 =A02 root =A0 =A0 =A020 =A0 0 =A0 =A0 0 =A0 =A00 =A0 =A00 S =A00.0 =
+=A00.0 =A0 0:00.00 kthreadd
+> =A0 =A03 root =A0 =A0 =A020 =A0 0 =A0 =A0 0 =A0 =A00 =A0 =A00 S =A00.0 =
+=A00.0 =A0 0:00.00 ksoftirqd/0
+> =A0 =A04 root =A0 =A0 =A020 =A0 0 =A0 =A0 0 =A0 =A00 =A0 =A00 S =A00.0 =
+=A00.0 =A0 0:00.00 kworker/0:0
+>
+> Acked-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+> Reviewed-by: Michal Hocko <mhocko@suse.cz>
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>
+> Changelog:
+> =A0- removed unnecessary rcu_read_lock()
+> =A0- removed a fix for softlimit case (move to another independent patch)
+> =A0- make mutex static.
+> =A0- applied comment updates from Andrew Morton.
+> ---
+> =A0mm/memcontrol.c | =A0 54 ++++++++++++++++++++++++++++++++++++++-------=
+---------
+> =A01 files changed, 38 insertions(+), 16 deletions(-)
+>
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 915c3f3..8fb29de 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -359,7 +359,7 @@ enum charge_type {
+> =A0static void mem_cgroup_get(struct mem_cgroup *mem);
+> =A0static void mem_cgroup_put(struct mem_cgroup *mem);
+> =A0static struct mem_cgroup *parent_mem_cgroup(struct mem_cgroup *mem);
+> -static void drain_all_stock_async(void);
+> +static void drain_all_stock_async(struct mem_cgroup *mem);
+>
+> =A0static struct mem_cgroup_per_zone *
+> =A0mem_cgroup_zoneinfo(struct mem_cgroup *mem, int nid, int zid)
+> @@ -1671,7 +1671,7 @@ static int mem_cgroup_hierarchical_reclaim(struct m=
+em_cgroup *root_mem,
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0if (victim =3D=3D root_mem) {
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0loop++;
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0if (loop >=3D 1)
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 drain_all_s=
+tock_async();
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 drain_all_s=
+tock_async(root_mem);
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0if (loop >=3D 2) {
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0/*
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 * If we h=
+ave not been able to reclaim
+> @@ -1934,9 +1934,11 @@ struct memcg_stock_pcp {
+> =A0 =A0 =A0 =A0struct mem_cgroup *cached; /* this never be root cgroup */
+> =A0 =A0 =A0 =A0unsigned int nr_pages;
+> =A0 =A0 =A0 =A0struct work_struct work;
+> + =A0 =A0 =A0 unsigned long flags;
+> +#define FLUSHING_CACHED_CHARGE (0)
+> =A0};
+> =A0static DEFINE_PER_CPU(struct memcg_stock_pcp, memcg_stock);
+> -static atomic_t memcg_drain_count;
+> +static DEFINE_MUTEX(percpu_charge_mutex);
+>
+> =A0/*
+> =A0* Try to consume stocked charge on this cpu. If success, one page is c=
+onsumed
+> @@ -1984,6 +1986,7 @@ static void drain_local_stock(struct work_struct *d=
+ummy)
+> =A0{
+> =A0 =A0 =A0 =A0struct memcg_stock_pcp *stock =3D &__get_cpu_var(memcg_sto=
+ck);
+> =A0 =A0 =A0 =A0drain_stock(stock);
+> + =A0 =A0 =A0 clear_bit(FLUSHING_CACHED_CHARGE, &stock->flags);
+> =A0}
+>
+> =A0/*
+> @@ -2008,26 +2011,45 @@ static void refill_stock(struct mem_cgroup *mem, =
+unsigned int nr_pages)
+> =A0* expects some charges will be back to res_counter later but cannot wa=
+it for
+> =A0* it.
+> =A0*/
+> -static void drain_all_stock_async(void)
+> +static void drain_all_stock_async(struct mem_cgroup *root_mem)
+> =A0{
+> - =A0 =A0 =A0 int cpu;
+> - =A0 =A0 =A0 /* This function is for scheduling "drain" in asynchronous =
+way.
+> - =A0 =A0 =A0 =A0* The result of "drain" is not directly handled by calle=
+rs. Then,
+> - =A0 =A0 =A0 =A0* if someone is calling drain, we don't have to call dra=
+in more.
+> - =A0 =A0 =A0 =A0* Anyway, WORK_STRUCT_PENDING check in queue_work_on() w=
+ill catch if
+> - =A0 =A0 =A0 =A0* there is a race. We just do loose check here.
+> + =A0 =A0 =A0 int cpu, curcpu;
+> + =A0 =A0 =A0 /*
+> + =A0 =A0 =A0 =A0* If someone calls draining, avoid adding more kworker r=
+uns.
+> =A0 =A0 =A0 =A0 */
+> - =A0 =A0 =A0 if (atomic_read(&memcg_drain_count))
+> + =A0 =A0 =A0 if (!mutex_trylock(&percpu_charge_mutex))
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return;
+> =A0 =A0 =A0 =A0/* Notify other cpus that system-wide "drain" is running *=
+/
+> - =A0 =A0 =A0 atomic_inc(&memcg_drain_count);
+> =A0 =A0 =A0 =A0get_online_cpus();
+> + =A0 =A0 =A0 /*
+> + =A0 =A0 =A0 =A0* Get a hint for avoiding draining charges on the curren=
+t cpu,
+> + =A0 =A0 =A0 =A0* which must be exhausted by our charging. =A0It is not =
+required that
+> + =A0 =A0 =A0 =A0* this be a precise check, so we use raw_smp_processor_i=
+d() instead of
+> + =A0 =A0 =A0 =A0* getcpu()/putcpu().
+> + =A0 =A0 =A0 =A0*/
+> + =A0 =A0 =A0 curcpu =3D raw_smp_processor_id();
+> =A0 =A0 =A0 =A0for_each_online_cpu(cpu) {
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0struct memcg_stock_pcp *stock =3D &per_cpu=
+(memcg_stock, cpu);
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 schedule_work_on(cpu, &stock->work);
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 struct mem_cgroup *mem;
+> +
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (cpu =3D=3D curcpu)
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 continue;
+> +
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 mem =3D stock->cached;
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!mem)
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 continue;
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (mem !=3D root_mem) {
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!root_mem->use_hierarch=
+y)
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 continue;
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 /* check whether "mem" is u=
+nder tree of "root_mem" */
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!css_is_ancestor(&mem->=
+css, &root_mem->css))
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 continue;
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 }
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!test_and_set_bit(FLUSHING_CACHED_CHARG=
+E, &stock->flags))
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 schedule_work_on(cpu, &stoc=
+k->work);
+> =A0 =A0 =A0 =A0}
+> =A0 =A0 =A0 =A0put_online_cpus();
+> - =A0 =A0 =A0 atomic_dec(&memcg_drain_count);
+> + =A0 =A0 =A0 mutex_unlock(&percpu_charge_mutex);
+> =A0 =A0 =A0 =A0/* We don't wait for flush_work */
+> =A0}
+>
+> @@ -2035,9 +2057,9 @@ static void drain_all_stock_async(void)
+> =A0static void drain_all_stock_sync(void)
+> =A0{
+> =A0 =A0 =A0 =A0/* called when force_empty is called */
+> - =A0 =A0 =A0 atomic_inc(&memcg_drain_count);
+> + =A0 =A0 =A0 mutex_lock(&percpu_charge_mutex);
+> =A0 =A0 =A0 =A0schedule_on_each_cpu(drain_local_stock);
+> - =A0 =A0 =A0 atomic_dec(&memcg_drain_count);
+> + =A0 =A0 =A0 mutex_unlock(&percpu_charge_mutex);
+> =A0}
+>
+> =A0/*
+> --
+> 1.7.4.1
+>
+>
+>
 
-ok, will add comments.
+Tested-by: Ying Han <yinghan@google.com>
 
->
-> It's regrettable that this code is available only on x86. =A0Fixable?
-
-Hmm, i can take a look on other architectures. Not sure how much
-changes are involved. I might go ahead send out the next patch w/ x86
-only and other arch support comes with separate patch.
-
->
->> +#define DEDUP_MAX_STACK_DEPTH 32
->> +#define DEDUP_STACK_HASH 32768
->> +#define DEDUP_STACK_ENTRY (DEDUP_STACK_HASH/sizeof(struct task_stack) -=
- 1)
->> +
->> +struct task_stack {
->> + =A0 =A0 pid_t pid;
->> + =A0 =A0 unsigned long entries[DEDUP_MAX_STACK_DEPTH];
->> +};
->> +
->> +struct task_stack *stack_hash_table;
->> +static struct task_stack *cur_stack;
->> +__cacheline_aligned_in_smp DEFINE_SPINLOCK(stack_hash_lock);
->> +
->> +void __init stack_trace_hash_init(void)
->> +{
->> + =A0 =A0 stack_hash_table =3D vmalloc(DEDUP_STACK_HASH);
->> + =A0 =A0 cur_stack =3D stack_hash_table + DEDUP_STACK_ENTRY;
->> +}
->
-> Why vmalloc?
->
-> Why not allocate it at compile time?
-
-Hmm, sounds good to me. I will make the change.
-
->
->> +void stack_trace_hash_clean(void)
->> +{
->> + =A0 =A0 memset(stack_hash_table, 0, DEDUP_STACK_HASH);
->> +}
->> +
->> +static inline u32 task_stack_hash(struct task_stack *stack, int len)
->> +{
->> + =A0 =A0 u32 index =3D jhash(stack->entries, len * sizeof(unsigned long=
-), 0);
->> +
->> + =A0 =A0 return index;
->> +}
->> +
->> +static unsigned int stack_trace_lookup(int len)
->> +{
->> + =A0 =A0 int j;
->> + =A0 =A0 int index =3D 0;
->> + =A0 =A0 unsigned int ret =3D 0;
->> + =A0 =A0 struct task_stack *stack;
->> +
->> + =A0 =A0 index =3D task_stack_hash(cur_stack, len) % DEDUP_STACK_ENTRY;
->> +
->> + =A0 =A0 for (j =3D 0; j < 10; j++) {
->> + =A0 =A0 =A0 =A0 =A0 =A0 stack =3D stack_hash_table + (index + (1 << j)=
-) %
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0 =A0 =A0 =A0 DEDUP_STACK_ENTRY;
->> + =A0 =A0 =A0 =A0 =A0 =A0 if (stack->entries[0] =3D=3D 0x0) {
->
-> Good place for a comment describing why we got here.
-
-Ok.
->
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 memcpy(stack, cur_stack, sizeo=
-f(*cur_stack));
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 ret =3D 0;
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 break;
->> + =A0 =A0 =A0 =A0 =A0 =A0 } else {
->
-> Ditto.
->
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (memcmp(stack->entries, cur=
-_stack->entries,
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0 =A0 =A0 =A0 sizeof(stack->entries)) =3D=3D 0) {
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 ret =3D stack-=
->pid;
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 break;
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 }
->> + =A0 =A0 =A0 =A0 =A0 =A0 }
->> + =A0 =A0 }
->> + =A0 =A0 memset(cur_stack, 0, sizeof(struct task_stack));
->> +
->> + =A0 =A0 return ret;
->> +}
->
-> Using memcmp() is pretty weak - the elimination of duplicates would
-> work better if this code was integrated with the stack unwinding
-> machinery, so we're not comparing random garbage non-return-address
-> stack slots.
-
-I can look into that.
-
->
->>
->> ...
->>
->> --- a/kernel/sched.c
->> +++ b/kernel/sched.c
->> @@ -5727,10 +5727,11 @@ out_unlock:
->>
->> =A0static const char stat_nam[] =3D TASK_STATE_TO_CHAR_STR;
->>
->> -void sched_show_task(struct task_struct *p)
->> +void _sched_show_task(struct task_struct *p, int dedup)
->> =A0{
->> =A0 =A0 =A0 unsigned long free =3D 0;
->> =A0 =A0 =A0 unsigned state;
->> + =A0 =A0 int index =3D 0;
->>
->> =A0 =A0 =A0 state =3D p->state ? __ffs(p->state) + 1 : 0;
->> =A0 =A0 =A0 printk(KERN_INFO "%-15.15s %c", p->comm,
->> @@ -5753,7 +5754,19 @@ void sched_show_task(struct task_struct *p)
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 task_pid_nr(p), task_pid_nr(p->real_parent),
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 (unsigned long)task_thread_info(p)->flags);
->>
->> - =A0 =A0 show_stack(p, NULL);
->> + =A0 =A0 if (dedup && stack_hash_table)
->> + =A0 =A0 =A0 =A0 =A0 =A0 index =3D save_dup_stack_trace(p);
->> + =A0 =A0 show_stack(p, NULL, index);
->> +}
->> +
->> +void sched_show_task(struct task_struct *p)
->> +{
->> + =A0 =A0 _sched_show_task(p, 0);
->> +}
->> +
->> +void sched_show_task_dedup(struct task_struct *p)
->> +{
->> + =A0 =A0 _sched_show_task(p, 1);
->> =A0}
->
-> stack_hash_table only exists on x86. =A0Did everything else just get brok=
-en?
-
-I will look into that.
->
->
-
-Thank you
 
 --Ying
 
