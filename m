@@ -1,63 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 3CBC76B0012
-	for <linux-mm@kvack.org>; Wed, 15 Jun 2011 06:59:16 -0400 (EDT)
-Subject: Re: REGRESSION: Performance regressions from switching
- anon_vma->lock to mutex
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <1308134200.15315.32.camel@twins>
-References: <1308097798.17300.142.camel@schen9-DESK>
-	 <1308134200.15315.32.camel@twins>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-Date: Wed, 15 Jun 2011 12:58:15 +0200
-Message-ID: <1308135495.15315.38.camel@twins>
-Mime-Version: 1.0
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 94E996B0012
+	for <linux-mm@kvack.org>; Wed, 15 Jun 2011 07:15:04 -0400 (EDT)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: Re: [PATCH 08/10] mm: cma: Contiguous Memory Allocator added
+Date: Wed, 15 Jun 2011 13:14:56 +0200
+References: <1307699698-29369-1-git-send-email-m.szyprowski@samsung.com> <201106141549.29315.arnd@arndb.de> <000601cc2b32$9e2a4030$da7ec090$%szyprowski@samsung.com>
+In-Reply-To: <000601cc2b32$9e2a4030$da7ec090$%szyprowski@samsung.com>
+MIME-Version: 1.0
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Message-Id: <201106151314.57150.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tim Chen <tim.c.chen@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Russell King <rmk@arm.linux.org.uk>, Paul Mundt <lethal@linux-sh.org>, Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>, Tony Luck <tony.luck@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Namhyung Kim <namhyung@gmail.com>, ak@linux.intel.com, shaohua.li@intel.com, alex.shi@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Rafael J. Wysocki" <rjw@sisk.pl>, paulmck <paulmck@linux.vnet.ibm.com>
+To: Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, 'Michal Nazarewicz' <mina86@mina86.com>, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Andrew Morton' <akpm@linux-foundation.org>, 'KAMEZAWA Hiroyuki' <kamezawa.hiroyu@jp.fujitsu.com>, 'Ankita Garg' <ankita@in.ibm.com>, 'Daniel Walker' <dwalker@codeaurora.org>, 'Mel Gorman' <mel@csn.ul.ie>, 'Jesse Barker' <jesse.barker@linaro.org>
 
-On Wed, 2011-06-15 at 12:36 +0200, Peter Zijlstra wrote:
-> On Tue, 2011-06-14 at 17:29 -0700, Tim Chen wrote:
-> > MOSBENCH test suite.
->=20
-> Argh, I'm trying to get this thing to run, but its all snake poo..
->=20
-> /me takes up a heavy club and goes snake hunting, should make a pretty
-> hat or something.
+On Wednesday 15 June 2011, Marek Szyprowski wrote:
 
-Sweet, I've got meself a snake-skin hat!
+> > > If possible I would like to make cma something similar to
+> > > declare_dma_coherent()&friends, so the board/platform/bus startup code
+> > > will just call declare_dma_contiguous() to enable support for cma for
+> > > particular devices.
+> > 
+> > Sounds good, I like that.
+>  
+> Thanks. I thought a bit more on this and decided that I want to make this
+> declare_dma_contiguous() optional for the drivers. It should be used only
+> for some sophisticated cases like for example our video codec with two
+> memory interfaces for 2 separate banks. By default the dma-mapping will
+> use system-wide cma pool.
+> 
+> (snipped)
 
-The first thing that stood out when running it was:
+Ok, good.
 
-31694 root      20   0 26660 1460 1212 S 17.5  0.0   0:01.97 exim=20
-    7 root      -2  19     0    0    0 S 12.7  0.0   0:06.14 rcuc0=20
-   24 root      -2  19     0    0    0 S 11.7  0.0   0:04.15 rcuc3=20
-   34 root      -2  19     0    0    0 S 11.7  0.0   0:04.10 rcuc5=20
-   39 root      -2  19     0    0    0 S 11.7  0.0   0:06.38 rcuc6=20
-   44 root      -2  19     0    0    0 S 11.7  0.0   0:04.53 rcuc7=20
-   49 root      -2  19     0    0    0 S 11.7  0.0   0:04.11 rcuc8=20
-   79 root      -2  19     0    0    0 S 11.7  0.0   0:03.91 rcuc14=20
-   89 root      -2  19     0    0    0 S 11.7  0.0   0:03.90 rcuc16=20
-  110 root      -2  19     0    0    0 S 11.7  0.0   0:03.90 rcuc20=20
-  120 root      -2  19     0    0    0 S 11.7  0.0   0:03.82 rcuc22=20
-   13 root      -2  19     0    0    0 S 10.7  0.0   0:04.37 rcuc1=20
-   19 root      -2  19     0    0    0 S 10.7  0.0   0:04.19 rcuc2=20
-   29 root      -2  19     0    0    0 S 10.7  0.0   0:04.12 rcuc4=20
-   54 root      -2  19     0    0    0 S 10.7  0.0   0:04.11 rcuc9=20
-   59 root      -2  19     0    0    0 S 10.7  0.0   0:04.40 rcuc10=20
-   64 root      -2  19     0    0    0 R 10.7  0.0   0:04.17 rcuc11=20
-   69 root      -2  19     0    0    0 R 10.7  0.0   0:04.23 rcuc12=20
-   84 root      -2  19     0    0    0 S 10.7  0.0   0:03.90 rcuc15=20
-   95 root      -2  19     0    0    0 S 10.7  0.0   0:03.99 rcuc17=20
-  100 root      -2  19     0    0    0 S 10.7  0.0   0:03.88 rcuc18=20
-  105 root      -2  19     0    0    0 S 10.7  0.0   0:04.14 rcuc19=20
-  125 root      -2  19     0    0    0 S 10.7  0.0   0:03.79 rcuc23=20
-   74 root      -2  19     0    0    0 S  9.7  0.0   0:04.33 rcuc13=20
-  115 root      -2  19     0    0    0 R  9.7  0.0   0:03.82 rcuc21=20
+> > Please explain the exact requirements that lead you to defining multiple
+> > contexts. My feeling is that in most cases we don't need them and can
+> > simply live with a single area. Depending on how obscure the cases are
+> > where we do need something beyond that, we can then come up with
+> > special-case solutions for them.
+> 
+> Like it was already stated we need such feature for our multimedia codec
+> to allocate buffers from different memory banks. I really don't see any
+> problems with the possibility to have additional cma areas for special
+> purposes.
 
-Which is an impressive amount of RCU usage..
+It's not a problem for special cases, I just want to make sure that
+the common case works well enough that we don't need too many special
+cases.
+
+> > The problem with defining CMA areas in the device tree is that it's not
+> > a property of the hardware, but really policy. The device tree file
+> > should not contain anything related to a specific operating system
+> > because you might want to boot something on the board that doesn't
+> > know about CMA, and even when you only care about using Linux, the
+> > implementation might change to the point where hardcoded CMA areas
+> > no longer make sense.
+> 
+> I really doubt that the device tree will carry only system-independent
+> information.
+
+So far, this has worked well enough.
+
+> Anyway, the preferred or required memory areas/banks for
+> buffer allocation is something that is a property of the hardware not
+> the OS policy.
+
+That is true. If there are hard requirements of the hardware, we
+can and should definitely document them in the device tree. It's
+totally fine to describe the layout of memory banks and affinity
+of devices to specific banks where that exists in hardware.
+
+The part that should not be in the device tree is a specific location
+of a buffer inside the bank when there is no hardware reason for
+the location.
+
+I guess it's also fine to describe requirements per device regarding
+how much contiguous memory it will need to operate, if you can provide
+that number independent of the application you want to run. The early
+boot code can walk the device tree and ensure that the region is
+large enough.
+
+> > IMHO we should first aim for a solution that works almost everywhere
+> > without the kernel knowing what board it's running on, and then we
+> > can add quirks for devices that have special requirements. I think
+> > the situation is similar to the vmalloc virtual address space, which
+> > normally has a hardcoded size that works almost everywhere, but there
+> > are certain drivers etc that require much more, or there are situations
+> > where you want to make it smaller in order to avoid highmem.
+> 
+> I'm trying to create something that will fulfill the requirements of my
+> hardware, that's why I cannot focus on a generic case only.
+
+Yes, that is the obvious conflict. My main interest is to have something
+that works not just for your hardware but works as good as possible on
+the widest possible range of hardware, which may mean it may run not quite
+as good in some of the cases.
+
+	Arnd
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
