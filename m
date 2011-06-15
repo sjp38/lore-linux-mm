@@ -1,119 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id D14BA6B0012
-	for <linux-mm@kvack.org>; Tue, 14 Jun 2011 20:23:56 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 950203EE0C7
-	for <linux-mm@kvack.org>; Wed, 15 Jun 2011 09:23:52 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 76F6745DE69
-	for <linux-mm@kvack.org>; Wed, 15 Jun 2011 09:23:52 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5620B45DD6E
-	for <linux-mm@kvack.org>; Wed, 15 Jun 2011 09:23:52 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 477911DB802C
-	for <linux-mm@kvack.org>; Wed, 15 Jun 2011 09:23:52 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 01B371DB803C
-	for <linux-mm@kvack.org>; Wed, 15 Jun 2011 09:23:52 +0900 (JST)
-Date: Wed, 15 Jun 2011 09:16:52 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [BUGFIX][PATCH 5/5] memcg: fix percpu cached charge draining
- frequency
-Message-Id: <20110615091652.7d29baca.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20110614100412.GE6371@redhat.com>
-References: <20110613120054.3336e997.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110613121648.3d28afcd.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110614100412.GE6371@redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 8ABC86B0012
+	for <linux-mm@kvack.org>; Tue, 14 Jun 2011 20:25:12 -0400 (EDT)
+Received: from wpaz37.hot.corp.google.com (wpaz37.hot.corp.google.com [172.24.198.101])
+	by smtp-out.google.com with ESMTP id p5F0P9N7018220
+	for <linux-mm@kvack.org>; Tue, 14 Jun 2011 17:25:09 -0700
+Received: from pwj3 (pwj3.prod.google.com [10.241.219.67])
+	by wpaz37.hot.corp.google.com with ESMTP id p5F0Ou6r001047
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 14 Jun 2011 17:25:08 -0700
+Received: by pwj3 with SMTP id 3so104248pwj.1
+        for <linux-mm@kvack.org>; Tue, 14 Jun 2011 17:25:03 -0700 (PDT)
+Date: Tue, 14 Jun 2011 17:24:38 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH 1/12] radix_tree: exceptional entries and indices
+In-Reply-To: <BANLkTinGHSpn2aF-HM-R-eu12ZqMTpHQdQ@mail.gmail.com>
+Message-ID: <alpine.LSU.2.00.1106141707540.31043@sister.anvils>
+References: <alpine.LSU.2.00.1106140327550.29206@sister.anvils> <alpine.LSU.2.00.1106140341070.29206@sister.anvils> <BANLkTinGHSpn2aF-HM-R-eu12ZqMTpHQdQ@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: MULTIPART/MIXED; BOUNDARY="8323584-1819746192-1308097494=:31043"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <jweiner@redhat.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "bsingharora@gmail.com" <bsingharora@gmail.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Ying Han <yinghan@google.com>
+To: Pekka Enberg <penberg@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, 14 Jun 2011 12:04:12 +0200
-Johannes Weiner <jweiner@redhat.com> wrote:
+  This message is in MIME format.  The first part should be readable text,
+  while the remaining parts are likely unreadable without MIME-aware tools.
 
-> On Mon, Jun 13, 2011 at 12:16:48PM +0900, KAMEZAWA Hiroyuki wrote:
-> > @@ -1670,8 +1670,8 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
-> >  		victim = mem_cgroup_select_victim(root_mem);
-> >  		if (victim == root_mem) {
-> >  			loop++;
-> > -			if (loop >= 1)
-> > -				drain_all_stock_async();
-> > +			if (!check_soft && loop >= 1)
-> > +				drain_all_stock_async(root_mem);
-> 
-> I agree with Michal, this should be a separate change.
-> 
+--8323584-1819746192-1308097494=:31043
+Content-Type: TEXT/PLAIN; charset=ISO-8859-1
+Content-Transfer-Encoding: QUOTED-PRINTABLE
 
-Hm, ok, I'll do.
+Hi Pekka!
 
-> > @@ -2008,26 +2011,50 @@ static void refill_stock(struct mem_cgroup *mem, unsigned int nr_pages)
-> >   * expects some charges will be back to res_counter later but cannot wait for
-> >   * it.
-> >   */
-> > -static void drain_all_stock_async(void)
-> > +static void drain_all_stock_async(struct mem_cgroup *root_mem)
-> >  {
-> > -	int cpu;
-> > -	/* This function is for scheduling "drain" in asynchronous way.
-> > -	 * The result of "drain" is not directly handled by callers. Then,
-> > -	 * if someone is calling drain, we don't have to call drain more.
-> > -	 * Anyway, WORK_STRUCT_PENDING check in queue_work_on() will catch if
-> > -	 * there is a race. We just do loose check here.
-> > +	int cpu, curcpu;
-> > +	/*
-> > +	 * If someone calls draining, avoid adding more kworker runs.
-> >  	 */
-> > -	if (atomic_read(&memcg_drain_count))
-> > +	if (!mutex_trylock(&percpu_charge_mutex))
-> >  		return;
-> >  	/* Notify other cpus that system-wide "drain" is running */
-> > -	atomic_inc(&memcg_drain_count);
-> >  	get_online_cpus();
+Thanks for taking a look.
+
+On Tue, 14 Jun 2011, Pekka Enberg wrote:
+> On Tue, Jun 14, 2011 at 1:42 PM, Hugh Dickins <hughd@google.com> wrote:
+> > @@ -39,7 +39,15 @@
+> > =A0* when it is shrunk, before we rcu free the node. See shrink code fo=
+r
+> > =A0* details.
+> > =A0*/
+> > -#define RADIX_TREE_INDIRECT_PTR =A0 =A0 =A0 =A01
+> > +#define RADIX_TREE_INDIRECT_PTR =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A01
+> > +/*
+> > + * A common use of the radix tree is to store pointers to struct pages=
+;
+> > + * but shmem/tmpfs needs also to store swap entries in the same tree:
+> > + * those are marked as exceptional entries to distinguish them.
+> > + * EXCEPTIONAL_ENTRY tests the bit, EXCEPTIONAL_SHIFT shifts content p=
+ast it.
+> > + */
+> > +#define RADIX_TREE_EXCEPTIONAL_ENTRY =A0 2
+> > +#define RADIX_TREE_EXCEPTIONAL_SHIFT =A0 2
+> >
+> > =A0#define radix_tree_indirect_to_ptr(ptr) \
+> > =A0 =A0 =A0 =A0radix_tree_indirect_to_ptr((void __force *)(ptr))
+> > @@ -174,6 +182,28 @@ static inline int radix_tree_deref_retry
+> > =A0}
+> >
+> > =A0/**
+> > + * radix_tree_exceptional_entry =A0 =A0 =A0 =A0- radix_tree_deref_slot=
+ gave exceptional entry?
+> > + * @arg: =A0 =A0 =A0 value returned by radix_tree_deref_slot
+> > + * Returns: =A0 =A00 if well-aligned pointer, non-0 if exceptional ent=
+ry.
+> > + */
+> > +static inline int radix_tree_exceptional_entry(void *arg)
+> > +{
+> > + =A0 =A0 =A0 /* Not unlikely because radix_tree_exception often tested=
+ first */
+> > + =A0 =A0 =A0 return (unsigned long)arg & RADIX_TREE_EXCEPTIONAL_ENTRY;
+> > +}
 > > +
-> > +	/*
-> > +	 * get a hint for avoiding draining charges on the current cpu,
-> > +	 * which must be exhausted by our charging. But this is not
-> > +	 * required to be a precise check, We use raw_smp_processor_id()
-> > +	 * instead of getcpu()/putcpu().
-> > +	 */
-> > +	curcpu = raw_smp_processor_id();
-> >  	for_each_online_cpu(cpu) {
-> >  		struct memcg_stock_pcp *stock = &per_cpu(memcg_stock, cpu);
-> > -		schedule_work_on(cpu, &stock->work);
-> > +		struct mem_cgroup *mem;
-> > +
-> > +		if (cpu == curcpu)
-> > +			continue;
-> > +
-> > +		mem = stock->cached;
-> > +		if (!mem)
-> > +			continue;
-> > +		if (mem != root_mem) {
-> > +			if (!root_mem->use_hierarchy)
-> > +				continue;
-> > +			/* check whether "mem" is under tree of "root_mem" */
-> > +			rcu_read_lock();
-> > +			if (!css_is_ancestor(&mem->css, &root_mem->css)) {
-> > +				rcu_read_unlock();
-> > +				continue;
-> > +			}
-> > +			rcu_read_unlock();
-> 
-> css_is_ancestor() takes the rcu read lock itself already.
-> 
+> > +/**
+> > + * radix_tree_exception =A0 =A0 =A0 =A0- radix_tree_deref_slot returne=
+d either exception?
+> > + * @arg: =A0 =A0 =A0 value returned by radix_tree_deref_slot
+> > + * Returns: =A0 =A00 if well-aligned pointer, non-0 if either kind of =
+exception.
+> > + */
+> > +static inline int radix_tree_exception(void *arg)
+> > +{
+> > + =A0 =A0 =A0 return unlikely((unsigned long)arg &
+> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 (RADIX_TREE_INDIRECT_PTR | RADIX_TREE_EXC=
+EPTIONAL_ENTRY));
+> > +}
+>=20
+> Would something like radix_tree_augmented() be a better name for this
+> (with RADIX_TREE_AUGMENTED_MASK defined)? This one seems too easy to
+> confuse with radix_tree_exceptional_entry() to me which is not the
+> same thing, right?
 
-you're right.
+They're not _quite_ the same thing, and I agree that a different naming
+that would make it clearer (without going on and on) would be welcome.
 
-I'll post an update.
+But I don't think the word "augmented" helps or really fits in there.
 
-Thanks,
--Kame
+What I had in mind was: there are two exceptional conditions which you
+can meet in reading the radix tree, and radix_tree_exception() covers
+both of those conditions.
+
+One exceptional condition is the radix_tree_deref_retry() case, a
+momentary condition where you just have to go back and read it again.
+
+The other exceptional condition is the radix_tree_exceptional_entry():
+you've read a valid entry, but it's not the usual type of thing stored
+there, you need to be careful to process it differently (not try to
+increment its "page" count in our case).
+
+I'm fairly happy with "radix_tree_exceptional_entry" for the second;
+we could make the test for both more explicit by calling it
+"radix_tree_exceptional_entry_or_deref_retry", but
+I grow bored before I reach the end of that!
+
+Hugh
+--8323584-1819746192-1308097494=:31043--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
