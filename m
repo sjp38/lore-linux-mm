@@ -1,84 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 50B226B0012
-	for <linux-mm@kvack.org>; Wed, 15 Jun 2011 12:53:33 -0400 (EDT)
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.31.245])
-	by e23smtp04.au.ibm.com (8.14.4/8.13.1) with ESMTP id p5FGlNNC014277
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 02:47:23 +1000
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p5FGrTmW1073406
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 02:53:29 +1000
-Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p5FGrSIY016776
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 02:53:28 +1000
-Date: Wed, 15 Jun 2011 22:23:21 +0530
-From: Ankita Garg <ankita@in.ibm.com>
-Subject: Re: [PATCH 00/10] mm: Linux VM Infrastructure to support Memory
- Power Management
-Message-ID: <20110615165321.GC23151@in.ibm.com>
-Reply-To: Ankita Garg <ankita@in.ibm.com>
-References: <20110610165529.GC2230@linux.vnet.ibm.com>
- <20110610170535.GC25774@srcf.ucam.org>
- <20110610171939.GE2230@linux.vnet.ibm.com>
- <20110610172307.GA27630@srcf.ucam.org>
- <20110610175248.GF2230@linux.vnet.ibm.com>
- <20110610180807.GB28500@srcf.ucam.org>
- <20110610184738.GG2230@linux.vnet.ibm.com>
- <20110610192329.GA30496@srcf.ucam.org>
- <20110610193713.GJ2230@linux.vnet.ibm.com>
- <20110610200233.5ddd5a31@infradead.org>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id EF9626B0012
+	for <linux-mm@kvack.org>; Wed, 15 Jun 2011 13:32:19 -0400 (EDT)
+Date: Wed, 15 Jun 2011 19:30:07 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH v4 3.0-rc2-tip 4/22]  4: Uprobes: register/unregister
+	probes.
+Message-ID: <20110615173007.GA12652@redhat.com>
+References: <20110607125804.28590.92092.sendpatchset@localhost6.localdomain6> <20110607125900.28590.16071.sendpatchset@localhost6.localdomain6>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110610200233.5ddd5a31@infradead.org>
+In-Reply-To: <20110607125900.28590.16071.sendpatchset@localhost6.localdomain6>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arjan van de Ven <arjan@infradead.org>
-Cc: paulmck@linux.vnet.ibm.com, Matthew Garrett <mjg59@srcf.ucam.org>, Kyungmin Park <kmpark@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-pm@lists.linux-foundation.org, svaidy@linux.vnet.ibm.com, thomas.abraham@linaro.org
+To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Jonathan Corbet <corbet@lwn.net>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>
 
-Hi,
+I still didn't actually read this/next patches, but
 
-On Fri, Jun 10, 2011 at 08:02:33PM -0700, Arjan van de Ven wrote:
-> On Fri, 10 Jun 2011 12:37:13 -0700
-> "Paul E. McKenney" <paulmck@linux.vnet.ibm.com> wrote:
-> 
-> > On Fri, Jun 10, 2011 at 08:23:29PM +0100, Matthew Garrett wrote:
-> > > On Fri, Jun 10, 2011 at 11:47:38AM -0700, Paul E. McKenney wrote:
-> > > 
-> > > > And if I understand you correctly, then the patches that Ankita
-> > > > posted should help your self-refresh case, along with the
-> > > > originally intended the power-down case and special-purpose use
-> > > > of memory case.
-> > > 
-> > > Yeah, I'd hope so once we actually have capable hardware.
-> > 
-> > Cool!!!
-> > 
-> > So Ankita's patchset might be useful to you at some point, then.
-> > 
-> > Does it look like a reasonable implementation?
-> 
-> as someone who is working on hardware that is PASR capable right now,
-> I have to admit that our plan was to just hook into the buddy allocator,
-> and use PASR on the top level of buddy (eg PASR off blocks that are
-> free there, and PASR them back on once an allocation required the block
-> to be broken up)..... that looked the very most simple to me.
-> 
+On 06/07, Srikar Dronamraju wrote:
+>
+> +#ifdef CONFIG_UPROBES
+> +	unsigned long uprobes_vaddr;
 
-The maximum order in buddy allocator is by default 1k pages. Isn't this
-too small a granularity to track blocks that might comprise a PASR unit? 
+Srikar, I know it is very easy to blame the patches ;) But why does this
+patch add mm->uprobes_vaddr ? Look, it is write-only, register/unregister
+do
 
-> Maybe something much more elaborate is needed, but I didn't see why so
-> far.
-> 
-> 
+	mm->uprobes_vaddr = (unsigned long) vaddr;
 
--- 
-Regards,
-Ankita Garg (ankita@in.ibm.com)
-Linux Technology Center
-IBM India Systems & Technology Labs,
-Bangalore, India
+and it is not used otherwise. It is not possible to understand its purpose
+without reading the next patches. And the code above looks very strange,
+the next vma can overwrite uprobes_vaddr.
+
+If possible, please try to re-split this series. If uprobes_vaddr is used
+in 6/22, then this patch should introduce this member. Note that this is
+only one particular example, there are a lot more.
+
+> +int register_uprobe(struct inode *inode, loff_t offset,
+> +				struct uprobe_consumer *consumer)
+> +{
+> ...
+> +	mutex_lock(&mapping->i_mmap_mutex);
+> +	vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, 0, 0) {
+> +		loff_t vaddr;
+> +		struct task_struct *tsk;
+> +
+> +		if (!atomic_inc_not_zero(&vma->vm_mm->mm_users))
+> +			continue;
+> +
+> +		mm = vma->vm_mm;
+> +		if (!valid_vma(vma)) {
+> +			mmput(mm);
+
+This looks deadlockable. If mmput()->atomic_dec_and_test() succeeds
+unlink_file_vma() needs the same ->i_mmap_mutex, no?
+
+I think you can simply remove mmput(). Why do you increment ->mm_users
+in advance? I think you can do this right before list_add(), after all
+valid_vma/etc checks.
+
+> +		vaddr = vma->vm_start + offset;
+> +		vaddr -= vma->vm_pgoff << PAGE_SHIFT;
+> +		if (vaddr < vma->vm_start || vaddr > vma->vm_end) {
+> +			/* Not in this vma */
+> +			mmput(mm);
+> +			continue;
+> +		}
+
+Not sure that "Not in this vma" is possible if we pass the correct pgoff
+to vma_prio_tree_foreach()... but OK, I forgot everything I knew about
+vma prio_tree.
+
+So, we verified that vaddr is valid. Then,
+
+> +		tsk = get_mm_owner(mm);
+> +		if (tsk && vaddr > TASK_SIZE_OF(tsk)) {
+
+how it it possible to map ->vm_file above TASK_SIZE ?
+
+And why do you need get/put_task_struct? You could simply read
+TASK_SIZE_OF(tsk) under rcu_read_lock.
+
+> +void unregister_uprobe(struct inode *inode, loff_t offset,
+> +				struct uprobe_consumer *consumer)
+> +{
+> ...
+> +
+> +	mutex_lock(&mapping->i_mmap_mutex);
+> +	vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, 0, 0) {
+> +		struct task_struct *tsk;
+> +
+> +		if (!atomic_inc_not_zero(&vma->vm_mm->mm_users))
+> +			continue;
+> +
+> +		mm = vma->vm_mm;
+> +
+> +		if (!atomic_read(&mm->uprobes_count)) {
+> +			mmput(mm);
+
+Again, mmput() doesn't look safe.
+
+> +	list_for_each_entry_safe(mm, tmpmm, &tmp_list, uprobes_list)
+> +		remove_breakpoint(mm, uprobe);
+
+What if the application, say, unmaps the vma with bkpt before
+unregister_uprobe() ? Or it can do mprotect(PROT_WRITE), then valid_vma()
+fails. Probably this is fine, but mm->uprobes_count becomes wrong, no?
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
