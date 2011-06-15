@@ -1,27 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B98B6B0012
-	for <linux-mm@kvack.org>; Wed, 15 Jun 2011 16:06:17 -0400 (EDT)
-Date: Wed, 15 Jun 2011 22:06:10 +0200
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 9DC336B0082
+	for <linux-mm@kvack.org>; Wed, 15 Jun 2011 16:12:10 -0400 (EDT)
+Date: Wed, 15 Jun 2011 22:12:02 +0200
 From: Sebastian Andrzej Siewior <sebastian@breakpoint.cc>
 Subject: Re: [PATCH] slob: push the min alignment to long long
-Message-ID: <20110615200610.GA19593@Chamillionaire.breakpoint.cc>
+Message-ID: <20110615201202.GB19593@Chamillionaire.breakpoint.cc>
 References: <20110614201031.GA19848@Chamillionaire.breakpoint.cc>
- <alpine.DEB.2.00.1106141614480.10017@router.home>
+ <1308089140.15617.221.camel@calx>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1106141614480.10017@router.home>
+In-Reply-To: <1308089140.15617.221.camel@calx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Sebastian Andrzej Siewior <sebastian@breakpoint.cc>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org, "David S. Miller" <davem@davemloft.net>, netfilter@vger.kernel.org, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Matt Mackall <mpm@selenic.com>
+Cc: Sebastian Andrzej Siewior <sebastian@breakpoint.cc>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, "David S. Miller" <davem@davemloft.net>, netfilter@vger.kernel.org
 
-* Christoph Lameter | 2011-06-14 16:16:36 [-0500]:
+* Matt Mackall | 2011-06-14 17:05:40 [-0500]:
 
->Maybe this would work too?
+>Ok, so you claim that ARCH_KMALLOC_MINALIGN is not set on some
+>architectures, and thus SLOB does the wrong thing.
+>
+>Doesn't that rather obviously mean that the affected architectures
+>should define ARCH_KMALLOC_MINALIGN? Because, well, they have an
+>"architecture-specific minimum kmalloc alignment"?
 
-Yep, it does. Would you please be so kind to push this stable?
+nope, if nothing is defined SLOB asumes that alignment of long is the way
+go. Unfortunately alignment of u64 maybe larger than of u32.
+
+>This change will regress SLOB everywhere where '4' was the right answer.
+I doubt that 4 was the correct answer. On x86_32 you still get 4.
+Everything else might be miss-aligned for u64 types.
 
 Sebastian
 
