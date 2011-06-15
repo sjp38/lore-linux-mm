@@ -1,55 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id EFC716B0012
-	for <linux-mm@kvack.org>; Wed, 15 Jun 2011 12:48:28 -0400 (EDT)
-Date: Wed, 15 Jun 2011 09:47:08 -0700
-From: Andi Kleen <ak@linux.intel.com>
-Subject: Re: REGRESSION: Performance regressions from switching
- anon_vma->lock to mutex
-Message-ID: <20110615164708.GB12162@tassilo.jf.intel.com>
-References: <1308097798.17300.142.camel@schen9-DESK>
- <1308101214.15392.151.camel@sli10-conroe>
- <1308138750.15315.62.camel@twins>
- <20110615161827.GA11769@tassilo.jf.intel.com>
- <1308156337.2171.23.camel@laptop>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 50B226B0012
+	for <linux-mm@kvack.org>; Wed, 15 Jun 2011 12:53:33 -0400 (EDT)
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.31.245])
+	by e23smtp04.au.ibm.com (8.14.4/8.13.1) with ESMTP id p5FGlNNC014277
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 02:47:23 +1000
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p5FGrTmW1073406
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 02:53:29 +1000
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p5FGrSIY016776
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 02:53:28 +1000
+Date: Wed, 15 Jun 2011 22:23:21 +0530
+From: Ankita Garg <ankita@in.ibm.com>
+Subject: Re: [PATCH 00/10] mm: Linux VM Infrastructure to support Memory
+ Power Management
+Message-ID: <20110615165321.GC23151@in.ibm.com>
+Reply-To: Ankita Garg <ankita@in.ibm.com>
+References: <20110610165529.GC2230@linux.vnet.ibm.com>
+ <20110610170535.GC25774@srcf.ucam.org>
+ <20110610171939.GE2230@linux.vnet.ibm.com>
+ <20110610172307.GA27630@srcf.ucam.org>
+ <20110610175248.GF2230@linux.vnet.ibm.com>
+ <20110610180807.GB28500@srcf.ucam.org>
+ <20110610184738.GG2230@linux.vnet.ibm.com>
+ <20110610192329.GA30496@srcf.ucam.org>
+ <20110610193713.GJ2230@linux.vnet.ibm.com>
+ <20110610200233.5ddd5a31@infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1308156337.2171.23.camel@laptop>
+In-Reply-To: <20110610200233.5ddd5a31@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Shaohua Li <shaohua.li@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Russell King <rmk@arm.linux.org.uk>, Paul Mundt <lethal@linux-sh.org>, Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>, "Luck, Tony" <tony.luck@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Namhyung Kim <namhyung@gmail.com>, "Shi, Alex" <alex.shi@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Rafael J. Wysocki" <rjw@sisk.pl>
+To: Arjan van de Ven <arjan@infradead.org>
+Cc: paulmck@linux.vnet.ibm.com, Matthew Garrett <mjg59@srcf.ucam.org>, Kyungmin Park <kmpark@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-pm@lists.linux-foundation.org, svaidy@linux.vnet.ibm.com, thomas.abraham@linaro.org
 
-On Wed, Jun 15, 2011 at 06:45:37PM +0200, Peter Zijlstra wrote:
-> On Wed, 2011-06-15 at 09:18 -0700, Andi Kleen wrote:
+Hi,
+
+On Fri, Jun 10, 2011 at 08:02:33PM -0700, Arjan van de Ven wrote:
+> On Fri, 10 Jun 2011 12:37:13 -0700
+> "Paul E. McKenney" <paulmck@linux.vnet.ibm.com> wrote:
 > 
-> > And in general it looks like blind conversion from spinlock to mutex
-> > is a bad idea right now.
+> > On Fri, Jun 10, 2011 at 08:23:29PM +0100, Matthew Garrett wrote:
+> > > On Fri, Jun 10, 2011 at 11:47:38AM -0700, Paul E. McKenney wrote:
+> > > 
+> > > > And if I understand you correctly, then the patches that Ankita
+> > > > posted should help your self-refresh case, along with the
+> > > > originally intended the power-down case and special-purpose use
+> > > > of memory case.
+> > > 
+> > > Yeah, I'd hope so once we actually have capable hardware.
+> > 
+> > Cool!!!
+> > 
+> > So Ankita's patchset might be useful to you at some point, then.
+> > 
+> > Does it look like a reasonable implementation?
 > 
-> For 4 socket machines, maybe. On 2 sockets I cannot reproduce anything.
+> as someone who is working on hardware that is PASR capable right now,
+> I have to admit that our plan was to just hook into the buddy allocator,
+> and use PASR on the top level of buddy (eg PASR off blocks that are
+> free there, and PASR them back on once an allocation required the block
+> to be broken up)..... that looked the very most simple to me.
+> 
 
-With only one other guy active a lot of things are quite a bit easier. 
-Basically 2S is a trivial case here.
+The maximum order in buddy allocator is by default 1k pages. Isn't this
+too small a granularity to track blocks that might comprise a PASR unit? 
 
-> I wonder if its the fairness thing, the mutex spinners aren't fifo fair
+> Maybe something much more elaborate is needed, but I didn't see why so
+> far.
+> 
+> 
 
-The Intel 4S systems are fair, but ticketing still helps significantly 
-because it has a lot nicer interconnect behaviour.
-
-> like the ticket locks are. It could be significant with larger socket
-> count since their cacheline arbitration is more sucky.
-
-It gets a bit better with the patch I sent earlier to read the count
-first, but yes it's a problem. However I'm not sure that even
-with that fixed mutexes will be as good as plain ticket locks.
-
-Also certainly it's no short term fix for 3.0. Right now 
-we still have this terrible regression.
-
--Andi
 -- 
-ak@linux.intel.com -- Speaking for myself only
+Regards,
+Ankita Garg (ankita@in.ibm.com)
+Linux Technology Center
+IBM India Systems & Technology Labs,
+Bangalore, India
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
