@@ -1,97 +1,154 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id E1B856B0082
-	for <linux-mm@kvack.org>; Tue, 14 Jun 2011 20:48:18 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id A03933EE0C0
-	for <linux-mm@kvack.org>; Wed, 15 Jun 2011 09:48:08 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 829D645DE6B
-	for <linux-mm@kvack.org>; Wed, 15 Jun 2011 09:48:08 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 678F445DE4D
-	for <linux-mm@kvack.org>; Wed, 15 Jun 2011 09:48:08 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 583161DB803A
-	for <linux-mm@kvack.org>; Wed, 15 Jun 2011 09:48:08 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 1B74E1DB803C
-	for <linux-mm@kvack.org>; Wed, 15 Jun 2011 09:48:08 +0900 (JST)
-Date: Wed, 15 Jun 2011 09:41:13 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: Panic on OOM
-Message-Id: <20110615094113.fa89be99.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1308058276.2074.295.camel@compaq-desktop>
-References: <1308058276.2074.295.camel@compaq-desktop>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with ESMTP id 8A6496B0082
+	for <linux-mm@kvack.org>; Tue, 14 Jun 2011 20:49:38 -0400 (EDT)
+Received: from hpaq11.eem.corp.google.com (hpaq11.eem.corp.google.com [172.25.149.11])
+	by smtp-out.google.com with ESMTP id p5F0nZux002917
+	for <linux-mm@kvack.org>; Tue, 14 Jun 2011 17:49:35 -0700
+Received: from pwj8 (pwj8.prod.google.com [10.241.219.72])
+	by hpaq11.eem.corp.google.com with ESMTP id p5F0nWMn025658
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 14 Jun 2011 17:49:33 -0700
+Received: by pwj8 with SMTP id 8so101005pwj.27
+        for <linux-mm@kvack.org>; Tue, 14 Jun 2011 17:49:32 -0700 (PDT)
+Date: Tue, 14 Jun 2011 17:49:13 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: [PATCH v2 12/12] mm: a few small updates for radix-swap
+In-Reply-To: <alpine.LSU.2.00.1106140357350.29206@sister.anvils>
+Message-ID: <alpine.LSU.2.00.1106141746270.678@sister.anvils>
+References: <alpine.LSU.2.00.1106140327550.29206@sister.anvils> <alpine.LSU.2.00.1106140357350.29206@sister.anvils>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: cfowler@opsdc.com
-Cc: Chris Fowler <cfowler@outpostsentinel.com>, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, 14 Jun 2011 09:31:16 -0400
-Chris Fowler <cfowler@outpostsentinel.com> wrote:
+Remove PageSwapBacked (!page_is_file_cache) cases from
+add_to_page_cache_locked() and add_to_page_cache_lru():
+those pages now go through shmem_add_to_page_cache().
 
-> I'm running into a problem in 2.6.38 where the kernel is not doing what
-> I'm expecting it to do.  I'm guessing that some things have changed and
-> that is what it going on.
-> 
-> First,  The tune at boot:
-> 
->         f.open("/proc/sys/vm/panic_on_oom", std::ios::out);
->         f << "1";
->         f.close();
-> 
->         f.open("/proc/sys/kernel/panic", std::ios::out);
->         f << "10";
->         f.close();
-> 
-> I want the kernel to panic on out of memory.  I then want it to wait 10s
-> before doing a reboot.
-> 
-> This program will consume all memory and make the box unresponsive
-> 
-> #!/usr/bin/perl
-> 
-> my @mem = ()
-> while(1) {
->   push @mem, "########################";
-> }
-> 
+Remove a comment on maximum tmpfs size from fsstack_copy_inode_size(),
+and add a comment on swap entries to invalidate_mapping_pages().
 
-Hmm, then, OOM-Killer wasn't invoked ?
+And mincore_page() uses find_get_page() on what might be shmem or a
+tmpfs file: allow for a radix_tree_exceptional_entry(), and proceed to
+find_get_page() on swapper_space if so (oh, swapper_space needs #ifdef).
 
-> It does not take long to fill up 1G of space.  There is NO swap on this
-> device and never will be.  I did notice that after a long period of time
-> (I've not timed it) I finally do see a panic and I do see "rebooting in
-> 10 seconds..." .  It does not reboot.
-> 
+v2: Fix NULL dereference I introduced in mincore_page().
 
-In these month(after 2.6.38), there has been some discussion
-that "oom-killer doesn't work enough or lru scan very slow" problem
-in linux-mm list. (and some improvemetns have been done.)
+Signed-off-by: Hugh Dickins <hughd@google.com>
+---
+ fs/stack.c    |    5 +----
+ mm/filemap.c  |   21 +++------------------
+ mm/mincore.c  |   10 ++++++----
+ mm/truncate.c |    8 ++++++++
+ 4 files changed, 18 insertions(+), 26 deletions(-)
 
-Then, if you can post your 'test case' with precise description of
-machine set up, we're glad.
-
-> 
-> I'm guessing that there are some tweaks or new behavior I just need to
-> be aware of.
-> 
-
-What version of kernel did you used in previous setup ?
-
-Thanks,
--Kame
-
-
-
-   
-
-
-
+--- linux.orig/fs/stack.c	2011-06-14 01:22:10.768120780 -0700
++++ linux/fs/stack.c	2011-06-14 01:23:26.088494288 -0700
+@@ -29,10 +29,7 @@ void fsstack_copy_inode_size(struct inod
+ 	 *
+ 	 * We don't actually know what locking is used at the lower level;
+ 	 * but if it's a filesystem that supports quotas, it will be using
+-	 * i_lock as in inode_add_bytes().  tmpfs uses other locking, and
+-	 * its 32-bit is (just) able to exceed 2TB i_size with the aid of
+-	 * holes; but its i_blocks cannot carry into the upper long without
+-	 * almost 2TB swap - let's ignore that case.
++	 * i_lock as in inode_add_bytes().
+ 	 */
+ 	if (sizeof(i_blocks) > sizeof(long))
+ 		spin_lock(&src->i_lock);
+--- linux.orig/mm/filemap.c	2011-06-14 01:22:10.768120780 -0700
++++ linux/mm/filemap.c	2011-06-14 01:23:26.088494288 -0700
+@@ -33,7 +33,6 @@
+ #include <linux/cpuset.h>
+ #include <linux/hardirq.h> /* for BUG_ON(!in_atomic()) only */
+ #include <linux/memcontrol.h>
+-#include <linux/mm_inline.h> /* for page_is_file_cache() */
+ #include <linux/cleancache.h>
+ #include "internal.h"
+ 
+@@ -465,6 +464,7 @@ int add_to_page_cache_locked(struct page
+ 	int error;
+ 
+ 	VM_BUG_ON(!PageLocked(page));
++	VM_BUG_ON(PageSwapBacked(page));
+ 
+ 	error = mem_cgroup_cache_charge(page, current->mm,
+ 					gfp_mask & GFP_RECLAIM_MASK);
+@@ -482,8 +482,6 @@ int add_to_page_cache_locked(struct page
+ 		if (likely(!error)) {
+ 			mapping->nrpages++;
+ 			__inc_zone_page_state(page, NR_FILE_PAGES);
+-			if (PageSwapBacked(page))
+-				__inc_zone_page_state(page, NR_SHMEM);
+ 			spin_unlock_irq(&mapping->tree_lock);
+ 		} else {
+ 			page->mapping = NULL;
+@@ -505,22 +503,9 @@ int add_to_page_cache_lru(struct page *p
+ {
+ 	int ret;
+ 
+-	/*
+-	 * Splice_read and readahead add shmem/tmpfs pages into the page cache
+-	 * before shmem_readpage has a chance to mark them as SwapBacked: they
+-	 * need to go on the anon lru below, and mem_cgroup_cache_charge
+-	 * (called in add_to_page_cache) needs to know where they're going too.
+-	 */
+-	if (mapping_cap_swap_backed(mapping))
+-		SetPageSwapBacked(page);
+-
+ 	ret = add_to_page_cache(page, mapping, offset, gfp_mask);
+-	if (ret == 0) {
+-		if (page_is_file_cache(page))
+-			lru_cache_add_file(page);
+-		else
+-			lru_cache_add_anon(page);
+-	}
++	if (ret == 0)
++		lru_cache_add_file(page);
+ 	return ret;
+ }
+ EXPORT_SYMBOL_GPL(add_to_page_cache_lru);
+--- linux.orig/mm/mincore.c	2011-06-14 01:22:10.768120780 -0700
++++ linux/mm/mincore.c	2011-06-14 17:41:15.760211585 -0700
+@@ -69,12 +69,14 @@ static unsigned char mincore_page(struct
+ 	 * file will not get a swp_entry_t in its pte, but rather it is like
+ 	 * any other file mapping (ie. marked !present and faulted in with
+ 	 * tmpfs's .fault). So swapped out tmpfs mappings are tested here.
+-	 *
+-	 * However when tmpfs moves the page from pagecache and into swapcache,
+-	 * it is still in core, but the find_get_page below won't find it.
+-	 * No big deal, but make a note of it.
+ 	 */
+ 	page = find_get_page(mapping, pgoff);
++#ifdef CONFIG_SWAP
++	if (radix_tree_exceptional_entry(page)) {
++		swp_entry_t swap = radix_to_swp_entry(page);
++		page = find_get_page(&swapper_space, swap.val);
++	}
++#endif
+ 	if (page) {
+ 		present = PageUptodate(page);
+ 		page_cache_release(page);
+--- linux.orig/mm/truncate.c	2011-06-14 01:22:10.768120780 -0700
++++ linux/mm/truncate.c	2011-06-14 01:23:26.092494303 -0700
+@@ -331,6 +331,14 @@ unsigned long invalidate_mapping_pages(s
+ 	unsigned long count = 0;
+ 	int i;
+ 
++	/*
++	 * Note: this function may get called on a shmem/tmpfs mapping:
++	 * pagevec_lookup() might then return 0 prematurely (because it
++	 * got a gangful of swap entries); but it's hardly worth worrying
++	 * about - it can rarely have anything to free from such a mapping
++	 * (most pages are dirty), and already skips over any difficulties.
++	 */
++
+ 	pagevec_init(&pvec, 0);
+ 	while (index <= end && pagevec_lookup(&pvec, mapping, index,
+ 			min(end - index, (pgoff_t)PAGEVEC_SIZE - 1) + 1)) {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
