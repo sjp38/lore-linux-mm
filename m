@@ -1,96 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 78C286B0082
-	for <linux-mm@kvack.org>; Wed, 15 Jun 2011 17:40:03 -0400 (EDT)
-Date: Wed, 15 Jun 2011 14:39:58 -0700
-From: Larry Bassel <lbassel@codeaurora.org>
-Subject: Re: [Linaro-mm-sig] [PATCH 08/10] mm: cma: Contiguous Memory
- Allocator added
-Message-ID: <20110615213958.GB28032@labbmf-linux.qualcomm.com>
-References: <1307699698-29369-1-git-send-email-m.szyprowski@samsung.com>
- <20110614170158.GU2419@fooishbar.org>
- <BANLkTi=cJisuP8=_YSg4h-nsjGj3zsM7sg@mail.gmail.com>
- <201106142242.25157.arnd@arndb.de>
- <000901cc2b37$4c21f030$e465d090$%szyprowski@samsung.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id D30D06B0012
+	for <linux-mm@kvack.org>; Wed, 15 Jun 2011 17:52:02 -0400 (EDT)
+Received: by gyd8 with SMTP id 8so95771gyd.14
+        for <linux-mm@kvack.org>; Wed, 15 Jun 2011 14:52:01 -0700 (PDT)
+References: <1308097798.17300.142.camel@schen9-DESK> <1308101214.15392.151.camel@sli10-conroe> <1308138750.15315.62.camel@twins> <20110615161827.GA11769@tassilo.jf.intel.com> <1308156337.2171.23.camel@laptop> <1308163398.17300.147.camel@schen9-DESK> <1308169937.15315.88.camel@twins> <4DF91CB9.5080504@linux.intel.com> <1308172336.17300.177.camel@schen9-DESK> <1308173849.15315.91.camel@twins>
+In-Reply-To: <1308173849.15315.91.camel@twins>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <000901cc2b37$4c21f030$e465d090$%szyprowski@samsung.com>
+Content-Type: text/plain;
+ charset=UTF-8
+Content-Transfer-Encoding: 8bit
+Subject: Re: REGRESSION: Performance regressions from switching anon_vma->lock to mutex
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Wed, 15 Jun 2011 14:51:34 -0700
+Message-ID: <87ea4bd7-8b16-4b24-8fcb-d8e9b6f421ec@email.android.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: 'Arnd Bergmann' <arnd@arndb.de>, 'Zach Pfeffer' <zach.pfeffer@linaro.org>, 'Daniel Walker' <dwalker@codeaurora.org>, 'Daniel Stone' <daniels@collabora.com>, 'Jesse Barker' <jesse.barker@linaro.org>, 'Mel Gorman' <mel@csn.ul.ie>, 'KAMEZAWA Hiroyuki' <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, 'Michal Nazarewicz' <mina86@mina86.com>, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Ankita Garg' <ankita@in.ibm.com>, 'Andrew Morton' <akpm@linux-foundation.org>, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>, Tim Chen <tim.c.chen@linux.intel.com>
+Cc: Andi Kleen <ak@linux.intel.com>, Shaohua Li <shaohua.li@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Russell King <rmk@arm.linux.org.uk>, Paul Mundt <lethal@linux-sh.org>, Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>, "Luck, Tony" <tony.luck@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Namhyung Kim <namhyung@gmail.com>, "Shi, Alex" <alex.shi@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Rafael J. Wysocki" <rjw@sisk.pl>
 
-On 15 Jun 11 10:36, Marek Szyprowski wrote:
-> Hello,
-> 
-> On Tuesday, June 14, 2011 10:42 PM Arnd Bergmann wrote:
-> 
-> > On Tuesday 14 June 2011 20:58:25 Zach Pfeffer wrote:
-> > > I've seen this split bank allocation in Qualcomm and TI SoCs, with
-> > > Samsung, that makes 3 major SoC vendors (I would be surprised if
-> > > Nvidia didn't also need to do this) - so I think some configurable
-> > > method to control allocations is necessarily. The chips can't do
-> > > decode without it (and by can't do I mean 1080P and higher decode is
-> > > not functionally useful). Far from special, this would appear to be
-> > > the default.
 
-We at Qualcomm have some platforms that have memory of different
-performance characteristics, some drivers will need a way of
-specifying that they need fast memory for an allocation (and would prefer
-an error if it is not available rather than a fallback to slower
-memory). It would also be bad if allocators who don't need fast
-memory got it "accidentally", depriving those who really need it.
 
-> > 
-> > Thanks for the insight, that's a much better argument than 'something
-> > may need it'. Are those all chips without an IOMMU or do we also
-> > need to solve the IOMMU case with split bank allocation?
-> > 
-> > I think I'd still prefer to see the support for multiple regions split
-> > out into one of the later patches, especially since that would defer
-> > the question of how to do the initialization for this case and make
-> > sure we first get a generic way.
-> > 
-> > You've convinced me that we need to solve the problem of allocating
-> > memory from a specific bank eventually, but separating it from the
-> > one at hand (contiguous allocation) should help getting the important
-> > groundwork in at first.
-> >
-> > The possible conflict that I still see with per-bank CMA regions are:
-> > 
-> > * It completely destroys memory power management in cases where that
-> >   is based on powering down entire memory banks.
-> 
-> I don't think that per-bank CMA regions destroys memory power management
-> more than the global CMA pool. Please note that the contiguous buffers
-> (or in general dma-buffers) right now are unmovable so they don't fit
-> well into memory power management.
+Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
+>removing
+>that sysconf() wreckage closed the gap considerably (needing to know
+>the
+>number of cpus to optimize locking sounds like a trainwreck all of its
+>own, needing it _that_ often instead of just once at startup is even
+>worse).
 
-We also have platforms where a well-defined part of the memory
-can be powered off, and other parts can't (or won't). We need a way
-to steer the place allocations come from to the memory that won't be
-turned off (so that CMA allocations are not an obstacle to memory
-hotremove).
+Yeah, I think it's ridiculous to say that glibc is not doing something stupid and that it's a problem with kernel interfaces.
 
-> 
-> Best regards
-> -- 
-> Marek Szyprowski
-> Samsung Poland R&D Center
-> 
-> 
-> 
-> _______________________________________________
-> Linaro-mm-sig mailing list
-> Linaro-mm-sig@lists.linaro.org
-> http://lists.linaro.org/mailman/listinfo/linaro-mm-sig
+Do the proc file parsing once and cache the result in a static variable. Doing it over and over again is just crazy.
 
-Larry Bassel
+Adding new system calls because glibc is crazy is insane.
 
--- 
-Sent by an employee of the Qualcomm Innovation Center, Inc.
-The Qualcomm Innovation Center, Inc. is a member of the Code Aurora Forum.
+       Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
