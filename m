@@ -1,85 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 3A0C56B0012
-	for <linux-mm@kvack.org>; Wed, 15 Jun 2011 03:12:15 -0400 (EDT)
-Received: from eu_spt1 (mailout1.w1.samsung.com [210.118.77.11])
- by mailout1.w1.samsung.com
- (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
- with ESMTP id <0LMT00GA1LCCT3@mailout1.w1.samsung.com> for linux-mm@kvack.org;
- Wed, 15 Jun 2011 08:12:12 +0100 (BST)
-Received: from linux.samsung.com ([106.116.38.10])
- by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0LMT00DRXLCBM1@spt1.w1.samsung.com> for
- linux-mm@kvack.org; Wed, 15 Jun 2011 08:12:11 +0100 (BST)
-Date: Wed, 15 Jun 2011 09:11:39 +0200
-From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: RE: [PATCH 08/10] mm: cma: Contiguous Memory Allocator added
-In-reply-to: <201106142030.07549.arnd@arndb.de>
-Message-id: <000501cc2b2b$789a54b0$69cefe10$%szyprowski@samsung.com>
-MIME-version: 1.0
-Content-type: text/plain; charset=utf-8
-Content-language: pl
-Content-transfer-encoding: 7BIT
-References: <1307699698-29369-1-git-send-email-m.szyprowski@samsung.com>
- <201106141803.00876.arnd@arndb.de> <op.vw2r3xrj3l0zgt@mnazarewicz-glaptop>
- <201106142030.07549.arnd@arndb.de>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 26DC96B0012
+	for <linux-mm@kvack.org>; Wed, 15 Jun 2011 03:15:05 -0400 (EDT)
+Date: Wed, 15 Jun 2011 09:15:00 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [BUGFIX][PATCH 5/5] memcg: fix percpu cached charge draining
+ frequency
+Message-ID: <20110615071500.GA31868@tiehlicka.suse.cz>
+References: <20110613120054.3336e997.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110613121648.3d28afcd.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110614073651.GA21197@tiehlicka.suse.cz>
+ <20110615091245.e3267a6b.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110615101202.fa8e9f76.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110615101202.fa8e9f76.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Arnd Bergmann' <arnd@arndb.de>, 'Michal Nazarewicz' <mina86@mina86.com>, Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Andrew Morton' <akpm@linux-foundation.org>, 'KAMEZAWA Hiroyuki' <kamezawa.hiroyu@jp.fujitsu.com>, 'Ankita Garg' <ankita@in.ibm.com>, 'Daniel Walker' <dwalker@codeaurora.org>, 'Mel Gorman' <mel@csn.ul.ie>, 'Jesse Barker' <jesse.barker@linaro.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "bsingharora@gmail.com" <bsingharora@gmail.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, Ying Han <yinghan@google.com>
 
-Hello,
-
-On Tuesday, June 14, 2011 8:30 PM Arnd Bergmann wrote:
-
-> On Tuesday 14 June 2011 18:58:35 Michal Nazarewicz wrote:
-> > On Tue, 14 Jun 2011 18:03:00 +0200, Arnd Bergmann wrote:
-> > > For all I know, that is something that is only true for a few very
-> > > special Samsung devices,
-> >
-> > Maybe.  I'm just answering your question. :)
-> >
-> > Ah yes, I forgot that separate regions for different purposes could
-> > decrease fragmentation.
+On Wed 15-06-11 10:12:02, KAMEZAWA Hiroyuki wrote:
+> On Wed, 15 Jun 2011 09:12:45 +0900
+> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 > 
-> That is indeed a good point, but having a good allocator algorithm
-> could also solve this. I don't know too much about these allocation
-> algorithms, but there are probably multiple working approaches to this.
-> 
-> > > I would suggest going forward without having multiple regions:
-> >
-> > Is having support for multiple regions a bad thing?  Frankly,
-> > removing this support will change code from reading context passed
-> > as argument to code reading context from global variable.  Nothing
-> > is gained; functionality is lost.
-> 
-> What is bad IMHO is making them the default, which forces the board
-> code to care about memory management details. I would much prefer
-> to have contiguous allocation parameters tuned automatically to just
-> work on most boards before we add ways to do board-specific hacks.
+> > On Tue, 14 Jun 2011 09:36:51 +0200
+> > Michal Hocko <mhocko@suse.cz> wrote:
+> > 
+> > > On Mon 13-06-11 12:16:48, KAMEZAWA Hiroyuki wrote:
+> > > > From 18b12e53f1cdf6d7feed1f9226c189c34866338c Mon Sep 17 00:00:00 2001
+> > > > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > > > Date: Mon, 13 Jun 2011 11:25:43 +0900
+> > > > Subject: [PATCH 5/5] memcg: fix percpu cached charge draining frequency
+> > > > 
+> > > >  For performance, memory cgroup caches some "charge" from res_counter
+> > > >  into per cpu cache. This works well but because it's cache,
+> > > >  it needs to be flushed in some cases. Typical cases are
+> > > >          1. when someone hit limit.
+> > > >          2. when rmdir() is called and need to charges to be 0.
+> > > > 
+> > > > But "1" has problem.
+> > > > 
+> > > > Recently, with large SMP machines, we see many kworker runs because
+> > > > of flushing memcg's cache. Bad things in implementation are
+> > > > that even if a cpu contains a cache for memcg not related to
+> > > > a memcg which hits limit, drain code is called.
+> > > > 
+> > > > This patch does
+> > > > 	D) don't call at softlimit reclaim.
+> > > 
+> > > I think this needs some justification. The decision is not that
+> > > obvious IMO. I would say that this is a good decision because cached
+> > > charges will not help to free any memory (at least not directly) during
+> > > background reclaim. What about something like:
+> > > "
+> > > We are not draining per cpu cached charges during soft limit reclaim 
+> > > because background reclaim doesn't care about charges. It tries to free
+> > > some memory and charges will not give any.
+> > > Cached charges might influence only selection of the biggest soft limit
+> > > offender but as the call is done only after the selection has been
+> > > already done it makes no change.
+> > > "
+> > > 
+> > > Anyway, wouldn't it be better to have this change separate from the
+> > > async draining logic change?
+> > 
+> > Hmm. I think calling "draining" at softlimit is just a bug.
+> > 
+> I'll divide patches.
 
-I see your concerns, but I really wonder how to determine the properties
-of the global/default cma pool. You definitely don't want to give all
-available memory o CMA, because it will have negative impact on kernel
-operation (kernel really needs to allocate unmovable pages from time to
-time). 
+Thanks.
 
-The only solution I see now is to provide Kconfig entry to determine
-the size of the global CMA pool, but this still have some issues,
-especially for multi-board kernels (each board probably will have
-different amount of RAM and different memory-consuming devices
-available). It looks that each board startup code still might need to
-tweak the size of CMA pool. I can add a kernel command line option for
-it, but such solution also will not solve all the cases (afair there
-was a discussion about kernel command line parameters for memory 
-configuration and the conclusion was that it should be avoided).
-
-Best regards
 -- 
-Marek Szyprowski
-Samsung Poland R&D Center
-
-
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
