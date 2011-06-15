@@ -1,50 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 3ED636B0012
-	for <linux-mm@kvack.org>; Wed, 15 Jun 2011 16:40:09 -0400 (EDT)
-Received: by vws4 with SMTP id 4so970309vws.14
-        for <linux-mm@kvack.org>; Wed, 15 Jun 2011 13:40:06 -0700 (PDT)
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id B3F7B6B0012
+	for <linux-mm@kvack.org>; Wed, 15 Jun 2011 16:47:56 -0400 (EDT)
+Received: by yia13 with SMTP id 13so630303yia.14
+        for <linux-mm@kvack.org>; Wed, 15 Jun 2011 13:47:55 -0700 (PDT)
+References: <1308097798.17300.142.camel@schen9-DESK> <1308134200.15315.32.camel@twins> <1308135495.15315.38.camel@twins> <BANLkTikt88KnxTy8TuGGVrBVnXvsnL7nMQ@mail.gmail.com> <20110615201216.GA4762@elte.hu> <20110615202956.GG2267@linux.vnet.ibm.com>
+In-Reply-To: <20110615202956.GG2267@linux.vnet.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <1308169466.15617.378.camel@calx>
-References: <20110614201031.GA19848@Chamillionaire.breakpoint.cc>
-	<1308089140.15617.221.camel@calx>
-	<20110615201202.GB19593@Chamillionaire.breakpoint.cc>
-	<1308169466.15617.378.camel@calx>
-Date: Wed, 15 Jun 2011 23:40:05 +0300
-Message-ID: <BANLkTi=QG3ywRhSx=npioJx-d=yyf=o29A@mail.gmail.com>
-Subject: Re: [PATCH] slob: push the min alignment to long long
-From: Pekka Enberg <penberg@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain;
+ charset=UTF-8
+Content-Transfer-Encoding: 8bit
+Subject: Re: [GIT PULL] Re: REGRESSION: Performance regressions from switching anon_vma->lock to mutex
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Wed, 15 Jun 2011 13:47:33 -0700
+Message-ID: <5a89bf11-4c80-418b-b2ff-ae904983ebb8@email.android.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matt Mackall <mpm@selenic.com>
-Cc: Sebastian Andrzej Siewior <sebastian@breakpoint.cc>, Christoph Lameter <cl@linux-foundation.org>, linux-mm@kvack.org, "David S. Miller" <davem@davemloft.net>, netfilter@vger.kernel.org
+To: paulmck@linux.vnet.ibm.com, Ingo Molnar <mingo@elte.hu>
+Cc: Peter Zijlstra <peterz@infradead.org>, Tim Chen <tim.c.chen@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Russell King <rmk@arm.linux.org.uk>, Paul Mundt <lethal@linux-sh.org>, Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>, Tony Luck <tony.luck@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Namhyung Kim <namhyung@gmail.com>, ak@linux.intel.com, shaohua.li@intel.com, alex.shi@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Rafael J. Wysocki" <rjw@sisk.pl>
 
-On Wed, Jun 15, 2011 at 11:24 PM, Matt Mackall <mpm@selenic.com> wrote:
-> On Wed, 2011-06-15 at 22:12 +0200, Sebastian Andrzej Siewior wrote:
->> * Matt Mackall | 2011-06-14 17:05:40 [-0500]:
->>
->> >Ok, so you claim that ARCH_KMALLOC_MINALIGN is not set on some
->> >architectures, and thus SLOB does the wrong thing.
->> >
->> >Doesn't that rather obviously mean that the affected architectures
->> >should define ARCH_KMALLOC_MINALIGN? Because, well, they have an
->> >"architecture-specific minimum kmalloc alignment"?
->>
->> nope, if nothing is defined SLOB asumes that alignment of long is the way
->> go. Unfortunately alignment of u64 maybe larger than of u32.
+
+
+"Paul E. McKenney" <paulmck@linux.vnet.ibm.com> wrote:
 >
-> I understand that. I guess we have a different idea of what constitutes
-> "architecture-specific" and what constitutes "normal".
->
-> But I guess I can be persuaded that most architectures now expect 64-bit
-> alignment of u64s.
+>It would be much lower risk to make the current code always use softirq
+>if !RCU_BOOST -- last time I attempted the revert, it was quite hairy.
 
-Changing the alignment for everyone is likely to cause less problems
-in the future. Matt, are there any practical reasons why we shouldn't
-do that?
+I don't care if it's a real revert or not, but I want the threads gone. Entirely. Not just the patch that uses softirqs for some things, and threads for the callbacks. No, I don't want the threads to show up or exist at all.
 
-                         Pekka
+And to be sure, I'd like the code to set up and use the threads to actually compile away statically, so that there clearly isn't some way it's partially enabled.
+
+        Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
