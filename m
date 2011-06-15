@@ -1,97 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 041586B0082
-	for <linux-mm@kvack.org>; Tue, 14 Jun 2011 23:09:12 -0400 (EDT)
-From: Ying Han <yinghan@google.com>
-Subject: [PATCH V1 0/2] memcg: break the zone->lru_lock on reclaim
-Date: Tue, 14 Jun 2011 20:08:09 -0700
-Message-Id: <1308107291-2909-1-git-send-email-yinghan@google.com>
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 17A106B0012
+	for <linux-mm@kvack.org>; Tue, 14 Jun 2011 23:51:33 -0400 (EDT)
+Received: from mail-vw0-f41.google.com (mail-vw0-f41.google.com [209.85.212.41])
+	(authenticated bits=0)
+	by smtp1.linux-foundation.org (8.14.2/8.13.5/Debian-3ubuntu1.1) with ESMTP id p5F3oxYi020680
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=FAIL)
+	for <linux-mm@kvack.org>; Tue, 14 Jun 2011 20:51:00 -0700
+Received: by vws4 with SMTP id 4so17073vws.14
+        for <linux-mm@kvack.org>; Tue, 14 Jun 2011 20:50:59 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <BANLkTinEhVY4aZ+M6H=380zd0Osr_6VFCA@mail.gmail.com>
+References: <1308097798.17300.142.camel@schen9-DESK> <BANLkTinEhVY4aZ+M6H=380zd0Osr_6VFCA@mail.gmail.com>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Tue, 14 Jun 2011 20:42:27 -0700
+Message-ID: <BANLkTinFtUXar+dRnSLakhBe6Bf25p7YAA@mail.gmail.com>
+Subject: Re: REGRESSION: Performance regressions from switching anon_vma->lock
+ to mutex
+Content-Type: multipart/mixed; boundary=bcaec5014ba927443104a5b7f2ba
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Suleiman Souhlal <suleiman@google.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>
-Cc: linux-mm@kvack.org
+To: Tim Chen <tim.c.chen@linux.intel.com>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Russell King <rmk@arm.linux.org.uk>, Paul Mundt <lethal@linux-sh.org>, Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>, Tony Luck <tony.luck@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Namhyung Kim <namhyung@gmail.com>, ak@linux.intel.com, shaohua.li@intel.com, alex.shi@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Rafael J. Wysocki" <rjw@sisk.pl>
 
-This patch is based on mmotm-2011-05-12-15-52 plus
+--bcaec5014ba927443104a5b7f2ba
+Content-Type: text/plain; charset=ISO-8859-1
 
-"[patch 0/8] mm: memcg naturalization -rc2" patchset
+On Tue, Jun 14, 2011 at 6:21 PM, Linus Torvalds
+<torvalds@linux-foundation.org> wrote:
+>
+> Anyway, please check me if I'm wrong, but won't the "anon_vma->root"
+> be the same for all the anon_vma's that are associated with one
+> particular vma?
+>
+> The reason I ask [...]
 
-"Fix behavior of per-cpu charge cache draining in memcg."
+So here's a trial patch that moves the anon_vma locking one level up
+in the anon_vma_clone() call chain. It actually does allow the root to
+change, but has a WARN_ON_ONCE() if that ever happens.
 
-Now with all the efforts of memcg reclaim, we are going to have better
-targetting per-memcg reclaim both under global memory pressure and per-memcg
-memory pressure. The patch fixes the last piece which making the lru_lock to
-be exclusive across memcgs.
+I *suspect* this will help the locking numbers a bit, but I'd like to
+note that it does this *only* for the anon_vma_clone() case, and the
+exact same thing should be done for the exit case too (ie the
+unlink_anon_vmas()). So if it does work it's still just one step on
+the way, and there would be more work along the same lines to possibly
+improve the locking further.
 
-The reasons we have the zone->lru_lock shared due to the following:
-1. each page is linked both in per-memcg lru as well as per-zone lru due to the
-lack of targetting reclaim under global memory pressure.
-2. since we have 1), it is easier to maintain and less race conditions to have
-the zone->lru_lock shared vs per-memcg lock.
+The patch is "tested" in the sense that I booted the kernel and am
+running it right now (and compiled a kernel with it). But that's not a
+whole lot of actual real life testing, so caveat emptor.
 
-After Johannes patchset, there will be no global lru list when memcg is enabled.
-All the pages are in exclusive per-memcg lru. So it makes senses to make the
-spinlock exclusive which could be easily causing bad lock contention with lots
-of memcgs each running memory intensive workload. The zone->lru_lock is still
-being used if memcg is not enabled and there shouldn't be any change in that
-condition.
+And I won't really even guarantee that the main problem locking-wise
+would be a long chain of "same_vma" anon-vma's that this does with
+just a single lock. So who knows - maybe it doesn't help at all. I
+suspect it's worth testing, though.
 
-change v1..v0:
-1. moved the spinlock lru_lock from mem_cgroup_per_zone struct to lruvec.
-the later one is introduced by Johannes patch which I think fits the lock
-much better.
+                              Linus
 
-2. add the changes in the CONFIG_TRANSPARENT_HUGEPAGE and CONFIG_COMPACTION.
+--bcaec5014ba927443104a5b7f2ba
+Content-Type: text/x-patch; charset=US-ASCII; name="patch.diff"
+Content-Disposition: attachment; filename="patch.diff"
+Content-Transfer-Encoding: base64
+X-Attachment-Id: f_goxqgqiz0
 
-3. fixed up the crash which are caused by the lumpy reclaim earlier on.
-
-Test:
-On my 8-core machine, i created 8 memcgs and each is doing a read from a ramdisk file.
-The filesize is larger than the hard_limit which triggers the per-memcg direct reclaim.
-Here I am using ramdisk to avoid the run-to-run noise from the hard drive.
-
---------------------------------------------------------------------------------------------------------------------------------------------
-class name    con-bounces    contentions   waittime-min   waittime-max waittime-total    acq-bounces   acquisitions   holdtime-min   holdtime-max holdtime-total
-
-Before the patch:
-
-              &(&zone->lru_lock)->rlock:        176843         176913           0.23          31.09      387180.72        1322312        3680197           0.00          45.20     6064010.97
-              -------------------------
-              &(&zone->lru_lock)->rlock          71797          [<ffffffff810f25a8>] pagevec_lru_move_fn+0x6b/0xc2
-              &(&zone->lru_lock)->rlock         105015          [<ffffffff810f2488>] release_pages+0xcd/0x182
-              &(&zone->lru_lock)->rlock            101          [<ffffffff810f21ed>] __page_cache_release+0x3f/0x6b
-              -------------------------
-              &(&zone->lru_lock)->rlock          84143          [<ffffffff810f25a8>] pagevec_lru_move_fn+0x6b/0xc2
-              &(&zone->lru_lock)->rlock          92680          [<ffffffff810f2488>] release_pages+0xcd/0x182
-              &(&zone->lru_lock)->rlock             90          [<ffffffff810f21ed>] __page_cache_release+0x3f/0x6b
-
-After the patch:
-
-                &(&mz->lru_lock)->rlock:          1911           1911           0.24          13.52        3242.64         100828        3719739           0.00          45.07     5764770.80
-                &(&mz->lru_lock)->rlock           1079          [<ffffffff810f24a7>] release_pages+0xe3/0x1a3
-                &(&mz->lru_lock)->rlock            815          [<ffffffff810f25c8>] pagevec_lru_move_fn+0x61/0xb1
-                &(&mz->lru_lock)->rlock             17          [<ffffffff810f21ef>] __page_cache_release+0x38/0x6b
-                &(&mz->lru_lock)->rlock           1207          [<ffffffff810f25c8>] pagevec_lru_move_fn+0x61/0xb1
-                &(&mz->lru_lock)->rlock            692          [<ffffffff810f24a7>] release_pages+0xe3/0x1a3
-                &(&mz->lru_lock)->rlock             12          [<ffffffff810f21ef>] __page_cache_release+0x38/0x6b
-
-Ying Han (2):
-  memcg: break the zone->lru_lock in memcg-aware reclaim
-  Move the lru_lock into the lruvec struct.
-
- include/linux/memcontrol.h |   17 +++++++
- include/linux/mm_types.h   |    2 +-
- include/linux/mmzone.h     |    8 ++--
- mm/compaction.c            |   41 ++++++++++------
- mm/huge_memory.c           |    5 +-
- mm/memcontrol.c            |   66 +++++++++++++++++++++----
- mm/page_alloc.c            |    2 +-
- mm/rmap.c                  |    2 +-
- mm/swap.c                  |   71 ++++++++++++++++------------
- mm/vmscan.c                |  114 ++++++++++++++++++++++++++++++--------------
- 10 files changed, 228 insertions(+), 100 deletions(-)
-
--- 
-1.7.3.1
+IG1tL3JtYXAuYyB8ICAgMTggKysrKysrKysrKysrKysrKy0tCiAxIGZpbGVzIGNoYW5nZWQsIDE2
+IGluc2VydGlvbnMoKyksIDIgZGVsZXRpb25zKC0pCgpkaWZmIC0tZ2l0IGEvbW0vcm1hcC5jIGIv
+bW0vcm1hcC5jCmluZGV4IDBlYjQ2M2VhODhkZC4uMjA2YzNmYjA3MmFmIDEwMDY0NAotLS0gYS9t
+bS9ybWFwLmMKKysrIGIvbW0vcm1hcC5jCkBAIC0yMDgsMTMgKzIwOCwxMSBAQCBzdGF0aWMgdm9p
+ZCBhbm9uX3ZtYV9jaGFpbl9saW5rKHN0cnVjdCB2bV9hcmVhX3N0cnVjdCAqdm1hLAogCWF2Yy0+
+YW5vbl92bWEgPSBhbm9uX3ZtYTsKIAlsaXN0X2FkZCgmYXZjLT5zYW1lX3ZtYSwgJnZtYS0+YW5v
+bl92bWFfY2hhaW4pOwogCi0JYW5vbl92bWFfbG9jayhhbm9uX3ZtYSk7CiAJLyoKIAkgKiBJdCdz
+IGNyaXRpY2FsIHRvIGFkZCBuZXcgdm1hcyB0byB0aGUgdGFpbCBvZiB0aGUgYW5vbl92bWEsCiAJ
+ICogc2VlIGNvbW1lbnQgaW4gaHVnZV9tZW1vcnkuYzpfX3NwbGl0X2h1Z2VfcGFnZSgpLgogCSAq
+LwogCWxpc3RfYWRkX3RhaWwoJmF2Yy0+c2FtZV9hbm9uX3ZtYSwgJmFub25fdm1hLT5oZWFkKTsK
+LQlhbm9uX3ZtYV91bmxvY2soYW5vbl92bWEpOwogfQogCiAvKgpAQCAtMjI0LDE2ICsyMjIsMzAg
+QEAgc3RhdGljIHZvaWQgYW5vbl92bWFfY2hhaW5fbGluayhzdHJ1Y3Qgdm1fYXJlYV9zdHJ1Y3Qg
+KnZtYSwKIGludCBhbm9uX3ZtYV9jbG9uZShzdHJ1Y3Qgdm1fYXJlYV9zdHJ1Y3QgKmRzdCwgc3Ry
+dWN0IHZtX2FyZWFfc3RydWN0ICpzcmMpCiB7CiAJc3RydWN0IGFub25fdm1hX2NoYWluICphdmMs
+ICpwYXZjOworCXN0cnVjdCBhbm9uX3ZtYSAqcm9vdCA9IE5VTEw7CiAKIAlsaXN0X2Zvcl9lYWNo
+X2VudHJ5X3JldmVyc2UocGF2YywgJnNyYy0+YW5vbl92bWFfY2hhaW4sIHNhbWVfdm1hKSB7CisJ
+CXN0cnVjdCBhbm9uX3ZtYSAqYW5vbl92bWEgPSBwYXZjLT5hbm9uX3ZtYSwgKm5ld19yb290ID0g
+YW5vbl92bWEtPnJvb3Q7CisKKwkJaWYgKG5ld19yb290ICE9IHJvb3QpIHsKKwkJCWlmIChXQVJO
+X09OX09OQ0Uocm9vdCkpCisJCQkJbXV0ZXhfdW5sb2NrKCZyb290LT5tdXRleCk7CisJCQlyb290
+ID0gbmV3X3Jvb3Q7CisJCQltdXRleF9sb2NrKCZyb290LT5tdXRleCk7CisJCX0KKwogCQlhdmMg
+PSBhbm9uX3ZtYV9jaGFpbl9hbGxvYygpOwogCQlpZiAoIWF2YykKIAkJCWdvdG8gZW5vbWVtX2Zh
+aWx1cmU7CiAJCWFub25fdm1hX2NoYWluX2xpbmsoZHN0LCBhdmMsIHBhdmMtPmFub25fdm1hKTsK
+IAl9CisJaWYgKHJvb3QpCisJCW11dGV4X3VubG9jaygmcm9vdC0+bXV0ZXgpOwogCXJldHVybiAw
+OwogCiAgZW5vbWVtX2ZhaWx1cmU6CisJaWYgKHJvb3QpCisJCW11dGV4X3VubG9jaygmcm9vdC0+
+bXV0ZXgpOwogCXVubGlua19hbm9uX3ZtYXMoZHN0KTsKIAlyZXR1cm4gLUVOT01FTTsKIH0KQEAg
+LTI4MCw3ICsyOTIsOSBAQCBpbnQgYW5vbl92bWFfZm9yayhzdHJ1Y3Qgdm1fYXJlYV9zdHJ1Y3Qg
+KnZtYSwgc3RydWN0IHZtX2FyZWFfc3RydWN0ICpwdm1hKQogCWdldF9hbm9uX3ZtYShhbm9uX3Zt
+YS0+cm9vdCk7CiAJLyogTWFyayB0aGlzIGFub25fdm1hIGFzIHRoZSBvbmUgd2hlcmUgb3VyIG5l
+dyAoQ09XZWQpIHBhZ2VzIGdvLiAqLwogCXZtYS0+YW5vbl92bWEgPSBhbm9uX3ZtYTsKKwlhbm9u
+X3ZtYV9sb2NrKGFub25fdm1hKTsKIAlhbm9uX3ZtYV9jaGFpbl9saW5rKHZtYSwgYXZjLCBhbm9u
+X3ZtYSk7CisJYW5vbl92bWFfdW5sb2NrKGFub25fdm1hKTsKIAogCXJldHVybiAwOwogCg==
+--bcaec5014ba927443104a5b7f2ba--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
