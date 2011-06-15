@@ -1,88 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id C1B766B0012
-	for <linux-mm@kvack.org>; Wed, 15 Jun 2011 02:01:22 -0400 (EDT)
-Received: by pvc12 with SMTP id 12so66678pvc.14
-        for <linux-mm@kvack.org>; Tue, 14 Jun 2011 23:01:19 -0700 (PDT)
-Message-ID: <4DF84AA6.80808@gmail.com>
-Date: Wed, 15 Jun 2011 11:31:10 +0530
-From: Subash Patel <subashrp@gmail.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 08/10] mm: cma: Contiguous Memory Allocator added
-References: <1307699698-29369-1-git-send-email-m.szyprowski@samsung.com> <201106141549.29315.arnd@arndb.de> <op.vw2jmhir3l0zgt@mnazarewicz-glaptop> <201106141803.00876.arnd@arndb.de>
-In-Reply-To: <201106141803.00876.arnd@arndb.de>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 3A0C56B0012
+	for <linux-mm@kvack.org>; Wed, 15 Jun 2011 03:12:15 -0400 (EDT)
+Received: from eu_spt1 (mailout1.w1.samsung.com [210.118.77.11])
+ by mailout1.w1.samsung.com
+ (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
+ with ESMTP id <0LMT00GA1LCCT3@mailout1.w1.samsung.com> for linux-mm@kvack.org;
+ Wed, 15 Jun 2011 08:12:12 +0100 (BST)
+Received: from linux.samsung.com ([106.116.38.10])
+ by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
+ 2004)) with ESMTPA id <0LMT00DRXLCBM1@spt1.w1.samsung.com> for
+ linux-mm@kvack.org; Wed, 15 Jun 2011 08:12:11 +0100 (BST)
+Date: Wed, 15 Jun 2011 09:11:39 +0200
+From: Marek Szyprowski <m.szyprowski@samsung.com>
+Subject: RE: [PATCH 08/10] mm: cma: Contiguous Memory Allocator added
+In-reply-to: <201106142030.07549.arnd@arndb.de>
+Message-id: <000501cc2b2b$789a54b0$69cefe10$%szyprowski@samsung.com>
+MIME-version: 1.0
+Content-type: text/plain; charset=utf-8
+Content-language: pl
+Content-transfer-encoding: 7BIT
+References: <1307699698-29369-1-git-send-email-m.szyprowski@samsung.com>
+ <201106141803.00876.arnd@arndb.de> <op.vw2r3xrj3l0zgt@mnazarewicz-glaptop>
+ <201106142030.07549.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arnd Bergmann <arnd@arndb.de>
-Cc: Michal Nazarewicz <mina86@mina86.com>, Marek Szyprowski <m.szyprowski@samsung.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Andrew Morton' <akpm@linux-foundation.org>, 'KAMEZAWA Hiroyuki' <kamezawa.hiroyu@jp.fujitsu.com>, 'Ankita Garg' <ankita@in.ibm.com>, 'Daniel Walker' <dwalker@codeaurora.org>, 'Mel Gorman' <mel@csn.ul.ie>, 'Jesse Barker' <jesse.barker@linaro.org>
+To: 'Arnd Bergmann' <arnd@arndb.de>, 'Michal Nazarewicz' <mina86@mina86.com>, Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Andrew Morton' <akpm@linux-foundation.org>, 'KAMEZAWA Hiroyuki' <kamezawa.hiroyu@jp.fujitsu.com>, 'Ankita Garg' <ankita@in.ibm.com>, 'Daniel Walker' <dwalker@codeaurora.org>, 'Mel Gorman' <mel@csn.ul.ie>, 'Jesse Barker' <jesse.barker@linaro.org>
 
-Hi Arnd,
+Hello,
 
-On 06/14/2011 09:33 PM, Arnd Bergmann wrote:
-> On Tuesday 14 June 2011, Michal Nazarewicz wrote:
->> On Tue, 14 Jun 2011 15:49:29 +0200, Arnd Bergmann<arnd@arndb.de>  wrote:
->>> Please explain the exact requirements that lead you to defining multiple
->>> contexts.
->>
->> Some devices may have access only to some banks of memory.  Some devices
->> may use different banks of memory for different purposes.
->
-> For all I know, that is something that is only true for a few very special
-> Samsung devices, and is completely unrelated of the need for contiguous
-> allocations, so this approach becomes pointless as soon as the next
-> generation of that chip grows an IOMMU, where we don't handle the special
-> bank attributes. Also, the way I understood the situation for the Samsung
-> SoC during the Budapest discussion, it's only a performance hack, not a
-> functional requirement, unless you count '1080p playback' as a functional
-> requirement.
->
-1080p@30fps is indeed a functional requirement, as the IP has the 
-capability to achieve it. This IP itself can act as more than one AXI 
-master, and control more than one memory port(bank). So this is not a 
-*performance hack*
+On Tuesday, June 14, 2011 8:30 PM Arnd Bergmann wrote:
 
-Also, if I recall, during the Budapest discussion (I was on irc), I 
-recall that this requirement can become the information available to the 
-actual allocator. Below is the summary point I could collect from summit 
-notes:
+> On Tuesday 14 June 2011 18:58:35 Michal Nazarewicz wrote:
+> > On Tue, 14 Jun 2011 18:03:00 +0200, Arnd Bergmann wrote:
+> > > For all I know, that is something that is only true for a few very
+> > > special Samsung devices,
+> >
+> > Maybe.  I'm just answering your question. :)
+> >
+> > Ah yes, I forgot that separate regions for different purposes could
+> > decrease fragmentation.
+> 
+> That is indeed a good point, but having a good allocator algorithm
+> could also solve this. I don't know too much about these allocation
+> algorithms, but there are probably multiple working approaches to this.
+> 
+> > > I would suggest going forward without having multiple regions:
+> >
+> > Is having support for multiple regions a bad thing?  Frankly,
+> > removing this support will change code from reading context passed
+> > as argument to code reading context from global variable.  Nothing
+> > is gained; functionality is lost.
+> 
+> What is bad IMHO is making them the default, which forces the board
+> code to care about memory management details. I would much prefer
+> to have contiguous allocation parameters tuned automatically to just
+> work on most boards before we add ways to do board-specific hacks.
 
-     * May also need to specify more attributes (specific physical 
-memory region)
+I see your concerns, but I really wonder how to determine the properties
+of the global/default cma pool. You definitely don't want to give all
+available memory o CMA, because it will have negative impact on kernel
+operation (kernel really needs to allocate unmovable pages from time to
+time). 
 
-As per this point, the requirement (as above) must be attribute to the 
-allocator, which is CMA in this case.
+The only solution I see now is to provide Kconfig entry to determine
+the size of the global CMA pool, but this still have some issues,
+especially for multi-board kernels (each board probably will have
+different amount of RAM and different memory-consuming devices
+available). It looks that each board startup code still might need to
+tweak the size of CMA pool. I can add a kernel command line option for
+it, but such solution also will not solve all the cases (afair there
+was a discussion about kernel command line parameters for memory 
+configuration and the conclusion was that it should be avoided).
 
-> Supporting contiguous allocation is a very useful goal and many people want
-> this, but supporting a crazy one-off hardware design with lots of generic
-> infrastructure is going a bit too far. If you can't be more specific than
-> 'some devices may need this', I would suggest going forward without having
-> multiple regions:
->
-> * Remove the registration of specific addresses from the initial patch
->    set (but keep the patch).
-> * Add a heuristic plus command-line override to automatically come up
->    with a reasonable location+size for *one* CMA area in the system.
-> * Ship the patch to add support for multiple CMA areas with the BSP
->    for the boards that need it (if any).
-> * Wait for someone on a non-Samsung SoC to run into the same problem,
->    then have /them/ get the final patch in.
->
-> Even if you think you can convince enough people that having support
-> for distinct predefined regions is a good idea, I would recommend
-> splitting that out of the initial merge so we can have that discussion
-> separately from the other issues.
->
-> 	Arnd
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-media" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Best regards
+-- 
+Marek Szyprowski
+Samsung Poland R&D Center
 
-Regards,
-Subash
-SISO-SLG
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
