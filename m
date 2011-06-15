@@ -1,67 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 9E6356B004A
-	for <linux-mm@kvack.org>; Wed, 15 Jun 2011 16:55:59 -0400 (EDT)
-Subject: Re: [PATCH] slob: push the min alignment to long long
-From: Matt Mackall <mpm@selenic.com>
-In-Reply-To: <BANLkTi=QG3ywRhSx=npioJx-d=yyf=o29A@mail.gmail.com>
-References: <20110614201031.GA19848@Chamillionaire.breakpoint.cc>
-	 <1308089140.15617.221.camel@calx>
-	 <20110615201202.GB19593@Chamillionaire.breakpoint.cc>
-	 <1308169466.15617.378.camel@calx>
-	 <BANLkTi=QG3ywRhSx=npioJx-d=yyf=o29A@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Wed, 15 Jun 2011 15:55:55 -0500
-Message-ID: <1308171355.15617.401.camel@calx>
-Mime-Version: 1.0
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 36CEC6B0012
+	for <linux-mm@kvack.org>; Wed, 15 Jun 2011 16:57:32 -0400 (EDT)
+Message-ID: <4DF91CB9.5080504@linux.intel.com>
+Date: Wed, 15 Jun 2011 13:57:29 -0700
+From: Andi Kleen <ak@linux.intel.com>
+MIME-Version: 1.0
+Subject: Re: REGRESSION: Performance regressions from switching anon_vma->lock
+ to mutex
+References: <1308097798.17300.142.camel@schen9-DESK>	 <1308101214.15392.151.camel@sli10-conroe> <1308138750.15315.62.camel@twins>	 <20110615161827.GA11769@tassilo.jf.intel.com>	 <1308156337.2171.23.camel@laptop>  <1308163398.17300.147.camel@schen9-DESK> <1308169937.15315.88.camel@twins>
+In-Reply-To: <1308169937.15315.88.camel@twins>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Sebastian Andrzej Siewior <sebastian@breakpoint.cc>, Christoph Lameter <cl@linux-foundation.org>, linux-mm@kvack.org, "David S. Miller" <davem@davemloft.net>, netfilter@vger.kernel.org
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Tim Chen <tim.c.chen@linux.intel.com>, Shaohua Li <shaohua.li@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Russell King <rmk@arm.linux.org.uk>, Paul Mundt <lethal@linux-sh.org>, Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>, "Luck, Tony" <tony.luck@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Namhyung Kim <namhyung@gmail.com>, "Shi, Alex" <alex.shi@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Rafael J. Wysocki" <rjw@sisk.pl>
 
-On Wed, 2011-06-15 at 23:40 +0300, Pekka Enberg wrote:
-> On Wed, Jun 15, 2011 at 11:24 PM, Matt Mackall <mpm@selenic.com> wrote:
-> > On Wed, 2011-06-15 at 22:12 +0200, Sebastian Andrzej Siewior wrote:
-> >> * Matt Mackall | 2011-06-14 17:05:40 [-0500]:
-> >>
-> >> >Ok, so you claim that ARCH_KMALLOC_MINALIGN is not set on some
-> >> >architectures, and thus SLOB does the wrong thing.
-> >> >
-> >> >Doesn't that rather obviously mean that the affected architectures
-> >> >should define ARCH_KMALLOC_MINALIGN? Because, well, they have an
-> >> >"architecture-specific minimum kmalloc alignment"?
-> >>
-> >> nope, if nothing is defined SLOB asumes that alignment of long is the way
-> >> go. Unfortunately alignment of u64 maybe larger than of u32.
-> >
-> > I understand that. I guess we have a different idea of what constitutes
-> > "architecture-specific" and what constitutes "normal".
-> >
-> > But I guess I can be persuaded that most architectures now expect 64-bit
-> > alignment of u64s.
-> 
-> Changing the alignment for everyone is likely to cause less problems
-> in the future. Matt, are there any practical reasons why we shouldn't
-> do that?
 
-Unless you audit all architectures to check that things are sensible,
-it's a trade: regressing performance on one arch to improve correctness
-on another. On the one hand, regressions trump improvement. On the
-other, correctness trumps performance.
+>       7.44%        exim  [kernel.kallsyms]              [k] format_decode
+>                    |
+>                    --- format_decod
 
-In general, I think the right thing is to require every arch to
-explicitly document its alignment requirements via defines in the kernel
-headers so that random hackers don't have to scour the internet for
-datasheets on obscure architectures they don't care about. We should
-have no defaults and refuse to compile on any arch that doesn't have the
-define which will ensure someone somewhere actually thinks about it for
-each arch.
 
-But as I don't have time to push that vision, I'll let it slide.
+This is a glibc issue. exim calls libdb and libdb asks sysconf for the 
+number of CPUs to tune
+its locking, and glibc reads /proc/stat.  And /proc/stat is incredible slow.
 
--- 
-Mathematics is the supreme nostalgia of our time.
+I would blame glibc, but in this case it's really the kernel to blame 
+for not providing proper
+interface.
+
+This was my motivation for the sysconf() syscall I submitted some time ago.
+https://lkml.org/lkml/2011/5/13/455
+
+Anyways a quick workaround is to use this LD_PRELOAD: 
+http://halobates.de/smallsrc/sysconf.c
+But it's not 100% equivalent.
+
+-Andi
+
 
 
 --
