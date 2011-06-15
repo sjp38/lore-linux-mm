@@ -1,42 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id B14996B0012
-	for <linux-mm@kvack.org>; Wed, 15 Jun 2011 12:19:51 -0400 (EDT)
-Date: Wed, 15 Jun 2011 09:18:27 -0700
-From: Andi Kleen <ak@linux.intel.com>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id DF5F66B0012
+	for <linux-mm@kvack.org>; Wed, 15 Jun 2011 12:42:08 -0400 (EDT)
+Received: from j77219.upc-j.chello.nl ([24.132.77.219] helo=dyad.programming.kicks-ass.net)
+	by casper.infradead.org with esmtpsa (Exim 4.76 #1 (Red Hat Linux))
+	id 1QWtAL-0003RB-H0
+	for linux-mm@kvack.org; Wed, 15 Jun 2011 16:42:05 +0000
 Subject: Re: REGRESSION: Performance regressions from switching
  anon_vma->lock to mutex
-Message-ID: <20110615161827.GA11769@tassilo.jf.intel.com>
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <20110615161827.GA11769@tassilo.jf.intel.com>
 References: <1308097798.17300.142.camel@schen9-DESK>
- <1308101214.15392.151.camel@sli10-conroe>
- <1308138750.15315.62.camel@twins>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1308138750.15315.62.camel@twins>
+	 <1308101214.15392.151.camel@sli10-conroe> <1308138750.15315.62.camel@twins>
+	 <20110615161827.GA11769@tassilo.jf.intel.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Wed, 15 Jun 2011 18:45:37 +0200
+Message-ID: <1308156337.2171.23.camel@laptop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Shaohua Li <shaohua.li@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Russell King <rmk@arm.linux.org.uk>, Paul Mundt <lethal@linux-sh.org>, Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>, "Luck, Tony" <tony.luck@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Namhyung Kim <namhyung@gmail.com>, "Shi, Alex" <alex.shi@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Rafael J. Wysocki" <rjw@sisk.pl>
+To: Andi Kleen <ak@linux.intel.com>
+Cc: Shaohua Li <shaohua.li@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Russell King <rmk@arm.linux.org.uk>, Paul Mundt <lethal@linux-sh.org>, Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>, "Luck,
+ Tony" <tony.luck@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Namhyung Kim <namhyung@gmail.com>, "Shi, Alex" <alex.shi@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Rafael J. Wysocki" <rjw@sisk.pl>
 
-> Good spot that certainly isn't plain .39.
+On Wed, 2011-06-15 at 09:18 -0700, Andi Kleen wrote:
 
-True.
+> And in general it looks like blind conversion from spinlock to mutex
+> is a bad idea right now.
 
-> 
-> It looks like those (http://marc.info/?l=linux-mm&m=130533041726258) are
-> similar to Linus' patch, except Linus takes the hard line that the root
+For 4 socket machines, maybe. On 2 sockets I cannot reproduce anything.
 
-One difference to Linus' patch is that it does batching for both fork+exit.
-I suspect Linus' patch could probably too.
+I wonder if its the fairness thing, the mutex spinners aren't fifo fair
+like the ticket locks are. It could be significant with larger socket
+count since their cacheline arbitration is more sucky.
 
-But the fork+exit patch only improved things slightly, it's very unlikely to 
-recover 52%. Maybe the overall locking here needs to be revisited.
 
-And in general it looks like blind conversion from spinlock to mutex
-is a bad idea right now.
-
--Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
