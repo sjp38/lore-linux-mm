@@ -1,76 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id BE2766B0012
-	for <linux-mm@kvack.org>; Wed, 15 Jun 2011 04:36:53 -0400 (EDT)
-MIME-version: 1.0
-Content-transfer-encoding: 7BIT
-Content-type: text/plain; charset=us-ascii
-Received: from eu_spt1 ([210.118.77.14]) by mailout4.w1.samsung.com
- (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
- with ESMTP id <0LMT005SRP9EMY40@mailout4.w1.samsung.com> for
- linux-mm@kvack.org; Wed, 15 Jun 2011 09:36:51 +0100 (BST)
-Received: from linux.samsung.com ([106.116.38.10])
- by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0LMT00DQMP9DM1@spt1.w1.samsung.com> for
- linux-mm@kvack.org; Wed, 15 Jun 2011 09:36:50 +0100 (BST)
-Date: Wed, 15 Jun 2011 10:36:18 +0200
-From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: RE: [Linaro-mm-sig] [PATCH 08/10] mm: cma: Contiguous Memory Allocator
- added
-In-reply-to: <201106142242.25157.arnd@arndb.de>
-Message-id: <000901cc2b37$4c21f030$e465d090$%szyprowski@samsung.com>
-Content-language: pl
-References: <1307699698-29369-1-git-send-email-m.szyprowski@samsung.com>
- <20110614170158.GU2419@fooishbar.org>
- <BANLkTi=cJisuP8=_YSg4h-nsjGj3zsM7sg@mail.gmail.com>
- <201106142242.25157.arnd@arndb.de>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id A64E36B0012
+	for <linux-mm@kvack.org>; Wed, 15 Jun 2011 05:03:44 -0400 (EDT)
+Received: from d03relay03.boulder.ibm.com (d03relay03.boulder.ibm.com [9.17.195.228])
+	by e37.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p5F90aDR006770
+	for <linux-mm@kvack.org>; Wed, 15 Jun 2011 03:00:36 -0600
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d03relay03.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p5F93GNL162718
+	for <linux-mm@kvack.org>; Wed, 15 Jun 2011 03:03:16 -0600
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p5F333uV014621
+	for <linux-mm@kvack.org>; Tue, 14 Jun 2011 21:03:06 -0600
+Date: Wed, 15 Jun 2011 14:25:15 +0530
+From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Subject: Re: [PATCH v4 3.0-rc2-tip 2/22]  2: uprobes: Breakground page
+ replacement.
+Message-ID: <20110615085515.GE4952@linux.vnet.ibm.com>
+Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+References: <20110607125804.28590.92092.sendpatchset@localhost6.localdomain6>
+ <20110607125835.28590.25476.sendpatchset@localhost6.localdomain6>
+ <20110613170020.GA27137@redhat.com>
+ <20110614123530.GC4952@linux.vnet.ibm.com>
+ <20110614142023.GA5139@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20110614142023.GA5139@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Arnd Bergmann' <arnd@arndb.de>, 'Zach Pfeffer' <zach.pfeffer@linaro.org>
-Cc: linux-arm-kernel@lists.infradead.org, 'Daniel Walker' <dwalker@codeaurora.org>, 'Daniel Stone' <daniels@collabora.com>, linux-mm@kvack.org, 'Mel Gorman' <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, 'Michal Nazarewicz' <mina86@mina86.com>, linaro-mm-sig@lists.linaro.org, 'Jesse Barker' <jesse.barker@linaro.org>, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Ankita Garg' <ankita@in.ibm.com>, 'Andrew Morton' <akpm@linux-foundation.org>, 'KAMEZAWA Hiroyuki' <kamezawa.hiroyu@jp.fujitsu.com>, linux-media@vger.kernel.org, Marek Szyprowski <m.szyprowski@samsung.com>
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Andi Kleen <andi@firstfloor.org>, Thomas Gleixner <tglx@linutronix.de>, Jonathan Corbet <corbet@lwn.net>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, LKML <linux-kernel@vger.kernel.org>
 
-Hello,
-
-On Tuesday, June 14, 2011 10:42 PM Arnd Bergmann wrote:
-
-> On Tuesday 14 June 2011 20:58:25 Zach Pfeffer wrote:
-> > I've seen this split bank allocation in Qualcomm and TI SoCs, with
-> > Samsung, that makes 3 major SoC vendors (I would be surprised if
-> > Nvidia didn't also need to do this) - so I think some configurable
-> > method to control allocations is necessarily. The chips can't do
-> > decode without it (and by can't do I mean 1080P and higher decode is
-> > not functionally useful). Far from special, this would appear to be
-> > the default.
+> > > > +
+> > > > +	/* Read the page with vaddr into memory */
+> > > > +	ret = get_user_pages(tsk, tsk->mm, vaddr, 1, 1, 1, &old_page, &vma);
+> > >
+> > > Sorry if this was already discussed... But why we are using FOLL_WRITE here?
+> > > We are not going to write into this page, and this provokes the unnecessary
+> > > cow, no?
+> >
+> > Yes, We are not going to write to the page returned by get_user_pages
+> > but a copy of that page.
 > 
-> Thanks for the insight, that's a much better argument than 'something
-> may need it'. Are those all chips without an IOMMU or do we also
-> need to solve the IOMMU case with split bank allocation?
+> Yes I see. But the page returned by get_user_pages(write => 1) is already
+> a cow'ed copy (this mapping should be read-only).
 > 
-> I think I'd still prefer to see the support for multiple regions split
-> out into one of the later patches, especially since that would defer
-> the question of how to do the initialization for this case and make
-> sure we first get a generic way.
+> > The idea was if we cow the page then we dont
+> > need to cow it at the replace_page time
 > 
-> You've convinced me that we need to solve the problem of allocating
-> memory from a specific bank eventually, but separating it from the
-> one at hand (contiguous allocation) should help getting the important
-> groundwork in at first.
->
-> The possible conflict that I still see with per-bank CMA regions are:
+> Yes, replace_page() shouldn't cow.
 > 
-> * It completely destroys memory power management in cases where that
->   is based on powering down entire memory banks.
+> > and since get_user_pages knows
+> > the right way to cow the page, we dont have to write another routine to
+> > cow the page.
+> 
+> Confused. write_opcode() allocs another page and does memcpy. This is
+> correct, but I don't understand the first cow.
+> 
 
-I don't think that per-bank CMA regions destroys memory power management
-more than the global CMA pool. Please note that the contiguous buffers
-(or in general dma-buffers) right now are unmovable so they don't fit
-well into memory power management.
+we decided on get_user_pages(FOLL_WRITE|FOLL_FORCE) based on discussions
+in these threads https://lkml.org/lkml/2010/4/23/327 and
+https://lkml.org/lkml/2010/5/12/119
 
-Best regards
+Summary of those two sub-threads as I understand was to have
+get_user_pages do the "real" cow for us.
+
+If I understand correctly, your concern is on the extra overhead added
+by the get_user_pages. Other than that is there any side-effect of we
+forcing the cow through get_user_pages.
+
+> > I am still not clear on your concern.
+> 
+> Probably I missed something... but could you please explain why we can't
+> 
+> 	- ret = get_user_pages(tsk, tsk->mm, vaddr, 1, 1, 1, &old_page, &vma);
+> 	+ ret = get_user_pages(tsk, tsk->mm, vaddr, 1, 0, 0, &old_page, &vma);
+> 
+> ?
+
+I tried the code with this change and it works for regular cases.
+I am not sure if it affects cases where programs do mprotect 
+So I am okay to not force cow through get_user_pages.
+
+> 
+> > > Also. This is called under down_read(mmap_sem), can't we race with
+> > > access_process_vm() modifying the same memory?
+> >
+> > Yes, we could be racing with access_process_vm on the same memory.
+> >
+> > Do we have any other option other than making write_opcode/read_opcode
+> > being called under down_write(mmap_sem)?
+> 
+> I dunno. Probably we can simply ignore this issue, there are other ways
+> to modify this memory.
+> 
+
+Okay.
+
 -- 
-Marek Szyprowski
-Samsung Poland R&D Center
-
+Thanks and Regards
+Srikar
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
