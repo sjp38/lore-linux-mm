@@ -1,54 +1,165 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 9D0A96B0012
-	for <linux-mm@kvack.org>; Wed, 15 Jun 2011 18:53:45 -0400 (EDT)
-Subject: Re: [PATCH] slob: push the min alignment to long long
-From: Matt Mackall <mpm@selenic.com>
-In-Reply-To: <20110615.181148.650483947691740732.davem@davemloft.net>
-References: <1308169466.15617.378.camel@calx>
-	 <BANLkTi=QG3ywRhSx=npioJx-d=yyf=o29A@mail.gmail.com>
-	 <1308171355.15617.401.camel@calx>
-	 <20110615.181148.650483947691740732.davem@davemloft.net>
-Content-Type: text/plain; charset="UTF-8"
-Date: Wed, 15 Jun 2011 17:53:40 -0500
-Message-ID: <1308178420.15617.447.camel@calx>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id D9E426B0012
+	for <linux-mm@kvack.org>; Wed, 15 Jun 2011 18:58:04 -0400 (EDT)
+Received: from hpaq14.eem.corp.google.com (hpaq14.eem.corp.google.com [172.25.149.14])
+	by smtp-out.google.com with ESMTP id p5FMw1qD013635
+	for <linux-mm@kvack.org>; Wed, 15 Jun 2011 15:58:02 -0700
+Received: from qyk32 (qyk32.prod.google.com [10.241.83.160])
+	by hpaq14.eem.corp.google.com with ESMTP id p5FMumtY006612
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 15 Jun 2011 15:58:00 -0700
+Received: by qyk32 with SMTP id 32so2591677qyk.15
+        for <linux-mm@kvack.org>; Wed, 15 Jun 2011 15:58:00 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20110610073638.GA15403@tiehlicka.suse.cz>
+References: <1306909519-7286-1-git-send-email-hannes@cmpxchg.org>
+	<1306909519-7286-5-git-send-email-hannes@cmpxchg.org>
+	<BANLkTim5TSWpBfeF2dugGZwQmNC-Cf+GCNctraq8FtziJxsd2g@mail.gmail.com>
+	<BANLkTimuRks4+h=Kjt2Lzc-s-XsAHCH9vg@mail.gmail.com>
+	<20110609150026.GD3994@tiehlicka.suse.cz>
+	<20110610073638.GA15403@tiehlicka.suse.cz>
+Date: Wed, 15 Jun 2011 15:57:59 -0700
+Message-ID: <BANLkTikUmzF6kgJ6WUQGK0M=uzPH6Ac09koCnQwi8vMbxu40WQ@mail.gmail.com>
+Subject: Re: [patch 4/8] memcg: rework soft limit reclaim
+From: Ying Han <yinghan@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Miller <davem@davemloft.net>
-Cc: penberg@kernel.org, sebastian@breakpoint.cc, cl@linux-foundation.org, linux-mm@kvack.org, netfilter@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 
-On Wed, 2011-06-15 at 18:11 -0400, David Miller wrote:
-> From: Matt Mackall <mpm@selenic.com>
-> Date: Wed, 15 Jun 2011 15:55:55 -0500
-> 
-> > In general, I think the right thing is to require every arch to
-> > explicitly document its alignment requirements via defines in the kernel
-> > headers so that random hackers don't have to scour the internet for
-> > datasheets on obscure architectures they don't care about.
-> 
-> Blink... because the compiler doesn't provide a portable way to
-> do this, right? :-)
+On Fri, Jun 10, 2011 at 12:36 AM, Michal Hocko <mhocko@suse.cz> wrote:
+> On Thu 09-06-11 17:00:26, Michal Hocko wrote:
+>> On Thu 02-06-11 22:25:29, Ying Han wrote:
+>> > On Thu, Jun 2, 2011 at 2:55 PM, Ying Han <yinghan@google.com> wrote:
+>> > > On Tue, May 31, 2011 at 11:25 PM, Johannes Weiner <hannes@cmpxchg.or=
+g> wrote:
+>> > >> Currently, soft limit reclaim is entered from kswapd, where it sele=
+cts
+>> [...]
+>> > >> diff --git a/mm/vmscan.c b/mm/vmscan.c
+>> > >> index c7d4b44..0163840 100644
+>> > >> --- a/mm/vmscan.c
+>> > >> +++ b/mm/vmscan.c
+>> > >> @@ -1988,9 +1988,13 @@ static void shrink_zone(int priority, struct=
+ zone *zone,
+>> > >> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0unsigned long reclaimed =3D sc->nr_r=
+eclaimed;
+>> > >> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0unsigned long scanned =3D sc->nr_sca=
+nned;
+>> > >> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0unsigned long nr_reclaimed;
+>> > >> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 int epriority =3D priority;
+>> > >> +
+>> > >> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (mem_cgroup_soft_limit_exceeded(ro=
+ot, mem))
+>> > >> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 epriority -=3D 1;
+>> > >
+>> > > Here we grant the ability to shrink from all the memcgs, but only
+>> > > higher the priority for those exceed the soft_limit. That is a desig=
+n
+>> > > change
+>> > > for the "soft_limit" which giving a hint to which memcgs to reclaim
+>> > > from first under global memory pressure.
+>> >
+>> >
+>> > Basically, we shouldn't reclaim from a memcg under its soft_limit
+>> > unless we have trouble reclaim pages from others.
+>>
+>> Agreed.
+>>
+>> > Something like the following makes better sense:
+>> >
+>> > diff --git a/mm/vmscan.c b/mm/vmscan.c
+>> > index bdc2fd3..b82ba8c 100644
+>> > --- a/mm/vmscan.c
+>> > +++ b/mm/vmscan.c
+>> > @@ -1989,6 +1989,8 @@ restart:
+>> > =A0 =A0 =A0 =A0 throttle_vm_writeout(sc->gfp_mask);
+>> > =A0}
+>> >
+>> > +#define MEMCG_SOFTLIMIT_RECLAIM_PRIORITY =A0 =A0 =A0 2
+>> > +
+>> > =A0static void shrink_zone(int priority, struct zone *zone,
+>> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 struct=
+ scan_control *sc)
+>> > =A0{
+>> > @@ -2001,13 +2003,13 @@ static void shrink_zone(int priority, struct z=
+one *zone,
+>> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 unsigned long reclaimed =3D sc->nr_rec=
+laimed;
+>> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 unsigned long scanned =3D sc->nr_scann=
+ed;
+>> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 unsigned long nr_reclaimed;
+>> > - =A0 =A0 =A0 =A0 =A0 =A0 =A0 int epriority =3D priority;
+>> >
+>> > - =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (mem_cgroup_soft_limit_exceeded(root,=
+ mem))
+>> > - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 epriority -=3D 1;
+>> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!mem_cgroup_soft_limit_exceeded(root=
+, mem) &&
+>> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 priority=
+ > MEMCG_SOFTLIMIT_RECLAIM_PRIORITY)
+>> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 continue;
+>>
+>> yes, this makes sense but I am not sure about the right(tm) value of the
+>> MEMCG_SOFTLIMIT_RECLAIM_PRIORITY. 2 sounds too low.
+>
+> There is also another problem. I have just realized that this code path
+> is shared with the cgroup direct reclaim. We shouldn't care about soft
+> limit in such a situation. It would be just a wasting of cycles. So we
+> have to:
+>
+> if (current_is_kswapd() &&
+> =A0 =A0 =A0 =A0!mem_cgroup_soft_limit_exceeded(root, mem) &&
+> =A0 =A0 =A0 =A0priority > MEMCG_SOFTLIMIT_RECLAIM_PRIORITY)
+> =A0 =A0 =A0 =A0continue;
 
-Because I, on x86, cannot deduce the alignment requirements of, say,
-CRIS without doing significant research. So answering a question like
-"are there any architectures where assumption X fails" is obnoxiously
-hard, rather than being a grep.
+Agreed.
 
-I also don't think it's a given there's a portable way to deduce the
-alignment requirements due to the existence of arch-specific quirks. If
-an arch wants to kmalloc its weird crypto or SIMD context and those want
-128-bit alignment, we're not going to want to embed that knowledge in
-the generic code, but instead tweak an arch define.
+>
+> Maybe the condition would have to be more complex for per-cgroup
+> background reclaim, though.
 
-Also note that not having generic defaults forces each new architectures
-to (nominally) examine each assumption rather than discover they
-inherited an incorrect default somewhere down the road.
+That would be the same logic for per-memcg direct reclaim. In general,
+we don't consider soft_limit
+unless the global memory pressure. So the condition could be something like=
+:
 
--- 
-Mathematics is the supreme nostalgia of our time.
+> if (   global_reclaim(sc) &&
+> =A0 =A0 =A0 =A0!mem_cgroup_soft_limit_exceeded(root, mem) &&
+> =A0 =A0 =A0 =A0priority > MEMCG_SOFTLIMIT_RECLAIM_PRIORITY)
+> =A0 =A0 =A0 =A0continue;
 
+make sense?
+
+Thanks
+
+--Ying
+>
+>> You would do quite a
+>> lot of loops
+>> (DEFAULT_PRIORITY-MEMCG_SOFTLIMIT_RECLAIM_PRIORITY) * zones * memcg_coun=
+t
+>> without any progress (assuming that all of them are under soft limit
+>> which doesn't sound like a totally artificial configuration) until you
+>> allow reclaiming from groups that are under soft limit. Then, when you
+>> finally get to reclaiming, you scan rather aggressively.
+>>
+>> Maybe something like 3/4 of DEFAULT_PRIORITY? You would get 3 times
+>> over all (unbalanced) zones and all cgroups that are above the limit
+>> (scanning max{1/4096+1/2048+1/1024, 3*SWAP_CLUSTER_MAX} of the LRUs for
+>> each cgroup) which could be enough to collect the low hanging fruit.
+>
+> --
+> Michal Hocko
+> SUSE Labs
+> SUSE LINUX s.r.o.
+> Lihovarska 1060/12
+> 190 00 Praha 9
+> Czech Republic
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
