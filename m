@@ -1,49 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id C42A26B0012
-	for <linux-mm@kvack.org>; Wed, 15 Jun 2011 09:13:24 -0400 (EDT)
-Message-ID: <4DF8AFB5.10205@vmware.com>
-Date: Wed, 15 Jun 2011 15:12:21 +0200
-From: Thomas Hellstrom <thellstrom@vmware.com>
-MIME-Version: 1.0
-Subject: Re: [Linaro-mm-sig] [PATCH 08/10] mm: cma: Contiguous Memory Allocator
- added
-References: <1307699698-29369-1-git-send-email-m.szyprowski@samsung.com>	<201106141803.00876.arnd@arndb.de>	<op.vw2r3xrj3l0zgt@mnazarewicz-glaptop>	<201106142030.07549.arnd@arndb.de> <BANLkTi=XTJuF4np7+rYHzJqWK20OxMrBsw@mail.gmail.com>
-In-Reply-To: <BANLkTi=XTJuF4np7+rYHzJqWK20OxMrBsw@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 1139E6B0012
+	for <linux-mm@kvack.org>; Wed, 15 Jun 2011 11:37:23 -0400 (EDT)
+From: Jan Kara <jack@suse.cz>
+Subject: [PATCH v2] mm: Fix assertion mapping->nrpages == 0 in end_writeback()
+Date: Wed, 15 Jun 2011 17:37:13 +0200
+Message-Id: <1308152233-16919-1-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Vetter <daniel.vetter@ffwll.ch>
-Cc: Arnd Bergmann <arnd@arndb.de>, linux-arm-kernel@lists.infradead.org, Daniel Walker <dwalker@codeaurora.org>, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, Michal Nazarewicz <mina86@mina86.com>, linaro-mm-sig@lists.linaro.org, Jesse Barker <jesse.barker@linaro.org>, Kyungmin Park <kyungmin.park@samsung.com>, Ankita Garg <ankita@in.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-media@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, Miklos Szeredi <mszeredi@suse.cz>, Jay <jinshan.xiong@whamcloud.com>, Jan Kara <jack@suse.cz>, Miklos Szeredi <mszeredi@suse.de>
 
-On 06/15/2011 01:53 PM, Daniel Vetter wrote:
-> On Tue, Jun 14, 2011 at 20:30, Arnd Bergmann<arnd@arndb.de>  wrote:
->    
->> On Tuesday 14 June 2011 18:58:35 Michal Nazarewicz wrote:
->>      
->>> Ah yes, I forgot that separate regions for different purposes could
->>> decrease fragmentation.
->>>        
->> That is indeed a good point, but having a good allocator algorithm
->> could also solve this. I don't know too much about these allocation
->> algorithms, but there are probably multiple working approaches to this.
->>      
-> imo no allocator algorithm is gonna help if you have comparably large,
-> variable-sized contiguous allocations out of a restricted address range.
-> It might work well enough if there are only a few sizes and/or there's
-> decent headroom. But for really generic workloads this would require
-> sync objects and eviction callbacks (i.e. what Thomas Hellstrom pushed
-> with ttm).
->    
+Under heavy memory and filesystem load, users observe the assertion
+mapping->nrpages == 0 in end_writeback() trigger. This can be caused
+by page reclaim reclaiming the last page from a mapping in the following
+race:
+	CPU0				CPU1
+  ...
+  shrink_page_list()
+    __remove_mapping()
+      __delete_from_page_cache()
+        radix_tree_delete()
+					evict_inode()
+					  truncate_inode_pages()
+					    truncate_inode_pages_range()
+					      pagevec_lookup() - finds nothing
+					  end_writeback()
+					    mapping->nrpages != 0 -> BUG
+        page->mapping = NULL
+        mapping->nrpages--
 
-Indeed, IIRC on the meeting I pointed out that there is no way to 
-generically solve the fragmentation problem without movable buffers. 
-(I'd do it as a simple CMA backend to TTM). This is exactly the same 
-problem as trying to fit buffers in a limited VRAM area.
+Fix the problem by doing a reliable check of mapping->nrpages under
+mapping->tree_lock in end_writeback().
 
-/Thomas
+Analyzed by Jay <jinshan.xiong@whamcloud.com>, lost in LKML, and dug
+out by Miklos Szeredi <mszeredi@suse.de>.
 
+CC: Jay <jinshan.xiong@whamcloud.com>
+CC: Miklos Szeredi <mszeredi@suse.de>
+Signed-off-by: Jan Kara <jack@suse.cz>
+---
+ fs/inode.c         |    7 +++++++
+ include/linux/fs.h |    1 +
+ mm/truncate.c      |    5 +++++
+ 3 files changed, 13 insertions(+), 0 deletions(-)
+
+  Andrew, does this look better?
+
+diff --git a/fs/inode.c b/fs/inode.c
+index 33c963d..1133cb0 100644
+--- a/fs/inode.c
++++ b/fs/inode.c
+@@ -467,7 +467,14 @@ EXPORT_SYMBOL(remove_inode_hash);
+ void end_writeback(struct inode *inode)
+ {
+ 	might_sleep();
++	/*
++	 * We have to cycle tree_lock here because reclaim can be still in the
++	 * process of removing the last page (in __delete_from_page_cache())
++	 * and we must not free mapping under it.
++	 */
++	spin_lock(&inode->i_data.tree_lock);
+ 	BUG_ON(inode->i_data.nrpages);
++	spin_unlock(&inode->i_data.tree_lock);
+ 	BUG_ON(!list_empty(&inode->i_data.private_list));
+ 	BUG_ON(!(inode->i_state & I_FREEING));
+ 	BUG_ON(inode->i_state & I_CLEAR);
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index cdf9495..1a9375b 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -636,6 +636,7 @@ struct address_space {
+ 	struct list_head	i_mmap_nonlinear;/*list VM_NONLINEAR mappings */
+ 	spinlock_t		i_mmap_lock;	/* protect tree, count, list */
+ 	unsigned int		truncate_count;	/* Cover race condition with truncate */
++	/* protected by tree_lock together with the radix tree */
+ 	unsigned long		nrpages;	/* number of total pages */
+ 	pgoff_t			writeback_index;/* writeback starts here */
+ 	const struct address_space_operations *a_ops;	/* methods */
+diff --git a/mm/truncate.c b/mm/truncate.c
+index a956675..499d6ab 100644
+--- a/mm/truncate.c
++++ b/mm/truncate.c
+@@ -300,6 +300,11 @@ EXPORT_SYMBOL(truncate_inode_pages_range);
+  * @lstart: offset from which to truncate
+  *
+  * Called under (and serialised by) inode->i_mutex.
++ *
++ * Note: When this function returns, there can be a page in the process of
++ * deletion (inside __delete_from_page_cache()) in the specified range.  Thus
++ * mapping->nrpages can be non-zero when this function returns even after
++ * truncation of the whole mapping.
+  */
+ void truncate_inode_pages(struct address_space *mapping, loff_t lstart)
+ {
+-- 
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
