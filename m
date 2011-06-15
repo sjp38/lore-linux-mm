@@ -1,29 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 8EA666B0012
-	for <linux-mm@kvack.org>; Wed, 15 Jun 2011 18:10:20 -0400 (EDT)
-Date: Wed, 15 Jun 2011 18:08:06 -0400 (EDT)
-Message-Id: <20110615.180806.768765303507703068.davem@davemloft.net>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 046F76B0012
+	for <linux-mm@kvack.org>; Wed, 15 Jun 2011 18:13:55 -0400 (EDT)
+Date: Wed, 15 Jun 2011 18:11:48 -0400 (EDT)
+Message-Id: <20110615.181148.650483947691740732.davem@davemloft.net>
 Subject: Re: [PATCH] slob: push the min alignment to long long
 From: David Miller <davem@davemloft.net>
-In-Reply-To: <20110615201202.GB19593@Chamillionaire.breakpoint.cc>
-References: <20110614201031.GA19848@Chamillionaire.breakpoint.cc>
-	<1308089140.15617.221.camel@calx>
-	<20110615201202.GB19593@Chamillionaire.breakpoint.cc>
+In-Reply-To: <1308171355.15617.401.camel@calx>
+References: <1308169466.15617.378.camel@calx>
+	<BANLkTi=QG3ywRhSx=npioJx-d=yyf=o29A@mail.gmail.com>
+	<1308171355.15617.401.camel@calx>
 Mime-Version: 1.0
 Content-Type: Text/Plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: sebastian@breakpoint.cc
-Cc: mpm@selenic.com, cl@linux-foundation.org, penberg@kernel.org, linux-mm@kvack.org, netfilter@vger.kernel.org
+To: mpm@selenic.com
+Cc: penberg@kernel.org, sebastian@breakpoint.cc, cl@linux-foundation.org, linux-mm@kvack.org, netfilter@vger.kernel.org
 
-From: Sebastian Andrzej Siewior <sebastian@breakpoint.cc>
-Date: Wed, 15 Jun 2011 22:12:02 +0200
+From: Matt Mackall <mpm@selenic.com>
+Date: Wed, 15 Jun 2011 15:55:55 -0500
 
-> I doubt that 4 was the correct answer. On x86_32 you still get 4.
+> In general, I think the right thing is to require every arch to
+> explicitly document its alignment requirements via defines in the kernel
+> headers so that random hackers don't have to scour the internet for
+> datasheets on obscure architectures they don't care about.
 
-No in certain circumstances with current gcc versions.
+Blink... because the compiler doesn't provide a portable way to
+do this, right? :-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
