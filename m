@@ -1,33 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id F3C906B0012
-	for <linux-mm@kvack.org>; Tue, 14 Jun 2011 20:37:19 -0400 (EDT)
-Date: Tue, 14 Jun 2011 17:36:00 -0700
-From: Andi Kleen <ak@linux.intel.com>
-Subject: Re: REGRESSION: Performance regressions from switching
- anon_vma->lock to mutex
-Message-ID: <20110615003600.GA9602@tassilo.jf.intel.com>
-References: <1308097798.17300.142.camel@schen9-DESK>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id C3ECB6B0012
+	for <linux-mm@kvack.org>; Tue, 14 Jun 2011 20:48:13 -0400 (EDT)
+From: H Hartley Sweeten <hartleys@visionengravers.com>
+Date: Tue, 14 Jun 2011 19:47:19 -0500
+Subject: [Q] mm/memblock.c: cast truncates bits from RED_INACTIVE
+Message-ID: <ADE657CA350FB648AAC2C43247A983F001F382220E0F@AUSP01VMBX24.collaborationhost.net>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1308097798.17300.142.camel@schen9-DESK>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tim Chen <tim.c.chen@linux.intel.com>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Russell King <rmk@arm.linux.org.uk>, Paul Mundt <lethal@linux-sh.org>, Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>, Tony Luck <tony.luck@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Namhyung Kim <namhyung@gmail.com>, shaohua.li@intel.com, alex.shi@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Rafael J. Wysocki" <rjw@sisk.pl>
+To: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "benh@kernel.crashing.org" <benh@kernel.crashing.org>, "yinghai@kernel.org" <yinghai@kernel.org>, "hpa@linux.intel.com" <hpa@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>
 
-> On 2.6.39, the contention of anon_vma->lock occupies 3.25% of cpu.
-> However, after the switch of the lock to mutex on 3.0-rc2, the mutex
-> acquisition jumps to 18.6% of cpu.  This seems to be the main cause of
-> the 52% throughput regression.
-> 
-This patch makes the mutex in Tim's workload take a bit less CPU time
-(4% down) but it doesn't really fix the regression. When spinning for a 
-value it's always better to read it first before attempting to write it.
-This saves expensive operations on the interconnect.
+SGVsbG8gYWxsLA0KDQpTcGFyc2UgaXMgcmVwb3J0aW5nIGEgY291cGxlIHdhcm5pbmdzIGluIG1t
+L21lbWJsb2NrLmM6DQoNCgl3YXJuaW5nOiBjYXN0IHRydW5jYXRlcyBiaXRzIGZyb20gY29uc3Rh
+bnQgdmFsdWUgKDlmOTExMDI5ZDc0ZTM1YiBiZWNvbWVzIDlkNzRlMzViKQ0KDQpUaGUgd2Fybmlu
+Z3MgYXJlIGR1ZSB0byB0aGUgY2FzdCBvZiBSRURfSU5BQ1RJVkUgaW4gbWVtYmxvY2tfYW5hbHl6
+ZSgpOg0KDQoJLyogQ2hlY2sgbWFya2VyIGluIHRoZSB1bnVzZWQgbGFzdCBhcnJheSBlbnRyeSAq
+Lw0KCVdBUk5fT04obWVtYmxvY2tfbWVtb3J5X2luaXRfcmVnaW9uc1tJTklUX01FTUJMT0NLX1JF
+R0lPTlNdLmJhc2UNCgkJIT0gKHBoeXNfYWRkcl90KVJFRF9JTkFDVElWRSk7DQoJV0FSTl9PTiht
+ZW1ibG9ja19yZXNlcnZlZF9pbml0X3JlZ2lvbnNbSU5JVF9NRU1CTE9DS19SRUdJT05TXS5iYXNl
+DQoJCSE9IChwaHlzX2FkZHJfdClSRURfSU5BQ1RJVkUpOw0KDQpBbmQgaW4gbWVtYmxvY2tfaW5p
+dCgpOg0KDQoJLyogV3JpdGUgYSBtYXJrZXIgaW4gdGhlIHVudXNlZCBsYXN0IGFycmF5IGVudHJ5
+ICovDQoJbWVtYmxvY2subWVtb3J5LnJlZ2lvbnNbSU5JVF9NRU1CTE9DS19SRUdJT05TXS5iYXNl
+ID0gKHBoeXNfYWRkcl90KVJFRF9JTkFDVElWRTsNCgltZW1ibG9jay5yZXNlcnZlZC5yZWdpb25z
+W0lOSVRfTUVNQkxPQ0tfUkVHSU9OU10uYmFzZSA9IChwaHlzX2FkZHJfdClSRURfSU5BQ1RJVkU7
+DQoNCkNvdWxkIHRoaXMgY2F1c2UgYW55IHByb2JsZW1zPyAgSWYgbm90LCBpcyB0aGVyZSBhbnl3
+YXkgdG8gcXVpZXQgdGhlIHNwYXJzZSBub2lzZT8NCg0KUmVnYXJkcywNCkhhcnRsZXkNCg==
 
-So it's not really a fix for this, but may be a slight improvement for 
-other workloads.
-
--Andi
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
