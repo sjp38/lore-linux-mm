@@ -1,35 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id B38046B0082
-	for <linux-mm@kvack.org>; Wed, 15 Jun 2011 16:20:31 -0400 (EDT)
-Subject: Re: REGRESSION: Performance regressions from switching
- anon_vma->lock to mutex
-From: Tim Chen <tim.c.chen@linux.intel.com>
-In-Reply-To: <20110615201713.GC4762@elte.hu>
-References: <1308097798.17300.142.camel@schen9-DESK>
-	 <1308134200.15315.32.camel@twins> <1308135495.15315.38.camel@twins>
-	 <BANLkTikt88KnxTy8TuGGVrBVnXvsnL7nMQ@mail.gmail.com>
-	 <1308168784.17300.152.camel@schen9-DESK>  <20110615201713.GC4762@elte.hu>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 5F33D6B0082
+	for <linux-mm@kvack.org>; Wed, 15 Jun 2011 16:24:30 -0400 (EDT)
+Subject: Re: [PATCH] slob: push the min alignment to long long
+From: Matt Mackall <mpm@selenic.com>
+In-Reply-To: <20110615201202.GB19593@Chamillionaire.breakpoint.cc>
+References: <20110614201031.GA19848@Chamillionaire.breakpoint.cc>
+	 <1308089140.15617.221.camel@calx>
+	 <20110615201202.GB19593@Chamillionaire.breakpoint.cc>
 Content-Type: text/plain; charset="UTF-8"
-Date: Wed, 15 Jun 2011 13:21:05 -0700
-Message-ID: <1308169265.17300.153.camel@schen9-DESK>
+Date: Wed, 15 Jun 2011 15:24:26 -0500
+Message-ID: <1308169466.15617.378.camel@calx>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Russell King <rmk@arm.linux.org.uk>, Paul Mundt <lethal@linux-sh.org>, Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>, Tony Luck <tony.luck@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Namhyung Kim <namhyung@gmail.com>, ak@linux.intel.com, shaohua.li@intel.com, alex.shi@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Rafael J. Wysocki" <rjw@sisk.pl>
+To: Sebastian Andrzej Siewior <sebastian@breakpoint.cc>
+Cc: Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, "David S. Miller" <davem@davemloft.net>, netfilter@vger.kernel.org
 
-On Wed, 2011-06-15 at 22:17 +0200, Ingo Molnar wrote:
-
+On Wed, 2011-06-15 at 22:12 +0200, Sebastian Andrzej Siewior wrote:
+> * Matt Mackall | 2011-06-14 17:05:40 [-0500]:
 > 
-> have you used callgraph profiling (perf record -g) or flat profiling? 
-> Flat profiling can be misleading when there's proxy work done.
+> >Ok, so you claim that ARCH_KMALLOC_MINALIGN is not set on some
+> >architectures, and thus SLOB does the wrong thing.
+> >
+> >Doesn't that rather obviously mean that the affected architectures
+> >should define ARCH_KMALLOC_MINALIGN? Because, well, they have an
+> >"architecture-specific minimum kmalloc alignment"?
 > 
+> nope, if nothing is defined SLOB asumes that alignment of long is the way
+> go. Unfortunately alignment of u64 maybe larger than of u32.
 
-I've used callgraph profiling to see the call stack.
+I understand that. I guess we have a different idea of what constitutes
+"architecture-specific" and what constitutes "normal".
 
-Tim
+But I guess I can be persuaded that most architectures now expect 64-bit
+alignment of u64s.
+
+-- 
+Mathematics is the supreme nostalgia of our time.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
