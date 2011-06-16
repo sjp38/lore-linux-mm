@@ -1,26 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id BCE556B00E9
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 00:01:45 -0400 (EDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 8C4346B00E9
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 00:03:37 -0400 (EDT)
 Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 912723EE0BD
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 13:01:41 +0900 (JST)
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 24B5D3EE0C0
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 13:03:32 +0900 (JST)
 Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 7737C45DE68
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 13:01:41 +0900 (JST)
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 09BCE45DE61
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 13:03:32 +0900 (JST)
 Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 53F2C45DE61
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 13:01:41 +0900 (JST)
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id E593A45DE4E
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 13:03:31 +0900 (JST)
 Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 47B191DB8038
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 13:01:41 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0FA781DB802C
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 13:01:41 +0900 (JST)
-Date: Thu, 16 Jun 2011 12:54:43 +0900
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id D863A1DB8038
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 13:03:31 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 99FEDE08001
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 13:03:31 +0900 (JST)
+Date: Thu, 16 Jun 2011 12:56:33 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH 5/7] Fix not good check of mem_cgroup_local_usage()
-Message-Id: <20110616125443.23584d78.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH 6/7] memcg: calc NUMA node's weight for scan.
+Message-Id: <20110616125633.9b9fa703.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20110616124730.d6960b8b.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20110616124730.d6960b8b.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
