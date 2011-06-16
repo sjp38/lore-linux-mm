@@ -1,26 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C3BF6B00F2
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 17:28:08 -0400 (EDT)
-Received: from mail-wy0-f169.google.com (mail-wy0-f169.google.com [74.125.82.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 398806B00F1
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 17:58:42 -0400 (EDT)
+Received: from mail-ww0-f45.google.com (mail-ww0-f45.google.com [74.125.82.45])
 	(authenticated bits=0)
-	by smtp1.linux-foundation.org (8.14.2/8.13.5/Debian-3ubuntu1.1) with ESMTP id p5GLRZYO014233
+	by smtp1.linux-foundation.org (8.14.2/8.13.5/Debian-3ubuntu1.1) with ESMTP id p5GLw624019382
 	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=FAIL)
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 14:27:37 -0700
-Received: by wyf19 with SMTP id 19so1771630wyf.14
-        for <linux-mm@kvack.org>; Thu, 16 Jun 2011 14:27:35 -0700 (PDT)
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 14:58:08 -0700
+Received: by wwi36 with SMTP id 36so1692633wwi.26
+        for <linux-mm@kvack.org>; Thu, 16 Jun 2011 14:58:06 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <BANLkTinptaydNvK4ZvGvy0KVLnRmmza7tA@mail.gmail.com>
+In-Reply-To: <BANLkTim-dBjva9w7AajqggKT3iUVYG2euQ@mail.gmail.com>
 References: <1308097798.17300.142.camel@schen9-DESK> <1308101214.15392.151.camel@sli10-conroe>
  <1308138750.15315.62.camel@twins> <20110615161827.GA11769@tassilo.jf.intel.com>
  <1308156337.2171.23.camel@laptop> <1308163398.17300.147.camel@schen9-DESK>
  <1308169937.15315.88.camel@twins> <4DF91CB9.5080504@linux.intel.com>
  <1308172336.17300.177.camel@schen9-DESK> <1308173849.15315.91.camel@twins>
  <BANLkTim5TPKQ9RdLYRxy=mphOVKw5EXvTA@mail.gmail.com> <1308255972.17300.450.camel@schen9-DESK>
- <BANLkTinptaydNvK4ZvGvy0KVLnRmmza7tA@mail.gmail.com>
+ <BANLkTinptaydNvK4ZvGvy0KVLnRmmza7tA@mail.gmail.com> <BANLkTi=GPtwjQ-bYDNUYCwzW5h--y86Law@mail.gmail.com>
+ <BANLkTim-dBjva9w7AajqggKT3iUVYG2euQ@mail.gmail.com>
 From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Thu, 16 Jun 2011 14:05:28 -0700
-Message-ID: <BANLkTi=GPtwjQ-bYDNUYCwzW5h--y86Law@mail.gmail.com>
+Date: Thu, 16 Jun 2011 14:26:41 -0700
+Message-ID: <BANLkTimLV8aCZ7snXT_Do+f4vRY0EkoS4A@mail.gmail.com>
 Subject: Re: REGRESSION: Performance regressions from switching anon_vma->lock
  to mutex
 Content-Type: text/plain; charset=ISO-8859-1
@@ -29,38 +30,31 @@ List-ID: <linux-mm.kvack.org>
 To: Tim Chen <tim.c.chen@linux.intel.com>
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andi Kleen <ak@linux.intel.com>, Shaohua Li <shaohua.li@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Russell King <rmk@arm.linux.org.uk>, Paul Mundt <lethal@linux-sh.org>, Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>, "Luck, Tony" <tony.luck@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Namhyung Kim <namhyung@gmail.com>, "Shi, Alex" <alex.shi@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Rafael J. Wysocki" <rjw@sisk.pl>
 
-On Thu, Jun 16, 2011 at 1:47 PM, Linus Torvalds
+On Thu, Jun 16, 2011 at 2:06 PM, Linus Torvalds
 <torvalds@linux-foundation.org> wrote:
+> On Thu, Jun 16, 2011 at 2:05 PM, Linus Torvalds
+> <torvalds@linux-foundation.org> wrote:
+>>
+>> This patch is UNTESTED!
 >
-> I guess I'll cook up an improved patch that does it for the vma exit
-> case too, and see if that just makes the semaphores be a non-issue.
+> It was also UNATTACHED!
 
-Ok, I bet it doesn't make them a non-issue, but if doing this in
-anon_vma_clone() helped a lot, then doing the exact same pattern in
-unlink_anon_vmas() hopefully helps some more.
+Hmm. And it doesn't work. We deadlock when we free the anon_vma
+because the *freeing* path wants to take the anon_vma lock. See that
+horrid code in anon_vma_free().
 
-This patch is UNTESTED! It replaces my previous one (it's really just
-an extension of it), and while I actually test-booted that previous
-one I did *not* do it for this one. So please look out. But it's using
-the exact same pattern, so there should be no real surprises.
+So now we now hold the root over the whole series of frees, and get an
+instant deadlock.
 
-Does it improve things further on your load?
+We also can happen to free the root anon_vma before we release the
+lock in it, which is another slight problem ;)
 
-(Btw, I'm not at all certain about that "we can get an empty
-anon_vma_chain" comment. I left it - and the test for a NULL anon_vma
-- in the code, but I think it's bogus. If we've linked in the
-anon_vma_chain, it will have an anon_vma associated with it, I'm
-pretty sure)
+So the unlink_anon_vmas() case is actually much more complicated than
+the clone case.
 
-VM people, please do comment on both that "empty anon_vma_chain"
-issue, and on whether we can ever have two different anon_vma roots in
-the 'same_vma' list. I have that WARN_ON_ONCE() there in both paths, I
-just wonder whether we should just inconditionally take the first
-entry in the list and lock it outside the whole loop instead?
+In other words, just forget that second patch. I'll have to think about it.
 
-Peter? Hugh?
-
-                           Linus
+                              Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
