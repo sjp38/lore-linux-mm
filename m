@@ -1,63 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id BA0EB6B0012
-	for <linux-mm@kvack.org>; Wed, 15 Jun 2011 23:34:53 -0400 (EDT)
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e32.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p5G3N1HI026345
-	for <linux-mm@kvack.org>; Wed, 15 Jun 2011 21:23:01 -0600
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id p5G3YhpP172696
-	for <linux-mm@kvack.org>; Wed, 15 Jun 2011 21:34:43 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p5FLYC8i006372
-	for <linux-mm@kvack.org>; Wed, 15 Jun 2011 15:34:16 -0600
-Date: Thu, 16 Jun 2011 08:56:45 +0530
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: Re: [PATCH v4 3.0-rc2-tip 7/22]  7: uprobes: mmap and fork hooks.
-Message-ID: <20110616032645.GF4952@linux.vnet.ibm.com>
-Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-References: <20110607125804.28590.92092.sendpatchset@localhost6.localdomain6>
- <20110607125931.28590.12362.sendpatchset@localhost6.localdomain6>
- <1308161486.2171.61.camel@laptop>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <1308161486.2171.61.camel@laptop>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 24E836B0012
+	for <linux-mm@kvack.org>; Wed, 15 Jun 2011 23:55:24 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id B8A573EE0C1
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 12:55:19 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 9DF7C3A63B3
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 12:55:19 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 742533E60C4
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 12:55:19 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6214C1DB8051
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 12:55:19 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 254321DB804E
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 12:55:19 +0900 (JST)
+Date: Thu, 16 Jun 2011 12:47:30 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH 0/7] memcg numa node scan update.
+Message-Id: <20110616124730.d6960b8b.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Jonathan Corbet <corbet@lwn.net>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "bsingharora@gmail.com" <bsingharora@gmail.com>, Ying Han <yinghan@google.com>, Michal Hocko <mhocko@suse.cz>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>
 
-* Peter Zijlstra <peterz@infradead.org> [2011-06-15 20:11:26]:
 
-> On Tue, 2011-06-07 at 18:29 +0530, Srikar Dronamraju wrote:
-> > +       up_write(&mm->mmap_sem);
-> > +       mutex_lock(&uprobes_mutex);
-> > +       down_read(&mm->mmap_sem); 
-> 
-> egads, and all that without a comment explaining why you think that is
-> even remotely sane.
-> 
-> I'm not at all convinced, it would expose the mmap() even though you
-> could still decide to tear it down if this function were to fail, I bet
-> there's some funnies there.
+In the last month, I added round-robin scan of numa nodes at
+hittling limit, and wrote "a better algorithm is needed."
 
-The problem is with lock ordering.  register/unregister operations
-acquire uprobes_mutex (which serializes register unregister and the
-mmap_hook) and then holds mmap_sem for read before they insert a
-breakpoint.
+Here is update. Because some of patches are bugfixes, I may
+cut out them as independent patch.
 
-But the mmap hook would be called with mmap_sem held for write. So
-acquiring uprobes_mutex can result in deadlock. Hence we release the
-mmap_sem, take the uprobes_mutex and then again hold the mmap_sem.
+Pathc 6-7/7 implements a selection logic.
 
-After we re-acquire the mmap_sem, we do check if the vma is valid.
+==
+Tested on 8cpu/24GB system, which has 2 nodes.
+limit memory to 300MB and run httpd under it.
+httpd's working set is 4096files/600MB.
 
-Do we have better solutions?
+Then, do 40960 access by apache-bench. and see how memory reclaim costs.
+Because a thread of httpd doesn't consume cpu much, the number of
+working threads are not balanced between numa nodes and file caches
+will be not balanced.
 
--- 
-Thanks and Regards
-Srikar
+[round-robin]
+ [kamezawa@bluextal ~]$ cat /cgroup/memory/test/memory.scan_stat
+  scanned_pages_by_limit 550740
+  freed_pages_by_limit 206473
+  elapsed_ns_by_limit 9485418834
+
+[After patch]
+  scanned_pages_by_limit 521520
+  freed_pages_by_limit 199330
+  elapsed_ns_by_limit 7904913234
+
+I can see elapsed time is decreased.
+Test on big machine is welcomed.
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
