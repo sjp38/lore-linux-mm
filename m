@@ -1,55 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 89BDC6B0082
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 02:59:21 -0400 (EDT)
-Received: by vws4 with SMTP id 4so1341925vws.14
-        for <linux-mm@kvack.org>; Wed, 15 Jun 2011 23:59:19 -0700 (PDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 994A36B0082
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 03:03:38 -0400 (EDT)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: Re: [Linaro-mm-sig] [PATCH 08/10] mm: cma: Contiguous
+ =?iso-8859-1?q?Memory=09Allocator?= added
+Date: Thu, 16 Jun 2011 09:03:12 +0200
+References: <1307699698-29369-1-git-send-email-m.szyprowski@samsung.com> <201106150937.18524.arnd@arndb.de> <4DF952CC.4010301@balister.org>
+In-Reply-To: <4DF952CC.4010301@balister.org>
 MIME-Version: 1.0
-In-Reply-To: <1308178420.15617.447.camel@calx>
-References: <1308169466.15617.378.camel@calx>
-	<BANLkTi=QG3ywRhSx=npioJx-d=yyf=o29A@mail.gmail.com>
-	<1308171355.15617.401.camel@calx>
-	<20110615.181148.650483947691740732.davem@davemloft.net>
-	<1308178420.15617.447.camel@calx>
-Date: Thu, 16 Jun 2011 09:59:19 +0300
-Message-ID: <BANLkTikOM6=fWnUA1bNZOM-jwg=o=CL8Ug@mail.gmail.com>
-Subject: Re: [PATCH] slob: push the min alignment to long long
-From: Pekka Enberg <penberg@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Message-Id: <201106160903.13135.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matt Mackall <mpm@selenic.com>
-Cc: David Miller <davem@davemloft.net>, sebastian@breakpoint.cc, cl@linux-foundation.org, linux-mm@kvack.org, netfilter@vger.kernel.org
+To: Philip Balister <philip@balister.org>
+Cc: linux-arm-kernel@lists.infradead.org, 'Daniel Walker' <dwalker@codeaurora.org>, linux-mm@kvack.org, 'Mel Gorman' <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, 'Michal Nazarewicz' <mina86@mina86.com>, linaro-mm-sig@lists.linaro.org, 'Jesse Barker' <jesse.barker@linaro.org>, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Ankita Garg' <ankita@in.ibm.com>, 'Andrew Morton' <akpm@linux-foundation.org>, linux-media@vger.kernel.org, 'KAMEZAWA Hiroyuki' <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Thu, Jun 16, 2011 at 1:53 AM, Matt Mackall <mpm@selenic.com> wrote:
->> Blink... because the compiler doesn't provide a portable way to
->> do this, right? :-)
->
-> Because I, on x86, cannot deduce the alignment requirements of, say,
-> CRIS without doing significant research. So answering a question like
-> "are there any architectures where assumption X fails" is obnoxiously
-> hard, rather than being a grep.
->
-> I also don't think it's a given there's a portable way to deduce the
-> alignment requirements due to the existence of arch-specific quirks. If
-> an arch wants to kmalloc its weird crypto or SIMD context and those want
-> 128-bit alignment, we're not going to want to embed that knowledge in
-> the generic code, but instead tweak an arch define.
->
-> Also note that not having generic defaults forces each new architectures
-> to (nominally) examine each assumption rather than discover they
-> inherited an incorrect default somewhere down the road.
+On Thursday 16 June 2011 02:48:12 Philip Balister wrote:
+> On 06/15/2011 12:37 AM, Arnd Bergmann wrote:
+> > On Wednesday 15 June 2011 09:11:39 Marek Szyprowski wrote:
+> >> I see your concerns, but I really wonder how to determine the properties
+> >> of the global/default cma pool. You definitely don't want to give all
+> >> available memory o CMA, because it will have negative impact on kernel
+> >> operation (kernel really needs to allocate unmovable pages from time to
+> >> time).
+> >
+> > Exactly. This is a hard problem, so I would prefer to see a solution for
+> > coming up with reasonable defaults.
+> 
+> Is this a situation where passing the information from device tree might 
+> help? I know this does not help short term, but I am trying to 
+> understand the sorts of problems device tree can help solve.
 
-I don't agree. I think we should either provide defaults that work for
-everyone and let architectures override them (which AFAICT Christoph's
-patch does) or we flat out #error if architectures don't specify
-alignment requirements. The current solution seems to be the worst one
-from practical point of view.
+The device tree is a good place to describe any hardware properties such
+as 'this device will need 32 MB of contiguous allocations on the memory
+bank described in that other device node'.
 
-This doesn't seem to be a *regression* per se so I'll queue
-Christoph's patch for 3.1 and mark it for 3.0-stable.
+It is however not a good place to describe user settings such as 'I want
+to give this device a 200 MB pool for large allocations so I can run
+application X efficiently', because that would require knowledge in the
+boot loader about local policy, which it should generally not care about.
 
-                            Pekka
+	Arnd
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
