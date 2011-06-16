@@ -1,49 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id E34E96B0012
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 14:46:28 -0400 (EDT)
-Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
-	by e1.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p5GIYarj008000
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 14:34:36 -0400
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p5GIkLRK156610
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 14:46:21 -0400
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p5GCkAt7003908
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 06:46:11 -0600
-Subject: Re: mmotm 2011-06-15-16-56 uploaded (mm/page_cgroup.c)
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <20110616165146.GB5244@suse.de>
-References: <201106160034.p5G0Y4dr028904@imap1.linux-foundation.org>
-	 <20110615214917.a7dce8e6.randy.dunlap@oracle.com>
-	 <20110616172819.1e2d325c.kamezawa.hiroyu@jp.fujitsu.com>
-	 <20110616103559.GA5244@suse.de> <1308241542.11430.119.camel@nimitz>
-	 <20110616165146.GB5244@suse.de>
-Content-Type: text/plain; charset="UTF-8"
-Date: Thu, 16 Jun 2011 11:46:04 -0700
-Message-ID: <1308249964.11430.157.camel@nimitz>
-Mime-Version: 1.0
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id ED7C66B0092
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 16:15:00 -0400 (EDT)
+Message-ID: <4DFA6442.9000103@linux.intel.com>
+Date: Thu, 16 Jun 2011 13:14:58 -0700
+From: Andi Kleen <ak@linux.intel.com>
+MIME-Version: 1.0
+Subject: Re: REGRESSION: Performance regressions from switching anon_vma->lock
+ to mutex
+References: <1308097798.17300.142.camel@schen9-DESK> <1308101214.15392.151.camel@sli10-conroe> <1308138750.15315.62.camel@twins> <20110615161827.GA11769@tassilo.jf.intel.com> <1308156337.2171.23.camel@laptop> <1308163398.17300.147.camel@schen9-DESK> <1308169937.15315.88.camel@twins> <4DF91CB9.5080504@linux.intel.com> <1308172336.17300.177.camel@schen9-DESK> <1308173849.15315.91.camel@twins> <87ea4bd7-8b16-4b24-8fcb-d8e9b6f421ec@email.android.com> <4DF92FE1.5010208@linux.intel.com> <BANLkTi=Tw6je7zpi4L=pE0JJpZfeEC9Jsg@mail.gmail.com>
+In-Reply-To: <BANLkTi=Tw6je7zpi4L=pE0JJpZfeEC9Jsg@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Randy Dunlap <randy.dunlap@oracle.com>, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Tim Chen <tim.c.chen@linux.intel.com>, Shaohua Li <shaohua.li@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Russell King <rmk@arm.linux.org.uk>, Paul Mundt <lethal@linux-sh.org>, Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>, "Luck, Tony" <tony.luck@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Namhyung Kim <namhyung@gmail.com>, "Shi, Alex" <alex.shi@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Rafael J. Wysocki" <rjw@sisk.pl>
 
-On Thu, 2011-06-16 at 17:51 +0100, Mel Gorman wrote:
-> No, why was node_start_pfn() and node_end_pfn() defined optionally
-> on a per-architecture basis?
 
-Probably because it started in the NUMA-Q port, and we were still trying
-to stay off the radar at that point.  It looks like it showed up in
-~2.5.[3-4]?.  We didn't know what the heck we were doing back then, and
-it probably leaked out from under CONFIG_NUMA/DISCONTIGMEM at some
-point.
+> /proc/stat may be slow, but it's not slower than doing real work -
+> unless you call it millions of times.
 
-Seems like a good thing to consolidate to me.  Especially since it's
-just a shortcut to the (unconditionally defined) structure member, I
-can't see a real justification for needing different definitions.
 
--- Dave
+I haven't analyzed it in detail, but I suspect it's some cache line 
+bounce, which
+can slow things down quite a lot.  Also the total number of invocations
+is quite high (hundreds of messages per core * 32 cores)
+
+Ok even with cache line bouncing it's suspicious.
+
+> And you didn't actually look at glibc sources, did you?
+
+I did, but I gave up fully following that code path because it's so 
+convoluted :-/
+
+Ok if you want I can implement caching in the LD_PRELOAD and see
+if it changes things.
+
+> There is very clearly no caching going on. And since exim doesn't even
+> execve, it just forks, it's very clear that it could cache things just
+> ONCE, so your argument that caching wouldn't be possible at that level
+> is also bogus.
+
+So you mean caching it at startup time? Otherwise the parent would
+need to do sysconf() at least , which it doesn't do (the exim source doesn't
+really know anything about libdb internals)
+
+That would add /proc/stat overhead to every program execution. Is that 
+what you
+are proposing?
+
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
