@@ -1,127 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 402426B0012
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 07:45:43 -0400 (EDT)
-Date: Thu, 16 Jun 2011 13:45:39 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 4/8] memcg: rework soft limit reclaim
-Message-ID: <20110616114538.GF9840@tiehlicka.suse.cz>
-References: <1306909519-7286-1-git-send-email-hannes@cmpxchg.org>
- <1306909519-7286-5-git-send-email-hannes@cmpxchg.org>
- <BANLkTim5TSWpBfeF2dugGZwQmNC-Cf+GCNctraq8FtziJxsd2g@mail.gmail.com>
- <BANLkTimuRks4+h=Kjt2Lzc-s-XsAHCH9vg@mail.gmail.com>
- <20110609150026.GD3994@tiehlicka.suse.cz>
- <20110610073638.GA15403@tiehlicka.suse.cz>
- <BANLkTikUmzF6kgJ6WUQGK0M=uzPH6Ac09koCnQwi8vMbxu40WQ@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <BANLkTikUmzF6kgJ6WUQGK0M=uzPH6Ac09koCnQwi8vMbxu40WQ@mail.gmail.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id A288D6B0012
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 07:53:04 -0400 (EDT)
+Subject: Re: [PATCH v4 3.0-rc2-tip 13/22] 13: uprobes: Handing int3 and
+ singlestep exception.
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <20110607130051.28590.68088.sendpatchset@localhost6.localdomain6>
+References: 
+	 <20110607125804.28590.92092.sendpatchset@localhost6.localdomain6>
+	 <20110607130051.28590.68088.sendpatchset@localhost6.localdomain6>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+Date: Thu, 16 Jun 2011 13:52:21 +0200
+Message-ID: <1308225141.13240.25.camel@twins>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Cc: Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Jonathan Corbet <corbet@lwn.net>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Wed 15-06-11 15:57:59, Ying Han wrote:
-> On Fri, Jun 10, 2011 at 12:36 AM, Michal Hocko <mhocko@suse.cz> wrote:
-> > On Thu 09-06-11 17:00:26, Michal Hocko wrote:
-> >> On Thu 02-06-11 22:25:29, Ying Han wrote:
-> >> > On Thu, Jun 2, 2011 at 2:55 PM, Ying Han <yinghan@google.com> wrote:
-> >> > > On Tue, May 31, 2011 at 11:25 PM, Johannes Weiner <hannes@cmpxchg.org> wrote:
-> >> > >> Currently, soft limit reclaim is entered from kswapd, where it selects
-> >> [...]
-> >> > >> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> >> > >> index c7d4b44..0163840 100644
-> >> > >> --- a/mm/vmscan.c
-> >> > >> +++ b/mm/vmscan.c
-> >> > >> @@ -1988,9 +1988,13 @@ static void shrink_zone(int priority, struct zone *zone,
-> >> > >>                unsigned long reclaimed = sc->nr_reclaimed;
-> >> > >>                unsigned long scanned = sc->nr_scanned;
-> >> > >>                unsigned long nr_reclaimed;
-> >> > >> +               int epriority = priority;
-> >> > >> +
-> >> > >> +               if (mem_cgroup_soft_limit_exceeded(root, mem))
-> >> > >> +                       epriority -= 1;
-> >> > >
-> >> > > Here we grant the ability to shrink from all the memcgs, but only
-> >> > > higher the priority for those exceed the soft_limit. That is a design
-> >> > > change
-> >> > > for the "soft_limit" which giving a hint to which memcgs to reclaim
-> >> > > from first under global memory pressure.
-> >> >
-> >> >
-> >> > Basically, we shouldn't reclaim from a memcg under its soft_limit
-> >> > unless we have trouble reclaim pages from others.
-> >>
-> >> Agreed.
-> >>
-> >> > Something like the following makes better sense:
-> >> >
-> >> > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> >> > index bdc2fd3..b82ba8c 100644
-> >> > --- a/mm/vmscan.c
-> >> > +++ b/mm/vmscan.c
-> >> > @@ -1989,6 +1989,8 @@ restart:
-> >> >         throttle_vm_writeout(sc->gfp_mask);
-> >> >  }
-> >> >
-> >> > +#define MEMCG_SOFTLIMIT_RECLAIM_PRIORITY       2
-> >> > +
-> >> >  static void shrink_zone(int priority, struct zone *zone,
-> >> >                                 struct scan_control *sc)
-> >> >  {
-> >> > @@ -2001,13 +2003,13 @@ static void shrink_zone(int priority, struct zone *zone,
-> >> >                 unsigned long reclaimed = sc->nr_reclaimed;
-> >> >                 unsigned long scanned = sc->nr_scanned;
-> >> >                 unsigned long nr_reclaimed;
-> >> > -               int epriority = priority;
-> >> >
-> >> > -               if (mem_cgroup_soft_limit_exceeded(root, mem))
-> >> > -                       epriority -= 1;
-> >> > +               if (!mem_cgroup_soft_limit_exceeded(root, mem) &&
-> >> > +                               priority > MEMCG_SOFTLIMIT_RECLAIM_PRIORITY)
-> >> > +                       continue;
-> >>
-> >> yes, this makes sense but I am not sure about the right(tm) value of the
-> >> MEMCG_SOFTLIMIT_RECLAIM_PRIORITY. 2 sounds too low.
-> >
-> > There is also another problem. I have just realized that this code path
-> > is shared with the cgroup direct reclaim. We shouldn't care about soft
-> > limit in such a situation. It would be just a wasting of cycles. So we
-> > have to:
-> >
-> > if (current_is_kswapd() &&
-> >        !mem_cgroup_soft_limit_exceeded(root, mem) &&
-> >        priority > MEMCG_SOFTLIMIT_RECLAIM_PRIORITY)
-> >        continue;
-> 
-> Agreed.
-> 
-> >
-> > Maybe the condition would have to be more complex for per-cgroup
-> > background reclaim, though.
-> 
-> That would be the same logic for per-memcg direct reclaim. In general,
-> we don't consider soft_limit
-> unless the global memory pressure. So the condition could be something like:
-> 
-> > if (   global_reclaim(sc) &&
-> >        !mem_cgroup_soft_limit_exceeded(root, mem) &&
-> >        priority > MEMCG_SOFTLIMIT_RECLAIM_PRIORITY)
-> >        continue;
-> 
-> make sense?
+On Tue, 2011-06-07 at 18:30 +0530, Srikar Dronamraju wrote:
+> +void uprobe_notify_resume(struct pt_regs *regs)
+> +{
+> +       struct vm_area_struct *vma;
+> +       struct uprobe_task *utask;
+> +       struct mm_struct *mm;
+> +       struct uprobe *u =3D NULL;
+> +       unsigned long probept;
+> +
+> +       utask =3D current->utask;
+> +       mm =3D current->mm;
+> +       if (!utask || utask->state =3D=3D UTASK_BP_HIT) {
+> +               probept =3D get_uprobe_bkpt_addr(regs);
+> +               down_read(&mm->mmap_sem);
+> +               vma =3D find_vma(mm, probept);
+> +               if (vma && valid_vma(vma))
+> +                       u =3D find_uprobe(vma->vm_file->f_mapping->host,
+> +                                       probept - vma->vm_start +
+> +                                       (vma->vm_pgoff << PAGE_SHIFT));
+> +               up_read(&mm->mmap_sem);
+> +               if (!u)
+> +                       goto cleanup_ret;
+> +               if (!utask) {
+> +                       utask =3D add_utask();
+> +                       if (!utask)
+> +                               goto cleanup_ret;
 
-Yes seems to be more consistent.
+So if we fail to allocate task state,..
 
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+> +               }
+> +               /* TODO Start queueing signals. */
+> +               utask->active_uprobe =3D u;
+> +               handler_chain(u, regs);
+> +               utask->state =3D UTASK_SSTEP;
+> +               if (!pre_ssout(u, regs, probept))
+> +                       user_enable_single_step(current);
+> +               else
+> +                       goto cleanup_ret;
+> +       } else if (utask->state =3D=3D UTASK_SSTEP) {
+> +               u =3D utask->active_uprobe;
+> +               if (sstep_complete(u, regs)) {
+> +                       put_uprobe(u);
+> +                       utask->active_uprobe =3D NULL;
+> +                       utask->state =3D UTASK_RUNNING;
+> +                       user_disable_single_step(current);
+> +                       xol_free_insn_slot(current);
+> +
+> +                       /* TODO Stop queueing signals. */
+> +               }
+> +       }
+> +       return;
+> +
+> +cleanup_ret:
+> +       if (u) {
+> +               down_read(&mm->mmap_sem);
+> +               if (!set_orig_insn(current, u, probept, true))
+
+we try to undo the probe? That doesn't make any sense. I thought you
+meant to return to userspace, let it re-take the trap and try again
+until you do manage to allocate the user resource.
+
+This behaviour makes probes totally unreliable under memory pressure.=20
+
+> +                       atomic_dec(&mm->uprobes_count);
+> +               up_read(&mm->mmap_sem);
+> +               put_uprobe(u);
+> +       } else {
+> +       /*TODO Return SIGTRAP signal */
+> +       }
+> +       if (utask) {
+> +               utask->active_uprobe =3D NULL;
+> +               utask->state =3D UTASK_RUNNING;
+> +       }
+> +       set_instruction_pointer(regs, probept);
+> +}=20
+
+Also, there's a scary amount of TODO in there...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
