@@ -1,118 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id C0C916B0012
-	for <linux-mm@kvack.org>; Wed, 15 Jun 2011 23:20:25 -0400 (EDT)
-Received: by fxm18 with SMTP id 18so1140561fxm.14
-        for <linux-mm@kvack.org>; Wed, 15 Jun 2011 20:20:22 -0700 (PDT)
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id BA0EB6B0012
+	for <linux-mm@kvack.org>; Wed, 15 Jun 2011 23:34:53 -0400 (EDT)
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e32.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p5G3N1HI026345
+	for <linux-mm@kvack.org>; Wed, 15 Jun 2011 21:23:01 -0600
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id p5G3YhpP172696
+	for <linux-mm@kvack.org>; Wed, 15 Jun 2011 21:34:43 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p5FLYC8i006372
+	for <linux-mm@kvack.org>; Wed, 15 Jun 2011 15:34:16 -0600
+Date: Thu, 16 Jun 2011 08:56:45 +0530
+From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Subject: Re: [PATCH v4 3.0-rc2-tip 7/22]  7: uprobes: mmap and fork hooks.
+Message-ID: <20110616032645.GF4952@linux.vnet.ibm.com>
+Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+References: <20110607125804.28590.92092.sendpatchset@localhost6.localdomain6>
+ <20110607125931.28590.12362.sendpatchset@localhost6.localdomain6>
+ <1308161486.2171.61.camel@laptop>
 MIME-Version: 1.0
-In-Reply-To: <20110615213958.GB28032@labbmf-linux.qualcomm.com>
-References: <1307699698-29369-1-git-send-email-m.szyprowski@samsung.com>
-	<20110614170158.GU2419@fooishbar.org>
-	<BANLkTi=cJisuP8=_YSg4h-nsjGj3zsM7sg@mail.gmail.com>
-	<201106142242.25157.arnd@arndb.de>
-	<000901cc2b37$4c21f030$e465d090$%szyprowski@samsung.com>
-	<20110615213958.GB28032@labbmf-linux.qualcomm.com>
-Date: Wed, 15 Jun 2011 22:20:21 -0500
-Message-ID: <BANLkTi=aYUFVQ3Mg73wrvQUR0zpbXC9Hsg@mail.gmail.com>
-Subject: Re: [Linaro-mm-sig] [PATCH 08/10] mm: cma: Contiguous Memory
- Allocator added
-From: Zach Pfeffer <zach.pfeffer@linaro.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <1308161486.2171.61.camel@laptop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Larry Bassel <lbassel@codeaurora.org>
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, Arnd Bergmann <arnd@arndb.de>, Daniel Walker <dwalker@codeaurora.org>, Daniel Stone <daniels@collabora.com>, Jesse Barker <jesse.barker@linaro.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, Michal Nazarewicz <mina86@mina86.com>, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, Kyungmin Park <kyungmin.park@samsung.com>, Ankita Garg <ankita@in.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Jonathan Corbet <corbet@lwn.net>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On 15 June 2011 16:39, Larry Bassel <lbassel@codeaurora.org> wrote:
-> On 15 Jun 11 10:36, Marek Szyprowski wrote:
->> Hello,
->>
->> On Tuesday, June 14, 2011 10:42 PM Arnd Bergmann wrote:
->>
->> > On Tuesday 14 June 2011 20:58:25 Zach Pfeffer wrote:
->> > > I've seen this split bank allocation in Qualcomm and TI SoCs, with
->> > > Samsung, that makes 3 major SoC vendors (I would be surprised if
->> > > Nvidia didn't also need to do this) - so I think some configurable
->> > > method to control allocations is necessarily. The chips can't do
->> > > decode without it (and by can't do I mean 1080P and higher decode is
->> > > not functionally useful). Far from special, this would appear to be
->> > > the default.
->
-> We at Qualcomm have some platforms that have memory of different
-> performance characteristics, some drivers will need a way of
-> specifying that they need fast memory for an allocation (and would prefer
-> an error if it is not available rather than a fallback to slower
-> memory). It would also be bad if allocators who don't need fast
-> memory got it "accidentally", depriving those who really need it.
+* Peter Zijlstra <peterz@infradead.org> [2011-06-15 20:11:26]:
 
-I think this statement actually applies to all the SoCs that are
-coming out now and in the future from TI, Samsung, Nvidia, Freescale,
-ST Ericsson and others. It seems that in all cases users will want to:
+> On Tue, 2011-06-07 at 18:29 +0530, Srikar Dronamraju wrote:
+> > +       up_write(&mm->mmap_sem);
+> > +       mutex_lock(&uprobes_mutex);
+> > +       down_read(&mm->mmap_sem); 
+> 
+> egads, and all that without a comment explaining why you think that is
+> even remotely sane.
+> 
+> I'm not at all convinced, it would expose the mmap() even though you
+> could still decide to tear it down if this function were to fail, I bet
+> there's some funnies there.
 
-1. Allocate memory with a per-SoC physical memory mapping policy that
-is usually manually specified, i.e. use this physical memory bank set
-for this allocation or nothing.
-2. Be able to easily pass a token to this memory between various
-userspace processes and the kernel.
-3. Be able to easily and explicitly access attributes of an allocation
-from all contexts.
-4. Be able to save and reload this memory without giving up the
-virtual address allocation.
+The problem is with lock ordering.  register/unregister operations
+acquire uprobes_mutex (which serializes register unregister and the
+mmap_hook) and then holds mmap_sem for read before they insert a
+breakpoint.
 
-In essence they want a architectural independent map object that can
-bounce around the system with a unique handle.
->> >
->> > Thanks for the insight, that's a much better argument than 'something
->> > may need it'. Are those all chips without an IOMMU or do we also
->> > need to solve the IOMMU case with split bank allocation?
->> >
->> > I think I'd still prefer to see the support for multiple regions split
->> > out into one of the later patches, especially since that would defer
->> > the question of how to do the initialization for this case and make
->> > sure we first get a generic way.
->> >
->> > You've convinced me that we need to solve the problem of allocating
->> > memory from a specific bank eventually, but separating it from the
->> > one at hand (contiguous allocation) should help getting the important
->> > groundwork in at first.
->> >
->> > The possible conflict that I still see with per-bank CMA regions are:
->> >
->> > * It completely destroys memory power management in cases where that
->> > =A0 is based on powering down entire memory banks.
->>
->> I don't think that per-bank CMA regions destroys memory power management
->> more than the global CMA pool. Please note that the contiguous buffers
->> (or in general dma-buffers) right now are unmovable so they don't fit
->> well into memory power management.
->
-> We also have platforms where a well-defined part of the memory
-> can be powered off, and other parts can't (or won't). We need a way
-> to steer the place allocations come from to the memory that won't be
-> turned off (so that CMA allocations are not an obstacle to memory
-> hotremove).
->
->>
->> Best regards
->> --
->> Marek Szyprowski
->> Samsung Poland R&D Center
->>
->>
->>
->> _______________________________________________
->> Linaro-mm-sig mailing list
->> Linaro-mm-sig@lists.linaro.org
->> http://lists.linaro.org/mailman/listinfo/linaro-mm-sig
->
-> Larry Bassel
->
-> --
-> Sent by an employee of the Qualcomm Innovation Center, Inc.
-> The Qualcomm Innovation Center, Inc. is a member of the Code Aurora Forum=
-.
->
+But the mmap hook would be called with mmap_sem held for write. So
+acquiring uprobes_mutex can result in deadlock. Hence we release the
+mmap_sem, take the uprobes_mutex and then again hold the mmap_sem.
+
+After we re-acquire the mmap_sem, we do check if the vma is valid.
+
+Do we have better solutions?
+
+-- 
+Thanks and Regards
+Srikar
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
