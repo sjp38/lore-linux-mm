@@ -1,119 +1,139 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 85BFB6B0012
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 13:16:54 -0400 (EDT)
-Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
-	by e7.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p5GGqdBj023935
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 12:52:39 -0400
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p5GHGqqo132986
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 13:16:52 -0400
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p5GHGkJ6011847
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 13:16:49 -0400
-Date: Thu, 16 Jun 2011 10:16:44 -0700
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: [GIT PULL] Re: REGRESSION: Performance regressions from
- switching anon_vma->lock to mutex
-Message-ID: <20110616171644.GK2582@linux.vnet.ibm.com>
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <1308097798.17300.142.camel@schen9-DESK>
- <1308134200.15315.32.camel@twins>
- <1308135495.15315.38.camel@twins>
- <BANLkTikt88KnxTy8TuGGVrBVnXvsnL7nMQ@mail.gmail.com>
- <20110615201216.GA4762@elte.hu>
- <35c0ff16-bd58-4b9c-9d9f-d1a4df2ae7b9@email.android.com>
- <20110616070335.GA7661@elte.hu>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110616070335.GA7661@elte.hu>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 154876B0012
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 14:23:56 -0400 (EDT)
+Subject: Re: [PATCH v4 3.0-rc2-tip 7/22]  7: uprobes: mmap and fork hooks.
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <20110616130012.GL4952@linux.vnet.ibm.com>
+References: 
+	 <20110607125804.28590.92092.sendpatchset@localhost6.localdomain6>
+	 <20110607125931.28590.12362.sendpatchset@localhost6.localdomain6>
+	 <1308161486.2171.61.camel@laptop>
+	 <20110616032645.GF4952@linux.vnet.ibm.com>
+	 <1308225626.13240.34.camel@twins>
+	 <20110616130012.GL4952@linux.vnet.ibm.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+Date: Thu, 16 Jun 2011 20:23:08 +0200
+Message-ID: <1308248588.13240.267.camel@twins>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Tim Chen <tim.c.chen@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Russell King <rmk@arm.linux.org.uk>, Paul Mundt <lethal@linux-sh.org>, Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>, Tony Luck <tony.luck@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Namhyung Kim <namhyung@gmail.com>, ak@linux.intel.com, shaohua.li@intel.com, alex.shi@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Rafael J. Wysocki" <rjw@sisk.pl>
+To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Cc: Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Jonathan Corbet <corbet@lwn.net>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Thu, Jun 16, 2011 at 09:03:35AM +0200, Ingo Molnar wrote:
-> 
-> * Linus Torvalds <torvalds@linux-foundation.org> wrote:
-> 
-> > 
-> > 
-> > Ingo Molnar <mingo@elte.hu> wrote:
-> > >
-> > > I have this fix queued up currently:
-> > >
-> > >  09223371deac: rcu: Use softirq to address performance regression
-> > 
-> > I really don't think that is even close to enough.
-> 
-> Yeah.
-> 
-> > It still does all the callbacks in the threads, and according to 
-> > Peter, about half the rcu time in the threads remained..
-> 
-> You are right - things that are a few percent on a 24 core machine 
-> will definitely go exponentially worse on larger boxen. We'll get rid 
-> of the kthreads entirely.
+On Thu, 2011-06-16 at 18:30 +0530, Srikar Dronamraju wrote:
 
-I did indeed at one time have access to larger test systems than I
-do now, and I clearly need to fix that.  :-/
+> Now since a register and mmap operations can run in parallel, we could
+> have subtle race conditions like this:
+>=20
+> 1. register_uprobe inserts the uprobe in RB tree.
+> 2. register_uprobe loops thro vmas and inserts breakpoints.
+>=20
+> 3. mmap is called for same inode, mmap_uprobe() takes reference;=20
+> 4. mmap completes insertion and releases reference.
+>=20
+> 5. register uprobe tries to install breakpoint on one vma fails and not
+> due to -ESRCH or -EEXIST.
+> 6. register_uprobe rolls back all install breakpoints except the one
+> inserted by mmap.
+>=20
+> We end up with breakpoints that we have inserted by havent cleared.
+>=20
+> Similarly unregister_uprobe might be looping to remove the breakpoints
+> when mmap comes in installs the breakpoint and returns.
+> unregister_uprobe might erase the uprobe from rbtree after mmap is done.
 
-> The funny thing about this workload is that context-switches are 
-> really a fastpath here and we are using anonymous IRQ-triggered 
-> softirqs embedded in random task contexts as a workaround for that.
+Well yes, but that's mostly because of how you use those lists.
 
-The other thing that the IRQ-triggered softirqs do is to get the callbacks
-invoked in cases where a CPU-bound user thread is never context switching.
-Of course, one alternative might be to set_need_resched() to force entry
-into the scheduler as needed.
+int __register_uprobe(...)
+{
+  uprobe =3D alloc_uprobe(...); // find or insert in tree
 
-> [ I think we'll have to revisit this issue and do it properly:
->   quiescent state is mostly defined by context-switches here, so we
->   could do the RCU callbacks from the task that turns a CPU
->   quiescent, right in the scheduler context-switch path - perhaps
->   with an option for SCHED_FIFO tasks to *not* do GC.
+  vma_prio_tree_foreach(..) {
+    // get mm ref, add to list blah blah
+  }
 
-I considered this approach for TINY_RCU, but dropped it in favor of
-reducing the interlocking between the scheduler and RCU callbacks.
-Might be worth revisiting, though.  If SCHED_FIFO task omit RCU callback
-invocation, then there will need to be some override for CPUs with lots
-of SCHED_FIFO load, probably similar to RCU's current blimit stuff.
+  list_for_each_entry_safe() {
+    // del from list etc..
+    down_read(mm->mmap_sem);
+    ret =3D install_breakpoint();
+    if (ret && (ret !=3D -ESRCH || ret !=3D -EEXIST)) {
+      up_read(..);
+      goto fail;
+  }
 
->   That could possibly be more cache-efficient than softirq execution,
->   as we'll process a still-hot pool of callbacks instead of doing
->   them only once per timer tick. It will also make the RCU GC
->   behavior HZ independent. ]
+  return 0;
 
-Well, the callbacks will normally be cache-cold in any case due to the
-grace-period delay, but on the other hand, both tick-independence and
-the ability to shield a given CPU from RCU callback execution might be
-quite useful.  The tick currently does the following for RCU:
+fail:
+  list_for_each_entry_safe() {
+    // del from list, put mm
+  }
 
-1.	Informs RCU of user-mode execution (rcu_sched and rcu_bh
-	quiescent state).
+  return ret;
+}
 
-2.	Informs RCU of non-dyntick idle mode (again, rcu_sched and
-	rcu_bh quiescent state).
+void __unregister_uprobe(...)
+{
+  uprobe =3D find_uprobe(); // ref++
+  if (delete_consumer(...)); // includes tree removal on last consumer
+                             // implies we own the last ref
+     return; // consumers
 
-3.	Kicks the current CPU's RCU core processing as needed in
-	response to actions from other CPUs.
+  vma_prio_tree_foreach() {
+     // create list
+  }
 
-Frederic's work avoiding ticks in long-running user-mode tasks
-might take care of #1, and it should be possible to make use of
-the current dyntick-idle APIs to deal with #2.  Replacing #3
-efficiently will take some thought.
+  list_for_each_entry_safe() {
+    // remove from list
+    remove_breakpoint(); // unconditional, if it wasn't there
+                         // its a nop anyway, can't get any new
+                         // new probes on account of holding
+                         // uprobes_mutex and mmap() doesn't see
+                         // it due to tree removal.
+  }
+}
 
-> In any case the proxy kthread model clearly sucked, no argument about 
-> that.
+int register_uprobe(...)
+{
+  int ret;
 
-Indeed, I lost track of the global nature of real-time scheduling.  :-(
+  mutex_lock(&uprobes_mutex);
+  ret =3D __register_uprobe(...);
+  if (!ret)
+    __unregister_uprobe(...);
+  mutex_unlock(&uprobes_mutex);
 
-Whatever does the boosting will need to have process context and
-can be subject to delays, so that pretty much needs to be a kthread.
-But it will context-switch quite rarely, so should not be a problem.
+  ret;
+}
 
-							Thanx, Paul
+int mmap_uprobe(...)
+{
+  spin_lock(&uprobes_treelock);
+  for_each_probe_in_inode() {
+    // create list;
+  }
+  spin_unlock(..);
+
+  list_for_each_entry_safe() {
+    // remove from list
+    ret =3D install_breakpoint();
+    if (ret)
+      goto fail;
+    if (!uprobe_still_there()) // takes treelock
+      remove_breakpoint();
+  }
+
+  return 0;
+
+fail:
+  list_for_each_entry_safe() {
+    // destroy list
+  }
+  return ret;
+}
+
+Should work I think, no?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
