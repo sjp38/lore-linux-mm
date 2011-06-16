@@ -1,117 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F90B6B004A
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 14:26:10 -0400 (EDT)
-Subject: Re: [PATCH v4 3.0-rc2-tip 7/22]  7: uprobes: mmap and fork hooks.
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <1308248588.13240.267.camel@twins>
-References: 
-	 <20110607125804.28590.92092.sendpatchset@localhost6.localdomain6>
-	 <20110607125931.28590.12362.sendpatchset@localhost6.localdomain6>
-	 <1308161486.2171.61.camel@laptop>
-	 <20110616032645.GF4952@linux.vnet.ibm.com>
-	 <1308225626.13240.34.camel@twins>
-	 <20110616130012.GL4952@linux.vnet.ibm.com>
-	 <1308248588.13240.267.camel@twins>
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id E34E96B0012
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 14:46:28 -0400 (EDT)
+Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
+	by e1.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p5GIYarj008000
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 14:34:36 -0400
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p5GIkLRK156610
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 14:46:21 -0400
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p5GCkAt7003908
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 06:46:11 -0600
+Subject: Re: mmotm 2011-06-15-16-56 uploaded (mm/page_cgroup.c)
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <20110616165146.GB5244@suse.de>
+References: <201106160034.p5G0Y4dr028904@imap1.linux-foundation.org>
+	 <20110615214917.a7dce8e6.randy.dunlap@oracle.com>
+	 <20110616172819.1e2d325c.kamezawa.hiroyu@jp.fujitsu.com>
+	 <20110616103559.GA5244@suse.de> <1308241542.11430.119.camel@nimitz>
+	 <20110616165146.GB5244@suse.de>
 Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-Date: Thu, 16 Jun 2011 20:25:33 +0200
-Message-ID: <1308248733.13240.269.camel@twins>
+Date: Thu, 16 Jun 2011 11:46:04 -0700
+Message-ID: <1308249964.11430.157.camel@nimitz>
 Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Jonathan Corbet <corbet@lwn.net>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Randy Dunlap <randy.dunlap@oracle.com>, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 
-On Thu, 2011-06-16 at 20:23 +0200, Peter Zijlstra wrote:
-> int __register_uprobe(...)
-> {
->   uprobe =3D alloc_uprobe(...); // find or insert in tree
->=20
->   vma_prio_tree_foreach(..) {
->     // get mm ref, add to list blah blah
->   }
->=20
->   list_for_each_entry_safe() {
->     // del from list etc..
->     down_read(mm->mmap_sem);
->     ret =3D install_breakpoint();
->     if (ret && (ret !=3D -ESRCH || ret !=3D -EEXIST)) {
->       up_read(..);
->       goto fail;
->   }
->=20
->   return 0;
->=20
-> fail:
->   list_for_each_entry_safe() {
->     // del from list, put mm
->   }
->=20
->   return ret;
-> }
->=20
-> void __unregister_uprobe(...)
-> {
->   uprobe =3D find_uprobe(); // ref++
->   if (delete_consumer(...)); // includes tree removal on last consumer
->                              // implies we own the last ref
->      return; // consumers
->=20
->   vma_prio_tree_foreach() {
->      // create list
->   }
->=20
->   list_for_each_entry_safe() {
->     // remove from list
->     remove_breakpoint(); // unconditional, if it wasn't there
->                          // its a nop anyway, can't get any new
->                          // new probes on account of holding
->                          // uprobes_mutex and mmap() doesn't see
->                          // it due to tree removal.
->   }
+On Thu, 2011-06-16 at 17:51 +0100, Mel Gorman wrote:
+> No, why was node_start_pfn() and node_end_pfn() defined optionally
+> on a per-architecture basis?
 
-   put_uprobe(); // last ref, *poof*
-> }
->=20
-> int register_uprobe(...)
-> {
->   int ret;
->=20
->   mutex_lock(&uprobes_mutex);
->   ret =3D __register_uprobe(...);
->   if (!ret)
->     __unregister_uprobe(...);
->   mutex_unlock(&uprobes_mutex);
->=20
->   ret;
-> }
->=20
-> int mmap_uprobe(...)
-> {
->   spin_lock(&uprobes_treelock);
->   for_each_probe_in_inode() {
->     // create list;
->   }
->   spin_unlock(..);
->=20
->   list_for_each_entry_safe() {
->     // remove from list
->     ret =3D install_breakpoint();
->     if (ret)
->       goto fail;
->     if (!uprobe_still_there()) // takes treelock
->       remove_breakpoint();
->   }
->=20
->   return 0;
->=20
-> fail:
->   list_for_each_entry_safe() {
->     // destroy list
->   }
->   return ret;
-> }=20
+Probably because it started in the NUMA-Q port, and we were still trying
+to stay off the radar at that point.  It looks like it showed up in
+~2.5.[3-4]?.  We didn't know what the heck we were doing back then, and
+it probably leaked out from under CONFIG_NUMA/DISCONTIGMEM at some
+point.
+
+Seems like a good thing to consolidate to me.  Especially since it's
+just a shortcut to the (unconditionally defined) structure member, I
+can't see a real justification for needing different definitions.
+
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
