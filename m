@@ -1,78 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 4D2F96B0012
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 08:49:26 -0400 (EDT)
-Subject: Re: [PATCH v4 3.0-rc2-tip 2/22]  2: uprobes: Breakground page
- replacement.
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <20110607125835.28590.25476.sendpatchset@localhost6.localdomain6>
-References: 
-	 <20110607125804.28590.92092.sendpatchset@localhost6.localdomain6>
-	 <20110607125835.28590.25476.sendpatchset@localhost6.localdomain6>
-Content-Type: text/plain; charset="UTF-8"
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id C2CAB6B0012
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 09:01:29 -0400 (EDT)
+Received: by bwz17 with SMTP id 17so1846089bwz.14
+        for <linux-mm@kvack.org>; Thu, 16 Jun 2011 06:01:25 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20110616100937.GA12317@elte.hu>
+References: <20110613120054.3336e997.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110613120608.d5243bc9.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110616100937.GA12317@elte.hu>
+Date: Thu, 16 Jun 2011 22:01:25 +0900
+Message-ID: <BANLkTik8oETUSphYDfP8g8CgyHnDcaBXOg@mail.gmail.com>
+Subject: Re: [-git build bug, PATCH] Re: [BUGFIX][PATCH 2/5] memcg: fix
+ init_page_cgroup nid with sparsemem
+From: Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: quoted-printable
-Date: Thu, 16 Jun 2011 14:48:05 +0200
-Message-ID: <1308228485.13240.61.camel@twins>
-Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Andi Kleen <andi@firstfloor.org>, Thomas Gleixner <tglx@linutronix.de>, Jonathan Corbet <corbet@lwn.net>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, LKML <linux-kernel@vger.kernel.org>
+To: Ingo Molnar <mingo@elte.hu>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "bsingharora@gmail.com" <bsingharora@gmail.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Ying Han <yinghan@google.com>, Linus Torvalds <torvalds@linux-foundation.org>
 
-On Tue, 2011-06-07 at 18:28 +0530, Srikar Dronamraju wrote:
-> +static int __replace_page(struct vm_area_struct *vma, struct page *page,
-> +                                       struct page *kpage)
-> +{
-> +       struct mm_struct *mm =3D vma->vm_mm;
-> +       pgd_t *pgd;
-> +       pud_t *pud;
-> +       pmd_t *pmd;
-> +       pte_t *ptep;
-> +       spinlock_t *ptl;
-> +       unsigned long addr;
-> +       int err =3D -EFAULT;
-> +
-> +       addr =3D page_address_in_vma(page, vma);
-> +       if (addr =3D=3D -EFAULT)
-> +               goto out;
-> +
-> +       pgd =3D pgd_offset(mm, addr);
-> +       if (!pgd_present(*pgd))
-> +               goto out;
-> +
-> +       pud =3D pud_offset(pgd, addr);
-> +       if (!pud_present(*pud))
-> +               goto out;
-> +
-> +       pmd =3D pmd_offset(pud, addr);
-> +       if (pmd_trans_huge(*pmd) || (!pmd_present(*pmd)))
-> +               goto out;
-> +
-> +       ptep =3D pte_offset_map_lock(mm, pmd, addr, &ptl);
-> +       if (!ptep)
-> +               goto out;
+2011/6/16 Ingo Molnar <mingo@elte.hu>:
+>
+> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+>
+>> Date: Mon, 13 Jun 2011 10:09:17 +0900
+>> Subject: [PATCH 2/5] [BUGFIX] memcg: fix init_page_cgroup nid with spars=
+emem
+>
+> This fresh upstream commit commit:
+>
+> =A037573e8c7182: memcg: fix init_page_cgroup nid with sparsemem
+>
+> is causing widespread build failures on latest -git, on x86:
+>
+> =A0mm/page_cgroup.c:308:3: error: implicit declaration of function =91nod=
+e_start_pfn=92 [-Werror=3Dimplicit-function-declaration]
+> =A0mm/page_cgroup.c:309:3: error: implicit declaration of function =91nod=
+e_end_pfn=92 [-Werror=3Dimplicit-function-declaration]
+>
+> On any config that has CONFIG_CGROUP_MEM_RES_CTLR=3Dy enabled but
+> CONFIG_NUMA disabled.
+>
+> For now i've worked it around with the patch below, but the real
+> solution would be to make the page_cgroup.c code not depend on NUMA.
+>
+> Thanks,
+>
+> =A0 =A0 =A0 =A0Ingo
+>
+yes, very sorry. I'm now preparing a fix in this thread.
 
-Shouldn't we verify that the obtained pte does indeed refer to our @page
-here?
+http://marc.info/?t=3D130819986800002&r=3D1&w=3D2
 
-> +       get_page(kpage);
-> +       page_add_new_anon_rmap(kpage, vma, addr);
-> +
-> +       flush_cache_page(vma, addr, pte_pfn(*ptep));
-> +       ptep_clear_flush(vma, addr, ptep);
-> +       set_pte_at_notify(mm, addr, ptep, mk_pte(kpage, vma->vm_page_prot=
-));
-> +
-> +       page_remove_rmap(page);
-> +       if (!page_mapped(page))
-> +               try_to_free_swap(page);
-> +       put_page(page);
-> +       pte_unmap_unlock(ptep, ptl);
-> +       err =3D 0;
-> +
-> +out:
-> +       return err;
-> +}=20
+I think I'll be able to post a final fix, tomorrow. I'll cc you when I'll p=
+ost.
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
