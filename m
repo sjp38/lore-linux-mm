@@ -1,33 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 40C186B00E9
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 00:04:43 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 5C46E3EE0C2
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 13:04:40 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 35FCF45DF82
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 13:04:40 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 1D62745DF4B
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 13:04:40 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0E7891DB803F
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 13:04:40 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id C38A21DB803E
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 13:04:39 +0900 (JST)
-Date: Thu, 16 Jun 2011 12:57:41 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH 7/7] memcg: proportional fair vicitm node selection
-Message-Id: <20110616125741.c3d6a802.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20110616124730.d6960b8b.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20110616124730.d6960b8b.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 480696B00EB
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 00:19:50 -0400 (EDT)
+Received: from d01relay01.pok.ibm.com (d01relay01.pok.ibm.com [9.56.227.233])
+	by e3.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p5G3vDer023030
+	for <linux-mm@kvack.org>; Wed, 15 Jun 2011 23:57:13 -0400
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p5G4Jn3Y136268
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 00:19:49 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p5G4Jg9K023500
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 00:19:48 -0400
+Date: Thu, 16 Jun 2011 09:41:37 +0530
+From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Subject: Re: [PATCH v4 3.0-rc2-tip 4/22]  4: Uprobes: register/unregister
+ probes.
+Message-ID: <20110616041137.GG4952@linux.vnet.ibm.com>
+Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+References: <20110607125804.28590.92092.sendpatchset@localhost6.localdomain6>
+ <20110607125900.28590.16071.sendpatchset@localhost6.localdomain6>
+ <1308159719.2171.57.camel@laptop>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <1308159719.2171.57.camel@laptop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "bsingharora@gmail.com" <bsingharora@gmail.com>, Ying Han <yinghan@google.com>, Michal Hocko <mhocko@suse.cz>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Jonathan Corbet <corbet@lwn.net>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>
 
+* Peter Zijlstra <peterz@infradead.org> [2011-06-15 19:41:59]:
+
+> On Tue, 2011-06-07 at 18:29 +0530, Srikar Dronamraju wrote:
+> > 1. Use mm->owner and walk thro the thread_group of mm->owner, siblings
+> > of mm->owner, siblings of parent of mm->owner.  This should be
+> > good list to traverse. Not sure if this is an exhaustive
+> > enough list that all tasks that have a mm set to this mm_struct are
+> > walked through. 
+> 
+> As per copy_process():
+> 
+> 	/*
+> 	 * Thread groups must share signals as well, and detached threads
+> 	 * can only be started up within the thread group.
+> 	 */
+> 	if ((clone_flags & CLONE_THREAD) && !(clone_flags & CLONE_SIGHAND))
+> 		return ERR_PTR(-EINVAL);
+> 
+> 	/*
+> 	 * Shared signal handlers imply shared VM. By way of the above,
+> 	 * thread groups also imply shared VM. Blocking this case allows
+> 	 * for various simplifications in other code.
+> 	 */
+> 	if ((clone_flags & CLONE_SIGHAND) && !(clone_flags & CLONE_VM))
+> 		return ERR_PTR(-EINVAL);
+> 
+> CLONE_THREAD implies CLONE_VM, but not the other way around, we
+> therefore would be able to CLONE_VM and not be part of the primary
+> owner's thread group.
+> 
+> This is of course all terribly sad..
+
+Agree, 
+
+If clone(CLONE_VM) were to be done by a thread_group leader, we can walk
+thro the siblings of parent of mm->owner.
+
+However if clone(CLONE_VM) were to be done by non thread_group_leader
+thread, then we dont even seem to add it to the init_task. i.e I dont
+think we can refer to such a thread even when we walk thro
+do_each_thread(g,t) { .. } while_each_thread(g,t);
+
+right?
+
+-- 
+Thanks and Regards
+Srikar
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
