@@ -1,145 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 07ADB6B00EA
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 16:26:39 -0400 (EDT)
-Date: Thu, 16 Jun 2011 22:25:50 +0200
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [GIT PULL] Re: REGRESSION: Performance regressions from
- switching anon_vma->lock to mutex
-Message-ID: <20110616202550.GA16214@elte.hu>
-References: <1308097798.17300.142.camel@schen9-DESK>
- <1308134200.15315.32.camel@twins>
- <1308135495.15315.38.camel@twins>
- <BANLkTikt88KnxTy8TuGGVrBVnXvsnL7nMQ@mail.gmail.com>
- <20110615201216.GA4762@elte.hu>
- <35c0ff16-bd58-4b9c-9d9f-d1a4df2ae7b9@email.android.com>
- <20110616070335.GA7661@elte.hu>
- <20110616171644.GK2582@linux.vnet.ibm.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 04A496B004A
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 16:44:04 -0400 (EDT)
+Received: from mail-ww0-f45.google.com (mail-ww0-f45.google.com [74.125.82.45])
+	(authenticated bits=0)
+	by smtp1.linux-foundation.org (8.14.2/8.13.5/Debian-3ubuntu1.1) with ESMTP id p5GKhSHE005532
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=FAIL)
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 13:43:29 -0700
+Received: by wwi36 with SMTP id 36so1647659wwi.26
+        for <linux-mm@kvack.org>; Thu, 16 Jun 2011 13:43:28 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110616171644.GK2582@linux.vnet.ibm.com>
+In-Reply-To: <4DFA6442.9000103@linux.intel.com>
+References: <1308097798.17300.142.camel@schen9-DESK> <1308101214.15392.151.camel@sli10-conroe>
+ <1308138750.15315.62.camel@twins> <20110615161827.GA11769@tassilo.jf.intel.com>
+ <1308156337.2171.23.camel@laptop> <1308163398.17300.147.camel@schen9-DESK>
+ <1308169937.15315.88.camel@twins> <4DF91CB9.5080504@linux.intel.com>
+ <1308172336.17300.177.camel@schen9-DESK> <1308173849.15315.91.camel@twins>
+ <87ea4bd7-8b16-4b24-8fcb-d8e9b6f421ec@email.android.com> <4DF92FE1.5010208@linux.intel.com>
+ <BANLkTi=Tw6je7zpi4L=pE0JJpZfeEC9Jsg@mail.gmail.com> <4DFA6442.9000103@linux.intel.com>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Thu, 16 Jun 2011 13:37:47 -0700
+Message-ID: <BANLkTin_46==epHKUbWJ55bt3mPaJieV2Q@mail.gmail.com>
+Subject: Re: REGRESSION: Performance regressions from switching anon_vma->lock
+ to mutex
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Tim Chen <tim.c.chen@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Russell King <rmk@arm.linux.org.uk>, Paul Mundt <lethal@linux-sh.org>, Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>, Tony Luck <tony.luck@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Namhyung Kim <namhyung@gmail.com>, ak@linux.intel.com, shaohua.li@intel.com, alex.shi@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Rafael J. Wysocki" <rjw@sisk.pl>
+To: Andi Kleen <ak@linux.intel.com>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Tim Chen <tim.c.chen@linux.intel.com>, Shaohua Li <shaohua.li@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Russell King <rmk@arm.linux.org.uk>, Paul Mundt <lethal@linux-sh.org>, Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>, "Luck, Tony" <tony.luck@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Namhyung Kim <namhyung@gmail.com>, "Shi, Alex" <alex.shi@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Rafael J. Wysocki" <rjw@sisk.pl>
 
+On Thu, Jun 16, 2011 at 1:14 PM, Andi Kleen <ak@linux.intel.com> wrote:
+>
+> I haven't analyzed it in detail, but I suspect it's some cache line bounc=
+e,
+> which
+> can slow things down quite a lot. =A0Also the total number of invocations
+> is quite high (hundreds of messages per core * 32 cores)
 
-* Paul E. McKenney <paulmck@linux.vnet.ibm.com> wrote:
+The fact is, glibc is just total crap.
 
-> > The funny thing about this workload is that context-switches are 
-> > really a fastpath here and we are using anonymous IRQ-triggered 
-> > softirqs embedded in random task contexts as a workaround for 
-> > that.
-> 
-> The other thing that the IRQ-triggered softirqs do is to get the 
-> callbacks invoked in cases where a CPU-bound user thread is never 
-> context switching.
+I tried to send uli a patch to just add caching. No go. I sent
+*another* patch to at least make glibc use a sane interface (and the
+cache if it needs to fall back on /proc/stat for some legacy reason).
+We'll see what happens.
 
-Yeah - but this workload didnt have that.
+Paul Eggbert suggested "caching for one second" - by just calling
+"gettimtofday()" to see how old the cache is. That would work too.
 
-> Of course, one alternative might be to set_need_resched() to force 
-> entry into the scheduler as needed.
+The point I'm making is that it really is a glibc problem. Glibc is
+doing stupid expensive things, and not trying to correct for the fact
+that it's expensive.
 
-No need for that: we can just do the callback not in softirq but in 
-regular syscall context in that case, in the return-to-userspace 
-notifier. (see TIF_USER_RETURN_NOTIFY and the USER_RETURN_NOTIFIER 
-facility)
+> I did, but I gave up fully following that code path because it's so
+> convoluted :-/
 
-Abusing a facility like setting need_resched artificially will 
-generally cause trouble.
+I do agree that glibc sources are incomprehensible, with multiple
+layers of abstraction (sysdeps, "posix", helper functions etc etc).
 
-> > [ I think we'll have to revisit this issue and do it properly:
-> >   quiescent state is mostly defined by context-switches here, so we
-> >   could do the RCU callbacks from the task that turns a CPU
-> >   quiescent, right in the scheduler context-switch path - perhaps
-> >   with an option for SCHED_FIFO tasks to *not* do GC.
-> 
-> I considered this approach for TINY_RCU, but dropped it in favor of 
-> reducing the interlocking between the scheduler and RCU callbacks. 
-> Might be worth revisiting, though.  If SCHED_FIFO task omit RCU 
-> callback invocation, then there will need to be some override for 
-> CPUs with lots of SCHED_FIFO load, probably similar to RCU's 
-> current blimit stuff.
+In this case it was really trivial to find the culprit with a simple
 
-I wouldnt complicate it much for SCHED_FIFO: SCHED_FIFO tasks are 
-special and should never run long.
+   git grep /proc/stat
 
-> >   That could possibly be more cache-efficient than softirq execution,
-> >   as we'll process a still-hot pool of callbacks instead of doing
-> >   them only once per timer tick. It will also make the RCU GC
-> >   behavior HZ independent. ]
-> 
-> Well, the callbacks will normally be cache-cold in any case due to 
-> the grace-period delay, [...]
+though. The code is crap. It's insane. It's using
+/sys/devices/system/cpu for _SC_NPROCESSORS_CONF, which is at least a
+reasonable interface to use. But it does it in odd ways, and actually
+counts the CPU's by doing a readdir call. And it doesn't cache the
+result, even though that particular result had better be 100% stable -
+it has nothing to do with "online" vs "offline" etc.
 
-The workloads that are the most critical in this regard tend to be 
-context switch intense, so the grace period expiry latency should be 
-pretty short.
+But then for _SC_NPROCESSORS_ONLN, it doesn't actually use
+/sys/devices/system/cpu at all, but the /proc/stat interface. Which is
+slow, mostly because it has all the crazy interrupt stuff in it, but
+also because it has lots of legacy stuff.
 
-Or at least significantly shorter than today's HZ frequency, right? 
-HZ would still provide an upper bound for the latency.
+I wrote a _much_ cleaner routine (loosely based on what we do in
+tools/prof) to just parse /sys/devices/system/cpu/online. I didn't
+even time it, but I can almost guarantee that it's an order of
+magnitude faster than /proc/stat. And if that doesn't work, you can
+fall back on a cached version of the /proc/stat parsing, since if
+those files don't exist, you can forget about CPU hotplug.
 
-Btw., the current worst-case grace period latency is in reality more 
-like two timer ticks: one for the current CPU to expire and another 
-for the longest "other CPU" expiry, right? Average expiry (for 
-IRQ-poor workloads) would be 1.5 timer ticks. (if i got my stat 
-calculations right!)
+> So you mean caching it at startup time? Otherwise the parent would
+> need to do sysconf() at least , which it doesn't do (the exim source does=
+n't
+> really know anything about libdb internals)
 
-> [...] but on the other hand, both tick-independence and the ability 
-> to shield a given CPU from RCU callback execution might be quite 
-> useful. [...]
+Even if you do it in the children, it will help. At least it would be
+run just _once_ per fork.
 
-Yeah.
+But actually looking at glibc just shows that they are simply doing
+stupid things. And I absolutely _refuse_ to add new interfaces to the
+kernel only because glibc is being a moron.
 
-> [...] The tick currently does the following for RCU:
-> 
-> 1.	Informs RCU of user-mode execution (rcu_sched and rcu_bh
-> 	quiescent state).
-> 
-> 2.	Informs RCU of non-dyntick idle mode (again, rcu_sched and
-> 	rcu_bh quiescent state).
-> 
-> 3.	Kicks the current CPU's RCU core processing as needed in
-> 	response to actions from other CPUs.
-> 
-> Frederic's work avoiding ticks in long-running user-mode tasks 
-> might take care of #1, and it should be possible to make use of the 
-> current dyntick-idle APIs to deal with #2.  Replacing #3 
-> efficiently will take some thought.
-
-What is the longest delay the scheduler tick can take typically - 40 
-msecs? That would then be the worst-case grace period latency for 
-workloads that neither do context switches nor trigger IRQs, right?
-
-> > In any case the proxy kthread model clearly sucked, no argument 
-> > about that.
-> 
-> Indeed, I lost track of the global nature of real-time scheduling.
-> :-(
-
-Btw., i think that test was pretty bad: running exim as SCHED_FIFO??
-
-But it does not excuse the kthread model.
-
-> Whatever does the boosting will need to have process context and 
-> can be subject to delays, so that pretty much needs to be a 
-> kthread. But it will context-switch quite rarely, so should not be 
-> a problem.
-
-So user-return notifiers ought to be the ideal platform for that, 
-right? We don't even have to touch the scheduler: anything that 
-schedules will eventually return to user-space, at which point the 
-RCU GC magic can run.
-
-And user-return-notifiers can be triggered from IRQs as well.
-
-That allows us to get rid of softirqs altogether and maybe even speed 
-the whole thing up and allow it to be isolated better.
-
-Thanks,
-
-	Ingo
+                       Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
