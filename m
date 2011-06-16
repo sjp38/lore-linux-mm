@@ -1,66 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id F18C56B0012
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 01:55:51 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id CFD7D3EE0BC
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 14:55:47 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id AC6B945DE68
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 14:55:47 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 901E945DE61
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 14:55:47 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 794C11DB8038
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 14:55:47 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 1105F1DB803A
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 14:55:47 +0900 (JST)
-Date: Thu, 16 Jun 2011 14:48:48 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: mmotm 2011-06-15-16-56 uploaded (mm/page_cgroup.c)
-Message-Id: <20110616144848.e99c84d0.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20110615214917.a7dce8e6.randy.dunlap@oracle.com>
-References: <201106160034.p5G0Y4dr028904@imap1.linux-foundation.org>
-	<20110615214917.a7dce8e6.randy.dunlap@oracle.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with ESMTP id B3B246B0012
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 01:59:28 -0400 (EDT)
+Received: from mail-wy0-f169.google.com (mail-wy0-f169.google.com [74.125.82.169])
+	(authenticated bits=0)
+	by smtp1.linux-foundation.org (8.14.2/8.13.5/Debian-3ubuntu1.1) with ESMTP id p5G5xPBd001384
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=FAIL)
+	for <linux-mm@kvack.org>; Wed, 15 Jun 2011 22:59:26 -0700
+Received: by wyf19 with SMTP id 19so1026680wyf.14
+        for <linux-mm@kvack.org>; Wed, 15 Jun 2011 22:59:24 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <CDE289EC-7844-48E1-BB6A-6230ADAF6B7C@suse.de>
+References: <47FAB15C-B113-40FD-9CE0-49566AACC0DF@suse.de> <BANLkTimubRW2Az2MmRbgV+iTB+s6UEF5-w@mail.gmail.com>
+ <CDE289EC-7844-48E1-BB6A-6230ADAF6B7C@suse.de>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Wed, 15 Jun 2011 22:59:04 -0700
+Message-ID: <BANLkTikLLfJ6yGNVcZ+o1RFmRoqRVrRSYQ@mail.gmail.com>
+Subject: Re: Oops in VMA code
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Randy Dunlap <randy.dunlap@oracle.com>
-Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Alexander Graf <agraf@suse.de>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org List" <linux-kernel@vger.kernel.org>
 
-On Wed, 15 Jun 2011 21:49:17 -0700
-Randy Dunlap <randy.dunlap@oracle.com> wrote:
+On Wed, Jun 15, 2011 at 10:32 PM, Alexander Graf <agraf@suse.de> wrote:
+>
+> 0xc000000000190580 <find_vma_prev+44>: =A0ld =A0 =A0 =A0r9,16(r9)
+> 0xc000000000190584 <find_vma_prev+48>: =A0mr =A0 =A0 =A0r26,r11
+> 0xc000000000190588 <find_vma_prev+52>: =A0cmpdi =A0 cr7,r9,0
+> 0xc00000000019058c <find_vma_prev+56>: =A0mr =A0 =A0 =A0r11,r26
+> 0xc000000000190590 <find_vma_prev+60>: =A0beq =A0 =A0 cr7,0xc000000000190=
+5c4 <find_vma_prev+112>
+> 0xc000000000190594 <find_vma_prev+64>: =A0addi =A0 =A0r26,r9,-56
+> 0xc000000000190598 <find_vma_prev+68>: =A0ld =A0 =A0 =A0r0,16(r26)
+> 0xc00000000019059c <find_vma_prev+72>: =A0cmpld =A0 cr7,r31,r0
+> 0xc0000000001905a0 <find_vma_prev+76>: =A0blt =A0 =A0 cr7,0xc000000000190=
+580 <find_vma_prev+44>
 
-> On Wed, 15 Jun 2011 16:56:49 -0700 akpm@linux-foundation.org wrote:
-> 
-> > The mm-of-the-moment snapshot 2011-06-15-16-56 has been uploaded to
-> > 
-> >    http://userweb.kernel.org/~akpm/mmotm/
-> > 
-> > and will soon be available at
-> >    git://zen-kernel.org/kernel/mmotm.git
-> > or
-> >    git://git.cmpxchg.org/linux-mmotm.git
-> > 
-> > It contains the following patches against 3.0-rc3:
-> 
-> 
-> (x86_64 build:)
-> 
-> mm/page_cgroup.c: In function 'page_cgroup_init':
-> mm/page_cgroup.c:308: error: implicit declaration of function 'node_start_pfn'
-> mm/page_cgroup.c:309: error: implicit declaration of function 'node_end_pfn'
-> 
-> 
-> full kernel .config file is attached.
-> 
-Thank you. I'll dig today.
+That's the inner loop in find_vma_prev(), and yes, it was inlined into
+do_munmap.
 
--Kame
+And the fault happens in that "ld r0,16(r26)", and it looks like you
+have memory corruption.
+
+r26 has the value 0xc00090026236bbb0, and that "90" byte in the middle
+there looks bogus. It's not a valid pointer any more, but if that "9"
+had been a zero, it would have been.
+
+So it looks like the rbtree has become corrupt, and it _looks_ like
+it's just a couple of bits that are set in what otherwise looks like a
+reasonable pointer. It *could* be a two-bit error that wasn't
+corrected (I assume you have ECC or parity on your RAM or caches), so
+it's theoretically possible that it's hardware, but generally memory
+corruption is due to software bugs, so that's a pretty far-fetched
+thing.
+
+At a guess, there's not a lot more to be had from the oops. The
+corruption probably came from some totally unrelated code. Without
+more of a pattern, it's pretty much impossible to even guess.
+
+It may be that somebody can see something I'm missing, but unless you
+can find an ECC error report in your logs and say "oh, that's it", I
+suspect that you're better off ignoring it, and hoping that it will
+happen again (and again) so that we'd get enough of a pattern to start
+making any educated guesses about what's going on.
+
+That's why I often google oops reports - one report may not give much
+of a pattern, but if google finds lots of them that all look roughly
+similar, you end up possibly seeing what the common issue is.
+
+                   Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
