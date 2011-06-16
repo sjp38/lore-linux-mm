@@ -1,165 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id D9E426B0012
-	for <linux-mm@kvack.org>; Wed, 15 Jun 2011 18:58:04 -0400 (EDT)
-Received: from hpaq14.eem.corp.google.com (hpaq14.eem.corp.google.com [172.25.149.14])
-	by smtp-out.google.com with ESMTP id p5FMw1qD013635
-	for <linux-mm@kvack.org>; Wed, 15 Jun 2011 15:58:02 -0700
-Received: from qyk32 (qyk32.prod.google.com [10.241.83.160])
-	by hpaq14.eem.corp.google.com with ESMTP id p5FMumtY006612
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 15 Jun 2011 15:58:00 -0700
-Received: by qyk32 with SMTP id 32so2591677qyk.15
-        for <linux-mm@kvack.org>; Wed, 15 Jun 2011 15:58:00 -0700 (PDT)
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A4D36B0012
+	for <linux-mm@kvack.org>; Wed, 15 Jun 2011 20:17:53 -0400 (EDT)
+Received: from mail-ww0-f45.google.com (mail-ww0-f45.google.com [74.125.82.45])
+	(authenticated bits=0)
+	by smtp1.linux-foundation.org (8.14.2/8.13.5/Debian-3ubuntu1.1) with ESMTP id p5G0HHau014415
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=FAIL)
+	for <linux-mm@kvack.org>; Wed, 15 Jun 2011 17:17:18 -0700
+Received: by wwi36 with SMTP id 36so849454wwi.26
+        for <linux-mm@kvack.org>; Wed, 15 Jun 2011 17:17:17 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20110610073638.GA15403@tiehlicka.suse.cz>
-References: <1306909519-7286-1-git-send-email-hannes@cmpxchg.org>
-	<1306909519-7286-5-git-send-email-hannes@cmpxchg.org>
-	<BANLkTim5TSWpBfeF2dugGZwQmNC-Cf+GCNctraq8FtziJxsd2g@mail.gmail.com>
-	<BANLkTimuRks4+h=Kjt2Lzc-s-XsAHCH9vg@mail.gmail.com>
-	<20110609150026.GD3994@tiehlicka.suse.cz>
-	<20110610073638.GA15403@tiehlicka.suse.cz>
-Date: Wed, 15 Jun 2011 15:57:59 -0700
-Message-ID: <BANLkTikUmzF6kgJ6WUQGK0M=uzPH6Ac09koCnQwi8vMbxu40WQ@mail.gmail.com>
-Subject: Re: [patch 4/8] memcg: rework soft limit reclaim
-From: Ying Han <yinghan@google.com>
+In-Reply-To: <4DF92FE1.5010208@linux.intel.com>
+References: <1308097798.17300.142.camel@schen9-DESK> <1308101214.15392.151.camel@sli10-conroe>
+ <1308138750.15315.62.camel@twins> <20110615161827.GA11769@tassilo.jf.intel.com>
+ <1308156337.2171.23.camel@laptop> <1308163398.17300.147.camel@schen9-DESK>
+ <1308169937.15315.88.camel@twins> <4DF91CB9.5080504@linux.intel.com>
+ <1308172336.17300.177.camel@schen9-DESK> <1308173849.15315.91.camel@twins>
+ <87ea4bd7-8b16-4b24-8fcb-d8e9b6f421ec@email.android.com> <4DF92FE1.5010208@linux.intel.com>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Wed, 15 Jun 2011 17:16:57 -0700
+Message-ID: <BANLkTi=Tw6je7zpi4L=pE0JJpZfeEC9Jsg@mail.gmail.com>
+Subject: Re: REGRESSION: Performance regressions from switching anon_vma->lock
+ to mutex
 Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Andi Kleen <ak@linux.intel.com>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Tim Chen <tim.c.chen@linux.intel.com>, Shaohua Li <shaohua.li@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Russell King <rmk@arm.linux.org.uk>, Paul Mundt <lethal@linux-sh.org>, Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>, "Luck, Tony" <tony.luck@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Namhyung Kim <namhyung@gmail.com>, "Shi, Alex" <alex.shi@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Rafael J. Wysocki" <rjw@sisk.pl>
 
-On Fri, Jun 10, 2011 at 12:36 AM, Michal Hocko <mhocko@suse.cz> wrote:
-> On Thu 09-06-11 17:00:26, Michal Hocko wrote:
->> On Thu 02-06-11 22:25:29, Ying Han wrote:
->> > On Thu, Jun 2, 2011 at 2:55 PM, Ying Han <yinghan@google.com> wrote:
->> > > On Tue, May 31, 2011 at 11:25 PM, Johannes Weiner <hannes@cmpxchg.or=
-g> wrote:
->> > >> Currently, soft limit reclaim is entered from kswapd, where it sele=
-cts
->> [...]
->> > >> diff --git a/mm/vmscan.c b/mm/vmscan.c
->> > >> index c7d4b44..0163840 100644
->> > >> --- a/mm/vmscan.c
->> > >> +++ b/mm/vmscan.c
->> > >> @@ -1988,9 +1988,13 @@ static void shrink_zone(int priority, struct=
- zone *zone,
->> > >> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0unsigned long reclaimed =3D sc->nr_r=
-eclaimed;
->> > >> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0unsigned long scanned =3D sc->nr_sca=
-nned;
->> > >> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0unsigned long nr_reclaimed;
->> > >> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 int epriority =3D priority;
->> > >> +
->> > >> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (mem_cgroup_soft_limit_exceeded(ro=
-ot, mem))
->> > >> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 epriority -=3D 1;
->> > >
->> > > Here we grant the ability to shrink from all the memcgs, but only
->> > > higher the priority for those exceed the soft_limit. That is a desig=
-n
->> > > change
->> > > for the "soft_limit" which giving a hint to which memcgs to reclaim
->> > > from first under global memory pressure.
->> >
->> >
->> > Basically, we shouldn't reclaim from a memcg under its soft_limit
->> > unless we have trouble reclaim pages from others.
->>
->> Agreed.
->>
->> > Something like the following makes better sense:
->> >
->> > diff --git a/mm/vmscan.c b/mm/vmscan.c
->> > index bdc2fd3..b82ba8c 100644
->> > --- a/mm/vmscan.c
->> > +++ b/mm/vmscan.c
->> > @@ -1989,6 +1989,8 @@ restart:
->> > =A0 =A0 =A0 =A0 throttle_vm_writeout(sc->gfp_mask);
->> > =A0}
->> >
->> > +#define MEMCG_SOFTLIMIT_RECLAIM_PRIORITY =A0 =A0 =A0 2
->> > +
->> > =A0static void shrink_zone(int priority, struct zone *zone,
->> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 struct=
- scan_control *sc)
->> > =A0{
->> > @@ -2001,13 +2003,13 @@ static void shrink_zone(int priority, struct z=
-one *zone,
->> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 unsigned long reclaimed =3D sc->nr_rec=
-laimed;
->> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 unsigned long scanned =3D sc->nr_scann=
-ed;
->> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 unsigned long nr_reclaimed;
->> > - =A0 =A0 =A0 =A0 =A0 =A0 =A0 int epriority =3D priority;
->> >
->> > - =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (mem_cgroup_soft_limit_exceeded(root,=
- mem))
->> > - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 epriority -=3D 1;
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!mem_cgroup_soft_limit_exceeded(root=
-, mem) &&
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 priority=
- > MEMCG_SOFTLIMIT_RECLAIM_PRIORITY)
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 continue;
->>
->> yes, this makes sense but I am not sure about the right(tm) value of the
->> MEMCG_SOFTLIMIT_RECLAIM_PRIORITY. 2 sounds too low.
+On Wed, Jun 15, 2011 at 3:19 PM, Andi Kleen <ak@linux.intel.com> wrote:
 >
-> There is also another problem. I have just realized that this code path
-> is shared with the cgroup direct reclaim. We shouldn't care about soft
-> limit in such a situation. It would be just a wasting of cycles. So we
-> have to:
->
-> if (current_is_kswapd() &&
-> =A0 =A0 =A0 =A0!mem_cgroup_soft_limit_exceeded(root, mem) &&
-> =A0 =A0 =A0 =A0priority > MEMCG_SOFTLIMIT_RECLAIM_PRIORITY)
-> =A0 =A0 =A0 =A0continue;
+> Caching doesn't help because the library gets reinitialized in every child
+> (it may already do caching, not fully sure for this; it does it for other
+> sysconfs at least)
 
-Agreed.
+Why the hell do you continue to make excuses for glibc that are
+*clearly*not*true*?
 
->
-> Maybe the condition would have to be more complex for per-cgroup
-> background reclaim, though.
+Stop this insanity, Andi. Do you realize that this kind of crazy
+behavior just makes me convinced that there is no way in hell I should
+*ever* take your sysconfig patch, since all your analysis for it is
+totally worthless?
 
-That would be the same logic for per-memcg direct reclaim. In general,
-we don't consider soft_limit
-unless the global memory pressure. So the condition could be something like=
-:
+JUST LOOK AT THE NUMBERS, for chrissake!
 
-> if (   global_reclaim(sc) &&
-> =A0 =A0 =A0 =A0!mem_cgroup_soft_limit_exceeded(root, mem) &&
-> =A0 =A0 =A0 =A0priority > MEMCG_SOFTLIMIT_RECLAIM_PRIORITY)
-> =A0 =A0 =A0 =A0continue;
+When format_decode is 7% of the whole workload, and the top 15
+functions of the profile look like this:
 
-make sense?
+     6.40%        exim  [kernel.kallsyms]           [k] format_decode
+     5.26%        exim  [kernel.kallsyms]           [k] page_fault
+     5.05%        exim  [kernel.kallsyms]           [k] vsnprintf
+     3.55%        exim  [kernel.kallsyms]           [k] number
+     3.00%        exim  [kernel.kallsyms]           [k] copy_page_c
+     2.88%        exim  [kernel.kallsyms]           [k] read_hpet
+     2.38%        exim  libc-2.13.90.so             [.] __GI_vfprintf
+     1.92%        exim  [kernel.kallsyms]           [k] kstat_irqs
+     1.53%        exim  [kernel.kallsyms]           [k] find_vma
+     1.47%        exim  [kernel.kallsyms]           [k] _raw_spin_lock
+     1.40%        exim  [kernel.kallsyms]           [k] seq_printf
+     1.34%        exim  [kernel.kallsyms]           [k] radix_tree_lookup
+     1.21%        exim  [kernel.kallsyms]           [k]
+page_cache_get_speculative
+     1.20%        exim  [kernel.kallsyms]           [k] clear_page_c
+     1.05%        exim  [kernel.kallsyms]           [k] do_page_fault
 
-Thanks
+I can pretty much guarantee that it doesn't do just one /proc/stat
+read per fork() just to get the number of CPU's.
 
---Ying
->
->> You would do quite a
->> lot of loops
->> (DEFAULT_PRIORITY-MEMCG_SOFTLIMIT_RECLAIM_PRIORITY) * zones * memcg_coun=
-t
->> without any progress (assuming that all of them are under soft limit
->> which doesn't sound like a totally artificial configuration) until you
->> allow reclaiming from groups that are under soft limit. Then, when you
->> finally get to reclaiming, you scan rather aggressively.
->>
->> Maybe something like 3/4 of DEFAULT_PRIORITY? You would get 3 times
->> over all (unbalanced) zones and all cgroups that are above the limit
->> (scanning max{1/4096+1/2048+1/1024, 3*SWAP_CLUSTER_MAX} of the LRUs for
->> each cgroup) which could be enough to collect the low hanging fruit.
->
-> --
-> Michal Hocko
-> SUSE Labs
-> SUSE LINUX s.r.o.
-> Lihovarska 1060/12
-> 190 00 Praha 9
-> Czech Republic
->
+/proc/stat may be slow, but it's not slower than doing real work -
+unless you call it millions of times.
+
+And you didn't actually look at glibc sources, did you? Because if you
+had, you would ALSO have seen that you are totally full of sh*t. Glibc
+at no point caches anything.
+
+So repeat after me: stop making excuses and lying about glibc. It's
+crap. End of story.
+
+> I don't think glibc is crazy in this. It has no other choice.
+
+Stop this insanity, Andi. Why do you lie or just make up arguments? WHY?
+
+There is very clearly no caching going on. And since exim doesn't even
+execve, it just forks, it's very clear that it could cache things just
+ONCE, so your argument that caching wouldn't be possible at that level
+is also bogus.
+
+I can certainly agree that /proc/stat isn't wonderful (it used to be
+better), but that's no excuse for just totally making up excuses for
+just plain bad *stupid* behavior in user space. And it certainly
+doesn't excuse just making shit up!
+
+                           Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
