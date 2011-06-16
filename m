@@ -1,81 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 6D96C6B00EB
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 00:20:59 -0400 (EDT)
-Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [202.81.31.246])
-	by e23smtp09.au.ibm.com (8.14.4/8.13.1) with ESMTP id p5G4KnCY032679
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 14:20:49 +1000
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p5G4JumA1351846
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 14:19:57 +1000
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p5G4KmVx016822
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 14:20:48 +1000
-Date: Thu, 16 Jun 2011 09:50:44 +0530
-From: Ankita Garg <ankita@in.ibm.com>
-Subject: Re: [PATCH 00/10] mm: Linux VM Infrastructure to support Memory
- Power Management
-Message-ID: <20110616042044.GA28563@in.ibm.com>
-Reply-To: Ankita Garg <ankita@in.ibm.com>
-References: <1306499498-14263-1-git-send-email-ankita@in.ibm.com>
- <20110613134701.2b23b8d8.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id D0E356B0012
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 00:33:10 -0400 (EDT)
+Received: from mail-ww0-f45.google.com (mail-ww0-f45.google.com [74.125.82.45])
+	(authenticated bits=0)
+	by smtp1.linux-foundation.org (8.14.2/8.13.5/Debian-3ubuntu1.1) with ESMTP id p5G4X6Aw028814
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=FAIL)
+	for <linux-mm@kvack.org>; Wed, 15 Jun 2011 21:33:08 -0700
+Received: by wwi36 with SMTP id 36so941865wwi.26
+        for <linux-mm@kvack.org>; Wed, 15 Jun 2011 21:33:05 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110613134701.2b23b8d8.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <47FAB15C-B113-40FD-9CE0-49566AACC0DF@suse.de>
+References: <47FAB15C-B113-40FD-9CE0-49566AACC0DF@suse.de>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Wed, 15 Jun 2011 21:32:45 -0700
+Message-ID: <BANLkTimubRW2Az2MmRbgV+iTB+s6UEF5-w@mail.gmail.com>
+Subject: Re: Oops in VMA code
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-pm@lists.linux-foundation.org, svaidy@linux.vnet.ibm.com, thomas.abraham@linaro.org
+To: Alexander Graf <agraf@suse.de>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org List" <linux-kernel@vger.kernel.org>
 
-Hi,
-
-On Mon, Jun 13, 2011 at 01:47:01PM +0900, KAMEZAWA Hiroyuki wrote:
-> On Fri, 27 May 2011 18:01:28 +0530
-> Ankita Garg <ankita@in.ibm.com> wrote:
-> 
-> > Hi,
-> > 
-> 
-> I'm sorry if you've answered already.
-> 
-> Is memory hotplug is too bad and cannot be enhanced for this purpose ?
-> 
-> I wonder
->   - make section-size smaller (IIUC, IBM's system has 16MB section size)
-> 
->   - add per section statistics
-> 
->   - add a kind of balloon driver which does software memory offline
->     (which means making a contiguous chunk of free pages of section_size
->      by page migration) in background with regard to memory usage statistics.
->     If system says "need more memory!", balloon driver can online pages.
-> 
-> can work for your purpose. It can allow you page isolatation and
-> controls in 16MB unit.  If you need whole rework of memory hotplug, I think
-> it's better to rewrite memory hotplug, too.
+On Wed, Jun 15, 2011 at 2:59 PM, Alexander Graf <agraf@suse.de> wrote:
+> Hi memory management experts,
 >
+> I just had this crash while compiling code on my PPC G5. I was running my PPC KVM tree, which was pretty much 06e86849cf4019945a106913adb9ff0abcc01770 plus a few unrelated KVM patches. User space is 64-bit.
+>
+> Is this a known issue or did I hit something completely unexpected?
 
-Interesting idea, but a few issues -
+It doesn't look at all familiar to me, nor does google really seem to
+find anything half-way related.
 
-- Correctly predicting memory pressure is difficult and thereby being
-  able to online the required pages at the right time could be a
-  challenge
-- Memory hotplug is a heavy operation, so the overhead involved may be
-  high
-- Powering off memory is just one of the ways in which memory power could
-  be saved. The platform can also dynamically transition areas of memory
-  into a  content-preserving lower power state if it is not referenced
-  for a pre-defined threshold of time. In such a case, we would need a
-  mechanism to soft offline the pages - i.e, no new allocations to be
-  directed to that memory
+In fact, the only thing that that oops makes me think is that we
+should get rid of that find_vma_prev() function these days (the vma
+list is doubly linked since commit 297c5eee3724, and the whole "look
+up prev" thing is some silly old stuff).
 
--- 
-Regards,
-Ankita Garg (ankita@in.ibm.com)
-Linux Technology Center
-IBM India Systems & Technology Labs,
-Bangalore, India
+But that's an entirely unrelated issue.
+
+Also, your disassembly and your gdb line lookup is apparently from
+some other kernel, because the addresses don't match. The actual
+running kernel actually says
+
+  NIP [c000000000190598] .do_munmap+0x138/0x3f0
+
+so it's do_munmap, not find_vma_prev(). Although gdb claiming
+find_vma_prev() might be from some inlining issue, of course.
+Regardless, it's useless for debugging - it's the do_munap()
+disassembly we'd want (but I'm no longer all that fluent in ppc
+assembly anyway, so ir probably wouldn't help).
+
+                           Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
