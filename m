@@ -1,61 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id B2F446B0082
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 06:09:55 -0400 (EDT)
-Date: Thu, 16 Jun 2011 12:09:37 +0200
-From: Ingo Molnar <mingo@elte.hu>
-Subject: [-git build bug, PATCH] Re: [BUGFIX][PATCH 2/5] memcg: fix
- init_page_cgroup nid with sparsemem
-Message-ID: <20110616100937.GA12317@elte.hu>
-References: <20110613120054.3336e997.kamezawa.hiroyu@jp.fujitsu.com>
- <20110613120608.d5243bc9.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20110613120608.d5243bc9.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 42C656B0082
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 06:10:56 -0400 (EDT)
+Subject: Re: [PATCH v4 3.0-rc2-tip 4/22]  4: Uprobes: register/unregister
+ probes.
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <20110616095412.GK4952@linux.vnet.ibm.com>
+References: 
+	 <20110607125804.28590.92092.sendpatchset@localhost6.localdomain6>
+	 <20110607125900.28590.16071.sendpatchset@localhost6.localdomain6>
+	 <1308159719.2171.57.camel@laptop>
+	 <20110616041137.GG4952@linux.vnet.ibm.com>
+	 <1308217582.15315.94.camel@twins>
+	 <20110616095412.GK4952@linux.vnet.ibm.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+Date: Thu, 16 Jun 2011 12:09:56 +0200
+Message-ID: <1308218996.15315.120.camel@twins>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "bsingharora@gmail.com" <bsingharora@gmail.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Ying Han <yinghan@google.com>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Cc: Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Jonathan Corbet <corbet@lwn.net>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>
 
+On Thu, 2011-06-16 at 15:24 +0530, Srikar Dronamraju wrote:
+>=20
+> Ahh .. I missed the p->group_leader =3D p thing.
+>=20
+> In which case, shouldnt traversing all the tasks of all siblings of=20
+> parent of mm->owner should provide us all the the tasks that have linked
+> to mm. Right?
 
-* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+Yes, I think so, stopping the hierarchy walk when we find a
+sibling/child with a different mm.
 
-> Date: Mon, 13 Jun 2011 10:09:17 +0900
-> Subject: [PATCH 2/5] [BUGFIX] memcg: fix init_page_cgroup nid with sparsemem
+> Agree that we can bother about this a little later.=20
 
-This fresh upstream commit commit:
-
-  37573e8c7182: memcg: fix init_page_cgroup nid with sparsemem
-
-is causing widespread build failures on latest -git, on x86:
-
-  mm/page_cgroup.c:308:3: error: implicit declaration of function a??node_start_pfna?? [-Werror=implicit-function-declaration]
-  mm/page_cgroup.c:309:3: error: implicit declaration of function a??node_end_pfna?? [-Werror=implicit-function-declaration]
-
-On any config that has CONFIG_CGROUP_MEM_RES_CTLR=y enabled but 
-CONFIG_NUMA disabled.
-
-For now i've worked it around with the patch below, but the real 
-solution would be to make the page_cgroup.c code not depend on NUMA.
-
-Thanks,
-
-	Ingo
-
-diff --git a/init/Kconfig b/init/Kconfig
-index 412c21b..1593be9 100644
---- a/init/Kconfig
-+++ b/init/Kconfig
-@@ -639,6 +639,7 @@ config RESOURCE_COUNTERS
- config CGROUP_MEM_RES_CTLR
- 	bool "Memory Resource Controller for Control Groups"
- 	depends on RESOURCE_COUNTERS
-+	depends on NUMA
- 	select MM_OWNER
- 	help
- 	  Provides a memory resource controller that manages both anonymous
+*nod*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
