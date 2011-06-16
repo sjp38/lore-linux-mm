@@ -1,59 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 52FFF6B0012
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 13:01:37 -0400 (EDT)
-Date: Thu, 16 Jun 2011 10:01:33 -0700
-From: Larry Bassel <lbassel@codeaurora.org>
-Subject: Re: [Linaro-mm-sig] [PATCH 08/10] mm: cma: Contiguous Memory
- Allocator added
-Message-ID: <20110616170133.GC28032@labbmf-linux.qualcomm.com>
-References: <1307699698-29369-1-git-send-email-m.szyprowski@samsung.com>
- <000901cc2b37$4c21f030$e465d090$%szyprowski@samsung.com>
- <20110615213958.GB28032@labbmf-linux.qualcomm.com>
- <201106160006.07742.arnd@arndb.de>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 85BFB6B0012
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 13:16:54 -0400 (EDT)
+Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
+	by e7.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p5GGqdBj023935
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 12:52:39 -0400
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p5GHGqqo132986
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 13:16:52 -0400
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p5GHGkJ6011847
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 13:16:49 -0400
+Date: Thu, 16 Jun 2011 10:16:44 -0700
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: [GIT PULL] Re: REGRESSION: Performance regressions from
+ switching anon_vma->lock to mutex
+Message-ID: <20110616171644.GK2582@linux.vnet.ibm.com>
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <1308097798.17300.142.camel@schen9-DESK>
+ <1308134200.15315.32.camel@twins>
+ <1308135495.15315.38.camel@twins>
+ <BANLkTikt88KnxTy8TuGGVrBVnXvsnL7nMQ@mail.gmail.com>
+ <20110615201216.GA4762@elte.hu>
+ <35c0ff16-bd58-4b9c-9d9f-d1a4df2ae7b9@email.android.com>
+ <20110616070335.GA7661@elte.hu>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201106160006.07742.arnd@arndb.de>
+In-Reply-To: <20110616070335.GA7661@elte.hu>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arnd Bergmann <arnd@arndb.de>
-Cc: Larry Bassel <lbassel@codeaurora.org>, Marek Szyprowski <m.szyprowski@samsung.com>, 'Zach Pfeffer' <zach.pfeffer@linaro.org>, 'Daniel Walker' <dwalker@codeaurora.org>, 'Daniel Stone' <daniels@collabora.com>, 'Jesse Barker' <jesse.barker@linaro.org>, 'Mel Gorman' <mel@csn.ul.ie>, 'KAMEZAWA Hiroyuki' <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, 'Michal Nazarewicz' <mina86@mina86.com>, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Ankita Garg' <ankita@in.ibm.com>, 'Andrew Morton' <akpm@linux-foundation.org>, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Tim Chen <tim.c.chen@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Russell King <rmk@arm.linux.org.uk>, Paul Mundt <lethal@linux-sh.org>, Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>, Tony Luck <tony.luck@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Namhyung Kim <namhyung@gmail.com>, ak@linux.intel.com, shaohua.li@intel.com, alex.shi@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Rafael J. Wysocki" <rjw@sisk.pl>
 
-On 16 Jun 11 00:06, Arnd Bergmann wrote:
-> On Wednesday 15 June 2011 23:39:58 Larry Bassel wrote:
-> > On 15 Jun 11 10:36, Marek Szyprowski wrote:
-> > > On Tuesday, June 14, 2011 10:42 PM Arnd Bergmann wrote:
-> > > 
-> > > > On Tuesday 14 June 2011 20:58:25 Zach Pfeffer wrote:
-> > > > > I've seen this split bank allocation in Qualcomm and TI SoCs, with
-> > > > > Samsung, that makes 3 major SoC vendors (I would be surprised if
-> > > > > Nvidia didn't also need to do this) - so I think some configurable
-> > > > > method to control allocations is necessarily. The chips can't do
-> > > > > decode without it (and by can't do I mean 1080P and higher decode is
-> > > > > not functionally useful). Far from special, this would appear to be
-> > > > > the default.
-> > 
-> > We at Qualcomm have some platforms that have memory of different
-> > performance characteristics, some drivers will need a way of
-> > specifying that they need fast memory for an allocation (and would prefer
-> > an error if it is not available rather than a fallback to slower
-> > memory). It would also be bad if allocators who don't need fast
-> > memory got it "accidentally", depriving those who really need it.
+On Thu, Jun 16, 2011 at 09:03:35AM +0200, Ingo Molnar wrote:
 > 
-> Can you describe how the memory areas differ specifically?
-> Is there one that is always faster but very small, or are there
-> just specific circumstances under which some memory is faster than
-> another?
+> * Linus Torvalds <torvalds@linux-foundation.org> wrote:
+> 
+> > 
+> > 
+> > Ingo Molnar <mingo@elte.hu> wrote:
+> > >
+> > > I have this fix queued up currently:
+> > >
+> > >  09223371deac: rcu: Use softirq to address performance regression
+> > 
+> > I really don't think that is even close to enough.
+> 
+> Yeah.
+> 
+> > It still does all the callbacks in the threads, and according to 
+> > Peter, about half the rcu time in the threads remained..
+> 
+> You are right - things that are a few percent on a 24 core machine 
+> will definitely go exponentially worse on larger boxen. We'll get rid 
+> of the kthreads entirely.
 
-One is always faster, but very small (generally 2-10% the size
-of "normal" memory).
+I did indeed at one time have access to larger test systems than I
+do now, and I clearly need to fix that.  :-/
 
-Larry
+> The funny thing about this workload is that context-switches are 
+> really a fastpath here and we are using anonymous IRQ-triggered 
+> softirqs embedded in random task contexts as a workaround for that.
 
--- 
-Sent by an employee of the Qualcomm Innovation Center, Inc.
-The Qualcomm Innovation Center, Inc. is a member of the Code Aurora Forum.
+The other thing that the IRQ-triggered softirqs do is to get the callbacks
+invoked in cases where a CPU-bound user thread is never context switching.
+Of course, one alternative might be to set_need_resched() to force entry
+into the scheduler as needed.
+
+> [ I think we'll have to revisit this issue and do it properly:
+>   quiescent state is mostly defined by context-switches here, so we
+>   could do the RCU callbacks from the task that turns a CPU
+>   quiescent, right in the scheduler context-switch path - perhaps
+>   with an option for SCHED_FIFO tasks to *not* do GC.
+
+I considered this approach for TINY_RCU, but dropped it in favor of
+reducing the interlocking between the scheduler and RCU callbacks.
+Might be worth revisiting, though.  If SCHED_FIFO task omit RCU callback
+invocation, then there will need to be some override for CPUs with lots
+of SCHED_FIFO load, probably similar to RCU's current blimit stuff.
+
+>   That could possibly be more cache-efficient than softirq execution,
+>   as we'll process a still-hot pool of callbacks instead of doing
+>   them only once per timer tick. It will also make the RCU GC
+>   behavior HZ independent. ]
+
+Well, the callbacks will normally be cache-cold in any case due to the
+grace-period delay, but on the other hand, both tick-independence and
+the ability to shield a given CPU from RCU callback execution might be
+quite useful.  The tick currently does the following for RCU:
+
+1.	Informs RCU of user-mode execution (rcu_sched and rcu_bh
+	quiescent state).
+
+2.	Informs RCU of non-dyntick idle mode (again, rcu_sched and
+	rcu_bh quiescent state).
+
+3.	Kicks the current CPU's RCU core processing as needed in
+	response to actions from other CPUs.
+
+Frederic's work avoiding ticks in long-running user-mode tasks
+might take care of #1, and it should be possible to make use of
+the current dyntick-idle APIs to deal with #2.  Replacing #3
+efficiently will take some thought.
+
+> In any case the proxy kthread model clearly sucked, no argument about 
+> that.
+
+Indeed, I lost track of the global nature of real-time scheduling.  :-(
+
+Whatever does the boosting will need to have process context and
+can be subject to delays, so that pretty much needs to be a kthread.
+But it will context-switch quite rarely, so should not be a problem.
+
+							Thanx, Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
