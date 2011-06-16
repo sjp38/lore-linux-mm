@@ -1,43 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id F080E6B0012
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 09:53:30 -0400 (EDT)
-Date: Thu, 16 Jun 2011 15:51:14 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH v4 3.0-rc2-tip 4/22]  4: Uprobes: register/unregister
-	probes.
-Message-ID: <20110616135114.GA22131@redhat.com>
-References: <20110607125804.28590.92092.sendpatchset@localhost6.localdomain6> <20110607125900.28590.16071.sendpatchset@localhost6.localdomain6> <1308159719.2171.57.camel@laptop> <20110616041137.GG4952@linux.vnet.ibm.com> <1308217582.15315.94.camel@twins> <20110616095412.GK4952@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110616095412.GK4952@linux.vnet.ibm.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 110B86B0012
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 11:23:48 -0400 (EDT)
+Subject: Re: [PATCH] slob: push the min alignment to long long
+From: Matt Mackall <mpm@selenic.com>
+In-Reply-To: <BANLkTikOM6=fWnUA1bNZOM-jwg=o=CL8Ug@mail.gmail.com>
+References: <1308169466.15617.378.camel@calx>
+	 <BANLkTi=QG3ywRhSx=npioJx-d=yyf=o29A@mail.gmail.com>
+	 <1308171355.15617.401.camel@calx>
+	 <20110615.181148.650483947691740732.davem@davemloft.net>
+	 <1308178420.15617.447.camel@calx>
+	 <BANLkTikOM6=fWnUA1bNZOM-jwg=o=CL8Ug@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Thu, 16 Jun 2011 10:23:43 -0500
+Message-ID: <1308237823.15617.451.camel@calx>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Jonathan Corbet <corbet@lwn.net>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>
+To: Pekka Enberg <penberg@kernel.org>
+Cc: David Miller <davem@davemloft.net>, sebastian@breakpoint.cc, cl@linux-foundation.org, linux-mm@kvack.org, netfilter@vger.kernel.org
 
-On 06/16, Srikar Dronamraju wrote:
->
-> In which case, shouldnt traversing all the tasks of all siblings of
-> parent of mm->owner should provide us all the the tasks that have linked
-> to mm. Right?
+On Thu, 2011-06-16 at 09:59 +0300, Pekka Enberg wrote:
+> On Thu, Jun 16, 2011 at 1:53 AM, Matt Mackall <mpm@selenic.com> wrote:
+> >> Blink... because the compiler doesn't provide a portable way to
+> >> do this, right? :-)
+> >
+> > Because I, on x86, cannot deduce the alignment requirements of, say,
+> > CRIS without doing significant research. So answering a question like
+> > "are there any architectures where assumption X fails" is obnoxiously
+> > hard, rather than being a grep.
+> >
+> > I also don't think it's a given there's a portable way to deduce the
+> > alignment requirements due to the existence of arch-specific quirks. If
+> > an arch wants to kmalloc its weird crypto or SIMD context and those want
+> > 128-bit alignment, we're not going to want to embed that knowledge in
+> > the generic code, but instead tweak an arch define.
+> >
+> > Also note that not having generic defaults forces each new architectures
+> > to (nominally) examine each assumption rather than discover they
+> > inherited an incorrect default somewhere down the road.
+> 
+> I don't agree. I think we should either provide defaults that work for
+> everyone and let architectures override them (which AFAICT Christoph's
+> patch does) or we flat out #error if architectures don't specify
+> alignment requirements.
 
-I don't think so.
+Uh, isn't the latter precisely what I say above?
 
-Even if the initial mm->ovner never exits (iow, mm->owner is never changed),
-the "deep" CLONE_VM child can be reparented to init if its parent exits.
+>  The current solution seems to be the worst one
+> from practical point of view.
 
-> Agree that we can bother about this a little later.
+Good, because no one's advocating for it.
 
-Agreed.
+> This doesn't seem to be a *regression* per se so I'll queue
+> Christoph's patch for 3.1 and mark it for 3.0-stable.
+
+>                             Pekka
 
 
-Oh. We should move ->mm from task_struct to signal_struct, but we need to
-change the code like get_task_mm(). And then instead of mm->owner we can
-have mm->processes list. Perhaps. This can be used by zap_threads() too.
+-- 
+Mathematics is the supreme nostalgia of our time.
 
-Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
