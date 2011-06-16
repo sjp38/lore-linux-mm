@@ -1,55 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 99F6F6B0012
-	for <linux-mm@kvack.org>; Wed, 15 Jun 2011 21:07:57 -0400 (EDT)
-Subject: Re: REGRESSION: Performance regressions from switching
- anon_vma->lock to mutex
-From: Tim Chen <tim.c.chen@linux.intel.com>
-In-Reply-To: <1308173849.15315.91.camel@twins>
-References: <1308097798.17300.142.camel@schen9-DESK>
-	 <1308101214.15392.151.camel@sli10-conroe> <1308138750.15315.62.camel@twins>
-	 <20110615161827.GA11769@tassilo.jf.intel.com>
-	 <1308156337.2171.23.camel@laptop> <1308163398.17300.147.camel@schen9-DESK>
-	 <1308169937.15315.88.camel@twins> <4DF91CB9.5080504@linux.intel.com>
-	 <1308172336.17300.177.camel@schen9-DESK>  <1308173849.15315.91.camel@twins>
-Content-Type: text/plain; charset="UTF-8"
-Date: Wed, 15 Jun 2011 18:08:28 -0700
-Message-ID: <1308186508.17300.423.camel@schen9-DESK>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 68B916B0012
+	for <linux-mm@kvack.org>; Wed, 15 Jun 2011 21:30:11 -0400 (EDT)
+Date: Wed, 15 Jun 2011 18:29:58 -0700
+From: Randy Dunlap <randy.dunlap@oracle.com>
+Subject: Re: mmotm 2011-06-15-16-56 uploaded (UML build error)
+Message-Id: <20110615182958.d5aad636.randy.dunlap@oracle.com>
+In-Reply-To: <201106160034.p5G0Y4dr028904@imap1.linux-foundation.org>
+References: <201106160034.p5G0Y4dr028904@imap1.linux-foundation.org>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Andi Kleen <ak@linux.intel.com>, Shaohua Li <shaohua.li@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Russell King <rmk@arm.linux.org.uk>, Paul Mundt <lethal@linux-sh.org>, Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>, "Luck, Tony" <tony.luck@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Namhyung Kim <namhyung@gmail.com>, "Shi, Alex" <alex.shi@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Rafael J. Wysocki" <rjw@sisk.pl>
+To: akpm@linux-foundation.org, Michal Hocko <mhocko@suse.cz>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 
-On Wed, 2011-06-15 at 23:37 +0200, Peter Zijlstra wrote:
-> On Wed, 2011-06-15 at 14:12 -0700, Tim Chen wrote:
-> > Thanks to Andi for providing the info.  We've used this workaround in
-> > our testing so it will not mask true kernel scaling bottlenecks.
+On Wed, 15 Jun 2011 16:56:49 -0700 akpm@linux-foundation.org wrote:
+
+> The mm-of-the-moment snapshot 2011-06-15-16-56 has been uploaded to
 > 
+>    http://userweb.kernel.org/~akpm/mmotm/
 > 
-> http://programming.kicks-ass.net/sekrit/39-2.txt.bz2
-> http://programming.kicks-ass.net/sekrit/tip-2.txt.bz2
+> and will soon be available at
+>    git://zen-kernel.org/kernel/mmotm.git
+> or
+>    git://git.cmpxchg.org/linux-mmotm.git
 > 
-> tip+sirq+linus is still slightly faster than .39 here, although removing
-> that sysconf() wreckage closed the gap considerably (needing to know the
-> number of cpus to optimize locking sounds like a trainwreck all of its
-> own, needing it _that_ often instead of just once at startup is even
-> worse).
-> 
+> It contains the following patches against 3.0-rc3:
 
-Peter,
 
-Fengguang's readahead fixes for tmpfs removed another bottleneck before
-anon_vma->lock become dominant. https://lkml.org/lkml/2011/4/26/143)
-We've found this issue when we were testing exim earlier.
-It was merged in 3.0-rc2 but not in plain 2.6.39.  So with this patch on
-2.6.39 we should get better comparison with 3.0-rc2.
+When building UML for x86_64 (defconfig), I get:
 
-Thanks.
+fs/built-in.o: In function `__bprm_mm_init':
+mmotm-2011-0615-1656/fs/exec.c:280: undefined reference to `__build_bug_on_failed'
 
-Tim  
-
+---
+~Randy
+*** Remember to use Documentation/SubmitChecklist when testing your code ***
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
