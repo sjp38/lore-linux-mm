@@ -1,63 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 10E716B0012
-	for <linux-mm@kvack.org>; Wed, 15 Jun 2011 20:48:19 -0400 (EDT)
-Message-ID: <4DF952CC.4010301@balister.org>
-Date: Wed, 15 Jun 2011 17:48:12 -0700
-From: Philip Balister <philip@balister.org>
-MIME-Version: 1.0
-Subject: Re: [Linaro-mm-sig] [PATCH 08/10] mm: cma: Contiguous Memory	Allocator
- added
-References: <1307699698-29369-1-git-send-email-m.szyprowski@samsung.com>	<201106142030.07549.arnd@arndb.de>	<000501cc2b2b$789a54b0$69cefe10$%szyprowski@samsung.com> <201106150937.18524.arnd@arndb.de>
-In-Reply-To: <201106150937.18524.arnd@arndb.de>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 99F6F6B0012
+	for <linux-mm@kvack.org>; Wed, 15 Jun 2011 21:07:57 -0400 (EDT)
+Subject: Re: REGRESSION: Performance regressions from switching
+ anon_vma->lock to mutex
+From: Tim Chen <tim.c.chen@linux.intel.com>
+In-Reply-To: <1308173849.15315.91.camel@twins>
+References: <1308097798.17300.142.camel@schen9-DESK>
+	 <1308101214.15392.151.camel@sli10-conroe> <1308138750.15315.62.camel@twins>
+	 <20110615161827.GA11769@tassilo.jf.intel.com>
+	 <1308156337.2171.23.camel@laptop> <1308163398.17300.147.camel@schen9-DESK>
+	 <1308169937.15315.88.camel@twins> <4DF91CB9.5080504@linux.intel.com>
+	 <1308172336.17300.177.camel@schen9-DESK>  <1308173849.15315.91.camel@twins>
+Content-Type: text/plain; charset="UTF-8"
+Date: Wed, 15 Jun 2011 18:08:28 -0700
+Message-ID: <1308186508.17300.423.camel@schen9-DESK>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arnd Bergmann <arnd@arndb.de>
-Cc: linux-arm-kernel@lists.infradead.org, 'Daniel Walker' <dwalker@codeaurora.org>, linux-mm@kvack.org, 'Mel Gorman' <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, 'Michal Nazarewicz' <mina86@mina86.com>, linaro-mm-sig@lists.linaro.org, 'Jesse Barker' <jesse.barker@linaro.org>, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Ankita Garg' <ankita@in.ibm.com>, 'Andrew Morton' <akpm@linux-foundation.org>, linux-media@vger.kernel.org, 'KAMEZAWA Hiroyuki' <kamezawa.hiroyu@jp.fujitsu.com>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Andi Kleen <ak@linux.intel.com>, Shaohua Li <shaohua.li@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Russell King <rmk@arm.linux.org.uk>, Paul Mundt <lethal@linux-sh.org>, Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>, "Luck, Tony" <tony.luck@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Namhyung Kim <namhyung@gmail.com>, "Shi, Alex" <alex.shi@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Rafael J. Wysocki" <rjw@sisk.pl>
 
-On 06/15/2011 12:37 AM, Arnd Bergmann wrote:
-> On Wednesday 15 June 2011 09:11:39 Marek Szyprowski wrote:
->> I see your concerns, but I really wonder how to determine the properties
->> of the global/default cma pool. You definitely don't want to give all
->> available memory o CMA, because it will have negative impact on kernel
->> operation (kernel really needs to allocate unmovable pages from time to
->> time).
->
-> Exactly. This is a hard problem, so I would prefer to see a solution for
-> coming up with reasonable defaults.
+On Wed, 2011-06-15 at 23:37 +0200, Peter Zijlstra wrote:
+> On Wed, 2011-06-15 at 14:12 -0700, Tim Chen wrote:
+> > Thanks to Andi for providing the info.  We've used this workaround in
+> > our testing so it will not mask true kernel scaling bottlenecks.
+> 
+> 
+> http://programming.kicks-ass.net/sekrit/39-2.txt.bz2
+> http://programming.kicks-ass.net/sekrit/tip-2.txt.bz2
+> 
+> tip+sirq+linus is still slightly faster than .39 here, although removing
+> that sysconf() wreckage closed the gap considerably (needing to know the
+> number of cpus to optimize locking sounds like a trainwreck all of its
+> own, needing it _that_ often instead of just once at startup is even
+> worse).
+> 
 
-Is this a situation where passing the information from device tree might 
-help? I know this does not help short term, but I am trying to 
-understand the sorts of problems device tree can help solve.
+Peter,
 
-Philip
+Fengguang's readahead fixes for tmpfs removed another bottleneck before
+anon_vma->lock become dominant. https://lkml.org/lkml/2011/4/26/143)
+We've found this issue when we were testing exim earlier.
+It was merged in 3.0-rc2 but not in plain 2.6.39.  So with this patch on
+2.6.39 we should get better comparison with 3.0-rc2.
 
->
->> The only solution I see now is to provide Kconfig entry to determine
->> the size of the global CMA pool, but this still have some issues,
->> especially for multi-board kernels (each board probably will have
->> different amount of RAM and different memory-consuming devices
->> available). It looks that each board startup code still might need to
->> tweak the size of CMA pool. I can add a kernel command line option for
->> it, but such solution also will not solve all the cases (afair there
->> was a discussion about kernel command line parameters for memory
->> configuration and the conclusion was that it should be avoided).
->
-> The command line option can be a last resort if the heuristics fail,
-> but it's not much better than a fixed Kconfig setting.
->
-> How about a Kconfig option that defines the percentage of memory
-> to set aside for contiguous allocations?
->
-> 	Arnd
->
-> _______________________________________________
-> Linaro-mm-sig mailing list
-> Linaro-mm-sig@lists.linaro.org
-> http://lists.linaro.org/mailman/listinfo/linaro-mm-sig
->
+Thanks.
+
+Tim  
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
