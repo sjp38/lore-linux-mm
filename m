@@ -1,48 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 4C2836B0082
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 12:51:53 -0400 (EDT)
-Date: Thu, 16 Jun 2011 17:51:46 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: mmotm 2011-06-15-16-56 uploaded (mm/page_cgroup.c)
-Message-ID: <20110616165146.GB5244@suse.de>
-References: <201106160034.p5G0Y4dr028904@imap1.linux-foundation.org>
- <20110615214917.a7dce8e6.randy.dunlap@oracle.com>
- <20110616172819.1e2d325c.kamezawa.hiroyu@jp.fujitsu.com>
- <20110616103559.GA5244@suse.de>
- <1308241542.11430.119.camel@nimitz>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 52FFF6B0012
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 13:01:37 -0400 (EDT)
+Date: Thu, 16 Jun 2011 10:01:33 -0700
+From: Larry Bassel <lbassel@codeaurora.org>
+Subject: Re: [Linaro-mm-sig] [PATCH 08/10] mm: cma: Contiguous Memory
+ Allocator added
+Message-ID: <20110616170133.GC28032@labbmf-linux.qualcomm.com>
+References: <1307699698-29369-1-git-send-email-m.szyprowski@samsung.com>
+ <000901cc2b37$4c21f030$e465d090$%szyprowski@samsung.com>
+ <20110615213958.GB28032@labbmf-linux.qualcomm.com>
+ <201106160006.07742.arnd@arndb.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1308241542.11430.119.camel@nimitz>
+In-Reply-To: <201106160006.07742.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Randy Dunlap <randy.dunlap@oracle.com>, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Arnd Bergmann <arnd@arndb.de>
+Cc: Larry Bassel <lbassel@codeaurora.org>, Marek Szyprowski <m.szyprowski@samsung.com>, 'Zach Pfeffer' <zach.pfeffer@linaro.org>, 'Daniel Walker' <dwalker@codeaurora.org>, 'Daniel Stone' <daniels@collabora.com>, 'Jesse Barker' <jesse.barker@linaro.org>, 'Mel Gorman' <mel@csn.ul.ie>, 'KAMEZAWA Hiroyuki' <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, 'Michal Nazarewicz' <mina86@mina86.com>, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Ankita Garg' <ankita@in.ibm.com>, 'Andrew Morton' <akpm@linux-foundation.org>, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org
 
-On Thu, Jun 16, 2011 at 09:25:42AM -0700, Dave Hansen wrote:
-> On Thu, 2011-06-16 at 11:35 +0100, Mel Gorman wrote:
-> > > This patch removes definitions of node_start/end_pfn() in each archs
-> > > and defines a unified one in linux/mmzone.h. It's not under
-> > > CONFIG_NEED_MULTIPLE_NODES, now.
+On 16 Jun 11 00:06, Arnd Bergmann wrote:
+> On Wednesday 15 June 2011 23:39:58 Larry Bassel wrote:
+> > On 15 Jun 11 10:36, Marek Szyprowski wrote:
+> > > On Tuesday, June 14, 2011 10:42 PM Arnd Bergmann wrote:
+> > > 
+> > > > On Tuesday 14 June 2011 20:58:25 Zach Pfeffer wrote:
+> > > > > I've seen this split bank allocation in Qualcomm and TI SoCs, with
+> > > > > Samsung, that makes 3 major SoC vendors (I would be surprised if
+> > > > > Nvidia didn't also need to do this) - so I think some configurable
+> > > > > method to control allocations is necessarily. The chips can't do
+> > > > > decode without it (and by can't do I mean 1080P and higher decode is
+> > > > > not functionally useful). Far from special, this would appear to be
+> > > > > the default.
 > > 
-> > Does anyone remember *why* this did not happen in the first place? I
-> > can't think of a good reason so I've cc'd Dave Hansen as he might
-> > remember. 
+> > We at Qualcomm have some platforms that have memory of different
+> > performance characteristics, some drivers will need a way of
+> > specifying that they need fast memory for an allocation (and would prefer
+> > an error if it is not available rather than a fallback to slower
+> > memory). It would also be bad if allocators who don't need fast
+> > memory got it "accidentally", depriving those who really need it.
 > 
-> You mean why it's not under CONFIG_NEED_MULTIPLE_NODES?  I'd guess it's
-> just because it keeps working in all configurations since the
-> pg_data_t->node_*_pfn entries are defined everywhere.
-> 
-> Is that what you're asking?
-> 
+> Can you describe how the memory areas differ specifically?
+> Is there one that is always faster but very small, or are there
+> just specific circumstances under which some memory is faster than
+> another?
 
-No, why was node_start_pfn() and node_end_pfn() defined optionally
-on a per-architecture basis?
+One is always faster, but very small (generally 2-10% the size
+of "normal" memory).
+
+Larry
 
 -- 
-Mel Gorman
-SUSE Labs
+Sent by an employee of the Qualcomm Innovation Center, Inc.
+The Qualcomm Innovation Center, Inc. is a member of the Code Aurora Forum.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
