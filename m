@@ -1,99 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 02ECE6B0082
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 06:02:17 -0400 (EDT)
-Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
-	by e6.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p5G9c04H027941
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 05:38:00 -0400
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p5GA27ic161208
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 06:02:07 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p5GA25ZV031161
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 06:02:07 -0400
-Date: Thu, 16 Jun 2011 15:24:12 +0530
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: Re: [PATCH v4 3.0-rc2-tip 4/22]  4: Uprobes: register/unregister
- probes.
-Message-ID: <20110616095412.GK4952@linux.vnet.ibm.com>
-Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-References: <20110607125804.28590.92092.sendpatchset@localhost6.localdomain6>
- <20110607125900.28590.16071.sendpatchset@localhost6.localdomain6>
- <1308159719.2171.57.camel@laptop>
- <20110616041137.GG4952@linux.vnet.ibm.com>
- <1308217582.15315.94.camel@twins>
+	by kanga.kvack.org (Postfix) with ESMTP id B2F446B0082
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 06:09:55 -0400 (EDT)
+Date: Thu, 16 Jun 2011 12:09:37 +0200
+From: Ingo Molnar <mingo@elte.hu>
+Subject: [-git build bug, PATCH] Re: [BUGFIX][PATCH 2/5] memcg: fix
+ init_page_cgroup nid with sparsemem
+Message-ID: <20110616100937.GA12317@elte.hu>
+References: <20110613120054.3336e997.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110613120608.d5243bc9.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <1308217582.15315.94.camel@twins>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20110613120608.d5243bc9.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Jonathan Corbet <corbet@lwn.net>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "bsingharora@gmail.com" <bsingharora@gmail.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Ying Han <yinghan@google.com>, Linus Torvalds <torvalds@linux-foundation.org>
 
-* Peter Zijlstra <peterz@infradead.org> [2011-06-16 11:46:22]:
 
-> On Thu, 2011-06-16 at 09:41 +0530, Srikar Dronamraju wrote:
-> > * Peter Zijlstra <peterz@infradead.org> [2011-06-15 19:41:59]:
-> > 
-> > > On Tue, 2011-06-07 at 18:29 +0530, Srikar Dronamraju wrote:
-> > > > 1. Use mm->owner and walk thro the thread_group of mm->owner, siblings
-> > > > of mm->owner, siblings of parent of mm->owner.  This should be
-> > > > good list to traverse. Not sure if this is an exhaustive
-> > > > enough list that all tasks that have a mm set to this mm_struct are
-> > > > walked through. 
-> > > 
-> > > As per copy_process():
-> > > 
-> > > 	/*
-> > > 	 * Thread groups must share signals as well, and detached threads
-> > > 	 * can only be started up within the thread group.
-> > > 	 */
-> > > 	if ((clone_flags & CLONE_THREAD) && !(clone_flags & CLONE_SIGHAND))
-> > > 		return ERR_PTR(-EINVAL);
-> > > 
-> > > 	/*
-> > > 	 * Shared signal handlers imply shared VM. By way of the above,
-> > > 	 * thread groups also imply shared VM. Blocking this case allows
-> > > 	 * for various simplifications in other code.
-> > > 	 */
-> > > 	if ((clone_flags & CLONE_SIGHAND) && !(clone_flags & CLONE_VM))
-> > > 		return ERR_PTR(-EINVAL);
-> > > 
-> > > CLONE_THREAD implies CLONE_VM, but not the other way around, we
-> > > therefore would be able to CLONE_VM and not be part of the primary
-> > > owner's thread group.
-> > > 
-> > > This is of course all terribly sad..
-> > 
-> > Agree, 
-> > 
-> > If clone(CLONE_VM) were to be done by a thread_group leader, we can walk
-> > thro the siblings of parent of mm->owner.
-> > 
-> > However if clone(CLONE_VM) were to be done by non thread_group_leader
-> > thread, then we dont even seem to add it to the init_task. i.e I dont
-> > think we can refer to such a thread even when we walk thro
-> > do_each_thread(g,t) { .. } while_each_thread(g,t);
-> > 
-> > right?
-> 
-> No, we initialize p->group_leader = p; and only change that for
-> CLONE_THREAD, so a clone without CLONE_THREAD always results in a new
-> thread group leader, which are always added to the init_task list.
-> 
+* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-Ahh .. I missed the p->group_leader = p thing.
+> Date: Mon, 13 Jun 2011 10:09:17 +0900
+> Subject: [PATCH 2/5] [BUGFIX] memcg: fix init_page_cgroup nid with sparsemem
 
-In which case, shouldnt traversing all the tasks of all siblings of 
-parent of mm->owner should provide us all the the tasks that have linked
-to mm. Right?
+This fresh upstream commit commit:
 
-Agree that we can bother about this a little later.
+  37573e8c7182: memcg: fix init_page_cgroup nid with sparsemem
 
--- 
-Thanks and Regards
-Srikar
+is causing widespread build failures on latest -git, on x86:
+
+  mm/page_cgroup.c:308:3: error: implicit declaration of function a??node_start_pfna?? [-Werror=implicit-function-declaration]
+  mm/page_cgroup.c:309:3: error: implicit declaration of function a??node_end_pfna?? [-Werror=implicit-function-declaration]
+
+On any config that has CONFIG_CGROUP_MEM_RES_CTLR=y enabled but 
+CONFIG_NUMA disabled.
+
+For now i've worked it around with the patch below, but the real 
+solution would be to make the page_cgroup.c code not depend on NUMA.
+
+Thanks,
+
+	Ingo
+
+diff --git a/init/Kconfig b/init/Kconfig
+index 412c21b..1593be9 100644
+--- a/init/Kconfig
++++ b/init/Kconfig
+@@ -639,6 +639,7 @@ config RESOURCE_COUNTERS
+ config CGROUP_MEM_RES_CTLR
+ 	bool "Memory Resource Controller for Control Groups"
+ 	depends on RESOURCE_COUNTERS
++	depends on NUMA
+ 	select MM_OWNER
+ 	help
+ 	  Provides a memory resource controller that manages both anonymous
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
