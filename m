@@ -1,80 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 6AB136B0012
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 08:01:33 -0400 (EDT)
-Subject: Re: [PATCH v4 3.0-rc2-tip 7/22]  7: uprobes: mmap and fork hooks.
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <20110616032645.GF4952@linux.vnet.ibm.com>
-References: 
-	 <20110607125804.28590.92092.sendpatchset@localhost6.localdomain6>
-	 <20110607125931.28590.12362.sendpatchset@localhost6.localdomain6>
-	 <1308161486.2171.61.camel@laptop>
-	 <20110616032645.GF4952@linux.vnet.ibm.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-Date: Thu, 16 Jun 2011 14:00:26 +0200
-Message-ID: <1308225626.13240.34.camel@twins>
-Mime-Version: 1.0
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 6821C6B0012
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 08:13:41 -0400 (EDT)
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e1.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p5GC1Xw9012774
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 08:01:33 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p5GCCeb9028170
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 08:12:52 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p5GCCbwV030290
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2011 09:12:40 -0300
+Date: Thu, 16 Jun 2011 17:34:42 +0530
+From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Subject: Re: [PATCH v4 3.0-rc2-tip 13/22] 13: uprobes: Handing int3 and
+ singlestep exception.
+Message-ID: <20110616120442.GA4093@linux.vnet.ibm.com>
+Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+References: <20110607125804.28590.92092.sendpatchset@localhost6.localdomain6>
+ <20110607130051.28590.68088.sendpatchset@localhost6.localdomain6>
+ <1308225141.13240.25.camel@twins>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <1308225141.13240.25.camel@twins>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+To: Peter Zijlstra <peterz@infradead.org>
 Cc: Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Jonathan Corbet <corbet@lwn.net>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Thu, 2011-06-16 at 08:56 +0530, Srikar Dronamraju wrote:=20
-> * Peter Zijlstra <peterz@infradead.org> [2011-06-15 20:11:26]:
->=20
-> > On Tue, 2011-06-07 at 18:29 +0530, Srikar Dronamraju wrote:
-> > > +       up_write(&mm->mmap_sem);
-> > > +       mutex_lock(&uprobes_mutex);
-> > > +       down_read(&mm->mmap_sem);=20
-> >=20
-> > egads, and all that without a comment explaining why you think that is
-> > even remotely sane.
-> >=20
-> > I'm not at all convinced, it would expose the mmap() even though you
-> > could still decide to tear it down if this function were to fail, I bet
-> > there's some funnies there.
->=20
-> The problem is with lock ordering.  register/unregister operations
-> acquire uprobes_mutex (which serializes register unregister and the
-> mmap_hook) and then holds mmap_sem for read before they insert a
-> breakpoint.
->=20
-> But the mmap hook would be called with mmap_sem held for write. So
-> acquiring uprobes_mutex can result in deadlock. Hence we release the
-> mmap_sem, take the uprobes_mutex and then again hold the mmap_sem.
+> > +
+> > +cleanup_ret:
+> > +       if (u) {
+> > +               down_read(&mm->mmap_sem);
+> > +               if (!set_orig_insn(current, u, probept, true))
+> 
+> we try to undo the probe? That doesn't make any sense. I thought you
+> meant to return to userspace, let it re-take the trap and try again
+> until you do manage to allocate the user resource.
 
-Sure, I saw why you wanted to do it, I'm just not quite convinced its
-safe to do and something like this definitely wants a comment explaining
-why its safe to drop mmap_sem. =20
+I meant removing the probe itself
+https://lkml.org/lkml/2011/4/21/279
 
-> After we re-acquire the mmap_sem, we do check if the vma is valid.
+We could try reseting and retrying the trap. Just that we might end up
+looping under memory pressure.
 
-But you don't on the return path, and if !ret
-mmap_region():unmap_and_free_vma will be touching vma again to remove
-it.
+> 
+> This behaviour makes probes totally unreliable under memory pressure. 
 
-> Do we have better solutions?
+Under memory pressure we could be unreliable.
 
-/me kicks the brain into gear and walks off to get a fresh cup of tea.
+> 
+> > +                       atomic_dec(&mm->uprobes_count);
+> > +               up_read(&mm->mmap_sem);
+> > +               put_uprobe(u);
+> > +       } else {
+> > +       /*TODO Return SIGTRAP signal */
+> > +       }
+> > +       if (utask) {
+> > +               utask->active_uprobe = NULL;
+> > +               utask->state = UTASK_RUNNING;
+> > +       }
+> > +       set_instruction_pointer(regs, probept);
+> > +} 
+> 
+> Also, there's a scary amount of TODO in there...
 
-So the reason we take uprobes_mutex there is to avoid probes from going
-away while you're installing them, right?
+All of those deal with delaying the signals. I am working on it at this
+moment. 
 
-So we start by doing this add_to_temp_list() thing (horrid name), which
-iterates the probes on this inode under uprobes_treelock and adds them
-to a list.
-
-Then we iterate the list, installing the probles.
-
-How about we make the initial pass under uprobes_treelock take a
-references on the probe, and then after install_breakpoint() succeeds we
-again take uprobes_treelock and validate the uprobe still exists in the
-tree and drop the extra reference, if not we simply remove the
-breakpoint again and continue like it never existed.
-
-That should avoid the need to take uprobes_mutex and not require
-dropping mmap_sem, right?
+-- 
+Thanks and Regards
+Srikar
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
