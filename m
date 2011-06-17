@@ -1,88 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 6EB146B0012
-	for <linux-mm@kvack.org>; Fri, 17 Jun 2011 03:57:49 -0400 (EDT)
-Date: Fri, 17 Jun 2011 08:57:43 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [BUGFIX][PATCH][-rc3] Define a consolidated definition of
- node_start/end_pfn for build error in page_cgroup.c (Was Re: mmotm
- 2011-06-15-16-56 uploaded (mm/page_cgroup.c)
-Message-ID: <20110617075743.GD5244@suse.de>
-References: <201106160034.p5G0Y4dr028904@imap1.linux-foundation.org>
- <20110615214917.a7dce8e6.randy.dunlap@oracle.com>
- <20110616172819.1e2d325c.kamezawa.hiroyu@jp.fujitsu.com>
- <20110616103559.GA5244@suse.de>
- <20110617094628.aecf5ee1.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20110617094628.aecf5ee1.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id C99D86B0082
+	for <linux-mm@kvack.org>; Fri, 17 Jun 2011 04:04:47 -0400 (EDT)
+Subject: Re: [PATCH v4 3.0-rc2-tip 7/22]  7: uprobes: mmap and fork hooks.
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <20110617045000.GM4952@linux.vnet.ibm.com>
+References: 
+	 <20110607125804.28590.92092.sendpatchset@localhost6.localdomain6>
+	 <20110607125931.28590.12362.sendpatchset@localhost6.localdomain6>
+	 <1308161486.2171.61.camel@laptop>
+	 <20110616032645.GF4952@linux.vnet.ibm.com>
+	 <1308225626.13240.34.camel@twins>
+	 <20110616130012.GL4952@linux.vnet.ibm.com>
+	 <1308248588.13240.267.camel@twins>
+	 <20110617045000.GM4952@linux.vnet.ibm.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+Date: Fri, 17 Jun 2011 10:03:56 +0200
+Message-ID: <1308297836.13240.380.camel@twins>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Randy Dunlap <randy.dunlap@oracle.com>, dave@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, mingo@elte.hu
+To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Cc: Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Jonathan Corbet <corbet@lwn.net>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Fri, Jun 17, 2011 at 09:46:28AM +0900, KAMEZAWA Hiroyuki wrote:
-> On Thu, 16 Jun 2011 11:35:59 +0100
-> Mel Gorman <mgorman@suse.de> wrote:
-> 
-> > A caller that does node_end_pfn(nid++) will get a nasty surprise
-> > due to side-effects. I know architectures currently get this wrong
-> > including x86_64 but we might as well fix it up now. The definition
-> > in arch/x86/include/asm/mmzone_32.h is immune to side-effects and
-> > might be a better choice despite the use of a temporary variable.
-> > 
-> 
-> Ok, here is a fixed one. Thank you for comments/review.
-> ==
-> From 507cc95c5ba2351bff16c5421255d1395a3b555b Mon Sep 17 00:00:00 2001
-> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Date: Thu, 16 Jun 2011 17:28:07 +0900
-> Subject: [PATCH] Fix node_start/end_pfn() definition for mm/page_cgroup.c
-> 
-> commit 21a3c96 uses node_start/end_pfn(nid) for detection start/end
-> of nodes. But, it's not defined in linux/mmzone.h but defined in
-> /arch/???/include/mmzone.h which is included only under
-> CONFIG_NEED_MULTIPLE_NODES=y.
-> 
-> Then, we see
-> mm/page_cgroup.c: In function 'page_cgroup_init':
-> mm/page_cgroup.c:308: error: implicit declaration of function 'node_start_pfn'
-> mm/page_cgroup.c:309: error: implicit declaration of function 'node_end_pfn'
-> 
-> So, fixiing page_cgroup.c is an idea...
-> 
-> But node_start_pfn()/node_end_pfn() is a very generic macro and
-> should be implemented in the same manner for all archs.
-> (m32r has different implementation...)
-> 
-> This patch removes definitions of node_start/end_pfn() in each archs
-> and defines a unified one in linux/mmzone.h. It's not under
-> CONFIG_NEED_MULTIPLE_NODES, now.
-> 
-> A result of macro expansion is here (mm/page_cgroup.c)
-> 
-> for !NUMA
->  start_pfn = ((&contig_page_data)->node_start_pfn);
->   end_pfn = ({ pg_data_t *__pgdat = (&contig_page_data); __pgdat->node_start_pfn + __pgdat->node_spanned_pages;});
-> 
-> for NUMA (x86-64)
->   start_pfn = ((node_data[nid])->node_start_pfn);
->   end_pfn = ({ pg_data_t *__pgdat = (node_data[nid]); __pgdat->node_start_pfn + __pgdat->node_spanned_pages;});
-> 
-> 
-> Reported-by: Randy Dunlap <randy.dunlap@oracle.com>
-> Reported-by: Ingo Molnar <mingo@elte.hu>
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> 
+On Fri, 2011-06-17 at 10:20 +0530, Srikar Dronamraju wrote:
+> >=20
+> > void __unregister_uprobe(...)
+> > {
+> >   uprobe =3D find_uprobe(); // ref++
+> >   if (delete_consumer(...)); // includes tree removal on last consumer
+> >                              // implies we own the last ref
+> >      return; // consumers
+> >=20
+> >   vma_prio_tree_foreach() {
+> >      // create list
+> >   }
+> >=20
+> >   list_for_each_entry_safe() {
+> >     // remove from list
+> >     remove_breakpoint(); // unconditional, if it wasn't there
+> >                          // its a nop anyway, can't get any new
+> >                          // new probes on account of holding
+> >                          // uprobes_mutex and mmap() doesn't see
+> >                          // it due to tree removal.
+> >   }
+> > }
+> >=20
+>=20
+> This would have a bigger race.
+> A breakpoint might be hit by which time the node is removed and we
+> have no way to find out the uprobe. So we deliver an extra TRAP to the
+> app.
 
-Thanks.
+Gah indeed. Back to the drawing board for me.
 
-Acked-by: Mel Gorman <mgorman@suse.de>
+> > int mmap_uprobe(...)
+> > {
+> >   spin_lock(&uprobes_treelock);
+> >   for_each_probe_in_inode() {
+> >     // create list;
+> >   }
+> >   spin_unlock(..);
+> >=20
+> >   list_for_each_entry_safe() {
+> >     // remove from list
+> >     ret =3D install_breakpoint();
+> >     if (ret)
+> >       goto fail;
+> >     if (!uprobe_still_there()) // takes treelock
+> >       remove_breakpoint();
+> >   }
+> >=20
+> >   return 0;
+> >=20
+> > fail:
+> >   list_for_each_entry_safe() {
+> >     // destroy list
+> >   }
+> >   return ret;
+> > }
+> >=20
+>=20
+>=20
+> register_uprobe will race with mmap_uprobe's first pass.
+> So we might end up with a vma that doesnot have a breakpoint inserted
+> but inserted in all other vma that map to the same inode.
 
--- 
-Mel Gorman
-SUSE Labs
+I'm not seeing this though, if mmap_uprobe() is before register_uprobe()
+inserts the probe in the tree, the vma is already in the rmap and
+register_uprobe() will find it in its vma walk. If its after,
+mmap_uprobe() will find it and install, if a concurrent
+register_uprobe()'s vma walk also finds it, it will -EEXISTS and ignore
+the error.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
