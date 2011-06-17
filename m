@@ -1,69 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 360166B0012
-	for <linux-mm@kvack.org>; Fri, 17 Jun 2011 05:37:54 -0400 (EDT)
-Received: from d01relay06.pok.ibm.com (d01relay06.pok.ibm.com [9.56.227.116])
-	by e2.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p5H9HMlM003666
-	for <linux-mm@kvack.org>; Fri, 17 Jun 2011 05:17:22 -0400
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p5H9bpxL1413188
-	for <linux-mm@kvack.org>; Fri, 17 Jun 2011 05:37:51 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p5H9boPa018264
-	for <linux-mm@kvack.org>; Fri, 17 Jun 2011 05:37:51 -0400
-Date: Fri, 17 Jun 2011 14:59:51 +0530
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: Re: [PATCH v4 3.0-rc2-tip 4/22]  4: Uprobes: register/unregister
- probes.
-Message-ID: <20110617092951.GA16985@linux.vnet.ibm.com>
-Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-References: <20110607125804.28590.92092.sendpatchset@localhost6.localdomain6>
- <20110607125900.28590.16071.sendpatchset@localhost6.localdomain6>
- <1308159719.2171.57.camel@laptop>
- <20110616041137.GG4952@linux.vnet.ibm.com>
- <1308217582.15315.94.camel@twins>
- <20110616095412.GK4952@linux.vnet.ibm.com>
- <20110616135114.GA22131@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20110616135114.GA22131@redhat.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id D8DE86B0012
+	for <linux-mm@kvack.org>; Fri, 17 Jun 2011 05:42:29 -0400 (EDT)
+Subject: Re: [PATCH v4 3.0-rc2-tip 7/22]  7: uprobes: mmap and fork hooks.
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <20110617090504.GN4952@linux.vnet.ibm.com>
+References: 
+	 <20110607125804.28590.92092.sendpatchset@localhost6.localdomain6>
+	 <20110607125931.28590.12362.sendpatchset@localhost6.localdomain6>
+	 <1308161486.2171.61.camel@laptop>
+	 <20110616032645.GF4952@linux.vnet.ibm.com>
+	 <1308225626.13240.34.camel@twins>
+	 <20110616130012.GL4952@linux.vnet.ibm.com>
+	 <1308248588.13240.267.camel@twins>
+	 <20110617045000.GM4952@linux.vnet.ibm.com>
+	 <1308297836.13240.380.camel@twins>
+	 <20110617090504.GN4952@linux.vnet.ibm.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+Date: Fri, 17 Jun 2011 11:41:05 +0200
+Message-ID: <1308303665.2355.11.camel@twins>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Jonathan Corbet <corbet@lwn.net>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>
+To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Cc: Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Jonathan Corbet <corbet@lwn.net>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
 
-* Oleg Nesterov <oleg@redhat.com> [2011-06-16 15:51:14]:
+On Fri, 2011-06-17 at 14:35 +0530, Srikar Dronamraju wrote:
 
-> On 06/16, Srikar Dronamraju wrote:
-> >
-> > In which case, shouldnt traversing all the tasks of all siblings of
-> > parent of mm->owner should provide us all the the tasks that have linked
-> > to mm. Right?
-> 
-> I don't think so.
-> 
-> Even if the initial mm->ovner never exits (iow, mm->owner is never changed),
-> the "deep" CLONE_VM child can be reparented to init if its parent exits.
-> 
+> > > > int mmap_uprobe(...)
+> > > > {
+> > > >   spin_lock(&uprobes_treelock);
+> > > >   for_each_probe_in_inode() {
+> > > >     // create list;
+>=20
+> Here again if we have multiple mmaps for the same inode occuring on two
+> process contexts (I mean two different mm's), we have to manage how we
+> add the same uprobe to more than one list. Atleast my current
+> uprobe->pending_list wouldnt work.
 
-oh right.
+Sure, wasn't concerned about that particular problem.
 
-> > Agree that we can bother about this a little later.
-> 
-> Agreed.
-> 
-> 
-> Oh. We should move ->mm from task_struct to signal_struct, but we need to
-> change the code like get_task_mm(). And then instead of mm->owner we can
-> have mm->processes list. Perhaps. This can be used by zap_threads() too.
-> 
+> > > >   }
+> > > >   spin_unlock(..);
+> > > >=20
+> > > >   list_for_each_entry_safe() {
+> > > >     // remove from list
+> > > >     ret =3D install_breakpoint();
+> > > >     if (ret)
+> > > >       goto fail;
+> > > >     if (!uprobe_still_there()) // takes treelock
+> > > >       remove_breakpoint();
+> > > >   }
+> > > >=20
+> > > >   return 0;
+> > > >=20
+> > > > fail:
+> > > >   list_for_each_entry_safe() {
+> > > >     // destroy list
+> > > >   }
+> > > >   return ret;
+> > > > }
+> > > >=20
+> > >=20
+> > >=20
+> > > register_uprobe will race with mmap_uprobe's first pass.
+> > > So we might end up with a vma that doesnot have a breakpoint inserted
+> > > but inserted in all other vma that map to the same inode.
+> >=20
+> > I'm not seeing this though, if mmap_uprobe() is before register_uprobe(=
+)
+> > inserts the probe in the tree, the vma is already in the rmap and
+> > register_uprobe() will find it in its vma walk. If its after,
+> > mmap_uprobe() will find it and install, if a concurrent
+> > register_uprobe()'s vma walk also finds it, it will -EEXISTS and ignore
+> > the error.
+> >=20
+>=20
+> You are right here.=20
+>=20
+> What happens if the register_uprobe comes first and walks around the
+> vmas, Between mmap comes in does the insertion including the second pass
+> and returns.  register_uprobe now finds that it cannot insert breakpoint
+> on one of the vmas and hence has to roll-back. The vma on which
+> mmap_uprobe inserted will not be in the list of vmas from which we try
+> to remove the breakpoint.
 
-Okay.. thats a nice idea.
+Yes it will, remember __register_uprobe() will call
+__unregister_uprobe() on fail, which does a new vma-rmap walk which will
+then see the newly added mmap.
 
--- 
-Thanks and Regards
-Srikar
+> How about something like this:
+
+> 	if (!mutex_trylock(uprobes_mutex)) {
+>=20
+> 		/*
+> 		 * Unable to get uprobes_mutex; Probably contending with
+> 		 * someother thread. Drop mmap_sem; acquire uprobes_mutex
+> 		 * and mmap_sem and then verify vma.
+> 		 */
+>=20
+> 		up_write(&mm->mmap_sem);
+> 		mutex_lock&(uprobes_mutex);
+> 		down_write(&mm->mmap_sem);
+> 		vma =3D find_vma(mm, start);
+> 		/* Not the same vma */
+> 		if (!vma || vma->vm_start !=3D start ||
+> 				vma->vm_pgoff !=3D pgoff || !valid_vma(vma) ||
+> 				inode->i_mapping !=3D vma->vm_file->f_mapping)
+> 			goto mmap_out;
+> 	}
+
+Only if we have to, I really don't like dropping mmap_sem in the middle
+of mmap. I'm fairly sure we can come up with some ordering scheme that
+ought to make mmap_uprobe() work without the uprobes_mutex.
+
+On thing I was thinking of to fix that initial problem of spurious traps
+was to leave the uprobe in the tree but skip all probes without
+consumers in mmap_uprobe().
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
