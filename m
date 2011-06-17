@@ -1,69 +1,172 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id C7E6F6B004A
-	for <linux-mm@kvack.org>; Fri, 17 Jun 2011 05:13:59 -0400 (EDT)
-Date: Fri, 17 Jun 2011 11:13:19 +0200
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: REGRESSION: Performance regressions from switching
- anon_vma->lock to mutex
-Message-ID: <20110617091319.GA11719@elte.hu>
-References: <1308169937.15315.88.camel@twins>
- <4DF91CB9.5080504@linux.intel.com>
- <1308172336.17300.177.camel@schen9-DESK>
- <1308173849.15315.91.camel@twins>
- <87ea4bd7-8b16-4b24-8fcb-d8e9b6f421ec@email.android.com>
- <4DF92FE1.5010208@linux.intel.com>
- <BANLkTi=Tw6je7zpi4L=pE0JJpZfeEC9Jsg@mail.gmail.com>
- <4DFA6442.9000103@linux.intel.com>
- <BANLkTin_46==epHKUbWJ55bt3mPaJieV2Q@mail.gmail.com>
- <4DFA9EA4.4010904@linux.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4DFA9EA4.4010904@linux.intel.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 4E6E26B0012
+	for <linux-mm@kvack.org>; Fri, 17 Jun 2011 05:24:57 -0400 (EDT)
+Date: 17 Jun 2011 05:24:54 -0400
+Message-ID: <20110617092454.497.qmail@science.horizon.com>
+From: "George Spelvin" <linux@horizon.com>
+Subject: 3.0-rc3 stuck process in munmap()
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <ak@linux.intel.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Tim Chen <tim.c.chen@linux.intel.com>, Shaohua Li <shaohua.li@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Russell King <rmk@arm.linux.org.uk>, Paul Mundt <lethal@linux-sh.org>, Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>, "Luck, Tony" <tony.luck@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Namhyung Kim <namhyung@gmail.com>, "Shi, Alex" <alex.shi@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>, "Rafael J. Wysocki" <rjw@sisk.pl>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: linux@horizon.com
 
+As a followup to my report of firefox getting stuck in 3.0-rc1, here's the
+problem repeated on -rc3.  top(1) can produce the process status, but
+"ps axf" hangs before printing anything.
 
-* Andi Kleen <ak@linux.intel.com> wrote:
+  PID USER      PR  NI  VIRT  RES  SHR S %CPU %MEM    TIME+  COMMAND           
+ 2821 username  20   0 1453m 964m  18m D    0 47.8   1434:51 firefox-bin        
 
-> > I tried to send uli a patch to just add caching. No go. I sent 
-> > *another* patch to at least make glibc use a sane interface (and 
-> > the cache if it needs to fall back on /proc/stat for some legacy 
-> > reason). We'll see what happens.
-> 
-> FWIW a rerun with this modified LD_PRELOAD that does caching seems 
-> to have the same performance as the version that does 
-> sched_getaffinity.
-> 
-> So you're right. Caching indeed helps and my assumption that the 
-> child would only do it once was incorrect.
+Core 2 duo, 2 GB RAM, NO_HZ=y, MZ=300, PREEMPT_VOLUNTARY=y.
+It's been stuck for about half an hour so far.
 
-You should have known that your assumption was wrong not just from a 
-quick look at the strace output or a quick look at the glibc sources, 
-but also because i pointed out the caching angle to you in the 
-sysconf() discussion:
+I wasn't using Firefox when I noticed that it wasn't refreshing its
+window when I changed to that screen.
 
-  http://lkml.org/lkml/2011/5/14/9
+I'm not going to reboot in case someone wants information gathered
+this time.
 
-repeatedly:
-
-  http://lkml.org/lkml/2011/5/17/149
-
-and Denys Vlasenko pointed out the caching angle as well:
-
-  http://lkml.org/lkml/2011/5/17/183
-
-But you kept pushing for your new syscall for upstream integration, 
-ignoring all contrary evidence and ignoring all contrary feedback, 
-without even *once* checking where and how it would integrate into 
-glibc ...
-
-Thanks,
-
-	Ingo
+INFO: task firefox-bin:9560 blocked for more than 120 seconds.
+"echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
+firefox-bin     D f4b2df58     0  9560   2793 0x00000000
+ f54c2cb0 00000082 00000002 f4b2df58 00000000 00000000 00000000 00000000
+ c14f22c0 f54c2e24 c14f22c0 00000000 00000000 b162f6a0 00000000 00000002
+ 00000001 f59ce208 000007fb f59c7268 acb9e000 acb9e000 00000000 c10735b3
+Call Trace:
+ [<c10735b3>] ? sys_madvise+0x42b/0x46c
+ [<c1304a2d>] ? rwsem_down_failed_common+0xa1/0xc9
+ [<c1304ab2>] ? call_rwsem_down_write_failed+0x6/0x8
+ [<c1304529>] ? down_write+0x1c/0x1e
+ [<c107833a>] ? sys_munmap+0x18/0x35
+ [<c1305410>] ? sysenter_do_call+0x12/0x26
+ [<c1300000>] ? set_intr_gate+0xe/0x2d
+INFO: task firefox-bin:9560 blocked for more than 120 seconds.
+"echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
+firefox-bin     D f4b2df58     0  9560   2793 0x00000000
+ f54c2cb0 00000082 00000002 f4b2df58 00000000 00000000 00000000 00000000
+ c14f22c0 f54c2e24 c14f22c0 00000000 00000000 b162f6a0 00000000 00000002
+ 00000001 f59ce208 000007fb f59c7268 acb9e000 acb9e000 00000000 c10735b3
+Call Trace:
+ [<c10735b3>] ? sys_madvise+0x42b/0x46c
+ [<c1304a2d>] ? rwsem_down_failed_common+0xa1/0xc9
+ [<c1304ab2>] ? call_rwsem_down_write_failed+0x6/0x8
+ [<c1304529>] ? down_write+0x1c/0x1e
+ [<c107833a>] ? sys_munmap+0x18/0x35
+ [<c1305410>] ? sysenter_do_call+0x12/0x26
+ [<c1300000>] ? set_intr_gate+0xe/0x2d
+INFO: task firefox-bin:9560 blocked for more than 120 seconds.
+"echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
+firefox-bin     D f4b2df58     0  9560   2793 0x00000000
+ f54c2cb0 00000082 00000002 f4b2df58 00000000 00000000 00000000 00000000
+ c14f22c0 f54c2e24 c14f22c0 00000000 00000000 b162f6a0 00000000 00000002
+ 00000001 f59ce208 000007fb f59c7268 acb9e000 acb9e000 00000000 c10735b3
+Call Trace:
+ [<c10735b3>] ? sys_madvise+0x42b/0x46c
+ [<c1304a2d>] ? rwsem_down_failed_common+0xa1/0xc9
+ [<c1304ab2>] ? call_rwsem_down_write_failed+0x6/0x8
+ [<c1304529>] ? down_write+0x1c/0x1e
+ [<c107833a>] ? sys_munmap+0x18/0x35
+ [<c1305410>] ? sysenter_do_call+0x12/0x26
+ [<c1300000>] ? set_intr_gate+0xe/0x2d
+INFO: task firefox-bin:9560 blocked for more than 120 seconds.
+"echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
+firefox-bin     D f4b2df58     0  9560   2793 0x00000000
+ f54c2cb0 00000082 00000002 f4b2df58 00000000 00000000 00000000 00000000
+ c14f22c0 f54c2e24 c14f22c0 00000000 00000000 b162f6a0 00000000 00000002
+ 00000001 f59ce208 000007fb f59c7268 acb9e000 acb9e000 00000000 c10735b3
+Call Trace:
+ [<c10735b3>] ? sys_madvise+0x42b/0x46c
+ [<c1304a2d>] ? rwsem_down_failed_common+0xa1/0xc9
+ [<c1304ab2>] ? call_rwsem_down_write_failed+0x6/0x8
+ [<c1304529>] ? down_write+0x1c/0x1e
+ [<c107833a>] ? sys_munmap+0x18/0x35
+ [<c1305410>] ? sysenter_do_call+0x12/0x26
+ [<c1300000>] ? set_intr_gate+0xe/0x2d
+INFO: task firefox-bin:9560 blocked for more than 120 seconds.
+"echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
+firefox-bin     D f4b2df58     0  9560   2793 0x00000000
+ f54c2cb0 00000082 00000002 f4b2df58 00000000 00000000 00000000 00000000
+ c14f22c0 f54c2e24 c14f22c0 00000000 00000000 b162f6a0 00000000 00000002
+ 00000001 f59ce208 000007fb f59c7268 acb9e000 acb9e000 00000000 c10735b3
+Call Trace:
+ [<c10735b3>] ? sys_madvise+0x42b/0x46c
+ [<c1304a2d>] ? rwsem_down_failed_common+0xa1/0xc9
+ [<c1304ab2>] ? call_rwsem_down_write_failed+0x6/0x8
+ [<c1304529>] ? down_write+0x1c/0x1e
+ [<c107833a>] ? sys_munmap+0x18/0x35
+ [<c1305410>] ? sysenter_do_call+0x12/0x26
+ [<c1300000>] ? set_intr_gate+0xe/0x2d
+INFO: task firefox-bin:9560 blocked for more than 120 seconds.
+"echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
+firefox-bin     D f4b2df58     0  9560   2793 0x00000000
+ f54c2cb0 00000082 00000002 f4b2df58 00000000 00000000 00000000 00000000
+ c14f22c0 f54c2e24 c14f22c0 00000000 00000000 b162f6a0 00000000 00000002
+ 00000001 f59ce208 000007fb f59c7268 acb9e000 acb9e000 00000000 c10735b3
+Call Trace:
+ [<c10735b3>] ? sys_madvise+0x42b/0x46c
+ [<c1304a2d>] ? rwsem_down_failed_common+0xa1/0xc9
+ [<c1304ab2>] ? call_rwsem_down_write_failed+0x6/0x8
+ [<c1304529>] ? down_write+0x1c/0x1e
+ [<c107833a>] ? sys_munmap+0x18/0x35
+ [<c1305410>] ? sysenter_do_call+0x12/0x26
+ [<c1300000>] ? set_intr_gate+0xe/0x2d
+INFO: task firefox-bin:9560 blocked for more than 120 seconds.
+"echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
+firefox-bin     D f4b2df58     0  9560   2793 0x00000000
+ f54c2cb0 00000082 00000002 f4b2df58 00000000 00000000 00000000 00000000
+ c14f22c0 f54c2e24 c14f22c0 00000000 00000000 b162f6a0 00000000 00000002
+ 00000001 f59ce208 000007fb f59c7268 acb9e000 acb9e000 00000000 c10735b3
+Call Trace:
+ [<c10735b3>] ? sys_madvise+0x42b/0x46c
+ [<c1304a2d>] ? rwsem_down_failed_common+0xa1/0xc9
+ [<c1304ab2>] ? call_rwsem_down_write_failed+0x6/0x8
+ [<c1304529>] ? down_write+0x1c/0x1e
+ [<c107833a>] ? sys_munmap+0x18/0x35
+ [<c1305410>] ? sysenter_do_call+0x12/0x26
+ [<c1300000>] ? set_intr_gate+0xe/0x2d
+INFO: task firefox-bin:9560 blocked for more than 120 seconds.
+"echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
+firefox-bin     D f4b2df58     0  9560   2793 0x00000000
+ f54c2cb0 00000082 00000002 f4b2df58 00000000 00000000 00000000 00000000
+ c14f22c0 f54c2e24 c14f22c0 00000000 00000000 b162f6a0 00000000 00000002
+ 00000001 f59ce208 000007fb f59c7268 acb9e000 acb9e000 00000000 c10735b3
+Call Trace:
+ [<c10735b3>] ? sys_madvise+0x42b/0x46c
+ [<c1304a2d>] ? rwsem_down_failed_common+0xa1/0xc9
+ [<c1304ab2>] ? call_rwsem_down_write_failed+0x6/0x8
+ [<c1304529>] ? down_write+0x1c/0x1e
+ [<c107833a>] ? sys_munmap+0x18/0x35
+ [<c1305410>] ? sysenter_do_call+0x12/0x26
+ [<c1300000>] ? set_intr_gate+0xe/0x2d
+INFO: task firefox-bin:9560 blocked for more than 120 seconds.
+"echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
+firefox-bin     D f4b2df58     0  9560   2793 0x00000000
+ f54c2cb0 00000082 00000002 f4b2df58 00000000 00000000 00000000 00000000
+ c14f22c0 f54c2e24 c14f22c0 00000000 00000000 b162f6a0 00000000 00000002
+ 00000001 f59ce208 000007fb f59c7268 acb9e000 acb9e000 00000000 c10735b3
+Call Trace:
+ [<c10735b3>] ? sys_madvise+0x42b/0x46c
+ [<c1304a2d>] ? rwsem_down_failed_common+0xa1/0xc9
+ [<c1304ab2>] ? call_rwsem_down_write_failed+0x6/0x8
+ [<c1304529>] ? down_write+0x1c/0x1e
+ [<c107833a>] ? sys_munmap+0x18/0x35
+ [<c1305410>] ? sysenter_do_call+0x12/0x26
+ [<c1300000>] ? set_intr_gate+0xe/0x2d
+INFO: task firefox-bin:9560 blocked for more than 120 seconds.
+"echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
+firefox-bin     D f4b2df58     0  9560   2793 0x00000000
+ f54c2cb0 00000082 00000002 f4b2df58 00000000 00000000 00000000 00000000
+ c14f22c0 f54c2e24 c14f22c0 00000000 00000000 b162f6a0 00000000 00000002
+ 00000001 f59ce208 000007fb f59c7268 acb9e000 acb9e000 00000000 c10735b3
+Call Trace:
+ [<c10735b3>] ? sys_madvise+0x42b/0x46c
+ [<c1304a2d>] ? rwsem_down_failed_common+0xa1/0xc9
+ [<c1304ab2>] ? call_rwsem_down_write_failed+0x6/0x8
+ [<c1304529>] ? down_write+0x1c/0x1e
+ [<c107833a>] ? sys_munmap+0x18/0x35
+ [<c1305410>] ? sysenter_do_call+0x12/0x26
+ [<c1300000>] ? set_intr_gate+0xe/0x2d
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
