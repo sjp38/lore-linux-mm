@@ -1,107 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id AE6A66B0012
-	for <linux-mm@kvack.org>; Fri, 17 Jun 2011 11:29:09 -0400 (EDT)
-Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [202.81.31.246])
-	by e23smtp01.au.ibm.com (8.14.4/8.13.1) with ESMTP id p5HFOmFm026685
-	for <linux-mm@kvack.org>; Sat, 18 Jun 2011 01:24:48 +1000
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p5HFSBdA1417424
-	for <linux-mm@kvack.org>; Sat, 18 Jun 2011 01:28:11 +1000
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p5HFT5Ap000530
-	for <linux-mm@kvack.org>; Sat, 18 Jun 2011 01:29:05 +1000
-Date: Fri, 17 Jun 2011 20:58:45 +0530
-From: Ankita Garg <ankita@in.ibm.com>
-Subject: Re: [PATCH 00/10] mm: Linux VM Infrastructure to support Memory
- Power Management
-Message-ID: <20110617152845.GA13574@in.ibm.com>
-Reply-To: Ankita Garg <ankita@in.ibm.com>
-References: <1306499498-14263-1-git-send-email-ankita@in.ibm.com>
- <20110613134701.2b23b8d8.kamezawa.hiroyu@jp.fujitsu.com>
- <20110616042044.GA28563@in.ibm.com>
- <20110616181251.caf484b6.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 9C4A76B0012
+	for <linux-mm@kvack.org>; Fri, 17 Jun 2011 12:08:55 -0400 (EDT)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: Re: [Linaro-mm-sig] [PATCH 08/10] mm: cma: Contiguous Memory Allocator added
+Date: Fri, 17 Jun 2011 18:08:44 +0200
+References: <1307699698-29369-1-git-send-email-m.szyprowski@samsung.com> <201106142030.07549.arnd@arndb.de> <BANLkTi=XTJuF4np7+rYHzJqWK20OxMrBsw@mail.gmail.com>
+In-Reply-To: <BANLkTi=XTJuF4np7+rYHzJqWK20OxMrBsw@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110616181251.caf484b6.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Message-Id: <201106171808.44178.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-pm@lists.linux-foundation.org, svaidy@linux.vnet.ibm.com, thomas.abraham@linaro.org
+To: Daniel Vetter <daniel.vetter@ffwll.ch>
+Cc: Michal Nazarewicz <mina86@mina86.com>, Ankita Garg <ankita@in.ibm.com>, Daniel Walker <dwalker@codeaurora.org>, Jesse Barker <jesse.barker@linaro.org>, Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, Kyungmin Park <kyungmin.park@samsung.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org
 
-Hi,
+On Wednesday 15 June 2011, Daniel Vetter wrote:
+> On Tue, Jun 14, 2011 at 20:30, Arnd Bergmann <arnd@arndb.de> wrote:
+> > On Tuesday 14 June 2011 18:58:35 Michal Nazarewicz wrote:
+> >> Ah yes, I forgot that separate regions for different purposes could
+> >> decrease fragmentation.
+> >
+> > That is indeed a good point, but having a good allocator algorithm
+> > could also solve this. I don't know too much about these allocation
+> > algorithms, but there are probably multiple working approaches to this.
+> 
+> imo no allocator algorithm is gonna help if you have comparably large,
+> variable-sized contiguous allocations out of a restricted address range.
+> It might work well enough if there are only a few sizes and/or there's
+> decent headroom. But for really generic workloads this would require
+> sync objects and eviction callbacks (i.e. what Thomas Hellstrom pushed
+> with ttm).
 
-On Thu, Jun 16, 2011 at 06:12:51PM +0900, KAMEZAWA Hiroyuki wrote:
-> On Thu, 16 Jun 2011 09:50:44 +0530
-> Ankita Garg <ankita@in.ibm.com> wrote:
-> 
-> > Hi,
-> > 
-> > On Mon, Jun 13, 2011 at 01:47:01PM +0900, KAMEZAWA Hiroyuki wrote:
-> > > On Fri, 27 May 2011 18:01:28 +0530
-> > > Ankita Garg <ankita@in.ibm.com> wrote:
-> > > 
-> > > > Hi,
-> > > > 
-> > > 
-> > > I'm sorry if you've answered already.
-> > > 
-> > > Is memory hotplug is too bad and cannot be enhanced for this purpose ?
-> > > 
-> > > I wonder
-> > >   - make section-size smaller (IIUC, IBM's system has 16MB section size)
-> > > 
-> > >   - add per section statistics
-> > > 
-> > >   - add a kind of balloon driver which does software memory offline
-> > >     (which means making a contiguous chunk of free pages of section_size
-> > >      by page migration) in background with regard to memory usage statistics.
-> > >     If system says "need more memory!", balloon driver can online pages.
-> > > 
-> > > can work for your purpose. It can allow you page isolatation and
-> > > controls in 16MB unit.  If you need whole rework of memory hotplug, I think
-> > > it's better to rewrite memory hotplug, too.
-> > >
-> > 
-> > Interesting idea, but a few issues -
-> > 
-> > - Correctly predicting memory pressure is difficult and thereby being
-> >   able to online the required pages at the right time could be a
-> >   challenge
-> 
-> But it will be required for your purpose, anyway. Isn't it ?
-> 
-> > - Memory hotplug is a heavy operation, so the overhead involved may be
-> >   high
-> 
-> soft-offline of small amount of pages will not very heavy.
-> compaction and cma patches use the same kind of logic.
-> 
-> 
-> > - Powering off memory is just one of the ways in which memory power could
-> >   be saved. The platform can also dynamically transition areas of memory
-> >   into a  content-preserving lower power state if it is not referenced
-> >   for a pre-defined threshold of time. In such a case, we would need a
-> >   mechanism to soft offline the pages - i.e, no new allocations to be
-> >   directed to that memory
-> > 
-> 
-> Hmm, sounds like a similar idea of CleanCache ?
-> 
-> Reusing section is much easier than adding new one.., I think.
-> 
+The requirements are quite different depending on what system you
+look at. In a lot of cases, the constraints are not that tight at all,
+and CMA will easily help to turn "works sometimes" into "works almost
+always". Let's get there first and then look into the harder problems.
 
-But sections do not define the granualarity at which memory operations
-are done right ? i.e, allocations/deallocations or reclaim cannot be
-directed to a section or a group of sections ?
+Unfortunately, memory allocation gets nondeterministic in the corner
+cases, you can simply get the system into a state where you don't
+have enough memory when you try to do too many things at once. This
+may sound like a platitude but it's really what is behind all this:
 
--- 
-Regards,
-Ankita Garg (ankita@in.ibm.com)
-Linux Technology Center
-IBM India Systems & Technology Labs,
-Bangalore, India
+If we had unlimited amounts of RAM, we would never need CMA, we could
+simply set aside a lot of memory at boot time. Having one CMA area
+with movable page eviction lets you build systems capable of doing
+the same thing with less RAM than without CMA. Adding more complexity
+lets you reduce that amount further.
+
+The other aspects that have been mentioned about bank affinity and
+SRAM are pretty orthogonal to the allocation, so we should also
+treat them separately.
+
+> So if this is only a requirement on very few platforms and can be
+> cheaply fixed with multiple cma allocation areas (heck, we have
+> slabs for the same reasons in the kernel), it might be a sensible
+> compromise.
+
+Yes, we can probably add it later when we find out what the limits
+of the generic approach are. I don't really mind having the per-device
+pointers to CMA areas, we just need to come up with a good way to
+initialize them.
+
+	Arnd
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
