@@ -1,98 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id C99D86B0082
-	for <linux-mm@kvack.org>; Fri, 17 Jun 2011 04:04:47 -0400 (EDT)
-Subject: Re: [PATCH v4 3.0-rc2-tip 7/22]  7: uprobes: mmap and fork hooks.
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <20110617045000.GM4952@linux.vnet.ibm.com>
-References: 
-	 <20110607125804.28590.92092.sendpatchset@localhost6.localdomain6>
-	 <20110607125931.28590.12362.sendpatchset@localhost6.localdomain6>
-	 <1308161486.2171.61.camel@laptop>
-	 <20110616032645.GF4952@linux.vnet.ibm.com>
-	 <1308225626.13240.34.camel@twins>
-	 <20110616130012.GL4952@linux.vnet.ibm.com>
-	 <1308248588.13240.267.camel@twins>
-	 <20110617045000.GM4952@linux.vnet.ibm.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-Date: Fri, 17 Jun 2011 10:03:56 +0200
-Message-ID: <1308297836.13240.380.camel@twins>
-Mime-Version: 1.0
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id A1B2A6B0012
+	for <linux-mm@kvack.org>; Fri, 17 Jun 2011 04:30:15 -0400 (EDT)
+Received: by iyl8 with SMTP id 8so2461869iyl.14
+        for <linux-mm@kvack.org>; Fri, 17 Jun 2011 01:30:12 -0700 (PDT)
+From: Chris Forbes <chrisf@ijw.co.nz>
+Subject: [PATCH] mm: hugetlb: fix coding style issues
+Date: Fri, 17 Jun 2011 20:29:59 +1200
+Message-Id: <1308299399-825-1-git-send-email-chrisf@ijw.co.nz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Jonathan Corbet <corbet@lwn.net>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Chris Forbes <chrisf@ijw.co.nz>
 
-On Fri, 2011-06-17 at 10:20 +0530, Srikar Dronamraju wrote:
-> >=20
-> > void __unregister_uprobe(...)
-> > {
-> >   uprobe =3D find_uprobe(); // ref++
-> >   if (delete_consumer(...)); // includes tree removal on last consumer
-> >                              // implies we own the last ref
-> >      return; // consumers
-> >=20
-> >   vma_prio_tree_foreach() {
-> >      // create list
-> >   }
-> >=20
-> >   list_for_each_entry_safe() {
-> >     // remove from list
-> >     remove_breakpoint(); // unconditional, if it wasn't there
-> >                          // its a nop anyway, can't get any new
-> >                          // new probes on account of holding
-> >                          // uprobes_mutex and mmap() doesn't see
-> >                          // it due to tree removal.
-> >   }
-> > }
-> >=20
->=20
-> This would have a bigger race.
-> A breakpoint might be hit by which time the node is removed and we
-> have no way to find out the uprobe. So we deliver an extra TRAP to the
-> app.
+Fixed coding style issues flagged by checkpatch.pl
 
-Gah indeed. Back to the drawing board for me.
+Signed-off-by: Chris Forbes <chrisf@ijw.co.nz>
+---
+ mm/hugetlb.c |   31 +++++++++++++++----------------
+ 1 files changed, 15 insertions(+), 16 deletions(-)
 
-> > int mmap_uprobe(...)
-> > {
-> >   spin_lock(&uprobes_treelock);
-> >   for_each_probe_in_inode() {
-> >     // create list;
-> >   }
-> >   spin_unlock(..);
-> >=20
-> >   list_for_each_entry_safe() {
-> >     // remove from list
-> >     ret =3D install_breakpoint();
-> >     if (ret)
-> >       goto fail;
-> >     if (!uprobe_still_there()) // takes treelock
-> >       remove_breakpoint();
-> >   }
-> >=20
-> >   return 0;
-> >=20
-> > fail:
-> >   list_for_each_entry_safe() {
-> >     // destroy list
-> >   }
-> >   return ret;
-> > }
-> >=20
->=20
->=20
-> register_uprobe will race with mmap_uprobe's first pass.
-> So we might end up with a vma that doesnot have a breakpoint inserted
-> but inserted in all other vma that map to the same inode.
-
-I'm not seeing this though, if mmap_uprobe() is before register_uprobe()
-inserts the probe in the tree, the vma is already in the rmap and
-register_uprobe() will find it in its vma walk. If its after,
-mmap_uprobe() will find it and install, if a concurrent
-register_uprobe()'s vma walk also finds it, it will -EEXISTS and ignore
-the error.
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index bfcf153..ab8bd93e 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -24,7 +24,7 @@
+ 
+ #include <asm/page.h>
+ #include <asm/pgtable.h>
+-#include <asm/io.h>
++#include <linux/io.h>
+ 
+ #include <linux/hugetlb.h>
+ #include <linux/node.h>
+@@ -62,10 +62,10 @@ static DEFINE_SPINLOCK(hugetlb_lock);
+  * must either hold the mmap_sem for write, or the mmap_sem for read and
+  * the hugetlb_instantiation mutex:
+  *
+- * 	down_write(&mm->mmap_sem);
++ *	down_write(&mm->mmap_sem);
+  * or
+- * 	down_read(&mm->mmap_sem);
+- * 	mutex_lock(&hugetlb_instantiation_mutex);
++ *	down_read(&mm->mmap_sem);
++ *	mutex_lock(&hugetlb_instantiation_mutex);
+  */
+ struct file_region {
+ 	struct list_head link;
+@@ -503,9 +503,10 @@ static void update_and_free_page(struct hstate *h, struct page *page)
+ 	h->nr_huge_pages--;
+ 	h->nr_huge_pages_node[page_to_nid(page)]--;
+ 	for (i = 0; i < pages_per_huge_page(h); i++) {
+-		page[i].flags &= ~(1 << PG_locked | 1 << PG_error | 1 << PG_referenced |
+-				1 << PG_dirty | 1 << PG_active | 1 << PG_reserved |
+-				1 << PG_private | 1<< PG_writeback);
++		page[i].flags &= ~(1 << PG_locked | 1 << PG_error |
++				1 << PG_referenced | 1 << PG_dirty |
++				1 << PG_active | 1 << PG_reserved |
++				1 << PG_private | 1 << PG_writeback);
+ 	}
+ 	set_compound_page_dtor(page, NULL);
+ 	set_page_refcounted(page);
+@@ -591,7 +592,6 @@ int PageHuge(struct page *page)
+ 
+ 	return dtor == free_huge_page;
+ }
+-
+ EXPORT_SYMBOL_GPL(PageHuge);
+ 
+ static struct page *alloc_fresh_huge_page_node(struct hstate *h, int nid)
+@@ -2124,9 +2124,8 @@ static void set_huge_ptep_writable(struct vm_area_struct *vma,
+ 	pte_t entry;
+ 
+ 	entry = pte_mkwrite(pte_mkdirty(huge_ptep_get(ptep)));
+-	if (huge_ptep_set_access_flags(vma, address, ptep, entry, 1)) {
++	if (huge_ptep_set_access_flags(vma, address, ptep, entry, 1))
+ 		update_mmu_cache(vma, address, ptep);
+-	}
+ }
+ 
+ 
+@@ -2181,9 +2180,9 @@ static int is_hugetlb_entry_migration(pte_t pte)
+ 	if (huge_pte_none(pte) || pte_present(pte))
+ 		return 0;
+ 	swp = pte_to_swp_entry(pte);
+-	if (non_swap_entry(swp) && is_migration_entry(swp)) {
++	if (non_swap_entry(swp) && is_migration_entry(swp))
+ 		return 1;
+-	} else
++	else
+ 		return 0;
+ }
+ 
+@@ -2194,9 +2193,9 @@ static int is_hugetlb_entry_hwpoisoned(pte_t pte)
+ 	if (huge_pte_none(pte) || pte_present(pte))
+ 		return 0;
+ 	swp = pte_to_swp_entry(pte);
+-	if (non_swap_entry(swp) && is_hwpoison_entry(swp)) {
++	if (non_swap_entry(swp) && is_hwpoison_entry(swp))
+ 		return 1;
+-	} else
++	else
+ 		return 0;
+ }
+ 
+@@ -2559,7 +2558,7 @@ retry:
+ 		 * So we need to block hugepage fault by PG_hwpoison bit check.
+ 		 */
+ 		if (unlikely(PageHWPoison(page))) {
+-			ret = VM_FAULT_HWPOISON | 
++			ret = VM_FAULT_HWPOISON |
+ 			      VM_FAULT_SET_HINDEX(h - hstates);
+ 			goto backout_unlocked;
+ 		}
+@@ -2627,7 +2626,7 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+ 			migration_entry_wait(mm, (pmd_t *)ptep, address);
+ 			return 0;
+ 		} else if (unlikely(is_hugetlb_entry_hwpoisoned(entry)))
+-			return VM_FAULT_HWPOISON_LARGE | 
++			return VM_FAULT_HWPOISON_LARGE |
+ 			       VM_FAULT_SET_HINDEX(h - hstates);
+ 	}
+ 
+-- 
+1.7.4.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
