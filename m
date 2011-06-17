@@ -1,76 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 82A506B0012
-	for <linux-mm@kvack.org>; Fri, 17 Jun 2011 05:44:14 -0400 (EDT)
-Date: Fri, 17 Jun 2011 11:43:33 +0200
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [GIT PULL] Re: REGRESSION: Performance regressions from
- switching anon_vma->lock to mutex
-Message-ID: <20110617094333.GB19235@elte.hu>
-References: <20110615201216.GA4762@elte.hu>
- <35c0ff16-bd58-4b9c-9d9f-d1a4df2ae7b9@email.android.com>
- <20110616070335.GA7661@elte.hu>
- <20110616171644.GK2582@linux.vnet.ibm.com>
- <20110616202550.GA16214@elte.hu>
- <1308262883.2516.71.camel@pasglop>
- <20110616223837.GA18431@elte.hu>
- <4DFA8802.6010300@linux.intel.com>
- <20110616225803.GA28557@elte.hu>
- <20110617004536.GP2582@linux.vnet.ibm.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 4AA646B0012
+	for <linux-mm@kvack.org>; Fri, 17 Jun 2011 06:03:16 -0400 (EDT)
+Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
+	by e28smtp03.in.ibm.com (8.14.4/8.13.1) with ESMTP id p5HA35Ah009552
+	for <linux-mm@kvack.org>; Fri, 17 Jun 2011 15:33:05 +0530
+Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
+	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p5HA35bt4165720
+	for <linux-mm@kvack.org>; Fri, 17 Jun 2011 15:33:05 +0530
+Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
+	by d28av02.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p5HA35u8007657
+	for <linux-mm@kvack.org>; Fri, 17 Jun 2011 20:03:05 +1000
+Date: Fri, 17 Jun 2011 15:33:00 +0530
+From: Ankita Garg <ankita@in.ibm.com>
+Subject: Re: [PATCH 00/10] mm: Linux VM Infrastructure to support Memory
+ Power Management
+Message-ID: <20110617100300.GA24954@in.ibm.com>
+Reply-To: Ankita Garg <ankita@in.ibm.com>
+References: <1306499498-14263-1-git-send-email-ankita@in.ibm.com>
+ <20110613134701.2b23b8d8.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110616042044.GA28563@in.ibm.com>
+ <1308240240.11430.115.camel@nimitz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110617004536.GP2582@linux.vnet.ibm.com>
+In-Reply-To: <1308240240.11430.115.camel@nimitz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Cc: Andi Kleen <ak@linux.intel.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Tim Chen <tim.c.chen@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Miller <davem@davemloft.net>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Russell King <rmk@arm.linux.org.uk>, Paul Mundt <lethal@linux-sh.org>, Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>, Tony Luck <tony.luck@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Namhyung Kim <namhyung@gmail.com>, shaohua.li@intel.com, alex.shi@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Rafael J. Wysocki" <rjw@sisk.pl>
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-pm@lists.linux-foundation.org, svaidy@linux.vnet.ibm.com, thomas.abraham@linaro.org
 
+Hi,
 
-* Paul E. McKenney <paulmck@linux.vnet.ibm.com> wrote:
-
-> On Fri, Jun 17, 2011 at 12:58:03AM +0200, Ingo Molnar wrote:
-> > 
-> > * Andi Kleen <ak@linux.intel.com> wrote:
-> > 
-> > > > There's a crazy solution for that: the idle thread could process 
-> > > > RCU callbacks carefully, as if it was running user-space code.
-> > > 
-> > > In Ben's kernel NFS server case the system may not be idle.
-> > 
-> > An always-100%-busy NFS server is very unlikely, but even in the 
-> > hypothetical case a kernel NFS server is really performing system 
-> > calls from a kernel thread in essence. If it doesn't do it explicitly 
-> > then its main loop can easily include a "check RCU callbacks" call.
+On Thu, Jun 16, 2011 at 09:04:00AM -0700, Dave Hansen wrote:
+> On Thu, 2011-06-16 at 09:50 +0530, Ankita Garg wrote:
+> > - Correctly predicting memory pressure is difficult and thereby being
+> >   able to online the required pages at the right time could be a
+> >   challenge
 > 
-> As long as they make sure to call it in a clean environment: no 
-> locks held and so on.  But I am a bit worried about the possibility 
-> of someone forgetting to put one of these where it is needed -- it 
-> would work just fine for most workloads, but could fail only for 
-> rare workloads.
+> For the sake of this discussion, let's forget about this.  There are
+> certainly a lot of scenarios where turning memory on/off is necessary
+> and useful _without_ knowing what kind of load the system is under.  "We
+> just shut down our huge database, and now have 99% of RAM free" is a
+> fine, dumb, metric.  We don't have to have magical pony memory pressure
+> detection as a prerequisite.
+>
 
-Yeah, some sort of worst-case-tick mechanism would guarantee that we 
-wont remain without RCU GC.
+I agree, but when using memory hotplug for managing memory power, it
+would be important to correctly predict pressure so that performance is
+not affected too much. Also, especially since memory would be offlined
+only when memory is mostly idle. While in the case of CPU, a user space
+daemon can automatically online/offline cpus based on load, but in the
+case of memory, I guess a kernel thread that maintains global statistics
+might have to be used.
 
-> That said, invoking RCU core/callback processing from the scheduler 
-> context certainly sounds like an interesting way to speed up grace 
-> periods.
+> > - Memory hotplug is a heavy operation, so the overhead involved may be
+> >   high
+> 
+> I'm curious.  Why do you say this?  Could you elaborate a bit on _how_
+> memory hotplug is different from what you're doing here?  On powerpc, at
+> least, we can do memory hotplug in areas as small as 16MB.  That's _way_
+> smaller than what you're talking about here, and I would assume that
+> smaller here means less overhead.
+> 
 
-It also moves whatever priority logic is needed closer to the 
-scheduler that has to touch those data structures anyway.
+To save any power, the entire memory unit (like a bank for PASR) will
+have to be turned off (and hence offlined). The overhead in memory
+hotplug is to migrate/free pages belonging to the sections and
+creating/deleting the various memory management structures. Instead, if
+we could have a framework like you mentiond below that could target
+allocations away from certain areas of memory, the migration step will
+not be needed. Further, the hardware would just turn off the memory and
+the OS would retain all the memory management structures.
 
-RCU, at least partially, is a scheduler driven garbage collector even 
-today: beyond context switch quiescent states the main practical role 
-of the per CPU timer tick itself is scheduling. So having it close to 
-when we do context-switches anyway looks pretty natural - worth 
-trying.
+We intend to use memory regions to group the memory together into units
+that can be independently power managed. We propose to achieve this by
+re-ordering zones within the zonelist, such that zones from regions that
+are the target for evacuation would be at the tail of the zonelist and
+thus will not be prefered for allocations.
 
-It might not work out in practice, but at first sight it would 
-simplify a few things i think.
+> > - Powering off memory is just one of the ways in which memory power could
+> >   be saved. The platform can also dynamically transition areas of memory
+> >   into a  content-preserving lower power state if it is not referenced
+> >   for a pre-defined threshold of time. In such a case, we would need a
+> >   mechanism to soft offline the pages - i.e, no new allocations to be
+> >   directed to that memory
+> 
+> OK...  That's fine, but I think you're avoiding the question a bit.  You
+> need to demonstrate that this 'regions' thing is necessary to do this,
+> and that we can not get by just modifying what we have now.  For
+> instance:
+> 
+> 1. Have something like khugepaged try to find region-sized chunks of
+>    memory to free.
+> 2. Modify the buddy allocator to be "picky" about when it lets you get 
+>    access to these regions.
 
-Thanks,
+Managing pages belonging to multiple regions on the same buddy list
+might make the buddy allocator more complex. But thanks for suggesting
+the different approaches, will looking into these and get back to you.
 
-	Ingo
+> 3. Try to bunch up 'like allocations' like ZONE_MOVABLE does.
+> 
+> (2) could easily mean that we take the MAX_ORDER-1 buddy pages and treat
+> them differently.  If the page being freed is going (or trying to go) in
+> to a low power state, insert freed pages on to the tail, or on a special
+> list.  When satisfying allocations, we'd make some bit of effort to
+> return pages which are powered on.
+> 
+
+-- 
+Regards,
+Ankita Garg (ankita@in.ibm.com)
+Linux Technology Center
+IBM India Systems & Technology Labs,
+Bangalore, India
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
