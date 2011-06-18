@@ -1,69 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 03BE36B004A
-	for <linux-mm@kvack.org>; Sat, 18 Jun 2011 14:41:26 -0400 (EDT)
-Message-ID: <4DFCF13F.50401@cslab.ece.ntua.gr>
-Date: Sat, 18 Jun 2011 21:41:03 +0300
-From: Vasileios Karakasis <bkk@cslab.ece.ntua.gr>
-MIME-Version: 1.0
-Subject: Re: [BUG] Invalid return address of mmap() followed by mbind() in
- multithreaded context
-References: <4DFB710D.7000902@cslab.ece.ntua.gr> <20110618181232.GI16236@one.firstfloor.org>
-In-Reply-To: <20110618181232.GI16236@one.firstfloor.org>
-Content-Type: multipart/signed; micalg=pgp-sha1;
- protocol="application/pgp-signature";
- boundary="------------enig1CC55EF867D4A735A093B854"
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 48D756B004A
+	for <linux-mm@kvack.org>; Sat, 18 Jun 2011 17:48:53 -0400 (EDT)
+Date: Sat, 18 Jun 2011 14:48:32 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/12] radix_tree: exceptional entries and indices
+Message-Id: <20110618144832.cfc665b0.akpm@linux-foundation.org>
+In-Reply-To: <alpine.LSU.2.00.1106171702150.1345@sister.anvils>
+References: <alpine.LSU.2.00.1106140327550.29206@sister.anvils>
+	<alpine.LSU.2.00.1106140341070.29206@sister.anvils>
+	<20110617163854.49225203.akpm@linux-foundation.org>
+	<alpine.LSU.2.00.1106171702150.1345@sister.anvils>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-numa@vger.kernel.org
+To: Hugh Dickins <hughd@google.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-This is an OpenPGP/MIME signed message (RFC 2440 and 3156)
---------------enig1CC55EF867D4A735A093B854
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+On Fri, 17 Jun 2011 17:13:38 -0700 (PDT) Hugh Dickins <hughd@google.com> wrote:
 
-That's right, but what I want to demonstrate is that the address
-returned by mmap() is invalid and the dereference crashes the program,
-while it shouldn't. I could equally omit this statement, in which case
-mbind() would fail with EFAULT.
+> On Fri, 17 Jun 2011, Andrew Morton wrote:
+> > On Tue, 14 Jun 2011 03:42:27 -0700 (PDT)
+> > Hugh Dickins <hughd@google.com> wrote:
+> > 
+> > > The low bit of a radix_tree entry is already used to denote an indirect
+> > > pointer, for internal use, and the unlikely radix_tree_deref_retry() case.
+> > > Define the next bit as denoting an exceptional entry, and supply inline
+> > > functions radix_tree_exception() to return non-0 in either unlikely case,
+> > > and radix_tree_exceptional_entry() to return non-0 in the second case.
+> > 
+> > Yes, the RADIX_TREE_INDIRECT_PTR hack is internal-use-only, and doesn't
+> > operate on (and hence doesn't corrupt) client-provided items.
+> > 
+> > This patch uses bit 1 and uses it against client items, so for
+> > practical purpoese it can only be used when the client is storing
+> > addresses.  And it needs new APIs to access that flag.
+> > 
+> > All a bit ugly.  Why not just add another tag for this?  Or reuse an
+> > existing tag if the current tags aren't all used for these types of
+> > pages?
+> 
+> I couldn't see how to use tags without losing the "lockless" lookups:
 
-On 06/18/2011 09:12 PM, Andi Kleen wrote:
->>     for (i =3D 0; i < NR_ITER; i++) {
->>         addr =3D mmap(0, PAGE_SIZE, PROT_READ | PROT_WRITE,
->>                     MAP_ANONYMOUS | MAP_PRIVATE, 0, 0);
->>         if (addr =3D=3D (void *) -1) {
->>             assert(0 && "mmap failed");
->>         }
->>         *addr =3D 0;
->>
->>         err =3D mbind(addr, PAGE_SIZE, MPOL_BIND, &node, sizeof(node),=
- 0);
->=20
-> mbind() can be only done before the first touch. you're not actually te=
-sting=20
-> numa policy.
->=20
-> -andi
+So lockless pagecache broke the radix-tree tag-versus-item coherency as
+well as the address_space nrpages-vs-radix-tree coherency.  Isn't it
+fun learning these things.
 
---=20
-V.K.
+> because the tag is a separate bit from the entry itself, unless you're
+> under tree_lock, there would be races when changing from page pointer
+> to swap entry or back, when slot was updated but tag not or vice versa.
 
-
---------------enig1CC55EF867D4A735A093B854
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: OpenPGP digital signature
-Content-Disposition: attachment; filename="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.10 (GNU/Linux)
-
-iEYEARECAAYFAk388U0ACgkQHUHhfRemepxHwwCg8nBwl3ZuVdCmwEecizOdDuOM
-680An3lRmAFNS5Ek8ZQjBSPb5YUcqNwA
-=CacT
------END PGP SIGNATURE-----
-
---------------enig1CC55EF867D4A735A093B854--
+So...  take tree_lock?  What effect does that have?  It'd better be
+"really bad", because this patchset does nothing at all to improve core
+MM maintainability :(
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
