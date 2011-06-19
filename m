@@ -1,378 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id B01BC6B0012
-	for <linux-mm@kvack.org>; Sun, 19 Jun 2011 19:52:52 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id E05683EE0C7
-	for <linux-mm@kvack.org>; Mon, 20 Jun 2011 08:52:44 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id ABD9545DE74
-	for <linux-mm@kvack.org>; Mon, 20 Jun 2011 08:52:44 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8679E45DE6A
-	for <linux-mm@kvack.org>; Mon, 20 Jun 2011 08:52:44 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 73DB31DB8041
-	for <linux-mm@kvack.org>; Mon, 20 Jun 2011 08:52:44 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 219DA1DB803A
-	for <linux-mm@kvack.org>; Mon, 20 Jun 2011 08:52:44 +0900 (JST)
-Date: Mon, 20 Jun 2011 08:45:37 +0900
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id BD3216B0012
+	for <linux-mm@kvack.org>; Sun, 19 Jun 2011 20:00:11 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 183663EE0C1
+	for <linux-mm@kvack.org>; Mon, 20 Jun 2011 09:00:07 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id D11FA45DE97
+	for <linux-mm@kvack.org>; Mon, 20 Jun 2011 09:00:06 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id AEB8845DE67
+	for <linux-mm@kvack.org>; Mon, 20 Jun 2011 09:00:06 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8B35A1DB803C
+	for <linux-mm@kvack.org>; Mon, 20 Jun 2011 09:00:06 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3899A1DB804E
+	for <linux-mm@kvack.org>; Mon, 20 Jun 2011 09:00:06 +0900 (JST)
+Date: Mon, 20 Jun 2011 08:53:07 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH V3] memcg: add reclaim pgfault latency histograms
-Message-Id: <20110620084537.24b28e53.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1308354828-30670-1-git-send-email-yinghan@google.com>
-References: <1308354828-30670-1-git-send-email-yinghan@google.com>
+Subject: Re: [PATCH 00/10] mm: Linux VM Infrastructure to support Memory
+ Power Management
+Message-Id: <20110620085307.76e16c8f.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110617152845.GA13574@in.ibm.com>
+References: <1306499498-14263-1-git-send-email-ankita@in.ibm.com>
+	<20110613134701.2b23b8d8.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110616042044.GA28563@in.ibm.com>
+	<20110616181251.caf484b6.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110617152845.GA13574@in.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Suleiman Souhlal <suleiman@google.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>, linux-mm@kvack.org
+To: Ankita Garg <ankita@in.ibm.com>
+Cc: linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-pm@lists.linux-foundation.org, svaidy@linux.vnet.ibm.com, thomas.abraham@linaro.org
 
-On Fri, 17 Jun 2011 16:53:48 -0700
-Ying Han <yinghan@google.com> wrote:
+On Fri, 17 Jun 2011 20:58:45 +0530
+Ankita Garg <ankita@in.ibm.com> wrote:
 
-> This adds histogram to capture pagefault latencies on per-memcg basis. I used
-> this patch on the memcg background reclaim test, and figured there could be more
-> usecases to monitor/debug application performance.
+> Hi,
 > 
-> The histogram is composed 8 bucket in us unit. The last one is "rest" which is
-> everything beyond the last one. To be more flexible, the buckets can be reset
-> and also each bucket is configurable at runtime.
+> On Thu, Jun 16, 2011 at 06:12:51PM +0900, KAMEZAWA Hiroyuki wrote:
+> > On Thu, 16 Jun 2011 09:50:44 +0530
+> > Ankita Garg <ankita@in.ibm.com> wrote:
+> > 
+> > > Hi,
+> > > 
+> > > On Mon, Jun 13, 2011 at 01:47:01PM +0900, KAMEZAWA Hiroyuki wrote:
+> > > > On Fri, 27 May 2011 18:01:28 +0530
+> > > > Ankita Garg <ankita@in.ibm.com> wrote:
+> > > > 
+> > > > > Hi,
+> > > > > 
+> > > > 
+> > > > I'm sorry if you've answered already.
+> > > > 
+> > > > Is memory hotplug is too bad and cannot be enhanced for this purpose ?
+> > > > 
+> > > > I wonder
+> > > >   - make section-size smaller (IIUC, IBM's system has 16MB section size)
+> > > > 
+> > > >   - add per section statistics
+> > > > 
+> > > >   - add a kind of balloon driver which does software memory offline
+> > > >     (which means making a contiguous chunk of free pages of section_size
+> > > >      by page migration) in background with regard to memory usage statistics.
+> > > >     If system says "need more memory!", balloon driver can online pages.
+> > > > 
+> > > > can work for your purpose. It can allow you page isolatation and
+> > > > controls in 16MB unit.  If you need whole rework of memory hotplug, I think
+> > > > it's better to rewrite memory hotplug, too.
+> > > >
+> > > 
+> > > Interesting idea, but a few issues -
+> > > 
+> > > - Correctly predicting memory pressure is difficult and thereby being
+> > >   able to online the required pages at the right time could be a
+> > >   challenge
+> > 
+> > But it will be required for your purpose, anyway. Isn't it ?
+> > 
+> > > - Memory hotplug is a heavy operation, so the overhead involved may be
+> > >   high
+> > 
+> > soft-offline of small amount of pages will not very heavy.
+> > compaction and cma patches use the same kind of logic.
+> > 
+> > 
+> > > - Powering off memory is just one of the ways in which memory power could
+> > >   be saved. The platform can also dynamically transition areas of memory
+> > >   into a  content-preserving lower power state if it is not referenced
+> > >   for a pre-defined threshold of time. In such a case, we would need a
+> > >   mechanism to soft offline the pages - i.e, no new allocations to be
+> > >   directed to that memory
+> > > 
+> > 
+> > Hmm, sounds like a similar idea of CleanCache ?
+> > 
+> > Reusing section is much easier than adding new one.., I think.
+> > 
 > 
-> memory.pgfault_histogram: exports the histogram on per-memcg basis and also can
-> be reset by echoing "-1". Meantime, all the buckets are writable by echoing
-> the range into the API. see the example below.
-> 
-> change v3..v2:
-> no change except rebasing the patch to 3.0-rc3 and retested.
-> 
-> change v2..v1:
-> 1. record the page fault involving reclaim only and changing the unit to us.
-> 2. rename the "inf" to "rest".
-> 3. removed the global tunable to turn on/off the recording. this is ok since
-> there is no overhead measured by collecting the data.
-> 4. changed reseting the history by echoing "-1".
-> 
-> Functional Test:
-> $ cat /dev/cgroup/memory/D/memory.pgfault_histogram
-> page reclaim latency histogram (us):
-> < 150            22
-> < 200            17434
-> < 250            69135
-> < 300            17182
-> < 350            4180
-> < 400            3179
-> < 450            2644
-> < rest           29840
-> 
-> $ echo -1 >/dev/cgroup/memory/D/memory.pgfault_histogram
-> $ cat /dev/cgroup/memory/B/memory.pgfault_histogram
-> page reclaim latency histogram (us):
-> < 150            0
-> < 200            0
-> < 250            0
-> < 300            0
-> < 350            0
-> < 400            0
-> < 450            0
-> < rest           0
-> 
-> $ echo 500 520 540 580 600 1000 5000 >/dev/cgroup/memory/D/memory.pgfault_histogram
-> $ cat /dev/cgroup/memory/B/memory.pgfault_histogram
-> page reclaim latency histogram (us):
-> < 500            0
-> < 520            0
-> < 540            0
-> < 580            0
-> < 600            0
-> < 1000           0
-> < 5000           0
-> < rest           0
-> 
-> Performance Test:
-> I ran through the PageFaultTest (pft) benchmark to measure the overhead of
-> recording the histogram. There is no overhead observed on both "flt/cpu/s"
-> and "fault/wsec".
-> 
-> $ mkdir /dev/cgroup/memory/A
-> $ echo 16g >/dev/cgroup/memory/A/memory.limit_in_bytes
-> $ echo $$ >/dev/cgroup/memory/A/tasks
-> $ ./pft -m 15g -t 8 -T a
-> 
-> Result:
-> $ ./ministat no_histogram histogram
-> 
-> "fault/wsec"
-> x fault_wsec/no_histogram
-> + fault_wsec/histogram
-> +-------------------------------------------------------------------------+
->     N           Min           Max        Median           Avg        Stddev
-> x   5     864432.44     880840.81     879707.95     874606.51     7687.9841
-> +   5     861986.57     877867.25      870823.9     870901.38     6413.8821
-> No difference proven at 95.0% confidence
-> 
-> "flt/cpu/s"
-> x flt_cpu_s/no_histogram
-> + flt_cpu_s/histogram
-> +-------------------------------------------------------------------------+
->     N           Min           Max        Median           Avg        Stddev
-> x   5     110866.26     112277.92     112143.45     111926.43     595.48419
-> +   5     110297.25     111843.66     111583.45     111170.42     739.60994
-> No difference proven at 95.0% confidence
-> 
-> Signed-off-by: Ying Han <yinghan@google.com>
+> But sections do not define the granualarity at which memory operations
+> are done right ? i.e, allocations/deallocations or reclaim cannot be
+> directed to a section or a group of sections ?
 
 
-I'll never ack this.
+Just because there are no users. If you'll be a 1st user, you can
+add codes, I think.
 
 Thanks,
 -Kame
 
-> ---
->  include/linux/memcontrol.h |    3 +
->  mm/memcontrol.c            |  130 ++++++++++++++++++++++++++++++++++++++++++++
->  2 files changed, 133 insertions(+), 0 deletions(-)
-> 
-> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-> index 9724a38..96f93e0 100644
-> --- a/include/linux/memcontrol.h
-> +++ b/include/linux/memcontrol.h
-> @@ -85,6 +85,8 @@ int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *mem);
->  extern struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page);
->  extern struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p);
->  
-> +extern void memcg_histogram_record(struct task_struct *tsk, u64 delta);
-> +
->  static inline
->  int mm_match_cgroup(const struct mm_struct *mm, const struct mem_cgroup *cgroup)
->  {
-> @@ -362,6 +364,7 @@ static inline void mem_cgroup_split_huge_fixup(struct page *head,
->  
->  static inline
->  void mem_cgroup_count_vm_event(struct mm_struct *mm, enum vm_event_item idx)
-> +void memcg_histogram_record(struct task_struct *tsk, u64 delta)
->  {
->  }
->  #endif /* CONFIG_CGROUP_MEM_CONT */
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index bd9052a..7735ca1 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -48,6 +48,7 @@
->  #include <linux/page_cgroup.h>
->  #include <linux/cpu.h>
->  #include <linux/oom.h>
-> +#include <linux/ctype.h>
->  #include "internal.h"
->  
->  #include <asm/uaccess.h>
-> @@ -202,6 +203,12 @@ struct mem_cgroup_eventfd_list {
->  static void mem_cgroup_threshold(struct mem_cgroup *mem);
->  static void mem_cgroup_oom_notify(struct mem_cgroup *mem);
->  
-> +#define MEMCG_NUM_HISTO_BUCKETS		8
-> +
-> +struct memcg_histo {
-> +	u64 count[MEMCG_NUM_HISTO_BUCKETS];
-> +};
-> +
->  /*
->   * The memory controller data structure. The memory controller controls both
->   * page cache and RSS per cgroup. We would eventually like to provide
-> @@ -279,6 +286,9 @@ struct mem_cgroup {
->  	 */
->  	struct mem_cgroup_stat_cpu nocpu_base;
->  	spinlock_t pcp_counter_lock;
-> +
-> +	struct memcg_histo *memcg_histo;
-> +	u64 memcg_histo_range[MEMCG_NUM_HISTO_BUCKETS];
->  };
->  
->  /* Stuffs for move charges at task migration. */
-> @@ -2117,6 +2127,7 @@ static int mem_cgroup_do_charge(struct mem_cgroup *mem, gfp_t gfp_mask,
->  	struct mem_cgroup *mem_over_limit;
->  	struct res_counter *fail_res;
->  	unsigned long flags = 0;
-> +	unsigned long long start, delta;
->  	int ret;
->  
->  	ret = res_counter_charge(&mem->res, csize, &fail_res);
-> @@ -2146,8 +2157,14 @@ static int mem_cgroup_do_charge(struct mem_cgroup *mem, gfp_t gfp_mask,
->  	if (!(gfp_mask & __GFP_WAIT))
->  		return CHARGE_WOULDBLOCK;
->  
-> +	start = sched_clock();
->  	ret = mem_cgroup_hierarchical_reclaim(mem_over_limit, NULL,
->  					      gfp_mask, flags, NULL);
-> +	delta = sched_clock() - start;
-> +	if (unlikely(delta < 0))
-> +		delta = 0;
-> +	memcg_histogram_record(current, delta);
-> +
->  	if (mem_cgroup_margin(mem_over_limit) >= nr_pages)
->  		return CHARGE_RETRY;
->  	/*
-> @@ -4573,6 +4590,102 @@ static int mem_control_numa_stat_open(struct inode *unused, struct file *file)
->  }
->  #endif /* CONFIG_NUMA */
->  
-> +static int mem_cgroup_histogram_seq_read(struct cgroup *cgrp,
-> +					struct cftype *cft, struct seq_file *m)
-> +{
-> +	struct mem_cgroup *mem_cont = mem_cgroup_from_cont(cgrp);
-> +	int i, cpu;
-> +
-> +	seq_printf(m, "page reclaim latency histogram (us):\n");
-> +
-> +	for (i = 0; i < MEMCG_NUM_HISTO_BUCKETS; i++) {
-> +		u64 sum = 0;
-> +
-> +		for_each_present_cpu(cpu) {
-> +			struct memcg_histo *histo;
-> +			histo = per_cpu_ptr(mem_cont->memcg_histo, cpu);
-> +			sum += histo->count[i];
-> +		}
-> +
-> +		if (i < MEMCG_NUM_HISTO_BUCKETS - 1)
-> +			seq_printf(m, "< %-15llu",
-> +					mem_cont->memcg_histo_range[i] / 1000);
-> +		else
-> +			seq_printf(m, "< %-15s", "rest");
-> +		seq_printf(m, "%llu\n", sum);
-> +	}
-> +
-> +	return 0;
-> +}
-> +
-> +static int mem_cgroup_histogram_seq_write(struct cgroup *cgrp,
-> +					struct cftype *cft, const char *buffer)
-> +{
-> +	int i;
-> +	u64 data[MEMCG_NUM_HISTO_BUCKETS];
-> +	char *end;
-> +	struct mem_cgroup *mem_cont = mem_cgroup_from_cont(cgrp);
-> +
-> +	if (simple_strtol(buffer, &end, 10) == -1) {
-> +		for_each_present_cpu(i) {
-> +			struct memcg_histo *histo;
-> +
-> +			histo = per_cpu_ptr(mem_cont->memcg_histo, i);
-> +			memset(histo, 0, sizeof(*histo));
-> +		}
-> +		goto out;
-> +	}
-> +
-> +	for (i = 0; i < MEMCG_NUM_HISTO_BUCKETS - 1; i++, buffer = end) {
-> +		while ((isspace(*buffer)))
-> +			buffer++;
-> +		data[i] = simple_strtoull(buffer, &end, 10) * 1000;
-> +	}
-> +	data[i] = ULLONG_MAX;
-> +
-> +	for (i = 1; i < MEMCG_NUM_HISTO_BUCKETS; i++)
-> +		if (data[i] < data[i - 1])
-> +			return -EINVAL;
-> +
-> +	memcpy(mem_cont->memcg_histo_range, data, sizeof(data));
-> +	for_each_present_cpu(i) {
-> +		struct memcg_histo *histo;
-> +		histo = per_cpu_ptr(mem_cont->memcg_histo, i);
-> +		memset(histo->count, 0, sizeof(*histo));
-> +	}
-> +out:
-> +	return 0;
-> +}
-> +
-> +/*
-> + * Record values into histogram buckets
-> + */
-> +void memcg_histogram_record(struct task_struct *tsk, u64 delta)
-> +{
-> +	u64 *base;
-> +	int index, first, last;
-> +	struct memcg_histo *histo;
-> +	struct mem_cgroup *mem = mem_cgroup_from_task(tsk);
-> +
-> +	first = 0;
-> +	last = MEMCG_NUM_HISTO_BUCKETS - 1;
-> +	base = mem->memcg_histo_range;
-> +
-> +	if (delta >= base[first]) {
-> +		while (first < last) {
-> +			index = (first + last) / 2;
-> +			if (delta >= base[index])
-> +				first = index + 1;
-> +			else
-> +				last = index;
-> +		}
-> +	}
-> +	index = first;
-> +
-> +	histo = per_cpu_ptr(mem->memcg_histo, smp_processor_id());
-> +	histo->count[index]++;
-> +}
-> +
->  static struct cftype mem_cgroup_files[] = {
->  	{
->  		.name = "usage_in_bytes",
-> @@ -4642,6 +4755,12 @@ static struct cftype mem_cgroup_files[] = {
->  		.open = mem_control_numa_stat_open,
->  	},
->  #endif
-> +	{
-> +		.name = "pgfault_histogram",
-> +		.read_seq_string = mem_cgroup_histogram_seq_read,
-> +		.write_string = mem_cgroup_histogram_seq_write,
-> +		.max_write_len = 21 * MEMCG_NUM_HISTO_BUCKETS,
-> +	},
->  };
->  
->  #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
-> @@ -4774,6 +4893,7 @@ static void __mem_cgroup_free(struct mem_cgroup *mem)
->  		free_mem_cgroup_per_zone_info(mem, node);
->  
->  	free_percpu(mem->stat);
-> +	free_percpu(mem->memcg_histo);
->  	if (sizeof(struct mem_cgroup) < PAGE_SIZE)
->  		kfree(mem);
->  	else
-> @@ -4853,6 +4973,7 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
->  	struct mem_cgroup *mem, *parent;
->  	long error = -ENOMEM;
->  	int node;
-> +	int i;
->  
->  	mem = mem_cgroup_alloc();
->  	if (!mem)
-> @@ -4905,6 +5026,15 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
->  	atomic_set(&mem->refcnt, 1);
->  	mem->move_charge_at_immigrate = 0;
->  	mutex_init(&mem->thresholds_lock);
-> +
-> +	mem->memcg_histo = alloc_percpu(typeof(*mem->memcg_histo));
-> +	if (!mem->memcg_histo)
-> +		goto free_out;
-> +
-> +	for (i = 0; i < MEMCG_NUM_HISTO_BUCKETS - 1; i++)
-> +		mem->memcg_histo_range[i] = (i + 3) * 50000ULL;
-> +	mem->memcg_histo_range[i] = ULLONG_MAX;
-> +
->  	return &mem->css;
->  free_out:
->  	__mem_cgroup_free(mem);
-> -- 
-> 1.7.3.1
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
