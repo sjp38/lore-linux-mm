@@ -1,19 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 7FFA56B004A
-	for <linux-mm@kvack.org>; Sun, 19 Jun 2011 11:29:53 -0400 (EDT)
-Received: from p4fc9fbef.dip.t-dialin.net ([::ffff:79.201.251.239] HELO donald.sf-tec.de) (auth=eike-kernel@sf-tec.de)
-	by mail.sf-mail.de (Qsmtpd 0.19svn) with (DHE-RSA-AES256-SHA encrypted) ESMTPSA
-	for <linux-mm@kvack.org>; Sun, 19 Jun 2011 17:29:49 +0200
-From: Rolf Eike Beer <eike-kernel@sf-tec.de>
-Subject: [PATCH] fix cleancache config
-Date: Sun, 19 Jun 2011 17:29:55 +0200
-Message-ID: <7182365.DrQ0shW2IG@donald.sf-tec.de>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 417E56B0012
+	for <linux-mm@kvack.org>; Sun, 19 Jun 2011 17:50:31 -0400 (EDT)
+Date: Sun, 19 Jun 2011 17:50:26 -0400
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH] fix cleancache config
+Message-ID: <20110619215026.GA17202@infradead.org>
+References: <7182365.DrQ0shW2IG@donald.sf-tec.de>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <7182365.DrQ0shW2IG@donald.sf-tec.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: akpm@linux-foundation.org
+To: Rolf Eike Beer <eike-kernel@sf-tec.de>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org
 
+On Sun, Jun 19, 2011 at 05:29:55PM +0200, Rolf Eike Beer wrote:
+> >From 2b3ebe8ffd22793dc53f4b7301048d60e8db017e Mon Sep 17 00:00:00 2001
+> From: Rolf Eike Beer <eike-kernel@sf-tec.de>
+> Date: Thu, 9 Jun 2011 14:13:58 +0200
+> Subject: [PATCH] fix cleancache config
+> 
+> It doesn't make sense to have a default setting different to that what we
+> suggest the user to select. Also fixes a typo.
+
+NAK
+
+default y is not for random crap, but for essential bits that should
+only be explicitly disabled if you really know what you do.
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
