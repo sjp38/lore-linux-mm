@@ -1,29 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id B5A2E6B0082
-	for <linux-mm@kvack.org>; Mon, 20 Jun 2011 07:21:03 -0400 (EDT)
-Date: Mon, 20 Jun 2011 07:21:00 -0400
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH] REPOST: Memory tracking for physical machine migration
-Message-ID: <20110620112100.GB19720@infradead.org>
-References: <20110610231850.6327.24452.sendpatchset@localhost.localdomain>
- <20110611075516.GA7745@infradead.org>
- <AC1B83CE65082B4DBDDB681ED2F6B2EF12E044@EXHQ.corp.stratus.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id C5F186B0092
+	for <linux-mm@kvack.org>; Mon, 20 Jun 2011 08:05:18 -0400 (EDT)
+Received: by fxm18 with SMTP id 18so1067918fxm.14
+        for <linux-mm@kvack.org>; Mon, 20 Jun 2011 05:05:14 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <AC1B83CE65082B4DBDDB681ED2F6B2EF12E044@EXHQ.corp.stratus.com>
+In-Reply-To: <20110620065907.GA29075@minime.bse>
+References: <1308547333-27413-1-git-send-email-lliubbo@gmail.com> <20110620065907.GA29075@minime.bse>
+From: Mike Frysinger <vapier.adi@gmail.com>
+Date: Mon, 20 Jun 2011 08:04:54 -0400
+Message-ID: <BANLkTincN9_nxZ3WBELqS4CY6PK_M_0kjw@mail.gmail.com>
+Subject: Re: [uclinux-dist-devel] [PATCH] nommu: reimplement remap_pfn_range()
+ to simply return 0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Paradis, James" <James.Paradis@stratus.com>
-Cc: linux-mm@kvack.org
+To: =?UTF-8?Q?Daniel_Gl=C3=B6ckner?= <daniel-gl@gmx.net>
+Cc: Bob Liu <lliubbo@gmail.com>, gerg@snapgear.com, dhowells@redhat.com, linux-mm@kvack.org, lethal@linux-sh.org, geert@linux-m68k.org, gerg@uclinux.org, uclinux-dist-devel@blackfin.uclinux.org, akpm@linux-foundation.org, walken@google.com
 
-On Tue, Jun 14, 2011 at 02:17:49PM -0400, Paradis, James wrote:
-> Okay, then, help me out here.  What would it take for this to be accepted?
-> Would you like us to incorporate the memory-harvesting code from LKSM as well?
+On Mon, Jun 20, 2011 at 02:59, Daniel Gl=C3=B6ckner wrote:
+> And I can imagine architectures wanting to do something with the prot fla=
+gs.
 
-You'll need to actually submit useful code, not just exports that aren't
-usable in-tree.
+this func is implemented in common mmu code with no arch callbacks, so
+there isnt anything different here.  when bob said "nommu arch", he
+wasnt referring to an actual architecture, but to nommu vs mmu memory
+management cores.
+-mike
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
