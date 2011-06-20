@@ -1,42 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 4462E6B0012
-	for <linux-mm@kvack.org>; Mon, 20 Jun 2011 07:04:45 -0400 (EDT)
-From: Frantisek Hrbata <fhrbata@redhat.com>
-Subject: [PATCH] oom: add uid to "Killed process" message
-Date: Mon, 20 Jun 2011 13:04:36 +0200
-Message-Id: <1308567876-23581-1-git-send-email-fhrbata@redhat.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id B5A2E6B0082
+	for <linux-mm@kvack.org>; Mon, 20 Jun 2011 07:21:03 -0400 (EDT)
+Date: Mon, 20 Jun 2011 07:21:00 -0400
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH] REPOST: Memory tracking for physical machine migration
+Message-ID: <20110620112100.GB19720@infradead.org>
+References: <20110610231850.6327.24452.sendpatchset@localhost.localdomain>
+ <20110611075516.GA7745@infradead.org>
+ <AC1B83CE65082B4DBDDB681ED2F6B2EF12E044@EXHQ.corp.stratus.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <AC1B83CE65082B4DBDDB681ED2F6B2EF12E044@EXHQ.corp.stratus.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, CAI Qian <caiqian@redhat.com>, lwoodman@redhat.com
+To: "Paradis, James" <James.Paradis@stratus.com>
+Cc: linux-mm@kvack.org
 
-Add user id to the oom killer's "Killed process" message, so the user of the
-killed process can be identified.
+On Tue, Jun 14, 2011 at 02:17:49PM -0400, Paradis, James wrote:
+> Okay, then, help me out here.  What would it take for this to be accepted?
+> Would you like us to incorporate the memory-harvesting code from LKSM as well?
 
-Signed-off-by: Frantisek Hrbata <fhrbata@redhat.com>
----
- mm/oom_kill.c |    5 +++--
- 1 files changed, 3 insertions(+), 2 deletions(-)
-
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index e4b0991..249a15a 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -427,8 +427,9 @@ static int oom_kill_task(struct task_struct *p, struct mem_cgroup *mem)
- 	/* mm cannot be safely dereferenced after task_unlock(p) */
- 	mm = p->mm;
- 
--	pr_err("Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB\n",
--		task_pid_nr(p), p->comm, K(p->mm->total_vm),
-+	pr_err("Killed process %d (%s) uid: %d, total-vm:%lukB, "
-+		"anon-rss:%lukB, file-rss:%lukB\n",
-+		task_pid_nr(p), p->comm, task_uid(p), K(p->mm->total_vm),
- 		K(get_mm_counter(p->mm, MM_ANONPAGES)),
- 		K(get_mm_counter(p->mm, MM_FILEPAGES)));
- 	task_unlock(p);
--- 
-1.7.4.4
+You'll need to actually submit useful code, not just exports that aren't
+usable in-tree.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
