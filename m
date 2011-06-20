@@ -1,47 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id B34A49000BD
-	for <linux-mm@kvack.org>; Mon, 20 Jun 2011 10:43:05 -0400 (EDT)
-Date: Mon, 20 Jun 2011 15:42:47 +0100
-From: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Subject: Re: [PATCH 5/8] ARM: dma-mapping: move all dma bounce code to
-	separate dma ops structure
-Message-ID: <20110620144247.GF26089@n2100.arm.linux.org.uk>
-References: <1308556213-24970-1-git-send-email-m.szyprowski@samsung.com> <1308556213-24970-6-git-send-email-m.szyprowski@samsung.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D53D9000BD
+	for <linux-mm@kvack.org>; Mon, 20 Jun 2011 10:45:43 -0400 (EDT)
+Received: by gxk23 with SMTP id 23so593998gxk.14
+        for <linux-mm@kvack.org>; Mon, 20 Jun 2011 07:45:41 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1308556213-24970-6-git-send-email-m.szyprowski@samsung.com>
+In-Reply-To: <1308556213-24970-8-git-send-email-m.szyprowski@samsung.com>
+References: <1308556213-24970-1-git-send-email-m.szyprowski@samsung.com>
+	<1308556213-24970-8-git-send-email-m.szyprowski@samsung.com>
+Date: Mon, 20 Jun 2011 23:45:41 +0900
+Message-ID: <BANLkTikFdrOuXsLCfvyA_V+p7S_fd72dyQ@mail.gmail.com>
+Subject: Re: [PATCH 7/8] common: dma-mapping: change alloc/free_coherent
+ method to more generic alloc/free_attrs
+From: KyongHo Cho <pullip.cho@samsung.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, Kyungmin Park <kyungmin.park@samsung.com>, Joerg Roedel <joro@8bytes.org>, Arnd Bergmann <arnd@arndb.de>
+Cc: linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, Kyungmin Park <kyungmin.park@samsung.com>, Arnd Bergmann <arnd@arndb.de>, Joerg Roedel <joro@8bytes.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>
 
-On Mon, Jun 20, 2011 at 09:50:10AM +0200, Marek Szyprowski wrote:
-> This patch removes dma bounce hooks from the common dma mapping
-> implementation on ARM architecture and creates a separate set of
-> dma_map_ops for dma bounce devices.
+Hi.
 
-Why all this additional indirection for no gain?
+On Mon, Jun 20, 2011 at 4:50 PM, Marek Szyprowski
+<m.szyprowski@samsung.com> wrote:
 
-> @@ -278,7 +278,7 @@ static inline dma_addr_t map_single(struct device *dev, void *ptr, size_t size,
->  		 * We don't need to sync the DMA buffer since
->  		 * it was allocated via the coherent allocators.
->  		 */
-> -		__dma_single_cpu_to_dev(ptr, size, dir);
-> +		dma_ops.sync_single_for_device(dev, dma_addr, size, dir);
->  	}
->  
->  	return dma_addr;
-> @@ -317,7 +317,7 @@ static inline void unmap_single(struct device *dev, dma_addr_t dma_addr,
->  		}
->  		free_safe_buffer(dev->archdata.dmabounce, buf);
->  	} else {
-> -		__dma_single_dev_to_cpu(dma_to_virt(dev, dma_addr), size, dir);
-> +		dma_ops.sync_single_for_cpu(dev, dma_addr, size, dir);
->  	}
->  }
->  
+> =A0struct dma_map_ops {
+> - =A0 =A0 =A0 void* (*alloc_coherent)(struct device *dev, size_t size,
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 dma_addr_t =
+*dma_handle, gfp_t gfp);
+> - =A0 =A0 =A0 void (*free_coherent)(struct device *dev, size_t size,
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 void *vaddr, dm=
+a_addr_t dma_handle);
+> + =A0 =A0 =A0 void* (*alloc)(struct device *dev, size_t size,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 dma_addr_t =
+*dma_handle, gfp_t gfp,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 struct dma_=
+attrs *attrs);
+> + =A0 =A0 =A0 void (*free)(struct device *dev, size_t size,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 void *vaddr, dm=
+a_addr_t dma_handle,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 struct dma_attr=
+s *attrs);
+> + =A0 =A0 =A0 int (*mmap)(struct device *, struct vm_area_struct *,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 void *, dma_addr_t, siz=
+e_t, struct dma_attrs *attrs);
+> +
+> =A0 =A0 =A0 =A0dma_addr_t (*map_page)(struct device *dev, struct page *pa=
+ge,
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 unsigned long=
+ offset, size_t size,
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 enum dma_data=
+_direction dir,
+
+I still don't agree with your idea that change alloc_coherent() with alloc(=
+).
+As I said before, we actually do not need dma_alloc_writecombine() anymore
+because it is not different from dma_alloc_coherent() in ARM.
+Most of other architectures do not have dma_alloc_writecombine().
+If you want dma_alloc_coherent() to allocate user virtual address,
+I believe that it is also available with mmap() you introduced.
+
+Regards,
+Cho KyongHo.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
