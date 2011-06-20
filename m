@@ -1,41 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id A34399000BD
-	for <linux-mm@kvack.org>; Mon, 20 Jun 2011 12:55:57 -0400 (EDT)
-Message-ID: <4DFF7B99.2060909@redhat.com>
-Date: Mon, 20 Jun 2011 12:55:53 -0400
-From: Rik van Riel <riel@redhat.com>
+	by kanga.kvack.org (Postfix) with ESMTP id C470E9000BD
+	for <linux-mm@kvack.org>; Mon, 20 Jun 2011 12:58:53 -0400 (EDT)
+Date: Mon, 20 Jun 2011 17:58:45 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 1/3] mm: completely disable THP by
+ transparent_hugepage=never
+Message-ID: <20110620165844.GA9396@suse.de>
+References: <1308587683-2555-1-git-send-email-amwang@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/3] mm: completely disable THP by transparent_hugepage=never
-References: <1308587683-2555-1-git-send-email-amwang@redhat.com> <20110620165035.GE20843@redhat.com>
-In-Reply-To: <20110620165035.GE20843@redhat.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <1308587683-2555-1-git-send-email-amwang@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Amerigo Wang <amwang@redhat.com>, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Johannes Weiner <jweiner@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
+To: Amerigo Wang <amwang@redhat.com>
+Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <jweiner@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
 
-On 06/20/2011 12:50 PM, Andrea Arcangeli wrote:
-> On Tue, Jun 21, 2011 at 12:34:28AM +0800, Amerigo Wang wrote:
->> transparent_hugepage=never should mean to disable THP completely,
->> otherwise we don't have a way to disable THP completely.
->> The design is broken.
->
-> We want to allow people to boot with transparent_hugepage=never but to
-> still allow people to enable it later at runtime. Not sure why you
-> find it broken... Your patch is just crippling down the feature with
-> no gain. There is absolutely no gain to disallow root to enable THP
-> later at runtime with sysfs, root can enable it anyway by writing into
-> /dev/mem.
->
-> Unless you're root and you enable it, it's completely disabled, so I
-> don't see what you mean it's not completely disabled. Not even
-> khugepaged is started, try to grep of khugepaged...
+On Tue, Jun 21, 2011 at 12:34:28AM +0800, Amerigo Wang wrote:
+> transparent_hugepage=never should mean to disable THP completely,
+> otherwise we don't have a way to disable THP completely.
+> The design is broken.
+> 
 
-Agreed, I don't really see the reason for these patches.
+I don't get why it's broken. Why would the user be prevented from
+enabling it at runtime?
 
-Amerigo?
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
