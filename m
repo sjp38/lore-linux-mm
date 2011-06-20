@@ -1,36 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 3A85C6B0141
-	for <linux-mm@kvack.org>; Mon, 20 Jun 2011 15:43:25 -0400 (EDT)
-Date: Mon, 20 Jun 2011 21:43:21 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 1/3] mm: completely disable THP by
- transparent_hugepage=never
-Message-ID: <20110620194321.GI20843@redhat.com>
-References: <1308587683-2555-1-git-send-email-amwang@redhat.com>
- <20110620165035.GE20843@redhat.com>
- <4DFF7CDD.308@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4DFF7CDD.308@redhat.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 7033F9000BD
+	for <linux-mm@kvack.org>; Mon, 20 Jun 2011 16:54:28 -0400 (EDT)
+Date: Mon, 20 Jun 2011 13:53:53 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [Bugme-new] [Bug 37072] New: Random BUG at
+ include/linux/swapops.h:105
+Message-Id: <20110620135353.cfe979ae.akpm@linux-foundation.org>
+In-Reply-To: <bug-37072-10286@https.bugzilla.kernel.org/>
+References: <bug-37072-10286@https.bugzilla.kernel.org/>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Cong Wang <amwang@redhat.com>
-Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Rik van Riel <riel@redhat.com>, Johannes Weiner <jweiner@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: bugme-daemon@bugzilla.kernel.org, linux-mm@kvack.org, luke-jr+linuxbugs@utopios.org
 
-On Tue, Jun 21, 2011 at 01:01:17AM +0800, Cong Wang wrote:
-> Without this patch, THP is still initialized (although khugepaged is not started),
-> that is what I don't want to see when I pass "transparent_hugepage=never",
-> because "never" for me means THP is totally unseen, even not initialized.
 
-The ram saving by not registering in sysfs is not worth the loss of
-generic functionality. You can try to make the hash and slab
-khugepaged allocations more dynamic if you want to microoptimize for
-RAM usage, that I wouldn't be against if you find a way to do it
-simply and without much complexity (and .text) added. But likely there
-are other places to optimize that may introduce less tricks and would
-give you a bigger saving than ~8kbytes, it's up to you.
+(switched to email.  Please respond via emailed reply-to-all, not via the
+bugzilla web interface).
+
+On Fri, 10 Jun 2011 01:09:48 GMT
+bugzilla-daemon@bugzilla.kernel.org wrote:
+
+> https://bugzilla.kernel.org/show_bug.cgi?id=37072
+> 
+>            Summary: Random BUG at include/linux/swapops.h:105
+>            Product: Memory Management
+>            Version: 2.5
+>     Kernel Version: 2.6.39
+>           Platform: All
+>         OS/Version: Linux
+>               Tree: Mainline
+>             Status: NEW
+>           Severity: high
+>           Priority: P1
+>          Component: Other
+>         AssignedTo: akpm@linux-foundation.org
+>         ReportedBy: luke-jr+linuxbugs@utopios.org
+>         Regression: Yes
+> 
+> 
+> Didn't have a sensible console working apparently... photo of monitor:
+> http://www.facebook.com/photo.php?pid=2522123&l=ec1a1e6145&id=1496065002
+> 
+
+handle_mm_fault
+->handle_pte_fault
+  ->do_swap_page
+    ->migration_entry_wait
+      ->migration_entry_to_page
+        ->BUG_ON(!PageLocked(p))
+
+How is this supposed to ever work?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
