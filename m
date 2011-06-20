@@ -1,52 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id CA89F9000BD
-	for <linux-mm@kvack.org>; Mon, 20 Jun 2011 13:19:09 -0400 (EDT)
-Message-ID: <4DFF8106.8090702@redhat.com>
-Date: Tue, 21 Jun 2011 01:19:02 +0800
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id BEE8D9000BD
+	for <linux-mm@kvack.org>; Mon, 20 Jun 2011 13:23:33 -0400 (EDT)
+Message-ID: <4DFF8207.5080700@redhat.com>
+Date: Tue, 21 Jun 2011 01:23:19 +0800
 From: Cong Wang <amwang@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/3] mm: completely disable THP by transparent_hugepage=never
-References: <1308587683-2555-1-git-send-email-amwang@redhat.com> <20110620165844.GA9396@suse.de> <4DFF7E3B.1040404@redhat.com> <4DFF7F0A.8090604@redhat.com>
-In-Reply-To: <4DFF7F0A.8090604@redhat.com>
+Subject: Re: [PATCH 2/3] mm: make the threshold of enabling THP configurable
+References: <1308587683-2555-1-git-send-email-amwang@redhat.com>	 <1308587683-2555-2-git-send-email-amwang@redhat.com> <1308589163.11430.245.camel@nimitz>
+In-Reply-To: <1308589163.11430.245.camel@nimitz>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
 
-ao? 2011a1'06ae??21ae?JPY 01:10, Rik van Riel a??e??:
-> On 06/20/2011 01:07 PM, Cong Wang wrote:
->> ao? 2011a1'06ae??21ae?JPY 00:58, Mel Gorman a??e??:
->>> On Tue, Jun 21, 2011 at 12:34:28AM +0800, Amerigo Wang wrote:
->>>> transparent_hugepage=never should mean to disable THP completely,
->>>> otherwise we don't have a way to disable THP completely.
->>>> The design is broken.
->>>>
->>>
->>> I don't get why it's broken. Why would the user be prevented from
->>> enabling it at runtime?
->>>
->>
->> We need to a way to totally disable it, right? Otherwise, when I configure
->> THP in .config, I always have THP initialized even when I pass "=never".
->>
->> For me, if you don't provide such way to disable it, it is not flexible.
->>
->> I meet this problem when I try to disable THP in kdump kernel, there is
->> no user of THP in kdump kernel, THP is a waste for kdump kernel. This is
->> why I need to find a way to totally disable it.
+ao? 2011a1'06ae??21ae?JPY 00:59, Dave Hansen a??e??:
+> On Tue, 2011-06-21 at 00:34 +0800, Amerigo Wang wrote:
+>> +config TRANSPARENT_HUGEPAGE_THRESHOLD
+>> +       depends on TRANSPARENT_HUGEPAGE
+>> +       int "The minimal threshold of enabling Transparent Hugepage"
+>> +       range 512 8192
+>> +       default "512"
+>> +       help
+>> +         The threshold of enabling Transparent Huagepage automatically,
+>> +         in Mbytes, below this value, Transparent Hugepage will be disabled
+>> +         by default during boot.
 >
-> What you have not explained yet is why having THP
-> halfway initialized (but not used, and without a
-> khugepaged thread) is a problem at all.
+> It makes some sense to me that there would _be_ a threshold, simply
+> because you need some space to defragment things.  But, I can't imagine
+> any kind of user having *ANY* kind of idea what to set this to.  Could
+> we add some text to this?  Maybe:
 >
-> Why is it a problem for you?
+>          Transparent hugepages are created by moving other pages out of
+>          the way to create large, contiguous swaths of free memory.
+>          However, some memory on a system can not be easily moved.  It is
+>          likely on small systems that this unmovable memory will occupy a
+>          large portion of total memory, which makes even attempting to
+>          create transparent hugepages very expensive.
+>
+>          If you are unsure, set this to the smallest possible value.
+>
+>          To override this at boot, use the $FOO boot command-line option.
+>
 
-It occupies some memory, memory is valuable in kdump kernel (usually
-only 128M). :) Since I am sure no one will use it, why do I still need
-to initialize it at all?
+Yeah, I totally agree to improve the help message as you said,
+please forgive a non-English speaker. ;)
+
+> I'm also not sure putting a ceiling on this makes a lot of sense.
+> What's the logic behind that?  I know it would be a mess to expose it to
+> users, but shouldn't this be a per-zone limit, logically?  Seems like a
+> 8GB system would have similar issues to a two-numa-node 16GB system.
+>
+
+I am not sure about this, since I am new to THP, I just replaced
+the hard-code 512 with a Kconfig var. But I am certainly open
+to improve this as you said if Andrea agrees.
 
 Thanks.
 
