@@ -1,82 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C58F6B0012
-	for <linux-mm@kvack.org>; Mon, 20 Jun 2011 01:11:27 -0400 (EDT)
-From: Bob Liu <lliubbo@gmail.com>
-Subject: [PATCH] nommu: reimplement remap_pfn_range() to simply return 0
-Date: Mon, 20 Jun 2011 13:22:13 +0800
-Message-ID: <1308547333-27413-1-git-send-email-lliubbo@gmail.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 597D86B0012
+	for <linux-mm@kvack.org>; Mon, 20 Jun 2011 02:06:34 -0400 (EDT)
+From: Rolf Eike Beer <eike-kernel@sf-tec.de>
+Subject: Re: [PATCH] fix cleancache config
+Date: Mon, 20 Jun 2011 08:06:26 +0200
+Message-ID: <4186233.iG38M59heg@donald.sf-tec.de>
+In-Reply-To: <20110619215026.GA17202@infradead.org>
+References: <7182365.DrQ0shW2IG@donald.sf-tec.de> <20110619215026.GA17202@infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: multipart/signed; boundary="nextPart3973522.GRxUXsnehz"; micalg="pgp-sha1"; protocol="application/pgp-signature"
+Content-Transfer-Encoding: 7Bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, gerg@snapgear.com, dhowells@redhat.com, lethal@linux-sh.org, gerg@uclinux.org, walken@google.com, daniel-gl@gmx.net, uclinux-dist-devel@blackfin.uclinux.org, geert@linux-m68k.org, Bob Liu <lliubbo@gmail.com>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org
 
-Function remap_pfn_range() means map physical address pfn<<PAGE_SHIFT to
-user addr.
 
-For nommu arch it's implemented by vma->vm_start = pfn << PAGE_SHIFT which is
-wrong acroding the original meaning of this function.
+--nextPart3973522.GRxUXsnehz
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="us-ascii"
 
-Some driver developer using remap_pfn_range() with correct parameter will get
-unexpected result because vm_start is changed.
+Christoph Hellwig wrote:
+> On Sun, Jun 19, 2011 at 05:29:55PM +0200, Rolf Eike Beer wrote:
+> > >From 2b3ebe8ffd22793dc53f4b7301048d60e8db017e Mon Sep 17 00:00:00 2001
+> > 
+> > From: Rolf Eike Beer <eike-kernel@sf-tec.de>
+> > Date: Thu, 9 Jun 2011 14:13:58 +0200
+> > Subject: [PATCH] fix cleancache config
+> > 
+> > It doesn't make sense to have a default setting different to that what
+> > we
+> > suggest the user to select. Also fixes a typo.
+> 
+> NAK
+> 
+> default y is not for random crap, but for essential bits that should
+> only be explicitly disabled if you really know what you do.
 
-It should be implementd just like addr = pfn << PAGE_SHIFT which is meanless
-on nommu arch, so this patch just make it simply return 0.
+So you want the user to enable this if he reads the help text but not to 
+enable this when he does not? This is totally senseless.
 
-Reported-by: Scott Jiang <scott.jiang.linux@gmail.com>
-Signed-off-by: Bob Liu <lliubbo@gmail.com>
----
- include/linux/mm.h |   10 ++++++++++
- mm/nommu.c         |    8 --------
- 2 files changed, 10 insertions(+), 8 deletions(-)
+Eike
+--nextPart3973522.GRxUXsnehz
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: This is a digitally signed message part.
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 9670f71..017c32f 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1526,8 +1526,18 @@ static inline pgprot_t vm_get_page_prot(unsigned long vm_flags)
- #endif
- 
- struct vm_area_struct *find_extend_vma(struct mm_struct *, unsigned long addr);
-+
-+#ifdef CONFIG_MMU
- int remap_pfn_range(struct vm_area_struct *, unsigned long addr,
- 			unsigned long pfn, unsigned long size, pgprot_t);
-+#else
-+static inline int remap_pfn_range(struct vm_area_struct *vma, unsigned long addr,
-+		unsigned long pfn, unsigned long size, pgprot_t prot)
-+{
-+	return 0;
-+}
-+#endif
-+
- int vm_insert_page(struct vm_area_struct *, unsigned long addr, struct page *);
- int vm_insert_pfn(struct vm_area_struct *vma, unsigned long addr,
- 			unsigned long pfn);
-diff --git a/mm/nommu.c b/mm/nommu.c
-index 1fd0c51..01cf6e0 100644
---- a/mm/nommu.c
-+++ b/mm/nommu.c
-@@ -1813,14 +1813,6 @@ struct page *follow_page(struct vm_area_struct *vma, unsigned long address,
- 	return NULL;
- }
- 
--int remap_pfn_range(struct vm_area_struct *vma, unsigned long from,
--		unsigned long to, unsigned long size, pgprot_t prot)
--{
--	vma->vm_start = vma->vm_pgoff << PAGE_SHIFT;
--	return 0;
--}
--EXPORT_SYMBOL(remap_pfn_range);
--
- int remap_vmalloc_range(struct vm_area_struct *vma, void *addr,
- 			unsigned long pgoff)
- {
--- 
-1.6.3.3
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2.0.15 (GNU/Linux)
 
+iEYEABECAAYFAk3+42gACgkQXKSJPmm5/E5wCQCdF3JbU8pdsSTTbQPSLf9ztNHN
+q1cAniQrFBXE3YB1uGG40f+3753ZdJM8
+=6tLt
+-----END PGP SIGNATURE-----
+
+--nextPart3973522.GRxUXsnehz--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
