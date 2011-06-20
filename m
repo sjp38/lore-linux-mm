@@ -1,63 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id D8CFF6B011D
-	for <linux-mm@kvack.org>; Mon, 20 Jun 2011 12:35:50 -0400 (EDT)
-From: Amerigo Wang <amwang@redhat.com>
-Subject: [PATCH 2/3] mm: make the threshold of enabling THP configurable
-Date: Tue, 21 Jun 2011 00:34:29 +0800
-Message-Id: <1308587683-2555-2-git-send-email-amwang@redhat.com>
-In-Reply-To: <1308587683-2555-1-git-send-email-amwang@redhat.com>
-References: <1308587683-2555-1-git-send-email-amwang@redhat.com>
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id E4FA26B011F
+	for <linux-mm@kvack.org>; Mon, 20 Jun 2011 12:38:38 -0400 (EDT)
+Date: Mon, 20 Jun 2011 18:38:25 +0200
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: [BUGFIX][PATCH][-rc3] Define a consolidated definition of
+ node_start/end_pfn for build error in page_cgroup.c (Was Re: mmotm
+ 2011-06-15-16-56 uploaded (mm/page_cgroup.c)
+Message-ID: <20110620163825.GA10815@elte.hu>
+References: <201106160034.p5G0Y4dr028904@imap1.linux-foundation.org>
+ <20110615214917.a7dce8e6.randy.dunlap@oracle.com>
+ <20110616172819.1e2d325c.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110616103559.GA5244@suse.de>
+ <20110617094628.aecf5ee1.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110617094628.aecf5ee1.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: akpm@linux-foundation.org, Amerigo Wang <amwang@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Mel Gorman <mgorman@suse.de>, Randy Dunlap <randy.dunlap@oracle.com>, dave@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 
-Don't hard-code 512M as the threshold in kernel, make it configruable,
-and set 512M by default.
 
-Signed-off-by: WANG Cong <amwang@redhat.com>
----
- mm/Kconfig       |   10 ++++++++++
- mm/huge_memory.c |    2 +-
- 2 files changed, 11 insertions(+), 1 deletions(-)
+* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-diff --git a/mm/Kconfig b/mm/Kconfig
-index 8ca47a5..a826471 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -340,6 +340,16 @@ choice
- 	  benefit.
- endchoice
- 
-+config TRANSPARENT_HUGEPAGE_THRESHOLD
-+	depends on TRANSPARENT_HUGEPAGE
-+	int "The minimal threshold of enabling Transparent Hugepage"
-+	range 512 8192
-+	default "512"
-+	help
-+	  The threshold of enabling Transparent Huagepage automatically,
-+	  in Mbytes, below this value, Transparent Hugepage will be disabled
-+	  by default during boot.
-+
- #
- # UP and nommu archs use km based percpu allocator
- #
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 9c63c90..7fb44cc 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -544,7 +544,7 @@ static int __init hugepage_init(void)
- 	 * where the extra memory used could hurt more than TLB overhead
- 	 * is likely to save.  The admin can still enable it through /sys.
- 	 */
--	if (totalram_pages < (512 << (20 - PAGE_SHIFT)))
-+	if (totalram_pages < (CONFIG_TRANSPARENT_HUGEPAGE_THRESHOLD << (20 - PAGE_SHIFT)))
- 		transparent_hugepage_flags = 0;
- 
- 	start_khugepaged();
--- 
-1.7.4.4
+> On Thu, 16 Jun 2011 11:35:59 +0100
+> Mel Gorman <mgorman@suse.de> wrote:
+> 
+> > A caller that does node_end_pfn(nid++) will get a nasty surprise
+> > due to side-effects. I know architectures currently get this wrong
+> > including x86_64 but we might as well fix it up now. The definition
+> > in arch/x86/include/asm/mmzone_32.h is immune to side-effects and
+> > might be a better choice despite the use of a temporary variable.
+> > 
+> 
+> Ok, here is a fixed one. Thank you for comments/review.
+> ==
+> >From 507cc95c5ba2351bff16c5421255d1395a3b555b Mon Sep 17 00:00:00 2001
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Date: Thu, 16 Jun 2011 17:28:07 +0900
+> Subject: [PATCH] Fix node_start/end_pfn() definition for mm/page_cgroup.c
+> 
+> commit 21a3c96 uses node_start/end_pfn(nid) for detection start/end
+> of nodes. But, it's not defined in linux/mmzone.h but defined in
+> /arch/???/include/mmzone.h which is included only under
+> CONFIG_NEED_MULTIPLE_NODES=y.
+> 
+> Then, we see
+> mm/page_cgroup.c: In function 'page_cgroup_init':
+> mm/page_cgroup.c:308: error: implicit declaration of function 'node_start_pfn'
+> mm/page_cgroup.c:309: error: implicit declaration of function 'node_end_pfn'
+> 
+> So, fixiing page_cgroup.c is an idea...
+
+s/fixing
+
+> 
+> But node_start_pfn()/node_end_pfn() is a very generic macro and
+> should be implemented in the same manner for all archs.
+> (m32r has different implementation...)
+> 
+> This patch removes definitions of node_start/end_pfn() in each archs
+> and defines a unified one in linux/mmzone.h. It's not under
+> CONFIG_NEED_MULTIPLE_NODES, now.
+> 
+> A result of macro expansion is here (mm/page_cgroup.c)
+> 
+> for !NUMA
+>  start_pfn = ((&contig_page_data)->node_start_pfn);
+>   end_pfn = ({ pg_data_t *__pgdat = (&contig_page_data); __pgdat->node_start_pfn + __pgdat->node_spanned_pages;});
+> 
+> for NUMA (x86-64)
+>   start_pfn = ((node_data[nid])->node_start_pfn);
+>   end_pfn = ({ pg_data_t *__pgdat = (node_data[nid]); __pgdat->node_start_pfn + __pgdat->node_spanned_pages;});
+> 
+> 
+> Reported-by: Randy Dunlap <randy.dunlap@oracle.com>
+> Reported-by: Ingo Molnar <mingo@elte.hu>
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+
+Your patch solved all the build failures on x86 and on a couple of 
+cross-builds as well i tried:
+
+  Tested-by: Ingo Molnar <mingo@elte.hu>
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
