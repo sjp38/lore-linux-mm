@@ -1,93 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id E4FA26B011F
-	for <linux-mm@kvack.org>; Mon, 20 Jun 2011 12:38:38 -0400 (EDT)
-Date: Mon, 20 Jun 2011 18:38:25 +0200
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [BUGFIX][PATCH][-rc3] Define a consolidated definition of
- node_start/end_pfn for build error in page_cgroup.c (Was Re: mmotm
- 2011-06-15-16-56 uploaded (mm/page_cgroup.c)
-Message-ID: <20110620163825.GA10815@elte.hu>
-References: <201106160034.p5G0Y4dr028904@imap1.linux-foundation.org>
- <20110615214917.a7dce8e6.randy.dunlap@oracle.com>
- <20110616172819.1e2d325c.kamezawa.hiroyu@jp.fujitsu.com>
- <20110616103559.GA5244@suse.de>
- <20110617094628.aecf5ee1.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id A04029000BD
+	for <linux-mm@kvack.org>; Mon, 20 Jun 2011 12:50:39 -0400 (EDT)
+Date: Mon, 20 Jun 2011 18:50:35 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 1/3] mm: completely disable THP by
+ transparent_hugepage=never
+Message-ID: <20110620165035.GE20843@redhat.com>
+References: <1308587683-2555-1-git-send-email-amwang@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110617094628.aecf5ee1.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1308587683-2555-1-git-send-email-amwang@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Mel Gorman <mgorman@suse.de>, Randy Dunlap <randy.dunlap@oracle.com>, dave@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Amerigo Wang <amwang@redhat.com>
+Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Rik van Riel <riel@redhat.com>, Johannes Weiner <jweiner@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
 
+On Tue, Jun 21, 2011 at 12:34:28AM +0800, Amerigo Wang wrote:
+> transparent_hugepage=never should mean to disable THP completely,
+> otherwise we don't have a way to disable THP completely.
+> The design is broken.
 
-* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+We want to allow people to boot with transparent_hugepage=never but to
+still allow people to enable it later at runtime. Not sure why you
+find it broken... Your patch is just crippling down the feature with
+no gain. There is absolutely no gain to disallow root to enable THP
+later at runtime with sysfs, root can enable it anyway by writing into
+/dev/mem.
 
-> On Thu, 16 Jun 2011 11:35:59 +0100
-> Mel Gorman <mgorman@suse.de> wrote:
-> 
-> > A caller that does node_end_pfn(nid++) will get a nasty surprise
-> > due to side-effects. I know architectures currently get this wrong
-> > including x86_64 but we might as well fix it up now. The definition
-> > in arch/x86/include/asm/mmzone_32.h is immune to side-effects and
-> > might be a better choice despite the use of a temporary variable.
-> > 
-> 
-> Ok, here is a fixed one. Thank you for comments/review.
-> ==
-> >From 507cc95c5ba2351bff16c5421255d1395a3b555b Mon Sep 17 00:00:00 2001
-> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Date: Thu, 16 Jun 2011 17:28:07 +0900
-> Subject: [PATCH] Fix node_start/end_pfn() definition for mm/page_cgroup.c
-> 
-> commit 21a3c96 uses node_start/end_pfn(nid) for detection start/end
-> of nodes. But, it's not defined in linux/mmzone.h but defined in
-> /arch/???/include/mmzone.h which is included only under
-> CONFIG_NEED_MULTIPLE_NODES=y.
-> 
-> Then, we see
-> mm/page_cgroup.c: In function 'page_cgroup_init':
-> mm/page_cgroup.c:308: error: implicit declaration of function 'node_start_pfn'
-> mm/page_cgroup.c:309: error: implicit declaration of function 'node_end_pfn'
-> 
-> So, fixiing page_cgroup.c is an idea...
-
-s/fixing
+Unless you're root and you enable it, it's completely disabled, so I
+don't see what you mean it's not completely disabled. Not even
+khugepaged is started, try to grep of khugepaged... (that wouldn't be
+the same with ksm where ksm daemon runs even when it's off for no
+gain, but I explicitly solved the locking so khugepaged will go away
+when enabled=never and return when enabled=always).
 
 > 
-> But node_start_pfn()/node_end_pfn() is a very generic macro and
-> should be implemented in the same manner for all archs.
-> (m32r has different implementation...)
+> Signed-off-by: WANG Cong <amwang@redhat.com>
+> ---
+>  mm/huge_memory.c |   11 +++++++++--
+>  1 files changed, 9 insertions(+), 2 deletions(-)
 > 
-> This patch removes definitions of node_start/end_pfn() in each archs
-> and defines a unified one in linux/mmzone.h. It's not under
-> CONFIG_NEED_MULTIPLE_NODES, now.
-> 
-> A result of macro expansion is here (mm/page_cgroup.c)
-> 
-> for !NUMA
->  start_pfn = ((&contig_page_data)->node_start_pfn);
->   end_pfn = ({ pg_data_t *__pgdat = (&contig_page_data); __pgdat->node_start_pfn + __pgdat->node_spanned_pages;});
-> 
-> for NUMA (x86-64)
->   start_pfn = ((node_data[nid])->node_start_pfn);
->   end_pfn = ({ pg_data_t *__pgdat = (node_data[nid]); __pgdat->node_start_pfn + __pgdat->node_spanned_pages;});
-> 
-> 
-> Reported-by: Randy Dunlap <randy.dunlap@oracle.com>
-> Reported-by: Ingo Molnar <mingo@elte.hu>
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> index 81532f2..9c63c90 100644
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -488,19 +488,26 @@ static struct attribute_group khugepaged_attr_group = {
+>  };
+>  #endif /* CONFIG_SYSFS */
+>  
+> +#define hugepage_enabled()	khugepaged_enabled()
+> +
+>  static int __init hugepage_init(void)
+>  {
+> -	int err;
+> +	int err = 0;
+>  #ifdef CONFIG_SYSFS
+>  	static struct kobject *hugepage_kobj;
+>  #endif
+>  
+> -	err = -EINVAL;
+>  	if (!has_transparent_hugepage()) {
+> +		err = -EINVAL;
+>  		transparent_hugepage_flags = 0;
+>  		goto out;
 
-Your patch solved all the build failures on x86 and on a couple of 
-cross-builds as well i tried:
+Original error setting was better IMHO.
 
-  Tested-by: Ingo Molnar <mingo@elte.hu>
+>  	}
+>  
+> +	if (!hugepage_enabled()) {
+> +		printk(KERN_INFO "hugepage: totally disabled\n");
+> +		goto out;
+> +	}
+> +
+>  #ifdef CONFIG_SYSFS
+>  	err = -ENOMEM;
+>  	hugepage_kobj = kobject_create_and_add("transparent_hugepage", mm_kobj);
 
-Thanks,
-
-	Ingo
+Changing the initialization to "never" at boot, doesn't mean we must
+never allow it to be enabled again during the runtime of the kernel
+(by root with sysfs, which is certainly less error prone than doing
+that with /dev/mem), and there is no gain in preventing that.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
