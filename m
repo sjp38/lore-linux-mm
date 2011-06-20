@@ -1,76 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id D75726B0012
-	for <linux-mm@kvack.org>; Mon, 20 Jun 2011 06:46:57 -0400 (EDT)
-MIME-version: 1.0
-Content-transfer-encoding: 7BIT
-Content-type: text/plain; charset=utf-8
-Received: from eu_spt1 ([210.118.77.13]) by mailout3.w1.samsung.com
- (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
- with ESMTP id <0LN3008RY4M6YO00@mailout3.w1.samsung.com> for
- linux-mm@kvack.org; Mon, 20 Jun 2011 11:46:54 +0100 (BST)
-Received: from linux.samsung.com ([106.116.38.10])
- by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0LN3001QU4M5Z0@spt1.w1.samsung.com> for
- linux-mm@kvack.org; Mon, 20 Jun 2011 11:46:54 +0100 (BST)
-Date: Mon, 20 Jun 2011 12:46:50 +0200
-From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: RE: [PATCH 1/8] ARM: dma-mapping: remove offset parameter to prepare
- for generic dma_ops
-In-reply-to: <op.vxc8tmru3l0zgt@mnazarewicz-glaptop>
-Message-id: <000001cc2f37$5c5605f0$150211d0$%szyprowski@samsung.com>
-Content-language: pl
-References: <1308556213-24970-1-git-send-email-m.szyprowski@samsung.com>
- <1308556213-24970-2-git-send-email-m.szyprowski@samsung.com>
- <op.vxc8tmru3l0zgt@mnazarewicz-glaptop>
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 4462E6B0012
+	for <linux-mm@kvack.org>; Mon, 20 Jun 2011 07:04:45 -0400 (EDT)
+From: Frantisek Hrbata <fhrbata@redhat.com>
+Subject: [PATCH] oom: add uid to "Killed process" message
+Date: Mon, 20 Jun 2011 13:04:36 +0200
+Message-Id: <1308567876-23581-1-git-send-email-fhrbata@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Michal Nazarewicz' <mina86@mina86.com>, linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-arch@vger.kernel.org
-Cc: 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Arnd Bergmann' <arnd@arndb.de>, 'Joerg Roedel' <joro@8bytes.org>, 'Russell King - ARM Linux' <linux@arm.linux.org.uk>, Marek Szyprowski <m.szyprowski@samsung.com>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, CAI Qian <caiqian@redhat.com>, lwoodman@redhat.com
 
-Hello,
+Add user id to the oom killer's "Killed process" message, so the user of the
+killed process can be identified.
 
-On Monday, June 20, 2011 10:36 AM Michal Nazarewicz wrote:
+Signed-off-by: Frantisek Hrbata <fhrbata@redhat.com>
+---
+ mm/oom_kill.c |    5 +++--
+ 1 files changed, 3 insertions(+), 2 deletions(-)
 
-> On Mon, 20 Jun 2011 09:50:06 +0200, Marek Szyprowski
-> <m.szyprowski@samsung.com> wrote:
-> > +static inline void dma_sync_single_for_cpu(struct device *dev,
-> 
-> I wouldn't really put inline here or in the function below.
-> 
-> > +		dma_addr_t handle, size_t size, enum dma_data_direction dir)
-> > +{
-> > +	BUG_ON(!valid_dma_direction(dir));
-> > +
-> > +	debug_dma_sync_single_for_cpu(dev, handle, size, dir);
-> > +
-> > +	if (!dmabounce_sync_for_cpu(dev, handle, size, dir))
-> > +		return;
-> > +
-> > +	__dma_single_dev_to_cpu(dma_to_virt(dev, handle), size, dir);
-> 
-> I know it is just copy'n'paste but how about:
-
-This patch is just about moving the code between the files and I wanted just
-to show what's being changed and how. There is a final cleanup anyway in the
-separate patch. All these patches are meant to start the discussion about
-the way the dma mapping can be redesigned for further extensions with generic
-iommu support. 
-
-> 
-> 	if (dmabounce_sync_for_cpu(dev, handle, size, dir))
-> 		__dma_single_dev_to_cpu(dma_to_virt(dev, handle), size, dir);
-
-The above lines will be removed by the next patches in this series, so I
-really see no point in changing this.
-
-(snipped)
-
-Best regards
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index e4b0991..249a15a 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -427,8 +427,9 @@ static int oom_kill_task(struct task_struct *p, struct mem_cgroup *mem)
+ 	/* mm cannot be safely dereferenced after task_unlock(p) */
+ 	mm = p->mm;
+ 
+-	pr_err("Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB\n",
+-		task_pid_nr(p), p->comm, K(p->mm->total_vm),
++	pr_err("Killed process %d (%s) uid: %d, total-vm:%lukB, "
++		"anon-rss:%lukB, file-rss:%lukB\n",
++		task_pid_nr(p), p->comm, task_uid(p), K(p->mm->total_vm),
+ 		K(get_mm_counter(p->mm, MM_ANONPAGES)),
+ 		K(get_mm_counter(p->mm, MM_FILEPAGES)));
+ 	task_unlock(p);
 -- 
-Marek Szyprowski
-Samsung Poland R&D Center
-
+1.7.4.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
