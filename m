@@ -1,55 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 152A46B0012
-	for <linux-mm@kvack.org>; Mon, 20 Jun 2011 00:30:43 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 322733EE0B6
-	for <linux-mm@kvack.org>; Mon, 20 Jun 2011 13:30:36 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 147F445DE68
-	for <linux-mm@kvack.org>; Mon, 20 Jun 2011 13:30:36 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id EFE4745DE4D
-	for <linux-mm@kvack.org>; Mon, 20 Jun 2011 13:30:35 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id E41291DB8038
-	for <linux-mm@kvack.org>; Mon, 20 Jun 2011 13:30:35 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id AEBE21DB802C
-	for <linux-mm@kvack.org>; Mon, 20 Jun 2011 13:30:35 +0900 (JST)
-Message-ID: <4DFECCE5.5030409@jp.fujitsu.com>
-Date: Mon, 20 Jun 2011 13:30:29 +0900
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C58F6B0012
+	for <linux-mm@kvack.org>; Mon, 20 Jun 2011 01:11:27 -0400 (EDT)
+From: Bob Liu <lliubbo@gmail.com>
+Subject: [PATCH] nommu: reimplement remap_pfn_range() to simply return 0
+Date: Mon, 20 Jun 2011 13:22:13 +0800
+Message-ID: <1308547333-27413-1-git-send-email-lliubbo@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 02/12] vmscan: shrinker->nr updates race and go wrong
-References: <1306998067-27659-1-git-send-email-david@fromorbit.com> <1306998067-27659-3-git-send-email-david@fromorbit.com> <4DFE987E.1070900@jp.fujitsu.com> <20110620012531.GN561@dastard>
-In-Reply-To: <20110620012531.GN561@dastard>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: david@fromorbit.com
-Cc: linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, xfs@oss.sgi.com
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, gerg@snapgear.com, dhowells@redhat.com, lethal@linux-sh.org, gerg@uclinux.org, walken@google.com, daniel-gl@gmx.net, uclinux-dist-devel@blackfin.uclinux.org, geert@linux-m68k.org, Bob Liu <lliubbo@gmail.com>
 
->> Looks great fix. Please remove tracepoint change from this patch and send it
->> to -stable. iow, I expect I'll ack your next spin.
-> 
-> I don't believe such a change belongs in -stable. This code has been
-> buggy for many years and as I mentioned it actually makes existing
-> bad shrinker behaviour worse. I don't test stable kernels, so I've
-> got no idea what side effects it will have outside of this series.
-> I'm extremely hesitant to change VM behaviour in stable kernels
-> without having tested first, so I'm not going to push it for stable
-> kernels.
+Function remap_pfn_range() means map physical address pfn<<PAGE_SHIFT to
+user addr.
 
-Ok, I have no strong opinion.
+For nommu arch it's implemented by vma->vm_start = pfn << PAGE_SHIFT which is
+wrong acroding the original meaning of this function.
 
+Some driver developer using remap_pfn_range() with correct parameter will get
+unexpected result because vm_start is changed.
 
+It should be implementd just like addr = pfn << PAGE_SHIFT which is meanless
+on nommu arch, so this patch just make it simply return 0.
 
-> 
-> If you want it in stable kernels, then you can always let
-> stable@kernel.org know once the commits are in the mainline tree and
-> you've tested them...
+Reported-by: Scott Jiang <scott.jiang.linux@gmail.com>
+Signed-off-by: Bob Liu <lliubbo@gmail.com>
+---
+ include/linux/mm.h |   10 ++++++++++
+ mm/nommu.c         |    8 --------
+ 2 files changed, 10 insertions(+), 8 deletions(-)
+
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 9670f71..017c32f 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1526,8 +1526,18 @@ static inline pgprot_t vm_get_page_prot(unsigned long vm_flags)
+ #endif
+ 
+ struct vm_area_struct *find_extend_vma(struct mm_struct *, unsigned long addr);
++
++#ifdef CONFIG_MMU
+ int remap_pfn_range(struct vm_area_struct *, unsigned long addr,
+ 			unsigned long pfn, unsigned long size, pgprot_t);
++#else
++static inline int remap_pfn_range(struct vm_area_struct *vma, unsigned long addr,
++		unsigned long pfn, unsigned long size, pgprot_t prot)
++{
++	return 0;
++}
++#endif
++
+ int vm_insert_page(struct vm_area_struct *, unsigned long addr, struct page *);
+ int vm_insert_pfn(struct vm_area_struct *vma, unsigned long addr,
+ 			unsigned long pfn);
+diff --git a/mm/nommu.c b/mm/nommu.c
+index 1fd0c51..01cf6e0 100644
+--- a/mm/nommu.c
++++ b/mm/nommu.c
+@@ -1813,14 +1813,6 @@ struct page *follow_page(struct vm_area_struct *vma, unsigned long address,
+ 	return NULL;
+ }
+ 
+-int remap_pfn_range(struct vm_area_struct *vma, unsigned long from,
+-		unsigned long to, unsigned long size, pgprot_t prot)
+-{
+-	vma->vm_start = vma->vm_pgoff << PAGE_SHIFT;
+-	return 0;
+-}
+-EXPORT_SYMBOL(remap_pfn_range);
+-
+ int remap_vmalloc_range(struct vm_area_struct *vma, void *addr,
+ 			unsigned long pgoff)
+ {
+-- 
+1.6.3.3
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
