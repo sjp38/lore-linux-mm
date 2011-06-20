@@ -1,68 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 9D53D9000BD
-	for <linux-mm@kvack.org>; Mon, 20 Jun 2011 10:45:43 -0400 (EDT)
-Received: by gxk23 with SMTP id 23so593998gxk.14
-        for <linux-mm@kvack.org>; Mon, 20 Jun 2011 07:45:41 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <1308556213-24970-8-git-send-email-m.szyprowski@samsung.com>
-References: <1308556213-24970-1-git-send-email-m.szyprowski@samsung.com>
-	<1308556213-24970-8-git-send-email-m.szyprowski@samsung.com>
-Date: Mon, 20 Jun 2011 23:45:41 +0900
-Message-ID: <BANLkTikFdrOuXsLCfvyA_V+p7S_fd72dyQ@mail.gmail.com>
-Subject: Re: [PATCH 7/8] common: dma-mapping: change alloc/free_coherent
- method to more generic alloc/free_attrs
-From: KyongHo Cho <pullip.cho@samsung.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 047589000BD
+	for <linux-mm@kvack.org>; Mon, 20 Jun 2011 10:56:16 -0400 (EDT)
+Received: from d01relay06.pok.ibm.com (d01relay06.pok.ibm.com [9.56.227.116])
+	by e4.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p5KEYZV3004906
+	for <linux-mm@kvack.org>; Mon, 20 Jun 2011 10:34:35 -0400
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p5KEu3Vf507936
+	for <linux-mm@kvack.org>; Mon, 20 Jun 2011 10:56:03 -0400
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p5K8tMNB009929
+	for <linux-mm@kvack.org>; Mon, 20 Jun 2011 02:55:22 -0600
+Subject: Re: [PATCH] REPOST: Memory tracking for physical machine migration
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <20110610231850.6327.24452.sendpatchset@localhost.localdomain>
+References: <20110610231850.6327.24452.sendpatchset@localhost.localdomain>
+Content-Type: text/plain; charset="UTF-8"
+Date: Mon, 20 Jun 2011 07:55:41 -0700
+Message-ID: <1308581741.11430.222.camel@nimitz>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, Kyungmin Park <kyungmin.park@samsung.com>, Arnd Bergmann <arnd@arndb.de>, Joerg Roedel <joro@8bytes.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>
+To: Jim Paradis <james.paradis@stratus.com>
+Cc: linux-mm@kvack.org
 
-Hi.
-
-On Mon, Jun 20, 2011 at 4:50 PM, Marek Szyprowski
-<m.szyprowski@samsung.com> wrote:
-
-> =A0struct dma_map_ops {
-> - =A0 =A0 =A0 void* (*alloc_coherent)(struct device *dev, size_t size,
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 dma_addr_t =
-*dma_handle, gfp_t gfp);
-> - =A0 =A0 =A0 void (*free_coherent)(struct device *dev, size_t size,
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 void *vaddr, dm=
-a_addr_t dma_handle);
-> + =A0 =A0 =A0 void* (*alloc)(struct device *dev, size_t size,
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 dma_addr_t =
-*dma_handle, gfp_t gfp,
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 struct dma_=
-attrs *attrs);
-> + =A0 =A0 =A0 void (*free)(struct device *dev, size_t size,
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 void *vaddr, dm=
-a_addr_t dma_handle,
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 struct dma_attr=
-s *attrs);
-> + =A0 =A0 =A0 int (*mmap)(struct device *, struct vm_area_struct *,
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 void *, dma_addr_t, siz=
-e_t, struct dma_attrs *attrs);
+On Fri, 2011-06-10 at 19:19 -0400, Jim Paradis wrote:
+> diff --git a/arch/x86/mm/Makefile b/arch/x86/mm/Makefile
+> index 3e608ed..a416317 100644
+> --- a/arch/x86/mm/Makefile
+> +++ b/arch/x86/mm/Makefile
+> @@ -30,3 +30,5 @@ obj-$(CONFIG_NUMA_EMU)                += numa_emulation.o
+>  obj-$(CONFIG_HAVE_MEMBLOCK)            += memblock.o
+> 
+>  obj-$(CONFIG_MEMTEST)          += memtest.o
 > +
-> =A0 =A0 =A0 =A0dma_addr_t (*map_page)(struct device *dev, struct page *pa=
-ge,
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 unsigned long=
- offset, size_t size,
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 enum dma_data=
-_direction dir,
+> +obj-$(CONFIG_TRACK_DIRTY_PAGES)        += track.o 
 
-I still don't agree with your idea that change alloc_coherent() with alloc(=
-).
-As I said before, we actually do not need dma_alloc_writecombine() anymore
-because it is not different from dma_alloc_coherent() in ARM.
-Most of other architectures do not have dma_alloc_writecombine().
-If you want dma_alloc_coherent() to allocate user virtual address,
-I believe that it is also available with mmap() you introduced.
+FWIW, this is still having formatting problems.
 
-Regards,
-Cho KyongHo.
+You also forgot to include track.c, again.  Isn't that where the real
+meat of this patch lies?
+
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
