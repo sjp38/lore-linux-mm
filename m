@@ -1,204 +1,171 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 5F9B66B00EA
-	for <linux-mm@kvack.org>; Mon, 20 Jun 2011 09:12:27 -0400 (EDT)
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 58F7B6B00EE
+	for <linux-mm@kvack.org>; Mon, 20 Jun 2011 09:12:29 -0400 (EDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 00/14] Swap-over-NBD without deadlocking v5
-Date: Mon, 20 Jun 2011 14:12:06 +0100
-Message-Id: <1308575540-25219-1-git-send-email-mgorman@suse.de>
+Subject: [PATCH 06/14] net: Introduce sk_allocation() to allow addition of GFP flags depending on the individual socket
+Date: Mon, 20 Jun 2011 14:12:12 +0100
+Message-Id: <1308575540-25219-7-git-send-email-mgorman@suse.de>
+In-Reply-To: <1308575540-25219-1-git-send-email-mgorman@suse.de>
+References: <1308575540-25219-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Neil Brown <neilb@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mgorman@suse.de>
 
-Changelog since V4
-  o Update comment clarifying what protocols can be used		(Michal)
-  o Rebase to 3.0-rc3
+Introduce sk_allocation(), this function allows to inject sock specific
+flags to each sock related allocation. It is only used on allocation
+paths that may be required for writing pages back to network storage.
 
-Changelog since V3
-  o Propogate pfmemalloc from packet fragment pages to skb		(Neil)
-  o Rebase to 3.0-rc2
+Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Signed-off-by: Mel Gorman <mgorman@suse.de>
+---
+ include/net/sock.h    |    5 +++++
+ net/ipv4/tcp.c        |    3 ++-
+ net/ipv4/tcp_output.c |   13 +++++++------
+ net/ipv6/tcp_ipv6.c   |   12 +++++++++---
+ 4 files changed, 23 insertions(+), 10 deletions(-)
 
-Changelog since V2
-  o Document that __GFP_NOMEMALLOC overrides __GFP_MEMALLOC		(Neil)
-  o Use wait_event_interruptible					(Neil)
-  o Use !! when casting to bool to avoid any possibilitity of type
-    truncation								(Neil)
-  o Nicer logic when using skb_pfmemalloc_protocol			(Neil)
-
-Changelog since V1
-  o Rebase on top of mmotm
-  o Use atomic_t for memalloc_socks		(David Miller)
-  o Remove use of sk_memalloc_socks in vmscan	(Neil Brown)
-  o Check throttle within prepare_to_wait	(Neil Brown)
-  o Add statistics on throttling instead of printk
-
-Swapping over NBD is something that is technically possible but not
-often advised. While there are number of guides on the internet
-on how to configure it and nbd-client supports a -swap switch to
-"prevent deadlocks", the fact of the matter is a machine using NBD
-for swap can be locked up within minutes if swap is used intensively.
-
-The problem is that network block devices do not use mempools like
-normal block devices do. As the host cannot control where they receive
-packets from, they cannot reliably work out in advance how much memory
-they might need.
-
-Some years ago, Peter Ziljstra developed a series of patches that
-supported swap over an NFS that some distributions are carrying in
-their kernels. This patch series borrows very heavily from Peter's work
-to support swapping over NBD (the relatively straight-forward case)
-and uses throttling instead of dynamically resized memory reserves
-so the series is not too unwieldy for review.
-
-Patch 1 serialises access to min_free_kbytes. It's not strictly needed
-	by this series but as the series cares about watermarks in
-	general, it's a harmless fix. It could be merged independently.
-
-Patch 2 adds knowledge of the PFMEMALLOC reserves to SLAB and SLUB to
-	preserve access to pages allocated under low memory situations
-	to callers that are freeying memory.
-
-Patch 3 introduces __GFP_MEMALLOC to allow access to the PFMEMALLOC
-	reserves without setting PFMEMALLOC.
-
-Patch 4 opens the possibility for softirqs to use PFMEMALLOC reserves
-	for later use by network packet processing.
-
-Patch 5 ignores memory policies when ALLOC_NO_WATERMARKS is set.
-
-Patches 6-10 allows network processing to use PFMEMALLOC reserves when
-	the socket has been marked as being used by the VM to clean
-	pages. If packets are received and stored in pages that were
-	allocated under low-memory situations and are unrelated to
-	the VM, the packets are dropped.
-
-Patch 11 is a micro-optimisation to avoid a function call in the
-	common case.
-
-Patch 12 tags NBD sockets as being SOCK_MEMALLOC so they can use
-	PFMEMALLOC if necessary.
-
-Patch 13 notes that it is still possible for the PFMEMALLOC reserve
-	to be depleted. To prevent this, direct reclaimers get
-	throttled on a waitqueue if 50% of the PFMEMALLOC reserves are
-	depleted.  It is expected that kswapd and the direct reclaimers
-	already running will clean enough pages for the low watermark
-	to be reached and the throttled processes are woken up.
-
-Patch 14 adds a statistic to track how often processes get throttled
-
-Some basic performance testing was run using kernel builds, netperf
-on loopback for UDP and TCP, hackbench (pipes and sockets), iozone
-and sysbench. Each of them were expected to use the sl*b allocators
-reasonably heavily but there did not appear to be significant
-performance variances. Here is the results from netperf using
-slab as an example
-
-NETPERF UDP
-      64   237.47 ( 0.00%)    237.34 (-0.05%) 
-     128   472.69 ( 0.00%)    465.96 (-1.44%) 
-     256   926.82 ( 0.00%)    948.40 ( 2.28%) 
-    1024  3260.08 ( 0.00%)   3266.50 ( 0.20%) 
-    2048  5535.11 ( 0.00%)   5453.55 (-1.50%) 
-    3312  7496.60 ( 0.00%)*  7574.44 ( 1.03%) 
-             1.12%             1.00%        
-    4096  8266.35 ( 0.00%)*  8240.06 (-0.32%)*
-             1.18%             1.49%        
-    8192 11026.01 ( 0.00%)  11010.44 (-0.14%) 
-   16384 14653.98 ( 0.00%)  14666.97 ( 0.09%) 
-MMTests Statistics: duration
-User/Sys Time Running Test (seconds)       2156.64   1873.27
-Total Elapsed Time (seconds)               2570.09   2234.10
-
-NETPERF TCP
-                   netperf-tcp       tcp-swapnbd
-                  vanilla-slab         v4r3-slab
-      64  1250.76 ( 0.00%)   1256.52 ( 0.46%) 
-     128  2290.70 ( 0.00%)   2336.43 ( 1.96%) 
-     256  3668.42 ( 0.00%)   3751.17 ( 2.21%) 
-    1024  7214.33 ( 0.00%)   7237.23 ( 0.32%) 
-    2048  8230.01 ( 0.00%)   8280.02 ( 0.60%) 
-    3312  8634.95 ( 0.00%)   8758.62 ( 1.41%) 
-    4096  8851.18 ( 0.00%)   9045.88 ( 2.15%) 
-    8192 10067.59 ( 0.00%)  10263.30 ( 1.91%) 
-   16384 11523.26 ( 0.00%)  11654.78 ( 1.13%) 
-MMTests Statistics: duration
-User/Sys Time Running Test (seconds)       1450.23    1389.8
-Total Elapsed Time (seconds)               1450.41   1390.35
-
-Here is the equivalent test for SLUB
-
-                   netperf-udp       udp-swapnbd
-                  vanilla-slub         v4r3-slub
-      64   235.33 ( 0.00%)    237.80 ( 1.04%) 
-     128   465.92 ( 0.00%)    469.98 ( 0.86%) 
-     256   907.16 ( 0.00%)    907.58 ( 0.05%) 
-    1024  3240.25 ( 0.00%)   3255.56 ( 0.47%) 
-    2048  5564.87 ( 0.00%)   5446.46 (-2.17%) 
-    3312  7427.65 ( 0.00%)*  7650.00 ( 2.91%) 
-             1.33%             1.00%        
-    4096  8004.51 ( 0.00%)*  8132.79 ( 1.58%)*
-             1.05%             1.21%        
-    8192 11079.60 ( 0.00%)  10927.09 (-1.40%) 
-   16384 14737.38 ( 0.00%)  15019.50 ( 1.88%) 
-MMTests Statistics: duration
-User/Sys Time Running Test (seconds)       2056.21   2160.38
-Total Elapsed Time (seconds)               2426.09   2498.16
-
-NETPERF TCP
-                   netperf-tcp       tcp-swapnbd
-                  vanilla-slub         v4r3-slub
-      64  1251.64 ( 0.00%)   1262.89 ( 0.89%) 
-     128  2289.88 ( 0.00%)   2332.94 ( 1.85%) 
-     256  3654.34 ( 0.00%)   3736.48 ( 2.20%) 
-    1024  7192.47 ( 0.00%)   7286.96 ( 1.30%) 
-    2048  8243.55 ( 0.00%)   8291.50 ( 0.58%) 
-    3312  8664.16 ( 0.00%)   8799.88 ( 1.54%) 
-    4096  8869.13 ( 0.00%)   9018.12 ( 1.65%) 
-    8192 10009.53 ( 0.00%)  10214.26 ( 2.00%) 
-   16384 11470.78 ( 0.00%)  11685.20 ( 1.83%) 
-MMTests Statistics: duration
-User/Sys Time Running Test (seconds)       1368.28   1511.81
-Total Elapsed Time (seconds)               1370.33   1510.42
-
-Time to completion varied a lot but this can happen with netperf as
-it tries to find results within a sufficiently high confidence. There
-were some small gains and losses but they are close to the variances
-seen between kernel releases.
-
-For testing swap-over-NBD, a machine was booted with 2G of RAM with a
-swapfile backed by NBD. 8*NUM_CPU processes were started that create
-anonymous memory mappings and read them linearly in a loop. The total
-size of the mappings were 4*PHYSICAL_MEMORY to use swap heavily under
-memory pressure. Without the patches, the machine locks up within
-minutes and runs to completion with them applied.
-
- drivers/block/nbd.c             |    7 +-
- include/linux/gfp.h             |   13 ++-
- include/linux/mm_types.h        |    8 ++
- include/linux/mmzone.h          |    1 +
- include/linux/sched.h           |    7 +
- include/linux/skbuff.h          |   21 +++-
- include/linux/slub_def.h        |    1 +
- include/linux/vm_event_item.h   |    1 +
- include/net/sock.h              |   19 +++
- include/trace/events/gfpflags.h |    1 +
- kernel/softirq.c                |    3 +
- mm/page_alloc.c                 |   57 +++++++--
- mm/slab.c                       |  240 +++++++++++++++++++++++++++++++++------
- mm/slub.c                       |   33 +++++-
- mm/vmscan.c                     |   55 +++++++++
- mm/vmstat.c                     |    1 +
- net/core/dev.c                  |   48 +++++++-
- net/core/filter.c               |    8 ++
- net/core/skbuff.c               |   95 +++++++++++++---
- net/core/sock.c                 |   42 +++++++
- net/ipv4/tcp.c                  |    3 +-
- net/ipv4/tcp_output.c           |   13 +-
- net/ipv6/tcp_ipv6.c             |   12 ++-
- 23 files changed, 602 insertions(+), 87 deletions(-)
-
+diff --git a/include/net/sock.h b/include/net/sock.h
+index f2046e4..e89c38f 100644
+--- a/include/net/sock.h
++++ b/include/net/sock.h
+@@ -585,6 +585,11 @@ static inline int sock_flag(struct sock *sk, enum sock_flags flag)
+ 	return test_bit(flag, &sk->sk_flags);
+ }
+ 
++static inline gfp_t sk_allocation(struct sock *sk, gfp_t gfp_mask)
++{
++	return gfp_mask;
++}
++
+ static inline void sk_acceptq_removed(struct sock *sk)
+ {
+ 	sk->sk_ack_backlog--;
+diff --git a/net/ipv4/tcp.c b/net/ipv4/tcp.c
+index 054a59d..8c1a9d5 100644
+--- a/net/ipv4/tcp.c
++++ b/net/ipv4/tcp.c
+@@ -698,7 +698,8 @@ struct sk_buff *sk_stream_alloc_skb(struct sock *sk, int size, gfp_t gfp)
+ 	/* The TCP header must be at least 32-bit aligned.  */
+ 	size = ALIGN(size, 4);
+ 
+-	skb = alloc_skb_fclone(size + sk->sk_prot->max_header, gfp);
++	skb = alloc_skb_fclone(size + sk->sk_prot->max_header,
++			       sk_allocation(sk, gfp));
+ 	if (skb) {
+ 		if (sk_wmem_schedule(sk, skb->truesize)) {
+ 			/*
+diff --git a/net/ipv4/tcp_output.c b/net/ipv4/tcp_output.c
+index 882e0b0..87b98f6 100644
+--- a/net/ipv4/tcp_output.c
++++ b/net/ipv4/tcp_output.c
+@@ -2324,7 +2324,7 @@ void tcp_send_fin(struct sock *sk)
+ 		/* Socket is locked, keep trying until memory is available. */
+ 		for (;;) {
+ 			skb = alloc_skb_fclone(MAX_TCP_HEADER,
+-					       sk->sk_allocation);
++					       sk_allocation(sk, GFP_KERNEL));
+ 			if (skb)
+ 				break;
+ 			yield();
+@@ -2350,7 +2350,7 @@ void tcp_send_active_reset(struct sock *sk, gfp_t priority)
+ 	struct sk_buff *skb;
+ 
+ 	/* NOTE: No TCP options attached and we never retransmit this. */
+-	skb = alloc_skb(MAX_TCP_HEADER, priority);
++	skb = alloc_skb(MAX_TCP_HEADER, sk_allocation(sk, priority));
+ 	if (!skb) {
+ 		NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPABORTFAILED);
+ 		return;
+@@ -2423,7 +2423,8 @@ struct sk_buff *tcp_make_synack(struct sock *sk, struct dst_entry *dst,
+ 
+ 	if (cvp != NULL && cvp->s_data_constant && cvp->s_data_desired)
+ 		s_data_desired = cvp->s_data_desired;
+-	skb = sock_wmalloc(sk, MAX_TCP_HEADER + 15 + s_data_desired, 1, GFP_ATOMIC);
++	skb = sock_wmalloc(sk, MAX_TCP_HEADER + 15 + s_data_desired, 1,
++					sk_allocation(sk, GFP_ATOMIC));
+ 	if (skb == NULL)
+ 		return NULL;
+ 
+@@ -2719,7 +2720,7 @@ void tcp_send_ack(struct sock *sk)
+ 	 * tcp_transmit_skb() will set the ownership to this
+ 	 * sock.
+ 	 */
+-	buff = alloc_skb(MAX_TCP_HEADER, GFP_ATOMIC);
++	buff = alloc_skb(MAX_TCP_HEADER, sk_allocation(sk, GFP_ATOMIC));
+ 	if (buff == NULL) {
+ 		inet_csk_schedule_ack(sk);
+ 		inet_csk(sk)->icsk_ack.ato = TCP_ATO_MIN;
+@@ -2734,7 +2735,7 @@ void tcp_send_ack(struct sock *sk)
+ 
+ 	/* Send it off, this clears delayed acks for us. */
+ 	TCP_SKB_CB(buff)->when = tcp_time_stamp;
+-	tcp_transmit_skb(sk, buff, 0, GFP_ATOMIC);
++	tcp_transmit_skb(sk, buff, 0, sk_allocation(sk, GFP_ATOMIC));
+ }
+ 
+ /* This routine sends a packet with an out of date sequence
+@@ -2754,7 +2755,7 @@ static int tcp_xmit_probe_skb(struct sock *sk, int urgent)
+ 	struct sk_buff *skb;
+ 
+ 	/* We don't queue it, tcp_transmit_skb() sets ownership. */
+-	skb = alloc_skb(MAX_TCP_HEADER, GFP_ATOMIC);
++	skb = alloc_skb(MAX_TCP_HEADER, sk_allocation(sk, GFP_ATOMIC));
+ 	if (skb == NULL)
+ 		return -1;
+ 
+diff --git a/net/ipv6/tcp_ipv6.c b/net/ipv6/tcp_ipv6.c
+index d1fd287..62bc424 100644
+--- a/net/ipv6/tcp_ipv6.c
++++ b/net/ipv6/tcp_ipv6.c
+@@ -597,7 +597,8 @@ static int tcp_v6_md5_do_add(struct sock *sk, const struct in6_addr *peer,
+ 	} else {
+ 		/* reallocate new list if current one is full. */
+ 		if (!tp->md5sig_info) {
+-			tp->md5sig_info = kzalloc(sizeof(*tp->md5sig_info), GFP_ATOMIC);
++			tp->md5sig_info = kzalloc(sizeof(*tp->md5sig_info),
++					sk_allocation(sk, GFP_ATOMIC));
+ 			if (!tp->md5sig_info) {
+ 				kfree(newkey);
+ 				return -ENOMEM;
+@@ -610,7 +611,8 @@ static int tcp_v6_md5_do_add(struct sock *sk, const struct in6_addr *peer,
+ 		}
+ 		if (tp->md5sig_info->alloced6 == tp->md5sig_info->entries6) {
+ 			keys = kmalloc((sizeof (tp->md5sig_info->keys6[0]) *
+-				       (tp->md5sig_info->entries6 + 1)), GFP_ATOMIC);
++				       (tp->md5sig_info->entries6 + 1)),
++				       sk_allocation(sk, GFP_ATOMIC));
+ 
+ 			if (!keys) {
+ 				tcp_free_md5sig_pool();
+@@ -734,7 +736,8 @@ static int tcp_v6_parse_md5_keys (struct sock *sk, char __user *optval,
+ 		struct tcp_sock *tp = tcp_sk(sk);
+ 		struct tcp_md5sig_info *p;
+ 
+-		p = kzalloc(sizeof(struct tcp_md5sig_info), GFP_KERNEL);
++		p = kzalloc(sizeof(struct tcp_md5sig_info),
++				   sk_allocation(sk, GFP_KERNEL));
+ 		if (!p)
+ 			return -ENOMEM;
+ 
+@@ -1084,6 +1087,7 @@ static void tcp_v6_send_reset(struct sock *sk, struct sk_buff *skb)
+ 	struct tcphdr *th = tcp_hdr(skb);
+ 	u32 seq = 0, ack_seq = 0;
+ 	struct tcp_md5sig_key *key = NULL;
++	gfp_t gfp_mask = GFP_ATOMIC;
+ 
+ 	if (th->rst)
+ 		return;
+@@ -1095,6 +1099,8 @@ static void tcp_v6_send_reset(struct sock *sk, struct sk_buff *skb)
+ 	if (sk)
+ 		key = tcp_v6_md5_do_lookup(sk, &ipv6_hdr(skb)->daddr);
+ #endif
++	if (sk)
++		gfp_mask = sk_allocation(sk, gfp_mask);
+ 
+ 	if (th->ack)
+ 		seq = ntohl(th->ack_seq);
 -- 
 1.7.3.4
 
