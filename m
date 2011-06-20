@@ -1,43 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 02D029000BD
-	for <linux-mm@kvack.org>; Mon, 20 Jun 2011 13:16:36 -0400 (EDT)
-Message-ID: <4DFF8050.9070201@redhat.com>
-Date: Tue, 21 Jun 2011 01:16:00 +0800
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id CA89F9000BD
+	for <linux-mm@kvack.org>; Mon, 20 Jun 2011 13:19:09 -0400 (EDT)
+Message-ID: <4DFF8106.8090702@redhat.com>
+Date: Tue, 21 Jun 2011 01:19:02 +0800
 From: Cong Wang <amwang@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/3] mm: make the threshold of enabling THP configurable
-References: <1308587683-2555-1-git-send-email-amwang@redhat.com> <1308587683-2555-2-git-send-email-amwang@redhat.com> <20110620165955.GB9396@suse.de>
-In-Reply-To: <20110620165955.GB9396@suse.de>
+Subject: Re: [PATCH 1/3] mm: completely disable THP by transparent_hugepage=never
+References: <1308587683-2555-1-git-send-email-amwang@redhat.com> <20110620165844.GA9396@suse.de> <4DFF7E3B.1040404@redhat.com> <4DFF7F0A.8090604@redhat.com>
+In-Reply-To: <4DFF7F0A.8090604@redhat.com>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
+To: Rik van Riel <riel@redhat.com>
+Cc: Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
 
-ao? 2011a1'06ae??21ae?JPY 00:59, Mel Gorman a??e??:
-> On Tue, Jun 21, 2011 at 12:34:29AM +0800, Amerigo Wang wrote:
->> Don't hard-code 512M as the threshold in kernel, make it configruable,
->> and set 512M by default.
+ao? 2011a1'06ae??21ae?JPY 01:10, Rik van Riel a??e??:
+> On 06/20/2011 01:07 PM, Cong Wang wrote:
+>> ao? 2011a1'06ae??21ae?JPY 00:58, Mel Gorman a??e??:
+>>> On Tue, Jun 21, 2011 at 12:34:28AM +0800, Amerigo Wang wrote:
+>>>> transparent_hugepage=never should mean to disable THP completely,
+>>>> otherwise we don't have a way to disable THP completely.
+>>>> The design is broken.
+>>>>
+>>>
+>>> I don't get why it's broken. Why would the user be prevented from
+>>> enabling it at runtime?
+>>>
 >>
+>> We need to a way to totally disable it, right? Otherwise, when I configure
+>> THP in .config, I always have THP initialized even when I pass "=never".
+>>
+>> For me, if you don't provide such way to disable it, it is not flexible.
+>>
+>> I meet this problem when I try to disable THP in kdump kernel, there is
+>> no user of THP in kdump kernel, THP is a waste for kdump kernel. This is
+>> why I need to find a way to totally disable it.
 >
-> I'm not seeing the gain here either. This is something that is going to
-> be set by distributions and probably never by users. If the default of
-> 512 is incorrect, what should it be? Also, the Kconfig help message has
-> spelling errors.
+> What you have not explained yet is why having THP
+> halfway initialized (but not used, and without a
+> khugepaged thread) is a problem at all.
 >
+> Why is it a problem for you?
 
-Sorry for spelling errors, I am not an English speaker.
-
-Hard-coding is almost never a good thing in kernel, enforcing 512
-is not good either. Since the default is still 512, I don't think this
-will affect much users.
-
-I do agree to improve the help message, like Dave mentioned in his reply,
-but I don't like enforcing a hard-coded number in kernel.
-
-BTW, why do you think 512 is suitable for *all* users?
+It occupies some memory, memory is valuable in kdump kernel (usually
+only 128M). :) Since I am sure no one will use it, why do I still need
+to initialize it at all?
 
 Thanks.
 
