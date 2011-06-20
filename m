@@ -1,71 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id F1D039000BD
-	for <linux-mm@kvack.org>; Mon, 20 Jun 2011 10:59:51 -0400 (EDT)
-MIME-version: 1.0
-Content-transfer-encoding: 7BIT
-Content-type: text/plain; charset=us-ascii
-Received: from eu_spt1 ([210.118.77.14]) by mailout4.w1.samsung.com
- (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
- with ESMTP id <0LN30080OGBOVY10@mailout4.w1.samsung.com> for
- linux-mm@kvack.org; Mon, 20 Jun 2011 15:59:49 +0100 (BST)
-Received: from linux.samsung.com ([106.116.38.10])
- by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0LN30020CGBN7F@spt1.w1.samsung.com> for
- linux-mm@kvack.org; Mon, 20 Jun 2011 15:59:48 +0100 (BST)
-Date: Mon, 20 Jun 2011 16:59:44 +0200
-From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: RE: [RFC 0/2] ARM: DMA-mapping & IOMMU integration
-In-reply-to: <4DFF59BB.100@gmail.com>
-Message-id: <000001cc2f5a$b0f1a3d0$12d4eb70$%szyprowski@samsung.com>
-Content-language: pl
-References: <1306308920-8602-1-git-send-email-m.szyprowski@samsung.com>
- <4DFF59BB.100@gmail.com>
+	by kanga.kvack.org (Postfix) with ESMTP id CE3309000BD
+	for <linux-mm@kvack.org>; Mon, 20 Jun 2011 11:07:00 -0400 (EDT)
+Date: Mon, 20 Jun 2011 16:06:10 +0100
+From: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Subject: Re: [PATCH 7/8] common: dma-mapping: change alloc/free_coherent
+	method to more generic alloc/free_attrs
+Message-ID: <20110620150610.GG26089@n2100.arm.linux.org.uk>
+References: <1308556213-24970-1-git-send-email-m.szyprowski@samsung.com> <1308556213-24970-8-git-send-email-m.szyprowski@samsung.com> <BANLkTikFdrOuXsLCfvyA_V+p7S_fd72dyQ@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <BANLkTikFdrOuXsLCfvyA_V+p7S_fd72dyQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Subash Patel' <subashrp@gmail.com>
-Cc: linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Russell King - ARM Linux' <linux@arm.linux.org.uk>, 'Joerg Roedel' <joro@8bytes.org>, 'Arnd Bergmann' <arnd@arndb.de>, Marek Szyprowski <m.szyprowski@samsung.com>
+To: KyongHo Cho <pullip.cho@samsung.com>
+Cc: Marek Szyprowski <m.szyprowski@samsung.com>, linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, Kyungmin Park <kyungmin.park@samsung.com>, Arnd Bergmann <arnd@arndb.de>, Joerg Roedel <joro@8bytes.org>
 
-Hello,
+On Mon, Jun 20, 2011 at 11:45:41PM +0900, KyongHo Cho wrote:
+> I still don't agree with your idea that change alloc_coherent() with alloc().
+> As I said before, we actually do not need dma_alloc_writecombine() anymore
+> because it is not different from dma_alloc_coherent() in ARM.
 
-On Monday, June 20, 2011 4:31 PM Subash Patel wrote:
+Wrong - there is a difference.  For pre-ARMv6 CPUs, it returns memory
+with different attributes from DMA coherent memory.
 
-> In function:
-> dma_alloc_coherent()->arm_iommu_alloc_attrs()->__iommu_alloc_buffer()
-> 
-> I have following questions:
-> 
-> a) Before we come to this point, we would have enabled SYSMMU in a call
-> to arm_iommu_init(). Shouldnt the SYSMMU be enabled after call to
-> __iommu_alloc_buffer(), but before __iommu_create_mapping()? If in case
-> the __iommu_alloc_buffer() fails, we dont disable the SYSMMU.
-
-I want to move enabling and disabling SYSMMU completely to the runtime_pm
-framework. As You can notice, the updated SYSMMU driver automatically
-becomes a parent of respective multimedia device and a child of the power
-domain to which both belongs. This means that sysmmu will operate only
-when multimedia device is enabled, what really makes sense. The sysmmu
-driver will need to be updated not to poke into the registers if it is
-disabled, but this should be really trivial change.
-
-> b) For huge buffer sizes, the pressure on SYSMMU would be very high.
-> Cant we have option to dictate the page size for the IOMMU from driver
-> in such cases? Should it always be the size of system pages?
-
-This was just a first version of dma-mapping and IOMMU integration, just
-to show the development road and start the discussion. Of course in the
-final version support for pages larger than 4KiB is highly expected. We
-can even reuse the recently posted CMA to allocate large pages for IOMMU
-to improve the performance and make sure that the framework will be able
-to allocate such pages even if the device is running for long time and 
-memory got fragmented by typically movable pages.
-
-Best regards
--- 
-Marek Szyprowski
-Samsung Poland R&D Center
-
-
+And we're not going to sweep away pre-ARMv6 CPUs any time soon.  So
+you can't ignore dma_alloc_writecombine() which must remain to sanely
+support framebuffers.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
