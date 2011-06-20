@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id D2A676B00EE
-	for <linux-mm@kvack.org>; Mon, 20 Jun 2011 09:12:30 -0400 (EDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id B822D6B00F3
+	for <linux-mm@kvack.org>; Mon, 20 Jun 2011 09:12:31 -0400 (EDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 07/14] netvm: Allow the use of __GFP_MEMALLOC by specific sockets
-Date: Mon, 20 Jun 2011 14:12:13 +0100
-Message-Id: <1308575540-25219-8-git-send-email-mgorman@suse.de>
+Subject: [PATCH 04/14] mm: allow PF_MEMALLOC from softirq context
+Date: Mon, 20 Jun 2011 14:12:10 +0100
+Message-Id: <1308575540-25219-5-git-send-email-mgorman@suse.de>
 In-Reply-To: <1308575540-25219-1-git-send-email-mgorman@suse.de>
 References: <1308575540-25219-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -13,86 +13,89 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Neil Brown <neilb@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mgorman@suse.de>
 
-Allow specific sockets to be tagged SOCK_MEMALLOC and use __GFP_MEMALLOC
-for their allocations. These sockets will be able to go below watermarks
-and allocate from the emergency reserve. Such sockets are to be used
-to service the VM (iow. to swap over). They must be handled kernel side,
-exposing such a socket to user-space is a bug.
+This is needed to allow network softirq packet processing to make use
+of PF_MEMALLOC.
 
-There is a risk that the reserves be depleted so for now, the administrator is
-responsible for increasing min_free_kbytes as necessary to prevent deadlock
-for their workloads.
+Currently softirq context cannot use PF_MEMALLOC due to it not being
+associated with a task, and therefore not having task flags to fiddle with -
+thus the gfp to alloc flag mapping ignores the task flags when in interrupts
+(hard or soft) context.
 
-[a.p.zijlstra@chello.nl: Original patches]
+Allowing softirqs to make use of PF_MEMALLOC therefore requires some trickery.
+We basically borrow the task flags from whatever process happens to be
+preempted by the softirq.
+
+So we modify the gfp to alloc flags mapping to not exclude task flags in
+softirq context, and modify the softirq code to save, clear and restore
+the PF_MEMALLOC flag.
+
+The save and clear, ensures the preempted task's PF_MEMALLOC flag doesn't
+leak into the softirq. The restore ensures a softirq's PF_MEMALLOC flag
+cannot leak back into the preempted process.
+
+Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- include/net/sock.h |    5 ++++-
- net/core/sock.c    |   22 ++++++++++++++++++++++
- 2 files changed, 26 insertions(+), 1 deletions(-)
+ include/linux/sched.h |    7 +++++++
+ kernel/softirq.c      |    3 +++
+ mm/page_alloc.c       |    5 ++++-
+ 3 files changed, 14 insertions(+), 1 deletions(-)
 
-diff --git a/include/net/sock.h b/include/net/sock.h
-index e89c38f..046bc97 100644
---- a/include/net/sock.h
-+++ b/include/net/sock.h
-@@ -554,6 +554,7 @@ enum sock_flags {
- 	SOCK_RCVTSTAMPNS, /* %SO_TIMESTAMPNS setting */
- 	SOCK_LOCALROUTE, /* route locally only, %SO_DONTROUTE setting */
- 	SOCK_QUEUE_SHRUNK, /* write queue has been shrunk recently */
-+	SOCK_MEMALLOC, /* VM depends on this socket for swapping */
- 	SOCK_TIMESTAMPING_TX_HARDWARE,  /* %SOF_TIMESTAMPING_TX_HARDWARE */
- 	SOCK_TIMESTAMPING_TX_SOFTWARE,  /* %SOF_TIMESTAMPING_TX_SOFTWARE */
- 	SOCK_TIMESTAMPING_RX_HARDWARE,  /* %SOF_TIMESTAMPING_RX_HARDWARE */
-@@ -587,7 +588,7 @@ static inline int sock_flag(struct sock *sk, enum sock_flags flag)
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index a837b20..7089cf1 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -1841,6 +1841,13 @@ static inline void rcu_copy_process(struct task_struct *p)
  
- static inline gfp_t sk_allocation(struct sock *sk, gfp_t gfp_mask)
- {
--	return gfp_mask;
-+	return gfp_mask | (sk->sk_allocation & __GFP_MEMALLOC);
+ #endif
+ 
++static inline void tsk_restore_flags(struct task_struct *p,
++				     unsigned long pflags, unsigned long mask)
++{
++	p->flags &= ~mask;
++	p->flags |= pflags & mask;
++}
++
+ #ifdef CONFIG_SMP
+ extern void do_set_cpus_allowed(struct task_struct *p,
+ 			       const struct cpumask *new_mask);
+diff --git a/kernel/softirq.c b/kernel/softirq.c
+index 1396017..2817c27 100644
+--- a/kernel/softirq.c
++++ b/kernel/softirq.c
+@@ -210,6 +210,8 @@ asmlinkage void __do_softirq(void)
+ 	__u32 pending;
+ 	int max_restart = MAX_SOFTIRQ_RESTART;
+ 	int cpu;
++	unsigned long pflags = current->flags;
++	current->flags &= ~PF_MEMALLOC;
+ 
+ 	pending = local_softirq_pending();
+ 	account_system_vtime(current);
+@@ -265,6 +267,7 @@ restart:
+ 
+ 	account_system_vtime(current);
+ 	__local_bh_enable(SOFTIRQ_OFFSET);
++	tsk_restore_flags(current, pflags, PF_MEMALLOC);
  }
  
- static inline void sk_acceptq_removed(struct sock *sk)
-@@ -717,6 +718,8 @@ extern int sk_stream_wait_memory(struct sock *sk, long *timeo_p);
- extern void sk_stream_wait_close(struct sock *sk, long timeo_p);
- extern int sk_stream_error(struct sock *sk, int flags, int err);
- extern void sk_stream_kill_queues(struct sock *sk);
-+extern void sk_set_memalloc(struct sock *sk);
-+extern void sk_clear_memalloc(struct sock *sk);
+ #ifndef __ARCH_HAS_DO_SOFTIRQ
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 27043e7..4e19606 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2046,7 +2046,10 @@ gfp_to_alloc_flags(gfp_t gfp_mask)
+ 	if (likely(!(gfp_mask & __GFP_NOMEMALLOC))) {
+ 		if (gfp_mask & __GFP_MEMALLOC)
+ 			alloc_flags |= ALLOC_NO_WATERMARKS;
+-		else if (likely(!(gfp_mask & __GFP_NOMEMALLOC)) && !in_interrupt())
++		else if (!in_irq() && (current->flags & PF_MEMALLOC))
++			alloc_flags |= ALLOC_NO_WATERMARKS;
++		else if (!in_interrupt() &&
++				unlikely(test_thread_flag(TIF_MEMDIE)))
+ 			alloc_flags |= ALLOC_NO_WATERMARKS;
+ 	}
  
- extern int sk_wait_data(struct sock *sk, long *timeo);
- 
-diff --git a/net/core/sock.c b/net/core/sock.c
-index 6e81978..c685eda 100644
---- a/net/core/sock.c
-+++ b/net/core/sock.c
-@@ -219,6 +219,28 @@ __u32 sysctl_rmem_default __read_mostly = SK_RMEM_MAX;
- int sysctl_optmem_max __read_mostly = sizeof(unsigned long)*(2*UIO_MAXIOV+512);
- EXPORT_SYMBOL(sysctl_optmem_max);
- 
-+/**
-+ * sk_set_memalloc - sets %SOCK_MEMALLOC
-+ * @sk: socket to set it on
-+ *
-+ * Set %SOCK_MEMALLOC on a socket for access to emergency reserves.
-+ * It's the responsibility of the admin to adjust min_free_kbytes
-+ * to meet the requirements
-+ */
-+void sk_set_memalloc(struct sock *sk)
-+{
-+	sock_set_flag(sk, SOCK_MEMALLOC);
-+	sk->sk_allocation |= __GFP_MEMALLOC;
-+}
-+EXPORT_SYMBOL_GPL(sk_set_memalloc);
-+
-+void sk_clear_memalloc(struct sock *sk)
-+{
-+	sock_reset_flag(sk, SOCK_MEMALLOC);
-+	sk->sk_allocation &= ~__GFP_MEMALLOC;
-+}
-+EXPORT_SYMBOL_GPL(sk_clear_memalloc);
-+
- #if defined(CONFIG_CGROUPS) && !defined(CONFIG_NET_CLS_CGROUP)
- int net_cls_subsys_id = -1;
- EXPORT_SYMBOL_GPL(net_cls_subsys_id);
 -- 
 1.7.3.4
 
