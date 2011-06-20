@@ -1,22 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 5D0CB9000BD
-	for <linux-mm@kvack.org>; Mon, 20 Jun 2011 13:25:12 -0400 (EDT)
-Message-ID: <4DFF8271.20301@redhat.com>
-Date: Tue, 21 Jun 2011 01:25:05 +0800
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id C7A1D9000BD
+	for <linux-mm@kvack.org>; Mon, 20 Jun 2011 13:27:06 -0400 (EDT)
+Message-ID: <4DFF82E2.1010409@redhat.com>
+Date: Tue, 21 Jun 2011 01:26:58 +0800
 From: Cong Wang <amwang@redhat.com>
 MIME-Version: 1.0
 Subject: Re: [PATCH 3/3] mm: print information when THP is disabled automatically
-References: <1308587683-2555-1-git-send-email-amwang@redhat.com> <1308587683-2555-3-git-send-email-amwang@redhat.com> <20110620165425.GF20843@redhat.com>
-In-Reply-To: <20110620165425.GF20843@redhat.com>
+References: <1308587683-2555-1-git-send-email-amwang@redhat.com> <1308587683-2555-3-git-send-email-amwang@redhat.com> <20110620170106.GC9396@suse.de>
+In-Reply-To: <20110620170106.GC9396@suse.de>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Rik van Riel <riel@redhat.com>, Johannes Weiner <jweiner@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <jweiner@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
 
-ao? 2011a1'06ae??21ae?JPY 00:54, Andrea Arcangeli a??e??:
+ao? 2011a1'06ae??21ae?JPY 01:01, Mel Gorman a??e??:
 > On Tue, Jun 21, 2011 at 12:34:30AM +0800, Amerigo Wang wrote:
 >> Print information when THP is disabled automatically so that
 >> users can find this info in dmesg.
@@ -38,18 +38,22 @@ ao? 2011a1'06ae??21ae?JPY 00:54, Andrea Arcangeli a??e??:
 >> +	if (totalram_pages<  (CONFIG_TRANSPARENT_HUGEPAGE_THRESHOLD
 >> +					<<  (20 - PAGE_SHIFT))) {
 >> +		printk(KERN_INFO "hugepage: disabled auotmatically\n");
+>>   		transparent_hugepage_flags = 0;
+>> +	}
+>>
+>>   	start_khugepaged();
+>>
 >
-> typo automatically. I'd suggest to change the prefix from "hugepage:"
-> to "THP:" to avoid the risk of possible confusion with hugetlbfs
-> support. Maybe you could print the minimal threshold too ("disabled
-> automatically with less than %dMB of RAM").
+> Guess this doesn't hurt. You misspelled automatically though and
+> mentioning "hugepage" could be confused with hugetlbfs.
+>
 
-Well, the "hugepage:" prefix is copied from other printk messages
-in the same function. ;-)
+Yeah, sorry for the typo.
 
-Yeah, it would be nice to print the threshold too.
+But, there are many printk messages in the same file start with "hugepage:".
+:-) I can send a patch to replace all of them with "THP" if you want...
 
-Thanks for your reply.
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
