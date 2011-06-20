@@ -1,59 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 4B0DF6B0116
-	for <linux-mm@kvack.org>; Mon, 20 Jun 2011 12:17:30 -0400 (EDT)
-Received: by iwn8 with SMTP id 8so1445737iwn.14
-        for <linux-mm@kvack.org>; Mon, 20 Jun 2011 09:17:27 -0700 (PDT)
-Date: Mon, 20 Jun 2011 12:17:23 -0400
-From: Eric B Munson <emunson@mgebm.net>
-Subject: Re: [PATCH] mm: hugetlb: fix coding style issues
-Message-ID: <20110620161723.GA9697@mgebm.net>
-References: <1308299399-825-1-git-send-email-chrisf@ijw.co.nz>
-MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="SLDf9lqlvOQaIe6s"
-Content-Disposition: inline
-In-Reply-To: <1308299399-825-1-git-send-email-chrisf@ijw.co.nz>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 0D7A26B011A
+	for <linux-mm@kvack.org>; Mon, 20 Jun 2011 12:35:12 -0400 (EDT)
+From: Amerigo Wang <amwang@redhat.com>
+Subject: [PATCH 1/3] mm: completely disable THP by transparent_hugepage=never
+Date: Tue, 21 Jun 2011 00:34:28 +0800
+Message-Id: <1308587683-2555-1-git-send-email-amwang@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chris Forbes <chrisf@ijw.co.nz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-kernel@vger.kernel.org
+Cc: akpm@linux-foundation.org, Amerigo Wang <amwang@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <jweiner@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
 
+transparent_hugepage=never should mean to disable THP completely,
+otherwise we don't have a way to disable THP completely.
+The design is broken.
 
---SLDf9lqlvOQaIe6s
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+Signed-off-by: WANG Cong <amwang@redhat.com>
+---
+ mm/huge_memory.c |   11 +++++++++--
+ 1 files changed, 9 insertions(+), 2 deletions(-)
 
-On Fri, 17 Jun 2011, Chris Forbes wrote:
-
-> Fixed coding style issues flagged by checkpatch.pl
->=20
-> Signed-off-by: Chris Forbes <chrisf@ijw.co.nz>
-
-Looks like whitespace/bracing cleanup without any logic changes (intentiona=
-l or
-otherwise).
-
-Acked-by: Eric B Munson <emunson@mgebm.net>
-
---SLDf9lqlvOQaIe6s
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.11 (GNU/Linux)
-
-iQEcBAEBAgAGBQJN/3KTAAoJEH65iIruGRnNg6wH/0YRW3vYfeaNPZj6ou9Po9Ce
-NbNYAqZ1dCGAoQj8mcvwATwEBDNVJWH9EkEIjKm1+qSsFuLtriMcHibgRGTbmr4D
-a0/EaYR9S1Y9sQON1UGOEeNfpAUUdXCKsMsOf89RoUXVnobjBVATfeasjuL7jRlJ
-SFHfupudiX9ummusak2jO3aeS6zrrkcyQOVTAfBL71NqogE0OOXSoO/CM7lTMMUh
-qizshKMjO+BN79P75btQ5cUys8DtZxg3irWv3VRewN6GmxEujPKyT2PA7rL5q4oZ
-z7zJk02tHfN9uWR1TjR7gLS0/khz5g9Y+fUoC7uoPDwvnCJZxVgtHroOf7FlbFk=
-=3y/I
------END PGP SIGNATURE-----
-
---SLDf9lqlvOQaIe6s--
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 81532f2..9c63c90 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -488,19 +488,26 @@ static struct attribute_group khugepaged_attr_group = {
+ };
+ #endif /* CONFIG_SYSFS */
+ 
++#define hugepage_enabled()	khugepaged_enabled()
++
+ static int __init hugepage_init(void)
+ {
+-	int err;
++	int err = 0;
+ #ifdef CONFIG_SYSFS
+ 	static struct kobject *hugepage_kobj;
+ #endif
+ 
+-	err = -EINVAL;
+ 	if (!has_transparent_hugepage()) {
++		err = -EINVAL;
+ 		transparent_hugepage_flags = 0;
+ 		goto out;
+ 	}
+ 
++	if (!hugepage_enabled()) {
++		printk(KERN_INFO "hugepage: totally disabled\n");
++		goto out;
++	}
++
+ #ifdef CONFIG_SYSFS
+ 	err = -ENOMEM;
+ 	hugepage_kobj = kobject_create_and_add("transparent_hugepage", mm_kobj);
+-- 
+1.7.4.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
