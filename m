@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 4CBEF6B00ED
+	by kanga.kvack.org (Postfix) with SMTP id 210A66B00EF
 	for <linux-mm@kvack.org>; Mon, 20 Jun 2011 09:12:29 -0400 (EDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 05/14] mm: Ignore mempolicies when using ALLOC_NO_WATERMARK
-Date: Mon, 20 Jun 2011 14:12:11 +0100
-Message-Id: <1308575540-25219-6-git-send-email-mgorman@suse.de>
+Subject: [PATCH 01/14] mm: Serialize access to min_free_kbytes
+Date: Mon, 20 Jun 2011 14:12:07 +0100
+Message-Id: <1308575540-25219-2-git-send-email-mgorman@suse.de>
 In-Reply-To: <1308575540-25219-1-git-send-email-mgorman@suse.de>
 References: <1308575540-25219-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -13,42 +13,58 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Neil Brown <neilb@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mgorman@suse.de>
 
-The reserve is proportionally distributed over all !highmem zones in the
-system. So we need to allow an emergency allocation access to all zones.
-In order to do that we need to break out of any mempolicy boundaries we
-might have.
+There is a race between the min_free_kbytes sysctl, memory hotplug
+and transparent hugepage support enablement.  Memory hotplug uses a
+zonelists_mutex to avoid a race when building zonelists. Reuse it to
+serialise watermark updates.
 
-In my opinion that does not break mempolicies as those are user oriented
-and not system oriented. That is, system allocations are not guaranteed to
-be within mempolicy boundaries. For instance IRQs don't even have a mempolicy.
-
-So breaking out of mempolicy boundaries for 'rare' emergency allocations,
-which are always system allocations (as opposed to user) is ok.
-
-Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+[a.p.zijlstra@chello.nl: Older patch fixed the race with spinlock]
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- mm/page_alloc.c |    7 +++++++
- 1 files changed, 7 insertions(+), 0 deletions(-)
+ mm/page_alloc.c |   23 +++++++++++++++--------
+ 1 files changed, 15 insertions(+), 8 deletions(-)
 
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 4e19606..ac779f5 100644
+index 4e8985a..a327a72 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -2126,6 +2126,13 @@ rebalance:
+@@ -5045,14 +5045,7 @@ static void setup_per_zone_lowmem_reserve(void)
+ 	calculate_totalreserve_pages();
+ }
  
- 	/* Allocate without watermarks if the context allows */
- 	if (alloc_flags & ALLOC_NO_WATERMARKS) {
-+		/*
-+		 * Ignore mempolicies if ALLOC_NO_WATERMARKS on the grounds
-+		 * the allocation is high priority and these type of
-+		 * allocations are system rather than user orientated
-+		 */
-+		zonelist = node_zonelist(numa_node_id(), gfp_mask);
+-/**
+- * setup_per_zone_wmarks - called when min_free_kbytes changes
+- * or when memory is hot-{added|removed}
+- *
+- * Ensures that the watermark[min,low,high] values for each zone are set
+- * correctly with respect to min_free_kbytes.
+- */
+-void setup_per_zone_wmarks(void)
++static void __setup_per_zone_wmarks(void)
+ {
+ 	unsigned long pages_min = min_free_kbytes >> (PAGE_SHIFT - 10);
+ 	unsigned long lowmem_pages = 0;
+@@ -5107,6 +5100,20 @@ void setup_per_zone_wmarks(void)
+ 	calculate_totalreserve_pages();
+ }
+ 
++/**
++ * setup_per_zone_wmarks - called when min_free_kbytes changes
++ * or when memory is hot-{added|removed}
++ *
++ * Ensures that the watermark[min,low,high] values for each zone are set
++ * correctly with respect to min_free_kbytes.
++ */
++void setup_per_zone_wmarks(void)
++{
++	mutex_lock(&zonelists_mutex);
++	__setup_per_zone_wmarks();
++	mutex_unlock(&zonelists_mutex);
++}
 +
- 		page = __alloc_pages_high_priority(gfp_mask, order,
- 				zonelist, high_zoneidx, nodemask,
- 				preferred_zone, migratetype);
+ /*
+  * The inactive anon list should be small enough that the VM never has to
+  * do too much work, but large enough that each inactive page has a chance
 -- 
 1.7.3.4
 
