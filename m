@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 210A66B00EF
-	for <linux-mm@kvack.org>; Mon, 20 Jun 2011 09:12:29 -0400 (EDT)
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id D2A676B00EE
+	for <linux-mm@kvack.org>; Mon, 20 Jun 2011 09:12:30 -0400 (EDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 01/14] mm: Serialize access to min_free_kbytes
-Date: Mon, 20 Jun 2011 14:12:07 +0100
-Message-Id: <1308575540-25219-2-git-send-email-mgorman@suse.de>
+Subject: [PATCH 07/14] netvm: Allow the use of __GFP_MEMALLOC by specific sockets
+Date: Mon, 20 Jun 2011 14:12:13 +0100
+Message-Id: <1308575540-25219-8-git-send-email-mgorman@suse.de>
 In-Reply-To: <1308575540-25219-1-git-send-email-mgorman@suse.de>
 References: <1308575540-25219-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -13,58 +13,86 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Neil Brown <neilb@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mgorman@suse.de>
 
-There is a race between the min_free_kbytes sysctl, memory hotplug
-and transparent hugepage support enablement.  Memory hotplug uses a
-zonelists_mutex to avoid a race when building zonelists. Reuse it to
-serialise watermark updates.
+Allow specific sockets to be tagged SOCK_MEMALLOC and use __GFP_MEMALLOC
+for their allocations. These sockets will be able to go below watermarks
+and allocate from the emergency reserve. Such sockets are to be used
+to service the VM (iow. to swap over). They must be handled kernel side,
+exposing such a socket to user-space is a bug.
 
-[a.p.zijlstra@chello.nl: Older patch fixed the race with spinlock]
+There is a risk that the reserves be depleted so for now, the administrator is
+responsible for increasing min_free_kbytes as necessary to prevent deadlock
+for their workloads.
+
+[a.p.zijlstra@chello.nl: Original patches]
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- mm/page_alloc.c |   23 +++++++++++++++--------
- 1 files changed, 15 insertions(+), 8 deletions(-)
+ include/net/sock.h |    5 ++++-
+ net/core/sock.c    |   22 ++++++++++++++++++++++
+ 2 files changed, 26 insertions(+), 1 deletions(-)
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 4e8985a..a327a72 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -5045,14 +5045,7 @@ static void setup_per_zone_lowmem_reserve(void)
- 	calculate_totalreserve_pages();
+diff --git a/include/net/sock.h b/include/net/sock.h
+index e89c38f..046bc97 100644
+--- a/include/net/sock.h
++++ b/include/net/sock.h
+@@ -554,6 +554,7 @@ enum sock_flags {
+ 	SOCK_RCVTSTAMPNS, /* %SO_TIMESTAMPNS setting */
+ 	SOCK_LOCALROUTE, /* route locally only, %SO_DONTROUTE setting */
+ 	SOCK_QUEUE_SHRUNK, /* write queue has been shrunk recently */
++	SOCK_MEMALLOC, /* VM depends on this socket for swapping */
+ 	SOCK_TIMESTAMPING_TX_HARDWARE,  /* %SOF_TIMESTAMPING_TX_HARDWARE */
+ 	SOCK_TIMESTAMPING_TX_SOFTWARE,  /* %SOF_TIMESTAMPING_TX_SOFTWARE */
+ 	SOCK_TIMESTAMPING_RX_HARDWARE,  /* %SOF_TIMESTAMPING_RX_HARDWARE */
+@@ -587,7 +588,7 @@ static inline int sock_flag(struct sock *sk, enum sock_flags flag)
+ 
+ static inline gfp_t sk_allocation(struct sock *sk, gfp_t gfp_mask)
+ {
+-	return gfp_mask;
++	return gfp_mask | (sk->sk_allocation & __GFP_MEMALLOC);
  }
  
--/**
-- * setup_per_zone_wmarks - called when min_free_kbytes changes
-- * or when memory is hot-{added|removed}
-- *
-- * Ensures that the watermark[min,low,high] values for each zone are set
-- * correctly with respect to min_free_kbytes.
-- */
--void setup_per_zone_wmarks(void)
-+static void __setup_per_zone_wmarks(void)
- {
- 	unsigned long pages_min = min_free_kbytes >> (PAGE_SHIFT - 10);
- 	unsigned long lowmem_pages = 0;
-@@ -5107,6 +5100,20 @@ void setup_per_zone_wmarks(void)
- 	calculate_totalreserve_pages();
- }
+ static inline void sk_acceptq_removed(struct sock *sk)
+@@ -717,6 +718,8 @@ extern int sk_stream_wait_memory(struct sock *sk, long *timeo_p);
+ extern void sk_stream_wait_close(struct sock *sk, long timeo_p);
+ extern int sk_stream_error(struct sock *sk, int flags, int err);
+ extern void sk_stream_kill_queues(struct sock *sk);
++extern void sk_set_memalloc(struct sock *sk);
++extern void sk_clear_memalloc(struct sock *sk);
+ 
+ extern int sk_wait_data(struct sock *sk, long *timeo);
+ 
+diff --git a/net/core/sock.c b/net/core/sock.c
+index 6e81978..c685eda 100644
+--- a/net/core/sock.c
++++ b/net/core/sock.c
+@@ -219,6 +219,28 @@ __u32 sysctl_rmem_default __read_mostly = SK_RMEM_MAX;
+ int sysctl_optmem_max __read_mostly = sizeof(unsigned long)*(2*UIO_MAXIOV+512);
+ EXPORT_SYMBOL(sysctl_optmem_max);
  
 +/**
-+ * setup_per_zone_wmarks - called when min_free_kbytes changes
-+ * or when memory is hot-{added|removed}
++ * sk_set_memalloc - sets %SOCK_MEMALLOC
++ * @sk: socket to set it on
 + *
-+ * Ensures that the watermark[min,low,high] values for each zone are set
-+ * correctly with respect to min_free_kbytes.
++ * Set %SOCK_MEMALLOC on a socket for access to emergency reserves.
++ * It's the responsibility of the admin to adjust min_free_kbytes
++ * to meet the requirements
 + */
-+void setup_per_zone_wmarks(void)
++void sk_set_memalloc(struct sock *sk)
 +{
-+	mutex_lock(&zonelists_mutex);
-+	__setup_per_zone_wmarks();
-+	mutex_unlock(&zonelists_mutex);
++	sock_set_flag(sk, SOCK_MEMALLOC);
++	sk->sk_allocation |= __GFP_MEMALLOC;
 +}
++EXPORT_SYMBOL_GPL(sk_set_memalloc);
 +
- /*
-  * The inactive anon list should be small enough that the VM never has to
-  * do too much work, but large enough that each inactive page has a chance
++void sk_clear_memalloc(struct sock *sk)
++{
++	sock_reset_flag(sk, SOCK_MEMALLOC);
++	sk->sk_allocation &= ~__GFP_MEMALLOC;
++}
++EXPORT_SYMBOL_GPL(sk_clear_memalloc);
++
+ #if defined(CONFIG_CGROUPS) && !defined(CONFIG_NET_CLS_CGROUP)
+ int net_cls_subsys_id = -1;
+ EXPORT_SYMBOL_GPL(net_cls_subsys_id);
 -- 
 1.7.3.4
 
