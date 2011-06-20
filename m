@@ -1,59 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id C7A1D9000BD
-	for <linux-mm@kvack.org>; Mon, 20 Jun 2011 13:27:06 -0400 (EDT)
-Message-ID: <4DFF82E2.1010409@redhat.com>
-Date: Tue, 21 Jun 2011 01:26:58 +0800
-From: Cong Wang <amwang@redhat.com>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 15E7B9000BD
+	for <linux-mm@kvack.org>; Mon, 20 Jun 2011 13:28:13 -0400 (EDT)
+Message-ID: <4DFF8327.1090203@redhat.com>
+Date: Mon, 20 Jun 2011 13:28:07 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 3/3] mm: print information when THP is disabled automatically
-References: <1308587683-2555-1-git-send-email-amwang@redhat.com> <1308587683-2555-3-git-send-email-amwang@redhat.com> <20110620170106.GC9396@suse.de>
-In-Reply-To: <20110620170106.GC9396@suse.de>
+Subject: Re: [PATCH 1/3] mm: completely disable THP by transparent_hugepage=never
+References: <1308587683-2555-1-git-send-email-amwang@redhat.com> <20110620165844.GA9396@suse.de> <4DFF7E3B.1040404@redhat.com> <4DFF7F0A.8090604@redhat.com> <4DFF8106.8090702@redhat.com>
+In-Reply-To: <4DFF8106.8090702@redhat.com>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <jweiner@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
+To: Cong Wang <amwang@redhat.com>
+Cc: Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
 
-ao? 2011a1'06ae??21ae?JPY 01:01, Mel Gorman a??e??:
-> On Tue, Jun 21, 2011 at 12:34:30AM +0800, Amerigo Wang wrote:
->> Print information when THP is disabled automatically so that
->> users can find this info in dmesg.
+On 06/20/2011 01:19 PM, Cong Wang wrote:
+> ao? 2011a1'06ae??21ae?JPY 01:10, Rik van Riel a??e??:
+>> On 06/20/2011 01:07 PM, Cong Wang wrote:
+>>> ao? 2011a1'06ae??21ae?JPY 00:58, Mel Gorman a??e??:
+>>>> On Tue, Jun 21, 2011 at 12:34:28AM +0800, Amerigo Wang wrote:
+>>>>> transparent_hugepage=never should mean to disable THP completely,
+>>>>> otherwise we don't have a way to disable THP completely.
+>>>>> The design is broken.
+>>>>>
+>>>>
+>>>> I don't get why it's broken. Why would the user be prevented from
+>>>> enabling it at runtime?
+>>>>
+>>>
+>>> We need to a way to totally disable it, right? Otherwise, when I
+>>> configure
+>>> THP in .config, I always have THP initialized even when I pass "=never".
+>>>
+>>> For me, if you don't provide such way to disable it, it is not flexible.
+>>>
+>>> I meet this problem when I try to disable THP in kdump kernel, there is
+>>> no user of THP in kdump kernel, THP is a waste for kdump kernel. This is
+>>> why I need to find a way to totally disable it.
 >>
->> Signed-off-by: WANG Cong<amwang@redhat.com>
->> ---
->>   mm/huge_memory.c |    5 ++++-
->>   1 files changed, 4 insertions(+), 1 deletions(-)
+>> What you have not explained yet is why having THP
+>> halfway initialized (but not used, and without a
+>> khugepaged thread) is a problem at all.
 >>
->> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
->> index 7fb44cc..07679da 100644
->> --- a/mm/huge_memory.c
->> +++ b/mm/huge_memory.c
->> @@ -544,8 +544,11 @@ static int __init hugepage_init(void)
->>   	 * where the extra memory used could hurt more than TLB overhead
->>   	 * is likely to save.  The admin can still enable it through /sys.
->>   	 */
->> -	if (totalram_pages<  (CONFIG_TRANSPARENT_HUGEPAGE_THRESHOLD<<  (20 - PAGE_SHIFT)))
->> +	if (totalram_pages<  (CONFIG_TRANSPARENT_HUGEPAGE_THRESHOLD
->> +					<<  (20 - PAGE_SHIFT))) {
->> +		printk(KERN_INFO "hugepage: disabled auotmatically\n");
->>   		transparent_hugepage_flags = 0;
->> +	}
->>
->>   	start_khugepaged();
->>
+>> Why is it a problem for you?
 >
-> Guess this doesn't hurt. You misspelled automatically though and
-> mentioning "hugepage" could be confused with hugetlbfs.
->
+> It occupies some memory, memory is valuable in kdump kernel (usually
+> only 128M). :) Since I am sure no one will use it, why do I still need
+> to initialize it at all?
 
-Yeah, sorry for the typo.
+Lets take a look at how much memory your patches end
+up saving.
 
-But, there are many printk messages in the same file start with "hugepage:".
-:-) I can send a patch to replace all of them with "THP" if you want...
+By bailing out earlier in hugepage_init, you end up
+saving 3 sysfs objects, one slab cache and a hash
+table with 1024 pointers.  That's a total of maybe
+10kB of memory on a 64 bit system.
 
-Thanks!
+I'm not convinced that a 10kB memory reduction is
+worth the price of never being able to enable
+transparent hugepages when a system is booted with
+THP disabled...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
