@@ -1,126 +1,176 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id BA3416B0131
-	for <linux-mm@kvack.org>; Mon, 20 Jun 2011 20:31:30 -0400 (EDT)
-From: H Hartley Sweeten <hartleys@visionengravers.com>
-Date: Mon, 20 Jun 2011 19:31:26 -0500
-Subject: RE: [Q] mm/memblock.c: cast truncates bits from RED_INACTIVE
-Message-ID: <ADE657CA350FB648AAC2C43247A983F001F38227BF35@AUSP01VMBX24.collaborationhost.net>
-References: <ADE657CA350FB648AAC2C43247A983F001F382220E0F@AUSP01VMBX24.collaborationhost.net>
- <20110620170249.d5cd98b1.akpm@linux-foundation.org>
-In-Reply-To: <20110620170249.d5cd98b1.akpm@linux-foundation.org>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id AF48C6B0134
+	for <linux-mm@kvack.org>; Mon, 20 Jun 2011 20:33:27 -0400 (EDT)
+Received: from hpaq1.eem.corp.google.com (hpaq1.eem.corp.google.com [172.25.149.1])
+	by smtp-out.google.com with ESMTP id p5L0XMJh031566
+	for <linux-mm@kvack.org>; Mon, 20 Jun 2011 17:33:25 -0700
+Received: from qwc9 (qwc9.prod.google.com [10.241.193.137])
+	by hpaq1.eem.corp.google.com with ESMTP id p5L0WRIN008031
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 20 Jun 2011 17:33:21 -0700
+Received: by qwc9 with SMTP id 9so1954915qwc.27
+        for <linux-mm@kvack.org>; Mon, 20 Jun 2011 17:33:21 -0700 (PDT)
 MIME-Version: 1.0
+In-Reply-To: <20110621090250.97c5abe2.kamezawa.hiroyu@jp.fujitsu.com>
+References: <1308354828-30670-1-git-send-email-yinghan@google.com>
+	<20110620084537.24b28e53.kamezawa.hiroyu@jp.fujitsu.com>
+	<BANLkTi=fj8xaThqSVFtzX1WGuzykkqSwpQ@mail.gmail.com>
+	<20110621090250.97c5abe2.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Mon, 20 Jun 2011 17:33:20 -0700
+Message-ID: <BANLkTim2LNVmDwJvUncwhcNeGGgk-D28tOLabwFCO703Ebov5Q@mail.gmail.com>
+Subject: Re: [PATCH V3] memcg: add reclaim pgfault latency histograms
+From: Ying Han <yinghan@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "benh@kernel.crashing.org" <benh@kernel.crashing.org>, "yinghai@kernel.org" <yinghai@kernel.org>, "hpa@linux.intel.com" <hpa@linux.intel.com>, Pekka Enberg <penberg@cs.helsinki.fi>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Suleiman Souhlal <suleiman@google.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Monday, June 20, 2011 5:03 PM, Andrew Morton wrote:
-> On Tue, 14 Jun 2011 19:47:19 -0500 H Hartley Sweeten wrote:
+On Mon, Jun 20, 2011 at 5:02 PM, KAMEZAWA Hiroyuki
+<kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> On Sun, 19 Jun 2011 23:08:52 -0700
+> Ying Han <yinghan@google.com> wrote:
 >
->> Hello all,
->>=20
->> Sparse is reporting a couple warnings in mm/memblock.c:
->>=20
->> 	warning: cast truncates bits from constant value (9f911029d74e35b becom=
-es 9d74e35b)
->>=20
->> The warnings are due to the cast of RED_INACTIVE in memblock_analyze():
->>=20
->> 	/* Check marker in the unused last array entry */
->> 	WARN_ON(memblock_memory_init_regions[INIT_MEMBLOCK_REGIONS].base
->> 		!=3D (phys_addr_t)RED_INACTIVE);
->> 	WARN_ON(memblock_reserved_init_regions[INIT_MEMBLOCK_REGIONS].base
->> 		!=3D (phys_addr_t)RED_INACTIVE);
->>=20
->> And in memblock_init():
->>=20
->> 	/* Write a marker in the unused last array entry */
->> 	memblock.memory.regions[INIT_MEMBLOCK_REGIONS].base =3D (phys_addr_t)RE=
-D_INACTIVE;
->> 	memblock.reserved.regions[INIT_MEMBLOCK_REGIONS].base =3D (phys_addr_t)=
-RED_INACTIVE;
->>=20
->> Could this cause any problems?  If not, is there anyway to quiet the spa=
-rse noise?
->>=20
+>> On Sunday, June 19, 2011, KAMEZAWA Hiroyuki
+>> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+>> > On Fri, 17 Jun 2011 16:53:48 -0700
+>> > Ying Han <yinghan@google.com> wrote:
+>> >
+>> >> This adds histogram to capture pagefault latencies on per-memcg basis=
+. I used
+>> >> this patch on the memcg background reclaim test, and figured there co=
+uld be more
+>> >> usecases to monitor/debug application performance.
+>> >>
+>> >> The histogram is composed 8 bucket in us unit. The last one is "rest"=
+ which is
+>> >> everything beyond the last one. To be more flexible, the buckets can =
+be reset
+>> >> and also each bucket is configurable at runtime.
+>> >>
+>> >> memory.pgfault_histogram: exports the histogram on per-memcg basis an=
+d also can
+>> >> be reset by echoing "-1". Meantime, all the buckets are writable by e=
+choing
+>> >> the range into the API. see the example below.
+>> >>
+>> >> change v3..v2:
+>> >> no change except rebasing the patch to 3.0-rc3 and retested.
+>> >>
+>> >> change v2..v1:
+>> >> 1. record the page fault involving reclaim only and changing the unit=
+ to us.
+>> >> 2. rename the "inf" to "rest".
+>> >> 3. removed the global tunable to turn on/off the recording. this is o=
+k since
+>> >> there is no overhead measured by collecting the data.
+>> >> 4. changed reseting the history by echoing "-1".
+>> >>
+>> >> Functional Test:
+>> >> $ cat /dev/cgroup/memory/D/memory.pgfault_histogram
+>> >> page reclaim latency histogram (us):
+>> >> < 150 =A0 =A0 =A0 =A0 =A0 =A022
+>> >> < 200 =A0 =A0 =A0 =A0 =A0 =A017434
+>> >> < 250 =A0 =A0 =A0 =A0 =A0 =A069135
+>> >> < 300 =A0 =A0 =A0 =A0 =A0 =A017182
+>> >> < 350 =A0 =A0 =A0 =A0 =A0 =A04180
+>> >> < 400 =A0 =A0 =A0 =A0 =A0 =A03179
+>> >> < 450 =A0 =A0 =A0 =A0 =A0 =A02644
+>> >> < rest =A0 =A0 =A0 =A0 =A0 29840
+>> >>
+>> >> $ echo -1 >/dev/cgroup/memory/D/memory.pgfault_histogram
+>> >> $ cat /dev/cgroup/memory/B/memory.pgfault_histogram
+>> >> page reclaim latency histogram (us):
+>> >> < 150 =A0 =A0 =A0 =A0 =A0 =A00
+>> >> < 200 =A0 =A0 =A0 =A0 =A0 =A00
+>> >> < 250 =A0 =A0 =A0 =A0 =A0 =A00
+>> >> < 300 =A0 =A0 =A0 =A0 =A0 =A00
+>> >> < 350 =A0 =A0 =A0 =A0 =A0 =A00
+>> >> < 400 =A0 =A0 =A0 =A0 =A0 =A00
+>> >> < 450 =A0 =A0 =A0 =A0 =A0 =A00
+>> >> < rest =A0 =A0 =A0 =A0 =A0 0
+>> >>
+>> >> $ echo 500 520 540 580 600 1000 5000 >/dev/cgroup/memory/D/memory.pgf=
+ault_histogram
+>> >> $ cat /dev/cgroup/memory/B/memory.pgfault_histogram
+>> >> page reclaim latency histogram (us):
+>> >> < 500 =A0 =A0 =A0 =A0 =A0 =A00
+>> >> < 520 =A0 =A0 =A0 =A0 =A0 =A00
+>> >> < 540 =A0 =A0 =A0 =A0 =A0 =A00
+>> >> < 580 =A0 =A0 =A0 =A0 =A0 =A00
+>> >> < 600 =A0 =A0 =A0 =A0 =A0 =A00
+>> >> < 1000 =A0 =A0 =A0 =A0 =A0 0
+>> >> < 5000 =A0 =A0 =A0 =A0 =A0 0
+>> >> < rest =A0 =A0 =A0 =A0 =A0 0
+>> >>
+>> >> Performance Test:
+>> >> I ran through the PageFaultTest (pft) benchmark to measure the overhe=
+ad of
+>> >> recording the histogram. There is no overhead observed on both "flt/c=
+pu/s"
+>> >> and "fault/wsec".
+>> >>
+>> >> $ mkdir /dev/cgroup/memory/A
+>> >> $ echo 16g >/dev/cgroup/memory/A/memory.limit_in_bytes
+>> >> $ echo $$ >/dev/cgroup/memory/A/tasks
+>> >> $ ./pft -m 15g -t 8 -T a
+>> >>
+>> >> Result:
+>> >> $ ./ministat no_histogram histogram
+>> >>
+>> >> "fault/wsec"
+>> >> x fault_wsec/no_histogram
+>> >> + fault_wsec/histogram
+>> >> +--------------------------------------------------------------------=
+-----+
+>> >> =A0 =A0 N =A0 =A0 =A0 =A0 =A0 Min =A0 =A0 =A0 =A0 =A0 Max =A0 =A0 =A0=
+ =A0Median =A0 =A0 =A0 =A0 =A0 Avg =A0 =A0 =A0 =A0Stddev
+>> >> x =A0 5 =A0 =A0 864432.44 =A0 =A0 880840.81 =A0 =A0 879707.95 =A0 =A0=
+ 874606.51 =A0 =A0 7687.9841
+>> >> + =A0 5 =A0 =A0 861986.57 =A0 =A0 877867.25 =A0 =A0 =A0870823.9 =A0 =
+=A0 870901.38 =A0 =A0 6413.8821
+>> >> No difference proven at 95.0% confidence
+>> >>
+>> >> "flt/cpu/s"
+>> >> x flt_cpu_s/no_histogram
+>> >> + flt_cpu_s/histogram
+>> >> +--------------------------------------------------------------------=
+-----+
+>> >> =A0 =A0 I'll never ack this.
+>>
+>> The patch is created as part of effort testing per-memcg bg reclaim
+>> patch. I don't have strong opinion that we indeed need to merge it,
+>> but found it is a useful testing and monitoring tool.
+>>
+>> Meantime, can you help to clarify your concern? In case I missed
+>> something here.
+>>
 >
-> It's all just a debugging check and that check will continue to work OK
-> despite this bug.
+> I want to see the numbers via 'perf' because of its flexibility.
+> For this kind of things, I like dumping "raw" data and parse it by
+> tools. Because we can change our view with a single data without
+> taking mulitple-data-by-multiple-experiments.
 >
-> But yes, it's ugly and should be fixed.
->
-> I don't think that mm/memblock.c should have reused RED_INACTIVE.=20
-> That's a slab thing and wedging it into a phys_addr_t was
-> inappropriate.
->
-> In fact I don't think RED_INACTIVE should exist.  It's just inviting
-> other subsystems to (ab)use it.  It should be replaced by a
-> slab-specific SLAB_RED_INACTIVE, as slub did with SLUB_RED_INACTIVE.
->
->
-> I'd suggest something like the below, which I didn't test.  Feel free to
-> send it back at me, or ignore it ;)
->
->
-> diff -puN include/linux/poison.h~a include/linux/poison.h
-> --- a/include/linux/poison.h~a
-> +++ a/include/linux/poison.h
-> @@ -40,6 +40,12 @@
->  #define	RED_INACTIVE	0x09F911029D74E35BULL	/* when obj is inactive */
->  #define	RED_ACTIVE	0xD84156C5635688C0ULL	/* when obj is active */
-> =20
-> +#ifdef CONFIG_PHYS_ADDR_T_64BIT
-> +#define MEMBLOCK_INACTIVE	0x3a84fb0144c9e71bULL
-> +#else
-> +#define MEMBLOCK_INACTIVE	0x44c9e71bUL
-> +#endif
-> +
->  #define SLUB_RED_INACTIVE	0xbb
->  #define SLUB_RED_ACTIVE		0xcc
-> =20
-> diff -puN mm/memblock.c~a mm/memblock.c
-> --- a/mm/memblock.c~a
-> +++ a/mm/memblock.c
-> @@ -758,9 +758,9 @@ void __init memblock_analyze(void)
-> =20
->  	/* Check marker in the unused last array entry */
->  	WARN_ON(memblock_memory_init_regions[INIT_MEMBLOCK_REGIONS].base
-> -		!=3D (phys_addr_t)RED_INACTIVE);
-> +		!=3D MEMBLOCK_INACTIVE);
->  	WARN_ON(memblock_reserved_init_regions[INIT_MEMBLOCK_REGIONS].base
-> -		!=3D (phys_addr_t)RED_INACTIVE);
-> +		!=3D MEMBLOCK_INACTIVE);
-> =20
->  	memblock.memory_size =3D 0;
-> =20
-> @@ -786,8 +786,8 @@ void __init memblock_init(void)
->  	memblock.reserved.max	=3D INIT_MEMBLOCK_REGIONS;
-> =20
->  	/* Write a marker in the unused last array entry */
-> -	memblock.memory.regions[INIT_MEMBLOCK_REGIONS].base =3D (phys_addr_t)RE=
-D_INACTIVE;
-> -	memblock.reserved.regions[INIT_MEMBLOCK_REGIONS].base =3D (phys_addr_t)=
-RED_INACTIVE;
-> +	memblock.memory.regions[INIT_MEMBLOCK_REGIONS].base =3D MEMBLOCK_INACTI=
-VE;
-> +	memblock.reserved.regions[INIT_MEMBLOCK_REGIONS].base =3D MEMBLOCK_INAC=
-TIVE;
-> =20
->  	/* Create a dummy zero size MEMBLOCK which will get coalesced away late=
-r.
->  	 * This simplifies the memblock_add() code below...
+> I like your idea of histgram. So, I'd like to try to write a
+> perf stuff when my memory.vmscan_stat is merged (it's good trace
+> point I think) and see what we can get.
 
-FWIW, your patch above quiet's the sparse warnings on my system (arm ep93xx=
-) and
-the system boots and runs fine.
+Thank you for the clarification. I have no strong objection of doing
+it in perf except it might take some space and cpu-time to collecting
+the information, which at the end we just need to increment a counter
+:)
 
-If you want it..
+Thanks
 
-Tested-by: H Hartley Sweeten <hsweeten@visionengravers.com>
+--Ying
+
+>
+> Thanks,
+> -Kame
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
