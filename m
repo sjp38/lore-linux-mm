@@ -1,328 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id DE02190013A
-	for <linux-mm@kvack.org>; Tue, 21 Jun 2011 09:26:29 -0400 (EDT)
-Received: by iwn8 with SMTP id 8so2467367iwn.14
-        for <linux-mm@kvack.org>; Tue, 21 Jun 2011 06:26:28 -0700 (PDT)
-From: Nai Xia <nai.xia@gmail.com>
-Reply-To: nai.xia@gmail.com
-Subject: [PATCH 1/2 V2] ksm: take dirty bit as reference to avoid volatile pages scanning
-Date: Tue, 21 Jun 2011 21:26:06 +0800
-References: <201106212055.25400.nai.xia@gmail.com>
-In-Reply-To: <201106212055.25400.nai.xia@gmail.com>
-MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-Message-Id: <201106212126.06726.nai.xia@gmail.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id D298790013A
+	for <linux-mm@kvack.org>; Tue, 21 Jun 2011 09:32:15 -0400 (EDT)
+Subject: Re: [PATCH v4 3.0-rc2-tip 14/22] 14: x86: uprobes exception
+ notifier for x86.
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <20110607130101.28590.99984.sendpatchset@localhost6.localdomain6>
+References: 
+	 <20110607125804.28590.92092.sendpatchset@localhost6.localdomain6>
+	 <20110607130101.28590.99984.sendpatchset@localhost6.localdomain6>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+Date: Tue, 21 Jun 2011 15:31:24 +0200
+Message-ID: <1308663084.26237.145.camel@twins>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Izik Eidus <izik.eidus@ravellosystems.com>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Chris Wright <chrisw@sous-sol.org>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Cc: Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Andi Kleen <andi@firstfloor.org>, Thomas Gleixner <tglx@linutronix.de>, Jonathan Corbet <corbet@lwn.net>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, LKML <linux-kernel@vger.kernel.org>
 
-This patch makes the page_check_address() can validate if a subpage is
-in its place in a huge page pointed by the address. This can be useful when
-ksm does not split huge pages when looking up the subpages one by one.
+On Tue, 2011-06-07 at 18:31 +0530, Srikar Dronamraju wrote:
+> @@ -844,6 +845,19 @@ do_notify_resume(struct pt_regs *regs, void *unused,=
+ __u32 thread_info_flags)
+>         if (thread_info_flags & _TIF_SIGPENDING)
+>                 do_signal(regs);
+> =20
+> +       if (thread_info_flags & _TIF_UPROBE) {
+> +               clear_thread_flag(TIF_UPROBE);
+> +#ifdef CONFIG_X86_32
+> +               /*
+> +                * On x86_32, do_notify_resume() gets called with
+> +                * interrupts disabled. Hence enable interrupts if they
+> +                * are still disabled.
+> +                */
+> +               local_irq_enable();
+> +#endif
+> +               uprobe_notify_resume(regs);
+> +       }=20
 
-And fix two potential bugs at the same time:
-
-As I understand, there is a bug in __page_check_address() that may 
-trigger a rare case of schedule in atomic on huge pages if CONFIG_HIGHPTE is enabled:
-if a hugetlb page is validated by this function, the returned pte_t * is 
-actually a pmd_t* which is not mapped by kmap_atomic(), but will later be
-kunmap_atomic(). This may result in a false preempt count. This patch adds
-another parameter named "need_pte_unmap" to let it tell outside if this is
-a good huge page and should not be pte_unmap(). All callsites have been 
-modified to use another new uniformed call:
-page_check_address_unmap_unlock(ptl, pte, need_pte_unmap), to finalize the 
-page_check_address().
-
-Another possible tiny issue in huge_pte_offset() is that when it was called in 
-__page_check_address(), there is no good-reasoned guarantee that the 
-"address" passed in is really mapped to a huge page even if PageHuge(page)
-is true. So it's too early to return a pmd without checking its _PAGE_PSE.
-
-I am not an expert in this area and there maybe no bug report concerning the
-above two issues. But I think there is potential risk and the reasoning is simple.
-So some one please help me confirm these two issues. 
-
----
- arch/x86/mm/hugetlbpage.c |    2 +
- include/linux/rmap.h      |   26 +++++++++++++++---
- mm/filemap_xip.c          |    6 +++-
- mm/rmap.c                 |   61 +++++++++++++++++++++++++++++++++------------
- 4 files changed, 72 insertions(+), 23 deletions(-)
-
-diff --git a/arch/x86/mm/hugetlbpage.c b/arch/x86/mm/hugetlbpage.c
-index f581a18..132e84b 100644
---- a/arch/x86/mm/hugetlbpage.c
-+++ b/arch/x86/mm/hugetlbpage.c
-@@ -164,6 +164,8 @@ pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
- 			if (pud_large(*pud))
- 				return (pte_t *)pud;
- 			pmd = pmd_offset(pud, addr);
-+			if (!pmd_huge(*pmd))
-+				pmd = NULL;
- 		}
- 	}
- 	return (pte_t *) pmd;
-diff --git a/include/linux/rmap.h b/include/linux/rmap.h
-index 2148b12..3c4ead9 100644
---- a/include/linux/rmap.h
-+++ b/include/linux/rmap.h
-@@ -9,6 +9,7 @@
- #include <linux/mm.h>
- #include <linux/mutex.h>
- #include <linux/memcontrol.h>
-+#include <linux/highmem.h>
- 
- /*
-  * The anon_vma heads a list of private "related" vmas, to scan if
-@@ -183,20 +184,35 @@ int try_to_unmap_one(struct page *, struct vm_area_struct *,
-  * Called from mm/filemap_xip.c to unmap empty zero page
-  */
- pte_t *__page_check_address(struct page *, struct mm_struct *,
--				unsigned long, spinlock_t **, int);
-+			    unsigned long, spinlock_t **, int, int *);
- 
--static inline pte_t *page_check_address(struct page *page, struct mm_struct *mm,
--					unsigned long address,
--					spinlock_t **ptlp, int sync)
-+static inline
-+pte_t *page_check_address(struct page *page, struct mm_struct *mm,
-+			  unsigned long address, spinlock_t **ptlp,
-+			  int sync, int *need_pte_unmap)
- {
- 	pte_t *ptep;
- 
- 	__cond_lock(*ptlp, ptep = __page_check_address(page, mm, address,
--						       ptlp, sync));
-+						       ptlp, sync,
-+						       need_pte_unmap));
- 	return ptep;
- }
- 
- /*
-+ * After a successful page_check_address() call this is the way to finalize
-+ */
-+static inline
-+void page_check_address_unmap_unlock(spinlock_t *ptl, pte_t *pte,
-+				     int need_pte_unmap)
-+{
-+	if (need_pte_unmap)
-+		pte_unmap(pte);
-+
-+	spin_unlock(ptl);
-+}
-+
-+/*
-  * Used by swapoff to help locate where page is expected in vma.
-  */
- unsigned long page_address_in_vma(struct page *, struct vm_area_struct *);
-diff --git a/mm/filemap_xip.c b/mm/filemap_xip.c
-index 93356cd..01b6454 100644
---- a/mm/filemap_xip.c
-+++ b/mm/filemap_xip.c
-@@ -175,6 +175,7 @@ __xip_unmap (struct address_space * mapping,
- 	struct page *page;
- 	unsigned count;
- 	int locked = 0;
-+	int need_unmap;
- 
- 	count = read_seqcount_begin(&xip_sparse_seq);
- 
-@@ -189,7 +190,8 @@ retry:
- 		address = vma->vm_start +
- 			((pgoff - vma->vm_pgoff) << PAGE_SHIFT);
- 		BUG_ON(address < vma->vm_start || address >= vma->vm_end);
--		pte = page_check_address(page, mm, address, &ptl, 1);
-+		pte = page_check_address(page, mm, address, &ptl, 1,
-+					 &need_pte_unmap);
- 		if (pte) {
- 			/* Nuke the page table entry. */
- 			flush_cache_page(vma, address, pte_pfn(*pte));
-@@ -197,7 +199,7 @@ retry:
- 			page_remove_rmap(page);
- 			dec_mm_counter(mm, MM_FILEPAGES);
- 			BUG_ON(pte_dirty(pteval));
--			pte_unmap_unlock(pte, ptl);
-+			page_check_address_unmap_unlock(ptl, pte, need_unmap);
- 			page_cache_release(page);
- 		}
- 	}
-diff --git a/mm/rmap.c b/mm/rmap.c
-index 27dfd3b..815adc9 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -573,17 +573,25 @@ unsigned long page_address_in_vma(struct page *page, struct vm_area_struct *vma)
-  * On success returns with pte mapped and locked.
-  */
- pte_t *__page_check_address(struct page *page, struct mm_struct *mm,
--			  unsigned long address, spinlock_t **ptlp, int sync)
-+			    unsigned long address, spinlock_t **ptlp,
-+			    int sync, int *need_pte_unmap)
- {
- 	pgd_t *pgd;
- 	pud_t *pud;
- 	pmd_t *pmd;
- 	pte_t *pte;
- 	spinlock_t *ptl;
-+	unsigned long sub_pfn;
-+
-+	*need_pte_unmap = 1;
- 
- 	if (unlikely(PageHuge(page))) {
- 		pte = huge_pte_offset(mm, address);
-+		if (!pte_present(*pte))
-+			return NULL;
-+
- 		ptl = &mm->page_table_lock;
-+		*need_pte_unmap = 0;
- 		goto check;
- 	}
- 
-@@ -598,8 +606,12 @@ pte_t *__page_check_address(struct page *page, struct mm_struct *mm,
- 	pmd = pmd_offset(pud, address);
- 	if (!pmd_present(*pmd))
- 		return NULL;
--	if (pmd_trans_huge(*pmd))
--		return NULL;
-+	if (pmd_trans_huge(*pmd)) {
-+		pte = (pte_t *) pmd;
-+		ptl = &mm->page_table_lock;
-+		*need_pte_unmap = 0;
-+		goto check;
-+	}
- 
- 	pte = pte_offset_map(pmd, address);
- 	/* Make a quick check before getting the lock */
-@@ -611,11 +623,23 @@ pte_t *__page_check_address(struct page *page, struct mm_struct *mm,
- 	ptl = pte_lockptr(mm, pmd);
- check:
- 	spin_lock(ptl);
--	if (pte_present(*pte) && page_to_pfn(page) == pte_pfn(*pte)) {
-+	if (!*need_pte_unmap) {
-+		sub_pfn = pte_pfn(*pte) +
-+			((address & ~HPAGE_PMD_MASK) >> PAGE_SHIFT);
-+
-+		if (pte_present(*pte) && page_to_pfn(page) == sub_pfn) {
-+			*ptlp = ptl;
-+			return pte;
-+		}
-+	} else if (pte_present(*pte) && page_to_pfn(page) == pte_pfn(*pte)) {
- 		*ptlp = ptl;
- 		return pte;
- 	}
--	pte_unmap_unlock(pte, ptl);
-+
-+	if (*need_pte_unmap)
-+		pte_unmap(pte);
-+
-+	spin_unlock(ptl);
- 	return NULL;
- }
- 
-@@ -633,14 +657,15 @@ int page_mapped_in_vma(struct page *page, struct vm_area_struct *vma)
- 	unsigned long address;
- 	pte_t *pte;
- 	spinlock_t *ptl;
-+	int need_pte_unmap;
- 
- 	address = vma_address(page, vma);
- 	if (address == -EFAULT)		/* out of vma range */
- 		return 0;
--	pte = page_check_address(page, vma->vm_mm, address, &ptl, 1);
-+	pte = page_check_address(page, vma->vm_mm, address, &ptl, 1, &need_pte_unmap);
- 	if (!pte)			/* the page is not in this mm */
- 		return 0;
--	pte_unmap_unlock(pte, ptl);
-+	page_check_address_unmap_unlock(ptl, pte, need_pte_unmap);
- 
- 	return 1;
- }
-@@ -685,12 +710,14 @@ int page_referenced_one(struct page *page, struct vm_area_struct *vma,
- 	} else {
- 		pte_t *pte;
- 		spinlock_t *ptl;
-+		int need_pte_unmap;
- 
- 		/*
- 		 * rmap might return false positives; we must filter
- 		 * these out using page_check_address().
- 		 */
--		pte = page_check_address(page, mm, address, &ptl, 0);
-+		pte = page_check_address(page, mm, address, &ptl, 0,
-+					 &need_pte_unmap);
- 		if (!pte)
- 			goto out;
- 
-@@ -712,7 +739,7 @@ int page_referenced_one(struct page *page, struct vm_area_struct *vma,
- 			if (likely(!VM_SequentialReadHint(vma)))
- 				referenced++;
- 		}
--		pte_unmap_unlock(pte, ptl);
-+		page_check_address_unmap_unlock(ptl, pte, need_pte_unmap);
- 	}
- 
- 	/* Pretend the page is referenced if the task has the
-@@ -886,8 +913,9 @@ static int page_mkclean_one(struct page *page, struct vm_area_struct *vma,
- 	pte_t *pte;
- 	spinlock_t *ptl;
- 	int ret = 0;
-+	int need_pte_unmap;
- 
--	pte = page_check_address(page, mm, address, &ptl, 1);
-+	pte = page_check_address(page, mm, address, &ptl, 1, &need_pte_unmap);
- 	if (!pte)
- 		goto out;
- 
-@@ -902,7 +930,7 @@ static int page_mkclean_one(struct page *page, struct vm_area_struct *vma,
- 		ret = 1;
- 	}
- 
--	pte_unmap_unlock(pte, ptl);
-+	page_check_address_unmap_unlock(ptl, pte, need_pte_unmap);
- out:
- 	return ret;
- }
-@@ -974,9 +1002,9 @@ void page_move_anon_rmap(struct page *page,
- 
- /**
-  * __page_set_anon_rmap - set up new anonymous rmap
-- * @page:	Page to add to rmap	
-+ * @page:	Page to add to rmap
-  * @vma:	VM area to add page to.
-- * @address:	User virtual address of the mapping	
-+ * @address:	User virtual address of the mapping
-  * @exclusive:	the page is exclusively owned by the current process
-  */
- static void __page_set_anon_rmap(struct page *page,
-@@ -1176,8 +1204,9 @@ int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
- 	pte_t pteval;
- 	spinlock_t *ptl;
- 	int ret = SWAP_AGAIN;
-+	int need_pte_unmap;
- 
--	pte = page_check_address(page, mm, address, &ptl, 0);
-+	pte = page_check_address(page, mm, address, &ptl, 0, &need_pte_unmap);
- 	if (!pte)
- 		goto out;
- 
-@@ -1262,12 +1291,12 @@ int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
- 	page_cache_release(page);
- 
- out_unmap:
--	pte_unmap_unlock(pte, ptl);
-+	page_check_address_unmap_unlock(ptl, pte, need_pte_unmap);
- out:
- 	return ret;
- 
- out_mlock:
--	pte_unmap_unlock(pte, ptl);
-+	page_check_address_unmap_unlock(ptl, pte, need_pte_unmap);
- 
- 
- 	/*
+Would it make sense to do TIF_UPROBE before TIF_SIGPENDING? That way
+when uprobe decides it ought to have send a signal we don't have to do
+another loop through all this.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
