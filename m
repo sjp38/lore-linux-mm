@@ -1,40 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 0E4136B012F
-	for <linux-mm@kvack.org>; Mon, 20 Jun 2011 23:15:15 -0400 (EDT)
-Message-ID: <4E000CB5.3050201@redhat.com>
-Date: Tue, 21 Jun 2011 11:15:01 +0800
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 27D166B0136
+	for <linux-mm@kvack.org>; Mon, 20 Jun 2011 23:28:53 -0400 (EDT)
+Message-ID: <4E000FED.7050506@redhat.com>
+Date: Tue, 21 Jun 2011 11:28:45 +0800
 From: Cong Wang <amwang@redhat.com>
 MIME-Version: 1.0
 Subject: Re: [PATCH 1/3] mm: completely disable THP by transparent_hugepage=never
-References: <1308587683-2555-1-git-send-email-amwang@redhat.com> <20110620165035.GE20843@redhat.com> <4DFF7CDD.308@redhat.com> <20110620194321.GI20843@redhat.com>
-In-Reply-To: <20110620194321.GI20843@redhat.com>
+References: <1308587683-2555-1-git-send-email-amwang@redhat.com> <20110620165844.GA9396@suse.de> <4DFF7E3B.1040404@redhat.com> <4DFF7F0A.8090604@redhat.com> <4DFF8106.8090702@redhat.com> <4DFF8327.1090203@redhat.com> <4DFF84BB.3050209@redhat.com> <4DFF8848.2060802@redhat.com>
+In-Reply-To: <4DFF8848.2060802@redhat.com>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Rik van Riel <riel@redhat.com>, Johannes Weiner <jweiner@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
+To: Rik van Riel <riel@redhat.com>
+Cc: Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
 
-ao? 2011a1'06ae??21ae?JPY 03:43, Andrea Arcangeli a??e??:
-> On Tue, Jun 21, 2011 at 01:01:17AM +0800, Cong Wang wrote:
->> Without this patch, THP is still initialized (although khugepaged is not started),
->> that is what I don't want to see when I pass "transparent_hugepage=never",
->> because "never" for me means THP is totally unseen, even not initialized.
+ao? 2011a1'06ae??21ae?JPY 01:50, Rik van Riel a??e??:
+> On 06/20/2011 01:34 PM, Cong Wang wrote:
 >
-> The ram saving by not registering in sysfs is not worth the loss of
-> generic functionality. You can try to make the hash and slab
-> khugepaged allocations more dynamic if you want to microoptimize for
-> RAM usage, that I wouldn't be against if you find a way to do it
-> simply and without much complexity (and .text) added. But likely there
-> are other places to optimize that may introduce less tricks and would
-> give you a bigger saving than ~8kbytes, it's up to you.
+>> Even if it is really 10K, why not save it since it doesn't
+>> much effort to make this. ;) Not only memory, but also time,
+>> this could also save a little time to initialize the kernel.
+>>
+>> For me, the more serious thing is the logic, there is
+>> no way to totally disable it as long as I have THP in .config
+>> currently. This is why I said the design is broken.
+>
+> There are many things you cannot totally disable as long
+> as they are enabled in the .config. Think about things
+> like swap, or tmpfs - neither of which you are going to
+> use in the crashdump kernel.
 
-But the THP functionality is not going to be used.
+Sure, things like CONFIG_KEXEC can never be disabled
+without changing .config too, they are designed like this.
 
-Yeah, sounds reasonable, I will try to check if I can make it.
+Some features _do_ only mean to be disabled only
+by Kconfig, some syscalls are indeed good examples here,
+but some features don't. THP is one of them, because features
+like this can be tuned dynamically.
 
-Thanks for pointing this out!
+>
+> I believe we need to keep the kernel optimized for common
+> use and convenience.
+>
+> Crashdump is very much a corner case. Yes, using less
+> memory in crashdump is worthwhile, but lets face it -
+> the big memory user there is likely to be the struct page
+> array, with everything else down in the noise...
+
+For the 128M case, only the struct page's of the 128M is
+constructed in the second kernel, which unlikely to be a big user.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
