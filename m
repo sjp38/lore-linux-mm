@@ -1,60 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D57F6B013B
-	for <linux-mm@kvack.org>; Tue, 21 Jun 2011 12:02:08 -0400 (EDT)
-Received: from kpbe11.cbf.corp.google.com (kpbe11.cbf.corp.google.com [172.25.105.75])
-	by smtp-out.google.com with ESMTP id p5LG23WD030586
-	for <linux-mm@kvack.org>; Tue, 21 Jun 2011 09:02:04 -0700
-Received: from qyk10 (qyk10.prod.google.com [10.241.83.138])
-	by kpbe11.cbf.corp.google.com with ESMTP id p5LG1BLw021982
-	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 21 Jun 2011 09:02:02 -0700
-Received: by qyk10 with SMTP id 10so2387522qyk.11
-        for <linux-mm@kvack.org>; Tue, 21 Jun 2011 09:01:58 -0700 (PDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 1FBD66B0143
+	for <linux-mm@kvack.org>; Tue, 21 Jun 2011 12:19:20 -0400 (EDT)
+Message-ID: <4E00C483.5080302@5t9.de>
+Date: Tue, 21 Jun 2011 18:19:15 +0200
+From: Lutz Vieweg <lvml@5t9.de>
 MIME-Version: 1.0
-In-Reply-To: <4E00AFE6.20302@5t9.de>
-References: <4E00AFE6.20302@5t9.de>
-Date: Tue, 21 Jun 2011 09:01:58 -0700
-Message-ID: <BANLkTime3JN9-fAi3Lwx7UdXQo41eQh0iw@mail.gmail.com>
-Subject: Re: "make -j" with memory.(memsw.)limit_in_bytes smaller than
- required -> livelock, even for unlimited processes
-From: Ying Han <yinghan@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Subject: Re: "make -j" with memory.(memsw.)limit_in_bytes smaller than required
+ -> livelock, even for unlimited processes
+References: <4E00AFE6.20302@5t9.de> <BANLkTime3JN9-fAi3Lwx7UdXQo41eQh0iw@mail.gmail.com>
+In-Reply-To: <BANLkTime3JN9-fAi3Lwx7UdXQo41eQh0iw@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Lutz Vieweg <lvml@5t9.de>
+To: Ying Han <yinghan@google.com>
 Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
 
-On Tue, Jun 21, 2011 at 7:51 AM, Lutz Vieweg <lvml@5t9.de> wrote:
-> Dear Memory Ressource Controller maintainers,
+On 06/21/2011 06:01 PM, Ying Han wrote:
+> The following patch might not be the root-cause of livelock, but
+> should reduce the [kworker/*] in your case.
 >
-> by using per-user control groups with a limit on memory (and swap) I am
-> trying to secure a shared development server against memory exhaustion
-> by any one single user - as it happened before when somebody imprudently
-> issued "make -j" (which has the infamous habit to spawn an unlimited
-> number of processes) on a large software project with many source files.
+>  From d1372da4d3c6f8051b5b1cf7b5e8b45a8094b388 Mon Sep 17 00:00:00 2001
 >
-> The memory limitation using control groups works just fine when
-> only a few processes sum up to a usage that exceeds the limits - the
-> processes are OOM-killed, then, and the others users are unaffected.
->
-> But the original cause, a "make -j" on many source files, leads to
-> the following ugly symptom:
->
-> - make starts numerous (~ 100 < x < 200) gcc processes
->
-> - some of those gcc processes get OOM-killed quickly, then
-> =A0a few more are killed, but with increasing pauses in between
->
-> - then after a few seconds, no more gcc processes are killed, but
-> =A0the "make" process and its childs do not show any progress anymore
->
-> - at this time, top indicates 100% "system" CPU usage, mostly by
-> =A0"[kworker/*]" threads (one per CPU). But processes from other
-> =A0users, that only require CPU, proceed to run.
+> Can you give a try?
 
-The following patch might not be the root-cause of livelock, but
-should reduce the [kworker/*] in your case.
+I will first need to move this test to a machine (like my Laptop)
+that I can more aggressively reboot without disturbing the
+developers on the shared hardware. Will do that asap.
 
-=3D=3D
+> I don't know which kernel you are using in case
+> you don't have this patched yet.
+
+2.6.39.
+5 out of 6 hunks in your patch apply to this version, 1 is rejected -
+so I guess I should upgrade to a more recent kernel, first.
+Would 2.6.39.1 be sufficient or would some non-release kernel
+(from which git repository?) be required?
+
+Regards,
+
+Lutz Vieweg
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
