@@ -1,156 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 5377A6B016E
-	for <linux-mm@kvack.org>; Tue, 21 Jun 2011 05:23:49 -0400 (EDT)
-From: Stefan Assmann <sassmann@kpanic.de>
-Subject: [PATCH v2 2/3] support for broken memory modules (BadRAM)
-Date: Tue, 21 Jun 2011 11:23:17 +0200
-Message-Id: <1308648198-2130-3-git-send-email-sassmann@kpanic.de>
-In-Reply-To: <1308648198-2130-1-git-send-email-sassmann@kpanic.de>
-References: <1308648198-2130-1-git-send-email-sassmann@kpanic.de>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 0E7E56B0173
+	for <linux-mm@kvack.org>; Tue, 21 Jun 2011 05:36:48 -0400 (EDT)
+Date: Tue, 21 Jun 2011 10:36:40 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 2/3] mm: make the threshold of enabling THP configurable
+Message-ID: <20110621093640.GD9396@suse.de>
+References: <1308587683-2555-1-git-send-email-amwang@redhat.com>
+ <1308587683-2555-2-git-send-email-amwang@redhat.com>
+ <20110620165955.GB9396@suse.de>
+ <4DFF8050.9070201@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <4DFF8050.9070201@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: akpm@linux-foundation.org, tony.luck@intel.com, andi@firstfloor.org, mingo@elte.hu, hpa@zytor.com, rick@vanrein.org, rdunlap@xenotime.net, sassmann@kpanic.de
+To: Cong Wang <amwang@redhat.com>
+Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
 
-BadRAM is a mechanism to exclude memory addresses (pages) from being used by
-the system. The addresses are given to the kernel via kernel command line.
-This is useful for systems with defective RAM modules, especially if the RAM
-modules cannot be replaced.
+On Tue, Jun 21, 2011 at 01:16:00AM +0800, Cong Wang wrote:
+> ??? 2011???06???21??? 00:59, Mel Gorman ??????:
+> >On Tue, Jun 21, 2011 at 12:34:29AM +0800, Amerigo Wang wrote:
+> >>Don't hard-code 512M as the threshold in kernel, make it configruable,
+> >>and set 512M by default.
+> >>
+> >
+> >I'm not seeing the gain here either. This is something that is going to
+> >be set by distributions and probably never by users. If the default of
+> >512 is incorrect, what should it be? Also, the Kconfig help message has
+> >spelling errors.
+> >
+> 
+> Sorry for spelling errors, I am not an English speaker.
+> 
+> Hard-coding is almost never a good thing in kernel, enforcing 512
+> is not good either. Since the default is still 512, I don't think this
+> will affect much users.
+> 
+> I do agree to improve the help message, like Dave mentioned in his reply,
+> but I don't like enforcing a hard-coded number in kernel.
+> 
+> BTW, why do you think 512 is suitable for *all* users?
+> 
 
-command line parameter: badram=<addr>,<mask>[,...]
+Fragmentation avoidance benefits from tuning min_free_kbytes to a higher
+value and minimising fragmentation-related problems is crucial if THP is
+to allocate its necessary pages.
 
-Patterns for the command line parameter can be obtained by running Memtest86.
-In Memtest86 press "c" for configuration, select "Error Report Mode" and
-finally "BadRAM Patterns"
+THP tunes min_free_kbytes automatically and this value is in part
+related to the number of zones. At 512M on a single node machine, the
+recommended min_free_kbytes is close to 10% of memory which is barely
+tolerable as it is. At 256M, it's 17%, at 128M, it's 34% so tuning the
+value lower has diminishing returns as the performance impact of giving
+up such a high percentage of free memory is not going to be offset by
+reduced TLB misses. Tuning it to a higher value might make some sense
+if the higher min_free_kbytes was a problem but it would be much more
+rational to tune it as a sysctl than making it a compile-time decision.
 
-This has already been done by Rick van Rein a long time ago but it never found
-it's way into the kernel.
-
-Signed-off-by: Stefan Assmann <sassmann@kpanic.de>
-Acked-by: Tony Luck <tony.luck@intel.com>
-Acked-by: Andi Kleen <ak@linux.intel.com>
----
- mm/memory-failure.c |  100 +++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 files changed, 100 insertions(+), 0 deletions(-)
-
-diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-index 2b9a5ee..97c7f7c 100644
---- a/mm/memory-failure.c
-+++ b/mm/memory-failure.c
-@@ -52,6 +52,8 @@
- #include <linux/swapops.h>
- #include <linux/hugetlb.h>
- #include <linux/memory_hotplug.h>
-+#include <linux/memblock.h>
-+#include <linux/bootmem.h>
- #include "internal.h"
- 
- int sysctl_memory_failure_early_kill __read_mostly = 0;
-@@ -1487,3 +1489,101 @@ done:
- 	/* keep elevated page count for bad page */
- 	return ret;
- }
-+
-+/*
-+ * Return 0 if no address found else return 1, new address is stored in addrp.
-+ **/
-+static int __init next_masked_address(unsigned long *addrp, unsigned long mask)
-+{
-+	unsigned long total_mem = (max_pfn + 1) << PAGE_SHIFT;
-+	unsigned long tmp_addr = *addrp;
-+	unsigned long inc = 1;
-+
-+	while (inc & mask)
-+		inc = inc << 1;
-+
-+	while (inc != 0) {
-+		tmp_addr += inc;
-+		tmp_addr &= ~mask;
-+		tmp_addr |= ((*addrp) & mask);
-+
-+		/* address is bigger than phys memory */
-+		if (tmp_addr >= total_mem)
-+			return 0;
-+
-+		/* address found */
-+		if (tmp_addr > *addrp) {
-+			*addrp = tmp_addr;
-+			return 1;
-+		}
-+
-+		while (inc & ~mask)
-+			inc = inc << 1;
-+		inc = inc << 1;
-+	}
-+
-+	return 0;
-+}
-+
-+/*
-+ * Set hwpoison pageflag on all pages specified by addr/mask.
-+ */
-+static int __init badram_mark_pages(unsigned long addr, unsigned long mask)
-+{
-+	unsigned long pagecount = 0, is_reserved = 0;
-+
-+	mask |= ~PAGE_MASK; /* smallest chunk is a page */
-+	addr &= mask;
-+
-+	printk(KERN_INFO "BadRAM: mark 0x%lx with mask 0x%0lx\n", addr, mask);
-+
-+	do {
-+		unsigned long pfn = addr >> PAGE_SHIFT;
-+		struct page *page = pfn_to_page(pfn);
-+
-+		if (!pfn_valid(pfn))
-+			continue;
-+		if (memblock_is_reserved(addr)) {
-+			pr_debug("BadRAM: page %lu reserved by kernel\n", pfn);
-+			is_reserved++;
-+			continue;
-+		}
-+
-+		SetPageHWPoison(page);
-+		atomic_long_add(1, &mce_bad_pages);
-+		pagecount++;
-+		pr_debug("BadRAM: page %lu (addr 0x%0lx) marked bad "
-+			 "[total %lu]\n", pfn, addr, pagecount);
-+	} while (next_masked_address(&addr, mask));
-+
-+	if (is_reserved)
-+		printk(KERN_WARNING "BadRAM: %lu page(s) already reserved and "
-+		       "could not be marked bad\n", is_reserved);
-+
-+	return pagecount;
-+}
-+
-+static int __init badram_setup(char *str)
-+{
-+	printk(KERN_DEBUG "BadRAM: cmdline option is %s\n", str);
-+
-+	if (*str++ != '=')
-+		return 0;
-+
-+	while (*str) {
-+		unsigned long addr = 0, mask = 0, pagecount = 0;
-+
-+		if (!get_next_ulong(&str, &addr, ',', 16)) {
-+			printk(KERN_WARNING "BadRAM: parsing error\n");
-+			return 0;
-+		}
-+		if (!get_next_ulong(&str, &mask, ',', 16))
-+			mask = ~(0UL);
-+
-+		pagecount = badram_mark_pages(addr, mask);
-+		printk(KERN_INFO "BadRAM: %lu page(s) bad\n", pagecount);
-+	}
-+
-+	return 0;
-+}
-+__setup("badram", badram_setup);
 -- 
-1.7.4
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
