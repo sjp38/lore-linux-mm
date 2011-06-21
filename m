@@ -1,40 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id B609690013A
-	for <linux-mm@kvack.org>; Tue, 21 Jun 2011 12:35:31 -0400 (EDT)
-Message-ID: <4E00C851.1090307@5t9.de>
-Date: Tue, 21 Jun 2011 18:35:29 +0200
-From: Lutz Vieweg <lvml@5t9.de>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 9DE5E90013A
+	for <linux-mm@kvack.org>; Tue, 21 Jun 2011 15:08:04 -0400 (EDT)
+Received: from hpaq5.eem.corp.google.com (hpaq5.eem.corp.google.com [172.25.149.5])
+	by smtp-out.google.com with ESMTP id p5LJ7wre018709
+	for <linux-mm@kvack.org>; Tue, 21 Jun 2011 12:08:01 -0700
+Received: from pzk10 (pzk10.prod.google.com [10.243.19.138])
+	by hpaq5.eem.corp.google.com with ESMTP id p5LJ7Yqa014518
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 21 Jun 2011 12:07:57 -0700
+Received: by pzk10 with SMTP id 10so60717pzk.35
+        for <linux-mm@kvack.org>; Tue, 21 Jun 2011 12:07:56 -0700 (PDT)
+Date: Tue, 21 Jun 2011 12:07:54 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] oom: add uid to "Killed process" message
+In-Reply-To: <20110621113629.GA2758@dhcp-26-164.brq.redhat.com>
+Message-ID: <alpine.DEB.2.00.1106211205290.30481@chino.kir.corp.google.com>
+References: <1308567876-23581-1-git-send-email-fhrbata@redhat.com> <alpine.DEB.2.00.1106201409090.2639@chino.kir.corp.google.com> <20110621113629.GA2758@dhcp-26-164.brq.redhat.com>
 MIME-Version: 1.0
-Subject: Re: "make -j" with memory.(memsw.)limit_in_bytes smaller than required
- -> livelock, even for unlimited processes
-References: <4E00AFE6.20302@5t9.de>	<BANLkTime3JN9-fAi3Lwx7UdXQo41eQh0iw@mail.gmail.com>	<4E00C483.5080302@5t9.de> <BANLkTik50FB_CdSqr15zoyb_Pbxc2PgeBw@mail.gmail.com>
-In-Reply-To: <BANLkTik50FB_CdSqr15zoyb_Pbxc2PgeBw@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
+To: Frantisek Hrbata <fhrbata@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, CAI Qian <caiqian@redhat.com>, lwoodman@redhat.com
 
-On 06/21/2011 06:28 PM, Ying Han wrote:
-> Last time I tried was build on mmotm-2011-05-12-15-52 with the patch.
-> But I assume you can also
-> patch it on top of 2.6.39.
+On Tue, 21 Jun 2011, Frantisek Hrbata wrote:
 
-Ok, thanks for that info.
+> I guess the uid of the killed process can be identified from the dump_tasks
+> output, where it is presented along with other info. I think it is handy
+> to have the uid info directly in the "Killed process" message. 
+> 
+> This is used/requested by one of our customers and since I think it's a good
+> idea to have the uid info presented, I posted the patch here to see what do you
+> think about it.
+> 
 
-> Meantime, I am trying to reproduce your livelock on my host with kernbench.
-
-I'm not sure you will see a kernel-compile ever spawn enough compile jobs
-in parallel to reproduce the problem.
-
-It may be much easier to use the Makefile I attached to my initial
-problem report...
-
-Regards,
-
-Lutz Vieweg
+I don't feel strongly about it, but I think you could justify adding a lot 
+of the same information from the tasklist dump to the single "Killed 
+process" message.  The optimal way of getting this information would be 
+from the tasklist dump.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
