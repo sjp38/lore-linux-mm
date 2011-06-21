@@ -1,33 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id A69AE9000BD
-	for <linux-mm@kvack.org>; Mon, 20 Jun 2011 23:36:09 -0400 (EDT)
-Message-ID: <4E0011A0.4070401@redhat.com>
-Date: Tue, 21 Jun 2011 11:36:00 +0800
-From: Cong Wang <amwang@redhat.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 88BFF9000BD
+	for <linux-mm@kvack.org>; Mon, 20 Jun 2011 23:45:20 -0400 (EDT)
+From: Bob Liu <lliubbo@gmail.com>
+Subject: [PATCH v2] nommu: fix remap_pfn_range()implemention
+Date: Tue, 21 Jun 2011 11:56:20 +0800
+Message-ID: <1308628580-3027-1-git-send-email-lliubbo@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/3] mm: completely disable THP by transparent_hugepage=never
-References: <1308587683-2555-1-git-send-email-amwang@redhat.com> <20110620165844.GA9396@suse.de> <4DFF7E3B.1040404@redhat.com> <4DFF7F0A.8090604@redhat.com> <4DFF8106.8090702@redhat.com> <4DFF8327.1090203@redhat.com> <4DFF84BB.3050209@redhat.com> <20110620175859.GB9697@mgebm.net>
-In-Reply-To: <20110620175859.GB9697@mgebm.net>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric B Munson <emunson@mgebm.net>
-Cc: Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, gerg@snapgear.com, dhowells@redhat.com, lethal@linux-sh.org, gerg@uclinux.org, walken@google.com, daniel-gl@gmx.net, uclinux-dist-devel@blackfin.uclinux.org, geert@linux-m68k.org, vapier.adi@gmail.com, Bob Liu <lliubbo@gmail.com>
 
-ao? 2011a1'06ae??21ae?JPY 01:58, Eric B Munson a??e??:
-> If memory is this scarce, why not set CONFIG_TRANSPARENT_HUGEPAGE=n and be done
-> with it?  If the config option is enabled, the admin should be able to turn the
-> functionality back on if desired.  If you really don't _ever_ want THP then
-> disable the config.
->
+remap_pfn_range() means map physical address pfn<<PAGE_SHIFT to user addr.
 
-Unfortunately, changing .config is not always as easy as you said,
-for the kdump case, we use the same kernel binary with the normal kernel
-which certainly has to have THP enabled in .config.
+For nommu arch it's implemented by vma->vm_start = pfn << PAGE_SHIFT which is
+wrong acroding the original meaning of this function. And some driver
+developer using remap_pfn_range() with correct parameter will get unexpected
+result because vm_start is changed.
+It should be implementd like addr = pfn << PAGE_SHIFT but which is meanless on
+nommu arch, this patch just make it simply return.
 
-Thanks.
+Parameter name and setting of vma->vm_flags also be fixed.
+
+Reported-by: Scott Jiang <scott.jiang.linux@gmail.com>
+Signed-off-by: Bob Liu <lliubbo@gmail.com>
+---
+ mm/nommu.c |    9 ++++++---
+ 1 files changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/mm/nommu.c b/mm/nommu.c
+index 1fd0c51..9edc897 100644
+--- a/mm/nommu.c
++++ b/mm/nommu.c
+@@ -1813,10 +1813,13 @@ struct page *follow_page(struct vm_area_struct *vma, unsigned long address,
+ 	return NULL;
+ }
+ 
+-int remap_pfn_range(struct vm_area_struct *vma, unsigned long from,
+-		unsigned long to, unsigned long size, pgprot_t prot)
++int remap_pfn_range(struct vm_area_struct *vma, unsigned long addr,
++		unsigned long pfn, unsigned long size, pgprot_t prot)
+ {
+-	vma->vm_start = vma->vm_pgoff << PAGE_SHIFT;
++	if (addr != (pfn << PAGE_SHIFT))
++		return -EINVAL;
++
++	vma->vm_flags |= VM_IO | VM_RESERVED | VM_PFNMAP;
+ 	return 0;
+ }
+ EXPORT_SYMBOL(remap_pfn_range);
+-- 
+1.6.3.3
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
