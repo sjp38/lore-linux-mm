@@ -1,38 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id D85C290013A
-	for <linux-mm@kvack.org>; Tue, 21 Jun 2011 16:17:33 -0400 (EDT)
-Received: from d03relay05.boulder.ibm.com (d03relay05.boulder.ibm.com [9.17.195.107])
-	by e34.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p5LK4Vc9000572
-	for <linux-mm@kvack.org>; Tue, 21 Jun 2011 14:04:31 -0600
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay05.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p5LKHAZR330532
-	for <linux-mm@kvack.org>; Tue, 21 Jun 2011 14:17:13 -0600
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p5LEH83f032604
-	for <linux-mm@kvack.org>; Tue, 21 Jun 2011 08:17:08 -0600
-Subject: Re: [PATCH v2 2/4] mm: make the threshold of enabling THP
- configurable
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <1308667461.11430.315.camel@nimitz>
-References: <1308643849-3325-1-git-send-email-amwang@redhat.com>
-	 <1308643849-3325-2-git-send-email-amwang@redhat.com>
-	 <1308667461.11430.315.camel@nimitz>
-Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 21 Jun 2011 13:17:00 -0700
-Message-ID: <1308687420.11430.330.camel@nimitz>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 4646D90013A
+	for <linux-mm@kvack.org>; Tue, 21 Jun 2011 17:42:54 -0400 (EDT)
+Date: Tue, 21 Jun 2011 14:42:33 -0700
+From: Chris Wright <chrisw@sous-sol.org>
+Subject: Re: [PATCH 1/2 V2] ksm: take dirty bit as reference to avoid
+ volatile pages scanning
+Message-ID: <20110621214233.GN25383@sequoia.sous-sol.org>
+References: <201106212055.25400.nai.xia@gmail.com>
+ <201106212126.06726.nai.xia@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201106212126.06726.nai.xia@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Amerigo Wang <amwang@redhat.com>
-Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
+To: Nai Xia <nai.xia@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Izik Eidus <izik.eidus@ravellosystems.com>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Chris Wright <chrisw@sous-sol.org>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel <linux-kernel@vger.kernel.org>
 
-Urg.  Pasted the wrong thing.  Should be:
+* Nai Xia (nai.xia@gmail.com) wrote:
+> This patch makes the page_check_address() can validate if a subpage is
+> in its place in a huge page pointed by the address. This can be useful when
+> ksm does not split huge pages when looking up the subpages one by one.
 
-Acked-by: Dave Hansen <dave@linux.vnet.ibm.com> 
+Just a quick heads up...this patch does not compile by itself.  Could you
+do a little patch cleanup?  Start with just making sure the Subject: is
+correct for each patch.  Then make sure the 3 are part of same series.
+And finally, make sure each is stand alone and complilable on its own.
 
--- Dave
+thanks,
+-chris
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
