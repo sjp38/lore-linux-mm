@@ -1,131 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id E257E6B0150
-	for <linux-mm@kvack.org>; Tue, 21 Jun 2011 10:51:32 -0400 (EDT)
-Message-ID: <4E00AFE6.20302@5t9.de>
-Date: Tue, 21 Jun 2011 16:51:18 +0200
-From: Lutz Vieweg <lvml@5t9.de>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id B0EF690013A
+	for <linux-mm@kvack.org>; Tue, 21 Jun 2011 11:34:00 -0400 (EDT)
+Message-ID: <4E00B8E6.8050508@draigBrady.com>
+Date: Tue, 21 Jun 2011 16:29:42 +0100
+From: =?ISO-8859-15?Q?P=E1draig_Brady?= <P@draigBrady.com>
 MIME-Version: 1.0
-Subject: "make -j" with memory.(memsw.)limit_in_bytes smaller than required
- -> livelock,  even for unlimited processes
-Content-Type: multipart/mixed;
- boundary="------------020802040702090000090002"
+Subject: Re: sandy bridge kswapd0 livelock with pagecache
+References: <4E0069FE.4000708@draigBrady.com> <20110621103920.GF9396@suse.de> <4E0076C7.4000809@draigBrady.com> <20110621113447.GG9396@suse.de> <4E008784.80107@draigBrady.com> <20110621143434.GI9396@suse.de>
+In-Reply-To: <20110621143434.GI9396@suse.de>
+Content-Type: text/plain; charset=ISO-8859-15
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, lvml@5t9.de
+To: Mel Gorman <mgorman@suse.de>
+Cc: linux-mm@kvack.org
 
-This is a multi-part message in MIME format.
---------------020802040702090000090002
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+On 21/06/11 15:34, Mel Gorman wrote:
+> On Tue, Jun 21, 2011 at 12:59:00PM +0100, P?draig Brady wrote:
+>> On 21/06/11 12:34, Mel Gorman wrote:
+>>> On Tue, Jun 21, 2011 at 11:47:35AM +0100, P?draig Brady wrote:
+>>>> On 21/06/11 11:39, Mel Gorman wrote:
+>>>>> On Tue, Jun 21, 2011 at 10:53:02AM +0100, P?draig Brady wrote:
+>>>>>> I tried the 2 patches here to no avail:
+>>>>>> http://marc.info/?l=linux-mm&m=130503811704830&w=2
+>>>>>>
+>>>>>> I originally logged this at:
+>>>>>> https://bugzilla.redhat.com/show_bug.cgi?id=712019
+>>>>>>
+>>>>>> I can compile up and quickly test any suggestions.
+>>>>>>
+>>>>>
+>>>>> I recently looked through what kswapd does and there are a number
+>>>>> of problem areas. Unfortunately, I haven't gotten around to doing
+>>>>> anything about it yet or running the test cases to see if they are
+>>>>> really problems. In your case, the following is a strong possibility
+>>>>> though. This should be applied on top of the two patches merged from
+>>>>> that thread.
+>>>>>
+>>>>> This is not tested in any way, based on 3.0-rc3
+>>>>
+>>>> This does not fix the issue here.
+>>>>
+>>>
+>>> I made a silly mistake here.  When you mentioned two patches applied,
+>>> I assumed you meant two patches that were finally merged from that
+>>> discussion thread instead of looking at your linked mail. Now that I
+>>> have checked, I think you applied the SLUB patches while the patches
+>>> I was thinking of are;
+>>>
+>>> [afc7e326: mm: vmscan: correct use of pgdat_balanced in sleeping_prematurely]
+>>> [f06590bd: mm: vmscan: correctly check if reclaimer should schedule during shrink_slab]
+>>>
+>>> The first one in particular has been reported by another user to fix
+>>> hangs related to copying large files. I'm assuming you are testing
+>>> against the Fedora kernel. As these patches were merged for 3.0-rc1, can
+>>> you check if applying just these two patches to your kernel helps?
+>>
+>> These patches are already present in my 2.6.38.8-32.fc15.x86_64 kernel :(
+>>
+> 
+> While doing a review of patches for unrelated reasons between 2.6.38
+> and 3.0-rc3, I noted a few patches related to high CPU usage that may
+> not have made it to the Fedora kernel.
+> 
+> * d527caf2 mm: compaction: prevent kswapd compacting memory to reduce CPU usage
+> * 929bea7c vmscan: all_unreclaimable() use zone->all_unreclaimable as a name
+> * afc7e326 mm: vmscan: correct use of pgdat_balanced in sleeping_prematurely
+> * f06590bd mm: vmscan: correctly check if reclaimer should schedule during shrink_slab
 
-Dear Memory Ressource Controller maintainers,
+Those were already applied, yes.
 
-by using per-user control groups with a limit on memory (and swap) I am
-trying to secure a shared development server against memory exhaustion
-by any one single user - as it happened before when somebody imprudently
-issued "make -j" (which has the infamous habit to spawn an unlimited
-number of processes) on a large software project with many source files.
+>   8afdcece mm: vmscan: kswapd should not free an excessive number of pages when balancing small zones
+>   602605a4 mm: compaction: minimise the time IRQs are disabled while isolating free pages
+>   b2eef8c0 mm: compaction: minimise the time IRQs are disabled while isolating pages for migration
 
-The memory limitation using control groups works just fine when
-only a few processes sum up to a usage that exceeds the limits - the
-processes are OOM-killed, then, and the others users are unaffected.
+The above had no effect.
 
-But the original cause, a "make -j" on many source files, leads to
-the following ugly symptom:
-
-- make starts numerous (~ 100 < x < 200) gcc processes
-
-- some of those gcc processes get OOM-killed quickly, then
-   a few more are killed, but with increasing pauses in between
-
-- then after a few seconds, no more gcc processes are killed, but
-   the "make" process and its childs do not show any progress anymore
-
-- at this time, top indicates 100% "system" CPU usage, mostly by
-   "[kworker/*]" threads (one per CPU). But processes from other
-   users, that only require CPU, proceed to run.
-
-- but also at this time, if any other user (who has not exhausted
-   his memory limits) tries to access any file (at least on /tmp/,
-   as e.g. gcc does), even a simple "ls /tmp/", this operation
-   waits forever. (But "iostat" does not indicate any I/O activity.)
-
-- as soon as you press "CTRL-C" to abort the "make -j", everything
-   goes back to normal, quickly - also the other users' processes proceed.
-
-
-To reproduce the problem, the attached "Makefile" to a directory
-on a filesystem with at least 70MB free space, then
-
-  mount -o memory none /cgroup
-  mkdir /cgroup/test
-  echo 64M >/cgroup/test/memory.limit_in_bytes
-  echo 64M >/cgroup/test/memory.memsw.limit_in_bytes
-
-  cd /somewhere/with/70mb/free
-  echo $$ >/cgroup/test/tasks
-  make sources
-  make -j compile
-
-Notice that "make sources" will create 200 bogus "*.c" files from
-/dev/urandom to make sure that "gcc" will use up some memory.
-
-The "make -j compile" reliably reproduces the above mentioned syndrome,
-here.
-
-Please notice that the livelock does happen only with a significant
-number of parallel compiler runs - it did e.g. not happen with
-only 100 for me, and it also did not happen when I started "make"
-with "strace" - so timing seems to be an issue, here.
-
-Thanks for any hints towards a solution of this issue in advance!
-
-Regards,
-
-Lutz Vieweg
-
---------------020802040702090000090002
-Content-Type: text/plain;
- name="Makefile"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: attachment;
- filename="Makefile"
-
-
-all:
-	echo "first 'make sources', then 'make -j compile'
-
-
-N=200 
-
-clean:
-	rm -f file_*.o lib.so
-
-
-mrproper:
-	rm -f file_*.c file_*.o lib.so
-	
-
-sources: clean
-	for (( I=0 ; $$I < $(N) ; I=`expr $$I + 1` )) ; do \
-		echo $$I; \
-		echo "char array_$$I [] = " >file_$$I.c ;\
-		dd if=/dev/urandom bs=256k count=1 | base64 | sed 's/^.*/"\0"/g' >>file_$$I.c ;\
-		echo ";" >>file_$$I.c ;\
-	done
-
-
-OBJ = $(addsuffix .o, $(basename $(notdir $(wildcard file_*.c))))
-
-compile: $(OBJ)
-	gcc -shared -O3 -o lib.so $(OBJ)	
-
-%.o: ./%.c
-	gcc -O3 -c $< -o $@
-
---------------020802040702090000090002--
+cheers,
+Padraig.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
