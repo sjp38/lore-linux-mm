@@ -1,88 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 954E96B0147
-	for <linux-mm@kvack.org>; Tue, 21 Jun 2011 10:34:39 -0400 (EDT)
-Date: Tue, 21 Jun 2011 15:34:34 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: sandy bridge kswapd0 livelock with pagecache
-Message-ID: <20110621143434.GI9396@suse.de>
-References: <4E0069FE.4000708@draigBrady.com>
- <20110621103920.GF9396@suse.de>
- <4E0076C7.4000809@draigBrady.com>
- <20110621113447.GG9396@suse.de>
- <4E008784.80107@draigBrady.com>
+	by kanga.kvack.org (Postfix) with SMTP id 65F856B014C
+	for <linux-mm@kvack.org>; Tue, 21 Jun 2011 10:43:53 -0400 (EDT)
+Date: Tue, 21 Jun 2011 16:43:46 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 1/3] mm: completely disable THP by
+ transparent_hugepage=never
+Message-ID: <20110621144346.GQ20843@redhat.com>
+References: <20110620165844.GA9396@suse.de>
+ <4DFF7E3B.1040404@redhat.com>
+ <4DFF7F0A.8090604@redhat.com>
+ <4DFF8106.8090702@redhat.com>
+ <4DFF8327.1090203@redhat.com>
+ <4DFF84BB.3050209@redhat.com>
+ <4DFF8848.2060802@redhat.com>
+ <20110620182558.GF4749@redhat.com>
+ <20110620192117.GG20843@redhat.com>
+ <4E00192E.70901@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <4E008784.80107@draigBrady.com>
+In-Reply-To: <4E00192E.70901@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: P?draig Brady <P@draigBrady.com>
-Cc: linux-mm@kvack.org
+To: Cong Wang <amwang@redhat.com>
+Cc: Vivek Goyal <vgoyal@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Johannes Weiner <jweiner@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
 
-On Tue, Jun 21, 2011 at 12:59:00PM +0100, P?draig Brady wrote:
-> On 21/06/11 12:34, Mel Gorman wrote:
-> > On Tue, Jun 21, 2011 at 11:47:35AM +0100, P?draig Brady wrote:
-> >> On 21/06/11 11:39, Mel Gorman wrote:
-> >>> On Tue, Jun 21, 2011 at 10:53:02AM +0100, P?draig Brady wrote:
-> >>>> I tried the 2 patches here to no avail:
-> >>>> http://marc.info/?l=linux-mm&m=130503811704830&w=2
-> >>>>
-> >>>> I originally logged this at:
-> >>>> https://bugzilla.redhat.com/show_bug.cgi?id=712019
-> >>>>
-> >>>> I can compile up and quickly test any suggestions.
-> >>>>
-> >>>
-> >>> I recently looked through what kswapd does and there are a number
-> >>> of problem areas. Unfortunately, I haven't gotten around to doing
-> >>> anything about it yet or running the test cases to see if they are
-> >>> really problems. In your case, the following is a strong possibility
-> >>> though. This should be applied on top of the two patches merged from
-> >>> that thread.
-> >>>
-> >>> This is not tested in any way, based on 3.0-rc3
-> >>
-> >> This does not fix the issue here.
-> >>
-> > 
-> > I made a silly mistake here.  When you mentioned two patches applied,
-> > I assumed you meant two patches that were finally merged from that
-> > discussion thread instead of looking at your linked mail. Now that I
-> > have checked, I think you applied the SLUB patches while the patches
-> > I was thinking of are;
-> > 
-> > [afc7e326: mm: vmscan: correct use of pgdat_balanced in sleeping_prematurely]
-> > [f06590bd: mm: vmscan: correctly check if reclaimer should schedule during shrink_slab]
-> > 
-> > The first one in particular has been reported by another user to fix
-> > hangs related to copying large files. I'm assuming you are testing
-> > against the Fedora kernel. As these patches were merged for 3.0-rc1, can
-> > you check if applying just these two patches to your kernel helps?
-> 
-> These patches are already present in my 2.6.38.8-32.fc15.x86_64 kernel :(
-> 
+On Tue, Jun 21, 2011 at 12:08:14PM +0800, Cong Wang wrote:
+> The thing is that we can save ~10K by adding 3 lines of code as this
+> patch showed, where else in kernel can you save 10K by 3 lines of code?
+> (except some kfree() cases, of course) So, again, why not have it? ;)
 
-While doing a review of patches for unrelated reasons between 2.6.38
-and 3.0-rc3, I noted a few patches related to high CPU usage that may
-not have made it to the Fedora kernel.
+Because you could save it with a more complicated patch that doesn't
+cripple down functionality.
 
-* d527caf2 mm: compaction: prevent kswapd compacting memory to reduce CPU usage
-  8afdcece mm: vmscan: kswapd should not free an excessive number of pages when balancing small zones
-  602605a4 mm: compaction: minimise the time IRQs are disabled while isolating free pages
-  b2eef8c0 mm: compaction: minimise the time IRQs are disabled while isolating pages for migration
-* 929bea7c vmscan: all_unreclaimable() use zone->all_unreclaimable as a name
-* afc7e326 mm: vmscan: correct use of pgdat_balanced in sleeping_prematurely
-* f06590bd mm: vmscan: correctly check if reclaimer should schedule during shrink_slab
+Sure you can save a ton more ram with one liner patches, just search
+the callers of alloc_large_system_hash and reduce the number of
+entries everywhere. Are you using dhash_entries=1 ihash_entries=1?
+That alone would save a ton more than ~10k so you should add it to
+command line if it isn't there but there are other hashes like these
+that don't have dhash_entries parameters. You could add
+khugepaged_hash_slots parameter too for example and set it == 1 with a
+parameter to avoid crippling down functionality, that wouldn't even
+increase complexity. Those kind of approaches that don't cripple down
+features, are ok. Remvoing sysfs register is not ok and there's no
+need of adding a =0 parameter when you can achieve the memory saving
+without totally losing functionality.
 
-The ones marked * are already in 2.6.38.8 so presumably in the Fedora
-kernel as well but worth double checking. Of the remaining patches,
-patch 2 is the most relevant to your problem as it was explicitly
-targeted at reclaiming during copying large amounts of data.
+I booted with 128m ram and I get 128KB (not ~8KB) allocated in the
+dentry hash, 65KB allocated in the inode hash, 65KB in the TCP
+established hash, 8KB in the route cache hash, 262KB in the bind hash,
+10KB in the UDP hash, you can all reduce those to a few hundred bytes
+and it'll still work just fine. So yeah with one liner patches you can
+surely achieve more than this ~8KB gain, and with dhash_entries=1
+ihash_entries=1 you'll already save hugely more than by booting with
+transparent_hugepage=0 that avoids registering in sysfs and cripple
+down functionality. If you make the khugepaged slots hash configurable
+in size (keeping the current default) with a new param it will
+_increase_ functionality as it will also allow to _increase_ its size
+on huge systems or in special configurations that may benefit from a
+larger hash.
 
--- 
-Mel Gorman
-SUSE Labs
+Again if you want to optimize this ~8KB gain, I recommend to add a
+param to make the hash size dynamic not to prevent the feature to ever
+be enabled again, so by making the code more complex at least it will
+also be useful if we want to increase the size hash at boot time (not
+only to decrease it).
+
+I guess however you may run into command line stringsize limit if you
+add things like dhash_entries=1 for every single hash in the kernel...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
