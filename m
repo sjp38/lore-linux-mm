@@ -1,46 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id D298790013A
-	for <linux-mm@kvack.org>; Tue, 21 Jun 2011 09:32:15 -0400 (EDT)
-Subject: Re: [PATCH v4 3.0-rc2-tip 14/22] 14: x86: uprobes exception
- notifier for x86.
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <20110607130101.28590.99984.sendpatchset@localhost6.localdomain6>
-References: 
-	 <20110607125804.28590.92092.sendpatchset@localhost6.localdomain6>
-	 <20110607130101.28590.99984.sendpatchset@localhost6.localdomain6>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-Date: Tue, 21 Jun 2011 15:31:24 +0200
-Message-ID: <1308663084.26237.145.camel@twins>
-Mime-Version: 1.0
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 9EA4F90013A
+	for <linux-mm@kvack.org>; Tue, 21 Jun 2011 09:33:03 -0400 (EDT)
+Date: Tue, 21 Jun 2011 15:32:36 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 4/4] mm: introduce no_ksm to disable totally KSM
+Message-ID: <20110621133236.GP20843@redhat.com>
+References: <1308643849-3325-1-git-send-email-amwang@redhat.com>
+ <1308643849-3325-4-git-send-email-amwang@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1308643849-3325-4-git-send-email-amwang@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Andi Kleen <andi@firstfloor.org>, Thomas Gleixner <tglx@linutronix.de>, Jonathan Corbet <corbet@lwn.net>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, LKML <linux-kernel@vger.kernel.org>
+To: Amerigo Wang <amwang@redhat.com>
+Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org
 
-On Tue, 2011-06-07 at 18:31 +0530, Srikar Dronamraju wrote:
-> @@ -844,6 +845,19 @@ do_notify_resume(struct pt_regs *regs, void *unused,=
- __u32 thread_info_flags)
->         if (thread_info_flags & _TIF_SIGPENDING)
->                 do_signal(regs);
-> =20
-> +       if (thread_info_flags & _TIF_UPROBE) {
-> +               clear_thread_flag(TIF_UPROBE);
-> +#ifdef CONFIG_X86_32
-> +               /*
-> +                * On x86_32, do_notify_resume() gets called with
-> +                * interrupts disabled. Hence enable interrupts if they
-> +                * are still disabled.
-> +                */
-> +               local_irq_enable();
-> +#endif
-> +               uprobe_notify_resume(regs);
-> +       }=20
+On Tue, Jun 21, 2011 at 04:10:45PM +0800, Amerigo Wang wrote:
+> Introduce a new kernel parameter "no_ksm" to totally disable KSM.
 
-Would it make sense to do TIF_UPROBE before TIF_SIGPENDING? That way
-when uprobe decides it ought to have send a signal we don't have to do
-another loop through all this.
+Here as well this is the wrong approach. If you want to save memory,
+you should make ksmd quit when run=0 and start only when setting
+ksm/run=1. And move the daemon hashes and slabs initializations to the
+ksmd daemon start. Not registering in sysfs and crippling down the
+feature despite you loaded the proper .text into memory isn't good.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
