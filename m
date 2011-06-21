@@ -1,117 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id E9D1790013A
-	for <linux-mm@kvack.org>; Tue, 21 Jun 2011 01:49:19 -0400 (EDT)
-Message-ID: <4E0030DB.6000208@cs.helsinki.fi>
-Date: Tue, 21 Jun 2011 08:49:15 +0300
-From: Pekka Enberg <penberg@cs.helsinki.fi>
-MIME-Version: 1.0
-Subject: Re: [Q] mm/memblock.c: cast truncates bits from RED_INACTIVE
-References: <ADE657CA350FB648AAC2C43247A983F001F382220E0F@AUSP01VMBX24.collaborationhost.net> <20110620170249.d5cd98b1.akpm@linux-foundation.org> <ADE657CA350FB648AAC2C43247A983F001F38227BF35@AUSP01VMBX24.collaborationhost.net>
-In-Reply-To: <ADE657CA350FB648AAC2C43247A983F001F38227BF35@AUSP01VMBX24.collaborationhost.net>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id EC6286B0129
+	for <linux-mm@kvack.org>; Tue, 21 Jun 2011 02:47:11 -0400 (EDT)
+Subject: Re: [PATCH v2] mm: Fix assertion mapping->nrpages == 0 in
+ end_writeback()
+From: Miklos Szeredi <mszeredi@suse.cz>
+In-Reply-To: <20110620171833.411c96e0.akpm@linux-foundation.org>
+References: <1308152233-16919-1-git-send-email-jack@suse.cz>
+	 <20110620171833.411c96e0.akpm@linux-foundation.org>
+Content-Type: text/plain; charset="UTF-8"
+Date: Tue, 21 Jun 2011 08:47:49 +0200
+Message-ID: <1308638869.2695.59.camel@tucsk.pomaz.szeredi.hu>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: H Hartley Sweeten <hartleys@visionengravers.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "benh@kernel.crashing.org" <benh@kernel.crashing.org>, "yinghai@kernel.org" <yinghai@kernel.org>, "hpa@linux.intel.com" <hpa@linux.intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Jan Kara <jack@suse.cz>, linux-mm@kvack.org, Jay <jinshan.xiong@whamcloud.com>, Miklos Szeredi <mszeredi@suse.de>
 
-On 6/21/11 3:31 AM, H Hartley Sweeten wrote:
-> On Monday, June 20, 2011 5:03 PM, Andrew Morton wrote:
->> On Tue, 14 Jun 2011 19:47:19 -0500 H Hartley Sweeten wrote:
->>
->>> Hello all,
->>>
->>> Sparse is reporting a couple warnings in mm/memblock.c:
->>>
->>> 	warning: cast truncates bits from constant value (9f911029d74e35b becomes 9d74e35b)
->>>
->>> The warnings are due to the cast of RED_INACTIVE in memblock_analyze():
->>>
->>> 	/* Check marker in the unused last array entry */
->>> 	WARN_ON(memblock_memory_init_regions[INIT_MEMBLOCK_REGIONS].base
->>> 		!= (phys_addr_t)RED_INACTIVE);
->>> 	WARN_ON(memblock_reserved_init_regions[INIT_MEMBLOCK_REGIONS].base
->>> 		!= (phys_addr_t)RED_INACTIVE);
->>>
->>> And in memblock_init():
->>>
->>> 	/* Write a marker in the unused last array entry */
->>> 	memblock.memory.regions[INIT_MEMBLOCK_REGIONS].base = (phys_addr_t)RED_INACTIVE;
->>> 	memblock.reserved.regions[INIT_MEMBLOCK_REGIONS].base = (phys_addr_t)RED_INACTIVE;
->>>
->>> Could this cause any problems?  If not, is there anyway to quiet the sparse noise?
->>>
->>
->> It's all just a debugging check and that check will continue to work OK
->> despite this bug.
->>
->> But yes, it's ugly and should be fixed.
->>
->> I don't think that mm/memblock.c should have reused RED_INACTIVE.
->> That's a slab thing and wedging it into a phys_addr_t was
->> inappropriate.
->>
->> In fact I don't think RED_INACTIVE should exist.  It's just inviting
->> other subsystems to (ab)use it.  It should be replaced by a
->> slab-specific SLAB_RED_INACTIVE, as slub did with SLUB_RED_INACTIVE.
->>
->>
->> I'd suggest something like the below, which I didn't test.  Feel free to
->> send it back at me, or ignore it ;)
->>
->>
->> diff -puN include/linux/poison.h~a include/linux/poison.h
->> --- a/include/linux/poison.h~a
->> +++ a/include/linux/poison.h
->> @@ -40,6 +40,12 @@
->>   #define	RED_INACTIVE	0x09F911029D74E35BULL	/* when obj is inactive */
->>   #define	RED_ACTIVE	0xD84156C5635688C0ULL	/* when obj is active */
->>
->> +#ifdef CONFIG_PHYS_ADDR_T_64BIT
->> +#define MEMBLOCK_INACTIVE	0x3a84fb0144c9e71bULL
->> +#else
->> +#define MEMBLOCK_INACTIVE	0x44c9e71bUL
->> +#endif
->> +
->>   #define SLUB_RED_INACTIVE	0xbb
->>   #define SLUB_RED_ACTIVE		0xcc
->>
->> diff -puN mm/memblock.c~a mm/memblock.c
->> --- a/mm/memblock.c~a
->> +++ a/mm/memblock.c
->> @@ -758,9 +758,9 @@ void __init memblock_analyze(void)
->>
->>   	/* Check marker in the unused last array entry */
->>   	WARN_ON(memblock_memory_init_regions[INIT_MEMBLOCK_REGIONS].base
->> -		!= (phys_addr_t)RED_INACTIVE);
->> +		!= MEMBLOCK_INACTIVE);
->>   	WARN_ON(memblock_reserved_init_regions[INIT_MEMBLOCK_REGIONS].base
->> -		!= (phys_addr_t)RED_INACTIVE);
->> +		!= MEMBLOCK_INACTIVE);
->>
->>   	memblock.memory_size = 0;
->>
->> @@ -786,8 +786,8 @@ void __init memblock_init(void)
->>   	memblock.reserved.max	= INIT_MEMBLOCK_REGIONS;
->>
->>   	/* Write a marker in the unused last array entry */
->> -	memblock.memory.regions[INIT_MEMBLOCK_REGIONS].base = (phys_addr_t)RED_INACTIVE;
->> -	memblock.reserved.regions[INIT_MEMBLOCK_REGIONS].base = (phys_addr_t)RED_INACTIVE;
->> +	memblock.memory.regions[INIT_MEMBLOCK_REGIONS].base = MEMBLOCK_INACTIVE;
->> +	memblock.reserved.regions[INIT_MEMBLOCK_REGIONS].base = MEMBLOCK_INACTIVE;
->>
->>   	/* Create a dummy zero size MEMBLOCK which will get coalesced away later.
->>   	 * This simplifies the memblock_add() code below...
->
-> FWIW, your patch above quiet's the sparse warnings on my system (arm ep93xx) and
-> the system boots and runs fine.
->
-> If you want it..
->
-> Tested-by: H Hartley Sweeten<hsweeten@visionengravers.com>
+On Mon, 2011-06-20 at 17:18 -0700, Andrew Morton wrote:
+> On Wed, 15 Jun 2011 17:37:13 +0200
+> Jan Kara <jack@suse.cz> wrote:
+> 
+> > Under heavy memory and filesystem load, users observe the assertion
+> > mapping->nrpages == 0 in end_writeback() trigger. This can be caused
+> > by page reclaim reclaiming the last page from a mapping in the following
+> > race:
+> > 	CPU0				CPU1
+> >   ...
+> >   shrink_page_list()
+> >     __remove_mapping()
+> >       __delete_from_page_cache()
+> >         radix_tree_delete()
+> > 					evict_inode()
+> > 					  truncate_inode_pages()
+> > 					    truncate_inode_pages_range()
+> > 					      pagevec_lookup() - finds nothing
+> > 					  end_writeback()
+> > 					    mapping->nrpages != 0 -> BUG
+> >         page->mapping = NULL
+> >         mapping->nrpages--
+> > 
+> > Fix the problem by doing a reliable check of mapping->nrpages under
+> > mapping->tree_lock in end_writeback().
+> > 
+> > Analyzed by Jay <jinshan.xiong@whamcloud.com>, lost in LKML, and dug
+> > out by Miklos Szeredi <mszeredi@suse.de>.
+> > 
+> > CC: Jay <jinshan.xiong@whamcloud.com>
+> > CC: Miklos Szeredi <mszeredi@suse.de>
+> > Signed-off-by: Jan Kara <jack@suse.cz>
+> > ---
+> >  fs/inode.c         |    7 +++++++
+> >  include/linux/fs.h |    1 +
+> >  mm/truncate.c      |    5 +++++
+> >  3 files changed, 13 insertions(+), 0 deletions(-)
+> > 
+> >   Andrew, does this look better?
+> 
+> spose so.
+> 
+> > diff --git a/fs/inode.c b/fs/inode.c
+> > index 33c963d..1133cb0 100644
+> > --- a/fs/inode.c
+> > +++ b/fs/inode.c
+> > @@ -467,7 +467,14 @@ EXPORT_SYMBOL(remove_inode_hash);
+> >  void end_writeback(struct inode *inode)
+> >  {
+> >  	might_sleep();
+> > +	/*
+> > +	 * We have to cycle tree_lock here because reclaim can be still in the
+> > +	 * process of removing the last page (in __delete_from_page_cache())
+> > +	 * and we must not free mapping under it.
+> > +	 */
+> > +	spin_lock(&inode->i_data.tree_lock);
+> >  	BUG_ON(inode->i_data.nrpages);
+> > +	spin_unlock(&inode->i_data.tree_lock);
+> 
+> That's an expensive assertion.  We might want to wrap all this in
+> CONFIG_DEBUG_VM.
+> 
+> Or we could do
+> 
+> 	if (unlikely(inode->i_data.nrpages)) {
+> 		/* comment goes here */
+> 		spin_lock(&inode->i_data.tree_lock);
+> 		BUG_ON(inode->i_data.nrpages);
+> 		spin_unlock(&inode->i_data.tree_lock);
+> 	}
+> 
 
-Acked-by: Pekka Enberg <penberg@kernel.org>
+It's not *just* the assertion that needs locking.   Suppose that we are
+in __remove_mapping() just before the 
+spin_unlock_irq(&mapping->tree_lock) and the inode is freed along with
+the mapping at that point in evict().  In that case the spin_unlock
+would be touching freed memory.
+
+truncate_inode_pages() used to synchronize page reclaim with inode
+eviction, but now that synchronization is gone.
+
+Thanks,
+Miklos
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
