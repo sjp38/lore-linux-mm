@@ -1,62 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 295676B0101
-	for <linux-mm@kvack.org>; Tue, 21 Jun 2011 04:11:24 -0400 (EDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 541FC6B0103
+	for <linux-mm@kvack.org>; Tue, 21 Jun 2011 04:11:44 -0400 (EDT)
 From: Amerigo Wang <amwang@redhat.com>
-Subject: [PATCH 3/4] mm: improve THP printk messages
-Date: Tue, 21 Jun 2011 16:10:44 +0800
-Message-Id: <1308643849-3325-3-git-send-email-amwang@redhat.com>
+Subject: [PATCH v2 2/4] mm: make the threshold of enabling THP configurable
+Date: Tue, 21 Jun 2011 16:10:43 +0800
+Message-Id: <1308643849-3325-2-git-send-email-amwang@redhat.com>
 In-Reply-To: <1308643849-3325-1-git-send-email-amwang@redhat.com>
 References: <1308643849-3325-1-git-send-email-amwang@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: akpm@linux-foundation.org, Amerigo Wang <amwang@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <jweiner@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
+Cc: akpm@linux-foundation.org, Amerigo Wang <amwang@redhat.com>, dave@linux.vnet.ibm.com, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
 
-As Andrea suggested, use "THP:" prefix to avoid
-being confused with hugetlb.
+Don't hard-code 512M as the threshold in kernel, make it configruable,
+and set 512M by default.
 
+And print info when THP is disabled automatically on small systems.
+
+V2: Add more description in help messages, correct some typos,
+print the mini threshold too.
+
+Cc: dave@linux.vnet.ibm.com
 Signed-off-by: WANG Cong <amwang@redhat.com>
 ---
- mm/huge_memory.c |    8 ++++----
- 1 files changed, 4 insertions(+), 4 deletions(-)
+ mm/Kconfig       |   20 ++++++++++++++++++++
+ mm/huge_memory.c |    7 ++++++-
+ 2 files changed, 26 insertions(+), 1 deletions(-)
 
+diff --git a/mm/Kconfig b/mm/Kconfig
+index 8ca47a5..f1b3175f 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -340,6 +340,26 @@ choice
+ 	  benefit.
+ endchoice
+ 
++config TRANSPARENT_HUGEPAGE_THRESHOLD
++	depends on TRANSPARENT_HUGEPAGE
++	int "The minimal threshold of enabling Transparent Hugepage"
++	range 512 8192
++	default "512"
++	help
++	  The threshold of enabling Transparent Huagepage automatically,
++	  in Mbytes, below this value Transparent Hugepage will be disabled
++	  by default during boot. You can still enable it via /sys after
++	  boot.
++
++	  Transparent hugepages are created by moving other pages out of
++	  the way to create large, contiguous swaths of free memory.
++	  However, some memory on a system can not be easily moved.  It is
++	  likely on small systems that this unmovable memory will occupy a
++	  large portion of total memory, which makes even attempting to
++	  create transparent hugepages very expensive.
++
++	  If you are unsure, set this to the smallest possible value.
++
+ #
+ # UP and nommu archs use km based percpu allocator
+ #
 diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 126c96b..f9e720c 100644
+index e4a4f2b..126c96b 100644
 --- a/mm/huge_memory.c
 +++ b/mm/huge_memory.c
-@@ -506,7 +506,7 @@ static int __init hugepage_init(void)
- 	if (no_hugepage_init) {
- 		err = 0;
+@@ -546,8 +546,13 @@ static int __init hugepage_init(void)
+ 	 * where the extra memory used could hurt more than TLB overhead
+ 	 * is likely to save.  The admin can still enable it through /sys.
+ 	 */
+-	if (totalram_pages < (512 << (20 - PAGE_SHIFT)))
++	if (totalram_pages < (CONFIG_TRANSPARENT_HUGEPAGE_THRESHOLD
++					<< (20 - PAGE_SHIFT))) {
++		printk(KERN_INFO "THP: disabled automatically"
++				 "with less than %dMB of RAM\n",
++				 CONFIG_TRANSPARENT_HUGEPAGE_THRESHOLD);
  		transparent_hugepage_flags = 0;
--		printk(KERN_INFO "hugepage: totally disabled\n");
-+		printk(KERN_INFO "THP: totally disabled\n");
- 		goto out;
- 	}
++	}
  
-@@ -514,19 +514,19 @@ static int __init hugepage_init(void)
- 	err = -ENOMEM;
- 	hugepage_kobj = kobject_create_and_add("transparent_hugepage", mm_kobj);
- 	if (unlikely(!hugepage_kobj)) {
--		printk(KERN_ERR "hugepage: failed kobject create\n");
-+		printk(KERN_ERR "THP: failed kobject create\n");
- 		goto out;
- 	}
+ 	start_khugepaged();
  
- 	err = sysfs_create_group(hugepage_kobj, &hugepage_attr_group);
- 	if (err) {
--		printk(KERN_ERR "hugepage: failed register hugeage group\n");
-+		printk(KERN_ERR "THP: failed register hugeage group\n");
- 		goto out;
- 	}
- 
- 	err = sysfs_create_group(hugepage_kobj, &khugepaged_attr_group);
- 	if (err) {
--		printk(KERN_ERR "hugepage: failed register hugeage group\n");
-+		printk(KERN_ERR "THP: failed register hugeage group\n");
- 		goto out;
- 	}
- #endif
 -- 
 1.7.4.4
 
