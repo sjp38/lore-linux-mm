@@ -1,34 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 1C7E990013A
-	for <linux-mm@kvack.org>; Tue, 21 Jun 2011 18:03:50 -0400 (EDT)
-Date: Tue, 21 Jun 2011 15:02:55 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2 0/3] support for broken memory modules (BadRAM)
-Message-Id: <20110621150255.87930b11.akpm@linux-foundation.org>
-In-Reply-To: <1308648198-2130-1-git-send-email-sassmann@kpanic.de>
-References: <1308648198-2130-1-git-send-email-sassmann@kpanic.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id B9C4990013A
+	for <linux-mm@kvack.org>; Tue, 21 Jun 2011 18:40:39 -0400 (EDT)
+Date: Tue, 21 Jun 2011 15:38:00 -0700
+From: Chris Wright <chrisw@sous-sol.org>
+Subject: Re: [PATCH 2/2 V2] ksm: take dirty bit as reference to avoid
+ volatile pages scanning
+Message-ID: <20110621223800.GO25383@sequoia.sous-sol.org>
+References: <201106212055.25400.nai.xia@gmail.com>
+ <201106212136.17445.nai.xia@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201106212136.17445.nai.xia@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Stefan Assmann <sassmann@kpanic.de>
-Cc: linux-mm@kvack.org, tony.luck@intel.com, andi@firstfloor.org, mingo@elte.hu, hpa@zytor.com, rick@vanrein.org, rdunlap@xenotime.net
+To: Nai Xia <nai.xia@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Izik Eidus <izik.eidus@ravellosystems.com>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Chris Wright <chrisw@sous-sol.org>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel <linux-kernel@vger.kernel.org>
 
-On Tue, 21 Jun 2011 11:23:15 +0200
-Stefan Assmann <sassmann@kpanic.de> wrote:
+* Nai Xia (nai.xia@gmail.com) wrote:
+> Introduced ksm_page_changed() to reference the dirty bit of a pte. We clear 
+> the dirty bit for each pte scanned but don't flush the tlb. For a huge page, 
+> if one of the subpage has changed, we try to skip the whole huge page 
+> assuming(this is true by now) that ksmd linearly scans the address space.
 
-> Following the RFC for the BadRAM feature here's the updated version with
-> spelling fixes, thanks go to Randy Dunlap.
+This doesn't build w/ kvm as a module.
 
-I have some thoughts but I think that linux-mm is too narrow an audience for
-a patchset of this scope.
+> A NEW_FLAG is also introduced as a status of rmap_item to make ksmd scan
+> more aggressively for new VMAs - only skip the pages considered to be volatile
+> by the dirty bits. This can be enabled/disabled through KSM's sysfs interface.
 
-Please resend the patchset cc'ing linux-kernel so that others can see what
-we're talking about.
+This seems like it should be separated out.  And while it might be useful
+to enable/disable for testing, I don't think it's worth supporting for
+the long term.  Would also be useful to see the value of this flag.
 
-Thanks.
+> @@ -454,7 +468,7 @@ static void remove_node_from_stable_tree(struct stable_node *stable_node)
+>  		else
+>  			ksm_pages_shared--;
+>  		put_anon_vma(rmap_item->anon_vma);
+> -		rmap_item->address &= PAGE_MASK;
+> +		rmap_item->address &= ~STABLE_FLAG;
+>  		cond_resched();
+>  	}
+>  
+> @@ -542,7 +556,7 @@ static void remove_rmap_item_from_tree(struct rmap_item *rmap_item)
+>  			ksm_pages_shared--;
+>  
+>  		put_anon_vma(rmap_item->anon_vma);
+> -		rmap_item->address &= PAGE_MASK;
+> +		rmap_item->address &= ~STABLE_FLAG;
+>  
+>  	} else if (rmap_item->address & UNSTABLE_FLAG) {
+>  		unsigned char age;
+> @@ -554,12 +568,14 @@ static void remove_rmap_item_from_tree(struct rmap_item *rmap_item)
+>  		 * than left over from before.
+>  		 */
+>  		age = (unsigned char)(ksm_scan.seqnr - rmap_item->address);
+> -		BUG_ON(age > 1);
+> +		BUG_ON (age > 1);
+
+No need to add space after BUG_ON() there
+
+> +
+>  		if (!age)
+>  			rb_erase(&rmap_item->node, &root_unstable_tree);
+>  
+>  		ksm_pages_unshared--;
+> -		rmap_item->address &= PAGE_MASK;
+> +		rmap_item->address &= ~UNSTABLE_FLAG;
+> +		rmap_item->address &= ~SEQNR_MASK;
+
+None of these changes are needed AFAICT.  &= PAGE_MASK clears all
+relevant bits.  How could it be in a tree, have NEW_FLAG set, and
+while removing from tree want to preserve NEW_FLAG?
+
+thanks,
+-chris
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
