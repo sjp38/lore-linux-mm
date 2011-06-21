@@ -1,81 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id B9C4990013A
-	for <linux-mm@kvack.org>; Tue, 21 Jun 2011 18:40:39 -0400 (EDT)
-Date: Tue, 21 Jun 2011 15:38:00 -0700
-From: Chris Wright <chrisw@sous-sol.org>
-Subject: Re: [PATCH 2/2 V2] ksm: take dirty bit as reference to avoid
- volatile pages scanning
-Message-ID: <20110621223800.GO25383@sequoia.sous-sol.org>
-References: <201106212055.25400.nai.xia@gmail.com>
- <201106212136.17445.nai.xia@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201106212136.17445.nai.xia@gmail.com>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 27AA990013A
+	for <linux-mm@kvack.org>; Tue, 21 Jun 2011 18:42:16 -0400 (EDT)
+From: Ying Han <yinghan@google.com>
+Subject: [RFC PATCH 0/5] softlimit reclaim and zone->lru_lock rework
+Date: Tue, 21 Jun 2011 15:41:25 -0700
+Message-Id: <1308696090-31569-1-git-send-email-yinghan@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nai Xia <nai.xia@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Izik Eidus <izik.eidus@ravellosystems.com>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Chris Wright <chrisw@sous-sol.org>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Suleiman Souhlal <suleiman@google.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>
+Cc: linux-mm@kvack.org
 
-* Nai Xia (nai.xia@gmail.com) wrote:
-> Introduced ksm_page_changed() to reference the dirty bit of a pte. We clear 
-> the dirty bit for each pte scanned but don't flush the tlb. For a huge page, 
-> if one of the subpage has changed, we try to skip the whole huge page 
-> assuming(this is true by now) that ksmd linearly scans the address space.
+The patchset is based on mmotm-2011-05-12-15-52 plus the following patches.
 
-This doesn't build w/ kvm as a module.
+[BUGFIX][PATCH 5/5] memcg: fix percpu cached charge draining frequency
+[patch 1/8] memcg: remove unused retry signal from reclaim
+[patch 2/8] mm: memcg-aware global reclaim
+[patch 3/8] memcg: reclaim statistics
+[patch 6/8] vmscan: change zone_nr_lru_pages to take memcg instead of scan control
+[patch 7/8] vmscan: memcg-aware unevictable page rescue scanner
+[patch 8/8] mm: make per-memcg lru lists exclusive
 
-> A NEW_FLAG is also introduced as a status of rmap_item to make ksmd scan
-> more aggressively for new VMAs - only skip the pages considered to be volatile
-> by the dirty bits. This can be enabled/disabled through KSM's sysfs interface.
+This patchset comes only after Johannes "memcg naturalization" effort. I don't
+expect this to be merged soon. The reason for me to post it here for syncing up
+with ppl with the current status of the effort. And also comments and code reviews
+are welcomed.
 
-This seems like it should be separated out.  And while it might be useful
-to enable/disable for testing, I don't think it's worth supporting for
-the long term.  Would also be useful to see the value of this flag.
+This patchset includes:
+1. rework softlimit reclaim on priority based. this depends on the "memcg-aware
+global reclaim" patch.
+2. break the zone->lru_lock for memcg reclaim. this depends on the "per-memcg
+lru lists exclusive" patch.
 
-> @@ -454,7 +468,7 @@ static void remove_node_from_stable_tree(struct stable_node *stable_node)
->  		else
->  			ksm_pages_shared--;
->  		put_anon_vma(rmap_item->anon_vma);
-> -		rmap_item->address &= PAGE_MASK;
-> +		rmap_item->address &= ~STABLE_FLAG;
->  		cond_resched();
->  	}
->  
-> @@ -542,7 +556,7 @@ static void remove_rmap_item_from_tree(struct rmap_item *rmap_item)
->  			ksm_pages_shared--;
->  
->  		put_anon_vma(rmap_item->anon_vma);
-> -		rmap_item->address &= PAGE_MASK;
-> +		rmap_item->address &= ~STABLE_FLAG;
->  
->  	} else if (rmap_item->address & UNSTABLE_FLAG) {
->  		unsigned char age;
-> @@ -554,12 +568,14 @@ static void remove_rmap_item_from_tree(struct rmap_item *rmap_item)
->  		 * than left over from before.
->  		 */
->  		age = (unsigned char)(ksm_scan.seqnr - rmap_item->address);
-> -		BUG_ON(age > 1);
-> +		BUG_ON (age > 1);
+I would definitely make them as two seperate patches later. For now, this is
+only to sync-up with folks on the status of the effort.
 
-No need to add space after BUG_ON() there
+Ying Han (5):
+  Revert soft_limit reclaim changes under global pressure.
+  Revert soft limit reclaim implementation in memcg.
+  rework softlimit reclaim.
+  memcg: break the zone->lru_lock in memcg-aware reclaim
+  Move the lru_lock into the lruvec struct.
 
-> +
->  		if (!age)
->  			rb_erase(&rmap_item->node, &root_unstable_tree);
->  
->  		ksm_pages_unshared--;
-> -		rmap_item->address &= PAGE_MASK;
-> +		rmap_item->address &= ~UNSTABLE_FLAG;
-> +		rmap_item->address &= ~SEQNR_MASK;
+ include/linux/memcontrol.h |   35 ++-
+ include/linux/mm_types.h   |    2 +-
+ include/linux/mmzone.h     |    8 +-
+ include/linux/swap.h       |    5 -
+ mm/compaction.c            |   41 +++--
+ mm/huge_memory.c           |    5 +-
+ mm/memcontrol.c            |  502 ++++++--------------------------------------
+ mm/page_alloc.c            |    2 +-
+ mm/rmap.c                  |    2 +-
+ mm/swap.c                  |   71 ++++---
+ mm/vmscan.c                |  186 ++++++++---------
+ 11 files changed, 246 insertions(+), 613 deletions(-)
 
-None of these changes are needed AFAICT.  &= PAGE_MASK clears all
-relevant bits.  How could it be in a tree, have NEW_FLAG set, and
-while removing from tree want to preserve NEW_FLAG?
-
-thanks,
--chris
+-- 
+1.7.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
