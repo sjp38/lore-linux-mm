@@ -1,56 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 806226B0104
-	for <linux-mm@kvack.org>; Tue, 21 Jun 2011 04:11:54 -0400 (EDT)
-From: Amerigo Wang <amwang@redhat.com>
-Subject: [PATCH 4/4] mm: introduce no_ksm to disable totally KSM
-Date: Tue, 21 Jun 2011 16:10:45 +0800
-Message-Id: <1308643849-3325-4-git-send-email-amwang@redhat.com>
-In-Reply-To: <1308643849-3325-1-git-send-email-amwang@redhat.com>
-References: <1308643849-3325-1-git-send-email-amwang@redhat.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 6EF806B016B
+	for <linux-mm@kvack.org>; Tue, 21 Jun 2011 05:23:40 -0400 (EDT)
+From: Stefan Assmann <sassmann@kpanic.de>
+Subject: [PATCH v2 0/3] support for broken memory modules (BadRAM)
+Date: Tue, 21 Jun 2011 11:23:15 +0200
+Message-Id: <1308648198-2130-1-git-send-email-sassmann@kpanic.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: akpm@linux-foundation.org, Amerigo Wang <amwang@redhat.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: akpm@linux-foundation.org, tony.luck@intel.com, andi@firstfloor.org, mingo@elte.hu, hpa@zytor.com, rick@vanrein.org, rdunlap@xenotime.net, sassmann@kpanic.de
 
-Introduce a new kernel parameter "no_ksm" to totally disable KSM.
+Following the RFC for the BadRAM feature here's the updated version with
+spelling fixes, thanks go to Randy Dunlap. Also the code is now less verbose,
+as requested by Andi Kleen.
+v2 with even more spelling fixes suggested by Randy.
+Patches are against vanilla 2.6.39.
 
-Signed-off-by: WANG Cong <amwang@redhat.com>
----
- mm/ksm.c |   13 +++++++++++++
- 1 files changed, 13 insertions(+), 0 deletions(-)
+The idea is to allow the user to specify RAM addresses that shouldn't be
+touched by the OS, because they are broken in some way. Not all machines have
+hardware support for hwpoison, ECC RAM, etc, so here's a solution that allows to
+use bitmasks to mask address patterns with the new "badram" kernel command line
+parameter.
+Memtest86 has an option to generate these patterns since v2.3 so the only thing
+for the user to do should be:
+- run Memtest86
+- note down the pattern
+- add badram=<pattern> to the kernel command line
 
-diff --git a/mm/ksm.c b/mm/ksm.c
-index 9a68b0c..eeb45a2 100644
---- a/mm/ksm.c
-+++ b/mm/ksm.c
-@@ -1984,11 +1984,24 @@ static struct attribute_group ksm_attr_group = {
- };
- #endif /* CONFIG_SYSFS */
- 
-+static int no_ksm;
-+static int __init setup_ksm(char *str)
-+{
-+	no_ksm = 1;
-+	return 0;
-+}
-+__setup("no_ksm", setup_ksm);
-+
- static int __init ksm_init(void)
- {
- 	struct task_struct *ksm_thread;
- 	int err;
- 
-+	if (no_ksm) {
-+		printk(KERN_INFO "ksm: disabled by cmdline\n");
-+		return 0;
-+	}
-+
- 	err = ksm_slab_init();
- 	if (err)
- 		goto out;
+The concerning pages are then marked with the hwpoison flag and thus won't be
+used by the memory managment system.
+
+Link to Ricks original patches and docs:
+http://rick.vanrein.org/linux/badram/
+
+  Stefan
+
+Stefan Assmann (3):
+  Add string parsing function get_next_ulong
+  support for broken memory modules (BadRAM)
+  Add documentation and credits for BadRAM
+
+ CREDITS                             |    9 +
+ Documentation/BadRAM.txt            |  370 +++++++++++++++++++++++++++++++++++
+ Documentation/kernel-parameters.txt |    6 +
+ include/linux/kernel.h              |    1 +
+ lib/cmdline.c                       |   35 ++++
+ mm/memory-failure.c                 |  100 ++++++++++
+ 6 files changed, 521 insertions(+), 0 deletions(-)
+ create mode 100644 Documentation/BadRAM.txt
+
 -- 
-1.7.4.4
+1.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
