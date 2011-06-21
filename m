@@ -1,29 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C1DC6B0184
-	for <linux-mm@kvack.org>; Tue, 21 Jun 2011 07:52:07 -0400 (EDT)
-Date: Tue, 21 Jun 2011 13:52:02 +0200
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 5D7496B0186
+	for <linux-mm@kvack.org>; Tue, 21 Jun 2011 07:58:42 -0400 (EDT)
+Date: Tue, 21 Jun 2011 13:58:38 +0200
 From: Michal Hocko <mhocko@suse.cz>
 Subject: Re: [PATCH v2 1/4] mm: completely disable THP by
  transparent_hugepage=0
-Message-ID: <20110621115201.GD8093@tiehlicka.suse.cz>
+Message-ID: <20110621115838.GE8093@tiehlicka.suse.cz>
 References: <1308643849-3325-1-git-send-email-amwang@redhat.com>
+ <20110621115201.GD8093@tiehlicka.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1308643849-3325-1-git-send-email-amwang@redhat.com>
+In-Reply-To: <20110621115201.GD8093@tiehlicka.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Amerigo Wang <amwang@redhat.com>
 Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Randy Dunlap <rdunlap@xenotime.net>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <jweiner@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-doc@vger.kernel.org, linux-mm@kvack.org
 
-On Tue 21-06-11 16:10:42, Amerigo Wang wrote:
-> Introduce "transparent_hugepage=0" to totally disable THP.
-> "transparent_hugepage=never" means setting THP to be partially
-> disabled, we need a new way to totally disable it.
+On Tue 21-06-11 13:52:02, Michal Hocko wrote:
+> On Tue 21-06-11 16:10:42, Amerigo Wang wrote:
+> > Introduce "transparent_hugepage=0" to totally disable THP.
+> > "transparent_hugepage=never" means setting THP to be partially
+> > disabled, we need a new way to totally disable it.
+> 
+> I am wondering why would you like to disable the feature on per-boot
+> basis. Does transparent_hugepage=never bring any measurable overhead?
 
-I am wondering why would you like to disable the feature on per-boot
-basis. Does transparent_hugepage=never bring any measurable overhead?
+just found https://lkml.org/lkml/2011/6/20/245
 
 -- 
 Michal Hocko
