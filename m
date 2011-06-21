@@ -1,108 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 36B926B017D
-	for <linux-mm@kvack.org>; Tue, 21 Jun 2011 07:23:47 -0400 (EDT)
-MIME-version: 1.0
-Content-type: text/plain; charset=iso-8859-2
-Received: from spt2.w1.samsung.com ([210.118.77.14]) by mailout4.w1.samsung.com
- (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
- with ESMTP id <0LN5002UI0ZJQI60@mailout4.w1.samsung.com> for
- linux-mm@kvack.org; Tue, 21 Jun 2011 12:23:43 +0100 (BST)
-Received: from linux.samsung.com ([106.116.38.10])
- by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0LN500F7P0ZI4V@spt2.w1.samsung.com> for
- linux-mm@kvack.org; Tue, 21 Jun 2011 12:23:42 +0100 (BST)
-Date: Tue, 21 Jun 2011 13:23:35 +0200
-From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: RE: [PATCH 7/8] common: dma-mapping: change alloc/free_coherent method
- to more generic alloc/free_attrs
-In-reply-to: <BANLkTikFdrOuXsLCfvyA_V+p7S_fd72dyQ@mail.gmail.com>
-Message-id: <002401cc3005$a941c010$fbc54030$%szyprowski@samsung.com>
-Content-language: pl
-Content-transfer-encoding: quoted-printable
-References: <1308556213-24970-1-git-send-email-m.szyprowski@samsung.com>
- <1308556213-24970-8-git-send-email-m.szyprowski@samsung.com>
- <BANLkTikFdrOuXsLCfvyA_V+p7S_fd72dyQ@mail.gmail.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 4510A6B017F
+	for <linux-mm@kvack.org>; Tue, 21 Jun 2011 07:34:51 -0400 (EDT)
+Date: Tue, 21 Jun 2011 12:34:47 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: sandy bridge kswapd0 livelock with pagecache
+Message-ID: <20110621113447.GG9396@suse.de>
+References: <4E0069FE.4000708@draigBrady.com>
+ <20110621103920.GF9396@suse.de>
+ <4E0076C7.4000809@draigBrady.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <4E0076C7.4000809@draigBrady.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'KyongHo Cho' <pullip.cho@samsung.com>
-Cc: linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Arnd Bergmann' <arnd@arndb.de>, 'Joerg Roedel' <joro@8bytes.org>, 'Russell King - ARM Linux' <linux@arm.linux.org.uk>
+To: P?draig Brady <P@draigBrady.com>
+Cc: linux-mm@kvack.org
 
-Hello,
+On Tue, Jun 21, 2011 at 11:47:35AM +0100, P?draig Brady wrote:
+> On 21/06/11 11:39, Mel Gorman wrote:
+> > On Tue, Jun 21, 2011 at 10:53:02AM +0100, P?draig Brady wrote:
+> >> I tried the 2 patches here to no avail:
+> >> http://marc.info/?l=linux-mm&m=130503811704830&w=2
+> >>
+> >> I originally logged this at:
+> >> https://bugzilla.redhat.com/show_bug.cgi?id=712019
+> >>
+> >> I can compile up and quickly test any suggestions.
+> >>
+> > 
+> > I recently looked through what kswapd does and there are a number
+> > of problem areas. Unfortunately, I haven't gotten around to doing
+> > anything about it yet or running the test cases to see if they are
+> > really problems. In your case, the following is a strong possibility
+> > though. This should be applied on top of the two patches merged from
+> > that thread.
+> > 
+> > This is not tested in any way, based on 3.0-rc3
+> 
+> This does not fix the issue here.
+> 
 
-On Monday, June 20, 2011 4:46 PM KyongHo Cho wrote:
+I made a silly mistake here.  When you mentioned two patches applied,
+I assumed you meant two patches that were finally merged from that
+discussion thread instead of looking at your linked mail. Now that I
+have checked, I think you applied the SLUB patches while the patches
+I was thinking of are;
 
-> On Mon, Jun 20, 2011 at 4:50 PM, Marek Szyprowski
-> <m.szyprowski@samsung.com> wrote:
->=20
-> > =A0struct dma_map_ops {
-> > - =A0 =A0 =A0 void* (*alloc_coherent)(struct device *dev, size_t =
-size,
-> > - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-dma_addr_t *dma_handle, gfp_t gfp);
-> > - =A0 =A0 =A0 void (*free_coherent)(struct device *dev, size_t size,
-> > - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 void =
-*vaddr, dma_addr_t dma_handle);
-> > + =A0 =A0 =A0 void* (*alloc)(struct device *dev, size_t size,
-> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-dma_addr_t *dma_handle, gfp_t gfp,
-> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 struct =
-dma_attrs *attrs);
-> > + =A0 =A0 =A0 void (*free)(struct device *dev, size_t size,
-> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 void =
-*vaddr, dma_addr_t dma_handle,
-> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 struct =
-dma_attrs *attrs);
-> > + =A0 =A0 =A0 int (*mmap)(struct device *, struct vm_area_struct *,
-> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 void *, =
-dma_addr_t, size_t, struct dma_attrs
-> *attrs);
-> > +
-> > =A0 =A0 =A0 =A0dma_addr_t (*map_page)(struct device *dev, struct =
-page *page,
-> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 unsigned =
-long offset, size_t size,
-> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 enum =
-dma_data_direction dir,
->=20
-> I still don't agree with your idea that change alloc_coherent() with
-> alloc().
+[afc7e326: mm: vmscan: correct use of pgdat_balanced in sleeping_prematurely]
+[f06590bd: mm: vmscan: correctly check if reclaimer should schedule during shrink_slab]
 
-> As I said before, we actually do not need dma_alloc_writecombine() =
-anymore
-> because it is not different from dma_alloc_coherent() in ARM.
+The first one in particular has been reported by another user to fix
+hangs related to copying large files. I'm assuming you are testing
+against the Fedora kernel. As these patches were merged for 3.0-rc1, can
+you check if applying just these two patches to your kernel helps?
 
-You already got a reply that dropping dma_alloc_writecombine() is no
-go on ARM.
-
-> Most of other architectures do not have dma_alloc_writecombine().
-
-That's not a problem. Once we agree on dma_alloc_attrs(), the drivers
-can be changed to use DMA_ATTR_WRITE_COMBINE attribute. If the platform
-doesn't support the attribute, it is just ignored. That's the whole
-point of the attributes extension. Once a driver is converted to=20
-dma_alloc_attrs(), it can be used without any changes either on =
-platforms
-that supports some specific attributes or the one that doesn't implement
-support for any of them.
-
-> If you want dma_alloc_coherent() to allocate user virtual address,
-> I believe that it is also available with mmap() you introduced.
-
-Allocation is a separate operation from mapping to userspace. Mmap
-operation should just map the buffer (represented by a cookie of type
-dma_addr_t) to user address space.
-
-Note that some drivers (like framebuffer drivers for example) also
-needs to have both types of mapping - one for user space and one for
-kernel virtual space.
-
-Best regards
---=20
-Marek Szyprowski
-Samsung Poland R&D Center
-
-
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
