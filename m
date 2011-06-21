@@ -1,41 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 5D7496B0186
-	for <linux-mm@kvack.org>; Tue, 21 Jun 2011 07:58:42 -0400 (EDT)
-Date: Tue, 21 Jun 2011 13:58:38 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v2 1/4] mm: completely disable THP by
- transparent_hugepage=0
-Message-ID: <20110621115838.GE8093@tiehlicka.suse.cz>
-References: <1308643849-3325-1-git-send-email-amwang@redhat.com>
- <20110621115201.GD8093@tiehlicka.suse.cz>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 608C06B0189
+	for <linux-mm@kvack.org>; Tue, 21 Jun 2011 08:03:18 -0400 (EDT)
+Message-ID: <4E008784.80107@draigBrady.com>
+Date: Tue, 21 Jun 2011 12:59:00 +0100
+From: =?ISO-8859-15?Q?P=E1draig_Brady?= <P@draigBrady.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110621115201.GD8093@tiehlicka.suse.cz>
+Subject: Re: sandy bridge kswapd0 livelock with pagecache
+References: <4E0069FE.4000708@draigBrady.com> <20110621103920.GF9396@suse.de> <4E0076C7.4000809@draigBrady.com> <20110621113447.GG9396@suse.de>
+In-Reply-To: <20110621113447.GG9396@suse.de>
+Content-Type: text/plain; charset=ISO-8859-15
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Amerigo Wang <amwang@redhat.com>
-Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Randy Dunlap <rdunlap@xenotime.net>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <jweiner@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-doc@vger.kernel.org, linux-mm@kvack.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: linux-mm@kvack.org
 
-On Tue 21-06-11 13:52:02, Michal Hocko wrote:
-> On Tue 21-06-11 16:10:42, Amerigo Wang wrote:
-> > Introduce "transparent_hugepage=0" to totally disable THP.
-> > "transparent_hugepage=never" means setting THP to be partially
-> > disabled, we need a new way to totally disable it.
+On 21/06/11 12:34, Mel Gorman wrote:
+> On Tue, Jun 21, 2011 at 11:47:35AM +0100, P?draig Brady wrote:
+>> On 21/06/11 11:39, Mel Gorman wrote:
+>>> On Tue, Jun 21, 2011 at 10:53:02AM +0100, P?draig Brady wrote:
+>>>> I tried the 2 patches here to no avail:
+>>>> http://marc.info/?l=linux-mm&m=130503811704830&w=2
+>>>>
+>>>> I originally logged this at:
+>>>> https://bugzilla.redhat.com/show_bug.cgi?id=712019
+>>>>
+>>>> I can compile up and quickly test any suggestions.
+>>>>
+>>>
+>>> I recently looked through what kswapd does and there are a number
+>>> of problem areas. Unfortunately, I haven't gotten around to doing
+>>> anything about it yet or running the test cases to see if they are
+>>> really problems. In your case, the following is a strong possibility
+>>> though. This should be applied on top of the two patches merged from
+>>> that thread.
+>>>
+>>> This is not tested in any way, based on 3.0-rc3
+>>
+>> This does not fix the issue here.
+>>
 > 
-> I am wondering why would you like to disable the feature on per-boot
-> basis. Does transparent_hugepage=never bring any measurable overhead?
+> I made a silly mistake here.  When you mentioned two patches applied,
+> I assumed you meant two patches that were finally merged from that
+> discussion thread instead of looking at your linked mail. Now that I
+> have checked, I think you applied the SLUB patches while the patches
+> I was thinking of are;
+> 
+> [afc7e326: mm: vmscan: correct use of pgdat_balanced in sleeping_prematurely]
+> [f06590bd: mm: vmscan: correctly check if reclaimer should schedule during shrink_slab]
+> 
+> The first one in particular has been reported by another user to fix
+> hangs related to copying large files. I'm assuming you are testing
+> against the Fedora kernel. As these patches were merged for 3.0-rc1, can
+> you check if applying just these two patches to your kernel helps?
 
-just found https://lkml.org/lkml/2011/6/20/245
+These patches are already present in my 2.6.38.8-32.fc15.x86_64 kernel :(
 
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+cheers,
+Padraig.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
