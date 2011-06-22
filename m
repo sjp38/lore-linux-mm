@@ -1,141 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 929DE90016F
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 06:49:56 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id C5A753EE0AE
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 19:49:52 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id AE96445DF84
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 19:49:52 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 8DFD145DF4D
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 19:49:52 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 825531DB803F
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 19:49:52 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 3C95C1DB803E
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 19:49:52 +0900 (JST)
-Message-ID: <4E01C8C3.8040307@jp.fujitsu.com>
-Date: Wed, 22 Jun 2011 19:49:39 +0900
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 5289190016F
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 06:56:02 -0400 (EDT)
+Received: by iyl8 with SMTP id 8so764459iyl.14
+        for <linux-mm@kvack.org>; Wed, 22 Jun 2011 03:56:00 -0700 (PDT)
+From: Nai Xia <nai.xia@gmail.com>
+Reply-To: nai.xia@gmail.com
+Subject: Re: [PATCH 2/2 V2] ksm: take dirty bit as reference to avoid volatile pages scanning
+Date: Wed, 22 Jun 2011 18:55:43 +0800
+References: <201106212055.25400.nai.xia@gmail.com> <201106220804.12508.nai.xia@gmail.com> <20110622003536.GQ25383@sequoia.sous-sol.org>
+In-Reply-To: <20110622003536.GQ25383@sequoia.sous-sol.org>
 MIME-Version: 1.0
-Subject: [PATCH 6/6] oom: merge oom_kill_process() with oom_kill_task()
-References: <4E01C7D5.3060603@jp.fujitsu.com>
-In-Reply-To: <4E01C7D5.3060603@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-2022-JP
+Content-Type: Text/Plain;
+  charset="us-ascii"
 Content-Transfer-Encoding: 7bit
+Message-Id: <201106221855.43667.nai.xia@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kosaki.motohiro@jp.fujitsu.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, caiqian@redhat.com, rientjes@google.com, hughd@google.com, kamezawa.hiroyu@jp.fujitsu.com, minchan.kim@gmail.com, oleg@redhat.com
+To: Chris Wright <chrisw@sous-sol.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Izik Eidus <izik.eidus@ravellosystems.com>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel <linux-kernel@vger.kernel.org>
 
-Now, oom_kill_process() become almost empty function. Let's
-merge it with oom_kill_task().
+On Wednesday 22 June 2011 08:35:36 Chris Wright wrote:
+> * Nai Xia (nai.xia@gmail.com) wrote:
+> > (Sorry for repeated mail, I forgot to Cc the list..)
+> > 
+> > On Wednesday 22 June 2011 06:38:00 you wrote:
+> > > * Nai Xia (nai.xia@gmail.com) wrote:
+> > > > Introduced ksm_page_changed() to reference the dirty bit of a pte. We clear 
+> > > > the dirty bit for each pte scanned but don't flush the tlb. For a huge page, 
+> > > > if one of the subpage has changed, we try to skip the whole huge page 
+> > > > assuming(this is true by now) that ksmd linearly scans the address space.
+> > > 
+> > > This doesn't build w/ kvm as a module.
+> > 
+> > I think it's because of the name-error of a related kvm patch, which I only sent
+> > in a same email thread. http://marc.info/?l=linux-mm&m=130866318804277&w=2
+> > The patch split is not clean...I'll redo it.
+> > 
+> 
+> It needs an export as it is.
+> ERROR: "kvm_dirty_update" [arch/x86/kvm/kvm-intel.ko] undefined!
+> 
+> Although perhaps could be done w/out that dirty_update altogether (as I
+> mentioned in other email)?
+> 
+> > > 
+> > > > A NEW_FLAG is also introduced as a status of rmap_item to make ksmd scan
+> > > > more aggressively for new VMAs - only skip the pages considered to be volatile
+> > > > by the dirty bits. This can be enabled/disabled through KSM's sysfs interface.
+> > > 
+> > > This seems like it should be separated out.  And while it might be useful
+> > > to enable/disable for testing, I don't think it's worth supporting for
+> > > the long term.  Would also be useful to see the value of this flag.
+> > 
+> > I think it maybe useful for uses who want to turn on/off this scan policy explicitly
+> > according to their working sets? 
+> 
+> Can you split it out, and show the benefit of it directly?  I think it
+> only benefits:
+> 
+> p = mmap()
+> memset(p, $value, entire buffer);
+> ...
+> very slowly (w.r.t scan times) touch bits of buffer and trigger cow to
+> break sharing.
+> 
+> Would you agree?
 
-Also, this patch replace task_pid_nr() with task_tgid_nr().
-Because 1) oom killer kill a process, not thread. 2) a userland
-don't care thread id.
+The direct benefit of it is that when merging a very big area, the system
+does not be caught in a non-trivial period people see the free memory is 
+actually dropping by creating only rmap_items, despite he is 100% sure that
+his workset is very duplicated. I think it's puzzling to users and also 
+risky of OOM.
 
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
----
- mm/oom_kill.c |   53 ++++++++++++++++++++++-------------------------------
- 1 files changed, 22 insertions(+), 31 deletions(-)
+Thanks,
+Nai
 
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index cf48fd5..2fdbb96 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -470,11 +470,26 @@ static void dump_header(struct task_struct *p, gfp_t gfp_mask, int order,
- }
-
- #define K(x) ((x) << (PAGE_SHIFT-10))
--static int oom_kill_task(struct task_struct *p, struct mem_cgroup *mem)
-+static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
-+			    unsigned long points, unsigned long totalpages,
-+			    struct mem_cgroup *mem, nodemask_t *nodemask,
-+			    const char *message)
- {
- 	struct task_struct *q;
- 	struct mm_struct *mm;
-
-+	if (printk_ratelimit())
-+		dump_header(p, gfp_mask, order, mem, nodemask);
-+
-+	/*
-+	 * If the task is already exiting, don't alarm the sysadmin or kill
-+	 * its children or threads, just set TIF_MEMDIE so it can die quickly
-+	 */
-+	if (p->flags & PF_EXITING) {
-+		set_tsk_thread_flag(p, TIF_MEMDIE);
-+		return 0;
-+	}
-+
- 	p = find_lock_task_mm(p);
- 	if (!p)
- 		return 1;
-@@ -482,10 +497,11 @@ static int oom_kill_task(struct task_struct *p, struct mem_cgroup *mem)
- 	/* mm cannot be safely dereferenced after task_unlock(p) */
- 	mm = p->mm;
-
--	pr_err("Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB\n",
--		task_pid_nr(p), p->comm, K(p->mm->total_vm),
--		K(get_mm_counter(p->mm, MM_ANONPAGES)),
--		K(get_mm_counter(p->mm, MM_FILEPAGES)));
-+	pr_err("%s: Kill process %d (%s) points:%lu total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB\n",
-+	       message, task_tgid_nr(p), p->comm, points,
-+	       K(p->mm->total_vm),
-+	       K(get_mm_counter(p->mm, MM_ANONPAGES)),
-+	       K(get_mm_counter(p->mm, MM_FILEPAGES)));
- 	task_unlock(p);
-
- 	/*
-@@ -502,7 +518,7 @@ static int oom_kill_task(struct task_struct *p, struct mem_cgroup *mem)
- 		if (q->mm == mm && !same_thread_group(q, p)) {
- 			task_lock(q);	/* Protect ->comm from prctl() */
- 			pr_err("Kill process %d (%s) sharing same memory\n",
--				task_pid_nr(q), q->comm);
-+				task_tgid_nr(q), q->comm);
- 			task_unlock(q);
- 			force_sig(SIGKILL, q);
- 		}
-@@ -514,31 +530,6 @@ static int oom_kill_task(struct task_struct *p, struct mem_cgroup *mem)
- }
- #undef K
-
--static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
--			    unsigned long points, unsigned long totalpages,
--			    struct mem_cgroup *mem, nodemask_t *nodemask,
--			    const char *message)
--{
--	if (printk_ratelimit())
--		dump_header(p, gfp_mask, order, mem, nodemask);
--
--	/*
--	 * If the task is already exiting, don't alarm the sysadmin or kill
--	 * its children or threads, just set TIF_MEMDIE so it can die quickly
--	 */
--	if (p->flags & PF_EXITING) {
--		set_tsk_thread_flag(p, TIF_MEMDIE);
--		return 0;
--	}
--
--	task_lock(p);
--	pr_err("%s: Kill process %d (%s) points %lu\n",
--	       message, task_pid_nr(p), p->comm, points);
--	task_unlock(p);
--
--	return oom_kill_task(p, mem);
--}
--
- /*
-  * Determines whether the kernel must panic because of the panic_on_oom sysctl.
-  */
--- 
-1.7.3.1
-
-
+> 
+> thanks,
+> -chris
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
