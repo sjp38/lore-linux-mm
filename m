@@ -1,92 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 05F2C900194
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 19:42:12 -0400 (EDT)
-Received: from kpbe15.cbf.corp.google.com (kpbe15.cbf.corp.google.com [172.25.105.79])
-	by smtp-out.google.com with ESMTP id p5MNfxu3011888
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 16:41:59 -0700
-Received: from pwi3 (pwi3.prod.google.com [10.241.219.3])
-	by kpbe15.cbf.corp.google.com with ESMTP id p5MNeDRr019780
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 16:41:57 -0700
-Received: by pwi3 with SMTP id 3so1079122pwi.8
-        for <linux-mm@kvack.org>; Wed, 22 Jun 2011 16:41:57 -0700 (PDT)
-Date: Wed, 22 Jun 2011 16:41:54 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] slob: push the min alignment to long long
-In-Reply-To: <alpine.DEB.2.00.1106141614480.10017@router.home>
-Message-ID: <alpine.DEB.2.00.1106221641120.14635@chino.kir.corp.google.com>
-References: <20110614201031.GA19848@Chamillionaire.breakpoint.cc> <alpine.DEB.2.00.1106141614480.10017@router.home>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 1FED0900194
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 19:42:15 -0400 (EDT)
+Received: by vxg38 with SMTP id 38so1401716vxg.14
+        for <linux-mm@kvack.org>; Wed, 22 Jun 2011 16:42:12 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <20110622150350.GX20843@redhat.com>
+References: <201106212055.25400.nai.xia@gmail.com>
+	<201106212132.39311.nai.xia@gmail.com>
+	<20110622150350.GX20843@redhat.com>
+Date: Thu, 23 Jun 2011 07:42:11 +0800
+Message-ID: <BANLkTin1zB1mDOo1pJ3KWp8rNp7-2oMkQA@mail.gmail.com>
+Subject: Re: [PATCH] mmu_notifier, kvm: Introduce dirty bit tracking in spte
+ and mmu notifier to help KSM dirty bit tracking
+From: Nai Xia <nai.xia@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Sebastian Andrzej Siewior <sebastian@breakpoint.cc>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org, "David S. Miller" <davem@davemloft.net>, netfilter@vger.kernel.org, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Izik Eidus <izik.eidus@ravellosystems.com>, Hugh Dickins <hughd@google.com>, Chris Wright <chrisw@sous-sol.org>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel <linux-kernel@vger.kernel.org>, kvm <kvm@vger.kernel.org>
 
-On Tue, 14 Jun 2011, Christoph Lameter wrote:
+On Wed, Jun 22, 2011 at 11:03 PM, Andrea Arcangeli <aarcange@redhat.com> wr=
+ote:
+> On Tue, Jun 21, 2011 at 09:32:39PM +0800, Nai Xia wrote:
+>> diff --git a/arch/x86/kvm/vmx.c b/arch/x86/kvm/vmx.c
+>> index d48ec60..b407a69 100644
+>> --- a/arch/x86/kvm/vmx.c
+>> +++ b/arch/x86/kvm/vmx.c
+>> @@ -4674,6 +4674,7 @@ static int __init vmx_init(void)
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 kvm_mmu_set_mask_ptes(0ull, 0ull, 0ull, 0ull=
+,
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 VMX_EPT_EXEC=
+UTABLE_MASK);
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 kvm_enable_tdp();
+>> + =A0 =A0 =A0 =A0 =A0 =A0 kvm_dirty_update =3D 0;
+>> =A0 =A0 =A0 } else
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 kvm_disable_tdp();
+>>
+>
+> Why not return !shadow_dirty_mask instead of adding a new var?
+>
+>> =A0struct mmu_notifier_ops {
+>> + =A0 =A0 int (*dirty_update)(struct mmu_notifier *mn,
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0struct mm_struct *m=
+m);
+>> +
+>
+> Needs some docu.
 
-> Index: linux-2.6/include/linux/slab.h
-> ===================================================================
-> --- linux-2.6.orig/include/linux/slab.h	2011-06-14 15:46:38.000000000 -0500
-> +++ linux-2.6/include/linux/slab.h	2011-06-14 15:46:59.000000000 -0500
-> @@ -133,6 +133,16 @@ unsigned int kmem_cache_size(struct kmem
->  #define KMALLOC_MAX_SIZE	(1UL << KMALLOC_SHIFT_HIGH)
->  #define KMALLOC_MAX_ORDER	(KMALLOC_SHIFT_HIGH - PAGE_SHIFT)
-> 
-> +#ifdef ARCH_DMA_MINALIGN
-> +#define ARCH_KMALLOC_MINALIGN ARCH_DMA_MINALIGN
-> +#else
-> +#define ARCH_KMALLOC_MINALIGN __alignof__(unsigned long long)
-> +#endif
-> +
-> +#ifndef ARCH_SLAB_MINALIGN
-> +#define ARCH_SLAB_MINALIGN __alignof__(unsigned long long)
-> +#endif
-> +
->  /*
->   * Common kmalloc functions provided by all allocators
->   */
-> Index: linux-2.6/include/linux/slab_def.h
-> ===================================================================
-> --- linux-2.6.orig/include/linux/slab_def.h	2011-06-14 15:47:04.000000000 -0500
-> +++ linux-2.6/include/linux/slab_def.h	2011-06-14 15:50:04.000000000 -0500
-> @@ -18,32 +18,6 @@
->  #include <trace/events/kmem.h>
-> 
->  /*
-> - * Enforce a minimum alignment for the kmalloc caches.
-> - * Usually, the kmalloc caches are cache_line_size() aligned, except when
-> - * DEBUG and FORCED_DEBUG are enabled, then they are BYTES_PER_WORD aligned.
-> - * Some archs want to perform DMA into kmalloc caches and need a guaranteed
-> - * alignment larger than the alignment of a 64-bit integer.
-> - * ARCH_KMALLOC_MINALIGN allows that.
-> - * Note that increasing this value may disable some debug features.
-> - */
-> -#ifdef ARCH_DMA_MINALIGN
-> -#define ARCH_KMALLOC_MINALIGN ARCH_DMA_MINALIGN
-> -#else
-> -#define ARCH_KMALLOC_MINALIGN __alignof__(unsigned long long)
-> -#endif
-> -
-> -#ifndef ARCH_SLAB_MINALIGN
-> -/*
-> - * Enforce a minimum alignment for all caches.
-> - * Intended for archs that get misalignment faults even for BYTES_PER_WORD
-> - * aligned buffers. Includes ARCH_KMALLOC_MINALIGN.
-> - * If possible: Do not enable this flag for CONFIG_DEBUG_SLAB, it disables
-> - * some debug features.
-> - */
-> -#define ARCH_SLAB_MINALIGN 0
-> -#endif
-> -
-> -/*
->   * struct kmem_cache
->   *
->   * manages a cache.
+OK. I'll add it.
 
-Looks like we lost some valuable information in the comments when this got 
-moved to slab.h :(
+>
+> I think dirty_update isn't self explanatory name. I think
+> "has_test_and_clear_dirty" would be better.
+
+Agreed.  So it will be the name in the next version. :)
+
+Thanks,
+Nai
+
+>
+> If we don't flush the smp tlb don't we risk that we'll insert pages in
+> the unstable tree that are volatile just because the dirty bit didn't
+> get set again on the spte?
+>
+> The first patch I guess it's a sign of hugetlbfs going a little over
+> the edge in trying to mix with the core VM... Passing that parameter
+> &need_pte_unmap all over the place not so nice, maybe it'd be possible
+> to fix within hugetlbfs to use a different method to walk the hugetlb
+> vmas. I'd prefer that if possible.
+>
+> Thanks,
+> Andrea
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
