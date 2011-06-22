@@ -1,61 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E055900194
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 11:03:57 -0400 (EDT)
-Date: Wed, 22 Jun 2011 17:03:50 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH] mmu_notifier, kvm: Introduce dirty bit tracking in spte
- and mmu notifier to help KSM dirty bit tracking
-Message-ID: <20110622150350.GX20843@redhat.com>
-References: <201106212055.25400.nai.xia@gmail.com>
- <201106212132.39311.nai.xia@gmail.com>
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id D03F2900194
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 11:15:27 -0400 (EDT)
+Date: Wed, 22 Jun 2011 17:15:00 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 1/7] Fix mem_cgroup_hierarchical_reclaim() to do stable
+ hierarchy walk.
+Message-ID: <20110622151500.GF14343@tiehlicka.suse.cz>
+References: <20110616124730.d6960b8b.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110616125141.5fbd230f.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201106212132.39311.nai.xia@gmail.com>
+In-Reply-To: <20110616125141.5fbd230f.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nai Xia <nai.xia@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Izik Eidus <izik.eidus@ravellosystems.com>, Hugh Dickins <hughd@google.com>, Chris Wright <chrisw@sous-sol.org>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel <linux-kernel@vger.kernel.org>, kvm <kvm@vger.kernel.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "bsingharora@gmail.com" <bsingharora@gmail.com>, Ying Han <yinghan@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>
 
-On Tue, Jun 21, 2011 at 09:32:39PM +0800, Nai Xia wrote:
-> diff --git a/arch/x86/kvm/vmx.c b/arch/x86/kvm/vmx.c
-> index d48ec60..b407a69 100644
-> --- a/arch/x86/kvm/vmx.c
-> +++ b/arch/x86/kvm/vmx.c
-> @@ -4674,6 +4674,7 @@ static int __init vmx_init(void)
->  		kvm_mmu_set_mask_ptes(0ull, 0ull, 0ull, 0ull,
->  				VMX_EPT_EXECUTABLE_MASK);
->  		kvm_enable_tdp();
-> +		kvm_dirty_update = 0;
->  	} else
->  		kvm_disable_tdp();
+On Thu 16-06-11 12:51:41, KAMEZAWA Hiroyuki wrote:
+[...]
+> @@ -1667,41 +1668,28 @@ static int mem_cgroup_hierarchical_recla
+>  	if (!check_soft && root_mem->memsw_is_minimum)
+>  		noswap = true;
 >  
-
-Why not return !shadow_dirty_mask instead of adding a new var?
-
->  struct mmu_notifier_ops {
-> +	int (*dirty_update)(struct mmu_notifier *mn,
-> +			     struct mm_struct *mm);
+> -	while (1) {
+> +again:
+> +	if (!shrink) {
+> +		visit = 0;
+> +		for_each_mem_cgroup_tree(victim, root_mem)
+> +			visit++;
+> +	} else {
+> +		/*
+> +		 * At shrinking, we check the usage again in caller side.
+> +		 * so, visit children one by one.
+> +		 */
+> +		visit = 1;
+> +	}
+> +	/*
+> +	 * We are not draining per cpu cached charges during soft limit reclaim
+> +	 * because global reclaim doesn't care about charges. It tries to free
+> +	 * some memory and  charges will not give any.
+> +	 */
+> +	if (!check_soft)
+> +		drain_all_stock_async(root_mem);
 > +
+> +	while (visit--) {
 
-Needs some docu.
+This is racy, isn't it? What prevents some groups to disapear in the
+meantime? We would reclaim from those that are left more that we want.
 
-I think dirty_update isn't self explanatory name. I think
-"has_test_and_clear_dirty" would be better.
+Why cannot we simply do something like (totally untested):
 
-If we don't flush the smp tlb don't we risk that we'll insert pages in
-the unstable tree that are volatile just because the dirty bit didn't
-get set again on the spte?
-
-The first patch I guess it's a sign of hugetlbfs going a little over
-the edge in trying to mix with the core VM... Passing that parameter
-&need_pte_unmap all over the place not so nice, maybe it'd be possible
-to fix within hugetlbfs to use a different method to walk the hugetlb
-vmas. I'd prefer that if possible.
-
-Thanks,
-Andrea
+Index: linus_tree/mm/memcontrol.c
+===================================================================
+--- linus_tree.orig/mm/memcontrol.c	2011-06-22 17:11:54.000000000 +0200
++++ linus_tree/mm/memcontrol.c	2011-06-22 17:13:05.000000000 +0200
+@@ -1652,7 +1652,7 @@ static int mem_cgroup_hierarchical_recla
+ 						unsigned long reclaim_options,
+ 						unsigned long *total_scanned)
+ {
+-	struct mem_cgroup *victim;
++	struct mem_cgroup *victim, *first_victim = NULL;
+ 	int ret, total = 0;
+ 	int loop = 0;
+ 	bool noswap = reclaim_options & MEM_CGROUP_RECLAIM_NOSWAP;
+@@ -1669,6 +1669,11 @@ static int mem_cgroup_hierarchical_recla
+ 
+ 	while (1) {
+ 		victim = mem_cgroup_select_victim(root_mem);
++		if (!first_victim)
++			first_victim = victim;
++		else if (first_victim == victim)
++			break;
++
+ 		if (victim == root_mem) {
+ 			loop++;
+ 			/*
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
