@@ -1,195 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 4D413900194
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 19:16:29 -0400 (EDT)
-Received: from kpbe12.cbf.corp.google.com (kpbe12.cbf.corp.google.com [172.25.105.76])
-	by smtp-out.google.com with ESMTP id p5MNGNvE005184
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 16:16:24 -0700
-Received: from pvg3 (pvg3.prod.google.com [10.241.210.131])
-	by kpbe12.cbf.corp.google.com with ESMTP id p5MNGMT5016820
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 16:16:22 -0700
-Received: by pvg3 with SMTP id 3so843995pvg.4
-        for <linux-mm@kvack.org>; Wed, 22 Jun 2011 16:16:22 -0700 (PDT)
-Date: Wed, 22 Jun 2011 16:16:19 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 4/6] oom: oom-killer don't use proportion of system-ram
- internally
-In-Reply-To: <4E01C86D.30006@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1106221604230.11759@chino.kir.corp.google.com>
-References: <4E01C7D5.3060603@jp.fujitsu.com> <4E01C86D.30006@jp.fujitsu.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id A1DB5900194
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 19:19:08 -0400 (EDT)
+Received: by yxn22 with SMTP id 22so691691yxn.14
+        for <linux-mm@kvack.org>; Wed, 22 Jun 2011 16:19:06 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <20110622150350.GX20843@redhat.com>
+References: <201106212055.25400.nai.xia@gmail.com>
+	<201106212132.39311.nai.xia@gmail.com>
+	<20110622150350.GX20843@redhat.com>
+Date: Thu, 23 Jun 2011 07:19:06 +0800
+Message-ID: <BANLkTim85ghrK9D4f19Pt5v1+HTMzVXxnw@mail.gmail.com>
+Subject: Re: [PATCH] mmu_notifier, kvm: Introduce dirty bit tracking in spte
+ and mmu notifier to help KSM dirty bit tracking
+From: Nai Xia <nai.xia@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, caiqian@redhat.com, Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Oleg Nesterov <oleg@redhat.com>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Izik Eidus <izik.eidus@ravellosystems.com>, Hugh Dickins <hughd@google.com>, Chris Wright <chrisw@sous-sol.org>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel <linux-kernel@vger.kernel.org>, kvm <kvm@vger.kernel.org>
 
-On Wed, 22 Jun 2011, KOSAKI Motohiro wrote:
+On Wed, Jun 22, 2011 at 11:03 PM, Andrea Arcangeli <aarcange@redhat.com> wr=
+ote:
+> On Tue, Jun 21, 2011 at 09:32:39PM +0800, Nai Xia wrote:
+>> diff --git a/arch/x86/kvm/vmx.c b/arch/x86/kvm/vmx.c
+>> index d48ec60..b407a69 100644
+>> --- a/arch/x86/kvm/vmx.c
+>> +++ b/arch/x86/kvm/vmx.c
+>> @@ -4674,6 +4674,7 @@ static int __init vmx_init(void)
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 kvm_mmu_set_mask_ptes(0ull, 0ull, 0ull, 0ull=
+,
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 VMX_EPT_EXEC=
+UTABLE_MASK);
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 kvm_enable_tdp();
+>> + =A0 =A0 =A0 =A0 =A0 =A0 kvm_dirty_update =3D 0;
+>> =A0 =A0 =A0 } else
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 kvm_disable_tdp();
+>>
+>
+> Why not return !shadow_dirty_mask instead of adding a new var?
+>
+>> =A0struct mmu_notifier_ops {
+>> + =A0 =A0 int (*dirty_update)(struct mmu_notifier *mn,
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0struct mm_struct *m=
+m);
+>> +
+>
+> Needs some docu.
+>
+> I think dirty_update isn't self explanatory name. I think
+> "has_test_and_clear_dirty" would be better.
+>
+> If we don't flush the smp tlb don't we risk that we'll insert pages in
+> the unstable tree that are volatile just because the dirty bit didn't
+> get set again on the spte?
+>
+> The first patch I guess it's a sign of hugetlbfs going a little over
+> the edge in trying to mix with the core VM... Passing that parameter
+> &need_pte_unmap all over the place not so nice, maybe it'd be possible
+> to fix within hugetlbfs to use a different method to walk the hugetlb
+> vmas. I'd prefer that if possible.
 
-> CAI Qian reported his kernel did hang-up if he ran fork intensive
-> workload and then invoke oom-killer.
-> 
-> The problem is, current oom calculation uses 0-1000 normalized value
-> (The unit is a permillage of system-ram). Its low precision make
-> a lot of same oom score. IOW, in his case, all processes have smaller
-> oom score than 1 and internal calculation round it to 1.
-> 
-> Thus oom-killer kill ineligible process. This regression is caused by
-> commit a63d83f427 (oom: badness heuristic rewrite).
-> 
-> The solution is, the internal calculation just use number of pages
-> instead of permillage of system-ram. And convert it to permillage
-> value at displaying time.
-> 
+OK, I'll have a try over other workarounds.
+I am not feeling good about need_pte_unmap myself. :-)
 
-Ok, I agree this is better and I like that you've kept the userspace 
-interfaces compatible.
+Thanks for viewing!
 
-> This patch doesn't change any ABI (included  /proc/<pid>/oom_score_adj)
-> even though current logic has a lot of my dislike thing.
-> 
-> Reported-by: CAI Qian <caiqian@redhat.com>
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> ---
->  fs/proc/base.c      |   13 ++++++----
->  include/linux/oom.h |    2 +-
->  mm/oom_kill.c       |   60 ++++++++++++++++++++++++++++++--------------------
->  3 files changed, 45 insertions(+), 30 deletions(-)
-> 
-> diff --git a/fs/proc/base.c b/fs/proc/base.c
-> index 14def99..4a10763 100644
-> --- a/fs/proc/base.c
-> +++ b/fs/proc/base.c
-> @@ -479,14 +479,17 @@ static const struct file_operations proc_lstats_operations = {
-> 
->  static int proc_oom_score(struct task_struct *task, char *buffer)
->  {
-> -	unsigned long points = 0;
-> +	unsigned long points;
-> +	unsigned long ratio = 0;
-> +	unsigned long totalpages = totalram_pages + total_swap_pages + 1;
-> 
->  	read_lock(&tasklist_lock);
-> -	if (pid_alive(task))
-> -		points = oom_badness(task, NULL, NULL,
-> -					totalram_pages + total_swap_pages);
-> +	if (pid_alive(task)) {
-> +		points = oom_badness(task, NULL, NULL, totalpages);
-> +		ratio = points * 1000 / totalpages;
-> +	}
->  	read_unlock(&tasklist_lock);
-> -	return sprintf(buffer, "%lu\n", points);
-> +	return sprintf(buffer, "%lu\n", ratio);
->  }
-> 
->  struct limit_names {
-> diff --git a/include/linux/oom.h b/include/linux/oom.h
-> index 4952fb8..75b104c 100644
-> --- a/include/linux/oom.h
-> +++ b/include/linux/oom.h
-> @@ -42,7 +42,7 @@ enum oom_constraint {
-> 
->  extern int test_set_oom_score_adj(int new_val);
-> 
-> -extern unsigned int oom_badness(struct task_struct *p, struct mem_cgroup *mem,
-> +extern unsigned long oom_badness(struct task_struct *p, struct mem_cgroup *mem,
->  			const nodemask_t *nodemask, unsigned long totalpages);
->  extern int try_set_zonelist_oom(struct zonelist *zonelist, gfp_t gfp_flags);
->  extern void clear_zonelist_oom(struct zonelist *zonelist, gfp_t gfp_flags);
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index 797308b..cff8000 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -159,10 +159,11 @@ static bool oom_unkillable_task(struct task_struct *p,
->   * predictable as possible.  The goal is to return the highest value for the
->   * task consuming the most memory to avoid subsequent oom failures.
->   */
-> -unsigned int oom_badness(struct task_struct *p, struct mem_cgroup *mem,
-> +unsigned long oom_badness(struct task_struct *p, struct mem_cgroup *mem,
->  		      const nodemask_t *nodemask, unsigned long totalpages)
->  {
-> -	int points;
-> +	unsigned long points;
-> +	unsigned long score_adj = 0;
+-Nai
 
-Does this need to be initialized to 0?
-
-> 
->  	if (oom_unkillable_task(p, mem, nodemask))
->  		return 0;
-
-I was going to suggest changing the comment for oom_badness(), but then 
-realized that it never stated that it returns a proportion in the first 
-place!  I suggest, however, that you modify the comment to specify what 
-the return value is: a value up to the point of totalpages that represents 
-the amount of rss, swap, and ptes that the process is using.
-
-> @@ -194,33 +195,44 @@ unsigned int oom_badness(struct task_struct *p, struct mem_cgroup *mem,
->  	 */
->  	points = get_mm_rss(p->mm) + p->mm->nr_ptes;
->  	points += get_mm_counter(p->mm, MM_SWAPENTS);
-> -
-> -	points *= 1000;
-> -	points /= totalpages;
->  	task_unlock(p);
-> 
-> -	/*
-> -	 * Root processes get 3% bonus, just like the __vm_enough_memory()
-> -	 * implementation used by LSMs.
-> -	 */
-> -	if (task_euid(p) == 0)
-> -		points -= 30;
-> +	/* Root processes get 3% bonus. */
-> +	if (task_euid(p) == 0) {
-> +		if (points >= totalpages / 32)
-> +			points -= totalpages / 32;
-> +		else
-> +			points = 0;
-> +	}
-> 
->  	/*
->  	 * /proc/pid/oom_score_adj ranges from -1000 to +1000 such that it may
->  	 * either completely disable oom killing or always prefer a certain
->  	 * task.
->  	 */
-> -	points += p->signal->oom_score_adj;
-> +	if (p->signal->oom_score_adj >= 0) {
-> +		score_adj = p->signal->oom_score_adj * (totalpages / 1000);
-> +		if (ULONG_MAX - points >= score_adj)
-> +			points += score_adj;
-> +		else
-> +			points = ULONG_MAX;
-
-Does points = max(points + score_adj, ULONG_MAX) work here?
-
-> +	} else {
-> +		score_adj = -p->signal->oom_score_adj * (totalpages / 1000);
-> +		if (points >= score_adj)
-> +			points -= score_adj;
-> +		else
-> +			points = 0;
-> +	}
-> 
-
-points = min(points - score_adj, 0)?
-
->  	/*
->  	 * Never return 0 for an eligible task that may be killed since it's
->  	 * possible that no single user task uses more than 0.1% of memory and
->  	 * no single admin tasks uses more than 3.0%.
->  	 */
-> -	if (points <= 0)
-> -		return 1;
-> -	return (points < 1000) ? points : 1000;
-> +	if (!points)
-> +		points = 1;
-> +
-
-Comment needs to be updated to say that an eligible task gets at least a 
-charge of 1 page instead of 0.1% of memory.
-
-Everything else looks good, thanks for looking at this KOSAKI!
+>
+> Thanks,
+> Andrea
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
