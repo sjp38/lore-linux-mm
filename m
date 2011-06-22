@@ -1,85 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 5289190016F
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 06:56:02 -0400 (EDT)
-Received: by iyl8 with SMTP id 8so764459iyl.14
-        for <linux-mm@kvack.org>; Wed, 22 Jun 2011 03:56:00 -0700 (PDT)
-From: Nai Xia <nai.xia@gmail.com>
-Reply-To: nai.xia@gmail.com
-Subject: Re: [PATCH 2/2 V2] ksm: take dirty bit as reference to avoid volatile pages scanning
-Date: Wed, 22 Jun 2011 18:55:43 +0800
-References: <201106212055.25400.nai.xia@gmail.com> <201106220804.12508.nai.xia@gmail.com> <20110622003536.GQ25383@sequoia.sous-sol.org>
-In-Reply-To: <20110622003536.GQ25383@sequoia.sous-sol.org>
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id AA91590016F
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 07:05:39 -0400 (EDT)
+Received: by wye20 with SMTP id 20so691350wye.11
+        for <linux-mm@kvack.org>; Wed, 22 Jun 2011 04:05:36 -0700 (PDT)
+Message-ID: <4E01CC77.10607@ravellosystems.com>
+Date: Wed, 22 Jun 2011 14:05:27 +0300
+From: Izik Eidus <izik.eidus@ravellosystems.com>
 MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="us-ascii"
+Subject: Re: [PATCH] mmu_notifier, kvm: Introduce dirty bit tracking in spte
+ and mmu notifier to help KSM dirty bit tracking
+References: <201106212055.25400.nai.xia@gmail.com> <201106212132.39311.nai.xia@gmail.com> <4E01C752.10405@redhat.com>
+In-Reply-To: <4E01C752.10405@redhat.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
-Message-Id: <201106221855.43667.nai.xia@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chris Wright <chrisw@sous-sol.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Izik Eidus <izik.eidus@ravellosystems.com>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Avi Kivity <avi@redhat.com>
+Cc: nai.xia@gmail.com, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Chris Wright <chrisw@sous-sol.org>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel <linux-kernel@vger.kernel.org>, kvm <kvm@vger.kernel.org>
 
-On Wednesday 22 June 2011 08:35:36 Chris Wright wrote:
-> * Nai Xia (nai.xia@gmail.com) wrote:
-> > (Sorry for repeated mail, I forgot to Cc the list..)
-> > 
-> > On Wednesday 22 June 2011 06:38:00 you wrote:
-> > > * Nai Xia (nai.xia@gmail.com) wrote:
-> > > > Introduced ksm_page_changed() to reference the dirty bit of a pte. We clear 
-> > > > the dirty bit for each pte scanned but don't flush the tlb. For a huge page, 
-> > > > if one of the subpage has changed, we try to skip the whole huge page 
-> > > > assuming(this is true by now) that ksmd linearly scans the address space.
-> > > 
-> > > This doesn't build w/ kvm as a module.
-> > 
-> > I think it's because of the name-error of a related kvm patch, which I only sent
-> > in a same email thread. http://marc.info/?l=linux-mm&m=130866318804277&w=2
-> > The patch split is not clean...I'll redo it.
-> > 
-> 
-> It needs an export as it is.
-> ERROR: "kvm_dirty_update" [arch/x86/kvm/kvm-intel.ko] undefined!
-> 
-> Although perhaps could be done w/out that dirty_update altogether (as I
-> mentioned in other email)?
-> 
-> > > 
-> > > > A NEW_FLAG is also introduced as a status of rmap_item to make ksmd scan
-> > > > more aggressively for new VMAs - only skip the pages considered to be volatile
-> > > > by the dirty bits. This can be enabled/disabled through KSM's sysfs interface.
-> > > 
-> > > This seems like it should be separated out.  And while it might be useful
-> > > to enable/disable for testing, I don't think it's worth supporting for
-> > > the long term.  Would also be useful to see the value of this flag.
-> > 
-> > I think it maybe useful for uses who want to turn on/off this scan policy explicitly
-> > according to their working sets? 
-> 
-> Can you split it out, and show the benefit of it directly?  I think it
-> only benefits:
-> 
-> p = mmap()
-> memset(p, $value, entire buffer);
-> ...
-> very slowly (w.r.t scan times) touch bits of buffer and trigger cow to
-> break sharing.
-> 
-> Would you agree?
+On 6/22/2011 1:43 PM, Avi Kivity wrote:
+> On 06/21/2011 04:32 PM, Nai Xia wrote:
+>> Introduced kvm_mmu_notifier_test_and_clear_dirty(), 
+>> kvm_mmu_notifier_dirty_update()
+>> and their mmu_notifier interfaces to support KSM dirty bit tracking, 
+>> which brings
+>> significant performance gain in volatile pages scanning in KSM.
+>> Currently, kvm_mmu_notifier_dirty_update() returns 0 if and only if 
+>> intel EPT is
+>> enabled to indicate that the dirty bits of underlying sptes are not 
+>> updated by
+>> hardware.
+>>
+>
+>
+> Can you quantify the performance gains?
+>
+>> +int kvm_test_and_clear_dirty_rmapp(struct kvm *kvm, unsigned long 
+>> *rmapp,
+>> +                   unsigned long data)
+>> +{
+>> +    u64 *spte;
+>> +    int dirty = 0;
+>> +
+>> +    if (!shadow_dirty_mask) {
+>> +        WARN(1, "KVM: do NOT try to test dirty bit in EPT\n");
+>> +        goto out;
+>> +    }
+>> +
+>> +    spte = rmap_next(kvm, rmapp, NULL);
+>> +    while (spte) {
+>> +        int _dirty;
+>> +        u64 _spte = *spte;
+>> +        BUG_ON(!(_spte&  PT_PRESENT_MASK));
+>> +        _dirty = _spte&  PT_DIRTY_MASK;
+>> +        if (_dirty) {
+>> +            dirty = 1;
+>> +            clear_bit(PT_DIRTY_SHIFT, (unsigned long *)spte);
+>> +        }
+>
+> Racy.  Also, needs a tlb flush eventually.
 
-The direct benefit of it is that when merging a very big area, the system
-does not be caught in a non-trivial period people see the free memory is 
-actually dropping by creating only rmap_items, despite he is 100% sure that
-his workset is very duplicated. I think it's puzzling to users and also 
-risky of OOM.
-
-Thanks,
-Nai
-
-> 
-> thanks,
-> -chris
-> 
+Hi, one of the issues is that the whole point of this patch is not do 
+tlb flush eventually,
+But I see your point, because other users will not expect such behavior, 
+so maybe there is need into a parameter
+flush_tlb=?, or add another mmu notifier call?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
