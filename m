@@ -1,41 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 4B9A2900194
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 14:15:46 -0400 (EDT)
-Message-ID: <4E023142.1080605@zytor.com>
-Date: Wed, 22 Jun 2011 11:15:30 -0700
-From: "H. Peter Anvin" <hpa@zytor.com>
-MIME-Version: 1.0
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 3AF51900194
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 14:24:50 -0400 (EDT)
+Date: Wed, 22 Jun 2011 20:24:45 +0200
+From: Andi Kleen <andi@firstfloor.org>
 Subject: Re: [PATCH v2 0/3] support for broken memory modules (BadRAM)
-References: <1308741534-6846-1-git-send-email-sassmann@kpanic.de>
-In-Reply-To: <1308741534-6846-1-git-send-email-sassmann@kpanic.de>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Message-ID: <20110622182445.GG3263@one.firstfloor.org>
+References: <1308741534-6846-1-git-send-email-sassmann@kpanic.de> <20110622110034.89ee399c.akpm@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110622110034.89ee399c.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Stefan Assmann <sassmann@kpanic.de>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, tony.luck@intel.com, andi@firstfloor.org, mingo@elte.hu, rick@vanrein.org, rdunlap@xenotime.net
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Stefan Assmann <sassmann@kpanic.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, tony.luck@intel.com, andi@firstfloor.org, mingo@elte.hu, hpa@zytor.com, rick@vanrein.org, rdunlap@xenotime.net, Nancy Yuen <yuenn@google.com>, Michael Ditto <mditto@google.com>
 
-On 06/22/2011 04:18 AM, Stefan Assmann wrote:
-> 
-> The idea is to allow the user to specify RAM addresses that shouldn't be
-> touched by the OS, because they are broken in some way. Not all machines have
-> hardware support for hwpoison, ECC RAM, etc, so here's a solution that allows to
-> use bitmasks to mask address patterns with the new "badram" kernel command line
-> parameter.
-> Memtest86 has an option to generate these patterns since v2.3 so the only thing
-> for the user to do should be:
-> - run Memtest86
-> - note down the pattern
-> - add badram=<pattern> to the kernel command line
-> 
+> So.  What are your thoughts on these issues?
 
-We already support the equivalent functionality with
-memmap=<address>$<length> for those with only a few ranges... this has
-been supported for ages, literally.  For those with a lot of ranges,
-like Google, the command line is insufficient.
+Sounds orthogonal to me. You have to crawl before you walk.
 
-	-hpa
+A better way to pass in the data would be nice, but can be always
+added on top (e.g. some EFI environment variable) 
+
+For a first try a command line argument is quite
+appropiate and simple enough.
+
+A check for removing too much memory would be nice though,
+although it's just a choice between panicing early or later.
+
+-Andi
+
+-- 
+ak@linux.intel.com -- Speaking for myself only.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
