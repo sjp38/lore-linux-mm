@@ -1,152 +1,275 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 7F3BD6B0164
-	for <linux-mm@kvack.org>; Tue, 21 Jun 2011 20:17:23 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 16FBB3EE0AE
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 09:17:19 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id F35D145DE6A
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 09:17:18 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id CFF1B45DE61
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 09:17:18 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id BFBB31DB802C
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 09:17:18 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 7CA85E08002
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 09:17:18 +0900 (JST)
-Date: Wed, 22 Jun 2011 09:10:18 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: "make -j" with memory.(memsw.)limit_in_bytes smaller than
- required -> livelock,  even for unlimited processes
-Message-Id: <20110622091018.16c14c78.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <4E00AFE6.20302@5t9.de>
-References: <4E00AFE6.20302@5t9.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 800946B0166
+	for <linux-mm@kvack.org>; Tue, 21 Jun 2011 20:21:42 -0400 (EDT)
+Date: Tue, 21 Jun 2011 17:21:23 -0700
+From: Chris Wright <chrisw@sous-sol.org>
+Subject: Re: [PATCH] mmu_notifier, kvm: Introduce dirty bit tracking in spte
+ and mmu notifier to help KSM dirty bit tracking
+Message-ID: <20110622002123.GP25383@sequoia.sous-sol.org>
+References: <201106212055.25400.nai.xia@gmail.com>
+ <201106212132.39311.nai.xia@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201106212132.39311.nai.xia@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Lutz Vieweg <lvml@5t9.de>
-Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-mm@kvack.org
+To: Nai Xia <nai.xia@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Izik Eidus <izik.eidus@ravellosystems.com>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Chris Wright <chrisw@sous-sol.org>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel <linux-kernel@vger.kernel.org>, kvm <kvm@vger.kernel.org>, mtosatti@redhat.com
 
-On Tue, 21 Jun 2011 16:51:18 +0200
-Lutz Vieweg <lvml@5t9.de> wrote:
+* Nai Xia (nai.xia@gmail.com) wrote:
+> Introduced kvm_mmu_notifier_test_and_clear_dirty(), kvm_mmu_notifier_dirty_update()
+> and their mmu_notifier interfaces to support KSM dirty bit tracking, which brings
+> significant performance gain in volatile pages scanning in KSM.
+> Currently, kvm_mmu_notifier_dirty_update() returns 0 if and only if intel EPT is
+> enabled to indicate that the dirty bits of underlying sptes are not updated by
+> hardware.
 
-> Dear Memory Ressource Controller maintainers,
+Did you test with each of EPT, NPT and shadow?
+
+> Signed-off-by: Nai Xia <nai.xia@gmail.com>
+> Acked-by: Izik Eidus <izik.eidus@ravellosystems.com>
+> ---
+>  arch/x86/include/asm/kvm_host.h |    1 +
+>  arch/x86/kvm/mmu.c              |   36 +++++++++++++++++++++++++++++
+>  arch/x86/kvm/mmu.h              |    3 +-
+>  arch/x86/kvm/vmx.c              |    1 +
+>  include/linux/kvm_host.h        |    2 +-
+>  include/linux/mmu_notifier.h    |   48 +++++++++++++++++++++++++++++++++++++++
+>  mm/mmu_notifier.c               |   33 ++++++++++++++++++++++++++
+>  virt/kvm/kvm_main.c             |   27 ++++++++++++++++++++++
+>  8 files changed, 149 insertions(+), 2 deletions(-)
 > 
-> by using per-user control groups with a limit on memory (and swap) I am
-> trying to secure a shared development server against memory exhaustion
-> by any one single user - as it happened before when somebody imprudently
-> issued "make -j" (which has the infamous habit to spawn an unlimited
-> number of processes) on a large software project with many source files.
-> 
-> The memory limitation using control groups works just fine when
-> only a few processes sum up to a usage that exceeds the limits - the
-> processes are OOM-killed, then, and the others users are unaffected.
-> 
-> But the original cause, a "make -j" on many source files, leads to
-> the following ugly symptom:
-> 
-> - make starts numerous (~ 100 < x < 200) gcc processes
-> 
-> - some of those gcc processes get OOM-killed quickly, then
->    a few more are killed, but with increasing pauses in between
-> 
-> - then after a few seconds, no more gcc processes are killed, but
->    the "make" process and its childs do not show any progress anymore
-> 
+> diff --git a/arch/x86/include/asm/kvm_host.h b/arch/x86/include/asm/kvm_host.h
+> index d2ac8e2..f0d7aa0 100644
+> --- a/arch/x86/include/asm/kvm_host.h
+> +++ b/arch/x86/include/asm/kvm_host.h
+> @@ -848,6 +848,7 @@ extern bool kvm_rebooting;
+>  int kvm_unmap_hva(struct kvm *kvm, unsigned long hva);
+>  int kvm_age_hva(struct kvm *kvm, unsigned long hva);
+>  int kvm_test_age_hva(struct kvm *kvm, unsigned long hva);
+> +int kvm_test_and_clear_dirty_hva(struct kvm *kvm, unsigned long hva);
+>  void kvm_set_spte_hva(struct kvm *kvm, unsigned long hva, pte_t pte);
+>  int cpuid_maxphyaddr(struct kvm_vcpu *vcpu);
+>  int kvm_cpu_has_interrupt(struct kvm_vcpu *vcpu);
+> diff --git a/arch/x86/kvm/mmu.c b/arch/x86/kvm/mmu.c
+> index aee3862..a5a0c51 100644
+> --- a/arch/x86/kvm/mmu.c
+> +++ b/arch/x86/kvm/mmu.c
+> @@ -979,6 +979,37 @@ out:
+>  	return young;
+>  }
+>  
+> +/*
+> + * Caller is supposed to SetPageDirty(), it's not done inside this.
+> + */
+> +static
+> +int kvm_test_and_clear_dirty_rmapp(struct kvm *kvm, unsigned long *rmapp,
+> +				   unsigned long data)
+> +{
+> +	u64 *spte;
+> +	int dirty = 0;
+> +
+> +	if (!shadow_dirty_mask) {
+> +		WARN(1, "KVM: do NOT try to test dirty bit in EPT\n");
+> +		goto out;
+> +	}
 
-This is a famous fork-bomb problem. I posted fork-bomb-killer patch sets once
-but not welcomed. And, there are OOM-killer trouble in kernel, too.
-(I think it's recently fixed.)
+This should never fire with the dirty_update() notifier test, right?
+And that means that this whole optimization is for the shadow mmu case,
+arguably the legacy case.
 
+> +
+> +	spte = rmap_next(kvm, rmapp, NULL);
+> +	while (spte) {
+> +		int _dirty;
+> +		u64 _spte = *spte;
+> +		BUG_ON(!(_spte & PT_PRESENT_MASK));
+> +		_dirty = _spte & PT_DIRTY_MASK;
+> +		if (_dirty) {
+> +			dirty = 1;
+> +			clear_bit(PT_DIRTY_SHIFT, (unsigned long *)spte);
 
+Is this sufficient (not losing dirty state ever)?
 
-Don't you use your test set under some cpu cgroup ?
-If so, you can see  deadlock in some versions of kernel.
+> +		}
+> +		spte = rmap_next(kvm, rmapp, spte);
+> +	}
+> +out:
+> +	return dirty;
+> +}
+> +
+>  #define RMAP_RECYCLE_THRESHOLD 1000
+>  
+>  static void rmap_recycle(struct kvm_vcpu *vcpu, u64 *spte, gfn_t gfn)
+> @@ -1004,6 +1035,11 @@ int kvm_test_age_hva(struct kvm *kvm, unsigned long hva)
+>  	return kvm_handle_hva(kvm, hva, 0, kvm_test_age_rmapp);
+>  
+>  
+> +int kvm_test_and_clear_dirty_hva(struct kvm *kvm, unsigned long hva)
+> +{
+> +	return kvm_handle_hva(kvm, hva, 0, kvm_test_and_clear_dirty_rmapp);
+> +}
+> +
+>  #ifdef MMU_DEBUG
+>  static int is_empty_shadow_page(u64 *spt)
+>  {
+> diff --git a/arch/x86/kvm/mmu.h b/arch/x86/kvm/mmu.h
+> index 7086ca8..b8d01c3 100644
+> --- a/arch/x86/kvm/mmu.h
+> +++ b/arch/x86/kvm/mmu.h
+> @@ -18,7 +18,8 @@
+>  #define PT_PCD_MASK (1ULL << 4)
+>  #define PT_ACCESSED_SHIFT 5
+>  #define PT_ACCESSED_MASK (1ULL << PT_ACCESSED_SHIFT)
+> -#define PT_DIRTY_MASK (1ULL << 6)
+> +#define PT_DIRTY_SHIFT 6
+> +#define PT_DIRTY_MASK (1ULL << PT_DIRTY_SHIFT)
+>  #define PT_PAGE_SIZE_MASK (1ULL << 7)
+>  #define PT_PAT_MASK (1ULL << 7)
+>  #define PT_GLOBAL_MASK (1ULL << 8)
+> diff --git a/arch/x86/kvm/vmx.c b/arch/x86/kvm/vmx.c
+> index d48ec60..b407a69 100644
+> --- a/arch/x86/kvm/vmx.c
+> +++ b/arch/x86/kvm/vmx.c
+> @@ -4674,6 +4674,7 @@ static int __init vmx_init(void)
+>  		kvm_mmu_set_mask_ptes(0ull, 0ull, 0ull, 0ull,
+>  				VMX_EPT_EXECUTABLE_MASK);
+>  		kvm_enable_tdp();
+> +		kvm_dirty_update = 0;
 
+Doesn't the above shadow_dirty_mask==0ull tell us this same info?
 
-Then, you can stop oom-kill by echo 1 > .../memory.oom_control.
-All processes under memcg will be blocked. you can kill all process under memcg
-by you hands.
+>  	} else
+>  		kvm_disable_tdp();
+>  
+> diff --git a/include/linux/kvm_host.h b/include/linux/kvm_host.h
+> index 31ebb59..2036bae 100644
+> --- a/include/linux/kvm_host.h
+> +++ b/include/linux/kvm_host.h
+> @@ -53,7 +53,7 @@
+>  struct kvm;
+>  struct kvm_vcpu;
+>  extern struct kmem_cache *kvm_vcpu_cache;
+> -
+> +extern int kvm_dirty_update;
+>  /*
+>   * It would be nice to use something smarter than a linear search, TBD...
+>   * Thankfully we dont expect many devices to register (famous last words :),
+> diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
+> index 1d1b1e1..bd6ba2d 100644
+> --- a/include/linux/mmu_notifier.h
+> +++ b/include/linux/mmu_notifier.h
+> @@ -24,6 +24,9 @@ struct mmu_notifier_mm {
+>  };
+>  
+>  struct mmu_notifier_ops {
 
-> - at this time, top indicates 100% "system" CPU usage, mostly by
->    "[kworker/*]" threads (one per CPU). But processes from other
->    users, that only require CPU, proceed to run.
-> 
+Need to add a comment to describe it.  And why is it not next to
+test_and_clear_dirty()?  I see how it's used, but seems as if the
+test_and_clear_dirty() code could return -1 (as in dirty state unknown)
+for the case where it can't track dirty bit and fall back to checksum.
 
-This is a known bug and it's now fixed.
+> +	int (*dirty_update)(struct mmu_notifier *mn,
+> +			     struct mm_struct *mm);
+> +
+>  	/*
+>  	 * Called either by mmu_notifier_unregister or when the mm is
+>  	 * being destroyed by exit_mmap, always before all pages are
+> @@ -72,6 +75,16 @@ struct mmu_notifier_ops {
+>  			  unsigned long address);
+>  
+>  	/*
+> +	 * clear_flush_dirty is called after the VM is
+> +	 * test-and-clearing the dirty/modified bitflag in the
+> +	 * pte. This way the VM will provide proper volatile page
+> +	 * testing to ksm.
+> +	 */
+> +	int (*test_and_clear_dirty)(struct mmu_notifier *mn,
+> +				    struct mm_struct *mm,
+> +				    unsigned long address);
+> +
+> +	/*
+>  	 * change_pte is called in cases that pte mapping to page is changed:
+>  	 * for example, when ksm remaps pte to point to a new shared page.
+>  	 */
+> @@ -170,11 +183,14 @@ extern int __mmu_notifier_register(struct mmu_notifier *mn,
+>  extern void mmu_notifier_unregister(struct mmu_notifier *mn,
+>  				    struct mm_struct *mm);
+>  extern void __mmu_notifier_mm_destroy(struct mm_struct *mm);
+> +extern int __mmu_notifier_dirty_update(struct mm_struct *mm);
+>  extern void __mmu_notifier_release(struct mm_struct *mm);
+>  extern int __mmu_notifier_clear_flush_young(struct mm_struct *mm,
+>  					  unsigned long address);
+>  extern int __mmu_notifier_test_young(struct mm_struct *mm,
+>  				     unsigned long address);
+> +extern int __mmu_notifier_test_and_clear_dirty(struct mm_struct *mm,
+> +					       unsigned long address);
+>  extern void __mmu_notifier_change_pte(struct mm_struct *mm,
+>  				      unsigned long address, pte_t pte);
+>  extern void __mmu_notifier_invalidate_page(struct mm_struct *mm,
+> @@ -184,6 +200,19 @@ extern void __mmu_notifier_invalidate_range_start(struct mm_struct *mm,
+>  extern void __mmu_notifier_invalidate_range_end(struct mm_struct *mm,
+>  				  unsigned long start, unsigned long end);
+>  
+> +/*
+> + * For ksm to make use of dirty bit, it wants to make sure that the dirty bits
+> + * in sptes really carry the dirty information. Currently only intel EPT is
+> + * not for ksm dirty bit tracking.
+> + */
+> +static inline int mmu_notifier_dirty_update(struct mm_struct *mm)
+> +{
+> +	if (mm_has_notifiers(mm))
+> +		return __mmu_notifier_dirty_update(mm);
+> +
 
+No need for extra newline.
 
-> - but also at this time, if any other user (who has not exhausted
->    his memory limits) tries to access any file (at least on /tmp/,
->    as e.g. gcc does), even a simple "ls /tmp/", this operation
->    waits forever. (But "iostat" does not indicate any I/O activity.)
-> 
+> +	return 1;
+> +}
+> +
 
-Hmm, it means your 'ls' gets some lock and wait for it. Then, what lock
-you wait for ? what w_chan is shown in 'ps -elf' ?
+> diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
+> index 96ebc06..22967c8 100644
+> --- a/virt/kvm/kvm_main.c
+> +++ b/virt/kvm/kvm_main.c
+> @@ -78,6 +78,8 @@ static atomic_t hardware_enable_failed;
+>  struct kmem_cache *kvm_vcpu_cache;
+>  EXPORT_SYMBOL_GPL(kvm_vcpu_cache);
+>  
+> +int kvm_dirty_update = 1;
+> +
+>  static __read_mostly struct preempt_ops kvm_preempt_ops;
+>  
+>  struct dentry *kvm_debugfs_dir;
+> @@ -398,6 +400,23 @@ static int kvm_mmu_notifier_test_young(struct mmu_notifier *mn,
+>  	return young;
+>  }
+>  
+> +/* Caller should SetPageDirty(), no need to flush tlb */
+> +static int kvm_mmu_notifier_test_and_clear_dirty(struct mmu_notifier *mn,
+> +						 struct mm_struct *mm,
+> +						 unsigned long address)
+> +{
+> +	struct kvm *kvm = mmu_notifier_to_kvm(mn);
+> +	int dirty, idx;
 
+Perhaps something like:
 
-> - as soon as you press "CTRL-C" to abort the "make -j", everything
->    goes back to normal, quickly - also the other users' processes proceed.
-> 
+	if (!shadow_dirty_mask)
+		return -1;
 
-yes.
+And adjust caller logic accordingly?
 
-
-> 
-> To reproduce the problem, the attached "Makefile" to a directory
-> on a filesystem with at least 70MB free space, then
-> 
->   mount -o memory none /cgroup
->   mkdir /cgroup/test
->   echo 64M >/cgroup/test/memory.limit_in_bytes
->   echo 64M >/cgroup/test/memory.memsw.limit_in_bytes
-> 
-
-64M is crazy small limit for make -j , I use 300M for my test...
-
-
-
->   cd /somewhere/with/70mb/free
->   echo $$ >/cgroup/test/tasks
->   make sources
->   make -j compile
-> 
-> Notice that "make sources" will create 200 bogus "*.c" files from
-> /dev/urandom to make sure that "gcc" will use up some memory.
-> 
-> The "make -j compile" reliably reproduces the above mentioned syndrome,
-> here.
-> 
-> Please notice that the livelock does happen only with a significant
-> number of parallel compiler runs - it did e.g. not happen with
-> only 100 for me, and it also did not happen when I started "make"
-> with "strace" - so timing seems to be an issue, here.
-> 
-> Thanks for any hints towards a solution of this issue in advance!
-> 
-
-I think the most of problem comes from oom-killer logic.
-
-Anyway, please post oom-killer log.
-
-and plesse see what hapeens when 
-
- echo 1 > /memory.oom_control
- (See Documentation/cgroup/memory.txt)
-
-
-
-
-Thsnks,
--Kame
-
-
+> +     idx = srcu_read_lock(&kvm->srcu);
+> +     spin_lock(&kvm->mmu_lock);
+> +     dirty = kvm_test_and_clear_dirty_hva(kvm, address);
+> +     spin_unlock(&kvm->mmu_lock);
+> +     srcu_read_unlock(&kvm->srcu, idx);
+> +
+> +     return dirty;
+> +}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
