@@ -1,125 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id C3F1E90016F
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 05:28:04 -0400 (EDT)
-Received: from eu_spt1 (mailout1.w1.samsung.com [210.118.77.11])
- by mailout1.w1.samsung.com
- (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
- with ESMTP id <0LN600GKVQAQ1P@mailout1.w1.samsung.com> for linux-mm@kvack.org;
- Wed, 22 Jun 2011 10:28:02 +0100 (BST)
-Received: from linux.samsung.com ([106.116.38.10])
- by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0LN600BINQAPSQ@spt1.w1.samsung.com> for
- linux-mm@kvack.org; Wed, 22 Jun 2011 10:28:01 +0100 (BST)
-Date: Wed, 22 Jun 2011 11:27:55 +0200
-From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: RE: [Linaro-mm-sig] [PATCH/RFC 0/8] ARM: DMA-mapping framework redesign
-In-reply-to: <4E01AD7B.3070806@gmail.com>
-Message-id: <002701cc30be$ab296cc0$017c4640$%szyprowski@samsung.com>
-MIME-version: 1.0
-Content-type: text/plain; charset=us-ascii
-Content-language: pl
-Content-transfer-encoding: 7BIT
-References: <1308556213-24970-1-git-send-email-m.szyprowski@samsung.com>
- <4E017539.30505@gmail.com>
- <001d01cc30a9$ebe5e460$c3b1ad20$%szyprowski@samsung.com>
- <4E01AD7B.3070806@gmail.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id EB1A690016F
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 05:44:05 -0400 (EDT)
+Date: Wed, 22 Jun 2011 10:44:01 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: sandy bridge kswapd0 livelock with pagecache
+Message-ID: <20110622094401.GJ9396@suse.de>
+References: <4E0069FE.4000708@draigBrady.com>
+ <20110621103920.GF9396@suse.de>
+ <4E0076C7.4000809@draigBrady.com>
+ <20110621113447.GG9396@suse.de>
+ <4E008784.80107@draigBrady.com>
+ <20110621130756.GH9396@suse.de>
+ <4E00A96D.8020806@draigBrady.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <4E00A96D.8020806@draigBrady.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Subash Patel' <subashrp@gmail.com>
-Cc: linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Russell King - ARM Linux' <linux@arm.linux.org.uk>, 'Joerg Roedel' <joro@8bytes.org>, 'Arnd Bergmann' <arnd@arndb.de>, Marek Szyprowski <m.szyprowski@samsung.com>
+To: P?draig Brady <P@draigBrady.com>
+Cc: linux-mm@kvack.org
 
-Hello,
-
-On Wednesday, June 22, 2011 10:53 AM Subash Patel wrote:
-
-> On 06/22/2011 12:29 PM, Marek Szyprowski wrote:
-> > Hello,
-> >
-> > On Wednesday, June 22, 2011 6:53 AM Subash Patel wrote:
-> >
-> >> On 06/20/2011 01:20 PM, Marek Szyprowski wrote:
-> >>> Hello,
+On Tue, Jun 21, 2011 at 03:23:41PM +0100, P?draig Brady wrote:
+> On 21/06/11 14:07, Mel Gorman wrote:
+> > On Tue, Jun 21, 2011 at 12:59:00PM +0100, P?draig Brady wrote:
+> >> On 21/06/11 12:34, Mel Gorman wrote:
+> >>> On Tue, Jun 21, 2011 at 11:47:35AM +0100, P?draig Brady wrote:
+> >>>> On 21/06/11 11:39, Mel Gorman wrote:
+> >>>>> On Tue, Jun 21, 2011 at 10:53:02AM +0100, P?draig Brady wrote:
+> >>>>>> I tried the 2 patches here to no avail:
+> >>>>>> http://marc.info/?l=linux-mm&m=130503811704830&w=2
+> >>>>>>
+> >>>>>> I originally logged this at:
+> >>>>>> https://bugzilla.redhat.com/show_bug.cgi?id=712019
+> >>>>>>
+> >>>>>> I can compile up and quickly test any suggestions.
+> >>>>>>
+> >>>>>
+> >>>>> I recently looked through what kswapd does and there are a number
+> >>>>> of problem areas. Unfortunately, I haven't gotten around to doing
+> >>>>> anything about it yet or running the test cases to see if they are
+> >>>>> really problems. In your case, the following is a strong possibility
+> >>>>> though. This should be applied on top of the two patches merged from
+> >>>>> that thread.
+> >>>>>
+> >>>>> This is not tested in any way, based on 3.0-rc3
+> >>>>
+> >>>> This does not fix the issue here.
+> >>>>
 > >>>
-> >>> This patch series is a continuation of my works on implementing generic
-> >>> IOMMU support in DMA mapping framework for ARM architecture. Now I
-> >>> focused on the DMA mapping framework itself. It turned out that adding
-> >>> support for common dma_map_ops structure was not that hard as I
-> initally
-> >>> thought. After some modification most of the code fits really well to
-> >>> the generic dma_map_ops methods.
+> >>> I made a silly mistake here.  When you mentioned two patches applied,
+> >>> I assumed you meant two patches that were finally merged from that
+> >>> discussion thread instead of looking at your linked mail. Now that I
+> >>> have checked, I think you applied the SLUB patches while the patches
+> >>> I was thinking of are;
 > >>>
-> >>> The only change required to dma_map_ops is a new alloc function. During
-> >>> the discussion on Linaro Memory Management meeting in Budapest we got
-> >>> the idea that we can have only one alloc/free/mmap function with
-> >>> additional attributes argument. This way all different kinds of
-> >>> architecture specific buffer mappings can be hidden behind the
-> >>> attributes without the need of creating several versions of dma_alloc_
-> >>> function. I also noticed that the dma_alloc_noncoherent() function can
-> >>> be also implemented this way with DMA_ATTRIB_NON_COHERENT attribute.
-> >>> Systems that just defines dma_alloc_noncoherent as dma_alloc_coherent
-> >>> will just ignore such attribute.
+> >>> [afc7e326: mm: vmscan: correct use of pgdat_balanced in sleeping_prematurely]
+> >>> [f06590bd: mm: vmscan: correctly check if reclaimer should schedule during shrink_slab]
 > >>>
-> >>> Another good use case for alloc methods with attributes is the
-> >>> possibility to allocate buffer without a valid kernel mapping. There
-> are
-> >>> a number of drivers (mainly V4L2 and ALSA) that only exports the DMA
-> >>> buffers to user space. Such drivers don't touch the buffer data at all.
-> >>> For such buffers we can avoid the creation of a mapping in kernel
-> >>> virtual address space, saving precious vmalloc area. Such buffers might
-> >>> be allocated once a new attribute DMA_ATTRIB_NO_KERNEL_MAPPING.
+> >>> The first one in particular has been reported by another user to fix
+> >>> hangs related to copying large files. I'm assuming you are testing
+> >>> against the Fedora kernel. As these patches were merged for 3.0-rc1, can
+> >>> you check if applying just these two patches to your kernel helps?
 > >>
-> >> Are you trying to say here, that the buffer would be allocated in the
-> >> user space, and we just use it to map it to the device in DMA+IOMMU
-> >> framework?
-> >
-> > Nope. I proposed an extension which would allow you to allocate a buffer
-> > without creating the kernel mapping for it. Right now
-> dma_alloc_coherent()
-> > performs 3 operations:
-> > 1. allocates memory for the buffer
-> > 2. creates coherent kernel mapping for the buffer
-> > 3. translates physical buffer address to DMA address that can be used by
-> > the hardware.
-> >
-> > dma_mmap_coherent makes additional mapping for the buffer in user process
-> > virtual address space.
-> >
-> > I want make the step 2 in dma_alloc_coherent() optional to save virtual
-> > address space: it is really limited resource. I really want to avoid
-> > wasting it for mapping 128MiB buffers just to create full-HD processing
-> > hardware pipeline, where no drivers will use kernel mapping at all.
-> >
+> >> These patches are already present in my 2.6.38.8-32.fc15.x86_64 kernel :(
+> >>
+> > 
+> > Would it be possible to record a profile while it is livelocked to check
+> > if it's stuck in this loop in shrink_slab()?
 > 
-> I think by (2) above, you are referring to
-> __dma_alloc_remap()->arm_vmregion_alloc() to allocate the kernel virtual
-> address for the drivers use. That makes sense now.
+> I did:
+> 
 
-Well, this is particular implementation which is used on ARM. Other 
-architectures might implement it differently, that's why I used generic 
-description and didn't point to any particular function.
+I haven't started looking at this properly yet (stuck with other
+bugs unfortunately) but I glanced at the sysrq message and on a 2G
+64-bit machine, you have a tiny Normal zone! This is very unexpected.
+Can you boot with mminit_loglevel=4 loglevel=9 and post your full
+dmesg please? I want to see what the memory layout of this thing
+looks like to see in the future if there is a correlation between
+this type of bug and a tiny highest zone.
 
-> I have a query in similar lines, but related to user virtual address
-> space. Is it feasible to extend these DMA interfaces(and IOMMU), to map
-> a user allocated buffer into the hardware?
+Broadly speaking though from seeing that, it reminds me of a
+similar bug where small zones could keep kswapd alive for high-order
+allocations reclaiming slab constantly. I suspect on your machine
+that the Normal zone cannot be balanced for order-0 allocations and
+is keeping kswapd awake.
 
-This can be done with the current API, although it may not look so 
-straightforward. You just need to create a scatter list of user pages
-(these can be gathered with get_user_pages function) and use dma_map_sg()
-function. If the dma-mapping support iommu, it can map all these pages
-into a single contiguous buffer on device (DMA) address space.
+Can you try booting with mem=1792M and if the Normal zone disappears,
+try reproducing the bug?
 
-Some additional 'magic' might be required to get access to pages that are
-mapped with pure PFN (VM_PFNMAP flag), but imho it still can be done.
-
-I will try to implement this feature in videobuf2-dma-config allocator
-together with the next version of my patches for dma-mapping&iommu.
-
-Best regards
 -- 
-Marek Szyprowski
-Samsung Poland R&D Center
-
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
