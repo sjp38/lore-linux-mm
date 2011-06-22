@@ -1,34 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 1A5FB6B024E
-	for <linux-mm@kvack.org>; Tue, 21 Jun 2011 23:13:46 -0400 (EDT)
-Message-ID: <4E015DCA.8040204@redhat.com>
-Date: Wed, 22 Jun 2011 11:13:14 +0800
-From: Cong Wang <amwang@redhat.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 6BEC790015D
+	for <linux-mm@kvack.org>; Tue, 21 Jun 2011 23:24:22 -0400 (EDT)
+Received: from hpaq11.eem.corp.google.com (hpaq11.eem.corp.google.com [172.25.149.11])
+	by smtp-out.google.com with ESMTP id p5M3OJE5010725
+	for <linux-mm@kvack.org>; Tue, 21 Jun 2011 20:24:19 -0700
+Received: from pwj1 (pwj1.prod.google.com [10.241.219.65])
+	by hpaq11.eem.corp.google.com with ESMTP id p5M3OGkD031943
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 21 Jun 2011 20:24:17 -0700
+Received: by pwj1 with SMTP id 1so354746pwj.9
+        for <linux-mm@kvack.org>; Tue, 21 Jun 2011 20:24:15 -0700 (PDT)
+Date: Tue, 21 Jun 2011 20:24:14 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH v2 1/4] mm: completely disable THP by
+ transparent_hugepage=0
+In-Reply-To: <4E015CB8.1010300@redhat.com>
+Message-ID: <alpine.DEB.2.00.1106212010520.8712@chino.kir.corp.google.com>
+References: <1308643849-3325-1-git-send-email-amwang@redhat.com> <alpine.DEB.2.00.1106211814250.5205@chino.kir.corp.google.com> <4E015CB8.1010300@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 4/4] mm: introduce no_ksm to disable totally KSM
-References: <1308643849-3325-1-git-send-email-amwang@redhat.com> <1308643849-3325-4-git-send-email-amwang@redhat.com> <20110621133236.GP20843@redhat.com>
-In-Reply-To: <20110621133236.GP20843@redhat.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 8bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org
+To: Cong Wang <amwang@redhat.com>
+Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Randy Dunlap <rdunlap@xenotime.net>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <jweiner@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-doc@vger.kernel.org, linux-mm@kvack.org
 
-ao? 2011a1'06ae??21ae?JPY 21:32, Andrea Arcangeli a??e??:
-> On Tue, Jun 21, 2011 at 04:10:45PM +0800, Amerigo Wang wrote:
->> Introduce a new kernel parameter "no_ksm" to totally disable KSM.
->
-> Here as well this is the wrong approach. If you want to save memory,
-> you should make ksmd quit when run=0 and start only when setting
-> ksm/run=1. And move the daemon hashes and slabs initializations to the
-> ksmd daemon start. Not registering in sysfs and crippling down the
-> feature despite you loaded the proper .text into memory isn't good.
+On Wed, 22 Jun 2011, Cong Wang wrote:
 
-1. Not only about saving memory, as I explained in other thread.
+> > > Introduce "transparent_hugepage=0" to totally disable THP.
+> > > "transparent_hugepage=never" means setting THP to be partially
+> > > disabled, we need a new way to totally disable it.
+> > > 
+> > 
+> > Why can't you just compile it off so you never even compile
+> > mm/huge_memory.c in the first place and save the space in the kernel image
+> > as well?  Having the interface available to enable the feature at runtime
+> > is worth the savings this patch provides, in my opinion.
+> 
+> https://lkml.org/lkml/2011/6/20/506
+> 
 
-2. Recompiling kernel is not always acceptable, as I replied in other thread.
+If you're proposing a patch for a specific purpose, it's appropriate to 
+include that in the changelog.
+
+But now that I know what you're proposing this for, it's an easy NACK: 
+transparent_hugepage=0 has no significant benefit over 
+transparent_hugepage=never for kdump because the memory savings is 
+negligible.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
