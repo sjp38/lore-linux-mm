@@ -1,78 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id A1DB5900194
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 19:19:08 -0400 (EDT)
-Received: by yxn22 with SMTP id 22so691691yxn.14
-        for <linux-mm@kvack.org>; Wed, 22 Jun 2011 16:19:06 -0700 (PDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 77BCD900194
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 19:22:25 -0400 (EDT)
+Received: from wpaz37.hot.corp.google.com (wpaz37.hot.corp.google.com [172.24.198.101])
+	by smtp-out.google.com with ESMTP id p5MNML6J022309
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 16:22:22 -0700
+Received: from pzd13 (pzd13.prod.google.com [10.243.17.205])
+	by wpaz37.hot.corp.google.com with ESMTP id p5MNLvYf020073
+	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 16:22:20 -0700
+Received: by pzd13 with SMTP id 13so1077670pzd.11
+        for <linux-mm@kvack.org>; Wed, 22 Jun 2011 16:22:20 -0700 (PDT)
+Date: Wed, 22 Jun 2011 16:22:17 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 5/6] oom: don't kill random process
+In-Reply-To: <4E01C88E.3070806@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1106221617280.11759@chino.kir.corp.google.com>
+References: <4E01C7D5.3060603@jp.fujitsu.com> <4E01C88E.3070806@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <20110622150350.GX20843@redhat.com>
-References: <201106212055.25400.nai.xia@gmail.com>
-	<201106212132.39311.nai.xia@gmail.com>
-	<20110622150350.GX20843@redhat.com>
-Date: Thu, 23 Jun 2011 07:19:06 +0800
-Message-ID: <BANLkTim85ghrK9D4f19Pt5v1+HTMzVXxnw@mail.gmail.com>
-Subject: Re: [PATCH] mmu_notifier, kvm: Introduce dirty bit tracking in spte
- and mmu notifier to help KSM dirty bit tracking
-From: Nai Xia <nai.xia@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Izik Eidus <izik.eidus@ravellosystems.com>, Hugh Dickins <hughd@google.com>, Chris Wright <chrisw@sous-sol.org>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel <linux-kernel@vger.kernel.org>, kvm <kvm@vger.kernel.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, caiqian@redhat.com, hughd@google.com, kamezawa.hiroyu@jp.fujitsu.com, minchan.kim@gmail.com, oleg@redhat.com
 
-On Wed, Jun 22, 2011 at 11:03 PM, Andrea Arcangeli <aarcange@redhat.com> wr=
-ote:
-> On Tue, Jun 21, 2011 at 09:32:39PM +0800, Nai Xia wrote:
->> diff --git a/arch/x86/kvm/vmx.c b/arch/x86/kvm/vmx.c
->> index d48ec60..b407a69 100644
->> --- a/arch/x86/kvm/vmx.c
->> +++ b/arch/x86/kvm/vmx.c
->> @@ -4674,6 +4674,7 @@ static int __init vmx_init(void)
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 kvm_mmu_set_mask_ptes(0ull, 0ull, 0ull, 0ull=
-,
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 VMX_EPT_EXEC=
-UTABLE_MASK);
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 kvm_enable_tdp();
->> + =A0 =A0 =A0 =A0 =A0 =A0 kvm_dirty_update =3D 0;
->> =A0 =A0 =A0 } else
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 kvm_disable_tdp();
->>
->
-> Why not return !shadow_dirty_mask instead of adding a new var?
->
->> =A0struct mmu_notifier_ops {
->> + =A0 =A0 int (*dirty_update)(struct mmu_notifier *mn,
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0struct mm_struct *m=
-m);
->> +
->
-> Needs some docu.
->
-> I think dirty_update isn't self explanatory name. I think
-> "has_test_and_clear_dirty" would be better.
->
-> If we don't flush the smp tlb don't we risk that we'll insert pages in
-> the unstable tree that are volatile just because the dirty bit didn't
-> get set again on the spte?
->
-> The first patch I guess it's a sign of hugetlbfs going a little over
-> the edge in trying to mix with the core VM... Passing that parameter
-> &need_pte_unmap all over the place not so nice, maybe it'd be possible
-> to fix within hugetlbfs to use a different method to walk the hugetlb
-> vmas. I'd prefer that if possible.
+On Wed, 22 Jun 2011, KOSAKI Motohiro wrote:
 
-OK, I'll have a try over other workarounds.
-I am not feeling good about need_pte_unmap myself. :-)
+> CAI Qian reported oom-killer killed all system daemons in his
+> system at first if he ran fork bomb as root. The problem is,
+> current logic give them bonus of 3% of system ram. Example,
+> he has 16GB machine, then root processes have ~500MB oom
+> immune. It bring us crazy bad result. _all_ processes have
+> oom-score=1 and then, oom killer ignore process memroy usage
+> and kill random process. This regression is caused by commit
+> a63d83f427 (oom: badness heuristic rewrite).
+> 
 
-Thanks for viewing!
+Isn't it better to give admin processes a proportional bonus instead of a 
+strict 3% bonus?  I suggested 1% per 10% of memory used earlier and I 
+think it would work quite well as an alternative to this.  The highest 
+bonus that would actually make any differences in which thread to kill 
+would be 5% when an admin process is using 50% of memory: in that case, 
+another non-admin thread would have to be using >45% of memory to be 
+killed instead.
 
--Nai
+Would you be satisfied with something like
 
->
-> Thanks,
-> Andrea
->
+	points -= (points * 10 / totalpages);
+
+be better?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
