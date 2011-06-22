@@ -1,27 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id A496690016F
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 06:48:30 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id EC3873EE081
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 19:48:24 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id D371A45DF83
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 19:48:24 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id BDD4945DF4D
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 19:48:24 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id AD5191DB8040
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 19:48:24 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 6E2A61DB8037
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 19:48:24 +0900 (JST)
-Message-ID: <4E01C86D.30006@jp.fujitsu.com>
-Date: Wed, 22 Jun 2011 19:48:13 +0900
+	by kanga.kvack.org (Postfix) with ESMTP id 92E8490016F
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 06:49:01 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id BDF803EE0B6
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 19:48:57 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id A048245DE8F
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 19:48:57 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8644A45DE8E
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 19:48:57 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7AEE11DB803F
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 19:48:57 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 364901DB803B
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 19:48:57 +0900 (JST)
+Message-ID: <4E01C88E.3070806@jp.fujitsu.com>
+Date: Wed, 22 Jun 2011 19:48:46 +0900
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: [PATCH 4/6] oom: oom-killer don't use proportion of system-ram internally
+Subject: [PATCH 5/6] oom: don't kill random process
 References: <4E01C7D5.3060603@jp.fujitsu.com>
 In-Reply-To: <4E01C7D5.3060603@jp.fujitsu.com>
 Content-Type: text/plain; charset=ISO-2022-JP
@@ -31,228 +31,220 @@ List-ID: <linux-mm.kvack.org>
 To: kosaki.motohiro@jp.fujitsu.com
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, caiqian@redhat.com, rientjes@google.com, hughd@google.com, kamezawa.hiroyu@jp.fujitsu.com, minchan.kim@gmail.com, oleg@redhat.com
 
-CAI Qian reported his kernel did hang-up if he ran fork intensive
-workload and then invoke oom-killer.
+CAI Qian reported oom-killer killed all system daemons in his
+system at first if he ran fork bomb as root. The problem is,
+current logic give them bonus of 3% of system ram. Example,
+he has 16GB machine, then root processes have ~500MB oom
+immune. It bring us crazy bad result. _all_ processes have
+oom-score=1 and then, oom killer ignore process memroy usage
+and kill random process. This regression is caused by commit
+a63d83f427 (oom: badness heuristic rewrite).
 
-The problem is, current oom calculation uses 0-1000 normalized value
-(The unit is a permillage of system-ram). Its low precision make
-a lot of same oom score. IOW, in his case, all processes have smaller
-oom score than 1 and internal calculation round it to 1.
+This patch changes select_bad_process() slightly. If oom points == 1,
+it's a sign that the system have only root privileged processes or
+similar. Thus, select_bad_process() calculate oom badness without
+root bonus and select eligible process.
 
-Thus oom-killer kill ineligible process. This regression is caused by
-commit a63d83f427 (oom: badness heuristic rewrite).
+Also, this patch move finding sacrifice child logic into
+select_bad_process(). It's necessary to implement adequate
+no root bonus recalculation. and it makes good side effect,
+current logic doesn't behave as the doc.
 
-The solution is, the internal calculation just use number of pages
-instead of permillage of system-ram. And convert it to permillage
-value at displaying time.
+Documentation/sysctl/vm.txt says
 
-This patch doesn't change any ABI (included  /proc/<pid>/oom_score_adj)
-even though current logic has a lot of my dislike thing.
+    oom_kill_allocating_task
+
+    If this is set to non-zero, the OOM killer simply kills the task that
+    triggered the out-of-memory condition.  This avoids the expensive
+    tasklist scan.
+
+IOW, oom_kill_allocating_task shouldn't search sacrifice child.
+This patch also fixes this issue.
 
 Reported-by: CAI Qian <caiqian@redhat.com>
 Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 ---
- fs/proc/base.c      |   13 ++++++----
- include/linux/oom.h |    2 +-
- mm/oom_kill.c       |   60 ++++++++++++++++++++++++++++++--------------------
- 3 files changed, 45 insertions(+), 30 deletions(-)
+ fs/proc/base.c      |    2 +-
+ include/linux/oom.h |    3 +-
+ mm/oom_kill.c       |   89 ++++++++++++++++++++++++++++----------------------
+ 3 files changed, 53 insertions(+), 41 deletions(-)
 
 diff --git a/fs/proc/base.c b/fs/proc/base.c
-index 14def99..4a10763 100644
+index 4a10763..5e4a8a1 100644
 --- a/fs/proc/base.c
 +++ b/fs/proc/base.c
-@@ -479,14 +479,17 @@ static const struct file_operations proc_lstats_operations = {
-
- static int proc_oom_score(struct task_struct *task, char *buffer)
- {
--	unsigned long points = 0;
-+	unsigned long points;
-+	unsigned long ratio = 0;
-+	unsigned long totalpages = totalram_pages + total_swap_pages + 1;
+@@ -485,7 +485,7 @@ static int proc_oom_score(struct task_struct *task, char *buffer)
 
  	read_lock(&tasklist_lock);
--	if (pid_alive(task))
--		points = oom_badness(task, NULL, NULL,
--					totalram_pages + total_swap_pages);
-+	if (pid_alive(task)) {
-+		points = oom_badness(task, NULL, NULL, totalpages);
-+		ratio = points * 1000 / totalpages;
-+	}
+ 	if (pid_alive(task)) {
+-		points = oom_badness(task, NULL, NULL, totalpages);
++		points = oom_badness(task, NULL, NULL, totalpages, 1);
+ 		ratio = points * 1000 / totalpages;
+ 	}
  	read_unlock(&tasklist_lock);
--	return sprintf(buffer, "%lu\n", points);
-+	return sprintf(buffer, "%lu\n", ratio);
- }
-
- struct limit_names {
 diff --git a/include/linux/oom.h b/include/linux/oom.h
-index 4952fb8..75b104c 100644
+index 75b104c..272e3bb 100644
 --- a/include/linux/oom.h
 +++ b/include/linux/oom.h
-@@ -42,7 +42,7 @@ enum oom_constraint {
-
+@@ -43,7 +43,8 @@ enum oom_constraint {
  extern int test_set_oom_score_adj(int new_val);
 
--extern unsigned int oom_badness(struct task_struct *p, struct mem_cgroup *mem,
-+extern unsigned long oom_badness(struct task_struct *p, struct mem_cgroup *mem,
- 			const nodemask_t *nodemask, unsigned long totalpages);
+ extern unsigned long oom_badness(struct task_struct *p, struct mem_cgroup *mem,
+-			const nodemask_t *nodemask, unsigned long totalpages);
++			const nodemask_t *nodemask, unsigned long totalpages,
++			int protect_root);
  extern int try_set_zonelist_oom(struct zonelist *zonelist, gfp_t gfp_flags);
  extern void clear_zonelist_oom(struct zonelist *zonelist, gfp_t gfp_flags);
+
 diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 797308b..cff8000 100644
+index cff8000..cf48fd5 100644
 --- a/mm/oom_kill.c
 +++ b/mm/oom_kill.c
-@@ -159,10 +159,11 @@ static bool oom_unkillable_task(struct task_struct *p,
-  * predictable as possible.  The goal is to return the highest value for the
+@@ -160,7 +160,8 @@ static bool oom_unkillable_task(struct task_struct *p,
   * task consuming the most memory to avoid subsequent oom failures.
   */
--unsigned int oom_badness(struct task_struct *p, struct mem_cgroup *mem,
-+unsigned long oom_badness(struct task_struct *p, struct mem_cgroup *mem,
- 		      const nodemask_t *nodemask, unsigned long totalpages)
+ unsigned long oom_badness(struct task_struct *p, struct mem_cgroup *mem,
+-		      const nodemask_t *nodemask, unsigned long totalpages)
++			 const nodemask_t *nodemask, unsigned long totalpages,
++			 int protect_root)
  {
--	int points;
-+	unsigned long points;
-+	unsigned long score_adj = 0;
-
- 	if (oom_unkillable_task(p, mem, nodemask))
- 		return 0;
-@@ -194,33 +195,44 @@ unsigned int oom_badness(struct task_struct *p, struct mem_cgroup *mem,
- 	 */
- 	points = get_mm_rss(p->mm) + p->mm->nr_ptes;
- 	points += get_mm_counter(p->mm, MM_SWAPENTS);
--
--	points *= 1000;
--	points /= totalpages;
+ 	unsigned long points;
+ 	unsigned long score_adj = 0;
+@@ -198,7 +199,7 @@ unsigned long oom_badness(struct task_struct *p, struct mem_cgroup *mem,
  	task_unlock(p);
 
--	/*
--	 * Root processes get 3% bonus, just like the __vm_enough_memory()
--	 * implementation used by LSMs.
--	 */
--	if (task_euid(p) == 0)
--		points -= 30;
-+	/* Root processes get 3% bonus. */
-+	if (task_euid(p) == 0) {
-+		if (points >= totalpages / 32)
-+			points -= totalpages / 32;
-+		else
-+			points = 0;
-+	}
-
- 	/*
- 	 * /proc/pid/oom_score_adj ranges from -1000 to +1000 such that it may
- 	 * either completely disable oom killing or always prefer a certain
- 	 * task.
- 	 */
--	points += p->signal->oom_score_adj;
-+	if (p->signal->oom_score_adj >= 0) {
-+		score_adj = p->signal->oom_score_adj * (totalpages / 1000);
-+		if (ULONG_MAX - points >= score_adj)
-+			points += score_adj;
-+		else
-+			points = ULONG_MAX;
-+	} else {
-+		score_adj = -p->signal->oom_score_adj * (totalpages / 1000);
-+		if (points >= score_adj)
-+			points -= score_adj;
-+		else
-+			points = 0;
-+	}
-
- 	/*
- 	 * Never return 0 for an eligible task that may be killed since it's
- 	 * possible that no single user task uses more than 0.1% of memory and
- 	 * no single admin tasks uses more than 3.0%.
- 	 */
--	if (points <= 0)
--		return 1;
--	return (points < 1000) ? points : 1000;
-+	if (!points)
-+		points = 1;
-+
-+	return points;
- }
-
- /*
-@@ -292,7 +304,7 @@ static enum oom_constraint constrained_alloc(struct zonelist *zonelist,
-  *
-  * (not docbooked, we don't want this one cluttering up the manual)
-  */
--static struct task_struct *select_bad_process(unsigned int *ppoints,
-+static struct task_struct *select_bad_process(unsigned long *ppoints,
- 		unsigned long totalpages, struct mem_cgroup *mem,
- 		const nodemask_t *nodemask)
+ 	/* Root processes get 3% bonus. */
+-	if (task_euid(p) == 0) {
++	if (protect_root && task_euid(p) == 0) {
+ 		if (points >= totalpages / 32)
+ 			points -= totalpages / 32;
+ 		else
+@@ -310,8 +311,11 @@ static struct task_struct *select_bad_process(unsigned long *ppoints,
  {
-@@ -301,7 +313,7 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
- 	*ppoints = 0;
+ 	struct task_struct *g, *p;
+ 	struct task_struct *chosen = NULL;
+-	*ppoints = 0;
++	int protect_root = 1;
++	unsigned long chosen_points = 0;
++	struct task_struct *child;
 
++ retry:
  	do_each_thread_reverse(g, p) {
--		unsigned int points;
-+		unsigned long points;
+ 		unsigned long points;
 
- 		if (!p->mm)
- 			continue;
-@@ -332,7 +344,7 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
+@@ -344,7 +348,7 @@ static struct task_struct *select_bad_process(unsigned long *ppoints,
  			 */
  			if (p == current) {
  				chosen = p;
--				*ppoints = 1000;
-+				*ppoints = ULONG_MAX;
+-				*ppoints = ULONG_MAX;
++				chosen_points = ULONG_MAX;
  			} else {
  				/*
  				 * If this task is not being ptraced on exit,
-@@ -463,14 +475,14 @@ static int oom_kill_task(struct task_struct *p, struct mem_cgroup *mem)
- #undef K
+@@ -357,13 +361,49 @@ static struct task_struct *select_bad_process(unsigned long *ppoints,
+ 			}
+ 		}
 
- static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
--			    unsigned int points, unsigned long totalpages,
-+			    unsigned long points, unsigned long totalpages,
+-		points = oom_badness(p, mem, nodemask, totalpages);
+-		if (points > *ppoints) {
++		points = oom_badness(p, mem, nodemask, totalpages, protect_root);
++		if (points > chosen_points) {
+ 			chosen = p;
+-			*ppoints = points;
++			chosen_points = points;
+ 		}
+ 	} while_each_thread(g, p);
+
++	/*
++	 * chosen_point==1 may be a sign that root privilege bonus is too large
++	 * and we choose wrong task. Let's recalculate oom score without the
++	 * dubious bonus.
++	 */
++	if (protect_root && (chosen_points == 1)) {
++		protect_root = 0;
++		goto retry;
++	}
++
++	/*
++	 * If any of p's children has a different mm and is eligible for kill,
++	 * the one with the highest badness() score is sacrificed for its
++	 * parent.  This attempts to lose the minimal amount of work done while
++	 * still freeing memory.
++	 */
++	g = p = chosen;
++	do {
++		list_for_each_entry(child, &p->children, sibling) {
++			unsigned long child_points;
++
++			if (child->mm == p->mm)
++				continue;
++			/*
++			 * oom_badness() returns 0 if the thread is unkillable
++			 */
++			child_points = oom_badness(child, mem, nodemask,
++						   totalpages, protect_root);
++			if (child_points > chosen_points) {
++				chosen = child;
++				chosen_points = child_points;
++			}
++		}
++	} while_each_thread(g, p);
++
++	*ppoints = chosen_points;
+ 	return chosen;
+ }
+
+@@ -479,11 +519,6 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
  			    struct mem_cgroup *mem, nodemask_t *nodemask,
  			    const char *message)
  {
- 	struct task_struct *victim = p;
- 	struct task_struct *child;
- 	struct task_struct *t = p;
--	unsigned int victim_points = 0;
-+	unsigned long victim_points = 0;
-
+-	struct task_struct *victim = p;
+-	struct task_struct *child;
+-	struct task_struct *t = p;
+-	unsigned long victim_points = 0;
+-
  	if (printk_ratelimit())
  		dump_header(p, gfp_mask, order, mem, nodemask);
-@@ -485,7 +497,7 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
+
+@@ -497,35 +532,11 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
  	}
 
  	task_lock(p);
--	pr_err("%s: Kill process %d (%s) score %d or sacrifice child\n",
-+	pr_err("%s: Kill process %d (%s) points %lu or sacrifice child\n",
- 		message, task_pid_nr(p), p->comm, points);
+-	pr_err("%s: Kill process %d (%s) points %lu or sacrifice child\n",
+-		message, task_pid_nr(p), p->comm, points);
++	pr_err("%s: Kill process %d (%s) points %lu\n",
++	       message, task_pid_nr(p), p->comm, points);
  	task_unlock(p);
 
-@@ -497,7 +509,7 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
- 	 */
- 	do {
- 		list_for_each_entry(child, &t->children, sibling) {
--			unsigned int child_points;
-+			unsigned long child_points;
+-	/*
+-	 * If any of p's children has a different mm and is eligible for kill,
+-	 * the one with the highest badness() score is sacrificed for its
+-	 * parent.  This attempts to lose the minimal amount of work done while
+-	 * still freeing memory.
+-	 */
+-	do {
+-		list_for_each_entry(child, &t->children, sibling) {
+-			unsigned long child_points;
+-
+-			if (child->mm == p->mm)
+-				continue;
+-			/*
+-			 * oom_badness() returns 0 if the thread is unkillable
+-			 */
+-			child_points = oom_badness(child, mem, nodemask,
+-								totalpages);
+-			if (child_points > victim_points) {
+-				victim = child;
+-				victim_points = child_points;
+-			}
+-		}
+-	} while_each_thread(p, t);
+-
+-	return oom_kill_task(victim, mem);
++	return oom_kill_task(p, mem);
+ }
 
- 			if (child->mm == p->mm)
- 				continue;
-@@ -544,7 +556,7 @@ static void check_panic_on_oom(enum oom_constraint constraint, gfp_t gfp_mask,
- void mem_cgroup_out_of_memory(struct mem_cgroup *mem, gfp_t gfp_mask)
- {
- 	unsigned long limit;
--	unsigned int points = 0;
-+	unsigned long points = 0;
- 	struct task_struct *p;
-
- 	/*
-@@ -693,7 +705,7 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
- 	struct task_struct *p;
- 	unsigned long totalpages;
- 	unsigned long freed = 0;
--	unsigned int points;
-+	unsigned long points;
- 	enum oom_constraint constraint = CONSTRAINT_NONE;
- 	int killed = 0;
-
+ /*
 -- 
 1.7.3.1
 
