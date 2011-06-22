@@ -1,139 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id A3FA9900194
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 11:59:00 -0400 (EDT)
-Date: Wed, 22 Jun 2011 17:58:57 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 5/7] Fix not good check of mem_cgroup_local_usage()
-Message-ID: <20110622155856.GI14343@tiehlicka.suse.cz>
-References: <20110616124730.d6960b8b.kamezawa.hiroyu@jp.fujitsu.com>
- <20110616125443.23584d78.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id A5EC1900194
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 12:00:44 -0400 (EDT)
+Message-ID: <4E02119F.4000901@codeaurora.org>
+Date: Wed, 22 Jun 2011 10:00:31 -0600
+From: Jordan Crouse <jcrouse@codeaurora.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110616125443.23584d78.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [Linaro-mm-sig] [PATCH/RFC 0/8] ARM: DMA-mapping framework	redesign
+References: <1308556213-24970-1-git-send-email-m.szyprowski@samsung.com>	<4E017539.30505@gmail.com>	<001d01cc30a9$ebe5e460$c3b1ad20$%szyprowski@samsung.com>	<4E01AD7B.3070806@gmail.com> <002701cc30be$ab296cc0$017c4640$%szyprowski@samsung.com>
+In-Reply-To: <002701cc30be$ab296cc0$017c4640$%szyprowski@samsung.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "bsingharora@gmail.com" <bsingharora@gmail.com>, Ying Han <yinghan@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>
+To: Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: 'Subash Patel' <subashrp@gmail.com>, linux-arch@vger.kernel.org, 'Russell King - ARM Linux' <linux@arm.linux.org.uk>, 'Arnd Bergmann' <arnd@arndb.de>, 'Joerg Roedel' <joro@8bytes.org>, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, 'Kyungmin Park' <kyungmin.park@samsung.com>, linux-arm-kernel@lists.infradead.org
 
-On Thu 16-06-11 12:54:43, KAMEZAWA Hiroyuki wrote:
-> From fcfc6ee9847b0b2571cd6e9847572d7c70e1e2b2 Mon Sep 17 00:00:00 2001
-> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Date: Thu, 16 Jun 2011 09:23:54 +0900
-> Subject: [PATCH 5/7] Fix not good check of mem_cgroup_local_usage()
-> 
-> Now, mem_cgroup_local_usage(memcg) is used as hint for scanning memory
-> cgroup hierarchy. If it returns true, the memcg has some reclaimable memory.
-> 
-> But this function doesn't take care of
->   - unevictable pages
->   - anon pages on swapless system.
-> 
-> This patch fixes the function to use LRU information.
-> For NUMA, for avoid scanning, numa scan bitmap is used. If it's
-> empty, some more precise check will be done.
-> 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> ---
->  mm/memcontrol.c |   43 +++++++++++++++++++++++++++++++++----------
->  1 files changed, 33 insertions(+), 10 deletions(-)
-> 
-> Index: mmotm-0615/mm/memcontrol.c
-> ===================================================================
-> --- mmotm-0615.orig/mm/memcontrol.c
-> +++ mmotm-0615/mm/memcontrol.c
-> @@ -632,15 +632,6 @@ static long mem_cgroup_read_stat(struct 
->  	return val;
->  }
->  
-> -static long mem_cgroup_local_usage(struct mem_cgroup *mem)
-> -{
-> -	long ret;
-> -
-> -	ret = mem_cgroup_read_stat(mem, MEM_CGROUP_STAT_RSS);
-> -	ret += mem_cgroup_read_stat(mem, MEM_CGROUP_STAT_CACHE);
-> -	return ret;
-> -}
-> -
->  static void mem_cgroup_swap_statistics(struct mem_cgroup *mem,
->  					 bool charge)
->  {
-> @@ -1713,6 +1704,23 @@ static void mem_cgroup_numascan_init(str
->  	mutex_init(&mem->numascan_mutex);
->  }
->  
-> +static bool mem_cgroup_reclaimable(struct mem_cgroup *mem, bool noswap)
-> +{
-> +	if (!nodes_empty(mem->scan_nodes))
-> +		return true;
+On 06/22/2011 03:27 AM, Marek Szyprowski wrote:
+> Hello,
+>
+> On Wednesday, June 22, 2011 10:53 AM Subash Patel wrote:
+>
+>> On 06/22/2011 12:29 PM, Marek Szyprowski wrote:
+>>> Hello,
+>>>
+>>> On Wednesday, June 22, 2011 6:53 AM Subash Patel wrote:
+>>>
+>>>> On 06/20/2011 01:20 PM, Marek Szyprowski wrote:
+>>>>> Hello,
+>>>>>
+>>>>> This patch series is a continuation of my works on implementing generic
+>>>>> IOMMU support in DMA mapping framework for ARM architecture. Now I
+>>>>> focused on the DMA mapping framework itself. It turned out that adding
+>>>>> support for common dma_map_ops structure was not that hard as I
+>> initally
+>>>>> thought. After some modification most of the code fits really well to
+>>>>> the generic dma_map_ops methods.
+>>>>>
+>>>>> The only change required to dma_map_ops is a new alloc function. During
+>>>>> the discussion on Linaro Memory Management meeting in Budapest we got
+>>>>> the idea that we can have only one alloc/free/mmap function with
+>>>>> additional attributes argument. This way all different kinds of
+>>>>> architecture specific buffer mappings can be hidden behind the
+>>>>> attributes without the need of creating several versions of dma_alloc_
+>>>>> function. I also noticed that the dma_alloc_noncoherent() function can
+>>>>> be also implemented this way with DMA_ATTRIB_NON_COHERENT attribute.
+>>>>> Systems that just defines dma_alloc_noncoherent as dma_alloc_coherent
+>>>>> will just ignore such attribute.
+>>>>>
+>>>>> Another good use case for alloc methods with attributes is the
+>>>>> possibility to allocate buffer without a valid kernel mapping. There
+>> are
+>>>>> a number of drivers (mainly V4L2 and ALSA) that only exports the DMA
+>>>>> buffers to user space. Such drivers don't touch the buffer data at all.
+>>>>> For such buffers we can avoid the creation of a mapping in kernel
+>>>>> virtual address space, saving precious vmalloc area. Such buffers might
+>>>>> be allocated once a new attribute DMA_ATTRIB_NO_KERNEL_MAPPING.
+>>>>
+>>>> Are you trying to say here, that the buffer would be allocated in the
+>>>> user space, and we just use it to map it to the device in DMA+IOMMU
+>>>> framework?
+>>>
+>>> Nope. I proposed an extension which would allow you to allocate a buffer
+>>> without creating the kernel mapping for it. Right now
+>> dma_alloc_coherent()
+>>> performs 3 operations:
+>>> 1. allocates memory for the buffer
+>>> 2. creates coherent kernel mapping for the buffer
+>>> 3. translates physical buffer address to DMA address that can be used by
+>>> the hardware.
+>>>
+>>> dma_mmap_coherent makes additional mapping for the buffer in user process
+>>> virtual address space.
+>>>
+>>> I want make the step 2 in dma_alloc_coherent() optional to save virtual
+>>> address space: it is really limited resource. I really want to avoid
+>>> wasting it for mapping 128MiB buffers just to create full-HD processing
+>>> hardware pipeline, where no drivers will use kernel mapping at all.
+>>>
+>>
+>> I think by (2) above, you are referring to
+>> __dma_alloc_remap()->arm_vmregion_alloc() to allocate the kernel virtual
+>> address for the drivers use. That makes sense now.
+>
+> Well, this is particular implementation which is used on ARM. Other
+> architectures might implement it differently, that's why I used generic
+> description and didn't point to any particular function.
+>
+>> I have a query in similar lines, but related to user virtual address
+>> space. Is it feasible to extend these DMA interfaces(and IOMMU), to map
+>> a user allocated buffer into the hardware?
+>
+> This can be done with the current API, although it may not look so
+> straightforward. You just need to create a scatter list of user pages
+> (these can be gathered with get_user_pages function) and use dma_map_sg()
+> function. If the dma-mapping support iommu, it can map all these pages
+> into a single contiguous buffer on device (DMA) address space.
+>
+> Some additional 'magic' might be required to get access to pages that are
+> mapped with pure PFN (VM_PFNMAP flag), but imho it still can be done.
+>
+> I will try to implement this feature in videobuf2-dma-config allocator
+> together with the next version of my patches for dma-mapping&iommu.
 
-How the non empty node mask guarantees that there is some reclaimable memory?
+With luck DMA_ATTRIB_NO_KERNEL_MAPPING should remove any lingering arguments
+for trying to map user pages. Given that our ultimate goal here is buffer
+sharing, user allocated pages have limited value and appeal. If anything, I
+vote that this be a far lower priority compared to the rest of the win you
+have here.
 
-> +	/* slow path */
-> +	if (mem_cgroup_get_local_zonestat(mem, LRU_INACTIVE_FILE))
-> +		return true;
-> +	if (mem_cgroup_get_local_zonestat(mem, LRU_ACTIVE_FILE))
-> +		return true;
-> +	if (noswap || !total_swap_pages)
-> +		return false;
-> +	if (mem_cgroup_get_local_zonestat(mem, LRU_INACTIVE_ANON))
-> +		return true;
-> +	if (mem_cgroup_get_local_zonestat(mem, LRU_ACTIVE_ANON))
-> +		return true;
-> +	return false;
-> +}
->  #else
->  int mem_cgroup_select_victim_node(struct mem_cgroup *mem)
->  {
-> @@ -1722,6 +1730,21 @@ static void mem_cgroup_numascan_init(str
->  {
->  	return 0;
->  }
-> +
-> +static bool mem_cgroup_reclaimable(struct mem_cgroup *mem, bool noswap)
-> +{
-> +	if (mem_cgroup_get_zonestat_node(mem, 0, LRU_INACTIVE_FILE))
-> +		return true;
-> +	if (mem_cgroup_get_zonestat_node(mem, 0, LRU_ACTIVE_FILE))
-> +		return true;
-> +	if (noswap || !total_swap_pages)
-> +		return false;
-> +	if (mem_cgroup_get_zonestat_node(mem, 0, LRU_INACTIVE_ANON))
-> +		return true;
-> +	if (mem_cgroup_get_zonestat_node(mem, 0, LRU_ACTIVE_ANON))
-> +		return true;
-> +	return false;
-> +}
->  #endif
-
-Code duplication doesn't look good. What about a common helper?
->  
->  
-> @@ -1811,7 +1834,7 @@ again:
->  
->  	while (visit--) {
->  		victim = mem_cgroup_select_victim(root_mem);
-> -		if (!mem_cgroup_local_usage(victim)) {
-> +		if (!mem_cgroup_reclaimable(victim, noswap)) {
->  			/* this cgroup's local usage == 0 */
->  			css_put(&victim->css);
->  			continue;
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+Jordan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
