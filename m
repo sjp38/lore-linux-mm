@@ -1,68 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 0F62A900194
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 12:55:38 -0400 (EDT)
-Date: Wed, 22 Jun 2011 18:55:29 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH] mmu_notifier, kvm: Introduce dirty bit tracking in spte
- and mmu notifier to help KSM dirty bit tracking
-Message-ID: <20110622165529.GY20843@redhat.com>
-References: <201106212055.25400.nai.xia@gmail.com>
- <201106212132.39311.nai.xia@gmail.com>
- <4E01C752.10405@redhat.com>
- <4E01CC77.10607@ravellosystems.com>
- <4E01CDAD.3070202@redhat.com>
- <4E01CFD2.6000404@ravellosystems.com>
- <4E020CBC.7070604@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4E020CBC.7070604@redhat.com>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D96C900194
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 14:00:59 -0400 (EDT)
+Date: Wed, 22 Jun 2011 11:00:34 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v2 0/3] support for broken memory modules (BadRAM)
+Message-Id: <20110622110034.89ee399c.akpm@linux-foundation.org>
+In-Reply-To: <1308741534-6846-1-git-send-email-sassmann@kpanic.de>
+References: <1308741534-6846-1-git-send-email-sassmann@kpanic.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Izik Eidus <izik.eidus@ravellosystems.com>, Avi Kivity <avi@redhat.com>, nai.xia@gmail.com, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Chris Wright <chrisw@sous-sol.org>, linux-mm <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel <linux-kernel@vger.kernel.org>, kvm <kvm@vger.kernel.org>
+To: Stefan Assmann <sassmann@kpanic.de>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, tony.luck@intel.com, andi@firstfloor.org, mingo@elte.hu, hpa@zytor.com, rick@vanrein.org, rdunlap@xenotime.net, Nancy Yuen <yuenn@google.com>, Michael Ditto <mditto@google.com>
 
-On Wed, Jun 22, 2011 at 11:39:40AM -0400, Rik van Riel wrote:
-> On 06/22/2011 07:19 AM, Izik Eidus wrote:
+On Wed, 22 Jun 2011 13:18:51 +0200 Stefan Assmann <sassmann@kpanic.de> wrote:
+
+> Following the RFC for the BadRAM feature here's the updated version with
+> spelling fixes, thanks go to Randy Dunlap. Also the code is now less verbose,
+> as requested by Andi Kleen.
+> v2 with even more spelling fixes suggested by Randy.
+> Patches are against vanilla 2.6.39.
 > 
-> > So what we say here is: it is better to have little junk in the unstable
-> > tree that get flushed eventualy anyway, instead of make the guest
-> > slower....
-> > this race is something that does not reflect accurate of ksm anyway due
-> > to the full memcmp that we will eventualy perform...
+> The idea is to allow the user to specify RAM addresses that shouldn't be
+> touched by the OS, because they are broken in some way. Not all machines have
+> hardware support for hwpoison, ECC RAM, etc, so here's a solution that allows to
+> use bitmasks to mask address patterns with the new "badram" kernel command line
+> parameter.
+> Memtest86 has an option to generate these patterns since v2.3 so the only thing
+> for the user to do should be:
+> - run Memtest86
+> - note down the pattern
+> - add badram=<pattern> to the kernel command line
 > 
-> With 2MB pages, I am not convinced they will get "flushed eventually",
-> because there is a good chance at least one of the 4kB pages inside
-> a 2MB page is in active use at all times.
-> 
-> I worry that the proposed changes may end up effectively preventing
-> KSM from scanning inside 2MB pages, when even one 4kB page inside
-> is in active use.  This could mean increased swapping on systems
-> that run low on memory, which can be a much larger performance penalty
-> than ksmd CPU use.
-> 
-> We need to scan inside 2MB pages when memory runs low, regardless
-> of the accessed or dirty bits.
+> The concerning pages are then marked with the hwpoison flag and thus won't be
+> used by the memory managment system.
 
-I guess we could fallback to the cksum when a THP is encountered
-(repeating the test_and_clear_dirty also wouldn't give the expected
-result if it's repeated on the same hugepmd for the next 4k virtual
-address candidate for unstable tree insertion, so it'd need special
-handling during the virtual walk anyway).
+The google kernel has a similar capability.  I asked Nancy to comment
+on these patches and she said:
 
-So it's getting a little hairy, skip on THP, skip on EPT, then I
-wonder what is the common case that would be left using it...
+: One, the bad addresses are passed via the kernel command line, which
+: has a limited length.  It's okay if the addresses can be fit into a
+: pattern, but that's not necessarily the case in the google kernel.  And
+: even with patterns, the limit on the command line length limits the
+: number of patterns that user can specify.  Instead we use lilo to pass
+: a file containing the bad pages in e820 format to the kernel.
+: 
+: Second, the BadRAM patch expands the address patterns from the command
+: line into individual entries in the kernel's e820 table.  The e820
+: table is a fixed buffer that supports a very small, hard coded number
+: of entries (128).  We require a much larger number of entries (on
+: the order of a few thousand), so much of the google kernel patch deals
+: with expanding the e820 table. Also, with the BadRAM patch, entries
+: that don't fit in the table are silently dropped and this isn't
+: appropriate for us.
+: 
+: Another caveat of mapping out too much bad memory in general.  If too
+: much memory is removed from low memory, a system may not boot.  We
+: solve this by generating good maps.  Our userspace tools do not map out
+: memory below a certain limit, and it verifies against a system's iomap
+: that only addresses from memory is mapped out.
 
-Or we could evaluate with statistic how many less pages are inserted
-into the unstable tree using the 2m dirty bit but clearly it'd be less
-reliable, the algorithm really is meant to track the volatility of
-what is later merged, not of a bigger chunk with unrelated data in it.
+I have a couple of thoughts here:
 
-On a side note, khugepaged should also be changed to preserve the
-dirty bit if at least one dirty bit of the ptes is dirty (currently
-the hugepmd is always created dirty, it can never happen for an
-hugepmd to be clean today so it wasn't preserved in khugepaged so far).
+- If this patchset is merged and a major user such as google is
+  unable to use it and has to continue to carry a separate patch then
+  that's a regrettable situation for the upstream kernel.
+
+- Google's is, afaik, the largest use case we know of: zillions of
+  machines for a number of years.  And this real-world experience tells
+  us that the badram patchset has shortcomings.  Shortcomings which we
+  can expect other users to experience.
+
+So.  What are your thoughts on these issues?
+
+Thanks
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
