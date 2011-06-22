@@ -1,99 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 9DE9A90016F
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 06:43:44 -0400 (EDT)
-Message-ID: <4E01C752.10405@redhat.com>
-Date: Wed, 22 Jun 2011 13:43:30 +0300
-From: Avi Kivity <avi@redhat.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id E50C790016F
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 06:45:58 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id A20813EE0BC
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 19:45:54 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 833E245DE69
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 19:45:54 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 628EA45DE4D
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 19:45:54 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 538ACE08002
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 19:45:54 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 16B481DB803A
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 19:45:54 +0900 (JST)
+Message-ID: <4E01C7D5.3060603@jp.fujitsu.com>
+Date: Wed, 22 Jun 2011 19:45:41 +0900
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mmu_notifier, kvm: Introduce dirty bit tracking in spte
- and mmu notifier to help KSM dirty bit tracking
-References: <201106212055.25400.nai.xia@gmail.com> <201106212132.39311.nai.xia@gmail.com>
-In-Reply-To: <201106212132.39311.nai.xia@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: [PATCH v3 0/6]  Fix oom killer doesn't work at all if system have
+ > gigabytes memory  (aka CAI founded issue)
+Content-Type: text/plain; charset=ISO-2022-JP
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: nai.xia@gmail.com
-Cc: Andrew Morton <akpm@linux-foundation.org>, Izik Eidus <izik.eidus@ravellosystems.com>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Chris Wright <chrisw@sous-sol.org>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel <linux-kernel@vger.kernel.org>, kvm <kvm@vger.kernel.org>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, caiqian@redhat.com, rientjes@google.com, hughd@google.com, kamezawa.hiroyu@jp.fujitsu.com, minchan.kim@gmail.com, oleg@redhat.com
+Cc: kosaki.motohiro@jp.fujitsu.com
 
-On 06/21/2011 04:32 PM, Nai Xia wrote:
-> Introduced kvm_mmu_notifier_test_and_clear_dirty(), kvm_mmu_notifier_dirty_update()
-> and their mmu_notifier interfaces to support KSM dirty bit tracking, which brings
-> significant performance gain in volatile pages scanning in KSM.
-> Currently, kvm_mmu_notifier_dirty_update() returns 0 if and only if intel EPT is
-> enabled to indicate that the dirty bits of underlying sptes are not updated by
-> hardware.
->
+CAI Qian reported current oom logic doesn't work at all on his 16GB RAM
+machine. oom killer killed all system daemon at first and his system
+stopped responding.
+
+The brief log is below.
+
+> > Out of memory: Kill process 1175 (dhclient) score 1 or sacrifice child
+> > Out of memory: Kill process 1247 (rsyslogd) score 1 or sacrifice child
+> > Out of memory: Kill process 1284 (irqbalance) score 1 or sacrifice child
+> > Out of memory: Kill process 1303 (rpcbind) score 1 or sacrifice child
+> > Out of memory: Kill process 1321 (rpc.statd) score 1 or sacrifice child
+> > Out of memory: Kill process 1333 (mdadm) score 1 or sacrifice child
+> > Out of memory: Kill process 1365 (rpc.idmapd) score 1 or sacrifice child
+> > Out of memory: Kill process 1403 (dbus-daemon) score 1 or sacrifice child
+> > Out of memory: Kill process 1438 (acpid) score 1 or sacrifice child
+> > Out of memory: Kill process 1447 (hald) score 1 or sacrifice child
+> > Out of memory: Kill process 1447 (hald) score 1 or sacrifice child
+> > Out of memory: Kill process 1487 (hald-addon-inpu) score 1 or sacrifice child
+> > Out of memory: Kill process 1488 (hald-addon-acpi) score 1 or sacrifice child
+> > Out of memory: Kill process 1507 (automount) score 1 or sacrifice child
+
+The problems are three.
+
+1) if two processes have the same oom score, we should kill younger process.
+but current logic kill older. Typically oldest processes are system daemons.
+2) Current logic use 'unsigned int' for internal score calculation. (exactly says,
+it only use 0-1000 value). its very low precision calculation makes a lot of
+same oom score and kill an ineligible process.
+3) Current logic give 3% of SystemRAM to root processes. It obviously too big
+if you have plenty memory. Now, your fork-bomb processes have 500MB OOM immune
+bonus. then your fork-bomb never ever be killed.
+
+Changes from v2
+ o added [patch 1/5] use euid instead of CAP_SYS_ADMIN
 
 
-Can you quantify the performance gains?
+KOSAKI Motohiro (6):
+  oom: use euid instead of CAP_SYS_ADMIN for protection root process
+  oom: improve dump_tasks() show items
+  oom: kill younger process first
+  oom: oom-killer don't use proportion of system-ram internally
+  oom: don't kill random process
+  oom: merge oom_kill_process() with oom_kill_task()
 
-> +int kvm_test_and_clear_dirty_rmapp(struct kvm *kvm, unsigned long *rmapp,
-> +				   unsigned long data)
-> +{
-> +	u64 *spte;
-> +	int dirty = 0;
-> +
-> +	if (!shadow_dirty_mask) {
-> +		WARN(1, "KVM: do NOT try to test dirty bit in EPT\n");
-> +		goto out;
-> +	}
-> +
-> +	spte = rmap_next(kvm, rmapp, NULL);
-> +	while (spte) {
-> +		int _dirty;
-> +		u64 _spte = *spte;
-> +		BUG_ON(!(_spte&  PT_PRESENT_MASK));
-> +		_dirty = _spte&  PT_DIRTY_MASK;
-> +		if (_dirty) {
-> +			dirty = 1;
-> +			clear_bit(PT_DIRTY_SHIFT, (unsigned long *)spte);
-> +		}
-
-Racy.  Also, needs a tlb flush eventually.
-
-> +		spte = rmap_next(kvm, rmapp, spte);
-> +	}
-> +out:
-> +	return dirty;
-> +}
-> +
->   #define RMAP_RECYCLE_THRESHOLD 1000
->
->
->   struct mmu_notifier_ops {
-> +	int (*dirty_update)(struct mmu_notifier *mn,
-> +			     struct mm_struct *mm);
-> +
-
-I prefer to have test_and_clear_dirty() always return 1 in this case (if 
-the spte is writeable), and drop this callback.
-> +int __mmu_notifier_dirty_update(struct mm_struct *mm)
-> +{
-> +	struct mmu_notifier *mn;
-> +	struct hlist_node *n;
-> +	int dirty_update = 0;
-> +
-> +	rcu_read_lock();
-> +	hlist_for_each_entry_rcu(mn, n,&mm->mmu_notifier_mm->list, hlist) {
-> +		if (mn->ops->dirty_update)
-> +			dirty_update |= mn->ops->dirty_update(mn, mm);
-> +	}
-> +	rcu_read_unlock();
-> +
-
-Should it not be &= instead?
-
-> +	return dirty_update;
-> +}
-> +
->   /*
->    * This function can't run concurrently against mmu_notifier_register
->    * because mm->mm_users>  0 during mmu_notifier_register and exit_mmap
+ fs/proc/base.c        |   13 ++-
+ include/linux/oom.h   |    5 +-
+ include/linux/sched.h |   11 +++
+ mm/oom_kill.c         |  201 ++++++++++++++++++++++++++----------------------
+ 4 files changed, 131 insertions(+), 99 deletions(-)
 
 -- 
-error compiling committee.c: too many arguments to function
+1.7.3.1
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
