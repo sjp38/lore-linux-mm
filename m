@@ -1,256 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 9E950900194
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 16:43:19 -0400 (EDT)
-Message-Id: <201106222042.p5MKgiEe025352@imap1.linux-foundation.org>
-Subject: mmotm 2011-06-22-13-05 uploaded
-From: akpm@linux-foundation.org
-Date: Wed, 22 Jun 2011 13:05:19 -0700
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id C2D1D900194
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 17:51:31 -0400 (EDT)
+From: Andrea Righi <andrea@betterlinux.com>
+Subject: [PATCH RFC] fadvise: move active pages to inactive list with POSIX_FADV_DONTNEED
+Date: Wed, 22 Jun 2011 23:51:20 +0200
+Message-Id: <1308779480-4950-1-git-send-email-andrea@betterlinux.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Minchan Kim <minchan.kim@gmail.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Jerry James <jamesjer@betterlinux.com>, Marcus Sorensen <marcus@bluehost.com>, Matt Heaton <matt@bluehost.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-The mm-of-the-moment snapshot 2011-06-22-13-05 has been uploaded to
+There were some reported problems in the past about trashing page cache
+when a backup software (i.e., rsync) touches a huge amount of pages (see
+for example [1]).
 
-   http://userweb.kernel.org/~akpm/mmotm/
+This problem has been almost fixed by the Minchan Kim's patch [2] and a
+proper use of fadvise() in the backup software. For example this patch
+set [3] has been proposed for inclusion in rsync.
 
-and will soon be available at
-   git://zen-kernel.org/kernel/mmotm.git
-or
-   git://git.cmpxchg.org/linux-mmotm.git
+However, there can be still other similar trashing problems: when the
+backup software reads all the source files, some of them may be part of
+the actual working set of the system. When a
+posix_fadvise(POSIX_FADV_DONTNEED) is performed _all_ pages are evicted
+from pagecache, both the working set and the use-once pages touched only
+by the backup software.
 
-It contains the following patches against 3.0-rc4:
+With the following solution when posix_fadvise(POSIX_FADV_DONTNEED) is
+called for an active page instead of removing it from the page cache it
+is added to the tail of the inactive list. Otherwise, if it's already in
+the inactive list the page is removed from the page cache.
 
-origin.patch
-memcg-fix-node_start-end_pfn-definition-for-mm-page_cgroupc.patch
-mm-move-vmtruncate_range-to-truncatec.patch
-mm-move-shmem-prototypes-to-shmem_fsh.patch
-tmpfs-take-control-of-its-truncate_range.patch
-tmpfs-add-shmem_read_mapping_page_gfp.patch
-drivers-rtc-rtc-ds1307c-add-support-for-rtc-device-pt7c4338.patch
-um-add-asm-percpuh.patch
-romfs-fix-romfs_get_unmapped_area-param-check.patch
-include-linux-compath-declare-compat_sys_sendmmsg.patch
-drivers-misc-lkdtmc-fix-race-when-crashpoint-is-hit-multiple-times-before-checking-count.patch
-mm-memory-failurec-fix-spinlock-vs-mutex-order.patch
-mm-fix-assertion-mapping-nrpages-==-0-in-end_writeback.patch
-taskstats-dont-allow-duplicate-entries-in-listener-mode.patch
-drm-ttm-use-shmem_read_mapping_page.patch
-drm-i915-use-shmem_read_mapping_page.patch
-drm-i915-use-shmem_truncate_range.patch
-drm-i915-more-struct_mutex-locking.patch
-drm-i915-more-struct_mutex-locking-fix.patch
-mm-cleanup-descriptions-of-filler-arg.patch
-mm-truncate-functions-are-in-truncatec.patch
-mm-tidy-vmtruncate_range-and-related-functions.patch
-mm-consistent-truncate-and-invalidate-loops.patch
-mm-pincer-in-truncate_inode_pages_range.patch
-tmpfs-no-need-to-use-i_lock.patch
-mm-nommuc-fix-remap_pfn_range.patch
-linux-next.patch
-linux-next-git-rejects.patch
-next-remove-localversion.patch
-i-need-old-gcc.patch
-arch-alpha-kernel-systblss-remove-debug-check.patch
-drivers-misc-pch_phubc-dont-oops-if-dmi_get_system_info-returns-null.patch
-bdi_min_ratio-never-shrinks-ultimately-preventing-valid-setting-of-min_ratio.patch
-cris-fix-a-build-error-in-kernel-forkc.patch
-cris-fix-a-build-error-in-kernel-forkc-checkpatch-fixes.patch
-cris-fix-a-build-error-in-sync_serial_open.patch
-cris-fix-the-prototype-of-sync_serial_ioctl.patch
-cris-add-missing-declaration-of-kgdb_init-and-breakpoint.patch
-hfsplus-add-missing-call-to-bio_put.patch
-drivers-scsi-pmcraid-reject-negative-request-size.patch
-drivers-scsi-iprc-reorder-error-handling-code-to-include-iounmap.patch
-thermal-hide-config_thermal_hwmon.patch
-thermal-split-hwmon-lookup-to-a-separate-function.patch
-thermal-make-thermal_hwmon-implementation-fully-internal.patch
-acerhdf-add-support-for-aspire-1410-bios-v13314.patch
-arch-x86-include-asm-delayh-fix-udelay-and-ndelay-for-8-bit-args.patch
-x86-fix-mmap-random-address-range.patch
-leds-new-pcengines-alix-system-driver-enables-leds-via-gpio-interface.patch
-arch-arm-mach-ux500-mbox-db5500c-world-writable-sysfs-fifo-file.patch
-arm-exec-remove-redundant-set_fsuser_ds.patch
-audit-always-follow-va_copy-with-va_end.patch
-btrfs-dont-dereference-extent_mapping-if-null.patch
-drivers-block-drbd-drbd_nlc-use-bitmap_parse-instead-of-__bitmap_parse.patch
-ppc-exec-remove-redundant-set_fsuser_ds.patch
-fb-fix-potential-deadlock-between-lock_fb_info-and-console_lock.patch
-cyber2000fb-avoid-palette-corruption-at-higher-clocks.patch
-genirq-fix-missing-parenthesises-in-generic-chip.patch
-ia64-exec-remove-redundant-set_fsuser_ds.patch
-drivers-ata-pata_marvellc-add-support-for-88se91a0-88se91a4.patch
-microblaze-exec-remove-redundant-set_fsuser_ds.patch
-mips-exec-remove-redundant-addr_limit-assignment.patch
-unicore32-exec-remove-redundant-set_fsuser_ds.patch
-i915-add-native-backlight-control.patch
-btusb-patch-add_apple_macbookpro62.patch
-parisc-exec-remove-redundant-set_fsuser_ds.patch
-pci-dmar-update-dmar-units-devices-list-during-hotplug.patch
-drivers-firmware-dmi_scanc-make-dmi_name_in_vendors-more-focused.patch
-pci-enumerate-the-pci-device-only-removed-out-pci-hierarchy-of-os-when-re-scanning-pci.patch
-pci-enumerate-the-pci-device-only-removed-out-pci-hierarchy-of-os-when-re-scanning-pci-fix.patch
-pci-make-the-struct-pci_dev-argument-of-pci_fixup_irqs-const.patch
-s390-exec-remove-redundant-set_fsuser_ds.patch
-scsi-fix-a-header-to-include-linux-typesh.patch
-drivers-scsi-megaraidc-fix-sparse-warnings.patch
-drivers-block-brdc-make-brd_make_request-return-error-code.patch
-block-genhdc-remove-useless-cast-in-diskstats_show.patch
-sparc-exec-remove-redundant-addr_limit-assignment.patch
-staging-iio-make-iio-depend-on-generic_hardirqs.patch
-drivers-staging-speakup-devsynthc-fix-buffer-size-is-not-provably-correct-error.patch
-drivers-staging-gma500-psb_intel_displayc-fix-build.patch
-drivers-staging-dt3155v4l-dt3155v4lc-needs-slabh.patch
-drivers-staging-solo6x10-corec-needs-slabh.patch
-drivers-staging-solo6x10-p2mc-needs-slabh.patch
-staging-more-missing-slabh-inclusions.patch
-slab-use-numa_no_node.patch
-mm.patch
-mm-extend-memory-hotplug-api-to-allow-memory-hotplug-in-virtual-machines.patch
-mm-extend-memory-hotplug-api-to-allow-memory-hotplug-in-virtual-machines-fix.patch
-xen-balloon-memory-hotplug-support-for-xen-balloon-driver.patch
-mm-swap-token-fix-dead-link.patch
-mm-swap-token-makes-global-variables-to-function-local.patch
-mm-swap-token-add-a-comment-for-priority-aging.patch
-pagewalk-fix-walk_page_range-dont-check-find_vma-result-properly.patch
-pagewalk-dont-look-up-vma-if-walk-hugetlb_entry-is-unused.patch
-pagewalk-add-locking-rule-comments.patch
-pagewalk-add-locking-rule-comments-fix.patch
-pagewalk-fix-code-comment-for-thp.patch
-mm-remove-the-leftovers-of-noswapaccount.patch
-mm-page_cgroupc-simplify-code-by-using-section_align_up-and-section_align_down-macros.patch
-mm-thp-minor-lock-simplification-in-__khugepaged_exit.patch
-mm-hugetlb-fix-coding-style-issues.patch
-tmpfs-clone-shmem_file_splice_read.patch
-tmpfs-refine-shmem_file_splice_read.patch
-tmpfs-pass-gfp-to-shmem_getpage_gfp.patch
-tmpfs-remove_shmem_readpage.patch
-tmpfs-simplify-prealloc_page.patch
-tmpfs-simplify-filepage-swappage.patch
-tmpfs-simplify-unuse-and-writepage.patch
-radix_tree-exceptional-entries-and-indices.patch
-mm-let-swap-use-exceptional-entries.patch
-tmpfs-demolish-old-swap-vector-support.patch
-tmpfs-miscellaneous-trivial-cleanups.patch
-tmpfs-copy-truncate_inode_pages_range.patch
-tmpfs-convert-shmem_truncate_range-to-radix-swap.patch
-tmpfs-convert-shmem_unuse_inode-to-radix-swap.patch
-tmpfs-convert-shmem_getpage_gfp-to-radix-swap.patch
-tmpfs-convert-mem_cgroup-shmem-to-radix-swap.patch
-tmpfs-convert-shmem_writepage-and-enable-swap.patch
-tmpfs-use-kmemdup-for-short-symlinks.patch
-mm-a-few-small-updates-for-radix-swap.patch
-mm-a-few-small-updates-for-radix-swap-fix.patch
-tmpfs-expand-help-to-explain-value-of-tmpfs_posix_acl.patch
-tmpfs-expand-help-to-explain-value-of-tmpfs_posix_acl-v3.patch
-frv-hook-up-gpiolib-support.patch
-frv-exec-remove-redundant-set_fsuser_ds.patch
-frv-duplicate-output_buffer-of-e03.patch
-frv-duplicate-output_buffer-of-e03-checkpatch-fixes.patch
-h8300-exec-remove-redundant-set_fsuser_ds.patch
-hpet-factor-timer-allocate-from-open.patch
-alpha-exec-remove-redundant-set_fsuser_ds.patch
-m32r-exec-remove-redundant-set_fsuser_ds.patch
-m68k-exec-remove-redundant-set_fsuser_ds.patch
-mn10300-exec-remove-redundant-set_fsuser_ds.patch
-intel_idle-fix-api-misuse.patch
-intel_idle-disable-auto_demotion-for-hotplugged-cpus.patch
-cris-fix-some-build-warnings-in-pinmuxc.patch
-cris-exec-remove-redundant-set_fsuser_ds.patch
-um-clean-up-vm-flagsh.patch
-um-exec-remove-redundant-set_fsuser_ds.patch
-um-clean-up-delay-functions-v2.patch
-drivers-use-kzalloc-kcalloc-instead-of-kmallocmemset-where-possible.patch
-asm-generic-systemh-drop-useless-__kernel__.patch
-lpfc-silence-debug_strict_user_copy_checks=y-warning.patch
-kprobes-silence-debug_strict_user_copy_checks=y-warning.patch
-x86-implement-strict-user-copy-checks-for-x86_64.patch
-consolidate-config_debug_strict_user_copy_checks.patch
-devres-fix-possible-use-after-free.patch
-drivers-misc-pch_phubc-fix-register-miss-setting-issue.patch
-fcntlf_setfl-allow-setting-of-o_sync.patch
-get_maintainerspl-improve-mailmap-parsing.patch
-maintainers-update-high-resolution-timers-patterns.patch
-maintainers-remove-section-usb-se401-driver.patch
-leds-lp5521-provide-section-tagging.patch
-leds-route-kbd-leds-through-the-generic-leds-layer.patch
-lib-lcmc-quiet-sparse-noise.patch
-checkpatch-suggest-using-min_t-or-max_t-v2.patch
-checkpatch-add-__rcu-as-a-sparse-modifier.patch
-checkpatch-validate-signature-styles-and-to-and-cc-lines.patch
-checkpatch-add-a-prefer-__aligned-check.patch
-misc-eeprom-add-driver-for-microwire-93xx46-eeproms.patch
-misc-eeprom-add-eeprom-access-driver-for-digsy_mtc-board.patch
-lib-hexdumpc-make-hex2bin-return-the-updated-src-address.patch
-fs-binfmt_miscc-use-kernels-hex_to_bin-method.patch
-fs-binfmt_miscc-use-kernels-hex_to_bin-method-fix.patch
-fs-binfmt_miscc-use-kernels-hex_to_bin-method-fix-fix.patch
-init-skip-calibration-delay-if-previously-done.patch
-init-skip-calibration-delay-if-previously-done-fix.patch
-init-skip-calibration-delay-if-previously-done-fix-fix.patch
-init-skip-calibration-delay-if-previously-done-fix-fix-fix.patch
-init-calibratec-calibrate_delay-tidy-up-the-pr_info-messages.patch
-drivers-rtc-rtc-mpc5121c-add-support-for-rtc-on-mpc5200.patch
-drivers-rtc-rtc-s3cc-support-clock-gating.patch
-drivers-rtc-add-support-for-qualcomm-pmic8xxx-rtc.patch
-drivers-rtc-add-support-for-qualcomm-pmic8xxx-rtc-fix.patch
-drivers-rtc-add-support-for-qualcomm-pmic8xxx-rtc-do-not-use-mfd_get_data.patch
-memcg-do-not-expose-uninitialized-mem_cgroup_per_node-to-world.patch
-cpusets-randomize-node-rotor-used-in-cpuset_mem_spread_node.patch
-cpusets-randomize-node-rotor-used-in-cpuset_mem_spread_node-fix-2.patch
-cpusets-randomize-node-rotor-used-in-cpuset_mem_spread_node-cpusets-initialize-spread-rotor-lazily.patch
-cpusets-randomize-node-rotor-used-in-cpuset_mem_spread_node-cpusets-initialize-spread-rotor-lazily-fix.patch
-ptrace-unify-show_regs-prototype.patch
-ptrace-unify-show_regs-prototype-fix.patch
-h8300-m68k-xtensa-__fd_isset-should-return-0-1.patch
-proc-pid-fdinfo-add-cloexec-information.patch
-proc-pid-fdinfo-add-cloexec-information-fix.patch
-kernel-forkc-fix-a-few-coding-style-issues.patch
-fs-execc-use-build_bug_on-for-vm_stack_flags-vm_stack_incomplete_setup.patch
-cpumask-convert-for_each_cpumask-with-for_each_cpu.patch
-cpumask-alloc_cpumask_var-use-numa_no_node.patch
-cpumask-add-cpumask_var_t-documentation.patch
-ipc-mqueue-refactor-failure-handling.patch
-ipc-mqueue-fix-mq_open-return-value.patch
-sysctl-add-proc_dointvec_bool-handler.patch
-sysctl-use-proc_dointvec_bool-where-appropriate.patch
-sysctl-add-proc_dointvec_unsigned-handler.patch
-sysctl-add-proc_dointvec_unsigned-handler-update.patch
-sysctl-use-proc_dointvec_unsigned-where-appropriate.patch
-include-linux-dma-mappingh-remove-dma_xxbit_mask-macros.patch
-scatterlist-new-helper-functions.patch
-scatterlist-new-helper-functions-update.patch
-scatterlist-new-helper-functions-update-fix.patch
-memstick-add-support-for-legacy-memorysticks.patch
-memstick-add-support-for-legacy-memorysticks-update-2.patch
-kexec-remove-kmsg_dump_kexec.patch
-ramoops-use-module-parameters-instead-of-platform-data-if-not-available.patch
-ramoops-use-module-parameters-instead-of-platform-data-if-not-available-checkpatch-fixes.patch
-ramoops-add-new-line-to-each-print.patch
-asm-generic-add-another-generic-ext2-atomic-bitops.patch
-atomic-use-linux-atomich.patch
-atomic-move-atomic_add_unless-to-generic-code.patch
-atomic-cleanup-asm-generic-atomich-inclusion.patch
-atomic-update-comments-in-atomich.patch
-asm-generic-atomich-simplify-inc-dec-test-helpers.patch
-asm-generic-atomich-fix-type-used-in-atomic_clear_mask.patch
-asm-generic-atomich-add-atomic_set_mask-helper.patch
-asm-generic-atomich-allow-smp-peeps-to-leverage-this.patch
-make-sure-nobodys-leaking-resources.patch
-journal_add_journal_head-debug.patch
-releasing-resources-with-children.patch
-make-frame_pointer-default=y.patch
-mutex-subsystem-synchro-test-module.patch
-mutex-subsystem-synchro-test-module-fix.patch
-slab-leaks3-default-y.patch
-put_bh-debug.patch
-add-debugging-aid-for-memory-initialisation-problems.patch
-workaround-for-a-pci-restoring-bug.patch
-prio_tree-debugging-patch.patch
-single_open-seq_release-leak-diagnostics.patch
-add-a-refcount-check-in-dput.patch
-memblock-add-input-size-checking-to-memblock_find_region.patch
-memblock-add-input-size-checking-to-memblock_find_region-fix.patch
+In this way if the backup was the only user of a page, that page will
+be immediately removed from the page cache by calling
+posix_fadvise(POSIX_FADV_DONTNEED). If the page was also touched by
+other processes it'll be moved to the inactive list, having another
+chance of being re-added to the working set, or simply reclaimed when
+memory is needed.
+
+Testcase:
+
+  - create a 1GB file called "zero"
+  - run md5sum zero to read all the pages in page cache (this is to
+    simulate the user activity on this file)
+  - run "rsync zero zero_copy" (rsync is patched with [3])
+  - re-run md5sum zero (user activity on the working set) and measure
+    the time to complete this command
+
+The test has been performed using 3.0.0-rc4 vanilla and with this patch
+applied (3.0.0-rc4-fadvise).
+
+Results:
+                  avg elapsed time      block:block_bio_queue
+ 3.0.0-rc4                  4.127s                      8,214
+ 3.0.0-rc4-fadvise          2.146s                          0
+
+In the first case the file is evicted from page cache completely and we
+must re-read it from the disk. In the second case the file is still in
+page cache (in the inactive list) and we don't need any other additional
+I/O operation.
+
+[1] http://marc.info/?l=rsync&m=128885034930933&w=2
+[2] https://lkml.org/lkml/2011/2/20/57
+[3] http://lists.samba.org/archive/rsync/2010-November/025827.html
+
+Signed-off-by: Andrea Righi <andrea@betterlinux.com>
+---
+ mm/swap.c     |    9 +++++----
+ mm/truncate.c |    5 ++++-
+ 2 files changed, 9 insertions(+), 5 deletions(-)
+
+diff --git a/mm/swap.c b/mm/swap.c
+index 3a442f1..fc8bb76 100644
+--- a/mm/swap.c
++++ b/mm/swap.c
+@@ -411,10 +411,11 @@ void add_page_to_unevictable_list(struct page *page)
+  *
+  * 1. active, mapped page -> none
+  * 2. active, dirty/writeback page -> inactive, head, PG_reclaim
+- * 3. inactive, mapped page -> none
+- * 4. inactive, dirty/writeback page -> inactive, head, PG_reclaim
+- * 5. inactive, clean -> inactive, tail
+- * 6. Others -> none
++ * 3. active, clean -> inactive, tail
++ * 4. inactive, mapped page -> none
++ * 5. inactive, dirty/writeback page -> inactive, head, PG_reclaim
++ * 6. inactive, clean -> inactive, tail
++ * 7. Others -> none
+  *
+  * In 4, why it moves inactive's head, the VM expects the page would
+  * be write it out by flusher threads as this is much more effective
+diff --git a/mm/truncate.c b/mm/truncate.c
+index 3a29a61..043aabd 100644
+--- a/mm/truncate.c
++++ b/mm/truncate.c
+@@ -357,7 +357,10 @@ unsigned long invalidate_mapping_pages(struct address_space *mapping,
+ 			if (lock_failed)
+ 				continue;
+ 
+-			ret = invalidate_inode_page(page);
++			if (PageActive(page))
++				ret = 0;
++			else
++				ret = invalidate_inode_page(page);
+ 			unlock_page(page);
+ 			/*
+ 			 * Invalidation is a hint that the page is no longer
+-- 
+1.7.4.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
