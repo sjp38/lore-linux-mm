@@ -1,81 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id EE31790015D
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 00:48:02 -0400 (EDT)
-Received: by iyl8 with SMTP id 8so503740iyl.14
-        for <linux-mm@kvack.org>; Tue, 21 Jun 2011 21:48:00 -0700 (PDT)
-From: Nai Xia <nai.xia@gmail.com>
-Reply-To: nai.xia@gmail.com
-Subject: Re: [PATCH 2/2 V2] ksm: take dirty bit as reference to avoid volatile pages scanning
-Date: Wed, 22 Jun 2011 12:47:39 +0800
-References: <201106212055.25400.nai.xia@gmail.com> <201106220804.12508.nai.xia@gmail.com> <20110622003536.GQ25383@sequoia.sous-sol.org>
-In-Reply-To: <20110622003536.GQ25383@sequoia.sous-sol.org>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id C923490015D
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 00:53:30 -0400 (EDT)
+Received: by pzk4 with SMTP id 4so357423pzk.14
+        for <linux-mm@kvack.org>; Tue, 21 Jun 2011 21:53:28 -0700 (PDT)
+Message-ID: <4E017539.30505@gmail.com>
+Date: Wed, 22 Jun 2011 10:23:13 +0530
+From: Subash Patel <subashrp@gmail.com>
 MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="us-ascii"
+Subject: Re: [Linaro-mm-sig] [PATCH/RFC 0/8] ARM: DMA-mapping framework redesign
+References: <1308556213-24970-1-git-send-email-m.szyprowski@samsung.com>
+In-Reply-To: <1308556213-24970-1-git-send-email-m.szyprowski@samsung.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
-Message-Id: <201106221247.39827.nai.xia@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chris Wright <chrisw@sous-sol.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Izik Eidus <izik.eidus@ravellosystems.com>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, Kyungmin Park <kyungmin.park@samsung.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Joerg Roedel <joro@8bytes.org>, Arnd Bergmann <arnd@arndb.de>
 
-On Wednesday 22 June 2011 08:35:36 Chris Wright wrote:
-> * Nai Xia (nai.xia@gmail.com) wrote:
-> > (Sorry for repeated mail, I forgot to Cc the list..)
-> > 
-> > On Wednesday 22 June 2011 06:38:00 you wrote:
-> > > * Nai Xia (nai.xia@gmail.com) wrote:
-> > > > Introduced ksm_page_changed() to reference the dirty bit of a pte. We clear 
-> > > > the dirty bit for each pte scanned but don't flush the tlb. For a huge page, 
-> > > > if one of the subpage has changed, we try to skip the whole huge page 
-> > > > assuming(this is true by now) that ksmd linearly scans the address space.
-> > > 
-> > > This doesn't build w/ kvm as a module.
-> > 
-> > I think it's because of the name-error of a related kvm patch, which I only sent
-> > in a same email thread. http://marc.info/?l=linux-mm&m=130866318804277&w=2
-> > The patch split is not clean...I'll redo it.
-> > 
-> 
-> It needs an export as it is.
-> ERROR: "kvm_dirty_update" [arch/x86/kvm/kvm-intel.ko] undefined!
+Hi Marek,
 
-Oops, yes, I forgot to do that! I'll correct it in the next submission.
+On 06/20/2011 01:20 PM, Marek Szyprowski wrote:
+> Hello,
+>
+> This patch series is a continuation of my works on implementing generic
+> IOMMU support in DMA mapping framework for ARM architecture. Now I
+> focused on the DMA mapping framework itself. It turned out that adding
+> support for common dma_map_ops structure was not that hard as I initally
+> thought. After some modification most of the code fits really well to
+> the generic dma_map_ops methods.
+>
+> The only change required to dma_map_ops is a new alloc function. During
+> the discussion on Linaro Memory Management meeting in Budapest we got
+> the idea that we can have only one alloc/free/mmap function with
+> additional attributes argument. This way all different kinds of
+> architecture specific buffer mappings can be hidden behind the
+> attributes without the need of creating several versions of dma_alloc_
+> function. I also noticed that the dma_alloc_noncoherent() function can
+> be also implemented this way with DMA_ATTRIB_NON_COHERENT attribute.
+> Systems that just defines dma_alloc_noncoherent as dma_alloc_coherent
+> will just ignore such attribute.
+>
+> Another good use case for alloc methods with attributes is the
+> possibility to allocate buffer without a valid kernel mapping. There are
+> a number of drivers (mainly V4L2 and ALSA) that only exports the DMA
+> buffers to user space. Such drivers don't touch the buffer data at all.
+> For such buffers we can avoid the creation of a mapping in kernel
+> virtual address space, saving precious vmalloc area. Such buffers might
+> be allocated once a new attribute DMA_ATTRIB_NO_KERNEL_MAPPING.
 
-Thanks,
-Nai
+Are you trying to say here, that the buffer would be allocated in the 
+user space, and we just use it to map it to the device in DMA+IOMMU 
+framework?
 
-> 
-> Although perhaps could be done w/out that dirty_update altogether (as I
-> mentioned in other email)?
-> 
-> > > 
-> > > > A NEW_FLAG is also introduced as a status of rmap_item to make ksmd scan
-> > > > more aggressively for new VMAs - only skip the pages considered to be volatile
-> > > > by the dirty bits. This can be enabled/disabled through KSM's sysfs interface.
-> > > 
-> > > This seems like it should be separated out.  And while it might be useful
-> > > to enable/disable for testing, I don't think it's worth supporting for
-> > > the long term.  Would also be useful to see the value of this flag.
-> > 
-> > I think it maybe useful for uses who want to turn on/off this scan policy explicitly
-> > according to their working sets? 
-> 
-> Can you split it out, and show the benefit of it directly?  I think it
-> only benefits:
-> 
-> p = mmap()
-> memset(p, $value, entire buffer);
-> ...
-> very slowly (w.r.t scan times) touch bits of buffer and trigger cow to
-> break sharing.
-> 
-> Would you agree?
-> 
-> thanks,
-> -chris
-> 
+>
+> All the changes introduced in this patch series are intended to prepare
+> a good ground for upcoming generic IOMMU integration to DMA mapping
+> framework on ARM architecture.
+>
+> For more information about proof-of-concept IOMMU implementation in DMA
+> mapping framework, please refer to my previous set of patches:
+> http://www.spinics.net/lists/linux-mm/msg19856.html
+>
+> I've tried to split the redesign into a set of single-step changes for
+> easier review and understanding. If there is anything that needs further
+> clarification, please don't hesitate to ask.
+>
+> The patches are prepared on top of Linux Kernel v3.0-rc3.
+>
+> The proposed changes have been tested on Samsung Exynos4 platform. I've
+> also tested dmabounce code (by manually registering support for DMA
+> bounce for some of the devices available on my board), although my
+> hardware have no such strict requirements. Would be great if one could
+> test my patches on different ARM architectures to check if I didn't
+> break anything.
+>
+> Best regards
+
+Regards,
+Subash
+SISO-SLG
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
