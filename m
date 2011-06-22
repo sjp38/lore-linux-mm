@@ -1,95 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id DBA516B01F0
-	for <linux-mm@kvack.org>; Tue, 21 Jun 2011 20:57:59 -0400 (EDT)
-Received: from kpbe20.cbf.corp.google.com (kpbe20.cbf.corp.google.com [172.25.105.84])
-	by smtp-out.google.com with ESMTP id p5M0vvN3024375
-	for <linux-mm@kvack.org>; Tue, 21 Jun 2011 17:57:57 -0700
-Received: from pve37 (pve37.prod.google.com [10.241.210.37])
-	by kpbe20.cbf.corp.google.com with ESMTP id p5M0vuvU010066
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 21 Jun 2011 17:57:56 -0700
-Received: by pve37 with SMTP id 37so279606pve.21
-        for <linux-mm@kvack.org>; Tue, 21 Jun 2011 17:57:55 -0700 (PDT)
-Date: Tue, 21 Jun 2011 17:57:54 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch] oom: remove references to old badness() function
-Message-ID: <alpine.DEB.2.00.1106211756580.4454@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id DE6D26B01F1
+	for <linux-mm@kvack.org>; Tue, 21 Jun 2011 21:13:17 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 9C2D03EE0BB
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 10:13:13 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 6C78545DF94
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 10:13:13 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 4638645DF89
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 10:13:13 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 294F91DB804A
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 10:13:13 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id CB4131DB8049
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 10:13:12 +0900 (JST)
+Date: Wed, 22 Jun 2011 10:06:15 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: "make -j" with memory.(memsw.)limit_in_bytes smaller than
+ required -> livelock,  even for unlimited processes
+Message-Id: <20110622100615.0ab22219.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110622091018.16c14c78.kamezawa.hiroyu@jp.fujitsu.com>
+References: <4E00AFE6.20302@5t9.de>
+	<20110622091018.16c14c78.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Lutz Vieweg <lvml@5t9.de>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-mm@kvack.org
 
-The badness() function in the oom killer was renamed to oom_badness() in
-a63d83f427fb ("oom: badness heuristic rewrite") since it is a globally
-exported function for clarity.
+On Wed, 22 Jun 2011 09:10:18 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-The prototype for the old function still existed in linux/oom.h, so
-remove it.  There are no existing users.
+> On Tue, 21 Jun 2011 16:51:18 +0200
+> Lutz Vieweg <lvml@5t9.de> wrote:
 
-Also fixes documentation and comment references to badness() and adjusts
-them accordingly.
+> > - but also at this time, if any other user (who has not exhausted
+> >    his memory limits) tries to access any file (at least on /tmp/,
+> >    as e.g. gcc does), even a simple "ls /tmp/", this operation
+> >    waits forever. (But "iostat" does not indicate any I/O activity.)
+> > 
+> 
+> Hmm, it means your 'ls' gets some lock and wait for it. Then, what lock
+> you wait for ? what w_chan is shown in 'ps -elf' ?
+> 
 
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- Documentation/ABI/obsolete/proc-pid-oom_adj |    2 +-
- Documentation/feature-removal-schedule.txt  |    2 +-
- include/linux/oom.h                         |    4 ----
- mm/oom_kill.c                               |    2 +-
- 4 files changed, 3 insertions(+), 7 deletions(-)
+I reproduced. And checked sysrq t.
 
-diff --git a/Documentation/ABI/obsolete/proc-pid-oom_adj b/Documentation/ABI/obsolete/proc-pid-oom_adj
---- a/Documentation/ABI/obsolete/proc-pid-oom_adj
-+++ b/Documentation/ABI/obsolete/proc-pid-oom_adj
-@@ -14,7 +14,7 @@ Why:	/proc/<pid>/oom_adj allows userspace to influence the oom killer's
- 
- 	A much more powerful interface, /proc/<pid>/oom_score_adj, was
- 	introduced with the oom killer rewrite that allows users to increase or
--	decrease the badness() score linearly.  This interface will replace
-+	decrease the badness score linearly.  This interface will replace
- 	/proc/<pid>/oom_adj.
- 
- 	A warning will be emitted to the kernel log if an application uses this
-diff --git a/Documentation/feature-removal-schedule.txt b/Documentation/feature-removal-schedule.txt
---- a/Documentation/feature-removal-schedule.txt
-+++ b/Documentation/feature-removal-schedule.txt
-@@ -184,7 +184,7 @@ Why:	/proc/<pid>/oom_adj allows userspace to influence the oom killer's
- 
- 	A much more powerful interface, /proc/<pid>/oom_score_adj, was
- 	introduced with the oom killer rewrite that allows users to increase or
--	decrease the badness() score linearly.  This interface will replace
-+	decrease the badness score linearly.  This interface will replace
- 	/proc/<pid>/oom_adj.
- 
- 	A warning will be emitted to the kernel log if an application uses this
-diff --git a/include/linux/oom.h b/include/linux/oom.h
---- a/include/linux/oom.h
-+++ b/include/linux/oom.h
-@@ -64,10 +64,6 @@ static inline void oom_killer_enable(void)
- 	oom_killer_disabled = false;
- }
- 
--/* The badness from the OOM killer */
--extern unsigned long badness(struct task_struct *p, struct mem_cgroup *mem,
--		      const nodemask_t *nodemask, unsigned long uptime);
--
- extern struct task_struct *find_lock_task_mm(struct task_struct *p);
- 
- /* sysctls */
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -488,7 +488,7 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
- 
- 	/*
- 	 * If any of p's children has a different mm and is eligible for kill,
--	 * the one with the highest badness() score is sacrificed for its
-+	 * the one with the highest oom_badness() score is sacrificed for its
- 	 * parent.  This attempts to lose the minimal amount of work done while
- 	 * still freeing memory.
- 	 */
+At first, some oom killers run.
+Second, oom killer stops by some reason. (I think there are a KILLED process in memcg
+but it doesn't exit. I'll check memcg' bypass logic.)
+
+Third, ls /tmp stops.
+
+Here is sysrq log.
+==
+Jun 22 10:04:29 bluextal kernel: [ 1366.149012] ls              D 0000000000000082  5448 22307   2799 0x10000000
+Jun 22 10:04:29 bluextal kernel: [ 1366.149012]  ffff880623a7bb08 0000000000000086 ffff88033fffcc08 ffff88033fffbe70
+Jun 22 10:04:29 bluextal kernel: [ 1366.149012]  ffff8805fa70c530 0000000000012880 ffff880623a7bfd8 ffff880623a7a010
+Jun 22 10:04:29 bluextal kernel: [ 1366.149012]  ffff880623a7bfd8 0000000000012880 ffff8805f9c30000 ffff8805fa70c530
+Jun 22 10:04:29 bluextal kernel: [ 1366.149012] Call Trace:
+Jun 22 10:04:29 bluextal kernel: [ 1366.149012]  [<ffffffff810ee900>] ? sleep_on_page+0x20/0x20
+Jun 22 10:04:29 bluextal kernel: [ 1366.149012]  [<ffffffff8154f40c>] io_schedule+0x8c/0xd0
+Jun 22 10:04:29 bluextal kernel: [ 1366.149012]  [<ffffffff810ee90e>] sleep_on_page_killable+0xe/0x40
+Jun 22 10:04:29 bluextal kernel: [ 1366.149012]  [<ffffffff8154fddf>] __wait_on_bit+0x5f/0x90
+Jun 22 10:04:29 bluextal kernel: [ 1366.149012]  [<ffffffff810eeab5>] wait_on_page_bit_killable+0x75/0x80
+Jun 22 10:04:29 bluextal kernel: [ 1366.149012]  [<ffffffff810791f0>] ? autoremove_wake_function+0x40/0x40
+Jun 22 10:04:29 bluextal kernel: [ 1366.149012]  [<ffffffff810eec35>] __lock_page_or_retry+0x95/0xc0
+Jun 22 10:04:29 bluextal kernel: [ 1366.149012]  [<ffffffff810efe7f>] filemap_fault+0x2df/0x4b0
+Jun 22 10:04:29 bluextal kernel: [ 1366.149012]  [<ffffffff81115685>] __do_fault+0x55/0x530
+Jun 22 10:04:29 bluextal kernel: [ 1366.149012]  [<ffffffff81119150>] ? unmap_region+0x110/0x140
+Jun 22 10:04:29 bluextal kernel: [ 1366.149012]  [<ffffffff81115c57>] handle_pte_fault+0xf7/0xb50
+Jun 22 10:04:29 bluextal kernel: [ 1366.149012]  [<ffffffff8112f87a>] ? alloc_pages_current+0xaa/0x110
+Jun 22 10:04:29 bluextal kernel: [ 1366.149012]  [<ffffffff8103a857>] ? pte_alloc_one+0x37/0x50
+Jun 22 10:04:29 bluextal kernel: [ 1366.149012]  [<ffffffff81011ea9>] ? sched_clock+0x9/0x10
+Jun 22 10:04:29 bluextal kernel: [ 1366.149012]  [<ffffffff810c0ec9>] ? trace_clock_local+0x9/0x10
+Jun 22 10:04:29 bluextal kernel: [ 1366.149012]  [<ffffffff81116885>] handle_mm_fault+0x1d5/0x350
+Jun 22 10:04:29 bluextal kernel: [ 1366.149012]  [<ffffffff81555090>] do_page_fault+0x140/0x470
+Jun 22 10:04:29 bluextal kernel: [ 1366.149012]  [<ffffffff810ce4c3>] ? trace_nowake_buffer_unlock_commit+0x43/0x60
+Jun 22 10:04:29 bluextal kernel: [ 1366.149012]  [<ffffffff81015c83>] ? ftrace_raw_event_sys_exit+0xb3/
+==
+
+Then, waiting for some page bit...I/O of libc mapped pages ?
+
+Hmm. it seems buggy behavior. Okay, I'll dig this.
+
+Thanks,
+-Kame
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
