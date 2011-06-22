@@ -1,58 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id D1EAF900185
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 07:19:30 -0400 (EDT)
-From: Stefan Assmann <sassmann@kpanic.de>
-Subject: [PATCH v2 0/3] support for broken memory modules (BadRAM)
-Date: Wed, 22 Jun 2011 13:18:51 +0200
-Message-Id: <1308741534-6846-1-git-send-email-sassmann@kpanic.de>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 1C10D900185
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 07:19:55 -0400 (EDT)
+Received: by mail-wy0-f179.google.com with SMTP id 40so575758wyb.10
+        for <linux-mm@kvack.org>; Wed, 22 Jun 2011 04:19:54 -0700 (PDT)
+Message-ID: <4E01CFD2.6000404@ravellosystems.com>
+Date: Wed, 22 Jun 2011 14:19:46 +0300
+From: Izik Eidus <izik.eidus@ravellosystems.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] mmu_notifier, kvm: Introduce dirty bit tracking in spte
+ and mmu notifier to help KSM dirty bit tracking
+References: <201106212055.25400.nai.xia@gmail.com> <201106212132.39311.nai.xia@gmail.com> <4E01C752.10405@redhat.com> <4E01CC77.10607@ravellosystems.com> <4E01CDAD.3070202@redhat.com>
+In-Reply-To: <4E01CDAD.3070202@redhat.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, tony.luck@intel.com, andi@firstfloor.org, mingo@elte.hu, hpa@zytor.com, rick@vanrein.org, rdunlap@xenotime.net, sassmann@kpanic.de
+To: Avi Kivity <avi@redhat.com>
+Cc: nai.xia@gmail.com, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Chris Wright <chrisw@sous-sol.org>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel <linux-kernel@vger.kernel.org>, kvm <kvm@vger.kernel.org>
 
-Following the RFC for the BadRAM feature here's the updated version with
-spelling fixes, thanks go to Randy Dunlap. Also the code is now less verbose,
-as requested by Andi Kleen.
-v2 with even more spelling fixes suggested by Randy.
-Patches are against vanilla 2.6.39.
-Repost with LKML in Cc as suggested by Andrew Morton.
+On 6/22/2011 2:10 PM, Avi Kivity wrote:
+> On 06/22/2011 02:05 PM, Izik Eidus wrote:
+>>>> +    spte = rmap_next(kvm, rmapp, NULL);
+>>>> +    while (spte) {
+>>>> +        int _dirty;
+>>>> +        u64 _spte = *spte;
+>>>> +        BUG_ON(!(_spte&  PT_PRESENT_MASK));
+>>>> +        _dirty = _spte&  PT_DIRTY_MASK;
+>>>> +        if (_dirty) {
+>>>> +            dirty = 1;
+>>>> +            clear_bit(PT_DIRTY_SHIFT, (unsigned long *)spte);
+>>>> +        }
+>>>
+>>> Racy.  Also, needs a tlb flush eventually.
+>> +
+>>
+>> Hi, one of the issues is that the whole point of this patch is not do 
+>> tlb flush eventually,
+>> But I see your point, because other users will not expect such 
+>> behavior, so maybe there is need into a parameter
+>> flush_tlb=?, or add another mmu notifier call?
+>>
+>
+> If you don't flush the tlb, a subsequent write will not see that 
+> spte.d is clear and the write will happen.  So you'll see the page as 
+> clean even though it's dirty.  That's not acceptable.
+>
 
-The idea is to allow the user to specify RAM addresses that shouldn't be
-touched by the OS, because they are broken in some way. Not all machines have
-hardware support for hwpoison, ECC RAM, etc, so here's a solution that allows to
-use bitmasks to mask address patterns with the new "badram" kernel command line
-parameter.
-Memtest86 has an option to generate these patterns since v2.3 so the only thing
-for the user to do should be:
-- run Memtest86
-- note down the pattern
-- add badram=<pattern> to the kernel command line
+Yes, but this is exactly what we want from this use case:
+Right now ksm calculate the page hash to see if it was changed, the idea 
+behind this patch is to use the dirty bit instead,
+however the guest might not really like the fact that we will flush its 
+tlb over and over again, specially in periodically scan like ksm does.
 
-The concerning pages are then marked with the hwpoison flag and thus won't be
-used by the memory managment system.
+So what we say here is: it is better to have little junk in the unstable 
+tree that get flushed eventualy anyway, instead of make the guest slower....
+this race is something that does not reflect accurate of ksm anyway due 
+to the full memcmp that we will eventualy perform...
 
-Link to Ricks original patches and docs:
-http://rick.vanrein.org/linux/badram/
+Ofcurse we trust that in most cases, beacuse it take ksm to get into a 
+random virtual address in real systems few minutes, there will be 
+already tlb flush performed.
 
-  Stefan
-
-Stefan Assmann (3):
-  Add string parsing function get_next_ulong
-  support for broken memory modules (BadRAM)
-  Add documentation and credits for BadRAM
-
- CREDITS                             |    9 +
- Documentation/BadRAM.txt            |  370 +++++++++++++++++++++++++++++++++++
- Documentation/kernel-parameters.txt |    6 +
- include/linux/kernel.h              |    1 +
- lib/cmdline.c                       |   35 ++++
- mm/memory-failure.c                 |  100 ++++++++++
- 6 files changed, 521 insertions(+), 0 deletions(-)
- create mode 100644 Documentation/BadRAM.txt
-
--- 
-1.7.4
+What you think about having 2 calls: one that does the expected behivor 
+and does flush the tlb, and one that clearly say it doesnt flush the tlb
+and expline its use case for ksm?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
