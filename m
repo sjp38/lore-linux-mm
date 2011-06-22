@@ -1,50 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 3B44890016F
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 07:10:47 -0400 (EDT)
-Message-ID: <4E01CDAD.3070202@redhat.com>
-Date: Wed, 22 Jun 2011 14:10:37 +0300
-From: Avi Kivity <avi@redhat.com>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 72C9190016F
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 07:11:57 -0400 (EDT)
+Message-ID: <4E01CDF6.3030702@kpanic.de>
+Date: Wed, 22 Jun 2011 13:11:50 +0200
+From: Stefan Assmann <sassmann@kpanic.de>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mmu_notifier, kvm: Introduce dirty bit tracking in spte
- and mmu notifier to help KSM dirty bit tracking
-References: <201106212055.25400.nai.xia@gmail.com> <201106212132.39311.nai.xia@gmail.com> <4E01C752.10405@redhat.com> <4E01CC77.10607@ravellosystems.com>
-In-Reply-To: <4E01CC77.10607@ravellosystems.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [PATCH v2 0/3] support for broken memory modules (BadRAM)
+References: <1308648198-2130-1-git-send-email-sassmann@kpanic.de> <20110621150255.87930b11.akpm@linux-foundation.org>
+In-Reply-To: <20110621150255.87930b11.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Izik Eidus <izik.eidus@ravellosystems.com>
-Cc: nai.xia@gmail.com, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Chris Wright <chrisw@sous-sol.org>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel <linux-kernel@vger.kernel.org>, kvm <kvm@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, tony.luck@intel.com, andi@firstfloor.org, mingo@elte.hu, hpa@zytor.com, rick@vanrein.org, rdunlap@xenotime.net
 
-On 06/22/2011 02:05 PM, Izik Eidus wrote:
->>> +    spte = rmap_next(kvm, rmapp, NULL);
->>> +    while (spte) {
->>> +        int _dirty;
->>> +        u64 _spte = *spte;
->>> +        BUG_ON(!(_spte&  PT_PRESENT_MASK));
->>> +        _dirty = _spte&  PT_DIRTY_MASK;
->>> +        if (_dirty) {
->>> +            dirty = 1;
->>> +            clear_bit(PT_DIRTY_SHIFT, (unsigned long *)spte);
->>> +        }
->>
->> Racy.  Also, needs a tlb flush eventually.
-> +
->
-> Hi, one of the issues is that the whole point of this patch is not do 
-> tlb flush eventually,
-> But I see your point, because other users will not expect such 
-> behavior, so maybe there is need into a parameter
-> flush_tlb=?, or add another mmu notifier call?
->
+On 22.06.2011 00:02, Andrew Morton wrote:
+> On Tue, 21 Jun 2011 11:23:15 +0200
+> Stefan Assmann <sassmann@kpanic.de> wrote:
+> 
+>> Following the RFC for the BadRAM feature here's the updated version with
+>> spelling fixes, thanks go to Randy Dunlap.
+> 
+> I have some thoughts but I think that linux-mm is too narrow an audience for
+> a patchset of this scope.
+> 
+> Please resend the patchset cc'ing linux-kernel so that others can see what
+> we're talking about.
 
-If you don't flush the tlb, a subsequent write will not see that spte.d 
-is clear and the write will happen.  So you'll see the page as clean 
-even though it's dirty.  That's not acceptable.
+Sure, I'm looking forward to your feedback. Patches are going to be reposted
+with LKML in Cc soon.
+Thanks!
 
--- 
-error compiling committee.c: too many arguments to function
+  Stefan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
