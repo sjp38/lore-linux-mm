@@ -1,77 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 388B9900194
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 11:03:17 -0400 (EDT)
-Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
-	by e5.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p5MEZ7NZ009965
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 10:35:07 -0400
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p5MF3AdO103322
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 11:03:11 -0400
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p5M933Nv010900
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 03:03:06 -0600
-Date: Wed, 22 Jun 2011 20:24:24 +0530
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: Re: [PATCH v4 3.0-rc2-tip 14/22] 14: x86: uprobes exception
- notifier for x86.
-Message-ID: <20110622145424.GG16471@linux.vnet.ibm.com>
-Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-References: <20110607125804.28590.92092.sendpatchset@localhost6.localdomain6>
- <20110607130101.28590.99984.sendpatchset@localhost6.localdomain6>
- <1308663084.26237.145.camel@twins>
- <1308663167.26237.146.camel@twins>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 1E055900194
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 11:03:57 -0400 (EDT)
+Date: Wed, 22 Jun 2011 17:03:50 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH] mmu_notifier, kvm: Introduce dirty bit tracking in spte
+ and mmu notifier to help KSM dirty bit tracking
+Message-ID: <20110622150350.GX20843@redhat.com>
+References: <201106212055.25400.nai.xia@gmail.com>
+ <201106212132.39311.nai.xia@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1308663167.26237.146.camel@twins>
+In-Reply-To: <201106212132.39311.nai.xia@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Andi Kleen <andi@firstfloor.org>, Thomas Gleixner <tglx@linutronix.de>, Jonathan Corbet <corbet@lwn.net>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, LKML <linux-kernel@vger.kernel.org>
+To: Nai Xia <nai.xia@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Izik Eidus <izik.eidus@ravellosystems.com>, Hugh Dickins <hughd@google.com>, Chris Wright <chrisw@sous-sol.org>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel <linux-kernel@vger.kernel.org>, kvm <kvm@vger.kernel.org>
 
-* Peter Zijlstra <peterz@infradead.org> [2011-06-21 15:32:47]:
+On Tue, Jun 21, 2011 at 09:32:39PM +0800, Nai Xia wrote:
+> diff --git a/arch/x86/kvm/vmx.c b/arch/x86/kvm/vmx.c
+> index d48ec60..b407a69 100644
+> --- a/arch/x86/kvm/vmx.c
+> +++ b/arch/x86/kvm/vmx.c
+> @@ -4674,6 +4674,7 @@ static int __init vmx_init(void)
+>  		kvm_mmu_set_mask_ptes(0ull, 0ull, 0ull, 0ull,
+>  				VMX_EPT_EXECUTABLE_MASK);
+>  		kvm_enable_tdp();
+> +		kvm_dirty_update = 0;
+>  	} else
+>  		kvm_disable_tdp();
+>  
 
-> On Tue, 2011-06-21 at 15:31 +0200, Peter Zijlstra wrote:
-> > On Tue, 2011-06-07 at 18:31 +0530, Srikar Dronamraju wrote:
-> > > @@ -844,6 +845,19 @@ do_notify_resume(struct pt_regs *regs, void *unused, __u32 thread_info_flags)
-> > >         if (thread_info_flags & _TIF_SIGPENDING)
-> > >                 do_signal(regs);
-> > >  
-> > > +       if (thread_info_flags & _TIF_UPROBE) {
-> > > +               clear_thread_flag(TIF_UPROBE);
-> > > +#ifdef CONFIG_X86_32
-> > > +               /*
-> > > +                * On x86_32, do_notify_resume() gets called with
-> > > +                * interrupts disabled. Hence enable interrupts if they
-> > > +                * are still disabled.
-> > > +                */
-> > > +               local_irq_enable();
-> > > +#endif
-> > > +               uprobe_notify_resume(regs);
-> > > +       } 
-> > 
-> > Would it make sense to do TIF_UPROBE before TIF_SIGPENDING? That way
-> > when uprobe decides it ought to have send a signal we don't have to do
-> > another loop through all this.
-> 
+Why not return !shadow_dirty_mask instead of adding a new var?
 
-Okay, 
+>  struct mmu_notifier_ops {
+> +	int (*dirty_update)(struct mmu_notifier *mn,
+> +			     struct mm_struct *mm);
+> +
 
-> 
-> Also, it might be good to unify x86_86 and i386 on the interrupt thing,
-> instead of propagating this difference (unless of course there's a good
-> reason they're different, but I really don't know this code well).
+Needs some docu.
 
-I am not sure if this has changed lately. So I will try removing the
-local_irq_enable. 
+I think dirty_update isn't self explanatory name. I think
+"has_test_and_clear_dirty" would be better.
 
-Oleg, Roland, do you know why do_notify_resume() gets called with
-interrupts disabled on i386? 
+If we don't flush the smp tlb don't we risk that we'll insert pages in
+the unstable tree that are volatile just because the dirty bit didn't
+get set again on the spte?
 
--- 
-Thanks and Regards
-Srikar
+The first patch I guess it's a sign of hugetlbfs going a little over
+the edge in trying to mix with the core VM... Passing that parameter
+&need_pte_unmap all over the place not so nice, maybe it'd be possible
+to fix within hugetlbfs to use a different method to walk the hugetlb
+vmas. I'd prefer that if possible.
+
+Thanks,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
