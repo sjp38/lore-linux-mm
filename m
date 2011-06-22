@@ -1,21 +1,12 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id AD1FB900194
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 15:46:17 -0400 (EDT)
-Received: from wpaz17.hot.corp.google.com (wpaz17.hot.corp.google.com [172.24.198.81])
-	by smtp-out.google.com with ESMTP id p5MJkD8u006661
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 12:46:13 -0700
-Received: from pzk37 (pzk37.prod.google.com [10.243.19.165])
-	by wpaz17.hot.corp.google.com with ESMTP id p5MJk7we002335
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 12:46:11 -0700
-Received: by pzk37 with SMTP id 37so827756pzk.29
-        for <linux-mm@kvack.org>; Wed, 22 Jun 2011 12:46:07 -0700 (PDT)
-Message-ID: <4E02467C.6090106@google.com>
-Date: Wed, 22 Jun 2011 12:46:04 -0700
-From: Mike Ditto <mditto@google.com>
+	by kanga.kvack.org (Postfix) with SMTP id B858C900194
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 16:19:05 -0400 (EDT)
+Message-ID: <4E024E31.50901@kpanic.de>
+Date: Wed, 22 Jun 2011 22:18:57 +0200
+From: Stefan Assmann <sassmann@kpanic.de>
 MIME-Version: 1.0
-Subject: [PATCH] x86: e820: Eliminate bubble sort from sanitize_e820_map
+Subject: Re: [PATCH v2 0/3] support for broken memory modules (BadRAM)
 References: <1308741534-6846-1-git-send-email-sassmann@kpanic.de> <20110622110034.89ee399c.akpm@linux-foundation.org>
 In-Reply-To: <20110622110034.89ee399c.akpm@linux-foundation.org>
 Content-Type: text/plain; charset=ISO-8859-1
@@ -23,119 +14,96 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Stefan Assmann <sassmann@kpanic.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, tony.luck@intel.com, andi@firstfloor.org, mingo@elte.hu, hpa@zytor.com, rick@vanrein.org, rdunlap@xenotime.net, Nancy Yuen <yuenn@google.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, tony.luck@intel.com, andi@firstfloor.org, mingo@elte.hu, hpa@zytor.com, rick@vanrein.org, rdunlap@xenotime.net, Nancy Yuen <yuenn@google.com>, Michael Ditto <mditto@google.com>
 
-Replace the bubble sort in sanitize_e820_map() with a call to the generic
-kernel sort function to avoid pathological performance with large maps.
+On 22.06.2011 20:00, Andrew Morton wrote:
+> On Wed, 22 Jun 2011 13:18:51 +0200 Stefan Assmann <sassmann@kpanic.de> wrote:
+> 
 
-On large (thousands of entries) E820 maps, the previous code took minutes
-to run; with this change it's now milliseconds.
+[...]
 
-Signed-off-by: Mike Ditto <mditto@google.com>
----
-This is a small independent part of Google's BadRAM changes mentioned in
-another thread.
+>> The idea is to allow the user to specify RAM addresses that shouldn't be
+>> touched by the OS, because they are broken in some way. Not all machines have
+>> hardware support for hwpoison, ECC RAM, etc, so here's a solution that allows to
+>> use bitmasks to mask address patterns with the new "badram" kernel command line
+>> parameter.
+>> Memtest86 has an option to generate these patterns since v2.3 so the only thing
+>> for the user to do should be:
+>> - run Memtest86
+>> - note down the pattern
+>> - add badram=<pattern> to the kernel command line
+>>
+>> The concerning pages are then marked with the hwpoison flag and thus won't be
+>> used by the memory managment system.
+> 
+> The google kernel has a similar capability.  I asked Nancy to comment
+> on these patches and she said:
 
- arch/x86/kernel/e820.c |   59 +++++++++++++++++++----------------------------
- 1 files changed, 24 insertions(+), 35 deletions(-)
+This is the first time I hear about this feature from Google. If I had
+known about it I sure would have talked to the person responsible.
 
-diff --git a/arch/x86/kernel/e820.c b/arch/x86/kernel/e820.c
-index 3e2ef84..e2e212a 100644
---- a/arch/x86/kernel/e820.c
-+++ b/arch/x86/kernel/e820.c
-@@ -18,6 +18,7 @@
- #include <linux/acpi.h>
- #include <linux/firmware-map.h>
- #include <linux/memblock.h>
-+#include <linux/sort.h>
+> 
+> : One, the bad addresses are passed via the kernel command line, which
+> : has a limited length.  It's okay if the addresses can be fit into a
+> : pattern, but that's not necessarily the case in the google kernel.  And
+> : even with patterns, the limit on the command line length limits the
+> : number of patterns that user can specify.  Instead we use lilo to pass
+> : a file containing the bad pages in e820 format to the kernel.
 
- #include <asm/e820.h>
- #include <asm/proto.h>
-@@ -226,22 +227,38 @@ void __init e820_print_map(char *who)
-  *	   ____________________33__
-  *	   ______________________4_
-  */
-+struct change_member {
-+	struct e820entry *pbios; /* pointer to original bios entry */
-+	unsigned long long addr; /* address for this change point */
-+};
-+
-+static int __init cpcompare(const void *a, const void *b)
-+{
-+	struct change_member * const *app = a, * const *bpp = b;
-+	const struct change_member *ap = *app, *bp = *bpp;
-+
-+	/*
-+	 * Inputs are pointers to two elements of change_point[].  If their
-+	 * addresses are unequal, their difference dominates.  If the addresses
-+	 * are equal, then consider one that represents the end of its region
-+	 * to be greater than one that does not.
-+	 */
-+	if (ap->addr != bp->addr)
-+		return ap->addr > bp->addr ? 1 : -1;
-+
-+	return (ap->addr != ap->pbios->addr) - (bp->addr != bp->pbios->addr);
-+}
+I see no reason why there couldn't be multiple ways of specifying bad
+addresses.
 
- int __init sanitize_e820_map(struct e820entry *biosmap, int max_nr_map,
- 			     u32 *pnr_map)
- {
--	struct change_member {
--		struct e820entry *pbios; /* pointer to original bios entry */
--		unsigned long long addr; /* address for this change point */
--	};
- 	static struct change_member change_point_list[2*E820_X_MAX] __initdata;
- 	static struct change_member *change_point[2*E820_X_MAX] __initdata;
- 	static struct e820entry *overlap_list[E820_X_MAX] __initdata;
- 	static struct e820entry new_bios[E820_X_MAX] __initdata;
--	struct change_member *change_tmp;
- 	unsigned long current_type, last_type;
- 	unsigned long long last_addr;
--	int chgidx, still_changing;
-+	int chgidx;
- 	int overlap_entries;
- 	int new_bios_entry;
- 	int old_nr, new_nr, chg_nr;
-@@ -278,35 +295,7 @@ int __init sanitize_e820_map(struct e820entry *biosmap, int max_nr_map,
- 	chg_nr = chgidx;
+> : 
+> : Second, the BadRAM patch expands the address patterns from the command
+> : line into individual entries in the kernel's e820 table.  The e820
+> : table is a fixed buffer that supports a very small, hard coded number
+> : of entries (128).  We require a much larger number of entries (on
+> : the order of a few thousand), so much of the google kernel patch deals
+> : with expanding the e820 table. Also, with the BadRAM patch, entries
+> : that don't fit in the table are silently dropped and this isn't
+> : appropriate for us.
 
- 	/* sort change-point list by memory addresses (low -> high) */
--	still_changing = 1;
--	while (still_changing)	{
--		still_changing = 0;
--		for (i = 1; i < chg_nr; i++)  {
--			unsigned long long curaddr, lastaddr;
--			unsigned long long curpbaddr, lastpbaddr;
--
--			curaddr = change_point[i]->addr;
--			lastaddr = change_point[i - 1]->addr;
--			curpbaddr = change_point[i]->pbios->addr;
--			lastpbaddr = change_point[i - 1]->pbios->addr;
--
--			/*
--			 * swap entries, when:
--			 *
--			 * curaddr > lastaddr or
--			 * curaddr == lastaddr and curaddr == curpbaddr and
--			 * lastaddr != lastpbaddr
--			 */
--			if (curaddr < lastaddr ||
--			    (curaddr == lastaddr && curaddr == curpbaddr &&
--			     lastaddr != lastpbaddr)) {
--				change_tmp = change_point[i];
--				change_point[i] = change_point[i-1];
--				change_point[i-1] = change_tmp;
--				still_changing = 1;
--			}
--		}
--	}
-+	sort(change_point, chg_nr, sizeof *change_point, cpcompare, 0);
+So far the use case I had in mind wasn't "thousands of entries". However
+expanding the e820 table is probably an issue that could be dealt with
+separately ?
 
- 	/* create a new bios memory map, removing overlaps */
- 	overlap_entries = 0;	 /* number of entries in the overlap table */
--- 
-1.7.3.1
+> : 
+> : Another caveat of mapping out too much bad memory in general.  If too
+> : much memory is removed from low memory, a system may not boot.  We
+> : solve this by generating good maps.  Our userspace tools do not map out
+> : memory below a certain limit, and it verifies against a system's iomap
+> : that only addresses from memory is mapped out.
 
+Well if too much low memory is bad, you're screwed anyway, not? :)
+
+> 
+> I have a couple of thoughts here:
+> 
+> - If this patchset is merged and a major user such as google is
+>   unable to use it and has to continue to carry a separate patch then
+>   that's a regrettable situation for the upstream kernel.
+
+I'm all ears for making things work out for potential users, I just
+didn't know.
+
+> 
+> - Google's is, afaik, the largest use case we know of: zillions of
+>   machines for a number of years.  And this real-world experience tells
+>   us that the badram patchset has shortcomings.  Shortcomings which we
+>   can expect other users to experience.
+> 
+> So.  What are your thoughts on these issues?
+
+I'm aware that the implementation I posted is not covering *everything*.
+It's a start and I tried to keep it simple and make use of already
+existing infrastructure.
+At the moment I don't see any arguments why this patchset couldn't play
+along nicely or get enhanced to support what Google needs, but I don't
+know Googles patches yet.
+
+Thanks!
+
+  Stefan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
