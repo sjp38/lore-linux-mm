@@ -1,100 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id E68D190015D
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 02:39:11 -0400 (EDT)
-Received: by iyl8 with SMTP id 8so571835iyl.14
-        for <linux-mm@kvack.org>; Tue, 21 Jun 2011 23:39:09 -0700 (PDT)
-From: Nai Xia <nai.xia@gmail.com>
-Reply-To: nai.xia@gmail.com
-Subject: Re: [PATCH] mmu_notifier, kvm: Introduce dirty bit tracking in spte and mmu notifier to help KSM dirty bit tracking
-Date: Wed, 22 Jun 2011 14:38:55 +0800
-References: <201106212055.25400.nai.xia@gmail.com> <20110622002123.GP25383@sequoia.sous-sol.org> <4E018897.7040707@ravellosystems.com>
-In-Reply-To: <4E018897.7040707@ravellosystems.com>
+	by kanga.kvack.org (Postfix) with ESMTP id BA56990015D
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 02:54:02 -0400 (EDT)
+Received: by yxn22 with SMTP id 22so266720yxn.14
+        for <linux-mm@kvack.org>; Tue, 21 Jun 2011 23:53:55 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-Message-Id: <201106221438.55516.nai.xia@gmail.com>
+In-Reply-To: <1308556213-24970-9-git-send-email-m.szyprowski@samsung.com>
+References: <1308556213-24970-1-git-send-email-m.szyprowski@samsung.com>
+	<1308556213-24970-9-git-send-email-m.szyprowski@samsung.com>
+Date: Wed, 22 Jun 2011 15:53:55 +0900
+Message-ID: <BANLkTikE6qziSZhcyx4HxWqpmg0eZhR+wg@mail.gmail.com>
+Subject: Re: [Linaro-mm-sig] [PATCH 8/8] ARM: dma-mapping: use alloc, mmap,
+ free from dma_ops
+From: KyongHo Cho <pullip.cho@samsung.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Izik Eidus <izik.eidus@ravellosystems.com>
-Cc: Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel <linux-kernel@vger.kernel.org>, kvm <kvm@vger.kernel.org>, mtosatti@redhat.com
+To: Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, Kyungmin Park <kyungmin.park@samsung.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Joerg Roedel <joro@8bytes.org>, Arnd Bergmann <arnd@arndb.de>
 
-On Wednesday 22 June 2011 14:15:51 Izik Eidus wrote:
-> On 6/22/2011 3:21 AM, Chris Wright wrote:
-> > * Nai Xia (nai.xia@gmail.com) wrote:
-> >> Introduced kvm_mmu_notifier_test_and_clear_dirty(), kvm_mmu_notifier_dirty_update()
-> >> and their mmu_notifier interfaces to support KSM dirty bit tracking, which brings
-> >> significant performance gain in volatile pages scanning in KSM.
-> >> Currently, kvm_mmu_notifier_dirty_update() returns 0 if and only if intel EPT is
-> >> enabled to indicate that the dirty bits of underlying sptes are not updated by
-> >> hardware.
-> > Did you test with each of EPT, NPT and shadow?
-> >
-> >> Signed-off-by: Nai Xia<nai.xia@gmail.com>
-> >> Acked-by: Izik Eidus<izik.eidus@ravellosystems.com>
-> >> ---
-> >>   arch/x86/include/asm/kvm_host.h |    1 +
-> >>   arch/x86/kvm/mmu.c              |   36 +++++++++++++++++++++++++++++
-> >>   arch/x86/kvm/mmu.h              |    3 +-
-> >>   arch/x86/kvm/vmx.c              |    1 +
-> >>   include/linux/kvm_host.h        |    2 +-
-> >>   include/linux/mmu_notifier.h    |   48 +++++++++++++++++++++++++++++++++++++++
-> >>   mm/mmu_notifier.c               |   33 ++++++++++++++++++++++++++
-> >>   virt/kvm/kvm_main.c             |   27 ++++++++++++++++++++++
-> >>   8 files changed, 149 insertions(+), 2 deletions(-)
-> >>
-> >> diff --git a/arch/x86/include/asm/kvm_host.h b/arch/x86/include/asm/kvm_host.h
-> >> index d2ac8e2..f0d7aa0 100644
-> >> --- a/arch/x86/include/asm/kvm_host.h
-> >> +++ b/arch/x86/include/asm/kvm_host.h
-> >> @@ -848,6 +848,7 @@ extern bool kvm_rebooting;
-> >>   int kvm_unmap_hva(struct kvm *kvm, unsigned long hva);
-> >>   int kvm_age_hva(struct kvm *kvm, unsigned long hva);
-> >>   int kvm_test_age_hva(struct kvm *kvm, unsigned long hva);
-> >> +int kvm_test_and_clear_dirty_hva(struct kvm *kvm, unsigned long hva);
-> >>   void kvm_set_spte_hva(struct kvm *kvm, unsigned long hva, pte_t pte);
-> >>   int cpuid_maxphyaddr(struct kvm_vcpu *vcpu);
-> >>   int kvm_cpu_has_interrupt(struct kvm_vcpu *vcpu);
-> >> diff --git a/arch/x86/kvm/mmu.c b/arch/x86/kvm/mmu.c
-> >> index aee3862..a5a0c51 100644
-> >> --- a/arch/x86/kvm/mmu.c
-> >> +++ b/arch/x86/kvm/mmu.c
-> >> @@ -979,6 +979,37 @@ out:
-> >>   	return young;
-> >>   }
-> >>
-> >> +/*
-> >> + * Caller is supposed to SetPageDirty(), it's not done inside this.
-> >> + */
-> >> +static
-> >> +int kvm_test_and_clear_dirty_rmapp(struct kvm *kvm, unsigned long *rmapp,
-> >> +				   unsigned long data)
-> >> +{
-> >> +	u64 *spte;
-> >> +	int dirty = 0;
-> >> +
-> >> +	if (!shadow_dirty_mask) {
-> >> +		WARN(1, "KVM: do NOT try to test dirty bit in EPT\n");
-> >> +		goto out;
-> >> +	}
-> > This should never fire with the dirty_update() notifier test, right?
-> > And that means that this whole optimization is for the shadow mmu case,
-> > arguably the legacy case.
-> >
-> 
-> Hi Chris,
-> AMD npt does track the dirty bit in the nested page tables,
-> so the shadow_dirty_mask should not be 0 in that case...
-> 
-Hi Izik, 
-I think he meant that if the caller is doing right && (!shadow_dirty_mask), 
-the kvm_test_and_clear_dirty_rmapp() will never be called at all. So 
-this test inside kvm_test_and_clear_dirty_rmapp() is useless...as I said
-I added this test in any case of this interface abused by others, just like
-a softer BUG_ON() --- dirty bit is not that critical to bump into BUG().
+Hi.
+
+On Mon, Jun 20, 2011 at 4:50 PM, Marek Szyprowski
+<m.szyprowski@samsung.com> wrote:
+
+> -extern void *dma_alloc_coherent(struct device *, size_t, dma_addr_t *, g=
+fp_t);
+> +extern void *arm_dma_alloc(struct device *dev, size_t size, dma_addr_t *=
+handle,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0gfp_t gfp, struct dm=
+a_attrs *attrs);
+> +
+> +#define dma_alloc_coherent(d,s,h,f) dma_alloc_attrs(d,s,h,f,NULL)
+> +
+> +static inline void *dma_alloc_attrs(struct device *dev, size_t size,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
+ =A0dma_addr_t *dma_handle, gfp_t flag,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
+ =A0struct dma_attrs *attrs)
+> +{
+> + =A0 =A0 =A0 struct dma_map_ops *ops =3D get_dma_ops(dev);
+> + =A0 =A0 =A0 void *cpu_addr;
+> + =A0 =A0 =A0 BUG_ON(!ops);
+> +
+> + =A0 =A0 =A0 cpu_addr =3D ops->alloc(dev, size, dma_handle, flag, attrs)=
+;
+> + =A0 =A0 =A0 debug_dma_alloc_coherent(dev, size, *dma_handle, cpu_addr);
+> + =A0 =A0 =A0 return cpu_addr;
+> +}
+>
+
+Apart from the necessity of alloc_attr,
+I hope the callback implementations to check if a function pointer is NULL.
+Suppose that a system want to use default ARM implementation of dma_alloc_*=
+()
+while it uses its own implementations of dma_map_*().
 
 
+With your suggestion,
+we have only one option:
+
+void *my_alloc(...) {
+return dma_alloc_coherent(NULL, ...);
+}
+
+struct dma_map_ops ops =3D {
+.alloc_coherent =3D &my_alloc,
+...
+};
+
+
+
+I think the following method is simpler:
+
+struct dma_map_ops ops =3D {
+.alloc_coherent =3D NULL,
+...
+};
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
