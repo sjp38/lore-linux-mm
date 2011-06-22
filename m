@@ -1,45 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 62604900185
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 08:32:11 -0400 (EDT)
-Date: Wed, 22 Jun 2011 14:32:04 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: [PATCH V2] mm: Do not keep page locked during page fault while
- charging it for memcg
-Message-ID: <20110622123204.GC14343@tiehlicka.suse.cz>
-References: <20110622120635.GB14343@tiehlicka.suse.cz>
- <20110622121516.GA28359@infradead.org>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id E3CC1900185
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 08:34:52 -0400 (EDT)
+Message-ID: <4E01E148.2080302@redhat.com>
+Date: Wed, 22 Jun 2011 20:34:16 +0800
+From: Cong Wang <amwang@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110622121516.GA28359@infradead.org>
+Subject: Re: [PATCH 2/3] mm: make the threshold of enabling THP configurable
+References: <1308587683-2555-1-git-send-email-amwang@redhat.com> <1308587683-2555-2-git-send-email-amwang@redhat.com> <20110620165955.GB9396@suse.de> <4DFF8050.9070201@redhat.com> <20110621093640.GD9396@suse.de> <4E015672.2020407@redhat.com> <20110622091611.GB7585@csn.ul.ie> <4E01C80F.8070605@redhat.com> <20110622111525.GK9396@suse.de>
+In-Reply-To: <20110622111525.GK9396@suse.de>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Mel Gorman <mgorman@suse.de>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Andrea Arcangeli <aarcange@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
 
-On Wed 22-06-11 08:15:16, Christoph Hellwig wrote:
-> > +
-> > +			/* We have to drop the page lock here because memcg
-> > +			 * charging might block for unbound time if memcg oom
-> > +			 * killer is disabled.
-> > +			 */
-> > +			unlock_page(vmf.page);
-> > +			ret = mem_cgroup_newpage_charge(page, mm, GFP_KERNEL);
-> > +			lock_page(vmf.page);
-> 
-> This introduces a completely poinless unlock/lock cycle for non-memcg
-> pagefaults.  Please make sure it only happens when actually needed.
+ao? 2011a1'06ae??22ae?JPY 19:15, Mel Gorman a??e??:
+> On Wed, Jun 22, 2011 at 06:46:39PM +0800, Cong Wang wrote:
+>> ??? 2011???06???22??? 17:16, Mel Gorman ??????:
+>>>
+>>> What I meant was that there is a rational reason why 512M is the
+>>> default for enabling THP by default. Tuning it lower than that by any
+>>> means makes very little sense. Tuning it higher might make some sense
+>>> but it is more likely that THP would simply be disabled via sysctl. I
+>>> see very little advantage to introducing this Kconfig option other
+>>> than as a source of confusion when running make oldconfig.
+>>>
+>>
+>> The tunable range is (512, 8192), so 512M is the minimum.
+>>
+>> Sure, I knew it can be disabled via /sys, actually we can do even
+>> more in user-space, that is totally move the 512M check out of kernel,
+>> why we didn't?
+>>
+>
+> Because the reason why 512M is the default is not obvious and there
+> was no guarantee all distros would chose a reasonable default for
+> an init script (or know that an init script was even necessary).
+> This is one of the few cases where there is a sensible default that
+> is the least surprising.
+>
 
-Fair point. Thanks!
-What about the following?
-I realize that pushing more memcg logic into mm/memory.c is not nice but
-I found it better than pushing the old page into mem_cgroup_newpage_charge.
-We could also check whether the old page is in the root cgroup because
-memcg oom killer is not active there but that would add more code into
-this hot path so I guess it is not worth it.
+Putting a well-explained Kconfig help would solve this problem,
+so I don't think this is a surprising thing.
 
-Changes since v1
-- do not unlock page when memory controller is disabled.
-
-8<------
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
