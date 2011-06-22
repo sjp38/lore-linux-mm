@@ -1,52 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 055D66B01F9
-	for <linux-mm@kvack.org>; Tue, 21 Jun 2011 21:45:32 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 592BD3EE0BC
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 10:45:28 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 3FDD145DE94
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 10:45:28 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 26EFB45DE92
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 10:45:28 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 178191DB8052
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 10:45:28 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id D6E391DB804A
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 10:45:27 +0900 (JST)
-Message-ID: <4E014925.8030303@jp.fujitsu.com>
-Date: Wed, 22 Jun 2011 10:45:09 +0900
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 471B86B0246
+	for <linux-mm@kvack.org>; Tue, 21 Jun 2011 22:42:32 -0400 (EDT)
+Message-ID: <4E015672.2020407@redhat.com>
+Date: Wed, 22 Jun 2011 10:41:54 +0800
+From: Cong Wang <amwang@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [patch] oom: remove references to old badness() function
-References: <alpine.DEB.2.00.1106211756580.4454@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1106211756580.4454@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Subject: Re: [PATCH 2/3] mm: make the threshold of enabling THP configurable
+References: <1308587683-2555-1-git-send-email-amwang@redhat.com> <1308587683-2555-2-git-send-email-amwang@redhat.com> <20110620165955.GB9396@suse.de> <4DFF8050.9070201@redhat.com> <20110621093640.GD9396@suse.de>
+In-Reply-To: <20110621093640.GD9396@suse.de>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: rientjes@google.com
-Cc: akpm@linux-foundation.org, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
 
-(2011/06/22 9:57), David Rientjes wrote:
-> The badness() function in the oom killer was renamed to oom_badness() in
-> a63d83f427fb ("oom: badness heuristic rewrite") since it is a globally
-> exported function for clarity.
-> 
-> The prototype for the old function still existed in linux/oom.h, so
-> remove it.  There are no existing users.
-> 
-> Also fixes documentation and comment references to badness() and adjusts
-> them accordingly.
-> 
-> Signed-off-by: David Rientjes <rientjes@google.com>
+ao? 2011a1'06ae??21ae?JPY 17:36, Mel Gorman a??e??:
+ >
+> Fragmentation avoidance benefits from tuning min_free_kbytes to a higher
+> value and minimising fragmentation-related problems is crucial if THP is
+> to allocate its necessary pages.
+>
+> THP tunes min_free_kbytes automatically and this value is in part
+> related to the number of zones. At 512M on a single node machine, the
+> recommended min_free_kbytes is close to 10% of memory which is barely
+> tolerable as it is. At 256M, it's 17%, at 128M, it's 34% so tuning the
+> value lower has diminishing returns as the performance impact of giving
+> up such a high percentage of free memory is not going to be offset by
+> reduced TLB misses. Tuning it to a higher value might make some sense
+> if the higher min_free_kbytes was a problem but it would be much more
+> rational to tune it as a sysctl than making it a compile-time decision.
+>
 
-Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+What this patch changed is the check of total memory pages in hugepage_init(),
+which I don't think is suitable as a sysctl.
 
+If you mean min_free_kbytes could be tuned as a sysctl, that should be done
+in other patch, right? :)
 
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
