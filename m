@@ -1,66 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 9304D90015D
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 02:32:44 -0400 (EDT)
-Received: from kpbe20.cbf.corp.google.com (kpbe20.cbf.corp.google.com [172.25.105.84])
-	by smtp-out.google.com with ESMTP id p5M6WcZf024708
-	for <linux-mm@kvack.org>; Tue, 21 Jun 2011 23:32:38 -0700
-Received: from pwi5 (pwi5.prod.google.com [10.241.219.5])
-	by kpbe20.cbf.corp.google.com with ESMTP id p5M6WaTc003678
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 21 Jun 2011 23:32:37 -0700
-Received: by pwi5 with SMTP id 5so498332pwi.18
-        for <linux-mm@kvack.org>; Tue, 21 Jun 2011 23:32:36 -0700 (PDT)
-Date: Tue, 21 Jun 2011 23:32:34 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH v2 2/4] mm: make the threshold of enabling THP
- configurable
-In-Reply-To: <4E018060.3050607@redhat.com>
-Message-ID: <alpine.DEB.2.00.1106212325400.14693@chino.kir.corp.google.com>
-References: <1308643849-3325-1-git-send-email-amwang@redhat.com> <1308643849-3325-2-git-send-email-amwang@redhat.com> <alpine.DEB.2.00.1106211817340.5205@chino.kir.corp.google.com> <4E015C36.2050005@redhat.com> <alpine.DEB.2.00.1106212024210.8712@chino.kir.corp.google.com>
- <4E018060.3050607@redhat.com>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id E68D190015D
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 02:39:11 -0400 (EDT)
+Received: by iyl8 with SMTP id 8so571835iyl.14
+        for <linux-mm@kvack.org>; Tue, 21 Jun 2011 23:39:09 -0700 (PDT)
+From: Nai Xia <nai.xia@gmail.com>
+Reply-To: nai.xia@gmail.com
+Subject: Re: [PATCH] mmu_notifier, kvm: Introduce dirty bit tracking in spte and mmu notifier to help KSM dirty bit tracking
+Date: Wed, 22 Jun 2011 14:38:55 +0800
+References: <201106212055.25400.nai.xia@gmail.com> <20110622002123.GP25383@sequoia.sous-sol.org> <4E018897.7040707@ravellosystems.com>
+In-Reply-To: <4E018897.7040707@ravellosystems.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: Text/Plain;
+  charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Message-Id: <201106221438.55516.nai.xia@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Cong Wang <amwang@redhat.com>
-Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, dave@linux.vnet.ibm.com, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
+To: Izik Eidus <izik.eidus@ravellosystems.com>
+Cc: Chris Wright <chrisw@sous-sol.org>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel <linux-kernel@vger.kernel.org>, kvm <kvm@vger.kernel.org>, mtosatti@redhat.com
 
-On Wed, 22 Jun 2011, Cong Wang wrote:
-
-> > Either way, this patch isn't needed since it has no benefit over doing it
-> > through an init script.
+On Wednesday 22 June 2011 14:15:51 Izik Eidus wrote:
+> On 6/22/2011 3:21 AM, Chris Wright wrote:
+> > * Nai Xia (nai.xia@gmail.com) wrote:
+> >> Introduced kvm_mmu_notifier_test_and_clear_dirty(), kvm_mmu_notifier_dirty_update()
+> >> and their mmu_notifier interfaces to support KSM dirty bit tracking, which brings
+> >> significant performance gain in volatile pages scanning in KSM.
+> >> Currently, kvm_mmu_notifier_dirty_update() returns 0 if and only if intel EPT is
+> >> enabled to indicate that the dirty bits of underlying sptes are not updated by
+> >> hardware.
+> > Did you test with each of EPT, NPT and shadow?
+> >
+> >> Signed-off-by: Nai Xia<nai.xia@gmail.com>
+> >> Acked-by: Izik Eidus<izik.eidus@ravellosystems.com>
+> >> ---
+> >>   arch/x86/include/asm/kvm_host.h |    1 +
+> >>   arch/x86/kvm/mmu.c              |   36 +++++++++++++++++++++++++++++
+> >>   arch/x86/kvm/mmu.h              |    3 +-
+> >>   arch/x86/kvm/vmx.c              |    1 +
+> >>   include/linux/kvm_host.h        |    2 +-
+> >>   include/linux/mmu_notifier.h    |   48 +++++++++++++++++++++++++++++++++++++++
+> >>   mm/mmu_notifier.c               |   33 ++++++++++++++++++++++++++
+> >>   virt/kvm/kvm_main.c             |   27 ++++++++++++++++++++++
+> >>   8 files changed, 149 insertions(+), 2 deletions(-)
+> >>
+> >> diff --git a/arch/x86/include/asm/kvm_host.h b/arch/x86/include/asm/kvm_host.h
+> >> index d2ac8e2..f0d7aa0 100644
+> >> --- a/arch/x86/include/asm/kvm_host.h
+> >> +++ b/arch/x86/include/asm/kvm_host.h
+> >> @@ -848,6 +848,7 @@ extern bool kvm_rebooting;
+> >>   int kvm_unmap_hva(struct kvm *kvm, unsigned long hva);
+> >>   int kvm_age_hva(struct kvm *kvm, unsigned long hva);
+> >>   int kvm_test_age_hva(struct kvm *kvm, unsigned long hva);
+> >> +int kvm_test_and_clear_dirty_hva(struct kvm *kvm, unsigned long hva);
+> >>   void kvm_set_spte_hva(struct kvm *kvm, unsigned long hva, pte_t pte);
+> >>   int cpuid_maxphyaddr(struct kvm_vcpu *vcpu);
+> >>   int kvm_cpu_has_interrupt(struct kvm_vcpu *vcpu);
+> >> diff --git a/arch/x86/kvm/mmu.c b/arch/x86/kvm/mmu.c
+> >> index aee3862..a5a0c51 100644
+> >> --- a/arch/x86/kvm/mmu.c
+> >> +++ b/arch/x86/kvm/mmu.c
+> >> @@ -979,6 +979,37 @@ out:
+> >>   	return young;
+> >>   }
+> >>
+> >> +/*
+> >> + * Caller is supposed to SetPageDirty(), it's not done inside this.
+> >> + */
+> >> +static
+> >> +int kvm_test_and_clear_dirty_rmapp(struct kvm *kvm, unsigned long *rmapp,
+> >> +				   unsigned long data)
+> >> +{
+> >> +	u64 *spte;
+> >> +	int dirty = 0;
+> >> +
+> >> +	if (!shadow_dirty_mask) {
+> >> +		WARN(1, "KVM: do NOT try to test dirty bit in EPT\n");
+> >> +		goto out;
+> >> +	}
+> > This should never fire with the dirty_update() notifier test, right?
+> > And that means that this whole optimization is for the shadow mmu case,
+> > arguably the legacy case.
+> >
 > 
-> If you were right, CONFIG_TRANSPARENT_HUGEPAGE_ALWAYS is not needed,
-> you can do it through an init script.
+> Hi Chris,
+> AMD npt does track the dirty bit in the nested page tables,
+> so the shadow_dirty_mask should not be 0 in that case...
 > 
+Hi Izik, 
+I think he meant that if the caller is doing right && (!shadow_dirty_mask), 
+the kvm_test_and_clear_dirty_rmapp() will never be called at all. So 
+this test inside kvm_test_and_clear_dirty_rmapp() is useless...as I said
+I added this test in any case of this interface abused by others, just like
+a softer BUG_ON() --- dirty bit is not that critical to bump into BUG().
 
-They are really two different things: config options like 
-CONFIG_TRANSPARENT_HUGEPAGE_ALWAYS and CONFIG_SLUB_DEBUG_ON are shortcuts 
-for command line options when you want the _default_ behavior to be 
-specified.  They could easily be done on the command line just as they can 
-be done in the config.  They typically have far reaching consequences 
-depending on whether they are enabled or disabled and warrant the entry in 
-the config file.
 
-This patch, however, is not making the heuristic any easier to work with; 
-in fact, if the default were ever changed or the value is changed on your 
-kernel, then certain kernels will have THP enabled by default and others 
-will not.  That's why I suggested an override command line option like 
-transparent_hugepage=force to ignore any disabling heursitics either 
-present or future.
-
-> If you were right, the 512M limit is not needed neither, you have
-> transparent_hugepage=never boot parameter and do the check of
-> 512M later in an init script. (Actually, moving the 512M check to
-> user-space is really more sane to me.)
-> 
-
-It's quite obvious that the default behavior intended by the author is 
-that it is defaulted off for systems with less than 512M of memory.  
-Obfuscating that probably isn't a very good idea, but I'm always in favor 
-of command lines that allow users to override settings when they really do 
-know better.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
