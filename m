@@ -1,98 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id EB1A690016F
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 05:44:05 -0400 (EDT)
-Date: Wed, 22 Jun 2011 10:44:01 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: sandy bridge kswapd0 livelock with pagecache
-Message-ID: <20110622094401.GJ9396@suse.de>
-References: <4E0069FE.4000708@draigBrady.com>
- <20110621103920.GF9396@suse.de>
- <4E0076C7.4000809@draigBrady.com>
- <20110621113447.GG9396@suse.de>
- <4E008784.80107@draigBrady.com>
- <20110621130756.GH9396@suse.de>
- <4E00A96D.8020806@draigBrady.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id C430290016F
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 05:53:15 -0400 (EDT)
+Message-ID: <4E01BB86.5010708@5t9.de>
+Date: Wed, 22 Jun 2011 11:53:10 +0200
+From: Lutz Vieweg <lvml@5t9.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <4E00A96D.8020806@draigBrady.com>
+Subject: Re: "make -j" with memory.(memsw.)limit_in_bytes smaller than required
+ -> livelock,  even for unlimited processes
+References: <4E00AFE6.20302@5t9.de> <20110622091018.16c14c78.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110622091018.16c14c78.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: P?draig Brady <P@draigBrady.com>
-Cc: linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-mm@kvack.org
 
-On Tue, Jun 21, 2011 at 03:23:41PM +0100, P?draig Brady wrote:
-> On 21/06/11 14:07, Mel Gorman wrote:
-> > On Tue, Jun 21, 2011 at 12:59:00PM +0100, P?draig Brady wrote:
-> >> On 21/06/11 12:34, Mel Gorman wrote:
-> >>> On Tue, Jun 21, 2011 at 11:47:35AM +0100, P?draig Brady wrote:
-> >>>> On 21/06/11 11:39, Mel Gorman wrote:
-> >>>>> On Tue, Jun 21, 2011 at 10:53:02AM +0100, P?draig Brady wrote:
-> >>>>>> I tried the 2 patches here to no avail:
-> >>>>>> http://marc.info/?l=linux-mm&m=130503811704830&w=2
-> >>>>>>
-> >>>>>> I originally logged this at:
-> >>>>>> https://bugzilla.redhat.com/show_bug.cgi?id=712019
-> >>>>>>
-> >>>>>> I can compile up and quickly test any suggestions.
-> >>>>>>
-> >>>>>
-> >>>>> I recently looked through what kswapd does and there are a number
-> >>>>> of problem areas. Unfortunately, I haven't gotten around to doing
-> >>>>> anything about it yet or running the test cases to see if they are
-> >>>>> really problems. In your case, the following is a strong possibility
-> >>>>> though. This should be applied on top of the two patches merged from
-> >>>>> that thread.
-> >>>>>
-> >>>>> This is not tested in any way, based on 3.0-rc3
-> >>>>
-> >>>> This does not fix the issue here.
-> >>>>
-> >>>
-> >>> I made a silly mistake here.  When you mentioned two patches applied,
-> >>> I assumed you meant two patches that were finally merged from that
-> >>> discussion thread instead of looking at your linked mail. Now that I
-> >>> have checked, I think you applied the SLUB patches while the patches
-> >>> I was thinking of are;
-> >>>
-> >>> [afc7e326: mm: vmscan: correct use of pgdat_balanced in sleeping_prematurely]
-> >>> [f06590bd: mm: vmscan: correctly check if reclaimer should schedule during shrink_slab]
-> >>>
-> >>> The first one in particular has been reported by another user to fix
-> >>> hangs related to copying large files. I'm assuming you are testing
-> >>> against the Fedora kernel. As these patches were merged for 3.0-rc1, can
-> >>> you check if applying just these two patches to your kernel helps?
-> >>
-> >> These patches are already present in my 2.6.38.8-32.fc15.x86_64 kernel :(
-> >>
-> > 
-> > Would it be possible to record a profile while it is livelocked to check
-> > if it's stuck in this loop in shrink_slab()?
-> 
-> I did:
-> 
+On 06/22/2011 02:10 AM, KAMEZAWA Hiroyuki wrote:
 
-I haven't started looking at this properly yet (stuck with other
-bugs unfortunately) but I glanced at the sysrq message and on a 2G
-64-bit machine, you have a tiny Normal zone! This is very unexpected.
-Can you boot with mminit_loglevel=4 loglevel=9 and post your full
-dmesg please? I want to see what the memory layout of this thing
-looks like to see in the future if there is a correlation between
-this type of bug and a tiny highest zone.
+> This is a famous fork-bomb problem.
 
-Broadly speaking though from seeing that, it reminds me of a
-similar bug where small zones could keep kswapd alive for high-order
-allocations reclaiming slab constantly. I suspect on your machine
-that the Normal zone cannot be balanced for order-0 allocations and
-is keeping kswapd awake.
+Well, the classical fork-bomb would probably try to spawn an infinite
+amount of processes, while the number of processes spawned by "make -j"
+is limited to the amount of source files (200 in my reproduction Makefile=
+)
+and "make" will not restart any processes that got OOM-killed, so it
+should terminate after a (not really long) while.
 
-Can you try booting with mem=1792M and if the Normal zone disappears,
-try reproducing the bug?
+> Don't you use your test set under some cpu cgroup ?
 
--- 
-Mel Gorman
-SUSE Labs
+I use the "cpu" controller, too, but haven't seen adverse
+effects from doing that so far.
+Even in the situation of the livelock I reported, processes
+of other users that do not try I/O get their fair share
+of CPU time.
+
+
+> Then, you can stop oom-kill by echo 1>  .../memory.oom_control.
+> All processes under memcg will be blocked. you can kill all process und=
+er memcg
+> by you hands.
+
+Well, but automatic OOM-killing of the processes of the memory hog was ex=
+actly
+the desired behaviour I was looking for :-)
+
+
+>>    echo 64M>/cgroup/test/memory.limit_in_bytes
+>>    echo 64M>/cgroup/test/memory.memsw.limit_in_bytes
+>
+> 64M is crazy small limit for make -j , I use 300M for my test...
+
+Just as well, in our real-world use case, the limits are set both
+to 16G (which still isn't enough for a "make -j" on our huge source tree)=
+,
+I intentionally set a rather low limit for the test-Makefile because
+I wanted to spare others from first having to write 16G of bogus
+source-files to their local storage before the symptom can be reproduced.=
+
+
+
+> and plesse see what hapeens when
+>
+>   echo 1>  /memory.oom_control
+
+When I do this before the "make -j", the make childs are stopped,
+processes of other users proceed normally.
+
+But of course this will let the user who did the "make -j" assume
+the machine is just busy with the compilation, instead of telling
+him "you used too much memory".
+And further processes started by the same users will mysteriously
+stop, too...
+
+
+> Then, waiting for some page bit...I/O of libc mapped pages ?
+>
+> Hmm. it seems buggy behavior. Okay, I'll dig this.
+
+Thanks a lot for investigating!
+
+Regards,
+
+Lutz Vieweg
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
