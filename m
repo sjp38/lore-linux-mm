@@ -1,113 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id C2D1D900194
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 17:51:31 -0400 (EDT)
-From: Andrea Righi <andrea@betterlinux.com>
-Subject: [PATCH RFC] fadvise: move active pages to inactive list with POSIX_FADV_DONTNEED
-Date: Wed, 22 Jun 2011 23:51:20 +0200
-Message-Id: <1308779480-4950-1-git-send-email-andrea@betterlinux.com>
+	by kanga.kvack.org (Postfix) with ESMTP id ADC8D900194
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 18:57:48 -0400 (EDT)
+Received: from wpaz9.hot.corp.google.com (wpaz9.hot.corp.google.com [172.24.198.73])
+	by smtp-out.google.com with ESMTP id p5MMvk6t023632
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 15:57:46 -0700
+Received: from pwi4 (pwi4.prod.google.com [10.241.219.4])
+	by wpaz9.hot.corp.google.com with ESMTP id p5MMveaO023237
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 15:57:45 -0700
+Received: by pwi4 with SMTP id 4so1880721pwi.1
+        for <linux-mm@kvack.org>; Wed, 22 Jun 2011 15:57:40 -0700 (PDT)
+Date: Wed, 22 Jun 2011 15:57:38 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 1/6] oom: use euid instead of CAP_SYS_ADMIN for protection
+ root process
+In-Reply-To: <4E01C809.9020508@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1106221552310.11759@chino.kir.corp.google.com>
+References: <4E01C7D5.3060603@jp.fujitsu.com> <4E01C809.9020508@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Minchan Kim <minchan.kim@gmail.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Jerry James <jamesjer@betterlinux.com>, Marcus Sorensen <marcus@bluehost.com>, Matt Heaton <matt@bluehost.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, caiqian@redhat.com, Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Oleg Nesterov <oleg@redhat.com>
 
-There were some reported problems in the past about trashing page cache
-when a backup software (i.e., rsync) touches a huge amount of pages (see
-for example [1]).
+On Wed, 22 Jun 2011, KOSAKI Motohiro wrote:
 
-This problem has been almost fixed by the Minchan Kim's patch [2] and a
-proper use of fadvise() in the backup software. For example this patch
-set [3] has been proposed for inclusion in rsync.
+> Recently, many userland daemon prefer to use libcap-ng and drop
+> all privilege just after startup. Because of (1) Almost privilege
+> are necessary only when special file open, and aren't necessary
+> read and write. (2) In general, privilege dropping brings better
+> protection from exploit when bugs are found in the daemon.
+> 
 
-However, there can be still other similar trashing problems: when the
-backup software reads all the source files, some of them may be part of
-the actual working set of the system. When a
-posix_fadvise(POSIX_FADV_DONTNEED) is performed _all_ pages are evicted
-from pagecache, both the working set and the use-once pages touched only
-by the backup software.
+You could also say that dropping the capability drops the bonus it is 
+given in the oom killer.  We've never promised any benefit in the oom 
+killer badness scoring without the capability.
 
-With the following solution when posix_fadvise(POSIX_FADV_DONTNEED) is
-called for an active page instead of removing it from the page cache it
-is added to the tail of the inactive list. Otherwise, if it's already in
-the inactive list the page is removed from the page cache.
+> But, it makes suboptimal oom-killer behavior. CAI Qian reported
+> oom killer killed some important daemon at first on his fedora
+> like distro. Because they've lost CAP_SYS_ADMIN.
+> 
 
-In this way if the backup was the only user of a page, that page will
-be immediately removed from the page cache by calling
-posix_fadvise(POSIX_FADV_DONTNEED). If the page was also touched by
-other processes it'll be moved to the inactive list, having another
-chance of being re-added to the working set, or simply reclaimed when
-memory is needed.
+I disagree that we should be identifying "important daemons" by tying it 
+the effective uid of the process and thus making some sort of inference 
+because a thread was forked by root.  I think it is more clear to tie that 
+to an actual capability that is present, such as CAP_SYS_ADMIN, or suggest 
+that the user give the "important daemon" it's own bonus by tuning 
+/proc/pid/oom_score_adj.
 
-Testcase:
+We already know that the kernel will not be able to identify critical 
+processes perfectly, that's an assumption that we can live with.  We must 
+rely on userspace to influence that decision by using the tunable.
 
-  - create a 1GB file called "zero"
-  - run md5sum zero to read all the pages in page cache (this is to
-    simulate the user activity on this file)
-  - run "rsync zero zero_copy" (rsync is patched with [3])
-  - re-run md5sum zero (user activity on the working set) and measure
-    the time to complete this command
-
-The test has been performed using 3.0.0-rc4 vanilla and with this patch
-applied (3.0.0-rc4-fadvise).
-
-Results:
-                  avg elapsed time      block:block_bio_queue
- 3.0.0-rc4                  4.127s                      8,214
- 3.0.0-rc4-fadvise          2.146s                          0
-
-In the first case the file is evicted from page cache completely and we
-must re-read it from the disk. In the second case the file is still in
-page cache (in the inactive list) and we don't need any other additional
-I/O operation.
-
-[1] http://marc.info/?l=rsync&m=128885034930933&w=2
-[2] https://lkml.org/lkml/2011/2/20/57
-[3] http://lists.samba.org/archive/rsync/2010-November/025827.html
-
-Signed-off-by: Andrea Righi <andrea@betterlinux.com>
----
- mm/swap.c     |    9 +++++----
- mm/truncate.c |    5 ++++-
- 2 files changed, 9 insertions(+), 5 deletions(-)
-
-diff --git a/mm/swap.c b/mm/swap.c
-index 3a442f1..fc8bb76 100644
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -411,10 +411,11 @@ void add_page_to_unevictable_list(struct page *page)
-  *
-  * 1. active, mapped page -> none
-  * 2. active, dirty/writeback page -> inactive, head, PG_reclaim
-- * 3. inactive, mapped page -> none
-- * 4. inactive, dirty/writeback page -> inactive, head, PG_reclaim
-- * 5. inactive, clean -> inactive, tail
-- * 6. Others -> none
-+ * 3. active, clean -> inactive, tail
-+ * 4. inactive, mapped page -> none
-+ * 5. inactive, dirty/writeback page -> inactive, head, PG_reclaim
-+ * 6. inactive, clean -> inactive, tail
-+ * 7. Others -> none
-  *
-  * In 4, why it moves inactive's head, the VM expects the page would
-  * be write it out by flusher threads as this is much more effective
-diff --git a/mm/truncate.c b/mm/truncate.c
-index 3a29a61..043aabd 100644
---- a/mm/truncate.c
-+++ b/mm/truncate.c
-@@ -357,7 +357,10 @@ unsigned long invalidate_mapping_pages(struct address_space *mapping,
- 			if (lock_failed)
- 				continue;
- 
--			ret = invalidate_inode_page(page);
-+			if (PageActive(page))
-+				ret = 0;
-+			else
-+				ret = invalidate_inode_page(page);
- 			unlock_page(page);
- 			/*
- 			 * Invalidation is a hint that the page is no longer
--- 
-1.7.4.1
+If this patch were merged, I could easily imagine an argument in the 
+reverse that would just simply revert it: it would be very easy to say 
+that CAP_SYS_ADMIN has always given this bonus in recent memory so 
+changing it would be a regression over the previous behavior and/or that 
+giving the capability to a thread as it runs implies that it should have 
+the bonus when the euid may not be 0.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
