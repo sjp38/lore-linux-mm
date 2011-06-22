@@ -1,68 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 96CF190016F
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 07:15:39 -0400 (EDT)
-Date: Wed, 22 Jun 2011 12:15:25 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 2/3] mm: make the threshold of enabling THP configurable
-Message-ID: <20110622111525.GK9396@suse.de>
-References: <1308587683-2555-1-git-send-email-amwang@redhat.com>
- <1308587683-2555-2-git-send-email-amwang@redhat.com>
- <20110620165955.GB9396@suse.de>
- <4DFF8050.9070201@redhat.com>
- <20110621093640.GD9396@suse.de>
- <4E015672.2020407@redhat.com>
- <20110622091611.GB7585@csn.ul.ie>
- <4E01C80F.8070605@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <4E01C80F.8070605@redhat.com>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id D8B7B90016F
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 07:19:19 -0400 (EDT)
+From: Stefan Assmann <sassmann@kpanic.de>
+Subject: [PATCH v2 1/3] Add string parsing function get_next_ulong
+Date: Wed, 22 Jun 2011 13:18:52 +0200
+Message-Id: <1308741534-6846-2-git-send-email-sassmann@kpanic.de>
+In-Reply-To: <1308741534-6846-1-git-send-email-sassmann@kpanic.de>
+References: <1308741534-6846-1-git-send-email-sassmann@kpanic.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Cong Wang <amwang@redhat.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Andrea Arcangeli <aarcange@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, tony.luck@intel.com, andi@firstfloor.org, mingo@elte.hu, hpa@zytor.com, rick@vanrein.org, rdunlap@xenotime.net, sassmann@kpanic.de
 
-On Wed, Jun 22, 2011 at 06:46:39PM +0800, Cong Wang wrote:
-> ??? 2011???06???22??? 17:16, Mel Gorman ??????:
-> >
-> >What I meant was that there is a rational reason why 512M is the
-> >default for enabling THP by default. Tuning it lower than that by any
-> >means makes very little sense. Tuning it higher might make some sense
-> >but it is more likely that THP would simply be disabled via sysctl. I
-> >see very little advantage to introducing this Kconfig option other
-> >than as a source of confusion when running make oldconfig.
-> >
-> 
-> The tunable range is (512, 8192), so 512M is the minimum.
-> 
-> Sure, I knew it can be disabled via /sys, actually we can do even
-> more in user-space, that is totally move the 512M check out of kernel,
-> why we didn't?
-> 
+Adding this function to allow easy parsing of unsigned long values from the
+beginning of strings. Convenience function to parse pointers from the kernel
+command line.
 
-Because the reason why 512M is the default is not obvious and there
-was no guarantee all distros would chose a reasonable default for
-an init script (or know that an init script was even necessary).
-This is one of the few cases where there is a sensible default that
-is the least surprising.
+Signed-off-by: Stefan Assmann <sassmann@kpanic.de>
+Acked-by: Tony Luck <tony.luck@intel.com>
+Acked-by: Andi Kleen <ak@linux.intel.com>
+---
+ include/linux/kernel.h |    1 +
+ lib/cmdline.c          |   35 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 36 insertions(+), 0 deletions(-)
 
-> In short, I think we should either remove the 512M from kernel, or
-> make 512M to be tunable.
-> 
-
-That just hands them a different sort of rope to hang themselves with
-where THP gets enabled on small machines or botting with mem=128M
-and getting surprised later by the high min_free_kbytes.
-
-At this point, I don't really care if the Kconfig entry exists or
-not. I think it gains nothing but additional confusion for people
-who write .config files but it's not a topic I want to discuss for
-days either.
-
+diff --git a/include/linux/kernel.h b/include/linux/kernel.h
+index 00cec4d..98c1916 100644
+--- a/include/linux/kernel.h
++++ b/include/linux/kernel.h
+@@ -280,6 +280,7 @@ extern int vsscanf(const char *, const char *, va_list)
+ 
+ extern int get_option(char **str, int *pint);
+ extern char *get_options(const char *str, int nints, int *ints);
++extern int get_next_ulong(char **str, unsigned long *val, char sep, int base);
+ extern unsigned long long memparse(const char *ptr, char **retptr);
+ 
+ extern int core_kernel_text(unsigned long addr);
+diff --git a/lib/cmdline.c b/lib/cmdline.c
+index f5f3ad8..82a6616 100644
+--- a/lib/cmdline.c
++++ b/lib/cmdline.c
+@@ -114,6 +114,41 @@ char *get_options(const char *str, int nints, int *ints)
+ }
+ 
+ /**
++ *	get_next_ulong - Parse unsigned long at the beginning of a string
++ *	@strp: (output) String to be parsed
++ *	@val: (output) unsigned long carrying the result
++ *	@sep: character specifying the separator
++ *	@base: number system of the parsed value
++ *
++ *	This function parses an unsigned long value at the beginning of a
++ *	string. The string may begin with a separator or an unsigned long
++ *	value.
++ *	After the function is run val will contain the parsed value and strp
++ *	will point to the character *after* the parsed unsigned long.
++ *
++ *	In the error case 0 is returned, val and *strp stay unaltered.
++ *	Otherwise return 1.
++ */
++int get_next_ulong(char **strp, unsigned long *val, char sep, int base)
++{
++	char *tmp;
++
++	if (!strp || !(*strp))
++		return 0;
++
++	tmp = *strp;
++	if (*tmp == sep)
++		tmp++;
++
++	*val = simple_strtoul(tmp, strp, base);
++
++	if (tmp == *strp)
++		return 0; /* no new value parsed */
++	else
++		return 1;
++}
++
++/**
+  *	memparse - parse a string with mem suffixes into a number
+  *	@ptr: Where parse begins
+  *	@retptr: (output) Optional pointer to next char after parse completes
 -- 
-Mel Gorman
-SUSE Labs
+1.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
