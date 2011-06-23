@@ -1,77 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 178E8900194
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 21:35:08 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id B69543EE0BC
-	for <linux-mm@kvack.org>; Thu, 23 Jun 2011 10:35:04 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8A6DD45DE72
-	for <linux-mm@kvack.org>; Thu, 23 Jun 2011 10:35:04 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 6DC9345DE6F
-	for <linux-mm@kvack.org>; Thu, 23 Jun 2011 10:35:04 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0B3751DB8041
-	for <linux-mm@kvack.org>; Thu, 23 Jun 2011 10:35:04 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id C5B811DB803F
-	for <linux-mm@kvack.org>; Thu, 23 Jun 2011 10:35:03 +0900 (JST)
-Message-ID: <4E02983F.4020408@jp.fujitsu.com>
-Date: Thu, 23 Jun 2011 10:34:55 +0900
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A567900194
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 21:36:39 -0400 (EDT)
+Received: by vxg38 with SMTP id 38so1447375vxg.14
+        for <linux-mm@kvack.org>; Wed, 22 Jun 2011 18:36:37 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [patch 2/2] mm, hotplug: protect zonelist building with zonelists_mutex
-References: <alpine.DEB.2.00.1106221810130.23120@chino.kir.corp.google.com> <alpine.DEB.2.00.1106221811500.23120@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1106221811500.23120@chino.kir.corp.google.com>
+In-Reply-To: <20110623004404.GE20843@redhat.com>
+References: <201106212132.39311.nai.xia@gmail.com>
+	<4E01C752.10405@redhat.com>
+	<4E01CC77.10607@ravellosystems.com>
+	<4E01CDAD.3070202@redhat.com>
+	<4E01CFD2.6000404@ravellosystems.com>
+	<4E020CBC.7070604@redhat.com>
+	<20110622165529.GY20843@redhat.com>
+	<BANLkTinRYr9Vg==C-qyCaRmO7C_aQqBPzw@mail.gmail.com>
+	<20110622235906.GC20843@redhat.com>
+	<BANLkTimc0wETJxS7wFqczroPdS5u7BBEfw@mail.gmail.com>
+	<20110623004404.GE20843@redhat.com>
+Date: Thu, 23 Jun 2011 09:36:37 +0800
+Message-ID: <BANLkTik4+A0owJhKKb27KO0HtQ0v-KzU9g@mail.gmail.com>
+Subject: Re: [PATCH] mmu_notifier, kvm: Introduce dirty bit tracking in spte
+ and mmu notifier to help KSM dirty bit tracking
+From: Nai Xia <nai.xia@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: rientjes@google.com
-Cc: akpm@linux-foundation.org, torvalds@linux-foundation.org, kamezawa.hiroyu@jp.fujitsu.com, mgorman@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Rik van Riel <riel@redhat.com>, Izik Eidus <izik.eidus@ravellosystems.com>, Avi Kivity <avi@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Chris Wright <chrisw@sous-sol.org>, linux-mm <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel <linux-kernel@vger.kernel.org>, kvm <kvm@vger.kernel.org>
 
-(2011/06/23 10:13), David Rientjes wrote:
-> 959ecc48fc75 ("mm/memory_hotplug.c: fix building of node hotplug 
-> zonelist") does not protect the build_all_zonelists() call with 
-> zonelists_mutex as needed.  This can lead to races in constructing 
-> zonelist ordering if a concurrent build is underway.  Protecting this with 
-> lock_memory_hotplug() is insufficient since zonelists can be rebuild 
-> though sysfs as well.
-> 
-> Signed-off-by: David Rientjes <rientjes@google.com>
+On Thu, Jun 23, 2011 at 8:44 AM, Andrea Arcangeli <aarcange@redhat.com> wrote:
+> On Thu, Jun 23, 2011 at 08:31:56AM +0800, Nai Xia wrote:
+>> On Thu, Jun 23, 2011 at 7:59 AM, Andrea Arcangeli <aarcange@redhat.com> wrote:
+>> > On Thu, Jun 23, 2011 at 07:37:47AM +0800, Nai Xia wrote:
+>> >> On 2MB pages, I'd like to remind you and Rik that ksmd currently splits
+>> >> huge pages before their sub pages gets really merged to stable tree.
+>> >> So when there are many 2MB pages each having a 4kB subpage
+>> >> changed for all time, this is already a concern for ksmd to judge
+>> >> if it's worthwhile to split 2MB page and get its sub-pages merged.
+>> >
+>> > Hmm not sure to follow. KSM memory density with THP on and off should
+>> > be identical. The cksum is computed on subpages so the fact the 4k
+>> > subpage is actually mapped by a hugepmd is invisible to KSM up to the
+>> > point we get a unstable_tree_search_insert/stable_tree_search lookup
+>> > succeeding.
+>>
+>> I agree on your points.
+>>
+>> But, I mean splitting the huge page into normal pages when some subpages
+>> need to be merged may increase the TLB lookside timing of CPU and
+>> _might_ hurt the workload ksmd is scanning. If only a small portion of false
+>> negative 2MB pages are really get merged eventually, maybe it's not worthwhile,
+>> right?
+>
+> Yes, there's not threshold to say "only split if we could merge more
+> than N subpages", 1 subpage match in two different hugepages is enough
+> to split both and save just 4k but then memory accesses will be slower
+> for both 2m ranges that have been splitted. But the point is that it
+> won't be slower than if THP was off in the first place. So in the end
+> all we gain is 4k saved but we still run faster than THP off, in the
+> other hugepages that haven't been splitted yet.
 
-Indeed.
+Yes, so ksmd is still doing good compared to THP off.
+Thanks for making my mind clearer :)
 
- Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+>
+>> But, well, just like Rik said below, yes, ksmd should be more aggressive to
+>> avoid much more time consuming cost for swapping.
+>
+> Correct the above logic also follows the idea to always maximize
+> memory merging in KSM, which is why we've no threshold to wait N
+> subpages to be mergeable before we split the hugepage.
+>
+> I'm unsure if admins in real life would then start to use those
+> thresholds even if we'd implement them. The current way of enabling
+> KSM a per-VM (not per-host) basis is pretty simple: the performance
+> critical VM has KSM off, non-performance critical VM has KSM on and it
+> prioritizes on memory merging.
+>
+Hmm, yes, you are right.
 
-> ---
->  mm/memory_hotplug.c |    2 ++
->  1 files changed, 2 insertions(+), 0 deletions(-)
-> 
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -498,7 +498,9 @@ static pg_data_t __ref *hotadd_new_pgdat(int nid, u64 start)
->  	 * The node we allocated has no zone fallback lists. For avoiding
->  	 * to access not-initialized zonelist, build here.
->  	 */
-> +	mutex_lock(&zonelists_mutex);
->  	build_all_zonelists(NULL);
-> +	mutex_unlock(&zonelists_mutex);
->  
->  	return pgdat;
->  }
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
-> 
-
+Thanks,
+Nai
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
