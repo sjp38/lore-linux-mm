@@ -1,101 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 3A950900194
-	for <linux-mm@kvack.org>; Thu, 23 Jun 2011 16:01:54 -0400 (EDT)
-From: Jan Kara <jack@suse.cz>
-Subject: [PATCH v3] mm: Fix assertion mapping->nrpages == 0 in end_writeback()
-Date: Thu, 23 Jun 2011 22:01:36 +0200
-Message-Id: <1308859296-14802-1-git-send-email-jack@suse.cz>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id A1809900194
+	for <linux-mm@kvack.org>; Thu, 23 Jun 2011 16:24:18 -0400 (EDT)
+Received: from wpaz17.hot.corp.google.com (wpaz17.hot.corp.google.com [172.24.198.81])
+	by smtp-out.google.com with ESMTP id p5NKODvs002396
+	for <linux-mm@kvack.org>; Thu, 23 Jun 2011 13:24:14 -0700
+Received: from pzk9 (pzk9.prod.google.com [10.243.19.137])
+	by wpaz17.hot.corp.google.com with ESMTP id p5NKO7gU006701
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 23 Jun 2011 13:24:12 -0700
+Received: by pzk9 with SMTP id 9so1388966pzk.19
+        for <linux-mm@kvack.org>; Thu, 23 Jun 2011 13:24:07 -0700 (PDT)
+Date: Thu, 23 Jun 2011 13:24:04 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] slob: push the min alignment to long long
+In-Reply-To: <alpine.DEB.2.00.1106230934250.19668@router.home>
+Message-ID: <alpine.DEB.2.00.1106231323470.32059@chino.kir.corp.google.com>
+References: <20110614201031.GA19848@Chamillionaire.breakpoint.cc> <alpine.DEB.2.00.1106141614480.10017@router.home> <alpine.DEB.2.00.1106221641120.14635@chino.kir.corp.google.com> <alpine.DEB.2.00.1106230934250.19668@router.home>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, Jan Kara <jack@suse.cz>, Jay <jinshan.xiong@whamcloud.com>, Miklos Szeredi <mszeredi@suse.de>
+To: Christoph Lameter <cl@linux.com>
+Cc: Sebastian Andrzej Siewior <sebastian@breakpoint.cc>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org, "David S. Miller" <davem@davemloft.net>, netfilter@vger.kernel.org, Pekka Enberg <penberg@cs.helsinki.fi>
 
-Under heavy memory and filesystem load, users observe the assertion
-mapping->nrpages == 0 in end_writeback() trigger. This can be caused
-by page reclaim reclaiming the last page from a mapping in the following
-race:
-	CPU0				CPU1
-  ...
-  shrink_page_list()
-    __remove_mapping()
-      __delete_from_page_cache()
-        radix_tree_delete()
-					evict_inode()
-					  truncate_inode_pages()
-					    truncate_inode_pages_range()
-					      pagevec_lookup() - finds nothing
-					  end_writeback()
-					    mapping->nrpages != 0 -> BUG
-        page->mapping = NULL
-        mapping->nrpages--
+On Thu, 23 Jun 2011, Christoph Lameter wrote:
 
-Fix the problem by doing a reliable check of mapping->nrpages under
-mapping->tree_lock in end_writeback().
+> Subject: slab allocators: Provide generic description of alignment defines
+> 
+> Provide description for alignment defines.
+> 
+> Signed-off-by: Christoph Lameter <cl@linux.com>
 
-Analyzed by Jay <jinshan.xiong@whamcloud.com>, lost in LKML, and dug
-out by Miklos Szeredi <mszeredi@suse.de>.
+Acked-by: David Rientjes <rientjes@google.com>
 
-CC: Jay <jinshan.xiong@whamcloud.com>
-CC: Miklos Szeredi <mszeredi@suse.de>
-Signed-off-by: Jan Kara <jack@suse.cz>
----
- fs/inode.c         |    7 +++++++
- include/linux/fs.h |    1 +
- mm/truncate.c      |    5 +++++
- 3 files changed, 13 insertions(+), 0 deletions(-)
-
-- fixed spin_lock to be irq safe because tree_lock really should be
-
-diff --git a/fs/inode.c b/fs/inode.c
-index 33c963d..6ac0732 100644
---- a/fs/inode.c
-+++ b/fs/inode.c
-@@ -467,7 +467,14 @@ EXPORT_SYMBOL(remove_inode_hash);
- void end_writeback(struct inode *inode)
- {
- 	might_sleep();
-+	/*
-+	 * We have to cycle tree_lock here because reclaim can be still in the
-+	 * process of removing the last page (in __delete_from_page_cache())
-+	 * and we must not free mapping under it.
-+	 */
-+	spin_lock_irq(&inode->i_data.tree_lock);
- 	BUG_ON(inode->i_data.nrpages);
-+	spin_unlock_irq(&inode->i_data.tree_lock);
- 	BUG_ON(!list_empty(&inode->i_data.private_list));
- 	BUG_ON(!(inode->i_state & I_FREEING));
- 	BUG_ON(inode->i_state & I_CLEAR);
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index cdf9495..1a9375b 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -636,6 +636,7 @@ struct address_space {
- 	struct list_head	i_mmap_nonlinear;/*list VM_NONLINEAR mappings */
- 	spinlock_t		i_mmap_lock;	/* protect tree, count, list */
- 	unsigned int		truncate_count;	/* Cover race condition with truncate */
-+	/* protected by tree_lock together with the radix tree */
- 	unsigned long		nrpages;	/* number of total pages */
- 	pgoff_t			writeback_index;/* writeback starts here */
- 	const struct address_space_operations *a_ops;	/* methods */
-diff --git a/mm/truncate.c b/mm/truncate.c
-index a956675..499d6ab 100644
---- a/mm/truncate.c
-+++ b/mm/truncate.c
-@@ -300,6 +300,11 @@ EXPORT_SYMBOL(truncate_inode_pages_range);
-  * @lstart: offset from which to truncate
-  *
-  * Called under (and serialised by) inode->i_mutex.
-+ *
-+ * Note: When this function returns, there can be a page in the process of
-+ * deletion (inside __delete_from_page_cache()) in the specified range.  Thus
-+ * mapping->nrpages can be non-zero when this function returns even after
-+ * truncation of the whole mapping.
-  */
- void truncate_inode_pages(struct address_space *mapping, loff_t lstart)
- {
--- 
-1.7.1
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
