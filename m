@@ -1,82 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id F0C82900194
-	for <linux-mm@kvack.org>; Thu, 23 Jun 2011 10:10:14 -0400 (EDT)
-Received: by bwz17 with SMTP id 17so2334711bwz.14
-        for <linux-mm@kvack.org>; Thu, 23 Jun 2011 07:10:11 -0700 (PDT)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 51A86900194
+	for <linux-mm@kvack.org>; Thu, 23 Jun 2011 10:12:39 -0400 (EDT)
+Date: Thu, 23 Jun 2011 15:12:22 +0100
+From: Matthew Garrett <mjg59@srcf.ucam.org>
+Subject: Re: [PATCH v2 0/3] support for broken memory modules (BadRAM)
+Message-ID: <20110623141222.GA30003@srcf.ucam.org>
+References: <1308741534-6846-1-git-send-email-sassmann@kpanic.de>
+ <20110623133950.GB28333@srcf.ucam.org>
+ <4E0348E0.7050808@kpanic.de>
 MIME-Version: 1.0
-In-Reply-To: <20110623134850.GK31593@tiehlicka.suse.cz>
-References: <20110616124730.d6960b8b.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110616125741.c3d6a802.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110623134850.GK31593@tiehlicka.suse.cz>
-Date: Thu, 23 Jun 2011 23:10:11 +0900
-Message-ID: <BANLkTin0zMftnK2a+ex07JNdbwvEMCjXXQ@mail.gmail.com>
-Subject: Re: [PATCH 7/7] memcg: proportional fair vicitm node selection
-From: Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4E0348E0.7050808@kpanic.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "bsingharora@gmail.com" <bsingharora@gmail.com>, Ying Han <yinghan@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>
+To: Stefan Assmann <sassmann@kpanic.de>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, tony.luck@intel.com, andi@firstfloor.org, mingo@elte.hu, hpa@zytor.com, rick@vanrein.org, rdunlap@xenotime.net
 
-2011/6/23 Michal Hocko <mhocko@suse.cz>:
-> On Thu 16-06-11 12:57:41, KAMEZAWA Hiroyuki wrote:
->> From 4fbd49697456c227c86f1d5b46f2cd2169bf1c5b Mon Sep 17 00:00:00 2001
->> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->> Date: Thu, 16 Jun 2011 11:25:23 +0900
->> Subject: [PATCH 7/7] memcg: proportional fair node vicitm selection
->>
->> commit 889976 implements a round-robin scan of numa nodes for
->> LRU scanning of memcg at hitting limit.
->> But, round-robin is not very good.
->>
->> This patch implements a proportionally fair victim selection of nodes
->> rather than round-robin. The logic is fair against each node's weight.
->>
->> Each node's weight is calculated periodically and we build an node's
->> scheduling entity as
->>
->> =A0 =A0 =A0total_ticket =3D 0;
->> =A0 =A0 =A0for_each_node(node)
->> =A0 =A0 =A0 node->ticket_start =3D =A0total_ticket;
->> =A0 =A0 =A0 =A0 node->ticket_end =A0 =3D =A0total_ticket + this_node's_w=
-eight()
->> =A0 =A0 =A0 =A0 total_ticket =3D node->ticket_end;
->>
->> Then, each nodes has some amounts of tickets in proportion to its own we=
-ight.
->>
->> At selecting victim, a random number is selected and the node which cont=
-ains
->> the random number in [ticket_start, ticket_end) is selected as vicitm.
->> This is a lottery scheduling algorithm.
->>
->> For quick search of victim, this patch uses bsearch().
->>
->> Test result:
->> =A0 on 8cpu box with 2 nodes.
->> =A0 limit memory to be 300MB and run httpd for 4096files/600MB working s=
-et.
->> =A0 do (normalized) random access by apache-bench and see scan_stat.
->> =A0 The test makes 40960 request. and see scan_stat.
->> =A0 (Because a httpd thread just use 10% cpu, the number of threads will
->> =A0 =A0not be balanced between nodes. Then, file caches will not be bala=
-nced
->> =A0 =A0between nodes.)
->
-> Have you also tried to test with balanced nodes? I mean, is there any
-> measurable overhead?
->
+On Thu, Jun 23, 2011 at 04:08:32PM +0200, Stefan Assmann wrote:
+> On 23.06.2011 15:39, Matthew Garrett wrote:
+> > Would it be more reasonable to do this in the bootloader? You'd ideally 
+> > want this to be done as early as possible in order to avoid awkward 
+> > situations like your ramdisk ending up in the bad RAM area.
+> 
+> Not sure what exactly you are suggesting here. The kernel somehow needs
+> to know what memory areas to avoid so we supply this information via
+> kernel command line.
+> What the bootloader could do is to allow the kernel/initrd to be loaded
+> at an alternative address. That's briefly mentioned in the BadRAM
+> Documentation as well. Is that what you mean or am I missing something?
 
-Not enough yet. I checked OOM trouble this week :).
+For EFI booting we just hand an e820 map to the kernel. It ought to be 
+easy enough to add support for that to the 16-bit entry point as well. 
+Then the bootloader just needs to construct an e820 map of its own. I 
+think grub2 actually already has some support for this. The advantage of 
+this approach is that the knowledge of bad memory only has to exist in 
+one place (ie, the bootloader) - the kernel can remain blisfully 
+unaware.
 
-I may need to make another fake_numa setup + cpuset
-to measurements. In usual path, new overhead is random32() and
-bsearch().  I'll do some.
-
-Thanks,
--Kame
+-- 
+Matthew Garrett | mjg59@srcf.ucam.org
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
