@@ -1,57 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 8740F900194
-	for <linux-mm@kvack.org>; Thu, 23 Jun 2011 15:25:53 -0400 (EDT)
-Message-ID: <4E039334.7090502@draigBrady.com>
-Date: Thu, 23 Jun 2011 20:25:40 +0100
-From: =?ISO-8859-15?Q?P=E1draig_Brady?= <P@draigBrady.com>
-MIME-Version: 1.0
-Subject: Re: sandy bridge kswapd0 livelock with pagecache
-References: <20110621113447.GG9396@suse.de> <4E008784.80107@draigBrady.com> <20110621130756.GH9396@suse.de> <4E00A96D.8020806@draigBrady.com> <20110622094401.GJ9396@suse.de> <4E01C19F.20204@draigBrady.com> <20110623114646.GM9396@suse.de> <4E0339CF.8080407@draigBrady.com> <20110623152418.GN9396@suse.de> <4E035C8B.1080905@draigBrady.com> <20110623165955.GO9396@suse.de>
-In-Reply-To: <20110623165955.GO9396@suse.de>
-Content-Type: text/plain; charset=ISO-8859-15
-Content-Transfer-Encoding: 8bit
+	by kanga.kvack.org (Postfix) with SMTP id 3A950900194
+	for <linux-mm@kvack.org>; Thu, 23 Jun 2011 16:01:54 -0400 (EDT)
+From: Jan Kara <jack@suse.cz>
+Subject: [PATCH v3] mm: Fix assertion mapping->nrpages == 0 in end_writeback()
+Date: Thu, 23 Jun 2011 22:01:36 +0200
+Message-Id: <1308859296-14802-1-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, Jan Kara <jack@suse.cz>, Jay <jinshan.xiong@whamcloud.com>, Miklos Szeredi <mszeredi@suse.de>
 
-On 23/06/11 17:59, Mel Gorman wrote:
-> On Thu, Jun 23, 2011 at 04:32:27PM +0100, P?draig Brady wrote:
->> On 23/06/11 16:24, Mel Gorman wrote:
->>>
->>> Theory 2 it is then. This is to be applied on top of the patch for
->>> theory 1.
->>>
->>> ==== CUT HERE ====
->>> mm: vmscan: Prevent kswapd doing excessive work when classzone is unreclaimable
->>
->> No joy :(
->>
-> 
-> Joy is indeed rapidly fleeing the vicinity.
-> 
-> Check /proc/sys/vm/laptop_mode . If it's set, unset it and try again.
+Under heavy memory and filesystem load, users observe the assertion
+mapping->nrpages == 0 in end_writeback() trigger. This can be caused
+by page reclaim reclaiming the last page from a mapping in the following
+race:
+	CPU0				CPU1
+  ...
+  shrink_page_list()
+    __remove_mapping()
+      __delete_from_page_cache()
+        radix_tree_delete()
+					evict_inode()
+					  truncate_inode_pages()
+					    truncate_inode_pages_range()
+					      pagevec_lookup() - finds nothing
+					  end_writeback()
+					    mapping->nrpages != 0 -> BUG
+        page->mapping = NULL
+        mapping->nrpages--
 
-It was not set
+Fix the problem by doing a reliable check of mapping->nrpages under
+mapping->tree_lock in end_writeback().
 
-> 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index dce95dd..c8c0f5a 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -2426,19 +2426,19 @@ loop_again:
->  			 * zone has way too many pages free already.
->  			 */
->  			if (!zone_watermark_ok_safe(zone, order,
-> -					8*high_wmark_pages(zone), end_zone, 0))
+Analyzed by Jay <jinshan.xiong@whamcloud.com>, lost in LKML, and dug
+out by Miklos Szeredi <mszeredi@suse.de>.
 
-Note 8 was not in my tree.
-Manually applied patch makes no difference :(
-Well maybe kswapd0 started spinning a little later.
+CC: Jay <jinshan.xiong@whamcloud.com>
+CC: Miklos Szeredi <mszeredi@suse.de>
+Signed-off-by: Jan Kara <jack@suse.cz>
+---
+ fs/inode.c         |    7 +++++++
+ include/linux/fs.h |    1 +
+ mm/truncate.c      |    5 +++++
+ 3 files changed, 13 insertions(+), 0 deletions(-)
 
-cheers,
-Padraig.
+- fixed spin_lock to be irq safe because tree_lock really should be
+
+diff --git a/fs/inode.c b/fs/inode.c
+index 33c963d..6ac0732 100644
+--- a/fs/inode.c
++++ b/fs/inode.c
+@@ -467,7 +467,14 @@ EXPORT_SYMBOL(remove_inode_hash);
+ void end_writeback(struct inode *inode)
+ {
+ 	might_sleep();
++	/*
++	 * We have to cycle tree_lock here because reclaim can be still in the
++	 * process of removing the last page (in __delete_from_page_cache())
++	 * and we must not free mapping under it.
++	 */
++	spin_lock_irq(&inode->i_data.tree_lock);
+ 	BUG_ON(inode->i_data.nrpages);
++	spin_unlock_irq(&inode->i_data.tree_lock);
+ 	BUG_ON(!list_empty(&inode->i_data.private_list));
+ 	BUG_ON(!(inode->i_state & I_FREEING));
+ 	BUG_ON(inode->i_state & I_CLEAR);
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index cdf9495..1a9375b 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -636,6 +636,7 @@ struct address_space {
+ 	struct list_head	i_mmap_nonlinear;/*list VM_NONLINEAR mappings */
+ 	spinlock_t		i_mmap_lock;	/* protect tree, count, list */
+ 	unsigned int		truncate_count;	/* Cover race condition with truncate */
++	/* protected by tree_lock together with the radix tree */
+ 	unsigned long		nrpages;	/* number of total pages */
+ 	pgoff_t			writeback_index;/* writeback starts here */
+ 	const struct address_space_operations *a_ops;	/* methods */
+diff --git a/mm/truncate.c b/mm/truncate.c
+index a956675..499d6ab 100644
+--- a/mm/truncate.c
++++ b/mm/truncate.c
+@@ -300,6 +300,11 @@ EXPORT_SYMBOL(truncate_inode_pages_range);
+  * @lstart: offset from which to truncate
+  *
+  * Called under (and serialised by) inode->i_mutex.
++ *
++ * Note: When this function returns, there can be a page in the process of
++ * deletion (inside __delete_from_page_cache()) in the specified range.  Thus
++ * mapping->nrpages can be non-zero when this function returns even after
++ * truncation of the whole mapping.
+  */
+ void truncate_inode_pages(struct address_space *mapping, loff_t lstart)
+ {
+-- 
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
