@@ -1,74 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 33C13900194
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 20:44:14 -0400 (EDT)
-Date: Thu, 23 Jun 2011 02:44:04 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH] mmu_notifier, kvm: Introduce dirty bit tracking in spte
- and mmu notifier to help KSM dirty bit tracking
-Message-ID: <20110623004404.GE20843@redhat.com>
-References: <201106212132.39311.nai.xia@gmail.com>
- <4E01C752.10405@redhat.com>
- <4E01CC77.10607@ravellosystems.com>
- <4E01CDAD.3070202@redhat.com>
- <4E01CFD2.6000404@ravellosystems.com>
- <4E020CBC.7070604@redhat.com>
- <20110622165529.GY20843@redhat.com>
- <BANLkTinRYr9Vg==C-qyCaRmO7C_aQqBPzw@mail.gmail.com>
- <20110622235906.GC20843@redhat.com>
- <BANLkTimc0wETJxS7wFqczroPdS5u7BBEfw@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <BANLkTimc0wETJxS7wFqczroPdS5u7BBEfw@mail.gmail.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 2517B900194
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2011 20:45:18 -0400 (EDT)
+Date: Thu, 23 Jun 2011 10:45:07 +1000
+From: Stephen Rothwell <sfr@canb.auug.org.au>
+Subject: Re: mmotm 2011-06-22-13-05 uploaded
+Message-Id: <20110623104507.2e36aff3.sfr@canb.auug.org.au>
+In-Reply-To: <201106222042.p5MKgiEe025352@imap1.linux-foundation.org>
+References: <201106222042.p5MKgiEe025352@imap1.linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: multipart/signed; protocol="application/pgp-signature";
+ micalg="PGP-SHA1";
+ boundary="Signature=_Thu__23_Jun_2011_10_45_07_+1000_F.rCzXwPR3mmD=X+"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nai Xia <nai.xia@gmail.com>
-Cc: Rik van Riel <riel@redhat.com>, Izik Eidus <izik.eidus@ravellosystems.com>, Avi Kivity <avi@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Chris Wright <chrisw@sous-sol.org>, linux-mm <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel <linux-kernel@vger.kernel.org>, kvm <kvm@vger.kernel.org>
+To: akpm@linux-foundation.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 
-On Thu, Jun 23, 2011 at 08:31:56AM +0800, Nai Xia wrote:
-> On Thu, Jun 23, 2011 at 7:59 AM, Andrea Arcangeli <aarcange@redhat.com> wrote:
-> > On Thu, Jun 23, 2011 at 07:37:47AM +0800, Nai Xia wrote:
-> >> On 2MB pages, I'd like to remind you and Rik that ksmd currently splits
-> >> huge pages before their sub pages gets really merged to stable tree.
-> >> So when there are many 2MB pages each having a 4kB subpage
-> >> changed for all time, this is already a concern for ksmd to judge
-> >> if it's worthwhile to split 2MB page and get its sub-pages merged.
-> >
-> > Hmm not sure to follow. KSM memory density with THP on and off should
-> > be identical. The cksum is computed on subpages so the fact the 4k
-> > subpage is actually mapped by a hugepmd is invisible to KSM up to the
-> > point we get a unstable_tree_search_insert/stable_tree_search lookup
-> > succeeding.
-> 
-> I agree on your points.
-> 
-> But, I mean splitting the huge page into normal pages when some subpages
-> need to be merged may increase the TLB lookside timing of CPU and
-> _might_ hurt the workload ksmd is scanning. If only a small portion of false
-> negative 2MB pages are really get merged eventually, maybe it's not worthwhile,
-> right?
+--Signature=_Thu__23_Jun_2011_10_45_07_+1000_F.rCzXwPR3mmD=X+
+Content-Type: text/plain; charset=US-ASCII
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-Yes, there's not threshold to say "only split if we could merge more
-than N subpages", 1 subpage match in two different hugepages is enough
-to split both and save just 4k but then memory accesses will be slower
-for both 2m ranges that have been splitted. But the point is that it
-won't be slower than if THP was off in the first place. So in the end
-all we gain is 4k saved but we still run faster than THP off, in the
-other hugepages that haven't been splitted yet.
+Hi Andrew,
 
-> But, well, just like Rik said below, yes, ksmd should be more aggressive to
-> avoid much more time consuming cost for swapping.
+On Wed, 22 Jun 2011 13:05:19 -0700 akpm@linux-foundation.org wrote:
+>
+> The mm-of-the-moment snapshot 2011-06-22-13-05 has been uploaded to
+>=20
+>    http://userweb.kernel.org/~akpm/mmotm/
+> It contains the following patches against 3.0-rc4:
+>=20
+> memcg-fix-node_start-end_pfn-definition-for-mm-page_cgroupc.patch
+> mm-move-vmtruncate_range-to-truncatec.patch
+> mm-move-shmem-prototypes-to-shmem_fsh.patch
+> tmpfs-take-control-of-its-truncate_range.patch
+> tmpfs-add-shmem_read_mapping_page_gfp.patch
+> drivers-rtc-rtc-ds1307c-add-support-for-rtc-device-pt7c4338.patch
+> um-add-asm-percpuh.patch
+> romfs-fix-romfs_get_unmapped_area-param-check.patch
+> include-linux-compath-declare-compat_sys_sendmmsg.patch
+> drivers-misc-lkdtmc-fix-race-when-crashpoint-is-hit-multiple-times-before=
+-checking-count.patch
+> mm-memory-failurec-fix-spinlock-vs-mutex-order.patch
+> mm-fix-assertion-mapping-nrpages-=3D=3D-0-in-end_writeback.patch
+> taskstats-dont-allow-duplicate-entries-in-listener-mode.patch
+> drm-ttm-use-shmem_read_mapping_page.patch
+> drm-i915-use-shmem_read_mapping_page.patch
+> drm-i915-use-shmem_truncate_range.patch
+> drm-i915-more-struct_mutex-locking.patch
+> drm-i915-more-struct_mutex-locking-fix.patch
+> mm-cleanup-descriptions-of-filler-arg.patch
+> mm-truncate-functions-are-in-truncatec.patch
+> mm-tidy-vmtruncate_range-and-related-functions.patch
+> mm-consistent-truncate-and-invalidate-loops.patch
+> mm-pincer-in-truncate_inode_pages_range.patch
+> tmpfs-no-need-to-use-i_lock.patch
+> mm-nommuc-fix-remap_pfn_range.patch
 
-Correct the above logic also follows the idea to always maximize
-memory merging in KSM, which is why we've no threshold to wait N
-subpages to be mergeable before we split the hugepage.
+As an experiment, I have applied all the above patches (everything
+between origin.patch and linux-next.patch exclusive) to my "fixes" tree
+so that they will be in linux-next immediately after Linus' tree and
+before anything else.   I am assuming that these patches are going to be
+sent to Linus shortly (if you haven't already).   I will point the
+akpm-start branch of linux-next to be just after the above patches (so
+akpm-start..akpm-end will contain everything else in linux-next).
 
-I'm unsure if admins in real life would then start to use those
-thresholds even if we'd implement them. The current way of enabling
-KSM a per-VM (not per-host) basis is pretty simple: the performance
-critical VM has KSM off, non-performance critical VM has KSM on and it
-prioritizes on memory merging.
+If this is a problem, let me know and I will drop them again.  Otherwise,
+they will disappear from my tree when Linus' takes tham from you.
+--=20
+Cheers,
+Stephen Rothwell                    sfr@canb.auug.org.au
+http://www.canb.auug.org.au/~sfr/
+
+--Signature=_Thu__23_Jun_2011_10_45_07_+1000_F.rCzXwPR3mmD=X+
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.11 (GNU/Linux)
+
+iQEcBAEBAgAGBQJOAoyTAAoJEDMEi1NhKgbsXwkH/i1LRBuijfkhvDt8nd/nn8kW
+fOit5iPolvf9uQQBmoCVUm3rNVKwJWUAN+/MvSkzkkRJzZBLNe8VIYtIRQ7F9zyg
+idQE5UdeLDKRrRZHaD5FWLIcnNbjs4XDmZTioI/pGSb1j6f4wRSRy7/elmCzzaK9
+CBj6rDf8qMYtvBxlovnpzfgnwX7cW6It3aAGnIiN+mefq6xUximKkAHWIMAYooh8
+lOuKqkLtpa2VZOB9qLJFi8Gu0PMRYP9ulUJynSsMpkTa0zOgA5v62qk3evt71Fi4
+SGQzd8+XtkWj+xwfmlcp1TFG75T+A3vsZTl+WPZIB95mgV2crycmjjtg1JLMHVk=
+=6m6T
+-----END PGP SIGNATURE-----
+
+--Signature=_Thu__23_Jun_2011_10_45_07_+1000_F.rCzXwPR3mmD=X+--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
