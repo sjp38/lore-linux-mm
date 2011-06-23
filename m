@@ -1,71 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 43C96900194
-	for <linux-mm@kvack.org>; Thu, 23 Jun 2011 09:23:16 -0400 (EDT)
-Date: Thu, 23 Jun 2011 15:23:12 +0200
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 23E0B900194
+	for <linux-mm@kvack.org>; Thu, 23 Jun 2011 09:35:27 -0400 (EDT)
+Date: Thu, 23 Jun 2011 15:35:24 +0200
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] mm: preallocate page before lock_page at filemap COW.
- (WasRe: [PATCH V2] mm: Do not keep page locked during page fault while
- charging it for memcg
-Message-ID: <20110623132312.GI31593@tiehlicka.suse.cz>
-References: <20110622120635.GB14343@tiehlicka.suse.cz>
- <20110622121516.GA28359@infradead.org>
- <20110622123204.GC14343@tiehlicka.suse.cz>
- <20110623150842.d13492cd.kamezawa.hiroyu@jp.fujitsu.com>
- <20110623074133.GA31593@tiehlicka.suse.cz>
- <20110623170811.16f4435f.kamezawa.hiroyu@jp.fujitsu.com>
- <20110623090204.GE31593@tiehlicka.suse.cz>
- <20110623190157.1bc8cbb9.kamezawa.hiroyu@jp.fujitsu.com>
- <20110623115855.GF31593@tiehlicka.suse.cz>
- <BANLkTimshUCY5Yq5g9dnY0gi2TRneGscug@mail.gmail.com>
+Subject: Re: [PATCH 6/7] memcg: calc NUMA node's weight for scan.
+Message-ID: <20110623133524.GJ31593@tiehlicka.suse.cz>
+References: <20110616124730.d6960b8b.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110616125633.9b9fa703.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <BANLkTimshUCY5Yq5g9dnY0gi2TRneGscug@mail.gmail.com>
+In-Reply-To: <20110616125633.9b9fa703.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Mel Gorman <mgorman@suse.de>, Lutz Vieweg <lvml@5t9.de>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "bsingharora@gmail.com" <bsingharora@gmail.com>, Ying Han <yinghan@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>
 
-On Thu 23-06-11 22:01:40, Hiroyuki Kamezawa wrote:
-> 2011/6/23 Michal Hocko <mhocko@suse.cz>:
-> > On Thu 23-06-11 19:01:57, KAMEZAWA Hiroyuki wrote:
-> >> On Thu, 23 Jun 2011 11:02:04 +0200
-> >> Michal Hocko <mhocko@suse.cz> wrote:
-> >>
-> >> > On Thu 23-06-11 17:08:11, KAMEZAWA Hiroyuki wrote:
-> >> > > On Thu, 23 Jun 2011 09:41:33 +0200
-> >> > > Michal Hocko <mhocko@suse.cz> wrote:
-> >> > [...]
-> >> > > > Other than that:
-> >> > > > Reviewed-by: Michal Hocko <mhocko@suse.cz>
-> >> > > >
-> >> > >
-> >> > > I found the page is added to LRU before charging. (In this case,
-> >> > > memcg's LRU is ignored.) I'll post a new version with a fix.
-> >> >
-> >> > Yes, you are right. I have missed that.
-> >> > This means that we might race with reclaim which could evict the COWed
-> >> > page wich in turn would uncharge that page even though we haven't
-> >> > charged it yet.
-> >> >
-> >> > Can we postpone page_add_new_anon_rmap to the charging path or it would
-> >> > just race somewhere else?
-> >> >
-> >>
-> >> I got a different idea. How about this ?
-> >> I think this will have benefit for non-memcg users under OOM, too.
-> >
-> > Could you be more specific? I do not see how preallocation which might
-> > turn out to be pointless could help under OOM.
-> >
+On Thu 16-06-11 12:56:33, KAMEZAWA Hiroyuki wrote:
+> From fb8aaa2c5f7fd99dfcb5d2ecb3c1226a58caafea Mon Sep 17 00:00:00 2001
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Date: Thu, 16 Jun 2011 10:05:46 +0900
+> Subject: [PATCH 6/7] memcg: calc NUMA node's weight for scan.
 > 
-> We'll have no page allocation under lock_page() held in this path.
-> I think it is good.
+> Now, by commit 889976, numa node scan of memcg is in round-robin.
+> As commit log says, "a better algorithm is needed".
+> 
+> for implementing some good scheduling, one of required things is
+> defining importance of each node at LRU scanning.
+> 
+> This patch defines each node's weight for scan as
+> 
+> swappiness = (memcg's swappiness)? memcg's swappiness : 1
+> FILE = inactive_file + (inactive_file_is_low)? active_file : 0
+> ANON = inactive_anon + (inactive_anon_is_low)? active_anon : 0
+> 
+> weight = (FILE * (200-swappiness) + ANON * swappiness)/200.
 
-But it can also cause that the page, we are about to fault in, is evicted
-due to allocation so we would have to do a major fault... This is
-probably not that serious, though.
+Shouldn't we consider the node size?
+If we have a node which is almost full with file cache and then other
+node wich is much bigger and it is mostly occupied by anonymous memory
+than the other node might end up with higher weight.
 
 -- 
 Michal Hocko
