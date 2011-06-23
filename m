@@ -1,29 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id B6CBC900194
-	for <linux-mm@kvack.org>; Thu, 23 Jun 2011 03:37:03 -0400 (EDT)
-Date: Thu, 23 Jun 2011 16:23:21 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id DD5FC900194
+	for <linux-mm@kvack.org>; Thu, 23 Jun 2011 03:41:37 -0400 (EDT)
+Date: Thu, 23 Jun 2011 09:41:33 +0200
+From: Michal Hocko <mhocko@suse.cz>
 Subject: Re: [PATCH] memcg: unlock page before charging it. (WasRe: [PATCH
  V2] mm: Do not keep page locked during page fault while charging it for
  memcg
-Message-Id: <20110623162321.f7b12b29.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20110623150842.d13492cd.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <20110623074133.GA31593@tiehlicka.suse.cz>
 References: <20110622120635.GB14343@tiehlicka.suse.cz>
-	<20110622121516.GA28359@infradead.org>
-	<20110622123204.GC14343@tiehlicka.suse.cz>
-	<20110623150842.d13492cd.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+ <20110622121516.GA28359@infradead.org>
+ <20110622123204.GC14343@tiehlicka.suse.cz>
+ <20110623150842.d13492cd.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110623150842.d13492cd.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Michal Hocko <mhocko@suse.cz>, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Mel Gorman <mgorman@suse.de>, Lutz Vieweg <lvml@5t9.de>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Mel Gorman <mgorman@suse.de>, Lutz Vieweg <lvml@5t9.de>
 
-On Thu, 23 Jun 2011 15:08:42 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-
+On Thu 23-06-11 15:08:42, KAMEZAWA Hiroyuki wrote:
 > On Wed, 22 Jun 2011 14:32:04 +0200
 > Michal Hocko <mhocko@suse.cz> wrote:
 > 
@@ -55,13 +53,13 @@ KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 > Great work. Then I confirmed Lutz' problem is fixed.
 > 
 > But I like following style rather than additional lock/unlock.
-> How do you think ? I tested this on the latest git tree and confirmed
+> How do you think ?
+
+Yes, I like it much more than the hairy way I did it. See comments bellow.
+
+> I tested this on the latest git tree and confirmed
 > the Lutz's livelock problem is fixed. And I think this should go stable tree.
 > 
-I vote for this one.
-
-One comments are inlined below.
-
 > 
 > ==
 > From 7e9250da9ff529958d4c1ff511458dbdac8e4b81 Mon Sep 17 00:00:00 2001
@@ -78,6 +76,9 @@ One comments are inlined below.
 > the OOM situation is either an external event or OOM-situation fix.
 > 
 > processes from faulting it in which is not good at all because we are
+
+Missing the beginning of the sentence?
+
 > basically punishing potentially an unrelated process for OOM condition
 > in a different group (I have seen stuck system because of ld-2.11.1.so being
 > locked).
@@ -161,42 +162,21 @@ One comments are inlined below.
 > +					mm, GFP_KERNEL))
 > +				ret = VM_FAULT_OOM;
 > +		}
->  		put_page(dirty_page);
->  		if (page_mkwrite && mapping) {
->  			/*
-Hmm, if I read the code correctly, we don't come to this path.
-Because "dirty_page" is set only in "anon == 0" case and, when we set "need_charge",
-we set "anon" too.
-So, we can do mem_cgroup_newpage_charge(need_charge) outside of
-"if (dirty_page) ... else ..." block ?
 
+We do not need this hunk, don't we? dirty_page is set only if !anon so
+we never get to this path from COW.
 
-Thanks,
-Daisuke Nishimura.
+Other than that:
+Reviewed-by: Michal Hocko <mhocko@suse.cz>
 
-> @@ -3282,6 +3287,11 @@ out:
->  			file_update_time(vma->vm_file);
->  	} else {
->  		unlock_page(vmf.page);
-> +		if (need_charge) {
-> +			if (mem_cgroup_newpage_charge(need_charge,
-> +						mm, GFP_KERNEL))
-> +				ret = VM_FAULT_OOM;
-> +		}
->  		if (anon)
->  			page_cache_release(vmf.page);
->  	}
-> -- 
-> 1.7.4.1
-> 
-> 
-> 
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+Thanks!
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
