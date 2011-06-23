@@ -1,32 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 4AD92900194
-	for <linux-mm@kvack.org>; Thu, 23 Jun 2011 02:28:17 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 6FF7E3EE0AE
-	for <linux-mm@kvack.org>; Thu, 23 Jun 2011 15:28:13 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5719545DE9C
-	for <linux-mm@kvack.org>; Thu, 23 Jun 2011 15:28:13 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3595945DE7E
-	for <linux-mm@kvack.org>; Thu, 23 Jun 2011 15:28:13 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 29F0D1DB803E
-	for <linux-mm@kvack.org>; Thu, 23 Jun 2011 15:28:13 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id E859A1DB8038
-	for <linux-mm@kvack.org>; Thu, 23 Jun 2011 15:28:12 +0900 (JST)
-Date: Thu, 23 Jun 2011 15:21:11 +0900
+	by kanga.kvack.org (Postfix) with ESMTP id C8083900194
+	for <linux-mm@kvack.org>; Thu, 23 Jun 2011 02:34:40 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 347C23EE0C0
+	for <linux-mm@kvack.org>; Thu, 23 Jun 2011 15:34:36 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 12D6345DE68
+	for <linux-mm@kvack.org>; Thu, 23 Jun 2011 15:34:36 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id E9AA545DE6A
+	for <linux-mm@kvack.org>; Thu, 23 Jun 2011 15:34:35 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id DD7A0E08003
+	for <linux-mm@kvack.org>; Thu, 23 Jun 2011 15:34:35 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id A55F3E08001
+	for <linux-mm@kvack.org>; Thu, 23 Jun 2011 15:34:35 +0900 (JST)
+Date: Thu, 23 Jun 2011 15:27:34 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 1/7] Fix mem_cgroup_hierarchical_reclaim() to do stable
- hierarchy walk.
-Message-Id: <20110623152111.a491e954.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20110622183249.GA27191@tiehlicka.suse.cz>
+Subject: Re: [PATCH 4/7] memcg: update numa information based on event
+ counter
+Message-Id: <20110623152734.3a4f867a.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110622155309.GH14343@tiehlicka.suse.cz>
 References: <20110616124730.d6960b8b.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110616125141.5fbd230f.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110622151500.GF14343@tiehlicka.suse.cz>
-	<20110622183249.GA27191@tiehlicka.suse.cz>
+	<20110616125400.1145a4e2.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110622155309.GH14343@tiehlicka.suse.cz>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -35,76 +34,163 @@ List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@suse.cz>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "bsingharora@gmail.com" <bsingharora@gmail.com>, Ying Han <yinghan@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>
 
-On Wed, 22 Jun 2011 20:33:31 +0200
+On Wed, 22 Jun 2011 17:53:09 +0200
 Michal Hocko <mhocko@suse.cz> wrote:
 
-> On Wed 22-06-11 17:15:00, Michal Hocko wrote:
-> > On Thu 16-06-11 12:51:41, KAMEZAWA Hiroyuki wrote:
-> > [...]
-> > > @@ -1667,41 +1668,28 @@ static int mem_cgroup_hierarchical_recla
-> > >  	if (!check_soft && root_mem->memsw_is_minimum)
-> > >  		noswap = true;
-> > >  
-> > > -	while (1) {
-> > > +again:
-> > > +	if (!shrink) {
-> > > +		visit = 0;
-> > > +		for_each_mem_cgroup_tree(victim, root_mem)
-> > > +			visit++;
-> > > +	} else {
-> > > +		/*
-> > > +		 * At shrinking, we check the usage again in caller side.
-> > > +		 * so, visit children one by one.
-> > > +		 */
-> > > +		visit = 1;
-> > > +	}
-> > > +	/*
-> > > +	 * We are not draining per cpu cached charges during soft limit reclaim
-> > > +	 * because global reclaim doesn't care about charges. It tries to free
-> > > +	 * some memory and  charges will not give any.
-> > > +	 */
-> > > +	if (!check_soft)
-> > > +		drain_all_stock_async(root_mem);
-> > > +
-> > > +	while (visit--) {
+> On Thu 16-06-11 12:54:00, KAMEZAWA Hiroyuki wrote:
+> > From 88090fe10e225ad8769ba0ea01692b7314e8b973 Mon Sep 17 00:00:00 2001
+> > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > Date: Wed, 15 Jun 2011 16:19:46 +0900
+> > Subject: [PATCH 4/7] memcg: update numa information based on event counter
 > > 
-> > This is racy, isn't it? What prevents some groups to disapear in the
-> > meantime? We would reclaim from those that are left more that we want.
+> > commit 889976 adds an numa node round-robin for memcg. But the information
+> > is updated once per 10sec.
 > > 
-> > Why cannot we simply do something like (totally untested):
+> > This patch changes the update trigger from jiffies to memcg's event count.
+> > After this patch, numa scan information will be updated when
 > > 
-> > Index: linus_tree/mm/memcontrol.c
-> > ===================================================================
-> > --- linus_tree.orig/mm/memcontrol.c	2011-06-22 17:11:54.000000000 +0200
-> > +++ linus_tree/mm/memcontrol.c	2011-06-22 17:13:05.000000000 +0200
-> > @@ -1652,7 +1652,7 @@ static int mem_cgroup_hierarchical_recla
-> >  						unsigned long reclaim_options,
-> >  						unsigned long *total_scanned)
-> >  {
-> > -	struct mem_cgroup *victim;
-> > +	struct mem_cgroup *victim, *first_victim = NULL;
-> >  	int ret, total = 0;
-> >  	int loop = 0;
-> >  	bool noswap = reclaim_options & MEM_CGROUP_RECLAIM_NOSWAP;
-> > @@ -1669,6 +1669,11 @@ static int mem_cgroup_hierarchical_recla
-> >  
-> >  	while (1) {
-> >  		victim = mem_cgroup_select_victim(root_mem);
-> > +		if (!first_victim)
-> > +			first_victim = victim;
-> > +		else if (first_victim == victim)
-> > +			break;
+> >   - the number of pagein/out events is larger than 3% of limit
+> >   or
+> >   - the number of pagein/out events is larger than 16k
+> >     (==64MB pagein/pageout if pagesize==4k.)
+> > 
+> > The counter of mem->numascan_update the sum of percpu events counter.
+> > When a task hits limit, it checks mem->numascan_update. If it's over
+> > min(3% of limit, 16k), numa information will be updated.
 > 
-> this will obviously need css_get and css_put to make sure that the group
-> doesn't disappear in the meantime.
+> Yes, I like the event based approach more than the origin (time) based
+> one.
+> 
+> > 
+> > This patch also adds mutex for updating information. This will allow us
+> > to avoid unnecessary scan.
+> > 
+> > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > ---
+> >  mm/memcontrol.c |   51 +++++++++++++++++++++++++++++++++++++++++++++------
+> >  1 file changed, 45 insertions(+), 6 deletions(-)
+> > 
+> > Index: mmotm-0615/mm/memcontrol.c
+> > ===================================================================
+> > --- mmotm-0615.orig/mm/memcontrol.c
+> > +++ mmotm-0615/mm/memcontrol.c
+> > @@ -108,10 +108,12 @@ enum mem_cgroup_events_index {
+> >  enum mem_cgroup_events_target {
+> >  	MEM_CGROUP_TARGET_THRESH,
+> >  	MEM_CGROUP_TARGET_SOFTLIMIT,
+> > +	MEM_CGROUP_TARGET_NUMASCAN,
+> 
+> Shouldn't it be defined only for MAX_NUMNODES > 1
 > 
 
-I forgot why we didn't this. Hmm, ok, I'll use this style.
+Hmm, yes. But I want to reduce #ifdefs..
+
+
+> >  	MEM_CGROUP_NTARGETS,
+> >  };
+> >  #define THRESHOLDS_EVENTS_TARGET (128)
+> >  #define SOFTLIMIT_EVENTS_TARGET (1024)
+> > +#define NUMASCAN_EVENTS_TARGET  (1024)
+> >  
+> >  struct mem_cgroup_stat_cpu {
+> >  	long count[MEM_CGROUP_STAT_NSTATS];
+> > @@ -288,8 +290,9 @@ struct mem_cgroup {
+> >  	int last_scanned_node;
+> >  #if MAX_NUMNODES > 1
+> >  	nodemask_t	scan_nodes;
+> > -	unsigned long   next_scan_node_update;
+> > +	struct mutex	numascan_mutex;
+> >  #endif
+> > +	atomic_t	numascan_update;
+> 
+> Why it is out of ifdef?
+> 
+
+This was for avoiding #ifdef in mem_cgroup_create()...but it's not used now.
+I'll fix this.
+
+
+
+> >  	/*
+> >  	 * Should the accounting and control be hierarchical, per subtree?
+> >  	 */
+> > @@ -741,6 +744,9 @@ static void __mem_cgroup_target_update(s
+> >  	case MEM_CGROUP_TARGET_SOFTLIMIT:
+> >  		next = val + SOFTLIMIT_EVENTS_TARGET;
+> >  		break;
+> > +	case MEM_CGROUP_TARGET_NUMASCAN:
+> > +		next = val + NUMASCAN_EVENTS_TARGET;
+> > +		break;
+> 
+> MAX_NUMNODES > 1
+> 
+> >  	default:
+> >  		return;
+> >  	}
+> > @@ -764,6 +770,13 @@ static void memcg_check_events(struct me
+> >  			__mem_cgroup_target_update(mem,
+> >  				MEM_CGROUP_TARGET_SOFTLIMIT);
+> >  		}
+> > +		if (unlikely(__memcg_event_check(mem,
+> > +			MEM_CGROUP_TARGET_NUMASCAN))) {
+> > +			atomic_add(MEM_CGROUP_TARGET_NUMASCAN,
+> > +				&mem->numascan_update);
+> > +			__mem_cgroup_target_update(mem,
+> > +				MEM_CGROUP_TARGET_NUMASCAN);
+> > +		}
+> >  	}
+> 
+> again MAX_NUMNODES > 1
+> 
+
+Hmm, ok, I will add #ifdef only here.
+
+
+
+> >  }
+> >  
+> > @@ -1616,17 +1629,32 @@ mem_cgroup_select_victim(struct mem_cgro
+> >  /*
+> >   * Always updating the nodemask is not very good - even if we have an empty
+> >   * list or the wrong list here, we can start from some node and traverse all
+> > - * nodes based on the zonelist. So update the list loosely once per 10 secs.
+> > + * nodes based on the zonelist.
+> >   *
+> > + * The counter of mem->numascan_update is updated once per
+> > + * NUMASCAN_EVENTS_TARGET. We update the numa information when we see
+> > + * the number of event is larger than 3% of limit or  64MB pagein/pageout.
+> >   */
+> > +#define NUMASCAN_UPDATE_RATIO	(3)
+> > +#define NUMASCAN_UPDATE_THRESH	(16384UL) /* 16k events of pagein/pageout */
+> >  static void mem_cgroup_may_update_nodemask(struct mem_cgroup *mem)
+> >  {
+> >  	int nid;
+> > -
+> > -	if (time_after(mem->next_scan_node_update, jiffies))
+> > +	unsigned long long limit;
+> > +	/* if no limit, we never reach here */
+> > +	limit = res_counter_read_u64(&mem->res, RES_LIMIT);
+> > +	limit /= PAGE_SIZE;
+> > +	/* 3% of limit */
+> > +	limit = (limit * NUMASCAN_UPDATE_RATIO/100UL);
+> > +	limit = min_t(unsigned long long, limit, NUMASCAN_UPDATE_THRESH);
+> > +	/*
+> > +	 * If the number of pagein/out event is larger than 3% of limit or
+> > +	 * 64MB pagein/out, refresh numa information.
+> > +	 */
+> > +	if (atomic_read(&mem->numascan_update) < limit ||
+> > +	    !mutex_trylock(&mem->numascan_mutex))
+> >  		return;
+> 
+> I am not sure whether a mutex is not overkill here. What about using an
+> atomic operation instead?
+> 
+
+I think mutex is informative than atomic counter for code readers.
+If influence of overhead is not big, I'd like to use mutex.
 
 Thanks,
 -Kame
-
-
 
 
 --
