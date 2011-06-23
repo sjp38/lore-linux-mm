@@ -1,113 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id C2798900194
-	for <linux-mm@kvack.org>; Thu, 23 Jun 2011 10:15:09 -0400 (EDT)
-Message-ID: <4E034A61.2000300@draigBrady.com>
-Date: Thu, 23 Jun 2011 15:14:57 +0100
-From: =?ISO-8859-1?Q?P=E1draig_Brady?= <P@draigBrady.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D575900194
+	for <linux-mm@kvack.org>; Thu, 23 Jun 2011 10:27:14 -0400 (EDT)
+Received: by bwz17 with SMTP id 17so2352551bwz.14
+        for <linux-mm@kvack.org>; Thu, 23 Jun 2011 07:27:11 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH RFC] fadvise: move active pages to inactive list with
- POSIX_FADV_DONTNEED
-References: <1308779480-4950-1-git-send-email-andrea@betterlinux.com> <4E03200D.60704@draigBrady.com> <20110623135713.GB1479@thinkpad>
-In-Reply-To: <20110623135713.GB1479@thinkpad>
+In-Reply-To: <20110623133524.GJ31593@tiehlicka.suse.cz>
+References: <20110616124730.d6960b8b.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110616125633.9b9fa703.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110623133524.GJ31593@tiehlicka.suse.cz>
+Date: Thu, 23 Jun 2011 23:27:10 +0900
+Message-ID: <BANLkTinBnnNMf_BmP=K4GafznW1jijQS8Q@mail.gmail.com>
+Subject: Re: [PATCH 6/7] memcg: calc NUMA node's weight for scan.
+From: Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Righi <andrea@betterlinux.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Jerry James <jamesjer@betterlinux.com>, Marcus Sorensen <marcus@bluehost.com>, Matt Heaton <matt@bluehost.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "bsingharora@gmail.com" <bsingharora@gmail.com>, Ying Han <yinghan@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>
 
-On 23/06/11 14:57, Andrea Righi wrote:
-> On Thu, Jun 23, 2011 at 12:14:21PM +0100, Padraig Brady wrote:
->> On 22/06/11 22:51, Andrea Righi wrote:
->>> There were some reported problems in the past about trashing page cache
->>> when a backup software (i.e., rsync) touches a huge amount of pages (see
->>> for example [1]).
->>>
->>> This problem has been almost fixed by the Minchan Kim's patch [2] and a
->>> proper use of fadvise() in the backup software. For example this patch
->>> set [3] has been proposed for inclusion in rsync.
->>>
->>> However, there can be still other similar trashing problems: when the
->>> backup software reads all the source files, some of them may be part of
->>> the actual working set of the system. When a
->>> posix_fadvise(POSIX_FADV_DONTNEED) is performed _all_ pages are evicted
->>> from pagecache, both the working set and the use-once pages touched only
->>> by the backup software.
->>>
->>> With the following solution when posix_fadvise(POSIX_FADV_DONTNEED) is
->>> called for an active page instead of removing it from the page cache it
->>> is added to the tail of the inactive list. Otherwise, if it's already in
->>> the inactive list the page is removed from the page cache.
->>>
->>> In this way if the backup was the only user of a page, that page will
->>> be immediately removed from the page cache by calling
->>> posix_fadvise(POSIX_FADV_DONTNEED). If the page was also touched by
->>> other processes it'll be moved to the inactive list, having another
->>> chance of being re-added to the working set, or simply reclaimed when
->>> memory is needed.
->>>
->>> Testcase:
->>>
->>>   - create a 1GB file called "zero"
->>>   - run md5sum zero to read all the pages in page cache (this is to
->>>     simulate the user activity on this file)
->>>   - run "rsync zero zero_copy" (rsync is patched with [3])
->>>   - re-run md5sum zero (user activity on the working set) and measure
->>>     the time to complete this command
->>>
->>> The test has been performed using 3.0.0-rc4 vanilla and with this patch
->>> applied (3.0.0-rc4-fadvise).
->>>
->>> Results:
->>>                   avg elapsed time      block:block_bio_queue
->>>  3.0.0-rc4                  4.127s                      8,214
->>>  3.0.0-rc4-fadvise          2.146s                          0
->>>
->>> In the first case the file is evicted from page cache completely and we
->>> must re-read it from the disk. In the second case the file is still in
->>> page cache (in the inactive list) and we don't need any other additional
->>> I/O operation.
->>>
->>> [1] http://marc.info/?l=rsync&m=128885034930933&w=2
->>> [2] https://lkml.org/lkml/2011/2/20/57
->>> [3] http://lists.samba.org/archive/rsync/2010-November/025827.html
->>>
->>> Signed-off-by: Andrea Righi <andrea@betterlinux.com>
+2011/6/23 Michal Hocko <mhocko@suse.cz>:
+> On Thu 16-06-11 12:56:33, KAMEZAWA Hiroyuki wrote:
+>> From fb8aaa2c5f7fd99dfcb5d2ecb3c1226a58caafea Mon Sep 17 00:00:00 2001
+>> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>> Date: Thu, 16 Jun 2011 10:05:46 +0900
+>> Subject: [PATCH 6/7] memcg: calc NUMA node's weight for scan.
 >>
->> Hmm, What if you do want to evict it from the cache for testing purposes?
->> Perhaps this functionality should be associated with POSIX_FADV_NOREUSE?
->> dd has been recently modified to support invalidating the cache for a file,
->> and it uses POSIX_FADV_DONTNEED for that.
->> http://git.sv.gnu.org/gitweb/?p=coreutils.git;a=commitdiff;h=5f311553
-> 
-> I don't have any objection to associate POSIX_FADV_NOREUSE to this
-> functionality. Actually maintaining a specific functionality to drop
-> file cache pages can be useful, indeed.
-> 
-> However, I'm not sure if POSIX_FADV_NOREUSE or POSIX_FADV_DONTNEED
-> either are suitable.
-> 
-> According to the standard:
-> 
->  POSIX_FADV_NOREUSE = data will be accessed only once
->  POSIX_FADV_DONTNEED = data will not be accessed in the near future
+>> Now, by commit 889976, numa node scan of memcg is in round-robin.
+>> As commit log says, "a better algorithm is needed".
+>>
+>> for implementing some good scheduling, one of required things is
+>> defining importance of each node at LRU scanning.
+>>
+>> This patch defines each node's weight for scan as
+>>
+>> swappiness = (memcg's swappiness)? memcg's swappiness : 1
+>> FILE = inactive_file + (inactive_file_is_low)? active_file : 0
+>> ANON = inactive_anon + (inactive_anon_is_low)? active_anon : 0
+>>
+>> weight = (FILE * (200-swappiness) + ANON * swappiness)/200.
+>
+> Shouldn't we consider the node size?
 
+Above one cheks FILE+ANON....it's size of node.
 
-> So, associating the "drop the page cache" semantic sounds like an
-> implementation detail and applications shouldn't implicitly rely on this
-> behaviour.
+> If we have a node which is almost full with file cache and then other
+> node wich is much bigger and it is mostly occupied by anonymous memory
+> than the other node might end up with higher weight.
 
-Well the "standard" really is what has been implemented up to now.
-POSIX_FADV_NOREUSE currently does nothing so, associating this
-new behavior with it seems less problematic for user space.
-Also the names fit pretty well I think.
+I used a porportional fair scheduling in the next patch and I expect I'll not
+see heavy starvation of node balancing. And if inactive_anon_is_low(),
+the weight of anon-only-node will jump up.
 
-  POSIX_FADV_DONTNEED = drop if possible
-  POSIX_FADV_NOREUSE = current app won't reuse so reduce cache eligibility
+But yes, other "weight" calculation is possible. The point of this patch
+series is introducing a scheduler which can handle "weight" of value.
 
-cheers,
-Padraig.
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
