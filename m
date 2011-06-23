@@ -1,52 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 09109900194
-	for <linux-mm@kvack.org>; Thu, 23 Jun 2011 11:38:01 -0400 (EDT)
-Message-ID: <4E035DD1.1030603@kpanic.de>
-Date: Thu, 23 Jun 2011 17:37:53 +0200
-From: Stefan Assmann <sassmann@kpanic.de>
-MIME-Version: 1.0
-Subject: Re: [PATCH v2 0/3] support for broken memory modules (BadRAM)
-References: <1308741534-6846-1-git-send-email-sassmann@kpanic.de> <20110623133950.GB28333@srcf.ucam.org> <4E0348E0.7050808@kpanic.de> <20110623141222.GA30003@srcf.ucam.org>
-In-Reply-To: <20110623141222.GA30003@srcf.ucam.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 14B51900194
+	for <linux-mm@kvack.org>; Thu, 23 Jun 2011 11:38:20 -0400 (EDT)
+Subject: Re: [PATCH] Add zv_pool_pages_count to zcache sysfs
+From: Dave Hansen <dave@sr71.net>
+In-Reply-To: <4E024122.5020601@linux.vnet.ibm.com>
+References: <4E023F61.8080904@linux.vnet.ibm.com>
+	 <4E024122.5020601@linux.vnet.ibm.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Thu, 23 Jun 2011 08:38:10 -0700
+Message-ID: <1308843490.11430.419.camel@nimitz>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Garrett <mjg59@srcf.ucam.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, tony.luck@intel.com, andi@firstfloor.org, mingo@elte.hu, hpa@zytor.com, rick@vanrein.org, rdunlap@xenotime.net
+To: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Cc: linux-mm <linux-mm@kvack.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Nitin Gupta <ngupta@vflare.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, Brian King <brking@linux.vnet.ibm.com>, Greg Kroah-Hartman <gregkh@suse.de>
 
-On 23.06.2011 16:12, Matthew Garrett wrote:
-> On Thu, Jun 23, 2011 at 04:08:32PM +0200, Stefan Assmann wrote:
->> On 23.06.2011 15:39, Matthew Garrett wrote:
->>> Would it be more reasonable to do this in the bootloader? You'd ideally 
->>> want this to be done as early as possible in order to avoid awkward 
->>> situations like your ramdisk ending up in the bad RAM area.
->>
->> Not sure what exactly you are suggesting here. The kernel somehow needs
->> to know what memory areas to avoid so we supply this information via
->> kernel command line.
->> What the bootloader could do is to allow the kernel/initrd to be loaded
->> at an alternative address. That's briefly mentioned in the BadRAM
->> Documentation as well. Is that what you mean or am I missing something?
-> 
-> For EFI booting we just hand an e820 map to the kernel. It ought to be 
-> easy enough to add support for that to the 16-bit entry point as well. 
-> Then the bootloader just needs to construct an e820 map of its own. I 
-> think grub2 actually already has some support for this. The advantage of 
-> this approach is that the knowledge of bad memory only has to exist in 
-> one place (ie, the bootloader) - the kernel can remain blisfully 
-> unaware.
-> 
+On Wed, 2011-06-22 at 14:23 -0500, Seth Jennings wrote:
+> +#ifdef CONFIG_SYSFS
 
-According to Rick's reply in this thread a damaged row in a DIMM can
-easily cause a few thousand entries in the e820 table because it doesn't
-handle patterns. So the question I'm asking is, is it acceptable to
-have an e820 table with thousands maybe ten-thousands of entries?
-I really have no idea of the implications, maybe somebody else can
-comment on that.
+There are a couple of #ifdef CONFIG_SYSFS blocks in zcache.c already.
+Could this go inside one of those instead of being off by itself?
 
-  Stefan
+> +static int zv_show_pool_pages_count(char *buf)
+> +{
+> +	char *p = buf;
+> +	unsigned long numpages;
+> +
+> +	if (zcache_client.xvpool == NULL)
+> +		p += sprintf(p, "%d\n", 0);
+> +	else {
+
+^^ That's probably a good spot to include brackets.  They don't take up
+any more lines, and it keeps folks from introducing bugs doing things
+like:
+
+	if (zcache_client.xvpool == NULL)
+		p += sprintf(p, "%d\n", 0);
+		bar();
+	else {
+
+> +		numpages = xv_get_total_size_bytes(zcache_client.xvpool);
+> +		p += sprintf(p, "%lu\n", numpages >> PAGE_SHIFT);
+> +	}
+
+In this case 'numpages' doesn't actually store a number of pages; it
+stores a number of bytes.  I'd probably rename it.
+
+Also 'numpages' is an 'unsigned long' while xv_get_total_size_bytes()
+returns a u64.  'unsigned long' is only 32-bits on 32-bit architectures,
+so it's possible that large buffers sizes could overflow.  The easiest
+way to fix this is probably to just make 'numpages' a u64.
+
+
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
