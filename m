@@ -1,87 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 1BE30900194
-	for <linux-mm@kvack.org>; Thu, 23 Jun 2011 09:01:44 -0400 (EDT)
-Received: by bwz17 with SMTP id 17so2263150bwz.14
-        for <linux-mm@kvack.org>; Thu, 23 Jun 2011 06:01:40 -0700 (PDT)
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 21C6B900194
+	for <linux-mm@kvack.org>; Thu, 23 Jun 2011 09:04:27 -0400 (EDT)
+Message-ID: <4E0339CF.8080407@draigBrady.com>
+Date: Thu, 23 Jun 2011 14:04:15 +0100
+From: =?ISO-8859-15?Q?P=E1draig_Brady?= <P@draigBrady.com>
 MIME-Version: 1.0
-In-Reply-To: <20110623115855.GF31593@tiehlicka.suse.cz>
-References: <20110622120635.GB14343@tiehlicka.suse.cz>
-	<20110622121516.GA28359@infradead.org>
-	<20110622123204.GC14343@tiehlicka.suse.cz>
-	<20110623150842.d13492cd.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110623074133.GA31593@tiehlicka.suse.cz>
-	<20110623170811.16f4435f.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110623090204.GE31593@tiehlicka.suse.cz>
-	<20110623190157.1bc8cbb9.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110623115855.GF31593@tiehlicka.suse.cz>
-Date: Thu, 23 Jun 2011 22:01:40 +0900
-Message-ID: <BANLkTimshUCY5Yq5g9dnY0gi2TRneGscug@mail.gmail.com>
-Subject: Re: [PATCH] mm: preallocate page before lock_page at filemap COW.
- (WasRe: [PATCH V2] mm: Do not keep page locked during page fault while
- charging it for memcg
-From: Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: sandy bridge kswapd0 livelock with pagecache
+References: <4E0069FE.4000708@draigBrady.com> <20110621103920.GF9396@suse.de> <4E0076C7.4000809@draigBrady.com> <20110621113447.GG9396@suse.de> <4E008784.80107@draigBrady.com> <20110621130756.GH9396@suse.de> <4E00A96D.8020806@draigBrady.com> <20110622094401.GJ9396@suse.de> <4E01C19F.20204@draigBrady.com> <20110623114646.GM9396@suse.de>
+In-Reply-To: <20110623114646.GM9396@suse.de>
+Content-Type: text/plain; charset=ISO-8859-15
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Mel Gorman <mgorman@suse.de>, Lutz Vieweg <lvml@5t9.de>
+To: Mel Gorman <mgorman@suse.de>
+Cc: linux-mm@kvack.org
 
-2011/6/23 Michal Hocko <mhocko@suse.cz>:
-> On Thu 23-06-11 19:01:57, KAMEZAWA Hiroyuki wrote:
->> On Thu, 23 Jun 2011 11:02:04 +0200
->> Michal Hocko <mhocko@suse.cz> wrote:
->>
->> > On Thu 23-06-11 17:08:11, KAMEZAWA Hiroyuki wrote:
->> > > On Thu, 23 Jun 2011 09:41:33 +0200
->> > > Michal Hocko <mhocko@suse.cz> wrote:
->> > [...]
->> > > > Other than that:
->> > > > Reviewed-by: Michal Hocko <mhocko@suse.cz>
->> > > >
->> > >
->> > > I found the page is added to LRU before charging. (In this case,
->> > > memcg's LRU is ignored.) I'll post a new version with a fix.
->> >
->> > Yes, you are right. I have missed that.
->> > This means that we might race with reclaim which could evict the COWed
->> > page wich in turn would uncharge that page even though we haven't
->> > charged it yet.
->> >
->> > Can we postpone page_add_new_anon_rmap to the charging path or it would
->> > just race somewhere else?
->> >
->>
->> I got a different idea. How about this ?
->> I think this will have benefit for non-memcg users under OOM, too.
->
-> Could you be more specific? I do not see how preallocation which might
-> turn out to be pointless could help under OOM.
->
+On 23/06/11 12:46, Mel Gorman wrote:
+> Based on the information you have provided from sysrq and the profile,
+> I put together a theory as to what is going wrong for your machine at
+> least although I somehow doubt the same fix will work for Dan. Can you
+> try out the following please? It's against 2.6.38.8 (and presumably
+> Fedora) but will apply with offset against 2.6.39 and 3.0-rc4.
+> 
+> ==== CUT HERE ====
+> mm: vmscan: Correct check for kswapd sleeping in sleeping_prematurely
+> 
+> During allocator-intensive workloads, kswapd will be woken frequently
+> causing free memory to oscillate between the high and min watermark.
+> This is expected behaviour.
+> 
+> A problem occurs if the highest zone is small that keeps kswapd awake.
+> balance_pgdat() only considers unreclaimable zones when priority
+> is DEF_PRIORITY but sleeping_prematurely considers all zones. It's
+> possible for this sequence to occur
+> 
+>   1. kswapd wakes up and enters balance_pgdat()
+>   2. At DEF_PRIORITY, marks highest zone unreclaimable
+>   3. At DEF_PRIORITY-1, ignores highest zone setting end_zone
+>   4. At DEF_PRIORITY-1, calls shrink_slab freeing memory from
+>         highest zone, clearing all_unreclaimable. Highest zone
+>         is still unbalanced
+>   5. kswapd returns and calls sleeping_prematurely before sleep
+>   6. sleeping_prematurely looks at *all* zones, not just the ones
+>      being considered by balance_pgdat. The highest small zone
+>      has all_unreclaimable cleared but the zone is not
+>      balanced. all_zones_ok is false so kswapd stays awake
+> 
+> The impact is that kswapd chews up a lot of CPU as it avoids most of
+> the scheduling points and reclaims excessively from the lower zones.
+> This patch corrects the behaviour of sleeping_prematurely to check
+> the zones balance_pgdat() checked.
+> 
+> Reported-by: Padraig Brady <P@draigBrady.com>
+> Not-signed-off-awaiting-confirmation: Mel Gorman <mgorman@suse.de>
+> ---
+>  mm/vmscan.c |    2 +-
+>  1 files changed, 1 insertions(+), 1 deletions(-)
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index a74bf72..a578535 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2261,7 +2261,7 @@ static bool sleeping_prematurely(pg_data_t *pgdat, int order, long remaining,
+>  		return true;
+>  
+>  	/* Check the watermark levels */
+> -	for (i = 0; i < pgdat->nr_zones; i++) {
+> +	for (i = 0; i <= classzone_idx; i++) {
+>  		struct zone *zone = pgdat->node_zones + i;
+>  
+>  		if (!populated_zone(zone))
 
-We'll have no page allocation under lock_page() held in this path.
-I think it is good.
+No joy :(
 
->>
->> A concerns is VM_FAULT_RETRY case but wait-for-lock will be much heavier
->> than preallocation + free-for-retry cost.
->
-> Preallocation is rather costly when fault handler fails (e.g. SIGBUS
-> which is the easiest one to trigger).
->
-I think pcp cache of free page allocater does enough good job and I guess
-we'll see no problem even if there is a storm of SIGBUS.
-
-> I am not saying this approach is bad but I think that preallocation can
-> be much more costly than unlock, charge and lock&recheck approach.
-
-memcg_is_disabled() cannot help ROOT cgroup. And additional
-lock/unlock method may kill FAULT_RETRY at lock contention optimization
-which was added recently.
-
-
-Thanks,
--Kame
+cheers,
+Padraig.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
