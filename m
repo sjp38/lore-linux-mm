@@ -1,82 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 40B38900194
-	for <linux-mm@kvack.org>; Thu, 23 Jun 2011 12:25:02 -0400 (EDT)
-Received: by gxk23 with SMTP id 23so1082620gxk.14
-        for <linux-mm@kvack.org>; Thu, 23 Jun 2011 09:24:54 -0700 (PDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D380900194
+	for <linux-mm@kvack.org>; Thu, 23 Jun 2011 12:31:08 -0400 (EDT)
+Message-ID: <4E036A2D.1060402@zytor.com>
+Date: Thu, 23 Jun 2011 09:30:37 -0700
+From: "H. Peter Anvin" <hpa@zytor.com>
 MIME-Version: 1.0
-Reply-To: M.K.Edwards@gmail.com
-In-Reply-To: <4E033AFF.4020603@gmail.com>
-References: <1308556213-24970-1-git-send-email-m.szyprowski@samsung.com>
-	<4E017539.30505@gmail.com>
-	<001d01cc30a9$ebe5e460$c3b1ad20$%szyprowski@samsung.com>
-	<4E01AD7B.3070806@gmail.com>
-	<002701cc30be$ab296cc0$017c4640$%szyprowski@samsung.com>
-	<4E02119F.4000901@codeaurora.org>
-	<4E033AFF.4020603@gmail.com>
-Date: Thu, 23 Jun 2011 09:24:53 -0700
-Message-ID: <BANLkTikzTwNvaaUSk26qzONemogBAGuBRg@mail.gmail.com>
-Subject: Re: [Linaro-mm-sig] [PATCH/RFC 0/8] ARM: DMA-mapping framework redesign
-From: "Michael K. Edwards" <m.k.edwards@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH v2 0/3] support for broken memory modules (BadRAM)
+References: <1308741534-6846-1-git-send-email-sassmann@kpanic.de> <20110623133950.GB28333@srcf.ucam.org> <4E0348E0.7050808@kpanic.de> <20110623141222.GA30003@srcf.ucam.org> <4E035DD1.1030603@kpanic.de>
+In-Reply-To: <4E035DD1.1030603@kpanic.de>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Subash Patel <subashrp@gmail.com>
-Cc: Jordan Crouse <jcrouse@codeaurora.org>, Marek Szyprowski <m.szyprowski@samsung.com>, linux-arch@vger.kernel.org, linaro-mm-sig@lists.linaro.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org
+To: Stefan Assmann <sassmann@kpanic.de>
+Cc: Matthew Garrett <mjg59@srcf.ucam.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, tony.luck@intel.com, andi@firstfloor.org, mingo@elte.hu, rick@vanrein.org, rdunlap@xenotime.net
 
-On Thu, Jun 23, 2011 at 6:09 AM, Subash Patel <subashrp@gmail.com> wrote:
+On 06/23/2011 08:37 AM, Stefan Assmann wrote:
+> 
+> According to Rick's reply in this thread a damaged row in a DIMM can
+> easily cause a few thousand entries in the e820 table because it doesn't
+> handle patterns. So the question I'm asking is, is it acceptable to
+> have an e820 table with thousands maybe ten-thousands of entries?
+> I really have no idea of the implications, maybe somebody else can
+> comment on that.
+> 
 
-> We have some rare cases, where requirements like above are also there. So we
-> require to have flexibility to map user allocated buffers to devices as
-> well.
+Given that that is what actually ends up happening in the kernel at some
+point anyway, I don't see why it would matter.
 
-Not so rare, I think.  When using the OpenGL back end, Qt routinely
-allocates buffers to hold image assets (e. g., decompressed JPEGs and
-the glyph cache) and then uses them as textures.  Which, if there's a
-GPU that doesn't participate in the cache coherency protocol, is a
-problem.  (One which we can reliably trigger on our embedded
-platform.)
+The bubble sort has to go, but quite frankly stress-testing the range
+handling isn't a bad thing.
+	
+	-hpa
 
-The best workaround we have been able to come up with is for Qt's
-allocator API, which already has a "flags" parameter, to grow an
-"allocate for use as texture" flag, which makes the allocation come
-from a separate pool backed by a write-combining uncacheable mapping.
-Then we can grovel our way through the highest-frequency use cases,
-restructuring the code that writes these assets to use the approved
-write-combining tricks.
-
-In the very near future, some of these assets are likely to come from
-other hardware blocks, such as a hardware JPEG decoder (Subash's use
-case), a V4L2 capture device, or a OpenMAX H.264 decoder.  Those may
-add orthogonal allocation requirements, such as page alignment or
-allocation from tightly coupled memory.  The only entity that knows
-what buffers might be passed where is the userland application (or
-potentially a userland media framework, like StageFright or
-GStreamer).
-
-So the solution that I'd like to see is for none of these drivers to
-do their own allocation of buffers that aren't for strictly internal
-use.  Instead, the userland application should ask each component for
-a "buffer attributes" structure, and merge the attributes of the
-components that may touch a given buffer in order to get the
-allocation attributes for that buffer (or for the hugepage from which
-it will carve out many like it).
-
-The userland would ask the kernel to do the appropriate allocation --
-ideally by passing in the merged allocation attributes and getting
-back a file descriptor, which can be passed around to other processes
-(over local domain sockets) and mmap'ed.  The buffers themselves would
-have to be registered with each driver that uses them; i. e., the
-driver's buffer allocation API is replaced with a buffer registration
-API.  If the driver doesn't like the attributes of the mapping from
-which the buffer was allocated, the registration fails.
-
-I will try to get around to producing some code that does this soon,
-at least for the Qt/GPU texture asset allocation/registration use
-case.
-
-Cheers,
-- Michael
+-- 
+H. Peter Anvin, Intel Open Source Technology Center
+I work for Intel.  I don't speak on their behalf.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
