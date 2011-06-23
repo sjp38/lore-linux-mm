@@ -1,36 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 68064900194
-	for <linux-mm@kvack.org>; Thu, 23 Jun 2011 13:12:58 -0400 (EDT)
-From: "Luck, Tony" <tony.luck@intel.com>
-Date: Thu, 23 Jun 2011 10:12:55 -0700
-Subject: RE: [PATCH v2 0/3] support for broken memory modules (BadRAM)
-Message-ID: <987664A83D2D224EAE907B061CE93D5301E938F2FD@orsmsx505.amr.corp.intel.com>
-References: <1308741534-6846-1-git-send-email-sassmann@kpanic.de>
- <20110623133950.GB28333@srcf.ucam.org> <4E0348E0.7050808@kpanic.de>
- <20110623141222.GA30003@srcf.ucam.org> <4E035DD1.1030603@kpanic.de>
- <20110623170014.GN3263@one.firstfloor.org>
-In-Reply-To: <20110623170014.GN3263@one.firstfloor.org>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+	by kanga.kvack.org (Postfix) with SMTP id 8740F900194
+	for <linux-mm@kvack.org>; Thu, 23 Jun 2011 15:25:53 -0400 (EDT)
+Message-ID: <4E039334.7090502@draigBrady.com>
+Date: Thu, 23 Jun 2011 20:25:40 +0100
+From: =?ISO-8859-15?Q?P=E1draig_Brady?= <P@draigBrady.com>
 MIME-Version: 1.0
+Subject: Re: sandy bridge kswapd0 livelock with pagecache
+References: <20110621113447.GG9396@suse.de> <4E008784.80107@draigBrady.com> <20110621130756.GH9396@suse.de> <4E00A96D.8020806@draigBrady.com> <20110622094401.GJ9396@suse.de> <4E01C19F.20204@draigBrady.com> <20110623114646.GM9396@suse.de> <4E0339CF.8080407@draigBrady.com> <20110623152418.GN9396@suse.de> <4E035C8B.1080905@draigBrady.com> <20110623165955.GO9396@suse.de>
+In-Reply-To: <20110623165955.GO9396@suse.de>
+Content-Type: text/plain; charset=ISO-8859-15
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <andi@firstfloor.org>, Stefan Assmann <sassmann@kpanic.de>
-Cc: Matthew Garrett <mjg59@srcf.ucam.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mingo@elte.hu" <mingo@elte.hu>, "hpa@zytor.com" <hpa@zytor.com>, "rick@vanrein.org" <rick@vanrein.org>, "rdunlap@xenotime.net" <rdunlap@xenotime.net>
+To: Mel Gorman <mgorman@suse.de>
+Cc: linux-mm@kvack.org
 
-> I don't think it makes sense to handle something like that with a list.
-> The compact representation currently in badram is great for that.
+On 23/06/11 17:59, Mel Gorman wrote:
+> On Thu, Jun 23, 2011 at 04:32:27PM +0100, P?draig Brady wrote:
+>> On 23/06/11 16:24, Mel Gorman wrote:
+>>>
+>>> Theory 2 it is then. This is to be applied on top of the patch for
+>>> theory 1.
+>>>
+>>> ==== CUT HERE ====
+>>> mm: vmscan: Prevent kswapd doing excessive work when classzone is unreclaimable
+>>
+>> No joy :(
+>>
+> 
+> Joy is indeed rapidly fleeing the vicinity.
+> 
+> Check /proc/sys/vm/laptop_mode . If it's set, unset it and try again.
 
-I'd tend to agree here.  Rick has made a convincing argument that there
-are significant numbers of real world cases where a defective row/column
-in a DIMM results in a predictable pattern of errors.  The ball is now
-in Google's court to take a look at their systems that have high numbers
-of errors to see if they can actually be described by a small number
-of BadRAM patterns as Rick has claimed.
+It was not set
 
--Tony
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index dce95dd..c8c0f5a 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2426,19 +2426,19 @@ loop_again:
+>  			 * zone has way too many pages free already.
+>  			 */
+>  			if (!zone_watermark_ok_safe(zone, order,
+> -					8*high_wmark_pages(zone), end_zone, 0))
+
+Note 8 was not in my tree.
+Manually applied patch makes no difference :(
+Well maybe kswapd0 started spinning a little later.
+
+cheers,
+Padraig.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
