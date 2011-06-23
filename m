@@ -1,59 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 1774D900194
-	for <linux-mm@kvack.org>; Thu, 23 Jun 2011 06:49:07 -0400 (EDT)
-Date: Thu, 23 Jun 2011 10:49:03 +0000
-From: Rick van Rein <rick@vanrein.org>
-Subject: Re: [PATCH v2 0/3] support for broken memory modules (BadRAM)
-Message-ID: <20110623104903.GA14754@phantom.vanrein.org>
-References: <1308741534-6846-1-git-send-email-sassmann@kpanic.de> <4E023142.1080605@zytor.com> <4E0250F2.2010607@kpanic.de> <4E0251AB.8090702@zytor.com> <1308741534-6846-1-git-send-email-sassmann@kpanic.de> <20110622110034.89ee399c.akpm@linux-foundation.org> <4E024E31.50901@kpanic.de> <1308741534-6846-1-git-send-email-sassmann@kpanic.de> <4E023142.1080605@zytor.com> <20110623103320.GB2910@phantom.vanrein.org>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 1115C900194
+	for <linux-mm@kvack.org>; Thu, 23 Jun 2011 07:14:34 -0400 (EDT)
+Message-ID: <4E03200D.60704@draigBrady.com>
+Date: Thu, 23 Jun 2011 12:14:21 +0100
+From: =?ISO-8859-1?Q?P=E1draig_Brady?= <P@draigBrady.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110623103320.GB2910@phantom.vanrein.org>
+Subject: Re: [PATCH RFC] fadvise: move active pages to inactive list with
+ POSIX_FADV_DONTNEED
+References: <1308779480-4950-1-git-send-email-andrea@betterlinux.com>
+In-Reply-To: <1308779480-4950-1-git-send-email-andrea@betterlinux.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rick van Rein <rick@vanrein.org>
-Cc: "H. Peter Anvin" <hpa@zytor.com>, Stefan Assmann <sassmann@kpanic.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, tony.luck@intel.com, andi@firstfloor.org, mingo@elte.hu, rdunlap@xenotime.net, Nancy Yuen <yuenn@google.com>, Michael Ditto <mditto@google.com>
+To: Andrea Righi <andrea@betterlinux.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Jerry James <jamesjer@betterlinux.com>, Marcus Sorensen <marcus@bluehost.com>, Matt Heaton <matt@bluehost.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Hello,
-
-My last email may have assumed that you knew all about BadRAM; this
-is probably worth an expansion:
-
-> If you plug 10 DIMMs into your machine, and each has a faulty row
-> somewhere, then you will get into trouble if you stick to 5 patterns.
-
-With "trouble" I mean that a 6th pattern would be merged with the
-nearest of the already-found 5 patterns.  It may be that this leads
-to a pattern that covers more addresses than strictly needed.  This
-is how I can guarantee that there are never more than 5 patterns,
-and so never more than the cmdline can take.  No cut-offs are made.
-
-> But if you happen to run into a faulty DIMM from time to time, the
-> patterns should be your way out.
-
-...without needing to be more general than really required.  Of course,
-if all your PCs ran on 10 DIMMs, you could expand the number of
-patterns to a comfortably higher number, but what I've seen with the
-various cases I've supported, this has never been necessary.
-
-> > that would mean running in a known-bad configuration,
-> > and even a hard crash would be better.
+On 22/06/11 22:51, Andrea Righi wrote:
+> There were some reported problems in the past about trashing page cache
+> when a backup software (i.e., rsync) touches a huge amount of pages (see
+> for example [1]).
 > 
-> ...which is so sensible that it was of course taken into account in
-> the BadRAM design!
+> This problem has been almost fixed by the Minchan Kim's patch [2] and a
+> proper use of fadvise() in the backup software. For example this patch
+> set [3] has been proposed for inclusion in rsync.
+> 
+> However, there can be still other similar trashing problems: when the
+> backup software reads all the source files, some of them may be part of
+> the actual working set of the system. When a
+> posix_fadvise(POSIX_FADV_DONTNEED) is performed _all_ pages are evicted
+> from pagecache, both the working set and the use-once pages touched only
+> by the backup software.
+> 
+> With the following solution when posix_fadvise(POSIX_FADV_DONTNEED) is
+> called for an active page instead of removing it from the page cache it
+> is added to the tail of the inactive list. Otherwise, if it's already in
+> the inactive list the page is removed from the page cache.
+> 
+> In this way if the backup was the only user of a page, that page will
+> be immediately removed from the page cache by calling
+> posix_fadvise(POSIX_FADV_DONTNEED). If the page was also touched by
+> other processes it'll be moved to the inactive list, having another
+> chance of being re-added to the working set, or simply reclaimed when
+> memory is needed.
+> 
+> Testcase:
+> 
+>   - create a 1GB file called "zero"
+>   - run md5sum zero to read all the pages in page cache (this is to
+>     simulate the user activity on this file)
+>   - run "rsync zero zero_copy" (rsync is patched with [3])
+>   - re-run md5sum zero (user activity on the working set) and measure
+>     the time to complete this command
+> 
+> The test has been performed using 3.0.0-rc4 vanilla and with this patch
+> applied (3.0.0-rc4-fadvise).
+> 
+> Results:
+>                   avg elapsed time      block:block_bio_queue
+>  3.0.0-rc4                  4.127s                      8,214
+>  3.0.0-rc4-fadvise          2.146s                          0
+> 
+> In the first case the file is evicted from page cache completely and we
+> must re-read it from the disk. In the second case the file is still in
+> page cache (in the inactive list) and we don't need any other additional
+> I/O operation.
+> 
+> [1] http://marc.info/?l=rsync&m=128885034930933&w=2
+> [2] https://lkml.org/lkml/2011/2/20/57
+> [3] http://lists.samba.org/archive/rsync/2010-November/025827.html
+> 
+> Signed-off-by: Andrea Righi <andrea@betterlinux.com>
 
-Meaning, that is why patterns are merged if the exceed the rather high
-number of 5 patterns.  Rather waste those extra pages than running
-into a known fault.
+Hmm, What if you do want to evict it from the cache for testing purposes?
+Perhaps this functionality should be associated with POSIX_FADV_NOREUSE?
+dd has been recently modified to support invalidating the cache for a file,
+and it uses POSIX_FADV_DONTNEED for that.
+http://git.sv.gnu.org/gitweb/?p=coreutils.git;a=commitdiff;h=5f311553
 
-This high number of patterns is not at all common, however, making it
-safe to assume that the figure is high enough, in spite of leaving
-space on even LILO's cmdline to support adding several other tweaks.
-
-
--Rick
+cheers,
+Padraig.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
