@@ -1,35 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 707FE900194
-	for <linux-mm@kvack.org>; Thu, 23 Jun 2011 09:40:07 -0400 (EDT)
-Date: Thu, 23 Jun 2011 14:39:50 +0100
-From: Matthew Garrett <mjg59@srcf.ucam.org>
-Subject: Re: [PATCH v2 0/3] support for broken memory modules (BadRAM)
-Message-ID: <20110623133950.GB28333@srcf.ucam.org>
-References: <1308741534-6846-1-git-send-email-sassmann@kpanic.de>
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 193E8900194
+	for <linux-mm@kvack.org>; Thu, 23 Jun 2011 09:48:54 -0400 (EDT)
+Date: Thu, 23 Jun 2011 15:48:50 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 7/7] memcg: proportional fair vicitm node selection
+Message-ID: <20110623134850.GK31593@tiehlicka.suse.cz>
+References: <20110616124730.d6960b8b.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110616125741.c3d6a802.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1308741534-6846-1-git-send-email-sassmann@kpanic.de>
+In-Reply-To: <20110616125741.c3d6a802.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Stefan Assmann <sassmann@kpanic.de>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, tony.luck@intel.com, andi@firstfloor.org, mingo@elte.hu, hpa@zytor.com, rick@vanrein.org, rdunlap@xenotime.net
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "bsingharora@gmail.com" <bsingharora@gmail.com>, Ying Han <yinghan@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>
 
-On Wed, Jun 22, 2011 at 01:18:51PM +0200, Stefan Assmann wrote:
-> Following the RFC for the BadRAM feature here's the updated version with
-> spelling fixes, thanks go to Randy Dunlap. Also the code is now less verbose,
-> as requested by Andi Kleen.
-> v2 with even more spelling fixes suggested by Randy.
-> Patches are against vanilla 2.6.39.
-> Repost with LKML in Cc as suggested by Andrew Morton.
+On Thu 16-06-11 12:57:41, KAMEZAWA Hiroyuki wrote:
+> From 4fbd49697456c227c86f1d5b46f2cd2169bf1c5b Mon Sep 17 00:00:00 2001
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Date: Thu, 16 Jun 2011 11:25:23 +0900
+> Subject: [PATCH 7/7] memcg: proportional fair node vicitm selection
+> 
+> commit 889976 implements a round-robin scan of numa nodes for
+> LRU scanning of memcg at hitting limit.
+> But, round-robin is not very good.
+> 
+> This patch implements a proportionally fair victim selection of nodes
+> rather than round-robin. The logic is fair against each node's weight.
+> 
+> Each node's weight is calculated periodically and we build an node's
+> scheduling entity as
+> 
+>      total_ticket = 0;
+>      for_each_node(node)
+>      	node->ticket_start =  total_ticket;
+>         node->ticket_end   =  total_ticket + this_node's_weight()
+>         total_ticket = node->ticket_end;
+> 
+> Then, each nodes has some amounts of tickets in proportion to its own weight.
+> 
+> At selecting victim, a random number is selected and the node which contains
+> the random number in [ticket_start, ticket_end) is selected as vicitm.
+> This is a lottery scheduling algorithm.
+> 
+> For quick search of victim, this patch uses bsearch().
+> 
+> Test result:
+>   on 8cpu box with 2 nodes.
+>   limit memory to be 300MB and run httpd for 4096files/600MB working set.
+>   do (normalized) random access by apache-bench and see scan_stat.
+>   The test makes 40960 request. and see scan_stat.
+>   (Because a httpd thread just use 10% cpu, the number of threads will
+>    not be balanced between nodes. Then, file caches will not be balanced
+>    between nodes.)
 
-Would it be more reasonable to do this in the bootloader? You'd ideally 
-want this to be done as early as possible in order to avoid awkward 
-situations like your ramdisk ending up in the bad RAM area.
+Have you also tried to test with balanced nodes? I mean, is there any
+measurable overhead?
 
 -- 
-Matthew Garrett | mjg59@srcf.ucam.org
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
