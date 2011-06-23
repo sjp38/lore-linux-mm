@@ -1,72 +1,137 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 96583900194
-	for <linux-mm@kvack.org>; Thu, 23 Jun 2011 02:16:17 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 5CA933EE0C3
-	for <linux-mm@kvack.org>; Thu, 23 Jun 2011 15:16:14 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 2AA7045DE9D
-	for <linux-mm@kvack.org>; Thu, 23 Jun 2011 15:16:14 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 105B945DE9A
-	for <linux-mm@kvack.org>; Thu, 23 Jun 2011 15:16:14 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 00CF4E08001
-	for <linux-mm@kvack.org>; Thu, 23 Jun 2011 15:16:14 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 98B691DB804A
-	for <linux-mm@kvack.org>; Thu, 23 Jun 2011 15:16:13 +0900 (JST)
-Date: Thu, 23 Jun 2011 15:08:42 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH] memcg: unlock page before charging it. (WasRe: [PATCH V2]
- mm: Do not keep page locked during page fault while charging it for memcg
-Message-Id: <20110623150842.d13492cd.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20110622123204.GC14343@tiehlicka.suse.cz>
-References: <20110622120635.GB14343@tiehlicka.suse.cz>
-	<20110622121516.GA28359@infradead.org>
-	<20110622123204.GC14343@tiehlicka.suse.cz>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 512BF900194
+	for <linux-mm@kvack.org>; Thu, 23 Jun 2011 02:18:10 -0400 (EDT)
+Date: Thu, 23 Jun 2011 08:18:04 +0200
+From: Andrea Righi <andrea@betterlinux.com>
+Subject: Re: [PATCH RFC] fadvise: move active pages to inactive list with
+ POSIX_FADV_DONTNEED
+Message-ID: <20110623061803.GA1311@thinkpad>
+References: <1308779480-4950-1-git-send-email-andrea@betterlinux.com>
+ <4E02AFCE.6000604@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4E02AFCE.6000604@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Mel Gorman <mgorman@suse.de>, Lutz Vieweg <lvml@5t9.de>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: akpm@linux-foundation.org, minchan.kim@gmail.com, riel@redhat.com, peterz@infradead.org, hannes@cmpxchg.org, kamezawa.hiroyu@jp.fujitsu.com, aarcange@redhat.com, hughd@google.com, jamesjer@betterlinux.com, marcus@bluehost.com, matt@bluehost.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, 22 Jun 2011 14:32:04 +0200
-Michal Hocko <mhocko@suse.cz> wrote:
-
-> On Wed 22-06-11 08:15:16, Christoph Hellwig wrote:
-> > > +
-> > > +			/* We have to drop the page lock here because memcg
-> > > +			 * charging might block for unbound time if memcg oom
-> > > +			 * killer is disabled.
-> > > +			 */
-> > > +			unlock_page(vmf.page);
-> > > +			ret = mem_cgroup_newpage_charge(page, mm, GFP_KERNEL);
-> > > +			lock_page(vmf.page);
+On Thu, Jun 23, 2011 at 12:15:26PM +0900, KOSAKI Motohiro wrote:
+> (2011/06/23 6:51), Andrea Righi wrote:
+> > There were some reported problems in the past about trashing page cache
+> > when a backup software (i.e., rsync) touches a huge amount of pages (see
+> > for example [1]).
 > > 
-> > This introduces a completely poinless unlock/lock cycle for non-memcg
-> > pagefaults.  Please make sure it only happens when actually needed.
+> > This problem has been almost fixed by the Minchan Kim's patch [2] and a
+> > proper use of fadvise() in the backup software. For example this patch
+> > set [3] has been proposed for inclusion in rsync.
+> > 
+> > However, there can be still other similar trashing problems: when the
+> > backup software reads all the source files, some of them may be part of
+> > the actual working set of the system. When a
+> > posix_fadvise(POSIX_FADV_DONTNEED) is performed _all_ pages are evicted
+> > from pagecache, both the working set and the use-once pages touched only
+> > by the backup software.
+> > 
+> > With the following solution when posix_fadvise(POSIX_FADV_DONTNEED) is
+> > called for an active page instead of removing it from the page cache it
+> > is added to the tail of the inactive list. Otherwise, if it's already in
+> > the inactive list the page is removed from the page cache.
+> > 
+> > In this way if the backup was the only user of a page, that page will
+> > be immediately removed from the page cache by calling
+> > posix_fadvise(POSIX_FADV_DONTNEED). If the page was also touched by
+> > other processes it'll be moved to the inactive list, having another
+> > chance of being re-added to the working set, or simply reclaimed when
+> > memory is needed.
+> > 
+> > Testcase:
+> > 
+> >   - create a 1GB file called "zero"
+> >   - run md5sum zero to read all the pages in page cache (this is to
+> >     simulate the user activity on this file)
+> >   - run "rsync zero zero_copy" (rsync is patched with [3])
+> >   - re-run md5sum zero (user activity on the working set) and measure
+> >     the time to complete this command
+> > 
+> > The test has been performed using 3.0.0-rc4 vanilla and with this patch
+> > applied (3.0.0-rc4-fadvise).
+> > 
+> > Results:
+> >                   avg elapsed time      block:block_bio_queue
+> >  3.0.0-rc4                  4.127s                      8,214
+> >  3.0.0-rc4-fadvise          2.146s                          0
+> > 
+> > In the first case the file is evicted from page cache completely and we
+> > must re-read it from the disk. In the second case the file is still in
+> > page cache (in the inactive list) and we don't need any other additional
+> > I/O operation.
+> > 
+> > [1] http://marc.info/?l=rsync&m=128885034930933&w=2
+> > [2] https://lkml.org/lkml/2011/2/20/57
+> > [3] http://lists.samba.org/archive/rsync/2010-November/025827.html
+> > 
+> > Signed-off-by: Andrea Righi <andrea@betterlinux.com>
+> > ---
+> >  mm/swap.c     |    9 +++++----
+> >  mm/truncate.c |    5 ++++-
+> >  2 files changed, 9 insertions(+), 5 deletions(-)
+> > 
+> > diff --git a/mm/swap.c b/mm/swap.c
+> > index 3a442f1..fc8bb76 100644
+> > --- a/mm/swap.c
+> > +++ b/mm/swap.c
+> > @@ -411,10 +411,11 @@ void add_page_to_unevictable_list(struct page *page)
+> >   *
+> >   * 1. active, mapped page -> none
+> >   * 2. active, dirty/writeback page -> inactive, head, PG_reclaim
+> > - * 3. inactive, mapped page -> none
+> > - * 4. inactive, dirty/writeback page -> inactive, head, PG_reclaim
+> > - * 5. inactive, clean -> inactive, tail
+> > - * 6. Others -> none
+> > + * 3. active, clean -> inactive, tail
+> > + * 4. inactive, mapped page -> none
+> > + * 5. inactive, dirty/writeback page -> inactive, head, PG_reclaim
+> > + * 6. inactive, clean -> inactive, tail
+> > + * 7. Others -> none
+> >   *
+> >   * In 4, why it moves inactive's head, the VM expects the page would
+> >   * be write it out by flusher threads as this is much more effective
+> > diff --git a/mm/truncate.c b/mm/truncate.c
+> > index 3a29a61..043aabd 100644
+> > --- a/mm/truncate.c
+> > +++ b/mm/truncate.c
+> > @@ -357,7 +357,10 @@ unsigned long invalidate_mapping_pages(struct address_space *mapping,
+> >  			if (lock_failed)
+> >  				continue;
+> >  
+> > -			ret = invalidate_inode_page(page);
+> > +			if (PageActive(page))
+> > +				ret = 0;
+> > +			else
+> > +				ret = invalidate_inode_page(page);
 > 
-> Fair point. Thanks!
-> What about the following?
-> I realize that pushing more memcg logic into mm/memory.c is not nice but
-> I found it better than pushing the old page into mem_cgroup_newpage_charge.
-> We could also check whether the old page is in the root cgroup because
-> memcg oom killer is not active there but that would add more code into
-> this hot path so I guess it is not worth it.
+> So, after this patch, following comment is a bit outdated. we deactivate
+> the page even if it's not invalidated.
 > 
-> Changes since v1
-> - do not unlock page when memory controller is disabled.
+>                         /*
+>                          * Invalidation is a hint that the page is no longer
+>                          * of interest and try to speed up its reclaim.
+>                          */
 > 
+> Can you please fix the comment too? Other than that,
+> 	Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-Great work. Then I confirmed Lutz' problem is fixed.
+OK, will fix the comment and post a new version soon.
 
-But I like following style rather than additional lock/unlock.
-How do you think ? I tested this on the latest git tree and confirmed
-the Lutz's livelock problem is fixed. And I think this should go stable tree.
+Thanks for reviewing,
+-Andrea
 
-
-==
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
