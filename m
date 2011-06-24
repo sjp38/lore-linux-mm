@@ -1,100 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 4C0FE900194
-	for <linux-mm@kvack.org>; Fri, 24 Jun 2011 02:12:04 -0400 (EDT)
-Received: by pzk4 with SMTP id 4so2007218pzk.14
-        for <linux-mm@kvack.org>; Thu, 23 Jun 2011 23:11:59 -0700 (PDT)
-Message-ID: <4E042A84.5010204@vflare.org>
-Date: Thu, 23 Jun 2011 23:11:16 -0700
-From: Nitin Gupta <ngupta@vflare.org>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id EC14F900194
+	for <linux-mm@kvack.org>; Fri, 24 Jun 2011 02:23:12 -0400 (EDT)
+Received: by pzk4 with SMTP id 4so2011550pzk.14
+        for <linux-mm@kvack.org>; Thu, 23 Jun 2011 23:23:10 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: frontswap/zcache: xvmalloc discussion
-References: <4E023F61.8080904@linux.vnet.ibm.com>
-In-Reply-To: <4E023F61.8080904@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+From: Andrew Lutomirski <luto@mit.edu>
+Date: Fri, 24 Jun 2011 02:22:50 -0400
+Message-ID: <BANLkTik7ubq9ChR6UEBXOo5D9tn3mMb1Yw@mail.gmail.com>
+Subject: Root-causing kswapd spinning on Sandy Bridge laptops?
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: linux-mm <linux-mm@kvack.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Brian King <brking@linux.vnet.ibm.com>, Greg Kroah-Hartman <gregkh@suse.de>
+To: Minchan Kim <minchan.kim@gmail.com>, linux-mm@kvack.org
 
-Hi Seth,
+I'm back :-/
 
-On 06/22/2011 12:15 PM, Seth Jennings wrote:
+I just triggered the kswapd bug on 2.6.39.1, which has the
+cond_resched in shrink_slab.  This time my system's still usable (I'm
+tying this email on it), but kswapd0 is taking 100% cpu.  It *does*
+schedule (tested by setting its affinity the same as another CPU hog
+and confirming that each one gets 50%).
 
->
-> The real problem here is compressing pages of size x and storing them in
-> a pool that has "chunks", if you will, also of size x, where allocations
-> can't span multiple chunks. Ideally, I'd like to address this issue by
-> expanding the size of the xvmalloc pool chunks from one page to four
-> pages (I can explain why four is a good number, just didn't want to make
-> this note too long).
->
-> After a little playing around, I've found this isn't entirely trivial to
-> do because of the memory mapping implications; more specifically the use
-> of kmap/kunamp in the xvmalloc and zcache layers. I've looked into using
-> vmap to map multiple pages into a linear address space, but it seems
-> like there is a lot of memory overhead in doing that.
->
-> Do you have any feedback on this issue or suggestion solution?
->
+It appears to be calling i915_gem_inactive_shrink in a loop.  I have
+probes on entry and return of i915_gem_inactive_shrink and on return
+of shrink_slab.  I see:
 
-xvmalloc fragmentation issue has been reported by several zram users and 
-quite some time back I started working on a new allocator (xcfmalloc) 
-which potentially solves many of these issues. However, all of the 
-details are currently on paper and I'm sure actual implementation will 
-bring a lot of surprises.
+         kswapd0    47 [000] 59599.956573: mm_vmscan_kswapd_wake: nid=0 order=0
+         kswapd0    47 [000] 59599.956575: shrink_zone:
+(ffffffff810c848c) priority=12 zone=ffff8801005fe000
+         kswapd0    47 [000] 59599.956576: shrink_zone_return:
+(ffffffff810c848c <- ffffffff810c96c6) arg1=0
+         kswapd0    47 [000] 59599.956578: i915_gem_inactive_shrink:
+(ffffffffa0081e48) gfp_mask=d0 nr_to_scan=0
+         kswapd0    47 [000] 59599.956589: shrink_return:
+(ffffffffa0081e48 <- ffffffff810c6a62) arg1=320
+         kswapd0    47 [000] 59599.956589: shrink_slab_return:
+(ffffffff810c69f5 <- ffffffff810c96ec) arg1=0
+         kswapd0    47 [000] 59599.956592: i915_gem_inactive_shrink:
+(ffffffffa0081e48) gfp_mask=d0 nr_to_scan=0
+         kswapd0    47 [000] 59599.956602: shrink_return:
+(ffffffffa0081e48 <- ffffffff810c6a62) arg1=320
+         kswapd0    47 [000] 59599.956603: shrink_slab_return:
+(ffffffff810c69f5 <- ffffffff810c96ec) arg1=0
+         kswapd0    47 [000] 59599.956605: shrink_zone:
+(ffffffff810c848c) priority=12 zone=ffff8801005fee00
+         kswapd0    47 [000] 59599.956606: shrink_zone_return:
+(ffffffff810c848c <- ffffffff810c96c6) arg1=0
+         kswapd0    47 [000] 59599.956608: i915_gem_inactive_shrink:
+(ffffffffa0081e48) gfp_mask=d0 nr_to_scan=0
+         kswapd0    47 [000] 59599.956609: shrink_return:
+(ffffffffa0081e48 <- ffffffff810c6a62) arg1=0
+         kswapd0    47 [000] 59599.956610: shrink_slab_return:
+(ffffffff810c69f5 <- ffffffff810c96ec) arg1=0
+         kswapd0    47 [000] 59599.956611: mm_vmscan_kswapd_wake: nid=0 order=0
+         kswapd0    47 [000] 59599.956612: shrink_zone:
+(ffffffff810c848c) priority=12 zone=ffff8801005fe000
+         kswapd0    47 [000] 59599.956614: shrink_zone_return:
+(ffffffff810c848c <- ffffffff810c96c6) arg1=0
+         kswapd0    47 [000] 59599.956616: i915_gem_inactive_shrink:
+(ffffffffa0081e48) gfp_mask=d0 nr_to_scan=0
+         kswapd0    47 [000] 59599.956617: shrink_return:
+(ffffffffa0081e48 <- ffffffff810c6a62) arg1=0
+         kswapd0    47 [000] 59599.956618: shrink_slab_return:
+(ffffffff810c69f5 <- ffffffff810c96ec) arg1=0
+         kswapd0    47 [000] 59599.956620: i915_gem_inactive_shrink:
+(ffffffffa0081e48) gfp_mask=d0 nr_to_scan=0
+         kswapd0    47 [000] 59599.956621: shrink_return:
+(ffffffffa0081e48 <- ffffffff810c6a62) arg1=0
+         kswapd0    47 [000] 59599.956621: shrink_slab_return:
+(ffffffff810c69f5 <- ffffffff810c96ec) arg1=0
+         kswapd0    47 [000] 59599.956623: shrink_zone:
+(ffffffff810c848c) priority=12 zone=ffff8801005fee00
+         kswapd0    47 [000] 59599.956624: shrink_zone_return:
+(ffffffff810c848c <- ffffffff810c96c6) arg1=0
+         kswapd0    47 [000] 59599.956626: i915_gem_inactive_shrink:
+(ffffffffa0081e48) gfp_mask=d0 nr_to_scan=0
+         kswapd0    47 [000] 59599.956627: shrink_return:
+(ffffffffa0081e48 <- ffffffff810c6a62) arg1=0
+         kswapd0    47 [000] 59599.956628: shrink_slab_return:
+(ffffffff810c69f5 <- ffffffff810c96ec) arg1=0
+         kswapd0    47 [000] 59599.956629: mm_vmscan_kswapd_wake: nid=0 order=0
 
-Currently, xvmalloc wastes memory due to:
-  - No compaction support: Each page can store chunks of any size which 
-makes compaction really hard to implement.
-  - Use of 0-order pages only: This was enforced to avoid memory 
-allocation failures. As Dan pointed out, any higher order allocation is 
-almost guaranteed to fail under memory pressure.
+The command was:
 
-To solve these issues, xcfmalloc:
-  - Supports compaction: Its size class based (like SLAB) which, among 
-other things, simplifies compaction.
-  - Supports higher order pages using little trickery:
+perf record -g -aR -p 47 -e probe:i915_gem_inactive_shrink -e
+probe:shrink_return -e probe:shrink_slab_return -e probe:shrink_zone
+-e probe:shrink_zone_return -e probe:kswapd_try_to_sleep -e
+vmscan:mm_vmscan_kswapd_sleep -e vmscan:mm_vmscan_kswapd_wake -e
+vmscan:mm_vmscan_wakeup_kswapd -e vmscan:mm_vmscan_lru_shrink_inactive
+-e probe:wakeup_kswapd; perf script
 
-For 64-bit systems, we can simply use vmalloc(16k or 64k) pages and 
-never bother unmapping them. This is expensive (how much?) in terms of 
-both CPU and memory but easy to implement.
+(shrink_return is i915_gem_inactive_shrink's return.  sorry, badly named.)
 
-But on 32-bit (almost all "embedded" devices), this ofcourse cannot be 
-done. For this case, the plan is to create a "vpage" abstraction which 
-can be treated as usual higher-order page.
+It looks like something kswapd_try_to_sleep is not getting called.
 
-vpage abstraction:
-  - Allocate 0-order pages and maintain them in an array
-  - Allow a chunk to cross at most one 4K (or whatever is the native 
-PAGE_SIZE) page boundary. This limits maximum allocation size to 4K but 
-simplifies mapping logic.
-  - A vpage is assigned a specific size class just like usual SLAB. This 
-will simplify compaction.
-  - xcfmalloc() will return a object handle instead of a direct pointer.
-  - Provide xcfmalloc_{map,unmap}() which will handle the case where a 
-chunk spans two pages. It will map the pages using kmap_atomic() and 
-thus user will be expected to unmap them soon.
-  - Allow vpage to be "partially freed" i.e. empty 4K pages can be freed 
-individually if completely empty.
+I do not know how to reproduce this, but I'll leave it running overnight.
 
-Much of this vpage functionality seems to be already present in mainline 
-as "flexible arrays"[1]
-
-For scalability, we can simply go for per-cpu lists and use Hoard[2] 
-like design to bound fragmentation associated with such per-cpu slabs.
-
-Unfortunately, I'm currently too loaded to work on this, atleast for 
-next 2 months (internship) but would be glad to contribute if someone is 
-willing to work on this.
-
-[1] http://lxr.linux.no/linux+v2.6.39/Documentation/flexible-arrays.txt
-[2] Hoard allocator: 
-http://www.cs.umass.edu/~emery/pubs/berger-asplos2000.pdf
-
-Thanks,
-Nitin
+--Andy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
