@@ -1,72 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F75290023D
-	for <linux-mm@kvack.org>; Fri, 24 Jun 2011 18:23:28 -0400 (EDT)
-Date: Fri, 24 Jun 2011 15:23:10 -0700
-From: Randy Dunlap <randy.dunlap@oracle.com>
-Subject: Re: [BUG?] numa required on x86_64?
-Message-Id: <20110624152310.10803ffa.randy.dunlap@oracle.com>
-In-Reply-To: <1308952859.25830.8.camel@pi>
-References: <1308952859.25830.8.camel@pi>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 4105290023D
+	for <linux-mm@kvack.org>; Fri, 24 Jun 2011 18:40:44 -0400 (EDT)
+MIME-Version: 1.0
+Message-ID: <89b9d94d-27d1-4f51-ab7e-b2210b6b0eb5@default>
+Date: Fri, 24 Jun 2011 15:40:28 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: frontswap/zcache: xvmalloc discussion
+References: <4E023F61.8080904@linux.vnet.ibm.com>
+ <0a3a5959-5d8f-4f62-a879-34266922c59f@default
+ 4E03B75A.9040203@linux.vnet.ibm.com>
+In-Reply-To: <4E03B75A.9040203@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: pomac@vapor.com, linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, akpm <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Cc: linux-mm <linux-mm@kvack.org>, Nitin Gupta <ngupta@vflare.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, Brian King <brking@linux.vnet.ibm.com>, Greg Kroah-Hartman <gregkh@suse.de>
 
-On Sat, 25 Jun 2011 00:00:58 +0200 Ian Kumlien wrote:
+> > One neat feature of frontswap (and the underlying Transcendent
+> > Memory definition) is that ANY PUT may be rejected**.  So zcache
+> > could keep track of the distribution of "zsize" and if the number
+> > of pages with zsize>PAGE_SIZE/2 greatly exceeds the number of pages
+> > with "complementary zsize", the frontswap code in zcache can reject
+> > the larger pages until balance/sanity is restored.
+> >
+> > Might that help?
+>=20
+> We could do that, but I imagine that would let a lot of pages through
+> on most workloads.  Ideally, I'd like to find a solution that would
+> capture and (efficiently) store pages that compressed to up to 80% of
+> their original size.
 
-> Hi all,
-> 
-> Just found this when wanting to play with development kernels again.
-> Since there is no -gitXX snapshots anymore, I cloned the git =)...
-> 
-> But, it failed to build properly with my config:
-> 
-> mm/page_cgroup.c line 308: node_start_pfn and node_end_pfn is only
-> defined under NUMA on x86_64.
-> 
-> The commit that changed the use of this was introduced recently while
-> the mmzone_64.h hasn't been changed since april.
+After thinking about this a bit, I have to disagree.  For workloads
+where the vast majority of pages have zsize>PAGE_SIZE/2, this would
+let a lot of pages through.  So if you are correct that LZO
+is poor at compression and a large majority of pages are in
+this category, some page-crossing scheme is necessary.  However,
+that isn't what I've seen... the zsize of many swap pages is
+quite small.
 
-You should have cc-ed the commit Author (I did so).
+So before commencing on a major compression rewrite, it might
+be a good idea to measure distribution of zsize for swap pages
+on a large variety of workloads.  This could probably be done
+by adding a code snippet in the swap path of a normal (non-zcache)
+kernel.  And if the distribution is bad, replacing LZO with a
+higher-compression-but-slower algorithm might be the best answer,
+since zcache is replacing VERY slow swap-device reads/writes with
+reasonably fast compression/decompression.  I certainly think
+that an algorithm approaching an average 50% compression ratio
+should be the goal.
 
-> commit 37573e8c718277103f61f03741bdc5606d31b07e
-> Author: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Date:   Wed Jun 15 15:08:42 2011 -0700
-> 
->     memcg: fix init_page_cgroup nid with sparsemem
->     
->     Commit 21a3c9646873 ("memcg: allocate memory cgroup structures in local
->     nodes") makes page_cgroup allocation as NUMA aware.  But that caused a
->     problem https://bugzilla.kernel.org/show_bug.cgi?id=36192.
->     
->     The problem was getting a NID from invalid struct pages, which was not
->     initialized because it was out-of-node, out of [node_start_pfn,
->     node_end_pfn)
->     
->     Now, with sparsemem, page_cgroup_init scans pfn from 0 to max_pfn.  But
->     this may scan a pfn which is not on any node and can access memmap which
->     is not initialized.
->     
->     This makes page_cgroup_init() for SPARSEMEM node aware and remove a code
->     to get nid from page->flags.  (Then, we'll use valid NID always.)
->     
->     [akpm@linux-foundation.org: try to fix up comments]
->     Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->     Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
->     Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
-
-A patch for this has been posted at least 2 times.
-It's here:  http://marc.info/?l=linux-mm&m=130827204306775&w=2
-
-Andrew, please merge this (^that^) patch.
-
----
-~Randy
-*** Remember to use Documentation/SubmitChecklist when testing your code ***
+Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
