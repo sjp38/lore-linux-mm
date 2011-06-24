@@ -1,35 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 9D85890023D
-	for <linux-mm@kvack.org>; Fri, 24 Jun 2011 14:48:46 -0400 (EDT)
-Received: by pwi12 with SMTP id 12so2541467pwi.14
-        for <linux-mm@kvack.org>; Fri, 24 Jun 2011 11:48:41 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <m2liwrul1f.fsf@firstfloor.org>
-References: <BANLkTik7ubq9ChR6UEBXOo5D9tn3mMb1Yw@mail.gmail.com> <m2liwrul1f.fsf@firstfloor.org>
-From: Andrew Lutomirski <luto@mit.edu>
-Date: Fri, 24 Jun 2011 12:48:20 -0600
-Message-ID: <BANLkTimLsnyX6kr6B7uR2SPoHCzuvLzsoQ@mail.gmail.com>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id D865B90023D
+	for <linux-mm@kvack.org>; Fri, 24 Jun 2011 14:54:27 -0400 (EDT)
+Content-Type: text/plain; charset=UTF-8
+From: Chris Mason <chris.mason@oracle.com>
 Subject: Re: Root-causing kswapd spinning on Sandy Bridge laptops?
-Content-Type: text/plain; charset=ISO-8859-1
+In-reply-to: <m2liwrul1f.fsf@firstfloor.org>
+References: <BANLkTik7ubq9ChR6UEBXOo5D9tn3mMb1Yw@mail.gmail.com> <m2liwrul1f.fsf@firstfloor.org>
+Date: Fri, 24 Jun 2011 14:54:11 -0400
+Message-Id: <1308941289-sup-5157@shiny>
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andi Kleen <andi@firstfloor.org>
-Cc: Minchan Kim <minchan.kim@gmail.com>, linux-mm@kvack.org, intel-gfx@lists.freedesktop.org
+Cc: Andrew Lutomirski <luto@mit.edu>, Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, intel-gfx <intel-gfx@lists.freedesktop.org>
 
-On Fri, Jun 24, 2011 at 12:44 PM, Andi Kleen <andi@firstfloor.org> wrote:
+Excerpts from Andi Kleen's message of 2011-06-24 14:44:12 -0400:
 > Andrew Lutomirski <luto@mit.edu> writes:
->
+> 
 > [Putting the Intel graphics driver developers in cc.]
+> 
+> > I'm back :-/
+> >
+> > I just triggered the kswapd bug on 2.6.39.1, which has the
+> > cond_resched in shrink_slab.  This time my system's still usable (I'm
+> > tying this email on it), but kswapd0 is taking 100% cpu.  It *does*
+> > schedule (tested by setting its affinity the same as another CPU hog
+> > and confirming that each one gets 50%).
+> >
+> > It appears to be calling i915_gem_inactive_shrink in a loop.  I have
+> > probes on entry and return of i915_gem_inactive_shrink and on return
+> > of shrink_slab.  I see:
+> >
+> >          kswapd0    47 [000] 59599.956573: mm_vmscan_kswapd_wake: nid=0 order=0
+> >          kswapd0    47 [000] 59599.956575: shrink_zone:
+> > (ffffffff810c848c) priority=12 zone=ffff8801005fe000
+> >          kswapd0    47 [000] 59599.956576: shrink_zone_return:
+> > (ffffffff810c848c <- ffffffff810c96c6) arg1=0
+> >          kswapd0    47 [000] 59599.956578: i915_gem_inactive_shrink:
 
-My Sandy Bridge laptop is to blame, the graphics aren't the culprit.  It's this:
+A similar trace came up a bunch of times in Jejb's NMI softlockup/kswapd
+consumes the machine thread.  That one was tracked down to slub high
+order allocations.
 
-  BIOS-e820: 0000000100000000 - 0000000100600000 (usable)
+I'm sure that one is burned in on Mel's memory, but after a while the
+individual traces fell out of the thread, and I'm not sure the i915 part
+stuck out.
 
-The kernel can't handle the tiny bit of memory above 4G.  Mel's
-patches work so far.
-
---Andy
+-chris
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
