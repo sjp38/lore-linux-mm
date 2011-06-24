@@ -1,55 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 7A8BD90023D
-	for <linux-mm@kvack.org>; Fri, 24 Jun 2011 11:51:44 -0400 (EDT)
-From: Arnd Bergmann <arnd@arndb.de>
-Subject: Re: [PATCH 7/8] common: dma-mapping: change alloc/free_coherent method to more generic alloc/free_attrs
-Date: Fri, 24 Jun 2011 17:51:35 +0200
-References: <1308556213-24970-1-git-send-email-m.szyprowski@samsung.com> <1308556213-24970-8-git-send-email-m.szyprowski@samsung.com>
-In-Reply-To: <1308556213-24970-8-git-send-email-m.szyprowski@samsung.com>
-MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="iso-8859-15"
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id C05AD90023D
+	for <linux-mm@kvack.org>; Fri, 24 Jun 2011 11:53:00 -0400 (EDT)
+Received: from d01relay06.pok.ibm.com (d01relay06.pok.ibm.com [9.56.227.116])
+	by e4.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p5OFVCdR021044
+	for <linux-mm@kvack.org>; Fri, 24 Jun 2011 11:31:12 -0400
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p5OFqtnK893080
+	for <linux-mm@kvack.org>; Fri, 24 Jun 2011 11:52:55 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p5OFqtqr032247
+	for <linux-mm@kvack.org>; Fri, 24 Jun 2011 11:52:55 -0400
+Subject: Re: frontswap/zcache: xvmalloc discussion
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <4E042A84.5010204@vflare.org>
+References: <4E023F61.8080904@linux.vnet.ibm.com>
+	 <4E042A84.5010204@vflare.org>
+Content-Type: text/plain; charset="UTF-8"
+Date: Fri, 24 Jun 2011 08:52:44 -0700
+Message-ID: <1308930764.11430.462.camel@nimitz>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Message-Id: <201106241751.35655.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, Kyungmin Park <kyungmin.park@samsung.com>, Joerg Roedel <joro@8bytes.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>
+To: Nitin Gupta <ngupta@vflare.org>
+Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Brian King <brking@linux.vnet.ibm.com>, Greg Kroah-Hartman <gregkh@suse.de>
 
-On Monday 20 June 2011, Marek Szyprowski wrote:
-> Introduce new alloc/free/mmap methods that take attributes argument.
-> alloc/free_coherent can be implemented on top of the new alloc/free
-> calls with NULL attributes. dma_alloc_non_coherent can be implemented
-> using DMA_ATTR_NONCOHERENT attribute, dma_alloc_writecombine can also
-> use separate DMA_ATTR_WRITECOMBINE attribute. This way the drivers will
-> get more generic, platform independent way of allocating dma memory
-> buffers with specific parameters.
-> 
-> One more attribute can be usefull: DMA_ATTR_NOKERNELVADDR. Buffers with
-> such attribute will not have valid kernel virtual address. They might be
-> usefull for drivers that only exports the DMA buffers to userspace (like
-> for example V4L2 or ALSA).
-> 
-> mmap method is introduced to let the drivers create a user space mapping
-> for a DMA buffer in generic, architecture independent way.
-> 
-> TODO: update all dma_map_ops clients for all architectures
-> 
-> Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
-> Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
+On Thu, 2011-06-23 at 23:11 -0700, Nitin Gupta wrote:
+> Much of this vpage functionality seems to be already present in mainline 
+> as "flexible arrays"[1] 
 
-Yes, I think that is good, but the change needs to be done atomically
-across all architectures. This should be easy enough as I believe
-all other architectures that use dma_map_ops don't even require
-dma_alloc_noncoherent but just define it to dma_alloc_coherent
-because they have only coherent memory in regular device drivers.
+That's a good observation.  I don't know who wrote that junk, but I bet
+they never thought of using it for this purpose. :)
 
-On a related note, do you plan to make the CMA work use this
-transparently, or do you want to have a DMA_ATTR_LARGE or
-DMA_ATTR_CONTIGUOUS for CMA?
+FWIW, for flex_arrays, the biggest limitation is that the objects
+currently can not cross page boundaries.  The current API also doesn't
+have any concept of a release function.  We'd need those to do the
+unmapping after a get().  It certainly wouldn't be impossible to fix,
+but it would probably make it quite a bit more complicated.
 
-	Arnd
+The other limitation is that each array can only hold a small number of
+megabytes worth of data in each array.  We only have a single-level
+table lookup, and that first-level table is limited to PAGE_SIZE (minus
+a wee bit of metadata).
+
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
