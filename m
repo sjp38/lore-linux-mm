@@ -1,95 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id C504990023D
-	for <linux-mm@kvack.org>; Fri, 24 Jun 2011 11:04:41 -0400 (EDT)
-Date: Fri, 24 Jun 2011 16:04:33 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: sandy bridge kswapd0 livelock with pagecache
-Message-ID: <20110624150433.GS9396@suse.de>
-References: <20110622094401.GJ9396@suse.de>
- <4E01C19F.20204@draigBrady.com>
- <20110623114646.GM9396@suse.de>
- <4E0339CF.8080407@draigBrady.com>
- <20110623152418.GN9396@suse.de>
- <4E035C8B.1080905@draigBrady.com>
- <20110623165955.GO9396@suse.de>
- <4E039334.7090502@draigBrady.com>
- <20110624114444.GP9396@suse.de>
- <4E048CC6.5010400@draigBrady.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 149F490023D
+	for <linux-mm@kvack.org>; Fri, 24 Jun 2011 11:20:31 -0400 (EDT)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: Re: [Linaro-mm-sig] [PATCH/RFC 0/8] ARM: DMA-mapping
+ =?iso-8859-1?q?framework=09redesign?=
+Date: Fri, 24 Jun 2011 17:20:15 +0200
+References: <1308556213-24970-1-git-send-email-m.szyprowski@samsung.com> <002701cc30be$ab296cc0$017c4640$%szyprowski@samsung.com> <4E02119F.4000901@codeaurora.org>
+In-Reply-To: <4E02119F.4000901@codeaurora.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <4E048CC6.5010400@draigBrady.com>
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Message-Id: <201106241720.15385.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: P?draig Brady <P@draigBrady.com>
-Cc: linux-mm@kvack.org
+To: Jordan Crouse <jcrouse@codeaurora.org>
+Cc: Marek Szyprowski <m.szyprowski@samsung.com>, 'Subash Patel' <subashrp@gmail.com>, linux-arch@vger.kernel.org, 'Russell King - ARM Linux' <linux@arm.linux.org.uk>, 'Joerg Roedel' <joro@8bytes.org>, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, 'Kyungmin Park' <kyungmin.park@samsung.com>, linux-arm-kernel@lists.infradead.org
 
-On Fri, Jun 24, 2011 at 02:10:30PM +0100, P?draig Brady wrote:
-> On 24/06/11 12:44, Mel Gorman wrote:
-> > On Thu, Jun 23, 2011 at 08:25:40PM +0100, P?draig Brady wrote:
-> >> On 23/06/11 17:59, Mel Gorman wrote:
-> >>> On Thu, Jun 23, 2011 at 04:32:27PM +0100, P?draig Brady wrote:
-> >>>> On 23/06/11 16:24, Mel Gorman wrote:
-> >>>>>
-> >>>>> Theory 2 it is then. This is to be applied on top of the patch for
-> >>>>> theory 1.
-> >>>>>
-> >>>>> ==== CUT HERE ====
-> >>>>> mm: vmscan: Prevent kswapd doing excessive work when classzone is unreclaimable
-> >>>>
-> >>>> No joy :(
-> >>>>
-> >>>
-> >>> Joy is indeed rapidly fleeing the vicinity.
-> >>>
-> >>> Check /proc/sys/vm/laptop_mode . If it's set, unset it and try again.
-> >>
-> >> It was not set
-> >>
-> >>>
-> >>> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> >>> index dce95dd..c8c0f5a 100644
-> >>> --- a/mm/vmscan.c
-> >>> +++ b/mm/vmscan.c
-> >>> @@ -2426,19 +2426,19 @@ loop_again:
-> >>>  			 * zone has way too many pages free already.
-> >>>  			 */
-> >>>  			if (!zone_watermark_ok_safe(zone, order,
-> >>> -					8*high_wmark_pages(zone), end_zone, 0))
-> >>
-> >> Note 8 was not in my tree.
-> >> Manually applied patch makes no difference :(
-> >> Well maybe kswapd0 started spinning a little later.
-> >>
-> > 
-> > Gack :)
-> > 
-> > On further reflection "mm: vmscan: Prevent kswapd doing excessive
-> > work when classzone is unreclaimable" was off but it was along the
-> > right lines in that the balancing classzone was not being considered
-> > when going to sleep.
-> > 
-> > The following is a patch against mainline 2.6.38.8 and is a
-> > roll-up of four separate patches that includes a new modification to
-> > sleeping_prematurely. Because the stack I am working off has changed
-> > significantly, it's far easier if you apply this on top of a vanilla
-> > fedora branch of 2.6.38 and test rather than trying to backout and
-> > reapply. Depending on when you checked out or if you have applied the
-> > BALANCE_GAP patch yourself, it might collide with 8*high_wmark_pages
-> > but the resolution should be straight-forward.
-> > 
-> > Thanks for persisting.
+On Wednesday 22 June 2011, Jordan Crouse wrote:
+> >> I have a query in similar lines, but related to user virtual address
+> >> space. Is it feasible to extend these DMA interfaces(and IOMMU), to map
+> >> a user allocated buffer into the hardware?
+> >
+> > This can be done with the current API, although it may not look so
+> > straightforward. You just need to create a scatter list of user pages
+> > (these can be gathered with get_user_pages function) and use dma_map_sg()
+> > function. If the dma-mapping support iommu, it can map all these pages
+> > into a single contiguous buffer on device (DMA) address space.
+> >
+> > Some additional 'magic' might be required to get access to pages that are
+> > mapped with pure PFN (VM_PFNMAP flag), but imho it still can be done.
+> >
+> > I will try to implement this feature in videobuf2-dma-config allocator
+> > together with the next version of my patches for dma-mapping&iommu.
 > 
-> Bingo!
+> With luck DMA_ATTRIB_NO_KERNEL_MAPPING should remove any lingering arguments
+> for trying to map user pages. Given that our ultimate goal here is buffer
+> sharing, user allocated pages have limited value and appeal. If anything, I
+> vote that this be a far lower priority compared to the rest of the win you
+> have here.
 
-Sweet. Thanks for sticking with it. A rebase on top of 3.0-rc4 is in
-the works. I'll ask for it to be merged for 2.6.38-stable where I'll
-hopefully meet the window so that it gets picked up by Fedora.
+I agree. Mapping user-allocated buffers is extremely hard to get right
+when there are extra constraints. If it doesn't work already for some driver,
+I wouldn't put too much effort into making it work for more special cases.
 
--- 
-Mel Gorman
-SUSE Labs
+	Arnd
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
