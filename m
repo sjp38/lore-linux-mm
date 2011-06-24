@@ -1,213 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id E854F900225
-	for <linux-mm@kvack.org>; Fri, 24 Jun 2011 07:44:49 -0400 (EDT)
-Date: Fri, 24 Jun 2011 12:44:44 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: sandy bridge kswapd0 livelock with pagecache
-Message-ID: <20110624114444.GP9396@suse.de>
-References: <20110621130756.GH9396@suse.de>
- <4E00A96D.8020806@draigBrady.com>
- <20110622094401.GJ9396@suse.de>
- <4E01C19F.20204@draigBrady.com>
- <20110623114646.GM9396@suse.de>
- <4E0339CF.8080407@draigBrady.com>
- <20110623152418.GN9396@suse.de>
- <4E035C8B.1080905@draigBrady.com>
- <20110623165955.GO9396@suse.de>
- <4E039334.7090502@draigBrady.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id B3091900225
+	for <linux-mm@kvack.org>; Fri, 24 Jun 2011 07:46:33 -0400 (EDT)
+Received: by bwd14 with SMTP id 14so152808bwd.14
+        for <linux-mm@kvack.org>; Fri, 24 Jun 2011 04:46:30 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <4E039334.7090502@draigBrady.com>
+In-Reply-To: <20110624075742.GA10455@tiehlicka.suse.cz>
+References: <20110622120635.GB14343@tiehlicka.suse.cz>
+	<20110622121516.GA28359@infradead.org>
+	<20110622123204.GC14343@tiehlicka.suse.cz>
+	<20110623150842.d13492cd.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110623074133.GA31593@tiehlicka.suse.cz>
+	<20110623170811.16f4435f.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110623090204.GE31593@tiehlicka.suse.cz>
+	<20110623190157.1bc8cbb9.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110624075742.GA10455@tiehlicka.suse.cz>
+Date: Fri, 24 Jun 2011 20:46:29 +0900
+Message-ID: <BANLkTin7TbK1dNjPG6jz_FaJy-QgOjDJaA@mail.gmail.com>
+Subject: Re: [PATCH] mm: preallocate page before lock_page at filemap COW.
+ (WasRe: [PATCH V2] mm: Do not keep page locked during page fault while
+ charging it for memcg
+From: Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: P?draig Brady <P@draigBrady.com>
-Cc: linux-mm@kvack.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Mel Gorman <mgorman@suse.de>, Lutz Vieweg <lvml@5t9.de>
 
-On Thu, Jun 23, 2011 at 08:25:40PM +0100, P?draig Brady wrote:
-> On 23/06/11 17:59, Mel Gorman wrote:
-> > On Thu, Jun 23, 2011 at 04:32:27PM +0100, P?draig Brady wrote:
-> >> On 23/06/11 16:24, Mel Gorman wrote:
-> >>>
-> >>> Theory 2 it is then. This is to be applied on top of the patch for
-> >>> theory 1.
-> >>>
-> >>> ==== CUT HERE ====
-> >>> mm: vmscan: Prevent kswapd doing excessive work when classzone is unreclaimable
-> >>
-> >> No joy :(
-> >>
-> > 
-> > Joy is indeed rapidly fleeing the vicinity.
-> > 
-> > Check /proc/sys/vm/laptop_mode . If it's set, unset it and try again.
-> 
-> It was not set
-> 
-> > 
-> > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > index dce95dd..c8c0f5a 100644
-> > --- a/mm/vmscan.c
-> > +++ b/mm/vmscan.c
-> > @@ -2426,19 +2426,19 @@ loop_again:
-> >  			 * zone has way too many pages free already.
-> >  			 */
-> >  			if (!zone_watermark_ok_safe(zone, order,
-> > -					8*high_wmark_pages(zone), end_zone, 0))
-> 
-> Note 8 was not in my tree.
-> Manually applied patch makes no difference :(
-> Well maybe kswapd0 started spinning a little later.
-> 
+2011/6/24 Michal Hocko <mhocko@suse.cz>:
+> Sorry, forgot to send my
+> Reviewed-by: Michal Hocko <mhocko@suse>
+>
 
-Gack :)
+Thanks.
 
-On further reflection "mm: vmscan: Prevent kswapd doing excessive
-work when classzone is unreclaimable" was off but it was along the
-right lines in that the balancing classzone was not being considered
-when going to sleep.
+> I still have concerns about this way to handle the issue. See the follow
+> up discussion in other thread (https://lkml.org/lkml/2011/6/23/135).
+>
+> Anyway I think that we do not have many other options to handle this.
+> Either we unlock, charge, lock&restes or we preallocate, fault in
+>
+I agree.
 
-The following is a patch against mainline 2.6.38.8 and is a
-roll-up of four separate patches that includes a new modification to
-sleeping_prematurely. Because the stack I am working off has changed
-significantly, it's far easier if you apply this on top of a vanilla
-fedora branch of 2.6.38 and test rather than trying to backout and
-reapply. Depending on when you checked out or if you have applied the
-BALANCE_GAP patch yourself, it might collide with 8*high_wmark_pages
-but the resolution should be straight-forward.
+> Or am I missing some other ways how to do it? What do others think about
+> these approaches?
+>
 
-Thanks for persisting.
+Yes, I'd like to hear other mm specialists' suggestion. and I'll think
+other way, again.
+Anyway, memory reclaim with holding a lock_page() can cause big latency
+or starvation especially when memcg is used. It's better to avoid it.
 
-==== CUT HERE ====
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index a74bf72..da45335 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2261,7 +2261,7 @@ static bool sleeping_prematurely(pg_data_t *pgdat, int order, long remaining,
- 		return true;
- 
- 	/* Check the watermark levels */
--	for (i = 0; i < pgdat->nr_zones; i++) {
-+	for (i = 0; i <= classzone_idx; i++) {
- 		struct zone *zone = pgdat->node_zones + i;
- 
- 		if (!populated_zone(zone))
-@@ -2279,7 +2279,7 @@ static bool sleeping_prematurely(pg_data_t *pgdat, int order, long remaining,
- 		}
- 
- 		if (!zone_watermark_ok_safe(zone, order, high_wmark_pages(zone),
--							classzone_idx, 0))
-+							i, 0))
- 			all_zones_ok = false;
- 		else
- 			balanced += zone->present_pages;
-@@ -2381,7 +2381,6 @@ loop_again:
- 			if (!zone_watermark_ok_safe(zone, order,
- 					high_wmark_pages(zone), 0, 0)) {
- 				end_zone = i;
--				*classzone_idx = i;
- 				break;
- 			}
- 		}
-@@ -2426,19 +2425,19 @@ loop_again:
- 			 * zone has way too many pages free already.
- 			 */
- 			if (!zone_watermark_ok_safe(zone, order,
--					8*high_wmark_pages(zone), end_zone, 0))
--				shrink_zone(priority, zone, &sc);
--			reclaim_state->reclaimed_slab = 0;
--			nr_slab = shrink_slab(sc.nr_scanned, GFP_KERNEL,
--						lru_pages);
--			sc.nr_reclaimed += reclaim_state->reclaimed_slab;
--			total_scanned += sc.nr_scanned;
--
--			if (zone->all_unreclaimable)
--				continue;
--			if (nr_slab == 0 &&
--			    !zone_reclaimable(zone))
--				zone->all_unreclaimable = 1;
-+					8*high_wmark_pages(zone), end_zone, 0)) {
-+				shrink_zone(priority, zone, &sc); 
-+
-+				reclaim_state->reclaimed_slab = 0;
-+				nr_slab = shrink_slab(sc.nr_scanned, GFP_KERNEL,
-+							lru_pages);
-+				sc.nr_reclaimed += reclaim_state->reclaimed_slab;
-+				total_scanned += sc.nr_scanned;
-+
-+				if (nr_slab == 0 && !zone_reclaimable(zone))
-+					zone->all_unreclaimable = 1;
-+			}
-+
- 			/*
- 			 * If we've done a decent amount of scanning and
- 			 * the reclaim ratio is low, start doing writepage
-@@ -2448,6 +2447,12 @@ loop_again:
- 			    total_scanned > sc.nr_reclaimed + sc.nr_reclaimed / 2)
- 				sc.may_writepage = 1;
- 
-+			if (zone->all_unreclaimable) {
-+				if (end_zone && end_zone == i)
-+					end_zone--;
-+				continue;
-+			}
-+
- 			if (!zone_watermark_ok_safe(zone, order,
- 					high_wmark_pages(zone), end_zone, 0)) {
- 				all_zones_ok = 0;
-@@ -2626,8 +2631,8 @@ static void kswapd_try_to_sleep(pg_data_t *pgdat, int order, int classzone_idx)
-  */
- static int kswapd(void *p)
- {
--	unsigned long order;
--	int classzone_idx;
-+	unsigned long order, new_order;
-+	int classzone_idx, new_classzone_idx;
- 	pg_data_t *pgdat = (pg_data_t*)p;
- 	struct task_struct *tsk = current;
- 
-@@ -2657,17 +2662,23 @@ static int kswapd(void *p)
- 	tsk->flags |= PF_MEMALLOC | PF_SWAPWRITE | PF_KSWAPD;
- 	set_freezable();
- 
--	order = 0;
--	classzone_idx = MAX_NR_ZONES - 1;
-+	order = new_order = 0;
-+	classzone_idx = new_classzone_idx = pgdat->nr_zones - 1;
- 	for ( ; ; ) {
--		unsigned long new_order;
--		int new_classzone_idx;
- 		int ret;
- 
--		new_order = pgdat->kswapd_max_order;
--		new_classzone_idx = pgdat->classzone_idx;
--		pgdat->kswapd_max_order = 0;
--		pgdat->classzone_idx = MAX_NR_ZONES - 1;
-+		/*
-+		 * If the last balance_pgdat was unsuccessful it's unlikely a
-+		 * new request of a similar or harder type will succeed soon
-+		 * so consider going to sleep on the basis we reclaimed at
-+		 */
-+		if (classzone_idx >= new_classzone_idx && order == new_order) {
-+			new_order = pgdat->kswapd_max_order;
-+			new_classzone_idx = pgdat->classzone_idx;
-+			pgdat->kswapd_max_order =  0;
-+			pgdat->classzone_idx = pgdat->nr_zones - 1;
-+		}
-+
- 		if (order < new_order || classzone_idx > new_classzone_idx) {
- 			/*
- 			 * Don't sleep if someone wants a larger 'order'
-@@ -2680,7 +2691,7 @@ static int kswapd(void *p)
- 			order = pgdat->kswapd_max_order;
- 			classzone_idx = pgdat->classzone_idx;
- 			pgdat->kswapd_max_order = 0;
--			pgdat->classzone_idx = MAX_NR_ZONES - 1;
-+			pgdat->classzone_idx = pgdat->nr_zones - 1;
- 		}
- 
- 		ret = try_to_freeze();
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
