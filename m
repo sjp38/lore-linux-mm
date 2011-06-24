@@ -1,60 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 274DD900225
-	for <linux-mm@kvack.org>; Fri, 24 Jun 2011 09:32:28 -0400 (EDT)
-Received: by pvc12 with SMTP id 12so2205258pvc.14
-        for <linux-mm@kvack.org>; Fri, 24 Jun 2011 06:32:22 -0700 (PDT)
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id D03A2900225
+	for <linux-mm@kvack.org>; Fri, 24 Jun 2011 09:43:22 -0400 (EDT)
+From: Mel Gorman <mgorman@suse.de>
+Subject: [PATCH 0/4] Stop kswapd consuming 100% CPU when highest zone is small
+Date: Fri, 24 Jun 2011 14:43:14 +0100
+Message-Id: <1308922998-15529-1-git-send-email-mgorman@suse.de>
 MIME-Version: 1.0
-In-Reply-To: <20110624125131.GQ9396@suse.de>
-References: <BANLkTik7ubq9ChR6UEBXOo5D9tn3mMb1Yw@mail.gmail.com>
- <BANLkTikKwbsRD=WszbaUQQMamQbNXFdsPA@mail.gmail.com> <4E0465D8.3080005@draigBrady.com>
- <20110624125131.GQ9396@suse.de>
-From: Andrew Lutomirski <luto@mit.edu>
-Date: Fri, 24 Jun 2011 09:32:01 -0400
-Message-ID: <BANLkTi=YAOTX08E=aPbbU9AcsiYPmiK2Ow@mail.gmail.com>
-Subject: Re: Root-causing kswapd spinning on Sandy Bridge laptops?
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: P?draig Brady <P@draigbrady.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: =?UTF-8?q?P=C3=A1draig=20Brady?= <P@draigBrady.com>, James Bottomley <James.Bottomley@HansenPartnership.com>, Colin King <colin.king@canonical.com>, Minchan Kim <minchan.kim@gmail.com>, Andrew Lutomirski <luto@mit.edu>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-On Fri, Jun 24, 2011 at 8:51 AM, Mel Gorman <mgorman@suse.de> wrote:
-> On Fri, Jun 24, 2011 at 11:24:24AM +0100, P?draig Brady wrote:
->> On 24/06/11 10:27, Minchan Kim wrote:
->> > Hi Andrew,
->> >
->> > Sorry but right now I don't have a time to dive into this.
->> > But it seems to be similar to the problem Mel is looking at.
->> > Cced him.
->> >
->> > Even, P=E1draig Brady seem to have a reproducible scenario.
->> > I will look when I have a time.
->> > I hope I will be back sooner or later.
->>
->> My reproducer is (I've 3GB RAM, 1.5G swap):
->> =A0 dd bs=3D1M count=3D3000 if=3D/dev/zero of=3Dspin.test
->>
->> To stop it spinning I just have to uncache the data,
->> the handiest way being:
->> =A0 rm spin.test
->>
->> To confirm, the top of the profile I posted is:
->> =A0 i915_gem_object_bind_to_gtt
->> =A0 =A0 shrink_slab
->>
->
-> I don't think it's an i915 bug. Another candidate fix in the other
-> thread that Padraig started.
+During allocator-intensive workloads, kswapd will be woken frequently
+causing free memory to oscillate between the high and min watermark.
+This is expected behaviour.  Unfortunately, if the highest zone is
+small, a problem occurs.
 
-I bet you're right.  I do indeed have a tiny high zone.  (No clue why
--- I have 2G of ram right now.)
+This seems to happen most with recent sandybridge laptops but it's
+probably a co-incidence as some of these laptops just happen to have
+a small Normal zone. The reproduction case is almost always during
+copying large files that kswapd pegs at 100% CPU until the file is
+deleted or cache is dropped.
 
-I won't be a reliable tester because I don't have a good way to
-reproduce this bug.
+The problem is mostly down to sleeping_prematurely() keeping kswapd
+awake when the highest zone is small and unreclaimable and compounded
+by the fact we shrink slabs even when not shrinking zones causing a lot
+of time to be spent in shrinkers and a lot of memory to be reclaimed.
 
---Andy
+Patch 1 corrects sleeping_prematurely to check the zones matching
+	the classzone_idx instead of all zones.
+
+Patch 2 avoids shrinking slab when we are not shrinking a zone.
+
+Patch 3 notes that sleeping_prematurely is checking lower zones against
+	a high classzone which is not what allocators or balance_pgdat()
+	is doing leading to an artifical believe that kswapd should be
+	still awake.
+
+Patch 4 notes that when balance_pgdat() gives up on a high zone that the
+	decision is not communicated to sleeping_prematurely()
+
+This problem affects 3.0-rc4 and 2.6.38.8 for certain and is expected
+to affect 2.6.39 as well. If accepted, they need to go to -stable to
+be picked up by distros. This series is against 3.0-rc4. I've cc'd
+people that reported similar problems recently to see if they still
+suffer from the problem and if this fixes it.
+
+ mm/vmscan.c |   57 ++++++++++++++++++++++++++++++++++-----------------------
+ 1 files changed, 34 insertions(+), 23 deletions(-)
+
+-- 
+1.7.3.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
