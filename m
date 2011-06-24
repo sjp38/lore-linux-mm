@@ -1,94 +1,197 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 14871900194
-	for <linux-mm@kvack.org>; Fri, 24 Jun 2011 03:20:55 -0400 (EDT)
-MIME-version: 1.0
-Content-transfer-encoding: 7BIT
-Content-type: text/plain; charset=us-ascii
-Received: from eu_spt1 ([210.118.77.14]) by mailout4.w1.samsung.com
- (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
- with ESMTP id <0LNA00J3G9QQ3K80@mailout4.w1.samsung.com> for
- linux-mm@kvack.org; Fri, 24 Jun 2011 08:20:51 +0100 (BST)
-Received: from linux.samsung.com ([106.116.38.10])
- by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0LNA00J0A9QPKX@spt1.w1.samsung.com> for
- linux-mm@kvack.org; Fri, 24 Jun 2011 08:20:50 +0100 (BST)
-Date: Fri, 24 Jun 2011 09:20:27 +0200
-From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: RE: [Linaro-mm-sig] [PATCH 7/8] common: dma-mapping: change
- alloc/free_coherent method to more generic alloc/free_attrs
-In-reply-to: <BANLkTinDN-FF5=8uj9pP58Ny0-LUMtjh=g@mail.gmail.com>
-Message-id: <000001cc323f$3114d8c0$933e8a40$%szyprowski@samsung.com>
-Content-language: pl
-References: <1308556213-24970-1-git-send-email-m.szyprowski@samsung.com>
- <1308556213-24970-8-git-send-email-m.szyprowski@samsung.com>
- <BANLkTikFdrOuXsLCfvyA_V+p7S_fd72dyQ@mail.gmail.com>
- <002401cc3005$a941c010$fbc54030$%szyprowski@samsung.com>
- <BANLkTinDN-FF5=8uj9pP58Ny0-LUMtjh=g@mail.gmail.com>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 76DD9900194
+	for <linux-mm@kvack.org>; Fri, 24 Jun 2011 03:43:15 -0400 (EDT)
+Subject: Re: [PATCH v4 3.0-rc2-tip 7/22]  7: uprobes: mmap and fork hooks.
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <20110624020659.GA24776@linux.vnet.ibm.com>
+References: <20110616032645.GF4952@linux.vnet.ibm.com>
+	 <1308225626.13240.34.camel@twins>
+	 <20110616130012.GL4952@linux.vnet.ibm.com>
+	 <1308248588.13240.267.camel@twins>
+	 <20110617045000.GM4952@linux.vnet.ibm.com>
+	 <1308297836.13240.380.camel@twins>
+	 <20110617090504.GN4952@linux.vnet.ibm.com> <1308303665.2355.11.camel@twins>
+	 <1308662243.26237.144.camel@twins>
+	 <20110622143906.GF16471@linux.vnet.ibm.com>
+	 <20110624020659.GA24776@linux.vnet.ibm.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+Date: Fri, 24 Jun 2011 09:42:04 +0200
+Message-ID: <1308901324.27849.7.camel@twins>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'KyongHo Cho' <pullip.cho@samsung.com>
-Cc: linux-arch@vger.kernel.org, 'Russell King - ARM Linux' <linux@arm.linux.org.uk>, 'Arnd Bergmann' <arnd@arndb.de>, 'Joerg Roedel' <joro@8bytes.org>, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, 'Kyungmin Park' <kyungmin.park@samsung.com>, linux-arm-kernel@lists.infradead.org, Marek Szyprowski <m.szyprowski@samsung.com>
+To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Cc: Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Jonathan Corbet <corbet@lwn.net>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
 
-Hello,
+On Fri, 2011-06-24 at 07:36 +0530, Srikar Dronamraju wrote:
+> >=20
+> > so I am thinking of a solution that includes most of your ideas along
+> > with using i_mmap_mutex in mmap_uprobe path.
+> >=20
+>=20
+> Addressing Peter's comments given on irc wrt i_mmap_mutex.
+>=20
 
-On Wednesday, June 22, 2011 2:01 AM KyongHo Cho wrote:
+> void _unregister_uprobe(...)
+> {
+> 	if (!del_consumer(...)) {	// includes tree removal on last consumer
+> 		return;
+> 	}
+> 	if (uprobe->consumers)
+> 		return;
+>=20
+> 	mutex_lock(&mapping->i_mmap_mutex);	//sync with mmap.
+> 	vma_prio_tree_foreach() {
+> 		// create list
+> 	}
+>=20
+> 	mutex_unlock(&mapping->i_mmap_mutex);
+>=20
+> 	list_for_each_entry_safe() {
+> 		// remove from list
+> 		down_read(&mm->mmap_sem);
+> 		remove_breakpoint();	// unconditional, if it wasn't there
+> 		up_read(&mm->mmap_sem);
+> 	}
+>=20
+> 	mutex_lock(&mapping->i_mmap_mutex);
+> 	delete_uprobe(uprobe);
+> 	mutex_unlock(&mapping->i_mmap_mutex);
+>=20
+> 	inode->uprobes_count--;
+> 	mutex_unlock(&inode->i_mutex);
 
-> 2011/6/21 Marek Szyprowski <m.szyprowski@samsung.com>:
-> >
-> > You already got a reply that dropping dma_alloc_writecombine() is no
-> > go on ARM.
-> >
-> Yes.
-> 
-> > That's not a problem. Once we agree on dma_alloc_attrs(), the drivers
-> > can be changed to use DMA_ATTR_WRITE_COMBINE attribute. If the platform
-> > doesn't support the attribute, it is just ignored. That's the whole
-> > point of the attributes extension. Once a driver is converted to
-> > dma_alloc_attrs(), it can be used without any changes either on platforms
-> > that supports some specific attributes or the one that doesn't implement
-> > support for any of them.
-> >
-> I just worried that removing an existing construct is not a simple job.
-> You introduced 3 attributes: DMA_ATTR_WRITE_COMBINE, ***COHERENT and
-> ***NO_KERNEL_VADDR
+Right, so this lonesome unlock got me puzzled for a while, I always find
+it best not to do asymmetric locking like this, keep the lock and unlock
+in the same function.
 
-COHERENT is the default behavior when no attribute is provided. I also
-don't want to remove existing calls to dma_alloc_coherent() and 
-dma_alloc_writecombine() from the drivers. This can be done later, once
-dma_alloc_attrs() API will stabilize.
+> }
+>=20
+> int register_uprobe(...)
+> {
+> 	uprobe =3D alloc_uprobe(...);	// find or insert in tree
+>=20
+> 	mutex_lock(&inode->i_mutex);	// sync with register/unregister
+> 	if (uprobe->consumers) {
+> 		add_consumer();
+> 		goto put_unlock;
+> 	}
+> 	add_consumer();
+> 	inode->uprobes_count++;
+> 	mutex_lock(&mapping->i_mmap_mutex);	//sync with mmap.
+> 	vma_prio_tree_foreach(..) {
+> 		// get mm ref, add to list blah blah
+> 	}
+>=20
+> 	mutex_unlock(&mapping->i_mmap_mutex);
+> 	list_for_each_entry_safe() {
+> 		if (ret) {
+> 			// del from list etc..
+> 			//
+> 			continue;
+> 		}
+> 		down_read(mm->mmap_sem);
+> 		ret =3D install_breakpoint();
+> 		up_read(..);
+> 		// del from list etc..
+> 		//
+> 		if (ret && (ret =3D=3D -ESRCH || ret =3D=3D -EEXIST))
+> 			ret =3D 0;
+> 	}
+>=20
+> 	if (ret)
+> 		_unregister_uprobe();
+>=20
+>       put_unlock:
+> 	mutex_unlock(&inode->i_mutex);
 
-> I replied earlier, I also indicated that write combining option for
-> dma_alloc_*() is required.
-> But it does not mean dma_map_ops must support that.
-> I think dma_alloc_writecombine() can be implemented regardless of
-> dma_map_ops.
+You see, now this is a double unlock
 
-The discussion about the need of dma_alloc_attrs() has been performed on
-Memory Management Summit at Linaro Meeting in Budapest. It simplifies the
-API and provides full backward compatibility for existing drivers.
- 
-> > Allocation is a separate operation from mapping to userspace. Mmap
-> > operation should just map the buffer (represented by a cookie of type
-> > dma_addr_t) to user address space.
-> >
-> > Note that some drivers (like framebuffer drivers for example) also
-> > needs to have both types of mapping - one for user space and one for
-> > kernel virtual space.
-> 
-> I meant that I think DMA_ATTR_NOKERNELVADDR is not required because
-> you also introduced mmap callback.
+> 	put_uprobe(uprobe);
+> 	return ret;
+> }
+>=20
+> void unregister_uprobe(...)
+> {
+> 	mutex_lock(&inode->i_mutex);	// sync with register/unregister
+> 	uprobe =3D find_uprobe();	// ref++
+> 	_unregister_uprobe();
+> 	mutex_unlock(&inode->i_mutex);
 
-I've already said that mmap callback is not related to the fact that the
-buffer has been allocated with or without respective kernel virtual space
-mapping. I really don't get what do you mean here.
+idem
 
-Best regards
--- 
-Marek Szyprowski
-Samsung Poland R&D Center
+> 	put_uprobe(uprobe);
+> }
+>=20
+> int mmap_uprobe(struct vm_area_struct *vma)
+> {
+> 	struct list_head tmp_list;
+> 	struct uprobe *uprobe, *u;
+> 	struct mm_struct *mm;
+> 	struct inode *inode;
+> 	int ret =3D 0;
+>=20
+> 	if (!valid_vma(vma))
+> 		return ret;	/* Bail-out */
+>=20
+> 	mm =3D vma->vm_mm;
+> 	inode =3D vma->vm_file->f_mapping->host;
+> 	if (inode->uprobes_count)
+> 		return ret;
+> 	__iget(inode);
+>=20
+> 	INIT_LIST_HEAD(&tmp_list);
+>=20
+> 	mutex_lock(&mapping->i_mmap_mutex);
+> 	add_to_temp_list(vma, inode, &tmp_list);
+> 	list_for_each_entry_safe(uprobe, u, &tmp_list, pending_list) {
+> 		loff_t vaddr;
+>=20
+> 		list_del(&uprobe->pending_list);
+> 		if (ret)
+> 			continue;
+>=20
+> 		vaddr =3D vma->vm_start + uprobe->offset;
+> 		vaddr -=3D vma->vm_pgoff << PAGE_SHIFT;
+> 		ret =3D install_breakpoint(mm, uprobe, vaddr);
 
+Right, so this is the problem, you cannot do allocations under
+i_mmap_mutex, however I think you can under i_mutex.
 
+> 		if (ret && (ret =3D=3D -ESRCH || ret =3D=3D -EEXIST))
+> 			ret =3D 0;
+> 	}
+>=20
+> 	mutex_unlock(&mapping->i_mmap_mutex);
+> 	iput(inode);
+> 	return ret;
+> }
+>=20
+> int munmap_uprobe(struct vm_area_struct *vma)
+> {
+> 	struct list_head tmp_list;
+> 	struct uprobe *uprobe, *u;
+> 	struct mm_struct *mm;
+> 	struct inode *inode;
+> 	int ret =3D 0;
+>=20
+> 	if (!valid_vma(vma))
+> 		return ret;	/* Bail-out */
+>=20
+> 	mm =3D vma->vm_mm;
+> 	inode =3D vma->vm_file->f_mapping->host;
+> 	if (inode->uprobes_count)
+> 		return ret;
+
+Should that be !->uprobes_count?
+
+> //      walk thro RB tree and decrement mm->uprobes_count
+> 	walk_rbtree_and_dec_uprobes_count();	//hold treelock.
+>=20
+> 	return ret;
+> }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
