@@ -1,33 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id E7198900194
-	for <linux-mm@kvack.org>; Thu, 23 Jun 2011 21:08:38 -0400 (EDT)
-Date: Fri, 24 Jun 2011 03:08:35 +0200
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH v2 0/3] support for broken memory modules (BadRAM)
-Message-ID: <20110624010835.GQ3263@one.firstfloor.org>
-References: <1308741534-6846-1-git-send-email-sassmann@kpanic.de> <20110623133950.GB28333@srcf.ucam.org> <4E0348E0.7050808@kpanic.de> <20110623141222.GA30003@srcf.ucam.org> <4E035DD1.1030603@kpanic.de> <20110623170014.GN3263@one.firstfloor.org> <987664A83D2D224EAE907B061CE93D5301E938F2FD@orsmsx505.amr.corp.intel.com> <BANLkTikTTCU3eKkCtrbLbtpLJtksehyEMg@mail.gmail.com>
-Mime-Version: 1.0
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id DEABE900194
+	for <linux-mm@kvack.org>; Thu, 23 Jun 2011 21:13:01 -0400 (EDT)
+MIME-Version: 1.0
+Message-ID: <07301036-485e-4b0e-88db-7937857d1977@default>
+Date: Thu, 23 Jun 2011 18:12:01 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: Re: [PATCH] fix cleancache config
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <BANLkTikTTCU3eKkCtrbLbtpLJtksehyEMg@mail.gmail.com>
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Craig Bergstrom <craigb@google.com>
-Cc: "Luck, Tony" <tony.luck@intel.com>, Andi Kleen <andi@firstfloor.org>, Stefan Assmann <sassmann@kpanic.de>, Matthew Garrett <mjg59@srcf.ucam.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mingo@elte.hu" <mingo@elte.hu>, "hpa@zytor.com" <hpa@zytor.com>, "rick@vanrein.org" <rick@vanrein.org>, "rdunlap@xenotime.net" <rdunlap@xenotime.net>
+To: Rolf Eike Beer <eike-kernel@sf-tec.de>
+Cc: linux-mm <linux-mm@kvack.org>
 
-> We (Google) are working on a data-driven answer for this question.  I know
-> that there has been some analysis on this topic on the past, but I don't
-> want to speculate until we've had some time to put all the pieces together.
->  Stay tuned for specifics.
+> It doesn't make sense to have a default setting different to that what we
+> suggest the user to select.
 
-It would be also good if you posted your kernel patches.
+Even when configured on at compile time, cleancache functionality
+is inert unless the hooks are registered by a "backend" (e.g.
+zcache or Xen or other future code).   If configured on,
+a backend module can dynamically enable cleancache functionality;
+the cost is extremely small, so all postings of cleancache
+had "default y".
 
-It's highly unusual -- to say the least -- to let someone's openly
-developed and posted patchkit compete with someone's else secret 
-internal solution for review purposes.
+Just before Linus merged cleancache, he insisted that the
+default be changed to "n".  I didn't argue, just changed it.
+However, I think in the future most distros will prefer to
+have it set so the functionality can be enabled at runtime,
+thus the help comment is inconsistent with the default.
 
--Andi
+> Also fixes a typo.
+
+Don't know how I missed that one :-}  Typo fix:
+
+Acked-by: Dan Magenheimer <dan.magenheimer@oracle.com>
+
+Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
