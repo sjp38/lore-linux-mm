@@ -1,58 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id B3091900225
-	for <linux-mm@kvack.org>; Fri, 24 Jun 2011 07:46:33 -0400 (EDT)
-Received: by bwd14 with SMTP id 14so152808bwd.14
-        for <linux-mm@kvack.org>; Fri, 24 Jun 2011 04:46:30 -0700 (PDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id F418D900225
+	for <linux-mm@kvack.org>; Fri, 24 Jun 2011 08:15:36 -0400 (EDT)
+Message-ID: <4E047FD7.60004@draigBrady.com>
+Date: Fri, 24 Jun 2011 13:15:19 +0100
+From: =?UTF-8?B?UMOhZHJhaWcgQnJhZHk=?= <P@draigBrady.com>
 MIME-Version: 1.0
-In-Reply-To: <20110624075742.GA10455@tiehlicka.suse.cz>
-References: <20110622120635.GB14343@tiehlicka.suse.cz>
-	<20110622121516.GA28359@infradead.org>
-	<20110622123204.GC14343@tiehlicka.suse.cz>
-	<20110623150842.d13492cd.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110623074133.GA31593@tiehlicka.suse.cz>
-	<20110623170811.16f4435f.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110623090204.GE31593@tiehlicka.suse.cz>
-	<20110623190157.1bc8cbb9.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110624075742.GA10455@tiehlicka.suse.cz>
-Date: Fri, 24 Jun 2011 20:46:29 +0900
-Message-ID: <BANLkTin7TbK1dNjPG6jz_FaJy-QgOjDJaA@mail.gmail.com>
-Subject: Re: [PATCH] mm: preallocate page before lock_page at filemap COW.
- (WasRe: [PATCH V2] mm: Do not keep page locked during page fault while
- charging it for memcg
-From: Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: Root-causing kswapd spinning on Sandy Bridge laptops?
+References: <BANLkTik7ubq9ChR6UEBXOo5D9tn3mMb1Yw@mail.gmail.com> <BANLkTikKwbsRD=WszbaUQQMamQbNXFdsPA@mail.gmail.com> <4E0465D8.3080005@draigBrady.com>
+In-Reply-To: <4E0465D8.3080005@draigBrady.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Mel Gorman <mgorman@suse.de>, Lutz Vieweg <lvml@5t9.de>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Andrew Lutomirski <luto@mit.edu>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-2011/6/24 Michal Hocko <mhocko@suse.cz>:
-> Sorry, forgot to send my
-> Reviewed-by: Michal Hocko <mhocko@suse>
->
+On 24/06/11 11:24, PA!draig Brady wrote:
+> On 24/06/11 10:27, Minchan Kim wrote:
+>> Hi Andrew,
+>>
+>> Sorry but right now I don't have a time to dive into this.
+>> But it seems to be similar to the problem Mel is looking at.
+>> Cced him.
+>>
+>> Even, PA!draig Brady seem to have a reproducible scenario.
+>> I will look when I have a time.
+>> I hope I will be back sooner or later.
+> 
+> My reproducer is (I've 3GB RAM, 1.5G swap):
+>   dd bs=1M count=3000 if=/dev/zero of=spin.test
+> 
+> To stop it spinning I just have to uncache the data,
+> the handiest way being:
+>   rm spin.test
+> 
+> To confirm, the top of the profile I posted is:
+>   i915_gem_object_bind_to_gtt
+>     shrink_slab
 
-Thanks.
+BTW I just tried this patch,
+but it didn't change anything.
 
-> I still have concerns about this way to handle the issue. See the follow
-> up discussion in other thread (https://lkml.org/lkml/2011/6/23/135).
->
-> Anyway I think that we do not have many other options to handle this.
-> Either we unlock, charge, lock&restes or we preallocate, fault in
->
-I agree.
+http://marc.info/?l=linux-kernel&m=130890263124399&w=2
 
-> Or am I missing some other ways how to do it? What do others think about
-> these approaches?
->
-
-Yes, I'd like to hear other mm specialists' suggestion. and I'll think
-other way, again.
-Anyway, memory reclaim with holding a lock_page() can cause big latency
-or starvation especially when memcg is used. It's better to avoid it.
-
-Thanks,
--Kame
+cheers,
+PA!draig.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
