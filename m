@@ -1,103 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id EC14F900194
-	for <linux-mm@kvack.org>; Fri, 24 Jun 2011 02:23:12 -0400 (EDT)
-Received: by pzk4 with SMTP id 4so2011550pzk.14
-        for <linux-mm@kvack.org>; Thu, 23 Jun 2011 23:23:10 -0700 (PDT)
-MIME-Version: 1.0
-From: Andrew Lutomirski <luto@mit.edu>
-Date: Fri, 24 Jun 2011 02:22:50 -0400
-Message-ID: <BANLkTik7ubq9ChR6UEBXOo5D9tn3mMb1Yw@mail.gmail.com>
-Subject: Root-causing kswapd spinning on Sandy Bridge laptops?
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 7899F900194
+	for <linux-mm@kvack.org>; Fri, 24 Jun 2011 02:33:07 -0400 (EDT)
+Subject: Re: sandy bridge kswapd0 livelock with pagecache
+From: Shaohua Li <shaohua.li@intel.com>
+In-Reply-To: <4E00A96D.8020806@draigBrady.com>
+References: <4E0069FE.4000708@draigBrady.com>
+	 <20110621103920.GF9396@suse.de> <4E0076C7.4000809@draigBrady.com>
+	 <20110621113447.GG9396@suse.de> <4E008784.80107@draigBrady.com>
+	 <20110621130756.GH9396@suse.de>  <4E00A96D.8020806@draigBrady.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Fri, 24 Jun 2011 14:33:04 +0800
+Message-ID: <1308897184.15392.170.camel@sli10-conroe>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan.kim@gmail.com>, linux-mm@kvack.org
+To: =?ISO-8859-1?Q?P=E1draig?= Brady <P@draigBrady.com>
+Cc: Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-I'm back :-/
+On Tue, 2011-06-21 at 22:23 +0800, PA!draig Brady wrote:
+> On 21/06/11 14:07, Mel Gorman wrote:
+> > On Tue, Jun 21, 2011 at 12:59:00PM +0100, P?draig Brady wrote:
+> >> On 21/06/11 12:34, Mel Gorman wrote:
+> >>> On Tue, Jun 21, 2011 at 11:47:35AM +0100, P?draig Brady wrote:
+> >>>> On 21/06/11 11:39, Mel Gorman wrote:
+> >>>>> On Tue, Jun 21, 2011 at 10:53:02AM +0100, P?draig Brady wrote:
+> >>>>>> I tried the 2 patches here to no avail:
+> >>>>>> http://marc.info/?l=linux-mm&m=130503811704830&w=2
+> >>>>>>
+> >>>>>> I originally logged this at:
+> >>>>>> https://bugzilla.redhat.com/show_bug.cgi?id=712019
+> >>>>>>
+> >>>>>> I can compile up and quickly test any suggestions.
+> >>>>>>
+> >>>>>
+> >>>>> I recently looked through what kswapd does and there are a number
+> >>>>> of problem areas. Unfortunately, I haven't gotten around to doing
+> >>>>> anything about it yet or running the test cases to see if they are
+> >>>>> really problems. In your case, the following is a strong possibility
+> >>>>> though. This should be applied on top of the two patches merged from
+> >>>>> that thread.
+> >>>>>
+> >>>>> This is not tested in any way, based on 3.0-rc3
+> >>>>
+> >>>> This does not fix the issue here.
+> >>>>
+> >>>
+> >>> I made a silly mistake here.  When you mentioned two patches applied,
+> >>> I assumed you meant two patches that were finally merged from that
+> >>> discussion thread instead of looking at your linked mail. Now that I
+> >>> have checked, I think you applied the SLUB patches while the patches
+> >>> I was thinking of are;
+> >>>
+> >>> [afc7e326: mm: vmscan: correct use of pgdat_balanced in sleeping_prematurely]
+> >>> [f06590bd: mm: vmscan: correctly check if reclaimer should schedule during shrink_slab]
+> >>>
+> >>> The first one in particular has been reported by another user to fix
+> >>> hangs related to copying large files. I'm assuming you are testing
+> >>> against the Fedora kernel. As these patches were merged for 3.0-rc1, can
+> >>> you check if applying just these two patches to your kernel helps?
+> >>
+> >> These patches are already present in my 2.6.38.8-32.fc15.x86_64 kernel :(
+> >>
+> > 
+> > Would it be possible to record a profile while it is livelocked to check
+> > if it's stuck in this loop in shrink_slab()?
+> 
+> I did:
+> 
+> perf record -a -g sleep 10
+> perf report --stdio > livelock.perf #attached
+> perf annotate shrink_slab -k rpmbuild/BUILD/kernel-2.6.38.fc15/linux-2.6.38.x86_64/vmlinux > shrink_slab.annotate #attached
+> 
+> > 
+> >                 while (total_scan >= SHRINK_BATCH) {
+> >                         long this_scan = SHRINK_BATCH;
+> >                         int shrink_ret;
+> >                         int nr_before;
+> > 
+> >                         nr_before = do_shrinker_shrink(shrinker, shrink, 0);
+> >                         shrink_ret = do_shrinker_shrink(shrinker, shrink,
+> >                                                         this_scan);
+> >                         if (shrink_ret == -1)
+> >                                 break;
+> >                         if (shrink_ret < nr_before)
+> >                                 ret += nr_before - shrink_ret;
+> >                         count_vm_events(SLABS_SCANNED, this_scan);
+> >                         total_scan -= this_scan;
+> > 
+> >                         cond_resched();
+> >                 }
+> 
+> shrink_slab() looks to be the culprit, but it seems
+> to be the loop outside the above that is spinning.
+> 
+> > Also, can you post the output of sysrq+m at a few different times while
+> > kswapd is spinning heavily? I want to see if all_unreclaimable has been
+> > set on zones with a reasonable amount of memory. If they are, it's
+> > possible for kswapd to be in a continual loop calling shrink_slab() and
+> > skipping over normal page reclaim because all_unreclaimable is set
+> > everywhere until a page is freed.
+> 
+> I did that 3 times. Attached.
+from the perf log:
+    62.70%          kswapd0  [i915]                              [k]
+i915_gem_object_bind_to_gtt
+                    |
+                    --- i915_gem_object_bind_to_gtt
+                       |          
+                       |--99.98%-- shrink_slab
+                       |          kswapd
 
-I just triggered the kswapd bug on 2.6.39.1, which has the
-cond_resched in shrink_slab.  This time my system's still usable (I'm
-tying this email on it), but kswapd0 is taking 100% cpu.  It *does*
-schedule (tested by setting its affinity the same as another CPU hog
-and confirming that each one gets 50%).
+Maybe a graphics driver bug. shrink_slab tries to free memory, but
+i915_gem_object_bind_gtt could do memory allocation, IIRC.
 
-It appears to be calling i915_gem_inactive_shrink in a loop.  I have
-probes on entry and return of i915_gem_inactive_shrink and on return
-of shrink_slab.  I see:
-
-         kswapd0    47 [000] 59599.956573: mm_vmscan_kswapd_wake: nid=0 order=0
-         kswapd0    47 [000] 59599.956575: shrink_zone:
-(ffffffff810c848c) priority=12 zone=ffff8801005fe000
-         kswapd0    47 [000] 59599.956576: shrink_zone_return:
-(ffffffff810c848c <- ffffffff810c96c6) arg1=0
-         kswapd0    47 [000] 59599.956578: i915_gem_inactive_shrink:
-(ffffffffa0081e48) gfp_mask=d0 nr_to_scan=0
-         kswapd0    47 [000] 59599.956589: shrink_return:
-(ffffffffa0081e48 <- ffffffff810c6a62) arg1=320
-         kswapd0    47 [000] 59599.956589: shrink_slab_return:
-(ffffffff810c69f5 <- ffffffff810c96ec) arg1=0
-         kswapd0    47 [000] 59599.956592: i915_gem_inactive_shrink:
-(ffffffffa0081e48) gfp_mask=d0 nr_to_scan=0
-         kswapd0    47 [000] 59599.956602: shrink_return:
-(ffffffffa0081e48 <- ffffffff810c6a62) arg1=320
-         kswapd0    47 [000] 59599.956603: shrink_slab_return:
-(ffffffff810c69f5 <- ffffffff810c96ec) arg1=0
-         kswapd0    47 [000] 59599.956605: shrink_zone:
-(ffffffff810c848c) priority=12 zone=ffff8801005fee00
-         kswapd0    47 [000] 59599.956606: shrink_zone_return:
-(ffffffff810c848c <- ffffffff810c96c6) arg1=0
-         kswapd0    47 [000] 59599.956608: i915_gem_inactive_shrink:
-(ffffffffa0081e48) gfp_mask=d0 nr_to_scan=0
-         kswapd0    47 [000] 59599.956609: shrink_return:
-(ffffffffa0081e48 <- ffffffff810c6a62) arg1=0
-         kswapd0    47 [000] 59599.956610: shrink_slab_return:
-(ffffffff810c69f5 <- ffffffff810c96ec) arg1=0
-         kswapd0    47 [000] 59599.956611: mm_vmscan_kswapd_wake: nid=0 order=0
-         kswapd0    47 [000] 59599.956612: shrink_zone:
-(ffffffff810c848c) priority=12 zone=ffff8801005fe000
-         kswapd0    47 [000] 59599.956614: shrink_zone_return:
-(ffffffff810c848c <- ffffffff810c96c6) arg1=0
-         kswapd0    47 [000] 59599.956616: i915_gem_inactive_shrink:
-(ffffffffa0081e48) gfp_mask=d0 nr_to_scan=0
-         kswapd0    47 [000] 59599.956617: shrink_return:
-(ffffffffa0081e48 <- ffffffff810c6a62) arg1=0
-         kswapd0    47 [000] 59599.956618: shrink_slab_return:
-(ffffffff810c69f5 <- ffffffff810c96ec) arg1=0
-         kswapd0    47 [000] 59599.956620: i915_gem_inactive_shrink:
-(ffffffffa0081e48) gfp_mask=d0 nr_to_scan=0
-         kswapd0    47 [000] 59599.956621: shrink_return:
-(ffffffffa0081e48 <- ffffffff810c6a62) arg1=0
-         kswapd0    47 [000] 59599.956621: shrink_slab_return:
-(ffffffff810c69f5 <- ffffffff810c96ec) arg1=0
-         kswapd0    47 [000] 59599.956623: shrink_zone:
-(ffffffff810c848c) priority=12 zone=ffff8801005fee00
-         kswapd0    47 [000] 59599.956624: shrink_zone_return:
-(ffffffff810c848c <- ffffffff810c96c6) arg1=0
-         kswapd0    47 [000] 59599.956626: i915_gem_inactive_shrink:
-(ffffffffa0081e48) gfp_mask=d0 nr_to_scan=0
-         kswapd0    47 [000] 59599.956627: shrink_return:
-(ffffffffa0081e48 <- ffffffff810c6a62) arg1=0
-         kswapd0    47 [000] 59599.956628: shrink_slab_return:
-(ffffffff810c69f5 <- ffffffff810c96ec) arg1=0
-         kswapd0    47 [000] 59599.956629: mm_vmscan_kswapd_wake: nid=0 order=0
-
-The command was:
-
-perf record -g -aR -p 47 -e probe:i915_gem_inactive_shrink -e
-probe:shrink_return -e probe:shrink_slab_return -e probe:shrink_zone
--e probe:shrink_zone_return -e probe:kswapd_try_to_sleep -e
-vmscan:mm_vmscan_kswapd_sleep -e vmscan:mm_vmscan_kswapd_wake -e
-vmscan:mm_vmscan_wakeup_kswapd -e vmscan:mm_vmscan_lru_shrink_inactive
--e probe:wakeup_kswapd; perf script
-
-(shrink_return is i915_gem_inactive_shrink's return.  sorry, badly named.)
-
-It looks like something kswapd_try_to_sleep is not getting called.
-
-I do not know how to reproduce this, but I'll leave it running overnight.
-
---Andy
+Thanks,
+Shaohua
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
