@@ -1,134 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 5BD29900234
-	for <linux-mm@kvack.org>; Fri, 24 Jun 2011 09:43:27 -0400 (EDT)
-From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 4/4] mm: vmscan: Only read new_classzone_idx from pgdat when reclaiming successfully
-Date: Fri, 24 Jun 2011 14:43:18 +0100
-Message-Id: <1308922998-15529-5-git-send-email-mgorman@suse.de>
-In-Reply-To: <1308922998-15529-1-git-send-email-mgorman@suse.de>
-References: <1308922998-15529-1-git-send-email-mgorman@suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id F3402900234
+	for <linux-mm@kvack.org>; Fri, 24 Jun 2011 09:49:37 -0400 (EDT)
+From: Andrea Righi <andrea@betterlinux.com>
+Subject: [PATCH v3 0/2] fadvise: support POSIX_FADV_NOREUSE
+Date: Fri, 24 Jun 2011 15:49:08 +0200
+Message-Id: <1308923350-7932-1-git-send-email-andrea@betterlinux.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: =?UTF-8?q?P=C3=A1draig=20Brady?= <P@draigBrady.com>, James Bottomley <James.Bottomley@HansenPartnership.com>, Colin King <colin.king@canonical.com>, Minchan Kim <minchan.kim@gmail.com>, Andrew Lutomirski <luto@mit.edu>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
+Cc: Minchan Kim <minchan.kim@gmail.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Jerry James <jamesjer@betterlinux.com>, Marcus Sorensen <marcus@bluehost.com>, Matt Heaton <matt@bluehost.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Theodore Tso <tytso@mit.edu>, Shaohua Li <shaohua.li@intel.com>, =?UTF-8?q?P=C3=A1draig=20Brady?= <P@draigBrady.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-During allocator-intensive workloads, kswapd will be woken frequently
-causing free memory to oscillate between the high and min watermark.
-This is expected behaviour.  Unfortunately, if the highest zone is
-small, a problem occurs.
+There were some reported problems in the past about trashing page cache
+when a backup software (i.e., rsync) touches a huge amount of pages (see
+for example [1]).
 
-When balance_pgdat() returns, it may be at a lower classzone_idx than
-it started because the highest zone was unreclaimable. Before checking
-if it should go to sleep though, it checks pgdat->classzone_idx which
-when there is no other activity will be MAX_NR_ZONES-1. It interprets
-this as it has been woken up while reclaiming, skips scheduling and
-reclaims again. As there is no useful reclaim work to do, it enters
-into a loop of shrinking slab consuming loads of CPU until the highest
-zone becomes reclaimable for a long period of time.
+This problem has been almost fixed by the Minchan Kim's patch [2] and a
+proper use of fadvise() in the backup software. For example this patch
+set [3] has been proposed for inclusion in rsync.
 
-There are two problems here. 1) If the returned classzone or order is
-lower, it'll continue reclaiming without scheduling. 2) if the highest
-zone was marked unreclaimable but balance_pgdat() returns immediately
-at DEF_PRIORITY, the new lower classzone is not communicated back to
-kswapd() for sleeping.
+However, there can be still other similar trashing problems: when the
+backup software reads all the source files, some of them may be part of
+the actual working set of the system. When a POSIX_FADV_DONTNEED is
+performed _all_ pages are evicted from pagecache, both the working set
+and the use-once pages touched only by the backup software.
 
-This patch does two things that are related. If the end_zone is
-unreclaimable, this information is communicated back. Second, if
-the classzone or order was reduced due to failing to reclaim, new
-information is not read from pgdat and instead an attempt is made to go
-to sleep. Due to this, it is also necessary that pgdat->classzone_idx
-be initialised each time to pgdat->nr_zones - 1 to avoid re-reads
-being interpreted as wakeups.
+A previous proposal [4] tried to resolve this problem being less
+agressive in invalidating active pages, moving them to the inactive list
+intead of just evict them from the page cache.
 
-Reported-and-tested-by: PA!draig Brady <P@draigBrady.com>
-Signed-off-by: Mel Gorman <mgorman@suse.de>
----
- mm/vmscan.c |   34 +++++++++++++++++++++-------------
- 1 files changed, 21 insertions(+), 13 deletions(-)
+However, this approach changed completely the old behavior of
+invalidate_mapping_pages(), that is not only used by fadvise.
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index d859111..9297195 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2448,7 +2448,6 @@ loop_again:
- 			if (!zone_watermark_ok_safe(zone, order,
- 					high_wmark_pages(zone), 0, 0)) {
- 				end_zone = i;
--				*classzone_idx = i;
- 				break;
- 			}
- 		}
-@@ -2528,8 +2527,11 @@ loop_again:
- 			    total_scanned > sc.nr_reclaimed + sc.nr_reclaimed / 2)
- 				sc.may_writepage = 1;
- 
--			if (zone->all_unreclaimable)
-+			if (zone->all_unreclaimable) {
-+				if (end_zone && end_zone == i)
-+					end_zone--;
- 				continue;
-+			}
- 
- 			if (!zone_watermark_ok_safe(zone, order,
- 					high_wmark_pages(zone), end_zone, 0)) {
-@@ -2709,8 +2711,8 @@ static void kswapd_try_to_sleep(pg_data_t *pgdat, int order, int classzone_idx)
-  */
- static int kswapd(void *p)
- {
--	unsigned long order;
--	int classzone_idx;
-+	unsigned long order, new_order;
-+	int classzone_idx, new_classzone_idx;
- 	pg_data_t *pgdat = (pg_data_t*)p;
- 	struct task_struct *tsk = current;
- 
-@@ -2740,17 +2742,23 @@ static int kswapd(void *p)
- 	tsk->flags |= PF_MEMALLOC | PF_SWAPWRITE | PF_KSWAPD;
- 	set_freezable();
- 
--	order = 0;
--	classzone_idx = MAX_NR_ZONES - 1;
-+	order = new_order = 0;
-+	classzone_idx = new_classzone_idx = pgdat->nr_zones - 1;
- 	for ( ; ; ) {
--		unsigned long new_order;
--		int new_classzone_idx;
- 		int ret;
- 
--		new_order = pgdat->kswapd_max_order;
--		new_classzone_idx = pgdat->classzone_idx;
--		pgdat->kswapd_max_order = 0;
--		pgdat->classzone_idx = MAX_NR_ZONES - 1;
-+		/*
-+		 * If the last balance_pgdat was unsuccessful it's unlikely a
-+		 * new request of a similar or harder type will succeed soon
-+		 * so consider going to sleep on the basis we reclaimed at
-+		 */
-+		if (classzone_idx >= new_classzone_idx && order == new_order) {
-+			new_order = pgdat->kswapd_max_order;
-+			new_classzone_idx = pgdat->classzone_idx;
-+			pgdat->kswapd_max_order =  0;
-+			pgdat->classzone_idx = pgdat->nr_zones - 1;
-+		}
-+
- 		if (order < new_order || classzone_idx > new_classzone_idx) {
- 			/*
- 			 * Don't sleep if someone wants a larger 'order'
-@@ -2763,7 +2771,7 @@ static int kswapd(void *p)
- 			order = pgdat->kswapd_max_order;
- 			classzone_idx = pgdat->classzone_idx;
- 			pgdat->kswapd_max_order = 0;
--			pgdat->classzone_idx = MAX_NR_ZONES - 1;
-+			pgdat->classzone_idx = pgdat->nr_zones - 1;
- 		}
- 
- 		ret = try_to_freeze();
--- 
-1.7.3.4
+The new solution maps POSIX_FADV_NOREUSE to the less-agressive page
+invalidation policy.
+
+With POSIX_FADV_NOREUSE active pages are moved to the tail of the
+inactive list, and pages in the inactive list are just removed from page
+cache. Pages mapped by other processes or unevictable pages are not
+touched at all.
+
+In this way if the backup was the only user of a page, that page will be
+immediately removed from the page cache by calling POSIX_FADV_NOREUSE.
+If the page was also touched by other tasks it'll be moved to the
+inactive list, having another chance of being re-added to the working
+set, or simply reclaimed when memory is needed.
+
+In conclusion, now userspace applications that want to drop some page
+cache pages can choose between the following advices:
+
+ POSIX_FADV_DONTNEED = drop page cache if possible
+ POSIX_FADV_NOREUSE = reduce page cache eligibility
+
+Testcase:
+
+  - create a 1GB file called "zero"
+  - run md5sum zero to read all the pages in page cache (this is to
+    simulate the user activity on this file)
+  - run rsync zero zero_copy
+  - re-run md5sum zero (user activity on the working set) and measure
+    the time to complete this command
+
+rsync has been patched with [3], using POSIX_FADV_DONTNEED in one case and
+POSIX_FADV_NOREUSE in the other case.
+
+Results:
+
+ - after the backup run:
+   # perf stat -e block:block_bio_queue md5sum zero
+
+                  avg elapsed time      block:block_bio_queue
+ rsync-dontneed              4.24s                      2,072
+ rsync-noreuse               2.22s                          0
+
+[1] http://marc.info/?l=rsync&m=128885034930933&w=2
+[2] https://lkml.org/lkml/2011/2/20/57
+[3] http://lists.samba.org/archive/rsync/2010-November/025827.html
+[4] https://lkml.org/lkml/2011/6/23/35
+
+ChangeLog v2 -> v3:
+ - do not change the old POSIX_FADV_DONTNEED behavior and implement the less
+   aggressive page cache invalidation policy using POSIX_FADV_NOREUSE
+ - fix comments in the code
+
+[PATCH v3 1/2] mm: introduce __invalidate_mapping_pages()
+[PATCH v3 2/2] fadvise: implement POSIX_FADV_NOREUSE
+
+ include/linux/fs.h |    7 +++++--
+ mm/fadvise.c       |   11 ++++++-----
+ mm/swap.c          |    2 +-
+ mm/truncate.c      |   40 ++++++++++++++++++++++++++++++----------
+ 4 files changed, 42 insertions(+), 18 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
