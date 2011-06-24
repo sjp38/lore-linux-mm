@@ -1,54 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id E4962900225
-	for <linux-mm@kvack.org>; Fri, 24 Jun 2011 08:51:36 -0400 (EDT)
-Date: Fri, 24 Jun 2011 13:51:31 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: Root-causing kswapd spinning on Sandy Bridge laptops?
-Message-ID: <20110624125131.GQ9396@suse.de>
-References: <BANLkTik7ubq9ChR6UEBXOo5D9tn3mMb1Yw@mail.gmail.com>
- <BANLkTikKwbsRD=WszbaUQQMamQbNXFdsPA@mail.gmail.com>
- <4E0465D8.3080005@draigBrady.com>
+	by kanga.kvack.org (Postfix) with SMTP id 91EE0900225
+	for <linux-mm@kvack.org>; Fri, 24 Jun 2011 09:10:47 -0400 (EDT)
+Message-ID: <4E048CC6.5010400@draigBrady.com>
+Date: Fri, 24 Jun 2011 14:10:30 +0100
+From: =?ISO-8859-15?Q?P=E1draig_Brady?= <P@draigBrady.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <4E0465D8.3080005@draigBrady.com>
+Subject: Re: sandy bridge kswapd0 livelock with pagecache
+References: <20110621130756.GH9396@suse.de> <4E00A96D.8020806@draigBrady.com> <20110622094401.GJ9396@suse.de> <4E01C19F.20204@draigBrady.com> <20110623114646.GM9396@suse.de> <4E0339CF.8080407@draigBrady.com> <20110623152418.GN9396@suse.de> <4E035C8B.1080905@draigBrady.com> <20110623165955.GO9396@suse.de> <4E039334.7090502@draigBrady.com> <20110624114444.GP9396@suse.de>
+In-Reply-To: <20110624114444.GP9396@suse.de>
+Content-Type: text/plain; charset=ISO-8859-15
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: P?draig Brady <P@draigBrady.com>
-Cc: Minchan Kim <minchan.kim@gmail.com>, Andrew Lutomirski <luto@mit.edu>, linux-mm@kvack.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: linux-mm@kvack.org
 
-On Fri, Jun 24, 2011 at 11:24:24AM +0100, P?draig Brady wrote:
-> On 24/06/11 10:27, Minchan Kim wrote:
-> > Hi Andrew,
-> > 
-> > Sorry but right now I don't have a time to dive into this.
-> > But it seems to be similar to the problem Mel is looking at.
-> > Cced him.
-> > 
-> > Even, Padraig Brady seem to have a reproducible scenario.
-> > I will look when I have a time.
-> > I hope I will be back sooner or later.
+On 24/06/11 12:44, Mel Gorman wrote:
+> On Thu, Jun 23, 2011 at 08:25:40PM +0100, P?draig Brady wrote:
+>> On 23/06/11 17:59, Mel Gorman wrote:
+>>> On Thu, Jun 23, 2011 at 04:32:27PM +0100, P?draig Brady wrote:
+>>>> On 23/06/11 16:24, Mel Gorman wrote:
+>>>>>
+>>>>> Theory 2 it is then. This is to be applied on top of the patch for
+>>>>> theory 1.
+>>>>>
+>>>>> ==== CUT HERE ====
+>>>>> mm: vmscan: Prevent kswapd doing excessive work when classzone is unreclaimable
+>>>>
+>>>> No joy :(
+>>>>
+>>>
+>>> Joy is indeed rapidly fleeing the vicinity.
+>>>
+>>> Check /proc/sys/vm/laptop_mode . If it's set, unset it and try again.
+>>
+>> It was not set
+>>
+>>>
+>>> diff --git a/mm/vmscan.c b/mm/vmscan.c
+>>> index dce95dd..c8c0f5a 100644
+>>> --- a/mm/vmscan.c
+>>> +++ b/mm/vmscan.c
+>>> @@ -2426,19 +2426,19 @@ loop_again:
+>>>  			 * zone has way too many pages free already.
+>>>  			 */
+>>>  			if (!zone_watermark_ok_safe(zone, order,
+>>> -					8*high_wmark_pages(zone), end_zone, 0))
+>>
+>> Note 8 was not in my tree.
+>> Manually applied patch makes no difference :(
+>> Well maybe kswapd0 started spinning a little later.
+>>
 > 
-> My reproducer is (I've 3GB RAM, 1.5G swap):
->   dd bs=1M count=3000 if=/dev/zero of=spin.test
+> Gack :)
 > 
-> To stop it spinning I just have to uncache the data,
-> the handiest way being:
->   rm spin.test
+> On further reflection "mm: vmscan: Prevent kswapd doing excessive
+> work when classzone is unreclaimable" was off but it was along the
+> right lines in that the balancing classzone was not being considered
+> when going to sleep.
 > 
-> To confirm, the top of the profile I posted is:
->   i915_gem_object_bind_to_gtt
->     shrink_slab
+> The following is a patch against mainline 2.6.38.8 and is a
+> roll-up of four separate patches that includes a new modification to
+> sleeping_prematurely. Because the stack I am working off has changed
+> significantly, it's far easier if you apply this on top of a vanilla
+> fedora branch of 2.6.38 and test rather than trying to backout and
+> reapply. Depending on when you checked out or if you have applied the
+> BALANCE_GAP patch yourself, it might collide with 8*high_wmark_pages
+> but the resolution should be straight-forward.
 > 
+> Thanks for persisting.
 
-I don't think it's an i915 bug. Another candidate fix in the other
-thread that Padraig started.
-
--- 
-Mel Gorman
-SUSE Labs
+Bingo!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
