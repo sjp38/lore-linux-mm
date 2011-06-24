@@ -1,71 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id C013F90023D
-	for <linux-mm@kvack.org>; Fri, 24 Jun 2011 12:16:09 -0400 (EDT)
-Subject: Re: [PATCH 7/8] common: dma-mapping: change alloc/free_coherent
- method to more generic alloc/free_attrs
-From: James Bottomley <James.Bottomley@HansenPartnership.com>
-In-Reply-To: <201106241751.35655.arnd@arndb.de>
-References: <1308556213-24970-1-git-send-email-m.szyprowski@samsung.com>
-	 <1308556213-24970-8-git-send-email-m.szyprowski@samsung.com>
-	 <201106241751.35655.arnd@arndb.de>
-Content-Type: text/plain; charset="UTF-8"
-Date: Fri, 24 Jun 2011 11:15:47 -0500
-Message-ID: <1308932147.5929.0.camel@mulgrave>
-Mime-Version: 1.0
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id DCC8590023D
+	for <linux-mm@kvack.org>; Fri, 24 Jun 2011 12:16:35 -0400 (EDT)
+Message-ID: <4E04B848.6000908@zytor.com>
+Date: Fri, 24 Jun 2011 09:16:08 -0700
+From: "H. Peter Anvin" <hpa@zytor.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v2 0/3] support for broken memory modules (BadRAM)
+References: <1308741534-6846-1-git-send-email-sassmann@kpanic.de> <20110623133950.GB28333@srcf.ucam.org> <4E0348E0.7050808@kpanic.de> <20110623141222.GA30003@srcf.ucam.org> <4E035DD1.1030603@kpanic.de> <20110623170014.GN3263@one.firstfloor.org> <987664A83D2D224EAE907B061CE93D5301E938F2FD@orsmsx505.amr.corp.intel.com> <BANLkTikTTCU3eKkCtrbLbtpLJtksehyEMg@mail.gmail.com> <20110624080535.GA19966@phantom.vanrein.org>
+In-Reply-To: <20110624080535.GA19966@phantom.vanrein.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arnd Bergmann <arnd@arndb.de>
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, Kyungmin Park <kyungmin.park@samsung.com>, Joerg Roedel <joro@8bytes.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>
+To: Rick van Rein <rick@vanrein.org>
+Cc: Craig Bergstrom <craigb@google.com>, "Luck, Tony" <tony.luck@intel.com>, Andi Kleen <andi@firstfloor.org>, Stefan Assmann <sassmann@kpanic.de>, Matthew Garrett <mjg59@srcf.ucam.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mingo@elte.hu" <mingo@elte.hu>, "rdunlap@xenotime.net" <rdunlap@xenotime.net>
 
-On Fri, 2011-06-24 at 17:51 +0200, Arnd Bergmann wrote:
-> On Monday 20 June 2011, Marek Szyprowski wrote:
-> > Introduce new alloc/free/mmap methods that take attributes argument.
-> > alloc/free_coherent can be implemented on top of the new alloc/free
-> > calls with NULL attributes. dma_alloc_non_coherent can be implemented
-> > using DMA_ATTR_NONCOHERENT attribute, dma_alloc_writecombine can also
-> > use separate DMA_ATTR_WRITECOMBINE attribute. This way the drivers will
-> > get more generic, platform independent way of allocating dma memory
-> > buffers with specific parameters.
-> > 
-> > One more attribute can be usefull: DMA_ATTR_NOKERNELVADDR. Buffers with
-> > such attribute will not have valid kernel virtual address. They might be
-> > usefull for drivers that only exports the DMA buffers to userspace (like
-> > for example V4L2 or ALSA).
-> > 
-> > mmap method is introduced to let the drivers create a user space mapping
-> > for a DMA buffer in generic, architecture independent way.
-> > 
-> > TODO: update all dma_map_ops clients for all architectures
-> > 
-> > Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
-> > Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
+On 06/24/2011 01:05 AM, Rick van Rein wrote:
 > 
-> Yes, I think that is good, but the change needs to be done atomically
-> across all architectures. This should be easy enough as I believe
-> all other architectures that use dma_map_ops don't even require
-> dma_alloc_noncoherent
-
-This statement is definitely not true of parisc, and also, I believe,
-not true of sh, so that would have to figure in the conversion work too.
-
-James
-
-
->  but just define it to dma_alloc_coherent
-> because they have only coherent memory in regular device drivers.
+> I am very curious about your findings.  Independently of those, I am in
+> favour of a patch that enables longer e820 tables if it has no further
+> impact on speed or space.
 > 
-> On a related note, do you plan to make the CMA work use this
-> transparently, or do you want to have a DMA_ATTR_LARGE or
-> DMA_ATTR_CONTIGUOUS for CMA?
-> 
-> 	Arnd
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-arch" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
 
+That is already in the mainline kernel, although only if fed from the
+boot loader (it was developed in the context of mega-NUMA machines); the
+stub fetching from INT 15h doesn't use this at the moment.
+
+	-hpa
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
