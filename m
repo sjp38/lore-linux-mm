@@ -1,41 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id C659690023D
-	for <linux-mm@kvack.org>; Fri, 24 Jun 2011 15:13:38 -0400 (EDT)
-Date: Fri, 24 Jun 2011 21:13:34 +0200
-From: Andi Kleen <andi@firstfloor.org>
+	by kanga.kvack.org (Postfix) with ESMTP id 98EF190023D
+	for <linux-mm@kvack.org>; Fri, 24 Jun 2011 15:18:06 -0400 (EDT)
+Date: Fri, 24 Jun 2011 15:17:57 -0400
+From: Christoph Hellwig <hch@infradead.org>
 Subject: Re: Root-causing kswapd spinning on Sandy Bridge laptops?
-Message-ID: <20110624191334.GA31183@one.firstfloor.org>
-References: <BANLkTik7ubq9ChR6UEBXOo5D9tn3mMb1Yw@mail.gmail.com> <m2liwrul1f.fsf@firstfloor.org> <BANLkTimLsnyX6kr6B7uR2SPoHCzuvLzsoQ@mail.gmail.com>
-Mime-Version: 1.0
+Message-ID: <20110624191757.GA3805@infradead.org>
+References: <BANLkTik7ubq9ChR6UEBXOo5D9tn3mMb1Yw@mail.gmail.com>
+ <m2liwrul1f.fsf@firstfloor.org>
+ <BANLkTimLsnyX6kr6B7uR2SPoHCzuvLzsoQ@mail.gmail.com>
+ <20110624191334.GA31183@one.firstfloor.org>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <BANLkTimLsnyX6kr6B7uR2SPoHCzuvLzsoQ@mail.gmail.com>
+In-Reply-To: <20110624191334.GA31183@one.firstfloor.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Lutomirski <luto@mit.edu>
-Cc: Andi Kleen <andi@firstfloor.org>, Minchan Kim <minchan.kim@gmail.com>, linux-mm@kvack.org, intel-gfx@lists.freedesktop.org
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Andrew Lutomirski <luto@mit.edu>, Minchan Kim <minchan.kim@gmail.com>, linux-mm@kvack.org, intel-gfx@lists.freedesktop.org
 
-On Fri, Jun 24, 2011 at 12:48:20PM -0600, Andrew Lutomirski wrote:
-> On Fri, Jun 24, 2011 at 12:44 PM, Andi Kleen <andi@firstfloor.org> wrote:
-> > Andrew Lutomirski <luto@mit.edu> writes:
-> >
-> > [Putting the Intel graphics driver developers in cc.]
-> 
-> My Sandy Bridge laptop is to blame, the graphics aren't the culprit.  It's this:
-> 
->   BIOS-e820: 0000000100000000 - 0000000100600000 (usable)
-> 
-> The kernel can't handle the tiny bit of memory above 4G.  Mel's
-> patches work so far.
+On Fri, Jun 24, 2011 at 09:13:34PM +0200, Andi Kleen wrote:
+> Maybe the graphics driver could be still nicer the VM and perhaps
+> be more aggressive in the callback?
 
-Maybe the graphics driver could be still nicer the VM and perhaps
-be more aggressive in the callback?
+Or just fix the nasty bugs in there, e.g. apply
 
-But I failed anyways because the graphics developers run a closed
-list. Never mind.
+[PATCH] i915: slab shrinker have to return -1 if it can't shrink any objects
 
--Andi
+which was sent to lkml today.  Also the first three patches from Dave
+Chinners per-sb shrinker series, which fix two bugs in the core shrinker
+code, and add tracing to it should help a lot.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
