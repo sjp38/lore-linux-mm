@@ -1,44 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F2CE90023D
-	for <linux-mm@kvack.org>; Sat, 25 Jun 2011 10:24:06 -0400 (EDT)
-Received: by pwi12 with SMTP id 12so2924077pwi.14
-        for <linux-mm@kvack.org>; Sat, 25 Jun 2011 07:23:57 -0700 (PDT)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 20472900117
+	for <linux-mm@kvack.org>; Sat, 25 Jun 2011 17:33:56 -0400 (EDT)
+Message-ID: <4E065433.3020502@redhat.com>
+Date: Sat, 25 Jun 2011 17:33:39 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <1308926697-22475-1-git-send-email-mgorman@suse.de>
-References: <1308926697-22475-1-git-send-email-mgorman@suse.de>
-From: Andrew Lutomirski <luto@mit.edu>
-Date: Sat, 25 Jun 2011 08:23:37 -0600
-Message-ID: <BANLkTintLEcJvNzzspYRUV8fCx9=9dGDnA@mail.gmail.com>
-Subject: Re: [PATCH 0/4] Stop kswapd consuming 100% CPU when highest zone is small
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Subject: Re: [PATCH 1/4] mm: vmscan: Correct check for kswapd sleeping in
+ sleeping_prematurely
+References: <1308926697-22475-1-git-send-email-mgorman@suse.de> <1308926697-22475-2-git-send-email-mgorman@suse.de>
+In-Reply-To: <1308926697-22475-2-git-send-email-mgorman@suse.de>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, =?ISO-8859-1?Q?P=E1draig_Brady?= <P@draigbrady.com>, James Bottomley <James.Bottomley@hansenpartnership.com>, Colin King <colin.king@canonical.com>, Minchan Kim <minchan.kim@gmail.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, =?UTF-8?B?UMOhZHJhaWcgQnJh?= =?UTF-8?B?ZHk=?= <P@draigBrady.com>, James Bottomley <James.Bottomley@HansenPartnership.com>, Colin King <colin.king@canonical.com>, Minchan Kim <minchan.kim@gmail.com>, Andrew Lutomirski <luto@mit.edu>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 
-On Fri, Jun 24, 2011 at 8:44 AM, Mel Gorman <mgorman@suse.de> wrote:
-> (Built this time and passed a basic sniff-test.)
->
+On 06/24/2011 10:44 AM, Mel Gorman wrote:
 > During allocator-intensive workloads, kswapd will be woken frequently
 > causing free memory to oscillate between the high and min watermark.
-> This is expected behaviour. =A0Unfortunately, if the highest zone is
-> small, a problem occurs.
+> This is expected behaviour.
 >
+> A problem occurs if the highest zone is small.  balance_pgdat()
+> only considers unreclaimable zones when priority is DEF_PRIORITY
+> but sleeping_prematurely considers all zones. It's possible for this
+> sequence to occur
+>
+>    1. kswapd wakes up and enters balance_pgdat()
+>    2. At DEF_PRIORITY, marks highest zone unreclaimable
+>    3. At DEF_PRIORITY-1, ignores highest zone setting end_zone
+>    4. At DEF_PRIORITY-1, calls shrink_slab freeing memory from
+>          highest zone, clearing all_unreclaimable. Highest zone
+>          is still unbalanced
+>    5. kswapd returns and calls sleeping_prematurely
+>    6. sleeping_prematurely looks at *all* zones, not just the ones
+>       being considered by balance_pgdat. The highest small zone
+>       has all_unreclaimable cleared but but the zone is not
+>       balanced. all_zones_ok is false so kswapd stays awake
+>
+> This patch corrects the behaviour of sleeping_prematurely to check
+> the zones balance_pgdat() checked.
+>
+> Reported-and-tested-by: PA!draig Brady<P@draigBrady.com>
+> Signed-off-by: Mel Gorman<mgorman@suse.de>
 
-[...]
+Acked-by: Rik van Riel <riel@redhat.com>
 
-I've been running these for a couple days with no problems, although I
-haven't been trying to reproduce the problem.  (Well, no problems
-related to memory management.)
-
-I suspect that my pet unnecessary-OOM-kill bug is still around, but
-that's probably not related, especially since I can trigger it if I
-stick 8 GB of RAM in this laptop.
-
-Thanks,
-Andy
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
