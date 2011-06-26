@@ -1,58 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 50472900117
-	for <linux-mm@kvack.org>; Sat, 25 Jun 2011 19:18:12 -0400 (EDT)
-Message-ID: <4E066CA0.7060802@redhat.com>
-Date: Sat, 25 Jun 2011 19:17:52 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 461F3900117
+	for <linux-mm@kvack.org>; Sat, 25 Jun 2011 20:06:32 -0400 (EDT)
+Received: by pvh10 with SMTP id 10so2429890pvh.15
+        for <linux-mm@kvack.org>; Sat, 25 Jun 2011 17:06:30 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH 4/4] mm: vmscan: Only read new_classzone_idx from pgdat
- when reclaiming successfully
-References: <1308926697-22475-1-git-send-email-mgorman@suse.de> <1308926697-22475-5-git-send-email-mgorman@suse.de>
-In-Reply-To: <1308926697-22475-5-git-send-email-mgorman@suse.de>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <BANLkTi=y6PGMdHq0uT9QJ7aej3nU6cKW2g@mail.gmail.com>
+References: <1308556213-24970-1-git-send-email-m.szyprowski@samsung.com>
+	<4E017539.30505@gmail.com>
+	<001d01cc30a9$ebe5e460$c3b1ad20$%szyprowski@samsung.com>
+	<4E01AD7B.3070806@gmail.com>
+	<002701cc30be$ab296cc0$017c4640$%szyprowski@samsung.com>
+	<4E02119F.4000901@codeaurora.org>
+	<4E033AFF.4020603@gmail.com>
+	<BANLkTikzTwNvaaUSk26qzONemogBAGuBRg@mail.gmail.com>
+	<BANLkTimi2FAmcb7ZWnjRqb-Cb8acXWsCTw@mail.gmail.com>
+	<BANLkTinUCZrd-JuMc3TkaF4f1VBmOu9nxQ@mail.gmail.com>
+	<BANLkTi=y6PGMdHq0uT9QJ7aej3nU6cKW2g@mail.gmail.com>
+Date: Sun, 26 Jun 2011 03:06:30 +0300
+Message-ID: <BANLkTi=uNVLOy4oTTBpr8niRMX+m6wgWBg@mail.gmail.com>
+Subject: Re: [Linaro-mm-sig] [PATCH/RFC 0/8] ARM: DMA-mapping framework redesign
+From: Jonathan Morton <jonathan.morton@movial.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, =?UTF-8?B?UMOhZHJhaWcgQnJh?= =?UTF-8?B?ZHk=?= <P@draigBrady.com>, James Bottomley <James.Bottomley@HansenPartnership.com>, Colin King <colin.king@canonical.com>, Minchan Kim <minchan.kim@gmail.com>, Andrew Lutomirski <luto@mit.edu>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: M.K.Edwards@gmail.com
+Cc: Subash Patel <subashrp@gmail.com>, Jordan Crouse <jcrouse@codeaurora.org>, Marek Szyprowski <m.szyprowski@samsung.com>, linux-arch@vger.kernel.org, linaro-mm-sig@lists.linaro.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org
 
-On 06/24/2011 10:44 AM, Mel Gorman wrote:
-> During allocator-intensive workloads, kswapd will be woken frequently
-> causing free memory to oscillate between the high and min watermark.
-> This is expected behaviour.  Unfortunately, if the highest zone is
-> small, a problem occurs.
->
-> When balance_pgdat() returns, it may be at a lower classzone_idx than
-> it started because the highest zone was unreclaimable. Before checking
-> if it should go to sleep though, it checks pgdat->classzone_idx which
-> when there is no other activity will be MAX_NR_ZONES-1. It interprets
-> this as it has been woken up while reclaiming, skips scheduling and
-> reclaims again. As there is no useful reclaim work to do, it enters
-> into a loop of shrinking slab consuming loads of CPU until the highest
-> zone becomes reclaimable for a long period of time.
->
-> There are two problems here. 1) If the returned classzone or order is
-> lower, it'll continue reclaiming without scheduling. 2) if the highest
-> zone was marked unreclaimable but balance_pgdat() returns immediately
-> at DEF_PRIORITY, the new lower classzone is not communicated back to
-> kswapd() for sleeping.
->
-> This patch does two things that are related. If the end_zone is
-> unreclaimable, this information is communicated back. Second, if
-> the classzone or order was reduced due to failing to reclaim, new
-> information is not read from pgdat and instead an attempt is made to go
-> to sleep. Due to this, it is also necessary that pgdat->classzone_idx
-> be initialised each time to pgdat->nr_zones - 1 to avoid re-reads
-> being interpreted as wakeups.
->
-> Reported-and-tested-by: PA!draig Brady<P@draigBrady.com>
-> Signed-off-by: Mel Gorman<mgorman@suse.de>
+On 25 June 2011 12:55, Michael K. Edwards <m.k.edwards@gmail.com> wrote:
+> With regard to the use of NEON for data moves, I have appended a
+> snippet of a conversation from the BeagleBoard list that veered off
+> into a related direction. =A0(My response is lightly edited, since I
+> made some stupid errors in the original.) =A0While this is somewhat
+> off-topic from Marek's patch set, I think it's relevant to the
+> question of whether "user-allocated" buffers are an important design
+> consideration for his otherwise DMA-centric API. =A0(And more to the
+> point, buffers allocated suitably for one or more on-chip devices, and
+> also mapped as uncacheable to userland.)
 
-Acked-by: Rik van Riel <riel@redhat.com>
+As far as userspace is concerned, dealing with the memory hierarchy's
+quirks is already pretty much a black art, and that's *before* you
+start presenting it with uncached buffers.  The best rule of thumb
+userspace can follow is to keep things in cache if they can, and use
+the biggest memory-move instructions (and prefetching if available) if
+they can't.  Everything else they have to rely on the hardware to
+optimise for them.  Indeed, when working in C, you barely even get
+*that* level of control (optimised copy routines have been known to
+use double simply because it is reliably 64 bits that can be loaded
+and stored efficiently), and most other languages are worse.
 
--- 
-All rights reversed
+Small wonder that userspace code that knows it has to work with
+uncached buffers sometimes - such as Pixman - relies heavily on
+handwritten SIMD assembler.
+
+Video decoders are a particularly fun case, because the correct
+solution is actually to DMA the output buffer to the GPU (or, better,
+to map one onto the other so that zero-copy semantics result) so that
+the CPU doesn't have to touch it.  But then you have to find a common
+format that both VPU and GPU support, and you have to have a free DMA
+channel and a way to use it.  Frankly though, this is a solution from
+the 20th century (remember MPEG2 decoders sitting beside the SVGA
+card?).
+
+We *have* had to occasionally deal with hardware where no such common
+format could be found, although often this has been due to inadequate
+documentation or driver support (a familiar refrain).  In one case I
+wrote a NEON NV12-to-RGB32 conversion routine which read directly from
+the video buffer and wrote directly into a texture buffer, both of
+which were of course uncached.  This halved the CPU consumption of the
+video playback applet, but prefixing it with a routine which copied
+the video buffer into cached memory (using 32-byte VLD1 instead of
+16-byte versions) halved it again.  Profiling showed that the vast
+majority of the time was spent in the prefix copy loop.  No doubt if
+further savings had been required, I'd have tried using VLDM in the
+copy loop.  (There weren't enough registers to widen the load stage of
+the conversion routine itself.)
+
+The takeaway from this is that if your code has to read from uncached
+memory at all, that will undoubtedly dominate it's performance.  A
+read-modify-write cycle is at least as bad (because the memory has to
+go through at least one CAS latency and a write-to-read turnaround
+before the next read can be serviced).  A pure write is, however, no
+problem.
+
+On cached memory, the L2 cache of most modern (even ARM) CPUs has an
+auto-prefetcher which will help out with sequential transfers.  This
+should get somewhere reasonably close to optimal performance.
+
+ - Jonathan Morton
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
