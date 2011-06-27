@@ -1,89 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 05AB06B007E
-	for <linux-mm@kvack.org>; Mon, 27 Jun 2011 08:24:39 -0400 (EDT)
-Received: from spt2.w1.samsung.com (mailout2.w1.samsung.com [210.118.77.12])
- by mailout2.w1.samsung.com
- (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
- with ESMTP id <0LNG00HIH7RLAH@mailout2.w1.samsung.com> for linux-mm@kvack.org;
- Mon, 27 Jun 2011 13:23:45 +0100 (BST)
-Received: from linux.samsung.com ([106.116.38.10])
- by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0LNG002IJ7RJEO@spt2.w1.samsung.com> for
- linux-mm@kvack.org; Mon, 27 Jun 2011 13:23:44 +0100 (BST)
-Date: Mon, 27 Jun 2011 14:23:40 +0200
-From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: RE: [PATCH 7/8] common: dma-mapping: change alloc/free_coherent method
- to more generic alloc/free_attrs
-In-reply-to: <201106241751.35655.arnd@arndb.de>
-Message-id: <000701cc34c5$0c50b800$24f22800$%szyprowski@samsung.com>
-MIME-version: 1.0
-Content-type: text/plain; charset=us-ascii
-Content-language: pl
-Content-transfer-encoding: 7BIT
-References: <1308556213-24970-1-git-send-email-m.szyprowski@samsung.com>
- <1308556213-24970-8-git-send-email-m.szyprowski@samsung.com>
- <201106241751.35655.arnd@arndb.de>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 7A0296B00FD
+	for <linux-mm@kvack.org>; Mon, 27 Jun 2011 08:39:53 -0400 (EDT)
+Date: Mon, 27 Jun 2011 14:39:46 +0200
+From: Andrea Righi <andrea@betterlinux.com>
+Subject: Re: [PATCH v3 0/2] fadvise: support POSIX_FADV_NOREUSE
+Message-ID: <20110627123946.GB1658@thinkpad>
+References: <1308923350-7932-1-git-send-email-andrea@betterlinux.com>
+ <4E07F349.2040900@jp.fujitsu.com>
+ <20110627071139.GC1247@thinkpad>
+ <4E0858CF.6070808@draigBrady.com>
+ <20110627102933.GA1282@thinkpad>
+ <4E086F51.50403@draigBrady.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <4E086F51.50403@draigBrady.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Arnd Bergmann' <arnd@arndb.de>
-Cc: linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Joerg Roedel' <joro@8bytes.org>, 'Russell King - ARM Linux' <linux@arm.linux.org.uk>
+To: =?iso-8859-1?Q?P=E1draig?= Brady <P@draigBrady.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, akpm@linux-foundation.org, minchan.kim@gmail.com, riel@redhat.com, peterz@infradead.org, hannes@cmpxchg.org, kamezawa.hiroyu@jp.fujitsu.com, aarcange@redhat.com, hughd@google.com, jamesjer@betterlinux.com, marcus@bluehost.com, matt@bluehost.com, tytso@mit.edu, shaohua.li@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hello,
-
-On Friday, June 24, 2011 5:52 PM Arnd Bergmann wrote:
-
-> On Monday 20 June 2011, Marek Szyprowski wrote:
-> > Introduce new alloc/free/mmap methods that take attributes argument.
-> > alloc/free_coherent can be implemented on top of the new alloc/free
-> > calls with NULL attributes. dma_alloc_non_coherent can be implemented
-> > using DMA_ATTR_NONCOHERENT attribute, dma_alloc_writecombine can also
-> > use separate DMA_ATTR_WRITECOMBINE attribute. This way the drivers will
-> > get more generic, platform independent way of allocating dma memory
-> > buffers with specific parameters.
-> >
-> > One more attribute can be usefull: DMA_ATTR_NOKERNELVADDR. Buffers with
-> > such attribute will not have valid kernel virtual address. They might be
-> > usefull for drivers that only exports the DMA buffers to userspace (like
-> > for example V4L2 or ALSA).
-> >
-> > mmap method is introduced to let the drivers create a user space mapping
-> > for a DMA buffer in generic, architecture independent way.
-> >
-> > TODO: update all dma_map_ops clients for all architectures
-> >
-> > Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
-> > Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
+On Mon, Jun 27, 2011 at 12:53:53PM +0100, Padraig Brady wrote:
+> On 27/06/11 11:29, Andrea Righi wrote:
+> > The actual problem I think is that apps expect that DONTNEED can be used
+> > to drop cache, but this is not written anywhere in the POSIX standard.
+> > 
+> > I would also like to have both functionalities: 1) be sure to drop page
+> > cache pages (now there's only a system-wide knob to do this:
+> > /proc/sys/vm/drop_caches), 2) give an advice to the kernel that I will
+> > not reuse some pages in the future.
+> > 
+> > The standard can only provide 2). If we also want 1) at the file
+> > granularity, I think we'd need to introduce something linux specific to
+> > avoid having portability problems.
 > 
-> Yes, I think that is good, but the change needs to be done atomically
-> across all architectures.
+> True, though Linux is the reference for posix_fadvise() implementations,
+> given its lack of support on other platforms.
+> 
+> So just to summarize for _my_ reference.
+> You're changing DONTNEED to mean "drop if !PageActive()".
+> I.E. according to http://linux-mm.org/PageReplacementDesign
+> "drop if files only accessed once".
 
-Yes, I'm aware of this and I will include such changes in the next version
-of my patches.
+Drop if pages were only accessed once, they're not mapped by any other
+process and they're not unevictable.
 
-> This should be easy enough as I believe
-> all other architectures that use dma_map_ops don't even require
-> dma_alloc_noncoherent but just define it to dma_alloc_coherent
-> because they have only coherent memory in regular device drivers.
+> 
+> This will mean that there is no way currently to
+> remove a particular file from the cache on linux.
 
-Right, this should be quite simple. I will also add DMA_ATTR_NON_COHERENT
-attribute for implementing dma_alloc_noncoherent() call.
+Correct. There's not a way to do this for a single file (except running
+POSIX_FADV_DONTNEED twice...).
 
-> On a related note, do you plan to make the CMA work use this
-> transparently, or do you want to have a DMA_ATTR_LARGE or
-> DMA_ATTR_CONTIGUOUS for CMA?
+> Hopefully that won't affect any of:
+> http://codesearch.google.com/#search/&q=POSIX_FADV_DONTNEED
+> 
+> Ideally I'd like cache functions for:
+>  DROP, ADD, ADD if space1
+> which could correspond to:
+>  DONTNEED, WILLNEED, NOREUSE
+> but what we're going for are these somewhat overlapping functions:
+>  DROP if used once2, ADD, ADD if space
 
-IMHO it will be better to hide the CMA from the drivers. Memory allocated
-from CMA doesn't really differ from the one allocated by dma_alloc_coherent()
-(which internally use alloc_pages()), so I really see no reason for adding
-additional attribute for it.
+IIUC, NOREUSE means "the application will use this range of the file
+once". It's something that we do _before_ accessing the file.  And the
+kernel needs to remember the ranges of NOREUSE data for each file, so
+that page cache can be immediately dropped after the data has been
+accessed (if possible).
 
-Best regards
--- 
-Marek Szyprowski
-Samsung Poland R&D Center
+-Andrea
 
-
+> 
+> cheers,
+> Padraig.
+> 
+> 1 Not implemented yet.
+> 
+> 2 Hopefully there are no access patterns a single
+> process can do to make a PageActive as that would
+> probably not be desired in relation to "Drop if used once"
+> functionality.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
