@@ -1,135 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 8BDFB6B01F6
-	for <linux-mm@kvack.org>; Sun, 26 Jun 2011 22:56:56 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 474893EE0AE
-	for <linux-mm@kvack.org>; Mon, 27 Jun 2011 11:56:53 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2C22245DEA0
-	for <linux-mm@kvack.org>; Mon, 27 Jun 2011 11:56:53 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 1492845DE9C
-	for <linux-mm@kvack.org>; Mon, 27 Jun 2011 11:56:53 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 095E51DB803B
-	for <linux-mm@kvack.org>; Mon, 27 Jun 2011 11:56:53 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id B99951DB8038
-	for <linux-mm@kvack.org>; Mon, 27 Jun 2011 11:56:52 +0900 (JST)
-Date: Mon, 27 Jun 2011 11:49:39 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: mmotm 2011-06-22-13-05 uploaded
-Message-Id: <20110627114939.a941b9eb.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <201106222042.p5MKgiEe025352@imap1.linux-foundation.org>
-References: <201106222042.p5MKgiEe025352@imap1.linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id CAB946B01FF
+	for <linux-mm@kvack.org>; Sun, 26 Jun 2011 23:05:05 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 41C363EE081
+	for <linux-mm@kvack.org>; Mon, 27 Jun 2011 12:05:01 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 19F0E45DE52
+	for <linux-mm@kvack.org>; Mon, 27 Jun 2011 12:05:01 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id EBABB45DE4F
+	for <linux-mm@kvack.org>; Mon, 27 Jun 2011 12:05:00 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id DB0621DB802F
+	for <linux-mm@kvack.org>; Mon, 27 Jun 2011 12:05:00 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id A6A781DB803E
+	for <linux-mm@kvack.org>; Mon, 27 Jun 2011 12:05:00 +0900 (JST)
+Message-ID: <4E07F349.2040900@jp.fujitsu.com>
+Date: Mon, 27 Jun 2011 12:04:41 +0900
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v3 0/2] fadvise: support POSIX_FADV_NOREUSE
+References: <1308923350-7932-1-git-send-email-andrea@betterlinux.com>
+In-Reply-To: <1308923350-7932-1-git-send-email-andrea@betterlinux.com>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: andrea@betterlinux.com
+Cc: akpm@linux-foundation.org, minchan.kim@gmail.com, riel@redhat.com, peterz@infradead.org, hannes@cmpxchg.org, kamezawa.hiroyu@jp.fujitsu.com, aarcange@redhat.com, hughd@google.com, jamesjer@betterlinux.com, marcus@bluehost.com, matt@bluehost.com, tytso@mit.edu, shaohua.li@intel.com, P@draigBrady.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, 22 Jun 2011 13:05:19 -0700
-akpm@linux-foundation.org wrote:
+(2011/06/24 22:49), Andrea Righi wrote:
+> There were some reported problems in the past about trashing page cache
+> when a backup software (i.e., rsync) touches a huge amount of pages (see
+> for example [1]).
+> 
+> This problem has been almost fixed by the Minchan Kim's patch [2] and a
+> proper use of fadvise() in the backup software. For example this patch
+> set [3] has been proposed for inclusion in rsync.
+> 
+> However, there can be still other similar trashing problems: when the
+> backup software reads all the source files, some of them may be part of
+> the actual working set of the system. When a POSIX_FADV_DONTNEED is
+> performed _all_ pages are evicted from pagecache, both the working set
+> and the use-once pages touched only by the backup software.
+> 
+> A previous proposal [4] tried to resolve this problem being less
+> agressive in invalidating active pages, moving them to the inactive list
+> intead of just evict them from the page cache.
+> 
+> However, this approach changed completely the old behavior of
+> invalidate_mapping_pages(), that is not only used by fadvise.
+> 
+> The new solution maps POSIX_FADV_NOREUSE to the less-agressive page
+> invalidation policy.
+> 
+> With POSIX_FADV_NOREUSE active pages are moved to the tail of the
+> inactive list, and pages in the inactive list are just removed from page
+> cache. Pages mapped by other processes or unevictable pages are not
+> touched at all.
+> 
+> In this way if the backup was the only user of a page, that page will be
+> immediately removed from the page cache by calling POSIX_FADV_NOREUSE.
+> If the page was also touched by other tasks it'll be moved to the
+> inactive list, having another chance of being re-added to the working
+> set, or simply reclaimed when memory is needed.
+> 
+> In conclusion, now userspace applications that want to drop some page
+> cache pages can choose between the following advices:
+> 
+>  POSIX_FADV_DONTNEED = drop page cache if possible
+>  POSIX_FADV_NOREUSE = reduce page cache eligibility
 
-> The mm-of-the-moment snapshot 2011-06-22-13-05 has been uploaded to
-> 
->    http://userweb.kernel.org/~akpm/mmotm/
-> 
-> and will soon be available at
->    git://zen-kernel.org/kernel/mmotm.git
-> or
->    git://git.cmpxchg.org/linux-mmotm.git
-> 
-> It contains the following patches against 3.0-rc4:
-> 
+Eeek.
 
-It may be too late but this was reported on KVM guest.
+Your POSIX_FADV_NOREUSE is very different from POSIX definition.
+POSIX says,
 
-==
-[  490.359961]
-[  490.360944] =================================
-[  490.360944] [ INFO: inconsistent lock state ]
-[  490.360944] 3.0.0-rc4-mm1 #1
-[  490.360944] ---------------------------------
-[  490.360944] inconsistent {HARDIRQ-ON-W} -> {IN-HARDIRQ-W} usage.
-[  490.360944] kworker/0:0/0 [HC1[1]:SC0[0]:HE0:SE1] takes:
-[  490.360944]  (&(&mapping->tree_lock)->rlock){?.+...}, at: [<ffffffff8110cbea>                  ] test_clear_page_writeback+0x6a/0x160
-[  490.360944] {HARDIRQ-ON-W} state was registered at:
-[  490.360944]   [<ffffffff81097069>] __lock_acquire+0x609/0x1670
-[  490.360944]   [<ffffffff81098754>] lock_acquire+0xa4/0x120
-[  490.360944]   [<ffffffff8159e396>] _raw_spin_lock+0x36/0x70
-[  490.360944]   [<ffffffff8117d7e6>] end_writeback+0x36/0xd0
-[  490.360944]   [<ffffffff8117d982>] evict+0x102/0x180
-[  490.360944]   [<ffffffff8117ddda>] iput+0xea/0x1c0
-[  490.360944]   [<ffffffff81172d2c>] do_unlinkat+0x16c/0x1d0
-[  490.360944]   [<ffffffff81172da6>] sys_unlink+0x16/0x20
-[  490.360944]   [<ffffffff815a6fc2>] system_call_fastpath+0x16/0x1b
-[  490.360944] irq event stamp: 85616
-[  490.360944] hardirqs last  enabled at (85613): [<ffffffff810140a1>] default_i                  dle+0x61/0x190
-[  490.360944] hardirqs last disabled at (85614): [<ffffffff8159efea>] save_args                  +0x6a/0x70
-[  490.360944] softirqs last  enabled at (85616): [<ffffffff8105fc83>] _local_bh                  _enable+0x13/0x20
-[  490.360944] softirqs last disabled at (85615): [<ffffffff8105fd05>] irq_enter                  +0x75/0x90
-[  490.360944]
-[  490.360944] other info that might help us debug this:
-[  490.360944]  Possible unsafe locking scenario:
-[  490.360944]
-[  490.360944]        CPU0
-[  490.360944]        ----
-[  490.360944]   lock(&(&mapping->tree_lock)->rlock);
-[  490.360944]   <Interrupt>
-[  490.360944]     lock(&(&mapping->tree_lock)->rlock);
-[  490.360944]
-[  490.360944]  *** DEADLOCK ***
-[  490.360944]
-[  490.360944] 1 lock held by kworker/0:0/0:
-[  490.360944]  #0:  (&(&vblk->lock)->rlock){-.-...}, at: [<ffffffffa000f1ab>] blk_done+0x2b/0x120 [virtio_blk]
-[  490.360944]
-[  490.360944] stack backtrace:
-[  490.360944] Pid: 0, comm: kworker/0:0 Not tainted 3.0.0-rc4-mm1 #1
-[  490.360944] Call Trace:
-[  490.360944]  <IRQ>  [<ffffffff810957f5>] print_usage_bug+0x235/0x280
-[  490.360944]  [<ffffffff810962d6>] mark_lock+0x346/0x410
-[  490.360944]  [<ffffffff810971f9>] __lock_acquire+0x799/0x1670
-[  490.360944]  [<ffffffff81032059>] ? kvm_clock_read+0x19/0x20
-[  490.360944]  [<ffffffff81032dc8>] ? pvclock_clocksource_read+0x58/0xd0
-[  490.360944]  [<ffffffff81032dc8>] ? pvclock_clocksource_read+0x58/0xd0
-[  490.360944]  [<ffffffff81085135>] ? sched_clock_local+0x25/0x90
-[  490.360944]  [<ffffffff8110cbea>] ? test_clear_page_writeback+0x6a/0x160
-[  490.360944]  [<ffffffff81098754>] lock_acquire+0xa4/0x120
-[  490.360944]  [<ffffffff8110cbea>] ? test_clear_page_writeback+0x6a/0x160
-[  490.360944]  [<ffffffff81085135>] ? sched_clock_local+0x25/0x90
-[  490.360944]  [<ffffffff8159e545>] _raw_spin_lock_irqsave+0x55/0xa0
-[  490.360944]  [<ffffffff8110cbea>] ? test_clear_page_writeback+0x6a/0x160
-[  490.360944]  [<ffffffff81096cab>] ? __lock_acquire+0x24b/0x1670
-[  490.360944]  [<ffffffff8110cbea>] test_clear_page_writeback+0x6a/0x160
-[  490.360944]  [<ffffffff811012c4>] end_page_writeback+0x24/0x60
-[  490.360944]  [<ffffffff81193dca>] end_buffer_async_write+0x13a/0x220
-[  490.360944]  [<ffffffff81085258>] ? sched_clock_cpu+0xb8/0x110
-[  490.360944]  [<ffffffff811922c0>] end_bio_bh_io_sync+0x30/0x50
-[  490.360944]  [<ffffffff811969ad>] bio_endio+0x1d/0x40
-[  490.360944]  [<ffffffff812a73a3>] req_bio_endio+0xa3/0xe0
-[  490.360944]  [<ffffffff812a8294>] blk_update_request+0x104/0x4e0
-[  490.360944]  [<ffffffff812a84e1>] ? blk_update_request+0x351/0x4e0
-[  490.360944]  [<ffffffff8109244d>] ? trace_hardirqs_off+0xd/0x10
-[  490.360944]  [<ffffffff812a8697>] blk_update_bidi_request+0x27/0xb0
-[  490.360944]  [<ffffffff812a99ee>] __blk_end_request_all+0x2e/0x60
-[  490.360944]  [<ffffffffa000f1cb>] blk_done+0x4b/0x120 [virtio_blk]
-[  490.360944]  [<ffffffffa00052fc>] vring_interrupt+0x3c/0xb0 [virtio_ring]
-[  490.360944]  [<ffffffff810c6f3d>] handle_irq_event_percpu+0x5d/0x210
-[  490.360944]  [<ffffffff810c713e>] handle_irq_event+0x4e/0x80
-[  490.360944]  [<ffffffff810ca213>] handle_edge_irq+0x83/0x140
-[  490.360944]  [<ffffffff8100d40c>] handle_irq+0x4c/0xa0
-[  490.360944]  [<ffffffff815a8acd>] do_IRQ+0x5d/0xe0
-[  490.360944]  [<ffffffff8159f093>] common_interrupt+0x13/0x13
-[  490.360944]  <EOI>  [<ffffffff810320bb>] ? native_safe_halt+0xb/0x10
-[  490.360944]  [<ffffffff8109677d>] ? trace_hardirqs_on+0xd/0x10
-[  490.360944]  [<ffffffff810140a6>] default_idle+0x66/0x190
-[  490.360944]  [<ffffffff8100b0ac>] cpu_idle+0xbc/0x110
-[  490.360944]  [<ffffffff815950ca>] start_secondary+0x256/0x258
-[  OK  ]
+       POSIX_FADV_NOREUSE
+              Specifies that the application expects to access the specified data once  and  then
+              not reuse it thereafter.
+
+IfI understand correctly, it designed for calling _before_ data access
+and to be expected may prevent lru activation. But your NORESE is designed
+for calling _after_ data access. Big difference might makes a chance of
+portability issue.
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
