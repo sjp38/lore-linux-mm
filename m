@@ -1,63 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 7765F9000BD
-	for <linux-mm@kvack.org>; Mon, 27 Jun 2011 07:54:26 -0400 (EDT)
-Message-ID: <4E086F51.50403@draigBrady.com>
-Date: Mon, 27 Jun 2011 12:53:53 +0100
-From: =?ISO-8859-1?Q?P=E1draig_Brady?= <P@draigBrady.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v3 0/2] fadvise: support POSIX_FADV_NOREUSE
-References: <1308923350-7932-1-git-send-email-andrea@betterlinux.com> <4E07F349.2040900@jp.fujitsu.com> <20110627071139.GC1247@thinkpad> <4E0858CF.6070808@draigBrady.com> <20110627102933.GA1282@thinkpad>
-In-Reply-To: <20110627102933.GA1282@thinkpad>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 8bit
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id D46556B007E
+	for <linux-mm@kvack.org>; Mon, 27 Jun 2011 08:18:09 -0400 (EDT)
+Received: from eu_spt1 (mailout1.w1.samsung.com [210.118.77.11])
+ by mailout1.w1.samsung.com
+ (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
+ with ESMTP id <0LNG00JJ47I7GW@mailout1.w1.samsung.com> for linux-mm@kvack.org;
+ Mon, 27 Jun 2011 13:18:07 +0100 (BST)
+Received: from linux.samsung.com ([106.116.38.10])
+ by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
+ 2004)) with ESMTPA id <0LNG00J9V7I6IV@spt1.w1.samsung.com> for
+ linux-mm@kvack.org; Mon, 27 Jun 2011 13:18:06 +0100 (BST)
+Date: Mon, 27 Jun 2011 14:18:02 +0200
+From: Marek Szyprowski <m.szyprowski@samsung.com>
+Subject: RE: [PATCH 3/8] ARM: dma-mapping: use asm-generic/dma-mapping-common.h
+In-reply-to: <201106241736.43576.arnd@arndb.de>
+Message-id: <000601cc34c4$430f91f0$c92eb5d0$%szyprowski@samsung.com>
+MIME-version: 1.0
+Content-type: text/plain; charset=us-ascii
+Content-language: pl
+Content-transfer-encoding: 7BIT
+References: <1308556213-24970-1-git-send-email-m.szyprowski@samsung.com>
+ <1308556213-24970-4-git-send-email-m.szyprowski@samsung.com>
+ <201106241736.43576.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Righi <andrea@betterlinux.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, akpm@linux-foundation.org, minchan.kim@gmail.com, riel@redhat.com, peterz@infradead.org, hannes@cmpxchg.org, kamezawa.hiroyu@jp.fujitsu.com, aarcange@redhat.com, hughd@google.com, jamesjer@betterlinux.com, marcus@bluehost.com, matt@bluehost.com, tytso@mit.edu, shaohua.li@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: 'Arnd Bergmann' <arnd@arndb.de>
+Cc: linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Joerg Roedel' <joro@8bytes.org>, 'Russell King - ARM Linux' <linux@arm.linux.org.uk>
 
-On 27/06/11 11:29, Andrea Righi wrote:
-> The actual problem I think is that apps expect that DONTNEED can be used
-> to drop cache, but this is not written anywhere in the POSIX standard.
+Hello,
+
+On Friday, June 24, 2011 5:37 PM Arnd Bergmann wrote:
+
+> On Monday 20 June 2011, Marek Szyprowski wrote:
+> > This patch modifies dma-mapping implementation on ARM architecture to
+> > use common dma_map_ops structure and asm-generic/dma-mapping-common.h
+> > helpers.
+> >
+> > Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
+> > Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
 > 
-> I would also like to have both functionalities: 1) be sure to drop page
-> cache pages (now there's only a system-wide knob to do this:
-> /proc/sys/vm/drop_caches), 2) give an advice to the kernel that I will
-> not reuse some pages in the future.
+> This is a good idea in general, but I have a few concerns about details:
 > 
-> The standard can only provide 2). If we also want 1) at the file
-> granularity, I think we'd need to introduce something linux specific to
-> avoid having portability problems.
+> First of all, should we only allow using dma_map_ops on ARM, or do we
+> also want to support a case where these are all inlined as before?
 
-True, though Linux is the reference for posix_fadvise() implementations,
-given its lack of support on other platforms.
+I really wonder if it is possible to have a clean implementation of 
+dma_map_ops based and linear inlined dma-mapping framework together.
+Theoretically it should be possible, but it will end with a lot of
+#ifdef hackery which is really hard to follow and understand for 
+anyone but the authors.
 
-So just to summarize for _my_ reference.
-You're changing DONTNEED to mean "drop if !PageActive()".
-I.E. according to http://linux-mm.org/PageReplacementDesign
-"drop if files only accessed once".
+> I suppose for the majority of the cases, the overhead of the indirect
+> function call is near-zero, compared to the overhead of the cache
+> management operation, so it would only make a difference for coherent
+> systems without an IOMMU. Do we care about micro-optimizing those?
 
-This will mean that there is no way currently to
-remove a particular file from the cache on linux.
-Hopefully that won't affect any of:
-http://codesearch.google.com/#search/&q=POSIX_FADV_DONTNEED
+Even in coherent case, the overhead caused by additional function call
+should have really negligible impact on drivers performance.
 
-Ideally I'd like cache functions for:
- DROP, ADD, ADD if space1
-which could correspond to:
- DONTNEED, WILLNEED, NOREUSE
-but what we're going for are these somewhat overlapping functions:
- DROP if used once2, ADD, ADD if space
+ > > diff --git a/arch/arm/include/asm/dma-mapping.h
+> b/arch/arm/include/asm/dma-mapping.h
+> > index 799669d..f4e4968 100644
+> > --- a/arch/arm/include/asm/dma-mapping.h
+> > +++ b/arch/arm/include/asm/dma-mapping.h
+> > @@ -10,6 +10,27 @@
+> >  #include <asm-generic/dma-coherent.h>
+> >  #include <asm/memory.h>
+> >
+> > +extern struct dma_map_ops dma_ops;
+> > +
+> > +static inline struct dma_map_ops *get_dma_ops(struct device *dev)
+> > +{
+> > +	if (dev->archdata.dma_ops)
+> > +		return dev->archdata.dma_ops;
+> > +	return &dma_ops;
+> > +}
+> 
+> I would not name the global structure just 'dma_ops', the identifier could
+> too easily conflict with a local variable in some driver. How about
+> arm_dma_ops or linear_dma_ops instead?
 
-cheers,
-Padraig.
+I'm fine with both of them. Even arm_linear_dma_ops make some sense.
 
-1 Not implemented yet.
+> >  /*
+> >   * The scatter list versions of the above methods.
+> >   */
+> > -extern int dma_map_sg(struct device *, struct scatterlist *, int,
+> > -		enum dma_data_direction);
+> > -extern void dma_unmap_sg(struct device *, struct scatterlist *, int,
+> > +extern int arm_dma_map_sg(struct device *, struct scatterlist *, int,
+> > +		enum dma_data_direction, struct dma_attrs *attrs);
+> > +extern void arm_dma_unmap_sg(struct device *, struct scatterlist *, int,
+> > +		enum dma_data_direction, struct dma_attrs *attrs);
+> > +extern void arm_dma_sync_sg_for_cpu(struct device *, struct scatterlist
+> *, int,
+> >  		enum dma_data_direction);
+> > -extern void dma_sync_sg_for_cpu(struct device *, struct scatterlist *,
+> int,
+> > +extern void arm_dma_sync_sg_for_device(struct device *, struct
+> scatterlist *, int,
+> >  		enum dma_data_direction);
+> > -extern void dma_sync_sg_for_device(struct device *, struct scatterlist *,
+> int,
+> > -		enum dma_data_direction);
+> > -
+> 
+> You should not need to make these symbols visible in the header file any
+> more unless they are used outside of the main file later.
 
-2 Hopefully there are no access patterns a single
-process can do to make a PageActive as that would
-probably not be desired in relation to "Drop if used once"
-functionality.
+They are used by the dma bounce code once converted to dma_map_ops framework.
+
+Best regards
+-- 
+Marek Szyprowski
+Samsung Poland R&D Center
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
