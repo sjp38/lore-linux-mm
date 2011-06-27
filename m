@@ -1,85 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E11F6B017E
-	for <linux-mm@kvack.org>; Mon, 27 Jun 2011 10:20:51 -0400 (EDT)
-Received: from spt2.w1.samsung.com (mailout1.w1.samsung.com [210.118.77.11])
- by mailout1.w1.samsung.com
- (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
- with ESMTP id <0LNG002NDD6OIF@mailout1.w1.samsung.com> for linux-mm@kvack.org;
- Mon, 27 Jun 2011 15:20:48 +0100 (BST)
-Received: from linux.samsung.com ([106.116.38.10])
- by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0LNG00015D6NNS@spt2.w1.samsung.com> for
- linux-mm@kvack.org; Mon, 27 Jun 2011 15:20:48 +0100 (BST)
-Date: Mon, 27 Jun 2011 16:20:44 +0200
-From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: RE: [PATCH 5/8] ARM: dma-mapping: move all dma bounce code to separate
- dma ops structure
-In-reply-to: <201106241747.03113.arnd@arndb.de>
-Message-id: <000901cc34d5$66ff7d80$34fe7880$%szyprowski@samsung.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 039F26B017E
+	for <linux-mm@kvack.org>; Mon, 27 Jun 2011 10:29:32 -0400 (EDT)
 MIME-version: 1.0
-Content-type: text/plain; charset=us-ascii
-Content-language: pl
 Content-transfer-encoding: 7BIT
+Content-type: text/plain; charset=us-ascii
+Received: from eu_spt1 ([210.118.77.13]) by mailout3.w1.samsung.com
+ (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
+ with ESMTP id <0LNG0022EDL7EI10@mailout3.w1.samsung.com> for
+ linux-mm@kvack.org; Mon, 27 Jun 2011 15:29:31 +0100 (BST)
+Received: from linux.samsung.com ([106.116.38.10])
+ by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
+ 2004)) with ESMTPA id <0LNG009SJDL69M@spt1.w1.samsung.com> for
+ linux-mm@kvack.org; Mon, 27 Jun 2011 15:29:30 +0100 (BST)
+Date: Mon, 27 Jun 2011 16:29:26 +0200
+From: Marek Szyprowski <m.szyprowski@samsung.com>
+Subject: RE: [PATCH 2/8] ARM: dma-mapping: implement dma_map_single on top of
+ dma_map_page
+In-reply-to: <201106241724.21113.arnd@arndb.de>
+Message-id: <000a01cc34d6$9e4576e0$dad064a0$%szyprowski@samsung.com>
+Content-language: pl
 References: <1308556213-24970-1-git-send-email-m.szyprowski@samsung.com>
- <20110620144247.GF26089@n2100.arm.linux.org.uk>
- <000901cc2f5f$237795a0$6a66c0e0$%szyprowski@samsung.com>
- <201106241747.03113.arnd@arndb.de>
+ <20110620143911.GD26089@n2100.arm.linux.org.uk>
+ <000101cc2f5c$ec21da40$c4658ec0$%szyprowski@samsung.com>
+ <201106241724.21113.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: 'Arnd Bergmann' <arnd@arndb.de>
-Cc: 'Russell King - ARM Linux' <linux@arm.linux.org.uk>, linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Joerg Roedel' <joro@8bytes.org>
+Cc: 'Russell King - ARM Linux' <linux@arm.linux.org.uk>, linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Joerg Roedel' <joro@8bytes.org>, Marek Szyprowski <m.szyprowski@samsung.com>
 
 Hello,
 
-On Friday, June 24, 2011 5:47 PM Arnd Bergmann wrote:
+On Friday, June 24, 2011 5:24 PM Arnd Bergmann wrote:
 
 > On Monday 20 June 2011, Marek Szyprowski wrote:
-> > On Monday, June 20, 2011 4:43 PM Russell King - ARM Linux wrote:
+> > > This also breaks dmabounce when used with a highmem-enabled system -
+> > > dmabounce refuses the dma_map_page() API but allows the
+> dma_map_single()
+> > > API.
 > >
-> > > On Mon, Jun 20, 2011 at 09:50:10AM +0200, Marek Szyprowski wrote:
-> > > > This patch removes dma bounce hooks from the common dma mapping
-> > > > implementation on ARM architecture and creates a separate set of
-> > > > dma_map_ops for dma bounce devices.
-> > >
-> > > Why all this additional indirection for no gain?
+> > I really not sure how this change will break dma bounce code.
 > >
-> > I've did it to really separate dmabounce code and let it be completely
-> > independent of particular internal functions of the main generic dma-
-> mapping
-> > code.
-> >
-> > dmabounce is just one of possible dma-mapping implementation and it is
-> really
-> > convenient to have it closed into common interface (dma_map_ops) rather
-> than
-> > having it spread around and hardcoded behind some #ifdefs in generic ARM
-> > dma-mapping.
-> >
-> > There will be also other dma-mapping implementations in the future - I
-> > thinking mainly of some iommu capable versions.
-> >
-> > In terms of speed I really doubt that these changes have any impact on
-> the
-> > system performance, but they significantly improves the code readability
-> > (see next patch with cleanup of dma-mapping.c).
+> > Does it mean that it is allowed to call dma_map_single() on kmapped
+> > HIGH_MEM page?
 > 
-> Yes. I believe the main effect of splitting out dmabounce into its own
-> set of operations is improved readability for people that are not
-> familiar with the existing code (which excludes Russell ;-) ), by
-> separating the two codepaths and losing various #ifdef.
-> 
-> The simplification becomes more obvious when you look at patch 6, which
-> removes a lot of the code that becomes redundant after this one.
+> dma_map_single on a kmapped page already doesn't work, the argument needs
+> to be inside of the linear mapping in order for virt_to_page to work.
 
-This separation might also help in future with code consolidation across
-different architectures. It was suggested that ARM DMA bounce code has a lot
-in common with SWIOTBL (if I'm right) dma-mapping implementation.
+Then I got really confused.
 
-The separation will also help in integrating the IOMMU based dma-mapping,
-which will probably share again some code with linear dma-mapping code.
-Having these 3 implementations mixed together might not help in code
-readability.
+Documentation/DMA-mapping.txt says that dma_map_single() can be used only
+with kernel linear mapping, while dma_map_page() can be also called on 
+HIGHMEM pages.
+
+Now, lets go to arch/arm/common/dmabounce.c code:
+
+dma_addr_t __dma_map_page(struct device *dev, struct page *page,
+                unsigned long offset, size_t size, enum dma_data_direction dir)
+{
+        dev_dbg(dev, "%s(page=%p,off=%#lx,size=%zx,dir=%x)\n",
+                __func__, page, offset, size, dir);
+
+        BUG_ON(!valid_dma_direction(dir));
+
+        if (PageHighMem(page)) {
+                dev_err(dev, "DMA buffer bouncing of HIGHMEM pages "
+                             "is not supported\n");
+                return ~0;
+        }
+
+        return map_single(dev, page_address(page) + offset, size, dir);
+}
+EXPORT_SYMBOL(__dma_map_page);
+
+Am I right that there is something mixed here? I really don't get why there is
+high mem check in dma_map_page implementation. dma_map_single doesn't perform
+such check and works with kmapped highmem pages...
+
+Russell also pointed that my patch broke dma bounch with high mem enabled.
 
 Best regards
 -- 
