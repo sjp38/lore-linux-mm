@@ -1,61 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id A2B659000BD
-	for <linux-mm@kvack.org>; Mon, 27 Jun 2011 04:59:04 -0400 (EDT)
-Subject: Re: [PATCH v4 3.0-rc2-tip 7/22]  7: uprobes: mmap and fork hooks.
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <20110627064502.GB24776@linux.vnet.ibm.com>
-References: <20110616130012.GL4952@linux.vnet.ibm.com>
-	 <1308248588.13240.267.camel@twins>
-	 <20110617045000.GM4952@linux.vnet.ibm.com>
-	 <1308297836.13240.380.camel@twins>
-	 <20110617090504.GN4952@linux.vnet.ibm.com> <1308303665.2355.11.camel@twins>
-	 <1308662243.26237.144.camel@twins>
-	 <20110622143906.GF16471@linux.vnet.ibm.com>
-	 <20110624020659.GA24776@linux.vnet.ibm.com>
-	 <1308901324.27849.7.camel@twins>
-	 <20110627064502.GB24776@linux.vnet.ibm.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-Date: Mon, 27 Jun 2011 10:57:51 +0200
-Message-ID: <1309165071.6701.4.camel@twins>
-Mime-Version: 1.0
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id E64F69000BD
+	for <linux-mm@kvack.org>; Mon, 27 Jun 2011 05:17:57 -0400 (EDT)
+Message-ID: <4E084AA7.2030701@draigBrady.com>
+Date: Mon, 27 Jun 2011 10:17:27 +0100
+From: =?ISO-8859-1?Q?P=E1draig_Brady?= <P@draigBrady.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH RFC] fadvise: move active pages to inactive list with
+ POSIX_FADV_DONTNEED
+References: <1308779480-4950-1-git-send-email-andrea@betterlinux.com> <4E03200D.60704@draigBrady.com> <4E081764.7040709@jp.fujitsu.com>
+In-Reply-To: <4E081764.7040709@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Jonathan Corbet <corbet@lwn.net>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: andrea@betterlinux.com, akpm@linux-foundation.org, minchan.kim@gmail.com, riel@redhat.com, peterz@infradead.org, hannes@cmpxchg.org, kamezawa.hiroyu@jp.fujitsu.com, aarcange@redhat.com, hughd@google.com, jamesjer@betterlinux.com, marcus@bluehost.com, matt@bluehost.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, 2011-06-27 at 12:15 +0530, Srikar Dronamraju wrote:
+On 27/06/11 06:38, KOSAKI Motohiro wrote:
+>> Hmm, What if you do want to evict it from the cache for testing purposes?
+>> Perhaps this functionality should be associated with POSIX_FADV_NOREUSE?
+>> dd has been recently modified to support invalidating the cache for a file,
+>> and it uses POSIX_FADV_DONTNEED for that.
+>> http://git.sv.gnu.org/gitweb/?p=coreutils.git;a=commitdiff;h=5f311553
+> 
+> This change don't break dd. dd don't have a special privilege of file cache
+> dropping if it's also used by other processes.
+> 
+> if you want to drop a cache forcely (maybe for testing), you need to use
+> /proc/sys/vm/drop_caches. It's ok to ignore other processes activity because
+> it's privilege operation.
 
-> > > 	mutex_lock(&mapping->i_mmap_mutex);
-> > > 	add_to_temp_list(vma, inode, &tmp_list);
-> > > 	list_for_each_entry_safe(uprobe, u, &tmp_list, pending_list) {
-> > > 		loff_t vaddr;
-> > >=20
-> > > 		list_del(&uprobe->pending_list);
-> > > 		if (ret)
-> > > 			continue;
-> > >=20
-> > > 		vaddr =3D vma->vm_start + uprobe->offset;
-> > > 		vaddr -=3D vma->vm_pgoff << PAGE_SHIFT;
-> > > 		ret =3D install_breakpoint(mm, uprobe, vaddr);
-> >=20
-> > Right, so this is the problem, you cannot do allocations under
-> > i_mmap_mutex, however I think you can under i_mutex.
->=20
-> I didnt know that we cannot do allocations under i_mmap_mutex.
-> Why is this?=20
+Well the function and privileges are separate things.
+I think we've agreed that the new functionality is
+best associated with POSIX_FADV_NOREUSE,
+and the existing functionality with POSIX_FADV_DONTNEED.
 
-Because we try to take i_mmap_mutex during reclaim, trying to unmap
-pages. So suppose we do an allocation while holding i_mmap_mutex, find
-there's no free memory, try and unmap a page in order to free it, and
-we're stuck.
+BTW, I don't think privileges are currently enforced
+as I got root to cache a file here with:
+  # (time md5sum; sleep 100) < big.file
+And a normal user was able to uncache with:
+  $ dd iflag=nocache if=big.file count=0
+Anyway as said, this is a separate "issue".
 
-> I cant take i_mutex, because we would have already held
-> down_write(mmap_sem) here.=20
-
-Right. So can we add a lock in the uprobe? All we need is per uprobe
-serialization, right?
+cheers,
+Padraig.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
