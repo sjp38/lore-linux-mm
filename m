@@ -1,72 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C0406B00FD
-	for <linux-mm@kvack.org>; Tue, 28 Jun 2011 19:04:09 -0400 (EDT)
-Date: Tue, 28 Jun 2011 16:03:47 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v4 0/2] fadvise: move active pages to inactive list with
- POSIX_FADV_DONTNEED
-Message-Id: <20110628160347.a5ffcc26.akpm@linux-foundation.org>
-In-Reply-To: <20110628225645.GB2274@thinkpad>
-References: <1309181361-14633-1-git-send-email-andrea@betterlinux.com>
-	<20110628151233.f0a279be.akpm@linux-foundation.org>
-	<20110628225645.GB2274@thinkpad>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 61C616B0100
+	for <linux-mm@kvack.org>; Tue, 28 Jun 2011 19:23:14 -0400 (EDT)
+Received: by qwa26 with SMTP id 26so511738qwa.14
+        for <linux-mm@kvack.org>; Tue, 28 Jun 2011 16:23:10 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20110628125249.GX9396@suse.de>
+References: <1308926697-22475-1-git-send-email-mgorman@suse.de>
+	<1308926697-22475-4-git-send-email-mgorman@suse.de>
+	<BANLkTinH_EcYUAAsrGmboMywqPcCfye2gg@mail.gmail.com>
+	<20110628125249.GX9396@suse.de>
+Date: Wed, 29 Jun 2011 08:23:10 +0900
+Message-ID: <BANLkTik16=kYyNtK-h-z3Ex64yPHUHFnVQ@mail.gmail.com>
+Subject: Re: [PATCH 3/4] mm: vmscan: Evaluate the watermarks against the
+ correct classzone
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Righi <andrea@betterlinux.com>
-Cc: Minchan Kim <minchan.kim@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Jerry James <jamesjer@betterlinux.com>, Marcus Sorensen <marcus@bluehost.com>, Matt Heaton <matt@bluehost.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Theodore Tso <tytso@mit.edu>, Shaohua Li <shaohua.li@intel.com>, =?ISO-8859-1?Q?P?= =?ISO-8859-1?Q?=E1draig?= Brady <P@draigBrady.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, P?draig Brady <P@draigbrady.com>, James Bottomley <James.Bottomley@hansenpartnership.com>, Colin King <colin.king@canonical.com>, Andrew Lutomirski <luto@mit.edu>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 
-On Wed, 29 Jun 2011 00:56:45 +0200
-Andrea Righi <andrea@betterlinux.com> wrote:
+On Tue, Jun 28, 2011 at 9:52 PM, Mel Gorman <mgorman@suse.de> wrote:
+> On Mon, Jun 27, 2011 at 03:53:04PM +0900, Minchan Kim wrote:
+>> On Fri, Jun 24, 2011 at 11:44 PM, Mel Gorman <mgorman@suse.de> wrote:
+>> > When deciding if kswapd is sleeping prematurely, the classzone is
+>> > taken into account but this is different to what balance_pgdat() and
+>> > the allocator are doing. Specifically, the DMA zone will be checked
+>> > based on the classzone used when waking kswapd which could be for a
+>> > GFP_KERNEL or GFP_HIGHMEM request. The lowmem reserve limit kicks in,
+>> > the watermark is not met and kswapd thinks its sleeping prematurely
+>> > keeping kswapd awake in error.
+>>
+>>
+>> I thought it was intentional when you submitted a patch firstly.
+>
+> It was, it also wasn't right.
+>
+>> "Kswapd makes sure zones include enough free pages(ie, include reserve
+>> limit of above zones).
+>> But you seem to see DMA zone can't meet above requirement forever in
+>> some situation so that kswapd doesn't sleep.
+>> Right?
+>>
+>
+> Right.
+>
+>> >
+>> > Reported-and-tested-by: P=C3=A1draig Brady <P@draigBrady.com>
+>> > Signed-off-by: Mel Gorman <mgorman@suse.de>
+>> > ---
+>> > =C2=A0mm/vmscan.c | =C2=A0 =C2=A02 +-
+>> > =C2=A01 files changed, 1 insertions(+), 1 deletions(-)
+>> >
+>> > diff --git a/mm/vmscan.c b/mm/vmscan.c
+>> > index 9cebed1..a76b6cc2 100644
+>> > --- a/mm/vmscan.c
+>> > +++ b/mm/vmscan.c
+>> > @@ -2341,7 +2341,7 @@ static bool sleeping_prematurely(pg_data_t *pgda=
+t, int order, long remaining,
+>> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0}
+>> >
+>> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0if (!zone_water=
+mark_ok_safe(zone, order, high_wmark_pages(zone),
+>> > - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 classzone_idx, 0))
+>> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 i, 0))
+>>
+>> Isn't it =C2=A0better to use 0 instead of i?
+>>
+>
+> I considered it but went with i to compromise between making sure zones
+> included enough free pages without requiring that ZONE_DMA meet an
+> almost impossible requirement when under continual memory pressure.
 
-> > > 
-> > > In this way if the backup was the only user of a page, that page will be
-> > > immediately removed from the page cache by calling POSIX_FADV_DONTNEED.  If the
-> > > page was also touched by other processes it'll be moved to the inactive list,
-> > > having another chance of being re-added to the working set, or simply reclaimed
-> > > when memory is needed.
-> > 
-> > So if an application touches a page twice and then runs
-> > POSIX_FADV_DONTNEED, that page will now not be freed.
-> > 
-> > That's a big behaviour change.  For many existing users
-> > POSIX_FADV_DONTNEED simply doesn't work any more!
-> 
-> Yes. This is the main concern that was raised by P__draig.
-> 
-> > 
-> > I'd have thought that adding a new POSIX_FADV_ANDREA would be safer
-> > than this.
-> 
-> Actually Jerry (in cc) proposed
-> POSIX_FADV_IDONTNEEDTHISBUTIFSOMEBODYELSEDOESTHENDONTTOUCHIT in a
-> private email. :)
+I see.
+Thanks, Mel.
 
-Sounds good.  Needs more underscores though.
-
-> > 
-> > 
-> > The various POSIX_FADV_foo's are so ill-defined that it was a mistake
-> > to ever use them.  We should have done something overtly linux-specific
-> > and given userspace more explicit and direct pagecache control.
-> 
-> That would give us the possibility to implement a wide range of
-> different operations (drop, drop if used once, add to the active list,
-> add to the inactive list, etc..). Some users always complain that they
-> would like to have a better control over the page cache from userspace.
-
-Well, I'd listen to proposals ;)
-
-One thing we must be careful about is to not expose things like "active
-list" to userspace.  linux-4.5 may not _have_ an active list, and its
-implementors would hate us and would have to jump through hoops to
-implement vaguely compatible behaviour in the new scheme.
-
-So any primitives which are exposed should be easily implementable and
-should *make sense* within any future scheme...
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
