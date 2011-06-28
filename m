@@ -1,76 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 52D3A6B00FC
-	for <linux-mm@kvack.org>; Tue, 28 Jun 2011 04:53:38 -0400 (EDT)
-Date: Tue, 28 Jun 2011 10:53:36 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 14/22] memcg: fix direct softlimit reclaim to be called
- in limit path
-Message-ID: <20110628085335.GA17961@tiehlicka.suse.cz>
-References: <201106272318.p5RNICJW001465@imap1.linux-foundation.org>
- <20110628080847.GA16518@tiehlicka.suse.cz>
- <20110628170649.87043e05.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110628170649.87043e05.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 89DB86B00FC
+	for <linux-mm@kvack.org>; Tue, 28 Jun 2011 05:01:25 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 850BC3EE0BB
+	for <linux-mm@kvack.org>; Tue, 28 Jun 2011 18:01:17 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 6C4B945DE69
+	for <linux-mm@kvack.org>; Tue, 28 Jun 2011 18:01:17 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 55DDE45DE6A
+	for <linux-mm@kvack.org>; Tue, 28 Jun 2011 18:01:17 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 499991DB802C
+	for <linux-mm@kvack.org>; Tue, 28 Jun 2011 18:01:17 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0A7A31DB8038
+	for <linux-mm@kvack.org>; Tue, 28 Jun 2011 18:01:17 +0900 (JST)
+Date: Tue, 28 Jun 2011 17:54:14 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH 3/3] mm: preallocate page before lock_page() at filemap COW
+Message-Id: <20110628175414.6a316402.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110628173122.9e5aecdf.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20110628173122.9e5aecdf.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, torvalds@linux-foundation.org, nishimura@mxp.nes.nec.co.jp, yinghan@google.com, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
 
-On Tue 28-06-11 17:06:49, KAMEZAWA Hiroyuki wrote:
-> On Tue, 28 Jun 2011 10:08:47 +0200
-> Michal Hocko <mhocko@suse.cz> wrote:
-> 
-> > I am sorry, that I am answering that late but I didn't get to this
-> > sooner.
-> > 
-> > On Mon 27-06-11 16:18:12, Andrew Morton wrote:
-> > > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > > 
-> > > commit d149e3b ("memcg: add the soft_limit reclaim in global direct
-> > > reclaim") adds a softlimit hook to shrink_zones().  By this, soft limit is
-> > > called as
-> > > 
-> > >    try_to_free_pages()
-> > >        do_try_to_free_pages()
-> > >            shrink_zones()
-> > >                mem_cgroup_soft_limit_reclaim()
-> > > 
-> > > Then, direct reclaim is memcg softlimit hint aware, now.
-> > > 
-> > > But, the memory cgroup's "limit" path can call softlimit shrinker.
-> > > 
-> > >    try_to_free_mem_cgroup_pages()
-> > >        do_try_to_free_pages()
-> > >            shrink_zones()
-> > >                mem_cgroup_soft_limit_reclaim()
-> > > 
-> > > This will cause a global reclaim when a memcg hits limit.
-> > 
-> > Sorry, I do not get it. How does it cause the global reclaim? Did you
-> > mean soft reclaim?
-> > 
-> 
-> yes. soft reclaim does global reclaim (in some means). 
-
-But calling it global reclaim is rather confusing because in both paths
-we have sc.mem_cgroup set to non-NULL which is evaluated as
-!scanning_global_lru(sc). Anyway, this is not that important, I just
-wanted to be sure what you meant by that comment.
-
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
