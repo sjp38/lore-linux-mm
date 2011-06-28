@@ -1,33 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 89DB86B00FC
-	for <linux-mm@kvack.org>; Tue, 28 Jun 2011 05:01:25 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 850BC3EE0BB
-	for <linux-mm@kvack.org>; Tue, 28 Jun 2011 18:01:17 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 6C4B945DE69
-	for <linux-mm@kvack.org>; Tue, 28 Jun 2011 18:01:17 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 55DDE45DE6A
-	for <linux-mm@kvack.org>; Tue, 28 Jun 2011 18:01:17 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 499991DB802C
-	for <linux-mm@kvack.org>; Tue, 28 Jun 2011 18:01:17 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0A7A31DB8038
-	for <linux-mm@kvack.org>; Tue, 28 Jun 2011 18:01:17 +0900 (JST)
-Date: Tue, 28 Jun 2011 17:54:14 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH 3/3] mm: preallocate page before lock_page() at filemap COW
-Message-Id: <20110628175414.6a316402.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20110628173122.9e5aecdf.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20110628173122.9e5aecdf.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 97CF76B010A
+	for <linux-mm@kvack.org>; Tue, 28 Jun 2011 05:11:38 -0400 (EDT)
+Subject: Re: [patch]mm: __tlb_remove_page checks correct batch
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <1309232767.15392.200.camel@sli10-conroe>
+References: <1309232767.15392.200.camel@sli10-conroe>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+Date: Tue, 28 Jun 2011 11:10:42 +0200
+Message-ID: <1309252242.6701.176.camel@twins>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
+To: Shaohua Li <shaohua.li@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>
 
+On Tue, 2011-06-28 at 11:46 +0800, Shaohua Li wrote:
+> __tlb_remove_page switchs to a new batch page, but still checks space in =
+the
+> old batch. This check always fails, and causes force tlb flush.
+>=20
+> Signed-off-by: Shaohua Li <shaohua.li@intel.com>
+
+Indeed!
+
+Acked-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+
+> diff --git a/mm/memory.c b/mm/memory.c
+> index 40b7531..9b8a01d 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -305,6 +305,7 @@ int __tlb_remove_page(struct mmu_gather *tlb, struct =
+page *page)
+>  	if (batch->nr =3D=3D batch->max) {
+>  		if (!tlb_next_batch(tlb))
+>  			return 0;
+> +		batch =3D tlb->active;
+>  	}
+>  	VM_BUG_ON(batch->nr > batch->max);
+> =20
+>=20
+>=20
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
