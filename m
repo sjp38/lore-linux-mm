@@ -1,72 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 2892C6B00E9
-	for <linux-mm@kvack.org>; Tue, 28 Jun 2011 04:14:13 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 5B1C13EE081
-	for <linux-mm@kvack.org>; Tue, 28 Jun 2011 17:14:10 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 3F4DE45DE5A
-	for <linux-mm@kvack.org>; Tue, 28 Jun 2011 17:14:10 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 238D245DE58
-	for <linux-mm@kvack.org>; Tue, 28 Jun 2011 17:14:10 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 13404E08001
-	for <linux-mm@kvack.org>; Tue, 28 Jun 2011 17:14:10 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id D1C9F1DB804D
-	for <linux-mm@kvack.org>; Tue, 28 Jun 2011 17:14:09 +0900 (JST)
-Date: Tue, 28 Jun 2011 17:06:49 +0900
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A9579000BD
+	for <linux-mm@kvack.org>; Tue, 28 Jun 2011 04:38:29 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 2EFD63EE0BB
+	for <linux-mm@kvack.org>; Tue, 28 Jun 2011 17:38:25 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 110EF45DE7E
+	for <linux-mm@kvack.org>; Tue, 28 Jun 2011 17:38:25 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id E9B6245DE7C
+	for <linux-mm@kvack.org>; Tue, 28 Jun 2011 17:38:24 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id D89731DB8040
+	for <linux-mm@kvack.org>; Tue, 28 Jun 2011 17:38:24 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id A5D9D1DB803C
+	for <linux-mm@kvack.org>; Tue, 28 Jun 2011 17:38:24 +0900 (JST)
+Date: Tue, 28 Jun 2011 17:31:22 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [patch 14/22] memcg: fix direct softlimit reclaim to be called
- in limit path
-Message-Id: <20110628170649.87043e05.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20110628080847.GA16518@tiehlicka.suse.cz>
-References: <201106272318.p5RNICJW001465@imap1.linux-foundation.org>
-	<20110628080847.GA16518@tiehlicka.suse.cz>
+Subject: [FIX][PATCH 0/3] memcg: 3 fixes for memory cgroup's memory reclaim
+Message-Id: <20110628173122.9e5aecdf.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, torvalds@linux-foundation.org, nishimura@mxp.nes.nec.co.jp, yinghan@google.com, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Tue, 28 Jun 2011 10:08:47 +0200
-Michal Hocko <mhocko@suse.cz> wrote:
 
-> I am sorry, that I am answering that late but I didn't get to this
-> sooner.
-> 
-> On Mon 27-06-11 16:18:12, Andrew Morton wrote:
-> > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > 
-> > commit d149e3b ("memcg: add the soft_limit reclaim in global direct
-> > reclaim") adds a softlimit hook to shrink_zones().  By this, soft limit is
-> > called as
-> > 
-> >    try_to_free_pages()
-> >        do_try_to_free_pages()
-> >            shrink_zones()
-> >                mem_cgroup_soft_limit_reclaim()
-> > 
-> > Then, direct reclaim is memcg softlimit hint aware, now.
-> > 
-> > But, the memory cgroup's "limit" path can call softlimit shrinker.
-> > 
-> >    try_to_free_mem_cgroup_pages()
-> >        do_try_to_free_pages()
-> >            shrink_zones()
-> >                mem_cgroup_soft_limit_reclaim()
-> > 
-> > This will cause a global reclaim when a memcg hits limit.
-> 
-> Sorry, I do not get it. How does it cause the global reclaim? Did you
-> mean soft reclaim?
-> 
+This series contains 3 fixes for memcg in Linus's git tree.
+All of them were posted in the last week. I cut out and refreshed
+and post it here because I think all pathces has obvious benfits, I think.
 
-yes. soft reclaim does global reclaim (in some means). 
+All of patches are independent from each other but you may see
+some dependency between 1 and 2.
+
+1/3 .... fix memory cgroup reclaimable check.
+2/3 .... fix memory cgroup numascan update by events
+3/3 .... fix lock_page() trouble when using memcg.
+
+Because 3/3 is a patch to change behavior of __do_fault(), I'd like
+to get review of mm specialists.
 
 Thanks,
 -Kame
