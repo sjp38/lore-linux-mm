@@ -1,50 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 4B5976B0116
-	for <linux-mm@kvack.org>; Tue, 28 Jun 2011 13:10:46 -0400 (EDT)
-Received: from mail-vx0-f169.google.com (mail-vx0-f169.google.com [209.85.220.169])
-	(authenticated bits=0)
-	by smtp1.linux-foundation.org (8.14.2/8.13.5/Debian-3ubuntu1.1) with ESMTP id p5SHAEjZ019970
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=FAIL)
-	for <linux-mm@kvack.org>; Tue, 28 Jun 2011 10:10:15 -0700
-Received: by vxg38 with SMTP id 38so448784vxg.14
-        for <linux-mm@kvack.org>; Tue, 28 Jun 2011 10:10:14 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20110628165303.010143380@goodmis.org>
-References: <20110628164750.281686775@goodmis.org> <20110628165303.010143380@goodmis.org>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Tue, 28 Jun 2011 10:02:15 -0700
-Message-ID: <BANLkTikgxKNx1eyR1m6NpVA5Ykfduzq-Mw@mail.gmail.com>
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F30F6B0120
+	for <linux-mm@kvack.org>; Tue, 28 Jun 2011 13:16:41 -0400 (EDT)
 Subject: Re: [PATCH 2/2] mm: Document handle_mm_fault()
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+From: Steven Rostedt <rostedt@goodmis.org>
+In-Reply-To: <20110628170953.GA3482@redhat.com>
+References: <20110628164750.281686775@goodmis.org>
+	 <20110628165303.010143380@goodmis.org>  <20110628170953.GA3482@redhat.com>
+Content-Type: text/plain; charset="ISO-8859-15"
+Date: Tue, 28 Jun 2011 13:16:39 -0400
+Message-ID: <1309281399.26417.11.camel@gandalf.stny.rr.com>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steven Rostedt <rostedt@goodmis.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Russell King <rmk+kernel@arm.linux.org.uk>, Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <peterz@infradead.org>, Gleb Natapov <gleb@redhat.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Avi Kivity <avi@redhat.com>, Marcelo Tosatti <mtosatti@redhat.com>
+To: Gleb Natapov <gleb@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Russell King <rmk+kernel@arm.linux.org.uk>, Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <peterz@infradead.org>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Avi Kivity <avi@redhat.com>, Marcelo Tosatti <mtosatti@redhat.com>
 
-On Tue, Jun 28, 2011 at 9:47 AM, Steven Rostedt <rostedt@goodmis.org> wrote=
-:
-> + * Note: if @flags has FAULT_FLAG_ALLOW_RETRY set then the mmap_sem
-> + * =A0 =A0 =A0 may be released if it failed to arquire the page_lock. If=
- the
-> + * =A0 =A0 =A0 mmap_sem is released then it will return VM_FAULT_RETRY s=
-et.
-> + * =A0 =A0 =A0 This is to keep the time mmap_sem is held when the page_l=
-ock
-> + * =A0 =A0 =A0 is taken for IO.
+On Tue, 2011-06-28 at 20:09 +0300, Gleb Natapov wrote:
 
-So I know what that flag does, but I knew it without the comment.
+> > -/*
+> > - * By the time we get here, we already hold the mm semaphore
+> > +/**
+> > + * handle_mm_fault - main routine for handling page faults
+> > + * @mm:		the mm_struct of the target address space
+> > + * @vma:	vm_area_struct holding the applicable pages
+> > + * @address:	the address that took the fault
+> > + * @flags:	flags modifying lookup behaviour
+> > + *
+> > + * Must have @mm->mmap_sem held.
+> > + *
+> > + * Note: if @flags has FAULT_FLAG_ALLOW_RETRY set then the mmap_sem
+> > + *       may be released if it failed to arquire the page_lock. If the
+> > + *       mmap_sem is released then it will return VM_FAULT_RETRY set.
+> > + *       This is to keep the time mmap_sem is held when the page_lock
+> > + *       is taken for IO.
+> > + * Exception: If FAULT_FLAG_RETRY_NOWAIT is set, then it will
+> > + *       not release the mmap_sem, but will still return VM_FAULT_RETRY
+> > + *       if it failed to acquire the page_lock.
+> I wouldn't describe it like that. It tells handle_mm_fault() to start
+> IO if needed, but do not wait for its completion.
 
-WITH the comment, I'm just confused. "This is to keep the time
-mmap_sem is held when the page_lock is taken for IO."
+This isn't a description of the flag itself. It's a description of the
+mmap_sem behavior for the flag. Again, this came about because of the
+subtle locking that handle_mm_fault() does with mmap_sem. When it comes
+to locking, we need things documented very well, as locking is usually
+what most developers get wrong even when subtle locking does not exist.
 
-Sounds like a google translation from swahili. "keep the time" what?
+> 
+> > + *       This is for helping virtualization. See get_user_page_nowait().
+> The virtialization is the only user right now, but I wouldn't describe
+> this flag as virtialization specific. Why should we put this in the
+> comment?  The comment will become outdated when other users arise
+> and meanwhile a simple grep will reveal the above information anyway.
 
-Maybe "keep" -> "minimize"? Or just "This is to avoid holding mmap_sem
-while waiting for IO"
+I've been going in the direction of adding comments about how things
+help. OK, so it's the only user now. I could change this to, "This is
+for helping things like virtualization." When reading code, it is nice
+to know why something is done that is out of the ordinary.
 
-                        Linus
+If it changes, then we should change the comments. The best place for
+keeping code documented and up to date, is right at the code. 
+ie. comments.
+
+
+-- Steve
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
