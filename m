@@ -1,69 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D0516B00F1
-	for <linux-mm@kvack.org>; Tue, 28 Jun 2011 17:04:17 -0400 (EDT)
-Message-ID: <4E0A41CB.1020908@candelatech.com>
-Date: Tue, 28 Jun 2011 14:04:11 -0700
-From: Ben Greear <greearb@candelatech.com>
-MIME-Version: 1.0
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id BB5FE6B00F1
+	for <linux-mm@kvack.org>; Tue, 28 Jun 2011 17:10:58 -0400 (EDT)
+Received: from hpaq7.eem.corp.google.com (hpaq7.eem.corp.google.com [172.25.149.7])
+	by smtp-out.google.com with ESMTP id p5SLAoXb018686
+	for <linux-mm@kvack.org>; Tue, 28 Jun 2011 14:10:50 -0700
+Received: from pwi5 (pwi5.prod.google.com [10.241.219.5])
+	by hpaq7.eem.corp.google.com with ESMTP id p5SLAATF002366
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 28 Jun 2011 14:10:49 -0700
+Received: by pwi5 with SMTP id 5so461730pwi.4
+        for <linux-mm@kvack.org>; Tue, 28 Jun 2011 14:10:44 -0700 (PDT)
+Date: Tue, 28 Jun 2011 14:10:42 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
 Subject: Re: [PATCH] slub: reduce overhead of slub_debug
-References: <20110626193918.GA3339@joi.lan> <alpine.DEB.2.00.1106281431370.27518@router.home> <4E0A2E26.5000001@gmail.com> <alpine.DEB.2.00.1106281355010.4229@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1106281355010.4229@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <4E0A41CB.1020908@candelatech.com>
+Message-ID: <alpine.DEB.2.00.1106281405000.4229@chino.kir.corp.google.com>
+References: <20110626193918.GA3339@joi.lan> <alpine.DEB.2.00.1106281431370.27518@router.home> <4E0A2E26.5000001@gmail.com> <alpine.DEB.2.00.1106281355010.4229@chino.kir.corp.google.com> <4E0A41CB.1020908@candelatech.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
+To: Ben Greear <greearb@candelatech.com>
 Cc: David Daney <ddaney.cavm@gmail.com>, Christoph Lameter <cl@linux.com>, Marcin Slusarz <marcin.slusarz@gmail.com>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On 06/28/2011 01:58 PM, David Rientjes wrote:
-> On Tue, 28 Jun 2011, David Daney wrote:
->
->> On 06/28/2011 12:32 PM, Christoph Lameter wrote:
->>> On Sun, 26 Jun 2011, Marcin Slusarz wrote:
->>>
->>>> slub checks for poison one byte by one, which is highly inefficient
->>>> and shows up frequently as a highest cpu-eater in perf top.
->>>
->>> Ummm.. Performance improvements for debugging modes? If you need
->>> performance then switch off debuggin.
->>
->> There is no reason to make things gratuitously slow.  I don't know about the
->> merits of this particular patch, but I must disagree with the general
->> sentiment.
->>
->> We have high performance tracing, why not improve this as well.
->>
->> Just last week I was trying to find the cause of memory corruption that only
->> occurred at very high network packet rates.  Memory allocation speed was
->> definitely getting in the way of debugging.  For me, faster SLUB debugging
->> would be welcome.
->>
->
-> SLUB debugging is useful only to diagnose issues or test new code, nobody
-> is going to be enabling it in production environment.  We don't need 30
-> new lines of code that make one thing slightly faster, in fact we'd prefer
-> to have as simple and minimal code as possible for debugging features
-> unless you're adding more debugging coverage.
+On Tue, 28 Jun 2011, Ben Greear wrote:
 
-If your problem happens under load, then the overhead of slub could significantly
-change the behaviour of the system.  Anything that makes it more efficient without
-unduly complicating code should be a win.  That posted patch wasn't all that
-complicated, and even if it has bugs, it could be fixed easily enough.
+> > SLUB debugging is useful only to diagnose issues or test new code, nobody
+> > is going to be enabling it in production environment.  We don't need 30
+> > new lines of code that make one thing slightly faster, in fact we'd prefer
+> > to have as simple and minimal code as possible for debugging features
+> > unless you're adding more debugging coverage.
+> 
+> If your problem happens under load, then the overhead of slub could
+> significantly
+> change the behaviour of the system.
 
-Thanks,
-Ben
+You're talking about slub debugging and not slub in general, I assume.
 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+> Anything that makes it more efficient
+> without
+> unduly complicating code should be a win.  That posted patch wasn't all that
+> complicated, and even if it has bugs, it could be fixed easily enough.
+> 
 
+"Even if it has bugs"?  Ask Pekka to merge this and be on the receiving 
+end of every other kernel development's flames when slub debugging no 
+longer finds their problems but instead has bugs of its own.
 
--- 
-Ben Greear <greearb@candelatech.com>
-Candela Technologies Inc  http://www.candelatech.com
+Again, we want simple and minimal slub debugging code unless you're adding 
+a new feature.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
