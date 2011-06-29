@@ -1,43 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 497696B00E7
-	for <linux-mm@kvack.org>; Wed, 29 Jun 2011 16:12:25 -0400 (EDT)
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH 00/10] mm: Linux VM Infrastructure to support Memory Power Management
-References: <1306499498-14263-1-git-send-email-ankita@in.ibm.com>
-	<20110629130038.GA7909@in.ibm.com> <1309367184.11430.594.camel@nimitz>
-	<20110629174220.GA9152@in.ibm.com> <1309370342.11430.604.camel@nimitz>
-Date: Wed, 29 Jun 2011 13:11:00 -0700
-In-Reply-To: <1309370342.11430.604.camel@nimitz> (Dave Hansen's message of
-	"Wed, 29 Jun 2011 10:59:02 -0700")
-Message-ID: <m2y60k1jqj.fsf@firstfloor.org>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 6AC5C6B00EA
+	for <linux-mm@kvack.org>; Wed, 29 Jun 2011 17:24:44 -0400 (EDT)
+Received: by vxg38 with SMTP id 38so1745779vxg.14
+        for <linux-mm@kvack.org>; Wed, 29 Jun 2011 14:24:41 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <BANLkTi=2ZMmrwMrnyEyEZAEsCUQNnd5n1j8J0xzSEF=ahrJmLw@mail.gmail.com>
+References: <fa.fHPNPTsllvyE/7DxrKwiwgVbVww@ifi.uio.no>
+	<532cc290-4b9c-4eb2-91d4-aa66c01bb3a0@glegroupsg2000goo.googlegroups.com>
+	<BANLkTik3mEJGXLrf_XtssfdRypm3NxBKvkhcnUpK=YXV6ux=Ag@mail.gmail.com>
+	<20110629080827.GA975@phantom.vanrein.org>
+	<BANLkTikw9bnrurUo8n-6yUwwQ0zOv5iAOBDt=T6Nm6nkUd7vLA@mail.gmail.com>
+	<BANLkTi=2ZMmrwMrnyEyEZAEsCUQNnd5n1j8J0xzSEF=ahrJmLw@mail.gmail.com>
+Date: Wed, 29 Jun 2011 14:24:41 -0700
+Message-ID: <BANLkTinN0EOH=OMQ8idG7Xt5OufU-6Rn3A@mail.gmail.com>
+Subject: Re: [PATCH v2 0/3] support for broken memory modules (BadRAM)
+From: Tony Luck <tony.luck@intel.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: Ankita Garg <ankita@in.ibm.com>, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-pm@lists.linux-foundation.org, svaidy@linux.vnet.ibm.com, thomas.abraham@linaro.org, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Matthew Garrett <mjg59@srcf.ucam.org>, Arjan van de Ven <arjan@infradead.org>
+To: Craig Bergstrom <craigb@google.com>
+Cc: linux-kernel@vger.kernel.org, fa.linux.kernel@googlegroups.com, Rick van Rein <rick@vanrein.org>, "H. Peter Anvin" <hpa@zytor.com>, Stefan Assmann <sassmann@kpanic.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, "mingo@elte.hu" <mingo@elte.hu>, "rdunlap@xenotime.net" <rdunlap@xenotime.net>, Nancy Yuen <yuenn@google.com>, Michael Ditto <mditto@google.com>
 
-Dave Hansen <dave@linux.vnet.ibm.com> writes:
->
-> It's also going to be a pain to track kernel references.  On x86, our
+One extra consideration for this whole proposal ...
 
-Even if you tracked them what would you do with them?
+Is the "physical address" a stable enough representation of the location
+of the faulty memory cells?
 
-It's quite hard to stop using arbitary kernel memory (see all the dancing
-memory-failure does) 
+On high end systems I can see a number of ways where the mapping
+from cells to physical address may change across reboot:
 
-You need to track the direct accesses to user data which happens
-to be accessed through the direct mapping.
+1) System support redundant memory (rank sparing or mirroring)
+2) BIOS self test removes some memory from use
+3) A multi-node system elects a different node to be boot-meister,
+which results in reshuffling of the address map.
 
-Also it will be always unreliable because this all won't track DMA.
-For that you would also need to track in the dma_* infrastructure,
-which will likely get seriously expensive.
+If any of these can happen: then it doesn't matter whether we have
+a list of addresses, or a pattern that expands to a list of addresses.
+We'll still mark some innocent memory as bad, and allow some known
+bad memory to be used - because our "addresses" no longer correspond
+to the bad memory cells.
 
--Andi
-
--- 
-ak@linux.intel.com -- Speaking for myself only
+-Tony
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
