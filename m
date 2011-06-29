@@ -1,153 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 0DE4B6B010D
-	for <linux-mm@kvack.org>; Wed, 29 Jun 2011 09:41:05 -0400 (EDT)
-Date: Wed, 29 Jun 2011 15:40:59 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 1/3] memcg: fix reclaimable lru check in memcg.
-Message-ID: <20110629134059.GD24262@tiehlicka.suse.cz>
-References: <20110628173122.9e5aecdf.kamezawa.hiroyu@jp.fujitsu.com>
- <20110628173958.4f213b26.kamezawa.hiroyu@jp.fujitsu.com>
+	by kanga.kvack.org (Postfix) with SMTP id 67F726B00F5
+	for <linux-mm@kvack.org>; Wed, 29 Jun 2011 10:05:05 -0400 (EDT)
+Date: Wed, 29 Jun 2011 16:04:53 +0200
+From: Andrea Righi <andrea@betterlinux.com>
+Subject: Re: [PATCH v4 0/2] fadvise: move active pages to inactive list with
+ POSIX_FADV_DONTNEED
+Message-ID: <20110629140453.GA13456@thinkpad>
+References: <1309181361-14633-1-git-send-email-andrea@betterlinux.com>
+ <20110628151233.f0a279be.akpm@linux-foundation.org>
+ <20110628225645.GB2274@thinkpad>
+ <20110628160347.a5ffcc26.akpm@linux-foundation.org>
+ <4E0B0A76.5010204@draigBrady.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20110628173958.4f213b26.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <4E0B0A76.5010204@draigBrady.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: =?iso-8859-1?Q?P=E1draig?= Brady <P@draigBrady.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Jerry James <jamesjer@betterlinux.com>, Marcus Sorensen <marcus@bluehost.com>, Matt Heaton <matt@bluehost.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Theodore Tso <tytso@mit.edu>, Shaohua Li <shaohua.li@intel.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue 28-06-11 17:39:58, KAMEZAWA Hiroyuki wrote:
-> From b52bcd09843e903e5f184d0ee499909d072f3c8d Mon Sep 17 00:00:00 2001
-> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Date: Tue, 28 Jun 2011 15:45:38 +0900
-> Subject: [PATCH 1/3] memcg: fix reclaimable lru check in memcg.
+On Wed, Jun 29, 2011 at 12:20:22PM +0100, Padraig Brady wrote:
+> On 29/06/11 00:03, Andrew Morton wrote:
+> > On Wed, 29 Jun 2011 00:56:45 +0200
+> > Andrea Righi <andrea@betterlinux.com> wrote:
+> > 
+> >>>>
+> >>>> In this way if the backup was the only user of a page, that page will be
+> >>>> immediately removed from the page cache by calling POSIX_FADV_DONTNEED.  If the
+> >>>> page was also touched by other processes it'll be moved to the inactive list,
+> >>>> having another chance of being re-added to the working set, or simply reclaimed
+> >>>> when memory is needed.
+> >>>
+> >>> So if an application touches a page twice and then runs
+> >>> POSIX_FADV_DONTNEED, that page will now not be freed.
+> >>>
+> >>> That's a big behaviour change.  For many existing users
+> >>> POSIX_FADV_DONTNEED simply doesn't work any more!
+> >>
+> >> Yes. This is the main concern that was raised by P__draig.
+> >>
+> >>>
+> >>> I'd have thought that adding a new POSIX_FADV_ANDREA would be safer
+> >>> than this.
+> >>
+> >> Actually Jerry (in cc) proposed
+> >> POSIX_FADV_IDONTNEEDTHISBUTIFSOMEBODYELSEDOESTHENDONTTOUCHIT in a
+> >> private email. :)
+> > 
+> > Sounds good.  Needs more underscores though.
+> > 
+> >>>
+> >>>
+> >>> The various POSIX_FADV_foo's are so ill-defined that it was a mistake
+> >>> to ever use them.  We should have done something overtly linux-specific
+> >>> and given userspace more explicit and direct pagecache control.
+> >>
+> >> That would give us the possibility to implement a wide range of
+> >> different operations (drop, drop if used once, add to the active list,
+> >> add to the inactive list, etc..). Some users always complain that they
+> >> would like to have a better control over the page cache from userspace.
+> > 
+> > Well, I'd listen to proposals ;)
+> > 
+> > One thing we must be careful about is to not expose things like "active
+> > list" to userspace.  linux-4.5 may not _have_ an active list, and its
+> > implementors would hate us and would have to jump through hoops to
+> > implement vaguely compatible behaviour in the new scheme.
+> > 
+> > So any primitives which are exposed should be easily implementable and
+> > should *make sense* within any future scheme...
 > 
-> Now, in mem_cgroup_hierarchical_reclaim(), mem_cgroup_local_usage()
-> is used for checking whether the memcg contains reclaimable pages
-> or not. If no pages in it, the routine skips it.
+> Agreed.
 > 
-> But, mem_cgroup_local_usage() contains Unevictable pages and cannot
-> handle "noswap" condition correctly. This doesn't work on a swapless
-> system.
+> In fairness to posix_fadvise(), I think it's designed to
+> specify hints for the current process' use of data
+> so that it can get at it more efficiently and also be
+> allow the system to manipulate cache more efficiently.
+> I.E. it's not meant for direct control of the cache.
 > 
-> This patch adds test_mem_cgroup_reclaimable() and replaces
-> mem_cgroup_local_usage(). test_mem_cgroup_reclaimable() see LRU
-> counter and returns correct answer to the caller.
-> And this new function has "noswap" argument and can see only
-> FILE LRU if necessary.
+> That being said, existing use has allowed this,
+> and it would be nice not to change without consideration.
 > 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> I've mentioned how high level cache control functions
+> might map to the existing FADV knobs here:
+> 
+> http://marc.info/?l=linux-kernel&m=130917619416123&w=2
+> 
+> cheers,
+> Padraig.
 
-Reviewed-by: Michal Hocko <mhocko@suse.cz>
+OK, your proposal seems a good start to implement a better cache control
+interface.
 
-except for !CONFIG_NUMA issue - see bellow.
+Basically you're proposing to provide the following operations:
+ 1. DROP
+ 2. DROP if used once
+ 3. ADD
+ 4. ADD if there's space
 
-> @@ -1559,6 +1550,27 @@ mem_cgroup_select_victim(struct mem_cgroup *root_mem)
->  	return ret;
->  }
->  
-> +/** test_mem_cgroup_node_reclaimable
-> + * @mem: the target memcg
-> + * @nid: the node ID to be checked.
-> + * @noswap : specify true here if the user wants flle only information.
-> + *
-> + * This function returns whether the specified memcg contains any
-> + * reclaimable pages on a node. Returns true if there are any reclaimable
-> + * pages in the node.
-> + */
-> +static bool test_mem_cgroup_node_reclaimable(struct mem_cgroup *mem,
-> +		int nid, bool noswap)
-> +{
-> +	if (mem_cgroup_node_nr_file_lru_pages(mem, nid))
-> +		return true;
+I would also add for sure:
+ 5. ADD and will use once
 
-I do not see definition of mem_cgroup_node_nr_file_lru_pages for
-!MAX_NUMNODES==1 (resp. !CONFIG_NUMA) and you are calling this function
-also from that context.
+Some of them are already implemented by the available fadvise()
+operations, like 1 (POSIX_FADV_DONTNEED) and 3 (POSIX_FADV_WILLNEED).
+Option 5 can be mapped to POSIX_FADV_NOREUSE, but it's not yet
+implemented.
 
->  #if MAX_NUMNODES > 1
->  
->  /*
-> @@ -1580,15 +1592,8 @@ static void mem_cgroup_may_update_nodemask(struct mem_cgroup *mem)
->  
->  	for_each_node_mask(nid, node_states[N_HIGH_MEMORY]) {
->  
-> -		if (mem_cgroup_get_zonestat_node(mem, nid, LRU_INACTIVE_FILE) ||
-> -		    mem_cgroup_get_zonestat_node(mem, nid, LRU_ACTIVE_FILE))
-> -			continue;
-> -
-> -		if (total_swap_pages &&
-> -		    (mem_cgroup_get_zonestat_node(mem, nid, LRU_INACTIVE_ANON) ||
-> -		     mem_cgroup_get_zonestat_node(mem, nid, LRU_ACTIVE_ANON)))
-> -			continue;
-> -		node_clear(nid, mem->scan_nodes);
-> +		if (!test_mem_cgroup_node_reclaimable(mem, nid, false))
-> +			node_clear(nid, mem->scan_nodes);
+I need to think a little bit more about all of this. I'll try to post a
+new RFC, proposing the list of high-level operations to implement the
+better page cache control from userspace.
 
-Nice clean up.
+Suggestions, comments, ideas are always welcome.
 
-> @@ -1627,11 +1632,51 @@ int mem_cgroup_select_victim_node(struct mem_cgroup *mem)
->  	return node;
->  }
->  
-> +/*
-> + * Check all nodes whether it contains reclaimable pages or not.
-> + * For quick scan, we make use of scan_nodes. This will allow us to skip
-> + * unused nodes. But scan_nodes is lazily updated and may not cotain
-> + * enough new information. We need to do double check.
-> + */
-> +bool mem_cgroup_reclaimable(struct mem_cgroup *mem, bool noswap)
-> +{
-> +	int nid;
-> +
-> +	/*
-> +	 * quick check...making use of scan_node.
-> +	 * We can skip unused nodes.
-> +	 */
-> +	if (!nodes_empty(mem->scan_nodes)) {
-> +		for (nid = first_node(mem->scan_nodes);
-> +		     nid < MAX_NUMNODES;
-> +		     nid = next_node(nid, mem->scan_nodes)) {
-> +
-> +			if (test_mem_cgroup_node_reclaimable(mem, nid, noswap))
-> +				return true;
-> +		}
-> +	}
-> +	/*
-> + 	 * Check rest of nodes.
-> + 	 */
-> +	for_each_node_state(nid, N_HIGH_MEMORY) {
-> +		if (node_isset(nid, mem->scan_nodes))
-> +			continue;
-> +		if (test_mem_cgroup_node_reclaimable(mem, nid, noswap))
-> +			return true;	
-> +	}
-> +	return false;
-> +}
-> +
->  #else
-
-This is #else if MAX_NUMNODES == 1 AFAICS
-
->  int mem_cgroup_select_victim_node(struct mem_cgroup *mem)
->  {
->  	return 0;
->  }
-> +
-> +bool mem_cgroup_reclaimable(struct mem_cgroup *mem, bool noswap)
-> +{
-> +	return test_mem_cgroup_node_reclaimable(mem, 0, noswap);
-> +}
->  #endif
-
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+Thanks,
+-Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
