@@ -1,122 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 67F726B00F5
-	for <linux-mm@kvack.org>; Wed, 29 Jun 2011 10:05:05 -0400 (EDT)
-Date: Wed, 29 Jun 2011 16:04:53 +0200
-From: Andrea Righi <andrea@betterlinux.com>
-Subject: Re: [PATCH v4 0/2] fadvise: move active pages to inactive list with
- POSIX_FADV_DONTNEED
-Message-ID: <20110629140453.GA13456@thinkpad>
-References: <1309181361-14633-1-git-send-email-andrea@betterlinux.com>
- <20110628151233.f0a279be.akpm@linux-foundation.org>
- <20110628225645.GB2274@thinkpad>
- <20110628160347.a5ffcc26.akpm@linux-foundation.org>
- <4E0B0A76.5010204@draigBrady.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id CF3146B00E8
+	for <linux-mm@kvack.org>; Wed, 29 Jun 2011 11:28:30 -0400 (EDT)
+Received: by vxg38 with SMTP id 38so1398824vxg.14
+        for <linux-mm@kvack.org>; Wed, 29 Jun 2011 08:28:27 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <4E0B0A76.5010204@draigBrady.com>
+In-Reply-To: <20110629080827.GA975@phantom.vanrein.org>
+References: <fa.fHPNPTsllvyE/7DxrKwiwgVbVww@ifi.uio.no>
+	<532cc290-4b9c-4eb2-91d4-aa66c01bb3a0@glegroupsg2000goo.googlegroups.com>
+	<BANLkTik3mEJGXLrf_XtssfdRypm3NxBKvkhcnUpK=YXV6ux=Ag@mail.gmail.com>
+	<20110629080827.GA975@phantom.vanrein.org>
+Date: Wed, 29 Jun 2011 08:28:26 -0700
+Message-ID: <BANLkTikw9bnrurUo8n-6yUwwQ0zOv5iAOBDt=T6Nm6nkUd7vLA@mail.gmail.com>
+Subject: Re: [PATCH v2 0/3] support for broken memory modules (BadRAM)
+From: craig lkml <craig.lkml@gmail.com>
+Content-Type: multipart/alternative; boundary=bcaec501665b9626c704a6db6f94
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?iso-8859-1?Q?P=E1draig?= Brady <P@draigBrady.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Jerry James <jamesjer@betterlinux.com>, Marcus Sorensen <marcus@bluehost.com>, Matt Heaton <matt@bluehost.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Theodore Tso <tytso@mit.edu>, Shaohua Li <shaohua.li@intel.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Rick van Rein <rick@vanrein.org>
+Cc: Craig Bergstrom <craigb@google.com>, fa.linux.kernel@googlegroups.com, "H. Peter Anvin" <hpa@zytor.com>, Stefan Assmann <sassmann@kpanic.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "Luck, Tony" <tony.luck@intel.com>, Andi Kleen <andi@firstfloor.org>, "mingo@elte.hu" <mingo@elte.hu>, "rdunlap@xenotime.net" <rdunlap@xenotime.net>, Nancy Yuen <yuenn@google.com>, Michael Ditto <mditto@google.com>
 
-On Wed, Jun 29, 2011 at 12:20:22PM +0100, Padraig Brady wrote:
-> On 29/06/11 00:03, Andrew Morton wrote:
-> > On Wed, 29 Jun 2011 00:56:45 +0200
-> > Andrea Righi <andrea@betterlinux.com> wrote:
-> > 
-> >>>>
-> >>>> In this way if the backup was the only user of a page, that page will be
-> >>>> immediately removed from the page cache by calling POSIX_FADV_DONTNEED.  If the
-> >>>> page was also touched by other processes it'll be moved to the inactive list,
-> >>>> having another chance of being re-added to the working set, or simply reclaimed
-> >>>> when memory is needed.
-> >>>
-> >>> So if an application touches a page twice and then runs
-> >>> POSIX_FADV_DONTNEED, that page will now not be freed.
-> >>>
-> >>> That's a big behaviour change.  For many existing users
-> >>> POSIX_FADV_DONTNEED simply doesn't work any more!
-> >>
-> >> Yes. This is the main concern that was raised by P__draig.
-> >>
-> >>>
-> >>> I'd have thought that adding a new POSIX_FADV_ANDREA would be safer
-> >>> than this.
-> >>
-> >> Actually Jerry (in cc) proposed
-> >> POSIX_FADV_IDONTNEEDTHISBUTIFSOMEBODYELSEDOESTHENDONTTOUCHIT in a
-> >> private email. :)
-> > 
-> > Sounds good.  Needs more underscores though.
-> > 
-> >>>
-> >>>
-> >>> The various POSIX_FADV_foo's are so ill-defined that it was a mistake
-> >>> to ever use them.  We should have done something overtly linux-specific
-> >>> and given userspace more explicit and direct pagecache control.
-> >>
-> >> That would give us the possibility to implement a wide range of
-> >> different operations (drop, drop if used once, add to the active list,
-> >> add to the inactive list, etc..). Some users always complain that they
-> >> would like to have a better control over the page cache from userspace.
-> > 
-> > Well, I'd listen to proposals ;)
-> > 
-> > One thing we must be careful about is to not expose things like "active
-> > list" to userspace.  linux-4.5 may not _have_ an active list, and its
-> > implementors would hate us and would have to jump through hoops to
-> > implement vaguely compatible behaviour in the new scheme.
-> > 
-> > So any primitives which are exposed should be easily implementable and
-> > should *make sense* within any future scheme...
-> 
-> Agreed.
-> 
-> In fairness to posix_fadvise(), I think it's designed to
-> specify hints for the current process' use of data
-> so that it can get at it more efficiently and also be
-> allow the system to manipulate cache more efficiently.
-> I.E. it's not meant for direct control of the cache.
-> 
-> That being said, existing use has allowed this,
-> and it would be nice not to change without consideration.
-> 
-> I've mentioned how high level cache control functions
-> might map to the existing FADV knobs here:
-> 
-> http://marc.info/?l=linux-kernel&m=130917619416123&w=2
-> 
-> cheers,
-> Padraig.
+--bcaec501665b9626c704a6db6f94
+Content-Type: text/plain; charset=ISO-8859-1
 
-OK, your proposal seems a good start to implement a better cache control
-interface.
+Hi Rick,
 
-Basically you're proposing to provide the following operations:
- 1. DROP
- 2. DROP if used once
- 3. ADD
- 4. ADD if there's space
+Thanks for your response.  My sincere apologies for not posting the work
+directly.
 
-I would also add for sure:
- 5. ADD and will use once
+My intention is to point interested parties to contributions that Google has
+made to this space through known and respected channels.  The cited research
+is not my research but the research of my colleagues.  As a result, I
+hesitate to paraphrase the work as I will likely get the details wrong.  In
+any case, Shane's points are the most relevant for the discussion here.
+ Please refer to his post in this thread.
 
-Some of them are already implemented by the available fadvise()
-operations, like 1 (POSIX_FADV_DONTNEED) and 3 (POSIX_FADV_WILLNEED).
-Option 5 can be mapped to POSIX_FADV_NOREUSE, but it's not yet
-implemented.
+In an attempt to contribute to the community as much as I can, I have
+prepared and mailed our BadRAM patch as requested.  In case it is not
+otherwise clear, my belief is that the ideal solution for the upstream
+kernel is a hybrid of our approaches.
 
-I need to think a little bit more about all of this. I'll try to post a
-new RFC, proposing the list of high-level operations to implement the
-better page cache control from userspace.
+Thank you,
+CraigB
 
-Suggestions, comments, ideas are always welcome.
+On Wed, Jun 29, 2011 at 1:08 AM, Rick van Rein <rick@vanrein.org> wrote:
 
-Thanks,
--Andrea
+> Hello Craig,
+>
+> > Some folks had mentioned that they're interested in details about what
+> > we've learned about bad ram from our fleet of machines.  I suspect
+> > that you need ACM portal access to read this,
+>
+> I'm happy that this didn't cause a flame, but clearly this is not the
+> right response in an open environment.  ACM may have copyright on the
+> *form* in which you present your knowledge, but could you please poor
+> the knowledge in another form that bypasses their copyright so the
+> knowledge is made available to all?
+>
+>
+> Thanks,
+>  -Rick
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
+>
+
+--bcaec501665b9626c704a6db6f94
+Content-Type: text/html; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
+
+Hi Rick,<div><br></div><div>Thanks for your response. =A0My sincere apologi=
+es for not posting the work directly.</div><div><br></div><div>My intention=
+ is to point interested parties to contributions that Google has made to th=
+is space through known and respected channels. =A0The cited research is not=
+ my research but the research of my=A0colleagues. =A0As a result, I hesitat=
+e to paraphrase the work as I will likely get the details wrong. =A0In any =
+case, Shane&#39;s points are the most relevant for the discussion here. =A0=
+Please refer to his post in this thread.</div>
+<div><br></div><div>In an attempt to contribute to the community as much as=
+ I can, I have prepared and mailed our BadRAM patch as requested. =A0In cas=
+e it is not otherwise clear, my belief is that the ideal solution for the u=
+pstream kernel is a hybrid of our approaches.</div>
+<div><br></div><div>Thank you,</div><div>CraigB<br><br><div class=3D"gmail_=
+quote">On Wed, Jun 29, 2011 at 1:08 AM, Rick van Rein <span dir=3D"ltr">&lt=
+;<a href=3D"mailto:rick@vanrein.org">rick@vanrein.org</a>&gt;</span> wrote:=
+<br>
+<blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1p=
+x #ccc solid;padding-left:1ex;">Hello Craig,<br>
+<div class=3D"im"><br>
+&gt; Some folks had mentioned that they&#39;re interested in details about =
+what<br>
+&gt; we&#39;ve learned about bad ram from our fleet of machines. =A0I suspe=
+ct<br>
+&gt; that you need ACM portal access to read this,<br>
+<br>
+</div>I&#39;m happy that this didn&#39;t cause a flame, but clearly this is=
+ not the<br>
+right response in an open environment. =A0ACM may have copyright on the<br>
+*form* in which you present your knowledge, but could you please poor<br>
+the knowledge in another form that bypasses their copyright so the<br>
+knowledge is made available to all?<br>
+<br>
+<br>
+Thanks,<br>
+<div class=3D"im">=A0-Rick<br>
+--<br>
+To unsubscribe from this list: send the line &quot;unsubscribe linux-kernel=
+&quot; in<br>
+</div><div><div></div><div class=3D"h5">the body of a message to <a href=3D=
+"mailto:majordomo@vger.kernel.org">majordomo@vger.kernel.org</a><br>
+More majordomo info at =A0<a href=3D"http://vger.kernel.org/majordomo-info.=
+html" target=3D"_blank">http://vger.kernel.org/majordomo-info.html</a><br>
+Please read the FAQ at =A0<a href=3D"http://www.tux.org/lkml/" target=3D"_b=
+lank">http://www.tux.org/lkml/</a><br>
+</div></div></blockquote></div><br></div>
+
+--bcaec501665b9626c704a6db6f94--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
