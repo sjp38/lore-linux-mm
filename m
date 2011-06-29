@@ -1,101 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 61D546B0109
-	for <linux-mm@kvack.org>; Wed, 29 Jun 2011 05:38:30 -0400 (EDT)
-Received: from kpbe19.cbf.corp.google.com (kpbe19.cbf.corp.google.com [172.25.105.83])
-	by smtp-out.google.com with ESMTP id p5T9cRou016331
-	for <linux-mm@kvack.org>; Wed, 29 Jun 2011 02:38:27 -0700
-Received: from qwc23 (qwc23.prod.google.com [10.241.193.151])
-	by kpbe19.cbf.corp.google.com with ESMTP id p5T9bTdb022902
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 29 Jun 2011 02:38:26 -0700
-Received: by qwc23 with SMTP id 23so753888qwc.17
-        for <linux-mm@kvack.org>; Wed, 29 Jun 2011 02:38:20 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20110628165302.706740714@goodmis.org>
-References: <20110628164750.281686775@goodmis.org>
-	<20110628165302.706740714@goodmis.org>
-Date: Wed, 29 Jun 2011 02:38:20 -0700
-Message-ID: <CANN689E0ckbGBZZfk-BMdyR=_E6eN2oQb5uhij3ARPVCicqGrQ@mail.gmail.com>
-Subject: Re: [PATCH 1/2] mm: Remove use of ALLOW_RETRY when RETRY_NOWAIT is set
-From: Michel Lespinasse <walken@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 25E8A6B00EA
+	for <linux-mm@kvack.org>; Wed, 29 Jun 2011 06:10:45 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 106F03EE081
+	for <linux-mm@kvack.org>; Wed, 29 Jun 2011 19:10:41 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id EBB2E45DED8
+	for <linux-mm@kvack.org>; Wed, 29 Jun 2011 19:10:40 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id D2D9345DED0
+	for <linux-mm@kvack.org>; Wed, 29 Jun 2011 19:10:40 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id C1CBE1DB8044
+	for <linux-mm@kvack.org>; Wed, 29 Jun 2011 19:10:40 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 7FC371DB8041
+	for <linux-mm@kvack.org>; Wed, 29 Jun 2011 19:10:40 +0900 (JST)
+Date: Wed, 29 Jun 2011 19:03:25 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH] [Cleanup] memcg: export memory cgroup's swappiness v2
+Message-Id: <20110629190325.28aa2dc6.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steven Rostedt <rostedt@goodmis.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Russell King <rmk+kernel@arm.linux.org.uk>, Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <peterz@infradead.org>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Avi Kivity <avi@redhat.com>, Marcelo Tosatti <mtosatti@redhat.com>
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "bsingharora@gmail.com" <bsingharora@gmail.com>, Michal Hocko <mhocko@suse.cz>, Ying Han <yinghan@google.com>
 
-On Tue, Jun 28, 2011 at 9:47 AM, Steven Rostedt <rostedt@goodmis.org> wrote=
-:
-> From: Steven Rostedt <srostedt@redhat.com>
->
-> The only user of FAULT_FLAG_RETRY_NOWAIT also sets the
-> FAULT_FLAG_ALLOW_RETRY flag. This makes the check in the
-> __lock_page_or_retry redundant as it checks the RETRY_NOWAIT
-> just after checking ALLOW_RETRY and then returns if it is
-> set. =A0The FAULT_FLAG_ALLOW_RETRY does not make any other
-> difference in this path.
->
-> Setting both and then ignoring one is quite confusing,
-> especially since this code has very subtle locking issues
-> when it comes to the mmap_sem.
->
-> Only set the RETRY_WAIT flag and have that do the necessary
-> work instead of confusing reviewers of this code by setting
-> ALLOW_RETRY and not releasing the mmap_sem.
->
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -151,8 +151,8 @@ extern pgprot_t protection_map[16];
-> =A0#define FAULT_FLAG_WRITE =A0 =A0 =A0 0x01 =A0 =A0/* Fault was a write =
-access */
-> =A0#define FAULT_FLAG_NONLINEAR =A0 0x02 =A0 =A0/* Fault was via a nonlin=
-ear mapping */
-> =A0#define FAULT_FLAG_MKWRITE =A0 =A0 0x04 =A0 =A0/* Fault was mkwrite of=
- existing pte */
-> -#define FAULT_FLAG_ALLOW_RETRY 0x08 =A0 =A0/* Retry fault if blocking */
-> -#define FAULT_FLAG_RETRY_NOWAIT =A0 =A0 =A0 =A00x10 =A0 =A0/* Don't drop=
- mmap_sem and wait when retrying */
-> +#define FAULT_FLAG_ALLOW_RETRY 0x08 =A0 =A0/* Retry fault if blocking (d=
-rops mmap_sem) */
-> +#define FAULT_FLAG_RETRY_NOWAIT =A0 =A0 =A0 =A00x10 =A0 =A0/* Wait when =
-retrying (don't drop mmap_sem) */
-
-You want to say "DONT wait when retrying" here...
-
-Also - you argued higher up that having both flags set at once is
-confusing, but I find it equally confusing to pass a flag to specify
-you don't want to wait on retry if the flag that allows retry is not
-set. I think the confusion comes from the way the nowait semantics got
-bolted on the retry code for virtualization, even though (if I
-understand the virtualization use case correctly) they dont actually
-want to retry there, they just want to give up without blocking.
-
-
-Would the following proposal make more sense to you ?
-
-FAULT_FLAG_ALLOW_ASYNC: allow returning a VM_FAULT_ASYNC error code if
-the page can't be obtained immediately (major fault).
-FAULT_FLAG_ASYNC_WAIT: before returning VM_FAULT_ASYNC, drop the
-mmap_sem and wait for major fault to complete.
-
-existing uses of FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_RETRY_NOWAIT
-become FAULT_FLAG_ASYNC
-existing uses of FAULT_FLAG_ALLOW_RETRY alone become FAULT_FLAG_ASYNC
-| FAULT_FLAG_ASYNC_WAIT
-existing uses of VM_FAULT_RETRY become VM_FAULT_ASYNC
-
-This may also help your documentation proposal since the flags would
-now work together rather than having one be an exception to the other.
-
---=20
-Michel "Walken" Lespinasse
-A program is never fully debugged until the last user dies.
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+This is onto 3 patches I posted yesterday.
+I'm sorry I once got Acks in v1 but refleshed totally. 
+==
