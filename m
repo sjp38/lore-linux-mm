@@ -1,52 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D6EB6B0110
-	for <linux-mm@kvack.org>; Tue, 28 Jun 2011 19:38:12 -0400 (EDT)
-Received: by qwa26 with SMTP id 26so516912qwa.14
-        for <linux-mm@kvack.org>; Tue, 28 Jun 2011 16:38:10 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <1308926697-22475-3-git-send-email-mgorman@suse.de>
-References: <1308926697-22475-1-git-send-email-mgorman@suse.de>
-	<1308926697-22475-3-git-send-email-mgorman@suse.de>
-Date: Wed, 29 Jun 2011 08:38:10 +0900
-Message-ID: <BANLkTi=4K+YaZ9n9K16NNcKz+iMkuZ9K8g@mail.gmail.com>
-Subject: Re: [PATCH 2/4] mm: vmscan: Do not apply pressure to slab if we are
- not applying pressure to zone
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 548516B011F
+	for <linux-mm@kvack.org>; Tue, 28 Jun 2011 23:40:55 -0400 (EDT)
+Subject: Re: [PATCH 1/2] mm: Move definition of MIN_MEMORY_BLOCK_SIZE to a
+ header
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+In-Reply-To: <1308013070.2874.784.camel@pasglop>
+References: <1308013070.2874.784.camel@pasglop>
+Content-Type: text/plain; charset="UTF-8"
+Date: Wed, 29 Jun 2011 13:40:40 +1000
+Message-ID: <1309318840.32158.522.camel@pasglop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, =?UTF-8?Q?P=C3=A1draig_Brady?= <P@draigbrady.com>, James Bottomley <James.Bottomley@hansenpartnership.com>, Colin King <colin.king@canonical.com>, Andrew Lutomirski <luto@mit.edu>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+Cc: Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>
 
-On Fri, Jun 24, 2011 at 11:44 PM, Mel Gorman <mgorman@suse.de> wrote:
-> During allocator-intensive workloads, kswapd will be woken frequently
-> causing free memory to oscillate between the high and min watermark.
-> This is expected behaviour.
->
-> When kswapd applies pressure to zones during node balancing, it checks
-> if the zone is above a high+balance_gap threshold. If it is, it does
-> not apply pressure but it unconditionally shrinks slab on a global
-> basis which is excessive. In the event kswapd is being kept awake due to
-> a high small unreclaimable zone, it skips zone shrinking but still
-> calls shrink_slab().
->
-> Once pressure has been applied, the check for zone being unreclaimable
-> is being made before the check is made if all_unreclaimable should be
-> set. This miss of unreclaimable can cause has_under_min_watermark_zone
-> to be set due to an unreclaimable zone preventing kswapd backing off
-> on congestion_wait().
->
-> Reported-and-tested-by: P=C3=A1draig Brady <P@draigBrady.com>
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
-Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+On Tue, 2011-06-14 at 10:57 +1000, Benjamin Herrenschmidt wrote:
+> The macro MIN_MEMORY_BLOCK_SIZE is currently defined twice in two .c
+> files, and I need it in a third one to fix a powerpc bug, so let's
+> first move it into a header
+> 
+> Signed-off-by: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+> ---
+> 
+> Ingo, Thomas: Who needs to ack the x86 bit ? I'd like to send that
+> to Linus asap with the powerpc fix.
 
-It does make sense.
+Anybody ? Allo ?
 
---=20
-Kind regards,
-Minchan Kim
+I'm happy to send that to Linus myself but I'd like at least on or two
+acks :-)
+
+Cheers,
+Ben.
+
+> diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+> index d865c4a..bbaaa00 100644
+> --- a/arch/x86/mm/init_64.c
+> +++ b/arch/x86/mm/init_64.c
+> @@ -28,6 +28,7 @@
+>  #include <linux/poison.h>
+>  #include <linux/dma-mapping.h>
+>  #include <linux/module.h>
+> +#include <linux/memory.h>
+>  #include <linux/memory_hotplug.h>
+>  #include <linux/nmi.h>
+>  #include <linux/gfp.h>
+> @@ -895,8 +896,6 @@ const char *arch_vma_name(struct vm_area_struct *vma)
+>  }
+>  
+>  #ifdef CONFIG_X86_UV
+> -#define MIN_MEMORY_BLOCK_SIZE   (1 << SECTION_SIZE_BITS)
+> -
+>  unsigned long memory_block_size_bytes(void)
+>  {
+>  	if (is_uv_system()) {
+> diff --git a/drivers/base/memory.c b/drivers/base/memory.c
+> index 9f9b235..45d7c8f 100644
+> --- a/drivers/base/memory.c
+> +++ b/drivers/base/memory.c
+> @@ -30,7 +30,6 @@
+>  static DEFINE_MUTEX(mem_sysfs_mutex);
+>  
+>  #define MEMORY_CLASS_NAME	"memory"
+> -#define MIN_MEMORY_BLOCK_SIZE	(1 << SECTION_SIZE_BITS)
+>  
+>  static int sections_per_block;
+>  
+> diff --git a/include/linux/memory.h b/include/linux/memory.h
+> index e1e3b2b..935699b 100644
+> --- a/include/linux/memory.h
+> +++ b/include/linux/memory.h
+> @@ -20,6 +20,8 @@
+>  #include <linux/compiler.h>
+>  #include <linux/mutex.h>
+>  
+> +#define MIN_MEMORY_BLOCK_SIZE     (1 << SECTION_SIZE_BITS)
+> +
+>  struct memory_block {
+>  	unsigned long start_section_nr;
+>  	unsigned long end_section_nr;
+> 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
