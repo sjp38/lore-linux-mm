@@ -1,56 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 430A46B00EE
-	for <linux-mm@kvack.org>; Wed, 29 Jun 2011 13:59:21 -0400 (EDT)
-Received: from d01relay07.pok.ibm.com (d01relay07.pok.ibm.com [9.56.227.147])
-	by e4.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p5THbRRb029103
-	for <linux-mm@kvack.org>; Wed, 29 Jun 2011 13:37:27 -0400
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay07.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p5THxHuc1503444
-	for <linux-mm@kvack.org>; Wed, 29 Jun 2011 13:59:17 -0400
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p5TDx4kh025553
-	for <linux-mm@kvack.org>; Wed, 29 Jun 2011 10:59:05 -0300
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 227A86B00EE
+	for <linux-mm@kvack.org>; Wed, 29 Jun 2011 14:07:47 -0400 (EDT)
+Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
+	by e28smtp07.in.ibm.com (8.14.4/8.13.1) with ESMTP id p5TI7fXR025029
+	for <linux-mm@kvack.org>; Wed, 29 Jun 2011 23:37:41 +0530
+Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
+	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p5TI7eV73059754
+	for <linux-mm@kvack.org>; Wed, 29 Jun 2011 23:37:40 +0530
+Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
+	by d28av05.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p5TI7daU021828
+	for <linux-mm@kvack.org>; Thu, 30 Jun 2011 04:07:39 +1000
+Date: Wed, 29 Jun 2011 23:37:33 +0530
+From: Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>
 Subject: Re: [PATCH 00/10] mm: Linux VM Infrastructure to support Memory
  Power Management
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <20110629174220.GA9152@in.ibm.com>
+Message-ID: <20110629180733.GF3646@dirshya.in.ibm.com>
+Reply-To: svaidy@linux.vnet.ibm.com
 References: <1306499498-14263-1-git-send-email-ankita@in.ibm.com>
-	 <20110629130038.GA7909@in.ibm.com> <1309367184.11430.594.camel@nimitz>
-	 <20110629174220.GA9152@in.ibm.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Wed, 29 Jun 2011 10:59:02 -0700
-Message-ID: <1309370342.11430.604.camel@nimitz>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+ <20110629130038.GA7909@in.ibm.com>
+ <1309367184.11430.594.camel@nimitz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <1309367184.11430.594.camel@nimitz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ankita Garg <ankita@in.ibm.com>
-Cc: linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-pm@lists.linux-foundation.org, svaidy@linux.vnet.ibm.com, thomas.abraham@linaro.org, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Matthew Garrett <mjg59@srcf.ucam.org>, Arjan van de Ven <arjan@infradead.org>
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: Ankita Garg <ankita@in.ibm.com>, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-pm@lists.linux-foundation.org, thomas.abraham@linaro.org, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Matthew Garrett <mjg59@srcf.ucam.org>, Arjan van de Ven <arjan@infradead.org>
 
-On Wed, 2011-06-29 at 23:12 +0530, Ankita Garg wrote:
-> 	4. The kernel must have a mechanism to maintain utilization
-> 	   statistics pertaining to a piece of hardware, so that it can
-> 	   trigger the hardware to power it off
+* Dave Hansen <dave@linux.vnet.ibm.com> [2011-06-29 10:06:24]:
 
-Having statistics like this would certainly be nice, but how important
-_is_ it?  Is it really a show-stopper?  There's some stuff today, like
-the NPT/EPT support in KVM where we don't even have visibility in to
-when a given page is referenced.
+> I was kinda hoping for something a bit simpler than that.  I'd boil down
+> what you were saying to this:
+> 
+>      1. The kernel must be aware of how the pieces of hardware are
+>         mapped in to the system's physical address space
+>      2. The kernel must have a mechanism in place to minimize access to
+>         specific pieces of hardware 
+          (mainly by controlling allocations and reclaim)
+                
 
-It's also going to be a pain to track kernel references.  On x86, our
-kernel linear mapping uses 1GB pages when it can, and those are greater
-than the 512MB granularity that we've been talking about here.  It's
-even larger on powerpc.  I'm also pretty sure we don't even _look_ at
-the referenced bits in the kernel page tables.  We'll definitely need
-some infrastructure to do that.
+>      3. For destructive power-down operations, the kernel should have a
+>         mechanism in place to ensure that no valuable data is contained
+>         in the memory to be powered down.
+> 
+> Is that complete?
 
-> 	5. Being able to group these pieces of hardware for purpose of
-> 	   higher savings. 
+At a high level these are the main requirements, except that different
+operations/features can happen at different/higher granularity.  The
+infrastructure should be able to related groups of regions and act
+upon for a specific optimization.  Like granularity for (2) may be
+512MB, while (3) could be a pair of 512MB blocks. This is relatively
+a minor issue to solve.
 
-Do you really mean group, or do you mean "turn as many off as possible"?
+> On Wed, 2011-06-29 at 18:30 +0530, Ankita Garg wrote:
+> > 1) Dynamic Power Transition: The memory controller can have the ability
+> > to automatically transition regions of memory into lower power states
+> > when they are devoid of references for a pre-defined threshold amount of
+> > time. Memory contents are preserved in the low power states and accessing
+> > memory that is at a low power state takes a latency hit.
+> > 
+> > 2) Dynamic Power Off: If a region is free/unallocated, the software can
+> > indicate to the controller to completely turn off power to a certain
+> > region. Memory contents are lost and hence the software has to be
+> > absolutely sure about the usage statistics of the particular region. This
+> > is a runtime capability, where the required amount of memory can be
+> > powered 'ON' to match the workload demands.
+> > 
+> > 3) Partial Array Self-Refresh (PASR): If a certain regions of memory is
+> > free/unallocated, the software can indicate to the controller to not
+> > refresh that region when the system goes to suspend-to-ram state and
+> > thereby save standby power consumption.
+> 
+> (3) is simply a subset of (2), but with the additional restriction that
+> the power off can only occur during a suspend operation.  
+> 
+> Let's say we fully implemented support for (2).  What would be missing
+> to support PASR?
 
--- Dave
+The similarity between (2) and (3) here is the need for accurate
+statistics to know allocation status. The difference is the
+actuation/trigger part... in case of (2) the trigger would happen
+during allocation/free while in case of (3) it happens only at suspend
+time.  Also the granularity could be different, generally PASR is very
+fine grain as compared for power-off at controller level.
+
+We can combine them and look at just how to track allocations at
+different (or multiple) physical boundaries.
+
+--Vaidy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
