@@ -1,120 +1,146 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 4922A6B0116
-	for <linux-mm@kvack.org>; Wed, 29 Jun 2011 09:12:30 -0400 (EDT)
-Date: Wed, 29 Jun 2011 15:12:22 +0200
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 0DE4B6B010D
+	for <linux-mm@kvack.org>; Wed, 29 Jun 2011 09:41:05 -0400 (EDT)
+Date: Wed, 29 Jun 2011 15:40:59 +0200
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [FIX][PATCH 2/3] memcg: fix numa scan information update to be
- triggered by memory event
-Message-ID: <20110629131222.GB24262@tiehlicka.suse.cz>
+Subject: Re: [PATCH 1/3] memcg: fix reclaimable lru check in memcg.
+Message-ID: <20110629134059.GD24262@tiehlicka.suse.cz>
 References: <20110628173122.9e5aecdf.kamezawa.hiroyu@jp.fujitsu.com>
- <20110628174150.6b32e51c.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110628173958.4f213b26.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110628174150.6b32e51c.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110628173958.4f213b26.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Tue 28-06-11 17:41:50, KAMEZAWA Hiroyuki wrote:
-> From 646ca5cd1e1ab0633892b86a1bbb6cf600d79d58 Mon Sep 17 00:00:00 2001
+On Tue 28-06-11 17:39:58, KAMEZAWA Hiroyuki wrote:
+> From b52bcd09843e903e5f184d0ee499909d072f3c8d Mon Sep 17 00:00:00 2001
 > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Date: Tue, 28 Jun 2011 17:09:25 +0900
-> Subject: [PATCH 2/3] Fix numa scan information update to be triggered by memory event
+> Date: Tue, 28 Jun 2011 15:45:38 +0900
+> Subject: [PATCH 1/3] memcg: fix reclaimable lru check in memcg.
 > 
-> commit 889976 adds an numa node round-robin for memcg. But the information
-> is updated once per 10sec.
+> Now, in mem_cgroup_hierarchical_reclaim(), mem_cgroup_local_usage()
+> is used for checking whether the memcg contains reclaimable pages
+> or not. If no pages in it, the routine skips it.
 > 
-> This patch changes the update trigger from jiffies to memcg's event count.
-> After this patch, numa scan information will be updated when we see
-> 1024 events of pagein/pageout under a memcg.
+> But, mem_cgroup_local_usage() contains Unevictable pages and cannot
+> handle "noswap" condition correctly. This doesn't work on a swapless
+> system.
+> 
+> This patch adds test_mem_cgroup_reclaimable() and replaces
+> mem_cgroup_local_usage(). test_mem_cgroup_reclaimable() see LRU
+> counter and returns correct answer to the caller.
+> And this new function has "noswap" argument and can see only
+> FILE LRU if necessary.
 > 
 > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 Reviewed-by: Michal Hocko <mhocko@suse.cz>
 
-See the note about wasted memory for MAX_NUMNODES==1 bellow.
+except for !CONFIG_NUMA issue - see bellow.
 
-> 
-> Changelog:
->   - simplified
->   - removed mutex
->   - removed 3% check. To use heuristics, we cannot avoid magic value.
->     So, removed heuristics.
-> ---
->  mm/memcontrol.c |   29 +++++++++++++++++++++++++----
->  1 files changed, 25 insertions(+), 4 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index c624312..3e7d5e6 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -108,10 +108,12 @@ enum mem_cgroup_events_index {
->  enum mem_cgroup_events_target {
->  	MEM_CGROUP_TARGET_THRESH,
->  	MEM_CGROUP_TARGET_SOFTLIMIT,
-> +	MEM_CGROUP_TARGET_NUMAINFO,
-
-This still wastes sizeof(unsigned long) per CPU space for non NUMA
-machines (resp. MAX_NUMNODES==1).
-
-[...]
-> @@ -703,6 +709,14 @@ static void memcg_check_events(struct mem_cgroup *mem, struct page *page)
->  			__mem_cgroup_target_update(mem,
->  				MEM_CGROUP_TARGET_SOFTLIMIT);
->  		}
-> +#if MAX_NUMNODES > 1
-> +		if (unlikely(__memcg_event_check(mem,
-> +			MEM_CGROUP_TARGET_NUMAINFO))) {
-> +			atomic_inc(&mem->numainfo_events);
-> +			__mem_cgroup_target_update(mem,
-> +				MEM_CGROUP_TARGET_NUMAINFO);
-> +		}
-> +#endif
->  	}
+> @@ -1559,6 +1550,27 @@ mem_cgroup_select_victim(struct mem_cgroup *root_mem)
+>  	return ret;
 >  }
 >  
-> @@ -1582,11 +1596,15 @@ static bool test_mem_cgroup_node_reclaimable(struct mem_cgroup *mem,
->  static void mem_cgroup_may_update_nodemask(struct mem_cgroup *mem)
->  {
->  	int nid;
+> +/** test_mem_cgroup_node_reclaimable
+> + * @mem: the target memcg
+> + * @nid: the node ID to be checked.
+> + * @noswap : specify true here if the user wants flle only information.
+> + *
+> + * This function returns whether the specified memcg contains any
+> + * reclaimable pages on a node. Returns true if there are any reclaimable
+> + * pages in the node.
+> + */
+> +static bool test_mem_cgroup_node_reclaimable(struct mem_cgroup *mem,
+> +		int nid, bool noswap)
+> +{
+> +	if (mem_cgroup_node_nr_file_lru_pages(mem, nid))
+> +		return true;
+
+I do not see definition of mem_cgroup_node_nr_file_lru_pages for
+!MAX_NUMNODES==1 (resp. !CONFIG_NUMA) and you are calling this function
+also from that context.
+
+>  #if MAX_NUMNODES > 1
+>  
+>  /*
+> @@ -1580,15 +1592,8 @@ static void mem_cgroup_may_update_nodemask(struct mem_cgroup *mem)
+>  
+>  	for_each_node_mask(nid, node_states[N_HIGH_MEMORY]) {
+>  
+> -		if (mem_cgroup_get_zonestat_node(mem, nid, LRU_INACTIVE_FILE) ||
+> -		    mem_cgroup_get_zonestat_node(mem, nid, LRU_ACTIVE_FILE))
+> -			continue;
 > -
-> -	if (time_after(mem->next_scan_node_update, jiffies))
-> +	/*
-> +	 * numainfo_events > 0 means there was at least NUMAINFO_EVENTS_TARGET
-> +	 * pagein/pageout changes since the last update.
-> +	 */
-> +	if (!atomic_read(&mem->numainfo_events))
-> +		return;
+> -		if (total_swap_pages &&
+> -		    (mem_cgroup_get_zonestat_node(mem, nid, LRU_INACTIVE_ANON) ||
+> -		     mem_cgroup_get_zonestat_node(mem, nid, LRU_ACTIVE_ANON)))
+> -			continue;
+> -		node_clear(nid, mem->scan_nodes);
+> +		if (!test_mem_cgroup_node_reclaimable(mem, nid, false))
+> +			node_clear(nid, mem->scan_nodes);
 
-At first I was worried about memory barriers here because
-atomic_{set,inc} used for numainfo_events do not imply mem. barriers
-but that is not a problem because memcg_check_events will always make
-numainfo_events > 0 (even if it doesn't see atomic_set from this
-function and we are not interested in the exact value).
+Nice clean up.
 
-> +	if (atomic_inc_return(&mem->numainfo_updating) > 1)
->  		return;
-
-OK, this one should be barrier safe as well as this enforces barrier on
-both sides (before and after operation) so the atomic_set shouldn't
-break it AFAIU.
-
->  
-> -	mem->next_scan_node_update = jiffies + 10*HZ;
->  	/* make a nodemask where this memcg uses memory from */
->  	mem->scan_nodes = node_states[N_HIGH_MEMORY];
->  
-> @@ -1595,6 +1613,9 @@ static void mem_cgroup_may_update_nodemask(struct mem_cgroup *mem)
->  		if (!test_mem_cgroup_node_reclaimable(mem, nid, false))
->  			node_clear(nid, mem->scan_nodes);
->  	}
-> +
-> +	atomic_set(&mem->numainfo_events, 0);
-> +	atomic_set(&mem->numainfo_updating, 0);
+> @@ -1627,11 +1632,51 @@ int mem_cgroup_select_victim_node(struct mem_cgroup *mem)
+>  	return node;
 >  }
+>  
+> +/*
+> + * Check all nodes whether it contains reclaimable pages or not.
+> + * For quick scan, we make use of scan_nodes. This will allow us to skip
+> + * unused nodes. But scan_nodes is lazily updated and may not cotain
+> + * enough new information. We need to do double check.
+> + */
+> +bool mem_cgroup_reclaimable(struct mem_cgroup *mem, bool noswap)
+> +{
+> +	int nid;
+> +
+> +	/*
+> +	 * quick check...making use of scan_node.
+> +	 * We can skip unused nodes.
+> +	 */
+> +	if (!nodes_empty(mem->scan_nodes)) {
+> +		for (nid = first_node(mem->scan_nodes);
+> +		     nid < MAX_NUMNODES;
+> +		     nid = next_node(nid, mem->scan_nodes)) {
+> +
+> +			if (test_mem_cgroup_node_reclaimable(mem, nid, noswap))
+> +				return true;
+> +		}
+> +	}
+> +	/*
+> + 	 * Check rest of nodes.
+> + 	 */
+> +	for_each_node_state(nid, N_HIGH_MEMORY) {
+> +		if (node_isset(nid, mem->scan_nodes))
+> +			continue;
+> +		if (test_mem_cgroup_node_reclaimable(mem, nid, noswap))
+> +			return true;	
+> +	}
+> +	return false;
+> +}
+> +
+>  #else
+
+This is #else if MAX_NUMNODES == 1 AFAICS
+
+>  int mem_cgroup_select_victim_node(struct mem_cgroup *mem)
+>  {
+>  	return 0;
+>  }
+> +
+> +bool mem_cgroup_reclaimable(struct mem_cgroup *mem, bool noswap)
+> +{
+> +	return test_mem_cgroup_node_reclaimable(mem, 0, noswap);
+> +}
+>  #endif
+
 -- 
 Michal Hocko
 SUSE Labs
