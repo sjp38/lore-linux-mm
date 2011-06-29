@@ -1,40 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 665FD6B00ED
-	for <linux-mm@kvack.org>; Wed, 29 Jun 2011 16:01:18 -0400 (EDT)
-Date: Wed, 29 Jun 2011 13:00:43 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] [Cleanup] memcg: export memory cgroup's swappiness v2
-Message-Id: <20110629130043.4dc47249.akpm@linux-foundation.org>
-In-Reply-To: <20110629190325.28aa2dc6.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20110629190325.28aa2dc6.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 497696B00E7
+	for <linux-mm@kvack.org>; Wed, 29 Jun 2011 16:12:25 -0400 (EDT)
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [PATCH 00/10] mm: Linux VM Infrastructure to support Memory Power Management
+References: <1306499498-14263-1-git-send-email-ankita@in.ibm.com>
+	<20110629130038.GA7909@in.ibm.com> <1309367184.11430.594.camel@nimitz>
+	<20110629174220.GA9152@in.ibm.com> <1309370342.11430.604.camel@nimitz>
+Date: Wed, 29 Jun 2011 13:11:00 -0700
+In-Reply-To: <1309370342.11430.604.camel@nimitz> (Dave Hansen's message of
+	"Wed, 29 Jun 2011 10:59:02 -0700")
+Message-ID: <m2y60k1jqj.fsf@firstfloor.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "bsingharora@gmail.com" <bsingharora@gmail.com>, Michal Hocko <mhocko@suse.cz>, Ying Han <yinghan@google.com>
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: Ankita Garg <ankita@in.ibm.com>, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-pm@lists.linux-foundation.org, svaidy@linux.vnet.ibm.com, thomas.abraham@linaro.org, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Matthew Garrett <mjg59@srcf.ucam.org>, Arjan van de Ven <arjan@infradead.org>
 
-On Wed, 29 Jun 2011 19:03:25 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+Dave Hansen <dave@linux.vnet.ibm.com> writes:
+>
+> It's also going to be a pain to track kernel references.  On x86, our
 
-> Each memory cgroup has 'swappiness' value and it can be accessed by
-> get_swappiness(memcg). The major user is try_to_free_mem_cgroup_pages()
-> and swappiness is passed by argument. It's propagated by scan_control.
-> 
-> get_swappiness is static function but some planned updates will need to
-> get swappiness from files other than memcontrol.c
-> This patch exports get_swappiness() as mem_cgroup_swappiness().
-> By this, we can remove the argument of swapiness from try_to_free...
-> and drop swappiness from scan_control. only memcg uses it.
-> 
+Even if you tracked them what would you do with them?
 
-> +extern unsigned int mem_cgroup_swappiness(struct mem_cgroup *mem);
-> +unsigned int mem_cgroup_swappiness(struct mem_cgroup *memcg)
-> +static int vmscan_swappiness(struct scan_control *sc)
+It's quite hard to stop using arbitary kernel memory (see all the dancing
+memory-failure does) 
 
-The patch seems a bit confused about the signedness of swappiness.
+You need to track the direct accesses to user data which happens
+to be accessed through the direct mapping.
+
+Also it will be always unreliable because this all won't track DMA.
+For that you would also need to track in the dma_* infrastructure,
+which will likely get seriously expensive.
+
+-Andi
+
+-- 
+ak@linux.intel.com -- Speaking for myself only
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
