@@ -1,60 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id AE1B46B0092
-	for <linux-mm@kvack.org>; Wed, 29 Jun 2011 23:39:43 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 36E8F3EE0BC
-	for <linux-mm@kvack.org>; Thu, 30 Jun 2011 12:39:40 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0EFC745DE7E
-	for <linux-mm@kvack.org>; Thu, 30 Jun 2011 12:39:40 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id E978145DE7A
-	for <linux-mm@kvack.org>; Thu, 30 Jun 2011 12:39:39 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id DAA481DB803C
-	for <linux-mm@kvack.org>; Thu, 30 Jun 2011 12:39:39 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 95AC81DB803A
-	for <linux-mm@kvack.org>; Thu, 30 Jun 2011 12:39:39 +0900 (JST)
-Date: Thu, 30 Jun 2011 12:32:29 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH] [Cleanup] memcg: export memory cgroup's swappiness v2
-Message-Id: <20110630123229.37424449.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20110629130043.4dc47249.akpm@linux-foundation.org>
-References: <20110629190325.28aa2dc6.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110629130043.4dc47249.akpm@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id D1CD76B0083
+	for <linux-mm@kvack.org>; Thu, 30 Jun 2011 00:38:25 -0400 (EDT)
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.31.245])
+	by e23smtp09.au.ibm.com (8.14.4/8.13.1) with ESMTP id p5U4c8LV023576
+	for <linux-mm@kvack.org>; Thu, 30 Jun 2011 14:38:08 +1000
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p5U4c8An569560
+	for <linux-mm@kvack.org>; Thu, 30 Jun 2011 14:38:08 +1000
+Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p5U4c8ex019884
+	for <linux-mm@kvack.org>; Thu, 30 Jun 2011 14:38:08 +1000
+Date: Thu, 30 Jun 2011 10:07:59 +0530
+From: Ankita Garg <ankita@in.ibm.com>
+Subject: Re: [PATCH 00/10] mm: Linux VM Infrastructure to support Memory
+ Power Management
+Message-ID: <20110630043759.GA12667@in.ibm.com>
+Reply-To: Ankita Garg <ankita@in.ibm.com>
+References: <1306499498-14263-1-git-send-email-ankita@in.ibm.com>
+ <20110629130038.GA7909@in.ibm.com>
+ <1309367184.11430.594.camel@nimitz>
+ <20110629174220.GA9152@in.ibm.com>
+ <1309370342.11430.604.camel@nimitz>
+ <20110629181755.GG3646@dirshya.in.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110629181755.GG3646@dirshya.in.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "bsingharora@gmail.com" <bsingharora@gmail.com>, Michal Hocko <mhocko@suse.cz>, Ying Han <yinghan@google.com>
+To: Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>
+Cc: Dave Hansen <dave@linux.vnet.ibm.com>, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-pm@lists.linux-foundation.org, thomas.abraham@linaro.org, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Matthew Garrett <mjg59@srcf.ucam.org>, Arjan van de Ven <arjan@infradead.org>
 
-On Wed, 29 Jun 2011 13:00:43 -0700
-Andrew Morton <akpm@linux-foundation.org> wrote:
-
-> On Wed, 29 Jun 2011 19:03:25 +0900
-> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+On Wed, Jun 29, 2011 at 11:47:55PM +0530, Vaidyanathan Srinivasan wrote:
+> * Dave Hansen <dave@linux.vnet.ibm.com> [2011-06-29 10:59:02]:
 > 
-> > Each memory cgroup has 'swappiness' value and it can be accessed by
-> > get_swappiness(memcg). The major user is try_to_free_mem_cgroup_pages()
-> > and swappiness is passed by argument. It's propagated by scan_control.
+> > On Wed, 2011-06-29 at 23:12 +0530, Ankita Garg wrote:
+> 
+> > > 	5. Being able to group these pieces of hardware for purpose of
+> > > 	   higher savings. 
 > > 
-> > get_swappiness is static function but some planned updates will need to
-> > get swappiness from files other than memcontrol.c
-> > This patch exports get_swappiness() as mem_cgroup_swappiness().
-> > By this, we can remove the argument of swapiness from try_to_free...
-> > and drop swappiness from scan_control. only memcg uses it.
-> > 
+> > Do you really mean group, or do you mean "turn as many off as possible"?
 > 
-> > +extern unsigned int mem_cgroup_swappiness(struct mem_cgroup *mem);
-> > +unsigned int mem_cgroup_swappiness(struct mem_cgroup *memcg)
-> > +static int vmscan_swappiness(struct scan_control *sc)
-> 
-> The patch seems a bit confused about the signedness of swappiness.
-> 
+> Grouping based on hardware topology could help save more power at
+> higher granularity.  In most cases just turning as many off as
+> possible will work.  But the design should allow grouping based on
+> certain rules or hierarchies.
+>
 
-ok, v3 here. Now, memcg's one use "int" because vm_swapiness is "int".
-==
+For instance, on the Samsung Exynos 4210 board, the controller
+dynamically transitions 512MB of memory into lower powerdown state
+depending on whether it is being actively referenced or not.
+Additionally, if two such 512MB devices are free (as hinted by
+software), the controller can cut the clock going into that memory
+channel to which the two devices are connected, further reducing the
+power consumption.
+ 
+-- 
+Regards,
+eAnkita Garg (ankita@in.ibm.com)
+Linux Technology Center
+IBM India Systems & Technology Labs,
+Bangalore, India
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
