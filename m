@@ -1,162 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 699936B0012
-	for <linux-mm@kvack.org>; Thu, 30 Jun 2011 06:19:41 -0400 (EDT)
-Date: Thu, 30 Jun 2011 11:19:31 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 4/4] mm: vmscan: Only read new_classzone_idx from pgdat
- when reclaiming successfully
-Message-ID: <20110630101931.GZ9396@suse.de>
-References: <1308926697-22475-1-git-send-email-mgorman@suse.de>
- <1308926697-22475-5-git-send-email-mgorman@suse.de>
- <4E0C3C77.8010608@jp.fujitsu.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id F0C236B0012
+	for <linux-mm@kvack.org>; Thu, 30 Jun 2011 10:32:57 -0400 (EDT)
+Received: by vxg38 with SMTP id 38so2415255vxg.14
+        for <linux-mm@kvack.org>; Thu, 30 Jun 2011 07:32:55 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <4E0C3C77.8010608@jp.fujitsu.com>
+In-Reply-To: <20110629080827.GA975@phantom.vanrein.org>
+References: <fa.fHPNPTsllvyE/7DxrKwiwgVbVww@ifi.uio.no>
+	<532cc290-4b9c-4eb2-91d4-aa66c01bb3a0@glegroupsg2000goo.googlegroups.com>
+	<BANLkTik3mEJGXLrf_XtssfdRypm3NxBKvkhcnUpK=YXV6ux=Ag@mail.gmail.com>
+	<20110629080827.GA975@phantom.vanrein.org>
+Date: Thu, 30 Jun 2011 15:32:54 +0100
+Message-ID: <BANLkTimMFCh+bgF8FaQYUbVrshxUReD_Xw@mail.gmail.com>
+Subject: Re: [PATCH v2 0/3] support for broken memory modules (BadRAM)
+From: Jody Belka <jody+lkml@jj79.org>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: akpm@linux-foundation.org, P@draigBrady.com, James.Bottomley@HansenPartnership.com, colin.king@canonical.com, minchan.kim@gmail.com, luto@mit.edu, riel@redhat.com, hannes@cmpxchg.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Rick van Rein <rick@vanrein.org>
+Cc: Craig Bergstrom <craigb@google.com>, fa.linux.kernel@googlegroups.com, "H. Peter Anvin" <hpa@zytor.com>, Stefan Assmann <sassmann@kpanic.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "Luck, Tony" <tony.luck@intel.com>, Andi Kleen <andi@firstfloor.org>, "mingo@elte.hu" <mingo@elte.hu>, "rdunlap@xenotime.net" <rdunlap@xenotime.net>, Nancy Yuen <yuenn@google.com>, Michael Ditto <mditto@google.com>
 
-On Thu, Jun 30, 2011 at 06:05:59PM +0900, KOSAKI Motohiro wrote:
-> (2011/06/24 23:44), Mel Gorman wrote:
-> > During allocator-intensive workloads, kswapd will be woken frequently
-> > causing free memory to oscillate between the high and min watermark.
-> > This is expected behaviour.  Unfortunately, if the highest zone is
-> > small, a problem occurs.
-> > 
-> > When balance_pgdat() returns, it may be at a lower classzone_idx than
-> > it started because the highest zone was unreclaimable. Before checking
-> > if it should go to sleep though, it checks pgdat->classzone_idx which
-> > when there is no other activity will be MAX_NR_ZONES-1. It interprets
-> > this as it has been woken up while reclaiming, skips scheduling and
-> > reclaims again. As there is no useful reclaim work to do, it enters
-> > into a loop of shrinking slab consuming loads of CPU until the highest
-> > zone becomes reclaimable for a long period of time.
-> > 
-> > There are two problems here. 1) If the returned classzone or order is
-> > lower, it'll continue reclaiming without scheduling. 2) if the highest
-> > zone was marked unreclaimable but balance_pgdat() returns immediately
-> > at DEF_PRIORITY, the new lower classzone is not communicated back to
-> > kswapd() for sleeping.
-> > 
-> > This patch does two things that are related. If the end_zone is
-> > unreclaimable, this information is communicated back. Second, if
-> > the classzone or order was reduced due to failing to reclaim, new
-> > information is not read from pgdat and instead an attempt is made to go
-> > to sleep. Due to this, it is also necessary that pgdat->classzone_idx
-> > be initialised each time to pgdat->nr_zones - 1 to avoid re-reads
-> > being interpreted as wakeups.
-> > 
-> > Reported-and-tested-by: Padraig Brady <P@draigBrady.com>
-> > Signed-off-by: Mel Gorman <mgorman@suse.de>
-> > ---
-> >  mm/vmscan.c |   34 +++++++++++++++++++++-------------
-> >  1 files changed, 21 insertions(+), 13 deletions(-)
-> > 
-> > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > index a76b6cc2..fe854d7 100644
-> > --- a/mm/vmscan.c
-> > +++ b/mm/vmscan.c
-> > @@ -2448,7 +2448,6 @@ loop_again:
-> >  			if (!zone_watermark_ok_safe(zone, order,
-> >  					high_wmark_pages(zone), 0, 0)) {
-> >  				end_zone = i;
-> > -				*classzone_idx = i;
-> >  				break;
-> >  			}
-> >  		}
-> > @@ -2528,8 +2527,11 @@ loop_again:
-> >  			    total_scanned > sc.nr_reclaimed + sc.nr_reclaimed / 2)
-> >  				sc.may_writepage = 1;
-> >  
-> > -			if (zone->all_unreclaimable)
-> > +			if (zone->all_unreclaimable) {
-> > +				if (end_zone && end_zone == i)
-> > +					end_zone--;
-> >  				continue;
-> > +			}
-> >  
-> >  			if (!zone_watermark_ok_safe(zone, order,
-> >  					high_wmark_pages(zone), end_zone, 0)) {
-> > @@ -2709,8 +2711,8 @@ static void kswapd_try_to_sleep(pg_data_t *pgdat, int order, int classzone_idx)
-> >   */
-> >  static int kswapd(void *p)
-> >  {
-> > -	unsigned long order;
-> > -	int classzone_idx;
-> > +	unsigned long order, new_order;
-> > +	int classzone_idx, new_classzone_idx;
-> >  	pg_data_t *pgdat = (pg_data_t*)p;
-> >  	struct task_struct *tsk = current;
-> >  
-> > @@ -2740,17 +2742,23 @@ static int kswapd(void *p)
-> >  	tsk->flags |= PF_MEMALLOC | PF_SWAPWRITE | PF_KSWAPD;
-> >  	set_freezable();
-> >  
-> > -	order = 0;
-> > -	classzone_idx = MAX_NR_ZONES - 1;
-> > +	order = new_order = 0;
-> > +	classzone_idx = new_classzone_idx = pgdat->nr_zones - 1;
-> >  	for ( ; ; ) {
-> > -		unsigned long new_order;
-> > -		int new_classzone_idx;
-> >  		int ret;
-> >  
-> > -		new_order = pgdat->kswapd_max_order;
-> > -		new_classzone_idx = pgdat->classzone_idx;
-> > -		pgdat->kswapd_max_order = 0;
-> > -		pgdat->classzone_idx = MAX_NR_ZONES - 1;
-> > +		/*
-> > +		 * If the last balance_pgdat was unsuccessful it's unlikely a
-> > +		 * new request of a similar or harder type will succeed soon
-> > +		 * so consider going to sleep on the basis we reclaimed at
-> > +		 */
-> > +		if (classzone_idx >= new_classzone_idx && order == new_order) {
-> 
-> I'm confusing this. If we take a following scenario, new_classzone_idx may be garbage.
-> 
-> 1. new_classzone_idx = pgdat->classzone_idx
-> 2. kswapd_try_to_sleep()
-> 3. classzone_idx = pgdat->classzone_idx
-> 4. balance_pgdat()
-> 
-> Wouldn't we need to reinitialize new_classzone_idx nad new_order at kswapd_try_to_sleep()
-> path too?
-> 
+On 29 June 2011 09:08, Rick van Rein <rick@vanrein.org> wrote:
+>
+> Hello Craig,
+>
+> > Some folks had mentioned that they're interested in details about what
+> > we've learned about bad ram from our fleet of machines. =C2=A0I suspect
+> > that you need ACM portal access to read this,
+>
+> I'm happy that this didn't cause a flame, but clearly this is not the
+> right response in an open environment. =C2=A0ACM may have copyright on th=
+e
+> *form* in which you present your knowledge, but could you please poor
+> the knowledge in another form that bypasses their copyright so the
+> knowledge is made available to all?
 
-I don't understand your question. new_classzone_idx is initialised
-before the kswapd main loop and after this patch is only updated
-only when balance_pgdat() successfully balanced but the following
-situation can arise
-
-1. Read for balance-request-A (order, classzone) pair
-2. Fail balance_pgdat
-3. Sleep based on (order, classzone) pair
-4. Wake for balance-request-B (order, classzone) pair where
-   balance-request-B != balance-request-A
-5. Succeed balance_pgdat
-6. Compare order,classzone with balance-request-A which will treat
-   balance_pgdat() as fail and try go to sleep
-
-This is not the same as new_classzone_idx being "garbage" but is it
-what you mean? If so, is this your proposed fix?
-
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index fe854d7..1a518e6 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2770,6 +2770,8 @@ static int kswapd(void *p)
- 			kswapd_try_to_sleep(pgdat, order, classzone_idx);
- 			order = pgdat->kswapd_max_order;
- 			classzone_idx = pgdat->classzone_idx;
-+			new_order = order;
-+			new_classzone_idx = classzone_idx;
- 			pgdat->kswapd_max_order = 0;
- 			pgdat->classzone_idx = pgdat->nr_zones - 1;
- 		}
+Luckily one of the authors (Bianca Schroeder) has a copy on her
+university web space, free for personal/classroom use. Can be found at
+http://www.cs.toronto.edu/~bianca/, search for "DRAM errors in the
+wild".
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
