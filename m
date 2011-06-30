@@ -1,47 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 6AC5C6B00EA
-	for <linux-mm@kvack.org>; Wed, 29 Jun 2011 17:24:44 -0400 (EDT)
-Received: by vxg38 with SMTP id 38so1745779vxg.14
-        for <linux-mm@kvack.org>; Wed, 29 Jun 2011 14:24:41 -0700 (PDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 8EA256B0092
+	for <linux-mm@kvack.org>; Wed, 29 Jun 2011 22:24:02 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 4AC073EE0C0
+	for <linux-mm@kvack.org>; Thu, 30 Jun 2011 11:23:59 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 2FA9345DE61
+	for <linux-mm@kvack.org>; Thu, 30 Jun 2011 11:23:59 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 1473045DE7E
+	for <linux-mm@kvack.org>; Thu, 30 Jun 2011 11:23:59 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 04DFA1DB8038
+	for <linux-mm@kvack.org>; Thu, 30 Jun 2011 11:23:59 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id C5E6F1DB803A
+	for <linux-mm@kvack.org>; Thu, 30 Jun 2011 11:23:58 +0900 (JST)
+Message-ID: <4E0BDE2B.50006@jp.fujitsu.com>
+Date: Thu, 30 Jun 2011 11:23:39 +0900
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <BANLkTi=2ZMmrwMrnyEyEZAEsCUQNnd5n1j8J0xzSEF=ahrJmLw@mail.gmail.com>
-References: <fa.fHPNPTsllvyE/7DxrKwiwgVbVww@ifi.uio.no>
-	<532cc290-4b9c-4eb2-91d4-aa66c01bb3a0@glegroupsg2000goo.googlegroups.com>
-	<BANLkTik3mEJGXLrf_XtssfdRypm3NxBKvkhcnUpK=YXV6ux=Ag@mail.gmail.com>
-	<20110629080827.GA975@phantom.vanrein.org>
-	<BANLkTikw9bnrurUo8n-6yUwwQ0zOv5iAOBDt=T6Nm6nkUd7vLA@mail.gmail.com>
-	<BANLkTi=2ZMmrwMrnyEyEZAEsCUQNnd5n1j8J0xzSEF=ahrJmLw@mail.gmail.com>
-Date: Wed, 29 Jun 2011 14:24:41 -0700
-Message-ID: <BANLkTinN0EOH=OMQ8idG7Xt5OufU-6Rn3A@mail.gmail.com>
-Subject: Re: [PATCH v2 0/3] support for broken memory modules (BadRAM)
-From: Tony Luck <tony.luck@intel.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH 1/4] mm: vmscan: Correct check for kswapd sleeping in
+ sleeping_prematurely
+References: <1308926697-22475-1-git-send-email-mgorman@suse.de> <1308926697-22475-2-git-send-email-mgorman@suse.de>
+In-Reply-To: <1308926697-22475-2-git-send-email-mgorman@suse.de>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Craig Bergstrom <craigb@google.com>
-Cc: linux-kernel@vger.kernel.org, fa.linux.kernel@googlegroups.com, Rick van Rein <rick@vanrein.org>, "H. Peter Anvin" <hpa@zytor.com>, Stefan Assmann <sassmann@kpanic.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, "mingo@elte.hu" <mingo@elte.hu>, "rdunlap@xenotime.net" <rdunlap@xenotime.net>, Nancy Yuen <yuenn@google.com>, Michael Ditto <mditto@google.com>
+To: mgorman@suse.de
+Cc: akpm@linux-foundation.org, P@draigBrady.com, James.Bottomley@HansenPartnership.com, colin.king@canonical.com, minchan.kim@gmail.com, luto@mit.edu, riel@redhat.com, hannes@cmpxchg.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-One extra consideration for this whole proposal ...
+(2011/06/24 23:44), Mel Gorman wrote:
+> During allocator-intensive workloads, kswapd will be woken frequently
+> causing free memory to oscillate between the high and min watermark.
+> This is expected behaviour.
+> 
+> A problem occurs if the highest zone is small.  balance_pgdat()
+> only considers unreclaimable zones when priority is DEF_PRIORITY
+> but sleeping_prematurely considers all zones. It's possible for this
+> sequence to occur
+> 
+>   1. kswapd wakes up and enters balance_pgdat()
+>   2. At DEF_PRIORITY, marks highest zone unreclaimable
+>   3. At DEF_PRIORITY-1, ignores highest zone setting end_zone
+>   4. At DEF_PRIORITY-1, calls shrink_slab freeing memory from
+>         highest zone, clearing all_unreclaimable. Highest zone
+>         is still unbalanced
+>   5. kswapd returns and calls sleeping_prematurely
+>   6. sleeping_prematurely looks at *all* zones, not just the ones
+>      being considered by balance_pgdat. The highest small zone
+>      has all_unreclaimable cleared but but the zone is not
+>      balanced. all_zones_ok is false so kswapd stays awake
+> 
+> This patch corrects the behaviour of sleeping_prematurely to check
+> the zones balance_pgdat() checked.
+> 
+> Reported-and-tested-by: PA!draig Brady <P@draigBrady.com>
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
+> ---
+>  mm/vmscan.c |    2 +-
+>  1 files changed, 1 insertions(+), 1 deletions(-)
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 8ff834e..841e3bf 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2323,7 +2323,7 @@ static bool sleeping_prematurely(pg_data_t *pgdat, int order, long remaining,
+>  		return true;
+>  
+>  	/* Check the watermark levels */
+> -	for (i = 0; i < pgdat->nr_zones; i++) {
+> +	for (i = 0; i <= classzone_idx; i++) {
+>  		struct zone *zone = pgdat->node_zones + i;
+>  
+>  		if (!populated_zone(zone))
 
-Is the "physical address" a stable enough representation of the location
-of the faulty memory cells?
+sorry for the delay.
+	Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-On high end systems I can see a number of ways where the mapping
-from cells to physical address may change across reboot:
 
-1) System support redundant memory (rank sparing or mirroring)
-2) BIOS self test removes some memory from use
-3) A multi-node system elects a different node to be boot-meister,
-which results in reshuffling of the address map.
 
-If any of these can happen: then it doesn't matter whether we have
-a list of addresses, or a pattern that expands to a list of addresses.
-We'll still mark some innocent memory as bad, and allow some known
-bad memory to be used - because our "addresses" no longer correspond
-to the bad memory cells.
-
--Tony
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
