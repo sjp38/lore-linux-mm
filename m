@@ -1,68 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id D25286B0083
-	for <linux-mm@kvack.org>; Thu, 30 Jun 2011 01:11:37 -0400 (EDT)
-Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
-	by e28smtp01.in.ibm.com (8.14.4/8.13.1) with ESMTP id p5U5BPFe015239
-	for <linux-mm@kvack.org>; Thu, 30 Jun 2011 10:41:25 +0530
-Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
-	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p5U5BPvC3977222
-	for <linux-mm@kvack.org>; Thu, 30 Jun 2011 10:41:25 +0530
-Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
-	by d28av01.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p5U5BOjd024174
-	for <linux-mm@kvack.org>; Thu, 30 Jun 2011 10:41:24 +0530
-Date: Thu, 30 Jun 2011 10:41:23 +0530
-From: Ankita Garg <ankita@in.ibm.com>
-Subject: Re: [PATCH 00/10] mm: Linux VM Infrastructure to support Memory
- Power Management
-Message-ID: <20110630051123.GD12667@in.ibm.com>
-Reply-To: Ankita Garg <ankita@in.ibm.com>
-References: <1306499498-14263-1-git-send-email-ankita@in.ibm.com>
- <20110629130038.GA7909@in.ibm.com>
- <1309367184.11430.594.camel@nimitz>
- <20110629174220.GA9152@in.ibm.com>
- <1309370342.11430.604.camel@nimitz>
- <m2y60k1jqj.fsf@firstfloor.org>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id A1B486B0083
+	for <linux-mm@kvack.org>; Thu, 30 Jun 2011 02:32:37 -0400 (EDT)
+Date: Thu, 30 Jun 2011 08:32:32 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] [Cleanup] memcg: export memory cgroup's swappiness v2
+Message-ID: <20110630063231.GA12342@tiehlicka.suse.cz>
+References: <20110629190325.28aa2dc6.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110629130043.4dc47249.akpm@linux-foundation.org>
+ <20110630123229.37424449.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <m2y60k1jqj.fsf@firstfloor.org>
+In-Reply-To: <20110630123229.37424449.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Dave Hansen <dave@linux.vnet.ibm.com>, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-pm@lists.linux-foundation.org, svaidy@linux.vnet.ibm.com, thomas.abraham@linaro.org, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Matthew Garrett <mjg59@srcf.ucam.org>, Arjan van de Ven <arjan@infradead.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "bsingharora@gmail.com" <bsingharora@gmail.com>, Ying Han <yinghan@google.com>
 
-Hi,
+On Thu 30-06-11 12:32:29, KAMEZAWA Hiroyuki wrote:
+> On Wed, 29 Jun 2011 13:00:43 -0700
+> Andrew Morton <akpm@linux-foundation.org> wrote:
+> 
+> > On Wed, 29 Jun 2011 19:03:25 +0900
+> > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> > 
+> > > Each memory cgroup has 'swappiness' value and it can be accessed by
+> > > get_swappiness(memcg). The major user is try_to_free_mem_cgroup_pages()
+> > > and swappiness is passed by argument. It's propagated by scan_control.
+> > > 
+> > > get_swappiness is static function but some planned updates will need to
+> > > get swappiness from files other than memcontrol.c
+> > > This patch exports get_swappiness() as mem_cgroup_swappiness().
+> > > By this, we can remove the argument of swapiness from try_to_free...
+> > > and drop swappiness from scan_control. only memcg uses it.
+> > > 
+> > 
+> > > +extern unsigned int mem_cgroup_swappiness(struct mem_cgroup *mem);
+> > > +unsigned int mem_cgroup_swappiness(struct mem_cgroup *memcg)
+> > > +static int vmscan_swappiness(struct scan_control *sc)
+> > 
+> > The patch seems a bit confused about the signedness of swappiness.
+> > 
+> 
+> ok, v3 here. Now, memcg's one use "int" because vm_swapiness is "int".
+> ==
+> 
+> From af1bae8f2c6a8dbff048222bb45c7162b505f38b Mon Sep 17 00:00:00 2001
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Date: Wed, 29 Jun 2011 18:24:49 +0900
+> Subject: [PATCH] export memory cgroup's swappines by mem_cgroup_swappiness()
+> 
+> Each memory cgroup has 'swappiness' value and it can be accessed by
+> get_swappiness(memcg). The major user is try_to_free_mem_cgroup_pages()
+> and swappiness is passed by argument. It's propagated by scan_control.
+> 
+> get_swappiness is static function but some planned updates will need to
+> get swappiness from files other than memcontrol.c
+> This patch exports get_swappiness() as mem_cgroup_swappiness().
+> By this, we can remove the argument of swapiness from try_to_free...
+> and drop swappiness from scan_control. only memcg uses it.
+> 
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Wed, Jun 29, 2011 at 01:11:00PM -0700, Andi Kleen wrote:
-> Dave Hansen <dave@linux.vnet.ibm.com> writes:
-> >
-> > It's also going to be a pain to track kernel references.  On x86, our
-> 
+Reviewed-by: Michal Hocko <mhocko@suse.cz>
 
-As Vaidy mentioned, we are only looking at memory being either allocated
-or free, as a way to evacuate it. Tracking memory references, no doubt,
-is a difficult proposition and might involve a lot of overhead.
- 
-> Even if you tracked them what would you do with them?
->
-> It's quite hard to stop using arbitary kernel memory (see all the dancing
-> memory-failure does) 
 > 
-> You need to track the direct accesses to user data which happens
-> to be accessed through the direct mapping.
+> Changelog:
+>   - adjusted signedness to vm_swappiness.
+>   - drop swappiness from scan_control
+> ---
+>  include/linux/swap.h |   10 +++++++---
+>  mm/memcontrol.c      |   15 +++++++--------
+>  mm/vmscan.c          |   23 ++++++++++-------------
+>  3 files changed, 24 insertions(+), 24 deletions(-)
 > 
-> Also it will be always unreliable because this all won't track DMA.
-> For that you would also need to track in the dma_* infrastructure,
-> which will likely get seriously expensive.
-> 
+[...]
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 3e7d5e6..db70176 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+[...]
+> @@ -4288,7 +4287,7 @@ static u64 mem_cgroup_swappiness_read(struct cgroup *cgrp, struct cftype *cft)
+>  {
+>  	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
+>  
+> -	return get_swappiness(memcg);
+> +	return mem_cgroup_swappiness(memcg);
+>  }
 
+If you want to be type clean you should change this one as well. I
+think it is worth it, though. The function is called only to return the
+current value to userspace and mem_cgroup_swappiness_write guaranties
+that it falls down into <0,100> interval. Additionally, cftype doesn't
+have any read specialization for int values so you would need to use a
+generic one. Finally if you changed read part you should change also
+write part and add > 0 check which is a lot of code for not that good
+reason.
 -- 
-Regards,
-Ankita Garg (ankita@in.ibm.com)
-Linux Technology Center
-IBM India Systems & Technology Labs,
-Bangalore, India
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
