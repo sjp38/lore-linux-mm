@@ -1,81 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id AACA46B0092
-	for <linux-mm@kvack.org>; Wed, 29 Jun 2011 22:31:47 -0400 (EDT)
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C64D6B0092
+	for <linux-mm@kvack.org>; Wed, 29 Jun 2011 22:37:46 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id CFC143EE0C1
+	for <linux-mm@kvack.org>; Thu, 30 Jun 2011 11:37:42 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id A99E945DE61
+	for <linux-mm@kvack.org>; Thu, 30 Jun 2011 11:37:42 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 8037045DE5B
+	for <linux-mm@kvack.org>; Thu, 30 Jun 2011 11:37:42 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6E9DC1DB8054
+	for <linux-mm@kvack.org>; Thu, 30 Jun 2011 11:37:42 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 2A33E1DB804E
+	for <linux-mm@kvack.org>; Thu, 30 Jun 2011 11:37:42 +0900 (JST)
+Message-ID: <4E0BE164.7080505@jp.fujitsu.com>
+Date: Thu, 30 Jun 2011 11:37:24 +0900
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 MIME-Version: 1.0
-Message-ID: <f6415652-5925-4aad-b8be-900ce3afd902@default>
-Date: Wed, 29 Jun 2011 19:31:23 -0700 (PDT)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: frontswap/zcache: xvmalloc discussion
-References: <4E023F61.8080904@linux.vnet.ibm.com>
- <0a3a5959-5d8f-4f62-a879-34266922c59f@default
- 4E03B75A.9040203@linux.vnet.ibm.com
- 89b9d94d-27d1-4f51-ab7e-b2210b6b0eb5@default>
-In-Reply-To: <89b9d94d-27d1-4f51-ab7e-b2210b6b0eb5@default>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
+Subject: Re: [PATCH 2/4] mm: vmscan: Do not apply pressure to slab if we are
+ not applying pressure to zone
+References: <1308926697-22475-1-git-send-email-mgorman@suse.de> <1308926697-22475-3-git-send-email-mgorman@suse.de>
+In-Reply-To: <1308926697-22475-3-git-send-email-mgorman@suse.de>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: linux-mm <linux-mm@kvack.org>, Nitin Gupta <ngupta@vflare.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, Brian King <brking@linux.vnet.ibm.com>, Greg Kroah-Hartman <gregkh@suse.de>, Dave Hansen <dave@sr71.net>
+To: mgorman@suse.de
+Cc: akpm@linux-foundation.org, P@draigBrady.com, James.Bottomley@HansenPartnership.com, colin.king@canonical.com, minchan.kim@gmail.com, luto@mit.edu, riel@redhat.com, hannes@cmpxchg.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-> > > One neat feature of frontswap (and the underlying Transcendent
-> > > Memory definition) is that ANY PUT may be rejected**.  So zcache
-> > > could keep track of the distribution of "zsize" and if the number
-> > > of pages with zsize>PAGE_SIZE/2 greatly exceeds the number of pages
-> > > with "complementary zsize", the frontswap code in zcache can reject
-> > > the larger pages until balance/sanity is restored.
-> > >
-> > > Might that help?
-> >
-> > We could do that, but I imagine that would let a lot of pages through
-> > on most workloads.  Ideally, I'd like to find a solution that would
-> > capture and (efficiently) store pages that compressed to up to 80% of
-> > their original size.
->=20
-> After thinking about this a bit, I have to disagree.  For workloads
-> where the vast majority of pages have zsize>PAGE_SIZE/2, this would
-> let a lot of pages through.  So if you are correct that LZO
-> is poor at compression and a large majority of pages are in
-> this category, some page-crossing scheme is necessary.  However,
-> that isn't what I've seen... the zsize of many swap pages is
-> quite small.
->=20
-> So before commencing on a major compression rewrite, it might
-> be a good idea to measure distribution of zsize for swap pages
-> on a large variety of workloads.  This could probably be done
-> by adding a code snippet in the swap path of a normal (non-zcache)
-> kernel.  And if the distribution is bad, replacing LZO with a
-> higher-compression-but-slower algorithm might be the best answer,
-> since zcache is replacing VERY slow swap-device reads/writes with
-> reasonably fast compression/decompression.  I certainly think
-> that an algorithm approaching an average 50% compression ratio
-> should be the goal.
+(2011/06/24 23:44), Mel Gorman wrote:
+> During allocator-intensive workloads, kswapd will be woken frequently
+> causing free memory to oscillate between the high and min watermark.
+> This is expected behaviour.
+> 
+> When kswapd applies pressure to zones during node balancing, it checks
+> if the zone is above a high+balance_gap threshold. If it is, it does
+> not apply pressure but it unconditionally shrinks slab on a global
+> basis which is excessive. In the event kswapd is being kept awake due to
+> a high small unreclaimable zone, it skips zone shrinking but still
+> calls shrink_slab().
+> 
+> Once pressure has been applied, the check for zone being unreclaimable
+> is being made before the check is made if all_unreclaimable should be
+> set. This miss of unreclaimable can cause has_under_min_watermark_zone
+> to be set due to an unreclaimable zone preventing kswapd backing off
+> on congestion_wait().
+> 
+> Reported-and-tested-by: PA!draig Brady <P@draigBrady.com>
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
+> ---
+>  mm/vmscan.c |   23 +++++++++++++----------
+>  1 files changed, 13 insertions(+), 10 deletions(-)
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 841e3bf..9cebed1 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2507,18 +2507,18 @@ loop_again:
+>  				KSWAPD_ZONE_BALANCE_GAP_RATIO);
+>  			if (!zone_watermark_ok_safe(zone, order,
+>  					high_wmark_pages(zone) + balance_gap,
+> -					end_zone, 0))
+> +					end_zone, 0)) {
+>  				shrink_zone(priority, zone, &sc);
+> -			reclaim_state->reclaimed_slab = 0;
+> -			nr_slab = shrink_slab(&shrink, sc.nr_scanned, lru_pages);
+> -			sc.nr_reclaimed += reclaim_state->reclaimed_slab;
+> -			total_scanned += sc.nr_scanned;
+>  
+> -			if (zone->all_unreclaimable)
+> -				continue;
+> -			if (nr_slab == 0 &&
+> -			    !zone_reclaimable(zone))
+> -				zone->all_unreclaimable = 1;
+> +				reclaim_state->reclaimed_slab = 0;
+> +				nr_slab = shrink_slab(&shrink, sc.nr_scanned, lru_pages);
+> +				sc.nr_reclaimed += reclaim_state->reclaimed_slab;
+> +				total_scanned += sc.nr_scanned;
+> +
+> +				if (nr_slab == 0 && !zone_reclaimable(zone))
+> +					zone->all_unreclaimable = 1;
+> +			}
+> +
+>  			/*
+>  			 * If we've done a decent amount of scanning and
+>  			 * the reclaim ratio is low, start doing writepage
+> @@ -2528,6 +2528,9 @@ loop_again:
+>  			    total_scanned > sc.nr_reclaimed + sc.nr_reclaimed / 2)
+>  				sc.may_writepage = 1;
+>  
+> +			if (zone->all_unreclaimable)
+> +				continue;
+> +
+>  			if (!zone_watermark_ok_safe(zone, order,
+>  					high_wmark_pages(zone), end_zone, 0)) {
+>  				all_zones_ok = 0;
 
-FWIW, I've measured the distribution of zsize (pages compressed
-with frontswap) on my favorite workload (kernel "make -j2" on
-mem=3D512M to force lots of swapping) and the mean is small, close
-to 1K (PAGE_SIZE/4).  I've added some sysfs shows for both
-the current and cumulative distribution (0-63 bytes, 64-127
-bytes, ..., 4032-4095 bytes) for the next update.
+Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-I tried your program on the text of Moby Dick and the mean
-was still under 1500 bytes ((3*PAGE_SIZE)/8) with a good
-broad distribution for zsize.  I tried your program also on
-gzip'ed Moby Dick and zcache correctly rejects most of the
-pages as uncompressible and does fine on other swapped pages.
-
-So I can't reproduce what you are seeing.  Somehow you
-must create and swap a set of pages with a zsize distribution
-almost entirely between PAGE_SIZE/2 and (PAGE_SIZE*7)/8.
-How did you do that?
-
-FYI, I also added a sysfs settable for zv_max_page_size...
-if zsize exceeds it, the page is rejected.  It defaults to
-(PAGE_SIZE*7)/8, which was the non-settable hardwired
-value before.
-
-Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
