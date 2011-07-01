@@ -1,67 +1,137 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E3426B004A
-	for <linux-mm@kvack.org>; Thu, 30 Jun 2011 21:37:20 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 55E293EE0C0
-	for <linux-mm@kvack.org>; Fri,  1 Jul 2011 10:37:16 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 30FCE45DE81
-	for <linux-mm@kvack.org>; Fri,  1 Jul 2011 10:37:16 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 1708D45DE7A
-	for <linux-mm@kvack.org>; Fri,  1 Jul 2011 10:37:16 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 066011DB803F
-	for <linux-mm@kvack.org>; Fri,  1 Jul 2011 10:37:16 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id BC17A1DB8038
-	for <linux-mm@kvack.org>; Fri,  1 Jul 2011 10:37:15 +0900 (JST)
-Date: Fri, 1 Jul 2011 10:30:07 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH] [Cleanup] memcg: export memory cgroup's swappiness v2
-Message-Id: <20110701103007.8110f130.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20110701101624.a10b7e34.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20110629190325.28aa2dc6.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110630130134.63a1dd37.akpm@linux-foundation.org>
-	<20110701085013.4e8cbb02.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110701092059.be4400f7.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110630180653.1df10f38.akpm@linux-foundation.org>
-	<20110701101624.a10b7e34.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E3F26B004A
+	for <linux-mm@kvack.org>; Fri,  1 Jul 2011 03:02:49 -0400 (EDT)
+Message-ID: <4E0D7108.5070802@oracle.com>
+Date: Fri, 01 Jul 2011 00:02:32 -0700
+From: Randy Dunlap <randy.dunlap@oracle.com>
+MIME-Version: 1.0
+Subject: Re: mmotm 2011-06-30-15-59 uploaded (mm/memcontrol.c)
+References: <201106302259.p5UMxh5i019162@imap1.linux-foundation.org>	<20110630172054.49287627.randy.dunlap@oracle.com>	<20110701091525.bd8095f1.kamezawa.hiroyu@jp.fujitsu.com> <20110701095433.71c2aa18.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110701095433.71c2aa18.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "bsingharora@gmail.com" <bsingharora@gmail.com>, Michal Hocko <mhocko@suse.cz>, Ying Han <yinghan@google.com>, Shaohua Li <shaohua.li@intel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 
-On Fri, 1 Jul 2011 10:16:24 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+On 06/30/11 17:54, KAMEZAWA Hiroyuki wrote:
+> On Fri, 1 Jul 2011 09:15:25 +0900
+> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> 
+>> On Thu, 30 Jun 2011 17:20:54 -0700
+>> Randy Dunlap <randy.dunlap@oracle.com> wrote:
+>>
+>>> On Thu, 30 Jun 2011 15:59:43 -0700 akpm@linux-foundation.org wrote:
+>>>
+>>>> The mm-of-the-moment snapshot 2011-06-30-15-59 has been uploaded to
+>>>>
+>>>>    http://userweb.kernel.org/~akpm/mmotm/
+>>>>
+>>>> and will soon be available at
+>>>>    git://zen-kernel.org/kernel/mmotm.git
+>>>> or
+>>>>    git://git.cmpxchg.org/linux-mmotm.git
+>>>>
+>>>> It contains the following patches against 3.0-rc5:
+>>>
+>>> I see several of these build errors:
+>>>
+>>> mmotm-2011-0630-1559/mm/memcontrol.c:1579: error: implicit declaration of function 'mem_cgroup_node_nr_file_lru_pages'
+>>> mmotm-2011-0630-1559/mm/memcontrol.c:1583: error: implicit declaration of function 'mem_cgroup_node_nr_anon_lru_pages'
+>>>
+>>
+>> Thanks...maybe !CONFIG_NUMA again. will post a fix soon.
+>>
+> 
+> fix here. compiled and booted on !CONFIG_NUMA on my host.
+> I think I should do total cleanup of functions in mm/memcontrol.c 
+> in the next week..several functions implements similar logics....
+> ==
+> From 8773fc8b596dc56adf52fd0780c1b034291185ee Mon Sep 17 00:00:00 2001
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Date: Fri, 1 Jul 2011 09:49:54 +0900
+> Subject: [PATCH]memcg-fix-reclaimable-lru-check-in-memcg-fix2.patch
+> 
+> 
+>  memcg-fix-reclaimable-lru-check-in-memcg.patch
+>  causes following error with !CONFIG_NUMA.
+> 
+>> mmotm-2011-0630-1559/mm/memcontrol.c:1579: error: implicit declaration of function 'mem_cgroup_node_nr_file_lru_pages'
+>> mmotm-2011-0630-1559/mm/memcontrol.c:1583: error: implicit declaration of function 'mem_cgroup_node_nr_anon_lru_pages'
+>>
+> 
+> This patch fixes it by moving functions out of #ifdef.
+> 
+> Reported-by: Randy Dunlap <randy.dunlap@oracle.com>
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-> On Thu, 30 Jun 2011 18:06:53 -0700
-> Andrew Morton <akpm@linux-foundation.org> wrote:
+Acked-by: Randy Dunlap <randy.dunlap@oracle.com>
+
+Thanks.
+
+> ---
+>  mm/memcontrol.c |   23 +++++++++++------------
+>  1 files changed, 11 insertions(+), 12 deletions(-)
 > 
-> > On Fri, 1 Jul 2011 09:20:59 +0900 KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > 
-> > > On Fri, 1 Jul 2011 08:50:13 +0900
-> > > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > > 
-> > > > On Thu, 30 Jun 2011 13:01:34 -0700
-> > > > Andrew Morton <akpm@linux-foundation.org> wrote:
-> > > 
-> > > > Ok, I'll check it. Maybe I miss !CONFIG_SWAP...
-> > > > 
-> > > 
-> > > v4 here. Thank you for pointing out. I could think of several ways but
-> > > maybe this one is good because using vm_swappines with !CONFIG_SWAP seems
-> > > to be a bug.
-> > 
-> > No, it isn't a bug - swappiness also controls the kernel's eagerness to
-> > unmap and reclaim mmapped pagecache.
-> > 
-> 
-> Oh, really ? I didn't understand that.
-> 
-Hmm, anyway, this new version of fix seems better.
-==
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index db70176..fb7338f 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -1134,7 +1134,6 @@ unsigned long mem_cgroup_zone_nr_lru_pages(struct mem_cgroup *memcg,
+>  	return MEM_CGROUP_ZSTAT(mz, lru);
+>  }
+>  
+> -#ifdef CONFIG_NUMA
+>  static unsigned long mem_cgroup_node_nr_file_lru_pages(struct mem_cgroup *memcg,
+>  							int nid)
+>  {
+> @@ -1146,6 +1145,17 @@ static unsigned long mem_cgroup_node_nr_file_lru_pages(struct mem_cgroup *memcg,
+>  	return ret;
+>  }
+>  
+> +static unsigned long mem_cgroup_node_nr_anon_lru_pages(struct mem_cgroup *memcg,
+> +							int nid)
+> +{
+> +	unsigned long ret;
+> +
+> +	ret = mem_cgroup_get_zonestat_node(memcg, nid, LRU_INACTIVE_ANON) +
+> +		mem_cgroup_get_zonestat_node(memcg, nid, LRU_ACTIVE_ANON);
+> +	return ret;
+> +}
+> +
+> +#if MAX_NUMNODES > 1
+>  static unsigned long mem_cgroup_nr_file_lru_pages(struct mem_cgroup *memcg)
+>  {
+>  	u64 total = 0;
+> @@ -1157,17 +1167,6 @@ static unsigned long mem_cgroup_nr_file_lru_pages(struct mem_cgroup *memcg)
+>  	return total;
+>  }
+>  
+> -static unsigned long mem_cgroup_node_nr_anon_lru_pages(struct mem_cgroup *memcg,
+> -							int nid)
+> -{
+> -	unsigned long ret;
+> -
+> -	ret = mem_cgroup_get_zonestat_node(memcg, nid, LRU_INACTIVE_ANON) +
+> -		mem_cgroup_get_zonestat_node(memcg, nid, LRU_ACTIVE_ANON);
+> -
+> -	return ret;
+> -}
+> -
+>  static unsigned long mem_cgroup_nr_anon_lru_pages(struct mem_cgroup *memcg)
+>  {
+>  	u64 total = 0;
+
+
+-- 
+~Randy
+*** Remember to use Documentation/SubmitChecklist when testing your code ***
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
