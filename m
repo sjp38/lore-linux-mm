@@ -1,84 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 7F5216B004A
-	for <linux-mm@kvack.org>; Fri,  1 Jul 2011 12:59:34 -0400 (EDT)
-Received: by pzk4 with SMTP id 4so3772259pzk.14
-        for <linux-mm@kvack.org>; Fri, 01 Jul 2011 09:59:30 -0700 (PDT)
-Date: Fri, 1 Jul 2011 19:58:45 +0300
-From: Dan Carpenter <error27@gmail.com>
-Subject: Re: [PATCH v2] staging: zcache: support multiple clients, prep for
- KVM and RAMster
-Message-ID: <20110701165845.GG2544@shale.localdomain>
-References: <1d15f28a-56df-4cf4-9dd9-1032f211c0d0@default20110630224019.GC2544@shale.localdomain>
- <3b67511f-bad9-4c41-915b-1f6e196f4d43@default20110701083850.GE2544@shale.localdomain>
- <871d7dbc-041f-411f-b91a-cbc5aeb9db98@default>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <871d7dbc-041f-411f-b91a-cbc5aeb9db98@default>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 988526B004A
+	for <linux-mm@kvack.org>; Fri,  1 Jul 2011 19:11:23 -0400 (EDT)
+Subject: Re: [PATCH 1/2] mm: Move definition of MIN_MEMORY_BLOCK_SIZE to a
+ header
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+In-Reply-To: <20110701121408.GC28008@elte.hu>
+References: <1308013070.2874.784.camel@pasglop>
+	 <20110701121408.GC28008@elte.hu>
+Content-Type: text/plain; charset="UTF-8"
+Date: Sat, 02 Jul 2011 09:11:06 +1000
+Message-ID: <1309561866.14501.254.camel@pasglop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: Greg Kroah-Hartman <gregkh@suse.de>, Marcus Klemm <marcus.klemm@googlemail.com>, kvm@vger.kernel.org, Konrad Wilk <konrad.wilk@oracle.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, devel@linuxdriverproject.org
+To: Ingo Molnar <mingo@elte.hu>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>
 
-On Fri, Jul 01, 2011 at 07:31:54AM -0700, Dan Magenheimer wrote:
-> > Off by one errors are kind of insidious.  People cut and paste them
-> > and they spread.  If someone adds a new list of chunks then there
-> > are now two examples that are correct and two which have an extra
-> > element, so it's 50/50 that he'll copy the right one.
+On Fri, 2011-07-01 at 14:14 +0200, Ingo Molnar wrote:
+> * Benjamin Herrenschmidt <benh@kernel.crashing.org> wrote:
 > 
-> True, but these are NOT off-by-one errors... they are
-> correct-but-slightly-ugly code snippets.  (To clarify, I said
-> the *ugliness* arose when debugging an off-by-one error.)
-> 
-
-What I meant was the new arrays are *one* element too large.
-
-> Patches always welcome, and I agree that these should be
-> fixed eventually, assuming the code doesn't go away completely
-> first.. I'm simply stating the position
-> that going through another test/submit cycling to fix
-> correct-but-slightly-ugly code which is present only to
-> surface information for experiments is not high on my priority
-> list right now... unless GregKH says he won't accept the patch.
->  
-> > Btw, looking at it again, this seems like maybe a similar issue in
-> > zbud_evict_zbpg():
+> > The macro MIN_MEMORY_BLOCK_SIZE is currently defined twice in two .c
+> > files, and I need it in a third one to fix a powerpc bug, so let's
+> > first move it into a header
 > > 
-> >    516          for (i = 0; i < MAX_CHUNK; i++) {
-> >    517  retry_unbud_list_i:
+> > Signed-off-by: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+> > ---
 > > 
-> > 
-> > MAX_CHUNKS is NCHUNKS - 1.  Shouldn't that be i < NCHUNKS so that we
-> > reach the last element in the list?
+> > Ingo, Thomas: Who needs to ack the x86 bit ? I'd like to send that
+> > to Linus asap with the powerpc fix.
 > 
-> No, the last element in that list is unused.  There is a comment
-> to that effect someplace in the code.  (These lists are keeping
-> track of pages with "chunks" of available space and the last
-> entry would have no available space so is always empty.)
-
-The comment says that the first element isn't used.  Perhaps the
-comment is out of date and now it's the last element that isn't
-used.  To me, it makes sense to have an unused first element, but it
-doesn't make sense to have an unused last element.  Why not just
-make the array smaller?
-
-Also if the last element of the original arrays isn't used, then
-does that mean the last *two* elements of the new arrays aren't
-used?
-
-Getting array sizes wrong is not a "correct-but-slightly-ugly"
-thing.  *grumble* *grumble* *grumble*.  But it doesn't crash the
-system so I'm fine with it going in as is...
-
+> Acked-by: Ingo Molnar <mingo@elte.hu>
 > 
-> Thanks again for your interest... are you using zcache?
+> (btw., you can consider obvious cleanups as being implicitly acked by 
+> me and don't need to block fixes on me.)
 
-No.  I was just on the driver-devel list reviewing patches at
-random.
+Ok thanks !
 
-regards,
-dan carpenter
+Cheers,
+Ben.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
