@@ -1,57 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id BB0346B0012
-	for <linux-mm@kvack.org>; Sat,  2 Jul 2011 02:37:05 -0400 (EDT)
-Message-ID: <4E0EBC7E.4090703@internode.on.net>
-Date: Sat, 02 Jul 2011 16:06:46 +0930
-From: Arthur Marsh <arthur.marsh@internode.on.net>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 9559D6B0012
+	for <linux-mm@kvack.org>; Sat,  2 Jul 2011 06:23:47 -0400 (EDT)
+Date: Sat, 2 Jul 2011 12:23:33 +0200
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: [PATCH 2/2] powerpc/mm: Fix memory_block_size_bytes() for
+ non-pseries
+Message-ID: <20110702102333.GC17482@elte.hu>
+References: <1308013071.2874.785.camel@pasglop>
+ <20110701121516.GD28008@elte.hu>
+ <1309562112.14501.257.camel@pasglop>
 MIME-Version: 1.0
-Subject: 0bda:2838 Ezcap DVB USB adaptor - no device files created
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1309562112.14501.257.camel@pasglop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Joel Stanley <joel@jms.id.au>
-
-Hi, I bought one of these things having seen the Linux penguin on the 
-box and compiled the code from the
-http://jms.id.au/wiki/EzcapDvbAdapter web page on a quad core AMD64 
-machine using 3.0.0-rc5 Linux kernel and GCC 4.6.1 under Debian sid.
-
-On boot-up the device is at least partially recognised:
-
-[    1.430924] usb 1-5: New USB device found, idVendor=0bda, idProduct=2838
-[    1.431005] usb 1-5: Product: RTL2838UHIDIR
-[    6.245292] IR NEC protocol handler initialized
-[    6.284327] IR RC5(x) protocol handler initialized
-[    6.338049] IR RC6 protocol handler initialized
-[    6.371470] IR JVC protocol handler initialized
-[    6.448155] IR Sony protocol handler initialized
-[    6.590577] lirc_dev: IR Remote Control driver registered, major 252
-[    6.591144] IR LIRC bridge handler initialized
-[    7.085160] usbcore: registered new interface driver dvb_usb_rtl2832u
+To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>
 
 
-$ lsmod|grep dvb
-dvb_usb_rtl2832u      111764  0
-dvb_usb                18302  1 dvb_usb_rtl2832u
-dvb_core               77682  1 dvb_usb
-rc_core                18294  7 
-dvb_usb,ir_lirc_codec,ir_sony_decoder,ir_jvc_decoder,ir_rc6_decoder,ir_rc5_decoder,ir_nec_decoder
-i2c_core               23876  7 
-dvb_usb,max6650,radeon,drm_kms_helper,drm,i2c_algo_bit,i2c_piix4
-usbcore               119731  5 dvb_usb_rtl2832u,dvb_usb,ohci_hcd,ehci_hcd
+* Benjamin Herrenschmidt <benh@kernel.crashing.org> wrote:
 
-but apparently no device files are created (there is no /dev/dvb tree).
+> On Fri, 2011-07-01 at 14:15 +0200, Ingo Molnar wrote:
+> 
+> > > +/* WARNING: This is going to override the generic definition whenever
+> > > + * pseries is built-in regardless of what platform is active at boot
+> > > + * time. This is fine for now as this is the only "option" and it
+> > > + * should work everywhere. If not, we'll have to turn this into a
+> > > + * ppc_md. callback
+> > > + */
+> > 
+> > Just a small nit, please use the customary (multi-line) comment 
+> > style:
+> > 
+> >   /*
+> >    * Comment .....
+> >    * ...... goes here.
+> >    */
+> > 
+> > specified in Documentation/CodingStyle.
+> 
+> Ah ! Here goes my sneak attempts at violating coding style while 
+> nobody notices :-)
+> 
+> No seriously, that sort of stuff shouldn't be such a hard rule... 
+> In some cases the "official" way looks nicer, on some cases it's 
+> just a waste of space, and I've grown to prefer my slightly more 
+> compact form, at least depending on how the surrounding code looks 
+> like.
+>
+> Since that's all powerpc arch code, I believe I'm entitled to that 
+> little bit of flexibility in how the code looks like :-) It's not 
+> like I'm GoingToPlayWithCaps() or switching to 3-char tabs :-)
 
-Any suggestions for things to try to get this working welcome.
+It's certainly not a hard rule - but note that the file in question 
+(arch/powerpc/platforms/pseries/hotplug-memory.c) has a rather 
+inconsistent comment style, sometimes even within the same function:
 
-Regards,
+        /*
+         * Remove htab bolted mappings for this section of memory
+         */
+...
 
-Arthur.
+        /* Ensure all vmalloc mappings are flushed in case they also
+         * hit that section of memory
+         */
 
+That kind of inconsistency within the same .c file and within the 
+same function is not defensible with a "style is a matter of taste" 
+argument.
 
+As i said, it's just a small nit.
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
