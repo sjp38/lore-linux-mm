@@ -1,78 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 176386B004A
-	for <linux-mm@kvack.org>; Tue,  5 Jul 2011 13:25:35 -0400 (EDT)
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id C1FE56B007E
+	for <linux-mm@kvack.org>; Tue,  5 Jul 2011 13:25:45 -0400 (EDT)
 MIME-Version: 1.0
-Message-ID: <918f7b76-4904-41cc-9f55-c07adafb34b4@default>
-Date: Tue, 5 Jul 2011 10:25:09 -0700 (PDT)
+Message-ID: <6147447c-ecab-43ea-9b4a-1ff64b2089f0@default>
+Date: Tue, 5 Jul 2011 10:25:21 -0700 (PDT)
 From: Dan Magenheimer <dan.magenheimer@oracle.com>
 Subject: RE: [RFC] non-preemptible kernel socket for RAMster
 References: <4232c4b6-15be-42d8-be42-6e27f9188ce2@default
- 1309883430.2271.27.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
-In-Reply-To: <1309883430.2271.27.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
-Content-Type: text/plain; charset=utf-8
+ D3F292ADF945FB49B35E96C94C2061B91257D65C@nsmail.netscout.com>
+In-Reply-To: <D3F292ADF945FB49B35E96C94C2061B91257D65C@nsmail.netscout.com>
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric Dumazet <eric.dumazet@gmail.com>
-Cc: netdev@vger.kernel.org, Konrad Wilk <konrad.wilk@oracle.com>, linux-mm <linux-mm@kvack.org>
+To: "Loke, Chetan" <Chetan.Loke@netscout.com>, netdev@vger.kernel.org
+Cc: Konrad Wilk <konrad.wilk@oracle.com>, linux-mm <linux-mm@kvack.org>
 
-> From: Eric Dumazet [mailto:eric.dumazet@gmail.com]
-> Sent: Tuesday, July 05, 2011 10:31 AM
-> To: Dan Magenheimer
-> Cc: netdev@vger.kernel.org; Konrad Wilk; linux-mm
-> Subject: Re: [RFC] non-preemptible kernel socket for RAMster
+> From: Loke, Chetan [mailto:Chetan.Loke@netscout.com]
+> Sent: Tuesday, July 05, 2011 10:37 AM
+> To: Dan Magenheimer; netdev@vger.kernel.org
+> Cc: Konrad Wilk; linux-mm
+> Subject: RE: [RFC] non-preemptible kernel socket for RAMster
 >=20
-> Le mardi 05 juillet 2011 =C3=A0 08:54 -0700, Dan Magenheimer a =C3=A9crit=
- :
 > > In working on a kernel project called RAMster* (where RAM on a
 > > remote system may be used for clean page cache pages and for swap
 > > pages), I found I have need for a kernel socket to be used when
-> > in non-preemptible state.  I admit to being a networking idiot,
-> > but I have been successfully using the following small patch.
-> > I'm not sure whether I am lucky so far... perhaps more
-> > sockets or larger/different loads will require a lot more
-> > changes (or maybe even make my objective impossible).
-> > So I thought I'd post it for comment.  I'd appreciate
-> > any thoughts or suggestions.
-> >
-> > Thanks,
-> > Dan
-> >
-> > * http://events.linuxfoundation.org/events/linuxcon/magenheimer
-> >
-> > diff -Napur linux-2.6.37/net/core/sock.c linux-2.6.37-ramster/net/core/=
-sock.c
-> > --- linux-2.6.37/net/core/sock.c=092011-07-03 19:14:52.267853088 -0600
-> > +++ linux-2.6.37-ramster/net/core/sock.c=092011-07-03 19:10:04.34098079=
-9 -0600
-> > @@ -1587,6 +1587,14 @@ static void __lock_sock(struct sock *sk)
-> >  =09__acquires(&sk->sk_lock.slock)
-> >  {
-> >  =09DEFINE_WAIT(wait);
-> > +=09if (!preemptible()) {
-> > +=09=09while (sock_owned_by_user(sk)) {
-> > +=09=09=09spin_unlock_bh(&sk->sk_lock.slock);
-> > +=09=09=09cpu_relax();
-> > +=09=09=09spin_lock_bh(&sk->sk_lock.slock);
-> > +=09=09}
-> > +=09=09return;
-> > +=09}
 >=20
-> Hmm, was this tested on UP machine ?
+> How is RAMster+swap different than NBD's (pending etc?)support for SWAP
+> over NBD?
 
-Hi Eric --
+Hi Chetan --
 
-Thanks for the reply!
+Thanks for your question.
 
-I hadn't tested UP in awhile so am testing now, and it seems to
-work OK so far.  However, I am just testing my socket, *not* testing
-sockets in general.  Are you implying that this patch will
-break (kernel) sockets in general on a UP machine?  If so,
-could you be more specific as to why?  (Again, I said
-I am a networking idiot. ;-)  I played a bit with adding
-a new SOCK_ flag and triggering off of that, but this
-version of the patch seemed much simpler.
+I may be ignorant of details about NBD, but did some quick
+research using google.  If I understand correctly, swap over
+NBD is still writing to a configured swap disk on the remote
+machine.  RAMster is swapping to *RAM* on the remote machine.
+The idea is that most machines are very overprovisioned in
+RAM, and are rarely using all of their RAM, especially when
+a machine is (mostly) idle.  In other words, the "max of
+the sums" of RAM usage on a group of machines is much lower
+than the "sum of the max" of RAM usage.
+
+So if the network is sufficiently faster than disk for
+moving a page of data, RAMster provides a significant
+performance improvement.  OR RAMster may allow a significant
+reduction in the total amount of RAM across a data center.
+
+The version of RAMster I am working on now is really
+a proof-of-concept that works over sockets, using the
+ocfs2 cluster layer.  One can easily envision a future
+"exo-fabric" which allows one machine to write to the
+RAM of another machine... for this future hardware,
+RAMster becomes much more interesting.
 
 Thanks,
 Dan
