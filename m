@@ -1,132 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id D8E32900122
-	for <linux-mm@kvack.org>; Tue,  5 Jul 2011 04:23:10 -0400 (EDT)
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.31.245])
-	by e23smtp08.au.ibm.com (8.14.4/8.13.1) with ESMTP id p658Hx8J019382
-	for <linux-mm@kvack.org>; Tue, 5 Jul 2011 18:17:59 +1000
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p658N7AK987172
-	for <linux-mm@kvack.org>; Tue, 5 Jul 2011 18:23:07 +1000
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p658N7ch029987
-	for <linux-mm@kvack.org>; Tue, 5 Jul 2011 18:23:07 +1000
-From: Ankita Garg <ankita@in.ibm.com>
-Subject: [PATCH 5/5] Logging the captured reference data
-Date: Tue,  5 Jul 2011 13:52:39 +0530
-Message-Id: <1309854159-8277-6-git-send-email-ankita@in.ibm.com>
-In-Reply-To: <1309854159-8277-1-git-send-email-ankita@in.ibm.com>
-References: <1309854159-8277-1-git-send-email-ankita@in.ibm.com>
+	by kanga.kvack.org (Postfix) with SMTP id 3D2FC900122
+	for <linux-mm@kvack.org>; Tue,  5 Jul 2011 06:25:36 -0400 (EDT)
+MIME-version: 1.0
+Content-transfer-encoding: 7BIT
+Content-type: text/plain; charset=us-ascii
+Received: from eu_spt1 ([210.118.77.13]) by mailout3.w1.samsung.com
+ (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
+ with ESMTP id <0LNU009MFVMJ9W00@mailout3.w1.samsung.com> for
+ linux-mm@kvack.org; Tue, 05 Jul 2011 11:25:31 +0100 (BST)
+Received: from linux.samsung.com ([106.116.38.10])
+ by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
+ 2004)) with ESMTPA id <0LNU00GI8VMHEB@spt1.w1.samsung.com> for
+ linux-mm@kvack.org; Tue, 05 Jul 2011 11:25:30 +0100 (BST)
+Date: Tue, 05 Jul 2011 12:24:58 +0200
+From: Marek Szyprowski <m.szyprowski@samsung.com>
+Subject: RE: [PATCH 6/8] drivers: add Contiguous Memory Allocator
+In-reply-to: <1309851710-3828-7-git-send-email-m.szyprowski@samsung.com>
+Message-id: <000101cc3afd$cac46ff0$604d4fd0$%szyprowski@samsung.com>
+Content-language: pl
+References: <1309851710-3828-1-git-send-email-m.szyprowski@samsung.com>
+ <1309851710-3828-7-git-send-email-m.szyprowski@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: ankita@in.ibm.com, svaidy@linux.vnet.ibm.com, linux-kernel@vger.kernel.org
+To: Marek Szyprowski <m.szyprowski@samsung.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org
+Cc: 'Michal Nazarewicz' <mina86@mina86.com>, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Andrew Morton' <akpm@linux-foundation.org>, 'KAMEZAWA Hiroyuki' <kamezawa.hiroyu@jp.fujitsu.com>, 'Ankita Garg' <ankita@in.ibm.com>, 'Daniel Walker' <dwalker@codeaurora.org>, 'Mel Gorman' <mel@csn.ul.ie>, 'Arnd Bergmann' <arnd@arndb.de>, 'Jesse Barker' <jesse.barker@linaro.org>, 'Jonathan Corbet' <corbet@lwn.net>, 'Chunsang Jeong' <chunsang.jeong@linaro.org>
 
-Hi,
+Hello,
 
-This patch logs the reference data collected using the trace events
-framework. To enable capturing the trace, insert the module and mount
-debugfs.
+On Tuesday, July 05, 2011 9:42 AM Marek Szyprowski wrote:
 
-# modprobe memref
-# echo "memtrace:memtrace" > /debug/tracing/set_event
-# echo 1 > /debug/tracing/events/memtrace/memtrace/enable
-# echo 1 > /debug/tracing/tracing_on
-# echo 1 > /debug/tracing/tracing_enable
-# cat /debug/tracing/trace
+> The Contiguous Memory Allocator is a set of helper functions for DMA
+> mapping framework that improves allocations of contiguous memory chunks.
+> 
+> CMA grabs memory on system boot, marks it with CMA_MIGRATE_TYPE and
+> gives back to the system. Kernel is allowed to allocate movable pages
+> within CMA's managed memory so that it can be used for example for page
+> cache when DMA mapping do not use it. On dma_alloc_from_contiguous()
+> request such pages are migrated out of CMA area to free required
+> contiguous block and fulfill the request. This allows to allocate large
+> contiguous chunks of memory at any time assuming that there is enough
+> free memory available in the system.
+> 
+> This code is heavily based on earlier works by Michal Nazarewicz.
+> 
+> Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
+> Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
+> CC: Michal Nazarewicz <mina86@mina86.com>
+> ---
+>  drivers/base/Kconfig           |   77 +++++++++
+>  drivers/base/Makefile          |    1 +
+>  drivers/base/dma-contiguous.c  |  367
+> ++++++++++++++++++++++++++++++++++++++++
+>  include/linux/dma-contiguous.h |  104 +++++++++++
+>  4 files changed, 549 insertions(+), 0 deletions(-)
+>  create mode 100644 drivers/base/dma-contiguous.c
+>  create mode 100644 include/linux/dma-contiguous.h
+> 
+> diff --git a/drivers/base/Kconfig b/drivers/base/Kconfig
+> index d57e8d0..95ae1a7 100644
+> --- a/drivers/base/Kconfig
+> +++ b/drivers/base/Kconfig
+> @@ -168,4 +168,81 @@ config SYS_HYPERVISOR
+>  	bool
+>  	default n
+> 
+> +config CMA
+> +	bool "Contiguous Memory Allocator"
+> +	depends HAVE_DMA_CONTIGUOUS && HAVE_MEMBLOCK
 
+The above line should be obviously "depends on HAVE_DMA_CONTIGUOUS &&
+HAVE_MEMBLOCK".
+I'm sorry for posting broken version. 
 
-#
-#   TASK-PID    CPU#    TIMESTAMP  FUNCTION
-#      | |       |          |         |
-  memref-4402  [000]   250.274467: memtrace: 2115 6208 1
-  memref-4402  [000]   250.274467: memtrace: 2115 6272 0
-  memref-4402  [000]   250.274467: memtrace: 2115 6336 0
-  memref-4402  [000]   250.274467: memtrace: 2115 6400 1
-                                               |   |   |
-                                               V   |   V
-                                     sample number | whether referenced
-                                                   | or not
-                                                   V
-                                        physical address of the
-                                        start of the block in MB
+(snipped)
 
-sample number is a monotonically increasing unique count associated with
-a sample. Time stamp is for trace printing not access. The entire access
-pattern for all blocks will be at each interval (10ms default).
-
-This data can be post-processed by scripts to generate the overall memory
-reference pattern for a given amount of time. Temporal and spatial
-reference pattern can be obtained.
-
-This is a statistical sample where any number of reference to a block
-over the sampling interval is just marked as one.
-
-Signed-off-by: Ankita Garg <ankita@in.ibm.com>
----
- include/trace/events/memtrace.h |   28 ++++++++++++++++++++++++++++
- lib/memtrace.c                  |    4 ++++
- 2 files changed, 32 insertions(+), 0 deletions(-)
- create mode 100644 include/trace/events/memtrace.h
-
-diff --git a/include/trace/events/memtrace.h b/include/trace/events/memtrace.h
-new file mode 100644
-index 0000000..8a6cdd6
---- /dev/null
-+++ b/include/trace/events/memtrace.h
-@@ -0,0 +1,28 @@
-+#undef TRACE_SYSTEM
-+#define TRACE_SYSTEM memtrace
-+
-+#include <linux/tracepoint.h>
-+
-+#if !defined(_TRACE_MEMTRACE_H) || defined(TRACE_HEADER_MULTI_READ)
-+#define _TRACE_MEMTRACE_H
-+
-+TRACE_EVENT(memtrace,
-+	TP_PROTO(unsigned int seq, unsigned long base, unsigned long access_flag),
-+	TP_ARGS(seq, base, access_flag),
-+	TP_STRUCT__entry(
-+		__field(	unsigned int ,	seq		)
-+		__field(	unsigned long,	base		)
-+		__field(	unsigned long,	access_flag	)
-+	),
-+	TP_fast_assign(
-+		__entry->seq		= seq;
-+		__entry->base		= base;
-+		__entry->access_flag	= access_flag;
-+	),
-+	TP_printk("%u %lu %lu", __entry->seq, __entry->base, __entry->access_flag)
-+);
-+
-+#endif /* _TRACE_MEMTRACE_H */
-+
-+/* This part must be outside protection */
-+#include <trace/define_trace.h>
-diff --git a/lib/memtrace.c b/lib/memtrace.c
-index aec5b65..e9cb967 100644
---- a/lib/memtrace.c
-+++ b/lib/memtrace.c
-@@ -3,6 +3,9 @@
- #include <linux/module.h>
- #include <linux/mm.h>
- 
-+#define CREATE_TRACE_POINTS
-+#include <trace/events/memtrace.h>
-+
- /* Trace Unique identifier */
- atomic_t trace_sequence_number;
- pid_t pg_trace_pid;
-@@ -195,6 +198,7 @@ void update_and_log_data(void)
- 		 *  Can modify to dump only blocks that have been marked
- 		 *  accessed
- 		 */
-+		trace_memtrace(seq, base_addr, access_flag);
- 		memtrace_block_accessed[i].access_flag = 0;
-  	}
- 
+Best regards
 -- 
-1.7.4
+Marek Szyprowski
+Samsung Poland R&D Center
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
