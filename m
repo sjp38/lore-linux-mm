@@ -1,167 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id A484A900134
-	for <linux-mm@kvack.org>; Tue,  5 Jul 2011 10:34:16 -0400 (EDT)
-Date: Tue, 5 Jul 2011 15:34:10 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 03/27] xfs: use write_cache_pages for writeback clustering
-Message-ID: <20110705143409.GB15285@suse.de>
-References: <20110629140109.003209430@bombadil.infradead.org>
- <20110629140336.950805096@bombadil.infradead.org>
- <20110701022248.GM561@dastard>
- <20110701041851.GN561@dastard>
- <20110701093305.GA28531@infradead.org>
- <20110701154136.GA17881@localhost>
- <20110704032534.GD1026@dastard>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 56DAF900134
+	for <linux-mm@kvack.org>; Tue,  5 Jul 2011 11:54:33 -0400 (EDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20110704032534.GD1026@dastard>
+Message-ID: <4232c4b6-15be-42d8-be42-6e27f9188ce2@default>
+Date: Tue, 5 Jul 2011 08:54:06 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: [RFC] non-preemptible kernel socket for RAMster
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, Christoph Hellwig <hch@infradead.org>, Johannes Weiner <jweiner@redhat.com>, "xfs@oss.sgi.com" <xfs@oss.sgi.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: netdev@vger.kernel.org
+Cc: Konrad Wilk <konrad.wilk@oracle.com>, linux-mm <linux-mm@kvack.org>
 
-On Mon, Jul 04, 2011 at 01:25:34PM +1000, Dave Chinner wrote:
-> On Fri, Jul 01, 2011 at 11:41:36PM +0800, Wu Fengguang wrote:
-> > Christoph,
-> > 
-> > On Fri, Jul 01, 2011 at 05:33:05PM +0800, Christoph Hellwig wrote:
-> > > Johannes, Mel, Wu,
-> > > 
-> > > Dave has been stressing some XFS patches of mine that remove the XFS
-> > > internal writeback clustering in favour of using write_cache_pages.
-> > > 
-> > > As part of investigating the behaviour he found out that we're still
-> > > doing lots of I/O from the end of the LRU in kswapd.  Not only is that
-> > > pretty bad behaviour in general, but it also means we really can't
-> > > just remove the writeback clustering in writepage given how much
-> > > I/O is still done through that.
-> > > 
-> > > Any chance we could the writeback vs kswap behaviour sorted out a bit
-> > > better finally?
-> > 
-> > I once tried this approach:
-> > 
-> > http://www.spinics.net/lists/linux-mm/msg09202.html
-> > 
-> > It used a list structure that is not linearly scalable, however that
-> > part should be independently improvable when necessary.
-> 
-> I don't think that handing random writeback to the flusher thread is
-> much better than doing random writeback directly.  Yes, you added
-> some clustering, but I'm still don't think writing specific pages is
-> the best solution.
-> 
-> > The real problem was, it seem to not very effective in my test runs.
-> > I found many ->nr_pages works queued before the ->inode works, which
-> > effectively makes the flusher working on more dispersed pages rather
-> > than focusing on the dirty pages encountered in LRU reclaim.
-> 
-> But that's really just an implementation issue related to how you
-> tried to solve the problem. That could be addressed.
-> 
-> However, what I'm questioning is whether we should even care what
-> page memory reclaim wants to write - it seems to make fundamentally
-> bad decisions from an IO persepctive.
-> 
+In working on a kernel project called RAMster* (where RAM on a
+remote system may be used for clean page cache pages and for swap
+pages), I found I have need for a kernel socket to be used when
+in non-preemptible state.  I admit to being a networking idiot,
+but I have been successfully using the following small patch.
+I'm not sure whether I am lucky so far... perhaps more
+sockets or larger/different loads will require a lot more
+changes (or maybe even make my objective impossible).
+So I thought I'd post it for comment.  I'd appreciate
+any thoughts or suggestions.
 
-It sucks from an IO perspective but from the perspective of the VM that
-needs memory to be free in a particular zone or node, it's a reasonable
-request.
+Thanks,
+Dan
 
-> We have to remember that memory reclaim is doing LRU reclaim and the
-> flusher threads are doing "oldest first" writeback. IOWs, both are trying
-> to operate in the same direction (oldest to youngest) for the same
-> purpose.  The fundamental problem that occurs when memory reclaim
-> starts writing pages back from the LRU is this:
-> 
-> 	- memory reclaim has run ahead of IO writeback -
-> 
+* http://events.linuxfoundation.org/events/linuxcon/magenheimer=20
 
-This reasoning was the basis for this patch
-http://www.gossamer-threads.com/lists/linux/kernel/1251235?do=post_view_threaded#1251235
-
-i.e. if old pages are dirty then the flusher threads are either not
-awake or not doing enough work so wake them. It was flawed in a number
-of respects and never finished though.
-
-> The LRU usually looks like this:
-> 
-> 	oldest					youngest
-> 	+---------------+---------------+--------------+
-> 	clean		writeback	dirty
-> 			^		^
-> 			|		|
-> 			|		Where flusher will next work from
-> 			|		Where kswapd is working from
-> 			|
-> 			IO submitted by flusher, waiting on completion
-> 
-> 
-> If memory reclaim is hitting dirty pages on the LRU, it means it has
-> got ahead of writeback without being throttled - it's passed over
-> all the pages currently under writeback and is trying to write back
-> pages that are *newer* than what writeback is working on. IOWs, it
-> starts trying to do the job of the flusher threads, and it does that
-> very badly.
-> 
-> The $100 question is ???why is it getting ahead of writeback*?
-> 
-
-Allocating and dirtying memory faster than writeback. Large dd to USB
-stick would also trigger it.
-
-> From a brief look at the vmscan code, it appears that scanning does
-> not throttle/block until reclaim priority has got pretty high. That
-> means at low priority reclaim, it *skips pages under writeback*.
-> However, if it comes across a dirty page, it will trigger writeback
-> of the page.
-> 
-> Now call me crazy, but if we've already got a large number of pages
-> under writeback, why would we want to *start more IO* when clearly
-> the system is taking care of cleaning pages already and all we have
-> to do is wait for a short while to get clean pages ready for
-> reclaim?
-> 
-
-It doesnt' check how many pages are under writeback. Direct reclaim
-will check if the block device is congested but that is about
-it. Otherwise the expectation was the elevator would handle the
-merging of requests into a sensible patter. Also, while filesystem
-pages are getting cleaned by flushs, that does not cover anonymous
-pages being written to swap.
-
-> Indeed, I added this quick hack to prevent the VM from doing
-> writeback via pageout until after it starts blocking on writeback
-> pages:
-> 
-> @@ -825,6 +825,8 @@ static unsigned long shrink_page_list(struct list_head *page_l
->  		if (PageDirty(page)) {
->  			nr_dirty++;
->  
-> +			if (!(sc->reclaim_mode & RECLAIM_MODE_SYNC))
-> +				goto keep_locked;
->  			if (references == PAGEREF_RECLAIM_CLEAN)
->  				goto keep_locked;
->  			if (!may_enter_fs)
-> 
-> IOWs, we don't write pages from kswapd unless there is no IO
-> writeback going on at all (waited on all the writeback pages or none
-> exist) and there are dirty pages on the LRU.
-> 
-
-A side effect of this patch is that kswapd is no longer writing
-anonymous pages to swap and possibly never will. RECLAIM_MODE_SYNC is
-only set for lumpy reclaim which if you have CONFIG_COMPACTION set, will
-never happen.
-
-I see your figures and know why you want this but it never was that
-straight-forward :/
-
--- 
-Mel Gorman
-SUSE Labs
+diff -Napur linux-2.6.37/net/core/sock.c linux-2.6.37-ramster/net/core/sock=
+.c
+--- linux-2.6.37/net/core/sock.c=092011-07-03 19:14:52.267853088 -0600
++++ linux-2.6.37-ramster/net/core/sock.c=092011-07-03 19:10:04.340980799 -0=
+600
+@@ -1587,6 +1587,14 @@ static void __lock_sock(struct sock *sk)
+ =09__acquires(&sk->sk_lock.slock)
+ {
+ =09DEFINE_WAIT(wait);
++=09if (!preemptible()) {
++=09=09while (sock_owned_by_user(sk)) {
++=09=09=09spin_unlock_bh(&sk->sk_lock.slock);
++=09=09=09cpu_relax();
++=09=09=09spin_lock_bh(&sk->sk_lock.slock);
++=09=09}
++=09=09return;
++=09}
+=20
+ =09for (;;) {
+ =09=09prepare_to_wait_exclusive(&sk->sk_lock.wq, &wait,
+@@ -1623,7 +1631,8 @@ static void __release_sock(struct sock *
+ =09=09=09 * This is safe to do because we've taken the backlog
+ =09=09=09 * queue private:
+ =09=09=09 */
+-=09=09=09cond_resched_softirq();
++=09=09=09if (preemptible())
++=09=09=09=09cond_resched_softirq();
+ =09=09=09skb =3D next;
+ =09=09} while (skb !=3D NULL);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
