@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id ED986900119
-	for <linux-mm@kvack.org>; Tue,  5 Jul 2011 03:41:58 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with ESMTP id B421990011A
+	for <linux-mm@kvack.org>; Tue,  5 Jul 2011 03:41:59 -0400 (EDT)
 Received: from spt2.w1.samsung.com (mailout2.w1.samsung.com [210.118.77.12])
  by mailout2.w1.samsung.com
  (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
- with ESMTP id <0LNU00CSMO1UB7@mailout2.w1.samsung.com> for linux-mm@kvack.org;
- Tue, 05 Jul 2011 08:41:54 +0100 (BST)
+ with ESMTP id <0LNU00KU0O1VCQ@mailout2.w1.samsung.com> for linux-mm@kvack.org;
+ Tue, 05 Jul 2011 08:41:56 +0100 (BST)
 Received: from linux.samsung.com ([106.116.38.10])
  by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0LNU00EX8O1SS9@spt2.w1.samsung.com> for
- linux-mm@kvack.org; Tue, 05 Jul 2011 08:41:53 +0100 (BST)
-Date: Tue, 05 Jul 2011 09:41:45 +0200
+ 2004)) with ESMTPA id <0LNU00EY7O1TS9@spt2.w1.samsung.com> for
+ linux-mm@kvack.org; Tue, 05 Jul 2011 08:41:54 +0100 (BST)
+Date: Tue, 05 Jul 2011 09:41:49 +0200
 From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: [PATCH 3/8] mm: alloc_contig_range() added
+Subject: [PATCH 7/8] ARM: integrate CMA with dma-mapping subsystem
 In-reply-to: <1309851710-3828-1-git-send-email-m.szyprowski@samsung.com>
-Message-id: <1309851710-3828-4-git-send-email-m.szyprowski@samsung.com>
+Message-id: <1309851710-3828-8-git-send-email-m.szyprowski@samsung.com>
 MIME-version: 1.0
 Content-type: TEXT/PLAIN
 Content-transfer-encoding: 7BIT
@@ -25,192 +25,209 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org
 Cc: Michal Nazarewicz <mina86@mina86.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ankita Garg <ankita@in.ibm.com>, Daniel Walker <dwalker@codeaurora.org>, Mel Gorman <mel@csn.ul.ie>, Arnd Bergmann <arnd@arndb.de>, Jesse Barker <jesse.barker@linaro.org>, Jonathan Corbet <corbet@lwn.net>, Chunsang Jeong <chunsang.jeong@linaro.org>
 
-From: Michal Nazarewicz <m.nazarewicz@samsung.com>
+This patch adds support for CMA to dma-mapping subsystem for ARM
+architecture. By default a global CMA area is used, but specific devices
+are allowed to have their private memory areas if required (they can be
+created with dma_declare_contiguous() function during board
+initialization).
 
-This commit adds the alloc_contig_range() function which tries
-to allecate given range of pages.  It tries to migrate all
-already allocated pages that fall in the range thus freeing them.
-Once all pages in the range are freed they are removed from the
-buddy system thus allocated for the caller to use.
-
-Signed-off-by: Michal Nazarewicz <m.nazarewicz@samsung.com>
-Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
-[m.szyprowski: renamed some variables for easier code reading]
 Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
-CC: Michal Nazarewicz <mina86@mina86.com>
+Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
 ---
- include/linux/page-isolation.h |    2 +
- mm/page_alloc.c                |  144 ++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 146 insertions(+), 0 deletions(-)
+ arch/arm/Kconfig                   |    1 +
+ arch/arm/include/asm/device.h      |    3 ++
+ arch/arm/include/asm/dma-mapping.h |   20 ++++++++++++++
+ arch/arm/mm/dma-mapping.c          |   51 +++++++++++++++++++++++++++--------
+ arch/arm/mm/init.c                 |    3 ++
+ 5 files changed, 66 insertions(+), 12 deletions(-)
 
-diff --git a/include/linux/page-isolation.h b/include/linux/page-isolation.h
-index f1417ed..c5d1a7c 100644
---- a/include/linux/page-isolation.h
-+++ b/include/linux/page-isolation.h
-@@ -34,6 +34,8 @@ extern int set_migratetype_isolate(struct page *page);
- extern void unset_migratetype_isolate(struct page *page);
- extern unsigned long alloc_contig_freed_pages(unsigned long start,
- 					      unsigned long end, gfp_t flag);
-+extern int alloc_contig_range(unsigned long start, unsigned long end,
-+			      gfp_t flags);
- extern void free_contig_pages(struct page *page, int nr_pages);
+diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
+index 9adc278..3cca8cc 100644
+--- a/arch/arm/Kconfig
++++ b/arch/arm/Kconfig
+@@ -3,6 +3,7 @@ config ARM
+ 	default y
+ 	select HAVE_AOUT
+ 	select HAVE_DMA_API_DEBUG
++	select HAVE_DMA_CONTIGUOUS
+ 	select HAVE_IDE
+ 	select HAVE_MEMBLOCK
+ 	select RTC_LIB
+diff --git a/arch/arm/include/asm/device.h b/arch/arm/include/asm/device.h
+index 9f390ce..942913e 100644
+--- a/arch/arm/include/asm/device.h
++++ b/arch/arm/include/asm/device.h
+@@ -10,6 +10,9 @@ struct dev_archdata {
+ #ifdef CONFIG_DMABOUNCE
+ 	struct dmabounce_device_info *dmabounce;
+ #endif
++#ifdef CONFIG_CMA
++	struct cma *cma_area;
++#endif
+ };
  
+ struct pdev_archdata {
+diff --git a/arch/arm/include/asm/dma-mapping.h b/arch/arm/include/asm/dma-mapping.h
+index 4fff837..a3e1e48c 100644
+--- a/arch/arm/include/asm/dma-mapping.h
++++ b/arch/arm/include/asm/dma-mapping.h
+@@ -6,6 +6,7 @@
+ #include <linux/mm_types.h>
+ #include <linux/scatterlist.h>
+ #include <linux/dma-debug.h>
++#include <linux/dma-contiguous.h>
+ 
+ #include <asm-generic/dma-coherent.h>
+ #include <asm/memory.h>
+@@ -14,6 +15,25 @@
+ #error Please update to __arch_pfn_to_dma
+ #endif
+ 
++#ifdef CONFIG_CMA
++static inline struct cma *get_dev_cma_area(struct device *dev)
++{
++	if (dev->archdata.cma_area)
++		return dev->archdata.cma_area;
++	return dma_contiguous_default_area;
++}
++
++static inline void set_dev_cma_area(struct device *dev, struct cma *cma)
++{
++	dev->archdata.cma_area = cma;
++}
++#else
++static inline struct cma *get_dev_cma_area(struct device *dev)
++{
++	return NULL;
++}
++#endif
++
  /*
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 00e9b24..2cea044 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -5638,6 +5638,150 @@ unsigned long alloc_contig_freed_pages(unsigned long start, unsigned long end,
- 	return pfn;
+  * dma_to_pfn/pfn_to_dma/dma_to_virt/virt_to_dma are architecture private
+  * functions used internally by the DMA-mapping API to provide DMA
+diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
+index 82a093c..1d4e916 100644
+--- a/arch/arm/mm/dma-mapping.c
++++ b/arch/arm/mm/dma-mapping.c
+@@ -17,6 +17,7 @@
+ #include <linux/init.h>
+ #include <linux/device.h>
+ #include <linux/dma-mapping.h>
++#include <linux/dma-contiguous.h>
+ #include <linux/highmem.h>
+ 
+ #include <asm/memory.h>
+@@ -52,16 +53,35 @@ static u64 get_coherent_dma_mask(struct device *dev)
+ 	return mask;
  }
  
-+static unsigned long pfn_to_maxpage(unsigned long pfn)
-+{
-+	return pfn & ~(MAX_ORDER_NR_PAGES - 1);
-+}
 +
-+static unsigned long pfn_to_maxpage_up(unsigned long pfn)
++static struct page *__alloc_system_pages(size_t count, unsigned int order, gfp_t gfp)
 +{
-+	return ALIGN(pfn, MAX_ORDER_NR_PAGES);
-+}
++	struct page *page, *p, *e;
 +
-+#define MIGRATION_RETRY	5
-+static int __alloc_contig_migrate_range(unsigned long start, unsigned long end)
-+{
-+	int migration_failed = 0, ret;
-+	unsigned long pfn = start;
++	page = alloc_pages(gfp, order);
++	if (!page)
++		return NULL;
 +
 +	/*
-+	 * Some code "borrowed" from KAMEZAWA Hiroyuki's
-+	 * __alloc_contig_pages().
++	 * Now split the huge page and free the excess pages
 +	 */
-+
-+	for (;;) {
-+		pfn = scan_lru_pages(pfn, end);
-+		if (!pfn || pfn >= end)
-+			break;
-+
-+		ret = do_migrate_range(pfn, end);
-+		if (!ret) {
-+			migration_failed = 0;
-+		} else if (ret != -EBUSY
-+			|| ++migration_failed >= MIGRATION_RETRY) {
-+			return ret;
-+		} else {
-+			/* There are unstable pages.on pagevec. */
-+			lru_add_drain_all();
-+			/*
-+			 * there may be pages on pcplist before
-+			 * we mark the range as ISOLATED.
-+			 */
-+			drain_all_pages();
-+		}
-+		cond_resched();
-+	}
-+
-+	if (!migration_failed) {
-+		/* drop all pages in pagevec and pcp list */
-+		lru_add_drain_all();
-+		drain_all_pages();
-+	}
-+
-+	/* Make sure all pages are isolated */
-+	if (WARN_ON(test_pages_isolated(start, end)))
-+		return -EBUSY;
-+
-+	return 0;
++	split_page(page, order);
++	for (p = page + count, e = page + (1 << order); p < e; p++)
++		__free_page(p);
++	return page;
 +}
 +
-+/**
-+ * alloc_contig_range() -- tries to allocate given range of pages
-+ * @start:	start PFN to allocate
-+ * @end:	one-past-the-last PFN to allocate
-+ * @flags:	flags passed to alloc_contig_freed_pages().
-+ *
-+ * The PFN range does not have to be pageblock or MAX_ORDER_NR_PAGES
-+ * aligned, hovewer it's callers responsibility to guarantee that we
-+ * are the only thread that changes migrate type of pageblocks the
-+ * pages fall in.
-+ *
-+ * Returns zero on success or negative error code.  On success all
-+ * pages which PFN is in (start, end) are allocated for the caller and
-+ * need to be freed with free_contig_pages().
-+ */
-+int alloc_contig_range(unsigned long start, unsigned long end,
-+		       gfp_t flags)
-+{
-+	unsigned long outer_start, outer_end;
-+	int ret;
-+
-+	/*
-+	 * What we do here is we mark all pageblocks in range as
-+	 * MIGRATE_ISOLATE.  Because of the way page allocator work, we
-+	 * align the range to MAX_ORDER pages so that page allocator
-+	 * won't try to merge buddies from different pageblocks and
-+	 * change MIGRATE_ISOLATE to some other migration type.
-+	 *
-+	 * Once the pageblocks are marked as MIGRATE_ISOLATE, we
-+	 * migrate the pages from an unaligned range (ie. pages that
-+	 * we are interested in).  This will put all the pages in
-+	 * range back to page allocator as MIGRATE_ISOLATE.
-+	 *
-+	 * When this is done, we take the pages in range from page
-+	 * allocator removing them from the buddy system.  This way
-+	 * page allocator will never consider using them.
-+	 *
-+	 * This lets us mark the pageblocks back as
-+	 * MIGRATE_CMA/MIGRATE_MOVABLE so that free pages in the
-+	 * MAX_ORDER aligned range but not in the unaligned, original
-+	 * range are put back to page allocator so that buddy can use
-+	 * them.
-+	 */
-+
-+	ret = start_isolate_page_range(pfn_to_maxpage(start),
-+				       pfn_to_maxpage_up(end));
-+	if (ret)
-+		goto done;
-+
-+	ret = __alloc_contig_migrate_range(start, end);
-+	if (ret)
-+		goto done;
-+
-+	/*
-+	 * Pages from [start, end) are within a MAX_ORDER_NR_PAGES
-+	 * aligned blocks that are marked as MIGRATE_ISOLATE.  What's
-+	 * more, all pages in [start, end) are free in page allocator.
-+	 * What we are going to do is to allocate all pages from
-+	 * [start, end) (that is remove them from page allocater).
-+	 *
-+	 * The only problem is that pages at the beginning and at the
-+	 * end of interesting range may be not aligned with pages that
-+	 * page allocator holds, ie. they can be part of higher order
-+	 * pages.  Because of this, we reserve the bigger range and
-+	 * once this is done free the pages we are not interested in.
-+	 */
-+
-+	ret = 0;
-+	while (!PageBuddy(pfn_to_page(start & (~0UL << ret))))
-+		if (WARN_ON(++ret >= MAX_ORDER))
-+			return -EINVAL;
-+
-+	outer_start = start & (~0UL << ret);
-+	outer_end   = alloc_contig_freed_pages(outer_start, end, flags);
-+
-+	/* Free head and tail (if any) */
-+	if (start != outer_start)
-+		free_contig_pages(pfn_to_page(outer_start), start - outer_start);
-+	if (end != outer_end)
-+		free_contig_pages(pfn_to_page(end), outer_end - end);
-+
-+	ret = 0;
-+done:
-+	undo_isolate_page_range(pfn_to_maxpage(start), pfn_to_maxpage_up(end));
-+	return ret;
-+}
-+
- void free_contig_pages(struct page *page, int nr_pages)
+ /*
+  * Allocate a DMA buffer for 'dev' of size 'size' using the
+  * specified gfp mask.  Note that 'size' must be page aligned.
+  */
+ static struct page *__dma_alloc_buffer(struct device *dev, size_t size, gfp_t gfp)
  {
- 	for (; nr_pages; --nr_pages, ++page)
+-	unsigned long order = get_order(size);
+-	struct page *page, *p, *e;
++	struct page *page;
++	size_t count = size >> PAGE_SHIFT;
+ 	void *ptr;
+ 	u64 mask = get_coherent_dma_mask(dev);
++	unsigned long order = get_order(count << PAGE_SHIFT);
+ 
+ #ifdef CONFIG_DMA_API_DEBUG
+ 	u64 limit = (mask + 1) & ~mask;
+@@ -78,16 +98,19 @@ static struct page *__dma_alloc_buffer(struct device *dev, size_t size, gfp_t gf
+ 	if (mask < 0xffffffffULL)
+ 		gfp |= GFP_DMA;
+ 
+-	page = alloc_pages(gfp, order);
+-	if (!page)
+-		return NULL;
++	/*
++	 * First, try to allocate memory from contiguous area
++	 */
++	page = dma_alloc_from_contiguous(dev, count, order);
+ 
+ 	/*
+-	 * Now split the huge page and free the excess pages
++	 * Fallback if contiguous alloc fails or is not available
+ 	 */
+-	split_page(page, order);
+-	for (p = page + (size >> PAGE_SHIFT), e = page + (1 << order); p < e; p++)
+-		__free_page(p);
++	if (!page)
++		page = __alloc_system_pages(count, order, gfp);
++
++	if (!page)
++		return NULL;
+ 
+ 	/*
+ 	 * Ensure that the allocated pages are zeroed, and that any data
+@@ -104,9 +127,13 @@ static struct page *__dma_alloc_buffer(struct device *dev, size_t size, gfp_t gf
+ /*
+  * Free a DMA buffer.  'size' must be page aligned.
+  */
+-static void __dma_free_buffer(struct page *page, size_t size)
++static void __dma_free_buffer(struct device *dev, struct page *page, size_t size)
+ {
+-	struct page *e = page + (size >> PAGE_SHIFT);
++	size_t count = size >> PAGE_SHIFT;
++	struct page *e = page + count;
++
++	if (dma_release_from_contiguous(dev, page, count))
++		return;
+ 
+ 	while (page < e) {
+ 		__free_page(page);
+@@ -416,7 +443,7 @@ void dma_free_coherent(struct device *dev, size_t size, void *cpu_addr, dma_addr
+ 	if (!arch_is_coherent())
+ 		__dma_free_remap(cpu_addr, size);
+ 
+-	__dma_free_buffer(pfn_to_page(dma_to_pfn(dev, handle)), size);
++	__dma_free_buffer(dev, pfn_to_page(dma_to_pfn(dev, handle)), size);
+ }
+ EXPORT_SYMBOL(dma_free_coherent);
+ 
+diff --git a/arch/arm/mm/init.c b/arch/arm/mm/init.c
+index c19571c..b2dfdeb 100644
+--- a/arch/arm/mm/init.c
++++ b/arch/arm/mm/init.c
+@@ -20,6 +20,7 @@
+ #include <linux/gfp.h>
+ #include <linux/memblock.h>
+ #include <linux/sort.h>
++#include <linux/dma-contiguous.h>
+ 
+ #include <asm/mach-types.h>
+ #include <asm/prom.h>
+@@ -358,6 +359,8 @@ void __init arm_memblock_init(struct meminfo *mi, struct machine_desc *mdesc)
+ 	if (mdesc->reserve)
+ 		mdesc->reserve();
+ 
++	dma_contiguous_reserve();
++
+ 	memblock_analyze();
+ 	memblock_dump_all();
+ }
 -- 
 1.7.1.569.g6f426
 
