@@ -1,39 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 87B82900125
-	for <linux-mm@kvack.org>; Tue,  5 Jul 2011 07:34:17 -0400 (EDT)
-Date: Tue, 5 Jul 2011 12:33:45 +0100
-From: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Subject: Re: [PATCH 6/8] drivers: add Contiguous Memory Allocator
-Message-ID: <20110705113345.GA8286@n2100.arm.linux.org.uk>
-References: <1309851710-3828-1-git-send-email-m.szyprowski@samsung.com> <1309851710-3828-7-git-send-email-m.szyprowski@samsung.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 3FF8A90012A
+	for <linux-mm@kvack.org>; Tue,  5 Jul 2011 07:45:23 -0400 (EDT)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: Re: [PATCH 5/8] mm: MIGRATE_CMA isolation functions added
+Date: Tue, 5 Jul 2011 13:45:14 +0200
+References: <1309851710-3828-1-git-send-email-m.szyprowski@samsung.com> <1309851710-3828-6-git-send-email-m.szyprowski@samsung.com>
+In-Reply-To: <1309851710-3828-6-git-send-email-m.szyprowski@samsung.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1309851710-3828-7-git-send-email-m.szyprowski@samsung.com>
+Content-Type: Text/Plain;
+  charset="iso-8859-15"
+Content-Transfer-Encoding: 7bit
+Message-Id: <201107051345.14502.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Daniel Walker <dwalker@codeaurora.org>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Mel Gorman <mel@csn.ul.ie>, Chunsang Jeong <chunsang.jeong@linaro.org>, Michal Nazarewicz <mina86@mina86.com>, Jesse Barker <jesse.barker@linaro.org>, Kyungmin Park <kyungmin.park@samsung.com>, Ankita Garg <ankita@in.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Michal Nazarewicz <mina86@mina86.com>, Kyungmin Park <kyungmin.park@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ankita Garg <ankita@in.ibm.com>, Daniel Walker <dwalker@codeaurora.org>, Mel Gorman <mel@csn.ul.ie>, Jesse Barker <jesse.barker@linaro.org>, Jonathan Corbet <corbet@lwn.net>, Chunsang Jeong <chunsang.jeong@linaro.org>
 
-On Tue, Jul 05, 2011 at 09:41:48AM +0200, Marek Szyprowski wrote:
-> The Contiguous Memory Allocator is a set of helper functions for DMA
-> mapping framework that improves allocations of contiguous memory chunks.
+On Tuesday 05 July 2011, Marek Szyprowski wrote:
+> From: Michal Nazarewicz <m.nazarewicz@samsung.com>
 > 
-> CMA grabs memory on system boot, marks it with CMA_MIGRATE_TYPE and
-> gives back to the system. Kernel is allowed to allocate movable pages
-> within CMA's managed memory so that it can be used for example for page
-> cache when DMA mapping do not use it. On dma_alloc_from_contiguous()
-> request such pages are migrated out of CMA area to free required
-> contiguous block and fulfill the request. This allows to allocate large
-> contiguous chunks of memory at any time assuming that there is enough
-> free memory available in the system.
+> This commit changes various functions that change pages and
+> pageblocks migrate type between MIGRATE_ISOLATE and
+> MIGRATE_MOVABLE in such a way as to allow to work with
+> MIGRATE_CMA migrate type.
 > 
-> This code is heavily based on earlier works by Michal Nazarewicz.
+> Signed-off-by: Michal Nazarewicz <m.nazarewicz@samsung.com>
+> Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
+> Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
+> CC: Michal Nazarewicz <mina86@mina86.com>
 
-And how are you addressing the technical concerns about aliasing of
-cache attributes which I keep bringing up with this and you keep
-ignoring and telling me that I'm standing in your way.
+Acked-by: Arnd Bergmann <arnd@arndb.de>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
