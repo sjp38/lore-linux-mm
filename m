@@ -1,41 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 6A58990012A
-	for <linux-mm@kvack.org>; Tue,  5 Jul 2011 08:07:52 -0400 (EDT)
-From: Arnd Bergmann <arnd@arndb.de>
-Subject: Re: [PATCHv11 0/8] Contiguous Memory Allocator
-Date: Tue, 5 Jul 2011 14:07:17 +0200
-References: <1309851710-3828-1-git-send-email-m.szyprowski@samsung.com>
-In-Reply-To: <1309851710-3828-1-git-send-email-m.szyprowski@samsung.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id B45FF90012A
+	for <linux-mm@kvack.org>; Tue,  5 Jul 2011 08:28:26 -0400 (EDT)
+Date: Tue, 5 Jul 2011 13:27:21 +0100
+From: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Subject: Re: [PATCH 4/8] mm: MIGRATE_CMA migration type added
+Message-ID: <20110705122721.GB8286@n2100.arm.linux.org.uk>
+References: <1309851710-3828-1-git-send-email-m.szyprowski@samsung.com> <1309851710-3828-5-git-send-email-m.szyprowski@samsung.com> <201107051344.31298.arnd@arndb.de>
 MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="iso-8859-15"
-Content-Transfer-Encoding: 7bit
-Message-Id: <201107051407.17249.arnd@arndb.de>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201107051344.31298.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Michal Nazarewicz <mina86@mina86.com>, Kyungmin Park <kyungmin.park@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ankita Garg <ankita@in.ibm.com>, Daniel Walker <dwalker@codeaurora.org>, Mel Gorman <mel@csn.ul.ie>, Jesse Barker <jesse.barker@linaro.org>, Jonathan Corbet <corbet@lwn.net>, Chunsang Jeong <chunsang.jeong@linaro.org>
+To: Arnd Bergmann <arnd@arndb.de>
+Cc: Marek Szyprowski <m.szyprowski@samsung.com>, Ankita Garg <ankita@in.ibm.com>, Daniel Walker <dwalker@codeaurora.org>, Jesse Barker <jesse.barker@linaro.org>, Mel Gorman <mel@csn.ul.ie>, Chunsang Jeong <chunsang.jeong@linaro.org>, Jonathan Corbet <corbet@lwn.net>, linux-kernel@vger.kernel.org, Michal Nazarewicz <mina86@mina86.com>, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, Kyungmin Park <kyungmin.park@samsung.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org
 
-On Tuesday 05 July 2011, Marek Szyprowski wrote:
-> This is yet another round of Contiguous Memory Allocator patches. I hope
-> that I've managed to resolve all the items discussed during the Memory
-> Management summit at Linaro Meeting in Budapest and pointed later on
-> mailing lists. The goal is to integrate it as tight as possible with
-> other kernel subsystems (like memory management and dma-mapping) and
-> finally merge to mainline.
+On Tue, Jul 05, 2011 at 01:44:31PM +0200, Arnd Bergmann wrote:
+> > @@ -198,6 +198,12 @@ config MIGRATION
+> >  	  pages as migration can relocate pages to satisfy a huge page
+> >  	  allocation instead of reclaiming.
+> >  
+> > +config CMA_MIGRATE_TYPE
+> > +	bool
+> > +	help
+> > +	  This enables the use the MIGRATE_CMA migrate type, which lets lets CMA
+> > +	  work on almost arbitrary memory range and not only inside ZONE_MOVABLE.
+> > +
+> >  config PHYS_ADDR_T_64BIT
+> >  	def_bool 64BIT || ARCH_PHYS_ADDR_T_64BIT
+> 
+> This is currently only selected on ARM with your patch set. 
 
-You have certainly addressed all of my concerns, this looks really good now!
+That's because CMA is targeted at solving the "we need massive contiguous
+DMA areas" problem on ARM SoCs.
 
-Andrew, can you add this to your -mm tree? What's your opinion on the
-current state, do you think this is ready for merging in 3.1 or would
-you want to have more reviews from core memory management people?
+And it does this without addressing the technical architecture problems
+surrounding multiple aliasing mappings with differing attributes which
+actually make it unsuitable for use on ARM.  This is not the first time
+I've pointed that out, and I'm now at the point of basically ignoring
+this CMA work because I'm tired of constantly pointing this out.
 
-My reviews were mostly on the driver and platform API side, and I think
-we're fine there now, but I don't really understand the impacts this has
-in mm.
+My silence on this subject must not be taken as placid acceptance of the
+approach, but revulsion at seemingly being constantly ignored and having
+these patches pushed time and time again with nothing really changing on
+that issue.
 
-	Arnd
+It will be a sad day if these patches make their way into mainline without
+that being addressed, and will show contempt for architecture maintainers
+if it does.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
