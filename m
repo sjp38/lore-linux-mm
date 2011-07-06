@@ -1,14 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D0649000C2
-	for <linux-mm@kvack.org>; Wed,  6 Jul 2011 19:44:57 -0400 (EDT)
-Date: Wed, 6 Jul 2011 16:44:47 -0700
+	by kanga.kvack.org (Postfix) with ESMTP id 8C4689000C2
+	for <linux-mm@kvack.org>; Wed,  6 Jul 2011 19:52:26 -0400 (EDT)
+Date: Wed, 6 Jul 2011 16:51:46 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 01/14] mm: Serialize access to min_free_kbytes
-Message-Id: <20110706164447.d571051a.akpm@linux-foundation.org>
-In-Reply-To: <1308575540-25219-2-git-send-email-mgorman@suse.de>
+Subject: Re: [PATCH 00/14] Swap-over-NBD without deadlocking v5
+Message-Id: <20110706165146.be7ab61b.akpm@linux-foundation.org>
+In-Reply-To: <1308575540-25219-1-git-send-email-mgorman@suse.de>
 References: <1308575540-25219-1-git-send-email-mgorman@suse.de>
-	<1308575540-25219-2-git-send-email-mgorman@suse.de>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -17,18 +16,38 @@ List-ID: <linux-mm.kvack.org>
 To: Mel Gorman <mgorman@suse.de>
 Cc: Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Neil Brown <neilb@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-On Mon, 20 Jun 2011 14:12:07 +0100
+On Mon, 20 Jun 2011 14:12:06 +0100
 Mel Gorman <mgorman@suse.de> wrote:
 
-> There is a race between the min_free_kbytes sysctl, memory hotplug
-> and transparent hugepage support enablement.  Memory hotplug uses a
-> zonelists_mutex to avoid a race when building zonelists. Reuse it to
-> serialise watermark updates.
+> Swapping over NBD is something that is technically possible but not
+> often advised. While there are number of guides on the internet
+> on how to configure it and nbd-client supports a -swap switch to
+> "prevent deadlocks", the fact of the matter is a machine using NBD
+> for swap can be locked up within minutes if swap is used intensively.
+> 
+> The problem is that network block devices do not use mempools like
+> normal block devices do. As the host cannot control where they receive
+> packets from, they cannot reliably work out in advance how much memory
+> they might need.
+> 
+> Some years ago, Peter Ziljstra developed a series of patches that
+> supported swap over an NFS that some distributions are carrying in
+> their kernels. This patch series borrows very heavily from Peter's work
+> to support swapping over NBD (the relatively straight-forward case)
+> and uses throttling instead of dynamically resized memory reserves
+> so the series is not too unwieldy for review.
 
-This patch appears to be a standalone fix, unrelated to the overall
-patch series?
+I have to say, I look over these patches and my mind wants to turn to
+things like puppies.  And ice cream.
 
-How does one trigger the race and what happens when it hits, btw?
+There's quite some complexity added here in areas which are already
+reliably unreliable and afaik swap-over-NBD is not a thing which a lot
+of people want to do.  I can see that swap-over-NFS would be useful to
+some people, and the fact that distros are carrying swap-over-NFS
+patches has weight.
+
+Do these patches lead on to swap-over-NFS?  If so, how much more
+additional complexity are we buying into for that?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
