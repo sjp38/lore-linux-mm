@@ -1,47 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 2C83D6B007E
-	for <linux-mm@kvack.org>; Wed,  6 Jul 2011 12:19:07 -0400 (EDT)
-Date: Wed, 6 Jul 2011 11:19:00 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 15A476B004A
+	for <linux-mm@kvack.org>; Wed,  6 Jul 2011 12:32:22 -0400 (EDT)
+From: Arnd Bergmann <arnd@arndb.de>
 Subject: Re: [PATCH 6/8] drivers: add Contiguous Memory Allocator
-In-Reply-To: <op.vx7ghajd3l0zgt@mnazarewicz-glaptop>
-Message-ID: <alpine.DEB.2.00.1107061114150.19547@router.home>
-References: <1309851710-3828-1-git-send-email-m.szyprowski@samsung.com> <201107061609.29996.arnd@arndb.de> <20110706142345.GC8286@n2100.arm.linux.org.uk> <201107061651.49824.arnd@arndb.de> <20110706154857.GG8286@n2100.arm.linux.org.uk>
- <alpine.DEB.2.00.1107061100290.17624@router.home> <op.vx7ghajd3l0zgt@mnazarewicz-glaptop>
+Date: Wed, 6 Jul 2011 18:31:59 +0200
+References: <1309851710-3828-1-git-send-email-m.szyprowski@samsung.com> <201107061651.49824.arnd@arndb.de> <20110706154857.GG8286@n2100.arm.linux.org.uk>
+In-Reply-To: <20110706154857.GG8286@n2100.arm.linux.org.uk>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Message-Id: <201107061831.59739.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Nazarewicz <mina86@mina86.com>
-Cc: Russell King - ARM Linux <linux@arm.linux.org.uk>, Arnd Bergmann <arnd@arndb.de>, linux-arm-kernel@lists.infradead.org, 'Daniel Walker' <dwalker@codeaurora.org>, 'Jonathan Corbet' <corbet@lwn.net>, 'Mel Gorman' <mel@csn.ul.ie>, 'Chunsang Jeong' <chunsang.jeong@linaro.org>, 'Jesse Barker' <jesse.barker@linaro.org>, 'KAMEZAWA Hiroyuki' <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Ankita Garg' <ankita@in.ibm.com>, 'Andrew Morton' <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, linux-media@vger.kernel.org, Andi Kleen <andi@firstfloor.org>
+To: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Cc: linux-arm-kernel@lists.infradead.org, 'Daniel Walker' <dwalker@codeaurora.org>, 'Jonathan Corbet' <corbet@lwn.net>, 'Mel Gorman' <mel@csn.ul.ie>, 'Chunsang Jeong' <chunsang.jeong@linaro.org>, 'Jesse Barker' <jesse.barker@linaro.org>, 'KAMEZAWA Hiroyuki' <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, 'Michal Nazarewicz' <mina86@mina86.com>, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Ankita Garg' <ankita@in.ibm.com>, 'Andrew Morton' <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, linux-media@vger.kernel.org
 
-On Wed, 6 Jul 2011, Michal Nazarewicz wrote:
+On Wednesday 06 July 2011, Russell King - ARM Linux wrote:
+> On Wed, Jul 06, 2011 at 04:51:49PM +0200, Arnd Bergmann wrote:
+> > On Wednesday 06 July 2011, Russell King - ARM Linux wrote:
+> > 
+> > I don't see how. The pages get allocated from an unmapped area
+> > or memory, mapped into the kernel address space as uncached or wc
+> > and then cleared. This should be the same for lowmem or highmem
+> > pages.
+> 
+> You don't want to clear them via their uncached or WC mapping, but via
+> their cached mapping _before_ they get their alternative mapping, and
+> flush any cached out of that mapping - both L1 and L2 caches.
 
-> On Wed, 06 Jul 2011 18:05:00 +0200, Christoph Lameter <cl@linux.com> wrote:
-> > ZONE_DMA is a zone for memory of legacy (crippled) devices that cannot DMA
-> > into all of memory (and so is ZONE_DMA32).  Memory from ZONE_NORMAL
-> > can be used for DMA as well and a fully capable device would be expected
-> > to handle any memory in the system for DMA transfers.
-> >
-> > "guaranteed" dmaable memory? DMA abilities are device specific. Well maybe
-> > you can call ZONE_DMA memory to be guaranteed if you guarantee
-> > that any device must at mininum be able to perform DMA into ZONE_DMA
-> > memory. But there may not be much of that memory around so you would
-> > want to limit the use of that scarce resource.
->
-> As pointed in Marek's other mail, this reasoning is not helping in any
-> way.  In case of video codec on various Samsung devices (and from some
-> other threads this is not limited to Samsung), the codec needs separate
-> buffers in separate memory banks.
+But there can't be any other mapping, which is the whole point of
+the exercise to use highmem.
+Quoting from the new dma_alloc_area() function:
 
-What I described is the basic memory architecture of Linux. I am not that
-familiar with ARM and the issue discussed here. Only got involved because
-ZONE_DMA was mentioned. The nature of ZONE_DMA is often misunderstood.
+        c = arm_vmregion_alloc(&area->vm, align, size,
+                            gfp & ~(__GFP_DMA | __GFP_HIGHMEM));
+        if (!c)
+                return NULL;
+        memset((void *)c->vm_start, 0, size);
 
-The allocation of the memory banks for the Samsung devices has to fit
-somehow into one of these zones. Its probably best to put the memory banks
-into ZONE_NORMAL and not have any dependency on ZONE_DMA at all.
+area->vm here points to an uncached location, which means that
+we already zero the data through the uncached mapping. I don't
+see how it's getting worse than it is already.
+
+> > > Another issue is that when a platform has restricted DMA regions,
+> > > they typically don't fall into the highmem zone.  As the dmabounce
+> > > code allocates from the DMA coherent allocator to provide it with
+> > > guaranteed DMA-able memory, that would be rather inconvenient.
+> > 
+> > True. The dmabounce code would consequently have to allocate
+> > the memory through an internal function that avoids the
+> > contiguous allocation area and goes straight to ZONE_DMA memory
+> > as it does today.
+> 
+> CMA's whole purpose for existing is to provide _dma-able_ contiguous
+> memory for things like cameras and such like found on crippled non-
+> scatter-gather hardware.  If that memory is not DMA-able what's the
+> point?
+
+I mean not any ZONE_DMA memory, but the memory backing coherent_areas[],
+which is by definition DMA-able from any device and is what is currently
+being used for the purpose.
+
+	Arnd
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
