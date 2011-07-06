@@ -1,89 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id DE3039000C2
-	for <linux-mm@kvack.org>; Tue,  5 Jul 2011 21:55:40 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 8A5F03EE0C0
-	for <linux-mm@kvack.org>; Wed,  6 Jul 2011 10:55:37 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6EC5C45DE5D
-	for <linux-mm@kvack.org>; Wed,  6 Jul 2011 10:55:37 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 4054F45DE56
-	for <linux-mm@kvack.org>; Wed,  6 Jul 2011 10:55:37 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 34816E08004
-	for <linux-mm@kvack.org>; Wed,  6 Jul 2011 10:55:37 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id E9AE71DB8053
-	for <linux-mm@kvack.org>; Wed,  6 Jul 2011 10:55:36 +0900 (JST)
-Date: Wed, 6 Jul 2011 10:48:17 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: mmotm 2011-06-30-15-59 uploaded
-Message-Id: <20110706104817.411f45d9.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <201106302259.p5UMxh5i019162@imap1.linux-foundation.org>
-References: <201106302259.p5UMxh5i019162@imap1.linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D7689000C2
+	for <linux-mm@kvack.org>; Tue,  5 Jul 2011 23:38:45 -0400 (EDT)
+Date: Tue, 5 Jul 2011 20:30:12 -0700
+From: Greg KH <greg@kroah.com>
+Subject: Re: [PATCH v2] staging: zcache: support multiple clients, prep for
+ KVM and RAMster
+Message-ID: <20110706033012.GA15581@kroah.com>
+References: <1d15f28a-56df-4cf4-9dd9-1032f211c0d0@default20110630224019.GC2544@shale.localdomain>
+ <3b67511f-bad9-4c41-915b-1f6e196f4d43@default20110701083850.GE2544@shale.localdomain>
+ <871d7dbc-041f-411f-b91a-cbc5aeb9db98@default>
+ <20110701165845.GG2544@shale.localdomain>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110701165845.GG2544@shale.localdomain>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Dan Carpenter <error27@gmail.com>
+Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, Greg Kroah-Hartman <gregkh@suse.de>, Marcus Klemm <marcus.klemm@googlemail.com>, kvm@vger.kernel.org, Konrad Wilk <konrad.wilk@oracle.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, devel@linuxdriverproject.org
 
-On Thu, 30 Jun 2011 15:59:43 -0700
-akpm@linux-foundation.org wrote:
-
-> The mm-of-the-moment snapshot 2011-06-30-15-59 has been uploaded to
+On Fri, Jul 01, 2011 at 07:58:45PM +0300, Dan Carpenter wrote:
+> On Fri, Jul 01, 2011 at 07:31:54AM -0700, Dan Magenheimer wrote:
+> > > Off by one errors are kind of insidious.  People cut and paste them
+> > > and they spread.  If someone adds a new list of chunks then there
+> > > are now two examples that are correct and two which have an extra
+> > > element, so it's 50/50 that he'll copy the right one.
+> > 
+> > True, but these are NOT off-by-one errors... they are
+> > correct-but-slightly-ugly code snippets.  (To clarify, I said
+> > the *ugliness* arose when debugging an off-by-one error.)
+> > 
 > 
->    http://userweb.kernel.org/~akpm/mmotm/
+> What I meant was the new arrays are *one* element too large.
 > 
-> and will soon be available at
->    git://zen-kernel.org/kernel/mmotm.git
-> or
->    git://git.cmpxchg.org/linux-mmotm.git
+> > Patches always welcome, and I agree that these should be
+> > fixed eventually, assuming the code doesn't go away completely
+> > first.. I'm simply stating the position
+> > that going through another test/submit cycling to fix
+> > correct-but-slightly-ugly code which is present only to
+> > surface information for experiments is not high on my priority
+> > list right now... unless GregKH says he won't accept the patch.
+> >  
+> > > Btw, looking at it again, this seems like maybe a similar issue in
+> > > zbud_evict_zbpg():
+> > > 
+> > >    516          for (i = 0; i < MAX_CHUNK; i++) {
+> > >    517  retry_unbud_list_i:
+> > > 
+> > > 
+> > > MAX_CHUNKS is NCHUNKS - 1.  Shouldn't that be i < NCHUNKS so that we
+> > > reach the last element in the list?
+> > 
+> > No, the last element in that list is unused.  There is a comment
+> > to that effect someplace in the code.  (These lists are keeping
+> > track of pages with "chunks" of available space and the last
+> > entry would have no available space so is always empty.)
 > 
-> It contains the following patches against 3.0-rc5:
+> The comment says that the first element isn't used.  Perhaps the
+> comment is out of date and now it's the last element that isn't
+> used.  To me, it makes sense to have an unused first element, but it
+> doesn't make sense to have an unused last element.  Why not just
+> make the array smaller?
 > 
+> Also if the last element of the original arrays isn't used, then
+> does that mean the last *two* elements of the new arrays aren't
+> used?
+> 
+> Getting array sizes wrong is not a "correct-but-slightly-ugly"
+> thing.  *grumble* *grumble* *grumble*.  But it doesn't crash the
+> system so I'm fine with it going in as is...
 
-==
-Because of x86-implement-strict-user-copy-checks-for-x86_64.patch
+I'm not.  Please fix this up.  I'll not accept it until it is.
 
-At compling mm/mempolicy.c, following warning is shown.
+thanks,
 
-In file included from /home/kamezawa/Kernel/mmotm-0701/arch/x86/include/asm/uaccess.h:572,
-                 from include/linux/uaccess.h:5,
-                 from include/linux/highmem.h:7,
-                 from include/linux/pagemap.h:10,
-                 from include/linux/mempolicy.h:70,
-                 from mm/mempolicy.c:68:
-In function ?copy_from_user?,
-    inlined from ?compat_sys_get_mempolicy? at mm/mempolicy.c:1415:
-.../mmotm-0701/arch/x86/include/asm/uaccess_64.h:64: warning: call to ?copy_from_user_overflow? declared with attribute warning: copy_from_user() buffer size is not provably correct
-  LD      mm/built-in.o
-
-Fix this by passing correct buffer size value.
-
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
----
- mm/mempolicy.c |    4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
-
-Index: mmotm-0701/mm/mempolicy.c
-===================================================================
---- mmotm-0701.orig/mm/mempolicy.c
-+++ mmotm-0701/mm/mempolicy.c
-@@ -1412,7 +1412,9 @@ asmlinkage long compat_sys_get_mempolicy
- 	err = sys_get_mempolicy(policy, nm, nr_bits+1, addr, flags);
- 
- 	if (!err && nmask) {
--		err = copy_from_user(bm, nm, alloc_size);
-+		unsigned long copy_size;
-+		copy_size = min_t(unsigned long, sizeof(bm), alloc_size);
-+		err = copy_from_user(bm, nm, copy_size);
- 		/* ensure entire bitmap is zeroed */
- 		err |= clear_user(nmask, ALIGN(maxnode-1, 8) / 8);
- 		err |= compat_put_bitmap(nmask, bm, nr_bits);
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
