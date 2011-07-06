@@ -1,64 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 194469000C2
-	for <linux-mm@kvack.org>; Wed,  6 Jul 2011 09:36:40 -0400 (EDT)
-Subject: Re: [PATCH 0/5] mm,debug: VM framework to capture memory reference
- pattern
-From: Matt Mackall <mpm@selenic.com>
-In-Reply-To: <20110706093146.GB19518@in.ibm.com>
-References: <1309854159-8277-1-git-send-email-ankita@in.ibm.com>
-	 <20110706020103.53ed8706.akpm@linux-foundation.org>
-	 <20110706093146.GB19518@in.ibm.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Wed, 06 Jul 2011 08:36:34 -0500
-Message-ID: <1309959394.11819.87.camel@calx>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with SMTP id 9A0C29000C2
+	for <linux-mm@kvack.org>; Wed,  6 Jul 2011 09:59:07 -0400 (EDT)
+Received: from spt2.w1.samsung.com (mailout1.w1.samsung.com [210.118.77.11])
+ by mailout1.w1.samsung.com
+ (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
+ with ESMTP id <0LNX000P006GZW@mailout1.w1.samsung.com> for linux-mm@kvack.org;
+ Wed, 06 Jul 2011 14:59:04 +0100 (BST)
+Received: from linux.samsung.com ([106.116.38.10])
+ by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
+ 2004)) with ESMTPA id <0LNX00DUG06E5W@spt2.w1.samsung.com> for
+ linux-mm@kvack.org; Wed, 06 Jul 2011 14:59:03 +0100 (BST)
+Date: Wed, 06 Jul 2011 15:58:58 +0200
+From: Marek Szyprowski <m.szyprowski@samsung.com>
+Subject: RE: [PATCH 6/8] drivers: add Contiguous Memory Allocator
+In-reply-to: <20110705113345.GA8286@n2100.arm.linux.org.uk>
+Message-id: <006301cc3be4$daab1850$900148f0$%szyprowski@samsung.com>
+MIME-version: 1.0
+Content-type: text/plain; charset=us-ascii
+Content-language: pl
+Content-transfer-encoding: 7BIT
+References: <1309851710-3828-1-git-send-email-m.szyprowski@samsung.com>
+ <1309851710-3828-7-git-send-email-m.szyprowski@samsung.com>
+ <20110705113345.GA8286@n2100.arm.linux.org.uk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ankita Garg <ankita@in.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, svaidy@linux.vnet.ibm.com, linux-kernel@vger.kernel.org
+To: 'Russell King - ARM Linux' <linux@arm.linux.org.uk>
+Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, 'Daniel Walker' <dwalker@codeaurora.org>, 'Arnd Bergmann' <arnd@arndb.de>, 'Jonathan Corbet' <corbet@lwn.net>, 'Mel Gorman' <mel@csn.ul.ie>, 'Chunsang Jeong' <chunsang.jeong@linaro.org>, 'Michal Nazarewicz' <mina86@mina86.com>, 'Jesse Barker' <jesse.barker@linaro.org>, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Ankita Garg' <ankita@in.ibm.com>, 'Andrew Morton' <akpm@linux-foundation.org>, 'KAMEZAWA Hiroyuki' <kamezawa.hiroyu@jp.fujitsu.com>, Marek Szyprowski <m.szyprowski@samsung.com>
 
-On Wed, 2011-07-06 at 15:01 +0530, Ankita Garg wrote:
-> Hi,
+Hello,
+
+On Tuesday, July 05, 2011 1:34 PM Russell King - ARM Linux wrote:
+
+> On Tue, Jul 05, 2011 at 09:41:48AM +0200, Marek Szyprowski wrote:
+> > The Contiguous Memory Allocator is a set of helper functions for DMA
+> > mapping framework that improves allocations of contiguous memory chunks.
+> >
+> > CMA grabs memory on system boot, marks it with CMA_MIGRATE_TYPE and
+> > gives back to the system. Kernel is allowed to allocate movable pages
+> > within CMA's managed memory so that it can be used for example for page
+> > cache when DMA mapping do not use it. On dma_alloc_from_contiguous()
+> > request such pages are migrated out of CMA area to free required
+> > contiguous block and fulfill the request. This allows to allocate large
+> > contiguous chunks of memory at any time assuming that there is enough
+> > free memory available in the system.
+> >
+> > This code is heavily based on earlier works by Michal Nazarewicz.
 > 
-> On Wed, Jul 06, 2011 at 02:01:03AM -0700, Andrew Morton wrote:
-> > On Tue,  5 Jul 2011 13:52:34 +0530 Ankita Garg <ankita@in.ibm.com> wrote:
-> > 
-> > > 
-> > > This patch series is an instrumentation/debug infrastructure that captures
-> > > the memory reference pattern of applications (workloads). 
-> > 
-> > Can't the interfaces described in Documentation/vm/pagemap.txt be used
-> > for this?
-> 
-> The pagemap interface does not closely track the hardware reference bit
-> of the pages. The 'REFERENCED' flag maintained in /proc/kpageflags
-> only indicates if the page has been referenced since last LRU list
-> enqueue/requeue. So estimating the rate at which a particular page of
-> memory is referenced cannot be obtained. Further, it does not provide
-> information on the amount of kernel memory referenced on behalf of
-> the process.
+> And how are you addressing the technical concerns about aliasing of
+> cache attributes which I keep bringing up with this and you keep
+> ignoring and telling me that I'm standing in your way.
 
-Pagemap is good for measuring state and bad for measuring activity.
+I'm perfectly aware of the issues with aliasing of cache attributes.
 
-Computing state from activity via integration is generally impossible
-due to the constant term and the possibility of event buffer overruns:
+My idea is to change low memory linear mapping for all CMA areas on boot
+time to use 2 level page tables (4KiB mappings instead of super-section
+mappings). This way the page properties for a single page in CMA area can
+be changed/updated at any time to match required coherent/writecombine
+attributes. Linear mapping can be even removed completely if we want to 
+create the it elsewhere in the address space. 
 
- state = integral(activity, t1, t2) + C
+The only problem that might need to be resolved is GFP_ATOMIC allocation
+(updating page properties probably requires some locking), but it can be
+served from a special area which is created on boot without low-memory
+mapping at all. None sane driver will call dma_alloc_coherent(GFP_ATOMIC)
+for large buffers anyway.
 
-Doing the reverse is also generally impossible as it means collecting
-extremely large samples at an extremely high resolution to avoid missing
-events:
+CMA limits the memory area from which coherent pages are being taken quite
+well, so the change in the linear mapping method should have no significant
+impact on the system performance.
 
- activity = derivative(state, t1, t2)
+I didn't implement such solution yet, because it is really hard to handle
+all issues at the same time and creating the allocator was just a first
+step.
 
-If you want to measure activity, you want a tracing framework. If you
-want to measure state, you want an inspection framework. Trying to build
-one from the other just won't work reliably.
-
+Best regards
 -- 
-Mathematics is the supreme nostalgia of our time.
+Marek Szyprowski
+Samsung Poland R&D Center
+
 
 
 --
