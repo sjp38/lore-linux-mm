@@ -1,72 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 0761A9000C2
-	for <linux-mm@kvack.org>; Wed,  6 Jul 2011 10:56:31 -0400 (EDT)
-MIME-version: 1.0
-Content-transfer-encoding: 7BIT
-Content-type: text/plain; charset=us-ascii
-Received: from eu_spt1 ([210.118.77.14]) by mailout4.w1.samsung.com
- (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
- with ESMTP id <0LNX001UB2U4CK90@mailout4.w1.samsung.com> for
- linux-mm@kvack.org; Wed, 06 Jul 2011 15:56:28 +0100 (BST)
-Received: from linux.samsung.com ([106.116.38.10])
- by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0LNX000YI2U3Y5@spt1.w1.samsung.com> for
- linux-mm@kvack.org; Wed, 06 Jul 2011 15:56:27 +0100 (BST)
-Date: Wed, 06 Jul 2011 16:56:23 +0200
-From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: RE: [PATCH 6/8] drivers: add Contiguous Memory Allocator
-In-reply-to: <201107061609.29996.arnd@arndb.de>
-Message-id: <007101cc3bec$dfbba8c0$9f32fa40$%szyprowski@samsung.com>
-Content-language: pl
-References: <1309851710-3828-1-git-send-email-m.szyprowski@samsung.com>
- <20110705113345.GA8286@n2100.arm.linux.org.uk>
- <006301cc3be4$daab1850$900148f0$%szyprowski@samsung.com>
- <201107061609.29996.arnd@arndb.de>
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 0485B9000C2
+	for <linux-mm@kvack.org>; Wed,  6 Jul 2011 11:00:24 -0400 (EDT)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: Re: [Linaro-mm-sig] [PATCH 6/8] drivers: add Contiguous Memory Allocator
+Date: Wed, 6 Jul 2011 16:59:45 +0200
+References: <1309851710-3828-1-git-send-email-m.szyprowski@samsung.com> <20110706142345.GC8286@n2100.arm.linux.org.uk> <alpine.LFD.2.00.1107061034200.14596@xanadu.home>
+In-Reply-To: <alpine.LFD.2.00.1107061034200.14596@xanadu.home>
+MIME-Version: 1.0
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Message-Id: <201107061659.45253.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Arnd Bergmann' <arnd@arndb.de>
-Cc: 'Russell King - ARM Linux' <linux@arm.linux.org.uk>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, 'Daniel Walker' <dwalker@codeaurora.org>, 'Jonathan Corbet' <corbet@lwn.net>, 'Mel Gorman' <mel@csn.ul.ie>, 'Chunsang Jeong' <chunsang.jeong@linaro.org>, 'Michal Nazarewicz' <mina86@mina86.com>, 'Jesse Barker' <jesse.barker@linaro.org>, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Ankita Garg' <ankita@in.ibm.com>, 'Andrew Morton' <akpm@linux-foundation.org>, 'KAMEZAWA Hiroyuki' <kamezawa.hiroyu@jp.fujitsu.com>
+To: linux-arm-kernel@lists.infradead.org
+Cc: Nicolas Pitre <nicolas.pitre@linaro.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, 'Daniel Walker' <dwalker@codeaurora.org>, 'Jonathan Corbet' <corbet@lwn.net>, 'Mel Gorman' <mel@csn.ul.ie>, 'Chunsang Jeong' <chunsang.jeong@linaro.org>, linux-kernel@vger.kernel.org, 'Michal Nazarewicz' <mina86@mina86.com>, linaro-mm-sig@lists.linaro.org, 'Jesse Barker' <jesse.barker@linaro.org>, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Ankita Garg' <ankita@in.ibm.com>, 'Andrew Morton' <akpm@linux-foundation.org>, linux-mm@kvack.org, 'KAMEZAWA Hiroyuki' <kamezawa.hiroyu@jp.fujitsu.com>, linux-media@vger.kernel.org
 
-Hello,
-
-On Wednesday, July 06, 2011 4:09 PM Arnd Bergmann wrote:
-
-> On Wednesday 06 July 2011, Marek Szyprowski wrote:
-> > The only problem that might need to be resolved is GFP_ATOMIC allocation
-> > (updating page properties probably requires some locking), but it can be
-> > served from a special area which is created on boot without low-memory
-> > mapping at all. None sane driver will call dma_alloc_coherent(GFP_ATOMIC)
-> > for large buffers anyway.
+On Wednesday 06 July 2011, Nicolas Pitre wrote:
+> On Wed, 6 Jul 2011, Russell King - ARM Linux wrote:
 > 
-> Would it be easier to start with a version that only allocated from memory
-> without a low-memory mapping at first?
->
-> This would be similar to the approach that Russell's fix for the regular
-> dma_alloc_coherent has taken, except that you need to also allow the memory
-> to be used as highmem user pages.
+> > Another issue is that when a platform has restricted DMA regions,
+> > they typically don't fall into the highmem zone.  As the dmabounce
+> > code allocates from the DMA coherent allocator to provide it with
+> > guaranteed DMA-able memory, that would be rather inconvenient.
 > 
-> Maybe you can simply adapt the default location of the contiguous memory
-> are like this:
-> - make CONFIG_CMA depend on CONFIG_HIGHMEM on ARM, at compile time
-> - if ZONE_HIGHMEM exist during boot, put the CMA area in there
-> - otherwise, put the CMA area at the top end of lowmem, and change
->   the zone sizes so ZONE_HIGHMEM stretches over all of the CMA memory.
+> Do we encounter this in practice i.e. do those platforms requiring large 
+> contiguous allocations motivating this work have such DMA restrictions?
 
-This will not solve our problems. We need CMA also to create at least one
-device private area that for sure will be in low memory (video codec).
+You can probably find one or two of those, but we don't have to optimize
+for that case. I would at least expect the maximum size of the allocation
+to be smaller than the DMA limit for these, and consequently mandate that
+they define a sufficiently large CONSISTENT_DMA_SIZE for the crazy devices,
+or possibly add a hack to unmap some low memory and call
+dma_declare_coherent_memory() for the device.
 
-I will rewrite ARM dma-mapping & CMA integration patch basing on the latest 
-ARM for-next patches and add proof-of-concept of the solution presented in my
-previous mail (2-level page tables and unmapping pages from low-mem).
-
-Best regards
--- 
-Marek Szyprowski
-Samsung Poland R&D Center
-
-
-
+	Arnd
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
