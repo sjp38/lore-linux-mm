@@ -1,66 +1,28 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id AB8C16B004A
-	for <linux-mm@kvack.org>; Wed,  6 Jul 2011 14:12:07 -0400 (EDT)
-Content-class: urn:content-classes:message
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 1A0069000C2
+	for <linux-mm@kvack.org>; Wed,  6 Jul 2011 15:03:08 -0400 (EDT)
+Date: Wed, 6 Jul 2011 14:03:02 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH 6/8] drivers: add Contiguous Memory Allocator
+In-Reply-To: <20110706171542.GJ8286@n2100.arm.linux.org.uk>
+Message-ID: <alpine.DEB.2.00.1107061402320.17624@router.home>
+References: <1309851710-3828-1-git-send-email-m.szyprowski@samsung.com> <201107061609.29996.arnd@arndb.de> <20110706142345.GC8286@n2100.arm.linux.org.uk> <201107061651.49824.arnd@arndb.de> <20110706154857.GG8286@n2100.arm.linux.org.uk>
+ <alpine.DEB.2.00.1107061100290.17624@router.home> <op.vx7ghajd3l0zgt@mnazarewicz-glaptop> <alpine.DEB.2.00.1107061114150.19547@router.home> <20110706171542.GJ8286@n2100.arm.linux.org.uk>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-Subject: RE: [RFC] non-preemptible kernel socket for RAMster
-Date: Wed, 6 Jul 2011 14:12:04 -0400
-Message-ID: <D3F292ADF945FB49B35E96C94C2061B912622709@nsmail.netscout.com>
-In-Reply-To: <d19811cc-a722-4d30-8a43-aedb1cd978c9@default>
-References: <4232c4b6-15be-42d8-be42-6e27f9188ce2@default> <D3F292ADF945FB49B35E96C94C2061B91257D65C@nsmail.netscout.com> <6147447c-ecab-43ea-9b4a-1ff64b2089f0@default> <D3F292ADF945FB49B35E96C94C2061B91257D6FD@nsmail.netscout.com> <704d094e-7b81-480f-8363-327218d1b0ea@default D3F292ADF945FB49B35E96C94C2061B91257DCA8@nsmail.netscout.com> <d19811cc-a722-4d30-8a43-aedb1cd978c9@default>
-From: "Loke, Chetan" <Chetan.Loke@netscout.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Magenheimer <dan.magenheimer@oracle.com>, netdev@vger.kernel.org
-Cc: Konrad Wilk <konrad.wilk@oracle.com>, linux-mm <linux-mm@kvack.org>
+To: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Cc: Michal Nazarewicz <mina86@mina86.com>, Arnd Bergmann <arnd@arndb.de>, linux-arm-kernel@lists.infradead.org, 'Daniel Walker' <dwalker@codeaurora.org>, 'Jonathan Corbet' <corbet@lwn.net>, 'Mel Gorman' <mel@csn.ul.ie>, 'Chunsang Jeong' <chunsang.jeong@linaro.org>, 'Jesse Barker' <jesse.barker@linaro.org>, 'KAMEZAWA Hiroyuki' <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Ankita Garg' <ankita@in.ibm.com>, 'Andrew Morton' <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, linux-media@vger.kernel.org, Andi Kleen <andi@firstfloor.org>
 
-> -----Original Message-----
-> From: Dan Magenheimer [mailto:dan.magenheimer@oracle.com]
-> Sent: July 05, 2011 9:06 PM
-> To: Loke, Chetan; netdev@vger.kernel.org
-> Cc: Konrad Wilk; linux-mm
-> Subject: RE: [RFC] non-preemptible kernel socket for RAMster
->=20
-> > From: Loke, Chetan [mailto:Chetan.Loke@netscout.com]
-> > Subject: RE: [RFC] non-preemptible kernel socket for RAMster
-> >
-> > > From: Dan Magenheimer [mailto:dan.magenheimer@oracle.com]
->=20
-> > How often are you going to re-size your remote-SWAP?
->=20
-> is "as often as the working set changes on any machine in the
-> cluster", meaning *constantly*, entirely dynamically!  How
-> about a more specific example:  Suppose you have 2 machines,
-> each with 8GB of memory.  99% of the time each machine is
-> chugging along just fine and doesn't really need more than 4GB,
-> and may even use less than 1GB a large part of the time.
-> But very now and then, one of the machines randomly needs
-> 9GB, 10GB, maybe even 12GB  of memory.  This would normally
-> result in swapping.  (Most system administrators won't even
-> have this much information... they'll just know they are
-> seeing swapping and decide they need to buy more RAM.)
->=20
+On Wed, 6 Jul 2011, Russell King - ARM Linux wrote:
 
-Ok, I understand there is interest in implementing
-'remote-volatile-ballooning-variant' but how do you pick a remote
-candidate(hypervisor)? Let's say, memory could be available on remote
-system but what if the remote-p{NIC,CPU} is overloaded? Sure, sysadmins
-won't have this info because this so dynamic(and it's quite possible as
-you mentioned above). But does the trans-remote-API know about this
-resource-availability before opening a remote-channel?
+> So, ARM is no different from x86, with the exception that the 16MB DMA
+> zone due to ISA ends up being different sizes on ARM depending on our
+> restrictions.
 
-Stressing the remote-p{NIC/CPU} might trick hypervisor-vmotion-plugin to
-vmotion VM[s] to another hypervisor. How is trans-remote-API integrating
-with remote/global vmotion policies to avoid this false vmotion?
-
-
-> Dan
-
-Chetan Loke
+Sounds good. Thank you.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
