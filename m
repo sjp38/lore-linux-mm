@@ -1,66 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id BA9749000C2
-	for <linux-mm@kvack.org>; Wed,  6 Jul 2011 18:32:08 -0400 (EDT)
-Received: from kpbe20.cbf.corp.google.com (kpbe20.cbf.corp.google.com [172.25.105.84])
-	by smtp-out.google.com with ESMTP id p66MW6gq011365
-	for <linux-mm@kvack.org>; Wed, 6 Jul 2011 15:32:06 -0700
-Received: from pwi5 (pwi5.prod.google.com [10.241.219.5])
-	by kpbe20.cbf.corp.google.com with ESMTP id p66MVxLt018645
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 6 Jul 2011 15:32:00 -0700
-Received: by pwi5 with SMTP id 5so361432pwi.18
-        for <linux-mm@kvack.org>; Wed, 06 Jul 2011 15:31:59 -0700 (PDT)
-Date: Wed, 6 Jul 2011 15:31:52 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch] oom: make deprecated use of oom_adj more verbose
-Message-ID: <alpine.DEB.2.00.1107061531120.8633@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 51BDC9000C2
+	for <linux-mm@kvack.org>; Wed,  6 Jul 2011 19:03:44 -0400 (EDT)
+Date: Wed, 6 Jul 2011 16:03:18 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [Bugme-new] [Bug 38032] New: default values of
+ /proc/sys/net/ipv4/udp_mem does not consider huge page allocatio
+Message-Id: <20110706160318.2c604ae9.akpm@linux-foundation.org>
+In-Reply-To: <bug-38032-10286@https.bugzilla.kernel.org/>
+References: <bug-38032-10286@https.bugzilla.kernel.org/>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
+To: linux-mm@kvack.org, netdev@vger.kernel.org
+Cc: bugme-daemon@bugzilla.kernel.org, starlight@binnacle.cx, Rafael Aquini <aquini@linux.com>
 
-/proc/pid/oom_adj is deprecated and scheduled for removal in August 2012
-according to Documentation/feature-removal-schedule.txt.
 
-This patch makes the warning more verbose by making it appear as a more
-serious problem (the presence of a stack trace and being multiline should
-attract more attention) so that applications still using the old
-interface can get fixed.
+(switched to email.  Please respond via emailed reply-to-all, not via the
+bugzilla web interface).
 
-Very popular users of the old interface have been converted since the oom
-killer rewrite has been introduced.  udevd switched to the
-/proc/pid/oom_score_adj interface for v162, kde switched in 4.6.1, and
-opensshd switched in 5.7p1.
+(cc's added)
 
-At the start of 2012, this should be changed into a WARN() to emit all
-such incidents and then finally remove the tunable in August 2012 as
-scheduled.
+On Tue, 21 Jun 2011 00:35:22 GMT
+bugzilla-daemon@bugzilla.kernel.org wrote:
 
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- fs/proc/base.c |    7 +++----
- 1 files changed, 3 insertions(+), 4 deletions(-)
+> https://bugzilla.kernel.org/show_bug.cgi?id=38032
+> 
+>            Summary: default values of /proc/sys/net/ipv4/udp_mem does not
+>                     consider huge page allocatio
+>            Product: Memory Management
+>            Version: 2.5
+>           Platform: All
+>         OS/Version: Linux
+>               Tree: Mainline
+>             Status: NEW
+>           Severity: normal
+>           Priority: P1
+>          Component: Other
+>         AssignedTo: akpm@linux-foundation.org
+>         ReportedBy: starlight@binnacle.cx
+>         Regression: No
+> 
+> 
+> In the RHEL 5.5 back-port of this tunable we ran into trouble locking up
+> systems because the boot-time default is set based on physical memory does not
+> account for the hugepages= in the boot parameters.  So the UDP socket buffer
+> limit can exceed phyisical memory.  Don't know if this is an issue in mainline
+> kernels but it seems likely so reporting this as a courtsey.  Seems like it
+> would be easy to fix the default to account for the memory reserved by
+> hugepages which is not available for slab allocations.
+> 
+> https://bugzilla.redhat.com/show_bug.cgi?id=714833
+> 
 
-diff --git a/fs/proc/base.c b/fs/proc/base.c
---- a/fs/proc/base.c
-+++ b/fs/proc/base.c
-@@ -1118,10 +1118,9 @@ static ssize_t oom_adjust_write(struct file *file, const char __user *buf,
- 	 * Warn that /proc/pid/oom_adj is deprecated, see
- 	 * Documentation/feature-removal-schedule.txt.
- 	 */
--	printk_once(KERN_WARNING "%s (%d): /proc/%d/oom_adj is deprecated, "
--			"please use /proc/%d/oom_score_adj instead.\n",
--			current->comm, task_pid_nr(current),
--			task_pid_nr(task), task_pid_nr(task));
-+	WARN_ONCE(1, "%s (%d): /proc/%d/oom_adj is deprecated, please use /proc/%d/oom_score_adj instead.\n",
-+		  current->comm, task_pid_nr(current), task_pid_nr(task),
-+		  task_pid_nr(task));
- 	task->signal->oom_adj = oom_adjust;
- 	/*
- 	 * Scale /proc/pid/oom_score_adj appropriately ensuring that a maximum 
+Yes, we've made similar mistakes in other places.
+
+I don't think we really have an official formula for what callers
+should be doing here.  net/ipv4/udp.c:udp_init() does
+
+        nr_pages = totalram_pages - totalhigh_pages;                            
+
+which assumes that totalram_pages does not include the pages which were
+lost to hugepage allocations.
+
+I *think* that this is now the case, but it wasn't always the case - we
+made relatively recent fixes to the totalram_pages maintenance.
+
+Perhaps UDP should be using the misnamed nr_free_buffer_pages() here.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
