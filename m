@@ -1,95 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id D8B4B9000C2
-	for <linux-mm@kvack.org>; Tue,  5 Jul 2011 23:39:48 -0400 (EDT)
-From: Jonathan Hawthorne <j.hawthorne@f5.com>
-Subject: Re: [kernel-hardening] Re: [RFC v1] implement SL*B and stack
- usercopy runtime checks
-Date: Wed, 6 Jul 2011 03:39:45 +0000
-Message-ID: <CA39234A.70E01%j.hawthorne@f5.com>
-In-Reply-To: <CA+55aFzXEoTyK0Sm-y=6xGmLMWzQiSQ7ELJ2-WL_PrP3r44MSg@mail.gmail.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <1E2B9FF4591BA846A472B5844CF127E2@F5.com>
-Content-Transfer-Encoding: quoted-printable
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 007E19000C2
+	for <linux-mm@kvack.org>; Wed,  6 Jul 2011 00:27:52 -0400 (EDT)
+Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [202.81.31.247])
+	by e23smtp01.au.ibm.com (8.14.4/8.13.1) with ESMTP id p664NP7V005462
+	for <linux-mm@kvack.org>; Wed, 6 Jul 2011 14:23:25 +1000
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p664QKBg1491022
+	for <linux-mm@kvack.org>; Wed, 6 Jul 2011 14:26:21 +1000
+Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
+	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p664RmxV010190
+	for <linux-mm@kvack.org>; Wed, 6 Jul 2011 14:27:48 +1000
+Date: Wed, 6 Jul 2011 09:57:44 +0530
+From: Ankita Garg <ankita@in.ibm.com>
+Subject: Re: [PATCH 0/5] mm,debug: VM framework to capture memory reference
+ pattern
+Message-ID: <20110706042744.GA15861@in.ibm.com>
+Reply-To: Ankita Garg <ankita@in.ibm.com>
+References: <1309854159-8277-1-git-send-email-ankita@in.ibm.com>
+ <64797.1309908804@turing-police.cc.vt.edu>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <64797.1309908804@turing-police.cc.vt.edu>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, Vasiliy Kulikov <segoon@openwall.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H.
- Peter Anvin" <hpa@zytor.com>, "x86@kernel.org" <x86@kernel.org>, Arnd Bergmann <arnd@arndb.de>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Valdis.Kletnieks@vt.edu
+Cc: linux-mm@kvack.org, svaidy@linux.vnet.ibm.com, linux-kernel@vger.kernel.org
 
+Hi,
 
-Linus is correct to push back on system call auditing in the general case.
- There should be a trust boundary that contains where we optimize speed at
-the cost of security.  Small pockets of trust will best compromise between
-speed and security.
+On Tue, Jul 05, 2011 at 07:33:24PM -0400, Valdis.Kletnieks@vt.edu wrote:
+> On Tue, 05 Jul 2011 13:52:34 +0530, Ankita Garg said:
+> 
+> > by default) and scans through all pages of the specified tasks (including
+> > children/threads) running in the system. If the hardware reference bit in the
+> > page table is set, then the page is marked as accessed over the last sampling
+> > interval and the reference bit is cleared.
+> 
+> Does that cause any issues for other code in the mm subsystem that was
+> expecting to use the reference bit for something useful? (Similarly, if other
+> code in mm turns that bit *off* for its own reasons, does your code still
+> produce useful results?)
 
-In the case of FreeBSD or Solaris, these can be smaller than a single
-machine; in fact they may scale from a single process, a process group, to
-a physical machine.  Scripted environments can go smaller, giving as
-little as a 64KB environment.
+At this point, the VM code does not use the reference bit for any
+decision making, not even in the LRU. However, if the reference bit is
+used later on, then this change will interfere with that logic.
 
-Between those pockets of trust, isolated (preferably air-gap) auditors are
-a must have.  Auditors from independent vendors are ideal; these minimize
-herd failure.
-
-Network auditors are a clear first foundation, but after they do the heavy
-lifting at the transaction boundary, statistical auditors between
-subsystems would be strategically valuable at a minimal incident cost.
-These systems can integrate well with self-balancing health monitors.
-
-But in the tight loops, performance should be king.  If the trust fails to
-that point, well, trust can always fail somewhere.  The granularity of the
-trust bubbles makes a best effort to contain exploitation or failure in
-compromise for throughput and latency.
-
-Systems like MAC (Manditory Access Control) are a good compromise in UNIX
-systems.  These audit cross-process communication on an access-list basis
-and often benefit from a control plane that merges pattern-plus-remedy
-rule sets into a single inspection dictionary and exception handler.
-
-Imagine a coloring system.  Each piece of data is marked with a color.
-When two colors of data are used together, the result is tainted by both
-colors.  Rules exist that limit the colors that may be mixed on a
-case-by-case basis using scenario-oriented configuration scripts.
-
-__
-Jonathan Hawthorne | Software Architect
-t: +1.206.272.6624 | e: j.hawthorne@f5.com
-
-
-
-
-
-
-On 7/3/11 11:27 AM, "Linus Torvalds" <torvalds@linux-foundation.org> wrote:
-
->That patch is entirely insane. No way in hell will that ever get merged.
->
->copy_to/from_user() is some of the most performance-critical code, and
->runs a *lot*, often for fairly small structures (ie 'fstat()' etc).
->
->Adding random ad-hoc tests to it is entirely inappropriate. Doing so
->unconditionally is insane.
->
->So NAK, NAK, NAK.
->
->If you seriously clean it up (that at a minimum includes things like
->making it configurable using some pretty helper function that just
->compiles away for all the normal cases, and not writing out
->
->   if (!slab_access_ok(to, n) || !stack_access_ok(to, n))
->
->multiple times, for chrissake) it _might_ be acceptable.
->
->But in its current form it's just total crap. It's exactly the kind of
->"crazy security people who don't care about anything BUT security"
->crap that I refuse to see.
->
->Some balance and sanity.
->
->                      Linus
+-- 
+Regards,
+Ankita Garg (ankita@in.ibm.com)
+Linux Technology Center
+IBM India Systems & Technology Labs,
+Bangalore, India
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
