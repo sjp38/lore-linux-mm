@@ -1,54 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 71B519000C2
-	for <linux-mm@kvack.org>; Wed,  6 Jul 2011 18:11:57 -0400 (EDT)
-Date: Wed, 6 Jul 2011 15:11:12 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCHv11 0/8] Contiguous Memory Allocator
-Message-Id: <20110706151112.5c619431.akpm@linux-foundation.org>
-In-Reply-To: <201107051407.17249.arnd@arndb.de>
-References: <1309851710-3828-1-git-send-email-m.szyprowski@samsung.com>
-	<201107051407.17249.arnd@arndb.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id BA9749000C2
+	for <linux-mm@kvack.org>; Wed,  6 Jul 2011 18:32:08 -0400 (EDT)
+Received: from kpbe20.cbf.corp.google.com (kpbe20.cbf.corp.google.com [172.25.105.84])
+	by smtp-out.google.com with ESMTP id p66MW6gq011365
+	for <linux-mm@kvack.org>; Wed, 6 Jul 2011 15:32:06 -0700
+Received: from pwi5 (pwi5.prod.google.com [10.241.219.5])
+	by kpbe20.cbf.corp.google.com with ESMTP id p66MVxLt018645
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 6 Jul 2011 15:32:00 -0700
+Received: by pwi5 with SMTP id 5so361432pwi.18
+        for <linux-mm@kvack.org>; Wed, 06 Jul 2011 15:31:59 -0700 (PDT)
+Date: Wed, 6 Jul 2011 15:31:52 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch] oom: make deprecated use of oom_adj more verbose
+Message-ID: <alpine.DEB.2.00.1107061531120.8633@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arnd Bergmann <arnd@arndb.de>
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Michal Nazarewicz <mina86@mina86.com>, Kyungmin Park <kyungmin.park@samsung.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ankita Garg <ankita@in.ibm.com>, Daniel Walker <dwalker@codeaurora.org>, Mel Gorman <mel@csn.ul.ie>, Jesse Barker <jesse.barker@linaro.org>, Jonathan Corbet <corbet@lwn.net>, Chunsang Jeong <chunsang.jeong@linaro.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
 
-On Tue, 5 Jul 2011 14:07:17 +0200
-Arnd Bergmann <arnd@arndb.de> wrote:
+/proc/pid/oom_adj is deprecated and scheduled for removal in August 2012
+according to Documentation/feature-removal-schedule.txt.
 
-> On Tuesday 05 July 2011, Marek Szyprowski wrote:
-> > This is yet another round of Contiguous Memory Allocator patches. I hope
-> > that I've managed to resolve all the items discussed during the Memory
-> > Management summit at Linaro Meeting in Budapest and pointed later on
-> > mailing lists. The goal is to integrate it as tight as possible with
-> > other kernel subsystems (like memory management and dma-mapping) and
-> > finally merge to mainline.
-> 
-> You have certainly addressed all of my concerns, this looks really good now!
-> 
-> Andrew, can you add this to your -mm tree? What's your opinion on the
-> current state, do you think this is ready for merging in 3.1 or would
-> you want to have more reviews from core memory management people?
-> 
-> My reviews were mostly on the driver and platform API side, and I think
-> we're fine there now, but I don't really understand the impacts this has
-> in mm.
+This patch makes the warning more verbose by making it appear as a more
+serious problem (the presence of a stack trace and being multiline should
+attract more attention) so that applications still using the old
+interface can get fixed.
 
-I could review it and put it in there on a preliminary basis for some
-runtime testing.  But the question in my mind is how different will the
-code be after the problems which rmk has identified have been fixed?
+Very popular users of the old interface have been converted since the oom
+killer rewrite has been introduced.  udevd switched to the
+/proc/pid/oom_score_adj interface for v162, kde switched in 4.6.1, and
+opensshd switched in 5.7p1.
 
-If "not very different" then that effort and testing will have been
-worthwhile.
+At the start of 2012, this should be changed into a WARN() to emit all
+such incidents and then finally remove the tunable in August 2012 as
+scheduled.
 
-If "very different" or "unworkable" then it was all for naught.
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ fs/proc/base.c |    7 +++----
+ 1 files changed, 3 insertions(+), 4 deletions(-)
 
-So.  Do we have a feeling for the magnitude of the changes which will
-be needed to fix these things up?
+diff --git a/fs/proc/base.c b/fs/proc/base.c
+--- a/fs/proc/base.c
++++ b/fs/proc/base.c
+@@ -1118,10 +1118,9 @@ static ssize_t oom_adjust_write(struct file *file, const char __user *buf,
+ 	 * Warn that /proc/pid/oom_adj is deprecated, see
+ 	 * Documentation/feature-removal-schedule.txt.
+ 	 */
+-	printk_once(KERN_WARNING "%s (%d): /proc/%d/oom_adj is deprecated, "
+-			"please use /proc/%d/oom_score_adj instead.\n",
+-			current->comm, task_pid_nr(current),
+-			task_pid_nr(task), task_pid_nr(task));
++	WARN_ONCE(1, "%s (%d): /proc/%d/oom_adj is deprecated, please use /proc/%d/oom_score_adj instead.\n",
++		  current->comm, task_pid_nr(current), task_pid_nr(task),
++		  task_pid_nr(task));
+ 	task->signal->oom_adj = oom_adjust;
+ 	/*
+ 	 * Scale /proc/pid/oom_score_adj appropriately ensuring that a maximum 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
