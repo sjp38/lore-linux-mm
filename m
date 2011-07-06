@@ -1,41 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id D12C59000C2
-	for <linux-mm@kvack.org>; Wed,  6 Jul 2011 10:24:24 -0400 (EDT)
-Date: Wed, 6 Jul 2011 15:23:45 +0100
-From: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Subject: Re: [PATCH 6/8] drivers: add Contiguous Memory Allocator
-Message-ID: <20110706142345.GC8286@n2100.arm.linux.org.uk>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 432EC9000C2
+	for <linux-mm@kvack.org>; Wed,  6 Jul 2011 10:48:57 -0400 (EDT)
+Received: by vxg38 with SMTP id 38so7267016vxg.14
+        for <linux-mm@kvack.org>; Wed, 06 Jul 2011 07:48:55 -0700 (PDT)
+Date: Wed, 6 Jul 2011 10:37:37 -0400 (EDT)
+From: Nicolas Pitre <nicolas.pitre@linaro.org>
+Subject: Re: [Linaro-mm-sig] [PATCH 6/8] drivers: add Contiguous Memory
+ Allocator
+In-Reply-To: <20110706142345.GC8286@n2100.arm.linux.org.uk>
+Message-ID: <alpine.LFD.2.00.1107061034200.14596@xanadu.home>
 References: <1309851710-3828-1-git-send-email-m.szyprowski@samsung.com> <20110705113345.GA8286@n2100.arm.linux.org.uk> <006301cc3be4$daab1850$900148f0$%szyprowski@samsung.com> <201107061609.29996.arnd@arndb.de>
+ <20110706142345.GC8286@n2100.arm.linux.org.uk>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201107061609.29996.arnd@arndb.de>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arnd Bergmann <arnd@arndb.de>
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, 'Daniel Walker' <dwalker@codeaurora.org>, 'Jonathan Corbet' <corbet@lwn.net>, 'Mel Gorman' <mel@csn.ul.ie>, 'Chunsang Jeong' <chunsang.jeong@linaro.org>, 'Michal Nazarewicz' <mina86@mina86.com>, 'Jesse Barker' <jesse.barker@linaro.org>, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Ankita Garg' <ankita@in.ibm.com>, 'Andrew Morton' <akpm@linux-foundation.org>, 'KAMEZAWA Hiroyuki' <kamezawa.hiroyu@jp.fujitsu.com>
+To: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Cc: Arnd Bergmann <arnd@arndb.de>, 'Daniel Walker' <dwalker@codeaurora.org>, 'Jonathan Corbet' <corbet@lwn.net>, 'Mel Gorman' <mel@csn.ul.ie>, 'Chunsang Jeong' <chunsang.jeong@linaro.org>, 'Jesse Barker' <jesse.barker@linaro.org>, 'KAMEZAWA Hiroyuki' <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, 'Michal Nazarewicz' <mina86@mina86.com>, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Ankita Garg' <ankita@in.ibm.com>, 'Andrew Morton' <akpm@linux-foundation.org>, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org
 
-On Wed, Jul 06, 2011 at 04:09:29PM +0200, Arnd Bergmann wrote:
-> Maybe you can simply adapt the default location of the contiguous memory
-> are like this:
-> - make CONFIG_CMA depend on CONFIG_HIGHMEM on ARM, at compile time
-> - if ZONE_HIGHMEM exist during boot, put the CMA area in there
-> - otherwise, put the CMA area at the top end of lowmem, and change
->   the zone sizes so ZONE_HIGHMEM stretches over all of the CMA memory.
+On Wed, 6 Jul 2011, Russell King - ARM Linux wrote:
 
-One of the requirements of the allocator is that the returned memory
-should be zero'd (because it can be exposed to userspace via ALSA
-and frame buffers.)
+> Another issue is that when a platform has restricted DMA regions,
+> they typically don't fall into the highmem zone.  As the dmabounce
+> code allocates from the DMA coherent allocator to provide it with
+> guaranteed DMA-able memory, that would be rather inconvenient.
 
-Zeroing the memory from all the contexts which dma_alloc_coherent
-is called from is a trivial matter if its in lowmem, but highmem is
-harder.
+Do we encounter this in practice i.e. do those platforms requiring large 
+contiguous allocations motivating this work have such DMA restrictions?
 
-Another issue is that when a platform has restricted DMA regions,
-they typically don't fall into the highmem zone.  As the dmabounce
-code allocates from the DMA coherent allocator to provide it with
-guaranteed DMA-able memory, that would be rather inconvenient.
+
+Nicolas
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
