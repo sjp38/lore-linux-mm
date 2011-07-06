@@ -1,105 +1,284 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id E475D9000C2
-	for <linux-mm@kvack.org>; Tue,  5 Jul 2011 21:06:19 -0400 (EDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 69F7F9000C2
+	for <linux-mm@kvack.org>; Tue,  5 Jul 2011 21:24:09 -0400 (EDT)
+Date: Wed, 6 Jul 2011 11:23:57 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH 03/27] xfs: use write_cache_pages for writeback
+ clustering
+Message-ID: <20110706012356.GH1026@dastard>
+References: <20110629140109.003209430@bombadil.infradead.org>
+ <20110629140336.950805096@bombadil.infradead.org>
+ <20110701022248.GM561@dastard>
+ <20110701041851.GN561@dastard>
+ <20110701093305.GA28531@infradead.org>
+ <20110701154136.GA17881@localhost>
+ <20110704032534.GD1026@dastard>
+ <20110705143409.GB15285@suse.de>
 MIME-Version: 1.0
-Message-ID: <d19811cc-a722-4d30-8a43-aedb1cd978c9@default>
-Date: Tue, 5 Jul 2011 18:05:53 -0700 (PDT)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [RFC] non-preemptible kernel socket for RAMster
-References: <4232c4b6-15be-42d8-be42-6e27f9188ce2@default>
- <D3F292ADF945FB49B35E96C94C2061B91257D65C@nsmail.netscout.com>
- <6147447c-ecab-43ea-9b4a-1ff64b2089f0@default>
- <D3F292ADF945FB49B35E96C94C2061B91257D6FD@nsmail.netscout.com>
- <704d094e-7b81-480f-8363-327218d1b0ea@default
- D3F292ADF945FB49B35E96C94C2061B91257DCA8@nsmail.netscout.com>
-In-Reply-To: <D3F292ADF945FB49B35E96C94C2061B91257DCA8@nsmail.netscout.com>
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
+Content-Disposition: inline
+In-Reply-To: <20110705143409.GB15285@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Loke, Chetan" <Chetan.Loke@netscout.com>, netdev@vger.kernel.org
-Cc: Konrad Wilk <konrad.wilk@oracle.com>, linux-mm <linux-mm@kvack.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Wu Fengguang <fengguang.wu@intel.com>, Christoph Hellwig <hch@infradead.org>, Johannes Weiner <jweiner@redhat.com>, "xfs@oss.sgi.com" <xfs@oss.sgi.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-> From: Loke, Chetan [mailto:Chetan.Loke@netscout.com]
-> Subject: RE: [RFC] non-preemptible kernel socket for RAMster
->=20
-> > From: Dan Magenheimer [mailto:dan.magenheimer@oracle.com]
->=20
-> > Actually, RAMster is using a much more flexible type of
-> > RAM-drive; it is built on top of Transcendent Memory
-> > and on top of zcache (and thus on top of cleancache and
-> > frontswap).  A RAM-drive is fixed size so is not very suitable
-> > for the flexibility required for RAMster.  For example,
-> > suppose you have two machines A and B.  At one point in
-> > time A is overcommitted and needs to swap and B is relatively
-> > idle.  Then later, B is overcommitted and needs to swap and
-> > A is relatively idle.  RAMster can handle this entirely
-> > dynamically, a RAM-drive cannot.
->=20
-> Again, iff NBD works with a ram-drive then you really wouldn't need to
-> do anything. How often are you going to re-size your remote-SWAP?  Plus,
-> you can make nbd-server listen on multiple ports - Google(Linux NBD)
-> returned: http://www.fi.muni.cz/~kripac/orac-nbd/ . Look at the
-> nbd-server code to see if it launches multiple kernel-threads for
-> servicing different ports. If not, one can enhance it and scale that way
-> too. But nbd-server today can service multiple-ports(that is effectively
-> servicing multiple clients). So why not add NBD-filesystem-filters to
-> make it point to local/remote swap?
+On Tue, Jul 05, 2011 at 03:34:10PM +0100, Mel Gorman wrote:
+> On Mon, Jul 04, 2011 at 01:25:34PM +1000, Dave Chinner wrote:
+> > On Fri, Jul 01, 2011 at 11:41:36PM +0800, Wu Fengguang wrote:
+> > > Christoph,
+> > > 
+> > > On Fri, Jul 01, 2011 at 05:33:05PM +0800, Christoph Hellwig wrote:
+> > > > Johannes, Mel, Wu,
+> > > > 
+> > > > Dave has been stressing some XFS patches of mine that remove the XFS
+> > > > internal writeback clustering in favour of using write_cache_pages.
+> > > > 
+> > > > As part of investigating the behaviour he found out that we're still
+> > > > doing lots of I/O from the end of the LRU in kswapd.  Not only is that
+> > > > pretty bad behaviour in general, but it also means we really can't
+> > > > just remove the writeback clustering in writepage given how much
+> > > > I/O is still done through that.
+> > > > 
+> > > > Any chance we could the writeback vs kswap behaviour sorted out a bit
+> > > > better finally?
+> > > 
+> > > I once tried this approach:
+> > > 
+> > > http://www.spinics.net/lists/linux-mm/msg09202.html
+> > > 
+> > > It used a list structure that is not linearly scalable, however that
+> > > part should be independently improvable when necessary.
+> > 
+> > I don't think that handing random writeback to the flusher thread is
+> > much better than doing random writeback directly.  Yes, you added
+> > some clustering, but I'm still don't think writing specific pages is
+> > the best solution.
+> > 
+> > > The real problem was, it seem to not very effective in my test runs.
+> > > I found many ->nr_pages works queued before the ->inode works, which
+> > > effectively makes the flusher working on more dispersed pages rather
+> > > than focusing on the dirty pages encountered in LRU reclaim.
+> > 
+> > But that's really just an implementation issue related to how you
+> > tried to solve the problem. That could be addressed.
+> > 
+> > However, what I'm questioning is whether we should even care what
+> > page memory reclaim wants to write - it seems to make fundamentally
+> > bad decisions from an IO persepctive.
+> > 
+> 
+> It sucks from an IO perspective but from the perspective of the VM that
+> needs memory to be free in a particular zone or node, it's a reasonable
+> request.
 
-Well, we may be talking past each other, but the RAMster answer to:
+Sure, I'm not suggesting there is anything wrong the requirement of
+being able to clean pages in a particular zone. My comments are
+aimed at the fact the implementation of this feature is about as
+friendly to the IO subsystem as a game of Roshambeau....
 
-> How often are you going to re-size your remote-SWAP?
+If someone comes to us complaining about an application that causes
+this sort of IO behaviour, our answer is always "fix the
+application" because it is not something we can fix in the
+filesystem. Same here - we need to have the "application" fixed to
+play well with others.
 
-is "as often as the working set changes on any machine in the
-cluster", meaning *constantly*, entirely dynamically!  How
-about a more specific example:  Suppose you have 2 machines,
-each with 8GB of memory.  99% of the time each machine is
-chugging along just fine and doesn't really need more than 4GB,
-and may even use less than 1GB a large part of the time.
-But very now and then, one of the machines randomly needs
-9GB, 10GB, maybe even 12GB  of memory.  This would normally
-result in swapping.  (Most system administrators won't even
-have this much information... they'll just know they are
-seeing swapping and decide they need to buy more RAM.)
+> > We have to remember that memory reclaim is doing LRU reclaim and the
+> > flusher threads are doing "oldest first" writeback. IOWs, both are trying
+> > to operate in the same direction (oldest to youngest) for the same
+> > purpose.  The fundamental problem that occurs when memory reclaim
+> > starts writing pages back from the LRU is this:
+> > 
+> > 	- memory reclaim has run ahead of IO writeback -
+> > 
+> 
+> This reasoning was the basis for this patch
+> http://www.gossamer-threads.com/lists/linux/kernel/1251235?do=post_view_threaded#1251235
+> 
+> i.e. if old pages are dirty then the flusher threads are either not
+> awake or not doing enough work so wake them. It was flawed in a number
+> of respects and never finished though.
 
-With NBD to a ram-drive, each machine would need to pre-allocate
-4GB of RAM for the RAM-drive, leaving only 4GB of RAM for
-the "local" RAM.  The result will actually be MORE swapping
-because a fixed amount of RAM has been pre-reserved for the
-other machine's swap.   With RAMster, everything is done dynamically,
-so all that matters is the maximum of the sum of the RAM
-used.  You may even be able to *remove* ~2GB of RAM from each
-of the systems and still never see any swapping to disk.
+But that's dealing with a different situation - you're assuming that the
+writeback threads are not running or are running inefficiently.
 
-> > Thanks.  Could you provide a pointer for this?  I found
-> > the SCST sourceforge page but no obvious references to
-> > scst-in-ram-mode.  (But also, since it appears to be
-> > SCSI-related, I wonder if it also assumes a fixed size
-> > target device, RAM or disk or ??)
->=20
-> Yes, it is SCSI. You should be looking for SCST I/O modes. Read some
-> docs and then send an email to the scst-mailing-list. If you speak about
-> block-IO-performance then FC(in its class of price/performance factor)
-> is more than capable of handling any workload. FC is a protocol designed
-> for storage. No exotic fabric other than FC is needed.
-> Folks who start with ethernet for block-IO, always start with bare
-> minimal code and then for squeezing block-IO performance(aka version 2
-> of the product), keep hacking repeatedly or go for a link-speed upgrade.
-> Start with FC, period.
+What I'm seeing is bad behaviour when the IO subsystem is already
+running flat out with perfectly formed IO. No additional IO
+submission is going to make it clean pages faster than it already
+is. It is in this situation that memory reclaim should never, ever
+be trying to write dirty pages.
 
-My point was that block I/O devices (AFAIK) always present a fixed
-"size" to the kernel, and if this is also true of scst-in-ram-mode,
-the same problem as swap-over-NBD occurs... it's not dynamic.
-RAMster does not present a block-I/O storage-like interface;
-it's using the Transcendent Memory interface, which is designed
-for "slow RAM" of an unknown-and-dynamic size.
+IIRC, the situation was that there were about 15,000 dirty pages and
+~20,000 pages under writeback when memory reclaim started pushing
+pages from the LRU. This is on a single node machine, with all IO
+being single threaded (so a single source of memory pressure) and
+writeback doing it's job.  Memory reclaim should *never* get ahead
+of writeback under such a simple workload on such a simple
+configuration....
 
-I'm not a storage expert either, but I do wonder if "no exotic
-fabric other than FC" isn't an oxymoron ;-)  FC is certainly
-too exotic for me.
+> > The LRU usually looks like this:
+> > 
+> > 	oldest					youngest
+> > 	+---------------+---------------+--------------+
+> > 	clean		writeback	dirty
+> > 			^		^
+> > 			|		|
+> > 			|		Where flusher will next work from
+> > 			|		Where kswapd is working from
+> > 			|
+> > 			IO submitted by flusher, waiting on completion
+> > 
+> > 
+> > If memory reclaim is hitting dirty pages on the LRU, it means it has
+> > got ahead of writeback without being throttled - it's passed over
+> > all the pages currently under writeback and is trying to write back
+> > pages that are *newer* than what writeback is working on. IOWs, it
+> > starts trying to do the job of the flusher threads, and it does that
+> > very badly.
+> > 
+> > The $100 question is ???why is it getting ahead of writeback*?
+> > 
+> 
+> Allocating and dirtying memory faster than writeback. Large dd to USB
+> stick would also trigger it.
 
-Dan
+Write throttling is supposed to prevent that situation from being
+problematic. It's entire purpose is to throttle the dirtying rate to
+match the writeback rate. If that's a problem, the memory reclaim
+subsystem is the wrong place to be trying to fix it.
+
+And as such, that is not the case here; foreground throttling is
+definitely occurring and works fine for 70-80s, then memory reclaim
+gets ahead of writeback and it all goes to shit.
+
+> > From a brief look at the vmscan code, it appears that scanning does
+> > not throttle/block until reclaim priority has got pretty high. That
+> > means at low priority reclaim, it *skips pages under writeback*.
+> > However, if it comes across a dirty page, it will trigger writeback
+> > of the page.
+> > 
+> > Now call me crazy, but if we've already got a large number of pages
+> > under writeback, why would we want to *start more IO* when clearly
+> > the system is taking care of cleaning pages already and all we have
+> > to do is wait for a short while to get clean pages ready for
+> > reclaim?
+> > 
+> 
+> It doesnt' check how many pages are under writeback.
+
+Isn't that an indication of a design flaw? You want to clean
+pages, but you don't even bother to check on how many pages are
+currently being cleaned and will soon be reclaimable?
+
+> Direct reclaim
+> will check if the block device is congested but that is about
+> it.
+
+FWIW, we've removed all the congestion logic from the writeback
+subsystem because IO throttling never really worked well that way.
+Writeback IO throttling now works by foreground blocking during IO
+submission on request queue slots in the elevator. That's why we
+have flusher threads per-bdi - so writeback can block on a congested
+bdi and not block writeback to other bdis. It's simpler, more
+extensible and far more scalable than the old method.
+
+Anyway, it's a moot point because direct reclaim can't issue IO
+through xfs, ext4 or btrfs and as such I have doubts that the
+throttling logic in vmscan is completely robust.
+
+> Otherwise the expectation was the elevator would handle the
+> merging of requests into a sensible patter. Also, while filesystem
+> pages are getting cleaned by flushs, that does not cover anonymous
+> pages being written to swap.
+
+Anonymous pages written to swap are not the issue here - I couldn't
+care less what you do with them. It's writeback of dirty file pages
+that I care about...
+
+> 
+> > Indeed, I added this quick hack to prevent the VM from doing
+> > writeback via pageout until after it starts blocking on writeback
+> > pages:
+> > 
+> > @@ -825,6 +825,8 @@ static unsigned long shrink_page_list(struct list_head *page_l
+> >  		if (PageDirty(page)) {
+> >  			nr_dirty++;
+> >  
+> > +			if (!(sc->reclaim_mode & RECLAIM_MODE_SYNC))
+> > +				goto keep_locked;
+> >  			if (references == PAGEREF_RECLAIM_CLEAN)
+> >  				goto keep_locked;
+> >  			if (!may_enter_fs)
+> > 
+> > IOWs, we don't write pages from kswapd unless there is no IO
+> > writeback going on at all (waited on all the writeback pages or none
+> > exist) and there are dirty pages on the LRU.
+> > 
+> 
+> A side effect of this patch is that kswapd is no longer writing
+> anonymous pages to swap and possibly never will.
+
+For dirty anon pages to still get written, all that needs to be
+done is pass the file parameter to shrink_page_list() and change the
+test to: 
+
++			if (file && (sc->reclaim_mode & RECLAIM_MODE_SYNC))
++				goto keep_locked;
+
+As it is, I haven't had any of my test systems (which run tests that
+deliberately cause OOM conditions) fail with this patch. While I
+agree it is just a hack, it's naivety has also demonstrated that a
+working system does not need to write back dirty file pages from
+memory reclaim -at all-. i.e. it makes my argument stronger, not
+weaker....
+
+> RECLAIM_MODE_SYNC is
+> only set for lumpy reclaim which if you have CONFIG_COMPACTION set, will
+> never happen.
+
+Which means that memory reclaim does not throttle reliably on
+writeback in progress. Even when the priority has ratcheted right up
+and it is obvious that the zone in question has pages being cleaned
+and will soon be available for reclaim, memory reclaim won't wait
+for them directly.
+
+Once again this points to the throttling mechanism being sub-optimal
+- it relies on second order effects (congestion_wait) to try to
+block long enough for pages to be cleaned in the zone being
+reclaimed from before doing another scan to find those pages. It's a
+"wait and hope" approach to throttling, and that's one of the
+reasons it never worked well in the writeback subsystem.
+
+Instead, if memory reclaim waits directly on a page on the given LRU
+under writeback it guarantees that when you are woken that there was
+at least some progress made by the IO subsystem that would allow the
+memory reclaim subsystem to move forward.
+
+What it comes down to is the fact that you can scan tens of
+thousands of pages in the time it takes for IO on a single page to
+complete. If there are pages already under IO, then why start more
+IO when what ends up getting reclaimed is one of the pages that is
+already under IO when the new IO was issued?
+
+BTW:
+
+# CONFIG_COMPACTION is not set
+
+> I see your figures and know why you want this but it never was that
+> straight-forward :/
+
+If the code is complex enough that implementing a basic policy such
+as "don't writeback pages if there are already pages under
+writeback" is difficult, then maybe the code needs to be
+simplified....
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
