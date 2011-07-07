@@ -1,61 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 5960B9000C2
-	for <linux-mm@kvack.org>; Thu,  7 Jul 2011 08:02:49 -0400 (EDT)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 14C6D9000C3
+	for <linux-mm@kvack.org>; Thu,  7 Jul 2011 08:09:22 -0400 (EDT)
+Date: Thu, 7 Jul 2011 14:09:18 +0200
+From: Lennert Buytenhek <buytenh@wantstofly.org>
+Subject: Re: [PATCH 3/8] ARM: dma-mapping: use
+ asm-generic/dma-mapping-common.h
+Message-ID: <20110707120918.GF7810@wantstofly.org>
+References: <1308556213-24970-1-git-send-email-m.szyprowski@samsung.com>
+ <201106241736.43576.arnd@arndb.de>
+ <000601cc34c4$430f91f0$c92eb5d0$%szyprowski@samsung.com>
+ <201106271519.43581.arnd@arndb.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8;
- format=flowed
-Content-Transfer-Encoding: 8bit
-Date: Thu, 07 Jul 2011 08:02:44 -0400
-From: mail@rsmogura.net
-Subject: Re: Hugepages for shm page cache (defrag)
-In-Reply-To: <m2pqlmy7z8.fsf@firstfloor.org>
-References: <201107062131.01717.mail@smogura.eu>
- <m2pqlmy7z8.fsf@firstfloor.org>
-Message-ID: <5be3df4081574f3d4e1e699f028549a7@rsmogura.net>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201106271519.43581.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: =?UTF-8?Q?Rados=C5=82aw_Smogura?= <mail@smogura.eu>, linux-mm@kvack.org, aarcange@redhat.com
+To: Arnd Bergmann <arnd@arndb.de>
+Cc: Marek Szyprowski <m.szyprowski@samsung.com>, linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Joerg Roedel' <joro@8bytes.org>, 'Russell King - ARM Linux' <linux@arm.linux.org.uk>
 
-On Wed, 06 Jul 2011 22:28:59 -0700, Andi Kleen wrote:
-> RadosA?aw Smogura <mail@smogura.eu> writes:
->
->> Hello,
->>
->> This is may first try with Linux patch, so please do not blame me 
->> too much.
->> Actually I started with small idea to add MAP_HUGTLB for /dev/shm 
->> but it grew
->> up in something more like support for huge pages in page cache, but 
->> according
->> to documentation to submit alpha-work too, I decided to send this.
->
-> Shouldn't this be rather integrated with the normal transparent huge
-> pages? It seems odd to develop parallel infrastructure.
->
-> -Andi
-It's not quite good to ask me about this, as I'm starting hacker, but I 
-think it should be treated as counterpart for page cache, and actually I 
-got few "collisions" with THP.
+On Mon, Jun 27, 2011 at 03:19:43PM +0200, Arnd Bergmann wrote:
 
-High level design will probably be the same (e.g. I use defrag_, THP 
-uses collapse_ for creating huge page), but in contrast I try to operate 
-on page cache, so in some way file system must be huge page aware (shm 
-fs is not, as it can move page from page cache to swap cache - it may 
-silently fragment de-fragmented areas).
+> > > I suppose for the majority of the cases, the overhead of the indirect
+> > > function call is near-zero, compared to the overhead of the cache
+> > > management operation, so it would only make a difference for coherent
+> > > systems without an IOMMU. Do we care about micro-optimizing those?
 
-I put some requirements for work, e. g. mapping file as huge should not 
-affect previous or future, even fancy, non huge mappings, both callers 
-should succeed and get this what they asked for.
+FWIW, when I was hacking on ARM access point routing performance some
+time ago, turning the L1/L2 cache maintenance operations into inline
+functions (inlined into the ethernet driver) gave me a significant and
+measurable performance boost.
 
-Of course I think how to make it more "transparent" without need of 
-file system support, but I suppose it may be dead-corner.
+Such things can remain product-specific hacks, though.
 
-I still want to emphasise it's really alpha version.
 
-Regards,
-Radek
+> > Even in coherent case, the overhead caused by additional function call
+> > should have really negligible impact on drivers performance.
+> 
+> What about object code size? I guess since ixp23xx is the only platform
+> that announces itself as coherent, we probably don't need to worry about
+> it too much either. Lennert?
+
+I don't think so.  ixp23xx isn't a very popular platform anymore either,
+having been discontinued some time ago.
+
+
+thanks,
+Lennert
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
