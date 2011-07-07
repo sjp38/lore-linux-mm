@@ -1,49 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 041019000C2
-	for <linux-mm@kvack.org>; Thu,  7 Jul 2011 14:00:54 -0400 (EDT)
-Received: by bwb11 with SMTP id 11so1149473bwb.9
-        for <linux-mm@kvack.org>; Thu, 07 Jul 2011 11:00:50 -0700 (PDT)
-Date: Thu, 7 Jul 2011 21:00:44 +0300 (EEST)
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 359289000C2
+	for <linux-mm@kvack.org>; Thu,  7 Jul 2011 14:07:37 -0400 (EDT)
+Received: by bwb11 with SMTP id 11so1157321bwb.9
+        for <linux-mm@kvack.org>; Thu, 07 Jul 2011 11:07:34 -0700 (PDT)
+Date: Thu, 7 Jul 2011 21:07:27 +0300 (EEST)
 From: Pekka Enberg <penberg@kernel.org>
-Subject: Re: [PATCH 00/10] mm: Linux VM Infrastructure to support Memory
- Power Management
-In-Reply-To: <alpine.DEB.2.02.1107061318190.2535@asgard.lang.hm>
-Message-ID: <alpine.DEB.2.00.1107072058390.5978@tiger>
-References: <1306499498-14263-1-git-send-email-ankita@in.ibm.com> <20110629130038.GA7909@in.ibm.com> <CAOJsxLHQP=-srK_uYYBsPb7+rUBnPZG7bzwtCd-rRaQa4ikUFg@mail.gmail.com> <alpine.DEB.2.02.1107061318190.2535@asgard.lang.hm>
+Subject: Re: [PATCH] slub: reduce overhead of slub_debug
+In-Reply-To: <20110626193918.GA3339@joi.lan>
+Message-ID: <alpine.DEB.2.00.1107072106560.6693@tiger>
+References: <20110626193918.GA3339@joi.lan>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: david@lang.hm
-Cc: Ankita Garg <ankita@in.ibm.com>, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-pm@lists.linux-foundation.org, svaidy@linux.vnet.ibm.com, thomas.abraham@linaro.org, Dave Hansen <dave@linux.vnet.ibm.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Matthew Garrett <mjg59@srcf.ucam.org>, Arjan van de Ven <arjan@infradead.org>, Christoph Lameter <cl@linux.com>
+To: Marcin Slusarz <marcin.slusarz@gmail.com>
+Cc: Christoph Lameter <cl@linux-foundation.org>, Matt Mackall <mpm@selenic.com>, LKML <linux-kernel@vger.kernel.org>, rientjes@google.com, linux-mm@kvack.org
 
-On Wed, 6 Jul 2011, Pekka Enberg wrote:
->> Why does the allocator need to know about address boundaries? Why
->> isn't it enough to make the page allocator and reclaim policies favor using
->> memory from lower addresses as aggressively as possible? That'd mean
->> we'd favor the first memory banks and could keep the remaining ones
->> powered off as much as possible.
->> 
->> IOW, why do we need to support scenarios such as this:
->>
->>   bank 0     bank 1   bank 2    bank3
->> | online  | offline | online  | offline |
+On Sun, 26 Jun 2011, Marcin Slusarz wrote:
+> slub checks for poison one byte by one, which is highly inefficient
+> and shows up frequently as a highest cpu-eater in perf top.
 >
-On Wed, 6 Jul 2011, david@lang.hm wrote:
-> I believe that there are memory allocations that cannot be moved after they 
-> are made (think about regions allocated to DMA from hardware where the 
-> hardware has already been given the address space to DMA into)
+> Joining reads gives nice speedup:
 >
-> As a result, you may not be able to take bank 2 offline, so your option is to 
-> either leave banks 0-2 all online, or support emptying bank 1 and taking it 
-> offline.
+> (Compiling some project with different options)
+>                                 make -j12    make clean
+> slub_debug disabled:             1m 27s       1.2 s
+> slub_debug enabled:              1m 46s       7.6 s
+> slub_debug enabled + this patch: 1m 33s       3.2 s
+>
+> check_bytes still shows up high, but not always at the top.
+>
+> Signed-off-by: Marcin Slusarz <marcin.slusarz@gmail.com>
+> Cc: Christoph Lameter <cl@linux-foundation.org>
+> Cc: Pekka Enberg <penberg@kernel.org>
+> Cc: Matt Mackall <mpm@selenic.com>
+> Cc: linux-mm@kvack.org
+> ---
 
-But drivers allocate DMA memory for hardware during module load and stay 
-pinned there until the driver is unloaded, no? So in practice DMA buffers 
-are going to be in banks 0-1?
+Looks good to me. Christoph, David, ?
 
- 				Pekka
+> mm/slub.c |   36 ++++++++++++++++++++++++++++++++++--
+> 1 files changed, 34 insertions(+), 2 deletions(-)
+>
+> diff --git a/mm/slub.c b/mm/slub.c
+> index 35f351f..a40ef2d 100644
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
+> @@ -557,10 +557,10 @@ static void init_object(struct kmem_cache *s, void *object, u8 val)
+> 		memset(p + s->objsize, val, s->inuse - s->objsize);
+> }
+>
+> -static u8 *check_bytes(u8 *start, unsigned int value, unsigned int bytes)
+> +static u8 *check_bytes8(u8 *start, u8 value, unsigned int bytes)
+> {
+> 	while (bytes) {
+> -		if (*start != (u8)value)
+> +		if (*start != value)
+> 			return start;
+> 		start++;
+> 		bytes--;
+> @@ -568,6 +568,38 @@ static u8 *check_bytes(u8 *start, unsigned int value, unsigned int bytes)
+> 	return NULL;
+> }
+>
+> +static u8 *check_bytes(u8 *start, u8 value, unsigned int bytes)
+> +{
+> +	u64 value64;
+> +	unsigned int words, prefix;
+> +
+> +	if (bytes <= 16)
+> +		return check_bytes8(start, value, bytes);
+> +
+> +	value64 = value | value << 8 | value << 16 | value << 24;
+> +	value64 = value64 | value64 << 32;
+> +	prefix = 8 - ((unsigned long)start) % 8;
+> +
+> +	if (prefix) {
+> +		u8 *r = check_bytes8(start, value, prefix);
+> +		if (r)
+> +			return r;
+> +		start += prefix;
+> +		bytes -= prefix;
+> +	}
+> +
+> +	words = bytes / 8;
+> +
+> +	while (words) {
+> +		if (*(u64 *)start != value64)
+> +			return check_bytes8(start, value, 8);
+> +		start += 8;
+> +		words--;
+> +	}
+> +
+> +	return check_bytes8(start, value, bytes % 8);
+> +}
+> +
+> static void restore_bytes(struct kmem_cache *s, char *message, u8 data,
+> 						void *from, void *to)
+> {
+> -- 
+> 1.7.5.3
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
