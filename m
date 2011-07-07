@@ -1,44 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 63A559000C2
-	for <linux-mm@kvack.org>; Thu,  7 Jul 2011 03:28:25 -0400 (EDT)
-Date: Thu, 07 Jul 2011 00:27:17 -0700 (PDT)
-Message-Id: <20110707.002717.1495810845761908702.davem@davemloft.net>
-Subject: Re: [Bugme-new] [Bug 38032] New: default values of
- /proc/sys/net/ipv4/udp_mem does not consider huge page allocation
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <1310013490.2481.35.camel@edumazet-laptop>
-References: <6.2.5.6.2.20110706212254.05bff4c8@binnacle.cx>
-	<1310011173.2481.20.camel@edumazet-laptop>
-	<1310013490.2481.35.camel@edumazet-laptop>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E4F49000C2
+	for <linux-mm@kvack.org>; Thu,  7 Jul 2011 03:37:55 -0400 (EDT)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: Re: [PATCHv11 0/8] Contiguous Memory Allocator
+Date: Thu, 7 Jul 2011 09:36:34 +0200
+References: <1309851710-3828-1-git-send-email-m.szyprowski@samsung.com> <201107051407.17249.arnd@arndb.de> <20110706151112.5c619431.akpm@linux-foundation.org>
+In-Reply-To: <20110706151112.5c619431.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Message-Id: <201107070936.34469.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: eric.dumazet@gmail.com
-Cc: starlight@binnacle.cx, akpm@linux-foundation.org, linux-mm@kvack.org, netdev@vger.kernel.org, bugme-daemon@bugzilla.kernel.org, aquini@linux.com
+To: linux-arm-kernel@lists.infradead.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Ankita Garg <ankita@in.ibm.com>, Daniel Walker <dwalker@codeaurora.org>, Jesse Barker <jesse.barker@linaro.org>, Mel Gorman <mel@csn.ul.ie>, Chunsang Jeong <chunsang.jeong@linaro.org>, Jonathan Corbet <corbet@lwn.net>, linux-kernel@vger.kernel.org, Michal Nazarewicz <mina86@mina86.com>, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, Kyungmin Park <kyungmin.park@samsung.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Marek Szyprowski <m.szyprowski@samsung.com>, linux-media@vger.kernel.org
 
-From: Eric Dumazet <eric.dumazet@gmail.com>
-Date: Thu, 07 Jul 2011 06:38:10 +0200
+On Thursday 07 July 2011 00:11:12 Andrew Morton wrote:
+> I could review it and put it in there on a preliminary basis for some
+> runtime testing.  But the question in my mind is how different will the
+> code be after the problems which rmk has identified have been fixed?
+> 
+> If "not very different" then that effort and testing will have been
+> worthwhile.
+> 
+> If "very different" or "unworkable" then it was all for naught.
+> 
+> So.  Do we have a feeling for the magnitude of the changes which will
+> be needed to fix these things up?
 
-> [PATCH] net: refine {udp|tcp|sctp}_mem limits
-> 
-> Current tcp/udp/sctp global memory limits are not taking into account
-> hugepages allocations, and allow 50% of ram to be used by buffers of a
-> single protocol [ not counting space used by sockets / inodes ...]
-> 
-> Lets use nr_free_buffer_pages() and allow a default of 1/8 of kernel ram
-> per protocol, and a minimum of 128 pages.
-> Heavy duty machines sysadmins probably need to tweak limits anyway.
-> 
-> 
-> References: https://bugzilla.stlinux.com/show_bug.cgi?id=38032
-> Reported-by: starlight <starlight@binnacle.cx>
-> Suggested-by: Andrew Morton <akpm@linux-foundation.org>
-> Signed-off-by: Eric Dumazet <eric.dumazet@gmail.com>
+As far as I can tell, the changes that we still need are mostly in the 
+ARM specific portion of the series. All architectures that have cache
+coherent DMA by default (most of the other interesting ones) can just
+call dma_alloc_from_contiguous() from their dma_alloc_coherent()
+function without having to do extra work.
 
-Applied.
+It's possible that there will be small changes to simplify to the
+first six patches in order to simplify the ARM port, but I expect
+them to stay basically as they are, unless someone complains about
+them.
+
+	Arnd
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
