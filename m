@@ -1,48 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id B9D4F9000C2
-	for <linux-mm@kvack.org>; Thu,  7 Jul 2011 14:52:54 -0400 (EDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 98C219000C2
+	for <linux-mm@kvack.org>; Thu,  7 Jul 2011 14:54:18 -0400 (EDT)
+Message-ID: <4E1600D3.8050105@candelatech.com>
+Date: Thu, 07 Jul 2011 11:54:11 -0700
+From: Ben Greear <greearb@candelatech.com>
+MIME-Version: 1.0
 Subject: Re: [PATCH] slub: reduce overhead of slub_debug
-From: Pekka Enberg <penberg@kernel.org>
-In-Reply-To: <alpine.DEB.2.00.1107071314320.21719@router.home>
-References: <20110626193918.GA3339@joi.lan>
-	 <alpine.DEB.2.00.1107072106560.6693@tiger>
-	 <alpine.DEB.2.00.1107071314320.21719@router.home>
-Content-Type: text/plain; charset="ISO-8859-1"
-Date: Thu, 07 Jul 2011 21:52:51 +0300
-Message-ID: <1310064771.21902.55.camel@jaguar>
-Mime-Version: 1.0
+References: <20110626193918.GA3339@joi.lan> <alpine.DEB.2.00.1107072106560.6693@tiger> <alpine.DEB.2.00.1107071314320.21719@router.home> <4E15FB3E.9050108@candelatech.com> <alpine.DEB.2.00.1107071341120.21719@router.home>
+In-Reply-To: <alpine.DEB.2.00.1107071341120.21719@router.home>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Christoph Lameter <cl@linux.com>
-Cc: Marcin Slusarz <marcin.slusarz@gmail.com>, Matt Mackall <mpm@selenic.com>, LKML <linux-kernel@vger.kernel.org>, rientjes@google.com, linux-mm@kvack.org
+Cc: Pekka Enberg <penberg@kernel.org>, Marcin Slusarz <marcin.slusarz@gmail.com>, Matt Mackall <mpm@selenic.com>, LKML <linux-kernel@vger.kernel.org>, rientjes@google.com, linux-mm@kvack.org
 
-On Thu, 7 Jul 2011, Pekka Enberg wrote:
-> > Looks good to me. Christoph, David, ?
+On 07/07/2011 11:42 AM, Christoph Lameter wrote:
+> On Thu, 7 Jul 2011, Ben Greear wrote:
+>
+>> The more painful you make it, the less likely folks are to use it
+>> in environments that actually reproduce bugs, so I think it's quite
+>> short-sighted to reject such performance improvements out of hand.
+>>
+>> And what if some production machine has funny crashes in a specific
+>> work-load....wouldn't it be nice if it could enable debugging and
+>> still perform well enough to do it's job?
+>
+> Sure if there would be significant improvements that accomplish what
+> you claim above then that would be certainly worthwhile. Come up with
+> patches like that please.
 
-On Thu, 2011-07-07 at 13:17 -0500, Christoph Lameter wrote:
-> The reason debug code is there is because it is useless overhead typically
-> not needed. There is no point in optimizing the code that is not run in
-> production environments unless there are gross performance issues that
-> make debugging difficult. A performance patch for debugging would have to
-> cause significant performance improvements. This patch does not do that
-> nor was there such an issue to be addressed in the first place.
+The patch appears to make some work loads twice as fast ('make clean'),
+and it had a reasonable speedup to the 'make -j12'.  What do you
+consider 'significant'?
 
-Is there something technically wrong with the patch? Quoting the patch
-email:
+I'm willing to do some other network-related benchmarks with his patch if
+that would give it better chance of being accepted.  (I end up running
+with SLUB debug quite a bit on big, heavy, workloads...so any speedup
+in that would be a big help for us...)
 
-  (Compiling some project with different options)
-                                 make -j12    make clean
-  slub_debug disabled:             1m 27s       1.2 s
-  slub_debug enabled:              1m 46s       7.6 s
-  slub_debug enabled + this patch: 1m 33s       3.2 s
+Thanks,
+Ben
 
-  check_bytes still shows up high, but not always at the top.
-
-That's significant enough speedup for me!
-
-			Pekka
+-- 
+Ben Greear <greearb@candelatech.com>
+Candela Technologies Inc  http://www.candelatech.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
