@@ -1,53 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C4689000C2
-	for <linux-mm@kvack.org>; Wed,  6 Jul 2011 19:52:26 -0400 (EDT)
-Date: Wed, 6 Jul 2011 16:51:46 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 00/14] Swap-over-NBD without deadlocking v5
-Message-Id: <20110706165146.be7ab61b.akpm@linux-foundation.org>
-In-Reply-To: <1308575540-25219-1-git-send-email-mgorman@suse.de>
-References: <1308575540-25219-1-git-send-email-mgorman@suse.de>
+	by kanga.kvack.org (Postfix) with ESMTP id E79799000C2
+	for <linux-mm@kvack.org>; Wed,  6 Jul 2011 21:43:43 -0400 (EDT)
+Message-Id: <6.2.5.6.2.20110706212254.05bff4c8@binnacle.cx>
+Date: Wed, 06 Jul 2011 21:31:15 -0400
+From: starlight@binnacle.cx
+Subject: Re: [Bugme-new] [Bug 38032] New: default values of
+  /proc/sys/net/ipv4/udp_mem does not consider huge page
+  allocation
+In-Reply-To: <20110706160318.2c604ae9.akpm@linux-foundation.org>
+References: <bug-38032-10286@https.bugzilla.kernel.org/>
+ <20110706160318.2c604ae9.akpm@linux-foundation.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Neil Brown <neilb@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, netdev@vger.kernel.org
+Cc: bugme-daemon@bugzilla.kernel.org, Rafael Aquini <aquini@linux.com>
 
-On Mon, 20 Jun 2011 14:12:06 +0100
-Mel Gorman <mgorman@suse.de> wrote:
+For anyone who may not have read the bugzilla, a
+possibly larger concern subsequently discovered is
+that actual kernel memory consumption is double the
+total of the values reported by 'netstat -nau', at
+least when mostly small packets are received and
+a RHEL 5 kernel is in use.  The tunable enforces based
+on the 'netstat' value rather than the actual value
+in the RH kernel.  Maybe not an issue in the
+mainline, but it took a few additional system
+hangs in the lab before we figured this out
+and divided the 'udm_mem' maximum value in half.
 
-> Swapping over NBD is something that is technically possible but not
-> often advised. While there are number of guides on the internet
-> on how to configure it and nbd-client supports a -swap switch to
-> "prevent deadlocks", the fact of the matter is a machine using NBD
-> for swap can be locked up within minutes if swap is used intensively.
-> 
-> The problem is that network block devices do not use mempools like
-> normal block devices do. As the host cannot control where they receive
-> packets from, they cannot reliably work out in advance how much memory
-> they might need.
-> 
-> Some years ago, Peter Ziljstra developed a series of patches that
-> supported swap over an NFS that some distributions are carrying in
-> their kernels. This patch series borrows very heavily from Peter's work
-> to support swapping over NBD (the relatively straight-forward case)
-> and uses throttling instead of dynamically resized memory reserves
-> so the series is not too unwieldy for review.
 
-I have to say, I look over these patches and my mind wants to turn to
-things like puppies.  And ice cream.
-
-There's quite some complexity added here in areas which are already
-reliably unreliable and afaik swap-over-NBD is not a thing which a lot
-of people want to do.  I can see that swap-over-NFS would be useful to
-some people, and the fact that distros are carrying swap-over-NFS
-patches has weight.
-
-Do these patches lead on to swap-over-NFS?  If so, how much more
-additional complexity are we buying into for that?
+At 04:03 PM 7/6/2011 -0700, Andrew Morton wrote:
+>
+>(switched to email.  Please respond via emailed reply-to-all, 
+>not via the bugzilla web interface).
+>
+>(cc's added)
+>
+>On Tue, 21 Jun 2011 00:35:22 GMT
+>bugzilla-daemon@bugzilla.kernel.org wrote:
+>
+>> https://bugzilla.kernel.org/show_bug.cgi?id=38032
+>> 
+>>            Summary: default values of 
+>/proc/sys/net/ipv4/udp_mem does not
+>>                     consider huge page allocatio
+>>            Product: Memory Management
+>>            Version: 2.5
+>>           Platform: All
+>>         OS/Version: Linux
+>>               Tree: Mainline
+>>             Status: NEW
+>>           Severity: normal
+>>           Priority: P1
+>>          Component: Other
+>>         AssignedTo: akpm@linux-foundation.org
+>>         ReportedBy: starlight@binnacle.cx
+>>         Regression: No
+>> 
+>> 
+>> In the RHEL 5.5 back-port of this tunable we ran into trouble locking up
+>> systems because the boot-time default is set based on physical memory does not
+>> account for the hugepages= in the boot parameters.  So the UDP socket buffer
+>> limit can exceed phyisical memory.  Don't know if this is an issue in mainline
+>> kernels but it seems likely so reporting this as a courtesy.  Seems like it
+>> would be easy to fix the default to account for the memory reserved by
+>> hugepages which is not available for slab allocations.
+>> 
+>> https://bugzilla.redhat.com/show_bug.cgi?id=714833
+>> 
+>
+>Yes, we've made similar mistakes in other places.
+>
+>I don't think we really have an official formula for what callers
+>should be doing here.  net/ipv4/udp.c:udp_init() does
+>
+>        nr_pages = totalram_pages - totalhigh_pages;             
+>               
+>
+>which assumes that totalram_pages does not include the pages which were
+>lost to hugepage allocations.
+>
+>I *think* that this is now the case, but it wasn't always the case - we
+>made relatively recent fixes to the totalram_pages maintenance.
+>
+>Perhaps UDP should be using the misnamed nr_free_buffer_pages() 
+>here.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
