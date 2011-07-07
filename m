@@ -1,92 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id E79799000C2
-	for <linux-mm@kvack.org>; Wed,  6 Jul 2011 21:43:43 -0400 (EDT)
-Message-Id: <6.2.5.6.2.20110706212254.05bff4c8@binnacle.cx>
-Date: Wed, 06 Jul 2011 21:31:15 -0400
-From: starlight@binnacle.cx
+	by kanga.kvack.org (Postfix) with ESMTP id BEFAE9000C2
+	for <linux-mm@kvack.org>; Wed,  6 Jul 2011 23:59:40 -0400 (EDT)
+Received: by wyg36 with SMTP id 36so501875wyg.14
+        for <linux-mm@kvack.org>; Wed, 06 Jul 2011 20:59:37 -0700 (PDT)
 Subject: Re: [Bugme-new] [Bug 38032] New: default values of
-  /proc/sys/net/ipv4/udp_mem does not consider huge page
-  allocation
-In-Reply-To: <20110706160318.2c604ae9.akpm@linux-foundation.org>
+ /proc/sys/net/ipv4/udp_mem does not consider huge page allocation
+From: Eric Dumazet <eric.dumazet@gmail.com>
+In-Reply-To: <6.2.5.6.2.20110706212254.05bff4c8@binnacle.cx>
 References: <bug-38032-10286@https.bugzilla.kernel.org/>
- <20110706160318.2c604ae9.akpm@linux-foundation.org>
+	 <20110706160318.2c604ae9.akpm@linux-foundation.org>
+	 <6.2.5.6.2.20110706212254.05bff4c8@binnacle.cx>
+Content-Type: text/plain; charset="UTF-8"
+Date: Thu, 07 Jul 2011 05:59:33 +0200
+Message-ID: <1310011173.2481.20.camel@edumazet-laptop>
 Mime-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, netdev@vger.kernel.org
-Cc: bugme-daemon@bugzilla.kernel.org, Rafael Aquini <aquini@linux.com>
+To: starlight@binnacle.cx
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, netdev@vger.kernel.org, bugme-daemon@bugzilla.kernel.org, Rafael Aquini <aquini@linux.com>
 
-For anyone who may not have read the bugzilla, a
-possibly larger concern subsequently discovered is
-that actual kernel memory consumption is double the
-total of the values reported by 'netstat -nau', at
-least when mostly small packets are received and
-a RHEL 5 kernel is in use.  The tunable enforces based
-on the 'netstat' value rather than the actual value
-in the RH kernel.  Maybe not an issue in the
-mainline, but it took a few additional system
-hangs in the lab before we figured this out
-and divided the 'udm_mem' maximum value in half.
+Le mercredi 06 juillet 2011 A  21:31 -0400, starlight@binnacle.cx a
+A(C)crit :
+> For anyone who may not have read the bugzilla, a
+> possibly larger concern subsequently discovered is
+> that actual kernel memory consumption is double the
+> total of the values reported by 'netstat -nau', at
+> least when mostly small packets are received and
+> a RHEL 5 kernel is in use.  The tunable enforces based
+> on the 'netstat' value rather than the actual value
+> in the RH kernel.  Maybe not an issue in the
+> mainline, but it took a few additional system
+> hangs in the lab before we figured this out
+> and divided the 'udm_mem' maximum value in half.
+> 
+
+Several problems here
+
+1) Hugepages can be setup after system boot, and udp_mem/tcp_mem not
+updated accordingly.
+
+2) Using SLUB debug or kmemcheck for instance adds lot of overhead, that
+we dont take into account (it would probably be expensive to do so).
+Even ksize(ptr) is not able to really report memory usage of an object.
+
+3) What happens if both tcp and udp sockets are in use on the system,
+shouls we half both udp_mem and tcp_mem just in case ?
+
+Now if you also use SCTP sockets, UDP-Lite sockets, lot of file
+mappings, huge pages, conntracking, posix timers (currently not
+limited), threads, ..., what happens ? Should we then set udp_mem to 1%
+of current limit just in case ?
+
+What about fixing the real problem instead ?
+
+When you say the system freezes, is it in the UDP stack, or elsewhere ?
 
 
-At 04:03 PM 7/6/2011 -0700, Andrew Morton wrote:
->
->(switched to email.  Please respond via emailed reply-to-all, 
->not via the bugzilla web interface).
->
->(cc's added)
->
->On Tue, 21 Jun 2011 00:35:22 GMT
->bugzilla-daemon@bugzilla.kernel.org wrote:
->
->> https://bugzilla.kernel.org/show_bug.cgi?id=38032
->> 
->>            Summary: default values of 
->/proc/sys/net/ipv4/udp_mem does not
->>                     consider huge page allocatio
->>            Product: Memory Management
->>            Version: 2.5
->>           Platform: All
->>         OS/Version: Linux
->>               Tree: Mainline
->>             Status: NEW
->>           Severity: normal
->>           Priority: P1
->>          Component: Other
->>         AssignedTo: akpm@linux-foundation.org
->>         ReportedBy: starlight@binnacle.cx
->>         Regression: No
->> 
->> 
->> In the RHEL 5.5 back-port of this tunable we ran into trouble locking up
->> systems because the boot-time default is set based on physical memory does not
->> account for the hugepages= in the boot parameters.  So the UDP socket buffer
->> limit can exceed phyisical memory.  Don't know if this is an issue in mainline
->> kernels but it seems likely so reporting this as a courtesy.  Seems like it
->> would be easy to fix the default to account for the memory reserved by
->> hugepages which is not available for slab allocations.
->> 
->> https://bugzilla.redhat.com/show_bug.cgi?id=714833
->> 
->
->Yes, we've made similar mistakes in other places.
->
->I don't think we really have an official formula for what callers
->should be doing here.  net/ipv4/udp.c:udp_init() does
->
->        nr_pages = totalram_pages - totalhigh_pages;             
->               
->
->which assumes that totalram_pages does not include the pages which were
->lost to hugepage allocations.
->
->I *think* that this is now the case, but it wasn't always the case - we
->made relatively recent fixes to the totalram_pages maintenance.
->
->Perhaps UDP should be using the misnamed nr_free_buffer_pages() 
->here.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
