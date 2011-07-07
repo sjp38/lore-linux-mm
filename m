@@ -1,47 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 6E4F49000C2
-	for <linux-mm@kvack.org>; Thu,  7 Jul 2011 03:37:55 -0400 (EDT)
-From: Arnd Bergmann <arnd@arndb.de>
-Subject: Re: [PATCHv11 0/8] Contiguous Memory Allocator
-Date: Thu, 7 Jul 2011 09:36:34 +0200
-References: <1309851710-3828-1-git-send-email-m.szyprowski@samsung.com> <201107051407.17249.arnd@arndb.de> <20110706151112.5c619431.akpm@linux-foundation.org>
-In-Reply-To: <20110706151112.5c619431.akpm@linux-foundation.org>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id A8D9F9000C2
+	for <linux-mm@kvack.org>; Thu,  7 Jul 2011 04:35:22 -0400 (EDT)
+Received: by iwn8 with SMTP id 8so851476iwn.14
+        for <linux-mm@kvack.org>; Thu, 07 Jul 2011 01:35:20 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Message-Id: <201107070936.34469.arnd@arndb.de>
+In-Reply-To: <20110707155217.909c429a.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20110707155217.909c429a.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Thu, 7 Jul 2011 14:05:19 +0530
+Message-ID: <CAKTCnzkFnsWmg_7zbqN4GfxTtCMZ4FW94NxOP0AG+UKp=xSepA@mail.gmail.com>
+Subject: Re: [PATCH][Cleanup] memcg: consolidates memory cgroup lru stat functions
+From: Balbir Singh <bsingharora@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-arm-kernel@lists.infradead.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Ankita Garg <ankita@in.ibm.com>, Daniel Walker <dwalker@codeaurora.org>, Jesse Barker <jesse.barker@linaro.org>, Mel Gorman <mel@csn.ul.ie>, Chunsang Jeong <chunsang.jeong@linaro.org>, Jonathan Corbet <corbet@lwn.net>, linux-kernel@vger.kernel.org, Michal Nazarewicz <mina86@mina86.com>, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, Kyungmin Park <kyungmin.park@samsung.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Marek Szyprowski <m.szyprowski@samsung.com>, linux-media@vger.kernel.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, Michal Hocko <mhocko@suse.cz>, Ying Han <yinghan@google.com>
 
-On Thursday 07 July 2011 00:11:12 Andrew Morton wrote:
-> I could review it and put it in there on a preliminary basis for some
-> runtime testing.  But the question in my mind is how different will the
-> code be after the problems which rmk has identified have been fixed?
-> 
-> If "not very different" then that effort and testing will have been
-> worthwhile.
-> 
-> If "very different" or "unworkable" then it was all for naught.
-> 
-> So.  Do we have a feeling for the magnitude of the changes which will
-> be needed to fix these things up?
+On Thu, Jul 7, 2011 at 12:22 PM, KAMEZAWA Hiroyuki
+<kamezawa.hiroyu@jp.fujitsu.com> wrote:
+>
+> In mm/memcontrol.c, there are many lru stat functions as..
+>
+> mem_cgroup_zone_nr_lru_pages
+> mem_cgroup_node_nr_file_lru_pages
+> mem_cgroup_nr_file_lru_pages
+> mem_cgroup_node_nr_anon_lru_pages
+> mem_cgroup_nr_anon_lru_pages
+> mem_cgroup_node_nr_unevictable_lru_pages
+> mem_cgroup_nr_unevictable_lru_pages
+> mem_cgroup_node_nr_lru_pages
+> mem_cgroup_nr_lru_pages
+> mem_cgroup_get_local_zonestat
+>
+> Some of them are under #ifdef MAX_NUMNODES >1 and others are not.
+> This seems bad. This patch consolidates all functions into
+>
+> mem_cgroup_zone_nr_lru_pages()
+> mem_cgroup_node_nr_lru_pages()
+> mem_cgroup_nr_lru_pages()
+>
+> For these functions, "which LRU?" information is passed by a mask.
+>
+> example)
+> mem_cgroup_nr_lru_pages(mem, BIT(LRU_ACTIVE_ANON))
+>
+> And I added some macro as ALL_LRU, ALL_LRU_FILE, ALL_LRU_ANON.
+> example)
+> mem_cgroup_nr_lru_pages(mem, ALL_LRU)
+>
+> BTW, considering layout of NUMA memory placement of counters, this patch =
+seems
+> to be better.
+>
+> Now, when we gather all LRU information, we scan in following orer
+> =A0 =A0for_each_lru -> for_each_node -> for_each_zone.
+>
+> This means we'll touch cache lines in different node in turn.
+>
+> After patch, we'll scan
+> =A0 =A0for_each_node -> for_each_zone -> for_each_lru(mask)
+>
+> Then, we'll gather information in the same cacheline at once.
+>
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-As far as I can tell, the changes that we still need are mostly in the 
-ARM specific portion of the series. All architectures that have cache
-coherent DMA by default (most of the other interesting ones) can just
-call dma_alloc_from_contiguous() from their dma_alloc_coherent()
-function without having to do extra work.
+Looks like a good cleanup, but unfortunately I won't be able to test
+any patches till the end of next week or so
 
-It's possible that there will be small changes to simplify to the
-first six patches in order to simplify the ARM port, but I expect
-them to stay basically as they are, unless someone complains about
-them.
-
-	Arnd
+Balbir Singh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
