@@ -1,131 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 72FE09000C2
-	for <linux-mm@kvack.org>; Thu,  7 Jul 2011 00:38:19 -0400 (EDT)
-Received: by wwj40 with SMTP id 40so451538wwj.26
-        for <linux-mm@kvack.org>; Wed, 06 Jul 2011 21:38:16 -0700 (PDT)
-Subject: Re: [Bugme-new] [Bug 38032] New: default values of
- /proc/sys/net/ipv4/udp_mem does not consider huge page allocation
-From: Eric Dumazet <eric.dumazet@gmail.com>
-In-Reply-To: <1310011173.2481.20.camel@edumazet-laptop>
-References: <bug-38032-10286@https.bugzilla.kernel.org/>
-	 <20110706160318.2c604ae9.akpm@linux-foundation.org>
-	 <6.2.5.6.2.20110706212254.05bff4c8@binnacle.cx>
-	 <1310011173.2481.20.camel@edumazet-laptop>
-Content-Type: text/plain; charset="UTF-8"
-Date: Thu, 07 Jul 2011 06:38:10 +0200
-Message-ID: <1310013490.2481.35.camel@edumazet-laptop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id E377C9000C2
+	for <linux-mm@kvack.org>; Thu,  7 Jul 2011 00:54:47 -0400 (EDT)
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.31.245])
+	by e23smtp09.au.ibm.com (8.14.4/8.13.1) with ESMTP id p674sQOk013182
+	for <linux-mm@kvack.org>; Thu, 7 Jul 2011 14:54:26 +1000
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p674sQIk1228892
+	for <linux-mm@kvack.org>; Thu, 7 Jul 2011 14:54:26 +1000
+Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
+	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p674sQ0K007255
+	for <linux-mm@kvack.org>; Thu, 7 Jul 2011 14:54:26 +1000
+Date: Thu, 7 Jul 2011 10:24:20 +0530
+From: Ankita Garg <ankita@in.ibm.com>
+Subject: Re: [PATCH 00/10] mm: Linux VM Infrastructure to support Memory
+ Power Management
+Message-ID: <20110707045420.GA23595@in.ibm.com>
+Reply-To: Ankita Garg <ankita@in.ibm.com>
+References: <1306499498-14263-1-git-send-email-ankita@in.ibm.com>
+ <20110629130038.GA7909@in.ibm.com>
+ <CAOJsxLHQP=-srK_uYYBsPb7+rUBnPZG7bzwtCd-rRaQa4ikUFg@mail.gmail.com>
+ <alpine.DEB.2.02.1107061318190.2535@asgard.lang.hm>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.02.1107061318190.2535@asgard.lang.hm>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: starlight@binnacle.cx, David Miller <davem@davemloft.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, netdev@vger.kernel.org, bugme-daemon@bugzilla.kernel.org, Rafael Aquini <aquini@linux.com>
+To: david@lang.hm
+Cc: Pekka Enberg <penberg@kernel.org>, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-pm@lists.linux-foundation.org, svaidy@linux.vnet.ibm.com, thomas.abraham@linaro.org, Dave Hansen <dave@linux.vnet.ibm.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Matthew Garrett <mjg59@srcf.ucam.org>, Arjan van de Ven <arjan@infradead.org>, Christoph Lameter <cl@linux.com>
 
-Lets use following patch ?
+On Wed, Jul 06, 2011 at 01:20:55PM -0700, david@lang.hm wrote:
+> On Wed, 6 Jul 2011, Pekka Enberg wrote:
+> 
+> >Why does the allocator need to know about address boundaries? Why
+> >isn't it enough to make the page allocator and reclaim policies favor using
+> >memory from lower addresses as aggressively as possible? That'd mean
+> >we'd favor the first memory banks and could keep the remaining ones
+> >powered off as much as possible.
+> >
+> >IOW, why do we need to support scenarios such as this:
+> >
+> >  bank 0     bank 1   bank 2    bank3
+> >| online  | offline | online  | offline |
+> 
+> I believe that there are memory allocations that cannot be moved
+> after they are made (think about regions allocated to DMA from
+> hardware where the hardware has already been given the address space
+> to DMA into)
+>
 
-[PATCH] net: refine {udp|tcp|sctp}_mem limits
-
-Current tcp/udp/sctp global memory limits are not taking into account
-hugepages allocations, and allow 50% of ram to be used by buffers of a
-single protocol [ not counting space used by sockets / inodes ...]
-
-Lets use nr_free_buffer_pages() and allow a default of 1/8 of kernel ram
-per protocol, and a minimum of 128 pages.
-Heavy duty machines sysadmins probably need to tweak limits anyway.
-
-
-References: https://bugzilla.stlinux.com/show_bug.cgi?id=38032
-Reported-by: starlight <starlight@binnacle.cx>
-Suggested-by: Andrew Morton <akpm@linux-foundation.org>
-Signed-off-by: Eric Dumazet <eric.dumazet@gmail.com>
----
- net/ipv4/tcp.c      |   10 ++--------
- net/ipv4/udp.c      |   10 ++--------
- net/sctp/protocol.c |   11 +----------
- 3 files changed, 5 insertions(+), 26 deletions(-)
-
-diff --git a/net/ipv4/tcp.c b/net/ipv4/tcp.c
-index 054a59d..46febca 100644
---- a/net/ipv4/tcp.c
-+++ b/net/ipv4/tcp.c
-@@ -3220,7 +3220,7 @@ __setup("thash_entries=", set_thash_entries);
- void __init tcp_init(void)
- {
- 	struct sk_buff *skb = NULL;
--	unsigned long nr_pages, limit;
-+	unsigned long limit;
- 	int i, max_share, cnt;
- 	unsigned long jiffy = jiffies;
+Thats true. These are kernel allocations which are not movable. However,
+the ZONE_MOVABLE would enable us to create complete movable zones and
+the ones that have the kernel allocations could be flagged as kernelcore
+zone.
  
-@@ -3277,13 +3277,7 @@ void __init tcp_init(void)
- 	sysctl_tcp_max_orphans = cnt / 2;
- 	sysctl_max_syn_backlog = max(128, cnt / 256);
- 
--	/* Set the pressure threshold to be a fraction of global memory that
--	 * is up to 1/2 at 256 MB, decreasing toward zero with the amount of
--	 * memory, with a floor of 128 pages.
--	 */
--	nr_pages = totalram_pages - totalhigh_pages;
--	limit = min(nr_pages, 1UL<<(28-PAGE_SHIFT)) >> (20-PAGE_SHIFT);
--	limit = (limit * (nr_pages >> (20-PAGE_SHIFT))) >> (PAGE_SHIFT-11);
-+	limit = nr_free_buffer_pages() / 8;
- 	limit = max(limit, 128UL);
- 	sysctl_tcp_mem[0] = limit / 4 * 3;
- 	sysctl_tcp_mem[1] = limit;
-diff --git a/net/ipv4/udp.c b/net/ipv4/udp.c
-index 48cd88e..198f75b 100644
---- a/net/ipv4/udp.c
-+++ b/net/ipv4/udp.c
-@@ -2209,16 +2209,10 @@ void __init udp_table_init(struct udp_table *table, const char *name)
- 
- void __init udp_init(void)
- {
--	unsigned long nr_pages, limit;
-+	unsigned long limit;
- 
- 	udp_table_init(&udp_table, "UDP");
--	/* Set the pressure threshold up by the same strategy of TCP. It is a
--	 * fraction of global memory that is up to 1/2 at 256 MB, decreasing
--	 * toward zero with the amount of memory, with a floor of 128 pages.
--	 */
--	nr_pages = totalram_pages - totalhigh_pages;
--	limit = min(nr_pages, 1UL<<(28-PAGE_SHIFT)) >> (20-PAGE_SHIFT);
--	limit = (limit * (nr_pages >> (20-PAGE_SHIFT))) >> (PAGE_SHIFT-11);
-+	limit = nr_free_buffer_pages() / 8;
- 	limit = max(limit, 128UL);
- 	sysctl_udp_mem[0] = limit / 4 * 3;
- 	sysctl_udp_mem[1] = limit;
-diff --git a/net/sctp/protocol.c b/net/sctp/protocol.c
-index 67380a2..207175b 100644
---- a/net/sctp/protocol.c
-+++ b/net/sctp/protocol.c
-@@ -1058,7 +1058,6 @@ SCTP_STATIC __init int sctp_init(void)
- 	int status = -EINVAL;
- 	unsigned long goal;
- 	unsigned long limit;
--	unsigned long nr_pages;
- 	int max_share;
- 	int order;
- 
-@@ -1148,15 +1147,7 @@ SCTP_STATIC __init int sctp_init(void)
- 	/* Initialize handle used for association ids. */
- 	idr_init(&sctp_assocs_id);
- 
--	/* Set the pressure threshold to be a fraction of global memory that
--	 * is up to 1/2 at 256 MB, decreasing toward zero with the amount of
--	 * memory, with a floor of 128 pages.
--	 * Note this initializes the data in sctpv6_prot too
--	 * Unabashedly stolen from tcp_init
--	 */
--	nr_pages = totalram_pages - totalhigh_pages;
--	limit = min(nr_pages, 1UL<<(28-PAGE_SHIFT)) >> (20-PAGE_SHIFT);
--	limit = (limit * (nr_pages >> (20-PAGE_SHIFT))) >> (PAGE_SHIFT-11);
-+	limit = nr_free_buffer_pages() / 8;
- 	limit = max(limit, 128UL);
- 	sysctl_sctp_mem[0] = limit / 4 * 3;
- 	sysctl_sctp_mem[1] = limit;
+> As a result, you may not be able to take bank 2 offline, so your
+> option is to either leave banks 0-2 all online, or support emptying
+> bank 1 and taking it offline.
+> 
 
+-- 
+Regards,
+Ankita Garg (ankita@in.ibm.com)
+Linux Technology Center
+IBM India Systems & Technology Labs,
+Bangalore, India
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
