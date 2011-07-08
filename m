@@ -1,74 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id BB00D9000C2
-	for <linux-mm@kvack.org>; Fri,  8 Jul 2011 11:39:51 -0400 (EDT)
-Date: Fri, 8 Jul 2011 10:39:48 -0500 (CDT)
-From: Chris Pearson <pearson.christopher.j@gmail.com>
-Subject: Re: NULL poniter dereference in isolate_lru_pages 2.6.39.1
-In-Reply-To: <CAEwNFnB8VXkTiMzJewtd7rSZ8keqkboNz-BBjw_UudquvsrK1A@mail.gmail.com>
-Message-ID: <alpine.DEB.2.00.1107081021040.29346@ubuntu>
-References: <CAGtzr3fm2=UJFRo2xSYhst0P4jCMT-EPjyPi3=icCrMtW0ij8w@mail.gmail.com> <CAEwNFnB8VXkTiMzJewtd7rSZ8keqkboNz-BBjw_UudquvsrK1A@mail.gmail.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 2D9629000C2
+	for <linux-mm@kvack.org>; Fri,  8 Jul 2011 12:18:08 -0400 (EDT)
+Date: Fri, 8 Jul 2011 17:17:22 +0100
+From: Al Viro <viro@ZenIV.linux.org.uk>
+Subject: Re: [PATCH] fs/vfs/security: pass last path component to LSM on
+ inode creation
+Message-ID: <20110708161722.GG11013@ZenIV.linux.org.uk>
+References: <20101208194527.13537.77202.stgit@paris.rdu.redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20101208194527.13537.77202.stgit@paris.rdu.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>
+To: Eric Paris <eparis@redhat.com>
+Cc: xfs-masters@oss.sgi.com, linux-btrfs@vger.kernel.org, linux-kernel@vger.kernel.org, linux-ext4@vger.kernel.org, cluster-devel@redhat.com, linux-mtd@lists.infradead.org, jfs-discussion@lists.sourceforge.net, ocfs2-devel@oss.oracle.com, reiserfs-devel@vger.kernel.org, xfs@oss.sgi.com, linux-mm@kvack.org, linux-security-module@vger.kernel.org, jack@suse.cz, penguin-kernel@I-love.SAKURA.ne.jp, jeffm@suse.com, jmorris@namei.org, dhowells@redhat.com, adilger.kernel@dilger.ca, shaggy@linux.vnet.ibm.com, shemminger@vyatta.com, hch@lst.de, hughd@google.com, joel.becker@oracle.com, chris.mason@oracle.com, aelder@sgi.com, kees.cook@canonical.com, sds@tycho.nsa.gov, paul.moore@hp.com, mfasheh@suse.com, dchinner@redhat.com, eparis@parisplace.org, swhiteho@redhat.com, tao.ma@oracle.com, tytso@mit.edu, casey@schaufler-ca.com, serue@us.ibm.com, akpm@linux-foundation.org, dwmw2@infradead.org
 
-addr1line says vmscan.c:0
+On Wed, Dec 08, 2010 at 02:45:27PM -0500, Eric Paris wrote:
+> SELinux would like to implement a new labeling behavior of newly created
+> inodes.  We currently label new inodes based on the parent and the creating
+> process.  This new behavior would also take into account the name of the
+> new object when deciding the new label.  This is not the (supposed) full path,
+> just the last component of the path.
+> 
+> This is very useful because creating /etc/shadow is different than creating
+> /etc/passwd but the kernel hooks are unable to differentiate these
+> operations.  We currently require that userspace realize it is doing some
+> difficult operation like that and than userspace jumps through SELinux hoops
+> to get things set up correctly.  This patch does not implement new
+> behavior, that is obviously contained in a seperate SELinux patch, but it
+> does pass the needed name down to the correct LSM hook.  If no such name
+> exists it is fine to pass NULL.
 
-I must have not compiled with some debugging info?
-
-On Fri, 8 Jul 2011, Minchan Kim wrote:
-
->Date: Fri, 8 Jul 2011 14:14:09 +0900
->From: Minchan Kim <minchan.kim@gmail.com>
->To: Chris Pearson <kermit4@gmail.com>
->Cc: linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>
->Subject: Re: NULL poniter dereference in isolate_lru_pages 2.6.39.1
->
->On Fri, Jul 8, 2011 at 12:53 AM, Chris Pearson <kermit4@gmail.com> wrote:
->> see attached screenshots
->>
->> NULL pointer dereference at 8
->>
->> isolate_lru_pages
->> shrink_inactive_list
->> __lookup_tag
->> shrink_zone
->> shrink_slab
->> kswapd
->> zone_reclaim
->>
->> These are from 3 different servers in the past week since we upgraded
->> a few hundred of them to 2.6.39.1.    They're under a steady few MB/s
->> of net and disk I/O load.
->>
->> We have the following /proc adjustments:
->>
->> kernel.shmmax = 135217728
->> fs.file-max = 65535
->> vm.swappiness = 10
->> vm.min_free_kbytes = 65535
->>
->
->I didn't have see such BUG until now.
->Could you tell me which point is isolate_lru_pages + 0x225?
->You can get it with addr2line -e vmlinux -i ffffffff8108ed15 or gdb.
->
->The culprit I think is page_count.
->A month ago, Andrea pointed out and sent the patch but it seems it
->isn't stable tree.
->
->Could you test below patch?
->https://patchwork.kernel.org/patch/857442/
->
->
->
->-- 
->Kind regards,
->Minchan Kim
->
+-ETOOFUCKINGUGLY...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
