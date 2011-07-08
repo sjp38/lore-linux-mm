@@ -1,164 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id C8BC99000C2
-	for <linux-mm@kvack.org>; Fri,  8 Jul 2011 13:03:15 -0400 (EDT)
-Received: from hpaq1.eem.corp.google.com (hpaq1.eem.corp.google.com [172.25.149.1])
-	by smtp-out.google.com with ESMTP id p68H3ClF009103
-	for <linux-mm@kvack.org>; Fri, 8 Jul 2011 10:03:12 -0700
-Received: from qwf7 (qwf7.prod.google.com [10.241.194.71])
-	by hpaq1.eem.corp.google.com with ESMTP id p68Gqlc3005553
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 8 Jul 2011 10:03:11 -0700
-Received: by qwf7 with SMTP id 7so1332322qwf.24
-        for <linux-mm@kvack.org>; Fri, 08 Jul 2011 10:03:05 -0700 (PDT)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 965496B004A
+	for <linux-mm@kvack.org>; Fri,  8 Jul 2011 13:26:58 -0400 (EDT)
+Date: Fri, 8 Jul 2011 18:25:41 +0100
+From: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Subject: Re: [PATCH 6/8] drivers: add Contiguous Memory Allocator
+Message-ID: <20110708172541.GM4812@n2100.arm.linux.org.uk>
+References: <1309851710-3828-1-git-send-email-m.szyprowski@samsung.com> <201107051427.44899.arnd@arndb.de> <20110705123035.GD8286@n2100.arm.linux.org.uk> <201107051558.39344.arnd@arndb.de>
 MIME-Version: 1.0
-In-Reply-To: <1308696090-31569-1-git-send-email-yinghan@google.com>
-References: <1308696090-31569-1-git-send-email-yinghan@google.com>
-Date: Fri, 8 Jul 2011 10:03:05 -0700
-Message-ID: <CALWz4iz=C=UfNu7uJvFnnj9LBVZMyZXxO0hkgBr_cA27dXeHMA@mail.gmail.com>
-Subject: Re: [RFC PATCH 0/5] softlimit reclaim and zone->lru_lock rework
-From: Ying Han <yinghan@google.com>
-Content-Type: multipart/alternative; boundary=0016363b9e30a0b31f04a791cecf
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201107051558.39344.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Suleiman Souhlal <suleiman@google.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <bsingharora@gmail.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>
-Cc: linux-mm@kvack.org
+To: Arnd Bergmann <arnd@arndb.de>
+Cc: linux-arm-kernel@lists.infradead.org, Daniel Walker <dwalker@codeaurora.org>, Jonathan Corbet <corbet@lwn.net>, Mel Gorman <mel@csn.ul.ie>, Chunsang Jeong <chunsang.jeong@linaro.org>, Jesse Barker <jesse.barker@linaro.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, Michal Nazarewicz <mina86@mina86.com>, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, Kyungmin Park <kyungmin.park@samsung.com>, Ankita Garg <ankita@in.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, linux-media@vger.kernel.org
 
---0016363b9e30a0b31f04a791cecf
-Content-Type: text/plain; charset=ISO-8859-1
+On Tue, Jul 05, 2011 at 03:58:39PM +0200, Arnd Bergmann wrote:
+> Ah, sorry I missed that patch on the mailing list, found it now in
+> your for-next branch.
 
-update Balbir's email in the cc list.
+I've been searching for this email to reply to for the last day or
+so...
 
---Ying
+> If I'm reading your "ARM: DMA: steal memory for DMA coherent mappings"
+> correctly, the idea is to have a per-platform compile-time amount
+> of memory that is reserved purely for coherent allocations and
+> taking out of the buddy allocator, right?
 
-On Tue, Jun 21, 2011 at 3:41 PM, Ying Han <yinghan@google.com> wrote:
+Yes, because every time I've looked at taking out memory mappings in
+the first level page tables, it's always been a major issue.
 
-> The patchset is based on mmotm-2011-05-12-15-52 plus the following patches.
->
-> [BUGFIX][PATCH 5/5] memcg: fix percpu cached charge draining frequency
-> [patch 1/8] memcg: remove unused retry signal from reclaim
-> [patch 2/8] mm: memcg-aware global reclaim
-> [patch 3/8] memcg: reclaim statistics
-> [patch 6/8] vmscan: change zone_nr_lru_pages to take memcg instead of scan
-> control
-> [patch 7/8] vmscan: memcg-aware unevictable page rescue scanner
-> [patch 8/8] mm: make per-memcg lru lists exclusive
->
-> This patchset comes only after Johannes "memcg naturalization" effort. I
-> don't
-> expect this to be merged soon. The reason for me to post it here for
-> syncing up
-> with ppl with the current status of the effort. And also comments and code
-> reviews
-> are welcomed.
->
-> This patchset includes:
-> 1. rework softlimit reclaim on priority based. this depends on the
-> "memcg-aware
-> global reclaim" patch.
-> 2. break the zone->lru_lock for memcg reclaim. this depends on the
-> "per-memcg
-> lru lists exclusive" patch.
->
-> I would definitely make them as two seperate patches later. For now, this
-> is
-> only to sync-up with folks on the status of the effort.
->
-> Ying Han (5):
->  Revert soft_limit reclaim changes under global pressure.
->  Revert soft limit reclaim implementation in memcg.
->  rework softlimit reclaim.
->  memcg: break the zone->lru_lock in memcg-aware reclaim
->  Move the lru_lock into the lruvec struct.
->
->  include/linux/memcontrol.h |   35 ++-
->  include/linux/mm_types.h   |    2 +-
->  include/linux/mmzone.h     |    8 +-
->  include/linux/swap.h       |    5 -
->  mm/compaction.c            |   41 +++--
->  mm/huge_memory.c           |    5 +-
->  mm/memcontrol.c            |  502
-> ++++++--------------------------------------
->  mm/page_alloc.c            |    2 +-
->  mm/rmap.c                  |    2 +-
->  mm/swap.c                  |   71 ++++---
->  mm/vmscan.c                |  186 ++++++++---------
->  11 files changed, 246 insertions(+), 613 deletions(-)
->
-> --
-> 1.7.3.1
->
->
+We have a method where we can remove first level mappings on
+uniprocessor systems in the ioremap code just fine - we use that so
+that systems can setup section and supersection mappings.  They can
+tear them down as well - and we update other tasks L1 page tables
+when they get switched in.
 
---0016363b9e30a0b31f04a791cecf
-Content-Type: text/html; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+This, however, doesn't work on SMP, because if you have a DMA allocation
+(which is permitted from IRQ context) you must have some way of removing
+the L1 page table entries from all CPUs TLBs and the page tables currently
+in use and any future page tables which those CPUs may switch to.
 
-update Balbir&#39;s email in the cc list.<div><br></div><div>--Ying<br><br>=
-<div class=3D"gmail_quote">On Tue, Jun 21, 2011 at 3:41 PM, Ying Han <span =
-dir=3D"ltr">&lt;<a href=3D"mailto:yinghan@google.com">yinghan@google.com</a=
->&gt;</span> wrote:<br>
-<blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1p=
-x #ccc solid;padding-left:1ex;">The patchset is based on mmotm-2011-05-12-1=
-5-52 plus the following patches.<br>
-<br>
-[BUGFIX][PATCH 5/5] memcg: fix percpu cached charge draining frequency<br>
-[patch 1/8] memcg: remove unused retry signal from reclaim<br>
-[patch 2/8] mm: memcg-aware global reclaim<br>
-[patch 3/8] memcg: reclaim statistics<br>
-[patch 6/8] vmscan: change zone_nr_lru_pages to take memcg instead of scan =
-control<br>
-[patch 7/8] vmscan: memcg-aware unevictable page rescue scanner<br>
-[patch 8/8] mm: make per-memcg lru lists exclusive<br>
-<br>
-This patchset comes only after Johannes &quot;memcg naturalization&quot; ef=
-fort. I don&#39;t<br>
-expect this to be merged soon. The reason for me to post it here for syncin=
-g up<br>
-with ppl with the current status of the effort. And also comments and code =
-reviews<br>
-are welcomed.<br>
-<br>
-This patchset includes:<br>
-1. rework softlimit reclaim on priority based. this depends on the &quot;me=
-mcg-aware<br>
-global reclaim&quot; patch.<br>
-2. break the zone-&gt;lru_lock for memcg reclaim. this depends on the &quot=
-;per-memcg<br>
-lru lists exclusive&quot; patch.<br>
-<br>
-I would definitely make them as two seperate patches later. For now, this i=
-s<br>
-only to sync-up with folks on the status of the effort.<br>
-<br>
-Ying Han (5):<br>
- =A0Revert soft_limit reclaim changes under global pressure.<br>
- =A0Revert soft limit reclaim implementation in memcg.<br>
- =A0rework softlimit reclaim.<br>
- =A0memcg: break the zone-&gt;lru_lock in memcg-aware reclaim<br>
- =A0Move the lru_lock into the lruvec struct.<br>
-<br>
-=A0include/linux/memcontrol.h | =A0 35 ++-<br>
-=A0include/linux/mm_types.h =A0 | =A0 =A02 +-<br>
-=A0include/linux/mmzone.h =A0 =A0 | =A0 =A08 +-<br>
-=A0include/linux/swap.h =A0 =A0 =A0 | =A0 =A05 -<br>
-=A0mm/compaction.c =A0 =A0 =A0 =A0 =A0 =A0| =A0 41 +++--<br>
-=A0mm/huge_memory.c =A0 =A0 =A0 =A0 =A0 | =A0 =A05 +-<br>
-=A0mm/memcontrol.c =A0 =A0 =A0 =A0 =A0 =A0| =A0502 ++++++------------------=
---------------------<br>
-=A0mm/page_alloc.c =A0 =A0 =A0 =A0 =A0 =A0| =A0 =A02 +-<br>
-=A0mm/rmap.c =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0| =A0 =A02 +-<br>
-=A0mm/swap.c =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0| =A0 71 ++++---<br>
-=A0mm/vmscan.c =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0| =A0186 ++++++++---------<br=
->
-=A011 files changed, 246 insertions(+), 613 deletions(-)<br>
-<font color=3D"#888888"><br>
---<br>
-1.7.3.1<br>
-<br>
-</font></blockquote></div><br></div>
+The easy bit is "future page tables" - that can be done in the same way
+as the ioremap() code does with a generation number, checked when a new
+page table is switched in.  The problem is the current CPUs, and as we
+know trying to call smp_call_function() with IRQs disabled is not
+permitted due to deadlock.
 
---0016363b9e30a0b31f04a791cecf--
+So, in a SMP system, there is no safe way to remove L1 page table entries
+from IRQ context.  That means if memory is mapped for the buddy allocators
+using L1 page table entries, then it is fixed for that application on a
+SMP system.
+
+However, that's not really what I wanted to find this email for.  That
+is I'm dropping the "ARM: DMA: steal memory for DMA coherent mappings"
+patch for this merge window because - as I found out yesterday - it
+prevents the Assabet platform booting, and so would be a regression.
+
+Plus, I have a report of a regression with the streaming DMA API
+speculative prefetch fixes causing the IOP ADMA raid5 async offload
+stuff to explode - which may result in the streaming DMA API fixes
+being reverted (which will leave ARMv6+ vulnerable to data corruption.)
+As I have no time to work through the RAID5 code, async_tx code, and
+IOP ADMA code to get to the bottom of it (because of this flood of
+patches) I think a revert is looking likely - either that or I'll have
+to tell the bug reporter to go away, which really isn't on.  It's on
+LKML if anyone's interested in trying to diagnose it, the
+"PROBLEM: ARM-dma-mapping-fix-for-speculative-prefetching cause OOPS"
+thread.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
