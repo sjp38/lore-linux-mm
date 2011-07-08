@@ -1,65 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id C16B39000C2
-	for <linux-mm@kvack.org>; Fri,  8 Jul 2011 01:14:13 -0400 (EDT)
-Received: by qwa26 with SMTP id 26so1092121qwa.14
-        for <linux-mm@kvack.org>; Thu, 07 Jul 2011 22:14:12 -0700 (PDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id CE82A9000C2
+	for <linux-mm@kvack.org>; Fri,  8 Jul 2011 01:25:16 -0400 (EDT)
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [PATCH] slub: reduce overhead of slub_debug
+In-Reply-To: <alpine.DEB.2.00.1107071511010.26083@router.home> (Christoph
+	Lameter's message of "Thu, 7 Jul 2011 15:12:52 -0500 (CDT)")
+References: <alpine.DEB.2.00.1107071314320.21719@router.home>
+	<1310064771.21902.55.camel@jaguar>
+	<alpine.DEB.2.00.1107071402490.24248@router.home>
+	<20110707.122151.314840355798805828.davem@davemloft.net>
+	<CAOJsxLFsX3Q84QAeyRt5dZOdRxb3TiABPrP-YrWc91+BmR8ZBg@mail.gmail.com>
+	<alpine.DEB.2.00.1107071511010.26083@router.home>
+Date: Thu, 07 Jul 2011 22:23:45 -0700
+Message-ID: <m2box5cplq.fsf@firstfloor.org>
 MIME-Version: 1.0
-In-Reply-To: <CAGtzr3fm2=UJFRo2xSYhst0P4jCMT-EPjyPi3=icCrMtW0ij8w@mail.gmail.com>
-References: <CAGtzr3fm2=UJFRo2xSYhst0P4jCMT-EPjyPi3=icCrMtW0ij8w@mail.gmail.com>
-Date: Fri, 8 Jul 2011 14:14:09 +0900
-Message-ID: <CAEwNFnB8VXkTiMzJewtd7rSZ8keqkboNz-BBjw_UudquvsrK1A@mail.gmail.com>
-Subject: Re: NULL poniter dereference in isolate_lru_pages 2.6.39.1
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chris Pearson <kermit4@gmail.com>
-Cc: linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@kernel.org>, David Miller <davem@davemloft.net>, marcin.slusarz@gmail.com, mpm@selenic.com, linux-kernel@vger.kernel.org, rientjes@google.com, linux-mm@kvack.org
 
-On Fri, Jul 8, 2011 at 12:53 AM, Chris Pearson <kermit4@gmail.com> wrote:
-> see attached screenshots
->
-> NULL pointer dereference at 8
->
-> isolate_lru_pages
-> shrink_inactive_list
-> __lookup_tag
-> shrink_zone
-> shrink_slab
-> kswapd
-> zone_reclaim
->
-> These are from 3 different servers in the past week since we upgraded
-> a few hundred of them to 2.6.39.1. =C2=A0 =C2=A0They're under a steady fe=
-w MB/s
-> of net and disk I/O load.
->
-> We have the following /proc adjustments:
->
-> kernel.shmmax =3D 135217728
-> fs.file-max =3D 65535
-> vm.swappiness =3D 10
-> vm.min_free_kbytes =3D 65535
->
-
-I didn't have see such BUG until now.
-Could you tell me which point is isolate_lru_pages + 0x225?
-You can get it with addr2line -e vmlinux -i ffffffff8108ed15 or gdb.
-
-The culprit I think is page_count.
-A month ago, Andrea pointed out and sent the patch but it seems it
-isn't stable tree.
-
-Could you test below patch?
-https://patchwork.kernel.org/patch/857442/
+Christoph Lameter <cl@linux.com> writes:
 
 
+> +#ifdef __HAVE_ARCH_INV_MEMSCAN
+> +void *inv_memscan(void *addr, int c, size_t size)
+> +{
+> +	if (!size)
+> +		return addr;
+> +	asm volatile("repz; scasb\n\t"
 
---=20
-Kind regards,
-Minchan Kim
+This will just do the slow byte accesses again internally.
+scasb is not normally very optimized in microcode as far
+as I know.
+
+Also rep has quite some startup overhead which makes
+it a bad idea for small sizes (<16-20 or so)
+
+I would stay with the C version. I bet that one is 
+faster.
+
+-Andi
+
+-- 
+ak@linux.intel.com -- Speaking for myself only
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
