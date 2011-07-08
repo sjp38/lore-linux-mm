@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id DB72A90011B
-	for <linux-mm@kvack.org>; Fri,  8 Jul 2011 00:15:17 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with SMTP id 067329000C2
+	for <linux-mm@kvack.org>; Fri,  8 Jul 2011 00:15:21 -0400 (EDT)
 From: Dave Chinner <david@fromorbit.com>
-Subject: [PATCH 14/14] xfs: make use of new shrinker callout for the inode cache
-Date: Fri,  8 Jul 2011 14:14:46 +1000
-Message-Id: <1310098486-6453-15-git-send-email-david@fromorbit.com>
+Subject: [PATCH 08/14] inode: move to per-sb LRU locks
+Date: Fri,  8 Jul 2011 14:14:40 +1000
+Message-Id: <1310098486-6453-9-git-send-email-david@fromorbit.com>
 In-Reply-To: <1310098486-6453-1-git-send-email-david@fromorbit.com>
 References: <1310098486-6453-1-git-send-email-david@fromorbit.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,230 +15,156 @@ Cc: linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.
 
 From: Dave Chinner <dchinner@redhat.com>
 
-Convert the inode reclaim shrinker to use the new per-sb shrinker
-operations. This allows much bigger reclaim batches to be used, and
-allows the XFS inode cache to be shrunk in proportion with the VFS
-dentry and inode caches. This avoids the problem of the VFS caches
-being shrunk significantly before the XFS inode cache is shrunk
-resulting in imbalances in the caches during reclaim.
+With the inode LRUs moving to per-sb structures, there is no longer
+a need for a global inode_lru_lock. The locking can be made more
+fine-grained by moving to a per-sb LRU lock, isolating the LRU
+operations of different filesytsems completely from each other.
 
 Signed-off-by: Dave Chinner <dchinner@redhat.com>
 ---
- fs/xfs/linux-2.6/xfs_super.c |   26 ++++++++++-----
- fs/xfs/linux-2.6/xfs_sync.c  |   71 ++++++++++++++++--------------------------
- fs/xfs/linux-2.6/xfs_sync.h  |    5 +--
- 3 files changed, 46 insertions(+), 56 deletions(-)
+ fs/inode.c         |   27 +++++++++++++--------------
+ fs/super.c         |    1 +
+ include/linux/fs.h |    3 ++-
+ 3 files changed, 16 insertions(+), 15 deletions(-)
 
-diff --git a/fs/xfs/linux-2.6/xfs_super.c b/fs/xfs/linux-2.6/xfs_super.c
-index a1a881e..a9c6ccf 100644
---- a/fs/xfs/linux-2.6/xfs_super.c
-+++ b/fs/xfs/linux-2.6/xfs_super.c
-@@ -1025,11 +1025,6 @@ xfs_fs_put_super(
- {
- 	struct xfs_mount	*mp = XFS_M(sb);
+diff --git a/fs/inode.c b/fs/inode.c
+index 0c79cd3..bda0720 100644
+--- a/fs/inode.c
++++ b/fs/inode.c
+@@ -33,7 +33,7 @@
+  *
+  * inode->i_lock protects:
+  *   inode->i_state, inode->i_hash, __iget()
+- * inode_lru_lock protects:
++ * inode->i_sb->s_inode_lru_lock protects:
+  *   inode->i_sb->s_inode_lru, inode->i_lru
+  * inode_sb_list_lock protects:
+  *   sb->s_inodes, inode->i_sb_list
+@@ -46,7 +46,7 @@
+  *
+  * inode_sb_list_lock
+  *   inode->i_lock
+- *     inode_lru_lock
++ *     inode->i_sb->s_inode_lru_lock
+  *
+  * inode_wb_list_lock
+  *   inode->i_lock
+@@ -64,8 +64,6 @@ static unsigned int i_hash_shift __read_mostly;
+ static struct hlist_head *inode_hashtable __read_mostly;
+ static __cacheline_aligned_in_smp DEFINE_SPINLOCK(inode_hash_lock);
  
--	/*
--	 * Unregister the memory shrinker before we tear down the mount
--	 * structure so we don't have memory reclaim racing with us here.
--	 */
--	xfs_inode_shrinker_unregister(mp);
- 	xfs_syncd_stop(mp);
- 
- 	/*
-@@ -1416,8 +1411,6 @@ xfs_fs_fill_super(
- 	if (error)
- 		goto out_filestream_unmount;
- 
--	xfs_inode_shrinker_register(mp);
+-static DEFINE_SPINLOCK(inode_lru_lock);
 -
- 	error = xfs_mountfs(mp);
- 	if (error)
- 		goto out_syncd_stop;
-@@ -1440,7 +1433,6 @@ xfs_fs_fill_super(
- 	return 0;
+ __cacheline_aligned_in_smp DEFINE_SPINLOCK(inode_sb_list_lock);
+ __cacheline_aligned_in_smp DEFINE_SPINLOCK(inode_wb_list_lock);
  
-  out_syncd_stop:
--	xfs_inode_shrinker_unregister(mp);
- 	xfs_syncd_stop(mp);
-  out_filestream_unmount:
- 	xfs_filestream_unmount(mp);
-@@ -1465,7 +1457,6 @@ xfs_fs_fill_super(
+@@ -342,24 +340,24 @@ EXPORT_SYMBOL(ihold);
+ 
+ static void inode_lru_list_add(struct inode *inode)
+ {
+-	spin_lock(&inode_lru_lock);
++	spin_lock(&inode->i_sb->s_inode_lru_lock);
+ 	if (list_empty(&inode->i_lru)) {
+ 		list_add(&inode->i_lru, &inode->i_sb->s_inode_lru);
+ 		inode->i_sb->s_nr_inodes_unused++;
+ 		this_cpu_inc(nr_unused);
  	}
- 
-  fail_unmount:
--	xfs_inode_shrinker_unregister(mp);
- 	xfs_syncd_stop(mp);
- 
- 	/*
-@@ -1491,6 +1482,21 @@ xfs_fs_mount(
- 	return mount_bdev(fs_type, flags, dev_name, data, xfs_fs_fill_super);
+-	spin_unlock(&inode_lru_lock);
++	spin_unlock(&inode->i_sb->s_inode_lru_lock);
  }
  
-+static int
-+xfs_fs_nr_cached_objects(
-+	struct super_block	*sb)
-+{
-+	return xfs_reclaim_inodes_count(XFS_M(sb));
-+}
-+
-+static void
-+xfs_fs_free_cached_objects(
-+	struct super_block	*sb,
-+	int			nr_to_scan)
-+{
-+	xfs_reclaim_inodes_nr(XFS_M(sb), nr_to_scan);
-+}
-+
- static const struct super_operations xfs_super_operations = {
- 	.alloc_inode		= xfs_fs_alloc_inode,
- 	.destroy_inode		= xfs_fs_destroy_inode,
-@@ -1504,6 +1510,8 @@ static const struct super_operations xfs_super_operations = {
- 	.statfs			= xfs_fs_statfs,
- 	.remount_fs		= xfs_fs_remount,
- 	.show_options		= xfs_fs_show_options,
-+	.nr_cached_objects	= xfs_fs_nr_cached_objects,
-+	.free_cached_objects	= xfs_fs_free_cached_objects,
- };
- 
- static struct file_system_type xfs_fs_type = {
-diff --git a/fs/xfs/linux-2.6/xfs_sync.c b/fs/xfs/linux-2.6/xfs_sync.c
-index 8ecad5f..9bd7e89 100644
---- a/fs/xfs/linux-2.6/xfs_sync.c
-+++ b/fs/xfs/linux-2.6/xfs_sync.c
-@@ -179,6 +179,8 @@ restart:
- 		if (error == EFSCORRUPTED)
- 			break;
- 
-+		cond_resched();
-+
- 	} while (nr_found && !done);
- 
- 	if (skipped) {
-@@ -986,6 +988,8 @@ restart:
- 
- 			*nr_to_scan -= XFS_LOOKUP_BATCH;
- 
-+			cond_resched();
-+
- 		} while (nr_found && !done && *nr_to_scan > 0);
- 
- 		if (trylock && !done)
-@@ -1003,7 +1007,7 @@ restart:
- 	 * ensure that when we get more reclaimers than AGs we block rather
- 	 * than spin trying to execute reclaim.
- 	 */
--	if (trylock && skipped && *nr_to_scan > 0) {
-+	if (skipped && (flags & SYNC_WAIT) && *nr_to_scan > 0) {
- 		trylock = 0;
- 		goto restart;
+ static void inode_lru_list_del(struct inode *inode)
+ {
+-	spin_lock(&inode_lru_lock);
++	spin_lock(&inode->i_sb->s_inode_lru_lock);
+ 	if (!list_empty(&inode->i_lru)) {
+ 		list_del_init(&inode->i_lru);
+ 		inode->i_sb->s_nr_inodes_unused--;
+ 		this_cpu_dec(nr_unused);
  	}
-@@ -1021,44 +1025,38 @@ xfs_reclaim_inodes(
+-	spin_unlock(&inode_lru_lock);
++	spin_unlock(&inode->i_sb->s_inode_lru_lock);
  }
+ 
+ /**
+@@ -608,7 +606,8 @@ static int can_unuse(struct inode *inode)
  
  /*
-- * Inode cache shrinker.
-+ * Scan a certain number of inodes for reclaim.
+  * Scan `goal' inodes on the unused list for freeable ones. They are moved to a
+- * temporary list and then are freed outside inode_lru_lock by dispose_list().
++ * temporary list and then are freed outside sb->s_inode_lru_lock by
++ * dispose_list().
   *
-  * When called we make sure that there is a background (fast) inode reclaim in
-- * progress, while we will throttle the speed of reclaim via doiing synchronous
-+ * progress, while we will throttle the speed of reclaim via doing synchronous
-  * reclaim of inodes. That means if we come across dirty inodes, we wait for
-  * them to be cleaned, which we hope will not be very long due to the
-  * background walker having already kicked the IO off on those dirty inodes.
-  */
--static int
--xfs_reclaim_inode_shrink(
--	struct shrinker	*shrink,
--	struct shrink_control *sc)
-+void
-+xfs_reclaim_inodes_nr(
-+	struct xfs_mount	*mp,
-+	int			nr_to_scan)
- {
--	struct xfs_mount *mp;
--	struct xfs_perag *pag;
--	xfs_agnumber_t	ag;
--	int		reclaimable;
--	int nr_to_scan = sc->nr_to_scan;
--	gfp_t gfp_mask = sc->gfp_mask;
--
--	mp = container_of(shrink, struct xfs_mount, m_inode_shrink);
--	if (nr_to_scan) {
--		/* kick background reclaimer and push the AIL */
--		xfs_syncd_queue_reclaim(mp);
--		xfs_ail_push_all(mp->m_ail);
-+	/* kick background reclaimer and push the AIL */
-+	xfs_syncd_queue_reclaim(mp);
-+	xfs_ail_push_all(mp->m_ail);
+  * Any inodes which are pinned purely because of attached pagecache have their
+  * pagecache removed.  If the inode has metadata buffers attached to
+@@ -628,7 +627,7 @@ static void shrink_icache_sb(struct super_block *sb, int *nr_to_scan)
+ 	int nr_scanned;
+ 	unsigned long reap = 0;
  
--		if (!(gfp_mask & __GFP_FS))
--			return -1;
-+	xfs_reclaim_inodes_ag(mp, SYNC_TRYLOCK | SYNC_WAIT, &nr_to_scan);
-+}
+-	spin_lock(&inode_lru_lock);
++	spin_lock(&sb->s_inode_lru_lock);
+ 	for (nr_scanned = *nr_to_scan; nr_scanned >= 0; nr_scanned--) {
+ 		struct inode *inode;
  
--		xfs_reclaim_inodes_ag(mp, SYNC_TRYLOCK | SYNC_WAIT,
--					&nr_to_scan);
--		/* terminate if we don't exhaust the scan */
--		if (nr_to_scan > 0)
--			return -1;
--       }
-+/*
-+ * Return the number of reclaimable inodes in the filesystem for
-+ * the shrinker to determine how much to reclaim.
-+ */
-+int
-+xfs_reclaim_inodes_count(
-+	struct xfs_mount	*mp)
-+{
-+	struct xfs_perag	*pag;
-+	xfs_agnumber_t		ag = 0;
-+	int			reclaimable = 0;
+@@ -638,7 +637,7 @@ static void shrink_icache_sb(struct super_block *sb, int *nr_to_scan)
+ 		inode = list_entry(sb->s_inode_lru.prev, struct inode, i_lru);
  
--	reclaimable = 0;
--	ag = 0;
- 	while ((pag = xfs_perag_get_tag(mp, ag, XFS_ICI_RECLAIM_TAG))) {
- 		ag = pag->pag_agno + 1;
- 		reclaimable += pag->pag_ici_reclaimable;
-@@ -1067,18 +1065,3 @@ xfs_reclaim_inode_shrink(
- 	return reclaimable;
- }
+ 		/*
+-		 * we are inverting the inode_lru_lock/inode->i_lock here,
++		 * we are inverting the sb->s_inode_lru_lock/inode->i_lock here,
+ 		 * so use a trylock. If we fail to get the lock, just move the
+ 		 * inode to the back of the list so we don't spin on it.
+ 		 */
+@@ -670,12 +669,12 @@ static void shrink_icache_sb(struct super_block *sb, int *nr_to_scan)
+ 		if (inode_has_buffers(inode) || inode->i_data.nrpages) {
+ 			__iget(inode);
+ 			spin_unlock(&inode->i_lock);
+-			spin_unlock(&inode_lru_lock);
++			spin_unlock(&sb->s_inode_lru_lock);
+ 			if (remove_inode_buffers(inode))
+ 				reap += invalidate_mapping_pages(&inode->i_data,
+ 								0, -1);
+ 			iput(inode);
+-			spin_lock(&inode_lru_lock);
++			spin_lock(&sb->s_inode_lru_lock);
  
--void
--xfs_inode_shrinker_register(
--	struct xfs_mount	*mp)
--{
--	mp->m_inode_shrink.shrink = xfs_reclaim_inode_shrink;
--	mp->m_inode_shrink.seeks = DEFAULT_SEEKS;
--	register_shrinker(&mp->m_inode_shrink);
--}
--
--void
--xfs_inode_shrinker_unregister(
--	struct xfs_mount	*mp)
--{
--	unregister_shrinker(&mp->m_inode_shrink);
--}
-diff --git a/fs/xfs/linux-2.6/xfs_sync.h b/fs/xfs/linux-2.6/xfs_sync.h
-index e3a6ad2..2e15685 100644
---- a/fs/xfs/linux-2.6/xfs_sync.h
-+++ b/fs/xfs/linux-2.6/xfs_sync.h
-@@ -43,6 +43,8 @@ void xfs_quiesce_attr(struct xfs_mount *mp);
- void xfs_flush_inodes(struct xfs_inode *ip);
+ 			if (inode != list_entry(sb->s_inode_lru.next,
+ 						struct inode, i_lru))
+@@ -700,7 +699,7 @@ static void shrink_icache_sb(struct super_block *sb, int *nr_to_scan)
+ 		__count_vm_events(KSWAPD_INODESTEAL, reap);
+ 	else
+ 		__count_vm_events(PGINODESTEAL, reap);
+-	spin_unlock(&inode_lru_lock);
++	spin_unlock(&sb->s_inode_lru_lock);
+ 	*nr_to_scan = nr_scanned;
  
- int xfs_reclaim_inodes(struct xfs_mount *mp, int mode);
-+int xfs_reclaim_inodes_count(struct xfs_mount *mp);
-+void xfs_reclaim_inodes_nr(struct xfs_mount *mp, int nr_to_scan);
+ 	dispose_list(&freeable);
+diff --git a/fs/super.c b/fs/super.c
+index e8e6dbf..73ab9f9 100644
+--- a/fs/super.c
++++ b/fs/super.c
+@@ -78,6 +78,7 @@ static struct super_block *alloc_super(struct file_system_type *type)
+ 		INIT_LIST_HEAD(&s->s_inodes);
+ 		INIT_LIST_HEAD(&s->s_dentry_lru);
+ 		INIT_LIST_HEAD(&s->s_inode_lru);
++		spin_lock_init(&s->s_inode_lru_lock);
+ 		init_rwsem(&s->s_umount);
+ 		mutex_init(&s->s_lock);
+ 		lockdep_set_class(&s->s_umount, &type->s_umount_key);
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index 552a1d3..1c74907 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -1396,7 +1396,8 @@ struct super_block {
+ 	struct list_head	s_dentry_lru;	/* unused dentry lru */
+ 	int			s_nr_dentry_unused;	/* # of dentry on lru */
  
- void xfs_inode_set_reclaim_tag(struct xfs_inode *ip);
- void __xfs_inode_set_reclaim_tag(struct xfs_perag *pag, struct xfs_inode *ip);
-@@ -54,7 +56,4 @@ int xfs_inode_ag_iterator(struct xfs_mount *mp,
- 	int (*execute)(struct xfs_inode *ip, struct xfs_perag *pag, int flags),
- 	int flags);
+-	/* inode_lru_lock protects s_inode_lru and s_nr_inodes_unused */
++	/* s_inode_lru_lock protects s_inode_lru and s_nr_inodes_unused */
++	spinlock_t		s_inode_lru_lock ____cacheline_aligned_in_smp;
+ 	struct list_head	s_inode_lru;		/* unused inode lru */
+ 	int			s_nr_inodes_unused;	/* # of inodes on lru */
  
--void xfs_inode_shrinker_register(struct xfs_mount *mp);
--void xfs_inode_shrinker_unregister(struct xfs_mount *mp);
--
- #endif
 -- 
 1.7.5.1
 
