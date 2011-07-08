@@ -1,13 +1,16 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 81F5490011B
-	for <linux-mm@kvack.org>; Fri,  8 Jul 2011 00:15:22 -0400 (EDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id CC5CC9000C3
+	for <linux-mm@kvack.org>; Fri,  8 Jul 2011 00:15:32 -0400 (EDT)
 From: Dave Chinner <david@fromorbit.com>
-Subject: [PATCH 11/14] inode: remove iprune_sem
-Date: Fri,  8 Jul 2011 14:14:43 +1000
-Message-Id: <1310098486-6453-12-git-send-email-david@fromorbit.com>
+Subject: =?UTF-8?q?=5BPATCH=2012/14=5D=20superblock=3A=20add=20filesystem=20shrinker=20operations?=
+Date: Fri,  8 Jul 2011 14:14:44 +1000
+Message-Id: <1310098486-6453-13-git-send-email-david@fromorbit.com>
 In-Reply-To: <1310098486-6453-1-git-send-email-david@fromorbit.com>
 References: <1310098486-6453-1-git-send-email-david@fromorbit.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: viro@ZenIV.linux.org.uk
@@ -15,69 +18,139 @@ Cc: linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.
 
 From: Dave Chinner <dchinner@redhat.com>
 
-Now that we have per-sb shrinkers with a lifecycle that is a subset
-of the superblock lifecycle and can reliably detect a filesystem
-being unmounted, there is not longer any race condition for the
-iprune_sem to protect against. Hence we can remove it.
+Now we have a per-superblock shrinker implementation, we can add a
+filesystem specific callout to it to allow filesystem internal
+caches to be shrunk by the superblock shrinker.
+
+Rather than perpetuate the multipurpose shrinker callback API (i.e.
+nr_to_scan == 0 meaning "tell me how many objects freeable in the
+cache), two operations will be added. The first will return the
+number of objects that are freeable, the second is the actual
+shrinker call.
 
 Signed-off-by: Dave Chinner <dchinner@redhat.com>
 ---
- fs/inode.c |   21 ---------------------
- 1 files changed, 0 insertions(+), 21 deletions(-)
+ Documentation/filesystems/vfs.txt |   16 +++++++++++++
+ fs/super.c                        |   43 +++++++++++++++++++++++++++---------
+ include/linux/fs.h                |    2 +
+ 3 files changed, 50 insertions(+), 11 deletions(-)
 
-diff --git a/fs/inode.c b/fs/inode.c
-index d8a562e..529bb0b 100644
---- a/fs/inode.c
-+++ b/fs/inode.c
-@@ -68,17 +68,6 @@ __cacheline_aligned_in_smp DEFINE_SPINLOCK(inode_sb_list_lock);
- __cacheline_aligned_in_smp DEFINE_SPINLOCK(inode_wb_list_lock);
+diff --git a/Documentation/filesystems/vfs.txt b/Documentation/filesystems/vfs.txt
+index d56151f..fd24f34 100644
+--- a/Documentation/filesystems/vfs.txt
++++ b/Documentation/filesystems/vfs.txt
+@@ -229,6 +229,8 @@ struct super_operations {
  
- /*
-- * iprune_sem provides exclusion between the icache shrinking and the
-- * umount path.
-- *
-- * We don't actually need it to protect anything in the umount path,
-- * but only need to cycle through it to make sure any inode that
-- * prune_icache_sb took off the LRU list has been fully torn down by the
-- * time we are past evict_inodes.
-- */
--static DECLARE_RWSEM(iprune_sem);
--
--/*
-  * Empty aops. Can be used for the cases where the user does not
-  * define any of the address_space operations.
-  */
-@@ -535,14 +524,6 @@ void evict_inodes(struct super_block *sb)
- 	spin_unlock(&inode_sb_list_lock);
+         ssize_t (*quota_read)(struct super_block *, int, char *, size_t, loff_t);
+         ssize_t (*quota_write)(struct super_block *, int, const char *, size_t, loff_t);
++	int (*nr_cached_objects)(struct super_block *);
++	void (*free_cached_objects)(struct super_block *, int);
+ };
  
- 	dispose_list(&dispose);
--
--	/*
--	 * Cycle through iprune_sem to make sure any inode that prune_icache_sb
--	 * moved off the list before we took the lock has been fully torn
--	 * down.
--	 */
--	down_write(&iprune_sem);
--	up_write(&iprune_sem);
+ All methods are called without any locks being held, unless otherwise
+@@ -301,6 +303,20 @@ or bottom half).
+ 
+   quota_write: called by the VFS to write to filesystem quota file.
+ 
++  nr_cached_objects: called by the sb cache shrinking function for the
++	filesystem to return the number of freeable cached objects it contains.
++	Optional.
++
++  free_cache_objects: called by the sb cache shrinking function for the
++	filesystem to scan the number of objects indicated to try to free them.
++	Optional, but any filesystem implementing this method needs to also
++	implement ->nr_cached_objects for it to be called correctly.
++
++	We can't do anything with any errors that the filesystem might
++	encountered, hence the void return type. This will never be called if
++	the VM is trying to reclaim under GFP_NOFS conditions, hence this
++	method does not need to handle that situation itself.
++
+ Whoever sets up the inode is responsible for filling in the "i_op" field. This
+ is a pointer to a "struct inode_operations" which describes the methods that
+ can be performed on individual inodes.
+diff --git a/fs/super.c b/fs/super.c
+index c449c14..ca8e735 100644
+--- a/fs/super.c
++++ b/fs/super.c
+@@ -48,7 +48,8 @@ DEFINE_SPINLOCK(sb_lock);
+ static int prune_super(struct shrinker *shrink, struct shrink_control *sc)
+ {
+ 	struct super_block *sb;
+-	int count;
++	int	fs_objects = 0;
++	int	total_objects;
+ 
+ 	sb = container_of(shrink, struct super_block, s_shrink);
+ 
+@@ -62,23 +63,43 @@ static int prune_super(struct shrinker *shrink, struct shrink_control *sc)
+ 	if (!grab_super_passive(sb))
+ 		return -1;
+ 
+-	if (sc->nr_to_scan) {
+-		/* proportion the scan between the two cacheN? */
+-		int total;
++	if (sb->s_op && sb->s_op->nr_cached_objects)
++		fs_objects = sb->s_op->nr_cached_objects(sb);
++
++	total_objects = sb->s_nr_dentry_unused +
++			sb->s_nr_inodes_unused + fs_objects + 1;
+ 
+-		total = sb->s_nr_dentry_unused + sb->s_nr_inodes_unused + 1;
+-		count = (sc->nr_to_scan * sb->s_nr_dentry_unused) / total;
++	if (sc->nr_to_scan) {
++		int	dentries;
++		int	inodes;
++
++		/* proportion the scan between the cacheN? */
++		dentries = (sc->nr_to_scan * sb->s_nr_dentry_unused) /
++							total_objects;
++		inodes = (sc->nr_to_scan * sb->s_nr_inodes_unused) /
++							total_objects;
++		if (fs_objects)
++			fs_objects = (sc->nr_to_scan * fs_objects) /
++							total_objects;
++		/*
++		 * prune the dcache first as the icache is pinned by it, then
++		 * prune the icache, followed by the filesystem specific caches
++		 */
++		prune_dcache_sb(sb, dentries);
++		prune_icache_sb(sb, inodes);
+ 
+-		/* prune dcache first as icache is pinned by it */
+-		prune_dcache_sb(sb, count);
+-		prune_icache_sb(sb, sc->nr_to_scan - count);
++		if (fs_objects && sb->s_op->free_cached_objects) {
++			sb->s_op->free_cached_objects(sb, fs_objects);
++			fs_objects = sb->s_op->nr_cached_objects(sb);
++		}
++		total_objects = sb->s_nr_dentry_unused +
++				sb->s_nr_inodes_unused + fs_objects;
+ 	}
+ 
+-	count = ((sb->s_nr_dentry_unused + sb->s_nr_inodes_unused) / 100)
+-						* sysctl_vfs_cache_pressure;
++	total_objects = (total_objects / 100) * sysctl_vfs_cache_pressure;
+ 	up_read(&sb->s_umount);
+ 	put_super(sb);
+-	return count;
++	return total_objects;
  }
  
  /**
-@@ -628,7 +609,6 @@ void prune_icache_sb(struct super_block *sb, int nr_to_scan)
- 	int nr_scanned;
- 	unsigned long reap = 0;
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index 40153c2..48e4e45 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -1654,6 +1654,8 @@ struct super_operations {
+ 	ssize_t (*quota_write)(struct super_block *, int, const char *, size_t, loff_t);
+ #endif
+ 	int (*bdev_try_to_free_page)(struct super_block*, struct page*, gfp_t);
++	int (*nr_cached_objects)(struct super_block *);
++	void (*free_cached_objects)(struct super_block *, int);
+ };
  
--	down_read(&iprune_sem);
- 	spin_lock(&sb->s_inode_lru_lock);
- 	for (nr_scanned = nr_to_scan; nr_scanned >= 0; nr_scanned--) {
- 		struct inode *inode;
-@@ -704,7 +684,6 @@ void prune_icache_sb(struct super_block *sb, int nr_to_scan)
- 	spin_unlock(&sb->s_inode_lru_lock);
- 
- 	dispose_list(&freeable);
--	up_read(&iprune_sem);
- }
- 
- static void __wait_on_freeing_inode(struct inode *inode);
+ /*
 -- 
 1.7.5.1
 
