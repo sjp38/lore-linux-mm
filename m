@@ -1,122 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id C556A9000C2
-	for <linux-mm@kvack.org>; Thu,  7 Jul 2011 19:53:43 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 16FC43EE0AE
-	for <linux-mm@kvack.org>; Fri,  8 Jul 2011 08:53:40 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id EFF2545DE7F
-	for <linux-mm@kvack.org>; Fri,  8 Jul 2011 08:53:39 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id CDBF845DE7D
-	for <linux-mm@kvack.org>; Fri,  8 Jul 2011 08:53:39 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id BCE971DB8052
-	for <linux-mm@kvack.org>; Fri,  8 Jul 2011 08:53:39 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 7C1A51DB804D
-	for <linux-mm@kvack.org>; Fri,  8 Jul 2011 08:53:39 +0900 (JST)
-Date: Fri, 8 Jul 2011 08:46:29 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH][Cleanup] memcg: consolidates memory cgroup lru stat
- functions
-Message-Id: <20110708084629.73c7e543.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20110707142922.c9657ec4.akpm@linux-foundation.org>
-References: <20110707155217.909c429a.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110707142922.c9657ec4.akpm@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id E0F249000C2
+	for <linux-mm@kvack.org>; Thu,  7 Jul 2011 20:08:09 -0400 (EDT)
+Received: from wpaz1.hot.corp.google.com (wpaz1.hot.corp.google.com [172.24.198.65])
+	by smtp-out.google.com with ESMTP id p68086cE014787
+	for <linux-mm@kvack.org>; Thu, 7 Jul 2011 17:08:06 -0700
+Received: from pvg18 (pvg18.prod.google.com [10.241.210.146])
+	by wpaz1.hot.corp.google.com with ESMTP id p68084pr019499
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 7 Jul 2011 17:08:05 -0700
+Received: by pvg18 with SMTP id 18so942836pvg.38
+        for <linux-mm@kvack.org>; Thu, 07 Jul 2011 17:08:04 -0700 (PDT)
+Date: Thu, 7 Jul 2011 17:07:47 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: Hugepages for shm page cache (defrag)
+In-Reply-To: <5be3df4081574f3d4e1e699f028549a7@rsmogura.net>
+Message-ID: <alpine.LSU.2.00.1107071643370.10165@sister.anvils>
+References: <201107062131.01717.mail@smogura.eu> <m2pqlmy7z8.fsf@firstfloor.org> <5be3df4081574f3d4e1e699f028549a7@rsmogura.net>
+MIME-Version: 1.0
+Content-Type: MULTIPART/MIXED; BOUNDARY="8323584-2075155698-1310083679=:10165"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "bsingharora@gmail.com" <bsingharora@gmail.com>, Michal Hocko <mhocko@suse.cz>, Ying Han <yinghan@google.com>
+To: Radoslaw Smogura <mail@rsmogura.net>
+Cc: Radislaw Smogura <mail@rsmogura.eu>, Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org, aarcange@redhat.com
 
-On Thu, 7 Jul 2011 14:29:22 -0700
-Andrew Morton <akpm@linux-foundation.org> wrote:
+  This message is in MIME format.  The first part should be readable text,
+  while the remaining parts are likely unreadable without MIME-aware tools.
 
-> On Thu, 7 Jul 2011 15:52:17 +0900
-> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> 
-> > In mm/memcontrol.c, there are many lru stat functions as..
-> > 
-> > mem_cgroup_zone_nr_lru_pages
-> > mem_cgroup_node_nr_file_lru_pages
-> > mem_cgroup_nr_file_lru_pages
-> > mem_cgroup_node_nr_anon_lru_pages
-> > mem_cgroup_nr_anon_lru_pages
-> > mem_cgroup_node_nr_unevictable_lru_pages
-> > mem_cgroup_nr_unevictable_lru_pages
-> > mem_cgroup_node_nr_lru_pages
-> > mem_cgroup_nr_lru_pages
-> > mem_cgroup_get_local_zonestat
-> > 
-> > Some of them are under #ifdef MAX_NUMNODES >1 and others are not.
-> > This seems bad. This patch consolidates all functions into
-> > 
-> > mem_cgroup_zone_nr_lru_pages()
-> > mem_cgroup_node_nr_lru_pages()
-> > mem_cgroup_nr_lru_pages()
-> > 
-> > For these functions, "which LRU?" information is passed by a mask.
-> > 
-> > example)
-> > mem_cgroup_nr_lru_pages(mem, BIT(LRU_ACTIVE_ANON))
-> > 
-> > And I added some macro as ALL_LRU, ALL_LRU_FILE, ALL_LRU_ANON.
-> > example)
-> > mem_cgroup_nr_lru_pages(mem, ALL_LRU)
-> > 
-> > BTW, considering layout of NUMA memory placement of counters, this patch seems
-> > to be better. 
-> > 
-> > Now, when we gather all LRU information, we scan in following orer
-> >     for_each_lru -> for_each_node -> for_each_zone.
-> > 
-> > This means we'll touch cache lines in different node in turn.
-> > 
-> > After patch, we'll scan 
-> >     for_each_node -> for_each_zone -> for_each_lru(mask)
-> > 
-> > Then, we'll gather information in the same cacheline at once.
-> 
-> mm/vmscan.c: In function 'zone_nr_lru_pages':
-> mm/vmscan.c:175: warning: passing argument 2 of 'mem_cgroup_zone_nr_lru_pages' makes pointer from integer without a cast
-> include/linux/memcontrol.h:307: note: expected 'struct zone *' but argument is of type 'int'
-> mm/vmscan.c:175: error: too many arguments to function 'mem_cgroup_zone_nr_lru_pages'
-> 
+--8323584-2075155698-1310083679=:10165
+Content-Type: TEXT/PLAIN; charset=UTF-8
+Content-Transfer-Encoding: QUOTED-PRINTABLE
 
-Hmm...quilt reflesh miss, sorry.
+On Thu, 7 Jul 2011, mail@rsmogura.net wrote:
+> On Wed, 06 Jul 2011 22:28:59 -0700, Andi Kleen wrote:
+> > Rados=C5=82aw Smogura <mail@smogura.eu> writes:
+> >=20
+> > > Hello,
+> > >=20
+> > > This is may first try with Linux patch, so please do not blame me too
+> > > much.
+> > > Actually I started with small idea to add MAP_HUGTLB for /dev/shm but=
+ it
+> > > grew
+> > > up in something more like support for huge pages in page cache, but
+> > > according
+> > > to documentation to submit alpha-work too, I decided to send this.
+> >=20
+> > Shouldn't this be rather integrated with the normal transparent huge
+> > pages? It seems odd to develop parallel infrastructure.
+> >=20
+> > -Andi
 
-> --- a/include/linux/memcontrol.h~memcg-consolidates-memory-cgroup-lru-stat-functions-fix
-> +++ a/include/linux/memcontrol.h
-> @@ -304,8 +304,8 @@ mem_cgroup_inactive_file_is_low(struct m
->  }
->  
->  static inline unsigned long
-> -mem_cgroup_zone_nr_lru_pages(struct mem_cgroup *memcg, struct zone *zone,
-> -			     enum lru_list lru)
-> +mem_cgroup_zone_nr_lru_pages(struct mem_cgroup *memcg, int nid, int zid,
-> +				unsigned int lru_mask)
->  {
->  	return 0;
->  }
-> 
-> > +unsigned long
-> > +mem_cgroup_zone_nr_lru_pages(struct mem_cgroup *mem, int nid, int zid,
-> > +			unsigned int lru_mask)
-> 
-> The memcg code sometimes uses "struct mem_cgroup *mem" and sometimes
-> uses "struct mem_cgroup *memcg".  That's irritating.  I think "memcg"
-> is better.
-> 
+Although Andi's sig says "Speaking for myself only",
+he is very much speaking for me on this too ;)
 
-Sure. I always use "mem" but otheres not ;(
-Ok, I'll use memcg.
+There is definitely interest in extending Transparent Huge Pages to tmpfs;
+though so far as I know, nobody has yet had time to think through just
+what that will entail.
 
-Thanks,
--Kame 
+Correspondingly, I'm afraid there would be little interest in adding yet
+another variant of hugepages into the kernel - enough ugliness already!
+
+> It's not quite good to ask me about this, as I'm starting hacker, but I
+> think it should be treated as counterpart for page cache, and actually I =
+got
+> few "collisions" with THP.
+>=20
+> High level design will probably be the same (e.g. I use defrag_, THP uses
+> collapse_ for creating huge page), but in contrast I try to operate on pa=
+ge
+> cache, so in some way file system must be huge page aware (shm fs is not,=
+ as
+> it can move page from page cache to swap cache - it may silently fragment
+> de-fragmented areas).
+>=20
+> I put some requirements for work, e. g. mapping file as huge should not
+> affect previous or future, even fancy, non huge mappings, both callers
+> should succeed and get this what they asked for.
+>=20
+> Of course I think how to make it more "transparent" without need of file
+> system support, but I suppose it may be dead-corner.
+>=20
+> I still want to emphasise it's really alpha version.
+
+I barely looked at it, but did notice that scripts/checkpatch.pl reports
+127 errors and 111 warnings, plus it seems to be significantly incomplete
+(an extern declaration of defragPageCache() but not the function itself).
+
+And it serves no purpose without the pte work you mention (there
+is no point to a shmem hugepage unless it is mapped in that way).
+
+Sorry to be discouraging, but extending THP is likely to be the way to go.
+
+Hugh
+--8323584-2075155698-1310083679=:10165--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
