@@ -1,16 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 7C7F190011A
-	for <linux-mm@kvack.org>; Fri,  8 Jul 2011 00:15:07 -0400 (EDT)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id C730890011D
+	for <linux-mm@kvack.org>; Fri,  8 Jul 2011 00:15:12 -0400 (EDT)
 From: Dave Chinner <david@fromorbit.com>
-Subject: [PATCH 02/14] vmscan: add shrink_slab tracepoints
-Date: Fri,  8 Jul 2011 14:14:34 +1000
-Message-Id: <1310098486-6453-3-git-send-email-david@fromorbit.com>
+Subject: [PATCH 09/14] superblock: move pin_sb_for_writeback() to fs/super.c
+Date: Fri,  8 Jul 2011 14:14:41 +1000
+Message-Id: <1310098486-6453-10-git-send-email-david@fromorbit.com>
 In-Reply-To: <1310098486-6453-1-git-send-email-david@fromorbit.com>
 References: <1310098486-6453-1-git-send-email-david@fromorbit.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: viro@ZenIV.linux.org.uk
@@ -18,133 +15,125 @@ Cc: linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.
 
 From: Dave Chinner <dchinner@redhat.com>
 
-D?t is impossible to understand what the shrinkers are actually doing
-without instrumenting the code, so add a some tracepoints to allow
-insight to be gained.
+The per-sb shrinker has the same requirement as the writeback
+threads of ensuring that the superblock is usable and pinned for the
+time it takes to run the work. Both need to take a passive reference
+to the sb, take a read lock on the s_umount lock and then only
+continue if an unmount is not in progress.
+
+pin_sb_for_writeback() does this exactly, so move it to fs/super.c
+and rename it to grab_super_passive() and exporting it via
+fs/internal.h for all the VFS code to be able to use.
 
 Signed-off-by: Dave Chinner <dchinner@redhat.com>
 ---
- include/trace/events/vmscan.h |   71 +++++++++++++++++++++++++++++++++++++++++
- mm/vmscan.c                   |    8 ++++-
- 2 files changed, 78 insertions(+), 1 deletions(-)
+ fs/fs-writeback.c |   28 +---------------------------
+ fs/internal.h     |    1 +
+ fs/super.c        |   33 +++++++++++++++++++++++++++++++++
+ 3 files changed, 35 insertions(+), 27 deletions(-)
 
-diff --git a/include/trace/events/vmscan.h b/include/trace/events/vmscan.h
-index b2c33bd..5f3fea4 100644
---- a/include/trace/events/vmscan.h
-+++ b/include/trace/events/vmscan.h
-@@ -179,6 +179,77 @@ DEFINE_EVENT(mm_vmscan_direct_reclaim_end_template, mm_vmscan_memcg_softlimit_re
- 	TP_ARGS(nr_reclaimed)
- );
+diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
+index 0f015a0..b8c507c 100644
+--- a/fs/fs-writeback.c
++++ b/fs/fs-writeback.c
+@@ -461,32 +461,6 @@ writeback_single_inode(struct inode *inode, struct writeback_control *wbc)
+ }
  
-+TRACE_EVENT(mm_shrink_slab_start,
-+	TP_PROTO(struct shrinker *shr, struct shrink_control *sc,
-+		long nr_objects_to_shrink, unsigned long pgs_scanned,
-+		unsigned long lru_pgs, unsigned long cache_items,
-+		unsigned long long delta, unsigned long total_scan),
-+
-+	TP_ARGS(shr, sc, nr_objects_to_shrink, pgs_scanned, lru_pgs,
-+		cache_items, delta, total_scan),
-+
-+	TP_STRUCT__entry(
-+		__field(struct shrinker *, shr)
-+		__field(long, nr_objects_to_shrink)
-+		__field(gfp_t, gfp_flags)
-+		__field(unsigned long, pgs_scanned)
-+		__field(unsigned long, lru_pgs)
-+		__field(unsigned long, cache_items)
-+		__field(unsigned long long, delta)
-+		__field(unsigned long, total_scan)
-+	),
-+
-+	TP_fast_assign(
-+		__entry->shr = shr;
-+		__entry->nr_objects_to_shrink = nr_objects_to_shrink;
-+		__entry->gfp_flags = sc->gfp_mask;
-+		__entry->pgs_scanned = pgs_scanned;
-+		__entry->lru_pgs = lru_pgs;
-+		__entry->cache_items = cache_items;
-+		__entry->delta = delta;
-+		__entry->total_scan = total_scan;
-+	),
-+
-+	TP_printk("shrinker %p: objects to shrink %ld gfp_flags %s pgs_scanned %ld lru_pgs %ld cache items %ld delta %lld total_scan %ld",
-+		__entry->shr,
-+		__entry->nr_objects_to_shrink,
-+		show_gfp_flags(__entry->gfp_flags),
-+		__entry->pgs_scanned,
-+		__entry->lru_pgs,
-+		__entry->cache_items,
-+		__entry->delta,
-+		__entry->total_scan)
-+);
-+
-+TRACE_EVENT(mm_shrink_slab_end,
-+	TP_PROTO(struct shrinker *shr, int shrinker_retval,
-+		long unused_scan_cnt, long new_scan_cnt),
-+
-+	TP_ARGS(shr, shrinker_retval, unused_scan_cnt, new_scan_cnt),
-+
-+	TP_STRUCT__entry(
-+		__field(struct shrinker *, shr)
-+		__field(long, unused_scan)
-+		__field(long, new_scan)
-+		__field(int, retval)
-+		__field(long, total_scan)
-+	),
-+
-+	TP_fast_assign(
-+		__entry->shr = shr;
-+		__entry->unused_scan = unused_scan_cnt;
-+		__entry->new_scan = new_scan_cnt;
-+		__entry->retval = shrinker_retval;
-+		__entry->total_scan = new_scan_cnt - unused_scan_cnt;
-+	),
-+
-+	TP_printk("shrinker %p: unused scan count %ld new scan count %ld total_scan %ld last shrinker return val %d",
-+		__entry->shr,
-+		__entry->unused_scan,
-+		__entry->new_scan,
-+		__entry->total_scan,
-+		__entry->retval)
-+);
+ /*
+- * For background writeback the caller does not have the sb pinned
+- * before calling writeback. So make sure that we do pin it, so it doesn't
+- * go away while we are writing inodes from it.
+- */
+-static bool pin_sb_for_writeback(struct super_block *sb)
+-{
+-	spin_lock(&sb_lock);
+-	if (list_empty(&sb->s_instances)) {
+-		spin_unlock(&sb_lock);
+-		return false;
+-	}
+-
+-	sb->s_count++;
+-	spin_unlock(&sb_lock);
+-
+-	if (down_read_trylock(&sb->s_umount)) {
+-		if (sb->s_root)
+-			return true;
+-		up_read(&sb->s_umount);
+-	}
+-
+-	put_super(sb);
+-	return false;
+-}
+-
+-/*
+  * Write a portion of b_io inodes which belong to @sb.
+  *
+  * If @only_this_sb is true, then find and write all such
+@@ -585,7 +559,7 @@ void writeback_inodes_wb(struct bdi_writeback *wb,
+ 		struct inode *inode = wb_inode(wb->b_io.prev);
+ 		struct super_block *sb = inode->i_sb;
  
- DECLARE_EVENT_CLASS(mm_vmscan_lru_isolate_template,
- 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 8ff834e..646cb6c 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -250,6 +250,7 @@ unsigned long shrink_slab(struct shrink_control *shrink,
- 		unsigned long long delta;
- 		unsigned long total_scan;
- 		unsigned long max_pass;
-+		int shrink_ret = 0;
- 
- 		max_pass = do_shrinker_shrink(shrinker, shrink, 0);
- 		delta = (4 * nr_pages_scanned) / shrinker->seeks;
-@@ -274,9 +275,12 @@ unsigned long shrink_slab(struct shrink_control *shrink,
- 		total_scan = shrinker->nr;
- 		shrinker->nr = 0;
- 
-+		trace_mm_shrink_slab_start(shrinker, shrink, total_scan,
-+					nr_pages_scanned, lru_pages,
-+					max_pass, delta, total_scan);
-+
- 		while (total_scan >= SHRINK_BATCH) {
- 			long this_scan = SHRINK_BATCH;
--			int shrink_ret;
- 			int nr_before;
- 
- 			nr_before = do_shrinker_shrink(shrinker, shrink, 0);
-@@ -293,6 +297,8 @@ unsigned long shrink_slab(struct shrink_control *shrink,
+-		if (!pin_sb_for_writeback(sb)) {
++		if (!grab_super_passive(sb)) {
+ 			requeue_io(inode);
+ 			continue;
  		}
+diff --git a/fs/internal.h b/fs/internal.h
+index ae47c48..fe327c2 100644
+--- a/fs/internal.h
++++ b/fs/internal.h
+@@ -97,6 +97,7 @@ extern struct file *get_empty_filp(void);
+  * super.c
+  */
+ extern int do_remount_sb(struct super_block *, int, void *, int);
++extern bool grab_super_passive(struct super_block *sb);
+ extern void __put_super(struct super_block *sb);
+ extern void put_super(struct super_block *sb);
+ extern struct dentry *mount_fs(struct file_system_type *,
+diff --git a/fs/super.c b/fs/super.c
+index 73ab9f9..e63c754 100644
+--- a/fs/super.c
++++ b/fs/super.c
+@@ -243,6 +243,39 @@ static int grab_super(struct super_block *s) __releases(sb_lock)
+ }
  
- 		shrinker->nr += total_scan;
-+		trace_mm_shrink_slab_end(shrinker, shrink_ret, total_scan,
-+					 shrinker->nr);
- 	}
- 	up_read(&shrinker_rwsem);
- out:
+ /*
++ *	grab_super_passive - acquire a passive reference
++ *	@s: reference we are trying to grab
++ *
++ *	Tries to acquire a passive reference. This is used in places where we
++ *	cannot take an active reference but we need to ensure that the
++ *	superblock does not go away while we are working on it. It returns
++ *	false if a reference was not gained, and returns true with the s_umount
++ *	lock held in read mode if a reference is gained. On successful return,
++ *	the caller must drop the s_umount lock and the passive reference when
++ *	done.
++ */
++bool grab_super_passive(struct super_block *sb)
++{
++	spin_lock(&sb_lock);
++	if (list_empty(&sb->s_instances)) {
++		spin_unlock(&sb_lock);
++		return false;
++	}
++
++	sb->s_count++;
++	spin_unlock(&sb_lock);
++
++	if (down_read_trylock(&sb->s_umount)) {
++		if (sb->s_root)
++			return true;
++		up_read(&sb->s_umount);
++	}
++
++	put_super(sb);
++	return false;
++}
++
++/*
+  * Superblock locking.  We really ought to get rid of these two.
+  */
+ void lock_super(struct super_block * sb)
 -- 
 1.7.5.1
 
