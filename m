@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 8D99690011A
-	for <linux-mm@kvack.org>; Fri,  8 Jul 2011 00:15:01 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with SMTP id 9EF9E90011A
+	for <linux-mm@kvack.org>; Fri,  8 Jul 2011 00:15:06 -0400 (EDT)
 From: Dave Chinner <david@fromorbit.com>
-Subject: [PATCH 03/14] vmscan: shrinker->nr updates race and go wrong
-Date: Fri,  8 Jul 2011 14:14:35 +1000
-Message-Id: <1310098486-6453-4-git-send-email-david@fromorbit.com>
+Subject: [PATCH 05/14] vmscan: add customisable shrinker batch size
+Date: Fri,  8 Jul 2011 14:14:37 +1000
+Message-Id: <1310098486-6453-6-git-send-email-david@fromorbit.com>
 In-Reply-To: <1310098486-6453-1-git-send-email-david@fromorbit.com>
 References: <1310098486-6453-1-git-send-email-david@fromorbit.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,105 +15,70 @@ Cc: linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.
 
 From: Dave Chinner <dchinner@redhat.com>
 
-shrink_slab() allows shrinkers to be called in parallel so the
-struct shrinker can be updated concurrently. It does not provide any
-exclusio for such updates, so we can get the shrinker->nr value
-increasing or decreasing incorrectly.
+For shrinkers that have their own cond_resched* calls, having
+shrink_slab break the work down into small batches is not
+paticularly efficient. Add a custom batchsize field to the struct
+shrinker so that shrinkers can use a larger batch size if they
+desire.
 
-As a result, when a shrinker repeatedly returns a value of -1 (e.g.
-a VFS shrinker called w/ GFP_NOFS), the shrinker->nr goes haywire,
-sometimes updating with the scan count that wasn't used, sometimes
-losing it altogether. Worse is when a shrinker does work and that
-update is lost due to racy updates, which means the shrinker will do
-the work again!
-
-Fix this by making the total_scan calculations independent of
-shrinker->nr, and making the shrinker->nr updates atomic w.r.t. to
-other updates via cmpxchg loops.
+A value of zero (uninitialised) means "use the default", so
+behaviour is unchanged by this patch.
 
 Signed-off-by: Dave Chinner <dchinner@redhat.com>
 ---
- mm/vmscan.c |   45 ++++++++++++++++++++++++++++++++-------------
- 1 files changed, 32 insertions(+), 13 deletions(-)
+ include/linux/mm.h |    1 +
+ mm/vmscan.c        |   11 ++++++-----
+ 2 files changed, 7 insertions(+), 5 deletions(-)
 
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 9670f71..9b9777a 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1150,6 +1150,7 @@ struct shrink_control {
+ struct shrinker {
+ 	int (*shrink)(struct shrinker *, struct shrink_control *sc);
+ 	int seeks;	/* seeks to recreate an obj */
++	long batch;	/* reclaim batch size, 0 = default */
+ 
+ 	/* These are for internal use */
+ 	struct list_head list;
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 646cb6c..666d811 100644
+index 01036ed..afaedc0 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -251,17 +251,29 @@ unsigned long shrink_slab(struct shrink_control *shrink,
- 		unsigned long total_scan;
- 		unsigned long max_pass;
+@@ -253,6 +253,8 @@ unsigned long shrink_slab(struct shrink_control *shrink,
  		int shrink_ret = 0;
-+		long nr;
-+		long new_nr;
- 
-+		/*
-+		 * copy the current shrinker scan count into a local variable
-+		 * and zero it so that other concurrent shrinker invocations
-+		 * don't also do this scanning work.
-+		 */
-+		do {
-+			nr = shrinker->nr;
-+		} while (cmpxchg(&shrinker->nr, nr, 0) != nr);
-+
-+		total_scan = nr;
- 		max_pass = do_shrinker_shrink(shrinker, shrink, 0);
- 		delta = (4 * nr_pages_scanned) / shrinker->seeks;
- 		delta *= max_pass;
- 		do_div(delta, lru_pages + 1);
--		shrinker->nr += delta;
--		if (shrinker->nr < 0) {
-+		total_scan += delta;
-+		if (total_scan < 0) {
- 			printk(KERN_ERR "shrink_slab: %pF negative objects to "
- 			       "delete nr=%ld\n",
--			       shrinker->shrink, shrinker->nr);
--			shrinker->nr = max_pass;
-+			       shrinker->shrink, total_scan);
-+			total_scan = max_pass;
- 		}
+ 		long nr;
+ 		long new_nr;
++		long batch_size = shrinker->batch ? shrinker->batch
++						  : SHRINK_BATCH;
  
  		/*
-@@ -269,13 +281,10 @@ unsigned long shrink_slab(struct shrink_control *shrink,
- 		 * never try to free more than twice the estimate number of
- 		 * freeable entries.
- 		 */
--		if (shrinker->nr > max_pass * 2)
--			shrinker->nr = max_pass * 2;
--
--		total_scan = shrinker->nr;
--		shrinker->nr = 0;
-+		if (total_scan > max_pass * 2)
-+			total_scan = max_pass * 2;
- 
--		trace_mm_shrink_slab_start(shrinker, shrink, total_scan,
-+		trace_mm_shrink_slab_start(shrinker, shrink, nr,
+ 		 * copy the current shrinker scan count into a local variable
+@@ -303,19 +305,18 @@ unsigned long shrink_slab(struct shrink_control *shrink,
  					nr_pages_scanned, lru_pages,
  					max_pass, delta, total_scan);
  
-@@ -296,9 +305,19 @@ unsigned long shrink_slab(struct shrink_control *shrink,
+-		while (total_scan >= SHRINK_BATCH) {
+-			long this_scan = SHRINK_BATCH;
++		while (total_scan >= batch_size) {
+ 			int nr_before;
+ 
+ 			nr_before = do_shrinker_shrink(shrinker, shrink, 0);
+ 			shrink_ret = do_shrinker_shrink(shrinker, shrink,
+-							this_scan);
++							batch_size);
+ 			if (shrink_ret == -1)
+ 				break;
+ 			if (shrink_ret < nr_before)
+ 				ret += nr_before - shrink_ret;
+-			count_vm_events(SLABS_SCANNED, this_scan);
+-			total_scan -= this_scan;
++			count_vm_events(SLABS_SCANNED, batch_size);
++			total_scan -= batch_size;
+ 
  			cond_resched();
  		}
- 
--		shrinker->nr += total_scan;
--		trace_mm_shrink_slab_end(shrinker, shrink_ret, total_scan,
--					 shrinker->nr);
-+		/*
-+		 * move the unused scan count back into the shrinker in a
-+		 * manner that handles concurrent updates. If we exhausted the
-+		 * scan, there is no need to do an update.
-+		 */
-+		do {
-+			nr = shrinker->nr;
-+			new_nr = total_scan + nr;
-+			if (total_scan <= 0)
-+				break;
-+		} while (cmpxchg(&shrinker->nr, nr, new_nr) != nr);
-+
-+		trace_mm_shrink_slab_end(shrinker, shrink_ret, nr, new_nr);
- 	}
- 	up_read(&shrinker_rwsem);
- out:
 -- 
 1.7.5.1
 
