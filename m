@@ -1,29 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 509596B007E
-	for <linux-mm@kvack.org>; Sat,  9 Jul 2011 15:41:47 -0400 (EDT)
-Received: by pwi12 with SMTP id 12so2263896pwi.14
-        for <linux-mm@kvack.org>; Sat, 09 Jul 2011 12:41:43 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 1BCE66B0082
+	for <linux-mm@kvack.org>; Sat,  9 Jul 2011 15:41:51 -0400 (EDT)
+Received: by mail-pw0-f41.google.com with SMTP id 12so2263896pwi.14
+        for <linux-mm@kvack.org>; Sat, 09 Jul 2011 12:41:50 -0700 (PDT)
 From: Raghavendra D Prabhu <raghu.prabhu13@gmail.com>
-Subject: [PATCH 0/3] Readahead fixes
-Date: Sun, 10 Jul 2011 01:11:17 +0530
-Message-Id: <cover.1310239575.git.rprabhu@wnohang.net>
+Subject: [PATCH 1/3] mm/readahead: Change the check for PageReadahead into an else-if
+Date: Sun, 10 Jul 2011 01:11:18 +0530
+Message-Id: <5a2186efeb299af150b1bef10f1c3a428722b3de.1310239575.git.rprabhu@wnohang.net>
+In-Reply-To: <cover.1310239575.git.rprabhu@wnohang.net>
+References: <cover.1310239575.git.rprabhu@wnohang.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: fengguang.wu@intel.com
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Raghavendra D Prabhu <rprabhu@wnohang.net>
 
-Minor readahead fixes, details in respective patch mails
+>From 51daa88ebd8e0d437289f589af29d4b39379ea76, page_sync_readahead coalesces
+async readahead into its readahead window, so another checking for that again is
+not required.
 
-Raghavendra D Prabhu (3):
-  Change the check for PageReadahead into an else-if
-  Remove file_ra_state from arguments of count_history_pages.
-  Move the check for ra_pages after VM_SequentialReadHint()
+Signed-off-by: Raghavendra D Prabhu <rprabhu@wnohang.net>
+---
+ mm/filemap.c |    3 +--
+ 1 files changed, 1 insertions(+), 2 deletions(-)
 
- mm/filemap.c   |    8 ++++----
- mm/readahead.c |    3 +--
- 2 files changed, 5 insertions(+), 6 deletions(-)
-
+diff --git a/mm/filemap.c b/mm/filemap.c
+index a8251a8..074c23d 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -1115,8 +1115,7 @@ find_page:
+ 			page = find_get_page(mapping, index);
+ 			if (unlikely(page == NULL))
+ 				goto no_cached_page;
+-		}
+-		if (PageReadahead(page)) {
++		} else if (PageReadahead(page)) {
+ 			page_cache_async_readahead(mapping,
+ 					ra, filp, page,
+ 					index, last_index - index);
 -- 
 1.7.6
 
