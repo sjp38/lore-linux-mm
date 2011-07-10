@@ -1,38 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 691BF6B004A
-	for <linux-mm@kvack.org>; Sun, 10 Jul 2011 19:05:17 -0400 (EDT)
-Received: by qwa26 with SMTP id 26so2298543qwa.14
-        for <linux-mm@kvack.org>; Sun, 10 Jul 2011 16:05:15 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 5D93A6B004A
+	for <linux-mm@kvack.org>; Sun, 10 Jul 2011 19:08:48 -0400 (EDT)
+Received: by qwa26 with SMTP id 26so2299279qwa.14
+        for <linux-mm@kvack.org>; Sun, 10 Jul 2011 16:08:46 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.00.1107081021040.29346@ubuntu>
-References: <CAGtzr3fm2=UJFRo2xSYhst0P4jCMT-EPjyPi3=icCrMtW0ij8w@mail.gmail.com>
-	<CAEwNFnB8VXkTiMzJewtd7rSZ8keqkboNz-BBjw_UudquvsrK1A@mail.gmail.com>
-	<alpine.DEB.2.00.1107081021040.29346@ubuntu>
-Date: Mon, 11 Jul 2011 08:05:15 +0900
-Message-ID: <CAEwNFnCsjRkauM5XvOqh1hLNOT3Hwu2m9pPqO+mCHq7rKLu0Gg@mail.gmail.com>
-Subject: Re: NULL poniter dereference in isolate_lru_pages 2.6.39.1
+In-Reply-To: <1310244907-10144-1-git-send-email-dmitry.fink@palm.com>
+References: <1310244149-9885-1-git-send-email-dmitry.fink@palm.com>
+	<1310244907-10144-1-git-send-email-dmitry.fink@palm.com>
+Date: Mon, 11 Jul 2011 08:08:46 +0900
+Message-ID: <CAEwNFnDRZwSXnVP3EdXqYnNBrumcrihQ+m=N4fb9xouNE=TKRg@mail.gmail.com>
+Subject: Re: [PATCH] mmap: Fix and tidy up overcommit page arithmetic
 From: Minchan Kim <minchan.kim@gmail.com>
 Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chris Pearson <pearson.christopher.j@gmail.com>
-Cc: linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>
+To: Dmitry Fink <dmitry.fink@palm.com>
+Cc: Hugh Dickins <hughd@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Sat, Jul 9, 2011 at 12:39 AM, Chris Pearson
-<pearson.christopher.j@gmail.com> wrote:
-> addr1line says vmscan.c:0
+On Sun, Jul 10, 2011 at 5:55 AM, Dmitry Fink <dmitry.fink@palm.com> wrote:
+> - shmem pages are not immediately available, but they are not
+> potentially available either, even if we swap them out, they will
+> just relocate from memory into swap, total amount of immediate and
+> potentially available memory is not going to be affected, so we
+> shouldn't count them as potentially free in the first place.
 >
-> I must have not compiled with some debugging info?
+> - nr_free_pages() is not an expensive operation anymore, there is
+> no need to split the decision making in two halves and repeat code.
+>
+> Signed-off-by: Dmitry Fink <dmitry.fink@palm.com>
+> Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+> Acked-by: Hugh Dickins <hughd@google.com>
+> ---
+> =C2=A0mm/mmap.c =C2=A0| =C2=A0 33 ++++++++++++---------------------
+> =C2=A0mm/nommu.c | =C2=A0 33 ++++++++++++---------------------
+> =C2=A02 files changed, 24 insertions(+), 42 deletions(-)
+>
+> diff --git a/mm/mmap.c b/mm/mmap.c
+> index d49736f..b6ed22e 100644
+> --- a/mm/mmap.c
+> +++ b/mm/mmap.c
+> @@ -122,9 +122,16 @@ int __vm_enough_memory(struct mm_struct *mm, long pa=
+ges, int cap_sys_admin)
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0return 0;
+>
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0if (sysctl_overcommit_memory =3D=3D OVERCOMMIT=
+_GUESS) {
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 unsigned long n;
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 free =3D global_page_s=
+tate(NR_FREE_PAGES);
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 free +=3D global_page_=
+state(NR_FILE_PAGES);
+> +
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 /* shmem pages shouldn=
+'t be counted as free in this
 
-It seems.
+Nitpick.
+You didn't correct comment style. It's not a linux kernel coding style.
 
-1. Could you post your config?
-2. Could you apply/test patch I mentioned?
-
-Thanks.
-
--- 
+--=20
 Kind regards,
 Minchan Kim
 
