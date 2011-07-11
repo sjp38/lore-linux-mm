@@ -1,163 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D4E56B004A
-	for <linux-mm@kvack.org>; Sun, 10 Jul 2011 21:42:07 -0400 (EDT)
-Received: by iwn8 with SMTP id 8so4262265iwn.14
-        for <linux-mm@kvack.org>; Sun, 10 Jul 2011 18:42:05 -0700 (PDT)
-From: Dmitry Fink <dmitry.fink@palm.com>
-Subject: [PATCH] mmap: Fix and tidy up overcommit page arithmetic
-Date: Sun, 10 Jul 2011 18:41:50 -0700
-Message-Id: <1310348510-16957-1-git-send-email-dmitry.fink@palm.com>
-In-Reply-To: <CAEwNFnDRZwSXnVP3EdXqYnNBrumcrihQ+m=N4fb9xouNE=TKRg@mail.gmail.com>
-References: <CAEwNFnDRZwSXnVP3EdXqYnNBrumcrihQ+m=N4fb9xouNE=TKRg@mail.gmail.com>
+	by kanga.kvack.org (Postfix) with ESMTP id B21846B004A
+	for <linux-mm@kvack.org>; Sun, 10 Jul 2011 22:01:04 -0400 (EDT)
+Date: Mon, 11 Jul 2011 12:00:54 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH] Remove incorrect usage of sysctl_vfs_cache_pressure
+Message-ID: <20110711020054.GE23038@dastard>
+References: <cover.1310331583.git.rprabhu@wnohang.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <cover.1310331583.git.rprabhu@wnohang.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Minchan Kim <minchan.kim@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Dmitry Fink <dmitry.fink@palm.com>
+To: raghu.prabhu13@gmail.com
+Cc: akpm@linux-foundation.org, mgorman@suse.de, kamezawa.hiroyu@jp.fujitsu.com, keithp@keithp.com, viro@zeniv.linux.org.uk, riel@redhat.com, swhiteho@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, jack@suse.cz, Raghavendra D Prabhu <rprabhu@wnohang.net>
 
-- shmem pages are not immediately available, but they are not
-potentially available either, even if we swap them out, they will
-just relocate from memory into swap, total amount of immediate and
-potentially available memory is not going to be affected, so we
-shouldn't count them as potentially free in the first place.
+On Mon, Jul 11, 2011 at 02:56:23AM +0530, raghu.prabhu13@gmail.com wrote:
+> From: Raghavendra D Prabhu <rprabhu@wnohang.net>
+> 
+> In shrinker functions, sysctl_vfs_cache_pressure variable is being used while
+> trimming slab caches in general and not restricted to inode/dentry caches as
+> documented for that sysctl.
+> 
+> Raghavendra D Prabhu (1):
+>   mm/vmscan: Remove sysctl_vfs_cache_pressure from non-vfs shrinkers
+> 
+>  drivers/gpu/drm/i915/i915_gem.c |    2 +-
 
-- nr_free_pages() is not an expensive operation anymore, there is
-no need to split the decision making in two halves and repeat code.
+That's the only questionable use of it as it has nothing to do with
+filesystems.
 
-Signed-off-by: Dmitry Fink <dmitry.fink@palm.com>
-Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
-Acked-by: Hugh Dickins <hughd@google.com>
----
- mm/mmap.c  |   34 +++++++++++++---------------------
- mm/nommu.c |   34 +++++++++++++---------------------
- 2 files changed, 26 insertions(+), 42 deletions(-)
+>  fs/gfs2/glock.c                 |    2 +-
+>  fs/gfs2/quota.c                 |    2 +-
+>  fs/mbcache.c                    |    2 +-
+>  fs/nfs/dir.c                    |    2 +-
+>  fs/quota/dquot.c                |    3 +--
+>  net/sunrpc/auth.c               |    2 +-
 
-diff --git a/mm/mmap.c b/mm/mmap.c
-index d49736f..a65efd4 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -122,9 +122,17 @@ int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
- 		return 0;
- 
- 	if (sysctl_overcommit_memory == OVERCOMMIT_GUESS) {
--		unsigned long n;
-+		free = global_page_state(NR_FREE_PAGES);
-+		free += global_page_state(NR_FILE_PAGES);
-+
-+		/*
-+		 * shmem pages shouldn't be counted as free in this
-+		 * case, they can't be purged, only swapped out, and
-+		 * that won't affect the overall amount of available
-+		 * memory in the system.
-+		 */
-+		free -= global_page_state(NR_SHMEM);
- 
--		free = global_page_state(NR_FILE_PAGES);
- 		free += nr_swap_pages;
- 
- 		/*
-@@ -136,34 +144,18 @@ int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
- 		free += global_page_state(NR_SLAB_RECLAIMABLE);
- 
- 		/*
--		 * Leave the last 3% for root
--		 */
--		if (!cap_sys_admin)
--			free -= free / 32;
--
--		if (free > pages)
--			return 0;
--
--		/*
--		 * nr_free_pages() is very expensive on large systems,
--		 * only call if we're about to fail.
--		 */
--		n = nr_free_pages();
--
--		/*
- 		 * Leave reserved pages. The pages are not for anonymous pages.
- 		 */
--		if (n <= totalreserve_pages)
-+		if (free <= totalreserve_pages)
- 			goto error;
- 		else
--			n -= totalreserve_pages;
-+			free -= totalreserve_pages;
- 
- 		/*
- 		 * Leave the last 3% for root
- 		 */
- 		if (!cap_sys_admin)
--			n -= n / 32;
--		free += n;
-+			free -= free / 32;
- 
- 		if (free > pages)
- 			return 0;
-diff --git a/mm/nommu.c b/mm/nommu.c
-index 9edc897..76f2b4b 100644
---- a/mm/nommu.c
-+++ b/mm/nommu.c
-@@ -1885,9 +1885,17 @@ int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
- 		return 0;
- 
- 	if (sysctl_overcommit_memory == OVERCOMMIT_GUESS) {
--		unsigned long n;
-+		free = global_page_state(NR_FREE_PAGES);
-+		free += global_page_state(NR_FILE_PAGES);
-+
-+		/*
-+		 * shmem pages shouldn't be counted as free in this
-+		 * case, they can't be purged, only swapped out, and
-+		 * that won't affect the overall amount of available
-+		 * memory in the system.
-+		 */
-+		free -= global_page_state(NR_SHMEM);
- 
--		free = global_page_state(NR_FILE_PAGES);
- 		free += nr_swap_pages;
- 
- 		/*
-@@ -1899,34 +1907,18 @@ int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
- 		free += global_page_state(NR_SLAB_RECLAIMABLE);
- 
- 		/*
--		 * Leave the last 3% for root
--		 */
--		if (!cap_sys_admin)
--			free -= free / 32;
--
--		if (free > pages)
--			return 0;
--
--		/*
--		 * nr_free_pages() is very expensive on large systems,
--		 * only call if we're about to fail.
--		 */
--		n = nr_free_pages();
--
--		/*
- 		 * Leave reserved pages. The pages are not for anonymous pages.
- 		 */
--		if (n <= totalreserve_pages)
-+		if (free <= totalreserve_pages)
- 			goto error;
- 		else
--			n -= totalreserve_pages;
-+			free -= totalreserve_pages;
- 
- 		/*
- 		 * Leave the last 3% for root
- 		 */
- 		if (!cap_sys_admin)
--			n -= n / 32;
--		free += n;
-+			free -= free / 32;
- 
- 		if (free > pages)
- 			return 0;
+All the others are filesystema??specific caches and as such the use of
+vfs_cache_pressure to adjust the balance of reclaim is valid usage.
+Especially the VFS quota cache shrinkers. ;)
+
+Cheers,
+
+Dave.
 -- 
-1.7.6
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
