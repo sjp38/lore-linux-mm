@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E8539000C1
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 0781A9000C3
 	for <linux-mm@kvack.org>; Mon, 11 Jul 2011 09:01:21 -0400 (EDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 2/3] mm: page allocator: Initialise ZLC for first zone eligible for zone_reclaim
-Date: Mon, 11 Jul 2011 14:01:13 +0100
-Message-Id: <1310389274-13995-3-git-send-email-mgorman@suse.de>
+Subject: [PATCH 3/3] mm: page allocator: Reconsider zones for allocation after direct reclaim
+Date: Mon, 11 Jul 2011 14:01:14 +0100
+Message-Id: <1310389274-13995-4-git-send-email-mgorman@suse.de>
 In-Reply-To: <1310389274-13995-1-git-send-email-mgorman@suse.de>
 References: <1310389274-13995-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -13,102 +13,54 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>
 
-The zonelist cache (ZLC) is used among other things to record if
-zone_reclaim() failed for a particular zone recently. The intention
-is to avoid a high cost scanning extremely long zonelists or scanning
-within the zone uselessly.
-
-Currently the zonelist cache is setup only after the first zone has
-been considered and zone_reclaim() has been called. The objective was
-to avoid a costly setup but zone_reclaim is itself quite expensive. If
-it is failing regularly such as the first eligible zone having mostly
-mapped pages, the cost in scanning and allocation stalls is far higher
-than the ZLC initialisation step.
-
-This patch initialises ZLC before the first eligible zone calls
-zone_reclaim(). Once initialised, it is checked whether the zone
-failed zone_reclaim recently. If it has, the zone is skipped. As the
-first zone is now being checked, additional care has to be taken about
-zones marked full. A zone can be marked "full" because it should not
-have enough unmapped pages for zone_reclaim but this is excessive as
-direct reclaim or kswapd may succeed where zone_reclaim fails. Only
-mark zones "full" after zone_reclaim fails if it failed to reclaim
-enough pages after scanning.
+With zone_reclaim_mode enabled, it's possible for zones to be considered
+full in the zonelist_cache so they are skipped in the future. If the
+process enters direct reclaim, the ZLC may still consider zones to be
+full even after reclaiming pages. Reconsider all zones for allocation
+if direct reclaim returns successfully.
 
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- mm/page_alloc.c |   35 ++++++++++++++++++++++-------------
- 1 files changed, 22 insertions(+), 13 deletions(-)
+ mm/page_alloc.c |   19 +++++++++++++++++++
+ 1 files changed, 19 insertions(+), 0 deletions(-)
 
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 4e8985a..6913854 100644
+index 6913854..149409c 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -1664,7 +1664,7 @@ zonelist_scan:
- 				continue;
- 		if ((alloc_flags & ALLOC_CPUSET) &&
- 			!cpuset_zone_allowed_softwall(zone, gfp_mask))
--				goto try_next_zone;
-+				continue;
+@@ -1616,6 +1616,21 @@ static void zlc_mark_zone_full(struct zonelist *zonelist, struct zoneref *z)
+ 	set_bit(i, zlc->fullzones);
+ }
  
- 		BUILD_BUG_ON(ALLOC_NO_WATERMARKS < NR_WMARK);
- 		if (!(alloc_flags & ALLOC_NO_WATERMARKS)) {
-@@ -1676,17 +1676,36 @@ zonelist_scan:
- 				    classzone_idx, alloc_flags))
- 				goto try_this_zone;
- 
-+			if (NUMA_BUILD && !did_zlc_setup && nr_online_nodes > 1) {
-+				/*
-+				 * we do zlc_setup if there are multiple nodes
-+				 * and before considering the first zone allowed
-+				 * by the cpuset.
-+				 */
-+				allowednodes = zlc_setup(zonelist, alloc_flags);
-+				zlc_active = 1;
-+				did_zlc_setup = 1;
-+			}
++/*
++ * clear all zones full, called after direct reclaim makes progress so that
++ * a zone that was recently full is not skipped over for up to a second
++ */
++static void zlc_clear_zones_full(struct zonelist *zonelist)
++{
++	struct zonelist_cache *zlc;	/* cached zonelist speedup info */
 +
- 			if (zone_reclaim_mode == 0)
- 				goto this_zone_full;
- 
-+			/*
-+			 * As we may have just activated ZLC, check if the first
-+			 * eligible zone has failed zone_reclaim recently.
-+			 */
-+			if (NUMA_BUILD && zlc_active &&
-+				!zlc_zone_worth_trying(zonelist, z, allowednodes))
-+				continue;
++	zlc = zonelist->zlcache_ptr;
++	if (!zlc)
++		return;
 +
- 			ret = zone_reclaim(zone, gfp_mask, order);
- 			switch (ret) {
- 			case ZONE_RECLAIM_NOSCAN:
- 				/* did not scan */
--				goto try_next_zone;
-+				continue;
- 			case ZONE_RECLAIM_FULL:
- 				/* scanned but unreclaimable */
--				goto this_zone_full;
-+				continue;
- 			default:
- 				/* did we reclaim enough */
- 				if (!zone_watermark_ok(zone, order, mark,
-@@ -1703,16 +1722,6 @@ try_this_zone:
- this_zone_full:
- 		if (NUMA_BUILD)
- 			zlc_mark_zone_full(zonelist, z);
--try_next_zone:
--		if (NUMA_BUILD && !did_zlc_setup && nr_online_nodes > 1) {
--			/*
--			 * we do zlc_setup after the first zone is tried but only
--			 * if there are multiple nodes make it worthwhile
--			 */
--			allowednodes = zlc_setup(zonelist, alloc_flags);
--			zlc_active = 1;
--			did_zlc_setup = 1;
--		}
- 	}
++	bitmap_zero(zlc->fullzones, MAX_ZONES_PER_ZONELIST);
++}
++
+ #else	/* CONFIG_NUMA */
  
- 	if (unlikely(NUMA_BUILD && page == NULL && zlc_active)) {
+ static nodemask_t *zlc_setup(struct zonelist *zonelist, int alloc_flags)
+@@ -1963,6 +1978,10 @@ __alloc_pages_direct_reclaim(gfp_t gfp_mask, unsigned int order,
+ 	if (unlikely(!(*did_some_progress)))
+ 		return NULL;
+ 
++	/* After successful reclaim, reconsider all zones for allocation */
++	if (NUMA_BUILD)
++		zlc_clear_zones_full(zonelist);
++
+ retry:
+ 	page = get_page_from_freelist(gfp_mask, nodemask, order,
+ 					zonelist, high_zoneidx,
 -- 
 1.7.3.4
 
