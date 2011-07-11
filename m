@@ -1,177 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 520686B004A
-	for <linux-mm@kvack.org>; Mon, 11 Jul 2011 13:33:34 -0400 (EDT)
-Received: from hpaq1.eem.corp.google.com (hpaq1.eem.corp.google.com [172.25.149.1])
-	by smtp-out.google.com with ESMTP id p6BHXU1K031874
-	for <linux-mm@kvack.org>; Mon, 11 Jul 2011 10:33:30 -0700
-Received: from iym1 (iym1.prod.google.com [10.241.52.1])
-	by hpaq1.eem.corp.google.com with ESMTP id p6BHWKJj027975
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 11 Jul 2011 10:33:29 -0700
-Received: by iym1 with SMTP id 1so8126938iym.1
-        for <linux-mm@kvack.org>; Mon, 11 Jul 2011 10:33:28 -0700 (PDT)
-Date: Mon, 11 Jul 2011 10:33:11 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH] mmap: Fix and tidy up overcommit page arithmetic
-In-Reply-To: <1310348510-16957-1-git-send-email-dmitry.fink@palm.com>
-Message-ID: <alpine.LSU.2.00.1107111030480.1752@sister.anvils>
-References: <CAEwNFnDRZwSXnVP3EdXqYnNBrumcrihQ+m=N4fb9xouNE=TKRg@mail.gmail.com> <1310348510-16957-1-git-send-email-dmitry.fink@palm.com>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F27B6B004A
+	for <linux-mm@kvack.org>; Mon, 11 Jul 2011 15:05:52 -0400 (EDT)
+From: Janusz Krzysztofik <jkrzyszt@tis.icnet.pl>
+Subject: Re: [Linaro-mm-sig] [PATCH 6/8] drivers: add Contiguous Memory Allocator
+Date: Mon, 11 Jul 2011 21:01:17 +0200
+References: <1309851710-3828-1-git-send-email-m.szyprowski@samsung.com> <201107091657.07925.jkrzyszt@tis.icnet.pl> <001e01cc3fd1$159f7bf0$40de73d0$%szyprowski@samsung.com>
+In-Reply-To: <001e01cc3fd1$159f7bf0$40de73d0$%szyprowski@samsung.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: Text/Plain;
+  charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <201107112101.18601.jkrzyszt@tis.icnet.pl>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Fink <dmitry.fink@palm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: 'Arnd Bergmann' <arnd@arndb.de>, 'Marin Mitov' <mitov@issp.bas.bg>, 'Daniel Walker' <dwalker@codeaurora.org>, 'Russell King - ARM Linux' <linux@arm.linux.org.uk>, 'Jonathan Corbet' <corbet@lwn.net>, 'Mel Gorman' <mel@csn.ul.ie>, 'Chunsang Jeong' <chunsang.jeong@linaro.org>, 'KAMEZAWA Hiroyuki' <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, 'Michal Nazarewicz' <mina86@mina86.com>, 'Guennadi Liakhovetski' <g.liakhovetski@gmx.de>, linaro-mm-sig@lists.linaro.org, 'Jesse Barker' <jesse.barker@linaro.org>, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Ankita Garg' <ankita@in.ibm.com>, 'FUJITA Tomonori' <fujita.tomonori@lab.ntt.co.jp>, 'Andrew Morton' <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org
 
-On Sun, 10 Jul 2011, Dmitry Fink wrote:
+Dnia poniedzia=C5=82ek, 11 lipca 2011 o 15:47:32 Marek Szyprowski napisa=C5=
+=82(a):
+> Hello,
+>=20
+> On Saturday, July 09, 2011 4:57 PM Janusz Krzysztofik	wrote:
+> > On Wed, 6 Jul 2011 at 16:59:45 Arnd Bergmann wrote:
+> > > On Wednesday 06 July 2011, Nicolas Pitre wrote:
+> > > > On Wed, 6 Jul 2011, Russell King - ARM Linux wrote:
+> > > > > Another issue is that when a platform has restricted DMA
+> > > > > regions, they typically don't fall into the highmem zone.=20
+> > > > > As the dmabounce code allocates from the DMA coherent
+> > > > > allocator to provide it with guaranteed DMA-able memory,
+> > > > > that would be rather inconvenient.
+> > > >=20
+> > > > Do we encounter this in practice i.e. do those platforms
+> > > > requiring large contiguous allocations motivating this work
+> > > > have such DMA restrictions?
+> > >=20
+> > > You can probably find one or two of those, but we don't have to
+> > > optimize for that case. I would at least expect the maximum size
+> > > of the allocation to be smaller than the DMA limit for these,
+> > > and consequently mandate that they define a sufficiently large
+> > > CONSISTENT_DMA_SIZE for the crazy devices, or possibly add a
+> > > hack to unmap some low memory and call
+> > > dma_declare_coherent_memory() for the device.
+> >=20
+> > Once found that Russell has dropped his "ARM: DMA: steal memory for
+> > DMA coherent mappings" for now, let me get back to this idea of a
+> > hack that would allow for safely calling
+> > dma_declare_coherent_memory() in order to assign a device with a
+> > block of contiguous memory for exclusive use.
+>=20
+> We tested such approach and finally with 3.0-rc1 it works fine. You
+> can find an example for dma_declare_coherent() together with
+> required memblock_remove() calls in the following patch series:
+> http://www.spinics.net/lists/linux-samsung-soc/msg05026.html
+> "[PATCH 0/3 v2] ARM: S5P: Add support for MFC device on S5PV210 and
+> EXYNOS4"
+>=20
+> > Assuming there should be no problem with successfully allocating a
+> > large continuous block of coherent memory at boot time with
+> > dma_alloc_coherent(), this block could be reserved for the device.
+> > The only problem is with the dma_declare_coherent_memory() calling
+> > ioremap(), which was designed with a device's dedicated physical
+> > memory in mind, but shouldn't be called on a memory already
+> > mapped.
+>=20
+> All these issues with ioremap has been finally resolved in 3.0-rc1.
+> Like Russell pointed me in
+> http://www.spinics.net/lists/arm-kernel/msg127644.html, ioremap can
+> be fixed to work on early reserved memory areas by selecting
+> ARCH_HAS_HOLES_MEMORYMODEL Kconfig option.
 
-> - shmem pages are not immediately available, but they are not
-> potentially available either, even if we swap them out, they will
-> just relocate from memory into swap, total amount of immediate and
-> potentially available memory is not going to be affected, so we
-> shouldn't count them as potentially free in the first place.
-> 
-> - nr_free_pages() is not an expensive operation anymore, there is
-> no need to split the decision making in two halves and repeat code.
-> 
-> Signed-off-by: Dmitry Fink <dmitry.fink@palm.com>
-> Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
-> Acked-by: Hugh Dickins <hughd@google.com>
+I'm not sure. Recently I tried to refresh my now 7 months old patch in=20
+which I used that 'memblock_remove() then dma_declare_coherent_memery()'=20
+method[1]. It was different from your S5P MFC example in that it didn't=20
+punch any holes in the system memory, only stole a block of SDRAM from=20
+its tail. But Russell reminded me again: "we should not be mapping SDRAM=20
+using device mappings."[2]. Would defining ARCH_HAS_HOLES_MEMORYMODEL=20
+(even if it was justified) make any diference in my case? I don't think=20
+so. Wnat I think, after Russell, is that we still need that obligatory=20
+ioremap() removed from dma_declare_coherent_memory(), or made it=20
+optional, or a separate dma_declare_coherent_memory()-like function=20
+without (obligatory) ioremap() provided by the DMA API, in order to get=20
+the dma_declare_coherent_memery() method being accepted without any=20
+reservations when used inside arch/arm, I'm afraid.
 
-Just right: thanks a lot for redoing it this way, Dmitry.
+Thanks,
+Janusz
 
-> ---
->  mm/mmap.c  |   34 +++++++++++++---------------------
->  mm/nommu.c |   34 +++++++++++++---------------------
->  2 files changed, 26 insertions(+), 42 deletions(-)
-> 
-> diff --git a/mm/mmap.c b/mm/mmap.c
-> index d49736f..a65efd4 100644
-> --- a/mm/mmap.c
-> +++ b/mm/mmap.c
-> @@ -122,9 +122,17 @@ int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
->  		return 0;
->  
->  	if (sysctl_overcommit_memory == OVERCOMMIT_GUESS) {
-> -		unsigned long n;
-> +		free = global_page_state(NR_FREE_PAGES);
-> +		free += global_page_state(NR_FILE_PAGES);
-> +
-> +		/*
-> +		 * shmem pages shouldn't be counted as free in this
-> +		 * case, they can't be purged, only swapped out, and
-> +		 * that won't affect the overall amount of available
-> +		 * memory in the system.
-> +		 */
-> +		free -= global_page_state(NR_SHMEM);
->  
-> -		free = global_page_state(NR_FILE_PAGES);
->  		free += nr_swap_pages;
->  
->  		/*
-> @@ -136,34 +144,18 @@ int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
->  		free += global_page_state(NR_SLAB_RECLAIMABLE);
->  
->  		/*
-> -		 * Leave the last 3% for root
-> -		 */
-> -		if (!cap_sys_admin)
-> -			free -= free / 32;
-> -
-> -		if (free > pages)
-> -			return 0;
-> -
-> -		/*
-> -		 * nr_free_pages() is very expensive on large systems,
-> -		 * only call if we're about to fail.
-> -		 */
-> -		n = nr_free_pages();
-> -
-> -		/*
->  		 * Leave reserved pages. The pages are not for anonymous pages.
->  		 */
-> -		if (n <= totalreserve_pages)
-> +		if (free <= totalreserve_pages)
->  			goto error;
->  		else
-> -			n -= totalreserve_pages;
-> +			free -= totalreserve_pages;
->  
->  		/*
->  		 * Leave the last 3% for root
->  		 */
->  		if (!cap_sys_admin)
-> -			n -= n / 32;
-> -		free += n;
-> +			free -= free / 32;
->  
->  		if (free > pages)
->  			return 0;
-> diff --git a/mm/nommu.c b/mm/nommu.c
-> index 9edc897..76f2b4b 100644
-> --- a/mm/nommu.c
-> +++ b/mm/nommu.c
-> @@ -1885,9 +1885,17 @@ int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
->  		return 0;
->  
->  	if (sysctl_overcommit_memory == OVERCOMMIT_GUESS) {
-> -		unsigned long n;
-> +		free = global_page_state(NR_FREE_PAGES);
-> +		free += global_page_state(NR_FILE_PAGES);
-> +
-> +		/*
-> +		 * shmem pages shouldn't be counted as free in this
-> +		 * case, they can't be purged, only swapped out, and
-> +		 * that won't affect the overall amount of available
-> +		 * memory in the system.
-> +		 */
-> +		free -= global_page_state(NR_SHMEM);
->  
-> -		free = global_page_state(NR_FILE_PAGES);
->  		free += nr_swap_pages;
->  
->  		/*
-> @@ -1899,34 +1907,18 @@ int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
->  		free += global_page_state(NR_SLAB_RECLAIMABLE);
->  
->  		/*
-> -		 * Leave the last 3% for root
-> -		 */
-> -		if (!cap_sys_admin)
-> -			free -= free / 32;
-> -
-> -		if (free > pages)
-> -			return 0;
-> -
-> -		/*
-> -		 * nr_free_pages() is very expensive on large systems,
-> -		 * only call if we're about to fail.
-> -		 */
-> -		n = nr_free_pages();
-> -
-> -		/*
->  		 * Leave reserved pages. The pages are not for anonymous pages.
->  		 */
-> -		if (n <= totalreserve_pages)
-> +		if (free <= totalreserve_pages)
->  			goto error;
->  		else
-> -			n -= totalreserve_pages;
-> +			free -= totalreserve_pages;
->  
->  		/*
->  		 * Leave the last 3% for root
->  		 */
->  		if (!cap_sys_admin)
-> -			n -= n / 32;
-> -		free += n;
-> +			free -= free / 32;
->  
->  		if (free > pages)
->  			return 0;
-> -- 
-> 1.7.6
+[1] http://lists.infradead.org/pipermail/linux-arm-kernel/2010-December/034=
+644.html
+[2] http://lists.infradead.org/pipermail/linux-arm-kernel/2011-June/052488.=
+html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
