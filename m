@@ -1,57 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 8F8DD6B007E
-	for <linux-mm@kvack.org>; Mon, 11 Jul 2011 20:34:08 -0400 (EDT)
-Date: Tue, 12 Jul 2011 10:34:03 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH 08/14] inode: move to per-sb LRU locks
-Message-ID: <20110712003403.GH23038@dastard>
-References: <1310098486-6453-1-git-send-email-david@fromorbit.com>
- <1310098486-6453-9-git-send-email-david@fromorbit.com>
- <20110711192144.GA23723@infradead.org>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 0CFE16B007E
+	for <linux-mm@kvack.org>; Tue, 12 Jul 2011 01:31:58 -0400 (EDT)
+Received: by ywm39 with SMTP id 39so2119670ywm.14
+        for <linux-mm@kvack.org>; Mon, 11 Jul 2011 22:31:55 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110711192144.GA23723@infradead.org>
+In-Reply-To: <20110528005640.9076c0b1.akpm@linux-foundation.org>
+References: <1306499498-14263-1-git-send-email-ankita@in.ibm.com>
+	<20110528005640.9076c0b1.akpm@linux-foundation.org>
+Date: Tue, 12 Jul 2011 11:01:53 +0530
+Message-ID: <CADGdYn7VCKemAgdbNw76vj7E9swxtK=z8+9uv=omG89QNE0uxg@mail.gmail.com>
+Subject: Re: [PATCH 00/10] mm: Linux VM Infrastructure to support Memory Power Management
+From: amit kachhap <amit.kachhap@linaro.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: viro@ZenIV.linux.org.uk, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Ankita Garg <ankita@in.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, thomas.abraham@linaro.org, linux-pm@lists.linux-foundation.org, svaidy@linux.vnet.ibm.com, linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org
 
-On Mon, Jul 11, 2011 at 03:21:44PM -0400, Christoph Hellwig wrote:
-> On Fri, Jul 08, 2011 at 02:14:40PM +1000, Dave Chinner wrote:
-> > From: Dave Chinner <dchinner@redhat.com>
-> > 
-> > With the inode LRUs moving to per-sb structures, there is no longer
-> > a need for a global inode_lru_lock. The locking can be made more
-> > fine-grained by moving to a per-sb LRU lock, isolating the LRU
-> > operations of different filesytsems completely from each other.
-> 
-> Btw, any reason this is not done for dcache_lru_lock?
+Hi All,
 
-I have a patch that does exactly that, but it causes random crashes
-and oopsen in the dentry code due to corrupted lists and dentries
-when running xfstests. Like the inode cache, it is a simple
-translation of dcache_lru_lock to sb->s_dentry_lru_lock, so it
-should not be changing what is protected by the LRU lock.
+In response to the discussion about power savings with memory regions
+features following measurements are done.
 
-The patch used to work fine before the massive locking rework of the
-dentry cache, so it appears that there is now something unknown that
-dcache_lru_lock is implicitly protecting.  However, the locking is
-now so complex I've been unable to debug the problems caused by the
-patch, so I simply dropped the patch.
+Title:
+On a system with 2GB memory , 1GB is static and the other 1GB in
+various power states.
 
-I might try again later to break up the dcache_lru_lock, but right
-now it's not showing up as a badly contended lock in my tests and
-I've got other things that are more important to do, so I've been
-ignoring the problem....
+Brief environment description:
+Samsung smdk-exynos board is used for this work and full board level
+power consumption is measured that comprises of cpu and other
+components. It has 2 DMC's(Dynamic memory controller) with each
+supporting 1 GB DDR3 memory. Power characteristics of DMC0 controlled
+memory remain same but memory controlled by DMC1 is changed to 4
+different power states. The following numbers describe the maximum
+power savings measured after executing the software from DMC0
+controlled memory which changes the power states of DMC1 controlled
+memory. Here the actual numbers are not mentioned but the percentage
+power savings is shown in reference to the change in overall power
+consumption. The memory region patches are expected to facilitate
+transition of memory into into one of the following low power states.
 
-Cheers,
+1) Percentage power savings when DMC1(1GB) moved to self refresh mode
+from idle/unaccess mode=3D 2.69%
+2) Percentage power savings when DMC1(1GB) moved to precharge mode
+from idle/unaccess mode=3D 3.23%
+3) Percentage power savings when DMC1(1GB) clock is gated  =3D 6.32%
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+The above power savings is indicative of the benefits that memory
+regions could provide in this platform.
+
+Thanks & Regards,
+Amit Daniel Kachhap
+Samsung India s/w operations, Bangalore
+
+On Sat, May 28, 2011 at 1:26 PM, Andrew Morton
+<akpm@linux-foundation.org> wrote:
+> On Fri, 27 May 2011 18:01:28 +0530 Ankita Garg <ankita@in.ibm.com> wrote:
+>
+>> This patchset proposes a generic memory regions infrastructure that can =
+be
+>> used to tag boundaries of memory blocks which belongs to a specific memo=
+ry
+>> power management domain and further enable exploitation of platform memo=
+ry
+>> power management capabilities.
+>
+> A couple of quick thoughts...
+>
+> I'm seeing no estimate of how much energy we might save when this work
+> is completed. =A0But saving energy is the entire point of the entire
+> patchset! =A0So please spend some time thinking about that and update and
+> maintain the [patch 0/n] description so others can get some idea of the
+> benefit we might get from all of this. =A0That estimate should include an
+> estimate of what proportion of machines are likely to have hardware
+> which can use this feature and in what timeframe.
+>
+> IOW, if it saves one microwatt on 0.001% of machines, not interested ;)
+>
+>
+> Also, all this code appears to be enabled on all machines? =A0So machines
+> which don't have the requisite hardware still carry any additional
+> overhead which is added here. =A0I can see that ifdeffing a feature like
+> this would be ghastly but please also have a think about the
+> implications of this and add that discussion also.
+>
+> If possible, it would be good to think up some microbenchmarks which
+> probe the worst-case performance impact and describe those and present
+> the results. =A0So others can gain an understanding of the runtime costs.
+>
+>
+>
+> _______________________________________________
+> linux-arm-kernel mailing list
+> linux-arm-kernel@lists.infradead.org
+> http://lists.infradead.org/mailman/listinfo/linux-arm-kernel
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
