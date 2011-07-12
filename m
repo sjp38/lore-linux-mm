@@ -1,22 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id EACDA6B007E
-	for <linux-mm@kvack.org>; Tue, 12 Jul 2011 18:09:25 -0400 (EDT)
-Received: from hpaq2.eem.corp.google.com (hpaq2.eem.corp.google.com [172.25.149.2])
-	by smtp-out.google.com with ESMTP id p6CM9Md8011314
-	for <linux-mm@kvack.org>; Tue, 12 Jul 2011 15:09:23 -0700
-Received: from iyl8 (iyl8.prod.google.com [10.241.51.200])
-	by hpaq2.eem.corp.google.com with ESMTP id p6CM96Hx019718
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 1FB879000C2
+	for <linux-mm@kvack.org>; Tue, 12 Jul 2011 18:35:59 -0400 (EDT)
+Received: from wpaz33.hot.corp.google.com (wpaz33.hot.corp.google.com [172.24.198.97])
+	by smtp-out.google.com with ESMTP id p6CMZu2Z022271
+	for <linux-mm@kvack.org>; Tue, 12 Jul 2011 15:35:56 -0700
+Received: from iwn39 (iwn39.prod.google.com [10.241.68.103])
+	by wpaz33.hot.corp.google.com with ESMTP id p6CMZs76032649
 	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 12 Jul 2011 15:09:21 -0700
-Received: by iyl8 with SMTP id 8so6667583iyl.14
-        for <linux-mm@kvack.org>; Tue, 12 Jul 2011 15:09:19 -0700 (PDT)
-Date: Tue, 12 Jul 2011 15:08:58 -0700 (PDT)
+	for <linux-mm@kvack.org>; Tue, 12 Jul 2011 15:35:54 -0700
+Received: by iwn39 with SMTP id 39so5040624iwn.3
+        for <linux-mm@kvack.org>; Tue, 12 Jul 2011 15:35:54 -0700 (PDT)
+Date: Tue, 12 Jul 2011 15:35:41 -0700 (PDT)
 From: Hugh Dickins <hughd@google.com>
 Subject: Re: [PATCH 2/12] mm: let swap use exceptional entries
-In-Reply-To: <20110618145254.1b333344.akpm@linux-foundation.org>
-Message-ID: <alpine.LSU.2.00.1107121501100.2112@sister.anvils>
-References: <alpine.LSU.2.00.1106140327550.29206@sister.anvils> <alpine.LSU.2.00.1106140342330.29206@sister.anvils> <20110618145254.1b333344.akpm@linux-foundation.org>
+In-Reply-To: <20110618145546.12e175bf.akpm@linux-foundation.org>
+Message-ID: <alpine.LSU.2.00.1107121509230.2112@sister.anvils>
+References: <alpine.LSU.2.00.1106140327550.29206@sister.anvils> <alpine.LSU.2.00.1106140342330.29206@sister.anvils> <20110618145546.12e175bf.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -27,49 +27,43 @@ Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 On Sat, 18 Jun 2011, Andrew Morton wrote:
 > On Tue, 14 Jun 2011 03:43:47 -0700 (PDT) Hugh Dickins <hughd@google.com> wrote:
 > 
-> > --- linux.orig/mm/filemap.c	2011-06-13 13:26:44.430284135 -0700
-> > +++ linux/mm/filemap.c	2011-06-13 13:27:34.526532556 -0700
-> > @@ -717,9 +717,12 @@ repeat:
-> >  		page = radix_tree_deref_slot(pagep);
-> >  		if (unlikely(!page))
-> >  			goto out;
-> > -		if (radix_tree_deref_retry(page))
-> > +		if (radix_tree_exception(page)) {
-> > +			if (radix_tree_exceptional_entry(page))
-> > +				goto out;
-> > +			/* radix_tree_deref_retry(page) */
-> >  			goto repeat;
-> > -
-> > +		}
-> >  		if (!page_cache_get_speculative(page))
-> >  			goto repeat;
+> > In an i386 kernel this limits its information (type and page offset)
+> > to 30 bits: given 32 "types" of swapfile and 4kB pagesize, that's
+> > a maximum swapfile size of 128GB.  Which is less than the 512GB we
+> > previously allowed with X86_PAE (where the swap entry can occupy the
+> > entire upper 32 bits of a pte_t), but not a new limitation on 32-bit
+> > without PAE; and there's not a new limitation on 64-bit (where swap
+> > filesize is already limited to 16TB by a 32-bit page offset).
 > 
-> All the crap^Wnice changes made to filemap.c really need some comments,
-> please.  Particularly when they're keyed off the bland-sounding
-> "radix_tree_exception()".  Apparently they have something to do with
-> swap, but how is the poor reader to know this?
-
-The naming was intentionally bland, because other filesystems might
-in future have other uses for such exceptional entries.
-
-(I think the field size would generally defeat it, but you can,
-for example, imagine a small filesystem wanting to save sector number
-there when a page is evicted.)
-
-But let's go bland when it's more familiar, and such uses materialize -
-particularly since I only placed those checks in places where they're
-needed now for shmem/tmpfs/swap.
-
-I'll keep the bland naming, if that's okay, but send a patch adding
-a line of comment in such places.  Mentioning shmem, tmpfs, swap.
-
+> hm.
 > 
-> Also, commenting out a function call might be meaningful information for
-> Hugh-right-now, but for other people later on, they're just a big WTF.
+> >  Thirty
+> > areas of 128GB is probably still enough swap for a 64GB 32-bit machine.
+> 
+> What if it was only one area?  128GB is close enough to 64GB (or, more
+> realistically, 32GB) to be significant.  For the people out there who
+> are using a single 200GB swap partition and actually needed that much,
+> what happens?  swapon fails?
 
-Ah yes, I hadn't realized at all that those look like commented-out
-function calls.  No, they're comments on what the else case is that
-we have arrived at there.  I'll make those clearer too.
+No, it doesn't fail: it just trims back the amount of swap that is used
+(and counted) to the maximum that the running kernel supports (just like
+when you switch between 64bit and 32bit-PAE and 32bit-nonPAE kernels
+using the same large swap device, the 64bit being able to access more
+of it than the 32bit-PAE kernel, and that more than the 32bit-nonPAE).
+
+I'd grown to think that the users of large amounts of RAM may like to
+have a little swap for leeway, but live in dread of the slow death that a
+large amount of swap can result in.  Maybe that's just one class of user.
+
+I'd worry more about this if it were a new limitation for 64bit; but it's
+just a lower limitation for the 32bit-PAE case.  If it actually proves
+to be an issue (and we abandon our usual mantra to go to 64bit), then I
+don't think having 32 distinct areas is sacrosanct: we can (configurably
+or tunably) lower the number of areas and increase their size; but I
+doubt we shall need to bother.
+
+ARM is getting LPAE?  Then I guess this is a good moment to enforce
+the new limit.
 
 Hugh
 
