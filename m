@@ -1,22 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 1FB879000C2
-	for <linux-mm@kvack.org>; Tue, 12 Jul 2011 18:35:59 -0400 (EDT)
-Received: from wpaz33.hot.corp.google.com (wpaz33.hot.corp.google.com [172.24.198.97])
-	by smtp-out.google.com with ESMTP id p6CMZu2Z022271
-	for <linux-mm@kvack.org>; Tue, 12 Jul 2011 15:35:56 -0700
-Received: from iwn39 (iwn39.prod.google.com [10.241.68.103])
-	by wpaz33.hot.corp.google.com with ESMTP id p6CMZs76032649
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 418B99000C2
+	for <linux-mm@kvack.org>; Tue, 12 Jul 2011 18:56:37 -0400 (EDT)
+Received: from hpaq3.eem.corp.google.com (hpaq3.eem.corp.google.com [172.25.149.3])
+	by smtp-out.google.com with ESMTP id p6CMuYHE013905
+	for <linux-mm@kvack.org>; Tue, 12 Jul 2011 15:56:34 -0700
+Received: from iyb3 (iyb3.prod.google.com [10.241.49.67])
+	by hpaq3.eem.corp.google.com with ESMTP id p6CMuRut031837
 	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 12 Jul 2011 15:35:54 -0700
-Received: by iwn39 with SMTP id 39so5040624iwn.3
-        for <linux-mm@kvack.org>; Tue, 12 Jul 2011 15:35:54 -0700 (PDT)
-Date: Tue, 12 Jul 2011 15:35:41 -0700 (PDT)
+	for <linux-mm@kvack.org>; Tue, 12 Jul 2011 15:56:32 -0700
+Received: by iyb3 with SMTP id 3so5750549iyb.4
+        for <linux-mm@kvack.org>; Tue, 12 Jul 2011 15:56:27 -0700 (PDT)
+Date: Tue, 12 Jul 2011 15:56:14 -0700 (PDT)
 From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 2/12] mm: let swap use exceptional entries
-In-Reply-To: <20110618145546.12e175bf.akpm@linux-foundation.org>
-Message-ID: <alpine.LSU.2.00.1107121509230.2112@sister.anvils>
-References: <alpine.LSU.2.00.1106140327550.29206@sister.anvils> <alpine.LSU.2.00.1106140342330.29206@sister.anvils> <20110618145546.12e175bf.akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/12] radix_tree: exceptional entries and indices
+In-Reply-To: <20110618144832.cfc665b0.akpm@linux-foundation.org>
+Message-ID: <alpine.LSU.2.00.1107121536100.2112@sister.anvils>
+References: <alpine.LSU.2.00.1106140327550.29206@sister.anvils> <alpine.LSU.2.00.1106140341070.29206@sister.anvils> <20110617163854.49225203.akpm@linux-foundation.org> <alpine.LSU.2.00.1106171702150.1345@sister.anvils>
+ <20110618144832.cfc665b0.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -25,45 +26,65 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
 On Sat, 18 Jun 2011, Andrew Morton wrote:
-> On Tue, 14 Jun 2011 03:43:47 -0700 (PDT) Hugh Dickins <hughd@google.com> wrote:
+> On Fri, 17 Jun 2011 17:13:38 -0700 (PDT) Hugh Dickins <hughd@google.com> wrote:
+> > On Fri, 17 Jun 2011, Andrew Morton wrote:
+> > > On Tue, 14 Jun 2011 03:42:27 -0700 (PDT)
+> > > Hugh Dickins <hughd@google.com> wrote:
+> > > 
+> > > > The low bit of a radix_tree entry is already used to denote an indirect
+> > > > pointer, for internal use, and the unlikely radix_tree_deref_retry() case.
+> > > > Define the next bit as denoting an exceptional entry, and supply inline
+> > > > functions radix_tree_exception() to return non-0 in either unlikely case,
+> > > > and radix_tree_exceptional_entry() to return non-0 in the second case.
+> > > 
+> > > Yes, the RADIX_TREE_INDIRECT_PTR hack is internal-use-only, and doesn't
+> > > operate on (and hence doesn't corrupt) client-provided items.
+> > > 
+> > > This patch uses bit 1 and uses it against client items, so for
+> > > practical purpoese it can only be used when the client is storing
+> > > addresses.  And it needs new APIs to access that flag.
+> > > 
+> > > All a bit ugly.  Why not just add another tag for this?  Or reuse an
+> > > existing tag if the current tags aren't all used for these types of
+> > > pages?
+> > 
+> > I couldn't see how to use tags without losing the "lockless" lookups:
 > 
-> > In an i386 kernel this limits its information (type and page offset)
-> > to 30 bits: given 32 "types" of swapfile and 4kB pagesize, that's
-> > a maximum swapfile size of 128GB.  Which is less than the 512GB we
-> > previously allowed with X86_PAE (where the swap entry can occupy the
-> > entire upper 32 bits of a pte_t), but not a new limitation on 32-bit
-> > without PAE; and there's not a new limitation on 64-bit (where swap
-> > filesize is already limited to 16TB by a 32-bit page offset).
+> So lockless pagecache broke the radix-tree tag-versus-item coherency as
+> well as the address_space nrpages-vs-radix-tree coherency.
+
+I don't think that remark is fair to lockless pagecache at all.  If we
+want the scalability advantage of lockless lookup, yes, we don't have
+strict coherency with tagging at that time.  But those places that need
+to worry about that coherency, can lock to do so.
+
+> Isn't it fun learning these things.
 > 
-> hm.
+> > because the tag is a separate bit from the entry itself, unless you're
+> > under tree_lock, there would be races when changing from page pointer
+> > to swap entry or back, when slot was updated but tag not or vice versa.
 > 
-> >  Thirty
-> > areas of 128GB is probably still enough swap for a 64GB 32-bit machine.
-> 
-> What if it was only one area?  128GB is close enough to 64GB (or, more
-> realistically, 32GB) to be significant.  For the people out there who
-> are using a single 200GB swap partition and actually needed that much,
-> what happens?  swapon fails?
+> So...  take tree_lock?
 
-No, it doesn't fail: it just trims back the amount of swap that is used
-(and counted) to the maximum that the running kernel supports (just like
-when you switch between 64bit and 32bit-PAE and 32bit-nonPAE kernels
-using the same large swap device, the 64bit being able to access more
-of it than the 32bit-PAE kernel, and that more than the 32bit-nonPAE).
+I wouldn't call that an improvement...
 
-I'd grown to think that the users of large amounts of RAM may like to
-have a little swap for leeway, but live in dread of the slow death that a
-large amount of swap can result in.  Maybe that's just one class of user.
+> What effect does that have?
 
-I'd worry more about this if it were a new limitation for 64bit; but it's
-just a lower limitation for the 32bit-PAE case.  If it actually proves
-to be an issue (and we abandon our usual mantra to go to 64bit), then I
-don't think having 32 distinct areas is sacrosanct: we can (configurably
-or tunably) lower the number of areas and increase their size; but I
-doubt we shall need to bother.
+... but admit I have not measured: I rather assume that if we now change
+tmpfs from lockless to locked lookup, someone else will soon come up with
+the regression numbers.
 
-ARM is getting LPAE?  Then I guess this is a good moment to enforce
-the new limit.
+> It'd better be
+> "really bad", because this patchset does nothing at all to improve core
+> MM maintainability :(
+
+I was aiming to improve shmem.c maintainability; and you have good grounds
+to accuse me of hurting shmem.c maintainability when I highmem-ized the
+swap vector nine years ago.
+
+I was not aiming to improve core MM maintainability, nor to harm it.
+I am extending the use to which the radix-tree can be put, but is that
+so bad?
 
 Hugh
 
