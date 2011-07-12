@@ -1,122 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 1C8356B007E
-	for <linux-mm@kvack.org>; Mon, 11 Jul 2011 19:02:17 -0400 (EDT)
-Date: Tue, 12 Jul 2011 04:32:09 +0530
-From: Raghavendra D Prabhu <rprabhu@wnohang.net>
-Subject: Re. Revised [PATCH 3/3] mm/readahead: Remove the check for
- ra->ra_pages
-Message-ID: <20110711230209.GA39196@Xye>
-References: <cover.1310239575.git.rprabhu@wnohang.net>
- <323ddfc402a7f7b94f0cb02bba15acb2acca786f.1310239575.git.rprabhu@wnohang.net>
- <20110709205308.GC17463@localhost>
- <20110710125909.GA4460@Xye>
- <20110710155906.GB7432@localhost>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 4FE226B007E
+	for <linux-mm@kvack.org>; Mon, 11 Jul 2011 20:16:12 -0400 (EDT)
+Received: by qyk32 with SMTP id 32so2061305qyk.14
+        for <linux-mm@kvack.org>; Mon, 11 Jul 2011 17:16:10 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Disposition: inline
-In-Reply-To: <20110710155906.GB7432@localhost>
+In-Reply-To: <alpine.DEB.2.00.1107111550430.29346@ubuntu>
+References: <CAGtzr3fm2=UJFRo2xSYhst0P4jCMT-EPjyPi3=icCrMtW0ij8w@mail.gmail.com>
+	<CAEwNFnB8VXkTiMzJewtd7rSZ8keqkboNz-BBjw_UudquvsrK1A@mail.gmail.com>
+	<alpine.DEB.2.00.1107081021040.29346@ubuntu>
+	<CAEwNFnCsjRkauM5XvOqh1hLNOT3Hwu2m9pPqO+mCHq7rKLu0Gg@mail.gmail.com>
+	<alpine.DEB.2.00.1107111550430.29346@ubuntu>
+Date: Tue, 12 Jul 2011 09:16:09 +0900
+Message-ID: <CAEwNFnCfsGn1qZbgXNNETFtZAzOSvxpJDcftNcuuSBDXUnxtmA@mail.gmail.com>
+Subject: Re: NULL poniter dereference in isolate_lru_pages 2.6.39.1
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+To: Chris Pearson <pearson.christopher.j@gmail.com>
+Cc: linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, stable <stable@kernel.org>
 
-* On Sun, Jul 10, 2011 at 08:59:06AM -0700, Wu Fengguang <fengguang.wu@intel.com> wrote:
->On Sun, Jul 10, 2011 at 08:59:09PM +0800, Raghavendra D Prabhu wrote:
->> * On Sat, Jul 09, 2011 at 01:53:08PM -0700, Wu Fengguang <fengguang.wu@intel.com> wrote:
->> >On Sun, Jul 10, 2011 at 03:41:20AM +0800, Raghavendra D Prabhu wrote:
->> >>page_cache_sync_readahead checks for ra->ra_pages again, so moving the check after VM_SequentialReadHint.
-
->> >NAK. This patch adds nothing but overheads.
-
->> >>--- a/mm/filemap.c
->> >>+++ b/mm/filemap.c
->> >>@@ -1566,8 +1566,6 @@ static void do_sync_mmap_readahead(struct vm_area_struct *vma,
->> >> 	/* If we don't want any read-ahead, don't bother */
->> >> 	if (VM_RandomReadHint(vma))
->> >> 		return;
->> >>-	if (!ra->ra_pages)
->> >>-		return;
-
->> >> 	if (VM_SequentialReadHint(vma)) {
->> >> 		page_cache_sync_readahead(mapping, ra, file, offset,
->> >>@@ -1575,6 +1573,9 @@ static void do_sync_mmap_readahead(struct vm_area_struct *vma,
->> >> 		return;
->> >> 	}
-
->> >>+	if (!ra->ra_pages)
->> >>+		return;
->> >>+
-
->> >page_cache_sync_readahead() has the same
-
->> >	if (!ra->ra_pages)
->> >		return;
->> 1. Yes, I saw that and that is why I moved it after the condition, so that duplicate checks are
->> not needed -- ie., if VM_SequentialReadHint is true, then
->> (!ra->ra_pages) is checked twice otherwise.
+On Tue, Jul 12, 2011 at 5:52 AM, Chris Pearson
+<pearson.christopher.j@gmail.com> wrote:
+> We applied the patch to many servers. =C2=A0No problems so far.
 >
->Ok, I see.
->
->> 2. Also, another thought, is the check needed at its original place (if
->> not it can be removed), reasons being -- filesystems like tmpfs which
->> have ra_pages set to 0 don't use filemap_fault in their VMA ops and also
->
->Good point. tmpfs is using shmem_fault().. Can you remove the test?
-I have removed that test. Patch attached.
->
->> do_sync_mmap_readahead is called in a major page fault context.
->
->Right. This is irrelevant however, because if pa_pages==0, the
->page faults will normally be major ones.
->
->Thanks,
->Fengguang
->
->> >So the patch adds the call into page_cache_sync_readahead() just to return..
+> The .config is attached.
 
->> >Thanks,
->> >Fengguang
+Thanks. I verified. The point where isolate_lru_pages + 0x225 is
+page_count exactly. So Andrea patch solves this problem apparently.
+Couldn't we throw this patch to stable tree?
 
->> --------------------------
->> Raghavendra Prabhu
->> GPG Id : 0xD72BE977
->> Fingerprint: B93F EBCB 8E05 7039 CD3C A4B8 A616 DCA1 D72B E977
->> www: wnohang.net
+https://patchwork.kernel.org/patch/857442/
+
 >
->
-======================================================================
-  The check for ra->ra_pages is not required since fs like tmpfs which have
-  ra_pages set to 0 don't use filemap_fault as part of their VMA ops (it uses
-  shmem_fault). Also, page_cache_sync_readahead does its own check for ra_pages.
+> What's the config option to get that debugging info in the future?
 
-  Signed-off-by: Raghavendra D Prabhu <rprabhu@wnohang.net>
-  ---
-   mm/filemap.c |    2 --
-   1 files changed, 0 insertions(+), 2 deletions(-)
+CONFIG_DEBUG_INFO helps you. :)
 
-  diff --git a/mm/filemap.c b/mm/filemap.c
-  index 074c23d..0bcd276 100644
-  --- a/mm/filemap.c
-  +++ b/mm/filemap.c
-  @@ -1566,8 +1566,6 @@ static void do_sync_mmap_readahead(struct vm_area_struct *vma,
-          /* If we don't want any read-ahead, don't bother */
-          if (VM_RandomReadHint(vma))
-                  return;
-  -       if (!ra->ra_pages)
-  -               return;
-
-          if (VM_SequentialReadHint(vma)) {
-                  page_cache_sync_readahead(mapping, ra, file, offset,
-  --
-  1.7.6
-
-
---------------------------
-Raghavendra Prabhu
-GPG Id : 0xD72BE977
-Fingerprint: B93F EBCB 8E05 7039 CD3C A4B8 A616 DCA1 D72B E977
-www: wnohang.net
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
