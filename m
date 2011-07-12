@@ -1,62 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id C07336B007E
-	for <linux-mm@kvack.org>; Tue, 12 Jul 2011 09:39:55 -0400 (EDT)
-From: Arnd Bergmann <arnd@arndb.de>
-Subject: Re: [PATCH 6/8] drivers: add Contiguous Memory Allocator
-Date: Tue, 12 Jul 2011 15:39:31 +0200
-References: <1309851710-3828-1-git-send-email-m.szyprowski@samsung.com> <201107051558.39344.arnd@arndb.de> <20110708172541.GM4812@n2100.arm.linux.org.uk>
-In-Reply-To: <20110708172541.GM4812@n2100.arm.linux.org.uk>
-MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Message-Id: <201107121539.31548.arnd@arndb.de>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id D74056B007E
+	for <linux-mm@kvack.org>; Tue, 12 Jul 2011 10:06:19 -0400 (EDT)
+Subject: [3.0.0-rc7] possible recursive locking at cache_alloc_refill
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <201107112137.FAD00545.SHtLOFOJOMFQFV@I-love.SAKURA.ne.jp>
+In-Reply-To: <201107112137.FAD00545.SHtLOFOJOMFQFV@I-love.SAKURA.ne.jp>
+Message-Id: <201107122306.GGI56206.FSVFJOQOtOFHLM@I-love.SAKURA.ne.jp>
+Date: Tue, 12 Jul 2011 23:06:11 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Cc: linux-arm-kernel@lists.infradead.org, Daniel Walker <dwalker@codeaurora.org>, Jonathan Corbet <corbet@lwn.net>, Mel Gorman <mel@csn.ul.ie>, Chunsang Jeong <chunsang.jeong@linaro.org>, Jesse Barker <jesse.barker@linaro.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, Michal Nazarewicz <mina86@mina86.com>, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, Kyungmin Park <kyungmin.park@samsung.com>, Ankita Garg <ankita@in.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, linux-media@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org
 
-On Friday 08 July 2011, Russell King - ARM Linux wrote:
-> On Tue, Jul 05, 2011 at 03:58:39PM +0200, Arnd Bergmann wrote:
-> 
-> > If I'm reading your "ARM: DMA: steal memory for DMA coherent mappings"
-> > correctly, the idea is to have a per-platform compile-time amount
-> > of memory that is reserved purely for coherent allocations and
-> > taking out of the buddy allocator, right?
-> 
-> Yes, because every time I've looked at taking out memory mappings in
-> the first level page tables, it's always been a major issue.
-> 
-> We have a method where we can remove first level mappings on
-> uniprocessor systems in the ioremap code just fine - we use that so
-> that systems can setup section and supersection mappings.  They can
-> tear them down as well - and we update other tasks L1 page tables
-> when they get switched in.
-> 
-> This, however, doesn't work on SMP, because if you have a DMA allocation
-> (which is permitted from IRQ context) you must have some way of removing
-> the L1 page table entries from all CPUs TLBs and the page tables currently
-> in use and any future page tables which those CPUs may switch to.
+What can I do to debug this?
 
-Ah, interesting. So there is no tlb flush broadcast operation and it
-always goes through IPI?
-
-> So, in a SMP system, there is no safe way to remove L1 page table entries
-> from IRQ context.  That means if memory is mapped for the buddy allocators
-> using L1 page table entries, then it is fixed for that application on a
-> SMP system.
-
-Ok. Can we limit GFP_ATOMIC to memory that doesn't need to be remapped then?
-I guess we can assume that there is no regression if we just skip
-the dma_alloc_contiguous step in dma_alloc_coherent for any atomic
-callers and immediately fall back to the regular allocator.
-
-Unfortunately, this still means we have to keep both methods. I was
-hoping that with CMA doing dynamic remapping there would be no need for
-keeping a significant number of pages reserved for this.
-
-	Arnd
+[    5.567313] sd 0:0:0:0: [sda] Assuming drive cache: write through
+[    5.574085] sd 0:0:0:0: [sda] Assuming drive cache: write through
+[    5.597950] sd 0:0:0:0: [sda] Assuming drive cache: write through
+[   11.347153] 
+[   11.347153] =============================================
+[   11.347300] [ INFO: possible recursive locking detected ]
+[   11.347300] 3.0.0-rc7 #1
+[   11.347300] ---------------------------------------------
+[   11.347300] udevd/2038 is trying to acquire lock:
+[   11.347300]  (&(&parent->list_lock)->rlock){-.-...}, at: [<c10c6706>] cache_alloc_refill+0x66/0x2e0
+[   11.347300] 
+[   11.347300] but task is already holding lock:
+[   11.347300]  (&(&parent->list_lock)->rlock){-.-...}, at: [<c10c5b13>] cache_flusharray+0x43/0x110
+[   11.347300] 
+[   11.347300] other info that might help us debug this:
+[   11.347300]  Possible unsafe locking scenario:
+[   11.347300] 
+[   11.347300]        CPU0
+[   11.347300]        ----
+[   11.347300]   lock(&(&parent->list_lock)->rlock);
+[   11.347300]   lock(&(&parent->list_lock)->rlock);
+[   11.347300] 
+[   11.347300]  *** DEADLOCK ***
+[   11.347300] 
+[   11.347300]  May be due to missing lock nesting notation
+[   11.347300] 
+[   11.347300] 1 lock held by udevd/2038:
+[   11.347300]  #0:  (&(&parent->list_lock)->rlock){-.-...}, at: [<c10c5b13>] cache_flusharray+0x43/0x110
+[   11.347300] 
+[   11.347300] stack backtrace:
+[   11.347300] Pid: 2038, comm: udevd Not tainted 3.0.0-rc7 #1
+[   11.347300] Call Trace:
+[   11.347300]  [<c106b58e>] print_deadlock_bug+0xce/0xe0
+[   11.347300]  [<c106d63a>] validate_chain+0x5aa/0x720
+[   11.347300]  [<c106da47>] __lock_acquire+0x297/0x480
+[   11.347300]  [<c106e19b>] lock_acquire+0x7b/0xa0
+[   11.347300]  [<c10c6706>] ? cache_alloc_refill+0x66/0x2e0
+[   11.347300]  [<c13f4a76>] _raw_spin_lock+0x36/0x70
+[   11.347300]  [<c10c6706>] ? cache_alloc_refill+0x66/0x2e0
+[   11.347300]  [<c1221016>] ? __debug_object_init+0x346/0x360
+[   11.347300]  [<c10c6706>] cache_alloc_refill+0x66/0x2e0
+[   11.347300]  [<c106da65>] ? __lock_acquire+0x2b5/0x480
+[   11.347300]  [<c1221016>] ? __debug_object_init+0x346/0x360
+[   11.347300]  [<c10c639f>] kmem_cache_alloc+0x11f/0x140
+[   11.347300]  [<c1221016>] __debug_object_init+0x346/0x360
+[   11.347300]  [<c106dfa2>] ? __lock_release+0x72/0x180
+[   11.347300]  [<c12208b5>] ? debug_object_activate+0x85/0x130
+[   11.347300]  [<c1221067>] debug_object_init+0x17/0x20
+[   11.347300]  [<c105441a>] rcuhead_fixup_activate+0x1a/0x60
+[   11.347300]  [<c12208c5>] debug_object_activate+0x95/0x130
+[   11.347300]  [<c10c60e0>] ? kmem_cache_shrink+0x50/0x50
+[   11.347300]  [<c108e64a>] __call_rcu+0x2a/0x180
+[   11.347300]  [<c10c48f0>] ? slab_destroy_debugcheck+0x70/0x110
+[   11.347300]  [<c108e7bd>] call_rcu_sched+0xd/0x10
+[   11.347300]  [<c10c5913>] slab_destroy+0x73/0x80
+[   11.347300]  [<c10c595f>] free_block+0x3f/0x1b0
+[   11.347300]  [<c10c5b13>] ? cache_flusharray+0x43/0x110
+[   11.347300]  [<c10c5b43>] cache_flusharray+0x73/0x110
+[   11.347300]  [<c10c5887>] kmem_cache_free+0xb7/0xd0
+[   11.347300]  [<c10bbff9>] __put_anon_vma+0x49/0xa0
+[   11.347300]  [<c10bc61c>] unlink_anon_vmas+0xfc/0x160
+[   11.347300]  [<c10b455c>] free_pgtables+0x3c/0x90
+[   11.347300]  [<c10b9acf>] exit_mmap+0xbf/0xf0
+[   11.347300]  [<c1039d3c>] mmput+0x4c/0xc0
+[   11.347300]  [<c103d9fc>] exit_mm+0xec/0x130
+[   11.347300]  [<c13f5352>] ? _raw_spin_unlock_irq+0x22/0x30
+[   11.347300]  [<c103fa43>] do_exit+0x123/0x390
+[   11.347300]  [<c10cba05>] ? fput+0x15/0x20
+[   11.347300]  [<c10c7c6d>] ? filp_close+0x4d/0x80
+[   11.347300]  [<c103fce9>] do_group_exit+0x39/0xa0
+[   11.347300]  [<c103fd63>] sys_exit_group+0x13/0x20
+[   11.347300]  [<c13f5c8c>] sysenter_do_call+0x12/0x32
+[   11.452291] dracut: Switching root
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
