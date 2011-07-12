@@ -1,32 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 1A1546B004A
-	for <linux-mm@kvack.org>; Tue, 12 Jul 2011 14:01:26 -0400 (EDT)
-Date: Tue, 12 Jul 2011 20:01:20 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: mm: do_wp_page recheck PageKsm after obtaining the page_lock,
- pte_same not enough
-Message-ID: <20110712180120.GU23227@redhat.com>
-References: <20110712165003.GP23227@redhat.com>
- <CAPQyPG5asX4t_hhzmCeXLRnerXxuD2v8CRfQ2_RZqUcqdToskQ@mail.gmail.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 2B7A46B004A
+	for <linux-mm@kvack.org>; Tue, 12 Jul 2011 14:10:00 -0400 (EDT)
+Date: Tue, 12 Jul 2011 11:09:55 -0700
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: Re. Revised [PATCH 3/3] mm/readahead: Remove the check for
+ ra->ra_pages
+Message-ID: <20110712180955.GA12562@localhost>
+References: <cover.1310239575.git.rprabhu@wnohang.net>
+ <323ddfc402a7f7b94f0cb02bba15acb2acca786f.1310239575.git.rprabhu@wnohang.net>
+ <20110709205308.GC17463@localhost>
+ <20110710125909.GA4460@Xye>
+ <20110710155906.GB7432@localhost>
+ <20110711230209.GA39196@Xye>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAPQyPG5asX4t_hhzmCeXLRnerXxuD2v8CRfQ2_RZqUcqdToskQ@mail.gmail.com>
+In-Reply-To: <20110711230209.GA39196@Xye>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nai Xia <nai.xia@gmail.com>
-Cc: Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Johannes Weiner <jweiner@redhat.com>
+To: Raghavendra D Prabhu <rprabhu@wnohang.net>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 
-On Wed, Jul 13, 2011 at 01:48:10AM +0800, Nai Xia wrote:
-> I think in this case we should copy the page instead of going to unlock.
+>  The check for ra->ra_pages is not required since fs like tmpfs which have
+>  ra_pages set to 0 don't use filemap_fault as part of their VMA ops (it uses
+>  shmem_fault). Also, page_cache_sync_readahead does its own check for ra_pages.
 > 
-> And I think reuse_swap_page() has checked the PageKsm(page) inside and
-> in this case it will go to the copy path already?
+>  Signed-off-by: Raghavendra D Prabhu <rprabhu@wnohang.net>
 
-yes this is why it's unnecessary, I've been a bit in a paranoid mode
-on this code lately, one more check wouldn't have hurted but it's
-definitely unnecessary so please ignore...
+Acked-by: Wu Fengguang <fengguang.wu@intel.com>
+
+Thank you!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
