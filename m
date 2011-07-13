@@ -1,49 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id EEA0F6B004A
-	for <linux-mm@kvack.org>; Wed, 13 Jul 2011 19:11:24 -0400 (EDT)
-Date: Wed, 13 Jul 2011 16:11:21 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 2/12] mm: let swap use exceptional entries
-Message-Id: <20110713161121.17fd98a4.akpm@linux-foundation.org>
-In-Reply-To: <alpine.LSU.2.00.1107121501100.2112@sister.anvils>
-References: <alpine.LSU.2.00.1106140327550.29206@sister.anvils>
-	<alpine.LSU.2.00.1106140342330.29206@sister.anvils>
-	<20110618145254.1b333344.akpm@linux-foundation.org>
-	<alpine.LSU.2.00.1107121501100.2112@sister.anvils>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 1FA116B004A
+	for <linux-mm@kvack.org>; Wed, 13 Jul 2011 19:34:59 -0400 (EDT)
+Date: Thu, 14 Jul 2011 09:34:49 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH 1/5] mm: vmscan: Do not writeback filesystem pages in
+ direct reclaim
+Message-ID: <20110713233449.GU23038@dastard>
+References: <1310567487-15367-1-git-send-email-mgorman@suse.de>
+ <1310567487-15367-2-git-send-email-mgorman@suse.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1310567487-15367-2-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, XFS <xfs@oss.sgi.com>, Christoph Hellwig <hch@infradead.org>, Johannes Weiner <jweiner@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>
 
-On Tue, 12 Jul 2011 15:08:58 -0700 (PDT)
-Hugh Dickins <hughd@google.com> wrote:
+On Wed, Jul 13, 2011 at 03:31:23PM +0100, Mel Gorman wrote:
+> From: Mel Gorman <mel@csn.ul.ie>
+> 
+> When kswapd is failing to keep zones above the min watermark, a process
+> will enter direct reclaim in the same manner kswapd does. If a dirty
+> page is encountered during the scan, this page is written to backing
+> storage using mapping->writepage.
+> 
+> This causes two problems. First, it can result in very deep call
+> stacks, particularly if the target storage or filesystem are complex.
+> Some filesystems ignore write requests from direct reclaim as a result.
+> The second is that a single-page flush is inefficient in terms of IO.
+> While there is an expectation that the elevator will merge requests,
+> this does not always happen. Quoting Christoph Hellwig;
+> 
+> 	The elevator has a relatively small window it can operate on,
+> 	and can never fix up a bad large scale writeback pattern.
+> 
+> This patch prevents direct reclaim writing back filesystem pages by
+> checking if current is kswapd. Anonymous pages are still written to
+> swap as there is not the equivalent of a flusher thread for anonymos
+> pages. If the dirty pages cannot be written back, they are placed
+> back on the LRU lists.
+> 
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
 
-> > All the crap^Wnice changes made to filemap.c really need some comments,
-> > please.  Particularly when they're keyed off the bland-sounding
-> > "radix_tree_exception()".  Apparently they have something to do with
-> > swap, but how is the poor reader to know this?
-> 
-> The naming was intentionally bland, because other filesystems might
-> in future have other uses for such exceptional entries.
-> 
-> (I think the field size would generally defeat it, but you can,
-> for example, imagine a small filesystem wanting to save sector number
-> there when a page is evicted.)
-> 
-> But let's go bland when it's more familiar, and such uses materialize -
-> particularly since I only placed those checks in places where they're
-> needed now for shmem/tmpfs/swap.
-> 
-> I'll keep the bland naming, if that's okay, but send a patch adding
-> a line of comment in such places.  Mentioning shmem, tmpfs, swap.
+Ok, so that makes the .writepage checks in ext4, xfs and btrfs for this
+condition redundant. In effect the patch should be a no-op for those
+filesystems. Can you also remove the checks in the filesystems?
 
-A better fix would be to create a nicely-documented filemap-specific
-function with a non-bland name which simply wraps
-radix_tree_exception().
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
