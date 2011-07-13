@@ -1,140 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 199986B0083
-	for <linux-mm@kvack.org>; Wed, 13 Jul 2011 08:59:53 -0400 (EDT)
-Message-Id: <c56ab7b9417bb5e5b898afe7c21df8ae40fdadcf.1310561078.git.mhocko@suse.cz>
-In-Reply-To: <cover.1310561078.git.mhocko@suse.cz>
-References: <cover.1310561078.git.mhocko@suse.cz>
-From: Michal Hocko <mhocko@suse.cz>
-Date: Wed, 13 Jul 2011 14:32:27 +0200
-Subject: [PATCH 2/2] memcg: change memcg_oom_mutex to spinlock
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 5FBFA9000C2
+	for <linux-mm@kvack.org>; Wed, 13 Jul 2011 10:31:33 -0400 (EDT)
+From: Mel Gorman <mgorman@suse.de>
+Subject: [PATCH 1/5] mm: vmscan: Do not writeback filesystem pages in direct reclaim
+Date: Wed, 13 Jul 2011 15:31:23 +0100
+Message-Id: <1310567487-15367-2-git-send-email-mgorman@suse.de>
+In-Reply-To: <1310567487-15367-1-git-send-email-mgorman@suse.de>
+References: <1310567487-15367-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-kernel@vger.kernel.org
+To: Linux-MM <linux-mm@kvack.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, XFS <xfs@oss.sgi.com>, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, Johannes Weiner <jweiner@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Mel Gorman <mgorman@suse.de>
 
-memcg_oom_mutex is used to protect memcg OOM path and eventfd interface
-for oom_control. None of the critical sections that it protects sleep
-(eventfd_signal works from atomic context and the rest are simple linked
-list resp. oom_lock atomic oprations).
-Mutex is too heavy weight for those code paths because it triggers a lot
-of scheduling.
+From: Mel Gorman <mel@csn.ul.ie>
 
-Signed-off-by: Michal Hocko <mhocko@suse.cz>
+When kswapd is failing to keep zones above the min watermark, a process
+will enter direct reclaim in the same manner kswapd does. If a dirty
+page is encountered during the scan, this page is written to backing
+storage using mapping->writepage.
+
+This causes two problems. First, it can result in very deep call
+stacks, particularly if the target storage or filesystem are complex.
+Some filesystems ignore write requests from direct reclaim as a result.
+The second is that a single-page flush is inefficient in terms of IO.
+While there is an expectation that the elevator will merge requests,
+this does not always happen. Quoting Christoph Hellwig;
+
+	The elevator has a relatively small window it can operate on,
+	and can never fix up a bad large scale writeback pattern.
+
+This patch prevents direct reclaim writing back filesystem pages by
+checking if current is kswapd. Anonymous pages are still written to
+swap as there is not the equivalent of a flusher thread for anonymos
+pages. If the dirty pages cannot be written back, they are placed
+back on the LRU lists.
+
+Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- mm/memcontrol.c |   24 ++++++++++++------------
- 1 files changed, 12 insertions(+), 12 deletions(-)
+ include/linux/mmzone.h |    1 +
+ mm/vmscan.c            |    9 +++++++++
+ mm/vmstat.c            |    1 +
+ 3 files changed, 11 insertions(+), 0 deletions(-)
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index f6c9ead..38f988e 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1803,7 +1803,7 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
- /*
-  * Check OOM-Killer is already running under our hierarchy.
-  * If someone is running, return false.
-- * Has to be called with memcg_oom_mutex
-+ * Has to be called with memcg_oom_lock
-  */
- static bool mem_cgroup_oom_lock(struct mem_cgroup *mem)
- {
-@@ -1817,7 +1817,7 @@ static bool mem_cgroup_oom_lock(struct mem_cgroup *mem)
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index 9f7c3eb..b70a0c0 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -100,6 +100,7 @@ enum zone_stat_item {
+ 	NR_UNSTABLE_NFS,	/* NFS unstable pages */
+ 	NR_BOUNCE,
+ 	NR_VMSCAN_WRITE,
++	NR_VMSCAN_WRITE_SKIP,
+ 	NR_WRITEBACK_TEMP,	/* Writeback using temporary buffers */
+ 	NR_ISOLATED_ANON,	/* Temporary isolated pages from anon lru */
+ 	NR_ISOLATED_FILE,	/* Temporary isolated pages from file lru */
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 4f49535..2d3e5b6 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -825,6 +825,15 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+ 		if (PageDirty(page)) {
+ 			nr_dirty++;
  
- 		/* New child can be created but we shouldn't race with
- 		 * somebody else trying to oom because we are under
--		 * memcg_oom_mutex
-+		 * memcg_oom_lock
- 		 */
- 		BUG_ON(lock_count != x);
- 	}
-@@ -1826,7 +1826,7 @@ static bool mem_cgroup_oom_lock(struct mem_cgroup *mem)
- }
- 
- /*
-- * Has to be called with memcg_oom_mutex
-+ * Has to be called with memcg_oom_lock
-  */
- static int mem_cgroup_oom_unlock(struct mem_cgroup *mem)
- {
-@@ -1843,7 +1843,7 @@ static int mem_cgroup_oom_unlock(struct mem_cgroup *mem)
- }
- 
- 
--static DEFINE_MUTEX(memcg_oom_mutex);
-+static DEFINE_SPINLOCK(memcg_oom_lock);
- static DECLARE_WAIT_QUEUE_HEAD(memcg_oom_waitq);
- 
- struct oom_wait_info {
-@@ -1903,7 +1903,7 @@ bool mem_cgroup_handle_oom(struct mem_cgroup *mem, gfp_t mask)
- 	INIT_LIST_HEAD(&owait.wait.task_list);
- 	need_to_kill = true;
- 	/* At first, try to OOM lock hierarchy under mem.*/
--	mutex_lock(&memcg_oom_mutex);
-+	spin_lock(&memcg_oom_lock);
- 	locked = mem_cgroup_oom_lock(mem);
- 	/*
- 	 * Even if signal_pending(), we can't quit charge() loop without
-@@ -1915,7 +1915,7 @@ bool mem_cgroup_handle_oom(struct mem_cgroup *mem, gfp_t mask)
- 		need_to_kill = false;
- 	if (locked)
- 		mem_cgroup_oom_notify(mem);
--	mutex_unlock(&memcg_oom_mutex);
-+	spin_unlock(&memcg_oom_lock);
- 
- 	if (need_to_kill) {
- 		finish_wait(&memcg_oom_waitq, &owait.wait);
-@@ -1924,11 +1924,11 @@ bool mem_cgroup_handle_oom(struct mem_cgroup *mem, gfp_t mask)
- 		schedule();
- 		finish_wait(&memcg_oom_waitq, &owait.wait);
- 	}
--	mutex_lock(&memcg_oom_mutex);
-+	spin_lock(&memcg_oom_lock);
- 	if (locked)
- 		mem_cgroup_oom_unlock(mem);
- 	memcg_wakeup_oom(mem);
--	mutex_unlock(&memcg_oom_mutex);
-+	spin_unlock(&memcg_oom_lock);
- 
- 	if (test_thread_flag(TIF_MEMDIE) || fatal_signal_pending(current))
- 		return false;
-@@ -4588,7 +4588,7 @@ static int mem_cgroup_oom_register_event(struct cgroup *cgrp,
- 	if (!event)
- 		return -ENOMEM;
- 
--	mutex_lock(&memcg_oom_mutex);
-+	spin_lock(&memcg_oom_lock);
- 
- 	event->eventfd = eventfd;
- 	list_add(&event->list, &memcg->oom_notify);
-@@ -4596,7 +4596,7 @@ static int mem_cgroup_oom_register_event(struct cgroup *cgrp,
- 	/* already in OOM ? */
- 	if (atomic_read(&memcg->oom_lock))
- 		eventfd_signal(eventfd, 1);
--	mutex_unlock(&memcg_oom_mutex);
-+	spin_unlock(&memcg_oom_lock);
- 
- 	return 0;
- }
-@@ -4610,7 +4610,7 @@ static void mem_cgroup_oom_unregister_event(struct cgroup *cgrp,
- 
- 	BUG_ON(type != _OOM_TYPE);
- 
--	mutex_lock(&memcg_oom_mutex);
-+	spin_lock(&memcg_oom_lock);
- 
- 	list_for_each_entry_safe(ev, tmp, &mem->oom_notify, list) {
- 		if (ev->eventfd == eventfd) {
-@@ -4619,7 +4619,7 @@ static void mem_cgroup_oom_unregister_event(struct cgroup *cgrp,
- 		}
- 	}
- 
--	mutex_unlock(&memcg_oom_mutex);
-+	spin_unlock(&memcg_oom_lock);
- }
- 
- static int mem_cgroup_oom_control_read(struct cgroup *cgrp,
++			/*
++			 * Only kswapd can writeback filesystem pages to
++			 * avoid risk of stack overflow
++			 */
++			if (page_is_file_cache(page) && !current_is_kswapd()) {
++				inc_zone_page_state(page, NR_VMSCAN_WRITE_SKIP);
++				goto keep_locked;
++			}
++
+ 			if (references == PAGEREF_RECLAIM_CLEAN)
+ 				goto keep_locked;
+ 			if (!may_enter_fs)
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 20c18b7..fd109f3 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -702,6 +702,7 @@ const char * const vmstat_text[] = {
+ 	"nr_unstable",
+ 	"nr_bounce",
+ 	"nr_vmscan_write",
++	"nr_vmscan_write_skip",
+ 	"nr_writeback_temp",
+ 	"nr_isolated_anon",
+ 	"nr_isolated_file",
 -- 
-1.7.5.4
+1.7.3.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
