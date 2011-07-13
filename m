@@ -1,56 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id BD0026B007E
-	for <linux-mm@kvack.org>; Wed, 13 Jul 2011 07:10:22 -0400 (EDT)
-Date: Wed, 13 Jul 2011 12:10:17 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 3/3] mm: page allocator: Reconsider zones for allocation
- after direct reclaim
-Message-ID: <20110713111017.GG7529@suse.de>
-References: <1310389274-13995-1-git-send-email-mgorman@suse.de>
- <1310389274-13995-4-git-send-email-mgorman@suse.de>
- <4E1CE9FF.3050707@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <4E1CE9FF.3050707@jp.fujitsu.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 95FB06B007E
+	for <linux-mm@kvack.org>; Wed, 13 Jul 2011 08:59:53 -0400 (EDT)
+Message-Id: <cover.1310561078.git.mhocko@suse.cz>
+From: Michal Hocko <mhocko@suse.cz>
+Date: Wed, 13 Jul 2011 14:44:38 +0200
+Subject: [PATCH 0/2] memcg: oom locking updates
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-kernel@vger.kernel.org
 
-On Wed, Jul 13, 2011 at 09:42:39AM +0900, KOSAKI Motohiro wrote:
-> (2011/07/11 22:01), Mel Gorman wrote:
-> > With zone_reclaim_mode enabled, it's possible for zones to be considered
-> > full in the zonelist_cache so they are skipped in the future. If the
-> > process enters direct reclaim, the ZLC may still consider zones to be
-> > full even after reclaiming pages. Reconsider all zones for allocation
-> > if direct reclaim returns successfully.
-> > 
-> > Signed-off-by: Mel Gorman <mgorman@suse.de>
-> 
-> Hmmm...
-> 
-> I like the concept, but I'm worry about a corner case a bit.
-> 
-> If users are using cpusets/mempolicy, direct reclaim don't scan all zones.
-> Then, zlc_clear_zones_full() seems too aggressive operation.
+Hi,
+this small patch series has two patches. While the first one is a bug
+fix the other one is a cleanup which might be a bit controversial.
 
-As the system is likely to be running slow if it is in direct reclaim
-that the complexity of being careful about which zone was cleared was
-not worth it.
+I have experienced a serious starvation due the way how we handle
+oom_lock counter currently and the first patch aims at fixing it.  The
+issue can be reproduced quite easily on a machine with many CPUs and
+many tasks fighting for a memory (e.g. 100 tasks each allocating and
+touching 10MB anonymous memory in a tight loop within a 200MB group with
+swapoff and mem_control=0)
 
-> Instead, couldn't we turn zlc->fullzones off from kswapd?
-> 
+I have no hard numbers to support why spinlock is better than mutex for
+the second patch but it feels like it is more suitable for the code
+paths we are using it at the moment. It should also reduce context
+switches count for many contenders.
 
-Which zonelist should it clear (there are two) and when should it
-happen? If it clears it on each cycle around balance_pgdat(), there
-is no guarantee that it'll be cleared between when direct reclaim
-finishes and an attempt is made to allocate.
+Michal Hocko (2):
+  memcg: make oom_lock 0 and 1 based rather than coutner
+  memcg: change memcg_oom_mutex to spinlock
+
+ mm/memcontrol.c |   42 ++++++++++++++++++++++++++----------------
+ 1 files changed, 26 insertions(+), 16 deletions(-)
 
 -- 
-Mel Gorman
-SUSE Labs
+1.7.5.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
