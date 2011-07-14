@@ -1,58 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id F19B86B0083
-	for <linux-mm@kvack.org>; Thu, 14 Jul 2011 02:17:44 -0400 (EDT)
-Date: Thu, 14 Jul 2011 07:17:37 +0100
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id EBEFD6B00E7
+	for <linux-mm@kvack.org>; Thu, 14 Jul 2011 02:19:20 -0400 (EDT)
+Date: Thu, 14 Jul 2011 07:19:15 +0100
 From: Mel Gorman <mgorman@suse.de>
 Subject: Re: [PATCH 1/5] mm: vmscan: Do not writeback filesystem pages in
  direct reclaim
-Message-ID: <20110714061737.GM7529@suse.de>
+Message-ID: <20110714061915.GN7529@suse.de>
 References: <1310567487-15367-1-git-send-email-mgorman@suse.de>
  <1310567487-15367-2-git-send-email-mgorman@suse.de>
- <20110713233449.GU23038@dastard>
+ <20110714103801.83e10fdb.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20110713233449.GU23038@dastard>
+In-Reply-To: <20110714103801.83e10fdb.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, XFS <xfs@oss.sgi.com>, Christoph Hellwig <hch@infradead.org>, Johannes Weiner <jweiner@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, XFS <xfs@oss.sgi.com>, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, Johannes Weiner <jweiner@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>
 
-On Thu, Jul 14, 2011 at 09:34:49AM +1000, Dave Chinner wrote:
-> On Wed, Jul 13, 2011 at 03:31:23PM +0100, Mel Gorman wrote:
-> > From: Mel Gorman <mel@csn.ul.ie>
-> > 
-> > When kswapd is failing to keep zones above the min watermark, a process
-> > will enter direct reclaim in the same manner kswapd does. If a dirty
-> > page is encountered during the scan, this page is written to backing
-> > storage using mapping->writepage.
-> > 
-> > This causes two problems. First, it can result in very deep call
-> > stacks, particularly if the target storage or filesystem are complex.
-> > Some filesystems ignore write requests from direct reclaim as a result.
-> > The second is that a single-page flush is inefficient in terms of IO.
-> > While there is an expectation that the elevator will merge requests,
-> > this does not always happen. Quoting Christoph Hellwig;
-> > 
-> > 	The elevator has a relatively small window it can operate on,
-> > 	and can never fix up a bad large scale writeback pattern.
-> > 
-> > This patch prevents direct reclaim writing back filesystem pages by
-> > checking if current is kswapd. Anonymous pages are still written to
-> > swap as there is not the equivalent of a flusher thread for anonymos
-> > pages. If the dirty pages cannot be written back, they are placed
-> > back on the LRU lists.
-> > 
-> > Signed-off-by: Mel Gorman <mgorman@suse.de>
+On Thu, Jul 14, 2011 at 10:38:01AM +0900, KAMEZAWA Hiroyuki wrote:
+> > @@ -825,6 +825,15 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+> >  		if (PageDirty(page)) {
+> >  			nr_dirty++;
+> >  
+> > +			/*
+> > +			 * Only kswapd can writeback filesystem pages to
+> > +			 * avoid risk of stack overflow
+> > +			 */
+> > +			if (page_is_file_cache(page) && !current_is_kswapd()) {
+> > +				inc_zone_page_state(page, NR_VMSCAN_WRITE_SKIP);
+> > +				goto keep_locked;
+> > +			}
+> > +
 > 
-> Ok, so that makes the .writepage checks in ext4, xfs and btrfs for this
-> condition redundant. In effect the patch should be a no-op for those
-> filesystems. Can you also remove the checks in the filesystems?
+> 
+> This will cause tons of memcg OOM kill because we have no help of kswapd (now).
+> 
+> Could you make this
+> 
+> 	if (scanning_global_lru(sc) && page_is_file_cache(page) && !current_is_kswapd())
+> ...
 > 
 
-I'll convert them to warnings just in case it regresses due to an
-oversight.
+I can, but as Christoph points out, the request is already being
+ignored so how will it help?
 
 -- 
 Mel Gorman
