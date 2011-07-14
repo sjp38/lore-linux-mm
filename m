@@ -1,291 +1,137 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 79E286B004A
-	for <linux-mm@kvack.org>; Wed, 13 Jul 2011 21:10:10 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id BC1B33EE0BB
-	for <linux-mm@kvack.org>; Thu, 14 Jul 2011 10:10:05 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id A303945DE82
-	for <linux-mm@kvack.org>; Thu, 14 Jul 2011 10:10:05 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 880EC45DE61
-	for <linux-mm@kvack.org>; Thu, 14 Jul 2011 10:10:05 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 7A0101DB803A
-	for <linux-mm@kvack.org>; Thu, 14 Jul 2011 10:10:05 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 3ABBC1DB803C
-	for <linux-mm@kvack.org>; Thu, 14 Jul 2011 10:10:05 +0900 (JST)
-Date: Thu, 14 Jul 2011 10:02:59 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 1/2] memcg: make oom_lock 0 and 1 based rather than
- coutner
-Message-Id: <20110714100259.cedbf6af.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <50d526ee242916bbfb44b9df4474df728c4892c6.1310561078.git.mhocko@suse.cz>
-References: <cover.1310561078.git.mhocko@suse.cz>
-	<50d526ee242916bbfb44b9df4474df728c4892c6.1310561078.git.mhocko@suse.cz>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 721A06B004A
+	for <linux-mm@kvack.org>; Wed, 13 Jul 2011 21:20:09 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 480DA3EE0AE
+	for <linux-mm@kvack.org>; Thu, 14 Jul 2011 10:20:06 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3AF7A45DEBD
+	for <linux-mm@kvack.org>; Thu, 14 Jul 2011 10:20:04 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0556145DEBB
+	for <linux-mm@kvack.org>; Thu, 14 Jul 2011 10:20:04 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id E384A1DB8045
+	for <linux-mm@kvack.org>; Thu, 14 Jul 2011 10:20:03 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7E46F1DB8040
+	for <linux-mm@kvack.org>; Thu, 14 Jul 2011 10:20:03 +0900 (JST)
+Message-ID: <4E1E444C.3090000@jp.fujitsu.com>
+Date: Thu, 14 Jul 2011 10:20:12 +0900
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 2/3] mm: page allocator: Initialise ZLC for first zone
+ eligible for zone_reclaim
+References: <1310389274-13995-1-git-send-email-mgorman@suse.de> <1310389274-13995-3-git-send-email-mgorman@suse.de> <4E1CF1A3.3050401@jp.fujitsu.com> <20110713110246.GF7529@suse.de>
+In-Reply-To: <20110713110246.GF7529@suse.de>
+Content-Type: text/plain; charset=ISO-8859-15
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, Balbir Singh <bsingharora@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-kernel@vger.kernel.org
+To: mgorman@suse.de
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, 13 Jul 2011 13:05:49 +0200
-Michal Hocko <mhocko@suse.cz> wrote:
-
-> 867578cb "memcg: fix oom kill behavior" introduced oom_lock counter
-> which is incremented by mem_cgroup_oom_lock when we are about to handle
-> memcg OOM situation. mem_cgroup_handle_oom falls back to a sleep if
-> oom_lock > 1 to prevent from multiple oom kills at the same time.
-> The counter is then decremented by mem_cgroup_oom_unlock called from the
-> same function.
+(2011/07/13 20:02), Mel Gorman wrote:
+> On Wed, Jul 13, 2011 at 10:15:15AM +0900, KOSAKI Motohiro wrote:
+>> (2011/07/11 22:01), Mel Gorman wrote:
+>>> The zonelist cache (ZLC) is used among other things to record if
+>>> zone_reclaim() failed for a particular zone recently. The intention
+>>> is to avoid a high cost scanning extremely long zonelists or scanning
+>>> within the zone uselessly.
+>>>
+>>> Currently the zonelist cache is setup only after the first zone has
+>>> been considered and zone_reclaim() has been called. The objective was
+>>> to avoid a costly setup but zone_reclaim is itself quite expensive. If
+>>> it is failing regularly such as the first eligible zone having mostly
+>>> mapped pages, the cost in scanning and allocation stalls is far higher
+>>> than the ZLC initialisation step.
+>>>
+>>> This patch initialises ZLC before the first eligible zone calls
+>>> zone_reclaim(). Once initialised, it is checked whether the zone
+>>> failed zone_reclaim recently. If it has, the zone is skipped. As the
+>>> first zone is now being checked, additional care has to be taken about
+>>> zones marked full. A zone can be marked "full" because it should not
+>>> have enough unmapped pages for zone_reclaim but this is excessive as
+>>> direct reclaim or kswapd may succeed where zone_reclaim fails. Only
+>>> mark zones "full" after zone_reclaim fails if it failed to reclaim
+>>> enough pages after scanning.
+>>>
+>>> Signed-off-by: Mel Gorman <mgorman@suse.de>
+>>
+>> If I understand correctly this patch's procs/cons is,
+>>
+>> pros.
+>>  1) faster when zone reclaim doesn't work effectively
+>>
 > 
-> This works correctly but it can lead to serious starvations when we
-> have many processes triggering OOM.
+> Yes.
 > 
-> Consider a process (call it A) which gets the oom_lock (the first one
-> that got to mem_cgroup_handle_oom and grabbed memcg_oom_mutex). All
-> other processes are blocked on the mutex.
-> While A releases the mutex and calls mem_cgroup_out_of_memory others
-> will wake up (one after another) and increase the counter and fall into
-> sleep (memcg_oom_waitq). Once A finishes mem_cgroup_out_of_memory it
-> takes the mutex again and decreases oom_lock and wakes other tasks (if
-> releasing memory of the killed task hasn't done it yet).
-> The main problem here is that everybody still race for the mutex and
-> there is no guarantee that we will get counter back to 0 for those
-> that got back to mem_cgroup_handle_oom. In the end the whole convoy
-> in/decreases the counter but we do not get to 1 that would enable
-> killing so nothing useful is going on.
-> The time is basically unbounded because it highly depends on scheduling
-> and ordering on mutex.
+>> cons.
+>>  2) slower when zone reclaim is off
 > 
-
-Hmm, ok, I see the problem.
-
-
-> This patch replaces the counter by a simple {un}lock semantic. We are
-> using only 0 and 1 to distinguish those two states.
-> As mem_cgroup_oom_{un}lock works on the hierarchy we have to make sure
-> that we cannot race with somebody else which is already guaranteed
-> because we call both functions with the mutex held. All other consumers
-> just read the value atomically for a single group which is sufficient
-> because we set the value atomically.
-> The other thing is that only that process which locked the oom will
-> unlock it once the OOM is handled.
+> How is it slower with zone_reclaim off?
 > 
-> Signed-off-by: Michal Hocko <mhocko@suse.cz>
-> ---
->  mm/memcontrol.c |   24 +++++++++++++++++-------
->  1 files changed, 17 insertions(+), 7 deletions(-)
+> Before
 > 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index e013b8e..f6c9ead 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -1803,22 +1803,31 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
->  /*
->   * Check OOM-Killer is already running under our hierarchy.
->   * If someone is running, return false.
-> + * Has to be called with memcg_oom_mutex
->   */
->  static bool mem_cgroup_oom_lock(struct mem_cgroup *mem)
->  {
-> -	int x, lock_count = 0;
-> +	int x, lock_count = -1;
->  	struct mem_cgroup *iter;
->  
->  	for_each_mem_cgroup_tree(iter, mem) {
-> -		x = atomic_inc_return(&iter->oom_lock);
-> -		lock_count = max(x, lock_count);
-> +		x = !!atomic_add_unless(&iter->oom_lock, 1, 1);
-> +		if (lock_count == -1)
-> +			lock_count = x;
-> +
+> 	if (zone_reclaim_mode == 0)
+> 		goto this_zone_full;
+> 	...
+> 	this_zone_full:
+> 	if (NUMA_BUILD)
+> 		zlc_mark_zone_full(zonelist, z);
+> 	if (NUMA_BUILD && !did_zlc_setup && nr_online_nodes > 1) {
+> 		...
+> 	}
+> 
+> After
+> 	if (NUMA_BUILD && !did_zlc_setup && nr_online_nodes > 1) {
+> 		...
+> 	}
+> 	if (zone_reclaim_mode == 0)
+> 		goto this_zone_full;
+> 	this_zone_full:
+> 	if (NUMA_BUILD)
+> 		zlc_mark_zone_full(zonelist, z);
+> 
+> Bear in mind that if the watermarks are met on the first zone, the zlc
+> setup does not occur.
+
+Right you are. thank you correct me.
 
 
-Hmm...Assume following hierarchy.
+>>  3) slower when zone recliam works effectively
+>>
+> 
+> Marginally slower. It's now calling zlc setup so once a second it's
+> zeroing a bitmap and calling zlc_zone_worth_trying() on the first
+> zone testing a bit on a cache-hot structure.
+> 
+> As the ineffective case can be triggered by a simple cp, I think the
+> cost is justified. Can you think of a better way of doing this?
 
-	  A
-       B     C
-      D E 
+So, now I'm revisit your number in [0/3]. and I've conclude your patch
+improve simple cp case too. then please forget my last mail. this patch
+looks nicer.
 
-The orignal code hanldes the situation
-
- 1. B-D-E is under OOM
- 2. A enters OOM after 1.
-
-In original code, A will not invoke OOM (because B-D-E oom will kill a process.)
-The new code invokes A will invoke new OOM....right ?
-
-I wonder this kind of code
-==
-	bool success = true;
-	...
-	for_each_mem_cgroup_tree(iter, mem) {
-		success &= !!atomic_add_unless(&iter->oom_lock, 1, 1);
-		/* "break" loop is not allowed because of css refcount....*/
-	}
-	return success.
-==
-Then, one hierarchy can invoke one OOM kill within it.
-But this will not work because we can't do proper unlock.
+	Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
 
-Hm. how about this ? This has only one lock point and we'll not see the BUG.
-Not tested yet..
-
-
----
- mm/memcontrol.c |   77 +++++++++++++++++++++++++++++++++++++-----------------
- 1 files changed, 53 insertions(+), 24 deletions(-)
-
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index e013b8e..c36bd05 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -246,7 +246,8 @@ struct mem_cgroup {
- 	 * Should the accounting and control be hierarchical, per subtree?
- 	 */
- 	bool use_hierarchy;
--	atomic_t	oom_lock;
-+	int		oom_lock;
-+	atomic_t	under_oom;
- 	atomic_t	refcnt;
- 
- 	unsigned int	swappiness;
-@@ -1801,36 +1802,63 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
- }
- 
- /*
-- * Check OOM-Killer is already running under our hierarchy.
-+ * Check whether OOM-Killer is already running under our hierarchy.
-  * If someone is running, return false.
-  */
--static bool mem_cgroup_oom_lock(struct mem_cgroup *mem)
-+static bool mem_cgroup_oom_lock(struct mem_cgroup *memcg)
- {
--	int x, lock_count = 0;
- 	struct mem_cgroup *iter;
-+	bool ret;
- 
--	for_each_mem_cgroup_tree(iter, mem) {
--		x = atomic_inc_return(&iter->oom_lock);
--		lock_count = max(x, lock_count);
-+	/*
-+	 * If an ancestor (including this memcg) is the owner of OOM Lock.
-+	 * return false;
-+	 */
-+	for (iter = memcg; iter != NULL; iter = parent_mem_cgroup(iter)) {
-+		if (iter->oom_lock)
-+			break;
-+		if (!iter->use_hierarchy) {
-+			iter = NULL;
-+			break;
-+		}
- 	}
- 
--	if (lock_count == 1)
--		return true;
--	return false;
-+	if (iter)
-+		return false;
-+	/*
-+	 * Make the owner of OOM lock to be the highest ancestor of hierarchy
-+	 * under OOM. IOW, move children's OOM owner information to this memcg
-+	 * if a child is owner. In this case, an OOM killer is running and
-+	 * we return false. But make this memcg as owner of oom-lock.
-+	 */
-+	ret = true;
-+	for_each_mem_cgroup_tree(iter, memcg) {
-+		if (iter->oom_lock) {
-+			iter->oom_lock = 0;
-+			ret = false;
-+		}
-+		atomic_set(&iter->under_oom, 1);
-+	}
-+	/* Make this memcg as the owner of OOM lock. */
-+	memcg->oom_lock = 1;
-+	return ret;
- }
- 
--static int mem_cgroup_oom_unlock(struct mem_cgroup *mem)
-+static void mem_cgroup_oom_unlock(struct mem_cgroup *memcg)
- {
--	struct mem_cgroup *iter;
-+	struct mem_cgroup *iter, *iter2;
- 
--	/*
--	 * When a new child is created while the hierarchy is under oom,
--	 * mem_cgroup_oom_lock() may not be called. We have to use
--	 * atomic_add_unless() here.
--	 */
--	for_each_mem_cgroup_tree(iter, mem)
--		atomic_add_unless(&iter->oom_lock, -1, 0);
--	return 0;
-+	for (iter = memcg; iter != NULL; iter = parent_mem_cgroup(iter)) {
-+		if (iter->oom_lock) {
-+			iter->oom_lock = 0;
-+			break;
-+		}
-+	}
-+	BUG_ON(!iter);
-+
-+	for_each_mem_cgroup_tree(iter2, iter)
-+		atomic_set(&iter->under_oom, 0);
-+	return;
- }
- 
- 
-@@ -1875,7 +1903,7 @@ static void memcg_wakeup_oom(struct mem_cgroup *mem)
- 
- static void memcg_oom_recover(struct mem_cgroup *mem)
- {
--	if (mem && atomic_read(&mem->oom_lock))
-+	if (mem && atomic_read(&mem->under_oom))
- 		memcg_wakeup_oom(mem);
- }
- 
-@@ -1916,7 +1944,8 @@ bool mem_cgroup_handle_oom(struct mem_cgroup *mem, gfp_t mask)
- 		finish_wait(&memcg_oom_waitq, &owait.wait);
- 	}
- 	mutex_lock(&memcg_oom_mutex);
--	mem_cgroup_oom_unlock(mem);
-+	if (locked)
-+		mem_cgroup_oom_unlock(mem);
- 	memcg_wakeup_oom(mem);
- 	mutex_unlock(&memcg_oom_mutex);
- 
-@@ -4584,7 +4613,7 @@ static int mem_cgroup_oom_register_event(struct cgroup *cgrp,
- 	list_add(&event->list, &memcg->oom_notify);
- 
- 	/* already in OOM ? */
--	if (atomic_read(&memcg->oom_lock))
-+	if (atomic_read(&memcg->under_oom))
- 		eventfd_signal(eventfd, 1);
- 	mutex_unlock(&memcg_oom_mutex);
- 
-@@ -4619,7 +4648,7 @@ static int mem_cgroup_oom_control_read(struct cgroup *cgrp,
- 
- 	cb->fill(cb, "oom_kill_disable", mem->oom_kill_disable);
- 
--	if (atomic_read(&mem->oom_lock))
-+	if (atomic_read(&mem->under_oom))
- 		cb->fill(cb, "under_oom", 1);
- 	else
- 		cb->fill(cb, "under_oom", 0);
--- 
-1.7.4.1
-
-
-
-
-
-
-
-
+> 
+>> (2) and (3) are frequently happen than (1), correct?
+> 
+> Yes. I'd still expect zone_reclaim to be off on the majority of
+> machines and even when enabled, I think it's relatively rare we hit the
+> case where the workload is regularly falling over to the other node
+> except in the case where it's a file server. Still, a cp is not to
+> uncommon that the kernel should slow to a crawl as a result.
+> 
+>> At least, I think we need to keep zero impact when zone reclaim mode is off.
+>>
+> 
+> I agree with this but I'm missing where we are taking the big hit with
+> zone_reclaim==0.
+> 
 
 
 --
