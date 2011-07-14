@@ -1,228 +1,193 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 9BD2D6B004A
-	for <linux-mm@kvack.org>; Thu, 14 Jul 2011 17:34:20 -0400 (EDT)
-Date: Thu, 14 Jul 2011 23:34:09 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH] mm: Properly reflect task dirty limits in
- dirty_exceeded logic
-Message-ID: <20110714213409.GB16415@quack.suse.cz>
-References: <1309458764-9153-1-git-send-email-jack@suse.cz>
- <20110704010618.GA3841@localhost>
- <20110711170605.GF5482@quack.suse.cz>
- <20110713230258.GA17011@localhost>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110713230258.GA17011@localhost>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F0006B004A
+	for <linux-mm@kvack.org>; Thu, 14 Jul 2011 19:55:14 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id F39C03EE0AE
+	for <linux-mm@kvack.org>; Fri, 15 Jul 2011 08:55:10 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 80CFA45DF0D
+	for <linux-mm@kvack.org>; Fri, 15 Jul 2011 08:55:07 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 64E2F45DF15
+	for <linux-mm@kvack.org>; Fri, 15 Jul 2011 08:55:07 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 562AF1DB803E
+	for <linux-mm@kvack.org>; Fri, 15 Jul 2011 08:55:07 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 142081DB8045
+	for <linux-mm@kvack.org>; Fri, 15 Jul 2011 08:55:07 +0900 (JST)
+Date: Fri, 15 Jul 2011 08:47:55 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 1/2] memcg: make oom_lock 0 and 1 based rather than
+ coutner
+Message-Id: <20110715084755.1e0a4c14.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110714125555.GA27954@tiehlicka.suse.cz>
+References: <50d526ee242916bbfb44b9df4474df728c4892c6.1310561078.git.mhocko@suse.cz>
+	<20110714100259.cedbf6af.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110714115913.cf8d1b9d.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110714090017.GD19408@tiehlicka.suse.cz>
+	<20110714183014.8b15e9b9.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110714095152.GG19408@tiehlicka.suse.cz>
+	<20110714191728.058859cd.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110714110935.GK19408@tiehlicka.suse.cz>
+	<20110714113009.GL19408@tiehlicka.suse.cz>
+	<20110714205012.8b78691e.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110714125555.GA27954@tiehlicka.suse.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Jan Kara <jack@suse.cz>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-mm@kvack.org, Balbir Singh <bsingharora@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-kernel@vger.kernel.org
 
-On Wed 13-07-11 16:02:58, Wu Fengguang wrote:
-> On Tue, Jul 12, 2011 at 01:06:05AM +0800, Jan Kara wrote:
-> > On Mon 04-07-11 09:06:19, Wu Fengguang wrote:
-> > > On Fri, Jul 01, 2011 at 02:32:44AM +0800, Jan Kara wrote:
-> > > > We set bdi->dirty_exceeded (and thus ratelimiting code starts to
-> > > > call balance_dirty_pages() every 8 pages) when a per-bdi limit is
-> > > > exceeded or global limit is exceeded. But per-bdi limit also depends
-> > > > on the task. Thus different tasks reach the limit on that bdi at
-> > > > different levels of dirty pages. The result is that with current code
-> > > > bdi->dirty_exceeded ping-ponged between 1 and 0 depending on which task
-> > > > just got into balance_dirty_pages().
-> > > > 
-> > > > We fix the issue by clearing bdi->dirty_exceeded only when per-bdi amount
-> > > > of dirty pages drops below the threshold (7/8 * bdi_dirty_limit) where task
-> > > > limits already do not have any influence.
-> > > 
-> > > The end result, I think, is that the dirty pages are kept more tightly
-> > > under control, with the average number a slightly lowered than before. 
-> > > This reduces the risk to throttle light dirtiers and hence more
-> > > responsive. However it does introduce more overheads by enforcing
-> > > balance_dirty_pages() calls on every 8 pages.
-> >   Yes. I think this was actually the original intention when the code was
-> > written.
-> 
-> I'm still a bit nervous on the added overheads for the common 1 heavy
-> dirty case.  Before patch, the 1 heavy dirty will normally clear
-> bdi->dirty_exceeded on leaving balance_dirty_pages(), so it doesn't
-> have the burden of rechecking the limit on every 8 pages.
-Yes, but if there is 1 heavy dirtier, task_min_dirty_limit() will be
-actually equal (or almost equal) to the dirty limit of that task. So that
-case won't be really different.
+On Thu, 14 Jul 2011 14:55:55 +0200
+Michal Hocko <mhocko@suse.cz> wrote:
 
-When we will be different is when there are two or more dirtying tasks.
-Then we originally cleared dirty_exceeded already at higher level of dirty
-pages so we stopped checking after every 8 dirtied pages earlier.
- 
-> How about this minimal change?
+> On Thu 14-07-11 20:50:12, KAMEZAWA Hiroyuki wrote:
+> > On Thu, 14 Jul 2011 13:30:09 +0200
+> > Michal Hocko <mhocko@suse.cz> wrote:
+> [...]
+> > >  static bool mem_cgroup_oom_lock(struct mem_cgroup *mem)
+> > >  {
+> > > -	int x, lock_count = 0;
+> > > -	struct mem_cgroup *iter;
+> > > +	int x, lock_count = -1;
+> > > +	struct mem_cgroup *iter, *failed = NULL;
+> > > +	bool cond = true;
+> > >  
+> > > -	for_each_mem_cgroup_tree(iter, mem) {
+> > > -		x = atomic_inc_return(&iter->oom_lock);
+> > > -		lock_count = max(x, lock_count);
+> > > +	for_each_mem_cgroup_tree_cond(iter, mem, cond) {
+> > > +		x = !!atomic_add_unless(&iter->oom_lock, 1, 1);
+> > > +		if (lock_count == -1)
+> > > +			lock_count = x;
+> > > +		else if (lock_count != x) {
+> > > +			/*
+> > > +			 * this subtree of our hierarchy is already locked
+> > > +			 * so we cannot give a lock.
+> > > +			 */
+> > > +			lock_count = 0;
+> > > +			failed = iter;
+> > > +			cond = false;
+> > > +		}
+> > >  	}
+> > 
+> > Hm ? assuming B-C-D is locked and a new thread tries a lock on A-B-C-D-E.
+> > And for_each_mem_cgroup_tree will find groups in order of A->B->C->D->E.
+> > Before lock
+> >   A  0
+> >   B  1
+> >   C  1
+> >   D  1
+> >   E  0
+> > 
+> > After lock
+> >   A  1
+> >   B  1
+> >   C  1
+> >   D  1
+> >   E  0
+> > 
+> > here, failed = B, cond = false. Undo routine will unlock A.
+> > Hmm, seems to work in this case.
+> > 
+> > But....A's oom_lock==0 and memcg_oom_wakeup() at el will not able to
+> > know "A" is in OOM. wakeup processes in A which is waiting for oom recover..
 > 
->  static unsigned long task_min_dirty_limit(unsigned long bdi_dirty)
->  {
-> -       return bdi_dirty - bdi_dirty / TASK_LIMIT_FRACTION;
-> +       return bdi_dirty - bdi_dirty / TASK_LIMIT_FRACTION / 4;
->  }
+> Hohm, we need to have 2 different states. lock and mark_oom.
+> oom_recovert would check only the under_oom.
 > 
-> A more complete version will involve changing the function name and
-> comment. But the basic rationales are,
-> 
-> - there is no serious danger of dirty exceeding as long as there are
->   less than 4 heavy dirties
-> 
-> - tasks dirtying close to 25% pages probably cannot be called light
->   dirtier and there is no need to protect such tasks
-  The idea is interesting. The only problem is that we don't want to set
-dirty_exceeded too late so that heavy dirtiers won't push light dirtiers
-over their limits so easily due to ratelimiting. It did some computations:
-We normally ratelimit after 4 MB. Take a low end desktop these days. Say
-1 GB of ram, 4 CPUs. So dirty limit will be ~200 MB and the area for task
-differentiation ~25 MB. We enter balance_dirty_pages() after dirtying
-num_cpu * ratelimit / 2 pages on average which gives 8 MB. So we should
-set dirty_exceeded at latest at bdi_dirty / TASK_LIMIT_FRACTION / 2 or
-task differentiation would have no effect because of ratelimiting.
 
-So we could change the limit to something like:
-bdi_dirty - min(bdi_dirty / TASK_LIMIT_FRACTION, ratelimit_pages *
-num_online_cpus / 2 + bdi_dirty / TASK_LIMIT_FRACTION / 16)
+yes. I think so, too.
 
-But I'm not sure setups where this would make difference are common...
+> > 
+> > Will this work ?
+> 
+> No it won't because the rest of the world has no idea that A is
+> under_oom as well.
+> 
+> > ==
+> >  # cgcreate -g memory:A
+> >  # cgset -r memory.use_hierarchy=1 A
+> >  # cgset -r memory.oom_control=1   A
+> >  # cgset -r memory.limit_in_bytes= 100M
+> >  # cgset -r memory.memsw.limit_in_bytes= 100M
+> >  # cgcreate -g memory:A/B
+> >  # cgset -r memory.oom_control=1 A/B
+> >  # cgset -r memory.limit_in_bytes=20M
+> >  # cgset -r memory.memsw.limit_in_bytes=20M
+> > 
+> >  Assume malloc XXX is a program allocating XXX Megabytes of memory.
+> > 
+> >  # cgexec -g memory:A/B malloc 30  &    #->this will be blocked by OOM of group B
+> >  # cgexec -g memory:A   malloc 80  &    #->this will be blocked by OOM of group A
+> > 
+> > 
+> > Here, 2 procs are blocked by OOM. Here, relax A's limitation and clear OOM.
+> > 
+> >  # cgset -r memory.memsw.limit_in_bytes=300M A
+> >  # cgset -r memory.limit_in_bytes=300M A
+> > 
+> >  malloc 80 will end.
+> 
+> What about yet another approach? Very similar what you proposed, I
+> guess. Again not tested and needs some cleanup just to illustrate.
+> What do you think?
 
-								Honza
+Hmm, I think this will work. Please go ahead.
+Unfortunately, I'll not be able to make a quick response for a week
+because of other tasks. I'm sorry.
 
-> > > > CC: Andrew Morton <akpm@linux-foundation.org>
-> > > > CC: Christoph Hellwig <hch@infradead.org>
-> > > > CC: Dave Chinner <david@fromorbit.com>
-> > > > CC: Wu Fengguang <fengguang.wu@intel.com>
-> > > > CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
-> > > > Signed-off-by: Jan Kara <jack@suse.cz>
-> > > > ---
-> > > >  mm/page-writeback.c |   29 ++++++++++++++++++++++-------
-> > > >  1 files changed, 22 insertions(+), 7 deletions(-)
-> > > > 
-> > > >  This is the patch fixing dirty_exceeded logic I promised you last week.
-> > > > I based it on current Linus's tree as it is a relatively direct fix so I
-> > > > expect it can be somewhere in the beginning of the patch series and merged
-> > > > relatively quickly. Can you please add it to your tree? Thanks.
-> > > 
-> > > OK. I noticed that bdi_thresh is no longer used. What if we just
-> > > rename it? But I admit that the patch in its current form looks a bit
-> > > more clear in concept.
-> >   You are right bdi_thresh is only used for computing task_bdi_thresh and
-> > min_task_bdi_thresh now. We could possibly eliminate that one variable but
-> > I guess compiler will optimize it away anyway and I find the code more
-> > legible when written this way...
-> 
-> OK.
-> 
-> Thanks,
-> Fengguang
-> 
-> > > > diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-> > > > index 31f6988..d8b395f 100644
-> > > > --- a/mm/page-writeback.c
-> > > > +++ b/mm/page-writeback.c
-> > > > @@ -274,12 +274,13 @@ static inline void task_dirties_fraction(struct task_struct *tsk,
-> > > >   * effectively curb the growth of dirty pages. Light dirtiers with high enough
-> > > >   * dirty threshold may never get throttled.
-> > > >   */
-> > > > +#define TASK_LIMIT_FRACTION 8
-> > > >  static unsigned long task_dirty_limit(struct task_struct *tsk,
-> > > >  				       unsigned long bdi_dirty)
-> > > >  {
-> > > >  	long numerator, denominator;
-> > > >  	unsigned long dirty = bdi_dirty;
-> > > > -	u64 inv = dirty >> 3;
-> > > > +	u64 inv = dirty / TASK_LIMIT_FRACTION;
-> > > >  
-> > > >  	task_dirties_fraction(tsk, &numerator, &denominator);
-> > > >  	inv *= numerator;
-> > > > @@ -290,6 +291,12 @@ static unsigned long task_dirty_limit(struct task_struct *tsk,
-> > > >  	return max(dirty, bdi_dirty/2);
-> > > >  }
-> > > >  
-> > > > +/* Minimum limit for any task */
-> > > > +static unsigned long task_min_dirty_limit(unsigned long bdi_dirty)
-> > > > +{
-> > > > +	return bdi_dirty - bdi_dirty / TASK_LIMIT_FRACTION;
-> > > > +}
-> > > > +
-> > > >  /*
-> > > >   *
-> > > >   */
-> > > > @@ -483,9 +490,12 @@ static void balance_dirty_pages(struct address_space *mapping,
-> > > >  	unsigned long background_thresh;
-> > > >  	unsigned long dirty_thresh;
-> > > >  	unsigned long bdi_thresh;
-> > > > +	unsigned long task_bdi_thresh;
-> > > > +	unsigned long min_task_bdi_thresh;
-> > > >  	unsigned long pages_written = 0;
-> > > >  	unsigned long pause = 1;
-> > > >  	bool dirty_exceeded = false;
-> > > > +	bool clear_dirty_exceeded = true;
-> > > >  	struct backing_dev_info *bdi = mapping->backing_dev_info;
-> > > >  
-> > > >  	for (;;) {
-> > > > @@ -512,7 +522,8 @@ static void balance_dirty_pages(struct address_space *mapping,
-> > > >  			break;
-> > > >  
-> > > >  		bdi_thresh = bdi_dirty_limit(bdi, dirty_thresh);
-> > > > -		bdi_thresh = task_dirty_limit(current, bdi_thresh);
-> > > > +		min_task_bdi_thresh = task_min_dirty_limit(bdi_thresh);
-> > > > +		task_bdi_thresh = task_dirty_limit(current, bdi_thresh);
-> > > >  
-> > > >  		/*
-> > > >  		 * In order to avoid the stacked BDI deadlock we need
-> > > > @@ -524,7 +535,7 @@ static void balance_dirty_pages(struct address_space *mapping,
-> > > >  		 * actually dirty; with m+n sitting in the percpu
-> > > >  		 * deltas.
-> > > >  		 */
-> > > > -		if (bdi_thresh < 2*bdi_stat_error(bdi)) {
-> > > > +		if (task_bdi_thresh < 2 * bdi_stat_error(bdi)) {
-> > > >  			bdi_nr_reclaimable = bdi_stat_sum(bdi, BDI_RECLAIMABLE);
-> > > >  			bdi_nr_writeback = bdi_stat_sum(bdi, BDI_WRITEBACK);
-> > > >  		} else {
-> > > > @@ -539,8 +550,11 @@ static void balance_dirty_pages(struct address_space *mapping,
-> > > >  		 * the last resort safeguard.
-> > > >  		 */
-> > > >  		dirty_exceeded =
-> > > > -			(bdi_nr_reclaimable + bdi_nr_writeback > bdi_thresh)
-> > > > -			|| (nr_reclaimable + nr_writeback > dirty_thresh);
-> > > > +		  (bdi_nr_reclaimable + bdi_nr_writeback > task_bdi_thresh)
-> > > > +		  || (nr_reclaimable + nr_writeback > dirty_thresh);
-> > > > +		clear_dirty_exceeded =
-> > > > +		  (bdi_nr_reclaimable + bdi_nr_writeback <= min_task_bdi_thresh)
-> > > > +		  && (nr_reclaimable + nr_writeback <= dirty_thresh);
-> > > >  
-> > > >  		if (!dirty_exceeded)
-> > > >  			break;
-> > > > @@ -558,7 +572,7 @@ static void balance_dirty_pages(struct address_space *mapping,
-> > > >  		 * up.
-> > > >  		 */
-> > > >  		trace_wbc_balance_dirty_start(&wbc, bdi);
-> > > > -		if (bdi_nr_reclaimable > bdi_thresh) {
-> > > > +		if (bdi_nr_reclaimable > task_bdi_thresh) {
-> > > >  			writeback_inodes_wb(&bdi->wb, &wbc);
-> > > >  			pages_written += write_chunk - wbc.nr_to_write;
-> > > >  			trace_wbc_balance_dirty_written(&wbc, bdi);
-> > > > @@ -578,7 +592,8 @@ static void balance_dirty_pages(struct address_space *mapping,
-> > > >  			pause = HZ / 10;
-> > > >  	}
-> > > >  
-> > > > -	if (!dirty_exceeded && bdi->dirty_exceeded)
-> > > > +	/* Clear dirty_exceeded flag only when no task can exceed the limit */
-> > > > +	if (clear_dirty_exceeded && bdi->dirty_exceeded)
-> > > >  		bdi->dirty_exceeded = 0;
-> > > >  
-> > > >  	if (writeback_in_progress(bdi))
-> > > > -- 
-> > > > 1.7.1
-> > -- 
-> > Jan Kara <jack@suse.cz>
-> > SUSE Labs, CR
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+Anyway,
+Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> 
+
+BTW, it's better to add "How-to-test" and the result in description.
+Some test similar to mine will show the result we want.
+==
+Make a hierarchy of memcg, which has 300MB memory+swap limit.
+
+ %cgcreate -g memory:A
+ %cgset -r memory.limit_in_bytes=300M A
+ %cgset -r memory.memsw.limit_in_bytes=300M A
+
+Then, running folloing program under A.
+ %cgexec -g memory:A ./fork
+==
+int main(int argc, char *argv[])
+{
+        int i;
+        int status;
+
+        for (i = 0; i < 5000; i++) {
+                if (fork() == 0) {
+                        char *c;
+                        c = malloc(1024*1024);
+                        memset(c, 0, 1024*1024);
+                        sleep(20);
+                        fprintf(stderr, "[%d]\n", i);
+                        exit(0);
+                }
+                printf("%d\n", i);
+                waitpid(-1, &status, WNOHANG);
+        }
+        while (1) {
+                int ret;
+                ret = waitpid(-1, &status, WNOHANG);
+
+                if (ret == -1)
+                        break;
+                if (!ret)
+                        sleep(1);
+        }
+        return 0;
+}
+==
+
+Thank you for your effort.
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
