@@ -1,117 +1,178 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C9556B004A
-	for <linux-mm@kvack.org>; Thu, 14 Jul 2011 08:56:04 -0400 (EDT)
-Date: Thu, 14 Jul 2011 14:55:55 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 1/2] memcg: make oom_lock 0 and 1 based rather than
- coutner
-Message-ID: <20110714125555.GA27954@tiehlicka.suse.cz>
-References: <50d526ee242916bbfb44b9df4474df728c4892c6.1310561078.git.mhocko@suse.cz>
- <20110714100259.cedbf6af.kamezawa.hiroyu@jp.fujitsu.com>
- <20110714115913.cf8d1b9d.kamezawa.hiroyu@jp.fujitsu.com>
- <20110714090017.GD19408@tiehlicka.suse.cz>
- <20110714183014.8b15e9b9.kamezawa.hiroyu@jp.fujitsu.com>
- <20110714095152.GG19408@tiehlicka.suse.cz>
- <20110714191728.058859cd.kamezawa.hiroyu@jp.fujitsu.com>
- <20110714110935.GK19408@tiehlicka.suse.cz>
- <20110714113009.GL19408@tiehlicka.suse.cz>
- <20110714205012.8b78691e.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 921DF6B004A
+	for <linux-mm@kvack.org>; Thu, 14 Jul 2011 09:17:54 -0400 (EDT)
+Date: Thu, 14 Jul 2011 14:17:45 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 2/5] mm: vmscan: Do not writeback filesystem pages in
+ kswapd except in high priority
+Message-ID: <20110714131745.GU7529@suse.de>
+References: <1310567487-15367-1-git-send-email-mgorman@suse.de>
+ <1310567487-15367-3-git-send-email-mgorman@suse.de>
+ <20110713233743.GV23038@dastard>
+ <20110714062947.GO7529@suse.de>
+ <20110714115220.GB21663@dastard>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20110714205012.8b78691e.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110714115220.GB21663@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, Balbir Singh <bsingharora@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-kernel@vger.kernel.org
+To: Dave Chinner <david@fromorbit.com>
+Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, XFS <xfs@oss.sgi.com>, Christoph Hellwig <hch@infradead.org>, Johannes Weiner <jweiner@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>
 
-On Thu 14-07-11 20:50:12, KAMEZAWA Hiroyuki wrote:
-> On Thu, 14 Jul 2011 13:30:09 +0200
-> Michal Hocko <mhocko@suse.cz> wrote:
-[...]
-> >  static bool mem_cgroup_oom_lock(struct mem_cgroup *mem)
-> >  {
-> > -	int x, lock_count = 0;
-> > -	struct mem_cgroup *iter;
-> > +	int x, lock_count = -1;
-> > +	struct mem_cgroup *iter, *failed = NULL;
-> > +	bool cond = true;
-> >  
-> > -	for_each_mem_cgroup_tree(iter, mem) {
-> > -		x = atomic_inc_return(&iter->oom_lock);
-> > -		lock_count = max(x, lock_count);
-> > +	for_each_mem_cgroup_tree_cond(iter, mem, cond) {
-> > +		x = !!atomic_add_unless(&iter->oom_lock, 1, 1);
-> > +		if (lock_count == -1)
-> > +			lock_count = x;
-> > +		else if (lock_count != x) {
-> > +			/*
-> > +			 * this subtree of our hierarchy is already locked
-> > +			 * so we cannot give a lock.
-> > +			 */
-> > +			lock_count = 0;
-> > +			failed = iter;
-> > +			cond = false;
-> > +		}
-> >  	}
+On Thu, Jul 14, 2011 at 09:52:21PM +1000, Dave Chinner wrote:
+> On Thu, Jul 14, 2011 at 07:29:47AM +0100, Mel Gorman wrote:
+> > On Thu, Jul 14, 2011 at 09:37:43AM +1000, Dave Chinner wrote:
+> > > On Wed, Jul 13, 2011 at 03:31:24PM +0100, Mel Gorman wrote:
+> > > > It is preferable that no dirty pages are dispatched for cleaning from
+> > > > the page reclaim path. At normal priorities, this patch prevents kswapd
+> > > > writing pages.
+> > > > 
+> > > > However, page reclaim does have a requirement that pages be freed
+> > > > in a particular zone. If it is failing to make sufficient progress
+> > > > (reclaiming < SWAP_CLUSTER_MAX at any priority priority), the priority
+> > > > is raised to scan more pages. A priority of DEF_PRIORITY - 3 is
+> > > > considered to tbe the point where kswapd is getting into trouble
+> > > > reclaiming pages. If this priority is reached, kswapd will dispatch
+> > > > pages for writing.
+> > > > 
+> > > > Signed-off-by: Mel Gorman <mgorman@suse.de>
+> > > 
+> > > Seems reasonable, but btrfs still will ignore this writeback from
+> > > kswapd, and it doesn't fall over.
+> > 
+> > At least there are no reports of it falling over :)
 > 
-> Hm ? assuming B-C-D is locked and a new thread tries a lock on A-B-C-D-E.
-> And for_each_mem_cgroup_tree will find groups in order of A->B->C->D->E.
-> Before lock
->   A  0
->   B  1
->   C  1
->   D  1
->   E  0
+> However you want to spin it.
 > 
-> After lock
->   A  1
->   B  1
->   C  1
->   D  1
->   E  0
-> 
-> here, failed = B, cond = false. Undo routine will unlock A.
-> Hmm, seems to work in this case.
-> 
-> But....A's oom_lock==0 and memcg_oom_wakeup() at el will not able to
-> know "A" is in OOM. wakeup processes in A which is waiting for oom recover..
 
-Hohm, we need to have 2 different states. lock and mark_oom.
-oom_recovert would check only the under_oom.
+I regret that it is coming across as spin. My primary concern is
+that if we get OOM-related bugs due to this series later that it'll
+be difficult to pinpoint whether the whole series is at fault or whether
+preventing kswapd writing any pages was at fault.
 
+> > > Given that data point, I'd like to
+> > > see the results when you stop kswapd from doing writeback altogether
+> > > as well.
+> > > 
+> > 
+> > The results for this test will be identical because the ftrace results
+> > show that kswapd is already writing 0 filesystem pages.
 > 
-> Will this work ?
+> You mean these numbers:
+> 
+> Kswapd reclaim write file async I/O           4483       4286 0          1          0          0
+> 
+> Which shows that kswapd, under this workload has been improved to
+> the point that it doesn't need to do IO. Yes, you've addressed the
+> one problematic workload, but the numbers do not provide the answers
+> to the fundamental question that have been raised during
+> discussions. i.e. do we even need IO at all from reclaim?
+> 
 
-No it won't because the rest of the world has no idea that A is
-under_oom as well.
+I don't know and at best will only be able to test with a single
+disk which is why I wanted to separate this series from a complete
+preventing of kswapd writing pages. I may be able to get access to
+a machine with more disks but it'll take time.
 
-> ==
->  # cgcreate -g memory:A
->  # cgset -r memory.use_hierarchy=1 A
->  # cgset -r memory.oom_control=1   A
->  # cgset -r memory.limit_in_bytes= 100M
->  # cgset -r memory.memsw.limit_in_bytes= 100M
->  # cgcreate -g memory:A/B
->  # cgset -r memory.oom_control=1 A/B
->  # cgset -r memory.limit_in_bytes=20M
->  # cgset -r memory.memsw.limit_in_bytes=20M
+> > Where it makes a difference is when the system is under enough
+> > pressure that it is failing to reclaim any memory and is in danger
+> > of prematurely triggering the OOM killer. Andrea outlined some of
+> > the concerns before at http://lkml.org/lkml/2010/6/15/246
 > 
->  Assume malloc XXX is a program allocating XXX Megabytes of memory.
+> So put the system under more pressure such that with this patch
+> series memory reclaim still writes from kswapd. Can you even get it
+> to that stage, and if you can, does the system OOM more or less if
+> you don't do file IO from reclaim?
 > 
->  # cgexec -g memory:A/B malloc 30  &    #->this will be blocked by OOM of group B
->  # cgexec -g memory:A   malloc 80  &    #->this will be blocked by OOM of group A
-> 
-> 
-> Here, 2 procs are blocked by OOM. Here, relax A's limitation and clear OOM.
-> 
->  # cgset -r memory.memsw.limit_in_bytes=300M A
->  # cgset -r memory.limit_in_bytes=300M A
-> 
->  malloc 80 will end.
 
-What about yet another approach? Very similar what you proposed, I
-guess. Again not tested and needs some cleanup just to illustrate.
-What do you think?
---- 
+I can setup such a tests, it'll be at least next week before I
+configure such a test and get it queued. It'll probably take a few
+days to run then because more iterations will be required to pinpoint
+where the OOM threshold is.  I know from the past that pushing a
+system near OOM causes a non-deterministic number of triggers that
+depend heavily on what was killed so the only real choice is to start
+light and increase the load until boom which is time consuming.
+
+Even then, the test will be inconclusive because it'll be just one
+or two machines that I'll have to test on. There will be important
+corner cases that I won't be able to test for.  For example;
+
+  o small lowest zone that is critical for operation of some reason and
+    the pages must be cleaned from there even though there is a large
+    amount of memory overall
+
+  o small highest zone causing high kswapd usage as it fails to balance
+    continually due to pages being dirtied constantly and the window
+    between when flushers clean the page and kswapd reclaim the page
+    being too big. I might be able to simulate this one but bugs of
+    this nature tend to be workload specific and affect some machines
+    worse than others
+
+  o Machines with many nodes and dirty pages spread semi-randomly
+    on all nodes. If the flusher thread is not cleaning pages from
+    a particular node that is under memory pressure due to affinity,
+    processes will stall for long periods of time until the relevant
+    inodes expire and gets cleaned. This will be particularly
+    problematic if zone_reclaim is enabled
+
+Questions about scenarios like this are going to cause problems in
+review because it's reasonable to ask if any of them can occur and
+we can't give an iron-clad answer.
+
+> > > Can you try removing it altogether and seeing what that does to your
+> > > test results? i.e
+> > > 
+> > > 			if (page_is_file_cache(page)) {
+> > > 				inc_zone_page_state(page, NR_VMSCAN_WRITE_SKIP);
+> > > 				goto keep_locked;
+> > > 			}
+> > 
+> > It won't do anything, it'll still be writing 0 filesystem-backed pages.
+> > 
+> > Because of the possibility for the OOM killer triggering prematurely due
+> > to the inability of kswapd to write pages, I'd prefer to separate such a
+> > change by at least one release so that if there is an increase in OOM
+> > reports, it'll be obvious what was the culprit.
+> 
+> I'm not asking for release quality patches or even when such fixes
+> would roll out.
+> 
+
+Very well. I was hoping to start with just this series and handle the
+complete disabling of writing later but it can wait a few weeks too. It
+was always a stretch that the next merge window was going to be hit.
+
+> What you've shown here is that memory reclaim can be more efficient
+> without issuing IO itself under medium memory pressure. Now the
+> question is whether it can do so under heavy, sustained, near OOM
+> memory pressure?
+> 
+> IOWs, what I want to see is whether the fundamental principle of
+> IO-less reclaim can be validated as workable or struck down.  This
+> patchset demonstrates that IO-less reclaim is superior for a
+> workload that produces medium levels of sustained IO-based memory
+> pressure, which leads to the conclusion that the approach has merit
+> and needs further investigation.
+> 
+> It's that next step that I'm asking you to test now. What form
+> potential changes take or when they are released is irrelevant to me
+> at this point, because we still haven't determined if the
+> fundamental concept is completely sound or not. If the concept is
+> sound I'm quite happy to wait until the implementation is fully
+> baked before it gets rolled out....
+> 
+
+I'll setup a suitable test next week then.
+
+-- 
+Mel Gorman
+SUSE Labs
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
