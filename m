@@ -1,183 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 294BC6B004A
-	for <linux-mm@kvack.org>; Thu, 14 Jul 2011 07:30:15 -0400 (EDT)
-Date: Thu, 14 Jul 2011 13:30:09 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 1/2] memcg: make oom_lock 0 and 1 based rather than
- coutner
-Message-ID: <20110714113009.GL19408@tiehlicka.suse.cz>
-References: <cover.1310561078.git.mhocko@suse.cz>
- <50d526ee242916bbfb44b9df4474df728c4892c6.1310561078.git.mhocko@suse.cz>
- <20110714100259.cedbf6af.kamezawa.hiroyu@jp.fujitsu.com>
- <20110714115913.cf8d1b9d.kamezawa.hiroyu@jp.fujitsu.com>
- <20110714090017.GD19408@tiehlicka.suse.cz>
- <20110714183014.8b15e9b9.kamezawa.hiroyu@jp.fujitsu.com>
- <20110714095152.GG19408@tiehlicka.suse.cz>
- <20110714191728.058859cd.kamezawa.hiroyu@jp.fujitsu.com>
- <20110714110935.GK19408@tiehlicka.suse.cz>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 8E96D6B0082
+	for <linux-mm@kvack.org>; Thu, 14 Jul 2011 07:52:26 -0400 (EDT)
+Date: Thu, 14 Jul 2011 21:52:21 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH 2/5] mm: vmscan: Do not writeback filesystem pages in
+ kswapd except in high priority
+Message-ID: <20110714115220.GB21663@dastard>
+References: <1310567487-15367-1-git-send-email-mgorman@suse.de>
+ <1310567487-15367-3-git-send-email-mgorman@suse.de>
+ <20110713233743.GV23038@dastard>
+ <20110714062947.GO7529@suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110714110935.GK19408@tiehlicka.suse.cz>
+In-Reply-To: <20110714062947.GO7529@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, Balbir Singh <bsingharora@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-kernel@vger.kernel.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, XFS <xfs@oss.sgi.com>, Christoph Hellwig <hch@infradead.org>, Johannes Weiner <jweiner@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>
 
-On Thu 14-07-11 13:09:35, Michal Hocko wrote:
-> On Thu 14-07-11 19:17:28, KAMEZAWA Hiroyuki wrote:
-> > On Thu, 14 Jul 2011 11:51:52 +0200
-> > Michal Hocko <mhocko@suse.cz> wrote:
-> > 
-> > > On Thu 14-07-11 18:30:14, KAMEZAWA Hiroyuki wrote:
-> > > > On Thu, 14 Jul 2011 11:00:17 +0200
-> > > > Michal Hocko <mhocko@suse.cz> wrote:
-> > > > 
-> > > > > On Thu 14-07-11 11:59:13, KAMEZAWA Hiroyuki wrote:
-> > > > > > On Thu, 14 Jul 2011 10:02:59 +0900
-> > > > > > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> [...]
-> > > > ==
-> > > >  	for_each_mem_cgroup_tree(iter, mem) {
-> > > > -		x = atomic_inc_return(&iter->oom_lock);
-> > > > -		lock_count = max(x, lock_count);
-> > > > +		x = !!atomic_add_unless(&iter->oom_lock, 1, 1);
-> > > > +		if (lock_count == -1)
-> > > > +			lock_count = x;
-> > > > +
-> > > > +		/* New child can be created but we shouldn't race with
-> > > > +		 * somebody else trying to oom because we are under
-> > > > +		 * memcg_oom_mutex
-> > > > +		 */
-> > > > +		BUG_ON(lock_count != x);
-> > > >  	}
-> > > > ==
-> > > > 
-> > > > When, B,D,E is under OOM,  
-> > > > 
-> > > >    A oom_lock = 0
-> > > >    B oom_lock = 1
-> > > >    C oom_lock = 0
-> > > >    D oom_lock = 1
-> > > >    E oom_lock = 1
-> > > > 
-> > > > Here, assume A enters OOM.
-> > > > 
-> > > >    A oom_lock = 1 -- (*)
-> > > >    B oom_lock = 1
-> > > >    C oom_lock = 1
-> > > >    D oom_lock = 1
-> > > >    E oom_lock = 1
-> > > > 
-> > > > because of (*), mem_cgroup_oom_lock() will return lock_count=1, true.
-> > > > 
-> > > > Then, a new oom-killer will another oom-kiiler running in B-D-E.
+On Thu, Jul 14, 2011 at 07:29:47AM +0100, Mel Gorman wrote:
+> On Thu, Jul 14, 2011 at 09:37:43AM +1000, Dave Chinner wrote:
+> > On Wed, Jul 13, 2011 at 03:31:24PM +0100, Mel Gorman wrote:
+> > > It is preferable that no dirty pages are dispatched for cleaning from
+> > > the page reclaim path. At normal priorities, this patch prevents kswapd
+> > > writing pages.
 > > > 
-> > > OK, does this mean that for_each_mem_cgroup_tree doesn't lock the whole
-> > > hierarchy at once? 
-> > 
-> > yes. this for_each_mem_cgroup_tree() just locks a subtree.
-> 
-> OK, then I really misunderstood the macro and now I see your points.
-> Thinking about it some more having a full hierarchy locked is not that
-> good idea after all. We would block also parallel branches which will
-> not bail out from OOM if we handle oom condition in another branch.
-> 
-> > 
-> > > I have to confess that the behavior of mem_cgroup_start_loop is little
-> > > bit obscure to me. The comment says it searches for the cgroup with the
-> > > minimum ID - I assume this is the root of the hierarchy. Is this
-> > > correct?
+> > > However, page reclaim does have a requirement that pages be freed
+> > > in a particular zone. If it is failing to make sufficient progress
+> > > (reclaiming < SWAP_CLUSTER_MAX at any priority priority), the priority
+> > > is raised to scan more pages. A priority of DEF_PRIORITY - 3 is
+> > > considered to tbe the point where kswapd is getting into trouble
+> > > reclaiming pages. If this priority is reached, kswapd will dispatch
+> > > pages for writing.
 > > > 
+> > > Signed-off-by: Mel Gorman <mgorman@suse.de>
 > > 
-> > No. Assume following sequence.
-> > 
-> >   1.  cgcreate -g memory:X  css_id=5 assigned.
-> >   ........far later.....
-> >   2.  cgcreate -g memory:A  css_id=30 assigned.
-> >   3.  cgdelete -g memory:X  css_id=5 freed.
-> >   4.  cgcreate -g memory:A/B
-> >   5.  cgcreate -g memory:A/C
-> >   6.  cgcreate -g memory:A/B/D
-> >   7.  cgcreate -g memory:A/B/E
-> > 
-> > Then, css_id will be
-> > ==
-> >  A css_id=30
-> >  B css_id=5  # reuse X's id.
-> >  C css_id=31
-> >  D css_id=32
-> >  E css_id=33
-> > ==
-> > Then, the search under "B" will find B->D->E
-> > 
-> > The search under "A" will find B->A->C->D->E. 
-> > 
-> > > If yes then if we have oom in what-ever cgroup in the hierarchy then
-> > > the above code should lock the whole hierarchy and the above never
-> > > happens. Right?
-> > 
-> > Yes and no. old code allows following happens at the same time.
-> > 
-> >       A
-> >     B   C
-> >    D E   F
-> >  
-> >    B-D-E goes into OOM because of B's limit.
-> >    C-F   goes into OOM because of C's limit
-> > 
-> > 
-> > When you stop OOM under A because of B's limit, C can't invoke OOM.
-> > 
-> > After a little more consideration, my suggestion is,
-> > 
-> > === lock ===
-> > 	bool success = true;
-> > 	...
-> > 	for_each_mem_cgroup_tree(iter, mem) {
-> > 		success &= !!atomic_add_unless(&iter->oom_lock, 1, 1);
-> > 		/* "break" loop is not allowed because of css refcount....*/
-> > 	}
-> > 	return success.
-> > 
-> > By this, when a sub-hierarchy is under OOM, don't invoke new OOM.
+> > Seems reasonable, but btrfs still will ignore this writeback from
+> > kswapd, and it doesn't fall over.
 > 
-> Hmm, I am afraid this will not work as well. The group tree traversing
-> depends on the creation order so we might end up seeing locked subtree
-> sooner than unlocked so we could grant the lock and see multiple OOMs.
-> We have to guarantee that we do not grant the lock if we encounter
-> already locked sub group (and then we have to clear oom_lock for all
-> groups that we have already visited).
-> 
-> > === unlock ===
-> > 	struct mem_cgroup *oom_root;
-> > 
-> > 	oom_root = memcg; 
-> > 	do {
-> > 		struct mem_cgroup *parent;
-> > 
-> > 		parent = mem_cgroup_parent(oom_root);
-> > 		if (!parent || !parent->use_hierarchy)
-> > 			break;
-> > 
-> > 		if (atomic_read(&parent->oom_lock))
-> > 			break;
-> > 	} while (1);
-> > 
-> > 	for_each_mem_cgroup_tree(iter, oom_root)
-> > 		atomic_add_unless(&iter->oom_lock, -1, 0);
-> > 
-> > By this, at unlock, unlock oom-lock of a hierarchy which was under oom_lock
-> > because of a sub-hierarchy was under OOM.
-> 
-> This would unlock also groups that might have a parallel oom lock.
-> A - B - C - D oom (from B)
->   - E - F  oom (F)
-> 
-> unlock in what-ever branch will unlock also the parallel oom.
-> I will think about something else and return to your first patch if I
-> find it over complicated as well.
+> At least there are no reports of it falling over :)
 
-What about this? Just compile tested:
---- 
+However you want to spin it.
+
+> > Given that data point, I'd like to
+> > see the results when you stop kswapd from doing writeback altogether
+> > as well.
+> > 
+> 
+> The results for this test will be identical because the ftrace results
+> show that kswapd is already writing 0 filesystem pages.
+
+You mean these numbers:
+
+Kswapd reclaim write file async I/O           4483       4286 0          1          0          0
+
+Which shows that kswapd, under this workload has been improved to
+the point that it doesn't need to do IO. Yes, you've addressed the
+one problematic workload, but the numbers do not provide the answers
+to the fundamental question that have been raised during
+discussions. i.e. do we even need IO at all from reclaim?
+
+> Where it makes a difference is when the system is under enough
+> pressure that it is failing to reclaim any memory and is in danger
+> of prematurely triggering the OOM killer. Andrea outlined some of
+> the concerns before at http://lkml.org/lkml/2010/6/15/246
+
+So put the system under more pressure such that with this patch
+series memory reclaim still writes from kswapd. Can you even get it
+to that stage, and if you can, does the system OOM more or less if
+you don't do file IO from reclaim?
+
+> > Can you try removing it altogether and seeing what that does to your
+> > test results? i.e
+> > 
+> > 			if (page_is_file_cache(page)) {
+> > 				inc_zone_page_state(page, NR_VMSCAN_WRITE_SKIP);
+> > 				goto keep_locked;
+> > 			}
+> 
+> It won't do anything, it'll still be writing 0 filesystem-backed pages.
+> 
+> Because of the possibility for the OOM killer triggering prematurely due
+> to the inability of kswapd to write pages, I'd prefer to separate such a
+> change by at least one release so that if there is an increase in OOM
+> reports, it'll be obvious what was the culprit.
+
+I'm not asking for release quality patches or even when such fixes
+would roll out.
+
+What you've shown here is that memory reclaim can be more efficient
+without issuing IO itself under medium memory pressure. Now the
+question is whether it can do so under heavy, sustained, near OOM
+memory pressure?
+
+IOWs, what I want to see is whether the fundamental principle of
+IO-less reclaim can be validated as workable or struck down.  This
+patchset demonstrates that IO-less reclaim is superior for a
+workload that produces medium levels of sustained IO-based memory
+pressure, which leads to the conclusion that the approach has merit
+and needs further investigation.
+
+It's that next step that I'm asking you to test now. What form
+potential changes take or when they are released is irrelevant to me
+at this point, because we still haven't determined if the
+fundamental concept is completely sound or not. If the concept is
+sound I'm quite happy to wait until the implementation is fully
+baked before it gets rolled out....
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
