@@ -1,59 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 4D5416B004A
-	for <linux-mm@kvack.org>; Thu, 14 Jul 2011 11:07:10 -0400 (EDT)
-Date: Thu, 14 Jul 2011 11:07:00 -0400
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D79A6B004A
+	for <linux-mm@kvack.org>; Thu, 14 Jul 2011 11:10:01 -0400 (EDT)
+Date: Thu, 14 Jul 2011 11:09:59 -0400
 From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH 1/5] mm: vmscan: Do not writeback filesystem pages in
- direct reclaim
-Message-ID: <20110714150700.GC23587@infradead.org>
+Subject: Re: [PATCH 5/5] mm: writeback: Prioritise dirty inodes encountered
+ by direct reclaim for background flushing
+Message-ID: <20110714150959.GA30936@infradead.org>
 References: <1310567487-15367-1-git-send-email-mgorman@suse.de>
- <1310567487-15367-2-git-send-email-mgorman@suse.de>
- <20110714103801.83e10fdb.kamezawa.hiroyu@jp.fujitsu.com>
- <20110714044643.GA3203@infradead.org>
- <20110714134634.4a7a15c8.kamezawa.hiroyu@jp.fujitsu.com>
+ <1310567487-15367-6-git-send-email-mgorman@suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110714134634.4a7a15c8.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1310567487-15367-6-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Christoph Hellwig <hch@infradead.org>, Mel Gorman <mgorman@suse.de>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, XFS <xfs@oss.sgi.com>, Dave Chinner <david@fromorbit.com>, Johannes Weiner <jweiner@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, XFS <xfs@oss.sgi.com>, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, Johannes Weiner <jweiner@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>
 
-On Thu, Jul 14, 2011 at 01:46:34PM +0900, KAMEZAWA Hiroyuki wrote:
-> > XFS and btrfs already disable writeback from memcg context, as does ext4
-> > for the typical non-overwrite workloads, and none has fallen apart.
-> > 
-> > In fact there's no way we can enable them as the memcg calling contexts
-> > tend to have massive stack usage.
-> > 
-> 
-> Hmm, XFS/btrfs adds pages to radix-tree in deep stack ?
+On Wed, Jul 13, 2011 at 03:31:27PM +0100, Mel Gorman wrote:
+> It is preferable that no dirty pages are dispatched from the page
+> reclaim path. If reclaim is encountering dirty pages, it implies that
+> either reclaim is getting ahead of writeback or use-once logic has
+> prioritise pages for reclaiming that are young relative to when the
+> inode was dirtied.
 
-We're using a fairly deep stack in normal buffered read/write,
-wich is almost 100% common code.  It's not just the long callchain
-(see below), but also that we put the unneeded kiocb and a vector
-of I/O vects on the stack:
-
-vfs_writev
-do_readv_writev
-do_sync_write
-generic_file_aio_write
-__generic_file_aio_write
-generic_file_buffered_write
-generic_perform_write
-block_write_begin
-grab_cache_page_write_begin
-add_to_page_cache_lru
-add_to_page_cache
-add_to_page_cache_locked
-mem_cgroup_cache_charge
-
-this might additionally come from in-kernel callers like nfsd,
-which has even more stack space used.  And at this point we only
-enter the memcg/reclaim code, which last time I had a stack trace
-ate up another about 3k of stack space.
+what does this buy us?  If at all we should prioritize by a zone,
+e.g. tell write_cache_pages only to bother with writing things out
+if the dirty page is in a given zone.   We'd probably still cluster
+around it to make sure we get good I/O patterns, but would only start
+I/O if it has a page we actually care about.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
