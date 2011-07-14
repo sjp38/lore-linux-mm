@@ -1,26 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id C556B90011A
-	for <linux-mm@kvack.org>; Thu, 14 Jul 2011 03:03:16 -0400 (EDT)
-Date: Thu, 14 Jul 2011 08:03:10 +0100
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 2573F90011A
+	for <linux-mm@kvack.org>; Thu, 14 Jul 2011 03:30:41 -0400 (EDT)
+Date: Thu, 14 Jul 2011 08:30:33 +0100
 From: Mel Gorman <mgorman@suse.de>
 Subject: Re: [PATCH 5/5] mm: writeback: Prioritise dirty inodes encountered
  by direct reclaim for background flushing
-Message-ID: <20110714070310.GQ7529@suse.de>
+Message-ID: <20110714073033.GR7529@suse.de>
 References: <1310567487-15367-1-git-send-email-mgorman@suse.de>
  <1310567487-15367-6-git-send-email-mgorman@suse.de>
- <20110713213947.GC21787@quack.suse.cz>
+ <20110713235606.GX23038@dastard>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20110713213947.GC21787@quack.suse.cz>
+In-Reply-To: <20110713235606.GX23038@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, XFS <xfs@oss.sgi.com>, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, Johannes Weiner <jweiner@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, XFS <xfs@oss.sgi.com>, Christoph Hellwig <hch@infradead.org>, Johannes Weiner <jweiner@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>
 
-On Wed, Jul 13, 2011 at 11:39:47PM +0200, Jan Kara wrote:
-> On Wed 13-07-11 15:31:27, Mel Gorman wrote:
+On Thu, Jul 14, 2011 at 09:56:06AM +1000, Dave Chinner wrote:
+> On Wed, Jul 13, 2011 at 03:31:27PM +0100, Mel Gorman wrote:
 > > It is preferable that no dirty pages are dispatched from the page
 > > reclaim path. If reclaim is encountering dirty pages, it implies that
 > > either reclaim is getting ahead of writeback or use-once logic has
@@ -34,59 +34,119 @@ On Wed, Jul 13, 2011 at 11:39:47PM +0200, Jan Kara wrote:
 > > cares about will be cleaned first but the expectation is that the
 > > flusher threads will clean the page quicker than if reclaim tried to
 > > clean a single page.
->   Hmm, I was looking through your numbers but I didn't see any significant
-> difference this patch would make. Do you?
+> > 
+> > Signed-off-by: Mel Gorman <mgorman@suse.de>
+> > ---
+> >  fs/fs-writeback.c         |   56 ++++++++++++++++++++++++++++++++++++++++++++-
+> >  include/linux/fs.h        |    5 ++-
+> >  include/linux/writeback.h |    1 +
+> >  mm/vmscan.c               |   16 ++++++++++++-
+> >  4 files changed, 74 insertions(+), 4 deletions(-)
+> > 
+> > diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
+> > index 0f015a0..1201052 100644
+> > --- a/fs/fs-writeback.c
+> > +++ b/fs/fs-writeback.c
+> > @@ -257,9 +257,23 @@ static void move_expired_inodes(struct list_head *delaying_queue,
+> >  	LIST_HEAD(tmp);
+> >  	struct list_head *pos, *node;
+> >  	struct super_block *sb = NULL;
+> > -	struct inode *inode;
+> > +	struct inode *inode, *tinode;
+> >  	int do_sb_sort = 0;
+> >  
+> > +	/* Move inodes reclaim found at end of LRU to dispatch queue */
+> > +	list_for_each_entry_safe(inode, tinode, delaying_queue, i_wb_list) {
+> > +		/* Move any inode found at end of LRU to dispatch queue */
+> > +		if (inode->i_state & I_DIRTY_RECLAIM) {
+> > +			inode->i_state &= ~I_DIRTY_RECLAIM;
+> > +			list_move(&inode->i_wb_list, &tmp);
+> > +
+> > +			if (sb && sb != inode->i_sb)
+> > +				do_sb_sort = 1;
+> > +			sb = inode->i_sb;
+> > +		}
+> > +	}
+> 
+> This is not a good idea. move_expired_inodes() already sucks a large
+> amount of CPU when there are lots of dirty inodes on the list (think
+> hundreds of thousands), and that is when the traversal terminates at
+> *older_than_this. It's not uncommon in my testing to see this
+> one function consume 30-35% of the bdi-flusher thread CPU usage
+> in such conditions.
 > 
 
-Marginal and well within noise. I'm very skeptical about the patch
-but the VM needs some way of prioritising what pages are getting
-written back to that pages in a particular zone can be cleaned.
+I thought this might be the case. I wasn't sure how bad it could be but
+I mentioned in the leader it might be a problem. I'll consider other
+ways that pages found at the end of the LRU could be prioritised for
+writeback.
 
-> I was thinking about the problem and actually doing IO from kswapd would be
-> a small problem if we submitted more than just a single page. Just to give
-> you idea - time to write a single page on plain SATA drive might be like 4
-> ms. Time to write sequential 4 MB of data is like 80 ms (I just made up
-> these numbers but the orders should be right).
-
-It's as good as number as any for arguements sake. It's not the
-first time such a patch has done the rounds. The last one I did along
-similar lines was http://lkml.org/lkml/2010/6/8/85 although I mucked
-it up with respect to racing with iput.
-
-Wu posted a patch that deferred the writing of ranges to a
-flusher thread http://www.spinics.net/lists/xfs/msg05659.html
-which Dave has already commented on at
-http://www.spinics.net/lists/xfs/msg05665.html. The clustering size
-could be easily fixed but the scalability problem he pointed out is
-a far greater problem.
-
-> So to write 1000 times more
-> data you just need like 20 times longer. That's a factor of 50 in IO
-> efficiency. So when reclaim/kswapd submits a single page IO once every
-> couple of miliseconds, your IO throughput just went close to zero...
-> BTW: I just checked your numbers in fsmark test with vanilla kernel.  You
-> wrote like 14500 pages from reclaim in 567 seconds. That is about one page
-> per 39 ms. That is going to have noticeable impact on IO throughput (not
-> with XFS because it plays tricks with writing more than asked but with ext2
-> or ext3 you would see it I guess).
+> > <SNIP>
+> > +
+> > +	sb = NULL;
+> >  	while (!list_empty(delaying_queue)) {
+> >  		inode = wb_inode(delaying_queue->prev);
+> >  		if (older_than_this &&
+> > @@ -968,6 +982,46 @@ void wakeup_flusher_threads(long nr_pages)
+> >  	rcu_read_unlock();
+> >  }
+> >  
+> > +/*
+> > + * Similar to wakeup_flusher_threads except prioritise inodes contained
+> > + * in the page_list regardless of age
+> > + */
+> > +void wakeup_flusher_threads_pages(long nr_pages, struct list_head *page_list)
+> > +{
+> > +	struct page *page;
+> > +	struct address_space *mapping;
+> > +	struct inode *inode;
+> > +
+> > +	list_for_each_entry(page, page_list, lru) {
+> > +		if (!PageDirty(page))
+> > +			continue;
+> > +
+> > +		if (PageSwapBacked(page))
+> > +			continue;
+> > +
+> > +		lock_page(page);
+> > +		mapping = page_mapping(page);
+> > +		if (!mapping)
+> > +			goto unlock;
+> > +
+> > +		/*
+> > +		 * Test outside the lock to see as if it is already set. Inode
+> > +		 * should be pinned by the lock_page
+> > +		 */
+> > +		inode = page->mapping->host;
+> > +		if (inode->i_state & I_DIRTY_RECLAIM)
+> > +			goto unlock;
+> > +
+> > +		spin_lock(&inode->i_lock);
+> > +		inode->i_state |= I_DIRTY_RECLAIM;
+> > +		spin_unlock(&inode->i_lock);
 > 
-> So when kswapd sees high percentage of dirty pages at the end of LRU, it
-> could call something like fdatawrite_range() for the range of 4 MB
-> (provided the file is large enough) containing that page and IO thoughput
-> would not be hit that much and you will get reasonably bounded time when
-> the page gets cleaned... If you wanted to be clever, you could possibly be
-> more sophisticated in picking the file and range to write so that you get
-> rid of the most pages at the end of LRU but I'm not sure it's worth the CPU
-> cycles. Does this sound reasonable to you?
+> Micro optimisations like this are unnecessary - the inode->i_lock is
+> not contended.
 > 
 
-Semi-reasonable and it's along the same lines as what
-http://lkml.org/lkml/2010/6/8/85 tried to achieve but maybe the effort
-of fixing it up with respect to racing with iput() just isn't worth it.
+This patch was brought forward from a time when it would have been
+taking the global inode_lock. I wasn't sure how badly inode->i_lock
+was being contended and hadn't set up lock stats. Thanks for the
+clarification.
 
-I think I'll leave it as kswapd will call writepage if the priority is
-high enough until a good solution for how the VM can tell the flusher to
-prioritise a particular page is devised.
+> As it is, this code won't really work as you think it might.
+> There's no guarantee a dirty inode is on the dirty - it might have
+> already been expired, and it might even currently be under
+> writeback.  In that case, if it is still dirty it goes to the
+> b_more_io list and writeback bandwidth is shared between all the
+> other dirty inodes and completely ignores this flag...
+> 
+
+Ok, it's a total bust. If I revisit this at all, it'll either be in
+the context of Wu's approach or calling fdatawrite_range but but it
+might be pointless and overall it might just be better for now to
+leave kswapd calling ->writepage if reclaim is failing and priority
+is raised.
 
 -- 
 Mel Gorman
