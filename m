@@ -1,106 +1,203 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id AD5F56B004A
-	for <linux-mm@kvack.org>; Fri, 15 Jul 2011 02:28:50 -0400 (EDT)
-Received: from spt2.w1.samsung.com (mailout2.w1.samsung.com [210.118.77.12])
- by mailout2.w1.samsung.com
- (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
- with ESMTP id <0LOD00LKJ3BZI1@mailout2.w1.samsung.com> for linux-mm@kvack.org;
- Fri, 15 Jul 2011 07:28:47 +0100 (BST)
-Received: from linux.samsung.com ([106.116.38.10])
- by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0LOD008TR3BYJE@spt2.w1.samsung.com> for
- linux-mm@kvack.org; Fri, 15 Jul 2011 07:28:46 +0100 (BST)
-Date: Fri, 15 Jul 2011 08:27:58 +0200
-From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: RE: [Linaro-mm-sig] [RFC 2/2] ARM: initial proof-of-concept IOMMU
- mapper for DMA-mapping
-In-reply-to: 
- <CAB-zwWhRQmv8euqN6jeJP=tXTQgGQ3buRJEf=4aPtTOBsh+Z2Q@mail.gmail.com>
-Message-id: <000301cc42b8$569fca30$03df5e90$%szyprowski@samsung.com>
-MIME-version: 1.0
-Content-type: text/plain; charset=iso-8859-2
-Content-language: pl
-Content-transfer-encoding: quoted-printable
-References: <CAB-zwWhRQmv8euqN6jeJP=tXTQgGQ3buRJEf=4aPtTOBsh+Z2Q@mail.gmail.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 782286B004A
+	for <linux-mm@kvack.org>; Fri, 15 Jul 2011 03:28:20 -0400 (EDT)
+Date: Fri, 15 Jul 2011 09:28:14 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 1/2] memcg: make oom_lock 0 and 1 based rather than
+ coutner
+Message-ID: <20110715072814.GA6239@tiehlicka.suse.cz>
+References: <20110714115913.cf8d1b9d.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110714090017.GD19408@tiehlicka.suse.cz>
+ <20110714183014.8b15e9b9.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110714095152.GG19408@tiehlicka.suse.cz>
+ <20110714191728.058859cd.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110714110935.GK19408@tiehlicka.suse.cz>
+ <20110714113009.GL19408@tiehlicka.suse.cz>
+ <20110714205012.8b78691e.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110714125555.GA27954@tiehlicka.suse.cz>
+ <20110715084755.1e0a4c14.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110715084755.1e0a4c14.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "'Ramirez Luna, Omar'" <omar.ramirez@ti.com>
-Cc: linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Russell King - ARM Linux' <linux@arm.linux.org.uk>, 'Joerg Roedel' <joro@8bytes.org>, 'Arnd Bergmann' <arnd@arndb.de>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, Balbir Singh <bsingharora@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-kernel@vger.kernel.org
 
-Hello,
+On Fri 15-07-11 08:47:55, KAMEZAWA Hiroyuki wrote:
+> On Thu, 14 Jul 2011 14:55:55 +0200
+> Michal Hocko <mhocko@suse.cz> wrote:
+> 
+> > On Thu 14-07-11 20:50:12, KAMEZAWA Hiroyuki wrote:
+> > > On Thu, 14 Jul 2011 13:30:09 +0200
+> > > Michal Hocko <mhocko@suse.cz> wrote:
+> > [...]
+> > > >  static bool mem_cgroup_oom_lock(struct mem_cgroup *mem)
+> > > >  {
+> > > > -	int x, lock_count = 0;
+> > > > -	struct mem_cgroup *iter;
+> > > > +	int x, lock_count = -1;
+> > > > +	struct mem_cgroup *iter, *failed = NULL;
+> > > > +	bool cond = true;
+> > > >  
+> > > > -	for_each_mem_cgroup_tree(iter, mem) {
+> > > > -		x = atomic_inc_return(&iter->oom_lock);
+> > > > -		lock_count = max(x, lock_count);
+> > > > +	for_each_mem_cgroup_tree_cond(iter, mem, cond) {
+> > > > +		x = !!atomic_add_unless(&iter->oom_lock, 1, 1);
+> > > > +		if (lock_count == -1)
+> > > > +			lock_count = x;
+> > > > +		else if (lock_count != x) {
+> > > > +			/*
+> > > > +			 * this subtree of our hierarchy is already locked
+> > > > +			 * so we cannot give a lock.
+> > > > +			 */
+> > > > +			lock_count = 0;
+> > > > +			failed = iter;
+> > > > +			cond = false;
+> > > > +		}
+> > > >  	}
+> > > 
+> > > Hm ? assuming B-C-D is locked and a new thread tries a lock on A-B-C-D-E.
+> > > And for_each_mem_cgroup_tree will find groups in order of A->B->C->D->E.
+> > > Before lock
+> > >   A  0
+> > >   B  1
+> > >   C  1
+> > >   D  1
+> > >   E  0
+> > > 
+> > > After lock
+> > >   A  1
+> > >   B  1
+> > >   C  1
+> > >   D  1
+> > >   E  0
+> > > 
+> > > here, failed = B, cond = false. Undo routine will unlock A.
+> > > Hmm, seems to work in this case.
+> > > 
+> > > But....A's oom_lock==0 and memcg_oom_wakeup() at el will not able to
+> > > know "A" is in OOM. wakeup processes in A which is waiting for oom recover..
+> > 
+> > Hohm, we need to have 2 different states. lock and mark_oom.
+> > oom_recovert would check only the under_oom.
+> > 
+> 
+> yes. I think so, too.
+> 
+> > > 
+> > > Will this work ?
+> > 
+> > No it won't because the rest of the world has no idea that A is
+> > under_oom as well.
+> > 
+> > > ==
+> > >  # cgcreate -g memory:A
+> > >  # cgset -r memory.use_hierarchy=1 A
+> > >  # cgset -r memory.oom_control=1   A
+> > >  # cgset -r memory.limit_in_bytes= 100M
+> > >  # cgset -r memory.memsw.limit_in_bytes= 100M
+> > >  # cgcreate -g memory:A/B
+> > >  # cgset -r memory.oom_control=1 A/B
+> > >  # cgset -r memory.limit_in_bytes=20M
+> > >  # cgset -r memory.memsw.limit_in_bytes=20M
+> > > 
+> > >  Assume malloc XXX is a program allocating XXX Megabytes of memory.
+> > > 
+> > >  # cgexec -g memory:A/B malloc 30  &    #->this will be blocked by OOM of group B
+> > >  # cgexec -g memory:A   malloc 80  &    #->this will be blocked by OOM of group A
+> > > 
+> > > 
+> > > Here, 2 procs are blocked by OOM. Here, relax A's limitation and clear OOM.
+> > > 
+> > >  # cgset -r memory.memsw.limit_in_bytes=300M A
+> > >  # cgset -r memory.limit_in_bytes=300M A
+> > > 
+> > >  malloc 80 will end.
+> > 
+> > What about yet another approach? Very similar what you proposed, I
+> > guess. Again not tested and needs some cleanup just to illustrate.
+> > What do you think?
+> 
+> Hmm, I think this will work. Please go ahead.
+> Unfortunately, I'll not be able to make a quick response for a week
+> because of other tasks. I'm sorry.
+> 
+> Anyway,
+> Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> 
 
-On Thursday, July 14, 2011 8:33 PM Ramirez Luna, Omar wrote:
+Thanks
 
-> > Add initial proof of concept implementation of DMA-mapping API for
-> > devices that have IOMMU support. Right now only dma_alloc_coherent,
-> > dma_free_coherent and dma_mmap_coherent functions are supported.
-> >
-> > Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
-> > Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
-> > ---
-> ...
-> > diff --git a/arch/arm/include/asm/dma-iommu.h =
-b/arch/arm/include/asm/dma-
-> iommu.h
-> > new file mode 100644
-> > index 0000000..c246ff3
-> > --- /dev/null
-> > +++ b/arch/arm/include/asm/dma-iommu.h
-> ...
-> > +int __init arm_iommu_assign_device(struct device *dev, dma_addr_t =
-base,
-> dma_addr_t size);
->=20
-> __init causes a panic if the iommu is assigned after boot.
->=20
-> In OMAP3 the iommu driver controls isp and dsp address spaces, it is
-> loaded until any of those 2 drivers is needed.
+> 
+> BTW, it's better to add "How-to-test" and the result in description.
+> Some test similar to mine will show the result we want.
 
-Well, ok. This was just a proof-of-concept/rfc patch, so it was designed =
-only
-for our particular case.
+Agreed. I will hammer it today and repost with cleaned up description
+with your example as well as mine that triggered the convoy behavior.
 
-> > diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
-> > index f8c6972..b6397c1 100644
-> > --- a/arch/arm/mm/dma-mapping.c
-> > +++ b/arch/arm/mm/dma-mapping.c
-> ...
-> > +static void *arm_iommu_alloc_attrs(struct device *dev, size_t size,
-> > + =A0 =A0 =A0 =A0 =A0 dma_addr_t *handle, gfp_t gfp, struct =
-dma_attrs *attrs)
-> > +{
-> > + =A0 =A0 =A0 struct dma_iommu_mapping *mapping =3D =
-dev->archdata.mapping;
-> > + =A0 =A0 =A0 struct page **pages;
-> > + =A0 =A0 =A0 void *addr =3D NULL;
-> > + =A0 =A0 =A0 pgprot_t prot;
-> > +
-> > + =A0 =A0 =A0 if (dma_get_attr(DMA_ATTR_WRITE_COMBINE, attrs))
-> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 prot =3D =
-pgprot_writecombine(pgprot_kernel);
-> > + =A0 =A0 =A0 else
-> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 prot =3D =
-pgprot_dmacoherent(pgprot_kernel);
-> > +
-> > + =A0 =A0 =A0 arm_iommu_init(dev);
->=20
-> I found useful to call arm_iommu_init inside arm_iommu_assign_device
-> instead. So, then gen_pool is created only once without the
-> mapping->pool check, instead of relying on the call to ...alloc_attrs,
-> which in my case I never use because I'm implementing
-> iommu_map|unmap_sg functions to see how it goes with the dma mapping.
+I hope you don't mine if I add you s-o-b to the patch as this was a
+cooperative work.
 
-Right, this is still on my todo list, but I wanted to focus on cleanup=20
-of dma mapping framework and cma first.
+> ==
+> Make a hierarchy of memcg, which has 300MB memory+swap limit.
+> 
+>  %cgcreate -g memory:A
+>  %cgset -r memory.limit_in_bytes=300M A
+>  %cgset -r memory.memsw.limit_in_bytes=300M A
+> 
+> Then, running folloing program under A.
+>  %cgexec -g memory:A ./fork
+> ==
+> int main(int argc, char *argv[])
+> {
+>         int i;
+>         int status;
+> 
+>         for (i = 0; i < 5000; i++) {
+>                 if (fork() == 0) {
+>                         char *c;
+>                         c = malloc(1024*1024);
+>                         memset(c, 0, 1024*1024);
+>                         sleep(20);
+>                         fprintf(stderr, "[%d]\n", i);
+>                         exit(0);
+>                 }
+>                 printf("%d\n", i);
+>                 waitpid(-1, &status, WNOHANG);
+>         }
+>         while (1) {
+>                 int ret;
+>                 ret = waitpid(-1, &status, WNOHANG);
+> 
+>                 if (ret == -1)
+>                         break;
+>                 if (!ret)
+>                         sleep(1);
+>         }
+>         return 0;
+> }
+> ==
+> 
+> Thank you for your effort.
+> -Kame
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-Best regards
---=20
-Marek Szyprowski
-Samsung Poland R&D Center
-
-
-
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
