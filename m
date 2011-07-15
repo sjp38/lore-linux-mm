@@ -1,32 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id AEED46B004A
-	for <linux-mm@kvack.org>; Fri, 15 Jul 2011 11:27:45 -0400 (EDT)
-Date: Fri, 15 Jul 2011 11:27:38 -0400
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH 00/14] Swap-over-NBD without deadlocking v5
-Message-ID: <20110715152738.GA2276@infradead.org>
-References: <1308575540-25219-1-git-send-email-mgorman@suse.de>
- <20110706165146.be7ab61b.akpm@linux-foundation.org>
- <20110707094737.GG15285@suse.de>
- <20110707125831.GA15412@infradead.org>
- <20110715141021.GZ7529@suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110715141021.GZ7529@suse.de>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id E1DF96B004A
+	for <linux-mm@kvack.org>; Fri, 15 Jul 2011 12:21:22 -0400 (EDT)
+Date: Fri, 15 Jul 2011 09:21:11 -0700 (PDT)
+Message-Id: <20110715.092111.70925645362970092.davem@davemloft.net>
+Subject: Re: [PATCH 0/4] mm, sparc64: Implement gup_fast()
+From: David Miller <davem@davemloft.net>
+In-Reply-To: <20110713153348.b68b4196.akpm@linux-foundation.org>
+References: <20110712122608.938583937@chello.nl>
+	<1310474531.14978.29.camel@twins>
+	<20110713153348.b68b4196.akpm@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Neil Brown <neilb@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: akpm@linux-foundation.org
+Cc: a.p.zijlstra@chello.nl, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Jul 15, 2011 at 03:10:21PM +0100, Mel Gorman wrote:
-> Any objection to the swap-over-NBD stuff going ahead to get part of the
-> complexity out of the way?
+From: Andrew Morton <akpm@linux-foundation.org>
+Date: Wed, 13 Jul 2011 15:33:48 -0700
 
-Sure, that's what I was advocating for.  The filesystem interfaces in
-the current swap over nbd patches on the other hand are complete crap
-and need to be redone, but we've already discussed that a lot of times.
+> On Tue, 12 Jul 2011 14:42:11 +0200
+> Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
+> 
+>> On Tue, 2011-07-12 at 14:26 +0200, Peter Zijlstra wrote:
+>> > With the recent mmu_gather changes that included generic RCU freeing of
+>> > page-tables, it is now quite straight forward to implement gup_fast() on
+>> > sparc64.
+>> > 
+>> > Andrew, please consider merging these patches.
+>> 
+>> Gah, quilt-mail ate all the From: headers again.. all 4 patches are in
+>> fact written by davem. Do you want a resend?
+> 
+> I have an editor ;)
+> 
+> I expect these would get more (ie: non-zero) testing if they were
+> merged via Dave's tree?
+
+It's actually easier if you merge these in for me Andrew, thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
