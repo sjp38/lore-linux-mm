@@ -1,43 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 67CA96B004A
-	for <linux-mm@kvack.org>; Fri, 15 Jul 2011 05:27:50 -0400 (EDT)
-Date: Fri, 15 Jul 2011 10:27:17 +0100
-From: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Subject: Re: [PATCH 3/8] ARM: dma-mapping: use
-	asm-generic/dma-mapping-common.h
-Message-ID: <20110715092717.GO23270@n2100.arm.linux.org.uk>
-References: <1308556213-24970-1-git-send-email-m.szyprowski@samsung.com> <201106241736.43576.arnd@arndb.de> <000601cc34c4$430f91f0$c92eb5d0$%szyprowski@samsung.com> <201106271519.43581.arnd@arndb.de> <20110707120918.GF7810@wantstofly.org> <20110707123825.GO8286@n2100.arm.linux.org.uk> <20110715001021.GM951@wantstofly.org>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 8FF156B004A
+	for <linux-mm@kvack.org>; Fri, 15 Jul 2011 10:10:31 -0400 (EDT)
+Date: Fri, 15 Jul 2011 15:10:21 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 00/14] Swap-over-NBD without deadlocking v5
+Message-ID: <20110715141021.GZ7529@suse.de>
+References: <1308575540-25219-1-git-send-email-mgorman@suse.de>
+ <20110706165146.be7ab61b.akpm@linux-foundation.org>
+ <20110707094737.GG15285@suse.de>
+ <20110707125831.GA15412@infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20110715001021.GM951@wantstofly.org>
+In-Reply-To: <20110707125831.GA15412@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Lennert Buytenhek <buytenh@wantstofly.org>
-Cc: Arnd Bergmann <arnd@arndb.de>, Marek Szyprowski <m.szyprowski@samsung.com>, linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Joerg Roedel' <joro@8bytes.org>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Neil Brown <neilb@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-On Fri, Jul 15, 2011 at 02:10:21AM +0200, Lennert Buytenhek wrote:
-> On Thu, Jul 07, 2011 at 01:38:25PM +0100, Russell King - ARM Linux wrote:
+On Thu, Jul 07, 2011 at 08:58:31AM -0400, Christoph Hellwig wrote:
+> On Thu, Jul 07, 2011 at 10:47:37AM +0100, Mel Gorman wrote:
+> > Additional complexity is required for swap-over-NFS but affects the
+> > core kernel far less than this series. I do not have a series prepared
+> > but from what's in a distro kernel, supporting NFS requires extending
+> > address_space_operations for swapfile activation/deactivation with
+> > some minor helpers and the bulk of the remaining complexity within
+> > NFS itself.
 > 
-> > > > > > I suppose for the majority of the cases, the overhead of the indirect
-> > > > > > function call is near-zero, compared to the overhead of the cache
-> > > > > > management operation, so it would only make a difference for coherent
-> > > > > > systems without an IOMMU. Do we care about micro-optimizing those?
-> > > 
-> > > FWIW, when I was hacking on ARM access point routing performance some
-> > > time ago, turning the L1/L2 cache maintenance operations into inline
-> > > functions (inlined into the ethernet driver) gave me a significant and
-> > > measurable performance boost.
-> > 
-> > On what architecture?  Can you show what you did to gain that?
+> The biggest addition for swap over NFS is to add proper support for
+> a filesystem interface to do I/O on random kernel pages instead of
+> the current nasty bmap hack the swapfile code is using. Splitting
+> that work from all the required VM infrastructure should make life
+> easier for everyone involved and allows merging it independeny as
+> both bits have other uses case as well.
 > 
-> Patch is attached below.  It's an ugly product-specific hack, not
-> suitable for upstreaming in this form, etc etc, but IIRC it gave me
-> a ~5% improvement on packet routing.
 
-Do you know how much is contributed from each change - L1, L2, moving
-dma_cache_maint() inline, removing the virt_addr_valid() etc?
+The swap-over-nfs patches allows this possibility. There is a swapon
+interface added that could be used by the filesystem to ensure the
+underlying blocks are allocated and a swap_out/swap_in interface that
+takes a struct file, struct page and writeback_control. This would
+be an alternative to bmap being used to record the blocks backing
+each extent.
+
+Any objection to the swap-over-NBD stuff going ahead to get part of the
+complexity out of the way?
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
