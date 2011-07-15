@@ -1,68 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 932266B004A
-	for <linux-mm@kvack.org>; Fri, 15 Jul 2011 11:09:06 -0400 (EDT)
-From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 2/2] mm: page allocator: Reconsider zones for allocation after direct reclaim
-Date: Fri, 15 Jul 2011 16:09:00 +0100
-Message-Id: <1310742540-22780-3-git-send-email-mgorman@suse.de>
-In-Reply-To: <1310742540-22780-1-git-send-email-mgorman@suse.de>
-References: <1310742540-22780-1-git-send-email-mgorman@suse.de>
+	by kanga.kvack.org (Postfix) with ESMTP id AEED46B004A
+	for <linux-mm@kvack.org>; Fri, 15 Jul 2011 11:27:45 -0400 (EDT)
+Date: Fri, 15 Jul 2011 11:27:38 -0400
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH 00/14] Swap-over-NBD without deadlocking v5
+Message-ID: <20110715152738.GA2276@infradead.org>
+References: <1308575540-25219-1-git-send-email-mgorman@suse.de>
+ <20110706165146.be7ab61b.akpm@linux-foundation.org>
+ <20110707094737.GG15285@suse.de>
+ <20110707125831.GA15412@infradead.org>
+ <20110715141021.GZ7529@suse.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110715141021.GZ7529@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Linux-Netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Neil Brown <neilb@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-With zone_reclaim_mode enabled, it's possible for zones to be considered
-full in the zonelist_cache so they are skipped in the future. If the
-process enters direct reclaim, the ZLC may still consider zones to be
-full even after reclaiming pages. Reconsider all zones for allocation
-if direct reclaim returns successfully.
+On Fri, Jul 15, 2011 at 03:10:21PM +0100, Mel Gorman wrote:
+> Any objection to the swap-over-NBD stuff going ahead to get part of the
+> complexity out of the way?
 
-Signed-off-by: Mel Gorman <mgorman@suse.de>
----
- mm/page_alloc.c |   19 +++++++++++++++++++
- 1 files changed, 19 insertions(+), 0 deletions(-)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 6913854..149409c 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1616,6 +1616,21 @@ static void zlc_mark_zone_full(struct zonelist *zonelist, struct zoneref *z)
- 	set_bit(i, zlc->fullzones);
- }
- 
-+/*
-+ * clear all zones full, called after direct reclaim makes progress so that
-+ * a zone that was recently full is not skipped over for up to a second
-+ */
-+static void zlc_clear_zones_full(struct zonelist *zonelist)
-+{
-+	struct zonelist_cache *zlc;	/* cached zonelist speedup info */
-+
-+	zlc = zonelist->zlcache_ptr;
-+	if (!zlc)
-+		return;
-+
-+	bitmap_zero(zlc->fullzones, MAX_ZONES_PER_ZONELIST);
-+}
-+
- #else	/* CONFIG_NUMA */
- 
- static nodemask_t *zlc_setup(struct zonelist *zonelist, int alloc_flags)
-@@ -1963,6 +1978,10 @@ __alloc_pages_direct_reclaim(gfp_t gfp_mask, unsigned int order,
- 	if (unlikely(!(*did_some_progress)))
- 		return NULL;
- 
-+	/* After successful reclaim, reconsider all zones for allocation */
-+	if (NUMA_BUILD)
-+		zlc_clear_zones_full(zonelist);
-+
- retry:
- 	page = get_page_from_freelist(gfp_mask, nodemask, order,
- 					zonelist, high_zoneidx,
--- 
-1.7.3.4
+Sure, that's what I was advocating for.  The filesystem interfaces in
+the current swap over nbd patches on the other hand are complete crap
+and need to be redone, but we've already discussed that a lot of times.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
