@@ -1,78 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 35DC36B0082
-	for <linux-mm@kvack.org>; Fri, 15 Jul 2011 21:08:47 -0400 (EDT)
-Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [202.81.31.246])
-	by e23smtp05.au.ibm.com (8.14.4/8.13.1) with ESMTP id p6G12Ceq003295
-	for <linux-mm@kvack.org>; Sat, 16 Jul 2011 11:02:12 +1000
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p6G186tM733204
-	for <linux-mm@kvack.org>; Sat, 16 Jul 2011 11:08:11 +1000
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p6G18USx013021
-	for <linux-mm@kvack.org>; Sat, 16 Jul 2011 11:08:30 +1000
-Date: Fri, 15 Jul 2011 23:10:49 +1000
-From: David Gibson <dwg@au1.ibm.com>
-Subject: Re: [PATCH 2/2] hugepage: Allow parallelization of the hugepage
- fault path
-Message-ID: <20110715131049.GA4368@yookeroo.fritz.box>
-References: <20110125143226.37532ea2@kryten>
- <20110125143414.1dbb150c@kryten>
- <m2zkkg6kvs.fsf@firstfloor.org>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 455E76B007E
+	for <linux-mm@kvack.org>; Sat, 16 Jul 2011 17:19:00 -0400 (EDT)
+Date: Sat, 16 Jul 2011 23:18:50 +0200
+From: Sebastian Siewior <sebastian@breakpoint.cc>
+Subject: possible recursive locking detected cache_alloc_refill() +
+ cache_flusharray()
+Message-ID: <20110716211850.GA23917@breakpoint.cc>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <m2zkkg6kvs.fsf@firstfloor.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Anton Blanchard <anton@samba.org>, mel@csn.ul.ie, akpm@linux-foundation.org, hughd@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org, tglx@linutronix.de
 
-On Fri, Jul 15, 2011 at 12:52:38AM -0700, Andi Kleen wrote:
-> Anton Blanchard <anton@samba.org> writes:
-> 
-> 
-> > This patch improves the situation by replacing the single mutex with a
-> > table of mutexes, selected based on a hash of the address_space and
-> > file offset being faulted (or mm and virtual address for MAP_PRIVATE
-> > mappings).
-> 
-> It's unclear to me how this solves the original OOM problem.
-> But then you can still have early oom over all the hugepages if they
-> happen to hash to different pages, can't you? 
+Hi,
 
-The spurious OOM case only occurs when the two processes or threads
-are racing to instantiate the same page (that is the same page within
-an address_space for SHARED or the same virtual address for PRIVATE).
-In other cases the OOM is correct behaviour (because we really don't
-have enough hugepages to satisfy the requests).
+just hit the following with full debuging turned on:
 
-Because of the hash's construction, we're guaranteed than in the
-spurious OOM case, both processes or threads will use the same mutex.
+| =============================================
+| [ INFO: possible recursive locking detected ]
+| 3.0.0-rc7-00088-g1765a36 #64
+| ---------------------------------------------
+| udevd/1054 is trying to acquire lock:
+|  (&(&parent->list_lock)->rlock){..-...}, at: [<c00bf640>] cache_alloc_refill+0xac/0x868
+|
+| but task is already holding lock:
+|  (&(&parent->list_lock)->rlock){..-...}, at: [<c00be47c>] cache_flusharray+0x58/0x148
+|
+| other info that might help us debug this:
+|  Possible unsafe locking scenario:
+|
+|        CPU0
+|        ----
+|   lock(&(&parent->list_lock)->rlock);
+|   lock(&(&parent->list_lock)->rlock);
+|
+|  *** DEADLOCK ***
+|
+|  May be due to missing lock nesting notation
+|
+| 1 lock held by udevd/1054:
+|  #0:  (&(&parent->list_lock)->rlock){..-...}, at: [<c00be47c>] cache_flusharray+0x58/0x148
+|
+| stack backtrace:
+| Call Trace:
+| [ed077a30] [c0008034] show_stack+0x48/0x168 (unreliable)
+| [ed077a70] [c006a184] __lock_acquire+0x15f8/0x1a14
+| [ed077b10] [c006aa80] lock_acquire+0x7c/0x98
+| [ed077b50] [c02f7160] _raw_spin_lock+0x3c/0x80
+| [ed077b70] [c00bf640] cache_alloc_refill+0xac/0x868
+| [ed077bd0] [c00bf4e0] kmem_cache_alloc+0x198/0x1c4
+| [ed077bf0] [c01971ac] __debug_object_init+0x268/0x414
+| [ed077c50] [c004ba24] rcuhead_fixup_activate+0x34/0x80
+| [ed077c70] [c0196a1c] debug_object_activate+0xec/0x1a0
+| [ed077ca0] [c007ef38] __call_rcu+0x38/0x1d4
+| [ed077cc0] [c00bea44] slab_destroy+0x1f8/0x204
+| [ed077d00] [c00beaac] free_block+0x5c/0x1e0
+| [ed077d40] [c00be568] cache_flusharray+0x144/0x148
+| [ed077d70] [c00be828] kmem_cache_free+0x118/0x13c
+| [ed077d90] [c00b18a8] __put_anon_vma+0x88/0xf4
+| [ed077da0] [c00b320c] unlink_anon_vmas+0x17c/0x180
+| [ed077dd0] [c00ab364] free_pgtables+0x58/0xbc
+| [ed077df0] [c00ae158] exit_mmap+0xe8/0x12c
+| [ed077e60] [c002b63c] mmput+0x74/0x118
+| [ed077e80] [c002fc90] exit_mm+0x13c/0x168
+| [ed077eb0] [c0032450] do_exit+0x640/0x6b4
+| [ed077f10] [c003250c] do_group_exit+0x48/0xa8
+| [ed077f30] [c0032580] sys_exit_group+0x14/0x28
+| [ed077f40] [c000ef14] ret_from_syscall+0x0/0x3c
+| --- Exception: c01 at 0xfef5c9c
+|     LR = 0xffaf988
 
-> I think it would be better to move out the clearing out of the lock,
+haven't found a report of this so far.
 
-We really can't.  The lock has to be taken before we grab a page from
-the pool, and can't be released until after the page is "committed"
-either by updating the address space's radix tree (SHARED) or the page
-tables (PRIVATE).  I can't see anyway the clearing can be moved out of
-that.
-
-> and possibly take the lock only when the hugepages are about to 
-> go OOM.
-
-This is much easier said than done.  
-
-At one stage I did attempt a more theoretically elegant approach which
-is to keep a count of the number of "in-flight" hugepages - OOMs
-should be retried if it is non-zero.  I believe that approach can
-work, but it turns out to be pretty darn hairy to implement.
-
--- 
-David Gibson			| I'll have my music baroque, and my code
-david AT gibson.dropbear.id.au	| minimalist, thank you.  NOT _the_ _other_
-				| _way_ _around_!
-http://www.ozlabs.org/~dgibson
+Sebastian
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
