@@ -1,12 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C5709000C2
-	for <linux-mm@kvack.org>; Mon, 18 Jul 2011 17:38:58 -0400 (EDT)
-Message-ID: <4E24A7BB.1040800@bx.jp.nec.com>
-Date: Mon, 18 Jul 2011 17:38:03 -0400
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 13E946B010D
+	for <linux-mm@kvack.org>; Mon, 18 Jul 2011 17:40:50 -0400 (EDT)
+Message-ID: <4E24A833.2090208@bx.jp.nec.com>
+Date: Mon, 18 Jul 2011 17:40:03 -0400
 From: Keiichi KII <k-keiichi@bx.jp.nec.com>
 MIME-Version: 1.0
-Subject: [RFC PATCH -tip 4/5] tracepoints: add tracepoints for pagecache
+Subject: [RFC PATCH -tip 5/5] perf tools: scripts for continuous pagecache
+ monitoring
 References: <4E24A61D.4060702@bx.jp.nec.com>
 In-Reply-To: <4E24A61D.4060702@bx.jp.nec.com>
 Content-Type: text/plain; charset=ISO-2022-JP
@@ -18,178 +19,398 @@ Cc: Keiichi KII <k-keiichi@bx.jp.nec.com>, Ingo Molnar <mingo@elte.hu>, "linux-m
 
 From: Keiichi Kii <k-keiichi@bx.jp.nec.com>
 
-This patch adds several tracepoints to track pagecach behavior.
-These trecepoints would help us monitor pagecache usage with high resolution.
+The "continuous pagecache monitoring" is implemented based on
+"pagecache tracepoints" and the trace stream scripting support
+in perf tools.
+
+To monitor dynamic changes for pagecaches,
+we can run "perf script pagecachetop {file|process}".
+ex) perf script pagecachetop file
+    => monitor pagecache behavior on the basis of file
+
+This tool shows two types of the output.
+
+o One is to show pagecache behavior on the basis of "file"
+
+pagecache behavior per file (time:20207, interval:10)
+
+                         find        hit    cache      add   remove  proc
+                file    count      ratio pages(B) pages(B) pages(B) count
+-------------------- -------- ---------- -------- -------- -------- -----
+            Packages    32813    100.00%    69.5M        0        0     1
+190919419ab3582cb090    30677    100.00%    37.6M        0        0     1
+2d3f2307106003b599d2    10715    100.00%    17.0M        0        0     1
+29fe4f91d89bab54d355     5545    100.00%     7.1M        0        0     1
+c5ee54fd83797583e6c2     1823    100.00%     2.6M        0        0     1
+        libc-2.13.so      830    100.00%     1.2M        0        0     9
+            __db.003      540    100.00%     1.3M        0        0     1
+8faff879329920b2638a      439    100.00%     1.4M        0        0     1
+1b695937ce00a8c305ee      352    100.00%     1.5M        0        0     1
+ libpython2.7.so.1.0      330    100.00%     1.5M        0        0     1
+                bash      283    100.00%   828.0K        0        0     6
+         ld.so.cache      227    100.00%   116.0K        0        0     5
+        .zsh_history      196    100.00%   772.0K        0        0     1
+fdc15d6feaec65abbfae      196    100.00%   464.0K        0        0     1
+3b316befdc0469fa84b7      192    100.00%   324.0K        0        0     1
+
+o The other is to show pagecache behaviors on the basis of "process"
+
+pagecache behavior per process (time:20160, interval:10)
+
+                         find        hit      add   remove  file
+             process    count      ratio pages(B) pages(B) count
+-------------------- -------- ---------- -------- -------- -----
+            yum-9006    97210     99.25%    99.9M        0    40
+           xmms-7768       43    100.00%   128.0K        0     1
+          crond-1307        8    100.00%        0        0     1
+       rsyslogd-7194        1    100.00%        0        0     1
 
 Signed-off-by: Keiichi Kii <k-keiichi@bx.jp.nec.com>
-Cc: Atsushi Tsuji <a-tsuji@bk.jp.nec.com>
 ---
 
- include/trace/events/filemap.h |   75 ++++++++++++++++++++++++++++++++++++++++
- mm/filemap.c                   |    4 ++
- mm/truncate.c                  |    2 +
- mm/vmscan.c                    |    2 +
- 4 files changed, 83 insertions(+), 0 deletions(-)
- create mode 100644 include/trace/events/filemap.h
+ tools/perf/scripts/perl/bin/pagecachetop-record |    3 
+ tools/perf/scripts/perl/bin/pagecachetop-report |   21 ++
+ tools/perf/scripts/perl/pagecachetop.pl         |  292 +++++++++++++++++++++++
+ 3 files changed, 316 insertions(+), 0 deletions(-)
+ create mode 100644 tools/perf/scripts/perl/bin/pagecachetop-record
+ create mode 100644 tools/perf/scripts/perl/bin/pagecachetop-report
+ create mode 100644 tools/perf/scripts/perl/pagecachetop.pl
 
 
-diff --git a/include/trace/events/filemap.h b/include/trace/events/filemap.h
+diff --git a/tools/perf/scripts/perl/bin/pagecachetop-record b/tools/perf/scripts/perl/bin/pagecachetop-record
 new file mode 100644
-index 0000000..0f83992
+index 0000000..2c05539
 --- /dev/null
-+++ b/include/trace/events/filemap.h
-@@ -0,0 +1,75 @@
-+#undef TRACE_SYSTEM
-+#define TRACE_SYSTEM filemap
++++ b/tools/perf/scripts/perl/bin/pagecachetop-record
+@@ -0,0 +1,3 @@
++#!/bin/bash
 +
-+#if !defined(_TRACE_FILEMAP_H) || defined(TRACE_HEADER_MULTI_READ)
-+#define _TRACE_FILEMAP_H
++perf record -D -e filemap:find_get_page -e filemap:add_to_page_cache -e filemap:remove_from_page_cache -e mm:dump_inode --filter "nrpages>10" $@
+diff --git a/tools/perf/scripts/perl/bin/pagecachetop-report b/tools/perf/scripts/perl/bin/pagecachetop-report
+new file mode 100644
+index 0000000..62c54bb
+--- /dev/null
++++ b/tools/perf/scripts/perl/bin/pagecachetop-report
+@@ -0,0 +1,21 @@
++#!/bin/bash
++# description: continuous pagecache monitoring per file
 +
-+#include <linux/fs.h>
-+#include <linux/tracepoint.h>
++for i in "$@"
++do
++    if expr match "$i" "-" > /dev/null; then
++        break
++    fi
++    n_args=$(( $n_args + 1 ))
++done
 +
-+TRACE_EVENT(find_get_page,
++if [ "$n_args" -eq 1 ] ; then
++    mode=$1
++    shift
++else
++    echo "usage: pagecachetop {file|process}"
++    echo $@
++    exit
++fi
 +
-+	TP_PROTO(struct address_space *mapping, pgoff_t offset,
-+		struct page *page),
++perf script $@ -s "$PERF_EXEC_PATH"/scripts/perl/pagecachetop.pl $mode
+diff --git a/tools/perf/scripts/perl/pagecachetop.pl b/tools/perf/scripts/perl/pagecachetop.pl
+new file mode 100644
+index 0000000..ec77f89
+--- /dev/null
++++ b/tools/perf/scripts/perl/pagecachetop.pl
+@@ -0,0 +1,292 @@
++#!/usr/bin/perl -w
++# (C) 2011, Keiichi Kii <k-keiichi@bx.jp.nec.com>
++# Licensed under the terms of the GNU GPL License version 2
 +
-+	TP_ARGS(mapping, offset, page),
++# pagecache top
++#
++# Periodically display system-wide pagecache activity focusing on
++# process or file. If "process" arg is specified, it displays
++# pagecache behavior per each process. If "file" arg is specified,
++# it displays pagecache behavior per each file.
 +
-+	TP_STRUCT__entry(
-+		__field(dev_t, s_dev)
-+		__field(ino_t, i_ino)
-+		__field(pgoff_t, offset)
-+		__field(struct page *, page)
-+		),
++use 5.010000;
++use strict;
++use warnings;
 +
-+	TP_fast_assign(
-+		__entry->s_dev = mapping->host ? mapping->host->i_sb->s_dev : 0;
-+		__entry->i_ino = mapping->host ? mapping->host->i_ino : 0;
-+		__entry->offset = offset;
-+		__entry->page = page;
-+		),
++use lib "$ENV{'PERF_EXEC_PATH'}/scripts/perl/Perf-Trace-Util/lib";
++use lib "./Perf-Trace-Util/lib";
++use Perf::Trace::Core;
++use Perf::Trace::Context;
++use Perf::Trace::Util;
++use File::Basename qw/basename/;
 +
-+	TP_printk("s_dev=%u:%u i_ino=%lu offset=%lu %s", MAJOR(__entry->s_dev),
-+		MINOR(__entry->s_dev), __entry->i_ino, __entry->offset,
-+		__entry->page == NULL ? "page_not_found" : "page_found")
-+);
++my %files;
++my %processes;
++my $interval = 10;
++my $pre_print_time = 0;
++my $print_limit = 20;
++my $debugfs_mountpoint;
++my $mode = shift;
 +
-+DECLARE_EVENT_CLASS(page_cache_template,
++sub trace_begin {
++    $debugfs_mountpoint = find_debugfs_mntpt();
++}
 +
-+	TP_PROTO(struct address_space *mapping, pgoff_t offset),
++sub find_debugfs_mntpt() {
++    my $path = "";
++    open my $fh, "<", "/proc/mounts"
++        or die "Can't open /proc/mounts: $!";
++    while (my $l = <$fh>) {
++        if ($l =~ /debugfs/) {
++            $path = (split(/\s/, $l))[1];
++        }
++    }
++    close($fh);
++    return $path;
++}
 +
-+	TP_ARGS(mapping, offset),
++sub mm::dump_inode {
++    my ($event_name, $context, $common_cpu, $common_secs, $common_nsecs,
++        $common_pid, $common_comm,
++        $ino, $size, $nrpages, $age, 
++        $state, $dev, $file) = @_;
 +
-+	TP_STRUCT__entry(
-+		__field(dev_t, s_dev)
-+		__field(ino_t, i_ino)
-+		__field(pgoff_t, offset)
-+		),
++    my $f = get_file($dev, $ino);
++    return if !$f;
 +
-+	TP_fast_assign(
-+		__entry->s_dev = mapping->host->i_sb->s_dev;
-+		__entry->i_ino = mapping->host->i_ino;
-+		__entry->offset = offset;
-+		),
++    $$f{path} = $file;
++    $$f{cache} = $nrpages;
++}
 +
-+	TP_printk("s_dev=%u:%u i_ino=%lu offset=%lu", MAJOR(__entry->s_dev),
-+		MINOR(__entry->s_dev), __entry->i_ino, __entry->offset)
-+);
++sub filemap::remove_from_page_cache {
++    my ($event_name, $context, $common_cpu, $common_secs, $common_nsecs,
++        $common_pid, $common_comm,
++        $s_dev, $i_ino, $offset) = @_;
 +
-+DEFINE_EVENT(page_cache_template, add_to_page_cache,
++    my $s = get_stat($common_pid, $common_comm, $s_dev, $i_ino);
++    return if !$s;
 +
-+	TP_PROTO(struct address_space *mapping, pgoff_t offset),
++    $$s{remove}++;
++    print_check($common_secs);
++}
 +
-+	TP_ARGS(mapping, offset)
-+);
++sub filemap::add_to_page_cache {
++    my ($event_name, $context, $common_cpu, $common_secs, $common_nsecs,
++        $common_pid, $common_comm,
++        $s_dev, $i_ino, $offset) = @_;
 +
-+DEFINE_EVENT(page_cache_template, remove_from_page_cache,
++    my $s = get_stat($common_pid, $common_comm, $s_dev, $i_ino);
++    return if !$s;
 +
-+	TP_PROTO(struct address_space *mapping, pgoff_t offset),
++    $$s{add}++;
++    print_check($common_secs);
++}
 +
-+	TP_ARGS(mapping, offset)
-+);
++sub filemap::find_get_page {
++    my ($event_name, $context, $common_cpu, $common_secs, $common_nsecs,
++        $common_pid, $common_comm,
++        $s_dev, $i_ino, $offset, $page) = @_;
 +
-+#endif /* _TRACE_FILEMAP_H */
++    my $s = get_stat($common_pid, $common_comm, $s_dev, $i_ino);
++    return if !$s;
 +
-+/* This part must be outside protection */
-+#include <trace/define_trace.h>
-diff --git a/mm/filemap.c b/mm/filemap.c
-index a8251a8..9382785 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -35,6 +35,7 @@
- #include <linux/memcontrol.h>
- #include <linux/mm_inline.h> /* for page_is_file_cache() */
- #include <linux/cleancache.h>
-+#include <trace/events/filemap.h>
- #include "internal.h"
- 
- /*
-@@ -169,6 +170,7 @@ void delete_from_page_cache(struct page *page)
- 	spin_lock_irq(&mapping->tree_lock);
- 	__delete_from_page_cache(page);
- 	spin_unlock_irq(&mapping->tree_lock);
-+	trace_remove_from_page_cache(mapping, page->index);
- 	mem_cgroup_uncharge_cache_page(page);
- 
- 	if (freepage)
-@@ -484,6 +486,7 @@ int add_to_page_cache_locked(struct page *page, struct address_space *mapping,
- 			if (PageSwapBacked(page))
- 				__inc_zone_page_state(page, NR_SHMEM);
- 			spin_unlock_irq(&mapping->tree_lock);
-+			trace_add_to_page_cache(mapping, offset);
- 		} else {
- 			page->mapping = NULL;
- 			spin_unlock_irq(&mapping->tree_lock);
-@@ -734,6 +737,7 @@ repeat:
- out:
- 	rcu_read_unlock();
- 
-+	trace_find_get_page(mapping, offset, page);
- 	return page;
- }
- EXPORT_SYMBOL(find_get_page);
-diff --git a/mm/truncate.c b/mm/truncate.c
-index e13f22e..5b10356 100644
---- a/mm/truncate.c
-+++ b/mm/truncate.c
-@@ -22,6 +22,7 @@
- #include <linux/cleancache.h>
- #include "internal.h"
- 
-+#include <trace/events/filemap.h>
- 
- /**
-  * do_invalidatepage - invalidate part or all of a page
-@@ -406,6 +407,7 @@ invalidate_complete_page2(struct address_space *mapping, struct page *page)
- 	BUG_ON(page_has_private(page));
- 	__delete_from_page_cache(page);
- 	spin_unlock_irq(&mapping->tree_lock);
-+	trace_remove_from_page_cache(mapping, page->index);
- 	mem_cgroup_uncharge_cache_page(page);
- 
- 	if (mapping->a_ops->freepage)
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 5ed24b9..b7aea3a 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -53,6 +53,7 @@
- 
- #define CREATE_TRACE_POINTS
- #include <trace/events/vmscan.h>
-+#include <trace/events/filemap.h>
- 
- /*
-  * reclaim_mode determines how the inactive list is shrunk
-@@ -532,6 +533,7 @@ static int __remove_mapping(struct address_space *mapping, struct page *page)
- 
- 		__delete_from_page_cache(page);
- 		spin_unlock_irq(&mapping->tree_lock);
-+		trace_remove_from_page_cache(mapping, page->index);
- 		mem_cgroup_uncharge_cache_page(page);
- 
- 		if (freepage != NULL)
++    $$s{find}++;
++    if ($page != 0) {
++        $$s{hit}++;
++    }
++
++    print_check($common_secs);
++}
++
++sub get_file {
++    my ($dev, $inode) = @_;
++
++    return if major($dev) == 0;
++
++    if (!defined($files{$dev.":".$inode})) {
++        $files{$dev.":".$inode} = init_file($dev, $inode);
++    }
++
++    return $files{$dev.":".$inode};
++}
++
++sub get_stat {
++    my ($pid, $cmd, $dev, $inode) = @_;
++    my %stat = (find => 0, hit => 0, add => 0, remove => 0);
++
++    return if major($dev) == 0;
++
++    if (!defined($processes{$pid})) {
++        $processes{$pid} = init_process($pid, $cmd);
++    }
++    if (!defined($files{$dev.":".$inode})) {
++        $files{$dev.":".$inode} = init_file($dev, $inode);
++    }
++    if (!defined($processes{$pid}{file}{$dev.":".$inode})) {
++        $files{$dev.":".$inode}{process}{$pid} = \%stat;
++        $processes{$pid}{file}{$dev.":".$inode} = \%stat;
++        return \%stat;
++    }
++    return $files{$dev.":".$inode}{process}{$pid};
++}
++
++sub init_file() {
++    my ($dev, $inode) = @_;
++    my %f;
++
++    $f{path} = major($dev).":".minor($dev).",".$inode;
++    $f{cache} = 0;
++    $f{stat} = {find => 0, hit => 0, add => 0, remove => 0};
++    $f{process} = {};
++
++    return \%f;
++}
++
++sub init_process() {
++    my ($pid, $cmd) = @_;
++    my %p;
++
++    $p{name} = $cmd."-".$pid;
++    $p{stat} = {find => 0, hit => 0, add => 0, remove => 0};
++    $p{file} = {};
++
++    return \%p;
++}
++
++sub print_check() {
++    my $cur_sec = shift;
++
++    if ($pre_print_time == 0) {
++        $pre_print_time = $cur_sec;
++        return
++    }
++    if ($cur_sec - $pre_print_time > $interval) {
++        dump_fs_pagecache("/");
++        clear_term();
++        if ($mode eq "file") {
++            print_files($cur_sec);
++        } elsif ($mode eq "process") {
++            print_processes($cur_sec);
++        }
++        clear_stats();
++        $pre_print_time = $cur_sec;
++    }
++}
++
++sub clear_stats {
++    foreach my $f (values %files) {
++        $$f{stat} = {find => 0, hit => 0, add => 0, remove => 0};
++        $$f{process} = ();
++    }
++    %processes = ();
++}
++
++sub minor {
++    my $dev = shift;
++    return $dev & ((1 << 20) - 1);
++}
++
++sub major {
++    my $dev = shift;
++    return $dev >> 20;
++}
++
++sub print_files {
++    my $cur_sec = shift;
++    my $i = 0;
++
++    foreach my $f (values %files) {
++        foreach my $s (values %{$$f{process}}) {
++            add_stat($$f{stat}, $s);
++        }
++    }
++
++    printf "pagecache behavior per file (time:%d, interval:%d)\n\n"
++        ,$cur_sec, $interval;
++    printf("%20s %8s %10s %8s %8s %8s %5s\n",
++           "", "find", "hit", "cache", "add", "remove", "proc");
++    printf("%20s %8s %10s %8s %8s %8s %5s\n", "file", "count", "ratio",
++           "pages(B)", "pages(B)", "pages(B)", "count");
++    printf("%20s %8s %10s %8s %8s %8s %5s\n",
++           '-'x20, '-'x8, '-'x10, '-'x8, '-'x8, '-'x8, '-'x5);
++    foreach my $f (sort {$$b{stat}{find} <=> $$a{stat}{find}} values %files) {
++        $i++;
++        my $pcount = scalar(keys(%{$$f{process}}));
++        if ($pcount != 0) {
++            printf("%20s %8s %9.2f%% %8s %8s %8s %5d\n",
++                   substr(basename($$f{path}), 0, 20),
++                   $$f{stat}{find},
++                   ($$f{stat}{find} == 0) ?
++                   0 : $$f{stat}{hit} / $$f{stat}{find} * 100,
++                   ($$f{cache} != 0) ? convert_unit($$f{cache} * 4096): "N/A",
++                   convert_unit($$f{stat}{add} * 4096),
++                   convert_unit($$f{stat}{remove} * 4096),
++                   $pcount);
++        }
++        last if $i >= $print_limit;
++    }
++}
++
++sub print_processes {
++    my $cur_sec = shift;
++    my $i = 0;
++
++    foreach my $p (values %processes) {
++        foreach my $s (values %{$$p{file}}) {
++            add_stat($$p{stat}, $s);
++        }
++    }
++
++    printf "pagecache behavior per process (time:%d, interval:%d)\n\n"
++        ,$cur_sec, $interval;
++    printf("%20s %8s %10s %8s %8s %5s\n",
++           "", "find", "hit", "add", "remove", "file");
++    printf("%20s %8s %10s %8s %8s %5s\n", "process", "count", "ratio",
++           "pages(B)", "pages(B)", "count");
++    printf("%20s %8s %10s %8s %8s %5s\n",
++           '-'x20, '-'x8, '-'x10, '-'x8, '-'x8, '-'x5);
++    foreach my $p (sort {$$b{stat}{find} <=> $$a{stat}{find}} values %processes) {
++        $i++;
++        my $fcount = scalar(keys(%{$$p{file}}));
++        if ($fcount != 0) {
++            printf("%20s %8s %9.2f%% %8s %8s %5d\n",
++                   substr(basename($$p{name}), 0, 20),
++                   $$p{stat}{find},
++                   ($$p{stat}{find} == 0) ?
++                   0 : $$p{stat}{hit} / $$p{stat}{find} * 100,
++                   convert_unit($$p{stat}{add} * 4096),
++                   convert_unit($$p{stat}{remove} * 4096),
++                   $fcount);
++        }
++        last if $i >= $print_limit;
++    }
++}
++
++my @unit = ("K", "M", "G", "T");
++sub convert_unit() {
++    my $size = shift;
++
++     for (my $i=$#unit; $i >= 0; $i--) {
++        if (abs($size) >= 1024 ** ($i+1)) {
++            return sprintf("%.1f%s", $size/1024 ** ($i+1) , $unit[$i]);
++        }
++    }
++    return $size
++}
++
++sub dump_fs_pagecache() {
++    my $path = shift;
++    open my $fh, ">", "$debugfs_mountpoint/tracing/objects/mm/pages/walk-fs"
++        or die "Can't open tracing/objects/mm/pages/walk-fs: $!";
++    print $fh "$path\n";
++    close($fh);
++}
++
++sub add_stat {
++    my ($s1, $s2) = @_;
++
++    $$s1{find} += $$s2{find};
++    $$s1{hit} += $$s2{hit};
++    $$s1{add} += $$s2{add};
++    $$s1{remove} += $$s2{remove};
++}
 
 
 --
