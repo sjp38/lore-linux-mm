@@ -1,46 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 4FA4C6B007E
-	for <linux-mm@kvack.org>; Mon, 18 Jul 2011 09:52:54 -0400 (EDT)
-Date: Mon, 18 Jul 2011 14:52:44 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [Patch] mm: make CONFIG_NUMA depend on CONFIG_SYSFS
-Message-ID: <20110718135243.GA5349@suse.de>
-References: <1310987909-3129-1-git-send-email-amwang@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <1310987909-3129-1-git-send-email-amwang@redhat.com>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 0D9CE6B007E
+	for <linux-mm@kvack.org>; Mon, 18 Jul 2011 10:31:55 -0400 (EDT)
+Subject: Re: [PATCH v4 3.0-rc2-tip 7/22]  7: uprobes: mmap and fork hooks.
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <20110718092055.GA1210@linux.vnet.ibm.com>
+References: <20110617045000.GM4952@linux.vnet.ibm.com>
+	 <1308297836.13240.380.camel@twins>
+	 <20110617090504.GN4952@linux.vnet.ibm.com> <1308303665.2355.11.camel@twins>
+	 <1308662243.26237.144.camel@twins>
+	 <20110622143906.GF16471@linux.vnet.ibm.com>
+	 <20110624020659.GA24776@linux.vnet.ibm.com>
+	 <1308901324.27849.7.camel@twins>
+	 <20110627064502.GB24776@linux.vnet.ibm.com> <1309165071.6701.4.camel@twins>
+	 <20110718092055.GA1210@linux.vnet.ibm.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+Date: Mon, 18 Jul 2011 16:31:16 +0200
+Message-ID: <1310999476.13765.107.camel@twins>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Amerigo Wang <amwang@redhat.com>
-Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org
+To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Cc: Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Jonathan Corbet <corbet@lwn.net>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Mon, Jul 18, 2011 at 07:18:29PM +0800, Amerigo Wang wrote:
-> On ppc, we got this build error with randconfig:
-> 
-> drivers/built-in.o:(.toc1+0xf90): undefined reference to `vmstat_text': 1 errors in 1 logs
-> 
-> This is due to that it enabled CONFIG_NUMA but not CONFIG_SYSFS.
-> 
-> And the user-space tool numactl depends on sysfs files too.
-> So, I think it is very reasonable to make CONFIG_NUMA depend on CONFIG_SYSFS.
-> 
+On Mon, 2011-07-18 at 14:50 +0530, Srikar Dronamraju wrote:
+>  *  - Introduce uprobes_list and uprobes_vaddr in vm_area_struct.
+>  *    uprobes_list is a node in the temp list of vmas while
+>  *    registering/unregistering uprobes. uprobes_vaddr caches the vaddr t=
+o
+>  *    insert/remove the breakpoint.
+>  *
+>  *  - Introduce srcu to synchronize vma deletion with walking the list of
+>  *    vma in register/unregister_uprobe.
 
-That looks a bit awful. There is no obvious connection between SYSFS
-and NUMA. One is exporting information to userspace and the other is
-the memory model. Without sysfs, NUMA support might be less useful
-but the memory policies should still work and set_mempolicy() should
-still be an option.
+I don't think you can sell this, that'll make munmap() horridly slow.
 
-You didn't post where the buggy reference to vmstat_text but I'm
-assuming it is in drivers/base/node.c . It would be preferable that
-it be fixed to not reference vmstat_text unless either CONFIG_PROC_FS
-or CONFIG_SYSFS is defined similar to what is in mm/vmstat.c .
+>  *  - Introduce uprobes_mmap_mutex to synchronize uprobe deletion and
+>  *    mmap_uprobe().=20
 
--- 
-Mel Gorman
-SUSE Labs
+Yes, that'll work I think.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
