@@ -1,46 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id AE32D6B004A
-	for <linux-mm@kvack.org>; Mon, 18 Jul 2011 17:54:14 -0400 (EDT)
-Date: Mon, 18 Jul 2011 16:54:10 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 1/2] mm: page allocator: Initialise ZLC for first zone
- eligible for zone_reclaim
-In-Reply-To: <20110718211325.GC5349@suse.de>
-Message-ID: <alpine.DEB.2.00.1107181651000.31576@router.home>
-References: <1310742540-22780-1-git-send-email-mgorman@suse.de> <1310742540-22780-2-git-send-email-mgorman@suse.de> <alpine.DEB.2.00.1107180951390.30392@router.home> <20110718160552.GB5349@suse.de> <alpine.DEB.2.00.1107181208050.31576@router.home>
- <20110718211325.GC5349@suse.de>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id B4D096B0082
+	for <linux-mm@kvack.org>; Mon, 18 Jul 2011 18:48:13 -0400 (EDT)
+Received: by qyk32 with SMTP id 32so2156404qyk.14
+        for <linux-mm@kvack.org>; Mon, 18 Jul 2011 15:48:11 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <alpine.DEB.2.00.1107142044110.29346@ubuntu>
+References: <CAGtzr3fm2=UJFRo2xSYhst0P4jCMT-EPjyPi3=icCrMtW0ij8w@mail.gmail.com>
+	<CAEwNFnB8VXkTiMzJewtd7rSZ8keqkboNz-BBjw_UudquvsrK1A@mail.gmail.com>
+	<alpine.DEB.2.00.1107081021040.29346@ubuntu>
+	<CAEwNFnCsjRkauM5XvOqh1hLNOT3Hwu2m9pPqO+mCHq7rKLu0Gg@mail.gmail.com>
+	<alpine.DEB.2.00.1107111550430.29346@ubuntu>
+	<CAEwNFnCfsGn1qZbgXNNETFtZAzOSvxpJDcftNcuuSBDXUnxtmA@mail.gmail.com>
+	<alpine.DEB.2.00.1107142044110.29346@ubuntu>
+Date: Tue, 19 Jul 2011 07:48:11 +0900
+Message-ID: <CAEwNFnDwjWDF7Z4AUZg9rAHN6=n9nZ5tZe5U8USn7TpVCNsM6A@mail.gmail.com>
+Subject: Re: NULL poniter dereference in isolate_lru_pages 2.6.39.1
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Chris Pearson <pearson.christopher.j@gmail.com>
+Cc: linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, stable <stable@kernel.org>
 
-On Mon, 18 Jul 2011, Mel Gorman wrote:
+Thanks for the test, Chris.
+Andrew.
+We should push this into -stable.
 
-> > We may be able to simplify the function by:
-> >
-> > 1.  Checking for the special case that the first zone is ok and that we do
-> > not want to call zlc_setup before we get to the loop.
-> >
-> > 2. Do the zlc_setup() before the loop.
-> >
-> > 3. Remove the zlc_setup() code as you did from the loop as well as the
-> > checks for zlc_active. zlc_active becomes not necessary since a zlc
-> > is always available when we go through the loop.
-> >
+
+On Fri, Jul 15, 2011 at 10:48 AM, Chris Pearson
+<pearson.christopher.j@gmail.com> wrote:
+> That definately fixed it. =C2=A0MTBF was about 20 days on those systems, =
+since that patch we've had 200 server days with no problems.
 >
-> That initial test will involve duplication of things like the cpuset and
-> no watermarks check just to place the zlc_setup() in a different place.
-> I might be missing your point but it seems like the gain would be
-> marginal. Fancy posting a patch?
+> Thanks!
+>
+> On Tue, 12 Jul 2011, Minchan Kim wrote:
+>
+>>Date: Tue, 12 Jul 2011 09:16:09 +0900
+>>From: Minchan Kim <minchan.kim@gmail.com>
+>>To: Chris Pearson <pearson.christopher.j@gmail.com>
+>>Cc: linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>,
+>> =C2=A0 =C2=A0Andrew Morton <akpm@linux-foundation.org>, stable <stable@k=
+ernel.org>
+>>Subject: Re: NULL poniter dereference in isolate_lru_pages 2.6.39.1
+>>
+>>On Tue, Jul 12, 2011 at 5:52 AM, Chris Pearson
+>><pearson.christopher.j@gmail.com> wrote:
+>>> We applied the patch to many servers. =C2=A0No problems so far.
+>>>
+>>> The .config is attached.
+>>
+>>Thanks. I verified. The point where isolate_lru_pages + 0x225 is
+>>page_count exactly. So Andrea patch solves this problem apparently.
+>>Couldn't we throw this patch to stable tree?
+>>
+>>https://patchwork.kernel.org/patch/857442/
+>>
+>>>
+>>> What's the config option to get that debugging info in the future?
+>>
+>>CONFIG_DEBUG_INFO helps you. :)
+>>
+>>--
+>>Kind regards,
+>>Minchan Kim
+>>
+>
 
-Looked at it for some time. Would have to create a new function for the
-watermark checks, the call to buffer_rmqueue and the marking of a zone as
-full. After that the goto mess could be unraveled. But I am out of time
-for today.
 
+
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
