@@ -1,38 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id F2D496B0083
-	for <linux-mm@kvack.org>; Mon, 18 Jul 2011 10:56:35 -0400 (EDT)
-Date: Mon, 18 Jul 2011 09:56:31 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 1/2] mm: page allocator: Initialise ZLC for first zone
- eligible for zone_reclaim
-In-Reply-To: <1310742540-22780-2-git-send-email-mgorman@suse.de>
-Message-ID: <alpine.DEB.2.00.1107180951390.30392@router.home>
-References: <1310742540-22780-1-git-send-email-mgorman@suse.de> <1310742540-22780-2-git-send-email-mgorman@suse.de>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id C59A66B00E7
+	for <linux-mm@kvack.org>; Mon, 18 Jul 2011 11:05:20 -0400 (EDT)
+Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [202.81.31.246])
+	by e23smtp04.au.ibm.com (8.14.4/8.13.1) with ESMTP id p6IEwxuG030106
+	for <linux-mm@kvack.org>; Tue, 19 Jul 2011 00:58:59 +1000
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p6IF4now860372
+	for <linux-mm@kvack.org>; Tue, 19 Jul 2011 01:04:49 +1000
+Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
+	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p6IF5G7N016191
+	for <linux-mm@kvack.org>; Tue, 19 Jul 2011 01:05:16 +1000
+Date: Tue, 19 Jul 2011 00:35:09 +0930
+From: Christopher Yeoh <cyeoh@au1.ibm.com>
+Subject: Re: [RESEND] Cross Memory Attach v3
+Message-ID: <20110719003509.77b5ed66@lilo>
+In-Reply-To: <20110715153743.a0b3efc7.akpm@linux-foundation.org>
+References: <20110708180607.3f11d324@lilo>
+ <20110715153743.a0b3efc7.akpm@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org
 
-On Fri, 15 Jul 2011, Mel Gorman wrote:
+On Fri, 15 Jul 2011 15:37:43 -0700
+Andrew Morton <akpm@linux-foundation.org> wrote:
+> On Fri, 8 Jul 2011 18:06:07 +0930
+> Christopher Yeoh <cyeoh@au1.ibm.com> wrote:
+> 
+> > +static ssize_t process_vm_rw(pid_t pid, const struct iovec *lvec,
+> > +			     unsigned long liovcnt,
+> > +			     const struct iovec *rvec,
+> > +			     unsigned long riovcnt,
+> > +			     unsigned long flags, int vm_write)
+> > +{
+> >
+> > ...
+> >
+> > +	if (!mm || (task->flags & PF_KTHREAD)) {
+> 
+> Can a PF_KTHREAD thread have a non-zero ->mm?
+> > +		task_unlock(task);
+> > +		rc = -EINVAL;
+> > +		goto put_task_struct;
+> > +	}
 
-> Currently the zonelist cache is setup only after the first zone has
-> been considered and zone_reclaim() has been called. The objective was
-> to avoid a costly setup but zone_reclaim is itself quite expensive. If
-> it is failing regularly such as the first eligible zone having mostly
-> mapped pages, the cost in scanning and allocation stalls is far higher
-> than the ZLC initialisation step.
+According to get_task_mm it can:
 
-Would it not be easier to set zlc_active and allowednodes based on the
-zone having an active ZLC at the start of get_pages()?
+/**
+ * get_task_mm - acquire a reference to the task's mm
+ *
+ * Returns %NULL if the task has no mm.  Checks PF_KTHREAD (meaning
+ * this kernel workthread has transiently adopted a user mm with use_mm,
+ * to do its AIO) is not set and if so returns a reference to it, after
+ * bumping up the use count.  User must release the mm via mmput()
+ * after use.  Typically used by /proc and ptrace.
+ */
 
-Buffered_rmqueue is handling the situation of a zone with an ZLC in a
-weird way right now since it ignores the (potentially existing) ZLC
-for the first pass. zlc_setup() does a lot of things. So that is because
-there is a performance benefit?
+> anyway, grumble.
+> 
+> Please resend, cc'ing linux-kernel.
 
+Am doing the CC resends in a separate email...
+
+Chris
+-- 
+cyeoh@au.ibm.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
