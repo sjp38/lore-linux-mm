@@ -1,114 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id EEC466B0082
-	for <linux-mm@kvack.org>; Sun, 17 Jul 2011 21:14:38 -0400 (EDT)
-Received: by mail-pz0-f41.google.com with SMTP id 4so4580658pzk.14
-        for <linux-mm@kvack.org>; Sun, 17 Jul 2011 18:14:37 -0700 (PDT)
-From: Akinobu Mita <akinobu.mita@gmail.com>
-Subject: [PATCH v2 4/5] memory: memory notifier error injection
-Date: Mon, 18 Jul 2011 10:16:05 +0900
-Message-Id: <1310951766-3840-5-git-send-email-akinobu.mita@gmail.com>
-In-Reply-To: <1310951766-3840-1-git-send-email-akinobu.mita@gmail.com>
-References: <1310951766-3840-1-git-send-email-akinobu.mita@gmail.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 01AA06B00E7
+	for <linux-mm@kvack.org>; Sun, 17 Jul 2011 21:15:18 -0400 (EDT)
+Date: Mon, 18 Jul 2011 11:14:45 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH 02/14] vmscan: add shrink_slab tracepoints
+Message-ID: <20110718011445.GA30254@dastard>
+References: <1310098486-6453-1-git-send-email-david@fromorbit.com>
+ <1310098486-6453-3-git-send-email-david@fromorbit.com>
+ <20110711095708.GB19354@infradead.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110711095708.GB19354@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, akpm@linux-foundation.org
-Cc: Akinobu Mita <akinobu.mita@gmail.com>, Greg Kroah-Hartman <gregkh@suse.de>, linux-mm@kvack.org
+To: Christoph Hellwig <hch@infradead.org>
+Cc: viro@ZenIV.linux.org.uk, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-This provides the ability to inject artifical errors to memory hotplug
-notifier chain callbacks.  It is controlled through debugfs interface
-under /sys/kernel/debug/memory-notifier-error-inject/
+On Mon, Jul 11, 2011 at 05:57:08AM -0400, Christoph Hellwig wrote:
+> On Fri, Jul 08, 2011 at 02:14:34PM +1000, Dave Chinner wrote:
+> > From: Dave Chinner <dchinner@redhat.com>
+> > 
+> > ??t is impossible to understand what the shrinkers are actually doing
+> > without instrumenting the code, so add a some tracepoints to allow
+> > insight to be gained.
+> > 
+> > Signed-off-by: Dave Chinner <dchinner@redhat.com>
+> 
+> Looks good.  But wouldn't it be a good idea to give the shrinkers names
+> so that we can pretty print those in the trace event?
 
-Each of the files in the directory represents an event which can be
-failed and contains the error code.  If the notifier call chain should
-be failed with some events notified, write the error code to the files.
+Incremental patch below.
 
-Example: Inject memory hotplug offline error (-12 == -ENOMEM)
+Cheers,
 
-	# cd /sys/kernel/debug/memory-notifier-error-inject
-	# echo -12 > MEM_GOING_OFFLINE
-	# echo offline > /sys/devices/system/memory/memoryXXX/state
-	bash: echo: write error: Cannot allocate memory
-
-Signed-off-by: Akinobu Mita <akinobu.mita@gmail.com>
-Cc: Greg Kroah-Hartman <gregkh@suse.de>
-Cc: linux-mm@kvack.org
----
-* v2
-- improve Kconfig help text
-
- drivers/base/memory.c |   29 +++++++++++++++++++++++++++++
- lib/Kconfig.debug     |   15 +++++++++++++++
- 2 files changed, 44 insertions(+), 0 deletions(-)
-
-diff --git a/drivers/base/memory.c b/drivers/base/memory.c
-index 9f9b235..5b7430f 100644
---- a/drivers/base/memory.c
-+++ b/drivers/base/memory.c
-@@ -89,6 +89,35 @@ void unregister_memory_isolate_notifier(struct notifier_block *nb)
- }
- EXPORT_SYMBOL(unregister_memory_isolate_notifier);
- 
-+#ifdef CONFIG_MEMORY_NOTIFIER_ERROR_INJECTION
-+
-+static struct err_inject_notifier_block err_inject_memory_notifier = {
-+	.actions = {
-+		{ ERR_INJECT_NOTIFIER_ACTION(MEM_GOING_ONLINE) },
-+		{ ERR_INJECT_NOTIFIER_ACTION(MEM_GOING_OFFLINE) },
-+		{}
-+	}
-+};
-+
-+static int __init err_inject_memory_notifier_init(void)
-+{
-+	int err;
-+
-+	err = err_inject_notifier_block_init(&err_inject_memory_notifier,
-+				"memory-notifier-error-inject", -1);
-+	if (err)
-+		return err;
-+
-+	err = register_memory_notifier(&err_inject_memory_notifier.nb);
-+	if (err)
-+		err_inject_notifier_block_cleanup(&err_inject_memory_notifier);
-+
-+	return err;
-+}
-+late_initcall(err_inject_memory_notifier_init);
-+
-+#endif /* CONFIG_MEMORY_NOTIFIER_ERROR_INJECTION */
-+
- /*
-  * register_memory - Setup a sysfs device for a memory block
-  */
-diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
-index e5671ba..8f5c380 100644
---- a/lib/Kconfig.debug
-+++ b/lib/Kconfig.debug
-@@ -1065,6 +1065,21 @@ config PM_NOTIFIER_ERROR_INJECTION
- 	  # echo mem > /sys/power/state
- 	  bash: echo: write error: Cannot allocate memory
- 
-+config MEMORY_NOTIFIER_ERROR_INJECTION
-+	bool "Memory hotplug notifier error injection"
-+	depends on MEMORY_HOTPLUG_SPARSE && NOTIFIER_ERROR_INJECTION
-+	help
-+	  This option provides the ability to inject artifical errors to
-+	  memory hotplug notifier chain callbacks.  It is controlled through
-+	  debugfs interface.
-+
-+	  Example: Inject memory hotplug offline error (-12 == -ENOMEM)
-+
-+	  # cd /sys/kernel/debug/memory-notifier-error-inject
-+	  # echo -12 > MEM_GOING_OFFLINE
-+	  # echo offline > /sys/devices/system/memory/memoryXXX/state
-+	  bash: echo: write error: Cannot allocate memory
-+
- config CPU_NOTIFIER_ERROR_INJECT
- 	tristate "CPU notifier error injection module"
- 	depends on HOTPLUG_CPU && DEBUG_KERNEL
+Dave.
 -- 
-1.7.4.4
+Dave Chinner
+david@fromorbit.com
+
+vmscan: add shrinker name to shrink_slab tracepoints.
+
+From: Dave Chinner <dchinner@redhat.com>
+
+Allow people to see what shrinker the tracepoints belong to by
+outputing the shrinker function name as well as the shrinker
+instance.
+
+This results in output like:
+
+mm_shrink_slab_end:   rpcauth_cache_shrinker+0x0 0xffffffff81f9be20 ....
+mm_shrink_slab_end:   mb_cache_shrink_fn+0x0 0xffffffff81f2310 ....
+mm_shrink_slab_end:   shrink_dqcache_memory+0x0 0xffffffff81f2320 ....
+mm_shrink_slab_end:   prune_super+0x0 0xffff88007ce1330 ....
+mm_shrink_slab_end:   nfs_access_cache_shrinker+0x0 0xffffffff81f30aa ....
+mm_shrink_slab_end:   gfs2_shrink_glock_memory+0x0 0xffffffff81f59a8 ....
+mm_shrink_slab_end:   gfs2_shrink_qd_memory+0x0 0xffffffff81f59cc ....
+mm_shrink_slab_end:   prune_super+0x0 0xffff88007c3f930 ....
+mm_shrink_slab_end:   prune_super+0x0 0xffff88007be6bb0 ....
+mm_shrink_slab_end:   prune_super+0x0 0xffff88007be8db0 ....
+mm_shrink_slab_end:   prune_super+0x0 0xffff88007c5bb70 ....
+mm_shrink_slab_end:   prune_super+0x0 0xffff88007be8d70 ....
+mm_shrink_slab_end:   prune_super+0x0 0xffff88007b9c270 ....
+mm_shrink_slab_end:   prune_super+0x0 0xffff88007ba44b0 ....
+mm_shrink_slab_end:   prune_super+0x0 0xffff88007b9bbf0 ....
+mm_shrink_slab_end:   xfs_buftarg_shrink+0x0 0xffff88007b1ef1d8 ....
+mm_shrink_slab_end:   prune_super+0x0 0xffff88007b132f0 ....
+mm_shrink_slab_end:   xfs_buftarg_shrink+0x0 0xffff88007bcda258 ....
+
+Signed-off-by: Dave Chinner <dchinner@redhat.com>
+---
+ include/trace/events/vmscan.h |   10 ++++++++--
+ 1 files changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/include/trace/events/vmscan.h b/include/trace/events/vmscan.h
+index 5f3fea4..36851f7 100644
+--- a/include/trace/events/vmscan.h
++++ b/include/trace/events/vmscan.h
+@@ -190,6 +190,7 @@ TRACE_EVENT(mm_shrink_slab_start,
+ 
+ 	TP_STRUCT__entry(
+ 		__field(struct shrinker *, shr)
++		__field(void *, shrink)
+ 		__field(long, nr_objects_to_shrink)
+ 		__field(gfp_t, gfp_flags)
+ 		__field(unsigned long, pgs_scanned)
+@@ -201,6 +202,7 @@ TRACE_EVENT(mm_shrink_slab_start,
+ 
+ 	TP_fast_assign(
+ 		__entry->shr = shr;
++		__entry->shrink = shr->shrink;
+ 		__entry->nr_objects_to_shrink = nr_objects_to_shrink;
+ 		__entry->gfp_flags = sc->gfp_mask;
+ 		__entry->pgs_scanned = pgs_scanned;
+@@ -210,7 +212,8 @@ TRACE_EVENT(mm_shrink_slab_start,
+ 		__entry->total_scan = total_scan;
+ 	),
+ 
+-	TP_printk("shrinker %p: objects to shrink %ld gfp_flags %s pgs_scanned %ld lru_pgs %ld cache items %ld delta %lld total_scan %ld",
++	TP_printk("%pF %p: objects to shrink %ld gfp_flags %s pgs_scanned %ld lru_pgs %ld cache items %ld delta %lld total_scan %ld",
++		__entry->shrink,
+ 		__entry->shr,
+ 		__entry->nr_objects_to_shrink,
+ 		show_gfp_flags(__entry->gfp_flags),
+@@ -229,6 +232,7 @@ TRACE_EVENT(mm_shrink_slab_end,
+ 
+ 	TP_STRUCT__entry(
+ 		__field(struct shrinker *, shr)
++		__field(void *, shrink)
+ 		__field(long, unused_scan)
+ 		__field(long, new_scan)
+ 		__field(int, retval)
+@@ -237,13 +241,15 @@ TRACE_EVENT(mm_shrink_slab_end,
+ 
+ 	TP_fast_assign(
+ 		__entry->shr = shr;
++		__entry->shrink = shr->shrink;
+ 		__entry->unused_scan = unused_scan_cnt;
+ 		__entry->new_scan = new_scan_cnt;
+ 		__entry->retval = shrinker_retval;
+ 		__entry->total_scan = new_scan_cnt - unused_scan_cnt;
+ 	),
+ 
+-	TP_printk("shrinker %p: unused scan count %ld new scan count %ld total_scan %ld last shrinker return val %d",
++	TP_printk("%pF %p: unused scan count %ld new scan count %ld total_scan %ld last shrinker return val %d",
++		__entry->shrink,
+ 		__entry->shr,
+ 		__entry->unused_scan,
+ 		__entry->new_scan,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
