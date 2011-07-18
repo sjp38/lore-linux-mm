@@ -1,52 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id BB7B06B00ED
-	for <linux-mm@kvack.org>; Mon, 18 Jul 2011 11:21:25 -0400 (EDT)
-Date: Mon, 18 Jul 2011 11:21:18 -0400
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: linux-next: Tree for July 18 (mm/truncate.c)
-Message-ID: <20110718152117.GA8844@infradead.org>
-References: <20110718203501.232bd176e83ff65f056366e6@canb.auug.org.au>
- <20110718081816.2106117e.rdunlap@xenotime.net>
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id EB4BE6B00EF
+	for <linux-mm@kvack.org>; Mon, 18 Jul 2011 11:24:40 -0400 (EDT)
+Received: by yia13 with SMTP id 13so1664710yia.14
+        for <linux-mm@kvack.org>; Mon, 18 Jul 2011 08:24:39 -0700 (PDT)
+Date: Mon, 18 Jul 2011 11:24:34 -0400
+From: Eric B Munson <emunson@mgebm.net>
+Subject: Re: [PATCH 1/2] hugepage: Protect region tracking lists with its own
+ spinlock
+Message-ID: <20110718152434.GA3890@mgebm.net>
+References: <20110125143226.37532ea2@kryten>
+ <20110125143414.1dbb150c@kryten>
+ <20110126092428.GR18984@csn.ul.ie>
+ <20110715160650.48d61245@kryten>
+ <20110715160852.0d16318a@kryten>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="6c2NcOVqGQ03X4Wi"
 Content-Disposition: inline
-In-Reply-To: <20110718081816.2106117e.rdunlap@xenotime.net>
+In-Reply-To: <20110715160852.0d16318a@kryten>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Randy Dunlap <rdunlap@xenotime.net>
-Cc: Stephen Rothwell <sfr@canb.auug.org.au>, linux-mm@kvack.org, linux-next@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, akpm <akpm@linux-foundation.org>, viro@zeniv.linux.org.uk
+To: Anton Blanchard <anton@samba.org>
+Cc: Mel Gorman <mel@csn.ul.ie>, dwg@au1.ibm.com, akpm@linux-foundation.org, hughd@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Jul 18, 2011 at 08:18:16AM -0700, Randy Dunlap wrote:
-> On Mon, 18 Jul 2011 20:35:01 +1000 Stephen Rothwell wrote:
-> 
-> > Hi all,
-> 
-> mm/truncate.c:612: error: implicit declaration of function 'inode_dio_wait'
-> 
-> mm/truncate.c should be #include-ing <linux/fs.h> for that function's
-> prototype, but that doesn't help when CONFIG_BLOCK is not enabled,
-> which is the case in this build failure.
 
-Oops.  Two choices here:
+--6c2NcOVqGQ03X4Wi
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
- a) stub it out for non-blocks.
- b) move it out of directio.c so that it's always provided.
+On Fri, 15 Jul 2011, Anton Blanchard wrote:
 
-I'd be fine with either one.  Al, any preferences?
+>=20
+> In preparation for creating a hash of spinlocks to replace the global
+> hugetlb_instantiation_mutex, protect the region tracking code with
+> its own spinlock.
+>=20
+> Signed-off-by: Anton Blanchard <anton@samba.org>=20
 
-> 
-> ---
-> ~Randy
-> *** Remember to use Documentation/SubmitChecklist when testing your code ***
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
----end quoted text---
+These work on x86_64 as well with the same test method as described by Anto=
+n.
+
+Tested-by: Eric B Munson <emunson@mgebm.net>
+
+--6c2NcOVqGQ03X4Wi
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.11 (GNU/Linux)
+
+iQEcBAEBAgAGBQJOJFAyAAoJEH65iIruGRnNl40IAIESxMzphGy3lxxzxvre5DIg
+liqsAotlTHNgpUDZKzgH6LGm4ADtL1bDvqMNG+VwD91OO+8tT5oxErJSeeFMaMWi
+4rBEvykOp2G5LlObmhQY7fl4S9wEIeIoMh0joC+KLlr53TrlkRsfLoLMstZXNEJ1
+Af7mL63KrpxTpvl/rrChlVJEaWAv2Nt2Cr3LLflyeLLDPmh8U27IAOhpce8fhu0Y
+q4xlKidPw9ayPUn4vgIYTF7PzFsNqKGtqPkrmXhCI7nvsJcstu6SIFKTaN0c1TL7
+T+seYzKtpHCi1q01WbtxAXVTfQYyprTvmSxJXSyTShlDIJV3czjxQ5/rDGS1uOw=
+=tgA4
+-----END PGP SIGNATURE-----
+
+--6c2NcOVqGQ03X4Wi--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
