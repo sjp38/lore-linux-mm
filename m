@@ -1,45 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 0D9CE6B007E
-	for <linux-mm@kvack.org>; Mon, 18 Jul 2011 10:31:55 -0400 (EDT)
-Subject: Re: [PATCH v4 3.0-rc2-tip 7/22]  7: uprobes: mmap and fork hooks.
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <20110718092055.GA1210@linux.vnet.ibm.com>
-References: <20110617045000.GM4952@linux.vnet.ibm.com>
-	 <1308297836.13240.380.camel@twins>
-	 <20110617090504.GN4952@linux.vnet.ibm.com> <1308303665.2355.11.camel@twins>
-	 <1308662243.26237.144.camel@twins>
-	 <20110622143906.GF16471@linux.vnet.ibm.com>
-	 <20110624020659.GA24776@linux.vnet.ibm.com>
-	 <1308901324.27849.7.camel@twins>
-	 <20110627064502.GB24776@linux.vnet.ibm.com> <1309165071.6701.4.camel@twins>
-	 <20110718092055.GA1210@linux.vnet.ibm.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-Date: Mon, 18 Jul 2011 16:31:16 +0200
-Message-ID: <1310999476.13765.107.camel@twins>
-Mime-Version: 1.0
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id F2D496B0083
+	for <linux-mm@kvack.org>; Mon, 18 Jul 2011 10:56:35 -0400 (EDT)
+Date: Mon, 18 Jul 2011 09:56:31 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH 1/2] mm: page allocator: Initialise ZLC for first zone
+ eligible for zone_reclaim
+In-Reply-To: <1310742540-22780-2-git-send-email-mgorman@suse.de>
+Message-ID: <alpine.DEB.2.00.1107180951390.30392@router.home>
+References: <1310742540-22780-1-git-send-email-mgorman@suse.de> <1310742540-22780-2-git-send-email-mgorman@suse.de>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Jonathan Corbet <corbet@lwn.net>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, 2011-07-18 at 14:50 +0530, Srikar Dronamraju wrote:
->  *  - Introduce uprobes_list and uprobes_vaddr in vm_area_struct.
->  *    uprobes_list is a node in the temp list of vmas while
->  *    registering/unregistering uprobes. uprobes_vaddr caches the vaddr t=
-o
->  *    insert/remove the breakpoint.
->  *
->  *  - Introduce srcu to synchronize vma deletion with walking the list of
->  *    vma in register/unregister_uprobe.
+On Fri, 15 Jul 2011, Mel Gorman wrote:
 
-I don't think you can sell this, that'll make munmap() horridly slow.
+> Currently the zonelist cache is setup only after the first zone has
+> been considered and zone_reclaim() has been called. The objective was
+> to avoid a costly setup but zone_reclaim is itself quite expensive. If
+> it is failing regularly such as the first eligible zone having mostly
+> mapped pages, the cost in scanning and allocation stalls is far higher
+> than the ZLC initialisation step.
 
->  *  - Introduce uprobes_mmap_mutex to synchronize uprobe deletion and
->  *    mmap_uprobe().=20
+Would it not be easier to set zlc_active and allowednodes based on the
+zone having an active ZLC at the start of get_pages()?
 
-Yes, that'll work I think.
+Buffered_rmqueue is handling the situation of a zone with an ZLC in a
+weird way right now since it ignores the (potentially existing) ZLC
+for the first pass. zlc_setup() does a lot of things. So that is because
+there is a performance benefit?
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
