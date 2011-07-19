@@ -1,28 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id B03556B00F0
-	for <linux-mm@kvack.org>; Tue, 19 Jul 2011 05:11:16 -0400 (EDT)
-Message-ID: <4E254A24.7060209@redhat.com>
-Date: Tue, 19 Jul 2011 17:11:00 +0800
-From: Cong Wang <amwang@redhat.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id B1D466B00F2
+	for <linux-mm@kvack.org>; Tue, 19 Jul 2011 05:16:53 -0400 (EDT)
+Date: Tue, 19 Jul 2011 10:16:47 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 0/4] Fix compaction stalls due to accounting errors in
+ isolated page accounting
+Message-ID: <20110719091647.GE5349@suse.de>
+References: <1307459225-4481-1-git-send-email-mgorman@suse.de>
+ <4E22A2BC.2080900@gmx.de>
 MIME-Version: 1.0
-Subject: Re: [Patch] mm: make CONFIG_NUMA depend on CONFIG_SYSFS
-References: <1310987909-3129-1-git-send-email-amwang@redhat.com>	 <20110718135243.GA5349@suse.de>  <4E25221F.6060605@redhat.com>	 <1311058498.16961.15.camel@edumazet-laptop>  <4E252CA1.803@redhat.com> <1311065361.2375.3.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
-In-Reply-To: <1311065361.2375.3.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <4E22A2BC.2080900@gmx.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric Dumazet <eric.dumazet@gmail.com>
-Cc: Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org
+To: Thomas Sattler <tsattler@gmx.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Ury Stankevich <urykhy@gmail.com>, Andi Kleen <andi@firstfloor.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 
-ao? 2011a1'07ae??19ae?JPY 16:49, Eric Dumazet a??e??:
->
-> Sorry, I misread the patch, I was confused by the title, since it still
-> claims "make CONFIG_NUMA depend on CONFIG_SYSFS" ;)
->
+On Sun, Jul 17, 2011 at 10:52:12AM +0200, Thomas Sattler wrote:
+> Hi there ...
+> 
+> > Re-verification from testers that these patches really do fix their
+> > problems would be appreciated. Even if hangs disappear, please confirm
+> > that the values for nr_isolated_anon and nr_isolated_file in *both*
+> > /proc/zoneinfo and /proc/vmstat are sensible (i.e. usually zero).
+> 
+> I applied these patches to 2.6.38.8 and it run for nearly a month
+> without any problems. Even Though I did not check nr_isolated_*.
+> As (at least) patch3 made it into 2.6.39.3 I did not apply the
+> others any more. And it occurred again this morning:
+> 
 
-My bad, /me forgot to change $subject. :-/
+I assume you mean it occured again on 2.6.39.3 and so have submitted
+them to -stable for 2.6.39.x. You're cc'd so you should hear when or if
+they get picked up.
+
+Thanks for testing.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
