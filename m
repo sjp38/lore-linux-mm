@@ -1,76 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 0E22E6B004A
-	for <linux-mm@kvack.org>; Tue, 19 Jul 2011 03:05:42 -0400 (EDT)
-Received: from d01relay01.pok.ibm.com (d01relay01.pok.ibm.com [9.56.227.233])
-	by e2.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p6J6iQsu009130
-	for <linux-mm@kvack.org>; Tue, 19 Jul 2011 02:44:26 -0400
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p6J75YKx113220
-	for <linux-mm@kvack.org>; Tue, 19 Jul 2011 03:05:34 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p6J75WxZ026378
-	for <linux-mm@kvack.org>; Tue, 19 Jul 2011 03:05:34 -0400
-Date: Tue, 19 Jul 2011 12:23:50 +0530
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: Re: [PATCH v4 3.0-rc2-tip 7/22]  7: uprobes: mmap and fork hooks.
-Message-ID: <20110719065350.GB1210@linux.vnet.ibm.com>
-Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-References: <20110617090504.GN4952@linux.vnet.ibm.com>
- <1308303665.2355.11.camel@twins>
- <1308662243.26237.144.camel@twins>
- <20110622143906.GF16471@linux.vnet.ibm.com>
- <20110624020659.GA24776@linux.vnet.ibm.com>
- <1308901324.27849.7.camel@twins>
- <20110627064502.GB24776@linux.vnet.ibm.com>
- <1309165071.6701.4.camel@twins>
- <20110718092055.GA1210@linux.vnet.ibm.com>
- <1310999476.13765.107.camel@twins>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id D42CB6B007E
+	for <linux-mm@kvack.org>; Tue, 19 Jul 2011 03:06:06 -0400 (EDT)
+Message-ID: <4E252CA1.803@redhat.com>
+Date: Tue, 19 Jul 2011 15:05:05 +0800
+From: Cong Wang <amwang@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <1310999476.13765.107.camel@twins>
+Subject: Re: [Patch] mm: make CONFIG_NUMA depend on CONFIG_SYSFS
+References: <1310987909-3129-1-git-send-email-amwang@redhat.com>	 <20110718135243.GA5349@suse.de>  <4E25221F.6060605@redhat.com> <1311058498.16961.15.camel@edumazet-laptop>
+In-Reply-To: <1311058498.16961.15.camel@edumazet-laptop>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Jonathan Corbet <corbet@lwn.net>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Eric Dumazet <eric.dumazet@gmail.com>
+Cc: Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org
 
-* Peter Zijlstra <peterz@infradead.org> [2011-07-18 16:31:16]:
+ao? 2011a1'07ae??19ae?JPY 14:54, Eric Dumazet a??e??:
+> Le mardi 19 juillet 2011 A  14:20 +0800, Cong Wang a A(C)crit :
+>
+>> Hmm, since we don't have to enable SYSFS for NUMA, how about
+>> make a new Kconfig for drivers/base/node.c? I.e., CONFIG_NUMA_SYSFS,
+>> like patch below.
+>>
+>
+> I dont quite understand this patch, nor the idea behind it.
+>
+> You can have a NUMA kernel (for appropriate percpu locality or whatever
+> kernel data), and yet user land processes unable to use numactl if SYSFS
+> is not enabled. I dont see a problem.
+>
 
-> On Mon, 2011-07-18 at 14:50 +0530, Srikar Dronamraju wrote:
-> >  *  - Introduce uprobes_list and uprobes_vaddr in vm_area_struct.
-> >  *    uprobes_list is a node in the temp list of vmas while
-> >  *    registering/unregistering uprobes. uprobes_vaddr caches the vaddr to
-> >  *    insert/remove the breakpoint.
-> >  *
-> >  *  - Introduce srcu to synchronize vma deletion with walking the list of
-> >  *    vma in register/unregister_uprobe.
-> 
-> I don't think you can sell this, that'll make munmap() horridly slow.
-
-Okay, 
-
-How about using a counter and a wq in each vma.
-Based on the counter, I can wait in the munmap() and since this is per
-vma, this should be faster than srcu.
-
-Counter would be incremented when we do a vma-rmap walk. 
-decremented when after insertion/deletion.
-read in munmap().
-
-> 
-> >  *  - Introduce uprobes_mmap_mutex to synchronize uprobe deletion and
-> >  *    mmap_uprobe(). 
-> 
-> Yes, that'll work I think.
-
-Here another possibility is to have a per uprobe mutex, that way we
-would not have to serialize mmap_uprobe. But this optimization can be
-done later too.
-
--- 
-Thanks and Regards
-Srikar
+Both Pekka and Mel pointed out that it makes sense to have NUMA kernel
+without SYSFS, this means sysfs interface is not a must for NUMA kernel.
+Thus, I think it makes sense to separate the numa sysfs code out.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
