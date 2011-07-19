@@ -1,44 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 201FF6B00F1
-	for <linux-mm@kvack.org>; Tue, 19 Jul 2011 18:37:06 -0400 (EDT)
-Received: from kpbe20.cbf.corp.google.com (kpbe20.cbf.corp.google.com [172.25.105.84])
-	by smtp-out.google.com with ESMTP id p6JMb2uj015126
-	for <linux-mm@kvack.org>; Tue, 19 Jul 2011 15:37:04 -0700
-Received: from iyb26 (iyb26.prod.google.com [10.241.49.90])
-	by kpbe20.cbf.corp.google.com with ESMTP id p6JMakUL022368
+	by kanga.kvack.org (Postfix) with ESMTP id 9C76B6B00F2
+	for <linux-mm@kvack.org>; Tue, 19 Jul 2011 18:46:43 -0400 (EDT)
+Received: from hpaq14.eem.corp.google.com (hpaq14.eem.corp.google.com [172.25.149.14])
+	by smtp-out.google.com with ESMTP id p6JMkeiu021295
+	for <linux-mm@kvack.org>; Tue, 19 Jul 2011 15:46:40 -0700
+Received: from iwi5 (iwi5.prod.google.com [10.241.67.5])
+	by hpaq14.eem.corp.google.com with ESMTP id p6JMkck0027387
 	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 19 Jul 2011 15:37:00 -0700
-Received: by iyb26 with SMTP id 26so5450438iyb.23
-        for <linux-mm@kvack.org>; Tue, 19 Jul 2011 15:36:56 -0700 (PDT)
-Date: Tue, 19 Jul 2011 15:36:37 -0700 (PDT)
+	for <linux-mm@kvack.org>; Tue, 19 Jul 2011 15:46:39 -0700
+Received: by iwi5 with SMTP id 5so6335641iwi.35
+        for <linux-mm@kvack.org>; Tue, 19 Jul 2011 15:46:37 -0700 (PDT)
+Date: Tue, 19 Jul 2011 15:46:14 -0700 (PDT)
 From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 1/12] radix_tree: exceptional entries and indices
-In-Reply-To: <alpine.LSU.2.00.1106171845480.20321@sister.anvils>
-Message-ID: <alpine.LSU.2.00.1107191532130.1541@sister.anvils>
-References: <alpine.LSU.2.00.1106140327550.29206@sister.anvils> <alpine.LSU.2.00.1106140341070.29206@sister.anvils> <20110617163854.49225203.akpm@linux-foundation.org> <20110617170742.282a1bd6.rdunlap@xenotime.net> <20110617171228.4c85fd38.rdunlap@xenotime.net>
- <alpine.LSU.2.00.1106171845480.20321@sister.anvils>
+Subject: Re: [PATCH 2/12] mm: let swap use exceptional entries
+In-Reply-To: <20110713161121.17fd98a4.akpm@linux-foundation.org>
+Message-ID: <alpine.LSU.2.00.1107191538460.1565@sister.anvils>
+References: <alpine.LSU.2.00.1106140327550.29206@sister.anvils> <alpine.LSU.2.00.1106140342330.29206@sister.anvils> <20110618145254.1b333344.akpm@linux-foundation.org> <alpine.LSU.2.00.1107121501100.2112@sister.anvils>
+ <20110713161121.17fd98a4.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Randy Dunlap <rdunlap@xenotime.net>
-Cc: akpm <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, 17 Jun 2011, Hugh Dickins wrote:
-> On Fri, 17 Jun 2011, Randy Dunlap wrote:
+On Wed, 13 Jul 2011, Andrew Morton wrote:
+> On Tue, 12 Jul 2011 15:08:58 -0700 (PDT)
+> Hugh Dickins <hughd@google.com> wrote:
+> > 
+> > I'll keep the bland naming, if that's okay, but send a patch adding
+> > a line of comment in such places.  Mentioning shmem, tmpfs, swap.
 > 
-> > > And one Andrew Morton has a userspace radix tree test harness at
-> > > http://userweb.kernel.org/~akpm/stuff/rtth.tar.gz
-> 
-> This should still be as relevant as it was before, but I notice its
-> radix_tree.c is almost identical to the source currently in the kernel
-> tree, so I ought at the least to keep it in synch.
+> A better fix would be to create a nicely-documented filemap-specific
+> function with a non-bland name which simply wraps
+> radix_tree_exception().
 
-I was hoping to have dealt with this by now, Randy; but after downloading
-an up-to-date urcu, I'm finding what's currently in rtth does not build
-with it.  Unlikely to be hard to fix, but means I'll have to defer it a
-little while longer.
+I did yesterday try out page_tree_entry_is_not_a_page() to wrap
+radix_tree_exceptional_entry(); but (a) I'm wary of negative names,
+(b) it was hard to explain why radix_tree_deref_retry() is not a
+part of that case, and (c) does a further wrapper help or obscure?
+
+I've skirted the issue in the patch 3/3 I'm about to send you,
+maybe you'll think it an improvement, maybe not: I'm neutral.
 
 Hugh
 
