@@ -1,50 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id C3B656B007E
-	for <linux-mm@kvack.org>; Tue, 19 Jul 2011 07:24:39 -0400 (EDT)
-Message-ID: <4E25696E.1060106@gmx.de>
-Date: Tue, 19 Jul 2011 13:24:30 +0200
-From: Thomas Sattler <tsattler@gmx.de>
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 1E99A6B0082
+	for <linux-mm@kvack.org>; Tue, 19 Jul 2011 07:46:26 -0400 (EDT)
+Date: Tue, 19 Jul 2011 12:46:19 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: [PATCH] mm: page allocator: Reconsider zones for allocation after
+ direct reclaim fix
+Message-ID: <20110719114619.GG5349@suse.de>
+References: <1310742540-22780-1-git-send-email-mgorman@suse.de>
+ <1310742540-22780-3-git-send-email-mgorman@suse.de>
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/4] Fix compaction stalls due to accounting errors in
- isolated page accounting
-References: <1307459225-4481-1-git-send-email-mgorman@suse.de> <4E22A2BC.2080900@gmx.de> <20110719091647.GE5349@suse.de>
-In-Reply-To: <20110719091647.GE5349@suse.de>
-Content-Type: text/plain; charset=ISO-8859-15
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <1310742540-22780-3-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Ury Stankevich <urykhy@gmail.com>, Andi Kleen <andi@firstfloor.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-> I assume you mean it occured again on 2.6.39.3 and so have submitted
-> them to -stable for 2.6.39.x. You're cc'd so you should hear when or if
-> they get picked up.
 
-Yes, that's, what I meant:
+mm/page_alloc.c: In function a??__alloc_pages_direct_reclaima??:
+mm/page_alloc.c:1983:3: error: implicit declaration of function a??zlc_clear_zones_fulla??
 
-$ uname -a
-Linux pearl 2.6.39.3 #14 PREEMPT Thu Jul 14 17:41:20 CEST 2011 i686
-Intel(R) Pentium(R) M processor 1700MHz GenuineIntel GNU/Linux
+This patch is a build fix for !CONFIG_NUMA that should be merged with
+mm-page-allocator-reconsider-zones-for-allocation-after-direct-reclaim.patch .
 
-$ grep nr_isolated /proc/zoneinfo /proc/vmstat
-/proc/zoneinfo:    nr_isolated_anon 25
-/proc/zoneinfo:    nr_isolated_file 7
-/proc/zoneinfo:    nr_isolated_anon 4294967271
-/proc/zoneinfo:    nr_isolated_file 4294967289
-/proc/zoneinfo:    nr_isolated_anon 0
-/proc/zoneinfo:    nr_isolated_file 0
-/proc/vmstat:nr_isolated_anon 0
-/proc/vmstat:nr_isolated_file 0
+Signed-off-by: Mel Gorman <mgorman@suse.de>
+---
+ mm/page_alloc.c |    4 ++++
+ 1 files changed, 4 insertions(+), 0 deletions(-)
 
-$ top  # only headlines
-top - 13:23:27 up 2 days,  2:52,  6 users,  load average: 2.30, 2.09, 1.69
-Tasks: 132 total,   3 running, 129 sleeping,   0 stopped,   0 zombie
-Cpu(s): 16.9%us,  5.6%sy,  0.0%ni,  0.0%id, 77.4%wa,  0.0%hi,  0.0%si,  0.0%st
-Mem:   1551416k total,  1449088k used,   102328k free,    80736k buffers
-Swap:  4120660k total,    48776k used,  4071884k free,   721312k cached
-
-Thomas
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 149409c..0f50cdb 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1647,6 +1647,10 @@ static int zlc_zone_worth_trying(struct zonelist *zonelist, struct zoneref *z,
+ static void zlc_mark_zone_full(struct zonelist *zonelist, struct zoneref *z)
+ {
+ }
++
++static void zlc_clear_zones_full(struct zonelist *zonelist)
++{
++}
+ #endif	/* CONFIG_NUMA */
+ 
+ /*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
