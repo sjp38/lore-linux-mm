@@ -1,40 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 6E94D6B0083
-	for <linux-mm@kvack.org>; Tue, 19 Jul 2011 03:40:51 -0400 (EDT)
-Received: by ewy9 with SMTP id 9so2809354ewy.14
-        for <linux-mm@kvack.org>; Tue, 19 Jul 2011 00:40:48 -0700 (PDT)
-Date: Tue, 19 Jul 2011 11:40:43 +0400
-From: Vasiliy Kulikov <segoon@openwall.com>
-Subject: Re: [kernel-hardening] Re: [RFC v2] implement SL*B and stack
- usercopy runtime checks
-Message-ID: <20110719074043.GA3942@albatros>
-References: <20110703111028.GA2862@albatros>
- <CA+55aFzXEoTyK0Sm-y=6xGmLMWzQiSQ7ELJ2-WL_PrP3r44MSg@mail.gmail.com>
- <20110718183951.GA3748@albatros>
- <20110718115237.14d96c03.akpm@linux-foundation.org>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 2F37B6B0092
+	for <linux-mm@kvack.org>; Tue, 19 Jul 2011 04:39:41 -0400 (EDT)
+Date: Tue, 19 Jul 2011 09:39:32 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH]vmscan: fix a livelock in kswapd
+Message-ID: <20110719083932.GD5349@suse.de>
+References: <1311059367.15392.299.camel@sli10-conroe>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20110718115237.14d96c03.akpm@linux-foundation.org>
+In-Reply-To: <1311059367.15392.299.camel@sli10-conroe>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kernel-hardening@lists.openwall.com
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Arnd Bergmann <arnd@arndb.de>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org
+To: Shaohua Li <shaohua.li@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
 
-On Mon, Jul 18, 2011 at 11:52 -0700, Andrew Morton wrote:
-> > +noinline bool __kernel_access_ok(const void *ptr, unsigned long len)
+On Tue, Jul 19, 2011 at 03:09:27PM +0800, Shaohua Li wrote:
+> I'm running a workload which triggers a lot of swap in a machine with 4 nodes.
+> After I kill the workload, I found a kswapd livelock. Sometimes kswapd3 or
+> kswapd2 are keeping running and I can't access filesystem, but most memory is
+> free. This looks like a regression since commit 08951e545918c159.
+> Node 2 and 3 have only ZONE_NORMAL, but balance_pgdat() will return 0 for
+> classzone_idx. The reason is end_zone in balance_pgdat() is 0 by default, if
+> all zones have watermark ok, end_zone will keep 0.
+> Later sleeping_prematurely() always returns true. Because this is an order 3
+> wakeup, and if classzone_idx is 0, both balanced_pages and present_pages
+> in pgdat_balanced() are 0.
+> We add a special case here. If a zone has no page, we think it's balanced. This
+> fixes the livelock.
 > 
-> noinline seems unneeded
+> Signed-off-by: Shaohua Li <shaohua.li@intel.com>
+> 
 
-Ah, understood what you mean.  It is .c, and users are in other .c, so
-it is indeed redundant.
+Acked-by: Mel Gorman <mgorman@suse.de>
 
-Thanks!
+It's also needed for 3.0 and 2.6.39-stable I believe.
 
 -- 
-Vasiliy Kulikov
-http://www.openwall.com - bringing security into open computing environments
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
