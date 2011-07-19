@@ -1,59 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 306666B004A
-	for <linux-mm@kvack.org>; Tue, 19 Jul 2011 00:44:05 -0400 (EDT)
-Subject: Re: [PATCH 1/5] fs/hugetlbfs/inode.c: Fix pgoff alignment checking
- on 32-bit
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <13092909493748-git-send-email-beckyb@kernel.crashing.org>
-References: <1309290888309-git-send-email-beckyb@kernel.crashing.org>
-	 <13092909493748-git-send-email-beckyb@kernel.crashing.org>
-Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 19 Jul 2011 14:43:49 +1000
-Message-ID: <1311050629.25044.394.camel@pasglop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with ESMTP id C20736B004A
+	for <linux-mm@kvack.org>; Tue, 19 Jul 2011 02:07:56 -0400 (EDT)
+Message-ID: <4E251F07.1090204@redhat.com>
+Date: Tue, 19 Jul 2011 14:07:03 +0800
+From: Cong Wang <amwang@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [Patch] mm: make CONFIG_NUMA depend on CONFIG_SYSFS
+References: <1310987909-3129-1-git-send-email-amwang@redhat.com>	<CAOJsxLHuqvVEKg84jmRW_yfLic9ytB8GzeAE4YWauxSWryHGzA@mail.gmail.com>	<20110718170950.GD8006@one.firstfloor.org> <20110718101435.14c38ae7.rdunlap@xenotime.net>
+In-Reply-To: <20110718101435.14c38ae7.rdunlap@xenotime.net>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, david@gibson.dropbear.id.au, galak@kernel.crashing.org, Becky Bruce <beckyb@kernel.crashing.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Randy Dunlap <rdunlap@xenotime.net>
+Cc: Andi Kleen <andi@firstfloor.org>, Pekka Enberg <penberg@kernel.org>, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org
 
-Andrew, Anybody ? Can I have an -mm ack for this ?
+ao? 2011a1'07ae??19ae?JPY 01:14, Randy Dunlap a??e??:
+> On Mon, 18 Jul 2011 19:09:50 +0200 Andi Kleen wrote:
+>
+>> On Mon, Jul 18, 2011 at 03:14:18PM +0300, Pekka Enberg wrote:
+>>> On Mon, Jul 18, 2011 at 2:18 PM, Amerigo Wang<amwang@redhat.com>  wrote:
+>>>> On ppc, we got this build error with randconfig:
+>>>>
+>>>> drivers/built-in.o:(.toc1+0xf90): undefined reference to `vmstat_text': 1 errors in 1 logs
+>>>>
+>>>> This is due to that it enabled CONFIG_NUMA but not CONFIG_SYSFS.
+>>>>
+>>>> And the user-space tool numactl depends on sysfs files too.
+>>>> So, I think it is very reasonable to make CONFIG_NUMA depend on CONFIG_SYSFS.
+>>>
+>>> Is it? CONFIG_NUMA is useful even without userspace numactl tool, no?
+>>
+>> Yes it is. No direct dependency.
+>>
+>> I would rather fix it in ppc.
+>
+> This isn't a ppc-only error.  It happens when CONFIG_PROC_FS is not enabled
+> (or is it CONFIG_SYSFS?).
+>
+> I reported it for linux-next of 20110526:
+>
+> when CONFIG_PROC_FS is not enabled:
+>
+> drivers/built-in.o: In function `node_read_vmstat':
+> node.c:(.text+0x56ffa): undefined reference to `vmstat_text'
+>
 
-Cheers,
-Ben.
-
-On Tue, 2011-06-28 at 14:54 -0500, Becky Bruce wrote:
-> From: Becky Bruce <beckyb@kernel.crashing.org>
-> 
-> This:
-> 
-> vma->vm_pgoff & ~(huge_page_mask(h) >> PAGE_SHIFT)
-> 
-> is incorrect on 32-bit.  It causes us to & the pgoff with
-> something that looks like this (for a 4m hugepage): 0xfff003ff.
-> The mask should be flipped and *then* shifted, to give you
-> 0x0000_03fff.
-> 
-> Signed-off-by: Becky Bruce <beckyb@kernel.crashing.org>
-> ---
->  fs/hugetlbfs/inode.c |    2 +-
->  1 files changed, 1 insertions(+), 1 deletions(-)
-> 
-> diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-> index 7aafeb8..537a209 100644
-> --- a/fs/hugetlbfs/inode.c
-> +++ b/fs/hugetlbfs/inode.c
-> @@ -94,7 +94,7 @@ static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)
->  	vma->vm_flags |= VM_HUGETLB | VM_RESERVED;
->  	vma->vm_ops = &hugetlb_vm_ops;
->  
-> -	if (vma->vm_pgoff & ~(huge_page_mask(h) >> PAGE_SHIFT))
-> +	if (vma->vm_pgoff & (~huge_page_mask(h) >> PAGE_SHIFT))
->  		return -EINVAL;
->  
->  	vma_len = (loff_t)(vma->vm_end - vma->vm_start);
-
+Right, I believe x86 has the same problem.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
