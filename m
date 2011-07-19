@@ -1,45 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 2F37B6B0092
-	for <linux-mm@kvack.org>; Tue, 19 Jul 2011 04:39:41 -0400 (EDT)
-Date: Tue, 19 Jul 2011 09:39:32 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH]vmscan: fix a livelock in kswapd
-Message-ID: <20110719083932.GD5349@suse.de>
-References: <1311059367.15392.299.camel@sli10-conroe>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id C88666B00E8
+	for <linux-mm@kvack.org>; Tue, 19 Jul 2011 04:45:18 -0400 (EDT)
+Received: by qyk4 with SMTP id 4so2798949qyk.14
+        for <linux-mm@kvack.org>; Tue, 19 Jul 2011 01:45:16 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
 In-Reply-To: <1311059367.15392.299.camel@sli10-conroe>
+References: <1311059367.15392.299.camel@sli10-conroe>
+Date: Tue, 19 Jul 2011 17:45:16 +0900
+Message-ID: <CAEwNFnB6HKJ3j9cWzyb2e3BS2BQrE66F6eT02C4cozRC9YQ7kw@mail.gmail.com>
+Subject: Re: [PATCH]vmscan: fix a livelock in kswapd
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Shaohua Li <shaohua.li@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, mgorman@suse.de, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
 
-On Tue, Jul 19, 2011 at 03:09:27PM +0800, Shaohua Li wrote:
+On Tue, Jul 19, 2011 at 4:09 PM, Shaohua Li <shaohua.li@intel.com> wrote:
 > I'm running a workload which triggers a lot of swap in a machine with 4 nodes.
 > After I kill the workload, I found a kswapd livelock. Sometimes kswapd3 or
 > kswapd2 are keeping running and I can't access filesystem, but most memory is
 > free. This looks like a regression since commit 08951e545918c159.
-> Node 2 and 3 have only ZONE_NORMAL, but balance_pgdat() will return 0 for
-> classzone_idx. The reason is end_zone in balance_pgdat() is 0 by default, if
-> all zones have watermark ok, end_zone will keep 0.
-> Later sleeping_prematurely() always returns true. Because this is an order 3
-> wakeup, and if classzone_idx is 0, both balanced_pages and present_pages
-> in pgdat_balanced() are 0.
-> We add a special case here. If a zone has no page, we think it's balanced. This
-> fixes the livelock.
-> 
-> Signed-off-by: Shaohua Li <shaohua.li@intel.com>
-> 
 
-Acked-by: Mel Gorman <mgorman@suse.de>
+Could you tell me what is 08951e545918c159?
+You mean [ebd64e21ec5a,
+mm-vmscan-only-read-new_classzone_idx-from-pgdat-when-reclaiming-successfully]
+?
 
-It's also needed for 3.0 and 2.6.39-stable I believe.
 
 -- 
-Mel Gorman
-SUSE Labs
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
