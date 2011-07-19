@@ -1,47 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id EB01D6B00EC
-	for <linux-mm@kvack.org>; Tue, 19 Jul 2011 16:10:26 -0400 (EDT)
-Received: by wwj40 with SMTP id 40so3800991wwj.26
-        for <linux-mm@kvack.org>; Tue, 19 Jul 2011 13:10:20 -0700 (PDT)
-Date: Tue, 19 Jul 2011 23:08:26 +0300
-From: Dan Carpenter <error27@gmail.com>
-Subject: re: vmscan: shrinker->nr updates race and go wrong
-Message-ID: <20110719200826.GC6445@shale.localdomain>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id C26646B00EE
+	for <linux-mm@kvack.org>; Tue, 19 Jul 2011 17:14:52 -0400 (EDT)
+Date: Tue, 19 Jul 2011 17:14:38 -0400
+From: Nick Bowler <nbowler@elliptictech.com>
+Subject: kmemleak fails to report detected leaks after allocation failure
+Message-ID: <20110719211438.GA21588@elliptictech.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: dchinner@redhat.com
-Cc: "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Catalin Marinas <catalin.marinas@arm.com>
 
-Hi Dave,
+I just ran into a somewhat amusing issue with kmemleak.  After running
+for a while (10 days), and detecting about 100 "suspected memory leaks",
+kmemleak ultimately reported:
 
-There is a sign error in e5b94d7463e0 "vmscan: shrinker->nr updates
-race and go wrong"
+  kmemleak: Cannot allocate a kmemleak_object structure
+  kmemleak: Automatic memory scanning thread ended
+  kmemleak: Kernel memory leak detector disabled
 
-mm/vmscan.c +274 shrink_slab(41)
-	warn: unsigned 'total_scan' is never less than zero.
+OK, so something failed and kmemleak apparently can't recover from
+this.  However, at this point, it appears that kmemleak has *also*
+lost the ability to report the earlier leaks that it actually
+detected.
 
-   268                  total_scan = nr;
-   269                  max_pass = do_shrinker_shrink(shrinker, shrink, 0);
-   270                  delta = (4 * nr_pages_scanned) / shrinker->seeks;
-   271                  delta *= max_pass;
-   272                  do_div(delta, lru_pages + 1);
-   273                  total_scan += delta;
-   274                  if (total_scan < 0) {
-                            ^^^^^^^^^^^^^^
-total_scan is unsigned so it's never less than zero here.
+  cat: /sys/kernel/debug/kmemleak: Device or resource busy
 
-   275                          printk(KERN_ERR "shrink_slab: %pF negative objects to "
-   276                                 "delete nr=%ld\n",
-   277                                 shrinker->shrink, total_scan);
-   278                          total_scan = max_pass;
-   279                  }
+It seems to me that kmemleak shouldn't lose the ability to report leaks
+that it already detected after it disables itself due to an issue that
+was potentially caused by the very leaks that it managed to detect
+(unlikely in this instance, but still...).
 
-regards,
-dan carpenter
+This was on a 2.6.39.2 kernel on x86_64.
+
+I imagine that such a failure is unlikely to repeat itself, but I
+figured I'd throw it out there.
+
+Cheers,
+-- 
+Nick Bowler, Elliptic Technologies (http://www.elliptictech.com/)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
