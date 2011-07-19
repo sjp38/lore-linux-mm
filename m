@@ -1,57 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A51B6B0082
-	for <linux-mm@kvack.org>; Mon, 18 Jul 2011 19:32:05 -0400 (EDT)
-Received: by qwa26 with SMTP id 26so2519406qwa.14
-        for <linux-mm@kvack.org>; Mon, 18 Jul 2011 16:32:02 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20110718161819.506fe97c.akpm@linux-foundation.org>
-References: <CAGtzr3fm2=UJFRo2xSYhst0P4jCMT-EPjyPi3=icCrMtW0ij8w@mail.gmail.com>
-	<CAEwNFnB8VXkTiMzJewtd7rSZ8keqkboNz-BBjw_UudquvsrK1A@mail.gmail.com>
-	<alpine.DEB.2.00.1107081021040.29346@ubuntu>
-	<CAEwNFnCsjRkauM5XvOqh1hLNOT3Hwu2m9pPqO+mCHq7rKLu0Gg@mail.gmail.com>
-	<alpine.DEB.2.00.1107111550430.29346@ubuntu>
-	<CAEwNFnCfsGn1qZbgXNNETFtZAzOSvxpJDcftNcuuSBDXUnxtmA@mail.gmail.com>
-	<alpine.DEB.2.00.1107142044110.29346@ubuntu>
-	<CAEwNFnDwjWDF7Z4AUZg9rAHN6=n9nZ5tZe5U8USn7TpVCNsM6A@mail.gmail.com>
-	<20110718161819.506fe97c.akpm@linux-foundation.org>
-Date: Tue, 19 Jul 2011 08:32:02 +0900
-Message-ID: <CAEwNFnBCOc=FBbAb3kbnLvv=n_+cmo_LwRAN5YG5HrSQs2oCZA@mail.gmail.com>
-Subject: Re: NULL poniter dereference in isolate_lru_pages 2.6.39.1
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 306666B004A
+	for <linux-mm@kvack.org>; Tue, 19 Jul 2011 00:44:05 -0400 (EDT)
+Subject: Re: [PATCH 1/5] fs/hugetlbfs/inode.c: Fix pgoff alignment checking
+ on 32-bit
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+In-Reply-To: <13092909493748-git-send-email-beckyb@kernel.crashing.org>
+References: <1309290888309-git-send-email-beckyb@kernel.crashing.org>
+	 <13092909493748-git-send-email-beckyb@kernel.crashing.org>
+Content-Type: text/plain; charset="UTF-8"
+Date: Tue, 19 Jul 2011 14:43:49 +1000
+Message-ID: <1311050629.25044.394.camel@pasglop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Chris Pearson <pearson.christopher.j@gmail.com>, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, stable <stable@kernel.org>
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, david@gibson.dropbear.id.au, galak@kernel.crashing.org, Becky Bruce <beckyb@kernel.crashing.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Tue, Jul 19, 2011 at 8:18 AM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
-> On Tue, 19 Jul 2011 07:48:11 +0900 Minchan Kim <minchan.kim@gmail.com> wr=
-ote:
->
->> Thanks for the test, Chris.
->> Andrew.
->> We should push this into -stable.
->
-> That's
->
-> commit d179e84ba5da1d0024087d1759a2938817a00f3f
-> Author: =C2=A0 =C2=A0 Andrea Arcangeli <aarcange@redhat.com>
-> AuthorDate: Wed Jun 15 15:08:51 2011 -0700
-> Commit: =C2=A0 =C2=A0 Linus Torvalds <torvalds@linux-foundation.org>
-> CommitDate: Wed Jun 15 20:04:02 2011 -0700
->
-> =C2=A0 =C2=A0mm: vmscan: do not use page_count without a page pin
->
+Andrew, Anybody ? Can I have an -mm ack for this ?
 
-Yeb!
+Cheers,
+Ben.
 
+On Tue, 2011-06-28 at 14:54 -0500, Becky Bruce wrote:
+> From: Becky Bruce <beckyb@kernel.crashing.org>
+> 
+> This:
+> 
+> vma->vm_pgoff & ~(huge_page_mask(h) >> PAGE_SHIFT)
+> 
+> is incorrect on 32-bit.  It causes us to & the pgoff with
+> something that looks like this (for a 4m hugepage): 0xfff003ff.
+> The mask should be flipped and *then* shifted, to give you
+> 0x0000_03fff.
+> 
+> Signed-off-by: Becky Bruce <beckyb@kernel.crashing.org>
+> ---
+>  fs/hugetlbfs/inode.c |    2 +-
+>  1 files changed, 1 insertions(+), 1 deletions(-)
+> 
+> diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
+> index 7aafeb8..537a209 100644
+> --- a/fs/hugetlbfs/inode.c
+> +++ b/fs/hugetlbfs/inode.c
+> @@ -94,7 +94,7 @@ static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)
+>  	vma->vm_flags |= VM_HUGETLB | VM_RESERVED;
+>  	vma->vm_ops = &hugetlb_vm_ops;
+>  
+> -	if (vma->vm_pgoff & ~(huge_page_mask(h) >> PAGE_SHIFT))
+> +	if (vma->vm_pgoff & (~huge_page_mask(h) >> PAGE_SHIFT))
+>  		return -EINVAL;
+>  
+>  	vma_len = (loff_t)(vma->vm_end - vma->vm_start);
 
---=20
-Kind regards,
-Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
