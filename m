@@ -1,90 +1,521 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C8B96B00E9
-	for <linux-mm@kvack.org>; Tue, 19 Jul 2011 12:52:06 -0400 (EDT)
-Received: by iwn8 with SMTP id 8so5357197iwn.14
-        for <linux-mm@kvack.org>; Tue, 19 Jul 2011 09:52:03 -0700 (PDT)
-Date: Wed, 20 Jul 2011 01:51:55 +0900
-From: Minchan Kim <minchan.kim@gmail.com>
-Subject: Re: [PATCH]vmscan: fix a livelock in kswapd
-Message-ID: <20110719165155.GB2978@barrios-desktop>
-References: <1311059367.15392.299.camel@sli10-conroe>
- <CAEwNFnB6HKJ3j9cWzyb2e3BS2BQrE66F6eT02C4cozRC9YQ7kw@mail.gmail.com>
- <1311065584.15392.300.camel@sli10-conroe>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1311065584.15392.300.camel@sli10-conroe>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 9DB256B00EA
+	for <linux-mm@kvack.org>; Tue, 19 Jul 2011 15:33:27 -0400 (EDT)
+From: Andrew Bresticker <abrestic@google.com>
+Subject: [PATCH V4] Eliminate task stack trace duplication.
+Date: Tue, 19 Jul 2011 12:31:22 -0700
+Message-Id: <1311103882-13544-1-git-send-email-abrestic@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shaohua.li@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "mgorman@suse.de" <mgorman@suse.de>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Zhu Yanhai <zhu.yanhai@gmail.com>
+Cc: linux-mm@kvack.org, Andrew Bresticker <abrestic@google.com>, Ying Han <yinghan@google.com>
 
-On Tue, Jul 19, 2011 at 04:53:04PM +0800, Shaohua Li wrote:
-> On Tue, 2011-07-19 at 16:45 +0800, Minchan Kim wrote:
-> > On Tue, Jul 19, 2011 at 4:09 PM, Shaohua Li <shaohua.li@intel.com> wrote:
-> > > I'm running a workload which triggers a lot of swap in a machine with 4 nodes.
-> > > After I kill the workload, I found a kswapd livelock. Sometimes kswapd3 or
-> > > kswapd2 are keeping running and I can't access filesystem, but most memory is
-> > > free. This looks like a regression since commit 08951e545918c159.
-> > 
-> > Could you tell me what is 08951e545918c159?
-> > You mean [ebd64e21ec5a,
-> > mm-vmscan-only-read-new_classzone_idx-from-pgdat-when-reclaiming-successfully]
-> > ?
-> ha, sorry, I should copy the commit title.
-> 08951e545918c159(mm: vmscan: correct check for kswapd sleeping in
-> sleeping_prematurely)
-> 
+The problem with small dmesg ring buffer like 512k is that only limited number
+of task traces will be logged. Sometimes we lose important information only
+because of too many duplicated stack traces. This problem occurs when dumping
+lots of stacks in a single operation, such as sysrq-T.
 
-I don't mean it. In my bogus git tree, I can't find it but I can look at it in repaired git tree. :)
-Anyway, I have a comment. Please look at below.
+This patch tries to reduce the duplication of task stack trace in the dump
+message by hashing the task stack. The hashtable is a 32k pre-allocated buffer
+during bootup. Then we hash the task stack with stack_depth 32 for each stack
+entry. Each time if we find the identical task trace in the task stack, we dump
+only the pid of the task which has the task trace dumped. So it is easy to back
+track to the full stack with the pid.
 
-On Tue, Jul 19, 2011 at 03:09:27PM +0800, Shaohua Li wrote:
-> I'm running a workload which triggers a lot of swap in a machine with 4 nodes.
-> After I kill the workload, I found a kswapd livelock. Sometimes kswapd3 or
-> kswapd2 are keeping running and I can't access filesystem, but most memory is
-> free. This looks like a regression since commit 08951e545918c159.
-> Node 2 and 3 have only ZONE_NORMAL, but balance_pgdat() will return 0 for
-> classzone_idx. The reason is end_zone in balance_pgdat() is 0 by default, if
-> all zones have watermark ok, end_zone will keep 0.
-> Later sleeping_prematurely() always returns true. Because this is an order 3
-> wakeup, and if classzone_idx is 0, both balanced_pages and present_pages
-> in pgdat_balanced() are 0.
+[   58.469730] kworker/0:0     S 0000000000000000     0     4      2 0x00000000
+[   58.469735]  ffff88082fcfde80 0000000000000046 ffff88082e9d8000 ffff88082fcfc010
+[   58.469739]  ffff88082fce9860 0000000000011440 ffff88082fcfdfd8 ffff88082fcfdfd8
+[   58.469743]  0000000000011440 0000000000000000 ffff88082fcee180 ffff88082fce9860
+[   58.469747] Call Trace:
+[   58.469751]  [<ffffffff8108525a>] worker_thread+0x24b/0x250
+[   58.469754]  [<ffffffff8108500f>] ? manage_workers+0x192/0x192
+[   58.469757]  [<ffffffff810885bd>] kthread+0x82/0x8a
+[   58.469760]  [<ffffffff8141aed4>] kernel_thread_helper+0x4/0x10
+[   58.469763]  [<ffffffff8108853b>] ? kthread_worker_fn+0x112/0x112
+[   58.469765]  [<ffffffff8141aed0>] ? gs_change+0xb/0xb
+[   58.469768] kworker/u:0     S 0000000000000004     0     5      2 0x00000000
+[   58.469773]  ffff88082fcffe80 0000000000000046 ffff880800000000 ffff88082fcfe010
+[   58.469777]  ffff88082fcea080 0000000000011440 ffff88082fcfffd8 ffff88082fcfffd8
+[   58.469781]  0000000000011440 0000000000000000 ffff88082fd4e9a0 ffff88082fcea080
+[   58.469785] Call Trace:
+[   58.469786] <Same stack as pid 4>
+[   58.470235] kworker/0:1     S 0000000000000000     0    13      2 0x00000000
+[   58.470255]  ffff88082fd3fe80 0000000000000046 ffff880800000000 ffff88082fd3e010
+[   58.470279]  ffff88082fcee180 0000000000011440 ffff88082fd3ffd8 ffff88082fd3ffd8
+[   58.470301]  0000000000011440 0000000000000000 ffffffff8180b020 ffff88082fcee180
+[   58.470325] Call Trace:
+[   58.470332] <Same stack as pid 4>
 
-Sigh. Yes.
+changelog v4..v3:
+1. improve de-duplication by eliminating garbage entries from stack traces.
+with this change 793/825 stack traces were recognized as duplicates. in v3
+only 482/839 were duplicates.
 
-> We add a special case here. If a zone has no page, we think it's balanced. This
-> fixes the livelock.
+changelog v3..v2:
+1. again better documentation on the patch description.
+2. make the stack_hash_table to be allocated at compile time.
+3. have better name of variable index
+4. move save_dup_stack_trace() in kernel/stacktrace.c
 
-Yes. Your patch can fix it but I don't like that it adds handling special case.
-(Although Andrew merged quickly).
+changelog v2..v1:
+1. better documentation on the patch description
+2. move the spinlock inside the hash lockup, so reducing the holding time.
 
-The problem is to return 0-classzone_idx if all zones was okay.
-So how about this?
+Note:
+1. with pid namespace, we might have same pid number for different processes. i
+wonder how the stack trace (w/o dedup) handles the case, it uses tsk->pid as well
+as far as i checked.
 
-This can change old behavior slightly.
-For example, if balance_pgdat calls with order-3 and all zones are okay about order-3,
-it will recheck order-0 as end_zone isn't 0 any more.
-But I think it's desriable side effect we have missed.
+Signed-off-by: Ying Han <yinghan@google.com>
+Signed-off-by: Andrew Bresticker <abrestic@google.com>
+---
+ arch/x86/Kconfig                  |    3 +
+ arch/x86/include/asm/stacktrace.h |    6 ++-
+ arch/x86/kernel/dumpstack.c       |   24 ++++++--
+ arch/x86/kernel/dumpstack_32.c    |    7 ++-
+ arch/x86/kernel/dumpstack_64.c    |   11 +++-
+ arch/x86/kernel/stacktrace.c      |  106 +++++++++++++++++++++++++++++++++++++
+ drivers/tty/sysrq.c               |    2 +-
+ include/linux/sched.h             |    3 +-
+ include/linux/stacktrace.h        |    2 +
+ kernel/debug/kdb/kdb_bt.c         |    8 ++--
+ kernel/rtmutex-debug.c            |    2 +-
+ kernel/sched.c                    |   20 ++++++-
+ kernel/stacktrace.c               |   10 ++++
+ 13 files changed, 180 insertions(+), 24 deletions(-)
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 5ed24b9..cfef52b 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2389,7 +2389,7 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
-        unsigned long balanced;
-        int priority;
-        int i;
--       int end_zone = 0;       /* Inclusive.  0 = ZONE_DMA */
-+       int end_zone = *classzone_idx;
-        unsigned long total_scanned;
-        struct reclaim_state *reclaim_state = current->reclaim_state;
-        unsigned long nr_soft_reclaimed;
-
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index da34972..678ee01 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -103,6 +103,9 @@ config LOCKDEP_SUPPORT
+ config STACKTRACE_SUPPORT
+ 	def_bool y
+ 
++config STACKTRACE
++	def_bool y
++
+ config HAVE_LATENCYTOP_SUPPORT
+ 	def_bool y
+ 
+diff --git a/arch/x86/include/asm/stacktrace.h b/arch/x86/include/asm/stacktrace.h
+index 70bbe39..ebaec8b 100644
+--- a/arch/x86/include/asm/stacktrace.h
++++ b/arch/x86/include/asm/stacktrace.h
+@@ -83,11 +83,13 @@ stack_frame(struct task_struct *task, struct pt_regs *regs)
+ 
+ extern void
+ show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
+-		   unsigned long *stack, unsigned long bp, char *log_lvl);
++		   unsigned long *stack, unsigned long bp, char *log_lvl,
++		   pid_t dup_stack_pid);
+ 
+ extern void
+ show_stack_log_lvl(struct task_struct *task, struct pt_regs *regs,
+-		   unsigned long *sp, unsigned long bp, char *log_lvl);
++		   unsigned long *sp, unsigned long bp, char *log_lvl,
++		   pid_t dup_stack_pid);
+ 
+ extern unsigned int code_bytes;
+ 
+diff --git a/arch/x86/kernel/dumpstack.c b/arch/x86/kernel/dumpstack.c
+index 1aae78f..15d981b 100644
+--- a/arch/x86/kernel/dumpstack.c
++++ b/arch/x86/kernel/dumpstack.c
+@@ -157,23 +157,35 @@ static const struct stacktrace_ops print_trace_ops = {
+ 	.walk_stack		= print_context_stack,
+ };
+ 
++/*
++ * The dup_stack_pid indicates whether or not a duplication of stack trace
++ * has been recorded. The non-zero value indicates the pid of the task with
++ * the same stack trace.
++ */
+ void
+ show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
+-		unsigned long *stack, unsigned long bp, char *log_lvl)
++		unsigned long *stack, unsigned long bp, char *log_lvl,
++		pid_t dup_stack_pid)
+ {
+-	printk("%sCall Trace:\n", log_lvl);
+-	dump_trace(task, regs, stack, bp, &print_trace_ops, log_lvl);
++	if (dup_stack_pid) {
++		printk("%sCall Trace:\n", log_lvl);
++		printk("<Same stack as pid %d>\n\n", dup_stack_pid);
++	} else {
++		printk("%sCall Trace:\n", log_lvl);
++		dump_trace(task, regs, stack, bp, &print_trace_ops, log_lvl);
++	}
+ }
+ 
+ void show_trace(struct task_struct *task, struct pt_regs *regs,
+ 		unsigned long *stack, unsigned long bp)
+ {
+-	show_trace_log_lvl(task, regs, stack, bp, "");
++	show_trace_log_lvl(task, regs, stack, bp, "", 0);
+ }
+ 
+-void show_stack(struct task_struct *task, unsigned long *sp)
++void show_stack(struct task_struct *task, unsigned long *sp,
++		pid_t dup_stack_pid)
+ {
+-	show_stack_log_lvl(task, NULL, sp, 0, "");
++	show_stack_log_lvl(task, NULL, sp, 0, "", dup_stack_pid);
+ }
+ 
+ /*
+diff --git a/arch/x86/kernel/dumpstack_32.c b/arch/x86/kernel/dumpstack_32.c
+index 3b97a80..bd06106 100644
+--- a/arch/x86/kernel/dumpstack_32.c
++++ b/arch/x86/kernel/dumpstack_32.c
+@@ -56,7 +56,8 @@ EXPORT_SYMBOL(dump_trace);
+ 
+ void
+ show_stack_log_lvl(struct task_struct *task, struct pt_regs *regs,
+-		   unsigned long *sp, unsigned long bp, char *log_lvl)
++		   unsigned long *sp, unsigned long bp, char *log_lvl,
++		   pid_t dup_stack_pid)
+ {
+ 	unsigned long *stack;
+ 	int i;
+@@ -78,7 +79,7 @@ show_stack_log_lvl(struct task_struct *task, struct pt_regs *regs,
+ 		touch_nmi_watchdog();
+ 	}
+ 	printk(KERN_CONT "\n");
+-	show_trace_log_lvl(task, regs, sp, bp, log_lvl);
++	show_trace_log_lvl(task, regs, sp, bp, log_lvl, dup_stack_pid);
+ }
+ 
+ 
+@@ -103,7 +104,7 @@ void show_registers(struct pt_regs *regs)
+ 		u8 *ip;
+ 
+ 		printk(KERN_EMERG "Stack:\n");
+-		show_stack_log_lvl(NULL, regs, &regs->sp, 0, KERN_EMERG);
++		show_stack_log_lvl(NULL, regs, &regs->sp, 0, KERN_EMERG, 0);
+ 
+ 		printk(KERN_EMERG "Code: ");
+ 
+diff --git a/arch/x86/kernel/dumpstack_64.c b/arch/x86/kernel/dumpstack_64.c
+index e71c98d..1d274b8 100644
+--- a/arch/x86/kernel/dumpstack_64.c
++++ b/arch/x86/kernel/dumpstack_64.c
+@@ -225,7 +225,8 @@ EXPORT_SYMBOL(dump_trace);
+ 
+ void
+ show_stack_log_lvl(struct task_struct *task, struct pt_regs *regs,
+-		   unsigned long *sp, unsigned long bp, char *log_lvl)
++		   unsigned long *sp, unsigned long bp, char *log_lvl,
++		   pid_t dup_stack_pid)
+ {
+ 	unsigned long *irq_stack_end;
+ 	unsigned long *irq_stack;
+@@ -269,7 +270,11 @@ show_stack_log_lvl(struct task_struct *task, struct pt_regs *regs,
+ 	preempt_enable();
+ 
+ 	printk(KERN_CONT "\n");
+-	show_trace_log_lvl(task, regs, sp, bp, log_lvl);
++	if (dup_stack_pid) {
++		printk(KERN_CONT "%sCall Trace:\n", log_lvl);
++		printk(KERN_CONT "<Same stack as pid %d>\n\n", dup_stack_pid);
++	} else
++		show_trace_log_lvl(task, regs, sp, bp, log_lvl, dup_stack_pid);
+ }
+ 
+ void show_registers(struct pt_regs *regs)
+@@ -298,7 +303,7 @@ void show_registers(struct pt_regs *regs)
+ 
+ 		printk(KERN_EMERG "Stack:\n");
+ 		show_stack_log_lvl(NULL, regs, (unsigned long *)sp,
+-				   0, KERN_EMERG);
++				   0, KERN_EMERG, 0);
+ 
+ 		printk(KERN_EMERG "Code: ");
+ 
+diff --git a/arch/x86/kernel/stacktrace.c b/arch/x86/kernel/stacktrace.c
+index 55d9bc0..f7ebb78 100644
+--- a/arch/x86/kernel/stacktrace.c
++++ b/arch/x86/kernel/stacktrace.c
+@@ -7,6 +7,7 @@
+ #include <linux/stacktrace.h>
+ #include <linux/module.h>
+ #include <linux/uaccess.h>
++#include <linux/jhash.h>
+ #include <asm/stacktrace.h>
+ 
+ static int save_stack_stack(void *data, char *name)
+@@ -81,6 +82,111 @@ void save_stack_trace_tsk(struct task_struct *tsk, struct stack_trace *trace)
+ }
+ EXPORT_SYMBOL_GPL(save_stack_trace_tsk);
+ 
++/*
++ * The implementation of stack trace dedup. It tries to reduce the duplication
++ * of task stack trace in the dump by hashing the stack trace. The hashtable is
++ * 32k pre-allocated buffer. Then we hash the task stack with stack_depth
++ * DEDUP_MAX_STACK_DEPTH for each stack entry. Each time if an identical trace
++ * is found in the stack, we dump only the pid of previous task. So it is easy
++ * to back track to the full stack with the pid.
++ */
++#define DEDUP_MAX_STACK_DEPTH 32
++#define DEDUP_STACK_HASH 32768
++#define DEDUP_STACK_ENTRIES (DEDUP_STACK_HASH/sizeof(struct task_stack))
++#define DEDUP_STACK_LAST_ENTRY (DEDUP_STACK_ENTRIES - 1)
++#define DEDUP_HASH_MAX_ITERATIONS 10
++
++struct task_stack {
++	pid_t pid;
++	unsigned long entries[DEDUP_MAX_STACK_DEPTH];
++};
++
++struct task_stack stack_hash_table[DEDUP_STACK_ENTRIES];
++static struct task_stack *cur_stack = stack_hash_table + DEDUP_STACK_LAST_ENTRY;
++static __cacheline_aligned_in_smp DEFINE_SPINLOCK(stack_hash_lock);
++
++static inline u32 task_stack_hash(struct task_stack *stack, int len)
++{
++	u32 index = jhash(stack->entries, len * sizeof(unsigned long), 0);
++
++	return index;
++}
++
++static unsigned int stack_trace_lookup(int len)
++{
++	int j;
++	int index = 0;
++	unsigned int ret = 0;
++	struct task_stack *stack;
++
++	index = task_stack_hash(cur_stack, len) % DEDUP_STACK_LAST_ENTRY;
++
++	for (j = 0; j < DEDUP_HASH_MAX_ITERATIONS; j++) {
++		stack = stack_hash_table + (index + (1 << j)) %
++						DEDUP_STACK_LAST_ENTRY;
++		if (stack->entries[0] == 0x0) {
++			memcpy(stack, cur_stack, sizeof(*cur_stack));
++			ret = 0;
++			break;
++		} else {
++			if (memcmp(stack->entries, cur_stack->entries,
++						sizeof(stack->entries)) == 0) {
++				ret = stack->pid;
++				break;
++			}
++		}
++	}
++	memset(cur_stack, 0, sizeof(struct task_stack));
++
++	return ret;
++}
++
++static int save_dup_stack_stack(void *data, char *name)
++{
++	return 0;
++}
++
++static void save_dup_stack_address(void *data, unsigned long addr, int reliable)
++{
++	unsigned int *len = data;
++
++	/*
++	 * To improve de-duplication, we'll only record reliable entries
++	 * in the stack trace.
++	 */
++	if (!reliable)
++		return;
++	if (*len < DEDUP_MAX_STACK_DEPTH)
++		cur_stack->entries[*len] = addr;
++	(*len)++;
++}
++
++static const struct stacktrace_ops save_dup_stack_ops = {
++	.stack = save_dup_stack_stack,
++	.address = save_dup_stack_address,
++	.walk_stack = print_context_stack,
++};
++
++unsigned int save_dup_stack_trace(struct task_struct *tsk)
++{
++	unsigned int ret = 0;
++	int len = 0;
++
++	spin_lock(&stack_hash_lock);
++	dump_trace(tsk, NULL, NULL, 0, &save_dup_stack_ops, &len);
++	if (len >= DEDUP_MAX_STACK_DEPTH) {
++		memset(cur_stack, 0, sizeof(struct task_stack));
++		spin_unlock(&stack_hash_lock);
++		return ret;
++	}
++
++	cur_stack->pid = tsk->pid;
++	ret = stack_trace_lookup(len);
++	spin_unlock(&stack_hash_lock);
++
++	return ret;
++}
++
+ /* Userspace stacktrace - based on kernel/trace/trace_sysprof.c */
+ 
+ struct stack_frame_user {
+diff --git a/drivers/tty/sysrq.c b/drivers/tty/sysrq.c
+index 43db715..1165464 100644
+--- a/drivers/tty/sysrq.c
++++ b/drivers/tty/sysrq.c
+@@ -214,7 +214,7 @@ static void showacpu(void *dummy)
+ 
+ 	spin_lock_irqsave(&show_lock, flags);
+ 	printk(KERN_INFO "CPU%d:\n", smp_processor_id());
+-	show_stack(NULL, NULL);
++	show_stack(NULL, NULL, 0);
+ 	spin_unlock_irqrestore(&show_lock, flags);
+ }
+ 
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index 496770a..4eac8c9 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -295,7 +295,8 @@ extern void show_regs(struct pt_regs *);
+  * task), SP is the stack pointer of the first frame that should be shown in the back
+  * trace (or NULL if the entire call-chain of the task should be shown).
+  */
+-extern void show_stack(struct task_struct *task, unsigned long *sp);
++extern void show_stack(struct task_struct *task, unsigned long *sp,
++			pid_t dup_stack_pid);
+ 
+ void io_schedule(void);
+ long io_schedule_timeout(long timeout);
+diff --git a/include/linux/stacktrace.h b/include/linux/stacktrace.h
+index 25310f1..ce4d187 100644
+--- a/include/linux/stacktrace.h
++++ b/include/linux/stacktrace.h
+@@ -21,6 +21,7 @@ extern void save_stack_trace_tsk(struct task_struct *tsk,
+ 
+ extern void print_stack_trace(struct stack_trace *trace, int spaces);
+ 
++extern unsigned int save_dup_stack_trace(struct task_struct *tsk);
+ #ifdef CONFIG_USER_STACKTRACE_SUPPORT
+ extern void save_stack_trace_user(struct stack_trace *trace);
+ #else
+@@ -32,6 +33,7 @@ extern void save_stack_trace_user(struct stack_trace *trace);
+ # define save_stack_trace_tsk(tsk, trace)		do { } while (0)
+ # define save_stack_trace_user(trace)			do { } while (0)
+ # define print_stack_trace(trace, spaces)		do { } while (0)
++# define save_dup_stack_trace(tsk)			do { } while (0)
+ #endif
+ 
+ #endif
+diff --git a/kernel/debug/kdb/kdb_bt.c b/kernel/debug/kdb/kdb_bt.c
+index 2f62fe8..ff8c6ad 100644
+--- a/kernel/debug/kdb/kdb_bt.c
++++ b/kernel/debug/kdb/kdb_bt.c
+@@ -26,15 +26,15 @@ static void kdb_show_stack(struct task_struct *p, void *addr)
+ 	kdb_trap_printk++;
+ 	kdb_set_current_task(p);
+ 	if (addr) {
+-		show_stack((struct task_struct *)p, addr);
++		show_stack((struct task_struct *)p, addr, 0);
+ 	} else if (kdb_current_regs) {
+ #ifdef CONFIG_X86
+-		show_stack(p, &kdb_current_regs->sp);
++		show_stack(p, &kdb_current_regs->sp, 0);
+ #else
+-		show_stack(p, NULL);
++		show_stack(p, NULL, 0);
+ #endif
+ 	} else {
+-		show_stack(p, NULL);
++		show_stack(p, NULL, 0);
+ 	}
+ 	console_loglevel = old_lvl;
+ 	kdb_trap_printk--;
+diff --git a/kernel/rtmutex-debug.c b/kernel/rtmutex-debug.c
+index 3c7cbc2..e636067 100644
+--- a/kernel/rtmutex-debug.c
++++ b/kernel/rtmutex-debug.c
+@@ -171,7 +171,7 @@ void debug_rt_mutex_print_deadlock(struct rt_mutex_waiter *waiter)
+ 
+ 	printk("\n%s/%d's [blocked] stackdump:\n\n",
+ 		task->comm, task_pid_nr(task));
+-	show_stack(task, NULL);
++	show_stack(task, NULL, 0);
+ 	printk("\n%s/%d's [current] stackdump:\n\n",
+ 		current->comm, task_pid_nr(current));
+ 	dump_stack();
+diff --git a/kernel/sched.c b/kernel/sched.c
+index 3dc716f..70ec58e 100644
+--- a/kernel/sched.c
++++ b/kernel/sched.c
+@@ -71,6 +71,7 @@
+ #include <linux/ctype.h>
+ #include <linux/ftrace.h>
+ #include <linux/slab.h>
++#include <linux/stacktrace.h>
+ 
+ #include <asm/tlb.h>
+ #include <asm/irq_regs.h>
+@@ -5787,10 +5788,11 @@ out_unlock:
+ 
+ static const char stat_nam[] = TASK_STATE_TO_CHAR_STR;
+ 
+-void sched_show_task(struct task_struct *p)
++void _sched_show_task(struct task_struct *p, int dedup)
+ {
+ 	unsigned long free = 0;
+ 	unsigned state;
++	pid_t dup_stack_pid = 0;
+ 
+ 	state = p->state ? __ffs(p->state) + 1 : 0;
+ 	printk(KERN_INFO "%-15.15s %c", p->comm,
+@@ -5813,7 +5815,19 @@ void sched_show_task(struct task_struct *p)
+ 		task_pid_nr(p), task_pid_nr(p->real_parent),
+ 		(unsigned long)task_thread_info(p)->flags);
+ 
+-	show_stack(p, NULL);
++	if (dedup)
++		dup_stack_pid = save_dup_stack_trace(p);
++	show_stack(p, NULL, dup_stack_pid);
++}
++
++void sched_show_task(struct task_struct *p)
++{
++	_sched_show_task(p, 0);
++}
++
++void sched_show_task_dedup(struct task_struct *p)
++{
++	_sched_show_task(p, 1);
+ }
+ 
+ void show_state_filter(unsigned long state_filter)
+@@ -5835,7 +5849,7 @@ void show_state_filter(unsigned long state_filter)
+ 		 */
+ 		touch_nmi_watchdog();
+ 		if (!state_filter || (p->state & state_filter))
+-			sched_show_task(p);
++			sched_show_task_dedup(p);
+ 	} while_each_thread(g, p);
+ 
+ 	touch_all_softlockup_watchdogs();
+diff --git a/kernel/stacktrace.c b/kernel/stacktrace.c
+index eb212f8..39f17e7 100644
+--- a/kernel/stacktrace.c
++++ b/kernel/stacktrace.c
+@@ -35,3 +35,13 @@ save_stack_trace_tsk(struct task_struct *tsk, struct stack_trace *trace)
+ {
+ 	WARN_ONCE(1, KERN_INFO "save_stack_trace_tsk() not implemented yet.\n");
+ }
++
++/*
++ * Architectures that do not implement the task stack dedup will fallback to
++ * the default functionality.
++ */
++__weak unsigned int
++save_dup_stack_trace(struct task_struct *tsk)
++{
++	return 0;
++}
 -- 
-Kinds regards,
-Minchan Kim
+1.7.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
