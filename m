@@ -1,87 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 8376C6B00E8
-	for <linux-mm@kvack.org>; Wed, 20 Jul 2011 04:57:29 -0400 (EDT)
-Received: from spt2.w1.samsung.com (mailout1.w1.samsung.com [210.118.77.11])
- by mailout1.w1.samsung.com
- (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
- with ESMTP id <0LOM005BIJJOYK@mailout1.w1.samsung.com> for linux-mm@kvack.org;
- Wed, 20 Jul 2011 09:57:24 +0100 (BST)
-Received: from linux.samsung.com ([106.116.38.10])
- by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0LOM009ROJJNFB@spt2.w1.samsung.com> for
- linux-mm@kvack.org; Wed, 20 Jul 2011 09:57:23 +0100 (BST)
-Date: Wed, 20 Jul 2011 10:57:20 +0200
-From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: [PATCH 8/8] ARM: S5PV210: example of CMA private area for FIMC device
- on Goni board
-In-reply-to: <1311152240-16384-1-git-send-email-m.szyprowski@samsung.com>
-Message-id: <1311152240-16384-9-git-send-email-m.szyprowski@samsung.com>
-MIME-version: 1.0
-Content-type: TEXT/PLAIN
-Content-transfer-encoding: 7BIT
-References: <1311152240-16384-1-git-send-email-m.szyprowski@samsung.com>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B0D86B004A
+	for <linux-mm@kvack.org>; Wed, 20 Jul 2011 06:48:57 -0400 (EDT)
+Date: Wed, 20 Jul 2011 11:48:47 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 4/4] mm: vmscan: Only read new_classzone_idx from pgdat
+ when reclaiming successfully
+Message-ID: <20110720104847.GI5349@suse.de>
+References: <1308926697-22475-1-git-send-email-mgorman@suse.de>
+ <1308926697-22475-5-git-send-email-mgorman@suse.de>
+ <20110719160903.GA2978@barrios-desktop>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20110719160903.GA2978@barrios-desktop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org
-Cc: Michal Nazarewicz <mina86@mina86.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ankita Garg <ankita@in.ibm.com>, Daniel Walker <dwalker@codeaurora.org>, Mel Gorman <mel@csn.ul.ie>, Arnd Bergmann <arnd@arndb.de>, Jesse Barker <jesse.barker@linaro.org>, Jonathan Corbet <corbet@lwn.net>, Chunsang Jeong <chunsang.jeong@linaro.org>, Russell King <linux@arm.linux.org.uk>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, P?draig Brady <P@draigBrady.com>, James Bottomley <James.Bottomley@HansenPartnership.com>, Colin King <colin.king@canonical.com>, Andrew Lutomirski <luto@mit.edu>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 
-This patch is an example how device private CMA area can be activated.
-It creates one CMA region and assigns it to the first s5p-fimc device on
-Samsung Goni S5PC110 board.
+On Wed, Jul 20, 2011 at 01:09:03AM +0900, Minchan Kim wrote:
+> Hi Mel,
+> 
+> Too late review.
 
-Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
-Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
----
- arch/arm/mach-s5pv210/Kconfig     |    1 +
- arch/arm/mach-s5pv210/mach-goni.c |    8 ++++++++
- 2 files changed, 9 insertions(+), 0 deletions(-)
+Never too late.
 
-diff --git a/arch/arm/mach-s5pv210/Kconfig b/arch/arm/mach-s5pv210/Kconfig
-index 37b5a97..c09a92c 100644
---- a/arch/arm/mach-s5pv210/Kconfig
-+++ b/arch/arm/mach-s5pv210/Kconfig
-@@ -64,6 +64,7 @@ menu "S5PC110 Machines"
- config MACH_AQUILA
- 	bool "Aquila"
- 	select CPU_S5PV210
-+	select CMA
- 	select S3C_DEV_FB
- 	select S5P_DEV_FIMC0
- 	select S5P_DEV_FIMC1
-diff --git a/arch/arm/mach-s5pv210/mach-goni.c b/arch/arm/mach-s5pv210/mach-goni.c
-index 31d5aa7..d9e565d 100644
---- a/arch/arm/mach-s5pv210/mach-goni.c
-+++ b/arch/arm/mach-s5pv210/mach-goni.c
-@@ -26,6 +26,7 @@
- #include <linux/input.h>
- #include <linux/gpio.h>
- #include <linux/interrupt.h>
-+#include <linux/dma-contiguous.h>
- 
- #include <asm/mach/arch.h>
- #include <asm/mach/map.h>
-@@ -886,6 +887,12 @@ static void __init goni_machine_init(void)
- 	platform_add_devices(goni_devices, ARRAY_SIZE(goni_devices));
- }
- 
-+static void __init goni_reserve(void)
-+{
-+	/* Create private 16MiB contiguous memory area for s5p-fimc.0 device */
-+	dma_declare_contiguous(&s5p_device_fimc0.dev, 16*SZ_1M, 0);
-+}
-+
- MACHINE_START(GONI, "GONI")
- 	/* Maintainers: Kyungmin Park <kyungmin.park@samsung.com> */
- 	.boot_params	= S5P_PA_SDRAM + 0x100,
-@@ -893,4 +900,5 @@ MACHINE_START(GONI, "GONI")
- 	.map_io		= goni_map_io,
- 	.init_machine	= goni_machine_init,
- 	.timer		= &s5p_timer,
-+	.reserve	= goni_reserve,
- MACHINE_END
+> At that time, I had no time to look into this patch.
+> 
+> On Fri, Jun 24, 2011 at 03:44:57PM +0100, Mel Gorman wrote:
+> > During allocator-intensive workloads, kswapd will be woken frequently
+> > causing free memory to oscillate between the high and min watermark.
+> > This is expected behaviour.  Unfortunately, if the highest zone is
+> > small, a problem occurs.
+> > 
+> > When balance_pgdat() returns, it may be at a lower classzone_idx than
+> > it started because the highest zone was unreclaimable. Before checking
+> 
+> Yes.
+> 
+> > if it should go to sleep though, it checks pgdat->classzone_idx which
+> > when there is no other activity will be MAX_NR_ZONES-1. It interprets
+> 
+> Yes.
+> 
+> > this as it has been woken up while reclaiming, skips scheduling and
+> 
+> Hmm. I can't understand this part.
+> If balance_pgdat returns lower classzone and there is no other activity,
+> new_classzone_idx is always MAX_NR_ZONES - 1 so that classzone_idx would be less than
+> new_classzone_idx. It means it doesn't skip scheduling.
+> 
+> Do I miss something?
+> 
+
+It was a few weeks ago so I don't rememember if this is the exact
+sequence I had in mind at the time of writing but an example sequence
+of events is for a node whose highest populated zone is ZONE_NORMAL,
+very small, and gets set all_unreclaimable by balance_pgdat() looks
+is below. The key is the "very small" part because pages are getting
+freed in the zone but the small size means that unreclaimable gets
+set easily.
+
+/*
+ * kswapd is woken up for ZONE_NORMAL (as this is the preferred zone
+ * as ZONE_HIGHMEM is not populated.
+ */
+
+order = pgdat->kswapd_max_order;
+classzone_idx = pgdat->classzone_idx;				/* classzone_idx == ZONE_NORMAL */
+pgdat->kswapd_max_order = 0;
+pgdat->classzone_idx = MAX_NR_ZONES - 1;
+order = balance_pgdat(pgdat, order, &classzone_idx);		/* classzone_idx == ZONE_NORMAL even though
+								 * the highest zone was set unreclaimable
+								 * and it exited scanning ZONE_DMA32
+								 * because we did not communicate that
+								 * information back
+								 */
+new_order = pgdat->kswapd_max_order;				/* new_order = 0 */
+new_classzone_idx = pgdat->classzone_idx;			/* new_classzone_idx == ZONE_HIGHMEM
+								 * because that is what classzone_idx
+								 * gets reset to
+								 */
+if (order < new_order || classzone_idx > new_classzone_idx) {
+	/* does not sleep, this branch not taken */
+} else {
+	/* tries to sleep, goes here */
+	try_to_sleep(ZONE_NORMAL)
+		sleeping_prematurely(ZONE_NORMAL)		/* finds zone unbalanced so skips scheduling */
+        order = pgdat->kswapd_max_order;
+        classzone_idx = pgdat->classzone_idx;			/* classzone_idx == ZONE_HIGHMEM now which
+								 * is higher than what it was originally
+								 * woken for
+								 */
+}
+
+/* Looped around to balance_pgdat() again */
+order = balance_pgdat()
+
+Between when all_unreclaimable is set and before before kswapd
+goes fully to sleep, a page is freed clearing all_reclaimable so
+it rechecks all the zones, find the highest one is not balanced and
+skip scheduling.
+
+A variation is that it the lower zones are above the low watermark so
+the page allocator is not waking kswapd and it should sleep on the
+waitqueue. However, it only schedules for HZ/10 during which a page
+is freed, the highest zone gets all_unreclaimable cleared and so it
+stays awake. In this case, it has reached a scheduling point but it
+is not going fully to sleep on the waitqueue as it should.
+
+I see now the problem with the changelog, it sucks and could have
+been a lot better at explaining why kswapd stays awake when the
+information is not communicated back and why classzone_idx being set
+to MAX_NR_ZONES-1 is sloppy :(
+
 -- 
-1.7.1.569.g6f426
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
