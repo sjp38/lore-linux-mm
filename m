@@ -1,38 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 3D9F66B00E7
-	for <linux-mm@kvack.org>; Wed, 20 Jul 2011 09:54:15 -0400 (EDT)
-Date: Wed, 20 Jul 2011 08:54:10 -0500 (CDT)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id DC9B96B00EA
+	for <linux-mm@kvack.org>; Wed, 20 Jul 2011 09:56:31 -0400 (EDT)
+Date: Wed, 20 Jul 2011 08:56:27 -0500 (CDT)
 From: Christoph Lameter <cl@linux.com>
 Subject: Re: [PATCH] mm-slab: allocate kmem_cache with __GFP_REPEAT
-In-Reply-To: <alpine.DEB.2.00.1107201638520.4921@tiger>
-Message-ID: <alpine.DEB.2.00.1107200852590.32737@router.home>
-References: <20110720121612.28888.38970.stgit@localhost6> <alpine.DEB.2.00.1107201611010.3528@tiger> <4E26D7EA.3000902@parallels.com> <alpine.DEB.2.00.1107201638520.4921@tiger>
+In-Reply-To: <20110720134342.GK5349@suse.de>
+Message-ID: <alpine.DEB.2.00.1107200854390.32737@router.home>
+References: <20110720121612.28888.38970.stgit@localhost6> <alpine.DEB.2.00.1107201611010.3528@tiger> <20110720134342.GK5349@suse.de>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Konstantin Khlebnikov <khlebnikov@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Matt Mackall <mpm@selenic.com>, "mgorman@suse.de" <mgorman@suse.de>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Pekka Enberg <penberg@kernel.org>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Matt Mackall <mpm@selenic.com>
 
-On Wed, 20 Jul 2011, Pekka Enberg wrote:
+On Wed, 20 Jul 2011, Mel Gorman wrote:
 
-> On Wed, 20 Jul 2011, Konstantin Khlebnikov wrote:
-> > > The changelog isn't that convincing, really. This is kmem_cache_create()
-> > > so I'm surprised we'd ever get NULL here in practice. Does this fix some
-> > > problem you're seeing? If this is really an issue, I'd blame the page
-> > > allocator as GFP_KERNEL should just work.
+> > The changelog isn't that convincing, really. This is
+> > kmem_cache_create() so I'm surprised we'd ever get NULL here in
+> > practice. Does this fix some problem you're seeing? If this is
+> > really an issue, I'd blame the page allocator as GFP_KERNEL should
+> > just work.
 > >
-> > nf_conntrack creates separate slab-cache for each net-namespace,
-> > this patch of course not eliminates the chance of failure, but makes it more
-> > acceptable.
 >
-> I'm still surprised you are seeing failures. mm/slab.c hasn't changed
-> significantly in a long time. Why hasn't anyone reported this before? I'd
-> still be inclined to shift the blame to the page allocator... Mel, Christoph?
+> Besides, is allocating from cache_cache really a
+> PAGE_ALLOC_COSTLY_ORDER allocation? On my laptop at least, it's an
+> order-2 allocation which is supporting up to 512 CPUs and 512 nodes.
 
-There was a lot of recent fiddling with the reclaim logic. Maybe some of
-those changes caused the problem?
+Slab's kmem_cache is configured with an array of NR_CPUS which is the
+maximum nr of cpus supported. Some distros support 4096 cpus in order to
+accomodate SGI machines. That array then will have the size of 4096 * 8 =
+32k
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
