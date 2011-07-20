@@ -1,55 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id E2FC46B00EE
-	for <linux-mm@kvack.org>; Wed, 20 Jul 2011 10:08:24 -0400 (EDT)
-Received: by wyg36 with SMTP id 36so248460wyg.14
-        for <linux-mm@kvack.org>; Wed, 20 Jul 2011 07:08:21 -0700 (PDT)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id A35076B004A
+	for <linux-mm@kvack.org>; Wed, 20 Jul 2011 10:20:24 -0400 (EDT)
+Date: Wed, 20 Jul 2011 15:20:18 +0100
+From: Mel Gorman <mgorman@suse.de>
 Subject: Re: [PATCH] mm-slab: allocate kmem_cache with __GFP_REPEAT
-From: Eric Dumazet <eric.dumazet@gmail.com>
-In-Reply-To: <alpine.DEB.2.00.1107200854390.32737@router.home>
+Message-ID: <20110720142018.GL5349@suse.de>
 References: <20110720121612.28888.38970.stgit@localhost6>
-	 <alpine.DEB.2.00.1107201611010.3528@tiger> <20110720134342.GK5349@suse.de>
-	 <alpine.DEB.2.00.1107200854390.32737@router.home>
-Content-Type: text/plain; charset="UTF-8"
-Date: Wed, 20 Jul 2011 16:08:13 +0200
-Message-ID: <1311170893.2338.29.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+ <alpine.DEB.2.00.1107201611010.3528@tiger>
+ <4E26D7EA.3000902@parallels.com>
+ <alpine.DEB.2.00.1107201638520.4921@tiger>
+ <alpine.DEB.2.00.1107200852590.32737@router.home>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1107200852590.32737@router.home>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Christoph Lameter <cl@linux.com>
-Cc: Mel Gorman <mgorman@suse.de>, Pekka Enberg <penberg@kernel.org>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Matt Mackall <mpm@selenic.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Konstantin Khlebnikov <khlebnikov@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Matt Mackall <mpm@selenic.com>
 
-Le mercredi 20 juillet 2011 A  08:56 -0500, Christoph Lameter a A(C)crit :
-> On Wed, 20 Jul 2011, Mel Gorman wrote:
+On Wed, Jul 20, 2011 at 08:54:10AM -0500, Christoph Lameter wrote:
+> On Wed, 20 Jul 2011, Pekka Enberg wrote:
 > 
-> > > The changelog isn't that convincing, really. This is
-> > > kmem_cache_create() so I'm surprised we'd ever get NULL here in
-> > > practice. Does this fix some problem you're seeing? If this is
-> > > really an issue, I'd blame the page allocator as GFP_KERNEL should
-> > > just work.
+> > On Wed, 20 Jul 2011, Konstantin Khlebnikov wrote:
+> > > > The changelog isn't that convincing, really. This is kmem_cache_create()
+> > > > so I'm surprised we'd ever get NULL here in practice. Does this fix some
+> > > > problem you're seeing? If this is really an issue, I'd blame the page
+> > > > allocator as GFP_KERNEL should just work.
 > > >
+> > > nf_conntrack creates separate slab-cache for each net-namespace,
+> > > this patch of course not eliminates the chance of failure, but makes it more
+> > > acceptable.
 > >
-> > Besides, is allocating from cache_cache really a
-> > PAGE_ALLOC_COSTLY_ORDER allocation? On my laptop at least, it's an
-> > order-2 allocation which is supporting up to 512 CPUs and 512 nodes.
+> > I'm still surprised you are seeing failures. mm/slab.c hasn't changed
+> > significantly in a long time. Why hasn't anyone reported this before? I'd
+> > still be inclined to shift the blame to the page allocator... Mel, Christoph?
 > 
-> Slab's kmem_cache is configured with an array of NR_CPUS which is the
-> maximum nr of cpus supported. Some distros support 4096 cpus in order to
-> accomodate SGI machines. That array then will have the size of 4096 * 8 =
-> 32k
+> There was a lot of recent fiddling with the reclaim logic. Maybe some of
+> those changes caused the problem?
+> 
 
-We currently support a dynamic schem for the possible nodes :
+It's more likely that creating new slabs while under memory pressure
+significant enough to fail an order-4 allocation is a situation that is
+rarely tested. 
 
-cache_cache.buffer_size = offsetof(struct kmem_cache, nodelists) + 
-	nr_node_ids * sizeof(struct kmem_list3 *);
+What kernel version did this failure occur on? What was the system doing
+at the time of failure? Can the page allocation failure message be
+posted?
 
-We could have a similar trick to make the real size both depends on
-nr_node_ids and nr_cpu_ids.
-
-(struct kmem_cache)->array would become a pointer.
-
-
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
