@@ -1,56 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 0E97A6B004A
-	for <linux-mm@kvack.org>; Wed, 20 Jul 2011 15:09:42 -0400 (EDT)
-Date: Wed, 20 Jul 2011 20:09:33 +0100
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id AC6476B004A
+	for <linux-mm@kvack.org>; Wed, 20 Jul 2011 15:19:04 -0400 (EDT)
+Date: Wed, 20 Jul 2011 20:18:58 +0100
 From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH] mm-slab: allocate kmem_cache with __GFP_REPEAT
-Message-ID: <20110720190933.GN5349@suse.de>
-References: <1311174562.2338.42.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
- <alpine.DEB.2.00.1107201033080.1472@router.home>
- <1311177362.2338.57.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
- <alpine.DEB.2.00.1107201114480.1472@router.home>
- <1311179465.2338.62.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
- <1311181463.2338.72.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
- <alpine.DEB.2.00.1107201212140.1472@router.home>
- <alpine.DEB.2.00.1107202028050.2847@tiger>
- <alpine.DEB.2.00.1107201237190.1472@router.home>
- <alpine.DEB.2.00.1107202040240.2847@tiger>
+Subject: Re: [PATCH 1/2] mm: page allocator: Initialise ZLC for first zone
+ eligible for zone_reclaim
+Message-ID: <20110720191858.GO5349@suse.de>
+References: <1310742540-22780-1-git-send-email-mgorman@suse.de>
+ <1310742540-22780-2-git-send-email-mgorman@suse.de>
+ <alpine.DEB.2.00.1107180951390.30392@router.home>
+ <20110718160552.GB5349@suse.de>
+ <alpine.DEB.2.00.1107181208050.31576@router.home>
+ <20110718211325.GC5349@suse.de>
+ <alpine.DEB.2.00.1107181651000.31576@router.home>
+ <alpine.DEB.2.00.1107190901120.1199@router.home>
+ <alpine.DEB.2.00.1107201307530.1472@router.home>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1107202040240.2847@tiger>
+In-Reply-To: <alpine.DEB.2.00.1107201307530.1472@router.home>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Christoph Lameter <cl@linux.com>, Eric Dumazet <eric.dumazet@gmail.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Matt Mackall <mpm@selenic.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Jul 20, 2011 at 08:41:12PM +0300, Pekka Enberg wrote:
-> On Wed, 20 Jul 2011, Pekka Enberg wrote:
-> >>On Wed, 20 Jul 2011, Eric Dumazet wrote:
-> >>>>[PATCH v2] slab: shrinks sizeof(struct kmem_cache)
-> >>
-> >>On Wed, 20 Jul 2011, Christoph Lameter wrote:
-> >>>This will solve the issue for small nr_cpu_ids but those with 4k cpus will
-> >>>still have the issue.
-> >>>
-> >>>Acked-by: Christoph Lameter <cl@linux.com>
-> >>
-> >>Applied, thanks! Do we still want the __GFP_REPEAT patch from Konstantin
-> >>though?
-> 
-> On Wed, 20 Jul 2011, Christoph Lameter wrote:
-> >Those with 4k cpus will be thankful I guess.
-> 
-> OTOH, I'm slightly worried that it might mask a real problem with
-> GFP_KERNEL not being aggressive enough. Mel?
-> 
+On Wed, Jul 20, 2011 at 01:08:46PM -0500, Christoph Lameter wrote:
+> Hmmm... Looking at get_page_from_freelist and considering speeding that up
+> in general: Could we move the whole watermark logic into the slow path?
+> Only check when we refill the per cpu queues?
 
-The reproduction case was while memory was under heavy pressure
-(swapout was active) and even then only 1 in a 1000 containers were
-failing to create due to an order-4 allocation failure. I'm not
-convinced we need to increase how aggressive the allocator is for
-PAGE_ALLOC_COSTLY_ORDER in general based on this.
+Each CPU list can hold 186 pages (on my currently running
+kernel at least) which is 744K. As I'm running with THP enabled,
+the min watermark is 25852K so with 34 of more CPUs, there is a
+risk that a zone would be fully depleted due to lack of watermark
+checking. Bit unlikely that 34 CPUs would be on one node but the risk
+is there. Without THP, the min watermark would have been something like
+32K where it would be much easier to accidentally consume all memory.
+
+Yes, moving the watermark checks to the slow path would be faster
+but under some conditions, the system will lock up.
 
 -- 
 Mel Gorman
