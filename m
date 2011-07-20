@@ -1,49 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 3DA056B00F7
-	for <linux-mm@kvack.org>; Tue, 19 Jul 2011 19:29:00 -0400 (EDT)
-Date: Tue, 19 Jul 2011 16:28:57 -0700
-From: Randy Dunlap <rdunlap@xenotime.net>
-Subject: Re: [PATCH 1/12] radix_tree: exceptional entries and indices
-Message-Id: <20110719162857.63b6b0be.rdunlap@xenotime.net>
-In-Reply-To: <alpine.LSU.2.00.1107191532130.1541@sister.anvils>
-References: <alpine.LSU.2.00.1106140327550.29206@sister.anvils>
-	<alpine.LSU.2.00.1106140341070.29206@sister.anvils>
-	<20110617163854.49225203.akpm@linux-foundation.org>
-	<20110617170742.282a1bd6.rdunlap@xenotime.net>
-	<20110617171228.4c85fd38.rdunlap@xenotime.net>
-	<alpine.LSU.2.00.1106171845480.20321@sister.anvils>
-	<alpine.LSU.2.00.1107191532130.1541@sister.anvils>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 1CC126B00FD
+	for <linux-mm@kvack.org>; Tue, 19 Jul 2011 20:37:39 -0400 (EDT)
+Date: Wed, 20 Jul 2011 02:36:53 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 7/8] vmscan: memcg-aware unevictable page rescue scanner
+Message-ID: <20110720003653.GA667@cmpxchg.org>
+References: <1306909519-7286-1-git-send-email-hannes@cmpxchg.org>
+ <1306909519-7286-8-git-send-email-hannes@cmpxchg.org>
+ <CALWz4iwDGD8xoUbzi=9Sy7C-njcYqmka_25rQL8RhkN_ArLgDw@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CALWz4iwDGD8xoUbzi=9Sy7C-njcYqmka_25rQL8RhkN_ArLgDw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: akpm <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Ying Han <yinghan@google.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, 19 Jul 2011 15:36:37 -0700 (PDT) Hugh Dickins wrote:
-
-> On Fri, 17 Jun 2011, Hugh Dickins wrote:
-> > On Fri, 17 Jun 2011, Randy Dunlap wrote:
-> > 
-> > > > And one Andrew Morton has a userspace radix tree test harness at
-> > > > http://userweb.kernel.org/~akpm/stuff/rtth.tar.gz
-> > 
-> > This should still be as relevant as it was before, but I notice its
-> > radix_tree.c is almost identical to the source currently in the kernel
-> > tree, so I ought at the least to keep it in synch.
+On Tue, Jul 19, 2011 at 03:47:43PM -0700, Ying Han wrote:
+> On Tue, May 31, 2011 at 11:25 PM, Johannes Weiner <hannes@cmpxchg.org>wrote:
 > 
-> I was hoping to have dealt with this by now, Randy; but after downloading
-> an up-to-date urcu, I'm finding what's currently in rtth does not build
-> with it.  Unlikely to be hard to fix, but means I'll have to defer it a
-> little while longer.
+> > Once the per-memcg lru lists are exclusive, the unevictable page
+> > rescue scanner can no longer work on the global zone lru lists.
+> >
+> > This converts it to go through all memcgs and scan their respective
+> > unevictable lists instead.
+> >
+> > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> > ---
+> >  include/linux/memcontrol.h |    2 +
+> >  mm/memcontrol.c            |   11 +++++++++
+> >  mm/vmscan.c                |   53
+> > +++++++++++++++++++++++++++----------------
+> >  3 files changed, 46 insertions(+), 20 deletions(-)
+> >
+> > diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> > index cb02c00..56c1def 100644
+> > --- a/include/linux/memcontrol.h
+> > +++ b/include/linux/memcontrol.h
+> > @@ -60,6 +60,8 @@ extern void mem_cgroup_cancel_charge_swapin(struct
+> > mem_cgroup *ptr);
+> >
+> >  extern int mem_cgroup_cache_charge(struct page *page, struct mm_struct
+> > *mm,
+> >                                        gfp_t gfp_mask);
+> > +struct page *mem_cgroup_lru_to_page(struct zone *, struct mem_cgroup *,
+> > +                                   enum lru_list);
+> >
+> 
+> Did we miss a #ifdef case for this function? I got compile error by
+> disabling memcg.
 
-Sure, not a problem.  Thanks for not dropping it completely.
-
----
-~Randy
-*** Remember to use Documentation/SubmitChecklist when testing your code ***
+I assume it's because the call to it is not optimized away properly in
+the disabled case.  I'll have it fixed in the next round, thanks for
+letting me know.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
