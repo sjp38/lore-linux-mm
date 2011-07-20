@@ -1,51 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id F3B026B004A
-	for <linux-mm@kvack.org>; Wed, 20 Jul 2011 09:50:38 -0400 (EDT)
-Message-ID: <4E26DD25.4010707@parallels.com>
-Date: Wed, 20 Jul 2011 17:50:29 +0400
-From: Konstantin Khlebnikov <khlebnikov@parallels.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id DF0446B0082
+	for <linux-mm@kvack.org>; Wed, 20 Jul 2011 09:52:29 -0400 (EDT)
+Received: by eyg7 with SMTP id 7so1154788eyg.41
+        for <linux-mm@kvack.org>; Wed, 20 Jul 2011 06:52:26 -0700 (PDT)
+Date: Wed, 20 Jul 2011 16:52:22 +0300 (EEST)
+From: Pekka Enberg <penberg@kernel.org>
+Subject: Re: possible recursive locking detected cache_alloc_refill() +
+ cache_flusharray()
+In-Reply-To: <1311168638.5345.80.camel@twins>
+Message-ID: <alpine.DEB.2.00.1107201642500.4921@tiger>
+References: <20110716211850.GA23917@breakpoint.cc>  <alpine.LFD.2.02.1107172333340.2702@ionos>  <alpine.DEB.2.00.1107201619540.3528@tiger> <1311168638.5345.80.camel@twins>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm-slab: allocate kmem_cache with __GFP_REPEAT
-References: <20110720121612.28888.38970.stgit@localhost6> <alpine.DEB.2.00.1107201611010.3528@tiger> <4E26D7EA.3000902@parallels.com> <alpine.DEB.2.00.1107201638520.4921@tiger>
-In-Reply-To: <alpine.DEB.2.00.1107201638520.4921@tiger>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Christoph Lameter <cl@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Matt Mackall <mpm@selenic.com>, "mgorman@suse.de" <mgorman@suse.de>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Sebastian Siewior <sebastian@breakpoint.cc>, Christoph Lameter <cl@linux-foundation.org>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org
 
-Pekka Enberg wrote:
-> On Wed, 20 Jul 2011, Konstantin Khlebnikov wrote:
->>> The changelog isn't that convincing, really. This is kmem_cache_create()
->>> so I'm surprised we'd ever get NULL here in practice. Does this fix some
->>> problem you're seeing? If this is really an issue, I'd blame the page
->>> allocator as GFP_KERNEL should just work.
+On Wed, 20 Jul 2011, Peter Zijlstra wrote:
+>>>> just hit the following with full debuging turned on:
+>>>>
+>>>> | =============================================
+>>>> | [ INFO: possible recursive locking detected ]
+>>>> | 3.0.0-rc7-00088-g1765a36 #64
+>>>> | ---------------------------------------------
+>>>> | udevd/1054 is trying to acquire lock:
+>>>> |  (&(&parent->list_lock)->rlock){..-...}, at: [<c00bf640>] cache_alloc_refill+0xac/0x868
+>>>> |
+>>>> | but task is already holding lock:
+>>>> |  (&(&parent->list_lock)->rlock){..-...}, at: [<c00be47c>] cache_flusharray+0x58/0x148
+>>>> |
+>>>> | other info that might help us debug this:
+>>>> |  Possible unsafe locking scenario:
+>>>> |
+>>>> |        CPU0
+>>>> |        ----
+>>>> |   lock(&(&parent->list_lock)->rlock);
+>>>> |   lock(&(&parent->list_lock)->rlock);
 >>
->> nf_conntrack creates separate slab-cache for each net-namespace,
->> this patch of course not eliminates the chance of failure, but makes it more
->> acceptable.
+>> On Sun, 17 Jul 2011, Thomas Gleixner wrote:
+>>> Known problem. Pekka is looking into it.
+>>
+>> Actually, I kinda was hoping Peter would make it go away. ;-)
+>>
+>> Looking at the lockdep report, it's l3->list_lock and I really don't quite
+>> understand why it started to happen now. There hasn't been any major
+>> changes in mm/slab.c for a while. Did lockdep become more strict recently?
 >
-> I'm still surprised you are seeing failures. mm/slab.c hasn't changed
-> significantly in a long time. Why hasn't anyone reported this before? I'd
-> still be inclined to shift the blame to the page allocator... Mel,
-> Christoph?
+> Not that I know.. :-) I bet -rt just makes it easier to trigger this
+> weirdness.
 >
-> On Wed, 20 Jul 2011, Konstantin Khlebnikov wrote:
->> struct kmem_size for slub is more compact, it uses pecpu-pointers instead of
->> dumb NR_CPUS-size array.
->> probably better to fix this side...
->
-> So how big is 'struct kmem_cache' for your configuration anyway? Fixing
-> the per-cpu data structures would be nice but I'm guessing it'll be
-> slightly painful for mm/slab.c.
+> Let me try and look at slab.c without my eyes burning out.. I so hate
+> that code.
 
-With NR_CPUS=4096 and MAX_NUMNODES=512 its over 9k!
-so it require order-4 page, meanwhile PAGE_ALLOC_COSTLY_ORDER is 3
+So what exactly is the lockdep complaint above telling us? We're holding 
+on to l3->list_lock in cache_flusharray() (kfree path) but somehow we now 
+entered cache_alloc_refill() (kmalloc path!) and attempt to take the same 
+lock or lock in the same class.
 
->
->   			Pekka
+I am confused. How can that happen?
+
+ 			Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
