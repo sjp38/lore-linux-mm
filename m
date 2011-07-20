@@ -1,49 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 93F9D6B004A
-	for <linux-mm@kvack.org>; Wed, 20 Jul 2011 09:15:12 -0400 (EDT)
-Received: by eyg7 with SMTP id 7so1100308eyg.41
-        for <linux-mm@kvack.org>; Wed, 20 Jul 2011 06:15:09 -0700 (PDT)
-Date: Wed, 20 Jul 2011 16:14:51 +0300 (EEST)
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id B23746B004A
+	for <linux-mm@kvack.org>; Wed, 20 Jul 2011 09:22:11 -0400 (EDT)
+Received: by ewy9 with SMTP id 9so746447ewy.14
+        for <linux-mm@kvack.org>; Wed, 20 Jul 2011 06:22:08 -0700 (PDT)
+Date: Wed, 20 Jul 2011 16:21:56 +0300 (EEST)
 From: Pekka Enberg <penberg@kernel.org>
-Subject: Re: [PATCH] mm-slab: allocate kmem_cache with __GFP_REPEAT
-In-Reply-To: <20110720121612.28888.38970.stgit@localhost6>
-Message-ID: <alpine.DEB.2.00.1107201611010.3528@tiger>
-References: <20110720121612.28888.38970.stgit@localhost6>
+Subject: Re: possible recursive locking detected cache_alloc_refill() +
+ cache_flusharray()
+In-Reply-To: <alpine.LFD.2.02.1107172333340.2702@ionos>
+Message-ID: <alpine.DEB.2.00.1107201619540.3528@tiger>
+References: <20110716211850.GA23917@breakpoint.cc> <alpine.LFD.2.02.1107172333340.2702@ionos>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Christoph Lameter <cl@linux-foundation.org>, linux-kernel@vger.kernel.org, Matt Mackall <mpm@selenic.com>, mgorman@suse.de
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: Sebastian Siewior <sebastian@breakpoint.cc>, Christoph Lameter <cl@linux-foundation.org>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org, Peter Zijlstra <peterz@infradead.org>
 
-On Wed, 20 Jul 2011, Konstantin Khlebnikov wrote:
-> Order of sizeof(struct kmem_cache) can be bigger than PAGE_ALLOC_COSTLY_ORDER,
-> thus there is a good chance of unsuccessful allocation.
-> With __GFP_REPEAT buddy-allocator will reclaim/compact memory more aggressively.
->
-> Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
-> ---
-> mm/slab.c |    2 +-
-> 1 files changed, 1 insertions(+), 1 deletions(-)
->
-> diff --git a/mm/slab.c b/mm/slab.c
-> index d96e223..53bddc8 100644
-> --- a/mm/slab.c
-> +++ b/mm/slab.c
-> @@ -2304,7 +2304,7 @@ kmem_cache_create (const char *name, size_t size, size_t align,
-> 		gfp = GFP_NOWAIT;
->
-> 	/* Get cache's description obj. */
-> -	cachep = kmem_cache_zalloc(&cache_cache, gfp);
-> +	cachep = kmem_cache_zalloc(&cache_cache, gfp | __GFP_REPEAT);
-> 	if (!cachep)
-> 		goto oops;
+On Sat, 16 Jul 2011, Sebastian Siewior wrote:
+>> just hit the following with full debuging turned on:
+>>
+>> | =============================================
+>> | [ INFO: possible recursive locking detected ]
+>> | 3.0.0-rc7-00088-g1765a36 #64
+>> | ---------------------------------------------
+>> | udevd/1054 is trying to acquire lock:
+>> |  (&(&parent->list_lock)->rlock){..-...}, at: [<c00bf640>] cache_alloc_refill+0xac/0x868
+>> |
+>> | but task is already holding lock:
+>> |  (&(&parent->list_lock)->rlock){..-...}, at: [<c00be47c>] cache_flusharray+0x58/0x148
+>> |
+>> | other info that might help us debug this:
+>> |  Possible unsafe locking scenario:
+>> |
+>> |        CPU0
+>> |        ----
+>> |   lock(&(&parent->list_lock)->rlock);
+>> |   lock(&(&parent->list_lock)->rlock);
 
-The changelog isn't that convincing, really. This is kmem_cache_create() 
-so I'm surprised we'd ever get NULL here in practice. Does this fix some 
-problem you're seeing? If this is really an issue, I'd blame the page 
-allocator as GFP_KERNEL should just work.
+On Sun, 17 Jul 2011, Thomas Gleixner wrote:
+> Known problem. Pekka is looking into it.
+
+Actually, I kinda was hoping Peter would make it go away. ;-)
+
+Looking at the lockdep report, it's l3->list_lock and I really don't quite 
+understand why it started to happen now. There hasn't been any major 
+changes in mm/slab.c for a while. Did lockdep become more strict recently?
 
  			Pekka
 
