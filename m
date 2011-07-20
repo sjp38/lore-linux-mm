@@ -1,56 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id A01956B0082
-	for <linux-mm@kvack.org>; Wed, 20 Jul 2011 10:47:51 -0400 (EDT)
-Message-ID: <4E26EA93.5020302@parallels.com>
-Date: Wed, 20 Jul 2011 18:47:47 +0400
-From: Konstantin Khlebnikov <khlebnikov@parallels.com>
-MIME-Version: 1.0
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 5EDFC6B0082
+	for <linux-mm@kvack.org>; Wed, 20 Jul 2011 10:52:07 -0400 (EDT)
+Date: Wed, 20 Jul 2011 09:52:03 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
 Subject: Re: [PATCH] mm-slab: allocate kmem_cache with __GFP_REPEAT
-References: <20110720121612.28888.38970.stgit@localhost6>	 <alpine.DEB.2.00.1107201611010.3528@tiger> <4E26D7EA.3000902@parallels.com>	 <alpine.DEB.2.00.1107201638520.4921@tiger>	 <alpine.DEB.2.00.1107200852590.32737@router.home>	 <20110720142018.GL5349@suse.de>  <4E26E705.8050704@parallels.com> <1311172859.2338.31.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
-In-Reply-To: <1311172859.2338.31.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
-Content-Type: text/plain; charset="UTF-8"; format=flowed
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <1311170893.2338.29.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
+Message-ID: <alpine.DEB.2.00.1107200950270.1472@router.home>
+References: <20110720121612.28888.38970.stgit@localhost6>  <alpine.DEB.2.00.1107201611010.3528@tiger> <20110720134342.GK5349@suse.de>  <alpine.DEB.2.00.1107200854390.32737@router.home> <1311170893.2338.29.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Eric Dumazet <eric.dumazet@gmail.com>
-Cc: Mel Gorman <mgorman@suse.de>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Matt Mackall <mpm@selenic.com>
+Cc: Mel Gorman <mgorman@suse.de>, Pekka Enberg <penberg@kernel.org>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Matt Mackall <mpm@selenic.com>
 
-Eric Dumazet wrote:
-> Le mercredi 20 juillet 2011 =C3=A0 18:32 +0400, Konstantin Khlebnikov a
-> =C3=A9crit :
->
->> I catch this on our rhel6-openvz kernel, and yes it very patchy,
->> but I don't see any reasons why this cannot be reproduced on mainline ke=
-rnel.
->>
->> there was abount ten containers with random stuff, node already do inten=
-sive swapout but still alive,
->> in this situation starting new containers sometimes (1 per 1000) fails d=
-ue to kmem_cache_create failures in nf_conntrack,
->> there no other messages except:
->> Unable to create nf_conn slab cache
->> and some
->> nf_conntrack: falling back to vmalloc.
->> (it try allocates huge hash table and do it via vmalloc if kmalloc fails=
-)
->
->
-> Does this kernel contain commit 6d4831c2 ?
-> (vfs: avoid large kmalloc()s for the fdtable)
->
+On Wed, 20 Jul 2011, Eric Dumazet wrote:
 
-yes, but not exactly, in our kerner it looks like:
+> > Slab's kmem_cache is configured with an array of NR_CPUS which is the
+> > maximum nr of cpus supported. Some distros support 4096 cpus in order to
+> > accomodate SGI machines. That array then will have the size of 4096 * 8 =
+> > 32k
+>
+> We currently support a dynamic schem for the possible nodes :
+>
+> cache_cache.buffer_size = offsetof(struct kmem_cache, nodelists) +
+> 	nr_node_ids * sizeof(struct kmem_list3 *);
+>
+> We could have a similar trick to make the real size both depends on
+> nr_node_ids and nr_cpu_ids.
+>
+> (struct kmem_cache)->array would become a pointer.
 
-static inline void * alloc_fdmem(unsigned int size)
-{
-	if (size <=3D PAGE_SIZE)
-		return kmalloc(size, GFP_KERNEL);
-	else
-		return vmalloc(size);
-}
+We should be making it a per cpu pointer like slub then. I looked at what
+it would take to do so a couple of month ago but it was quite invasive.
 
-and looks like this change is came from ancient times =3D)
+The other solution is to use slub instead.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
