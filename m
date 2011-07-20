@@ -1,39 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id D339E6B007E
-	for <linux-mm@kvack.org>; Wed, 20 Jul 2011 01:44:22 -0400 (EDT)
-Received: by mail-qw0-f41.google.com with SMTP id 26so3394345qwa.14
-        for <linux-mm@kvack.org>; Tue, 19 Jul 2011 22:44:21 -0700 (PDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 3C4916B004A
+	for <linux-mm@kvack.org>; Wed, 20 Jul 2011 01:53:19 -0400 (EDT)
+Received: by qwa26 with SMTP id 26so3397343qwa.14
+        for <linux-mm@kvack.org>; Tue, 19 Jul 2011 22:53:17 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1311059367.15392.299.camel@sli10-conroe>
-References: <1311059367.15392.299.camel@sli10-conroe>
-Date: Wed, 20 Jul 2011 14:44:21 +0900
-Message-ID: <CAEwNFnD2FcvSgPcEkQxVQ3X=Vhh4MTCXJzJ9Y8e78HkQuxbSjw@mail.gmail.com>
-Subject: Re: [PATCH]vmscan: fix a livelock in kswapd
+In-Reply-To: <1311130413.15392.326.camel@sli10-conroe>
+References: <1311130413.15392.326.camel@sli10-conroe>
+Date: Wed, 20 Jul 2011 14:53:16 +0900
+Message-ID: <CAEwNFnDj30Bipuxrfe9upD-OyuL4v21tLs0ayUKYUfye5TcGyA@mail.gmail.com>
+Subject: Re: [PATCH]vmscan: add block plug for page reclaim
 From: Minchan Kim <minchan.kim@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Shaohua Li <shaohua.li@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, mgorman@suse.de, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
+Cc: Jens Axboe <jaxboe@fusionio.com>, Andrew Morton <akpm@linux-foundation.org>, mgorman@suse.de, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
 
-On Tue, Jul 19, 2011 at 4:09 PM, Shaohua Li <shaohua.li@intel.com> wrote:
-> I'm running a workload which triggers a lot of swap in a machine with 4 nodes.
-> After I kill the workload, I found a kswapd livelock. Sometimes kswapd3 or
-> kswapd2 are keeping running and I can't access filesystem, but most memory is
-> free. This looks like a regression since commit 08951e545918c159.
-> Node 2 and 3 have only ZONE_NORMAL, but balance_pgdat() will return 0 for
-> classzone_idx. The reason is end_zone in balance_pgdat() is 0 by default, if
-> all zones have watermark ok, end_zone will keep 0.
-> Later sleeping_prematurely() always returns true. Because this is an order 3
-> wakeup, and if classzone_idx is 0, both balanced_pages and present_pages
-> in pgdat_balanced() are 0.
-> We add a special case here. If a zone has no page, we think it's balanced. This
-> fixes the livelock.
->
-> Signed-off-by: Shaohua Li <shaohua.li@intel.com>
-Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+On Wed, Jul 20, 2011 at 11:53 AM, Shaohua Li <shaohua.li@intel.com> wrote:
+> per-task block plug can reduce block queue lock contention and increase request
+> merge. Currently page reclaim doesn't support it. I originally thought page
+> reclaim doesn't need it, because kswapd thread count is limited and file cache
+> write is done at flusher mostly.
+> When I test a workload with heavy swap in a 4-node machine, each CPU is doing
+> direct page reclaim and swap. This causes block queue lock contention. In my
+> test, without below patch, the CPU utilization is about 2% ~ 7%. With the
+> patch, the CPU utilization is about 1% ~ 3%. Disk throughput isn't changed.
 
+Why doesn't it enhance through?
+It means merge is rare?
+
+> This should improve normal kswapd write and file cache write too (increase
+> request merge for example), but might not be so obvious as I explain above.
+
+CPU utilization enhance on  4-node machine with heavy swap?
+I think it isn't common situation.
+
+And I don't want to add new stack usage if it doesn't have a benefit.
+As you know, direct reclaim path has a stack overflow.
+These days, Mel, Dave and Christoph try to remove write path in
+reclaim for solving stack usage and enhance write performance.
 
 -- 
 Kind regards,
