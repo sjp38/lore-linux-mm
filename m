@@ -1,61 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 8F47C6B00EC
-	for <linux-mm@kvack.org>; Wed, 20 Jul 2011 09:59:25 -0400 (EDT)
-Message-ID: <4E26DF34.6010500@openvz.org>
-Date: Wed, 20 Jul 2011 17:59:16 +0400
-From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 7B2996B00EC
+	for <linux-mm@kvack.org>; Wed, 20 Jul 2011 10:00:45 -0400 (EDT)
+Date: Wed, 20 Jul 2011 09:00:41 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: possible recursive locking detected cache_alloc_refill() +
+ cache_flusharray()
+In-Reply-To: <alpine.DEB.2.00.1107201642500.4921@tiger>
+Message-ID: <alpine.DEB.2.00.1107200858351.32737@router.home>
+References: <20110716211850.GA23917@breakpoint.cc>  <alpine.LFD.2.02.1107172333340.2702@ionos>  <alpine.DEB.2.00.1107201619540.3528@tiger> <1311168638.5345.80.camel@twins> <alpine.DEB.2.00.1107201642500.4921@tiger>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm-slab: allocate kmem_cache with __GFP_REPEAT
-References: <20110720121612.28888.38970.stgit@localhost6> <alpine.DEB.2.00.1107201611010.3528@tiger> <4E26D7EA.3000902@parallels.com> <alpine.DEB.2.00.1107201638520.4921@tiger> <4E26DD25.4010707@parallels.com>
-In-Reply-To: <4E26DD25.4010707@parallels.com>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Pekka Enberg <penberg@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Christoph Lameter <cl@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Matt Mackall <mpm@selenic.com>, "mgorman@suse.de" <mgorman@suse.de>
+Cc: Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Sebastian Siewior <sebastian@breakpoint.cc>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org
 
-Konstantin Khlebnikov wrote:
-> Pekka Enberg wrote:
->> On Wed, 20 Jul 2011, Konstantin Khlebnikov wrote:
->>>> The changelog isn't that convincing, really. This is kmem_cache_create()
->>>> so I'm surprised we'd ever get NULL here in practice. Does this fix some
->>>> problem you're seeing? If this is really an issue, I'd blame the page
->>>> allocator as GFP_KERNEL should just work.
->>>
->>> nf_conntrack creates separate slab-cache for each net-namespace,
->>> this patch of course not eliminates the chance of failure, but makes it more
->>> acceptable.
->>
->> I'm still surprised you are seeing failures. mm/slab.c hasn't changed
->> significantly in a long time. Why hasn't anyone reported this before? I'd
->> still be inclined to shift the blame to the page allocator... Mel,
->> Christoph?
->>
->> On Wed, 20 Jul 2011, Konstantin Khlebnikov wrote:
->>> struct kmem_size for slub is more compact, it uses pecpu-pointers instead of
->>> dumb NR_CPUS-size array.
->>> probably better to fix this side...
->>
->> So how big is 'struct kmem_cache' for your configuration anyway? Fixing
->> the per-cpu data structures would be nice but I'm guessing it'll be
->> slightly painful for mm/slab.c.
->
-> With NR_CPUS=4096 and MAX_NUMNODES=512 its over 9k!
-> so it require order-4 page, meanwhile PAGE_ALLOC_COSTLY_ORDER is 3
+On Wed, 20 Jul 2011, Pekka Enberg wrote:
 
-sorry, it is 0x9070 bytes, 36+ kb, 9+ pages
+> So what exactly is the lockdep complaint above telling us? We're holding on to
+> l3->list_lock in cache_flusharray() (kfree path) but somehow we now entered
+> cache_alloc_refill() (kmalloc path!) and attempt to take the same lock or lock
+> in the same class.
+>
+> I am confused. How can that happen?
 
->
->>
->>    			Pekka
->
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+I guess you need a slab with CFLGS_OFF_SLAB metadata management. Then slab
+does some recursive things doing allocations and free for metadata while
+allocating larger objects.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
