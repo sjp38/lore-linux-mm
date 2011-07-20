@@ -1,189 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id DECDC6B004A
-	for <linux-mm@kvack.org>; Wed, 20 Jul 2011 11:45:05 -0400 (EDT)
-Subject: Re: possible recursive locking detected cache_alloc_refill() +
- cache_flusharray()
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <alpine.DEB.2.00.1107201642500.4921@tiger>
-References: <20110716211850.GA23917@breakpoint.cc>
-	 <alpine.LFD.2.02.1107172333340.2702@ionos>
-	 <alpine.DEB.2.00.1107201619540.3528@tiger> <1311168638.5345.80.camel@twins>
-	 <alpine.DEB.2.00.1107201642500.4921@tiger>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D4696B004A
+	for <linux-mm@kvack.org>; Wed, 20 Jul 2011 11:56:13 -0400 (EDT)
+Received: by wyg36 with SMTP id 36so347930wyg.14
+        for <linux-mm@kvack.org>; Wed, 20 Jul 2011 08:56:10 -0700 (PDT)
+Subject: Re: [PATCH] mm-slab: allocate kmem_cache with __GFP_REPEAT
+From: Eric Dumazet <eric.dumazet@gmail.com>
+In-Reply-To: <alpine.DEB.2.00.1107201033080.1472@router.home>
+References: <20110720121612.28888.38970.stgit@localhost6>
+	 <alpine.DEB.2.00.1107201611010.3528@tiger> <20110720134342.GK5349@suse.de>
+	 <alpine.DEB.2.00.1107200854390.32737@router.home>
+	 <1311170893.2338.29.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
+	 <alpine.DEB.2.00.1107200950270.1472@router.home>
+	 <1311174562.2338.42.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
+	 <alpine.DEB.2.00.1107201033080.1472@router.home>
 Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-Date: Wed, 20 Jul 2011 17:44:40 +0200
-Message-ID: <1311176680.29152.20.camel@twins>
+Date: Wed, 20 Jul 2011 17:56:02 +0200
+Message-ID: <1311177362.2338.57.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
 Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Thomas Gleixner <tglx@linutronix.de>, Sebastian Siewior <sebastian@breakpoint.cc>, Christoph Lameter <cl@linux-foundation.org>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org
+To: Christoph Lameter <cl@linux.com>
+Cc: Mel Gorman <mgorman@suse.de>, Pekka Enberg <penberg@kernel.org>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Matt Mackall <mpm@selenic.com>
 
-On Wed, 2011-07-20 at 16:52 +0300, Pekka Enberg wrote:
+Le mercredi 20 juillet 2011 A  10:34 -0500, Christoph Lameter a A(C)crit :
+> On Wed, 20 Jul 2011, Eric Dumazet wrote:
+> 
+> > [PATCH] slab: remove one NR_CPUS dependency
+> 
+> Ok simple enough.
+> 
+> Acked-by: Christoph Lameter <cl@linux.com>
+> 
 
-> So what exactly is the lockdep complaint above telling us? We're holding=
-=20
-> on to l3->list_lock in cache_flusharray() (kfree path) but somehow we now=
-=20
-> entered cache_alloc_refill() (kmalloc path!) and attempt to take the same=
-=20
-> lock or lock in the same class.
->=20
-> I am confused. How can that happen?
+Thanks Christoph
 
-[   13.540663]  [<c106b54e>] print_deadlock_bug+0xce/0xe0
-[   13.540663]  [<c106d5fa>] validate_chain+0x5aa/0x720
-[   13.540663]  [<c106da07>] __lock_acquire+0x297/0x480
-[   13.540663]  [<c106e15b>] lock_acquire+0x7b/0xa0
-[   13.540663]  [<c10c66c6>] ? cache_alloc_refill+0x66/0x2e0
-[   13.540663]  [<c13ca4e6>] _raw_spin_lock+0x36/0x70
-[   13.540663]  [<c10c66c6>] ? cache_alloc_refill+0x66/0x2e0
-[   13.540663]  [<c11f6ac6>] ? __debug_object_init+0x346/0x360
-[   13.540663]  [<c10c66c6>] cache_alloc_refill+0x66/0x2e0
-[   13.540663]  [<c106da25>] ? __lock_acquire+0x2b5/0x480
-[   13.540663]  [<c11f6ac6>] ? __debug_object_init+0x346/0x360
-[   13.540663]  [<c10c635f>] kmem_cache_alloc+0x11f/0x140
-[   13.540663]  [<c11f6ac6>] __debug_object_init+0x346/0x360
-[   13.540663]  [<c106df62>] ? __lock_release+0x72/0x180
-[   13.540663]  [<c11f6365>] ? debug_object_activate+0x85/0x130
-[   13.540663]  [<c11f6b17>] debug_object_init+0x17/0x20
-[   13.540663]  [<c10543da>] rcuhead_fixup_activate+0x1a/0x60
-[   13.540663]  [<c11f6375>] debug_object_activate+0x95/0x130
-[   13.540663]  [<c10c60a0>] ? kmem_cache_shrink+0x50/0x50
-[   13.540663]  [<c108e60a>] __call_rcu+0x2a/0x180
-[   13.540663]  [<c10c48b0>] ? slab_destroy_debugcheck+0x70/0x110
-[   13.540663]  [<c108e77d>] call_rcu_sched+0xd/0x10
-[   13.540663]  [<c10c58d3>] slab_destroy+0x73/0x80
-[   13.540663]  [<c10c591f>] free_block+0x3f/0x1b0
-[   13.540663]  [<c10c5ad3>] ? cache_flusharray+0x43/0x110
-[   13.540663]  [<c10c5b03>] cache_flusharray+0x73/0x110
-[   13.540663]  [<c10c5847>] kmem_cache_free+0xb7/0xd0
-[   13.540663]  [<c10bbfb9>] __put_anon_vma+0x49/0xa0
-[   13.540663]  [<c10bc5dc>] unlink_anon_vmas+0xfc/0x160
-[   13.540663]  [<c10b451c>] free_pgtables+0x3c/0x90
-[   13.540663]  [<c10b9a8f>] exit_mmap+0xbf/0xf0
-[   13.540663]  [<c1039d3c>] mmput+0x4c/0xc0
-[   13.540663]  [<c103d9bc>] exit_mm+0xec/0x130
-[   13.540663]  [<c13cadc2>] ? _raw_spin_unlock_irq+0x22/0x30
-[   13.540663]  [<c103fa03>] do_exit+0x123/0x390
-[   13.540663]  [<c10cb9c5>] ? fput+0x15/0x20
-[   13.540663]  [<c10c7c2d>] ? filp_close+0x4d/0x80
-[   13.540663]  [<c103fca9>] do_group_exit+0x39/0xa0
-[   13.540663]  [<c103fd23>] sys_exit_group+0x13/0x20
-[   13.540663]  [<c13cb70c>] sysenter_do_call+0x12/0x32
+Here is the second patch, also simple and working for me (tested on
+x86_64, NR_CPUS=4096, on my 2x4x2 machine)
 
-Shows quite clearly how it happens, now its a false-positive, since the
-debug object slab doesn't use rcu-freeing and thus it can never be the
-same slab.
+Eventually, we could avoid the extra 'array' pointer if NR_CPUS is known
+to be a small value (<= 16 for example)
 
-We just need to annotate the SLAB_DEBUG_OBJECTS slab with a different
-key. Something like the below, except that doesn't quite cover cpu
-hotplug yet I think.. /me pokes more
+Note that adding ____cacheline_aligned_in_smp on nodelists[] actually
+helps performance, as all following fields are readonly after kmem_cache
+setup.
 
-Completely untested, hasn't even seen a compiler etc..
+[PATCH] slab: shrinks sizeof(struct kmem_cache)
 
+Reduce high order allocations for some setups.
+(NR_CPUS=4096 -> we need 64KB per kmem_cache struct)
+
+
+Reported-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Signed-off-by: Eric Dumazet <eric.dumazet@gmail.com>
+CC: Pekka Enberg <penberg@kernel.org>
+CC: Christoph Lameter <cl@linux.com>
+CC: Andrew Morton <akpm@linux-foundation.org>
 ---
- mm/slab.c |   65 ++++++++++++++++++++++++++++++++++++++++++++-------------=
----
- 1 files changed, 47 insertions(+), 18 deletions(-)
+ include/linux/slab_def.h |    4 ++--
+ mm/slab.c                |   10 ++++++----
+ 2 files changed, 8 insertions(+), 6 deletions(-)
 
+diff --git a/include/linux/slab_def.h b/include/linux/slab_def.h
+index 83203ae..abedd8e 100644
+--- a/include/linux/slab_def.h
++++ b/include/linux/slab_def.h
+@@ -51,7 +51,7 @@
+ 
+ struct kmem_cache {
+ /* 1) per-cpu data, touched during every alloc/free */
+-	struct array_cache *array[NR_CPUS];
++	struct array_cache **array;
+ /* 2) Cache tunables. Protected by cache_chain_mutex */
+ 	unsigned int batchcount;
+ 	unsigned int limit;
+@@ -118,7 +118,7 @@ struct kmem_cache {
+ 	 * We still use [MAX_NUMNODES] and not [1] or [0] because cache_cache
+ 	 * is statically defined, so we reserve the max number of nodes.
+ 	 */
+-	struct kmem_list3 *nodelists[MAX_NUMNODES];
++	struct kmem_list3 *nodelists[MAX_NUMNODES] ____cacheline_aligned_in_smp;
+ 	/*
+ 	 * Do not add fields after nodelists[]
+ 	 */
 diff --git a/mm/slab.c b/mm/slab.c
-index d96e223..c13f7e9 100644
+index d96e223..f951015 100644
 --- a/mm/slab.c
 +++ b/mm/slab.c
-@@ -620,6 +620,37 @@ int slab_is_available(void)
- static struct lock_class_key on_slab_l3_key;
- static struct lock_class_key on_slab_alc_key;
-=20
-+static struct lock_class_key debugobj_l3_key;
-+static struct lock_class_key debugobj_alc_key;
-+
-+static void slab_set_lock_classes(struct kmem_cache *cachep,=20
-+		struct lock_class_key *l3_key, struct lock_class_key *alc_key)
-+{
-+	struct array_cache **alc;
-+	struct kmem_list3 *l3;
-+	int r;
-+
-+	l3 =3D cachep->nodelists[q];
-+	if (!l3)
-+		return;
-+
-+	lockdep_set_class(&l3->list_lock, l3_key);
-+	alc =3D l3->alien;
-+	/*
-+	 * FIXME: This check for BAD_ALIEN_MAGIC
-+	 * should go away when common slab code is taught to
-+	 * work even without alien caches.
-+	 * Currently, non NUMA code returns BAD_ALIEN_MAGIC
-+	 * for alloc_alien_cache,
-+	 */
-+	if (!alc || (unsigned long)alc =3D=3D BAD_ALIEN_MAGIC)
-+		return;
-+	for_each_node(r) {
-+		if (alc[r])
-+			lockdep_set_class(&alc[r]->lock, alc_key);
-+	}
-+}
-+
- static void init_node_lock_keys(int q)
- {
- 	struct cache_sizes *s =3D malloc_sizes;
-@@ -628,29 +659,14 @@ static void init_node_lock_keys(int q)
- 		return;
-=20
- 	for (s =3D malloc_sizes; s->cs_size !=3D ULONG_MAX; s++) {
--		struct array_cache **alc;
- 		struct kmem_list3 *l3;
--		int r;
-=20
- 		l3 =3D s->cs_cachep->nodelists[q];
- 		if (!l3 || OFF_SLAB(s->cs_cachep))
- 			continue;
--		lockdep_set_class(&l3->list_lock, &on_slab_l3_key);
--		alc =3D l3->alien;
--		/*
--		 * FIXME: This check for BAD_ALIEN_MAGIC
--		 * should go away when common slab code is taught to
--		 * work even without alien caches.
--		 * Currently, non NUMA code returns BAD_ALIEN_MAGIC
--		 * for alloc_alien_cache,
--		 */
--		if (!alc || (unsigned long)alc =3D=3D BAD_ALIEN_MAGIC)
--			continue;
--		for_each_node(r) {
--			if (alc[r])
--				lockdep_set_class(&alc[r]->lock,
--					&on_slab_alc_key);
--		}
-+
-+		slab_set_lock_classes(s->cs_cachep,
-+				&on_slab_l3_key, &on_slab_alc_key)
- 	}
- }
-=20
-@@ -2424,6 +2440,19 @@ kmem_cache_create (const char *name, size_t size, si=
-ze_t align,
+@@ -574,7 +574,9 @@ static struct arraycache_init initarray_generic =
+     { {0, BOOT_CPUCACHE_ENTRIES, 1, 0} };
+ 
+ /* internal cache of cache description objs */
++static struct array_cache *array_cache_cache[NR_CPUS];
+ static struct kmem_cache cache_cache = {
++	.array = array_cache_cache,
+ 	.batchcount = 1,
+ 	.limit = BOOT_CPUCACHE_ENTRIES,
+ 	.shared = 1,
+@@ -1492,11 +1494,10 @@ void __init kmem_cache_init(void)
+ 	cache_cache.nodelists[node] = &initkmem_list3[CACHE_CACHE + node];
+ 
+ 	/*
+-	 * struct kmem_cache size depends on nr_node_ids, which
+-	 * can be less than MAX_NUMNODES.
++	 * struct kmem_cache size depends on nr_node_ids & nr_cpu_ids
+ 	 */
+-	cache_cache.buffer_size = offsetof(struct kmem_cache, nodelists) +
+-				 nr_node_ids * sizeof(struct kmem_list3 *);
++	cache_cache.buffer_size = offsetof(struct kmem_cache, nodelists[nr_node_ids]) +
++				 nr_cpu_ids * sizeof(struct array_cache *);
+ #if DEBUG
+ 	cache_cache.obj_size = cache_cache.buffer_size;
+ #endif
+@@ -2308,6 +2309,7 @@ kmem_cache_create (const char *name, size_t size, size_t align,
+ 	if (!cachep)
  		goto oops;
- 	}
-=20
-+	if (flags & SLAB_DEBUG_OBJECTS) {
-+		/*
-+		 * Would deadlock through slab_destroy()->call_rcu()->
-+		 * debug_object_activate()->kmem_cache_alloc().
-+		 */
-+		WARN_ON_ONCE(flags & SLAB_DESTROY_BY_RCU);
-+
-+#ifdef CONFIG_LOCKDEP
-+		slab_set_lock_classes(cachep,=20
-+				&debugobj_l3_key, &debugobj_alc_key);
-+#endif
-+	}
-+
- 	/* cache setup completed, link it into the list */
- 	list_add(&cachep->next, &cache_chain);
- oops:
+ 
++	cachep->array = (struct array_cache **)&cachep->nodelists[nr_node_ids];
+ #if DEBUG
+ 	cachep->obj_size = size;
+ 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
