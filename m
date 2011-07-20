@@ -1,50 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id D90D56B007E
-	for <linux-mm@kvack.org>; Wed, 20 Jul 2011 03:01:08 -0400 (EDT)
-Date: Wed, 20 Jul 2011 09:01:05 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 2/2] memcg: change memcg_oom_mutex to spinlock
-Message-ID: <20110720070105.GC10857@tiehlicka.suse.cz>
-References: <cover.1310732789.git.mhocko@suse.cz>
- <b24894c23d0bb06f849822cb30726b532ea3a4c5.1310732789.git.mhocko@suse.cz>
- <20110720145553.7703dbcb.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A61A6B004A
+	for <linux-mm@kvack.org>; Wed, 20 Jul 2011 04:30:44 -0400 (EDT)
+Date: Wed, 20 Jul 2011 09:30:36 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: kmemleak fails to report detected leaks after allocation
+ failure
+Message-ID: <20110720083036.GG28726@e102109-lin.cambridge.arm.com>
+References: <20110719211438.GA21588@elliptictech.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110720145553.7703dbcb.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110719211438.GA21588@elliptictech.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, Balbir Singh <bsingharora@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
+To: Nick Bowler <nbowler@elliptictech.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Wed 20-07-11 14:55:53, KAMEZAWA Hiroyuki wrote:
-> On Thu, 14 Jul 2011 17:29:51 +0200
-> Michal Hocko <mhocko@suse.cz> wrote:
+On Tue, Jul 19, 2011 at 10:14:38PM +0100, Nick Bowler wrote:
+> I just ran into a somewhat amusing issue with kmemleak.  After running
+> for a while (10 days), and detecting about 100 "suspected memory leaks",
+> kmemleak ultimately reported:
 > 
-> > memcg_oom_mutex is used to protect memcg OOM path and eventfd interface
-> > for oom_control. None of the critical sections which it protects sleep
-> > (eventfd_signal works from atomic context and the rest are simple linked
-> > list resp. oom_lock atomic operations).
-> > Mutex is also too heavy weight for those code paths because it triggers
-> > a lot of scheduling. It also makes makes convoying effects more visible
-> > when we have a big number of oom killing because we take the lock
-> > mutliple times during mem_cgroup_handle_oom so we have multiple places
-> > where many processes can sleep.
-> > 
-> > Signed-off-by: Michal Hocko <mhocko@suse.cz>
+>   kmemleak: Cannot allocate a kmemleak_object structure
+>   kmemleak: Automatic memory scanning thread ended
+>   kmemleak: Kernel memory leak detector disabled
 > 
-> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> OK, so something failed and kmemleak apparently can't recover from
+> this.  However, at this point, it appears that kmemleak has *also*
+> lost the ability to report the earlier leaks that it actually
+> detected.
+> 
+>   cat: /sys/kernel/debug/kmemleak: Device or resource busy
+> 
+> It seems to me that kmemleak shouldn't lose the ability to report leaks
+> that it already detected after it disables itself due to an issue that
+> was potentially caused by the very leaks that it managed to detect
+> (unlikely in this instance, but still...).
 
-Thanks!
+Very good point, I haven't thought of this. I'll try to improve this
+part.
+
+Thanks.
 
 -- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+Catalin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
