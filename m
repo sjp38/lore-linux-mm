@@ -1,29 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id E15E86B004A
-	for <linux-mm@kvack.org>; Thu, 21 Jul 2011 06:38:04 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id CD40C3EE081
-	for <linux-mm@kvack.org>; Thu, 21 Jul 2011 19:38:00 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id A9E6A45DE87
-	for <linux-mm@kvack.org>; Thu, 21 Jul 2011 19:38:00 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8ED7C45DE68
-	for <linux-mm@kvack.org>; Thu, 21 Jul 2011 19:38:00 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 7F2E3E08001
-	for <linux-mm@kvack.org>; Thu, 21 Jul 2011 19:38:00 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 4828A1DB8038
-	for <linux-mm@kvack.org>; Thu, 21 Jul 2011 19:38:00 +0900 (JST)
-Date: Thu, 21 Jul 2011 19:30:51 +0900
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id B9C7C6B004A
+	for <linux-mm@kvack.org>; Thu, 21 Jul 2011 07:01:22 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id EBF4F3EE0AE
+	for <linux-mm@kvack.org>; Thu, 21 Jul 2011 20:01:19 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id D08ED45DEB3
+	for <linux-mm@kvack.org>; Thu, 21 Jul 2011 20:01:19 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id AE39245DEA6
+	for <linux-mm@kvack.org>; Thu, 21 Jul 2011 20:01:19 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id A10461DB8040
+	for <linux-mm@kvack.org>; Thu, 21 Jul 2011 20:01:19 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 691851DB8038
+	for <linux-mm@kvack.org>; Thu, 21 Jul 2011 20:01:19 +0900 (JST)
+Date: Thu, 21 Jul 2011 19:54:11 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 3/4] memcg: get rid of percpu_charge_mutex lock
-Message-Id: <20110721193051.cd3266e5.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <2bfb2b7687c1a6b39da2a04689190725075cc4f8.1311241300.git.mhocko@suse.cz>
+Subject: Re: [PATCH 4/4] memcg: prevent from reclaiming if there are per-cpu
+ cached charges
+Message-Id: <20110721195411.f4fa9f91.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <0ed59a22cc84037d6e42b258981c75e3a6063899.1311241300.git.mhocko@suse.cz>
 References: <cover.1311241300.git.mhocko@suse.cz>
-	<2bfb2b7687c1a6b39da2a04689190725075cc4f8.1311241300.git.mhocko@suse.cz>
+	<0ed59a22cc84037d6e42b258981c75e3a6063899.1311241300.git.mhocko@suse.cz>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -32,59 +33,58 @@ List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@suse.cz>
 Cc: linux-mm@kvack.org, Balbir Singh <bsingharora@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-kernel@vger.kernel.org
 
-On Thu, 21 Jul 2011 09:58:24 +0200
+On Thu, 21 Jul 2011 10:28:10 +0200
 Michal Hocko <mhocko@suse.cz> wrote:
 
-> percpu_charge_mutex protects from multiple simultaneous per-cpu charge
-> caches draining because we might end up having too many work items.
-> At least this was the case until 26fe6168 (memcg: fix percpu cached
-> charge draining frequency) when we introduced a more targeted draining
-> for async mode.
-> Now that also sync draining is targeted we can safely remove mutex
-> because we will not send more work than the current number of CPUs.
-> FLUSHING_CACHED_CHARGE protects from sending the same work multiple
-> times and stock->nr_pages == 0 protects from pointless sending a work
-> if there is obviously nothing to be done. This is of course racy but we
-> can live with it as the race window is really small (we would have to
-> see FLUSHING_CACHED_CHARGE cleared while nr_pages would be still
-> non-zero).
-> The only remaining place where we can race is synchronous mode when we
-> rely on FLUSHING_CACHED_CHARGE test which might have been set by other
-> drainer on the same group but we should wait in that case as well.
+> If we fail to charge an allocation for a cgroup we usually have to fall
+> back into direct reclaim (mem_cgroup_hierarchical_reclaim).
+> The charging code, however, currently doesn't care about per-cpu charge
+> caches which might have up to (nr_cpus - 1) * CHARGE_BATCH pre charged
+> pages (the current cache is already drained, otherwise we wouldn't get
+> to mem_cgroup_do_charge).
+> That can be quite a lot on boxes with big amounts of CPUs so we can end
+> up reclaiming even though there are charges that could be used. This
+> will typically happen in a multi-threaded applications pined to many CPUs
+> which allocates memory heavily.
+> 
+
+Do you have example and score, numbers on your test ?
+
+> Currently we are draining caches during reclaim
+> (mem_cgroup_hierarchical_reclaim) but this can be already late as we
+> could have already reclaimed from other groups in the hierarchy.
+> 
+> The solution for this would be to synchronously drain charges early when
+> we fail to charge and retry the charge once more.
+> I think it still makes sense to keep async draining in the reclaim path
+> as it is used from other code paths as well (e.g. limit resize). It will
+> not do any work if we drained previously anyway.
 > 
 > Signed-off-by: Michal Hocko <mhocko@suse.cz>
 
-A concern.
+I don't like this solution, at all.
 
-> ---
->  mm/memcontrol.c |   12 ++----------
->  1 files changed, 2 insertions(+), 10 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 8180cd9..9d49a12 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -2065,7 +2065,6 @@ struct memcg_stock_pcp {
->  #define FLUSHING_CACHED_CHARGE	(0)
->  };
->  static DEFINE_PER_CPU(struct memcg_stock_pcp, memcg_stock);
-> -static DEFINE_MUTEX(percpu_charge_mutex);
->  
->  /*
->   * Try to consume stocked charge on this cpu. If success, one page is consumed
-> @@ -2166,7 +2165,8 @@ static void drain_all_stock(struct mem_cgroup *root_mem, bool sync)
->  
->  	for_each_online_cpu(cpu) {
->  		struct memcg_stock_pcp *stock = &per_cpu(memcg_stock, cpu);
-> -		if (test_bit(FLUSHING_CACHED_CHARGE, &stock->flags))
-> +		if (root_mem == stock->cached &&
-> +				test_bit(FLUSHING_CACHED_CHARGE, &stock->flags))
->  			flush_work(&stock->work);
+Assume 2 cpu SMP, (a special case), and 2 applications running under
+a memcg.
 
-Doesn't this new check handle hierarchy ?
-css_is_ancestor() will be required if you do this check.
+ - one is running in SCHED_FIFO.
+ - another is running into mem_cgroup_do_charge() and call drain_all_stock_sync().
 
-BTW, this change should be in other patch, I think.
+Then, the application stops until SCHED_FIFO application release the cpu.
+
+In general, I don't think waiting for schedule_work() against multiple cpus
+is not quicker than short memory reclaim. Adding flush_work() here means
+that a context switch is requred before calling direct reclaim. That's bad.
+(At leaset, please check __GFP_NOWAIT.)
+
+
+Please find another way, I think calling synchronous drain here is overkill.
+There are not important file caches in the most case and reclaim is quick.
+(And async draining runs.)
+
+How about automatically adjusting CHARGE_BATCH and make it small when the
+system is near to limit ? or flushing ->stock periodically ?
+
 
 Thanks,
 -Kame
