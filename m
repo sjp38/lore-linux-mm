@@ -1,74 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 722626B00F5
-	for <linux-mm@kvack.org>; Thu, 21 Jul 2011 12:29:57 -0400 (EDT)
-From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 8/8] mm: vmscan: Do not writeback filesystem pages from kswapd
-Date: Thu, 21 Jul 2011 17:28:50 +0100
-Message-Id: <1311265730-5324-9-git-send-email-mgorman@suse.de>
-In-Reply-To: <1311265730-5324-1-git-send-email-mgorman@suse.de>
-References: <1311265730-5324-1-git-send-email-mgorman@suse.de>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 3E0796B00F7
+	for <linux-mm@kvack.org>; Thu, 21 Jul 2011 12:36:34 -0400 (EDT)
+Received: by pzk33 with SMTP id 33so2306668pzk.36
+        for <linux-mm@kvack.org>; Thu, 21 Jul 2011 09:36:31 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20110721162417.GF1713@barrios-desktop>
+References: <1308926697-22475-1-git-send-email-mgorman@suse.de>
+ <20110721153722.GD1713@barrios-desktop> <20110721160958.GT5349@suse.de> <20110721162417.GF1713@barrios-desktop>
+From: Andrew Lutomirski <luto@mit.edu>
+Date: Thu, 21 Jul 2011 12:36:11 -0400
+Message-ID: <CAObL_7HpE3mCS90Zfa9-edBKPFN1MuBOHv+=e6BNHsi2u3zTOQ@mail.gmail.com>
+Subject: Re: [PATCH 0/4] Stop kswapd consuming 100% CPU when highest zone is small
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux-MM <linux-mm@kvack.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, XFS <xfs@oss.sgi.com>, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, Johannes Weiner <jweiner@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Mel Gorman <mgorman@suse.de>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, P?draig Brady <P@draigbrady.com>, James Bottomley <James.Bottomley@hansenpartnership.com>, Colin King <colin.king@canonical.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 
-Assuming that flusher threads will always write back dirty pages promptly
-then it is always faster for reclaimers to wait for flushers. This patch
-prevents kswapd writing back any filesystem pages.
+On Thu, Jul 21, 2011 at 12:24 PM, Minchan Kim <minchan.kim@gmail.com> wrote=
+:
+> On Thu, Jul 21, 2011 at 05:09:59PM +0100, Mel Gorman wrote:
+>> On Fri, Jul 22, 2011 at 12:37:22AM +0900, Minchan Kim wrote:
+>> > On Fri, Jun 24, 2011 at 03:44:53PM +0100, Mel Gorman wrote:
+>> > > (Built this time and passed a basic sniff-test.)
+>> > >
+>> > > During allocator-intensive workloads, kswapd will be woken frequentl=
+y
+>> > > causing free memory to oscillate between the high and min watermark.
+>> > > This is expected behaviour. =A0Unfortunately, if the highest zone is
+>> > > small, a problem occurs.
+>> > >
+>> > > This seems to happen most with recent sandybridge laptops but it's
+>> > > probably a co-incidence as some of these laptops just happen to have
+>> > > a small Normal zone. The reproduction case is almost always during
+>> > > copying large files that kswapd pegs at 100% CPU until the file is
+>> > > deleted or cache is dropped.
+>> > >
+>> > > The problem is mostly down to sleeping_prematurely() keeping kswapd
+>> > > awake when the highest zone is small and unreclaimable and compounde=
+d
+>> > > by the fact we shrink slabs even when not shrinking zones causing a =
+lot
+>> > > of time to be spent in shrinkers and a lot of memory to be reclaimed=
+.
+>> > >
+>> > > Patch 1 corrects sleeping_prematurely to check the zones matching
+>> > > =A0 the classzone_idx instead of all zones.
+>> > >
+>> > > Patch 2 avoids shrinking slab when we are not shrinking a zone.
+>> > >
+>> > > Patch 3 notes that sleeping_prematurely is checking lower zones agai=
+nst
+>> > > =A0 a high classzone which is not what allocators or balance_pgdat()
+>> > > =A0 is doing leading to an artifical believe that kswapd should be
+>> > > =A0 still awake.
+>> > >
+>> > > Patch 4 notes that when balance_pgdat() gives up on a high zone that=
+ the
+>> > > =A0 decision is not communicated to sleeping_prematurely()
+>> > >
+>> > > This problem affects 2.6.38.8 for certain and is expected to affect
+>> > > 2.6.39 and 3.0-rc4 as well. If accepted, they need to go to -stable
+>> > > to be picked up by distros and this series is against 3.0-rc4. I've
+>> > > cc'd people that reported similar problems recently to see if they
+>> > > still suffer from the problem and if this fixes it.
+>> > >
+>> >
+>> > Good!
+>> > This patch solved the problem.
+>> > But there is still a mystery.
+>> >
+>> > In log, we could see excessive shrink_slab calls.
+>>
+>> Yes, because shrink_slab() was called on each loop through
+>> balance_pgdat() even if the zone was balanced.
+>>
+>>
+>> > And as you know, we had merged patch which adds cond_resched where las=
+t of the function
+>> > in shrink_slab. So other task should get the CPU and we should not see
+>> > 100% CPU of kswapd, I think.
+>> >
+>>
+>> cond_resched() is not a substitute for going to sleep.
+>
+> Of course, it's not equal with sleep but other task should get CPU and co=
+nusme their time slice
+> So we should never see 100% CPU consumption of kswapd.
+> No?
 
-Signed-off-by: Mel Gorman <mgorman@suse.de>
----
- mm/vmscan.c |   15 ++++-----------
- 1 files changed, 4 insertions(+), 11 deletions(-)
+If the rest of the system is idle, then kswapd will happily use 100%
+CPU.  (Or on a multi-core system, kswapd will use close to 100% of one
+CPU even if another task is using the other one.  This is bad enough
+on a desktop, but on a laptop you start to notice when your battery
+dies.)
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index c3d8341..6023494 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -720,7 +720,6 @@ static noinline_for_stack void free_page_list(struct list_head *free_pages)
- static unsigned long shrink_page_list(struct list_head *page_list,
- 				      struct zone *zone,
- 				      struct scan_control *sc,
--				      int priority,
- 				      unsigned long *ret_nr_dirty)
- {
- 	LIST_HEAD(ret_pages);
-@@ -827,13 +826,8 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 		if (PageDirty(page)) {
- 			nr_dirty++;
- 
--			/*
--			 * Only kswapd can writeback filesystem pages to
--			 * avoid risk of stack overflow but do not writeback
--			 * unless under significant pressure.
--			 */
--			if (page_is_file_cache(page) &&
--					(!current_is_kswapd() || priority >= DEF_PRIORITY - 2)) {
-+			/* Flusher must clean dirty filesystem-backed pages */
-+			if (page_is_file_cache(page)) {
- 				/*
- 				 * Immediately reclaim when written back.
- 				 * Similar in principal to deactivate_page()
-@@ -1479,14 +1473,13 @@ shrink_inactive_list(unsigned long nr_to_scan, struct zone *zone,
- 
- 	spin_unlock_irq(&zone->lru_lock);
- 
--	nr_reclaimed = shrink_page_list(&page_list, zone, sc,
--							priority, &nr_dirty);
-+	nr_reclaimed = shrink_page_list(&page_list, zone, sc, &nr_dirty);
- 
- 	/* Check if we should syncronously wait for writeback */
- 	if (should_reclaim_stall(nr_taken, nr_reclaimed, priority, sc)) {
- 		set_reclaim_mode(priority, sc, true);
- 		nr_reclaimed += shrink_page_list(&page_list, zone, sc,
--							priority, &nr_dirty);
-+							&nr_dirty);
- 	}
- 
- 	local_irq_disable();
--- 
-1.7.3.4
+--Andy
+
+>
+>>
+>> --
+>> Mel Gorman
+>> SUSE Labs
+>
+> --
+> Kind regards,
+> Minchan Kim
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
