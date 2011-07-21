@@ -1,174 +1,225 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 41CAF6B0092
-	for <linux-mm@kvack.org>; Thu, 21 Jul 2011 08:53:45 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 0E6C16B00EA
+	for <linux-mm@kvack.org>; Thu, 21 Jul 2011 08:53:48 -0400 (EDT)
 Received: by mail-ew0-f41.google.com with SMTP id 9so1637748ewy.14
-        for <linux-mm@kvack.org>; Thu, 21 Jul 2011 05:53:40 -0700 (PDT)
+        for <linux-mm@kvack.org>; Thu, 21 Jul 2011 05:53:45 -0700 (PDT)
 From: Vasiliy Kulikov <segoon@openwall.com>
-Subject: [RFC v3 2/5] slab: implement slab object boundaries assertion
-Date: Thu, 21 Jul 2011 16:53:35 +0400
-Message-Id: <1311252815-6733-1-git-send-email-segoon@openwall.com>
+Subject: [RFC v3 3/5] mm: implement kernel_access_ok
+Date: Thu, 21 Jul 2011 16:53:40 +0400
+Message-Id: <1311252820-6781-1-git-send-email-segoon@openwall.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Greg Kroah-Hartman <gregkh@suse.de>, Al Viro <viro@zeniv.linux.org.uk>, Thomas Gleixner <tglx@linutronix.de>
+Cc: Mike Frysinger <vapier@gentoo.org>, Heiko Carstens <heiko.carstens@de.ibm.com>, David Howells <dhowells@redhat.com>, Akira Takeuchi <takeuchi.akr@jp.panasonic.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Greg Kroah-Hartman <gregkh@suse.de>, Al Viro <viro@zeniv.linux.org.uk>, Thomas Gleixner <tglx@linutronix.de>
 
-Implement slab_access_ok() which checks whether a supplied buffer fully
-fits in a slab page and whether it overflows a slab object.  It uses
-cache specific information to learn object's boundaries.  It doesn't
-check whether the object is actually allocated.  The latter would
-significantly slowdown the check and it is related to object pointer
-miscalculation rather than length parameter overflow, but
-RUNTIME_USER_COPY_CHECK checks length overflows only.
+Introduce stack_access_ok() which checks whether the supplied buffer
+overflows or underflows the stack.  Additionally it calls
+arch_check_object_on_stack_frame() which should do architecture specific
+check whether the buffer fully fits in a single stack frame.  Otherwise
+arch_check_object_on_stack_frame() does nothing and returns true.  This
+function will be implemented in the following patch for x86.
 
-If object's size is aligned, the check interprets padding bytes as if
-they are object bytes.  It doesn't relax the check too much though: if
-the checked action is write, overwriting pad bytes doesn't make sense;
-if it is read, slab caches with constant object size don't suffer as
-these padding bytes are not used too.  The check is weak for dynamically
-sized objects only (kmalloc caches).
+The checks should be implemented for copy_{to,from}_user() and similar,
+but not for {put,get}_user() and similar because the base pointer might
+be a result of any pointer arithmetics, and the correctness of these
+arithmetics is almost impossible to check on this stage.  If the
+real object size is known at the compile time, the check is reduced to 2
+integers comparison.  If the supplied length argument is known at the
+compile time, the check is skipped because the only thing that can be
+under attacker's control is object pointer and checking for errors as a
+result of wrong pointer arithmetic is beyond patch's goals.
 
-As it doesn't check whether the copied object is actually allocated, an
-infoleak of a freed object is still possible.
+The limitations:
 
-The check is missing in SLOB case as objects boundaries are not easy to
-check.  The walking through all objects from the first one on the page
-to the touched object is needed for a strict check.  It also needs
-holding a lock during the walking, which would significantly slowdown
-the usercopy check.
+The stack check does nothing with local variables overwriting and 
+saved registers.  It only limits overflows to a single frame.
 
-v3 - Define slab_access_ok() only if DEBUG_RUNTIME_USER_COPY_CHECKS=y.
-   - Removed redundant NULL initializers.
-   - Removed (char *) casts.
+The SL*B checks don't validate whether the object is actually allocated.
+So, it doesn't prevent infoleaks related to the freed objects.  Also if
+the cache's granularity is larger than an actual allocated object size,
+an infoleak of padding bytes is possible.  The slob check is missing yet.
+Unfortunately, the check for slob would have to (1) walk through the
+slob chunks and (2) hold the slob lock, so it would lead to a
+significant slowdown.
+
+The patch's goal is similar to StackGuard (-fstack-protector gcc option,
+enabled by CONFIG_CC_STACKPROTECTOR): catch buffer oveflows.  However,
+the design is completely different.  First, SG does nothing with
+overreads, it can catch overwrites only.  Second, SG cannot catch SL*B
+buffer overflows.  Third, SG checks the canary after a buffer is
+overflowed instead of preventing an actual overflow attempt; when an
+attacker overflows a stack buffer, he can uncontrolledly wipe some data
+on the stack before the function return.  If attacker's actions generate
+kernel oops before the return, SG would not get the control and the
+overflow is not catched as if SG is disabled.  However, SG can catch
+overflows of memcpy(), strcpy(), sprintf() and other functions working
+with kernel data only, which are not caught by RUNTIME_USER_COPY_CHECK.
+
+The checks can be easily implemented by any architecture by including
+<linux/uaccess-check.h> and adding kernel_access_ok() checks into
+{,__}copy_{to,from}_user().
+
+All users of copy_*_user_unchecked() should explicitly include
+<linux/uaccess-check.h> until all arch/*/include/asm/uaccess.h start to
+include this header.  mm/maccess.c needs this include for the same
+reason.
+
+v3 - Simplified addition of new architectures.
+   - Now log the copy direction (from/to user) on overflows.
+   - Used __always_inline.
    - Moved "len == 0" check to kernel_access_ok().
+
+v2 - Moved the checks to kernel_access_ok().
+   - If the object size is known at the compilation time, just compare
+     length and object size.
+   - Check only if length value is not known at the compilation time.
 
 Signed-off-by: Vasiliy Kulikov <segoon@openwall.com>
 ---
- include/linux/slab.h |    4 ++++
- mm/slab.c            |   33 +++++++++++++++++++++++++++++++++
- mm/slob.c            |   12 ++++++++++++
- mm/slub.c            |   28 ++++++++++++++++++++++++++++
- 4 files changed, 77 insertions(+), 0 deletions(-)
+ include/linux/uaccess-check.h |   70 +++++++++++++++++++++++++++++++++++++++++
+ mm/maccess.c                  |   48 ++++++++++++++++++++++++++++
+ 2 files changed, 118 insertions(+), 0 deletions(-)
 
-diff --git a/include/linux/slab.h b/include/linux/slab.h
-index ad4dd1c..cdcee83 100644
---- a/include/linux/slab.h
-+++ b/include/linux/slab.h
-@@ -333,4 +333,8 @@ static inline void *kzalloc_node(size_t size, gfp_t flags, int node)
- 
- void __init kmem_cache_init_late(void);
- 
-+#ifdef CONFIG_DEBUG_RUNTIME_USER_COPY_CHECKS
-+extern bool slab_access_ok(const void *ptr, unsigned long len);
-+#endif
+diff --git a/include/linux/uaccess-check.h b/include/linux/uaccess-check.h
+new file mode 100644
+index 0000000..9c03b98
+--- /dev/null
++++ b/include/linux/uaccess-check.h
+@@ -0,0 +1,70 @@
++#ifndef __LINUX_UACCESS_CHECK_H__
++#define __LINUX_UACCESS_CHECK_H__
 +
- #endif	/* _LINUX_SLAB_H */
-diff --git a/mm/slab.c b/mm/slab.c
-index d96e223..95cda2e 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -3843,6 +3843,39 @@ unsigned int kmem_cache_size(struct kmem_cache *cachep)
- }
- EXPORT_SYMBOL(kmem_cache_size);
- 
++#include <linux/kernel.h>
++
 +#ifdef CONFIG_DEBUG_RUNTIME_USER_COPY_CHECKS
-+/*
-+ * Returns false if and only if [ptr; ptr+len) touches the slab,
-+ * but breaks objects boundaries.  It doesn't check whether the
-+ * accessed object is actually allocated.
-+ */
-+bool slab_access_ok(const void *ptr, unsigned long len)
++
++static inline void usercopy_alert(const void *ptr, unsigned long len,
++				  bool to_user)
 +{
-+	struct page *page;
-+	struct kmem_cache *cachep;
-+	struct slab *slabp;
-+	unsigned int objnr;
-+	unsigned long offset;
-+
-+	if (!virt_addr_valid(ptr))
-+		return true;
-+	page = virt_to_head_page(ptr);
-+	if (!PageSlab(page))
-+		return true;
-+
-+	cachep = page_get_cache(page);
-+	slabp = page_get_slab(page);
-+	objnr = obj_to_index(cachep, slabp, (void *)ptr);
-+	BUG_ON(objnr >= cachep->num);
-+	offset = ptr - index_to_obj(cachep, slabp, objnr) - obj_offset(cachep);
-+	if (offset < obj_size(cachep) && len <= obj_size(cachep) - offset)
-+		return true;
-+
-+	return false;
++	pr_err("kernel memory %s attempt detected %s %p (%lu bytes)\n",
++		to_user ? "leak" : "overwrite", to_user ? "from" : "to",
++		ptr, len);
++	dump_stack();
 +}
-+EXPORT_SYMBOL(slab_access_ok);
-+#endif /* CONFIG_DEBUG_RUNTIME_USER_COPY_CHECKS */
 +
- /*
-  * This initializes kmem_list3 or resizes various caches for all nodes.
-  */
-diff --git a/mm/slob.c b/mm/slob.c
-index 46e0aee..8333db6 100644
---- a/mm/slob.c
-+++ b/mm/slob.c
-@@ -666,6 +666,18 @@ unsigned int kmem_cache_size(struct kmem_cache *c)
- }
- EXPORT_SYMBOL(kmem_cache_size);
- 
-+#ifdef CONFIG_DEBUG_RUNTIME_USER_COPY_CHECKS
-+bool slab_access_ok(const void *ptr, unsigned long len)
++extern bool __kernel_access_ok(const void *ptr, unsigned long len,
++				bool to_user);
++
++static __always_inline
++bool kernel_access_ok(const void *ptr, unsigned long len, bool to_user)
 +{
-+	/*
-+	 * TODO: is it worth checking?  We have to gain a lock and
-+	 * walk through all chunks.
-+	 */
++	size_t sz = __compiletime_object_size(ptr);
++
++	if (sz != (size_t)-1) {
++		if (sz >= len)
++			return true;
++		usercopy_alert(ptr, len, to_user);
++		return false;
++	}
++
++	/* We care about "len" overflows only. */
++	if (__builtin_constant_p(len) || len == 0)
++		return true;
++
++	return __kernel_access_ok(ptr, len, to_user);
++}
++
++#else
++
++static inline
++bool kernel_access_ok(const void *ptr, unsigned long len, bool to_user)
++{
 +	return true;
 +}
-+EXPORT_SYMBOL(slab_access_ok);
++
 +#endif /* CONFIG_DEBUG_RUNTIME_USER_COPY_CHECKS */
 +
- int kmem_cache_shrink(struct kmem_cache *d)
- {
- 	return 0;
-diff --git a/mm/slub.c b/mm/slub.c
-index 35f351f..37e7467 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -2623,6 +2623,34 @@ unsigned int kmem_cache_size(struct kmem_cache *s)
- }
- EXPORT_SYMBOL(kmem_cache_size);
++/*
++ * If some arch wants to implement RUNTIME_USER_COPY_CHECKS
++ * it should redefine these 2 _unchecked symbols for direct
++ * copying for /dev/mem and /dev/kmem.
++ */
++#ifndef copy_to_user_unchecked
++#define copy_to_user_unchecked copy_to_user
++#endif
++
++#ifndef copy_from_user_unchecked
++#define copy_from_user_unchecked copy_from_user
++#endif
++
++/*
++ * If arch has knowledge about stack frames (like x86 without
++ * -fomit-frame-pointers), it should redefine this function.
++ */
++#ifndef arch_check_object_on_stack_frame
++#define arch_check_object_on_stack_frame(s, se, o, len) true
++#endif
++
++#endif		/* __LINUX_UACCESS_CHECK_H__ */
+diff --git a/mm/maccess.c b/mm/maccess.c
+index 4cee182..6b78f25 100644
+--- a/mm/maccess.c
++++ b/mm/maccess.c
+@@ -4,6 +4,9 @@
+ #include <linux/module.h>
+ #include <linux/mm.h>
+ #include <linux/uaccess.h>
++#include <linux/sched.h>
++#include <linux/slab.h>
++#include <linux/uaccess-check.h>
  
+ /**
+  * probe_kernel_read(): safely attempt to read from a location
+@@ -60,3 +63,48 @@ long __probe_kernel_write(void *dst, const void *src, size_t size)
+ 	return ret ? -EFAULT : 0;
+ }
+ EXPORT_SYMBOL_GPL(probe_kernel_write);
++
 +#ifdef CONFIG_DEBUG_RUNTIME_USER_COPY_CHECKS
 +/*
-+ * Returns false if and only if [ptr; ptr+len) touches the slab,
-+ * but breaks objects boundaries.  It doesn't check whether the
-+ * accessed object is actually allocated.
++ * stack_access_ok() checks whether object is on the stack and
++ * whether it fits in a single stack frame (in case arch allows
++ * to learn this information).
++ *
++ * Returns true in cases:
++ * a) object is not a stack object at all
++ * b) object is located on the stack and fits in a single frame
++ *
++ * MUST be inline not to confuse arch_check_object_on_stack_frame.
 + */
-+bool slab_access_ok(const void *ptr, unsigned long len)
++static __always_inline bool
++stack_access_ok(const void *obj, unsigned long len)
 +{
-+	struct page *page;
-+	struct kmem_cache *s = NULL;
-+	unsigned long offset;
++	const void * const stack = task_stack_page(current);
++	const void * const stackend = stack + THREAD_SIZE;
 +
-+	if (!virt_addr_valid(ptr))
-+		return true;
-+	page = virt_to_head_page(ptr);
-+	if (!PageSlab(page))
-+		return true;
++	/* Does obj+len overflow vm space? */
++	if (unlikely(obj + len < obj))
++		return false;
 +
-+	s = page->slab;
-+	offset = (ptr - page_address(page)) % s->size;
-+	if (offset <= s->objsize && len <= s->objsize - offset)
++	/* Does [obj; obj+len) at least touch our stack? */
++	if (unlikely(obj + len <= stack || stackend <= obj))
 +		return true;
 +
-+	return false;
++	/* Does [obj; obj+len) overflow/underflow the stack? */
++	if (unlikely(obj < stack || stackend < obj + len))
++		return false;
++
++	return arch_check_object_on_stack_frame(stack, stackend, obj, len);
 +}
-+EXPORT_SYMBOL(slab_access_ok);
-+#endif /* CONFIG_DEBUG_RUNTIME_USER_COPY_CHECKS */
 +
- static void list_slab_objects(struct kmem_cache *s, struct page *page,
- 							const char *text)
- {
++bool __kernel_access_ok(const void *ptr, unsigned long len, bool to_user)
++{
++	if (!slab_access_ok(ptr, len) || !stack_access_ok(ptr, len)) {
++		usercopy_alert(ptr, len, to_user);
++		return false;
++	}
++
++	return true;
++}
++EXPORT_SYMBOL(__kernel_access_ok);
++#endif /* CONFIG_DEBUG_RUNTIME_USER_COPY_CHECKS */
 --
 
 --
