@@ -1,43 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id E48506B004A
-	for <linux-mm@kvack.org>; Thu, 21 Jul 2011 05:07:18 -0400 (EDT)
-MIME-version: 1.0
-Content-transfer-encoding: 7BIT
-Content-type: text/plain; charset=us-ascii
-Received: from spt2.w1.samsung.com ([210.118.77.14]) by mailout4.w1.samsung.com
- (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
- with ESMTP id <0LOO00A5UEO34W00@mailout4.w1.samsung.com> for
- linux-mm@kvack.org; Thu, 21 Jul 2011 10:07:15 +0100 (BST)
-Received: from linux.samsung.com ([106.116.38.10])
- by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0LOO00ITOEO2IU@spt2.w1.samsung.com> for
- linux-mm@kvack.org; Thu, 21 Jul 2011 10:07:15 +0100 (BST)
-Date: Thu, 21 Jul 2011 11:06:19 +0200
-From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: RE: [PATCHv12 0/8] Contiguous Memory Allocator
-In-reply-to: <1311152240-16384-1-git-send-email-m.szyprowski@samsung.com>
-Message-id: <000001cc4785$74f55780$5ee00680$%szyprowski@samsung.com>
-Content-language: pl
-References: <1311152240-16384-1-git-send-email-m.szyprowski@samsung.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E8836B004A
+	for <linux-mm@kvack.org>; Thu, 21 Jul 2011 05:35:48 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 68CC33EE0BC
+	for <linux-mm@kvack.org>; Thu, 21 Jul 2011 18:35:45 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 4F37B45DE50
+	for <linux-mm@kvack.org>; Thu, 21 Jul 2011 18:35:45 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 3855145DE4D
+	for <linux-mm@kvack.org>; Thu, 21 Jul 2011 18:35:45 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 2A9A91DB8040
+	for <linux-mm@kvack.org>; Thu, 21 Jul 2011 18:35:45 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id EA8581DB8037
+	for <linux-mm@kvack.org>; Thu, 21 Jul 2011 18:35:44 +0900 (JST)
+Message-ID: <4E27F2EC.2010902@jp.fujitsu.com>
+Date: Thu, 21 Jul 2011 18:35:40 +0900
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 3/3] mm: page allocator: Reconsider zones for allocation
+ after direct reclaim
+References: <1310389274-13995-1-git-send-email-mgorman@suse.de> <1310389274-13995-4-git-send-email-mgorman@suse.de> <4E1CE9FF.3050707@jp.fujitsu.com> <20110713111017.GG7529@suse.de> <4E1E6086.4060902@jp.fujitsu.com> <20110714061049.GK7529@suse.de>
+In-Reply-To: <20110714061049.GK7529@suse.de>
+Content-Type: text/plain; charset=ISO-8859-15
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org
-Cc: 'Michal Nazarewicz' <mina86@mina86.com>, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Andrew Morton' <akpm@linux-foundation.org>, 'KAMEZAWA Hiroyuki' <kamezawa.hiroyu@jp.fujitsu.com>, 'Ankita Garg' <ankita@in.ibm.com>, 'Daniel Walker' <dwalker@codeaurora.org>, 'Mel Gorman' <mel@csn.ul.ie>, 'Arnd Bergmann' <arnd@arndb.de>, 'Jesse Barker' <jesse.barker@linaro.org>, 'Jonathan Corbet' <corbet@lwn.net>, 'Chunsang Jeong' <chunsang.jeong@linaro.org>, 'Russell King' <linux@arm.linux.org.uk>
+To: mgorman@suse.de
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hello,
+Hi
 
-All these patches are also available on the following GIT repository/branch:
-git://git.infradead.org/users/kmpark/linux-2.6-samsung 3.0-rc7-cma-v12
 
-GIT-web interface link:
-http://git.infradead.org/users/kmpark/linux-2.6-samsung/shortlog/refs/heads/3.0-
-rc7-cma-v12
 
-Best regards
--- 
-Marek Szyprowski
-Samsung Poland R&D Center
+
+
+>> So, I think we don't need to care zonelist, just kswapd turn off
+>> their own node.
+> 
+> I don't understand what you mean by this.
+
+This was the answer of following your comments.
+
+> Instead, couldn't we turn zlc->fullzones off from kswapd?
+> >
+> > Which zonelist should it clear (there are two)
+
+I mean, buddy list is belong to zone, not zonelist. therefore, kswapd
+don't need to look up zonelist.
+
+So, I'd suggest either following way,
+ - use direct reclaim path, but only clear a zlc bit of zones in reclaimed zonelist, not all. or
+ - use kswapd and only clear a zlc bit at kswap exiting balance_pgdat
+
+I'm prefer to add a branch to slowpath (ie reclaim path) rather than fast path.
+
+
+>> And, just curious, If we will have a proper zlc clear point, why
+>> do we need to keep HZ timeout?
+> 
+> Yes because we are not guaranteed to call direct reclaim either. Memory
+> could be freed by a process exiting and I'd rather not add cost to
+> the free path to find and clear all zonelists referencing the zone the
+> page being freed belongs to.
+
+Ok, it's good trade-off. I agree we need to keep HZ timeout.
+
 
 
 --
