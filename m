@@ -1,62 +1,137 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id ADA426B004A
-	for <linux-mm@kvack.org>; Wed, 20 Jul 2011 18:48:09 -0400 (EDT)
-Date: Wed, 20 Jul 2011 23:48:01 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 1/2] mm: page allocator: Initialise ZLC for first zone
- eligible for zone_reclaim
-Message-ID: <20110720224801.GP5349@suse.de>
-References: <20110718160552.GB5349@suse.de>
- <alpine.DEB.2.00.1107181208050.31576@router.home>
- <20110718211325.GC5349@suse.de>
- <alpine.DEB.2.00.1107181651000.31576@router.home>
- <alpine.DEB.2.00.1107190901120.1199@router.home>
- <alpine.DEB.2.00.1107201307530.1472@router.home>
- <20110720191858.GO5349@suse.de>
- <alpine.DEB.2.00.1107201425200.1472@router.home>
- <alpine.DEB.2.00.1107201443400.1472@router.home>
- <alpine.DEB.2.00.1107201617050.1472@router.home>
+	by kanga.kvack.org (Postfix) with ESMTP id 9AAE36B004A
+	for <linux-mm@kvack.org>; Thu, 21 Jul 2011 03:02:36 -0400 (EDT)
+Date: Thu, 21 Jul 2011 09:01:29 +0200
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: [RFC PATCH -tip 0/5] perf tools: pagecache monitoring
+Message-ID: <20110721070129.GA9216@elte.hu>
+References: <4E24A61D.4060702@bx.jp.nec.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1107201617050.1472@router.home>
+In-Reply-To: <4E24A61D.4060702@bx.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Keiichi KII <k-keiichi@bx.jp.nec.com>, Wu Fengguang <fengguang.wu@intel.com>, Mel Gorman <mel@csn.ul.ie>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Tom Zanussi <tzanussi@gmail.com>, "riel@redhat.com" <riel@redhat.com>, Steven Rostedt <rostedt@goodmis.org>, Fr??d??ric Weisbecker <fweisbec@gmail.com>, "BA, Moussa" <Moussa.BA@numonyx.com>
 
-On Wed, Jul 20, 2011 at 04:17:41PM -0500, Christoph Lameter wrote:
-> Hmmm... Maybe we can bypass the checks?
+
+* Keiichi KII <k-keiichi@bx.jp.nec.com> wrote:
+
+> Hello,
 > 
+> I would propose pagecache monitoring tools using perf tools.
+> The purpose of the tools is to clarify pagecache behavior in a system.
+> 
+> We can now know system-wide pagecache usage by "/proc/meminfo".
+> But we don't have any way to get higher resolution information like
+> per file or per process usage than system-wide one.
+> If pagecache miss hit ratio rises due to unnecessary adding/removing
+> pagecaches, maybe it leads to extra I/O and affects system performance.
+> But it's difficult to find out what is going on in the system.
+> 
+> So, the tools I propose provide 2 functions:
+> 
+> 1. pagecache snapshooting(perf script pagecache-snapshoot)
+> 
+> This function clarifies pagecache usage per each file in the system.
+> This function is based mainly on "pagecache object collections" that is
+> developed by Wu Fengguang (http://lkml.org/lkml/2010/2/9/156).
+> The following is sample output of this function.
+> 
+> pagecache snapshooting (time: 14131, path: /home)
+>                              file name cache(B)  file(B)  ratio  +/-(B)    age
+> -------------------------------------- -------- -------- ------ ------- ------
+> /home/foo/git/linux-2.6-tip/.git/objec    71.0M   436.6M    16%       0   9012
+> /home/foo/git/linux-2.6-tip/.git/objec    49.6M    57.7M    86%       0   9012
+> /home/foo/.thunderbird/xso5zn7g.defaul    19.8M    19.8M   100%       0   7223
+> /home/foo/.thunderbird/xso5zn7g.defaul     5.7M     5.7M   100%       0   6621
+> /home/foo/git/linux-2.6-tip/.git/index     3.5M     3.5M   100%       0   4306
+> /home/foo/.thunderbird/xso5zn7g.defaul     2.2M     2.2M   100%       0   7524
+> /home/foo/.thunderbird/xso5zn7g.defaul     2.2M     2.2M   100%       0   7526
+> /home/foo/.thunderbird/xso5zn7g.defaul     1.7M     1.7M   100%       0   6921
+> ...
+> 
+> 2. continuous pagecache monitoring(perf script pagecachetop)
+> 
+> This function clarifies pagecache behavior like pagecache hit ratio and
+> added/removed pagecache amount on the basis of file/process.
+> This functions is based on pagecache tracepoints I propose.
+> While the pagecache snapshooting can take a pagecache snapshoot at a point,
+> the continuous pagecache monitoring can measure dynamic change between
+> 2 snapshoots.
+> The following is sample output of this function.
+> 
+> pagecache behavior per file (time:15826, interval:10)
+> 
+>                          find        hit    cache      add   remove  proc
+>                 file    count      ratio pages(B) pages(B) pages(B) count
+> -------------------- -------- ---------- -------- -------- -------- -----
+>         libc-2.13.so      620    100.00%     1.2M        0        0     7
+>                 bash      283    100.00%   888.0K        0        0     6
+>           ld-2.13.so      136    100.00%   148.0K        0        0     6
+>                 gawk      130    100.00%   376.0K        0        0     2
+>          ld.so.cache       60    100.00%   116.0K        0        0     4
+> ...
+> 
+> pagecache behavior per process (time:16294, interval:10)
+> 
+>                          find        hit      add   remove  file
+>              process    count      ratio pages(B) pages(B) count
+> -------------------- -------- ---------- -------- -------- -----
+>             zsh-7761     2968     99.93%     4.0K        0   246
+>            perf-7758      369    100.00%        0        0    17
+>            xmms-7634       52    100.00%        0        0     1
+>            perf-7759       11    100.00%        0        0     2
+>             zsh-2815        6     83.33%     4.0K     4.0K     2
+>        gconfd-2-4849        3      0.00%    12.0K    12.0K     4
+>        rsyslogd-7194        1    100.00%        0        0     1
+> 
+> 
+> By these 2 functions, we can find out whether pagecaches are used
+> efficiently or not.
+> And also these tools would help us tune some applications like database.
+> It will also help us tune the kernel parameters like "vm.dirty_*".
+> 
+> My patches are based on the latest "linux-tip.git" tree and
+> also the following 3 commits in "tip:tracing/mm" and a "pagecache
+> object collections" patch. 
+> 
+>   - dcac8cd: tracing/mm: add page frame snapshot trace
+>   - 1487a7a: tracing/mm: fix mapcount trace record field
+>   - eb46710: tracing/mm: rename 'trigger' file to 'dump_range'
+>   - http://lkml.org/lkml/2010/2/9/156
+> 
+> Any comments are welcome.
 
-Maybe we should not.
+I totally like the approach you have taken here.
 
-Watermarks should not just be ignored. They prevent the system
-deadlocking due to an inability allocate a page needed to free more
-memory. This patch allows allocations that are not high priority
-or atomic to succeed when the buddy lists are at the min watermark
-and would normally be throttled. Minimally, this patch increasing
-the risk of the locking up due to memory expiration. For example,
-a GFP_ATOMIC allocation can refill the per-cpu list with the pages
-then consumed by GFP_KERNEL allocations, next GFP_ATOMIC allocation
-refills again, gets consumed etc. It's even worse if it's PF_MEMALLOC
-allocations that are refilling the lists as they ignore watermarks.
-If this is happening on enough CPUs, it will cause trouble.
+Note that tracepoints need a detailed, careful review from interested 
+mm folks.
 
-At the very least, the performance benefit of such a change should
-be illustrated. Even if it's faster (and I'd expect it to be,
-watermark checks particularly at low memory are expensive), it may
-just mean the system occasionally runs very fast into a wall. Hence,
-the patch should be accompanied with tests showing that even under
-very high stress for a long period of time that it does not lock up
-and the changelog should include a *very* convincing description
-on why PF_MEMALLOC refilling the per-cpu lists to be consumed by
-low-priority users is not a problem.
+The set of tracepoints does not have to be complete but the 
+tracepoints have to be well thought out and near-perfect in this 
+context they are instrumenting, with an eye on future extensions with 
+the goal of making them painless.
 
--- 
-Mel Gorman
-SUSE Labs
+the pagecache tracepoints you have added are:
+
+ include/trace/events/filemap.h |   75 ++++++++++++++++++++++++++++++++++++++++
+ mm/filemap.c                   |    4 ++
+ mm/truncate.c                  |    2 +
+ mm/vmscan.c                    |    2 +
+ 4 files changed, 83 insertions(+), 0 deletions(-)
+
+So once such kind of review has been iterated through and Andrew et 
+al is happy with it i'd be more than happy to dust off the tracing/mm 
+bits (which have been done two years ago) and get it all to Linus.
+
+Andrew, Mel, Fengguang?
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
