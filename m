@@ -1,48 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 720DF6B004A
-	for <linux-mm@kvack.org>; Thu, 21 Jul 2011 16:55:41 -0400 (EDT)
-Date: Thu, 21 Jul 2011 13:55:37 -0700
-From: Randy Dunlap <rdunlap@xenotime.net>
-Subject: [PATCH -next] mm/truncate.c: fix build for CONFIG_BLOCK not enabled
-Message-Id: <20110721135537.dbfea947.rdunlap@xenotime.net>
-In-Reply-To: <20110718152117.GA8844@infradead.org>
-References: <20110718203501.232bd176e83ff65f056366e6@canb.auug.org.au>
-	<20110718081816.2106117e.rdunlap@xenotime.net>
-	<20110718152117.GA8844@infradead.org>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 093DC6B004A
+	for <linux-mm@kvack.org>; Thu, 21 Jul 2011 16:58:26 -0400 (EDT)
+Date: Thu, 21 Jul 2011 13:58:17 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/2 v2] memcg: make oom_lock 0 and 1 based rather than
+ coutner
+Message-Id: <20110721135817.baab2a2c.akpm@linux-foundation.org>
+In-Reply-To: <44ec61829ed8a83b55dc90a7aebffdd82fe0e102.1310732789.git.mhocko@suse.cz>
+References: <cover.1310732789.git.mhocko@suse.cz>
+	<44ec61829ed8a83b55dc90a7aebffdd82fe0e102.1310732789.git.mhocko@suse.cz>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>, viro@zeniv.linux.org.uk
-Cc: Stephen Rothwell <sfr@canb.auug.org.au>, linux-mm@kvack.org, linux-next@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, akpm <akpm@linux-foundation.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-mm@kvack.org, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org
 
-From: Randy Dunlap <rdunlap@xenotime.net>
+On Wed, 13 Jul 2011 13:05:49 +0200
+Michal Hocko <mhocko@suse.cz> wrote:
 
-Fix build error when CONFIG_BLOCK is not enabled by providing a stub
-inode_dio_wait() function.
+> @@ -1893,6 +1942,8 @@ bool mem_cgroup_handle_oom(struct mem_cgroup *mem, gfp_t mask)
 
-mm/truncate.c:612: error: implicit declaration of function 'inode_dio_wait'
+does:
 
-Signed-off-by: Randy Dunlap <rdunlap@xenotime.net>
----
- include/linux/fs.h |    4 ++++
- 1 file changed, 4 insertions(+)
+: 	memcg_wakeup_oom(mem);
+: 	mutex_unlock(&memcg_oom_mutex);
+: 
+: 	mem_cgroup_unmark_under_oom(mem);
+: 
+: 	if (test_thread_flag(TIF_MEMDIE) || fatal_signal_pending(current))
+: 		return false;
+: 	/* Give chance to dying process */
+: 	schedule_timeout(1);
+: 	return true;
+: }
 
---- linux-next-20110721.orig/include/linux/fs.h
-+++ linux-next-20110721/include/linux/fs.h
-@@ -2418,6 +2418,10 @@ static inline ssize_t blockdev_direct_IO
- 				    offset, nr_segs, get_block, NULL, NULL,
- 				    DIO_LOCKING | DIO_SKIP_HOLES);
- }
-+#else
-+static inline void inode_dio_wait(struct inode *inode)
-+{
-+}
- #endif
- 
- extern const struct file_operations generic_ro_fops;
+Calling schedule_timeout() in state TASK_RUNNING is equivalent to
+calling schedule() and then pointlessly wasting some CPU cycles.
+
+Someone might want to take a look at that, and wonder why this bug
+wasn't detected in testing ;)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
