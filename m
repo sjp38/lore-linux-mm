@@ -1,73 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 63C666B004A
-	for <linux-mm@kvack.org>; Thu, 21 Jul 2011 06:31:55 -0400 (EDT)
-Date: Thu, 21 Jul 2011 11:31:49 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 3/3] mm: page allocator: Reconsider zones for allocation
- after direct reclaim
-Message-ID: <20110721103149.GR5349@suse.de>
-References: <1310389274-13995-1-git-send-email-mgorman@suse.de>
- <1310389274-13995-4-git-send-email-mgorman@suse.de>
- <4E1CE9FF.3050707@jp.fujitsu.com>
- <20110713111017.GG7529@suse.de>
- <4E1E6086.4060902@jp.fujitsu.com>
- <20110714061049.GK7529@suse.de>
- <4E27F2EC.2010902@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <4E27F2EC.2010902@jp.fujitsu.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id ADB336B004A
+	for <linux-mm@kvack.org>; Thu, 21 Jul 2011 06:32:40 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id D1A203EE0BC
+	for <linux-mm@kvack.org>; Thu, 21 Jul 2011 19:32:37 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id BB40745DEB4
+	for <linux-mm@kvack.org>; Thu, 21 Jul 2011 19:32:37 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id A37F645DE7E
+	for <linux-mm@kvack.org>; Thu, 21 Jul 2011 19:32:37 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8DAFB1DB8038
+	for <linux-mm@kvack.org>; Thu, 21 Jul 2011 19:32:37 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 552571DB803C
+	for <linux-mm@kvack.org>; Thu, 21 Jul 2011 19:32:37 +0900 (JST)
+Date: Thu, 21 Jul 2011 19:25:25 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 2/4] memcg: unify sync and async per-cpu charge cache
+ draining
+Message-Id: <20110721192525.56721c52.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <16dca2225fc14783a16d00c43f6680b67418da65.1311241300.git.mhocko@suse.cz>
+References: <cover.1311241300.git.mhocko@suse.cz>
+	<16dca2225fc14783a16d00c43f6680b67418da65.1311241300.git.mhocko@suse.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-mm@kvack.org, Balbir Singh <bsingharora@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-kernel@vger.kernel.org
 
-On Thu, Jul 21, 2011 at 06:35:40PM +0900, KOSAKI Motohiro wrote:
-> Hi
-> 
-> 
-> 
-> 
-> 
-> >> So, I think we don't need to care zonelist, just kswapd turn off
-> >> their own node.
-> > 
-> > I don't understand what you mean by this.
-> 
-> This was the answer of following your comments.
-> 
-> > Instead, couldn't we turn zlc->fullzones off from kswapd?
-> > >
-> > > Which zonelist should it clear (there are two)
-> 
-> I mean, buddy list is belong to zone, not zonelist. therefore, kswapd
-> don't need to look up zonelist.
-> 
-> So, I'd suggest either following way,
->  - use direct reclaim path, but only clear a zlc bit of zones in reclaimed zonelist, not all. or
+On Thu, 21 Jul 2011 09:50:00 +0200
+Michal Hocko <mhocko@suse.cz> wrote:
 
-We certainly could narrow the number of zones the bits are
-cleared on by exporting knowledge of the ZLC to vmscan for use in
-shrink_zones(). I think in practice the end result will be the same
-though as shrink_zones() examples all zones in the zonelist. How much
-of a gain do you expect the additional complexity to give us?
-
->  - use kswapd and only clear a zlc bit at kswap exiting balance_pgdat
+> Currently we have two ways how to drain per-CPU caches for charges.
+> drain_all_stock_sync will synchronously drain all caches while
+> drain_all_stock_async will asynchronously drain only those that refer to
+> a given memory cgroup or its subtree in hierarchy.
+> Targeted async draining has been introduced by 26fe6168 (memcg: fix
+> percpu cached charge draining frequency) to reduce the cpu workers
+> number.
 > 
-
-That is potentially a long time if there are streaming readers keeping a
-zone under the high watermark for a long time.
-
-> I'm prefer to add a branch to slowpath (ie reclaim path) rather than fast path.
+> sync draining is currently triggered only from mem_cgroup_force_empty
+> which is triggered only by userspace (mem_cgroup_force_empty_write) or
+> when a cgroup is removed (mem_cgroup_pre_destroy). Although these are
+> not usually frequent operations it still makes some sense to do targeted
+> draining as well, especially if the box has many CPUs.
 > 
+> This patch unifies both methods to use the single code (drain_all_stock)
+> which relies on the original async implementation and just adds
+> flush_work to wait on all caches that are still under work for the sync
+> mode.
+> We are using FLUSHING_CACHED_CHARGE bit check to prevent from waiting on
+> a work that we haven't triggered.
+> Please note that both sync and async functions are currently protected
+> by percpu_charge_mutex so we cannot race with other drainers.
+> 
+> Signed-off-by: Michal Hocko <mhocko@suse.cz>
 
-The clearing of the zonelist is already happening after direct reclaim
-which is the slow path. What fast path are you concerned with here?
+hmm..maybe good.
+Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
--- 
-Mel Gorman
-SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
