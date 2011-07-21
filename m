@@ -1,111 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 268856B004A
-	for <linux-mm@kvack.org>; Thu, 21 Jul 2011 03:15:19 -0400 (EDT)
-Date: Thu, 21 Jul 2011 09:14:59 +0200
-From: Sebastian Siewior <sebastian@breakpoint.cc>
-Subject: Re: possible recursive locking detected cache_alloc_refill() +
- cache_flusharray()
-Message-ID: <20110721071459.GA2961@breakpoint.cc>
-References: <20110716211850.GA23917@breakpoint.cc>
- <alpine.LFD.2.02.1107172333340.2702@ionos>
- <alpine.DEB.2.00.1107201619540.3528@tiger>
- <1311168638.5345.80.camel@twins>
- <alpine.DEB.2.00.1107201642500.4921@tiger>
- <1311176680.29152.20.camel@twins>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 26EC76B004A
+	for <linux-mm@kvack.org>; Thu, 21 Jul 2011 03:18:31 -0400 (EDT)
+Message-ID: <4E27D2BD.8060002@parallels.com>
+Date: Thu, 21 Jul 2011 11:18:21 +0400
+From: Konstantin Khlebnikov <khlebnikov@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1311176680.29152.20.camel@twins>
+Subject: Re: [PATCH] mm-slab: allocate kmem_cache with __GFP_REPEAT
+References: <20110720121612.28888.38970.stgit@localhost6>	 <alpine.DEB.2.00.1107201611010.3528@tiger> <20110720134342.GK5349@suse.de>	 <alpine.DEB.2.00.1107200854390.32737@router.home>	 <1311170893.2338.29.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>	 <alpine.DEB.2.00.1107200950270.1472@router.home>	 <1311174562.2338.42.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>	 <alpine.DEB.2.00.1107201033080.1472@router.home>	 <1311177362.2338.57.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>	 <alpine.DEB.2.00.1107201114480.1472@router.home>	 <1311179465.2338.62.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>	 <1311181463.2338.72.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>	 <alpine.DEB.2.00.1107201212140.1472@router.home>	 <alpine.DEB.2.00.1107202028050.2847@tiger>	 <alpine.DEB.2.00.1107201237190.1472@router.home>	 <alpine.DEB.2.00.1107202040240.2847@tiger> <1311185224.14555.43.camel@calx>
+In-Reply-To: <1311185224.14555.43.camel@calx>
+Content-Type: text/plain; charset="UTF-8"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Pekka Enberg <penberg@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Sebastian Siewior <sebastian@breakpoint.cc>, Christoph Lameter <cl@linux-foundation.org>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org
+To: Matt Mackall <mpm@selenic.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux.com>, Eric Dumazet <eric.dumazet@gmail.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-* Thus spake Peter Zijlstra (peterz@infradead.org):
-> We just need to annotate the SLAB_DEBUG_OBJECTS slab with a different
-> key. Something like the below, except that doesn't quite cover cpu
-> hotplug yet I think.. /me pokes more
-> 
-> Completely untested, hasn't even seen a compiler etc..
+Matt Mackall wrote:
+> On Wed, 2011-07-20 at 20:41 +0300, Pekka Enberg wrote:
+>> On Wed, 20 Jul 2011, Pekka Enberg wrote:
+>>>> On Wed, 20 Jul 2011, Eric Dumazet wrote:
+>>>>>> [PATCH v2] slab: shrinks sizeof(struct kmem_cache)
+>>>>
+>>>> On Wed, 20 Jul 2011, Christoph Lameter wrote:
+>>>>> This will solve the issue for small nr_cpu_ids but those with 4k cpus will
+>>>>> still have the issue.
+>>>>>
+>>>>> Acked-by: Christoph Lameter<cl@linux.com>
+>>>>
+>>>> Applied, thanks! Do we still want the __GFP_REPEAT patch from Konstantin
+>>>> though?
+>>
+>> On Wed, 20 Jul 2011, Christoph Lameter wrote:
+>>> Those with 4k cpus will be thankful I guess.
+>>
+>> OTOH, I'm slightly worried that it might mask a real problem
+>> with GFP_KERNEL not being aggressive enough. Mel?
+>
+> I think that's already been demonstrated here, yes. It's just waiting
+> for another obscure workload to trigger it.
+>
 
-This fix on-top passes the compiler and the splash on boot is also gone.
-
----
- mm/slab.c |   28 ++++++++++++++++++++--------
- 1 files changed, 20 insertions(+), 8 deletions(-)
-
-diff --git a/mm/slab.c b/mm/slab.c
-index c13f7e9..fcf8380 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -623,8 +623,9 @@ static struct lock_class_key on_slab_alc_key;
- static struct lock_class_key debugobj_l3_key;
- static struct lock_class_key debugobj_alc_key;
- 
--static void slab_set_lock_classes(struct kmem_cache *cachep, 
--		struct lock_class_key *l3_key, struct lock_class_key *alc_key)
-+static void slab_set_lock_classes(struct kmem_cache *cachep,
-+		struct lock_class_key *l3_key, struct lock_class_key *alc_key,
-+		int q)
- {
- 	struct array_cache **alc;
- 	struct kmem_list3 *l3;
-@@ -651,6 +652,16 @@ static void slab_set_lock_classes(struct kmem_cache *cachep,
- 	}
- }
- 
-+static void slab_each_set_lock_classes(struct kmem_cache *cachep)
-+{
-+	int node;
-+
-+	for_each_online_node(node) {
-+		slab_set_lock_classes(cachep, &debugobj_l3_key,
-+				&debugobj_alc_key, node);
-+	}
-+}
-+
- static void init_node_lock_keys(int q)
- {
- 	struct cache_sizes *s = malloc_sizes;
-@@ -665,8 +676,8 @@ static void init_node_lock_keys(int q)
- 		if (!l3 || OFF_SLAB(s->cs_cachep))
- 			continue;
- 
--		slab_set_lock_classes(s->cs_cachep,
--				&on_slab_l3_key, &on_slab_alc_key)
-+		slab_set_lock_classes(s->cs_cachep, &on_slab_l3_key,
-+				&on_slab_alc_key, q);
- 	}
- }
- 
-@@ -685,6 +696,10 @@ static void init_node_lock_keys(int q)
- static inline void init_lock_keys(void)
- {
- }
-+
-+static void slab_each_set_lock_classes(struct kmem_cache *cachep)
-+{
-+}
- #endif
- 
- /*
-@@ -2447,10 +2462,7 @@ kmem_cache_create (const char *name, size_t size, size_t align,
- 		 */
- 		WARN_ON_ONCE(flags & SLAB_DESTROY_BY_RCU);
- 
--#ifdef CONFIG_LOCKDEP
--		slab_set_lock_classes(cachep, 
--				&debugobj_l3_key, &debugobj_alc_key);
--#endif
-+		slab_each_set_lock_classes(cachep);
- 	}
- 
- 	/* cache setup completed, link it into the list */
--- 
-1.7.4.4
-
-Sebastian
+I Agree, __GFP_REPEAT doesn't fix the problem completely. So, some more detailed investigation required.
+My case is not very honest, because my kernel has slightly different memory controller, and it has bugs for sure.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
