@@ -1,137 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 9AAE36B004A
-	for <linux-mm@kvack.org>; Thu, 21 Jul 2011 03:02:36 -0400 (EDT)
-Date: Thu, 21 Jul 2011 09:01:29 +0200
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [RFC PATCH -tip 0/5] perf tools: pagecache monitoring
-Message-ID: <20110721070129.GA9216@elte.hu>
-References: <4E24A61D.4060702@bx.jp.nec.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 268856B004A
+	for <linux-mm@kvack.org>; Thu, 21 Jul 2011 03:15:19 -0400 (EDT)
+Date: Thu, 21 Jul 2011 09:14:59 +0200
+From: Sebastian Siewior <sebastian@breakpoint.cc>
+Subject: Re: possible recursive locking detected cache_alloc_refill() +
+ cache_flusharray()
+Message-ID: <20110721071459.GA2961@breakpoint.cc>
+References: <20110716211850.GA23917@breakpoint.cc>
+ <alpine.LFD.2.02.1107172333340.2702@ionos>
+ <alpine.DEB.2.00.1107201619540.3528@tiger>
+ <1311168638.5345.80.camel@twins>
+ <alpine.DEB.2.00.1107201642500.4921@tiger>
+ <1311176680.29152.20.camel@twins>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <4E24A61D.4060702@bx.jp.nec.com>
+In-Reply-To: <1311176680.29152.20.camel@twins>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Keiichi KII <k-keiichi@bx.jp.nec.com>, Wu Fengguang <fengguang.wu@intel.com>, Mel Gorman <mel@csn.ul.ie>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Tom Zanussi <tzanussi@gmail.com>, "riel@redhat.com" <riel@redhat.com>, Steven Rostedt <rostedt@goodmis.org>, Fr??d??ric Weisbecker <fweisbec@gmail.com>, "BA, Moussa" <Moussa.BA@numonyx.com>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Pekka Enberg <penberg@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Sebastian Siewior <sebastian@breakpoint.cc>, Christoph Lameter <cl@linux-foundation.org>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org
 
+* Thus spake Peter Zijlstra (peterz@infradead.org):
+> We just need to annotate the SLAB_DEBUG_OBJECTS slab with a different
+> key. Something like the below, except that doesn't quite cover cpu
+> hotplug yet I think.. /me pokes more
+> 
+> Completely untested, hasn't even seen a compiler etc..
 
-* Keiichi KII <k-keiichi@bx.jp.nec.com> wrote:
+This fix on-top passes the compiler and the splash on boot is also gone.
 
-> Hello,
-> 
-> I would propose pagecache monitoring tools using perf tools.
-> The purpose of the tools is to clarify pagecache behavior in a system.
-> 
-> We can now know system-wide pagecache usage by "/proc/meminfo".
-> But we don't have any way to get higher resolution information like
-> per file or per process usage than system-wide one.
-> If pagecache miss hit ratio rises due to unnecessary adding/removing
-> pagecaches, maybe it leads to extra I/O and affects system performance.
-> But it's difficult to find out what is going on in the system.
-> 
-> So, the tools I propose provide 2 functions:
-> 
-> 1. pagecache snapshooting(perf script pagecache-snapshoot)
-> 
-> This function clarifies pagecache usage per each file in the system.
-> This function is based mainly on "pagecache object collections" that is
-> developed by Wu Fengguang (http://lkml.org/lkml/2010/2/9/156).
-> The following is sample output of this function.
-> 
-> pagecache snapshooting (time: 14131, path: /home)
->                              file name cache(B)  file(B)  ratio  +/-(B)    age
-> -------------------------------------- -------- -------- ------ ------- ------
-> /home/foo/git/linux-2.6-tip/.git/objec    71.0M   436.6M    16%       0   9012
-> /home/foo/git/linux-2.6-tip/.git/objec    49.6M    57.7M    86%       0   9012
-> /home/foo/.thunderbird/xso5zn7g.defaul    19.8M    19.8M   100%       0   7223
-> /home/foo/.thunderbird/xso5zn7g.defaul     5.7M     5.7M   100%       0   6621
-> /home/foo/git/linux-2.6-tip/.git/index     3.5M     3.5M   100%       0   4306
-> /home/foo/.thunderbird/xso5zn7g.defaul     2.2M     2.2M   100%       0   7524
-> /home/foo/.thunderbird/xso5zn7g.defaul     2.2M     2.2M   100%       0   7526
-> /home/foo/.thunderbird/xso5zn7g.defaul     1.7M     1.7M   100%       0   6921
-> ...
-> 
-> 2. continuous pagecache monitoring(perf script pagecachetop)
-> 
-> This function clarifies pagecache behavior like pagecache hit ratio and
-> added/removed pagecache amount on the basis of file/process.
-> This functions is based on pagecache tracepoints I propose.
-> While the pagecache snapshooting can take a pagecache snapshoot at a point,
-> the continuous pagecache monitoring can measure dynamic change between
-> 2 snapshoots.
-> The following is sample output of this function.
-> 
-> pagecache behavior per file (time:15826, interval:10)
-> 
->                          find        hit    cache      add   remove  proc
->                 file    count      ratio pages(B) pages(B) pages(B) count
-> -------------------- -------- ---------- -------- -------- -------- -----
->         libc-2.13.so      620    100.00%     1.2M        0        0     7
->                 bash      283    100.00%   888.0K        0        0     6
->           ld-2.13.so      136    100.00%   148.0K        0        0     6
->                 gawk      130    100.00%   376.0K        0        0     2
->          ld.so.cache       60    100.00%   116.0K        0        0     4
-> ...
-> 
-> pagecache behavior per process (time:16294, interval:10)
-> 
->                          find        hit      add   remove  file
->              process    count      ratio pages(B) pages(B) count
-> -------------------- -------- ---------- -------- -------- -----
->             zsh-7761     2968     99.93%     4.0K        0   246
->            perf-7758      369    100.00%        0        0    17
->            xmms-7634       52    100.00%        0        0     1
->            perf-7759       11    100.00%        0        0     2
->             zsh-2815        6     83.33%     4.0K     4.0K     2
->        gconfd-2-4849        3      0.00%    12.0K    12.0K     4
->        rsyslogd-7194        1    100.00%        0        0     1
-> 
-> 
-> By these 2 functions, we can find out whether pagecaches are used
-> efficiently or not.
-> And also these tools would help us tune some applications like database.
-> It will also help us tune the kernel parameters like "vm.dirty_*".
-> 
-> My patches are based on the latest "linux-tip.git" tree and
-> also the following 3 commits in "tip:tracing/mm" and a "pagecache
-> object collections" patch. 
-> 
->   - dcac8cd: tracing/mm: add page frame snapshot trace
->   - 1487a7a: tracing/mm: fix mapcount trace record field
->   - eb46710: tracing/mm: rename 'trigger' file to 'dump_range'
->   - http://lkml.org/lkml/2010/2/9/156
-> 
-> Any comments are welcome.
+---
+ mm/slab.c |   28 ++++++++++++++++++++--------
+ 1 files changed, 20 insertions(+), 8 deletions(-)
 
-I totally like the approach you have taken here.
+diff --git a/mm/slab.c b/mm/slab.c
+index c13f7e9..fcf8380 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -623,8 +623,9 @@ static struct lock_class_key on_slab_alc_key;
+ static struct lock_class_key debugobj_l3_key;
+ static struct lock_class_key debugobj_alc_key;
+ 
+-static void slab_set_lock_classes(struct kmem_cache *cachep, 
+-		struct lock_class_key *l3_key, struct lock_class_key *alc_key)
++static void slab_set_lock_classes(struct kmem_cache *cachep,
++		struct lock_class_key *l3_key, struct lock_class_key *alc_key,
++		int q)
+ {
+ 	struct array_cache **alc;
+ 	struct kmem_list3 *l3;
+@@ -651,6 +652,16 @@ static void slab_set_lock_classes(struct kmem_cache *cachep,
+ 	}
+ }
+ 
++static void slab_each_set_lock_classes(struct kmem_cache *cachep)
++{
++	int node;
++
++	for_each_online_node(node) {
++		slab_set_lock_classes(cachep, &debugobj_l3_key,
++				&debugobj_alc_key, node);
++	}
++}
++
+ static void init_node_lock_keys(int q)
+ {
+ 	struct cache_sizes *s = malloc_sizes;
+@@ -665,8 +676,8 @@ static void init_node_lock_keys(int q)
+ 		if (!l3 || OFF_SLAB(s->cs_cachep))
+ 			continue;
+ 
+-		slab_set_lock_classes(s->cs_cachep,
+-				&on_slab_l3_key, &on_slab_alc_key)
++		slab_set_lock_classes(s->cs_cachep, &on_slab_l3_key,
++				&on_slab_alc_key, q);
+ 	}
+ }
+ 
+@@ -685,6 +696,10 @@ static void init_node_lock_keys(int q)
+ static inline void init_lock_keys(void)
+ {
+ }
++
++static void slab_each_set_lock_classes(struct kmem_cache *cachep)
++{
++}
+ #endif
+ 
+ /*
+@@ -2447,10 +2462,7 @@ kmem_cache_create (const char *name, size_t size, size_t align,
+ 		 */
+ 		WARN_ON_ONCE(flags & SLAB_DESTROY_BY_RCU);
+ 
+-#ifdef CONFIG_LOCKDEP
+-		slab_set_lock_classes(cachep, 
+-				&debugobj_l3_key, &debugobj_alc_key);
+-#endif
++		slab_each_set_lock_classes(cachep);
+ 	}
+ 
+ 	/* cache setup completed, link it into the list */
+-- 
+1.7.4.4
 
-Note that tracepoints need a detailed, careful review from interested 
-mm folks.
-
-The set of tracepoints does not have to be complete but the 
-tracepoints have to be well thought out and near-perfect in this 
-context they are instrumenting, with an eye on future extensions with 
-the goal of making them painless.
-
-the pagecache tracepoints you have added are:
-
- include/trace/events/filemap.h |   75 ++++++++++++++++++++++++++++++++++++++++
- mm/filemap.c                   |    4 ++
- mm/truncate.c                  |    2 +
- mm/vmscan.c                    |    2 +
- 4 files changed, 83 insertions(+), 0 deletions(-)
-
-So once such kind of review has been iterated through and Andrew et 
-al is happy with it i'd be more than happy to dust off the tracing/mm 
-bits (which have been done two years ago) and get it all to Linus.
-
-Andrew, Mel, Fengguang?
-
-Thanks,
-
-	Ingo
+Sebastian
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
