@@ -1,55 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 14D529000C1
-	for <linux-mm@kvack.org>; Thu, 21 Jul 2011 15:32:27 -0400 (EDT)
-Message-ID: <4E287EC0.4030208@fusionio.com>
-Date: Thu, 21 Jul 2011 21:32:16 +0200
-From: Jens Axboe <jaxboe@fusionio.com>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 45C506B004A
+	for <linux-mm@kvack.org>; Thu, 21 Jul 2011 16:50:49 -0400 (EDT)
+Date: Thu, 21 Jul 2011 21:50:42 +0100
+From: Al Viro <viro@ZenIV.linux.org.uk>
+Subject: Re: linux-next: Tree for July 18 (mm/truncate.c)
+Message-ID: <20110721205042.GC31405@ZenIV.linux.org.uk>
+References: <20110718203501.232bd176e83ff65f056366e6@canb.auug.org.au>
+ <20110718081816.2106117e.rdunlap@xenotime.net>
+ <20110718152117.GA8844@infradead.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH]vmscan: add block plug for page reclaim
-References: <1311130413.15392.326.camel@sli10-conroe>  <CAEwNFnDj30Bipuxrfe9upD-OyuL4v21tLs0ayUKYUfye5TcGyA@mail.gmail.com>  <1311142253.15392.361.camel@sli10-conroe>  <CAEwNFnD3iCMBpZK95Ks+Z7DYbrzbZbSTLf3t6WXDQdeHrE6bLQ@mail.gmail.com> <1311144559.15392.366.camel@sli10-conroe>
-In-Reply-To: <1311144559.15392.366.camel@sli10-conroe>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110718152117.GA8844@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shaohua.li@intel.com>
-Cc: Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, "mgorman@suse.de" <mgorman@suse.de>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Randy Dunlap <rdunlap@xenotime.net>, Stephen Rothwell <sfr@canb.auug.org.au>, linux-mm@kvack.org, linux-next@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, akpm <akpm@linux-foundation.org>
 
-On 2011-07-20 08:49, Shaohua Li wrote:
-> On Wed, 2011-07-20 at 14:30 +0800, Minchan Kim wrote:
->> On Wed, Jul 20, 2011 at 3:10 PM, Shaohua Li <shaohua.li@intel.com> wrote:
->>> On Wed, 2011-07-20 at 13:53 +0800, Minchan Kim wrote:
->>>> On Wed, Jul 20, 2011 at 11:53 AM, Shaohua Li <shaohua.li@intel.com> wrote:
->>>>> per-task block plug can reduce block queue lock contention and increase request
->>>>> merge. Currently page reclaim doesn't support it. I originally thought page
->>>>> reclaim doesn't need it, because kswapd thread count is limited and file cache
->>>>> write is done at flusher mostly.
->>>>> When I test a workload with heavy swap in a 4-node machine, each CPU is doing
->>>>> direct page reclaim and swap. This causes block queue lock contention. In my
->>>>> test, without below patch, the CPU utilization is about 2% ~ 7%. With the
->>>>> patch, the CPU utilization is about 1% ~ 3%. Disk throughput isn't changed.
->>>>
->>>> Why doesn't it enhance through?
->>> throughput? The disk isn't that fast. We already can make it run in full
->>
->> Yes. Sorry for the typo.
->>
->>> speed, CPU isn't bottleneck here.
->>
->> But you try to optimize CPU. so your experiment is not good.
-> it's not that good, because the disk isn't fast. The swap test is the
-> workload with most significant impact I can get.
+On Mon, Jul 18, 2011 at 11:21:18AM -0400, Christoph Hellwig wrote:
+> On Mon, Jul 18, 2011 at 08:18:16AM -0700, Randy Dunlap wrote:
+> > On Mon, 18 Jul 2011 20:35:01 +1000 Stephen Rothwell wrote:
+> > 
+> > > Hi all,
+> > 
+> > mm/truncate.c:612: error: implicit declaration of function 'inode_dio_wait'
+> > 
+> > mm/truncate.c should be #include-ing <linux/fs.h> for that function's
+> > prototype, but that doesn't help when CONFIG_BLOCK is not enabled,
+> > which is the case in this build failure.
+> 
+> Oops.  Two choices here:
+> 
+>  a) stub it out for non-blocks.
+>  b) move it out of directio.c so that it's always provided.
+> 
+> I'd be fine with either one.  Al, any preferences?
 
-Let me just interject here that a plug should be fine, from 3.1 we'll
-even auto-unplug if a certain depth has been reached. So latency should
-not be a worry. Personally I think the patch looks fine, though some
-numbers would be interesting to see. Cycles spent submitting the actual
-IO, combined with IO statistics what kind of IO patterns were observed
-for plain and with patch would be good.
-
--- 
-Jens Axboe
+None...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
