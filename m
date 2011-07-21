@@ -1,389 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 48F776B004A
-	for <linux-mm@kvack.org>; Thu, 21 Jul 2011 18:09:15 -0400 (EDT)
-Date: Thu, 21 Jul 2011 15:09:08 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: Cross Memory Attach v3
-Message-Id: <20110721150908.a71a59d6.akpm@linux-foundation.org>
-In-Reply-To: <20110719003537.16b189ae@lilo>
-References: <20110719003537.16b189ae@lilo>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 397B26B004A
+	for <linux-mm@kvack.org>; Thu, 21 Jul 2011 19:51:44 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 87B673EE0BB
+	for <linux-mm@kvack.org>; Fri, 22 Jul 2011 08:51:40 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 6C78A45DE53
+	for <linux-mm@kvack.org>; Fri, 22 Jul 2011 08:51:40 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 528D945DE4E
+	for <linux-mm@kvack.org>; Fri, 22 Jul 2011 08:51:40 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 43E8C1DB8043
+	for <linux-mm@kvack.org>; Fri, 22 Jul 2011 08:51:40 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0D39E1DB8037
+	for <linux-mm@kvack.org>; Fri, 22 Jul 2011 08:51:40 +0900 (JST)
+Date: Fri, 22 Jul 2011 08:44:13 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 1/4] memcg: do not try to drain per-cpu caches without
+ pages
+Message-Id: <20110722084413.9dd4b880.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110721113606.GA27855@tiehlicka.suse.cz>
+References: <cover.1311241300.git.mhocko@suse.cz>
+	<113c4affc2f0938b7b22d43c88d2b0a623de9a6b.1311241300.git.mhocko@suse.cz>
+	<20110721191250.1c945740.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110721113606.GA27855@tiehlicka.suse.cz>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christopher Yeoh <cyeoh@au1.ibm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-man@vger.kernel.org, linux-arch@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-mm@kvack.org, Balbir Singh <bsingharora@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-kernel@vger.kernel.org
 
-On Tue, 19 Jul 2011 00:35:37 +0930
-Christopher Yeoh <cyeoh@au1.ibm.com> wrote:
+On Thu, 21 Jul 2011 13:36:06 +0200
+Michal Hocko <mhocko@suse.cz> wrote:
 
->
-> ...
->
-> +/*
-> + * process_vm_rw_pages - read/write pages from task specified
-> + * @task: task to read/write from
-> + * @mm: mm for task
-> + * @process_pages: struct pages area that can store at least
-> + *  nr_pages_to_copy struct page pointers
-> + * @pa: address of page in task to start copying from/to
-> + * @start_offset: offset in page to start copying from/to
-> + * @len: number of bytes to copy
-> + * @lvec: iovec array specifying where to copy to/from
-> + * @lvec_cnt: number of elements in iovec array
-> + * @lvec_current: index in iovec array we are up to
-> + * @lvec_offset: offset in bytes from current iovec iov_base we are up to
-> + * @vm_write: 0 means copy from, 1 means copy to
-> + * @nr_pages_to_copy: number of pages to copy
-> + */
-> +static ssize_t process_vm_rw_pages(struct task_struct *task,
-> +				   struct mm_struct *mm,
-> +				   struct page **process_pages,
-> +				   unsigned long pa,
-> +				   unsigned long start_offset,
-> +				   unsigned long len,
-> +				   const struct iovec *lvec,
-> +				   unsigned long lvec_cnt,
-> +				   unsigned long *lvec_current,
-> +				   size_t *lvec_offset,
-> +				   int vm_write,
-> +				   unsigned int nr_pages_to_copy)
-> +{
-> +	int pages_pinned;
-> +	void *target_kaddr;
-> +	int pgs_copied = 0;
-> +	int j;
-> +	int ret;
-> +	ssize_t bytes_to_copy;
-> +	ssize_t bytes_copied = 0;
-> +	ssize_t rc = -EFAULT;
-> +
-> +	/* Get the pages we're interested in */
-> +	down_read(&mm->mmap_sem);
-> +	pages_pinned = get_user_pages(task, mm, pa,
-> +				      nr_pages_to_copy,
-> +				      vm_write, 0, process_pages, NULL);
-> +	up_read(&mm->mmap_sem);
-> +
-> +	if (pages_pinned != nr_pages_to_copy)
-> +		goto end;
-> +
-> +	/* Do the copy for each page */
-> +	for (pgs_copied = 0;
-> +	     (pgs_copied < nr_pages_to_copy) && (*lvec_current < lvec_cnt);
-> +	     pgs_copied++) {
-> +		/* Make sure we have a non zero length iovec */
-> +		while (*lvec_current < lvec_cnt
-> +		       && lvec[*lvec_current].iov_len == 0)
-> +			(*lvec_current)++;
-> +		if (*lvec_current == lvec_cnt)
-> +			break;
-> +
-> +		/*
-> +		 * Will copy smallest of:
-> +		 * - bytes remaining in page
-> +		 * - bytes remaining in destination iovec
-> +		 */
-> +		bytes_to_copy = min_t(ssize_t, PAGE_SIZE - start_offset,
-> +				      len - bytes_copied);
-> +		bytes_to_copy = min_t(ssize_t, bytes_to_copy,
-> +				      lvec[*lvec_current].iov_len
-> +				      - *lvec_offset);
-> +
-> +		target_kaddr = kmap(process_pages[pgs_copied]) + start_offset;
-> +
-> +		if (vm_write)
-> +			ret = copy_from_user(target_kaddr,
-> +					     lvec[*lvec_current].iov_base
-> +					     + *lvec_offset,
-> +					     bytes_to_copy);
-> +		else
-> +			ret = copy_to_user(lvec[*lvec_current].iov_base
-> +					   + *lvec_offset,
-> +					   target_kaddr, bytes_to_copy);
-> +		kunmap(process_pages[pgs_copied]);
-> +		if (ret) {
-> +			pgs_copied++;
-> +			goto end;
+> On Thu 21-07-11 19:12:50, KAMEZAWA Hiroyuki wrote:
+> > On Thu, 21 Jul 2011 09:38:00 +0200
+> > Michal Hocko <mhocko@suse.cz> wrote:
+> > 
+> > > drain_all_stock_async tries to optimize a work to be done on the work
+> > > queue by excluding any work for the current CPU because it assumes that
+> > > the context we are called from already tried to charge from that cache
+> > > and it's failed so it must be empty already.
+> > > While the assumption is correct we can do it by checking the current
+> > > number of pages in the cache. This will also reduce a work on other CPUs
+> > > with an empty stock.
+> > > 
+> > > Signed-off-by: Michal Hocko <mhocko@suse.cz>
+> > 
+> > 
+> > At the first look, when a charge against TransParentHugepage() goes
+> > into the reclaim routine, stock->nr_pages != 0 and this will
+> > call additional kworker.
+> 
+> True. We will drain a charge which could be used by other allocations
+> in the meantime so we have a good chance to reclaim less. But how big
+> problem is that?
+> I mean I can add a new parameter that would force checking the current
+> cpu but it doesn't look nice. I cannot add that condition
+> unconditionally because the code will be shared with the sync path in
+> the next patch and that one needs to drain _all_ cpus.
+> 
+> What would you suggest?
+By 2 methods
 
-afacit this will always return -EFAULT, even after copying some memory.
+ - just check nr_pages. 
+ - drain "local stock" without calling schedule_work(). It's fast.
 
-Is this a misdesign?  Would it not be better to return the number of
-bytes actually copied, or -EFAULT is we weren't able to copy any?  Like
-read().
+Thanks,
+-Kame
 
-That way, userspace can at least process the data which _was_
-transferred, before retrying and then handling the fault.  With the
-proposed interface this is not possible, and the data is lost.
-
-
-And note that the function's kerneldoc doesn't document the return
-value at all!  kerneldoc sucks that way - there's no formal place in
-the template, so people often ignore this important part of the
-function interface.  Similarly, there's no kerneldoc template for
-preconditions such as irq on/off, locks which must be held, etc.
-So they don't get documented.  But they're part of the interface.
-
-
-> +		}
-> +		bytes_copied += bytes_to_copy;
-> +		*lvec_offset += bytes_to_copy;
-> +		if (*lvec_offset == lvec[*lvec_current].iov_len) {
-> +			/*
-> +			 * Need to copy remaining part of page into the
-> +			 * next iovec if there are any bytes left in page
-> +			 */
-> +			(*lvec_current)++;
-> +			*lvec_offset = 0;
-> +			start_offset = (start_offset + bytes_to_copy)
-> +				% PAGE_SIZE;
-> +			if (start_offset)
-> +				pgs_copied--;
-> +		} else {
-> +			start_offset = 0;
-> +		}
-> +	}
-> +
-> +	rc = bytes_copied;
-> +
-> +end:
-> +	if (vm_write) {
-> +		for (j = 0; j < pages_pinned; j++) {
-> +			if (j < pgs_copied)
-> +				set_page_dirty_lock(process_pages[j]);
-> +			put_page(process_pages[j]);
-> +		}
-> +	} else {
-> +		for (j = 0; j < pages_pinned; j++)
-> +			put_page(process_pages[j]);
-> +	}
-> +
-> +	return rc;
-> +}
-> +
->
-> ...
->
-> +static ssize_t process_vm_rw_single_vec(unsigned long addr,
-> +					unsigned long len,
-> +					const struct iovec *lvec,
-> +					unsigned long lvec_cnt,
-> +					unsigned long *lvec_current,
-> +					size_t *lvec_offset,
-> +					struct page **process_pages,
-> +					struct mm_struct *mm,
-> +					struct task_struct *task,
-> +					int vm_write)
-> +{
-> +	unsigned long pa = addr & PAGE_MASK;
-> +	unsigned long start_offset = addr - pa;
-> +	unsigned long nr_pages;
-> +	ssize_t bytes_copied = 0;
-> +	ssize_t rc;
-> +	unsigned long nr_pages_copied = 0;
-> +	unsigned long nr_pages_to_copy;
-> +	unsigned long max_pages_per_loop = PVM_MAX_KMALLOC_PAGES
-> +		/ sizeof(struct pages *);
-> +
-> +
-> +	/* Work out address and page range required */
-> +	if (len == 0)
-> +		return 0;
-> +	nr_pages = (addr + len - 1) / PAGE_SIZE - addr / PAGE_SIZE + 1;
-> +
-> +
-> +	while ((nr_pages_copied < nr_pages) && (*lvec_current < lvec_cnt)) {
-> +		nr_pages_to_copy = min(nr_pages - nr_pages_copied,
-> +				       max_pages_per_loop);
-> +
-> +		rc = process_vm_rw_pages(task, mm, process_pages, pa,
-> +					 start_offset, len,
-> +					 lvec, lvec_cnt,
-> +					 lvec_current, lvec_offset,
-> +					 vm_write, nr_pages_to_copy);
-> +		start_offset = 0;
-> +
-> +		if (rc < 0)
-> +			return rc;
-
-It's propagated here.
-
-(CodingStyleNit: it's conventional to put {} around the single-line
-block in this case, btw).
-
-> +		else {
-> +			bytes_copied += rc;
-> +			len -= rc;
-> +			nr_pages_copied += nr_pages_to_copy;
-> +			pa += nr_pages_to_copy * PAGE_SIZE;
-> +		}
-
-because this block had them.
-
-> +	}
-> +
-> +	rc = bytes_copied;
-> +	return rc;
-> +}
-> +
-> +static ssize_t process_vm_rw(pid_t pid, const struct iovec *lvec,
-> +			     unsigned long liovcnt,
-> +			     const struct iovec *rvec,
-> +			     unsigned long riovcnt,
-> +			     unsigned long flags, int vm_write)
-> +{
-> +	struct task_struct *task;
-> +	struct page **process_pages = NULL;
-> +	struct mm_struct *mm;
-> +	unsigned long i;
-> +	ssize_t rc;
-> +	ssize_t bytes_copied;
-> +	unsigned long nr_pages = 0;
-> +	unsigned long nr_pages_iov;
-> +	unsigned long iov_l_curr_idx = 0;
-> +	size_t iov_l_curr_offset = 0;
-> +	ssize_t iov_len;
-> +
-> +	/*
-> +	 * Work out how many pages of struct pages we're going to need
-> +	 * when eventually calling get_user_pages
-> +	 */
-> +	for (i = 0; i < riovcnt; i++) {
-> +		iov_len = rvec[i].iov_len;
-> +		if (iov_len > 0) {
-> +			nr_pages_iov = ((unsigned long)rvec[i].iov_base
-> +					+ iov_len)
-> +				/ PAGE_SIZE - (unsigned long)rvec[i].iov_base
-> +				/ PAGE_SIZE + 1;
-> +			nr_pages = max(nr_pages, nr_pages_iov);
-> +		}
-> +	}
-> +
-> +	if (nr_pages == 0)
-> +		return 0;
-> +
-> +	/* For reliability don't try to kmalloc more than 2 pages worth */
-> +	process_pages = kmalloc(min_t(size_t, PVM_MAX_KMALLOC_PAGES,
-> +				      sizeof(struct pages *)*nr_pages),
-> +				GFP_KERNEL);
-
-You might get some speed benefit by optimising for the small copies
-here.  Define a local on-stack array of N page*'s and point
-process_pages at that if the number of pages is <= N.  Saves a
-malloc/free and is more cache-friendly.  But only if the result is
-measurable!
-
-> +	if (!process_pages)
-> +		return -ENOMEM;
-> +
-> +	/* Get process information */
-> +	rcu_read_lock();
-> +	task = find_task_by_vpid(pid);
-> +	if (task)
-> +		get_task_struct(task);
-> +	rcu_read_unlock();
-> +	if (!task) {
-> +		rc = -ESRCH;
-> +		goto free_proc_pages;
-> +	}
-> +
-> +	task_lock(task);
-> +	if (__ptrace_may_access(task, PTRACE_MODE_ATTACH)) {
-> +		task_unlock(task);
-> +		rc = -EPERM;
-> +		goto put_task_struct;
-> +	}
-> +	mm = task->mm;
-> +
-> +	if (!mm || (task->flags & PF_KTHREAD)) {
-> +		task_unlock(task);
-> +		rc = -EINVAL;
-> +		goto put_task_struct;
-> +	}
-> +
-> +	atomic_inc(&mm->mm_users);
-> +	task_unlock(task);
-> +
-> +	rc = 0;
-> +	for (i = 0; i < riovcnt && iov_l_curr_idx < liovcnt; i++) {
-> +		bytes_copied = process_vm_rw_single_vec(
-> +			(unsigned long)rvec[i].iov_base, rvec[i].iov_len,
-> +			lvec, liovcnt, &iov_l_curr_idx, &iov_l_curr_offset,
-> +			process_pages, mm, task, vm_write);
-> +		if (bytes_copied < 0) {
-> +			rc = bytes_copied;
-> +			goto put_mm;
-> +		} else {
-> +			rc += bytes_copied;
-> +		}
-> +	}
-> +
-> +put_mm:
-> +	mmput(mm);
-> +
-> +put_task_struct:
-> +	put_task_struct(task);
-> +
-> +
-> +free_proc_pages:
-> +	kfree(process_pages);
-> +	return rc;
-> +}
-> +
-> +static ssize_t process_vm_rw_check_iovecs(pid_t pid,
-> +					  const struct iovec __user *lvec,
-> +					  unsigned long liovcnt,
-> +					  const struct iovec __user *rvec,
-> +					  unsigned long riovcnt,
-> +					  unsigned long flags, int vm_write)
-
-I'm allergic to functions with "check" in their name.  Check for what?
-
-And one would expect a check_foo() to return a bool or an errno.  This
-one returns a ssize_t!  Weird!  Interface documentation, please. 
-Including return value semantics ;)
-
-> +{
-> +	struct iovec iovstack_l[UIO_FASTIOV];
-> +	struct iovec iovstack_r[UIO_FASTIOV];
-> +	struct iovec *iov_l = iovstack_l;
-> +	struct iovec *iov_r = iovstack_r;
-> +	ssize_t rc;
-> +
-> +	if (flags != 0)
-> +		return -EINVAL;
-> +
-> +	/* Check iovecs */
-> +	if (vm_write)
-> +		rc = rw_copy_check_uvector(WRITE, lvec, liovcnt, UIO_FASTIOV,
-> +					   iovstack_l, &iov_l, 1);
-> +	else
-> +		rc = rw_copy_check_uvector(READ, lvec, liovcnt, UIO_FASTIOV,
-> +					   iovstack_l, &iov_l, 1);
-> +	if (rc <= 0)
-> +		goto free_iovecs;
-> +
-> +	rc = rw_copy_check_uvector(READ, rvec, riovcnt, UIO_FASTIOV,
-> +				   iovstack_r, &iov_r, 0);
-> +	if (rc <= 0)
-> +		goto free_iovecs;
-> +
-> +	rc = process_vm_rw(pid, iov_l, liovcnt, iov_r, riovcnt, flags,
-> +			    vm_write);
-> +
-> +free_iovecs:
-> +	if (iov_r != iovstack_r)
-> +		kfree(iov_r);
-> +	if (iov_l != iovstack_l)
-> +		kfree(iov_l);
-> +
-> +	return rc;
-> +}
->
-> ...
->
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
