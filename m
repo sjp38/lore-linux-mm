@@ -1,93 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id B9C7C6B004A
-	for <linux-mm@kvack.org>; Thu, 21 Jul 2011 07:01:22 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id EBF4F3EE0AE
-	for <linux-mm@kvack.org>; Thu, 21 Jul 2011 20:01:19 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id D08ED45DEB3
-	for <linux-mm@kvack.org>; Thu, 21 Jul 2011 20:01:19 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id AE39245DEA6
-	for <linux-mm@kvack.org>; Thu, 21 Jul 2011 20:01:19 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id A10461DB8040
-	for <linux-mm@kvack.org>; Thu, 21 Jul 2011 20:01:19 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 691851DB8038
-	for <linux-mm@kvack.org>; Thu, 21 Jul 2011 20:01:19 +0900 (JST)
-Date: Thu, 21 Jul 2011 19:54:11 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 4/4] memcg: prevent from reclaiming if there are per-cpu
- cached charges
-Message-Id: <20110721195411.f4fa9f91.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <0ed59a22cc84037d6e42b258981c75e3a6063899.1311241300.git.mhocko@suse.cz>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id CF9636B004A
+	for <linux-mm@kvack.org>; Thu, 21 Jul 2011 07:36:10 -0400 (EDT)
+Date: Thu, 21 Jul 2011 13:36:06 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 1/4] memcg: do not try to drain per-cpu caches without
+ pages
+Message-ID: <20110721113606.GA27855@tiehlicka.suse.cz>
 References: <cover.1311241300.git.mhocko@suse.cz>
-	<0ed59a22cc84037d6e42b258981c75e3a6063899.1311241300.git.mhocko@suse.cz>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+ <113c4affc2f0938b7b22d43c88d2b0a623de9a6b.1311241300.git.mhocko@suse.cz>
+ <20110721191250.1c945740.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110721191250.1c945740.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: linux-mm@kvack.org, Balbir Singh <bsingharora@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-kernel@vger.kernel.org
 
-On Thu, 21 Jul 2011 10:28:10 +0200
-Michal Hocko <mhocko@suse.cz> wrote:
-
-> If we fail to charge an allocation for a cgroup we usually have to fall
-> back into direct reclaim (mem_cgroup_hierarchical_reclaim).
-> The charging code, however, currently doesn't care about per-cpu charge
-> caches which might have up to (nr_cpus - 1) * CHARGE_BATCH pre charged
-> pages (the current cache is already drained, otherwise we wouldn't get
-> to mem_cgroup_do_charge).
-> That can be quite a lot on boxes with big amounts of CPUs so we can end
-> up reclaiming even though there are charges that could be used. This
-> will typically happen in a multi-threaded applications pined to many CPUs
-> which allocates memory heavily.
+On Thu 21-07-11 19:12:50, KAMEZAWA Hiroyuki wrote:
+> On Thu, 21 Jul 2011 09:38:00 +0200
+> Michal Hocko <mhocko@suse.cz> wrote:
 > 
-
-Do you have example and score, numbers on your test ?
-
-> Currently we are draining caches during reclaim
-> (mem_cgroup_hierarchical_reclaim) but this can be already late as we
-> could have already reclaimed from other groups in the hierarchy.
+> > drain_all_stock_async tries to optimize a work to be done on the work
+> > queue by excluding any work for the current CPU because it assumes that
+> > the context we are called from already tried to charge from that cache
+> > and it's failed so it must be empty already.
+> > While the assumption is correct we can do it by checking the current
+> > number of pages in the cache. This will also reduce a work on other CPUs
+> > with an empty stock.
+> > 
+> > Signed-off-by: Michal Hocko <mhocko@suse.cz>
 > 
-> The solution for this would be to synchronously drain charges early when
-> we fail to charge and retry the charge once more.
-> I think it still makes sense to keep async draining in the reclaim path
-> as it is used from other code paths as well (e.g. limit resize). It will
-> not do any work if we drained previously anyway.
 > 
-> Signed-off-by: Michal Hocko <mhocko@suse.cz>
+> At the first look, when a charge against TransParentHugepage() goes
+> into the reclaim routine, stock->nr_pages != 0 and this will
+> call additional kworker.
 
-I don't like this solution, at all.
+True. We will drain a charge which could be used by other allocations
+in the meantime so we have a good chance to reclaim less. But how big
+problem is that?
+I mean I can add a new parameter that would force checking the current
+cpu but it doesn't look nice. I cannot add that condition
+unconditionally because the code will be shared with the sync path in
+the next patch and that one needs to drain _all_ cpus.
 
-Assume 2 cpu SMP, (a special case), and 2 applications running under
-a memcg.
-
- - one is running in SCHED_FIFO.
- - another is running into mem_cgroup_do_charge() and call drain_all_stock_sync().
-
-Then, the application stops until SCHED_FIFO application release the cpu.
-
-In general, I don't think waiting for schedule_work() against multiple cpus
-is not quicker than short memory reclaim. Adding flush_work() here means
-that a context switch is requred before calling direct reclaim. That's bad.
-(At leaset, please check __GFP_NOWAIT.)
-
-
-Please find another way, I think calling synchronous drain here is overkill.
-There are not important file caches in the most case and reclaim is quick.
-(And async draining runs.)
-
-How about automatically adjusting CHARGE_BATCH and make it small when the
-system is near to limit ? or flushing ->stock periodically ?
-
-
-Thanks,
--Kame
+What would you suggest?
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
