@@ -1,92 +1,162 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 0DA226B004A
-	for <linux-mm@kvack.org>; Fri, 22 Jul 2011 09:17:42 -0400 (EDT)
-From: Ian Campbell <ian.campbell@citrix.com>
-Subject: [PATCH 01/13] mm: Make some struct page's const.
-Date: Fri, 22 Jul 2011 14:17:21 +0100
-Message-ID: <1311340653-19336-1-git-send-email-ian.campbell@citrix.com>
-In-Reply-To: <1311340095.12772.57.camel@zakaz.uk.xensource.com>
-References: <1311340095.12772.57.camel@zakaz.uk.xensource.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 3707B6B004A
+	for <linux-mm@kvack.org>; Fri, 22 Jul 2011 09:22:12 -0400 (EDT)
+Received: by pzk33 with SMTP id 33so3795262pzk.36
+        for <linux-mm@kvack.org>; Fri, 22 Jul 2011 06:22:07 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <CAEwNFnD2ZTARC1Yw2uEYVSctBo7wsmA7rmQOaFH2rwOKoo3YjA@mail.gmail.com>
+References: <1308926697-22475-1-git-send-email-mgorman@suse.de>
+ <20110721153722.GD1713@barrios-desktop> <20110721160958.GT5349@suse.de>
+ <20110721162417.GF1713@barrios-desktop> <CAObL_7HpE3mCS90Zfa9-edBKPFN1MuBOHv+=e6BNHsi2u3zTOQ@mail.gmail.com>
+ <20110721164238.GA3326@barrios-desktop> <CAObL_7HN2tbXiVZ1vcwpTUMf5v1EPG0XsQqUuCYn8yWtm7AA9A@mail.gmail.com>
+ <CAEwNFnD2ZTARC1Yw2uEYVSctBo7wsmA7rmQOaFH2rwOKoo3YjA@mail.gmail.com>
+From: Andrew Lutomirski <luto@mit.edu>
+Date: Fri, 22 Jul 2011 09:21:47 -0400
+Message-ID: <CAObL_7ES+6xcLCewtOaZby5uYnT3F91TuKPVZc_aOWSpRjNg3A@mail.gmail.com>
+Subject: Re: [PATCH 0/4] Stop kswapd consuming 100% CPU when highest zone is small
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: netdev@vger.kernel.org, linux-nfs@vger.kernel.org
-Cc: Ian Campbell <ian.campbell@citrix.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Michel Lespinasse <walken@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, P?draig Brady <P@draigbrady.com>, James Bottomley <James.Bottomley@hansenpartnership.com>, Colin King <colin.king@canonical.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 
-These uses are read-only and in a subsequent patch I have a const struct page
-in my hand...
+On Thu, Jul 21, 2011 at 8:30 PM, Minchan Kim <minchan.kim@gmail.com> wrote:
+> On Fri, Jul 22, 2011 at 1:58 AM, Andrew Lutomirski <luto@mit.edu> wrote:
+>> On Thu, Jul 21, 2011 at 12:42 PM, Minchan Kim <minchan.kim@gmail.com> wr=
+ote:
+>>> On Thu, Jul 21, 2011 at 12:36:11PM -0400, Andrew Lutomirski wrote:
+>>>> On Thu, Jul 21, 2011 at 12:24 PM, Minchan Kim <minchan.kim@gmail.com> =
+wrote:
+>>>> > On Thu, Jul 21, 2011 at 05:09:59PM +0100, Mel Gorman wrote:
+>>>> >> On Fri, Jul 22, 2011 at 12:37:22AM +0900, Minchan Kim wrote:
+>>>> >> > On Fri, Jun 24, 2011 at 03:44:53PM +0100, Mel Gorman wrote:
+>>>> >> > > (Built this time and passed a basic sniff-test.)
+>>>> >> > >
+>>>> >> > > During allocator-intensive workloads, kswapd will be woken freq=
+uently
+>>>> >> > > causing free memory to oscillate between the high and min water=
+mark.
+>>>> >> > > This is expected behaviour. =A0Unfortunately, if the highest zo=
+ne is
+>>>> >> > > small, a problem occurs.
+>>>> >> > >
+>>>> >> > > This seems to happen most with recent sandybridge laptops but i=
+t's
+>>>> >> > > probably a co-incidence as some of these laptops just happen to=
+ have
+>>>> >> > > a small Normal zone. The reproduction case is almost always dur=
+ing
+>>>> >> > > copying large files that kswapd pegs at 100% CPU until the file=
+ is
+>>>> >> > > deleted or cache is dropped.
+>>>> >> > >
+>>>> >> > > The problem is mostly down to sleeping_prematurely() keeping ks=
+wapd
+>>>> >> > > awake when the highest zone is small and unreclaimable and comp=
+ounded
+>>>> >> > > by the fact we shrink slabs even when not shrinking zones causi=
+ng a lot
+>>>> >> > > of time to be spent in shrinkers and a lot of memory to be recl=
+aimed.
+>>>> >> > >
+>>>> >> > > Patch 1 corrects sleeping_prematurely to check the zones matchi=
+ng
+>>>> >> > > =A0 the classzone_idx instead of all zones.
+>>>> >> > >
+>>>> >> > > Patch 2 avoids shrinking slab when we are not shrinking a zone.
+>>>> >> > >
+>>>> >> > > Patch 3 notes that sleeping_prematurely is checking lower zones=
+ against
+>>>> >> > > =A0 a high classzone which is not what allocators or balance_pg=
+dat()
+>>>> >> > > =A0 is doing leading to an artifical believe that kswapd should=
+ be
+>>>> >> > > =A0 still awake.
+>>>> >> > >
+>>>> >> > > Patch 4 notes that when balance_pgdat() gives up on a high zone=
+ that the
+>>>> >> > > =A0 decision is not communicated to sleeping_prematurely()
+>>>> >> > >
+>>>> >> > > This problem affects 2.6.38.8 for certain and is expected to af=
+fect
+>>>> >> > > 2.6.39 and 3.0-rc4 as well. If accepted, they need to go to -st=
+able
+>>>> >> > > to be picked up by distros and this series is against 3.0-rc4. =
+I've
+>>>> >> > > cc'd people that reported similar problems recently to see if t=
+hey
+>>>> >> > > still suffer from the problem and if this fixes it.
+>>>> >> > >
+>>>> >> >
+>>>> >> > Good!
+>>>> >> > This patch solved the problem.
+>>>> >> > But there is still a mystery.
+>>>> >> >
+>>>> >> > In log, we could see excessive shrink_slab calls.
+>>>> >>
+>>>> >> Yes, because shrink_slab() was called on each loop through
+>>>> >> balance_pgdat() even if the zone was balanced.
+>>>> >>
+>>>> >>
+>>>> >> > And as you know, we had merged patch which adds cond_resched wher=
+e last of the function
+>>>> >> > in shrink_slab. So other task should get the CPU and we should no=
+t see
+>>>> >> > 100% CPU of kswapd, I think.
+>>>> >> >
+>>>> >>
+>>>> >> cond_resched() is not a substitute for going to sleep.
+>>>> >
+>>>> > Of course, it's not equal with sleep but other task should get CPU a=
+nd conusme their time slice
+>>>> > So we should never see 100% CPU consumption of kswapd.
+>>>> > No?
+>>>>
+>>>> If the rest of the system is idle, then kswapd will happily use 100%
+>>>> CPU. =A0(Or on a multi-core system, kswapd will use close to 100% of o=
+ne
+>>>
+>>> Of course. But at least, we have a test program and I think it's not id=
+le.
+>>
+>> The test program I used was 'top', which is pretty close to idle.
+>>
+>>>
+>>>> CPU even if another task is using the other one. =A0This is bad enough
+>>>> on a desktop, but on a laptop you start to notice when your battery
+>>>> dies.)
+>>>
+>>> Of course it's bad. :)
+>>> What I want to know is just what's exact cause of 100% CPU usage.
+>>> It might be not 100% but we might use the word sloppily.
+>>>
+>>
+>> Well, if you want to pedantic, my laptop can, in theory, demonstrate
+>> true 100% CPU usage. =A0Trigger the bug, suspend every other thread, and
+>> listen to the laptop fan spin and feel the laptop get hot. =A0(The fan
+>> is controlled by the EC and takes no CPU.)
+>>
+>> In practice, the usage was close enough to 100% that it got rounded.
+>>
+>> The cond_resched was enough to at least make the system responsive
+>> instead of the hard freeze I used to get.
+>
+> I don't want to be pedantic. :)
+> What I have a thought about 100% CPU usage was that it doesn't yield
+> CPU and spins on the CPU but as I heard your example(ie, cond_resched
+> makes the system responsive), it's not the case. It was just to use
+> most of time in kswapd, not 100%. It seems I was paranoid about the
+> word, sorry for that.
 
-Signed-off-by: Ian Campbell <ian.campbell@citrix.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Mel Gorman <mel@csn.ul.ie>
-Cc: Michel Lespinasse <walken@google.com>
-Cc: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
----
- include/linux/mm.h |   10 +++++-----
- mm/sparse.c        |    2 +-
- 2 files changed, 6 insertions(+), 6 deletions(-)
+Ah, sorry.  I must have been unclear in my original email.
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 9670f71..550ec8f 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -636,7 +636,7 @@ static inline pte_t maybe_mkwrite(pte_t pte, struct vm_area_struct *vma)
- #define SECTIONS_MASK		((1UL << SECTIONS_WIDTH) - 1)
- #define ZONEID_MASK		((1UL << ZONEID_SHIFT) - 1)
- 
--static inline enum zone_type page_zonenum(struct page *page)
-+static inline enum zone_type page_zonenum(const struct page *page)
- {
- 	return (page->flags >> ZONES_PGSHIFT) & ZONES_MASK;
- }
-@@ -664,15 +664,15 @@ static inline int zone_to_nid(struct zone *zone)
- }
- 
- #ifdef NODE_NOT_IN_PAGE_FLAGS
--extern int page_to_nid(struct page *page);
-+extern int page_to_nid(const struct page *page);
- #else
--static inline int page_to_nid(struct page *page)
-+static inline int page_to_nid(const struct page *page)
- {
- 	return (page->flags >> NODES_PGSHIFT) & NODES_MASK;
- }
- #endif
- 
--static inline struct zone *page_zone(struct page *page)
-+static inline struct zone *page_zone(const struct page *page)
- {
- 	return &NODE_DATA(page_to_nid(page))->node_zones[page_zonenum(page)];
- }
-@@ -717,7 +717,7 @@ static inline void set_page_links(struct page *page, enum zone_type zone,
-  */
- #include <linux/vmstat.h>
- 
--static __always_inline void *lowmem_page_address(struct page *page)
-+static __always_inline void *lowmem_page_address(const struct page *page)
- {
- 	return __va(PFN_PHYS(page_to_pfn(page)));
- }
-diff --git a/mm/sparse.c b/mm/sparse.c
-index aa64b12..858e1df 100644
---- a/mm/sparse.c
-+++ b/mm/sparse.c
-@@ -40,7 +40,7 @@ static u8 section_to_node_table[NR_MEM_SECTIONS] __cacheline_aligned;
- static u16 section_to_node_table[NR_MEM_SECTIONS] __cacheline_aligned;
- #endif
- 
--int page_to_nid(struct page *page)
-+int page_to_nid(const struct page *page)
- {
- 	return section_to_node_table[page_to_section(page)];
- }
--- 
-1.7.2.5
+In 2.6.39, it made my system unresponsive.  With your cond_resched and
+pgdat_balanced fixes, it just made kswapd eat all available CPU, but
+the system still worked.
+
+--Andy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
