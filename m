@@ -1,137 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F9A16B004A
-	for <linux-mm@kvack.org>; Fri, 22 Jul 2011 04:29:08 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 728D33EE0C0
-	for <linux-mm@kvack.org>; Fri, 22 Jul 2011 17:29:05 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5766045DE7E
-	for <linux-mm@kvack.org>; Fri, 22 Jul 2011 17:29:05 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3591245DEAD
-	for <linux-mm@kvack.org>; Fri, 22 Jul 2011 17:29:05 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 06E381DB803B
-	for <linux-mm@kvack.org>; Fri, 22 Jul 2011 17:29:05 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id B04D21DB8041
-	for <linux-mm@kvack.org>; Fri, 22 Jul 2011 17:29:04 +0900 (JST)
-Date: Fri, 22 Jul 2011 17:21:55 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [BUGFIX][PATCH] memcg: fix vmscan count in small memcgs
-Message-Id: <20110722172155.d6834641.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 7734C6B004A
+	for <linux-mm@kvack.org>; Fri, 22 Jul 2011 05:19:43 -0400 (EDT)
+Date: Fri, 22 Jul 2011 11:19:36 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 1/4] memcg: do not try to drain per-cpu caches without
+ pages
+Message-ID: <20110722091936.GB4004@tiehlicka.suse.cz>
+References: <cover.1311241300.git.mhocko@suse.cz>
+ <113c4affc2f0938b7b22d43c88d2b0a623de9a6b.1311241300.git.mhocko@suse.cz>
+ <20110721191250.1c945740.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110721113606.GA27855@tiehlicka.suse.cz>
+ <20110722084413.9dd4b880.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110722084413.9dd4b880.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "akpm@linux-foundation.org" <akpm@linux-foundation.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, Michal Hocko <mhocko@suse.cz>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, Balbir Singh <bsingharora@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-kernel@vger.kernel.org
 
-commit 246e87a(memcg: fix get_scan_count() for small targets) fixes
-the memcg/kswapd behavior against small targets and prevent vmscan
-priority too high.
+On Fri 22-07-11 08:44:13, KAMEZAWA Hiroyuki wrote:
+> On Thu, 21 Jul 2011 13:36:06 +0200
+> Michal Hocko <mhocko@suse.cz> wrote:
+> 
+> > On Thu 21-07-11 19:12:50, KAMEZAWA Hiroyuki wrote:
+> > > On Thu, 21 Jul 2011 09:38:00 +0200
+> > > Michal Hocko <mhocko@suse.cz> wrote:
+> > > 
+> > > > drain_all_stock_async tries to optimize a work to be done on the work
+> > > > queue by excluding any work for the current CPU because it assumes that
+> > > > the context we are called from already tried to charge from that cache
+> > > > and it's failed so it must be empty already.
+> > > > While the assumption is correct we can do it by checking the current
+> > > > number of pages in the cache. This will also reduce a work on other CPUs
+> > > > with an empty stock.
+> > > > 
+> > > > Signed-off-by: Michal Hocko <mhocko@suse.cz>
+> > > 
+> > > 
+> > > At the first look, when a charge against TransParentHugepage() goes
+> > > into the reclaim routine, stock->nr_pages != 0 and this will
+> > > call additional kworker.
+> > 
+> > True. We will drain a charge which could be used by other allocations
+> > in the meantime so we have a good chance to reclaim less. But how big
+> > problem is that?
+> > I mean I can add a new parameter that would force checking the current
+> > cpu but it doesn't look nice. I cannot add that condition
+> > unconditionally because the code will be shared with the sync path in
+> > the next patch and that one needs to drain _all_ cpus.
+> > 
+> > What would you suggest?
+> By 2 methods
+> 
+>  - just check nr_pages. 
 
-But implementation is too naive and adds another problem to small memcg.
-It always force scan to 32 pages of file/anon and doesn't handle
-swappiness and other rotate_info. It makes vmscan to scan anon LRU
-regardless of swappiness and make reclaim bad.
-This patch fixes it by adjusting scanning count with regard to
-swappiness at el.
+Not sure I understand which nr_pages you mean. The one that comes from
+the charging path or stock->nr_pages?
+If you mean the first one then we do not have in the reclaim path where
+we call drain_all_stock_async.
 
-At a test "cat 1G file under 300M limit." (swappiness=20)
- before patch
-        scanned_pages_by_limit 360919
-        scanned_anon_pages_by_limit 180469
-        scanned_file_pages_by_limit 180450
-        rotated_pages_by_limit 31
-        rotated_anon_pages_by_limit 25
-        rotated_file_pages_by_limit 6
-        freed_pages_by_limit 180458
-        freed_anon_pages_by_limit 19
-        freed_file_pages_by_limit 180439
-        elapsed_ns_by_limit 429758872
- after patch
-        scanned_pages_by_limit 180674
-        scanned_anon_pages_by_limit 24
-        scanned_file_pages_by_limit 180650
-        rotated_pages_by_limit 35
-        rotated_anon_pages_by_limit 24
-        rotated_file_pages_by_limit 11
-        freed_pages_by_limit 180634
-        freed_anon_pages_by_limit 0
-        freed_file_pages_by_limit 180634
-        elapsed_ns_by_limit 367119089
-        scanned_pages_by_system 0
+>  - drain "local stock" without calling schedule_work(). It's fast.
 
-the numbers of scanning anon are decreased(as expected), and elapsed time
-reduced. By this patch, small memcgs will work better.
-(*) Because the amount of file-cache is much bigger than anon,
-    recalaim_stat's rotate-scan counter make scanning files more.
+but there is nothing to be drained locally in the paths where we call
+drain_all_stock_async... Or do you mean that drain_all_stock shouldn't
+use work queue at all?
 
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
----
- mm/vmscan.c |   18 ++++++++++++------
- 1 file changed, 12 insertions(+), 6 deletions(-)
+> 
+> Thanks,
+> -Kame
 
-Index: mmotm-0710/mm/vmscan.c
-===================================================================
---- mmotm-0710.orig/mm/vmscan.c
-+++ mmotm-0710/mm/vmscan.c
-@@ -1768,6 +1768,7 @@ static void get_scan_count(struct zone *
- 	enum lru_list l;
- 	int noswap = 0;
- 	int force_scan = 0;
-+	unsigned long nr_force_scan[2];
- 
- 
- 	anon  = zone_nr_lru_pages(zone, sc, LRU_ACTIVE_ANON) +
-@@ -1790,6 +1791,8 @@ static void get_scan_count(struct zone *
- 		fraction[0] = 0;
- 		fraction[1] = 1;
- 		denominator = 1;
-+		nr_force_scan[0] = 0;
-+		nr_force_scan[1] = SWAP_CLUSTER_MAX;
- 		goto out;
- 	}
- 
-@@ -1801,6 +1804,8 @@ static void get_scan_count(struct zone *
- 			fraction[0] = 1;
- 			fraction[1] = 0;
- 			denominator = 1;
-+			nr_force_scan[0] = SWAP_CLUSTER_MAX;
-+			nr_force_scan[1] = 0;
- 			goto out;
- 		}
- 	}
-@@ -1849,6 +1854,11 @@ static void get_scan_count(struct zone *
- 	fraction[0] = ap;
- 	fraction[1] = fp;
- 	denominator = ap + fp + 1;
-+	if (force_scan) {
-+		unsigned long scan = SWAP_CLUSTER_MAX;
-+		nr_force_scan[0] = div64_u64(scan * ap, denominator);
-+		nr_force_scan[1] = div64_u64(scan * fp, denominator);
-+	}
- out:
- 	for_each_evictable_lru(l) {
- 		int file = is_file_lru(l);
-@@ -1869,12 +1879,8 @@ out:
- 		 * memcg, priority drop can cause big latency. So, it's better
- 		 * to scan small amount. See may_noscan above.
- 		 */
--		if (!scan && force_scan) {
--			if (file)
--				scan = SWAP_CLUSTER_MAX;
--			else if (!noswap)
--				scan = SWAP_CLUSTER_MAX;
--		}
-+		if (!scan && force_scan)
-+			scan = nr_force_scan[file];
- 		nr[l] = scan;
- 	}
- }
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
