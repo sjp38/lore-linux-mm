@@ -1,123 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 9BC5D6B004A
-	for <linux-mm@kvack.org>; Fri, 22 Jul 2011 05:55:03 -0400 (EDT)
-Date: Fri, 22 Jul 2011 11:54:59 +0200
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id A77806B004A
+	for <linux-mm@kvack.org>; Fri, 22 Jul 2011 05:58:19 -0400 (EDT)
+Date: Fri, 22 Jul 2011 11:58:16 +0200
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 4/4] memcg: prevent from reclaiming if there are per-cpu
- cached charges
-Message-ID: <20110722095459.GE4004@tiehlicka.suse.cz>
+Subject: Re: [PATCH 1/4] memcg: do not try to drain per-cpu caches without
+ pages
+Message-ID: <20110722095815.GF4004@tiehlicka.suse.cz>
 References: <cover.1311241300.git.mhocko@suse.cz>
- <0ed59a22cc84037d6e42b258981c75e3a6063899.1311241300.git.mhocko@suse.cz>
- <20110721195411.f4fa9f91.kamezawa.hiroyu@jp.fujitsu.com>
- <20110721123012.GD27855@tiehlicka.suse.cz>
- <20110722085652.759aded2.kamezawa.hiroyu@jp.fujitsu.com>
+ <113c4affc2f0938b7b22d43c88d2b0a623de9a6b.1311241300.git.mhocko@suse.cz>
+ <20110721191250.1c945740.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110721113606.GA27855@tiehlicka.suse.cz>
+ <20110722084413.9dd4b880.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110722091936.GB4004@tiehlicka.suse.cz>
+ <20110722182822.a99a2676.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110722085652.759aded2.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110722182822.a99a2676.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: linux-mm@kvack.org, Balbir Singh <bsingharora@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-kernel@vger.kernel.org
 
-On Fri 22-07-11 08:56:52, KAMEZAWA Hiroyuki wrote:
-> On Thu, 21 Jul 2011 14:30:12 +0200
+On Fri 22-07-11 18:28:22, KAMEZAWA Hiroyuki wrote:
+> On Fri, 22 Jul 2011 11:19:36 +0200
 > Michal Hocko <mhocko@suse.cz> wrote:
 > 
-> > On Thu 21-07-11 19:54:11, KAMEZAWA Hiroyuki wrote:
-> > > On Thu, 21 Jul 2011 10:28:10 +0200
-[...]
-> > > Assume 2 cpu SMP, (a special case), and 2 applications running under
-> > > a memcg.
+> > On Fri 22-07-11 08:44:13, KAMEZAWA Hiroyuki wrote:
+> > > On Thu, 21 Jul 2011 13:36:06 +0200
+> > > Michal Hocko <mhocko@suse.cz> wrote:
 > > > 
-> > >  - one is running in SCHED_FIFO.
-> > >  - another is running into mem_cgroup_do_charge() and call drain_all_stock_sync().
+> > > > On Thu 21-07-11 19:12:50, KAMEZAWA Hiroyuki wrote:
+> > > > > On Thu, 21 Jul 2011 09:38:00 +0200
+> > > > > Michal Hocko <mhocko@suse.cz> wrote:
+> > > > > 
+> > > > > > drain_all_stock_async tries to optimize a work to be done on the work
+> > > > > > queue by excluding any work for the current CPU because it assumes that
+> > > > > > the context we are called from already tried to charge from that cache
+> > > > > > and it's failed so it must be empty already.
+> > > > > > While the assumption is correct we can do it by checking the current
+> > > > > > number of pages in the cache. This will also reduce a work on other CPUs
+> > > > > > with an empty stock.
+> > > > > > 
+> > > > > > Signed-off-by: Michal Hocko <mhocko@suse.cz>
+> > > > > 
+> > > > > 
+> > > > > At the first look, when a charge against TransParentHugepage() goes
+> > > > > into the reclaim routine, stock->nr_pages != 0 and this will
+> > > > > call additional kworker.
+> > > > 
+> > > > True. We will drain a charge which could be used by other allocations
+> > > > in the meantime so we have a good chance to reclaim less. But how big
+> > > > problem is that?
+> > > > I mean I can add a new parameter that would force checking the current
+> > > > cpu but it doesn't look nice. I cannot add that condition
+> > > > unconditionally because the code will be shared with the sync path in
+> > > > the next patch and that one needs to drain _all_ cpus.
+> > > > 
+> > > > What would you suggest?
+> > > By 2 methods
 > > > 
-> > > Then, the application stops until SCHED_FIFO application release the cpu.
+> > >  - just check nr_pages. 
 > > 
-> > It would have to back off during reclaim anyaway (because we check
-> > cond_resched during reclaim), right? 
-> > 
-> 
-> just have cond_resched() on a cpu which calls some reclaim stuff. It will no help.
-
-I do not understand what you are saying here. What I meant to say is
-that the above example is not a big issue because SCHED_FIFO would throw
-us away from the CPU during reclaim anyway so waiting for other CPUs
-during draining will not too much overhead, although it definitely adds
-some.
-
-> > > In general, I don't think waiting for schedule_work() against multiple cpus
-> > > is not quicker than short memory reclaim. 
-> > 
-> > You are right, but if you consider small groups then the reclaim can
-> > make the situation much worse.
+> > Not sure I understand which nr_pages you mean. The one that comes from
+> > the charging path or stock->nr_pages?
+> > If you mean the first one then we do not have in the reclaim path where
+> > we call drain_all_stock_async.
 > > 
 > 
-> If the system has many memory and the container has many cgroup, memory is not
-> small because ...to use cpu properly, you need memroy. It's a mis-configuration.
-
-I don't think so. You might have small, well suited groups for a
-specific workloads.
-
-> > > Adding flush_work() here means that a context switch is requred before
-> > > calling direct reclaim.
-> > 
-> > Is that really a problem? We would context switch during reclaim if
-> > there is something else that wants CPU anyway.
-> > Maybe we could drain only if we get a reasonable number of pages back?
-> > This would require two passes over per-cpu caches to find the number -
-> > not nice. Or we could drain only those caches that have at least some
-> > threshold of pages.
-> > 
-> > > That's bad. (At leaset, please check __GFP_NOWAIT.)
-> > 
-> > Definitely a good idea. Fixed.
-> > 
-> > > Please find another way, I think calling synchronous drain here is overkill.
-> > > There are not important file caches in the most case and reclaim is quick.
-> > 
-> > This is, however, really hard to know in advance. If there are used-once
-> > unmaped file pages then it is much easier to reclaim them for sure.
-> > Maybe I could check the statistics and decide whether to drain according
-> > pages we have in the group. Let me think about that.
-> > 
-> > > (And async draining runs.)
-> > > 
-> > > How about automatically adjusting CHARGE_BATCH and make it small when the
-> > > system is near to limit ? 
-> > 
-> > Hmm, we are already bypassing batching if we are close to the limit,
-> > aren't we? If we get to the reclaim we fallback to nr_pages allocation
-> > and so we do not refill the stock.
-> > Maybe we could check how much we have reclaimed and update the batch
-> > size accordingly.
-> > 
+> stock->nr_pages.
 > 
-> Please wait until "background reclaim" stuff. I don't stop it and it will
-> make this cpu-caching stuff better because we can drain before hitting
-> limit.
+> > >  - drain "local stock" without calling schedule_work(). It's fast.
+> > 
+> > but there is nothing to be drained locally in the paths where we call
+> > drain_all_stock_async... Or do you mean that drain_all_stock shouldn't
+> > use work queue at all?
+> 
+> I mean calling schedule_work against local cpu is just waste of time.
+> Then, drain it directly and move local cpu's stock->nr_pages to res_counter.
 
-As I said I haven't seen this hurting us so this can definitely wait.
-I will drop the patch for now and keep just the clean up stuff. I will
-repost it when I have some numbers in hands or if I am able to
-workaround the current issues with too much waiting problem.
-
-> 
-> If you cannot wait....
-> 
-> One idea is to have a threshold to call async "drain". For example,
-> 
->  threshould = limit_of_memory - nr_online_cpu() * (BATCH_SIZE + 1)
-> 
->  if (usage > threshould)
-> 	drain_all_stock_async().
-> 
-> Then, situation will be much better.
-
-Will think about it. I am not sure whether this is too rough.
-
+got it. Thanks for clarification. Will repost the updated version.
+ 
 > Thanks,
 > -Kame
 
