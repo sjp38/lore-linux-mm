@@ -1,108 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id D29076B004A
-	for <linux-mm@kvack.org>; Fri, 22 Jul 2011 05:41:29 -0400 (EDT)
-Date: Fri, 22 Jul 2011 11:41:26 +0200
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 9BC5D6B004A
+	for <linux-mm@kvack.org>; Fri, 22 Jul 2011 05:55:03 -0400 (EDT)
+Date: Fri, 22 Jul 2011 11:54:59 +0200
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 3/4] memcg: get rid of percpu_charge_mutex lock
-Message-ID: <20110722094126.GD4004@tiehlicka.suse.cz>
+Subject: Re: [PATCH 4/4] memcg: prevent from reclaiming if there are per-cpu
+ cached charges
+Message-ID: <20110722095459.GE4004@tiehlicka.suse.cz>
 References: <cover.1311241300.git.mhocko@suse.cz>
- <2bfb2b7687c1a6b39da2a04689190725075cc4f8.1311241300.git.mhocko@suse.cz>
- <20110721193051.cd3266e5.kamezawa.hiroyu@jp.fujitsu.com>
- <20110721114704.GC27855@tiehlicka.suse.cz>
- <20110721124223.GE27855@tiehlicka.suse.cz>
- <20110722092759.9be9078f.nishimura@mxp.nes.nec.co.jp>
+ <0ed59a22cc84037d6e42b258981c75e3a6063899.1311241300.git.mhocko@suse.cz>
+ <20110721195411.f4fa9f91.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110721123012.GD27855@tiehlicka.suse.cz>
+ <20110722085652.759aded2.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110722092759.9be9078f.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20110722085652.759aded2.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, Balbir Singh <bsingharora@gmail.com>, linux-kernel@vger.kernel.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, Balbir Singh <bsingharora@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-kernel@vger.kernel.org
 
-On Fri 22-07-11 09:27:59, Daisuke Nishimura wrote:
-> On Thu, 21 Jul 2011 14:42:23 +0200
+On Fri 22-07-11 08:56:52, KAMEZAWA Hiroyuki wrote:
+> On Thu, 21 Jul 2011 14:30:12 +0200
 > Michal Hocko <mhocko@suse.cz> wrote:
 > 
-> > On Thu 21-07-11 13:47:04, Michal Hocko wrote:
-> > > On Thu 21-07-11 19:30:51, KAMEZAWA Hiroyuki wrote:
-> > > > On Thu, 21 Jul 2011 09:58:24 +0200
-> > > > Michal Hocko <mhocko@suse.cz> wrote:
-> > [...]
-> > > > > --- a/mm/memcontrol.c
-> > > > > +++ b/mm/memcontrol.c
-> > > > > @@ -2166,7 +2165,8 @@ static void drain_all_stock(struct mem_cgroup *root_mem, bool sync)
-> > > > >  
-> > > > >  	for_each_online_cpu(cpu) {
-> > > > >  		struct memcg_stock_pcp *stock = &per_cpu(memcg_stock, cpu);
-> > > > > -		if (test_bit(FLUSHING_CACHED_CHARGE, &stock->flags))
-> > > > > +		if (root_mem == stock->cached &&
-> > > > > +				test_bit(FLUSHING_CACHED_CHARGE, &stock->flags))
-> > > > >  			flush_work(&stock->work);
-> > > > 
-> > > > Doesn't this new check handle hierarchy ?
-> > > > css_is_ancestor() will be required if you do this check.
+> > On Thu 21-07-11 19:54:11, KAMEZAWA Hiroyuki wrote:
+> > > On Thu, 21 Jul 2011 10:28:10 +0200
+[...]
+> > > Assume 2 cpu SMP, (a special case), and 2 applications running under
+> > > a memcg.
 > > > 
-> > > Yes you are right. Will fix it. I will add a helper for the check.
+> > >  - one is running in SCHED_FIFO.
+> > >  - another is running into mem_cgroup_do_charge() and call drain_all_stock_sync().
+> > > 
+> > > Then, the application stops until SCHED_FIFO application release the cpu.
 > > 
-> > Here is the patch with the helper. The above will then read 
-> > 	if (mem_cgroup_same_or_subtree(root_mem, stock->cached))
+> > It would have to back off during reclaim anyaway (because we check
+> > cond_resched during reclaim), right? 
 > > 
-> I welcome this new helper function, but it can be used in
-> memcg_oom_wake_function() and mem_cgroup_under_move() too, can't it ?
+> 
+> just have cond_resched() on a cpu which calls some reclaim stuff. It will no help.
 
-Sure. Incremental patch (I will fold it into the one above):
---- 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 8dbb9d6..64569c7 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1416,10 +1416,9 @@ static bool mem_cgroup_under_move(struct mem_cgroup *mem)
- 	to = mc.to;
- 	if (!from)
- 		goto unlock;
--	if (from == mem || to == mem
--	    || (mem->use_hierarchy && css_is_ancestor(&from->css, &mem->css))
--	    || (mem->use_hierarchy && css_is_ancestor(&to->css,	&mem->css)))
--		ret = true;
-+
-+	ret = mem_cgroup_same_or_subtree(mem, from)
-+		|| mem_cgroup_same_or_subtree(mem, to);
- unlock:
- 	spin_unlock(&mc.lock);
- 	return ret;
-@@ -1906,25 +1905,20 @@ struct oom_wait_info {
- static int memcg_oom_wake_function(wait_queue_t *wait,
- 	unsigned mode, int sync, void *arg)
- {
--	struct mem_cgroup *wake_mem = (struct mem_cgroup *)arg;
-+	struct mem_cgroup *wake_mem = (struct mem_cgroup *)arg,
-+			  *oom_wait_mem;
- 	struct oom_wait_info *oom_wait_info;
- 
- 	oom_wait_info = container_of(wait, struct oom_wait_info, wait);
-+	oom_wait_mem = oom_wait_info->mem;
- 
--	if (oom_wait_info->mem == wake_mem)
--		goto wakeup;
--	/* if no hierarchy, no match */
--	if (!oom_wait_info->mem->use_hierarchy || !wake_mem->use_hierarchy)
--		return 0;
- 	/*
- 	 * Both of oom_wait_info->mem and wake_mem are stable under us.
- 	 * Then we can use css_is_ancestor without taking care of RCU.
- 	 */
--	if (!css_is_ancestor(&oom_wait_info->mem->css, &wake_mem->css) &&
--	    !css_is_ancestor(&wake_mem->css, &oom_wait_info->mem->css))
-+	if (!mem_cgroup_same_or_subtree(oom_wait_mem, wake_mem)
-+			&& !mem_cgroup_same_or_subtree(wake_mem, oom_wait_mem))
- 		return 0;
--
--wakeup:
- 	return autoremove_wake_function(wait, mode, sync, arg);
- }
- 
+I do not understand what you are saying here. What I meant to say is
+that the above example is not a big issue because SCHED_FIFO would throw
+us away from the CPU during reclaim anyway so waiting for other CPUs
+during draining will not too much overhead, although it definitely adds
+some.
+
+> > > In general, I don't think waiting for schedule_work() against multiple cpus
+> > > is not quicker than short memory reclaim. 
+> > 
+> > You are right, but if you consider small groups then the reclaim can
+> > make the situation much worse.
+> > 
+> 
+> If the system has many memory and the container has many cgroup, memory is not
+> small because ...to use cpu properly, you need memroy. It's a mis-configuration.
+
+I don't think so. You might have small, well suited groups for a
+specific workloads.
+
+> > > Adding flush_work() here means that a context switch is requred before
+> > > calling direct reclaim.
+> > 
+> > Is that really a problem? We would context switch during reclaim if
+> > there is something else that wants CPU anyway.
+> > Maybe we could drain only if we get a reasonable number of pages back?
+> > This would require two passes over per-cpu caches to find the number -
+> > not nice. Or we could drain only those caches that have at least some
+> > threshold of pages.
+> > 
+> > > That's bad. (At leaset, please check __GFP_NOWAIT.)
+> > 
+> > Definitely a good idea. Fixed.
+> > 
+> > > Please find another way, I think calling synchronous drain here is overkill.
+> > > There are not important file caches in the most case and reclaim is quick.
+> > 
+> > This is, however, really hard to know in advance. If there are used-once
+> > unmaped file pages then it is much easier to reclaim them for sure.
+> > Maybe I could check the statistics and decide whether to drain according
+> > pages we have in the group. Let me think about that.
+> > 
+> > > (And async draining runs.)
+> > > 
+> > > How about automatically adjusting CHARGE_BATCH and make it small when the
+> > > system is near to limit ? 
+> > 
+> > Hmm, we are already bypassing batching if we are close to the limit,
+> > aren't we? If we get to the reclaim we fallback to nr_pages allocation
+> > and so we do not refill the stock.
+> > Maybe we could check how much we have reclaimed and update the batch
+> > size accordingly.
+> > 
+> 
+> Please wait until "background reclaim" stuff. I don't stop it and it will
+> make this cpu-caching stuff better because we can drain before hitting
+> limit.
+
+As I said I haven't seen this hurting us so this can definitely wait.
+I will drop the patch for now and keep just the clean up stuff. I will
+repost it when I have some numbers in hands or if I am able to
+workaround the current issues with too much waiting problem.
+
+> 
+> If you cannot wait....
+> 
+> One idea is to have a threshold to call async "drain". For example,
+> 
+>  threshould = limit_of_memory - nr_online_cpu() * (BATCH_SIZE + 1)
+> 
+>  if (usage > threshould)
+> 	drain_all_stock_async().
+> 
+> Then, situation will be much better.
+
+Will think about it. I am not sure whether this is too rough.
+
+> Thanks,
+> -Kame
+
 -- 
 Michal Hocko
 SUSE Labs
