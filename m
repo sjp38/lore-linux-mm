@@ -1,161 +1,198 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 0DB5C6B0092
-	for <linux-mm@kvack.org>; Thu, 21 Jul 2011 20:04:05 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 13C1D3EE0BB
-	for <linux-mm@kvack.org>; Fri, 22 Jul 2011 09:04:03 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id EE91C45DE5A
-	for <linux-mm@kvack.org>; Fri, 22 Jul 2011 09:04:02 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id C181145DE56
-	for <linux-mm@kvack.org>; Fri, 22 Jul 2011 09:04:02 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id B02CF1DB8058
-	for <linux-mm@kvack.org>; Fri, 22 Jul 2011 09:04:02 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6E8F11DB805A
-	for <linux-mm@kvack.org>; Fri, 22 Jul 2011 09:04:02 +0900 (JST)
-Date: Fri, 22 Jul 2011 08:56:52 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 4/4] memcg: prevent from reclaiming if there are per-cpu
- cached charges
-Message-Id: <20110722085652.759aded2.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20110721123012.GD27855@tiehlicka.suse.cz>
-References: <cover.1311241300.git.mhocko@suse.cz>
-	<0ed59a22cc84037d6e42b258981c75e3a6063899.1311241300.git.mhocko@suse.cz>
-	<20110721195411.f4fa9f91.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110721123012.GD27855@tiehlicka.suse.cz>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 22F0E6B00E8
+	for <linux-mm@kvack.org>; Thu, 21 Jul 2011 20:22:00 -0400 (EDT)
+Received: by vxg38 with SMTP id 38so1896334vxg.14
+        for <linux-mm@kvack.org>; Thu, 21 Jul 2011 17:21:57 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20110721170112.GU5349@suse.de>
+References: <1308926697-22475-1-git-send-email-mgorman@suse.de>
+	<1308926697-22475-5-git-send-email-mgorman@suse.de>
+	<20110719160903.GA2978@barrios-desktop>
+	<20110720104847.GI5349@suse.de>
+	<20110721153007.GC1713@barrios-desktop>
+	<20110721160706.GS5349@suse.de>
+	<20110721163649.GG1713@barrios-desktop>
+	<20110721170112.GU5349@suse.de>
+Date: Fri, 22 Jul 2011 09:21:57 +0900
+Message-ID: <CAEwNFnB-JQpBctJxCUkO3WiTr7L3BTJfqirBRG8GOMrp79+cbA@mail.gmail.com>
+Subject: Re: [PATCH 4/4] mm: vmscan: Only read new_classzone_idx from pgdat
+ when reclaiming successfully
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, Balbir Singh <bsingharora@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-kernel@vger.kernel.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, P?draig Brady <P@draigbrady.com>, James Bottomley <James.Bottomley@hansenpartnership.com>, Colin King <colin.king@canonical.com>, Andrew Lutomirski <luto@mit.edu>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 
-On Thu, 21 Jul 2011 14:30:12 +0200
-Michal Hocko <mhocko@suse.cz> wrote:
+On Fri, Jul 22, 2011 at 2:01 AM, Mel Gorman <mgorman@suse.de> wrote:
+> On Fri, Jul 22, 2011 at 01:36:49AM +0900, Minchan Kim wrote:
+>> > > > <SNIP>
+>> > > > @@ -2740,17 +2742,23 @@ static int kswapd(void *p)
+>> > > > =C2=A0 =C2=A0 =C2=A0 tsk->flags |=3D PF_MEMALLOC | PF_SWAPWRITE | =
+PF_KSWAPD;
+>> > > > =C2=A0 =C2=A0 =C2=A0 set_freezable();
+>> > > >
+>> > > > - =C2=A0 =C2=A0 order =3D 0;
+>> > > > - =C2=A0 =C2=A0 classzone_idx =3D MAX_NR_ZONES - 1;
+>> > > > + =C2=A0 =C2=A0 order =3D new_order =3D 0;
+>> > > > + =C2=A0 =C2=A0 classzone_idx =3D new_classzone_idx =3D pgdat->nr_=
+zones - 1;
+>> > > > =C2=A0 =C2=A0 =C2=A0 for ( ; ; ) {
+>> > > > - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 unsigned long new_orde=
+r;
+>> > > > - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 int new_classzone_idx;
+>> > > > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 int ret;
+>> > > >
+>> > > > - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 new_order =3D pgdat->k=
+swapd_max_order;
+>> > > > - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 new_classzone_idx =3D =
+pgdat->classzone_idx;
+>> > > > - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 pgdat->kswapd_max_orde=
+r =3D 0;
+>> > > > - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 pgdat->classzone_idx =
+=3D MAX_NR_ZONES - 1;
+>> > > > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 /*
+>> > > > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0* If the last ba=
+lance_pgdat was unsuccessful it's unlikely a
+>> > > > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0* new request of=
+ a similar or harder type will succeed soon
+>> > > > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0* so consider go=
+ing to sleep on the basis we reclaimed at
+>> > > > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0*/
+>> > > > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (classzone_idx >=3D=
+ new_classzone_idx && order =3D=3D new_order) {
+>> > > > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 new_order =3D pgdat->kswapd_max_order;
+>> > > > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 new_classzone_idx =3D pgdat->classzone_idx;
+>> > > > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 pgdat->kswapd_max_order =3D =C2=A00;
+>> > > > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 pgdat->classzone_idx =3D pgdat->nr_zones - 1;
+>> > > > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 }
+>> > > > +
+>> > >
+>> > > But in this part.
+>> > > Why do we need this?
+>> >
+>> > Lets say it's a fork-heavy workload and it is routinely being woken
+>> > for order-1 allocations and the highest zone is very small. For the
+>> > most part, it's ok because the allocations are being satisfied from
+>> > the lower zones which kswapd has no problem balancing.
+>> >
+>> > However, by reading the information even after failing to
+>> > balance, kswapd continues balancing for order-1 due to reading
+>> > pgdat->kswapd_max_order, each time failing for the highest zone. It
+>> > only takes one wakeup request per balance_pgdat() to keep kswapd
+>> > awake trying to balance the highest zone in a continual loop.
+>>
+>> You made balace_pgdat's classzone_idx as communicated back so classzone_=
+idx returned
+>> would be not high zone and in [1/4], you changed that sleeping_premature=
+ly consider only
+>> classzone_idx not nr_zones. So I think it should sleep if low zones is b=
+alanced.
+>>
+>
+> If a wakeup for order-1 happened during the last pgdat, the
+> classzone_idx as communicated back from balance_pgdat() is lost and it
+> will not sleep in this ordering of events
+>
+> kswapd =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0other processes
+> =3D=3D=3D=3D=3D=3D =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D
+> order =3D balance_pgdat(pgdat, order, &classzone_idx);
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0wakeup for order-1
+> kswapd balances lower zone
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0allocate from lower zone
+> balance_pgdat fails balance for highest zone, returns
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0with lower classzone_idx and possibly lower or=
+der
+> new_order =3D pgdat->kswapd_max_order =C2=A0 =C2=A0 =C2=A0(order =3D=3D 1=
+)
+> new_classzone_idx =3D pgdat->classzone_idx (highest zone)
+> if (order < new_order || classzone_idx > new_classzone_idx) {
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0order =3D new_order;
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0classzone_idx =3D new_classzone_idx; (failure =
+from balance_pgdat() lost)
+> }
+> order =3D balance_pgdat(pgdat, order, &classzone_idx);
+>
+> The wakup for order-1 at any point during balance_pgdat() is enough to
+> keep kswapd awake even though the process that called wakeup_kswapd
+> would be able to allocate from the lower zones without significant
+> difficulty.
+>
+> This is why if balance_pgdat() fails its request, it should go to sleep
+> if watermarks for the lower zones are met until woken by another
+> process.
 
-> On Thu 21-07-11 19:54:11, KAMEZAWA Hiroyuki wrote:
-> > On Thu, 21 Jul 2011 10:28:10 +0200
-> > Michal Hocko <mhocko@suse.cz> wrote:
-> > 
-> > > If we fail to charge an allocation for a cgroup we usually have to fall
-> > > back into direct reclaim (mem_cgroup_hierarchical_reclaim).
-> > > The charging code, however, currently doesn't care about per-cpu charge
-> > > caches which might have up to (nr_cpus - 1) * CHARGE_BATCH pre charged
-> > > pages (the current cache is already drained, otherwise we wouldn't get
-> > > to mem_cgroup_do_charge).
-> > > That can be quite a lot on boxes with big amounts of CPUs so we can end
-> > > up reclaiming even though there are charges that could be used. This
-> > > will typically happen in a multi-threaded applications pined to many CPUs
-> > > which allocates memory heavily.
-> > > 
-> > 
-> > Do you have example and score, numbers on your test ?
-> 
-> As I said, I haven't seen anything that would affect visibly performance
-> but I have seen situations where we reclaimed even though there were
-> pre-charges on other CPUs.
-> 
-> > > Currently we are draining caches during reclaim
-> > > (mem_cgroup_hierarchical_reclaim) but this can be already late as we
-> > > could have already reclaimed from other groups in the hierarchy.
-> > > 
-> > > The solution for this would be to synchronously drain charges early when
-> > > we fail to charge and retry the charge once more.
-> > > I think it still makes sense to keep async draining in the reclaim path
-> > > as it is used from other code paths as well (e.g. limit resize). It will
-> > > not do any work if we drained previously anyway.
-> > > 
-> > > Signed-off-by: Michal Hocko <mhocko@suse.cz>
-> > 
-> > I don't like this solution, at all.
-> > 
-> > Assume 2 cpu SMP, (a special case), and 2 applications running under
-> > a memcg.
-> > 
-> >  - one is running in SCHED_FIFO.
-> >  - another is running into mem_cgroup_do_charge() and call drain_all_stock_sync().
-> > 
-> > Then, the application stops until SCHED_FIFO application release the cpu.
-> 
-> It would have to back off during reclaim anyaway (because we check
-> cond_resched during reclaim), right? 
-> 
+Hmm.
 
-just have cond_resched() on a cpu which calls some reclaim stuff. It will no help.
+The role of kswapd is to reclaim pages by background until all of zone
+meet HIGH_WMARK to prevent costly direct reclaim.(Of course, there is
+another reason like GFP_ATOMIC). So it's not wrong to consume many cpu
+usage by design unless other tasks are ready. It would be balanced or
+unreclaimable at last so it should end up. However, the problem is
+small part of highest zone is easily [set|reset] to be
+all_unreclaimabe so the situation could be forever like our example.
+So fundamental solution is to prevent it that all_unreclaimable is
+set/reset easily, I think.
+Unfortunately it have no idea now.
 
+In different viewpoint,  the problem is that it's too excessive
+because kswapd is just best-effort and if it got fails, we have next
+wakeup and even direct reclaim as last resort. In such POV, I think
+this patch is right and it would be a good solution. Then, other
+concern is on your reply about KOSAKI's question.
 
-> > In general, I don't think waiting for schedule_work() against multiple cpus
-> > is not quicker than short memory reclaim. 
-> 
-> You are right, but if you consider small groups then the reclaim can
-> make the situation much worse.
-> 
+I think below your patch is needed.
 
-If the system has many memory and the container has many cgroup, memory is not
-small because ...to use cpu properly, you need memroy. It's a mis-configuration.
+Quote from
+"
+1. Read for balance-request-A (order, classzone) pair
+2. Fail balance_pgdat
+3. Sleep based on (order, classzone) pair
+4. Wake for balance-request-B (order, classzone) pair where
+  balance-request-B !=3D balance-request-A
+5. Succeed balance_pgdat
+6. Compare order,classzone with balance-request-A which will treat
+  balance_pgdat() as fail and try go to sleep
+
+This is not the same as new_classzone_idx being "garbage" but is it
+what you mean? If so, is this your proposed fix?
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index fe854d7..1a518e6 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2770,6 +2770,8 @@ static int kswapd(void *p)
+                       kswapd_try_to_sleep(pgdat, order, classzone_idx);
+                       order =3D pgdat->kswapd_max_order;
+                       classzone_idx =3D pgdat->classzone_idx;
++                       new_order =3D order;
++                       new_classzone_idx =3D classzone_idx;
+"
 
 
 
-> > Adding flush_work() here means that a context switch is requred before
-> > calling direct reclaim.
-> 
-> Is that really a problem? We would context switch during reclaim if
-> there is something else that wants CPU anyway.
-> Maybe we could drain only if we get a reasonable number of pages back?
-> This would require two passes over per-cpu caches to find the number -
-> not nice. Or we could drain only those caches that have at least some
-> threshold of pages.
-> 
-> > That's bad. (At leaset, please check __GFP_NOWAIT.)
-> 
-> Definitely a good idea. Fixed.
-> 
-> > Please find another way, I think calling synchronous drain here is overkill.
-> > There are not important file caches in the most case and reclaim is quick.
-> 
-> This is, however, really hard to know in advance. If there are used-once
-> unmaped file pages then it is much easier to reclaim them for sure.
-> Maybe I could check the statistics and decide whether to drain according
-> pages we have in the group. Let me think about that.
-> 
-> > (And async draining runs.)
-> > 
-> > How about automatically adjusting CHARGE_BATCH and make it small when the
-> > system is near to limit ? 
-> 
-> Hmm, we are already bypassing batching if we are close to the limit,
-> aren't we? If we get to the reclaim we fallback to nr_pages allocation
-> and so we do not refill the stock.
-> Maybe we could check how much we have reclaimed and update the batch
-> size accordingly.
-> 
-
-Please wait until "background reclaim" stuff. I don't stop it and it will
-make this cpu-caching stuff better because we can drain before hitting
-limit.
-
-If you cannot wait....
-
-One idea is to have a threshold to call async "drain". For example,
-
- threshould = limit_of_memory - nr_online_cpu() * (BATCH_SIZE + 1)
-
- if (usage > threshould)
-	drain_all_stock_async().
-
-Then, situation will be much better.
-
-
-
-Thanks,
--Kame
-
-
+-
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
