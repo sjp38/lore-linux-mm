@@ -1,76 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 851576B00EA
-	for <linux-mm@kvack.org>; Thu, 21 Jul 2011 20:23:09 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 22D133EE0BC
-	for <linux-mm@kvack.org>; Fri, 22 Jul 2011 09:23:06 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id E7E1E45DEE5
-	for <linux-mm@kvack.org>; Fri, 22 Jul 2011 09:23:05 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id D1AD245DEE3
-	for <linux-mm@kvack.org>; Fri, 22 Jul 2011 09:23:05 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id C68B81DB803B
-	for <linux-mm@kvack.org>; Fri, 22 Jul 2011 09:23:05 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 909EB1DB8037
-	for <linux-mm@kvack.org>; Fri, 22 Jul 2011 09:23:05 +0900 (JST)
-Date: Fri, 22 Jul 2011 09:15:57 +0900
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id B8E9C6B00EC
+	for <linux-mm@kvack.org>; Thu, 21 Jul 2011 20:26:10 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 8919C3EE0B6
+	for <linux-mm@kvack.org>; Fri, 22 Jul 2011 09:26:07 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 458BD2E68C4
+	for <linux-mm@kvack.org>; Fri, 22 Jul 2011 09:26:07 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 9D1BC2E68CA
+	for <linux-mm@kvack.org>; Fri, 22 Jul 2011 09:26:06 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 90BD61DB803C
+	for <linux-mm@kvack.org>; Fri, 22 Jul 2011 09:26:06 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5A9B41DB8040
+	for <linux-mm@kvack.org>; Fri, 22 Jul 2011 09:26:06 +0900 (JST)
+Date: Fri, 22 Jul 2011 09:18:58 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 1/2 v2] memcg: make oom_lock 0 and 1 based rather than
- coutner
-Message-Id: <20110722091557.f78a7a9e.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20110721135817.baab2a2c.akpm@linux-foundation.org>
-References: <cover.1310732789.git.mhocko@suse.cz>
-	<44ec61829ed8a83b55dc90a7aebffdd82fe0e102.1310732789.git.mhocko@suse.cz>
-	<20110721135817.baab2a2c.akpm@linux-foundation.org>
+Subject: Re: [PATCH 4/4] memcg: prevent from reclaiming if there are per-cpu
+ cached charges
+Message-Id: <20110722091858.f4b78e14.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110722085652.759aded2.kamezawa.hiroyu@jp.fujitsu.com>
+References: <cover.1311241300.git.mhocko@suse.cz>
+	<0ed59a22cc84037d6e42b258981c75e3a6063899.1311241300.git.mhocko@suse.cz>
+	<20110721195411.f4fa9f91.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110721123012.GD27855@tiehlicka.suse.cz>
+	<20110722085652.759aded2.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Balbir Singh <bsingharora@gmail.com>, linux-kernel@vger.kernel.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Balbir Singh <bsingharora@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-kernel@vger.kernel.org
 
-On Thu, 21 Jul 2011 13:58:17 -0700
-Andrew Morton <akpm@linux-foundation.org> wrote:
+On Fri, 22 Jul 2011 08:56:52 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-> On Wed, 13 Jul 2011 13:05:49 +0200
+> On Thu, 21 Jul 2011 14:30:12 +0200
 > Michal Hocko <mhocko@suse.cz> wrote:
+ 
+> Please wait until "background reclaim" stuff. I don't stop it and it will
+> make this cpu-caching stuff better because we can drain before hitting
+> limit.
 > 
-> > @@ -1893,6 +1942,8 @@ bool mem_cgroup_handle_oom(struct mem_cgroup *mem, gfp_t mask)
+> If you cannot wait....
 > 
-> does:
+> One idea is to have a threshold to call async "drain". For example,
 > 
-> : 	memcg_wakeup_oom(mem);
-> : 	mutex_unlock(&memcg_oom_mutex);
-> : 
-> : 	mem_cgroup_unmark_under_oom(mem);
-> : 
-> : 	if (test_thread_flag(TIF_MEMDIE) || fatal_signal_pending(current))
-> : 		return false;
-> : 	/* Give chance to dying process */
-> : 	schedule_timeout(1);
-> : 	return true;
-> : }
+>  threshould = limit_of_memory - nr_online_cpu() * (BATCH_SIZE + 1)
 > 
-> Calling schedule_timeout() in state TASK_RUNNING is equivalent to
-> calling schedule() and then pointlessly wasting some CPU cycles.
+>  if (usage > threshould)
+> 	drain_all_stock_async().
 > 
-Ouch (--;
+> Then, situation will be much better.
+> 
 
-> Someone might want to take a look at that, and wonder why this bug
-> wasn't detected in testing ;)
-> 
-I wonder just removing this is okay....because we didn't noticed this
-in our recent oom tests. 
-
-I'll do some.
+Of course, frequency of this call can be controlled by event counter.
 
 Thanks,
 -Kame
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
