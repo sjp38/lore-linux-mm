@@ -1,161 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 44B756B00EE
-	for <linux-mm@kvack.org>; Thu, 21 Jul 2011 20:30:46 -0400 (EDT)
-Received: by qwa26 with SMTP id 26so1294458qwa.14
-        for <linux-mm@kvack.org>; Thu, 21 Jul 2011 17:30:43 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <CAObL_7HN2tbXiVZ1vcwpTUMf5v1EPG0XsQqUuCYn8yWtm7AA9A@mail.gmail.com>
-References: <1308926697-22475-1-git-send-email-mgorman@suse.de>
-	<20110721153722.GD1713@barrios-desktop>
-	<20110721160958.GT5349@suse.de>
-	<20110721162417.GF1713@barrios-desktop>
-	<CAObL_7HpE3mCS90Zfa9-edBKPFN1MuBOHv+=e6BNHsi2u3zTOQ@mail.gmail.com>
-	<20110721164238.GA3326@barrios-desktop>
-	<CAObL_7HN2tbXiVZ1vcwpTUMf5v1EPG0XsQqUuCYn8yWtm7AA9A@mail.gmail.com>
-Date: Fri, 22 Jul 2011 09:30:43 +0900
-Message-ID: <CAEwNFnD2ZTARC1Yw2uEYVSctBo7wsmA7rmQOaFH2rwOKoo3YjA@mail.gmail.com>
-Subject: Re: [PATCH 0/4] Stop kswapd consuming 100% CPU when highest zone is small
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 3A0286B00F0
+	for <linux-mm@kvack.org>; Thu, 21 Jul 2011 20:30:52 -0400 (EDT)
+Date: Fri, 22 Jul 2011 09:27:59 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [PATCH 3/4] memcg: get rid of percpu_charge_mutex lock
+Message-Id: <20110722092759.9be9078f.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20110721124223.GE27855@tiehlicka.suse.cz>
+References: <cover.1311241300.git.mhocko@suse.cz>
+	<2bfb2b7687c1a6b39da2a04689190725075cc4f8.1311241300.git.mhocko@suse.cz>
+	<20110721193051.cd3266e5.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110721114704.GC27855@tiehlicka.suse.cz>
+	<20110721124223.GE27855@tiehlicka.suse.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Lutomirski <luto@mit.edu>
-Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, P?draig Brady <P@draigbrady.com>, James Bottomley <James.Bottomley@hansenpartnership.com>, Colin King <colin.king@canonical.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, Balbir Singh <bsingharora@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-kernel@vger.kernel.org
 
-On Fri, Jul 22, 2011 at 1:58 AM, Andrew Lutomirski <luto@mit.edu> wrote:
-> On Thu, Jul 21, 2011 at 12:42 PM, Minchan Kim <minchan.kim@gmail.com> wro=
-te:
->> On Thu, Jul 21, 2011 at 12:36:11PM -0400, Andrew Lutomirski wrote:
->>> On Thu, Jul 21, 2011 at 12:24 PM, Minchan Kim <minchan.kim@gmail.com> w=
-rote:
->>> > On Thu, Jul 21, 2011 at 05:09:59PM +0100, Mel Gorman wrote:
->>> >> On Fri, Jul 22, 2011 at 12:37:22AM +0900, Minchan Kim wrote:
->>> >> > On Fri, Jun 24, 2011 at 03:44:53PM +0100, Mel Gorman wrote:
->>> >> > > (Built this time and passed a basic sniff-test.)
->>> >> > >
->>> >> > > During allocator-intensive workloads, kswapd will be woken frequ=
-ently
->>> >> > > causing free memory to oscillate between the high and min waterm=
-ark.
->>> >> > > This is expected behaviour. =C2=A0Unfortunately, if the highest =
-zone is
->>> >> > > small, a problem occurs.
->>> >> > >
->>> >> > > This seems to happen most with recent sandybridge laptops but it=
-'s
->>> >> > > probably a co-incidence as some of these laptops just happen to =
-have
->>> >> > > a small Normal zone. The reproduction case is almost always duri=
-ng
->>> >> > > copying large files that kswapd pegs at 100% CPU until the file =
-is
->>> >> > > deleted or cache is dropped.
->>> >> > >
->>> >> > > The problem is mostly down to sleeping_prematurely() keeping ksw=
-apd
->>> >> > > awake when the highest zone is small and unreclaimable and compo=
-unded
->>> >> > > by the fact we shrink slabs even when not shrinking zones causin=
-g a lot
->>> >> > > of time to be spent in shrinkers and a lot of memory to be recla=
-imed.
->>> >> > >
->>> >> > > Patch 1 corrects sleeping_prematurely to check the zones matchin=
-g
->>> >> > > =C2=A0 the classzone_idx instead of all zones.
->>> >> > >
->>> >> > > Patch 2 avoids shrinking slab when we are not shrinking a zone.
->>> >> > >
->>> >> > > Patch 3 notes that sleeping_prematurely is checking lower zones =
-against
->>> >> > > =C2=A0 a high classzone which is not what allocators or balance_=
-pgdat()
->>> >> > > =C2=A0 is doing leading to an artifical believe that kswapd shou=
-ld be
->>> >> > > =C2=A0 still awake.
->>> >> > >
->>> >> > > Patch 4 notes that when balance_pgdat() gives up on a high zone =
-that the
->>> >> > > =C2=A0 decision is not communicated to sleeping_prematurely()
->>> >> > >
->>> >> > > This problem affects 2.6.38.8 for certain and is expected to aff=
-ect
->>> >> > > 2.6.39 and 3.0-rc4 as well. If accepted, they need to go to -sta=
-ble
->>> >> > > to be picked up by distros and this series is against 3.0-rc4. I=
-'ve
->>> >> > > cc'd people that reported similar problems recently to see if th=
-ey
->>> >> > > still suffer from the problem and if this fixes it.
->>> >> > >
->>> >> >
->>> >> > Good!
->>> >> > This patch solved the problem.
->>> >> > But there is still a mystery.
->>> >> >
->>> >> > In log, we could see excessive shrink_slab calls.
->>> >>
->>> >> Yes, because shrink_slab() was called on each loop through
->>> >> balance_pgdat() even if the zone was balanced.
->>> >>
->>> >>
->>> >> > And as you know, we had merged patch which adds cond_resched where=
- last of the function
->>> >> > in shrink_slab. So other task should get the CPU and we should not=
- see
->>> >> > 100% CPU of kswapd, I think.
->>> >> >
->>> >>
->>> >> cond_resched() is not a substitute for going to sleep.
->>> >
->>> > Of course, it's not equal with sleep but other task should get CPU an=
-d conusme their time slice
->>> > So we should never see 100% CPU consumption of kswapd.
->>> > No?
->>>
->>> If the rest of the system is idle, then kswapd will happily use 100%
->>> CPU. =C2=A0(Or on a multi-core system, kswapd will use close to 100% of=
- one
->>
->> Of course. But at least, we have a test program and I think it's not idl=
-e.
->
-> The test program I used was 'top', which is pretty close to idle.
->
->>
->>> CPU even if another task is using the other one. =C2=A0This is bad enou=
-gh
->>> on a desktop, but on a laptop you start to notice when your battery
->>> dies.)
->>
->> Of course it's bad. :)
->> What I want to know is just what's exact cause of 100% CPU usage.
->> It might be not 100% but we might use the word sloppily.
->>
->
-> Well, if you want to pedantic, my laptop can, in theory, demonstrate
-> true 100% CPU usage. =C2=A0Trigger the bug, suspend every other thread, a=
-nd
-> listen to the laptop fan spin and feel the laptop get hot. =C2=A0(The fan
-> is controlled by the EC and takes no CPU.)
->
-> In practice, the usage was close enough to 100% that it got rounded.
->
-> The cond_resched was enough to at least make the system responsive
-> instead of the hard freeze I used to get.
+On Thu, 21 Jul 2011 14:42:23 +0200
+Michal Hocko <mhocko@suse.cz> wrote:
 
-I don't want to be pedantic. :)
-What I have a thought about 100% CPU usage was that it doesn't yield
-CPU and spins on the CPU but as I heard your example(ie, cond_resched
-makes the system responsive), it's not the case. It was just to use
-most of time in kswapd, not 100%. It seems I was paranoid about the
-word, sorry for that.
+> On Thu 21-07-11 13:47:04, Michal Hocko wrote:
+> > On Thu 21-07-11 19:30:51, KAMEZAWA Hiroyuki wrote:
+> > > On Thu, 21 Jul 2011 09:58:24 +0200
+> > > Michal Hocko <mhocko@suse.cz> wrote:
+> [...]
+> > > > --- a/mm/memcontrol.c
+> > > > +++ b/mm/memcontrol.c
+> > > > @@ -2166,7 +2165,8 @@ static void drain_all_stock(struct mem_cgroup *root_mem, bool sync)
+> > > >  
+> > > >  	for_each_online_cpu(cpu) {
+> > > >  		struct memcg_stock_pcp *stock = &per_cpu(memcg_stock, cpu);
+> > > > -		if (test_bit(FLUSHING_CACHED_CHARGE, &stock->flags))
+> > > > +		if (root_mem == stock->cached &&
+> > > > +				test_bit(FLUSHING_CACHED_CHARGE, &stock->flags))
+> > > >  			flush_work(&stock->work);
+> > > 
+> > > Doesn't this new check handle hierarchy ?
+> > > css_is_ancestor() will be required if you do this check.
+> > 
+> > Yes you are right. Will fix it. I will add a helper for the check.
+> 
+> Here is the patch with the helper. The above will then read 
+> 	if (mem_cgroup_same_or_subtree(root_mem, stock->cached))
+> 
+I welcome this new helper function, but it can be used in
+memcg_oom_wake_function() and mem_cgroup_under_move() too, can't it ?
 
---=20
-Kind regards,
-Minchan Kim
+Thanks,
+Daisuke Nishimura.
+
+> ---
+> From b963a9f4dac61044daac49700f84b7819d7c2f53 Mon Sep 17 00:00:00 2001
+> From: Michal Hocko <mhocko@suse.cz>
+> Date: Thu, 21 Jul 2011 13:54:13 +0200
+> Subject: [PATCH] memcg: add mem_cgroup_same_or_subtree helper
+> 
+> We are checking whether a given two groups are same or at least in the
+> same subtree of a hierarchy at several places. Let's make a helper for
+> it to make code easier to read.
+> 
+> Signed-off-by: Michal Hocko <mhocko@suse.cz>
+> ---
+>  mm/memcontrol.c |   29 ++++++++++++++++++-----------
+>  1 files changed, 18 insertions(+), 11 deletions(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 8180cd9..8dbb9d6 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -1046,6 +1046,21 @@ void mem_cgroup_move_lists(struct page *page,
+>  	mem_cgroup_add_lru_list(page, to);
+>  }
+>  
+> +/*
+> + * Checks whether given mem is same or in the root_mem's
+> + * hierarchy subtree
+> + */
+> +static bool mem_cgroup_same_or_subtree(const struct mem_cgroup *root_mem,
+> +		struct mem_cgroup *mem)
+> +{
+> +	if (root_mem != mem) {
+> +		return (root_mem->use_hierarchy &&
+> +			css_is_ancestor(&mem->css, &root_mem->css));
+> +	}
+> +
+> +	return true;
+> +}
+> +
+>  int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *mem)
+>  {
+>  	int ret;
+> @@ -1065,10 +1080,7 @@ int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *mem)
+>  	 * enabled in "curr" and "curr" is a child of "mem" in *cgroup*
+>  	 * hierarchy(even if use_hierarchy is disabled in "mem").
+>  	 */
+> -	if (mem->use_hierarchy)
+> -		ret = css_is_ancestor(&curr->css, &mem->css);
+> -	else
+> -		ret = (curr == mem);
+> +	ret = mem_cgroup_same_or_subtree(mem, curr);
+>  	css_put(&curr->css);
+>  	return ret;
+>  }
+> @@ -2150,13 +2162,8 @@ static void drain_all_stock(struct mem_cgroup *root_mem, bool sync)
+>  		mem = stock->cached;
+>  		if (!mem || !stock->nr_pages)
+>  			continue;
+> -		if (mem != root_mem) {
+> -			if (!root_mem->use_hierarchy)
+> -				continue;
+> -			/* check whether "mem" is under tree of "root_mem" */
+> -			if (!css_is_ancestor(&mem->css, &root_mem->css))
+> -				continue;
+> -		}
+> +		if (!mem_cgroup_same_or_subtree(root_mem, mem))
+> +			continue;
+>  		if (!test_and_set_bit(FLUSHING_CACHED_CHARGE, &stock->flags))
+>  			schedule_work_on(cpu, &stock->work);
+>  	}
+> -- 
+> 1.7.5.4
+> 
+> 
+> -- 
+> Michal Hocko
+> SUSE Labs
+> SUSE LINUX s.r.o.
+> Lihovarska 1060/12
+> 190 00 Praha 9    
+> Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
