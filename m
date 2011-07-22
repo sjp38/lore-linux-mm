@@ -1,79 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F8F76B004A
-	for <linux-mm@kvack.org>; Thu, 21 Jul 2011 22:21:55 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 30B903EE0BD
-	for <linux-mm@kvack.org>; Fri, 22 Jul 2011 11:21:52 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 13CE445DE5D
-	for <linux-mm@kvack.org>; Fri, 22 Jul 2011 11:21:52 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id EE73745DE56
-	for <linux-mm@kvack.org>; Fri, 22 Jul 2011 11:21:51 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id DFA921DB8053
-	for <linux-mm@kvack.org>; Fri, 22 Jul 2011 11:21:51 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id A54781DB8040
-	for <linux-mm@kvack.org>; Fri, 22 Jul 2011 11:21:51 +0900 (JST)
-Date: Fri, 22 Jul 2011 11:14:29 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH] memcg: fix behavior of mem_cgroup_resize_limit()
-Message-Id: <20110722111429.d7f4763a.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20110722111703.241caf72.nishimura@mxp.nes.nec.co.jp>
-References: <20110722111703.241caf72.nishimura@mxp.nes.nec.co.jp>
+	by kanga.kvack.org (Postfix) with ESMTP id 80BD86B004A
+	for <linux-mm@kvack.org>; Fri, 22 Jul 2011 01:15:00 -0400 (EDT)
+Subject: Re: [PATCH]vmscan: add block plug for page reclaim
+From: Shaohua Li <shaohua.li@intel.com>
+In-Reply-To: <4E287EC0.4030208@fusionio.com>
+References: <1311130413.15392.326.camel@sli10-conroe>
+	 <CAEwNFnDj30Bipuxrfe9upD-OyuL4v21tLs0ayUKYUfye5TcGyA@mail.gmail.com>
+	 <1311142253.15392.361.camel@sli10-conroe>
+	 <CAEwNFnD3iCMBpZK95Ks+Z7DYbrzbZbSTLf3t6WXDQdeHrE6bLQ@mail.gmail.com>
+	 <1311144559.15392.366.camel@sli10-conroe>  <4E287EC0.4030208@fusionio.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Fri, 22 Jul 2011 13:14:55 +0800
+Message-ID: <1311311695.15392.369.camel@sli10-conroe>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <bsingharora@gmail.com>, Michal Hocko <mhocko@suse.cz>, Ying Han <yinghan@google.com>
+To: Jens Axboe <jaxboe@fusionio.com>
+Cc: Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, "mgorman@suse.de" <mgorman@suse.de>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
 
-On Fri, 22 Jul 2011 11:17:03 +0900
-Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+On Fri, 2011-07-22 at 03:32 +0800, Jens Axboe wrote:
+> On 2011-07-20 08:49, Shaohua Li wrote:
+> > On Wed, 2011-07-20 at 14:30 +0800, Minchan Kim wrote:
+> >> On Wed, Jul 20, 2011 at 3:10 PM, Shaohua Li <shaohua.li@intel.com> wrote:
+> >>> On Wed, 2011-07-20 at 13:53 +0800, Minchan Kim wrote:
+> >>>> On Wed, Jul 20, 2011 at 11:53 AM, Shaohua Li <shaohua.li@intel.com> wrote:
+> >>>>> per-task block plug can reduce block queue lock contention and increase request
+> >>>>> merge. Currently page reclaim doesn't support it. I originally thought page
+> >>>>> reclaim doesn't need it, because kswapd thread count is limited and file cache
+> >>>>> write is done at flusher mostly.
+> >>>>> When I test a workload with heavy swap in a 4-node machine, each CPU is doing
+> >>>>> direct page reclaim and swap. This causes block queue lock contention. In my
+> >>>>> test, without below patch, the CPU utilization is about 2% ~ 7%. With the
+> >>>>> patch, the CPU utilization is about 1% ~ 3%. Disk throughput isn't changed.
+> >>>>
+> >>>> Why doesn't it enhance through?
+> >>> throughput? The disk isn't that fast. We already can make it run in full
+> >>
+> >> Yes. Sorry for the typo.
+> >>
+> >>> speed, CPU isn't bottleneck here.
+> >>
+> >> But you try to optimize CPU. so your experiment is not good.
+> > it's not that good, because the disk isn't fast. The swap test is the
+> > workload with most significant impact I can get.
+> 
+> Let me just interject here that a plug should be fine, from 3.1 we'll
+> even auto-unplug if a certain depth has been reached. So latency should
+> not be a worry. Personally I think the patch looks fine, though some
+> numbers would be interesting to see. Cycles spent submitting the actual
+> IO, combined with IO statistics what kind of IO patterns were observed
+> for plain and with patch would be good.
+I can observe the average request size changes. Before the patch, the
+average request size is about 90k from iostat (but the variation is
+big). With the patch, the request size is about 100k and variation is
+small.
+how to check the cycles spend submitting the I/O?
 
-> commit:22a668d7 introduced "memsw_is_minimum" flag, which becomes true when
-> mem_limit == memsw_limit. The flag is checked at the beginning of reclaim,
-> and "noswap" is set if the flag is true, because using swap is meaningless
-> in this case.
-> 
-> This works well in most cases, but when we try to shrink mem_limit, which
-> is the same as memsw_limit now, we might fail to shrink mem_limit because
-> swap doesn't used.
-> 
-> This patch fixes this behavior by:
-> - check MEM_CGROUP_RECLAIM_SHRINK at the begining of reclaim
-> - If it is set, don't set "noswap" flag even if memsw_is_minimum is true.
-> 
-> Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-
-nice catch.
-
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-
-> ---
->  mm/memcontrol.c |    2 +-
->  1 files changed, 1 insertions(+), 1 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index ce0d617..cf6bae8 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -1649,7 +1649,7 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
->  	excess = res_counter_soft_limit_excess(&root_mem->res) >> PAGE_SHIFT;
->  
->  	/* If memsw_is_minimum==1, swap-out is of-no-use. */
-> -	if (!check_soft && root_mem->memsw_is_minimum)
-> +	if (!check_soft && !shrink && root_mem->memsw_is_minimum)
->  		noswap = true;
->  
->  	while (1) {
-> -- 
-> 1.7.1
-> 
-> 
+Thanks,
+Shaohua
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
