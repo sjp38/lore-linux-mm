@@ -1,42 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 771ED6B0092
-	for <linux-mm@kvack.org>; Fri, 22 Jul 2011 08:51:15 -0400 (EDT)
-Message-Id: <cover.1311338634.git.mhocko@suse.cz>
-From: Michal Hocko <mhocko@suse.cz>
-Date: Fri, 22 Jul 2011 14:43:54 +0200
-Subject: [PATCH 0/4 v2] memcg: cleanup per-cpu charge caches
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 7B2EC6B004A
+	for <linux-mm@kvack.org>; Fri, 22 Jul 2011 08:54:04 -0400 (EDT)
+Subject: Re: [PATCH 7/8] mm: vmscan: Immediately reclaim end-of-LRU dirty
+ pages when writeback completes
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <1311265730-5324-8-git-send-email-mgorman@suse.de>
+References: <1311265730-5324-1-git-send-email-mgorman@suse.de>
+	 <1311265730-5324-8-git-send-email-mgorman@suse.de>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+Date: Fri, 22 Jul 2011 14:53:48 +0200
+Message-ID: <1311339228.27400.34.camel@twins>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, XFS <xfs@oss.sgi.com>, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, Johannes Weiner <jweiner@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>
 
-Hi,
-this is a second version of the per-cpu carge draining code cleanup.
-I have dropped the "fix unnecessary reclaim if there are still cached
-charges" part because it seems to have some issues and it is not
-critical at the moment.
+On Thu, 2011-07-21 at 17:28 +0100, Mel Gorman wrote:
+> When direct reclaim encounters a dirty page, it gets recycled around
+> the LRU for another cycle. This patch marks the page PageReclaim
+> similar to deactivate_page() so that the page gets reclaimed almost
+> immediately after the page gets cleaned. This is to avoid reclaiming
+> clean pages that are younger than a dirty page encountered at the
+> end of the LRU that might have been something like a use-once page.
+>=20
 
-I think that the cleanup has some sense on its own.
+> @@ -834,7 +834,15 @@ static unsigned long shrink_page_list(struct list_he=
+ad *page_list,
+>  			 */
+>  			if (page_is_file_cache(page) &&
+>  					(!current_is_kswapd() || priority >=3D DEF_PRIORITY - 2)) {
+> -				inc_zone_page_state(page, NR_VMSCAN_WRITE_SKIP);
+> +				/*
+> +				 * Immediately reclaim when written back.
+> +				 * Similar in principal to deactivate_page()
+> +				 * except we already have the page isolated
+> +				 * and know it's dirty
+> +				 */
+> +				inc_zone_page_state(page, NR_VMSCAN_INVALIDATE);
+> +				SetPageReclaim(page);
+> +
 
-Changes since v1:
-- memcg: do not try to drain per-cpu caches without pages uses
-  drain_cache_local for the current CPU
-- added memcg: add mem_cgroup_same_or_subtree helper
-- dropped "memcg: prevent from reclaiming if there are per-cpu cached
-  charges" patch
-
-Michal Hocko (4):
-  memcg: do not try to drain per-cpu caches without pages
-  memcg: unify sync and async per-cpu charge cache draining
-  memcg: add mem_cgroup_same_or_subtree helper
-  memcg: get rid of percpu_charge_mutex lock
-
- mm/memcontrol.c |  110 +++++++++++++++++++++++++++++++------------------------
- 1 files changed, 62 insertions(+), 48 deletions(-)
-
--- 
-1.7.5.4
+I find the invalidate name somewhat confusing. It makes me think we'll
+drop the page without writeback, like invalidatepage().
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
