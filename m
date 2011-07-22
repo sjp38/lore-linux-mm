@@ -1,76 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 7734C6B004A
-	for <linux-mm@kvack.org>; Fri, 22 Jul 2011 05:19:43 -0400 (EDT)
-Date: Fri, 22 Jul 2011 11:19:36 +0200
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id AB99D6B004A
+	for <linux-mm@kvack.org>; Fri, 22 Jul 2011 05:21:20 -0400 (EDT)
+Date: Fri, 22 Jul 2011 11:21:16 +0200
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 1/4] memcg: do not try to drain per-cpu caches without
- pages
-Message-ID: <20110722091936.GB4004@tiehlicka.suse.cz>
+Subject: Re: [PATCH 3/4] memcg: get rid of percpu_charge_mutex lock
+Message-ID: <20110722092116.GC4004@tiehlicka.suse.cz>
 References: <cover.1311241300.git.mhocko@suse.cz>
- <113c4affc2f0938b7b22d43c88d2b0a623de9a6b.1311241300.git.mhocko@suse.cz>
- <20110721191250.1c945740.kamezawa.hiroyu@jp.fujitsu.com>
- <20110721113606.GA27855@tiehlicka.suse.cz>
- <20110722084413.9dd4b880.kamezawa.hiroyu@jp.fujitsu.com>
+ <2bfb2b7687c1a6b39da2a04689190725075cc4f8.1311241300.git.mhocko@suse.cz>
+ <20110721193051.cd3266e5.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110721114704.GC27855@tiehlicka.suse.cz>
+ <20110721124223.GE27855@tiehlicka.suse.cz>
+ <20110722084927.96b0aa86.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110722084413.9dd4b880.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110722084927.96b0aa86.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: linux-mm@kvack.org, Balbir Singh <bsingharora@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-kernel@vger.kernel.org
 
-On Fri 22-07-11 08:44:13, KAMEZAWA Hiroyuki wrote:
-> On Thu, 21 Jul 2011 13:36:06 +0200
+On Fri 22-07-11 08:49:27, KAMEZAWA Hiroyuki wrote:
+> On Thu, 21 Jul 2011 14:42:23 +0200
 > Michal Hocko <mhocko@suse.cz> wrote:
 > 
-> > On Thu 21-07-11 19:12:50, KAMEZAWA Hiroyuki wrote:
-> > > On Thu, 21 Jul 2011 09:38:00 +0200
-> > > Michal Hocko <mhocko@suse.cz> wrote:
-> > > 
-> > > > drain_all_stock_async tries to optimize a work to be done on the work
-> > > > queue by excluding any work for the current CPU because it assumes that
-> > > > the context we are called from already tried to charge from that cache
-> > > > and it's failed so it must be empty already.
-> > > > While the assumption is correct we can do it by checking the current
-> > > > number of pages in the cache. This will also reduce a work on other CPUs
-> > > > with an empty stock.
+> > On Thu 21-07-11 13:47:04, Michal Hocko wrote:
+> > > On Thu 21-07-11 19:30:51, KAMEZAWA Hiroyuki wrote:
+> > > > On Thu, 21 Jul 2011 09:58:24 +0200
+> > > > Michal Hocko <mhocko@suse.cz> wrote:
+> > [...]
+> > > > > --- a/mm/memcontrol.c
+> > > > > +++ b/mm/memcontrol.c
+> > > > > @@ -2166,7 +2165,8 @@ static void drain_all_stock(struct mem_cgroup *root_mem, bool sync)
+> > > > >  
+> > > > >  	for_each_online_cpu(cpu) {
+> > > > >  		struct memcg_stock_pcp *stock = &per_cpu(memcg_stock, cpu);
+> > > > > -		if (test_bit(FLUSHING_CACHED_CHARGE, &stock->flags))
+> > > > > +		if (root_mem == stock->cached &&
+> > > > > +				test_bit(FLUSHING_CACHED_CHARGE, &stock->flags))
+> > > > >  			flush_work(&stock->work);
 > > > > 
-> > > > Signed-off-by: Michal Hocko <mhocko@suse.cz>
+> > > > Doesn't this new check handle hierarchy ?
+> > > > css_is_ancestor() will be required if you do this check.
 > > > 
-> > > 
-> > > At the first look, when a charge against TransParentHugepage() goes
-> > > into the reclaim routine, stock->nr_pages != 0 and this will
-> > > call additional kworker.
+> > > Yes you are right. Will fix it. I will add a helper for the check.
 > > 
-> > True. We will drain a charge which could be used by other allocations
-> > in the meantime so we have a good chance to reclaim less. But how big
-> > problem is that?
-> > I mean I can add a new parameter that would force checking the current
-> > cpu but it doesn't look nice. I cannot add that condition
-> > unconditionally because the code will be shared with the sync path in
-> > the next patch and that one needs to drain _all_ cpus.
+> > Here is the patch with the helper. The above will then read 
+> > 	if (mem_cgroup_same_or_subtree(root_mem, stock->cached))
 > > 
-> > What would you suggest?
-> By 2 methods
+> > ---
+> > From b963a9f4dac61044daac49700f84b7819d7c2f53 Mon Sep 17 00:00:00 2001
+> > From: Michal Hocko <mhocko@suse.cz>
+> > Date: Thu, 21 Jul 2011 13:54:13 +0200
+> > Subject: [PATCH] memcg: add mem_cgroup_same_or_subtree helper
+> > 
+> > We are checking whether a given two groups are same or at least in the
+> > same subtree of a hierarchy at several places. Let's make a helper for
+> > it to make code easier to read.
+> > 
+> > Signed-off-by: Michal Hocko <mhocko@suse.cz>
 > 
->  - just check nr_pages. 
+> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Not sure I understand which nr_pages you mean. The one that comes from
-the charging path or stock->nr_pages?
-If you mean the first one then we do not have in the reclaim path where
-we call drain_all_stock_async.
-
->  - drain "local stock" without calling schedule_work(). It's fast.
-
-but there is nothing to be drained locally in the paths where we call
-drain_all_stock_async... Or do you mean that drain_all_stock shouldn't
-use work queue at all?
-
-> 
-> Thanks,
-> -Kame
+Thanks
 
 -- 
 Michal Hocko
