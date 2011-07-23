@@ -1,54 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D6476B004A
-	for <linux-mm@kvack.org>; Sat, 23 Jul 2011 07:22:18 -0400 (EDT)
-Date: Sat, 23 Jul 2011 13:22:07 +0200
-From: Sebastian Andrzej Siewior <sebastian@breakpoint.cc>
-Subject: Re: possible recursive locking detected cache_alloc_refill() +
- cache_flusharray()
-Message-ID: <20110723112207.GA2355@breakpoint.cc>
-References: <20110716211850.GA23917@breakpoint.cc>
- <alpine.LFD.2.02.1107172333340.2702@ionos>
- <alpine.DEB.2.00.1107201619540.3528@tiger>
- <1311168638.5345.80.camel@twins>
- <alpine.DEB.2.00.1107201642500.4921@tiger>
- <1311176680.29152.20.camel@twins>
- <20110721071459.GA2961@breakpoint.cc>
- <1311341165.27400.58.camel@twins>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 59E0E6B004A
+	for <linux-mm@kvack.org>; Sat, 23 Jul 2011 14:49:20 -0400 (EDT)
+Message-ID: <4E2B17A6.6080602@fusionio.com>
+Date: Sat, 23 Jul 2011 20:49:10 +0200
+From: Jens Axboe <jaxboe@fusionio.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1311341165.27400.58.camel@twins>
+Subject: Re: [PATCH]vmscan: add block plug for page reclaim
+References: <1311130413.15392.326.camel@sli10-conroe>  <CAEwNFnDj30Bipuxrfe9upD-OyuL4v21tLs0ayUKYUfye5TcGyA@mail.gmail.com>  <1311142253.15392.361.camel@sli10-conroe>  <CAEwNFnD3iCMBpZK95Ks+Z7DYbrzbZbSTLf3t6WXDQdeHrE6bLQ@mail.gmail.com>  <1311144559.15392.366.camel@sli10-conroe>  <4E287EC0.4030208@fusionio.com> <1311311695.15392.369.camel@sli10-conroe>
+In-Reply-To: <1311311695.15392.369.camel@sli10-conroe>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Pekka Enberg <penberg@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Christoph Lameter <cl@linux-foundation.org>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org
+To: Shaohua Li <shaohua.li@intel.com>
+Cc: Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, "mgorman@suse.de" <mgorman@suse.de>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
 
-* Thus spake Peter Zijlstra (peterz@infradead.org):
-> Thanks!
-You're welcome.
+On 2011-07-22 07:14, Shaohua Li wrote:
+> On Fri, 2011-07-22 at 03:32 +0800, Jens Axboe wrote:
+>> On 2011-07-20 08:49, Shaohua Li wrote:
+>>> On Wed, 2011-07-20 at 14:30 +0800, Minchan Kim wrote:
+>>>> On Wed, Jul 20, 2011 at 3:10 PM, Shaohua Li <shaohua.li@intel.com> wrote:
+>>>>> On Wed, 2011-07-20 at 13:53 +0800, Minchan Kim wrote:
+>>>>>> On Wed, Jul 20, 2011 at 11:53 AM, Shaohua Li <shaohua.li@intel.com> wrote:
+>>>>>>> per-task block plug can reduce block queue lock contention and increase request
+>>>>>>> merge. Currently page reclaim doesn't support it. I originally thought page
+>>>>>>> reclaim doesn't need it, because kswapd thread count is limited and file cache
+>>>>>>> write is done at flusher mostly.
+>>>>>>> When I test a workload with heavy swap in a 4-node machine, each CPU is doing
+>>>>>>> direct page reclaim and swap. This causes block queue lock contention. In my
+>>>>>>> test, without below patch, the CPU utilization is about 2% ~ 7%. With the
+>>>>>>> patch, the CPU utilization is about 1% ~ 3%. Disk throughput isn't changed.
+>>>>>>
+>>>>>> Why doesn't it enhance through?
+>>>>> throughput? The disk isn't that fast. We already can make it run in full
+>>>>
+>>>> Yes. Sorry for the typo.
+>>>>
+>>>>> speed, CPU isn't bottleneck here.
+>>>>
+>>>> But you try to optimize CPU. so your experiment is not good.
+>>> it's not that good, because the disk isn't fast. The swap test is the
+>>> workload with most significant impact I can get.
+>>
+>> Let me just interject here that a plug should be fine, from 3.1 we'll
+>> even auto-unplug if a certain depth has been reached. So latency should
+>> not be a worry. Personally I think the patch looks fine, though some
+>> numbers would be interesting to see. Cycles spent submitting the actual
+>> IO, combined with IO statistics what kind of IO patterns were observed
+>> for plain and with patch would be good.
+> I can observe the average request size changes. Before the patch, the
+> average request size is about 90k from iostat (but the variation is
+> big). With the patch, the request size is about 100k and variation is
+> small.
 
-> > +static void slab_each_set_lock_classes(struct kmem_cache *cachep)
-> > +{
-> > +	int node;
-> > +
-> > +	for_each_online_node(node) {
-> > +		slab_set_lock_classes(cachep, &debugobj_l3_key,
-> > +				&debugobj_alc_key, node);
-> > +	}
-> > +}
-> 
-> Hmm, O(nr_nodes^2), sounds about right for alien crap, right?
-A little less if not all nodes are online :) However it is the same kind of
-init used earlier by setup_cpu_cache().
-I tried to pull lockclass into cachep but lockdep didn't like this.
+That's a good win right there, imho.
 
-> Still needs some hotplug love though, maybe something like the below...
-> Sebastian, would you be willing to give the thing another spin to see if
-> I didnt (again) break anything silly?
-Looks good, compiles and seems to work :)
+> how to check the cycles spend submitting the I/O?
 
-Sebastian
+It's not easy, normal profiles is pretty much the only thing to go by.
+
+I guess I'm just a bit puzzled by Minchan's reluctance towards the
+patch, it seems like mostly goodness to me.
+
+-- 
+Jens Axboe
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
