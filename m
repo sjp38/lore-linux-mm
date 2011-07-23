@@ -1,238 +1,203 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 4A1A96B004A
-	for <linux-mm@kvack.org>; Sat, 23 Jul 2011 03:44:02 -0400 (EDT)
-Date: Sat, 23 Jul 2011 15:43:45 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH] mm: Properly reflect task dirty limits in
- dirty_exceeded logic
-Message-ID: <20110723074344.GA31975@localhost>
-References: <1309458764-9153-1-git-send-email-jack@suse.cz>
- <20110704010618.GA3841@localhost>
- <20110711170605.GF5482@quack.suse.cz>
- <20110713230258.GA17011@localhost>
- <20110714213409.GB16415@quack.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110714213409.GB16415@quack.suse.cz>
+	by kanga.kvack.org (Postfix) with ESMTP id 3EA9C6B004A
+	for <linux-mm@kvack.org>; Sat, 23 Jul 2011 04:49:35 -0400 (EDT)
+Received: by pzk33 with SMTP id 33so5217086pzk.36
+        for <linux-mm@kvack.org>; Sat, 23 Jul 2011 01:49:32 -0700 (PDT)
+From: Akinobu Mita <akinobu.mita@gmail.com>
+Subject: [PATCH v3 1/6] fault-injection: notifier error injection
+Date: Sat, 23 Jul 2011 17:50:55 +0900
+Message-Id: <1311411060-30124-2-git-send-email-akinobu.mita@gmail.com>
+In-Reply-To: <1311411060-30124-1-git-send-email-akinobu.mita@gmail.com>
+References: <1311411060-30124-1-git-send-email-akinobu.mita@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: linux-kernel@vger.kernel.org, akpm@linux-foundation.org
+Cc: Akinobu Mita <akinobu.mita@gmail.com>, Pavel Machek <pavel@ucw.cz>, "Rafael J. Wysocki" <rjw@sisk.pl>, linux-pm@lists.linux-foundation.org, Greg KH <greg@kroah.com>, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, linuxppc-dev@lists.ozlabs.org
 
-On Fri, Jul 15, 2011 at 05:34:09AM +0800, Jan Kara wrote:
-> On Wed 13-07-11 16:02:58, Wu Fengguang wrote:
-> > On Tue, Jul 12, 2011 at 01:06:05AM +0800, Jan Kara wrote:
-> > > On Mon 04-07-11 09:06:19, Wu Fengguang wrote:
-> > > > On Fri, Jul 01, 2011 at 02:32:44AM +0800, Jan Kara wrote:
-> > > > > We set bdi->dirty_exceeded (and thus ratelimiting code starts to
-> > > > > call balance_dirty_pages() every 8 pages) when a per-bdi limit is
-> > > > > exceeded or global limit is exceeded. But per-bdi limit also depends
-> > > > > on the task. Thus different tasks reach the limit on that bdi at
-> > > > > different levels of dirty pages. The result is that with current code
-> > > > > bdi->dirty_exceeded ping-ponged between 1 and 0 depending on which task
-> > > > > just got into balance_dirty_pages().
-> > > > > 
-> > > > > We fix the issue by clearing bdi->dirty_exceeded only when per-bdi amount
-> > > > > of dirty pages drops below the threshold (7/8 * bdi_dirty_limit) where task
-> > > > > limits already do not have any influence.
-> > > > 
-> > > > The end result, I think, is that the dirty pages are kept more tightly
-> > > > under control, with the average number a slightly lowered than before. 
-> > > > This reduces the risk to throttle light dirtiers and hence more
-> > > > responsive. However it does introduce more overheads by enforcing
-> > > > balance_dirty_pages() calls on every 8 pages.
-> > >   Yes. I think this was actually the original intention when the code was
-> > > written.
-> > 
-> > I'm still a bit nervous on the added overheads for the common 1 heavy
-> > dirty case.  Before patch, the 1 heavy dirty will normally clear
-> > bdi->dirty_exceeded on leaving balance_dirty_pages(), so it doesn't
-> > have the burden of rechecking the limit on every 8 pages.
-> Yes, but if there is 1 heavy dirtier, task_min_dirty_limit() will be
-> actually equal (or almost equal) to the dirty limit of that task. So that
-> case won't be really different.
+The notifier error injection provides the ability to inject artifical
+errors to specified notifier chain callbacks.  It is useful to test the
+error handling of notifier call chain failures.
 
-Good point! Sorry I didn't notice it.
+This adds common basic functions to define which type of events can be
+fail and to initialize the debugfs interface to control what error code
+should be returned and which event should be failed.
 
-> When we will be different is when there are two or more dirtying tasks.
-> Then we originally cleared dirty_exceeded already at higher level of dirty
-> pages so we stopped checking after every 8 dirtied pages earlier.
->  
-> > How about this minimal change?
-> > 
-> >  static unsigned long task_min_dirty_limit(unsigned long bdi_dirty)
-> >  {
-> > -       return bdi_dirty - bdi_dirty / TASK_LIMIT_FRACTION;
-> > +       return bdi_dirty - bdi_dirty / TASK_LIMIT_FRACTION / 4;
-> >  }
-> > 
-> > A more complete version will involve changing the function name and
-> > comment. But the basic rationales are,
-> > 
-> > - there is no serious danger of dirty exceeding as long as there are
-> >   less than 4 heavy dirties
-> > 
-> > - tasks dirtying close to 25% pages probably cannot be called light
-> >   dirtier and there is no need to protect such tasks
->   The idea is interesting. The only problem is that we don't want to set
-> dirty_exceeded too late so that heavy dirtiers won't push light dirtiers
-> over their limits so easily due to ratelimiting. It did some computations:
-> We normally ratelimit after 4 MB. Take a low end desktop these days. Say
-> 1 GB of ram, 4 CPUs. So dirty limit will be ~200 MB and the area for task
-> differentiation ~25 MB. We enter balance_dirty_pages() after dirtying
-> num_cpu * ratelimit / 2 pages on average which gives 8 MB. So we should
-> set dirty_exceeded at latest at bdi_dirty / TASK_LIMIT_FRACTION / 2 or
-> task differentiation would have no effect because of ratelimiting.
-> 
-> So we could change the limit to something like:
-> bdi_dirty - min(bdi_dirty / TASK_LIMIT_FRACTION, ratelimit_pages *
-> num_online_cpus / 2 + bdi_dirty / TASK_LIMIT_FRACTION / 16)
+Signed-off-by: Akinobu Mita <akinobu.mita@gmail.com>
+Cc: Pavel Machek <pavel@ucw.cz>
+Cc: "Rafael J. Wysocki" <rjw@sisk.pl>
+Cc: linux-pm@lists.linux-foundation.org
+Cc: Greg KH <greg@kroah.com>
+Cc: linux-mm@kvack.org
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: Paul Mackerras <paulus@samba.org>
+Cc: linuxppc-dev@lists.ozlabs.org
+---
+* v3
+- export err_inject_notifier_block_{init,cleanup} for modules
 
-Good analyze!
+ include/linux/notifier.h |   25 ++++++++++++++
+ kernel/notifier.c        |   83 ++++++++++++++++++++++++++++++++++++++++++++++
+ lib/Kconfig.debug        |   11 ++++++
+ 3 files changed, 119 insertions(+), 0 deletions(-)
 
-> But I'm not sure setups where this would make difference are common...
-
-I think I'd prefer the original simple patch given that the common
-1-dirtier is not impacted.
-
-Thanks,
-Fengguang
-
-> > > > > CC: Andrew Morton <akpm@linux-foundation.org>
-> > > > > CC: Christoph Hellwig <hch@infradead.org>
-> > > > > CC: Dave Chinner <david@fromorbit.com>
-> > > > > CC: Wu Fengguang <fengguang.wu@intel.com>
-> > > > > CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
-> > > > > Signed-off-by: Jan Kara <jack@suse.cz>
-> > > > > ---
-> > > > >  mm/page-writeback.c |   29 ++++++++++++++++++++++-------
-> > > > >  1 files changed, 22 insertions(+), 7 deletions(-)
-> > > > > 
-> > > > >  This is the patch fixing dirty_exceeded logic I promised you last week.
-> > > > > I based it on current Linus's tree as it is a relatively direct fix so I
-> > > > > expect it can be somewhere in the beginning of the patch series and merged
-> > > > > relatively quickly. Can you please add it to your tree? Thanks.
-> > > > 
-> > > > OK. I noticed that bdi_thresh is no longer used. What if we just
-> > > > rename it? But I admit that the patch in its current form looks a bit
-> > > > more clear in concept.
-> > >   You are right bdi_thresh is only used for computing task_bdi_thresh and
-> > > min_task_bdi_thresh now. We could possibly eliminate that one variable but
-> > > I guess compiler will optimize it away anyway and I find the code more
-> > > legible when written this way...
-> > 
-> > OK.
-> > 
-> > Thanks,
-> > Fengguang
-> > 
-> > > > > diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-> > > > > index 31f6988..d8b395f 100644
-> > > > > --- a/mm/page-writeback.c
-> > > > > +++ b/mm/page-writeback.c
-> > > > > @@ -274,12 +274,13 @@ static inline void task_dirties_fraction(struct task_struct *tsk,
-> > > > >   * effectively curb the growth of dirty pages. Light dirtiers with high enough
-> > > > >   * dirty threshold may never get throttled.
-> > > > >   */
-> > > > > +#define TASK_LIMIT_FRACTION 8
-> > > > >  static unsigned long task_dirty_limit(struct task_struct *tsk,
-> > > > >  				       unsigned long bdi_dirty)
-> > > > >  {
-> > > > >  	long numerator, denominator;
-> > > > >  	unsigned long dirty = bdi_dirty;
-> > > > > -	u64 inv = dirty >> 3;
-> > > > > +	u64 inv = dirty / TASK_LIMIT_FRACTION;
-> > > > >  
-> > > > >  	task_dirties_fraction(tsk, &numerator, &denominator);
-> > > > >  	inv *= numerator;
-> > > > > @@ -290,6 +291,12 @@ static unsigned long task_dirty_limit(struct task_struct *tsk,
-> > > > >  	return max(dirty, bdi_dirty/2);
-> > > > >  }
-> > > > >  
-> > > > > +/* Minimum limit for any task */
-> > > > > +static unsigned long task_min_dirty_limit(unsigned long bdi_dirty)
-> > > > > +{
-> > > > > +	return bdi_dirty - bdi_dirty / TASK_LIMIT_FRACTION;
-> > > > > +}
-> > > > > +
-> > > > >  /*
-> > > > >   *
-> > > > >   */
-> > > > > @@ -483,9 +490,12 @@ static void balance_dirty_pages(struct address_space *mapping,
-> > > > >  	unsigned long background_thresh;
-> > > > >  	unsigned long dirty_thresh;
-> > > > >  	unsigned long bdi_thresh;
-> > > > > +	unsigned long task_bdi_thresh;
-> > > > > +	unsigned long min_task_bdi_thresh;
-> > > > >  	unsigned long pages_written = 0;
-> > > > >  	unsigned long pause = 1;
-> > > > >  	bool dirty_exceeded = false;
-> > > > > +	bool clear_dirty_exceeded = true;
-> > > > >  	struct backing_dev_info *bdi = mapping->backing_dev_info;
-> > > > >  
-> > > > >  	for (;;) {
-> > > > > @@ -512,7 +522,8 @@ static void balance_dirty_pages(struct address_space *mapping,
-> > > > >  			break;
-> > > > >  
-> > > > >  		bdi_thresh = bdi_dirty_limit(bdi, dirty_thresh);
-> > > > > -		bdi_thresh = task_dirty_limit(current, bdi_thresh);
-> > > > > +		min_task_bdi_thresh = task_min_dirty_limit(bdi_thresh);
-> > > > > +		task_bdi_thresh = task_dirty_limit(current, bdi_thresh);
-> > > > >  
-> > > > >  		/*
-> > > > >  		 * In order to avoid the stacked BDI deadlock we need
-> > > > > @@ -524,7 +535,7 @@ static void balance_dirty_pages(struct address_space *mapping,
-> > > > >  		 * actually dirty; with m+n sitting in the percpu
-> > > > >  		 * deltas.
-> > > > >  		 */
-> > > > > -		if (bdi_thresh < 2*bdi_stat_error(bdi)) {
-> > > > > +		if (task_bdi_thresh < 2 * bdi_stat_error(bdi)) {
-> > > > >  			bdi_nr_reclaimable = bdi_stat_sum(bdi, BDI_RECLAIMABLE);
-> > > > >  			bdi_nr_writeback = bdi_stat_sum(bdi, BDI_WRITEBACK);
-> > > > >  		} else {
-> > > > > @@ -539,8 +550,11 @@ static void balance_dirty_pages(struct address_space *mapping,
-> > > > >  		 * the last resort safeguard.
-> > > > >  		 */
-> > > > >  		dirty_exceeded =
-> > > > > -			(bdi_nr_reclaimable + bdi_nr_writeback > bdi_thresh)
-> > > > > -			|| (nr_reclaimable + nr_writeback > dirty_thresh);
-> > > > > +		  (bdi_nr_reclaimable + bdi_nr_writeback > task_bdi_thresh)
-> > > > > +		  || (nr_reclaimable + nr_writeback > dirty_thresh);
-> > > > > +		clear_dirty_exceeded =
-> > > > > +		  (bdi_nr_reclaimable + bdi_nr_writeback <= min_task_bdi_thresh)
-> > > > > +		  && (nr_reclaimable + nr_writeback <= dirty_thresh);
-> > > > >  
-> > > > >  		if (!dirty_exceeded)
-> > > > >  			break;
-> > > > > @@ -558,7 +572,7 @@ static void balance_dirty_pages(struct address_space *mapping,
-> > > > >  		 * up.
-> > > > >  		 */
-> > > > >  		trace_wbc_balance_dirty_start(&wbc, bdi);
-> > > > > -		if (bdi_nr_reclaimable > bdi_thresh) {
-> > > > > +		if (bdi_nr_reclaimable > task_bdi_thresh) {
-> > > > >  			writeback_inodes_wb(&bdi->wb, &wbc);
-> > > > >  			pages_written += write_chunk - wbc.nr_to_write;
-> > > > >  			trace_wbc_balance_dirty_written(&wbc, bdi);
-> > > > > @@ -578,7 +592,8 @@ static void balance_dirty_pages(struct address_space *mapping,
-> > > > >  			pause = HZ / 10;
-> > > > >  	}
-> > > > >  
-> > > > > -	if (!dirty_exceeded && bdi->dirty_exceeded)
-> > > > > +	/* Clear dirty_exceeded flag only when no task can exceed the limit */
-> > > > > +	if (clear_dirty_exceeded && bdi->dirty_exceeded)
-> > > > >  		bdi->dirty_exceeded = 0;
-> > > > >  
-> > > > >  	if (writeback_in_progress(bdi))
-> > > > > -- 
-> > > > > 1.7.1
-> > > -- 
-> > > Jan Kara <jack@suse.cz>
-> > > SUSE Labs, CR
-> -- 
-> Jan Kara <jack@suse.cz>
-> SUSE Labs, CR
+diff --git a/include/linux/notifier.h b/include/linux/notifier.h
+index c0688b0..51882d6 100644
+--- a/include/linux/notifier.h
++++ b/include/linux/notifier.h
+@@ -278,5 +278,30 @@ extern struct blocking_notifier_head reboot_notifier_list;
+ #define VT_UPDATE		0x0004 /* A bigger update occurred */
+ #define VT_PREWRITE		0x0005 /* A char is about to be written to the console */
+ 
++#ifdef CONFIG_NOTIFIER_ERROR_INJECTION
++
++struct err_inject_notifier_action {
++	unsigned long val;
++	int error;
++	const char *name;
++};
++
++#define ERR_INJECT_NOTIFIER_ACTION(action)	\
++	.name = #action, .val = (action),
++
++struct err_inject_notifier_block {
++	struct notifier_block nb;
++	struct dentry *dir;
++	struct err_inject_notifier_action actions[];
++	/* The last slot must be terminated with zero sentinel */
++};
++
++extern int err_inject_notifier_block_init(struct err_inject_notifier_block *enb,
++				const char *name, int priority);
++extern void err_inject_notifier_block_cleanup(
++				struct err_inject_notifier_block *enb);
++
++#endif /* CONFIG_NOTIFIER_ERROR_INJECTION */
++
+ #endif /* __KERNEL__ */
+ #endif /* _LINUX_NOTIFIER_H */
+diff --git a/kernel/notifier.c b/kernel/notifier.c
+index 2488ba7..8dcb2cc 100644
+--- a/kernel/notifier.c
++++ b/kernel/notifier.c
+@@ -5,6 +5,7 @@
+ #include <linux/rcupdate.h>
+ #include <linux/vmalloc.h>
+ #include <linux/reboot.h>
++#include <linux/debugfs.h>
+ 
+ /*
+  *	Notifier list for kernel code which wants to be called
+@@ -584,3 +585,85 @@ int unregister_die_notifier(struct notifier_block *nb)
+ 	return atomic_notifier_chain_unregister(&die_chain, nb);
+ }
+ EXPORT_SYMBOL_GPL(unregister_die_notifier);
++
++#ifdef CONFIG_NOTIFIER_ERROR_INJECTION
++
++static int debugfs_errno_set(void *data, u64 val)
++{
++	*(int *)data = clamp_t(int, val, -MAX_ERRNO, 0);
++	return 0;
++}
++
++static int debugfs_errno_get(void *data, u64 *val)
++{
++	*val = *(int *)data;
++	return 0;
++}
++
++DEFINE_SIMPLE_ATTRIBUTE(fops_errno, debugfs_errno_get, debugfs_errno_set,
++			"%lld\n");
++
++static struct dentry *debugfs_create_errno(const char *name, mode_t mode,
++				struct dentry *parent, int *value)
++{
++	return debugfs_create_file(name, mode, parent, value, &fops_errno);
++}
++
++static int err_inject_notifier_callback(struct notifier_block *nb,
++				unsigned long val, void *p)
++{
++	int err = 0;
++	struct err_inject_notifier_block *enb =
++		container_of(nb, struct err_inject_notifier_block, nb);
++	struct err_inject_notifier_action *action;
++
++	for (action = enb->actions; action->name; action++) {
++		if (action->val == val) {
++			err = action->error;
++			break;
++		}
++	}
++	if (err) {
++		printk(KERN_INFO "Injecting error (%d) to %s\n",
++			err, action->name);
++	}
++
++	return notifier_from_errno(err);
++}
++
++int err_inject_notifier_block_init(struct err_inject_notifier_block *enb,
++				const char *name, int priority)
++{
++	struct err_inject_notifier_action *action;
++	mode_t mode = S_IFREG | S_IRUSR | S_IWUSR;
++
++	enb->nb.notifier_call = err_inject_notifier_callback;
++	enb->nb.priority = priority;
++
++	enb->dir = debugfs_create_dir(name, NULL);
++	if (!enb->dir)
++		return -ENOMEM;
++
++	for (action = enb->actions; action->name; action++) {
++		/*
++		 * Create debugfs r/w file containing action->error. If
++		 * notifier call chain is called with action->val, it will
++		 * fail with the error code
++		 */
++		if (!debugfs_create_errno(action->name, mode, enb->dir,
++					&action->error)) {
++			debugfs_remove_recursive(enb->dir);
++			return -ENOMEM;
++		}
++	}
++	return 0;
++}
++EXPORT_SYMBOL_GPL(err_inject_notifier_block_init);
++
++void err_inject_notifier_block_cleanup(struct err_inject_notifier_block *enb)
++{
++	debugfs_remove_recursive(enb->dir);
++}
++EXPORT_SYMBOL_GPL(err_inject_notifier_block_cleanup);
++
++#endif /* CONFIG_NOTIFIER_ERROR_INJECTION */
+diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
+index c0cb9c4..2a62c5a 100644
+--- a/lib/Kconfig.debug
++++ b/lib/Kconfig.debug
+@@ -1021,6 +1021,17 @@ config LKDTM
+ 	Documentation on how to use the module can be found in
+ 	Documentation/fault-injection/provoke-crashes.txt
+ 
++config NOTIFIER_ERROR_INJECTION
++	bool "Notifier error injection"
++	depends on DEBUG_KERNEL
++	select DEBUG_FS
++	help
++	  This option provides the ability to inject artifical errors to
++	  specified notifier chain callbacks. It is useful to test the error
++	  handling of notifier call chain failures.
++
++	  Say N if unsure.
++
+ config CPU_NOTIFIER_ERROR_INJECT
+ 	tristate "CPU notifier error injection module"
+ 	depends on HOTPLUG_CPU && DEBUG_KERNEL
+-- 
+1.7.4.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
