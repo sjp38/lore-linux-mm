@@ -1,44 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id E28366B004A
-	for <linux-mm@kvack.org>; Sun, 24 Jul 2011 07:32:03 -0400 (EDT)
-Date: Sun, 24 Jul 2011 07:32:00 -0400
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH 2/8] xfs: Warn if direct reclaim tries to writeback pages
-Message-ID: <20110724113200.GA26332@infradead.org>
-References: <1311265730-5324-1-git-send-email-mgorman@suse.de>
- <1311265730-5324-3-git-send-email-mgorman@suse.de>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 481906B004A
+	for <linux-mm@kvack.org>; Sun, 24 Jul 2011 10:39:18 -0400 (EDT)
+Received: from localhost (unknown [122.167.86.237])
+	by mail.wnohang.net (Postfix) with ESMTPSA id A53D0F0003
+	for <linux-mm@kvack.org>; Sun, 24 Jul 2011 10:39:14 -0400 (EDT)
+Date: Sun, 24 Jul 2011 20:09:11 +0530
+From: Raghavendra D Prabhu <rprabhu@wnohang.net>
+Subject: Regarding find_get_pages{,_contig}
+Message-ID: <20110724143708.GA5193@Xye>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Disposition: inline
-In-Reply-To: <1311265730-5324-3-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>, LKML <linux-kernel@vger.kernel.org>, XFS <xfs@oss.sgi.com>, Christoph Hellwig <hch@infradead.org>, Minchan Kim <minchan.kim@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, Johannes Weiner <jweiner@redhat.com>
+To: linux-mm@kvack.org
 
-On Thu, Jul 21, 2011 at 05:28:44PM +0100, Mel Gorman wrote:
-> --- a/fs/xfs/linux-2.6/xfs_aops.c
-> +++ b/fs/xfs/linux-2.6/xfs_aops.c
-> @@ -930,12 +930,13 @@ xfs_vm_writepage(
->  	 * random callers for direct reclaim or memcg reclaim.  We explicitly
->  	 * allow reclaim from kswapd as the stack usage there is relatively low.
->  	 *
-> -	 * This should really be done by the core VM, but until that happens
-> -	 * filesystems like XFS, btrfs and ext4 have to take care of this
-> -	 * by themselves.
-> +	 * This should never happen except in the case of a VM regression so
-> +	 * warn about it.
->  	 */
-> -	if ((current->flags & (PF_MEMALLOC|PF_KSWAPD)) == PF_MEMALLOC)
-> +	if ((current->flags & (PF_MEMALLOC|PF_KSWAPD)) == PF_MEMALLOC) {
-> +		WARN_ON_ONCE(1);
->  		goto redirty;
+Hi mm,
 
-The nicer way to write this is
+     I was looking to use 
 
-	if (WARN_ON(current->flags & (PF_MEMALLOC|PF_KSWAPD)) == PF_MEMALLOC)
-		goto redirty;
+     find_get_pages (struct address_space *mapping, pgoff_t start, unsigned int nr_pages, struct page **pages) 
+
+     and the comment in the code says -- "There may be holes in the
+     indices due to not-present pages." I perceived this to be filling
+     pages which are in the cache  and skipping the ones which are not
+     present -- after the function returns, pages[i] to be not set (NULL
+     when pages is from a kzalloc) if corresponding page at index i +
+     offset is not in cache ie. a hole. 
+     
+     But from what I have seen, what it does is set pages[0..nr_in_cache]
+     to pages found and rest pages[nr_in_cache + 1 .. nr_pages]  to be
+     unset/NULL. By looking at the code, it is calling
+     radix_tree_gang_lookup_slot, which again returns entries in a
+     similar way and loops nr_found times (and not nr_pages times). I
+     looked at the difference between find_get_pages and
+     find_get_pages_contig, and the only difference I could spot is it
+     increments index which is used only when a condition is true.
+
+     So, does holes in indices mean something else or is there a
+     different function which can be used for this ?
+--------------------------
+Raghavendra Prabhu
+GPG Id : 0xD72BE977
+Fingerprint: B93F EBCB 8E05 7039 CD3C A4B8 A616 DCA1 D72B E977
+www: wnohang.net
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
