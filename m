@@ -1,50 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 481906B004A
-	for <linux-mm@kvack.org>; Sun, 24 Jul 2011 10:39:18 -0400 (EDT)
-Received: from localhost (unknown [122.167.86.237])
-	by mail.wnohang.net (Postfix) with ESMTPSA id A53D0F0003
-	for <linux-mm@kvack.org>; Sun, 24 Jul 2011 10:39:14 -0400 (EDT)
-Date: Sun, 24 Jul 2011 20:09:11 +0530
-From: Raghavendra D Prabhu <rprabhu@wnohang.net>
-Subject: Regarding find_get_pages{,_contig}
-Message-ID: <20110724143708.GA5193@Xye>
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 531996B00EE
+	for <linux-mm@kvack.org>; Sun, 24 Jul 2011 14:10:15 -0400 (EDT)
+Date: Sun, 24 Jul 2011 20:07:13 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH v4 3.0-rc2-tip 4/22]  4: Uprobes: register/unregister
+	probes.
+Message-ID: <20110724180713.GA24599@redhat.com>
+References: <20110607125804.28590.92092.sendpatchset@localhost6.localdomain6> <20110607125900.28590.16071.sendpatchset@localhost6.localdomain6>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20110607125900.28590.16071.sendpatchset@localhost6.localdomain6>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Jonathan Corbet <corbet@lwn.net>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>
 
-Hi mm,
+Hi Srikar,
 
-     I was looking to use 
+I still hope some day I'll find the time to read the whole series ;)
+Trying to continue from where I have stopped, and it seems that this
+patch has a couple more problems.
 
-     find_get_pages (struct address_space *mapping, pgoff_t start, unsigned int nr_pages, struct page **pages) 
+On 06/07, Srikar Dronamraju wrote:
+>
+> A probe is specified by a file:offset.  While registering, a breakpoint
+> is inserted for the first consumer, On subsequent probes, the consumer
+> gets appended to the existing consumers. While unregistering a
+> breakpoint is removed if the consumer happens to be the last consumer.
+> All other unregisterations, the consumer is deleted from the list of
+> consumers.
+>
+> Probe specifications are maintained in a rb tree. A probe specification
+> is converted into a uprobe before store in a rb tree.  A uprobe can be
+> shared by many consumers.
 
-     and the comment in the code says -- "There may be holes in the
-     indices due to not-present pages." I perceived this to be filling
-     pages which are in the cache  and skipping the ones which are not
-     present -- after the function returns, pages[i] to be not set (NULL
-     when pages is from a kzalloc) if corresponding page at index i +
-     offset is not in cache ie. a hole. 
-     
-     But from what I have seen, what it does is set pages[0..nr_in_cache]
-     to pages found and rest pages[nr_in_cache + 1 .. nr_pages]  to be
-     unset/NULL. By looking at the code, it is calling
-     radix_tree_gang_lookup_slot, which again returns entries in a
-     similar way and loops nr_found times (and not nr_pages times). I
-     looked at the difference between find_get_pages and
-     find_get_pages_contig, and the only difference I could spot is it
-     increments index which is used only when a condition is true.
+register/unregister logic looks racy...
 
-     So, does holes in indices mean something else or is there a
-     different function which can be used for this ?
---------------------------
-Raghavendra Prabhu
-GPG Id : 0xD72BE977
-Fingerprint: B93F EBCB 8E05 7039 CD3C A4B8 A616 DCA1 D72B E977
-www: wnohang.net
+Supose that uprobe U has a single consumer C and register_uprobe()
+is called with the same inode/offset, while another thread does
+unregister(U,C).
+
+	- register() calls alloc_uprobe(), finds the entry in rb tree,
+	  and increments U->ref. But this doesn't add the new consumer.
+
+	- uregister() does del_consumer(), and removes the single
+	  consumer C.
+
+	  then it takes uprobes_mutex, sees uprobe->consumers == NULL
+	  and calls delete_uprobe()->rb_erase()
+
+	- register() continues, takes uprobes_mutex, re-inserts the
+	  breakpoints, finds the new consumer and succeeds.
+
+	  However, this uprobe is not in rb-tree, it was deleted
+	  by unregister.
+
+
+
+OTOH. Suppose we add the new uprobe. register()->alloc_uprobe() sets
+new_uprobe->ref == 2. If something goes wrong after that, register()
+does delete_uprobe() + put_uprobe(), new_uprobe->ref becomes 1 and
+we leak this uprobe.
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
