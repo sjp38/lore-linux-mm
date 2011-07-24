@@ -1,70 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 59E0E6B004A
-	for <linux-mm@kvack.org>; Sat, 23 Jul 2011 14:49:20 -0400 (EDT)
-Message-ID: <4E2B17A6.6080602@fusionio.com>
-Date: Sat, 23 Jul 2011 20:49:10 +0200
-From: Jens Axboe <jaxboe@fusionio.com>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id E28366B004A
+	for <linux-mm@kvack.org>; Sun, 24 Jul 2011 07:32:03 -0400 (EDT)
+Date: Sun, 24 Jul 2011 07:32:00 -0400
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH 2/8] xfs: Warn if direct reclaim tries to writeback pages
+Message-ID: <20110724113200.GA26332@infradead.org>
+References: <1311265730-5324-1-git-send-email-mgorman@suse.de>
+ <1311265730-5324-3-git-send-email-mgorman@suse.de>
 MIME-Version: 1.0
-Subject: Re: [PATCH]vmscan: add block plug for page reclaim
-References: <1311130413.15392.326.camel@sli10-conroe>  <CAEwNFnDj30Bipuxrfe9upD-OyuL4v21tLs0ayUKYUfye5TcGyA@mail.gmail.com>  <1311142253.15392.361.camel@sli10-conroe>  <CAEwNFnD3iCMBpZK95Ks+Z7DYbrzbZbSTLf3t6WXDQdeHrE6bLQ@mail.gmail.com>  <1311144559.15392.366.camel@sli10-conroe>  <4E287EC0.4030208@fusionio.com> <1311311695.15392.369.camel@sli10-conroe>
-In-Reply-To: <1311311695.15392.369.camel@sli10-conroe>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1311265730-5324-3-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shaohua.li@intel.com>
-Cc: Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, "mgorman@suse.de" <mgorman@suse.de>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>, LKML <linux-kernel@vger.kernel.org>, XFS <xfs@oss.sgi.com>, Christoph Hellwig <hch@infradead.org>, Minchan Kim <minchan.kim@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, Johannes Weiner <jweiner@redhat.com>
 
-On 2011-07-22 07:14, Shaohua Li wrote:
-> On Fri, 2011-07-22 at 03:32 +0800, Jens Axboe wrote:
->> On 2011-07-20 08:49, Shaohua Li wrote:
->>> On Wed, 2011-07-20 at 14:30 +0800, Minchan Kim wrote:
->>>> On Wed, Jul 20, 2011 at 3:10 PM, Shaohua Li <shaohua.li@intel.com> wrote:
->>>>> On Wed, 2011-07-20 at 13:53 +0800, Minchan Kim wrote:
->>>>>> On Wed, Jul 20, 2011 at 11:53 AM, Shaohua Li <shaohua.li@intel.com> wrote:
->>>>>>> per-task block plug can reduce block queue lock contention and increase request
->>>>>>> merge. Currently page reclaim doesn't support it. I originally thought page
->>>>>>> reclaim doesn't need it, because kswapd thread count is limited and file cache
->>>>>>> write is done at flusher mostly.
->>>>>>> When I test a workload with heavy swap in a 4-node machine, each CPU is doing
->>>>>>> direct page reclaim and swap. This causes block queue lock contention. In my
->>>>>>> test, without below patch, the CPU utilization is about 2% ~ 7%. With the
->>>>>>> patch, the CPU utilization is about 1% ~ 3%. Disk throughput isn't changed.
->>>>>>
->>>>>> Why doesn't it enhance through?
->>>>> throughput? The disk isn't that fast. We already can make it run in full
->>>>
->>>> Yes. Sorry for the typo.
->>>>
->>>>> speed, CPU isn't bottleneck here.
->>>>
->>>> But you try to optimize CPU. so your experiment is not good.
->>> it's not that good, because the disk isn't fast. The swap test is the
->>> workload with most significant impact I can get.
->>
->> Let me just interject here that a plug should be fine, from 3.1 we'll
->> even auto-unplug if a certain depth has been reached. So latency should
->> not be a worry. Personally I think the patch looks fine, though some
->> numbers would be interesting to see. Cycles spent submitting the actual
->> IO, combined with IO statistics what kind of IO patterns were observed
->> for plain and with patch would be good.
-> I can observe the average request size changes. Before the patch, the
-> average request size is about 90k from iostat (but the variation is
-> big). With the patch, the request size is about 100k and variation is
-> small.
+On Thu, Jul 21, 2011 at 05:28:44PM +0100, Mel Gorman wrote:
+> --- a/fs/xfs/linux-2.6/xfs_aops.c
+> +++ b/fs/xfs/linux-2.6/xfs_aops.c
+> @@ -930,12 +930,13 @@ xfs_vm_writepage(
+>  	 * random callers for direct reclaim or memcg reclaim.  We explicitly
+>  	 * allow reclaim from kswapd as the stack usage there is relatively low.
+>  	 *
+> -	 * This should really be done by the core VM, but until that happens
+> -	 * filesystems like XFS, btrfs and ext4 have to take care of this
+> -	 * by themselves.
+> +	 * This should never happen except in the case of a VM regression so
+> +	 * warn about it.
+>  	 */
+> -	if ((current->flags & (PF_MEMALLOC|PF_KSWAPD)) == PF_MEMALLOC)
+> +	if ((current->flags & (PF_MEMALLOC|PF_KSWAPD)) == PF_MEMALLOC) {
+> +		WARN_ON_ONCE(1);
+>  		goto redirty;
 
-That's a good win right there, imho.
+The nicer way to write this is
 
-> how to check the cycles spend submitting the I/O?
-
-It's not easy, normal profiles is pretty much the only thing to go by.
-
-I guess I'm just a bit puzzled by Minchan's reluctance towards the
-patch, it seems like mostly goodness to me.
-
--- 
-Jens Axboe
+	if (WARN_ON(current->flags & (PF_MEMALLOC|PF_KSWAPD)) == PF_MEMALLOC)
+		goto redirty;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
