@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 888AD6B0169
-	for <linux-mm@kvack.org>; Mon, 25 Jul 2011 16:20:11 -0400 (EDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id A5C8C6B016A
+	for <linux-mm@kvack.org>; Mon, 25 Jul 2011 16:20:13 -0400 (EDT)
 From: Johannes Weiner <jweiner@redhat.com>
-Subject: [patch 1/5] mm: page_alloc: increase __GFP_BITS_SHIFT to include __GFP_OTHER_NODE
-Date: Mon, 25 Jul 2011 22:19:15 +0200
-Message-Id: <1311625159-13771-2-git-send-email-jweiner@redhat.com>
+Subject: [patch 3/5] mm: writeback: remove seriously stale comment on dirty limits
+Date: Mon, 25 Jul 2011 22:19:17 +0200
+Message-Id: <1311625159-13771-4-git-send-email-jweiner@redhat.com>
 In-Reply-To: <1311625159-13771-1-git-send-email-jweiner@redhat.com>
 References: <1311625159-13771-1-git-send-email-jweiner@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,34 +15,40 @@ Cc: Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, M
 
 From: Johannes Weiner <hannes@cmpxchg.org>
 
-__GFP_OTHER_NODE is used for NUMA allocations on behalf of other
-nodes.  It's supposed to be passed through from the page allocator to
-zone_statistics(), but it never gets there as gfp_allowed_mask is not
-wide enough and masks out the flag early in the allocation path.
-
-The result is an accounting glitch where successful NUMA allocations
-by-agent are not properly attributed as local.
-
-Increase __GFP_BITS_SHIFT so that it includes __GFP_OTHER_NODE.
-
 Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 ---
- include/linux/gfp.h |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
+ mm/page-writeback.c |   18 ------------------
+ 1 files changed, 0 insertions(+), 18 deletions(-)
 
-diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-index cb40892..3a76faf 100644
---- a/include/linux/gfp.h
-+++ b/include/linux/gfp.h
-@@ -92,7 +92,7 @@ struct vm_area_struct;
-  */
- #define __GFP_NOTRACK_FALSE_POSITIVE (__GFP_NOTRACK)
+diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+index a4de005..41dc871 100644
+--- a/mm/page-writeback.c
++++ b/mm/page-writeback.c
+@@ -379,24 +379,6 @@ int bdi_set_max_ratio(struct backing_dev_info *bdi, unsigned max_ratio)
+ EXPORT_SYMBOL(bdi_set_max_ratio);
  
--#define __GFP_BITS_SHIFT 23	/* Room for 23 __GFP_FOO bits */
-+#define __GFP_BITS_SHIFT 24	/* Room for N __GFP_FOO bits */
- #define __GFP_BITS_MASK ((__force gfp_t)((1 << __GFP_BITS_SHIFT) - 1))
- 
- /* This equals 0, but use constants in case they ever change */
+ /*
+- * Work out the current dirty-memory clamping and background writeout
+- * thresholds.
+- *
+- * The main aim here is to lower them aggressively if there is a lot of mapped
+- * memory around.  To avoid stressing page reclaim with lots of unreclaimable
+- * pages.  It is better to clamp down on writers than to start swapping, and
+- * performing lots of scanning.
+- *
+- * We only allow 1/2 of the currently-unmapped memory to be dirtied.
+- *
+- * We don't permit the clamping level to fall below 5% - that is getting rather
+- * excessive.
+- *
+- * We make sure that the background writeout level is below the adjusted
+- * clamping level.
+- */
+-
+-/*
+  * global_dirty_limits - background-writeback and dirty-throttling thresholds
+  *
+  * Calculate the dirty thresholds based on sysctl parameters
 -- 
 1.7.6
 
