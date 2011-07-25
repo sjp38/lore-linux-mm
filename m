@@ -1,57 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id D472A6B00EE
-	for <linux-mm@kvack.org>; Mon, 25 Jul 2011 12:04:36 -0400 (EDT)
-Date: Mon, 25 Jul 2011 18:04:29 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH] mm: Properly reflect task dirty limits in
- dirty_exceeded logic
-Message-ID: <20110725160429.GG6107@quack.suse.cz>
-References: <1309458764-9153-1-git-send-email-jack@suse.cz>
- <20110704010618.GA3841@localhost>
- <20110711170605.GF5482@quack.suse.cz>
- <20110713230258.GA17011@localhost>
- <20110714213409.GB16415@quack.suse.cz>
- <20110723074344.GA31975@localhost>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110723074344.GA31975@localhost>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 888AD6B0169
+	for <linux-mm@kvack.org>; Mon, 25 Jul 2011 16:20:11 -0400 (EDT)
+From: Johannes Weiner <jweiner@redhat.com>
+Subject: [patch 1/5] mm: page_alloc: increase __GFP_BITS_SHIFT to include __GFP_OTHER_NODE
+Date: Mon, 25 Jul 2011 22:19:15 +0200
+Message-Id: <1311625159-13771-2-git-send-email-jweiner@redhat.com>
+In-Reply-To: <1311625159-13771-1-git-send-email-jweiner@redhat.com>
+References: <1311625159-13771-1-git-send-email-jweiner@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Jan Kara <jack@suse.cz>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: linux-mm@kvack.org
+Cc: Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Jan Kara <jack@suse.cz>, Andi Kleen <ak@linux.intel.com>, linux-kernel@vger.kernel.org
 
-On Sat 23-07-11 15:43:45, Wu Fengguang wrote:
-> On Fri, Jul 15, 2011 at 05:34:09AM +0800, Jan Kara wrote:
-> > > - tasks dirtying close to 25% pages probably cannot be called light
-> > >   dirtier and there is no need to protect such tasks
-> >   The idea is interesting. The only problem is that we don't want to set
-> > dirty_exceeded too late so that heavy dirtiers won't push light dirtiers
-> > over their limits so easily due to ratelimiting. It did some computations:
-> > We normally ratelimit after 4 MB. Take a low end desktop these days. Say
-> > 1 GB of ram, 4 CPUs. So dirty limit will be ~200 MB and the area for task
-> > differentiation ~25 MB. We enter balance_dirty_pages() after dirtying
-> > num_cpu * ratelimit / 2 pages on average which gives 8 MB. So we should
-> > set dirty_exceeded at latest at bdi_dirty / TASK_LIMIT_FRACTION / 2 or
-> > task differentiation would have no effect because of ratelimiting.
-> > 
-> > So we could change the limit to something like:
-> > bdi_dirty - min(bdi_dirty / TASK_LIMIT_FRACTION, ratelimit_pages *
-> > num_online_cpus / 2 + bdi_dirty / TASK_LIMIT_FRACTION / 16)
-> 
-> Good analyze!
-> 
-> > But I'm not sure setups where this would make difference are common...
-> 
-> I think I'd prefer the original simple patch given that the common
-> 1-dirtier is not impacted.
-  OK, thanks. So will you merge the patch please?
+From: Johannes Weiner <hannes@cmpxchg.org>
 
-								Honza
+__GFP_OTHER_NODE is used for NUMA allocations on behalf of other
+nodes.  It's supposed to be passed through from the page allocator to
+zone_statistics(), but it never gets there as gfp_allowed_mask is not
+wide enough and masks out the flag early in the allocation path.
+
+The result is an accounting glitch where successful NUMA allocations
+by-agent are not properly attributed as local.
+
+Increase __GFP_BITS_SHIFT so that it includes __GFP_OTHER_NODE.
+
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+---
+ include/linux/gfp.h |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+index cb40892..3a76faf 100644
+--- a/include/linux/gfp.h
++++ b/include/linux/gfp.h
+@@ -92,7 +92,7 @@ struct vm_area_struct;
+  */
+ #define __GFP_NOTRACK_FALSE_POSITIVE (__GFP_NOTRACK)
+ 
+-#define __GFP_BITS_SHIFT 23	/* Room for 23 __GFP_FOO bits */
++#define __GFP_BITS_SHIFT 24	/* Room for N __GFP_FOO bits */
+ #define __GFP_BITS_MASK ((__force gfp_t)((1 << __GFP_BITS_SHIFT) - 1))
+ 
+ /* This equals 0, but use constants in case they ever change */
 -- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+1.7.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
