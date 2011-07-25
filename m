@@ -1,45 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A6626B016A
-	for <linux-mm@kvack.org>; Mon, 25 Jul 2011 19:19:35 -0400 (EDT)
-From: Thomas Renninger <trenn@suse.de>
-Subject: [PATCH] mm: Declare hugetlb_sysfs_add_hstate __meminit
-Date: Tue, 26 Jul 2011 01:19:28 +0200
-Message-Id: <1311635968-10107-1-git-send-email-trenn@suse.de>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 865196B0169
+	for <linux-mm@kvack.org>; Mon, 25 Jul 2011 19:41:02 -0400 (EDT)
+Received: by qyk32 with SMTP id 32so1391058qyk.14
+        for <linux-mm@kvack.org>; Mon, 25 Jul 2011 16:41:00 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20110725203705.GA21691@tassilo.jf.intel.com>
+References: <1311625159-13771-1-git-send-email-jweiner@redhat.com>
+	<1311625159-13771-5-git-send-email-jweiner@redhat.com>
+	<20110725203705.GA21691@tassilo.jf.intel.com>
+Date: Tue, 26 Jul 2011 08:40:59 +0900
+Message-ID: <CAEwNFnARzetfqZqjh_9-d+FOHtrCEwaSxgqBy_D+apxsNqzqkg@mail.gmail.com>
+Subject: Re: [patch 4/5] mm: writeback: throttle __GFP_WRITE on per-zone dirty limits
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: mgorman@novell.com, Thomas Renninger <trenn@suse.de>, majordomo@kvack.org
+To: Andi Kleen <ak@linux.intel.com>
+Cc: Johannes Weiner <jweiner@redhat.com>, linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, Rik van Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>, linux-kernel@vger.kernel.org
 
-Initially found by Mel, I just put this into a patch.
+Hi Andi,
 
-Signed-off-by: Thomas Renninger <trenn@suse.de>
-Reviewed-by: Mel Gorman <mgorman@novell.com>
-CC: majordomo@kvack.org
----
- mm/hugetlb.c |    7 ++++---
- 1 files changed, 4 insertions(+), 3 deletions(-)
+On Tue, Jul 26, 2011 at 5:37 AM, Andi Kleen <ak@linux.intel.com> wrote:
+>> The global dirty limits are put in proportion to the respective zone's
+>> amount of dirtyable memory and the allocation denied when the limit of
+>> that zone is reached.
+>>
+>> Before the allocation fails, the allocator slowpath has a stage before
+>> compaction and reclaim, where the flusher threads are kicked and the
+>> allocator ultimately has to wait for writeback if still none of the
+>> zones has become eligible for allocation again in the meantime.
+>>
+>
+> I don't really like this. It seems wrong to make memory
+> placement depend on dirtyness.
+>
+> Just try to explain it to some system administrator or tuner: her
+> head will explode and for good reasons.
+>
+> On the other hand I like doing round-robin in filemap by default
+> (I think that is what your patch essentially does)
+> We should have made =C2=A0this default long ago. It avoids most of the
+> "IO fills up local node" problems people run into all the time.
+>
+> So I would rather just change the default in filemap allocation.
+>
+> That's also easy to explain.
 
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index bfcf153..2c59a0a 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -1543,9 +1543,10 @@ static struct attribute_group hstate_attr_group = {
- 	.attrs = hstate_attrs,
- };
- 
--static int hugetlb_sysfs_add_hstate(struct hstate *h, struct kobject *parent,
--				    struct kobject **hstate_kobjs,
--				    struct attribute_group *hstate_attr_group)
-+static int
-+__meminit hugetlb_sysfs_add_hstate(struct hstate *h, struct kobject *parent,
-+				   struct kobject **hstate_kobjs,
-+				   struct attribute_group *hstate_attr_group)
- {
- 	int retval;
- 	int hi = h - hstates;
--- 
-1.7.3.4
+Just out of curiosity.
+Why do you want to consider only filemap allocation, not IO(ie,
+filemap + sys_[read/write]) allocation?
+
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
