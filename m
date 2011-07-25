@@ -1,34 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 008106B0169
-	for <linux-mm@kvack.org>; Mon, 25 Jul 2011 16:49:47 -0400 (EDT)
-Date: Mon, 25 Jul 2011 16:49:42 -0400
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [patch 1/2] fuse: delete dead .write_begin and .write_end aops
-Message-ID: <20110725204942.GA12183@infradead.org>
-References: <1311626135-14279-1-git-send-email-jweiner@redhat.com>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 368C56B0169
+	for <linux-mm@kvack.org>; Mon, 25 Jul 2011 16:52:52 -0400 (EDT)
+Date: Mon, 25 Jul 2011 13:52:49 -0700
+From: Andi Kleen <ak@linux.intel.com>
+Subject: Re: [patch 1/5] mm: page_alloc: increase __GFP_BITS_SHIFT to include
+ __GFP_OTHER_NODE
+Message-ID: <20110725205249.GB21691@tassilo.jf.intel.com>
+References: <1311625159-13771-1-git-send-email-jweiner@redhat.com>
+ <1311625159-13771-2-git-send-email-jweiner@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1311626135-14279-1-git-send-email-jweiner@redhat.com>
+In-Reply-To: <1311625159-13771-2-git-send-email-jweiner@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Johannes Weiner <jweiner@redhat.com>
-Cc: Miklos Szeredi <miklos@szeredi.hu>, fuse-devel@lists.sourceforge.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Jan Kara <jack@suse.cz>, linux-kernel@vger.kernel.org
 
-On Mon, Jul 25, 2011 at 10:35:34PM +0200, Johannes Weiner wrote:
-> Ever since 'ea9b990 fuse: implement perform_write', the .write_begin
-> and .write_end aops have been dead code.
+On Mon, Jul 25, 2011 at 10:19:15PM +0200, Johannes Weiner wrote:
+> From: Johannes Weiner <hannes@cmpxchg.org>
 > 
-> Their task - acquiring a page from the page cache, sending out a write
-> request and releasing the page again - is now done batch-wise to
-> maximize the number of pages send per userspace request.
+> __GFP_OTHER_NODE is used for NUMA allocations on behalf of other
+> nodes.  It's supposed to be passed through from the page allocator to
+> zone_statistics(), but it never gets there as gfp_allowed_mask is not
+> wide enough and masks out the flag early in the allocation path.
+> 
+> The result is an accounting glitch where successful NUMA allocations
+> by-agent are not properly attributed as local.
+> 
+> Increase __GFP_BITS_SHIFT so that it includes __GFP_OTHER_NODE.
+> 
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
-The loop code still calls them uncondtionally.  This actually is a big
-as write_begin and write_end require filesystems specific locking,
-and might require code in the filesystem to e.g. update the ctime
-properly.  I'll let Miklos chime in if leaving them in was intentional,
-and if it was a comment is probably justified.
+Acked-by: Andi Kleen <ak@linux.intel.com>
+
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
