@@ -1,148 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id A2F6F6B016E
-	for <linux-mm@kvack.org>; Mon, 25 Jul 2011 16:20:33 -0400 (EDT)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id AA08C6B0169
+	for <linux-mm@kvack.org>; Mon, 25 Jul 2011 16:35:40 -0400 (EDT)
 From: Johannes Weiner <jweiner@redhat.com>
-Subject: [patch 2/5] mm: writeback: make determine_dirtyable_memory static again
-Date: Mon, 25 Jul 2011 22:19:16 +0200
-Message-Id: <1311625159-13771-3-git-send-email-jweiner@redhat.com>
-In-Reply-To: <1311625159-13771-1-git-send-email-jweiner@redhat.com>
-References: <1311625159-13771-1-git-send-email-jweiner@redhat.com>
+Subject: [patch 1/2] fuse: delete dead .write_begin and .write_end aops
+Date: Mon, 25 Jul 2011 22:35:34 +0200
+Message-Id: <1311626135-14279-1-git-send-email-jweiner@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Jan Kara <jack@suse.cz>, Andi Kleen <ak@linux.intel.com>, linux-kernel@vger.kernel.org
+To: Miklos Szeredi <miklos@szeredi.hu>
+Cc: fuse-devel@lists.sourceforge.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-From: Johannes Weiner <hannes@cmpxchg.org>
+Ever since 'ea9b990 fuse: implement perform_write', the .write_begin
+and .write_end aops have been dead code.
 
-The tracing ring-buffer used this function briefly, but not anymore.
-Make it local to the writeback code again.
+Their task - acquiring a page from the page cache, sending out a write
+request and releasing the page again - is now done batch-wise to
+maximize the number of pages send per userspace request.
 
-Also, move the function so that no forward declaration needs to be
-reintroduced.
-
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+Signed-off-by: Johannes Weiner <jweiner@redhat.com>
 ---
- include/linux/writeback.h |    2 -
- mm/page-writeback.c       |   85 ++++++++++++++++++++++-----------------------
- 2 files changed, 42 insertions(+), 45 deletions(-)
+ fs/fuse/file.c |   70 --------------------------------------------------------
+ 1 files changed, 0 insertions(+), 70 deletions(-)
 
-diff --git a/include/linux/writeback.h b/include/linux/writeback.h
-index 17e7ccc..8c63f3a 100644
---- a/include/linux/writeback.h
-+++ b/include/linux/writeback.h
-@@ -105,8 +105,6 @@ extern int vm_highmem_is_dirtyable;
- extern int block_dump;
- extern int laptop_mode;
+diff --git a/fs/fuse/file.c b/fs/fuse/file.c
+index 82a6646..5c48126 100644
+--- a/fs/fuse/file.c
++++ b/fs/fuse/file.c
+@@ -743,18 +743,6 @@ static size_t fuse_send_write(struct fuse_req *req, struct file *file,
+ 	return req->misc.write.out.size;
+ }
  
--extern unsigned long determine_dirtyable_memory(void);
--
- extern int dirty_background_ratio_handler(struct ctl_table *table, int write,
- 		void __user *buffer, size_t *lenp,
- 		loff_t *ppos);
-diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index 31f6988..a4de005 100644
---- a/mm/page-writeback.c
-+++ b/mm/page-writeback.c
-@@ -111,6 +111,48 @@ EXPORT_SYMBOL(laptop_mode);
- 
- /* End of sysctl-exported parameters */
- 
-+static unsigned long highmem_dirtyable_memory(unsigned long total)
-+{
-+#ifdef CONFIG_HIGHMEM
-+	int node;
-+	unsigned long x = 0;
-+
-+	for_each_node_state(node, N_HIGH_MEMORY) {
-+		struct zone *z =
-+			&NODE_DATA(node)->node_zones[ZONE_HIGHMEM];
-+
-+		x += zone_page_state(z, NR_FREE_PAGES) +
-+		     zone_reclaimable_pages(z);
-+	}
-+	/*
-+	 * Make sure that the number of highmem pages is never larger
-+	 * than the number of the total dirtyable memory. This can only
-+	 * occur in very strange VM situations but we want to make sure
-+	 * that this does not occur.
-+	 */
-+	return min(x, total);
-+#else
-+	return 0;
-+#endif
-+}
-+
-+/**
-+ * determine_dirtyable_memory - amount of memory that may be used
-+ *
-+ * Returns the numebr of pages that can currently be freed and used
-+ * by the kernel for direct mappings.
-+ */
-+static unsigned long determine_dirtyable_memory(void)
-+{
-+	unsigned long x;
-+
-+	x = global_page_state(NR_FREE_PAGES) + global_reclaimable_pages();
-+
-+	if (!vm_highmem_is_dirtyable)
-+		x -= highmem_dirtyable_memory(x);
-+
-+	return x + 1;	/* Ensure that we never return 0 */
-+}
- 
- /*
-  * Scale the writeback cache size proportional to the relative writeout speeds.
-@@ -354,49 +396,6 @@ EXPORT_SYMBOL(bdi_set_max_ratio);
-  * clamping level.
-  */
- 
--static unsigned long highmem_dirtyable_memory(unsigned long total)
+-static int fuse_write_begin(struct file *file, struct address_space *mapping,
+-			loff_t pos, unsigned len, unsigned flags,
+-			struct page **pagep, void **fsdata)
 -{
--#ifdef CONFIG_HIGHMEM
--	int node;
--	unsigned long x = 0;
+-	pgoff_t index = pos >> PAGE_CACHE_SHIFT;
 -
--	for_each_node_state(node, N_HIGH_MEMORY) {
--		struct zone *z =
--			&NODE_DATA(node)->node_zones[ZONE_HIGHMEM];
--
--		x += zone_page_state(z, NR_FREE_PAGES) +
--		     zone_reclaimable_pages(z);
--	}
--	/*
--	 * Make sure that the number of highmem pages is never larger
--	 * than the number of the total dirtyable memory. This can only
--	 * occur in very strange VM situations but we want to make sure
--	 * that this does not occur.
--	 */
--	return min(x, total);
--#else
+-	*pagep = grab_cache_page_write_begin(mapping, index, flags);
+-	if (!*pagep)
+-		return -ENOMEM;
 -	return 0;
--#endif
 -}
 -
--/**
-- * determine_dirtyable_memory - amount of memory that may be used
-- *
-- * Returns the numebr of pages that can currently be freed and used
-- * by the kernel for direct mappings.
-- */
--unsigned long determine_dirtyable_memory(void)
+ void fuse_write_update_size(struct inode *inode, loff_t pos)
+ {
+ 	struct fuse_conn *fc = get_fuse_conn(inode);
+@@ -767,62 +755,6 @@ void fuse_write_update_size(struct inode *inode, loff_t pos)
+ 	spin_unlock(&fc->lock);
+ }
+ 
+-static int fuse_buffered_write(struct file *file, struct inode *inode,
+-			       loff_t pos, unsigned count, struct page *page)
 -{
--	unsigned long x;
+-	int err;
+-	size_t nres;
+-	struct fuse_conn *fc = get_fuse_conn(inode);
+-	unsigned offset = pos & (PAGE_CACHE_SIZE - 1);
+-	struct fuse_req *req;
 -
--	x = global_page_state(NR_FREE_PAGES) + global_reclaimable_pages();
+-	if (is_bad_inode(inode))
+-		return -EIO;
 -
--	if (!vm_highmem_is_dirtyable)
--		x -= highmem_dirtyable_memory(x);
+-	/*
+-	 * Make sure writepages on the same page are not mixed up with
+-	 * plain writes.
+-	 */
+-	fuse_wait_on_page_writeback(inode, page->index);
 -
--	return x + 1;	/* Ensure that we never return 0 */
+-	req = fuse_get_req(fc);
+-	if (IS_ERR(req))
+-		return PTR_ERR(req);
+-
+-	req->in.argpages = 1;
+-	req->num_pages = 1;
+-	req->pages[0] = page;
+-	req->page_offset = offset;
+-	nres = fuse_send_write(req, file, pos, count, NULL);
+-	err = req->out.h.error;
+-	fuse_put_request(fc, req);
+-	if (!err && !nres)
+-		err = -EIO;
+-	if (!err) {
+-		pos += nres;
+-		fuse_write_update_size(inode, pos);
+-		if (count == PAGE_CACHE_SIZE)
+-			SetPageUptodate(page);
+-	}
+-	fuse_invalidate_attr(inode);
+-	return err ? err : nres;
 -}
 -
- /*
-  * global_dirty_limits - background-writeback and dirty-throttling thresholds
-  *
+-static int fuse_write_end(struct file *file, struct address_space *mapping,
+-			loff_t pos, unsigned len, unsigned copied,
+-			struct page *page, void *fsdata)
+-{
+-	struct inode *inode = mapping->host;
+-	int res = 0;
+-
+-	if (copied)
+-		res = fuse_buffered_write(file, inode, pos, copied, page);
+-
+-	unlock_page(page);
+-	page_cache_release(page);
+-	return res;
+-}
+-
+ static size_t fuse_send_write_pages(struct fuse_req *req, struct file *file,
+ 				    struct inode *inode, loff_t pos,
+ 				    size_t count)
+@@ -2172,8 +2104,6 @@ static const struct address_space_operations fuse_file_aops  = {
+ 	.readpage	= fuse_readpage,
+ 	.writepage	= fuse_writepage,
+ 	.launder_page	= fuse_launder_page,
+-	.write_begin	= fuse_write_begin,
+-	.write_end	= fuse_write_end,
+ 	.readpages	= fuse_readpages,
+ 	.set_page_dirty	= __set_page_dirty_nobuffers,
+ 	.bmap		= fuse_bmap,
 -- 
 1.7.6
 
