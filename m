@@ -1,41 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 368C56B0169
-	for <linux-mm@kvack.org>; Mon, 25 Jul 2011 16:52:52 -0400 (EDT)
-Date: Mon, 25 Jul 2011 13:52:49 -0700
-From: Andi Kleen <ak@linux.intel.com>
-Subject: Re: [patch 1/5] mm: page_alloc: increase __GFP_BITS_SHIFT to include
- __GFP_OTHER_NODE
-Message-ID: <20110725205249.GB21691@tassilo.jf.intel.com>
-References: <1311625159-13771-1-git-send-email-jweiner@redhat.com>
- <1311625159-13771-2-git-send-email-jweiner@redhat.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id E1CE36B0169
+	for <linux-mm@kvack.org>; Mon, 25 Jul 2011 17:01:51 -0400 (EDT)
+Date: Mon, 25 Jul 2011 23:01:48 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [patch] mm: thp: disable defrag for page faults per default
+Message-ID: <20110725210148.GP18528@redhat.com>
+References: <1311626321-14364-1-git-send-email-jweiner@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1311625159-13771-2-git-send-email-jweiner@redhat.com>
+In-Reply-To: <1311626321-14364-1-git-send-email-jweiner@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Johannes Weiner <jweiner@redhat.com>
-Cc: linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Jan Kara <jack@suse.cz>, linux-kernel@vger.kernel.org
+Cc: Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Jul 25, 2011 at 10:19:15PM +0200, Johannes Weiner wrote:
-> From: Johannes Weiner <hannes@cmpxchg.org>
-> 
-> __GFP_OTHER_NODE is used for NUMA allocations on behalf of other
-> nodes.  It's supposed to be passed through from the page allocator to
-> zone_statistics(), but it never gets there as gfp_allowed_mask is not
-> wide enough and masks out the flag early in the allocation path.
-> 
-> The result is an accounting glitch where successful NUMA allocations
-> by-agent are not properly attributed as local.
-> 
-> Increase __GFP_BITS_SHIFT so that it includes __GFP_OTHER_NODE.
-> 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+Hello Johannes,
 
-Acked-by: Andi Kleen <ak@linux.intel.com>
+On Mon, Jul 25, 2011 at 10:38:41PM +0200, Johannes Weiner wrote:
+> With defrag mode enabled per default, huge page allocations pass
+> __GFP_WAIT and may drop compaction into sync-mode where they wait for
+> pages under writeback.
+> 
+> I observe applications hang for several minutes(!) when they fault in
+> huge pages and compaction starts to wait on in-"flight" USB stick IO.
+> 
+> This patch disables defrag mode for page fault allocations unless the
+> VMA is madvised explicitely.  Khugepaged will continue to allocate
+> with __GFP_WAIT per default, but stalls are not a problem of
+> application responsiveness there.
 
--Andi
+Allocating memory without __GFP_WAIT means THP it's like disabled
+except when there's plenty of memory free after boot, even trying with
+__GFP_WAIT and without compaction would be better than that. We don't
+want to modify all apps, just a few special ones should have the
+madvise like qemu-kvm for example (for embedded in case there's
+embedded virt).
+
+If you want to make compaction and migrate run without ever dropping
+into sync-mode (or aborting if we've to wait on too many pages) I
+think it'd be a whole lot better.
+
+If you could show the SYSRQ+T during the minute wait it'd be
+interesting too.
+
+There was also some compaction bug that would lead to minutes of stall
+in congestion_wait, those are fixed in current kernels.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
