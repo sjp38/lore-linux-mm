@@ -1,70 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 531996B00EE
-	for <linux-mm@kvack.org>; Sun, 24 Jul 2011 14:10:15 -0400 (EDT)
-Date: Sun, 24 Jul 2011 20:07:13 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH v4 3.0-rc2-tip 4/22]  4: Uprobes: register/unregister
-	probes.
-Message-ID: <20110724180713.GA24599@redhat.com>
-References: <20110607125804.28590.92092.sendpatchset@localhost6.localdomain6> <20110607125900.28590.16071.sendpatchset@localhost6.localdomain6>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110607125900.28590.16071.sendpatchset@localhost6.localdomain6>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 8A7886B00EE
+	for <linux-mm@kvack.org>; Sun, 24 Jul 2011 21:24:27 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id B4E923EE0C0
+	for <linux-mm@kvack.org>; Mon, 25 Jul 2011 10:24:23 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 945ED45DE5B
+	for <linux-mm@kvack.org>; Mon, 25 Jul 2011 10:24:23 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 7D10145DE56
+	for <linux-mm@kvack.org>; Mon, 25 Jul 2011 10:24:23 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6F3AE1DB8052
+	for <linux-mm@kvack.org>; Mon, 25 Jul 2011 10:24:23 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 3B2D71DB8045
+	for <linux-mm@kvack.org>; Mon, 25 Jul 2011 10:24:23 +0900 (JST)
+Date: Mon, 25 Jul 2011 10:16:57 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 1/4] memcg: do not try to drain per-cpu caches without
+ pages
+Message-Id: <20110725101657.21f85bf0.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <2f17df54db6661c39a05669d08a9e6257435b898.1311338634.git.mhocko@suse.cz>
+References: <cover.1311338634.git.mhocko@suse.cz>
+	<2f17df54db6661c39a05669d08a9e6257435b898.1311338634.git.mhocko@suse.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Jonathan Corbet <corbet@lwn.net>, Thomas Gleixner <tglx@linutronix.de>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-mm@kvack.org, Balbir Singh <bsingharora@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
 
-Hi Srikar,
+On Thu, 21 Jul 2011 09:38:00 +0200
+Michal Hocko <mhocko@suse.cz> wrote:
 
-I still hope some day I'll find the time to read the whole series ;)
-Trying to continue from where I have stopped, and it seems that this
-patch has a couple more problems.
+> drain_all_stock_async tries to optimize a work to be done on the work
+> queue by excluding any work for the current CPU because it assumes that
+> the context we are called from already tried to charge from that cache
+> and it's failed so it must be empty already.
+> While the assumption is correct we can optimize it even more by checking
+> the current number of pages in the cache. This will also reduce a work
+> on other CPUs with an empty stock.
+> For the current CPU we can simply call drain_local_stock rather than
+> deferring it to the work queue.
+> 
+> [KAMEZAWA Hiroyuki - use drain_local_stock for current CPU optimization]
+> Signed-off-by: Michal Hocko <mhocko@suse.cz>
 
-On 06/07, Srikar Dronamraju wrote:
->
-> A probe is specified by a file:offset.  While registering, a breakpoint
-> is inserted for the first consumer, On subsequent probes, the consumer
-> gets appended to the existing consumers. While unregistering a
-> breakpoint is removed if the consumer happens to be the last consumer.
-> All other unregisterations, the consumer is deleted from the list of
-> consumers.
->
-> Probe specifications are maintained in a rb tree. A probe specification
-> is converted into a uprobe before store in a rb tree.  A uprobe can be
-> shared by many consumers.
-
-register/unregister logic looks racy...
-
-Supose that uprobe U has a single consumer C and register_uprobe()
-is called with the same inode/offset, while another thread does
-unregister(U,C).
-
-	- register() calls alloc_uprobe(), finds the entry in rb tree,
-	  and increments U->ref. But this doesn't add the new consumer.
-
-	- uregister() does del_consumer(), and removes the single
-	  consumer C.
-
-	  then it takes uprobes_mutex, sees uprobe->consumers == NULL
-	  and calls delete_uprobe()->rb_erase()
-
-	- register() continues, takes uprobes_mutex, re-inserts the
-	  breakpoints, finds the new consumer and succeeds.
-
-	  However, this uprobe is not in rb-tree, it was deleted
-	  by unregister.
-
-
-
-OTOH. Suppose we add the new uprobe. register()->alloc_uprobe() sets
-new_uprobe->ref == 2. If something goes wrong after that, register()
-does delete_uprobe() + put_uprobe(), new_uprobe->ref becomes 1 and
-we leak this uprobe.
-
-Oleg.
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
