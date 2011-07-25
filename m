@@ -1,123 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id AA08C6B0169
-	for <linux-mm@kvack.org>; Mon, 25 Jul 2011 16:35:40 -0400 (EDT)
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 9AFDB6B016A
+	for <linux-mm@kvack.org>; Mon, 25 Jul 2011 16:35:43 -0400 (EDT)
 From: Johannes Weiner <jweiner@redhat.com>
-Subject: [patch 1/2] fuse: delete dead .write_begin and .write_end aops
-Date: Mon, 25 Jul 2011 22:35:34 +0200
-Message-Id: <1311626135-14279-1-git-send-email-jweiner@redhat.com>
+Subject: [patch 2/2] fuse: mark pages accessed when written to
+Date: Mon, 25 Jul 2011 22:35:35 +0200
+Message-Id: <1311626135-14279-2-git-send-email-jweiner@redhat.com>
+In-Reply-To: <1311626135-14279-1-git-send-email-jweiner@redhat.com>
+References: <1311626135-14279-1-git-send-email-jweiner@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Miklos Szeredi <miklos@szeredi.hu>
 Cc: fuse-devel@lists.sourceforge.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Ever since 'ea9b990 fuse: implement perform_write', the .write_begin
-and .write_end aops have been dead code.
-
-Their task - acquiring a page from the page cache, sending out a write
-request and releasing the page again - is now done batch-wise to
-maximize the number of pages send per userspace request.
+As fuse does not use the page cache library functions when userspace
+writes to a file, it did not benefit from 'c8236db mm: mark page
+accessed before we write_end()' that made sure pages are properly
+marked accessed when written to.
 
 Signed-off-by: Johannes Weiner <jweiner@redhat.com>
 ---
- fs/fuse/file.c |   70 --------------------------------------------------------
- 1 files changed, 0 insertions(+), 70 deletions(-)
+ fs/fuse/file.c |    3 +++
+ 1 files changed, 3 insertions(+), 0 deletions(-)
 
 diff --git a/fs/fuse/file.c b/fs/fuse/file.c
-index 82a6646..5c48126 100644
+index 5c48126..471067e 100644
 --- a/fs/fuse/file.c
 +++ b/fs/fuse/file.c
-@@ -743,18 +743,6 @@ static size_t fuse_send_write(struct fuse_req *req, struct file *file,
- 	return req->misc.write.out.size;
- }
+@@ -14,6 +14,7 @@
+ #include <linux/sched.h>
+ #include <linux/module.h>
+ #include <linux/compat.h>
++#include <linux/swap.h>
  
--static int fuse_write_begin(struct file *file, struct address_space *mapping,
--			loff_t pos, unsigned len, unsigned flags,
--			struct page **pagep, void **fsdata)
--{
--	pgoff_t index = pos >> PAGE_CACHE_SHIFT;
--
--	*pagep = grab_cache_page_write_begin(mapping, index, flags);
--	if (!*pagep)
--		return -ENOMEM;
--	return 0;
--}
--
- void fuse_write_update_size(struct inode *inode, loff_t pos)
- {
- 	struct fuse_conn *fc = get_fuse_conn(inode);
-@@ -767,62 +755,6 @@ void fuse_write_update_size(struct inode *inode, loff_t pos)
- 	spin_unlock(&fc->lock);
- }
+ static const struct file_operations fuse_direct_io_file_operations;
  
--static int fuse_buffered_write(struct file *file, struct inode *inode,
--			       loff_t pos, unsigned count, struct page *page)
--{
--	int err;
--	size_t nres;
--	struct fuse_conn *fc = get_fuse_conn(inode);
--	unsigned offset = pos & (PAGE_CACHE_SIZE - 1);
--	struct fuse_req *req;
--
--	if (is_bad_inode(inode))
--		return -EIO;
--
--	/*
--	 * Make sure writepages on the same page are not mixed up with
--	 * plain writes.
--	 */
--	fuse_wait_on_page_writeback(inode, page->index);
--
--	req = fuse_get_req(fc);
--	if (IS_ERR(req))
--		return PTR_ERR(req);
--
--	req->in.argpages = 1;
--	req->num_pages = 1;
--	req->pages[0] = page;
--	req->page_offset = offset;
--	nres = fuse_send_write(req, file, pos, count, NULL);
--	err = req->out.h.error;
--	fuse_put_request(fc, req);
--	if (!err && !nres)
--		err = -EIO;
--	if (!err) {
--		pos += nres;
--		fuse_write_update_size(inode, pos);
--		if (count == PAGE_CACHE_SIZE)
--			SetPageUptodate(page);
--	}
--	fuse_invalidate_attr(inode);
--	return err ? err : nres;
--}
--
--static int fuse_write_end(struct file *file, struct address_space *mapping,
--			loff_t pos, unsigned len, unsigned copied,
--			struct page *page, void *fsdata)
--{
--	struct inode *inode = mapping->host;
--	int res = 0;
--
--	if (copied)
--		res = fuse_buffered_write(file, inode, pos, copied, page);
--
--	unlock_page(page);
--	page_cache_release(page);
--	return res;
--}
--
- static size_t fuse_send_write_pages(struct fuse_req *req, struct file *file,
- 				    struct inode *inode, loff_t pos,
- 				    size_t count)
-@@ -2172,8 +2104,6 @@ static const struct address_space_operations fuse_file_aops  = {
- 	.readpage	= fuse_readpage,
- 	.writepage	= fuse_writepage,
- 	.launder_page	= fuse_launder_page,
--	.write_begin	= fuse_write_begin,
--	.write_end	= fuse_write_end,
- 	.readpages	= fuse_readpages,
- 	.set_page_dirty	= __set_page_dirty_nobuffers,
- 	.bmap		= fuse_bmap,
+@@ -828,6 +829,8 @@ static ssize_t fuse_fill_write_pages(struct fuse_req *req,
+ 		pagefault_enable();
+ 		flush_dcache_page(page);
+ 
++		mark_page_accessed(page);
++
+ 		if (!tmp) {
+ 			unlock_page(page);
+ 			page_cache_release(page);
 -- 
 1.7.6
 
