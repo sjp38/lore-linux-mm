@@ -1,60 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 865196B0169
-	for <linux-mm@kvack.org>; Mon, 25 Jul 2011 19:41:02 -0400 (EDT)
-Received: by qyk32 with SMTP id 32so1391058qyk.14
-        for <linux-mm@kvack.org>; Mon, 25 Jul 2011 16:41:00 -0700 (PDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 06F5C6B0169
+	for <linux-mm@kvack.org>; Mon, 25 Jul 2011 20:12:48 -0400 (EDT)
+Received: from kpbe13.cbf.corp.google.com (kpbe13.cbf.corp.google.com [172.25.105.77])
+	by smtp-out.google.com with ESMTP id p6Q0Cghg018612
+	for <linux-mm@kvack.org>; Mon, 25 Jul 2011 17:12:46 -0700
+Received: from pzk5 (pzk5.prod.google.com [10.243.19.133])
+	by kpbe13.cbf.corp.google.com with ESMTP id p6Q0CcwE020533
+	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 25 Jul 2011 17:12:41 -0700
+Received: by pzk5 with SMTP id 5so11745428pzk.31
+        for <linux-mm@kvack.org>; Mon, 25 Jul 2011 17:12:38 -0700 (PDT)
+Date: Mon, 25 Jul 2011 17:12:37 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch] oom: avoid killing kthreads if they assume the oom killed
+ thread's mm
+Message-ID: <alpine.DEB.2.00.1107251711460.26480@chino.kir.corp.google.com>
 MIME-Version: 1.0
-In-Reply-To: <20110725203705.GA21691@tassilo.jf.intel.com>
-References: <1311625159-13771-1-git-send-email-jweiner@redhat.com>
-	<1311625159-13771-5-git-send-email-jweiner@redhat.com>
-	<20110725203705.GA21691@tassilo.jf.intel.com>
-Date: Tue, 26 Jul 2011 08:40:59 +0900
-Message-ID: <CAEwNFnARzetfqZqjh_9-d+FOHtrCEwaSxgqBy_D+apxsNqzqkg@mail.gmail.com>
-Subject: Re: [patch 4/5] mm: writeback: throttle __GFP_WRITE on per-zone dirty limits
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <ak@linux.intel.com>
-Cc: Johannes Weiner <jweiner@redhat.com>, linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, Rik van Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
 
-Hi Andi,
+After selecting a task to kill, the oom killer iterates all processes and
+kills all other threads that share the same mm_struct in different thread
+groups.  It would not otherwise be helpful to kill a thread if its memory
+would not be subsequently freed.
 
-On Tue, Jul 26, 2011 at 5:37 AM, Andi Kleen <ak@linux.intel.com> wrote:
->> The global dirty limits are put in proportion to the respective zone's
->> amount of dirtyable memory and the allocation denied when the limit of
->> that zone is reached.
->>
->> Before the allocation fails, the allocator slowpath has a stage before
->> compaction and reclaim, where the flusher threads are kicked and the
->> allocator ultimately has to wait for writeback if still none of the
->> zones has become eligible for allocation again in the meantime.
->>
->
-> I don't really like this. It seems wrong to make memory
-> placement depend on dirtyness.
->
-> Just try to explain it to some system administrator or tuner: her
-> head will explode and for good reasons.
->
-> On the other hand I like doing round-robin in filemap by default
-> (I think that is what your patch essentially does)
-> We should have made =C2=A0this default long ago. It avoids most of the
-> "IO fills up local node" problems people run into all the time.
->
-> So I would rather just change the default in filemap allocation.
->
-> That's also easy to explain.
+A kernel thread, however, may assume a user thread's mm by using
+use_mm().  This is only temporary and should not result in sending a
+SIGKILL to that kthread.
 
-Just out of curiosity.
-Why do you want to consider only filemap allocation, not IO(ie,
-filemap + sys_[read/write]) allocation?
+This patch ensures that only user threads and not kthreads are sent a
+SIGKILL if they share the same mm_struct as the oom killed task.
 
---=20
-Kind regards,
-Minchan Kim
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ mm/oom_kill.c |    5 +++--
+ 1 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -433,7 +433,7 @@ static int oom_kill_task(struct task_struct *p, struct mem_cgroup *mem)
+ 	task_unlock(p);
+ 
+ 	/*
+-	 * Kill all processes sharing p->mm in other thread groups, if any.
++	 * Kill all user processes sharing p->mm in other thread groups, if any.
+ 	 * They don't get access to memory reserves or a higher scheduler
+ 	 * priority, though, to avoid depletion of all memory or task
+ 	 * starvation.  This prevents mm->mmap_sem livelock when an oom killed
+@@ -443,7 +443,8 @@ static int oom_kill_task(struct task_struct *p, struct mem_cgroup *mem)
+ 	 * signal.
+ 	 */
+ 	for_each_process(q)
+-		if (q->mm == mm && !same_thread_group(q, p)) {
++		if (q->mm == mm && !same_thread_group(q, p) &&
++		    !(q->flags & PF_KTHREAD)) {
+ 			task_lock(q);	/* Protect ->comm from prctl() */
+ 			pr_err("Kill process %d (%s) sharing same memory\n",
+ 				task_pid_nr(q), q->comm);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
