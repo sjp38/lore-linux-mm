@@ -1,74 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id EF04D6B0169
-	for <linux-mm@kvack.org>; Tue, 26 Jul 2011 05:35:23 -0400 (EDT)
-Date: Tue, 26 Jul 2011 10:35:17 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [patch] mm: thp: disable defrag for page faults per default
-Message-ID: <20110726093517.GA3010@suse.de>
-References: <1311626321-14364-1-git-send-email-jweiner@redhat.com>
+	by kanga.kvack.org (Postfix) with SMTP id 48ECE6B0169
+	for <linux-mm@kvack.org>; Tue, 26 Jul 2011 07:21:06 -0400 (EDT)
+Date: Tue, 26 Jul 2011 21:20:55 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [RFC PATCH 0/8] Reduce filesystem writeback from page reclaim v2
+Message-ID: <20110726112055.GC8048@dastard>
+References: <1311265730-5324-1-git-send-email-mgorman@suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1311626321-14364-1-git-send-email-jweiner@redhat.com>
+In-Reply-To: <1311265730-5324-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <jweiner@redhat.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, XFS <xfs@oss.sgi.com>, Christoph Hellwig <hch@infradead.org>, Johannes Weiner <jweiner@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>
 
-On Mon, Jul 25, 2011 at 10:38:41PM +0200, Johannes Weiner wrote:
-> With defrag mode enabled per default, huge page allocations pass
-> __GFP_WAIT and may drop compaction into sync-mode where they wait for
-> pages under writeback.
-> 
-> I observe applications hang for several minutes(!) when they fault in
-> huge pages and compaction starts to wait on in-"flight" USB stick IO.
-> 
-> This patch disables defrag mode for page fault allocations unless the
-> VMA is madvised explicitely.  Khugepaged will continue to allocate
-> with __GFP_WAIT per default, but stalls are not a problem of
-> application responsiveness there.
-> 
+On Thu, Jul 21, 2011 at 05:28:42PM +0100, Mel Gorman wrote:
+> Warning: Long post with lots of figures. If you normally drink coffee
+> and you don't have a cup, get one or you may end up with a case of
+> keyboard face.
 
-Seems drastic. You could just avoid sync migration for transparent
-hugepage allocations with something like the patch below? There still
-is a stall as some order-0 pages will be reclaimed before compaction
-is tried again but it will nothing like a sync migration.
+[snip]
 
-=== CUT HERE ===
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 1fac154..40f2a9b 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2174,7 +2174,14 @@ rebalance:
- 					sync_migration);
- 	if (page)
- 		goto got_pg;
--	sync_migration = true;
-+
-+	/*
-+	 * Do not use sync migration for transparent hugepage allocations as
-+	 * it could stall writing back pages which is far worse than simply
-+	 * failing to promote a page.
-+	 */
-+	if (!(gfp_mask & __GFP_NO_KSWAPD))
-+		sync_migration = true;
- 
- 	/* Try direct reclaim and then allocating */
- 	page = __alloc_pages_direct_reclaim(gfp_mask, order,
-=== CUT HERE===
+> Overall, having kswapd avoiding writes does improve performance
+> which is not a surprise. Dave asked "do we even need IO at all from
+> reclaim?". On NUMA machines, the answer is "yes" unless the VM can
+> wake the flusher thread to clean a specific node.
 
-As this is USB, the rate of pages getting written back may mean that
-too much clean memory is reclaimed in direct reclaim while compaction
-still fails due to dirty pages. If this is the case, it can be mitigated
-with something like this before calling direct reclaim;
+Great answer, Mel. ;)
 
-if ((gfp_mask & __GFP_NO_KSWAPD) && compaction_deferred(preferred_zone))
-	goto nopage;
+> When kswapd never
+> writes, processes can stall for significant periods of time waiting on
+> flushers to clean the correct pages. If all writing is to be deferred
+> to flushers, it must ensure that many writes on one node would not
+> starve requests for cleaning pages on another node.
 
+Ok, so that's a direction we need to work towards, then.
+
+> I'm currently of the opinion that we should consider merging patches
+> 1-7 and discuss what is required before merging. It can be tackled
+> later how the flushers can prioritise writing of pages belonging to
+> a particular zone before disabling all writes from reclaim.
+
+Sounds reasonable to me.
+
+Cheers,
+
+Dave.
 -- 
-Mel Gorman
-SUSE Labs
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
