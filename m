@@ -1,56 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 57E056B016B
-	for <linux-mm@kvack.org>; Tue, 26 Jul 2011 14:52:24 -0400 (EDT)
-Date: Tue, 26 Jul 2011 20:52:19 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [RFC][PATCH 2/2] mm: Switch NUMA_BUILD and COMPACTION_BUILD to
- new KCONFIG() syntax
-Message-ID: <20110726185219.GC26597@tiehlicka.suse.cz>
-References: <4E1D9C25.8080300@suse.cz>
- <1311634718-32588-1-git-send-email-mmarek@suse.cz>
- <1311634718-32588-2-git-send-email-mmarek@suse.cz>
- <20110726151908.GD17958@tiehlicka.suse.cz>
- <4E2F08A0.5080704@suse.cz>
+	by kanga.kvack.org (Postfix) with ESMTP id 9C0AD6B016B
+	for <linux-mm@kvack.org>; Tue, 26 Jul 2011 15:57:00 -0400 (EDT)
+From: Thomas Renninger <trenn@suse.de>
+Subject: Re: [PATCH] mm: Declare hugetlb_sysfs_add_hstate __meminit
+Date: Tue, 26 Jul 2011 21:57:01 +0200
+References: <1311635968-10107-1-git-send-email-trenn@suse.de> <alpine.DEB.2.00.1107251744530.27999@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1107251744530.27999@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4E2F08A0.5080704@suse.cz>
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Message-Id: <201107262157.01655.trenn@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Marek <mmarek@suse.cz>
-Cc: linux-kbuild@vger.kernel.org, lacombar@gmail.com, sam@ravnborg.org, linux-kernel@vger.kernel.org, plagnioj@jcrosoft.com, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: linux-mm@kvack.org, mgorman@novell.com
 
-On Tue 26-07-11 20:34:08, Michal Marek wrote:
-> Dne 26.7.2011 17:19, Michal Hocko napsal(a):
-> > On Tue 26-07-11 00:58:38, Michal Marek wrote:
-> >> Cc: linux-mm@kvack.org
-> >> Signed-off-by: Michal Marek <mmarek@suse.cz>
-> > 
-> > I assume that this is a cleanup. Without seeing the rest of the patch
-> > set (probably not in linux-mm missing in the CC) and the cover email it
-> > is hard to be sure. Could you add some description to the patch, please?
+On Tuesday 26 July 2011 02:52:09 David Rientjes wrote:
+> On Tue, 26 Jul 2011, Thomas Renninger wrote:
 > 
-> Sorry for the confusion. Patch 1/2 is here:
-> https://lkml.org/lkml/2011/7/25/448 and provides a generic way to use
-> CONFIG_* options in C expressions.
+...
+> So, unless this is a fix for -mm, I don't think this is right.
+Thanks for looking at it.
 
-Yeah, google told me but the email was on its way already.
+Please ignore this one.
 
-> This patch 2/2 for demonstration purposes only, if the first patch
-> hits mainline, then I'll submit this one properly.
-
-I like the change I am just afraid that this will make some hackery
-easier.
-In this particular case the code looks better and more grep friendly.
-
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+   Thomas
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
