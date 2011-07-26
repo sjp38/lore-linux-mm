@@ -1,77 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id BCE3E6B016B
-	for <linux-mm@kvack.org>; Mon, 25 Jul 2011 20:52:18 -0400 (EDT)
-Received: from wpaz37.hot.corp.google.com (wpaz37.hot.corp.google.com [172.24.198.101])
-	by smtp-out.google.com with ESMTP id p6Q0qDwd019621
-	for <linux-mm@kvack.org>; Mon, 25 Jul 2011 17:52:13 -0700
-Received: from pzk33 (pzk33.prod.google.com [10.243.19.161])
-	by wpaz37.hot.corp.google.com with ESMTP id p6Q0qB5q024997
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 25 Jul 2011 17:52:11 -0700
-Received: by pzk33 with SMTP id 33so8047358pzk.8
-        for <linux-mm@kvack.org>; Mon, 25 Jul 2011 17:52:11 -0700 (PDT)
-Date: Mon, 25 Jul 2011 17:52:09 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] mm: Declare hugetlb_sysfs_add_hstate __meminit
-In-Reply-To: <1311635968-10107-1-git-send-email-trenn@suse.de>
-Message-ID: <alpine.DEB.2.00.1107251744530.27999@chino.kir.corp.google.com>
-References: <1311635968-10107-1-git-send-email-trenn@suse.de>
+	by kanga.kvack.org (Postfix) with SMTP id 7DF166B0169
+	for <linux-mm@kvack.org>; Tue, 26 Jul 2011 00:13:36 -0400 (EDT)
+Date: Tue, 26 Jul 2011 12:13:22 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH] mm: Properly reflect task dirty limits in
+ dirty_exceeded logic
+Message-ID: <20110726041322.GA22180@localhost>
+References: <1309458764-9153-1-git-send-email-jack@suse.cz>
+ <20110704010618.GA3841@localhost>
+ <20110711170605.GF5482@quack.suse.cz>
+ <20110713230258.GA17011@localhost>
+ <20110714213409.GB16415@quack.suse.cz>
+ <20110723074344.GA31975@localhost>
+ <20110725160429.GG6107@quack.suse.cz>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110725160429.GG6107@quack.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Renninger <trenn@suse.de>
-Cc: linux-mm@kvack.org, mgorman@novell.com, majordomo@kvack.org
+To: Jan Kara <jack@suse.cz>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-On Tue, 26 Jul 2011, Thomas Renninger wrote:
+On Tue, Jul 26, 2011 at 12:04:29AM +0800, Jan Kara wrote:
+> On Sat 23-07-11 15:43:45, Wu Fengguang wrote:
+> > On Fri, Jul 15, 2011 at 05:34:09AM +0800, Jan Kara wrote:
+> > > > - tasks dirtying close to 25% pages probably cannot be called light
+> > > >   dirtier and there is no need to protect such tasks
+> > >   The idea is interesting. The only problem is that we don't want to set
+> > > dirty_exceeded too late so that heavy dirtiers won't push light dirtiers
+> > > over their limits so easily due to ratelimiting. It did some computations:
+> > > We normally ratelimit after 4 MB. Take a low end desktop these days. Say
+> > > 1 GB of ram, 4 CPUs. So dirty limit will be ~200 MB and the area for task
+> > > differentiation ~25 MB. We enter balance_dirty_pages() after dirtying
+> > > num_cpu * ratelimit / 2 pages on average which gives 8 MB. So we should
+> > > set dirty_exceeded at latest at bdi_dirty / TASK_LIMIT_FRACTION / 2 or
+> > > task differentiation would have no effect because of ratelimiting.
+> > > 
+> > > So we could change the limit to something like:
+> > > bdi_dirty - min(bdi_dirty / TASK_LIMIT_FRACTION, ratelimit_pages *
+> > > num_online_cpus / 2 + bdi_dirty / TASK_LIMIT_FRACTION / 16)
+> > 
+> > Good analyze!
+> > 
+> > > But I'm not sure setups where this would make difference are common...
+> > 
+> > I think I'd prefer the original simple patch given that the common
+> > 1-dirtier is not impacted.
+>   OK, thanks. So will you merge the patch please?
 
-> Initially found by Mel, I just put this into a patch.
-> 
-> Signed-off-by: Thomas Renninger <trenn@suse.de>
-> Reviewed-by: Mel Gorman <mgorman@novell.com>
-> CC: majordomo@kvack.org
+The patch with a minor variable rename has been in writeback.git and
+linux-next for two weeks, and two days ago I updated it to your
+original patch:
 
-Not sure where majordomo@kvack.org comes into this :)
+http://git.kernel.org/?p=linux/kernel/git/wfg/writeback.git;a=commit;h=bcff25fc8aa47a13faff8b4b992589813f7b450a
 
->  mm/hugetlb.c |    7 ++++---
->  1 files changed, 4 insertions(+), 3 deletions(-)
-> 
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index bfcf153..2c59a0a 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -1543,9 +1543,10 @@ static struct attribute_group hstate_attr_group = {
->  	.attrs = hstate_attrs,
->  };
->  
-> -static int hugetlb_sysfs_add_hstate(struct hstate *h, struct kobject *parent,
-> -				    struct kobject **hstate_kobjs,
-> -				    struct attribute_group *hstate_attr_group)
-> +static int
-> +__meminit hugetlb_sysfs_add_hstate(struct hstate *h, struct kobject *parent,
-> +				   struct kobject **hstate_kobjs,
-> +				   struct attribute_group *hstate_attr_group)
->  {
->  	int retval;
->  	int hi = h - hstates;
+If you have no more problems with the patchset, I'll ask Linus
+to pull that branch.
 
-I'm looking at this based on the latest git; if this was intended only as 
-a fix for -mm, please add that tag to the subject line.
-
-That would be right if hugetlb_register_node() didn't use it or it was 
-moved to meminit.text as well, and that would require that register_node() 
-was in the same section.
-
-It's a bit tricky to see since hugetlb_register_node() in 
-drivers/base/node.c is really calling into hugetlb_register_node() from 
-mm/hugetlb.c.
-
- [ And the drivers/base/node.c function has bool type for CONFIG_HUGETLBFS
-   and void for !CONFIG_HUGETLBFS.  It can probably be changed to just be
-   void everywhere. ]
-
-So, unless this is a fix for -mm, I don't think this is right.
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
