@@ -1,66 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 7DF166B0169
-	for <linux-mm@kvack.org>; Tue, 26 Jul 2011 00:13:36 -0400 (EDT)
-Date: Tue, 26 Jul 2011 12:13:22 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH] mm: Properly reflect task dirty limits in
- dirty_exceeded logic
-Message-ID: <20110726041322.GA22180@localhost>
-References: <1309458764-9153-1-git-send-email-jack@suse.cz>
- <20110704010618.GA3841@localhost>
- <20110711170605.GF5482@quack.suse.cz>
- <20110713230258.GA17011@localhost>
- <20110714213409.GB16415@quack.suse.cz>
- <20110723074344.GA31975@localhost>
- <20110725160429.GG6107@quack.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110725160429.GG6107@quack.suse.cz>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C1D16B0169
+	for <linux-mm@kvack.org>; Tue, 26 Jul 2011 01:37:13 -0400 (EDT)
+Date: Tue, 26 Jul 2011 14:35:38 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [PATCH] memcg: fix behavior of mem_cgroup_resize_limit()
+Message-Id: <20110726143538.88f767a3.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20110725134740.GD9445@tiehlicka.suse.cz>
+References: <20110722111703.241caf72.nishimura@mxp.nes.nec.co.jp>
+	<20110725134740.GD9445@tiehlicka.suse.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ying Han <yinghan@google.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 
-On Tue, Jul 26, 2011 at 12:04:29AM +0800, Jan Kara wrote:
-> On Sat 23-07-11 15:43:45, Wu Fengguang wrote:
-> > On Fri, Jul 15, 2011 at 05:34:09AM +0800, Jan Kara wrote:
-> > > > - tasks dirtying close to 25% pages probably cannot be called light
-> > > >   dirtier and there is no need to protect such tasks
-> > >   The idea is interesting. The only problem is that we don't want to set
-> > > dirty_exceeded too late so that heavy dirtiers won't push light dirtiers
-> > > over their limits so easily due to ratelimiting. It did some computations:
-> > > We normally ratelimit after 4 MB. Take a low end desktop these days. Say
-> > > 1 GB of ram, 4 CPUs. So dirty limit will be ~200 MB and the area for task
-> > > differentiation ~25 MB. We enter balance_dirty_pages() after dirtying
-> > > num_cpu * ratelimit / 2 pages on average which gives 8 MB. So we should
-> > > set dirty_exceeded at latest at bdi_dirty / TASK_LIMIT_FRACTION / 2 or
-> > > task differentiation would have no effect because of ratelimiting.
-> > > 
-> > > So we could change the limit to something like:
-> > > bdi_dirty - min(bdi_dirty / TASK_LIMIT_FRACTION, ratelimit_pages *
-> > > num_online_cpus / 2 + bdi_dirty / TASK_LIMIT_FRACTION / 16)
+On Mon, 25 Jul 2011 15:47:40 +0200
+Michal Hocko <mhocko@suse.cz> wrote:
+
+> On Fri 22-07-11 11:17:03, Daisuke Nishimura wrote:
+> > commit:22a668d7 introduced "memsw_is_minimum" flag, which becomes true when
+> > mem_limit == memsw_limit. The flag is checked at the beginning of reclaim,
+> > and "noswap" is set if the flag is true, because using swap is meaningless
+> > in this case.
 > > 
-> > Good analyze!
+> > This works well in most cases, but when we try to shrink mem_limit, which
+> > is the same as memsw_limit now, we might fail to shrink mem_limit because
+> > swap doesn't used.
 > > 
-> > > But I'm not sure setups where this would make difference are common...
+> > This patch fixes this behavior by:
+> > - check MEM_CGROUP_RECLAIM_SHRINK at the begining of reclaim
+> > - If it is set, don't set "noswap" flag even if memsw_is_minimum is true.
 > > 
-> > I think I'd prefer the original simple patch given that the common
-> > 1-dirtier is not impacted.
->   OK, thanks. So will you merge the patch please?
+> > Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+> > ---
+> >  mm/memcontrol.c |    2 +-
+> >  1 files changed, 1 insertions(+), 1 deletions(-)
+> > 
+> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> > index ce0d617..cf6bae8 100644
+> > --- a/mm/memcontrol.c
+> > +++ b/mm/memcontrol.c
+> > @@ -1649,7 +1649,7 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
+> >  	excess = res_counter_soft_limit_excess(&root_mem->res) >> PAGE_SHIFT;
+> >  
+> >  	/* If memsw_is_minimum==1, swap-out is of-no-use. */
+> > -	if (!check_soft && root_mem->memsw_is_minimum)
+> > +	if (!check_soft && !shrink && root_mem->memsw_is_minimum)
+> 
+> It took me a while until I understood how we can end up having both
+> flags unset - because I saw them as complementary before. But this is
+> the mem_cgroup_do_charge path that is affected.
+> 
+> Btw. shouldn't we push that check into the loop. We could catch also
+> memsw changes done (e.g. increased memsw limit in order to cope with the
+> current workload) while we were reclaiming from a subgroup.
+> 
+hmm, we shouldn't enable swap if the caller set MEM_CGROUP_RECLAIM_SOFT.
+So, something like this ? I think it must be another patch anyway.
 
-The patch with a minor variable rename has been in writeback.git and
-linux-next for two weeks, and two days ago I updated it to your
-original patch:
+---
+@@ -1640,7 +1640,7 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_m
+        struct mem_cgroup *victim;
+        int ret, total = 0;
+        int loop = 0;
+-       bool noswap = reclaim_options & MEM_CGROUP_RECLAIM_NOSWAP;
++       bool noswap;
+        bool shrink = reclaim_options & MEM_CGROUP_RECLAIM_SHRINK;
+        bool check_soft = reclaim_options & MEM_CGROUP_RECLAIM_SOFT;
+        unsigned long excess;
+@@ -1648,11 +1648,15 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root
 
-http://git.kernel.org/?p=linux/kernel/git/wfg/writeback.git;a=commit;h=bcff25fc8aa47a13faff8b4b992589813f7b450a
+        excess = res_counter_soft_limit_excess(&root_mem->res) >> PAGE_SHIFT;
 
-If you have no more problems with the patchset, I'll ask Linus
-to pull that branch.
+-       /* If memsw_is_minimum==1, swap-out is of-no-use. */
+-       if (!check_soft && !shrink && root_mem->memsw_is_minimum)
+-               noswap = true;
+-
+        while (1) {
++               if (reclaim_options & MEM_CGROUP_RECLAIM_NOSWAP)
++                       noswap = true;
++               /* If memsw_is_minimum==1, swap-out is of-no-use. */
++               else if (!check_soft && !shrink && root_mem->memsw_is_minimum)
++                       noswap = true;
++               else
++                       noswap = false;
++
+                victim = mem_cgroup_select_victim(root_mem);
+                if (victim == root_mem) {
+                        loop++;
+---
 
-Thanks,
-Fengguang
+> Anyway looks good.
+> Reviewed-by: Michal Hocko <mhocko@suse.cz>
+
+Thank you for your review!
+
+Daisuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
