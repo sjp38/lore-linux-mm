@@ -1,55 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 5291C6B00EE
-	for <linux-mm@kvack.org>; Tue, 26 Jul 2011 20:35:47 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 94E903EE0AE
-	for <linux-mm@kvack.org>; Wed, 27 Jul 2011 09:35:44 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 7ED3D45DE56
-	for <linux-mm@kvack.org>; Wed, 27 Jul 2011 09:35:44 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 59CD945DE58
-	for <linux-mm@kvack.org>; Wed, 27 Jul 2011 09:35:44 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 4D5FB1DB8051
-	for <linux-mm@kvack.org>; Wed, 27 Jul 2011 09:35:44 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 188AE1DB804C
-	for <linux-mm@kvack.org>; Wed, 27 Jul 2011 09:35:44 +0900 (JST)
-Message-ID: <4E2F5D5D.10901@jp.fujitsu.com>
-Date: Wed, 27 Jul 2011 09:35:41 +0900
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 0240B6B00EE
+	for <linux-mm@kvack.org>; Tue, 26 Jul 2011 23:10:00 -0400 (EDT)
+Received: by qwa26 with SMTP id 26so843739qwa.14
+        for <linux-mm@kvack.org>; Tue, 26 Jul 2011 20:09:58 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [patch] oom: avoid killing kthreads if they assume the oom killed
- thread's mm
-References: <alpine.DEB.2.00.1107251711460.26480@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1107251711460.26480@chino.kir.corp.google.com>
+In-Reply-To: <4E2B17A6.6080602@fusionio.com>
+References: <1311130413.15392.326.camel@sli10-conroe>
+	<CAEwNFnDj30Bipuxrfe9upD-OyuL4v21tLs0ayUKYUfye5TcGyA@mail.gmail.com>
+	<1311142253.15392.361.camel@sli10-conroe>
+	<CAEwNFnD3iCMBpZK95Ks+Z7DYbrzbZbSTLf3t6WXDQdeHrE6bLQ@mail.gmail.com>
+	<1311144559.15392.366.camel@sli10-conroe>
+	<4E287EC0.4030208@fusionio.com>
+	<1311311695.15392.369.camel@sli10-conroe>
+	<4E2B17A6.6080602@fusionio.com>
+Date: Wed, 27 Jul 2011 11:09:58 +0800
+Message-ID: <CANejiEW3hmQJ4WUTkfJ+p+4Wg1Vgp8cHmTOTs1uGMLRae72M7w@mail.gmail.com>
+Subject: Re: [PATCH]vmscan: add block plug for page reclaim
+From: Shaohua Li <shli@kernel.org>
 Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: rientjes@google.com
-Cc: akpm@linux-foundation.org, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org
+To: Jens Axboe <jaxboe@fusionio.com>
+Cc: Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, "mgorman@suse.de" <mgorman@suse.de>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
 
-(2011/07/26 9:12), David Rientjes wrote:
-> After selecting a task to kill, the oom killer iterates all processes and
-> kills all other threads that share the same mm_struct in different thread
-> groups.  It would not otherwise be helpful to kill a thread if its memory
-> would not be subsequently freed.
-> 
-> A kernel thread, however, may assume a user thread's mm by using
-> use_mm().  This is only temporary and should not result in sending a
-> SIGKILL to that kthread.
-> 
-> This patch ensures that only user threads and not kthreads are sent a
-> SIGKILL if they share the same mm_struct as the oom killed task.
-> 
-> Signed-off-by: David Rientjes <rientjes@google.com>
+2011/7/24 Jens Axboe <jaxboe@fusionio.com>:
+> On 2011-07-22 07:14, Shaohua Li wrote:
+>> On Fri, 2011-07-22 at 03:32 +0800, Jens Axboe wrote:
+>>> On 2011-07-20 08:49, Shaohua Li wrote:
+>>>> On Wed, 2011-07-20 at 14:30 +0800, Minchan Kim wrote:
+>>>>> On Wed, Jul 20, 2011 at 3:10 PM, Shaohua Li <shaohua.li@intel.com> wrote:
+>>>>>> On Wed, 2011-07-20 at 13:53 +0800, Minchan Kim wrote:
+>>>>>>> On Wed, Jul 20, 2011 at 11:53 AM, Shaohua Li <shaohua.li@intel.com> wrote:
+>>>>>>>> per-task block plug can reduce block queue lock contention and increase request
+>>>>>>>> merge. Currently page reclaim doesn't support it. I originally thought page
+>>>>>>>> reclaim doesn't need it, because kswapd thread count is limited and file cache
+>>>>>>>> write is done at flusher mostly.
+>>>>>>>> When I test a workload with heavy swap in a 4-node machine, each CPU is doing
+>>>>>>>> direct page reclaim and swap. This causes block queue lock contention. In my
+>>>>>>>> test, without below patch, the CPU utilization is about 2% ~ 7%. With the
+>>>>>>>> patch, the CPU utilization is about 1% ~ 3%. Disk throughput isn't changed.
+>>>>>>>
+>>>>>>> Why doesn't it enhance through?
+>>>>>> throughput? The disk isn't that fast. We already can make it run in full
+>>>>>
+>>>>> Yes. Sorry for the typo.
+>>>>>
+>>>>>> speed, CPU isn't bottleneck here.
+>>>>>
+>>>>> But you try to optimize CPU. so your experiment is not good.
+>>>> it's not that good, because the disk isn't fast. The swap test is the
+>>>> workload with most significant impact I can get.
+>>>
+>>> Let me just interject here that a plug should be fine, from 3.1 we'll
+>>> even auto-unplug if a certain depth has been reached. So latency should
+>>> not be a worry. Personally I think the patch looks fine, though some
+>>> numbers would be interesting to see. Cycles spent submitting the actual
+>>> IO, combined with IO statistics what kind of IO patterns were observed
+>>> for plain and with patch would be good.
+>> I can observe the average request size changes. Before the patch, the
+>> average request size is about 90k from iostat (but the variation is
+>> big). With the patch, the request size is about 100k and variation is
+>> small.
+>
+> That's a good win right there, imho.
+>
+>> how to check the cycles spend submitting the I/O?
+>
+> It's not easy, normal profiles is pretty much the only thing to go by.
+>
+> I guess I'm just a bit puzzled by Minchan's reluctance towards the
+> patch, it seems like mostly goodness to me.
+akpm,
+would you consider picking this up?
 
-Looks good.
-	Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-
+Thanks,
+Shaohua
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
