@@ -1,14 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 80F866B0169
-	for <linux-mm@kvack.org>; Wed, 27 Jul 2011 16:14:19 -0400 (EDT)
-Date: Wed, 27 Jul 2011 13:14:05 -0700
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id B75F86B0169
+	for <linux-mm@kvack.org>; Wed, 27 Jul 2011 16:16:57 -0400 (EDT)
+Date: Wed, 27 Jul 2011 13:16:50 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v4 08/10] ilru: reduce zone->lru_lock
-Message-Id: <20110727131405.0b663296.akpm@linux-foundation.org>
-In-Reply-To: <100bcc5d254e5e88f91356876b1d2ce463c2309e.1309787991.git.minchan.kim@gmail.com>
+Subject: Re: [PATCH v4 00/10] Prevent LRU churning
+Message-Id: <20110727131650.ad30a331.akpm@linux-foundation.org>
+In-Reply-To: <cover.1309787991.git.minchan.kim@gmail.com>
 References: <cover.1309787991.git.minchan.kim@gmail.com>
-	<100bcc5d254e5e88f91356876b1d2ce463c2309e.1309787991.git.minchan.kim@gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -17,16 +16,25 @@ List-ID: <linux-mm.kvack.org>
 To: Minchan Kim <minchan.kim@gmail.com>
 Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>
 
-On Mon,  4 Jul 2011 23:04:41 +0900
+On Mon,  4 Jul 2011 23:04:33 +0900
 Minchan Kim <minchan.kim@gmail.com> wrote:
 
-> inorder_lru increases zone->lru_lock overhead(pointed out by Mel)
-> as it doesn't support pagevec.
-> This patch introduces ilru_add_pvecs and APIs.
+> Test result is following as.
+> 
+> 1) Elapased time 10GB file decompressed.
+> Old			inorder			inorder + pagevec flush[10/10]
+> 01:47:50.88		01:43:16.16		01:40:27.18
+> 
+> 2) failure of inorder lru
+> For test, it isolated 375756 pages. Only 45875 pages(12%) are put backed to
+> out-of-order(ie, head of LRU) Others, 329963 pages(88%) are put backed to in-order
+> (ie, position of old page in LRU).
 
-aww geeze, this patch goes and deletes most of the code I just reviewed!
+I'm getting more and more worried about how complex MM is becoming and
+this patchset doesn't take us in a helpful direction :(
 
-Can we fold them please?
+But it's hard to argue with numbers like that.  Please respin patches 6-10?
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
