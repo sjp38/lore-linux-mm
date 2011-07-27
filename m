@@ -1,42 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id EEA166B00EE
-	for <linux-mm@kvack.org>; Wed, 27 Jul 2011 03:37:46 -0400 (EDT)
-Date: Wed, 27 Jul 2011 08:37:37 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [RFC PATCH 0/8] Reduce filesystem writeback from page reclaim v2
-Message-ID: <20110727073737.GG3010@suse.de>
-References: <1311265730-5324-1-git-send-email-mgorman@suse.de>
- <CAEwNFnA_OGUYfCQrLCMt9NuU0O0ftWWBB4_Si8NypKyaeuRg2A@mail.gmail.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 8D3086B00EE
+	for <linux-mm@kvack.org>; Wed, 27 Jul 2011 03:58:49 -0400 (EDT)
+Date: Wed, 27 Jul 2011 09:58:45 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] memcg: do not expose uninitialized mem_cgroup_per_node
+ to world
+Message-ID: <20110727075845.GA4024@tiehlicka.suse.cz>
+References: <20110601152039.GG4266@tiehlicka.suse.cz>
+ <4DE66BEB.7040502@redhat.com>
+ <BANLkTimbqHPeUdue=_Z31KVdPwcXtbLpeg@mail.gmail.com>
+ <4DE8D50F.1090406@redhat.com>
+ <BANLkTinMamg_qesEffGxKu3QkT=zyQ2MRQ@mail.gmail.com>
+ <4DEE26E7.2060201@redhat.com>
+ <20110608123527.479e6991.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110608140951.115ab1dd.akpm@linux-foundation.org>
+ <4DF24D04.1080802@redhat.com>
+ <20110726141754.c69b96c6.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAEwNFnA_OGUYfCQrLCMt9NuU0O0ftWWBB4_Si8NypKyaeuRg2A@mail.gmail.com>
+In-Reply-To: <20110726141754.c69b96c6.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, XFS <xfs@oss.sgi.com>, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, Johannes Weiner <jweiner@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Igor Mammedov <imammedo@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>, linux-kernel@vger.kernel.org, balbir@linux.vnet.ibm.com, linux-mm@kvack.org, Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, containers@lists.linux-foundation.org, Tim Deegan <Tim.Deegan@citrix.com>
 
-On Wed, Jul 27, 2011 at 01:32:17PM +0900, Minchan Kim wrote:
-> >
-> > http://www.csn.ul.ie/~mel/postings/reclaim-20110721
-> >
-> > Unfortunately, the volume of data is excessive but here is a partial
-> > summary of what was interesting for XFS.
+On Tue 26-07-11 14:17:54, Andrew Morton wrote:
+> On Fri, 10 Jun 2011 18:57:40 +0200
+> Igor Mammedov <imammedo@redhat.com> wrote:
 > 
-> Could you clarify the notation?
-> 1P :  1 Processor?
-> 512M: system memory size?
-> 2X , 4X, 16X: the size of files created during test
+> > On 06/08/2011 11:09 PM, Andrew Morton wrote:
+> > > The original patch:
+> > >
+> > > --- a/mm/memcontrol.c
+> > > +++ b/mm/memcontrol.c
+> > > @@ -4707,7 +4707,6 @@ static int alloc_mem_cgroup_per_zone_info(struct mem_cgroup *mem, int node)
+> > >   	if (!pn)
+> > >   		return 1;
+> > >
+> > > -	mem->info.nodeinfo[node] = pn;
+> > >   	for (zone = 0; zone<  MAX_NR_ZONES; zone++) {
+> > >   		mz =&pn->zoneinfo[zone];
+> > >   		for_each_lru(l)
+> > > @@ -4716,6 +4715,7 @@ static int alloc_mem_cgroup_per_zone_info(struct mem_cgroup *mem, int node)
+> > >   		mz->on_tree = false;
+> > >   		mz->mem = mem;
+> > >   	}
+> > > +	mem->info.nodeinfo[node] = pn;
+> > >   	return 0;
+> > >   }
+> > >
+> > > looks like a really good idea.  But it needs a new changelog and I'd be
+> > > a bit reluctant to merge it as it appears that the aptch removes our
+> > > only known way of reproducing a bug.
+> > >
+> > > So for now I think I'll queue the patch up unchangelogged so the issue
+> > > doesn't get forgotten about.
+> > >
+> > Problem was in rhel's xen hv.
+> > It was missing fix for imul emulation.
+> > Details here 
+> > http://lists.xensource.com/archives/html/xen-devel/2011-06/msg00801.html
+> > Thanks to Tim Deegan and everyone who was involved in the discussion.
 > 
+> I really don't want to trawl through a lengthy xen bug report
 
-1P   == 1 Processor
-512M == 512M RAM (mem=512M)
-2X   == 2 x NUM_CPU fsmark threads
+The bug turned out to be Xen specific and this patch just hidden the bug
+in Xen.
+
+> and write your changelog for you.
+> 
+> We still have no changelog for this patch.  Please send one.
+
+Appart from a better programming style is there any other reason for
+taking it?  If applied it might hide potential bugs when somebody is
+touching data too early.
 
 -- 
-Mel Gorman
+Michal Hocko
 SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
