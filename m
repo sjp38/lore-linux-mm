@@ -1,44 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 057DF6B016A
-	for <linux-mm@kvack.org>; Thu, 28 Jul 2011 06:56:35 -0400 (EDT)
-Date: Thu, 28 Jul 2011 12:56:05 +0200
-From: Sebastian Andrzej Siewior <sebastian@breakpoint.cc>
-Subject: Re: possible recursive locking detected cache_alloc_refill() +
- cache_flusharray()
-Message-ID: <20110728105605.GA14687@Chamillionaire.breakpoint.cc>
-References: <20110716211850.GA23917@breakpoint.cc>
- <alpine.LFD.2.02.1107172333340.2702@ionos>
- <alpine.DEB.2.00.1107201619540.3528@tiger>
- <1311168638.5345.80.camel@twins>
- <alpine.DEB.2.00.1107201642500.4921@tiger>
- <1311176680.29152.20.camel@twins>
- <alpine.DEB.2.00.1107281346060.2841@tiger>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 615216B0169
+	for <linux-mm@kvack.org>; Thu, 28 Jul 2011 06:59:20 -0400 (EDT)
+Date: Thu, 28 Jul 2011 11:59:14 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [patch 2/3]vmscan: count pages into balanced for zone with good
+ watermark
+Message-ID: <20110728105914.GK3010@suse.de>
+References: <1311840785.15392.408.camel@sli10-conroe>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1107281346060.2841@tiger>
+In-Reply-To: <1311840785.15392.408.camel@sli10-conroe>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Sebastian Siewior <sebastian@breakpoint.cc>, Christoph Lameter <cl@linux-foundation.org>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org
+To: Shaohua Li <shaohua.li@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Minchan Kim <minchan.kim@gmail.com>
 
-* Pekka Enberg | 2011-07-28 13:46:23 [+0300]:
+On Thu, Jul 28, 2011 at 04:13:05PM +0800, Shaohua Li wrote:
+> It's possible a zone watermark is ok at entering balance_pgdat loop, while the
+> zone is within requested classzone_idx. Countering pages from the zone into
+> balanced. In this way, we can skip shrinking zones too much for high
+> order allocation.
+> 
+> Signed-off-by: Shaohua Li <shaohua.li@intel.com>
 
->On Wed, 20 Jul 2011, Peter Zijlstra wrote:
->> We just need to annotate the SLAB_DEBUG_OBJECTS slab with a different
->> key. Something like the below, except that doesn't quite cover cpu
->> hotplug yet I think.. /me pokes more
->>
->> Completely untested, hasn't even seen a compiler etc..
->
->Ping? Did someone send me a patch I can apply?
+Acked-by: Mel Gorman <mgorman@suse.de>
 
-Yes, peter did. Please see following mail from
-| 22.07.11 15:26  Peter Zijlstra 
-in this thread.
-
-Sebastian
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
