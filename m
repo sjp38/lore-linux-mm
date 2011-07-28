@@ -1,58 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 45CB56B0169
-	for <linux-mm@kvack.org>; Wed, 27 Jul 2011 21:34:55 -0400 (EDT)
-Subject: Re: [PATCH]vmscan: add block plug for page reclaim
-From: Shaohua Li <shaohua.li@intel.com>
-In-Reply-To: <20110727181527.c4f6d806.akpm@linux-foundation.org>
-References: <1311130413.15392.326.camel@sli10-conroe>
-	 <CAEwNFnDj30Bipuxrfe9upD-OyuL4v21tLs0ayUKYUfye5TcGyA@mail.gmail.com>
-	 <1311142253.15392.361.camel@sli10-conroe>
-	 <CAEwNFnD3iCMBpZK95Ks+Z7DYbrzbZbSTLf3t6WXDQdeHrE6bLQ@mail.gmail.com>
-	 <1311144559.15392.366.camel@sli10-conroe>	<4E287EC0.4030208@fusionio.com>
-	 <1311311695.15392.369.camel@sli10-conroe>	<4E2B17A6.6080602@fusionio.com>
-	 <20110727164523.c2b1d569.akpm@linux-foundation.org>
-	 <1311815060.15392.375.camel@sli10-conroe>
-	 <20110727181527.c4f6d806.akpm@linux-foundation.org>
-Content-Type: text/plain; charset="UTF-8"
-Date: Thu, 28 Jul 2011 09:34:52 +0800
-Message-ID: <1311816892.15392.379.camel@sli10-conroe>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 950AE900137
+	for <linux-mm@kvack.org>; Wed, 27 Jul 2011 21:54:51 -0400 (EDT)
+Received: from wpaz33.hot.corp.google.com (wpaz33.hot.corp.google.com [172.24.198.97])
+	by smtp-out.google.com with ESMTP id p6S1shYD024042
+	for <linux-mm@kvack.org>; Wed, 27 Jul 2011 18:54:48 -0700
+Received: from yic24 (yic24.prod.google.com [10.243.65.152])
+	by wpaz33.hot.corp.google.com with ESMTP id p6S1sepw013941
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 27 Jul 2011 18:54:42 -0700
+Received: by yic24 with SMTP id 24so1644881yic.7
+        for <linux-mm@kvack.org>; Wed, 27 Jul 2011 18:54:40 -0700 (PDT)
+Date: Wed, 27 Jul 2011 18:54:18 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH 2/3] tmpfs radix_tree: locate_item to speed up swapoff
+In-Reply-To: <20110727162819.b595e442.akpm@linux-foundation.org>
+Message-ID: <alpine.LSU.2.00.1107271801450.9888@sister.anvils>
+References: <alpine.LSU.2.00.1107191549540.1593@sister.anvils> <alpine.LSU.2.00.1107191553040.1593@sister.anvils> <20110727162819.b595e442.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jens Axboe <jaxboe@fusionio.com>, Minchan Kim <minchan.kim@gmail.com>, "mgorman@suse.de" <mgorman@suse.de>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
+Cc: Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, 2011-07-28 at 09:15 +0800, Andrew Morton wrote:
-> On Thu, 28 Jul 2011 09:04:20 +0800 Shaohua Li <shaohua.li@intel.com> wrote:
+On Wed, 27 Jul 2011, Andrew Morton wrote:
+> On Tue, 19 Jul 2011 15:54:23 -0700 (PDT)
+> Hugh Dickins <hughd@google.com> wrote:
 > 
-> > > Using an additional 44 bytes of stack on that path is also
-> > > significant(ly bad).  But we need to fix that problem anyway.  One way
-> > > we could improve things in mm/vmscan.c is to move the blk_plug into
-> > > scan_control then get the scan_control off the stack in some manner. 
-> > > That's easy for kswapd: allocate one scan_control per kswapd at
-> > > startup.  Doing it for direct-reclaim would be a bit trickier...
-> > unfortunately, the direct-reclaim case is what cares about stack.
+> > We have already acknowledged that swapoff of a tmpfs file is slower
+> > than it was before conversion to the generic radix_tree: a little
+> > slower there will be acceptable, if the hotter paths are faster.
 > > 
-> > BTW, the scan_control can be dieted. may_unmap/may_swap/may_writepage
-> > can be a bit. swappiness < 100, so can be a char. order <= 11, can be a
-> > char. should I do it to cut the size?
+> > But it was a shock to find swapoff of a 500MB file 20 times slower
+> > on my laptop, taking 10 minutes; and at that rate it significantly
+> > slows down my testing.
 > 
-> All five will fit in a 32-bit word, at some expense in code size.
-oh, I missed the code size will increase, so it's not good then.
+> So it used to take half a minute?  That was already awful.
 
-> But I think first it would be better to work on a way of getting it all
-> off the stack, along with the blk_plug.
+Yes, awful, half a minute on 3.0 (and everything before it back to
+around 2.4.10 I imagine).  But no complaints have reached my ears for
+years: it's as if I'm the only one to notice (pray I'm not opening a
+floodgate with that remark).
+
+> Why?  Was it IO-bound?  It doesn't sound like it.
+
+No, not IO-bound at all.  One of the alternatives I did try was to
+readahead the IO, but that was just irrelevant: it's the poor cpu
+searching through (old or new) radix tree memory to find each
+matching swap entry, one after another.
+
+We've always taken the view, that until someone complains, leave
+swapoff simple and slow, rather than being a little cleverer about
+it, using more memory for hashes or batching the lookups.
+
+And I don't think we'd want to get into making it cleverer now.
+I expect we shall want to move away from putting swap entries, which
+encode final disk destination, in page tables and tmpfs trees: we'll
+want another layer of indirection, so we can shuffle swap around
+between fast and slow devices, without troubling the rest of mm.
+
+Rik pointed out that swapoff then comes down to just the IO: with a
+layer of indirection in there, a swapcache page can be valid without
+disk backing, without having to fix up page tables and tmpfs trees.
+
 > 
-> Could be done with a per-cpu array and CPU pinning, but CPU pinning is
-> a bit expensive nowadays.  Could put a scan_control* into the
-> tack_struct, but that's dopey.
-looks it should be per task, as reclaim could sleep. either putting it
-to task_struct or allocating it, both are not good.
+> > Now, most of that turned out to be overhead from PROVE_LOCKING and
+> > PROVE_RCU: without those it was only 4 times slower than before;
+> > and more realistic tests on other machines don't fare as badly.
+> 
+> What's unrealistic about doing swapoff of a 500MB tmpfs file?
 
-Thanks,
-Shaohua
+It's not unrealistic, but it happened to be a simple artificial test
+I did for this; my usual swap testing appeared not to suffer so badly,
+though there was still a noticeable and tiresome slowdown.
+
+> 
+> Also, confused.  You're talking about creating a regular file on tmpfs
+> and then using that as a swapfile?
+
+No, that is and must be prohibited (the lack of bmap used to catch
+that case, now lack of readpage catches it sooner).  With tmpfs pages
+pushed out to swap, it's not a good idea to have your swap on tmpfs!
+
+> If so, that's a kernel-hacker-curiosity only?
+
+No, this is just the usual business of the pages of a tmpfs file being
+pushed out to swap under memory pressure.  Then later swapoff bringing
+them back into memory, and connecting them back to the tmpfs file.
+
+> 
+> > I've tried a number of things to improve it, including tagging the
+> > swap entries, then doing lookup by tag: I'd expected that to halve
+> > the time, but in practice it's erratic, and often counter-productive.
+> > 
+> > The only change I've so far found to make a consistent improvement,
+> > is to short-circuit the way we go back and forth, gang lookup packing
+> > entries into the array supplied, then shmem scanning that array for the
+> > target entry.  Scanning in place doubles the speed, so it's now only
+> > twice as slow as before (or three times slower when the PROVEs are on).
+> > 
+> > So, add radix_tree_locate_item() as an expedient, once-off, single-caller
+> > hack to do the lookup directly in place.  #ifdef it on CONFIG_SHMEM and
+> > CONFIG_SWAP, as much to document its limited applicability as save space
+> > in other configurations.  And, sadly, #include sched.h for cond_resched().
+> > 
+> 
+> How much did that 10 minutes improve?
+
+To 1 minute: still twice as slow as before.  I believe that's because of
+the smaller nodes and greater height of the generic radix tree.  I ought
+to experiment with a bigger RADIX_TREE_MAP_SHIFT to verify that belief
+(though I don't think tmpfs swapoff would justify raising it): will do.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
