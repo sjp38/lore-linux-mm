@@ -1,48 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 163036B0169
-	for <linux-mm@kvack.org>; Fri, 29 Jul 2011 14:21:51 -0400 (EDT)
-Message-ID: <4E32FA3D.5060100@draigBrady.com>
-Date: Fri, 29 Jul 2011 19:21:49 +0100
-From: =?ISO-8859-1?Q?P=E1draig_Brady?= <P@draigBrady.com>
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 30B266B0169
+	for <linux-mm@kvack.org>; Fri, 29 Jul 2011 18:12:34 -0400 (EDT)
+Date: Fri, 29 Jul 2011 15:12:31 -0700
+From: Larry Bassel <lbassel@codeaurora.org>
+Subject: questions about memory hotplug
+Message-ID: <20110729221230.GA3466@labbmf-linux.qualcomm.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] kswapd: avoid unnecessary rebalance after an unsuccessful
- balancing
-References: <1311952990-3844-1-git-send-email-alex.shi@intel.com>
-In-Reply-To: <1311952990-3844-1-git-send-email-alex.shi@intel.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alex Shi <alex.shi@intel.com>
-Cc: linux-mm@kvack.org, mgorman@suse.de, linux-kernel@vger.kernel.org, andrea@cpushare.com, tim.c.chen@intel.com, shaohua.li@intel.com, akpm@linux-foundation.org, riel@redhat.com, luto@mit.edu
+To: linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org
 
-On 07/29/2011 04:23 PM, Alex Shi wrote:
-> In commit 215ddd66, Mel Gorman said kswapd is better to sleep after a
-> unsuccessful balancing if there is tighter reclaim request pending in
-> the balancing. In this scenario, the 'order' and 'classzone_idx'
-> that are checked for tighter request judgment is incorrect, since they
-> aren't the one kswapd should read from new pgdat, but the last time pgdat
-> value for just now balancing. Then kswapd will skip try_to_sleep func
-> and rebalance the last pgdat request. It's not our expected behavior.
-> 
-> So, I added new variables to distinguish the returned order/classzone_idx
-> from last balancing, that can resolved above issue in that scenario.
-> 
-> I tested the patch on our LKP system with swap-cp/fio mmap randrw
-> benchmarks. The performance has no change.
-> 
-> Padraig Brady, would you like to test this patch for your scenario.
+We want to handle the following 2 use cases we have on
+some of our (ARM) platforms:
 
-This
-+ your previous 2 line patch
-+ Mel's 3 patches
-+ 2.6.38.4
+1. A platform where part of the memory may be powered
+off. The location and size of this memory is not known
+until the kernel parses the memory tags (there aren't
+any non-standard tags used, but the memory layout and
+a memory bank size which is obtained from HW are used
+to figure out where and how large this memory is). All
+of this memory must either be on or off. For a given
+configuration the location of this memory can't be moved.
 
-still works fine for me.
+2. A (different) platform where part of the memory
+is occasionally needed as a large physically contiguous 
+block, but usually is not (and then should be usable
+by the kernel as normal memory). When the memory is
+needed for the contiguous block, the pages in this
+range currently being used by the kernel will
+need to be migrated out.
 
-cheers,
-Padraig.
+The size of this is known at compile time and can be
+placed at any reasonable place in memory (but should
+be SPARSEMEM section aligned -- its size may however
+not be a power of 2 and thus this memory could
+span more than one section). This memory will not be
+powered off, but must either be completely used for
+one purpose or the other.
+
+The size of memory in question for #1 is generally
+much larger than that of #2.
+
+Memory hotplug/hotremove (logical and physical for #1,
+only logical for #2) approximately solves these problems,
+but there is some functionality we need that AFAIK is
+not present:
+
+* The memory in #1 and #2 above must be in a movable
+zone so that the chance of migration is maximized.
+I'm familiar with the kernelcore= and movablecore=
+commandline options, but they don't do what is necessary
+here, because we need control on where the movable zone
+is formed as well as the size. Also the location and size
+of these special memory areas is not known until the
+kernel comes up (in #1 it is conceivable that the bootloader
+could locate the memory that can be powered on and off and
+pass it in via some commandline option, but AFAICT this won't
+work at all for #2).
+
+One could hack up find_zone_movable_pfns_for_nodes() presumably,
+but I wonder if there is an already existing way of doing
+this (or at least a clean extension to the current
+functionality that someone might suggest).
+
+Would CONFIG_ARCH_POPULATES_NODE_MAP help here? Does anyone
+use this? It doesn't seem to be in any defconfig or Kconfig
+on 3.0 (or earlier versions I've looked at).
+
+Perhaps CMA (which is not merged yet and AFAIK still has some
+issues on ARM) might handle #2 better than memory
+hotplug/hotremove. Or is there a better way to handle #2
+than either CMA or memory hotplug?
+
+Thanks.
+
+Larry
+
+-- 
+Sent by an employee of the Qualcomm Innovation Center, Inc.
+The Qualcomm Innovation Center, Inc. is a member of the Code Aurora Forum.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
