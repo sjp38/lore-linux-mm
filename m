@@ -1,48 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 9DFDF6B0169
-	for <linux-mm@kvack.org>; Fri, 29 Jul 2011 06:07:15 -0400 (EDT)
-Date: Fri, 29 Jul 2011 11:06:09 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [RFC PATCH -tip 4/5] tracepoints: add tracepoints for pagecache
-Message-ID: <20110729100609.GR3010@suse.de>
-References: <4E24A61D.4060702@bx.jp.nec.com>
- <4E24A7BB.1040800@bx.jp.nec.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <4E24A7BB.1040800@bx.jp.nec.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id D501A6B0169
+	for <linux-mm@kvack.org>; Fri, 29 Jul 2011 06:14:28 -0400 (EDT)
+Received: from eu_spt1 (mailout1.w1.samsung.com [210.118.77.11])
+ by mailout1.w1.samsung.com
+ (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
+ with ESMTP id <0LP3007SZB42Z3@mailout1.w1.samsung.com> for linux-mm@kvack.org;
+ Fri, 29 Jul 2011 11:14:26 +0100 (BST)
+Received: from linux.samsung.com ([106.116.38.10])
+ by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
+ 2004)) with ESMTPA id <0LP300D9UB41VB@spt1.w1.samsung.com> for
+ linux-mm@kvack.org; Fri, 29 Jul 2011 11:14:26 +0100 (BST)
+Date: Fri, 29 Jul 2011 12:14:25 +0200
+From: Marek Szyprowski <m.szyprowski@samsung.com>
+Subject: RE: [RFC] ARM: dma_map|unmap_sg plus iommu
+In-reply-to: <20110729093555.GA13522@8bytes.org>
+Message-id: <001901cc4dd8$4afb4e40$e0f1eac0$%szyprowski@samsung.com>
+MIME-version: 1.0
+Content-type: text/plain; charset=us-ascii
+Content-language: pl
+Content-transfer-encoding: 7BIT
+References: 
+ <CAB-zwWjb+2ExjNDB3OtHmRmgaHMnO-VgEe9VZk_wU=ryrq_AGw@mail.gmail.com>
+ <000301cc4dc4$31b53630$951fa290$%szyprowski@samsung.com>
+ <20110729093555.GA13522@8bytes.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Keiichi KII <k-keiichi@bx.jp.nec.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@elte.hu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Tom Zanussi <tzanussi@gmail.com>, "riel@redhat.com" <riel@redhat.com>, Steven Rostedt <rostedt@goodmis.org>, Fr??d??ric Weisbecker <fweisbec@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, "BA, Moussa" <Moussa.BA@numonyx.com>
+To: 'Joerg Roedel' <joro@8bytes.org>
+Cc: "'Ramirez Luna, Omar'" <omar.ramirez@ti.com>, linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Russell King - ARM Linux' <linux@arm.linux.org.uk>, 'Arnd Bergmann' <arnd@arndb.de>, 'Ohad Ben-Cohen' <ohad@wizery.com>
 
-On Mon, Jul 18, 2011 at 05:38:03PM -0400, Keiichi KII wrote:
-> From: Keiichi Kii <k-keiichi@bx.jp.nec.com>
+Hello,
+
+On Friday, July 29, 2011 11:36 AM Joerg Roedel wrote:
+
+> On Fri, Jul 29, 2011 at 09:50:32AM +0200, Marek Szyprowski wrote:
+> > On Thursday, July 28, 2011 11:10 PM Ramirez Luna, Omar wrote:
 > 
-> This patch adds several tracepoints to track pagecach behavior.
-> These trecepoints would help us monitor pagecache usage with high resolution.
+> > > 2. tidspbridge driver sometimes needs to map a physical address into a
+> > > fixed virtual address (i.e. the start of a firmware section is expected to
+> > > be at dsp va 0x20000000), there is no straight forward way to do this with
+> > > the dma api given that it only expects to receive a cpu_addr, a sg or a
+> > > page, by adding iov_address I could pass phys and iov addresses in a sg
+> > > and overcome this limitation, but, these addresses belong to:
+> >
+> > We also encountered the problem of fixed firmware address. We addressed is
+by
+> > setting io address space start to this address and letting device driver to
+> > rely on the fact that the first call to dma_alloc() will match this address.
 > 
+> This sounds rather hacky. How about partitioning the address space for
+> the device and give the dma-api only a part of it. The other parts can
+> be directly mapped using the iommu-api then.
 
-There are a few spelling mistakes there but what harm. This is an RFC.
+Well, I'm not convinced that iommu-api should be used by the device drivers 
+directly. If possible we should rather extend dma-mapping than use such hacks.
 
-Again, it would be really nice if the changelog explained why it was
-useful to monitor pagecache usage at this resolution. For example,
-I could identify files with high and low hit ratios and conceivably
-identify system activity that resulted in page cache being trashed.
-However, even in that case, I don't necessarily care which files got
-chucked out and that sort of problem can also be seen via fault rates.
-
-Another scenario that may be useful is it could potentially identify an
-application bug that was invalidating a portion of a file that was in
-fact hot and in use by other processes. I'm sure you have much better
-examples that motivated the development of this series :)
-
-The tracepoints themselves look fine.
-
+Best regards
 -- 
-Mel Gorman
-SUSE Labs
+Marek Szyprowski
+Samsung Poland R&D Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
