@@ -1,90 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id D25156B016A
-	for <linux-mm@kvack.org>; Fri, 29 Jul 2011 12:22:22 -0400 (EDT)
-Date: Fri, 29 Jul 2011 18:22:13 +0200
-From: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
-Subject: [PATCH v2] mm/slab: use print_hex_dump
-Message-ID: <20110729162213.GA28476@linutronix.de>
-References: <1311941420-2463-1-git-send-email-bigeasy@linutronix.de>
- <alpine.DEB.2.00.1107291000360.15311@router.home>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id C777C900137
+	for <linux-mm@kvack.org>; Fri, 29 Jul 2011 12:30:07 -0400 (EDT)
+Date: Fri, 29 Jul 2011 11:30:02 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH v2] mm/slab: use print_hex_dump
+In-Reply-To: <20110729162213.GA28476@linutronix.de>
+Message-ID: <alpine.DEB.2.00.1107291129470.16178@router.home>
+References: <1311941420-2463-1-git-send-email-bigeasy@linutronix.de> <alpine.DEB.2.00.1107291000360.15311@router.home> <20110729162213.GA28476@linutronix.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1107291000360.15311@router.home>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
+To: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
 Cc: Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org
 
-less code and the advantage of ascii dump.
+On Fri, 29 Jul 2011, Sebastian Andrzej Siewior wrote:
 
-before:
-| Slab corruption: names_cache start=c5788000, len=4096
-| 000: 6b 6b 01 00 00 00 56 00 00 00 24 00 00 00 2a 00
-| 010: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
-| 020: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ff ff
-| 030: ff ff ff ff e2 b4 17 18 c7 e4 08 06 00 01 08 00
-| 040: 06 04 00 01 e2 b4 17 18 c7 e4 0a 00 00 01 00 00
-| 050: 00 00 00 00 0a 00 00 02 6b 6b 6b 6b 6b 6b 6b 6b
+> less code and the advantage of ascii dump.
 
-after:
-| Slab corruption: size-4096 start=c38a9000, len=4096
-| 000: 6b 6b 01 00 00 00 56 00 00 00 24 00 00 00 2a 00  kk....V...$...*.
-| 010: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-| 020: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ff ff  ................
-| 030: ff ff ff ff d2 56 5f aa db 9c 08 06 00 01 08 00  .....V_.........
-| 040: 06 04 00 01 d2 56 5f aa db 9c 0a 00 00 01 00 00  .....V_.........
-| 050: 00 00 00 00 0a 00 00 02 6b 6b 6b 6b 6b 6b 6b 6b  ........kkkkkkkk
+Cool.
 
-Signed-off-by: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
----
- mm/slab.c |   17 ++++++-----------
- 1 files changed, 6 insertions(+), 11 deletions(-)
-
-diff --git a/mm/slab.c b/mm/slab.c
-index d96e223..63ed525 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -1810,15 +1810,15 @@ static void dump_line(char *data, int offset, int limit)
- 	unsigned char error = 0;
- 	int bad_count = 0;
- 
--	printk(KERN_ERR "%03x:", offset);
-+	printk(KERN_ERR "%03x: ", offset);
- 	for (i = 0; i < limit; i++) {
- 		if (data[offset + i] != POISON_FREE) {
- 			error = data[offset + i];
- 			bad_count++;
- 		}
--		printk(" %02x", (unsigned char)data[offset + i]);
- 	}
--	printk("\n");
-+	print_hex_dump(KERN_CONT, "", 0, 16, 1,
-+			&data[offset], limit, 1);
- 
- 	if (bad_count == 1) {
- 		error ^= POISON_FREE;
-@@ -2987,14 +2987,9 @@ bad:
- 		printk(KERN_ERR "slab: Internal list corruption detected in "
- 				"cache '%s'(%d), slabp %p(%d). Hexdump:\n",
- 			cachep->name, cachep->num, slabp, slabp->inuse);
--		for (i = 0;
--		     i < sizeof(*slabp) + cachep->num * sizeof(kmem_bufctl_t);
--		     i++) {
--			if (i % 16 == 0)
--				printk("\n%03x:", i);
--			printk(" %02x", ((unsigned char *)slabp)[i]);
--		}
--		printk("\n");
-+		print_hex_dump(KERN_ERR, "", DUMP_PREFIX_OFFSET, 16, 1, slabp,
-+			sizeof(*slabp) + cachep->num * sizeof(kmem_bufctl_t),
-+			1);
- 		BUG();
- 	}
- }
--- 
-1.7.4.4
+Acked-by: Christoph Lameter <cl@linux.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
