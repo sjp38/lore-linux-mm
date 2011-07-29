@@ -1,55 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 84CBA6B0169
-	for <linux-mm@kvack.org>; Fri, 29 Jul 2011 09:42:24 -0400 (EDT)
-Received: by pzk33 with SMTP id 33so6676151pzk.36
-        for <linux-mm@kvack.org>; Fri, 29 Jul 2011 06:42:19 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20110729095005.GH1843@barrios-desktop>
-References: <1311265730-5324-1-git-send-email-mgorman@suse.de>
- <20110727161821.GA1738@barrios-desktop> <20110728113852.GN3010@suse.de>
- <20110729094816.GG1843@barrios-desktop> <20110729095005.GH1843@barrios-desktop>
-From: Andrew Lutomirski <luto@mit.edu>
-Date: Fri, 29 Jul 2011 09:41:59 -0400
-Message-ID: <CAObL_7Fnc820gFvFxZa3iHUzkKaZaMy9o7LAN7z8mk8_zUxkrQ@mail.gmail.com>
-Subject: Re: [RFC PATCH 0/8] Reduce filesystem writeback from page reclaim v2
-Content-Type: text/plain; charset=ISO-8859-1
+	by kanga.kvack.org (Postfix) with SMTP id 8031E6B00EE
+	for <linux-mm@kvack.org>; Fri, 29 Jul 2011 10:24:56 -0400 (EDT)
+MIME-version: 1.0
+Content-transfer-encoding: 7BIT
+Content-type: text/plain; charset=us-ascii
+Received: from eu_spt1 ([210.118.77.13]) by mailout3.w1.samsung.com
+ (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
+ with ESMTP id <0LP300ITYMPIUU80@mailout3.w1.samsung.com> for
+ linux-mm@kvack.org; Fri, 29 Jul 2011 15:24:54 +0100 (BST)
+Received: from linux.samsung.com ([106.116.38.10])
+ by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
+ 2004)) with ESMTPA id <0LP3006S8MPGBS@spt1.w1.samsung.com> for
+ linux-mm@kvack.org; Fri, 29 Jul 2011 15:24:53 +0100 (BST)
+Date: Fri, 29 Jul 2011 16:24:52 +0200
+From: Marek Szyprowski <m.szyprowski@samsung.com>
+Subject: RE: [RFC] ARM: dma_map|unmap_sg plus iommu
+In-reply-to: <20110729105422.GB13522@8bytes.org>
+Message-id: <004201cc4dfb$47ee4770$d7cad650$%szyprowski@samsung.com>
+Content-language: pl
+References: 
+ <CAB-zwWjb+2ExjNDB3OtHmRmgaHMnO-VgEe9VZk_wU=ryrq_AGw@mail.gmail.com>
+ <000301cc4dc4$31b53630$951fa290$%szyprowski@samsung.com>
+ <20110729093555.GA13522@8bytes.org>
+ <001901cc4dd8$4afb4e40$e0f1eac0$%szyprowski@samsung.com>
+ <20110729105422.GB13522@8bytes.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Mel Gorman <mgorman@suse.de>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, XFS <xfs@oss.sgi.com>, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, Johannes Weiner <jweiner@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>
+To: 'Joerg Roedel' <joro@8bytes.org>
+Cc: "'Ramirez Luna, Omar'" <omar.ramirez@ti.com>, linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Russell King - ARM Linux' <linux@arm.linux.org.uk>, 'Arnd Bergmann' <arnd@arndb.de>, 'Ohad Ben-Cohen' <ohad@wizery.com>, 'Marek Szyprowski' <m.szyprowski@samsung.com>
 
-On Fri, Jul 29, 2011 at 5:50 AM, Minchan Kim <minchan.kim@gmail.com> wrote:
-> Sorry for missing Ccing.
->
-> On Fri, Jul 29, 2011 at 06:48:16PM +0900, Minchan Kim wrote:
->> On Thu, Jul 28, 2011 at 12:38:52PM +0100, Mel Gorman wrote:
->> > On Thu, Jul 28, 2011 at 01:18:21AM +0900, Minchan Kim wrote:
->> > > On Thu, Jul 21, 2011 at 05:28:42PM +0100, Mel Gorman wrote:
->> > > > Note how preventing kswapd reclaiming dirty pages pushes up its CPU
->>
->> <snip>
->>
->> > > > usage as it scans more pages but it does not get excessive due to
->> > > > the throttling.
->> > >
->> > > Good to hear.
->> > > The concern of this patchset was early OOM kill with too many scanning.
->> > > I can throw such concern out from now on.
->> > >
->> >
->> > At least, I haven't been able to trigger a premature OOM.
->>
->> AFAIR, Andrew had a premature OOM problem[1] but I couldn't track down at that time.
->> I think this patch series might solve his problem. Although it doesn't, it should not accelerate
->> his problem, at least.
->>
->> Andrew, Could you test this patchset?
+Hello,
 
-Gladly, but not until Wednesday most likely.  I'm defending my thesis
-on Monday :)
+On Friday, July 29, 2011 12:54 PM Joerg Roedel wrote:
 
---Andy
+> On Fri, Jul 29, 2011 at 12:14:25PM +0200, Marek Szyprowski wrote:
+> > > This sounds rather hacky. How about partitioning the address space for
+> > > the device and give the dma-api only a part of it. The other parts can
+> > > be directly mapped using the iommu-api then.
+> >
+> > Well, I'm not convinced that iommu-api should be used by the device drivers
+> > directly. If possible we should rather extend dma-mapping than use such
+hacks.
+> 
+> Building this into dma-api would turn it into an iommu-api. The line
+> between the apis are clear. The iommu-api provides direct mapping
+> of bus-addresses to system-addresses while the dma-api puts a memory
+> manager on-top which deals with bus-address allocation itself.
+> So if you want to map bus-addresses directly the iommu-api is the way to
+> go. This is in no way a hack.
+
+The problem starts when you want to use the same driver on two different
+systems:
+one with iommu and one without. Our driver depends only on dma-mapping and the
+fact
+that the first allocation starts from the right address. On systems without
+iommu,
+board code calls bootmem_reserve() and dma_declare_coherent() for the required 
+memory range. Systems with IOMMU just sets up device io address space to start 
+at the specified address. This works fine, because in our system each device has
+its own, private iommu controller and private address space.
+
+Right now I have no idea how to handle this better. Perhaps with should be
+possible
+to specify somehow the target dma_address when doing memory allocation, but I'm
+not
+really convinced yet if this is really required.
+
+Best regards
+-- 
+Marek Szyprowski
+Samsung Poland R&D Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
