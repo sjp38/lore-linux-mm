@@ -1,57 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id C8BBB6B0169
-	for <linux-mm@kvack.org>; Thu, 28 Jul 2011 21:43:47 -0400 (EDT)
-From: Alex Shi <alex.shi@intel.com>
-Subject: [PATCH] kswapd: assign new_order and new_classzone_idx after wakeup in sleeping
-Date: Fri, 29 Jul 2011 09:45:08 +0800
-Message-Id: <1311903908-18263-1-git-send-email-alex.shi@intel.com>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 2C8BB6B0169
+	for <linux-mm@kvack.org>; Fri, 29 Jul 2011 02:28:09 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id A47E43EE0AE
+	for <linux-mm@kvack.org>; Fri, 29 Jul 2011 15:28:05 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8A7C645DE86
+	for <linux-mm@kvack.org>; Fri, 29 Jul 2011 15:28:05 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 70C9145DE81
+	for <linux-mm@kvack.org>; Fri, 29 Jul 2011 15:28:05 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 62F271DB8042
+	for <linux-mm@kvack.org>; Fri, 29 Jul 2011 15:28:05 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 3063B1DB803F
+	for <linux-mm@kvack.org>; Fri, 29 Jul 2011 15:28:05 +0900 (JST)
+Message-ID: <4E3252E2.1030101@jp.fujitsu.com>
+Date: Fri, 29 Jul 2011 15:27:46 +0900
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] vmscan: Remove if statement that will never trigger
+References: <alpine.LNX.2.00.1107282302580.20477@swampdragon.chaosbits.net>
+In-Reply-To: <alpine.LNX.2.00.1107282302580.20477@swampdragon.chaosbits.net>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, P@draigBrady.com
-Cc: mgorman@suse.de, minchan.kim@gmail.com, linux-kernel@vger.kernel.org, andrea@cpushare.com, tim.c.chen@intel.com, shaohua.li@intel.com, akpm@linux-foundation.org, riel@redhat.com, luto@mit.edu
+To: jj@chaosbits.net
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, riel@redhat.com, minchan.kim@gmail.com, mgorman@suse.de, akpm@linux-foundation.org, kanoj@sgi.com, sct@redhat.com
 
-There 2 place to read pgdat in kswapd. One is return from a successful
-balance, another is waked up from sleeping. But the new_order and
-new_classzone_idx are not assigned after kswapd_try_to_sleep(), that
-will cause a bug in the following scenario.
+(2011/07/29 6:05), Jesper Juhl wrote:
+> We have this code in mm/vmscan.c:shrink_slab() :
+> ...
+> 		if (total_scan < 0) {
+> 			printk(KERN_ERR "shrink_slab: %pF negative objects to "
+> 			       "delete nr=%ld\n",
+> 			       shrinker->shrink, total_scan);
+> 			total_scan = max_pass;
+> 		}
+> ...
+> but since 'total_scan' is of type 'unsigned long' it will never be
+> less than zero, so there is no way we'll ever enter the true branch of
+> this if statement - so let's just remove it.
+> 
+> Signed-off-by: Jesper Juhl <jj@chaosbits.net>
+> ---
+>  mm/vmscan.c |    6 ------
+>  1 files changed, 0 insertions(+), 6 deletions(-)
+> 
+> 	Compile tested only.
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 7ef6912..c07d9b1 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -271,12 +271,6 @@ unsigned long shrink_slab(struct shrink_control *shrink,
+>  		delta *= max_pass;
+>  		do_div(delta, lru_pages + 1);
+>  		total_scan += delta;
+> -		if (total_scan < 0) {
+> -			printk(KERN_ERR "shrink_slab: %pF negative objects to "
+> -			       "delete nr=%ld\n",
+> -			       shrinker->shrink, total_scan);
+> -			total_scan = max_pass;
+> -		}
+>  
+>  		/*
+>  		 * We need to avoid excessive windup on filesystem shrinkers
 
-After the last time successful balance, kswapd goes to sleep. So the
-new_order and new_classzone_idx were assigned to 0 and MAX-1 since there
-is no new wakeup during last time balancing. Now, a new wakeup came and
-finish balancing successful with order > 0. But since new_order is still
-0, this time successful balancing were judged as a failed balance. so,
-if there is another new wakeup coming during balancing, kswapd cann't
-read this and still want to try to sleep. And if the new wakeup is a
-tighter request, kswapd may goes to sleep, not to do balancing. That is
-incorrect.
+Good catch.
 
-So, to avoid above problem, the new_order and new_classzone_idx need to
-be assigned for later successful comparison.
+However this seems intended to catch a overflow. So, I'd suggest to make proper
+overflow check instead.
 
-Paidrag Brady, Could like do a retry for your problem on this patch?
-
-Signed-off-by: Alex Shi <alex.shi@intel.com>
-Acked-by: Mel Gorman <mgorman@suse.de>
----
- mm/vmscan.c |    2 ++
- 1 files changed, 2 insertions(+), 0 deletions(-)
-
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 7ef6912..eb7bcce 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2850,6 +2850,8 @@ static int kswapd(void *p)
- 			kswapd_try_to_sleep(pgdat, order, classzone_idx);
- 			order = pgdat->kswapd_max_order;
- 			classzone_idx = pgdat->classzone_idx;
-+			new_order = order;
-+			new_classzone_idx = classzone_idx;
- 			pgdat->kswapd_max_order = 0;
- 			pgdat->classzone_idx = pgdat->nr_zones - 1;
- 		}
--- 
-1.6.3.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
