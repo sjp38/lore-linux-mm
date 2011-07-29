@@ -1,120 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id D19896B016A
-	for <linux-mm@kvack.org>; Fri, 29 Jul 2011 08:11:00 -0400 (EDT)
-From: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
-Subject: [PATCH 2/2] mm/slub: use print_hex_dump
-Date: Fri, 29 Jul 2011 14:10:20 +0200
-Message-Id: <1311941420-2463-2-git-send-email-bigeasy@linutronix.de>
-In-Reply-To: <1311941420-2463-1-git-send-email-bigeasy@linutronix.de>
-References: <1311941420-2463-1-git-send-email-bigeasy@linutronix.de>
+	by kanga.kvack.org (Postfix) with ESMTP id 84CBA6B0169
+	for <linux-mm@kvack.org>; Fri, 29 Jul 2011 09:42:24 -0400 (EDT)
+Received: by pzk33 with SMTP id 33so6676151pzk.36
+        for <linux-mm@kvack.org>; Fri, 29 Jul 2011 06:42:19 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20110729095005.GH1843@barrios-desktop>
+References: <1311265730-5324-1-git-send-email-mgorman@suse.de>
+ <20110727161821.GA1738@barrios-desktop> <20110728113852.GN3010@suse.de>
+ <20110729094816.GG1843@barrios-desktop> <20110729095005.GH1843@barrios-desktop>
+From: Andrew Lutomirski <luto@mit.edu>
+Date: Fri, 29 Jul 2011 09:41:59 -0400
+Message-ID: <CAObL_7Fnc820gFvFxZa3iHUzkKaZaMy9o7LAN7z8mk8_zUxkrQ@mail.gmail.com>
+Subject: Re: [RFC PATCH 0/8] Reduce filesystem writeback from page reclaim v2
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org, Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Mel Gorman <mgorman@suse.de>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, XFS <xfs@oss.sgi.com>, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, Johannes Weiner <jweiner@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>
 
-less code and same functionality. The output would be:
+On Fri, Jul 29, 2011 at 5:50 AM, Minchan Kim <minchan.kim@gmail.com> wrote:
+> Sorry for missing Ccing.
+>
+> On Fri, Jul 29, 2011 at 06:48:16PM +0900, Minchan Kim wrote:
+>> On Thu, Jul 28, 2011 at 12:38:52PM +0100, Mel Gorman wrote:
+>> > On Thu, Jul 28, 2011 at 01:18:21AM +0900, Minchan Kim wrote:
+>> > > On Thu, Jul 21, 2011 at 05:28:42PM +0100, Mel Gorman wrote:
+>> > > > Note how preventing kswapd reclaiming dirty pages pushes up its CPU
+>>
+>> <snip>
+>>
+>> > > > usage as it scans more pages but it does not get excessive due to
+>> > > > the throttling.
+>> > >
+>> > > Good to hear.
+>> > > The concern of this patchset was early OOM kill with too many scanning.
+>> > > I can throw such concern out from now on.
+>> > >
+>> >
+>> > At least, I haven't been able to trigger a premature OOM.
+>>
+>> AFAIR, Andrew had a premature OOM problem[1] but I couldn't track down at that time.
+>> I think this patch series might solve his problem. Although it doesn't, it should not accelerate
+>> his problem, at least.
+>>
+>> Andrew, Could you test this patchset?
 
-| Object c7428000: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b  kkkkkkkkkkkkkkkk
-| Object c7428010: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b  kkkkkkkkkkkkkkkk
-| Object c7428020: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b  kkkkkkkkkkkkkkkk
-| Object c7428030: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b a5              kkkkkkkkkkk.
-| Redzone c742803c: bb bb bb bb                                      ....
-| Padding c7428064: 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a  ZZZZZZZZZZZZZZZZ
-| Padding c7428074: 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a              ZZZZZZZZZZZZ
+Gladly, but not until Wednesday most likely.  I'm defending my thesis
+on Monday :)
 
-Signed-off-by: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
----
- mm/slub.c |   44 +++++++++-----------------------------------
- 1 files changed, 9 insertions(+), 35 deletions(-)
-
-diff --git a/mm/slub.c b/mm/slub.c
-index 35f351f..0e11a8a 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -371,34 +371,8 @@ static int disable_higher_order_debug;
-  */
- static void print_section(char *text, u8 *addr, unsigned int length)
- {
--	int i, offset;
--	int newline = 1;
--	char ascii[17];
--
--	ascii[16] = 0;
--
--	for (i = 0; i < length; i++) {
--		if (newline) {
--			printk(KERN_ERR "%8s 0x%p: ", text, addr + i);
--			newline = 0;
--		}
--		printk(KERN_CONT " %02x", addr[i]);
--		offset = i % 16;
--		ascii[offset] = isgraph(addr[i]) ? addr[i] : '.';
--		if (offset == 15) {
--			printk(KERN_CONT " %s\n", ascii);
--			newline = 1;
--		}
--	}
--	if (!newline) {
--		i %= 16;
--		while (i < 16) {
--			printk(KERN_CONT "   ");
--			ascii[i] = ' ';
--			i++;
--		}
--		printk(KERN_CONT " %s\n", ascii);
--	}
-+	print_hex_dump(KERN_ERR, text, DUMP_PREFIX_ADDRESS, 16, 1, addr,
-+			length, 1);
- }
- 
- static struct track *get_track(struct kmem_cache *s, void *object,
-@@ -501,12 +475,12 @@ static void print_trailer(struct kmem_cache *s, struct page *page, u8 *p)
- 			p, p - addr, get_freepointer(s, p));
- 
- 	if (p > addr + 16)
--		print_section("Bytes b4", p - 16, 16);
--
--	print_section("Object", p, min_t(unsigned long, s->objsize, PAGE_SIZE));
-+		print_section("Bytes b4 ", p - 16, 16);
- 
-+	print_section("Object ", p, min_t(unsigned long, s->objsize,
-+				PAGE_SIZE));
- 	if (s->flags & SLAB_RED_ZONE)
--		print_section("Redzone", p + s->objsize,
-+		print_section("Redzone ", p + s->objsize,
- 			s->inuse - s->objsize);
- 
- 	if (s->offset)
-@@ -519,7 +493,7 @@ static void print_trailer(struct kmem_cache *s, struct page *page, u8 *p)
- 
- 	if (off != s->size)
- 		/* Beginning of the filler is the free pointer */
--		print_section("Padding", p + off, s->size - off);
-+		print_section("Padding ", p + off, s->size - off);
- 
- 	dump_stack();
- }
-@@ -682,7 +656,7 @@ static int slab_pad_check(struct kmem_cache *s, struct page *page)
- 		end--;
- 
- 	slab_err(s, page, "Padding overwritten. 0x%p-0x%p", fault, end - 1);
--	print_section("Padding", end - remainder, remainder);
-+	print_section("Padding ", end - remainder, remainder);
- 
- 	restore_bytes(s, "slab padding", POISON_INUSE, end - remainder, end);
- 	return 0;
-@@ -830,7 +804,7 @@ static void trace(struct kmem_cache *s, struct page *page, void *object,
- 			page->freelist);
- 
- 		if (!alloc)
--			print_section("Object", (void *)object, s->objsize);
-+			print_section("Object ", (void *)object, s->objsize);
- 
- 		dump_stack();
- 	}
--- 
-1.7.4.4
+--Andy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
