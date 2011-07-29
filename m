@@ -1,76 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id B261F6B0169
-	for <linux-mm@kvack.org>; Fri, 29 Jul 2011 05:16:59 -0400 (EDT)
-Date: Fri, 29 Jul 2011 11:16:25 +0200 (CEST)
-From: Jesper Juhl <jj@chaosbits.net>
-Subject: Re: [PATCH] vmscan: Remove if statement that will never trigger
-In-Reply-To: <4E3252E2.1030101@jp.fujitsu.com>
-Message-ID: <alpine.LNX.2.00.1107291115080.22532@swampdragon.chaosbits.net>
-References: <alpine.LNX.2.00.1107282302580.20477@swampdragon.chaosbits.net> <4E3252E2.1030101@jp.fujitsu.com>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 11A796B016A
+	for <linux-mm@kvack.org>; Fri, 29 Jul 2011 05:28:17 -0400 (EDT)
+Received: by pzk33 with SMTP id 33so6331845pzk.36
+        for <linux-mm@kvack.org>; Fri, 29 Jul 2011 02:28:15 -0700 (PDT)
+Date: Fri, 29 Jul 2011 18:28:07 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: Re: [patch 2/3]vmscan: count pages into balanced for zone with good
+ watermark
+Message-ID: <20110729092807.GE1843@barrios-desktop>
+References: <1311840785.15392.408.camel@sli10-conroe>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1311840785.15392.408.camel@sli10-conroe>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, riel@redhat.com, minchan.kim@gmail.com, mgorman@suse.de, akpm@linux-foundation.org, kanoj@sgi.com, sct@redhat.com
+To: Shaohua Li <shaohua.li@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, mgorman@suse.de
 
-On Fri, 29 Jul 2011, KOSAKI Motohiro wrote:
-
-> (2011/07/29 6:05), Jesper Juhl wrote:
-> > We have this code in mm/vmscan.c:shrink_slab() :
-> > ...
-> > 		if (total_scan < 0) {
-> > 			printk(KERN_ERR "shrink_slab: %pF negative objects to "
-> > 			       "delete nr=%ld\n",
-> > 			       shrinker->shrink, total_scan);
-> > 			total_scan = max_pass;
-> > 		}
-> > ...
-> > but since 'total_scan' is of type 'unsigned long' it will never be
-> > less than zero, so there is no way we'll ever enter the true branch of
-> > this if statement - so let's just remove it.
-> > 
-> > Signed-off-by: Jesper Juhl <jj@chaosbits.net>
-> > ---
-> >  mm/vmscan.c |    6 ------
-> >  1 files changed, 0 insertions(+), 6 deletions(-)
-> > 
-> > 	Compile tested only.
-> > 
-> > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > index 7ef6912..c07d9b1 100644
-> > --- a/mm/vmscan.c
-> > +++ b/mm/vmscan.c
-> > @@ -271,12 +271,6 @@ unsigned long shrink_slab(struct shrink_control *shrink,
-> >  		delta *= max_pass;
-> >  		do_div(delta, lru_pages + 1);
-> >  		total_scan += delta;
-> > -		if (total_scan < 0) {
-> > -			printk(KERN_ERR "shrink_slab: %pF negative objects to "
-> > -			       "delete nr=%ld\n",
-> > -			       shrinker->shrink, total_scan);
-> > -			total_scan = max_pass;
-> > -		}
-> >  
-> >  		/*
-> >  		 * We need to avoid excessive windup on filesystem shrinkers
+On Thu, Jul 28, 2011 at 04:13:05PM +0800, Shaohua Li wrote:
+> It's possible a zone watermark is ok at entering balance_pgdat loop, while the
+> zone is within requested classzone_idx. Countering pages from the zone into
+> balanced. In this way, we can skip shrinking zones too much for high
+> order allocation.
 > 
-> Good catch.
-> 
-> However this seems intended to catch a overflow. So, I'd suggest to make proper
-> overflow check instead.
-> 
-Right. We probably shouldn't just remove it.
+> Signed-off-by: Shaohua Li <shaohua.li@intel.com>
+Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
 
-I'll cook a new version of the patch tonight that properly checks for 
-overflow.
-
+Nice catch, Shaohua!
 
 -- 
-Jesper Juhl <jj@chaosbits.net>       http://www.chaosbits.net/
-Don't top-post http://www.catb.org/jargon/html/T/top-post.html
-Plain text mails only, please.
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
