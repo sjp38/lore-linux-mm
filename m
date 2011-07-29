@@ -1,79 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 2C8BB6B0169
-	for <linux-mm@kvack.org>; Fri, 29 Jul 2011 02:28:09 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id A47E43EE0AE
-	for <linux-mm@kvack.org>; Fri, 29 Jul 2011 15:28:05 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8A7C645DE86
-	for <linux-mm@kvack.org>; Fri, 29 Jul 2011 15:28:05 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 70C9145DE81
-	for <linux-mm@kvack.org>; Fri, 29 Jul 2011 15:28:05 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 62F271DB8042
-	for <linux-mm@kvack.org>; Fri, 29 Jul 2011 15:28:05 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 3063B1DB803F
-	for <linux-mm@kvack.org>; Fri, 29 Jul 2011 15:28:05 +0900 (JST)
-Message-ID: <4E3252E2.1030101@jp.fujitsu.com>
-Date: Fri, 29 Jul 2011 15:27:46 +0900
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] vmscan: Remove if statement that will never trigger
-References: <alpine.LNX.2.00.1107282302580.20477@swampdragon.chaosbits.net>
-In-Reply-To: <alpine.LNX.2.00.1107282302580.20477@swampdragon.chaosbits.net>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 78A176B0169
+	for <linux-mm@kvack.org>; Fri, 29 Jul 2011 03:50:38 -0400 (EDT)
+MIME-version: 1.0
+Content-transfer-encoding: 7BIT
+Content-type: text/plain; charset=us-ascii
+Received: from spt2.w1.samsung.com ([210.118.77.14]) by mailout4.w1.samsung.com
+ (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
+ with ESMTP id <0LP3006JX4GAKF20@mailout4.w1.samsung.com> for
+ linux-mm@kvack.org; Fri, 29 Jul 2011 08:50:34 +0100 (BST)
+Received: from linux.samsung.com ([106.116.38.10])
+ by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
+ 2004)) with ESMTPA id <0LP3009I24G95P@spt2.w1.samsung.com> for
+ linux-mm@kvack.org; Fri, 29 Jul 2011 08:50:33 +0100 (BST)
+Date: Fri, 29 Jul 2011 09:50:32 +0200
+From: Marek Szyprowski <m.szyprowski@samsung.com>
+Subject: RE: [RFC] ARM: dma_map|unmap_sg plus iommu
+In-reply-to: 
+ <CAB-zwWjb+2ExjNDB3OtHmRmgaHMnO-VgEe9VZk_wU=ryrq_AGw@mail.gmail.com>
+Message-id: <000301cc4dc4$31b53630$951fa290$%szyprowski@samsung.com>
+Content-language: pl
+References: <CAB-zwWjb+2ExjNDB3OtHmRmgaHMnO-VgEe9VZk_wU=ryrq_AGw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: jj@chaosbits.net
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, riel@redhat.com, minchan.kim@gmail.com, mgorman@suse.de, akpm@linux-foundation.org, kanoj@sgi.com, sct@redhat.com
+To: "'Ramirez Luna, Omar'" <omar.ramirez@ti.com>
+Cc: linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Russell King - ARM Linux' <linux@arm.linux.org.uk>, 'Joerg Roedel' <joro@8bytes.org>, 'Arnd Bergmann' <arnd@arndb.de>, 'Ohad Ben-Cohen' <ohad@wizery.com>, 'Marek Szyprowski' <m.szyprowski@samsung.com>
 
-(2011/07/29 6:05), Jesper Juhl wrote:
-> We have this code in mm/vmscan.c:shrink_slab() :
-> ...
-> 		if (total_scan < 0) {
-> 			printk(KERN_ERR "shrink_slab: %pF negative objects to "
-> 			       "delete nr=%ld\n",
-> 			       shrinker->shrink, total_scan);
-> 			total_scan = max_pass;
-> 		}
-> ...
-> but since 'total_scan' is of type 'unsigned long' it will never be
-> less than zero, so there is no way we'll ever enter the true branch of
-> this if statement - so let's just remove it.
-> 
-> Signed-off-by: Jesper Juhl <jj@chaosbits.net>
-> ---
->  mm/vmscan.c |    6 ------
->  1 files changed, 0 insertions(+), 6 deletions(-)
-> 
-> 	Compile tested only.
-> 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 7ef6912..c07d9b1 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -271,12 +271,6 @@ unsigned long shrink_slab(struct shrink_control *shrink,
->  		delta *= max_pass;
->  		do_div(delta, lru_pages + 1);
->  		total_scan += delta;
-> -		if (total_scan < 0) {
-> -			printk(KERN_ERR "shrink_slab: %pF negative objects to "
-> -			       "delete nr=%ld\n",
-> -			       shrinker->shrink, total_scan);
-> -			total_scan = max_pass;
-> -		}
->  
->  		/*
->  		 * We need to avoid excessive windup on filesystem shrinkers
+Hello,
 
-Good catch.
+On Thursday, July 28, 2011 11:10 PM Ramirez Luna, Omar wrote:
 
-However this seems intended to catch a overflow. So, I'd suggest to make proper
-overflow check instead.
+> I know it is very early but here it is a tryout of the dma_map_sg and
+> dma_unmap_sg with iommu, I made it to roughly understand what is needed to
+> remove drivers/omap-iovmm.c (which is a virtual memory manager
+> implementation on top of omap iommu driver).
+> 
+> This patch is placed on top of Marek Szyprowsk initial work:
+> 
+> ARM: DMA-mapping & IOMMU integration
+> http://thread.gmane.org/gmane.linux.kernel.mm/63727/
+> 
+> It was tested on an OMAP zoom3 platform and tidspbridge driver. The patch
+> is used to map user space buffers to dsp's iommu, get_user_pages is used to
+> form the sg list that will be passed to dma_map_sg.
+> 
+> While at it, I bumped into some issues that I would like to get some
+> feedback or know if they are being considered:
+> 
+> 1. There is no way to keep track of what virtual address are being mapped
+> in the scatterlist, which we need to propagate to the dsp, in order that it
+> knows where does the buffers start and end on its virtual address space.
+> I ended up adding an iov_address to scatterlist which if accepted should be
+> toggled/affected by the selection of CONFIG_IOMMU_API.
+
+Sorry, but your patch is completely wrong. You should not add any additional
+entries to scatterlist. dma_addr IS the virtual address in the device's io 
+address space, so the dma_addr is a value that your device should put into 
+it's own registers to start dma transfer to provided memory pages.
+
+> 2. tidspbridge driver sometimes needs to map a physical address into a
+> fixed virtual address (i.e. the start of a firmware section is expected to
+> be at dsp va 0x20000000), there is no straight forward way to do this with
+> the dma api given that it only expects to receive a cpu_addr, a sg or a
+> page, by adding iov_address I could pass phys and iov addresses in a sg
+> and overcome this limitation, but, these addresses belong to:
+
+We also encountered the problem of fixed firmware address. We addressed is by
+setting io address space start to this address and letting device driver to
+rely on the fact that the first call to dma_alloc() will match this address. 
+
+>   2a. Shared memory between ARM and DSP: this memory is allocated through
+>       memblock API which takes it out of kernel control to be later
+>       ioremap'd and iommu map'd to the dsp (this because a non-cacheable
+>       requirement), so, these physical addresses doesn't have a linear
+>       virtual address translation, which is what dma api expects.
+
+I hope that the issue with page cache attributes can be resolved if we always
+allocate memory from CMA (see the latest CMAv12 patches: 
+http://www.spinics.net/lists/linux-media/msg35674.html )
+
+>   2b. Bus addresses: of dsp peripherals which are also ioremap'd and
+>       affected by the same thing.
+
+Right now I have no idea how to handle ioremapped areas in dma-mapping 
+framework, but do we really need to support them?
+
+Best regards
+-- 
+Marek Szyprowski
+Samsung Poland R&D Center
 
 
 --
