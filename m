@@ -1,63 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 58B9E6B00EE
-	for <linux-mm@kvack.org>; Fri, 29 Jul 2011 11:33:34 -0400 (EDT)
-From: "Shi, Alex" <alex.shi@intel.com>
-Date: Fri, 29 Jul 2011 23:33:26 +0800
-Subject: RE: [PATCH] kswapd: assign new_order and new_classzone_idx after
- wakeup in sleeping
-Message-ID: <6E3BC7F7C9A4BF4286DD4C043110F30B5B69FE1A4F@shsmsx502.ccr.corp.intel.com>
-References: <1311903282-8539-1-git-send-email-alex.shi@intel.com>
- <20110729085717.GC1843@barrios-desktop>
-In-Reply-To: <20110729085717.GC1843@barrios-desktop>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 26C666B00EE
+	for <linux-mm@kvack.org>; Fri, 29 Jul 2011 11:40:39 -0400 (EDT)
+Date: Fri, 29 Jul 2011 16:40:31 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH] kswapd: avoid unnecessary rebalance after an
+ unsuccessful balancing
+Message-ID: <20110729154031.GV3010@suse.de>
+References: <1311952990-3844-1-git-send-email-alex.shi@intel.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <1311952990-3844-1-git-send-email-alex.shi@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "P@draigBrady.com" <P@draigBrady.com>, "mgorman@suse.de" <mgorman@suse.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "andrea@cpushare.com" <andrea@cpushare.com>, "Chen, Tim C" <tim.c.chen@intel.com>, "Li, Shaohua" <shaohua.li@intel.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "riel@redhat.com" <riel@redhat.com>, "luto@mit.edu" <luto@mit.edu>
+To: Alex Shi <alex.shi@intel.com>
+Cc: linux-mm@kvack.org, P@draigBrady.com, linux-kernel@vger.kernel.org, andrea@cpushare.com, tim.c.chen@intel.com, shaohua.li@intel.com, akpm@linux-foundation.org, riel@redhat.com, luto@mit.edu
 
-> -----Original Message-----
-> From: Minchan Kim [mailto:minchan.kim@gmail.com]
-> Sent: Friday, July 29, 2011 4:57 PM
-> To: Shi, Alex
-> Cc: majordomo@kvack.org; P@draigBrady.com; mgorman@suse.de;
-> linux-kernel@vger.kernel.org; andrea@cpushare.com; Chen, Tim C; Li,
-> Shaohua; akpm@linux-foundation.org; riel@redhat.com; luto@mit.edu
-> Subject: Re: [PATCH] kswapd: assign new_order and new_classzone_idx after
-> wakeup in sleeping
->=20
-> On Fri, Jul 29, 2011 at 09:34:42AM +0800, Alex Shi wrote:
-> > There 2 place to read pgdat in kswapd. One is return from a successful
-> > balance, another is waked up from sleeping. But the new_order and
-> > new_classzone_idx are not assigned after kswapd_try_to_sleep(), that
-> > will cause a bug in the following scenario.
-> >
-> > After the last time successful balance, kswapd goes to sleep. So the
-> > new_order and new_classzone_idx were assigned to 0 and MAX-1 since ther=
-e
-> > is no new wakeup during last time balancing. Now, a new wakeup came and
-> > finish balancing successful with order > 0. But since new_order is stil=
-l
-> > 0, this time successful balancing were judged as a failed balance. so,
-> > if there is another new wakeup coming during balancing, kswapd cann't
-> > read this and still want to try to sleep. And if the new wakeup is a
-> > tighter request, kswapd may goes to sleep, not to do balancing. That is
-> > incorrect.
-> >
-> > So, to avoid above problem, the new_order and new_classzone_idx need to
-> > be assigned for later successful comparison.
-> >
-> > Paidrag Brady, Could like do a retry for your problem on this patch?
-> >
-> > Signed-off-by: Alex Shi <alex.shi@intel.com>
-> > Acked-by: Mel Gorman <mgorman@suse.de>
-> Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+On Fri, Jul 29, 2011 at 11:23:10PM +0800, Alex Shi wrote:
+> In commit 215ddd66, Mel Gorman said kswapd is better to sleep after a
+> unsuccessful balancing if there is tighter reclaim request pending in
+> the balancing. In this scenario, the 'order' and 'classzone_idx'
+> that are checked for tighter request judgment is incorrect, since they
+> aren't the one kswapd should read from new pgdat, but the last time pgdat
+> value for just now balancing. Then kswapd will skip try_to_sleep func
+> and rebalance the last pgdat request. It's not our expected behavior.
+> 
+> So, I added new variables to distinguish the returned order/classzone_idx
+> from last balancing, that can resolved above issue in that scenario.
+> 
 
-Thanks for review.=20
-BTW, I remove the incorrect email address of linux-mm. sorry for this!=20
+I'm afraid this changelog is very difficult to read and I do not see
+what problem you are trying to solve and I do not see what this patch
+might solve.
+
+When balance_pgdat() returns with a lower classzone or order, the values
+stored in pgdat are not re-read and instead it tries to go to sleep
+based on the starting request. Something like;
+
+1. Read pgdat request A (classzone_idx, order)
+2. balance_pgdat()
+3.	During pgdat, a new pgdat request B (classzone_idx, order) is placed
+4. balance_pgdat() returns but failed so classzone_idx is lower
+5. Try to sleep based on pgdat request A
+
+i.e. pgdat request B is not read and there is a comment explaining
+why pgdat request B is not read after balance_pgdat() fails.
+
+This patch adds some variables that might improve the readability
+for some people but otherwise I can't see what problem is being
+fixed. What did I miss?
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
