@@ -1,153 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 048486B0169
-	for <linux-mm@kvack.org>; Fri, 29 Jul 2011 03:58:43 -0400 (EDT)
-Subject: [PATCH] mm: add free_hot_cold_page_list helper
-From: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Date: Fri, 29 Jul 2011 11:58:37 +0400
-Message-ID: <20110729075837.12274.58405.stgit@localhost6>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id E563C6B0169
+	for <linux-mm@kvack.org>; Fri, 29 Jul 2011 04:23:23 -0400 (EDT)
+Received: by yxn22 with SMTP id 22so2696912yxn.14
+        for <linux-mm@kvack.org>; Fri, 29 Jul 2011 01:23:22 -0700 (PDT)
+Date: Fri, 29 Jul 2011 17:23:13 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: Re: [PATCH v4 00/10] Prevent LRU churning
+Message-ID: <20110729082313.GA1843@barrios-desktop>
+References: <cover.1309787991.git.minchan.kim@gmail.com>
+ <20110727131650.ad30a331.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110727131650.ad30a331.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>
 
-This patch adds helper free_hot_cold_page_list() to free list of 0-order pages.
-It frees pages directly from list without temporary page-vector.
-It also calls trace_mm_pagevec_free() to simulate pagevec_free() behaviour.
+On Wed, Jul 27, 2011 at 01:16:50PM -0700, Andrew Morton wrote:
+> On Mon,  4 Jul 2011 23:04:33 +0900
+> Minchan Kim <minchan.kim@gmail.com> wrote:
+> 
+> > Test result is following as.
+> > 
+> > 1) Elapased time 10GB file decompressed.
+> > Old			inorder			inorder + pagevec flush[10/10]
+> > 01:47:50.88		01:43:16.16		01:40:27.18
+> > 
+> > 2) failure of inorder lru
+> > For test, it isolated 375756 pages. Only 45875 pages(12%) are put backed to
+> > out-of-order(ie, head of LRU) Others, 329963 pages(88%) are put backed to in-order
+> > (ie, position of old page in LRU).
+> 
+> I'm getting more and more worried about how complex MM is becoming and
+> this patchset doesn't take us in a helpful direction :(
 
-bloat-o-meter:
+Hmm. I think it's not too complicated stuff. :(
+But I understand your concern enoughly.
 
-add/remove: 1/1 grow/shrink: 1/3 up/down: 267/-295 (-28)
-function                                     old     new   delta
-free_hot_cold_page_list                        -     264    +264
-get_page_from_freelist                      2129    2132      +3
-__pagevec_free                               243     239      -4
-split_free_page                              380     373      -7
-release_pages                                606     510     -96
-free_page_list                               188       -    -188
+> 
+> But it's hard to argue with numbers like that.  Please respin patches 6-10?
 
-Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
----
- include/linux/gfp.h |    1 +
- mm/page_alloc.c     |   12 ++++++++++++
- mm/swap.c           |   14 +++-----------
- mm/vmscan.c         |   20 +-------------------
- 4 files changed, 17 insertions(+), 30 deletions(-)
+Of course, but it would be rather late due to my business and other interesting features.
+I will try to get a new data point in next version.
 
-diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-index cb40892..dd7b9cc 100644
---- a/include/linux/gfp.h
-+++ b/include/linux/gfp.h
-@@ -358,6 +358,7 @@ void *alloc_pages_exact_nid(int nid, size_t size, gfp_t gfp_mask);
- extern void __free_pages(struct page *page, unsigned int order);
- extern void free_pages(unsigned long addr, unsigned int order);
- extern void free_hot_cold_page(struct page *page, int cold);
-+extern void free_hot_cold_page_list(struct list_head *list, int cold);
- 
- #define __free_page(page) __free_pages((page), 0)
- #define free_page(addr) free_pages((addr), 0)
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 1dbcf88..af486e4 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1209,6 +1209,18 @@ out:
- 	local_irq_restore(flags);
- }
- 
-+void free_hot_cold_page_list(struct list_head *list, int cold)
-+{
-+	struct page *page, *next;
-+
-+	list_for_each_entry_safe(page, next, list, lru) {
-+		trace_mm_pagevec_free(page, cold);
-+		free_hot_cold_page(page, cold);
-+	}
-+
-+	INIT_LIST_HEAD(list);
-+}
-+
- /*
-  * split_page takes a non-compound higher-order page, and splits it into
-  * n (1<<order) sub-pages: page[0..n]
-diff --git a/mm/swap.c b/mm/swap.c
-index 3a442f1..b9138c7 100644
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -562,11 +562,10 @@ int lru_add_drain_all(void)
- void release_pages(struct page **pages, int nr, int cold)
- {
- 	int i;
--	struct pagevec pages_to_free;
-+	LIST_HEAD(pages_to_free);
- 	struct zone *zone = NULL;
- 	unsigned long uninitialized_var(flags);
- 
--	pagevec_init(&pages_to_free, cold);
- 	for (i = 0; i < nr; i++) {
- 		struct page *page = pages[i];
- 
-@@ -597,19 +596,12 @@ void release_pages(struct page **pages, int nr, int cold)
- 			del_page_from_lru(zone, page);
- 		}
- 
--		if (!pagevec_add(&pages_to_free, page)) {
--			if (zone) {
--				spin_unlock_irqrestore(&zone->lru_lock, flags);
--				zone = NULL;
--			}
--			__pagevec_free(&pages_to_free);
--			pagevec_reinit(&pages_to_free);
--  		}
-+		list_add_tail(&page->lru, &pages_to_free);
- 	}
- 	if (zone)
- 		spin_unlock_irqrestore(&zone->lru_lock, flags);
- 
--	pagevec_free(&pages_to_free);
-+	free_hot_cold_page_list(&pages_to_free, cold);
- }
- EXPORT_SYMBOL(release_pages);
- 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 7ef6912..47403c9 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -737,24 +737,6 @@ static enum page_references page_check_references(struct page *page,
- 	return PAGEREF_RECLAIM;
- }
- 
--static noinline_for_stack void free_page_list(struct list_head *free_pages)
--{
--	struct pagevec freed_pvec;
--	struct page *page, *tmp;
--
--	pagevec_init(&freed_pvec, 1);
--
--	list_for_each_entry_safe(page, tmp, free_pages, lru) {
--		list_del(&page->lru);
--		if (!pagevec_add(&freed_pvec, page)) {
--			__pagevec_free(&freed_pvec);
--			pagevec_reinit(&freed_pvec);
--		}
--	}
--
--	pagevec_free(&freed_pvec);
--}
--
- /*
-  * shrink_page_list() returns the number of reclaimed pages
-  */
-@@ -996,7 +978,7 @@ keep_lumpy:
- 	if (nr_dirty && nr_dirty == nr_congested && scanning_global_lru(sc))
- 		zone_set_flag(zone, ZONE_CONGESTED);
- 
--	free_page_list(&free_pages);
-+	free_hot_cold_page_list(&free_pages, 1);
- 
- 	list_splice(&ret_pages, page_list);
- 	count_vm_events(PGACTIVATE, pgactivate);
+Thanks, Andrew.
+
+> 
+> 
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
