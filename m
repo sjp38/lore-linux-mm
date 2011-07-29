@@ -1,79 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id B16D56B0169
-	for <linux-mm@kvack.org>; Fri, 29 Jul 2011 05:14:07 -0400 (EDT)
-Received: by yia13 with SMTP id 13so3119861yia.14
-        for <linux-mm@kvack.org>; Fri, 29 Jul 2011 02:14:05 -0700 (PDT)
-Date: Fri, 29 Jul 2011 18:13:58 +0900
-From: Minchan Kim <minchan.kim@gmail.com>
-Subject: Re: [patch 1/3]vmscan: clear ZONE_CONGESTED for zone with good
- watermark
-Message-ID: <20110729091358.GD1843@barrios-desktop>
-References: <1311840781.15392.407.camel@sli10-conroe>
- <20110728105611.GJ3010@suse.de>
- <1311899725.15392.416.camel@sli10-conroe>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 3617E6B016A
+	for <linux-mm@kvack.org>; Fri, 29 Jul 2011 05:14:21 -0400 (EDT)
+Date: Fri, 29 Jul 2011 10:14:13 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [RFC PATCH -tip 0/5] perf tools: pagecache monitoring
+Message-ID: <20110729091413.GP3010@suse.de>
+References: <4E24A61D.4060702@bx.jp.nec.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1311899725.15392.416.camel@sli10-conroe>
+In-Reply-To: <4E24A61D.4060702@bx.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shaohua.li@intel.com>
-Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>
+To: Keiichi KII <k-keiichi@bx.jp.nec.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@elte.hu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Tom Zanussi <tzanussi@gmail.com>, "riel@redhat.com" <riel@redhat.com>, Steven Rostedt <rostedt@goodmis.org>, Fr??d??ric Weisbecker <fweisbec@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, "BA, Moussa" <Moussa.BA@numonyx.com>
 
-On Fri, Jul 29, 2011 at 08:35:25AM +0800, Shaohua Li wrote:
-> On Thu, 2011-07-28 at 18:56 +0800, Mel Gorman wrote:
-> > On Thu, Jul 28, 2011 at 04:13:01PM +0800, Shaohua Li wrote:
-> > > correctly clear ZONE_CONGESTED. If a zone watermark is ok, we
-> > > should clear ZONE_CONGESTED regardless if this is a high order
-> > > allocation, because pages can be reclaimed in other tasks but
-> > > ZONE_CONGESTED is only cleared in kswapd.
-> > > 
-> > 
-> > What problem does this solve?
-> > 
-> > As it is, for high order allocations it takes the following steps
-> > 
-> > If reclaiming at high order {
-> > 	for each zone {
-> > 		if all_unreclaimable
-> > 			skip
-> > 		if watermark is not met
-> > 			order = 0
-> > 			loop again
-> > 		
-> > 		/* watermark is met */
-> > 		clear congested
-> > 	}
-> > }
-> > 
-> > If high orders are failing, kswapd balances for order-0 where there
-> > is already a cleaning of ZONE_CONGESTED if the zone was shrunk and
-> > became balanced. I see the case for hunk 1 of the patch because now
-> > it'll clear ZONE_CONGESTED for zones that are already balanced which
-> > might have a noticable effect on wait_iff_congested. Is this what
-> > you see? Even if it is, it does not explain hunk 2 of the patch.
-> I first looked at the hunk 2 place and thought we don't clear
-> ZONE_CONGESTED there. I then figured out we need do the same thing for
-> the hunk 1. But you are correct, with hunk 1, hunk 2 isn't required.
-> updated patch.
+On Mon, Jul 18, 2011 at 05:31:09PM -0400, Keiichi KII wrote:
+> Hello,
 > 
+> I would propose pagecache monitoring tools using perf tools.
+> The purpose of the tools is to clarify pagecache behavior in a system.
 > 
-> 
-> correctly clear ZONE_CONGESTED. If a zone watermark is ok, we
-> should clear ZONE_CONGESTED because pages can be reclaimed in
-> other tasks but ZONE_CONGESTED is only cleared in kswapd.
-> 
-> Signed-off-by: Shaohua Li <shaohua.li@intel.com>
-Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+> We can now know system-wide pagecache usage by "/proc/meminfo".
+> But we don't have any way to get higher resolution information like
+> per file or per process usage than system-wide one.
 
-Even it will fix that when kswapd wakes up lately by order-0 and look at zones,
-all zones would become okay so it jumps out with "if (i < 0) goto out" with missing
-clearing ZONE_CONGESTED.
+It's convulated and slow but it can be determined what processes are
+mapping pages from a file by scanning /proc/PID/maps to identify what
+files are mapped and then using /proc/PID/pageflags to see what pages
+are mapped on a per-process basis.
+
+> If pagecache miss hit ratio rises due to unnecessary adding/removing
+> pagecaches, maybe it leads to extra I/O and affects system performance.
+> But it's difficult to find out what is going on in the system.
+> 
+
+What is "unnecessary adding/removing pagecaches"? If it's added, it
+means either someone has faulted the page or it is due to readahead.
+It's necessary to something.
+
+> So, the tools I propose provide 2 functions:
+> 
+> 1. pagecache snapshooting(perf script pagecache-snapshoot)
+> 
+
+snapshot, not snapshoot :)
+
+> This function clarifies pagecache usage per each file in the system.
+> This function is based mainly on "pagecache object collections" that is
+> developed by Wu Fengguang (http://lkml.org/lkml/2010/2/9/156).
+> The following is sample output of this function.
+> 
+> pagecache snapshooting (time: 14131, path: /home)
+>                              file name cache(B)  file(B)  ratio  +/-(B)    age
+> -------------------------------------- -------- -------- ------ ------- ------
+> /home/foo/git/linux-2.6-tip/.git/objec    71.0M   436.6M    16%       0   9012
+> /home/foo/git/linux-2.6-tip/.git/objec    49.6M    57.7M    86%       0   9012
+> /home/foo/.thunderbird/xso5zn7g.defaul    19.8M    19.8M   100%       0   7223
+> /home/foo/.thunderbird/xso5zn7g.defaul     5.7M     5.7M   100%       0   6621
+> /home/foo/git/linux-2.6-tip/.git/index     3.5M     3.5M   100%       0   4306
+> /home/foo/.thunderbird/xso5zn7g.defaul     2.2M     2.2M   100%       0   7524
+> /home/foo/.thunderbird/xso5zn7g.defaul     2.2M     2.2M   100%       0   7526
+> /home/foo/.thunderbird/xso5zn7g.defaul     1.7M     1.7M   100%       0   6921
+> ...
+> 
+> 2. continuous pagecache monitoring(perf script pagecachetop)
+> 
+> This function clarifies pagecache behavior like pagecache hit ratio and
+> added/removed pagecache amount on the basis of file/process.
+> This functions is based on pagecache tracepoints I propose.
+> While the pagecache snapshooting can take a pagecache snapshoot at a point,
+> the continuous pagecache monitoring can measure dynamic change between
+> 2 snapshoots.
+> The following is sample output of this function.
+> 
+> pagecache behavior per file (time:15826, interval:10)
+> 
+>                          find        hit    cache      add   remove  proc
+>                 file    count      ratio pages(B) pages(B) pages(B) count
+> -------------------- -------- ---------- -------- -------- -------- -----
+>         libc-2.13.so      620    100.00%     1.2M        0        0     7
+>                 bash      283    100.00%   888.0K        0        0     6
+>           ld-2.13.so      136    100.00%   148.0K        0        0     6
+>                 gawk      130    100.00%   376.0K        0        0     2
+>          ld.so.cache       60    100.00%   116.0K        0        0     4
+> ...
+> 
+> pagecache behavior per process (time:16294, interval:10)
+> 
+>                          find        hit      add   remove  file
+>              process    count      ratio pages(B) pages(B) count
+> -------------------- -------- ---------- -------- -------- -----
+>             zsh-7761     2968     99.93%     4.0K        0   246
+>            perf-7758      369    100.00%        0        0    17
+>            xmms-7634       52    100.00%        0        0     1
+>            perf-7759       11    100.00%        0        0     2
+>             zsh-2815        6     83.33%     4.0K     4.0K     2
+>        gconfd-2-4849        3      0.00%    12.0K    12.0K     4
+>        rsyslogd-7194        1    100.00%        0        0     1
+> 
+
+Ok, I can see how this could identify hot files in the system and
+processes that are currently active but I'm not seeing what problem
+could be solved with this information.
+
+For example, a process that is suffering a poor hit ratio can usually
+be identified with a combination of vmstat showing a large amount
+of activity with page in/out or swap in/out and a profile showing
+a process that is spending a high percentage of its time servicing
+faults. If a profile is unsuitable, picking active processes from
+top and then monitoring /proc/PID/stat and the fault counters can
+identify which process in trouble.
+
+Can you give an example of a problem that using this tool would
+identify and help resolve?
+
+> By these 2 functions, we can find out whether pagecaches are used
+> efficiently or not.
+> And also these tools would help us tune some applications like database.
+
+If the database is using direct IO, will it even show up in this tool?
+
+> It will also help us tune the kernel parameters like "vm.dirty_*".
+> 
+
+Does it though? A dirty_ratio that is too low can cause stalls as
+processes get throttled cleaning pages but the pages are still present
+in the page cache and the hit ratio would not be affected.
+
+I'm not saying this is a bad idea but the changelog needs to be improved
+to explain why this information is helpful and why the existing
+mechanisms are either unsuitable or just too awkward to use.
 
 -- 
-Kind regards,
-Minchan Kim
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
