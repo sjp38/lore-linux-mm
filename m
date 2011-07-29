@@ -1,41 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 1A5166B0169
-	for <linux-mm@kvack.org>; Thu, 28 Jul 2011 19:09:58 -0400 (EDT)
-From: jhbird.choi@samsung.com
-Subject: [PATCH] mm/memblock: small function definition fixes
-Date: Fri, 29 Jul 2011 08:01:20 +0900
-Message-Id: <1311894080-10231-1-git-send-email-jhbird.choi@samsung.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 2EA716B0169
+	for <linux-mm@kvack.org>; Thu, 28 Jul 2011 20:17:37 -0400 (EDT)
+Subject: Re: [patch 3/3]vmscan: cleanup kswapd_try_to_sleep
+From: Shaohua Li <shaohua.li@intel.com>
+In-Reply-To: <20110728110304.GL3010@suse.de>
+References: <1311840789.15392.409.camel@sli10-conroe>
+	 <20110728110304.GL3010@suse.de>
+Content-Type: text/plain; charset="UTF-8"
+Date: Fri, 29 Jul 2011 08:17:23 +0800
+Message-ID: <1311898643.15392.410.camel@sli10-conroe>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Jonghwan Choi <jhbird.choi@samsung.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Minchan Kim <minchan.kim@gmail.com>
 
-From: Jonghwan Choi <jhbird.choi@samsung.com>
-
-warning: function 'memblock_memory_can_coalesce'
-with external linkage has definition.
-
-Signed-off-by: Jonghwan Choi <jhbird.choi@samsung.com>
----
- mm/memblock.c |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
-
-diff --git a/mm/memblock.c b/mm/memblock.c
-index ccbf973..3314cb4 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -267,7 +267,7 @@ static int __init_memblock memblock_double_array(struct memblock_type *type)
- 	return 0;
- }
- 
--extern int __init_memblock __weak memblock_memory_can_coalesce(phys_addr_t addr1, phys_addr_t size1,
-+int __init_memblock __weak memblock_memory_can_coalesce(phys_addr_t addr1, phys_addr_t size1,
- 					  phys_addr_t addr2, phys_addr_t size2)
- {
- 	return 1;
--- 
-1.7.0
+On Thu, 2011-07-28 at 19:03 +0800, Mel Gorman wrote:
+> On Thu, Jul 28, 2011 at 04:13:09PM +0800, Shaohua Li wrote:
+> > cleanup kswapd_try_to_sleep() a little bit. Sometimes kswapd doesn't
+> > really sleep. In such case, don't call prepare_to_wait/finish_wait.
+> > It just wastes CPU.
+> > 
+> > Signed-off-by: Shaohua Li <shaohua.li@intel.com>
+> 
+> Out of curiousity, under what circumstances is the CPU usage
+> noticeable? The patch itself seems fine so;
+no, as the title says, this is a cleanup.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
