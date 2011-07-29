@@ -1,61 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id AD7A96B0169
-	for <linux-mm@kvack.org>; Fri, 29 Jul 2011 05:55:11 -0400 (EDT)
-Date: Fri, 29 Jul 2011 10:55:04 +0100
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 9DFDF6B0169
+	for <linux-mm@kvack.org>; Fri, 29 Jul 2011 06:07:15 -0400 (EDT)
+Date: Fri, 29 Jul 2011 11:06:09 +0100
 From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [RFC PATCH -tip 2/5] tracing/mm: add header event for object
- collections
-Message-ID: <20110729095504.GQ3010@suse.de>
+Subject: Re: [RFC PATCH -tip 4/5] tracepoints: add tracepoints for pagecache
+Message-ID: <20110729100609.GR3010@suse.de>
 References: <4E24A61D.4060702@bx.jp.nec.com>
- <4E24A6F5.2080706@bx.jp.nec.com>
+ <4E24A7BB.1040800@bx.jp.nec.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <4E24A6F5.2080706@bx.jp.nec.com>
+In-Reply-To: <4E24A7BB.1040800@bx.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Keiichi KII <k-keiichi@bx.jp.nec.com>
 Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@elte.hu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Tom Zanussi <tzanussi@gmail.com>, "riel@redhat.com" <riel@redhat.com>, Steven Rostedt <rostedt@goodmis.org>, Fr??d??ric Weisbecker <fweisbec@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, "BA, Moussa" <Moussa.BA@numonyx.com>
 
-On Mon, Jul 18, 2011 at 05:34:45PM -0400, Keiichi KII wrote:
+On Mon, Jul 18, 2011 at 05:38:03PM -0400, Keiichi KII wrote:
 > From: Keiichi Kii <k-keiichi@bx.jp.nec.com>
 > 
-> We can use this "dump_header" event to separate trace data
-> for the object collections.
+> This patch adds several tracepoints to track pagecach behavior.
+> These trecepoints would help us monitor pagecache usage with high resolution.
 > 
 
-dump_header is a very generic name. A "header" could apply to almost
-anything. Network packets have headers but is unrelated to this.
+There are a few spelling mistakes there but what harm. This is an RFC.
 
-> Usage and Sample output:
-> 
-> zsh  2815 [001]  8819.880776: dump_header: object=mm/pages/walk-fs input=/
-> zsh  2815 [001]  8819.880786: dump_inode: ino=139161 size=507416 cached=507904 age=29 dirty=7 dev=254:0 file=strchr
-> zsh  2815 [001]  8819.880790: dump_pagecache_range: index=0 len=1 flags=4000000000000878 count=2 mapcount=0
-> zsh  2815 [001]  8819.880793: dump_pagecache_range: index=1 len=18 flags=400000000000087c count=2 mapcount=0
-> zsh  2815 [001]  8819.880795: dump_pagecache_range: index=19 len=1 flags=400000000000083c count=2 mapcount=0
-> zsh  2815 [001]  8819.880796: dump_pagecache_range: index=20 len=2 flags=400000000000087c count=2 mapcount=0
-> ...
-> zsh  2816 [001]  8820.XXXXXX: dump_header: object=mm/pages/walk-fs input=/
+Again, it would be really nice if the changelog explained why it was
+useful to monitor pagecache usage at this resolution. For example,
+I could identify files with high and low hit ratios and conceivably
+identify system activity that resulted in page cache being trashed.
+However, even in that case, I don't necessarily care which files got
+chucked out and that sort of problem can also be seen via fault rates.
 
-Is it possible for other trace information to appear in the middle of
-this? In particular, is it possible for a new "dump_header" to appear in
-the middle of an existing dump?
+Another scenario that may be useful is it could potentially identify an
+application bug that was invalidating a portion of a file that was in
+fact hot and in use by other processes. I'm sure you have much better
+examples that motivated the development of this series :)
 
-> Signed-off-by: Keiichi Kii <k-keiichi@bx.jp.nec.com>
-> ---
-> 
->  include/trace/events/mm.h |   19 +++++++++++++++++++
->  kernel/trace/trace_mm.c   |    9 +++++++++
->  2 files changed, 28 insertions(+), 0 deletions(-)
-> 
-
-Where are these files? Your leader makes reference to latest linux-tip
-but there are a few trees called linux-tip. Even then, which latest
-branch? I dug through Ingo's linux-tip tree but couldn't find where the
-dump_inode tracepoint was to look at it so I couldn't review the
-changes. Sorry if I missed something obvious :(
+The tracepoints themselves look fine.
 
 -- 
 Mel Gorman
