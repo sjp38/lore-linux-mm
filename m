@@ -1,60 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E4606B0169
-	for <linux-mm@kvack.org>; Fri, 29 Jul 2011 05:50:15 -0400 (EDT)
-Received: by gyg13 with SMTP id 13so3130842gyg.14
-        for <linux-mm@kvack.org>; Fri, 29 Jul 2011 02:50:13 -0700 (PDT)
-Date: Fri, 29 Jul 2011 18:50:05 +0900
-From: Minchan Kim <minchan.kim@gmail.com>
-Subject: Re: [RFC PATCH 0/8] Reduce filesystem writeback from page reclaim v2
-Message-ID: <20110729095005.GH1843@barrios-desktop>
-References: <1311265730-5324-1-git-send-email-mgorman@suse.de>
- <20110727161821.GA1738@barrios-desktop>
- <20110728113852.GN3010@suse.de>
- <20110729094816.GG1843@barrios-desktop>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id AD7A96B0169
+	for <linux-mm@kvack.org>; Fri, 29 Jul 2011 05:55:11 -0400 (EDT)
+Date: Fri, 29 Jul 2011 10:55:04 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [RFC PATCH -tip 2/5] tracing/mm: add header event for object
+ collections
+Message-ID: <20110729095504.GQ3010@suse.de>
+References: <4E24A61D.4060702@bx.jp.nec.com>
+ <4E24A6F5.2080706@bx.jp.nec.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20110729094816.GG1843@barrios-desktop>
+In-Reply-To: <4E24A6F5.2080706@bx.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>, Andrew Lutomirski <luto@mit.edu>
-Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, XFS <xfs@oss.sgi.com>, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, Johannes Weiner <jweiner@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>
+To: Keiichi KII <k-keiichi@bx.jp.nec.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@elte.hu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Tom Zanussi <tzanussi@gmail.com>, "riel@redhat.com" <riel@redhat.com>, Steven Rostedt <rostedt@goodmis.org>, Fr??d??ric Weisbecker <fweisbec@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, "BA, Moussa" <Moussa.BA@numonyx.com>
 
-Sorry for missing Ccing.
+On Mon, Jul 18, 2011 at 05:34:45PM -0400, Keiichi KII wrote:
+> From: Keiichi Kii <k-keiichi@bx.jp.nec.com>
+> 
+> We can use this "dump_header" event to separate trace data
+> for the object collections.
+> 
 
-On Fri, Jul 29, 2011 at 06:48:16PM +0900, Minchan Kim wrote:
-> On Thu, Jul 28, 2011 at 12:38:52PM +0100, Mel Gorman wrote:
-> > On Thu, Jul 28, 2011 at 01:18:21AM +0900, Minchan Kim wrote:
-> > > On Thu, Jul 21, 2011 at 05:28:42PM +0100, Mel Gorman wrote:
-> > > > Note how preventing kswapd reclaiming dirty pages pushes up its CPU
+dump_header is a very generic name. A "header" could apply to almost
+anything. Network packets have headers but is unrelated to this.
+
+> Usage and Sample output:
 > 
-> <snip>
+> zsh  2815 [001]  8819.880776: dump_header: object=mm/pages/walk-fs input=/
+> zsh  2815 [001]  8819.880786: dump_inode: ino=139161 size=507416 cached=507904 age=29 dirty=7 dev=254:0 file=strchr
+> zsh  2815 [001]  8819.880790: dump_pagecache_range: index=0 len=1 flags=4000000000000878 count=2 mapcount=0
+> zsh  2815 [001]  8819.880793: dump_pagecache_range: index=1 len=18 flags=400000000000087c count=2 mapcount=0
+> zsh  2815 [001]  8819.880795: dump_pagecache_range: index=19 len=1 flags=400000000000083c count=2 mapcount=0
+> zsh  2815 [001]  8819.880796: dump_pagecache_range: index=20 len=2 flags=400000000000087c count=2 mapcount=0
+> ...
+> zsh  2816 [001]  8820.XXXXXX: dump_header: object=mm/pages/walk-fs input=/
+
+Is it possible for other trace information to appear in the middle of
+this? In particular, is it possible for a new "dump_header" to appear in
+the middle of an existing dump?
+
+> Signed-off-by: Keiichi Kii <k-keiichi@bx.jp.nec.com>
+> ---
 > 
-> > > > usage as it scans more pages but it does not get excessive due to
-> > > > the throttling.
-> > > 
-> > > Good to hear.
-> > > The concern of this patchset was early OOM kill with too many scanning.
-> > > I can throw such concern out from now on.
-> > > 
-> > 
-> > At least, I haven't been able to trigger a premature OOM.
+>  include/trace/events/mm.h |   19 +++++++++++++++++++
+>  kernel/trace/trace_mm.c   |    9 +++++++++
+>  2 files changed, 28 insertions(+), 0 deletions(-)
 > 
-> AFAIR, Andrew had a premature OOM problem[1] but I couldn't track down at that time.
-> I think this patch series might solve his problem. Although it doesn't, it should not accelerate
-> his problem, at least.
-> 
-> Andrew, Could you test this patchset?
-> 
-> [1] https://lkml.org/lkml/2011/5/25/415
-> -- 
-> Kind regards,
-> Minchan Kim
+
+Where are these files? Your leader makes reference to latest linux-tip
+but there are a few trees called linux-tip. Even then, which latest
+branch? I dug through Ingo's linux-tip tree but couldn't find where the
+dump_inode tracepoint was to look at it so I couldn't review the
+changes. Sorry if I missed something obvious :(
 
 -- 
-Kind regards,
-Minchan Kim
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
