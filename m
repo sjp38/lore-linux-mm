@@ -1,79 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 4BA6D6B0169
-	for <linux-mm@kvack.org>; Fri, 29 Jul 2011 04:38:57 -0400 (EDT)
-Received: by gyg13 with SMTP id 13so3095643gyg.14
-        for <linux-mm@kvack.org>; Fri, 29 Jul 2011 01:38:55 -0700 (PDT)
-Date: Fri, 29 Jul 2011 17:38:47 +0900
-From: Minchan Kim <minchan.kim@gmail.com>
-Subject: Re: [PATCH]vmscan: add block plug for page reclaim
-Message-ID: <20110729083847.GB1843@barrios-desktop>
-References: <1311130413.15392.326.camel@sli10-conroe>
- <CAEwNFnDj30Bipuxrfe9upD-OyuL4v21tLs0ayUKYUfye5TcGyA@mail.gmail.com>
- <1311142253.15392.361.camel@sli10-conroe>
- <CAEwNFnD3iCMBpZK95Ks+Z7DYbrzbZbSTLf3t6WXDQdeHrE6bLQ@mail.gmail.com>
- <1311144559.15392.366.camel@sli10-conroe>
- <4E287EC0.4030208@fusionio.com>
- <1311311695.15392.369.camel@sli10-conroe>
- <4E2B17A6.6080602@fusionio.com>
- <20110727164523.c2b1d569.akpm@linux-foundation.org>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 1E7A36B0169
+	for <linux-mm@kvack.org>; Fri, 29 Jul 2011 04:51:50 -0400 (EDT)
+Date: Fri, 29 Jul 2011 09:50:43 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [patch 1/3]vmscan: clear ZONE_CONGESTED for zone with good
+ watermark
+Message-ID: <20110729085043.GO3010@suse.de>
+References: <1311840781.15392.407.camel@sli10-conroe>
+ <20110728105611.GJ3010@suse.de>
+ <1311899725.15392.416.camel@sli10-conroe>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20110727164523.c2b1d569.akpm@linux-foundation.org>
+In-Reply-To: <1311899725.15392.416.camel@sli10-conroe>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jens Axboe <jaxboe@fusionio.com>, Shaohua Li <shaohua.li@intel.com>, "mgorman@suse.de" <mgorman@suse.de>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
+To: Shaohua Li <shaohua.li@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Minchan Kim <minchan.kim@gmail.com>
 
-On Wed, Jul 27, 2011 at 04:45:23PM -0700, Andrew Morton wrote:
-> On Sat, 23 Jul 2011 20:49:10 +0200
-> Jens Axboe <jaxboe@fusionio.com> wrote:
-> 
-> > > I can observe the average request size changes. Before the patch, the
-> > > average request size is about 90k from iostat (but the variation is
-> > > big). With the patch, the request size is about 100k and variation is
-> > > small.
+On Fri, Jul 29, 2011 at 08:35:25AM +0800, Shaohua Li wrote:
+> On Thu, 2011-07-28 at 18:56 +0800, Mel Gorman wrote:
+> > On Thu, Jul 28, 2011 at 04:13:01PM +0800, Shaohua Li wrote:
+> > > correctly clear ZONE_CONGESTED. If a zone watermark is ok, we
+> > > should clear ZONE_CONGESTED regardless if this is a high order
+> > > allocation, because pages can be reclaimed in other tasks but
+> > > ZONE_CONGESTED is only cleared in kswapd.
+> > > 
 > > 
-> > That's a good win right there, imho.
-> 
-> yup.  Reduced CPU consumption on that path isn't terribly exciting IMO,
-> but improved request size is significant.
-
-Fair enough.
-He didn't write down it in the description.
-At least, The description should include request size and variation instead of
-CPU consumption thing.
-
-Shaohua, Please rewrite the description although it's annoying.
-
-> 
-> Using an additional 44 bytes of stack on that path is also
-> significant(ly bad).  But we need to fix that problem anyway.  One way
-> we could improve things in mm/vmscan.c is to move the blk_plug into
-> scan_control then get the scan_control off the stack in some manner. 
-> That's easy for kswapd: allocate one scan_control per kswapd at
-> startup.  Doing it for direct-reclaim would be a bit trickier...
-
-Stack diet in direct reclaim...
-Of course, it's a matter as I pointed out in this patch
-but frankly speaking, it's very annoying to consider stack usage
-whenever we add something in direct reclaim path.
-I think better solution is to avoid write in direct reclaim like the approach of Mel.
-I vote the approach.
-So now I will not complain the stack usage in this patch but focus on Mel's patch
-
-> 
+> > What problem does this solve?
+> > 
+> > As it is, for high order allocations it takes the following steps
+> > 
+> > If reclaiming at high order {
+> > 	for each zone {
+> > 		if all_unreclaimable
+> > 			skip
+> > 		if watermark is not met
+> > 			order = 0
+> > 			loop again
+> > 		
+> > 		/* watermark is met */
+> > 		clear congested
+> > 	}
+> > }
+> > 
+> > If high orders are failing, kswapd balances for order-0 where there
+> > is already a cleaning of ZONE_CONGESTED if the zone was shrunk and
+> > became balanced. I see the case for hunk 1 of the patch because now
+> > it'll clear ZONE_CONGESTED for zones that are already balanced which
+> > might have a noticable effect on wait_iff_congested. Is this what
+> > you see? Even if it is, it does not explain hunk 2 of the patch.
+> I first looked at the hunk 2 place and thought we don't clear
+> ZONE_CONGESTED there. I then figured out we need do the same thing for
+> the hunk 1. But you are correct, with hunk 1, hunk 2 isn't required.
+> updated patch.
 > 
 > 
-> And I have the usual maintainability whine.  If someone comes up to
-> vmscan.c and sees it calling blk_start_plug(), how are they supposed to
-> work out why that call is there?  They go look at the blk_start_plug()
-> definition and it is undocumented.  I think we can do better than this?
+> 
+> correctly clear ZONE_CONGESTED. If a zone watermark is ok, we
+> should clear ZONE_CONGESTED because pages can be reclaimed in
+> other tasks but ZONE_CONGESTED is only cleared in kswapd.
+> 
+> Signed-off-by: Shaohua Li <shaohua.li@intel.com>
+
+It would be nice if the changelog was expanded a bit to explain
+why the patch is necessary. You say this is to "correctly clear
+ZONE_CONGESTED" but do not explain why the current code is wrong
+or what the user-visible impact is. For example, even cutting and
+pasting bits of the discussion like the following would have been
+an improvement.
+
+==== CUT HERE ===
+kswapd is responsible for clearing ZONE_CONGESTED after it balances
+a zone. Unfortunately, if ZONE_CONGESTED was set during a high-order
+allocation, it is possible that kswapd misses clearing it.
+
+At the end of balance_pgdat(), kswapd uses the following logic;
+
+ If reclaiming at high order {
+     for each zone {
+             if all_unreclaimable
+                     skip
+             if watermark is not met
+                     order = 0
+                     loop again
+             
+             /* watermark is met */
+             clear congested
+     }
+ }
+
+i.e. it clears ZONE_CONGESTED if it the zone is balanced. if not,
+it restarts balancing at order-0. However, if the higher zones are
+balanced for order-0, kswapd will miss clearing ZONE_CONGESTED
+as that only happens after a zone is shrunk. This can mean that
+wait_iff_congested() stalls unnecessarily. This patch makes kswapd
+clear ZONE_CONGESTED during its initial highmem->dma scan for zones
+that are already balanced.
+
+==== CUT HERE ====
+
+This makes review a lot easier and will be helpful in the future if
+someone uses git blame.
+
+Whether you update the changelog or not;
+
+Acked-by: Mel Gorman <mgorman@suse.de>
+
+Thanks.
 
 -- 
-Kind regards,
-Minchan Kim
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
