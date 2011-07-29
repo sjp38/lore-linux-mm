@@ -1,45 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 651EC6B0169
-	for <linux-mm@kvack.org>; Fri, 29 Jul 2011 07:05:17 -0400 (EDT)
-Date: Fri, 29 Jul 2011 12:05:10 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [patch 0/5] mm: per-zone dirty limiting
-Message-ID: <20110729110510.GS3010@suse.de>
-References: <1311625159-13771-1-git-send-email-jweiner@redhat.com>
- <20110726154741.GE3010@suse.de>
- <20110726180559.GA667@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20110726180559.GA667@redhat.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A7E96B0169
+	for <linux-mm@kvack.org>; Fri, 29 Jul 2011 08:11:00 -0400 (EDT)
+From: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+Subject: [PATCH 1/2] mm/slab: use print_hex_dump
+Date: Fri, 29 Jul 2011 14:10:19 +0200
+Message-Id: <1311941420-2463-1-git-send-email-bigeasy@linutronix.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <jweiner@redhat.com>
-Cc: linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Jan Kara <jack@suse.cz>, Andi Kleen <ak@linux.intel.com>, linux-kernel@vger.kernel.org
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org, Sebastian Andrzej Siewior <bigeasy@linutronix.de>
 
-On Tue, Jul 26, 2011 at 08:05:59PM +0200, Johannes Weiner wrote:
-> > As dd is variable, I'm rerunning the tests to do 4 iterations and
-> > multiple memory sizes for just xfs and ext4 to see what falls out. It
-> > should take about 14 hours to complete assuming nothing screws up.
-> 
-> Awesome, thanks!
-> 
+less code and the advantage of ascii dump.
 
-While they in fact took about 30 hours to complete, I only got around
-to packaging them up now. Unfortuantely the tests were incomplete as
-I needed the machine back for another use but the results that did
-complete are at http://www.csn.ul.ie/~mel/postings/hnaz-20110729/
+Signed-off-by: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+---
+ mm/slab.c |   17 ++++++-----------
+ 1 files changed, 6 insertions(+), 11 deletions(-)
 
-Look for the comparison.html files such as this one
-
-http://www.csn.ul.ie/~mel/postings/hnaz-20110729/global-dhp-512M__writeback-reclaimdirty-ext3/hydra/comparison.html
-
-I'm afraid I haven't looked through them in detail.
-
+diff --git a/mm/slab.c b/mm/slab.c
+index d96e223..63ed525 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -1810,15 +1810,15 @@ static void dump_line(char *data, int offset, int limit)
+ 	unsigned char error = 0;
+ 	int bad_count = 0;
+ 
+-	printk(KERN_ERR "%03x:", offset);
++	printk(KERN_ERR "%03x: ", offset);
+ 	for (i = 0; i < limit; i++) {
+ 		if (data[offset + i] != POISON_FREE) {
+ 			error = data[offset + i];
+ 			bad_count++;
+ 		}
+-		printk(" %02x", (unsigned char)data[offset + i]);
+ 	}
+-	printk("\n");
++	print_hex_dump(KERN_CONT, "", 0, 16, 1,
++			&data[offset], limit, 1);
+ 
+ 	if (bad_count == 1) {
+ 		error ^= POISON_FREE;
+@@ -2987,14 +2987,9 @@ bad:
+ 		printk(KERN_ERR "slab: Internal list corruption detected in "
+ 				"cache '%s'(%d), slabp %p(%d). Hexdump:\n",
+ 			cachep->name, cachep->num, slabp, slabp->inuse);
+-		for (i = 0;
+-		     i < sizeof(*slabp) + cachep->num * sizeof(kmem_bufctl_t);
+-		     i++) {
+-			if (i % 16 == 0)
+-				printk("\n%03x:", i);
+-			printk(" %02x", ((unsigned char *)slabp)[i]);
+-		}
+-		printk("\n");
++		print_hex_dump(KERN_ERR, "", DUMP_PREFIX_OFFSET, 16, 1, slabp,
++			sizeof(*slabp) + cachep->num * sizeof(kmem_bufctl_t),
++			1);
+ 		BUG();
+ 	}
+ }
 -- 
-Mel Gorman
-SUSE Labs
+1.7.4.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
