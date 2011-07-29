@@ -1,55 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id E563C6B0169
-	for <linux-mm@kvack.org>; Fri, 29 Jul 2011 04:23:23 -0400 (EDT)
-Received: by yxn22 with SMTP id 22so2696912yxn.14
-        for <linux-mm@kvack.org>; Fri, 29 Jul 2011 01:23:22 -0700 (PDT)
-Date: Fri, 29 Jul 2011 17:23:13 +0900
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 4BA6D6B0169
+	for <linux-mm@kvack.org>; Fri, 29 Jul 2011 04:38:57 -0400 (EDT)
+Received: by gyg13 with SMTP id 13so3095643gyg.14
+        for <linux-mm@kvack.org>; Fri, 29 Jul 2011 01:38:55 -0700 (PDT)
+Date: Fri, 29 Jul 2011 17:38:47 +0900
 From: Minchan Kim <minchan.kim@gmail.com>
-Subject: Re: [PATCH v4 00/10] Prevent LRU churning
-Message-ID: <20110729082313.GA1843@barrios-desktop>
-References: <cover.1309787991.git.minchan.kim@gmail.com>
- <20110727131650.ad30a331.akpm@linux-foundation.org>
+Subject: Re: [PATCH]vmscan: add block plug for page reclaim
+Message-ID: <20110729083847.GB1843@barrios-desktop>
+References: <1311130413.15392.326.camel@sli10-conroe>
+ <CAEwNFnDj30Bipuxrfe9upD-OyuL4v21tLs0ayUKYUfye5TcGyA@mail.gmail.com>
+ <1311142253.15392.361.camel@sli10-conroe>
+ <CAEwNFnD3iCMBpZK95Ks+Z7DYbrzbZbSTLf3t6WXDQdeHrE6bLQ@mail.gmail.com>
+ <1311144559.15392.366.camel@sli10-conroe>
+ <4E287EC0.4030208@fusionio.com>
+ <1311311695.15392.369.camel@sli10-conroe>
+ <4E2B17A6.6080602@fusionio.com>
+ <20110727164523.c2b1d569.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110727131650.ad30a331.akpm@linux-foundation.org>
+In-Reply-To: <20110727164523.c2b1d569.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>
+Cc: Jens Axboe <jaxboe@fusionio.com>, Shaohua Li <shaohua.li@intel.com>, "mgorman@suse.de" <mgorman@suse.de>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
 
-On Wed, Jul 27, 2011 at 01:16:50PM -0700, Andrew Morton wrote:
-> On Mon,  4 Jul 2011 23:04:33 +0900
-> Minchan Kim <minchan.kim@gmail.com> wrote:
+On Wed, Jul 27, 2011 at 04:45:23PM -0700, Andrew Morton wrote:
+> On Sat, 23 Jul 2011 20:49:10 +0200
+> Jens Axboe <jaxboe@fusionio.com> wrote:
 > 
-> > Test result is following as.
+> > > I can observe the average request size changes. Before the patch, the
+> > > average request size is about 90k from iostat (but the variation is
+> > > big). With the patch, the request size is about 100k and variation is
+> > > small.
 > > 
-> > 1) Elapased time 10GB file decompressed.
-> > Old			inorder			inorder + pagevec flush[10/10]
-> > 01:47:50.88		01:43:16.16		01:40:27.18
-> > 
-> > 2) failure of inorder lru
-> > For test, it isolated 375756 pages. Only 45875 pages(12%) are put backed to
-> > out-of-order(ie, head of LRU) Others, 329963 pages(88%) are put backed to in-order
-> > (ie, position of old page in LRU).
+> > That's a good win right there, imho.
 > 
-> I'm getting more and more worried about how complex MM is becoming and
-> this patchset doesn't take us in a helpful direction :(
+> yup.  Reduced CPU consumption on that path isn't terribly exciting IMO,
+> but improved request size is significant.
 
-Hmm. I think it's not too complicated stuff. :(
-But I understand your concern enoughly.
+Fair enough.
+He didn't write down it in the description.
+At least, The description should include request size and variation instead of
+CPU consumption thing.
+
+Shaohua, Please rewrite the description although it's annoying.
 
 > 
-> But it's hard to argue with numbers like that.  Please respin patches 6-10?
+> Using an additional 44 bytes of stack on that path is also
+> significant(ly bad).  But we need to fix that problem anyway.  One way
+> we could improve things in mm/vmscan.c is to move the blk_plug into
+> scan_control then get the scan_control off the stack in some manner. 
+> That's easy for kswapd: allocate one scan_control per kswapd at
+> startup.  Doing it for direct-reclaim would be a bit trickier...
 
-Of course, but it would be rather late due to my business and other interesting features.
-I will try to get a new data point in next version.
-
-Thanks, Andrew.
+Stack diet in direct reclaim...
+Of course, it's a matter as I pointed out in this patch
+but frankly speaking, it's very annoying to consider stack usage
+whenever we add something in direct reclaim path.
+I think better solution is to avoid write in direct reclaim like the approach of Mel.
+I vote the approach.
+So now I will not complain the stack usage in this patch but focus on Mel's patch
 
 > 
 > 
+> 
+> And I have the usual maintainability whine.  If someone comes up to
+> vmscan.c and sees it calling blk_start_plug(), how are they supposed to
+> work out why that call is there?  They go look at the blk_start_plug()
+> definition and it is undocumented.  I think we can do better than this?
 
 -- 
 Kind regards,
