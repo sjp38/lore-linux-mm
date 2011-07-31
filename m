@@ -1,54 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 2650C6B00EE
-	for <linux-mm@kvack.org>; Sat, 30 Jul 2011 14:33:03 -0400 (EDT)
-Received: from mail-ww0-f45.google.com (mail-ww0-f45.google.com [74.125.82.45])
-	(authenticated bits=0)
-	by smtp1.linux-foundation.org (8.14.2/8.13.5/Debian-3ubuntu1.1) with ESMTP id p6UIWU7S002942
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=FAIL)
-	for <linux-mm@kvack.org>; Sat, 30 Jul 2011 11:32:31 -0700
-Received: by wwj40 with SMTP id 40so3781733wwj.26
-        for <linux-mm@kvack.org>; Sat, 30 Jul 2011 11:32:30 -0700 (PDT)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 609B86B0169
+	for <linux-mm@kvack.org>; Sun, 31 Jul 2011 07:41:40 -0400 (EDT)
+Message-ID: <4E353F6B.1030501@parallels.com>
+Date: Sun, 31 Jul 2011 15:41:31 +0400
+From: Konstantin Khlebnikov <khlebnikov@parallels.com>
 MIME-Version: 1.0
-In-Reply-To: <CA+55aFzut1tF6CLAPJUUh2H_7M4wcDpp2+Zb85Lqvofe+3v_jQ@mail.gmail.com>
-References: <alpine.DEB.2.00.1107290145080.3279@tiger> <CA+55aFzut1tF6CLAPJUUh2H_7M4wcDpp2+Zb85Lqvofe+3v_jQ@mail.gmail.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Sat, 30 Jul 2011 08:32:10 -1000
-Message-ID: <CA+55aFw9V-VM5TBwqdKiP0E_g8urth+08nX-_inZ8N1_gFQF4w@mail.gmail.com>
-Subject: Re: [GIT PULL] Lockless SLUB slowpaths for v3.1-rc1
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH] mm-slab: allocate kmem_cache with __GFP_REPEAT
+References: <20110720121612.28888.38970.stgit@localhost6>	 <alpine.DEB.2.00.1107201611010.3528@tiger> <20110720134342.GK5349@suse.de>	 <alpine.DEB.2.00.1107200854390.32737@router.home>	 <1311170893.2338.29.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>	 <alpine.DEB.2.00.1107200950270.1472@router.home> <1311174562.2338.42.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
+In-Reply-To: <1311174562.2338.42.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
+Content-Type: text/plain; charset="UTF-8"; format=flowed
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: cl@linux-foundation.org, akpm@linux-foundation.org, rientjes@google.com, hughd@google.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Eric Dumazet <eric.dumazet@gmail.com>
+Cc: Christoph Lameter <cl@linux.com>, Mel Gorman <mgorman@suse.de>, Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Matt Mackall <mpm@selenic.com>
 
-On Sat, Jul 30, 2011 at 8:27 AM, Linus Torvalds
-<torvalds@linux-foundation.org> wrote:
+It seems someone forgot this patch,
+the second one "slab: shrink sizeof(struct kmem_cache)" already in mainline
+
+Eric Dumazet wrote:
+> Le mercredi 20 juillet 2011 =C3=A0 09:52 -0500, Christoph Lameter a =C3=
+=A9crit :
+>> On Wed, 20 Jul 2011, Eric Dumazet wrote:
+>>
+>>>> Slab's kmem_cache is configured with an array of NR_CPUS which is the
+>>>> maximum nr of cpus supported. Some distros support 4096 cpus in order =
+to
+>>>> accomodate SGI machines. That array then will have the size of 4096 * =
+8 =3D
+>>>> 32k
+>>>
+>>> We currently support a dynamic schem for the possible nodes :
+>>>
+>>> cache_cache.buffer_size =3D offsetof(struct kmem_cache, nodelists) +
+>>> 	nr_node_ids * sizeof(struct kmem_list3 *);
+>>>
+>>> We could have a similar trick to make the real size both depends on
+>>> nr_node_ids and nr_cpu_ids.
+>>>
+>>> (struct kmem_cache)->array would become a pointer.
+>>
+>> We should be making it a per cpu pointer like slub then. I looked at wha=
+t
+>> it would take to do so a couple of month ago but it was quite invasive.
+>>
 >
-> Do we allocate the page map array sufficiently aligned that we
-> actually don't ever have the case of straddling a cacheline? I didn't
-> check.
-
-Oh, and another thing worth checking: did somebody actually check the
-timings for:
-
- - *just* the alignment change?
-
-   IOW, maybe some of the netperf improvement isn't from the lockless
-path, but exactly from 'struct page' always being in a single
-cacheline?
-
- - check performance with cmpxchg16b *without* the alignment.
-
-   Sometimes especially intel is so good at unaligned accesses that
-you wouldn't see an issue. Now, locked ops are usually special (and
-crossing cachelines with a locked op is dubious at best), so there may
-actually be correctness issues involved too, but it would be
-interesting to hear if anybody actually just tried it.
-
-Hmm?
-
-            Linus
+> Lets try this first patch, simple enough : No need to setup percpu data
+> for a one time use structure...
+>
+> [PATCH] slab: remove one NR_CPUS dependency
+>
+> Reduce high order allocations in do_tune_cpucache() for some setups.
+> (NR_CPUS=3D4096 ->  we need 64KB)
+>
+> Signed-off-by: Eric Dumazet<eric.dumazet@gmail.com>
+> CC: Pekka Enberg<penberg@kernel.org>
+> CC: Christoph Lameter<cl@linux.com>
+> ---
+>   mm/slab.c |    5 +++--
+>   1 file changed, 3 insertions(+), 2 deletions(-)
+>
+> diff --git a/mm/slab.c b/mm/slab.c
+> index d96e223..862bd12 100644
+> --- a/mm/slab.c
+> +++ b/mm/slab.c
+> @@ -3933,7 +3933,7 @@ fail:
+>
+>   struct ccupdate_struct {
+>   	struct kmem_cache *cachep;
+> -	struct array_cache *new[NR_CPUS];
+> +	struct array_cache *new[0];
+>   };
+>
+>   static void do_ccupdate_local(void *info)
+> @@ -3955,7 +3955,8 @@ static int do_tune_cpucache(struct kmem_cache *cach=
+ep, int limit,
+>   	struct ccupdate_struct *new;
+>   	int i;
+>
+> -	new =3D kzalloc(sizeof(*new), gfp);
+> +	new =3D kzalloc(sizeof(*new) + nr_cpu_ids * sizeof(struct array_cache *=
+),
+> +		      gfp);
+>   	if (!new)
+>   		return -ENOMEM;
+>
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
