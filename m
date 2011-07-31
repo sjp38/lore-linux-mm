@@ -1,55 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id BC866900137
-	for <linux-mm@kvack.org>; Sun, 31 Jul 2011 13:40:00 -0400 (EDT)
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [GIT PULL] Lockless SLUB slowpaths for v3.1-rc1
-References: <alpine.DEB.2.00.1107290145080.3279@tiger>
-	<CA+55aFzut1tF6CLAPJUUh2H_7M4wcDpp2+Zb85Lqvofe+3v_jQ@mail.gmail.com>
-	<CA+55aFw9V-VM5TBwqdKiP0E_g8urth+08nX-_inZ8N1_gFQF4w@mail.gmail.com>
-Date: Sun, 31 Jul 2011 10:39:58 -0700
-In-Reply-To: <CA+55aFw9V-VM5TBwqdKiP0E_g8urth+08nX-_inZ8N1_gFQF4w@mail.gmail.com>
-	(Linus Torvalds's message of "Sat, 30 Jul 2011 08:32:10 -1000")
-Message-ID: <m2livez6vl.fsf@firstfloor.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id C186B900137
+	for <linux-mm@kvack.org>; Sun, 31 Jul 2011 13:47:44 -0400 (EDT)
+Received: by wwj40 with SMTP id 40so4167514wwj.26
+        for <linux-mm@kvack.org>; Sun, 31 Jul 2011 10:47:42 -0700 (PDT)
+From: Caspar Zhang <caspar@casparzhang.com>
+Subject: [PATCH] mm/mempolicy.c: fix pgoff in mbind vma merge
+Date: Mon,  1 Aug 2011 01:47:00 +0800
+Message-Id: <14efb4b829a69f8c13d65de60a4508c0bbb0a5f5.1312133372.git.caspar@casparzhang.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Pekka Enberg <penberg@kernel.org>, cl@linux-foundation.org, akpm@linux-foundation.org, rientjes@google.com, hughd@google.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, kosaki.motohiro@jp.fujitsu.com, yinghan@google.com
+To: linux-mm <linux-mm@kvack.org>
+Cc: Caspar Zhang <caspar@casparzhang.com>
 
-Linus Torvalds <torvalds@linux-foundation.org> writes:
+commit 9d8cebd4bcd7c3878462fdfda34bbcdeb4df7ef4 didn't real fix the
+mbind vma merge problem due to wrong pgoff value passing to vma_merge(),
+which made vma_merge() always return NULL.
 
-> On Sat, Jul 30, 2011 at 8:27 AM, Linus Torvalds
-> <torvalds@linux-foundation.org> wrote:
->>
->> Do we allocate the page map array sufficiently aligned that we
->> actually don't ever have the case of straddling a cacheline? I didn't
->> check.
->
-> Oh, and another thing worth checking: did somebody actually check the
-> timings for:
+Re-tested the patched kernel with the reproducer provided in commit
+9d8cebd, got correct result like below:
 
-I would like to see a followon patch that moves the mem_cgroup
-pointer back into struct page. Copying some mem_cgroup people.
+addr = 0x7ffa5aaa2000
+[snip]
+7ffa5aaa2000-7ffa5aaa6000 rw-p 00000000 00:00 0
+7fffd556f000-7fffd5584000 rw-p 00000000 00:00 0                          [stack]
 
->
->  - *just* the alignment change?
->
->    IOW, maybe some of the netperf improvement isn't from the lockless
-> path, but exactly from 'struct page' always being in a single
-> cacheline?
->
->  - check performance with cmpxchg16b *without* the alignment.
->
->    Sometimes especially intel is so good at unaligned accesses that
-> you wouldn't see an issue. Now, locked ops are usually special (and
+Signed-off-by: Caspar Zhang <caspar@casparzhang.com>
+---
+ mm/mempolicy.c |    5 ++---
+ 1 files changed, 2 insertions(+), 3 deletions(-)
 
-As Eric pointed out CMPXCHG16B requires alignment, it #GPs otherwise.
-
--Andi
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index 8b57173..b1f70d6 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -636,7 +636,6 @@ static int mbind_range(struct mm_struct *mm, unsigned long start,
+ 	struct vm_area_struct *prev;
+ 	struct vm_area_struct *vma;
+ 	int err = 0;
+-	pgoff_t pgoff;
+ 	unsigned long vmstart;
+ 	unsigned long vmend;
+ 
+@@ -649,9 +648,9 @@ static int mbind_range(struct mm_struct *mm, unsigned long start,
+ 		vmstart = max(start, vma->vm_start);
+ 		vmend   = min(end, vma->vm_end);
+ 
+-		pgoff = vma->vm_pgoff + ((start - vma->vm_start) >> PAGE_SHIFT);
+ 		prev = vma_merge(mm, prev, vmstart, vmend, vma->vm_flags,
+-				  vma->anon_vma, vma->vm_file, pgoff, new_pol);
++				  vma->anon_vma, vma->vm_file, vma->vm_pgoff,
++				  new_pol);
+ 		if (prev) {
+ 			vma = prev;
+ 			next = vma->vm_next;
 -- 
-ak@linux.intel.com -- Speaking for myself only
+1.7.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
