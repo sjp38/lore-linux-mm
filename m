@@ -1,48 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 6D987900137
-	for <linux-mm@kvack.org>; Sun, 31 Jul 2011 12:13:09 -0400 (EDT)
-Received: by fxg9 with SMTP id 9so5334368fxg.14
-        for <linux-mm@kvack.org>; Sun, 31 Jul 2011 09:13:06 -0700 (PDT)
-Date: Sun, 31 Jul 2011 19:12:59 +0300 (EEST)
-From: Pekka Enberg <penberg@kernel.org>
-Subject: Re: [GIT PULL] SLAB changes for v3.1-rc0
-In-Reply-To: <alpine.DEB.2.00.1107291023000.16178@router.home>
-Message-ID: <alpine.DEB.2.00.1107311912380.9837@tiger>
-References: <alpine.DEB.2.00.1107221108190.2996@tiger> <CAOJsxLHniS9Hx+ep_i2qbE_Oo6PnkNCK5dNARW5egg9Bso4Ovg@mail.gmail.com> <alpine.DEB.2.00.1107281514080.29344@chino.kir.corp.google.com> <alpine.DEB.2.00.1107291023000.16178@router.home>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 792FC900137
+	for <linux-mm@kvack.org>; Sun, 31 Jul 2011 12:19:33 -0400 (EDT)
+Received: by vwm42 with SMTP id 42so2220091vwm.14
+        for <linux-mm@kvack.org>; Sun, 31 Jul 2011 09:19:32 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
+In-Reply-To: <alpine.DEB.2.00.1107141033031.30512@router.home>
+References: <alpine.DEB.2.00.1106201612310.17524@router.home>
+	<1310065449.21902.60.camel@jaguar>
+	<alpine.DEB.2.00.1107131710050.4557@chino.kir.corp.google.com>
+	<alpine.DEB.2.00.1107140919050.30512@router.home>
+	<alpine.DEB.2.00.1107141033031.30512@router.home>
+Date: Sun, 31 Jul 2011 19:19:32 +0300
+Message-ID: <CAOJsxLF_BaPGx9CcYewKHs0FQdK_HfNXW5ptu2w9nAs47+GodQ@mail.gmail.com>
+Subject: Re: slub: free slabs without holding locks (V2)
+From: Pekka Enberg <penberg@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Christoph Lameter <cl@linux.com>
-Cc: David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org
 
-
-> On Thu, 28 Jul 2011, David Rientjes wrote:
+On Thu, Jul 14, 2011 at 6:35 PM, Christoph Lameter <cl@linux.com> wrote:
+> There are two situations in which slub holds a lock while releasing
+> pages:
 >
->> On Thu, 28 Jul 2011, Pekka Enberg wrote:
->>
->>> Christoph, your debugging fix has been in linux-next for few days now
->>> and no problem have been reported. I'm considering sending the series
->>> to Linus. What do you think?
->>>
->>
->> I ran slub/lockless through some stress testing and it seems to be quite
->> stable on my testing cluster.  There is about a 2.3% performance
->> improvement with the lockless slowpath on the netperf benchmark with
->> various thread counts on my 16-core 64GB Opterons, so I'd recommend it to
->> be merged into 3.1.
+> =A0 =A0 =A0 =A0A. During kmem_cache_shrink()
+> =A0 =A0 =A0 =A0B. During kmem_cache_close()
+>
+> For A build a list while holding the lock and then release the pages
+> later. In case of B we are the last remaining user of the slab so
+> there is no need to take the listlock.
+>
+> After this patch all calls to the page allocator to free pages are
+> done without holding any locks.
+>
+> V1->V2. Remove kfree. Avoid locking in free_partial. Drop slub_lock
+> too.
+>
+> Signed-off-by: Christoph Lameter <cl@linux.com>
 
-On Fri, 29 Jul 2011, Christoph Lameter wrote:
-> Great. Could you also test the next stage of patches (not yet even in
-> Pekka's tree) where we add a per cpu cache of partial allocated slab
-> pages? This decreases the per node lock contention further. I can repost
-> the set if the old one does not work for you. Shows significant
-> improvement here as well.
-
-They don't apply so please resend them.
-
- 			Pekka
+I'd like to merge this patch but it doesn't apply on top of Linus'
+tree. Care to resend?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
