@@ -1,43 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id E6153900137
-	for <linux-mm@kvack.org>; Sun, 31 Jul 2011 11:17:42 -0400 (EDT)
-Received: by fxg9 with SMTP id 9so5293852fxg.14
-        for <linux-mm@kvack.org>; Sun, 31 Jul 2011 08:17:40 -0700 (PDT)
-Date: Sun, 31 Jul 2011 18:17:33 +0300 (EEST)
-From: Pekka Enberg <penberg@kernel.org>
-Subject: [GIT PULL] SLAB updates for 3.1-rc1
-Message-ID: <alpine.DEB.2.00.1107311817140.4008@tiger>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id BB73E900137
+	for <linux-mm@kvack.org>; Sun, 31 Jul 2011 11:18:00 -0400 (EDT)
+Received: by pzk33 with SMTP id 33so10308811pzk.36
+        for <linux-mm@kvack.org>; Sun, 31 Jul 2011 08:17:58 -0700 (PDT)
+Date: Mon, 1 Aug 2011 00:17:49 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: Re: [PATCH 6/8] mm: vmscan: Throttle reclaim if encountering too
+ many dirty pages under writeback
+Message-ID: <20110731151749.GD1735@barrios-desktop>
+References: <1311265730-5324-1-git-send-email-mgorman@suse.de>
+ <1311265730-5324-7-git-send-email-mgorman@suse.de>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; format=flowed; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1311265730-5324-7-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: torvalds@linux-foundation.org
-Cc: cl@linux-foundation.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, XFS <xfs@oss.sgi.com>, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, Johannes Weiner <jweiner@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>
 
-Hi Linus,
+On Thu, Jul 21, 2011 at 05:28:48PM +0100, Mel Gorman wrote:
+> Workloads that are allocating frequently and writing files place a
+> large number of dirty pages on the LRU. With use-once logic, it is
+> possible for them to reach the end of the LRU quickly requiring the
+> reclaimer to scan more to find clean pages. Ordinarily, processes that
+> are dirtying memory will get throttled by dirty balancing but this
+> is a global heuristic and does not take into account that LRUs are
+> maintained on a per-zone basis. This can lead to a situation whereby
+> reclaim is scanning heavily, skipping over a large number of pages
+> under writeback and recycling them around the LRU consuming CPU.
+> 
+> This patch checks how many of the number of pages isolated from the
+> LRU were dirty. If a percentage of them are dirty, the process will be
+> throttled if a blocking device is congested or the zone being scanned
+> is marked congested. The percentage that must be dirty depends on
+> the priority. At default priority, all of them must be dirty. At
+> DEF_PRIORITY-1, 50% of them must be dirty, DEF_PRIORITY-2, 25%
+> etc. i.e.  as pressure increases the greater the likelihood the process
+> will get throttled to allow the flusher threads to make some progress.
+> 
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
+Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
 
-Here's two final slab updates. Eric's patch reduces memory usage for slab
-internal data structures even mor for high NR_CPU configurations.
-
-                         Pekka
-
-The following changes since commit 250f8e3db646028353a2a737ddb7a894c97a1098:
-   Linus Torvalds (1):
-         Merge branch 'for-linus' of git://git.kernel.org/.../jikos/trivial
-
-are available in the git repository at:
-
-   ssh://master.kernel.org/pub/scm/linux/kernel/git/penberg/slab-2.6.git for-linus
-
-Andrew Morton (1):
-       slab: use NUMA_NO_NODE
-
-Eric Dumazet (1):
-       slab: remove one NR_CPUS dependency
-
-  mm/slab.c |    7 ++++---
-  1 files changed, 4 insertions(+), 3 deletions(-)
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
