@@ -1,69 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 378E2900137
-	for <linux-mm@kvack.org>; Sun, 31 Jul 2011 11:24:14 -0400 (EDT)
-Received: by pzk33 with SMTP id 33so10316086pzk.36
-        for <linux-mm@kvack.org>; Sun, 31 Jul 2011 08:24:11 -0700 (PDT)
-Date: Mon, 1 Aug 2011 00:24:01 +0900
-From: Minchan Kim <minchan.kim@gmail.com>
-Subject: Re: [PATCH 7/8] mm: vmscan: Immediately reclaim end-of-LRU dirty
- pages when writeback completes
-Message-ID: <20110731152401.GE1735@barrios-desktop>
-References: <1311265730-5324-1-git-send-email-mgorman@suse.de>
- <1311265730-5324-8-git-send-email-mgorman@suse.de>
- <1311339228.27400.34.camel@twins>
- <20110722132319.GX5349@suse.de>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D987900137
+	for <linux-mm@kvack.org>; Sun, 31 Jul 2011 12:13:09 -0400 (EDT)
+Received: by fxg9 with SMTP id 9so5334368fxg.14
+        for <linux-mm@kvack.org>; Sun, 31 Jul 2011 09:13:06 -0700 (PDT)
+Date: Sun, 31 Jul 2011 19:12:59 +0300 (EEST)
+From: Pekka Enberg <penberg@kernel.org>
+Subject: Re: [GIT PULL] SLAB changes for v3.1-rc0
+In-Reply-To: <alpine.DEB.2.00.1107291023000.16178@router.home>
+Message-ID: <alpine.DEB.2.00.1107311912380.9837@tiger>
+References: <alpine.DEB.2.00.1107221108190.2996@tiger> <CAOJsxLHniS9Hx+ep_i2qbE_Oo6PnkNCK5dNARW5egg9Bso4Ovg@mail.gmail.com> <alpine.DEB.2.00.1107281514080.29344@chino.kir.corp.google.com> <alpine.DEB.2.00.1107291023000.16178@router.home>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110722132319.GX5349@suse.de>
+Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Peter Zijlstra <peterz@infradead.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, XFS <xfs@oss.sgi.com>, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, Johannes Weiner <jweiner@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, Jul 22, 2011 at 02:23:19PM +0100, Mel Gorman wrote:
-> On Fri, Jul 22, 2011 at 02:53:48PM +0200, Peter Zijlstra wrote:
-> > On Thu, 2011-07-21 at 17:28 +0100, Mel Gorman wrote:
-> > > When direct reclaim encounters a dirty page, it gets recycled around
-> > > the LRU for another cycle. This patch marks the page PageReclaim
-> > > similar to deactivate_page() so that the page gets reclaimed almost
-> > > immediately after the page gets cleaned. This is to avoid reclaiming
-> > > clean pages that are younger than a dirty page encountered at the
-> > > end of the LRU that might have been something like a use-once page.
-> > > 
-> > 
-> > > @@ -834,7 +834,15 @@ static unsigned long shrink_page_list(struct list_head *page_list,
-> > >  			 */
-> > >  			if (page_is_file_cache(page) &&
-> > >  					(!current_is_kswapd() || priority >= DEF_PRIORITY - 2)) {
-> > > -				inc_zone_page_state(page, NR_VMSCAN_WRITE_SKIP);
-> > > +				/*
-> > > +				 * Immediately reclaim when written back.
-> > > +				 * Similar in principal to deactivate_page()
-> > > +				 * except we already have the page isolated
-> > > +				 * and know it's dirty
-> > > +				 */
-> > > +				inc_zone_page_state(page, NR_VMSCAN_INVALIDATE);
-> > > +				SetPageReclaim(page);
-> > > +
-> > 
-> > I find the invalidate name somewhat confusing. It makes me think we'll
-> > drop the page without writeback, like invalidatepage().
-> 
-> I wasn't that happy with it either to be honest but didn't think of a
-> better one at the time. nr_reclaim_deferred?
 
-How about "NR_VMSCAN_IMMEDIATE_RECLAIM" like comment rotate_reclaimable_page?
+> On Thu, 28 Jul 2011, David Rientjes wrote:
+>
+>> On Thu, 28 Jul 2011, Pekka Enberg wrote:
+>>
+>>> Christoph, your debugging fix has been in linux-next for few days now
+>>> and no problem have been reported. I'm considering sending the series
+>>> to Linus. What do you think?
+>>>
+>>
+>> I ran slub/lockless through some stress testing and it seems to be quite
+>> stable on my testing cluster.  There is about a 2.3% performance
+>> improvement with the lockless slowpath on the netperf benchmark with
+>> various thread counts on my 16-core 64GB Opterons, so I'd recommend it to
+>> be merged into 3.1.
 
-> 
-> -- 
-> Mel Gorman
-> SUSE Labs
+On Fri, 29 Jul 2011, Christoph Lameter wrote:
+> Great. Could you also test the next stage of patches (not yet even in
+> Pekka's tree) where we add a per cpu cache of partial allocated slab
+> pages? This decreases the per node lock contention further. I can repost
+> the set if the old one does not work for you. Shows significant
+> improvement here as well.
 
--- 
-Kind regards,
-Minchan Kim
+They don't apply so please resend them.
+
+ 			Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
