@@ -1,60 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id ECEA890015D
-	for <linux-mm@kvack.org>; Mon,  1 Aug 2011 11:55:45 -0400 (EDT)
-Date: Mon, 1 Aug 2011 10:55:40 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [GIT PULL] Lockless SLUB slowpaths for v3.1-rc1
-In-Reply-To: <CAOJsxLHB9jPNyU2qztbEHG4AZWjauCLkwUVYr--8PuBBg1=MCA@mail.gmail.com>
-Message-ID: <alpine.DEB.2.00.1108011046230.8420@router.home>
-References: <alpine.DEB.2.00.1107290145080.3279@tiger> <alpine.DEB.2.00.1107291002570.16178@router.home> <alpine.DEB.2.00.1107311136150.12538@chino.kir.corp.google.com> <alpine.DEB.2.00.1107311253560.12538@chino.kir.corp.google.com> <1312145146.24862.97.camel@jaguar>
- <alpine.DEB.2.00.1107311426001.944@chino.kir.corp.google.com> <CAOJsxLHB9jPNyU2qztbEHG4AZWjauCLkwUVYr--8PuBBg1=MCA@mail.gmail.com>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 6352590015D
+	for <linux-mm@kvack.org>; Mon,  1 Aug 2011 12:15:27 -0400 (EDT)
+Message-ID: <4E36D110.30407@openvz.org>
+Date: Mon, 1 Aug 2011 20:15:12 +0400
+From: Konstantin Khlebnikov <khlebnikov@openvz.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH RFC] mm: reverse lru scanning order
+References: <20110727111002.9985.94938.stgit@localhost6>
+In-Reply-To: <20110727111002.9985.94938.stgit@localhost6>
+Content-Type: text/plain; charset="UTF-8"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, hughd@google.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
+sorry, this patch is broken.
 
-The future plans that I have for performance improvements are:
+Konstantin Khlebnikov wrote:
+> LRU scanning order was accidentially changed in commit v2.6.27-5584-gb69408e:
+> "vmscan: Use an indexed array for LRU variables".
+> Before that commit reclaimer always scan active lists first.
+>
+> This patch just reverse it back.
+> This is just notice and question: "Does it affect something?"
+>
+> Signed-off-by: Konstantin Khlebnikov<khlebnikov@openvz.org>
+> ---
+>   include/linux/mmzone.h |    3 ++-
+>   1 files changed, 2 insertions(+), 1 deletions(-)
+>
+> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> index be1ac8d..88fb49c 100644
+> --- a/include/linux/mmzone.h
+> +++ b/include/linux/mmzone.h
+> @@ -141,7 +141,8 @@ enum lru_list {
+>
+>   #define for_each_lru(l) for (l = 0; l<  NR_LRU_LISTS; l++)
+>
+> -#define for_each_evictable_lru(l) for (l = 0; l<= LRU_ACTIVE_FILE; l++)
+> +#define for_each_evictable_lru(l) \
+> +	for (l = LRU_ACTIVE_FILE; l>= LRU_INACTIVE_ANON; l--)
 
-1. The percpu partial lists.
+there must be some thing like this:
 
-The min_partial settings are halved by this approach so that there wont be
-any excessive memory usage. Pages on per cpu partial lists are frozen and
-this means that the __slab_free path can avoid taking node locks for a
-page that is cached by another processor. This causes another significant
-performance gain in hackbench of up to 20%. The problem here is to fine
-tune the approach and clean up the patchset.
++#define for_each_evictable_lru(l) \
++	for (l = LRU_ACTIVE_FILE; (int)l>= LRU_INACTIVE_ANON; l--)
 
-2. per cpu full lists.
+otherwise gcc silently generates there infinite loop =)
 
-These will not be specific to a particular slab cache but shared amoung
-all of them. This will reduce the need to keep empty slab pages on the
-per node partial lists and therefore also reduce memory consumption.
-
-The per cpu full lists will be essentially a caching layer for the
-page allocator and will make slab acquisition and release as fast
-as the slub fastpath for alloc and free (it uses the same
-this_cpu_cmpxchg_double based approach). I basically gave up on
-fixing up the page allocator fastpath after trying various approaches
-over the last weeks. Maybe the caching layer can be made available
-for other kernel subsystems that need fast page access too.
-
-The scaling issues that are left over are then those caused by
-
-1. The per node lock taken for the partial lists per node.
-   This can be controlled by enlarging the per cpu partial lists.
-
-2. The necessity to go to the page allocator.
-   This will be tunable by configuring the caching layer.
-
-3. Bouncing cachelines for __remote_free if multiple processors
-   enter __slab_free for the same page.
-
-
-
+>
+>   static inline int is_file_lru(enum lru_list l)
+>   {
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
