@@ -1,63 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id D8D8890015F
-	for <linux-mm@kvack.org>; Mon,  1 Aug 2011 15:49:59 -0400 (EDT)
-Date: Mon, 1 Aug 2011 21:49:42 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v4 3/5] memcg : stop scanning if enough
-Message-ID: <20110801194905.GA5354@tiehlicka.suse.cz>
-References: <20110727144438.a9fdfd5b.kamezawa.hiroyu@jp.fujitsu.com>
- <20110727144900.503a0afe.kamezawa.hiroyu@jp.fujitsu.com>
- <20110801143745.GF25251@tiehlicka.suse.cz>
+	by kanga.kvack.org (Postfix) with ESMTP id C125990015F
+	for <linux-mm@kvack.org>; Mon,  1 Aug 2011 19:45:20 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id C6CBC3EE0BB
+	for <linux-mm@kvack.org>; Tue,  2 Aug 2011 08:45:17 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id B07E945DE68
+	for <linux-mm@kvack.org>; Tue,  2 Aug 2011 08:45:17 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 857CF45DE7E
+	for <linux-mm@kvack.org>; Tue,  2 Aug 2011 08:45:17 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 75FCE1DB803A
+	for <linux-mm@kvack.org>; Tue,  2 Aug 2011 08:45:17 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 425C01DB8038
+	for <linux-mm@kvack.org>; Tue,  2 Aug 2011 08:45:17 +0900 (JST)
+Message-ID: <4E373A80.3090206@jp.fujitsu.com>
+Date: Tue, 02 Aug 2011 08:45:04 +0900
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110801143745.GF25251@tiehlicka.suse.cz>
+Subject: Re: [PATCH RFC] mm: reverse lru scanning order
+References: <20110727111002.9985.94938.stgit@localhost6> <4E36D110.30407@openvz.org>
+In-Reply-To: <4E36D110.30407@openvz.org>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
+To: khlebnikov@openvz.org
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org
 
-On Mon 01-08-11 16:37:45, Michal Hocko wrote:
-> On Wed 27-07-11 14:49:00, KAMEZAWA Hiroyuki wrote:
-> > memcg :avoid node fallback scan if possible.
-> > 
-> > Now, try_to_free_pages() scans all zonelist because the page allocator
-> > should visit all zonelists...but that behavior is harmful for memcg.
-> > Memcg just scans memory because it hits limit...no memory shortage
-> > in pased zonelist.
-> > 
-> > For example, with following unbalanced nodes
-> > 
-> >      Node 0    Node 1
-> > File 1G        0
-> > Anon 200M      200M
-> > 
-> > memcg will cause swap-out from Node1 at every vmscan.
-> > 
-> > Another example, assume 1024 nodes system.
-> > With 1024 node system, memcg will visit 1024 nodes
-> > pages per vmscan... This is overkilling. 
-> > 
-> > This is why memcg's victim node selection logic doesn't work
-> > as expected.
+(2011/08/02 1:15), Konstantin Khlebnikov wrote:
+> sorry, this patch is broken.
+
+If you resend a _tested_ patch, I'll ack this one.
+
+Thanks.
+
+
 > 
-> Previous patch adds nodemask filled by
-> mem_cgroup_select_victim_node. Shouldn't we rather limit that nodemask
-> to a victim node?
-
-Bahh, scratch that. I was jumping from one thing to another and got 
-totally confused. Victim memcg is not bound to any particular node in 
-general...
-Sorry for noise. I will try to get back to this tomorrow.
-
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+> Konstantin Khlebnikov wrote:
+>> LRU scanning order was accidentially changed in commit v2.6.27-5584-gb69408e:
+>> "vmscan: Use an indexed array for LRU variables".
+>> Before that commit reclaimer always scan active lists first.
+>>
+>> This patch just reverse it back.
+>> This is just notice and question: "Does it affect something?"
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
