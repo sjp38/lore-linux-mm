@@ -1,61 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 5170E90014E
-	for <linux-mm@kvack.org>; Mon,  1 Aug 2011 11:31:24 -0400 (EDT)
-Received: by wyg36 with SMTP id 36so2213314wyg.14
-        for <linux-mm@kvack.org>; Mon, 01 Aug 2011 08:29:41 -0700 (PDT)
-From: Caspar Zhang <caspar@casparzhang.com>
-Subject: [PATCH] mm/mempolicy.c: fix pgoff in mbind vma merge
-Date: Mon,  1 Aug 2011 23:28:55 +0800
-Message-Id: <14efb4b829a69f8c13d65de60a4508c0bbb0a5f5.1312212325.git.caspar@casparzhang.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id ECEA890015D
+	for <linux-mm@kvack.org>; Mon,  1 Aug 2011 11:55:45 -0400 (EDT)
+Date: Mon, 1 Aug 2011 10:55:40 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [GIT PULL] Lockless SLUB slowpaths for v3.1-rc1
+In-Reply-To: <CAOJsxLHB9jPNyU2qztbEHG4AZWjauCLkwUVYr--8PuBBg1=MCA@mail.gmail.com>
+Message-ID: <alpine.DEB.2.00.1108011046230.8420@router.home>
+References: <alpine.DEB.2.00.1107290145080.3279@tiger> <alpine.DEB.2.00.1107291002570.16178@router.home> <alpine.DEB.2.00.1107311136150.12538@chino.kir.corp.google.com> <alpine.DEB.2.00.1107311253560.12538@chino.kir.corp.google.com> <1312145146.24862.97.camel@jaguar>
+ <alpine.DEB.2.00.1107311426001.944@chino.kir.corp.google.com> <CAOJsxLHB9jPNyU2qztbEHG4AZWjauCLkwUVYr--8PuBBg1=MCA@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Caspar Zhang <caspar@casparzhang.com>, linux-mm <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>
+To: Pekka Enberg <penberg@kernel.org>
+Cc: David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, hughd@google.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-commit 9d8cebd4bcd7c3878462fdfda34bbcdeb4df7ef4 didn't real fix the
-mbind vma merge problem due to wrong pgoff value passing to vma_merge(),
-which made vma_merge() always return NULL.
 
-Re-tested the patched kernel with the reproducer provided in commit
-9d8cebd, got correct result like below:
+The future plans that I have for performance improvements are:
 
-addr = 0x7ffa5aaa2000
-[snip]
-7ffa5aaa2000-7ffa5aaa6000 rw-p 00000000 00:00 0
-7fffd556f000-7fffd5584000 rw-p 00000000 00:00 0                          [stack]
+1. The percpu partial lists.
 
-Signed-off-by: Caspar Zhang <caspar@casparzhang.com>
----
- mm/mempolicy.c |    5 ++---
- 1 files changed, 2 insertions(+), 3 deletions(-)
+The min_partial settings are halved by this approach so that there wont be
+any excessive memory usage. Pages on per cpu partial lists are frozen and
+this means that the __slab_free path can avoid taking node locks for a
+page that is cached by another processor. This causes another significant
+performance gain in hackbench of up to 20%. The problem here is to fine
+tune the approach and clean up the patchset.
 
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index 8b57173..b1f70d6 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -636,7 +636,6 @@ static int mbind_range(struct mm_struct *mm, unsigned long start,
- 	struct vm_area_struct *prev;
- 	struct vm_area_struct *vma;
- 	int err = 0;
--	pgoff_t pgoff;
- 	unsigned long vmstart;
- 	unsigned long vmend;
- 
-@@ -649,9 +648,9 @@ static int mbind_range(struct mm_struct *mm, unsigned long start,
- 		vmstart = max(start, vma->vm_start);
- 		vmend   = min(end, vma->vm_end);
- 
--		pgoff = vma->vm_pgoff + ((start - vma->vm_start) >> PAGE_SHIFT);
- 		prev = vma_merge(mm, prev, vmstart, vmend, vma->vm_flags,
--				  vma->anon_vma, vma->vm_file, pgoff, new_pol);
-+				  vma->anon_vma, vma->vm_file, vma->vm_pgoff,
-+				  new_pol);
- 		if (prev) {
- 			vma = prev;
- 			next = vma->vm_next;
--- 
-1.7.6
+2. per cpu full lists.
+
+These will not be specific to a particular slab cache but shared amoung
+all of them. This will reduce the need to keep empty slab pages on the
+per node partial lists and therefore also reduce memory consumption.
+
+The per cpu full lists will be essentially a caching layer for the
+page allocator and will make slab acquisition and release as fast
+as the slub fastpath for alloc and free (it uses the same
+this_cpu_cmpxchg_double based approach). I basically gave up on
+fixing up the page allocator fastpath after trying various approaches
+over the last weeks. Maybe the caching layer can be made available
+for other kernel subsystems that need fast page access too.
+
+The scaling issues that are left over are then those caused by
+
+1. The per node lock taken for the partial lists per node.
+   This can be controlled by enlarging the per cpu partial lists.
+
+2. The necessity to go to the page allocator.
+   This will be tunable by configuring the caching layer.
+
+3. Bouncing cachelines for __remote_free if multiple processors
+   enter __slab_free for the same page.
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
