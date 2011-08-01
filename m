@@ -1,86 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id D1884900137
-	for <linux-mm@kvack.org>; Sun, 31 Jul 2011 20:57:49 -0400 (EDT)
-Received: by yxn22 with SMTP id 22so3797483yxn.14
-        for <linux-mm@kvack.org>; Sun, 31 Jul 2011 17:57:46 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <004201cc4dfb$47ee4770$d7cad650$%szyprowski@samsung.com>
-References: <CAB-zwWjb+2ExjNDB3OtHmRmgaHMnO-VgEe9VZk_wU=ryrq_AGw@mail.gmail.com>
-	<000301cc4dc4$31b53630$951fa290$%szyprowski@samsung.com>
-	<20110729093555.GA13522@8bytes.org>
-	<001901cc4dd8$4afb4e40$e0f1eac0$%szyprowski@samsung.com>
-	<20110729105422.GB13522@8bytes.org>
-	<004201cc4dfb$47ee4770$d7cad650$%szyprowski@samsung.com>
-Date: Mon, 1 Aug 2011 09:57:46 +0900
-Message-ID: <CAHQjnOM58AReFuDpcSjHvNP2UZX1ZUeuWyfWCG6Ayxdfj4QE7w@mail.gmail.com>
-Subject: Re: [RFC] ARM: dma_map|unmap_sg plus iommu
-From: KyongHo Cho <pullip.cho@samsung.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 21C52900137
+	for <linux-mm@kvack.org>; Mon,  1 Aug 2011 01:08:30 -0400 (EDT)
+Subject: Re: [GIT PULL] Lockless SLUB slowpaths for v3.1-rc1
+From: Pekka Enberg <penberg@kernel.org>
+In-Reply-To: <alpine.DEB.2.00.1107311426001.944@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1107290145080.3279@tiger>
+	 <alpine.DEB.2.00.1107291002570.16178@router.home>
+	 <alpine.DEB.2.00.1107311136150.12538@chino.kir.corp.google.com>
+	 <alpine.DEB.2.00.1107311253560.12538@chino.kir.corp.google.com>
+	 <1312145146.24862.97.camel@jaguar>
+	 <alpine.DEB.2.00.1107311426001.944@chino.kir.corp.google.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Date: Mon, 01 Aug 2011 08:08:26 +0300
+Message-ID: <1312175306.24862.103.camel@jaguar>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: Joerg Roedel <joro@8bytes.org>, "Ramirez Luna, Omar" <omar.ramirez@ti.com>, linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, Kyungmin Park <kyungmin.park@samsung.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Arnd Bergmann <arnd@arndb.de>, Ohad Ben-Cohen <ohad@wizery.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Christoph Lameter <cl@linux.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, hughd@google.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Hi.
+On Sun, 2011-07-31 at 14:55 -0700, David Rientjes wrote:
+> On Sun, 31 Jul 2011, Pekka Enberg wrote:
+> 
+> > > And although slub is definitely heading in the right direction regarding 
+> > > the netperf benchmark, it's still a non-starter for anybody using large 
+> > > NUMA machines for networking performance.  On my 16-core, 4 node, 64GB 
+> > > client/server machines running netperf TCP_RR with various thread counts 
+> > > for 60 seconds each on 3.0:
+> > > 
+> > > 	threads		SLUB		SLAB		diff
+> > > 	 16		76345		74973		- 1.8%
+> > > 	 32		116380		116272		- 0.1%
+> > > 	 48		150509		153703		+ 2.1%
+> > > 	 64		187984		189750		+ 0.9%
+> > > 	 80		216853		224471		+ 3.5%
+> > > 	 96		236640		249184		+ 5.3%
+> > > 	112		256540		275464		+ 7.4%
+> > > 	128		273027		296014		+ 8.4%
+> > > 	144		281441		314791		+11.8%
+> > > 	160		287225		326941		+13.8%
+> > 
+> > That looks like a pretty nasty scaling issue. David, would it be
+> > possible to see 'perf report' for the 160 case? [ Maybe even 'perf
+> > annotate' for the interesting SLUB functions. ] 
+> 
+> More interesting than the perf report (which just shows kfree, 
+> kmem_cache_free, kmem_cache_alloc dominating) is the statistics that are 
+> exported by slub itself, it shows the "slab thrashing" issue that I 
+> described several times over the past few years.  It's difficult to 
+> address because it's a result of slub's design.  From the client side of 
+> 160 netperf TCP_RR threads for 60 seconds:
+> 
+> 	cache		alloc_fastpath		alloc_slowpath
+> 	kmalloc-256	10937512 (62.8%)	6490753
+> 	kmalloc-1024	17121172 (98.3%)	303547
+> 	kmalloc-4096	5526281			11910454 (68.3%)
+> 
+> 	cache		free_fastpath		free_slowpath
+> 	kmalloc-256	15469			17412798 (99.9%)
+> 	kmalloc-1024	11604742 (66.6%)	5819973
+> 	kmalloc-4096	14848			17421902 (99.9%)
+> 
+> With those stats, there's no way that slub will even be able to compete 
+> with slab because it's not optimized for the slowpath.
 
-On Fri, Jul 29, 2011 at 11:24 PM, Marek Szyprowski
-<m.szyprowski@samsung.com> wrote:
-> Hello,
->
-> On Friday, July 29, 2011 12:54 PM Joerg Roedel wrote:
->
->> On Fri, Jul 29, 2011 at 12:14:25PM +0200, Marek Szyprowski wrote:
->> > > This sounds rather hacky. How about partitioning the address space for
->> > > the device and give the dma-api only a part of it. The other parts can
->> > > be directly mapped using the iommu-api then.
->> >
->> > Well, I'm not convinced that iommu-api should be used by the device drivers
->> > directly. If possible we should rather extend dma-mapping than use such
-> hacks.
->>
->> Building this into dma-api would turn it into an iommu-api. The line
->> between the apis are clear. The iommu-api provides direct mapping
->> of bus-addresses to system-addresses while the dma-api puts a memory
->> manager on-top which deals with bus-address allocation itself.
->> So if you want to map bus-addresses directly the iommu-api is the way to
->> go. This is in no way a hack.
->
-> The problem starts when you want to use the same driver on two different
-> systems:
-> one with iommu and one without. Our driver depends only on dma-mapping and the
-> fact
-> that the first allocation starts from the right address. On systems without
-> iommu,
-> board code calls bootmem_reserve() and dma_declare_coherent() for the required
-> memory range. Systems with IOMMU just sets up device io address space to start
-> at the specified address. This works fine, because in our system each device has
-> its own, private iommu controller and private address space.
->
-> Right now I have no idea how to handle this better. Perhaps with should be
-> possible
-> to specify somehow the target dma_address when doing memory allocation, but I'm
-> not
-> really convinced yet if this is really required.
->
-What about using 'dma_handle' argument of alloc_coherent callback of
-dma_map_ops?
-Although it is an output argument, I think we can convey a hint or
-start address to map
-to the IO memory manager that resides behind dma API.
-Of course, it is unable to map a specific physical address with the
-dma address with the idea.
-I think the problem can be solved for some application
-with overriding alloc_coherent callback in the machine initialization code.
-Still the above idea cannot answer when a physical address is needed
-to be mapped
-to a specific dma address with 'dma_map_*()'.
+Is the slowpath being hit more often with 160 vs 16 threads? As I said,
+the problem you mentioned looks like a *scaling issue* to me which is
+actually somewhat surprising. I knew that the slowpaths were slow but I
+haven't seen this sort of data before.
 
-DMA API is so abstract that it cannot cover all requirements by
-various device drivers;;
+I snipped the 'SLUB can never compete with SLAB' part because I'm
+frankly more interested in raw data I can analyse myself. I'm hoping to
+the per-CPU partial list patch queued for v3.2 soon and I'd be
+interested to know how much I can expect that to help.
 
-Regards,
-Cho KyongHo.
+			Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
