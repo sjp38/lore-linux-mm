@@ -1,108 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 7C04990014E
-	for <linux-mm@kvack.org>; Mon,  1 Aug 2011 08:45:07 -0400 (EDT)
-Received: by vxg38 with SMTP id 38so5941177vxg.14
-        for <linux-mm@kvack.org>; Mon, 01 Aug 2011 05:45:04 -0700 (PDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id A729790014E
+	for <linux-mm@kvack.org>; Mon,  1 Aug 2011 10:00:22 -0400 (EDT)
+Date: Mon, 1 Aug 2011 15:59:53 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH v4 2/5] memcg : pass scan nodemask
+Message-ID: <20110801135953.GE25251@tiehlicka.suse.cz>
+References: <20110727144438.a9fdfd5b.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110727144742.420cf69c.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.00.1108010229150.1062@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1107290145080.3279@tiger>
-	<alpine.DEB.2.00.1107291002570.16178@router.home>
-	<alpine.DEB.2.00.1107311136150.12538@chino.kir.corp.google.com>
-	<alpine.DEB.2.00.1107311253560.12538@chino.kir.corp.google.com>
-	<1312145146.24862.97.camel@jaguar>
-	<alpine.DEB.2.00.1107311426001.944@chino.kir.corp.google.com>
-	<1312175306.24862.103.camel@jaguar>
-	<alpine.DEB.2.00.1108010229150.1062@chino.kir.corp.google.com>
-Date: Mon, 1 Aug 2011 15:45:04 +0300
-Message-ID: <CAOJsxLGyC4=WwGu7kUTwVKF3AxhfWjBg2sZu=W08RtVMHKk8eQ@mail.gmail.com>
-Subject: Re: [GIT PULL] Lockless SLUB slowpaths for v3.1-rc1
-From: Pekka Enberg <penberg@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110727144742.420cf69c.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Christoph Lameter <cl@linux.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, hughd@google.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
 
-Hi David,
+On Wed 27-07-11 14:47:42, KAMEZAWA Hiroyuki wrote:
+> 
+> pass memcg's nodemask to try_to_free_pages().
+> 
+> try_to_free_pages can take nodemask as its argument but memcg
+> doesn't pass it. Considering memcg can be used with cpuset on
+> big NUMA, memcg should pass nodemask if available.
+> 
+> Now, memcg maintain nodemask with periodic updates. pass it.
+> 
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> ---
+>  include/linux/memcontrol.h |    2 +-
+>  mm/memcontrol.c            |    8 ++++++--
+>  mm/vmscan.c                |    3 ++-
+>  3 files changed, 9 insertions(+), 4 deletions(-)
+> 
+[...]
+> Index: mmotm-0710/mm/vmscan.c
+> ===================================================================
+> --- mmotm-0710.orig/mm/vmscan.c
+> +++ mmotm-0710/mm/vmscan.c
+> @@ -2280,6 +2280,7 @@ unsigned long try_to_free_mem_cgroup_pag
+>  	unsigned long nr_reclaimed;
+>  	unsigned long start, end;
+>  	int nid;
+> +	nodemask_t *mask;
+>  	struct scan_control sc = {
+>  		.may_writepage = !laptop_mode,
+>  		.may_unmap = 1,
+> @@ -2302,7 +2303,7 @@ unsigned long try_to_free_mem_cgroup_pag
+>  	 * take care of from where we get pages. So the node where we start the
+>  	 * scan does not need to be the current node.
+>  	 */
+> -	nid = mem_cgroup_select_victim_node(mem_cont);
+> +	nid = mem_cgroup_select_victim_node(mem_cont, &mask);
 
-On Mon, Aug 1, 2011 at 1:02 PM, David Rientjes <rientjes@google.com> wrote:
-> Here's the same testing environment with CONFIG_SLUB_STATS for 16 threads
-> instead of 160:
+The mask is not used anywhere AFAICS and using it is a point of the
+patch AFAIU. I guess you wanted to use &sc.nodemask, right?
 
-[snip]
+Other than that, looks good to me.
 
-Looking at the data (in slightly reorganized form):
-
-  alloc
-  =3D=3D=3D=3D=3D
-
-    16 threads:
-
-=A0  =A0  cache =A0 =A0 =A0 =A0 =A0 alloc_fastpath =A0 =A0 =A0 =A0 =A0alloc=
-_slowpath
-=A0  =A0  kmalloc-256 =A0 =A0 4263275 (91.1%) =A0 =A0 =A0 =A0 417445   (8.9=
-%)
-=A0  =A0  kmalloc-1024 =A0 =A04636360 (99.1%) =A0 =A0 =A0 =A0 42091    (0.9=
-%)
-=A0  =A0  kmalloc-4096 =A0 =A02570312 (54.4%) =A0 =A0 =A0 =A0 2155946  (45.=
-6%)
-
-    160 threads:
-
-=A0 =A0   cache =A0 =A0 =A0 =A0 =A0 alloc_fastpath =A0 =A0 =A0 =A0 =A0alloc=
-_slowpath
- =A0   =A0kmalloc-256 =A0 =A0 10937512 (62.8%) =A0 =A0 =A0 =A06490753  (37.=
-2%)
- =A0   =A0kmalloc-1024 =A0 =A017121172 (98.3%) =A0 =A0 =A0 =A0303547   (1.7=
-%)
- =A0   =A0kmalloc-4096 =A0 =A05526281  (31.7%)=A0 =A0 =A0 =A0 11910454 (68.=
-3%)
-
-  free
-  =3D=3D=3D=3D
-
-    16 threads:
-
-=A0 =A0   cache =A0 =A0 =A0 =A0 =A0 free_fastpath =A0 =A0 =A0 =A0 =A0 free_=
-slowpath
-=A0 =A0   kmalloc-256 =A0 =A0 210115   (4.5%)=A0 =A0 =A0 =A0 =A04470604  (9=
-5.5%)
-=A0 =A0   kmalloc-1024 =A0 =A03579699  (76.5%)  =A0 =A0 =A0 1098764  (23.5%=
-)
-=A0 =A0   kmalloc-4096 =A0 =A067616    (1.4%)=A0  =A0 =A0 =A0 4658678  (98.=
-6%)
-
-    160 threads:
- =A0  =A0 cache =A0 =A0 =A0 =A0 =A0 free_fastpath =A0 =A0 =A0 =A0 =A0 free_=
-slowpath
- =A0  =A0 kmalloc-256 =A0 =A0 15469    (0.1%)   =A0 =A0 =A0 17412798 (99.9%=
-)
- =A0  =A0 kmalloc-1024 =A0 =A011604742 (66.6%) =A0 =A0 =A0 =A05819973  (33.=
-4%)
- =A0  =A0 kmalloc-4096 =A0 =A014848    (0.1%)=A0=A0 =A0 =A0 =A0 17421902 (9=
-9.9%)
-
-it's pretty sad to see how SLUB alloc fastpath utilization drops so
-dramatically. Free fastpath utilization isn't all that great with 160
-threads either but it seems to me that most of the performance
-regression compared to SLAB still comes from the alloc paths.
-
-I guess the problem here is that __slab_free() happens on a remote CPU
-which puts the object to 'struct page' freelist which effectively means
-we're unable to recycle free'd objects. As the number of concurrent
-threads increase, we simply drain out the fastpath freelists more
-quickly. Did I understand the problem correctly?
-
-If that's really happening, I'm still bit puzzled why we're hitting the
-slowpath so much. I'd assume that __slab_alloc() would simply reload the
-'struct page' freelist once the per-cpu freelist is empty.  Why is that
-not happening? I see __slab_alloc() does deactivate_slab() upon
-node_match() failure. What kind of ALLOC_NODE_MISMATCH stats are you
-seeing?
-
-                        Pekka
+Reviewed-by: Michal Hocko <mhocko@suse.cz>
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
