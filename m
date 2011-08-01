@@ -1,85 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 8A3FD900137
-	for <linux-mm@kvack.org>; Sun, 31 Jul 2011 17:55:30 -0400 (EDT)
-Received: from kpbe11.cbf.corp.google.com (kpbe11.cbf.corp.google.com [172.25.105.75])
-	by smtp-out.google.com with ESMTP id p6VLtPkB021602
-	for <linux-mm@kvack.org>; Sun, 31 Jul 2011 14:55:28 -0700
-Received: from iym1 (iym1.prod.google.com [10.241.52.1])
-	by kpbe11.cbf.corp.google.com with ESMTP id p6VLtMLo001781
-	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Sun, 31 Jul 2011 14:55:24 -0700
-Received: by iym1 with SMTP id 1so6503014iym.15
-        for <linux-mm@kvack.org>; Sun, 31 Jul 2011 14:55:22 -0700 (PDT)
-Date: Sun, 31 Jul 2011 14:55:20 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 5578F900137
+	for <linux-mm@kvack.org>; Sun, 31 Jul 2011 20:29:33 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 38FF43EE0C1
+	for <linux-mm@kvack.org>; Mon,  1 Aug 2011 09:29:29 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 1F5DE45DE7F
+	for <linux-mm@kvack.org>; Mon,  1 Aug 2011 09:29:29 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0208845DE6A
+	for <linux-mm@kvack.org>; Mon,  1 Aug 2011 09:29:29 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id A90601DB8040
+	for <linux-mm@kvack.org>; Mon,  1 Aug 2011 09:29:28 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 720081DB8038
+	for <linux-mm@kvack.org>; Mon,  1 Aug 2011 09:29:28 +0900 (JST)
+Date: Mon, 1 Aug 2011 09:22:05 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Subject: Re: [GIT PULL] Lockless SLUB slowpaths for v3.1-rc1
-In-Reply-To: <1312145146.24862.97.camel@jaguar>
-Message-ID: <alpine.DEB.2.00.1107311426001.944@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1107290145080.3279@tiger> <alpine.DEB.2.00.1107291002570.16178@router.home> <alpine.DEB.2.00.1107311136150.12538@chino.kir.corp.google.com> <alpine.DEB.2.00.1107311253560.12538@chino.kir.corp.google.com>
- <1312145146.24862.97.camel@jaguar>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-Id: <20110801092205.14881df1.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <m2livez6vl.fsf@firstfloor.org>
+References: <alpine.DEB.2.00.1107290145080.3279@tiger>
+	<CA+55aFzut1tF6CLAPJUUh2H_7M4wcDpp2+Zb85Lqvofe+3v_jQ@mail.gmail.com>
+	<CA+55aFw9V-VM5TBwqdKiP0E_g8urth+08nX-_inZ8N1_gFQF4w@mail.gmail.com>
+	<m2livez6vl.fsf@firstfloor.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Christoph Lameter <cl@linux.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, hughd@google.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, cl@linux-foundation.org, akpm@linux-foundation.org, rientjes@google.com, hughd@google.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kosaki.motohiro@jp.fujitsu.com, yinghan@google.com
 
-On Sun, 31 Jul 2011, Pekka Enberg wrote:
+On Sun, 31 Jul 2011 10:39:58 -0700
+Andi Kleen <andi@firstfloor.org> wrote:
 
-> > And although slub is definitely heading in the right direction regarding 
-> > the netperf benchmark, it's still a non-starter for anybody using large 
-> > NUMA machines for networking performance.  On my 16-core, 4 node, 64GB 
-> > client/server machines running netperf TCP_RR with various thread counts 
-> > for 60 seconds each on 3.0:
-> > 
-> > 	threads		SLUB		SLAB		diff
-> > 	 16		76345		74973		- 1.8%
-> > 	 32		116380		116272		- 0.1%
-> > 	 48		150509		153703		+ 2.1%
-> > 	 64		187984		189750		+ 0.9%
-> > 	 80		216853		224471		+ 3.5%
-> > 	 96		236640		249184		+ 5.3%
-> > 	112		256540		275464		+ 7.4%
-> > 	128		273027		296014		+ 8.4%
-> > 	144		281441		314791		+11.8%
-> > 	160		287225		326941		+13.8%
+> Linus Torvalds <torvalds@linux-foundation.org> writes:
 > 
-> That looks like a pretty nasty scaling issue. David, would it be
-> possible to see 'perf report' for the 160 case? [ Maybe even 'perf
-> annotate' for the interesting SLUB functions. ]
+> > On Sat, Jul 30, 2011 at 8:27 AM, Linus Torvalds
+> > <torvalds@linux-foundation.org> wrote:
+> >>
+> >> Do we allocate the page map array sufficiently aligned that we
+> >> actually don't ever have the case of straddling a cacheline? I didn't
+> >> check.
+> >
+> > Oh, and another thing worth checking: did somebody actually check the
+> > timings for:
+> 
+> I would like to see a followon patch that moves the mem_cgroup
+> pointer back into struct page. Copying some mem_cgroup people.
 > 
 
-More interesting than the perf report (which just shows kfree, 
-kmem_cache_free, kmem_cache_alloc dominating) is the statistics that are 
-exported by slub itself, it shows the "slab thrashing" issue that I 
-described several times over the past few years.  It's difficult to 
-address because it's a result of slub's design.  From the client side of 
-160 netperf TCP_RR threads for 60 seconds:
+A very big change itself is in a future plan. It will do memory usage of
+page_cgroup from 32bytes to 8bytes.
 
-	cache		alloc_fastpath		alloc_slowpath
-	kmalloc-256	10937512 (62.8%)	6490753
-	kmalloc-1024	17121172 (98.3%)	303547
-	kmalloc-4096	5526281			11910454 (68.3%)
+A small change, moving page_cgroup->mem_cgroup to struct page, may make
+sense. But...IIUC, there is an another user of a field as blkio cgroup.
+(They planned to add page_cgroup->blkio_cgroup)
 
-	cache		free_fastpath		free_slowpath
-	kmalloc-256	15469			17412798 (99.9%)
-	kmalloc-1024	11604742 (66.6%)	5819973
-	kmalloc-4096	14848			17421902 (99.9%)
+So, my idea is adding
 
-With those stats, there's no way that slub will even be able to compete 
-with slab because it's not optimized for the slowpath.  There are ways to 
-mitigate that, like with my slab thrashing patchset from a couple years 
-ago that you tracked for a while that improved performance 3-4% at the 
-overhead of an increment in the fastpath, but everything else requires 
-more memory.  You could preallocate the slabs on the partial list, 
-increase the per-node min_partial, increase the order of the slabs 
-themselves so you hit the free fastpath much more often, etc, but they all 
-come at a considerable cost in memory.
+	page->owner
 
-I'm very confident that slub could beat slab on any system if you throw 
-enough memory at it because its fastpaths are extremely efficient, but 
-there's no business case for that.
+field and encode it in some way. For example, if we can encode it as
+
+	|owner_flags | blkio_id | | memcg_id|
+
+this will work. (I'm not sure how performance will be..)
+And we can reduce size of page_cgroup from 32->24(or 16).
+
+In this usage, page->owner will be just required when CGROUP is used.
+So, a small machine will not need to increase size of struct page.
+
+If you increase size of 'struct page', memcg will try to make use of
+the field.
+
+But we have now some pending big patches (dirty_ratio etc...), moving
+pointer may take longer than expected. 
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
