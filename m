@@ -1,73 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 9C5C3900137
-	for <linux-mm@kvack.org>; Sun, 31 Jul 2011 20:43:33 -0400 (EDT)
-Subject: Re: [PATCH] kswapd: avoid unnecessary rebalance after an
- unsuccessful balancing
-From: "Alex,Shi" <alex.shi@intel.com>
-In-Reply-To: <20110729154031.GV3010@suse.de>
-References: <1311952990-3844-1-git-send-email-alex.shi@intel.com>
-	 <20110729154031.GV3010@suse.de>
-Content-Type: text/plain; charset="UTF-8"
-Date: Mon, 01 Aug 2011 08:45:17 +0800
-Message-ID: <1312159517.27358.2446.camel@debian>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id D1884900137
+	for <linux-mm@kvack.org>; Sun, 31 Jul 2011 20:57:49 -0400 (EDT)
+Received: by yxn22 with SMTP id 22so3797483yxn.14
+        for <linux-mm@kvack.org>; Sun, 31 Jul 2011 17:57:46 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <004201cc4dfb$47ee4770$d7cad650$%szyprowski@samsung.com>
+References: <CAB-zwWjb+2ExjNDB3OtHmRmgaHMnO-VgEe9VZk_wU=ryrq_AGw@mail.gmail.com>
+	<000301cc4dc4$31b53630$951fa290$%szyprowski@samsung.com>
+	<20110729093555.GA13522@8bytes.org>
+	<001901cc4dd8$4afb4e40$e0f1eac0$%szyprowski@samsung.com>
+	<20110729105422.GB13522@8bytes.org>
+	<004201cc4dfb$47ee4770$d7cad650$%szyprowski@samsung.com>
+Date: Mon, 1 Aug 2011 09:57:46 +0900
+Message-ID: <CAHQjnOM58AReFuDpcSjHvNP2UZX1ZUeuWyfWCG6Ayxdfj4QE7w@mail.gmail.com>
+Subject: Re: [RFC] ARM: dma_map|unmap_sg plus iommu
+From: KyongHo Cho <pullip.cho@samsung.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "P@draigBrady.com" <P@draigBrady.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "andrea@cpushare.com" <andrea@cpushare.com>, "Chen, Tim C" <tim.c.chen@intel.com>, "Li, Shaohua" <shaohua.li@intel.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "riel@redhat.com" <riel@redhat.com>, "luto@mit.edu" <luto@mit.edu>
+To: Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: Joerg Roedel <joro@8bytes.org>, "Ramirez Luna, Omar" <omar.ramirez@ti.com>, linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, Kyungmin Park <kyungmin.park@samsung.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Arnd Bergmann <arnd@arndb.de>, Ohad Ben-Cohen <ohad@wizery.com>
 
-On Fri, 2011-07-29 at 23:40 +0800, Mel Gorman wrote:
-> On Fri, Jul 29, 2011 at 11:23:10PM +0800, Alex Shi wrote:
-> > In commit 215ddd66, Mel Gorman said kswapd is better to sleep after a
-> > unsuccessful balancing if there is tighter reclaim request pending in
-> > the balancing. In this scenario, the 'order' and 'classzone_idx'
-> > that are checked for tighter request judgment is incorrect, since they
-> > aren't the one kswapd should read from new pgdat, but the last time pgdat
-> > value for just now balancing. Then kswapd will skip try_to_sleep func
-> > and rebalance the last pgdat request. It's not our expected behavior.
-> > 
-> > So, I added new variables to distinguish the returned order/classzone_idx
-> > from last balancing, that can resolved above issue in that scenario.
-> > 
-> 
-> I'm afraid this changelog is very difficult to read and I do not see
-> what problem you are trying to solve and I do not see what this patch
-> might solve.
-> 
-> When balance_pgdat() returns with a lower classzone or order, the values
-> stored in pgdat are not re-read and instead it tries to go to sleep
-> based on the starting request. Something like;
+Hi.
 
-Thanks for your comments, I will use this comments style next time, list
-request A, B etc. 
+On Fri, Jul 29, 2011 at 11:24 PM, Marek Szyprowski
+<m.szyprowski@samsung.com> wrote:
+> Hello,
+>
+> On Friday, July 29, 2011 12:54 PM Joerg Roedel wrote:
+>
+>> On Fri, Jul 29, 2011 at 12:14:25PM +0200, Marek Szyprowski wrote:
+>> > > This sounds rather hacky. How about partitioning the address space for
+>> > > the device and give the dma-api only a part of it. The other parts can
+>> > > be directly mapped using the iommu-api then.
+>> >
+>> > Well, I'm not convinced that iommu-api should be used by the device drivers
+>> > directly. If possible we should rather extend dma-mapping than use such
+> hacks.
+>>
+>> Building this into dma-api would turn it into an iommu-api. The line
+>> between the apis are clear. The iommu-api provides direct mapping
+>> of bus-addresses to system-addresses while the dma-api puts a memory
+>> manager on-top which deals with bus-address allocation itself.
+>> So if you want to map bus-addresses directly the iommu-api is the way to
+>> go. This is in no way a hack.
+>
+> The problem starts when you want to use the same driver on two different
+> systems:
+> one with iommu and one without. Our driver depends only on dma-mapping and the
+> fact
+> that the first allocation starts from the right address. On systems without
+> iommu,
+> board code calls bootmem_reserve() and dma_declare_coherent() for the required
+> memory range. Systems with IOMMU just sets up device io address space to start
+> at the specified address. This works fine, because in our system each device has
+> its own, private iommu controller and private address space.
+>
+> Right now I have no idea how to handle this better. Perhaps with should be
+> possible
+> to specify somehow the target dma_address when doing memory allocation, but I'm
+> not
+> really convinced yet if this is really required.
+>
+What about using 'dma_handle' argument of alloc_coherent callback of
+dma_map_ops?
+Although it is an output argument, I think we can convey a hint or
+start address to map
+to the IO memory manager that resides behind dma API.
+Of course, it is unable to map a specific physical address with the
+dma address with the idea.
+I think the problem can be solved for some application
+with overriding alloc_coherent callback in the machine initialization code.
+Still the above idea cannot answer when a physical address is needed
+to be mapped
+to a specific dma address with 'dma_map_*()'.
 
-> 
-> 1. Read pgdat request A (classzone_idx, order)
+DMA API is so abstract that it cannot cover all requirements by
+various device drivers;;
 
-Assume the order of A > 0, like is 3.
-
-> 2. balance_pgdat()
-> 3.	During pgdat, a new pgdat request B (classzone_idx, order) is placed
-> 4. balance_pgdat() returns but failed so classzone_idx is lower
-
-Another balance_pgdat() failure indicate is returned order == 0, am I
-right?  If so, the next step of kswapd is not trying to sleep, but do
-request A balance again.  And I thought this behavior doesn't match the
-comments in kswapd. 
-
-> 5. Try to sleep based on pgdat request A 
-
-> 
-> i.e. pgdat request B is not read and there is a comment explaining
-> why pgdat request B is not read after balance_pgdat() fails.
-> 
-> This patch adds some variables that might improve the readability
-> for some people but otherwise I can't see what problem is being
-> fixed. What did I miss?
-> 
-
+Regards,
+Cho KyongHo.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
