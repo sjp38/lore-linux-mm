@@ -1,68 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 060046B0169
-	for <linux-mm@kvack.org>; Tue,  2 Aug 2011 07:21:53 -0400 (EDT)
-Date: Tue, 2 Aug 2011 12:21:46 +0100
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id D832B6B0169
+	for <linux-mm@kvack.org>; Tue,  2 Aug 2011 07:25:24 -0400 (EDT)
+Date: Tue, 2 Aug 2011 12:25:18 +0100
 From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 1/8] mm: vmscan: Do not writeback filesystem pages in
- direct reclaim
-Message-ID: <20110802112146.GD10436@suse.de>
+Subject: Re: [PATCH 7/8] mm: vmscan: Immediately reclaim end-of-LRU dirty
+ pages when writeback completes
+Message-ID: <20110802112518.GE10436@suse.de>
 References: <1311265730-5324-1-git-send-email-mgorman@suse.de>
- <1311265730-5324-2-git-send-email-mgorman@suse.de>
- <20110731150606.GB1735@barrios-desktop>
+ <1311265730-5324-8-git-send-email-mgorman@suse.de>
+ <1311339228.27400.34.camel@twins>
+ <20110722132319.GX5349@suse.de>
+ <20110731152401.GE1735@barrios-desktop>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20110731150606.GB1735@barrios-desktop>
+In-Reply-To: <20110731152401.GE1735@barrios-desktop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, XFS <xfs@oss.sgi.com>, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, Johannes Weiner <jweiner@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, XFS <xfs@oss.sgi.com>, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, Johannes Weiner <jweiner@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>
 
-On Mon, Aug 01, 2011 at 12:06:06AM +0900, Minchan Kim wrote:
-> On Thu, Jul 21, 2011 at 05:28:43PM +0100, Mel Gorman wrote:
-> > From: Mel Gorman <mel@csn.ul.ie>
+On Mon, Aug 01, 2011 at 12:24:01AM +0900, Minchan Kim wrote:
+> On Fri, Jul 22, 2011 at 02:23:19PM +0100, Mel Gorman wrote:
+> > On Fri, Jul 22, 2011 at 02:53:48PM +0200, Peter Zijlstra wrote:
+> > > On Thu, 2011-07-21 at 17:28 +0100, Mel Gorman wrote:
+> > > > When direct reclaim encounters a dirty page, it gets recycled around
+> > > > the LRU for another cycle. This patch marks the page PageReclaim
+> > > > similar to deactivate_page() so that the page gets reclaimed almost
+> > > > immediately after the page gets cleaned. This is to avoid reclaiming
+> > > > clean pages that are younger than a dirty page encountered at the
+> > > > end of the LRU that might have been something like a use-once page.
+> > > > 
+> > > 
+> > > > @@ -834,7 +834,15 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+> > > >  			 */
+> > > >  			if (page_is_file_cache(page) &&
+> > > >  					(!current_is_kswapd() || priority >= DEF_PRIORITY - 2)) {
+> > > > -				inc_zone_page_state(page, NR_VMSCAN_WRITE_SKIP);
+> > > > +				/*
+> > > > +				 * Immediately reclaim when written back.
+> > > > +				 * Similar in principal to deactivate_page()
+> > > > +				 * except we already have the page isolated
+> > > > +				 * and know it's dirty
+> > > > +				 */
+> > > > +				inc_zone_page_state(page, NR_VMSCAN_INVALIDATE);
+> > > > +				SetPageReclaim(page);
+> > > > +
+> > > 
+> > > I find the invalidate name somewhat confusing. It makes me think we'll
+> > > drop the page without writeback, like invalidatepage().
 > > 
-> > When kswapd is failing to keep zones above the min watermark, a process
-> > will enter direct reclaim in the same manner kswapd does. If a dirty
-> > page is encountered during the scan, this page is written to backing
-> > storage using mapping->writepage.
-> > 
-> > This causes two problems. First, it can result in very deep call
-> > stacks, particularly if the target storage or filesystem are complex.
-> > Some filesystems ignore write requests from direct reclaim as a result.
-> > The second is that a single-page flush is inefficient in terms of IO.
-> > While there is an expectation that the elevator will merge requests,
-> > this does not always happen. Quoting Christoph Hellwig;
-> > 
-> > 	The elevator has a relatively small window it can operate on,
-> > 	and can never fix up a bad large scale writeback pattern.
-> > 
-> > This patch prevents direct reclaim writing back filesystem pages by
-> > checking if current is kswapd. Anonymous pages are still written to
-> > swap as there is not the equivalent of a flusher thread for anonymous
-> > pages. If the dirty pages cannot be written back, they are placed
-> > back on the LRU lists. There is now a direct dependency on dirty page
-> > balancing to prevent too many pages in the system being dirtied which
-> > would prevent reclaim making forward progress.
-> > 
-> > Signed-off-by: Mel Gorman <mgorman@suse.de>
-> Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+> > I wasn't that happy with it either to be honest but didn't think of a
+> > better one at the time. nr_reclaim_deferred?
+> 
+> How about "NR_VMSCAN_IMMEDIATE_RECLAIM" like comment rotate_reclaimable_page?
 > 
 
-Thanks
-
-> Nitpick.
-> We can change description of should_reclaim_stall.
-> 
-> "Returns true if the caller should wait to clean dirty/writeback pages"
-> ->
-> "Returns true if direct reclaimer should wait to clean writeback pages"
-> 
-
-Not a nitpick. At least one check for RECLAIM_MODE_SYNC is no longer
-reachable. I've added a new patch that updates the comment and has
-synchronous direct reclaim wait on pages under writeback.
+Yeah, I guess. I find it a little misleading because the reclaim does
+not happen immediately at the time the counter is incremented but it's
+better than "invalidate".
 
 -- 
 Mel Gorman
