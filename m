@@ -1,89 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 2046E900163
-	for <linux-mm@kvack.org>; Mon,  1 Aug 2011 22:29:28 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 3C41F3EE0AE
-	for <linux-mm@kvack.org>; Tue,  2 Aug 2011 11:29:24 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id BFC0E45DE57
-	for <linux-mm@kvack.org>; Tue,  2 Aug 2011 11:29:22 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 9A07E45DE54
-	for <linux-mm@kvack.org>; Tue,  2 Aug 2011 11:29:22 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 886411DB8041
-	for <linux-mm@kvack.org>; Tue,  2 Aug 2011 11:29:22 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 4DB3B1DB803E
-	for <linux-mm@kvack.org>; Tue,  2 Aug 2011 11:29:22 +0900 (JST)
-Date: Tue, 2 Aug 2011 11:21:43 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH v4 2/5] memcg : pass scan nodemask
-Message-Id: <20110802112143.814e3720.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20110801135953.GE25251@tiehlicka.suse.cz>
-References: <20110727144438.a9fdfd5b.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110727144742.420cf69c.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110801135953.GE25251@tiehlicka.suse.cz>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 55078900163
+	for <linux-mm@kvack.org>; Mon,  1 Aug 2011 22:43:44 -0400 (EDT)
+Received: from wpaz13.hot.corp.google.com (wpaz13.hot.corp.google.com [172.24.198.77])
+	by smtp-out.google.com with ESMTP id p722hgpt012425
+	for <linux-mm@kvack.org>; Mon, 1 Aug 2011 19:43:42 -0700
+Received: from pzk36 (pzk36.prod.google.com [10.243.19.164])
+	by wpaz13.hot.corp.google.com with ESMTP id p722hcx3003988
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 1 Aug 2011 19:43:40 -0700
+Received: by pzk36 with SMTP id 36so12218692pzk.34
+        for <linux-mm@kvack.org>; Mon, 01 Aug 2011 19:43:37 -0700 (PDT)
+Date: Mon, 1 Aug 2011 19:43:35 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [GIT PULL] Lockless SLUB slowpaths for v3.1-rc1
+In-Reply-To: <CAOJsxLGyC4=WwGu7kUTwVKF3AxhfWjBg2sZu=W08RtVMHKk8eQ@mail.gmail.com>
+Message-ID: <alpine.DEB.2.00.1108011939180.15596@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1107290145080.3279@tiger> <alpine.DEB.2.00.1107291002570.16178@router.home> <alpine.DEB.2.00.1107311136150.12538@chino.kir.corp.google.com> <alpine.DEB.2.00.1107311253560.12538@chino.kir.corp.google.com> <1312145146.24862.97.camel@jaguar>
+ <alpine.DEB.2.00.1107311426001.944@chino.kir.corp.google.com> <1312175306.24862.103.camel@jaguar> <alpine.DEB.2.00.1108010229150.1062@chino.kir.corp.google.com> <CAOJsxLGyC4=WwGu7kUTwVKF3AxhfWjBg2sZu=W08RtVMHKk8eQ@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: MULTIPART/MIXED; BOUNDARY="397155492-1617763585-1312253016=:15596"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
+To: Pekka Enberg <penberg@kernel.org>
+Cc: Christoph Lameter <cl@linux.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, hughd@google.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, 1 Aug 2011 15:59:53 +0200
-Michal Hocko <mhocko@suse.cz> wrote:
+  This message is in MIME format.  The first part should be readable text,
+  while the remaining parts are likely unreadable without MIME-aware tools.
 
-> On Wed 27-07-11 14:47:42, KAMEZAWA Hiroyuki wrote:
-> > 
-> > pass memcg's nodemask to try_to_free_pages().
-> > 
-> > try_to_free_pages can take nodemask as its argument but memcg
-> > doesn't pass it. Considering memcg can be used with cpuset on
-> > big NUMA, memcg should pass nodemask if available.
-> > 
-> > Now, memcg maintain nodemask with periodic updates. pass it.
-> > 
-> > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > ---
-> >  include/linux/memcontrol.h |    2 +-
-> >  mm/memcontrol.c            |    8 ++++++--
-> >  mm/vmscan.c                |    3 ++-
-> >  3 files changed, 9 insertions(+), 4 deletions(-)
-> > 
-> [...]
-> > Index: mmotm-0710/mm/vmscan.c
-> > ===================================================================
-> > --- mmotm-0710.orig/mm/vmscan.c
-> > +++ mmotm-0710/mm/vmscan.c
-> > @@ -2280,6 +2280,7 @@ unsigned long try_to_free_mem_cgroup_pag
-> >  	unsigned long nr_reclaimed;
-> >  	unsigned long start, end;
-> >  	int nid;
-> > +	nodemask_t *mask;
-> >  	struct scan_control sc = {
-> >  		.may_writepage = !laptop_mode,
-> >  		.may_unmap = 1,
-> > @@ -2302,7 +2303,7 @@ unsigned long try_to_free_mem_cgroup_pag
-> >  	 * take care of from where we get pages. So the node where we start the
-> >  	 * scan does not need to be the current node.
-> >  	 */
-> > -	nid = mem_cgroup_select_victim_node(mem_cont);
-> > +	nid = mem_cgroup_select_victim_node(mem_cont, &mask);
+--397155492-1617763585-1312253016=:15596
+Content-Type: TEXT/PLAIN; charset=ISO-8859-1
+Content-Transfer-Encoding: 8BIT
+
+On Mon, 1 Aug 2011, Pekka Enberg wrote:
+
+> Looking at the data (in slightly reorganized form):
 > 
-> The mask is not used anywhere AFAICS and using it is a point of the
-> patch AFAIU. I guess you wanted to use &sc.nodemask, right?
+>   alloc
+>   =====
 > 
-> Other than that, looks good to me.
+>     16 threads:
 > 
-> Reviewed-by: Michal Hocko <mhocko@suse.cz>
+>       cache           alloc_fastpath          alloc_slowpath
+>       kmalloc-256     4263275 (91.1%)         417445   (8.9%)
+>       kmalloc-1024    4636360 (99.1%)         42091    (0.9%)
+>       kmalloc-4096    2570312 (54.4%)         2155946  (45.6%)
+> 
+>     160 threads:
+> 
+>       cache           alloc_fastpath          alloc_slowpath
+>       kmalloc-256     10937512 (62.8%)        6490753  (37.2%)
+>       kmalloc-1024    17121172 (98.3%)        303547   (1.7%)
+>       kmalloc-4096    5526281  (31.7%)        11910454 (68.3%)
+> 
+>   free
+>   ====
+> 
+>     16 threads:
+> 
+>       cache           free_fastpath           free_slowpath
+>       kmalloc-256     210115   (4.5%)         4470604  (95.5%)
+>       kmalloc-1024    3579699  (76.5%)        1098764  (23.5%)
+>       kmalloc-4096    67616    (1.4%)         4658678  (98.6%)
+> 
+>     160 threads:
+>       cache           free_fastpath           free_slowpath
+>       kmalloc-256     15469    (0.1%)         17412798 (99.9%)
+>       kmalloc-1024    11604742 (66.6%)        5819973  (33.4%)
+>       kmalloc-4096    14848    (0.1%)         17421902 (99.9%)
+> 
+> it's pretty sad to see how SLUB alloc fastpath utilization drops so
+> dramatically. Free fastpath utilization isn't all that great with 160
+> threads either but it seems to me that most of the performance
+> regression compared to SLAB still comes from the alloc paths.
+> 
 
-Ah, sorry. I'll fix.
-
-Thanks,
--Kame
+It's the opposite, the cumulative effects of the free slowpath is more 
+costly in terms of latency than the alloc slowpath because it occurs at a 
+greater frequency; the pattern that I described as "slab thrashing" before 
+causes a single free to a full slab, manipulation to get it back on the 
+partial list, then the alloc slowpath grabs it for a single allocation, 
+and requires another partial slab on the next alloc.
+--397155492-1617763585-1312253016=:15596--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
