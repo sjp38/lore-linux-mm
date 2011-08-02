@@ -1,87 +1,136 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 5408D6B0169
-	for <linux-mm@kvack.org>; Tue,  2 Aug 2011 03:20:18 -0400 (EDT)
-Date: Tue, 2 Aug 2011 00:22:26 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: kernel BUG at mm/vmscan.c:1114
-Message-Id: <20110802002226.3ff0b342.akpm@linux-foundation.org>
-In-Reply-To: <CAJn8CcG-pNbg88+HLB=tRr26_R+A0RxZEWsJQg4iGe4eY2noXA@mail.gmail.com>
-References: <CAJn8CcE20-co4xNOD8c+0jMeABrc1mjmGzju3xT34QwHHHFsUA@mail.gmail.com>
-	<CAJn8CcG-pNbg88+HLB=tRr26_R+A0RxZEWsJQg4iGe4eY2noXA@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 50F226B0169
+	for <linux-mm@kvack.org>; Tue,  2 Aug 2011 04:06:52 -0400 (EDT)
+Received: by vxg38 with SMTP id 38so6842656vxg.14
+        for <linux-mm@kvack.org>; Tue, 02 Aug 2011 01:06:49 -0700 (PDT)
+MIME-Version: 1.0
+Date: Tue, 2 Aug 2011 13:36:49 +0530
+Message-ID: <CAFPAmTQGkTstM1j0kJWng8rf9_wfBa427r69-5rQpFJCSQGZkw@mail.gmail.com>
+Subject: =?UTF-8?B?W1BBVENIXSBBUk0gOiBzcGFyc2VtZW06IENyYXNoZXMgb24gQVJNIHBsYXRmb3JtIHdoZQ==?=
+	=?UTF-8?B?biBzcGFyc2VtZW0gZW5hYmxlZCBpbiBsaW51eC0yLjYu4oCLMzUuMTMgZHVlIHRvIHBmbl92YWxpZCg=?=
+	=?UTF-8?B?4oCLKSBhbmQgcGZuX3ZhbGlkX+KAi3dpdGhpbigpLg==?=
+From: Kautuk Consul <consul.kautuk@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xiaotian Feng <xtfeng@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>, mgorman@suse.de
+To: stable@kernel.org
+Cc: Mel Gorman <mgorman@suse.de>, "Russell King\"" <rmk@arm.linux.org.uk>, Will Deacon <will.deacon@arm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, 2 Aug 2011 15:09:57 +0800 Xiaotian Feng <xtfeng@gmail.com> wrote:
+Hi,
 
-> __ __I'm hitting the kernel BUG at mm/vmscan.c:1114 twice, each time I
-> was trying to build my kernel. The photo of crash screen and my config
-> is attached.
+On my ARM machine, I have linux-2.6.35.13 installed and the total
+kernel memory is not aligned to the section size SECTION_SIZE_BITS.
 
-hm, now why has that started happening?
+I observe kernel crashes in the following 3 scenarios:
+i)    When we do a "cat /proc/pagetypeinfo": This happens because the
+pfn_valid() macro is not able to detect invalid PFNs in the loop in
+vmstat.c: pagetypeinfo_showblockcount_print().
+ii)    When we do "echo xxxx > /proc/vm/sys/min_free_kbytes": This
+happens because the pfn_valid() macro is not able to detect invalid
+PFNs in page_alloc.c: setup_zone_migrate_reserve().
+iii)   When I try to copy a really huge file: This happens because the
+CONFIG_HOLES_IN_ZONE config option is not set.
+       The code then crashes in the VM_BUG_ON in loop in
+move_freepages() as pfn_valid_within() did not compile correctly to
+pfn_valid().
 
-Perhaps you could apply this debug patch, see if we can narrow it down?
+This patch is a combination of :
+a)  Back-ported changes of the patch from Will Deacon found at:
+http://git.kernel.org/?p=linux/kernel/git/stable/linux-3.0.y.git;a=commit;h=7b7bf499f79de3f6c85a340c8453a78789523f85
+b) Addition of the CONFIG_HOLES_IN_ZONE config option to
+arch/arm/Kconfig in order to prevent crashes in move_freepages()
+when/if the total kernel memory is not aligned to SECTION_SIZE_BITS.
+This also leads to
+proper compilation of the pfn_valid_within() macro which otherwise
+will always return 1 to the caller.
 
---- a/mm/vmscan.c~a
-+++ a/mm/vmscan.c
-@@ -54,6 +54,8 @@
- #define CREATE_TRACE_POINTS
- #include <trace/events/vmscan.h>
- 
-+#define D() do { printk("%s:%d\n", __FILE__, __LINE__); } while (0)
+Apologies for the last patch which I sent to these mailing lists in
+improper format.
+
+Cc: Russell King <linux@arm.linux.org.uk>
+Cc: Mel Gorman <mgorman@suse.de>
+Cc: Will Deacon <will.deacon@arm.com>
+Signed-off-by: Kautuk Consul <consul.kautuk@gmail.com>
+---
+ arch/arm/include/asm/page.h |    2 +-
+ arch/arm/Kconfig            |    6 ++++++
+ arch/arm/mm/init.c          |    4 +++-
+ include/linux/mmzone.h      |    2 ++
+ 4 files changed, 12 insertions(+), 2 deletions(-)
+
+diff -uprN a/arch/arm/include/asm/page.h b/arch/arm/include/asm/page.h
+--- a/arch/arm/include/asm/page.h       2011-08-02 10:04:54.917207995 +0530
++++ b/arch/arm/include/asm/page.h       2011-08-02 10:14:45.464208248 +0530
+@@ -195,7 +195,7 @@ typedef unsigned long pgprot_t;
+
+ typedef struct page *pgtable_t;
+
+-#ifndef CONFIG_SPARSEMEM
++#ifdef CONFIG_ARCH_PROVIDES_PFN_VALID
+ extern int pfn_valid(unsigned long);
+ #endif
+
+diff -uprN a/arch/arm/Kconfig b/arch/arm/Kconfig
+--- a/arch/arm/Kconfig  2011-08-02 10:04:55.607207996 +0530
++++ b/arch/arm/Kconfig  2011-08-02 10:13:56.461207994 +0530
+@@ -1265,6 +1265,12 @@ config ARCH_SPARSEMEM_DEFAULT
+ config ARCH_SELECT_MEMORY_MODEL
+       def_bool ARCH_DISCONTIGMEM_ENABLE && ARCH_SPARSEMEM_ENABLE
+
++config ARCH_PROVIDES_PFN_VALID
++       def_bool ARCH_HAS_HOLES_MEMORYMODEL || !SPARSEMEM
 +
- /*
-  * reclaim_mode determines how the inactive list is shrunk
-  * RECLAIM_MODE_SINGLE: Reclaim only order-0 pages
-@@ -1018,27 +1020,37 @@ int __isolate_lru_page(struct page *page
- 	int ret = -EINVAL;
- 
- 	/* Only take pages on the LRU. */
--	if (!PageLRU(page))
-+	if (!PageLRU(page)) {
-+		D();
- 		return ret;
-+	}
- 
- 	/*
- 	 * When checking the active state, we need to be sure we are
- 	 * dealing with comparible boolean values.  Take the logical not
- 	 * of each.
- 	 */
--	if (mode != ISOLATE_BOTH && (!PageActive(page) != !mode))
-+	if (mode != ISOLATE_BOTH && (!PageActive(page) != !mode)) {
-+		printk("mode:%d\n", mode);
-+		D();
- 		return ret;
-+	}
- 
--	if (mode != ISOLATE_BOTH && page_is_file_cache(page) != file)
-+	if (mode != ISOLATE_BOTH && page_is_file_cache(page) != file) {
-+		printk("mode: %d, pifc: %d, file: %d\n", mode,
-+					page_is_file_cache(page), file);
-+		D();
- 		return ret;
--
-+	}
- 	/*
- 	 * When this function is being called for lumpy reclaim, we
- 	 * initially look into all LRU pages, active, inactive and
- 	 * unevictable; only give shrink_page_list evictable pages.
- 	 */
--	if (PageUnevictable(page))
-+	if (PageUnevictable(page)) {
-+		D();
- 		return ret;
-+	}
- 
- 	ret = -EBUSY;
- 
-_
++config HOLES_IN_ZONE
++       def_bool ARCH_HAS_HOLES_MEMORYMODEL || SPARSEMEM
++
+ config NODES_SHIFT
+       int
+       default "4" if ARCH_LH7A40X
+diff -uprN a/arch/arm/mm/init.c b/arch/arm/mm/init.c
+--- a/arch/arm/mm/init.c        2011-08-02 10:04:55.492207995 +0530
++++ b/arch/arm/mm/init.c        2011-08-02 10:29:47.408208131 +0530
+@@ -325,7 +325,7 @@ static void __init bootmem_free_node(int
+       free_area_init_node(node, zone_size, min, zhole_size);
+ }
+
+-#ifndef CONFIG_SPARSEMEM
++#ifdef CONFIG_ARCH_PROVIDES_PFN_VALID
+ int pfn_valid(unsigned long pfn)
+ {
+       struct meminfo *mi = &meminfo;
+@@ -345,7 +345,9 @@ int pfn_valid(unsigned long pfn)
+       return 0;
+ }
+ EXPORT_SYMBOL(pfn_valid);
++#endif
+
++#ifndef CONFIG_SPARSEMEM
+ static void arm_memory_present(struct meminfo *mi, int node)
+ {
+ }
+diff -uprN a/include/linux/mmzone.h b/include/linux/mmzone.h
+--- a/include/linux/mmzone.h    2011-08-02 10:04:48.998207995 +0530
++++ b/include/linux/mmzone.h    2011-08-02 10:16:49.007207996 +0530
+@@ -1058,12 +1058,14 @@ static inline struct mem_section *__pfn_
+       return __nr_to_section(pfn_to_section_nr(pfn));
+ }
+
++#ifndef CONFIG_ARCH_PROVIDES_PFN_VALID
+ static inline int pfn_valid(unsigned long pfn)
+ {
+       if (pfn_to_section_nr(pfn) >= NR_MEM_SECTIONS)
+               return 0;
+       return valid_section(__nr_to_section(pfn_to_section_nr(pfn)));
+ }
++#endif
+
+ static inline int pfn_present(unsigned long pfn)
+ {
+--
+
+Thanks,
+Kautuk.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
