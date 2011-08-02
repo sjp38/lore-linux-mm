@@ -1,37 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 135336B0169
-	for <linux-mm@kvack.org>; Tue,  2 Aug 2011 10:15:09 -0400 (EDT)
-Date: Tue, 2 Aug 2011 09:15:03 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [GIT PULL] Lockless SLUB slowpaths for v3.1-rc1
-In-Reply-To: <alpine.DEB.2.00.1108012101310.6871@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.00.1108020913180.18965@router.home>
-References: <alpine.DEB.2.00.1107290145080.3279@tiger> <alpine.DEB.2.00.1107291002570.16178@router.home> <alpine.DEB.2.00.1107311136150.12538@chino.kir.corp.google.com> <alpine.DEB.2.00.1107311253560.12538@chino.kir.corp.google.com> <1312145146.24862.97.camel@jaguar>
- <alpine.DEB.2.00.1107311426001.944@chino.kir.corp.google.com> <CAOJsxLHB9jPNyU2qztbEHG4AZWjauCLkwUVYr--8PuBBg1=MCA@mail.gmail.com> <alpine.DEB.2.00.1108012101310.6871@chino.kir.corp.google.com>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id EF8056B016B
+	for <linux-mm@kvack.org>; Tue,  2 Aug 2011 10:25:04 -0400 (EDT)
+Date: Tue, 2 Aug 2011 15:24:59 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: kernel BUG at mm/vmscan.c:1114
+Message-ID: <20110802142459.GF10436@suse.de>
+References: <CAJn8CcE20-co4xNOD8c+0jMeABrc1mjmGzju3xT34QwHHHFsUA@mail.gmail.com>
+ <CAJn8CcG-pNbg88+HLB=tRr26_R+A0RxZEWsJQg4iGe4eY2noXA@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CAJn8CcG-pNbg88+HLB=tRr26_R+A0RxZEWsJQg4iGe4eY2noXA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Pekka Enberg <penberg@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, hughd@google.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Xiaotian Feng <xtfeng@gmail.com>
+Cc: linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Mon, 1 Aug 2011, David Rientjes wrote:
+On Tue, Aug 02, 2011 at 03:09:57PM +0800, Xiaotian Feng wrote:
+> Hi,
+>    I'm hitting the kernel BUG at mm/vmscan.c:1114 twice, each time I
+> was trying to build my kernel. The photo of crash screen and my config
+> is attached. Thanks.
+> Regards
+> Xiaotian
 
-> On Mon, 1 Aug 2011, Pekka Enberg wrote:
->
-> > Btw, I haven't measured this recently but in my testing, SLAB has
-> > pretty much always used more memory than SLUB. So 'throwing more
-> > memory at the problem' is definitely a reasonable approach for SLUB.
-> >
->
-> Yes, slub _did_ use more memory than slab until the alignment of
-> struct page.  That cost an additional 128MB on each of these 64GB
-> machines, while the total slab usage on the client machine systemwide is
-> ~75MB while running netperf TCP_RR with 160 threads.
+I am obviously blind because in 3.0, I cannot see what BUG is at
+mm/vmscan.c:1114 :(. I see
 
-I guess that calculation did not include metadata structures (alien caches
-and the NR_CPU arrays in kmem_cache) etc? These are particularly costly on SLAB.
+1109:			/*
+1110:			 * If we don't have enough swap space, reclaiming of
+1111:			 * anon page which don't already have a swap slot is
+1112:			 * pointless.
+1113:			 */
+1114:			if (nr_swap_pages <= 0 && PageAnon(cursor_page) &&
+1115:			    !PageSwapCache(cursor_page))
+1116:				break;
+1117:
+1118:			if (__isolate_lru_page(cursor_page, mode, file) == 0) {
+1119:				list_move(&cursor_page->lru, dst);
+1120:				mem_cgroup_del_lru(cursor_page);
+
+Is this 3.0 vanilla or are there some other patches applied?
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
