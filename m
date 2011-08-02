@@ -1,112 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id CC48D900166
-	for <linux-mm@kvack.org>; Mon,  1 Aug 2011 21:48:36 -0400 (EDT)
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 2046E900163
+	for <linux-mm@kvack.org>; Mon,  1 Aug 2011 22:29:28 -0400 (EDT)
 Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 213873EE0BD
-	for <linux-mm@kvack.org>; Tue,  2 Aug 2011 10:48:32 +0900 (JST)
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 3C41F3EE0AE
+	for <linux-mm@kvack.org>; Tue,  2 Aug 2011 11:29:24 +0900 (JST)
 Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id EE30D45DE54
-	for <linux-mm@kvack.org>; Tue,  2 Aug 2011 10:48:31 +0900 (JST)
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id BFC0E45DE57
+	for <linux-mm@kvack.org>; Tue,  2 Aug 2011 11:29:22 +0900 (JST)
 Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id CE3D445DE51
-	for <linux-mm@kvack.org>; Tue,  2 Aug 2011 10:48:31 +0900 (JST)
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 9A07E45DE54
+	for <linux-mm@kvack.org>; Tue,  2 Aug 2011 11:29:22 +0900 (JST)
 Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id BDDC41DB8041
-	for <linux-mm@kvack.org>; Tue,  2 Aug 2011 10:48:31 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 85C151DB803E
-	for <linux-mm@kvack.org>; Tue,  2 Aug 2011 10:48:31 +0900 (JST)
-Message-ID: <4E37576C.1000908@jp.fujitsu.com>
-Date: Tue, 02 Aug 2011 10:48:28 +0900
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [patch 3/3]vmscan: cleanup kswapd_try_to_sleep
-References: <1311840789.15392.409.camel@sli10-conroe>  <4E374637.20202@jp.fujitsu.com> <1312247004.15392.451.camel@sli10-conroe>
-In-Reply-To: <1312247004.15392.451.camel@sli10-conroe>
-Content-Type: text/plain; charset=UTF-8
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 886411DB8041
+	for <linux-mm@kvack.org>; Tue,  2 Aug 2011 11:29:22 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 4DB3B1DB803E
+	for <linux-mm@kvack.org>; Tue,  2 Aug 2011 11:29:22 +0900 (JST)
+Date: Tue, 2 Aug 2011 11:21:43 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH v4 2/5] memcg : pass scan nodemask
+Message-Id: <20110802112143.814e3720.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110801135953.GE25251@tiehlicka.suse.cz>
+References: <20110727144438.a9fdfd5b.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110727144742.420cf69c.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110801135953.GE25251@tiehlicka.suse.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: shaohua.li@intel.com
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, mgorman@suse.de, minchan.kim@gmail.com
+To: Michal Hocko <mhocko@suse.cz>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
 
-(2011/08/02 10:03), Shaohua Li wrote:
-> On Tue, 2011-08-02 at 08:35 +0800, KOSAKI Motohiro wrote:
->> (2011/07/28 17:13), Shaohua Li wrote:
->>> cleanup kswapd_try_to_sleep() a little bit. Sometimes kswapd doesn't
->>> really sleep. In such case, don't call prepare_to_wait/finish_wait.
->>> It just wastes CPU.
->>>
->>> Signed-off-by: Shaohua Li <shaohua.li@intel.com>
->>> ---
->>>  mm/vmscan.c |    7 +++----
->>>  1 file changed, 3 insertions(+), 4 deletions(-)
->>>
->>> Index: linux/mm/vmscan.c
->>> ===================================================================
->>> --- linux.orig/mm/vmscan.c	2011-07-28 15:52:35.000000000 +0800
->>> +++ linux/mm/vmscan.c	2011-07-28 15:55:56.000000000 +0800
->>> @@ -2709,13 +2709,11 @@ static void kswapd_try_to_sleep(pg_data_
->>>  	if (freezing(current) || kthread_should_stop())
->>>  		return;
->>>  
->>> -	prepare_to_wait(&pgdat->kswapd_wait, &wait, TASK_INTERRUPTIBLE);
->>> -
->>>  	/* Try to sleep for a short interval */
->>>  	if (!sleeping_prematurely(pgdat, order, remaining, classzone_idx)) {
->>> +		prepare_to_wait(&pgdat->kswapd_wait, &wait, TASK_INTERRUPTIBLE);
->>>  		remaining = schedule_timeout(HZ/10);
->>>  		finish_wait(&pgdat->kswapd_wait, &wait);
->>> -		prepare_to_wait(&pgdat->kswapd_wait, &wait, TASK_INTERRUPTIBLE);
->>>  	}
->>>  
->>>  	/*
->>> @@ -2734,7 +2732,9 @@ static void kswapd_try_to_sleep(pg_data_
->>>  		 * them before going back to sleep.
->>>  		 */
->>>  		set_pgdat_percpu_threshold(pgdat, calculate_normal_threshold);
->>> +		prepare_to_wait(&pgdat->kswapd_wait, &wait, TASK_INTERRUPTIBLE);
->>>  		schedule();
->>> +		finish_wait(&pgdat->kswapd_wait, &wait);
->>>  		set_pgdat_percpu_threshold(pgdat, calculate_pressure_threshold);
->>>  	} else {
->>>  		if (remaining)
->>> @@ -2742,7 +2742,6 @@ static void kswapd_try_to_sleep(pg_data_
->>>  		else
->>>  			count_vm_event(KSWAPD_HIGH_WMARK_HIT_QUICKLY);
->>>  	}
->>> -	finish_wait(&pgdat->kswapd_wait, &wait);
->>>  }
->>>  
->>>  /*
->>
->> Prepare_to_wait/finish_wait basic usage is below. Briefly,
->> 1) prepare_to_wait() is needed to call every sleeping
-> yes
+On Mon, 1 Aug 2011 15:59:53 +0200
+Michal Hocko <mhocko@suse.cz> wrote:
+
+> On Wed 27-07-11 14:47:42, KAMEZAWA Hiroyuki wrote:
+> > 
+> > pass memcg's nodemask to try_to_free_pages().
+> > 
+> > try_to_free_pages can take nodemask as its argument but memcg
+> > doesn't pass it. Considering memcg can be used with cpuset on
+> > big NUMA, memcg should pass nodemask if available.
+> > 
+> > Now, memcg maintain nodemask with periodic updates. pass it.
+> > 
+> > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > ---
+> >  include/linux/memcontrol.h |    2 +-
+> >  mm/memcontrol.c            |    8 ++++++--
+> >  mm/vmscan.c                |    3 ++-
+> >  3 files changed, 9 insertions(+), 4 deletions(-)
+> > 
+> [...]
+> > Index: mmotm-0710/mm/vmscan.c
+> > ===================================================================
+> > --- mmotm-0710.orig/mm/vmscan.c
+> > +++ mmotm-0710/mm/vmscan.c
+> > @@ -2280,6 +2280,7 @@ unsigned long try_to_free_mem_cgroup_pag
+> >  	unsigned long nr_reclaimed;
+> >  	unsigned long start, end;
+> >  	int nid;
+> > +	nodemask_t *mask;
+> >  	struct scan_control sc = {
+> >  		.may_writepage = !laptop_mode,
+> >  		.may_unmap = 1,
+> > @@ -2302,7 +2303,7 @@ unsigned long try_to_free_mem_cgroup_pag
+> >  	 * take care of from where we get pages. So the node where we start the
+> >  	 * scan does not need to be the current node.
+> >  	 */
+> > -	nid = mem_cgroup_select_victim_node(mem_cont);
+> > +	nid = mem_cgroup_select_victim_node(mem_cont, &mask);
 > 
->> 2) finish_wait is only need to exit sleeping loop
->>
->> So, 1) moving prepare_to_wait looks pretty good to me. but I doubt the worth
->> of moving the finish_wait of function last.
-> so you are talking about leave the last finish_wait at the end of the
-> function, and delete other finish_wait, right? 
+> The mask is not used anywhere AFAICS and using it is a point of the
+> patch AFAIU. I guess you wanted to use &sc.nodemask, right?
+> 
+> Other than that, looks good to me.
+> 
+> Reviewed-by: Michal Hocko <mhocko@suse.cz>
 
-exactly. :)
+Ah, sorry. I'll fix.
 
-
-> that is ok, but I'm
-> afraid it's not readable. a pair of prepare_to_wait/schedule/finish_wait
-> is more readable.
-
-hm. I personally think keeping generic usage convention doesn't decrease
-a readability. but I have no strong option. so, I'd like to hear other
-developers opinion. if they agree with you, I'll not stick my opinion.
-
-Thanks.
-
-
-
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
