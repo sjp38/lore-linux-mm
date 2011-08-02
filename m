@@ -1,92 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 79DF96B00EE
-	for <linux-mm@kvack.org>; Tue,  2 Aug 2011 13:13:13 -0400 (EDT)
-Date: Tue, 2 Aug 2011 10:15:00 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: kernel BUG at mm/vmscan.c:1114
-Message-Id: <20110802101500.3f1d53c5.akpm@linux-foundation.org>
-In-Reply-To: <20110802142459.GF10436@suse.de>
-References: <CAJn8CcE20-co4xNOD8c+0jMeABrc1mjmGzju3xT34QwHHHFsUA@mail.gmail.com>
-	<CAJn8CcG-pNbg88+HLB=tRr26_R+A0RxZEWsJQg4iGe4eY2noXA@mail.gmail.com>
-	<20110802142459.GF10436@suse.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 3E90B6B0169
+	for <linux-mm@kvack.org>; Tue,  2 Aug 2011 16:02:12 -0400 (EDT)
+Received: from wpaz9.hot.corp.google.com (wpaz9.hot.corp.google.com [172.24.198.73])
+	by smtp-out.google.com with ESMTP id p72K29FL022925
+	for <linux-mm@kvack.org>; Tue, 2 Aug 2011 13:02:09 -0700
+Received: from pzk37 (pzk37.prod.google.com [10.243.19.165])
+	by wpaz9.hot.corp.google.com with ESMTP id p72K25Jw016853
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 2 Aug 2011 13:02:08 -0700
+Received: by pzk37 with SMTP id 37so190071pzk.29
+        for <linux-mm@kvack.org>; Tue, 02 Aug 2011 13:02:05 -0700 (PDT)
+Date: Tue, 2 Aug 2011 13:02:03 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [GIT PULL] Lockless SLUB slowpaths for v3.1-rc1
+In-Reply-To: <alpine.DEB.2.00.1108021131250.21126@router.home>
+Message-ID: <alpine.DEB.2.00.1108020938200.1114@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1107290145080.3279@tiger> <alpine.DEB.2.00.1107291002570.16178@router.home> <alpine.DEB.2.00.1107311136150.12538@chino.kir.corp.google.com> <alpine.DEB.2.00.1107311253560.12538@chino.kir.corp.google.com> <1312145146.24862.97.camel@jaguar>
+ <alpine.DEB.2.00.1107311426001.944@chino.kir.corp.google.com> <CAOJsxLHB9jPNyU2qztbEHG4AZWjauCLkwUVYr--8PuBBg1=MCA@mail.gmail.com> <alpine.DEB.2.00.1108012101310.6871@chino.kir.corp.google.com> <alpine.DEB.2.00.1108020913180.18965@router.home>
+ <alpine.DEB.2.00.1108020915370.1114@chino.kir.corp.google.com> <alpine.DEB.2.00.1108021131250.21126@router.home>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Xiaotian Feng <xtfeng@gmail.com>, linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, hughd@google.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, 2 Aug 2011 15:24:59 +0100 Mel Gorman <mgorman@suse.de> wrote:
+On Tue, 2 Aug 2011, Christoph Lameter wrote:
 
-> On Tue, Aug 02, 2011 at 03:09:57PM +0800, Xiaotian Feng wrote:
-> > Hi,
-> > __ __I'm hitting the kernel BUG at mm/vmscan.c:1114 twice, each time I
-> > was trying to build my kernel. The photo of crash screen and my config
-> > is attached. Thanks.
-> > Regards
-> > Xiaotian
-> 
-> I am obviously blind because in 3.0, I cannot see what BUG is at
-> mm/vmscan.c:1114 :(. I see
-> 
-> 1109:			/*
-> 1110:			 * If we don't have enough swap space, reclaiming of
-> 1111:			 * anon page which don't already have a swap slot is
-> 1112:			 * pointless.
-> 1113:			 */
-> 1114:			if (nr_swap_pages <= 0 && PageAnon(cursor_page) &&
-> 1115:			    !PageSwapCache(cursor_page))
-> 1116:				break;
-> 1117:
-> 1118:			if (__isolate_lru_page(cursor_page, mode, file) == 0) {
-> 1119:				list_move(&cursor_page->lru, dst);
-> 1120:				mem_cgroup_del_lru(cursor_page);
-> 
-> Is this 3.0 vanilla or are there some other patches applied?
+> The per cpu partial lists only add the need for more memory if other
+> processors have to allocate new pages because they do not have enough
+> partial slab pages to satisfy their needs. That can be tuned by a cap on
+> objects.
 > 
 
-"3.0.0+": Current mainline.
-
-static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
-		struct list_head *src, struct list_head *dst,
-		unsigned long *scanned, int order, int mode, int file)
-{
-	unsigned long nr_taken = 0;
-	unsigned long nr_lumpy_taken = 0;
-	unsigned long nr_lumpy_dirty = 0;
-	unsigned long nr_lumpy_failed = 0;
-	unsigned long scan;
-
-	for (scan = 0; scan < nr_to_scan && !list_empty(src); scan++) {
-		struct page *page;
-		unsigned long pfn;
-		unsigned long end_pfn;
-		unsigned long page_pfn;
-		int zone_id;
-
-		page = lru_to_page(src);
-		prefetchw_prev_lru_page(page, src, flags);
-
-		VM_BUG_ON(!PageLRU(page));
-
-		switch (__isolate_lru_page(page, mode, file)) {
-		case 0:
-			list_move(&page->lru, dst);
-			mem_cgroup_del_lru(page);
-			nr_taken += hpage_nr_pages(page);
-			break;
-
-		case -EBUSY:
-			/* else it is being freed elsewhere */
-			list_move(&page->lru, src);
-			mem_cgroup_rotate_lru_list(page, page_lru(page));
-			continue;
-
-		default:
--->>			BUG();
-		}
+The netperf benchmark isn't representative of a heavy slab consuming 
+workload, I routinely run jobs on these machines that use 20 times the 
+amount of slab.  From what I saw in the earlier posting of the per-cpu 
+partial list patch, the min_partial value is set to half of what it was 
+previously as a per-node partial list.  Since these are 16-core, 4 node 
+systems, that would mean that after a kmem_cache_shrink() on a cache that 
+leaves empty slab on the partial lists that we've doubled the memory for 
+slub's partial lists systemwide.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
