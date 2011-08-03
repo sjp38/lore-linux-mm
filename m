@@ -1,77 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id C17256B0169
-	for <linux-mm@kvack.org>; Wed,  3 Aug 2011 10:19:15 -0400 (EDT)
-Date: Wed, 3 Aug 2011 09:19:11 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH] mm/mempolicy.c: make sys_mbind & sys_set_mempolicy aware
- of task_struct->mems_allowed
-In-Reply-To: <20110803123721.GA2892@x61.redhat.com>
-Message-ID: <alpine.DEB.2.00.1108030913090.24201@router.home>
-References: <20110803123721.GA2892@x61.redhat.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id AB7B46B0169
+	for <linux-mm@kvack.org>; Wed,  3 Aug 2011 10:35:34 -0400 (EDT)
+Date: Wed, 3 Aug 2011 15:35:27 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 3/8] ext4: Warn if direct reclaim tries to writeback pages
+Message-ID: <20110803143527.GM19099@suse.de>
+References: <1311265730-5324-1-git-send-email-mgorman@suse.de>
+ <1311265730-5324-4-git-send-email-mgorman@suse.de>
+ <20110803105819.GA27199@redhat.com>
+ <20110803110629.GB27199@redhat.com>
+ <20110803134420.GH19099@suse.de>
+ <20110803140019.GA31026@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20110803140019.GA31026@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rafael Aquini <aquini@redhat.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Stephen Wilson <wilsons@start.ca>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org
+To: Johannes Weiner <jweiner@redhat.com>
+Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, XFS <xfs@oss.sgi.com>, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>
 
-On Wed, 3 Aug 2011, Rafael Aquini wrote:
+On Wed, Aug 03, 2011 at 04:00:19PM +0200, Johannes Weiner wrote:
+> On Wed, Aug 03, 2011 at 02:44:20PM +0100, Mel Gorman wrote:
+> > On Wed, Aug 03, 2011 at 01:06:29PM +0200, Johannes Weiner wrote:
+> > > On Wed, Aug 03, 2011 at 12:58:19PM +0200, Johannes Weiner wrote:
+> > > > On Thu, Jul 21, 2011 at 05:28:45PM +0100, Mel Gorman wrote:
+> > > > > Direct reclaim should never writeback pages. Warn if an attempt
+> > > > > is made.
+> > > > > 
+> > > > > Signed-off-by: Mel Gorman <mgorman@suse.de>
+> > > > 
+> > > > Acked-by: Johannes Weiner <jweiner@redhat.com>
+> > > 
+> > > Oops, too fast.
+> > > 
+> > > Shouldn't the WARN_ON() be at the top of the function, rather than
+> > > just warn when the write is deferred due to delalloc?
+> > 
+> > I thought it made more sense to put the warning at the point where ext4
+> > would normally ignore ->writepage.
+> > 
+> > That said, in my current revision of the series, I've dropped these
+> > patches altogether as page migration should be able to trigger the same
+> > warnings but be called from paths that are of less concern for stack
+> > overflows (or at the very least be looked at as a separate series).
+> 
+> Doesn't this only apply to btrfs which has no own .migratepage aop for
+> file pages?  The others use buffer_migrate_page.
+> 
 
-> Among several other features enabled when CONFIG_CPUSETS is defined, task_struct is enhanced with the nodemask_t mems_allowed element that serves to register/report on which memory nodes the task may obtain memory. Also, two new lines that reflect the value registered at task_struct->mems_allowed are added to the '/proc/[pid]/status' file:
-> 	  Mems_allowed:   ...,00000000,0000000f
-> 	  Mems_allowed_list:      0-3
->
-> The system calls sys_mbind and sys_set_mempolicy, which serve to cope
-> with NUMA memory policies, and receive a nodemask_t parameter, do not
-> set task_struct->mems_allowed accordingly to their received nodemask,
-> when CONFIG_CPUSETS is defined. This unawareness causes unexpected
-> values being reported at '/proc/[pid]/status' Mems_allowed fields, for
-> applications relying on those syscalls, or spawned by numactl.
+Bah, you're right. It was btrfs I was looking at during the time I
+decided to drop the patches and I didn't think it through. I only
+needed to drop the btrfs one.
 
-That is intentionally so since mbind does not restrict the memory nodes
-allowed by the process. mbind means that process is directing its
-allocation to a specific set of nodes. The process can still specify a
-memory policy for allocation from any other node in mems_allowed.
+> But if you dropped them anyway, it does not matter :)
 
-> Despite not affecting the memory policy operation itself, the
-> aforementioned unawareness is source of confusion and annoyance when one
-> is trying to figure out which resources are bound to a given task.
+I put back in the xfs and ext4 checks. The ext4 check is still in the
+same place.
 
-Nope this is so for a reason.
-
-> As we can check, the expected reported list would be "1,2", instead of "0-3".
-
-Wrong. The process is allowed to allocate from nodes 0-3. Reporting
-anything else would be misleading.
-
-> @@ -1256,7 +1264,10 @@ SYSCALL_DEFINE6(mbind, unsigned long, start, unsigned long, len,
->  	err = get_nodes(&nodes, nmask, maxnode);
->  	if (err)
->  		return err;
-> -	return do_mbind(start, len, mode, mode_flags, &nodes, flags);
-> +	err = do_mbind(start, len, mode, mode_flags, &nodes, flags);
-> +	if (!err)
-> +		set_mems_allowed(nodes);
-> +	return err;
->  }
-
-Uhhh. set_mems_allowed() suffers from various races and cannot easiy be
-used in random locations. Special serialization is required. See
-cpuset_mems_allowed() and cpuset_change_task_nodemask
-
-> @@ -1276,7 +1287,10 @@ SYSCALL_DEFINE3(set_mempolicy, int, mode, unsigned long __user *, nmask,
->  	err = get_nodes(&nodes, nmask, maxnode);
->  	if (err)
->  		return err;
-> -	return do_set_mempolicy(mode, flags, &nodes);
-> +	err = do_set_mempolicy(mode, flags, &nodes);
-> +	if (!err)
-> +		set_mems_allowed(nodes);
-> +	return err;
->  }
-
-Same issue.
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
