@@ -1,107 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id E69676B0169
-	for <linux-mm@kvack.org>; Wed,  3 Aug 2011 13:43:56 -0400 (EDT)
-Subject: Re: [PATCH 6/8] drivers: add Contiguous Memory Allocator
-From: James Bottomley <James.Bottomley@HansenPartnership.com>
-In-Reply-To: <201107051427.44899.arnd@arndb.de>
-References: <1309851710-3828-1-git-send-email-m.szyprowski@samsung.com>
-	 <1309851710-3828-7-git-send-email-m.szyprowski@samsung.com>
-	 <20110705113345.GA8286@n2100.arm.linux.org.uk>
-	 <201107051427.44899.arnd@arndb.de>
-Content-Type: text/plain; charset="UTF-8"
-Date: Wed, 03 Aug 2011 12:43:50 -0500
-Message-ID: <1312393430.2855.51.camel@mulgrave>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id B32E86B0169
+	for <linux-mm@kvack.org>; Wed,  3 Aug 2011 15:06:45 -0400 (EDT)
+Date: Wed, 3 Aug 2011 21:06:23 +0200
+From: Johannes Weiner <jweiner@redhat.com>
+Subject: Re: [patch 4/5] mm: writeback: throttle __GFP_WRITE on per-zone
+ dirty limits
+Message-ID: <20110803190623.GA5873@redhat.com>
+References: <1311625159-13771-1-git-send-email-jweiner@redhat.com>
+ <1311625159-13771-5-git-send-email-jweiner@redhat.com>
+ <20110725203705.GA21691@tassilo.jf.intel.com>
+ <CAEwNFnARzetfqZqjh_9-d+FOHtrCEwaSxgqBy_D+apxsNqzqkg@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CAEwNFnARzetfqZqjh_9-d+FOHtrCEwaSxgqBy_D+apxsNqzqkg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arnd Bergmann <arnd@arndb.de>
-Cc: Russell King - ARM Linux <linux@arm.linux.org.uk>, Marek Szyprowski <m.szyprowski@samsung.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Daniel Walker <dwalker@codeaurora.org>, Jonathan Corbet <corbet@lwn.net>, Mel Gorman <mel@csn.ul.ie>, Chunsang Jeong <chunsang.jeong@linaro.org>, Michal Nazarewicz <mina86@mina86.com>, Jesse Barker <jesse.barker@linaro.org>, Kyungmin Park <kyungmin.park@samsung.com>, Ankita Garg <ankita@in.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, ksummit-2011-discuss@lists.linux-foundation.org
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Andi Kleen <ak@linux.intel.com>, linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, Rik van Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>, linux-kernel@vger.kernel.org
 
-[cc to ks-discuss added, since this may be a relevant topic]
-
-On Tue, 2011-07-05 at 14:27 +0200, Arnd Bergmann wrote:
-> On Tuesday 05 July 2011, Russell King - ARM Linux wrote:
-> > On Tue, Jul 05, 2011 at 09:41:48AM +0200, Marek Szyprowski wrote:
-> > > The Contiguous Memory Allocator is a set of helper functions for DMA
-> > > mapping framework that improves allocations of contiguous memory chunks.
-> > > 
-> > > CMA grabs memory on system boot, marks it with CMA_MIGRATE_TYPE and
-> > > gives back to the system. Kernel is allowed to allocate movable pages
-> > > within CMA's managed memory so that it can be used for example for page
-> > > cache when DMA mapping do not use it. On dma_alloc_from_contiguous()
-> > > request such pages are migrated out of CMA area to free required
-> > > contiguous block and fulfill the request. This allows to allocate large
-> > > contiguous chunks of memory at any time assuming that there is enough
-> > > free memory available in the system.
-> > > 
-> > > This code is heavily based on earlier works by Michal Nazarewicz.
-> > 
-> > And how are you addressing the technical concerns about aliasing of
-> > cache attributes which I keep bringing up with this and you keep
-> > ignoring and telling me that I'm standing in your way.
-
-Just to chime in here, parisc has an identical issue.  If the CPU ever
-sees an alias with different attributes for the same page, it will HPMC
-the box (that's basically the bios will kill the system as being
-architecturally inconsistent), so an architecture neutral solution on
-this point is essential to us as well.
-
-> This is of course an important issue, and it's the one item listed as
-> TODO in the introductory mail that sent.
+On Tue, Jul 26, 2011 at 08:40:59AM +0900, Minchan Kim wrote:
+> Hi Andi,
 > 
-> It's also a preexisting problem as far as I can tell, and it needs
-> to be solved in __dma_alloc for both cases, dma_alloc_from_contiguous
-> and __alloc_system_pages as introduced in patch 7.
-> 
-> We've discussed this back and forth, and it always comes down to
-> one of two ugly solutions:
-> 
-> 1. Put all of the MIGRATE_CMA and pages into highmem and change
-> __alloc_system_pages so it also allocates only from highmem pages.
-> The consequences of this are that we always need to build kernels
-> with highmem enabled and that we have less lowmem on systems that
-> are already small, both of which can be fairly expensive unless
-> you have lots of highmem already.
+> On Tue, Jul 26, 2011 at 5:37 AM, Andi Kleen <ak@linux.intel.com> wrote:
+> >> The global dirty limits are put in proportion to the respective zone's
+> >> amount of dirtyable memory and the allocation denied when the limit of
+> >> that zone is reached.
+> >>
+> >> Before the allocation fails, the allocator slowpath has a stage before
+> >> compaction and reclaim, where the flusher threads are kicked and the
+> >> allocator ultimately has to wait for writeback if still none of the
+> >> zones has become eligible for allocation again in the meantime.
+> >>
+> >
+> > I don't really like this. It seems wrong to make memory
+> > placement depend on dirtyness.
+> >
+> > Just try to explain it to some system administrator or tuner: her
+> > head will explode and for good reasons.
+> >
+> > On the other hand I like doing round-robin in filemap by default
+> > (I think that is what your patch essentially does)
+> > We should have made  this default long ago. It avoids most of the
+> > "IO fills up local node" problems people run into all the time.
+> >
+> > So I would rather just change the default in filemap allocation.
 
-So this would require that systems using the API have a highmem? (parisc
-doesn't today).
+It's not only a problem that exists solely on a node-level but also on
+a zone-level.  Round-robin over the nodes does not fix the problem
+that a small zone can fill up with dirty pages before the global dirty
+limit kicks in.
 
-> 2. Add logic to unmap pages from the linear mapping, which is
-> very expensive because it forces the use of small pages in the
-> linear mapping (or in parts of it), and possibly means walking
-> all page tables to remove the PTEs on alloc and put them back
-> in on free.
-> 
-> I believe that Chunsang Jeong from Linaro is planning to
-> implement both variants and post them for review, so we can
-> decide which one to merge, or even to merge both and make
-> it a configuration option. See also
-> https://blueprints.launchpad.net/linaro-mm-sig/+spec/engr-mm-dma-mapping-2011.07
-> 
-> I don't think we need to make merging the CMA patches depending on
-> the other patches, it's clear that both need to be solved, and
-> they are independent enough.
+> Just out of curiosity.
+> Why do you want to consider only filemap allocation, not IO(ie,
+> filemap + sys_[read/write]) allocation?
 
-I assume from the above that ARM has a hardware page walker?
+I guess Andi was referring to the page cache (mapping file offsets to
+pages), rather than mmaps (mapping virtual addresses to pages).
 
-The way I'd fix this on parisc, because we have a software based TLB, is
-to rely on the fact that a page may only be used either for DMA or for
-Page Cache, so the aliases should never be interleaved.  Since you know
-the point at which the page flips from DMA to Cache (and vice versa),
-I'd purge the TLB entry and flush the page at that point and rely on the
-usage guarantees to ensure that the alias TLB entry doesn't reappear.
-This isn't inexpensive but the majority of the cost is the cache flush
-which is a requirement to clean the aliases anyway (a TLB entry purge is
-pretty cheap).
-
-Would this work for the ARM hardware walker as well?  It would require
-you to have a TLB entry purge instruction as well as some architectural
-guarantees about not speculating the TLB.
-
-James
-
+mm/filemap.c::__page_cache_alloc()
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
