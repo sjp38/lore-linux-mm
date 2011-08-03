@@ -1,67 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id AB7B46B0169
-	for <linux-mm@kvack.org>; Wed,  3 Aug 2011 10:35:34 -0400 (EDT)
-Date: Wed, 3 Aug 2011 15:35:27 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 3/8] ext4: Warn if direct reclaim tries to writeback pages
-Message-ID: <20110803143527.GM19099@suse.de>
-References: <1311265730-5324-1-git-send-email-mgorman@suse.de>
- <1311265730-5324-4-git-send-email-mgorman@suse.de>
- <20110803105819.GA27199@redhat.com>
- <20110803110629.GB27199@redhat.com>
- <20110803134420.GH19099@suse.de>
- <20110803140019.GA31026@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20110803140019.GA31026@redhat.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 371836B0169
+	for <linux-mm@kvack.org>; Wed,  3 Aug 2011 12:37:48 -0400 (EDT)
+Date: Wed, 3 Aug 2011 09:37:45 -0700
+From: Randy Dunlap <rdunlap@xenotime.net>
+Subject: Re: mmotm 2011-08-02-16-19 uploaded (fault-inject.h)
+Message-Id: <20110803093745.0fcb7b76.rdunlap@xenotime.net>
+In-Reply-To: <201108022357.p72NvsZM022462@imap1.linux-foundation.org>
+References: <201108022357.p72NvsZM022462@imap1.linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <jweiner@redhat.com>
-Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, XFS <xfs@oss.sgi.com>, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>
+To: linux-kernel@vger.kernel.org
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org
 
-On Wed, Aug 03, 2011 at 04:00:19PM +0200, Johannes Weiner wrote:
-> On Wed, Aug 03, 2011 at 02:44:20PM +0100, Mel Gorman wrote:
-> > On Wed, Aug 03, 2011 at 01:06:29PM +0200, Johannes Weiner wrote:
-> > > On Wed, Aug 03, 2011 at 12:58:19PM +0200, Johannes Weiner wrote:
-> > > > On Thu, Jul 21, 2011 at 05:28:45PM +0100, Mel Gorman wrote:
-> > > > > Direct reclaim should never writeback pages. Warn if an attempt
-> > > > > is made.
-> > > > > 
-> > > > > Signed-off-by: Mel Gorman <mgorman@suse.de>
-> > > > 
-> > > > Acked-by: Johannes Weiner <jweiner@redhat.com>
-> > > 
-> > > Oops, too fast.
-> > > 
-> > > Shouldn't the WARN_ON() be at the top of the function, rather than
-> > > just warn when the write is deferred due to delalloc?
-> > 
-> > I thought it made more sense to put the warning at the point where ext4
-> > would normally ignore ->writepage.
-> > 
-> > That said, in my current revision of the series, I've dropped these
-> > patches altogether as page migration should be able to trigger the same
-> > warnings but be called from paths that are of less concern for stack
-> > overflows (or at the very least be looked at as a separate series).
+On Tue, 02 Aug 2011 16:19:30 -0700 akpm@linux-foundation.org wrote:
+
+> The mm-of-the-moment snapshot 2011-08-02-16-19 has been uploaded to
 > 
-> Doesn't this only apply to btrfs which has no own .migratepage aop for
-> file pages?  The others use buffer_migrate_page.
+>    http://userweb.kernel.org/~akpm/mmotm/
 > 
+> and will soon be available at
+>    git://zen-kernel.org/kernel/mmotm.git
+> or
+>    git://git.cmpxchg.org/linux-mmotm.git
+> 
+> It contains the following patches against 3.0:
 
-Bah, you're right. It was btrfs I was looking at during the time I
-decided to drop the patches and I didn't think it through. I only
-needed to drop the btrfs one.
+> fault-injection-add-ability-to-export-fault_attr-in-arbitrary-directory.patch
 
-> But if you dropped them anyway, it does not matter :)
+Please drop the ';' at the end of the second line below:
 
-I put back in the xfs and ext4 checks. The ext4 check is still in the
-same place.
++static inline struct dentry *fault_create_debugfs_attr(const char *name,
++			struct dentry *parent, struct fault_attr *attr);
+ {
++	return ERR_PTR(-ENODEV);
+ }
 
--- 
-Mel Gorman
-SUSE Labs
+It causes lots of build errors.
+
+---
+~Randy
+*** Remember to use Documentation/SubmitChecklist when testing your code ***
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
