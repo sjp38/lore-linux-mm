@@ -1,53 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id C9A566B0169
-	for <linux-mm@kvack.org>; Wed,  3 Aug 2011 10:00:36 -0400 (EDT)
-Date: Wed, 3 Aug 2011 16:00:19 +0200
-From: Johannes Weiner <jweiner@redhat.com>
-Subject: Re: [PATCH 3/8] ext4: Warn if direct reclaim tries to writeback pages
-Message-ID: <20110803140019.GA31026@redhat.com>
-References: <1311265730-5324-1-git-send-email-mgorman@suse.de>
- <1311265730-5324-4-git-send-email-mgorman@suse.de>
- <20110803105819.GA27199@redhat.com>
- <20110803110629.GB27199@redhat.com>
- <20110803134420.GH19099@suse.de>
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id C827B6B0169
+	for <linux-mm@kvack.org>; Wed,  3 Aug 2011 10:09:52 -0400 (EDT)
+Date: Wed, 3 Aug 2011 09:09:48 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [GIT PULL] Lockless SLUB slowpaths for v3.1-rc1
+In-Reply-To: <alpine.DEB.2.00.1108020938200.1114@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.00.1108030908100.24201@router.home>
+References: <alpine.DEB.2.00.1107290145080.3279@tiger> <alpine.DEB.2.00.1107291002570.16178@router.home> <alpine.DEB.2.00.1107311136150.12538@chino.kir.corp.google.com> <alpine.DEB.2.00.1107311253560.12538@chino.kir.corp.google.com> <1312145146.24862.97.camel@jaguar>
+ <alpine.DEB.2.00.1107311426001.944@chino.kir.corp.google.com> <CAOJsxLHB9jPNyU2qztbEHG4AZWjauCLkwUVYr--8PuBBg1=MCA@mail.gmail.com> <alpine.DEB.2.00.1108012101310.6871@chino.kir.corp.google.com> <alpine.DEB.2.00.1108020913180.18965@router.home>
+ <alpine.DEB.2.00.1108020915370.1114@chino.kir.corp.google.com> <alpine.DEB.2.00.1108021131250.21126@router.home> <alpine.DEB.2.00.1108020938200.1114@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110803134420.GH19099@suse.de>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, XFS <xfs@oss.sgi.com>, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, hughd@google.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Aug 03, 2011 at 02:44:20PM +0100, Mel Gorman wrote:
-> On Wed, Aug 03, 2011 at 01:06:29PM +0200, Johannes Weiner wrote:
-> > On Wed, Aug 03, 2011 at 12:58:19PM +0200, Johannes Weiner wrote:
-> > > On Thu, Jul 21, 2011 at 05:28:45PM +0100, Mel Gorman wrote:
-> > > > Direct reclaim should never writeback pages. Warn if an attempt
-> > > > is made.
-> > > > 
-> > > > Signed-off-by: Mel Gorman <mgorman@suse.de>
-> > > 
-> > > Acked-by: Johannes Weiner <jweiner@redhat.com>
-> > 
-> > Oops, too fast.
-> > 
-> > Shouldn't the WARN_ON() be at the top of the function, rather than
-> > just warn when the write is deferred due to delalloc?
-> 
-> I thought it made more sense to put the warning at the point where ext4
-> would normally ignore ->writepage.
-> 
-> That said, in my current revision of the series, I've dropped these
-> patches altogether as page migration should be able to trigger the same
-> warnings but be called from paths that are of less concern for stack
-> overflows (or at the very least be looked at as a separate series).
+On Tue, 2 Aug 2011, David Rientjes wrote:
 
-Doesn't this only apply to btrfs which has no own .migratepage aop for
-file pages?  The others use buffer_migrate_page.
+> On Tue, 2 Aug 2011, Christoph Lameter wrote:
+>
+> > The per cpu partial lists only add the need for more memory if other
+> > processors have to allocate new pages because they do not have enough
+> > partial slab pages to satisfy their needs. That can be tuned by a cap on
+> > objects.
+> >
+>
+> The netperf benchmark isn't representative of a heavy slab consuming
+> workload, I routinely run jobs on these machines that use 20 times the
+> amount of slab.  From what I saw in the earlier posting of the per-cpu
+> partial list patch, the min_partial value is set to half of what it was
+> previously as a per-node partial list.  Since these are 16-core, 4 node
+> systems, that would mean that after a kmem_cache_shrink() on a cache that
+> leaves empty slab on the partial lists that we've doubled the memory for
+> slub's partial lists systemwide.
 
-But if you dropped them anyway, it does not matter :)
+Cutting down the potential number of empty slabs that we might possible
+keep around because we have no partial slabs per node increases memory
+usage?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
