@@ -1,100 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 3C6916B016B
-	for <linux-mm@kvack.org>; Wed,  3 Aug 2011 16:25:11 -0400 (EDT)
-Date: Wed, 3 Aug 2011 22:25:00 +0200
-From: Johannes Weiner <jweiner@redhat.com>
-Subject: Re: [patch 4/5] mm: writeback: throttle __GFP_WRITE on per-zone
- dirty limits
-Message-ID: <20110803202500.GA8286@redhat.com>
-References: <1311625159-13771-1-git-send-email-jweiner@redhat.com>
- <1311625159-13771-5-git-send-email-jweiner@redhat.com>
- <20110727142405.GG4024@tiehlicka.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110727142405.GG4024@tiehlicka.suse.cz>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 04CED6B0169
+	for <linux-mm@kvack.org>; Wed,  3 Aug 2011 20:23:48 -0400 (EDT)
+Date: Thu, 4 Aug 2011 10:23:37 +1000
+From: Stephen Rothwell <sfr@canb.auug.org.au>
+Subject: Re: [PATCH -mmotm] media: video/adp1653.c needs module.h
+Message-Id: <20110804102337.7a91f4d91d887ccd0168e4f8@canb.auug.org.au>
+In-Reply-To: <20110803101226.0d17b23e.rdunlap@xenotime.net>
+References: <201108022357.p72NvsZM022462@imap1.linux-foundation.org>
+	<20110803101226.0d17b23e.rdunlap@xenotime.net>
+Mime-Version: 1.0
+Content-Type: multipart/signed; protocol="application/pgp-signature";
+ micalg="PGP-SHA1";
+ boundary="Signature=_Thu__4_Aug_2011_10_23_37_+1000_.lv._/j8Qp6KHUCM"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Jan Kara <jack@suse.cz>, Andi Kleen <ak@linux.intel.com>, linux-kernel@vger.kernel.org
+To: Randy Dunlap <rdunlap@xenotime.net>
+Cc: akpm@linux-foundation.org, linux-media@vger.kernel.org, mchehab@infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org
 
-On Wed, Jul 27, 2011 at 04:24:05PM +0200, Michal Hocko wrote:
-> On Mon 25-07-11 22:19:18, Johannes Weiner wrote:
-> [...]
-> > diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-> > index 41dc871..ce673ec 100644
-> > --- a/mm/page-writeback.c
-> > +++ b/mm/page-writeback.c
-> > @@ -378,6 +390,24 @@ int bdi_set_max_ratio(struct backing_dev_info *bdi, unsigned max_ratio)
-> >  }
-> >  EXPORT_SYMBOL(bdi_set_max_ratio);
-> >  
-> > +static void sanitize_dirty_limits(unsigned long *pbackground,
-> > +				  unsigned long *pdirty)
-> > +{
-> > +	unsigned long background = *pbackground;
-> > +	unsigned long dirty = *pdirty;
-> > +	struct task_struct *tsk;
-> > +
-> > +	if (background >= dirty)
-> > +		background = dirty / 2;
-> > +	tsk = current;
-> > +	if (tsk->flags & PF_LESS_THROTTLE || rt_task(tsk)) {
-> > +		background += background / 4;
-> > +		dirty += dirty / 4;
-> > +	}
-> > +	*pbackground = background;
-> > +	*pdirty = dirty;
-> > +}
-> > +
-> >  /*
-> >   * global_dirty_limits - background-writeback and dirty-throttling thresholds
-> >   *
-> > @@ -389,33 +419,52 @@ EXPORT_SYMBOL(bdi_set_max_ratio);
-> >   */
-> >  void global_dirty_limits(unsigned long *pbackground, unsigned long *pdirty)
-> >  {
-> > -	unsigned long background;
-> > -	unsigned long dirty;
-> >  	unsigned long uninitialized_var(available_memory);
-> > -	struct task_struct *tsk;
-> >  
-> >  	if (!vm_dirty_bytes || !dirty_background_bytes)
-> >  		available_memory = determine_dirtyable_memory();
-> >  
-> >  	if (vm_dirty_bytes)
-> > -		dirty = DIV_ROUND_UP(vm_dirty_bytes, PAGE_SIZE);
-> > +		*pdirty = DIV_ROUND_UP(vm_dirty_bytes, PAGE_SIZE);
-> >  	else
-> > -		dirty = (vm_dirty_ratio * available_memory) / 100;
-> > +		*pdirty = vm_dirty_ratio * available_memory / 100;
-> >  
-> >  	if (dirty_background_bytes)
-> > -		background = DIV_ROUND_UP(dirty_background_bytes, PAGE_SIZE);
-> > +		*pbackground = DIV_ROUND_UP(dirty_background_bytes, PAGE_SIZE);
-> >  	else
-> > -		background = (dirty_background_ratio * available_memory) / 100;
-> > +		*pbackground = dirty_background_ratio * available_memory / 100;
-> >  
-> > -	if (background >= dirty)
-> > -		background = dirty / 2;
-> > -	tsk = current;
-> > -	if (tsk->flags & PF_LESS_THROTTLE || rt_task(tsk)) {
-> > -		background += background / 4;
-> > -		dirty += dirty / 4;
-> > -	}
-> > -	*pbackground = background;
-> > -	*pdirty = dirty;
-> > +	sanitize_dirty_limits(pbackground, pdirty);
-> > +}
-> 
-> Hmm, wouldn't be the patch little bit easier to read if this was
-> outside in a separate (cleanup) one?
+--Signature=_Thu__4_Aug_2011_10_23_37_+1000_.lv._/j8Qp6KHUCM
+Content-Type: text/plain; charset=US-ASCII
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-I didn't find it hard to read.  But I wrote it, so... :)
+Hi Randy,
 
-Will split it out in the next round.  Thanks, Michal.
+On Wed, 3 Aug 2011 10:12:26 -0700 Randy Dunlap <rdunlap@xenotime.net> wrote:
+>
+> From: Randy Dunlap <rdunlap@xenotime.net>
+>=20
+> adp1653.c uses interfaces that are provided by <linux/module.h>
+> and needs to include that header file to fix build errors.
+>=20
+> drivers/media/video/adp1653.c:453: warning: data definition has no type o=
+r storage class
+> drivers/media/video/adp1653.c:453: warning: parameter names (without type=
+s) in function declaration
+> drivers/media/video/adp1653.c:474: error: 'THIS_MODULE' undeclared (first=
+ use in this function)
+> and more.
+>=20
+> Signed-off-by: Randy Dunlap <rdunlap@xenotime.net>
+
+That is a bug that is now in Linus' tree and this fix is pending in the
+moduleh tree in linux-next.  So this patch should go to Linus.
+
+--=20
+Cheers,
+Stephen Rothwell                    sfr@canb.auug.org.au
+http://www.canb.auug.org.au/~sfr/
+
+--Signature=_Thu__4_Aug_2011_10_23_37_+1000_.lv._/j8Qp6KHUCM
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.11 (GNU/Linux)
+
+iQEcBAEBAgAGBQJOOeaJAAoJEDMEi1NhKgbs87UH/30egYvPcRfZQ3gF+enSutHA
+sqn+pfBMKC9inTWgoQG+Fexryg2KHU9XDEMox7sXFtlj16nHdZB6yQ/wNoGusbLc
+FSjUIjIIYdE99Xr2WfXXVSa8qjV77OWvq4/FHxgTtoIE1ZHJxcyHrG31M7sxj1K0
+LPJQrRSM+XDrVnfl5L0Q/Yza3Z5t6Rv+YvpVzAiLL2VI/iXxDfgUc0XX0mfAzRT/
+FDpC68KIoMVKEeSQonKI+bbnLY721kE0A28Fdw4QrTLXq1byXzhmlyA6d33WwiS+
+wmxjeFf/HZoBbNAgGlohRRVwBzXJrXXFs/af0BuCcNbL+b4qkAXsA7gNzHypSYs=
+=PorZ
+-----END PGP SIGNATURE-----
+
+--Signature=_Thu__4_Aug_2011_10_23_37_+1000_.lv._/j8Qp6KHUCM--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
