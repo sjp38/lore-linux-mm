@@ -1,51 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 05BC96B016B
-	for <linux-mm@kvack.org>; Thu,  4 Aug 2011 03:53:51 -0400 (EDT)
-Date: Thu, 4 Aug 2011 09:53:46 +0200
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 03A8E6B016B
+	for <linux-mm@kvack.org>; Thu,  4 Aug 2011 03:57:34 -0400 (EDT)
+Date: Thu, 4 Aug 2011 09:57:30 +0200
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 1/4] page cgroup: using vzalloc instead of vmalloc
-Message-ID: <20110804075346.GE31039@tiehlicka.suse.cz>
+Subject: Re: [PATCH 2/4] frontswap: using vzalloc instead of vmalloc
+Message-ID: <20110804075730.GF31039@tiehlicka.suse.cz>
 References: <1312427390-20005-1-git-send-email-lliubbo@gmail.com>
+ <1312427390-20005-2-git-send-email-lliubbo@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1312427390-20005-1-git-send-email-lliubbo@gmail.com>
+In-Reply-To: <1312427390-20005-2-git-send-email-lliubbo@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Bob Liu <lliubbo@gmail.com>
 Cc: akpm@linux-foundation.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, cesarb@cesarb.net, emunson@mgebm.net, penberg@kernel.org, namhyung@gmail.com, hannes@cmpxchg.org, lucas.demarchi@profusion.mobi, aarcange@redhat.com, tj@kernel.org, vapier@gentoo.org, jkosina@suse.cz, rientjes@google.com, dan.magenheimer@oracle.com
 
-On Thu 04-08-11 11:09:47, Bob Liu wrote:
+On Thu 04-08-11 11:09:48, Bob Liu wrote:
+> This patch also add checking whether alloc frontswap_map memory
+> failed.
+> 
 > Signed-off-by: Bob Liu <lliubbo@gmail.com>
-
-Reviewed-by: Michal Hocko <mhocko@suse.cz>
-
 > ---
->  mm/page_cgroup.c |    3 +--
->  1 files changed, 1 insertions(+), 2 deletions(-)
+>  mm/swapfile.c |    6 +++---
+>  1 files changed, 3 insertions(+), 3 deletions(-)
 > 
-> diff --git a/mm/page_cgroup.c b/mm/page_cgroup.c
-> index 39d216d..6bdc67d 100644
-> --- a/mm/page_cgroup.c
-> +++ b/mm/page_cgroup.c
-> @@ -513,11 +513,10 @@ int swap_cgroup_swapon(int type, unsigned long max_pages)
->  	length = DIV_ROUND_UP(max_pages, SC_PER_PAGE);
->  	array_size = length * sizeof(void *);
->  
-> -	array = vmalloc(array_size);
-> +	array = vzalloc(array_size);
->  	if (!array)
->  		goto nomem;
->  
-> -	memset(array, 0, array_size);
->  	ctrl = &swap_cgroup_ctrl[type];
->  	mutex_lock(&swap_cgroup_mutex);
->  	ctrl->length = length;
-> -- 
-> 1.6.3.3
-> 
-> 
+> diff --git a/mm/swapfile.c b/mm/swapfile.c
+> index ffdd06a..8fe9e88 100644
+> --- a/mm/swapfile.c
+> +++ b/mm/swapfile.c
+> @@ -2124,9 +2124,9 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
+>  	}
+>  	/* frontswap enabled? set up bit-per-page map for frontswap */
+>  	if (frontswap_enabled) {
+> -		frontswap_map = vmalloc(maxpages / sizeof(long));
+> -		if (frontswap_map)
+> -			memset(frontswap_map, 0, maxpages / sizeof(long));
+> +		frontswap_map = vzalloc(maxpages / sizeof(long));
+> +		if (!frontswap_map)
+> +			goto bad_swap;
+
+vzalloc part looks good but shouldn't we disable frontswap rather than
+fail?
 
 -- 
 Michal Hocko
