@@ -1,65 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id C529A6B0169
-	for <linux-mm@kvack.org>; Thu,  4 Aug 2011 03:34:02 -0400 (EDT)
-Date: Thu, 4 Aug 2011 09:33:57 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [BUGFIX][PATCH] memcg: fix oom schedule_timeout
-Message-ID: <20110804073357.GC31039@tiehlicka.suse.cz>
-References: <20110803121532.1ab8d76c.kamezawa.hiroyu@jp.fujitsu.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 1DD0C6B0169
+	for <linux-mm@kvack.org>; Thu,  4 Aug 2011 03:37:09 -0400 (EDT)
+Received: by vwm42 with SMTP id 42so1653505vwm.14
+        for <linux-mm@kvack.org>; Thu, 04 Aug 2011 00:37:06 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110803121532.1ab8d76c.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110804072651.GD21516@cmpxchg.org>
+References: <1312427390-20005-1-git-send-email-lliubbo@gmail.com>
+	<1312427390-20005-2-git-send-email-lliubbo@gmail.com>
+	<1312427390-20005-3-git-send-email-lliubbo@gmail.com>
+	<20110804072651.GD21516@cmpxchg.org>
+Date: Thu, 4 Aug 2011 10:37:05 +0300
+Message-ID: <CAOJsxLEkUxLd=_GyWAknAsxOVP5uA4Y2NsMFohJTP2RXsRqnCw@mail.gmail.com>
+Subject: Re: [PATCH 3/4] sparse: using kzalloc to clean up code
+From: Pekka Enberg <penberg@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Bob Liu <lliubbo@gmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, cesarb@cesarb.net, emunson@mgebm.net, namhyung@gmail.com, mhocko@suse.cz, lucas.demarchi@profusion.mobi, aarcange@redhat.com, tj@kernel.org, vapier@gentoo.org, jkosina@suse.cz, rientjes@google.com, dan.magenheimer@oracle.com
 
-On Wed 03-08-11 12:15:32, KAMEZAWA Hiroyuki wrote:
-> 
-> This patch is onto the latest mmotm.
-> 
-> ==
-> Before calling schedule_timeout(), task state should be changed.
-> 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+On Thu, Aug 4, 2011 at 10:26 AM, Johannes Weiner <hannes@cmpxchg.org> wrote:
+> On Thu, Aug 04, 2011 at 11:09:49AM +0800, Bob Liu wrote:
+>> This patch using kzalloc to clean up sparse_index_alloc() and
+>> __GFP_ZERO to clean up __kmalloc_section_memmap().
+>>
+>> Signed-off-by: Bob Liu <lliubbo@gmail.com>
+>
+> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
-Looks good.
-Acked-by: Michal Hocko <mhocko@suse.cz>
-
-> ---
->  mm/memcontrol.c |    2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> Index: mmotm-Aug3/mm/memcontrol.c
-> ===================================================================
-> --- mmotm-Aug3.orig/mm/memcontrol.c
-> +++ mmotm-Aug3/mm/memcontrol.c
-> @@ -2005,7 +2005,7 @@ bool mem_cgroup_handle_oom(struct mem_cg
->  	if (test_thread_flag(TIF_MEMDIE) || fatal_signal_pending(current))
->  		return false;
->  	/* Give chance to dying process */
-> -	schedule_timeout(1);
-> +	schedule_timeout_uninterruptible(1);
->  	return true;
->  }
->  
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+Reviewed-by: Pekka Enberg <penberg@kernel.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
