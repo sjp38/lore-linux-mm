@@ -1,80 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 7BAEA900138
-	for <linux-mm@kvack.org>; Thu,  4 Aug 2011 12:05:24 -0400 (EDT)
-Received: by eyh6 with SMTP id 6so1426056eyh.20
-        for <linux-mm@kvack.org>; Thu, 04 Aug 2011 09:05:21 -0700 (PDT)
-Date: Thu, 4 Aug 2011 19:04:16 +0300
-From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Subject: Re: select_task_rq_fair: WARNING: at kernel/lockdep.c match_held_lock
-Message-ID: <20110804160415.GC3562@swordfish.minsk.epam.com>
-References: <20110804141306.GA3536@swordfish.minsk.epam.com>
- <1312470358.16729.25.camel@twins>
- <20110804153752.GA3562@swordfish.minsk.epam.com>
- <1312472867.16729.38.camel@twins>
- <20110804155347.GB3562@swordfish.minsk.epam.com>
- <1312473473.16729.44.camel@twins>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 5CB206B0172
+	for <linux-mm@kvack.org>; Thu,  4 Aug 2011 12:50:15 -0400 (EDT)
 MIME-Version: 1.0
+Message-ID: <876efe5f-7222-4c67-aa3f-0c6e4272f5e1@default>
+Date: Thu, 4 Aug 2011 09:47:58 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [PATCH 2/4] frontswap: using vzalloc instead of vmalloc
+References: <1312427390-20005-1-git-send-email-lliubbo@gmail.com>
+ <1312427390-20005-2-git-send-email-lliubbo@gmail.com>
+ <20110804075730.GF31039@tiehlicka.suse.cz>
+ <20110804081407.GF21516@cmpxchg.org 20110804090017.GI31039@tiehlicka.suse.cz>
+In-Reply-To: <20110804090017.GI31039@tiehlicka.suse.cz>
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1312473473.16729.44.camel@twins>
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
+To: Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>
+Cc: Bob Liu <lliubbo@gmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, cesarb@cesarb.net, emunson@mgebm.net, penberg@kernel.org, namhyung@gmail.com, lucas.demarchi@profusion.mobi, aarcange@redhat.com, tj@kernel.org, vapier@gentoo.org, jkosina@suse.cz, rientjes@google.com
 
-On (08/04/11 17:57), Peter Zijlstra wrote:
-> > > > > > [  132.794685] WARNING: at kernel/lockdep.c:3117 match_held_lock+0xf6/0x12e()
-> > > 
-> > > Just to double check, that line is:
-> > > 
-> > >                 if (DEBUG_LOCKS_WARN_ON(!hlock->nest_lock))
-> > > 
-> > > in your kernel source?
-> > > 
-> > 
-> > Nope, that's `if (DEBUG_LOCKS_WARN_ON(!class))'
-> > 
-> > 3106 static int match_held_lock(struct held_lock *hlock, struct lockdep_map *lock)
-> > 3107 {                                                                                                                                                                                                                             
-> > 3108     if (hlock->instance == lock)
-> > 3109         return 1;
-> > 3110 
-> > 3111     if (hlock->references) {
-> > 3112         struct lock_class *class = lock->class_cache[0];
-> > 3113 
-> > 3114         if (!class)
-> > 3115             class = look_up_lock_class(lock, 0);
-> > 3116 
-> > 3117         if (DEBUG_LOCKS_WARN_ON(!class))
-> > 3118             return 0;
-> > 3119 
-> > 3120         if (DEBUG_LOCKS_WARN_ON(!hlock->nest_lock))
-> > 3121             return 0;
-> > 3122 
-> > 3123         if (hlock->class_idx == class - lock_classes + 1)
-> > 3124             return 1;
-> > 3125     }
-> > 3126 
-> > 3127     return 0;
-> > 3128 }
-> > 3129 
-> 
-> Ah, in that case my previous analysis was pointless and I shall need to
-> scratch my head some more. 
-> 
+> From: Michal Hocko [mailto:mhocko@suse.cz]
+> Sent: Thursday, August 04, 2011 3:00 AM
+> Subject: Re: [PATCH 2/4] frontswap: using vzalloc instead of vmalloc
+>=20
+> On Thu 04-08-11 10:14:07, Johannes Weiner wrote:
+> > On Thu, Aug 04, 2011 at 09:57:30AM +0200, Michal Hocko wrote:
+> > > On Thu 04-08-11 11:09:48, Bob Liu wrote:
+> > > > This patch also add checking whether alloc frontswap_map memory
+> > > > failed.
+> > > >
+> > > > Signed-off-by: Bob Liu <lliubbo@gmail.com>
+> > > > ---
+> > > >  mm/swapfile.c |    6 +++---
+> > > >  1 files changed, 3 insertions(+), 3 deletions(-)
+> > > >
+> > > > diff --git a/mm/swapfile.c b/mm/swapfile.c
+> > > > index ffdd06a..8fe9e88 100644
+> > > > --- a/mm/swapfile.c
+> > > > +++ b/mm/swapfile.c
+> > > > @@ -2124,9 +2124,9 @@ SYSCALL_DEFINE2(swapon, const char __user *, =
+specialfile, int, swap_flags)
+> > > >  =09}
+> > > >  =09/* frontswap enabled? set up bit-per-page map for frontswap */
+> > > >  =09if (frontswap_enabled) {
+> > > > -=09=09frontswap_map =3D vmalloc(maxpages / sizeof(long));
+> > > > -=09=09if (frontswap_map)
+> > > > -=09=09=09memset(frontswap_map, 0, maxpages / sizeof(long));
+> > > > +=09=09frontswap_map =3D vzalloc(maxpages / sizeof(long));
+> > > > +=09=09if (!frontswap_map)
+> > > > +=09=09=09goto bad_swap;
+> > >
+> > > vzalloc part looks good but shouldn't we disable frontswap rather tha=
+n
+> > > fail?
+> >
+> > Silently dropping explicitely enabled features is not a good idea,
+> > IMO.
+>=20
+> Sure, I didn't mean silently. It should be a big fat warning that there
+> is not enough memory to enable the feature.
+>=20
+> > But from a quick look, this seems to be actually happening as
+> > frontswap's bitmap tests check for whether there is even a bitmap
+> > allocated and it should essentially never do anything for real if
+> > there isn't.
+>=20
+> Yes, that was my impression as well. I wasn't 100% sure about that
+> though, because there are many places which check frontswap_enabled and
+> do not check the map. I though that disabling the feature should be
+> safer.
+>=20
+> > How about printing a warning as to why the swapon fails and give the
+> > admin a choice to disable it on her own?
+>=20
+> I am not that familiar with the code but drivers/staging/zcache/zcache.c
+> says:
+> /*
+>  * zcache initialization
+>  * NOTE FOR NOW zcache MUST BE PROVIDED AS A KERNEL BOOT PARAMETER OR
+>  * NOTHING HAPPENS!
+>  */
+>=20
+> Is there something admin can do about it?
+>=20
+> >
+> > It's outside this patch's scope, though, just as changing the
+> > behaviour to fail swapon is.
+>=20
+> Agreed. The patch should just use vzalloc and the allocation failure
+> should be handled separately - if needed at all.
 
-That was a good idea to check what's going on on 3117 line. Well, your analysis
-was correct, it's just we have different match_held_lock() lines, and I guess we 
-may have different lines within match_held_lock()-callers in that case.
+Agreed here too.  The frontswap_enabled flag is global (enabling frontswap
+across all frontswap devices) whereas failure to allocate the frontswap_map
+will disable frontswap for only one swap device.  And since frontswap is
+strictly a performance enhancement, there's no reason to fail the swapon
+for the entire swap device.
 
-Just for note, I'm using the latest
-git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux-2.6.git
-$ git pull
-Already up-to-date.
+I am fairly sure that the failed allocation is handled gracefully
+through the remainder of the frontswap code, but will re-audit to
+confirm.  A warning might be nice though.
 
+In any case:
 
-	Sergey
+> -=09=09frontswap_map =3D vmalloc(maxpages / sizeof(long));
+> -=09=09if (frontswap_map)
+> -=09=09=09memset(frontswap_map, 0, maxpages / sizeof(long));
+> +=09=09frontswap_map =3D vzalloc(maxpages / sizeof(long));
+
+Acked-by: Dan Magenheimer <dan.magenheimer@oracle.com>
+
+> +=09=09if (!frontswap_map)
+> +=09=09=09goto bad_swap;
+
+NAK
+
+Dan
+
+Thanks... for the memory!
+I really could use more / my throughput's on the floor
+The balloon is flat / my swap disk's fat / I've OOM's in store
+Overcommitted so much
+(with apologies to Bob Hope)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
