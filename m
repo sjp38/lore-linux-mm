@@ -1,52 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 52B0E6B0169
-	for <linux-mm@kvack.org>; Thu,  4 Aug 2011 18:05:27 -0400 (EDT)
-Date: Thu, 4 Aug 2011 15:05:24 -0700
-From: Randy Dunlap <rdunlap@xenotime.net>
-Subject: Re: [PATCH] zcache: Fix build error when sysfs is not defined
-Message-Id: <20110804150524.2dcfcecf.rdunlap@xenotime.net>
-In-Reply-To: <1297484079-12562-1-git-send-email-ngupta@vflare.org>
-References: <1297484079-12562-1-git-send-email-ngupta@vflare.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 5F5166B0169
+	for <linux-mm@kvack.org>; Thu,  4 Aug 2011 18:07:46 -0400 (EDT)
+Date: Thu, 4 Aug 2011 19:07:24 -0300
+From: Rafael Aquini <aquini@redhat.com>
+Subject: Re: [PATCH] mm/mempolicy.c: make sys_mbind & sys_set_mempolicy aware
+ of task_struct->mems_allowed
+Message-ID: <20110804220723.GB4388@optiplex.tchesoft.com>
+References: <20110803123721.GA2892@x61.redhat.com>
+ <m2d3gm0we2.fsf@firstfloor.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <m2d3gm0we2.fsf@firstfloor.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nitin Gupta <ngupta@vflare.org>, Stephen Rothwell <sfr@canb.auug.org.au>, gregkh@suse.de
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Stephen Wilson <wilsons@start.ca>, Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org
 
-On Fri, 11 Feb 2011 23:14:39 -0500 Nitin Gupta wrote:
+Howdy folks,
 
-> Signed-off-by: Nitin Gupta <ngupta@vflare.org>
-> ---
->  drivers/staging/zcache/zcache.c |    2 +-
->  1 files changed, 1 insertions(+), 1 deletions(-)
+On Wed, Aug 03, 2011 at 06:59:33PM -0700, Andi Kleen wrote:
+> Rafael Aquini <aquini@redhat.com> writes:
 > 
-> diff --git a/drivers/staging/zcache/zcache.c b/drivers/staging/zcache/zcache.c
-> index 61be849..8cd3fd8 100644
-> --- a/drivers/staging/zcache/zcache.c
-> +++ b/drivers/staging/zcache/zcache.c
-> @@ -1590,9 +1590,9 @@ __setup("nofrontswap", no_frontswap);
->  
->  static int __init zcache_init(void)
->  {
-> -#ifdef CONFIG_SYSFS
->  	int ret = 0;
->  
-> +#ifdef CONFIG_SYSFS
->  	ret = sysfs_create_group(mm_kobj, &zcache_attr_group);
->  	if (ret) {
->  		pr_err("zcache: can't create sysfs\n");
-> -- 
+> > Among several other features enabled when CONFIG_CPUSETS is defined,
+> > task_struct is enhanced with the nodemask_t mems_allowed element that
+> > serves to register/report on which memory nodes the task may obtain
+> > memory. Also, two new lines that reflect the value registered at
+> > task_struct->mems_allowed are added to the '/proc/[pid]/status' file:
+> 
+> As Christoph said this was intentionally designed this way. Originally
+> there was some consideration of "relative policies", but that is not
+> implemented and had various issues. 
+> 
+> They're orthogonal mechanisms.
 
-OMG.  This patch still needs to be applied to linux-next 20110804..........
-sad.
+I'd like to thank you all for taking time to look at my proposal, and
+providing such a good fix for my misconceptions.
 
+I really appreciate all your feedback.
 
----
-~Randy
-*** Remember to use Documentation/SubmitChecklist when testing your code ***
+Cheers!
+-- 
+Rafael Azenha Aquini <aquini@redhat.com>
+Software Maintenance Engineer
+Red Hat, Inc.
++55 51 3392.6288 / +55 51 9979.8008
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
