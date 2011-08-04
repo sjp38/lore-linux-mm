@@ -1,83 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 695436B0169
-	for <linux-mm@kvack.org>; Thu,  4 Aug 2011 04:07:34 -0400 (EDT)
-Date: Thu, 4 Aug 2011 10:07:30 +0200
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 957FD6B0169
+	for <linux-mm@kvack.org>; Thu,  4 Aug 2011 04:09:59 -0400 (EDT)
+Date: Thu, 4 Aug 2011 10:09:56 +0200
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 3/4] sparse: using kzalloc to clean up code
-Message-ID: <20110804080729.GG31039@tiehlicka.suse.cz>
+Subject: Re: [PATCH 4/4] percpu: rename pcpu_mem_alloc to pcpu_mem_zalloc
+Message-ID: <20110804080956.GH31039@tiehlicka.suse.cz>
 References: <1312427390-20005-1-git-send-email-lliubbo@gmail.com>
  <1312427390-20005-2-git-send-email-lliubbo@gmail.com>
  <1312427390-20005-3-git-send-email-lliubbo@gmail.com>
+ <1312427390-20005-4-git-send-email-lliubbo@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1312427390-20005-3-git-send-email-lliubbo@gmail.com>
+In-Reply-To: <1312427390-20005-4-git-send-email-lliubbo@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Bob Liu <lliubbo@gmail.com>
 Cc: akpm@linux-foundation.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, cesarb@cesarb.net, emunson@mgebm.net, penberg@kernel.org, namhyung@gmail.com, hannes@cmpxchg.org, lucas.demarchi@profusion.mobi, aarcange@redhat.com, tj@kernel.org, vapier@gentoo.org, jkosina@suse.cz, rientjes@google.com, dan.magenheimer@oracle.com
 
-On Thu 04-08-11 11:09:49, Bob Liu wrote:
-> This patch using kzalloc to clean up sparse_index_alloc() and
-> __GFP_ZERO to clean up __kmalloc_section_memmap().
-> 
+On Thu 04-08-11 11:09:50, Bob Liu wrote:
+> Currently pcpu_mem_alloc() is implemented always return zeroed memory.
+> So rename it to make user like pcpu_get_pages_and_bitmap() know don't reinit it.
+
+Makes sense. It fits better with internal kzalloc and vzalloc usage.
+ 
 > Signed-off-by: Bob Liu <lliubbo@gmail.com>
 
-looks good.
-
 Reviewed-by: Michal Hocko <mhocko@suse.cz>
+
 > ---
->  mm/sparse.c |   24 +++++++-----------------
->  1 files changed, 7 insertions(+), 17 deletions(-)
+>  mm/percpu-vm.c |    5 ++---
+>  mm/percpu.c    |   17 +++++++++--------
+>  2 files changed, 11 insertions(+), 11 deletions(-)
 > 
-> diff --git a/mm/sparse.c b/mm/sparse.c
-> index 858e1df..9596635 100644
-> --- a/mm/sparse.c
-> +++ b/mm/sparse.c
-> @@ -65,15 +65,12 @@ static struct mem_section noinline __init_refok *sparse_index_alloc(int nid)
+> diff --git a/mm/percpu-vm.c b/mm/percpu-vm.c
+> index ea53496..29e3730 100644
+> --- a/mm/percpu-vm.c
+> +++ b/mm/percpu-vm.c
+> @@ -50,14 +50,13 @@ static struct page **pcpu_get_pages_and_bitmap(struct pcpu_chunk *chunk,
 >  
->  	if (slab_is_available()) {
->  		if (node_state(nid, N_HIGH_MEMORY))
-> -			section = kmalloc_node(array_size, GFP_KERNEL, nid);
-> +			section = kzalloc_node(array_size, GFP_KERNEL, nid);
->  		else
-> -			section = kmalloc(array_size, GFP_KERNEL);
-> +			section = kzalloc(array_size, GFP_KERNEL);
->  	} else
->  		section = alloc_bootmem_node(NODE_DATA(nid), array_size);
+>  	if (!pages || !bitmap) {
+>  		if (may_alloc && !pages)
+> -			pages = pcpu_mem_alloc(pages_size);
+> +			pages = pcpu_mem_zalloc(pages_size);
+>  		if (may_alloc && !bitmap)
+> -			bitmap = pcpu_mem_alloc(bitmap_size);
+> +			bitmap = pcpu_mem_zalloc(bitmap_size);
+>  		if (!pages || !bitmap)
+>  			return NULL;
+>  	}
 >  
-> -	if (section)
-> -		memset(section, 0, array_size);
-> -
->  	return section;
->  }
+> -	memset(pages, 0, pages_size);
+>  	bitmap_copy(bitmap, chunk->populated, pcpu_unit_pages);
 >  
-> @@ -636,19 +633,12 @@ static struct page *__kmalloc_section_memmap(unsigned long nr_pages)
->  	struct page *page, *ret;
->  	unsigned long memmap_size = sizeof(struct page) * nr_pages;
+>  	*bitmapp = bitmap;
+> diff --git a/mm/percpu.c b/mm/percpu.c
+> index bf80e55..28c37a2 100644
+> --- a/mm/percpu.c
+> +++ b/mm/percpu.c
+> @@ -273,11 +273,11 @@ static void __maybe_unused pcpu_next_pop(struct pcpu_chunk *chunk,
+>  	     (rs) = (re) + 1, pcpu_next_pop((chunk), &(rs), &(re), (end)))
 >  
-> -	page = alloc_pages(GFP_KERNEL|__GFP_NOWARN, get_order(memmap_size));
-> +	page = alloc_pages(GFP_KERNEL|__GFP_NOWARN|__GFP_ZERO,
-> +					get_order(memmap_size));
->  	if (page)
-> -		goto got_map_page;
-> -
-> -	ret = vmalloc(memmap_size);
-> -	if (ret)
-> -		goto got_map_ptr;
-> -
-> -	return NULL;
-> -got_map_page:
-> -	ret = (struct page *)pfn_to_kaddr(page_to_pfn(page));
-> -got_map_ptr:
-> -	memset(ret, 0, memmap_size);
-> +		ret = (struct page *)pfn_to_kaddr(page_to_pfn(page));
-> +	else
-> +		ret = vzalloc(memmap_size);
+>  /**
+> - * pcpu_mem_alloc - allocate memory
+> + * pcpu_mem_zalloc - allocate memory
+>   * @size: bytes to allocate
+>   *
+>   * Allocate @size bytes.  If @size is smaller than PAGE_SIZE,
+> - * kzalloc() is used; otherwise, vmalloc() is used.  The returned
+> + * kzalloc() is used; otherwise, vzalloc() is used.  The returned
+>   * memory is always zeroed.
+>   *
+>   * CONTEXT:
+> @@ -286,7 +286,7 @@ static void __maybe_unused pcpu_next_pop(struct pcpu_chunk *chunk,
+>   * RETURNS:
+>   * Pointer to the allocated area on success, NULL on failure.
+>   */
+> -static void *pcpu_mem_alloc(size_t size)
+> +static void *pcpu_mem_zalloc(size_t size)
+>  {
+>  	if (WARN_ON_ONCE(!slab_is_available()))
+>  		return NULL;
+> @@ -302,7 +302,7 @@ static void *pcpu_mem_alloc(size_t size)
+>   * @ptr: memory to free
+>   * @size: size of the area
+>   *
+> - * Free @ptr.  @ptr should have been allocated using pcpu_mem_alloc().
+> + * Free @ptr.  @ptr should have been allocated using pcpu_mem_zalloc().
+>   */
+>  static void pcpu_mem_free(void *ptr, size_t size)
+>  {
+> @@ -384,7 +384,7 @@ static int pcpu_extend_area_map(struct pcpu_chunk *chunk, int new_alloc)
+>  	size_t old_size = 0, new_size = new_alloc * sizeof(new[0]);
+>  	unsigned long flags;
 >  
->  	return ret;
->  }
+> -	new = pcpu_mem_alloc(new_size);
+> +	new = pcpu_mem_zalloc(new_size);
+>  	if (!new)
+>  		return -ENOMEM;
+>  
+> @@ -604,11 +604,12 @@ static struct pcpu_chunk *pcpu_alloc_chunk(void)
+>  {
+>  	struct pcpu_chunk *chunk;
+>  
+> -	chunk = pcpu_mem_alloc(pcpu_chunk_struct_size);
+> +	chunk = pcpu_mem_zalloc(pcpu_chunk_struct_size);
+>  	if (!chunk)
+>  		return NULL;
+>  
+> -	chunk->map = pcpu_mem_alloc(PCPU_DFL_MAP_ALLOC * sizeof(chunk->map[0]));
+> +	chunk->map = pcpu_mem_zalloc(PCPU_DFL_MAP_ALLOC *
+> +						sizeof(chunk->map[0]));
+>  	if (!chunk->map) {
+>  		kfree(chunk);
+>  		return NULL;
+> @@ -1889,7 +1890,7 @@ void __init percpu_init_late(void)
+>  
+>  		BUILD_BUG_ON(size > PAGE_SIZE);
+>  
+> -		map = pcpu_mem_alloc(size);
+> +		map = pcpu_mem_zalloc(size);
+>  		BUG_ON(!map);
+>  
+>  		spin_lock_irqsave(&pcpu_lock, flags);
 > -- 
 > 1.6.3.3
 > 
