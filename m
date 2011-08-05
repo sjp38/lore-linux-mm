@@ -1,46 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 8DBC16B0169
-	for <linux-mm@kvack.org>; Thu,  4 Aug 2011 22:39:28 -0400 (EDT)
-Message-ID: <4E3B57C3.80203@redhat.com>
-Date: Fri, 05 Aug 2011 10:38:59 +0800
-From: Cong Wang <amwang@redhat.com>
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C0F16B0169
+	for <linux-mm@kvack.org>; Thu,  4 Aug 2011 22:47:51 -0400 (EDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH -next] drivers/base/inode.c: let vmstat_text be optional
-References: <20110804145834.3b1d92a9eeb8357deb84bf83@canb.auug.org.au> <20110804152211.ea10e3e7.rdunlap@xenotime.net>
-In-Reply-To: <20110804152211.ea10e3e7.rdunlap@xenotime.net>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 8bit
+Message-ID: <d0584e86-34f6-46cc-a78e-c1e31ed7cb9f@default>
+Date: Thu, 4 Aug 2011 19:45:42 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [PATCH 2/4] frontswap: using vzalloc instead of vmalloc
+References: <1312427390-20005-1-git-send-email-lliubbo@gmail.com>
+ <1312427390-20005-2-git-send-email-lliubbo@gmail.com>
+ <20110804075730.GF31039@tiehlicka.suse.cz>
+ <20110804090017.GI31039@tiehlicka.suse.cz>
+ <876efe5f-7222-4c67-aa3f-0c6e4272f5e1@default
+ CAA_GA1f8B9uPszGecYd=DiuAOCqo0AXkFca_=5jEGRczGia5ZA@mail.gmail.com>
+In-Reply-To: <CAA_GA1f8B9uPszGecYd=DiuAOCqo0AXkFca_=5jEGRczGia5ZA@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Randy Dunlap <rdunlap@xenotime.net>
-Cc: Stephen Rothwell <sfr@canb.auug.org.au>, gregkh@suse.de, linux-next@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, akpm <akpm@linux-foundation.org>
+To: Bob Liu <lliubbo@gmail.com>
+Cc: Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, akpm@linux-foundation.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, cesarb@cesarb.net, emunson@mgebm.net, penberg@kernel.org, namhyung@gmail.com, lucas.demarchi@profusion.mobi, aarcange@redhat.com, tj@kernel.org, vapier@gentoo.org, jkosina@suse.cz, rientjes@google.com
 
-ao? 2011a1'08ae??05ae?JPY 06:22, Randy Dunlap a??e??:
-> From: Randy Dunlap<rdunlap@xenotime.net>
->
-> vmstat_text is only available when PROC_FS or SYSFS is enabled.
-> This causes build errors in drivers/base/node.c when they are
-> both disabled:
->
-> drivers/built-in.o: In function `node_read_vmstat':
-> node.c:(.text+0x10e28f): undefined reference to `vmstat_text'
->
-> Rather than litter drivers/base/node.c with #ifdef/#endif around
-> the affected lines of code, add macros for optional sysdev
-> attributes so that those lines of code will be ignored, without
-> using #ifdef/#endif in the .c file(s).  I.e., the ifdeffery
-> is done only in a header file with sysdev_create_file_optional()
-> and sysdev_remove_file_optional().
->
+> > I am fairly sure that the failed allocation is handled gracefully
+> > through the remainder of the frontswap code, but will re-audit to
+> > confirm. =C2=A0A warning might be nice though.
+>=20
+> There is a place i think maybe have problem.
+> function __frontswap_flush_area() in file frontswap.c called
+> memset(sis->frontswap_map, .., ..);
+> But if frontswap_map allocation fail there is a null pointer access ?
 
-This looks ugly for me, because other sysfs files here are not optional
-only due to that they don't rely on vmstat_text.
+Good catch!
 
-I still think my approach to fix this is better, that is, introducing
-a new Kconfig for drivers/base/node.c which depends on CONFIG_SYSFS.
+I'll fix that when I submit a frontswap update in a few days.
 
-Thanks.
+Thanks,
+Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
