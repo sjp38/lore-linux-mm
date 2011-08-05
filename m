@@ -1,249 +1,211 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 899266B0169
-	for <linux-mm@kvack.org>; Fri,  5 Aug 2011 01:57:24 -0400 (EDT)
-Received: by vxj15 with SMTP id 15so1444687vxj.14
-        for <linux-mm@kvack.org>; Thu, 04 Aug 2011 22:57:21 -0700 (PDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id EE04B6B0169
+	for <linux-mm@kvack.org>; Fri,  5 Aug 2011 02:38:25 -0400 (EDT)
+References: <20110804143844.GQ19099@suse.de>
+Message-ID: <1312526302.37390.YahooMailNeo@web162009.mail.bf1.yahoo.com>
+Date: Thu, 4 Aug 2011 23:38:22 -0700 (PDT)
+From: Pintu Agarwal <pintu_agarwal@yahoo.com>
+Reply-To: Pintu Agarwal <pintu_agarwal@yahoo.com>
+Subject: Re: MMTests 0.01
+In-Reply-To: <20110804143844.GQ19099@suse.de>
 MIME-Version: 1.0
-In-Reply-To: <20110804100928.GN19099@suse.de>
-References: <CAFPAmTQByL0YJT8Lvar1Oe+3Q1EREvqPA_GP=hHApJDz5dSOzQ@mail.gmail.com>
-	<20110803110555.GD19099@suse.de>
-	<CAFPAmTR79S3AVXrAFL5bMkhs2droL8THUCCPY23Ar5x_oftheQ@mail.gmail.com>
-	<20110803132839.GG19099@suse.de>
-	<CAFPAmTS2JEVk3tWhJN034dUmaxLujswmmsqGABGYEV=N3v0Ehw@mail.gmail.com>
-	<20110804100928.GN19099@suse.de>
-Date: Fri, 5 Aug 2011 11:27:21 +0530
-Message-ID: <CAFPAmTQir8HnP2=WwPGSaWFu=hBS9=xT88f+XFFx5Hdf6zvGTA@mail.gmail.com>
-Subject: Re: [PATCH] ARM: sparsemem: Enable CONFIG_HOLES_IN_ZONE config option
- for SparseMem and HAS_HOLES_MEMORYMODEL for linux-3.0.
-From: Kautuk Consul <consul.kautuk@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=iso-8859-1
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Russell King <rmk@arm.linux.org.uk>, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org
+To: Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-Hi Mel,
-
-Please find my comments inline to the email below.
-
-2 general questions:
-i)    If an email chain such as this leads to another kernel patch for
-the same problem, do I need to
-      create a new email chain for that ?
-ii)  Sorry about my formatting problems. However, text such as
-backtraces and logs tend to wrap
-      irrespective of whatever gmail settings/browser I try. Any
-pointers here ?
-
-Thanks,
-Kautuk.
-
-On Thu, Aug 4, 2011 at 3:39 PM, Mel Gorman <mgorman@suse.de> wrote:
-> On Thu, Aug 04, 2011 at 03:06:39PM +0530, Kautuk Consul wrote:
->> Hi Mel,
->>
->> My ARM system has 2 memory banks which have the following 2 PFN ranges:
->> 60000-62000 and 70000-7ce00.
->>
->> My SECTION_SIZE_BITS is #defined to 23.
->>
->
-> So bank 0 is 4 sections and bank 1 is 26 sections with the last section
-> incomplete.
->
->> I am altering the ranges via the following kind of pseudo-code in the
->> arch/arm/mach-*/mach-*.c file:
->> meminfo->bank[0].size -=3D (1 << 20)
->> meminfo->bank[1].size -=3D (1 << 20)
->>
->
-> Why are you taking 1M off each bank? I could understand aligning the
-> banks to a section size at least.
-
-The reason I am doing this is that one of our embedded boards actually
-has this problem, due
-to which we see this kernel crash. I am merely reproducing this
-problem by performing this step.
-
->
-> That said, there is an assumption that pages within a MAX_ORDER-aligned
-> block. If you are taking 1M off the end of bank 0, it is no longer
-> MAX_ORDER aligned. This is the assumption move_freepages_block()
-> is falling foul of. The problem can be avoided by ensuring that memmap
-> is valid within MAX_ORDER-aligned ranges.
->
->> After altering the size of both memory banks, the PFN ranges now
->> visible to the kernel are:
->> 60000-61f00 and 70000-7cd00.
->>
->> There is only one node and one ZONE_NORMAL zone on the system and this
->> zone accounts for both memory banks as CONFIG_SPARSEMEM
->> is enabled in the kernel.
->>
->
-> Ok.
->
->> I put some printks in the move_freeblockpages() function, compiled the
->> kernel and then ran the following commands:
->> ifconfig eth0 107.109.39.102 up
->> mount /dev/sda1 /mnt =A0 # Mounted the USB pen drive
->> mount -t nfs -o nolock 107.109.39.103:/home/kautuk nfsmnt =A0 # NFS
->> mounted an NFS share
->> cp test_huge_file nfsmnt/
->>
->> I got the following output:
->> #> cp test_huge nfsmnt/
->> ------------------------------------------------------------move_freepag=
-es_block_start----------------------------------------
->> kc: The page=3Dc068a000 start_pfn=3D7c400 start_page=3Dc0686000
->> end_page=3Dc068dfe0 end_pfn=3D7c7ff
->> page_zone(start_page)=3Dc048107c page_zone(end_page)=3Dc048107c
->> page_zonenum(end_page) =3D 0
->> ------------------------------------------------------------move_freepag=
-es_block_end----------------------------------------
->> ------------------------------------------------------------move_freepag=
-es_block_start----------------------------------------
->> kc: The page=3Dc0652000 start_pfn=3D7a800 start_page=3Dc064e000
->> end_page=3Dc0655fe0 end_pfn=3D7abff
->> page_zone(start_page)=3Dc048107c page_zone(end_page)=3Dc048107c
->> page_zonenum(end_page) =3D 0
->> ------------------------------------------------------------move_freepag=
-es_block_end----------------------------------------
->> ------------------------------------------------------------move_freepag=
-es_block_start----------------------------------------
->> kc: The page=3Dc065a000 start_pfn=3D7ac00 start_page=3Dc0656000
->> end_page=3Dc065dfe0 end_pfn=3D7afff
->> page_zone(start_page)=3Dc048107c page_zone(end_page)=3Dc048107c
->> page_zonenum(end_page) =3D 0
->> ------------------------------------------------------------move_freepag=
-es_block_end----------------------------------------
->> ------------------------------------------------------------move_freepag=
-es_block_start----------------------------------------
->> kc: The page=3Dc0695000 start_pfn=3D7c800 start_page=3Dc068e000
->> end_page=3Dc0695fe0 end_pfn=3D7cbff
->> page_zone(start_page)=3Dc048107c page_zone(end_page)=3Dc048107c
->> page_zonenum(end_page) =3D 0
->> ------------------------------------------------------------move_freepag=
-es_block_end----------------------------------------
->> ------------------------------------------------------------move_freepag=
-es_block_start----------------------------------------
->> kc: The page=3Dc04f7c00 start_pfn=3D61c00 start_page=3Dc04f6000
->> end_page=3Dc04fdfe0 end_pfn=3D61fff
->> page_zone(start_page)=3Dc048107c page_zone(end_page)=3Dc0481358
->> page_zonenum(end_page) =3D 1
->> ------------------------------------------------------------move_freepag=
-es_block_end----------------------------------------
->> kernel BUG at mm/page_alloc.c:849!
->> Unable to handle kernel NULL pointer dereference at virtual address 0000=
-0000
->> pgd =3D ce9fc000
->> [00000000] *pgd=3D7ca5a031, *pte=3D00000000, *ppte=3D00000000
->>
->> As per the last line, we can clearly see that the
->> page_zone(start_page)=3Dc048107c and page_zone(end_page)=3Dc0481358,
->> which are not equal to each other.
->> Since they do not match, the code in move_freepages() bugchecks
->> because of the following BUG_ON() check:
->> page_zone(start_page) !=3D page_zone(end_page)
->
->> The reason for this that the page_zonenum(end_page) is equal to 1 and
->> this is different from the page_zonenum(start_page) which is 0.
->>
->
-> Because the MAX_ORDER alignment is gone.
->
->> On checking the code within page_zonenum(), I see that this code tries
->> to retrieve the zone number from the end_page->flags.
->>
->
-> Yes. In the majority of cases a pages node and zone is stored in the
-> page->flags.
->
->> The reason why we cannot expect the 0x61fff end_page->flags to contain
->> a valid zone number is:
->> memmap_init_zone() initializes the zone number of all pages for a zone
->> via the set_page_links() inline function.
->> For the end_page (whose PFN is 0x61fff), set_page_links() cannot be
->> possibly called, as the zones are simply not aware of of PFNs above
->> 0x61f00 and below 0x70000.
->>
->
-> Can you ensure that the ranges passed into free_area_init_node()
-> are MAX_ORDER aligned as this would initialise the struct pages. You
-> may have already seen that care is taken when freeing memmap that it
-> is aligned to MAX_ORDER in free_unused_memmap() in ARM.
->
-
-Will this work ? My doubt arises from the fact that there is only one
-zone on the entire
-system which contains both memory banks.
-The crash arises at the PFN 0x61fff, which will not be covered by such
-a check, as this function
-will try to act on the entire zone, which is the PFN range:
-60000-7cd00, including the holes within as
-all of this RAM falls into the same node and zone.
-( Please correct me if I am wrong about this. )
-
-I tried aligning the end parameter in the memory_present() function
-which is called separately
-for each memory bank.
-I tried the following change in memory_present() as well as
-mminit_validate_memodel_limits():
-end &=3D ~(pageblock_nr_pages-1);
-But, in this case, the board simply does not boot up. I think that
-will then require some change in the
-arch/arm code which I think would be an arch-specific solution to a
-possibly generic problem.
-
->> The (end >=3D zone->zone_start_pfn + zone->spanned_pages) in
->> move_freepages_block() does not stop this crash from happening as both
->> our memory banks are in the same zone and the empty space within them
->> is accomodated into this zone via the CONFIG_SPARSEMEM
->> config option.
->>
->> When we enable CONFIG_HOLES_IN_ZONE we survive this BUG_ON as well as
->> any other BUG_ONs in the loop in move_freepages() as then the
->> pfn_valid_within()/pfn_valid() function takes care of this
->> functionality, especially in the case where the newly introduced
->> CONFIG_HAVE_ARCH_PFN_VALID is
->> enabled.
->>
->
-> This is an expensive option in terms of performance. If Russell
-> wants to pick it up, I won't object but I would strongly suggest that
-> you solve this problem by ensuring that memmap is initialised on a
-> MAX_ORDER-aligned boundaries as it'll perform better.
->
-
-I couldn't really locate a method in the kernel wherein we can
-validate a pageblock(1024 pages for my
-platform) with respect to the memory banks on that system.
-
-How about this :
-We implement an arch_is_valid_pageblock() function, controlled by a
-new config option
-CONFIG_ARCH_HAVE IS_VALID_PAGEBLOCK.
-This arch function will simply check whether this pageblock is valid
-or not, in terms of arch-specific
-memory banks or by using the memblock APIs depending on CONFIG_HAVE_MEMBLOC=
-K.
-We can modify the memmap_init_zone() function so that an outer loop
-works in measures of
-pageblocks thus enabling us to avoid invalid pageblocks.
-We then wouldn't need to go for the HOLES_IN_ZONE option as all PFN
-ranges will be aligned to the
-pageblock_nr_pages thus removing the possibility of this crash in
-move_freepages().
-
-
-> Thanks.
->
-> --
-> Mel Gorman
-> SUSE Labs
->
+Dear Mel Gorman,=0A=A0=0AThank you very much for this MMTest. =0AIt will be=
+ very helpful for me for all my needs.=0AI was looking forward for these ki=
+nd of mm test utilities.=0A=A0=0AJust wanted to know, if any of these utili=
+ties also covers anti-fragmentation represent of the=A0various page state i=
+n the form of jpeg image?=0AI am specifically looking for this one.=0A=A0=
+=0A=A0=0A=A0=0AThanks,=0APintu Kumar=0A=A0=0A=A0=0AFrom: Mel Gorman <mgorma=
+n@suse.de>=0ATo: linux-mm@kvack.org=0ACc: linux-kernel@vger.kernel.org=0ASe=
+nt: Thursday, 4 August 2011 8:08 PM=0ASubject: MMTests 0.01=0A=0AAt LSF/MM =
+at some point a request was made that a series of tests be=0Aidentified tha=
+t were of interest to MM developers and that could be=0Aused for testing th=
+e Linux memory management subsystem. At the time,=0AI was occasionally post=
+ing tarballs of whatever scripts I happened to=0Abe using at the time but t=
+hey were not generally usable and tended to=0Abe specific to a set of patch=
+es. I promised I would produce something=0Ausable by others but never got a=
+round to it. Over the last four months,=0AI needed a better framework when =
+testing against both distribution=0Akernels and mainline so without further=
+ ado=0A=0Ahttp://www.csn.ul.ie/~mel/projects/mmtests/=0Ahttp://www.csn.ul.i=
+e/~mel/projects/mmtests/mmtests-0.01-mmtests-0.01.tar.gz=0A=0AI am not clai=
+ming that this is comprehensive in any way but it is=0Aalmost always what I=
+ start with when testing patch sets. In preparation=0Afor identifying probl=
+ems with backports, I also ran a series of tests=0Aagainst mainline kernels=
+ over the course of two months when machines=0Awere otherwise idle. I have =
+not actually had a chance to go through=0Aall the results and identify each=
+ problem but I needed to have the=0Araw data available for my own reference=
+ so might as well share.=0A=0Ahttp://www.csn.ul.ie/~mel/projects/mmtests/re=
+sults/SLES11sp1/=0Ahttp://www.csn.ul.ie/~mel/projects/mmtests/results/openS=
+USE11.4/=0A=0AThe directories refer to the distribution used but not the=0A=
+kernel which is downloaded from kernel.org. Directory structure is=0Adistro=
+/config/machine/comparison.html. For example a set of benchmarks=0Aused for=
+ evaluating the page and slab allocators on a test machine=0Acalled "hydra"=
+ is located at=0A=0Ahttp://www.csn.ul.ie/~mel/projects/mmtests/results/SLES=
+11sp1/global-dhp__pagealloc-performance/hydra/comparison.html=0A=0AI know t=
+he report structure looks crude but I was not interested=0Ain making them p=
+retty. Due to the fact that some of the scripts=0Aare extremely old, the qu=
+ality and coding styles vary considerably.=0AThis may get cleaned up over t=
+ime but in the meantime, try and keep=0Athe contents of your stomach down i=
+f you are reading the scripts.=0A=0AThe documentation is not great and so s=
+ome of the capabilities such=0Aas being able to reconfigure swap for a benc=
+hmark is not mentioned.=0AFor my own series, I'll relase the mmtests tarbal=
+l I used if asked.=0AIf someone wants to use the tarball for their own test=
+ing but cannot=0Aconfigure it, complain on the linux-mm list and if I can, =
+I'll offer=0Asuggestions.=0A=0A=3D=3D=3D=3D MMTests README =3D=3D=3D=3D=0A=
+=0AMMTests is a configurable test suite that runs a number of common=0Awork=
+loads of interest to MM developers. Ideally this would have been=0Ato integ=
+rated with LTP, xfstests or Phoronix Test or implemented=0Awith autotest.=
+=A0 Unfortunately, large portions of these tests are=0Acobbled together ove=
+r a number of years with varying degrees of=0Aquality before decent test fr=
+ameworks were common.=A0 The refactoring=0Aeffort to integrate with another=
+ framework is significant.=0A=0AOrganisation=0A=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=0A=0AThe top-level directory has a single driver script called=0A=
+run-mmtests.sh which reads a config file that describes how the=0Abenchmark=
+s should be run, configures the system and runs the requested=0Atests. conf=
+ig also has some per-test configuration items that can be=0Aset depending o=
+n the test. The driver script takes the name of the=0Atest as a parameter. =
+Generally, this would be a symbolic name naming=0Athe kernel being tested.=
+=0A=0AEach test is driven by a run-single-test.sh script which reads=0Athe =
+relevant driver-TESTNAME.sh script. High level items such as=0Aprofiling ar=
+e configured from the top-level script while the driver=0Ascripts typically=
+ convert the config parameters into switches for a=0A"shellpack". A shellpa=
+ck is a pair of benchmark and install scripts=0Athat are all stored in shel=
+lpacks/ .=0A=0AMonitors can be optionally configured. A full list is in mon=
+itors/=0A. Care should be taken with monitors as there is a possibility tha=
+t=0Athey introduce overhead of their own.=A0 Hence, for some performance=0A=
+sensitive tests it is preferable to have no monitoring.=0A=0AMany of the te=
+sts download external benchmarks. An attempt will be=0Amade to download fro=
+m a mirror . To get an idea where the mirror=0Ashould be located, grep for =
+MIRROR_LOCATION=3D in shellpacks/.=0A=0AA basic invocation of the suite is=
+=0A=0A<pre>=0A$ cp config-global-dhp__pagealloc-performance config=0A$ ./ru=
+n-mmtests.sh --no-monitor 3.0-nomonitor=0A$ ./run-mmtests.sh --run-monitor =
+3.0-runmonitor=0A</pre>=0A=0AConfiguration=0A=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=0A=0AThe config file used is always called "config". A number of =
+other=0Asample configuration files are provided that have a given theme. So=
+me=0Aimportant points of variability are;=0A=0AMMTESTS is a list of what te=
+sts will be run=0A=0AWEBROOT is the location where a number of tarballs are=
+ mirrored. For example,=0A=A0=A0=A0 kernbench tries to download=0A=A0=A0=A0=
+ $WEBROOT/kernbench/linux-2.6.30.tar.gz . If this is not available,=0A=A0=
+=A0=A0 it is downloaded from the internet. This can add delays in testing=
+=0A=A0=A0=A0 and consumes bandwidth so is worth configuring.=0A=0ALINUX_GIT=
+ is the location of a git repo of the kernel. At the moment it's only=0A=A0=
+=A0=A0 used during report generation=0A=0ASKIP_*PROFILE=0A=A0=A0=A0 These p=
+arameters determine what profiling runs are done. Even with=0A=A0=A0=A0 pro=
+filing enabled, a non-profile run can be used to ensure that=0A=A0=A0=A0 th=
+e profile and non-profile runs are comparable.=0A=0ASWAP_CONFIGURATION=0ASW=
+AP_PARTITIONS=0ASWAP_SWAPFILE_SIZEMB=0A=A0=A0=A0 It's possible to use a dif=
+ferent swap configuration than what is=0A=A0=A0=A0 provided by default.=0A=
+=0ATESTDISK_RAID_PARTITIONS=0ATESTDISK_RAID_DEVICE=0ATESTDISK_RAID_OFFSET=
+=0ATESTDISK_RAID_SIZE=0ATESTDISK_RAID_TYPE=0A=A0=A0=A0 If the target machin=
+e has partitions suitable for configuring RAID,=0A=A0=A0=A0 they can be spe=
+cified here. This RAID partition is then used for=0A=A0=A0=A0 all the tests=
+=0A=0ATESTDISK_PARTITION=0A=A0=A0=A0 Use this partition for all tests=0A=0A=
+TESTDISK_FILESYSTEM=0ATESTDISK_MKFS_PARAM=0ATESTDISK_MOUNT_ARGS=0A=A0=A0=A0=
+ The filesystem, mkfs parameters and mount arguments for the test=0A=A0=A0=
+=A0 partitions=0A=0AAvailable tests=0A=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=0A=0ANote the ones that are marked untested. These have been port=
+ed from other=0Atest suites but no guarantee they actually work correctly h=
+ere. If you want=0Ato run these tests and run into a problem, report a bug.=
+=0A=0Akernbench=0A=A0=A0=A0 Builds a kernel 5 times recording the time take=
+n to completion.=0A=A0=A0=A0 An average time is stored. This is sensitive t=
+o the overall=0A=A0=A0=A0 performance of the system as it hits a number of =
+subsystems.=0A=0Amultibuild=0A=A0=A0=A0 Similar to kernbench except it runs=
+ a number of kernel compiles=0A=A0=A0=A0 in parallel. Can be useful for str=
+essing the system and seeing=0A=A0=A0=A0 how well it deals with simple fork=
+-based parallelism.=0A=0Aaim9=0A=A0=A0=A0 Runs a short version of aim9 by d=
+efault. Each test runs for 60=0A=A0=A0=A0 seconds. This is a micro-benchmar=
+k of a number of VM operations. It's=0A=A0=A0=A0 sensitive to changes in th=
+e allocator paths for example.=0A=0Avmr-stream=0A=A0=A0=A0 Runs the STREAM =
+benchmark a number of times for varying sizes. An=0A=A0=A0=A0 average is re=
+corded. This can be used to measure approximate memory=0A=A0=A0=A0 throughp=
+ut or the average cost of a number of basic operations. It is=0A=A0=A0=A0 s=
+ensitive to cache layout used for page faults.=0A=0Avmr-cacheeffects (untes=
+ted)=0A=A0=A0=A0 Performs linear and random walks on nodes of different siz=
+es stored in=0A=A0=A0=A0 a large amount of memory. Sensitive to cache footp=
+rint and layout.=0A=0Avmr-createdelete (untested)=0A=A0=A0=A0 A micro-bench=
+mark that measures the time taken to create and delete=0A=A0=A0=A0 file or =
+anonymous mappings of increasing sizes. Sensitive to changes=0A=A0=A0=A0 in=
+ the page fault path performance.=0A=0Aiozone=0A=A0=A0=A0 A basic filesyste=
+m benchmark.=0A=0Afsmark=0A=A0=A0=A0 This tests write workloads varying the=
+ number of files and directory=0A=A0=A0=A0 depth.=0A=0Ahackbench-*=0A=A0=A0=
+=A0 Hackbench is generally a scheduler benchmark but is also sensitive to=
+=0A=A0=A0=A0 overhead in the allocators and to a lesser extent the fault pa=
+ths.=0A=A0=A0=A0 Can be run for either sockets or pipes.=0A=0Alargecopy=0A=
+=A0=A0=A0 This is a simple single-threaded benchmark that downloads a large=
+=0A=A0=A0=A0 tar file, expands it a number of times, creates a new tar and=
+=0A=A0=A0=A0 expands it again. Each operation is timed and is aimed at shak=
+ing=0A=A0=A0=A0 out stall-related bugs when copying large amounts of data=
+=0A=0Alargedd=0A=A0=A0=A0 Similar to largecopy except it uses dd instead of=
+ cp.=0A=0Alibreofficebuild=0A=A0=A0=A0 This downloads and builds libreoffic=
+e. It is a more aggressive=0A=A0=A0=A0 compile-orientated test. This is a v=
+ery download-intensive=0A=A0=A0=A0 benchmark and was only created as a repr=
+oduction case for=0A=A0=A0=A0 a bug.=0A=0Anas-*=0A=A0=A0=A0 The NAS Paralle=
+l Benchmarks for the serial and openmp versions of=0A=A0=A0=A0 the test.=0A=
+=0Anetperf-*=0A=A0=A0=A0 Runs the netperf benchmark for *_STREAM on the loc=
+al machine.=0A=A0=A0=A0 Sensitive to cache usage and allocator costs. To te=
+st for cache line=0A=A0=A0=A0 bouncing, the test can be configured to bind =
+to certain processors.=0A=0Apostmark=0A=A0=A0=A0 Run the postmark benchmark=
+. Optionally a program can be run in=0A=A0=A0=A0 the background that consum=
+es anonymous memory. The background=0A=A0=A0=A0 program is vary rarely need=
+ed except when trying to identify=0A=A0=A0=A0 desktop stalls during heavy I=
+O.=0A=0Aspeccpu (untested)=0A=A0=A0=A0 SPECcpu, what else can be said. A re=
+striction is that you must have=0A=A0=A0=A0 a mirrored copy of the tarball =
+as it is not publicly available.=0A=0Aspecjvm (untested)=0A=A0=A0=A0 SPECjv=
+m. Same story as speccpu=0A=0Aspecomp (untested)=0A=A0=A0=A0 SPEComp. Same =
+story as speccpu=0A=0Asysbench=0A=A0=A0=A0 Runs the complex workload for sy=
+sbench backed by postgres. Running=0A=A0=A0=A0 this test requires a signifi=
+cant build environment on the test=0A=A0=A0=A0 machine. It can run either r=
+ead-only or read/write tests.=0A=0Asimple-writeback=0A=A0=A0=A0 This is a s=
+imple writeback test based on dd. It's meant to be=0A=A0=A0=A0 easy to unde=
+rstand and quick to run. Useful for measuring page=0A=A0=A0=A0 writeback ch=
+anges.=0A=0Altp (untested)=0A=A0=A0=A0 The LTP benchmark. What it is testin=
+g depends on exactly which of the=0A=A0=A0=A0 suite is configured to run.=
+=0A=0Altp-pounder (untested)=0A=A0=A0=A0 ltp pounder is a non-default test =
+that exists in LTP. It's used by=0A=A0=A0=A0 IBM for hardware certification=
+ to hammer a machine for a configured=0A=A0=A0=A0 number of hours. Typicall=
+y, they expect it to run for 72 hours=0A=A0=A0=A0 without major errors.=A0 =
+Useful for testing general VM stability in=0A=A0=A0=A0 high-pressure low-me=
+mory situations.=0A=0Astress-highalloc=0A=A0=A0=A0 This test requires that =
+the system not have too much memory and=0A=A0=A0=A0 that systemtap is avail=
+able. Typically, it's tested with 3GB of=0A=A0=A0=A0 RAM. It builds a numbe=
+r of kernels in parallel such that total=0A=A0=A0=A0 memory usage is 1.5 ti=
+mes physical memory. When this is running=0A=A0=A0=A0 for 5 minutes, it tri=
+es to allocate a large percentage of memory=0A=A0=A0=A0 (e.g. 95%) as huge =
+pages recording the latency of each operation as it=0A=A0=A0=A0 goes. It do=
+es this twice. It then cancels the kernel compiles, cleans=0A=A0=A0=A0 the =
+system and tries to allocate huge pages at rest again. It's a=0A=A0=A0=A0 b=
+asic test for fragmentation avoidance and the performance of huge=0A=A0=A0=
+=A0 page allocation.=0A=0Axfstests (untested)=0A=A0=A0=A0 This is still at =
+prototype level and aimed at running testcase 180=0A=A0=A0=A0 initially to =
+reproduce some figures provided by the filesystems people.=0A=0AReporting=
+=0A=3D=3D=3D=3D=3D=3D=3D=3D=3D=0A=0AFor reporting, there is a basic compare=
+-kernels.sh script. It must be updated=0Awith a list of kernels you want to=
+ compare and in what order. It generates a=0Atable for each test, operation=
+ and kernel showing the relative performance=0Aof each. The test reporting =
+scripts are in subreports/. compare-kernel.sh=0Ashould be run from the path=
+ storing the test logs. By default this is=0Awork/log. If you are automatin=
+g tests from an external source, work/log is=0Awhat you should be capturing=
+ after a set of tests complete.=0A=0AIf monitors are configured such as ftr=
+ace, there are additional=0Aprocessing scripts. They can be activated by se=
+tting FTRACE_ANALYSERS in=0Acompare-kernels.sh. A basic post-process script=
+ is mmtests-duration which=0Asimply reports how long an individual test too=
+k and what its CPU usage was.=0A=0AThere are a limited number of graphing s=
+cripts included in report/=0A=0ATODO=0A=3D=3D=3D=3D=0A=0Ao Add option to te=
+st on filesystem loopback device stored on tmpfs=0Ao Add volanomark=0Ao Cre=
+ate config-* set suitable for testing scheduler to isolate situations=0A=A0=
+ where the scheduler was the main cause of a regression=0A=0A-- =0AMel Gorm=
+an=0ASUSE Labs=0A=0A--=0ATo unsubscribe, send a message with 'unsubscribe l=
+inux-mm' in=0Athe body to majordomo@kvack.org.=A0 For more info on Linux MM=
+,=0Asee: http://www.linux-mm.org/ .=0AFight unfair telecom internet charges=
+ in Canada: sign http://stopthemeter.ca/=0ADon't email: <a href=3Dmailto:"d=
+ont@kvack.org"> email@kvack.org </a>=A0=A0=A0 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
