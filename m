@@ -1,82 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 539676B0169
-	for <linux-mm@kvack.org>; Fri,  5 Aug 2011 11:29:01 -0400 (EDT)
-Received: by eyh6 with SMTP id 6so2209070eyh.20
-        for <linux-mm@kvack.org>; Fri, 05 Aug 2011 08:28:58 -0700 (PDT)
-Date: Fri, 5 Aug 2011 18:27:55 +0300
-From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Subject: Re: select_task_rq_fair: WARNING: at kernel/lockdep.c match_held_lock
-Message-ID: <20110805152755.GA4148@swordfish.minsk.epam.com>
-References: <20110804141306.GA3536@swordfish.minsk.epam.com>
- <1312470358.16729.25.camel@twins>
- <20110804153752.GA3562@swordfish.minsk.epam.com>
- <1312472867.16729.38.camel@twins>
- <20110804155347.GB3562@swordfish.minsk.epam.com>
- <1312547780.28695.1.camel@twins>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 7AAD76B0169
+	for <linux-mm@kvack.org>; Fri,  5 Aug 2011 11:51:46 -0400 (EDT)
+Date: Fri, 5 Aug 2011 10:51:42 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: kernel BUG at mm/vmscan.c:1114
+In-Reply-To: <20110805125542.GW19099@suse.de>
+Message-ID: <alpine.DEB.2.00.1108051041580.27518@router.home>
+References: <CAJn8CcE20-co4xNOD8c+0jMeABrc1mjmGzju3xT34QwHHHFsUA@mail.gmail.com> <CAJn8CcG-pNbg88+HLB=tRr26_R+A0RxZEWsJQg4iGe4eY2noXA@mail.gmail.com> <20110802002226.3ff0b342.akpm@linux-foundation.org> <CAJn8CcGTwhAaqghqWOYN9mGvRZDzyd9UJbYARz7NGA-7NvFg9Q@mail.gmail.com>
+ <20110803085437.GB19099@suse.de> <CAJn8CcGGsdPdaJ7t_RcBmFOGgVLVjAP8Mr40Cv=FknLTNgBUsg@mail.gmail.com> <CAJn8CcE2BRhHO6qiu2JigdYsjc-igedaA_wu8w70YBbisQTgcQ@mail.gmail.com> <20110805091957.GV19099@suse.de> <CAJn8CcH35xhhAwaAouc15H7bYvOe2dYc4LmL+ymX-riaX8p_xg@mail.gmail.com>
+ <CAJn8CcEM6sa+s06ouL_eadtWpnsieKBupDeUM5R9gCbad3D6eQ@mail.gmail.com> <20110805125542.GW19099@suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1312547780.28695.1.camel@twins>
+Content-Type: MULTIPART/MIXED; BOUNDARY="-1463811839-353538231-1312559503=:27518"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Xiaotian Feng <xtfeng@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>, Pekka Enberg <penberg@kernel.org>
 
-On (08/05/11 14:36), Peter Zijlstra wrote:
-> The below is what I've come up with.
+  This message is in MIME format.  The first part should be readable text,
+  while the remaining parts are likely unreadable without MIME-aware tools.
+
+---1463811839-353538231-1312559503=:27518
+Content-Type: TEXT/PLAIN; charset=iso-8859-15
+Content-Transfer-Encoding: QUOTED-PRINTABLE
+
+On Fri, 5 Aug 2011, Mel Gorman wrote:
+
+> > > This is interesting, I just change as following:
+> > >
+> > > diff --git a/mm/slub.c b/mm/slub.c
+> > > index eb5a8f9..616b78e 100644
+> > > --- a/mm/slub.c
+> > > +++ b/mm/slub.c
+> > > @@ -2104,8 +2104,9 @@ static void *__slab_alloc(struct kmem_cache *s,
+> > > gfp_t gfpflags, int node,
+> > > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0"__slab_alloc"));
+> > >
+> > > =A0 =A0 =A0 =A0if (unlikely(!object)) {
+> > > - =A0 =A0 =A0 =A0 =A0 =A0 =A0 c->page =3D NULL;
+> > > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 //c->page =3D NULL;
+> > > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0stat(s, DEACTIVATE_BYPASS);
+> > > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 deactivate_slab(s, c);
+> > > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0goto new_slab;
+> > > =A0 =A0 =A0 =A0}
+> > >
+> > > Then my system doesn't print any list corruption warnings and my buil=
+d
+> > > success then. So this means revert of 03e404af2 could cure this.
+> > > I'll do more test next week to see if the list corruption still exist=
+, thanks.
+> > >
+> >
+> > Sorry, please ignore it... My system corrupted before I went to leave .=
+=2E..
+> >
 >
+> Please continue the bisection in that case and establish for sure if the
+> problem is in that series or not. Thanks.
 
-Hello,
-I think that should work. Will test, anyway.
+The above fix should not affect anything since a per cpu slab
+is not on any partial lists. And since there are no objects remaining in
+the slab there is then also no point of putting it back. It wont be on
+any lists before and after the action so no list processing is needed.
 
-Thanks,
-	Sergey
- 
-> ---
-> Subject: lockdep: Fix wrong assumption in match_held_lock
-> From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-> Date: Fri Aug 05 14:26:17 CEST 2011
-> 
-> match_held_lock() was assuming it was being called on a lock class
-> that had already seen usage. 
-> 
-> This condition was true for bug-free code using lockdep_assert_held(),
-> since you're in fact holding the lock when calling it. However the
-> assumption fails the moment you assume the assertion can fail, which
-> is the whole point of having the assertion in the first place.
-> 
-> Anyway, now that there's more lockdep_is_held() users, notably
-> __rcu_dereference_check(), its much easier to trigger this since we
-> test for a number of locks and we only need to hold any one of them to
-> be good.
-> 
-> Reported-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-> Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-> ---
->  kernel/lockdep.c |    8 +++++++-
->  1 file changed, 7 insertions(+), 1 deletion(-)
-> 
-> Index: linux-2.6/kernel/lockdep.c
-> ===================================================================
-> --- linux-2.6.orig/kernel/lockdep.c
-> +++ linux-2.6/kernel/lockdep.c
-> @@ -3111,7 +3111,13 @@ static int match_held_lock(struct held_l
->  		if (!class)
->  			class = look_up_lock_class(lock, 0);
->  
-> -		if (DEBUG_LOCKS_WARN_ON(!class))
-> +		/*
-> +		 * If look_up_lock_class() failed to find a class, we're trying
-> +		 * to test if we hold a lock that has never yet been acquired.
-> +		 * Clearly if the lock hasn't been acquired _ever_, we're not
-> +		 * holding it either, so report failure.
-> +		 */
-> +		if (!class)
->  			return 0;
->  
->  		if (DEBUG_LOCKS_WARN_ON(!hlock->nest_lock))
-> 
+Hmmm.... There maybe a race with slab_free from a remote processor. I
+dont see any problem here since we convert the page from frozen to
+nonfrozen in __slab_alloc and __slab_free will ignore the partial list
+management if it sees it to be frozen.
+
+Maybe we need some memory barriers here. Right now we are relying on the
+cmpxchg_double for sync of the state in the page struct but we also need
+the c->page variable to be consistent with that state. But we disable
+interrupts in __slab_alloc so there are no races possible with slab_free
+only with remote __slab_free invocations which will not touch c->page.
+
+
+
+
+---1463811839-353538231-1312559503=:27518--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
