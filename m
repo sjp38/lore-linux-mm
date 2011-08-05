@@ -1,81 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 193D16B0169
-	for <linux-mm@kvack.org>; Fri,  5 Aug 2011 14:14:24 -0400 (EDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 07B7F6B0169
+	for <linux-mm@kvack.org>; Fri,  5 Aug 2011 14:19:04 -0400 (EDT)
+Date: Fri, 5 Aug 2011 20:18:38 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH] THP: mremap support and TLB optimization #2
+Message-ID: <20110805181838.GZ9770@redhat.com>
+References: <20110728142631.GI3087@redhat.com>
+ <20110805152516.GI9211@csn.ul.ie>
+ <20110805162151.GX9770@redhat.com>
+ <20110805171126.GJ9211@csn.ul.ie>
 MIME-Version: 1.0
-Message-ID: <2d2a3645-83e4-4701-b49a-92b3cbe57880@default>
-Date: Fri, 5 Aug 2011 11:13:56 -0700 (PDT)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [PATCH 2/4] frontswap: using vzalloc instead of vmalloc
-References: <1312427390-20005-1-git-send-email-lliubbo@gmail.com>
- <1312427390-20005-2-git-send-email-lliubbo@gmail.com>
- <20110804075730.GF31039@tiehlicka.suse.cz>
- <20110804090017.GI31039@tiehlicka.suse.cz>
- <CAA_GA1f8B9uPszGecYd=DiuAOCqo0AXkFca_=5jEGRczGia5ZA@mail.gmail.com>
- <d0584e86-34f6-46cc-a78e-c1e31ed7cb9f@default
- CAA_GA1cQBZ+3qyJeVgU6UcHax5TCGwNtjEnoWhq9w+LFnM9C7w@mail.gmail.com>
-In-Reply-To: <CAA_GA1cQBZ+3qyJeVgU6UcHax5TCGwNtjEnoWhq9w+LFnM9C7w@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110805171126.GJ9211@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bob Liu <lliubbo@gmail.com>
-Cc: Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, akpm@linux-foundation.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, cesarb@cesarb.net, emunson@mgebm.net, penberg@kernel.org, namhyung@gmail.com, lucas.demarchi@profusion.mobi, aarcange@redhat.com, tj@kernel.org, vapier@gentoo.org, jkosina@suse.cz, rientjes@google.com
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: linux-mm@kvack.org, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>
 
-> From: Bob Liu [mailto:lliubbo@gmail.com]
-> Subject: Re: [PATCH 2/4] frontswap: using vzalloc instead of vmalloc
->=20
-> On Fri, Aug 5, 2011 at 10:45 AM, Dan Magenheimer
-> <dan.magenheimer@oracle.com> wrote:
-> >> > I am fairly sure that the failed allocation is handled gracefully
-> >> > through the remainder of the frontswap code, but will re-audit to
-> >> > confirm. =C2=A0A warning might be nice though.
-> >>
-> >> There is a place i think maybe have problem.
-> >> function __frontswap_flush_area() in file frontswap.c called
-> >> memset(sis->frontswap_map, .., ..);
-> >> But if frontswap_map allocation fail there is a null pointer access ?
-> >
-> > Good catch!
-> >
-> > I'll fix that when I submit a frontswap update in a few days.
->=20
-> Would you please add current patch to you frontswap update series ?
-> So I needn't to send a Version 2 separately with only drop the
-> allocation failed handler.
-> Thanks.
-> Regards,
-> --Bob
+On Fri, Aug 05, 2011 at 06:11:26PM +0100, Mel Gorman wrote:
+> That's a tough call. Increased jitter within KVM might be unwelcome
+> but ordinarily the only people that might care about latencies are
+> real time people and I dont think they would care about the KVM case.
 
-Hi Bob --
+Ah KVM won't possibly ever run mremap on regions backed by the mmu
+notifier, so that's not an issue.
 
-I'm not an expert here, so you or others can feel free to correct me if I'v=
-e
-got this wrong or if I misunderstood you, but I don't think that's the way
-patchsets are supposed to be done, at least until they are merged into Linu=
-s'
-tree.  I think you are asking me to add a fifth patch in the frontswap
-patch series that fixes this bug, rather than incorporate the fix into
-the next posted version of the frontswap patchset.  However, I expect
-to post V5 soon with some additional (minor syntactic) changes to the
-patchset from Konrad Wilk's very thorough review.  Then this V5 will
-replace the current version in linux-next soon thereafter (and hopefully
-then into linux-3.2.)  So I think it would be the correct process for me
-to include your bugfix (with an acknowledgement in the commit log) in
-that posted V5.
+> I agree with you that overall it's probably for the best but splitting
+> it out as a separate patch and cc'ing the KVM people would do no harm.
+> Is there any impact for things like xpmem that might be using MMU
+> notifiers in some creative manner?
 
-That said, if you are using frontswap V4 (the version currently in
-linux-next), the bug fix we've discussed needs to be fixed but is
-exceedingly unlikely to occur in the real world because it would
-require the malloc of swap_map to succeed (which is 8 bits per swap page
-in the swapon'ed swap device) but the malloc of frontswap_map immediately
-thereafter to fail (which is 1 bit per swap page in the swapon'ed swap
-device).  (And also this is not a problem for the vast majority of
-kernel developers... it's only possible for frontswap users like you that
-have enabled zcache or tmem or RAMster via a kernel boot option.)
+KVM people are already safe, this mremap optimization won't affect
+KVM, it's more for JVM than anything else. xpmem currently can't run
+on mmu notifier because they require scheduling at least in the
+range_start/end methods (not in the invalidate_page methods), and
+without srcu in mmu notifier they can't schedule even in
+range_start/end. The only other user in tree is the GRU driver.
 
-Thanks,
-Dan
+I don't think it's a fundamental new limitation, the whole mremap
+region becomes unavailable to the users of the primary MMU for the
+whole duration, it was more by accident that the part of the region
+was still available to the secondary mmu users during mremap despite
+not being "accessible" with predictable result on the primary mmu
+(modulo trapping sigsegv). So I don't think we can make things
+worse with this, not worse than they already were for the primary mmu,
+plus the duration of the syscall will be shorter now.
+
+> > The one IPI per page is a major bottleneck for java, lack of hugepmd
+> > migrate also major bottleneck, here we get both combined so we get 1
+> > IPI for a ton of THP. The benchmark I run was single threaded on a 12
+> > core system (and single threaded if scheduler is doing good won't
+> > require any IPI), you can only imagine the boost it gets on heavily
+> > multithreaded apps that requires flooding IPI on large SMP (I didn't
+> > measure that as I was already happy with what I got single threaded :).
+> > 
+> 
+> Yeah, I imagine it should also be a boost during GC if the JVM is
+> using mremap to migrate full pages from an old heap to a new one.
+
+Correct, it's GC doing mremap AFIK.
+
+> I don't feel very strongly about it. The change looks reasonable
+> and with a fresh head with the patch split out, it probably is more
+> readable.
+
+Yes I plan to do a split out. I just wanted to know if I should change
+the -1 into the code that doesn't relay on PAGE_SIZE > 1 and that
+explicitly says it's about the overflow, so that it feels
+less obscure, or if I should leave the -1 as is.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
