@@ -1,74 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 0E9A76B0169
-	for <linux-mm@kvack.org>; Thu,  4 Aug 2011 23:50:43 -0400 (EDT)
-Date: Fri, 5 Aug 2011 11:50:40 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH] readahead: add comments on PG_readahead
-Message-ID: <20110805035040.GB11532@localhost>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 4FE6A6B0169
+	for <linux-mm@kvack.org>; Fri,  5 Aug 2011 01:43:30 -0400 (EDT)
+Message-ID: <4E3B82FD.1040500@xenotime.net>
+Date: Thu, 04 Aug 2011 22:43:25 -0700
+From: Randy Dunlap <rdunlap@xenotime.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Subject: Re: [PATCH -next] drivers/base/inode.c: let vmstat_text be optional
+References: <20110804145834.3b1d92a9eeb8357deb84bf83@canb.auug.org.au> <20110804152211.ea10e3e7.rdunlap@xenotime.net> <4E3B57C3.80203@redhat.com>
+In-Reply-To: <4E3B57C3.80203@redhat.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Hugh Dickins <hughd@google.com>, Matthew Wilcox <willy@linux.intel.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Cong Wang <amwang@redhat.com>
+Cc: Stephen Rothwell <sfr@canb.auug.org.au>, gregkh@suse.de, linux-next@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, akpm <akpm@linux-foundation.org>
 
-Add comments to clarify the easily misunderstood PG_readahead timing.
+On 08/04/11 19:38, Cong Wang wrote:
+> ao? 2011a1'08ae??05ae?JPY 06:22, Randy Dunlap a??e??:
+>> From: Randy Dunlap<rdunlap@xenotime.net>
+>>
+>> vmstat_text is only available when PROC_FS or SYSFS is enabled.
+>> This causes build errors in drivers/base/node.c when they are
+>> both disabled:
+>>
+>> drivers/built-in.o: In function `node_read_vmstat':
+>> node.c:(.text+0x10e28f): undefined reference to `vmstat_text'
+>>
+>> Rather than litter drivers/base/node.c with #ifdef/#endif around
+>> the affected lines of code, add macros for optional sysdev
+>> attributes so that those lines of code will be ignored, without
+>> using #ifdef/#endif in the .c file(s).  I.e., the ifdeffery
+>> is done only in a header file with sysdev_create_file_optional()
+>> and sysdev_remove_file_optional().
+>>
+> 
+> This looks ugly for me, because other sysfs files here are not optional
+> only due to that they don't rely on vmstat_text.
+> 
+> I still think my approach to fix this is better, that is, introducing
+> a new Kconfig for drivers/base/node.c which depends on CONFIG_SYSFS.
 
-PG_readahead is a trigger to say, when you get this far, it's time to
-think about kicking off the _next_ readahead.            -- Hugh
+Did you post a patch for that?  I must have missed it.
 
-CC: Hugh Dickins <hughd@google.com>
-CC: Matthew Wilcox <willy@linux.intel.com>
-Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
----
- mm/readahead.c |   27 +++++++++++++++++++++++++++
- 1 file changed, 27 insertions(+)
-
---- linux-next.orig/mm/readahead.c	2011-08-05 10:53:01.000000000 +0800
-+++ linux-next/mm/readahead.c	2011-08-05 11:40:06.000000000 +0800
-@@ -185,6 +185,14 @@ __do_page_cache_readahead(struct address
- 			break;
- 		page->index = page_offset;
- 		list_add(&page->lru, &page_pool);
-+		/*
-+		 * set PG_readahead to trigger the _next_ ASYNC readahead.
-+		 *
-+		 *     |----------------- nr_to_read ---------------->|
-+		 *     |==================#===========================|
-+		 *                        |<---- lookahead_size ------|
-+		 *       PG_readahead mark^
-+		 */
- 		if (page_idx == nr_to_read - lookahead_size)
- 			SetPageReadahead(page);
- 		ret++;
-@@ -321,6 +329,25 @@ static unsigned long get_next_ra_size(st
-  * indicator. The flag won't be set on already cached pages, to avoid the
-  * readahead-for-nothing fuss, saving pointless page cache lookups.
-  *
-+ * A typical readahead time chart for a sequential read stream. Note that when
-+ * read(2) hits the PG_readahead mark, a new readahead will be started and the
-+ * PG_readahead mark will be "pushed forward" by clearing the old PG_readahead
-+ * and setting a new PG_readahead in the new readahead window.
-+ *
-+ * t0
-+ * t1 +#__                         ==>  SYNC readahead triggered by page miss
-+ * t2 -+__#_______                 ==> ASYNC readahead triggered by PG_readahead
-+ * t3 --+_#_______
-+ * t4 ---+#_______
-+ * t5 ----+_______#_______________ ==> ASYNC readahead triggered by PG_readahead
-+ * t6 -----+______#_______________
-+ * t7 ------+_____#_______________
-+ *
-+ * [-] accessed page
-+ * [+] the page read(2) is accessing
-+ * [#] the PG_readahead mark
-+ * [_] readahead page (newly brought into page cache but not yet accessed)
-+ *
-  * prev_pos tracks the last visited byte in the _previous_ read request.
-  * It should be maintained by the caller, and will be used for detecting
-  * small random reads. Note that the readahead algorithm checks loosely
+thanks,
+-- 
+~Randy
+*** Remember to use Documentation/SubmitChecklist when testing your code ***
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
