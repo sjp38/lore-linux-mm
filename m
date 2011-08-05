@@ -1,75 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 07B7F6B0169
-	for <linux-mm@kvack.org>; Fri,  5 Aug 2011 14:19:04 -0400 (EDT)
-Date: Fri, 5 Aug 2011 20:18:38 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH] THP: mremap support and TLB optimization #2
-Message-ID: <20110805181838.GZ9770@redhat.com>
-References: <20110728142631.GI3087@redhat.com>
- <20110805152516.GI9211@csn.ul.ie>
- <20110805162151.GX9770@redhat.com>
- <20110805171126.GJ9211@csn.ul.ie>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id B4C856B0169
+	for <linux-mm@kvack.org>; Fri,  5 Aug 2011 14:26:44 -0400 (EDT)
 MIME-Version: 1.0
+Message-ID: <94c9f8f7-4ea0-44ce-9938-85e31867b8fe@default>
+Date: Fri, 5 Aug 2011 11:26:32 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [PATCH V4 0/4] mm: frontswap: overview
+References: <20110527194804.GA27109@ca-server1.us.oracle.com
+ 4E3C1292.9080506@linux.vnet.ibm.com>
+In-Reply-To: <4E3C1292.9080506@linux.vnet.ibm.com>
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110805171126.GJ9211@csn.ul.ie>
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: linux-mm@kvack.org, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>
+To: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, ngupta@vflare.org, Brian King <brking@linux.vnet.ibm.com>, Hugh Dickins <hughd@google.com>
 
-On Fri, Aug 05, 2011 at 06:11:26PM +0100, Mel Gorman wrote:
-> That's a tough call. Increased jitter within KVM might be unwelcome
-> but ordinarily the only people that might care about latencies are
-> real time people and I dont think they would care about the KVM case.
+> From: Seth Jennings [mailto:sjenning@linux.vnet.ibm.com]
+> Sent: Friday, August 05, 2011 9:56 AM
+> To: Dan Magenheimer
+> Cc: linux-mm@kvack.org; ngupta@vflare.org; Brian King
+> Subject: Re: [PATCH V4 0/4] mm: frontswap: overview
+>=20
+> Dan,
+>=20
+> What is the plan for getting this upstream?  Are there some issues or obj=
+ections that haven't been
+> addressed?
+> --
+> Seth
 
-Ah KVM won't possibly ever run mremap on regions backed by the mmu
-notifier, so that's not an issue.
+Hi Seth --
 
-> I agree with you that overall it's probably for the best but splitting
-> it out as a separate patch and cc'ing the KVM people would do no harm.
-> Is there any impact for things like xpmem that might be using MMU
-> notifiers in some creative manner?
+The only significant objection I'm aware of is that there hasn't been
+a strong demand for frontswap yet, partly due to the fact that most
+of the interested parties have been communicating offlist.
 
-KVM people are already safe, this mremap optimization won't affect
-KVM, it's more for JVM than anything else. xpmem currently can't run
-on mmu notifier because they require scheduling at least in the
-range_start/end methods (not in the invalidate_page methods), and
-without srcu in mmu notifier they can't schedule even in
-range_start/end. The only other user in tree is the GRU driver.
+Can I take this email as an "Acked-by"?  I will be posting V5
+next week (V4->V5: an allocation-time bug fix by Bob Liu, a
+handful of syntactic clarifications reported by Konrad Wilk,
+and rebase to linux-3.1-rc1.)  Soon after, V5 will be in linux-next
+and I plan to lobby the relevant maintainers to merge frontswap
+for the linux-3.2 window... and would welcome your public support.
 
-I don't think it's a fundamental new limitation, the whole mremap
-region becomes unavailable to the users of the primary MMU for the
-whole duration, it was more by accident that the part of the region
-was still available to the secondary mmu users during mremap despite
-not being "accessible" with predictable result on the primary mmu
-(modulo trapping sigsegv). So I don't think we can make things
-worse with this, not worse than they already were for the primary mmu,
-plus the duration of the syscall will be shorter now.
-
-> > The one IPI per page is a major bottleneck for java, lack of hugepmd
-> > migrate also major bottleneck, here we get both combined so we get 1
-> > IPI for a ton of THP. The benchmark I run was single threaded on a 12
-> > core system (and single threaded if scheduler is doing good won't
-> > require any IPI), you can only imagine the boost it gets on heavily
-> > multithreaded apps that requires flooding IPI on large SMP (I didn't
-> > measure that as I was already happy with what I got single threaded :).
-> > 
-> 
-> Yeah, I imagine it should also be a boost during GC if the JVM is
-> using mremap to migrate full pages from an old heap to a new one.
-
-Correct, it's GC doing mremap AFIK.
-
-> I don't feel very strongly about it. The change looks reasonable
-> and with a fresh head with the patch split out, it probably is more
-> readable.
-
-Yes I plan to do a split out. I just wanted to know if I should change
-the -1 into the code that doesn't relay on PAGE_SIZE > 1 and that
-explicitly says it's about the overflow, so that it feels
-less obscure, or if I should leave the -1 as is.
+Thanks,
+Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
