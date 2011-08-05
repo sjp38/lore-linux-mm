@@ -1,210 +1,190 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 5E9EC6B016A
-	for <linux-mm@kvack.org>; Fri,  5 Aug 2011 07:40:41 -0400 (EDT)
-Received: by vxj15 with SMTP id 15so1670127vxj.14
-        for <linux-mm@kvack.org>; Fri, 05 Aug 2011 04:40:39 -0700 (PDT)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 51B066B016A
+	for <linux-mm@kvack.org>; Fri,  5 Aug 2011 08:09:22 -0400 (EDT)
+Received: by qyk7 with SMTP id 7so1355740qyk.14
+        for <linux-mm@kvack.org>; Fri, 05 Aug 2011 05:09:18 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20110805084742.GU19099@suse.de>
-References: <CAFPAmTQByL0YJT8Lvar1Oe+3Q1EREvqPA_GP=hHApJDz5dSOzQ@mail.gmail.com>
-	<20110803110555.GD19099@suse.de>
-	<CAFPAmTR79S3AVXrAFL5bMkhs2droL8THUCCPY23Ar5x_oftheQ@mail.gmail.com>
-	<20110803132839.GG19099@suse.de>
-	<CAFPAmTS2JEVk3tWhJN034dUmaxLujswmmsqGABGYEV=N3v0Ehw@mail.gmail.com>
-	<20110804100928.GN19099@suse.de>
-	<CAFPAmTQir8HnP2=WwPGSaWFu=hBS9=xT88f+XFFx5Hdf6zvGTA@mail.gmail.com>
-	<20110805084742.GU19099@suse.de>
-Date: Fri, 5 Aug 2011 17:10:38 +0530
-Message-ID: <CAFPAmTS8-qQ4ZzBeJeKuG2jvyyfkwnqbtSjPX2TLddDPtSmF7g@mail.gmail.com>
-Subject: Re: [PATCH] ARM: sparsemem: Enable CONFIG_HOLES_IN_ZONE config option
- for SparseMem and HAS_HOLES_MEMORYMODEL for linux-3.0.
-From: Kautuk Consul <consul.kautuk@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+In-Reply-To: <20110805091957.GV19099@suse.de>
+References: <CAJn8CcE20-co4xNOD8c+0jMeABrc1mjmGzju3xT34QwHHHFsUA@mail.gmail.com>
+	<CAJn8CcG-pNbg88+HLB=tRr26_R+A0RxZEWsJQg4iGe4eY2noXA@mail.gmail.com>
+	<20110802002226.3ff0b342.akpm@linux-foundation.org>
+	<CAJn8CcGTwhAaqghqWOYN9mGvRZDzyd9UJbYARz7NGA-7NvFg9Q@mail.gmail.com>
+	<20110803085437.GB19099@suse.de>
+	<CAJn8CcGGsdPdaJ7t_RcBmFOGgVLVjAP8Mr40Cv=FknLTNgBUsg@mail.gmail.com>
+	<CAJn8CcE2BRhHO6qiu2JigdYsjc-igedaA_wu8w70YBbisQTgcQ@mail.gmail.com>
+	<20110805091957.GV19099@suse.de>
+Date: Fri, 5 Aug 2011 20:09:18 +0800
+Message-ID: <CAJn8CcH35xhhAwaAouc15H7bYvOe2dYc4LmL+ymX-riaX8p_xg@mail.gmail.com>
+Subject: Re: kernel BUG at mm/vmscan.c:1114
+From: Xiaotian Feng <xtfeng@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Mel Gorman <mgorman@suse.de>
-Cc: Russell King <rmk@arm.linux.org.uk>, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux.com>
 
-Ok, I analyzed the code and it seems that this alignment problem has
-been solved by the changes made
-to the free_unused_memmap() code in arch/arm/mm/init.c.
+On Fri, Aug 5, 2011 at 5:19 PM, Mel Gorman <mgorman@suse.de> wrote:
+> (Adding patch author to cc)
+>
+> On Fri, Aug 05, 2011 at 04:42:43PM +0800, Xiaotian Feng wrote:
+>> On Thu, Aug 4, 2011 at 11:54 AM, Xiaotian Feng <xtfeng@gmail.com> wrote:
+>> > On Wed, Aug 3, 2011 at 4:54 PM, Mel Gorman <mgorman@suse.de> wrote:
+>> >> On Wed, Aug 03, 2011 at 02:44:20PM +0800, Xiaotian Feng wrote:
+>> >>> On Tue, Aug 2, 2011 at 3:22 PM, Andrew Morton <akpm@linux-foundation=
+.org> wrote:
+>> >>> > On Tue, 2 Aug 2011 15:09:57 +0800 Xiaotian Feng <xtfeng@gmail.com>=
+ wrote:
+>> >>> >
+>> >>> >> __ __I'm hitting the kernel BUG at mm/vmscan.c:1114 twice, each t=
+ime I
+>> >>> >> was trying to build my kernel. The photo of crash screen and my c=
+onfig
+>> >>> >> is attached.
+>> >>> >
+>> >>> > hm, now why has that started happening?
+>> >>> >
+>> >>> > Perhaps you could apply this debug patch, see if we can narrow it =
+down?
+>> >>> >
+>> >>>
+>> >>> I will try it then, but it isn't very reproducible :(
+>> >>> But my system hung after some list corruption warnings... I hit the
+>> >>> corruption 4 times...
+>> >>>
+>> >>
+>> >> That is very unexpected but if lists are being corrupted, it could
+>> >> explain the previously reported bug as that bug looked like an active
+>> >> page on an inactive list.
+>> >>
+>> >> What was the last working kernel? Can you bisect?
+>> >>
+>> >>> =C2=A0[ 1220.468089] ------------[ cut here ]------------
+>> >>> =C2=A0[ 1220.468099] WARNING: at lib/list_debug.c:56 __list_del_entr=
+y+0x82/0xd0()
+>> >>> =C2=A0[ 1220.468102] Hardware name: 42424XC
+>> >>> =C2=A0[ 1220.468104] list_del corruption. next->prev should be
+>> >>> ffffea0000e069a0, but was ffff880100216c78
+>> >>> =C2=A0[ 1220.468106] Modules linked in: ip6table_filter ip6_tables
+>> >>> ipt_MASQUERADE iptable_nat nf_nat nf_conntrack_ipv4 nf_defrag_ipv4
+>> >>> xt_state nf_conntrack ipt_REJECT xt_CHECKSUM iptable_mangle xt_tcpud=
+p
+>> >>> iptable_filter ip_tables x_tables binfmt_misc bridge stp parport_pc
+>> >>> ppdev snd_hda_codec_conexant snd_hda_intel snd_hda_codec thinkpad_ac=
+pi
+>> >>> snd_hwdep snd_pcm i915 snd_seq_midi snd_rawmidi arc4 cryptd
+>> >>> snd_seq_midi_event aes_x86_64 snd_seq drm_kms_helper iwlagn snd_time=
+r
+>> >>> aes_generic drm snd_seq_device mac80211 psmouse uvcvideo videodev sn=
+d
+>> >>> v4l2_compat_ioctl32 soundcore snd_page_alloc serio_raw i2c_algo_bit
+>> >>> btusb tpm_tis tpm tpm_bios video cfg80211 bluetooth nvram lp joydev
+>> >>> parport usbhid hid ahci libahci firewire_ohci firewire_core e1000e
+>> >>> sdhci_pci sdhci crc_itu_t
+>> >>> =C2=A0[ 1220.468185] Pid: 1168, comm: Xorg Tainted: G =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0W =C2=A0 3.0.0+ #23
+>> >>> =C2=A0[ 1220.468188] Call Trace:
+>> >>> =C2=A0[ 1220.468190] =C2=A0<IRQ> =C2=A0[<ffffffff8106db3f>] warn_slo=
+wpath_common+0x7f/0xc0
+>> >>> =C2=A0[ 1220.468201] =C2=A0[<ffffffff8106dc36>] warn_slowpath_fmt+0x=
+46/0x50
+>> >>> =C2=A0[ 1220.468206] =C2=A0[<ffffffff81332a52>] __list_del_entry+0x8=
+2/0xd0
+>> >>> =C2=A0[ 1220.468210] =C2=A0[<ffffffff81332ab1>] list_del+0x11/0x40
+>> >>> =C2=A0[ 1220.468216] =C2=A0[<ffffffff8117a212>] __slab_free+0x362/0x=
+3d0
+>> >>> =C2=A0[ 1220.468222] =C2=A0[<ffffffff811c6606>] ? bvec_free_bs+0x26/=
+0x40
+>> >>> =C2=A0[ 1220.468226] =C2=A0[<ffffffff8117b767>] ? kmem_cache_free+0x=
+97/0x220
+>> >>> =C2=A0[ 1220.468230] =C2=A0[<ffffffff811c6606>] ? bvec_free_bs+0x26/=
+0x40
+>> >>> =C2=A0[ 1220.468234] =C2=A0[<ffffffff811c6606>] ? bvec_free_bs+0x26/=
+0x40
+>> >>> =C2=A0[ 1220.468239] =C2=A0[<ffffffff8117b8df>] kmem_cache_free+0x20=
+f/0x220
+>> >>> =C2=A0[ 1220.468243] =C2=A0[<ffffffff811c6606>] bvec_free_bs+0x26/0x=
+40
+>> >>> =C2=A0[ 1220.468247] =C2=A0[<ffffffff811c6654>] bio_free+0x34/0x70
+>> >>> =C2=A0[ 1220.468250] =C2=A0[<ffffffff811c66a5>] bio_fs_de
+>> >>>
+>> >>
+>> >
+>> > I'm hitting this again today, when I'm trying to rebuild my kernel....
+>> > Looking it a bit
+>> >
+>> > =C2=A0list_del corruption. next->prev should be ffffea0000e069a0, but =
+was
+>> > ffff880100216c78
+>> >
+>> > I find something interesting from my syslog:
+>> >
+>> > =C2=A0PERCPU: Embedded 28 pages/cpu @ffff880100200000 s83456 r8192 d23=
+040 u262144
+>> >
+>> >> This warning and the page reclaim warning are on paths that are
+>> >> commonly used and I would expect to see multiple reports. I wonder
+>> >> what is happening on your machine that is so unusual.
+>> >>
+>> >> Have you run memtest on this machine for a few hours and badblocks
+>> >> on the disk to ensure this is not hardware trouble?
+>> >>
+>> >>> So is it possible that my previous BUG is triggered by slab list cor=
+ruption?
+>> >>
+>> >> Not directly, but clearly there is something very wrong.
+>> >>
+>> >> If slub corruption reports are very common and kernel 3.0 is fine, my
+>> >> strongest candidate for the corruption would be the SLUB lockless
+>> >> patches. Try
+>> >>
+>> >> git diff e4a46182e1bcc2ddacff5a35f6b52398b51f1b11..9e577e8b46ab0c3897=
+0c0f0cd7eae62e6dffddee | patch -p1 -R
+>> >>
+>> >
+>>
+>> Here's a update for the results:
+>>
+>> 3.0.0-rc7: running for hours without a crash
+>> upstream kernel: list corruption happened while building kernel within
+>> 10 mins (I'm running some app chrome/firefox/thunderbird/... as well)
+>> upstream kernel with above revert: running for hours without a crash
+>>
+>> Trying to bisect but rebuild is slow ....
+>>
+>
+> If you have not done so already, I strongly suggest your bisection
+> starts within that range of patches to isolate which one is at fault.
+> It'll cut down on the number of builds you need to do. Thanks for
+> testing.
+>
 
-I backported those changes to free_unused_memmap_node() in
-linux-2.6.35.9 and I don't see any more
-crashes. This solves my problem.
+This is interesting, I just change as following:
 
-Thanks for all the help.
+diff --git a/mm/slub.c b/mm/slub.c
+index eb5a8f9..616b78e 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -2104,8 +2104,9 @@ static void *__slab_alloc(struct kmem_cache *s,
+gfp_t gfpflags, int node,
+                        "__slab_alloc"));
+
+        if (unlikely(!object)) {
+-               c->page =3D NULL;
++               //c->page =3D NULL;
+                stat(s, DEACTIVATE_BYPASS);
++               deactivate_slab(s, c);
+                goto new_slab;
+        }
+
+Then my system doesn't print any list corruption warnings and my build
+success then. So this means revert of 03e404af2 could cure this.
+I'll do more test next week to see if the list corruption still exist, than=
+ks.
 
 
-On Fri, Aug 5, 2011 at 2:17 PM, Mel Gorman <mgorman@suse.de> wrote:
-> On Fri, Aug 05, 2011 at 11:27:21AM +0530, Kautuk Consul wrote:
->> Hi Mel,
->>
->> Please find my comments inline to the email below.
->>
->> 2 general questions:
->> i) =A0 =A0If an email chain such as this leads to another kernel patch f=
-or
->> the same problem, do I need to
->> =A0 =A0 =A0 create a new email chain for that ?
->
-> Yes. I believe it's easier on the maintainer if a new thread is started
-> with the new patch leader summarising relevant information from the
-> discussion. A happy maintainer makes the day easier.
->
->> ii) =A0Sorry about my formatting problems. However, text such as
->> backtraces and logs tend to wrap
->> =A0 =A0 =A0 irrespective of whatever gmail settings/browser I try. Any
->> pointers here ?
->>
->
-> I don't use gmail so I do not have any suggestions other than using a
-> different mailer. There are no suggestions in
-> Documentation/email-clients.txt on how to deal with gmail.
->
->> On Thu, Aug 4, 2011 at 3:39 PM, Mel Gorman <mgorman@suse.de> wrote:
->> > On Thu, Aug 04, 2011 at 03:06:39PM +0530, Kautuk Consul wrote:
->> >> Hi Mel,
->> >>
->> >> My ARM system has 2 memory banks which have the following 2 PFN range=
-s:
->> >> 60000-62000 and 70000-7ce00.
->> >>
->> >> My SECTION_SIZE_BITS is #defined to 23.
->> >>
->> >
->> > So bank 0 is 4 sections and bank 1 is 26 sections with the last sectio=
-n
->> > incomplete.
->> >
->> >> I am altering the ranges via the following kind of pseudo-code in the
->> >> arch/arm/mach-*/mach-*.c file:
->> >> meminfo->bank[0].size -=3D (1 << 20)
->> >> meminfo->bank[1].size -=3D (1 << 20)
->> >>
->> >
->> > Why are you taking 1M off each bank? I could understand aligning the
->> > banks to a section size at least.
->>
->> The reason I am doing this is that one of our embedded boards actually
->> has this problem, due
->> to which we see this kernel crash. I am merely reproducing this
->> problem by performing this step.
->>
->
-> Ah, that makes sense.
->
->> >> <SNIP>
->> >> The reason why we cannot expect the 0x61fff end_page->flags to contai=
-n
->> >> a valid zone number is:
->> >> memmap_init_zone() initializes the zone number of all pages for a zon=
-e
->> >> via the set_page_links() inline function.
->> >> For the end_page (whose PFN is 0x61fff), set_page_links() cannot be
->> >> possibly called, as the zones are simply not aware of of PFNs above
->> >> 0x61f00 and below 0x70000.
->> >>
->> >
->> > Can you ensure that the ranges passed into free_area_init_node()
->> > are MAX_ORDER aligned as this would initialise the struct pages. You
->> > may have already seen that care is taken when freeing memmap that it
->> > is aligned to MAX_ORDER in free_unused_memmap() in ARM.
->> >
->>
->> Will this work ? My doubt arises from the fact that there is only one
->> zone on the entire
->> system which contains both memory banks.
->
-> That is a common situation. It's why present_pages and spanned_pages
-> in a zone can differ. As long as valid memmap is MAX_ORDER-aligned, it's
-> fine.
->
->> The crash arises at the PFN 0x61fff, which will not be covered by such
->> a check, as this function
->
-> No, it won't be covered by the range check. However, the memmap will be
-> initialised so even though the page is outside a valid bank of memory,
-> it'll still resolve to the correct zone. The struct page will be marked
-> Reserved so it'll never be used.
->
->> will try to act on the entire zone, which is the PFN range:
->> 60000-7cd00, including the holes within as
->> all of this RAM falls into the same node and zone.
->> ( Please correct me if I am wrong about this. )
->>
->> I tried aligning the end parameter in the memory_present() function
->> which is called separately
->> for each memory bank.
->> I tried the following change in memory_present() as well as
->> mminit_validate_memodel_limits():
->> end &=3D ~(pageblock_nr_pages-1);
->> But, in this case, the board simply does not boot up. I think that
->> will then require some change in the
->> arch/arm code which I think would be an arch-specific solution to a
->> possibly generic problem.
->>
->
-> I do not believe this is a generic problem. Machines have
-> holes in the zone all the time and this bug does not trigger.
-> mminit_validate_memodel_limits() is the wrong place to make a change.
-> Look more towards where free_area_init_node() gets called to initialise
-> memmap.
->
->> >> The (end >=3D zone->zone_start_pfn + zone->spanned_pages) in
->> >> move_freepages_block() does not stop this crash from happening as bot=
-h
->> >> our memory banks are in the same zone and the empty space within them
->> >> is accomodated into this zone via the CONFIG_SPARSEMEM
->> >> config option.
->> >>
->> >> When we enable CONFIG_HOLES_IN_ZONE we survive this BUG_ON as well as
->> >> any other BUG_ONs in the loop in move_freepages() as then the
->> >> pfn_valid_within()/pfn_valid() function takes care of this
->> >> functionality, especially in the case where the newly introduced
->> >> CONFIG_HAVE_ARCH_PFN_VALID is
->> >> enabled.
->> >>
->> >
->> > This is an expensive option in terms of performance. If Russell
->> > wants to pick it up, I won't object but I would strongly suggest that
->> > you solve this problem by ensuring that memmap is initialised on a
->> > MAX_ORDER-aligned boundaries as it'll perform better.
->> >
->>
->> I couldn't really locate a method in the kernel wherein we can
->> validate a pageblock(1024 pages for my
->> platform) with respect to the memory banks on that system.
->>
->
-> I suspect what you're looking for is somewhere in arch/arm/mm/init.c .
-> I'm afraid I didn't dig through the ARM memory initialisation
-> code to see where it could be done but if it was me, I'd be looking at
-> how free_area_init_node() is called.
->
->> How about this :
->> We implement an arch_is_valid_pageblock() function, controlled by a
->> new config option
->> CONFIG_ARCH_HAVE IS_VALID_PAGEBLOCK.
->> This arch function will simply check whether this pageblock is valid
->> or not, in terms of arch-specific
->> memory banks or by using the memblock APIs depending on CONFIG_HAVE_MEMB=
-LOCK.
->> We can modify the memmap_init_zone() function so that an outer loop
->> works in measures of
->> pageblocks thus enabling us to avoid invalid pageblocks.
->
-> That seems like massive overkill for what should be an alignment problem
-> when initialisating memmap. It's adding complexity that is similar to
-> HOLES_IN_ZONE with very little gain.
->
-> When it gets down to it, I'd even prefer deleting the BUG_ON as
-> the PageBuddy check over such a solution. However, the BUG_ON is
-> there because alignment to MAX_ORDER is expected so it is a valid
-> sanity check. There would need to be good evidence that initialising
-> memmap to MAX_ORDER alignment was somehow impossible.
->
+
 > --
 > Mel Gorman
 > SUSE Labs
