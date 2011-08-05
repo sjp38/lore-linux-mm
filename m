@@ -1,331 +1,324 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B9EE6B0169
-	for <linux-mm@kvack.org>; Fri,  5 Aug 2011 11:56:26 -0400 (EDT)
-Received: from d03relay01.boulder.ibm.com (d03relay01.boulder.ibm.com [9.17.195.226])
-	by e34.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p75FuKQG029385
-	for <linux-mm@kvack.org>; Fri, 5 Aug 2011 09:56:20 -0600
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay01.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p75Fu6iP044860
-	for <linux-mm@kvack.org>; Fri, 5 Aug 2011 09:56:07 -0600
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p759u5wv026991
-	for <linux-mm@kvack.org>; Fri, 5 Aug 2011 03:56:05 -0600
-Message-ID: <4E3C1292.9080506@linux.vnet.ibm.com>
-Date: Fri, 05 Aug 2011 10:56:02 -0500
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 4292C6B0169
+	for <linux-mm@kvack.org>; Fri,  5 Aug 2011 12:22:19 -0400 (EDT)
+Date: Fri, 5 Aug 2011 18:21:51 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH] THP: mremap support and TLB optimization #2
+Message-ID: <20110805162151.GX9770@redhat.com>
+References: <20110728142631.GI3087@redhat.com>
+ <20110805152516.GI9211@csn.ul.ie>
 MIME-Version: 1.0
-Subject: Re: [PATCH V4 0/4] mm: frontswap: overview
-References: <20110527194804.GA27109@ca-server1.us.oracle.com>
-In-Reply-To: <20110527194804.GA27109@ca-server1.us.oracle.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110805152516.GI9211@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: dan.magenheimer@oracle.com
-Cc: linux-mm@kvack.org, ngupta@vflare.org, Brian King <brking@linux.vnet.ibm.com>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: linux-mm@kvack.org, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>
 
-Dan,
+On Fri, Aug 05, 2011 at 04:25:16PM +0100, Mel Gorman wrote:
+> > +int move_huge_pmd(struct vm_area_struct *vma, struct vm_area_struct *new_vma,
+> > +		  unsigned long old_addr,
+> > +		  unsigned long new_addr, unsigned long old_end,
+> > +		  pmd_t *old_pmd, pmd_t *new_pmd)
+> > +{
+> > +	int ret = 0;
+> > +	pmd_t pmd;
+> > +
+> > +	struct mm_struct *mm = vma->vm_mm;
+> > +
+> > +	if ((old_addr & ~HPAGE_PMD_MASK) ||
+> > +	    (new_addr & ~HPAGE_PMD_MASK) ||
+> 
+> How could these conditions ever be true? We are here because it was
+> pmd_trans_huge. There should be no way this can be aligned. If this
+> is paranoia, make it a BUG_ON.
 
-What is the plan for getting this upstream?  Are there some issues or objections that haven't been addressed?
+It actually happens. old_addr/new_addr aren't aligned to hpage
+beforehand, and they just from the mremap syscall
+parameters. Returning 0 is needed here.
 
---
-Seth
+> 
+> > +	    (old_addr + HPAGE_PMD_SIZE) > old_end ||
+> 
+> Again, is this possible? The old addr was already huge.
 
-On 01/-10/-28163 01:59 PM,  wrote:
-> [PATCH V4 0/4] mm: frontswap: overview
+This can happen too, old_end is also passed as parameter from syscall
+and it's not mangled to fit an hpage, just calculated as old_addr+len
+(len passed as parameter). The length of the destination vma shouldn't
+be necessary to check, there's no new_end in the first place as
+parameter of move_page_tables so the caller must ensure there's enough
+space to copy in the destination. And if the old_end-old_addr <=
+HPAGE_PMD_SIZE and the old_addr and new_addr are aligned, we're sure
+the hugepmd is safe to create on the destination new_addr (if it's
+aligned).
+
+So I think all checks are needed here. In theory the caller could
+check this stuff before calling move_huge_pmd but I try to be as less
+invasive as possible in the common code that may be built with
+TRANSPARENT_HUGEPAGE=n (these checks would still be computed in the
+pmd_trans_huge(*old_pmd) case only but it's kind of nicer to hide them
+in huge_memory.c).
+
+> > +	/*
+> > +	 * The destination pmd shouldn't be established, free_pgtables()
+> > +	 * should have release it.
+> > +	 */
+> > +	if (!pmd_none(*new_pmd)) {
+> > +		WARN_ON(1);
+> > +		VM_BUG_ON(pmd_trans_huge(*new_pmd));
+> > +		goto out;
+> > +	}
+> > +
 > 
-> Changes since V3:
-> - Rebased to 2.6.39 (accomodates minor code movement in swapfile.c)
+> Agreed that this should never happen. The mmap_sem is held for writing
+> and we are remapping to what should be empty space. It should not be
+> possible for a huge PMD to be established underneath us.
+
+Yes. The code will work fine also if the new_pmd points to a pte that
+wasn't freed by free_pgtables but I think it's kind of safer to have a
+WARN_ON because if that really ever happens we would prefer to
+release the pte here and proceed mapping the hugepmd instead of
+splitting the source hugepmd.
+
+If there's a hugepmd mapped instead it means the memory wasn't
+munmapped. I could have run a mem compare of the pte against zero page
+too but I didn't.. kind of overkill. But checking that there is no
+hugepmd is fast.
+
+> > +	spin_lock(&mm->page_table_lock);
+> > +	if (likely(pmd_trans_huge(*old_pmd))) {
+> > +		if (pmd_trans_splitting(*old_pmd)) {
+> > +			spin_unlock(&mm->page_table_lock);
+> > +			wait_split_huge_page(vma->anon_vma, old_pmd);
+> > +			ret = -1;
+> > +		} else {
+> > +			pmd = pmdp_get_and_clear(mm, old_addr, old_pmd);
+> > +			VM_BUG_ON(!pmd_none(*new_pmd));
+> > +			set_pmd_at(mm, new_addr, new_pmd, pmd);
+> > +			spin_unlock(&mm->page_table_lock);
+> > +			ret = 1;
+> > +		}
+> > +	} else
+> > +		spin_unlock(&mm->page_table_lock);
+> > +
 > 
-> Changes since V2:
-> - Rebased to 2.6.36-rc5 (main change: swap_info is now array of pointers)
-> - Added set/end_page_writeback calls around page unlock on successful put
-> - Changed frontswap_init to hide frontswap_poolid (which is cleancache/tmem
->   oddity that need not be exposed to frontswap)
-> - Document and ensure PageLocked requirements are met (per Andrew Morton
->   feedback in cleancache thread)
-> - Remove incorrect flags set/clear around partial swapoff call in
->   frontswap_shrink
-> - Clarified code testing if frontswap is enabled
-> - Add frontswap_register_ops interface to avoid an unnecessary global (per
->   Christoph Hellwig suggestion in cleancache thread)
-> - Use standard success/fail codes (0/<0) (per Nitin Gupta feedback on
->   cleancache patch)
-> - Added Documentations/vm/frontswap.txt including a FAQ (per Andrew Morton
->   feedback in cleancache thread)
-> - Added Documentation/ABI/testing/sysfs-kernel-mm-frontswap to describe
->   sysfs usage (per Andrew Morton feedback in cleancache thread)
-> - Minor static variable naming cleanup (per Jeremy Fitzhardinge feedback
->   in cleancache thread)
+> The meaning of the return values of -1, 0, 1 with the caller doing
 > 
-> Changes since V1:
-> - Rebased to 2.6.34 (no functional changes)
-> - Convert to sane types (per Al Viro comment in cleancache thread)
-> - Define some raw constants (Konrad Wilk)
-> - Performance analysis shows significant advantage for frontswap's
->   synchronous page-at-a-time design (vs batched asynchronous speculated
->   as an alternative design).  See http://lkml.org/lkml/2010/5/20/314
+> if (err)
+> ...
+> else if (!err)
+> 	...
 > 
-> This "frontswap" patchset provides a clean API to transcendent memory
-> for swap pages; via this API, frontswap can provide "swap to RAM"
-> functionality for any transcendent memory "driver" such as a Xen tmem,
-> or in-kernel compression via zcache; frontswap also provides a nice interfa=
-> ce
-> for swapping to RAM on a remote system (RAMster) and for building
-> pseudo-RAM devices such as on-memory-bus SSD or phase-change memory.
+> is tricky to work out. split_huge_page only needs to be called if
+> returning 0. Would it be possible to have the split_huge_page called in
+> this function? The end of the function would then look like
 > 
-> A more complete description of frontswap can be found in the introductory
-> comment in Documentation/vm/frontswap.txt (in PATCH 2/4) which is included
-> below for convenience.
+> return ret;
 > 
-> Note that an earlier version of this patch is now shipping in OpenSuSE 11.2
-> and will soon ship in a release of Oracle Enterprise Linux.  Underlying
-> tmem technology is now shipping in Oracle VM 2.2 and Xen 4.0.
+> out_split:
+> split_huge_page_pmd()
+> return ret;
 > 
-> Signed-off-by: Dan Magenheimer <dan.magenheimer@oracle.com>
-> Reviewed-by: Jeremy Fitzhardinge <jeremy@goop.org>
+> with either success or failure being returned instead of a tristate
+> which is easier to understand.
+
+So basically always return 0 regardless if it was a
+pmd_trans_splitting or if we splitted it ourself. And only return 1 in
+case the move_huge_pmd was successful.
+
+I'm afraid we've other trestates returned for the other mm
+methods... if we cleanup this one later we may also cleanup the
+others.
+
+I'll try to clean up this one for now ok.
+
+> > diff --git a/mm/mremap.c b/mm/mremap.c
+> > --- a/mm/mremap.c
+> > +++ b/mm/mremap.c
+> > @@ -41,8 +41,7 @@ static pmd_t *get_old_pmd(struct mm_stru
+> >  		return NULL;
+> >  
+> >  	pmd = pmd_offset(pud, addr);
+> > -	split_huge_page_pmd(mm, pmd);
+> > -	if (pmd_none_or_clear_bad(pmd))
+> > +	if (pmd_none(*pmd))
+> >  		return NULL;
+> >  
 > 
->  Documentation/ABI/testing/sysfs-kernel-mm-frontswap |   16=20
->  Documentation/vm/frontswap.txt                      |  210 ++++++++++++
->  include/linux/frontswap.h                           |   86 +++++
->  include/linux/swap.h                                |    2=20
->  include/linux/swapfile.h                            |   13=20
->  mm/Kconfig                                          |   16=20
->  mm/Makefile                                         |    1=20
->  mm/frontswap.c                                      |  331 +++++++++++++++=
-> +++++
->  mm/page_io.c                                        |   12=20
->  mm/swapfile.c                                       |   58 ++-
->  10 files changed, 736 insertions(+), 9 deletions(-)
+> Ok, this is changing to pmd_none because it could be a huge PMD and
+> pmd_none_or_clear_bad triggers on a huge PMD. Right?
+
+Right. It'd bug on with a hugepmd. Maybe we could someday change
+pmd_none_or_clear_bad not to choke on the PSE bit, but it was kind of
+safer to keep assuming the PSE bit was "bad" in case we forgotten some
+split_huge_page somewhere, better to bug in that case than to
+ignore. But as time passes and THP is rock solid, I've to admit it's
+becoming more a lack of reliability to consider the PSE bit "bad" and
+to remove some pmd_none_clear_bad than an increase of reliability to
+validate the THP case. Maybe we should change that. It's a common
+problem not specific to mremap.
+
+> > @@ -65,8 +64,6 @@ static pmd_t *alloc_new_pmd(struct mm_st
+> >  		return NULL;
+> >  
+> >  	VM_BUG_ON(pmd_trans_huge(*pmd));
+> > -	if (pmd_none(*pmd) && __pte_alloc(mm, vma, pmd, addr))
+> > -		return NULL;
+> >  
+> >  	return pmd;
+> >  }
+> > @@ -80,11 +77,7 @@ static void move_ptes(struct vm_area_str
+> >  	struct mm_struct *mm = vma->vm_mm;
+> >  	pte_t *old_pte, *new_pte, pte;
+> >  	spinlock_t *old_ptl, *new_ptl;
+> > -	unsigned long old_start;
+> >  
+> > -	old_start = old_addr;
+> > -	mmu_notifier_invalidate_range_start(vma->vm_mm,
+> > -					    old_start, old_end);
 > 
-> (following is a copy of Documentation/vm/frontswap.txt including a FAQ)
+> The MMU notifier is now being called for a larger range. Previously it
+> would usually be ranges of 64 pages and now it looks like it happens
+> once for the entire range being remapped. This is not mentioned in
+> the leader. What are the consequences of having a large gap between
+> invalidate_start and invalidate_end? Would it be a big deal to call
+> the MMU notifier within move_huge_pmd()?
+
+Well it should improve performance. The only downside is that it will
+stall secondary page faults for a longer time, but because the mremap
+can now run faster with fewer IPIs, I think overall it should improve
+performance. Also it's probably not too common to do much mremap on
+apps with a secondary MMU attached so in this place the mmu notifier
+is more about correctness I think and correctness remains. Userland
+can always do mremap in smaller chunks if it needs and then it'll
+really run faster with no downside. After all no app is supposed to
+touch the source addresses while they're being migrated as it could
+SEGFAULT at any time. So a very long mremap basically makes a mapping
+"not available" for a longer time, just now it'll be shorter because
+mremap will run faster. The mapping being available for the secondary
+mmu was incidental implementation detail, now it's not available to
+the secondary mmu during the move, like it is not available to
+userland. Trapping sigsegv to modify the mapping while it's under
+mremap I doubt anybody is depending on.
+
+> If it's safe to use larger ranges, it would be preferable to see it
+> in a separate patch or at the very least explained in the changelog.
+
+I can split it off to a separate patch. I knew I should have done that
+in the first place and rightfully I got caught :).
+
+> >  	if (vma->vm_file) {
+> >  		/*
+> >  		 * Subtle point from Rajesh Venkatasubramanian: before
+> > @@ -111,7 +104,7 @@ static void move_ptes(struct vm_area_str
+> >  				   new_pte++, new_addr += PAGE_SIZE) {
+> >  		if (pte_none(*old_pte))
+> >  			continue;
+> > -		pte = ptep_clear_flush(vma, old_addr, old_pte);
+> > +		pte = ptep_get_and_clear(mm, old_addr, old_pte);
 > 
-> Frontswap provides a "transcendent memory" interface for swap pages.
-> In some environments, dramatic performance savings may be obtained because
-> swapped pages are saved in RAM (or a RAM-like device) instead of a swap dis=
-> k.
+> This looks like an unrelated optimisation. You hint at this in the
+> patch subject but it needs a separate patch or a better explanation in
+> the leader. If I'm reading this right, it looks like you are deferring
+> a TLB flush on a single page and calling one call later at the end of
+> move_page_tables. At a glance, that seems ok and would reduce IPIs
+> but I'm not thinking about it properly because I'm trying to think
+> about THP shenanigans :)
+
+That's exactly what it does. Once I split it off you can concentrate
+on the two parts separately. This is also the parts that requires
+moving the mmu notifier outside along with the tlb flush outside.
+
+The THP shenanigans don't require moving the mmu notifier outside.
+
+The one IPI per page is a major bottleneck for java, lack of hugepmd
+migrate also major bottleneck, here we get both combined so we get 1
+IPI for a ton of THP. The benchmark I run was single threaded on a 12
+core system (and single threaded if scheduler is doing good won't
+require any IPI), you can only imagine the boost it gets on heavily
+multithreaded apps that requires flooding IPI on large SMP (I didn't
+measure that as I was already happy with what I got single threaded :).
+
+> > +	mmu_notifier_invalidate_range_start(vma->vm_mm, old_addr, old_end);
+> > +
+> >  	for (; old_addr < old_end; old_addr += extent, new_addr += extent) {
+> >  		cond_resched();
+> >  		next = (old_addr + PMD_SIZE) & PMD_MASK;
+> > -		if (next - 1 > old_end)
+> > +		if (next > old_end)
+> >  			next = old_end;
+> >  		extent = next - old_addr;
+> >  		old_pmd = get_old_pmd(vma->vm_mm, old_addr);
 > 
-> Frontswap is so named because it can be thought of as the opposite of
-> a "backing" store for a swap device.  The storage is assumed to be
-> a synchronous concurrency-safe page-oriented "pseudo-RAM device" conforming
-> to the requirements of transcendent memory (such as Xen's "tmem", or
-> in-kernel compressed memory, aka "zcache", or future RAM-like devices);
-> this pseudo-RAM device is not directly accessible or addressable by the
-> kernel and is of unknown and possibly time-varying size.  The "device"
-> links itself to frontswap by calling frontswap_register_ops to set the
-> frontswap_ops funcs appropriately and the functions it provides must
-> conform to certain policies as follows:
+> You asked if removing this "- 1" is correct. It's an overflow check for
+> a situation where old_addr + PMD_SIZE overflows. On what architecture
+> is it possible to call mremap() at the very top of the address space
+> or am I missing the point?
 > 
-> An "init" prepares the device to receive frontswap pages associated
-> with the specified swap device number (aka "type").  A "put_page" will
-> copy the page to transcendent memory and associate it with the type and
-> offset associated with the page. A "get_page" will copy the page, if found,
-> =66rom transcendent memory into kernel memory, but will NOT remove the page
-> =66rom from transcendent memory.  A "flush_page" will remove the page from
-> transcendent memory and a "flush_area" will remove ALL pages associated
-> with the swap type (e.g., like swapoff) and notify the "device" to refuse
-> further puts with that swap type.
+> Otherwise I think the existing check is harmless if obscure. It's
+> reasonable to assume PAGE_SIZE will be > 1 and I'm not seeing why it is
+> required by the rest of the patch.
+
+An arch where the -TASK_SIZE is less than PMD_SIZE didn't cross my
+mind sorry, Johannes also pointed it out. I'd find this more readable
+than a off by one -1 that looks erroneous.
+
+diff --git a/mm/mremap.c b/mm/mremap.c
+--- a/mm/mremap.c
++++ b/mm/mremap.c
+@@ -136,9 +136,10 @@ unsigned long move_page_tables(struct vm
+ 	for (; old_addr < old_end; old_addr += extent, new_addr += extent) {
+ 		cond_resched();
+ 		next = (old_addr + PMD_SIZE) & PMD_MASK;
+-		if (next > old_end)
+-			next = old_end;
++		/* even if next overflowed, extent below will be ok */
+ 		extent = next - old_addr;
++		if (extent > old_end - old_addr)
++			extent = old_end - old_addr;
+ 		old_pmd = get_old_pmd(vma->vm_mm, old_addr);
+ 		if (!old_pmd)
+ 			continue;
+
+What do you think? I can put the -1 back if you prefer. I doubt the
+speed difference can matter here, all values should be in registers.
+
+> > @@ -150,6 +145,23 @@ unsigned long move_page_tables(struct vm
+> >  		new_pmd = alloc_new_pmd(vma->vm_mm, vma, new_addr);
+> >  		if (!new_pmd)
+> >  			break;
+> > +		if (pmd_trans_huge(*old_pmd)) {
+> > +			int err = 0;
+> > +			if (extent == HPAGE_PMD_SIZE)
+> > +				err = move_huge_pmd(vma, new_vma, old_addr,
+> > +						    new_addr, old_end,
+> > +						    old_pmd, new_pmd);
+> > +			if (err > 0) {
+> > +				need_flush = true;
+> > +				continue;
+> > +			} else if (!err)
+> > +				split_huge_page_pmd(vma->vm_mm, old_pmd);
+> > +			VM_BUG_ON(pmd_trans_huge(*old_pmd));
 > 
-> Once a page is successfully put, a matching get on the page will always
-> succeed.  So when the kernel finds itself in a situation where it needs
-> to swap out a page, it first attempts to use frontswap.  If the put returns
-> non-zero, the data has been successfully saved to transcendent memory and
-> a disk write and, if the data is later read back, a disk read are avoided.
-> If a put returns zero, transcendent memory has rejected the data, and the
-> page can be written to swap as usual.
-> 
-> Note that if a page is put and the page already exists in transcendent memo=
-> ry
-> (a "duplicate" put), either the put succeeds and the data is overwritten,
-> or the put fails AND the page is flushed.  This ensures stale data may
-> never be obtained from psuedo-RAM.
-> 
-> Monitoring and control of frontswap is done by sysfs files in the
-> /sys/kernel/mm/frontswap directory.  The effectiveness of frontswap can
-> be measured (across all swap devices) with:
-> 
-> curr_pages	- number of pages currently contained in frontswap
-> failed_puts	- how many put attempts have failed
-> gets		- how many gets were attempted (all should succeed)
-> succ_puts	- how many put attempts have succeeded
-> flushes		- how many flushes were attempted
-> 
-> The number can be reduced by root by writing an integer target to curr_page=
-> s,
-> which results in a "partial swapoff", thus reducing the number of frontswap
-> pages to that target if memory constraints permit.
-> 
-> FAQ
-> 
-> 1) Where's the value?
-> 
-> When a workload starts swapping, performance falls through the floor.
-> Frontswap significantly increases performance in many such workloads by
-> providing a clean, dynamic interface to read and write swap pages to
-> "transcendent" memory that is otherwise not directly addressable to the ker=
-> nel.
-> This interface is ideal when data is transformed to a different form
-> and size (such as with compression) or secretly moved (as might be
-> useful for write-balancing for some RAM-like devices).  Swap pages (and
-> evicted page-cache pages) are a great use for this kind of slower-than-RAM-
-> but-much-faster-than-disk "pseudo-RAM device" and the frontswap (and
-> cleancache) interface to transcendent memory provides a nice way to read
-> and write -- and indirectly "name" -- the pages.
-> 
-> In the virtual case, the whole point of virtualization is to statistically
-> multiplex physical resources acrosst the varying demands of multiple
-> virtual machines.  This is really hard to do with RAM and efforts to do
-> it well with no kernel changes have essentially failed (except in some
-> well-publicized special-case workloads).  Frontswap -- and cleancache --
-> with a fairly small impact on the kernel, provides a huge amount
-> of flexibility for more dynamic, flexible RAM multiplexing.
-> Specifically, the Xen Transcendent Memory backend allows otherwise
-> "fallow" hypervisor-owned RAM to not only be "time-shared" between multiple
-> virtual machines, but the pages can be compressed and deduplicated to
-> optimize RAM utilization.  And when guest OS's are induced to surrender
-> underutilized RAM (e.g. with "self-ballooning"), sudden unexpected
-> memory pressure may result in swapping; frontswap allows those pages
-> to be swapped to and from hypervisor RAM if overall host system memory
-> conditions allow.
-> 
-> 2) Sure there may be performance advantages in some situations, but
->    what's the space/time overhead of frontswap?
-> 
-> If CONFIG_FRONTSWAP is disabled, every frontswap hook compiles into
-> nothingness and the only overhead is a few extra bytes per swapon'ed
-> swap device.  If CONFIG_FRONTSWAP is enabled but no frontswap "backend"
-> registers, there is one extra global variable compared to zero for
-> every swap page read or written.  If CONFIG_FRONTSWAP is enabled
-> AND a frontswap backend registers AND the backend fails every "put"
-> request (i.e. provides no memory despite claiming it might),
-> CPU overhead is still negligible -- and since every frontswap fail
-> precedes a swap page write-to-disk, the system is highly likely
-> to be I/O bound and using a small fraction of a percent of a CPU
-> will be irrelevant anyway.
-> 
-> As for space, if CONFIG_FRONTSWAP is enabled AND a frontswap backend
-> registers, one bit is allocated for every swap page for every swap
-> device that is swapon'd.  This is added to the EIGHT bits (which
-> was sixteen until about 2.6.34) that the kernel already allocates
-> for every swap page for every swap device that is swapon'd.  (Hugh
-> Dickins has observed that frontswap could probably steal one of
-> the existing eight bits, but let's worry about that minor optimization
-> later.)  For very large swap disks (which are rare) on a standard
-> 4K pagesize, this is 1MB per 32GB swap.
-> 
-> 3) OK, how about a quick overview of what this frontswap patch does
->    in terms that a kernel hacker can grok?
-> 
-> Let's assume that a frontswap "backend" has registered during
-> kernel initialization; this registration indicates that this
-> frontswap backend has access to some "memory" that is not directly
-> accessible by the kernel.  Exactly how much memory it provides is
-> entirely dynamic and random.
-> 
-> Whenever a swap-device is swapon'd frontswap_init() is called,
-> passing the swap device number (aka "type") as a parameter.
-> This notifies frontswap to expect attempts to "put" swap pages
-> associated with that number.
-> 
-> Whenever the swap subsystem is readying a page to write to a swap
-> device (c.f swap_writepage()), frontswap_put_page is called.  Frontswap
-> consults with the frontswap backend and if the backend says
-> it does NOT have room, frontswap_put_page returns 0 and the page is
-> swapped as normal.  Note that the response from the frontswap
-> backend is essentially random; it may choose to never accept a
-> page, it could accept every ninth page, or it might accept every
-> page.  But if the backend does accept a page, the data from the page
-> has already been copied and associated with the type and offset,
-> and the backend guarantees the persistence of the data.  In this case,
-> frontswap sets a bit in the "frontswap_map" for the swap device
-> corresponding to the page offset on the swap device to which it would
-> otherwise have written the data.
-> 
-> When the swap subsystem needs to swap-in a page (swap_readpage()),
-> it first calls frontswap_get_page() which checks the frontswap_map to
-> see if the page was earlier accepted by the frontswap backend.  If
-> it was, the page of data is filled from the frontswap backend and
-> the swap-in is complete.  If not, the normal swap-in code is
-> executed to obtain the page of data from the real swap device.
-> 
-> So every time the frontswap backend accepts a page, a swap device read
-> and (potentially) a swap device write are replaced by a "frontswap backend
-> put" and (possibly) a "frontswap backend get", which are presumably much
-> faster.
-> 
-> 4) Can't frontswap be configured as a "special" swap device that is
->    just higher priority than any real swap device (e.g. like zswap)?
-> 
-> No.  Recall that acceptance of any swap page by the frontswap
-> backend is entirely unpredictable. This is critical to the definition
-> of frontswap because it grants completely dynamic discretion to the
-> backend.  But since any "put" might fail, there must always be a real
-> slot on a real swap device to swap the page.  Thus frontswap must be
-> implemented as a "shadow" to every swapon'd device with the potential
-> capability of holding every page that the swap device might have held
-> and the possibility that it might hold no pages at all.
-> On the downside, this also means that frontswap cannot contain more
-> pages than the total of swapon'd swap devices.  For example, if NO
-> swap device is configured on some installation, frontswap is useless.
-> 
-> Further, frontswap is entirely synchronous whereas a real swap
-> device is, by definition, asynchronous and uses block I/O.  The
-> block I/O layer is not only unnecessary, but may perform "optimizations"
-> that are inappropriate for a RAM-oriented device including delaying
-> the write of some pages for a significant amount of time.
-> Synchrony is required to ensure the dynamicity of the backend.
-> 
-> In a virtualized environment, the dynamicity allows the hypervisor
-> (or host OS) to do "intelligent overcommit".  For example, it can
-> choose to accept pages only until host-swapping might be imminent,
-> then force guests to do their own swapping.
-> 
-> 5) Why this weird definition about "duplicate puts"?  If a page
->    has been previously successfully put, can't it always be
->    successfully overwritten?
-> 
-> Nearly always it can, but no, sometimes it cannot.  Consider an example
-> where data is compressed and the original 4K page has been compressed
-> to 1K.  Now an attempt is made to overwrite the page with data that
-> is non-compressible and so would take the entire 4K.  But the backend
-> has no more space.  In this case, the put must be rejected.  Whenever
-> frontswap rejects a put that would overwrite, it also must flush
-> the old data and ensure that it is no longer accessible.  Since the
-> swap subsystem then writes the new data to the read swap device,
-> this is the correct course of action to ensure coherency.
-> 
-> 6) What is frontswap_shrink for?
-> 
-> When the (non-frontswap) swap subsystem swaps out a page to a real
-> swap device, that page is only taking up low-value pre-allocated disk
-> space.  But if frontswap has placed a page in transcendent memory, that
-> page may be taking up valuable real estate.  The frontswap_shrink
-> routine allows a process outside of the swap subsystem (such as
-> a userland service via the sysfs interface, or a kernel thread)
-> to force pages out of the memory managed by frontswap and back into
-> kernel-addressable memory.
-> 
-> 7) Why does the frontswap patch create the new include file swapfile.h?
-> 
-> The frontswap code depends on some swap-subsystem-internal data
-> structures that have, over the years, moved back and forth between
-> static and global.  This seemed a reasonable compromise:  Define
-> them as global but declare them in a new include file that isn't
-> included by the large number of source files that include swap.h.
-> 
-> Dan Magenheimer, last updated May 27, 2011
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.c=
-> a/
-> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
-> 
-> 
-> --GvXjxJ+pjyke8COw--
+> This tristate is hard to parse but I mentioned this already.
+
+Yep I'll try to make it 0/1.
+
+> Functionally, I can't see a major problem with the patch. The
+> minor problems are that I'd like to see that tristate replaced for
+> readability, the optimisation better explained or in a separate patch
+> and an explanation why the larger ranges for mmu_notifiers is not
+> a problem.
+
+Thanks for the review, very helpful as usual, I'll try to submit a 3
+patches version with the cleanups you suggested soon enough. Ideally
+I'd like to replace the -1 with the above change that also should
+guard against TASK_SIZE ending less than one pmd away from the end of
+the address space if you like it.
+
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
