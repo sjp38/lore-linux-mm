@@ -1,17 +1,16 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id D86E36B00EE
-	for <linux-mm@kvack.org>; Sat,  6 Aug 2011 10:48:40 -0400 (EDT)
-Date: Sat, 6 Aug 2011 16:48:34 +0200
-From: Andrea Righi <arighi@develer.com>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 5DB996B00EE
+	for <linux-mm@kvack.org>; Sat,  6 Aug 2011 12:47:09 -0400 (EDT)
+Date: Sat, 6 Aug 2011 18:46:56 +0200
+From: Andrea Righi <andrea@betterlinux.com>
 Subject: Re: [PATCH 5/5] writeback: IO-less balance_dirty_pages()
-Message-ID: <20110806144834.GA29243@thinkpad>
+Message-ID: <20110806164656.GA1590@thinkpad>
 References: <20110806084447.388624428@intel.com>
  <20110806094527.136636891@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
 In-Reply-To: <20110806094527.136636891@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
@@ -127,6 +126,87 @@ On Sat, Aug 06, 2011 at 04:44:52PM +0800, Wu Fengguang wrote:
 > - avoid too small pause time (less than   4ms, which burns CPU power)
 > - avoid too large pause time (more than 200ms, which hurts responsiveness)
 > - avoid big fluctuations of pause times
+
+I definitely agree that too small pauses must be avoided. However, I
+don't understand very well from the code how the minimum sleep time is
+regulated.
+
+I've added a simple tracepoint (see below) to monitor the pause times in
+balance_dirty_pages().
+
+Sometimes I see very small pause time if I set a low dirty threshold
+(<=32MB).
+
+Example:
+
+ # echo $((16 * 1024 * 1024)) > /proc/sys/vm/dirty_bytes
+ # iozone -A >/dev/null &
+ # cat /sys/kernel/debug/tracing/trace_pipe
+ ...
+          iozone-2075  [001]   380.604961: writeback_dirty_throttle: 1
+          iozone-2075  [001]   380.605966: writeback_dirty_throttle: 2
+          iozone-2075  [001]   380.608405: writeback_dirty_throttle: 0
+          iozone-2075  [001]   380.608980: writeback_dirty_throttle: 1
+          iozone-2075  [001]   380.609952: writeback_dirty_throttle: 1
+          iozone-2075  [001]   380.610952: writeback_dirty_throttle: 2
+          iozone-2075  [001]   380.612662: writeback_dirty_throttle: 0
+          iozone-2075  [000]   380.613799: writeback_dirty_throttle: 1
+          iozone-2075  [000]   380.614771: writeback_dirty_throttle: 1
+          iozone-2075  [000]   380.615767: writeback_dirty_throttle: 2
+ ...
+
+BTW, I can see this behavior only in the first minute while iozone is
+running. Ater ~1min things seem to get stable (sleeps are usually
+between 50ms and 200ms).
+
+I wonder if we shouldn't add an explicit check also for the minimum
+sleep time.
+
+Thanks,
+-Andrea
+
+Signed-off-by: Andrea Righi <andrea@betterlinux.com>
+---
+ include/trace/events/writeback.h |   12 ++++++++++++
+ mm/page-writeback.c              |    1 +
+ 2 files changed, 13 insertions(+), 0 deletions(-)
+
+diff --git a/include/trace/events/writeback.h b/include/trace/events/writeback.h
+index 9c2cc8a..22b04b9 100644
+--- a/include/trace/events/writeback.h
++++ b/include/trace/events/writeback.h
+@@ -78,6 +78,18 @@ TRACE_EVENT(writeback_pages_written,
+ 	TP_printk("%ld", __entry->pages)
+ );
+ 
++TRACE_EVENT(writeback_dirty_throttle,
++	TP_PROTO(unsigned long sleep),
++	TP_ARGS(sleep),
++	TP_STRUCT__entry(
++		__field(unsigned long, sleep)
++	),
++	TP_fast_assign(
++		__entry->sleep = sleep;
++	),
++	TP_printk("%u", jiffies_to_msecs(__entry->sleep))
++);
++
+ DECLARE_EVENT_CLASS(writeback_class,
+ 	TP_PROTO(struct backing_dev_info *bdi),
+ 	TP_ARGS(bdi),
+diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+index a998931..e5a2664 100644
+--- a/mm/page-writeback.c
++++ b/mm/page-writeback.c
+@@ -889,6 +889,7 @@ static void balance_dirty_pages(struct address_space *mapping,
+ 		pause = min_t(unsigned long, pause, MAX_PAUSE);
+ 
+ pause:
++		trace_writeback_dirty_throttle(pause);
+ 		__set_current_state(TASK_UNINTERRUPTIBLE);
+ 		io_schedule_timeout(pause);
+ 
+
 > 
 > It can control pause times at will. The default policy will be to do
 > ~10ms pauses in 1-dd case, and increase to ~100ms in 1000-dd case.
@@ -152,9 +232,6 @@ On Sat, Aug 06, 2011 at 04:44:52PM +0800, Wu Fengguang wrote:
 > 
 > Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 > ---
-
-Another minor nit below.
-
 >  include/trace/events/writeback.h |   24 ----
 >  mm/page-writeback.c              |  142 +++++++----------------------
 >  2 files changed, 37 insertions(+), 129 deletions(-)
@@ -326,30 +403,91 @@ Another minor nit below.
 > +		bw = (u64)base_bw * bw >> BANDWIDTH_CALC_SHIFT;
 > +		pause = (HZ * pages_dirtied + bw / 2) / (bw | 1);
 > +		pause = min(pause, MAX_PAUSE);
-
-Fix this build warning:
-
- mm/page-writeback.c: In function a??balance_dirty_pagesa??:
- mm/page-writeback.c:889:11: warning: comparison of distinct pointer types lacks a cast
-
-Signed-off-by: Andrea Righi <andrea@betterlinux.com>
----
- mm/page-writeback.c |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
-
-diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index a36f83d..a998931 100644
---- a/mm/page-writeback.c
-+++ b/mm/page-writeback.c
-@@ -886,7 +886,7 @@ static void balance_dirty_pages(struct address_space *mapping,
- 		}
- 		bw = (u64)base_bw * bw >> BANDWIDTH_CALC_SHIFT;
- 		pause = (HZ * pages_dirtied + bw / 2) / (bw | 1);
--		pause = min(pause, MAX_PAUSE);
-+		pause = min_t(unsigned long, pause, MAX_PAUSE);
- 
- pause:
- 		__set_current_state(TASK_UNINTERRUPTIBLE);
+> +
+> +pause:
+>  		__set_current_state(TASK_UNINTERRUPTIBLE);
+>  		io_schedule_timeout(pause);
+> -		trace_balance_dirty_wait(bdi);
+>  
+>  		dirty_thresh = hard_dirty_limit(dirty_thresh);
+>  		/*
+> @@ -960,8 +900,7 @@ static void balance_dirty_pages(struct a
+>  		 * (b) the pause time limit makes the dirtiers more responsive.
+>  		 */
+>  		if (nr_dirty < dirty_thresh +
+> -			       dirty_thresh / DIRTY_MAXPAUSE_AREA &&
+> -		    time_after(jiffies, start_time + MAX_PAUSE))
+> +			       dirty_thresh / DIRTY_MAXPAUSE_AREA)
+>  			break;
+>  		/*
+>  		 * pass-good area. When some bdi gets blocked (eg. NFS server
+> @@ -974,18 +913,9 @@ static void balance_dirty_pages(struct a
+>  			       dirty_thresh / DIRTY_PASSGOOD_AREA &&
+>  		    bdi_dirty < bdi_thresh)
+>  			break;
+> -
+> -		/*
+> -		 * Increase the delay for each loop, up to our previous
+> -		 * default of taking a 100ms nap.
+> -		 */
+> -		pause <<= 1;
+> -		if (pause > HZ / 10)
+> -			pause = HZ / 10;
+>  	}
+>  
+> -	/* Clear dirty_exceeded flag only when no task can exceed the limit */
+> -	if (clear_dirty_exceeded && bdi->dirty_exceeded)
+> +	if (!dirty_exceeded && bdi->dirty_exceeded)
+>  		bdi->dirty_exceeded = 0;
+>  
+>  	current->nr_dirtied = 0;
+> @@ -1002,8 +932,10 @@ static void balance_dirty_pages(struct a
+>  	 * In normal mode, we start background writeout at the lower
+>  	 * background_thresh, to keep the amount of dirty memory low.
+>  	 */
+> -	if ((laptop_mode && pages_written) ||
+> -	    (!laptop_mode && (nr_reclaimable > background_thresh)))
+> +	if (laptop_mode)
+> +		return;
+> +
+> +	if (nr_reclaimable > background_thresh)
+>  		bdi_start_background_writeback(bdi);
+>  }
+>  
+> --- linux-next.orig/include/trace/events/writeback.h	2011-08-06 11:08:34.000000000 +0800
+> +++ linux-next/include/trace/events/writeback.h	2011-08-06 11:17:29.000000000 +0800
+> @@ -104,30 +104,6 @@ DEFINE_WRITEBACK_EVENT(writeback_bdi_reg
+>  DEFINE_WRITEBACK_EVENT(writeback_bdi_unregister);
+>  DEFINE_WRITEBACK_EVENT(writeback_thread_start);
+>  DEFINE_WRITEBACK_EVENT(writeback_thread_stop);
+> -DEFINE_WRITEBACK_EVENT(balance_dirty_start);
+> -DEFINE_WRITEBACK_EVENT(balance_dirty_wait);
+> -
+> -TRACE_EVENT(balance_dirty_written,
+> -
+> -	TP_PROTO(struct backing_dev_info *bdi, int written),
+> -
+> -	TP_ARGS(bdi, written),
+> -
+> -	TP_STRUCT__entry(
+> -		__array(char,	name, 32)
+> -		__field(int,	written)
+> -	),
+> -
+> -	TP_fast_assign(
+> -		strncpy(__entry->name, dev_name(bdi->dev), 32);
+> -		__entry->written = written;
+> -	),
+> -
+> -	TP_printk("bdi %s written %d",
+> -		  __entry->name,
+> -		  __entry->written
+> -	)
+> -);
+>  
+>  DECLARE_EVENT_CLASS(wbc_class,
+>  	TP_PROTO(struct writeback_control *wbc, struct backing_dev_info *bdi),
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
