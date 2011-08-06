@@ -1,111 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 34DB66B0169
-	for <linux-mm@kvack.org>; Fri,  5 Aug 2011 14:47:54 -0400 (EDT)
-Received: from d01relay01.pok.ibm.com (d01relay01.pok.ibm.com [9.56.227.233])
-	by e8.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p75IYklT004587
-	for <linux-mm@kvack.org>; Fri, 5 Aug 2011 14:34:46 -0400
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p75Ilp03225592
-	for <linux-mm@kvack.org>; Fri, 5 Aug 2011 14:47:52 -0400
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p75Eld86021010
-	for <linux-mm@kvack.org>; Fri, 5 Aug 2011 11:47:39 -0300
-Message-ID: <4E3C3AD4.6000306@linux.vnet.ibm.com>
-Date: Fri, 05 Aug 2011 13:47:48 -0500
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 6409E6B0169
+	for <linux-mm@kvack.org>; Fri,  5 Aug 2011 23:59:55 -0400 (EDT)
+Received: by wyi11 with SMTP id 11so56140wyi.14
+        for <linux-mm@kvack.org>; Fri, 05 Aug 2011 20:59:51 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH V4 0/4] mm: frontswap: overview
-References: <20110527194804.GA27109@ca-server1.us.oracle.com 4E3C1292.9080506@linux.vnet.ibm.com> <94c9f8f7-4ea0-44ce-9938-85e31867b8fe@default>
-In-Reply-To: <94c9f8f7-4ea0-44ce-9938-85e31867b8fe@default>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <2d2a3645-83e4-4701-b49a-92b3cbe57880@default>
+References: <1312427390-20005-1-git-send-email-lliubbo@gmail.com>
+	<1312427390-20005-2-git-send-email-lliubbo@gmail.com>
+	<20110804075730.GF31039@tiehlicka.suse.cz>
+	<20110804090017.GI31039@tiehlicka.suse.cz>
+	<CAA_GA1f8B9uPszGecYd=DiuAOCqo0AXkFca_=5jEGRczGia5ZA@mail.gmail.com>
+	<CAA_GA1cQBZ+3qyJeVgU6UcHax5TCGwNtjEnoWhq9w+LFnM9C7w@mail.gmail.com>
+	<2d2a3645-83e4-4701-b49a-92b3cbe57880@default>
+Date: Sat, 6 Aug 2011 11:59:51 +0800
+Message-ID: <CAA_GA1eN16oo2G3vuYfjF_nL6+tuOO5AZmV0zBQSiT7Fdk5ftQ@mail.gmail.com>
+Subject: Re: [PATCH 2/4] frontswap: using vzalloc instead of vmalloc
+From: Bob Liu <lliubbo@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: linux-mm@kvack.org, ngupta@vflare.org, Brian King <brking@linux.vnet.ibm.com>, Hugh Dickins <hughd@google.com>
+Cc: Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, akpm@linux-foundation.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, cesarb@cesarb.net, emunson@mgebm.net, penberg@kernel.org, namhyung@gmail.com, lucas.demarchi@profusion.mobi, aarcange@redhat.com, tj@kernel.org, vapier@gentoo.org, jkosina@suse.cz, rientjes@google.com
 
-On 08/05/2011 01:26 PM, Dan Magenheimer wrote:
->> From: Seth Jennings [mailto:sjenning@linux.vnet.ibm.com]
->> Sent: Friday, August 05, 2011 9:56 AM
->> To: Dan Magenheimer
->> Cc: linux-mm@kvack.org; ngupta@vflare.org; Brian King
->> Subject: Re: [PATCH V4 0/4] mm: frontswap: overview
+On Sat, Aug 6, 2011 at 2:13 AM, Dan Magenheimer
+<dan.magenheimer@oracle.com> wrote:
+>> From: Bob Liu [mailto:lliubbo@gmail.com]
+>> Subject: Re: [PATCH 2/4] frontswap: using vzalloc instead of vmalloc
 >>
->> Dan,
+>> On Fri, Aug 5, 2011 at 10:45 AM, Dan Magenheimer
+>> <dan.magenheimer@oracle.com> wrote:
+>> >> > I am fairly sure that the failed allocation is handled gracefully
+>> >> > through the remainder of the frontswap code, but will re-audit to
+>> >> > confirm. =C2=A0A warning might be nice though.
+>> >>
+>> >> There is a place i think maybe have problem.
+>> >> function __frontswap_flush_area() in file frontswap.c called
+>> >> memset(sis->frontswap_map, .., ..);
+>> >> But if frontswap_map allocation fail there is a null pointer access ?
+>> >
+>> > Good catch!
+>> >
+>> > I'll fix that when I submit a frontswap update in a few days.
 >>
->> What is the plan for getting this upstream?  Are there some issues or objections that haven't been
->> addressed?
->> --
->> Seth
-> 
-> Hi Seth --
-> 
-> The only significant objection I'm aware of is that there hasn't been
-> a strong demand for frontswap yet, partly due to the fact that most
-> of the interested parties have been communicating offlist.
-> 
-> Can I take this email as an "Acked-by"?  I will be posting V5
-> next week (V4->V5: an allocation-time bug fix by Bob Liu, a
-> handful of syntactic clarifications reported by Konrad Wilk,
-> and rebase to linux-3.1-rc1.)  Soon after, V5 will be in linux-next
-> and I plan to lobby the relevant maintainers to merge frontswap
-> for the linux-3.2 window... and would welcome your public support.
+>> Would you please add current patch to you frontswap update series ?
+>> So I needn't to send a Version 2 separately with only drop the
+>> allocation failed handler.
+>> Thanks.
+>> Regards,
+>> --Bob
+>
+> Hi Bob --
+>
+> I'm not an expert here, so you or others can feel free to correct me if I=
+'ve
+> got this wrong or if I misunderstood you, but I don't think that's the wa=
+y
+> patchsets are supposed to be done, at least until they are merged into Li=
+nus'
+> tree. =C2=A0I think you are asking me to add a fifth patch in the frontsw=
+ap
+> patch series that fixes this bug, rather than incorporate the fix into
+> the next posted version of the frontswap patchset. =C2=A0However, I expec=
+t
+> to post V5 soon with some additional (minor syntactic) changes to the
+> patchset from Konrad Wilk's very thorough review. =C2=A0Then this V5 will
+> replace the current version in linux-next soon thereafter (and hopefully
+> then into linux-3.2.) =C2=A0So I think it would be the correct process fo=
+r me
+> to include your bugfix (with an acknowledgement in the commit log) in
+> that posted V5.
+>
 
-Yes, this is something we want to get upstream.  So consider this 
-an "Acked-by".
+Yes, but current patch "frontswap: using vzalloc instead of vmalloc"
+has the error handler
+which is unneeded.
++               if (!frontswap_map)
++                       goto bad_swap;
 
-There was also a build break in the frontswap v4 patches:
-  CC      mm/swapfile.o
-mm/swapfile.c: In function ?enable_swap_info?:
-mm/swapfile.c:1549:21: error: ?frontswap_map? undeclared (first use in this function)
-mm/swapfile.c:1549:21: note: each undeclared identifier is reported only once for each function it appears in
+If you want to include it into your series you must delete it by
+yourself(or I send an new one) and then add an
+extra patch which fix the frontswap_map null pointer bug into your series t=
+oo.
 
-I patched it with:
+That's what I want. Sorry for the noise :).
 
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 160261c..f358763 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -1546,7 +1546,6 @@ static void enable_swap_info(struct swap_info_struct *p, i
-        else
-                p->prio = --least_priority;
-        p->swap_map = swap_map;
--       p->frontswap_map = frontswap_map;
-        p->flags |= SWP_WRITEOK;
-        nr_swap_pages += p->pages;
-        total_swap_pages += p->pages;
-@@ -2153,6 +2152,7 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, 
-                prio =
-                  (swap_flags & SWAP_FLAG_PRIO_MASK) >> SWAP_FLAG_PRIO_SHIFT;
-        enable_swap_info(p, prio, swap_map);
-+       p->frontswap_map = frontswap_map;
- 
-        printk(KERN_INFO "Adding %uk swap on %s.  "
-                        "Priority:%d extents:%d across:%lluk %s%s%s\n",
-
-Also had a merge conflict in mm/swapfile.c when rebasing to 3.0+
-with this commit:
-
-commit 72788c385604523422592249c19cba0187021e9b
-Author: David Rientjes <rientjes@google.com>
-Date:   Tue May 24 17:11:40 2011 -0700
-
-    oom: replace PF_OOM_ORIGIN with toggling oom_score_adj
-
-git describe 72788c385604523422592249c19cba0187021e9b
-v2.6.39-5681-g72788c3
-
-A rebasing the patches to 3.0+ should fix that though.
-
-Thanks Dan!
-
---
-Seth
-
-> 
+> That said, if you are using frontswap V4 (the version currently in
+> linux-next), the bug fix we've discussed needs to be fixed but is
+> exceedingly unlikely to occur in the real world because it would
+> require the malloc of swap_map to succeed (which is 8 bits per swap page
+> in the swapon'ed swap device) but the malloc of frontswap_map immediately
+> thereafter to fail (which is 1 bit per swap page in the swapon'ed swap
+> device). =C2=A0(And also this is not a problem for the vast majority of
+> kernel developers... it's only possible for frontswap users like you that
+> have enabled zcache or tmem or RAMster via a kernel boot option.)
+>
 > Thanks,
 > Dan
+>
+
+--=20
+Regards,
+--Bob
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
