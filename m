@@ -1,110 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id E9DF06B00EE
-	for <linux-mm@kvack.org>; Sun,  7 Aug 2011 05:50:27 -0400 (EDT)
-Date: Sun, 7 Aug 2011 11:50:19 +0200
-From: Andrea Righi <andrea@betterlinux.com>
-Subject: Re: [PATCH 5/5] writeback: IO-less balance_dirty_pages()
-Message-ID: <20110807095019.GA2026@thinkpad>
-References: <20110806084447.388624428@intel.com>
- <20110806094527.136636891@intel.com>
- <20110806164656.GA1590@thinkpad>
- <20110807071857.GC3287@localhost>
+	by kanga.kvack.org (Postfix) with ESMTP id 52D376B00EE
+	for <linux-mm@kvack.org>; Sun,  7 Aug 2011 10:00:25 -0400 (EDT)
+Received: by pzk6 with SMTP id 6so1178843pzk.36
+        for <linux-mm@kvack.org>; Sun, 07 Aug 2011 07:00:22 -0700 (PDT)
+Date: Sun, 7 Aug 2011 23:00:08 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: Re: [RFC PATCH 2/3] mm: page count lock
+Message-ID: <20110807140008.GA1823@barrios-desktop>
+References: <1312492042-13184-1-git-send-email-walken@google.com>
+ <1312492042-13184-3-git-send-email-walken@google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110807071857.GC3287@localhost>
+In-Reply-To: <1312492042-13184-3-git-send-email-walken@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Michel Lespinasse <walken@google.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Shaohua Li <shaohua.li@intel.com>
 
-On Sun, Aug 07, 2011 at 03:18:57PM +0800, Wu Fengguang wrote:
-> Andrea,
+On Thu, Aug 04, 2011 at 02:07:21PM -0700, Michel Lespinasse wrote:
+> This change introduces a new lock in order to simplify the way
+> __split_huge_page_refcount and put_compound_page interact.
 > 
-> On Sun, Aug 07, 2011 at 12:46:56AM +0800, Andrea Righi wrote:
-> > On Sat, Aug 06, 2011 at 04:44:52PM +0800, Wu Fengguang wrote:
+> The synchronization problem in this code is that when operating on
+> tail pages, put_page() needs to adjust page counts for both the tail
+> and head pages. On the other hand, when splitting compound pages
+> __split_huge_page_refcount() needs to adjust the head page count so that
+> it does not reflect tail page references anymore. When the two race
+> together, they must agree as to the order things happen so that the head
+> page reference count does not end up with an improper value.
 > 
-> > > So here is a pause time oriented approach, which tries to control the
-> > > pause time in each balance_dirty_pages() invocations, by controlling
-> > > the number of pages dirtied before calling balance_dirty_pages(), for
-> > > smooth and efficient dirty throttling:
-> > >
-> > > - avoid useless (eg. zero pause time) balance_dirty_pages() calls
-> > > - avoid too small pause time (less than   4ms, which burns CPU power)
-> > > - avoid too large pause time (more than 200ms, which hurts responsiveness)
-> > > - avoid big fluctuations of pause times
-> > 
-> > I definitely agree that too small pauses must be avoided. However, I
-> > don't understand very well from the code how the minimum sleep time is
-> > regulated.
+> I propose doing this using a new lock on the tail page. Compared to
+> the previous version using the compound lock on the head page,
+> the compound page case of put_page() ends up being much simpler.
 > 
-> Thanks for pointing this out. Yes, the sleep time regulation is not
-> here and I should have mentioned that above. Since this is only the
-> core bits, there will be some followup patches to fix the rough edges.
-> (attached the two relevant patches)
+> The new lock is implemented using the lowest bit of page->_count.
+> Page count accessor functions are modified to handle this transparently.
+> New accessors are added in mm/internal.h to lock/unlock the
+> page count lock while simultaneously accessing the page count value.
+> The number of atomic operations required is thus minimized.
 > 
-> > I've added a simple tracepoint (see below) to monitor the pause times in
-> > balance_dirty_pages().
-> > 
-> > Sometimes I see very small pause time if I set a low dirty threshold
-> > (<=32MB).
+> Note that the current implementation takes advantage of the implicit
+> memory barrier provided by x86 on atomic RMW instructions to provide
+> the expected lock/unlock semantics. Clearly this is not portable
+> accross architectures, and will have to be accomodated for using
+> an explicit memory barrier on architectures that require it.
 > 
-> Yeah, it's definitely possible.
-> 
-> > Example:
-> > 
-> >  # echo $((16 * 1024 * 1024)) > /proc/sys/vm/dirty_bytes
-> >  # iozone -A >/dev/null &
-> >  # cat /sys/kernel/debug/tracing/trace_pipe
-> >  ...
-> >           iozone-2075  [001]   380.604961: writeback_dirty_throttle: 1
-> >           iozone-2075  [001]   380.605966: writeback_dirty_throttle: 2
-> >           iozone-2075  [001]   380.608405: writeback_dirty_throttle: 0
-> >           iozone-2075  [001]   380.608980: writeback_dirty_throttle: 1
-> >           iozone-2075  [001]   380.609952: writeback_dirty_throttle: 1
-> >           iozone-2075  [001]   380.610952: writeback_dirty_throttle: 2
-> >           iozone-2075  [001]   380.612662: writeback_dirty_throttle: 0
-> >           iozone-2075  [000]   380.613799: writeback_dirty_throttle: 1
-> >           iozone-2075  [000]   380.614771: writeback_dirty_throttle: 1
-> >           iozone-2075  [000]   380.615767: writeback_dirty_throttle: 2
-> >  ...
-> > 
-> > BTW, I can see this behavior only in the first minute while iozone is
-> > running. Ater ~1min things seem to get stable (sleeps are usually
-> > between 50ms and 200ms).
-> > 
-> 
-> Yeah, it's roughly in line with this graph, where the red dots are the
-> pause time:
-> 
-> http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/dirty-throttling-v8/512M/xfs-1dd-4k-8p-438M-20:10-3.0.0-next-20110802+-2011-08-06.11:03/balance_dirty_pages-pause.png
-> 
-> Note that the big change of pattern in the middle is due to a
-> deliberate disturb: a dd will be started at 100s _reading_ 1GB data,
-> which effectively livelocked the other dd dirtier task with the CFQ io
-> scheduler. 
-> 
-> > I wonder if we shouldn't add an explicit check also for the minimum
-> > sleep time.
->  
-> With the more complete patchset including the pause time regulation,
-> the pause time distribution should look much better, falling nicely
-> into the range (5ms, 20ms):
-> 
-> http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/dirty-throttling-v8/3G/xfs-1dd-4k-8p-2948M-20:10-3.0.0-rc2-next-20110610+-2011-06-12.21:51/balance_dirty_pages-pause.png
-> 
-> > +TRACE_EVENT(writeback_dirty_throttle,
-> > +       TP_PROTO(unsigned long sleep),
-> > +       TP_ARGS(sleep),
-> 
-> btw, I've just pushed two more tracing patches to the git tree.
-> Hope it helps :)
+> Signed-off-by: Michel Lespinasse <walken@google.com>
 
-Perfect. Thanks for the clarification and the additional patches, I'm
-going to test them right now.
+I didn't take a long time to find out any faults but I see the approach and
+it seems no problem except barrier stuff.
+I agree this patch makes simple thing complicated by THP in put_page.
+It would be very good about readability. :)
 
--Andrea
+But the concern is that put_page on tail page is rare operation but get_page is very
+often one. And you are going to enhance readability as scarificing the performance.
+A shift operation cost would be negligible but at least we need the number.
+
+If it doesn't hurt performance, I absolutely support your patch!.
+Because your patch would reduce many atomic opeartion on head page of put_page
+as well as readbility.
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
