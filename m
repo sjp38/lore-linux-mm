@@ -1,62 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 33AF36B016D
-	for <linux-mm@kvack.org>; Mon,  8 Aug 2011 11:06:22 -0400 (EDT)
-Received: by fxg9 with SMTP id 9so5480109fxg.14
-        for <linux-mm@kvack.org>; Mon, 08 Aug 2011 08:06:20 -0700 (PDT)
-From: Miklos Szeredi <miklos@szeredi.hu>
-Subject: Re: [patch 2/2] fuse: mark pages accessed when written to
-References: <1311626135-14279-1-git-send-email-jweiner@redhat.com>
-	<1311626135-14279-2-git-send-email-jweiner@redhat.com>
-Date: Mon, 08 Aug 2011 17:06:17 +0200
-In-Reply-To: <1311626135-14279-2-git-send-email-jweiner@redhat.com> (Johannes
-	Weiner's message of "Mon, 25 Jul 2011 22:35:35 +0200")
-Message-ID: <8762m8eydy.fsf@tucsk.pomaz.szeredi.hu>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id A2152900137
+	for <linux-mm@kvack.org>; Mon,  8 Aug 2011 11:21:48 -0400 (EDT)
+Received: by mail-vw0-f48.google.com with SMTP id 7so4239026vws.7
+        for <linux-mm@kvack.org>; Mon, 08 Aug 2011 08:21:46 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <CAHQjnOM58AReFuDpcSjHvNP2UZX1ZUeuWyfWCG6Ayxdfj4QE7w@mail.gmail.com>
+References: <CAB-zwWjb+2ExjNDB3OtHmRmgaHMnO-VgEe9VZk_wU=ryrq_AGw@mail.gmail.com>
+	<000301cc4dc4$31b53630$951fa290$%szyprowski@samsung.com>
+	<20110729093555.GA13522@8bytes.org>
+	<001901cc4dd8$4afb4e40$e0f1eac0$%szyprowski@samsung.com>
+	<20110729105422.GB13522@8bytes.org>
+	<004201cc4dfb$47ee4770$d7cad650$%szyprowski@samsung.com>
+	<CAHQjnOM58AReFuDpcSjHvNP2UZX1ZUeuWyfWCG6Ayxdfj4QE7w@mail.gmail.com>
+Date: Mon, 8 Aug 2011 10:21:46 -0500
+Message-ID: <CAB-zwWj-VCWQ6h8wjv7owG7n7p59Ep4qXiQY3LruT64sikuSKg@mail.gmail.com>
+Subject: Re: [RFC] ARM: dma_map|unmap_sg plus iommu
+From: "Ramirez Luna, Omar" <omar.ramirez@ti.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <jweiner@redhat.com>
-Cc: fuse-devel@lists.sourceforge.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: KyongHo Cho <pullip.cho@samsung.com>
+Cc: Marek Szyprowski <m.szyprowski@samsung.com>, Joerg Roedel <joro@8bytes.org>, linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, Kyungmin Park <kyungmin.park@samsung.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Arnd Bergmann <arnd@arndb.de>, Ohad Ben-Cohen <ohad@wizery.com>
 
-Johannes Weiner <jweiner@redhat.com> writes:
+Hi,
 
-> As fuse does not use the page cache library functions when userspace
-> writes to a file, it did not benefit from 'c8236db mm: mark page
-> accessed before we write_end()' that made sure pages are properly
-> marked accessed when written to.
->
-> Signed-off-by: Johannes Weiner <jweiner@redhat.com>
+On Sun, Jul 31, 2011 at 7:57 PM, KyongHo Cho <pullip.cho@samsung.com> wrote:
+> On Fri, Jul 29, 2011 at 11:24 PM, Marek Szyprowski
+...
+>> Right now I have no idea how to handle this better. Perhaps with should be
+>> possible
+>> to specify somehow the target dma_address when doing memory allocation, but I'm
+>> not
+>> really convinced yet if this is really required.
+>>
+> What about using 'dma_handle' argument of alloc_coherent callback of
+> dma_map_ops?
+> Although it is an output argument, I think we can convey a hint or
+> start address to map
+> to the IO memory manager that resides behind dma API.
 
-Thanks, applied.
+I also thought on this one, even dma_map_single receives a void *ptr
+which could be casted into a struct with both physical and virtual
+addresses to be mapped, but IMHO, this starts to add twists into the
+dma map parameters which might create confusion.
 
-Miklos
+> DMA API is so abstract that it cannot cover all requirements by
+> various device drivers;;
 
-> ---
->  fs/fuse/file.c |    3 +++
->  1 files changed, 3 insertions(+), 0 deletions(-)
->
-> diff --git a/fs/fuse/file.c b/fs/fuse/file.c
-> index 5c48126..471067e 100644
-> --- a/fs/fuse/file.c
-> +++ b/fs/fuse/file.c
-> @@ -14,6 +14,7 @@
->  #include <linux/sched.h>
->  #include <linux/module.h>
->  #include <linux/compat.h>
-> +#include <linux/swap.h>
->  
->  static const struct file_operations fuse_direct_io_file_operations;
->  
-> @@ -828,6 +829,8 @@ static ssize_t fuse_fill_write_pages(struct fuse_req *req,
->  		pagefault_enable();
->  		flush_dcache_page(page);
->  
-> +		mark_page_accessed(page);
-> +
->  		if (!tmp) {
->  			unlock_page(page);
->  			page_cache_release(page);
+Agree.
+
+Regards,
+
+Omar
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
