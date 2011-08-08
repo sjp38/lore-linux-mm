@@ -1,50 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C6136B0169
-	for <linux-mm@kvack.org>; Mon,  8 Aug 2011 16:04:54 -0400 (EDT)
-Received: from wpaz17.hot.corp.google.com (wpaz17.hot.corp.google.com [172.24.198.81])
-	by smtp-out.google.com with ESMTP id p78K4mVV010157
-	for <linux-mm@kvack.org>; Mon, 8 Aug 2011 13:04:48 -0700
-Received: from pzk4 (pzk4.prod.google.com [10.243.19.132])
-	by wpaz17.hot.corp.google.com with ESMTP id p78K4X9e030955
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 8 Aug 2011 13:04:46 -0700
-Received: by pzk4 with SMTP id 4so3061133pzk.0
-        for <linux-mm@kvack.org>; Mon, 08 Aug 2011 13:04:44 -0700 (PDT)
-Date: Mon, 8 Aug 2011 13:04:42 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [GIT PULL] Lockless SLUB slowpaths for v3.1-rc1
-In-Reply-To: <alpine.DEB.2.00.1108030908100.24201@router.home>
-Message-ID: <alpine.DEB.2.00.1108081303220.7792@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1107290145080.3279@tiger> <alpine.DEB.2.00.1107291002570.16178@router.home> <alpine.DEB.2.00.1107311136150.12538@chino.kir.corp.google.com> <alpine.DEB.2.00.1107311253560.12538@chino.kir.corp.google.com> <1312145146.24862.97.camel@jaguar>
- <alpine.DEB.2.00.1107311426001.944@chino.kir.corp.google.com> <CAOJsxLHB9jPNyU2qztbEHG4AZWjauCLkwUVYr--8PuBBg1=MCA@mail.gmail.com> <alpine.DEB.2.00.1108012101310.6871@chino.kir.corp.google.com> <alpine.DEB.2.00.1108020913180.18965@router.home>
- <alpine.DEB.2.00.1108020915370.1114@chino.kir.corp.google.com> <alpine.DEB.2.00.1108021131250.21126@router.home> <alpine.DEB.2.00.1108020938200.1114@chino.kir.corp.google.com> <alpine.DEB.2.00.1108030908100.24201@router.home>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 43E856B016B
+	for <linux-mm@kvack.org>; Mon,  8 Aug 2011 16:08:00 -0400 (EDT)
+Received: by ewy9 with SMTP id 9so881098ewy.14
+        for <linux-mm@kvack.org>; Mon, 08 Aug 2011 13:07:58 -0700 (PDT)
+From: Per Forlin <per.forlin@linaro.org>
+Subject: [PATCH --mmotm v5 0/3] Make fault injection available for MMC IO
+Date: Mon,  8 Aug 2011 22:07:26 +0200
+Message-Id: <1312834049-29910-1-git-send-email-per.forlin@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, hughd@google.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Akinobu Mita <akinobu.mita@gmail.com>, akpm@linux-foundation.org, Linus Walleij <linus.ml.walleij@gmail.com>, linux-kernel@vger.kernel.org, Randy Dunlap <rdunlap@xenotime.net>, Chris Ball <cjb@laptop.org>
+Cc: linux-doc@vger.kernel.org, linux-mmc@vger.kernel.org, linaro-dev@lists.linaro.org, linux-mm@kvack.org, Per Forlin <per.forlin@linaro.org>
 
-On Wed, 3 Aug 2011, Christoph Lameter wrote:
+This patchset is sent to the mm-tree because it depends on Akinobu's patch
+"fault-injection: add ability to export fault_attr in..."
 
-> > The netperf benchmark isn't representative of a heavy slab consuming
-> > workload, I routinely run jobs on these machines that use 20 times the
-> > amount of slab.  From what I saw in the earlier posting of the per-cpu
-> > partial list patch, the min_partial value is set to half of what it was
-> > previously as a per-node partial list.  Since these are 16-core, 4 node
-> > systems, that would mean that after a kmem_cache_shrink() on a cache that
-> > leaves empty slab on the partial lists that we've doubled the memory for
-> > slub's partial lists systemwide.
-> 
-> Cutting down the potential number of empty slabs that we might possible
-> keep around because we have no partial slabs per node increases memory
-> usage?
-> 
+change log:
+ v2 - Resolve build issue in mmc core.c due to multiple init_module by
+      removing the fault inject module.
+    - Export fault injection functions to make them available for modules
+    - Update fault injection documentation on MMC IO  
+ v3 - add function descriptions in core.c
+    - use export GPL for fault injection functions
+ v4 - make the fault_attr per host. This prepares for upcoming patch from
+      Akinobu that adds support for creating debugfs entries in
+      arbitrary directory.
+ v5 - Make use of fault_create_debugfs_attr() in Akinobu's
+      patch "fault-injection: add ability to export fault_attr in...". 
 
-You halved the number of min_partial, but there are 16 partial lists on 
-these machines because they are per-cpu instead of 4 partial lists when 
-they were per-node.
+Per Forlin (3):
+  fault-inject: export fault injection functions
+  mmc: core: add random fault injection
+  fault injection: add documentation on MMC IO fault injection
+
+ Documentation/fault-injection/fault-injection.txt |    5 ++
+ drivers/mmc/core/core.c                           |   44 +++++++++++++++++++++
+ drivers/mmc/core/debugfs.c                        |   24 +++++++++++
+ include/linux/mmc/host.h                          |    7 +++
+ lib/Kconfig.debug                                 |   11 +++++
+ lib/fault-inject.c                                |    2 +
+ 6 files changed, 93 insertions(+), 0 deletions(-)
+
+-- 
+1.7.4.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
