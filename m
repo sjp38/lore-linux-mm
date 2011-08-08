@@ -1,56 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 895B56B016C
-	for <linux-mm@kvack.org>; Mon,  8 Aug 2011 07:07:06 -0400 (EDT)
-Subject: [PATCH 2/2] vmscan: activate executable pages after first usage
-From: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Date: Mon, 8 Aug 2011 15:07:00 +0400
-Message-ID: <20110808110659.31053.92935.stgit@localhost6>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 36C1A6B0169
+	for <linux-mm@kvack.org>; Mon,  8 Aug 2011 07:37:05 -0400 (EDT)
+Received: by vwm42 with SMTP id 42so3244562vwm.14
+        for <linux-mm@kvack.org>; Mon, 08 Aug 2011 04:37:02 -0700 (PDT)
+MIME-Version: 1.0
 In-Reply-To: <20110808110658.31053.55013.stgit@localhost6>
 References: <20110808110658.31053.55013.stgit@localhost6>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Date: Mon, 8 Aug 2011 14:37:02 +0300
+Message-ID: <CAOJsxLF909NRC2r6RL+hm1ARve+3mA6UM_CY9epJaauyqJTG8w@mail.gmail.com>
+Subject: Re: [PATCH 1/2] vmscan: promote shared file mapped pages
+From: Pekka Enberg <penberg@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
-Cc: Wu Fengguang <fengguang.wu@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Wu Fengguang <fengguang.wu@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-Logic added in commit v2.6.30-5507-g8cab475
-(vmscan: make mapped executable pages the first class citizen)
-was noticeably weakened in commit v2.6.33-5448-g6457474
-(vmscan: detect mapped file pages used only once)
+Hi Konstantin,
 
-Currently these pages can become "first class citizens" only after second usage.
+On Mon, Aug 8, 2011 at 2:06 PM, Konstantin Khlebnikov
+<khlebnikov@openvz.org> wrote:
+> Commit v2.6.33-5448-g6457474 (vmscan: detect mapped file pages used only once)
+> greatly decreases lifetime of single-used mapped file pages.
+> Unfortunately it also decreases life time of all shared mapped file pages.
+> Because after commit v2.6.28-6130-gbf3f3bc (mm: don't mark_page_accessed in fault path)
+> page-fault handler does not mark page active or even referenced.
+>
+> Thus page_check_references() activates file page only if it was used twice while
+> it stays in inactive list, meanwhile it activates anon pages after first access.
+> Inactive list can be small enough, this way reclaimer can accidentally
+> throw away any widely used page if it wasn't used twice in short period.
+>
+> After this patch page_check_references() also activate file mapped page at first
+> inactive list scan if this page is already used multiple times via several ptes.
+>
+> Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
 
-After this patch page_check_references() will activate they after first usage,
-and executable code gets yet better chance to stay in memory.
+Both patches seem reasonable but the changelogs don't really explain
+why you're doing the changes. How did you find out about the problem?
+Is there some workload that's affected? How did you test your changes?
 
-TODO:
-run some cool tests like in v2.6.30-5507-g8cab475 =)
-
-Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
----
- mm/vmscan.c |    6 ++++++
- 1 files changed, 6 insertions(+), 0 deletions(-)
-
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 3cd766d..29b3612 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -727,6 +727,12 @@ static enum page_references page_check_references(struct page *page,
- 		if (referenced_page || referenced_ptes > 1)
- 			return PAGEREF_ACTIVATE;
- 
-+		/*
-+		 * Activate file-backed executable pages after first usage.
-+		 */
-+		if (vm_flags & VM_EXEC)
-+			return PAGEREF_ACTIVATE;
-+
- 		return PAGEREF_KEEP;
- 	}
- 
+                       Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
