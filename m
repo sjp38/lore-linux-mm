@@ -1,150 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 4DEA1900137
-	for <linux-mm@kvack.org>; Mon,  8 Aug 2011 04:25:49 -0400 (EDT)
-Date: Mon, 8 Aug 2011 10:25:41 +0200
-From: Johannes Weiner <jweiner@redhat.com>
-Subject: Re: [PATCH 3 of 3] thp: mremap support and TLB optimization
-Message-ID: <20110808082541.GC27011@redhat.com>
-References: <patchbomb.1312649882@localhost>
- <10a29e95223e52e49a61.1312649885@localhost>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 0A7AC6B0169
+	for <linux-mm@kvack.org>; Mon,  8 Aug 2011 07:02:18 -0400 (EDT)
+Subject: [PATCH v2] vmscan: reverse lru scanning order
+From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Date: Mon, 8 Aug 2011 15:02:07 +0400
+Message-ID: <20110808110207.30777.30800.stgit@localhost6>
+In-Reply-To: <20110727111002.9985.94938.stgit@localhost6>
+References: <20110727111002.9985.94938.stgit@localhost6>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <10a29e95223e52e49a61.1312649885@localhost>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: aarcange@redhat.com
-Cc: linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Sat, Aug 06, 2011 at 06:58:05PM +0200, aarcange@redhat.com wrote:
-> From: Andrea Arcangeli <aarcange@redhat.com>
-> 
-> This adds THP support to mremap (decreases the number of split_huge_page
-> called).
-> 
-> Here are also some benchmarks with a proggy like this:
-> 
-> ===
-> #define _GNU_SOURCE
-> #include <sys/mman.h>
-> #include <stdlib.h>
-> #include <stdio.h>
-> #include <string.h>
-> #include <sys/time.h>
-> 
-> #define SIZE (5UL*1024*1024*1024)
-> 
-> int main()
-> {
->         static struct timeval oldstamp, newstamp;
-> 	long diffsec;
-> 	char *p, *p2, *p3, *p4;
-> 	if (posix_memalign((void **)&p, 2*1024*1024, SIZE))
-> 		perror("memalign"), exit(1);
-> 	if (posix_memalign((void **)&p2, 2*1024*1024, SIZE))
-> 		perror("memalign"), exit(1);
-> 	if (posix_memalign((void **)&p3, 2*1024*1024, 4096))
-> 		perror("memalign"), exit(1);
-> 
-> 	memset(p, 0xff, SIZE);
-> 	memset(p2, 0xff, SIZE);
-> 	memset(p3, 0x77, 4096);
-> 	gettimeofday(&oldstamp, NULL);
-> 	p4 = mremap(p, SIZE, SIZE, MREMAP_FIXED|MREMAP_MAYMOVE, p3);
-> 	gettimeofday(&newstamp, NULL);
-> 	diffsec = newstamp.tv_sec - oldstamp.tv_sec;
-> 	diffsec = newstamp.tv_usec - oldstamp.tv_usec + 1000000 * diffsec;
-> 	printf("usec %ld\n", diffsec);
-> 	if (p == MAP_FAILED || p4 != p3)
-> 	//if (p == MAP_FAILED)
-> 		perror("mremap"), exit(1);
-> 	if (memcmp(p4, p2, SIZE))
-> 		printf("mremap bug\n"), exit(1);
-> 	printf("ok\n");
-> 
-> 	return 0;
-> }
-> ===
-> 
-> THP on
-> 
->  Performance counter stats for './largepage13' (3 runs):
-> 
->           69195836 dTLB-loads                 ( +-   3.546% )  (scaled from 50.30%)
->              60708 dTLB-load-misses           ( +-  11.776% )  (scaled from 52.62%)
->          676266476 dTLB-stores                ( +-   5.654% )  (scaled from 69.54%)
->              29856 dTLB-store-misses          ( +-   4.081% )  (scaled from 89.22%)
->         1055848782 iTLB-loads                 ( +-   4.526% )  (scaled from 80.18%)
->               8689 iTLB-load-misses           ( +-   2.987% )  (scaled from 58.20%)
-> 
->         7.314454164  seconds time elapsed   ( +-   0.023% )
-> 
-> THP off
-> 
->  Performance counter stats for './largepage13' (3 runs):
-> 
->         1967379311 dTLB-loads                 ( +-   0.506% )  (scaled from 60.59%)
->            9238687 dTLB-load-misses           ( +-  22.547% )  (scaled from 61.87%)
->         2014239444 dTLB-stores                ( +-   0.692% )  (scaled from 60.40%)
->            3312335 dTLB-store-misses          ( +-   7.304% )  (scaled from 67.60%)
->         6764372065 iTLB-loads                 ( +-   0.925% )  (scaled from 79.00%)
->               8202 iTLB-load-misses           ( +-   0.475% )  (scaled from 70.55%)
-> 
->         9.693655243  seconds time elapsed   ( +-   0.069% )
-> 
-> grep thp /proc/vmstat
-> thp_fault_alloc 35849
-> thp_fault_fallback 0
-> thp_collapse_alloc 3
-> thp_collapse_alloc_failed 0
-> thp_split 0
-> 
-> thp_split 0 confirms no thp split despite plenty of hugepages allocated.
-> 
-> The measurement of only the mremap time (so excluding the 3 long
-> memset and final long 10GB memory accessing memcmp):
-> 
-> THP on
-> 
-> usec 14824
-> usec 14862
-> usec 14859
-> 
-> THP off
-> 
-> usec 256416
-> usec 255981
-> usec 255847
-> 
-> With an older kernel without the mremap optimizations (the below patch
-> optimizes the non THP version too).
-> 
-> THP on
-> 
-> usec 392107
-> usec 390237
-> usec 404124
-> 
-> THP off
-> 
-> usec 444294
-> usec 445237
-> usec 445820
-> 
-> I guess with a threaded program that sends more IPI on large SMP it'd
-> create an even larger difference.
-> 
-> All debug options are off except DEBUG_VM to avoid skewing the
-> results.
-> 
-> The only problem for native 2M mremap like it happens above both the
-> source and destination address must be 2M aligned or the hugepmd can't
-> be moved without a split but that is an hardware limitation.
-> 
-> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+LRU scanning order was accidentially changed in commit v2.6.27-5584-gb69408e:
+"vmscan: Use an indexed array for LRU variables".
+Before that commit reclaimer always scan active lists first.
 
-Acked-by: Johannes Weiner <jweiner@redhat.com>
+This patch just reverse it back.
+
+Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
+---
+ include/linux/mmzone.h |    3 ++-
+ 1 files changed, 2 insertions(+), 1 deletions(-)
+
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index be1ac8d..0094389 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -141,7 +141,8 @@ enum lru_list {
+ 
+ #define for_each_lru(l) for (l = 0; l < NR_LRU_LISTS; l++)
+ 
+-#define for_each_evictable_lru(l) for (l = 0; l <= LRU_ACTIVE_FILE; l++)
++#define for_each_evictable_lru(l) \
++	for (l = LRU_ACTIVE_FILE; (int)l >= LRU_INACTIVE_ANON; l--)
+ 
+ static inline int is_file_lru(enum lru_list l)
+ {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
