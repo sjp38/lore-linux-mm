@@ -1,106 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id E10236B0169
-	for <linux-mm@kvack.org>; Mon,  8 Aug 2011 17:30:38 -0400 (EDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 558296B0169
+	for <linux-mm@kvack.org>; Mon,  8 Aug 2011 17:31:21 -0400 (EDT)
 From: Iliyan Malchev <malchev@google.com>
-Subject: [PATCH 1/2] slub: extend slub_debug to handle multiple slabs
-Date: Mon,  8 Aug 2011 14:30:19 -0700
-Message-Id: <1312839019-17987-1-git-send-email-malchev@google.com>
+Subject: [PATCH 2/2] slub: name kmalloc slabs at creation time
+Date: Mon,  8 Aug 2011 14:31:11 -0700
+Message-Id: <1312839071-18064-1-git-send-email-malchev@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Iliyan Malchev <malchev@google.com>
 
-Extend the slub_debug syntax to "slub_debug=<flags>[,<slub>]*", where <slub>
-may contain an asterisk at the end.  For example, the following would poison
-all kmalloc slabs:
+During slub's initialization, most kmalloc slabs are named "kmalloc" at
+creation time, and later, once slub is fully initialized, get renamed to
+kmalloc-<size>.  The trouble is that slab names passed to option slub_debug
+will not get recognized, because they will all be called "kmalloc" at the time
+the command-line option is being processed.
 
-	slub_debug=P,kmalloc*
-
-and the following would apply the default flags to all kmalloc and all block IO
-slabs:
-
-	slub_debug=,bio*,kmalloc*
+This patch reserves a small static array to hold the names of the kmalloc
+slabs, and uses a small helper function __uitoa (unsigned integer to ascii) to
+format names as appropriately.
 
 Signed-off-by: Iliyan Malchev <malchev@google.com>
 ---
- Documentation/vm/slub.txt |   12 +++++++++---
- mm/slub.c                 |   32 +++++++++++++++++++++++++++++---
- 2 files changed, 38 insertions(+), 6 deletions(-)
+ mm/slub.c |   35 +++++++++++++++++++++++++++--------
+ 1 files changed, 27 insertions(+), 8 deletions(-)
 
-diff --git a/Documentation/vm/slub.txt b/Documentation/vm/slub.txt
-index 07375e7..caa5b4a 100644
---- a/Documentation/vm/slub.txt
-+++ b/Documentation/vm/slub.txt
-@@ -31,8 +31,9 @@ Parameters may be given to slub_debug. If none is specified then full
- debugging is enabled. Format:
- 
- slub_debug=<Debug-Options>       Enable options for all slabs
--slub_debug=<Debug-Options>,<slab name>
--				Enable options only for select slabs
-+slub_debug=<Debug-Options>,<slab name1>,<slab name2>,...
-+				Enable options only for select slabs (no spaces
-+				after a comma)
- 
- Possible debug options are
- 	F		Sanity checks on (enables SLAB_DEBUG_FREE. Sorry
-@@ -55,7 +56,12 @@ Trying to find an issue in the dentry cache? Try
- 
- 	slub_debug=,dentry
- 
--to only enable debugging on the dentry cache.
-+to only enable debugging on the dentry cache.  You may use an asterisk at the
-+end of the slab name, in order to cover all slabs with the same prefix.  For
-+example, here's how you can poison the dentry cache as well as all kmalloc
-+slabs:
-+
-+	slub_debug=P,kmalloc-*,dentry
- 
- Red zoning and tracking may realign the slab.  We can just apply sanity checks
- to the dentry cache with
 diff --git a/mm/slub.c b/mm/slub.c
-index eb5a8f9..8e7a282 100644
+index 8e7a282..a4d02cf 100644
 --- a/mm/slub.c
 +++ b/mm/slub.c
-@@ -1275,9 +1275,35 @@ static unsigned long kmem_cache_flags(unsigned long objsize,
- 	/*
- 	 * Enable debugging if selected on the kernel commandline.
- 	 */
--	if (slub_debug && (!slub_debug_slabs ||
--		!strncmp(slub_debug_slabs, name, strlen(slub_debug_slabs))))
--		flags |= slub_debug;
-+
-+	char *end, *n, *glob;
-+	int len = strlen(name);
-+
-+	/* If slub_debug = 0, it folds into the if conditional. */
-+	if (!slub_debug_slabs)
-+		return flags | slub_debug;
-+
-+	n = slub_debug_slabs;
-+	while (*n) {
-+		int cmplen;
-+
-+		end = strchr(n, ',');
-+		if (!end)
-+			end = n + strlen(n);
-+
-+		glob = strnchr(n, end - n, '*');
-+		if (glob)
-+			cmplen = glob - n;
-+		else
-+			cmplen = max(len, end - n);
-+
-+		if (!strncmp(name, n, cmplen)) {
-+			flags |= slub_debug;
-+			break;
-+		}
-+
-+		n = *end ? end + 1 : end;
-+	}
+@@ -3070,6 +3070,11 @@ static struct kmem_cache *kmem_cache;
+ static struct kmem_cache *kmalloc_dma_caches[SLUB_PAGE_SHIFT];
+ #endif
  
- 	return flags;
++#define KMALLOC_NAME_SUFFIX_MAX	8
++#define KMALLOC_NAME_MAX	(strlen("kmalloc-") + KMALLOC_NAME_SUFFIX_MAX)
++#define KMALLOC_CACHE_NAME_LEN	(SLUB_PAGE_SHIFT - KMALLOC_SHIFT_LOW)
++static char kmalloc_cache_names[KMALLOC_CACHE_NAME_LEN * KMALLOC_NAME_MAX];
++
+ static int __init setup_slub_min_order(char *str)
+ {
+ 	get_option(&str, &slub_min_order);
+@@ -3544,6 +3549,19 @@ static void __init kmem_cache_bootstrap_fixup(struct kmem_cache *s)
+ 	}
  }
+ 
++/* Convert a positive integer to its decimal string representation, starting at
++ * the end of the buffer and going backwards, not exceeding maxlen characters.
++ */
++static __init char *__pos_int_to_string(unsigned int value, char* string,
++					int maxindex, int maxlen)
++{
++	int i = maxindex - 1;
++	string[maxindex] = 0;
++	for (; value && i && maxlen; i--, maxlen--, value /= 10)
++		string[i] = '0' + (value % 10);
++	return string + i + 1;
++}
++
+ void __init kmem_cache_init(void)
+ {
+ 	int i;
+@@ -3552,6 +3570,7 @@ void __init kmem_cache_init(void)
+ 	int order;
+ 	struct kmem_cache *temp_kmem_cache_node;
+ 	unsigned long kmalloc_size;
++	char *name_start;
+ 
+ 	kmem_size = offsetof(struct kmem_cache, node) +
+ 				nr_node_ids * sizeof(struct kmem_cache_node *);
+@@ -3652,8 +3671,15 @@ void __init kmem_cache_init(void)
+ 		caches++;
+ 	}
+ 
++	name_start = kmalloc_cache_names;
+ 	for (i = KMALLOC_SHIFT_LOW; i < SLUB_PAGE_SHIFT; i++) {
+-		kmalloc_caches[i] = create_kmalloc_cache("kmalloc", 1 << i, 0);
++		char *name = __pos_int_to_string(1 << i, name_start,
++					KMALLOC_NAME_MAX - 1,
++					KMALLOC_NAME_SUFFIX_MAX);
++		name -= 8;
++		strncpy(name, "kmalloc-", 8);
++		name_start += KMALLOC_NAME_MAX;
++		kmalloc_caches[i] = create_kmalloc_cache(name, 1 << i, 0);
+ 		caches++;
+ 	}
+ 
+@@ -3670,13 +3696,6 @@ void __init kmem_cache_init(void)
+ 		BUG_ON(!kmalloc_caches[2]->name);
+ 	}
+ 
+-	for (i = KMALLOC_SHIFT_LOW; i < SLUB_PAGE_SHIFT; i++) {
+-		char *s = kasprintf(GFP_NOWAIT, "kmalloc-%d", 1 << i);
+-
+-		BUG_ON(!s);
+-		kmalloc_caches[i]->name = s;
+-	}
+-
+ #ifdef CONFIG_SMP
+ 	register_cpu_notifier(&slab_notifier);
+ #endif
 -- 
 1.7.3.1
 
