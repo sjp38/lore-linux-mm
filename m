@@ -1,50 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id D13796B016A
-	for <linux-mm@kvack.org>; Mon,  8 Aug 2011 11:05:25 -0400 (EDT)
-Received: by fxg9 with SMTP id 9so5479045fxg.14
-        for <linux-mm@kvack.org>; Mon, 08 Aug 2011 08:05:23 -0700 (PDT)
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 33AF36B016D
+	for <linux-mm@kvack.org>; Mon,  8 Aug 2011 11:06:22 -0400 (EDT)
+Received: by fxg9 with SMTP id 9so5480109fxg.14
+        for <linux-mm@kvack.org>; Mon, 08 Aug 2011 08:06:20 -0700 (PDT)
 From: Miklos Szeredi <miklos@szeredi.hu>
-Subject: Re: [patch 1/2] fuse: delete dead .write_begin and .write_end aops
+Subject: Re: [patch 2/2] fuse: mark pages accessed when written to
 References: <1311626135-14279-1-git-send-email-jweiner@redhat.com>
-	<20110725204942.GA12183@infradead.org>
-Date: Mon, 08 Aug 2011 17:05:20 +0200
-In-Reply-To: <20110725204942.GA12183@infradead.org> (Christoph Hellwig's
-	message of "Mon, 25 Jul 2011 16:49:42 -0400")
-Message-ID: <87aabkeyfj.fsf@tucsk.pomaz.szeredi.hu>
+	<1311626135-14279-2-git-send-email-jweiner@redhat.com>
+Date: Mon, 08 Aug 2011 17:06:17 +0200
+In-Reply-To: <1311626135-14279-2-git-send-email-jweiner@redhat.com> (Johannes
+	Weiner's message of "Mon, 25 Jul 2011 22:35:35 +0200")
+Message-ID: <8762m8eydy.fsf@tucsk.pomaz.szeredi.hu>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Johannes Weiner <jweiner@redhat.com>, fuse-devel@lists.sourceforge.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Johannes Weiner <jweiner@redhat.com>
+Cc: fuse-devel@lists.sourceforge.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Christoph Hellwig <hch@infradead.org> writes:
+Johannes Weiner <jweiner@redhat.com> writes:
 
-> On Mon, Jul 25, 2011 at 10:35:34PM +0200, Johannes Weiner wrote:
->> Ever since 'ea9b990 fuse: implement perform_write', the .write_begin
->> and .write_end aops have been dead code.
->> 
->> Their task - acquiring a page from the page cache, sending out a write
->> request and releasing the page again - is now done batch-wise to
->> maximize the number of pages send per userspace request.
+> As fuse does not use the page cache library functions when userspace
+> writes to a file, it did not benefit from 'c8236db mm: mark page
+> accessed before we write_end()' that made sure pages are properly
+> marked accessed when written to.
 >
-> The loop code still calls them uncondtionally.  This actually is a big
-> as write_begin and write_end require filesystems specific locking,
-> and might require code in the filesystem to e.g. update the ctime
-> properly.  I'll let Miklos chime in if leaving them in was intentional,
-> and if it was a comment is probably justified.
+> Signed-off-by: Johannes Weiner <jweiner@redhat.com>
 
-Loop checks for ->write_begin() and falls back to ->write if the former
-isn't defined.
+Thanks, applied.
 
-So I think the patch is fine.  I tested loop over fuse, and it still
-works after the patch.
-
-Added to for-next.
-
-Thanks,
 Miklos
+
+> ---
+>  fs/fuse/file.c |    3 +++
+>  1 files changed, 3 insertions(+), 0 deletions(-)
+>
+> diff --git a/fs/fuse/file.c b/fs/fuse/file.c
+> index 5c48126..471067e 100644
+> --- a/fs/fuse/file.c
+> +++ b/fs/fuse/file.c
+> @@ -14,6 +14,7 @@
+>  #include <linux/sched.h>
+>  #include <linux/module.h>
+>  #include <linux/compat.h>
+> +#include <linux/swap.h>
+>  
+>  static const struct file_operations fuse_direct_io_file_operations;
+>  
+> @@ -828,6 +829,8 @@ static ssize_t fuse_fill_write_pages(struct fuse_req *req,
+>  		pagefault_enable();
+>  		flush_dcache_page(page);
+>  
+> +		mark_page_accessed(page);
+> +
+>  		if (!tmp) {
+>  			unlock_page(page);
+>  			page_cache_release(page);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
