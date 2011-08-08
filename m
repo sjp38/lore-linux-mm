@@ -1,46 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 0A7AC6B0169
-	for <linux-mm@kvack.org>; Mon,  8 Aug 2011 07:02:18 -0400 (EDT)
-Subject: [PATCH v2] vmscan: reverse lru scanning order
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id E0DAD6B0169
+	for <linux-mm@kvack.org>; Mon,  8 Aug 2011 07:07:05 -0400 (EDT)
+Subject: [PATCH 1/2] vmscan: promote shared file mapped pages
 From: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Date: Mon, 8 Aug 2011 15:02:07 +0400
-Message-ID: <20110808110207.30777.30800.stgit@localhost6>
-In-Reply-To: <20110727111002.9985.94938.stgit@localhost6>
-References: <20110727111002.9985.94938.stgit@localhost6>
+Date: Mon, 8 Aug 2011 15:06:58 +0400
+Message-ID: <20110808110658.31053.55013.stgit@localhost6>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
+Cc: Wu Fengguang <fengguang.wu@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-LRU scanning order was accidentially changed in commit v2.6.27-5584-gb69408e:
-"vmscan: Use an indexed array for LRU variables".
-Before that commit reclaimer always scan active lists first.
+Commit v2.6.33-5448-g6457474 (vmscan: detect mapped file pages used only once)
+greatly decreases lifetime of single-used mapped file pages.
+Unfortunately it also decreases life time of all shared mapped file pages.
+Because after commit v2.6.28-6130-gbf3f3bc (mm: don't mark_page_accessed in fault path)
+page-fault handler does not mark page active or even referenced.
 
-This patch just reverse it back.
+Thus page_check_references() activates file page only if it was used twice while
+it stays in inactive list, meanwhile it activates anon pages after first access.
+Inactive list can be small enough, this way reclaimer can accidentally
+throw away any widely used page if it wasn't used twice in short period.
+
+After this patch page_check_references() also activate file mapped page at first
+inactive list scan if this page is already used multiple times via several ptes.
 
 Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
 ---
- include/linux/mmzone.h |    3 ++-
- 1 files changed, 2 insertions(+), 1 deletions(-)
+ mm/vmscan.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index be1ac8d..0094389 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -141,7 +141,8 @@ enum lru_list {
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 47403c9..3cd766d 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -724,7 +724,7 @@ static enum page_references page_check_references(struct page *page,
+ 		 */
+ 		SetPageReferenced(page);
  
- #define for_each_lru(l) for (l = 0; l < NR_LRU_LISTS; l++)
+-		if (referenced_page)
++		if (referenced_page || referenced_ptes > 1)
+ 			return PAGEREF_ACTIVATE;
  
--#define for_each_evictable_lru(l) for (l = 0; l <= LRU_ACTIVE_FILE; l++)
-+#define for_each_evictable_lru(l) \
-+	for (l = LRU_ACTIVE_FILE; (int)l >= LRU_INACTIVE_ANON; l--)
- 
- static inline int is_file_lru(enum lru_list l)
- {
+ 		return PAGEREF_KEEP;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
