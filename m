@@ -1,147 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id A875C6B0169
-	for <linux-mm@kvack.org>; Tue,  9 Aug 2011 06:12:13 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id F37D13EE081
-	for <linux-mm@kvack.org>; Tue,  9 Aug 2011 19:12:10 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id DA0AB45DF49
-	for <linux-mm@kvack.org>; Tue,  9 Aug 2011 19:12:10 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id B859A45DF41
-	for <linux-mm@kvack.org>; Tue,  9 Aug 2011 19:12:10 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 8225D1DB8040
-	for <linux-mm@kvack.org>; Tue,  9 Aug 2011 19:12:10 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 32A131DB802F
-	for <linux-mm@kvack.org>; Tue,  9 Aug 2011 19:12:10 +0900 (JST)
-Date: Tue, 9 Aug 2011 19:04:50 +0900
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 89D8E6B0169
+	for <linux-mm@kvack.org>; Tue,  9 Aug 2011 06:14:48 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 99E233EE0BC
+	for <linux-mm@kvack.org>; Tue,  9 Aug 2011 19:14:44 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 80A1245DE7E
+	for <linux-mm@kvack.org>; Tue,  9 Aug 2011 19:14:44 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 66C6345DE61
+	for <linux-mm@kvack.org>; Tue,  9 Aug 2011 19:14:44 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5A5581DB802C
+	for <linux-mm@kvack.org>; Tue,  9 Aug 2011 19:14:44 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 21A391DB803A
+	for <linux-mm@kvack.org>; Tue,  9 Aug 2011 19:14:44 +0900 (JST)
+Date: Tue, 9 Aug 2011 19:07:25 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH v5 0/6]  memg: better numa scanning
-Message-Id: <20110809190450.16d7f845.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH RFC] memcg: fix drain_all_stock crash
+Message-Id: <20110809190725.96309c88.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110809100944.GE7463@tiehlicka.suse.cz>
+References: <cover.1311338634.git.mhocko@suse.cz>
+	<a9244082ba28c4c2e4a6997311d5493bdaa117e9.1311338634.git.mhocko@suse.cz>
+	<20110808184738.GA7749@redhat.com>
+	<20110808214704.GA4396@tiehlicka.suse.cz>
+	<20110808231912.GA29002@redhat.com>
+	<20110809072615.GA7463@tiehlicka.suse.cz>
+	<20110809093150.GC7463@tiehlicka.suse.cz>
+	<20110809183216.97daf2b0.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110809094503.GD7463@tiehlicka.suse.cz>
+	<20110809185313.dc784d70.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110809100944.GE7463@tiehlicka.suse.cz>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Johannes Weiner <jweiner@redhat.com>, linux-mm@kvack.org, Balbir Singh <bsingharora@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
 
+On Tue, 9 Aug 2011 12:09:44 +0200
+Michal Hocko <mhocko@suse.cz> wrote:
 
-No major update since the last version I posted 27/Jul.
-The patch is rebased onto mmotm-Aug3.
+> On Tue 09-08-11 18:53:13, KAMEZAWA Hiroyuki wrote:
+> > On Tue, 9 Aug 2011 11:45:03 +0200
+> > Michal Hocko <mhocko@suse.cz> wrote:
+> > 
+> > > On Tue 09-08-11 18:32:16, KAMEZAWA Hiroyuki wrote:
+> > > > On Tue, 9 Aug 2011 11:31:50 +0200
+> > > > Michal Hocko <mhocko@suse.cz> wrote:
+> > > > 
+> > > > > What do you think about the half backed patch bellow? I didn't manage to
+> > > > > test it yet but I guess it should help. I hate asymmetry of drain_lock
+> > > > > locking (it is acquired somewhere else than it is released which is
+> > > > > not). I will think about a nicer way how to do it.
+> > > > > Maybe I should also split the rcu part in a separate patch.
+> > > > > 
+> > > > > What do you think?
+> > > > 
+> > > > 
+> > > > I'd like to revert 8521fc50 first and consider total design change
+> > > > rather than ad-hoc fix.
+> > > 
+> > > Agreed. Revert should go into 3.0 stable as well. Although the global
+> > > mutex is buggy we have that behavior for a long time without any reports.
+> > > We should address it but it can wait for 3.2.
+> 
+> I will send the revert request to Linus.
+> 
+> > What "buggy" means here ? "problematic" or "cause OOps ?"
+> 
+> I have described that in an earlier email. Consider pathological case
+> when CPU0 wants to async. drain a memcg which has a lot of cached charges while
+> CPU1 is already draining so it holds the mutex. CPU0 backs off so it has
+> to reclaim although we could prevent from it by getting rid of cached
+> charges. This is not critical though.
+> 
 
-This patch set implements a victim node selection logic and some
-behavior fix in vmscan.c for memcg.
-The logic calculates 'weight' for each nodes and a victim node
-will be selected by comparing 'weight' in fair style.
-The core is how to calculate 'weight' and this patch implements
-a logic, which make use of recent lotation logic and the amount
-of file caches and inactive anon pages.
-
-I'll be absent in 12/Aug - 17/Aug.
-I'm sorry if my response is delayed.
-
-In this time, I did 'kernel make' test ...as
-==
-#!/bin/bash -x
-
-cgset -r memory.limit_in_bytes=500M A
-
-make -j 4 clean
-sync
-sync
-sync
-echo 3 > /proc/sys/vm/drop_caches
-sleep 1
-echo 0 > /cgroup/memory/A/memory.vmscan_stat
-cgexec -g memory:A -g cpuset:A time make -j 8
-==
-
-On 8cpu, 4-node fake-numa box.
-(each node has 2cpus.)
-
-Under the limit of 500M, 'make' need to scan memory to reclaim.
-This tests see how vmscan works.
-
-When cpuset.memory_spread_page==0.
-
-[Before patch]
-773.07user 305.45system 4:09.64elapsed 432%CPU (0avgtext+0avgdata 1456576maxresident)k
-4397944inputs+5093232outputs (9688major+35689066minor)pagefaults 0swaps
-scanned_pages_by_limit 3867645
-scanned_anon_pages_by_limit 1518266
-scanned_file_pages_by_limit 2349379
-rotated_pages_by_limit 1502640
-rotated_anon_pages_by_limit 1416627
-rotated_file_pages_by_limit 86013
-freed_pages_by_limit 1005141
-freed_anon_pages_by_limit 24577
-freed_file_pages_by_limit 980564
-elapsed_ns_by_limit 82833866094
-
-[Patched]
-773.73user 305.09system 3:51.28elapsed 466%CPU (0avgtext+0avgdata 1458464maxresident)k
-4400264inputs+4797056outputs (5578major+35690202minor)pagefaults 0swaps
-
-scanned_pages_by_limit 4326462
-scanned_anon_pages_by_limit 1310619
-scanned_file_pages_by_limit 3015843
-rotated_pages_by_limit 1264223
-rotated_anon_pages_by_limit 1247180
-rotated_file_pages_by_limit 17043
-freed_pages_by_limit 1003434
-freed_anon_pages_by_limit 20599
-freed_file_pages_by_limit 982835
-elapsed_ns_by_limit 42495200307
-
-elapsed time for vmscan and the number of page faults are reduced.
-
-
-When cpuset.memory_spread_page==1, in this case, file cache will be
-spread to the all nodes in round robin.
-==
-[Before Patch + cpuset spread=1]
-773.23user 309.55system 4:26.83elapsed 405%CPU (0avgtext+0avgdata 1457696maxresident)k
-5400928inputs+5105368outputs (17344major+35735886minor)pagefaults 0swaps
-
-scanned_pages_by_limit 3731787
-scanned_anon_pages_by_limit 1374310
-scanned_file_pages_by_limit 2357477
-rotated_pages_by_limit 1403160
-rotated_anon_pages_by_limit 1293568
-rotated_file_pages_by_limit 109592
-freed_pages_by_limit 1120828
-freed_anon_pages_by_limit 20076
-freed_file_pages_by_limit 1100752
-elapsed_ns_by_limit 82458981267
-
-
-[Patched + cpuset spread=1]
-773.56user 306.02system 3:52.28elapsed 464%CPU (0avgtext+0avgdata 1458160maxresident)k
-4173504inputs+4783688outputs (5971major+35666498minor)pagefaults 0swaps
-
-scanned_pages_by_limit 2672392
-scanned_anon_pages_by_limit 1140069
-scanned_file_pages_by_limit 1532323
-rotated_pages_by_limit 1108124
-rotated_anon_pages_by_limit 1088982
-rotated_file_pages_by_limit 19142
-freed_pages_by_limit 975653
-freed_anon_pages_by_limit 12578
-freed_file_pages_by_limit 963075
-elapsed_ns_by_limit 46482588602
-
-elapsed time for vmscan and the number of page faults are reduced.
+That problem should be fixed by background reclaim.
+I'll do it after fixing numascan. (and dirty-ratio problem...)
 
 Thanks,
 -Kame
-
-
-
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
