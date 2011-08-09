@@ -1,64 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 452C66B0169
-	for <linux-mm@kvack.org>; Tue,  9 Aug 2011 13:46:32 -0400 (EDT)
-Date: Tue, 9 Aug 2011 13:46:21 -0400
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 595376B0169
+	for <linux-mm@kvack.org>; Tue,  9 Aug 2011 14:15:56 -0400 (EDT)
+Date: Tue, 9 Aug 2011 14:15:43 -0400
 From: Vivek Goyal <vgoyal@redhat.com>
-Subject: Re: [PATCH 4/5] writeback: per task dirty rate limit
-Message-ID: <20110809174621.GF6482@redhat.com>
+Subject: Re: [PATCH 5/5] writeback: IO-less balance_dirty_pages()
+Message-ID: <20110809181543.GG6482@redhat.com>
 References: <20110806084447.388624428@intel.com>
- <20110806094527.002914580@intel.com>
+ <20110806094527.136636891@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110806094527.002914580@intel.com>
+In-Reply-To: <20110806094527.136636891@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Wu Fengguang <fengguang.wu@intel.com>
 Cc: linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Sat, Aug 06, 2011 at 04:44:51PM +0800, Wu Fengguang wrote:
+On Sat, Aug 06, 2011 at 04:44:52PM +0800, Wu Fengguang wrote:
 
 [..]
->   * balance_dirty_pages() must be called by processes which are generating dirty
->   * data.  It looks at the number of dirty pages in the machine and will force
->   * the caller to perform writeback if the system is over `vm_dirty_ratio'.
-> @@ -1008,6 +1005,9 @@ static void balance_dirty_pages(struct a
->  	if (clear_dirty_exceeded && bdi->dirty_exceeded)
->  		bdi->dirty_exceeded = 0;
->  
-> +	current->nr_dirtied = 0;
-> +	current->nr_dirtied_pause = ratelimit_pages(nr_dirty, dirty_thresh);
+> -		trace_balance_dirty_start(bdi);
+> -		if (bdi_nr_reclaimable > task_bdi_thresh) {
+> -			pages_written += writeback_inodes_wb(&bdi->wb,
+> -							     write_chunk);
+> -			trace_balance_dirty_written(bdi, pages_written);
+> -			if (pages_written >= write_chunk)
+> -				break;		/* We've done our duty */
+> +		if (unlikely(!writeback_in_progress(bdi)))
+> +			bdi_start_background_writeback(bdi);
 > +
->  	if (writeback_in_progress(bdi))
->  		return;
->  
-> @@ -1034,8 +1034,6 @@ void set_page_dirty_balance(struct page 
->  	}
->  }
->  
-> -static DEFINE_PER_CPU(unsigned long, bdp_ratelimits) = 0;
-> -
->  /**
->   * balance_dirty_pages_ratelimited_nr - balance dirty memory state
->   * @mapping: address_space which was dirtied
-> @@ -1055,30 +1053,17 @@ void balance_dirty_pages_ratelimited_nr(
->  {
->  	struct backing_dev_info *bdi = mapping->backing_dev_info;
->  	unsigned long ratelimit;
-> -	unsigned long *p;
->  
->  	if (!bdi_cap_account_dirty(bdi))
->  		return;
->  
-> -	ratelimit = ratelimit_pages;
-> -	if (mapping->backing_dev_info->dirty_exceeded)
-> +	ratelimit = current->nr_dirtied_pause;
-> +	if (bdi->dirty_exceeded)
->  		ratelimit = 8;
+> +		base_bw = bdi->dirty_ratelimit;
+> +		bw = bdi_position_ratio(bdi, dirty_thresh, nr_dirty,
+> +					bdi_thresh, bdi_dirty);
 
-Should we make sure that ratelimit is more than 8? It could be that
-ratelimit is 1 and we set it higher (just reverse of what we wanted?)
+For the sake of consistency of usage of varibale naming how about using
+
+pos_ratio = bdi_position_ratio()?
+
+> +		if (unlikely(bw == 0)) {
+> +			pause = MAX_PAUSE;
+> +			goto pause;
+>  		}
+> +		bw = (u64)base_bw * bw >> BANDWIDTH_CALC_SHIFT;
+
+So far bw had pos_ratio as value now it will be replaced with actual
+bandwidth as value. It makes code confusing. So using pos_ratio will
+help.
+
+		bw = (u64)base_bw * pos_ratio >> BANDWIDTH_CALC_SHIFT;
 
 Thanks
 Vivek
