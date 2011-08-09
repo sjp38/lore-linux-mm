@@ -1,47 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 0AC286B0170
-	for <linux-mm@kvack.org>; Tue,  9 Aug 2011 05:48:16 -0400 (EDT)
-Received: by mail-ey0-f175.google.com with SMTP id 6so4221758eyh.20
-        for <linux-mm@kvack.org>; Tue, 09 Aug 2011 02:48:15 -0700 (PDT)
-From: Per Forlin <per.forlin@linaro.org>
-Subject: [PATCH --mmotm v6 3/3] fault injection: add documentation on MMC IO fault injection
-Date: Tue,  9 Aug 2011 11:47:48 +0200
-Message-Id: <1312883268-4342-4-git-send-email-per.forlin@linaro.org>
-In-Reply-To: <1312883268-4342-1-git-send-email-per.forlin@linaro.org>
-References: <1312883268-4342-1-git-send-email-per.forlin@linaro.org>
+	by kanga.kvack.org (Postfix) with ESMTP id 30C44900137
+	for <linux-mm@kvack.org>; Tue,  9 Aug 2011 05:54:35 -0400 (EDT)
+Received: by wwj26 with SMTP id 26so3109058wwj.2
+        for <linux-mm@kvack.org>; Tue, 09 Aug 2011 02:54:32 -0700 (PDT)
+Subject: Re: [PATCH] slub: fix check_bytes() for slub debugging
+From: Eric Dumazet <eric.dumazet@gmail.com>
+In-Reply-To: <CAOJsxLHKJT_qCsiPVCEh=+nbZ2D7+y=mJgMM+wEob395zEN6XQ@mail.gmail.com>
+References: <1312709438-7608-1-git-send-email-akinobu.mita@gmail.com>
+	 <1312859440.2531.20.camel@edumazet-laptop>
+	 <1312860783.2531.31.camel@edumazet-laptop>
+	 <CAC5umyhLuhNK55WDXTii2SFsqPNau1B9F1z+E0r0CaLNkGZfDg@mail.gmail.com>
+	 <CAOJsxLHKJT_qCsiPVCEh=+nbZ2D7+y=mJgMM+wEob395zEN6XQ@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Tue, 09 Aug 2011 11:54:31 +0200
+Message-ID: <1312883671.2371.17.camel@edumazet-HP-Compaq-6005-Pro-SFF-PC>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Akinobu Mita <akinobu.mita@gmail.com>, akpm@linux-foundation.org, Linus Walleij <linus.ml.walleij@gmail.com>, linux-kernel@vger.kernel.org, Randy Dunlap <rdunlap@xenotime.net>, Chris Ball <cjb@laptop.org>
-Cc: linux-doc@vger.kernel.org, linux-mmc@vger.kernel.org, linaro-dev@lists.linaro.org, linux-mm@kvack.org, Per Forlin <per.forlin@linaro.org>
+To: Pekka Enberg <penberg@kernel.org>
+Cc: Akinobu Mita <akinobu.mita@gmail.com>, linux-kernel@vger.kernel.org, Christoph Lameter <cl@linux-foundation.org>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org
 
-Add description on how to enable random fault injection
-for MMC IO
+Le mardi 09 aoA>>t 2011 A  12:43 +0300, Pekka Enberg a A(C)crit :
 
-Signed-off-by: Per Forlin <per.forlin@linaro.org>
-Acked-by: Akinobu Mita <akinobu.mita@gmail.com>
----
- Documentation/fault-injection/fault-injection.txt |    5 +++++
- 1 files changed, 5 insertions(+), 0 deletions(-)
+> I'm confused. What was wrong with your original patch?
+> 
 
-diff --git a/Documentation/fault-injection/fault-injection.txt b/Documentation/fault-injection/fault-injection.txt
-index 82a5d25..10571df 100644
---- a/Documentation/fault-injection/fault-injection.txt
-+++ b/Documentation/fault-injection/fault-injection.txt
-@@ -21,6 +21,11 @@ o fail_make_request
-   /sys/block/<device>/make-it-fail or
-   /sys/block/<device>/<partition>/make-it-fail. (generic_make_request())
- 
-+o fail_mmc_request
-+
-+  injects MMC data errors on devices permitted by setting
-+  debugfs entries under /sys/kernel/debug/mmc0/fail_mmc_request
-+
- Configure fault-injection capabilities behavior
- -----------------------------------------------
- 
--- 
-1.7.4.1
+Patch is good. Some future improvements will follow.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
