@@ -1,141 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 02B616B0169
-	for <linux-mm@kvack.org>; Tue,  9 Aug 2011 01:55:57 -0400 (EDT)
-Date: Tue, 9 Aug 2011 15:55:51 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH 0/5] IO-less dirty throttling v8
-Message-ID: <20110809055551.GP3162@dastard>
-References: <20110806084447.388624428@intel.com>
- <20110809020127.GA3700@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110809020127.GA3700@redhat.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id BFEF06B0169
+	for <linux-mm@kvack.org>; Tue,  9 Aug 2011 02:52:03 -0400 (EDT)
+Received: from spt2.w1.samsung.com (mailout2.w1.samsung.com [210.118.77.12])
+ by mailout2.w1.samsung.com
+ (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
+ with ESMTP id <0LPN00IX8F2PLX@mailout2.w1.samsung.com> for linux-mm@kvack.org;
+ Tue, 09 Aug 2011 07:52:01 +0100 (BST)
+Received: from linux.samsung.com ([106.116.38.10])
+ by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
+ 2004)) with ESMTPA id <0LPN00BG6F2N5G@spt2.w1.samsung.com> for
+ linux-mm@kvack.org; Tue, 09 Aug 2011 07:52:00 +0100 (BST)
+Date: Tue, 09 Aug 2011 08:51:37 +0200
+From: Marek Szyprowski <m.szyprowski@samsung.com>
+Subject: RE: [RFC] ARM: dma_map|unmap_sg plus iommu
+In-reply-to: 
+ <CAB-zwWhh=ZTvheTebKhz55rr1=WFD8R=+BWZ8mwYiO_25mjpYA@mail.gmail.com>
+Message-id: <01e301cc5660$c93d51f0$5bb7f5d0$%szyprowski@samsung.com>
+MIME-version: 1.0
+Content-type: text/plain; charset=us-ascii
+Content-language: pl
+Content-transfer-encoding: 7BIT
+References: 
+ <CAB-zwWjb+2ExjNDB3OtHmRmgaHMnO-VgEe9VZk_wU=ryrq_AGw@mail.gmail.com>
+ <000301cc4dc4$31b53630$951fa290$%szyprowski@samsung.com>
+ <CAB-zwWhh=ZTvheTebKhz55rr1=WFD8R=+BWZ8mwYiO_25mjpYA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vivek Goyal <vgoyal@redhat.com>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: "'Ramirez Luna, Omar'" <omar.ramirez@ti.com>
+Cc: linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Russell King - ARM Linux' <linux@arm.linux.org.uk>, 'Joerg Roedel' <joro@8bytes.org>, 'Arnd Bergmann' <arnd@arndb.de>, 'Ohad Ben-Cohen' <ohad@wizery.com>, 'Marek Szyprowski' <m.szyprowski@samsung.com>
 
-On Mon, Aug 08, 2011 at 10:01:27PM -0400, Vivek Goyal wrote:
-> On Sat, Aug 06, 2011 at 04:44:47PM +0800, Wu Fengguang wrote:
-> > Hi all,
-> > 
-> > The _core_ bits of the IO-less balance_dirty_pages().
-> > Heavily simplified and re-commented to make it easier to review.
-> > 
-> > 	git://git.kernel.org/pub/scm/linux/kernel/git/wfg/writeback.git dirty-throttling-v8
-> > 
-> > Only the bare minimal algorithms are presented, so you will find some rough
-> > edges in the graphs below. But it's usable :)
-> > 
-> > 	http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/dirty-throttling-v8/
-> > 
-> > And an introduction to the (more complete) algorithms:
-> > 
-> > 	http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/slides/smooth-dirty-throttling.pdf
-> > 
-> > Questions and reviews are highly appreciated!
+Hello,
+
+On Monday, August 08, 2011 5:05 PM Ramirez Luna, Omar wrote:
+
+> On Fri, Jul 29, 2011 at 2:50 AM, Marek Szyprowski
+> <m.szyprowski@samsung.com> wrote:
+> >> 1. There is no way to keep track of what virtual address are being mapped
+> >> in the scatterlist, which we need to propagate to the dsp, in order that it
+> >> knows where does the buffers start and end on its virtual address space.
+> >> I ended up adding an iov_address to scatterlist which if accepted should be
+> >> toggled/affected by the selection of CONFIG_IOMMU_API.
+> >
+> > Sorry, but your patch is completely wrong. You should not add any additional
+> > entries to scatterlist.
 > 
-> Hi Wu,
+> At the time it was the easiest way for me to keep track of both
+> virtual and physical addresses, without doing a page_to_phys every
+> time on unmap. I understand that it might fall out of the scope of the
+> scatterlist struct.
 > 
-> I am going through the slide number 39 where you talk about it being
-> future proof and it can be used for IO control purposes. You have listed
-> following merits of this approach.
+> > dma_addr IS the virtual address in the device's io
+> > address space, so the dma_addr is a value that your device should put into
+> > it's own registers to start dma transfer to provided memory pages.
 > 
-> * per-bdi nature, works on NFS and Software RAID
-> * no delayed response (working at the right layer)
-> * no page tracking, hence decoupled from memcg
-> * no interactions with FS and CFQ
-> * get proportional IO controller for free
-> * reuse/inherit all the base facilities/functions
+> I also wanted to keep the same part as the original arm_dma_map_sg:
 > 
-> I would say that it will also be a good idea to list the demerits of
-> this approach in current form and that is that it only deals with
-> controlling buffered write IO and nothing else.
+> s->dma_address = __dma_map_page...
+> 
+> Where the dma_address was the "clean" (from cache) physical address.
 
-That's not a demerit - that is all it is designed to do.
+Nope, DMA-mapping API defines dma_address as a value that should be written to 
+device registers to start DMA transfer. Physical address of the page should
+never
+be used by the driver directly.
 
-> So on the same block device, other direct writes might be going on
-> from same group and in this scheme a user will not have any
-> control.
+> But if desired, I guess this value can be replaced for the iommu va.
+> 
+> >> 2. tidspbridge driver sometimes needs to map a physical address into a
+> >> fixed virtual address (i.e. the start of a firmware section is expected to
+> >> be at dsp va 0x20000000), there is no straight forward way to do this with
+> >> the dma api given that it only expects to receive a cpu_addr, a sg or a
+> >> page, by adding iov_address I could pass phys and iov addresses in a sg
+> >> and overcome this limitation, but, these addresses belong to:
+> >
+> > We also encountered the problem of fixed firmware address. We addressed is
+by
+> > setting io address space start to this address and letting device driver to
+> > rely on the fact that the first call to dma_alloc() will match this address.
+> 
+> Indeed, however in my case, I need sections at (I might have
+> approximated the numbers to the real ones):
+> 
+> 0x11000000 for dsp shared memory
+> 0x11800000 for peripherals
+> 0x20000000 for dsp external code
+> 0x21000000 for mapped buffers
+> 
+> The end of a section and start of the other usually have a gap, so the
+> exact address needs to be specified by the firmware. So, this won't
+> work with just letting the pool manager to provide the virtual
+> address.
 
-But it is taken into account by the IO write throttling.
+Are all of these regions used by the same single device driver? It looks
+that you might need to create separate struct device entries for each 'memory'
+region and attach them as the children to your main device structure. Each
+such child device can have different iommu/memory configuration and the main
+driver can easily gather them with device_find_child() function. We have such
+solution working very well for our video codec. Please refer to the following
+patches merged to v3.1-rc1:
 
-> Another disadvantage is that throttling at page cache
-> level does not take care of IO spikes at device level.
+1. MFC driver: af935746781088f28904601469671d244d2f653b - 
+	drivers/media/video/s5p-mfc/s5p_mfc.c, function s5p_mfc_probe()
 
-And that is handled as well.
+2. platform device definitions: 0f75a96bc0c4611dea0c7207533f822315120054 
 
-How? By the indirect effect other IO and IO spikes have on the
-writeback rate. That is, other IO reduces the writeback bandwidth,
-which then changes the throttling parameters via feedback loops.
-
-The buffered write throttle is designed to reduce the page cache
-dirtying rate to the current cleaning rate of the backing device
-is. Increase the cleaning rate (i.e. device is otherwise idle) and
-it will throttle less. Decrease the cleaning rate (i.e. other IO
-spikes or block IO throttle activates) and it will throttle more.
-
-We have to do vary buffered write throttling like this to adapt to
-changing IO workloads (e.g.  someone starting a read-heavy workload
-will slow down writeback rate, so we need to throttle buffered
-writes more aggressively), so it has to be independent of any sort
-of block layer IO controller.
-
-Simply put: the block IO controller still has direct control over
-the rate at which buffered writes drain out of the system. The
-IO-less write throttle simply limits the rate at which buffered
-writes come into the system to match whatever the IO path allows to
-drain out....
-
-> Now I think one could probably come up with more sophisticated scheme
-> where throttling is done at bdi level but is also accounted at device
-> level at IO controller. (Something similar I had done in the past but
-> Dave Chinner did not like it).
-
-I don't like it because it is solution to a specific problem and
-requires complex coupling across multiple layers of the system. We
-are trying to move away from that throttling model. More
-fundamentally, though, is that it is not a general solution to the
-entire class of "IO writeback rate changed" problems that buffered
-write throttling needs to solve.
-
-> Anyway, keeping track of per cgroup rate and throttling accordingly
-> can definitely help implement an algorithm for per cgroup IO control.
-> We probably just need to find a reasonable way to account all this
-> IO to end device so that we have control of all kind of IO of a cgroup.
-> How do you implement proportional control here? From overall bdi bandwidth
-> vary per cgroup bandwidth regularly based on cgroup weight? Again the
-> issue here is that it controls only buffered WRITES and nothing else and
-> in this case co-ordinating with CFQ will probably be hard. So I guess
-> usage of proportional IO just for buffered WRITES will have limited
-> usage.
-
-The whole point of doing the throttling this way is that we don't
-need any sort of special connection between block IO throttling and
-page cache (buffered write) throttling. We significantly reduce the
-coupling between the layers by relying on feedback-driven control
-loops to determine the buffered write throttling thresholds
-adaptively. IOWs, the IO-less write throttling at the page cache
-will adjust automatically to whatever throughput the block IO
-throttling allows async writes to achieve.
-
-However, before we have a "finished product", there is still another
-piece of the puzzle to be put in place - memcg-aware buffered
-writeback. That is, having a flusher thread do work on behalf of
-memcg in the IO context of the memcg. Then the IO controller just
-sees a stream of async writes in the context of the memcg the
-buffered writes came from in the first place. The block layer
-throttles them just like any other IO in the IO context of the
-memcg...
-
-Cheers,
-
-Dave.
+Best regards
 -- 
-Dave Chinner
-david@fromorbit.com
+Marek Szyprowski
+Samsung Poland R&D Center
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
