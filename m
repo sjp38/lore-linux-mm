@@ -1,233 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id AFCF5900137
-	for <linux-mm@kvack.org>; Mon,  8 Aug 2011 22:08:27 -0400 (EDT)
-Date: Mon, 8 Aug 2011 22:08:17 -0400
-From: Vivek Goyal <vgoyal@redhat.com>
-Subject: Re: [PATCH 2/5] writeback: dirty position control
-Message-ID: <20110809020817.GB3700@redhat.com>
-References: <20110806084447.388624428@intel.com>
- <20110806094526.733282037@intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110806094526.733282037@intel.com>
+	by kanga.kvack.org (Postfix) with ESMTP id D7F6C6B0169
+	for <linux-mm@kvack.org>; Mon,  8 Aug 2011 23:10:48 -0400 (EDT)
+Received: by wwi14 with SMTP id 14so3782513wwi.26
+        for <linux-mm@kvack.org>; Mon, 08 Aug 2011 20:10:46 -0700 (PDT)
+Subject: Re: [PATCH] slub: fix check_bytes() for slub debugging
+From: Eric Dumazet <eric.dumazet@gmail.com>
+In-Reply-To: <1312709438-7608-1-git-send-email-akinobu.mita@gmail.com>
+References: <1312709438-7608-1-git-send-email-akinobu.mita@gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Tue, 09 Aug 2011 05:10:40 +0200
+Message-ID: <1312859440.2531.20.camel@edumazet-laptop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Akinobu Mita <akinobu.mita@gmail.com>
+Cc: linux-kernel@vger.kernel.org, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org
 
-On Sat, Aug 06, 2011 at 04:44:49PM +0800, Wu Fengguang wrote:
-> Old scheme is,
->                                           |
->                            free run area  |  throttle area
->   ----------------------------------------+---------------------------->
->                                     thresh^                  dirty pages
+Le dimanche 07 aoA>>t 2011 A  18:30 +0900, Akinobu Mita a A(C)crit :
+> The check_bytes() function is used by slub debugging.  It returns a pointer
+> to the first unmatching byte for a character in the given memory area.
 > 
-> New scheme is,
+> If the character for matching byte is greater than 0x80, check_bytes()
+> doesn't work.  Becuase 64-bit pattern is generated as below.
 > 
->   ^ task rate limit
->   |
->   |            *
->   |             *
->   |              *
->   |[free run]      *      [smooth throttled]
->   |                  *
->   |                     *
->   |                         *
->   ..bdi->dirty_ratelimit..........*
->   |                               .     *
->   |                               .          *
->   |                               .              *
->   |                               .                 *
->   |                               .                    *
->   +-------------------------------.-----------------------*------------>
->                           setpoint^                  limit^  dirty pages
+> 	value64 = value | value << 8 | value << 16 | value << 24;
+> 	value64 = value64 | value64 << 32;
 > 
-> For simplicity, only the global/bdi setpoint control lines are
-> implemented here, so the [*] curve is more straight than the ideal one
-> showed in the above figure.
+> The integer promotions are performed and sign-extended as the type of value
+> is u8.  The upper 32 bits of value64 is 0xffffffff in the first line, and
+> the second line has no effect.
 > 
-> bdi_position_ratio() provides a scale factor to bdi->dirty_ratelimit, so
-> that the resulted task rate limit can drive the dirty pages back to the
-> global/bdi setpoints.
+> This fixes the 64-bit pattern generation.
 > 
-
-IMHO, "position_ratio" is not necessarily very intutive. Can there be
-a better name? Based on your slides, it is scaling factor applied to
-task rate limit depending on how well we are doing in terms of meeting
-our goal of dirty limit. Will "dirty_rate_scale_factor" or something like
-that make sense and be little more intutive? 
-
-Thanks
-Vivek
- 
-
-> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+> Signed-off-by: Akinobu Mita <akinobu.mita@gmail.com>
+> Cc: Christoph Lameter <cl@linux-foundation.org>
+> Cc: Pekka Enberg <penberg@kernel.org>
+> Cc: Matt Mackall <mpm@selenic.com>
+> Cc: linux-mm@kvack.org
 > ---
->  mm/page-writeback.c |  143 ++++++++++++++++++++++++++++++++++++++++++
->  1 file changed, 143 insertions(+)
+>  mm/slub.c |    2 +-
+>  1 files changed, 1 insertions(+), 1 deletions(-)
 > 
-> --- linux-next.orig/mm/page-writeback.c	2011-08-06 10:31:32.000000000 +0800
-> +++ linux-next/mm/page-writeback.c	2011-08-06 11:17:07.000000000 +0800
-> @@ -46,6 +46,8 @@
->   */
->  #define BANDWIDTH_INTERVAL	max(HZ/5, 1)
+> diff --git a/mm/slub.c b/mm/slub.c
+> index eb5a8f9..5695f92 100644
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
+> @@ -701,7 +701,7 @@ static u8 *check_bytes(u8 *start, u8 value, unsigned int bytes)
+>  		return check_bytes8(start, value, bytes);
 >  
-> +#define BANDWIDTH_CALC_SHIFT	10
-> +
->  /*
->   * After a CPU has dirtied this many pages, balance_dirty_pages_ratelimited
->   * will look to see if it needs to force writeback or throttling.
-> @@ -495,6 +497,147 @@ unsigned long bdi_dirty_limit(struct bac
->  	return bdi_dirty;
->  }
+>  	value64 = value | value << 8 | value << 16 | value << 24;
+> -	value64 = value64 | value64 << 32;
+> +	value64 = (value64 & 0xffffffff) | value64 << 32;
+>  	prefix = 8 - ((unsigned long)start) % 8;
 >  
-> +/*
-> + * Dirty position control.
-> + *
-> + * (o) global/bdi setpoints
-> + *
-> + *  When the number of dirty pages go higher/lower than the setpoint, the dirty
-> + *  position ratio (and hence dirty rate limit) will be decreased/increased to
-> + *  bring the dirty pages back to the setpoint.
-> + *
-> + *                              setpoint
-> + *                                 v
-> + * |-------------------------------*-------------------------------|-----------|
-> + * ^                               ^                               ^           ^
-> + * (thresh + background_thresh)/2  thresh - thresh/DIRTY_SCOPE     thresh  limit
-> + *
-> + *                          bdi setpoint
-> + *                                 v
-> + * |-------------------------------*-------------------------------------------|
-> + * ^                               ^                                           ^
-> + * 0                               bdi_thresh - bdi_thresh/DIRTY_SCOPE     limit
-> + *
-> + * (o) pseudo code
-> + *
-> + *     pos_ratio = 1 << BANDWIDTH_CALC_SHIFT
-> + *
-> + *     if (dirty < thresh) scale up   pos_ratio
-> + *     if (dirty > thresh) scale down pos_ratio
-> + *
-> + *     if (bdi_dirty < bdi_thresh) scale up   pos_ratio
-> + *     if (bdi_dirty > bdi_thresh) scale down pos_ratio
-> + *
-> + * (o) global/bdi control lines
-> + *
-> + * Based on the number of dirty pages (the X), pos_ratio (the Y) is scaled by
-> + * several control lines in turn.
-> + *
-> + * The control lines for the global/bdi setpoints both stretch up to @limit.
-> + * If any control line drops below Y=0 before reaching @limit, an auxiliary
-> + * line will be setup to connect them. The below figure illustrates the main
-> + * bdi control line with an auxiliary line extending it to @limit.
-> + *
-> + * This allows smoothly throttling bdi_dirty down to normal if it starts high
-> + * in situations like
-> + * - start writing to a slow SD card and a fast disk at the same time. The SD
-> + *   card's bdi_dirty may rush to 5 times higher than bdi setpoint.
-> + * - the bdi dirty thresh goes down quickly due to change of JBOD workload
-> + *
-> + *   o
-> + *     o
-> + *       o                                      [o] main control line
-> + *         o                                    [*] auxiliary control line
-> + *           o
-> + *             o
-> + *               o
-> + *                 o
-> + *                   o
-> + *                     o
-> + *                       o--------------------- balance point, bw scale = 1
-> + *                       | o
-> + *                       |   o
-> + *                       |     o
-> + *                       |       o
-> + *                       |         o
-> + *                       |           o
-> + *                       |             o------- connect point, bw scale = 1/2
-> + *                       |               .*
-> + *                       |                 .   *
-> + *                       |                   .      *
-> + *                       |                     .         *
-> + *                       |                       .           *
-> + *                       |                         .              *
-> + *                       |                           .                 *
-> + *  [--------------------+-----------------------------.--------------------*]
-> + *  0                 bdi setpoint                 bdi origin            limit
-> + *
-> + * The bdi control line: if (origin < limit), an auxiliary control line (*)
-> + * will be setup to extend the main control line (o) to @limit.
-> + */
-> +static unsigned long bdi_position_ratio(struct backing_dev_info *bdi,
-> +					unsigned long thresh,
-> +					unsigned long dirty,
-> +					unsigned long bdi_thresh,
-> +					unsigned long bdi_dirty)
-> +{
-> +	unsigned long limit = hard_dirty_limit(thresh);
-> +	unsigned long origin;
-> +	unsigned long goal;
-> +	unsigned long long span;
-> +	unsigned long long pos_ratio;	/* for scaling up/down the rate limit */
-> +
-> +	if (unlikely(dirty >= limit))
-> +		return 0;
-> +
-> +	/*
-> +	 * global setpoint
-> +	 */
-> +	goal = thresh - thresh / DIRTY_SCOPE;
-> +	origin = 4 * thresh;
-> +
-> +	if (unlikely(origin < limit && dirty > (goal + origin) / 2)) {
-> +		origin = limit;			/* auxiliary control line */
-> +		goal = (goal + origin) / 2;
-> +		pos_ratio >>= 1;
-> +	}
-> +	pos_ratio = origin - dirty;
-> +	pos_ratio <<= BANDWIDTH_CALC_SHIFT;
-> +	do_div(pos_ratio, origin - goal + 1);
-> +
-> +	/*
-> +	 * bdi setpoint
-> +	 */
-> +	if (unlikely(bdi_thresh > thresh))
-> +		bdi_thresh = thresh;
-> +	goal = bdi_thresh - bdi_thresh / DIRTY_SCOPE;
-> +	/*
-> +	 * Use span=(4*bw) in single disk case and transit to bdi_thresh in
-> +	 * JBOD case.  For JBOD, bdi_thresh could fluctuate up to its own size.
-> +	 * Otherwise the bdi write bandwidth is good for limiting the floating
-> +	 * area, which makes the bdi control line a good backup when the global
-> +	 * control line is too flat/weak in large memory systems.
-> +	 */
-> +	span = (u64) bdi_thresh * (thresh - bdi_thresh) +
-> +		(4 * bdi->avg_write_bandwidth) * bdi_thresh;
-> +	do_div(span, thresh + 1);
-> +	origin = goal + 2 * span;
-> +
-> +	if (unlikely(bdi_dirty > goal + span)) {
-> +		if (bdi_dirty > limit)
-> +			return 0;
-> +		if (origin < limit) {
-> +			origin = limit;		/* auxiliary control line */
-> +			goal += span;
-> +			pos_ratio >>= 1;
-> +		}
-> +	}
-> +	pos_ratio *= origin - bdi_dirty;
-> +	do_div(pos_ratio, origin - goal + 1);
-> +
-> +	return pos_ratio;
-> +}
-> +
->  static void bdi_update_write_bandwidth(struct backing_dev_info *bdi,
->  				       unsigned long elapsed,
->  				       unsigned long written)
-> 
+>  	if (prefix) {
+
+Still buggy I am afraid. Could we use the following ?
+
+
+	value64 = value;
+	value64 |= value64 << 8;
+	value64 |= value64 << 16;
+	value64 |= value64 << 32;
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
