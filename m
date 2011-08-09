@@ -1,43 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 066A36B016A
-	for <linux-mm@kvack.org>; Tue,  9 Aug 2011 05:34:52 -0400 (EDT)
-Received: by qwa26 with SMTP id 26so2595127qwa.14
-        for <linux-mm@kvack.org>; Tue, 09 Aug 2011 02:34:52 -0700 (PDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 08C976B016D
+	for <linux-mm@kvack.org>; Tue,  9 Aug 2011 05:38:23 -0400 (EDT)
+Received: by vwm42 with SMTP id 42so4319378vwm.14
+        for <linux-mm@kvack.org>; Tue, 09 Aug 2011 02:38:21 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <CAC5umygEJy8he1X2Egiuh16HGCC6=Krxv1F3j=bh7xrZmNTHJg@mail.gmail.com>
-References: <1312834049-29910-1-git-send-email-per.forlin@linaro.org>
-	<CAC5umyhWr8t7HyQVEn-W-7HSaeESnTLX8okcQNqPO6mYFuWtUg@mail.gmail.com>
-	<CAJ0pr18Mpv7mFHC3NnfqEqtTFd_qgNhH9rZgCENgH0zKmBfFsQ@mail.gmail.com>
-	<CAC5umygEJy8he1X2Egiuh16HGCC6=Krxv1F3j=bh7xrZmNTHJg@mail.gmail.com>
-Date: Tue, 9 Aug 2011 11:34:51 +0200
-Message-ID: <CAJ0pr182aHm7H+s04Pqg5_CxVQLAhGOwLHQ_-aUS7ZgWKSwMxQ@mail.gmail.com>
-Subject: Re: [PATCH --mmotm v5 0/3] Make fault injection available for MMC IO
-From: Per Forlin <per.forlin@linaro.org>
+In-Reply-To: <1312860783.2531.31.camel@edumazet-laptop>
+References: <1312709438-7608-1-git-send-email-akinobu.mita@gmail.com>
+	<1312859440.2531.20.camel@edumazet-laptop>
+	<1312860783.2531.31.camel@edumazet-laptop>
+Date: Tue, 9 Aug 2011 18:38:21 +0900
+Message-ID: <CAC5umyhLuhNK55WDXTii2SFsqPNau1B9F1z+E0r0CaLNkGZfDg@mail.gmail.com>
+Subject: Re: [PATCH] slub: fix check_bytes() for slub debugging
+From: Akinobu Mita <akinobu.mita@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Akinobu Mita <akinobu.mita@gmail.com>
-Cc: akpm@linux-foundation.org, Linus Walleij <linus.ml.walleij@gmail.com>, linux-kernel@vger.kernel.org, Randy Dunlap <rdunlap@xenotime.net>, Chris Ball <cjb@laptop.org>, linux-doc@vger.kernel.org, linux-mmc@vger.kernel.org, linaro-dev@lists.linaro.org, linux-mm@kvack.org
+To: Eric Dumazet <eric.dumazet@gmail.com>
+Cc: linux-kernel@vger.kernel.org, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org
 
-On 9 August 2011 11:24, Akinobu Mita <akinobu.mita@gmail.com> wrote:
-> 2011/8/9 Per Forlin <per.forlin@linaro.org>:
->
->> Patch #1 "fault-injection: export fault injection functions" is merged
->
-> Maybe you are looking at wrong tree. =A0I can't find it in Linus' tree or
-> mmotm patches.
->
-Thanks for double checking! I looked at the wrong tree. What a mess I
-am creating.
-Do you think it would be possible to get only the export
-fault-injection patch in 3.1? I know it's not a bugfix so I guess it
-wont be accepted.
-I'll prepare v6 of this patch-set.
+2011/8/9 Eric Dumazet <eric.dumazet@gmail.com>:
 
-Thanks for your help,
-Per
+>> > diff --git a/mm/slub.c b/mm/slub.c
+>> > index eb5a8f9..5695f92 100644
+>> > --- a/mm/slub.c
+>> > +++ b/mm/slub.c
+>> > @@ -701,7 +701,7 @@ static u8 *check_bytes(u8 *start, u8 value, unsign=
+ed int bytes)
+>> > =A0 =A0 =A0 =A0 =A0 =A0 return check_bytes8(start, value, bytes);
+>> >
+>> > =A0 =A0 value64 =3D value | value << 8 | value << 16 | value << 24;
+>> > - =A0 value64 =3D value64 | value64 << 32;
+>> > + =A0 value64 =3D (value64 & 0xffffffff) | value64 << 32;
+>> > =A0 =A0 prefix =3D 8 - ((unsigned long)start) % 8;
+>> >
+>> > =A0 =A0 if (prefix) {
+>>
+>> Still buggy I am afraid. Could we use the following ?
+>>
+>>
+>> =A0 =A0 =A0 value64 =3D value;
+>> =A0 =A0 =A0 value64 |=3D value64 << 8;
+>> =A0 =A0 =A0 value64 |=3D value64 << 16;
+>> =A0 =A0 =A0 value64 |=3D value64 << 32;
+>>
+>>
+>
+> Well, 'buggy' was not well chosen.
+>
+> Another possibility would be to use a multiply if arch has a fast
+> multiplier...
+>
+>
+> =A0 =A0 =A0 =A0value64 =3D value;
+> #if defined(ARCH_HAS_FAST_MULTIPLIER) && BITS_PER_LONG =3D=3D 64
+> =A0 =A0 =A0 =A0value64 *=3D 0x0101010101010101;
+> #elif defined(ARCH_HAS_FAST_MULTIPLIER)
+> =A0 =A0 =A0 =A0value64 *=3D 0x01010101;
+> =A0 =A0 =A0 =A0value64 |=3D value64 << 32;
+> #else
+> =A0 =A0 =A0 =A0value64 |=3D value64 << 8;
+> =A0 =A0 =A0 =A0value64 |=3D value64 << 16;
+> =A0 =A0 =A0 =A0value64 |=3D value64 << 32;
+> #endif
+
+I don't really care about which one should be used.  So tell me if I need
+to resend it with this improvement.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
