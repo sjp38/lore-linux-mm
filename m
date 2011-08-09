@@ -1,34 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 95C506B0169
-	for <linux-mm@kvack.org>; Tue,  9 Aug 2011 05:24:24 -0400 (EDT)
-Received: by vxj15 with SMTP id 15so4841986vxj.14
-        for <linux-mm@kvack.org>; Tue, 09 Aug 2011 02:24:22 -0700 (PDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id A190A6B0169
+	for <linux-mm@kvack.org>; Tue,  9 Aug 2011 05:31:55 -0400 (EDT)
+Date: Tue, 9 Aug 2011 11:31:50 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: [PATCH RFC] memcg: fix drain_all_stock crash
+Message-ID: <20110809093150.GC7463@tiehlicka.suse.cz>
+References: <cover.1311338634.git.mhocko@suse.cz>
+ <a9244082ba28c4c2e4a6997311d5493bdaa117e9.1311338634.git.mhocko@suse.cz>
+ <20110808184738.GA7749@redhat.com>
+ <20110808214704.GA4396@tiehlicka.suse.cz>
+ <20110808231912.GA29002@redhat.com>
+ <20110809072615.GA7463@tiehlicka.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <CAJ0pr18Mpv7mFHC3NnfqEqtTFd_qgNhH9rZgCENgH0zKmBfFsQ@mail.gmail.com>
-References: <1312834049-29910-1-git-send-email-per.forlin@linaro.org>
-	<CAC5umyhWr8t7HyQVEn-W-7HSaeESnTLX8okcQNqPO6mYFuWtUg@mail.gmail.com>
-	<CAJ0pr18Mpv7mFHC3NnfqEqtTFd_qgNhH9rZgCENgH0zKmBfFsQ@mail.gmail.com>
-Date: Tue, 9 Aug 2011 18:24:22 +0900
-Message-ID: <CAC5umygEJy8he1X2Egiuh16HGCC6=Krxv1F3j=bh7xrZmNTHJg@mail.gmail.com>
-Subject: Re: [PATCH --mmotm v5 0/3] Make fault injection available for MMC IO
-From: Akinobu Mita <akinobu.mita@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110809072615.GA7463@tiehlicka.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Per Forlin <per.forlin@linaro.org>
-Cc: akpm@linux-foundation.org, Linus Walleij <linus.ml.walleij@gmail.com>, linux-kernel@vger.kernel.org, Randy Dunlap <rdunlap@xenotime.net>, Chris Ball <cjb@laptop.org>, linux-doc@vger.kernel.org, linux-mmc@vger.kernel.org, linaro-dev@lists.linaro.org, linux-mm@kvack.org
+To: Johannes Weiner <jweiner@redhat.com>
+Cc: linux-mm@kvack.org, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
 
-2011/8/9 Per Forlin <per.forlin@linaro.org>:
+What do you think about the half backed patch bellow? I didn't manage to
+test it yet but I guess it should help. I hate asymmetry of drain_lock
+locking (it is acquired somewhere else than it is released which is
+not). I will think about a nicer way how to do it.
+Maybe I should also split the rcu part in a separate patch.
 
-> Patch #1 "fault-injection: export fault injection functions" is merged
-
-Maybe you are looking at wrong tree.  I can't find it in Linus' tree or
-mmotm patches.
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+What do you think?
+---
