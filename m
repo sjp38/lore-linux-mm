@@ -1,45 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 950C86B0169
-	for <linux-mm@kvack.org>; Mon,  8 Aug 2011 21:23:33 -0400 (EDT)
-Subject: Re: [PATCH 2/2] vmscan: activate executable pages after first usage
-From: Shaohua Li <shaohua.li@intel.com>
-In-Reply-To: <20110808110659.31053.92935.stgit@localhost6>
-References: <20110808110658.31053.55013.stgit@localhost6>
-	 <20110808110659.31053.92935.stgit@localhost6>
-Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 09 Aug 2011 09:23:29 +0800
-Message-ID: <1312853009.27321.3.camel@sli10-conroe>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 0AD5F6B0169
+	for <linux-mm@kvack.org>; Mon,  8 Aug 2011 22:01:49 -0400 (EDT)
+Date: Mon, 8 Aug 2011 22:01:27 -0400
+From: Vivek Goyal <vgoyal@redhat.com>
+Subject: Re: [PATCH 0/5] IO-less dirty throttling v8
+Message-ID: <20110809020127.GA3700@redhat.com>
+References: <20110806084447.388624428@intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110806084447.388624428@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "Wu, Fengguang" <fengguang.wu@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, 2011-08-08 at 19:07 +0800, Konstantin Khlebnikov wrote:
-> Logic added in commit v2.6.30-5507-g8cab475
-> (vmscan: make mapped executable pages the first class citizen)
-> was noticeably weakened in commit v2.6.33-5448-g6457474
-> (vmscan: detect mapped file pages used only once)
+On Sat, Aug 06, 2011 at 04:44:47PM +0800, Wu Fengguang wrote:
+> Hi all,
 > 
-> Currently these pages can become "first class citizens" only after second usage.
+> The _core_ bits of the IO-less balance_dirty_pages().
+> Heavily simplified and re-commented to make it easier to review.
 > 
-> After this patch page_check_references() will activate they after first usage,
-> and executable code gets yet better chance to stay in memory.
+> 	git://git.kernel.org/pub/scm/linux/kernel/git/wfg/writeback.git dirty-throttling-v8
 > 
-> TODO:
-> run some cool tests like in v2.6.30-5507-g8cab475 =)
-I used to post a similar patch here:
-http://marc.info/?l=linux-mm&m=128572906801887&w=2
-but running Fengguang's test doesn't show improvement. And actually the
-VM_EXEC protect in shrink_active_list() doesn't show improvement too in
-my run, I'm wondering if we should remove it. I guess the (vmscan:
-detect mapped file pages used only once) patch makes VM_EXEC protect
-lose its effect. It's great if you can show solid data.
+> Only the bare minimal algorithms are presented, so you will find some rough
+> edges in the graphs below. But it's usable :)
+> 
+> 	http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/dirty-throttling-v8/
+> 
+> And an introduction to the (more complete) algorithms:
+> 
+> 	http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/slides/smooth-dirty-throttling.pdf
+> 
+> Questions and reviews are highly appreciated!
 
-Thanks,
-Shaohua
+Hi Wu,
+
+I am going through the slide number 39 where you talk about it being
+future proof and it can be used for IO control purposes. You have listed
+following merits of this approach.
+
+* per-bdi nature, works on NFS and Software RAID
+* no delayed response (working at the right layer)
+* no page tracking, hence decoupled from memcg
+* no interactions with FS and CFQ
+* get proportional IO controller for free
+* reuse/inherit all the base facilities/functions
+
+I would say that it will also be a good idea to list the demerits of
+this approach in current form and that is that it only deals with
+controlling buffered write IO and nothing else. So on the same
+block device, other direct writes might be going on from same group
+and in this scheme a user will not have any control. Another disadvantage
+is that throttling at page cache level does not take care of IO
+spikes at device level.
+
+Now I think one could probably come up with more sophisticated scheme
+where throttling is done at bdi level but is also accounted at device
+level at IO controller. (Something similar I had done in the past but
+Dave Chinner did not like it).
+
+Anyway, keeping track of per cgroup rate and throttling accordingly
+can definitely help implement an algorithm for per cgroup IO control.
+We probably just need to find a reasonable way to account all this
+IO to end device so that we have control of all kind of IO of a cgroup.
+
+How do you implement proportional control here? From overall bdi bandwidth
+vary per cgroup bandwidth regularly based on cgroup weight? Again the
+issue here is that it controls only buffered WRITES and nothing else and
+in this case co-ordinating with CFQ will probably be hard. So I guess
+usage of proportional IO just for buffered WRITES will have limited
+usage.
+
+Thanks
+Vivek
+
+
+
+
+> 
+> shortlog:
+> 
+> 	Wu Fengguang (5):
+> 	      writeback: account per-bdi accumulated dirtied pages
+> 	      writeback: dirty position control
+> 	      writeback: dirty rate control
+> 	      writeback: per task dirty rate limit
+> 	      writeback: IO-less balance_dirty_pages()
+> 
+> 	The last 4 patches are one single logical change, but splitted here to
+> 	make it easier to review the different parts of the algorithm.
+> 
+> diffstat:
+> 
+> 	 include/linux/backing-dev.h      |    8 +
+> 	 include/linux/sched.h            |    7 +
+> 	 include/trace/events/writeback.h |   24 --
+> 	 mm/backing-dev.c                 |    3 +
+> 	 mm/memory_hotplug.c              |    3 -
+> 	 mm/page-writeback.c              |  459 ++++++++++++++++++++++----------------
+> 	 6 files changed, 290 insertions(+), 214 deletions(-)
+> 
+> Thanks,
+> Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
