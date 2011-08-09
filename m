@@ -1,65 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 407996B0169
-	for <linux-mm@kvack.org>; Tue,  9 Aug 2011 04:08:56 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 4D47C3EE0BC
-	for <linux-mm@kvack.org>; Tue,  9 Aug 2011 17:08:53 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 3519B45DE62
-	for <linux-mm@kvack.org>; Tue,  9 Aug 2011 17:08:53 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 01FF545DE5D
-	for <linux-mm@kvack.org>; Tue,  9 Aug 2011 17:08:53 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id D78B51DB804E
-	for <linux-mm@kvack.org>; Tue,  9 Aug 2011 17:08:52 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id A06541DB804F
-	for <linux-mm@kvack.org>; Tue,  9 Aug 2011 17:08:52 +0900 (JST)
-Date: Tue, 9 Aug 2011 17:01:18 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH v3] memcg: add memory.vmscan_stat
-Message-Id: <20110809170118.880377f8.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20110809080159.GA32015@redhat.com>
-References: <20110722171540.74eb9aa7.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110808124333.GA31739@redhat.com>
-	<20110809083345.46cbc8de.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110809080159.GA32015@redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id A00BA6B0169
+	for <linux-mm@kvack.org>; Tue,  9 Aug 2011 04:44:34 -0400 (EDT)
+Received: by qyk7 with SMTP id 7so3391227qyk.14
+        for <linux-mm@kvack.org>; Tue, 09 Aug 2011 01:44:32 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <1312834049-29910-2-git-send-email-per.forlin@linaro.org>
+References: <1312834049-29910-1-git-send-email-per.forlin@linaro.org>
+	<1312834049-29910-2-git-send-email-per.forlin@linaro.org>
+Date: Tue, 9 Aug 2011 10:44:31 +0200
+Message-ID: <CAJ0pr18bsmoRUAs59zsTtW8Qn7qn=mBbsx3iXnmFEwomHM-JPA@mail.gmail.com>
+Subject: Re: [PATCH --mmotm v5 1/3] fault-inject: export fault injection functions
+From: Per Forlin <per.forlin@linaro.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <jweiner@redhat.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, Michal Hocko <mhocko@suse.cz>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, abrestic@google.com
+To: Akinobu Mita <akinobu.mita@gmail.com>, akpm@linux-foundation.org, Linus Walleij <linus.ml.walleij@gmail.com>, linux-kernel@vger.kernel.org, Chris Ball <cjb@laptop.org>
+Cc: linux-mmc@vger.kernel.org, linaro-dev@lists.linaro.org, linux-mm@kvack.org, Per Forlin <per.forlin@linaro.org>
 
-On Tue, 9 Aug 2011 10:01:59 +0200
-Johannes Weiner <jweiner@redhat.com> wrote:
-
-> On Tue, Aug 09, 2011 at 08:33:45AM +0900, KAMEZAWA Hiroyuki wrote:
-> > On Mon, 8 Aug 2011 14:43:33 +0200
-> > Johannes Weiner <jweiner@redhat.com> wrote:
-> > > On a non-technical note: as Ying Han and I were the other two people
-> > > working on reclaim and statistics, it really irks me that neither of
-> > > us were CCd on this.  Especially on such a controversial change.
-> > 
-> > I always drop CC if no reply/review comes.
-> 
-> There is always the possibility that a single mail in an otherwise
-> unrelated patch series is overlooked (especially while on vacation ;).
-> Getting CCd on revisions and -mm inclusion is a really nice reminder.
-> 
-> Unless there is a really good reason not to (is there ever?), could
-> you please keep CCs?
-> 
-
-Ok, if you want, I'll CC always.
-I myself just don't like to get 3 copies of mails when I don't have
-much interests ;)
-
-Thanks,
--Kame
+On 8 August 2011 22:07, Per Forlin <per.forlin@linaro.org> wrote:
+> export symbols fault_should_fail() and fault_create_debugfs_attr() in order
+> to let modules utilize the fault injection
+This patch is already merged in mainline too.
+Unfortunately I left a typo here. It says fault_should_fail() in the
+commit message but the function in the patch is called only
+should_fail(). This is already in rc1 so I guess we have to live with
+this typo.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
