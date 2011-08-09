@@ -1,57 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 9FC906B016E
-	for <linux-mm@kvack.org>; Tue,  9 Aug 2011 08:08:11 -0400 (EDT)
-Received: by mail-ew0-f41.google.com with SMTP id 9so1202990ewy.14
-        for <linux-mm@kvack.org>; Tue, 09 Aug 2011 05:08:10 -0700 (PDT)
-From: Per Forlin <per.forlin@linaro.org>
-Subject: [PATCH --mmotm v8 3/3] fault injection: add documentation on MMC IO fault injection
-Date: Tue,  9 Aug 2011 14:07:51 +0200
-Message-Id: <1312891671-28680-4-git-send-email-per.forlin@linaro.org>
-In-Reply-To: <1312891671-28680-1-git-send-email-per.forlin@linaro.org>
-References: <1312891671-28680-1-git-send-email-per.forlin@linaro.org>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 889AA6B016D
+	for <linux-mm@kvack.org>; Tue,  9 Aug 2011 08:23:39 -0400 (EDT)
+Message-Id: <4E414320020000780005057E@nat28.tlf.novell.com>
+Date: Tue, 09 Aug 2011 13:24:32 +0100
+From: "Jan Beulich" <JBeulich@novell.com>
+Subject: Re: Subject: [PATCH V6 1/4] mm: frontswap: swap data structure
+	 changes
+References: <20110808204555.GA15850@ca-server1.us.oracle.com>
+In-Reply-To: <20110808204555.GA15850@ca-server1.us.oracle.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: quoted-printable
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Akinobu Mita <akinobu.mita@gmail.com>, akpm@linux-foundation.org, Linus Walleij <linus.ml.walleij@gmail.com>, linux-kernel@vger.kernel.org, Randy Dunlap <rdunlap@xenotime.net>, Chris Ball <cjb@laptop.org>
-Cc: linux-doc@vger.kernel.org, linux-mmc@vger.kernel.org, linaro-dev@lists.linaro.org, linux-mm@kvack.org, Per Forlin <per.forlin@linaro.org>
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: hannes@cmpxchg.org, jackdachef@gmail.com, hughd@google.com, jeremy@goop.org, npiggin@kernel.dk, linux-mm@kvack.org, akpm@linux-foundation.org, sjenning@linux.vnet.ibm.com, chris.mason@oracle.com, konrad.wilk@oracle.com, kurt.hackel@oracle.com, riel@redhat.com, ngupta@vflare.org, linux-kernel@vger.kernel.org, matthew@wil.cx
 
-Add description on how to enable random fault injection
-for MMC IO
+>>> On 08.08.11 at 22:45, Dan Magenheimer <dan.magenheimer@oracle.com> =
+wrote:
+> From: Dan Magenheimer <dan.magenheimer@oracle.com>
+> Subject: [PATCH V6 1/4] mm: frontswap: swap data structure changes
+>=20
+> This first patch of four in the frontswap series makes available core
+> swap data structures (swap_lock, swap_list and swap_info) that are
+> needed by frontswap.c but we don't need to expose them to the dozens
+> of files that include swap.h so we create a new swapfile.h just to
+> extern-ify these.
+>=20
+> Also add frontswap-related elements to swap_info_struct.  Frontswap_map
+> points to vzalloc'ed one-bit-per-swap-page metadata that indicates
+> whether the swap page is in frontswap or in the device and frontswap_page=
+s
+> counts how many pages are in frontswap.  We don't tie these to
+> CONFIG_FRONTSWAP to avoid unnecessary clutter around various frontswap
+> hooks.
+>=20
+> [v6: rebase to 3.0-rc1]
+> [v5: no change from v4]
+> [v4: rebase to 2.6.39]
+> Signed-off-by: Dan Magenheimer <dan.magenheimer@oracle.com>
+> Reviewed-by: Konrad Wilk <konrad.wilk@oracle.com>
+> Acked-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
+> Cc: Jeremy Fitzhardinge <jeremy@goop.org>
+> Cc: Hugh Dickins <hughd@google.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Nitin Gupta <ngupta@vflare.org>
+> Cc: Matthew Wilcox <matthew@wil.cx>
+> Cc: Chris Mason <chris.mason@oracle.com>
+> Cc: Jan Beulich <JBeulich@novell.com>
+> Cc: Rik Riel <riel@redhat.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+>=20
+> --- linux/include/linux/swapfile.h	1969-12-31 17:00:00.000000000 =
+-0700
+> +++ frontswap/include/linux/swapfile.h	2011-08-08 08:59:03.9516945=
+06 -0600
+> @@ -0,0 +1,13 @@
+> +#ifndef _LINUX_SWAPFILE_H
+> +#define _LINUX_SWAPFILE_H
+> +
+> +/*
+> + * these were static in swapfile.c but frontswap.c needs them and we =
+don't
+> + * want to expose them to the dozens of source files that include =
+swap.h
+> + */
+> +extern spinlock_t swap_lock;
+> +extern struct swap_list_t swap_list;
+> +extern struct swap_info_struct *swap_info[];
+> +extern int try_to_unuse(unsigned int, bool, unsigned long);
+> +
+> +#endif /* _LINUX_SWAPFILE_H */
+> --- linux/include/linux/swap.h	2011-08-08 08:19:25.880690134 =
+-0600
+> +++ frontswap/include/linux/swap.h	2011-08-08 08:59:03.952691415 =
+-0600
+> @@ -194,6 +194,8 @@ struct swap_info_struct {
+>  	struct block_device *bdev;	/* swap device or bdev of swap =
+file */
+>  	struct file *swap_file;		/* seldom referenced */
+>  	unsigned int old_block_size;	/* seldom referenced */
 
-Signed-off-by: Per Forlin <per.forlin@linaro.org>
-Acked-by: Akinobu Mita <akinobu.mita@gmail.com>
----
- Documentation/fault-injection/fault-injection.txt |    8 +++++++-
- 1 files changed, 7 insertions(+), 1 deletions(-)
+#ifdef CONFIG_FRONTSWAP
 
-diff --git a/Documentation/fault-injection/fault-injection.txt b/Documentation/fault-injection/fault-injection.txt
-index 82a5d25..70f924e 100644
---- a/Documentation/fault-injection/fault-injection.txt
-+++ b/Documentation/fault-injection/fault-injection.txt
-@@ -21,6 +21,11 @@ o fail_make_request
-   /sys/block/<device>/make-it-fail or
-   /sys/block/<device>/<partition>/make-it-fail. (generic_make_request())
- 
-+o fail_mmc_request
-+
-+  injects MMC data errors on devices permitted by setting
-+  debugfs entries under /sys/kernel/debug/mmc0/fail_mmc_request
-+
- Configure fault-injection capabilities behavior
- -----------------------------------------------
- 
-@@ -115,7 +120,8 @@ use the boot option:
- 
- 	failslab=
- 	fail_page_alloc=
--	fail_make_request=<interval>,<probability>,<space>,<times>
-+	fail_make_request=
-+	fail_mmc_request=<interval>,<probability>,<space>,<times>
- 
- How to add new fault injection capability
- -----------------------------------------
--- 
-1.7.4.1
+> +	unsigned long *frontswap_map;	/* frontswap in-use, one bit per =
+page */
+> +	unsigned int frontswap_pages;	/* frontswap pages in-use counter =
+*/
+
+
+#endif
+
+(to eliminate any overhead with that config option unset)
+
+Jan
+
+>  };
+> =20
+>  struct swap_list_t {
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
