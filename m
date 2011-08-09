@@ -1,109 +1,233 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 0AD5F6B0169
-	for <linux-mm@kvack.org>; Mon,  8 Aug 2011 22:01:49 -0400 (EDT)
-Date: Mon, 8 Aug 2011 22:01:27 -0400
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id AFCF5900137
+	for <linux-mm@kvack.org>; Mon,  8 Aug 2011 22:08:27 -0400 (EDT)
+Date: Mon, 8 Aug 2011 22:08:17 -0400
 From: Vivek Goyal <vgoyal@redhat.com>
-Subject: Re: [PATCH 0/5] IO-less dirty throttling v8
-Message-ID: <20110809020127.GA3700@redhat.com>
+Subject: Re: [PATCH 2/5] writeback: dirty position control
+Message-ID: <20110809020817.GB3700@redhat.com>
 References: <20110806084447.388624428@intel.com>
+ <20110806094526.733282037@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110806084447.388624428@intel.com>
+In-Reply-To: <20110806094526.733282037@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Wu Fengguang <fengguang.wu@intel.com>
 Cc: linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Sat, Aug 06, 2011 at 04:44:47PM +0800, Wu Fengguang wrote:
-> Hi all,
+On Sat, Aug 06, 2011 at 04:44:49PM +0800, Wu Fengguang wrote:
+> Old scheme is,
+>                                           |
+>                            free run area  |  throttle area
+>   ----------------------------------------+---------------------------->
+>                                     thresh^                  dirty pages
 > 
-> The _core_ bits of the IO-less balance_dirty_pages().
-> Heavily simplified and re-commented to make it easier to review.
+> New scheme is,
 > 
-> 	git://git.kernel.org/pub/scm/linux/kernel/git/wfg/writeback.git dirty-throttling-v8
+>   ^ task rate limit
+>   |
+>   |            *
+>   |             *
+>   |              *
+>   |[free run]      *      [smooth throttled]
+>   |                  *
+>   |                     *
+>   |                         *
+>   ..bdi->dirty_ratelimit..........*
+>   |                               .     *
+>   |                               .          *
+>   |                               .              *
+>   |                               .                 *
+>   |                               .                    *
+>   +-------------------------------.-----------------------*------------>
+>                           setpoint^                  limit^  dirty pages
 > 
-> Only the bare minimal algorithms are presented, so you will find some rough
-> edges in the graphs below. But it's usable :)
+> For simplicity, only the global/bdi setpoint control lines are
+> implemented here, so the [*] curve is more straight than the ideal one
+> showed in the above figure.
 > 
-> 	http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/dirty-throttling-v8/
+> bdi_position_ratio() provides a scale factor to bdi->dirty_ratelimit, so
+> that the resulted task rate limit can drive the dirty pages back to the
+> global/bdi setpoints.
 > 
-> And an introduction to the (more complete) algorithms:
-> 
-> 	http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/slides/smooth-dirty-throttling.pdf
-> 
-> Questions and reviews are highly appreciated!
 
-Hi Wu,
-
-I am going through the slide number 39 where you talk about it being
-future proof and it can be used for IO control purposes. You have listed
-following merits of this approach.
-
-* per-bdi nature, works on NFS and Software RAID
-* no delayed response (working at the right layer)
-* no page tracking, hence decoupled from memcg
-* no interactions with FS and CFQ
-* get proportional IO controller for free
-* reuse/inherit all the base facilities/functions
-
-I would say that it will also be a good idea to list the demerits of
-this approach in current form and that is that it only deals with
-controlling buffered write IO and nothing else. So on the same
-block device, other direct writes might be going on from same group
-and in this scheme a user will not have any control. Another disadvantage
-is that throttling at page cache level does not take care of IO
-spikes at device level.
-
-Now I think one could probably come up with more sophisticated scheme
-where throttling is done at bdi level but is also accounted at device
-level at IO controller. (Something similar I had done in the past but
-Dave Chinner did not like it).
-
-Anyway, keeping track of per cgroup rate and throttling accordingly
-can definitely help implement an algorithm for per cgroup IO control.
-We probably just need to find a reasonable way to account all this
-IO to end device so that we have control of all kind of IO of a cgroup.
-
-How do you implement proportional control here? From overall bdi bandwidth
-vary per cgroup bandwidth regularly based on cgroup weight? Again the
-issue here is that it controls only buffered WRITES and nothing else and
-in this case co-ordinating with CFQ will probably be hard. So I guess
-usage of proportional IO just for buffered WRITES will have limited
-usage.
+IMHO, "position_ratio" is not necessarily very intutive. Can there be
+a better name? Based on your slides, it is scaling factor applied to
+task rate limit depending on how well we are doing in terms of meeting
+our goal of dirty limit. Will "dirty_rate_scale_factor" or something like
+that make sense and be little more intutive? 
 
 Thanks
 Vivek
+ 
 
-
-
-
+> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+> ---
+>  mm/page-writeback.c |  143 ++++++++++++++++++++++++++++++++++++++++++
+>  1 file changed, 143 insertions(+)
 > 
-> shortlog:
+> --- linux-next.orig/mm/page-writeback.c	2011-08-06 10:31:32.000000000 +0800
+> +++ linux-next/mm/page-writeback.c	2011-08-06 11:17:07.000000000 +0800
+> @@ -46,6 +46,8 @@
+>   */
+>  #define BANDWIDTH_INTERVAL	max(HZ/5, 1)
+>  
+> +#define BANDWIDTH_CALC_SHIFT	10
+> +
+>  /*
+>   * After a CPU has dirtied this many pages, balance_dirty_pages_ratelimited
+>   * will look to see if it needs to force writeback or throttling.
+> @@ -495,6 +497,147 @@ unsigned long bdi_dirty_limit(struct bac
+>  	return bdi_dirty;
+>  }
+>  
+> +/*
+> + * Dirty position control.
+> + *
+> + * (o) global/bdi setpoints
+> + *
+> + *  When the number of dirty pages go higher/lower than the setpoint, the dirty
+> + *  position ratio (and hence dirty rate limit) will be decreased/increased to
+> + *  bring the dirty pages back to the setpoint.
+> + *
+> + *                              setpoint
+> + *                                 v
+> + * |-------------------------------*-------------------------------|-----------|
+> + * ^                               ^                               ^           ^
+> + * (thresh + background_thresh)/2  thresh - thresh/DIRTY_SCOPE     thresh  limit
+> + *
+> + *                          bdi setpoint
+> + *                                 v
+> + * |-------------------------------*-------------------------------------------|
+> + * ^                               ^                                           ^
+> + * 0                               bdi_thresh - bdi_thresh/DIRTY_SCOPE     limit
+> + *
+> + * (o) pseudo code
+> + *
+> + *     pos_ratio = 1 << BANDWIDTH_CALC_SHIFT
+> + *
+> + *     if (dirty < thresh) scale up   pos_ratio
+> + *     if (dirty > thresh) scale down pos_ratio
+> + *
+> + *     if (bdi_dirty < bdi_thresh) scale up   pos_ratio
+> + *     if (bdi_dirty > bdi_thresh) scale down pos_ratio
+> + *
+> + * (o) global/bdi control lines
+> + *
+> + * Based on the number of dirty pages (the X), pos_ratio (the Y) is scaled by
+> + * several control lines in turn.
+> + *
+> + * The control lines for the global/bdi setpoints both stretch up to @limit.
+> + * If any control line drops below Y=0 before reaching @limit, an auxiliary
+> + * line will be setup to connect them. The below figure illustrates the main
+> + * bdi control line with an auxiliary line extending it to @limit.
+> + *
+> + * This allows smoothly throttling bdi_dirty down to normal if it starts high
+> + * in situations like
+> + * - start writing to a slow SD card and a fast disk at the same time. The SD
+> + *   card's bdi_dirty may rush to 5 times higher than bdi setpoint.
+> + * - the bdi dirty thresh goes down quickly due to change of JBOD workload
+> + *
+> + *   o
+> + *     o
+> + *       o                                      [o] main control line
+> + *         o                                    [*] auxiliary control line
+> + *           o
+> + *             o
+> + *               o
+> + *                 o
+> + *                   o
+> + *                     o
+> + *                       o--------------------- balance point, bw scale = 1
+> + *                       | o
+> + *                       |   o
+> + *                       |     o
+> + *                       |       o
+> + *                       |         o
+> + *                       |           o
+> + *                       |             o------- connect point, bw scale = 1/2
+> + *                       |               .*
+> + *                       |                 .   *
+> + *                       |                   .      *
+> + *                       |                     .         *
+> + *                       |                       .           *
+> + *                       |                         .              *
+> + *                       |                           .                 *
+> + *  [--------------------+-----------------------------.--------------------*]
+> + *  0                 bdi setpoint                 bdi origin            limit
+> + *
+> + * The bdi control line: if (origin < limit), an auxiliary control line (*)
+> + * will be setup to extend the main control line (o) to @limit.
+> + */
+> +static unsigned long bdi_position_ratio(struct backing_dev_info *bdi,
+> +					unsigned long thresh,
+> +					unsigned long dirty,
+> +					unsigned long bdi_thresh,
+> +					unsigned long bdi_dirty)
+> +{
+> +	unsigned long limit = hard_dirty_limit(thresh);
+> +	unsigned long origin;
+> +	unsigned long goal;
+> +	unsigned long long span;
+> +	unsigned long long pos_ratio;	/* for scaling up/down the rate limit */
+> +
+> +	if (unlikely(dirty >= limit))
+> +		return 0;
+> +
+> +	/*
+> +	 * global setpoint
+> +	 */
+> +	goal = thresh - thresh / DIRTY_SCOPE;
+> +	origin = 4 * thresh;
+> +
+> +	if (unlikely(origin < limit && dirty > (goal + origin) / 2)) {
+> +		origin = limit;			/* auxiliary control line */
+> +		goal = (goal + origin) / 2;
+> +		pos_ratio >>= 1;
+> +	}
+> +	pos_ratio = origin - dirty;
+> +	pos_ratio <<= BANDWIDTH_CALC_SHIFT;
+> +	do_div(pos_ratio, origin - goal + 1);
+> +
+> +	/*
+> +	 * bdi setpoint
+> +	 */
+> +	if (unlikely(bdi_thresh > thresh))
+> +		bdi_thresh = thresh;
+> +	goal = bdi_thresh - bdi_thresh / DIRTY_SCOPE;
+> +	/*
+> +	 * Use span=(4*bw) in single disk case and transit to bdi_thresh in
+> +	 * JBOD case.  For JBOD, bdi_thresh could fluctuate up to its own size.
+> +	 * Otherwise the bdi write bandwidth is good for limiting the floating
+> +	 * area, which makes the bdi control line a good backup when the global
+> +	 * control line is too flat/weak in large memory systems.
+> +	 */
+> +	span = (u64) bdi_thresh * (thresh - bdi_thresh) +
+> +		(4 * bdi->avg_write_bandwidth) * bdi_thresh;
+> +	do_div(span, thresh + 1);
+> +	origin = goal + 2 * span;
+> +
+> +	if (unlikely(bdi_dirty > goal + span)) {
+> +		if (bdi_dirty > limit)
+> +			return 0;
+> +		if (origin < limit) {
+> +			origin = limit;		/* auxiliary control line */
+> +			goal += span;
+> +			pos_ratio >>= 1;
+> +		}
+> +	}
+> +	pos_ratio *= origin - bdi_dirty;
+> +	do_div(pos_ratio, origin - goal + 1);
+> +
+> +	return pos_ratio;
+> +}
+> +
+>  static void bdi_update_write_bandwidth(struct backing_dev_info *bdi,
+>  				       unsigned long elapsed,
+>  				       unsigned long written)
 > 
-> 	Wu Fengguang (5):
-> 	      writeback: account per-bdi accumulated dirtied pages
-> 	      writeback: dirty position control
-> 	      writeback: dirty rate control
-> 	      writeback: per task dirty rate limit
-> 	      writeback: IO-less balance_dirty_pages()
-> 
-> 	The last 4 patches are one single logical change, but splitted here to
-> 	make it easier to review the different parts of the algorithm.
-> 
-> diffstat:
-> 
-> 	 include/linux/backing-dev.h      |    8 +
-> 	 include/linux/sched.h            |    7 +
-> 	 include/trace/events/writeback.h |   24 --
-> 	 mm/backing-dev.c                 |    3 +
-> 	 mm/memory_hotplug.c              |    3 -
-> 	 mm/page-writeback.c              |  459 ++++++++++++++++++++++----------------
-> 	 6 files changed, 290 insertions(+), 214 deletions(-)
-> 
-> Thanks,
-> Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
