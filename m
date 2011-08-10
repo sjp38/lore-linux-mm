@@ -1,31 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 4D83690013D
-	for <linux-mm@kvack.org>; Wed, 10 Aug 2011 08:41:56 -0400 (EDT)
-Date: Wed, 10 Aug 2011 14:41:47 +0200
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 782D990013D
+	for <linux-mm@kvack.org>; Wed, 10 Aug 2011 08:44:59 -0400 (EDT)
+Date: Wed, 10 Aug 2011 14:44:50 +0200
 From: Johannes Weiner <jweiner@redhat.com>
-Subject: Re: [PATCH 2/7] mm: vmscan: Remove dead code related to lumpy
- reclaim waiting on pages under writeback
-Message-ID: <20110810124147.GB24133@redhat.com>
+Subject: Re: [PATCH 5/7] mm: vmscan: Do not writeback filesystem pages in
+ kswapd except in high priority
+Message-ID: <20110810124450.GC24133@redhat.com>
 References: <1312973240-32576-1-git-send-email-mgorman@suse.de>
- <1312973240-32576-3-git-send-email-mgorman@suse.de>
+ <1312973240-32576-6-git-send-email-mgorman@suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1312973240-32576-3-git-send-email-mgorman@suse.de>
+In-Reply-To: <1312973240-32576-6-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Mel Gorman <mgorman@suse.de>
 Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, XFS <xfs@oss.sgi.com>, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>
 
-On Wed, Aug 10, 2011 at 11:47:15AM +0100, Mel Gorman wrote:
-> Lumpy reclaim worked with two passes - the first which queued pages for
-> IO and the second which waited on writeback. As direct reclaim can no
-> longer write pages there is some dead code. This patch removes it but
-> direct reclaim will continue to wait on pages under writeback while in
-> synchronous reclaim mode.
+On Wed, Aug 10, 2011 at 11:47:18AM +0100, Mel Gorman wrote:
+> It is preferable that no dirty pages are dispatched for cleaning from
+> the page reclaim path. At normal priorities, this patch prevents kswapd
+> writing pages.
+> 
+> However, page reclaim does have a requirement that pages be freed
+> in a particular zone. If it is failing to make sufficient progress
+> (reclaiming < SWAP_CLUSTER_MAX at any priority priority), the priority
+> is raised to scan more pages. A priority of DEF_PRIORITY - 3 is
+> considered to be the point where kswapd is getting into trouble
+> reclaiming pages. If this priority is reached, kswapd will dispatch
+> pages for writing.
 > 
 > Signed-off-by: Mel Gorman <mgorman@suse.de>
+> Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
 
 Acked-by: Johannes Weiner <jweiner@redhat.com>
 
