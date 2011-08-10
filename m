@@ -1,123 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 5DD8190013D
-	for <linux-mm@kvack.org>; Wed, 10 Aug 2011 10:11:01 -0400 (EDT)
-Date: Wed, 10 Aug 2011 22:10:52 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 3/5] writeback: dirty rate control
-Message-ID: <20110810141052.GC29724@localhost>
-References: <20110806084447.388624428@intel.com>
- <20110806094526.878435971@intel.com>
- <1312909016.1083.47.camel@twins>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 6034690013D
+	for <linux-mm@kvack.org>; Wed, 10 Aug 2011 10:14:32 -0400 (EDT)
+Date: Wed, 10 Aug 2011 16:14:25 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH v5 2/6]  memcg: stop vmscan when enough done.
+Message-ID: <20110810141425.GC15007@tiehlicka.suse.cz>
+References: <20110809190450.16d7f845.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110809190933.d965888b.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="x+6KMIRAuhnl3hBn"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1312909016.1083.47.camel@twins>
+In-Reply-To: <20110809190933.d965888b.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
 
-
---x+6KMIRAuhnl3hBn
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-
-On Wed, Aug 10, 2011 at 12:56:56AM +0800, Peter Zijlstra wrote:
-> On Sat, 2011-08-06 at 16:44 +0800, Wu Fengguang wrote:
-> >              bdi->dirty_ratelimit = (bw * 3 + ref_bw) / 4;
+On Tue 09-08-11 19:09:33, KAMEZAWA Hiroyuki wrote:
+> memcg :avoid node fallback scan if possible.
 > 
-> I can't actually find this low-pass filter in the code.. could be I'm
-> blind from staring at it too long though..
+> Now, try_to_free_pages() scans all zonelist because the page allocator
+> should visit all zonelists...but that behavior is harmful for memcg.
+> Memcg just scans memory because it hits limit...no memory shortage
+> in pased zonelist.
+> 
+> For example, with following unbalanced nodes
+> 
+>      Node 0    Node 1
+> File 1G        0
+> Anon 200M      200M
+> 
+> memcg will cause swap-out from Node1 at every vmscan.
+> 
+> Another example, assume 1024 nodes system.
+> With 1024 node system, memcg will visit 1024 nodes
+> pages per vmscan... This is overkilling. 
+> 
+> This is why memcg's victim node selection logic doesn't work
+> as expected.
+> 
+> This patch is a help for stopping vmscan when we scanned enough.
+> 
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Sorry, it's implemented in another patch (attached). I've also removed
-it from _this_ changelog.
+OK, I see the point. At first I was afraid that we would make a bigger
+pressure on the node which triggered the reclaim but as we are selecting
+t dynamically (mem_cgroup_select_victim_node) - round robin at the
+moment - it should be fair in the end. More targeted node selection
+should be even more efficient.
 
-Here you can find all the other patches in addition to the core bits.
+I still have a concern about resize_limit code path, though. It uses
+memcg direct reclaim to get under the new limit (assuming it is lower
+than the current one). 
+Currently we might reclaim nr_nodes * SWAP_CLUSTER_MAX while
+after your change we have it at SWAP_CLUSTER_MAX. This means that
+mem_cgroup_resize_mem_limit might fail sooner on large NUMA machines
+(currently it is doing 5 rounds of reclaim before it gives up). I do not
+consider this to be blocker but maybe we should enhance
+mem_cgroup_hierarchical_reclaim with a nr_pages argument to tell it how
+much we want to reclaim (min(SWAP_CLUSTER_MAX, nr_pages)).
+What do you think?
 
-http://git.kernel.org/?p=linux/kernel/git/wfg/writeback.git;a=shortlog;h=refs/heads/dirty-throttling-v8%2B
+> ---
+>  mm/vmscan.c |   10 ++++++++++
+>  1 file changed, 10 insertions(+)
+> 
+> Index: mmotm-Aug3/mm/vmscan.c
+> ===================================================================
+> --- mmotm-Aug3.orig/mm/vmscan.c
+> +++ mmotm-Aug3/mm/vmscan.c
+> @@ -2124,6 +2124,16 @@ static void shrink_zones(int priority, s
+>  		}
+>  
+>  		shrink_zone(priority, zone, sc);
+> +		if (!scanning_global_lru(sc)) {
+> +			/*
+> +			 * When we do scan for memcg's limit, it's bad to do
+> +			 * fallback into more node/zones because there is no
+> +			 * memory shortage. We quit as much as possible when
+> +			 * we reache target.
+> +			 */
+> +			if (sc->nr_to_reclaim <= sc->nr_reclaimed)
+> +				break;
+> +		}
+>  	}
+>  }
 
-Thanks,
-Fengguang
-
---x+6KMIRAuhnl3hBn
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: attachment; filename=smooth-base-bw
-
-Subject: writeback: make dirty_ratelimit stable/smooth
-Date: Thu Aug 04 22:05:05 CST 2011
-
-Half the dirty_ratelimit update step size to avoid overshooting, and
-further slow down the updates when the tracking error is smaller than
-(base_rate / 8).
-
-It's desirable to have a _constant_ dirty_ratelimit given a stable
-workload. Because each jolt of dirty_ratelimit will directly show up
-in all the bdi tasks' dirty rate.
-
-The cost will be slightly increased dirty position error, which is
-pretty acceptable.
-
-Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
----
- mm/page-writeback.c |   24 +++++++++++++++++++++---
- 1 file changed, 21 insertions(+), 3 deletions(-)
-
---- linux-next.orig/mm/page-writeback.c	2011-08-10 21:35:11.000000000 +0800
-+++ linux-next/mm/page-writeback.c	2011-08-10 21:35:31.000000000 +0800
-@@ -741,6 +741,7 @@ static void bdi_update_dirty_ratelimit(s
- 	unsigned long dirty_rate;
- 	unsigned long pos_rate;
- 	unsigned long balanced_rate;
-+	unsigned long delta;
- 	unsigned long long pos_ratio;
- 
- 	/*
-@@ -755,7 +756,6 @@ static void bdi_update_dirty_ratelimit(s
- 	 * pos_rate reflects each dd's dirty rate enforced for the past 200ms.
- 	 */
- 	pos_rate = base_rate * pos_ratio >> BANDWIDTH_CALC_SHIFT;
--	pos_rate++;  /* this avoids bdi->dirty_ratelimit get stuck in 0 */
- 
- 	/*
- 	 * balanced_rate = pos_rate * write_bw / dirty_rate
-@@ -777,14 +777,32 @@ static void bdi_update_dirty_ratelimit(s
- 	 * makes it more stable, but also is essential for preventing it being
- 	 * driven away by possible systematic errors in balanced_rate.
- 	 */
-+	delta = 0;
- 	if (base_rate > pos_rate) {
- 		if (base_rate > balanced_rate)
--			base_rate = max(balanced_rate, pos_rate);
-+			delta = base_rate - max(balanced_rate, pos_rate);
- 	} else {
- 		if (base_rate < balanced_rate)
--			base_rate = min(balanced_rate, pos_rate);
-+			delta = min(balanced_rate, pos_rate) - base_rate;
- 	}
- 
-+	/*
-+	 * Don't pursue 100% rate matching. It's impossible since the balanced
-+	 * rate itself is constantly fluctuating. So decrease the track speed
-+	 * when it gets close to the target. Eliminates unnecessary jolting.
-+	 */
-+	delta >>= base_rate / (8 * delta + 1);
-+	/*
-+	 * Limit the step size to avoid overshooting. It also implicitly
-+	 * prevents dirty_ratelimit from dropping to 0.
-+	 */
-+	delta >>= 2;
-+
-+	if (base_rate < pos_rate)
-+		base_rate += delta;
-+	else
-+		base_rate -= delta;
-+
- 	bdi->dirty_ratelimit = base_rate;
- 
- 	trace_dirty_ratelimit(bdi, dirty_rate, pos_rate, balanced_rate);
-
---x+6KMIRAuhnl3hBn--
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
