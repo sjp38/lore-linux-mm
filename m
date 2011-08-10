@@ -1,71 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id A703E6B016D
-	for <linux-mm@kvack.org>; Wed, 10 Aug 2011 07:20:06 -0400 (EDT)
-Date: Wed, 10 Aug 2011 13:19:58 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v5 3/6]  memg: vmscan pass nodemask
-Message-ID: <20110810111958.GB15007@tiehlicka.suse.cz>
-References: <20110809190450.16d7f845.kamezawa.hiroyu@jp.fujitsu.com>
- <20110809191018.af81c55d.kamezawa.hiroyu@jp.fujitsu.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 8F72D6B0183
+	for <linux-mm@kvack.org>; Wed, 10 Aug 2011 07:24:41 -0400 (EDT)
+Received: by fxg9 with SMTP id 9so1156859fxg.14
+        for <linux-mm@kvack.org>; Wed, 10 Aug 2011 04:24:38 -0700 (PDT)
+From: Miklos Szeredi <miklos@szeredi.hu>
+Subject: Re: [patch 1/2] fuse: delete dead .write_begin and .write_end aops
+References: <1311626135-14279-1-git-send-email-jweiner@redhat.com>
+	<20110725204942.GA12183@infradead.org>
+	<87aabkeyfj.fsf@tucsk.pomaz.szeredi.hu>
+	<20110810102604.GB6117@infradead.org>
+Date: Wed, 10 Aug 2011 13:24:36 +0200
+In-Reply-To: <20110810102604.GB6117@infradead.org> (Christoph Hellwig's
+	message of "Wed, 10 Aug 2011 06:26:04 -0400")
+Message-ID: <87sjp97bm3.fsf@tucsk.pomaz.szeredi.hu>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110809191018.af81c55d.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Johannes Weiner <jweiner@redhat.com>, fuse-devel@lists.sourceforge.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue 09-08-11 19:10:18, KAMEZAWA Hiroyuki wrote:
-> 
-> pass memcg's nodemask to try_to_free_pages().
-> 
-> try_to_free_pages can take nodemask as its argument but memcg
-> doesn't pass it. Considering memcg can be used with cpuset on
-> big NUMA, memcg should pass nodemask if available.
-> 
-> Now, memcg maintain nodemask with periodic updates. pass it.
-> 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Changelog:
->  - fixed bugs to pass nodemask.
+Christoph Hellwig <hch@infradead.org> writes:
 
-Yes, looks good now.
-Reviewed-by: Michal Hocko <mhocko@suse.cz>
+> On Mon, Aug 08, 2011 at 05:05:20PM +0200, Miklos Szeredi wrote:
+>> > The loop code still calls them uncondtionally.  This actually is a big
+>> > as write_begin and write_end require filesystems specific locking,
+>> > and might require code in the filesystem to e.g. update the ctime
+>> > properly.  I'll let Miklos chime in if leaving them in was intentional,
+>> > and if it was a comment is probably justified.
+>> 
+>> Loop checks for ->write_begin() and falls back to ->write if the former
+>> isn't defined.
+>> 
+>> So I think the patch is fine.  I tested loop over fuse, and it still
+>> works after the patch.
+>
+> It works, but it involves another data copy, which will slow down
+> various workloads that people at least historically cared about.
 
-> Index: mmotm-Aug3/mm/vmscan.c
-> ===================================================================
-> --- mmotm-Aug3.orig/mm/vmscan.c
-> +++ mmotm-Aug3/mm/vmscan.c
-> @@ -2354,7 +2354,7 @@ unsigned long try_to_free_mem_cgroup_pag
->  		.order = 0,
->  		.mem_cgroup = mem_cont,
->  		.memcg_record = rec,
-> -		.nodemask = NULL, /* we don't care the placement */
-> +		.nodemask = NULL,
->  		.gfp_mask = (gfp_mask & GFP_RECLAIM_MASK) |
->  				(GFP_HIGHUSER_MOVABLE & ~GFP_RECLAIM_MASK),
->  	};
+AFAICS, normally there isn't an additional copy.  If ->write_begin is
+defined the copy from the bio_vec to the filesystem page is done with
+transfer_none() in the loop driver.
 
-We can remove the whole nodemask initialization.
+Otherwise the copy is done by ->write() itself on the kmapped bio.
 
-> @@ -2368,7 +2368,7 @@ unsigned long try_to_free_mem_cgroup_pag
->  	 * take care of from where we get pages. So the node where we start the
->  	 * scan does not need to be the current node.
->  	 */
-> -	nid = mem_cgroup_select_victim_node(mem_cont);
-> +	nid = mem_cgroup_select_victim_node(mem_cont, &sc.nodemask);
->  
->  	zonelist = NODE_DATA(nid)->node_zonelists;
+If there's a crypto transfer function then a temporary page will be used
+in the no write_begin case.  But I don't think there the additional copy
+makes much difference or that anyone cares.
 
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+Thanks,
+Miklos
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
