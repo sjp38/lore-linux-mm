@@ -1,62 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 7532C6B00EE
-	for <linux-mm@kvack.org>; Tue,  9 Aug 2011 23:26:44 -0400 (EDT)
-Date: Wed, 10 Aug 2011 11:26:34 +0800
+	by kanga.kvack.org (Postfix) with SMTP id 212346B00EE
+	for <linux-mm@kvack.org>; Tue,  9 Aug 2011 23:30:05 -0400 (EDT)
+Date: Wed, 10 Aug 2011 11:29:54 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 5/5] writeback: IO-less balance_dirty_pages()
-Message-ID: <20110810032634.GB24486@localhost>
+Subject: Re: [PATCH 4/5] writeback: per task dirty rate limit
+Message-ID: <20110810032954.GC24486@localhost>
 References: <20110806084447.388624428@intel.com>
- <20110806094527.136636891@intel.com>
- <20110809181543.GG6482@redhat.com>
+ <20110806094527.002914580@intel.com>
+ <20110809174621.GF6482@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110809181543.GG6482@redhat.com>
+In-Reply-To: <20110809174621.GF6482@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Vivek Goyal <vgoyal@redhat.com>
 Cc: "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Aug 10, 2011 at 02:15:43AM +0800, Vivek Goyal wrote:
-> On Sat, Aug 06, 2011 at 04:44:52PM +0800, Wu Fengguang wrote:
+On Wed, Aug 10, 2011 at 01:46:21AM +0800, Vivek Goyal wrote:
+> On Sat, Aug 06, 2011 at 04:44:51PM +0800, Wu Fengguang wrote:
 > 
 > [..]
-> > -		trace_balance_dirty_start(bdi);
-> > -		if (bdi_nr_reclaimable > task_bdi_thresh) {
-> > -			pages_written += writeback_inodes_wb(&bdi->wb,
-> > -							     write_chunk);
-> > -			trace_balance_dirty_written(bdi, pages_written);
-> > -			if (pages_written >= write_chunk)
-> > -				break;		/* We've done our duty */
-> > +		if (unlikely(!writeback_in_progress(bdi)))
-> > +			bdi_start_background_writeback(bdi);
+> >   * balance_dirty_pages() must be called by processes which are generating dirty
+> >   * data.  It looks at the number of dirty pages in the machine and will force
+> >   * the caller to perform writeback if the system is over `vm_dirty_ratio'.
+> > @@ -1008,6 +1005,9 @@ static void balance_dirty_pages(struct a
+> >  	if (clear_dirty_exceeded && bdi->dirty_exceeded)
+> >  		bdi->dirty_exceeded = 0;
+> >  
+> > +	current->nr_dirtied = 0;
+> > +	current->nr_dirtied_pause = ratelimit_pages(nr_dirty, dirty_thresh);
 > > +
-> > +		base_bw = bdi->dirty_ratelimit;
-> > +		bw = bdi_position_ratio(bdi, dirty_thresh, nr_dirty,
-> > +					bdi_thresh, bdi_dirty);
+> >  	if (writeback_in_progress(bdi))
+> >  		return;
+> >  
+> > @@ -1034,8 +1034,6 @@ void set_page_dirty_balance(struct page 
+> >  	}
+> >  }
+> >  
+> > -static DEFINE_PER_CPU(unsigned long, bdp_ratelimits) = 0;
+> > -
+> >  /**
+> >   * balance_dirty_pages_ratelimited_nr - balance dirty memory state
+> >   * @mapping: address_space which was dirtied
+> > @@ -1055,30 +1053,17 @@ void balance_dirty_pages_ratelimited_nr(
+> >  {
+> >  	struct backing_dev_info *bdi = mapping->backing_dev_info;
+> >  	unsigned long ratelimit;
+> > -	unsigned long *p;
+> >  
+> >  	if (!bdi_cap_account_dirty(bdi))
+> >  		return;
+> >  
+> > -	ratelimit = ratelimit_pages;
+> > -	if (mapping->backing_dev_info->dirty_exceeded)
+> > +	ratelimit = current->nr_dirtied_pause;
+> > +	if (bdi->dirty_exceeded)
+> >  		ratelimit = 8;
 > 
-> For the sake of consistency of usage of varibale naming how about using
-> 
-> pos_ratio = bdi_position_ratio()?
+> Should we make sure that ratelimit is more than 8? It could be that
+> ratelimit is 1 and we set it higher (just reverse of what we wanted?)
 
-OK!
+Good catch! I actually just fixed it in that direction :)
 
-> > +		if (unlikely(bw == 0)) {
-> > +			pause = MAX_PAUSE;
-> > +			goto pause;
-> >  		}
-> > +		bw = (u64)base_bw * bw >> BANDWIDTH_CALC_SHIFT;
-> 
-> So far bw had pos_ratio as value now it will be replaced with actual
-> bandwidth as value. It makes code confusing. So using pos_ratio will
-> help.
-> 
-> 		bw = (u64)base_bw * pos_ratio >> BANDWIDTH_CALC_SHIFT;
-
-Yeah it makes good sense. I'll change to.
-
- 		rate = (u64)base_rate * pos_ratio >> BANDWIDTH_CALC_SHIFT;
+        if (bdi->dirty_exceeded)
+-               ratelimit = 8;
++               ratelimit = min(ratelimit, 32 >> (PAGE_SHIFT - 10));
 
 Thanks,
 Fengguang
