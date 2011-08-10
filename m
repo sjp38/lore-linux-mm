@@ -1,72 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 212346B00EE
-	for <linux-mm@kvack.org>; Tue,  9 Aug 2011 23:30:05 -0400 (EDT)
-Date: Wed, 10 Aug 2011 11:29:54 +0800
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 904896B00EE
+	for <linux-mm@kvack.org>; Tue,  9 Aug 2011 23:40:23 -0400 (EDT)
+Date: Wed, 10 Aug 2011 11:40:12 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
 Subject: Re: [PATCH 4/5] writeback: per task dirty rate limit
-Message-ID: <20110810032954.GC24486@localhost>
+Message-ID: <20110810034012.GD24486@localhost>
 References: <20110806084447.388624428@intel.com>
  <20110806094527.002914580@intel.com>
- <20110809174621.GF6482@redhat.com>
+ <1312914906.1083.71.camel@twins>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110809174621.GF6482@redhat.com>
+In-Reply-To: <1312914906.1083.71.camel@twins>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vivek Goyal <vgoyal@redhat.com>
-Cc: "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Aug 10, 2011 at 01:46:21AM +0800, Vivek Goyal wrote:
-> On Sat, Aug 06, 2011 at 04:44:51PM +0800, Wu Fengguang wrote:
+On Wed, Aug 10, 2011 at 02:35:06AM +0800, Peter Zijlstra wrote:
+> On Sat, 2011-08-06 at 16:44 +0800, Wu Fengguang wrote:
+> > 
+> > Add two fields to task_struct.
+> > 
+> > 1) account dirtied pages in the individual tasks, for accuracy
+> > 2) per-task balance_dirty_pages() call intervals, for flexibility
+> > 
+> > The balance_dirty_pages() call interval (ie. nr_dirtied_pause) will
+> > scale near-sqrt to the safety gap between dirty pages and threshold.
+> > 
+> > XXX: The main problem of per-task nr_dirtied is, if 10k tasks start
+> > dirtying pages at exactly the same time, each task will be assigned a
+> > large initial nr_dirtied_pause, so that the dirty threshold will be
+> > exceeded long before each task reached its nr_dirtied_pause and hence
+> > call balance_dirty_pages(). 
 > 
-> [..]
-> >   * balance_dirty_pages() must be called by processes which are generating dirty
-> >   * data.  It looks at the number of dirty pages in the machine and will force
-> >   * the caller to perform writeback if the system is over `vm_dirty_ratio'.
-> > @@ -1008,6 +1005,9 @@ static void balance_dirty_pages(struct a
-> >  	if (clear_dirty_exceeded && bdi->dirty_exceeded)
-> >  		bdi->dirty_exceeded = 0;
-> >  
-> > +	current->nr_dirtied = 0;
-> > +	current->nr_dirtied_pause = ratelimit_pages(nr_dirty, dirty_thresh);
-> > +
-> >  	if (writeback_in_progress(bdi))
-> >  		return;
-> >  
-> > @@ -1034,8 +1034,6 @@ void set_page_dirty_balance(struct page 
-> >  	}
-> >  }
-> >  
-> > -static DEFINE_PER_CPU(unsigned long, bdp_ratelimits) = 0;
-> > -
-> >  /**
-> >   * balance_dirty_pages_ratelimited_nr - balance dirty memory state
-> >   * @mapping: address_space which was dirtied
-> > @@ -1055,30 +1053,17 @@ void balance_dirty_pages_ratelimited_nr(
-> >  {
-> >  	struct backing_dev_info *bdi = mapping->backing_dev_info;
-> >  	unsigned long ratelimit;
-> > -	unsigned long *p;
-> >  
-> >  	if (!bdi_cap_account_dirty(bdi))
-> >  		return;
-> >  
-> > -	ratelimit = ratelimit_pages;
-> > -	if (mapping->backing_dev_info->dirty_exceeded)
-> > +	ratelimit = current->nr_dirtied_pause;
-> > +	if (bdi->dirty_exceeded)
-> >  		ratelimit = 8;
-> 
-> Should we make sure that ratelimit is more than 8? It could be that
-> ratelimit is 1 and we set it higher (just reverse of what we wanted?)
+> Right, so why remove the per-cpu threshold? you can keep that as a bound
+> on the number of out-standing dirty pages.
 
-Good catch! I actually just fixed it in that direction :)
+Right, I also have the vague feeling that the per-cpu threshold can
+somehow backup the per-task threshold in case there are too many tasks.
 
-        if (bdi->dirty_exceeded)
--               ratelimit = 8;
-+               ratelimit = min(ratelimit, 32 >> (PAGE_SHIFT - 10));
+> Loosing that bound is actually a bad thing (TM), since you could have
+> configured a tight dirty limit and lock up your machine this way.
+
+It seems good enough to only remove the 4MB upper limit for
+ratelimit_pages, so that the per-cpu limit won't kick in too
+frequently in typical machines.
+
+  * Here we set ratelimit_pages to a level which ensures that when all CPUs are
+  * dirtying in parallel, we cannot go more than 3% (1/32) over the dirty memory
+  * thresholds before writeback cuts in.
+- *
+- * But the limit should not be set too high.  Because it also controls the
+- * amount of memory which the balance_dirty_pages() caller has to write back.
+- * If this is too large then the caller will block on the IO queue all the
+- * time.  So limit it to four megabytes - the balance_dirty_pages() caller
+- * will write six megabyte chunks, max.
+- */
+-
+ void writeback_set_ratelimit(void)
+ {
+        ratelimit_pages = vm_total_pages / (num_online_cpus() * 32);
+        if (ratelimit_pages < 16)
+                ratelimit_pages = 16;
+-       if (ratelimit_pages * PAGE_CACHE_SIZE > 4096 * 1024)
+-               ratelimit_pages = (4096 * 1024) / PAGE_CACHE_SIZE;
+ }
 
 Thanks,
 Fengguang
