@@ -1,116 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 08016900138
-	for <linux-mm@kvack.org>; Wed, 10 Aug 2011 14:20:58 -0400 (EDT)
-From: Andrew Bresticker <abrestic@google.com>
-Subject: [PATCH] memcg: replace ss->id_lock with a rwlock
-Date: Wed, 10 Aug 2011 11:20:33 -0700
-Message-Id: <1313000433-11537-1-git-send-email-abrestic@google.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 59351900138
+	for <linux-mm@kvack.org>; Wed, 10 Aug 2011 14:41:05 -0400 (EDT)
+Date: Wed, 10 Aug 2011 14:40:52 -0400
+From: Vivek Goyal <vgoyal@redhat.com>
+Subject: Re: [PATCH 0/5] IO-less dirty throttling v8
+Message-ID: <20110810184052.GE3396@redhat.com>
+References: <20110806084447.388624428@intel.com>
+ <20110809020127.GA3700@redhat.com>
+ <20110809055551.GP3162@dastard>
+ <20110809140421.GB6482@redhat.com>
+ <CAHH2K0bV3WPSOBn=Kob-kvw0FgchUhm_bA9HGVJGmsZgWf0dSg@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CAHH2K0bV3WPSOBn=Kob-kvw0FgchUhm_bA9HGVJGmsZgWf0dSg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ying Han <yinghan@google.com>
-Cc: linux-mm@kvack.org, Andrew Bresticker <abrestic@google.com>
+To: Greg Thelen <gthelen@google.com>
+Cc: Minchan Kim <minchan.kim@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@lst.de>, LKML <linux-kernel@vger.kernel.org>, Andrea Righi <arighi@develer.com>, Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, Jan Kara <jack@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-While back-porting Johannes Weiner's patch "mm: memcg-aware global reclaim"
-for an internal effort, we noticed a significant performance regression
-during page-reclaim heavy workloads due to high contention of the ss->id_lock.
-This lock protects idr map, and serializes calls to idr_get_next() in
-css_get_next() (which is used during the memcg hierarchy walk).  Since
-idr_get_next() is just doing a look up, we need only serialize it with
-respect to idr_remove()/idr_get_new().  By making the ss->id_lock a
-rwlock, contention is greatly reduced and performance improves.
+On Wed, Aug 10, 2011 at 12:41:00AM -0700, Greg Thelen wrote:
 
-Tested: cat a 256m file from a ramdisk in a 128m container 50 times
-on each core (one file + container per core) in parallel on a NUMA
-machine.  Result is the time for the test to complete in 1 of the
-containers.  Both kernels included Johannes' memcg-aware global
-reclaim patches.
-Before rwlock patch: 1710.778s
-After rwlock patch: 152.227s
+[..]
+> > > However, before we have a "finished product", there is still another
+> > > piece of the puzzle to be put in place - memcg-aware buffered
+> > > writeback. That is, having a flusher thread do work on behalf of
+> > > memcg in the IO context of the memcg. Then the IO controller just
+> > > sees a stream of async writes in the context of the memcg the
+> > > buffered writes came from in the first place. The block layer
+> > > throttles them just like any other IO in the IO context of the
+> > > memcg...
+> >
+> > Yes that is still a piece remaining. I was hoping that Greg Thelen will
+> > be able to extend his patches to submit writes in the context of
+> > per cgroup flusher/worker threads and solve this problem.
+> >
+> > Thanks
+> > Vivek
+> 
+> Are you suggesting multiple flushers per bdi (one per cgroup)?  I
+> thought the point of IO less was to one issue buffered writes from a
+> single thread.
 
-Signed-off-by: Andrew Bresticker <abrestic@google.com>
----
- include/linux/cgroup.h |    2 +-
- kernel/cgroup.c        |   18 +++++++++---------
- 2 files changed, 10 insertions(+), 10 deletions(-)
+I think in one of the mail threads Dave Chinner mentioned this idea
+of using per cgroup worker/worqueue.
 
-diff --git a/include/linux/cgroup.h b/include/linux/cgroup.h
-index da7e4bc..1b7f9d5 100644
---- a/include/linux/cgroup.h
-+++ b/include/linux/cgroup.h
-@@ -516,7 +516,7 @@ struct cgroup_subsys {
- 	struct list_head sibling;
- 	/* used when use_id == true */
- 	struct idr idr;
--	spinlock_t id_lock;
-+	rwlock_t id_lock;
- 
- 	/* should be defined only by modular subsystems */
- 	struct module *module;
-diff --git a/kernel/cgroup.c b/kernel/cgroup.c
-index 1d2b6ce..bc3caf0 100644
---- a/kernel/cgroup.c
-+++ b/kernel/cgroup.c
-@@ -4880,9 +4880,9 @@ void free_css_id(struct cgroup_subsys *ss, struct cgroup_subsys_state *css)
- 
- 	rcu_assign_pointer(id->css, NULL);
- 	rcu_assign_pointer(css->id, NULL);
--	spin_lock(&ss->id_lock);
-+	write_lock(&ss->id_lock);
- 	idr_remove(&ss->idr, id->id);
--	spin_unlock(&ss->id_lock);
-+	write_unlock(&ss->id_lock);
- 	kfree_rcu(id, rcu_head);
- }
- EXPORT_SYMBOL_GPL(free_css_id);
-@@ -4908,10 +4908,10 @@ static struct css_id *get_new_cssid(struct cgroup_subsys *ss, int depth)
- 		error = -ENOMEM;
- 		goto err_out;
- 	}
--	spin_lock(&ss->id_lock);
-+	write_lock(&ss->id_lock);
- 	/* Don't use 0. allocates an ID of 1-65535 */
- 	error = idr_get_new_above(&ss->idr, newid, 1, &myid);
--	spin_unlock(&ss->id_lock);
-+	write_unlock(&ss->id_lock);
- 
- 	/* Returns error when there are no free spaces for new ID.*/
- 	if (error) {
-@@ -4926,9 +4926,9 @@ static struct css_id *get_new_cssid(struct cgroup_subsys *ss, int depth)
- 	return newid;
- remove_idr:
- 	error = -ENOSPC;
--	spin_lock(&ss->id_lock);
-+	write_lock(&ss->id_lock);
- 	idr_remove(&ss->idr, myid);
--	spin_unlock(&ss->id_lock);
-+	write_unlock(&ss->id_lock);
- err_out:
- 	kfree(newid);
- 	return ERR_PTR(error);
-@@ -4940,7 +4940,7 @@ static int __init_or_module cgroup_init_idr(struct cgroup_subsys *ss,
- {
- 	struct css_id *newid;
- 
--	spin_lock_init(&ss->id_lock);
-+	rwlock_init(&ss->id_lock);
- 	idr_init(&ss->idr);
- 
- 	newid = get_new_cssid(ss, 0);
-@@ -5035,9 +5035,9 @@ css_get_next(struct cgroup_subsys *ss, int id,
- 		 * scan next entry from bitmap(tree), tmpid is updated after
- 		 * idr_get_next().
- 		 */
--		spin_lock(&ss->id_lock);
-+		read_lock(&ss->id_lock);
- 		tmp = idr_get_next(&ss->idr, &tmpid);
--		spin_unlock(&ss->id_lock);
-+		read_unlock(&ss->id_lock);
- 
- 		if (!tmp)
- 			break;
--- 
-1.7.3.1
+Agreed that it leads back to the issue of multiple writers (but only
+if multiple cgroups are there). But at the same time it simplifies
+atleast two problems.
+
+- Worker could be migrated to the cgroup we are writting for and we
+  don't need the IO tracking logic. blkio controller should will
+  automatically account the IO to right group.
+
+- We don't have to worry about a single flusher thread sleeping
+  on request queue because either queue or group is congested and
+  this can lead other group's IO is not being submitted.
+
+Thanks
+Vivek
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
