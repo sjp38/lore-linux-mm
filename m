@@ -1,109 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id DF320900138
-	for <linux-mm@kvack.org>; Wed, 10 Aug 2011 17:41:21 -0400 (EDT)
-Date: Wed, 10 Aug 2011 17:40:57 -0400
-From: Vivek Goyal <vgoyal@redhat.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id A1096900138
+	for <linux-mm@kvack.org>; Wed, 10 Aug 2011 18:34:44 -0400 (EDT)
+Date: Thu, 11 Aug 2011 00:34:27 +0200
+From: Jan Kara <jack@suse.cz>
 Subject: Re: [PATCH 2/5] writeback: dirty position control
-Message-ID: <20110810214057.GA6576@redhat.com>
+Message-ID: <20110810223427.GA18227@quack.suse.cz>
 References: <20110806084447.388624428@intel.com>
  <20110806094526.733282037@intel.com>
  <1312811193.10488.33.camel@twins>
  <20110808141128.GA22080@localhost>
  <1312814501.10488.41.camel@twins>
  <20110808230535.GC7176@localhost>
+ <1312910427.1083.68.camel@twins>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110808230535.GC7176@localhost>
+In-Reply-To: <1312910427.1083.68.camel@twins>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Wu Fengguang <fengguang.wu@intel.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, Aug 09, 2011 at 07:05:35AM +0800, Wu Fengguang wrote:
-> On Mon, Aug 08, 2011 at 10:41:41PM +0800, Peter Zijlstra wrote:
-> > On Mon, 2011-08-08 at 22:11 +0800, Wu Fengguang wrote:
-> > > @@ -538,11 +538,6 @@ static unsigned long bdi_position_ratio(
-> > >         goal = thresh - thresh / DIRTY_SCOPE;
-> > >         origin = 4 * thresh;
-> > >  
-> > > -       if (unlikely(origin < limit && dirty > (goal + origin) / 2)) {
-> > > -               origin = limit;                 /* auxiliary control line */
-> > > -               goal = (goal + origin) / 2;
-> > > -               pos_ratio >>= 1;
-> > > -       }
-> > >         pos_ratio = origin - dirty;
-> > >         pos_ratio <<= BANDWIDTH_CALC_SHIFT;
-> > >         do_div(pos_ratio, origin - goal + 1); 
+On Tue 09-08-11 19:20:27, Peter Zijlstra wrote:
+> On Tue, 2011-08-09 at 12:32 +0200, Peter Zijlstra wrote:
+> > >                     origin - dirty
+> > >         pos_ratio = --------------
+> > >                     origin - goal 
+> > 
+> > > which comes from the below [*] control line, so that when (dirty == goal),
+> > > pos_ratio == 1.0:
+> > 
+> > OK, so basically you want a linear function for which:
+> > 
+> > f(goal) = 1 and has a root somewhere > goal.
+> > 
+> > (that one line is much more informative than all your graphs put
+> > together, one can start from there and derive your function)
+> > 
+> > That does indeed get you the above function, now what does it mean? 
 > 
-> FYI I've updated the fix to the below one, so that @limit will be used
-> as the origin in the rare case of (4*thresh < dirty).
+> So going by:
 > 
-> --- linux-next.orig/mm/page-writeback.c	2011-08-08 21:56:11.000000000 +0800
-> +++ linux-next/mm/page-writeback.c	2011-08-09 06:34:25.000000000 +0800
-> @@ -536,13 +536,8 @@ static unsigned long bdi_position_ratio(
->  	 * global setpoint
->  	 */
->  	goal = thresh - thresh / DIRTY_SCOPE;
-> -	origin = 4 * thresh;
-> +	origin = max(4 * thresh, limit);
+>                                          write_bw
+>   ref_bw = dirty_ratelimit * pos_ratio * --------
+>                                          dirty_bw
 
-Hi Fengguang,
+  Actually, thinking about these formulas, why do we even bother with
+computing all these factors like write_bw, dirty_bw, pos_ratio, ...
+Couldn't we just have a feedback loop (probably similar to the one
+computing pos_ratio) which will maintain single value - ratelimit? When we
+are getting close to dirty limit, we will scale ratelimit down, when we
+will be getting significantly below dirty limit, we will scale the
+ratelimit up.  Because looking at the formulas it seems to me that the net
+effect is the same - pos_ratio basically overrules everything... 
 
-Ok, so just trying to understand this pos_ratio little better.
+> pos_ratio seems to be the feedback on the deviation of the dirty pages
+> around its setpoint. So we adjust the reference bw (or rather ratelimit)
+> to take account of the shift in output vs input capacity as well as the
+> shift in dirty pages around its setpoint.
+> 
+> From that we derive the condition that: 
+> 
+>   pos_ratio(setpoint) := 1
+> 
+> Now in order to create a linear function we need one more condition. We
+> get one from the fact that once we hit the limit we should hard throttle
+> our writers. We get that by setting the ratelimit to 0, because, after
+> all, pause = nr_dirtied / ratelimit would yield inf. in that case. Thus:
+> 
+>   pos_ratio(limit) := 0
+> 
+> Using these two conditions we can solve the equations and get your:
+> 
+>                         limit - dirty
+>   pos_ratio(dirty) =  ----------------
+>                       limit - setpoint
+> 
+> Now, for some reason you chose not to use limit, but something like
+> min(limit, 4*thresh) something to do with the slope affecting the rate
+> of adjustment. This wants a comment someplace.
+> 
+> 
+> Now all of the above would seem to suggest:
+> 
+>   dirty_ratelimit := ref_bw
+> 
+> However for that you use:
+> 
+>   if (pos_bw < dirty_ratelimit && ref_bw < dirty_ratelimit)
+> 	dirty_ratelimit = max(ref_bw, pos_bw);
+> 
+>   if (pos_bw > dirty_ratelimit && ref_bw > dirty_ratelimit)
+> 	dirty_ratelimit = min(ref_bw, pos_bw);
+> 
+> You have:
+> 
+>   pos_bw = dirty_ratelimit * pos_ratio
+> 
+> Which is ref_bw without the write_bw/dirty_bw factor, this confuses me..
+> why are you ignoring the shift in output vs input rate there?
 
-You have following basic formula.
-
-                     origin - dirty
-         pos_ratio = --------------
-                     origin - goal
-
-Terminology is very confusing and following is my understanding. 
-
-- setpoint == goal
-
-  setpoint is the point where we would like our number of dirty pages to
-  be and at this point pos_ratio = 1. For global dirty this number seems
-  to be (thresh - thresh / DIRTY_SCOPE) 
-
-- thresh
-  dirty page threshold calculated from dirty_ratio (Certain percentage of
-  total memory).
-
-- Origin (seems to be equivalent of limit)
-
-  This seems to be the reference point/limit we don't want to cross and
-  distance from this limit basically decides the pos_ratio. Closer we
-  are to limit, lower the pos_ratio and further we are higher the
-  pos_ratio.
-
-So threshold is just a number which helps us determine goal and limit.
-
-goal = thresh - thresh / DIRTY_SCOPE
-limit = 4*thresh
-
-So goal is where we want to be and we start throttling the task more as
-we move away goal and approach limit. We keep the limit high enough
-so that (origin-dirty) does not become negative entity.
-
-So we do expect to cross "thresh" otherwise thresh itself could have
-served as limit?
-
-If my understanding is right, then can we get rid of terms "setpoint" and
-"origin". Would it be easier to understand the things if we just talk
-in terms of "goal" and "limit" and how these are derived from "thresh".
-
-	thresh == soft limit
-	limit == 4*thresh (hard limit)
-	goal = thresh - thresh / DIRTY_SCOPE (where we want system to
-						be in steady state).
-                     limit - dirty
-         pos_ratio = --------------
-                     limit - goal
-
-Thanks
-Vivek
+								Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
