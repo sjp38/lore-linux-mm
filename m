@@ -1,37 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id A08186B017A
-	for <linux-mm@kvack.org>; Wed, 10 Aug 2011 09:54:22 -0400 (EDT)
-Date: Wed, 10 Aug 2011 20:28:04 +0800
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 1ABA990013D
+	for <linux-mm@kvack.org>; Wed, 10 Aug 2011 10:00:09 -0400 (EDT)
+Date: Wed, 10 Aug 2011 22:00:02 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 2/5] writeback: dirty position control
-Message-ID: <20110810122804.GA4120@localhost>
+Subject: Re: [PATCH 3/5] writeback: dirty rate control
+Message-ID: <20110810140002.GA29724@localhost>
 References: <20110806084447.388624428@intel.com>
- <20110806094526.733282037@intel.com>
- <1312811193.10488.33.camel@twins>
- <20110808141128.GA22080@localhost>
- <1312813909.10488.38.camel@twins>
- <20110808224742.GB7176@localhost>
- <1312882304.22367.50.camel@twins>
+ <20110806094526.878435971@intel.com>
+ <20110809155046.GD6482@redhat.com>
+ <1312906591.1083.43.camel@twins>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1312882304.22367.50.camel@twins>
+In-Reply-To: <1312906591.1083.43.camel@twins>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Peter Zijlstra <peterz@infradead.org>
-Cc: "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+Cc: Vivek Goyal <vgoyal@redhat.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, Aug 09, 2011 at 05:31:44PM +0800, Peter Zijlstra wrote:
-> On Tue, 2011-08-09 at 06:47 +0800, Wu Fengguang wrote:
-> > origin is where the control line crosses the X axis (in both the
-> > global/bdi setpoint cases). 
-> 
-> Ah, that's normally called zero, root or or x-intercept:
-> 
-> http://en.wikipedia.org/wiki/X-intercept
+On Wed, Aug 10, 2011 at 12:16:30AM +0800, Peter Zijlstra wrote:
+> On Tue, 2011-08-09 at 11:50 -0400, Vivek Goyal wrote:
+> > 
+> > So IIUC, bdi->dirty_ratelimit is the dynmically adjusted desired rate
+> > limit (based on postion ratio, dirty_bw and write_bw). But this seems
+> > to be overall bdi limit and does not seem to take into account the
+> > number of tasks doing IO to that bdi (as your comment suggests).
+> > So it probably will track write_bw as opposed to write_bw/N. What
+> > am I missing? 
 
-Yes indeed! I'll change the name to x_intercept.
+In normal situation (near the setpoints),
+
+   task_ratelimit ~= bdi->dirty_ratelimit ~= write_bw / N
+
+Yes, dirty_ratelimit is a per-bdi variable, because all tasks share
+roughly the same dirty ratelimit for the obvious reason of fairness.
+ 
+> I think the per task thing comes from him using the pages_dirtied
+> argument to balance_dirty_pages() to compute the sleep time.
+
+Yeah. Ultimately it will allow different tasks to be throttled at
+different (user specified) rates.
+
+> Although I'm not quite sure how he keeps fairness in light of the
+> sleep time bounding to MAX_PAUSE.
+
+Firstly, MAX_PAUSE will only be applied when the dirty pages rush
+high (dirty exceeded).  Secondly, the dirty exceeded state is global
+to all tasks, in which case each task will sleep for MAX_PAUSE equally.
+So the fairness is still maintained in dirty exceeded state.
 
 Thanks,
 Fengguang
