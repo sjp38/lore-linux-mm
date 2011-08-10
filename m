@@ -1,201 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 58C016B0171
-	for <linux-mm@kvack.org>; Wed, 10 Aug 2011 16:21:51 -0400 (EDT)
-Date: Wed, 10 Aug 2011 15:21:47 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: [RFC] mm: Distinguish between mlocked and pinned pages
-Message-ID: <alpine.DEB.2.00.1108101516430.20403@router.home>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id DF320900138
+	for <linux-mm@kvack.org>; Wed, 10 Aug 2011 17:41:21 -0400 (EDT)
+Date: Wed, 10 Aug 2011 17:40:57 -0400
+From: Vivek Goyal <vgoyal@redhat.com>
+Subject: Re: [PATCH 2/5] writeback: dirty position control
+Message-ID: <20110810214057.GA6576@redhat.com>
+References: <20110806084447.388624428@intel.com>
+ <20110806094526.733282037@intel.com>
+ <1312811193.10488.33.camel@twins>
+ <20110808141128.GA22080@localhost>
+ <1312814501.10488.41.camel@twins>
+ <20110808230535.GC7176@localhost>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110808230535.GC7176@localhost>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, linux-mm@kvack.org
-Cc: linux-rdma@vger.kernel.org, Hugh Dickins <hughd@google.com>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Some kernel components pin user space memory (infiniband and perf)
-(by increasing the page count) and account that memory as "mlocked".
+On Tue, Aug 09, 2011 at 07:05:35AM +0800, Wu Fengguang wrote:
+> On Mon, Aug 08, 2011 at 10:41:41PM +0800, Peter Zijlstra wrote:
+> > On Mon, 2011-08-08 at 22:11 +0800, Wu Fengguang wrote:
+> > > @@ -538,11 +538,6 @@ static unsigned long bdi_position_ratio(
+> > >         goal = thresh - thresh / DIRTY_SCOPE;
+> > >         origin = 4 * thresh;
+> > >  
+> > > -       if (unlikely(origin < limit && dirty > (goal + origin) / 2)) {
+> > > -               origin = limit;                 /* auxiliary control line */
+> > > -               goal = (goal + origin) / 2;
+> > > -               pos_ratio >>= 1;
+> > > -       }
+> > >         pos_ratio = origin - dirty;
+> > >         pos_ratio <<= BANDWIDTH_CALC_SHIFT;
+> > >         do_div(pos_ratio, origin - goal + 1); 
+> 
+> FYI I've updated the fix to the below one, so that @limit will be used
+> as the origin in the rare case of (4*thresh < dirty).
+> 
+> --- linux-next.orig/mm/page-writeback.c	2011-08-08 21:56:11.000000000 +0800
+> +++ linux-next/mm/page-writeback.c	2011-08-09 06:34:25.000000000 +0800
+> @@ -536,13 +536,8 @@ static unsigned long bdi_position_ratio(
+>  	 * global setpoint
+>  	 */
+>  	goal = thresh - thresh / DIRTY_SCOPE;
+> -	origin = 4 * thresh;
+> +	origin = max(4 * thresh, limit);
 
-The difference between mlocking and pinning is:
+Hi Fengguang,
 
-A. mlocked pages are marked with PG_mlocked and are exempt from
-   swapping. Page migration may move them around though.
-   They are kept on a special LRU list.
+Ok, so just trying to understand this pos_ratio little better.
 
-B. Pinned pages cannot be moved because something needs to
-   directly access physical memory. They may not be on any
-   LRU list.
+You have following basic formula.
 
-I recently saw an mlockalled process where mm->locked_vm became
-bigger than the virtual size of the process (!) because some
-memory was accounted for twice:
+                     origin - dirty
+         pos_ratio = --------------
+                     origin - goal
 
-Once when the page was mlocked and once when the Infiniband
-layer increased the refcount because it needt to pin the RDMA
-memory.
+Terminology is very confusing and following is my understanding. 
 
-This patch introduces a separate counter for pinned pages and
-accounts them seperately.
+- setpoint == goal
 
-Signed-off-by: Christoph Lameter <cl@linux.com>
+  setpoint is the point where we would like our number of dirty pages to
+  be and at this point pos_ratio = 1. For global dirty this number seems
+  to be (thresh - thresh / DIRTY_SCOPE) 
 
----
- drivers/infiniband/core/umem.c                 |    6 +++---
- drivers/infiniband/hw/ipath/ipath_user_pages.c |    6 +++---
- drivers/infiniband/hw/qib/qib_user_pages.c     |    4 ++--
- fs/proc/task_mmu.c                             |    2 ++
- include/linux/mm_types.h                       |    2 +-
- kernel/events/core.c                           |    6 +++---
- 6 files changed, 14 insertions(+), 12 deletions(-)
+- thresh
+  dirty page threshold calculated from dirty_ratio (Certain percentage of
+  total memory).
 
-Index: linux-2.6/fs/proc/task_mmu.c
-===================================================================
---- linux-2.6.orig/fs/proc/task_mmu.c	2011-08-10 14:08:42.000000000 -0500
-+++ linux-2.6/fs/proc/task_mmu.c	2011-08-10 15:01:37.000000000 -0500
-@@ -44,6 +44,7 @@ void task_mem(struct seq_file *m, struct
- 		"VmPeak:\t%8lu kB\n"
- 		"VmSize:\t%8lu kB\n"
- 		"VmLck:\t%8lu kB\n"
-+		"VmPin:\t%8lu kB\n"
- 		"VmHWM:\t%8lu kB\n"
- 		"VmRSS:\t%8lu kB\n"
- 		"VmData:\t%8lu kB\n"
-@@ -55,6 +56,7 @@ void task_mem(struct seq_file *m, struct
- 		hiwater_vm << (PAGE_SHIFT-10),
- 		(total_vm - mm->reserved_vm) << (PAGE_SHIFT-10),
- 		mm->locked_vm << (PAGE_SHIFT-10),
-+		mm->pinned_vm << (PAGE_SHIFT-10),
- 		hiwater_rss << (PAGE_SHIFT-10),
- 		total_rss << (PAGE_SHIFT-10),
- 		data << (PAGE_SHIFT-10),
-Index: linux-2.6/include/linux/mm_types.h
-===================================================================
---- linux-2.6.orig/include/linux/mm_types.h	2011-08-10 14:08:42.000000000 -0500
-+++ linux-2.6/include/linux/mm_types.h	2011-08-10 14:09:02.000000000 -0500
-@@ -281,7 +281,7 @@ struct mm_struct {
- 	unsigned long hiwater_rss;	/* High-watermark of RSS usage */
- 	unsigned long hiwater_vm;	/* High-water virtual memory usage */
+- Origin (seems to be equivalent of limit)
 
--	unsigned long total_vm, locked_vm, shared_vm, exec_vm;
-+	unsigned long total_vm, locked_vm, pinned_vm, shared_vm, exec_vm;
- 	unsigned long stack_vm, reserved_vm, def_flags, nr_ptes;
- 	unsigned long start_code, end_code, start_data, end_data;
- 	unsigned long start_brk, brk, start_stack;
-Index: linux-2.6/drivers/infiniband/core/umem.c
-===================================================================
---- linux-2.6.orig/drivers/infiniband/core/umem.c	2011-08-10 14:08:57.000000000 -0500
-+++ linux-2.6/drivers/infiniband/core/umem.c	2011-08-10 14:09:06.000000000 -0500
-@@ -136,7 +136,7 @@ struct ib_umem *ib_umem_get(struct ib_uc
+  This seems to be the reference point/limit we don't want to cross and
+  distance from this limit basically decides the pos_ratio. Closer we
+  are to limit, lower the pos_ratio and further we are higher the
+  pos_ratio.
 
- 	down_write(&current->mm->mmap_sem);
+So threshold is just a number which helps us determine goal and limit.
 
--	locked     = npages + current->mm->locked_vm;
-+	locked     = npages + current->mm->pinned_vm;
- 	lock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
+goal = thresh - thresh / DIRTY_SCOPE
+limit = 4*thresh
 
- 	if ((locked > lock_limit) && !capable(CAP_IPC_LOCK)) {
-@@ -206,7 +206,7 @@ out:
- 		__ib_umem_release(context->device, umem, 0);
- 		kfree(umem);
- 	} else
--		current->mm->locked_vm = locked;
-+		current->mm->pinned_vm = locked;
+So goal is where we want to be and we start throttling the task more as
+we move away goal and approach limit. We keep the limit high enough
+so that (origin-dirty) does not become negative entity.
 
- 	up_write(&current->mm->mmap_sem);
- 	if (vma_list)
-@@ -222,7 +222,7 @@ static void ib_umem_account(struct work_
- 	struct ib_umem *umem = container_of(work, struct ib_umem, work);
+So we do expect to cross "thresh" otherwise thresh itself could have
+served as limit?
 
- 	down_write(&umem->mm->mmap_sem);
--	umem->mm->locked_vm -= umem->diff;
-+	umem->mm->pinned_vm -= umem->diff;
- 	up_write(&umem->mm->mmap_sem);
- 	mmput(umem->mm);
- 	kfree(umem);
-Index: linux-2.6/drivers/infiniband/hw/ipath/ipath_user_pages.c
-===================================================================
---- linux-2.6.orig/drivers/infiniband/hw/ipath/ipath_user_pages.c	2011-08-10 14:08:57.000000000 -0500
-+++ linux-2.6/drivers/infiniband/hw/ipath/ipath_user_pages.c	2011-08-10 14:09:06.000000000 -0500
-@@ -79,7 +79,7 @@ static int __ipath_get_user_pages(unsign
- 			goto bail_release;
- 	}
+If my understanding is right, then can we get rid of terms "setpoint" and
+"origin". Would it be easier to understand the things if we just talk
+in terms of "goal" and "limit" and how these are derived from "thresh".
 
--	current->mm->locked_vm += num_pages;
-+	current->mm->pinned_vm += num_pages;
+	thresh == soft limit
+	limit == 4*thresh (hard limit)
+	goal = thresh - thresh / DIRTY_SCOPE (where we want system to
+						be in steady state).
+                     limit - dirty
+         pos_ratio = --------------
+                     limit - goal
 
- 	ret = 0;
- 	goto bail;
-@@ -178,7 +178,7 @@ void ipath_release_user_pages(struct pag
-
- 	__ipath_release_user_pages(p, num_pages, 1);
-
--	current->mm->locked_vm -= num_pages;
-+	current->mm->pinned_vm -= num_pages;
-
- 	up_write(&current->mm->mmap_sem);
- }
-@@ -195,7 +195,7 @@ static void user_pages_account(struct wo
- 		container_of(_work, struct ipath_user_pages_work, work);
-
- 	down_write(&work->mm->mmap_sem);
--	work->mm->locked_vm -= work->num_pages;
-+	work->mm->pinned_vm -= work->num_pages;
- 	up_write(&work->mm->mmap_sem);
- 	mmput(work->mm);
- 	kfree(work);
-Index: linux-2.6/drivers/infiniband/hw/qib/qib_user_pages.c
-===================================================================
---- linux-2.6.orig/drivers/infiniband/hw/qib/qib_user_pages.c	2011-08-10 14:08:57.000000000 -0500
-+++ linux-2.6/drivers/infiniband/hw/qib/qib_user_pages.c	2011-08-10 14:09:06.000000000 -0500
-@@ -74,7 +74,7 @@ static int __qib_get_user_pages(unsigned
- 			goto bail_release;
- 	}
-
--	current->mm->locked_vm += num_pages;
-+	current->mm->pinned_vm += num_pages;
-
- 	ret = 0;
- 	goto bail;
-@@ -151,7 +151,7 @@ void qib_release_user_pages(struct page
- 	__qib_release_user_pages(p, num_pages, 1);
-
- 	if (current->mm) {
--		current->mm->locked_vm -= num_pages;
-+		current->mm->pinned_vm -= num_pages;
- 		up_write(&current->mm->mmap_sem);
- 	}
- }
-Index: linux-2.6/kernel/events/core.c
-===================================================================
---- linux-2.6.orig/kernel/events/core.c	2011-08-10 14:08:57.000000000 -0500
-+++ linux-2.6/kernel/events/core.c	2011-08-10 15:04:16.000000000 -0500
-@@ -3500,7 +3500,7 @@ static void perf_mmap_close(struct vm_ar
- 		struct ring_buffer *rb = event->rb;
-
- 		atomic_long_sub((size >> PAGE_SHIFT) + 1, &user->locked_vm);
--		vma->vm_mm->locked_vm -= event->mmap_locked;
-+		vma->vm_mm->pinned_vm -= event->mmap_locked;
- 		rcu_assign_pointer(event->rb, NULL);
- 		mutex_unlock(&event->mmap_mutex);
-
-@@ -3581,7 +3581,7 @@ static int perf_mmap(struct file *file,
-
- 	lock_limit = rlimit(RLIMIT_MEMLOCK);
- 	lock_limit >>= PAGE_SHIFT;
--	locked = vma->vm_mm->locked_vm + extra;
-+	locked = vma->vm_mm->pinned_vm + extra;
-
- 	if ((locked > lock_limit) && perf_paranoid_tracepoint_raw() &&
- 		!capable(CAP_IPC_LOCK)) {
-@@ -3607,7 +3607,7 @@ static int perf_mmap(struct file *file,
- 	atomic_long_add(user_extra, &user->locked_vm);
- 	event->mmap_locked = extra;
- 	event->mmap_user = get_current_user();
--	vma->vm_mm->locked_vm += event->mmap_locked;
-+	vma->vm_mm->pinned_vm += event->mmap_locked;
-
- unlock:
- 	if (!ret)
+Thanks
+Vivek
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
