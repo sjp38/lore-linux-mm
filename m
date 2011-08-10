@@ -1,124 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 0365190013D
-	for <linux-mm@kvack.org>; Wed, 10 Aug 2011 11:40:46 -0400 (EDT)
-Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
-	by e6.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p7AFGbLf027254
-	for <linux-mm@kvack.org>; Wed, 10 Aug 2011 11:16:37 -0400
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p7AFejeq183484
-	for <linux-mm@kvack.org>; Wed, 10 Aug 2011 11:40:45 -0400
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p7AFejFO023544
-	for <linux-mm@kvack.org>; Wed, 10 Aug 2011 11:40:45 -0400
-Message-ID: <4E42A67A.6090803@linux.vnet.ibm.com>
-Date: Wed, 10 Aug 2011 10:40:42 -0500
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v2] staging: zcache: support multiple clients, prep for
- KVM and RAMster
-References: <1d15f28a-56df-4cf4-9dd9-1032f211c0d0@default> <4E429407.8000209@linux.vnet.ibm.com 4E429945.1020008@linux.vnet.ibm.com> <2f1abd2b-4c58-46b4-83bd-18c5338de28e@default>
-In-Reply-To: <2f1abd2b-4c58-46b4-83bd-18c5338de28e@default>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 6892E6B00EE
+	for <linux-mm@kvack.org>; Wed, 10 Aug 2011 12:18:23 -0400 (EDT)
+Subject: Re: [PATCH 3/5] writeback: dirty rate control
+From: Peter Zijlstra <peterz@infradead.org>
+Date: Wed, 10 Aug 2011 18:17:55 +0200
+In-Reply-To: <20110810110709.GA27604@localhost>
+References: <20110806084447.388624428@intel.com>
+	 <20110806094526.878435971@intel.com> <1312901852.1083.26.camel@twins>
+	 <20110810110709.GA27604@localhost>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+Message-ID: <1312993075.23660.40.camel@twins>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: Greg Kroah-Hartman <gregkh@suse.de>, Marcus Klemm <marcus.klemm@googlemail.com>, Konrad Wilk <konrad.wilk@oracle.com>, linux-kernel@vger.kernel.org, devel@linuxdriverproject.org, kvm@vger.kernel.org, linux-mm <linux-mm@kvack.org>, Brian King <brking@linux.vnet.ibm.com>, Robert Jennings <rcj@linux.vnet.ibm.com>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On 08/10/2011 10:08 AM, Dan Magenheimer wrote:
->> From: Seth Jennings [mailto:sjenning@linux.vnet.ibm.com]
->> Subject: Re: [PATCH v2] staging: zcache: support multiple clients, prep for KVM and RAMster
->>
->>> This crash is hit every time a high memory page is swapped out.
->>>
->>> I have no solution right now other that to revert this patch and
->>> restore the original signatures.
-> 
-> Hi Seth --
-> 
-> Thanks for your testing.  I haven't done much testing on 32-bit.
-> 
->> Sorry for the noise, but I noticed right after I sent this that
->> the tmem layer doesn't DO anything with the data parameter. So
->> a possible solution is to just pass the page pointer instead of
->> the virtual address.  After all, pointers are pointers.
-> 
-> Yes, this looks like a good patch.
-> 
->> --- a/drivers/staging/zcache/zcache.c
->> +++ b/drivers/staging/zcache/zcache.c
->> @@ -1153,7 +1153,7 @@ static void *zcache_pampd_create(char *data, size_t size,
->>         size_t clen;
->>         int ret;
->>         unsigned long count;
->> -       struct page *page = virt_to_page(data);
->> +       struct page *page = (struct page *)(data);
->>         struct zcache_client *cli = pool->client;
->>         uint16_t client_id = get_client_id_from_client(cli);
->>         unsigned long zv_mean_zsize;
->> @@ -1220,7 +1220,7 @@ static int zcache_pampd_get_data(char *data, size_t *bufsi
->>         int ret = 0;
->>
->>         BUG_ON(is_ephemeral(pool));
->> -       zv_decompress(virt_to_page(data), pampd);
->> +       zv_decompress((struct page *)(data), pampd);
->>         return ret;
->>  }
->>
->> @@ -1532,7 +1532,7 @@ static int zcache_put_page(int cli_id, int pool_id, struct
->>                 goto out;
->>         if (!zcache_freeze && zcache_do_preload(pool) == 0) {
->>                 /* preload does preempt_disable on success */
->> -               ret = tmem_put(pool, oidp, index, page_address(page),
->> +               ret = tmem_put(pool, oidp, index, (char *)(page),
->>                                 PAGE_SIZE, 0, is_ephemeral(pool));
->>                 if (ret < 0) {
->>                         if (is_ephemeral(pool))
->> @@ -1565,7 +1565,7 @@ static int zcache_get_page(int cli_id, int pool_id, struct
->>         pool = zcache_get_pool_by_id(cli_id, pool_id);
->>         if (likely(pool != NULL)) {
->>                 if (atomic_read(&pool->obj_count) > 0)
->> -                       ret = tmem_get(pool, oidp, index, page_address(page),
->> +                       ret = tmem_get(pool, oidp, index, (char *)(page),
->>                                         &size, 0, is_ephemeral(pool));
->>                 zcache_put_pool(pool);
->>         }
->>
->> I tested this and it works.
->>
->> Dan, does this mess anything else up?
-> 
-> Acked-by: Dan Magenheimer <dan.magenheimer@oracle.com>
-> 
->>> What was the rationale for the signature changes?
->>> Seth
-> 
-> The change on the tmem side allows tmem to handle pre-compressed pages,
-> which is useful to RAMster and possibly for KVM.  The new "raw"
-> parameter identifies that case, but for zcache "raw" is always zero so
-> your solution looks fine.
-> 
-> Seth, could you submit an "official" patch (i.e. proper subject field,
-> signed-off-by) and I will ack that and ask GregKH to queue it up for
-> a 3.1-rc?
+How about something like the below, it still needs some more work, but
+its more or less complete in that is now explains both controls in one
+story. The actual update bit is still missing.
 
-Will do. I'm actually about to send out a set of 3 patches for zcache.
-There is a Makefile issue, and a 32-bit link-time issue I have found
-as well.  Hopefully, I'll send it out today.
+---
 
-> 
-> Subject something like: staging: zcache: fix highmem crash on 32-bit
-> 
-> Thanks,
-> Dan
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-> Don't email: <a href=ilto:"dont@kvack.org"> email@kvack.org </a>
+balance_dirty_pages() needs to throttle tasks dirtying pages such that
+the total amount of dirty pages stays below the specified dirty limit in
+order to avoid memory deadlocks. Furthermore we desire fairness in that
+tasks get throttled proportionally to the amount of pages they dirty.
+
+IOW we want to throttle tasks such that we match the dirty rate to the
+writeout bandwidth, this yields a stable amount of dirty pages:
+
+	ratelimit =3D writeout_bandwidth
+
+The fairness requirements gives us:
+
+	task_ratelimit =3D write_bandwidth / N
+
+> : When started N dd, we would like to throttle each dd at
+> :=20
+> :          balanced_rate =3D=3D write_bw / N                             =
+     (1)
+> :=20
+> : We don't know N beforehand, but still can estimate balanced_rate
+> : within 200ms.
+> :=20
+> : Start by throttling each dd task at rate
+> :=20
+> :         task_ratelimit =3D task_ratelimit_0                            =
+   (2)
+> :                          (any non-zero initial value is OK)
+> :=20
+> : After 200ms, we got
+> :=20
+> :         dirty_rate =3D # of pages dirtied by all dd's / 200ms
+> :         write_bw   =3D # of pages written to the disk / 200ms
+> :=20
+> : For the aggressive dd dirtiers, the equality holds
+> :=20
+> :         dirty_rate =3D=3D N * task_rate
+> :                    =3D=3D N * task_ratelimit
+> :                    =3D=3D N * task_ratelimit_0                         =
+     (3)
+> : Or
+> :         task_ratelimit_0 =3D dirty_rate / N                            =
+   (4)
+> :                          =20
+> : So the balanced throttle bandwidth can be estimated by
+> :                          =20
+> :         balanced_rate =3D task_ratelimit_0 * (write_bw / dirty_rate)   =
+   (5)
+> :                          =20
+> : Because with (4) and (5) we can get the desired equality (1):
+> :                          =20
+> :         balanced_rate =3D=3D (dirty_rate / N) * (write_bw / dirty_rate)
+> :                       =3D=3D write_bw / N
+
+Then using the balance_rate we can compute task pause times like:
+
+	task_pause =3D task->nr_dirtied / task_ratelimit
+
+[ however all that still misses the primary feedback of:
+
+   task_ratelimit_(i+1) =3D task_ratelimit_i * (write_bw / dirty_rate)
+
+  there's still some confusion in the above due to task_ratelimit and
+  balanced_rate.
+]
+
+However, while the above gives us means of matching the dirty rate to
+the writeout bandwidth, it at best provides us with a stable dirty page
+count (assuming a static system). In order to control the dirty page
+count such that it is high enough to provide performance, but does not
+exceed the specified limit we need another control.
+
+> So if the dirty pages are ABOVE the setpoints, we throttle each task
+> a bit more HEAVY than balanced_rate, so that the dirty pages are
+> created less fast than they are cleaned, thus DROP to the setpoints
+> (and the reverse). With that positional adjustment, the formula is
+> transformed from
+>=20
+>         task_ratelimit =3D balanced_rate
+>=20
+> to
+>=20
+>         task_ratelimit =3D balanced_rate * pos_ratio
+
+> In terms of the negative feedback control theory, the
+> bdi_position_ratio() function (control lines) can be expressed as
+>=20
+> 1) f(setpoint) =3D 1.0
+> 2) df/dt < 0
+>=20
+> 3) optionally, abs(df/dt) should be large on large errors (=3D dirty -
+>    setpoint) in order to cancel the errors fast, and be smaller when
+>    dirty pages get closer to the setpoints in order to avoid overshooting=
+.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
