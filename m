@@ -1,83 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id AFD9C6B016C
-	for <linux-mm@kvack.org>; Wed, 10 Aug 2011 06:26:18 -0400 (EDT)
-Subject: Re: [PATCH 4/5] writeback: per task dirty rate limit
-From: Peter Zijlstra <peterz@infradead.org>
-Date: Wed, 10 Aug 2011 12:25:48 +0200
-In-Reply-To: <20110810034012.GD24486@localhost>
-References: <20110806084447.388624428@intel.com>
-	 <20110806094527.002914580@intel.com> <1312914906.1083.71.camel@twins>
-	 <20110810034012.GD24486@localhost>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-Message-ID: <1312971948.23660.8.camel@twins>
-Mime-Version: 1.0
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id CD7AF6B016F
+	for <linux-mm@kvack.org>; Wed, 10 Aug 2011 06:47:26 -0400 (EDT)
+From: Mel Gorman <mgorman@suse.de>
+Subject: [PATCH 1/7] mm: vmscan: Do not writeback filesystem pages in direct reclaim
+Date: Wed, 10 Aug 2011 11:47:14 +0100
+Message-Id: <1312973240-32576-2-git-send-email-mgorman@suse.de>
+In-Reply-To: <1312973240-32576-1-git-send-email-mgorman@suse.de>
+References: <1312973240-32576-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Linux-MM <linux-mm@kvack.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, XFS <xfs@oss.sgi.com>, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, Johannes Weiner <jweiner@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Mel Gorman <mgorman@suse.de>
 
-On Wed, 2011-08-10 at 11:40 +0800, Wu Fengguang wrote:
-> On Wed, Aug 10, 2011 at 02:35:06AM +0800, Peter Zijlstra wrote:
-> > On Sat, 2011-08-06 at 16:44 +0800, Wu Fengguang wrote:
-> > >=20
-> > > Add two fields to task_struct.
-> > >=20
-> > > 1) account dirtied pages in the individual tasks, for accuracy
-> > > 2) per-task balance_dirty_pages() call intervals, for flexibility
-> > >=20
-> > > The balance_dirty_pages() call interval (ie. nr_dirtied_pause) will
-> > > scale near-sqrt to the safety gap between dirty pages and threshold.
-> > >=20
-> > > XXX: The main problem of per-task nr_dirtied is, if 10k tasks start
-> > > dirtying pages at exactly the same time, each task will be assigned a
-> > > large initial nr_dirtied_pause, so that the dirty threshold will be
-> > > exceeded long before each task reached its nr_dirtied_pause and hence
-> > > call balance_dirty_pages().=20
-> >=20
-> > Right, so why remove the per-cpu threshold? you can keep that as a boun=
-d
-> > on the number of out-standing dirty pages.
->=20
-> Right, I also have the vague feeling that the per-cpu threshold can
-> somehow backup the per-task threshold in case there are too many tasks.
->=20
-> > Loosing that bound is actually a bad thing (TM), since you could have
-> > configured a tight dirty limit and lock up your machine this way.
->=20
-> It seems good enough to only remove the 4MB upper limit for
-> ratelimit_pages, so that the per-cpu limit won't kick in too
-> frequently in typical machines.
->=20
->   * Here we set ratelimit_pages to a level which ensures that when all CP=
-Us are
->   * dirtying in parallel, we cannot go more than 3% (1/32) over the dirty=
- memory
->   * thresholds before writeback cuts in.
-> - *
-> - * But the limit should not be set too high.  Because it also controls t=
-he
-> - * amount of memory which the balance_dirty_pages() caller has to write =
-back.
-> - * If this is too large then the caller will block on the IO queue all t=
-he
-> - * time.  So limit it to four megabytes - the balance_dirty_pages() call=
-er
-> - * will write six megabyte chunks, max.
-> - */
-> -
->  void writeback_set_ratelimit(void)
->  {
->         ratelimit_pages =3D vm_total_pages / (num_online_cpus() * 32);
->         if (ratelimit_pages < 16)
->                 ratelimit_pages =3D 16;
-> -       if (ratelimit_pages * PAGE_CACHE_SIZE > 4096 * 1024)
-> -               ratelimit_pages =3D (4096 * 1024) / PAGE_CACHE_SIZE;
->  }
+From: Mel Gorman <mel@csn.ul.ie>
 
-Uhm, so what's your bound then? 1/32 of the per-cpu memory seems rather
-a lot.
+When kswapd is failing to keep zones above the min watermark, a process
+will enter direct reclaim in the same manner kswapd does. If a dirty
+page is encountered during the scan, this page is written to backing
+storage using mapping->writepage.
+
+This causes two problems. First, it can result in very deep call
+stacks, particularly if the target storage or filesystem are complex.
+Some filesystems ignore write requests from direct reclaim as a result.
+The second is that a single-page flush is inefficient in terms of IO.
+While there is an expectation that the elevator will merge requests,
+this does not always happen. Quoting Christoph Hellwig;
+
+	The elevator has a relatively small window it can operate on,
+	and can never fix up a bad large scale writeback pattern.
+
+This patch prevents direct reclaim writing back filesystem pages by
+checking if current is kswapd. Anonymous pages are still written to
+swap as there is not the equivalent of a flusher thread for anonymous
+pages. If the dirty pages cannot be written back, they are placed
+back on the LRU lists. There is now a direct dependency on dirty page
+balancing to prevent too many pages in the system being dirtied which
+would prevent reclaim making forward progress.
+
+Signed-off-by: Mel Gorman <mgorman@suse.de>
+Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+---
+ include/linux/mmzone.h |    1 +
+ mm/vmscan.c            |    9 +++++++++
+ mm/vmstat.c            |    1 +
+ 3 files changed, 11 insertions(+), 0 deletions(-)
+
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index 9f7c3eb..b70a0c0 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -100,6 +100,7 @@ enum zone_stat_item {
+ 	NR_UNSTABLE_NFS,	/* NFS unstable pages */
+ 	NR_BOUNCE,
+ 	NR_VMSCAN_WRITE,
++	NR_VMSCAN_WRITE_SKIP,
+ 	NR_WRITEBACK_TEMP,	/* Writeback using temporary buffers */
+ 	NR_ISOLATED_ANON,	/* Temporary isolated pages from anon lru */
+ 	NR_ISOLATED_FILE,	/* Temporary isolated pages from file lru */
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index d036e59..1522b0f 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -825,6 +825,15 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+ 		if (PageDirty(page)) {
+ 			nr_dirty++;
+ 
++			/*
++			 * Only kswapd can writeback filesystem pages to
++			 * avoid risk of stack overflow
++			 */
++			if (page_is_file_cache(page) && !current_is_kswapd()) {
++				inc_zone_page_state(page, NR_VMSCAN_WRITE_SKIP);
++				goto keep_locked;
++			}
++
+ 			if (references == PAGEREF_RECLAIM_CLEAN)
+ 				goto keep_locked;
+ 			if (!may_enter_fs)
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 20c18b7..fd109f3 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -702,6 +702,7 @@ const char * const vmstat_text[] = {
+ 	"nr_unstable",
+ 	"nr_bounce",
+ 	"nr_vmscan_write",
++	"nr_vmscan_write_skip",
+ 	"nr_writeback_temp",
+ 	"nr_isolated_anon",
+ 	"nr_isolated_file",
+-- 
+1.7.3.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
