@@ -1,281 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 0058C6B0170
-	for <linux-mm@kvack.org>; Wed, 10 Aug 2011 06:47:26 -0400 (EDT)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id C5D6A6B016F
+	for <linux-mm@kvack.org>; Wed, 10 Aug 2011 06:47:27 -0400 (EDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 0/7] Reduce filesystem writeback from page reclaim v3
-Date: Wed, 10 Aug 2011 11:47:13 +0100
-Message-Id: <1312973240-32576-1-git-send-email-mgorman@suse.de>
+Subject: [PATCH 2/7] mm: vmscan: Remove dead code related to lumpy reclaim waiting on pages under writeback
+Date: Wed, 10 Aug 2011 11:47:15 +0100
+Message-Id: <1312973240-32576-3-git-send-email-mgorman@suse.de>
+In-Reply-To: <1312973240-32576-1-git-send-email-mgorman@suse.de>
+References: <1312973240-32576-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Linux-MM <linux-mm@kvack.org>
 Cc: LKML <linux-kernel@vger.kernel.org>, XFS <xfs@oss.sgi.com>, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, Johannes Weiner <jweiner@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Mel Gorman <mgorman@suse.de>
 
-Changelog since V2
-  o Drop patch eliminating all writes from kswapd until such time as
-    particular pages can be prioritised for writeback. Eliminating
-    all writes led to stalls on NUMA
-  o Lumpy synchronous reclaim now waits for pages currently under
-    writeback but can no longer queue pages itself
-  o Dropped btrfs warning when filesystems are called from direct
-    reclaim. The fallback method for migration looks indistinguishable
-    from direct reclaim.
-  o Throttle based on pages writeback rather than pages dirty. Throttling
-    based on just dirty is too aggressive and can end up trying to stall
-    even when the underlying device is not congested
+Lumpy reclaim worked with two passes - the first which queued pages for
+IO and the second which waited on writeback. As direct reclaim can no
+longer write pages there is some dead code. This patch removes it but
+direct reclaim will continue to wait on pages under writeback while in
+synchronous reclaim mode.
 
-Changelog since v1
-  o Drop prio-inode patch. There is now a dependency that the flusher
-    threads find these dirty pages quickly.
-  o Drop nr_vmscan_throttled counter
-  o SetPageReclaim instead of deactivate_page which was wrong
-  o Add warning to main filesystems if called from direct reclaim context
-  o Add patch to completely disable filesystem writeback from reclaim
+Signed-off-by: Mel Gorman <mgorman@suse.de>
+---
+ mm/vmscan.c |   21 +++++----------------
+ 1 files changed, 5 insertions(+), 16 deletions(-)
 
-Testing from the XFS folk revealed that there is still too much
-I/O from the end of the LRU in kswapd. Previously it was considered
-acceptable by VM people for a small number of pages to be written
-back from reclaim with testing generally showing about 0.3% of pages
-reclaimed were written back (higher if memory was low). That writing
-back a small number of pages is ok has been heavily disputed for
-quite some time and Dave Chinner explained it well;
-
-	It doesn't have to be a very high number to be a problem. IO
-	is orders of magnitude slower than the CPU time it takes to
-	flush a page, so the cost of making a bad flush decision is
-	very high. And single page writeback from the LRU is almost
-	always a bad flush decision.
-
-To complicate matters, filesystems respond very differently to requests
-from reclaim according to Christoph Hellwig;
-
-	xfs tries to write it back if the requester is kswapd
-	ext4 ignores the request if it's a delayed allocation
-	btrfs ignores the request
-
-As a result, each filesystem has different performance characteristics
-when under memory pressure and there are many pages being dirties. In
-some cases, the request is ignored entirely so the VM cannot depend
-on the IO being dispatched.
-
-The objective of this series is to reduce writing of filesystem-backed
-pages from reclaim, play nicely with writeback that is already in
-progress and throttle reclaim appropriately when writeback pages are
-encountered. The assumption is that the flushers will always write
-pages faster than if reclaim issues the IO. The new problem is that
-reclaim has very little control over how long before a page in a
-particular zone or container is cleaned which is discussed later. A
-secondary goal is to avoid the problem whereby direct reclaim splices
-two potentially deep call stacks together.
-
-Patch 1 disables writeback of filesystem pages from direct reclaim
-	entirely. Anonymous pages are still written.
-
-Patch 2 removes dead code in lumpy reclaim as it is no longer able
-	to synchronously write pages. This hurts lumpy reclaim but
-	there is an expectation that compaction is used for hugepage
-	allocations these days and lumpy reclaims days are numbered.
-
-Patches 3-4 add warnings to XFS and ext4 if called from
-	direct reclaim. With patch 1, this "never happens" and is
-	intended to catch regressions in this logic in the future.
-
-Patch 5 disables writeback of filesystem pages from kswapd unless
-	the priority is raised to the point where kswapd is considered
-	to be in trouble.
-
-Patch 6 throttles reclaimers if too many dirty pages are being
-	encountered and the zones or backing devices are congested.
-
-Patch 7 invalidates dirty pages found at the end of the LRU so they
-	are reclaimed quickly after being written back rather than
-	waiting for a reclaimer to find them
-
-I consider this series to be orthogonal to the writeback work but
-it is worth noting that the writeback work affects the viability of
-patch 8 in particular.
-
-I tested this on ext4 and xfs using fs_mark, a simple writeback test
-based on dd and a micro benchmark that does a streaming write to a
-large mapping (exercises use-once LRU logic) followed by streaming
-writes to a mix of anonymous and file-backed mappings. The command
-line for fs_mark when botted with 512M looked something like
-
-./fs_mark -d  /tmp/fsmark-2676  -D  100  -N  150  -n  150  -L  25  -t  1  -S0  -s  10485760
-
-The number of files was adjusted depending on the amount of available
-memory so that the files created was about 3xRAM. For multiple threads,
-the -d switch is specified multiple times.
-
-The test machine is x86-64 with an older generation of AMD processor
-with 4 cores. The underlying storage was 4 disks configured as RAID-0
-as this was the best configuration of storage I had available. Swap
-is on a separate disk. Dirty ratio was tuned to 40% instead of the
-default of 20%.
-
-Testing was run with and without monitors to both verify that the
-patches were operating as expected and that any performance gain was
-real and not due to interference from monitors.
-
-Here is a summary of results based on testing XFS.
-
-512M1P-xfs           Files/s  mean                 32.69 ( 0.00%)     34.44 ( 5.08%)
-512M1P-xfs           Elapsed Time fsmark                    51.41     48.29
-512M1P-xfs           Elapsed Time simple-wb                114.09    108.61
-512M1P-xfs           Elapsed Time mmap-strm                113.46    109.34
-512M1P-xfs           Kswapd efficiency fsmark                 62%       63%
-512M1P-xfs           Kswapd efficiency simple-wb              56%       61%
-512M1P-xfs           Kswapd efficiency mmap-strm              44%       42%
-512M-xfs             Files/s  mean                 30.78 ( 0.00%)     35.94 (14.36%)
-512M-xfs             Elapsed Time fsmark                    56.08     48.90
-512M-xfs             Elapsed Time simple-wb                112.22     98.13
-512M-xfs             Elapsed Time mmap-strm                219.15    196.67
-512M-xfs             Kswapd efficiency fsmark                 54%       56%
-512M-xfs             Kswapd efficiency simple-wb              54%       55%
-512M-xfs             Kswapd efficiency mmap-strm              45%       44%
-512M-4X-xfs          Files/s  mean                 30.31 ( 0.00%)     33.33 ( 9.06%)
-512M-4X-xfs          Elapsed Time fsmark                    63.26     55.88
-512M-4X-xfs          Elapsed Time simple-wb                100.90     90.25
-512M-4X-xfs          Elapsed Time mmap-strm                261.73    255.38
-512M-4X-xfs          Kswapd efficiency fsmark                 49%       50%
-512M-4X-xfs          Kswapd efficiency simple-wb              54%       56%
-512M-4X-xfs          Kswapd efficiency mmap-strm              37%       36%
-512M-16X-xfs         Files/s  mean                 60.89 ( 0.00%)     65.22 ( 6.64%)
-512M-16X-xfs         Elapsed Time fsmark                    67.47     58.25
-512M-16X-xfs         Elapsed Time simple-wb                103.22     90.89
-512M-16X-xfs         Elapsed Time mmap-strm                237.09    198.82
-512M-16X-xfs         Kswapd efficiency fsmark                 45%       46%
-512M-16X-xfs         Kswapd efficiency simple-wb              53%       55%
-512M-16X-xfs         Kswapd efficiency mmap-strm              33%       33%
-
-Up until 512-4X, the FSmark improvements were statistically
-significant. For the 4X and 16X tests the results were within standard
-deviations but just barely. The time to completion for all tests is
-improved which is an important result. In general, kswapd efficiency
-is not affected by skipping dirty pages.
-
-1024M1P-xfs          Files/s  mean                 39.09 ( 0.00%)     41.15 ( 5.01%)
-1024M1P-xfs          Elapsed Time fsmark                    84.14     80.41
-1024M1P-xfs          Elapsed Time simple-wb                210.77    184.78
-1024M1P-xfs          Elapsed Time mmap-strm                162.00    160.34
-1024M1P-xfs          Kswapd efficiency fsmark                 69%       75%
-1024M1P-xfs          Kswapd efficiency simple-wb              71%       77%
-1024M1P-xfs          Kswapd efficiency mmap-strm              43%       44%
-1024M-xfs            Files/s  mean                 35.45 ( 0.00%)     37.00 ( 4.19%)
-1024M-xfs            Elapsed Time fsmark                    94.59     91.00
-1024M-xfs            Elapsed Time simple-wb                229.84    195.08
-1024M-xfs            Elapsed Time mmap-strm                405.38    440.29
-1024M-xfs            Kswapd efficiency fsmark                 79%       71%
-1024M-xfs            Kswapd efficiency simple-wb              74%       74%
-1024M-xfs            Kswapd efficiency mmap-strm              39%       42%
-1024M-4X-xfs         Files/s  mean                 32.63 ( 0.00%)     35.05 ( 6.90%)
-1024M-4X-xfs         Elapsed Time fsmark                   103.33     97.74
-1024M-4X-xfs         Elapsed Time simple-wb                204.48    178.57
-1024M-4X-xfs         Elapsed Time mmap-strm                528.38    511.88
-1024M-4X-xfs         Kswapd efficiency fsmark                 81%       70%
-1024M-4X-xfs         Kswapd efficiency simple-wb              73%       72%
-1024M-4X-xfs         Kswapd efficiency mmap-strm              39%       38%
-1024M-16X-xfs        Files/s  mean                 42.65 ( 0.00%)     42.97 ( 0.74%)
-1024M-16X-xfs        Elapsed Time fsmark                   103.11     99.11
-1024M-16X-xfs        Elapsed Time simple-wb                200.83    178.24
-1024M-16X-xfs        Elapsed Time mmap-strm                397.35    459.82
-1024M-16X-xfs        Kswapd efficiency fsmark                 84%       69%
-1024M-16X-xfs        Kswapd efficiency simple-wb              74%       73%
-1024M-16X-xfs        Kswapd efficiency mmap-strm              39%       40%
-
-All FSMark tests up to 16X had statistically significant
-improvements. For the most part, tests are completing faster with
-the exception of the streaming writes to a mixture of anonymous and
-file-backed mappings which were slower in two cases
-
-In the cases where the mmap-strm tests were slower, there was more
-swapping due to dirty pages being skipped. The number of additional
-pages swapped is almost identical to the fewer number of pages written
-from reclaim. In other words, roughly the same number of pages were
-reclaimed but swapping was slower. As the test is a bit unrealistic
-and stresses memory heavily, the small shift is acceptable.
-
-4608M1P-xfs          Files/s  mean                 29.75 ( 0.00%)     30.96 ( 3.91%)
-4608M1P-xfs          Elapsed Time fsmark                   512.01    492.15
-4608M1P-xfs          Elapsed Time simple-wb                618.18    566.24
-4608M1P-xfs          Elapsed Time mmap-strm                488.05    465.07
-4608M1P-xfs          Kswapd efficiency fsmark                 93%       86%
-4608M1P-xfs          Kswapd efficiency simple-wb              88%       84%
-4608M1P-xfs          Kswapd efficiency mmap-strm              46%       45%
-4608M-xfs            Files/s  mean                 27.60 ( 0.00%)     28.85 ( 4.33%)
-4608M-xfs            Elapsed Time fsmark                   555.96    532.34
-4608M-xfs            Elapsed Time simple-wb                659.72    571.85
-4608M-xfs            Elapsed Time mmap-strm               1082.57   1146.38
-4608M-xfs            Kswapd efficiency fsmark                 89%       91%
-4608M-xfs            Kswapd efficiency simple-wb              88%       82%
-4608M-xfs            Kswapd efficiency mmap-strm              48%       46%
-4608M-4X-xfs         Files/s  mean                 26.00 ( 0.00%)     27.47 ( 5.35%)
-4608M-4X-xfs         Elapsed Time fsmark                   592.91    564.00
-4608M-4X-xfs         Elapsed Time simple-wb                616.65    575.07
-4608M-4X-xfs         Elapsed Time mmap-strm               1773.02   1631.53
-4608M-4X-xfs         Kswapd efficiency fsmark                 90%       94%
-4608M-4X-xfs         Kswapd efficiency simple-wb              87%       82%
-4608M-4X-xfs         Kswapd efficiency mmap-strm              43%       43%
-4608M-16X-xfs        Files/s  mean                 26.07 ( 0.00%)     26.42 ( 1.32%)
-4608M-16X-xfs        Elapsed Time fsmark                   602.69    585.78
-4608M-16X-xfs        Elapsed Time simple-wb                606.60    573.81
-4608M-16X-xfs        Elapsed Time mmap-strm               1549.75   1441.86
-4608M-16X-xfs        Kswapd efficiency fsmark                 98%       98%
-4608M-16X-xfs        Kswapd efficiency simple-wb              88%       82%
-4608M-16X-xfs        Kswapd efficiency mmap-strm              44%       42%
-
-Unlike the other tests, the fsmark results are not statistically
-significant but the min and max times are both improved and for the
-most part, tests completed faster.
-
-There are other indications that this is an improvement as well. For
-example, in the vast majority of cases, there were fewer pages scanned
-by direct reclaim implying in many cases that stalls due to direct
-reclaim are reduced. KSwapd is scanning more due to skipping dirty
-pages which is unfortunate but the CPU usage is still acceptable
-
-In an earlier set of tests, I used blktrace and in almost all cases
-throughput throughout the entire test was higher. However, I ended
-up discarding those results as recording blktrace data was too heavy
-for my liking.
-
-On a laptop, I plugged in a USB stick and ran a similar tests of tests
-using it as backing storage. A desktop environment was running and for
-the entire duration of the tests, firefox and gnome terminal were
-launching and exiting to vaguely simulate a user.
-
-1024M-xfs            Files/s  mean               0.41 ( 0.00%)        0.44 ( 6.82%)
-1024M-xfs            Elapsed Time fsmark               2053.52   1641.03
-1024M-xfs            Elapsed Time simple-wb            1229.53    768.05
-1024M-xfs            Elapsed Time mmap-strm            4126.44   4597.03
-1024M-xfs            Kswapd efficiency fsmark              84%       85%
-1024M-xfs            Kswapd efficiency simple-wb           92%       81%
-1024M-xfs            Kswapd efficiency mmap-strm           60%       51%
-1024M-xfs            Avg wait ms fsmark                5404.53     4473.87
-1024M-xfs            Avg wait ms simple-wb             2541.35     1453.54
-1024M-xfs            Avg wait ms mmap-strm             3400.25     3852.53
-
-The mmap-strm results were hurt because firefox launching had
-a tendency to push the test out of memory. On the postive side,
-firefox launched marginally faster with the patches applied.  Time to
-completion for many tests was faster but more importantly - the "Avg
-wait" time as measured by iostat was far lower implying the system
-would be more responsive. It was also the case that "Avg wait ms"
-on the root filesystem was lower. I tested it manually and while the
-system felt slightly more responsive while copying data to a USB stick,
-it was marginal enough that it could be my imagination.
-
-For the most part, this series has a positive impact. Is there anything
-else that should be done before I send this to Andrew requested it
-be merged?
-
- fs/ext4/inode.c             |    6 +++-
- fs/xfs/linux-2.6/xfs_aops.c |    7 ++--
- include/linux/mmzone.h      |    1 +
- mm/vmscan.c                 |   67 ++++++++++++++++++++++++++++++------------
- mm/vmstat.c                 |    1 +
- 5 files changed, 58 insertions(+), 24 deletions(-)
-
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 1522b0f..7863f8e 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -455,15 +455,6 @@ static pageout_t pageout(struct page *page, struct address_space *mapping,
+ 			return PAGE_ACTIVATE;
+ 		}
+ 
+-		/*
+-		 * Wait on writeback if requested to. This happens when
+-		 * direct reclaiming a large contiguous area and the
+-		 * first attempt to free a range of pages fails.
+-		 */
+-		if (PageWriteback(page) &&
+-		    (sc->reclaim_mode & RECLAIM_MODE_SYNC))
+-			wait_on_page_writeback(page);
+-
+ 		if (!PageWriteback(page)) {
+ 			/* synchronous write or broken a_ops? */
+ 			ClearPageReclaim(page);
+@@ -764,12 +755,10 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+ 
+ 		if (PageWriteback(page)) {
+ 			/*
+-			 * Synchronous reclaim is performed in two passes,
+-			 * first an asynchronous pass over the list to
+-			 * start parallel writeback, and a second synchronous
+-			 * pass to wait for the IO to complete.  Wait here
+-			 * for any page for which writeback has already
+-			 * started.
++			 * Synchronous reclaim cannot queue pages for
++			 * writeback due to the possibility of stack overflow
++			 * but if it encounters a page under writeback, wait
++			 * for the IO to complete.
+ 			 */
+ 			if ((sc->reclaim_mode & RECLAIM_MODE_SYNC) &&
+ 			    may_enter_fs)
+@@ -1363,7 +1352,7 @@ static noinline_for_stack void update_isolated_counts(struct zone *zone,
+ }
+ 
+ /*
+- * Returns true if the caller should wait to clean dirty/writeback pages.
++ * Returns true if a direct reclaim should wait on pages under writeback.
+  *
+  * If we are direct reclaiming for contiguous pages and we do not reclaim
+  * everything in the list, try again and wait for writeback IO to complete.
 -- 
 1.7.3.4
 
