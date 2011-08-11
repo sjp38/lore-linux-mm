@@ -1,52 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 53BD890014F
-	for <linux-mm@kvack.org>; Thu, 11 Aug 2011 01:26:01 -0400 (EDT)
-References: <20110804143844.GQ19099@suse.de> <1312526302.37390.YahooMailNeo@web162009.mail.bf1.yahoo.com> <20110805080133.GS19099@suse.de>
-Message-ID: <1313040359.41174.YahooMailNeo@web162012.mail.bf1.yahoo.com>
-Date: Wed, 10 Aug 2011 22:25:59 -0700 (PDT)
-From: Pintu Agarwal <pintu_agarwal@yahoo.com>
-Reply-To: Pintu Agarwal <pintu_agarwal@yahoo.com>
-Subject: Re: MMTests 0.01
-In-Reply-To: <20110805080133.GS19099@suse.de>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id AA29290014F
+	for <linux-mm@kvack.org>; Thu, 11 Aug 2011 03:07:04 -0400 (EDT)
+References: <1312872786.70934.YahooMailNeo@web111712.mail.gq1.yahoo.com> <1db776d865939be598cdb80054cf5d93.squirrel@xenotime.net> <1312874259.89770.YahooMailNeo@web111704.mail.gq1.yahoo.com> <alpine.DEB.2.00.1108090900170.30199@chino.kir.corp.google.com> <1312964098.7449.YahooMailNeo@web111712.mail.gq1.yahoo.com> <alpine.DEB.2.00.1108102106410.14230@chino.kir.corp.google.com>
+Message-ID: <1313046422.18195.YahooMailNeo@web111711.mail.gq1.yahoo.com>
+Date: Thu, 11 Aug 2011 00:07:02 -0700 (PDT)
+From: Mahmood Naderan <nt_mahmood@yahoo.com>
+Reply-To: Mahmood Naderan <nt_mahmood@yahoo.com>
+Subject: Re: running of out memory => kernel crash
+In-Reply-To: <alpine.DEB.2.00.1108102106410.14230@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Randy Dunlap <rdunlap@xenotime.net>, "\"\"linux-kernel@vger.kernel.org\"\"" <linux-kernel@vger.kernel.org>, "\"linux-mm@kvack.org\"" <linux-mm@kvack.org>
 
-Dear Mel Gorman,=0A=A0=0AI found one problem in MMTests0.01/fraganalysis/Ma=
-kefile=0A=A0=0AWhen I did "make install" here, I got the following error:=
-=0Ainstall: cannot stat `record-buddyinfo': No such file or directory=0Amak=
-e: *** [install-script] Error 1=0A=A0=0AI think the following line in makef=
-ile need to be corrected:=0A#####INSTALL_SCRIPT =3D pagealloc-extfrag show-=
-buddyinfo slab-intfrag record-buddyinfo=0A=0AINSTALL_SCRIPT =3D pagealloc-e=
-xtfrag show-buddyinfo slab-intfrag record-extfrag=0A=A0=0AI corrected this =
-and it works now.=0A=A0=0A=A0=0A=A0=0AThanks,=0APintu=0A=A0=0A=A0=0AFrom: M=
-el Gorman <mgorman@suse.de>=0ATo: Pintu Agarwal <pintu_agarwal@yahoo.com>=
-=0ACc: "linux-mm@kvack.org" <linux-mm@kvack.org>; "linux-kernel@vger.kernel=
-.org" <linux-kernel@vger.kernel.org>=0ASent: Friday, 5 August 2011 1:31 PM=
-=0ASubject: Re: MMTests 0.01=0A=0AOn Thu, Aug 04, 2011 at 11:38:22PM -0700,=
- Pintu Agarwal wrote:=0A> Dear Mel Gorman,=0A> =A0=0A> Thank you very much =
-for this MMTest. =0A> It will be very helpful for me for all my needs.=0A> =
-I was looking forward for these kind of mm test utilities.=0A> =A0=0A> Just=
- wanted to know, if any of these utilities also covers=0A> anti-fragmentati=
-on represent of the=A0various page state in the form=0A> of jpeg image?=0A=
-=0ANo, that particular script was not included as it needs a kernel patch=
-=0Ato be really useful and depends on parts of VM Regress that were very=0A=
-ugly. As I've said before, I generally use unusable free space index=0Aand =
-fragmentation index if I'm trying to graph fragmentation-related=0Ainformat=
-ion. To record it, I use the "extfrag" monitor in monitors/=0A. It uses oth=
-er helpers of which fraganalysis/show-buddyinfo is the=0Amost important as =
-it is the one that can read either /proc/buddyinfo=0Aor use /proc/kpagefrag=
-s to build a more accurate picture.=0A=0A-- =0AMel Gorman=0ASUSE Labs=0A=0A=
---=0ATo unsubscribe, send a message with 'unsubscribe linux-mm' in=0Athe bo=
-dy to majordomo@kvack.org.=A0 For more info on Linux MM,=0Asee: http://www.=
-linux-mm.org/ .=0AFight unfair telecom internet charges in Canada: sign htt=
-p://stopthemeter.ca/=0ADon't email: <a href=3Dmailto:"dont@kvack.org"> emai=
-l@kvack.org </a>
+>The default behavior is to kill all eligible and unkillable threads until =
+=0A>there are none left to sacrifice (i.e. all kthreads and OOM_DISABLE).=
+=0A=A0=0AIn a simple test with virtualbox, I reduced the amount of ram to 3=
+00MB. =0AThen I ran "swapoff -a" and opened some applications. I noticed th=
+at the free=0Aspaces is kept around 2-3MB and "kswapd" is running. Also I s=
+aw that disk=0Aactivity was very high. =0AThat mean although "swap" partiti=
+on is turned off, "kswapd" was trying to do=0Asomething. I wonder how that =
+behavior can be explained?=0A=0A>Ok, so you don't have a /proc/pid/oom_scor=
+e_adj, so you're using a kernel =0A>that predates 2.6.36.=0AYes, the srv ma=
+chine that I posted those results, has kernel before 2.6.36=0A=0A=0A=0A// N=
+aderan *Mahmood;=0A=0A=0A----- Original Message -----=0AFrom: David Rientje=
+s <rientjes@google.com>=0ATo: Mahmood Naderan <nt_mahmood@yahoo.com>=0ACc: =
+Randy Dunlap <rdunlap@xenotime.net>; ""linux-kernel@vger.kernel.org"" <linu=
+x-kernel@vger.kernel.org>; "linux-mm@kvack.org" <linux-mm@kvack.org>=0ASent=
+: Thursday, August 11, 2011 8:39 AM=0ASubject: Re: running of out memory =
+=3D> kernel crash=0A=0AOn Wed, 10 Aug 2011, Mahmood Naderan wrote:=0A=0A> >=
+If you're using cpusets or mempolicies, you must ensure that all tasks =0A>=
+ >attached to either of them are not set to OOM_DISABLE.=A0 It seems unlike=
+ly =0A> >that you're using those, so it seems like a system-wide oom condit=
+ion.=0A> =A0=0A> I didn't do that manually. What is the default behaviour? =
+Does oom=0A> working or not?=0A> =0A=0AThe default behavior is to kill all =
+eligible and unkillable threads until =0Athere are none left to sacrifice (=
+i.e. all kthreads and OOM_DISABLE).=0A=0A> For a user process:=0A> =0A> roo=
+t@srv:~# cat /proc/18564/oom_score=0A> 9198=0A> root@srv:~# cat /proc/18564=
+/oom_adj=0A> 0=0A> =0A=0AOk, so you don't have a /proc/pid/oom_score_adj, s=
+o you're using a kernel =0Athat predates 2.6.36.=0A=0A> And for "init" proc=
+ess:=0A> =0A> root@srv:~# cat /proc/1/oom_score=0A> 17509=0A> root@srv:~# c=
+at /proc/1/oom_adj=0A> 0=0A> =0A> Based on my understandings, in an out of =
+memory condition (oom),=0A> the init process is more eligible to be killed!=
+!!!!!! Is that right?=0A> =0A=0Ainit is exempt from oom killing, it's oom_s=
+core is meaningless.=0A=0A> Again I didn't get my answer yet:=0A> What is t=
+he default behavior of linux in an oom condition? If the default is,=0A> cr=
+ash (kernel panic), then how can I change that in such a way to kill=0A> th=
+e hungry process?=0A> =0A=0AYou either have /proc/sys/vm/panic_on_oom set o=
+r it's killing a thread =0Athat is taking down the entire machine.=A0 If it=
+'s the latter, then please =0Acapture the kernel log and post it as Randy s=
+uggested.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
