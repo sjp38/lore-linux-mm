@@ -1,383 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E44A6B00EE
-	for <linux-mm@kvack.org>; Thu, 11 Aug 2011 08:20:59 -0400 (EDT)
-Received: by vwm42 with SMTP id 42so2276240vwm.14
-        for <linux-mm@kvack.org>; Thu, 11 Aug 2011 05:20:57 -0700 (PDT)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 610FC6B00EE
+	for <linux-mm@kvack.org>; Thu, 11 Aug 2011 08:48:01 -0400 (EDT)
+Received: by wyi11 with SMTP id 11so1886837wyi.14
+        for <linux-mm@kvack.org>; Thu, 11 Aug 2011 05:47:57 -0700 (PDT)
 MIME-Version: 1.0
-Date: Thu, 11 Aug 2011 17:50:56 +0530
-Message-ID: <CAFPAmTSrh4r71eQqW-+_nS2KFK2S2RQvYBEpa3QnNkZBy8ncbw@mail.gmail.com>
-Subject: [PATCH] writeback: Per-block device bdi->dirty_writeback_interval and bdi->dirty_expire_interval.
-From: Kautuk Consul <consul.kautuk@gmail.com>
+In-Reply-To: <1313049724.11241.YahooMailNeo@web111704.mail.gq1.yahoo.com>
+References: <1312872786.70934.YahooMailNeo@web111712.mail.gq1.yahoo.com>
+ <1db776d865939be598cdb80054cf5d93.squirrel@xenotime.net> <1312874259.89770.YahooMailNeo@web111704.mail.gq1.yahoo.com>
+ <alpine.DEB.2.00.1108090900170.30199@chino.kir.corp.google.com>
+ <1312964098.7449.YahooMailNeo@web111712.mail.gq1.yahoo.com>
+ <alpine.DEB.2.00.1108102106410.14230@chino.kir.corp.google.com>
+ <1313046422.18195.YahooMailNeo@web111711.mail.gq1.yahoo.com>
+ <alpine.DEB.2.00.1108110010220.23622@chino.kir.corp.google.com> <1313049724.11241.YahooMailNeo@web111704.mail.gq1.yahoo.com>
+From: Denys Vlasenko <vda.linux@googlemail.com>
+Date: Thu, 11 Aug 2011 14:47:37 +0200
+Message-ID: <CAK1hOcN7q=F=UV=aCAsVOYO=Ex34X0tbwLHv9BkYkA=ik7G13w@mail.gmail.com>
+Subject: Re: running of out memory => kernel crash
 Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mahmood Naderan <nt_mahmood@yahoo.com>
+Cc: David Rientjes <rientjes@google.com>, Randy Dunlap <rdunlap@xenotime.net>, "\"\"\"linux-kernel@vger.kernel.org\"\"\"" <linux-kernel@vger.kernel.org>, "\"\"linux-mm@kvack.org\"\"" <linux-mm@kvack.org>
 
-Hi,
+On Thu, Aug 11, 2011 at 10:02 AM, Mahmood Naderan <nt_mahmood@yahoo.com> wr=
+ote:
+>>Despite it's name, kswapd is still active, it's trying to reclaim memory
+>>to prevent having to kill a process as the last resort.
+>
+> I understand what you said, but I did two scenarios:
+> 1- I wrote a simple C++ program that "new" a lot of pointers.
+> =A0=A0 for ( int i =3D 0; i < n; i++ ) {
+> =A0=A0=A0=A0 for ( int j =3D 0; j < n; j++ ) {
+> =A0=A0=A0=A0=A0=A0 for ( int k =3D 0; k < n; k++ ) {
+> =A0=A0=A0=A0=A0=A0=A0=A0 for ( int l =3D 0; l < n; l++ ) {
+> =A0=A0=A0 =A0 =A0 =A0=A0 double *ptr1 =3D new double[n*i];
+> =A0=A0=A0 =A0 =A0 =A0=A0 double *ptr2 =3D new double[n*j];
+> =A0=A0=A0=A0 }}}}
+>
+> When I run the program, it ill eat the memory and when it reaches the
+> maximum ram, it get killed and I saw=A0 message on terminal:
+>
+> mahmood@vpc:~$ ./leak
+> Killed
+>
+> for this scenario, there is no kswapd process running.
 
-Currently the /proc/sys/vm/dirty_writeback_centisecs and
-/proc/sys/vm/dirty_expire_centisecs values are
-global to the system.
-All the BDI flush-* threads are controlled by these central values.
+Why do you think kswapd should get active? What it can possibly do
+if there is no swap and therefore it can't free memory by writing
+out RAM pages to swap?
 
-However, the user/admin might want to set different writeback speeds
-for different block devices based on
-their page write-back performance.
-For example, the user might want to write-back pages in smaller
-intervals to a block device which has a
-faster known writeback speed.
+> 2- There is 300MB ram. I opened an application saw that
+> free space reduced to 100MB, then another application reduced the free
+> space to 30MB. Another application reduced to 4MB. Now the "kswapd"
+> is running with a lot of disk activity and tries to keep free space at 4M=
+B.
+> In this scenario, No application is killed.
+>
+> The question is why in one scenario, the application is killed and in one
+> scenario, kswapd is running.
 
-This patch creates 3 new counters (in centisecs) for all the BDI
-threads that were controlled centrally by these
-2 counters:
-i)   /sys/block/<block_dev>/bdi/dirty_writeback_interval,
-ii)  /sys/block/<block_dev>/bdi/dirty_expire_interval,
-iii) /proc/sys/vm/sync_supers_centisecs.
+In scenario 2, the disk activity comes from constant paging in (reading)
+of pages which contain code of running binaries.
 
-Although these new counters can be tuned individually, I have taken
-care that they be centrally reset by changes
-to the /proc/sys/vm/dirty_expire_centisecs and
-/proc/sys/vm/dirty_writeback_centisecs so that the earlier
-functionality is not broken by distributions using these central values.
-After resetting all values centrally, these values can be tuned
-individually without altering the central values.
+Since machine has no free RAM and no swap at all, when it needs
+a free page it can't swap out a dirty (modified) page or anon
+(usually malloced space) page. Thus the only option is to find some
+not recently used page with read-only, file-backed content (usually some
+binary's text page, but can be any read-only file mapping) and reuse it.
 
-Signed-off-by: Kautuk Consul <consul.kautuk@gmail.com>
----
+If there are no really old, unused read-only, file-backed pages,
+then the discarded page will be needed soon, will need to be read from disk=
+,
+and will evict another similar page. Which will be needed soon too,
+will need to be read from disk, and will evict another such page...
+ad infinitum.
 
-diff -uprN a/fs/fs-writeback.c b/fs/fs-writeback.c
---- a/fs/fs-writeback.c	2011-08-05 10:29:21.000000000 +0530
-+++ b/fs/fs-writeback.c	2011-08-09 09:15:37.093041675 +0530
-@@ -638,8 +638,8 @@ static inline bool over_bground_thresh(v
-  * just walks the superblock inode list, writing back any inodes which are
-  * older than a specific point in time.
-  *
-- * Try to run once per dirty_writeback_interval.  But if a writeback event
-- * takes longer than a dirty_writeback_interval interval, then leave a
-+ * Try to run once per bdi->dirty_writeback_interval.  But if a writeback event
-+ * takes longer than a bdi->dirty_writeback_interval interval, then leave a
-  * one-second gap.
-  *
-  * older_than_this takes precedence over nr_to_write.  So we'll only write back
-@@ -663,7 +663,7 @@ static long wb_writeback(struct bdi_writ
- 	if (wbc.for_kupdate) {
- 		wbc.older_than_this = &oldest_jif;
- 		oldest_jif = jiffies -
--				msecs_to_jiffies(dirty_expire_interval * 10);
-+				msecs_to_jiffies(wb->bdi->dirty_expire_interval * 10);
- 	}
- 	if (!wbc.range_cyclic) {
- 		wbc.range_start = 0;
-@@ -811,15 +811,16 @@ static long wb_check_old_data_flush(stru
- {
- 	unsigned long expired;
- 	long nr_pages;
-+	struct backing_dev_info *bdi = wb->bdi;
-
- 	/*
- 	 * When set to zero, disable periodic writeback
- 	 */
--	if (!dirty_writeback_interval)
-+	if (!bdi->dirty_writeback_interval)
- 		return 0;
-
- 	expired = wb->last_old_flush +
--			msecs_to_jiffies(dirty_writeback_interval * 10);
-+			msecs_to_jiffies(bdi->dirty_writeback_interval * 10);
- 	if (time_before(jiffies, expired))
- 		return 0;
-
-@@ -923,8 +924,8 @@ int bdi_writeback_thread(void *data)
- 			continue;
- 		}
-
--		if (wb_has_dirty_io(wb) && dirty_writeback_interval)
--			schedule_timeout(msecs_to_jiffies(dirty_writeback_interval * 10));
-+		if (wb_has_dirty_io(wb) && bdi->dirty_writeback_interval)
-+			schedule_timeout(msecs_to_jiffies(bdi->dirty_writeback_interval * 10));
- 		else {
- 			/*
- 			 * We have nothing to do, so can go sleep without any
-diff -uprN a/include/linux/backing-dev.h b/include/linux/backing-dev.h
---- a/include/linux/backing-dev.h	2011-08-05 10:29:21.000000000 +0530
-+++ b/include/linux/backing-dev.h	2011-08-09 09:15:37.094041619 +0530
-@@ -76,6 +76,8 @@ struct backing_dev_info {
-
- 	unsigned int min_ratio;
- 	unsigned int max_ratio, max_prop_frac;
-+	unsigned int dirty_writeback_interval;
-+	unsigned int dirty_expire_interval;
-
- 	struct bdi_writeback wb;  /* default writeback info for this bdi */
- 	spinlock_t wb_lock;	  /* protects work_list */
-@@ -333,4 +335,5 @@ static inline int bdi_sched_wait(void *w
- 	return 0;
- }
-
-+extern unsigned int shortest_dirty_writeback_interval;
- #endif		/* _LINUX_BACKING_DEV_H */
-diff -uprN a/include/linux/writeback.h b/include/linux/writeback.h
---- a/include/linux/writeback.h	2011-08-05 10:29:21.000000000 +0530
-+++ b/include/linux/writeback.h	2011-08-09 10:09:23.581268260 +0530
-@@ -100,6 +100,7 @@ extern unsigned long dirty_background_by
- extern int vm_dirty_ratio;
- extern unsigned long vm_dirty_bytes;
- extern unsigned int dirty_writeback_interval;
-+extern unsigned int sync_supers_interval;
- extern unsigned int dirty_expire_interval;
- extern int vm_highmem_is_dirtyable;
- extern int block_dump;
-@@ -123,6 +124,10 @@ extern int dirty_bytes_handler(struct ct
- struct ctl_table;
- int dirty_writeback_centisecs_handler(struct ctl_table *, int,
- 				      void __user *, size_t *, loff_t *);
-+int sync_supers_centisecs_handler(struct ctl_table *, int,
-+				      void __user *, size_t *, loff_t *);
-+int dirty_expire_centisecs_handler(struct ctl_table *, int,
-+				      void __user *, size_t *, loff_t *);
-
- void global_dirty_limits(unsigned long *pbackground, unsigned long *pdirty);
- unsigned long bdi_dirty_limit(struct backing_dev_info *bdi,
-diff -uprN a/kernel/sysctl.c b/kernel/sysctl.c
---- a/kernel/sysctl.c	2011-08-05 10:29:21.000000000 +0530
-+++ b/kernel/sysctl.c	2011-08-09 12:39:43.453087554 +0530
-@@ -1076,12 +1076,19 @@ static struct ctl_table vm_table[] = {
- 		.mode		= 0644,
- 		.proc_handler	= dirty_writeback_centisecs_handler,
- 	},
-+    {
-+        .procname   = "sync_supers_centisecs",
-+        .data       = &sync_supers_interval,
-+        .maxlen     = sizeof(sync_supers_interval),
-+        .mode       = 0644,
-+        .proc_handler   = sync_supers_centisecs_handler,
-+    },
- 	{
- 		.procname	= "dirty_expire_centisecs",
- 		.data		= &dirty_expire_interval,
- 		.maxlen		= sizeof(dirty_expire_interval),
- 		.mode		= 0644,
--		.proc_handler	= proc_dointvec_minmax,
-+		.proc_handler	= dirty_expire_centisecs_handler,
- 		.extra1		= &zero,
- 	},
- 	{
-diff -uprN a/mm/backing-dev.c b/mm/backing-dev.c
---- a/mm/backing-dev.c	2011-08-05 10:29:21.000000000 +0530
-+++ b/mm/backing-dev.c	2011-08-09 12:08:06.287079027 +0530
-@@ -39,6 +39,10 @@ DEFINE_SPINLOCK(bdi_lock);
- LIST_HEAD(bdi_list);
- LIST_HEAD(bdi_pending_list);
-
-+/* Same value as the dirty_writeback_interval as this is what our
-+ * initial shortest_dirty_writeback_interval. */
-+unsigned int shortest_dirty_writeback_interval = 5 * 100;
-+
- static struct task_struct *sync_supers_tsk;
- static struct timer_list sync_supers_timer;
-
-@@ -204,12 +208,50 @@ static ssize_t max_ratio_store(struct de
- }
- BDI_SHOW(max_ratio, bdi->max_ratio)
-
-+static ssize_t dirty_writeback_interval_store(struct device *dev,
-+		struct device_attribute *attr, const char *buf, size_t count)
-+{
-+	struct backing_dev_info *bdi = dev_get_drvdata(dev);
-+	char *end;
-+	unsigned int interval;
-+	ssize_t ret = -EINVAL;
-+
-+	interval = simple_strtoul(buf, &end, 10);
-+	if (*buf && (end[0] == '\0' || (end[0] == '\n' && end[1] == '\0'))) {
-+		bdi->dirty_writeback_interval = interval;
-+		shortest_dirty_writeback_interval =
-+						min(shortest_dirty_writeback_interval,interval);
-+		ret = count;
-+	}
-+	return ret;
-+}
-+BDI_SHOW(dirty_writeback_interval, bdi->dirty_writeback_interval)
-+
-+static ssize_t dirty_expire_interval_store (struct device *dev,
-+		struct device_attribute *attr, const char *buf, size_t count)
-+{
-+	struct backing_dev_info *bdi = dev_get_drvdata(dev);
-+	char *end;
-+	unsigned int interval;
-+	ssize_t ret = -EINVAL;
-+
-+	interval = simple_strtoul(buf, &end, 10);
-+	if (*buf && (end[0] == '\0' || (end[0] == '\n' && end[1] == '\0'))) {
-+		bdi->dirty_expire_interval = interval;
-+		ret = count;
-+	}
-+	return ret;
-+}
-+BDI_SHOW(dirty_expire_interval, bdi->dirty_expire_interval)
-+
- #define __ATTR_RW(attr) __ATTR(attr, 0644, attr##_show, attr##_store)
-
- static struct device_attribute bdi_dev_attrs[] = {
- 	__ATTR_RW(read_ahead_kb),
- 	__ATTR_RW(min_ratio),
- 	__ATTR_RW(max_ratio),
-+	__ATTR_RW(dirty_writeback_interval),
-+	__ATTR_RW(dirty_expire_interval),
- 	__ATTR_NULL,
- };
-
-@@ -291,7 +333,7 @@ void bdi_arm_supers_timer(void)
- 	if (!dirty_writeback_interval)
- 		return;
-
--	next = msecs_to_jiffies(dirty_writeback_interval * 10) + jiffies;
-+	next = msecs_to_jiffies(sync_supers_interval* 10) + jiffies;
- 	mod_timer(&sync_supers_timer, round_jiffies_up(next));
- }
-
-@@ -336,7 +378,7 @@ void bdi_wakeup_thread_delayed(struct ba
- {
- 	unsigned long timeout;
-
--	timeout = msecs_to_jiffies(dirty_writeback_interval * 10);
-+	timeout = msecs_to_jiffies(bdi->dirty_writeback_interval * 10);
- 	mod_timer(&bdi->wb.wakeup_timer, jiffies + timeout);
- }
-
-@@ -348,7 +390,19 @@ static unsigned long bdi_longest_inactiv
- {
- 	unsigned long interval;
-
--	interval = msecs_to_jiffies(dirty_writeback_interval * 10);
-+	interval = msecs_to_jiffies(shortest_dirty_writeback_interval * 10);
-+	return max(5UL * 60 * HZ, interval);
-+}
-+
-+/*
-+ * Calculate the longest interval (jiffies) this bdi thread is allowed to be
-+ * inactive.
-+ */
-+static unsigned long bdi_longest_inactive_this(struct backing_dev_info *bdi)
-+{
-+	unsigned long interval;
-+
-+	interval = msecs_to_jiffies(bdi->dirty_writeback_interval * 10);
- 	return max(5UL * 60 * HZ, interval);
- }
-
-@@ -422,7 +476,7 @@ static int bdi_forker_thread(void *ptr)
- 			 */
- 			if (bdi->wb.task && !have_dirty_io &&
- 			    time_after(jiffies, bdi->wb.last_active +
--						bdi_longest_inactive())) {
-+						bdi_longest_inactive_this(bdi))) {
- 				task = bdi->wb.task;
- 				bdi->wb.task = NULL;
- 				spin_unlock(&bdi->wb_lock);
-@@ -469,7 +523,7 @@ static int bdi_forker_thread(void *ptr)
- 			break;
-
- 		case NO_ACTION:
--			if (!wb_has_dirty_io(me) || !dirty_writeback_interval)
-+			if (!wb_has_dirty_io(me) || !me->bdi->dirty_writeback_interval)
- 				/*
- 				 * There are no dirty data. The only thing we
- 				 * should now care about is checking for
-@@ -479,7 +533,7 @@ static int bdi_forker_thread(void *ptr)
- 				 */
- 				schedule_timeout(bdi_longest_inactive());
- 			else
--				schedule_timeout(msecs_to_jiffies(dirty_writeback_interval * 10));
-+				schedule_timeout(msecs_to_jiffies(me->bdi->dirty_writeback_interval * 10));
- 			try_to_freeze();
- 			/* Back to the main loop */
- 			continue;
-@@ -641,6 +695,8 @@ int bdi_init(struct backing_dev_info *bd
- 	bdi->min_ratio = 0;
- 	bdi->max_ratio = 100;
- 	bdi->max_prop_frac = PROP_FRAC_BASE;
-+	bdi->dirty_writeback_interval = dirty_writeback_interval;
-+	bdi->dirty_expire_interval = dirty_expire_interval;
- 	spin_lock_init(&bdi->wb_lock);
- 	INIT_LIST_HEAD(&bdi->bdi_list);
- 	INIT_LIST_HEAD(&bdi->work_list);
-diff -uprN a/mm/page-writeback.c b/mm/page-writeback.c
---- a/mm/page-writeback.c	2011-08-05 10:29:21.000000000 +0530
-+++ b/mm/page-writeback.c	2011-08-09 13:09:37.985919961 +0530
-@@ -92,6 +92,11 @@ unsigned long vm_dirty_bytes;
- unsigned int dirty_writeback_interval = 5 * 100; /* centiseconds */
-
- /*
-+ * The interval between sync_supers thread writebacks
-+ */
-+unsigned int sync_supers_interval = 5 * 100; /* centiseconds */
-+
-+/*
-  * The longest time for which data is allowed to remain dirty
-  */
- unsigned int dirty_expire_interval = 30 * 100; /* centiseconds */
-@@ -686,8 +691,60 @@ void throttle_vm_writeout(gfp_t gfp_mask
- int dirty_writeback_centisecs_handler(ctl_table *table, int write,
- 	void __user *buffer, size_t *length, loff_t *ppos)
- {
-+	struct backing_dev_info *bdi;
-+
-+	proc_dointvec(table, write, buffer, length, ppos);
-+
-+	if (write) {
-+		/* Traverse all the BDIs registered to the BDI list and reset their
-+		 * bdi->dirty_writeback_interval to this value. */
-+	    spin_lock_bh(&bdi_lock);
-+		list_for_each_entry(bdi, &bdi_list, bdi_list)
-+			bdi->dirty_writeback_interval = dirty_writeback_interval;
-+	    spin_unlock_bh(&bdi_lock);
-+
-+		sync_supers_interval =
-+			shortest_dirty_writeback_interval = dirty_writeback_interval;
-+
-+	}
-+
-+	bdi_arm_supers_timer();
-+
-+	return 0;
-+}
-+
-+/*
-+ * sysctl handler for /proc/sys/vm/sync_supers_centisecs
-+ */
-+int sync_supers_centisecs_handler(ctl_table *table, int write,
-+	void __user *buffer, size_t *length, loff_t *ppos)
-+{
- 	proc_dointvec(table, write, buffer, length, ppos);
-+
- 	bdi_arm_supers_timer();
-+
-+	return 0;
-+}
-+
-+/*
-+ * sysctl handler for /proc/sys/vm/dirty_expire_centisecs
-+ */
-+int dirty_expire_centisecs_handler(ctl_table *table, int write,
-+	void __user *buffer, size_t *length, loff_t *ppos)
-+{
-+	struct backing_dev_info *bdi;
-+
-+	proc_dointvec_minmax(table, write, buffer, length, ppos);
-+
-+	if (write) {
-+		/* Traverse all the BDIs registered to the BDI list and reset their
-+		 * bdi->dirty_expire_interval to this value. */
-+	    spin_lock_bh(&bdi_lock);
-+		list_for_each_entry(bdi, &bdi_list, bdi_list)
-+			bdi->dirty_expire_interval = dirty_expire_interval;
-+	    spin_unlock_bh(&bdi_lock);
-+	}
-+
- 	return 0;
- }
+--=20
+vda
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
