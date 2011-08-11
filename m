@@ -1,52 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id CA8956B00EE
-	for <linux-mm@kvack.org>; Thu, 11 Aug 2011 05:26:41 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 8CB783EE0AE
-	for <linux-mm@kvack.org>; Thu, 11 Aug 2011 18:26:38 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 66DBD45DE81
-	for <linux-mm@kvack.org>; Thu, 11 Aug 2011 18:26:38 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 4D9BD45DE7A
-	for <linux-mm@kvack.org>; Thu, 11 Aug 2011 18:26:38 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 3FBC11DB8046
-	for <linux-mm@kvack.org>; Thu, 11 Aug 2011 18:26:38 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0C5161DB803E
-	for <linux-mm@kvack.org>; Thu, 11 Aug 2011 18:26:38 +0900 (JST)
-Date: Thu, 11 Aug 2011 18:19:13 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 7/7] mm: vmscan: Immediately reclaim end-of-LRU dirty
- pages when writeback completes
-Message-Id: <20110811181913.ea81b7e0.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1312973240-32576-8-git-send-email-mgorman@suse.de>
-References: <1312973240-32576-1-git-send-email-mgorman@suse.de>
-	<1312973240-32576-8-git-send-email-mgorman@suse.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 037056B00EE
+	for <linux-mm@kvack.org>; Thu, 11 Aug 2011 07:14:38 -0400 (EDT)
+Date: Thu, 11 Aug 2011 13:14:23 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 2/5] writeback: dirty position control
+Message-ID: <20110811111423.GD4755@quack.suse.cz>
+References: <20110806084447.388624428@intel.com>
+ <20110806094526.733282037@intel.com>
+ <1312811193.10488.33.camel@twins>
+ <20110808141128.GA22080@localhost>
+ <1312814501.10488.41.camel@twins>
+ <20110808230535.GC7176@localhost>
+ <1312910427.1083.68.camel@twins>
+ <20110810223427.GA18227@quack.suse.cz>
+ <20110811022952.GA11404@localhost>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110811022952.GA11404@localhost>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, XFS <xfs@oss.sgi.com>, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, Johannes Weiner <jweiner@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Jan Kara <jack@suse.cz>, Peter Zijlstra <peterz@infradead.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, 10 Aug 2011 11:47:20 +0100
-Mel Gorman <mgorman@suse.de> wrote:
-
-> When direct reclaim encounters a dirty page, it gets recycled around
-> the LRU for another cycle. This patch marks the page PageReclaim
-> similar to deactivate_page() so that the page gets reclaimed almost
-> immediately after the page gets cleaned. This is to avoid reclaiming
-> clean pages that are younger than a dirty page encountered at the
-> end of the LRU that might have been something like a use-once page.
+On Thu 11-08-11 10:29:52, Wu Fengguang wrote:
+> On Thu, Aug 11, 2011 at 06:34:27AM +0800, Jan Kara wrote:
+> > On Tue 09-08-11 19:20:27, Peter Zijlstra wrote:
+> > > On Tue, 2011-08-09 at 12:32 +0200, Peter Zijlstra wrote:
+> > > > >                     origin - dirty
+> > > > >         pos_ratio = --------------
+> > > > >                     origin - goal 
+> > > > 
+> > > > > which comes from the below [*] control line, so that when (dirty == goal),
+> > > > > pos_ratio == 1.0:
+> > > > 
+> > > > OK, so basically you want a linear function for which:
+> > > > 
+> > > > f(goal) = 1 and has a root somewhere > goal.
+> > > > 
+> > > > (that one line is much more informative than all your graphs put
+> > > > together, one can start from there and derive your function)
+> > > > 
+> > > > That does indeed get you the above function, now what does it mean? 
+> > > 
+> > > So going by:
+> > > 
+> > >                                          write_bw
+> > >   ref_bw = dirty_ratelimit * pos_ratio * --------
+> > >                                          dirty_bw
+> > 
+> >   Actually, thinking about these formulas, why do we even bother with
+> > computing all these factors like write_bw, dirty_bw, pos_ratio, ...
+> > Couldn't we just have a feedback loop (probably similar to the one
+> > computing pos_ratio) which will maintain single value - ratelimit? When we
+> > are getting close to dirty limit, we will scale ratelimit down, when we
+> > will be getting significantly below dirty limit, we will scale the
+> > ratelimit up.  Because looking at the formulas it seems to me that the net
+> > effect is the same - pos_ratio basically overrules everything... 
 > 
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
-> Acked-by: Johannes Weiner <jweiner@redhat.com>
+> Good question. That is actually one of the early approaches I tried.
+> It somehow worked, however the resulted ratelimit is not only slow
+> responding, but also oscillating all the time.
+  Yes, I think I vaguely remember that.
 
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> This is due to the imperfections
+> 
+> 1) pos_ratio at best only provides a "direction" for adjusting the
+>    ratelimit. There is only vague clues that if pos_ratio is small,
+>    the errors in ratelimit should be small.
+> 
+> 2) Due to time-lag, the assumptions in (1) about "direction" and
+>    "error size" can be wrong. The ratelimit may already be
+>    over-adjusted when the dirty pages take time to approach the
+>    setpoint. The larger memory, the more time lag, the easier to
+>    overshoot and oscillate.
+> 
+> 3) dirty pages are constantly fluctuating around the setpoint,
+>    so is pos_ratio.
+> 
+> With (1) and (2), it's a control system very susceptible to disturbs.
+> With (3) we get constant disturbs. Well I had very hard time and
+> played dirty tricks (which you may never want to know ;-) trying to
+> tradeoff between response time and stableness..
+  Yes, I can see especially 2) is a problem. But I don't understand why
+your current formula would be that much different. As Peter decoded from
+your code, your current formula is:
+                                        write_bw
+ ref_bw = dirty_ratelimit * pos_ratio * --------
+                                        dirty_bw
+
+while previously it was essentially:
+ ref_bw = dirty_ratelimit * pos_ratio
+
+So what is so magical about computing write_bw and dirty_bw separately? Is
+it because previously you did not use derivation of distance from the goal
+for updating pos_ratio? Because in your current formula write_bw/dirty_bw
+is a derivation of position...
+
+								Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
