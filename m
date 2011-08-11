@@ -1,51 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 102326B00EE
-	for <linux-mm@kvack.org>; Thu, 11 Aug 2011 17:00:20 -0400 (EDT)
-Date: Thu, 11 Aug 2011 17:00:08 -0400
-From: Vivek Goyal <vgoyal@redhat.com>
-Subject: Re: [PATCH 0/5] IO-less dirty throttling v8
-Message-ID: <20110811210008.GI8552@redhat.com>
-References: <20110806084447.388624428@intel.com>
- <20110809020127.GA3700@redhat.com>
- <20110811032143.GB11404@localhost>
- <20110811204255.GH8552@redhat.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id A979E6B0169
+	for <linux-mm@kvack.org>; Thu, 11 Aug 2011 17:10:06 -0400 (EDT)
+Date: Thu, 11 Aug 2011 23:09:14 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 2/8] mm: memcg-aware global reclaim
+Message-ID: <20110811210914.GB31229@cmpxchg.org>
+References: <1306909519-7286-1-git-send-email-hannes@cmpxchg.org>
+ <1306909519-7286-3-git-send-email-hannes@cmpxchg.org>
+ <CALWz4iwChnacF061L9vWo7nEA7qaXNJrK=+jsEe9xBtvEBD9MA@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110811204255.GH8552@redhat.com>
+In-Reply-To: <CALWz4iwChnacF061L9vWo7nEA7qaXNJrK=+jsEe9xBtvEBD9MA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Ying Han <yinghan@google.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Aug 11, 2011 at 04:42:55PM -0400, Vivek Goyal wrote:
-
-[..]
-> So I see following immediate extension of your scheme possible.
+On Thu, Aug 11, 2011 at 01:39:45PM -0700, Ying Han wrote:
+> Please consider including the following patch for the next post. It causes
+> crash on some of the tests where sc->mem_cgroup is NULL (global kswapd).
 > 
-> - Inherit ioprio from iocontext and provide buffered write service
->   differentiation for writers.
-> 
-> - Create a per task buffered write throttling interface and do
->   absolute throttling of task.
-> 
-> - We can possibly do the idea of throttling group wide buffered
->   writes only control at this layer using this mechanism.
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index b72a844..12ab25d 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2768,7 +2768,8 @@ loop_again:
+>                          * Do some background aging of the anon list, to
+> give
+>                          * pages a chance to be referenced before
+> reclaiming.
+>                          */
+> -                       if (inactive_anon_is_low(zone, &sc))
+> +                       if (scanning_global_lru(&sc) &&
+> +                                       inactive_anon_is_low(zone, &sc))
+>                                 shrink_active_list(SWAP_CLUSTER_MAX, zone,
+>                                                         &sc, priority, 0);
 
-Though personally I like the idea of absolute throttling at page cache
-level as it can help a bit with problem of buffered WRITES impacting
-the latency of everything else in the system. CFQ helps a lot but
-it idles enough that cost of this isolation is very high on faster
-storage.
+Thanks!  I completely overlooked this one and only noticed it after
+changing the arguments to shrink_active_list().
 
-Deadline and noop really do not do much about protection from WRITEs.
+On memcg configurations, scanning_global_lru() will essentially never
+be true again, so I moved the anon pre-aging to a separate function
+that also does a hierarchy loop to preage the per-memcg anon lists.
 
-So it is not perfect but might prove to be good enough for some use
-cases.
-
-Thanks
-Vivek
+I hope to send out the next revision soon.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
