@@ -1,88 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id ACEE090014F
-	for <linux-mm@kvack.org>; Wed, 10 Aug 2011 23:21:48 -0400 (EDT)
-Date: Thu, 11 Aug 2011 11:21:43 +0800
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id B8A7490014F
+	for <linux-mm@kvack.org>; Wed, 10 Aug 2011 23:42:35 -0400 (EDT)
+Date: Thu, 11 Aug 2011 11:42:30 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 0/5] IO-less dirty throttling v8
-Message-ID: <20110811032143.GB11404@localhost>
+Subject: Re: [PATCH 3/5] writeback: dirty rate control
+Message-ID: <20110811034230.GA21470@localhost>
 References: <20110806084447.388624428@intel.com>
- <20110809020127.GA3700@redhat.com>
+ <20110806094526.878435971@intel.com>
+ <20110809145438.GC6482@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110809020127.GA3700@redhat.com>
+In-Reply-To: <20110809145438.GC6482@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Vivek Goyal <vgoyal@redhat.com>
 Cc: "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-> [...] it only deals with controlling buffered write IO and nothing
-> else. So on the same block device, other direct writes might be
-> going on from same group and in this scheme a user will not have any
-> control.
+On Tue, Aug 09, 2011 at 10:54:38PM +0800, Vivek Goyal wrote:
+> On Sat, Aug 06, 2011 at 04:44:50PM +0800, Wu Fengguang wrote:
+> > It's all about bdi->dirty_ratelimit, which aims to be (write_bw / N)
+> > when there are N dd tasks.
+> > 
+> > On write() syscall, use bdi->dirty_ratelimit
+> > ============================================
+> > 
+> >     balance_dirty_pages(pages_dirtied)
+> >     {
+> >         pos_bw = bdi->dirty_ratelimit * bdi_position_ratio();
+> >         pause = pages_dirtied / pos_bw;
+> >         sleep(pause);
+> >     }
+> > 
+> > On every 200ms, update bdi->dirty_ratelimit
+> > ===========================================
+> > 
+> >     bdi_update_dirty_ratelimit()
+> >     {
+> >         bw = bdi->dirty_ratelimit;
+> >         ref_bw = bw * bdi_position_ratio() * write_bw / dirty_bw;
+> >         if (dirty pages unbalanced)
+> >              bdi->dirty_ratelimit = (bw * 3 + ref_bw) / 4;
+> >     }
+> > 
+> > Estimation of balanced bdi->dirty_ratelimit
+> > ===========================================
+> > 
+> > When started N dd, throttle each dd at
+> > 
+> >          task_ratelimit = pos_bw (any non-zero initial value is OK)
+> > 
+> > After 200ms, we got
+> > 
+> >          dirty_bw = # of pages dirtied by app / 200ms
+> >          write_bw = # of pages written to disk / 200ms
+> > 
+> > For aggressive dirtiers, the equality holds
+> > 
+> >          dirty_bw == N * task_ratelimit
+> >                   == N * pos_bw                      	(1)
+> > 
+> > The balanced throttle bandwidth can be estimated by
+> > 
+> >          ref_bw = pos_bw * write_bw / dirty_bw       	(2)
+> > 
+> > >From (1) and (2), we get equality
+> > 
+> >          ref_bw == write_bw / N                      	(3)
+> > 
+> > If the N dd's are all throttled at ref_bw, the dirty/writeback rates
+> > will match. So ref_bw is the balanced dirty rate.
+> 
+> Hi Fengguang,
 
-The IO-less balance_dirty_pages() will be able to throttle DIRECT
-writes. There is nothing fundamental in the way.
+Hi Vivek,
 
-The basic approach will be to add a balance_dirty_pages_ratelimited_nr()
-call in the DIRECT write path, and to call into balance_dirty_pages()
-regardless of the various dirty thresholds.
+> So how much work it is to extend all this to handle the case of cgroups?
 
-Then the IO-less balance_dirty_pages() has all the facilities to
-throttle a task at any auto-estimated or user-specified ratelimit.
+Here is the simplest form.
 
-> Another disadvantage is that throttling at page cache level does not
-> take care of IO spikes at device level.
+writeback: async write IO controllers
+http://git.kernel.org/?p=linux/kernel/git/wfg/writeback.git;a=blobdiff;f=mm/page-writeback.c;h=0b579e7fd338fd1f59cc36bf15fda06ff6260634;hp=34dff9f0d28d0f4f0794eb41187f71b4ade6b8a2;hb=1a58ad99ce1f6a9df6618a4b92fa4859cc3e7e90;hpb=5b6fcb3125ea52ff04a2fad27a51307842deb1a0
 
-Yes this is a problem. But it's a problem best fixable in the IO
-scheduler.. (I cannot go to details at this time, however it does
-_sound_ possible to me..)
+And an old email on this topic:
 
-> How do you implement proportional control here? From overall bdi bandwidth
-> vary per cgroup bandwidth regularly based on cgroup weight? Again the
-> issue here is that it controls only buffered WRITES and nothing else and
-> in this case co-ordinating with CFQ will probably be hard. So I guess
-> usage of proportional IO just for buffered WRITES will have limited
-> usage.
+https://lkml.org/lkml/2011/4/28/229
 
-"priority" may be a more suitable phrase. It will be implemented like
-this (without the user interface):
+> IOW, I would imagine that you shall have to keep track of per cgroup/per
+> bdi state of many of the variables. For example, write_bw will become
+> per cgroup/per bdi entity instead of per bdi entity only. Same should
+> be true for position ratio, dirty_bw etc?
+ 
+The dirty_bw, write_bw and dirty_ratelimit should be replicated,
+but not necessarily dirty pages and position ratio.
 
-@@ -1007,6 +1001,13 @@ static void balance_dirty_pages(struct a
-                max_pause = bdi_max_pause(bdi, bdi_dirty);
-               
-                base_rate = bdi->dirty_ratelimit;
-+               /*
-+                * Double the bandwidth for PF_LESS_THROTTLE (ie. nfsd) and
-+                * real-time tasks.
-+                */
-+               if (current->flags & PF_LESS_THROTTLE || rt_task(current))
-+                       base_rate *= 2;
-+              
-                pos_ratio = bdi_position_ratio(bdi, dirty_thresh,
-                                               background_thresh, nr_dirty,
-                                               bdi_thresh, bdi_dirty);                                                        
-That is, if start 2 dd tasks A and B with priority_B=2. Then the
-resulting rate_B will be equal to 2*rate_A. The ->dirty_ratelimit will
-auto adapt to rate_A or equally (write_bw/3).
+The cgroup can just rely on the root cgroup's dirty pages position
+control if it does not care about its own dirty pages consumptions.
 
-The same can be applied to cgroup. One may specify the whole cgroup's
-dirty rate be throttled at N times that of a normal dd in the root cgroup,
-or be throttled at some absolute 10MB/s rate. The corresponding
-cgroup->dirty_ratelimit will be set to (N * bdi->dirty_ratelimit) for
-the former and 10MB/s for the latter.
+> I am assuming that if some cgroup is low weight on end device, then
+> WRITE bandwidth of that cgroup should go down and that should be
+> accounted for at per bdi state and task throttling should happen
+> accordingly so that a lower weight cgroup tasks get throttled more
+> as compared to higher weight cgroup tasks?
 
-The user can specify any combinations of "priority" and "absolute
-ratelimit" for any task and/or cgroup, tasks inside cgroup, and so on.
-We have very powerful (bdi or cgroup)->dirty_ratelimit adaptation
-mechanism to support the combinations :)
-
-The "priority" can even be applied to DIRECT dirtiers, _as long as_
-there are other buffered dirtiers to generate enough dirty pages. It's
-not as easy to apply priorities when there are only DIRECT dirtiers.
-In contrast, the absolute ratelimit is always applicable to all kind
-of tasks and cgroups.
+Sorry I don't quite catch your meaning, but the current
+->dirty_ratelimit adaptation scheme (detailed in another email) should
+handle all such rate/bw allocation issues automatically?
 
 Thanks,
 Fengguang
