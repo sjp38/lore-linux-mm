@@ -1,67 +1,157 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B06D6B016E
-	for <linux-mm@kvack.org>; Thu, 11 Aug 2011 04:02:06 -0400 (EDT)
-References: <1312872786.70934.YahooMailNeo@web111712.mail.gq1.yahoo.com> <1db776d865939be598cdb80054cf5d93.squirrel@xenotime.net> <1312874259.89770.YahooMailNeo@web111704.mail.gq1.yahoo.com> <alpine.DEB.2.00.1108090900170.30199@chino.kir.corp.google.com> <1312964098.7449.YahooMailNeo@web111712.mail.gq1.yahoo.com> <alpine.DEB.2.00.1108102106410.14230@chino.kir.corp.google.com> <1313046422.18195.YahooMailNeo@web111711.mail.gq1.yahoo.com> <alpine.DEB.2.00.1108110010220.23622@chino.kir.corp.google.com>
-Message-ID: <1313049724.11241.YahooMailNeo@web111704.mail.gq1.yahoo.com>
-Date: Thu, 11 Aug 2011 01:02:04 -0700 (PDT)
-From: Mahmood Naderan <nt_mahmood@yahoo.com>
-Reply-To: Mahmood Naderan <nt_mahmood@yahoo.com>
-Subject: Re: running of out memory => kernel crash
-In-Reply-To: <alpine.DEB.2.00.1108110010220.23622@chino.kir.corp.google.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id B82F16B0171
+	for <linux-mm@kvack.org>; Thu, 11 Aug 2011 04:05:04 -0400 (EDT)
+Date: Thu, 11 Aug 2011 10:05:00 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 2/2][cleanup] memcg: renaming of mem variable to memcg
+Message-ID: <20110811080500.GC8023@tiehlicka.suse.cz>
+References: <20110810172917.23280.9440.sendpatchset@oc5400248562.ibm.com>
+ <20110810172942.23280.99644.sendpatchset@oc5400248562.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110810172942.23280.99644.sendpatchset@oc5400248562.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Randy Dunlap <rdunlap@xenotime.net>, "\"\"\"linux-kernel@vger.kernel.org\"\"\"" <linux-kernel@vger.kernel.org>, "\"\"linux-mm@kvack.org\"\"" <linux-mm@kvack.org>
+To: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>
+Cc: Arend van Spriel <arend@broadcom.com>, Greg Kroah-Hartman <gregkh@suse.de>, "David S. Miller" <davem@davemloft.net>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <bsingharora@gmail.com>, "John W. Linville" <linville@tuxdriver.com>, Mauro Carvalho Chehab <mchehab@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Ying Han <yinghan@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>
 
->Despite it's name, kswapd is still active, it's trying to reclaim memory =
-=0A>to prevent having to kill a process as the last resort.=0A=A0=0AI under=
-stand what you said, but I did two scenarios:=0A1- I wrote a simple C++ pro=
-gram that "new" a lot of pointers.=0A=A0=A0 for ( int i =3D 0; i < n; i++ )=
- {=0A=A0=A0=A0=A0 for ( int j =3D 0; j < n; j++ ) {=0A=A0=A0=A0=A0=A0=A0 fo=
-r ( int k =3D 0; k < n; k++ ) {=0A=A0=A0=A0=A0=A0=A0=A0=A0 for ( int l =3D =
-0; l < n; l++ ) {=0A=A0=A0=A0 =A0 =A0 =A0=A0 double *ptr1 =3D new double[n*=
-i];=0A=A0=A0=A0 =A0 =A0 =A0=A0 double *ptr2 =3D new double[n*j];=0A=A0=A0=
-=A0=A0 }}}}=0A=0AWhen I run the program, it ill eat the memory and when it =
-reaches the=0Amaximum ram, it get killed and I saw=A0 message on terminal:=
-=0A=0Amahmood@vpc:~$ ./leak=0AKilled=0A=0Afor this scenario, there is no ks=
-wapd process running. As it eats the memory=0Asuddenly it get killed.=0A=0A=
-2- There is 300MB ram. I opened an application saw that=0Afree space reduce=
-d to 100MB, then another application reduced the free=0Aspace to 30MB. Anot=
-her application reduced to 4MB. Now the "kswapd"=0Ais running with a lot of=
- disk activity and tries to keep free space at 4MB.=0AIn this scenario, No =
-application is killed.=0A=0AThe question is why in one scenario, the applic=
-ation is killed and in one=0Ascenario, kswapd is running.=0A=0AI think in t=
-he first scenario, the oom_score is calculated more rapidly =0Athan the sec=
-ond, so immediately is get killed. So kswapd has no chance =0Ato run becaus=
-e application is killed sooner. In the second scenario, =0Akswapd has time =
-to run first. So it will try to free some spaces. However =0Asince the disk=
- activity is very high, the response time is very high=0Aso the oom_score i=
-s calculated lately than first scenario.=0A=0AIs my understandings correct?=
-=0A=0A=0A>If /proc/sys/vm/panic_on_oom is not set, as previously mentioned,=
- then =0A>we'll need the kernel log to diagnose this further.=0AI checked t=
-hat and it is 0. I am trying to reproduce the problem to get some logs=0A=
-=0A=0A// Naderan *Mahmood;=0A=0A=0A----- Original Message -----=0AFrom: Dav=
-id Rientjes <rientjes@google.com>=0ATo: Mahmood Naderan <nt_mahmood@yahoo.c=
-om>=0ACc: Randy Dunlap <rdunlap@xenotime.net>; """linux-kernel@vger.kernel.=
-org""" <linux-kernel@vger.kernel.org>; ""linux-mm@kvack.org"" <linux-mm@kva=
-ck.org>=0ASent: Thursday, August 11, 2011 11:43 AM=0ASubject: Re: running o=
-f out memory =3D> kernel crash=0A=0AOn Thu, 11 Aug 2011, Mahmood Naderan wr=
-ote:=0A=0A> >The default behavior is to kill all eligible and unkillable th=
-reads until =0A> >there are none left to sacrifice (i.e. all kthreads and O=
-OM_DISABLE).=0A> =A0=0A> In a simple test with virtualbox, I reduced the am=
-ount of ram to 300MB. =0A> Then I ran "swapoff -a" and opened some applicat=
-ions. I noticed that the free=0A> spaces is kept around 2-3MB and "kswapd" =
-is running. Also I saw that disk=0A> activity was very high. =0A> That mean=
- although "swap" partition is turned off, "kswapd" was trying to do=0A> som=
-ething. I wonder how that behavior can be explained?=0A> =0A=0ADespite it's=
- name, kswapd is still active, it's trying to reclaim memory =0Ato prevent =
-having to kill a process as the last resort.=0A=0AIf /proc/sys/vm/panic_on_=
-oom is not set, as previously mentioned, then =0Awe'll need the kernel log =
-to diagnose this further.
+On Wed 10-08-11 22:59:42, Raghavendra K T wrote:
+>  The memcg code sometimes uses "struct mem_cgroup *mem" and sometimes uses
+>  "struct mem_cgroup *memcg". This patch renames all mem variables to memcg in header file.
+
+Any reason (other than that this is a different file) to have this as a
+separate patch?
+
+> 
+> From: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>
+> Signed-off-by: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>
+> ---
+> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> index 5633f51..fb1ed1c 100644
+> --- a/include/linux/memcontrol.h
+> +++ b/include/linux/memcontrol.h
+> @@ -88,8 +88,8 @@ extern void mem_cgroup_uncharge_end(void);
+>  extern void mem_cgroup_uncharge_page(struct page *page);
+>  extern void mem_cgroup_uncharge_cache_page(struct page *page);
+>  
+> -extern void mem_cgroup_out_of_memory(struct mem_cgroup *mem, gfp_t gfp_mask);
+> -int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *mem);
+> +extern void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask);
+> +int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *memcg);
+>  
+>  extern struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page);
+>  extern struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p);
+> @@ -98,19 +98,19 @@ extern struct mem_cgroup *try_get_mem_cgroup_from_mm(struct mm_struct *mm);
+>  static inline
+>  int mm_match_cgroup(const struct mm_struct *mm, const struct mem_cgroup *cgroup)
+>  {
+> -	struct mem_cgroup *mem;
+> +	struct mem_cgroup *memcg;
+>  	rcu_read_lock();
+> -	mem = mem_cgroup_from_task(rcu_dereference((mm)->owner));
+> +	memcg = mem_cgroup_from_task(rcu_dereference((mm)->owner));
+>  	rcu_read_unlock();
+> -	return cgroup == mem;
+> +	return cgroup == memcg;
+>  }
+>  
+> -extern struct cgroup_subsys_state *mem_cgroup_css(struct mem_cgroup *mem);
+> +extern struct cgroup_subsys_state *mem_cgroup_css(struct mem_cgroup *memcg);
+>  
+>  extern int
+>  mem_cgroup_prepare_migration(struct page *page,
+>  	struct page *newpage, struct mem_cgroup **ptr, gfp_t gfp_mask);
+> -extern void mem_cgroup_end_migration(struct mem_cgroup *mem,
+> +extern void mem_cgroup_end_migration(struct mem_cgroup *memcg,
+>  	struct page *oldpage, struct page *newpage, bool migration_ok);
+>  
+>  /*
+> @@ -167,7 +167,7 @@ static inline void mem_cgroup_dec_page_stat(struct page *page,
+>  unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
+>  						gfp_t gfp_mask,
+>  						unsigned long *total_scanned);
+> -u64 mem_cgroup_get_limit(struct mem_cgroup *mem);
+> +u64 mem_cgroup_get_limit(struct mem_cgroup *memcg);
+>  
+>  void mem_cgroup_count_vm_event(struct mm_struct *mm, enum vm_event_item idx);
+>  #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+> @@ -263,18 +263,20 @@ static inline struct mem_cgroup *try_get_mem_cgroup_from_mm(struct mm_struct *mm
+>  	return NULL;
+>  }
+>  
+> -static inline int mm_match_cgroup(struct mm_struct *mm, struct mem_cgroup *mem)
+> +static inline int mm_match_cgroup(struct mm_struct *mm,
+> +		struct mem_cgroup *memcg)
+>  {
+>  	return 1;
+>  }
+>  
+>  static inline int task_in_mem_cgroup(struct task_struct *task,
+> -				     const struct mem_cgroup *mem)
+> +				     const struct mem_cgroup *memcg)
+>  {
+>  	return 1;
+>  }
+>  
+> -static inline struct cgroup_subsys_state *mem_cgroup_css(struct mem_cgroup *mem)
+> +static inline struct cgroup_subsys_state
+> +		*mem_cgroup_css(struct mem_cgroup *memcg)
+>  {
+>  	return NULL;
+>  }
+> @@ -286,22 +288,22 @@ mem_cgroup_prepare_migration(struct page *page, struct page *newpage,
+>  	return 0;
+>  }
+>  
+> -static inline void mem_cgroup_end_migration(struct mem_cgroup *mem,
+> +static inline void mem_cgroup_end_migration(struct mem_cgroup *memcg,
+>  		struct page *oldpage, struct page *newpage, bool migration_ok)
+>  {
+>  }
+>  
+> -static inline int mem_cgroup_get_reclaim_priority(struct mem_cgroup *mem)
+> +static inline int mem_cgroup_get_reclaim_priority(struct mem_cgroup *memcg)
+>  {
+>  	return 0;
+>  }
+>  
+> -static inline void mem_cgroup_note_reclaim_priority(struct mem_cgroup *mem,
+> +static inline void mem_cgroup_note_reclaim_priority(struct mem_cgroup *memcg,
+>  						int priority)
+>  {
+>  }
+>  
+> -static inline void mem_cgroup_record_reclaim_priority(struct mem_cgroup *mem,
+> +static inline void mem_cgroup_record_reclaim_priority(struct mem_cgroup *memcg,
+>  						int priority)
+>  {
+>  }
+> @@ -367,7 +369,7 @@ unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
+>  }
+>  
+>  static inline
+> -u64 mem_cgroup_get_limit(struct mem_cgroup *mem)
+> +u64 mem_cgroup_get_limit(struct mem_cgroup *memcg)
+>  {
+>  	return 0;
+>  }
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
