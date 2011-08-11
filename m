@@ -1,56 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 7394890014F
-	for <linux-mm@kvack.org>; Thu, 11 Aug 2011 03:13:17 -0400 (EDT)
-Received: from hpaq3.eem.corp.google.com (hpaq3.eem.corp.google.com [172.25.149.3])
-	by smtp-out.google.com with ESMTP id p7B7DEpk026682
-	for <linux-mm@kvack.org>; Thu, 11 Aug 2011 00:13:14 -0700
-Received: from pzk34 (pzk34.prod.google.com [10.243.19.162])
-	by hpaq3.eem.corp.google.com with ESMTP id p7B7Ca9j029237
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 11 Aug 2011 00:13:12 -0700
-Received: by pzk34 with SMTP id 34so3665851pzk.35
-        for <linux-mm@kvack.org>; Thu, 11 Aug 2011 00:13:12 -0700 (PDT)
-Date: Thu, 11 Aug 2011 00:13:10 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: running of out memory => kernel crash
-In-Reply-To: <1313046422.18195.YahooMailNeo@web111711.mail.gq1.yahoo.com>
-Message-ID: <alpine.DEB.2.00.1108110010220.23622@chino.kir.corp.google.com>
-References: <1312872786.70934.YahooMailNeo@web111712.mail.gq1.yahoo.com> <1db776d865939be598cdb80054cf5d93.squirrel@xenotime.net> <1312874259.89770.YahooMailNeo@web111704.mail.gq1.yahoo.com> <alpine.DEB.2.00.1108090900170.30199@chino.kir.corp.google.com>
- <1312964098.7449.YahooMailNeo@web111712.mail.gq1.yahoo.com> <alpine.DEB.2.00.1108102106410.14230@chino.kir.corp.google.com> <1313046422.18195.YahooMailNeo@web111711.mail.gq1.yahoo.com>
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id 236576B00EE
+	for <linux-mm@kvack.org>; Thu, 11 Aug 2011 03:53:48 -0400 (EDT)
+Date: Thu, 11 Aug 2011 09:53:37 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 0/2][cleanup] memcg: renaming of mem variable to memcg
+Message-ID: <20110811075337.GA8023@tiehlicka.suse.cz>
+References: <20110810172917.23280.9440.sendpatchset@oc5400248562.ibm.com>
 MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="397155492-1080208226-1313046791=:23622"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110810172917.23280.9440.sendpatchset@oc5400248562.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mahmood Naderan <nt_mahmood@yahoo.com>
-Cc: Randy Dunlap <rdunlap@xenotime.net>, "\"\"linux-kernel@vger.kernel.org\"\"" <linux-kernel@vger.kernel.org>, "\"linux-mm@kvack.org\"" <linux-mm@kvack.org>
+To: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>
+Cc: Arend van Spriel <arend@broadcom.com>, Greg Kroah-Hartman <gregkh@suse.de>, "David S. Miller" <davem@davemloft.net>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <bsingharora@gmail.com>, "John W. Linville" <linville@tuxdriver.com>, Mauro Carvalho Chehab <mchehab@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Ying Han <yinghan@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>
 
-  This message is in MIME format.  The first part should be readable text,
-  while the remaining parts are likely unreadable without MIME-aware tools.
-
---397155492-1080208226-1313046791=:23622
-Content-Type: TEXT/PLAIN; charset=iso-8859-1
-Content-Transfer-Encoding: 8BIT
-
-On Thu, 11 Aug 2011, Mahmood Naderan wrote:
-
-> >The default behavior is to kill all eligible and unkillable threads until 
-> >there are none left to sacrifice (i.e. all kthreads and OOM_DISABLE).
->  
-> In a simple test with virtualbox, I reduced the amount of ram to 300MB. 
-> Then I ran "swapoff -a" and opened some applications. I noticed that the free
-> spaces is kept around 2-3MB and "kswapd" is running. Also I saw that disk
-> activity was very high. 
-> That mean although "swap" partition is turned off, "kswapd" was trying to do
-> something. I wonder how that behavior can be explained?
+On Wed 10-08-11 22:59:17, Raghavendra K T wrote:
+> Hi,
+>  This is the memcg cleanup patch for that was talked little ago to change the  "struct
+>  mem_cgroup *mem" variable to  "struct mem_cgroup *memcg".
 > 
+>  The patch is though trivial, it is huge one.
+>  Testing : Compile tested with following configurations.
+>  1) CONFIG_CGROUP_MEM_RES_CTLR=y  CONFIG_CGROUP_MEM_RES_CTLR_SWAP=y
+>  2) CONFIG_CGROUP_MEM_RES_CTLR=y  CONFIG_CGROUP_MEM_RES_CTLR_SWAP=n
+>  3) CONFIG_CGROUP_MEM_RES_CTLR=n  CONFIG_CGROUP_MEM_RES_CTLR_SWAP=n
 
-Despite it's name, kswapd is still active, it's trying to reclaim memory 
-to prevent having to kill a process as the last resort.
+How exactly have you tested? Compiled and compared before/after binaries
+(it shouldn't change, right)?
 
-If /proc/sys/vm/panic_on_oom is not set, as previously mentioned, then 
-we'll need the kernel log to diagnose this further.
---397155492-1080208226-1313046791=:23622--
+> 
+>  Also tested basic mounting with memcgroup.
+>  Raghu.
+
+Thanks
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
