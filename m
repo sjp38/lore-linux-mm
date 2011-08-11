@@ -1,115 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id B8A7490014F
-	for <linux-mm@kvack.org>; Wed, 10 Aug 2011 23:42:35 -0400 (EDT)
-Date: Thu, 11 Aug 2011 11:42:30 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 3/5] writeback: dirty rate control
-Message-ID: <20110811034230.GA21470@localhost>
-References: <20110806084447.388624428@intel.com>
- <20110806094526.878435971@intel.com>
- <20110809145438.GC6482@redhat.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 8BDF190014F
+	for <linux-mm@kvack.org>; Thu, 11 Aug 2011 00:10:19 -0400 (EDT)
+Received: from wpaz29.hot.corp.google.com (wpaz29.hot.corp.google.com [172.24.198.93])
+	by smtp-out.google.com with ESMTP id p7B4A5mY018750
+	for <linux-mm@kvack.org>; Wed, 10 Aug 2011 21:10:06 -0700
+Received: from pzk32 (pzk32.prod.google.com [10.243.19.160])
+	by wpaz29.hot.corp.google.com with ESMTP id p7B49xJf010088
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 10 Aug 2011 21:10:04 -0700
+Received: by pzk32 with SMTP id 32so3469199pzk.5
+        for <linux-mm@kvack.org>; Wed, 10 Aug 2011 21:10:02 -0700 (PDT)
+Date: Wed, 10 Aug 2011 21:09:59 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: running of out memory => kernel crash
+In-Reply-To: <1312964098.7449.YahooMailNeo@web111712.mail.gq1.yahoo.com>
+Message-ID: <alpine.DEB.2.00.1108102106410.14230@chino.kir.corp.google.com>
+References: <1312872786.70934.YahooMailNeo@web111712.mail.gq1.yahoo.com> <1db776d865939be598cdb80054cf5d93.squirrel@xenotime.net> <1312874259.89770.YahooMailNeo@web111704.mail.gq1.yahoo.com> <alpine.DEB.2.00.1108090900170.30199@chino.kir.corp.google.com>
+ <1312964098.7449.YahooMailNeo@web111712.mail.gq1.yahoo.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110809145438.GC6482@redhat.com>
+Content-Type: MULTIPART/MIXED; BOUNDARY="397155492-2005623161-1313035801=:14230"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vivek Goyal <vgoyal@redhat.com>
-Cc: "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Mahmood Naderan <nt_mahmood@yahoo.com>
+Cc: Randy Dunlap <rdunlap@xenotime.net>, "\"linux-kernel@vger.kernel.org\"" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Tue, Aug 09, 2011 at 10:54:38PM +0800, Vivek Goyal wrote:
-> On Sat, Aug 06, 2011 at 04:44:50PM +0800, Wu Fengguang wrote:
-> > It's all about bdi->dirty_ratelimit, which aims to be (write_bw / N)
-> > when there are N dd tasks.
-> > 
-> > On write() syscall, use bdi->dirty_ratelimit
-> > ============================================
-> > 
-> >     balance_dirty_pages(pages_dirtied)
-> >     {
-> >         pos_bw = bdi->dirty_ratelimit * bdi_position_ratio();
-> >         pause = pages_dirtied / pos_bw;
-> >         sleep(pause);
-> >     }
-> > 
-> > On every 200ms, update bdi->dirty_ratelimit
-> > ===========================================
-> > 
-> >     bdi_update_dirty_ratelimit()
-> >     {
-> >         bw = bdi->dirty_ratelimit;
-> >         ref_bw = bw * bdi_position_ratio() * write_bw / dirty_bw;
-> >         if (dirty pages unbalanced)
-> >              bdi->dirty_ratelimit = (bw * 3 + ref_bw) / 4;
-> >     }
-> > 
-> > Estimation of balanced bdi->dirty_ratelimit
-> > ===========================================
-> > 
-> > When started N dd, throttle each dd at
-> > 
-> >          task_ratelimit = pos_bw (any non-zero initial value is OK)
-> > 
-> > After 200ms, we got
-> > 
-> >          dirty_bw = # of pages dirtied by app / 200ms
-> >          write_bw = # of pages written to disk / 200ms
-> > 
-> > For aggressive dirtiers, the equality holds
-> > 
-> >          dirty_bw == N * task_ratelimit
-> >                   == N * pos_bw                      	(1)
-> > 
-> > The balanced throttle bandwidth can be estimated by
-> > 
-> >          ref_bw = pos_bw * write_bw / dirty_bw       	(2)
-> > 
-> > >From (1) and (2), we get equality
-> > 
-> >          ref_bw == write_bw / N                      	(3)
-> > 
-> > If the N dd's are all throttled at ref_bw, the dirty/writeback rates
-> > will match. So ref_bw is the balanced dirty rate.
+  This message is in MIME format.  The first part should be readable text,
+  while the remaining parts are likely unreadable without MIME-aware tools.
+
+--397155492-2005623161-1313035801=:14230
+Content-Type: TEXT/PLAIN; charset=iso-8859-1
+Content-Transfer-Encoding: 8BIT
+
+On Wed, 10 Aug 2011, Mahmood Naderan wrote:
+
+> >If you're using cpusets or mempolicies, you must ensure that all tasks 
+> >attached to either of them are not set to OOM_DISABLE.  It seems unlikely 
+> >that you're using those, so it seems like a system-wide oom condition.
+>  
+> I didn't do that manually. What is the default behaviour? Does oom
+> working or not?
 > 
-> Hi Fengguang,
 
-Hi Vivek,
+The default behavior is to kill all eligible and unkillable threads until 
+there are none left to sacrifice (i.e. all kthreads and OOM_DISABLE).
 
-> So how much work it is to extend all this to handle the case of cgroups?
+> For a user process:
+> 
+> root@srv:~# cat /proc/18564/oom_score
+> 9198
+> root@srv:~# cat /proc/18564/oom_adj
+> 0
+> 
 
-Here is the simplest form.
+Ok, so you don't have a /proc/pid/oom_score_adj, so you're using a kernel 
+that predates 2.6.36.
 
-writeback: async write IO controllers
-http://git.kernel.org/?p=linux/kernel/git/wfg/writeback.git;a=blobdiff;f=mm/page-writeback.c;h=0b579e7fd338fd1f59cc36bf15fda06ff6260634;hp=34dff9f0d28d0f4f0794eb41187f71b4ade6b8a2;hb=1a58ad99ce1f6a9df6618a4b92fa4859cc3e7e90;hpb=5b6fcb3125ea52ff04a2fad27a51307842deb1a0
+> And for "init" process:
+> 
+> root@srv:~# cat /proc/1/oom_score
+> 17509
+> root@srv:~# cat /proc/1/oom_adj
+> 0
+> 
+> Based on my understandings, in an out of memory condition (oom),
+> the init process is more eligible to be killed!!!!!!! Is that right?
+> 
 
-And an old email on this topic:
+init is exempt from oom killing, it's oom_score is meaningless.
 
-https://lkml.org/lkml/2011/4/28/229
+> Again I didn't get my answer yet:
+> What is the default behavior of linux in an oom condition? If the default is,
+> crash (kernel panic), then how can I change that in such a way to kill
+> the hungry process?
+> 
 
-> IOW, I would imagine that you shall have to keep track of per cgroup/per
-> bdi state of many of the variables. For example, write_bw will become
-> per cgroup/per bdi entity instead of per bdi entity only. Same should
-> be true for position ratio, dirty_bw etc?
- 
-The dirty_bw, write_bw and dirty_ratelimit should be replicated,
-but not necessarily dirty pages and position ratio.
-
-The cgroup can just rely on the root cgroup's dirty pages position
-control if it does not care about its own dirty pages consumptions.
-
-> I am assuming that if some cgroup is low weight on end device, then
-> WRITE bandwidth of that cgroup should go down and that should be
-> accounted for at per bdi state and task throttling should happen
-> accordingly so that a lower weight cgroup tasks get throttled more
-> as compared to higher weight cgroup tasks?
-
-Sorry I don't quite catch your meaning, but the current
-->dirty_ratelimit adaptation scheme (detailed in another email) should
-handle all such rate/bw allocation issues automatically?
-
-Thanks,
-Fengguang
+You either have /proc/sys/vm/panic_on_oom set or it's killing a thread 
+that is taking down the entire machine.  If it's the latter, then please 
+capture the kernel log and post it as Randy suggested.
+--397155492-2005623161-1313035801=:14230--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
