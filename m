@@ -1,50 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id EAED8900146
-	for <linux-mm@kvack.org>; Wed, 10 Aug 2011 20:55:45 -0400 (EDT)
-Date: Thu, 11 Aug 2011 08:55:39 +0800
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 64D26900146
+	for <linux-mm@kvack.org>; Wed, 10 Aug 2011 22:29:57 -0400 (EDT)
+Date: Thu, 11 Aug 2011 10:29:52 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 4/5] writeback: per task dirty rate limit
-Message-ID: <20110811005539.GA4413@localhost>
+Subject: Re: [PATCH 2/5] writeback: dirty position control
+Message-ID: <20110811022952.GA11404@localhost>
 References: <20110806084447.388624428@intel.com>
- <20110806094527.002914580@intel.com>
- <20110809174621.GF6482@redhat.com>
- <20110810032954.GC24486@localhost>
- <20110810181854.GD3396@redhat.com>
+ <20110806094526.733282037@intel.com>
+ <1312811193.10488.33.camel@twins>
+ <20110808141128.GA22080@localhost>
+ <1312814501.10488.41.camel@twins>
+ <20110808230535.GC7176@localhost>
+ <1312910427.1083.68.camel@twins>
+ <20110810223427.GA18227@quack.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110810181854.GD3396@redhat.com>
+In-Reply-To: <20110810223427.GA18227@quack.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vivek Goyal <vgoyal@redhat.com>
-Cc: "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Jan Kara <jack@suse.cz>
+Cc: Peter Zijlstra <peterz@infradead.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, Aug 11, 2011 at 02:18:54AM +0800, Vivek Goyal wrote:
-> On Wed, Aug 10, 2011 at 11:29:54AM +0800, Wu Fengguang wrote:
-> 
-> [..]
-> > > > -	ratelimit = ratelimit_pages;
-> > > > -	if (mapping->backing_dev_info->dirty_exceeded)
-> > > > +	ratelimit = current->nr_dirtied_pause;
-> > > > +	if (bdi->dirty_exceeded)
-> > > >  		ratelimit = 8;
+On Thu, Aug 11, 2011 at 06:34:27AM +0800, Jan Kara wrote:
+> On Tue 09-08-11 19:20:27, Peter Zijlstra wrote:
+> > On Tue, 2011-08-09 at 12:32 +0200, Peter Zijlstra wrote:
+> > > >                     origin - dirty
+> > > >         pos_ratio = --------------
+> > > >                     origin - goal 
 > > > 
-> > > Should we make sure that ratelimit is more than 8? It could be that
-> > > ratelimit is 1 and we set it higher (just reverse of what we wanted?)
+> > > > which comes from the below [*] control line, so that when (dirty == goal),
+> > > > pos_ratio == 1.0:
+> > > 
+> > > OK, so basically you want a linear function for which:
+> > > 
+> > > f(goal) = 1 and has a root somewhere > goal.
+> > > 
+> > > (that one line is much more informative than all your graphs put
+> > > together, one can start from there and derive your function)
+> > > 
+> > > That does indeed get you the above function, now what does it mean? 
 > > 
-> > Good catch! I actually just fixed it in that direction :)
+> > So going by:
 > > 
-> >         if (bdi->dirty_exceeded)
-> > -               ratelimit = 8;
-> > +               ratelimit = min(ratelimit, 32 >> (PAGE_SHIFT - 10));
+> >                                          write_bw
+> >   ref_bw = dirty_ratelimit * pos_ratio * --------
+> >                                          dirty_bw
 > 
-> With page size 64K, will above lead to retelimit 0? Is that what you want.
-> I wouldn't think so.
+>   Actually, thinking about these formulas, why do we even bother with
+> computing all these factors like write_bw, dirty_bw, pos_ratio, ...
+> Couldn't we just have a feedback loop (probably similar to the one
+> computing pos_ratio) which will maintain single value - ratelimit? When we
+> are getting close to dirty limit, we will scale ratelimit down, when we
+> will be getting significantly below dirty limit, we will scale the
+> ratelimit up.  Because looking at the formulas it seems to me that the net
+> effect is the same - pos_ratio basically overrules everything... 
 
-Yeah, it looks a bit weird.. however ratelimit=0 would behave the
-same with ratelimit=1 because balance_dirty_pages_ratelimited_nr()
-is always called with (nr_pages_dirtied >= 1).
+Good question. That is actually one of the early approaches I tried.
+It somehow worked, however the resulted ratelimit is not only slow
+responding, but also oscillating all the time.
+
+This is due to the imperfections
+
+1) pos_ratio at best only provides a "direction" for adjusting the
+   ratelimit. There is only vague clues that if pos_ratio is small,
+   the errors in ratelimit should be small.
+
+2) Due to time-lag, the assumptions in (1) about "direction" and
+   "error size" can be wrong. The ratelimit may already be
+   over-adjusted when the dirty pages take time to approach the
+   setpoint. The larger memory, the more time lag, the easier to
+   overshoot and oscillate.
+
+3) dirty pages are constantly fluctuating around the setpoint,
+   so is pos_ratio.
+
+With (1) and (2), it's a control system very susceptible to disturbs.
+With (3) we get constant disturbs. Well I had very hard time and
+played dirty tricks (which you may never want to know ;-) trying to
+tradeoff between response time and stableness..
 
 Thanks,
 Fengguang
