@@ -1,272 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 597146B00EE
-	for <linux-mm@kvack.org>; Thu, 11 Aug 2011 10:51:04 -0400 (EDT)
-Date: Thu, 11 Aug 2011 16:50:55 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v5 2/6]  memcg: stop vmscan when enough done.
-Message-ID: <20110811145055.GN8023@tiehlicka.suse.cz>
-References: <20110809190450.16d7f845.kamezawa.hiroyu@jp.fujitsu.com>
- <20110809190933.d965888b.kamezawa.hiroyu@jp.fujitsu.com>
- <20110810141425.GC15007@tiehlicka.suse.cz>
- <20110811085252.b29081f1.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 458E26B00EE
+	for <linux-mm@kvack.org>; Thu, 11 Aug 2011 11:13:49 -0400 (EDT)
+References: <1312872786.70934.YahooMailNeo@web111712.mail.gq1.yahoo.com> <1db776d865939be598cdb80054cf5d93.squirrel@xenotime.net> <1312874259.89770.YahooMailNeo@web111704.mail.gq1.yahoo.com> <alpine.DEB.2.00.1108090900170.30199@chino.kir.corp.google.com> <1312964098.7449.YahooMailNeo@web111712.mail.gq1.yahoo.com> <alpine.DEB.2.00.1108102106410.14230@chino.kir.corp.google.com> <1313046422.18195.YahooMailNeo@web111711.mail.gq1.yahoo.com> <alpine.DEB.2.00.1108110010220.23622@chino.kir.corp.google.com> <1313049724.11241.YahooMailNeo@web111704.mail.gq1.yahoo.com> <CAK1hOcN7q=F=UV=aCAsVOYO=Ex34X0tbwLHv9BkYkA=ik7G13w@mail.gmail.com>
+Message-ID: <1313075625.50520.YahooMailNeo@web111715.mail.gq1.yahoo.com>
+Date: Thu, 11 Aug 2011 08:13:45 -0700 (PDT)
+From: Mahmood Naderan <nt_mahmood@yahoo.com>
+Reply-To: Mahmood Naderan <nt_mahmood@yahoo.com>
+Subject: Re: running of out memory => kernel crash
+In-Reply-To: <CAK1hOcN7q=F=UV=aCAsVOYO=Ex34X0tbwLHv9BkYkA=ik7G13w@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110811085252.b29081f1.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=iso-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
+To: Denys Vlasenko <vda.linux@googlemail.com>
+Cc: David Rientjes <rientjes@google.com>, Randy Dunlap <rdunlap@xenotime.net>, "\"linux-kernel@vger.kernel.org\"" <linux-kernel@vger.kernel.org>, "\"linux-mm@kvack.org\"" <linux-mm@kvack.org>
 
-On Thu 11-08-11 08:52:52, KAMEZAWA Hiroyuki wrote:
-> On Wed, 10 Aug 2011 16:14:25 +0200
-> Michal Hocko <mhocko@suse.cz> wrote:
-> 
-> > On Tue 09-08-11 19:09:33, KAMEZAWA Hiroyuki wrote:
-> > > memcg :avoid node fallback scan if possible.
-> > > 
-> > > Now, try_to_free_pages() scans all zonelist because the page allocator
-> > > should visit all zonelists...but that behavior is harmful for memcg.
-> > > Memcg just scans memory because it hits limit...no memory shortage
-> > > in pased zonelist.
-> > > 
-> > > For example, with following unbalanced nodes
-> > > 
-> > >      Node 0    Node 1
-> > > File 1G        0
-> > > Anon 200M      200M
-> > > 
-> > > memcg will cause swap-out from Node1 at every vmscan.
-> > > 
-> > > Another example, assume 1024 nodes system.
-> > > With 1024 node system, memcg will visit 1024 nodes
-> > > pages per vmscan... This is overkilling. 
-> > > 
-> > > This is why memcg's victim node selection logic doesn't work
-> > > as expected.
-> > > 
-> > > This patch is a help for stopping vmscan when we scanned enough.
-> > > 
-> > > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > 
-> > OK, I see the point. At first I was afraid that we would make a bigger
-> > pressure on the node which triggered the reclaim but as we are selecting
-> > t dynamically (mem_cgroup_select_victim_node) - round robin at the
-> > moment - it should be fair in the end. More targeted node selection
-> > should be even more efficient.
-> > 
-> > I still have a concern about resize_limit code path, though. It uses
-> > memcg direct reclaim to get under the new limit (assuming it is lower
-> > than the current one). 
-> > Currently we might reclaim nr_nodes * SWAP_CLUSTER_MAX while
-> > after your change we have it at SWAP_CLUSTER_MAX. This means that
-> > mem_cgroup_resize_mem_limit might fail sooner on large NUMA machines
-> > (currently it is doing 5 rounds of reclaim before it gives up). I do not
-> > consider this to be blocker but maybe we should enhance
-> > mem_cgroup_hierarchical_reclaim with a nr_pages argument to tell it how
-> > much we want to reclaim (min(SWAP_CLUSTER_MAX, nr_pages)).
-> > What do you think?
-> > 
-> 
-> Hmm,
-> 
-> > mem_cgroup_resize_mem_limit might fail sooner on large NUMA machines
-> 
-> mem_cgroup_resize_limit() just checks (curusage < prevusage), then, 
-> I agree reducing the number of scan/reclaim will cause that.
-> 
-> I agree to pass nr_pages to try_to_free_mem_cgroup_pages().
-
-What about this (just compile tested)?
---- 
-From: Michal Hocko <mhocko@suse.cz>
-Subject: memcg: add nr_pages argument for hierarchical reclaim
-
-Now that we are doing memcg direct reclaim limited to nr_to_reclaim
-pages (introduced by "memcg: stop vmscan when enough done.") we have to
-be more careful. Currently we are using SWAP_CLUSTER_MAX which is OK for
-most callers but it might cause failures for limit resize or force_empty
-code paths on big NUMA machines.
-
-Previously we might have reclaimed up to nr_nodes * SWAP_CLUSTER_MAX
-while now we have it at SWAP_CLUSTER_MAX. Both resize and force_empty rely
-on reclaiming a certain amount of pages and retrying if their condition is
-still not met.
-
-Let's add nr_pages argument to mem_cgroup_hierarchical_reclaim which will
-push it further to try_to_free_mem_cgroup_pages. We still fall back to
-SWAP_CLUSTER_MAX for small requests so the standard code (hot) paths are not
-affected by this.
-
-Open questions:
-- Should we care about soft limit as well? Currently I am using excess
-  number of pages for the parameter so it can replace direct query for
-  the value in mem_cgroup_hierarchical_reclaim but should we push it to
-  mem_cgroup_shrink_node_zone?
-  I do not think so because we should try to reclaim from more groups in the
-  hierarchy and also it doesn't get to shrink_zones which has been modified
-  by the previous patch.
-- mem_cgroup_force_empty asks for reclaiming all pages. I guess it should be
-  OK but will have to think about it some more.
-- Aren't we going to reclaim too much when we hit the limit due to THP?
-
-Signed-off-by: Michal Hocko <mhocko@suse.cz>
-
-Index: linus_tree/include/linux/memcontrol.h
-===================================================================
---- linus_tree.orig/include/linux/memcontrol.h	2011-08-11 15:44:43.000000000 +0200
-+++ linus_tree/include/linux/memcontrol.h	2011-08-11 15:46:27.000000000 +0200
-@@ -130,7 +130,8 @@ extern void mem_cgroup_print_oom_info(st
- 
- extern unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem,
- 						  gfp_t gfp_mask, bool noswap,
--						  struct memcg_scanrecord *rec);
-+						  struct memcg_scanrecord *rec,
-+						  unsigned long nr_pages);
- extern unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *mem,
- 						gfp_t gfp_mask, bool noswap,
- 						struct zone *zone,
-Index: linus_tree/mm/memcontrol.c
-===================================================================
---- linus_tree.orig/mm/memcontrol.c	2011-08-11 15:36:15.000000000 +0200
-+++ linus_tree/mm/memcontrol.c	2011-08-11 16:00:46.000000000 +0200
-@@ -1729,12 +1729,15 @@ static void mem_cgroup_record_scanstat(s
-  * (other groups can be removed while we're walking....)
-  *
-  * If shrink==true, for avoiding to free too much, this returns immedieately.
-+ * Given nr_pages tells how many pages are we over the soft limit or how many
-+ * pages do we want to reclaim in the direct reclaim mode.
-  */
- static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
- 						struct zone *zone,
- 						gfp_t gfp_mask,
- 						unsigned long reclaim_options,
--						unsigned long *total_scanned)
-+						unsigned long *total_scanned,
-+						unsigned long nr_pages)
- {
- 	struct mem_cgroup *victim;
- 	int ret, total = 0;
-@@ -1743,11 +1746,8 @@ static int mem_cgroup_hierarchical_recla
- 	bool shrink = reclaim_options & MEM_CGROUP_RECLAIM_SHRINK;
- 	bool check_soft = reclaim_options & MEM_CGROUP_RECLAIM_SOFT;
- 	struct memcg_scanrecord rec;
--	unsigned long excess;
- 	unsigned long scanned;
- 
--	excess = res_counter_soft_limit_excess(&root_mem->res) >> PAGE_SHIFT;
--
- 	/* If memsw_is_minimum==1, swap-out is of-no-use. */
- 	if (!check_soft && !shrink && root_mem->memsw_is_minimum)
- 		noswap = true;
-@@ -1785,11 +1785,11 @@ static int mem_cgroup_hierarchical_recla
- 				}
- 				/*
- 				 * We want to do more targeted reclaim.
--				 * excess >> 2 is not to excessive so as to
-+				 * nr_pages >> 2 is not to excessive so as to
- 				 * reclaim too much, nor too less that we keep
- 				 * coming back to reclaim from this cgroup
- 				 */
--				if (total >= (excess >> 2) ||
-+				if (total >= (nr_pages >> 2) ||
- 					(loop > MEM_CGROUP_MAX_RECLAIM_LOOPS)) {
- 					css_put(&victim->css);
- 					break;
-@@ -1816,7 +1816,7 @@ static int mem_cgroup_hierarchical_recla
- 			*total_scanned += scanned;
- 		} else
- 			ret = try_to_free_mem_cgroup_pages(victim, gfp_mask,
--						noswap, &rec);
-+						noswap, &rec, nr_pages);
- 		mem_cgroup_record_scanstat(&rec);
- 		css_put(&victim->css);
- 		/*
-@@ -2332,7 +2332,8 @@ static int mem_cgroup_do_charge(struct m
- 		return CHARGE_WOULDBLOCK;
- 
- 	ret = mem_cgroup_hierarchical_reclaim(mem_over_limit, NULL,
--					      gfp_mask, flags, NULL);
-+					      gfp_mask, flags, NULL,
-+					      nr_pages);
- 	if (mem_cgroup_margin(mem_over_limit) >= nr_pages)
- 		return CHARGE_RETRY;
- 	/*
-@@ -3567,7 +3568,8 @@ static int mem_cgroup_resize_limit(struc
- 
- 		mem_cgroup_hierarchical_reclaim(memcg, NULL, GFP_KERNEL,
- 						MEM_CGROUP_RECLAIM_SHRINK,
--						NULL);
-+						NULL,
-+						(val-memlimit) >> PAGE_SHIFT);
- 		curusage = res_counter_read_u64(&memcg->res, RES_USAGE);
- 		/* Usage is reduced ? */
-   		if (curusage >= oldusage)
-@@ -3628,7 +3630,8 @@ static int mem_cgroup_resize_memsw_limit
- 		mem_cgroup_hierarchical_reclaim(memcg, NULL, GFP_KERNEL,
- 						MEM_CGROUP_RECLAIM_NOSWAP |
- 						MEM_CGROUP_RECLAIM_SHRINK,
--						NULL);
-+						NULL,
-+						(val-memswlimit) >> PAGE_SHIFT);
- 		curusage = res_counter_read_u64(&memcg->memsw, RES_USAGE);
- 		/* Usage is reduced ? */
- 		if (curusage >= oldusage)
-@@ -3671,10 +3674,12 @@ unsigned long mem_cgroup_soft_limit_recl
- 			break;
- 
- 		nr_scanned = 0;
-+		excess = res_counter_soft_limit_excess(&mz->mem->res);
- 		reclaimed = mem_cgroup_hierarchical_reclaim(mz->mem, zone,
- 						gfp_mask,
- 						MEM_CGROUP_RECLAIM_SOFT,
--						&nr_scanned);
-+						&nr_scanned,
-+						excess >> PAGE_SHIFT);
- 		nr_reclaimed += reclaimed;
- 		*total_scanned += nr_scanned;
- 		spin_lock(&mctz->lock);
-@@ -3871,7 +3876,8 @@ try_to_free:
- 		rec.mem = mem;
- 		rec.root = mem;
- 		progress = try_to_free_mem_cgroup_pages(mem, GFP_KERNEL,
--						false, &rec);
-+						false, &rec,
-+						mem->res.usage >> PAGE_SHIFT);
- 		if (!progress) {
- 			nr_retries--;
- 			/* maybe some writeback is necessary */
-Index: linus_tree/mm/vmscan.c
-===================================================================
---- linus_tree.orig/mm/vmscan.c	2011-08-11 15:44:43.000000000 +0200
-+++ linus_tree/mm/vmscan.c	2011-08-11 16:41:22.000000000 +0200
-@@ -2340,7 +2340,8 @@ unsigned long mem_cgroup_shrink_node_zon
- unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem_cont,
- 					   gfp_t gfp_mask,
- 					   bool noswap,
--					   struct memcg_scanrecord *rec)
-+					   struct memcg_scanrecord *rec,
-+					   unsigned long nr_pages)
- {
- 	struct zonelist *zonelist;
- 	unsigned long nr_reclaimed;
-@@ -2350,7 +2351,7 @@ unsigned long try_to_free_mem_cgroup_pag
- 		.may_writepage = !laptop_mode,
- 		.may_unmap = 1,
- 		.may_swap = !noswap,
--		.nr_to_reclaim = SWAP_CLUSTER_MAX,
-+		.nr_to_reclaim = max_t(unsigned long, nr_pages, SWAP_CLUSTER_MAX),
- 		.order = 0,
- 		.mem_cgroup = mem_cont,
- 		.memcg_record = rec,
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+>What it can possibly do if there is no swap and therefore it =0A=0A>can't =
+free memory by writing out RAM pages to swap?=0A=0A=0A>the disk activity co=
+mes from constant paging in (reading)=0A>of pages which contain code of run=
+ning binaries.=0A=0AWhy the disk activity does not appear in the first scen=
+ario?=0A=0A=0A>Thus the only option is to find some not recently used page=
+=0A> with read-only, file-backed content (usually some binary's =0A=0A>text=
+ page, but can be any read-only file mapping) and reuse it.=0AWhy "killing"=
+ does not appear here? Why it try to "find some =0A=0Arecently used page"?=
+=0A=0A=0ABoth scenarios have one common thing... Running out of memory.=0AB=
+ut they behave differently.=0A=0A=0A// Naderan *Mahmood;=0A=0A=0A__________=
+______________________=0AFrom: Denys Vlasenko <vda.linux@googlemail.com>=0A=
+To: Mahmood Naderan <nt_mahmood@yahoo.com>=0ACc: David Rientjes <rientjes@g=
+oogle.com>; Randy Dunlap <rdunlap@xenotime.net>; """"linux-kernel@vger.kern=
+el.org"""" <linux-kernel@vger.kernel.org>; """linux-mm@kvack.org""" <linux-=
+mm@kvack.org>=0ASent: Thursday, August 11, 2011 5:17 PM=0ASubject: Re: runn=
+ing of out memory =3D> kernel crash=0A=0AOn Thu, Aug 11, 2011 at 10:02 AM, =
+Mahmood Naderan <nt_mahmood@yahoo.com> wrote:=0A>>Despite it's name, kswapd=
+ is still active, it's trying to reclaim memory=0A>>to prevent having to ki=
+ll a process as the last resort.=0A>=0A> I understand what you said, but I =
+did two scenarios:=0A> 1- I wrote a simple C++ program that "new" a lot of =
+pointers.=0A> =A0=A0 for ( int i =3D 0; i < n; i++ ) {=0A> =A0=A0=A0=A0 for=
+ ( int j =3D 0; j < n; j++ ) {=0A> =A0=A0=A0=A0=A0=A0 for ( int k =3D 0; k =
+< n; k++ ) {=0A> =A0=A0=A0=A0=A0=A0=A0=A0 for ( int l =3D 0; l < n; l++ ) {=
+=0A> =A0=A0=A0 =A0 =A0 =A0=A0 double *ptr1 =3D new double[n*i];=0A> =A0=A0=
+=A0 =A0 =A0 =A0=A0 double *ptr2 =3D new double[n*j];=0A> =A0=A0=A0=A0 }}}}=
+=0A>=0A> When I run the program, it ill eat the memory and when it reaches =
+the=0A> maximum ram, it get killed and I saw=A0 message on terminal:=0A>=0A=
+> mahmood@vpc:~$ ./leak=0A> Killed=0A>=0A> for this scenario, there is no k=
+swapd process running.=0A=0AWhy do you think kswapd should get active? What=
+ it can possibly do=0Aif there is no swap and therefore it can't free memor=
+y by writing=0Aout RAM pages to swap?=0A=0A> 2- There is 300MB ram. I opene=
+d an application saw that=0A> free space reduced to 100MB, then another app=
+lication reduced the free=0A> space to 30MB. Another application reduced to=
+ 4MB. Now the "kswapd"=0A> is running with a lot of disk activity and tries=
+ to keep free space at 4MB.=0A> In this scenario, No application is killed.=
+=0A>=0A> The question is why in one scenario, the application is killed and=
+ in one=0A> scenario, kswapd is running.=0A=0AIn scenario 2, the disk activ=
+ity comes from constant paging in (reading)=0Aof pages which contain code o=
+f running binaries.=0A=0ASince machine has no free RAM and no swap at all, =
+when it needs=0Aa free page it can't swap out a dirty (modified) page or an=
+on=0A(usually malloced space) page. Thus the only option is to find some=0A=
+not recently used page with read-only, file-backed content (usually some=0A=
+binary's text page, but can be any read-only file mapping) and reuse it.=0A=
+=0AIf there are no really old, unused read-only, file-backed pages,=0Athen =
+the discarded page will be needed soon, will need to be read from disk,=0Aa=
+nd will evict another similar page. Which will be needed soon too,=0Awill n=
+eed to be read from disk, and will evict another such page...=0Aad infinitu=
+m.=0A=0A-- =0Avda=A0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
