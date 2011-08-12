@@ -1,100 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id CF36B6B0169
-	for <linux-mm@kvack.org>; Fri, 12 Aug 2011 15:06:05 -0400 (EDT)
-Date: Fri, 12 Aug 2011 21:05:57 +0200
-From: Johannes Weiner <jweiner@redhat.com>
-Subject: Re: [RFC PATCH 0/3] page count lock for simpler put_page
-Message-ID: <20110812190557.GD29086@redhat.com>
-References: <1312492042-13184-1-git-send-email-walken@google.com>
- <CANN689HpuQ3bAW946c4OeoLLAUXHd6nzp+NVxkrFgZo7k3k0Kg@mail.gmail.com>
- <20110807142532.GC1823@barrios-desktop>
- <CANN689Edai1k4nmyTHZ_2EwWuTXdfmah-JiyibEBvSudcWhv+g@mail.gmail.com>
- <20110812153616.GH7959@redhat.com>
- <20110812160813.GF2395@linux.vnet.ibm.com>
- <20110812165749.GA29086@redhat.com>
- <20110812170823.GM7959@redhat.com>
- <20110812175206.GB29086@redhat.com>
- <20110812181306.GO2395@linux.vnet.ibm.com>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id EC15A6B0169
+	for <linux-mm@kvack.org>; Fri, 12 Aug 2011 15:17:49 -0400 (EDT)
+Date: Fri, 12 Aug 2011 21:17:18 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 8/8] mm: make per-memcg lru lists exclusive
+Message-ID: <20110812191718.GE29086@cmpxchg.org>
+References: <1306909519-7286-1-git-send-email-hannes@cmpxchg.org>
+ <1306909519-7286-9-git-send-email-hannes@cmpxchg.org>
+ <CALWz4izVoN2s6J9t1TVj+1pMmHVxfiWYvq=uqeTL4C5-YsBwOw@mail.gmail.com>
+ <20110812083458.GB6916@cmpxchg.org>
+ <CALWz4iz=30A7hUkEmo5_K3q1KiM8tBWvh_ghhbEFm0ZksfzQ=g@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110812181306.GO2395@linux.vnet.ibm.com>
+In-Reply-To: <CALWz4iz=30A7hUkEmo5_K3q1KiM8tBWvh_ghhbEFm0ZksfzQ=g@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan.kim@gmail.com>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Shaohua Li <shaohua.li@intel.com>
+To: Ying Han <yinghan@google.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Aug 12, 2011 at 11:13:06AM -0700, Paul E. McKenney wrote:
-> On Fri, Aug 12, 2011 at 07:52:06PM +0200, Johannes Weiner wrote:
-> > On Fri, Aug 12, 2011 at 07:08:23PM +0200, Andrea Arcangeli wrote:
-> > > On Fri, Aug 12, 2011 at 06:57:49PM +0200, Johannes Weiner wrote:
-> > > > I understand you want to be careful with the promises you make in the
-> > > > API.  How about not even exposing the check for whether a grace period
-> > > > elapsed, but instead provide a specialized synchronize_rcu()?
-> > > > 
-> > > > Something like
-> > > > 
-> > > > 	void synchronize_rcu_with(rcu_time_t time)
-> > > > 
-> > > > that only promises all readers from the specified time are finished.
-> > > > 
-> > > > [ And synchronize_rcu() would be equivalent to
-> > > >   synchronize_rcu_with(rcu_current_time()) if I am not mistaken. ]
-> > > > 
-> > > > Then you wouldn't need to worry about how the return value of
-> > > > rcu_cookie_gp_elapsed() might be interpreted, could freely implement
-> > > > it equal to synchronize_rcu() on TINY_RCU, the false positives with
-> > > > small cookies would not be about correctness but merely performance.
-> > > > 
-> > > > And it should still be all that which the THP case requires.
-> > > > 
-> > > > Would that work?
-> > > 
-> > > rcu_time_t would still be an unsigned long long like I suggested?
-> > 
-> > Do we even need to make this fixed?  It can be unsigned long long for
-> > now, but I could imagine leaving it up to the user depending how much
-> > space she is able/willing to invest to save time:
-> > 
-> > 	void synchronize_rcu_with(unsigned long time, unsigned int bits)
-> > 	{
-> > 		if (generation_counter & ((1 << bits) - 1) == time)
-> > 			synchronize_rcu();
-> > 	}
+On Fri, Aug 12, 2011 at 10:08:18AM -0700, Ying Han wrote:
+> On Fri, Aug 12, 2011 at 1:34 AM, Johannes Weiner <hannes@cmpxchg.org> wrote:
+> > And in reality, we only care about properly memcg-unaccounting the
+> > old lru state before we change pc->mem_cgroup, so this becomes
+> >
+> >        if (!PageLRU(page))
+> >                 return;
+> >        spin_lock_irqsave(&zone->lru_lock, flags);
+> >         if (!PageCgroupUsed(pc))
+> >                mem_cgroup_lru_del(page);
+> >         spin_unlock_irqrestore(&zone->lru_lock, flags);
+> >
+> > I don't see why we should care if the page stays physically linked
+> > to the list.
 > 
-> This is indeed more convenient for this particular use case, but suppose
-> that the caller instead wanted to use call_rcu()?
+> Can you clarify that?
 
-I don't quite understand.  call_rcu() will always schedule the
-callbacks for execution after a grace period.  So the only use case I
-can see--executing the callback ASAP as the required grace period has
-already elapsed--would still require an extra argument to call_rcu()
-for it to properly schedule the callback, no?  I.e.
+Well, I don't see anything wrong with leaving it on the LRU.  We just
+need to unaccount the page from pc->mem_cgroup's lru stats before the
+page is charged, pc->mem_cgroup overwritten, and the account lost.
 
-	call_rcu_after(head, func, generation)
-
-What am I missing that would make the existing call_rcu() useful in
-combination with rcu_cookie_gp_elapsed()?
-
-> The API I am currently proposing allows either synchronize_rcu() or
-> call_rcu() to be used.  In addition, it allows alternative
-> algorithms, for example:
+> > The handling after committing the charge becomes this:
+> >
+> > -       if (likely(!PageLRU(page)))
+> > -               return;
+> >        spin_lock_irqsave(&zone->lru_lock, flags);
+> >         lru = page_lru(page);
+> >        if (PageLRU(page) && !PageCgroupAcctLRU(pc)) {
+> >                del_page_from_lru_list(zone, page, lru);
+> >                add_page_to_lru_list(zone, page, lru);
+> >        }
+> >
+> > If the page is not on the LRU, someone else will put it there and link
+> > it up properly.  If it is on the LRU and already memcg-accounted then
+> > it must be on the right lruvec as setting pc->mem_cgroup and PCG_USED
+> > is properly ordered.  Otherwise, it has to be physically moved to the
+> > correct lruvec and memcg-accounted for.
 > 
-> 	rcu_get_gp_cookie(&wherever);
+> While working on the zone->lru_lock patch, i have been questioning myself on
+> the PageLRU and PageCgroupAcctLRU bit. Here is my question:
 > 
-> 	...
+> It looks to me that PageLRU indicates the page is linked to per-zone lru
+> list, and PageCgroupAcctLRU indicates the page is charged to a memcg and
+> also linked to memcg's private lru list. All of these work nicely when we
+> have both global and private (per-memcg) lru list, but i can not put them
+> together after this patch.
 > 
-> 	if (rcu_cookie_gp_elapsed(&wherever))
-> 		p = old_pointer;  /* now safe to re-use. */
-> 	else
-> 		p = kmalloc( ... );  /* can't re-use, so get new memory. */
+> Now page is linked to private lru always either memcg or root. While linked
+> to either lru list, the page could be uncharged (like swapcache). No matter
+> what, i am thinking whether or not we can get rid of the AcctLRU bit from pc
+> and use LRU bit only here.
 
-I have to admit that I am not imaginative enough right now to put this
-in a real life scenario.  But it does look more flexible.
+As I said above: if after the commit the page is on the LRU (PageLRU
+set), pc->mem_cgroup's lru stats may or may not include the page, and
+the page may or may not be on the right lruvec.
 
-Though it must be made clear that it may never return true, so
-anything essential (like _freeing_ old memory) may never rely on it.
+If someone had the page isolated (reclaim?) while we charge it and put
+it back, the page may either be charged or uncharged at the time of
+putback.
+
+	unused: PageLRU is set, but page possibly on the wrong lruvec
+	(root_mem_cgroup's per default, see mem_cgroup_lru_add_list)
+	and not properly accounted for.  We can detect this case by
+	seeing AcctLRU cleared.
+
+	used: PageLRU is set, page on the right lruvec and properly
+	accounted.  We can detect this case by seeing that
+	mem_cgroup_lru_add_list() set AcctLRU.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
