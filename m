@@ -1,62 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 5F3306B016B
-	for <linux-mm@kvack.org>; Fri, 12 Aug 2011 18:50:39 -0400 (EDT)
-Received: from wpaz37.hot.corp.google.com (wpaz37.hot.corp.google.com [172.24.198.101])
-	by smtp-out.google.com with ESMTP id p7CMoYV8028458
-	for <linux-mm@kvack.org>; Fri, 12 Aug 2011 15:50:35 -0700
-Received: from yib18 (yib18.prod.google.com [10.243.65.82])
-	by wpaz37.hot.corp.google.com with ESMTP id p7CMoCMY032740
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 12 Aug 2011 15:50:34 -0700
-Received: by yib18 with SMTP id 18so2938318yib.23
-        for <linux-mm@kvack.org>; Fri, 12 Aug 2011 15:50:33 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 241816B0169
+	for <linux-mm@kvack.org>; Fri, 12 Aug 2011 19:02:28 -0400 (EDT)
+Received: from wpaz29.hot.corp.google.com (wpaz29.hot.corp.google.com [172.24.198.93])
+	by smtp-out.google.com with ESMTP id p7CN2PVf011999
+	for <linux-mm@kvack.org>; Fri, 12 Aug 2011 16:02:25 -0700
+Received: from ywb3 (ywb3.prod.google.com [10.192.2.3])
+	by wpaz29.hot.corp.google.com with ESMTP id p7CN1KC6012323
+	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 12 Aug 2011 16:02:24 -0700
+Received: by ywb3 with SMTP id 3so2240225ywb.15
+        for <linux-mm@kvack.org>; Fri, 12 Aug 2011 16:02:23 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20110812153616.GH7959@redhat.com>
+In-Reply-To: <20110812160813.GF2395@linux.vnet.ibm.com>
 References: <1312492042-13184-1-git-send-email-walken@google.com>
 	<CANN689HpuQ3bAW946c4OeoLLAUXHd6nzp+NVxkrFgZo7k3k0Kg@mail.gmail.com>
 	<20110807142532.GC1823@barrios-desktop>
 	<CANN689Edai1k4nmyTHZ_2EwWuTXdfmah-JiyibEBvSudcWhv+g@mail.gmail.com>
 	<20110812153616.GH7959@redhat.com>
-Date: Fri, 12 Aug 2011 15:50:33 -0700
-Message-ID: <CANN689HrJPx233U3Z2oYRS9Gj3AQeFsyzkutGUFkOQCWrQ0NRw@mail.gmail.com>
+	<20110812160813.GF2395@linux.vnet.ibm.com>
+Date: Fri, 12 Aug 2011 16:02:23 -0700
+Message-ID: <CANN689FC7_Jz7xxzOMB-KSxcNL-Um+H00EMNGqbg_zLFFRyZuw@mail.gmail.com>
 Subject: Re: [RFC PATCH 0/3] page count lock for simpler put_page
 From: Michel Lespinasse <walken@google.com>
 Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Minchan Kim <minchan.kim@gmail.com>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Shaohua Li <shaohua.li@intel.com>
+To: paulmck@linux.vnet.ibm.com
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Shaohua Li <shaohua.li@intel.com>
 
-On Fri, Aug 12, 2011 at 8:36 AM, Andrea Arcangeli <aarcange@redhat.com> wrote:
-> On Tue, Aug 09, 2011 at 04:04:21AM -0700, Michel Lespinasse wrote:
->> - Use my proposed page count lock in order to avoid the race. One
->> would have to convert all get_page_unless_zero() sites to use it. I
->> expect the cost would be low but still measurable.
+On Fri, Aug 12, 2011 at 9:08 AM, Paul E. McKenney
+<paulmck@linux.vnet.ibm.com> wrote:
+> On Fri, Aug 12, 2011 at 05:36:16PM +0200, Andrea Arcangeli wrote:
+>> On Tue, Aug 09, 2011 at 04:04:21AM -0700, Michel Lespinasse wrote:
+>> > - It'd be sweet if one could somehow record the time a THP page was
+>> > created, and wait for at least one RCU grace period *starting from the
+>> > recorded THP creation time* before splitting huge pages. In practice,
+>> > we would be very unlikely to have to wait since the grace period would
+>> > be already expired. However, I don't think RCU currently provides such
+>> > a mechanism - Paul, is this something that would seem easy to
+>> > implement or not ?
 >
-> I didn't yet focus at your problem after we talked about it at MM
-> summit, but I seem to recall I suggested there to just get to the head
-> page and always take the lock on it. split_huge_page only works at 2M
-> aligned pages, the rest you don't care about. Getting to the head page
-> compound_lock should be always safe. And that will still scale
-> incredibly better than taking the lru_lock for the whole zone (which
-> would also work). And it seems the best way to stop split_huge_page
-> without having to alter the put_page fast path when it works on head
-> pages (the only thing that gets into put_page complex slow path is the
-> release of tail pages after get_user_pages* so it'd be nice if
-> put_page fast path still didn't need to take locks).
+> It should not be hard. =A0I already have an API for rcutorture testing
+> use, but it is not appropriate for your use because it is unsynchronized.
 
-We did talk about it. At some point I thought it might work :)
+Yay!
 
-The problem case there is this. Say the page I want to
-get_page_unless_zero is a single page, and the page at the prior 2M
-aligned boundary is currently free. I can't rely on the desired page
-not getting reallocated, because I don't have a reference on it yet.
-But I can't make things safe by taking a reference and/or the compound
-lock on the aligned page either, because its refcount currently is
-zero.
+> We need to be careful with what I give you and how you interpret it.
+> The most effective approach would be for me to give you an API that
+> filled in a cookie given a pointer to one, then another API that took
+> pointers to a pair of cookies and returned saying whether or not a
+> grace period had elapsed. =A0You would do something like the following:
+>
+> =A0 =A0 =A0 =A0rcu_get_gp_cookie(&pagep->rcucookie);
+> =A0 =A0 =A0 =A0. . .
+>
+> =A0 =A0 =A0 =A0rcu_get_gp_cookie(&autovarcookie);
+> =A0 =A0 =A0 =A0if (!rcu_cookie_gp_elapsed(&pagep->rcucookie, &autovarcook=
+ie))
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0synchronize_rcu();
 
--- 
+This would work. The minimal interface I actually need would be:
+
+> So, how much space do I get for ->rcucookie? =A0By default, it is a pair
+> of unsigned longs, but I could live with as small as a single byte if
+> you didn't mind a high probability of false negatives (me telling you
+> to do a grace period despite 16 of them having happened in the meantime
+> due to overflow of a 4-bit field in the byte).
+
+Two longs per cookie would work. We could most easily store them in
+(page_head+2)->lru. This assumes THP pages will always be at least
+order 2, but I don't think that's a problem.
+
+--=20
 Michel "Walken" Lespinasse
 A program is never fully debugged until the last user dies.
 
