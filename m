@@ -1,92 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 3F8776B0169
-	for <linux-mm@kvack.org>; Fri, 12 Aug 2011 04:35:25 -0400 (EDT)
-Date: Fri, 12 Aug 2011 10:34:58 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 8/8] mm: make per-memcg lru lists exclusive
-Message-ID: <20110812083458.GB6916@cmpxchg.org>
-References: <1306909519-7286-1-git-send-email-hannes@cmpxchg.org>
- <1306909519-7286-9-git-send-email-hannes@cmpxchg.org>
- <CALWz4izVoN2s6J9t1TVj+1pMmHVxfiWYvq=uqeTL4C5-YsBwOw@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CALWz4izVoN2s6J9t1TVj+1pMmHVxfiWYvq=uqeTL4C5-YsBwOw@mail.gmail.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 7B55C90013E
+	for <linux-mm@kvack.org>; Fri, 12 Aug 2011 05:46:27 -0400 (EDT)
+Subject: Re: [PATCH 2/5] writeback: dirty position control
+From: Peter Zijlstra <peterz@infradead.org>
+Date: Fri, 12 Aug 2011 11:45:33 +0200
+In-Reply-To: <20110812054528.GA10524@localhost>
+References: <20110806084447.388624428@intel.com>
+	 <20110806094526.733282037@intel.com> <1312811193.10488.33.camel@twins>
+	 <20110808141128.GA22080@localhost> <1312814501.10488.41.camel@twins>
+	 <20110808230535.GC7176@localhost> <1313103367.26866.39.camel@twins>
+	 <20110812024353.GA11606@localhost> <20110812054528.GA10524@localhost>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+Message-ID: <1313142333.6576.8.camel@twins>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, Aug 11, 2011 at 01:33:05PM -0700, Ying Han wrote:
-> > Johannes, I wonder if we should include the following patch:
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 674823e..1513deb 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -832,7 +832,7 @@ static void
-> mem_cgroup_lru_del_before_commit_swapcache(struct page *page)
->          * Forget old LRU when this page_cgroup is *not* used. This Used bit
->          * is guarded by lock_page() because the page is SwapCache.
->          */
-> -       if (!PageCgroupUsed(pc))
-> +       if (PageLRU(page) && !PageCgroupUsed(pc))
->                 del_page_from_lru(zone, page);
->         spin_unlock_irqrestore(&zone->lru_lock, flags);
+On Fri, 2011-08-12 at 13:45 +0800, Wu Fengguang wrote:
+> Code is
+>=20
+>         unsigned long freerun =3D (thresh + bg_thresh) / 2;
+>=20
+>         setpoint =3D (limit + freerun) / 2;
+>         pos_ratio =3D abs(dirty - setpoint);
+>         pos_ratio <<=3D BANDWIDTH_CALC_SHIFT;
+>         do_div(pos_ratio, limit - setpoint + 1);
 
-Yes, as the first PageLRU check is outside the lru_lock, PageLRU may
-indeed go away before grabbing the lock.  The page will already be
-unlinked and the LRU accounting will be off.
+Why do you use do_div()? from the code those things are unsigned long,
+and you can divide that just fine.
 
-The deeper problem, however, is that del_page_from_lru is wrong.  We
-can not keep the page off the LRU while leaving PageLRU set, or it
-won't be very meaningful after the commit, anyway.  And in reality, we
-only care about properly memcg-unaccounting the old lru state before
-we change pc->mem_cgroup, so this becomes
+Also, there's div64_s64 that can do signed divides for s64 types.
+That'll loose the extra conditionals you used for abs and putting the
+sign back.
 
-	if (!PageLRU(page))
-		return;
-	spin_lock_irqsave(&zone->lru_lock, flags);
-	if (!PageCgroupUsed(pc))
-		mem_cgroup_lru_del(page);
-	spin_unlock_irqrestore(&zone->lru_lock, flags);
+>         x =3D pos_ratio;
+>         pos_ratio =3D pos_ratio * x >> BANDWIDTH_CALC_SHIFT;
+>         pos_ratio =3D pos_ratio * x >> BANDWIDTH_CALC_SHIFT;
 
-I don't see why we should care if the page stays physically linked to
-the list.  The PageLRU check outside the lock is still fine as the
-accounting has been done already if !PageLRU and a putback without
-PageCgroupUsed will not re-account to pc->mem_cgroup, as the comment
-above this code explains nicely.
+So on 32bit with unsigned long that gets 32=3D2*(10+b) bits for x, that
+solves to 6, which isn't going to be enough I figure since
+(dirty-setpoint) !< 64.
 
-The handling after committing the charge becomes this:
+So you really need to use u64/s64 types here, unsigned long just won't
+do, with u64 you have 64=3D2(10+b) 22 bits for x, which should fit.
 
--	if (likely(!PageLRU(page)))
--		return;
-	spin_lock_irqsave(&zone->lru_lock, flags);
-	lru = page_lru(page);
-	if (PageLRU(page) && !PageCgroupAcctLRU(pc)) {
-		del_page_from_lru_list(zone, page, lru);
-		add_page_to_lru_list(zone, page, lru);
-	}
 
-If the page is not on the LRU, someone else will put it there and link
-it up properly.  If it is on the LRU and already memcg-accounted then
-it must be on the right lruvec as setting pc->mem_cgroup and PCG_USED
-is properly ordered.  Otherwise, it has to be physically moved to the
-correct lruvec and memcg-accounted for.
+>         if (dirty > setpoint)
+>                 pos_ratio =3D -pos_ratio;
+>         pos_ratio +=3D 1 << BANDWIDTH_CALC_SHIFT;=20
 
-The old unlocked PageLRU check in after_commit is no longer possible
-because setting PG_lru is not ordered against setting the list head,
-which means the page could be linked to the wrong lruvec while this
-CPU would not yet observe PG_lru and do the relink.  So this needs
-strong ordering.  Given that this code is hairy enough as it is, I
-just removed the preliminary check for now and do the check only under
-the lock instead of adding barriers here and to the lru linking sites.
-
-Thanks for making me write this out, few thinks put one's
-understanding of a problem to the test like this.
-
-Let's hope it helped :-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
