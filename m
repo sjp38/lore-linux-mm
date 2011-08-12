@@ -1,42 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 08AEE6B0169
-	for <linux-mm@kvack.org>; Fri, 12 Aug 2011 11:27:41 -0400 (EDT)
-Message-ID: <4E454656.9010608@redhat.com>
-Date: Fri, 12 Aug 2011 11:27:18 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id CD8F06B016B
+	for <linux-mm@kvack.org>; Fri, 12 Aug 2011 11:36:23 -0400 (EDT)
+Date: Fri, 12 Aug 2011 17:36:16 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [RFC PATCH 0/3] page count lock for simpler put_page
+Message-ID: <20110812153616.GH7959@redhat.com>
+References: <1312492042-13184-1-git-send-email-walken@google.com>
+ <CANN689HpuQ3bAW946c4OeoLLAUXHd6nzp+NVxkrFgZo7k3k0Kg@mail.gmail.com>
+ <20110807142532.GC1823@barrios-desktop>
+ <CANN689Edai1k4nmyTHZ_2EwWuTXdfmah-JiyibEBvSudcWhv+g@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 7/7] mm: vmscan: Immediately reclaim end-of-LRU dirty
- pages when writeback completes
-References: <1312973240-32576-1-git-send-email-mgorman@suse.de> <1312973240-32576-8-git-send-email-mgorman@suse.de>
-In-Reply-To: <1312973240-32576-8-git-send-email-mgorman@suse.de>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CANN689Edai1k4nmyTHZ_2EwWuTXdfmah-JiyibEBvSudcWhv+g@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, XFS <xfs@oss.sgi.com>, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, Johannes Weiner <jweiner@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Minchan Kim <minchan.kim@gmail.com>
+To: Michel Lespinasse <walken@google.com>
+Cc: Minchan Kim <minchan.kim@gmail.com>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Shaohua Li <shaohua.li@intel.com>
 
-On 08/10/2011 06:47 AM, Mel Gorman wrote:
-> When direct reclaim encounters a dirty page, it gets recycled around
-> the LRU for another cycle. This patch marks the page PageReclaim
-> similar to deactivate_page() so that the page gets reclaimed almost
-> immediately after the page gets cleaned. This is to avoid reclaiming
-> clean pages that are younger than a dirty page encountered at the
-> end of the LRU that might have been something like a use-once page.
->
-> Signed-off-by: Mel Gorman<mgorman@suse.de>
-> Acked-by: Johannes Weiner<jweiner@redhat.com>
+On Tue, Aug 09, 2011 at 04:04:21AM -0700, Michel Lespinasse wrote:
+> - Use my proposed page count lock in order to avoid the race. One
+> would have to convert all get_page_unless_zero() sites to use it. I
+> expect the cost would be low but still measurable.
 
-I'm thinking we may need to add some code to
-ClearPageReclaim to mark_page_accessed, but
-that would be completely independent of these
-patches, so ...
+I didn't yet focus at your problem after we talked about it at MM
+summit, but I seem to recall I suggested there to just get to the head
+page and always take the lock on it. split_huge_page only works at 2M
+aligned pages, the rest you don't care about. Getting to the head page
+compound_lock should be always safe. And that will still scale
+incredibly better than taking the lru_lock for the whole zone (which
+would also work). And it seems the best way to stop split_huge_page
+without having to alter the put_page fast path when it works on head
+pages (the only thing that gets into put_page complex slow path is the
+release of tail pages after get_user_pages* so it'd be nice if
+put_page fast path still didn't need to take locks).
 
-Reviewed-by: Rik van Riel <riel@redhat.com>
+> - It'd be sweet if one could somehow record the time a THP page was
+> created, and wait for at least one RCU grace period *starting from the
+> recorded THP creation time* before splitting huge pages. In practice,
+> we would be very unlikely to have to wait since the grace period would
+> be already expired. However, I don't think RCU currently provides such
+> a mechanism - Paul, is this something that would seem easy to
+> implement or not ?
 
--- 
-All rights reversed
+This looks sweet. We could store a quiescent points generation counter
+in the page[1].something, if the page has the same generation of the
+last RCU quiescent point (vs rcu_read_lock) we synchronize_rcu before
+starting split_huge_page. split_huge_page is serialized through the
+anon_vma lock however, so we'd need to release the anon_vma lock,
+synchronize_rcu and retry and this time the page[1].something sequence
+counter would be older than the rcu generation counter and it'll
+proceed (maybe another thread or process will get there first but
+that's ok).
+
+I didn't have better ideas than yours above, but I'll keep thinking.
+
+> > When I make deactivate_page, I didn't consider that honestly.
+> > IMHO, It shouldn't be a problem as deactive_page hold a reference
+> > of page by pagevec_lookup so the page shouldn't be gone under us.
+> 
+> Agree - it seems like you are guaranteed to already hold a reference
+> (but then a straight get_page should be sufficient, right ?)
+
+I hope this is not an issue because of the fact the page is guaranteed
+not to be THP when get_page_unless_zero runs on it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
