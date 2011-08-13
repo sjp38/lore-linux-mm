@@ -1,42 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id A76196B0169
-	for <linux-mm@kvack.org>; Sat, 13 Aug 2011 02:26:21 -0400 (EDT)
-Received: by bkbzt4 with SMTP id zt4so2943038bkb.14
-        for <linux-mm@kvack.org>; Fri, 12 Aug 2011 23:26:18 -0700 (PDT)
-Date: Sat, 13 Aug 2011 10:26:14 +0400
-From: Vasiliy Kulikov <segoon@openwall.com>
-Subject: Re: [RFC] x86, mm: start mmap allocation for libs from low
- addresses
-Message-ID: <20110813062614.GD3851@albatros>
-References: <20110812102954.GA3496@albatros>
- <ccea406f-62be-4344-8036-a1b092937fe9@email.android.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <ccea406f-62be-4344-8036-a1b092937fe9@email.android.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id E61536B0169
+	for <linux-mm@kvack.org>; Sat, 13 Aug 2011 02:58:24 -0400 (EDT)
+Subject: Re: [PATCH 1/2] slub: extend slub_debug to handle multiple slabs
+From: Pekka Enberg <penberg@kernel.org>
+In-Reply-To: <1312839019-17987-1-git-send-email-malchev@google.com>
+References: <1312839019-17987-1-git-send-email-malchev@google.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Date: Sat, 13 Aug 2011 09:58:21 +0300
+Message-ID: <1313218701.29737.38.camel@jaguar>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "H. Peter Anvin" <hpa@zytor.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, kernel-hardening@lists.openwall.com, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Iliyan Malchev <malchev@google.com>
+Cc: Christoph Lameter <cl@linux-foundation.org>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, David Rientjes <rientjes@google.com>
 
-On Fri, Aug 12, 2011 at 18:19 -0500, H. Peter Anvin wrote:
-> This also greatly reduces the address space available for randomization,
-> and may get in the way of the default brk.  Is this a net win or lose?
+On Mon, 2011-08-08 at 14:30 -0700, Iliyan Malchev wrote:
+> Extend the slub_debug syntax to "slub_debug=<flags>[,<slub>]*", where <slub>
+> may contain an asterisk at the end.  For example, the following would poison
+> all kmalloc slabs:
+> 
+> 	slub_debug=P,kmalloc*
+> 
+> and the following would apply the default flags to all kmalloc and all block IO
+> slabs:
+> 
+> 	slub_debug=,bio*,kmalloc*
+> 
+> Signed-off-by: Iliyan Malchev <malchev@google.com>
 
-If the executable image is not randomized and is located out of
-ASCII-armor, then yes, such allocation doesn't help much.
-
->  Also, this zero byte is going to be at the last address, which means it might not help.  How about addresses of the form 0xAA00B000 instead?  The last bits are always 000 for a page address, of course...
-
-It leaves only 64kb of library protected, which is useless for most of
-programs.
-
-Thanks,
-
--- 
-Vasiliy Kulikov
-http://www.openwall.com - bringing security into open computing environments
+Christoph, David, are you OK with the patches? They look reasonable to
+me.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
