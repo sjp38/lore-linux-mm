@@ -1,92 +1,155 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 2CEAD6B00EE
-	for <linux-mm@kvack.org>; Sat, 13 Aug 2011 10:39:58 -0400 (EDT)
-Received: by mail-vw0-f51.google.com with SMTP id 20so3097641vws.10
-        for <linux-mm@kvack.org>; Sat, 13 Aug 2011 07:39:56 -0700 (PDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 0B2696B00EE
+	for <linux-mm@kvack.org>; Sat, 13 Aug 2011 12:28:35 -0400 (EDT)
+Date: Sat, 13 Aug 2011 18:28:26 +0200
+From: Andrea Righi <andrea@betterlinux.com>
+Subject: Re: [PATCH 4/5] writeback: per task dirty rate limit
+Message-ID: <20110813162826.GA1646@thinkpad>
+References: <20110806084447.388624428@intel.com>
+ <20110806094527.002914580@intel.com>
+ <1312811234.10488.34.camel@twins>
+ <20110808142318.GC22080@localhost>
 MIME-Version: 1.0
-In-Reply-To: <01e301cc5660$c93d51f0$5bb7f5d0$%szyprowski@samsung.com>
-References: <CAB-zwWjb+2ExjNDB3OtHmRmgaHMnO-VgEe9VZk_wU=ryrq_AGw@mail.gmail.com>
-	<000301cc4dc4$31b53630$951fa290$%szyprowski@samsung.com>
-	<CAB-zwWhh=ZTvheTebKhz55rr1=WFD8R=+BWZ8mwYiO_25mjpYA@mail.gmail.com>
-	<01e301cc5660$c93d51f0$5bb7f5d0$%szyprowski@samsung.com>
-Date: Sat, 13 Aug 2011 09:39:55 -0500
-Message-ID: <CAB-zwWgN+OoGKxs=aCunCeu8yx+RDFOj2Nk6MM0a40v2+phTxA@mail.gmail.com>
-Subject: Re: [RFC] ARM: dma_map|unmap_sg plus iommu
-From: "Ramirez Luna, Omar" <omar.ramirez@ti.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110808142318.GC22080@localhost>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, Kyungmin Park <kyungmin.park@samsung.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Joerg Roedel <joro@8bytes.org>, Arnd Bergmann <arnd@arndb.de>, Ohad Ben-Cohen <ohad@wizery.com>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, Aug 9, 2011 at 1:51 AM, Marek Szyprowski
-<m.szyprowski@samsung.com> wrote:
-> Hello,
->
-> On Monday, August 08, 2011 5:05 PM Ramirez Luna, Omar wrote:
->
->> On Fri, Jul 29, 2011 at 2:50 AM, Marek Szyprowski
->> <m.szyprowski@samsung.com> wrote:
->> > dma_addr IS the virtual address in the device's io
->> > address space, so the dma_addr is a value that your device should put =
-into
->> > it's own registers to start dma transfer to provided memory pages.
->>
->> I also wanted to keep the same part as the original arm_dma_map_sg:
->>
->> s->dma_address =3D __dma_map_page...
->>
->> Where the dma_address was the "clean" (from cache) physical address.
->
-> Nope, DMA-mapping API defines dma_address as a value that should be writt=
-en to
-> device registers to start DMA transfer.
+On Mon, Aug 08, 2011 at 10:23:18PM +0800, Wu Fengguang wrote:
+> On Mon, Aug 08, 2011 at 09:47:14PM +0800, Peter Zijlstra wrote:
+> > On Sat, 2011-08-06 at 16:44 +0800, Wu Fengguang wrote:
+> > > Add two fields to task_struct.
+> > > 
+> > > 1) account dirtied pages in the individual tasks, for accuracy
+> > > 2) per-task balance_dirty_pages() call intervals, for flexibility
+> > > 
+> > > The balance_dirty_pages() call interval (ie. nr_dirtied_pause) will
+> > > scale near-sqrt to the safety gap between dirty pages and threshold.
+> > > 
+> > > XXX: The main problem of per-task nr_dirtied is, if 10k tasks start
+> > > dirtying pages at exactly the same time, each task will be assigned a
+> > > large initial nr_dirtied_pause, so that the dirty threshold will be
+> > > exceeded long before each task reached its nr_dirtied_pause and hence
+> > > call balance_dirty_pages().
+> > > 
+> > > Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+> > > ---
+> > >  include/linux/sched.h |    7 ++
+> > >  mm/memory_hotplug.c   |    3 -
+> > >  mm/page-writeback.c   |  106 +++++++++-------------------------------
+> > >  3 files changed, 32 insertions(+), 84 deletions(-) 
+> > 
+> > No fork() hooks? This way tasks inherit their parent's dirty count on
+> > clone().
+> 
+> btw, I do have another patch queued for improving the "leaked dirties
+> on exit" case :)
+> 
+> Thanks,
+> Fengguang
+> ---
+> Subject: writeback: charge leaked page dirties to active tasks
+> Date: Tue Apr 05 13:21:19 CST 2011
+> 
+> It's a years long problem that a large number of short-lived dirtiers
+> (eg. gcc instances in a fast kernel build) may starve long-run dirtiers
+> (eg. dd) as well as pushing the dirty pages to the global hard limit.
+> 
+> The solution is to charge the pages dirtied by the exited gcc to the
+> other random gcc/dd instances. It sounds not perfect, however should
+> behave good enough in practice.
+> 
+> CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
+> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+> ---
+>  include/linux/writeback.h |    2 ++
+>  kernel/exit.c             |    2 ++
+>  mm/page-writeback.c       |   11 +++++++++++
+>  3 files changed, 15 insertions(+)
+> 
+> --- linux-next.orig/include/linux/writeback.h	2011-08-08 21:45:58.000000000 +0800
+> +++ linux-next/include/linux/writeback.h	2011-08-08 21:45:58.000000000 +0800
+> @@ -7,6 +7,8 @@
+>  #include <linux/sched.h>
+>  #include <linux/fs.h>
+>  
+> +DECLARE_PER_CPU(int, dirty_leaks);
+> +
+>  /*
+>   * The 1/4 region under the global dirty thresh is for smooth dirty throttling:
+>   *
+> --- linux-next.orig/mm/page-writeback.c	2011-08-08 21:45:58.000000000 +0800
+> +++ linux-next/mm/page-writeback.c	2011-08-08 22:21:50.000000000 +0800
+> @@ -190,6 +190,7 @@ int dirty_ratio_handler(struct ctl_table
+>  	return ret;
+>  }
+>  
+> +DEFINE_PER_CPU(int, dirty_leaks) = 0;
+>  
+>  int dirty_bytes_handler(struct ctl_table *table, int write,
+>  		void __user *buffer, size_t *lenp,
+> @@ -1150,6 +1151,7 @@ void balance_dirty_pages_ratelimited_nr(
+>  {
+>  	struct backing_dev_info *bdi = mapping->backing_dev_info;
+>  	int ratelimit;
+> +	int *p;
+>  
+>  	if (!bdi_cap_account_dirty(bdi))
+>  		return;
+> @@ -1158,6 +1160,15 @@ void balance_dirty_pages_ratelimited_nr(
+>  	if (bdi->dirty_exceeded)
+>  		ratelimit = 8;
+>  
+> +	preempt_disable();
+> +	p = &__get_cpu_var(dirty_leaks);
+> +	if (*p > 0 && current->nr_dirtied < ratelimit) {
+> +		nr_pages_dirtied = min(*p, ratelimit - current->nr_dirtied);
+> +		*p -= nr_pages_dirtied;
+> +		current->nr_dirtied += nr_pages_dirtied;
+> +	}
+> +	preempt_enable();
+> +
 
-Yes, but in the standard context of DMA, the dma_address is the place
-in memory where the transference is going to take place, e.g.: you
-don't fill dma_address right now because dma_map_sg overrides with the
-previous assignment (and I'm not saying that I'm using this value for
-anything).
+I think we are still leaking some dirty pages, when the condition is
+false nr_pages_dirtied is just ignored.
 
-OTOH, on iommu context, this will be filled with the virtual address
-that the device will be accessing for DMA, I'm OK with that, what I
-was trying to say, is that you need the "clean" physical address after
-mapping the page to the mmu even if the return value of __dma_map_page
-is not going to be stored.
+Why not doing something like this?
 
-> Are all of these regions used by the same single device driver?
+	current->nr_dirtied += nr_pages_dirtied;
+	if (current->nr_dirtied < ratelimit) {
+		p = &get_cpu_var(dirty_leaks);
+		if (*p > 0) {
+			nr_pages_dirtied = min(*p, ratelimit -
+							current->nr_dirtied);
+			*p -= nr_pages_dirtied;
+		} else
+			nr_pages_dirtied = 0;
+		put_cpu_var(dirty_leaks);
 
-Yes they are part of the same firmware that controls the dsp.
-
-> It looks
-> that you might need to create separate struct device entries for each 'me=
-mory'
-> region and attach them as the children to your main device structure. Eac=
-h
-> such child device can have different iommu/memory configuration and the m=
-ain
-> driver can easily gather them with device_find_child() function. We have =
-such
-> solution working very well for our video codec. Please refer to the follo=
-wing
-> patches merged to v3.1-rc1:
->
-> 1. MFC driver: af935746781088f28904601469671d244d2f653b -
-> =A0 =A0 =A0 =A0drivers/media/video/s5p-mfc/s5p_mfc.c, function s5p_mfc_pr=
-obe()
->
-> 2. platform device definitions: 0f75a96bc0c4611dea0c7207533f822315120054
-
-I took a quick look, it seems like you only need 2 memory regions and
-for that only define 2 devices, I'll consider it to see how it looks
-for me defining a bunch of devices (5 or less) for these memory
-sections.
+		current->nr_dirtied += nr_pages_dirtied;
+	}
 
 Thanks,
+-Andrea
 
-Omar
+>  	if (unlikely(current->nr_dirtied >= ratelimit))
+>  		balance_dirty_pages(mapping, current->nr_dirtied);
+>  }
+> --- linux-next.orig/kernel/exit.c	2011-08-08 21:43:37.000000000 +0800
+> +++ linux-next/kernel/exit.c	2011-08-08 21:45:58.000000000 +0800
+> @@ -1039,6 +1039,8 @@ NORET_TYPE void do_exit(long code)
+>  	validate_creds_for_do_exit(tsk);
+>  
+>  	preempt_disable();
+> +	if (tsk->nr_dirtied)
+> +		__this_cpu_add(dirty_leaks, tsk->nr_dirtied);
+>  	exit_rcu();
+>  	/* causes final put_task_struct in finish_task_switch(). */
+>  	tsk->state = TASK_DEAD;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
