@@ -1,155 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 0B2696B00EE
-	for <linux-mm@kvack.org>; Sat, 13 Aug 2011 12:28:35 -0400 (EDT)
-Date: Sat, 13 Aug 2011 18:28:26 +0200
-From: Andrea Righi <andrea@betterlinux.com>
-Subject: Re: [PATCH 4/5] writeback: per task dirty rate limit
-Message-ID: <20110813162826.GA1646@thinkpad>
-References: <20110806084447.388624428@intel.com>
- <20110806094527.002914580@intel.com>
- <1312811234.10488.34.camel@twins>
- <20110808142318.GC22080@localhost>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id DAE096B0169
+	for <linux-mm@kvack.org>; Sat, 13 Aug 2011 19:56:18 -0400 (EDT)
+Date: Sun, 14 Aug 2011 01:56:11 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [RFC PATCH 0/3] page count lock for simpler put_page
+Message-ID: <20110813235611.GA16581@redhat.com>
+References: <1312492042-13184-1-git-send-email-walken@google.com>
+ <CANN689HpuQ3bAW946c4OeoLLAUXHd6nzp+NVxkrFgZo7k3k0Kg@mail.gmail.com>
+ <20110807142532.GC1823@barrios-desktop>
+ <CANN689Edai1k4nmyTHZ_2EwWuTXdfmah-JiyibEBvSudcWhv+g@mail.gmail.com>
+ <20110812153616.GH7959@redhat.com>
+ <20110812160813.GF2395@linux.vnet.ibm.com>
+ <20110812164325.GK7959@redhat.com>
+ <20110812172758.GL2395@linux.vnet.ibm.com>
+ <CANN689GmsnRXwuy2GGWQopic_68LbEiDGNzbJCTDAN=FvDKXJg@mail.gmail.com>
+ <20110813015741.GZ2395@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110808142318.GC22080@localhost>
+In-Reply-To: <20110813015741.GZ2395@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Cc: Michel Lespinasse <walken@google.com>, Minchan Kim <minchan.kim@gmail.com>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Shaohua Li <shaohua.li@intel.com>
 
-On Mon, Aug 08, 2011 at 10:23:18PM +0800, Wu Fengguang wrote:
-> On Mon, Aug 08, 2011 at 09:47:14PM +0800, Peter Zijlstra wrote:
-> > On Sat, 2011-08-06 at 16:44 +0800, Wu Fengguang wrote:
-> > > Add two fields to task_struct.
-> > > 
-> > > 1) account dirtied pages in the individual tasks, for accuracy
-> > > 2) per-task balance_dirty_pages() call intervals, for flexibility
-> > > 
-> > > The balance_dirty_pages() call interval (ie. nr_dirtied_pause) will
-> > > scale near-sqrt to the safety gap between dirty pages and threshold.
-> > > 
-> > > XXX: The main problem of per-task nr_dirtied is, if 10k tasks start
-> > > dirtying pages at exactly the same time, each task will be assigned a
-> > > large initial nr_dirtied_pause, so that the dirty threshold will be
-> > > exceeded long before each task reached its nr_dirtied_pause and hence
-> > > call balance_dirty_pages().
-> > > 
-> > > Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> > > ---
-> > >  include/linux/sched.h |    7 ++
-> > >  mm/memory_hotplug.c   |    3 -
-> > >  mm/page-writeback.c   |  106 +++++++++-------------------------------
-> > >  3 files changed, 32 insertions(+), 84 deletions(-) 
-> > 
-> > No fork() hooks? This way tasks inherit their parent's dirty count on
-> > clone().
-> 
-> btw, I do have another patch queued for improving the "leaked dirties
-> on exit" case :)
-> 
-> Thanks,
-> Fengguang
-> ---
-> Subject: writeback: charge leaked page dirties to active tasks
-> Date: Tue Apr 05 13:21:19 CST 2011
-> 
-> It's a years long problem that a large number of short-lived dirtiers
-> (eg. gcc instances in a fast kernel build) may starve long-run dirtiers
-> (eg. dd) as well as pushing the dirty pages to the global hard limit.
-> 
-> The solution is to charge the pages dirtied by the exited gcc to the
-> other random gcc/dd instances. It sounds not perfect, however should
-> behave good enough in practice.
-> 
-> CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
-> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> ---
->  include/linux/writeback.h |    2 ++
->  kernel/exit.c             |    2 ++
->  mm/page-writeback.c       |   11 +++++++++++
->  3 files changed, 15 insertions(+)
-> 
-> --- linux-next.orig/include/linux/writeback.h	2011-08-08 21:45:58.000000000 +0800
-> +++ linux-next/include/linux/writeback.h	2011-08-08 21:45:58.000000000 +0800
-> @@ -7,6 +7,8 @@
->  #include <linux/sched.h>
->  #include <linux/fs.h>
->  
-> +DECLARE_PER_CPU(int, dirty_leaks);
-> +
->  /*
->   * The 1/4 region under the global dirty thresh is for smooth dirty throttling:
->   *
-> --- linux-next.orig/mm/page-writeback.c	2011-08-08 21:45:58.000000000 +0800
-> +++ linux-next/mm/page-writeback.c	2011-08-08 22:21:50.000000000 +0800
-> @@ -190,6 +190,7 @@ int dirty_ratio_handler(struct ctl_table
->  	return ret;
->  }
->  
-> +DEFINE_PER_CPU(int, dirty_leaks) = 0;
->  
->  int dirty_bytes_handler(struct ctl_table *table, int write,
->  		void __user *buffer, size_t *lenp,
-> @@ -1150,6 +1151,7 @@ void balance_dirty_pages_ratelimited_nr(
->  {
->  	struct backing_dev_info *bdi = mapping->backing_dev_info;
->  	int ratelimit;
-> +	int *p;
->  
->  	if (!bdi_cap_account_dirty(bdi))
->  		return;
-> @@ -1158,6 +1160,15 @@ void balance_dirty_pages_ratelimited_nr(
->  	if (bdi->dirty_exceeded)
->  		ratelimit = 8;
->  
-> +	preempt_disable();
-> +	p = &__get_cpu_var(dirty_leaks);
-> +	if (*p > 0 && current->nr_dirtied < ratelimit) {
-> +		nr_pages_dirtied = min(*p, ratelimit - current->nr_dirtied);
-> +		*p -= nr_pages_dirtied;
-> +		current->nr_dirtied += nr_pages_dirtied;
-> +	}
-> +	preempt_enable();
-> +
+On Fri, Aug 12, 2011 at 06:57:41PM -0700, Paul E. McKenney wrote:
+> But if we are getting much below 100 milliseconds, we need to rethink
+> this.
 
-I think we are still leaking some dirty pages, when the condition is
-false nr_pages_dirtied is just ignored.
-
-Why not doing something like this?
-
-	current->nr_dirtied += nr_pages_dirtied;
-	if (current->nr_dirtied < ratelimit) {
-		p = &get_cpu_var(dirty_leaks);
-		if (*p > 0) {
-			nr_pages_dirtied = min(*p, ratelimit -
-							current->nr_dirtied);
-			*p -= nr_pages_dirtied;
-		} else
-			nr_pages_dirtied = 0;
-		put_cpu_var(dirty_leaks);
-
-		current->nr_dirtied += nr_pages_dirtied;
-	}
-
-Thanks,
--Andrea
-
->  	if (unlikely(current->nr_dirtied >= ratelimit))
->  		balance_dirty_pages(mapping, current->nr_dirtied);
->  }
-> --- linux-next.orig/kernel/exit.c	2011-08-08 21:43:37.000000000 +0800
-> +++ linux-next/kernel/exit.c	2011-08-08 21:45:58.000000000 +0800
-> @@ -1039,6 +1039,8 @@ NORET_TYPE void do_exit(long code)
->  	validate_creds_for_do_exit(tsk);
->  
->  	preempt_disable();
-> +	if (tsk->nr_dirtied)
-> +		__this_cpu_add(dirty_leaks, tsk->nr_dirtied);
->  	exit_rcu();
->  	/* causes final put_task_struct in finish_task_switch(). */
->  	tsk->state = TASK_DEAD;
+The delay may be low in some corner case but this still benefits by
+running it only once. You can mmap() bzero, mremap(+4096) (if mremap
+moves the pages to a not aligned 2m address, it forces a
+split_huge_page, an hardware issue) and all pages will be splitted in
+potentially less than 100msec if they're only a few. At least we'll be
+running synchronize_rcu only once instead of for every hugepage, as
+long as it runs only once I guess we're ok. Normally it shouldn't
+happen so fast. My current /proc/vmstat says there are 271 splits for
+97251 THP allocated and they're not so likely to have happened within
+100msec.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
