@@ -1,22 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id C328F6B0169
-	for <linux-mm@kvack.org>; Sun, 14 Aug 2011 08:52:19 -0400 (EDT)
-Date: Sun, 14 Aug 2011 14:52:12 +0200
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E00D6B0169
+	for <linux-mm@kvack.org>; Sun, 14 Aug 2011 09:11:08 -0400 (EDT)
+Date: Sun, 14 Aug 2011 15:10:53 +0200
 From: Stefan Richter <stefanr@s5r6.in-berlin.de>
 Subject: [PATCH] mm: fix wrong vmap address calculations with odd NR_CPUS
  values
-Message-ID: <20110814145212.312c8626@stein>
+Message-ID: <20110814151053.65ffc8fe@stein>
+In-Reply-To: <20110814145212.312c8626@stein>
+References: <20110814145212.312c8626@stein>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Nick Piggin <npiggin@suse.de>, Clemens Ladisch <clemens@ladisch.de>, Pavel Kysilka <goldenfish@linuxsoft.cz>, "Matias A. Fonzo" <selk@dragora.org>, linux-mm@kvack.org, inux-kernel@vger.kernel.org
+Cc: Nick Piggin <npiggin@kernel.dk>, Clemens Ladisch <clemens@ladisch.de>, Pavel Kysilka <goldenfish@linuxsoft.cz>, "Matias A. Fonzo" <selk@dragora.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Date: Tue, 21 Jun 2011 22:09:50 +0200
 From: Clemens Ladisch <clemens@ladisch.de>
+Date: Tue, 21 Jun 2011 22:09:50 +0200
 
 Commit db64fe02258f (mm: rewrite vmap layer) introduced code that does
 address calculations under the assumption that VMAP_BLOCK_SIZE is
@@ -37,6 +39,8 @@ Signed-off-by: Clemens Ladisch <clemens@ladisch.de>
 Signed-off-by: Stefan Richter <stefanr@s5r6.in-berlin.de>
 Cc: 2.6.28+ <stable@kernel.org>
 ---
+Resend with corrected Cc list; sorry.
+
 This fixes instant and fully repeatable crashes if NR_CPUS is not a power
 of two and vm_map_ram() or something like that is executed, for example
 firewire-ohci probe in its 2.6.38+ incarnation.
@@ -64,12 +68,6 @@ index 1d34d75..d3d451b 100644
  
 -- 
 1.7.3.2
-
-
--- 
-Stefan Richter
--=====-==-== =--- -===-
-http://arcgraph.de/sr/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
