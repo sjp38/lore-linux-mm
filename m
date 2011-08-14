@@ -1,44 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id DAE096B0169
-	for <linux-mm@kvack.org>; Sat, 13 Aug 2011 19:56:18 -0400 (EDT)
-Date: Sun, 14 Aug 2011 01:56:11 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [RFC PATCH 0/3] page count lock for simpler put_page
-Message-ID: <20110813235611.GA16581@redhat.com>
-References: <1312492042-13184-1-git-send-email-walken@google.com>
- <CANN689HpuQ3bAW946c4OeoLLAUXHd6nzp+NVxkrFgZo7k3k0Kg@mail.gmail.com>
- <20110807142532.GC1823@barrios-desktop>
- <CANN689Edai1k4nmyTHZ_2EwWuTXdfmah-JiyibEBvSudcWhv+g@mail.gmail.com>
- <20110812153616.GH7959@redhat.com>
- <20110812160813.GF2395@linux.vnet.ibm.com>
- <20110812164325.GK7959@redhat.com>
- <20110812172758.GL2395@linux.vnet.ibm.com>
- <CANN689GmsnRXwuy2GGWQopic_68LbEiDGNzbJCTDAN=FvDKXJg@mail.gmail.com>
- <20110813015741.GZ2395@linux.vnet.ibm.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 331146B0169
+	for <linux-mm@kvack.org>; Sun, 14 Aug 2011 03:52:43 -0400 (EDT)
+Date: Sun, 14 Aug 2011 08:52:05 +0100
+From: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Subject: Re: [PATCH 7/9] ARM: DMA: steal memory for DMA coherent mappings
+Message-ID: <20110814075205.GA4986@n2100.arm.linux.org.uk>
+References: <1313146711-1767-1-git-send-email-m.szyprowski@samsung.com> <1313146711-1767-8-git-send-email-m.szyprowski@samsung.com> <201108121453.05898.arnd@arndb.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110813015741.GZ2395@linux.vnet.ibm.com>
+In-Reply-To: <201108121453.05898.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Cc: Michel Lespinasse <walken@google.com>, Minchan Kim <minchan.kim@gmail.com>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Shaohua Li <shaohua.li@intel.com>
+To: Arnd Bergmann <arnd@arndb.de>
+Cc: Marek Szyprowski <m.szyprowski@samsung.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Michal Nazarewicz <mina86@mina86.com>, Kyungmin Park <kyungmin.park@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ankita Garg <ankita@in.ibm.com>, Daniel Walker <dwalker@codeaurora.org>, Mel Gorman <mel@csn.ul.ie>, Jesse Barker <jesse.barker@linaro.org>, Jonathan Corbet <corbet@lwn.net>, Shariq Hasnain <shariq.hasnain@linaro.org>, Chunsang Jeong <chunsang.jeong@linaro.org>
 
-On Fri, Aug 12, 2011 at 06:57:41PM -0700, Paul E. McKenney wrote:
-> But if we are getting much below 100 milliseconds, we need to rethink
-> this.
+On Fri, Aug 12, 2011 at 02:53:05PM +0200, Arnd Bergmann wrote:
+> On Friday 12 August 2011, Marek Szyprowski wrote:
+> > 
+> > From: Russell King <rmk+kernel@arm.linux.org.uk>
+> > 
+> > Steal memory from the kernel to provide coherent DMA memory to drivers.
+> > This avoids the problem with multiple mappings with differing attributes
+> > on later CPUs.
+> > 
+> > Signed-off-by: Russell King <rmk+kernel@arm.linux.org.uk>
+> > [m.szyprowski: rebased onto 3.1-rc1]
+> > Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
+> 
+> Hi Marek,
+> 
+> Is this the same patch that Russell had to revert because it didn't
+> work on some of the older machines, in particular those using
+> dmabounce?
+> 
+> I thought that our discussion ended with the plan to use this only
+> for ARMv6+ (which has a problem with double mapping) but not on ARMv5
+> and below (which don't have this problem but might need dmabounce).
 
-The delay may be low in some corner case but this still benefits by
-running it only once. You can mmap() bzero, mremap(+4096) (if mremap
-moves the pages to a not aligned 2m address, it forces a
-split_huge_page, an hardware issue) and all pages will be splitted in
-potentially less than 100msec if they're only a few. At least we'll be
-running synchronize_rcu only once instead of for every hugepage, as
-long as it runs only once I guess we're ok. Normally it shouldn't
-happen so fast. My current /proc/vmstat says there are 271 splits for
-97251 THP allocated and they're not so likely to have happened within
-100msec.
+I thought we'd decided to have a pool of available CMA memory on ARMv6K
+to satisfy atomic allocations, which can grow and shrink in size, rather
+than setting aside a fixed amount of contiguous system memory.
+
+ARMv6 and ARMv7+ could use CMA directly, and <= ARMv5 can use the existing
+allocation method.
+
+Has something changed?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
