@@ -1,52 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 331146B0169
-	for <linux-mm@kvack.org>; Sun, 14 Aug 2011 03:52:43 -0400 (EDT)
-Date: Sun, 14 Aug 2011 08:52:05 +0100
-From: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Subject: Re: [PATCH 7/9] ARM: DMA: steal memory for DMA coherent mappings
-Message-ID: <20110814075205.GA4986@n2100.arm.linux.org.uk>
-References: <1313146711-1767-1-git-send-email-m.szyprowski@samsung.com> <1313146711-1767-8-git-send-email-m.szyprowski@samsung.com> <201108121453.05898.arnd@arndb.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201108121453.05898.arnd@arndb.de>
+	by kanga.kvack.org (Postfix) with ESMTP id C328F6B0169
+	for <linux-mm@kvack.org>; Sun, 14 Aug 2011 08:52:19 -0400 (EDT)
+Date: Sun, 14 Aug 2011 14:52:12 +0200
+From: Stefan Richter <stefanr@s5r6.in-berlin.de>
+Subject: [PATCH] mm: fix wrong vmap address calculations with odd NR_CPUS
+ values
+Message-ID: <20110814145212.312c8626@stein>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arnd Bergmann <arnd@arndb.de>
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Michal Nazarewicz <mina86@mina86.com>, Kyungmin Park <kyungmin.park@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ankita Garg <ankita@in.ibm.com>, Daniel Walker <dwalker@codeaurora.org>, Mel Gorman <mel@csn.ul.ie>, Jesse Barker <jesse.barker@linaro.org>, Jonathan Corbet <corbet@lwn.net>, Shariq Hasnain <shariq.hasnain@linaro.org>, Chunsang Jeong <chunsang.jeong@linaro.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Nick Piggin <npiggin@suse.de>, Clemens Ladisch <clemens@ladisch.de>, Pavel Kysilka <goldenfish@linuxsoft.cz>, "Matias A. Fonzo" <selk@dragora.org>, linux-mm@kvack.org, inux-kernel@vger.kernel.org
 
-On Fri, Aug 12, 2011 at 02:53:05PM +0200, Arnd Bergmann wrote:
-> On Friday 12 August 2011, Marek Szyprowski wrote:
-> > 
-> > From: Russell King <rmk+kernel@arm.linux.org.uk>
-> > 
-> > Steal memory from the kernel to provide coherent DMA memory to drivers.
-> > This avoids the problem with multiple mappings with differing attributes
-> > on later CPUs.
-> > 
-> > Signed-off-by: Russell King <rmk+kernel@arm.linux.org.uk>
-> > [m.szyprowski: rebased onto 3.1-rc1]
-> > Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
-> 
-> Hi Marek,
-> 
-> Is this the same patch that Russell had to revert because it didn't
-> work on some of the older machines, in particular those using
-> dmabounce?
-> 
-> I thought that our discussion ended with the plan to use this only
-> for ARMv6+ (which has a problem with double mapping) but not on ARMv5
-> and below (which don't have this problem but might need dmabounce).
+Date: Tue, 21 Jun 2011 22:09:50 +0200
+From: Clemens Ladisch <clemens@ladisch.de>
 
-I thought we'd decided to have a pool of available CMA memory on ARMv6K
-to satisfy atomic allocations, which can grow and shrink in size, rather
-than setting aside a fixed amount of contiguous system memory.
+Commit db64fe02258f (mm: rewrite vmap layer) introduced code that does
+address calculations under the assumption that VMAP_BLOCK_SIZE is
+a power of two.  However, this might not be true if CONFIG_NR_CPUS is
+not set to a power of two.
 
-ARMv6 and ARMv7+ could use CMA directly, and <= ARMv5 can use the existing
-allocation method.
+Wrong vmap_block index/offset values could lead to memory corruption.
+However, this has never been observed in practice (or never been
+diagnosed correctly); what caught this was the BUG_ON in vb_alloc() that
+checks for inconsistent vmap_block indices.
 
-Has something changed?
+To fix this, ensure that VMAP_BLOCK_SIZE always is a power of two.
+
+BugLink: https://bugzilla.kernel.org/show_bug.cgi?id=31572
+Reported-by: Pavel Kysilka <goldenfish@linuxsoft.cz>
+Reported-by: Matias A. Fonzo <selk@dragora.org>
+Signed-off-by: Clemens Ladisch <clemens@ladisch.de>
+Signed-off-by: Stefan Richter <stefanr@s5r6.in-berlin.de>
+Cc: 2.6.28+ <stable@kernel.org>
+---
+This fixes instant and fully repeatable crashes if NR_CPUS is not a power
+of two and vm_map_ram() or something like that is executed, for example
+firewire-ohci probe in its 2.6.38+ incarnation.
+
+ mm/vmalloc.c |    7 ++++---
+ 1 files changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index 1d34d75..d3d451b 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -732,9 +732,10 @@ static void free_unmap_vmap_area_addr(unsigned long addr)
+ #define VMAP_BBMAP_BITS_MIN	(VMAP_MAX_ALLOC*2)
+ #define VMAP_MIN(x, y)		((x) < (y) ? (x) : (y)) /* can't use min() */
+ #define VMAP_MAX(x, y)		((x) > (y) ? (x) : (y)) /* can't use max() */
+-#define VMAP_BBMAP_BITS		VMAP_MIN(VMAP_BBMAP_BITS_MAX,		\
+-					VMAP_MAX(VMAP_BBMAP_BITS_MIN,	\
+-						VMALLOC_PAGES / NR_CPUS / 16))
++#define VMAP_BBMAP_BITS		\
++		VMAP_MIN(VMAP_BBMAP_BITS_MAX,	\
++		VMAP_MAX(VMAP_BBMAP_BITS_MIN,	\
++			VMALLOC_PAGES / roundup_pow_of_two(NR_CPUS) / 16))
+ 
+ #define VMAP_BLOCK_SIZE		(VMAP_BBMAP_BITS * PAGE_SIZE)
+ 
+-- 
+1.7.3.2
+
+
+-- 
+Stefan Richter
+-=====-==-== =--- -===-
+http://arcgraph.de/sr/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
