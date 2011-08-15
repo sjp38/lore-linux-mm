@@ -1,54 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 926E76B00EE
-	for <linux-mm@kvack.org>; Mon, 15 Aug 2011 06:33:26 -0400 (EDT)
-Message-ID: <4E48F5F3.2020509@suse.cz>
-Date: Mon, 15 Aug 2011 12:33:23 +0200
-From: Michal Marek <mmarek@suse.cz>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 3CBA06B00EE
+	for <linux-mm@kvack.org>; Mon, 15 Aug 2011 09:19:23 -0400 (EDT)
+Date: Mon, 15 Aug 2011 21:19:15 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 1/2 v2] writeback: Add a 'reason' to wb_writeback_work
+Message-ID: <20110815131915.GA13534@localhost>
+References: <1313189245-7197-1-git-send-email-curtw@google.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: Switch NUMA_BUILD and COMPACTION_BUILD to new IS_ENABLED()
- syntax
-References: <1312989160-737-1-git-send-email-mmarek@suse.cz> <20110815102707.GA3967@tiehlicka.suse.cz>
-In-Reply-To: <20110815102707.GA3967@tiehlicka.suse.cz>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1313189245-7197-1-git-send-email-curtw@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Curt Wohlgemuth <curtw@google.com>
+Cc: Christoph Hellwig <hch@infradead.org>, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Michael Rubin <mrubin@google.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On 15.8.2011 12:27, Michal Hocko wrote:
-> On Wed 10-08-11 17:12:40, Michal Marek wrote:
->> Introduced in 3.1-rc1, IS_ENABLED(CONFIG_NUMA) expands to a true value
->> iff CONFIG_NUMA is set. This makes it easier to grep for code that
->> depends on CONFIG_NUMA.
-> 
-> It looks this doesn't work properly. I can see the following build
-> error:
->   CHK     include/linux/version.h
->   CHK     include/generated/utsrelease.h
->   UPD     include/generated/utsrelease.h
->   CC      arch/x86/kernel/asm-offsets.s
-> In file included from include/linux/kmod.h:22:0,
->                  from include/linux/module.h:13,
->                  from include/linux/crypto.h:21,
->                  from arch/x86/kernel/asm-offsets.c:8:
-> include/linux/gfp.h: In function a??gfp_zonelista??:
-> include/linux/gfp.h:265:1: error: a??__enabled_CONFIG_NUMAa?? undeclared (first use in this function)
-> include/linux/gfp.h:265:1: note: each undeclared identifier is reported only once for each function it appears in
-> include/linux/gfp.h:265:1: error: a??__enabled_CONFIG_NUMA_MODULEa?? undeclared (first use in this function)
-> make[1]: *** [arch/x86/kernel/asm-offsets.s] Error 1
-> 
-> I do not have CONFIG_NUMA set so it seems to have issues with config
-> symbols which are not set to any value. Is this something that could be
-> fixed?
+Hi Curt,
 
-It works if CONFIG_NUMA is not set, but it doesn't work if CONFIG_NUMA
-is not visible (if its dependencies are not met). The fix would be to
-generate the __enabled_* defines for all symbols, not only for the
-visible ones. I'll repost the patch once this is fixed.
+This is a very useful patch, thanks!  Nitpicks followed :)
 
-Michal
+> +       enum wb_stats reason;           /* why was writeback initiated? */
+
+Not about this patch, but some time later, some one may well find the
+->for_background, ->for_kupdate fields duplicated with ->reason, and
+try to eliminate the struct fields as well as the trace point fields :)
+
+>  /*
+> + * why this writeback was initiated
+> + */
+> +enum wb_stats {
+> +       /* The following are counts of pages written for a specific cause */
+> +       WB_STAT_BALANCE_DIRTY,
+> +       WB_STAT_BG_WRITEOUT,
+> +       WB_STAT_TRY_TO_FREE_PAGES,
+> +       WB_STAT_SYNC,
+> +       WB_STAT_KUPDATE,
+> +       WB_STAT_LAPTOP_TIMER,
+> +       WB_STAT_FREE_MORE_MEM,
+> +       WB_STAT_FS_FREE_SPACE,
+> +       WB_STAT_FORKER_THREAD,
+> +
+> +       WB_STAT_MAX,
+> +};
+
+I find it more comfortable to use "reason", "enum wb_reason" and
+WB_REASON_* uniformly. Yeah, I read in the next patch that you'll add
+other stat fields, however they are different in concept and looks
+better be put to another enum. With some index shift, it should yield
+the same efficient code, with better code readability.
+
+> +#define show_work_reason(reason)                                       \
+> +       __print_symbolic(reason,                                        \
+> +               {WB_STAT_BALANCE_DIRTY,         "balance_dirty"},       \
+> +               {WB_STAT_BG_WRITEOUT,           "background"},          \
+> +               {WB_STAT_TRY_TO_FREE_PAGES,     "try_to_free_pages"},   \
+> +               {WB_STAT_SYNC,                  "sync"},                \
+> +               {WB_STAT_KUPDATE,               "periodic"},            \
+> +               {WB_STAT_LAPTOP_TIMER,          "laptop_timer"},        \
+> +               {WB_STAT_FREE_MORE_MEM,         "free_more_memory"},    \
+> +               {WB_STAT_FS_FREE_SPACE,         "FS_free_space"}        \
+> +       )
+
+Some symbolic names disagree with the names used in the next patch..
+
+> -                 "kupdate=%d range_cyclic=%d background=%d",
+> +                 "kupdate=%d range_cyclic=%d background=%d reason=%s",
+
+Here is the obvious duplicates. I'm not sure if there are serious
+scripts relying on the kupdate/background fields (none from me), and
+if we are going to carry this redundancy in future..
+
+>  TRACE_EVENT(writeback_queue_io,
+>         TP_PROTO(struct bdi_writeback *wb,
+> -                unsigned long *older_than_this,
+> +                struct wb_writeback_work *work,
+>                  int moved),
+> -       TP_ARGS(wb, older_than_this, moved),
+> +       TP_ARGS(wb, work, moved),
+>         TP_STRUCT__entry(
+>                 __array(char,           name, 32)
+>                 __field(unsigned long,  older)
+>                 __field(long,           age)
+>                 __field(int,            moved)
+> +               __field(int,            reason)
+>         ),
+>         TP_fast_assign(
+>                 strncpy(__entry->name, dev_name(wb->bdi->dev), 32);
+> -               __entry->older  = older_than_this ?  *older_than_this : 0;
+> -               __entry->age    = older_than_this ?
+> -                                 (jiffies - *older_than_this) * 1000 / HZ : -1;
+> +               __entry->older  = work->older_than_this ?
+> +                                               *work->older_than_this : 0;
+> +               __entry->age    = work->older_than_this ?
+> +                         (jiffies - *work->older_than_this) * 1000 / HZ : -1;
+
+The older_than_this change seems big enough for a standalone patch.
+
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
