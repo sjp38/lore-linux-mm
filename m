@@ -1,24 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 47ECB6B00EE
-	for <linux-mm@kvack.org>; Sun, 14 Aug 2011 21:34:23 -0400 (EDT)
-Received: from hpaq2.eem.corp.google.com (hpaq2.eem.corp.google.com [172.25.149.2])
-	by smtp-out.google.com with ESMTP id p7F1YE0j027625
-	for <linux-mm@kvack.org>; Sun, 14 Aug 2011 18:34:14 -0700
-Received: from qwh5 (qwh5.prod.google.com [10.241.194.197])
-	by hpaq2.eem.corp.google.com with ESMTP id p7F1Y8iM004630
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 087286B00EE
+	for <linux-mm@kvack.org>; Sun, 14 Aug 2011 23:01:43 -0400 (EDT)
+Received: from wpaz5.hot.corp.google.com (wpaz5.hot.corp.google.com [172.24.198.69])
+	by smtp-out.google.com with ESMTP id p7F31fBZ001631
+	for <linux-mm@kvack.org>; Sun, 14 Aug 2011 20:01:41 -0700
+Received: from qyk35 (qyk35.prod.google.com [10.241.83.163])
+	by wpaz5.hot.corp.google.com with ESMTP id p7F31QmT002406
 	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Sun, 14 Aug 2011 18:34:12 -0700
-Received: by qwh5 with SMTP id 5so2442530qwh.6
-        for <linux-mm@kvack.org>; Sun, 14 Aug 2011 18:34:07 -0700 (PDT)
+	for <linux-mm@kvack.org>; Sun, 14 Aug 2011 20:01:40 -0700
+Received: by qyk35 with SMTP id 35so2886482qyk.3
+        for <linux-mm@kvack.org>; Sun, 14 Aug 2011 20:01:36 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20110812083458.GB6916@cmpxchg.org>
+In-Reply-To: <20110812191718.GE29086@cmpxchg.org>
 References: <1306909519-7286-1-git-send-email-hannes@cmpxchg.org>
 	<1306909519-7286-9-git-send-email-hannes@cmpxchg.org>
 	<CALWz4izVoN2s6J9t1TVj+1pMmHVxfiWYvq=uqeTL4C5-YsBwOw@mail.gmail.com>
 	<20110812083458.GB6916@cmpxchg.org>
-Date: Sun, 14 Aug 2011 18:34:07 -0700
-Message-ID: <CALWz4iwE_L5nf7_YDyr0T+racbj0_j=Lf_U7vFCA+UPtoitsRA@mail.gmail.com>
+	<CALWz4iz=30A7hUkEmo5_K3q1KiM8tBWvh_ghhbEFm0ZksfzQ=g@mail.gmail.com>
+	<20110812191718.GE29086@cmpxchg.org>
+Date: Sun, 14 Aug 2011 20:01:36 -0700
+Message-ID: <CALWz4iz=dE9BGme7+-Fwdz2-gt2GfymzYcXrg0ZcSD7PAbARfg@mail.gmail.com>
 Subject: Re: [patch 8/8] mm: make per-memcg lru lists exclusive
 From: Ying Han <yinghan@google.com>
 Content-Type: text/plain; charset=ISO-8859-1
@@ -26,137 +28,140 @@ Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Aug 12, 2011 at 1:34 AM, Johannes Weiner <hannes@cmpxchg.org> wrote=
-:
-> On Thu, Aug 11, 2011 at 01:33:05PM -0700, Ying Han wrote:
->> > Johannes, I wonder if we should include the following patch:
+On Fri, Aug 12, 2011 at 12:17 PM, Johannes Weiner <hannes@cmpxchg.org> wrot=
+e:
+> On Fri, Aug 12, 2011 at 10:08:18AM -0700, Ying Han wrote:
+>> On Fri, Aug 12, 2011 at 1:34 AM, Johannes Weiner <hannes@cmpxchg.org> wr=
+ote:
+>> > And in reality, we only care about properly memcg-unaccounting the
+>> > old lru state before we change pc->mem_cgroup, so this becomes
+>> >
+>> > =A0 =A0 =A0 =A0if (!PageLRU(page))
+>> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 return;
+>> > =A0 =A0 =A0 =A0spin_lock_irqsave(&zone->lru_lock, flags);
+>> > =A0 =A0 =A0 =A0 if (!PageCgroupUsed(pc))
+>> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0mem_cgroup_lru_del(page);
+>> > =A0 =A0 =A0 =A0 spin_unlock_irqrestore(&zone->lru_lock, flags);
+>> >
+>> > I don't see why we should care if the page stays physically linked
+>> > to the list.
 >>
->> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
->> index 674823e..1513deb 100644
->> --- a/mm/memcontrol.c
->> +++ b/mm/memcontrol.c
->> @@ -832,7 +832,7 @@ static void
->> mem_cgroup_lru_del_before_commit_swapcache(struct page *page)
->> =A0 =A0 =A0 =A0 =A0* Forget old LRU when this page_cgroup is *not* used.=
- This Used bit
->> =A0 =A0 =A0 =A0 =A0* is guarded by lock_page() because the page is SwapC=
-ache.
->> =A0 =A0 =A0 =A0 =A0*/
->> - =A0 =A0 =A0 if (!PageCgroupUsed(pc))
->> + =A0 =A0 =A0 if (PageLRU(page) && !PageCgroupUsed(pc))
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 del_page_from_lru(zone, page);
->> =A0 =A0 =A0 =A0 spin_unlock_irqrestore(&zone->lru_lock, flags);
+>> Can you clarify that?
 >
-> Yes, as the first PageLRU check is outside the lru_lock, PageLRU may
-> indeed go away before grabbing the lock. =A0The page will already be
-> unlinked and the LRU accounting will be off.
+> Well, I don't see anything wrong with leaving it on the LRU. =A0We just
+> need to unaccount the page from pc->mem_cgroup's lru stats before the
+> page is charged, pc->mem_cgroup overwritten, and the account lost.
 >
-> The deeper problem, however, is that del_page_from_lru is wrong. =A0We
-> can not keep the page off the LRU while leaving PageLRU set, or it
-> won't be very meaningful after the commit, anyway.
-
-So do you think we should include the patch:
--       if (!PageCgroupUsed(pc))
-+       if (PageLRU(page) && !PageCgroupUsed(pc)) {
-+              ClearPageLRU(page);
-                del_page_from_lru(zone, page);
-}
-        spin_unlock_irqrestore(&zone->lru_lock, flags);
-
-
-And in reality, we
-> only care about properly memcg-unaccounting the old lru state before
-> we change pc->mem_cgroup, so this becomes
+>> > The handling after committing the charge becomes this:
+>> >
+>> > - =A0 =A0 =A0 if (likely(!PageLRU(page)))
+>> > - =A0 =A0 =A0 =A0 =A0 =A0 =A0 return;
+>> > =A0 =A0 =A0 =A0spin_lock_irqsave(&zone->lru_lock, flags);
+>> > =A0 =A0 =A0 =A0 lru =3D page_lru(page);
+>> > =A0 =A0 =A0 =A0if (PageLRU(page) && !PageCgroupAcctLRU(pc)) {
+>> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0del_page_from_lru_list(zone, page, lru)=
+;
+>> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0add_page_to_lru_list(zone, page, lru);
+>> > =A0 =A0 =A0 =A0}
+>> >
+>> > If the page is not on the LRU, someone else will put it there and link
+>> > it up properly. =A0If it is on the LRU and already memcg-accounted the=
+n
+>> > it must be on the right lruvec as setting pc->mem_cgroup and PCG_USED
+>> > is properly ordered. =A0Otherwise, it has to be physically moved to th=
+e
+>> > correct lruvec and memcg-accounted for.
+>>
+>> While working on the zone->lru_lock patch, i have been questioning mysel=
+f on
+>> the PageLRU and PageCgroupAcctLRU bit. Here is my question:
+>>
+>> It looks to me that PageLRU indicates the page is linked to per-zone lru
+>> list, and PageCgroupAcctLRU indicates the page is charged to a memcg and
+>> also linked to memcg's private lru list. All of these work nicely when w=
+e
+>> have both global and private (per-memcg) lru list, but i can not put the=
+m
+>> together after this patch.
+>>
+>> Now page is linked to private lru always either memcg or root. While lin=
+ked
+>> to either lru list, the page could be uncharged (like swapcache). No mat=
+ter
+>> what, i am thinking whether or not we can get rid of the AcctLRU bit fro=
+m pc
+>> and use LRU bit only here.
 >
-> =A0 =A0 =A0 =A0if (!PageLRU(page))
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return;
-> =A0 =A0 =A0 =A0spin_lock_irqsave(&zone->lru_lock, flags);
-> =A0 =A0 =A0 =A0if (!PageCgroupUsed(pc))
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0mem_cgroup_lru_del(page);
-> =A0 =A0 =A0 =A0spin_unlock_irqrestore(&zone->lru_lock, flags);
+> As I said above: if after the commit the page is on the LRU (PageLRU
+> set), pc->mem_cgroup's lru stats may or may not include the page, and
+> the page may or may not be on the right lruvec.
 >
-> I don't see why we should care if the page stays physically linked to
-> the list. =A0The PageLRU check outside the lock is still fine as the
-> accounting has been done already if !PageLRU and a putback without
-> PageCgroupUsed will not re-account to pc->mem_cgroup, as the comment
-> above this code explains nicely.
+> If someone had the page isolated (reclaim?) while we charge it and put
+> it back, the page may either be charged or uncharged at the time of
+> putback.
 
-Here is the comment above the code:
->-------/*
->------- * Doing this check without taking ->lru_lock seems wrong but this
->------- * is safe. Because if page_cgroup's USED bit is unset, the page
->------- * will not be added to any memcg's LRU. If page_cgroup's USED bit =
-is
->------- * set, the commit after this will fail, anyway.
->------- * This all charge/uncharge is done under some mutual execustion.
->------- * So, we don't need to taking care of changes in USED bit.
->------- */
+Thank you and this is a good example.
 
-It says that page will not be added to any memcg's LRU if
-!PageCgroupUsed, which seems not true after this patch series. page
-will be added to either root or memcg's lru depending on the used bit.
+So PageLRU bit is consistent w/ whether or not the page is linked  to
+a lru list (root or memcg), and AcctLRU indicates more on the memcg
+charge/uncharge.
+
+Here I am trying to summarize the possibilities of different flags of
+a page linked to a lru list ( based on the implementation after this
+patch series). please help to correct :
+
+root lru:
+1. PageLRU, Used, AcctLRU: page charged to root and linked to root lru
+list. ( ext: page allocated under root cgroup )
+
+2. PageLRU, !Used, !AcctLRU: page not charged and linked to root lru
+list. ( ext: page uncharged before free, or like readahead swapcache)
+
+3. PageLRU, Used, !AcctLRU: page del from root lru before uncharge, or
+charged before add to root lru
+
+4. PageLRU, !Used, AcctLRU: page uncharged before del from root lru
+(ext: swapcache)
+
+non-root lru:
+
+1. PageLRU, Used, AcctLRU: page charged to memcg and linked to memcg lru li=
+st
+
+2. PageLRU, !Used, !AcctLRU: not sure if this is possible
+
+3. PageLRU, Used, !AcctLRU: page del from memcg lru before uncharge,
+or charged before add to memcg lru
+
+4. PageLRU, !Used, AcctLRU: page uncharged before del from memcg lru
+(ext: swapcache)
+
 
 >
-> The handling after committing the charge becomes this:
+> =A0 =A0 =A0 =A0unused: PageLRU is set, but page possibly on the wrong lru=
+vec
+> =A0 =A0 =A0 =A0(root_mem_cgroup's per default, see mem_cgroup_lru_add_lis=
+t)
+> =A0 =A0 =A0 =A0and not properly accounted for. =A0We can detect this case=
+ by
+> =A0 =A0 =A0 =A0seeing AcctLRU cleared.
+
+This fits the case 2 above.
+
 >
-> - =A0 =A0 =A0 if (likely(!PageLRU(page)))
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 return;
-> =A0 =A0 =A0 =A0spin_lock_irqsave(&zone->lru_lock, flags);
-> =A0 =A0 =A0 =A0lru =3D page_lru(page);
-> =A0 =A0 =A0 =A0if (PageLRU(page) && !PageCgroupAcctLRU(pc)) {
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0del_page_from_lru_list(zone, page, lru);
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0add_page_to_lru_list(zone, page, lru);
-> =A0 =A0 =A0 =A0}
+> =A0 =A0 =A0 =A0used: PageLRU is set, page on the right lruvec and properl=
+y
+> =A0 =A0 =A0 =A0accounted. =A0We can detect this case by seeing that
+> =A0 =A0 =A0 =A0mem_cgroup_lru_add_list() set AcctLRU.
 
-Is the function mem_cgroup_lru_add_after_commit() ? I don't understand
-why we have del_page_from_lru_list() here?Here is how the function
-looks like on my local tree:
+This fits the case 1 above.
 
-static void mem_cgroup_lru_add_after_commit(struct page *page)
-{
->-------unsigned long flags;
->-------struct zone *zone =3D page_zone(page);
->-------struct page_cgroup *pc =3D lookup_page_cgroup(page);
 
->-------/* taking care of that the page is added to LRU while we commit it =
-*/
->-------if (likely(!PageLRU(page)))
->------->-------return;
->-------spin_lock_irqsave(&zone->lru_lock, flags);
->-------/* link when the page is linked to LRU but page_cgroup isn't */
->-------if (PageLRU(page) && !PageCgroupAcctLRU(pc))
->------->-------mem_cgroup_add_lru_list(page, page_lru(page));
->-------spin_unlock_irqrestore(&zone->lru_lock, flags);
-}
-
- I agree to move the PageLRU inside the lru_lock though.
+Thanks
 
 --Ying
-
->
-> If the page is not on the LRU, someone else will put it there and link
-> it up properly. =A0If it is on the LRU and already memcg-accounted then
-> it must be on the right lruvec as setting pc->mem_cgroup and PCG_USED
-> is properly ordered. =A0Otherwise, it has to be physically moved to the
-> correct lruvec and memcg-accounted for.
-
-
->
-> The old unlocked PageLRU check in after_commit is no longer possible
-> because setting PG_lru is not ordered against setting the list head,
-> which means the page could be linked to the wrong lruvec while this
-> CPU would not yet observe PG_lru and do the relink. =A0So this needs
-> strong ordering. =A0Given that this code is hairy enough as it is, I
-> just removed the preliminary check for now and do the check only under
-> the lock instead of adding barriers here and to the lru linking sites.
->
-> Thanks for making me write this out, few thinks put one's
-> understanding of a problem to the test like this.
->
-> Let's hope it helped :-)
->
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
