@@ -1,47 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 3AD706B00EE
-	for <linux-mm@kvack.org>; Mon, 15 Aug 2011 10:11:47 -0400 (EDT)
-Date: Mon, 15 Aug 2011 22:11:38 +0800
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id A68E66B00EE
+	for <linux-mm@kvack.org>; Mon, 15 Aug 2011 10:21:49 -0400 (EDT)
+Date: Mon, 15 Aug 2011 22:21:41 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 3/5] writeback: dirty rate control
-Message-ID: <20110815141138.GB23601@localhost>
+Subject: Re: [PATCH 4/5] writeback: per task dirty rate limit
+Message-ID: <20110815142141.GC23601@localhost>
 References: <20110806084447.388624428@intel.com>
- <20110806094526.878435971@intel.com>
- <20110809155046.GD6482@redhat.com>
- <1312906591.1083.43.camel@twins>
- <20110810140002.GA29724@localhost>
- <1312996226.23660.43.camel@twins>
+ <20110806094527.002914580@intel.com>
+ <1312811234.10488.34.camel@twins>
+ <20110808142318.GC22080@localhost>
+ <20110813162826.GA1646@thinkpad>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/mixed; boundary="KsGdsel6WgEHnImy"
 Content-Disposition: inline
-In-Reply-To: <1312996226.23660.43.camel@twins>
+In-Reply-To: <20110813162826.GA1646@thinkpad>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Vivek Goyal <vgoyal@redhat.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Andrea Righi <andrea@betterlinux.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, Aug 11, 2011 at 01:10:26AM +0800, Peter Zijlstra wrote:
-> On Wed, 2011-08-10 at 22:00 +0800, Wu Fengguang wrote:
-> > 
-> > > Although I'm not quite sure how he keeps fairness in light of the
-> > > sleep time bounding to MAX_PAUSE.
-> > 
-> > Firstly, MAX_PAUSE will only be applied when the dirty pages rush
-> > high (dirty exceeded).  Secondly, the dirty exceeded state is global
-> > to all tasks, in which case each task will sleep for MAX_PAUSE equally.
-> > So the fairness is still maintained in dirty exceeded state. 
+
+--KsGdsel6WgEHnImy
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+
+Andrea,
+
+> > @@ -1158,6 +1160,15 @@ void balance_dirty_pages_ratelimited_nr(
+> >  	if (bdi->dirty_exceeded)
+> >  		ratelimit = 8;
+> >  
+> > +	preempt_disable();
+> > +	p = &__get_cpu_var(dirty_leaks);
+> > +	if (*p > 0 && current->nr_dirtied < ratelimit) {
+> > +		nr_pages_dirtied = min(*p, ratelimit - current->nr_dirtied);
+> > +		*p -= nr_pages_dirtied;
+> > +		current->nr_dirtied += nr_pages_dirtied;
+> > +	}
+> > +	preempt_enable();
+> > +
 > 
-> Its not immediately apparent how dirty_exceeded and MAX_PAUSE interact,
-> but having everybody sleep MAX_PAUSE doesn't necessarily mean its fair,
-> its only fair if they dirty at the same rate.
+> I think we are still leaking some dirty pages, when the condition is
+> false nr_pages_dirtied is just ignored.
+> 
+> Why not doing something like this?
+> 
+> 	current->nr_dirtied += nr_pages_dirtied;
 
-Yeah I forget to mention that, but when dirty_exceeded, the tasks will
-typically sleep for MAX_PAUSE on every 8 pages, so resulting in the
-same dirty rate :)
+You must mean the above line. Sorry I failed to provide another patch
+before this one (attached this time). With that preparation patch, it
+effectively become equal to the logic below :)
+
+> 	if (current->nr_dirtied < ratelimit) {
+> 		p = &get_cpu_var(dirty_leaks);
+> 		if (*p > 0) {
+> 			nr_pages_dirtied = min(*p, ratelimit -
+> 							current->nr_dirtied);
+> 			*p -= nr_pages_dirtied;
+> 		} else
+> 			nr_pages_dirtied = 0;
+> 		put_cpu_var(dirty_leaks);
+> 
+> 		current->nr_dirtied += nr_pages_dirtied;
+> 	}
 
 Thanks,
 Fengguang
+
+> >  	if (unlikely(current->nr_dirtied >= ratelimit))
+> >  		balance_dirty_pages(mapping, current->nr_dirtied);
+> >  }
+> > --- linux-next.orig/kernel/exit.c	2011-08-08 21:43:37.000000000 +0800
+> > +++ linux-next/kernel/exit.c	2011-08-08 21:45:58.000000000 +0800
+> > @@ -1039,6 +1039,8 @@ NORET_TYPE void do_exit(long code)
+> >  	validate_creds_for_do_exit(tsk);
+> >  
+> >  	preempt_disable();
+> > +	if (tsk->nr_dirtied)
+> > +		__this_cpu_add(dirty_leaks, tsk->nr_dirtied);
+> >  	exit_rcu();
+> >  	/* causes final put_task_struct in finish_task_switch(). */
+> >  	tsk->state = TASK_DEAD;
+
+--KsGdsel6WgEHnImy
+Content-Type: text/x-diff; charset=us-ascii
+Content-Disposition: attachment; filename="writeback-accurate-task-dirtied.patch"
+
+Subject: writeback: fix dirtied pages accounting on sub-page writes
+Date: Thu Apr 14 07:52:37 CST 2011
+
+When dd in 512bytes, generic_perform_write() calls
+balance_dirty_pages_ratelimited() 8 times for the same page, but
+obviously the page is only dirtied once.
+
+Fix it by accounting nr_dirtied at page dirty time.
+
+This will allow further simplification of the
+balance_dirty_pages_ratelimited_nr() calls.
+
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+---
+ mm/page-writeback.c |    3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+--- linux-next.orig/mm/page-writeback.c	2011-08-15 22:12:14.000000000 +0800
++++ linux-next/mm/page-writeback.c	2011-08-15 22:12:27.000000000 +0800
+@@ -1211,8 +1211,6 @@ void balance_dirty_pages_ratelimited_nr(
+ 	else
+ 		ratelimit = min(ratelimit, 32 >> (PAGE_SHIFT - 10));
+ 
+-	current->nr_dirtied += nr_pages_dirtied;
+-
+ 	preempt_disable();
+ 	/*
+ 	 * This prevents one CPU to accumulate too many dirtied pages without
+@@ -1711,6 +1709,7 @@ void account_page_dirtied(struct page *p
+ 		__inc_bdi_stat(mapping->backing_dev_info, BDI_DIRTIED);
+ 		task_dirty_inc(current);
+ 		task_io_account_write(PAGE_CACHE_SIZE);
++		current->nr_dirtied++;
+ 	}
+ }
+ EXPORT_SYMBOL(account_page_dirtied);
+
+--KsGdsel6WgEHnImy--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
