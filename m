@@ -1,74 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 609A36B00EE
-	for <linux-mm@kvack.org>; Mon, 15 Aug 2011 09:48:53 -0400 (EDT)
-Date: Mon, 15 Aug 2011 21:48:46 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 2/2 v2] writeback: Add writeback stats for pages written
-Message-ID: <20110815134846.GB13534@localhost>
-References: <1313189245-7197-1-git-send-email-curtw@google.com>
- <1313189245-7197-2-git-send-email-curtw@google.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id CFFEC6B00EE
+	for <linux-mm@kvack.org>; Mon, 15 Aug 2011 09:55:32 -0400 (EDT)
+Date: Mon, 15 Aug 2011 08:55:28 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH 1/2] slub: extend slub_debug to handle multiple slabs
+In-Reply-To: <1312839019-17987-1-git-send-email-malchev@google.com>
+Message-ID: <alpine.DEB.2.00.1108150853170.22335@router.home>
+References: <1312839019-17987-1-git-send-email-malchev@google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1313189245-7197-2-git-send-email-curtw@google.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Curt Wohlgemuth <curtw@google.com>
-Cc: Christoph Hellwig <hch@infradead.org>, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Michael Rubin <mrubin@google.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Iliyan Malchev <malchev@google.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Curt,
+On Mon, 8 Aug 2011, Iliyan Malchev wrote:
 
-Some thoughts about the interface..before dipping into the code.
+> Extend the slub_debug syntax to "slub_debug=<flags>[,<slub>]*", where <slub>
+> may contain an asterisk at the end.  For example, the following would poison
+> all kmalloc slabs:
+>
+> 	slub_debug=P,kmalloc*
 
-On Sat, Aug 13, 2011 at 06:47:25AM +0800, Curt Wohlgemuth wrote:
-> Add a new file, /proc/writeback/stats, which displays
+The use of the star suggests that general regexps will be working. But
+this is only allowing a star at the end. It is explained later. So maybe
+that ok.
 
-That's creating a new top directory in /proc. Do you have plans for
-adding more files under it?
+> +	n = slub_debug_slabs;
+> +	while (*n) {
+> +		int cmplen;
+> +
+> +		end = strchr(n, ',');
+> +		if (!end)
+> +			end = n + strlen(n);
+> +
+> +		glob = strnchr(n, end - n, '*');
+> +		if (glob)
+> +			cmplen = glob - n;
+> +		else
+> +			cmplen = max(len, end - n);
+> +
+> +		if (!strncmp(name, n, cmplen)) {
+> +			flags |= slub_debug;
+> +			break;
+> +		}
+> +
+> +		n = *end ? end + 1 : end;
 
-> machine global data for how many pages were cleaned for
-> which reasons.  It also displays some additional counts for
-> various writeback events.
-> 
-> These data are also available for each BDI, in
-> /sys/block/<device>/bdi/writeback_stats .
+Ugg.. Confusing
 
-> Sample output:
-> 
->    page: balance_dirty_pages           2561544
->    page: background_writeout              5153
->    page: try_to_free_pages                   0
->    page: sync                                0
->    page: kupdate                        102723
->    page: fdatawrite                    1228779
->    page: laptop_periodic                     0
->    page: free_more_memory                    0
->    page: fs_free_space                       0
->    periodic writeback                      377
->    single inode wait                         0
->    writeback_wb wait                         1
+How about
 
-That's already useful data, and could be further extended (in
-future patches) to answer questions like "what's the writeback
-efficiency in terms of effective chunk size?"
+		if (!*end)
+			break;
+		n = end + 1;
 
-So in future there could be lines like
-
-    pages: balance_dirty_pages           2561544
-    chunks: balance_dirty_pages          XXXXXXX
-    works: balance_dirty_pages           XXXXXXX
-
-or even derived lines like
-
-    pages_per_chunk: balance_dirty_pages         XXXXXXX
-    pages_per_work: balance_dirty_pages          XXXXXXX
-
-Another question is, how can the display format be script friendly?
-The current form looks not easily parse-able at least for "cut"..
-
-Thanks,
-Fengguang
+or make the while loop into a for loop?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
