@@ -1,62 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id CFFEC6B00EE
-	for <linux-mm@kvack.org>; Mon, 15 Aug 2011 09:55:32 -0400 (EDT)
-Date: Mon, 15 Aug 2011 08:55:28 -0500 (CDT)
+	by kanga.kvack.org (Postfix) with SMTP id A3DE36B00EE
+	for <linux-mm@kvack.org>; Mon, 15 Aug 2011 09:58:10 -0400 (EDT)
+Date: Mon, 15 Aug 2011 08:58:07 -0500 (CDT)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 1/2] slub: extend slub_debug to handle multiple slabs
-In-Reply-To: <1312839019-17987-1-git-send-email-malchev@google.com>
-Message-ID: <alpine.DEB.2.00.1108150853170.22335@router.home>
-References: <1312839019-17987-1-git-send-email-malchev@google.com>
+Subject: Re: Tracking page allocation in Zone/Node
+In-Reply-To: <1313384511.62052.YahooMailNeo@web162020.mail.bf1.yahoo.com>
+Message-ID: <alpine.DEB.2.00.1108150855580.22335@router.home>
+References: <1313146843.1015.YahooMailNeo@web162014.mail.bf1.yahoo.com> <alpine.DEB.2.00.1108121053490.16906@router.home> <1313384511.62052.YahooMailNeo@web162020.mail.bf1.yahoo.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: MULTIPART/MIXED; BOUNDARY="-1463811839-442464136-1313416687=:22335"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Iliyan Malchev <malchev@google.com>
-Cc: Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Pintu Agarwal <pintu_agarwal@yahoo.com>
+Cc: "mgorman@suse.de" <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Mon, 8 Aug 2011, Iliyan Malchev wrote:
+  This message is in MIME format.  The first part should be readable text,
+  while the remaining parts are likely unreadable without MIME-aware tools.
 
-> Extend the slub_debug syntax to "slub_debug=<flags>[,<slub>]*", where <slub>
-> may contain an asterisk at the end.  For example, the following would poison
-> all kmalloc slabs:
->
-> 	slub_debug=P,kmalloc*
+---1463811839-442464136-1313416687=:22335
+Content-Type: TEXT/PLAIN; charset=iso-8859-1
+Content-Transfer-Encoding: QUOTED-PRINTABLE
 
-The use of the star suggests that general regexps will be working. But
-this is only allowing a star at the end. It is explained later. So maybe
-that ok.
+On Sun, 14 Aug 2011, Pintu Agarwal wrote:
 
-> +	n = slub_debug_slabs;
-> +	while (*n) {
-> +		int cmplen;
-> +
-> +		end = strchr(n, ',');
-> +		if (!end)
-> +			end = n + strlen(n);
-> +
-> +		glob = strnchr(n, end - n, '*');
-> +		if (glob)
-> +			cmplen = glob - n;
-> +		else
-> +			cmplen = max(len, end - n);
-> +
-> +		if (!strncmp(name, n, cmplen)) {
-> +			flags |= slub_debug;
-> +			break;
-> +		}
-> +
-> +		n = *end ? end + 1 : end;
+> Thanks Christoph for your reply :)
+> =A0
+> > Weird system. One would expect it to only have NORMAL zones. Is this an
+> > ARM system?
+> =A0
+> Yes this is an ARM based system for linux mobile phone.
 
-Ugg.. Confusing
+Ok.Maybe The memory setup is broken. Make the DMA zones into NORMAL
+zones?
 
-How about
+> Yes, I tried exactly like this, but since I have only one zone (DMA), it =
+always returns me the data from the first Node 0.
+> This will only work, if I have 3 separate zones (DMA, Normal, HighMem)
 
-		if (!*end)
-			break;
-		n = end + 1;
+Well yes that is the way its designed. DMA is an exceptional zone.
 
-or make the while loop into a for loop?
+> In "__alloc_pages_nodemask", before the actual allocation happens, how to=
+ find out the allocation is going to happen from which zone and which Node.=
+?
+> (The _preferred_zone_ info is not enough, I need to know the Node number =
+as well)
+
+You can get the node number from a zone. Use zone_to_nid().
+---1463811839-442464136-1313416687=:22335--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
