@@ -1,183 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 820646B00EE
-	for <linux-mm@kvack.org>; Mon, 15 Aug 2011 14:56:18 -0400 (EDT)
-Received: from hpaq2.eem.corp.google.com (hpaq2.eem.corp.google.com [172.25.149.2])
-	by smtp-out.google.com with ESMTP id p7FIuAUm007969
-	for <linux-mm@kvack.org>; Mon, 15 Aug 2011 11:56:10 -0700
-Received: from qyk2 (qyk2.prod.google.com [10.241.83.130])
-	by hpaq2.eem.corp.google.com with ESMTP id p7FIu8b3000354
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 15 Aug 2011 11:56:09 -0700
-Received: by qyk2 with SMTP id 2so2886818qyk.15
-        for <linux-mm@kvack.org>; Mon, 15 Aug 2011 11:56:08 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20110815184023.GA16369@quack.suse.cz>
-References: <1313189245-7197-1-git-send-email-curtw@google.com>
-	<1313189245-7197-2-git-send-email-curtw@google.com>
-	<20110815134846.GB13534@localhost>
-	<CAO81RMYmxRiGpEjLGyjKNeNxXg8UJDuVosNdHGKt70gezTjxGw@mail.gmail.com>
-	<20110815184023.GA16369@quack.suse.cz>
-Date: Mon, 15 Aug 2011 11:56:08 -0700
-Message-ID: <CAO81RMbpK4ZE=4c5khSrGpzDrXbyynWp8QoFbUjMuHFeJtbDDw@mail.gmail.com>
-Subject: Re: [PATCH 2/2 v2] writeback: Add writeback stats for pages written
-From: Curt Wohlgemuth <curtw@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id B7A626B00EE
+	for <linux-mm@kvack.org>; Mon, 15 Aug 2011 16:55:45 -0400 (EDT)
+Received: by ywm13 with SMTP id 13so3195343ywm.14
+        for <linux-mm@kvack.org>; Mon, 15 Aug 2011 13:55:43 -0700 (PDT)
+From: Will Drewry <wad@chromium.org>
+Subject: [PATCH] mmap: add sysctl for controlling ~VM_MAYEXEC taint
+Date: Mon, 15 Aug 2011 15:57:35 -0500
+Message-Id: <1313441856-1419-1-git-send-email-wad@chromium.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Michael Rubin <mrubin@google.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: linux-kernel@vger.kernel.org
+Cc: mcgrathr@google.com, Will Drewry <wad@chromium.org>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Al Viro <viro@zeniv.linux.org.uk>, Eric Paris <eparis@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Nitin Gupta <ngupta@vflare.org>, Hugh Dickins <hughd@google.com>, Shaohua Li <shaohua.li@intel.com>, linux-mm@kvack.org
 
-Hi Jan:
+This patch proposes a sysctl knob that allows a privileged user to
+disable ~VM_MAYEXEC tainting when mapping in a vma from a MNT_NOEXEC
+mountpoint.  It does not alter the normal behavior resulting from
+attempting to directly mmap(PROT_EXEC) a vma (-EPERM) nor the behavior
+of any other subsystems checking MNT_NOEXEC.
 
-On Mon, Aug 15, 2011 at 11:40 AM, Jan Kara <jack@suse.cz> wrote:
-> On Mon 15-08-11 10:16:38, Curt Wohlgemuth wrote:
->> On Mon, Aug 15, 2011 at 6:48 AM, Wu Fengguang <fengguang.wu@intel.com> w=
-rote:
->> > Curt,
->> >
->> > Some thoughts about the interface..before dipping into the code.
->> >
->> > On Sat, Aug 13, 2011 at 06:47:25AM +0800, Curt Wohlgemuth wrote:
->> >> Add a new file, /proc/writeback/stats, which displays
->> >
->> > That's creating a new top directory in /proc. Do you have plans for
->> > adding more files under it?
->>
->> Good question. =A0We have several files under /proc/writeback in our
->> kernels that we created at various times, some of which are probably
->> no longer useful, but others seem to be. =A0For example:
->> =A0 - congestion: prints # of calls, # of jiffies slept in
->> congestion_wait() / io_schedule_timeout() from various call points
->> =A0 - threshold_dirty : prints the current global FG threshold
->> =A0 - threshold_bg : prints the current global BG threshold
->> =A0 - pages_cleaned : prints the # pages sent to writeback -- same as
->> 'nr_written' in /proc/vmstat (ours was earlier :-( )
->> =A0 - pages_dirtied (same as nr_dirtied in /proc/vmstat)
->> =A0 - prop_vm_XXX : print shift/events from vm_completions and vm_dirtie=
-s
->>
->> I'm not sure right now if global FG/BG thresholds appear anywhere in a
->> 3.1 kernel; if so, the two threshold files above are superfluous. =A0So
->> are the pages_cleaned/dirtied. =A0The prop_vm files have not proven
->> useful to me. =A0I think the congestion file has a lot of value,
->> especially in an IO-less throttling world...
-> =A0/sys/kernel/debug/bdi/<dev>/stats has BdiDirtyThresh, DirtyThresh, and
-> BackgroundThresh. So we should already expose all you have in the thresho=
-ld
-> files.
+It is motivated by a common /dev/shm, /tmp usecase. There are few
+facilities for creating a shared memory segment that can be remapped in
+the same process address space with different permissions.  Often, a
+file in /tmp provides this functionality.  However, on distributions
+that are more restrictive/paranoid, world-writeable directories are
+often mounted "noexec".  The only workaround to support software that
+needs this behavior is to either not use that software or remount /tmp
+exec.  (E.g., https://bugs.gentoo.org/350336?id=350336)  Given that
+the only recourse is using SysV IPC, the application programmer loses
+many of the useful ABI features that they get using a mmap'd file (and
+as such are often hesitant to explore that more painful path).
 
-Ah, right, I knew that and overlooked it.  I get confused looking at
-lots of kernel versions and patches at the same time :-) .
+With this patch, it would be possible to change the sysctl variable
+such that mprotect(PROT_EXEC) would succeed.  In cases like the example
+above, an additional userspace mmap-wrapper would be needed, but in
+other cases, like how code.google.com/p/nativeclient mmap()s then
+mprotect()s, the behavior would be unaffected.
 
-> Regarding congestion_wait() statistics - do I get right that the numbers
-> gathered actually depend on the number of threads using the congested
-> device? They are something like
-> =A0\sum_{over threads} time_waited_for_bdi
-> How do you interpret the resulting numbers then?
+The tradeoff is a loss of defense in depth, but it seems reasonable when
+the alternative is to disable the defense entirely.
 
-I don't have it by thread; just stupidly as totals, like this:
+Signed-off-by: Will Drewry <wad@chromium.org>
+---
+ kernel/sysctl.c |   12 ++++++++++++
+ mm/Kconfig      |   17 +++++++++++++++++
+ mm/mmap.c       |    4 +++-
+ 3 files changed, 32 insertions(+), 1 deletions(-)
 
-calls: ttfp           11290
-time: ttfp        558191
-calls: shrink_inactive_list isolated       xxx
-time : shrink_inactive_list isolated            xxx
-calls: shrink_inactive_list lumpy reclaim       xxx
-time : shrink_inactive_list lumpy reclaim          xxx
-calls: balance_pgdat                                xxx
-time : balance_pgdat                                xxx
-calls: alloc_pages_high_priority                    xxx
-time : alloc_pages_high_priority                    xxx
-calls: alloc_pages_slowpath                         xxx
-time : alloc_pages_slowpath                         xxx
-calls: throttle_vm_writeout                         xxx
-time : throttle_vm_writeout                         xxx
-calls: balance_dirty_pages                          xxx
-time : balance_dirty_pages                         xxx
-
-Note that the "call" points above are from a very old (2.6.34 +
-backports) kernel, but you get the idea.  We just wrap
-congestion_wait() with a routine that takes a 'type' parameter; does
-the congestion_wait(); and increments the appropriate 'call' stat, and
-adds to the appropriate 'time' stat the return value from
-congestion_wait().
-
-For a given workload, you can get an idea for where congestion is
-adding to delays.  I really think that for IO-less
-balance_dirty_pages(), we need some insight into how long writer
-threads are being throttled.  And tracepoints are great, but not
-sufficient, IMHO.
-
-Thanks,
-Curt
-
->
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0Honza
->
->> >> machine global data for how many pages were cleaned for
->> >> which reasons. =A0It also displays some additional counts for
->> >> various writeback events.
->> >>
->> >> These data are also available for each BDI, in
->> >> /sys/block/<device>/bdi/writeback_stats .
->> >
->> >> Sample output:
->> >>
->> >> =A0 =A0page: balance_dirty_pages =A0 =A0 =A0 =A0 =A0 2561544
->> >> =A0 =A0page: background_writeout =A0 =A0 =A0 =A0 =A0 =A0 =A05153
->> >> =A0 =A0page: try_to_free_pages =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 0
->> >> =A0 =A0page: sync =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
- =A0 =A0 =A00
->> >> =A0 =A0page: kupdate =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A01=
-02723
->> >> =A0 =A0page: fdatawrite =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0122877=
-9
->> >> =A0 =A0page: laptop_periodic =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-0
->> >> =A0 =A0page: free_more_memory =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
-0
->> >> =A0 =A0page: fs_free_space =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 0
->> >> =A0 =A0periodic writeback =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
-377
->> >> =A0 =A0single inode wait =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 0
->> >> =A0 =A0writeback_wb wait =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 1
->> >
->> > That's already useful data, and could be further extended (in
->> > future patches) to answer questions like "what's the writeback
->> > efficiency in terms of effective chunk size?"
->> >
->> > So in future there could be lines like
->> >
->> > =A0 =A0pages: balance_dirty_pages =A0 =A0 =A0 =A0 =A0 2561544
->> > =A0 =A0chunks: balance_dirty_pages =A0 =A0 =A0 =A0 =A0XXXXXXX
->> > =A0 =A0works: balance_dirty_pages =A0 =A0 =A0 =A0 =A0 XXXXXXX
->> >
->> > or even derived lines like
->> >
->> > =A0 =A0pages_per_chunk: balance_dirty_pages =A0 =A0 =A0 =A0 XXXXXXX
->> > =A0 =A0pages_per_work: balance_dirty_pages =A0 =A0 =A0 =A0 =A0XXXXXXX
->> >
->> > Another question is, how can the display format be script friendly?
->> > The current form looks not easily parse-able at least for "cut"..
->>
->> I suppose you mean because of the variable number of tokens. =A0Yeah,
->> this can be hard. =A0Of course, I always just use "awk '{print $NF}'"
->> and it works for me :-) . =A0But I'd be happy to change these to use a
->> consistent # of args.
->>
->> Thanks,
->> Curt
->>
->>
->> > Thanks,
->> > Fengguang
->> >
->
+diff --git a/kernel/sysctl.c b/kernel/sysctl.c
+index 11d65b5..aa8bcc0 100644
+--- a/kernel/sysctl.c
++++ b/kernel/sysctl.c
+@@ -89,6 +89,9 @@
+ /* External variables not in a header file. */
+ extern int sysctl_overcommit_memory;
+ extern int sysctl_overcommit_ratio;
++#ifdef CONFIG_MMU
++extern int sysctl_mmap_noexec_taint;
++#endif
+ extern int max_threads;
+ extern int core_uses_pid;
+ extern int suid_dumpable;
+@@ -1293,6 +1296,15 @@ static struct ctl_table vm_table[] = {
+ 		.mode		= 0644,
+ 		.proc_handler	= mmap_min_addr_handler,
+ 	},
++	{
++		.procname	= "mmap_noexec_taint",
++		.data		= &sysctl_mmap_noexec_taint,
++		.maxlen		= sizeof(unsigned long),
++		.mode		= 0644,
++		.proc_handler	= proc_dointvec_minmax,
++		.extra1		= &zero,
++		.extra2		= &one,
++	},
+ #endif
+ #ifdef CONFIG_NUMA
+ 	{
+diff --git a/mm/Kconfig b/mm/Kconfig
+index f2f1ca1..539dc12 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -256,6 +256,23 @@ config DEFAULT_MMAP_MIN_ADDR
+ 	  This value can be changed after boot using the
+ 	  /proc/sys/vm/mmap_min_addr tunable.
+ 
++config MMAP_NOEXEC_TAINT
++	int "Turns on tainting of mmap()d files from noexec mountpoints"
++	depends on MMU
++	default 1
++	help
++	  By default, the ability to change the protections of a virtual
++	  memory area to allow execution depend on if the vma has the
++	  VM_MAYEXEC flag.  When mapping regions from files, VM_MAYEXEC
++	  will be unset if the containing mountpoint is mounted MNT_NOEXEC.
++	  By setting the value to 0, any mmap()d region may be later
++	  mprotect()d with PROT_EXEC.
++
++	  If unsure, keep the value set to 1.
++
++	  This value can be changed after boot using the
++	  /proc/sys/vm/mmap_noexec_taint tunable.
++
+ config ARCH_SUPPORTS_MEMORY_FAILURE
+ 	bool
+ 
+diff --git a/mm/mmap.c b/mm/mmap.c
+index a65efd4..7aceddd 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -87,6 +87,7 @@ EXPORT_SYMBOL(vm_get_page_prot);
+ int sysctl_overcommit_memory __read_mostly = OVERCOMMIT_GUESS;  /* heuristic overcommit */
+ int sysctl_overcommit_ratio __read_mostly = 50;	/* default is 50% */
+ int sysctl_max_map_count __read_mostly = DEFAULT_MAX_MAP_COUNT;
++int sysctl_mmap_noexec_taint __read_mostly = CONFIG_DEFAULT_MMAP_NOEXEC_TAINT;
+ /*
+  * Make sure vm_committed_as in one cacheline and not cacheline shared with
+  * other variables. It can be updated by several CPUs frequently.
+@@ -1039,7 +1040,8 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
+ 			if (file->f_path.mnt->mnt_flags & MNT_NOEXEC) {
+ 				if (vm_flags & VM_EXEC)
+ 					return -EPERM;
+-				vm_flags &= ~VM_MAYEXEC;
++				if (sysctl_mmap_noexec_taint)
++					vm_flags &= ~VM_MAYEXEC;
+ 			}
+ 
+ 			if (!file->f_op || !file->f_op->mmap)
+-- 
+1.7.0.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
