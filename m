@@ -1,137 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 334EC6B00EE
-	for <linux-mm@kvack.org>; Mon, 15 Aug 2011 04:06:45 -0400 (EDT)
-Received: by qyk27 with SMTP id 27so847558qyk.14
-        for <linux-mm@kvack.org>; Mon, 15 Aug 2011 01:06:40 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 053186B00EE
+	for <linux-mm@kvack.org>; Mon, 15 Aug 2011 05:39:52 -0400 (EDT)
+Date: Mon, 15 Aug 2011 11:39:12 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 8/8] mm: make per-memcg lru lists exclusive
+Message-ID: <20110815093912.GA15136@cmpxchg.org>
+References: <1306909519-7286-1-git-send-email-hannes@cmpxchg.org>
+ <1306909519-7286-9-git-send-email-hannes@cmpxchg.org>
+ <CALWz4izVoN2s6J9t1TVj+1pMmHVxfiWYvq=uqeTL4C5-YsBwOw@mail.gmail.com>
+ <20110812083458.GB6916@cmpxchg.org>
+ <CALWz4iwE_L5nf7_YDyr0T+racbj0_j=Lf_U7vFCA+UPtoitsRA@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <1313384511.62052.YahooMailNeo@web162020.mail.bf1.yahoo.com>
-References: <1313146843.1015.YahooMailNeo@web162014.mail.bf1.yahoo.com>
-	<alpine.DEB.2.00.1108121053490.16906@router.home>
-	<1313384511.62052.YahooMailNeo@web162020.mail.bf1.yahoo.com>
-Date: Mon, 15 Aug 2011 16:06:40 +0800
-Message-ID: <CAA_GA1ctXzhRgAzN5u=AFCL_5P+KORv8KM=AjDTedg0PwcEujw@mail.gmail.com>
-Subject: Re: Tracking page allocation in Zone/Node
-From: Bob Liu <lliubbo@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CALWz4iwE_L5nf7_YDyr0T+racbj0_j=Lf_U7vFCA+UPtoitsRA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pintu Agarwal <pintu_agarwal@yahoo.com>
-Cc: Christoph Lameter <cl@linux.com>, "mgorman@suse.de" <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Ying Han <yinghan@google.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Aug 15, 2011 at 1:01 PM, Pintu Agarwal <pintu_agarwal@yahoo.com> wr=
-ote:
-> Thanks Christoph for your reply :)
->
->> Weird system. One would expect it to only have NORMAL zones. Is this an
->> ARM system?
->
-> Yes this is an ARM based system for linux mobile phone.
->
->> I am not sure that I understand you correctly but you can get the data f=
-rom node 2 via
->> zone_page_state(NODE_DATA[2]->node_zones[ZONE_DMA], NR_FREE_PAGES);
->
-> Yes, you got me right. I wanted to access Node 2 data from the preferred =
-zone. This is helpful, thanks.
-> But I want it to be dynamic. That is if Node 2 is over-loaded, then the a=
-llocation happens from Node 1 or Node 0 as well.
+On Sun, Aug 14, 2011 at 06:34:07PM -0700, Ying Han wrote:
+> On Fri, Aug 12, 2011 at 1:34 AM, Johannes Weiner <hannes@cmpxchg.org> wrote:
+> > On Thu, Aug 11, 2011 at 01:33:05PM -0700, Ying Han wrote:
+> >> > Johannes, I wonder if we should include the following patch:
+> >>
+> >> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> >> index 674823e..1513deb 100644
+> >> --- a/mm/memcontrol.c
+> >> +++ b/mm/memcontrol.c
+> >> @@ -832,7 +832,7 @@ static void
+> >> mem_cgroup_lru_del_before_commit_swapcache(struct page *page)
+> >>          * Forget old LRU when this page_cgroup is *not* used. This Used bit
+> >>          * is guarded by lock_page() because the page is SwapCache.
+> >>          */
+> >> -       if (!PageCgroupUsed(pc))
+> >> +       if (PageLRU(page) && !PageCgroupUsed(pc))
+> >>                 del_page_from_lru(zone, page);
+> >>         spin_unlock_irqrestore(&zone->lru_lock, flags);
+> >
+> > Yes, as the first PageLRU check is outside the lru_lock, PageLRU may
+> > indeed go away before grabbing the lock.  The page will already be
+> > unlinked and the LRU accounting will be off.
+> >
+> > The deeper problem, however, is that del_page_from_lru is wrong.  We
+> > can not keep the page off the LRU while leaving PageLRU set, or it
+> > won't be very meaningful after the commit, anyway.
+> 
+> So do you think we should include the patch:
+> -       if (!PageCgroupUsed(pc))
+> +       if (PageLRU(page) && !PageCgroupUsed(pc)) {
+> +              ClearPageLRU(page);
+>                 del_page_from_lru(zone, page);
+> }
+>         spin_unlock_irqrestore(&zone->lru_lock, flags);
 
-In my opinion, current code will do this behavior.
-If allocation from node 2 failed, it will try other nodes, so you
-needn't to do it by yourself.
+Nope.
 
-> Also it should work on normal desktop itself where there are DMA, Normal,=
- HighMem as well.
-> How to make the above statement generic so that it should work in all sce=
-narios?
->
->> or in __alloc_pages_nodemask
->> zone_page_state(preferred_zone, NR_FREE_PAGES);
->
-> Yes, I tried exactly like this, but since I have only one zone (DMA), it =
-always returns me the data from the first Node 0.
-> This will only work, if I have 3 separate zones (DMA, Normal, HighMem)
->
-> In "__alloc_pages_nodemask", before the actual allocation happens, how to=
- find out the allocation is going to happen from which zone and which Node.=
-?
-> (The _preferred_zone_ info is not enough, I need to know the Node number =
-as well)
->
-> Please help...
-> I hope the question is clear know.
->
->
->
-> Thanks,
-> Pintu
->
->
-> ----- Original Message -----
-> From: Christoph Lameter <cl@linux.com>
-> To: Pintu Agarwal <pintu_agarwal@yahoo.com>
-> Cc: "mgorman@suse.de" <mgorman@suse.de>; "linux-mm@kvack.org" <linux-mm@k=
-vack.org>
-> Sent: Friday, 12 August 2011 9:38 PM
-> Subject: Re: Tracking page allocation in Zone/Node
->
-> On Fri, 12 Aug 2011, Pintu Agarwal wrote:
->
->> On my system I have only DMA zones with 3 nodes as follows:
->> Node 0, zone=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 DMA=C2=A0=C2=A0=C2=A0=C2=A0=
-=C2=A0 3=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 4=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 6=C2=
-=A0=C2=A0=C2=A0=C2=A0=C2=A0 4=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 5=C2=A0=C2=A0=
-=C2=A0=C2=A0=C2=A0 0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 0=C2=A0=C2=A0=C2=A0=C2=
-=A0=C2=A0 0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 0=
-=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 0
->> Node 1, zone=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 DMA=C2=A0=C2=A0=C2=A0=C2=A0=
-=C2=A0 8=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 4=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 3=C2=
-=A0=C2=A0=C2=A0=C2=A0=C2=A0 8=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 7=C2=A0=C2=A0=
-=C2=A0=C2=A0=C2=A0 4=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 2=C2=A0=C2=A0=C2=A0=C2=
-=A0=C2=A0 0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 0=
-=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 0
->> Node 2, zone=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 DMA=C2=A0=C2=A0=C2=A0=C2=A0 1=
-0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 2=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 8=C2=A0=C2=
-=A0=C2=A0=C2=A0=C2=A0 3=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 2=C2=A0=C2=A0=C2=A0=
-=C2=A0=C2=A0 2=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 4=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0 1=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 2=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 2=C2=A0=
-=C2=A0=C2=A0=C2=A0 28
->
-> Weird system. One would expect it to only have NORMAL zones. Is this an
-> ARM system?
->
->
->> In __alloc_pages_nodemask(...), just before "First Allocation Attempt" [=
-that is before get_page_from_freelist(....)], I wanted to print=C2=A0all th=
-e free pages from the "preferred_zone".
->> Using something like=C2=A0this :
->> totalfreepages =3D zone_page_state(zone, NR_FREE_PAGES);
->>
->> But in my case, there is only one zone (DMA) but 3 nodes.
->> Thus the above "zone_page_state" always returns totalfreepages only from=
- first Node 0.
->> But the allocation actually happening from Node 2.
->>
->> How can we point to the zone of Node 2 to get the actual value?
->>
->
->
-> I am not sure that I understand you correctly but you can get the data
-> from node 2 via
->
-> zone_page_state(NODE_DATA[2]->node_zones[ZONE_DMA], NR_FREE_PAGES);
->
-> or in __alloc_pages_nodemask
->
-> zone_page_state(preferred_zone, NR_FREE_PAGES);
->
->
+> > And in reality, we > only care about properly memcg-unaccounting
+> > the old lru state before > we change pc->mem_cgroup, so this
+> > becomes
+> >
+> >        if (!PageLRU(page))
+> >                return;
+> >        spin_lock_irqsave(&zone->lru_lock, flags);
+> >        if (!PageCgroupUsed(pc))
+> >                mem_cgroup_lru_del(page);
+> >        spin_unlock_irqrestore(&zone->lru_lock, flags);
+> >
+> > I don't see why we should care if the page stays physically linked to
+> > the list.  The PageLRU check outside the lock is still fine as the
+> > accounting has been done already if !PageLRU and a putback without
+> > PageCgroupUsed will not re-account to pc->mem_cgroup, as the comment
+> > above this code explains nicely.
+> 
+> Here is the comment above the code:
+> >-------/*
+> >------- * Doing this check without taking ->lru_lock seems wrong but this
+> >------- * is safe. Because if page_cgroup's USED bit is unset, the page
+> >------- * will not be added to any memcg's LRU. If page_cgroup's USED bit is
+> >------- * set, the commit after this will fail, anyway.
+> >------- * This all charge/uncharge is done under some mutual execustion.
+> >------- * So, we don't need to taking care of changes in USED bit.
+> >------- */
+> 
+> It says that page will not be added to any memcg's LRU if
+> !PageCgroupUsed, which seems not true after this patch series. page
+> will be added to either root or memcg's lru depending on the used bit.
 
---=20
-Regards,
---Bob
+The phrasing is only partially wrong.  The page will be added to the
+root cgroup if unused.  But it's not accounted now, and won't be
+accounted when it's linked.
+
+The before-commit function is purely about accounting.
+
+> > The handling after committing the charge becomes this:
+> >
+> > -       if (likely(!PageLRU(page)))
+> > -               return;
+> >        spin_lock_irqsave(&zone->lru_lock, flags);
+> >        lru = page_lru(page);
+> >        if (PageLRU(page) && !PageCgroupAcctLRU(pc)) {
+> >                del_page_from_lru_list(zone, page, lru);
+> >                add_page_to_lru_list(zone, page, lru);
+> >        }
+> 
+> Is the function mem_cgroup_lru_add_after_commit() ? I don't understand
+> why we have del_page_from_lru_list() here?Here is how the function
+> looks like on my local tree:
+> 
+> static void mem_cgroup_lru_add_after_commit(struct page *page)
+> {
+> >-------unsigned long flags;
+> >-------struct zone *zone = page_zone(page);
+> >-------struct page_cgroup *pc = lookup_page_cgroup(page);
+> 
+> >-------/* taking care of that the page is added to LRU while we commit it */
+> >-------if (likely(!PageLRU(page)))
+> >------->-------return;
+> >-------spin_lock_irqsave(&zone->lru_lock, flags);
+> >-------/* link when the page is linked to LRU but page_cgroup isn't */
+> >-------if (PageLRU(page) && !PageCgroupAcctLRU(pc))
+> >------->-------mem_cgroup_add_lru_list(page, page_lru(page));
+> >-------spin_unlock_irqrestore(&zone->lru_lock, flags);
+> }
+> 
+>  I agree to move the PageLRU inside the lru_lock though.
+
+Currently, mem_cgroup_add_lru_list() does both accounting and linking.
+Later, mem_cgroup_lru_add_list() will only do memcg-accounting, never
+LRU list linking.  But it returns the lruvec the page has to sit on.
+
+The reason why we need to do del_page_from_lru_list() after my series
+is because the page may sit on the wrong lruvec and needs to be
+relinked.  So del, and readd.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
