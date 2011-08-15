@@ -1,54 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 1EAAE6B00EE
-	for <linux-mm@kvack.org>; Mon, 15 Aug 2011 06:27:10 -0400 (EDT)
-Date: Mon, 15 Aug 2011 12:27:07 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] mm: Switch NUMA_BUILD and COMPACTION_BUILD to new
- IS_ENABLED() syntax
-Message-ID: <20110815102707.GA3967@tiehlicka.suse.cz>
-References: <1312989160-737-1-git-send-email-mmarek@suse.cz>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 926E76B00EE
+	for <linux-mm@kvack.org>; Mon, 15 Aug 2011 06:33:26 -0400 (EDT)
+Message-ID: <4E48F5F3.2020509@suse.cz>
+Date: Mon, 15 Aug 2011 12:33:23 +0200
+From: Michal Marek <mmarek@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
+Subject: Re: [PATCH] mm: Switch NUMA_BUILD and COMPACTION_BUILD to new IS_ENABLED()
+ syntax
+References: <1312989160-737-1-git-send-email-mmarek@suse.cz> <20110815102707.GA3967@tiehlicka.suse.cz>
+In-Reply-To: <20110815102707.GA3967@tiehlicka.suse.cz>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <1312989160-737-1-git-send-email-mmarek@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Marek <mmarek@suse.cz>
+To: Michal Hocko <mhocko@suse.cz>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed 10-08-11 17:12:40, Michal Marek wrote:
-> Introduced in 3.1-rc1, IS_ENABLED(CONFIG_NUMA) expands to a true value
-> iff CONFIG_NUMA is set. This makes it easier to grep for code that
-> depends on CONFIG_NUMA.
+On 15.8.2011 12:27, Michal Hocko wrote:
+> On Wed 10-08-11 17:12:40, Michal Marek wrote:
+>> Introduced in 3.1-rc1, IS_ENABLED(CONFIG_NUMA) expands to a true value
+>> iff CONFIG_NUMA is set. This makes it easier to grep for code that
+>> depends on CONFIG_NUMA.
+> 
+> It looks this doesn't work properly. I can see the following build
+> error:
+>   CHK     include/linux/version.h
+>   CHK     include/generated/utsrelease.h
+>   UPD     include/generated/utsrelease.h
+>   CC      arch/x86/kernel/asm-offsets.s
+> In file included from include/linux/kmod.h:22:0,
+>                  from include/linux/module.h:13,
+>                  from include/linux/crypto.h:21,
+>                  from arch/x86/kernel/asm-offsets.c:8:
+> include/linux/gfp.h: In function a??gfp_zonelista??:
+> include/linux/gfp.h:265:1: error: a??__enabled_CONFIG_NUMAa?? undeclared (first use in this function)
+> include/linux/gfp.h:265:1: note: each undeclared identifier is reported only once for each function it appears in
+> include/linux/gfp.h:265:1: error: a??__enabled_CONFIG_NUMA_MODULEa?? undeclared (first use in this function)
+> make[1]: *** [arch/x86/kernel/asm-offsets.s] Error 1
+> 
+> I do not have CONFIG_NUMA set so it seems to have issues with config
+> symbols which are not set to any value. Is this something that could be
+> fixed?
 
-It looks this doesn't work properly. I can see the following build
-error:
-  CHK     include/linux/version.h
-  CHK     include/generated/utsrelease.h
-  UPD     include/generated/utsrelease.h
-  CC      arch/x86/kernel/asm-offsets.s
-In file included from include/linux/kmod.h:22:0,
-                 from include/linux/module.h:13,
-                 from include/linux/crypto.h:21,
-                 from arch/x86/kernel/asm-offsets.c:8:
-include/linux/gfp.h: In function a??gfp_zonelista??:
-include/linux/gfp.h:265:1: error: a??__enabled_CONFIG_NUMAa?? undeclared (first use in this function)
-include/linux/gfp.h:265:1: note: each undeclared identifier is reported only once for each function it appears in
-include/linux/gfp.h:265:1: error: a??__enabled_CONFIG_NUMA_MODULEa?? undeclared (first use in this function)
-make[1]: *** [arch/x86/kernel/asm-offsets.s] Error 1
+It works if CONFIG_NUMA is not set, but it doesn't work if CONFIG_NUMA
+is not visible (if its dependencies are not met). The fix would be to
+generate the __enabled_* defines for all symbols, not only for the
+visible ones. I'll repost the patch once this is fixed.
 
-I do not have CONFIG_NUMA set so it seems to have issues with config
-symbols which are not set to any value. Is this something that could be
-fixed?
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+Michal
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
