@@ -1,46 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 570076B0169
-	for <linux-mm@kvack.org>; Tue, 16 Aug 2011 08:10:14 -0400 (EDT)
-Date: Tue, 16 Aug 2011 20:10:07 +0800
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id DA7D36B0169
+	for <linux-mm@kvack.org>; Tue, 16 Aug 2011 08:26:59 -0400 (EDT)
+Date: Tue, 16 Aug 2011 20:26:54 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
 Subject: Re: [PATCH 2/2 v2] writeback: Add writeback stats for pages written
-Message-ID: <20110816121007.GA13391@localhost>
+Message-ID: <20110816122654.GB13391@localhost>
 References: <1313189245-7197-1-git-send-email-curtw@google.com>
  <1313189245-7197-2-git-send-email-curtw@google.com>
- <20110815134846.GB13534@localhost>
- <CAO81RMYmxRiGpEjLGyjKNeNxXg8UJDuVosNdHGKt70gezTjxGw@mail.gmail.com>
+ <20110815150348.GC6597@quack.suse.cz>
+ <CAO81RMbe=ht0H_Ut9ybATKZFV7KFDBP8oT1_ZHz-Ve87gcvq2A@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <CAO81RMYmxRiGpEjLGyjKNeNxXg8UJDuVosNdHGKt70gezTjxGw@mail.gmail.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CAO81RMbe=ht0H_Ut9ybATKZFV7KFDBP8oT1_ZHz-Ve87gcvq2A@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Curt Wohlgemuth <curtw@google.com>
-Cc: Christoph Hellwig <hch@infradead.org>, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Michael Rubin <mrubin@google.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Michael Rubin <mrubin@google.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-Hi Curt,
+Curt,
 
-> > Another question is, how can the display format be script friendly?
-> > The current form looks not easily parse-able at least for "cut"..
+> > A The above stats are probably useful. I'm not so convinced about the stats
+> > below - it looks like it should be simple enough to get them by enabling
+> > some trace points and processing output (or if we are missing some
+> > tracepoints, it would be worthwhile to add them).
 > 
-> I suppose you mean because of the variable number of tokens.  Yeah,
-> this can be hard.  Of course, I always just use "awk '{print $NF}'"
-> and it works for me :-) .  But I'd be happy to change these to use a
-> consistent # of args.
+> For these specifically, I'd agree with you.  In general, though, I
+> think that having generally available aggregated stats is really
+> useful, in a different way than tracepoints are.
 
-Yes, thank you.  One possible format come to my mind later is to
-present the numbers in a 2d table, like this:
+If there comes such useful aggregated stats in future, they may go to
+vmstat and/or /debug/bdi/<dev>/stats.
 
-                        pages           chunks          works          chunk_kb    work_kbps
-balance_dirty_pages     XXXXX             XXXX            XXX              XXXX        XXXXX
-background              XXXXX             XXXX            XXX              XXXX        XXXXX
-sync                    XXXXX             XXXX            XXX              XXXX        XXXXX
-...
+Then we make the writeback stats a simple uniform interface rather
+than a hybrid one.
 
-The format is not only human friendly and trivial for scripting, but
-also permits to add new lines or columns (append only though) without
-breaking compatibility.
+> >
+> >> A  A periodic writeback A  A  A  A  A  A  A  A  A  A  A 377
+
+The above one can go to the "work" column, "periodic" row of the
+writeback stats table :)
+
+I'm in particular interested in the "work" column of the
+"try_to_free_pages" row. I also suspect there could be many
+short-lived background work, hence there lots of them.
+
+> >> A  A single inode wait A  A  A  A  A  A  A  A  A  A  A  A  0
+> >> A  A writeback_wb wait A  A  A  A  A  A  A  A  A  A  A  A  1
 
 Thanks,
 Fengguang
