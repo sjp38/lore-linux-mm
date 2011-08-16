@@ -1,134 +1,236 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id B7A626B00EE
-	for <linux-mm@kvack.org>; Mon, 15 Aug 2011 16:55:45 -0400 (EDT)
-Received: by ywm13 with SMTP id 13so3195343ywm.14
-        for <linux-mm@kvack.org>; Mon, 15 Aug 2011 13:55:43 -0700 (PDT)
-From: Will Drewry <wad@chromium.org>
-Subject: [PATCH] mmap: add sysctl for controlling ~VM_MAYEXEC taint
-Date: Mon, 15 Aug 2011 15:57:35 -0500
-Message-Id: <1313441856-1419-1-git-send-email-wad@chromium.org>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 19B836B0169
+	for <linux-mm@kvack.org>; Mon, 15 Aug 2011 23:30:26 -0400 (EDT)
+Message-Id: <20110816022329.063575688@intel.com>
+Date: Tue, 16 Aug 2011 10:20:10 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: [PATCH 4/5] writeback: per task dirty rate limit
+References: <20110816022006.348714319@intel.com>
+Content-Disposition: inline; filename=per-task-ratelimit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: mcgrathr@google.com, Will Drewry <wad@chromium.org>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Al Viro <viro@zeniv.linux.org.uk>, Eric Paris <eparis@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Nitin Gupta <ngupta@vflare.org>, Hugh Dickins <hughd@google.com>, Shaohua Li <shaohua.li@intel.com>, linux-mm@kvack.org
+To: linux-fsdevel@vger.kernel.org
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-This patch proposes a sysctl knob that allows a privileged user to
-disable ~VM_MAYEXEC tainting when mapping in a vma from a MNT_NOEXEC
-mountpoint.  It does not alter the normal behavior resulting from
-attempting to directly mmap(PROT_EXEC) a vma (-EPERM) nor the behavior
-of any other subsystems checking MNT_NOEXEC.
+Add two fields to task_struct.
 
-It is motivated by a common /dev/shm, /tmp usecase. There are few
-facilities for creating a shared memory segment that can be remapped in
-the same process address space with different permissions.  Often, a
-file in /tmp provides this functionality.  However, on distributions
-that are more restrictive/paranoid, world-writeable directories are
-often mounted "noexec".  The only workaround to support software that
-needs this behavior is to either not use that software or remount /tmp
-exec.  (E.g., https://bugs.gentoo.org/350336?id=350336)  Given that
-the only recourse is using SysV IPC, the application programmer loses
-many of the useful ABI features that they get using a mmap'd file (and
-as such are often hesitant to explore that more painful path).
+1) account dirtied pages in the individual tasks, for accuracy
+2) per-task balance_dirty_pages() call intervals, for flexibility
 
-With this patch, it would be possible to change the sysctl variable
-such that mprotect(PROT_EXEC) would succeed.  In cases like the example
-above, an additional userspace mmap-wrapper would be needed, but in
-other cases, like how code.google.com/p/nativeclient mmap()s then
-mprotect()s, the behavior would be unaffected.
+The balance_dirty_pages() call interval (ie. nr_dirtied_pause) will
+scale near-sqrt to the safety gap between dirty pages and threshold.
 
-The tradeoff is a loss of defense in depth, but it seems reasonable when
-the alternative is to disable the defense entirely.
+The main problem of per-task nr_dirtied is, if 1k+ tasks start dirtying
+pages at exactly the same time, each task will be assigned a large
+initial nr_dirtied_pause, so that the dirty threshold will be exceeded
+long before each task reached its nr_dirtied_pause and hence call
+balance_dirty_pages().
 
-Signed-off-by: Will Drewry <wad@chromium.org>
+The solution is to watch for the number of pages dirtied on each CPU in
+between the calls into balance_dirty_pages(). If it exceeds ratelimit_pages
+(3% dirty threshold), force call balance_dirty_pages() for a chance to
+set bdi->dirty_exceeded. In normal situations, this safeguarding
+condition is not expected to trigger at all.
+
+peter: keep the per-CPU ratelimit for safeguarding the 1k+ tasks case
+
+CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Reviewed-by: Andrea Righi <andrea@betterlinux.com>
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- kernel/sysctl.c |   12 ++++++++++++
- mm/Kconfig      |   17 +++++++++++++++++
- mm/mmap.c       |    4 +++-
- 3 files changed, 32 insertions(+), 1 deletions(-)
+ include/linux/sched.h |    7 +++
+ kernel/fork.c         |    3 +
+ mm/page-writeback.c   |   90 ++++++++++++++++++++++------------------
+ 3 files changed, 61 insertions(+), 39 deletions(-)
 
-diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-index 11d65b5..aa8bcc0 100644
---- a/kernel/sysctl.c
-+++ b/kernel/sysctl.c
-@@ -89,6 +89,9 @@
- /* External variables not in a header file. */
- extern int sysctl_overcommit_memory;
- extern int sysctl_overcommit_ratio;
-+#ifdef CONFIG_MMU
-+extern int sysctl_mmap_noexec_taint;
-+#endif
- extern int max_threads;
- extern int core_uses_pid;
- extern int suid_dumpable;
-@@ -1293,6 +1296,15 @@ static struct ctl_table vm_table[] = {
- 		.mode		= 0644,
- 		.proc_handler	= mmap_min_addr_handler,
- 	},
-+	{
-+		.procname	= "mmap_noexec_taint",
-+		.data		= &sysctl_mmap_noexec_taint,
-+		.maxlen		= sizeof(unsigned long),
-+		.mode		= 0644,
-+		.proc_handler	= proc_dointvec_minmax,
-+		.extra1		= &zero,
-+		.extra2		= &one,
-+	},
+--- linux-next.orig/include/linux/sched.h	2011-08-14 18:03:44.000000000 +0800
++++ linux-next/include/linux/sched.h	2011-08-15 10:26:05.000000000 +0800
+@@ -1525,6 +1525,13 @@ struct task_struct {
+ 	int make_it_fail;
  #endif
- #ifdef CONFIG_NUMA
- 	{
-diff --git a/mm/Kconfig b/mm/Kconfig
-index f2f1ca1..539dc12 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -256,6 +256,23 @@ config DEFAULT_MMAP_MIN_ADDR
- 	  This value can be changed after boot using the
- 	  /proc/sys/vm/mmap_min_addr tunable.
+ 	struct prop_local_single dirties;
++	/*
++	 * when (nr_dirtied >= nr_dirtied_pause), it's time to call
++	 * balance_dirty_pages() for some dirty throttling pause
++	 */
++	int nr_dirtied;
++	int nr_dirtied_pause;
++
+ #ifdef CONFIG_LATENCYTOP
+ 	int latency_record_count;
+ 	struct latency_record latency_record[LT_SAVECOUNT];
+--- linux-next.orig/mm/page-writeback.c	2011-08-15 10:26:04.000000000 +0800
++++ linux-next/mm/page-writeback.c	2011-08-15 13:51:16.000000000 +0800
+@@ -54,20 +54,6 @@
+  */
+ static long ratelimit_pages = 32;
  
-+config MMAP_NOEXEC_TAINT
-+	int "Turns on tainting of mmap()d files from noexec mountpoints"
-+	depends on MMU
-+	default 1
-+	help
-+	  By default, the ability to change the protections of a virtual
-+	  memory area to allow execution depend on if the vma has the
-+	  VM_MAYEXEC flag.  When mapping regions from files, VM_MAYEXEC
-+	  will be unset if the containing mountpoint is mounted MNT_NOEXEC.
-+	  By setting the value to 0, any mmap()d region may be later
-+	  mprotect()d with PROT_EXEC.
-+
-+	  If unsure, keep the value set to 1.
-+
-+	  This value can be changed after boot using the
-+	  /proc/sys/vm/mmap_noexec_taint tunable.
-+
- config ARCH_SUPPORTS_MEMORY_FAILURE
- 	bool
+-/*
+- * When balance_dirty_pages decides that the caller needs to perform some
+- * non-background writeback, this is how many pages it will attempt to write.
+- * It should be somewhat larger than dirtied pages to ensure that reasonably
+- * large amounts of I/O are submitted.
+- */
+-static inline long sync_writeback_pages(unsigned long dirtied)
+-{
+-	if (dirtied < ratelimit_pages)
+-		dirtied = ratelimit_pages;
+-
+-	return dirtied + dirtied / 2;
+-}
+-
+ /* The following parameters are exported via /proc/sys/vm */
  
-diff --git a/mm/mmap.c b/mm/mmap.c
-index a65efd4..7aceddd 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -87,6 +87,7 @@ EXPORT_SYMBOL(vm_get_page_prot);
- int sysctl_overcommit_memory __read_mostly = OVERCOMMIT_GUESS;  /* heuristic overcommit */
- int sysctl_overcommit_ratio __read_mostly = 50;	/* default is 50% */
- int sysctl_max_map_count __read_mostly = DEFAULT_MAX_MAP_COUNT;
-+int sysctl_mmap_noexec_taint __read_mostly = CONFIG_DEFAULT_MMAP_NOEXEC_TAINT;
  /*
-  * Make sure vm_committed_as in one cacheline and not cacheline shared with
-  * other variables. It can be updated by several CPUs frequently.
-@@ -1039,7 +1040,8 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
- 			if (file->f_path.mnt->mnt_flags & MNT_NOEXEC) {
- 				if (vm_flags & VM_EXEC)
- 					return -EPERM;
--				vm_flags &= ~VM_MAYEXEC;
-+				if (sysctl_mmap_noexec_taint)
-+					vm_flags &= ~VM_MAYEXEC;
- 			}
+@@ -169,6 +155,8 @@ static void update_completion_period(voi
+ 	int shift = calc_period_shift();
+ 	prop_change_shift(&vm_completions, shift);
+ 	prop_change_shift(&vm_dirties, shift);
++
++	writeback_set_ratelimit();
+ }
  
- 			if (!file->f_op || !file->f_op->mmap)
--- 
-1.7.0.4
+ int dirty_background_ratio_handler(struct ctl_table *table, int write,
+@@ -930,6 +918,23 @@ static void bdi_update_bandwidth(struct 
+ }
+ 
+ /*
++ * After a task dirtied this many pages, balance_dirty_pages_ratelimited_nr()
++ * will look to see if it needs to start dirty throttling.
++ *
++ * If dirty_poll_interval is too low, big NUMA machines will call the expensive
++ * global_page_state() too often. So scale it near-sqrt to the safety margin
++ * (the number of pages we may dirty without exceeding the dirty limits).
++ */
++static unsigned long dirty_poll_interval(unsigned long dirty,
++					 unsigned long thresh)
++{
++	if (thresh > dirty)
++		return 1UL << (ilog2(thresh - dirty) >> 1);
++
++	return 1;
++}
++
++/*
+  * balance_dirty_pages() must be called by processes which are generating dirty
+  * data.  It looks at the number of dirty pages in the machine and will force
+  * the caller to perform writeback if the system is over `vm_dirty_ratio'.
+@@ -1072,6 +1077,9 @@ static void balance_dirty_pages(struct a
+ 	if (clear_dirty_exceeded && bdi->dirty_exceeded)
+ 		bdi->dirty_exceeded = 0;
+ 
++	current->nr_dirtied = 0;
++	current->nr_dirtied_pause = dirty_poll_interval(nr_dirty, dirty_thresh);
++
+ 	if (writeback_in_progress(bdi))
+ 		return;
+ 
+@@ -1098,7 +1106,7 @@ void set_page_dirty_balance(struct page 
+ 	}
+ }
+ 
+-static DEFINE_PER_CPU(unsigned long, bdp_ratelimits) = 0;
++static DEFINE_PER_CPU(int, bdp_ratelimits);
+ 
+ /**
+  * balance_dirty_pages_ratelimited_nr - balance dirty memory state
+@@ -1118,31 +1126,40 @@ void balance_dirty_pages_ratelimited_nr(
+ 					unsigned long nr_pages_dirtied)
+ {
+ 	struct backing_dev_info *bdi = mapping->backing_dev_info;
+-	unsigned long ratelimit;
+-	unsigned long *p;
++	int ratelimit;
++	int *p;
+ 
+ 	if (!bdi_cap_account_dirty(bdi))
+ 		return;
+ 
+-	ratelimit = ratelimit_pages;
+-	if (mapping->backing_dev_info->dirty_exceeded)
+-		ratelimit = 8;
++	if (!bdi->dirty_exceeded)
++		ratelimit = current->nr_dirtied_pause;
++	else
++		ratelimit = min(ratelimit, 32 >> (PAGE_SHIFT - 10));
++
++	current->nr_dirtied += nr_pages_dirtied;
+ 
++	preempt_disable();
+ 	/*
+-	 * Check the rate limiting. Also, we do not want to throttle real-time
+-	 * tasks in balance_dirty_pages(). Period.
++	 * This prevents one CPU to accumulate too many dirtied pages without
++	 * calling into balance_dirty_pages(), which can happen when there are
++	 * 1000+ tasks, all of them start dirtying pages at exactly the same
++	 * time, hence all honoured too large initial task->nr_dirtied_pause.
+ 	 */
+-	preempt_disable();
+ 	p =  &__get_cpu_var(bdp_ratelimits);
+-	*p += nr_pages_dirtied;
+-	if (unlikely(*p >= ratelimit)) {
+-		ratelimit = sync_writeback_pages(*p);
++	if (unlikely(current->nr_dirtied >= ratelimit))
+ 		*p = 0;
+-		preempt_enable();
+-		balance_dirty_pages(mapping, ratelimit);
+-		return;
++	else {
++		*p += nr_pages_dirtied;
++		if (unlikely(*p >= ratelimit_pages)) {
++			*p = 0;
++			ratelimit = 0;
++		}
+ 	}
+ 	preempt_enable();
++
++	if (unlikely(current->nr_dirtied >= ratelimit))
++		balance_dirty_pages(mapping, current->nr_dirtied);
+ }
+ EXPORT_SYMBOL(balance_dirty_pages_ratelimited_nr);
+ 
+@@ -1237,22 +1254,17 @@ void laptop_sync_completion(void)
+  *
+  * Here we set ratelimit_pages to a level which ensures that when all CPUs are
+  * dirtying in parallel, we cannot go more than 3% (1/32) over the dirty memory
+- * thresholds before writeback cuts in.
+- *
+- * But the limit should not be set too high.  Because it also controls the
+- * amount of memory which the balance_dirty_pages() caller has to write back.
+- * If this is too large then the caller will block on the IO queue all the
+- * time.  So limit it to four megabytes - the balance_dirty_pages() caller
+- * will write six megabyte chunks, max.
++ * thresholds.
+  */
+ 
+ void writeback_set_ratelimit(void)
+ {
+-	ratelimit_pages = vm_total_pages / (num_online_cpus() * 32);
++	unsigned long background_thresh;
++	unsigned long dirty_thresh;
++	global_dirty_limits(&background_thresh, &dirty_thresh);
++	ratelimit_pages = dirty_thresh / (num_online_cpus() * 32);
+ 	if (ratelimit_pages < 16)
+ 		ratelimit_pages = 16;
+-	if (ratelimit_pages * PAGE_CACHE_SIZE > 4096 * 1024)
+-		ratelimit_pages = (4096 * 1024) / PAGE_CACHE_SIZE;
+ }
+ 
+ static int __cpuinit
+--- linux-next.orig/kernel/fork.c	2011-08-14 18:03:44.000000000 +0800
++++ linux-next/kernel/fork.c	2011-08-15 10:26:05.000000000 +0800
+@@ -1301,6 +1301,9 @@ static struct task_struct *copy_process(
+ 	p->pdeath_signal = 0;
+ 	p->exit_state = 0;
+ 
++	p->nr_dirtied = 0;
++	p->nr_dirtied_pause = 128 >> (PAGE_SHIFT - 10);
++
+ 	/*
+ 	 * Ok, make it visible to the rest of the system.
+ 	 * We dont wake it up yet.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
