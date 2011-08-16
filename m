@@ -1,77 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 6023A6B016A
-	for <linux-mm@kvack.org>; Tue, 16 Aug 2011 15:50:56 -0400 (EDT)
-Received: by eyh6 with SMTP id 6so215516eyh.20
-        for <linux-mm@kvack.org>; Tue, 16 Aug 2011 12:50:52 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <CABqD9hba3PgTQjaWCmqQCgiaPnvdcOPd1VrQio-X-NY__T7HmA@mail.gmail.com>
-References: <1313441856-1419-1-git-send-email-wad@chromium.org>
-	<20110816093303.GA4484@csn.ul.ie>
-	<CAB=4xhqu1FsJnNbHNeokyROvEFpRJYKhcHRLLw5QTVKOkbkWfQ@mail.gmail.com>
-	<20110816194050.GB4484@csn.ul.ie>
-	<CABqD9hba3PgTQjaWCmqQCgiaPnvdcOPd1VrQio-X-NY__T7HmA@mail.gmail.com>
-Date: Tue, 16 Aug 2011 14:50:52 -0500
-Message-ID: <CABqD9hauSAYsDgXeJBajqdc07qY6qz1bFpPGCZnPKTTZGJjmWw@mail.gmail.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 66EAC6B0169
+	for <linux-mm@kvack.org>; Tue, 16 Aug 2011 17:55:46 -0400 (EDT)
+Date: Tue, 16 Aug 2011 14:54:27 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
 Subject: Re: [PATCH] mmap: add sysctl for controlling ~VM_MAYEXEC taint
-From: Will Drewry <wad@chromium.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Message-Id: <20110816145427.78f2f8c9.akpm@linux-foundation.org>
+In-Reply-To: <1313441856-1419-1-git-send-email-wad@chromium.org>
+References: <1313441856-1419-1-git-send-email-wad@chromium.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Roland McGrath <mcgrathr@google.com>, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Al Viro <viro@zeniv.linux.org.uk>, Eric Paris <eparis@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Nitin Gupta <ngupta@vflare.org>, Hugh Dickins <hughd@google.com>, Shaohua Li <shaohua.li@intel.com>, linux-mm@kvack.org
+To: Will Drewry <wad@chromium.org>
+Cc: linux-kernel@vger.kernel.org, mcgrathr@google.com, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Al Viro <viro@zeniv.linux.org.uk>, Eric Paris <eparis@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Nitin Gupta <ngupta@vflare.org>, Hugh Dickins <hughd@google.com>, Shaohua Li <shaohua.li@intel.com>, linux-mm@kvack.org
 
-On Tue, Aug 16, 2011 at 2:50 PM, Will Drewry <wad@chromium.org> wrote:
-> On Tue, Aug 16, 2011 at 2:40 PM, Mel Gorman <mel@csn.ul.ie> wrote:
->> On Tue, Aug 16, 2011 at 10:07:46AM -0700, Roland McGrath wrote:
->>> On Tue, Aug 16, 2011 at 2:33 AM, Mel Gorman <mel@csn.ul.ie> wrote:
->>> > Is using shm_open()+mmap instead of open()+mmap() to open a file on
->>> > /dev/shm really that difficult?
->>> >
->>> > int shm_open(const char *name, int oflag, mode_t mode);
->>> > int open(const char *pathname, int flags, mode_t mode);
->>>
->>> I cannot figure out the rationale behind this question at all.
->>> Both of these library functions result in the same system call.
->>>
->>
->> They might result in the same system call but one of them creates
->> the file under /dev/shm which should not have the same permissions
->> problem. The library really appears to want to create a shared
->> executable object, using shm_open does not appear that unreasonable
->> to me.
->
-> If /dev/shm is mounted noexec, the resulting file will have VM_MAYEXEC
+On Mon, 15 Aug 2011 15:57:35 -0500
+Will Drewry <wad@chromium.org> wrote:
 
-Err VMA from mmaping the file from shm_open().
+> This patch proposes a sysctl knob that allows a privileged user to
+> disable ~VM_MAYEXEC tainting when mapping in a vma from a MNT_NOEXEC
+> mountpoint.  It does not alter the normal behavior resulting from
+> attempting to directly mmap(PROT_EXEC) a vma (-EPERM) nor the behavior
+> of any other subsystems checking MNT_NOEXEC.
+> 
+> It is motivated by a common /dev/shm, /tmp usecase. There are few
+> facilities for creating a shared memory segment that can be remapped in
+> the same process address space with different permissions.  Often, a
+> file in /tmp provides this functionality.  However, on distributions
+> that are more restrictive/paranoid, world-writeable directories are
+> often mounted "noexec".  The only workaround to support software that
+> needs this behavior is to either not use that software or remount /tmp
+> exec.
 
-> stripped. =A0I don't believe it is capable of doing anything special
-> that will cause the mmap code path to find a different containing
-> mountpoint. =A0If it could, then that would certainly be preferable, but
-> it would also make this VM_MAYEXEC calculation less effective in the
-> default case.
+Remounting /tmp would appear to have the same effect as altering this
+sysctl, so why not just remount /tmp?
+
+>  (E.g., https://bugs.gentoo.org/350336?id=350336)  Given that
+> the only recourse is using SysV IPC, the application programmer loses
+> many of the useful ABI features that they get using a mmap'd file (and
+> as such are often hesitant to explore that more painful path).
+> 
+> With this patch, it would be possible to change the sysctl variable
+> such that mprotect(PROT_EXEC) would succeed.  In cases like the example
+> above, an additional userspace mmap-wrapper would be needed, but in
+> other cases, like how code.google.com/p/nativeclient mmap()s then
+> mprotect()s, the behavior would be unaffected.
+> 
+> The tradeoff is a loss of defense in depth, but it seems reasonable when
+> the alternative is to disable the defense entirely.
+> 
+> ...
 >
-> thanks!
->
->>> > An ordinary user is not going to know that a segfault from an
->>> > application can be fixed with this sysctl. This looks like something
->>> > that should be fixed in the library so that it can work on kernels
->>> > that do not have the sysctl.
->>>
->>> I think the expectation is that the administrator or system builder
->>> who decides to set the (non-default) noexec mount option will also
->>> set the sysctl at the same time.
->>>
->>
->> Which then needs to be copied in each distro wanting to do the same
->> thing and is not backwards compatible where as using shm_open is.
->>
->> --
->> Mel Gorman
->> SUSE Labs
->>
->
+> --- a/kernel/sysctl.c
+> +++ b/kernel/sysctl.c
+> @@ -89,6 +89,9 @@
+>  /* External variables not in a header file. */
+>  extern int sysctl_overcommit_memory;
+>  extern int sysctl_overcommit_ratio;
+> +#ifdef CONFIG_MMU
+
+The ifdef isn't needed in the header and we generally omit it to avoid
+clutter.
+
+afaict this feature could be made available on NOMMU systems?
+
+> +extern int sysctl_mmap_noexec_taint;
+
+The term "taint" has a specific meaning in the kernel (see
+add_taint()).  It's regrettable that this patch attaches a second
+meaning to that term.  Can we think of a better word to use?
+
+A better word would communicate the sense of the sysctl operation.  If
+a "taint" flag is set to true, I don't know whether that means that
+noexec is enabled or disabled.  Something like
+sysctl_mmap_noexec_override or sysctl_mmap_noexec_disable, perhaps.
+
+This patch forgot to document the new feature and its sysctl. 
+Documentation/sysctl/vm.txt might be the right place.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
