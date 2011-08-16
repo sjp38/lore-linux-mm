@@ -1,41 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id AD5EA6B016D
-	for <linux-mm@kvack.org>; Tue, 16 Aug 2011 04:59:37 -0400 (EDT)
-Date: Tue, 16 Aug 2011 16:59:33 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 2/5] writeback: dirty position control
-Message-ID: <20110816085932.GC19970@localhost>
-References: <20110806084447.388624428@intel.com>
- <20110806094526.733282037@intel.com>
- <20110809020817.GB3700@redhat.com>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id CEE466B016F
+	for <linux-mm@kvack.org>; Tue, 16 Aug 2011 05:06:39 -0400 (EDT)
+Received: by bkbzt4 with SMTP id zt4so4929221bkb.14
+        for <linux-mm@kvack.org>; Tue, 16 Aug 2011 02:06:36 -0700 (PDT)
+Date: Tue, 16 Aug 2011 13:05:40 +0400
+From: Vasiliy Kulikov <segoon@openwall.com>
+Subject: Re: [RFC] x86, mm: start mmap allocation for libs from low
+ addresses
+Message-ID: <20110816090540.GA7857@albatros>
+References: <20110812102954.GA3496@albatros>
+ <ccea406f-62be-4344-8036-a1b092937fe9@email.android.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110809020817.GB3700@redhat.com>
+In-Reply-To: <ccea406f-62be-4344-8036-a1b092937fe9@email.android.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vivek Goyal <vgoyal@redhat.com>
-Cc: "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: "H. Peter Anvin" <hpa@zytor.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, kernel-hardening@lists.openwall.com, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-> > bdi_position_ratio() provides a scale factor to bdi->dirty_ratelimit, so
-> > that the resulted task rate limit can drive the dirty pages back to the
-> > global/bdi setpoints.
-> > 
+On Fri, Aug 12, 2011 at 18:19 -0500, H. Peter Anvin wrote:
+> Vasiliy Kulikov <segoon@openwall.com> wrote:
 > 
-> IMHO, "position_ratio" is not necessarily very intutive. Can there be
-> a better name? Based on your slides, it is scaling factor applied to
-> task rate limit depending on how well we are doing in terms of meeting
-> our goal of dirty limit. Will "dirty_rate_scale_factor" or something like
-> that make sense and be little more intutive? 
+> >This patch changes mmap base address allocator logic to incline to
+> >allocate addresses from the first 16 Mbs of address space.  These
+> >addresses start from zero byte (0x00AABBCC).
+...
 
-Yeah position_ratio is some scale factor to the dirty rate, and I
-added a comment for that. On the other hand position_ratio does
-reflect the underlying "position control of dirty pages" logic. So
-over time it should be reasonably understandable in the other way :)
+To make it clear:
+
+The VM space is not significantly reduced - an additional gap, which
+is used for ASCII-protected region, is calculated the same way as the
+common mmap gap is calculated.  The maximum size of the gap is 1MB for
+the upstream kernel default ASLR entropy - a trifle IMO.
+
+If the new allocator fails to find appropriate vma in the protected
+zone, the old one tries to do the job.  So, no visible changes for
+userspace.
+
+
+As to the benefit:
+
+1) For small PIE programs, which don't use much libraries, all
+executable regions are moved to the protected zone.
+
+2) For non-PIE programs if image starts from 0x00AABBCC address and fits
+into the zone the same rule of small libs applies.
+
+3) For non-PIE programs with images above 0x01000000 and/or programs
+with much libraries some code sections are outsize of the protected region.
+
+The protection works for (1) and (2) programs.  It doesn't work for (3).
+
+
+(1) is not too seldom.  Programs, which need such protection (network
+daemons, programs parsing untrusted input, etc.), are usually small
+enough.  In our distro, Openwall GNU/*/Linux, almost all daemon programs
+fit into the region.
+
+As the changes are not intrusive, we'd want to see this feature in the
+upstream kernel.  If you know why the patch cannot be a part of the
+upstream kernel - please tell me, I'll try to address the issues.
 
 Thanks,
-Fengguang
+
+-- 
+Vasiliy Kulikov
+http://www.openwall.com - bringing security into open computing environments
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
