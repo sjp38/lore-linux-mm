@@ -1,61 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 7382E6B0169
-	for <linux-mm@kvack.org>; Tue, 16 Aug 2011 10:27:43 -0400 (EDT)
-From: Arnd Bergmann <arnd@arndb.de>
-Subject: Re: [PATCH 7/9] ARM: DMA: steal memory for DMA coherent mappings
-Date: Tue, 16 Aug 2011 16:26:25 +0200
-References: <1313146711-1767-1-git-send-email-m.szyprowski@samsung.com> <201108161528.48954.arnd@arndb.de> <20110816135516.GC17310@n2100.arm.linux.org.uk>
-In-Reply-To: <20110816135516.GC17310@n2100.arm.linux.org.uk>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B0DA6B0169
+	for <linux-mm@kvack.org>; Tue, 16 Aug 2011 11:02:17 -0400 (EDT)
+Date: Tue, 16 Aug 2011 16:02:08 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 6/7] mm: vmscan: Throttle reclaim if encountering too
+ many dirty pages under writeback
+Message-ID: <20110816150208.GD4844@suse.de>
+References: <1312973240-32576-1-git-send-email-mgorman@suse.de>
+ <1312973240-32576-7-git-send-email-mgorman@suse.de>
+ <20110816140652.GC13391@localhost>
 MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Message-Id: <201108161626.26130.arnd@arndb.de>
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20110816140652.GC13391@localhost>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Michal Nazarewicz <mina86@mina86.com>, Kyungmin Park <kyungmin.park@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ankita Garg <ankita@in.ibm.com>, Daniel Walker <dwalker@codeaurora.org>, Mel Gorman <mel@csn.ul.ie>, Jesse Barker <jesse.barker@linaro.org>, Jonathan Corbet <corbet@lwn.net>, Shariq Hasnain <shariq.hasnain@linaro.org>, Chunsang Jeong <chunsang.jeong@linaro.org>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, XFS <xfs@oss.sgi.com>, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, Johannes Weiner <jweiner@redhat.com>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>
 
-On Tuesday 16 August 2011, Russell King - ARM Linux wrote:
-> On Tue, Aug 16, 2011 at 03:28:48PM +0200, Arnd Bergmann wrote:
-> > Hmm, I don't remember the point about dynamically sizing the pool for
-> > ARMv6K, but that can well be an oversight on my part.  I do remember the
-> > part about taking that memory pool from the CMA region as you say.
+On Tue, Aug 16, 2011 at 10:06:52PM +0800, Wu Fengguang wrote:
+> Mel,
 > 
-> If you're setting aside a pool of pages, then you have to dynamically
-> size it.  I did mention during our discussion about this.
+> I tend to agree with the whole patchset except for this one.
 > 
-> The problem is that a pool of fixed size is two fold: you need it to be
-> sufficiently large that it can satisfy all allocations which come along
-> in atomic context.  Yet, we don't want the pool to be too large because
-> then it prevents the memory being used for other purposes.
+> The worry comes from the fact that there are always the very possible
+> unevenly distribution of dirty pages throughout the LRU lists.
+
+It is pages under writeback that determines if throttling is considered
+not dirty pages. The distinction is important. I agree with you that if
+it was dirty pages that throttling would be considered too regularly.
+
+> This
+> patch works on local information and may unnecessarily throttle page
+> reclaim when running into small spans of dirty pages.
 > 
-> Basically, the total number of pages in the pool can be a fixed size,
-> but as they are depleted through allocation, they need to be
-> re-populated from CMA to re-build the reserve for future atomic
-> allocations.  If the pool becomes larger via frees, then obviously
-> we need to give pages back.
 
-Ok, thanks for the reminder. I must have completely missed this part
-of the discussion.
+It's also calling wait_iff_congested() not congestion_wait(). This
+takes BDI congestion and zone congestion into account with this check.
 
-When I briefly considered this problem, my own conclusion was that
-the number of atomic DMA allocations would always be very low
-because they tend to be short-lived (e.g. incoming network packets),
-so we could ignore this problem and just use a smaller reservation
-size. While this seems to be true in general (see "git grep -w -A3 
-dma_alloc_coherent | grep ATOMIC"), there is one very significant
-case that we cannot ignore, which is pci_alloc_consistent.
+       /*
+         * If there is no congestion, or heavy congestion is not being
+         * encountered in the current zone, yield if necessary instead
+         * of sleeping on the congestion queue
+         */
+        if (atomic_read(&nr_bdi_congested[sync]) == 0 ||
+                        !zone_is_reclaim_congested(zone)) {
 
-This function is still called by hundreds of PCI drivers and always
-does dma_alloc_coherent(..., GFP_ATOMIC), even for long-lived
-allocations and those that are too large to be ignored.
+So global information is being taken into account.
 
-So at least for the case where we have PCI devices, I agree that
-we need to have the dynamic pool.
+> One possible scheme of global throttling is to first tag the skipped
+> page with PG_reclaim (as you already do). And to throttle page reclaim
+> only when running into pages with both PG_dirty and PG_reclaim set,
 
-	Arnd
+It's PG_writeback that is looked at, not PG_dirty.
+
+> which means we have cycled through the _whole_ LRU list (which is the
+> global and adaptive feedback we want) and run into that dirty page for
+> the second time.
+> 
+
+This potentially results in more scanning from kswapd before it starts
+throttling which could consume a lot of CPU. If pages under writeback
+are reaching the end of the LRU, it's already the case that kswapd is
+scanning faster than pages can be cleaned. Even then, it only really
+throttles if the zone or a BDI is congested.
+
+Taking that into consideration, do you still think there is a big
+advantage to having writeback pages take another lap around the LRU
+that is justifies the expected increase in CPU usage?
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
