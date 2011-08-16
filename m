@@ -1,50 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id DBC1F6B0169
-	for <linux-mm@kvack.org>; Tue, 16 Aug 2011 09:55:53 -0400 (EDT)
-Date: Tue, 16 Aug 2011 14:55:16 +0100
-From: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Subject: Re: [PATCH 7/9] ARM: DMA: steal memory for DMA coherent mappings
-Message-ID: <20110816135516.GC17310@n2100.arm.linux.org.uk>
-References: <1313146711-1767-1-git-send-email-m.szyprowski@samsung.com> <201108121453.05898.arnd@arndb.de> <20110814075205.GA4986@n2100.arm.linux.org.uk> <201108161528.48954.arnd@arndb.de>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 1673A6B0169
+	for <linux-mm@kvack.org>; Tue, 16 Aug 2011 10:06:58 -0400 (EDT)
+Date: Tue, 16 Aug 2011 22:06:52 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 6/7] mm: vmscan: Throttle reclaim if encountering too
+ many dirty pages under writeback
+Message-ID: <20110816140652.GC13391@localhost>
+References: <1312973240-32576-1-git-send-email-mgorman@suse.de>
+ <1312973240-32576-7-git-send-email-mgorman@suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201108161528.48954.arnd@arndb.de>
+In-Reply-To: <1312973240-32576-7-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arnd Bergmann <arnd@arndb.de>
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Michal Nazarewicz <mina86@mina86.com>, Kyungmin Park <kyungmin.park@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ankita Garg <ankita@in.ibm.com>, Daniel Walker <dwalker@codeaurora.org>, Mel Gorman <mel@csn.ul.ie>, Jesse Barker <jesse.barker@linaro.org>, Jonathan Corbet <corbet@lwn.net>, Shariq Hasnain <shariq.hasnain@linaro.org>, Chunsang Jeong <chunsang.jeong@linaro.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, XFS <xfs@oss.sgi.com>, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, Johannes Weiner <jweiner@redhat.com>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>
 
-On Tue, Aug 16, 2011 at 03:28:48PM +0200, Arnd Bergmann wrote:
-> On Sunday 14 August 2011, Russell King - ARM Linux wrote:
-> > On Fri, Aug 12, 2011 at 02:53:05PM +0200, Arnd Bergmann wrote:
-> > > 
-> > > I thought that our discussion ended with the plan to use this only
-> > > for ARMv6+ (which has a problem with double mapping) but not on ARMv5
-> > > and below (which don't have this problem but might need dmabounce).
-> > 
-> > I thought we'd decided to have a pool of available CMA memory on ARMv6K
-> > to satisfy atomic allocations, which can grow and shrink in size, rather
-> > than setting aside a fixed amount of contiguous system memory.
-> 
-> Hmm, I don't remember the point about dynamically sizing the pool for
-> ARMv6K, but that can well be an oversight on my part.  I do remember the
-> part about taking that memory pool from the CMA region as you say.
+Mel,
 
-If you're setting aside a pool of pages, then you have to dynamically
-size it.  I did mention during our discussion about this.
+I tend to agree with the whole patchset except for this one.
 
-The problem is that a pool of fixed size is two fold: you need it to be
-sufficiently large that it can satisfy all allocations which come along
-in atomic context.  Yet, we don't want the pool to be too large because
-then it prevents the memory being used for other purposes.
+The worry comes from the fact that there are always the very possible
+unevenly distribution of dirty pages throughout the LRU lists. This
+patch works on local information and may unnecessarily throttle page
+reclaim when running into small spans of dirty pages.
 
-Basically, the total number of pages in the pool can be a fixed size,
-but as they are depleted through allocation, they need to be
-re-populated from CMA to re-build the reserve for future atomic
-allocations.  If the pool becomes larger via frees, then obviously
-we need to give pages back.
+One possible scheme of global throttling is to first tag the skipped
+page with PG_reclaim (as you already do). And to throttle page reclaim
+only when running into pages with both PG_dirty and PG_reclaim set,
+which means we have cycled through the _whole_ LRU list (which is the
+global and adaptive feedback we want) and run into that dirty page for
+the second time.
+
+One test scheme would be to read/write a sparse file fast with some
+average 5:1 or 10:1 or whatever read:write ratio. This can effectively
+spread dirty pages all over the LRU list. It's a practical test since
+it mimics the typical file server workload with concurrent downloads
+and uploads.
+
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
