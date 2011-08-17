@@ -1,257 +1,165 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 36D2B6B0169
-	for <linux-mm@kvack.org>; Tue, 16 Aug 2011 21:01:34 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id EDB7D3EE0BC
-	for <linux-mm@kvack.org>; Wed, 17 Aug 2011 10:01:30 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id D054045DE59
-	for <linux-mm@kvack.org>; Wed, 17 Aug 2011 10:01:30 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id A471B45DE5A
-	for <linux-mm@kvack.org>; Wed, 17 Aug 2011 10:01:30 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 967761DB804F
-	for <linux-mm@kvack.org>; Wed, 17 Aug 2011 10:01:30 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 4CE241DB8054
-	for <linux-mm@kvack.org>; Wed, 17 Aug 2011 10:01:30 +0900 (JST)
-Date: Wed, 17 Aug 2011 09:54:05 +0900
+Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
+	by kanga.kvack.org (Postfix) with ESMTP id EC25F6B016A
+	for <linux-mm@kvack.org>; Tue, 16 Aug 2011 21:14:20 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 477F33EE0BC
+	for <linux-mm@kvack.org>; Wed, 17 Aug 2011 10:14:17 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2E21D45DE9E
+	for <linux-mm@kvack.org>; Wed, 17 Aug 2011 10:14:17 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 1768645DE7E
+	for <linux-mm@kvack.org>; Wed, 17 Aug 2011 10:14:17 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 076E91DB8038
+	for <linux-mm@kvack.org>; Wed, 17 Aug 2011 10:14:17 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id B42FE1DB803B
+	for <linux-mm@kvack.org>; Wed, 17 Aug 2011 10:14:16 +0900 (JST)
+Date: Wed, 17 Aug 2011 10:06:52 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH v5 2/6]  memcg: stop vmscan when enough done.
-Message-Id: <20110817095405.ee3dcd74.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20110811145055.GN8023@tiehlicka.suse.cz>
-References: <20110809190450.16d7f845.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110809190933.d965888b.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110810141425.GC15007@tiehlicka.suse.cz>
-	<20110811085252.b29081f1.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110811145055.GN8023@tiehlicka.suse.cz>
+Subject: Re: [PATCH 5/7] mm: vmscan: Do not writeback filesystem pages in
+ kswapd except in high priority
+Message-Id: <20110817100652.e321bf26.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110811202504.GB4844@suse.de>
+References: <1312973240-32576-1-git-send-email-mgorman@suse.de>
+	<1312973240-32576-6-git-send-email-mgorman@suse.de>
+	<20110811181029.d3c10169.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110811202504.GB4844@suse.de>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, XFS <xfs@oss.sgi.com>, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, Johannes Weiner <jweiner@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>
 
-On Thu, 11 Aug 2011 16:50:55 +0200
-Michal Hocko <mhocko@suse.cz> wrote:
+On Thu, 11 Aug 2011 21:25:04 +0100
+Mel Gorman <mgorman@suse.de> wrote:
 
-> What about this (just compile tested)?
-> --- 
-> From: Michal Hocko <mhocko@suse.cz>
-> Subject: memcg: add nr_pages argument for hierarchical reclaim
+> On Thu, Aug 11, 2011 at 06:10:29PM +0900, KAMEZAWA Hiroyuki wrote:
+> > On Wed, 10 Aug 2011 11:47:18 +0100
+> > Mel Gorman <mgorman@suse.de> wrote:
+> > 
+> > > It is preferable that no dirty pages are dispatched for cleaning from
+> > > the page reclaim path. At normal priorities, this patch prevents kswapd
+> > > writing pages.
+> > > 
+> > > However, page reclaim does have a requirement that pages be freed
+> > > in a particular zone. If it is failing to make sufficient progress
+> > > (reclaiming < SWAP_CLUSTER_MAX at any priority priority), the priority
+> > > is raised to scan more pages. A priority of DEF_PRIORITY - 3 is
+> > > considered to be the point where kswapd is getting into trouble
+> > > reclaiming pages. If this priority is reached, kswapd will dispatch
+> > > pages for writing.
+> > > 
+> > > Signed-off-by: Mel Gorman <mgorman@suse.de>
+> > > Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+> > 
+> > 
+> > Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > 
 > 
-> Now that we are doing memcg direct reclaim limited to nr_to_reclaim
-> pages (introduced by "memcg: stop vmscan when enough done.") we have to
-> be more careful. Currently we are using SWAP_CLUSTER_MAX which is OK for
-> most callers but it might cause failures for limit resize or force_empty
-> code paths on big NUMA machines.
+> Thanks
 > 
-> Previously we might have reclaimed up to nr_nodes * SWAP_CLUSTER_MAX
-> while now we have it at SWAP_CLUSTER_MAX. Both resize and force_empty rely
-> on reclaiming a certain amount of pages and retrying if their condition is
-> still not met.
+> > BTW, I'd like to see summary of the effect of priority..
+> > 
 > 
-> Let's add nr_pages argument to mem_cgroup_hierarchical_reclaim which will
-> push it further to try_to_free_mem_cgroup_pages. We still fall back to
-> SWAP_CLUSTER_MAX for small requests so the standard code (hot) paths are not
-> affected by this.
+> What sort of summary are you looking for? If pressure is high enough,
+> writes start happening from reclaim. On NUMA, it can be particularly
+> pronounced. Here is a summary of page writes from reclaim over a range
+> of tests
 > 
-> Open questions:
-> - Should we care about soft limit as well? Currently I am using excess
->   number of pages for the parameter so it can replace direct query for
->   the value in mem_cgroup_hierarchical_reclaim but should we push it to
->   mem_cgroup_shrink_node_zone?
->   I do not think so because we should try to reclaim from more groups in the
->   hierarchy and also it doesn't get to shrink_zones which has been modified
->   by the previous patch.
-
-
-
-> - mem_cgroup_force_empty asks for reclaiming all pages. I guess it should be
->   OK but will have to think about it some more.
-
-force_empty/rmdir() is allowed to be stopped by Ctrl-C. I think passing res->usage
-is overkilling.
-
-
-> - Aren't we going to reclaim too much when we hit the limit due to THP?
-
-When we use THP without memcg, failure in memory allocation
-just fails and khugepaged will make small pages into hugepage later.
-
-Memcg doesn't need to take special care, I think.
-If we change it, it will be performance matter and should be measured.
-
+> 512M1P-xfs           Page writes file fsmark                                 8113        74
+> 512M1P-xfs           Page writes file simple-wb                             19895         1
+> 512M1P-xfs           Page writes file mmap-strm                               997        95
+> 512M-xfs             Page writes file fsmark                                12071         9
+> 512M-xfs             Page writes file simple-wb                             31709         1
+> 512M-xfs             Page writes file mmap-strm                            148274      2448
+> 512M-4X-xfs          Page writes file fsmark                                12828         0
+> 512M-4X-xfs          Page writes file simple-wb                             32168         5
+> 512M-4X-xfs          Page writes file mmap-strm                            346460      4405
+> 512M-16X-xfs         Page writes file fsmark                                11566        29
+> 512M-16X-xfs         Page writes file simple-wb                             31935         4
+> 512M-16X-xfs         Page writes file mmap-strm                             38085      4371
 > 
-> Signed-off-by: Michal Hocko <mhocko@suse.cz>
+> With 1 processor (512M1P), very few writes occur as for the most part
+> flushers are keeping up. With 4x times more processors than there are
+> CPUs (512M-4X), there are more writes by kswapd..
 > 
-> Index: linus_tree/include/linux/memcontrol.h
-> ===================================================================
-> --- linus_tree.orig/include/linux/memcontrol.h	2011-08-11 15:44:43.000000000 +0200
-> +++ linus_tree/include/linux/memcontrol.h	2011-08-11 15:46:27.000000000 +0200
-> @@ -130,7 +130,8 @@ extern void mem_cgroup_print_oom_info(st
->  
->  extern unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem,
->  						  gfp_t gfp_mask, bool noswap,
-> -						  struct memcg_scanrecord *rec);
-> +						  struct memcg_scanrecord *rec,
-> +						  unsigned long nr_pages);
->  extern unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *mem,
->  						gfp_t gfp_mask, bool noswap,
->  						struct zone *zone,
-> Index: linus_tree/mm/memcontrol.c
-> ===================================================================
-> --- linus_tree.orig/mm/memcontrol.c	2011-08-11 15:36:15.000000000 +0200
-> +++ linus_tree/mm/memcontrol.c	2011-08-11 16:00:46.000000000 +0200
-> @@ -1729,12 +1729,15 @@ static void mem_cgroup_record_scanstat(s
->   * (other groups can be removed while we're walking....)
->   *
->   * If shrink==true, for avoiding to free too much, this returns immedieately.
-> + * Given nr_pages tells how many pages are we over the soft limit or how many
-> + * pages do we want to reclaim in the direct reclaim mode.
->   */
->  static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
->  						struct zone *zone,
->  						gfp_t gfp_mask,
->  						unsigned long reclaim_options,
-> -						unsigned long *total_scanned)
-> +						unsigned long *total_scanned,
-> +						unsigned long nr_pages)
->  {
->  	struct mem_cgroup *victim;
->  	int ret, total = 0;
-> @@ -1743,11 +1746,8 @@ static int mem_cgroup_hierarchical_recla
->  	bool shrink = reclaim_options & MEM_CGROUP_RECLAIM_SHRINK;
->  	bool check_soft = reclaim_options & MEM_CGROUP_RECLAIM_SOFT;
->  	struct memcg_scanrecord rec;
-> -	unsigned long excess;
->  	unsigned long scanned;
->  
-> -	excess = res_counter_soft_limit_excess(&root_mem->res) >> PAGE_SHIFT;
-> -
->  	/* If memsw_is_minimum==1, swap-out is of-no-use. */
->  	if (!check_soft && !shrink && root_mem->memsw_is_minimum)
->  		noswap = true;
-> @@ -1785,11 +1785,11 @@ static int mem_cgroup_hierarchical_recla
->  				}
->  				/*
->  				 * We want to do more targeted reclaim.
-> -				 * excess >> 2 is not to excessive so as to
-> +				 * nr_pages >> 2 is not to excessive so as to
->  				 * reclaim too much, nor too less that we keep
->  				 * coming back to reclaim from this cgroup
->  				 */
-> -				if (total >= (excess >> 2) ||
-> +				if (total >= (nr_pages >> 2) ||
->  					(loop > MEM_CGROUP_MAX_RECLAIM_LOOPS)) {
->  					css_put(&victim->css);
->  					break;
-> @@ -1816,7 +1816,7 @@ static int mem_cgroup_hierarchical_recla
->  			*total_scanned += scanned;
->  		} else
->  			ret = try_to_free_mem_cgroup_pages(victim, gfp_mask,
-> -						noswap, &rec);
-> +						noswap, &rec, nr_pages);
->  		mem_cgroup_record_scanstat(&rec);
->  		css_put(&victim->css);
->  		/*
-> @@ -2332,7 +2332,8 @@ static int mem_cgroup_do_charge(struct m
->  		return CHARGE_WOULDBLOCK;
->  
->  	ret = mem_cgroup_hierarchical_reclaim(mem_over_limit, NULL,
-> -					      gfp_mask, flags, NULL);
-> +					      gfp_mask, flags, NULL,
-> +					      nr_pages);
+> 1024M1P-xfs          Page writes file fsmark                                 3446         1
+> 1024M1P-xfs          Page writes file simple-wb                             11697         6
+> 1024M1P-xfs          Page writes file mmap-strm                              4077       446
+> 1024M-xfs            Page writes file fsmark                                 5159         0
+> 1024M-xfs            Page writes file simple-wb                             12785         5
+> 1024M-xfs            Page writes file mmap-strm                            251153      8108
+> 1024M-4X-xfs         Page writes file fsmark                                 4781         0
+> 1024M-4X-xfs         Page writes file simple-wb                             12486         6
+> 1024M-4X-xfs         Page writes file mmap-strm                           1627122     15000
+> 1024M-16X-xfs        Page writes file fsmark                                 3777         1
+> 1024M-16X-xfs        Page writes file simple-wb                             11856         2
+> 1024M-16X-xfs        Page writes file mmap-strm                              6563      2638
+> 4608M1P-xfs          Page writes file fsmark                                 1497         0
+> 4608M1P-xfs          Page writes file simple-wb                              4305         0
+> 4608M1P-xfs          Page writes file mmap-strm                             17586     10153
+> 4608M-xfs            Page writes file fsmark                                 3380         0
+> 4608M-xfs            Page writes file simple-wb                              5528         0
+> 4608M-4X-xfs         Page writes file fsmark                                 4650         0
+> 4608M-4X-xfs         Page writes file simple-wb                              5621         0
+> 4608M-4X-xfs         Page writes file mmap-strm                            149751     18395
+> 4608M-16X-xfs        Page writes file fsmark                                  388         0
+> 4608M-16X-xfs        Page writes file simple-wb                              5466         0
+> 4608M-16X-xfs        Page writes file mmap-strm                           3349772     19307
+> 
+> This is the same type of tests just with more memory. If enough
+> processes are running, kswapd will start writing pages as it tries
+> to reclaim memory.
+> 
+> 4096M8N-xfs          Page writes file fsmark                                11571      8163
+> 4096M8N-xfs          Page writes file simple-wb                             28979     11460
+> 4096M8N-xfs          Page writes file mmap-strm                            178999     12181
+> 4096M8N-4X-xfs       Page writes file fsmark                                14421      7487
+> 4096M8N-4X-xfs       Page writes file simple-wb                             26474     10529
+> 4096M8N-4X-xfs       Page writes file mmap-strm                            163770     58765
+> 4096M8N-16X-xfs      Page writes file fsmark                                16726      9265
+> 4096M8N-16X-xfs      Page writes file simple-wb                             28800     11129
+> 4096M8N-16X-xfs      Page writes file mmap-strm                             73303     48267
+> 
+> This is with 8 NUMA nodes, each 512M in size. As the flusher threads are
+> not targetting a specific ndoe, kswapd writing pages happens more
+> frequently.
+> 
 
-Hmm, in usual, nr_pages = batch = CHARGE_BATCH = 32 ? At allocating Hugepage,
-this nr_pages will be 512 ? I think it's too big...
+Thank you for illustration.
+
+> Is this what you are looking for?
+> 
+
+I just wondered how 'priority' is used over vmscan.c
+
+It's used for
+  - calculate # of pages to be scanned.
+  - sleep(congestion_wait())
+  - change reclaim mode
+  - reclaim stall detection
+  - quit scan loop 
+  - all_unreclaimable detection
+  - swap token
+  - write back skip <----- New!
+
+To me, it seems a value is used for many purpose.
+And I wonder whether this is good or not..
 
 Thanks,
 -Kame
 
 
 
->  	if (mem_cgroup_margin(mem_over_limit) >= nr_pages)
->  		return CHARGE_RETRY;
->  	/*
-> @@ -3567,7 +3568,8 @@ static int mem_cgroup_resize_limit(struc
->  
->  		mem_cgroup_hierarchical_reclaim(memcg, NULL, GFP_KERNEL,
->  						MEM_CGROUP_RECLAIM_SHRINK,
-> -						NULL);
-> +						NULL,
-> +						(val-memlimit) >> PAGE_SHIFT);
->  		curusage = res_counter_read_u64(&memcg->res, RES_USAGE);
->  		/* Usage is reduced ? */
->    		if (curusage >= oldusage)
-> @@ -3628,7 +3630,8 @@ static int mem_cgroup_resize_memsw_limit
->  		mem_cgroup_hierarchical_reclaim(memcg, NULL, GFP_KERNEL,
->  						MEM_CGROUP_RECLAIM_NOSWAP |
->  						MEM_CGROUP_RECLAIM_SHRINK,
-> -						NULL);
-> +						NULL,
-> +						(val-memswlimit) >> PAGE_SHIFT);
->  		curusage = res_counter_read_u64(&memcg->memsw, RES_USAGE);
->  		/* Usage is reduced ? */
->  		if (curusage >= oldusage)
-> @@ -3671,10 +3674,12 @@ unsigned long mem_cgroup_soft_limit_recl
->  			break;
->  
->  		nr_scanned = 0;
-> +		excess = res_counter_soft_limit_excess(&mz->mem->res);
->  		reclaimed = mem_cgroup_hierarchical_reclaim(mz->mem, zone,
->  						gfp_mask,
->  						MEM_CGROUP_RECLAIM_SOFT,
-> -						&nr_scanned);
-> +						&nr_scanned,
-> +						excess >> PAGE_SHIFT);
->  		nr_reclaimed += reclaimed;
->  		*total_scanned += nr_scanned;
->  		spin_lock(&mctz->lock);
-> @@ -3871,7 +3876,8 @@ try_to_free:
->  		rec.mem = mem;
->  		rec.root = mem;
->  		progress = try_to_free_mem_cgroup_pages(mem, GFP_KERNEL,
-> -						false, &rec);
-> +						false, &rec,
-> +						mem->res.usage >> PAGE_SHIFT);
->  		if (!progress) {
->  			nr_retries--;
->  			/* maybe some writeback is necessary */
-> Index: linus_tree/mm/vmscan.c
-> ===================================================================
-> --- linus_tree.orig/mm/vmscan.c	2011-08-11 15:44:43.000000000 +0200
-> +++ linus_tree/mm/vmscan.c	2011-08-11 16:41:22.000000000 +0200
-> @@ -2340,7 +2340,8 @@ unsigned long mem_cgroup_shrink_node_zon
->  unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem_cont,
->  					   gfp_t gfp_mask,
->  					   bool noswap,
-> -					   struct memcg_scanrecord *rec)
-> +					   struct memcg_scanrecord *rec,
-> +					   unsigned long nr_pages)
->  {
->  	struct zonelist *zonelist;
->  	unsigned long nr_reclaimed;
-> @@ -2350,7 +2351,7 @@ unsigned long try_to_free_mem_cgroup_pag
->  		.may_writepage = !laptop_mode,
->  		.may_unmap = 1,
->  		.may_swap = !noswap,
-> -		.nr_to_reclaim = SWAP_CLUSTER_MAX,
-> +		.nr_to_reclaim = max_t(unsigned long, nr_pages, SWAP_CLUSTER_MAX),
->  		.order = 0,
->  		.mem_cgroup = mem_cont,
->  		.memcg_record = rec,
-> -- 
-> Michal Hocko
-> SUSE Labs
-> SUSE LINUX s.r.o.
-> Lihovarska 1060/12
-> 190 00 Praha 9    
-> Czech Republic
-> 
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
