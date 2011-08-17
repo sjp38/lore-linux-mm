@@ -1,55 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B9B2900138
-	for <linux-mm@kvack.org>; Wed, 17 Aug 2011 19:23:18 -0400 (EDT)
-Subject: Re: [PATCH] mmap: add sysctl for controlling ~VM_MAYEXEC taint
-In-Reply-To: Your message of "Tue, 16 Aug 2011 10:07:46 PDT."
-             <CAB=4xhqu1FsJnNbHNeokyROvEFpRJYKhcHRLLw5QTVKOkbkWfQ@mail.gmail.com>
-From: Valdis.Kletnieks@vt.edu
-References: <1313441856-1419-1-git-send-email-wad@chromium.org> <20110816093303.GA4484@csn.ul.ie>
-            <CAB=4xhqu1FsJnNbHNeokyROvEFpRJYKhcHRLLw5QTVKOkbkWfQ@mail.gmail.com>
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 2D452900138
+	for <linux-mm@kvack.org>; Wed, 17 Aug 2011 19:59:57 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id C97FD3EE0AE
+	for <linux-mm@kvack.org>; Thu, 18 Aug 2011 08:59:53 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id AB25345DE5A
+	for <linux-mm@kvack.org>; Thu, 18 Aug 2011 08:59:53 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 82DA545DE58
+	for <linux-mm@kvack.org>; Thu, 18 Aug 2011 08:59:53 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 776A11DB804B
+	for <linux-mm@kvack.org>; Thu, 18 Aug 2011 08:59:53 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 425A81DB8051
+	for <linux-mm@kvack.org>; Thu, 18 Aug 2011 08:59:53 +0900 (JST)
+Date: Thu, 18 Aug 2011 08:52:33 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH v5 2/6]  memcg: stop vmscan when enough done.
+Message-Id: <20110818085233.69dbf23b.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110817113550.GA7482@tiehlicka.suse.cz>
+References: <20110809190450.16d7f845.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110809190933.d965888b.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110810141425.GC15007@tiehlicka.suse.cz>
+	<20110811085252.b29081f1.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110811145055.GN8023@tiehlicka.suse.cz>
+	<20110817095405.ee3dcd74.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110817113550.GA7482@tiehlicka.suse.cz>
 Mime-Version: 1.0
-Content-Type: multipart/signed; boundary="==_Exmh_1313623354_2796P";
-	 micalg=pgp-sha1; protocol="application/pgp-signature"
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Date: Wed, 17 Aug 2011 19:22:35 -0400
-Message-ID: <26032.1313623355@turing-police.cc.vt.edu>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roland McGrath <mcgrathr@google.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, Will Drewry <wad@chromium.org>, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Al Viro <viro@zeniv.linux.org.uk>, Eric Paris <eparis@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Nitin Gupta <ngupta@vflare.org>, Hugh Dickins <hughd@google.com>, Shaohua Li <shaohua.li@intel.com>, linux-mm@kvack.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
 
---==_Exmh_1313623354_2796P
-Content-Type: text/plain; charset=us-ascii
+On Wed, 17 Aug 2011 13:35:50 +0200
+Michal Hocko <mhocko@suse.cz> wrote:
 
-On Tue, 16 Aug 2011 10:07:46 PDT, Roland McGrath said:
+> On Wed 17-08-11 09:54:05, KAMEZAWA Hiroyuki wrote:
+> > On Thu, 11 Aug 2011 16:50:55 +0200
+> > Michal Hocko <mhocko@suse.cz> wrote:
+> > 
+> > > What about this (just compile tested)?
+> > > --- 
+> > > From: Michal Hocko <mhocko@suse.cz>
+> > > Subject: memcg: add nr_pages argument for hierarchical reclaim
+> > > 
+> > > Now that we are doing memcg direct reclaim limited to nr_to_reclaim
+> > > pages (introduced by "memcg: stop vmscan when enough done.") we have to
+> > > be more careful. Currently we are using SWAP_CLUSTER_MAX which is OK for
+> > > most callers but it might cause failures for limit resize or force_empty
+> > > code paths on big NUMA machines.
+> > > 
+> > > Previously we might have reclaimed up to nr_nodes * SWAP_CLUSTER_MAX
+> > > while now we have it at SWAP_CLUSTER_MAX. Both resize and force_empty rely
+> > > on reclaiming a certain amount of pages and retrying if their condition is
+> > > still not met.
+> > > 
+> > > Let's add nr_pages argument to mem_cgroup_hierarchical_reclaim which will
+> > > push it further to try_to_free_mem_cgroup_pages. We still fall back to
+> > > SWAP_CLUSTER_MAX for small requests so the standard code (hot) paths are not
+> > > affected by this.
+> > > 
+> > > Open questions:
+> > > - Should we care about soft limit as well? Currently I am using excess
+> > >   number of pages for the parameter so it can replace direct query for
+> > >   the value in mem_cgroup_hierarchical_reclaim but should we push it to
+> > >   mem_cgroup_shrink_node_zone?
+> > >   I do not think so because we should try to reclaim from more groups in the
+> > >   hierarchy and also it doesn't get to shrink_zones which has been modified
+> > >   by the previous patch.
+> > 
+> > 
+> > 
+> > > - mem_cgroup_force_empty asks for reclaiming all pages. I guess it should be
+> > >   OK but will have to think about it some more.
+> > 
+> > force_empty/rmdir() is allowed to be stopped by Ctrl-C. I think passing res->usage
+> > is overkilling.
+> 
+> So, how many pages should be reclaimed then?
+> 
 
-> I think the expectation is that the administrator or system builder
-> who decides to set the (non-default) noexec mount option will also
-> set the sysctl at the same time.
+How about (1 << (MAX_ORDER-1))/loop ?
 
-On the other hand, a design that requires 2 separate actions to be taken in
-order to make it work, and which fails unsafe if the second step isn't taken,
-is a bad design. If we're talking "expectations", let's not forget that the
-mount option is called "noexec", not "only-really-noexec-if-you-set-a-magic-sysctl". 
-
-I'll also point out that we didn't add a sysctl in 2.6.0 to say whether or not
-to still allow the old "/lib/ld-linux.so your-binary-here" hack to execute binaries
-off a partition mounted noexec - we simply said "this will no longer be permitted".
-
---==_Exmh_1313623354_2796P
-Content-Type: application/pgp-signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.11 (GNU/Linux)
-Comment: Exmh version 2.5 07/13/2001
-
-iD8DBQFOTE06cC3lWbTT17ARArvUAKDn6sm9pSqqg7YUK9N/vKxyJ5+bZgCg4o87
-t2rPh/FpyLsAJFxJFeBX0/0=
-=PKOP
------END PGP SIGNATURE-----
-
---==_Exmh_1313623354_2796P--
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
