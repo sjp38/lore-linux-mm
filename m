@@ -1,182 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id AF773900138
-	for <linux-mm@kvack.org>; Wed, 17 Aug 2011 10:34:26 -0400 (EDT)
-Date: Wed, 17 Aug 2011 16:34:18 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v5 4/6]  memg: calculate numa weight for vmscan
-Message-ID: <20110817143418.GC7482@tiehlicka.suse.cz>
-References: <20110809190450.16d7f845.kamezawa.hiroyu@jp.fujitsu.com>
- <20110809191100.6c4c3285.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110809191100.6c4c3285.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C5106B017A
+	for <linux-mm@kvack.org>; Wed, 17 Aug 2011 12:16:02 -0400 (EDT)
+From: Greg Thelen <gthelen@google.com>
+Subject: [PATCH v9 01/13] memcg: document cgroup dirty memory interfaces
+Date: Wed, 17 Aug 2011 09:14:53 -0700
+Message-Id: <1313597705-6093-2-git-send-email-gthelen@google.com>
+In-Reply-To: <1313597705-6093-1-git-send-email-gthelen@google.com>
+References: <1313597705-6093-1-git-send-email-gthelen@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, linux-fsdevel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <bsingharora@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Wu Fengguang <fengguang.wu@intel.com>, Dave Chinner <david@fromorbit.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <andrea@betterlinux.com>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Greg Thelen <gthelen@google.com>
 
-Sorry it took so long but I was quite busy recently.
+Document cgroup dirty memory interfaces and statistics.
 
-On Tue 09-08-11 19:11:00, KAMEZAWA Hiroyuki wrote:
-> caclculate node scan weight.
-> 
-> Now, memory cgroup selects a scan target node in round-robin.
-> It's not very good...there is not scheduling based on page usages.
-> 
-> This patch is for calculating each node's weight for scanning.
-> If weight of a node is high, the node is worth to be scanned.
-> 
-> The weight is now calucauted on following concept.
-> 
->    - make use of swappiness.
->    - If inactive-file is enough, ignore active-file
->    - If file is enough (w.r.t swappiness), ignore anon
->    - make use of recent_scan/rotated reclaim stats.
+The implementation for these new interfaces routines comes in a series
+of following patches.
 
-The concept looks good (see the specific comments bellow). I would
-appreciate if the description was more descriptive (especially in the
-reclaim statistics part with the reasoning why it is better).
+Signed-off-by: Andrea Righi <andrea@betterlinux.com>
+Signed-off-by: Greg Thelen <gthelen@google.com>
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+---
+ Documentation/cgroups/memory.txt |   70 ++++++++++++++++++++++++++++++++++++++
+ 1 files changed, 70 insertions(+), 0 deletions(-)
+
+diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
+index 6f3c598..5fd6ab8 100644
+--- a/Documentation/cgroups/memory.txt
++++ b/Documentation/cgroups/memory.txt
+@@ -389,6 +389,10 @@ mapped_file	- # of bytes of mapped file (includes tmpfs/shmem)
+ pgpgin		- # of pages paged in (equivalent to # of charging events).
+ pgpgout		- # of pages paged out (equivalent to # of uncharging events).
+ swap		- # of bytes of swap usage
++dirty		- # of bytes that are waiting to get written back to the disk.
++writeback	- # of bytes that are actively being written back to the disk.
++nfs_unstable	- # of bytes sent to the NFS server, but not yet committed to
++		the actual storage.
+ inactive_anon	- # of bytes of anonymous memory and swap cache memory on
+ 		LRU list.
+ active_anon	- # of bytes of anonymous and swap cache memory on active
+@@ -410,6 +414,9 @@ total_mapped_file	- sum of all children's "cache"
+ total_pgpgin		- sum of all children's "pgpgin"
+ total_pgpgout		- sum of all children's "pgpgout"
+ total_swap		- sum of all children's "swap"
++total_dirty		- sum of all children's "dirty"
++total_writeback		- sum of all children's "writeback"
++total_nfs_unstable	- sum of all children's "nfs_unstable"
+ total_inactive_anon	- sum of all children's "inactive_anon"
+ total_active_anon	- sum of all children's "active_anon"
+ total_inactive_file	- sum of all children's "inactive_file"
+@@ -567,6 +574,69 @@ unevictable=<total anon pages> N0=<node 0 pages> N1=<node 1 pages> ...
  
-> Then, a node contains many inactive file pages will be a 1st victim.
-> Node selection logic based on this weight will be in the next patch.
-> 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> ---
->  mm/memcontrol.c |  110 +++++++++++++++++++++++++++++++++++++++++++++++++++++---
->  1 file changed, 105 insertions(+), 5 deletions(-)
-> 
-> Index: mmotm-Aug3/mm/memcontrol.c
-> ===================================================================
-> --- mmotm-Aug3.orig/mm/memcontrol.c
-> +++ mmotm-Aug3/mm/memcontrol.c
-[...]
-> @@ -1568,18 +1570,108 @@ static bool test_mem_cgroup_node_reclaim
->  }
->  #if MAX_NUMNODES > 1
->  
-> +static unsigned long
-> +__mem_cgroup_calc_numascan_weight(struct mem_cgroup * memcg,
-> +				int nid,
-> +				unsigned long anon_prio,
-> +				unsigned long file_prio,
-> +				int lru_mask)
-> +{
-> +	u64 file, anon;
-> +	unsigned long weight, mask;
-
-mask is not used anywhere.
-
-> +	unsigned long rotated[2], scanned[2];
-> +	int zid;
-> +
-> +	scanned[0] = 0;
-> +	scanned[1] = 0;
-> +	rotated[0] = 0;
-> +	rotated[1] = 0;
-> +
-> +	for (zid = 0; zid < MAX_NR_ZONES; zid++) {
-> +		struct mem_cgroup_per_zone *mz;
-> +
-> +		mz = mem_cgroup_zoneinfo(memcg, nid, zid);
-> +		scanned[0] += mz->reclaim_stat.recent_scanned[0];
-> +		scanned[1] += mz->reclaim_stat.recent_scanned[1];
-> +		rotated[0] += mz->reclaim_stat.recent_rotated[0];
-> +		rotated[1] += mz->reclaim_stat.recent_rotated[1];
-> +	}
-> +	file = mem_cgroup_node_nr_lru_pages(memcg, nid, lru_mask & LRU_ALL_FILE);
-> +
-> +	if (total_swap_pages)
-
-What about ((lru_mask & LRU_ALL_ANON) && total_swap_pages)? Why should
-we go down the mem_cgroup_node_nr_lru_pages if are not getting anything?
-
-> +		anon = mem_cgroup_node_nr_lru_pages(memcg,
-> +					nid, mask & LRU_ALL_ANON);
-
-btw. s/mask/lru_mask/
-
-> +	else
-> +		anon = 0;
-
-Can be initialized during declaration (makes patch smaller).
-
-> +	if (!(file + anon))
-> +		node_clear(nid, memcg->scan_nodes);
-
-In that case we can return with 0 right away.
-
-> +
-> +	/* 'scanned - rotated/scanned' means ratio of finding not active. */
-> +	anon = anon * (scanned[0] - rotated[0]) / (scanned[0] + 1);
-> +	file = file * (scanned[1] - rotated[1]) / (scanned[1] + 1);
-
-OK, makes sense. We should not reclaim from nodes that are known to be
-hard to reclaim from. We, however, have to be careful to not exclude the
-node from reclaiming completely.
-
-> +
-> +	weight = (anon * anon_prio + file * file_prio) / 200;
-
-Shouldn't we rather normalize the weight to the node size? This way we
-are punishing bigger nodes, aren't we.
-
-> +	return weight;
-> +}
-> +
-> +/*
-> + * Calculate each NUMA node's scan weight. scan weight is determined by
-> + * amount of pages and recent scan ratio, swappiness.
-> + */
-> +static unsigned long
-> +mem_cgroup_calc_numascan_weight(struct mem_cgroup *memcg)
-> +{
-> +	unsigned long weight, total_weight;
-> +	u64 anon_prio, file_prio, nr_anon, nr_file;
-> +	int lru_mask;
-> +	int nid;
-> +
-> +	anon_prio = mem_cgroup_swappiness(memcg) + 1;
-> +	file_prio = 200 - anon_prio + 1;
-
-What is +1 good for. I do not see that anon_prio would be used as a
-denominator.
-
-> +
-> +	lru_mask = BIT(LRU_INACTIVE_FILE);
-> +	if (mem_cgroup_inactive_file_is_low(memcg))
-> +		lru_mask |= BIT(LRU_ACTIVE_FILE);
-> +	/*
-> +	 * In vmscan.c, we'll scan anonymous pages with regard to memcg/zone's
-> +	 * amounts of file/anon pages and swappiness and reclaim_stat. Here,
-> +	 * we try to find good node to be scanned. If the memcg contains enough
-> +	 * file caches, we'll ignore anon's weight.
-> +	 * (Note) scanning anon-only node tends to be waste of time.
-> +	 */
-> +
-> +	nr_file = mem_cgroup_nr_lru_pages(memcg, LRU_ALL_FILE);
-> +	nr_anon = mem_cgroup_nr_lru_pages(memcg, LRU_ALL_ANON);
-> +
-> +	/* If file cache is small w.r.t swappiness, check anon page's weight */
-> +	if (nr_file * file_prio >= nr_anon * anon_prio)
-> +		lru_mask |= BIT(LRU_INACTIVE_ANON);
-
-Why we do not care about active anon (e.g. if inactive anon is low)?
-
-> +
-> +	total_weight = 0;
-
-Can be initialized during declaration.
-
-[...]
+ And we have total = file + anon + unevictable.
+ 
++5.7 dirty memory
++
++Control the maximum amount of dirty pages a cgroup can have at any given time.
++
++Limiting dirty memory is like fixing the max amount of dirty (hard to reclaim)
++page cache used by a cgroup.  So, in case of multiple cgroup writers, they will
++not be able to consume more than their designated share of dirty pages and will
++be throttled if they cross that limit.  System-wide dirty limits are also
++consulted.  Dirty memory consumption is checked against both system-wide and
++per-cgroup dirty limits.
++
++The interface is similar to the procfs interface: /proc/sys/vm/dirty_*.  It is
++possible to configure a limit to trigger throttling of a dirtier or queue
++background writeback.  The root cgroup memory.dirty_* control files are
++read-only and match the contents of the /proc/sys/vm/dirty_* files.
++
++Per-cgroup dirty limits can be set using the following files in the cgroupfs:
++
++- memory.dirty_ratio: the amount of dirty memory (expressed as a percentage of
++  cgroup memory) at which a process generating dirty pages will be throttled.
++  The default value is the system-wide dirty ratio, /proc/sys/vm/dirty_ratio.
++
++- memory.dirty_limit_in_bytes: the amount of dirty memory (expressed in bytes)
++  in the cgroup at which a process generating dirty pages will be throttled.
++  Suffix (k, K, m, M, g, or G) can be used to indicate that value is kilo, mega
++  or gigabytes.  The default value is the system-wide dirty limit,
++  /proc/sys/vm/dirty_bytes.
++
++  Note: memory.dirty_limit_in_bytes is the counterpart of memory.dirty_ratio.
++  Only one may be specified at a time.  When one is written it is immediately
++  taken into account to evaluate the dirty memory limits and the other appears
++  as 0 when read.
++
++- memory.dirty_background_ratio: the amount of dirty memory of the cgroup
++  (expressed as a percentage of cgroup memory) at which background writeback
++  kernel threads will start writing out dirty data.  The default value is the
++  system-wide background dirty ratio, /proc/sys/vm/dirty_background_ratio.
++
++- memory.dirty_background_limit_in_bytes: the amount of dirty memory (expressed
++  in bytes) in the cgroup at which background writeback kernel threads will
++  start writing out dirty data.  Suffix (k, K, m, M, g, or G) can be used to
++  indicate that value is kilo, mega or gigabytes.  The default value is the
++  system-wide dirty background limit, /proc/sys/vm/dirty_background_bytes.
++
++  Note: memory.dirty_background_limit_in_bytes is the counterpart of
++  memory.dirty_background_ratio.  Only one may be specified at a time.  When one
++  is written it is immediately taken into account to evaluate the dirty memory
++  limits and the other appears as 0 when read.
++
++A cgroup may contain more dirty memory than its dirty limit.  This is possible
++because of the principle that the first cgroup to touch a page is charged for
++it.  Subsequent page counting events (dirty, writeback, nfs_unstable) are also
++counted to the originally charged cgroup.  Example: If page is allocated by a
++cgroup A task, then the page is charged to cgroup A.  If the page is later
++dirtied by a task in cgroup B, then the cgroup A dirty count will be
++incremented.  If cgroup A is over its dirty limit but cgroup B is not, then
++dirtying a cgroup A page from a cgroup B task may push cgroup A over its dirty
++limit without throttling the dirtying cgroup B task.
++
++When use_hierarchy=0, each cgroup has independent dirty memory usage and limits.
++When use_hierarchy=1 the dirty limits of parent cgroups are also checked to
++ensure that no dirty limit is exceeded.
++
+ 6. Hierarchy support
+ 
+ The memory controller supports a deep hierarchy and hierarchical accounting.
 -- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+1.7.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
