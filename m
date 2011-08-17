@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 7EC6F900138
-	for <linux-mm@kvack.org>; Wed, 17 Aug 2011 12:16:37 -0400 (EDT)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 958CA900138
+	for <linux-mm@kvack.org>; Wed, 17 Aug 2011 12:16:52 -0400 (EDT)
 From: Greg Thelen <gthelen@google.com>
-Subject: [PATCH v9 04/13] memcg: add kernel calls for memcg dirty page stats
-Date: Wed, 17 Aug 2011 09:14:56 -0700
-Message-Id: <1313597705-6093-5-git-send-email-gthelen@google.com>
+Subject: [PATCH v9 05/13] memcg: add mem_cgroup_mark_inode_dirty()
+Date: Wed, 17 Aug 2011 09:14:57 -0700
+Message-Id: <1313597705-6093-6-git-send-email-gthelen@google.com>
 In-Reply-To: <1313597705-6093-1-git-send-email-gthelen@google.com>
 References: <1313597705-6093-1-git-send-email-gthelen@google.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,112 +13,262 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, linux-fsdevel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <bsingharora@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Wu Fengguang <fengguang.wu@intel.com>, Dave Chinner <david@fromorbit.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <andrea@betterlinux.com>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Greg Thelen <gthelen@google.com>
 
-Add calls into memcg dirty page accounting.  Notify memcg when pages
-transition between clean, file dirty, writeback, and unstable nfs.  This
-allows the memory controller to maintain an accurate view of the amount
-of its memory that is dirty.
+Create the mem_cgroup_mark_inode_dirty() routine, which is called when
+an inode is marked dirty.  In kernels without memcg, this is an inline
+no-op.
+
+Add i_memcg field to struct address_space.  When an inode is marked
+dirty with mem_cgroup_mark_inode_dirty(), the css_id of current memcg is
+recorded in i_memcg.  Per-memcg writeback (introduced in a latter
+change) uses this field to isolate inodes associated with a particular
+memcg.
+
+The type of i_memcg is an 'unsigned short' because it stores the css_id
+of the memcg.  Using a struct mem_cgroup pointer would be larger and
+also create a reference on the memcg which would hang memcg rmdir
+deletion.  Usage of a css_id is not a reference so cgroup deletion is
+not affected.  The memcg can be deleted without cleaning up the i_memcg
+field.  When a memcg is deleted its pages are recharged to the cgroup
+parent, and the related inode(s) are marked as shared thus
+disassociating the inodes from the deleted cgroup.
+
+A mem_cgroup_mark_inode_dirty() tracepoint is also included to allow for
+easier understanding of memcg writeback operation.
 
 Signed-off-by: Greg Thelen <gthelen@google.com>
-Signed-off-by: Andrea Righi <andrea@betterlinux.com>
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Reviewed-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
 ---
- fs/nfs/write.c      |    4 ++++
- mm/filemap.c        |    1 +
- mm/page-writeback.c |    4 ++++
- mm/truncate.c       |    1 +
- 4 files changed, 10 insertions(+), 0 deletions(-)
+Changelog since v8:
+- Use I_MEMCG_SHARED when initializing i_memcg.
 
-diff --git a/fs/nfs/write.c b/fs/nfs/write.c
-index b39b37f8..f033983 100644
---- a/fs/nfs/write.c
-+++ b/fs/nfs/write.c
-@@ -449,6 +449,7 @@ nfs_mark_request_commit(struct nfs_page *req, struct pnfs_layout_segment *lseg)
- 	nfsi->ncommit++;
- 	spin_unlock(&inode->i_lock);
- 	pnfs_mark_request_commit(req, lseg);
-+	mem_cgroup_inc_page_stat(req->wb_page, MEMCG_NR_FILE_UNSTABLE_NFS);
- 	inc_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
- 	inc_bdi_stat(req->wb_page->mapping->backing_dev_info, BDI_RECLAIMABLE);
- 	__mark_inode_dirty(inode, I_DIRTY_DATASYNC);
-@@ -460,6 +461,7 @@ nfs_clear_request_commit(struct nfs_page *req)
- 	struct page *page = req->wb_page;
+- Use 'memcg' rather than 'mem' for local variables.  This is consistent with
+  other memory controller code.
+
+- The logic in mem_cgroup_update_page_stat() and mem_cgroup_move_account() which
+  marks inodes I_MEMCG_SHARED is now part of this patch.  This makes more sense
+  because this is that patch that introduces that shared-inode concept.
+
+ fs/fs-writeback.c                 |    2 +
+ fs/inode.c                        |    3 ++
+ include/linux/fs.h                |    9 +++++++
+ include/linux/memcontrol.h        |    6 ++++
+ include/trace/events/memcontrol.h |   32 +++++++++++++++++++++++++
+ mm/memcontrol.c                   |   47 ++++++++++++++++++++++++++++++++++++-
+ 6 files changed, 98 insertions(+), 1 deletions(-)
+ create mode 100644 include/trace/events/memcontrol.h
+
+diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
+index 04cf3b9..6bf4c49 100644
+--- a/fs/fs-writeback.c
++++ b/fs/fs-writeback.c
+@@ -19,6 +19,7 @@
+ #include <linux/slab.h>
+ #include <linux/sched.h>
+ #include <linux/fs.h>
++#include <linux/memcontrol.h>
+ #include <linux/mm.h>
+ #include <linux/kthread.h>
+ #include <linux/freezer.h>
+@@ -1111,6 +1112,7 @@ void __mark_inode_dirty(struct inode *inode, int flags)
+ 			spin_lock(&bdi->wb.list_lock);
+ 			inode->dirtied_when = jiffies;
+ 			list_move(&inode->i_wb_list, &bdi->wb.b_dirty);
++			mem_cgroup_mark_inode_dirty(inode);
+ 			spin_unlock(&bdi->wb.list_lock);
  
- 	if (test_and_clear_bit(PG_CLEAN, &(req)->wb_flags)) {
-+		mem_cgroup_dec_page_stat(page, MEMCG_NR_FILE_UNSTABLE_NFS);
- 		dec_zone_page_state(page, NR_UNSTABLE_NFS);
- 		dec_bdi_stat(page->mapping->backing_dev_info, BDI_RECLAIMABLE);
- 		return 1;
-@@ -1408,6 +1410,8 @@ void nfs_retry_commit(struct list_head *page_list,
- 		req = nfs_list_entry(page_list->next);
- 		nfs_list_remove_request(req);
- 		nfs_mark_request_commit(req, lseg);
-+		mem_cgroup_dec_page_stat(req->wb_page,
-+					 MEMCG_NR_FILE_UNSTABLE_NFS);
- 		dec_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
- 		dec_bdi_stat(req->wb_page->mapping->backing_dev_info,
- 			     BDI_RECLAIMABLE);
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 645a080..acf2382 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -142,6 +142,7 @@ void __delete_from_page_cache(struct page *page)
- 	 * having removed the page entirely.
+ 			if (wakeup_bdi)
+diff --git a/fs/inode.c b/fs/inode.c
+index 5aab80d..87f0fcd 100644
+--- a/fs/inode.c
++++ b/fs/inode.c
+@@ -176,6 +176,9 @@ int inode_init_always(struct super_block *sb, struct inode *inode)
+ 	mapping->assoc_mapping = NULL;
+ 	mapping->backing_dev_info = &default_backing_dev_info;
+ 	mapping->writeback_index = 0;
++#ifdef CONFIG_CGROUP_MEM_RES_CTLR
++	mapping->i_memcg = I_MEMCG_SHARED;
++#endif
+ 
+ 	/*
+ 	 * If the block_device provides a backing_dev_info for client
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index 0f496c2..417e9b93b 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -651,6 +651,9 @@ struct address_space {
+ 	spinlock_t		private_lock;	/* for use by the address_space */
+ 	struct list_head	private_list;	/* ditto */
+ 	struct address_space	*assoc_mapping;	/* ditto */
++#ifdef CONFIG_CGROUP_MEM_RES_CTLR
++	unsigned short		i_memcg;	/* css_id of memcg dirtier */
++#endif
+ } __attribute__((aligned(sizeof(long))));
+ 	/*
+ 	 * On most architectures that alignment is already the case; but
+@@ -658,6 +661,12 @@ struct address_space {
+ 	 * of struct page's "mapping" pointer be used for PAGE_MAPPING_ANON.
  	 */
- 	if (PageDirty(page) && mapping_cap_account_dirty(mapping)) {
-+		mem_cgroup_dec_page_stat(page, MEMCG_NR_FILE_DIRTY);
- 		dec_zone_page_state(page, NR_FILE_DIRTY);
- 		dec_bdi_stat(mapping->backing_dev_info, BDI_RECLAIMABLE);
- 	}
-diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index 938d943..b1f2390 100644
---- a/mm/page-writeback.c
-+++ b/mm/page-writeback.c
-@@ -1328,6 +1328,7 @@ int __set_page_dirty_no_writeback(struct page *page)
- void account_page_dirtied(struct page *page, struct address_space *mapping)
- {
- 	if (mapping_cap_account_dirty(mapping)) {
-+		mem_cgroup_inc_page_stat(page, MEMCG_NR_FILE_DIRTY);
- 		__inc_zone_page_state(page, NR_FILE_DIRTY);
- 		__inc_zone_page_state(page, NR_DIRTIED);
- 		__inc_bdi_stat(mapping->backing_dev_info, BDI_RECLAIMABLE);
-@@ -1344,6 +1345,7 @@ EXPORT_SYMBOL(account_page_dirtied);
+ 
++/*
++ * When an address_space is shared by multiple memcg dirtieres, then i_memcg is
++ * set to this special, wildcard, css_id value (zero).
++ */
++#define I_MEMCG_SHARED 0
++
+ struct block_device {
+ 	dev_t			bd_dev;  /* not a kdev_t - it's a search key */
+ 	int			bd_openers;
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index e6af3a9..630d3fa 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -119,6 +119,8 @@ mem_cgroup_prepare_migration(struct page *page,
+ extern void mem_cgroup_end_migration(struct mem_cgroup *mem,
+ 	struct page *oldpage, struct page *newpage, bool migration_ok);
+ 
++void mem_cgroup_mark_inode_dirty(struct inode *inode);
++
+ /*
+  * For memory reclaim.
   */
- void account_page_writeback(struct page *page)
+@@ -297,6 +299,10 @@ static inline void mem_cgroup_end_migration(struct mem_cgroup *mem,
  {
-+	mem_cgroup_inc_page_stat(page, MEMCG_NR_FILE_WRITEBACK);
- 	inc_zone_page_state(page, NR_WRITEBACK);
  }
- EXPORT_SYMBOL(account_page_writeback);
-@@ -1526,6 +1528,7 @@ int clear_page_dirty_for_io(struct page *page)
- 		 * for more comments.
- 		 */
- 		if (TestClearPageDirty(page)) {
-+			mem_cgroup_dec_page_stat(page, MEMCG_NR_FILE_DIRTY);
- 			dec_zone_page_state(page, NR_FILE_DIRTY);
- 			dec_bdi_stat(mapping->backing_dev_info,
- 					BDI_RECLAIMABLE);
-@@ -1562,6 +1565,7 @@ int test_clear_page_writeback(struct page *page)
- 		ret = TestClearPageWriteback(page);
- 	}
- 	if (ret) {
-+		mem_cgroup_dec_page_stat(page, MEMCG_NR_FILE_WRITEBACK);
- 		dec_zone_page_state(page, NR_WRITEBACK);
- 		inc_zone_page_state(page, NR_WRITTEN);
- 	}
-diff --git a/mm/truncate.c b/mm/truncate.c
-index b40ac6d..bb85b76 100644
---- a/mm/truncate.c
-+++ b/mm/truncate.c
-@@ -76,6 +76,7 @@ void cancel_dirty_page(struct page *page, unsigned int account_size)
- 	if (TestClearPageDirty(page)) {
- 		struct address_space *mapping = page->mapping;
- 		if (mapping && mapping_cap_account_dirty(mapping)) {
-+			mem_cgroup_dec_page_stat(page, MEMCG_NR_FILE_DIRTY);
- 			dec_zone_page_state(page, NR_FILE_DIRTY);
- 			dec_bdi_stat(mapping->backing_dev_info,
- 					BDI_RECLAIMABLE);
+ 
++static inline void mem_cgroup_mark_inode_dirty(struct inode *inode)
++{
++}
++
+ static inline int mem_cgroup_get_reclaim_priority(struct mem_cgroup *mem)
+ {
+ 	return 0;
+diff --git a/include/trace/events/memcontrol.h b/include/trace/events/memcontrol.h
+new file mode 100644
+index 0000000..781ef9fc
+--- /dev/null
++++ b/include/trace/events/memcontrol.h
+@@ -0,0 +1,32 @@
++#undef TRACE_SYSTEM
++#define TRACE_SYSTEM memcontrol
++
++#if !defined(_TRACE_MEMCONTROL_H) || defined(TRACE_HEADER_MULTI_READ)
++#define _TRACE_MEMCONTROL_H
++
++#include <linux/types.h>
++#include <linux/tracepoint.h>
++
++TRACE_EVENT(mem_cgroup_mark_inode_dirty,
++	TP_PROTO(struct inode *inode),
++
++	TP_ARGS(inode),
++
++	TP_STRUCT__entry(
++		__field(unsigned long, ino)
++		__field(unsigned short, css_id)
++		),
++
++	TP_fast_assign(
++		__entry->ino = inode->i_ino;
++		__entry->css_id =
++			inode->i_mapping ? inode->i_mapping->i_memcg : 0;
++		),
++
++	TP_printk("ino=%ld css_id=%d", __entry->ino, __entry->css_id)
++)
++
++#endif /* _TRACE_MEMCONTROL_H */
++
++/* This part must be outside protection */
++#include <trace/define_trace.h>
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 723b8bf..eda0d9a 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -55,6 +55,9 @@
+ 
+ #include <trace/events/vmscan.h>
+ 
++#define CREATE_TRACE_POINTS
++#include <trace/events/memcontrol.h>
++
+ struct cgroup_subsys mem_cgroup_subsys __read_mostly;
+ #define MEM_CGROUP_RECLAIM_RETRIES	5
+ struct mem_cgroup *root_mem_cgroup __read_mostly;
+@@ -1174,6 +1177,27 @@ static int calc_inactive_ratio(struct mem_cgroup *memcg, unsigned long *present_
+ 	return inactive_ratio;
+ }
+ 
++/*
++ * Mark the current task's memcg as the memcg associated with inode.  Note: the
++ * recorded cgroup css_id is not guaranteed to remain correct.  The current task
++ * may be moved to another cgroup.  The memcg may also be deleted before the
++ * caller has time to use the i_memcg.
++ */
++void mem_cgroup_mark_inode_dirty(struct inode *inode)
++{
++	struct mem_cgroup *memcg;
++	unsigned short id;
++
++	rcu_read_lock();
++	memcg = mem_cgroup_from_task(current);
++	id = memcg ? css_id(&memcg->css) : I_MEMCG_SHARED;
++	rcu_read_unlock();
++
++	inode->i_mapping->i_memcg = id;
++
++	trace_mem_cgroup_mark_inode_dirty(inode);
++}
++
+ int mem_cgroup_inactive_anon_is_low(struct mem_cgroup *memcg)
+ {
+ 	unsigned long active;
+@@ -2041,6 +2065,7 @@ void mem_cgroup_update_page_stat(struct page *page,
+ {
+ 	struct mem_cgroup *mem;
+ 	struct page_cgroup *pc = lookup_page_cgroup(page);
++	struct address_space *mapping;
+ 	bool need_unlock = false;
+ 	unsigned long uninitialized_var(flags);
+ 
+@@ -2073,8 +2098,18 @@ void mem_cgroup_update_page_stat(struct page *page,
+ 	case MEMCG_NR_FILE_DIRTY:
+ 		/* Use Test{Set,Clear} to only un/charge the memcg once. */
+ 		if (val > 0) {
++			mapping = page_mapping(page);
+ 			if (TestSetPageCgroupFileDirty(pc))
+ 				val = 0;
++			else if (mapping &&
++				 (mapping->i_memcg != I_MEMCG_SHARED) &&
++				 (mapping->i_memcg != css_id(&mem->css)))
++				/*
++				 * If the inode is being dirtied by a memcg
++				 * other than the one that marked it dirty, then
++				 * mark the inode shared by multiple memcg.
++				 */
++				mapping->i_memcg = I_MEMCG_SHARED;
+ 		} else {
+ 			if (!TestClearPageCgroupFileDirty(pc))
+ 				val = 0;
+@@ -2766,9 +2801,19 @@ static int mem_cgroup_move_account(struct page *page,
+ 	if (PageCgroupFileMapped(pc))
+ 		mem_cgroup_move_account_page_stat(from, to,
+ 					MEM_CGROUP_STAT_FILE_MAPPED);
+-	if (PageCgroupFileDirty(pc))
++	if (PageCgroupFileDirty(pc)) {
+ 		mem_cgroup_move_account_page_stat(from, to,
+ 						  MEM_CGROUP_STAT_FILE_DIRTY);
++		/*
++		 * Moving a dirty file page between memcg makes the underlying
++		 * inode shared.  If the new (to) cgroup attempts writeback it
++		 * should consider this inode.  If the old (from) cgroup
++		 * attempts writeback it likely has other pages in the same
++		 * inode.  The inode is now shared by the to and from cgroups.
++		 * So mark the inode as shared.
++		 */
++		page_mapping(page)->i_memcg = I_MEMCG_SHARED;
++	}
+ 	if (PageCgroupFileWriteback(pc))
+ 		mem_cgroup_move_account_page_stat(from, to,
+ 					MEM_CGROUP_STAT_FILE_WRITEBACK);
 -- 
 1.7.3.1
 
