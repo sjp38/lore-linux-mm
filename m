@@ -1,84 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 0D12E6B0170
-	for <linux-mm@kvack.org>; Wed, 17 Aug 2011 08:43:54 -0400 (EDT)
-Date: Wed, 17 Aug 2011 14:43:40 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH V2 1/1][cleanup] memcg: renaming of mem variable to memcg
-Message-ID: <20110817124339.GA10245@tiehlicka.suse.cz>
-References: <20110812070623.28939.4733.sendpatchset@oc5400248562.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110812070623.28939.4733.sendpatchset@oc5400248562.ibm.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 20756900138
+	for <linux-mm@kvack.org>; Wed, 17 Aug 2011 08:49:52 -0400 (EDT)
+MIME-version: 1.0
+Content-transfer-encoding: 7BIT
+Content-type: text/plain; charset=us-ascii
+Received: from spt2.w1.samsung.com ([210.118.77.14]) by mailout4.w1.samsung.com
+ (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
+ with ESMTP id <0LQ200FXSOZ14460@mailout4.w1.samsung.com> for
+ linux-mm@kvack.org; Wed, 17 Aug 2011 13:49:49 +0100 (BST)
+Received: from linux.samsung.com ([106.116.38.10])
+ by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
+ 2004)) with ESMTPA id <0LQ2007H9OZ03S@spt2.w1.samsung.com> for
+ linux-mm@kvack.org; Wed, 17 Aug 2011 13:49:48 +0100 (BST)
+Date: Wed, 17 Aug 2011 14:49:13 +0200
+From: Marek Szyprowski <m.szyprowski@samsung.com>
+Subject: RE: [PATCH 7/9] ARM: DMA: steal memory for DMA coherent mappings
+In-reply-to: 
+Message-id: <008d01cc5cdc$11392520$33ab6f60$%szyprowski@samsung.com>
+Content-language: pl
+References: <1313146711-1767-1-git-send-email-m.szyprowski@samsung.com>
+ <201108161528.48954.arnd@arndb.de>
+ <20110816135516.GC17310@n2100.arm.linux.org.uk>
+ <201108161626.26130.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>
-Cc: Arend van Spriel <arend@broadcom.com>, Greg Kroah-Hartman <gregkh@suse.de>, "David S. Miller" <davem@davemloft.net>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <bsingharora@gmail.com>, "John W. Linville" <linville@tuxdriver.com>, Mauro Carvalho Chehab <mchehab@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Ying Han <yinghan@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Nikunj A. Dadhania" <nikunj@linux.vnet.ibm.com>, Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, Kamalesh Babulal <kamalesh@linux.vnet.ibm.com>
+To: Marek Szyprowski <m.szyprowski@samsung.com>, 'Arnd Bergmann' <arnd@arndb.de>, 'Russell King - ARM Linux' <linux@arm.linux.org.uk>
+Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, 'Michal Nazarewicz' <mina86@mina86.com>, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Andrew Morton' <akpm@linux-foundation.org>, 'KAMEZAWA Hiroyuki' <kamezawa.hiroyu@jp.fujitsu.com>, 'Ankita Garg' <ankita@in.ibm.com>, 'Daniel Walker' <dwalker@codeaurora.org>, 'Mel Gorman' <mel@csn.ul.ie>, 'Jesse Barker' <jesse.barker@linaro.org>, 'Jonathan Corbet' <corbet@lwn.net>, 'Shariq Hasnain' <shariq.hasnain@linaro.org>, 'Chunsang Jeong' <chunsang.jeong@linaro.org>
 
-Sorry for late reply
+Hello,
 
-On Fri 12-08-11 12:36:23, Raghavendra K T wrote:
->  The memcg code sometimes uses "struct mem_cgroup *mem" and sometimes uses
->  "struct mem_cgroup *memcg". This patch renames all mem variables to memcg in
->  source file.
+On Wednesday, August 17, 2011 10:01 AM Marek Szyprowski wrote:
+> On Tuesday, August 16, 2011 4:26 PM Arnd Bergmann wrote:
+> > On Tuesday 16 August 2011, Russell King - ARM Linux wrote:
+> > > On Tue, Aug 16, 2011 at 03:28:48PM +0200, Arnd Bergmann wrote:
+> > > > Hmm, I don't remember the point about dynamically sizing the pool for
+> > > > ARMv6K, but that can well be an oversight on my part.  I do remember the
+> > > > part about taking that memory pool from the CMA region as you say.
+> > >
+> > > If you're setting aside a pool of pages, then you have to dynamically
+> > > size it.  I did mention during our discussion about this.
+> > >
+> > > The problem is that a pool of fixed size is two fold: you need it to be
+> > > sufficiently large that it can satisfy all allocations which come along
+> > > in atomic context.  Yet, we don't want the pool to be too large because
+> > > then it prevents the memory being used for other purposes.
+> > >
+> > > Basically, the total number of pages in the pool can be a fixed size,
+> > > but as they are depleted through allocation, they need to be
+> > > re-populated from CMA to re-build the reserve for future atomic
+> > > allocations.  If the pool becomes larger via frees, then obviously
+> > > we need to give pages back.
+> >
+> > Ok, thanks for the reminder. I must have completely missed this part
+> > of the discussion.
+> >
+> > When I briefly considered this problem, my own conclusion was that
+> > the number of atomic DMA allocations would always be very low
+> > because they tend to be short-lived (e.g. incoming network packets),
+> > so we could ignore this problem and just use a smaller reservation
+> > size. While this seems to be true in general (see "git grep -w -A3
+> > dma_alloc_coherent | grep ATOMIC"), there is one very significant
+> > case that we cannot ignore, which is pci_alloc_consistent.
+> >
+> > This function is still called by hundreds of PCI drivers and always
+> > does dma_alloc_coherent(..., GFP_ATOMIC), even for long-lived
+> > allocations and those that are too large to be ignored.
+> >
+> > So at least for the case where we have PCI devices, I agree that
+> > we need to have the dynamic pool.
 > 
-> Testing : Compile tested with following configurations.
-> 1) make defconfig ARCH=i386 + CONFIG_CGROUP_MEM_RES_CTLR=y 
-> CONFIG_CGROUP_MEM_RES_CTLR_SWAP=y CONFIG_CGROUP_MEM_RES_CTLR_SWAP_ENABLED=y
+> Do we really need the dynamic pool for the first version? I would like to
+> know how much memory can be allocated in GFP_ATOMIC context. What are the
+> typical sizes of such allocations?
 > 
-> Binary size Before patch
-> ========================
->    text	   data	    bss	    dec	    hex	filename
-> 8911169	 520464	1884160	11315793	 acaa51	vmlinux
+> Maybe for the first version a static pool with reasonably small size
+> (like 128KiB) will be more than enough? This size can be even board
+> depended or changed with kernel command line for systems that really
+> needs more memory.
 > 
-> Binary Size After patch
-> =======================
->    text	   data	    bss	    dec	    hex	filename
-> 8911169	 520464	1884160	11315793	 acaa51	vmlinux
+> I noticed one more problem. The size of the CMA managed area must be
+> the multiple of 16MiBs (MAX_ORDER+1). This means that the smallest CMA area
+> is 16MiB. These values comes from the internals of the kernel memory
+> management design and page blocks are the only entities that can be managed
+> with page migration code.
 
-It would be much nicer to see unchanged md5sum. I am not sure how much
-possible is this with current gcc or whether special command line
-parameters have to be used (at least !CONFIG_DEBUG_INFO* is necessary)
-but simple variable rename shouldn't be binary visible.
-I guess that a similar approach was used during 32b and 64b x86
-unification.
+I'm really sorry for the confusion. This 16MiB value worried me too much and
+I've checked the code once again and found that this MAX_ORDER+1 value was
+a miscalculation, which appeared in v11 of the  patches. The true minimal
+CMA area size is 8MiB for ARM architecture. I believe this shouldn't be
+an issue for the current ARMv6+ based machines.
 
-> 
-> 2) make defconfig ARCH=i386 + CONFIG_CGROUP_MEM_RES_CTLR=y
-> CONFIG_CGROUP_MEM_RES_CTLR_SWAP=n CONFIG_CGROUP_MEM_RES_CTLR_SWAP_ENABLED=n
+I've checked it with "mem=16M cma=8M" kernel arguments. System booted fine
+and CMA area has been successfully created.
 
-I would assume the same testing results as above
-
-> 
-> 3) make defconfig ARCH=i386  CONFIG_CGROUP_MEM_RES_CTLR=n
-> CONFIG_CGROUP_MEM_RES_CTLR_SWAP=n CONFIG_CGROUP_MEM_RES_CTLR_SWAP_ENABLED=n
-
-ditto.
-
-> 
-> Other sanity check:
-> Bootable configuration on x86 (T60p)  with  CONFIG_CGROUP_MEM_RES_CTLR=y 
-> CONFIG_CGROUP_MEM_RES_CTLR_SWAP=y CONFIG_CGROUP_MEM_RES_CTLR_SWAP_ENABLED=y
-> is tesed with basic mounting of memcgroup, creation of child and parallel fault.
-> mkdir -p /cgroup
-> mount -t cgroup none /cgroup -o memory
-> mkdir /cgroup/0
-> echo $$ > /cgroup/0/tasks
-> time ./parallel_fault 2 100000 32
-> 
-> real	0m0.025s
-> user	0m0.001s
-> sys	0m0.033s
-
-This looks like a random test. I wouldn't add it to the changelog.
+Best regards
 -- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+Marek Szyprowski
+Samsung Poland R&D Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
