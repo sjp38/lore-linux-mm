@@ -1,149 +1,274 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 5CB03900138
-	for <linux-mm@kvack.org>; Wed, 17 Aug 2011 16:24:19 -0400 (EDT)
-Date: Wed, 17 Aug 2011 22:24:14 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 2/5] writeback: dirty position control
-Message-ID: <20110817202414.GK9959@quack.suse.cz>
-References: <20110816022006.348714319@intel.com>
- <20110816022328.811348370@intel.com>
- <20110816194112.GA25517@quack.suse.cz>
- <20110817132347.GA6628@localhost>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 81CF9900138
+	for <linux-mm@kvack.org>; Wed, 17 Aug 2011 18:01:36 -0400 (EDT)
+Message-ID: <4E4C3A2B.3000405@cray.com>
+Date: Wed, 17 Aug 2011 17:01:15 -0500
+From: Andrew Barry <abarry@cray.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110817132347.GA6628@localhost>
+Subject: [PATCH 1/1] hugepages: Fix race between hugetlbfs umount and quota
+ update.
+Content-Type: text/plain; charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Jan Kara <jack@suse.cz>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: linux-mm <linux-mm@kvack.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, David Gibson <david@gibson.dropbear.id.au>
 
-  Hi Fengguang,
+This patch fixes a race between the umount of a hugetlbfs filesystem, and quota
+updates in that filesystem, which can result in the update of the filesystem
+quota record, after the record structure has been freed.
 
-On Wed 17-08-11 21:23:47, Wu Fengguang wrote:
-> On Wed, Aug 17, 2011 at 03:41:12AM +0800, Jan Kara wrote:
-> > > +static unsigned long bdi_position_ratio(struct backing_dev_info *bdi,
-> > > +					unsigned long thresh,
-> > > +					unsigned long bg_thresh,
-> > > +					unsigned long dirty,
-> > > +					unsigned long bdi_thresh,
-> > > +					unsigned long bdi_dirty)
-> > > +{
-> > > +	unsigned long freerun = dirty_freerun_ceiling(thresh, bg_thresh);
-> > > +	unsigned long limit = hard_dirty_limit(thresh);
-> > > +	unsigned long x_intercept;
-> > > +	unsigned long setpoint;		/* the target balance point */
-> > > +	unsigned long span;
-> > > +	long long pos_ratio;		/* for scaling up/down the rate limit */
-> > > +	long x;
-> > > +
-> > > +	if (unlikely(dirty >= limit))
-> > > +		return 0;
-> > > +
-> > > +	/*
-> > > +	 * global setpoint
-> > > +	 *
-> > > +	 *                         setpoint - dirty 3
-> > > +	 *        f(dirty) := 1 + (----------------)
-> > > +	 *                         limit - setpoint
-> > > +	 *
-> > > +	 * it's a 3rd order polynomial that subjects to
-> > > +	 *
-> > > +	 * (1) f(freerun)  = 2.0 => rampup base_rate reasonably fast
-> > > +	 * (2) f(setpoint) = 1.0 => the balance point
-> > > +	 * (3) f(limit)    = 0   => the hard limit
-> > > +	 * (4) df/dx       < 0	 => negative feedback control
-                          ^^^ Strictly speaking this is <= 0
+Rather than an address-space struct pointer, it puts a hugetlbfs_sb_info struct
+pointer into page_private of the page struct. A reference count and an active
+bit are added to the hugetlbfs_sb_info struct; the reference count is increased
+by hugetlb_get_quota and decreased by hugetlb_put_quota. When hugetlbfs is
+unmounted, it frees the hugetlbfs_sb_info struct, but only if the reference
+count is zero, otherwise it clears the active bit. The last hugetlb_put_quota
+then frees the hugetlbfs_sb_info struct.
 
-> > > +	 * (5) the closer to setpoint, the smaller |df/dx| (and the reverse)
-> > > +	 *     => fast response on large errors; small oscillation near setpoint
-> > > +	 */
-> > > +	setpoint = (freerun + limit) / 2;
-> > > +	x = div_s64((setpoint - dirty) << RATELIMIT_CALC_SHIFT,
-> > > +		    limit - setpoint + 1);
-> > > +	pos_ratio = x;
-> > > +	pos_ratio = pos_ratio * x >> RATELIMIT_CALC_SHIFT;
-> > > +	pos_ratio = pos_ratio * x >> RATELIMIT_CALC_SHIFT;
-> > > +	pos_ratio += 1 << RATELIMIT_CALC_SHIFT;
-> > > +
-> > > +	/*
-> > > +	 * bdi setpoint
-  OK, so if I understand the code right, we now have basic pos_ratio based
-on global situation. Now, in the following code, we might scale pos_ratio
-further down, if bdi_dirty is too much over bdi's share, right? Do we also
-want to scale pos_ratio up, if we are under bdi's share? If yes, do we
-really want to do it even if global pos_ratio < 1 (i.e. we are over global
-setpoint)?
+Discussion was titled:  Fix refcounting in hugetlbfs quota handling.
+See:  https://lkml.org/lkml/2011/8/11/28
 
-Maybe we could update the comment with something like:
- * We have computed basic pos_ratio above based on global situation. If the
- * bdi is over its share of dirty pages, we want to scale pos_ratio further
- * down. That is done by the following mechanism:
-and now describe how updating works.
+Signed-off-by: Andrew Barry <abarry@cray.com>
+Cc: David Gibson <david@gibson.dropbear.id.au>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Mel Gorman <mgorman@suse.de>
+Cc: Minchan Kim <minchan.kim@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
 
-> > > +	 *
-> > > +	 *        f(dirty) := 1.0 + k * (dirty - setpoint)
-                  ^^^^^^^ bdi_dirty?             ^^^ maybe I'd name it
-bdi_setpoint to distinguish clearly from the global value.
+---
 
-> > > +	 *
-> > > +	 * The main bdi control line is a linear function that subjects to
-> > > +	 *
-> > > +	 * (1) f(setpoint) = 1.0
-> > > +	 * (2) k = - 1 / (8 * write_bw)  (in single bdi case)
-> > > +	 *     or equally: x_intercept = setpoint + 8 * write_bw
-> > > +	 *
-> > > +	 * For single bdi case, the dirty pages are observed to fluctuate
-> > > +	 * regularly within range
-> > > +	 *        [setpoint - write_bw/2, setpoint + write_bw/2]
-> > > +	 * for various filesystems, where (2) can yield in a reasonable 12.5%
-> > > +	 * fluctuation range for pos_ratio.
-> > > +	 *
-> > > +	 * For JBOD case, bdi_thresh (not bdi_dirty!) could fluctuate up to its
-> > > +	 * own size, so move the slope over accordingly.
-> > > +	 */
-> > > +	if (unlikely(bdi_thresh > thresh))
-> > > +		bdi_thresh = thresh;
-> > > +	/*
-> > > +	 * scale global setpoint to bdi's:  setpoint *= bdi_thresh / thresh
-> > > +	 */
-> > > +	x = div_u64((u64)bdi_thresh << 16, thresh | 1);
-> > > +	setpoint = setpoint * (u64)x >> 16;
-> > > +	/*
-> > > +	 * Use span=(4*write_bw) in single bdi case as indicated by
-> > > +	 * (thresh - bdi_thresh ~= 0) and transit to bdi_thresh in JBOD case.
-> > > +	 */
-> > > +	span = div_u64((u64)bdi_thresh * (thresh - bdi_thresh) +
-> > > +		       (u64)(4 * bdi->avg_write_bandwidth) * bdi_thresh,
-> > > +		       thresh + 1);
-> >   I think you can slightly simplify this to:
-> > (thresh - bdi_thresh + 4 * bdi->avg_write_bandwidth) * (u64)x >> 16;
+
+ fs/hugetlbfs/inode.c    |   40 ++++++++++++++++++++++++++--------------
+ include/linux/hugetlb.h |    9 +++++++--
+ mm/hugetlb.c            |   22 +++++++++++-----------
+ 3 files changed, 44 insertions(+), 27 deletions(-)
+
+
+diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
+index 87b6e04..2ed1cca 100644
+--- a/fs/hugetlbfs/inode.c
++++ b/fs/hugetlbfs/inode.c
+@@ -615,8 +615,12 @@ static void hugetlbfs_put_super(struct s
+ 	struct hugetlbfs_sb_info *sbi = HUGETLBFS_SB(sb);
+
+ 	if (sbi) {
++		sbi->active = HPAGE_INACTIVE;
+ 		sb->s_fs_info = NULL;
+-		kfree(sbi);
++
++		/*Free only if used quota is zero. */
++		if (sbi->used_blocks == 0)
++			kfree(sbi);
+ 	}
+ }
+
+@@ -851,6 +855,8 @@ hugetlbfs_fill_super(struct super_block
+ 	sbinfo->free_blocks = config.nr_blocks;
+ 	sbinfo->max_inodes = config.nr_inodes;
+ 	sbinfo->free_inodes = config.nr_inodes;
++	sbinfo->used_blocks = 0;
++	sbinfo->active = HPAGE_ACTIVE;
+ 	sb->s_maxbytes = MAX_LFS_FILESIZE;
+ 	sb->s_blocksize = huge_page_size(config.hstate);
+ 	sb->s_blocksize_bits = huge_page_shift(config.hstate);
+@@ -874,30 +880,36 @@ out_free:
+ 	return -ENOMEM;
+ }
+
+-int hugetlb_get_quota(struct address_space *mapping, long delta)
++int hugetlb_get_quota(struct hugetlbfs_sb_info *sbinfo, long delta)
+ {
+ 	int ret = 0;
+-	struct hugetlbfs_sb_info *sbinfo = HUGETLBFS_SB(mapping->host->i_sb);
+
+-	if (sbinfo->free_blocks > -1) {
+-		spin_lock(&sbinfo->stat_lock);
+-		if (sbinfo->free_blocks - delta >= 0)
++	spin_lock(&sbinfo->stat_lock);
++	if ((sbinfo->free_blocks == -1) || (sbinfo->free_blocks - delta >= 0)) {
++		if (sbinfo->free_blocks != -1)
+ 			sbinfo->free_blocks -= delta;
+-		else
+-			ret = -ENOMEM;
+-		spin_unlock(&sbinfo->stat_lock);
++		sbinfo->used_blocks += delta;
++		sbinfo->active = HPAGE_ACTIVE;
++	} else {
++		ret = -ENOMEM;
+ 	}
++	spin_unlock(&sbinfo->stat_lock);
+
+ 	return ret;
+ }
+
+-void hugetlb_put_quota(struct address_space *mapping, long delta)
++void hugetlb_put_quota(struct hugetlbfs_sb_info *sbinfo, long delta)
+ {
+-	struct hugetlbfs_sb_info *sbinfo = HUGETLBFS_SB(mapping->host->i_sb);
+-
+-	if (sbinfo->free_blocks > -1) {
+-		spin_lock(&sbinfo->stat_lock);
++	spin_lock(&sbinfo->stat_lock);
++	if (sbinfo->free_blocks > -1)
+ 		sbinfo->free_blocks += delta;
++	sbinfo->used_blocks -= delta;
++	/* If hugetlbfs_put_super couldn't free sbinfo due to
++	* an outstanding quota reference, free it now. */
++	if ((sbinfo->used_blocks == 0) && (sbinfo->active == HPAGE_INACTIVE)) {
++		spin_unlock(&sbinfo->stat_lock);
++		kfree(sbinfo);
++	} else {
+ 		spin_unlock(&sbinfo->stat_lock);
+ 	}
+ }
+
+
+diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+index 19644e0..8780a91 100644
+--- a/include/linux/hugetlb.h
++++ b/include/linux/hugetlb.h
+@@ -142,11 +142,16 @@ struct hugetlbfs_config {
+ 	struct hstate *hstate;
+ };
+
++#define HPAGE_INACTIVE  0
++#define HPAGE_ACTIVE    1
++
+ struct hugetlbfs_sb_info {
+ 	long	max_blocks;   /* blocks allowed */
+ 	long	free_blocks;  /* blocks free */
+ 	long	max_inodes;   /* inodes allowed */
+ 	long	free_inodes;  /* inodes free */
++	long	used_blocks;  /* blocks used */
++	long	active;		  /* active bit */
+ 	spinlock_t	stat_lock;
+ 	struct hstate *hstate;
+ };
+@@ -171,8 +176,8 @@ extern const struct file_operations huge
+ extern const struct vm_operations_struct hugetlb_vm_ops;
+ struct file *hugetlb_file_setup(const char *name, size_t size, vm_flags_t acct,
+ 				struct user_struct **user, int creat_flags);
+-int hugetlb_get_quota(struct address_space *mapping, long delta);
+-void hugetlb_put_quota(struct address_space *mapping, long delta);
++int hugetlb_get_quota(struct hugetlbfs_sb_info *sbinfo, long delta);
++void hugetlb_put_quota(struct hugetlbfs_sb_info *sbinfo, long delta);
+
+ static inline int is_file_hugepages(struct file *file)
+ {
+
+
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index dae27ba..cf26ae9 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -533,9 +533,9 @@ static void free_huge_page(struct page *
+ 	 */
+ 	struct hstate *h = page_hstate(page);
+ 	int nid = page_to_nid(page);
+-	struct address_space *mapping;
++	struct hugetlbfs_sb_info *sbinfo;
+
+-	mapping = (struct address_space *) page_private(page);
++	sbinfo = ( struct hugetlbfs_sb_info *) page_private(page);
+ 	set_page_private(page, 0);
+ 	page->mapping = NULL;
+ 	BUG_ON(page_count(page));
+@@ -551,8 +551,8 @@ static void free_huge_page(struct page *
+ 		enqueue_huge_page(h, page);
+ 	}
+ 	spin_unlock(&hugetlb_lock);
+-	if (mapping)
+-		hugetlb_put_quota(mapping, 1);
++	if (sbinfo)
++		hugetlb_put_quota(sbinfo, 1);
+ }
+
+ static void prep_new_huge_page(struct hstate *h, struct page *page, int nid)
+@@ -1035,7 +1035,7 @@ static struct page *alloc_huge_page(stru
+ 	if (chg < 0)
+ 		return ERR_PTR(-VM_FAULT_OOM);
+ 	if (chg)
+-		if (hugetlb_get_quota(inode->i_mapping, chg))
++		if (hugetlb_get_quota(HUGETLBFS_SB(inode->i_mapping->host->i_sb), chg))
+ 			return ERR_PTR(-VM_FAULT_SIGBUS);
+
+ 	spin_lock(&hugetlb_lock);
+@@ -1045,12 +1045,12 @@ static struct page *alloc_huge_page(stru
+ 	if (!page) {
+ 		page = alloc_buddy_huge_page(h, NUMA_NO_NODE);
+ 		if (!page) {
+-			hugetlb_put_quota(inode->i_mapping, chg);
++			hugetlb_put_quota(HUGETLBFS_SB(inode->i_mapping->host->i_sb), chg);
+ 			return ERR_PTR(-VM_FAULT_SIGBUS);
+ 		}
+ 	}
+
+-	set_page_private(page, (unsigned long) mapping);
++	set_page_private(page, (unsigned long)
+HUGETLBFS_SB(inode->i_mapping->host->i_sb));
+
+ 	vma_commit_reservation(h, vma, addr);
+
+@@ -2086,7 +2086,7 @@ static void hugetlb_vm_op_close(struct v
+
+ 		if (reserve) {
+ 			hugetlb_acct_memory(h, -reserve);
+-			hugetlb_put_quota(vma->vm_file->f_mapping, reserve);
++			hugetlb_put_quota(HUGETLBFS_SB(vma->vm_file->f_mapping->host->i_sb), reserve);
+ 		}
+ 	}
+ }
+@@ -2884,7 +2884,7 @@ int hugetlb_reserve_pages(struct inode *
+ 		return chg;
+
+ 	/* There must be enough filesystem quota for the mapping */
+-	if (hugetlb_get_quota(inode->i_mapping, chg))
++	if (hugetlb_get_quota(HUGETLBFS_SB(inode->i_mapping->host->i_sb), chg))
+ 		return -ENOSPC;
+
+ 	/*
+@@ -2893,7 +2893,7 @@ int hugetlb_reserve_pages(struct inode *
+ 	 */
+ 	ret = hugetlb_acct_memory(h, chg);
+ 	if (ret < 0) {
+-		hugetlb_put_quota(inode->i_mapping, chg);
++		hugetlb_put_quota(HUGETLBFS_SB(inode->i_mapping->host->i_sb), chg);
+ 		return ret;
+ 	}
+
+@@ -2922,7 +2922,7 @@ void hugetlb_unreserve_pages(struct inod
+ 	inode->i_blocks -= (blocks_per_huge_page(h) * freed);
+ 	spin_unlock(&inode->i_lock);
+
+-	hugetlb_put_quota(inode->i_mapping, (chg - freed));
++	hugetlb_put_quota(HUGETLBFS_SB(inode->i_mapping->host->i_sb), (chg - freed));
+ 	hugetlb_acct_memory(h, -(chg - freed));
+ }
+
+
+On 08/15/2011 10:47 PM, David Gibson wrote:
+> On Mon, Aug 15, 2011 at 03:25:35PM -0500, Andrew Barry wrote:
+>> I've been doing something similar to this last proposal. I put a
+>> hugetlbfs_sb_info pointer into page_private, and dropped a reference counter and
+>> an active/inactive bit into the hugetlbfs_sb_info struct. At Umount time, the
+>> sbinfo is freed, only if the reference count is zero. Otherwise, the last
+>> put_quota frees the sbinfo structure. This fixed the race we were seeing between
+>> umount and a put_quota from an rdma transaction. I just gave it a cursory test
+>> on a 3.0 kernel; it has seen quite a lot more testing on a 2.6.32-derived
+>> kernel, with no more hits of the umount race.
+>>
+>> Does this address the problems you were thinking about?
 > 
-> Good idea!
+> Ah, this looks much better than my patch.  And the fact that you've
+> seen your race demonstrates clearly that this isn't just a kvm
+> problem.  I hope we can push this upstream very soon - what can I do
+> to help?
 > 
-> > > +	x_intercept = setpoint + 2 * span;
-   ^^ BTW, why do you have 2*span here? It can result in x_intercept being
-~3*bdi_thresh... So maybe you should use bdi_thresh/2 in the computation of
-span?
+>> -Andrew Barry
+>>
 
-> >   What if x_intercept >  bdi_thresh? Since 8*bdi->avg_write_bandwidth is
-> > easily 500 MB, that happens quite often I imagine?
-> 
-> That's fine because I no longer target "bdi_thresh" as some limiting
-> factor as the global "thresh". Due to it being unstable in small
-> memory JBOD systems, which is the big and unique problem in JBOD.
-  I see. Given the control mechanism below, I think we can try this idea
-and see whether it makes problems in practice or not. But the fact that
-bdi_thresh is no longer treated as limit should be noted in a changelog -
-probably of the last patch (although that is already too long for my taste
-so I'll look into how we could make it shorter so that average developer
-has enough patience to read it ;).
-
-								Honza
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
