@@ -1,95 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id ACFCA6B016C
-	for <linux-mm@kvack.org>; Wed, 17 Aug 2011 07:35:55 -0400 (EDT)
-Date: Wed, 17 Aug 2011 13:35:50 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v5 2/6]  memcg: stop vmscan when enough done.
-Message-ID: <20110817113550.GA7482@tiehlicka.suse.cz>
-References: <20110809190450.16d7f845.kamezawa.hiroyu@jp.fujitsu.com>
- <20110809190933.d965888b.kamezawa.hiroyu@jp.fujitsu.com>
- <20110810141425.GC15007@tiehlicka.suse.cz>
- <20110811085252.b29081f1.kamezawa.hiroyu@jp.fujitsu.com>
- <20110811145055.GN8023@tiehlicka.suse.cz>
- <20110817095405.ee3dcd74.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id CB36E6B016E
+	for <linux-mm@kvack.org>; Wed, 17 Aug 2011 08:29:00 -0400 (EDT)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: Re: [PATCH 7/9] ARM: DMA: steal memory for DMA coherent mappings
+Date: Wed, 17 Aug 2011 14:28:44 +0200
+References: <1313146711-1767-1-git-send-email-m.szyprowski@samsung.com> <201108161626.26130.arnd@arndb.de> <006b01cc5cb3$dac09fa0$9041dee0$%szyprowski@samsung.com>
+In-Reply-To: <006b01cc5cb3$dac09fa0$9041dee0$%szyprowski@samsung.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110817095405.ee3dcd74.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Message-Id: <201108171428.44555.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
+To: Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: 'Russell King - ARM Linux' <linux@arm.linux.org.uk>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, 'Michal Nazarewicz' <mina86@mina86.com>, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Andrew Morton' <akpm@linux-foundation.org>, 'KAMEZAWA Hiroyuki' <kamezawa.hiroyu@jp.fujitsu.com>, 'Ankita Garg' <ankita@in.ibm.com>, 'Daniel Walker' <dwalker@codeaurora.org>, 'Mel Gorman' <mel@csn.ul.ie>, 'Jesse Barker' <jesse.barker@linaro.org>, 'Jonathan Corbet' <corbet@lwn.net>, 'Shariq Hasnain' <shariq.hasnain@linaro.org>, 'Chunsang Jeong' <chunsang.jeong@linaro.org>
 
-On Wed 17-08-11 09:54:05, KAMEZAWA Hiroyuki wrote:
-> On Thu, 11 Aug 2011 16:50:55 +0200
-> Michal Hocko <mhocko@suse.cz> wrote:
-> 
-> > What about this (just compile tested)?
-> > --- 
-> > From: Michal Hocko <mhocko@suse.cz>
-> > Subject: memcg: add nr_pages argument for hierarchical reclaim
-> > 
-> > Now that we are doing memcg direct reclaim limited to nr_to_reclaim
-> > pages (introduced by "memcg: stop vmscan when enough done.") we have to
-> > be more careful. Currently we are using SWAP_CLUSTER_MAX which is OK for
-> > most callers but it might cause failures for limit resize or force_empty
-> > code paths on big NUMA machines.
-> > 
-> > Previously we might have reclaimed up to nr_nodes * SWAP_CLUSTER_MAX
-> > while now we have it at SWAP_CLUSTER_MAX. Both resize and force_empty rely
-> > on reclaiming a certain amount of pages and retrying if their condition is
-> > still not met.
-> > 
-> > Let's add nr_pages argument to mem_cgroup_hierarchical_reclaim which will
-> > push it further to try_to_free_mem_cgroup_pages. We still fall back to
-> > SWAP_CLUSTER_MAX for small requests so the standard code (hot) paths are not
-> > affected by this.
-> > 
-> > Open questions:
-> > - Should we care about soft limit as well? Currently I am using excess
-> >   number of pages for the parameter so it can replace direct query for
-> >   the value in mem_cgroup_hierarchical_reclaim but should we push it to
-> >   mem_cgroup_shrink_node_zone?
-> >   I do not think so because we should try to reclaim from more groups in the
-> >   hierarchy and also it doesn't get to shrink_zones which has been modified
-> >   by the previous patch.
-> 
-> 
-> 
-> > - mem_cgroup_force_empty asks for reclaiming all pages. I guess it should be
-> >   OK but will have to think about it some more.
-> 
-> force_empty/rmdir() is allowed to be stopped by Ctrl-C. I think passing res->usage
-> is overkilling.
+On Wednesday 17 August 2011, Marek Szyprowski wrote:
+> Do we really need the dynamic pool for the first version? I would like to
+> know how much memory can be allocated in GFP_ATOMIC context. What are the
+> typical sizes of such allocations?
 
-So, how many pages should be reclaimed then?
+I think this highly depends on the board and on the use case. We know
+that 2 MB is usually enough, because that is the current CONSISTENT_DMA_SIZE
+on most platforms. Most likely something a lot smaller will be ok
+in practice. CONSISTENT_DMA_SIZE is currently used for both atomic
+and non-atomic allocations.
 
-> > @@ -2332,7 +2332,8 @@ static int mem_cgroup_do_charge(struct m
-> >  		return CHARGE_WOULDBLOCK;
-> >  
-> >  	ret = mem_cgroup_hierarchical_reclaim(mem_over_limit, NULL,
-> > -					      gfp_mask, flags, NULL);
-> > +					      gfp_mask, flags, NULL,
-> > +					      nr_pages);
+> Maybe for the first version a static pool with reasonably small size
+> (like 128KiB) will be more than enough? This size can be even board
+> depended or changed with kernel command line for systems that really
+> needs more memory.
+
+For a first version that sounds good enough. Maybe we could use a fraction
+of the CONSISTENT_DMA_SIZE as an estimate?
+
+For the long-term solution, I see two options:
+
+1. make the preallocated pool rather small so we normally don't need it.
+2. make it large enough so we can also fulfill most nonatomic allocations
+   from that pool to avoid the TLB flushes and going through the CMA
+   code. Only use the real CMA region when the pool allocation fails.
+
+In either case, there should be some method for balancing the pool
+size.
+
+> I noticed one more problem. The size of the CMA managed area must be
+> the multiple of 16MiBs (MAX_ORDER+1). This means that the smallest CMA area
+> is 16MiB. These values comes from the internals of the kernel memory 
+> management design and page blocks are the only entities that can be managed
+> with page migration code.
 > 
-> Hmm, in usual, nr_pages = batch = CHARGE_BATCH = 32 ? At allocating Hugepage,
-> this nr_pages will be 512 ? I think it's too big...
+> I'm not sure if all ARMv6+ boards have at least 32MiB of memory be able to
+> create a CMA area.
 
-Yes it is. I have posted updated version already:
-http://www.spinics.net/lists/linux-mm/msg23113.html
+My guess is that you can assume to have 64 MB or more on ARMv6 running Linux,
+but other people may have more accurate data.
 
-> 
-> Thanks,
-> -Kame
+Also, there is the option of setting a lower value for FORCE_MAX_ZONEORDER
+for some platforms if it becomes a problem.
 
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+	Arnd
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
