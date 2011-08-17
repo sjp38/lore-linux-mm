@@ -1,98 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 20756900138
-	for <linux-mm@kvack.org>; Wed, 17 Aug 2011 08:49:52 -0400 (EDT)
-MIME-version: 1.0
-Content-transfer-encoding: 7BIT
-Content-type: text/plain; charset=us-ascii
-Received: from spt2.w1.samsung.com ([210.118.77.14]) by mailout4.w1.samsung.com
- (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
- with ESMTP id <0LQ200FXSOZ14460@mailout4.w1.samsung.com> for
- linux-mm@kvack.org; Wed, 17 Aug 2011 13:49:49 +0100 (BST)
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id D8201900138
+	for <linux-mm@kvack.org>; Wed, 17 Aug 2011 09:06:47 -0400 (EDT)
+Received: from spt2.w1.samsung.com (mailout1.w1.samsung.com [210.118.77.11])
+ by mailout1.w1.samsung.com
+ (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
+ with ESMTP id <0LQ200C2OPR7CX@mailout1.w1.samsung.com> for linux-mm@kvack.org;
+ Wed, 17 Aug 2011 14:06:43 +0100 (BST)
 Received: from linux.samsung.com ([106.116.38.10])
  by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0LQ2007H9OZ03S@spt2.w1.samsung.com> for
- linux-mm@kvack.org; Wed, 17 Aug 2011 13:49:48 +0100 (BST)
-Date: Wed, 17 Aug 2011 14:49:13 +0200
+ 2004)) with ESMTPA id <0LQ2002D8PR6CK@spt2.w1.samsung.com> for
+ linux-mm@kvack.org; Wed, 17 Aug 2011 14:06:43 +0100 (BST)
+Date: Wed, 17 Aug 2011 15:06:08 +0200
 From: Marek Szyprowski <m.szyprowski@samsung.com>
 Subject: RE: [PATCH 7/9] ARM: DMA: steal memory for DMA coherent mappings
-In-reply-to: 
-Message-id: <008d01cc5cdc$11392520$33ab6f60$%szyprowski@samsung.com>
+In-reply-to: <201108171428.44555.arnd@arndb.de>
+Message-id: <009101cc5cde$6dfaa660$49eff320$%szyprowski@samsung.com>
+MIME-version: 1.0
+Content-type: text/plain; charset=us-ascii
 Content-language: pl
+Content-transfer-encoding: 7BIT
 References: <1313146711-1767-1-git-send-email-m.szyprowski@samsung.com>
- <201108161528.48954.arnd@arndb.de>
- <20110816135516.GC17310@n2100.arm.linux.org.uk>
  <201108161626.26130.arnd@arndb.de>
+ <006b01cc5cb3$dac09fa0$9041dee0$%szyprowski@samsung.com>
+ <201108171428.44555.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>, 'Arnd Bergmann' <arnd@arndb.de>, 'Russell King - ARM Linux' <linux@arm.linux.org.uk>
-Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, 'Michal Nazarewicz' <mina86@mina86.com>, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Andrew Morton' <akpm@linux-foundation.org>, 'KAMEZAWA Hiroyuki' <kamezawa.hiroyu@jp.fujitsu.com>, 'Ankita Garg' <ankita@in.ibm.com>, 'Daniel Walker' <dwalker@codeaurora.org>, 'Mel Gorman' <mel@csn.ul.ie>, 'Jesse Barker' <jesse.barker@linaro.org>, 'Jonathan Corbet' <corbet@lwn.net>, 'Shariq Hasnain' <shariq.hasnain@linaro.org>, 'Chunsang Jeong' <chunsang.jeong@linaro.org>
+To: 'Arnd Bergmann' <arnd@arndb.de>
+Cc: 'Russell King - ARM Linux' <linux@arm.linux.org.uk>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, 'Michal Nazarewicz' <mina86@mina86.com>, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Andrew Morton' <akpm@linux-foundation.org>, 'KAMEZAWA Hiroyuki' <kamezawa.hiroyu@jp.fujitsu.com>, 'Ankita Garg' <ankita@in.ibm.com>, 'Daniel Walker' <dwalker@codeaurora.org>, 'Mel Gorman' <mel@csn.ul.ie>, 'Jesse Barker' <jesse.barker@linaro.org>, 'Jonathan Corbet' <corbet@lwn.net>, 'Shariq Hasnain' <shariq.hasnain@linaro.org>, 'Chunsang Jeong' <chunsang.jeong@linaro.org>
 
 Hello,
 
-On Wednesday, August 17, 2011 10:01 AM Marek Szyprowski wrote:
-> On Tuesday, August 16, 2011 4:26 PM Arnd Bergmann wrote:
-> > On Tuesday 16 August 2011, Russell King - ARM Linux wrote:
-> > > On Tue, Aug 16, 2011 at 03:28:48PM +0200, Arnd Bergmann wrote:
-> > > > Hmm, I don't remember the point about dynamically sizing the pool for
-> > > > ARMv6K, but that can well be an oversight on my part.  I do remember the
-> > > > part about taking that memory pool from the CMA region as you say.
-> > >
-> > > If you're setting aside a pool of pages, then you have to dynamically
-> > > size it.  I did mention during our discussion about this.
-> > >
-> > > The problem is that a pool of fixed size is two fold: you need it to be
-> > > sufficiently large that it can satisfy all allocations which come along
-> > > in atomic context.  Yet, we don't want the pool to be too large because
-> > > then it prevents the memory being used for other purposes.
-> > >
-> > > Basically, the total number of pages in the pool can be a fixed size,
-> > > but as they are depleted through allocation, they need to be
-> > > re-populated from CMA to re-build the reserve for future atomic
-> > > allocations.  If the pool becomes larger via frees, then obviously
-> > > we need to give pages back.
-> >
-> > Ok, thanks for the reminder. I must have completely missed this part
-> > of the discussion.
-> >
-> > When I briefly considered this problem, my own conclusion was that
-> > the number of atomic DMA allocations would always be very low
-> > because they tend to be short-lived (e.g. incoming network packets),
-> > so we could ignore this problem and just use a smaller reservation
-> > size. While this seems to be true in general (see "git grep -w -A3
-> > dma_alloc_coherent | grep ATOMIC"), there is one very significant
-> > case that we cannot ignore, which is pci_alloc_consistent.
-> >
-> > This function is still called by hundreds of PCI drivers and always
-> > does dma_alloc_coherent(..., GFP_ATOMIC), even for long-lived
-> > allocations and those that are too large to be ignored.
-> >
-> > So at least for the case where we have PCI devices, I agree that
-> > we need to have the dynamic pool.
-> 
-> Do we really need the dynamic pool for the first version? I would like to
-> know how much memory can be allocated in GFP_ATOMIC context. What are the
-> typical sizes of such allocations?
-> 
-> Maybe for the first version a static pool with reasonably small size
-> (like 128KiB) will be more than enough? This size can be even board
-> depended or changed with kernel command line for systems that really
-> needs more memory.
-> 
-> I noticed one more problem. The size of the CMA managed area must be
-> the multiple of 16MiBs (MAX_ORDER+1). This means that the smallest CMA area
-> is 16MiB. These values comes from the internals of the kernel memory
-> management design and page blocks are the only entities that can be managed
-> with page migration code.
+On Wednesday, August 17, 2011 2:29 PM Arnd Bergmann wrote:
 
-I'm really sorry for the confusion. This 16MiB value worried me too much and
-I've checked the code once again and found that this MAX_ORDER+1 value was
-a miscalculation, which appeared in v11 of the  patches. The true minimal
-CMA area size is 8MiB for ARM architecture. I believe this shouldn't be
-an issue for the current ARMv6+ based machines.
+> On Wednesday 17 August 2011, Marek Szyprowski wrote:
+> > Do we really need the dynamic pool for the first version? I would like to
+> > know how much memory can be allocated in GFP_ATOMIC context. What are the
+> > typical sizes of such allocations?
+> 
+> I think this highly depends on the board and on the use case. We know
+> that 2 MB is usually enough, because that is the current CONSISTENT_DMA_SIZE
+> on most platforms. Most likely something a lot smaller will be ok
+> in practice. CONSISTENT_DMA_SIZE is currently used for both atomic
+> and non-atomic allocations.
 
-I've checked it with "mem=16M cma=8M" kernel arguments. System booted fine
-and CMA area has been successfully created.
+Ok. The platforms that increased CONSISTENT_DMA_SIZE usually did that to enable
+support for framebuffer or other multimedia devices, which won't be allocated 
+in ATOMIC context anyway.
+
+> > Maybe for the first version a static pool with reasonably small size
+> > (like 128KiB) will be more than enough? This size can be even board
+> > depended or changed with kernel command line for systems that really
+> > needs more memory.
+> 
+> For a first version that sounds good enough. Maybe we could use a fraction
+> of the CONSISTENT_DMA_SIZE as an estimate?
+
+Ok, good. For the initial values I will probably use 1/8 of 
+CONSISTENT_DMA_SIZE for coherent allocations. Writecombine atomic allocations
+are extremely rare and rather ARM specific. 1/32 of CONSISTENT_DMA_SIZE should
+be more than enough for them.
+
+> For the long-term solution, I see two options:
+> 
+> 1. make the preallocated pool rather small so we normally don't need it.
+> 2. make it large enough so we can also fulfill most nonatomic allocations
+>    from that pool to avoid the TLB flushes and going through the CMA
+>    code. Only use the real CMA region when the pool allocation fails.
+> 
+> In either case, there should be some method for balancing the pool
+> size.
+
+Right. The most obvious method is to use additional kernel thread which will
+periodically call the balance function. In the implementation both usage 
+scenarios are very similar, so this can even be a kernel parameter or Kconfig
+option, but lets leave this for the future vesions.
+ 
+> > I noticed one more problem. The size of the CMA managed area must be
+> > the multiple of 16MiBs (MAX_ORDER+1). This means that the smallest CMA area
+> > is 16MiB. These values comes from the internals of the kernel memory
+> > management design and page blocks are the only entities that can be managed
+> > with page migration code.
+> >
+> > I'm not sure if all ARMv6+ boards have at least 32MiB of memory be able to
+> > create a CMA area.
+> 
+> My guess is that you can assume to have 64 MB or more on ARMv6 running Linux,
+> but other people may have more accurate data.
+> 
+> Also, there is the option of setting a lower value for FORCE_MAX_ZONEORDER
+> for some platforms if it becomes a problem.
+
+Ok. I figured out an error in the above calculation, so 8MiB is the smallest
+CMA area size. Assuming that there are at least 32MiB of memory available this
+is not an issue anymore.
 
 Best regards
 -- 
