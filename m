@@ -1,44 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 896796B0169
-	for <linux-mm@kvack.org>; Thu, 18 Aug 2011 19:51:47 -0400 (EDT)
-Date: Thu, 18 Aug 2011 18:51:43 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [RFC] mm: Distinguish between mlocked and pinned pages
-In-Reply-To: <20110817155412.cc302033.akpm@linux-foundation.org>
-Message-ID: <alpine.DEB.2.00.1108181851100.11512@router.home>
-References: <alpine.DEB.2.00.1108101516430.20403@router.home> <20110817155412.cc302033.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 7DA6E6B016C
+	for <linux-mm@kvack.org>; Thu, 18 Aug 2011 19:55:07 -0400 (EDT)
+Date: Thu, 18 Aug 2011 16:54:20 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 0/7] Reduce filesystem writeback from page reclaim v3
+Message-Id: <20110818165420.0a7aabb5.akpm@linux-foundation.org>
+In-Reply-To: <1312973240-32576-1-git-send-email-mgorman@suse.de>
+References: <1312973240-32576-1-git-send-email-mgorman@suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-rdma@vger.kernel.org, Hugh Dickins <hughd@google.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, XFS <xfs@oss.sgi.com>, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, Johannes Weiner <jweiner@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>
 
-On Wed, 17 Aug 2011, Andrew Morton wrote:
+On Wed, 10 Aug 2011 11:47:13 +0100
+Mel Gorman <mgorman@suse.de> wrote:
 
-> Sounds reasonable.  But how do we prevent future confusion?  We should
-> carefully define these terms in an obvious place, please.
+> The new problem is that
+> reclaim has very little control over how long before a page in a
+> particular zone or container is cleaned which is discussed later.
 
-Ok.
+Confused - where was this discussed?  Please tell us more about
+this problem and how it was addressed.
 
-> > --- linux-2.6.orig/include/linux/mm_types.h	2011-08-10 14:08:42.000000000 -0500
-> > +++ linux-2.6/include/linux/mm_types.h	2011-08-10 14:09:02.000000000 -0500
-> > @@ -281,7 +281,7 @@ struct mm_struct {
-> >  	unsigned long hiwater_rss;	/* High-watermark of RSS usage */
-> >  	unsigned long hiwater_vm;	/* High-water virtual memory usage */
-> >
-> > -	unsigned long total_vm, locked_vm, shared_vm, exec_vm;
-> > +	unsigned long total_vm, locked_vm, pinned_vm, shared_vm, exec_vm;
-> >  	unsigned long stack_vm, reserved_vm, def_flags, nr_ptes;
-> >  	unsigned long start_code, end_code, start_data, end_data;
-> >  	unsigned long start_brk, brk, start_stack;
->
-> This is an obvious place.  Could I ask that you split all these up into
-> one-definition-per-line and we can start in on properly documenting
-> each field?
 
-Will do that after the linuxcon.
+Another (and somewhat interrelated) potential problem I see with this
+work is that it throws a big dependency onto kswapd.  If kswapd gets
+stuck somewhere for extended periods, there's nothing there to perform
+direct writeback.  This has happened in the past in weird situations
+such as kswpad getting blocked on ext3 journal commits which are
+themselves stuck for ages behind lots of writeout which itself is stuck
+behind lots of reads.  That's an advantage of direct reclaim: more
+threads available.
+
+How forcefully has this stuff been tested with multiple disks per
+kswapd?  Where one disk is overloaded-ext3-on-usb-stick?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
