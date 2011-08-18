@@ -1,67 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A0EF900138
-	for <linux-mm@kvack.org>; Thu, 18 Aug 2011 10:27:12 -0400 (EDT)
-Subject: Re: [PATCH] memcg: remove unneeded preempt_disable
-In-Reply-To: Your message of "Thu, 18 Aug 2011 11:38:00 +0200."
-             <20110818093800.GA2268@redhat.com>
-From: Valdis.Kletnieks@vt.edu
-References: <1313650253-21794-1-git-send-email-gthelen@google.com>
-            <20110818093800.GA2268@redhat.com>
-Mime-Version: 1.0
-Content-Type: multipart/signed; boundary="==_Exmh_1313677618_2646P";
-	 micalg=pgp-sha1; protocol="application/pgp-signature"
-Content-Transfer-Encoding: 7bit
-Date: Thu, 18 Aug 2011 10:26:58 -0400
-Message-ID: <96939.1313677618@turing-police.cc.vt.edu>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 5AE90900138
+	for <linux-mm@kvack.org>; Thu, 18 Aug 2011 10:27:19 -0400 (EDT)
+Received: by ywm13 with SMTP id 13so1810207ywm.14
+        for <linux-mm@kvack.org>; Thu, 18 Aug 2011 07:27:17 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <CAK1hOcM5u-zB7fUnR5QVJGBrEnLMhK9Q+EmWBknThga70UQaLw@mail.gmail.com>
+References: <1312872786.70934.YahooMailNeo@web111712.mail.gq1.yahoo.com>
+ <CAK1hOcN7q=F=UV=aCAsVOYO=Ex34X0tbwLHv9BkYkA=ik7G13w@mail.gmail.com>
+ <1313075625.50520.YahooMailNeo@web111715.mail.gq1.yahoo.com>
+ <201108111938.25836.vda.linux@googlemail.com> <CAG1a4rsO7JDqmYiwyxPrAHdLNbJt+wqymSzU9i1dv5w5C2OFog@mail.gmail.com>
+ <CAK1hOcM5u-zB7fUnR5QVJGBrEnLMhK9Q+EmWBknThga70UQaLw@mail.gmail.com>
+From: Pavel Ivanov <paivanof@gmail.com>
+Date: Thu, 18 Aug 2011 10:26:47 -0400
+Message-ID: <CAG1a4rus+VVhhB3ayuDF2pCQDusLekGOAxf33+u_uzxC1yz1MA@mail.gmail.com>
+Subject: Re: running of out memory => kernel crash
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <jweiner@redhat.com>
-Cc: Greg Thelen <gthelen@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <bsingharora@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: Denys Vlasenko <vda.linux@googlemail.com>
+Cc: Mahmood Naderan <nt_mahmood@yahoo.com>, David Rientjes <rientjes@google.com>, Randy Dunlap <rdunlap@xenotime.net>, "\"linux-kernel@vger.kernel.org\"" <linux-kernel@vger.kernel.org>, "\"linux-mm@kvack.org\"" <linux-mm@kvack.org>
 
---==_Exmh_1313677618_2646P
-Content-Type: text/plain; charset=us-ascii
+On Thu, Aug 18, 2011 at 8:44 AM, Denys Vlasenko
+<vda.linux@googlemail.com> wrote:
+>> I have a little concern about this explanation of yours. Suppose we
+>> have some amount of more or less actively executing processes in the
+>> system. Suppose they started to use lots of resident memory. Amount of
+>> memory they use is less than total available physical memory but when
+>> we add total size of code for those processes it would be several
+>> pages more than total size of physical memory. As I understood from
+>> your explanation in such situation one process will execute its time
+>> slice, kernel will switch to other one, find that its code was pushed
+>> out of RAM, read it from disk, execute its time slice, switch to next
+>> process, read its code from disk, execute and so on. So system will be
+>> virtually unusable because of constantly reading from disk just to
+>> execute next small piece of code. But oom will never be firing in such
+>> situation. Is my understanding correct?
+>
+> Yes.
+>
+>> Shouldn't it be considered as an unwanted behavior?
+>
+> Yes. But all alternatives (such as killing some process) seem to be worse.
 
-On Thu, 18 Aug 2011 11:38:00 +0200, Johannes Weiner said:
+Could you elaborate on this? We have a completely unusable server
+which can be revived only by hard power cycling (administrators won't
+be able to log in because sshd and shell will fall victims of the same
+unending disk reading). And as an alternative we can kill some process
+and at least allow administrator to log in and check if something else
+can be done to make server feel better. Why is it worse?
 
-> Note that on non-x86, these operations themselves actually disable and
-> reenable preemption each time, so you trade a pair of add and sub on
-> x86
-> 
-> -	preempt_disable()
-> 	__this_cpu_xxx()
-> 	__this_cpu_yyy()
-> -	preempt_enable()
-> 
-> with
-> 
-> 	preempt_disable()
-> 	__this_cpu_xxx()
-> +	preempt_enable()
-> +	preempt_disable()
-> 	__this_cpu_yyy()
-> 	preempt_enable()
-> 
-> everywhere else.
-
-That would be an unexpected race condition on non-x86, if you expected _xxx and
-_yyy to be done together without a preempt between them. Would take mere
-mortals forever to figure that one out. :)
+I understand that it could be very hard to detect such situation but
+at least it's worth trying I think.
 
 
---==_Exmh_1313677618_2646P
-Content-Type: application/pgp-signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.11 (GNU/Linux)
-Comment: Exmh version 2.5 07/13/2001
-
-iD8DBQFOTSEycC3lWbTT17ARAu4ZAJwJY9zOTyoMHoaP1AEBeEbLV7ts/gCfdoVm
-jvD0MeR2VgZciqe/gYUOqxE=
-=TMnA
------END PGP SIGNATURE-----
-
---==_Exmh_1313677618_2646P--
+Pavel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
