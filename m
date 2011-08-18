@@ -1,60 +1,221 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id E4B76900138
-	for <linux-mm@kvack.org>; Wed, 17 Aug 2011 21:03:13 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 48A1A3EE0C3
-	for <linux-mm@kvack.org>; Thu, 18 Aug 2011 10:03:10 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 05CF645DE57
-	for <linux-mm@kvack.org>; Thu, 18 Aug 2011 10:03:10 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id DF47F45DE4E
-	for <linux-mm@kvack.org>; Thu, 18 Aug 2011 10:03:09 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id D2F1C1DB803B
-	for <linux-mm@kvack.org>; Thu, 18 Aug 2011 10:03:09 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 97BCE1DB8040
-	for <linux-mm@kvack.org>; Thu, 18 Aug 2011 10:03:09 +0900 (JST)
-Date: Thu, 18 Aug 2011 09:55:41 +0900
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 937CE900138
+	for <linux-mm@kvack.org>; Wed, 17 Aug 2011 21:13:07 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id A93F43EE0C1
+	for <linux-mm@kvack.org>; Thu, 18 Aug 2011 10:13:03 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8993245DE61
+	for <linux-mm@kvack.org>; Thu, 18 Aug 2011 10:13:03 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 6059D45DE6A
+	for <linux-mm@kvack.org>; Thu, 18 Aug 2011 10:13:03 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 4F145E08002
+	for <linux-mm@kvack.org>; Thu, 18 Aug 2011 10:13:03 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0AA5E1DB803A
+	for <linux-mm@kvack.org>; Thu, 18 Aug 2011 10:13:03 +0900 (JST)
+Date: Thu, 18 Aug 2011 10:05:35 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH v9 07/13] memcg: add cgroupfs interface to memcg dirty
- limits
-Message-Id: <20110818095541.c4744324.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1313597705-6093-8-git-send-email-gthelen@google.com>
+Subject: Re: [PATCH v9 08/13] memcg: dirty page accounting support routines
+Message-Id: <20110818100535.ecdb4a12.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1313597705-6093-9-git-send-email-gthelen@google.com>
 References: <1313597705-6093-1-git-send-email-gthelen@google.com>
-	<1313597705-6093-8-git-send-email-gthelen@google.com>
+	<1313597705-6093-9-git-send-email-gthelen@google.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Greg Thelen <gthelen@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, linux-fsdevel@vger.kernel.org, Balbir Singh <bsingharora@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Wu Fengguang <fengguang.wu@intel.com>, Dave Chinner <david@fromorbit.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <andrea@betterlinux.com>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, linux-fsdevel@vger.kernel.org, Balbir Singh <bsingharora@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Wu Fengguang <fengguang.wu@intel.com>, Dave Chinner <david@fromorbit.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <andrea@betterlinux.com>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>
 
-On Wed, 17 Aug 2011 09:14:59 -0700
+On Wed, 17 Aug 2011 09:15:00 -0700
 Greg Thelen <gthelen@google.com> wrote:
 
-> Add cgroupfs interface to memcg dirty page limits:
->   Direct write-out is controlled with:
->   - memory.dirty_ratio
->   - memory.dirty_limit_in_bytes
+> Added memcg dirty page accounting support routines.  These routines are
+> used by later changes to provide memcg aware writeback and dirty page
+> limiting.  A mem_cgroup_dirty_info() tracepoint is is also included to
+> allow for easier understanding of memcg writeback operation.
 > 
->   Background write-out is controlled with:
->   - memory.dirty_background_ratio
->   - memory.dirty_background_limit_bytes
-> 
-> Other memcg cgroupfs files support 'M', 'm', 'k', 'K', 'g'
-> and 'G' suffixes for byte counts.  This patch provides the
-> same functionality for memory.dirty_limit_in_bytes and
-> memory.dirty_background_limit_bytes.
-> 
-> Signed-off-by: Andrea Righi <andrea@betterlinux.com>
-> Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
 > Signed-off-by: Greg Thelen <gthelen@google.com>
 
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+I have small comments.
+
+> ---
+> Changelog since v8:
+> - Use 'memcg' rather than 'mem' for local variables and parameters.
+>   This is consistent with other memory controller code.
+> 
+>  include/linux/memcontrol.h        |    9 ++
+>  include/trace/events/memcontrol.h |   34 +++++++++
+>  mm/memcontrol.c                   |  147 +++++++++++++++++++++++++++++++++++++
+>  3 files changed, 190 insertions(+), 0 deletions(-)
+> 
+> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> index 630d3fa..9cc8841 100644
+> --- a/include/linux/memcontrol.h
+> +++ b/include/linux/memcontrol.h
+> @@ -36,6 +36,15 @@ enum mem_cgroup_page_stat_item {
+>  	MEMCG_NR_FILE_DIRTY, /* # of dirty pages in page cache */
+>  	MEMCG_NR_FILE_WRITEBACK, /* # of pages under writeback */
+>  	MEMCG_NR_FILE_UNSTABLE_NFS, /* # of NFS unstable pages */
+> +	MEMCG_NR_DIRTYABLE_PAGES, /* # of pages that could be dirty */
+> +};
+> +
+> +struct dirty_info {
+> +	unsigned long dirty_thresh;
+> +	unsigned long background_thresh;
+> +	unsigned long nr_file_dirty;
+> +	unsigned long nr_writeback;
+> +	unsigned long nr_unstable_nfs;
+>  };
+>  
+>  extern unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
+> diff --git a/include/trace/events/memcontrol.h b/include/trace/events/memcontrol.h
+> index 781ef9fc..abf1306 100644
+> --- a/include/trace/events/memcontrol.h
+> +++ b/include/trace/events/memcontrol.h
+> @@ -26,6 +26,40 @@ TRACE_EVENT(mem_cgroup_mark_inode_dirty,
+>  	TP_printk("ino=%ld css_id=%d", __entry->ino, __entry->css_id)
+>  )
+>  
+> +TRACE_EVENT(mem_cgroup_dirty_info,
+> +	TP_PROTO(unsigned short css_id,
+> +		 struct dirty_info *dirty_info),
+> +
+> +	TP_ARGS(css_id, dirty_info),
+> +
+> +	TP_STRUCT__entry(
+> +		__field(unsigned short, css_id)
+> +		__field(unsigned long, dirty_thresh)
+> +		__field(unsigned long, background_thresh)
+> +		__field(unsigned long, nr_file_dirty)
+> +		__field(unsigned long, nr_writeback)
+> +		__field(unsigned long, nr_unstable_nfs)
+> +		),
+> +
+> +	TP_fast_assign(
+> +		__entry->css_id = css_id;
+> +		__entry->dirty_thresh = dirty_info->dirty_thresh;
+> +		__entry->background_thresh = dirty_info->background_thresh;
+> +		__entry->nr_file_dirty = dirty_info->nr_file_dirty;
+> +		__entry->nr_writeback = dirty_info->nr_writeback;
+> +		__entry->nr_unstable_nfs = dirty_info->nr_unstable_nfs;
+> +		),
+> +
+> +	TP_printk("css_id=%d thresh=%ld bg_thresh=%ld dirty=%ld wb=%ld "
+> +		  "unstable_nfs=%ld",
+> +		  __entry->css_id,
+> +		  __entry->dirty_thresh,
+> +		  __entry->background_thresh,
+> +		  __entry->nr_file_dirty,
+> +		  __entry->nr_writeback,
+> +		  __entry->nr_unstable_nfs)
+> +)
+> +
+>  #endif /* _TRACE_MEMCONTROL_H */
+>  
+>  /* This part must be outside protection */
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 4e01699..d54adf4 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -1366,6 +1366,11 @@ int mem_cgroup_swappiness(struct mem_cgroup *memcg)
+>  	return memcg->swappiness;
+>  }
+>  
+> +static unsigned long dirty_info_reclaimable(struct dirty_info *info)
+> +{
+> +	return info->nr_file_dirty + info->nr_unstable_nfs;
+> +}
+> +
+>  /*
+>   * Return true if the current memory cgroup has local dirty memory settings.
+>   * There is an allowed race between the current task migrating in-to/out-of the
+> @@ -1396,6 +1401,148 @@ static void mem_cgroup_dirty_param(struct vm_dirty_param *param,
+>  	}
+>  }
+>  
+> +static inline bool mem_cgroup_can_swap(struct mem_cgroup *memcg)
+> +{
+> +	if (!do_swap_account)
+> +		return nr_swap_pages > 0;
+> +	return !memcg->memsw_is_minimum &&
+> +		(res_counter_read_u64(&memcg->memsw, RES_LIMIT) > 0);
+> +}
+
+I think
+
+	if (nr_swap_pages == 0)
+		return false;
+	if (!do_swap_account)
+		return true;
+	if (memcg->memsw_is_mininum)
+		return false;
+        if (res_counter_margin(&memcg->memsw) == 0)
+		return false;
+
+is a correct check.
+
+> +
+> +static s64 mem_cgroup_local_page_stat(struct mem_cgroup *memcg,
+> +				      enum mem_cgroup_page_stat_item item)
+> +{
+> +	s64 ret;
+> +
+> +	switch (item) {
+> +	case MEMCG_NR_FILE_DIRTY:
+> +		ret = mem_cgroup_read_stat(memcg, MEM_CGROUP_STAT_FILE_DIRTY);
+> +		break;
+> +	case MEMCG_NR_FILE_WRITEBACK:
+> +		ret = mem_cgroup_read_stat(memcg,
+> +					   MEM_CGROUP_STAT_FILE_WRITEBACK);
+> +		break;
+> +	case MEMCG_NR_FILE_UNSTABLE_NFS:
+> +		ret = mem_cgroup_read_stat(memcg,
+> +					   MEM_CGROUP_STAT_FILE_UNSTABLE_NFS);
+> +		break;
+> +	case MEMCG_NR_DIRTYABLE_PAGES:
+> +		ret = mem_cgroup_read_stat(memcg, LRU_ACTIVE_FILE) +
+> +			mem_cgroup_read_stat(memcg, LRU_INACTIVE_FILE);
+> +		if (mem_cgroup_can_swap(memcg))
+> +			ret += mem_cgroup_read_stat(memcg, LRU_ACTIVE_ANON) +
+> +				mem_cgroup_read_stat(memcg, LRU_INACTIVE_ANON);
+> +		break;
+> +	default:
+> +		BUG();
+> +		break;
+> +	}
+> +	return ret;
+> +}
+> +
+> +/*
+> + * Return the number of additional pages that the @memcg cgroup could allocate.
+> + * If use_hierarchy is set, then this involves checking parent mem cgroups to
+> + * find the cgroup with the smallest free space.
+> + */
+> +static unsigned long
+> +mem_cgroup_hierarchical_free_pages(struct mem_cgroup *memcg)
+> +{
+> +	u64 free;
+> +	unsigned long min_free;
+> +
+> +	min_free = global_page_state(NR_FREE_PAGES);
+> +
+> +	while (memcg) {
+> +		free = (res_counter_read_u64(&memcg->res, RES_LIMIT) -
+> +			res_counter_read_u64(&memcg->res, RES_USAGE)) >>
+> +			PAGE_SHIFT;
+
+How about
+		free = mem_cgroup_margin(&mem->res);
+?
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
