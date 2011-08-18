@@ -1,125 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 96342900138
-	for <linux-mm@kvack.org>; Thu, 18 Aug 2011 10:40:50 -0400 (EDT)
-Date: Thu, 18 Aug 2011 16:40:45 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v3] memcg: add nr_pages argument for hierarchical reclaim
-Message-ID: <20110818144045.GA4105@tiehlicka.suse.cz>
-References: <20110811085252.b29081f1.kamezawa.hiroyu@jp.fujitsu.com>
- <20110811145055.GN8023@tiehlicka.suse.cz>
- <20110817095405.ee3dcd74.kamezawa.hiroyu@jp.fujitsu.com>
- <20110817113550.GA7482@tiehlicka.suse.cz>
- <20110818085233.69dbf23b.kamezawa.hiroyu@jp.fujitsu.com>
- <20110818062722.GB23056@tiehlicka.suse.cz>
- <20110818154259.6b4adf09.kamezawa.hiroyu@jp.fujitsu.com>
- <20110818074602.GD23056@tiehlicka.suse.cz>
- <20110818125754.GA14015@tiehlicka.suse.cz>
- <20110818135821.GA16958@cmpxchg.org>
+	by kanga.kvack.org (Postfix) with ESMTP id 274A1900138
+	for <linux-mm@kvack.org>; Thu, 18 Aug 2011 10:42:01 -0400 (EDT)
+Date: Thu, 18 Aug 2011 16:41:53 +0200
+From: Johannes Weiner <jweiner@redhat.com>
+Subject: Re: [PATCH] memcg: remove unneeded preempt_disable
+Message-ID: <20110818144153.GA19920@redhat.com>
+References: <1313650253-21794-1-git-send-email-gthelen@google.com>
+ <20110818093800.GA2268@redhat.com>
+ <96939.1313677618@turing-police.cc.vt.edu>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110818135821.GA16958@cmpxchg.org>
+In-Reply-To: <96939.1313677618@turing-police.cc.vt.edu>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
+To: Valdis.Kletnieks@vt.edu
+Cc: Greg Thelen <gthelen@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <bsingharora@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 
-On Thu 18-08-11 15:58:21, Johannes Weiner wrote:
-> On Thu, Aug 18, 2011 at 02:57:54PM +0200, Michal Hocko wrote:
-> > I have just realized that num_online_nodes should be much better than
-> > MAX_NUMNODES. 
-> > Just for reference, the patch is based on top of
-> > https://lkml.org/lkml/2011/8/9/82 (it doesn't depend on it but it also
-> > doesn't make much sense without it)
+On Thu, Aug 18, 2011 at 10:26:58AM -0400, Valdis.Kletnieks@vt.edu wrote:
+> On Thu, 18 Aug 2011 11:38:00 +0200, Johannes Weiner said:
+> 
+> > Note that on non-x86, these operations themselves actually disable and
+> > reenable preemption each time, so you trade a pair of add and sub on
+> > x86
 > > 
-> > Changes since v2:
-> > - use num_online_nodes rather than MAX_NUMNODES
-> > Changes since v1:
-> > - reclaim nr_nodes * SWAP_CLUSTER_MAX in mem_cgroup_force_empty
-> > ---
-> > From: Michal Hocko <mhocko@suse.cz>
-> > Subject: memcg: add nr_pages argument for hierarchical reclaim
+> > -	preempt_disable()
+> > 	__this_cpu_xxx()
+> > 	__this_cpu_yyy()
+> > -	preempt_enable()
 > > 
-> > Now that we are doing memcg direct reclaim limited to nr_to_reclaim
-> > pages (introduced by "memcg: stop vmscan when enough done.") we have to
-> > be more careful. Currently we are using SWAP_CLUSTER_MAX which is OK for
-> > most callers but it might cause failures for limit resize or force_empty
-> > code paths on big NUMA machines.
+> > with
+> > 
+> > 	preempt_disable()
+> > 	__this_cpu_xxx()
+> > +	preempt_enable()
+> > +	preempt_disable()
+> > 	__this_cpu_yyy()
+> > 	preempt_enable()
+> > 
+> > everywhere else.
 > 
-> The limit resizing path retries as long as reclaim makes progress, so
-> this is just handwaving.
+> That would be an unexpected race condition on non-x86, if you expected _xxx and
+> _yyy to be done together without a preempt between them. Would take mere
+> mortals forever to figure that one out. :)
 
-limit resizing paths do not check the return value of
-mem_cgroup_hierarchical_reclaim so the number of retries is not
-affected. It is true that fixing that would be much easier.
+That should be fine, we don't require the two counters to be perfectly
+coherent with respect to each other, which is the justification for
+this optimization in the first place.
 
-> 
-> After Kame's patch, the force-empty path has an increased risk of
-> failing to move huge pages to the parent, because it tries reclaim
-> only once.  This could need further evaluation, and possibly a fix.
-
-Agreed
-
-> But instead:
-> 
-> > @@ -2331,8 +2331,14 @@ static int mem_cgroup_do_charge(struct m
-> >  	if (!(gfp_mask & __GFP_WAIT))
-> >  		return CHARGE_WOULDBLOCK;
-> >  
-> > +	/*
-> > +	 * We are lying about nr_pages because we do not want to
-> > +	 * reclaim too much for THP pages which should rather fallback
-> > +	 * to small pages.
-> > +	 */
-> >  	ret = mem_cgroup_hierarchical_reclaim(mem_over_limit, NULL,
-> > -					      gfp_mask, flags, NULL);
-> > +					      gfp_mask, flags, NULL,
-> > +					      1);
-> >  	if (mem_cgroup_margin(mem_over_limit) >= nr_pages)
-> >  		return CHARGE_RETRY;
-> >  	/*
-> 
-> You tell it to reclaim _less_ than before, further increasing the risk
-> of failure...
-> 
-> > @@ -2350,7 +2351,7 @@ unsigned long try_to_free_mem_cgroup_pag
-> >  		.may_writepage = !laptop_mode,
-> >  		.may_unmap = 1,
-> >  		.may_swap = !noswap,
-> > -		.nr_to_reclaim = SWAP_CLUSTER_MAX,
-> > +		.nr_to_reclaim = max_t(unsigned long, nr_pages, SWAP_CLUSTER_MAX),
-> 
-> ...but wait, this transparently fixes it up and ignores the caller's
-> request.
-> 
-> Sorry, but this is just horrible!
-
-Yes, I do not like it as well and tried to point it out in the comment.
-Anyway I do agree that this doesn't solve the problem you are describing
-above and the limit resizing paths can be fixed much easier so the patch
-is pointless.
-
-> 
-> For the past weeks I have been chasing memcg bugs that came in with
-> sloppy and untested code, that was merged for handwavy reasons.
-
-Yes, I feel big responsibility about that.
-
-> 
-> Changes to algorithms need to be tested and optimizations need to be
-> quantified in other parts of the VM and the kernel, too.  I have no
-> idea why this doesn't seem to apply to the memory cgroup subsystem.
-
-Yes, we should definitely do better during review process.
-
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+But on non-x86, the operation to increase a single per-cpu counter
+(read-modify-write) itself is made atomic by disabling preemption.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
