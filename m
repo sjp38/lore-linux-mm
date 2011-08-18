@@ -1,85 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 2556A900138
-	for <linux-mm@kvack.org>; Thu, 18 Aug 2011 02:50:36 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 7A5433EE0BC
-	for <linux-mm@kvack.org>; Thu, 18 Aug 2011 15:50:32 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 5F94D45DE54
-	for <linux-mm@kvack.org>; Thu, 18 Aug 2011 15:50:32 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 33ED845DE55
-	for <linux-mm@kvack.org>; Thu, 18 Aug 2011 15:50:32 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 2412D1DB8055
-	for <linux-mm@kvack.org>; Thu, 18 Aug 2011 15:50:32 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id DD4D41DB804B
-	for <linux-mm@kvack.org>; Thu, 18 Aug 2011 15:50:31 +0900 (JST)
-Date: Thu, 18 Aug 2011 15:42:59 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH v5 2/6]  memcg: stop vmscan when enough done.
-Message-Id: <20110818154259.6b4adf09.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20110818062722.GB23056@tiehlicka.suse.cz>
-References: <20110809190450.16d7f845.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110809190933.d965888b.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110810141425.GC15007@tiehlicka.suse.cz>
-	<20110811085252.b29081f1.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110811145055.GN8023@tiehlicka.suse.cz>
-	<20110817095405.ee3dcd74.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110817113550.GA7482@tiehlicka.suse.cz>
-	<20110818085233.69dbf23b.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110818062722.GB23056@tiehlicka.suse.cz>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 684E4900138
+	for <linux-mm@kvack.org>; Thu, 18 Aug 2011 02:51:26 -0400 (EDT)
+From: Greg Thelen <gthelen@google.com>
+Subject: [PATCH] memcg: remove unneeded preempt_disable
+Date: Wed, 17 Aug 2011 23:50:53 -0700
+Message-Id: <1313650253-21794-1-git-send-email-gthelen@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <bsingharora@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Greg Thelen <gthelen@google.com>
 
-On Thu, 18 Aug 2011 08:27:22 +0200
-Michal Hocko <mhocko@suse.cz> wrote:
+Both mem_cgroup_charge_statistics() and mem_cgroup_move_account() were
+unnecessarily disabling preemption when adjusting per-cpu counters:
+    preempt_disable()
+    __this_cpu_xxx()
+    __this_cpu_yyy()
+    preempt_enable()
 
-> On Thu 18-08-11 08:52:33, KAMEZAWA Hiroyuki wrote:
-> > On Wed, 17 Aug 2011 13:35:50 +0200
-> > Michal Hocko <mhocko@suse.cz> wrote:
-> > 
-> > > On Wed 17-08-11 09:54:05, KAMEZAWA Hiroyuki wrote:
-> > > > On Thu, 11 Aug 2011 16:50:55 +0200
-> > > > > - mem_cgroup_force_empty asks for reclaiming all pages. I guess it should be
-> > > > >   OK but will have to think about it some more.
-> > > > 
-> > > > force_empty/rmdir() is allowed to be stopped by Ctrl-C. I think passing res->usage
-> > > > is overkilling.
-> > > 
-> > > So, how many pages should be reclaimed then?
-> > > 
-> > 
-> > How about (1 << (MAX_ORDER-1))/loop ?
-> 
-> Hmm, I am not sure I see any benefit. We want to reclaim all those
-> pages why shouldn't we do it in one batch? If we use a value based on
-> MAX_ORDER then we make a bigger chance that force_empty fails for big
-> cgroups (e.g. with a lot of page cache).
+This change does not disable preemption and thus CPU switch is possible
+within these routines.  This does not cause a problem because the total
+of all cpu counters is summed when reporting stats.  Now both
+mem_cgroup_charge_statistics() and mem_cgroup_move_account() look like:
+    this_cpu_xxx()
+    this_cpu_yyy()
 
-Why bigger chance to fail ? retry counter is decreased only when we cannot
-make any reclaim. The number passed here is not problem against the faiulre.
+Reported-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Signed-off-by: Greg Thelen <gthelen@google.com>
+---
+ mm/memcontrol.c |   20 +++++++-------------
+ 1 files changed, 7 insertions(+), 13 deletions(-)
 
-I don't like very long vmscan which cannot be stopped by Ctrl-C.
-
-
-> Anyway, if we want to mimic the previous behavior then we should use
-> something like nr_nodes * SWAP_CLUSTER_MAX (the above value would be
-> sufficient for up to 32 nodes).
-> 
-
-agreed.
-
-Thanks,
--Kame
-
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index c6faa32..048b205 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -664,24 +664,20 @@ static unsigned long mem_cgroup_read_events(struct mem_cgroup *mem,
+ static void mem_cgroup_charge_statistics(struct mem_cgroup *mem,
+ 					 bool file, int nr_pages)
+ {
+-	preempt_disable();
+-
+ 	if (file)
+-		__this_cpu_add(mem->stat->count[MEM_CGROUP_STAT_CACHE], nr_pages);
++		this_cpu_add(mem->stat->count[MEM_CGROUP_STAT_CACHE], nr_pages);
+ 	else
+-		__this_cpu_add(mem->stat->count[MEM_CGROUP_STAT_RSS], nr_pages);
++		this_cpu_add(mem->stat->count[MEM_CGROUP_STAT_RSS], nr_pages);
+ 
+ 	/* pagein of a big page is an event. So, ignore page size */
+ 	if (nr_pages > 0)
+-		__this_cpu_inc(mem->stat->events[MEM_CGROUP_EVENTS_PGPGIN]);
++		this_cpu_inc(mem->stat->events[MEM_CGROUP_EVENTS_PGPGIN]);
+ 	else {
+-		__this_cpu_inc(mem->stat->events[MEM_CGROUP_EVENTS_PGPGOUT]);
++		this_cpu_inc(mem->stat->events[MEM_CGROUP_EVENTS_PGPGOUT]);
+ 		nr_pages = -nr_pages; /* for event */
+ 	}
+ 
+-	__this_cpu_add(mem->stat->events[MEM_CGROUP_EVENTS_COUNT], nr_pages);
+-
+-	preempt_enable();
++	this_cpu_add(mem->stat->events[MEM_CGROUP_EVENTS_COUNT], nr_pages);
+ }
+ 
+ unsigned long
+@@ -2713,10 +2709,8 @@ static int mem_cgroup_move_account(struct page *page,
+ 
+ 	if (PageCgroupFileMapped(pc)) {
+ 		/* Update mapped_file data for mem_cgroup */
+-		preempt_disable();
+-		__this_cpu_dec(from->stat->count[MEM_CGROUP_STAT_FILE_MAPPED]);
+-		__this_cpu_inc(to->stat->count[MEM_CGROUP_STAT_FILE_MAPPED]);
+-		preempt_enable();
++		this_cpu_dec(from->stat->count[MEM_CGROUP_STAT_FILE_MAPPED]);
++		this_cpu_inc(to->stat->count[MEM_CGROUP_STAT_FILE_MAPPED]);
+ 	}
+ 	mem_cgroup_charge_statistics(from, PageCgroupCache(pc), -nr_pages);
+ 	if (uncharge)
+-- 
+1.7.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
