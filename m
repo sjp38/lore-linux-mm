@@ -1,80 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 57FB46B0169
-	for <linux-mm@kvack.org>; Thu, 18 Aug 2011 17:41:02 -0400 (EDT)
-Date: Thu, 18 Aug 2011 14:40:25 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] memcg: remove unneeded preempt_disable
-Message-Id: <20110818144025.8e122a67.akpm@linux-foundation.org>
-In-Reply-To: <1313650253-21794-1-git-send-email-gthelen@google.com>
-References: <1313650253-21794-1-git-send-email-gthelen@google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 327AD6B0169
+	for <linux-mm@kvack.org>; Thu, 18 Aug 2011 18:25:34 -0400 (EDT)
+Received: by fxg9 with SMTP id 9so2234699fxg.14
+        for <linux-mm@kvack.org>; Thu, 18 Aug 2011 15:25:30 -0700 (PDT)
+From: Denys Vlasenko <vda.linux@googlemail.com>
+Subject: Re: running of out memory => kernel crash
+Date: Fri, 19 Aug 2011 00:25:27 +0200
+References: <1312872786.70934.YahooMailNeo@web111712.mail.gq1.yahoo.com> <CAK1hOcM5u-zB7fUnR5QVJGBrEnLMhK9Q+EmWBknThga70UQaLw@mail.gmail.com> <CAG1a4rus+VVhhB3ayuDF2pCQDusLekGOAxf33+u_uzxC1yz1MA@mail.gmail.com>
+In-Reply-To: <CAG1a4rus+VVhhB3ayuDF2pCQDusLekGOAxf33+u_uzxC1yz1MA@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <201108190025.27444.vda.linux@googlemail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Thelen <gthelen@google.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <bsingharora@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-arch@vger.kernel.org
+To: Pavel Ivanov <paivanof@gmail.com>
+Cc: Mahmood Naderan <nt_mahmood@yahoo.com>, David Rientjes <rientjes@google.com>, Randy Dunlap <rdunlap@xenotime.net>, "\"linux-kernel@vger.kernel.org\"" <linux-kernel@vger.kernel.org>, "\"linux-mm@kvack.org\"" <linux-mm@kvack.org>
 
-(cc linux-arch)
-
-On Wed, 17 Aug 2011 23:50:53 -0700
-Greg Thelen <gthelen@google.com> wrote:
-
-> Both mem_cgroup_charge_statistics() and mem_cgroup_move_account() were
-> unnecessarily disabling preemption when adjusting per-cpu counters:
->     preempt_disable()
->     __this_cpu_xxx()
->     __this_cpu_yyy()
->     preempt_enable()
+On Thursday 18 August 2011 16:26, Pavel Ivanov wrote:
+> On Thu, Aug 18, 2011 at 8:44 AM, Denys Vlasenko
+> <vda.linux@googlemail.com> wrote:
+> >> I have a little concern about this explanation of yours. Suppose we
+> >> have some amount of more or less actively executing processes in the
+> >> system. Suppose they started to use lots of resident memory. Amount of
+> >> memory they use is less than total available physical memory but when
+> >> we add total size of code for those processes it would be several
+> >> pages more than total size of physical memory. As I understood from
+> >> your explanation in such situation one process will execute its time
+> >> slice, kernel will switch to other one, find that its code was pushed
+> >> out of RAM, read it from disk, execute its time slice, switch to next
+> >> process, read its code from disk, execute and so on. So system will be
+> >> virtually unusable because of constantly reading from disk just to
+> >> execute next small piece of code. But oom will never be firing in such
+> >> situation. Is my understanding correct?
+> >
+> > Yes.
+> >
+> >> Shouldn't it be considered as an unwanted behavior?
+> >
+> > Yes. But all alternatives (such as killing some process) seem to be worse.
 > 
-> This change does not disable preemption and thus CPU switch is possible
-> within these routines.  This does not cause a problem because the total
-> of all cpu counters is summed when reporting stats.  Now both
-> mem_cgroup_charge_statistics() and mem_cgroup_move_account() look like:
->     this_cpu_xxx()
->     this_cpu_yyy()
+> Could you elaborate on this? We have a completely unusable server
+> which can be revived only by hard power cycling (administrators won't
+> be able to log in because sshd and shell will fall victims of the same
+> unending disk reading).
+
+You can ssh into it. It will just take VERY, VERY LONG.
+
+> And as an alternative we can kill some process 
+> and at least allow administrator to log in and check if something else
+> can be done to make server feel better. Why is it worse?
 > 
-> ...
->
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -664,24 +664,20 @@ static unsigned long mem_cgroup_read_events(struct mem_cgroup *mem,
->  static void mem_cgroup_charge_statistics(struct mem_cgroup *mem,
->  					 bool file, int nr_pages)
->  {
-> -	preempt_disable();
-> -
->  	if (file)
-> -		__this_cpu_add(mem->stat->count[MEM_CGROUP_STAT_CACHE], nr_pages);
-> +		this_cpu_add(mem->stat->count[MEM_CGROUP_STAT_CACHE], nr_pages);
->  	else
-> -		__this_cpu_add(mem->stat->count[MEM_CGROUP_STAT_RSS], nr_pages);
-> +		this_cpu_add(mem->stat->count[MEM_CGROUP_STAT_RSS], nr_pages);
->  
->  	/* pagein of a big page is an event. So, ignore page size */
->  	if (nr_pages > 0)
-> -		__this_cpu_inc(mem->stat->events[MEM_CGROUP_EVENTS_PGPGIN]);
-> +		this_cpu_inc(mem->stat->events[MEM_CGROUP_EVENTS_PGPGIN]);
->  	else {
-> -		__this_cpu_inc(mem->stat->events[MEM_CGROUP_EVENTS_PGPGOUT]);
-> +		this_cpu_inc(mem->stat->events[MEM_CGROUP_EVENTS_PGPGOUT]);
->  		nr_pages = -nr_pages; /* for event */
->  	}
->  
-> -	__this_cpu_add(mem->stat->events[MEM_CGROUP_EVENTS_COUNT], nr_pages);
-> -
-> -	preempt_enable();
-> +	this_cpu_add(mem->stat->events[MEM_CGROUP_EVENTS_COUNT], nr_pages);
->  }
+> I understand that it could be very hard to detect such situation
 
-On non-x86 architectures this_cpu_add() internally does
-preempt_disable() and preempt_enable().  So the patch is a small
-optimisation for x86 and a larger deoptimisation for non-x86.
+Exactly. Server has no means to know when the situation is
+bad enough to start killing. IIRC now the rule is simple:
+OOM killing starts only when allocations fail.
 
-I think I'll apply it, as the call frequency is low (correct?) and the
-problem will correct itself as other architectures implement their
-atomic this_cpu_foo() operations.
+Perhaps it is possible to add "start OOM killing if less than N free
+pages are available", but this will be complex, and won't be good enough
+for some configs with many zones (thus, will require even more complications).
+
+-- 
+vda
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
