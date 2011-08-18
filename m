@@ -1,83 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D219900138
-	for <linux-mm@kvack.org>; Thu, 18 Aug 2011 12:26:02 -0400 (EDT)
-Received: by vwm42 with SMTP id 42so2277044vwm.14
-        for <linux-mm@kvack.org>; Thu, 18 Aug 2011 09:25:59 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20110818131343.GA17473@localhost>
-References: <CAFPAmTSrh4r71eQqW-+_nS2KFK2S2RQvYBEpa3QnNkZBy8ncbw@mail.gmail.com>
-	<20110818094824.GA25752@localhost>
-	<1313669702.6607.24.camel@sauron>
-	<20110818131343.GA17473@localhost>
-Date: Thu, 18 Aug 2011 21:55:58 +0530
-Message-ID: <CAFPAmTShNRykOEbUfRan_2uAAbBoRHE0RhOh4DrbWKq7a4-Z9Q@mail.gmail.com>
-Subject: Re: [PATCH] writeback: Per-block device bdi->dirty_writeback_interval
- and bdi->dirty_expire_interval.
-From: Kautuk Consul <consul.kautuk@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id A1EB06B00EE
+	for <linux-mm@kvack.org>; Thu, 18 Aug 2011 14:28:01 -0400 (EDT)
+Subject: Re: [PATCH] memcg: remove unneeded preempt_disable
+In-Reply-To: Your message of "Thu, 18 Aug 2011 16:41:53 +0200."
+             <20110818144153.GA19920@redhat.com>
+From: Valdis.Kletnieks@vt.edu
+References: <1313650253-21794-1-git-send-email-gthelen@google.com> <20110818093800.GA2268@redhat.com> <96939.1313677618@turing-police.cc.vt.edu>
+            <20110818144153.GA19920@redhat.com>
+Mime-Version: 1.0
+Content-Type: multipart/signed; boundary="==_Exmh_1313692071_2611P";
+	 micalg=pgp-sha1; protocol="application/pgp-signature"
+Content-Transfer-Encoding: 7bit
+Date: Thu, 18 Aug 2011 14:27:51 -0400
+Message-ID: <8365.1313692071@turing-police.cc.vt.edu>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Artem Bityutskiy <dedekind1@gmail.com>, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>
+To: Johannes Weiner <jweiner@redhat.com>
+Cc: Greg Thelen <gthelen@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <bsingharora@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 
-Hi Wu,
+--==_Exmh_1313692071_2611P
+Content-Type: text/plain; charset=us-ascii
 
-On Thu, Aug 18, 2011 at 6:43 PM, Wu Fengguang <fengguang.wu@intel.com> wrote:
-> Hi Artem,
->
->> Here is a real use-case we had when developing the N900 phone. We had
->> internal flash and external microSD slot. Internal flash is soldered in
->> and cannot be removed by the user. MicroSD, in contrast, can be removed
->> by the user.
->>
->> For the internal flash we wanted long intervals and relaxed limits to
->> gain better performance.
->>
->> For MicroSD we wanted very short intervals and tough limits to make sure
->> that if the user suddenly removes his microSD (users do this all the
->> time) - we do not lose data.
->
-> Thinking twice about it, I find that the different requirements for
-> interval flash/external microSD can also be solved by this scheme.
->
-> Introduce a per-bdi dirty_background_time (and optionally dirty_time)
-> as the counterpart of (and works in parallel to) global dirty[_background]_ratio,
-> however with unit "milliseconds worth of data".
->
-> The per-bdi dirty_background_time will be set low for external microSD
-> and high for internal flash. Then you get timely writeouts for microSD
-> and reasonably delayed writes for internal flash (controllable by the
-> global dirty_expire_centisecs).
->
-> The dirty_background_time will actually work more reliable than
-> dirty_expire_centisecs because it will checked immediately after the
-> application dirties more pages. And the dirty_time could provide
-> strong data integrity guarantee -- much stronger than
-> dirty_expire_centisecs -- if used.
->
-> Does that sound reasonable?
->
-> Thanks,
-> Fengguang
->
+On Thu, 18 Aug 2011 16:41:53 +0200, Johannes Weiner said:
+> On Thu, Aug 18, 2011 at 10:26:58AM -0400, Valdis.Kletnieks@vt.edu wrote:
+> > On Thu, 18 Aug 2011 11:38:00 +0200, Johannes Weiner said:
+> > 
+> > > Note that on non-x86, these operations themselves actually disable and
+> > > reenable preemption each time, so you trade a pair of add and sub on
+> > > x86
+> > > 
+> > > -	preempt_disable()
+> > > 	__this_cpu_xxx()
+> > > 	__this_cpu_yyy()
+> > > -	preempt_enable()
+> > > 
+> > > with
+> > > 
+> > > 	preempt_disable()
+> > > 	__this_cpu_xxx()
+> > > +	preempt_enable()
+> > > +	preempt_disable()
+> > > 	__this_cpu_yyy()
+> > > 	preempt_enable()
+> > > 
+> > > everywhere else.
+> > 
+> > That would be an unexpected race condition on non-x86, if you expected _xxx and
+> > _yyy to be done together without a preempt between them. Would take mere
+> > mortals forever to figure that one out. :)
+> 
+> That should be fine, we don't require the two counters to be perfectly
+> coherent with respect to each other, which is the justification for
+> this optimization in the first place.
 
-My understanding of your email appears that you are agreeing in
-principle that the temporal
-aspect of this problem needs to be addressed along with your spatial
-pattern analysis technique.
+I meant the general case - when reviewing code, I wouldn't expect 2 lines of code
+wrapped in preempt disable/enable to have a preempt window in the middle. ;)
 
-I feel a more generic solution to the problem is required because the
-problem faced by Artem can appear
-in a different situation for a different application.
+--==_Exmh_1313692071_2611P
+Content-Type: application/pgp-signature
 
-I can re-implement my original patch in either centiseconds or
-milliseconds as suggested by you.
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.11 (GNU/Linux)
+Comment: Exmh version 2.5 07/13/2001
 
-Kindly advise if my understanding is correct.
+iD8DBQFOTVmncC3lWbTT17ARAsAVAKC1b5V9INlQmsHK6z1zZvAMTcqa4ACfTcSs
+GPK+HdG6a1iJ24jq/1lhWGs=
+=bIfE
+-----END PGP SIGNATURE-----
 
-Thanks,
-Kautuk Consul.
+--==_Exmh_1313692071_2611P--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
