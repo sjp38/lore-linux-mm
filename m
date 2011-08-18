@@ -1,213 +1,270 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 39756900138
-	for <linux-mm@kvack.org>; Thu, 18 Aug 2011 03:43:29 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 04BC03EE0BD
-	for <linux-mm@kvack.org>; Thu, 18 Aug 2011 16:43:26 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id DEE3045DE61
-	for <linux-mm@kvack.org>; Thu, 18 Aug 2011 16:43:25 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id C9B6F45DE68
-	for <linux-mm@kvack.org>; Thu, 18 Aug 2011 16:43:25 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id A6D581DB8040
-	for <linux-mm@kvack.org>; Thu, 18 Aug 2011 16:43:25 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 6569A1DB803E
-	for <linux-mm@kvack.org>; Thu, 18 Aug 2011 16:43:25 +0900 (JST)
-Date: Thu, 18 Aug 2011 16:35:52 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH v9 11/13] writeback: make background writeback cgroup
- aware
-Message-Id: <20110818163552.f525225c.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <xr93hb5ftbhy.fsf@gthelen.mtv.corp.google.com>
-References: <1313597705-6093-1-git-send-email-gthelen@google.com>
-	<1313597705-6093-12-git-send-email-gthelen@google.com>
-	<20110818102344.110829ce.kamezawa.hiroyu@jp.fujitsu.com>
-	<xr93r54jtcsf.fsf@gthelen.mtv.corp.google.com>
-	<20110818161751.9be5f1f9.kamezawa.hiroyu@jp.fujitsu.com>
-	<xr93hb5ftbhy.fsf@gthelen.mtv.corp.google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 98322900138
+	for <linux-mm@kvack.org>; Thu, 18 Aug 2011 03:46:07 -0400 (EDT)
+Date: Thu, 18 Aug 2011 09:46:02 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH v5 2/6]  memcg: stop vmscan when enough done.
+Message-ID: <20110818074602.GD23056@tiehlicka.suse.cz>
+References: <20110809190450.16d7f845.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110809190933.d965888b.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110810141425.GC15007@tiehlicka.suse.cz>
+ <20110811085252.b29081f1.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110811145055.GN8023@tiehlicka.suse.cz>
+ <20110817095405.ee3dcd74.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110817113550.GA7482@tiehlicka.suse.cz>
+ <20110818085233.69dbf23b.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110818062722.GB23056@tiehlicka.suse.cz>
+ <20110818154259.6b4adf09.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110818154259.6b4adf09.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Thelen <gthelen@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, linux-fsdevel@vger.kernel.org, Balbir Singh <bsingharora@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Wu Fengguang <fengguang.wu@intel.com>, Dave Chinner <david@fromorbit.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <andrea@betterlinux.com>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
 
-On Thu, 18 Aug 2011 00:38:49 -0700
-Greg Thelen <gthelen@google.com> wrote:
-
-> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> writes:
+On Thu 18-08-11 15:42:59, KAMEZAWA Hiroyuki wrote:
+> On Thu, 18 Aug 2011 08:27:22 +0200
+> Michal Hocko <mhocko@suse.cz> wrote:
 > 
-> > On Thu, 18 Aug 2011 00:10:56 -0700
-> > Greg Thelen <gthelen@google.com> wrote:
-> >
-> >> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> writes:
-> >> 
-> >> > On Wed, 17 Aug 2011 09:15:03 -0700
-> >> > Greg Thelen <gthelen@google.com> wrote:
-> >> >
-> >> >> When the system is under background dirty memory threshold but some
-> >> >> cgroups are over their background dirty memory thresholds, then only
-> >> >> writeback inodes associated with the over-limit cgroups.
-> >> >> 
-> >> >> In addition to checking if the system dirty memory usage is over the
-> >> >> system background threshold, over_bground_thresh() now checks if any
-> >> >> cgroups are over their respective background dirty memory thresholds.
-> >> >> 
-> >> >> If over-limit cgroups are found, then the new
-> >> >> wb_writeback_work.for_cgroup field is set to distinguish between system
-> >> >> and memcg overages.  The new wb_writeback_work.shared_inodes field is
-> >> >> also set.  Inodes written by multiple cgroup are marked owned by
-> >> >> I_MEMCG_SHARED rather than a particular cgroup.  Such shared inodes
-> >> >> cannot easily be attributed to a cgroup, so per-cgroup writeback
-> >> >> (futures version of wakeup_flusher_threads and balance_dirty_pages)
-> >> >> performs suboptimally in the presence of shared inodes.  Therefore,
-> >> >> write shared inodes when performing cgroup background writeback.
-> >> >> 
-> >> >> If performing cgroup writeback, move_expired_inodes() skips inodes that
-> >> >> do not contribute dirty pages to the cgroup being written back.
-> >> >> 
-> >> >> After writing some pages, wb_writeback() will call
-> >> >> mem_cgroup_writeback_done() to update the set of over-bg-limits memcg.
-> >> >> 
-> >> >> This change also makes wakeup_flusher_threads() memcg aware so that
-> >> >> per-cgroup try_to_free_pages() is able to operate more efficiently
-> >> >> without having to write pages of foreign containers.  This change adds a
-> >> >> mem_cgroup parameter to wakeup_flusher_threads() to allow callers,
-> >> >> especially try_to_free_pages() and foreground writeback from
-> >> >> balance_dirty_pages(), to specify a particular cgroup to write inodes
-> >> >> from.
-> >> >> 
-> >> >> Signed-off-by: Greg Thelen <gthelen@google.com>
-> >> >> ---
-> >> >> Changelog since v8:
-> >> >> 
-> >> >> - Added optional memcg parameter to __bdi_start_writeback(),
-> >> >>   bdi_start_writeback(), wakeup_flusher_threads(), writeback_inodes_wb().
-> >> >> 
-> >> >> - move_expired_inodes() now uses pass in struct wb_writeback_work instead of
-> >> >>   struct writeback_control.
-> >> >> 
-> >> >> - Added comments to over_bground_thresh().
-> >> >> 
-> >> >>  fs/buffer.c               |    2 +-
-> >> >>  fs/fs-writeback.c         |   96 +++++++++++++++++++++++++++++++++-----------
-> >> >>  fs/sync.c                 |    2 +-
-> >> >>  include/linux/writeback.h |    6 ++-
-> >> >>  mm/backing-dev.c          |    3 +-
-> >> >>  mm/page-writeback.c       |    3 +-
-> >> >>  mm/vmscan.c               |    3 +-
-> >> >>  7 files changed, 84 insertions(+), 31 deletions(-)
-> >> >> 
-> >> >> diff --git a/fs/buffer.c b/fs/buffer.c
-> >> >> index dd0220b..da1fb23 100644
-> >> >> --- a/fs/buffer.c
-> >> >> +++ b/fs/buffer.c
-> >> >> @@ -293,7 +293,7 @@ static void free_more_memory(void)
-> >> >>  	struct zone *zone;
-> >> >>  	int nid;
-> >> >>  
-> >> >> -	wakeup_flusher_threads(1024);
-> >> >> +	wakeup_flusher_threads(1024, NULL);
-> >> >>  	yield();
-> >> >>  
-> >> >>  	for_each_online_node(nid) {
-> >> >> diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
-> >> >> index e91fb82..ba55336 100644
-> >> >> --- a/fs/fs-writeback.c
-> >> >> +++ b/fs/fs-writeback.c
-> >> >> @@ -38,10 +38,14 @@ struct wb_writeback_work {
-> >> >>  	struct super_block *sb;
-> >> >>  	unsigned long *older_than_this;
-> >> >>  	enum writeback_sync_modes sync_mode;
-> >> >> +	unsigned short memcg_id;	/* If non-zero, then writeback specified
-> >> >> +					 * cgroup. */
-> >> >>  	unsigned int tagged_writepages:1;
-> >> >>  	unsigned int for_kupdate:1;
-> >> >>  	unsigned int range_cyclic:1;
-> >> >>  	unsigned int for_background:1;
-> >> >> +	unsigned int for_cgroup:1;	/* cgroup writeback */
-> >> >> +	unsigned int shared_inodes:1;	/* write inodes spanning cgroups */
-> >> >>  
-> >> >>  	struct list_head list;		/* pending work list */
-> >> >>  	struct completion *done;	/* set if the caller waits */
-> >> >> @@ -114,9 +118,12 @@ static void bdi_queue_work(struct backing_dev_info *bdi,
-> >> >>  	spin_unlock_bh(&bdi->wb_lock);
-> >> >>  }
-> >> >>  
-> >> >> +/*
-> >> >> + * @memcg is optional.  If set, then limit writeback to the specified cgroup.
-> >> >> + */
-> >> >>  static void
-> >> >>  __bdi_start_writeback(struct backing_dev_info *bdi, long nr_pages,
-> >> >> -		      bool range_cyclic)
-> >> >> +		      bool range_cyclic, struct mem_cgroup *memcg)
-> >> >>  {
-> >> >>  	struct wb_writeback_work *work;
-> >> >>  
-> >> >> @@ -136,6 +143,8 @@ __bdi_start_writeback(struct backing_dev_info *bdi, long nr_pages,
-> >> >>  	work->sync_mode	= WB_SYNC_NONE;
-> >> >>  	work->nr_pages	= nr_pages;
-> >> >>  	work->range_cyclic = range_cyclic;
-> >> >> +	work->memcg_id = memcg ? css_id(mem_cgroup_css(memcg)) : 0;
-> >> >> +	work->for_cgroup = memcg != NULL;
-> >> >>  
-> >> >
-> >> >
-> >> > I couldn't find a patch for mem_cgroup_css(NULL). Is it in patch 1-10 ?
-> >> > Other parts seems ok to me.
-> >> >
-> >> >
-> >> > Thanks,
-> >> > -Kame
-> >> 
-> >> Mainline commit d324236b3333e87c8825b35f2104184734020d35 adds
-> >> mem_cgroup_css() to memcontrol.c.  The above code does not call
-> >> mem_cgroup_css() with a NULL parameter due to the 'memcg ? ...' check.
-> >> So I do not think any additional changes to mem_cgroup_css() are needed.
-> >> Am I missing your point?
-> >> 
-> >
-> > I thought you need
-> > ==
-> > struct cgroup_subsys_state *mem_cgroup_css(struct mem_cgroup *mem)
-> > {
-> > +	if (!mem)
-> > +		return NULL;
-> >        return &mem->css;
-> > }
-> > ==
-> > And
-> > ==
-> > unsigned short css_id(struct cgroup_subsys_state *css)
-> > {
-> >         struct css_id *cssid;
-> >
-> > +	if (!css)
-> > 		return 0;
-> > }
-> > ==
-> >
-> > Thanks,
-> > -Kame
+> > On Thu 18-08-11 08:52:33, KAMEZAWA Hiroyuki wrote:
+> > > On Wed, 17 Aug 2011 13:35:50 +0200
+> > > Michal Hocko <mhocko@suse.cz> wrote:
+> > > 
+> > > > On Wed 17-08-11 09:54:05, KAMEZAWA Hiroyuki wrote:
+> > > > > On Thu, 11 Aug 2011 16:50:55 +0200
+> > > > > > - mem_cgroup_force_empty asks for reclaiming all pages. I guess it should be
+> > > > > >   OK but will have to think about it some more.
+> > > > > 
+> > > > > force_empty/rmdir() is allowed to be stopped by Ctrl-C. I think passing res->usage
+> > > > > is overkilling.
+> > > > 
+> > > > So, how many pages should be reclaimed then?
+> > > > 
+> > > 
+> > > How about (1 << (MAX_ORDER-1))/loop ?
+> > 
+> > Hmm, I am not sure I see any benefit. We want to reclaim all those
+> > pages why shouldn't we do it in one batch? If we use a value based on
+> > MAX_ORDER then we make a bigger chance that force_empty fails for big
+> > cgroups (e.g. with a lot of page cache).
 > 
-> I think that your changes to mem_cgroup_css() and css_id() are
-> unnecessary for my patches because my patches do not call
-> mem_cgroup_css(NULL).  The "?" check below prevents NULL from being
-> passed into mem_cgroup_css():
+> Why bigger chance to fail ? retry counter is decreased only when we cannot
+> make any reclaim. The number passed here is not problem against the faiulre.
+
+Yes, you are right. I have overlooked that.
+
+ 
+> I don't like very long vmscan which cannot be stopped by Ctrl-C.
+
+Sure, now I see your point. Thanks for clarification.
+
+> > Anyway, if we want to mimic the previous behavior then we should use
+> > something like nr_nodes * SWAP_CLUSTER_MAX (the above value would be
+> > sufficient for up to 32 nodes).
+> > 
 > 
-> +	work->memcg_id = memcg ? css_id(mem_cgroup_css(memcg)) : 0;
-> 
+> agreed.
 
-Ah, I see. Thank you for clarification.
+Updated patch:
+Changes since v1:
+- reclaim nr_nodes * SWAP_CLUSTER_MAX in mem_cgroup_force_empty
+--- 
+From: Michal Hocko <mhocko@suse.cz>
+Subject: memcg: add nr_pages argument for hierarchical reclaim
 
+Now that we are doing memcg direct reclaim limited to nr_to_reclaim
+pages (introduced by "memcg: stop vmscan when enough done.") we have to
+be more careful. Currently we are using SWAP_CLUSTER_MAX which is OK for
+most callers but it might cause failures for limit resize or force_empty
+code paths on big NUMA machines.
 
-Thanks,
--Kame
+Previously we might have reclaimed up to nr_nodes * SWAP_CLUSTER_MAX
+while now we have it at SWAP_CLUSTER_MAX. Both resize and force_empty rely
+on reclaiming a certain amount of pages and retrying if their condition is
+still not met.
+
+Let's add nr_pages argument to mem_cgroup_hierarchical_reclaim which will
+push it further to try_to_free_mem_cgroup_pages. We still fall back to
+SWAP_CLUSTER_MAX for small requests so the standard code (hot) paths are not
+affected by this.
+
+We have to be careful in mem_cgroup_do_charge and do not provide the
+given nr_pages because we would reclaim too much for THP which can
+safely fall back to single page allocations.
+
+mem_cgroup_force_empty could try to reclaim all pages at once but it is much
+better to limit the nr_pages to something reasonable so that we are able to
+terminate it by a signal. Let's mimic previous behavior by asking for
+MAX_NUMNODES * SWAP_CLUSTER_MAX.
+
+Signed-off-by: Michal Hocko <mhocko@suse.cz>
+
+Index: linus_tree/include/linux/memcontrol.h
+===================================================================
+--- linus_tree.orig/include/linux/memcontrol.h	2011-08-18 09:30:24.000000000 +0200
++++ linus_tree/include/linux/memcontrol.h	2011-08-18 09:30:36.000000000 +0200
+@@ -130,7 +130,8 @@ extern void mem_cgroup_print_oom_info(st
+ 
+ extern unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem,
+ 						  gfp_t gfp_mask, bool noswap,
+-						  struct memcg_scanrecord *rec);
++						  struct memcg_scanrecord *rec,
++						  unsigned long nr_pages);
+ extern unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *mem,
+ 						gfp_t gfp_mask, bool noswap,
+ 						struct zone *zone,
+Index: linus_tree/mm/memcontrol.c
+===================================================================
+--- linus_tree.orig/mm/memcontrol.c	2011-08-18 09:30:34.000000000 +0200
++++ linus_tree/mm/memcontrol.c	2011-08-18 09:36:41.000000000 +0200
+@@ -1729,12 +1729,15 @@ static void mem_cgroup_record_scanstat(s
+  * (other groups can be removed while we're walking....)
+  *
+  * If shrink==true, for avoiding to free too much, this returns immedieately.
++ * Given nr_pages tells how many pages are we over the soft limit or how many
++ * pages do we want to reclaim in the direct reclaim mode.
+  */
+ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
+ 						struct zone *zone,
+ 						gfp_t gfp_mask,
+ 						unsigned long reclaim_options,
+-						unsigned long *total_scanned)
++						unsigned long *total_scanned,
++						unsigned long nr_pages)
+ {
+ 	struct mem_cgroup *victim;
+ 	int ret, total = 0;
+@@ -1743,11 +1746,8 @@ static int mem_cgroup_hierarchical_recla
+ 	bool shrink = reclaim_options & MEM_CGROUP_RECLAIM_SHRINK;
+ 	bool check_soft = reclaim_options & MEM_CGROUP_RECLAIM_SOFT;
+ 	struct memcg_scanrecord rec;
+-	unsigned long excess;
+ 	unsigned long scanned;
+ 
+-	excess = res_counter_soft_limit_excess(&root_mem->res) >> PAGE_SHIFT;
+-
+ 	/* If memsw_is_minimum==1, swap-out is of-no-use. */
+ 	if (!check_soft && !shrink && root_mem->memsw_is_minimum)
+ 		noswap = true;
+@@ -1785,11 +1785,11 @@ static int mem_cgroup_hierarchical_recla
+ 				}
+ 				/*
+ 				 * We want to do more targeted reclaim.
+-				 * excess >> 2 is not to excessive so as to
++				 * nr_pages >> 2 is not to excessive so as to
+ 				 * reclaim too much, nor too less that we keep
+ 				 * coming back to reclaim from this cgroup
+ 				 */
+-				if (total >= (excess >> 2) ||
++				if (total >= (nr_pages >> 2) ||
+ 					(loop > MEM_CGROUP_MAX_RECLAIM_LOOPS)) {
+ 					css_put(&victim->css);
+ 					break;
+@@ -1816,7 +1816,7 @@ static int mem_cgroup_hierarchical_recla
+ 			*total_scanned += scanned;
+ 		} else
+ 			ret = try_to_free_mem_cgroup_pages(victim, gfp_mask,
+-						noswap, &rec);
++						noswap, &rec, nr_pages);
+ 		mem_cgroup_record_scanstat(&rec);
+ 		css_put(&victim->css);
+ 		/*
+@@ -2331,8 +2331,14 @@ static int mem_cgroup_do_charge(struct m
+ 	if (!(gfp_mask & __GFP_WAIT))
+ 		return CHARGE_WOULDBLOCK;
+ 
++	/*
++	 * We are lying about nr_pages because we do not want to
++	 * reclaim too much for THP pages which should rather fallback
++	 * to small pages.
++	 */
+ 	ret = mem_cgroup_hierarchical_reclaim(mem_over_limit, NULL,
+-					      gfp_mask, flags, NULL);
++					      gfp_mask, flags, NULL,
++					      1);
+ 	if (mem_cgroup_margin(mem_over_limit) >= nr_pages)
+ 		return CHARGE_RETRY;
+ 	/*
+@@ -3567,7 +3573,8 @@ static int mem_cgroup_resize_limit(struc
+ 
+ 		mem_cgroup_hierarchical_reclaim(memcg, NULL, GFP_KERNEL,
+ 						MEM_CGROUP_RECLAIM_SHRINK,
+-						NULL);
++						NULL,
++						(val-memlimit) >> PAGE_SHIFT);
+ 		curusage = res_counter_read_u64(&memcg->res, RES_USAGE);
+ 		/* Usage is reduced ? */
+   		if (curusage >= oldusage)
+@@ -3628,7 +3635,8 @@ static int mem_cgroup_resize_memsw_limit
+ 		mem_cgroup_hierarchical_reclaim(memcg, NULL, GFP_KERNEL,
+ 						MEM_CGROUP_RECLAIM_NOSWAP |
+ 						MEM_CGROUP_RECLAIM_SHRINK,
+-						NULL);
++						NULL,
++						(val-memswlimit) >> PAGE_SHIFT);
+ 		curusage = res_counter_read_u64(&memcg->memsw, RES_USAGE);
+ 		/* Usage is reduced ? */
+ 		if (curusage >= oldusage)
+@@ -3671,10 +3679,12 @@ unsigned long mem_cgroup_soft_limit_recl
+ 			break;
+ 
+ 		nr_scanned = 0;
++		excess = res_counter_soft_limit_excess(&mz->mem->res);
+ 		reclaimed = mem_cgroup_hierarchical_reclaim(mz->mem, zone,
+ 						gfp_mask,
+ 						MEM_CGROUP_RECLAIM_SOFT,
+-						&nr_scanned);
++						&nr_scanned,
++						excess >> PAGE_SHIFT);
+ 		nr_reclaimed += reclaimed;
+ 		*total_scanned += nr_scanned;
+ 		spin_lock(&mctz->lock);
+@@ -3870,8 +3880,10 @@ try_to_free:
+ 		rec.context = SCAN_BY_SHRINK;
+ 		rec.mem = mem;
+ 		rec.root = mem;
++		/* reclaim from every node at least something */
+ 		progress = try_to_free_mem_cgroup_pages(mem, GFP_KERNEL,
+-						false, &rec);
++						false, &rec,
++						MAX_NUMNODES * SWAP_CLUSTER_MAX);
+ 		if (!progress) {
+ 			nr_retries--;
+ 			/* maybe some writeback is necessary */
+Index: linus_tree/mm/vmscan.c
+===================================================================
+--- linus_tree.orig/mm/vmscan.c	2011-08-18 09:30:24.000000000 +0200
++++ linus_tree/mm/vmscan.c	2011-08-18 09:30:36.000000000 +0200
+@@ -2340,7 +2340,8 @@ unsigned long mem_cgroup_shrink_node_zon
+ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem_cont,
+ 					   gfp_t gfp_mask,
+ 					   bool noswap,
+-					   struct memcg_scanrecord *rec)
++					   struct memcg_scanrecord *rec,
++					   unsigned long nr_pages)
+ {
+ 	struct zonelist *zonelist;
+ 	unsigned long nr_reclaimed;
+@@ -2350,7 +2351,7 @@ unsigned long try_to_free_mem_cgroup_pag
+ 		.may_writepage = !laptop_mode,
+ 		.may_unmap = 1,
+ 		.may_swap = !noswap,
+-		.nr_to_reclaim = SWAP_CLUSTER_MAX,
++		.nr_to_reclaim = max_t(unsigned long, nr_pages, SWAP_CLUSTER_MAX),
+ 		.order = 0,
+ 		.mem_cgroup = mem_cont,
+ 		.memcg_record = rec,
+
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
