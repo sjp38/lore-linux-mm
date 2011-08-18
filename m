@@ -1,55 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 78847900138
-	for <linux-mm@kvack.org>; Wed, 17 Aug 2011 21:47:59 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 46BF13EE0C0
-	for <linux-mm@kvack.org>; Thu, 18 Aug 2011 10:47:54 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 2FC4045DE50
-	for <linux-mm@kvack.org>; Thu, 18 Aug 2011 10:47:54 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 18B5F45DE4E
-	for <linux-mm@kvack.org>; Thu, 18 Aug 2011 10:47:54 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0B2A61DB803B
-	for <linux-mm@kvack.org>; Thu, 18 Aug 2011 10:47:54 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id CB63E1DB802F
-	for <linux-mm@kvack.org>; Thu, 18 Aug 2011 10:47:53 +0900 (JST)
-Date: Thu, 18 Aug 2011 10:40:20 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH v9 13/13] memcg: check memcg dirty limits in page
- writeback
-Message-Id: <20110818104020.cb025fe1.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1313597705-6093-14-git-send-email-gthelen@google.com>
-References: <1313597705-6093-1-git-send-email-gthelen@google.com>
-	<1313597705-6093-14-git-send-email-gthelen@google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id C1B2D900138
+	for <linux-mm@kvack.org>; Wed, 17 Aug 2011 22:18:38 -0400 (EDT)
+Received: by iyn15 with SMTP id 15so3334154iyn.34
+        for <linux-mm@kvack.org>; Wed, 17 Aug 2011 19:18:36 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <201108111938.25836.vda.linux@googlemail.com>
+References: <1312872786.70934.YahooMailNeo@web111712.mail.gq1.yahoo.com>
+ <CAK1hOcN7q=F=UV=aCAsVOYO=Ex34X0tbwLHv9BkYkA=ik7G13w@mail.gmail.com>
+ <1313075625.50520.YahooMailNeo@web111715.mail.gq1.yahoo.com> <201108111938.25836.vda.linux@googlemail.com>
+From: Pavel Ivanov <paivanof@gmail.com>
+Date: Wed, 17 Aug 2011 22:18:06 -0400
+Message-ID: <CAG1a4rsO7JDqmYiwyxPrAHdLNbJt+wqymSzU9i1dv5w5C2OFog@mail.gmail.com>
+Subject: Re: running of out memory => kernel crash
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Thelen <gthelen@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, linux-fsdevel@vger.kernel.org, Balbir Singh <bsingharora@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Wu Fengguang <fengguang.wu@intel.com>, Dave Chinner <david@fromorbit.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <andrea@betterlinux.com>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>
+To: Denys Vlasenko <vda.linux@googlemail.com>
+Cc: Mahmood Naderan <nt_mahmood@yahoo.com>, David Rientjes <rientjes@google.com>, Randy Dunlap <rdunlap@xenotime.net>, "\"linux-kernel@vger.kernel.org\"" <linux-kernel@vger.kernel.org>, "\"linux-mm@kvack.org\"" <linux-mm@kvack.org>
 
-On Wed, 17 Aug 2011 09:15:05 -0700
-Greg Thelen <gthelen@google.com> wrote:
+Denys,
 
-> If the current process is in a non-root memcg, then
-> balance_dirty_pages() will consider the memcg dirty limits as well as
-> the system-wide limits.  This allows different cgroups to have distinct
-> dirty limits which trigger direct and background writeback at different
-> levels.
-> 
-> If called with a mem_cgroup, then throttle_vm_writeout() queries the
-> given cgroup for its dirty memory usage limits.
-> 
-> Signed-off-by: Andrea Righi <andrea@betterlinux.com>
-> Signed-off-by: Greg Thelen <gthelen@google.com>
+>> Why "killing" does not appear here? Why it try to "find some
+>> recently used page"?
+>
+> Because killing is the last resort. As long as kernel can free
+> a page by dropping an unmodified file-backed page, it will do that.
+> When there is nothing more to drop, and still more free pages
+> are needed, _then_ kernel will start oom killing.
 
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+I have a little concern about this explanation of yours. Suppose we
+have some amount of more or less actively executing processes in the
+system. Suppose they started to use lots of resident memory. Amount of
+memory they use is less than total available physical memory but when
+we add total size of code for those processes it would be several
+pages more than total size of physical memory. As I understood from
+your explanation in such situation one process will execute its time
+slice, kernel will switch to other one, find that its code was pushed
+out of RAM, read it from disk, execute its time slice, switch to next
+process, read its code from disk, execute and so on. So system will be
+virtually unusable because of constantly reading from disk just to
+execute next small piece of code. But oom will never be firing in such
+situation. Is my understanding correct? Shouldn't it be considered as
+an unwanted behavior?
 
+
+Pavel
+
+
+On Thu, Aug 11, 2011 at 1:38 PM, Denys Vlasenko
+<vda.linux@googlemail.com> wrote:
+> On Thursday 11 August 2011 17:13, Mahmood Naderan wrote:
+>> >What it can possibly do if there is no swap and therefore it
+>>
+>> >can't free memory by writing out RAM pages to swap?
+>>
+>>
+>> >the disk activity comes from constant paging in (reading)
+>> >of pages which contain code of running binaries.
+>>
+>> Why the disk activity does not appear in the first scenario?
+>
+> Because there is nowhere to write dirty pages in order to free
+> some RAM (since you have no swap) and reading in more stuff
+> from disk can't possibly help with freeing RAM.
+>
+> (What kernel does in order to free RAM is it drops unmodified
+> file-backed pages, and doing _that_ doesn't require disk I/O).
+>
+> Thus, no reading and no writing is necessary/possible.
+>
+>
+>> >Thus the only option is to find some not recently used page
+>> > with read-only, file-backed content (usually some binary's
+>>
+>> >text page, but can be any read-only file mapping) and reuse it.
+>> Why "killing" does not appear here? Why it try to "find some
+>>
+>> recently used page"?
+>
+> Because killing is the last resort. As long as kernel can free
+> a page by dropping an unmodified file-backed page, it will do that.
+> When there is nothing more to drop, and still more free pages
+> are needed, _then_ kernel will start oom killing.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
