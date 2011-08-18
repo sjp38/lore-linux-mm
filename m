@@ -1,62 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 9DA6F900138
-	for <linux-mm@kvack.org>; Thu, 18 Aug 2011 00:41:05 -0400 (EDT)
-Date: Thu, 18 Aug 2011 12:41:01 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 2/5] writeback: dirty position control
-Message-ID: <20110818044101.GA32326@localhost>
-References: <20110816022006.348714319@intel.com>
- <20110816022328.811348370@intel.com>
- <20110816194112.GA25517@quack.suse.cz>
- <20110817132347.GA6628@localhost>
- <20110817202414.GK9959@quack.suse.cz>
- <20110818041801.GA22662@localhost>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 57D2F900138
+	for <linux-mm@kvack.org>; Thu, 18 Aug 2011 01:56:56 -0400 (EDT)
+Date: Thu, 18 Aug 2011 07:56:49 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch] memcg: pin execution to current cpu while draining stock
+Message-ID: <20110818055649.GA23056@tiehlicka.suse.cz>
+References: <cover.1311338634.git.mhocko@suse.cz>
+ <2f17df54db6661c39a05669d08a9e6257435b898.1311338634.git.mhocko@suse.cz>
+ <20110725101657.21f85bf0.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110817194927.GA10982@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110818041801.GA22662@localhost>
+In-Reply-To: <20110817194927.GA10982@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Johannes Weiner <jweiner@redhat.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, Balbir Singh <bsingharora@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
 
-Hi Jan,
-
-> > > >   What if x_intercept >  bdi_thresh? Since 8*bdi->avg_write_bandwidth is
-> > > > easily 500 MB, that happens quite often I imagine?
-> > > 
-> > > That's fine because I no longer target "bdi_thresh" as some limiting
-> > > factor as the global "thresh". Due to it being unstable in small
-> > > memory JBOD systems, which is the big and unique problem in JBOD.
-> >   I see. Given the control mechanism below, I think we can try this idea
-> > and see whether it makes problems in practice or not. But the fact that
-> > bdi_thresh is no longer treated as limit should be noted in a changelog -
-> > probably of the last patch (although that is already too long for my taste
-> > so I'll look into how we could make it shorter so that average developer
-> > has enough patience to read it ;).
+On Wed 17-08-11 21:49:27, Johannes Weiner wrote:
+> Commit d1a05b6 'memcg: do not try to drain per-cpu caches without
+> pages' added a drain_local_stock() call to a preemptible section.
 > 
-> Good point. I'll make it a comment in the last patch.
+> The draining task looks up the cpu-local stock twice to set the
+> draining-flag, then to drain the stock and clear the flag again.  If
+> the task is migrated to a different CPU in between, noone will clear
+> the flag on the first stock and it will be forever undrainable.  Its
+> charge can not be recovered and the cgroup can not be deleted anymore.
+> 
+> Properly pin the task to the executing CPU while draining stocks.
+> 
+> Signed-off-by: Johannes Weiner <jweiner@redhat.com>
+> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com
+> Cc: Michal Hocko <mhocko@suse.cz>
 
-Just added this comment:
+My fault, I didn't realize that drain_local_stock needs preemption
+disabled. Sorry about that and good work, Johannes. 
 
-+               /*
-+                * bdi_thresh is not treated as some limiting factor as
-+                * dirty_thresh, due to reasons
-+                * - in JBOD setup, bdi_thresh can fluctuate a lot
-+                * - in a system with HDD and USB key, the USB key may somehow
-+                *   go into state (bdi_dirty >> bdi_thresh) either because
-+                *   bdi_dirty starts high, or because bdi_thresh drops low.
-+                *   In this case we don't want to hard throttle the USB key
-+                *   dirtiers for 100 seconds until bdi_dirty drops under
-+                *   bdi_thresh. Instead the auxiliary bdi control line in
-+                *   bdi_position_ratio() will let the dirtier task progress
-+                *   at some rate <= (write_bw / 2) for bringing down bdi_dirty.
-+                */
-                bdi_thresh = bdi_dirty_limit(bdi, dirty_thresh);
-
-Thanks,
-Fengguang
+Acked-by: Michal Hocko <mhocko@suse.cz>
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
