@@ -1,80 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 93E7F900138
-	for <linux-mm@kvack.org>; Thu, 18 Aug 2011 08:35:37 -0400 (EDT)
-Date: Thu, 18 Aug 2011 20:35:23 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH] writeback: Per-block device
- bdi->dirty_writeback_interval and bdi->dirty_expire_interval.
-Message-ID: <20110818123523.GB1883@localhost>
-References: <CAFPAmTSrh4r71eQqW-+_nS2KFK2S2RQvYBEpa3QnNkZBy8ncbw@mail.gmail.com>
- <20110818094824.GA25752@localhost>
- <1313669702.6607.24.camel@sauron>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 464BE900138
+	for <linux-mm@kvack.org>; Thu, 18 Aug 2011 08:45:19 -0400 (EDT)
+Received: by wyi11 with SMTP id 11so1861277wyi.14
+        for <linux-mm@kvack.org>; Thu, 18 Aug 2011 05:45:16 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1313669702.6607.24.camel@sauron>
+In-Reply-To: <CAG1a4rsO7JDqmYiwyxPrAHdLNbJt+wqymSzU9i1dv5w5C2OFog@mail.gmail.com>
+References: <1312872786.70934.YahooMailNeo@web111712.mail.gq1.yahoo.com>
+ <CAK1hOcN7q=F=UV=aCAsVOYO=Ex34X0tbwLHv9BkYkA=ik7G13w@mail.gmail.com>
+ <1313075625.50520.YahooMailNeo@web111715.mail.gq1.yahoo.com>
+ <201108111938.25836.vda.linux@googlemail.com> <CAG1a4rsO7JDqmYiwyxPrAHdLNbJt+wqymSzU9i1dv5w5C2OFog@mail.gmail.com>
+From: Denys Vlasenko <vda.linux@googlemail.com>
+Date: Thu, 18 Aug 2011 14:44:56 +0200
+Message-ID: <CAK1hOcM5u-zB7fUnR5QVJGBrEnLMhK9Q+EmWBknThga70UQaLw@mail.gmail.com>
+Subject: Re: running of out memory => kernel crash
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Artem Bityutskiy <dedekind1@gmail.com>
-Cc: Kautuk Consul <consul.kautuk@gmail.com>, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>
+To: Pavel Ivanov <paivanof@gmail.com>
+Cc: Mahmood Naderan <nt_mahmood@yahoo.com>, David Rientjes <rientjes@google.com>, Randy Dunlap <rdunlap@xenotime.net>, "\"linux-kernel@vger.kernel.org\"" <linux-kernel@vger.kernel.org>, "\"linux-mm@kvack.org\"" <linux-mm@kvack.org>
 
-On Thu, Aug 18, 2011 at 08:14:57PM +0800, Artem Bityutskiy wrote:
-> On Thu, 2011-08-18 at 17:48 +0800, Wu Fengguang wrote:
-> > > For example, the user might want to write-back pages in smaller
-> > > intervals to a block device which has a
-> > > faster known writeback speed.
-> > 
-> > That's not a complete rational. What does the user ultimately want by
-> > setting a smaller interval? What would be the problems to the other
-> > slow devices if the user does so by simply setting a small value
-> > _globally_?
-> > 
-> > We need strong use cases for doing such user interface changes.
-> > Would you detail the problem and the pains that can only (or best)
-> > be addressed by this patch?
-> 
-> Here is a real use-case we had when developing the N900 phone. We had
-> internal flash and external microSD slot. Internal flash is soldered in
-> and cannot be removed by the user. MicroSD, in contrast, can be removed
-> by the user.
-> 
-> For the internal flash we wanted long intervals and relaxed limits to
-> gain better performance.
+On Thu, Aug 18, 2011 at 4:18 AM, Pavel Ivanov <paivanof@gmail.com> wrote:
+>>> Why "killing" does not appear here? Why it try to "find some
+>>> recently used page"?
+>>
+>> Because killing is the last resort. As long as kernel can free
+>> a page by dropping an unmodified file-backed page, it will do that.
+>> When there is nothing more to drop, and still more free pages
+>> are needed, _then_ kernel will start oom killing.
+>
+> I have a little concern about this explanation of yours. Suppose we
+> have some amount of more or less actively executing processes in the
+> system. Suppose they started to use lots of resident memory. Amount of
+> memory they use is less than total available physical memory but when
+> we add total size of code for those processes it would be several
+> pages more than total size of physical memory. As I understood from
+> your explanation in such situation one process will execute its time
+> slice, kernel will switch to other one, find that its code was pushed
+> out of RAM, read it from disk, execute its time slice, switch to next
+> process, read its code from disk, execute and so on. So system will be
+> virtually unusable because of constantly reading from disk just to
+> execute next small piece of code. But oom will never be firing in such
+> situation. Is my understanding correct?
 
-Understand -- it's backed by the battery anyway.
+Yes.
 
-Yeah it's a practical way. It might even optimize away some of the
-writes if they are truncated some time later. It also allows possible
-optimization of deferring the writes to user inactive periods.
+> Shouldn't it be considered as an unwanted behavior?
 
-However the ultimate optimization could be to prioritize READs over
-WRITEs in the IO scheduler, so that async WRITEs have minimal impact
-on normal operations. It's the only option for the MicroSD case,
-anyway.
+Yes. But all alternatives (such as killing some process) seem to be worse.
 
-> For MicroSD we wanted very short intervals and tough limits to make sure
-> that if the user suddenly removes his microSD (users do this all the
-> time) - we do not lose data.
-
-Pretty reasonable.
-
-> The discussed capability would be very useful in that case, AFAICS.
-
-Agreed.
-
-> IOW, this is not only about fast/slow devices and how quickly you want
-> to be able to sync the FS, this is also about data integrity guarantees.
-
-In fact I never think it would matter for fast/slow devices.  It's the
-dirty_ratio/dirty_bytes interfaces that ask for improvement if care
-about too many pages being cached.
-
-The intervals interfaces are intended for data integrity and nothing
-more.
-
-Thanks,
-Fengguang
+-- 
+vda
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
