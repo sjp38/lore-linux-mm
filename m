@@ -1,119 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 82799900138
-	for <linux-mm@kvack.org>; Thu, 18 Aug 2011 02:47:23 -0400 (EDT)
-Received: by iyn15 with SMTP id 15so3710744iyn.34
-        for <linux-mm@kvack.org>; Wed, 17 Aug 2011 23:47:20 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <CAML7nqd9_F4L0M7ynLFz4HKET94n2mwsk42Z7g2EjAfYnD-JgQ@mail.gmail.com>
-References: <CAML7nqd9_F4L0M7ynLFz4HKET94n2mwsk42Z7g2EjAfYnD-JgQ@mail.gmail.com>
-Date: Thu, 18 Aug 2011 01:47:19 -0500
-Message-ID: <CAML7nqdaLZ-e-+ghU7ywK13NmzXv9fDoK01HwUQ8aX5rsLBnOQ@mail.gmail.com>
-Subject: Re: issue with direct reclaims and kswapd reclaims on 2.6.35.7
-From: Jeffrey Vanhoof <jdv1029@gmail.com>
-Content-Type: multipart/mixed; boundary=90e6ba6e8bd2ff974204aac1fb04
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 2556A900138
+	for <linux-mm@kvack.org>; Thu, 18 Aug 2011 02:50:36 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 7A5433EE0BC
+	for <linux-mm@kvack.org>; Thu, 18 Aug 2011 15:50:32 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 5F94D45DE54
+	for <linux-mm@kvack.org>; Thu, 18 Aug 2011 15:50:32 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 33ED845DE55
+	for <linux-mm@kvack.org>; Thu, 18 Aug 2011 15:50:32 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 2412D1DB8055
+	for <linux-mm@kvack.org>; Thu, 18 Aug 2011 15:50:32 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id DD4D41DB804B
+	for <linux-mm@kvack.org>; Thu, 18 Aug 2011 15:50:31 +0900 (JST)
+Date: Thu, 18 Aug 2011 15:42:59 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH v5 2/6]  memcg: stop vmscan when enough done.
+Message-Id: <20110818154259.6b4adf09.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110818062722.GB23056@tiehlicka.suse.cz>
+References: <20110809190450.16d7f845.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110809190933.d965888b.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110810141425.GC15007@tiehlicka.suse.cz>
+	<20110811085252.b29081f1.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110811145055.GN8023@tiehlicka.suse.cz>
+	<20110817095405.ee3dcd74.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110817113550.GA7482@tiehlicka.suse.cz>
+	<20110818085233.69dbf23b.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110818062722.GB23056@tiehlicka.suse.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: tghk48@motorola.com
+To: Michal Hocko <mhocko@suse.cz>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
 
---90e6ba6e8bd2ff974204aac1fb04
-Content-Type: text/plain; charset=ISO-8859-1
+On Thu, 18 Aug 2011 08:27:22 +0200
+Michal Hocko <mhocko@suse.cz> wrote:
 
-w.r.t:
-> 1) direct reclaims occurring quite frequently, resulting in delayed
-> file read requests
-> 2) direct reclaims falling into congestion_wait() even though no
-> congestion at the time, this results in video jitter.
+> On Thu 18-08-11 08:52:33, KAMEZAWA Hiroyuki wrote:
+> > On Wed, 17 Aug 2011 13:35:50 +0200
+> > Michal Hocko <mhocko@suse.cz> wrote:
+> > 
+> > > On Wed 17-08-11 09:54:05, KAMEZAWA Hiroyuki wrote:
+> > > > On Thu, 11 Aug 2011 16:50:55 +0200
+> > > > > - mem_cgroup_force_empty asks for reclaiming all pages. I guess it should be
+> > > > >   OK but will have to think about it some more.
+> > > > 
+> > > > force_empty/rmdir() is allowed to be stopped by Ctrl-C. I think passing res->usage
+> > > > is overkilling.
+> > > 
+> > > So, how many pages should be reclaimed then?
+> > > 
+> > 
+> > How about (1 << (MAX_ORDER-1))/loop ?
+> 
+> Hmm, I am not sure I see any benefit. We want to reclaim all those
+> pages why shouldn't we do it in one batch? If we use a value based on
+> MAX_ORDER then we make a bigger chance that force_empty fails for big
+> cgroups (e.g. with a lot of page cache).
 
-Backporting the following changes seemed to greatly improve these issues:
--vmscan: synchronous lumpy reclaim should not call congestion_wait()
--writeback: do not sleep on the congestion queue if there are no
-congested BDIs or if significant congestion is not being encountered
-in the current zone
--vmscan: avoid setting zone congested if no page dirty
+Why bigger chance to fail ? retry counter is decreased only when we cannot
+make any reclaim. The number passed here is not problem against the faiulre.
 
-w.r.t.:
-> 3) kswapd not reclaiming pages quickly enough due to falling into
-> congestion_wait() very often. (or stays in congestion_wait() for too long)
+I don't like very long vmscan which cannot be stopped by Ctrl-C.
 
-The attached patch takes an idea from Mel Gorman's patch for
-"writeback: do not sleep on the congestion queue if there are no
-congested BDIs or if significant congestion is not being encountered
-in the current zone" and applies it around the congestion_wait() in
-balance_pgdat(). The idea is that if there is no congestion then avoid
-potentially wait for too long. Comments or alternate solutions would
-be appreciated.
+
+> Anyway, if we want to mimic the previous behavior then we should use
+> something like nr_nodes * SWAP_CLUSTER_MAX (the above value would be
+> sufficient for up to 32 nodes).
+> 
+
+agreed.
 
 Thanks,
-Jeff Vanhoof
+-Kame
 
---90e6ba6e8bd2ff974204aac1fb04
-Content-Type: text/plain; charset=US-ASCII;
-	name="k35_kswapd_query_iff_congested_workaround.txt"
-Content-Disposition: attachment;
-	filename="k35_kswapd_query_iff_congested_workaround.txt"
-Content-Transfer-Encoding: base64
-X-Attachment-Id: f_grhd5fmu0
-
-Y29tbWl0IGFmOGViYWNhMGQzNjdlMTRiNDlhMTUxNzMxZThhM2U5YmM2Njg1ZjENCkF1dGhvcjog
-SmVmZiBWYW5ob29mIDxqZHYxMDI5QGdtYWlsLmNvbT4NCkRhdGU6ICAgVHVlIEF1ZyAxNiAwMDox
-NDozMSAyMDExIC0wNTAwDQoNCiAgICBsaW51eC1tbTogSW1wcm92ZSBrc3dhcGQgcmVjbGFpbWF0
-aW9uIG9mIG1lbW9yeQ0KICAgIA0KICAgIFRoaXMgaXMgYSB3b3JrYXJvdW5kIHRvIGltcHJvdmUg
-dGhlIG51bWJlciBvZiBwYWdlcyByZWNsYWltZWQNCiAgICBpbiBrc3dhcGQgc28gdGhhdCBkaXJl
-Y3QgcmVjbGFpbXMgYW5kIGlvd2FpdHMgYXJlIG1pbmltaXplZC4NCiAgICANCiAgICBDaGFuZ2Ut
-SWQ6IEk0OTFlOWM4MDgwOWI1ZWMzZTFlNzgwNzc0MjgwN2EyMzE3ZmMyMzk0DQoNCmRpZmYgLS1n
-aXQgYS9pbmNsdWRlL2xpbnV4L2JhY2tpbmctZGV2LmggYi9pbmNsdWRlL2xpbnV4L2JhY2tpbmct
-ZGV2LmgNCmluZGV4IGZhNzk2MzIuLmU1YjZkM2QgMTAwNjQ0DQotLS0gYS9pbmNsdWRlL2xpbnV4
-L2JhY2tpbmctZGV2LmgNCisrKyBiL2luY2x1ZGUvbGludXgvYmFja2luZy1kZXYuaA0KQEAgLTI4
-Niw2ICsyODYsNyBAQCB2b2lkIGNsZWFyX2JkaV9jb25nZXN0ZWQoc3RydWN0IGJhY2tpbmdfZGV2
-X2luZm8gKmJkaSwgaW50IHN5bmMpOw0KIHZvaWQgc2V0X2JkaV9jb25nZXN0ZWQoc3RydWN0IGJh
-Y2tpbmdfZGV2X2luZm8gKmJkaSwgaW50IHN5bmMpOw0KIGxvbmcgY29uZ2VzdGlvbl93YWl0KGlu
-dCBzeW5jLCBsb25nIHRpbWVvdXQpOw0KIGxvbmcgd2FpdF9pZmZfY29uZ2VzdGVkKHN0cnVjdCB6
-b25lICp6b25lLCBpbnQgc3luYywgbG9uZyB0aW1lb3V0KTsNCitpbnQgcXVlcnlfaWZmX2Nvbmdl
-c3RlZChzdHJ1Y3Qgem9uZSAqem9uZSwgaW50IHN5bmMpOw0KIA0KIHN0YXRpYyBpbmxpbmUgYm9v
-bCBiZGlfY2FwX3dyaXRlYmFja19kaXJ0eShzdHJ1Y3QgYmFja2luZ19kZXZfaW5mbyAqYmRpKQ0K
-IHsNCmRpZmYgLS1naXQgYS9tbS9iYWNraW5nLWRldi5jIGIvbW0vYmFja2luZy1kZXYuYw0KaW5k
-ZXggNDI1NDk0Ni4uZmNmNzk3NiAxMDA2NDQNCi0tLSBhL21tL2JhY2tpbmctZGV2LmMNCisrKyBi
-L21tL2JhY2tpbmctZGV2LmMNCkBAIC04NTAsMyArODUwLDMyIEBAIG91dDoNCiAJcmV0dXJuIHJl
-dDsNCiB9DQogRVhQT1JUX1NZTUJPTCh3YWl0X2lmZl9jb25nZXN0ZWQpOw0KKw0KKy8qKg0KKyAq
-IHF1ZXJ5X2lmZl9jb25nZXN0ZWQgLSBDaGVja3MgaWYgYSBiYWNraW5nX2RldiAoYW55IGJhY2tp
-bmdfZGV2KSBpcw0KKyAqICAgICBjb25nZXN0ZWQgb3IgaWYgdGhlIGdpdmVuIEB6b25lIGhhcyBo
-YXMgZXhwZXJpZW5jZWQgcmVjZW50IGNvbmdlc3Rpb24uDQorICogQHpvbmU6IEEgem9uZSB0byBj
-aGVjayBpZiBpdCBpcyBoZWF2aWx5IGNvbmdlc3RlZA0KKyAqIEBzeW5jOiBTWU5DIG9yIEFTWU5D
-IElPDQorICoNCisgKiBUaGUgcmV0dXJuIHZhbHVlIGlzIDEgaWYgZWl0aGVyIGJhY2tpbmdfZGV2
-IChhbnkpIG9yIEB6b25lIGlzIGNvbmdlc3RlZCwNCisgKiBvdGhlcndpc2UgMCBpcyByZXR1cm5l
-ZC4NCisgKg0KKyAqLw0KK2ludCBxdWVyeV9pZmZfY29uZ2VzdGVkKHN0cnVjdCB6b25lICp6b25l
-LCBpbnQgc3luYykNCit7DQorCWxvbmcgcmV0ID0gMTsNCisJREVGSU5FX1dBSVQod2FpdCk7DQor
-CXdhaXRfcXVldWVfaGVhZF90ICp3cWggPSAmY29uZ2VzdGlvbl93cWhbc3luY107DQorDQorCS8q
-DQorCSAqIElmIHRoZXJlIGlzIG5vIGNvbmdlc3Rpb24sIG9yIGhlYXZ5IGNvbmdlc3Rpb24gaXMg
-bm90IGJlaW5nDQorCSAqIGVuY291bnRlcmVkIGluIHRoZSBjdXJyZW50IHpvbmUsIHNldCByZXQg
-dG8gMA0KKwkgKi8NCisJaWYgKGF0b21pY19yZWFkKCZucl9iZGlfY29uZ2VzdGVkW3N5bmNdKSA9
-PSAwIHx8DQorCQkJIXpvbmVfaXNfcmVjbGFpbV9jb25nZXN0ZWQoem9uZSkpIHsNCisJCXJldCA9
-IDA7DQorCX0NCisNCisJcmV0dXJuIHJldDsNCit9DQorRVhQT1JUX1NZTUJPTChxdWVyeV9pZmZf
-Y29uZ2VzdGVkKTsNCmRpZmYgLS1naXQgYS9tbS92bXNjYW4uYyBiL21tL3Ztc2Nhbi5jDQppbmRl
-eCAxYmQwMWVlLi5lODY4NmYwIDEwMDY0NA0KLS0tIGEvbW0vdm1zY2FuLmMNCisrKyBiL21tL3Zt
-c2Nhbi5jDQpAQCAtMjE2OSw2ICsyMTY5LDcgQEAgbG9vcF9hZ2FpbjoNCiAJCWludCBlbmRfem9u
-ZSA9IDA7CS8qIEluY2x1c2l2ZS4gIDAgPSBaT05FX0RNQSAqLw0KIAkJdW5zaWduZWQgbG9uZyBs
-cnVfcGFnZXMgPSAwOw0KIAkJaW50IGhhc191bmRlcl9taW5fd2F0ZXJtYXJrX3pvbmUgPSAwOw0K
-KwkJaW50IGFueV96b25lX2Nvbmdlc3RlZCA9IDA7DQogDQogCQkvKiBUaGUgc3dhcCB0b2tlbiBn
-ZXRzIGluIHRoZSB3YXkgb2Ygc3dhcG91dC4uLiAqLw0KIAkJaWYgKCFwcmlvcml0eSkNCkBAIC0y
-Mjk0LDYgKzIyOTUsMTMgQEAgbG9vcF9hZ2FpbjoNCiAJCX0NCiAJCWlmIChhbGxfem9uZXNfb2sp
-DQogCQkJYnJlYWs7CQkvKiBrc3dhcGQ6IGFsbCBkb25lICovDQorDQorCQkvKiBDaGVjayB0byBz
-ZWUgaWYgYW55IHpvbmVzIGFyZSBjb25nZXN0ZWQgKi8NCisJCWZvciAoaSA9IHBnZGF0LT5ucl96
-b25lcyAtIDE7IGkgPj0gMDsgaS0tKSB7DQorCQkJc3RydWN0IHpvbmUgKnpvbmUgPSBwZ2RhdC0+
-bm9kZV96b25lcyArIGk7DQorCQkJYW55X3pvbmVfY29uZ2VzdGVkIHw9DQorCQkJCSBxdWVyeV9p
-ZmZfY29uZ2VzdGVkKHpvbmUsIEJMS19SV19BU1lOQyk7DQorCQl9DQorDQogCQkvKg0KIAkJICog
-T0ssIGtzd2FwZCBpcyBnZXR0aW5nIGludG8gdHJvdWJsZS4gIFRha2UgYSBuYXAsIHRoZW4gdGFr
-ZQ0KIAkJICogYW5vdGhlciBwYXNzIGFjcm9zcyB0aGUgem9uZXMuDQpAQCAtMjMwMSw2ICsyMzA5
-LDkgQEAgbG9vcF9hZ2FpbjoNCiAJCWlmICh0b3RhbF9zY2FubmVkICYmIChwcmlvcml0eSA8IERF
-Rl9QUklPUklUWSAtIDIpKSB7DQogCQkJaWYgKGhhc191bmRlcl9taW5fd2F0ZXJtYXJrX3pvbmUp
-DQogCQkJCWNvdW50X3ZtX2V2ZW50KEtTV0FQRF9TS0lQX0NPTkdFU1RJT05fV0FJVCk7DQorCQkJ
-ZWxzZSBpZiAoIWFueV96b25lX2Nvbmdlc3RlZCAmJg0KKwkJCQkgKHByaW9yaXR5ID4gREVGX1BS
-SU9SSVRZIC0gOCkpDQorCQkJCWNvbmdlc3Rpb25fd2FpdChCTEtfUldfQVNZTkMsIEhaLzUwKTsN
-CiAJCQllbHNlDQogCQkJCWNvbmdlc3Rpb25fd2FpdChCTEtfUldfQVNZTkMsIEhaLzEwKTsNCiAJ
-CX0NCg==
---90e6ba6e8bd2ff974204aac1fb04--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
