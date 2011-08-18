@@ -1,101 +1,241 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 9E130900138
-	for <linux-mm@kvack.org>; Thu, 18 Aug 2011 08:55:34 -0400 (EDT)
-Date: Thu, 18 Aug 2011 20:55:27 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH] writeback: Per-block device
- bdi->dirty_writeback_interval and bdi->dirty_expire_interval.
-Message-ID: <20110818125526.GC1883@localhost>
-References: <CAFPAmTSrh4r71eQqW-+_nS2KFK2S2RQvYBEpa3QnNkZBy8ncbw@mail.gmail.com>
- <20110818094824.GA25752@localhost>
- <CAFPAmTQ3jN8RF5-7E92AoGAGMz5H0GrPxkgJ0O6u_MViGC6KnQ@mail.gmail.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 8C34E900138
+	for <linux-mm@kvack.org>; Thu, 18 Aug 2011 08:58:00 -0400 (EDT)
+Date: Thu, 18 Aug 2011 14:57:54 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: [PATCH v3] memcg: add nr_pages argument for hierarchical reclaim
+Message-ID: <20110818125754.GA14015@tiehlicka.suse.cz>
+References: <20110809190933.d965888b.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110810141425.GC15007@tiehlicka.suse.cz>
+ <20110811085252.b29081f1.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110811145055.GN8023@tiehlicka.suse.cz>
+ <20110817095405.ee3dcd74.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110817113550.GA7482@tiehlicka.suse.cz>
+ <20110818085233.69dbf23b.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110818062722.GB23056@tiehlicka.suse.cz>
+ <20110818154259.6b4adf09.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110818074602.GD23056@tiehlicka.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAFPAmTQ3jN8RF5-7E92AoGAGMz5H0GrPxkgJ0O6u_MViGC6KnQ@mail.gmail.com>
+In-Reply-To: <20110818074602.GD23056@tiehlicka.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kautuk Consul <consul.kautuk@gmail.com>
-Cc: Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Artem Bityutskiy <dedekind1@gmail.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
 
-Hi Kautuk,
+I have just realized that num_online_nodes should be much better than
+MAX_NUMNODES. 
+Just for reference, the patch is based on top of
+https://lkml.org/lkml/2011/8/9/82 (it doesn't depend on it but it also
+doesn't make much sense without it)
 
-> >> However, the user/admin might want to set different writeback speeds
-> >> for different block devices based on
-> >> their page write-back performance.
-> >
-> > How can the above two sysctl values impact "writeback speeds"?
-> > In particular, what's the "speed" you mean?
-> >
-> 
-> By writeback speed, I meant writeback interval, i.e. the maximum
-> interval after which the BDI
-> thread for a particular block device can wake up and try to sync pages
-> with disk.
+Changes since v2:
+- use num_online_nodes rather than MAX_NUMNODES
+Changes since v1:
+- reclaim nr_nodes * SWAP_CLUSTER_MAX in mem_cgroup_force_empty
+---
+From: Michal Hocko <mhocko@suse.cz>
+Subject: memcg: add nr_pages argument for hierarchical reclaim
 
-OK.
+Now that we are doing memcg direct reclaim limited to nr_to_reclaim
+pages (introduced by "memcg: stop vmscan when enough done.") we have to
+be more careful. Currently we are using SWAP_CLUSTER_MAX which is OK for
+most callers but it might cause failures for limit resize or force_empty
+code paths on big NUMA machines.
 
-> >> For example, the user might want to write-back pages in smaller
-> >> intervals to a block device which has a
-> >> faster known writeback speed.
-> >
-> > That's not a complete rational. What does the user ultimately want by
-> > setting a smaller interval? What would be the problems to the other
-> > slow devices if the user does so by simply setting a small value
-> > _globally_?
-> >
-> 
-> I think that the user might want to set a smaller interval for faster block
-> devices so that the dirty pages are synced with that block device/disk sooner.
-> This will unset the dirty bit of the page-cache pages sooner, which
-> will increase the
-> possibility of those pages getting reclaimed quickly in high memory
-> usage scenarios.
-> For a system that writes to disk very frequently and runs a lot of
-> memory intensive user-mode
-> applications, this might be crucial for their performance as they
-> would possibly have to sleep
-> comparitively lesser during page allocation.
-> For example, an server handling a database needs frequent disk access
-> as well as
-> anonymous memory. In such a case it would be nice to keep the
-> write-back interval for a USB pen
-> drive BDI thread as more than that of a SATA/SCSI disk.
+Previously we might have reclaimed up to nr_nodes * SWAP_CLUSTER_MAX
+while now we have it at SWAP_CLUSTER_MAX. Both resize and force_empty rely
+on reclaiming a certain amount of pages and retrying if their condition is
+still not met.
 
-Nope. I'm afraid the above reasoning is totally wrong.
+Let's add nr_pages argument to mem_cgroup_hierarchical_reclaim which will
+push it further to try_to_free_mem_cgroup_pages. We still fall back to
+SWAP_CLUSTER_MAX for small requests so the standard code (hot) paths are not
+affected by this.
 
-Firstly, it's never a guarantee for a smaller interval to stop the
-dirty pages from growing large. Think about a dd task that dirties
-pages at 1GB/s speed. It's going to accumulate huge number of dirty
-pages before any "small" writeback interval elapsed.
+We have to be careful in mem_cgroup_do_charge and do not provide the
+given nr_pages because we would reclaim too much for THP which can
+safely fall back to single page allocations.
 
-Secondly, according to your logic, it's actually the low speed device
-that need smaller intervals. Because if a dirtier task creates 100MB
-dirty pages in the same interval, it's the slow device that requires
-a lot more time to clean those pages, hence need to start the
-writeback earlier.
+mem_cgroup_force_empty could try to reclaim all pages at once but it is much
+better to limit the nr_pages to something reasonable so that we are able to
+terminate it by a signal. Let's mimic previous behavior by asking for
+num_online_nodes * SWAP_CLUSTER_MAX.
 
-The conclusion is, the dirty_expire_centisecs and
-dirty_writeback_centisecs interfaces are solely for data integrity
-purpose.
+Signed-off-by: Michal Hocko <mhocko@suse.cz>
+Index: linus_tree/include/linux/memcontrol.h
+===================================================================
+--- linus_tree.orig/include/linux/memcontrol.h	2011-08-18 09:30:24.000000000 +0200
++++ linus_tree/include/linux/memcontrol.h	2011-08-18 09:30:36.000000000 +0200
+@@ -130,7 +130,8 @@ extern void mem_cgroup_print_oom_info(st
+ 
+ extern unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem,
+ 						  gfp_t gfp_mask, bool noswap,
+-						  struct memcg_scanrecord *rec);
++						  struct memcg_scanrecord *rec,
++						  unsigned long nr_pages);
+ extern unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *mem,
+ 						gfp_t gfp_mask, bool noswap,
+ 						struct zone *zone,
+Index: linus_tree/mm/memcontrol.c
+===================================================================
+--- linus_tree.orig/mm/memcontrol.c	2011-08-18 09:30:34.000000000 +0200
++++ linus_tree/mm/memcontrol.c	2011-08-18 14:50:26.000000000 +0200
+@@ -1729,12 +1729,15 @@ static void mem_cgroup_record_scanstat(s
+  * (other groups can be removed while we're walking....)
+  *
+  * If shrink==true, for avoiding to free too much, this returns immedieately.
++ * Given nr_pages tells how many pages are we over the soft limit or how many
++ * pages do we want to reclaim in the direct reclaim mode.
+  */
+ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
+ 						struct zone *zone,
+ 						gfp_t gfp_mask,
+ 						unsigned long reclaim_options,
+-						unsigned long *total_scanned)
++						unsigned long *total_scanned,
++						unsigned long nr_pages)
+ {
+ 	struct mem_cgroup *victim;
+ 	int ret, total = 0;
+@@ -1743,11 +1746,8 @@ static int mem_cgroup_hierarchical_recla
+ 	bool shrink = reclaim_options & MEM_CGROUP_RECLAIM_SHRINK;
+ 	bool check_soft = reclaim_options & MEM_CGROUP_RECLAIM_SOFT;
+ 	struct memcg_scanrecord rec;
+-	unsigned long excess;
+ 	unsigned long scanned;
+ 
+-	excess = res_counter_soft_limit_excess(&root_mem->res) >> PAGE_SHIFT;
+-
+ 	/* If memsw_is_minimum==1, swap-out is of-no-use. */
+ 	if (!check_soft && !shrink && root_mem->memsw_is_minimum)
+ 		noswap = true;
+@@ -1785,11 +1785,11 @@ static int mem_cgroup_hierarchical_recla
+ 				}
+ 				/*
+ 				 * We want to do more targeted reclaim.
+-				 * excess >> 2 is not to excessive so as to
++				 * nr_pages >> 2 is not to excessive so as to
+ 				 * reclaim too much, nor too less that we keep
+ 				 * coming back to reclaim from this cgroup
+ 				 */
+-				if (total >= (excess >> 2) ||
++				if (total >= (nr_pages >> 2) ||
+ 					(loop > MEM_CGROUP_MAX_RECLAIM_LOOPS)) {
+ 					css_put(&victim->css);
+ 					break;
+@@ -1816,7 +1816,7 @@ static int mem_cgroup_hierarchical_recla
+ 			*total_scanned += scanned;
+ 		} else
+ 			ret = try_to_free_mem_cgroup_pages(victim, gfp_mask,
+-						noswap, &rec);
++						noswap, &rec, nr_pages);
+ 		mem_cgroup_record_scanstat(&rec);
+ 		css_put(&victim->css);
+ 		/*
+@@ -2331,8 +2331,14 @@ static int mem_cgroup_do_charge(struct m
+ 	if (!(gfp_mask & __GFP_WAIT))
+ 		return CHARGE_WOULDBLOCK;
+ 
++	/*
++	 * We are lying about nr_pages because we do not want to
++	 * reclaim too much for THP pages which should rather fallback
++	 * to small pages.
++	 */
+ 	ret = mem_cgroup_hierarchical_reclaim(mem_over_limit, NULL,
+-					      gfp_mask, flags, NULL);
++					      gfp_mask, flags, NULL,
++					      1);
+ 	if (mem_cgroup_margin(mem_over_limit) >= nr_pages)
+ 		return CHARGE_RETRY;
+ 	/*
+@@ -3567,7 +3573,8 @@ static int mem_cgroup_resize_limit(struc
+ 
+ 		mem_cgroup_hierarchical_reclaim(memcg, NULL, GFP_KERNEL,
+ 						MEM_CGROUP_RECLAIM_SHRINK,
+-						NULL);
++						NULL,
++						(val-memlimit) >> PAGE_SHIFT);
+ 		curusage = res_counter_read_u64(&memcg->res, RES_USAGE);
+ 		/* Usage is reduced ? */
+   		if (curusage >= oldusage)
+@@ -3628,7 +3635,8 @@ static int mem_cgroup_resize_memsw_limit
+ 		mem_cgroup_hierarchical_reclaim(memcg, NULL, GFP_KERNEL,
+ 						MEM_CGROUP_RECLAIM_NOSWAP |
+ 						MEM_CGROUP_RECLAIM_SHRINK,
+-						NULL);
++						NULL,
++						(val-memswlimit) >> PAGE_SHIFT);
+ 		curusage = res_counter_read_u64(&memcg->memsw, RES_USAGE);
+ 		/* Usage is reduced ? */
+ 		if (curusage >= oldusage)
+@@ -3671,10 +3679,12 @@ unsigned long mem_cgroup_soft_limit_recl
+ 			break;
+ 
+ 		nr_scanned = 0;
++		excess = res_counter_soft_limit_excess(&mz->mem->res);
+ 		reclaimed = mem_cgroup_hierarchical_reclaim(mz->mem, zone,
+ 						gfp_mask,
+ 						MEM_CGROUP_RECLAIM_SOFT,
+-						&nr_scanned);
++						&nr_scanned,
++						excess >> PAGE_SHIFT);
+ 		nr_reclaimed += reclaimed;
+ 		*total_scanned += nr_scanned;
+ 		spin_lock(&mctz->lock);
+@@ -3861,6 +3871,7 @@ try_to_free:
+ 	shrink = 1;
+ 	while (nr_retries && mem->res.usage > 0) {
+ 		struct memcg_scanrecord rec;
++		unsigned long nr_to_reclaim;
+ 		int progress;
+ 
+ 		if (signal_pending(current)) {
+@@ -3870,8 +3881,10 @@ try_to_free:
+ 		rec.context = SCAN_BY_SHRINK;
+ 		rec.mem = mem;
+ 		rec.root = mem;
++		/* reclaim from every node at least something */
++		nr_to_reclaim = num_online_nodes() * SWAP_CLUSTER_MAX;
+ 		progress = try_to_free_mem_cgroup_pages(mem, GFP_KERNEL,
+-						false, &rec);
++						false, &rec, nr_to_reclaim);
+ 		if (!progress) {
+ 			nr_retries--;
+ 			/* maybe some writeback is necessary */
+Index: linus_tree/mm/vmscan.c
+===================================================================
+--- linus_tree.orig/mm/vmscan.c	2011-08-18 09:30:24.000000000 +0200
++++ linus_tree/mm/vmscan.c	2011-08-18 09:30:36.000000000 +0200
+@@ -2340,7 +2340,8 @@ unsigned long mem_cgroup_shrink_node_zon
+ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem_cont,
+ 					   gfp_t gfp_mask,
+ 					   bool noswap,
+-					   struct memcg_scanrecord *rec)
++					   struct memcg_scanrecord *rec,
++					   unsigned long nr_pages)
+ {
+ 	struct zonelist *zonelist;
+ 	unsigned long nr_reclaimed;
+@@ -2350,7 +2351,7 @@ unsigned long try_to_free_mem_cgroup_pag
+ 		.may_writepage = !laptop_mode,
+ 		.may_unmap = 1,
+ 		.may_swap = !noswap,
+-		.nr_to_reclaim = SWAP_CLUSTER_MAX,
++		.nr_to_reclaim = max_t(unsigned long, nr_pages, SWAP_CLUSTER_MAX),
+ 		.order = 0,
+ 		.mem_cgroup = mem_cont,
+ 		.memcg_record = rec,
 
-We have dirty_ratio for controlling the maximum number of dirty pages
-and dirty_background_ratio for controlling when to start writeback.
-
-There does exist the problem that their default value 10%/20% can be
-too large for a system with 1TB memory and 100MB/s disk, or 4GB memory
-and a 10MB/s USB memory stick. In particular they will accumulate more
-than 30 seconds worth of data which could break the user assumption on
-what dirty_expire_centisecs seem to promise.
-
-Now that we have per-bdi write bandwidth estimation, that problem can
-be fixed by somehow auto lowering the effective dirty (background) ratio.
-I wonder if this is what you really want.  Greg had some concerns on
-this issue, too.
-
-Thanks,
-Fengguang
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
