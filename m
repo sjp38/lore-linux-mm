@@ -1,71 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
-	by kanga.kvack.org (Postfix) with ESMTP id 327AD6B0169
-	for <linux-mm@kvack.org>; Thu, 18 Aug 2011 18:25:34 -0400 (EDT)
-Received: by fxg9 with SMTP id 9so2234699fxg.14
-        for <linux-mm@kvack.org>; Thu, 18 Aug 2011 15:25:30 -0700 (PDT)
-From: Denys Vlasenko <vda.linux@googlemail.com>
-Subject: Re: running of out memory => kernel crash
-Date: Fri, 19 Aug 2011 00:25:27 +0200
-References: <1312872786.70934.YahooMailNeo@web111712.mail.gq1.yahoo.com> <CAK1hOcM5u-zB7fUnR5QVJGBrEnLMhK9Q+EmWBknThga70UQaLw@mail.gmail.com> <CAG1a4rus+VVhhB3ayuDF2pCQDusLekGOAxf33+u_uzxC1yz1MA@mail.gmail.com>
-In-Reply-To: <CAG1a4rus+VVhhB3ayuDF2pCQDusLekGOAxf33+u_uzxC1yz1MA@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 2C9706B0169
+	for <linux-mm@kvack.org>; Thu, 18 Aug 2011 18:29:27 -0400 (EDT)
+Date: Thu, 18 Aug 2011 15:28:46 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/1] hugepages: Fix race between hugetlbfs umount and
+ quota update.
+Message-Id: <20110818152846.e76ff944.akpm@linux-foundation.org>
+In-Reply-To: <4E4C3A2B.3000405@cray.com>
+References: <4E4C3A2B.3000405@cray.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <201108190025.27444.vda.linux@googlemail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Ivanov <paivanof@gmail.com>
-Cc: Mahmood Naderan <nt_mahmood@yahoo.com>, David Rientjes <rientjes@google.com>, Randy Dunlap <rdunlap@xenotime.net>, "\"linux-kernel@vger.kernel.org\"" <linux-kernel@vger.kernel.org>, "\"linux-mm@kvack.org\"" <linux-mm@kvack.org>
+To: Andrew Barry <abarry@cray.com>
+Cc: linux-mm <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, David Gibson <david@gibson.dropbear.id.au>
 
-On Thursday 18 August 2011 16:26, Pavel Ivanov wrote:
-> On Thu, Aug 18, 2011 at 8:44 AM, Denys Vlasenko
-> <vda.linux@googlemail.com> wrote:
-> >> I have a little concern about this explanation of yours. Suppose we
-> >> have some amount of more or less actively executing processes in the
-> >> system. Suppose they started to use lots of resident memory. Amount of
-> >> memory they use is less than total available physical memory but when
-> >> we add total size of code for those processes it would be several
-> >> pages more than total size of physical memory. As I understood from
-> >> your explanation in such situation one process will execute its time
-> >> slice, kernel will switch to other one, find that its code was pushed
-> >> out of RAM, read it from disk, execute its time slice, switch to next
-> >> process, read its code from disk, execute and so on. So system will be
-> >> virtually unusable because of constantly reading from disk just to
-> >> execute next small piece of code. But oom will never be firing in such
-> >> situation. Is my understanding correct?
-> >
-> > Yes.
-> >
-> >> Shouldn't it be considered as an unwanted behavior?
-> >
-> > Yes. But all alternatives (such as killing some process) seem to be worse.
+On Wed, 17 Aug 2011 17:01:15 -0500
+Andrew Barry <abarry@cray.com> wrote:
+
+> This patch fixes a race between the umount of a hugetlbfs filesystem, and quota
+> updates in that filesystem, which can result in the update of the filesystem
+> quota record, after the record structure has been freed.
 > 
-> Could you elaborate on this? We have a completely unusable server
-> which can be revived only by hard power cycling (administrators won't
-> be able to log in because sshd and shell will fall victims of the same
-> unending disk reading).
-
-You can ssh into it. It will just take VERY, VERY LONG.
-
-> And as an alternative we can kill some process 
-> and at least allow administrator to log in and check if something else
-> can be done to make server feel better. Why is it worse?
+> Rather than an address-space struct pointer, it puts a hugetlbfs_sb_info struct
+> pointer into page_private of the page struct. A reference count and an active
+> bit are added to the hugetlbfs_sb_info struct; the reference count is increased
+> by hugetlb_get_quota and decreased by hugetlb_put_quota. When hugetlbfs is
+> unmounted, it frees the hugetlbfs_sb_info struct, but only if the reference
+> count is zero, otherwise it clears the active bit. The last hugetlb_put_quota
+> then frees the hugetlbfs_sb_info struct.
 > 
-> I understand that it could be very hard to detect such situation
+> Discussion was titled:  Fix refcounting in hugetlbfs quota handling.
+> See:  https://lkml.org/lkml/2011/8/11/28
 
-Exactly. Server has no means to know when the situation is
-bad enough to start killing. IIRC now the rule is simple:
-OOM killing starts only when allocations fail.
+The changelog doesn't actually describe the race - it just asserts that
+there is one.  This makes it unnecessarily difficult to review the
+fix!  So I didn't really look at the code - I just scanned the trivial
+stuff.
 
-Perhaps it is possible to add "start OOM killing if less than N free
-pages are available", but this will be complex, and won't be good enough
-for some configs with many zones (thus, will require even more complications).
+The patch was somewhat wordwrapped - please fix the email client then
+resend.
 
--- 
-vda
+> +		if (hugetlb_get_quota(HUGETLBFS_SB(inode->i_mapping->host->i_sb), chg))
+> +			hugetlb_put_quota(HUGETLBFS_SB(inode->i_mapping->host->i_sb), chg);
+> +	set_page_private(page, (unsigned long)HUGETLBFS_SB(inode->i_mapping->host->i_sb));
+> +			hugetlb_put_quota(HUGETLBFS_SB(vma->vm_file->f_mapping->host->i_sb), reserve);
+> +	if (hugetlb_get_quota(HUGETLBFS_SB(inode->i_mapping->host->i_sb), chg))
+> +		hugetlb_put_quota(HUGETLBFS_SB(inode->i_mapping->host->i_sb), chg);
+> +	hugetlb_put_quota(HUGETLBFS_SB(inode->i_mapping->host->i_sb), (chg - freed));
+
+Are all the inode->i_mapping->host pointer hops actually necessary?  I
+didn't see anything about them in the changelog and I'd expect that
+inode->i_mapping->host is always equal to `inode' for hugetlbfs?
+
+If they _are_ necessary then I'd suggest that the code could be cleaned
+up by adding
+
+static struct hugetlbfs_sb_info *inode_to_sb(struct inode *inode)
+{
+	return HUGETLBFS_SB(inode->i_mapping->host->i_sb);
+}
+
+to hugetlbfs.c.  This will reduce the relatively large number of
+checkpatch warnings which were added.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
