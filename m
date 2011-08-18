@@ -1,241 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C34E900138
-	for <linux-mm@kvack.org>; Thu, 18 Aug 2011 08:58:00 -0400 (EDT)
-Date: Thu, 18 Aug 2011 14:57:54 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: [PATCH v3] memcg: add nr_pages argument for hierarchical reclaim
-Message-ID: <20110818125754.GA14015@tiehlicka.suse.cz>
-References: <20110809190933.d965888b.kamezawa.hiroyu@jp.fujitsu.com>
- <20110810141425.GC15007@tiehlicka.suse.cz>
- <20110811085252.b29081f1.kamezawa.hiroyu@jp.fujitsu.com>
- <20110811145055.GN8023@tiehlicka.suse.cz>
- <20110817095405.ee3dcd74.kamezawa.hiroyu@jp.fujitsu.com>
- <20110817113550.GA7482@tiehlicka.suse.cz>
- <20110818085233.69dbf23b.kamezawa.hiroyu@jp.fujitsu.com>
- <20110818062722.GB23056@tiehlicka.suse.cz>
- <20110818154259.6b4adf09.kamezawa.hiroyu@jp.fujitsu.com>
- <20110818074602.GD23056@tiehlicka.suse.cz>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id B45466B0171
+	for <linux-mm@kvack.org>; Thu, 18 Aug 2011 09:13:49 -0400 (EDT)
+Date: Thu, 18 Aug 2011 21:13:43 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH] writeback: Per-block device
+ bdi->dirty_writeback_interval and bdi->dirty_expire_interval.
+Message-ID: <20110818131343.GA17473@localhost>
+References: <CAFPAmTSrh4r71eQqW-+_nS2KFK2S2RQvYBEpa3QnNkZBy8ncbw@mail.gmail.com>
+ <20110818094824.GA25752@localhost>
+ <1313669702.6607.24.camel@sauron>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110818074602.GD23056@tiehlicka.suse.cz>
+In-Reply-To: <1313669702.6607.24.camel@sauron>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
+To: Artem Bityutskiy <dedekind1@gmail.com>
+Cc: Kautuk Consul <consul.kautuk@gmail.com>, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>
 
-I have just realized that num_online_nodes should be much better than
-MAX_NUMNODES. 
-Just for reference, the patch is based on top of
-https://lkml.org/lkml/2011/8/9/82 (it doesn't depend on it but it also
-doesn't make much sense without it)
+Hi Artem,
 
-Changes since v2:
-- use num_online_nodes rather than MAX_NUMNODES
-Changes since v1:
-- reclaim nr_nodes * SWAP_CLUSTER_MAX in mem_cgroup_force_empty
----
-From: Michal Hocko <mhocko@suse.cz>
-Subject: memcg: add nr_pages argument for hierarchical reclaim
+> Here is a real use-case we had when developing the N900 phone. We had
+> internal flash and external microSD slot. Internal flash is soldered in
+> and cannot be removed by the user. MicroSD, in contrast, can be removed
+> by the user.
+> 
+> For the internal flash we wanted long intervals and relaxed limits to
+> gain better performance.
+> 
+> For MicroSD we wanted very short intervals and tough limits to make sure
+> that if the user suddenly removes his microSD (users do this all the
+> time) - we do not lose data.
 
-Now that we are doing memcg direct reclaim limited to nr_to_reclaim
-pages (introduced by "memcg: stop vmscan when enough done.") we have to
-be more careful. Currently we are using SWAP_CLUSTER_MAX which is OK for
-most callers but it might cause failures for limit resize or force_empty
-code paths on big NUMA machines.
+Thinking twice about it, I find that the different requirements for
+interval flash/external microSD can also be solved by this scheme.
 
-Previously we might have reclaimed up to nr_nodes * SWAP_CLUSTER_MAX
-while now we have it at SWAP_CLUSTER_MAX. Both resize and force_empty rely
-on reclaiming a certain amount of pages and retrying if their condition is
-still not met.
+Introduce a per-bdi dirty_background_time (and optionally dirty_time)
+as the counterpart of (and works in parallel to) global dirty[_background]_ratio,
+however with unit "milliseconds worth of data".
 
-Let's add nr_pages argument to mem_cgroup_hierarchical_reclaim which will
-push it further to try_to_free_mem_cgroup_pages. We still fall back to
-SWAP_CLUSTER_MAX for small requests so the standard code (hot) paths are not
-affected by this.
+The per-bdi dirty_background_time will be set low for external microSD
+and high for internal flash. Then you get timely writeouts for microSD
+and reasonably delayed writes for internal flash (controllable by the
+global dirty_expire_centisecs).
 
-We have to be careful in mem_cgroup_do_charge and do not provide the
-given nr_pages because we would reclaim too much for THP which can
-safely fall back to single page allocations.
+The dirty_background_time will actually work more reliable than
+dirty_expire_centisecs because it will checked immediately after the
+application dirties more pages. And the dirty_time could provide
+strong data integrity guarantee -- much stronger than
+dirty_expire_centisecs -- if used.
 
-mem_cgroup_force_empty could try to reclaim all pages at once but it is much
-better to limit the nr_pages to something reasonable so that we are able to
-terminate it by a signal. Let's mimic previous behavior by asking for
-num_online_nodes * SWAP_CLUSTER_MAX.
+Does that sound reasonable?
 
-Signed-off-by: Michal Hocko <mhocko@suse.cz>
-Index: linus_tree/include/linux/memcontrol.h
-===================================================================
---- linus_tree.orig/include/linux/memcontrol.h	2011-08-18 09:30:24.000000000 +0200
-+++ linus_tree/include/linux/memcontrol.h	2011-08-18 09:30:36.000000000 +0200
-@@ -130,7 +130,8 @@ extern void mem_cgroup_print_oom_info(st
- 
- extern unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem,
- 						  gfp_t gfp_mask, bool noswap,
--						  struct memcg_scanrecord *rec);
-+						  struct memcg_scanrecord *rec,
-+						  unsigned long nr_pages);
- extern unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *mem,
- 						gfp_t gfp_mask, bool noswap,
- 						struct zone *zone,
-Index: linus_tree/mm/memcontrol.c
-===================================================================
---- linus_tree.orig/mm/memcontrol.c	2011-08-18 09:30:34.000000000 +0200
-+++ linus_tree/mm/memcontrol.c	2011-08-18 14:50:26.000000000 +0200
-@@ -1729,12 +1729,15 @@ static void mem_cgroup_record_scanstat(s
-  * (other groups can be removed while we're walking....)
-  *
-  * If shrink==true, for avoiding to free too much, this returns immedieately.
-+ * Given nr_pages tells how many pages are we over the soft limit or how many
-+ * pages do we want to reclaim in the direct reclaim mode.
-  */
- static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
- 						struct zone *zone,
- 						gfp_t gfp_mask,
- 						unsigned long reclaim_options,
--						unsigned long *total_scanned)
-+						unsigned long *total_scanned,
-+						unsigned long nr_pages)
- {
- 	struct mem_cgroup *victim;
- 	int ret, total = 0;
-@@ -1743,11 +1746,8 @@ static int mem_cgroup_hierarchical_recla
- 	bool shrink = reclaim_options & MEM_CGROUP_RECLAIM_SHRINK;
- 	bool check_soft = reclaim_options & MEM_CGROUP_RECLAIM_SOFT;
- 	struct memcg_scanrecord rec;
--	unsigned long excess;
- 	unsigned long scanned;
- 
--	excess = res_counter_soft_limit_excess(&root_mem->res) >> PAGE_SHIFT;
--
- 	/* If memsw_is_minimum==1, swap-out is of-no-use. */
- 	if (!check_soft && !shrink && root_mem->memsw_is_minimum)
- 		noswap = true;
-@@ -1785,11 +1785,11 @@ static int mem_cgroup_hierarchical_recla
- 				}
- 				/*
- 				 * We want to do more targeted reclaim.
--				 * excess >> 2 is not to excessive so as to
-+				 * nr_pages >> 2 is not to excessive so as to
- 				 * reclaim too much, nor too less that we keep
- 				 * coming back to reclaim from this cgroup
- 				 */
--				if (total >= (excess >> 2) ||
-+				if (total >= (nr_pages >> 2) ||
- 					(loop > MEM_CGROUP_MAX_RECLAIM_LOOPS)) {
- 					css_put(&victim->css);
- 					break;
-@@ -1816,7 +1816,7 @@ static int mem_cgroup_hierarchical_recla
- 			*total_scanned += scanned;
- 		} else
- 			ret = try_to_free_mem_cgroup_pages(victim, gfp_mask,
--						noswap, &rec);
-+						noswap, &rec, nr_pages);
- 		mem_cgroup_record_scanstat(&rec);
- 		css_put(&victim->css);
- 		/*
-@@ -2331,8 +2331,14 @@ static int mem_cgroup_do_charge(struct m
- 	if (!(gfp_mask & __GFP_WAIT))
- 		return CHARGE_WOULDBLOCK;
- 
-+	/*
-+	 * We are lying about nr_pages because we do not want to
-+	 * reclaim too much for THP pages which should rather fallback
-+	 * to small pages.
-+	 */
- 	ret = mem_cgroup_hierarchical_reclaim(mem_over_limit, NULL,
--					      gfp_mask, flags, NULL);
-+					      gfp_mask, flags, NULL,
-+					      1);
- 	if (mem_cgroup_margin(mem_over_limit) >= nr_pages)
- 		return CHARGE_RETRY;
- 	/*
-@@ -3567,7 +3573,8 @@ static int mem_cgroup_resize_limit(struc
- 
- 		mem_cgroup_hierarchical_reclaim(memcg, NULL, GFP_KERNEL,
- 						MEM_CGROUP_RECLAIM_SHRINK,
--						NULL);
-+						NULL,
-+						(val-memlimit) >> PAGE_SHIFT);
- 		curusage = res_counter_read_u64(&memcg->res, RES_USAGE);
- 		/* Usage is reduced ? */
-   		if (curusage >= oldusage)
-@@ -3628,7 +3635,8 @@ static int mem_cgroup_resize_memsw_limit
- 		mem_cgroup_hierarchical_reclaim(memcg, NULL, GFP_KERNEL,
- 						MEM_CGROUP_RECLAIM_NOSWAP |
- 						MEM_CGROUP_RECLAIM_SHRINK,
--						NULL);
-+						NULL,
-+						(val-memswlimit) >> PAGE_SHIFT);
- 		curusage = res_counter_read_u64(&memcg->memsw, RES_USAGE);
- 		/* Usage is reduced ? */
- 		if (curusage >= oldusage)
-@@ -3671,10 +3679,12 @@ unsigned long mem_cgroup_soft_limit_recl
- 			break;
- 
- 		nr_scanned = 0;
-+		excess = res_counter_soft_limit_excess(&mz->mem->res);
- 		reclaimed = mem_cgroup_hierarchical_reclaim(mz->mem, zone,
- 						gfp_mask,
- 						MEM_CGROUP_RECLAIM_SOFT,
--						&nr_scanned);
-+						&nr_scanned,
-+						excess >> PAGE_SHIFT);
- 		nr_reclaimed += reclaimed;
- 		*total_scanned += nr_scanned;
- 		spin_lock(&mctz->lock);
-@@ -3861,6 +3871,7 @@ try_to_free:
- 	shrink = 1;
- 	while (nr_retries && mem->res.usage > 0) {
- 		struct memcg_scanrecord rec;
-+		unsigned long nr_to_reclaim;
- 		int progress;
- 
- 		if (signal_pending(current)) {
-@@ -3870,8 +3881,10 @@ try_to_free:
- 		rec.context = SCAN_BY_SHRINK;
- 		rec.mem = mem;
- 		rec.root = mem;
-+		/* reclaim from every node at least something */
-+		nr_to_reclaim = num_online_nodes() * SWAP_CLUSTER_MAX;
- 		progress = try_to_free_mem_cgroup_pages(mem, GFP_KERNEL,
--						false, &rec);
-+						false, &rec, nr_to_reclaim);
- 		if (!progress) {
- 			nr_retries--;
- 			/* maybe some writeback is necessary */
-Index: linus_tree/mm/vmscan.c
-===================================================================
---- linus_tree.orig/mm/vmscan.c	2011-08-18 09:30:24.000000000 +0200
-+++ linus_tree/mm/vmscan.c	2011-08-18 09:30:36.000000000 +0200
-@@ -2340,7 +2340,8 @@ unsigned long mem_cgroup_shrink_node_zon
- unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem_cont,
- 					   gfp_t gfp_mask,
- 					   bool noswap,
--					   struct memcg_scanrecord *rec)
-+					   struct memcg_scanrecord *rec,
-+					   unsigned long nr_pages)
- {
- 	struct zonelist *zonelist;
- 	unsigned long nr_reclaimed;
-@@ -2350,7 +2351,7 @@ unsigned long try_to_free_mem_cgroup_pag
- 		.may_writepage = !laptop_mode,
- 		.may_unmap = 1,
- 		.may_swap = !noswap,
--		.nr_to_reclaim = SWAP_CLUSTER_MAX,
-+		.nr_to_reclaim = max_t(unsigned long, nr_pages, SWAP_CLUSTER_MAX),
- 		.order = 0,
- 		.mem_cgroup = mem_cont,
- 		.memcg_record = rec,
-
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
