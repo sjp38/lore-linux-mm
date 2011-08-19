@@ -1,104 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta12.messagelabs.com (mail6.bemta12.messagelabs.com [216.82.250.247])
-	by kanga.kvack.org (Postfix) with ESMTP id 43C8F6B0169
-	for <linux-mm@kvack.org>; Fri, 19 Aug 2011 17:51:28 -0400 (EDT)
-Date: Fri, 19 Aug 2011 14:51:09 -0700
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 2436A6B0169
+	for <linux-mm@kvack.org>; Fri, 19 Aug 2011 18:52:53 -0400 (EDT)
+Date: Fri, 19 Aug 2011 15:52:38 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2 1/1] hugepages: Fix race between hugetlbfs umount and
- quota update.
-Message-Id: <20110819145109.dcd5dac6.akpm@linux-foundation.org>
-In-Reply-To: <4E4EB603.8090305@cray.com>
-References: <4E4EB603.8090305@cray.com>
+Subject: Re: [PATCH v2] avoid null pointer access in vm_struct
+Message-Id: <20110819155238.b11d19fb.akpm@linux-foundation.org>
+In-Reply-To: <20110819105133.7504.62129.stgit@ltc219.sdl.hitachi.co.jp>
+References: <20110819105133.7504.62129.stgit@ltc219.sdl.hitachi.co.jp>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Barry <abarry@cray.com>
-Cc: linux-mm <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, David Gibson <david@gibson.dropbear.id.au>, Hugh Dickins <hughd@google.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Hastings <abh@cray.com>
+To: Mitsuo Hayasaka <mitsuo.hayasaka.hu@hitachi.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, yrl.pp-manager.tt@hitachi.com, Namhyung Kim <namhyung@gmail.com>, David Rientjes <rientjes@google.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Jeremy Fitzhardinge <jeremy.fitzhardinge@citrix.com>
 
-On Fri, 19 Aug 2011 14:14:11 -0500
-Andrew Barry <abarry@cray.com> wrote:
+On Fri, 19 Aug 2011 19:51:33 +0900
+Mitsuo Hayasaka <mitsuo.hayasaka.hu@hitachi.com> wrote:
 
-> This patch fixes a use-after-free problem in free_huge_page, with a quota update
-> happening after hugetlbfs umount. The problem results when a device driver,
-> which has mapped a hugepage, does a put_page. Put_page, calls free_huge_page,
-> which does a hugetlb_put_quota. As written, hugetlb_put_quota takes an
-> address_space struct pointer "mapping" as an argument. If the put_page occurs
-> after the hugetlbfs filesystem is unmounted, mapping points to freed memory.
-
-OK.  This sounds screwed up.  If a device driver is currently using a
-page from a hugetlbfs file then the unmount shouldn't have succeeded in
-the first place!
-
-Or is it the case that the device driver got a reference to the page by
-other means, bypassing hugetlbfs?  And there's undesirable/incorrect
-interaction between the non-hugetlbfs operation and hugetlbfs?
-
-Or something else?
-
-<starts reading the mailing list>
-
-OK, important missing information from the above is that the driver got
-at this page via get_user_pages() and happened to stumble across a
-hugetlbfs page.  So it's indeed an incorrect interaction between a
-non-hugetlbfs operation and hugetlbfs.
-
-What's different about hugetlbfs?  Why don't other filesystems hit this?
-
-<investigates further>
-
-OK so the incorrect interaction happened in free_huge_page(), which is
-called via the compound page destructor (this dtor is "what's different
-about hugetlbfs").   What is incorrect about this is
-
-a) that we're doing fs operations in response to a
-   get_user_pages()/put_page() operation which has *nothing* to do with
-   filesystems!
-
-b) that we continue to try to do that fs operation against an fs
-   which was unmounted and freed three days ago. duh.
-
-
-So I hereby pronounce that
-
-a) It was wrong to manipulate hugetlbfs quotas within
-   free_huge_page().  Because free_huge_page() is a low-level
-   page-management function which shouldn't know about one of its
-   specific clients (in this case, hugetlbfs).
-
-   In fact it's wrong for there to be *any* mention of hugetlbfs
-   within hugetlb.c.
-
-b) I shouldn't have merged that hugetlbfs quota code.  whodidthat. 
-   Mel, Adam, Dave, at least...
-
-c) The proper fix here is to get that hugetlbfs quota code out of
-   free_huge_page() and do it all where it belongs: within hugetlbfs
-   code.
-
-
-Regular filesystems don't need to diddle quota counts within
-page_cache_release().  Why should hugetlbfs need to?
-
->
-> ...
->
-> +		/*Free only if used quota is zero. */
-
-Missing a space there.
-
-> --- a/include/linux/hugetlb.h
-> +++ b/include/linux/hugetlb.h
-> @@ -142,11 +142,16 @@ struct hugetlbfs_config {
->  	struct hstate *hstate;
->  };
+> The /proc/vmallocinfo shows information about vmalloc allocations in vmlist
+> that is a linklist of vm_struct. It, however, may access pages field of
+> vm_struct where a page was not allocated, which results in a null pointer
+> access and leads to a kernel panic.
 > 
-> +#define HPAGE_INACTIVE  0
-> +#define HPAGE_ACTIVE    1
+> Why this happen:
+> In __vmalloc_area_node(), the nr_pages field of vm_struct are set to the
+> expected number of pages to be allocated, before the actual pages
+> allocations. At the same time, when the /proc/vmallocinfo is read, it
+> accesses the pages field of vm_struct according to the nr_pages field at
+> show_numa_info(). Thus, a null pointer access happens.
+> 
+> Patch:
+> This patch sets nr_pages field of vm_struct AFTER the pages allocations
+> finished in __vmalloc_area_node(). So, it can avoid accessing the pages
+> field with unallocated page when show_numa_info() is called.
 
-The above need documenting, please.  That documentation would perhaps
-help me understand why we need both an "active" flag *and* a refcount.
+I think this is still just a workaround to fix up the real bug, and
+that the real bug is that the vm_struct is installed into the vmlist
+*before* it is fully initialised.  It's just wrong to insert an object
+into a globally-visible list and to then start populating it!  If we
+were instead to fully initialise the vm_struct and *then* insert it
+into vmlist, the bug is fixed.
+
+Also I'd agree with Paul's concern regarding cross-CPU memory ordering.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
