@@ -1,80 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id BD13C6B0169
-	for <linux-mm@kvack.org>; Fri, 19 Aug 2011 05:53:49 -0400 (EDT)
-Received: by qyk7 with SMTP id 7so1323100qyk.14
-        for <linux-mm@kvack.org>; Fri, 19 Aug 2011 02:53:45 -0700 (PDT)
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 00EA66B0169
+	for <linux-mm@kvack.org>; Fri, 19 Aug 2011 06:46:45 -0400 (EDT)
+From: Mitsuo Hayasaka <mitsuo.hayasaka.hu@hitachi.com>
+Subject: [PATCH v2] avoid null pointer access in vm_struct
+Date: Fri, 19 Aug 2011 19:51:33 +0900
+Message-ID: <20110819105133.7504.62129.stgit@ltc219.sdl.hitachi.co.jp>
 MIME-Version: 1.0
-In-Reply-To: <1312891671-28680-1-git-send-email-per.forlin@linaro.org>
-References: <1312891671-28680-1-git-send-email-per.forlin@linaro.org>
-Date: Fri, 19 Aug 2011 11:53:44 +0200
-Message-ID: <CAJ0pr1-8Jnk1CKakWcS6T4Q3bAe7sF=5p8+9ou1+SbxsZM_Svw@mail.gmail.com>
-Subject: Re: [PATCH --mmotm v8 0/3] Make fault injection available for MMC IO
-From: Per Forlin <per.forlin@linaro.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Akinobu Mita <akinobu.mita@gmail.com>, akpm@linux-foundation.org, Linus Walleij <linus.ml.walleij@gmail.com>, linux-kernel@vger.kernel.org, Chris Ball <cjb@laptop.org>
-Cc: linux-mmc@vger.kernel.org, linaro-dev@lists.linaro.org, linux-mm@kvack.org, Per Forlin <per.forlin@linaro.org>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, yrl.pp-manager.tt@hitachi.com, Mitsuo Hayasaka <mitsuo.hayasaka.hu@hitachi.com>, Andrew Morton <akpm@linux-foundation.org>, Namhyung Kim <namhyung@gmail.com>, David Rientjes <rientjes@google.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Jeremy Fitzhardinge <jeremy.fitzhardinge@citrix.com>
 
-Hi Chris,
+The /proc/vmallocinfo shows information about vmalloc allocations in vmlist
+that is a linklist of vm_struct. It, however, may access pages field of
+vm_struct where a page was not allocated, which results in a null pointer
+access and leads to a kernel panic.
 
-It's no longer necessary to merge this through the mm-tree since
-Akinobu's patch "fault-injection: add ability to export fault_attr in
-arbitrary directory" is in mainline.
-Chris, would you mind merging the fault-injection patches in this
-patchset to mmc-next once the mmc part of this patchset is acked and
-accepted?
+Why this happen:
+In __vmalloc_area_node(), the nr_pages field of vm_struct are set to the
+expected number of pages to be allocated, before the actual pages
+allocations. At the same time, when the /proc/vmallocinfo is read, it
+accesses the pages field of vm_struct according to the nr_pages field at
+show_numa_info(). Thus, a null pointer access happens.
 
-Regards,
-Per
+Patch:
+This patch sets nr_pages field of vm_struct AFTER the pages allocations
+finished in __vmalloc_area_node(). So, it can avoid accessing the pages
+field with unallocated page when show_numa_info() is called.
 
-On 9 August 2011 14:07, Per Forlin <per.forlin@linaro.org> wrote:
-> change log:
-> =A0v2 - Resolve build issue in mmc core.c due to multiple init_module by
-> =A0 =A0 =A0removing the fault inject module.
-> =A0 =A0- Export fault injection functions to make them available for modu=
-les
-> =A0 =A0- Update fault injection documentation on MMC IO
-> =A0v3 - add function descriptions in core.c
-> =A0 =A0- use export GPL for fault injection functions
-> =A0v4 - make the fault_attr per host. This prepares for upcoming patch fr=
-om
-> =A0 =A0 =A0Akinobu that adds support for creating debugfs entries in
-> =A0 =A0 =A0arbitrary directory.
-> =A0v5 - Make use of fault_create_debugfs_attr() in Akinobu's
-> =A0 =A0 =A0patch "fault-injection: add ability to export fault_attr in...=
-".
-> =A0v6 - Fix typo in commit message in patch "export fault injection funct=
-ions"
-> =A0v7 - Don't compile in boot param setup function if mmc-core is
-> =A0 =A0 =A0built as module.
-> =A0v8 - Update fault injection documentation.
-> =A0 =A0 =A0Add fail_mmc_request to boot option section.
->
-> Per Forlin (3):
-> =A0fault-inject: export fault injection functions
-> =A0mmc: core: add random fault injection
-> =A0fault injection: add documentation on MMC IO fault injection
->
-> =A0Documentation/fault-injection/fault-injection.txt | =A0 =A08 +++-
-> =A0drivers/mmc/core/core.c =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0 | =A0 44 +++++++++++++++++++++
-> =A0drivers/mmc/core/debugfs.c =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
- =A0| =A0 27 +++++++++++++
-> =A0include/linux/mmc/host.h =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0| =A0 =A07 +++
-> =A0lib/Kconfig.debug =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0 =A0 | =A0 11 +++++
-> =A0lib/fault-inject.c =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
- =A0 =A0 =A0| =A0 =A02 +
-> =A06 files changed, 98 insertions(+), 1 deletions(-)
->
-> --
-> 1.7.4.1
->
->
+Signed-off-by: Mitsuo Hayasaka <mitsuo.hayasaka.hu@hitachi.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Namhyung Kim <namhyung@gmail.com>
+Cc: David Rientjes <rientjes@google.com>
+Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Cc: Jeremy Fitzhardinge <jeremy.fitzhardinge@citrix.com>
+---
+
+ mm/vmalloc.c |   10 +++++-----
+ 1 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index 7ef0903..49d8aed 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -1529,7 +1529,6 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
+ 	nr_pages = (area->size - PAGE_SIZE) >> PAGE_SHIFT;
+ 	array_size = (nr_pages * sizeof(struct page *));
+ 
+-	area->nr_pages = nr_pages;
+ 	/* Please note that the recursion is strictly bounded. */
+ 	if (array_size > PAGE_SIZE) {
+ 		pages = __vmalloc_node(array_size, 1, nested_gfp|__GFP_HIGHMEM,
+@@ -1538,15 +1537,15 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
+ 	} else {
+ 		pages = kmalloc_node(array_size, nested_gfp, node);
+ 	}
+-	area->pages = pages;
+-	area->caller = caller;
+-	if (!area->pages) {
++	if (!pages) {
+ 		remove_vm_area(area->addr);
+ 		kfree(area);
+ 		return NULL;
+ 	}
++	area->pages = pages;
++	area->caller = caller;
+ 
+-	for (i = 0; i < area->nr_pages; i++) {
++	for (i = 0; i < nr_pages; i++) {
+ 		struct page *page;
+ 		gfp_t tmp_mask = gfp_mask | __GFP_NOWARN;
+ 
+@@ -1562,6 +1561,7 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
+ 		}
+ 		area->pages[i] = page;
+ 	}
++	area->nr_pages = nr_pages;
+ 
+ 	if (map_vm_area(area, prot, &pages))
+ 		goto fail;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
