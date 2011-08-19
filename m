@@ -1,178 +1,259 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 24C756B0169
-	for <linux-mm@kvack.org>; Fri, 19 Aug 2011 15:01:05 -0400 (EDT)
-Date: Fri, 19 Aug 2011 15:00:37 -0400
-From: Vivek Goyal <vgoyal@redhat.com>
-Subject: Re: [PATCH 5/5] writeback: IO-less balance_dirty_pages()
-Message-ID: <20110819190037.GJ18656@redhat.com>
-References: <20110816022006.348714319@intel.com>
- <20110816022329.190706384@intel.com>
- <20110819020637.GA13597@redhat.com>
- <20110819025406.GA13365@localhost>
+Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
+	by kanga.kvack.org (Postfix) with ESMTP id E59836B0169
+	for <linux-mm@kvack.org>; Fri, 19 Aug 2011 15:14:43 -0400 (EDT)
+Message-ID: <4E4EB603.8090305@cray.com>
+Date: Fri, 19 Aug 2011 14:14:11 -0500
+From: Andrew Barry <abarry@cray.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110819025406.GA13365@localhost>
+Subject: [PATCH v2 1/1] hugepages: Fix race between hugetlbfs umount and quota
+ update.
+Content-Type: text/plain; charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Andrea Righi <arighi@develer.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: linux-mm <linux-mm@kvack.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, David Gibson <david@gibson.dropbear.id.au>, Hugh Dickins <hughd@google.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Hastings <abh@cray.com>
 
-On Fri, Aug 19, 2011 at 10:54:06AM +0800, Wu Fengguang wrote:
-> Hi Vivek,
-> 
-> > > +		base_rate = bdi->dirty_ratelimit;
-> > > +		pos_ratio = bdi_position_ratio(bdi, dirty_thresh,
-> > > +					       background_thresh, nr_dirty,
-> > > +					       bdi_thresh, bdi_dirty);
-> > > +		if (unlikely(pos_ratio == 0)) {
-> > > +			pause = MAX_PAUSE;
-> > > +			goto pause;
-> > >  		}
-> > > +		task_ratelimit = (u64)base_rate *
-> > > +					pos_ratio >> RATELIMIT_CALC_SHIFT;
-> > 
-> > Hi Fenguaang,
-> > 
-> > I am little confused here. I see that you have already taken pos_ratio
-> > into account in bdi_update_dirty_ratelimit() and wondering why to take
-> > that into account again in balance_diry_pages().
-> > 
-> > We calculated the pos_rate and balanced_rate and adjusted the
-> > bdi->dirty_ratelimit accordingly in bdi_update_dirty_ratelimit().
-> 
-> Good question. There are some inter-dependencies in the calculation,
-> and the dependency chain is the opposite to the one in your mind:
-> balance_dirty_pages() used pos_ratio in the first place, so that
-> bdi_update_dirty_ratelimit() have to use pos_ratio in the calculation
-> of the balanced dirty rate, too.
-> 
-> Let's return to how the balanced dirty rate is estimated. Please pay
-> special attention to the last paragraphs below the "......" line.
-> 
-> Start by throttling each dd task at rate
-> 
->         task_ratelimit = task_ratelimit_0                               (1)
->                          (any non-zero initial value is OK)
-> 
-> After 200ms, we measured
-> 
->         dirty_rate = # of pages dirtied by all dd's / 200ms
->         write_bw   = # of pages written to the disk / 200ms
-> 
-> For the aggressive dd dirtiers, the equality holds
-> 
->         dirty_rate == N * task_rate
->                    == N * task_ratelimit
->                    == N * task_ratelimit_0                              (2)
-> Or     
->         task_ratelimit_0 = dirty_rate / N                               (3)
-> 
-> Now we conclude that the balanced task ratelimit can be estimated by
-> 
->         balanced_rate = task_ratelimit_0 * (write_bw / dirty_rate)      (4)
-> 
-> Because with (2) and (3), (4) yields the desired equality (1):
-> 
->         balanced_rate == (dirty_rate / N) * (write_bw / dirty_rate)
->                       == write_bw / N
+This patch fixes a use-after-free problem in free_huge_page, with a quota update
+happening after hugetlbfs umount. The problem results when a device driver,
+which has mapped a hugepage, does a put_page. Put_page, calls free_huge_page,
+which does a hugetlb_put_quota. As written, hugetlb_put_quota takes an
+address_space struct pointer "mapping" as an argument. If the put_page occurs
+after the hugetlbfs filesystem is unmounted, mapping points to freed memory.
 
-Hi Fengguang,
+Hugetlb_put_quota doesn't need the address_space pointer, it only uses it to
+find the quota-record. Rather than an address-space struct pointer, this patched
+code puts a hugetlbfs_sb_info struct pointer into page_private of the page
+struct. In order to prevent the quota record from being freed at unmount, a
+reference count and an active bit are added to the hugetlbfs_sb_info struct; the
+reference count is increased by hugetlb_get_quota and decreased by
+hugetlb_put_quota. When hugetlbfs is unmounted, it frees the hugetlbfs_sb_info
+struct, but only if the reference count is zero. If the reference count is not
+zero, it clears the active bit, and the last hugetlb_put_quota then frees the
+hugetlbfs_sb_info struct.
 
-Following is my understanding. Please correct me where I got it wrong.
+Discussion was titled:  Fix refcounting in hugetlbfs quota handling.
+See:  https://lkml.org/lkml/2011/8/11/28
+See also: http://marc.info/?l=linux-mm&m=126928970510627&w=1
 
-Ok, I think I follow till this point. I think what you are saying is
-that following is our goal in a stable system.
+Version 2: Adding better description of how the race happens, removing
+unnecessary inode->i_mapping->host->i_sb indirection when inode->i_sb has the
+same meaning.
 
-	task_ratelimit = write_bw/N				(6)
+Signed-off-by: Andrew Barry <abarry@cray.com>
+Cc: David Gibson <david@gibson.dropbear.id.au>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Mel Gorman <mgorman@suse.de>
+Cc: Minchan Kim <minchan.kim@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
 
-So we measure the write_bw of a bdi over a period of time and use that
-as feedback loop to modify bdi->dirty_ratelimit which inturn modifies
-task_ratelimit and hence we achieve the balance. So we will start with
-some arbitrary task limit say task_ratelimit_0, and modify that limit
-over a period of time based on our feedback loop to achieve a balanced
-system. And following seems to be the formula.
-					    write_bw
-	task_ratelimit = task_ratelimit_0 * ------- 		(7)
-					    dirty_rate
+---
 
-Now I also understand that by using (2) and (3), you proved that
-how (7) will lead to (6) and that is our deisred goal. 
 
-> 
-> .............................................................................
-> 
-> Now let's revisit (1). Since balance_dirty_pages() chooses to execute
-> the ratelimit
-> 
->         task_ratelimit = task_ratelimit_0
->                        = dirty_ratelimit * pos_ratio                    (5)
-> 
+ fs/hugetlbfs/inode.c    |   40 ++++++++++++++++++++++++++--------------
+ include/linux/hugetlb.h |    9 +++++++--
+ mm/hugetlb.c            |   23 ++++++++++++-----------
+ 3 files changed, 45 insertions(+), 27 deletions(-)
 
-So balance_drity_pages() chose to take into account pos_ratio() also
-because for various reason like just taking into account only bandwidth
-variation as feedback was not sufficient. So we also took pos_ratio
-into account which in-trun is dependent on gloabal dirty pages and per
-bdi dirty_pages/rate.
 
-So we refined the formula for calculating a tasks's effective rate
-over a period of time to following.
-					    write_bw
-	task_ratelimit = task_ratelimit_0 * ------- * pos_ratio		(9)
-					    dirty_rate
 
-Is my understanding right so far?
+diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
+index 87b6e04..2ed1cca 100644
+--- a/fs/hugetlbfs/inode.c
++++ b/fs/hugetlbfs/inode.c
+@@ -615,8 +615,12 @@ static void hugetlbfs_put_super(struct s
+ 	struct hugetlbfs_sb_info *sbi = HUGETLBFS_SB(sb);
 
-> Put (5) into (4), we get the final form used in
-> bdi_update_dirty_ratelimit()
-> 
->         balanced_rate = (dirty_ratelimit * pos_ratio) * (write_bw / dirty_rate)
-> 
-> So you really need to take (dirty_ratelimit * pos_ratio) as a single entity.
+ 	if (sbi) {
++		sbi->active = HPAGE_INACTIVE;
+ 		sb->s_fs_info = NULL;
+-		kfree(sbi);
++
++		/*Free only if used quota is zero. */
++		if (sbi->used_blocks == 0)
++			kfree(sbi);
+ 	}
+ }
 
-Now few questions.
+@@ -851,6 +855,8 @@ hugetlbfs_fill_super(struct super_block
+ 	sbinfo->free_blocks = config.nr_blocks;
+ 	sbinfo->max_inodes = config.nr_inodes;
+ 	sbinfo->free_inodes = config.nr_inodes;
++	sbinfo->used_blocks = 0;
++	sbinfo->active = HPAGE_ACTIVE;
+ 	sb->s_maxbytes = MAX_LFS_FILESIZE;
+ 	sb->s_blocksize = huge_page_size(config.hstate);
+ 	sb->s_blocksize_bits = huge_page_shift(config.hstate);
+@@ -874,30 +880,36 @@ out_free:
+ 	return -ENOMEM;
+ }
 
-- What is dirty_ratelimit in formula above?
+-int hugetlb_get_quota(struct address_space *mapping, long delta)
++int hugetlb_get_quota(struct hugetlbfs_sb_info *sbinfo, long delta)
+ {
+ 	int ret = 0;
+-	struct hugetlbfs_sb_info *sbinfo = HUGETLBFS_SB(mapping->host->i_sb);
 
-- Is it wrong to understand the issue in following manner.
+-	if (sbinfo->free_blocks > -1) {
+-		spin_lock(&sbinfo->stat_lock);
+-		if (sbinfo->free_blocks - delta >= 0)
++	spin_lock(&sbinfo->stat_lock);
++	if ((sbinfo->free_blocks == -1) || (sbinfo->free_blocks - delta >= 0)) {
++		if (sbinfo->free_blocks != -1)
+ 			sbinfo->free_blocks -= delta;
+-		else
+-			ret = -ENOMEM;
+-		spin_unlock(&sbinfo->stat_lock);
++		sbinfo->used_blocks += delta;
++		sbinfo->active = HPAGE_ACTIVE;
++	} else {
++		ret = -ENOMEM;
+ 	}
++	spin_unlock(&sbinfo->stat_lock);
 
-  bdi->dirty_ratelimit is tracking write bandwidth variation on the bdi
-  and effectively tracks write_bw/N.
+ 	return ret;
+ }
 
-  bdi->dirty_ratelimit = write_bw/N
+-void hugetlb_put_quota(struct address_space *mapping, long delta)
++void hugetlb_put_quota(struct hugetlbfs_sb_info *sbinfo, long delta)
+ {
+-	struct hugetlbfs_sb_info *sbinfo = HUGETLBFS_SB(mapping->host->i_sb);
+-
+-	if (sbinfo->free_blocks > -1) {
+-		spin_lock(&sbinfo->stat_lock);
++	spin_lock(&sbinfo->stat_lock);
++	if (sbinfo->free_blocks > -1)
+ 		sbinfo->free_blocks += delta;
++	sbinfo->used_blocks -= delta;
++	/* If hugetlbfs_put_super couldn't free sbinfo due to
++	* an outstanding quota reference, free it now. */
++	if ((sbinfo->used_blocks == 0) && (sbinfo->active == HPAGE_INACTIVE)) {
++		spin_unlock(&sbinfo->stat_lock);
++		kfree(sbinfo);
++	} else {
+ 		spin_unlock(&sbinfo->stat_lock);
+ 	}
+ }
+diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+index 19644e0..8780a91 100644
+--- a/include/linux/hugetlb.h
++++ b/include/linux/hugetlb.h
+@@ -142,11 +142,16 @@ struct hugetlbfs_config {
+ 	struct hstate *hstate;
+ };
 
-  or 
++#define HPAGE_INACTIVE  0
++#define HPAGE_ACTIVE    1
++
+ struct hugetlbfs_sb_info {
+ 	long	max_blocks;   /* blocks allowed */
+ 	long	free_blocks;  /* blocks free */
+ 	long	max_inodes;   /* inodes allowed */
+ 	long	free_inodes;  /* inodes free */
++	long	used_blocks;  /* blocks used */
++	long	active;		  /* active bit */
+ 	spinlock_t	stat_lock;
+ 	struct hstate *hstate;
+ };
+@@ -171,8 +176,8 @@ extern const struct file_operations huge
+ extern const struct vm_operations_struct hugetlb_vm_ops;
+ struct file *hugetlb_file_setup(const char *name, size_t size, vm_flags_t acct,
+ 				struct user_struct **user, int creat_flags);
+-int hugetlb_get_quota(struct address_space *mapping, long delta);
+-void hugetlb_put_quota(struct address_space *mapping, long delta);
++int hugetlb_get_quota(struct hugetlbfs_sb_info *sbinfo, long delta);
++void hugetlb_put_quota(struct hugetlbfs_sb_info *sbinfo, long delta);
 
-					    		  write_bw
-  bdi->dirty_ratelimit = previous_bdi->dirty_ratelimit * -------------    (10)
-					     		  dirty_rate
+ static inline int is_file_hugepages(struct file *file)
+ {
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index dae27ba..0f39cde 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -533,9 +533,9 @@ static void free_huge_page(struct page *
+ 	 */
+ 	struct hstate *h = page_hstate(page);
+ 	int nid = page_to_nid(page);
+-	struct address_space *mapping;
++	struct hugetlbfs_sb_info *sbinfo;
 
- Hence a tasks's balanced rate from (9) and (10) is.
+-	mapping = (struct address_space *) page_private(page);
++	sbinfo = ( struct hugetlbfs_sb_info *) page_private(page);
+ 	set_page_private(page, 0);
+ 	page->mapping = NULL;
+ 	BUG_ON(page_count(page));
+@@ -551,8 +551,8 @@ static void free_huge_page(struct page *
+ 		enqueue_huge_page(h, page);
+ 	}
+ 	spin_unlock(&hugetlb_lock);
+-	if (mapping)
+-		hugetlb_put_quota(mapping, 1);
++	if (sbinfo)
++		hugetlb_put_quota(sbinfo, 1);
+ }
 
- task_ratelimit = bdi->dirty_ratelimit * pos_ratio		(11)
+ static void prep_new_huge_page(struct hstate *h, struct page *page, int nid)
+@@ -1035,7 +1035,7 @@ static struct page *alloc_huge_page(stru
+ 	if (chg < 0)
+ 		return ERR_PTR(-VM_FAULT_OOM);
+ 	if (chg)
+-		if (hugetlb_get_quota(inode->i_mapping, chg))
++		if (hugetlb_get_quota(HUGETLBFS_SB(inode->i_sb), chg))
+ 			return ERR_PTR(-VM_FAULT_SIGBUS);
 
-So my understanding about (10) and (11) is wrong? if no, then question
-comes that bdi->dirty_ratelimit is supposed to be keeping track of 
-write bandwidth variations only. And in turn task ratelimit will be
-driven by both bandwidth varation as well as pos_ratio variation.
+ 	spin_lock(&hugetlb_lock);
+@@ -1045,12 +1045,12 @@ static struct page *alloc_huge_page(stru
+ 	if (!page) {
+ 		page = alloc_buddy_huge_page(h, NUMA_NO_NODE);
+ 		if (!page) {
+-			hugetlb_put_quota(inode->i_mapping, chg);
++			hugetlb_put_quota(HUGETLBFS_SB(inode->i_sb), chg);
+ 			return ERR_PTR(-VM_FAULT_SIGBUS);
+ 		}
+ 	}
 
-But you seem to be doing following.
+-	set_page_private(page, (unsigned long) mapping);
++	set_page_private(page, (unsigned long) HUGETLBFS_SB(inode->i_sb));
 
- bdi->dirty_ratelimit = adjust based on a cobination of bandwidth feedback
-		        and pos_ratio feedback. 
+ 	vma_commit_reservation(h, vma, addr);
 
- task_ratelimit = bdi->dirty_ratelimit * pos_ratio		(12)
+@@ -2086,7 +2086,8 @@ static void hugetlb_vm_op_close(struct v
 
-So my question is that when task_ratelimit is finally being adjusted 
-based on pos_ratio feedback, why bdi->dirty_ratelimit also needs to
-take that into account.
+ 		if (reserve) {
+ 			hugetlb_acct_memory(h, -reserve);
+-			hugetlb_put_quota(vma->vm_file->f_mapping, reserve);
++			hugetlb_put_quota(HUGETLBFS_SB(
++				vma->vm_file->f_mapping->host->i_sb), reserve);
+ 		}
+ 	}
+ }
+@@ -2884,7 +2885,7 @@ int hugetlb_reserve_pages(struct inode *
+ 		return chg;
 
-I know you have tried explaining it, but sorry, I did not get it. May
-be give it another shot in a layman's terms and I might understand it.
+ 	/* There must be enough filesystem quota for the mapping */
+-	if (hugetlb_get_quota(inode->i_mapping, chg))
++	if (hugetlb_get_quota(HUGETLBFS_SB(inode->i_sb), chg))
+ 		return -ENOSPC;
 
-Thanks
-Vivek
+ 	/*
+@@ -2893,7 +2894,7 @@ int hugetlb_reserve_pages(struct inode *
+ 	 */
+ 	ret = hugetlb_acct_memory(h, chg);
+ 	if (ret < 0) {
+-		hugetlb_put_quota(inode->i_mapping, chg);
++		hugetlb_put_quota(HUGETLBFS_SB(inode->i_sb), chg);
+ 		return ret;
+ 	}
+
+@@ -2922,7 +2923,7 @@ void hugetlb_unreserve_pages(struct inod
+ 	inode->i_blocks -= (blocks_per_huge_page(h) * freed);
+ 	spin_unlock(&inode->i_lock);
+
+-	hugetlb_put_quota(inode->i_mapping, (chg - freed));
++	hugetlb_put_quota(HUGETLBFS_SB(inode->i_sb), (chg - freed));
+ 	hugetlb_acct_memory(h, -(chg - freed));
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
