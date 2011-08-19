@@ -1,97 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail6.bemta7.messagelabs.com (mail6.bemta7.messagelabs.com [216.82.255.55])
-	by kanga.kvack.org (Postfix) with ESMTP id DA9D26B0169
-	for <linux-mm@kvack.org>; Fri, 19 Aug 2011 10:02:39 -0400 (EDT)
-Received: from d06nrmr1806.portsmouth.uk.ibm.com (d06nrmr1806.portsmouth.uk.ibm.com [9.149.39.193])
-	by mtagate3.uk.ibm.com (8.13.1/8.13.1) with ESMTP id p7JE2Zub021062
-	for <linux-mm@kvack.org>; Fri, 19 Aug 2011 14:02:35 GMT
-Received: from d06av09.portsmouth.uk.ibm.com (d06av09.portsmouth.uk.ibm.com [9.149.37.250])
-	by d06nrmr1806.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p7JE2Z9B2498776
-	for <linux-mm@kvack.org>; Fri, 19 Aug 2011 15:02:35 +0100
-Received: from d06av09.portsmouth.uk.ibm.com (loopback [127.0.0.1])
-	by d06av09.portsmouth.uk.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p7JE2YUW017024
-	for <linux-mm@kvack.org>; Fri, 19 Aug 2011 08:02:35 -0600
-Subject: Re: [patch v3 2/8] kdump: Make kimage_load_crash_segment() weak
-From: Michael Holzheu <holzheu@linux.vnet.ibm.com>
-Reply-To: holzheu@linux.vnet.ibm.com
-In-Reply-To: <20110819134836.GB18656@redhat.com>
-References: <20110812134849.748973593@linux.vnet.ibm.com>
-	 <20110812134907.166585439@linux.vnet.ibm.com>
-	 <20110818171541.GC15413@redhat.com> <1313760472.3858.26.camel@br98xy6r>
-	 <20110819134836.GB18656@redhat.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Fri, 19 Aug 2011 16:02:34 +0200
-Message-ID: <1313762554.3858.37.camel@br98xy6r>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail6.bemta8.messagelabs.com (mail6.bemta8.messagelabs.com [216.82.243.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 502B16B0169
+	for <linux-mm@kvack.org>; Fri, 19 Aug 2011 10:24:38 -0400 (EDT)
+Date: Fri, 19 Aug 2011 22:24:33 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH] writeback: Per-block device
+ bdi->dirty_writeback_interval and bdi->dirty_expire_interval.
+Message-ID: <20110819142433.GA15401@localhost>
+References: <CAFPAmTSrh4r71eQqW-+_nS2KFK2S2RQvYBEpa3QnNkZBy8ncbw@mail.gmail.com>
+ <20110818094824.GA25752@localhost>
+ <1313669702.6607.24.camel@sauron>
+ <20110818131343.GA17473@localhost>
+ <CAFPAmTShNRykOEbUfRan_2uAAbBoRHE0RhOh4DrbWKq7a4-Z9Q@mail.gmail.com>
+ <20110819023406.GA12732@localhost>
+ <CAFPAmTSzYg5n150_ykv-Vvc4QVbz14Oxn_Mm+EqxzbUL3c39tg@mail.gmail.com>
+ <20110819052839.GB28266@localhost>
+ <20110819060803.GA7887@localhost>
+ <CAFPAmTQU_rHwFi8KRdTU6BjMFhvq0HKNfufQ762i1KQEHVPk8g@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAFPAmTQU_rHwFi8KRdTU6BjMFhvq0HKNfufQ762i1KQEHVPk8g@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vivek Goyal <vgoyal@redhat.com>
-Cc: ebiederm@xmission.com, mahesh@linux.vnet.ibm.com, hbabu@us.ibm.com, oomichi@mxs.nes.nec.co.jp, horms@verge.net.au, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, linux-s390@vger.kernel.org, linux-mm@kvack.org
+To: Kautuk Consul <consul.kautuk@gmail.com>
+Cc: Artem Bityutskiy <dedekind1@gmail.com>, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>
 
-Hello Vivek,
+Hi Kautuk,
 
-On Fri, 2011-08-19 at 09:48 -0400, Vivek Goyal wrote:
-
-[snip]
-
-> > > Michael,
-> > > 
-> > > Thinking more about it. Can't we provide a arch specific version of
-> > > kmap() and kunmap() so that we create temporary mappings to copy
-> > > the pages and then these are torn off.
-> > 
-> > Isn't kmap/kunmap() used for higmem? These functions are called from
-> > many different functions in the Linux kernel, not only for kdump. I
-> > would assume that creating and removing mappings with these functions is
-> > not what a caller would expect and probably would break the Linux kernel
-> > at many other places, no?
+On Fri, Aug 19, 2011 at 03:00:30PM +0800, Kautuk Consul wrote:
+> Hi Wu,
 > 
-> [CCing linux-mm]
+> Yes. I think I do understand your approach.
 > 
-> Yes it is being used for highmem pages. If arch has not defined kmap()
-> then generic definition is just returning page_address(page), expecting
-> that page will be mapped.
+> Your aim is to always retain the per BDI timeout value.
 > 
-> I was wondering that what will be broken if arch decides to extend this
-> to create temporary mappings for pages which are not HIGHMEM but do
-> not have any mapping. (Like this special case of s390).
+> You want to check for threshholds by mathematically adjusting the
+> background time too
+> into your over_bground_thresh() formula so that your understanding
+> holds true always and also
+> affects the page dirtying scenario I mentioned.
+> This definitely helps and refines this scenario in terms of flushing
+> out of the dirty pages.
 
-At least we have significant additional overhead for all the other
-places where kmap/kunmap is called.
+Thanks.
 
-> I guess memory management guys can give a better answer here. As a layman,
-> kmap() seems to be the way to get a kernel mapping for any page frame
-> and if one is not already there, then arch might create one on the fly,
-> like we do for HIGHMEM pages. So the question is can be extend this
-> to also cover pages which are not highmem but do not have any mappings
-> on s390.
-> 
-> > 
-> > Perhaps we can finish this discussion after my vacation. I will change
-> > my patch series that we even do not need this patch...
-> 
-> So how are you planning to get rid of this patch without modifying kmap(),
-> kunmap() implementation for s390?
+> Doubts:
+> i)   Your entire implementation seems to be dependent on someone
+> calling balance_dirty_pages()
+>      directly or indirectly. This function will call the
+> bdi_start_background_writeback() which wakes
+>      up the flusher thread.
+>      What about those page dirtying code paths which might not call
+> balance_dirty_pages ?
+>      Those paths then depend on the BDI thread periodically writing it
+> to disk and then we are again
+>      dependent on the writeback interval.
+>      Can we assume that the kernel will reliably call
+> balance_dirty_pages() whenever the pages
+>      are dirtied ? If that was true, then we would not need bdi
+> periodic writeback threads ever.
 
-I will update my patch series that we do not remove page tables for
-crashkernel memory. So everything will be as on other architectures.
+Yes. The kernel need a way to limit the total number of dirty pages at
+any given time and to keep them under dirty_ratio/dirty_bytes.
 
-I hope that we can find a good solution after my vacation. Perhaps then
-I have enough energy again :-)
+balance_dirty_pages() is such a central place to throttle the dirty
+pages. Whatever code path generating dirty pages are required to call
+into balance_dirty_pages_ratelimited_nr() which will in turn call
+balance_dirty_pages().
 
-> > So only two common code patches are remaining. I will send the common
-> > code patches again and will ask Andrew Morton to integrate them in the
-> > next merge window.The s390 patches will be integrated by Martin.
-> 
-> I am fine with merge of other 2 common patches. Once you repost the
-> series, I will ack those.
+So, the values specified by dirty_ratio/dirty_bytes will be executed
+effectively by balance_dirty_pages(). In contrast, the values
+specified by dirty_expire_centisecs is merely a parameter used by
+wb_writeback() to select the eligible inodes to do writeout. The 30s
+dirty expire time is never a guarantee that all inodes/pages dirtied
+before 30s will be timely written to disk. It's better interpreted in
+the opposite way: when under the dirty_background_ratio threshold and
+hence background writeout does not kick in, dirty inodes younger than
+30s won't be written to disk by the flusher.
 
-Great! I will resend the patches and contact Andrew Morton.
+> ii)  Even after your rigorous checking, the bdi_writeback_thread()
+> will still do a schedule_timeout()
+>      with the global value. Will your current solution then handle
+> Artem's disk removal scenario ?
+>      Else, you start using your value in the schedule_timeout() call
+> in the bdi_writeback_thread()
+>      function, which brings us back to the interval phenomenon I was
+> talking about.
 
-Thanks!
+wb_writeback() will keep running as long as over_bground_thresh().
 
-Michael
+The flusher will keep writing as long as there are more works, since
+there is a
+
+                if (!list_empty(&bdi->work_list))
+                        continue;
+
+before the schedule_timeout() call.
+
+And the flusher thread will always be woke up timely from
+balance_dirty_pages().
+
+So schedule_timeout() won't block in the way at all.
+
+> Does this patch really help the user control exact time when the write
+> BIO is transferred from the
+> MM to the Block layer assuming balance_dirty_pages() is not called ?
+
+It would be a serious bug if balance_dirty_pages() is somehow not
+called. But note that balance_dirty_pages() is designed to be called
+on every N pages to reduce overheads.
+
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
