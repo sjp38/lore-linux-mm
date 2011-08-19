@@ -1,57 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 984BD6B0169
-	for <linux-mm@kvack.org>; Fri, 19 Aug 2011 17:19:47 -0400 (EDT)
-Message-ID: <4E4ED366.1090104@genband.com>
-Date: Fri, 19 Aug 2011 15:19:34 -0600
-From: Chris Friesen <chris.friesen@genband.com>
-MIME-Version: 1.0
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 61F896B0169
+	for <linux-mm@kvack.org>; Fri, 19 Aug 2011 17:39:46 -0400 (EDT)
+Date: Fri, 19 Aug 2011 22:38:10 +0100
+From: Alan Cox <alan@lxorguk.ukuu.org.uk>
 Subject: Re: running of out memory => kernel crash
-References: <1312872786.70934.YahooMailNeo@web111712.mail.gq1.yahoo.com> <CAK1hOcN7q=F=UV=aCAsVOYO=Ex34X0tbwLHv9BkYkA=ik7G13w@mail.gmail.com> <1313075625.50520.YahooMailNeo@web111715.mail.gq1.yahoo.com> <201108111938.25836.vda.linux@googlemail.com> <CAG1a4rsO7JDqmYiwyxPrAHdLNbJt+wqymSzU9i1dv5w5C2OFog@mail.gmail.com> <CAK1hOcM5u-zB7fUnR5QVJGBrEnLMhK9Q+EmWBknThga70UQaLw@mail.gmail.com> <CAG1a4rus+VVhhB3ayuDF2pCQDusLekGOAxf33+u_uzxC1yz1MA@mail.gmail.com> <CAF_S4t--+Ufkb2bVrt9e59R=yty5U5Cb=Kt5RbjPjraM_equog@mail.gmail.com>
-In-Reply-To: <CAF_S4t--+Ufkb2bVrt9e59R=yty5U5Cb=Kt5RbjPjraM_equog@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Message-ID: <20110819223810.0f02016e@lxorguk.ukuu.org.uk>
+In-Reply-To: <4E4ED366.1090104@genband.com>
+References: <1312872786.70934.YahooMailNeo@web111712.mail.gq1.yahoo.com>
+	<CAK1hOcN7q=F=UV=aCAsVOYO=Ex34X0tbwLHv9BkYkA=ik7G13w@mail.gmail.com>
+	<1313075625.50520.YahooMailNeo@web111715.mail.gq1.yahoo.com>
+	<201108111938.25836.vda.linux@googlemail.com>
+	<CAG1a4rsO7JDqmYiwyxPrAHdLNbJt+wqymSzU9i1dv5w5C2OFog@mail.gmail.com>
+	<CAK1hOcM5u-zB7fUnR5QVJGBrEnLMhK9Q+EmWBknThga70UQaLw@mail.gmail.com>
+	<CAG1a4rus+VVhhB3ayuDF2pCQDusLekGOAxf33+u_uzxC1yz1MA@mail.gmail.com>
+	<CAF_S4t--+Ufkb2bVrt9e59R=yty5U5Cb=Kt5RbjPjraM_equog@mail.gmail.com>
+	<4E4ED366.1090104@genband.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bryan Donlan <bdonlan@gmail.com>
-Cc: Pavel Ivanov <paivanof@gmail.com>, Denys Vlasenko <vda.linux@googlemail.com>, Mahmood Naderan <nt_mahmood@yahoo.com>, David Rientjes <rientjes@google.com>, Randy Dunlap <rdunlap@xenotime.net>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Chris Friesen <chris.friesen@genband.com>
+Cc: Bryan Donlan <bdonlan@gmail.com>, Pavel Ivanov <paivanof@gmail.com>, Denys Vlasenko <vda.linux@googlemail.com>, Mahmood Naderan <nt_mahmood@yahoo.com>, David Rientjes <rientjes@google.com>, Randy Dunlap <rdunlap@xenotime.net>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On 08/19/2011 01:29 PM, Bryan Donlan wrote:
-> On Thu, Aug 18, 2011 at 10:26, Pavel Ivanov<paivanof@gmail.com>  wrote:
+> Indeed.  From the point of view of the OS, it's running everything on 
+> the system without a problem.  It's deep into swap, but it's running.
 
->> Could you elaborate on this? We have a completely unusable server
->> which can be revived only by hard power cycling (administrators won't
->> be able to log in because sshd and shell will fall victims of the same
->> unending disk reading). And as an alternative we can kill some process
->> and at least allow administrator to log in and check if something else
->> can be done to make server feel better. Why is it worse?
->>
->> I understand that it could be very hard to detect such situation but
->> at least it's worth trying I think.
->
-> Deciding when to call the server unusable is a policy decision that
-> the kernel can't make very easily on its own; the point when the
-> system is considered unusable may be different depending on workload.
-> You could create a userspace daemon, however, that mlockall()s, then
-> monitors memory usage, load average, etc and kills processes when
-> things start to go south. You could also use the memory resource
-> cgroup controller to set hard limits on memory usage.
+Watchdogs can help here
 
-Indeed.  From the point of view of the OS, it's running everything on 
-the system without a problem.  It's deep into swap, but it's running.
+> If there are application requirements on grade-of-service, it's up to 
+> the application to check whether those are being met and if not to do 
+> something about it.
 
-If there are application requirements on grade-of-service, it's up to 
-the application to check whether those are being met and if not to do 
-something about it.
+Or it can request such a level of service from the kernel using the
+various memory control interfaces provided but not enabled by
+distributors in default configurations.
 
-Chris
+In particular you can tell the kernel to stop the system hitting the
+point where it runs near to out of memory + swap and begins to thrash
+horribly. For many workloads you will need a lot of pretty much excess
+swap, but disk is cheap. It's like banking, you can either pretend it's
+safe in which case you do impressions of the US banking system now and
+then and the government has to reboot it, or you can do traditional
+banking models where you have a reserve which is sufficient to cover the
+worst case of making progress. Our zero overcommit isn't specifically
+aimed at the page rate problem but is sufficiently related it usually
+does the trick.
 
--- 
-Chris Friesen
-Software Developer
-GENBAND
-chris.friesen@genband.com
-www.genband.com
+http://opsmonkey.blogspot.com/2007/01/linux-memory-overcommit.html
+
+I would btw disagree strongly that this is a 'sorry we can't help'
+situation. Back when memory was scarce and systems habitually ran at high
+memory loads 4.2 and 4.3BSD coped just fine with very high fault rates
+that make modern systems curl up and die. That was entirely down to
+having good paging and swap policies linked to scheduling behaviour so
+they always made progress. Your latency went through the roof but work
+got done which meant that if it was transient load the system would feel
+like treacle then perk up again where these days it seems the fashion of
+most OS's to just explode messily.
+
+In particular they did two things
+- Actively tried to swap out all the bits of entire process victims to
+  make space to do work under very high load
+- When a process was pulled in it got time to run before it as opposed
+  to someone else got dumped out
+
+That has two good effects. Firstly the system could write out the process
+data very efficiently and get it back likewise. Secondly the system ended
+up in a kick one out, do work in the space we have to breath, stop, kick
+next out, do work, and in most cases had little CPU contention so could
+make good progress in each burst, albeit with the high latency cost.
+
+Alan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
